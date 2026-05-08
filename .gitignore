@@ -1,0 +1,29 @@
+# Build outputs
+build/
+*.kicad_pro-bak
+*.kicad_sch-bak
+*-backups/
+fp-info-cache
+*.lck
+
+# atopile
+.ato/
+.venv/
+__pycache__/
+
+# Firmware
+.pio/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+.idea/
+
+# Manufacturing outputs (regenerate from sources)
+*.gerber/
+*.zip
