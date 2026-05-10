@@ -12,6 +12,18 @@ This repo's scope is the 100 downlight fixtures: solar-powered, mesh-networked, 
 
 **Two-year framing matters for the electronics spec.** The 100 downlights are durable infrastructure, not a 2026-only throwaway build. The chandelier at the top of the tree is a separate solar-shading testbed for the 2027 expansion's larger lighting loads — it does not gate the downlight feature set.
 
+## 2026 architecture correction — risk-reduction policy
+
+The electronics architecture now explicitly separates project goals from implementation accidents:
+
+- **OTA:** standard ESP32 WiFi OTA only. Firmware images are not distributed through an ESP-NOW gossip protocol. ESP-NOW can advertise small maintenance/version metadata, but USB/pogo flashing remains the guaranteed recovery path.
+- **MCU/RF:** use a pre-certified Espressif module or COTS board with integrated RF/antenna. Do not design custom RF. The exact module is selected for RF robustness, sourceability, and firmware headroom, not minimum size or minimum cost.
+- **Hardware production:** run a COTS deployable prototype / fallback track in parallel with custom PCBA. A stack of factory-assembled COTS boards, pre-crimped cables, screws, standoffs, and keyed connectors is acceptable if it avoids skilled per-unit work.
+- **Battery/charger:** LiFePO4 remains the preferred production chemistry, but the charger path should start from a proven LiFePO4-capable solar reference such as bq25185-class designs. CN3058 is fallback, not default.
+- **LED power:** the LED rail must be switchable and default-off so a hung MCU cannot leave addressable LEDs on until the battery is depleted.
+
+These corrections supersede earlier spec language that over-committed to ESP32-C3-MINI-1, CN3058-first custom charger design, no dev-board architectures, direct-always-on LED power, and mesh-gossiped OTA.
+
 ## Team
 
 The wider Resonance project team:
@@ -116,7 +128,7 @@ Going fully wireless — no data lines, no fixed wiring topology — opens creat
 - **Time/state programs.** Different rule sets per night (e.g. one CA Monday, another Tuesday), pushed OTA the day before.
 - **Solar-aware grace.** Lanterns with low battery contribute less to the show, fade to lower brightness, drop out gracefully — turning a power-budget reality into a visible "the tree is breathing" effect rather than a failure.
 
-**Firmware architecture implication.** To leave all of this on the table without painting into a corner, the firmware: (a) stores position / neighbor-list / per-fixture brightness calibration in flash; (b) treats the rendering loop as a function of (local state + neighbor states + time + global mode), rather than hardcoding any one mode; (c) keeps the global "mode" pushable over OTA so new behaviors can be deployed remotely without reflashing. Build for the framework first, then the modes.
+**Firmware architecture implication.** To leave all of this on the table without painting into a corner, the firmware: (a) stores position / neighbor-list / per-fixture brightness calibration in flash; (b) treats the rendering loop as a function of (local state + neighbor states + time + global mode), rather than hardcoding any one mode; (c) keeps the global "mode" pushable through a normal control/config path, while firmware updates use standard ESP32 OTA maintenance mode rather than a custom mesh firmware transport. Build for the framework first, then the modes.
 
 ## Lessons from the 2018 Talisman v2 build (Ben + Steve's prior collaboration)
 
@@ -124,7 +136,7 @@ Ben and Steve have built ESP32-plus-WS2812B-plus-LoRa-mesh wearable pendants bef
 
 **Hardware platform used (★).** The "Brain v2.0" was a TTGO T-Beam — ESP32 + SX1276 LoRa + NEO-6M GPS + 18650 holder + LiPo charge IC + USB. Steve has multiple in his workshop. **Excellent for prototyping the Resonance lighting** without any custom hardware: it already has battery + charge IC + USB integrated, so plug a small solar panel into the LiPo input pads and the entire solar charging path is validated end-to-end on existing hardware.
 
-**WS2812B-direct-from-battery confirmed working (★).** The 2018 wiring notes worked through the math (WS2812B threshold = 0.7 × Vcc; with 3.3 V GPIO and battery up to 4.2 V, threshold = 2.94 V, margin 360 mV) and verified on bench. For LiFePO4 the math is even friendlier (threshold 2.52 V, margin 780 mV). No level shifter needed.
+**WS2812B-direct-from-battery confirmed working (★).** The 2018 wiring notes worked through the math (WS2812B threshold = 0.7 × Vcc; with 3.3 V GPIO and battery up to 4.2 V, threshold = 2.94 V, margin 360 mV) and verified on bench. For LiFePO4 the math is even friendlier (threshold 2.52 V, margin 780 mV). No level shifter is expected to be required for the data line, but the production design still needs a switchable/default-off LED power rail so a hung MCU cannot leave pixels on indefinitely.
 
 **3.3V regulator limit (★, important).** The 2018 build explicitly rejected powering the LEDs from the ESP32's 3.3 V regulator output — the regulator caps at ~600 mA and the radio bursts can take 250 mA, leaving little margin for LEDs. For Resonance: same constraint applies. Power LEDs from the battery rail; only the MCU runs off the 3.3 V regulator.
 
