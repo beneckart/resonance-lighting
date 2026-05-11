@@ -130,6 +130,75 @@ Going fully wireless — no data lines, no fixed wiring topology — opens creat
 
 **Firmware architecture implication.** To leave all of this on the table without painting into a corner, the firmware: (a) stores position / neighbor-list / per-fixture brightness calibration in flash; (b) treats the rendering loop as a function of (local state + neighbor states + time + global mode), rather than hardcoding any one mode; (c) keeps the global "mode" pushable through a normal control/config path, while firmware updates use standard ESP32 OTA maintenance mode rather than a custom mesh firmware transport. Build for the framework first, then the modes.
 
+
+
+## Current COTS / PowerFeather R&D state (2026-05-10)
+
+The hardware strategy has shifted from custom-PCBA-first to a **dual COTS/custom track**. This is not a retreat from a custom board; it is a risk-control strategy. The project can now test real boards, real solar input, real batteries, real LED modules, and real hat geometry before deciding whether 2026 production needs a bespoke PCBA.
+
+### Leading COTS candidate: PowerFeather V2
+
+ESP32-S3 PowerFeather V2 is currently the strongest COTS candidate and the best reference architecture for a future bespoke board. Its documented V2 architecture is unusually aligned with Resonance Lighting:
+
+- ESP32-S3-WROOM-1 module with onboard PCB antenna.
+- BQ25628E charger / power-path IC.
+- LiFePO4 support in V2.
+- MAX17260 fuel gauge with LiFePO4 profile support.
+- TPS631013 buck-boost 3.3 V rail.
+- Switchable `VSQT` / STEMMA-QT rail.
+- Solar/DC input via `VDC`.
+- USB-C and Feather-compatible form factor.
+- Rich telemetry: voltage, current, battery temperature, SOC, charger state, faults, and estimated time-to-empty/full.
+
+Telemetry is not just a diagnostic convenience. It is valuable field data for BM 2027: actual playa sun exposure, solar-panel shading, dust effects, battery drain, thermal behavior, and realistic nightly load.
+
+Caveat: V2 docs are still preliminary. Ben ordered PowerFeather boards from Elecrow and contacted the PowerFeather creator about V2 availability and KiCad files. On arrival, boards must be identified as V1 or V2 before attaching LiFePO4.
+
+### PowerFeather V1 vs V2 schematic finding
+
+The V1 and V2 schematics show that both revisions use BQ25628E. The important V2 changes are the regulator and fuel-gauge subsystems:
+
+- V1: BQ25628E + LC709204F fuel gauge + XC6220 LDO. Good LiPo board; not a board-level LiFePO4 solution.
+- V2: BQ25628E + MAX17260 fuel gauge + 20 mΩ current sense + TPS631013 buck-boost. Suitable for LiFePO4 testing if hardware and firmware behave as documented.
+
+This is now the main reference architecture for the custom board, superseding the older CN3058/AP2112K/ESP32-C3-MINI direction.
+
+### LED module candidates
+
+Current LED candidates are split by interface:
+
+- **Adafruit IS31FL3741 13x9 RGB matrix** — primary no-solder PowerFeather companion. It uses STEMMA-QT/Qwiic I2C and can be powered from the switchable `VSQT` rail. It is multiplexed PWM, not NeoPixel, so gobo projection and current draw must be tested.
+- **M5Stack NeoHEX** — promising center-plus-rings optical geometry with 37 WS2812C LEDs. It uses M5Stack HY2.0/Grove physically but is not an I2C/STEMMA-QT device; it needs GPIO data and a suitable LED power rail.
+- **FeatherS2 Neo** — integrated ESP32-S2 + 5x5 RGB matrix + LiPo charging. Fastest optical prototype and LiPo fallback.
+- **M5Stack Atom Matrix** — tiny ESP32 + 5x5 WS2812C + USB-C module. Strong ultra-simple fallback when powered by DFRobot DFR0559.
+
+### Current prototype tracks
+
+1. **PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 13x9 matrix.** Primary design-aligned candidate.
+2. **PowerFeather V2 + LiFePO4 + solar panel + M5Stack NeoHEX.** Alternate LED geometry test; not STEMMA-QT plug-and-play.
+3. **FeatherS2 Neo + DFRobot DFR0559.** LiPo fallback. DFR0559 owns battery/solar; FeatherS2 Neo battery JST stays empty.
+4. **M5Stack Atom Matrix + DFRobot DFR0559.** Ultra-simple LiPo fallback.
+
+### Battery sourcing update
+
+LiFePO4 remains preferred, but cell format matters. 14430 LiFePO4 cells are common and cheap, usually around 400–450 mAh. Production should still prefer one larger cell per fixture — ideally 18650 LiFePO4 around 1500–2000 mAh — rather than parallel packs of many small 14430 cells. Multi-cell packs add contacts, matching, wiring, assembly, and QA risk.
+
+### Solar panel sourcing update
+
+Square/rectangular 1–5 W panels are now on order for R&D. Round/circular panels remain aesthetically appealing for production but are harder to source quickly. R&D should not wait for round panels. The hat should be designed so the panel mounting surface can adapt between rectangular R&D panels and possible circular production panels.
+
+### Near-term bench questions
+
+The next phase is measurement-driven:
+
+- Is the Elecrow board actually PowerFeather V2?
+- Does PowerFeather V2 charge and gauge LiFePO4 correctly?
+- What are real sleep currents with LED modules connected and rails off?
+- Which LED module gives the best gobo projection?
+- What solar harvest do the 1–5 W panels produce in sun, shade, and heat?
+- Does the PCB antenna still work inside the hat with panel, battery, wiring, and screws installed?
+- Can the firmware prevent stuck-on LEDs from draining the battery into an unrecoverable brownout loop?
+
 ## Lessons from the 2018 Talisman v2 build (Ben + Steve's prior collaboration)
 
 Ben and Steve have built ESP32-plus-WS2812B-plus-LoRa-mesh wearable pendants before — the *Talisman v2* project for Burning Man 2018. That project's Drive folder contains real measured data, real PCB-attempt experience, and real library choices that carry over directly to the Resonance downlights. Anything below marked with ★ is reusable.

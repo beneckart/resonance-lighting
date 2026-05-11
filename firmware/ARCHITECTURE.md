@@ -1,165 +1,190 @@
 # Firmware Architecture
 
-## Philosophy
-
-Firmware should be modular, testable, and boring where failures are catastrophic. Lighting behavior can be creative; firmware update transport should not be.
-
-Key rules:
-
-- ESP-NOW is for small lighting/control/status packets, not firmware image transport.
-- OTA uses standard ESP32 WiFi OTA with A/B partitions and rollback.
-- USB-C / pogo flashing is the guaranteed recovery path.
-- Firmware must run on multiple board targets: COTS prototypes and custom PCBA.
-- LED power rail control is a first-class safety feature.
+Firmware runs across COTS prototypes and the eventual production target. The architecture must support multiple board definitions, standard OTA maintenance updates, ESP-NOW state exchange, LED rail fail-safes, and telemetry logging.
 
 ## Layered structure
 
 ```
 firmware/
-├── core/             ← Platform-independent C++. Compiles native. Unit-tested.
-│   ├── ca/           Cellular automata engine. Pure logic.
-│   ├── packet/       ESP-NOW packet codec. Pure logic.
+├── core/             Platform-independent C++. Compiles native. Unit-tested.
+│   ├── ca/           Cellular automata engine.
+│   ├── packet/       ESP-NOW packet codec.
 │   ├── pattern/      LED animation generators.
-│   ├── state/        Per-fixture local-state representation.
-│   └── tests/        Native unit tests.
+│   ├── state/        Fixture state representation.
+│   └── tests/        Native tests.
 │
-├── esp32/            ← ESP32-specific glue. Builds against ESP-IDF or Arduino-ESP32.
-│   ├── tasks/        FreeRTOS task definitions.
-│   ├── drivers/      LED driver, ESP-NOW, ADC/fuel gauge, charger status, LED rail power.
-│   ├── boards/       Pin mappings for COTS and custom boards.
-│   └── main.cpp      board init, task creation, watchdog setup.
+├── esp32/            ESP32-specific glue.
+│   ├── boards/       Board definitions: powerfeather_v2, feathers2_neo, atom_matrix, resonance_custom.
+│   ├── drivers/      ESP-NOW, OTA, LED drivers, charger/fuel gauge, rail control.
+│   ├── tasks/        FreeRTOS tasks.
+│   └── main.cpp
 │
-└── tools/            ← Host-side utilities: smoke test, log parser, OTA host scripts.
+└── tools/            Host-side smoke test, log parser, telemetry tools.
 ```
 
-## Board targets
+## Board abstraction
 
-At minimum, support board-specific pin/config headers for:
+Each board definition should specify:
 
-- TTGO T-Beam / T-Ice bench fixtures where useful.
-- FeatherS2 Neo or equivalent 5x5 LED COTS prototype.
-- ESP32-S3 Feather / Unexpected Maker FeatherS3[D] or equivalent headroom prototype.
-- DFRobot FireBeetle C6/C5 or equivalent solar COTS prototype.
-- `resonance_v1` custom PCBA.
+- MCU type / build flags.
+- LED driver type: IS31FL3741 I2C, WS2812/NeoPixelBus, integrated matrix, or no LED.
+- LED/module rail control: `VSQT`, onboard LDO enable, external load switch, or always-on fallback.
+- Charger/fuel-gauge devices available.
+- Battery chemistry support.
+- Standard OTA support.
+- ESP-NOW radio settings.
+- Sleep capabilities.
 
-Each board definition must describe:
+Initial board targets:
 
-- MCU family and OTA partition assumptions.
-- LED data pin.
-- LED power-enable pin, if present.
-- Battery voltage / fuel-gauge path.
-- Solar / charge / fault sense pins, if present.
-- Boot/reset/flash behavior.
+- `powerfeather_v2` — ESP32-S3-WROOM, BQ25628E, MAX17260, TPS631013, switchable VSQT.
+- `feathers2_neo` — ESP32-S2 with integrated 5x5 matrix and LiPo charging.
+- `atom_matrix` — ESP32-PICO-D4 with integrated 5x5 WS2812C.
+- `resonance_custom` — future PowerFeather-derived custom board.
 
-## Task decomposition (FreeRTOS)
+## OTA policy
 
-```
-ESP-NOW receive callback
-        ↓ enqueue only; no heavy work
-mesh_rx_queue
-        ↓
-ca_tick_task / state_task      housekeeping_task
-        ↓                      ↓
-local_state                    battery, charger, watchdog, OTA, sleep
-        ↓
-led_render_task → LED rail guard → LED driver
+OTA must remain boring and standard.
 
-mesh_tx_task → heartbeat / neighbor state / wand events
-```
-
-### `led_render_task`
-
-- Highest priority.
-- Renders local state to the LED driver.
-- Never assumes LED rail is always powered.
-- Requests LED rail enable only after battery and fault checks pass.
-- Forces black/off frame before disabling LED rail where hardware allows.
-
-### `ca_tick_task`
-
-- Drains ESP-NOW packets from the queue.
-- Maintains neighbor table from RSSI / last-heard timestamps.
-- Computes local CA / animation state.
-- Does not block on I/O.
-
-### `mesh_tx_task`
-
-- Sends low-rate jittered state broadcasts.
-- Handles wand-presence events and small TTL control messages.
-- Does not send firmware chunks.
-- Uses sequence numbers and small fixed-size packets where possible.
-
-### `housekeeping_task`
-
-- Reads battery voltage / fuel gauge.
-- Reads charger status, solar-present, and faults where available.
-- Manages low-battery LED cutoff and shipping mode.
-- Feeds watchdog and records reset reason / brownout count.
-- Handles standard OTA maintenance mode.
+- Use normal ESP32 OTA partition/rollback mechanisms.
+- Enter OTA in a deliberate maintenance mode.
+- A laptop/Pi/local AP may host firmware.
+- USB/pogo flashing remains the recovery path.
+- ESP-NOW may advertise firmware version or maintenance availability.
+- ESP-NOW must **not** carry firmware image chunks.
+- No mesh-gossiped OTA image distribution.
 
 ## ESP-NOW policy
 
-ESP-NOW packet types are allowed for:
+ESP-NOW is for lightweight fixture state and control only:
 
-- fixture heartbeat and firmware version metadata;
-- local lighting state;
-- neighbor discovery / RSSI;
-- wand presence and TTL-limited interaction events;
-- simple maintenance-mode announcements.
+- heartbeat / boot announcement,
+- fixture state,
+- battery summary,
+- neighbor RSSI / last-heard,
+- global mode hints,
+- wand/proximity events,
+- optional maintenance-mode announcement.
 
-ESP-NOW packet types are not allowed for:
+Implementation notes:
 
-- firmware image chunks;
-- distributed OTA transport;
-- custom reliable file transfer;
-- anything whose failure can brick the swarm.
+- Add jitter to periodic sends.
+- Use sequence numbers.
+- Keep packets small and fixed-format where practical.
+- Treat RSSI as approximate topology signal, not exact distance.
+- Keep lighting functional even with partial packet loss.
 
-## OTA strategy
-
-- Use standard ESP32 OTA mechanisms only.
-- Use A/B partitions with validation and rollback.
-- Enter OTA through explicit maintenance mode.
-- A local laptop or Pi hosts the firmware image over ordinary WiFi.
-- Fixtures connect to a known local AP or controlled WiFi mode for update.
-- ESP-NOW may advertise “update available” or “maintenance mode,” but it never carries the image.
-- USB-C / pogo flashing remains the recovery path.
-
-## LED rail safety
-
-The LED rail must be treated as a power-controlled peripheral:
-
-- Hardware default is LED power OFF during reset/boot/unprogrammed states.
-- Firmware enables LED power only after boot, watchdog setup, and battery sanity check.
-- Firmware disables LED power on low battery, fault, shipping mode, or watchdog-recovery conditions.
-- A hung MCU with LEDs previously commanded on must not be able to drain the battery indefinitely if hardware watchdog/reset recovery is functioning.
-- Test cases must simulate stuck-on LEDs, watchdog reset, low-battery cutoff, and cold boot from depleted battery.
-
-## Boot sequence
+## Task decomposition
 
 ```
-setup():
-  1. Board definition selected at compile time.
-  2. Configure LED rail enable to safe OFF state immediately.
-  3. Initialize watchdog and reset-reason logging.
-  4. Initialize battery/charger telemetry.
-  5. If battery is below safe threshold, stay in low-power recovery mode.
-  6. Initialize LED driver with LEDs off.
-  7. Initialize WiFi STA mode and ESP-NOW for control packets.
-  8. Load NVS config: brightness limits, calibration, last mode.
-  9. Create FreeRTOS tasks.
- 10. Optionally enter OTA maintenance mode if requested.
+led_task
+  - render current local state to selected LED driver
+  - enforce brightness/current caps
+  - never block on network or file IO
+
+ca_tick_task
+  - drain mesh_rx_queue
+  - update neighbor table
+  - compute local state
+  - enqueue state updates
+
+mesh_rx_callback
+  - enqueue received packets only
+
+mesh_tx_task
+  - heartbeat/state broadcasts
+  - wand/control events
+  - low-rate telemetry summary if enabled
+
+power_task
+  - read battery/charger/fuel gauge
+  - manage LED/module rails
+  - low-battery state machine
+  - sleep/shipping mode transitions
+
+telemetry_task
+  - log power/solar/battery/RF/reset data
+  - expose smoke-test status
+  - throttle flash writes
+
+ota_task
+  - only runs in maintenance mode
+  - standard OTA update / rollback
 ```
 
-## Reusable from prior projects
+## LED drivers
 
-- `TalismanPatterns.cpp` can be ported into `core/pattern/`.
-- Prior compact packet patterns remain useful, but ESP-NOW framing means old sentinels are unnecessary.
-- Marquee OPC tools are useful as development harnesses for visual effects, not production protocol.
-- Prior datalog infrastructure is useful for battery/solar telemetry during burn week.
+### IS31FL3741 matrix
 
-## Build system
+- I2C LED matrix over STEMMA-QT.
+- Used by Adafruit 13x9 matrix.
+- Must support power cycling `VSQT`, reinitialization, and low-current modes.
+- Test for PWM/multiplex artifacts in gobo projection.
 
-- ESP32 target: PlatformIO or ESP-IDF with pinned toolchain versions.
-- Native unit tests: CMake + doctest/Catch2 for `firmware/core/`.
-- CI: build COTS board targets and custom target; run packet/CA tests.
-- Optional Wokwi simulation for ESP-NOW packet behavior, but not a substitute for real RF/enclosure testing.
+### WS2812 / NeoPixelBus
+
+- Used by NeoHEX, Atom Matrix, FeatherS2 Neo, and possible custom LED boards.
+- Use DMA-capable driver where supported.
+- Include brightness/current caps.
+- Include data-line safe state before powering rails off.
+
+## Power / telemetry subsystem
+
+Power telemetry is now a core firmware feature.
+
+For PowerFeather V2/custom PowerFeather-like boards, log:
+
+- battery voltage,
+- battery current,
+- SOC / remaining capacity,
+- battery temperature,
+- charger state,
+- solar/VDC input behavior,
+- charge current,
+- fault flags,
+- estimated time-to-empty/full,
+- LED rail state,
+- reset reason / brownout count.
+
+For simpler fallback boards, log whatever is available and measure externally during bench tests.
+
+## LED rail fail-safe
+
+The firmware must assume LEDs can be left on by a bad state if not actively managed.
+
+Required behavior:
+
+- External LED/module rails default off at boot if hardware allows.
+- Firmware enables LEDs only after boot sanity checks.
+- Low battery turns LED rails off before brownout loop.
+- Watchdog reset reinitializes LED rails safely.
+- Shipping mode turns external LED rails off.
+- LED rail off-state leakage is measured for each COTS stack.
+
+## Sleep policy
+
+Active-show mode may use light sleep or low-duty loops. Daytime/idle/shipping modes should use deeper sleep when possible.
+
+For each board, measure actual current rather than trusting nominal specs:
+
+- MCU-only sleep,
+- sleep with LED module attached and rail off,
+- sleep with charger/fuel gauge active,
+- sleep with solar input present,
+- wake latency and state restoration.
+
+## Smoke-test boot announcement
+
+Every fixture should report at boot:
+
+- MAC-derived fixture ID,
+- board type,
+- firmware version,
+- reset reason,
+- battery voltage/SOC if available,
+- charger/fault state if available,
+- LED module detected,
+- LED rail state,
+- mesh peer count after a short delay.
+
+This supports production QA and field debugging.

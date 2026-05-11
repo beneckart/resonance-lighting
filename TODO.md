@@ -2,88 +2,108 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
-## Immediate architecture corrections
+## Immediate documentation / repo hygiene
 
-- [ ] Add ADR 0010: standard OTA only; no mesh-gossiped firmware images (Ben).
-- [ ] Add ADR 0011: MCU module selection based on pre-certified RF and firmware headroom (Ben).
-- [ ] Add ADR 0012: dual-track COTS/custom production architecture (Ben + Steve).
-- [ ] Add ADR 0013: LED rail must be switchable/default-off; exact voltage rail chosen by test (Ben).
-- [ ] Add ADR 0014: bq25185-class LiFePO4 charger reference preferred; CN3058 fallback (Ben).
-- [ ] Mark ADRs 0001, 0003, 0004, 0006, 0008 as superseded by the new ADRs (Ben).
-- [ ] Update firmware architecture to remove ESP-NOW firmware gossip language (Ben).
+- [ ] Add `LOG_APPEND_2026-05-10.md` entry to `LOG.md` (Ben).
+- [ ] Add ADR 0015 — PowerFeather V2 as leading COTS/reference architecture (Ben).
+- [ ] Add ADR 0016 — COTS prototype shortlist after purchases (Ben).
+- [ ] Add ADR 0017 — Battery cell format and sourcing (Ben).
+- [ ] Add ADR 0018 — LED module/interface plan (Ben).
+- [ ] Add `docs/research/COTS_SURVEY_2026-05-10.md` (Ben).
+- [ ] Add `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md` (Ben).
+- [ ] Add `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md` (Ben).
 
-## COTS candidate purchasing / bench track
+## COTS purchasing / arrival
 
-- [ ] Buy/test Adafruit bq25185 USB/DC/Solar charger board or distributor equivalent (LiFePO4-capable) (Ben).
-- [ ] Buy/test Adafruit bq25185 3.3 V buck variant if available (Ben).
-- [ ] Buy/test Adafruit bq25185 5 V boost variant if useful for USB-style fallback (Ben).
-- [ ] Buy/test DFRobot Solar Power Manager 5V DFR0559 as LiPo fallback power module (Ben).
-- [ ] Buy/test FeatherS2 Neo or equivalent 5x5 LED board (Ben).
-- [ ] Buy/test ESP32-S3 Feather / Unexpected Maker FeatherS3[D] or equivalent high-headroom ESP32 board (Ben).
-- [ ] Buy/test FireBeetle C6/C5 solar board only as LiPo/COTS fallback unless chemistry can be changed safely (Ben).
-- [ ] Buy/test Adafruit 5x5 NeoPixel BFF as LED layout reference; do not rely on it as no-solder production part unless header/assembly problem solved (Ben).
-- [ ] Buy 1–3 W panels with connector/cable options suitable for the hat (Ben).
-- [ ] Buy LiFePO4 18650 sample cells and LiPo fallback cells; label chemistry clearly (Ben).
+- [x] Buy R&D candidate set: PowerFeather, FeatherS2 Neo, Atom Matrix, NeoHEX, Adafruit IS31FL3741 matrix, DFR0559, panels, battery samples (Ben).
+- [x] Contact PowerFeather creator re: V2 availability and KiCad files (Ben).
+- [ ] Follow up on PowerFeather forum thread if no reply within a few days (Ben).
+- [ ] Confirm whether Elecrow boards are V2 or V1 on arrival (Ben).
+- [ ] Confirm whether PowerFeather V2 KiCad/Gerbers can be shared or licensed (Ben).
+- [ ] Call/email BatterySpace if order confirmation is missing; verify 18650 LiFePO4 availability (Ben).
+- [ ] Buy alternate LiFePO4 18650/26650 sources if BatterySpace order fails (Ben).
 
-## COTS prototype validation
+## COTS bench testing
 
-- [ ] Build one LiFePO4 bq25185-based bench stack (Ben).
-- [ ] Build one LiPo fallback bench stack using DFRobot/Feather/FireBeetle ecosystem (Ben).
-- [ ] Measure sleep current, radio active current, center LED current, 3-LED mode current, and 25-LED burst current (Ben).
-- [ ] Test standard OTA over local WiFi on a COTS board; validate rollback or recovery behavior (Ben).
-- [ ] Test ESP-NOW heartbeat/state packets between two boards (Ben).
-- [ ] Test LED rail fail-safe: stuck-on LEDs, watchdog reset, low-battery cutoff, cold boot from low battery (Ben).
-- [ ] Test gobo projection with center LED, 3-LED RGB/fringing, and all-array animation modes (Ben + Steve).
-- [ ] Time-trial assembly of one COTS electronics stack into a mock hat (Ben + Steve).
+- [ ] Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix (Ben).
+- [ ] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + M5Stack NeoHEX with GPIO/suitable rail (Ben).
+- [ ] Build Track C: FeatherS2 Neo + DFRobot DFR0559; Feather battery JST left empty (Ben).
+- [ ] Build Track D: Atom Matrix + DFRobot DFR0559 (Ben).
+- [ ] Run incoming inspection and board-ID procedure from COTS test plan (Ben).
+- [ ] Measure sleep current for each stack (Ben).
+- [ ] Measure active/radio/ESP-NOW current for each stack (Ben).
+- [ ] Measure LED current for center-only, 3-pixel, 9-pixel/crop, and full-array capped modes (Ben).
+- [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben).
+- [ ] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks (Ben).
+- [ ] Test standard OTA maintenance mode on at least two COTS boards (Ben).
+- [ ] Test ESP-NOW heartbeat/state packets with jitter/sequence numbers (Ben).
+- [ ] Test LED fail-safe: stuck LEDs, MCU hang, watchdog reset, rail-off recovery (Ben).
+- [ ] Test gobo projection with IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix (Ben + Steve).
+- [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
+- [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
+
+## PowerFeather-specific tests
+
+- [ ] I2C-scan PowerFeather boards and identify BQ25628E / MAX17260 / TPS631013 vs V1 parts (Ben).
+- [ ] Configure LiFePO4 profile on confirmed V2 hardware only (Ben).
+- [ ] Verify BQ25628E charger telemetry: state, faults, input regulation, charge current (Ben).
+- [ ] Verify MAX17260 telemetry: voltage, current, temperature, SOC, time-to-empty/full (Ben).
+- [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
+- [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).
+- [ ] Test panel MPP/VINDPM settings for each panel (Ben).
+- [ ] Test thermistor / battery-temperature path if accessible (Ben).
+
+## Battery / solar sourcing
+
+- [ ] Compare 18650 LiFePO4 sample capacity against rated capacity (Ben).
+- [ ] Evaluate 26650 LiFePO4 only if 18650 sourcing or autonomy becomes a problem (Ben).
+- [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
+- [ ] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
+- [ ] Search for round/circular panels for production aesthetics, but do not block R&D on them (Ben).
+- [ ] Design hat top so R&D rectangular panels and production round panels can both be accommodated if needed (Steve).
 
 ## Custom hardware track
 
-- [ ] Select MCU module family after COTS tests and sourcing check; default bias toward WROOM-style module with headroom (Ben).
-- [ ] Select charger reference after bq25185 bench tests (Ben).
-- [ ] Define custom board v1 as carrier/controller/power board; keep LED daughterboard separate unless optics are frozen (Ben + Steve).
-- [ ] Reserve antenna-safe board/enclosure placement before layout starts (Ben + Steve).
-- [ ] Design `solar_input` module — panel connector, polarity/input protection (Ben).
-- [ ] Design `battery_charger` module — bq25185-class preferred or selected reference (Ben).
-- [ ] Design `power_path` module only if not provided by charger reference (Ben).
-- [ ] Design `voltage_regulator` module — sized for selected ESP32 module and radio bursts (Ben).
-- [ ] Design `esp32_module` module — selected pre-certified module, USB/reset/boot/strapping pins (Ben).
-- [ ] Design `led_power` module — default-off switch/load switch/regulator enable (Ben).
-- [ ] Design `led_output` module — data connector/daughterboard, series resistor, decoupling, optional level shifter footprint (Ben).
-- [ ] Design `battery_monitor` module — ADC or fuel gauge plus charge/fault signals (Ben).
-- [ ] Add pogo/test pads from v1 (Ben).
-- [ ] External schematic/layout review before order (Ben).
-- [ ] Order 5 custom v1 boards only after COTS proof and review (Ben).
-
-## Production test / flashing
-
-- [ ] Investigate JLCPCB programming/partial programming test details for ESP32 modules (Ben).
-- [ ] Investigate PCBWay IC programming and post-assembly programming for ESP32 modules (Ben).
-- [ ] Design USB/pogo flashing jig regardless of factory pre-flash availability (Ben).
-- [ ] Write smoke-test host script: node ID, firmware version, battery, charge/fault, reset reason, peer count (Ben).
-- [ ] Define production acceptance checklist for each fixture (Ben).
+- [ ] Decide whether custom board is needed after COTS tests (Ben + Steve).
+- [ ] If custom board proceeds, use PowerFeather V2 as reference architecture (Ben).
+- [ ] Select charger/fuel-gauge/regulator architecture: BQ25628E + MAX17260 + buck-boost is current leading reference (Ben).
+- [ ] Keep LED module/daughterboard separate until optics are frozen (Ben + Steve).
+- [ ] Add keyed solar connector/pigtail plan; do not rely on direct panel wires to board pads for production (Ben + Steve).
+- [ ] Add input protection review for outdoor solar cable (Ben).
+- [ ] Add hardware reviewer before any custom board order (Ben).
+- [ ] Use PCB-antenna WROOM module by default; do not use u.FL unless RF tests fail (Ben).
 
 ## Enclosure track
 
-- [ ] Design hat v1 around COTS stack envelope, not just custom PCB placeholder (Steve).
-- [ ] Print v1 on Bambu and iterate fit on real bamboo (Steve).
-- [ ] Decide rope attachment point with team; hybrid primary-hat + secondary-bamboo safety tie is current recommendation (Ben + Steve).
-- [ ] Add mounting bosses/standoffs for both COTS and custom board options (Steve).
+- [ ] Design hat v1 around COTS stack envelope as well as possible custom board envelope (Steve).
+- [ ] Add mounting/standoff options for PowerFeather, FeatherS2 Neo, Atom Matrix, DFR0559, and LED modules (Steve).
+- [ ] Add strain-relief plan for panel pigtail / VDC connector (Steve + Ben).
+- [ ] Keep antenna region away from solar panel, battery, screws, and metal (Steve + Ben).
+- [ ] Decide rope attachment point with team; hybrid primary-hat + secondary-bamboo safety tie remains current recommendation (Ben + Steve).
 - [ ] Material test for filter/gobo: matte paint on PLA, translucent PLA, frosted resin (Steve).
-- [ ] RF test inside real/printed hat with panel, battery, screws, and wiring installed (Ben + Steve).
 - [ ] Thermal test sealed hat in sun/heat with charger and LEDs operating (Ben + Steve).
-- [ ] Send hat v1/v2 STL out for MJF print at JLC3DP / PCBWay / Xometry for evaluation (Steve).
+- [ ] Send hat v1/v2 STL out for MJF evaluation after COTS fit is known (Steve).
 
 ## Firmware track
 
-- [ ] Board definitions for COTS candidates and custom target (Ben).
-- [ ] Port `TalismanPatterns.cpp` into `firmware/core/pattern/` (Ben).
-- [ ] Implement minimum-viable CA tick + render loop on bench (Ben).
-- [ ] Implement LED rail enable/disable abstraction and fail-safe tests (Ben).
-- [ ] Implement battery/charger telemetry abstraction (Ben).
-- [ ] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers (Ben).
+- [ ] Create board definitions for PowerFeather V2, FeatherS2 Neo, Atom Matrix, and custom target (Ben).
+- [ ] Implement telemetry abstraction for charger/fuel gauge / battery monitor (Ben).
+- [ ] Implement LED driver abstraction: IS31FL3741 I2C matrix, WS2812/NeoPixelBus, integrated board LEDs (Ben).
+- [ ] Implement LED rail power abstraction (`VSQT`, onboard LED LDO, external rail enable) (Ben).
 - [ ] Implement standard OTA maintenance mode; no ESP-NOW firmware chunks (Ben).
+- [ ] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).
 - [ ] Implement watchdog/reset-reason/brownout logging (Ben).
+- [ ] Implement field telemetry logging schema for BM 2026 → 2027 design data (Ben).
+- [ ] Port `TalismanPatterns.cpp` into `firmware/core/pattern/` (Ben).
+- [ ] Implement minimum-viable CA tick + render loop on bench (Ben).
+
+## Production test / flashing
+
+- [ ] Keep USB/pogo flashing as mandatory recovery path even if COTS boards support USB-C (Ben).
+- [ ] Investigate JLCPCB / PCBWay firmware pre-flash only for custom-PCBA path (Ben).
+- [ ] Write smoke-test host script: node ID, firmware version, battery, charge/fault, reset reason, peer count (Ben).
+- [ ] Define production acceptance checklist for each fixture (Ben + Steve).
 
 ## Coordination with project team
 
@@ -91,9 +111,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Align with Elliot on rope-attachment decision (Ben).
 - [ ] Confirm hat OD / height / bamboo-overlap to Vishnu so he can finalize renders (Ben).
 - [ ] Pull `INV_2026_00401`, decompose cost, compare to COTS/custom BOMs (Ben).
-- [ ] Get Steve on the project's official core build team wiki (Ben → Elliot).
+- [ ] Get Steve on project's official core build team wiki (Ben → Elliot).
 - [ ] Get shared access to Co-Work's wiki folder once cloud-hosted (Ben → Elliot).
-- [ ] Drop lighting workstream digest into WhatsApp after ADR correction pass (Ben).
+- [ ] Drop lighting workstream digest into WhatsApp after COTS bench results (Ben).
 
 ## Community Mandala Program (parked until Elliot signs off)
 

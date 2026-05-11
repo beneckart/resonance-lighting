@@ -1,104 +1,122 @@
 # Hardware
 
-Electronics for the Resonance Lighting downlight fixture. The hardware workstream now supports two parallel paths:
+Electronics for the Resonance Lighting downlight fixture. Current strategy is **COTS-first with custom-PCBA fallback/optimization**, not custom-PCBA-only.
 
-1. **COTS deployable prototype / production fallback** — off-the-shelf MCU boards, charger boards, LED daughterboards, USB/JST/STEMMA wiring, and mechanical mounting in the hat.
-2. **Custom PCBA optimization** — a custom carrier board after the COTS path proves power, firmware, optics, and enclosure requirements.
+## Current hardware tracks
 
-See ADR 0012.
+### Track A — COTS production/fallback
 
-## Workflow
+Use off-the-shelf boards to validate and possibly deploy the system without waiting on a custom PCB.
 
-- COTS prototypes first: measure current, solar behavior, LED optics, RF range, OTA, and mechanical fit before locking the custom board.
-- Custom schematic-as-code via atopile where useful; layout in KiCad.
-- External review is recommended before ordering production PCBs: schematic, layout, RF keep-out, power routing, USB, charger thermal, JLC/PCBWay assembly, and test pads.
+Current leading stack:
 
 ```
-hardware/
-├── atopile/        custom-PCBA sources, once architecture is proven
-├── kicad/          custom-PCBA layout
-└── references/     reference schematics, datasheets, COTS board notes
+Solar panel → PowerFeather V2 VDC
+LiFePO4 cell → PowerFeather battery JST
+PowerFeather STEMMA QT / VSQT → Adafruit IS31FL3741 13x9 LED matrix
 ```
 
-## Track A — COTS deployable prototype / fallback
-
-Candidate building blocks:
-
-- MCU board: FeatherS2 Neo, Adafruit ESP32-S3 Feather, Unexpected Maker FeatherS3[D], DFRobot FireBeetle variants, or similar ESP32 board.
-- Power board: bq25185 LiFePO4-capable solar charger board for preferred chemistry; DFRobot CN3165 solar manager or board-integrated LiPo charger for LiPo fallback only.
-- LED board: integrated 5x5 on FeatherS2 Neo, Adafruit 5x5 NeoPixel BFF as layout reference, or a custom LED daughterboard.
-- Wiring: short internal USB cables, JST-PH, JST-SH/STEMMA, pre-crimped harnesses. No hand-crimping at scale.
-
-Allowed:
-
-- Factory-soldered headers.
-- Screw-mounted daughterboards / stacked boards.
-- USB/JST/STEMMA cables with strain relief.
-- Separate power, MCU, and LED boards.
-
-Not allowed:
-
-- Hand-soldering 100 header sets.
-- Hand-crimping 100 harnesses.
-- Friction-only board stacks.
-- Per-unit pairing or configuration.
-
-## Track B — custom PCBA target architecture
-
-The exact custom board is not locked. Current target blocks:
+Alternate stacks:
 
 ```
-[Solar panel 1-3 W]
-        ↓
-[Battery charger / power-path]
-        ↓
-[Single-cell battery]
-        ↓
-[MCU 3V3 regulator] → [pre-certified Espressif module]
-        ↓
-[Switchable LED rail] → [3x3 or 5x5 LED daughterboard / LED output]
-        ↓
-[USB-C and/or pogo pads for flashing + recovery]
+PowerFeather V2 GPIO + suitable LED rail → M5Stack NeoHEX
+DFRobot DFR0559 USB output → FeatherS2 Neo
+DFRobot DFR0559 USB output → M5Stack Atom Matrix
 ```
 
-## Module library, after architecture lock
+### Track B — custom PCBA
 
-| Module | Purpose | Notes |
-|--------|---------|-------|
-| `solar_input` | Panel connector, reverse-polarity/input protection | Match actual panel and charger reference |
-| `battery_charger` | Single-cell charger, preferred LiFePO4-capable | bq25185-class preferred; CN3058 fallback |
-| `power_path` | Load sharing / system output | Prefer proven reference behavior; avoid custom cleverness |
-| `voltage_regulator` | MCU rail | Size for selected module and RF bursts |
-| `esp32_module` | Pre-certified Espressif module | WROOM/S3/C6/C3 module TBD; no custom RF |
-| `led_power` | Switchable LED rail | Default-off hardware state required |
-| `led_output` | Data + power connector or on-board LED driver | LED board may stay separate |
-| `battery_monitor` | ADC/fuel-gauge/charge telemetry | Include battery, solar, and fault state where possible |
-| `test_pads` | Pogo/USB recovery and production test | Required from v1 |
+If the COTS tests justify a bespoke board, the custom board should be derived from the successful COTS/reference architecture, currently PowerFeather V2.
 
-## Hard constraints
+Current target reference architecture:
 
-- No custom RF. Use pre-certified Espressif modules or proven COTS boards.
-- Antenna placement must be mechanically and electrically reserved: board edge, keep-out intact, no solar panel/battery/metal/screws/copper/wiring in the antenna zone.
-- LED rail must be switchable and default-off at reset/boot.
-- Charger must match battery chemistry. LiPo chargers are never used with LiFePO4 cells.
-- USB/pogo flashing is the guaranteed recovery path, even if factory pre-flashing is available.
-- COTS and custom designs both need automated smoke-test telemetry.
+```
+[Solar panel / VDC connector]
+        ↓
+[Input protection / diode or ideal-diode input handling]
+        ↓
+[BQ25628E-class charger + power path]
+        ↓
+[LiFePO4 cell + thermistor]
+        ↓
+[MAX17260-class fuel gauge / current sense]
+        ↓
+[TPS631013-class 3.3 V buck-boost]
+        ↓
+[ESP32-S3-WROOM-class module, PCB antenna]
+        ↓
+[Switched external LED/STEMMA rail]
+        ↓
+[LED module connector(s)]
+```
 
-## Custom PCBA review checklist
+## Superseded earlier target
 
-Before ordering any custom assembled boards:
+The older target architecture was:
 
-- USB-C CC resistors and data path correct.
-- Reset/boot/strapping pins correct and not polluted by external circuits.
-- Pogo/USB flashing path tested on schematic.
-- Battery, solar, and load connectors keyed and labeled.
-- Charger configuration matches battery chemistry and conservative charge current.
-- Charger thermal path adequate in a sealed hat.
-- Battery temperature / hot-charge mitigation addressed.
-- LED rail switch defaults off and can be hard-disabled by firmware.
-- LED data line has series resistor and safe state during LED power-off.
-- LED rail decoupling sized for worst credible all-on burst.
-- ESP32 antenna keep-out exactly followed.
-- Board fits both COTS fallback enclosure assumptions and custom enclosure assumptions.
-- Test pads accessible after partial assembly.
-- BOM/CPL orientation manually checked against assembler preview.
+```
+CN3058 charger → AP2112K LDO → ESP32-C3-MINI-1 → WS2812B direct from Vbat
+```
+
+That approach is now superseded by later ADRs and the PowerFeather V2 findings. CN3058 may remain a backup charger concept, but it is not the leading production direction.
+
+## Why PowerFeather V2 matters
+
+PowerFeather V2 combines several features that the project otherwise would have to design and validate separately:
+
+- ESP32-S3-WROOM-1 module with onboard PCB antenna.
+- BQ25628E charger/power-path with LiFePO4 support.
+- MAX17260 fuel gauge with LiFePO4 profile support and current sensing.
+- TPS631013 buck-boost 3.3 V regulator.
+- Switchable `VSQT` rail for STEMMA-QT modules.
+- Solar/DC input.
+- Power telemetry useful for BM 2026 → BM 2027 learning.
+
+On arrival, Elecrow boards must be identified as V1 vs V2 before LiFePO4 testing.
+
+## Interfaces
+
+### STEMMA-QT / Qwiic
+
+- 4-pin JST-SH connector.
+- I2C: GND, V+, SDA, SCL.
+- PowerFeather exposes a switchable `VSQT` rail.
+- Adafruit IS31FL3741 13x9 matrix is the primary LED module on this interface.
+
+### Grove / HY2.0
+
+- Physical connector used by M5Stack modules.
+- Can carry I2C, UART, GPIO, analog, or custom signals depending on device.
+- M5Stack NeoHEX uses HY2.0 physically but is a WS2812/GPIO LED device, not an I2C/STEMMA-QT device.
+
+### USB power fallback
+
+DFRobot DFR0559 can own LiPo battery/solar management and power FeatherS2 Neo or Atom Matrix over USB. In that configuration, the downstream board's battery connector should stay empty.
+
+## Custom PCB constraints
+
+If a custom board proceeds:
+
+- Use a pre-certified WROOM-class module with onboard PCB antenna by default.
+- Do not use u.FL/external antenna unless final hat RF testing fails.
+- Include USB/pogo flashing/recovery pads regardless of factory flashing.
+- Use a switchable/default-off LED/module rail.
+- Include charger/fuel-gauge telemetry.
+- Include battery thermistor or temperature strategy.
+- Add keyed solar and battery connectors or production-safe pigtails.
+- Avoid direct unstrained panel wires soldered to production board pads.
+- Keep LED module/daughterboard separate until optics are frozen.
+- Use 4-layer PCB and external schematic/layout review for switching charger, buck-boost, current sensing, and RF keep-out.
+
+## Immediate hardware tests
+
+See `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md`.
+
+Top priorities:
+
+- Confirm PowerFeather V2 identity.
+- Verify LiFePO4 configuration and charging.
+- Measure sleep current with LED modules attached and powered off.
+- Test IS31FL3741 and NeoHEX optics through the gobo.
+- Test RF in a mock hat.
+- Test low-battery/stuck-on-LED fail-safes.

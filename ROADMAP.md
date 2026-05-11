@@ -4,246 +4,205 @@ Phases of work for the Resonance Lighting workstream, working backwards from Bur
 
 **Hard deadline:** Late August 2026 build week starts at BRC. All 100 fixtures must be in hand and operational by ~Aug 20 to truck from Grass Valley pre-build staging to playa.
 
-## Updated strategy
+## Current critical-path principle
+
+Do not make the custom PCBA the only path to success.
 
 The project now runs two hardware tracks in parallel:
 
-- **Track A — COTS deployable prototype / production fallback.** This proves the full system quickly and remains viable for all 100 fixtures if custom PCBA slips.
-- **Track B — custom PCBA optimization.** This may become production only if it passes bench, enclosure, RF, charger, OTA, and assembly gates early enough.
+1. **COTS deployment/fallback track:** PowerFeather V2 / FeatherS2 Neo / Atom Matrix / DFR0559 candidates tested in real hats.
+2. **Custom PCBA track:** bespoke board derived only after COTS tests identify the actual power, LED, telemetry, RF, and mechanical requirements.
 
-This roadmap intentionally de-risks around known hazards:
+## Phase 0 — documentation and decision correction
 
-- No custom firmware-image gossip over ESP-NOW.
-- No custom RF design.
-- No first-time custom charger as the only path to production.
-- No always-on LED rail that can drain the battery after MCU failure.
-- No skilled per-fixture soldering or configuration.
+**Status:** Mostly done, with 2026-05-10 update in progress.
 
-## Logistics flow
+Deliverables:
 
-1. Bamboo Pure air-ships a small batch of bamboo lanterns to Steve in Tennessee for early mechanical prototyping.
-2. Bamboo Pure ships the tree structure + remaining lantern bodies by sea container to Grass Valley, CA.
-3. Ben builds COTS electronics prototypes in CA and ships representative hardware to Steve as needed.
-4. Steve iterates hat design against real bamboo and at least one COTS electronics stack.
-5. Ben designs the custom PCBA only after COTS tests prove the electrical/optical/mechanical architecture.
-6. Final architecture decision chooses either COTS stack, custom PCBA, or a hybrid.
-7. Final fixture integration happens in CA / Grass Valley before trucking to BRC.
+- [x] Supersede custom-only ESP32-C3/CN3058/direct-LED assumptions.
+- [x] Establish standard OTA only; no mesh-gossiped firmware images.
+- [x] Establish WROOM/headroom/RF-module-first MCU criteria.
+- [x] Establish dual-track COTS/custom hardware plan.
+- [x] Establish switchable/default-off LED rail policy.
+- [x] Establish bq25185/BQ25628E-class charger references.
+- [ ] Add 2026-05-10 PowerFeather/COTS update docs.
 
-## Phase 0 — Architecture correction and research
+## Phase 1 — COTS bench prototypes
 
-**Window:** 2026-05-08 → 2026-05-15
-**Owner:** Ben
-**Goal:** Correct the specs before hardware work bakes in risky assumptions.
+**Window:** Now → parts arrival + ~2 weeks.
+**Owner:** Ben, with Steve on optics/mechanical tests.
+**Goal:** Measure real behavior of plausible production/fallback stacks before committing to custom hardware.
 
-**Deliverables:**
+### Test stacks
 
-- [ ] ADR 0010 accepted: standard OTA only, no mesh-gossiped firmware images.
-- [ ] ADR 0011 accepted: MCU module selection based on pre-certified RF and headroom, not C3-MINI compactness.
-- [ ] ADR 0012 accepted: dual-track COTS/custom production architecture.
-- [ ] ADR 0013 accepted: LED rail switchable/default-off; exact rail chosen by test.
-- [ ] ADR 0014 accepted: bq25185-class LiFePO4 charger reference preferred over CN3058-first design.
-- [ ] COTS candidate matrix written and kept current.
-- [ ] Root README, hardware README, firmware architecture, TODO, and roadmap updated.
+1. **PowerFeather V2 + LiFePO4 + solar + Adafruit IS31FL3741 13x9 matrix.** Primary design-aligned stack.
+2. **PowerFeather V2 + LiFePO4 + solar + M5Stack NeoHEX.** Alternate LED geometry stack.
+3. **FeatherS2 Neo + DFRobot DFR0559.** LiPo fallback with integrated 5x5 optics.
+4. **M5Stack Atom Matrix + DFRobot DFR0559.** Ultra-simple LiPo fallback.
 
-## Phase 1A — COTS deployable prototype
+### Deliverables
 
-**Window:** 2026-05-08 → 2026-05-31
-**Owner:** Ben
-**Goal:** Build real working lantern electronics without waiting for custom PCBA.
+- [ ] Identify whether Elecrow PowerFeather boards are V2 or V1.
+- [ ] Confirm LiFePO4 behavior on actual PowerFeather V2 hardware.
+- [ ] Measure sleep/active/radio/LED current on all stacks.
+- [ ] Measure solar charge behavior on 1–5 W panels.
+- [ ] Test standard OTA maintenance mode.
+- [ ] Test ESP-NOW heartbeat/state packets.
+- [ ] Test LED rail fail-safe behavior.
+- [ ] Compare LED/gobo optics across IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix.
+- [ ] RF test inside mock hat with panel/battery/wiring installed.
+- [ ] Mechanical assembly-time test for each COTS stack.
+- [ ] Create measured-results table and production recommendation.
 
-**Candidate hardware:**
+### Go/no-go outputs
 
-- FeatherS2 Neo or equivalent 5x5 onboard LED board.
-- ESP32-S3 Feather / Unexpected Maker FeatherS3[D] or equivalent high-headroom MCU board.
-- DFRobot FireBeetle C6/C5 or equivalent solar-integrated ESP32 board.
-- Adafruit bq25185 charger board(s) for LiFePO4 reference testing.
-- DFRobot Solar Power Manager 5V for LiPo fallback testing.
-- 1–3 W solar panels.
-- LiFePO4 18650 cells and LiPo fallback cells.
-- Pre-crimped JST/USB/STEMMA cabling.
+- **PowerFeather V2 viable?** If yes, it becomes production candidate and custom-PCBA reference.
+- **IS31FL3741 viable optically?** If yes, it becomes primary no-solder LED module candidate.
+- **NeoHEX significantly better optically?** If yes, consider GPIO/5 V LED rail path.
+- **LiPo fallback acceptable?** If yes, DFR0559 + FeatherS2 Neo / Atom Matrix remains schedule rescue.
 
-**Deliverables:**
+## Phase 2 — mechanical hat prototype around real electronics
 
-- [ ] At least two complete electronics stacks running on the bench.
-- [ ] One LiFePO4 stack using a bq25185-class charger reference.
-- [ ] One LiPo fallback stack using a proven COTS power board.
-- [ ] 5x5 or 3x3 LED optical test at realistic LED-to-filter distance.
-- [ ] Center-only projection mode tested for gobo crispness.
-- [ ] 3-LED RGB/fringing mode tested.
-- [ ] LED rail fail-safe behavior tested: stuck-on command, watchdog reset, low-battery cutoff.
-- [ ] Standard OTA to one fixture tested via local WiFi; no ESP-NOW image transport.
-- [ ] ESP-NOW state broadcast between two fixtures tested.
-- [ ] Measured current for sleep, active radio, center LED, 3 LED mode, and all-on burst.
+**Window:** parallel with Phase 1.
+**Owner:** Steve, with Ben input.
+**Goal:** Fit real COTS stacks and solar/battery/LED modules into a hat form before custom board dimensions are frozen.
 
-## Phase 1B — Firmware skeleton on COTS hardware
+Deliverables:
 
-**Window:** 2026-05-10 → 2026-06-07
-**Owner:** Ben
-**Goal:** Firmware architecture works before custom hardware exists.
+- [ ] Hat v1 around PowerFeather + LED module + LiFePO4 + panel.
+- [ ] Alternative mount points for FeatherS2 Neo / Atom Matrix fallback.
+- [ ] Strain relief for solar panel pigtail / VDC connector.
+- [ ] Antenna keep-out region that is not under panel/battery/metal.
+- [ ] Filter/gobo placement and LED-to-filter distance tested.
+- [ ] Thermal test in sun/heat.
+- [ ] RF test inside printed/mock hat.
+- [ ] Rope attachment recommendation: current default is primary on hat + secondary bamboo safety tie.
 
-**Deliverables:**
+## Phase 3 — architecture decision: COTS production vs custom PCBA
 
-- [ ] `firmware/core/` native tests for packet codec, CA tick, state transitions.
-- [ ] Board definitions for at least two COTS targets.
-- [ ] LED rail enable/disable support where hardware provides it.
-- [ ] Battery/charger telemetry abstraction.
-- [ ] ESP-NOW heartbeat and neighbor table.
-- [ ] Standard OTA maintenance mode.
-- [ ] Smoke-test host script: reports node ID, firmware version, battery, charge/fault, peer count, reset reason.
+**Window:** after Phase 1/2 data.
+**Owner:** Ben + Steve.
+**Goal:** Decide whether 2026 production uses COTS boards, a custom PCBA, or hybrid.
 
-## Phase 2 — Mechanical prototyping
+Decision criteria:
 
-**Window:** 2026-05-15 → 2026-06-30
-**Owner:** Steve, with Ben input
-**Goal:** Hat geometry and filter material fit real bamboo and real electronics.
+- measured power budget closes,
+- solar harvest adequate,
+- LED optics acceptable,
+- RF range acceptable in hat,
+- assembly time acceptable,
+- sourcing of 100–150 units realistic,
+- field-recovery path clear,
+- enclosure fit acceptable.
 
-**Deliverables:**
+Possible outcomes:
 
-- [ ] Bamboo Pure prototype lanterns air-shipped to Steve.
-- [ ] Hat v1 designed around the COTS electronics stack envelope, not an imaginary final PCB only.
-- [ ] Hat v1 printed on Bambu and fitted to real bamboo.
-- [ ] Set-screw interface tested on multiple bamboo samples.
-- [ ] Hybrid rope attachment evaluated: primary on hat, secondary safety tie around bamboo neck.
-- [ ] Thermal test: sealed hat with charger + battery + LEDs in sun/heat.
-- [ ] RF test: ESP-NOW/WiFi inside hat with solar panel, battery, screws, and wiring installed.
-- [ ] Filter material test: matte paint on PLA, translucent PLA, frosted resin.
-- [ ] Hat v2 sent out for one MJF nylon test print.
+1. **COTS production:** use PowerFeather V2 or fallback stack directly.
+2. **Hybrid production:** COTS controller/power board + custom LED/mechanical daughterboard.
+3. **Custom production:** PowerFeather-derived custom PCBA.
+4. **Fallback LiPo production:** DFR0559 + FeatherS2 Neo / Atom Matrix if LiFePO4 path slips.
 
-## Phase 3 — Custom PCBA v1, only after COTS proof
+## Phase 4 — custom board only if needed
 
-**Window:** 2026-06-10 → 2026-07-10
-**Owner:** Ben
-**Goal:** First custom board reproduces a proven COTS architecture.
+**Window:** after COTS proof and architecture decision.
+**Owner:** Ben, with external hardware review recommended.
+**Goal:** Build only the board that the measured COTS tests justify.
 
-**Preconditions:**
+Current reference architecture:
 
-- COTS LiFePO4 stack works on bench.
-- LED rail fail-safe design is known.
-- MCU module family is selected by sourcing + headroom + RF constraints.
-- Enclosure reserves safe antenna placement.
-- Charger reference is selected.
+```
+Solar panel / VDC connector
+  → input protection
+  → BQ25628E-class charger + power path
+  → LiFePO4 cell + thermistor
+  → MAX17260-class fuel gauge / current sense
+  → TPS631013-class buck-boost 3.3 V
+  → ESP32-S3-WROOM-class module
+  → switched external LED/STEMMA rail
+  → LED module connector(s)
+```
 
-**Deliverables:**
+Deliverables:
 
-- [ ] Schematic module set: `solar_input`, `battery_charger`, `power_path`, `voltage_regulator`, `esp32_module`, `led_power`, `led_output`, `battery_monitor`, `test_pads`.
-- [ ] 4-layer PCB unless reviewer explicitly says 2-layer is safe.
-- [ ] Antenna keep-out reviewed against chosen module guidelines.
-- [ ] Charger thermal reviewed.
-- [ ] USB-C / pogo flashing reviewed.
-- [ ] DRC clean.
-- [ ] External human hardware review completed.
-- [ ] 5 assembled boards ordered.
-- [ ] Power-up tests: Vbat, system rail, 3V3, charger, LED rail switch, USB/pogo flash, ESP-NOW, standard OTA.
-- [ ] Multi-day outdoor/enclosure test.
+- [ ] Confirm whether PowerFeather V2 KiCad/Gerbers are available.
+- [ ] Define custom schematic only after COTS data.
+- [ ] Keep LED module separate unless optics are frozen.
+- [ ] External schematic/layout review.
+- [ ] Order 5 custom v1 boards only after review.
+- [ ] Validate rails, charger, fuel gauge, RF, LED, OTA, and sleep.
 
-## Phase 4 — Production architecture gate
+## Phase 5 — production lock
 
-**Window:** 2026-07-10 → 2026-07-20
-**Owner:** Ben + Steve
-**Goal:** Pick the production path while there is still time to recover.
+**Window:** deadline determined by fab/procurement lead times.
+**Owner:** Ben + Steve.
+**Goal:** Lock the 100-unit architecture with enough time for procurement, assembly, and testing.
 
-**Decision:** choose one:
+Deliverables:
 
-1. **COTS production** — if COTS works and custom is late/risky.
-2. **Custom PCBA production** — only if v1/v2 custom has passed real tests.
-3. **Hybrid production** — custom controller/power board plus COTS/custom LED daughterboard.
+- [ ] Board/module procurement plan for 110–120 units.
+- [ ] Battery procurement plan.
+- [ ] Solar panel procurement plan.
+- [ ] Hat production plan.
+- [ ] LED module procurement/custom plan.
+- [ ] Flashing/recovery plan.
+- [ ] Smoke-test rig.
+- [ ] Assembly checklist.
 
-**Hard pass criteria for custom production:**
+## Phase 6 — integration and Grass Valley assembly
 
-- Standard OTA works on the board.
-- USB/pogo recovery works.
-- Charger behaves with real panel/cell/load.
-- LED rail fail-safe passes stuck-on/reset/low-battery tests.
-- RF works inside the final-ish hat.
-- Sleep/active current closes the budget.
-- Assembly can be done by an unskilled person in minutes.
-- BOM/CPL/parts sourcing reviewed.
+**Owner:** Ben + Steve.
+**Goal:** All hats/electronics ready to mate with bamboo at Grass Valley.
 
-If any of these are not true by the gate date, production defaults to COTS/hybrid.
+Deliverables:
 
-## Phase 5 — Production procurement
+- [ ] Pre-assemble electronics into hats in CA/TN as practical.
+- [ ] Pack spares, tools, chargers, cables, power meters, programmer/jig.
+- [ ] Mate hats to bamboo lanterns.
+- [ ] Install filters/gobos.
+- [ ] Run smoke test.
+- [ ] Log inventory and spare count.
 
-**Window:** 2026-07-20 → 2026-08-10
-**Owner:** Ben
-**Goal:** All electronics and enclosures ordered with spares.
+## Phase 7 — BRC deployment
 
-**Deliverables:**
+Deliverables:
 
-- [ ] 110–120 electronics sets ordered (100 + spares).
-- [ ] 110–120 hats ordered/printed.
-- [ ] 110–120 batteries ordered from vetted source.
-- [ ] 110–120 solar panels ordered.
-- [ ] All harnesses/cables pre-crimped / premade.
-- [ ] Flashing jig and smoke-test rig built.
-- [ ] Firmware release tagged.
-- [ ] Production test script ready.
+- [ ] Hang fixtures.
+- [ ] Charge day / solar verification.
+- [ ] Mesh formation validation.
+- [ ] Standard OTA maintenance update if needed.
+- [ ] Tune lighting modes.
+- [ ] Start field telemetry capture.
 
-## Phase 6 — Pre-assembly and Grass Valley integration
+## Phase 8 — burn week operations
 
-**Window:** 2026-08-10 → 2026-08-22
-**Owner:** Ben + Steve
-**Goal:** All 100 fixtures assembled, flashed, tested, and packed for BRC.
+Deliverables:
 
-**Deliverables:**
-
-- [ ] Electronics installed in hats.
-- [ ] Batteries and panels connected with strain relief.
-- [ ] Firmware flashed or verified.
-- [ ] Smoke test: all nodes report firmware version, battery, charge/fault status, reset reason, peer count.
-- [ ] Hats mated to bamboo lanterns at Grass Valley.
-- [ ] Filters installed.
-- [ ] Spares packed separately.
-
-## Phase 7 — Build week deployment
-
-**Window:** ~2026-08-23 → 2026-08-27
-**Owner:** Ben on-site at BRC
-**Goal:** All fixtures hung, charged, and running the show.
-
-**Deliverables:**
-
-- [ ] Hang fixtures using final rope attachment method.
-- [ ] Charge day in sun.
-- [ ] Mesh/control-plane validation.
-- [ ] Standard OTA maintenance update only if needed.
-- [ ] Tune CA parameters live through normal control/config mechanisms.
-
-## Phase 8 — Burn week operations
-
-**Window:** ~2026-08-30 → 2026-09-06
-**Owner:** Ben on-site, possibly Steve
-**Goal:** Operate, observe, repair.
-
-**Deliverables:**
-
-- [ ] Daily health report from smoke-test/telemetry tool.
+- [ ] Daily walk-around.
 - [ ] Swap failed fixtures with spares.
-- [ ] Document failure modes.
-- [ ] Log battery/solar behavior for 2027.
-- [ ] Test wand-lantern interaction with audience if stable.
+- [ ] Collect telemetry / failure data.
+- [ ] Photograph / document failures.
+- [ ] Test wand interactions if ready.
 
-## Phase 9 — Recovery and post-mortem
+## Phase 9 — recovery and 2027 postmortem
 
-**Window:** Sept 2026
-**Owner:** Ben
+Deliverables:
 
-**Deliverables:**
+- [ ] Recover all fixtures.
+- [ ] Categorize failures.
+- [ ] Analyze battery/solar/thermal data.
+- [ ] Update architecture for 2027.
+- [ ] Refurbish or redesign as appropriate.
 
-- [ ] Recover fixtures.
-- [ ] Inventory damage and battery health.
-- [ ] Update `LOG.md` with field notes.
-- [ ] Open ADRs/issues for 2027 iteration.
-
-## Risk register
+## Current risk register
 
 | Risk | Severity | Mitigation |
 |------|----------|------------|
-| Custom PCBA slips | High | COTS production fallback is real, not a toy |
-| Custom OTA protocol bricks nodes | High | No custom OTA transport; standard OTA only + pogo recovery |
-| RF under solar/battery/hat is poor | Medium | WROOM-style module, antenna keep-out, real enclosure RF tests |
-| Charger behaves badly with weak solar | Medium | bq25185 COTS reference first, conservative charge current, thermal tests |
-| LED rail stuck on drains battery | High | Switchable/default-off LED rail, watchdog/low-battery tests |
-| LiFePO4 sourcing poor | Medium | Vet cells, discharge-test samples, keep US-side fallback |
-| COTS stock insufficient | Medium | Buy candidates early; maintain custom/hybrid path |
-| Hat thermal issues | Medium | Sealed-hat heat test before production |
-| Assembly too slow | Medium | Time trial on 10 units; no hand solder/crimp/pairing |
+| Elecrow boards are V1, not V2 | Medium | Identify by chip markings/I2C before LiFePO4; V1 remains LiPo fallback |
+| PowerFeather V2 preliminary features not fully validated | Medium | Contact creator; bench-test all power modes before relying on it |
+| LiFePO4 18650 sourcing weak | Medium | Call BatterySpace; identify alternate 18650/26650 suppliers; avoid multi-14430 packs unless forced |
+| IS31FL3741 optics poor through gobo | Medium | Test NeoHEX, FeatherS2 Neo, Atom Matrix; keep LED module separate |
+| NeoHEX not compatible with PowerFeather STEMMA-QT | Low | Treat NeoHEX as GPIO/WS2812 + separate rail experiment |
+| Round solar panels slow to source | Low/Medium | Use rectangular panels for R&D; design hat top to allow later panel geometry swap |
+| RF degraded by hat/panel/battery | Medium | RF test inside mock hat; maintain PCB antenna keep-out; avoid u.FL unless necessary |
+| Custom PCBA takes too long | High | COTS production/fallback track remains active |
+| Fancy OTA breaks fleet | High | Standard OTA only; no mesh-gossiped firmware images; USB/pogo recovery |
