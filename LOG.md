@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-15 — Ben + Codex — Brightness calibration fix for smoke-test modes
+
+Ben observed that several LED measurement modes were effectively invisible, especially on the Atom Matrix: `4` full-low was invisible, `5` capped full-array was extremely faint, and `1` center was too dim. Root cause was double dimming on NeoPixel boards: low RGB component values were also being multiplied by low `Adafruit_NeoPixel::setBrightness()` values, causing integer scaling to round many channels down to 0 or 1. The IS31FL3741 full-low mode also used RGB values below RGB565's low-end quantization threshold.
+
+Updated `firmware/smoke_test/` to `smoke-2026-05-15.7`:
+
+- NeoPixel measurement modes now use `setBrightness(255)` and control current with explicit low raw RGB values.
+- IS31FL3741 modes now avoid RGB565 values that quantize to black.
+- Mode `1`, `3`, `4`, and `5` brightness levels were raised while keeping capped full-array modes conservative.
+
+Built and OTA-flashed `.7` to all three unplugged boards over WiFi. All three returned to mode `0`, and `/mode?m=5` then `/mode?m=0` succeeded on C6 + IS31FL3741, FeatherS2 Neo, and Atom Matrix.
+
 ## 2026-05-15 — Ben + Codex — Static COTS mode dashboard
 
 Added `ops/bench/cots-mode-dashboard.html`, a local static dashboard for the three active smoke-test boards:

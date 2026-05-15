@@ -21,7 +21,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define SMOKE_VERSION "smoke-2026-05-15.6"
+#define SMOKE_VERSION "smoke-2026-05-15.7"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -178,12 +178,10 @@ void fillIs31(uint16_t color) {
 #endif
 }
 
-void setNeoBrightnessAndClear(uint8_t brightness) {
+void clearNeoPixelsFullScale() {
 #if RES_HAS_NEOPIXEL
-  pixels.setBrightness(brightness);
+  pixels.setBrightness(255);
   pixels.clear();
-#else
-  (void)brightness;
 #endif
 }
 
@@ -256,57 +254,57 @@ bool applyMeasurementMode(char mode) {
 
   case '1':
 #if RES_HAS_IS31
-    setIs31Drive(0x20, 0x08);
+    setIs31Drive(0x28, 0x0C);
     if (is31Ready) {
       matrix.fill(0);
-      matrix.drawPixel(6, 4, matrix.color565(20, 18, 14));
+      matrix.drawPixel(6, 4, matrix.color565(32, 28, 24));
       matrix.show();
     }
 #endif
 #if RES_HAS_NEOPIXEL
-    setNeoBrightnessAndClear(12);
-    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(32, 28, 20));
+    clearNeoPixelsFullScale();
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(16, 14, 10));
     showNeoPixels();
 #endif
     break;
 
   case '2':
 #if RES_HAS_IS31
-    setIs31Drive(0x20, 0x0C);
+    setIs31Drive(0x28, 0x10);
     if (is31Ready) {
       matrix.fill(0);
-      matrix.drawPixel(5, 4, matrix.color565(28, 0, 0));
-      matrix.drawPixel(6, 4, matrix.color565(0, 24, 0));
-      matrix.drawPixel(7, 4, matrix.color565(0, 0, 28));
+      matrix.drawPixel(5, 4, matrix.color565(32, 0, 0));
+      matrix.drawPixel(6, 4, matrix.color565(0, 32, 0));
+      matrix.drawPixel(7, 4, matrix.color565(0, 0, 32));
       matrix.show();
     }
 #endif
 #if RES_HAS_NEOPIXEL
-    setNeoBrightnessAndClear(12);
-    pixels.setPixelColor(RES_PIXEL_CENTER - 1, pixels.Color(48, 0, 0));
-    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(0, 40, 0));
-    pixels.setPixelColor(RES_PIXEL_CENTER + 1, pixels.Color(0, 0, 48));
+    clearNeoPixelsFullScale();
+    pixels.setPixelColor(RES_PIXEL_CENTER - 1, pixels.Color(20, 0, 0));
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(0, 18, 0));
+    pixels.setPixelColor(RES_PIXEL_CENTER + 1, pixels.Color(0, 0, 20));
     showNeoPixels();
 #endif
     break;
 
   case '3':
 #if RES_HAS_IS31
-    setIs31Drive(0x18, 0x08);
+    setIs31Drive(0x20, 0x0C);
     if (is31Ready) {
       matrix.fill(0);
       for (int y = 3; y <= 5; y++) {
         for (int x = 5; x <= 7; x++) {
-          matrix.drawPixel(x, y, matrix.color565(8, 7, 5));
+          matrix.drawPixel(x, y, matrix.color565(16, 16, 8));
         }
       }
       matrix.show();
     }
 #endif
 #if RES_HAS_NEOPIXEL
-    setNeoBrightnessAndClear(8);
+    clearNeoPixelsFullScale();
     for (uint8_t i = 0; i < sizeof(neoCrop3x3); i++) {
-      pixels.setPixelColor(neoCrop3x3[i], pixels.Color(18, 16, 12));
+      pixels.setPixelColor(neoCrop3x3[i], pixels.Color(6, 5, 4));
     }
     showNeoPixels();
 #endif
@@ -314,15 +312,15 @@ bool applyMeasurementMode(char mode) {
 
   case '4':
 #if RES_HAS_IS31
-    setIs31Drive(0x10, 0x06);
+    setIs31Drive(0x18, 0x08);
     if (is31Ready) {
-      fillIs31(matrix.color565(2, 2, 2));
+      fillIs31(matrix.color565(8, 8, 8));
     }
 #endif
 #if RES_HAS_NEOPIXEL
-    setNeoBrightnessAndClear(4);
+    clearNeoPixelsFullScale();
     for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) {
-      pixels.setPixelColor(i, pixels.Color(8, 8, 8));
+      pixels.setPixelColor(i, pixels.Color(2, 2, 2));
     }
     showNeoPixels();
 #endif
@@ -330,15 +328,15 @@ bool applyMeasurementMode(char mode) {
 
   case '5':
 #if RES_HAS_IS31
-    setIs31Drive(0x20, 0x10);
+    setIs31Drive(0x30, 0x10);
     if (is31Ready) {
-      fillIs31(matrix.color565(6, 6, 6));
+      fillIs31(matrix.color565(24, 24, 24));
     }
 #endif
 #if RES_HAS_NEOPIXEL
-    setNeoBrightnessAndClear(10);
+    clearNeoPixelsFullScale();
     for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) {
-      pixels.setPixelColor(i, pixels.Color(24, 24, 24));
+      pixels.setPixelColor(i, pixels.Color(10, 10, 10));
     }
     showNeoPixels();
 #endif
@@ -395,10 +393,10 @@ void setupIs31() {
 void setupNeoPixels() {
 #if RES_HAS_NEOPIXEL
   pixels.begin();
-  pixels.setBrightness(8);
+  pixels.setBrightness(255);
   pixels.clear();
   pixels.show();
-  Serial.printf("NeoPixel matrix setup: pin=%d count=%d brightness=8/255\n",
+  Serial.printf("NeoPixel matrix setup: pin=%d count=%d brightness=255/255\n",
                 RES_PIXEL_PIN, RES_PIXEL_COUNT);
 #endif
 }

@@ -3,7 +3,7 @@
 Purpose: first current and optics measurements for the three connected COTS
 prototype stacks.
 
-Firmware: `firmware/smoke_test`, version `smoke-2026-05-15.6`.
+Firmware: `firmware/smoke_test`, version `smoke-2026-05-15.7`.
 
 Boards under test:
 
@@ -72,6 +72,10 @@ gobo washout, color fringing, and thermal concerns.
 - `q` is the best baseline for sleep/current planning, but this smoke firmware
   is not yet a true deep-sleep test.
 - `0` is useful for subtracting LED current when OTA WiFi is active.
+- `smoke-2026-05-15.7` removes the earlier NeoPixel double-dimming path
+  where low RGB values were also scaled by low `setBrightness()` values. It
+  also keeps IS31FL3741 RGB565 test values above the low-end quantization
+  threshold so full-array low modes are visible.
 - The integrated 5x5 matrices are useful for early optics and firmware
   validation, but their board-level current is not a substitute for the final
   ESP32-C3-MINI custom hardware baseline.
