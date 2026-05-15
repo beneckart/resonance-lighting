@@ -12,6 +12,20 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-15 — Ben + Codex — OTA and USB flash timing benchmarks
+
+Ben ordered 12 DFRobot SEN0291 I2C digital wattmeters, so manual USB power-meter experiments are on hold until they arrive. Added a TODO item to integrate the wattmeters into the power-test harness/worksheets.
+
+Ran first flash timing benchmarks on `smoke-2026-05-15.6`; details are in `docs/tests/OTA_FLASH_BENCHMARKS_2026-05-15.md`.
+
+Results:
+
+- Strict sequential OTA, waiting for each board to be reachable again: 44.123 s for 3 boards.
+- Parallel OTA batch: 18.291 s for all 3 boards to upload and become reachable again.
+- USB upload, excluding compile time: C6 7.109 s upload / 10.188 s ready; FeatherS2 Neo 13.047 s upload / 16.218 s ready; Atom Matrix 14.287 s upload / 17.515 s ready.
+
+FeatherS2 had one failed USB reset/upload attempt (`Errno 71`) that left it in the ESP32-S2 bootloader; a recovery USB upload succeeded, and a subsequent normal USB upload also succeeded. All three boards are back online at `smoke-2026-05-15.6`, mode `0`.
+
 ## 2026-05-15 — Ben + Codex — LED measurement firmware loaded on COTS smoke boards
 
 Extended `firmware/smoke_test/` into a deterministic LED measurement harness and bumped it to `smoke-2026-05-15.6`.

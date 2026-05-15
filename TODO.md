@@ -39,6 +39,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Measure sleep current for each stack (Ben).
 - [ ] Measure active/radio/ESP-NOW current for each stack (Ben).
 - [~] Measure LED current for center-only, 3-pixel, 9-pixel/crop, and full-array capped modes (Ben).
+- [ ] Add SEN0291 I2C wattmeters to power-test harness and bench worksheet when they arrive (Ben).
 - [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben).
 - [ ] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks (Ben).
 - [ ] Test standard OTA maintenance mode on at least two COTS boards (Ben).
