@@ -12,6 +12,35 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-15 — Ben + Codex — Home-WiFi web OTA validated on all three COTS smoke boards
+
+Committed and pushed the initial smoke-test baseline as `f36595e Add COTS smoke test firmware`.
+
+Added station-mode web OTA support to `firmware/smoke_test/`:
+
+- `wifi_secrets.h` is now ignored by git.
+- `wifi_secrets.h.example` documents the local secrets format.
+- Serial command `w` connects to configured WiFi and starts the same web updater.
+- Serial command `o` still starts temporary AP OTA mode.
+- `RES_WIFI_AUTO_CONNECT` allows bench firmware to enter WiFi OTA maintenance mode on boot.
+- The web updater page now reports board, fixture ID, and firmware version.
+
+Created a local ignored `wifi_secrets.h` for Ben's home WiFi and USB-flashed `smoke-2026-05-15.3` to all three boards as the WiFi-enabled OTA baseline. All three connected to the home WiFi and started web OTA:
+
+- C6 + IS31FL3741: `192.168.4.248`
+- FeatherS2 Neo: `192.168.4.249`
+- M5Stack Atom Matrix: `192.168.4.250`
+
+Then built `smoke-2026-05-15.4` and uploaded the app binaries over HTTP OTA to all three boards:
+
+- `curl -F firmware=@/tmp/res-c6-ota/smoke_test.ino.bin http://192.168.4.248/update`
+- `curl -F firmware=@/tmp/res-feathers2neo-ota/smoke_test.ino.bin http://192.168.4.249/update`
+- `curl -F firmware=@/tmp/res-atom-ota/smoke_test.ino.bin http://192.168.4.250/update`
+
+All three returned `Update complete. Rebooting.` and reconnected, serving `Version: smoke-2026-05-15.4` from their OTA web pages.
+
+Open follow-up: `RES_WIFI_AUTO_CONNECT` is convenient for bench testing but should stay off in committed examples and production-like firmware. Production should enter OTA only in explicit maintenance mode.
+
 ## 2026-05-15 — Ben + Codex — COTS smoke firmware built, flashed, and serial-verified
 
 Added `firmware/smoke_test/`, an Arduino CLI smoke-test sketch for the first three COTS prototypes. It builds for:

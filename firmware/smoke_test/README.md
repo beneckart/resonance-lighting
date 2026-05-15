@@ -9,8 +9,24 @@ Targets:
 - M5Stack Atom Matrix built-in 5x5 LED matrix.
 
 The sketch prints a boot report over serial, scans I2C, runs a conservative
-LED test, and can start a temporary AP-hosted web OTA updater from the serial
-console.
+LED test, and can start either a home-WiFi or temporary AP-hosted web OTA
+updater from the serial console.
+
+## WiFi Secrets
+
+For station-mode OTA, create `wifi_secrets.h` next to the sketch. That file is
+ignored by git.
+
+```cpp
+#pragma once
+
+#define RES_WIFI_SSID "your-network"
+#define RES_WIFI_PASSWORD "your-password"
+#define RES_WIFI_AUTO_CONNECT 0
+```
+
+Set `RES_WIFI_AUTO_CONNECT` to `1` only for bench sessions where every boot
+should enter WiFi OTA maintenance mode automatically.
 
 ## Build
 
@@ -39,7 +55,9 @@ arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:m5stack_atom:PartitionSche
 - `i` — run I2C scan.
 - `l` — run conservative LED test.
 - `c` — clear LEDs.
+- `w` — connect to configured WiFi and start web OTA updater.
 - `o` — start temporary AP web OTA updater.
 
-When OTA mode is started, connect to the printed `resonance-smoke-*` WiFi AP
-and open `http://192.168.4.1/` in a browser.
+When AP OTA mode is started, connect to the printed `resonance-smoke-*` WiFi AP
+and open `http://192.168.4.1/` in a browser. When station OTA mode is started,
+open the printed `http://<board-ip>/` URL.

@@ -14,6 +14,7 @@ __pycache__/
 # Firmware
 .pio/
 .vscode/
+firmware/smoke_test/wifi_secrets.h
 
 # OS
 .DS_Store

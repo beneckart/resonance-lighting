@@ -10,7 +10,18 @@
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 
-#define SMOKE_VERSION "smoke-2026-05-15.2"
+#if __has_include("wifi_secrets.h")
+#include "wifi_secrets.h"
+#define RES_HAS_WIFI_SECRETS 1
+#else
+#define RES_HAS_WIFI_SECRETS 0
+#endif
+
+#ifndef RES_WIFI_AUTO_CONNECT
+#define RES_WIFI_AUTO_CONNECT 0
+#endif
+
+#define SMOKE_VERSION "smoke-2026-05-15.4"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -53,9 +64,11 @@ Adafruit_NeoPixel pixels(RES_PIXEL_COUNT, RES_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 WebServer server(80);
 bool otaActive = false;
+bool otaRoutesConfigured = false;
 bool is31Ready = false;
 uint32_t lastHeartbeatMs = 0;
 String shortId;
+String otaMode = "off";
 
 const char *resetReasonName(esp_reset_reason_t reason) {
   switch (reason) {
@@ -249,6 +262,21 @@ void printOtaPartitionInfo() {
   Serial.println(boot ? boot->label : "unknown");
 }
 
+void printWifiInfo() {
+  Serial.print("wifi_secrets_compiled: ");
+  Serial.println(RES_HAS_WIFI_SECRETS ? "yes" : "no");
+  Serial.print("wifi_status: ");
+  Serial.println(WiFi.status() == WL_CONNECTED ? "connected" : "not_connected");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("wifi_ssid: ");
+    Serial.println(WiFi.SSID());
+    Serial.print("wifi_ip: ");
+    Serial.println(WiFi.localIP());
+  }
+  Serial.print("ota_mode: ");
+  Serial.println(otaMode);
+}
+
 void printReport() {
   Serial.println();
   Serial.println("=== Resonance COTS smoke test ===");
@@ -272,8 +300,9 @@ void printReport() {
   Serial.printf("neopixel_pin: %d\n", RES_PIXEL_PIN);
   Serial.printf("neopixel_count: %d\n", RES_PIXEL_COUNT);
 #endif
-  Serial.printf("ota_ap_active: %s\n", otaActive ? "yes" : "no");
+  Serial.printf("ota_web_active: %s\n", otaActive ? "yes" : "no");
   printOtaPartitionInfo();
+  printWifiInfo();
 }
 
 String otaFormHtml() {
@@ -286,6 +315,8 @@ String otaFormHtml() {
   html += RES_BOARD_NAME;
   html += F("<br>Fixture: ");
   html += shortId;
+  html += F("<br>Version: ");
+  html += SMOKE_VERSION;
   html += F("</p><form method='POST' action='/update' "
             "enctype='multipart/form-data'>");
   html += F("<input type='file' name='firmware'>");
@@ -294,18 +325,8 @@ String otaFormHtml() {
   return html;
 }
 
-void startOtaAp() {
-  if (otaActive) {
-    Serial.println("OTA AP already active");
-    return;
-  }
-
-  clearLeds();
-  String ssid = "resonance-smoke-" + shortId;
-  WiFi.mode(WIFI_AP);
-  bool ok = WiFi.softAP(ssid.c_str());
-  if (!ok) {
-    Serial.println("Failed to start OTA AP");
+void configureOtaRoutes() {
+  if (otaRoutesConfigured) {
     return;
   }
 
@@ -342,12 +363,77 @@ void startOtaAp() {
         }
       });
 
+  otaRoutesConfigured = true;
+}
+
+void startOtaAp() {
+  if (otaActive) {
+    Serial.println("OTA web server already active");
+    return;
+  }
+
+  clearLeds();
+  String ssid = "resonance-smoke-" + shortId;
+  WiFi.mode(WIFI_AP);
+  bool ok = WiFi.softAP(ssid.c_str());
+  if (!ok) {
+    Serial.println("Failed to start OTA AP");
+    return;
+  }
+
+  configureOtaRoutes();
   server.begin();
   otaActive = true;
+  otaMode = "ap";
   Serial.println();
   Serial.println("OTA maintenance AP started");
   Serial.printf("  ssid: %s\n", ssid.c_str());
   Serial.println("  url:  http://192.168.4.1/");
+}
+
+bool startWifiOta() {
+#if RES_HAS_WIFI_SECRETS
+  if (otaActive) {
+    Serial.println("OTA web server already active");
+    return true;
+  }
+
+  clearLeds();
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  Serial.println();
+  Serial.printf("Connecting to WiFi SSID: %s\n", RES_WIFI_SSID);
+  WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
+
+  const uint32_t startMs = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startMs < 20000) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi connection failed");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    return false;
+  }
+
+  configureOtaRoutes();
+  server.begin();
+  otaActive = true;
+  otaMode = "wifi";
+  Serial.println("WiFi OTA web updater started");
+  Serial.print("  ip:  ");
+  Serial.println(WiFi.localIP());
+  Serial.print("  url: http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
+  return true;
+#else
+  Serial.println("No wifi_secrets.h compiled in; cannot start station OTA");
+  return false;
+#endif
 }
 
 void printHelp() {
@@ -358,6 +444,7 @@ void printHelp() {
   Serial.println("  i    I2C scan");
   Serial.println("  l    LED test");
   Serial.println("  c    clear LEDs");
+  Serial.println("  w    connect to configured WiFi and start web OTA updater");
   Serial.println("  o    start temporary AP web OTA updater");
 }
 
@@ -384,6 +471,9 @@ void handleSerial() {
     case 'c':
       clearLeds();
       Serial.println("LEDs cleared");
+      break;
+    case 'w':
+      startWifiOta();
       break;
     case 'o':
       startOtaAp();
@@ -412,6 +502,10 @@ void setup() {
   printReport();
   runLedTest();
   printHelp();
+
+#if RES_WIFI_AUTO_CONNECT
+  startWifiOta();
+#endif
 }
 
 void loop() {
