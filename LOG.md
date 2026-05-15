@@ -12,6 +12,30 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-15 — Ben + Codex — LED measurement firmware loaded on COTS smoke boards
+
+Extended `firmware/smoke_test/` into a deterministic LED measurement harness and bumped it to `smoke-2026-05-15.6`.
+
+New serial/HTTP measurement modes:
+
+- `q` — quiet baseline: stop OTA/WiFi and clear LEDs.
+- `0` — LEDs off, current WiFi/OTA state unchanged.
+- `1` — center dim warm white.
+- `2` — 3-pixel RGB fringe.
+- `3` — center 3x3 dim warm white.
+- `4` — full-array very-low white.
+- `5` — full-array capped white, brief measurements only.
+
+The OTA status page now shows the active mode and exposes `/mode?m=<mode>` links, so the USB current meter workflow can use either serial commands or `curl` while WiFi OTA is active. Added `docs/tests/COTS_LED_MEASUREMENTS_2026-05-15.md` as the worksheet for current and optics readings.
+
+Built and uploaded `smoke-2026-05-15.6` over HTTP OTA to all three connected boards:
+
+- C6 + IS31FL3741: `192.168.4.248`
+- FeatherS2 Neo: `192.168.4.249`
+- M5Stack Atom Matrix: `192.168.4.250`
+
+All three served `Version: smoke-2026-05-15.6`, accepted `/mode?m=1`, and were left in mode `0` with LEDs off and OTA still available. LED-current readings are still open; record them in the new worksheet.
+
 ## 2026-05-15 — Ben + Codex — Home-WiFi web OTA validated on all three COTS smoke boards
 
 Committed and pushed the initial smoke-test baseline as `f36595e Add COTS smoke test firmware`.

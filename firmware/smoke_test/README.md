@@ -8,9 +8,9 @@ Targets:
 - UnexpectedMaker FeatherS2 Neo built-in 5x5 LED matrix.
 - M5Stack Atom Matrix built-in 5x5 LED matrix.
 
-The sketch prints a boot report over serial, scans I2C, runs a conservative
-LED test, and can start either a home-WiFi or temporary AP-hosted web OTA
-updater from the serial console.
+The sketch prints a boot report over serial, scans I2C, enters a conservative
+LED measurement mode, and can start either a home-WiFi or temporary AP-hosted
+web OTA updater from the serial console.
 
 ## WiFi Secrets
 
@@ -54,10 +54,27 @@ arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:m5stack_atom:PartitionSche
 - `r` — print boot/status report again.
 - `i` — run I2C scan.
 - `l` — run conservative LED test.
-- `c` — clear LEDs.
+- `c` or `0` — clear LEDs, keeping the current WiFi/OTA state.
+- `q` — quiet current baseline: stop OTA/WiFi and clear LEDs.
+- `1` — center dim warm-white LED.
+- `2` — 3-pixel RGB/fringing pattern.
+- `3` — center 3x3 dim warm-white crop.
+- `4` — full-array very-low white.
+- `5` — full-array capped white, brief measurements only.
 - `w` — connect to configured WiFi and start web OTA updater.
 - `o` — start temporary AP web OTA updater.
 
 When AP OTA mode is started, connect to the printed `resonance-smoke-*` WiFi AP
 and open `http://192.168.4.1/` in a browser. When station OTA mode is started,
 open the printed `http://<board-ip>/` URL.
+
+While the OTA web server is active, LED measurement modes can also be selected
+from the status page or by HTTP:
+
+```sh
+curl 'http://<board-ip>/mode?m=1'
+curl 'http://<board-ip>/mode?m=4'
+```
+
+Mode `q` turns WiFi off after replying, so use serial to continue controlling
+the board after entering quiet mode.

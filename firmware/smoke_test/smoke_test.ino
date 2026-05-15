@@ -21,7 +21,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define SMOKE_VERSION "smoke-2026-05-15.4"
+#define SMOKE_VERSION "smoke-2026-05-15.6"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -69,6 +69,13 @@ bool is31Ready = false;
 uint32_t lastHeartbeatMs = 0;
 String shortId;
 String otaMode = "off";
+char activeMeasurementMode = '0';
+
+const uint8_t neoCrop3x3[] = {6, 7, 8, 11, 12, 13, 16, 17, 18};
+
+const char *measurementModeName(char mode);
+bool applyMeasurementMode(char mode);
+void stopOtaAndWifi();
 
 const char *resetReasonName(esp_reset_reason_t reason) {
   switch (reason) {
@@ -146,6 +153,200 @@ void clearLeds() {
   pixels.clear();
   pixels.show();
 #endif
+}
+
+void setIs31Drive(uint8_t ledScaling, uint8_t globalCurrent) {
+#if RES_HAS_IS31
+  if (is31Ready) {
+    matrix.setLEDscaling(ledScaling);
+    matrix.setGlobalCurrent(globalCurrent);
+  }
+#else
+  (void)ledScaling;
+  (void)globalCurrent;
+#endif
+}
+
+void fillIs31(uint16_t color) {
+#if RES_HAS_IS31
+  if (is31Ready) {
+    matrix.fill(color);
+    matrix.show();
+  }
+#else
+  (void)color;
+#endif
+}
+
+void setNeoBrightnessAndClear(uint8_t brightness) {
+#if RES_HAS_NEOPIXEL
+  pixels.setBrightness(brightness);
+  pixels.clear();
+#else
+  (void)brightness;
+#endif
+}
+
+void showNeoPixels() {
+#if RES_HAS_NEOPIXEL
+  pixels.show();
+#endif
+}
+
+const char *measurementModeName(char mode) {
+  switch (mode) {
+  case '0':
+    return "off_wifi_state_unchanged";
+  case 'q':
+    return "quiet_baseline_wifi_off_leds_off";
+  case '1':
+    return "center_dim_warm_white";
+  case '2':
+    return "three_pixel_rgb_fringe";
+  case '3':
+    return "center_3x3_dim_warm_white";
+  case '4':
+    return "full_array_very_low_white";
+  case '5':
+    return "full_array_capped_white_brief";
+  default:
+    return "unknown";
+  }
+}
+
+bool isMeasurementMode(char mode) {
+  return mode == '0' || mode == 'q' || mode == '1' || mode == '2' ||
+         mode == '3' || mode == '4' || mode == '5';
+}
+
+void printMeasurementMode(char mode) {
+  Serial.printf("measurement_mode: %c %s\n", mode, measurementModeName(mode));
+#if RES_HAS_IS31
+  if (is31Ready) {
+    Serial.printf("  is31_global_current=%u\n", matrix.getGlobalCurrent());
+  }
+#endif
+#if RES_HAS_NEOPIXEL
+  Serial.printf("  neopixel_brightness=%u/255\n", pixels.getBrightness());
+#endif
+  Serial.printf("  wifi=%s ota=%s\n",
+                WiFi.status() == WL_CONNECTED ? "connected" : "not_connected",
+                otaActive ? "on" : "off");
+}
+
+bool applyMeasurementMode(char mode) {
+  if (!isMeasurementMode(mode)) {
+    return false;
+  }
+
+  if (mode == 'q') {
+    stopOtaAndWifi();
+    clearLeds();
+    activeMeasurementMode = mode;
+    printMeasurementMode(mode);
+    return true;
+  }
+
+  activeMeasurementMode = mode;
+
+  switch (mode) {
+  case '0':
+    clearLeds();
+    break;
+
+  case '1':
+#if RES_HAS_IS31
+    setIs31Drive(0x20, 0x08);
+    if (is31Ready) {
+      matrix.fill(0);
+      matrix.drawPixel(6, 4, matrix.color565(20, 18, 14));
+      matrix.show();
+    }
+#endif
+#if RES_HAS_NEOPIXEL
+    setNeoBrightnessAndClear(12);
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(32, 28, 20));
+    showNeoPixels();
+#endif
+    break;
+
+  case '2':
+#if RES_HAS_IS31
+    setIs31Drive(0x20, 0x0C);
+    if (is31Ready) {
+      matrix.fill(0);
+      matrix.drawPixel(5, 4, matrix.color565(28, 0, 0));
+      matrix.drawPixel(6, 4, matrix.color565(0, 24, 0));
+      matrix.drawPixel(7, 4, matrix.color565(0, 0, 28));
+      matrix.show();
+    }
+#endif
+#if RES_HAS_NEOPIXEL
+    setNeoBrightnessAndClear(12);
+    pixels.setPixelColor(RES_PIXEL_CENTER - 1, pixels.Color(48, 0, 0));
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(0, 40, 0));
+    pixels.setPixelColor(RES_PIXEL_CENTER + 1, pixels.Color(0, 0, 48));
+    showNeoPixels();
+#endif
+    break;
+
+  case '3':
+#if RES_HAS_IS31
+    setIs31Drive(0x18, 0x08);
+    if (is31Ready) {
+      matrix.fill(0);
+      for (int y = 3; y <= 5; y++) {
+        for (int x = 5; x <= 7; x++) {
+          matrix.drawPixel(x, y, matrix.color565(8, 7, 5));
+        }
+      }
+      matrix.show();
+    }
+#endif
+#if RES_HAS_NEOPIXEL
+    setNeoBrightnessAndClear(8);
+    for (uint8_t i = 0; i < sizeof(neoCrop3x3); i++) {
+      pixels.setPixelColor(neoCrop3x3[i], pixels.Color(18, 16, 12));
+    }
+    showNeoPixels();
+#endif
+    break;
+
+  case '4':
+#if RES_HAS_IS31
+    setIs31Drive(0x10, 0x06);
+    if (is31Ready) {
+      fillIs31(matrix.color565(2, 2, 2));
+    }
+#endif
+#if RES_HAS_NEOPIXEL
+    setNeoBrightnessAndClear(4);
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) {
+      pixels.setPixelColor(i, pixels.Color(8, 8, 8));
+    }
+    showNeoPixels();
+#endif
+    break;
+
+  case '5':
+#if RES_HAS_IS31
+    setIs31Drive(0x20, 0x10);
+    if (is31Ready) {
+      fillIs31(matrix.color565(6, 6, 6));
+    }
+#endif
+#if RES_HAS_NEOPIXEL
+    setNeoBrightnessAndClear(10);
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) {
+      pixels.setPixelColor(i, pixels.Color(24, 24, 24));
+    }
+    showNeoPixels();
+#endif
+    break;
+  }
+
+  printMeasurementMode(mode);
+  return true;
 }
 
 void runI2cScan() {
@@ -275,6 +476,10 @@ void printWifiInfo() {
   }
   Serial.print("ota_mode: ");
   Serial.println(otaMode);
+  Serial.print("measurement_mode: ");
+  Serial.print(activeMeasurementMode);
+  Serial.print(" ");
+  Serial.println(measurementModeName(activeMeasurementMode));
 }
 
 void printReport() {
@@ -317,7 +522,19 @@ String otaFormHtml() {
   html += shortId;
   html += F("<br>Version: ");
   html += SMOKE_VERSION;
-  html += F("</p><form method='POST' action='/update' "
+  html += F("<br>Mode: ");
+  html += activeMeasurementMode;
+  html += F(" ");
+  html += measurementModeName(activeMeasurementMode);
+  html += F("</p><p>LED measurement modes: ");
+  html += F("<a href='/mode?m=0'>0 off</a> ");
+  html += F("<a href='/mode?m=1'>1 center</a> ");
+  html += F("<a href='/mode?m=2'>2 RGB</a> ");
+  html += F("<a href='/mode?m=3'>3 3x3</a> ");
+  html += F("<a href='/mode?m=4'>4 full low</a> ");
+  html += F("<a href='/mode?m=5'>5 capped brief</a> ");
+  html += F("<a href='/mode?m=q'>q quiet</a></p>");
+  html += F("<form method='POST' action='/update' "
             "enctype='multipart/form-data'>");
   html += F("<input type='file' name='firmware'>");
   html += F("<input type='submit' value='Update'>");
@@ -331,6 +548,31 @@ void configureOtaRoutes() {
   }
 
   server.on("/", HTTP_GET, []() { server.send(200, "text/html", otaFormHtml()); });
+
+  server.on("/mode", HTTP_GET, []() {
+    if (!server.hasArg("m") || server.arg("m").length() != 1) {
+      server.send(400, "text/plain", "Missing mode. Use /mode?m=0,1,2,3,4,5,q\n");
+      return;
+    }
+
+    char mode = server.arg("m")[0];
+    if (!isMeasurementMode(mode)) {
+      server.send(400, "text/plain", "Unknown measurement mode\n");
+      return;
+    }
+
+    String reply = "Mode ";
+    reply += mode;
+    reply += " ";
+    reply += measurementModeName(mode);
+    reply += "\n";
+    server.send(200, "text/plain", reply);
+
+    if (mode == 'q') {
+      delay(250);
+    }
+    applyMeasurementMode(mode);
+  });
 
   server.on(
       "/update", HTTP_POST,
@@ -373,6 +615,7 @@ void startOtaAp() {
   }
 
   clearLeds();
+  activeMeasurementMode = '0';
   String ssid = "resonance-smoke-" + shortId;
   WiFi.mode(WIFI_AP);
   bool ok = WiFi.softAP(ssid.c_str());
@@ -399,6 +642,7 @@ bool startWifiOta() {
   }
 
   clearLeds();
+  activeMeasurementMode = '0';
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   Serial.println();
@@ -436,6 +680,18 @@ bool startWifiOta() {
 #endif
 }
 
+void stopOtaAndWifi() {
+  if (otaActive) {
+    server.stop();
+  }
+  WiFi.disconnect(true);
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_OFF);
+  otaActive = false;
+  otaMode = "off";
+  Serial.println("OTA server stopped and WiFi turned off");
+}
+
 void printHelp() {
   Serial.println();
   Serial.println("Commands:");
@@ -443,7 +699,13 @@ void printHelp() {
   Serial.println("  r    print report");
   Serial.println("  i    I2C scan");
   Serial.println("  l    LED test");
-  Serial.println("  c    clear LEDs");
+  Serial.println("  c/0  clear LEDs, keep current WiFi/OTA state");
+  Serial.println("  q    quiet baseline: stop OTA/WiFi and clear LEDs");
+  Serial.println("  1    center dim warm white");
+  Serial.println("  2    3-pixel RGB fringe");
+  Serial.println("  3    center 3x3 dim warm white");
+  Serial.println("  4    full array very low white");
+  Serial.println("  5    full array capped white, brief only");
   Serial.println("  w    connect to configured WiFi and start web OTA updater");
   Serial.println("  o    start temporary AP web OTA updater");
 }
@@ -467,10 +729,19 @@ void handleSerial() {
       break;
     case 'l':
       runLedTest();
+      applyMeasurementMode('1');
       break;
     case 'c':
-      clearLeds();
-      Serial.println("LEDs cleared");
+    case '0':
+      applyMeasurementMode('0');
+      break;
+    case 'q':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+      applyMeasurementMode(c);
       break;
     case 'w':
       startWifiOta();
@@ -500,7 +771,7 @@ void setup() {
   runI2cScan();
   setupIs31();
   printReport();
-  runLedTest();
+  applyMeasurementMode('1');
   printHelp();
 
 #if RES_WIFI_AUTO_CONNECT
