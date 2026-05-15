@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resonance COTS Mode Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f4;
+      --panel: #ffffff;
+      --text: #1f2523;
+      --muted: #66706b;
+      --line: #d8ded8;
+      --accent: #156f67;
+      --accent-dark: #0f4f4a;
+      --warn: #a84712;
+      --danger: #8b1e24;
+      --shadow: 0 8px 24px rgba(25, 34, 30, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfa;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    main {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .toolbar,
+    .board {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .toolbar-row,
+    .mode-grid,
+    .board-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .label {
+      min-width: 76px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    button,
+    a.button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 11px;
+      background: #ffffff;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    button:hover,
+    a.button:hover {
+      border-color: var(--accent);
+      color: var(--accent-dark);
+    }
+
+    .primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .primary:hover {
+      border-color: var(--accent-dark);
+      background: var(--accent-dark);
+      color: #ffffff;
+    }
+
+    .warn {
+      border-color: #d8a57d;
+      color: var(--warn);
+    }
+
+    .danger {
+      border-color: #d99aa0;
+      color: var(--danger);
+    }
+
+    .boards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .board {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .board-header {
+      display: grid;
+      gap: 2px;
+      padding: 13px 14px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .ip,
+    .last {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .board-actions {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    iframe.status {
+      display: block;
+      width: 100%;
+      height: 238px;
+      border: 0;
+      background: #ffffff;
+    }
+
+    iframe.command {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .boards {
+        grid-template-columns: 1fr;
+      }
+
+      iframe.status {
+        height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Resonance COTS Mode Dashboard</h1>
+    <div class="toolbar-row">
+      <button type="button" onclick="refreshAll()">Refresh</button>
+      <button type="button" class="primary" onclick="sendModeAll('0')">All Off</button>
+      <button type="button" class="danger" onclick="sendModeAll('q')">All Quiet</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="toolbar" aria-label="All board controls">
+      <div class="toolbar-row">
+        <div class="label">All Boards</div>
+        <div class="mode-grid" id="allModes"></div>
+      </div>
+    </section>
+
+    <section class="boards" id="boards" aria-label="Board controls"></section>
+  </main>
+
+  <script>
+    const boards = [
+      { id: "c6", name: "C6 + IS31FL3741", ip: "192.168.4.248" },
+      { id: "feathers2", name: "FeatherS2 Neo", ip: "192.168.4.249" },
+      { id: "atom", name: "Atom Matrix", ip: "192.168.4.250" }
+    ];
+
+    const modes = [
+      { code: "0", label: "0 Off" },
+      { code: "1", label: "1 Center" },
+      { code: "2", label: "2 RGB" },
+      { code: "3", label: "3 3x3" },
+      { code: "4", label: "4 Full Low" },
+      { code: "5", label: "5 Capped", className: "warn" },
+      { code: "q", label: "q Quiet", className: "danger" }
+    ];
+
+    function boardUrl(board, path = "/") {
+      return `http://${board.ip}${path}`;
+    }
+
+    function cacheBust(url) {
+      const separator = url.includes("?") ? "&" : "?";
+      return `${url}${separator}_=${Date.now()}`;
+    }
+
+    function setLast(boardId, text) {
+      const node = document.getElementById(`${boardId}-last`);
+      if (node) {
+        node.textContent = text;
+      }
+    }
+
+    function sendMode(boardId, mode) {
+      const board = boards.find((item) => item.id === boardId);
+      const command = document.getElementById(`${boardId}-command`);
+      if (!board || !command) {
+        return;
+      }
+
+      command.src = cacheBust(boardUrl(board, `/mode?m=${encodeURIComponent(mode)}`));
+      setLast(boardId, `sent mode ${mode}`);
+
+      if (mode !== "q") {
+        window.setTimeout(() => refreshBoard(boardId), 900);
+      }
+    }
+
+    function sendModeAll(mode) {
+      boards.forEach((board, index) => {
+        window.setTimeout(() => sendMode(board.id, mode), index * 80);
+      });
+    }
+
+    function refreshBoard(boardId) {
+      const board = boards.find((item) => item.id === boardId);
+      const status = document.getElementById(`${boardId}-status`);
+      if (!board || !status) {
+        return;
+      }
+
+      status.src = cacheBust(boardUrl(board));
+      setLast(boardId, "refreshing status");
+    }
+
+    function refreshAll() {
+      boards.forEach((board) => refreshBoard(board.id));
+    }
+
+    function modeButtons(handlerName, boardId = null) {
+      return modes.map((mode) => {
+        const className = mode.className ? ` ${mode.className}` : "";
+        const call = boardId
+          ? `${handlerName}('${boardId}', '${mode.code}')`
+          : `${handlerName}('${mode.code}')`;
+        return `<button type="button" class="${className.trim()}" onclick="${call}">${mode.label}</button>`;
+      }).join("");
+    }
+
+    function render() {
+      document.getElementById("allModes").innerHTML = modeButtons("sendModeAll");
+
+      document.getElementById("boards").innerHTML = boards.map((board) => `
+        <article class="board">
+          <div class="board-header">
+            <h2>${board.name}</h2>
+            <div class="ip">${board.ip}</div>
+            <div class="last" id="${board.id}-last">ready</div>
+          </div>
+          <div class="board-actions">
+            ${modeButtons("sendMode", board.id)}
+            <button type="button" onclick="refreshBoard('${board.id}')">Refresh</button>
+            <a class="button" target="_blank" rel="noreferrer" href="${boardUrl(board)}">Open</a>
+          </div>
+          <iframe class="status" id="${board.id}-status" title="${board.name} status" src="${boardUrl(board)}"></iframe>
+          <iframe class="command" id="${board.id}-command" title="${board.name} command"></iframe>
+        </article>
+      `).join("");
+    }
+
+    render();
+  </script>
+</body>
+</html>

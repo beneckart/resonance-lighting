@@ -12,6 +12,16 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-15 — Ben + Codex — Static COTS mode dashboard
+
+Added `ops/bench/cots-mode-dashboard.html`, a local static dashboard for the three active smoke-test boards:
+
+- C6 + IS31FL3741 at `192.168.4.248`
+- FeatherS2 Neo at `192.168.4.249`
+- Atom Matrix at `192.168.4.250`
+
+The page sends `/mode?m=<mode>` commands by iframe navigation rather than `fetch()`, so it works from a local `file://` page without requiring CORS headers from the ESP web server. It includes per-board and all-board controls for modes `0`, `1`, `2`, `3`, `4`, `5`, and `q`, plus embedded board status iframes.
+
 ## 2026-05-15 — Ben + Codex — OTA and USB flash timing benchmarks
 
 Ben ordered 12 DFRobot SEN0291 I2C digital wattmeters, so manual USB power-meter experiments are on hold until they arrive. Added a TODO item to integrate the wattmeters into the power-test harness/worksheets.
