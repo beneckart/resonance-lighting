@@ -21,7 +21,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define SMOKE_VERSION "smoke-2026-05-18.1"
+#define SMOKE_VERSION "smoke-2026-05-18.2"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -83,7 +83,9 @@ char activeMeasurementMode = '0';
 
 #if RES_HAS_NEOPIXEL
 #if defined(RES_PIXEL_LAYOUT_HEX37)
-const uint8_t neoCropPixels[] = {15, 16, 17, 18, 19, 20, 21};
+// NeoHEX appears column-indexed by hex columns of 4,5,6,7,6,5,4 LEDs.
+// These are the center pixel plus its first ring, not a contiguous index run.
+const uint8_t neoCropPixels[] = {11, 12, 17, 18, 19, 24, 25};
 #else
 const uint8_t neoCropPixels[] = {6, 7, 8, 11, 12, 13, 16, 17, 18};
 #endif

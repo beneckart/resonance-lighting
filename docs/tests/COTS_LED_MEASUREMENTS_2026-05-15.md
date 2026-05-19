@@ -3,7 +3,7 @@
 Purpose: first current and optics measurements for the three connected COTS
 prototype stacks.
 
-Firmware: `firmware/smoke_test`, version `smoke-2026-05-18.1`.
+Firmware: `firmware/smoke_test`, version `smoke-2026-05-18.2`.
 
 Boards under test:
 
@@ -89,6 +89,6 @@ gobo washout, color fringing, and thermal concerns.
   validation, but their board-level current is not a substitute for the final
   ESP32-C3-MINI custom hardware baseline.
 - The Atom + NeoHEX variant uses Atom Grove GPIO26 for the NeoHEX data line,
-  37 pixels, and fixture ID `55BA78`. The selected center pixel index is a
-  first-pass assumption and should be checked visually before gobo alignment
-  measurements.
+  37 pixels, and fixture ID `55BA78`. The selected center pixel index is 18.
+  `smoke-2026-05-18.2` changes mode `3` from a contiguous seven-index run to
+  a first-pass center hex cluster: `11, 12, 17, 18, 19, 24, 25`.
