@@ -3,7 +3,7 @@
 Purpose: first current and optics measurements for the three connected COTS
 prototype stacks.
 
-Firmware: `firmware/smoke_test`, version `smoke-2026-05-15.7`.
+Firmware: `firmware/smoke_test`, version `smoke-2026-05-18.1`.
 
 Boards under test:
 
@@ -11,6 +11,8 @@ Boards under test:
   STEMMA-QT, fixture `E41B2C`.
 - UnexpectedMaker FeatherS2 Neo built-in 5x5 RGB LED matrix, fixture `570D32`.
 - M5Stack Atom Matrix built-in 5x5 RGB LED matrix, fixture `1B5108`.
+- M5Stack Atom Matrix v1.1 + Atomic Battery Base + M5Stack Unit NeoHEX over
+  Grove, fixture `55BA78`.
 
 ## Measurement Modes
 
@@ -66,6 +68,13 @@ gobo washout, color fringing, and thermal concerns.
 | Atom Matrix | USB | `3` | | | | |
 | Atom Matrix | USB | `4` | | | | |
 | Atom Matrix | USB | `5` | | | | |
+| Atom + NeoHEX | USB / battery base | `0` | | | | |
+| Atom + NeoHEX | USB / battery base | `q` | | | | |
+| Atom + NeoHEX | USB / battery base | `1` | | | | |
+| Atom + NeoHEX | USB / battery base | `2` | | | | |
+| Atom + NeoHEX | USB / battery base | `3` | | | | |
+| Atom + NeoHEX | USB / battery base | `4` | | | | |
+| Atom + NeoHEX | USB / battery base | `5` | | | | |
 
 ## Notes
 
@@ -79,3 +88,7 @@ gobo washout, color fringing, and thermal concerns.
 - The integrated 5x5 matrices are useful for early optics and firmware
   validation, but their board-level current is not a substitute for the final
   ESP32-C3-MINI custom hardware baseline.
+- The Atom + NeoHEX variant uses Atom Grove GPIO26 for the NeoHEX data line,
+  37 pixels, and fixture ID `55BA78`. The selected center pixel index is a
+  first-pass assumption and should be checked visually before gobo alignment
+  measurements.

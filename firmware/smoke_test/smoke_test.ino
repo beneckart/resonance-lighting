@@ -21,7 +21,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define SMOKE_VERSION "smoke-2026-05-15.7"
+#define SMOKE_VERSION "smoke-2026-05-18.1"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -36,12 +36,22 @@
 #define RES_PIXEL_COUNT 25
 #define RES_PIXEL_CENTER 12
 #elif defined(ARDUINO_M5STACK_ATOM)
+#if defined(RES_ATOM_GROVE_NEOHEX)
+#define RES_BOARD_NAME "m5stack_atom_neohex"
+#define RES_HAS_IS31 0
+#define RES_HAS_NEOPIXEL 1
+#define RES_PIXEL_PIN 26
+#define RES_PIXEL_COUNT 37
+#define RES_PIXEL_CENTER 18
+#define RES_PIXEL_LAYOUT_HEX37 1
+#else
 #define RES_BOARD_NAME "m5stack_atom"
 #define RES_HAS_IS31 0
 #define RES_HAS_NEOPIXEL 1
 #define RES_PIXEL_PIN 27
 #define RES_PIXEL_COUNT 25
 #define RES_PIXEL_CENTER 12
+#endif
 #else
 #error "Unsupported board. Use adafruit_feather_esp32c6, um_feathers2neo, or m5stack_atom."
 #endif
@@ -71,7 +81,13 @@ String shortId;
 String otaMode = "off";
 char activeMeasurementMode = '0';
 
-const uint8_t neoCrop3x3[] = {6, 7, 8, 11, 12, 13, 16, 17, 18};
+#if RES_HAS_NEOPIXEL
+#if defined(RES_PIXEL_LAYOUT_HEX37)
+const uint8_t neoCropPixels[] = {15, 16, 17, 18, 19, 20, 21};
+#else
+const uint8_t neoCropPixels[] = {6, 7, 8, 11, 12, 13, 16, 17, 18};
+#endif
+#endif
 
 const char *measurementModeName(char mode);
 bool applyMeasurementMode(char mode);
@@ -226,6 +242,8 @@ void printMeasurementMode(char mode) {
 #endif
 #if RES_HAS_NEOPIXEL
   Serial.printf("  neopixel_brightness=%u/255\n", pixels.getBrightness());
+  Serial.printf("  neopixel_pin=%d count=%d center=%d\n", RES_PIXEL_PIN,
+                RES_PIXEL_COUNT, RES_PIXEL_CENTER);
 #endif
   Serial.printf("  wifi=%s ota=%s\n",
                 WiFi.status() == WL_CONNECTED ? "connected" : "not_connected",
@@ -303,8 +321,8 @@ bool applyMeasurementMode(char mode) {
 #endif
 #if RES_HAS_NEOPIXEL
     clearNeoPixelsFullScale();
-    for (uint8_t i = 0; i < sizeof(neoCrop3x3); i++) {
-      pixels.setPixelColor(neoCrop3x3[i], pixels.Color(6, 5, 4));
+    for (uint8_t i = 0; i < sizeof(neoCropPixels); i++) {
+      pixels.setPixelColor(neoCropPixels[i], pixels.Color(6, 5, 4));
     }
     showNeoPixels();
 #endif

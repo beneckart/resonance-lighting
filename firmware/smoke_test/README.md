@@ -7,6 +7,7 @@ Targets:
 - Adafruit Feather ESP32-C6 + Adafruit IS31FL3741 13x9 matrix over STEMMA-QT.
 - UnexpectedMaker FeatherS2 Neo built-in 5x5 LED matrix.
 - M5Stack Atom Matrix built-in 5x5 LED matrix.
+- M5Stack Atom Matrix + M5Stack Unit NeoHEX 37-LED board over Grove.
 
 The sketch prints a boot report over serial, scans I2C, enters a conservative
 LED measurement mode, and can start either a home-WiFi or temporary AP-hosted
@@ -36,6 +37,7 @@ Use Arduino CLI with the ESP32 core.
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32c6:CDCOnBoot=cdc,PartitionScheme=min_spiffs firmware/smoke_test
 arduino-cli compile --fqbn esp32:esp32:um_feathers2neo:PartitionScheme=min_spiffs firmware/smoke_test
 arduino-cli compile --fqbn esp32:esp32:m5stack_atom:PartitionScheme=min_spiffs firmware/smoke_test
+arduino-cli compile --fqbn esp32:esp32:m5stack_atom:PartitionScheme=min_spiffs --build-property compiler.cpp.extra_flags=-DRES_ATOM_GROVE_NEOHEX=1 firmware/smoke_test
 ```
 
 ## Flash
@@ -47,6 +49,9 @@ arduino-cli upload -p /dev/ttyACM1 --fqbn esp32:esp32:adafruit_feather_esp32c6:C
 arduino-cli upload -p /dev/ttyACM0 --fqbn esp32:esp32:um_feathers2neo:PartitionScheme=min_spiffs firmware/smoke_test
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:m5stack_atom:PartitionScheme=min_spiffs firmware/smoke_test
 ```
+
+For Atom + NeoHEX, build with `RES_ATOM_GROVE_NEOHEX=1`. This drives the
+Grove yellow LED signal on GPIO26, uses 37 pixels, and leaves GPIO32 unused.
 
 ## Serial Commands
 
