@@ -50,6 +50,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Test gobo projection with IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix (Ben + Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
+- [ ] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet (Ben).
+- [ ] Order NeoHEX passive adapter Rev A quick-turn boards and record fab/shipping turnaround (Ben).
 
 ## PowerFeather-specific tests
 

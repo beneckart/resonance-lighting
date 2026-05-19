@@ -24,6 +24,18 @@ DFRobot DFR0559 USB output → FeatherS2 Neo
 DFRobot DFR0559 USB output → M5Stack Atom Matrix
 ```
 
+Small adapter-board workstream:
+
+```
+PowerFeather/Feather GPIO + external LED rail
+        ↓
+NeoHEX passive adapter Rev A
+        ↓
+M5Stack HEX / NeoHEX Grove connector
+```
+
+See `hardware/led-adapter/neohex-passive-rev-a/`.
+
 ### Track B — custom PCBA
 
 If the COTS tests justify a bespoke board, the custom board should be derived from the successful COTS/reference architecture, currently PowerFeather V2.

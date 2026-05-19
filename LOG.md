@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-18 — Ben + Codex — NeoHEX passive adapter Rev A design packet
+
+Started a small PCB workstream for a no-solder-ish HEX/NeoHEX adapter board as both an educational PCB exercise and a possible 100-unit assembly aid.
+
+Added `hardware/led-adapter/neohex-passive-rev-a/`:
+
+- `README.md` — design intent, schematic, connector pinouts, layout guidance, assembly variants, bring-up checklist, and open questions.
+- `bom.csv` — first-pass BOM for Grove/HY2.0 output, external LED power input, STEMMA/QT data input, optional generic GPIO input, data resistor, decoupling, jumpers, and test pads.
+- `netlist.csv` — explicit nets for KiCad capture.
+
+Rev A is intentionally passive: connectors, shared ground, power injection, one data-source solder jumper, 330 ohm data resistor, and optional bulk capacitance. It does not include a boost regulator or constant-current driver. Added TODO items to capture the board in KiCad and order quick-turn boards.
+
 ## 2026-05-18 — Ben + Codex — Planned iso-current LED brightness test
 
 Added `docs/tests/ISO_CURRENT_LED_BRIGHTNESS_TEST_2026-05-18.md` after visual smoke testing showed large brightness differences between full-low modes: roughly `FeatherS2 Neo >> NeoHEX ~= IS31FL3741 > Atom Matrix`, with the Atom Matrix diffuser likely contributing.

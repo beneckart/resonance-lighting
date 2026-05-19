@@ -1,0 +1,17 @@
+Ref,Qty,Value,Package,Description,Assembly Notes
+J1,1,,HY2.0-4P/Grove socket,HEX/NeoHEX output connector,Verify footprint and pin order against chosen part
+J2,1,,JST-PH-2 or JST-GH-2,External LED power input,Select based on available pre-crimped power leads
+J3,1,,JST-SH-4 1.0mm,STEMMA/QT data input,Optional for STEMMA data variant
+J4,1,,JST-SH-3 or 0.1in header,Generic GPIO data input,Optional for generic GPIO variant
+R1,1,330 ohm,0603 or 0805,LED data series resistor,Place near J1
+C1,1,0.1 uF,0603,VLED decoupling,Place near J1 VLED/GND
+C2,1,100-470 uF >=6.3 V,SMD or radial,Optional VLED bulk capacitor,DNP if module/power path already has adequate bulk capacitance
+SJ1,1,,2-pad solder jumper,Select STEMMA SDA as data,Close one of SJ1/SJ2/SJ3 only
+SJ2,1,,2-pad solder jumper,Select STEMMA SCL as data,Close one of SJ1/SJ2/SJ3 only
+SJ3,1,,2-pad solder jumper,Select generic GPIO as data,Close one of SJ1/SJ2/SJ3 only
+SJ4,1,,2-pad solder jumper,Optional STEMMA V+ to VLED,Default open; silkscreen NO NEOHEX
+TP1,1,VLED,1.5mm test pad,VLED test point,
+TP2,1,GND,1.5mm test pad,GND test point,
+TP3,1,DATA_RAW,1.5mm test pad,Pre-resistor data test point,
+TP4,1,DATA_OUT,1.5mm test pad,Post-resistor data test point,
+TP5,1,NC,1.5mm test pad,Grove white/NC test point,
