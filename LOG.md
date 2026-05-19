@@ -12,6 +12,21 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-18 — Ben + Codex — Standalone Atom recovered on new subnet
+
+The standalone Atom Matrix + DFRobot DFR0559 stack appeared unreachable from the dashboard at its old address `192.168.4.250`. After Ben moved it from the DFR0559 output to direct USB, serial confirmed it was healthy and connected to `BubbyNet`, but DHCP had assigned `192.168.5.32`.
+
+Serial report:
+
+- Board: `m5stack_atom`
+- MAC: `F8:B3:B7:1B:51:08`
+- Fixture ID: `1B5108`
+- Reset reason: `poweron`
+- Previous firmware: `smoke-2026-05-15.7`
+- WiFi IP: `192.168.5.32`
+
+OTA-updated the Atom to `smoke-2026-05-18.2` at `192.168.5.32` and updated the local COTS mode dashboard from the stale `192.168.4.250` address. The board was warm while powered from the DFR0559 even with LEDs off; no firmware fault was visible over USB. Follow up with SEN0291 current measurements on the DFR0559 5 V output before leaving that stack powered unattended.
+
 ## 2026-05-18 — Ben + Codex — NeoHEX center-cluster mapping adjustment
 
 Ben observed that Atom + NeoHEX mode `3` appeared as a single seven-LED column. The placeholder NeoHEX crop used contiguous indices `15..21`, which confirms the NeoHEX chain appears to be indexed by hex columns rather than by a rectangular 3x3 layout.
