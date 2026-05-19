@@ -12,6 +12,31 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-18 — Ben + Codex — KiCad 10 starter PCB for NeoHEX adapter
+
+Ben upgraded KiCad from the Ubuntu 22.04 package to KiCad 10 via the KiCad PPA.
+Verified `kicad-cli` is now available and reports `10.0.3`; the `pcbnew`
+Python module also reports `10.0.3`.
+
+Added a KiCad starter project at
+`hardware/led-adapter/neohex-passive-rev-a/kicad/`:
+
+- `neohex-passive-rev-a.kicad_pro` — KiCad 10 project file.
+- `neohex-passive-rev-a.kicad_pcb` — routed 60 mm x 35 mm starter layout.
+- `generate_starter_pcb.py` — reproducible generator for the starter PCB.
+- `README.md` — KiCad-specific caveats and validation commands.
+
+The starter layout keeps Rev A passive: external `VLED` injection, shared
+ground, selectable STEMMA/GPIO data input, 330 ohm data resistor, local
+decoupling, optional `SJ4` STEMMA_V+ bridge marked for low-current testing only,
+and test pads. `kicad-cli pcb drc` reports zero violations and zero unconnected
+items, and Gerber/drill export succeeds into `/tmp/res-neohex-kicad/`.
+
+Important caveat: J1 is still a placeholder JST-PH 1x04 2.0 mm footprint standing
+in for the exact M5Stack Grove/HY2.0 socket, and no schematic has been captured
+yet. Do not order this board until J1 is replaced with the exact connector
+footprint, cable pin order is verified, and the schematic/PCB are back-checked.
+
 ## 2026-05-18 — Ben + Codex — NeoHEX passive adapter Rev A design packet
 
 Started a small PCB workstream for a no-solder-ish HEX/NeoHEX adapter board as both an educational PCB exercise and a possible 100-unit assembly aid.

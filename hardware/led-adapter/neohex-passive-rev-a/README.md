@@ -3,7 +3,12 @@
 Small adapter PCB for connecting M5Stack Unit HEX / Unit NeoHEX LED modules to
 PowerFeather V2 or Feather-class controller boards without per-unit soldering.
 
-Status: design packet, not yet captured in KiCad.
+Status: design packet plus KiCad 10 starter PCB layout.
+
+See `kicad/` for a routed starter board that passes `kicad-cli pcb drc` with
+zero violations. The starter layout is not order-ready: J1 is a placeholder
+JST-PH 1x04 2.0 mm footprint standing in for the exact M5Stack Grove/HY2.0
+socket, and no schematic has been captured yet.
 
 ## Design Intent
 
@@ -146,8 +151,9 @@ Not for NeoHEX/HEX production use.
 6. Check VLED sag and data waveform if LEDs flicker.
 7. Record module current with SEN0291 before full-white stress tests.
 
-## Open Questions Before KiCad Capture
+## Open Questions Before Ordering Rev A
 
+- Exact Grove/HY2.0 connector part and footprint for J1.
 - Exact connector families for J2/J4: JST-PH, JST-GH, JST-SH, or 0.1 in header.
 - Whether Rev A should include footprints for an optional level shifter.
 - Whether the adapter should mechanically mount in the hat or float in the

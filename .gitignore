@@ -2,6 +2,7 @@
 build/
 *.kicad_pro-bak
 *.kicad_sch-bak
+*.kicad_prl
 *-backups/
 fp-info-cache
 *.lck
