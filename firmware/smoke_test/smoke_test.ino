@@ -21,7 +21,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define SMOKE_VERSION "smoke-2026-05-18.2"
+#define SMOKE_VERSION "smoke-2026-05-19.1"
 
 #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32C6)
 #define RES_BOARD_NAME "adafruit_feather_esp32c6"
@@ -216,7 +216,7 @@ const char *measurementModeName(char mode) {
   case 'q':
     return "quiet_baseline_wifi_off_leds_off";
   case '1':
-    return "center_dim_warm_white";
+    return "center_max_white";
   case '2':
     return "three_pixel_rgb_fringe";
   case '3':
@@ -274,16 +274,16 @@ bool applyMeasurementMode(char mode) {
 
   case '1':
 #if RES_HAS_IS31
-    setIs31Drive(0x28, 0x0C);
+    setIs31Drive(0xFF, 0xFF);
     if (is31Ready) {
       matrix.fill(0);
-      matrix.drawPixel(6, 4, matrix.color565(32, 28, 24));
+      matrix.drawPixel(6, 4, matrix.color565(255, 255, 255));
       matrix.show();
     }
 #endif
 #if RES_HAS_NEOPIXEL
     clearNeoPixelsFullScale();
-    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(16, 14, 10));
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(255, 255, 255));
     showNeoPixels();
 #endif
     break;
@@ -546,7 +546,7 @@ String otaFormHtml() {
   html += measurementModeName(activeMeasurementMode);
   html += F("</p><p>LED measurement modes: ");
   html += F("<a href='/mode?m=0'>0 off</a> ");
-  html += F("<a href='/mode?m=1'>1 center</a> ");
+  html += F("<a href='/mode?m=1'>1 center max</a> ");
   html += F("<a href='/mode?m=2'>2 RGB</a> ");
   html += F("<a href='/mode?m=3'>3 3x3</a> ");
   html += F("<a href='/mode?m=4'>4 full low</a> ");
@@ -719,7 +719,7 @@ void printHelp() {
   Serial.println("  l    LED test");
   Serial.println("  c/0  clear LEDs, keep current WiFi/OTA state");
   Serial.println("  q    quiet baseline: stop OTA/WiFi and clear LEDs");
-  Serial.println("  1    center dim warm white");
+  Serial.println("  1    center max white");
   Serial.println("  2    3-pixel RGB fringe");
   Serial.println("  3    center 3x3 dim warm white");
   Serial.println("  4    full array very low white");

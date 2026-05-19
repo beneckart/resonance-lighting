@@ -61,7 +61,7 @@ Grove yellow LED signal on GPIO26, uses 37 pixels, and leaves GPIO32 unused.
 - `l` — run conservative LED test.
 - `c` or `0` — clear LEDs, keeping the current WiFi/OTA state.
 - `q` — quiet current baseline: stop OTA/WiFi and clear LEDs.
-- `1` — center dim warm-white LED.
+- `1` — center max-white LED.
 - `2` — 3-pixel RGB/fringing pattern.
 - `3` — center 3x3 dim warm-white crop.
 - `4` — full-array very-low white.
@@ -79,6 +79,13 @@ from the status page or by HTTP:
 ```sh
 curl 'http://<board-ip>/mode?m=1'
 curl 'http://<board-ip>/mode?m=4'
+```
+
+If an Atom + NeoHEX OTA upload fails over marginal WiFi, retry with a throttled
+multipart upload:
+
+```sh
+curl -H 'Expect:' --limit-rate 40k -F 'firmware=@/tmp/res-atom-neohex/smoke_test.ino.bin' 'http://<board-ip>/update'
 ```
 
 Mode `q` turns WiFi off after replying, so use serial to continue controlling

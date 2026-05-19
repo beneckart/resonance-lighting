@@ -12,6 +12,28 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-18 — Ben + Codex — Smoke mode 1 changed to max center
+
+Changed COTS smoke firmware mode `1` from dim warm-white center to max-white
+center for each board class:
+
+- IS31FL3741: `LEDscaling=0xFF`, `globalCurrent=0xFF`, center pixel white.
+- NeoPixel-backed boards: global brightness remains `255/255`, center pixel is
+  now `(255, 255, 255)`.
+
+Bumped firmware to `smoke-2026-05-19.1`, updated the smoke README and COTS mode
+dashboard label to `1 Center Max`, built all four variants, and OTA-flashed:
+
+- `192.168.4.248` / fixture `E41B2C` / C6 + IS31FL3741.
+- `192.168.4.249` / fixture `570D32` / FeatherS2 Neo.
+- `192.168.5.32` / fixture `1B5108` / Atom Matrix.
+- `192.168.4.27` / fixture `55BA78` / Atom + NeoHEX.
+
+All four boards reported `smoke-2026-05-19.1` and mode `1 center_max_white`
+after flashing. Atom + NeoHEX needed a throttled OTA retry
+(`curl -H 'Expect:' --limit-rate 40k ...`) after normal multipart upload attempts
+failed.
+
 ## 2026-05-18 — Ben + Codex — KiCad 10 starter PCB for NeoHEX adapter
 
 Ben upgraded KiCad from the Ubuntu 22.04 package to KiCad 10 via the KiCad PPA.
