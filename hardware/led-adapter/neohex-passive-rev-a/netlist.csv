@@ -1,11 +1,11 @@
 Net,Connected Pins,Notes
-GND,"J1.1, J2.2, J3.1, J4.1, C1.2, C2.2, TP2",Solid pour both layers
-VLED,"J1.2, J2.1, C1.1, C2.1, TP1, SJ4.2",Wide trace/pour; design for 1A
+GND,"J1.1, J2.2, J3.1, J4.1, J5.1, C1.2, C2.2, TP2",Solid pour both layers
+VLED,"J1.2, J2.1, J5.2, C1.1, C2.1, TP1, SJ4.2",Wide trace/pour; design for 1A
 STEMMA_VPLUS,"J3.2, SJ4.1",Do not connect to VLED unless SJ4 is intentionally closed
 STEMMA_SDA,"J3.3, SJ1.1",Candidate data source
 STEMMA_SCL,"J3.4, SJ2.1",Candidate data source
 GPIO_DIN,"J4.3, SJ3.1",Candidate data source
 DATA_RAW,"SJ1.2, SJ2.2, SJ3.2, R1.1, TP3",Only one SJ1/SJ2/SJ3 should be closed
-DATA_OUT,"R1.2, J1.3, TP4",LED data to module
+DATA_OUT,"R1.2, J1.3, J5.4, TP4",LED data to module
 GPIO_REF,"J4.2",Optional 3V3 reference or NC; no default connection
-NC_WHITE,"J1.4, TP5",M5 Grove white wire / NC
+NC_WHITE,"J1.4, J5.3, TP5",M5 Grove white wire / NC

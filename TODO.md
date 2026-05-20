@@ -50,8 +50,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Test gobo projection with IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix (Ben + Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
-- [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; starter PCB exists, exact J1 footprint and schematic remain (Ben).
-- [ ] Replace NeoHEX adapter J1 placeholder with exact Grove/HY2.0 socket footprint and verify cable pin order before ordering (Ben).
+- [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; PCBA-friendly starter PCB exists, schematic remains (Ben).
+- [x] Replace NeoHEX adapter through-hole connector candidates with SMT PCBA-friendly candidates: local M5Stack A118 HY2.0-4P SMD footprint for J1 and stock SMT JST-PH for J2 (Ben).
+- [x] Add J5 JST-SH/STEMMA-QT fallback output for Adafruit 4528-style Grove-to-STEMMA-QT cable on NeoHEX adapter Rev A (Ben).
+- [x] Prepare PCBWay quick-turn PCBA upload packet for NeoHEX adapter Rev A (Ben).
+- [~] Revise PCBWay NeoHEX adapter assembly quote to DNP J1/A118 and build through J5 fallback output (Ben + PCBWay).
+- [ ] Physically verify NeoHEX adapter J1 A118 candidate footprint against M5Stack Grove/HY2.0 cable and confirm pin order before ordering (Ben).
+- [ ] Physically verify NeoHEX adapter J5 fallback output with Adafruit 4528-style Grove-to-STEMMA-QT cable and confirm signal lands on J5.4 (Ben).
+- [ ] Verify J2 SMT JST-PH power connector against selected pre-crimped power leads, or swap to SMT JST-GH if preferred (Ben).
 - [ ] Capture NeoHEX passive adapter schematic in KiCad and back-annotate the PCB from it (Ben).
 - [ ] Order NeoHEX passive adapter Rev A quick-turn boards and record fab/shipping turnaround (Ben).
 

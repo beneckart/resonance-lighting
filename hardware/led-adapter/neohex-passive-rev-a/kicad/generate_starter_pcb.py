@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Generate the Rev A starter KiCad PCB.
 
-This is intentionally a starter layout, not an order-ready release.  The stock
-KiCad library does not include the exact M5Stack Grove/HY2.0 socket footprint,
-so J1 uses a provisional JST-PH 1x04 2.0 mm footprint until the exact connector
-part is selected.
+This is intentionally a starter layout, not an order-ready release.  J1 uses a
+local candidate footprint for the M5Stack A118 HY2.0-4P SMD connector.  J5 adds
+a JST-SH fallback output for an Adafruit Grove-to-STEMMA-QT cable.  Verify both
+physical fit and cable pin orientation against real parts before ordering more
+than prototype quantities.
 """
 
 from __future__ import annotations
@@ -38,7 +39,9 @@ def load_fp(
     y: float,
     rot: float = 0,
 ) -> pcbnew.FOOTPRINT:
-    fp = pcbnew.FootprintLoad(str(FP_ROOT / f"{lib}.pretty"), name)
+    local_lib = OUT_DIR / f"{lib}.pretty"
+    lib_dir = local_lib if local_lib.exists() else FP_ROOT / f"{lib}.pretty"
+    fp = pcbnew.FootprintLoad(str(lib_dir), name)
     if fp is None:
         raise RuntimeError(f"Could not load footprint {lib}:{name}")
     fp.SetReference(ref)
@@ -289,7 +292,7 @@ def build() -> None:
     }
 
     # Board outline: roomy first article, can shrink after connector selection.
-    width = 60.0
+    width = 72.0
     height = 35.0
     edge(board, (0, 0), (width, 0))
     edge(board, (width, 0), (width, height))
@@ -300,21 +303,21 @@ def build() -> None:
     fps["J1"] = load_fp(
         board,
         "J1",
-        "GROVE_OUT_PH4_PLACEHOLDER",
-        "Connector_JST",
-        "JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical",
-        55.0,
+        "HY2.0_4P_SMD_OUT",
+        "resonance",
+        "M5Stack_HY2.0-4P_SMD_A118",
+        64.0,
         12.0,
-        270,
+        0,
     )
     fps["J2"] = load_fp(
         board,
         "J2",
         "VLED_IN",
         "Connector_JST",
-        "JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical",
-        5.0,
-        8.0,
+        "JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal",
+        11.85,
+        7.0,
         90,
     )
     fps["J3"] = load_fp(
@@ -334,6 +337,16 @@ def build() -> None:
         "Connector_JST",
         "JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertical",
         45.0,
+        29.0,
+        0,
+    )
+    fps["J5"] = load_fp(
+        board,
+        "J5",
+        "QT_GROVE_OUT",
+        "Connector_JST",
+        "JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical",
+        58.0,
         29.0,
         0,
     )
@@ -364,17 +377,18 @@ def build() -> None:
         ("TP2", "GND", 52.0, 4.0),
         ("TP3", "DATA_RAW", 38.0, 25.0),
         ("TP4", "DATA_OUT", 50.0, 22.0),
-        ("TP5", "NC", 55.0, 26.0),
+        ("TP5", "NC", 52.0, 24.0),
     ]:
         fps[ref] = load_fp(board, ref, value, "TestPoint", "TestPoint_Pad_D1.5mm", x, y, 0)
 
     load_fp(board, "H1", "M2", "MountingHole", "MountingHole_2.2mm_M2", 8.0, 16.0, 0)
-    load_fp(board, "H2", "M2", "MountingHole", "MountingHole_2.2mm_M2", 56.0, 31.0, 0)
+    load_fp(board, "H2", "M2", "MountingHole", "MountingHole_2.2mm_M2", 68.0, 31.0, 0)
 
     assign(fps["J1"], nets, {"1": "GND", "2": "VLED", "3": "DATA_OUT", "4": "NC_WHITE"})
     assign(fps["J2"], nets, {"1": "VLED", "2": "GND"})
     assign(fps["J3"], nets, {"1": "GND", "2": "STEMMA_VPLUS", "3": "STEMMA_SDA", "4": "STEMMA_SCL"})
     assign(fps["J4"], nets, {"1": "GND", "2": "GPIO_REF", "3": "GPIO_DIN"})
+    assign(fps["J5"], nets, {"1": "GND", "2": "VLED", "3": "NC_WHITE", "4": "DATA_OUT"})
     assign(fps["R1"], nets, {"1": "DATA_RAW", "2": "DATA_OUT"})
     assign(fps["C1"], nets, {"1": "VLED", "2": "GND"})
     assign(fps["C2"], nets, {"1": "VLED", "2": "GND"})
@@ -393,18 +407,20 @@ def build() -> None:
 
     # VLED and GND trunks, sized for the Rev A 1 A learning target.
     for a, b in [
-        ((5.0, 8.0), (41.2, 8.0)),
+        ((9.0, 8.0), (41.2, 8.0)),
         ((41.2, 8.0), (41.2, 14.0)),
-        ((41.2, 14.0), (55.0, 14.0)),
+        ((41.2, 14.0), (64.0, 14.0)),
         ((34.0, 8.0), (34.0, 11.5)),
     ]:
         track(board, nets, "VLED", a, b, 1.2)
 
     for a, b in [
-        ((5.0, 6.0), (46.8, 6.0)),
-        ((46.8, 6.0), (46.8, 12.0)),
-        ((46.8, 12.0), (55.0, 12.0)),
-        ((52.0, 12.0), (52.0, 4.0)),
+        ((9.0, 6.0), (67.0, 6.0)),
+        ((46.8, 6.0), (46.8, 8.0)),
+        ((67.0, 6.0), (67.0, 12.0)),
+        ((67.0, 12.0), (64.0, 12.0)),
+        ((52.0, 6.0), (52.0, 4.0)),
+        ((49.0, 6.0), (49.0, 12.0)),
     ]:
         track(board, nets, "GND", a, b, 1.2)
 
@@ -413,7 +429,7 @@ def build() -> None:
     for a, b in [
         ((7.325, 30.5), (3.0, 30.5)),
         ((3.0, 30.5), (3.0, 6.0)),
-        ((3.0, 6.0), (5.0, 6.0)),
+        ((3.0, 6.0), (9.0, 6.0)),
         ((44.0, 30.325), (44.0, 33.0)),
         ((44.0, 33.0), (3.0, 33.0)),
         ((3.0, 33.0), (3.0, 30.5)),
@@ -434,12 +450,31 @@ def build() -> None:
         ("DATA_RAW", (44.35, 25.0), (36.0, 25.0), 0.25),
         ("DATA_RAW", (36.0, 28.5), (36.0, 16.0), 0.25),
         ("DATA_RAW", (36.0, 16.0), (48.087, 16.0), 0.25),
-        ("DATA_OUT", (49.913, 16.0), (55.0, 16.0), 0.25),
+        ("DATA_OUT", (49.913, 16.0), (64.0, 16.0), 0.25),
         ("DATA_OUT", (50.0, 16.0), (50.0, 22.0), 0.25),
-        ("NC_WHITE", (55.0, 18.0), (55.0, 26.0), 0.25),
+        ("NC_WHITE", (64.0, 18.0), (64.0, 26.0), 0.25),
+        ("NC_WHITE", (64.0, 26.0), (52.0, 26.0), 0.25),
+        ("NC_WHITE", (52.0, 26.0), (52.0, 24.0), 0.25),
     ]
     for net_name, a, b, width_mm in data_tracks:
         track(board, nets, net_name, a, b, width_mm)
+
+    # J5 is a fallback output for an Adafruit Grove-to-STEMMA-QT cable.  It is
+    # wired in parallel with J1 so the prototype can use either output without
+    # solder rework; leave the unused output unplugged.
+    for net_name, pad, via_out, via_bus, width_mm in [
+        ("GND", (56.5, 30.325), (55.5, 33.0), (55.5, 6.0), 0.5),
+        ("VLED", (57.5, 30.325), (57.0, 33.0), (57.0, 14.0), 0.5),
+        ("NC_WHITE", (58.5, 30.325), (58.5, 33.0), (58.5, 26.0), 0.25),
+        ("DATA_OUT", (59.5, 30.325), (60.0, 33.0), (60.0, 22.0), 0.25),
+    ]:
+        track(board, nets, net_name, pad, via_out, width_mm)
+        via(board, nets, net_name, *via_out)
+        via(board, nets, net_name, *via_bus)
+        track(board, nets, net_name, via_out, via_bus, width_mm, pcbnew.B_Cu)
+
+    track(board, nets, "NC_WHITE", (58.5, 26.0), (52.0, 26.0), 0.25)
+    track(board, nets, "DATA_OUT", (60.0, 22.0), (50.0, 22.0), 0.25)
 
     # Optional STEMMA V+ to VLED jumper.  Route STEMMA_VPLUS on the back layer
     # so it does not cross the adjacent JST-SH data signals on the front.
@@ -460,12 +495,13 @@ def build() -> None:
     track(board, nets, "GND", (49.0, 12.0), (49.0, 12.05), 0.5)
 
     text(board, "NeoHEX adapter Rev A", 14.0, 2.0, 1.2)
-    text(board, "J1 PH4 PLACEHOLDER", 36.0, 2.0, 0.9)
+    text(board, "J1 HY2.0 SMD", 69.0, 21.0, 0.8, angle_deg=90)
+    text(board, "J5 QT-GROVE OUT", 53.0, 34.0, 0.8)
     text(board, "GND VLED DATA NC", 36.0, 3.5, 0.9)
     text(board, "SJ1 SDA  SJ2 SCL  SJ3 GPIO", 10.0, 19.0, 0.9)
     text(board, "CLOSE ONE", 10.0, 17.5, 0.9)
     text(board, "SJ4 OPEN FOR NEOHEX", 10.0, 12.5, 0.9)
-    text(board, "VLED IN", 1.5, 11.0, 0.9)
+    text(board, "VLED IN", 1.5, 13.0, 0.9)
     text(board, "STEMMA", 10.0, 32.0, 0.9)
     text(board, "GPIO", 41.0, 31.8, 0.9)
 

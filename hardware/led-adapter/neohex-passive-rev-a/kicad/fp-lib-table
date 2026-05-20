@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "resonance")(type "KiCad")(uri "${KIPRJMOD}/resonance.pretty")(options "")(descr "Resonance Lighting local footprints"))
+)

@@ -1,0 +1,7 @@
+Designator,Quantity,Value,Footprint,Manufacturer,Manufacturer Part Number,Supplier Part Number,Populate,Notes
+J2,1,JST-PH-2 SMT,Connector_JST JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal,JST,S2B-PH-SM4-TB(LF)(SN),,Yes,External VLED power input
+J3,1,JST-SH-4 SMT,Connector_JST JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical,JST,BM04B-SRSS-TB(LF)(SN),,Yes,STEMMA/QT data input
+J4,1,JST-SH-3 SMT,Connector_JST JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertical,JST,BM03B-SRSS-TB(LF)(SN),,Yes,Generic GPIO data input
+J5,1,JST-SH-4 SMT,Connector_JST JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical,JST,BM04B-SRSS-TB(LF)(SN),,Yes,Fallback output for Adafruit 4528-style Grove-to-STEMMA-QT cable; J5.4 is DATA
+R1,1,330 ohm,Resistor_SMD R_0805_2012Metric,Yageo,RC0805FR-07330RL,,Yes,LED data series resistor
+C1,1,0.1 uF 50 V X7R,Capacitor_SMD C_0805_2012Metric,Murata,GRM21BR71H104KA01L,,Yes,VLED local decoupling

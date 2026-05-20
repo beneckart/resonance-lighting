@@ -1,11 +1,12 @@
 Ref,Qty,Value,Package,Description,Assembly Notes
-J1,1,,HY2.0-4P/Grove socket,HEX/NeoHEX output connector,Verify footprint and pin order against chosen part
-J2,1,,JST-PH-2 or JST-GH-2,External LED power input,Select based on available pre-crimped power leads
-J3,1,,JST-SH-4 1.0mm,STEMMA/QT data input,Optional for STEMMA data variant
-J4,1,,JST-SH-3 or 0.1in header,Generic GPIO data input,Optional for generic GPIO variant
-R1,1,330 ohm,0603 or 0805,LED data series resistor,Place near J1
-C1,1,0.1 uF,0603,VLED decoupling,Place near J1 VLED/GND
-C2,1,100-470 uF >=6.3 V,SMD or radial,Optional VLED bulk capacitor,DNP if module/power path already has adequate bulk capacitance
+J1,1,,M5Stack A118 HY2.0-4P SMD candidate,HEX/NeoHEX output connector,Verify local footprint and cable pin order before ordering
+J2,1,,JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal,External LED power input,SMT JST-PH candidate; verify against chosen pre-crimped leads
+J3,1,,JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical,STEMMA/QT data input,Optional for STEMMA data variant
+J4,1,,JST_SH_BM03B-SRSS-TB_1x03-1MP_P1.00mm_Vertical,Generic GPIO data input,Optional for generic GPIO variant
+J5,1,,JST_SH_BM04B-SRSS-TB_1x04-1MP_P1.00mm_Vertical,HEX/NeoHEX fallback output,For Adafruit 4528-style Grove-to-STEMMA-QT cable; J5.4 is DATA
+R1,1,330 ohm,R_0805_2012Metric,LED data series resistor,Place near J1
+C1,1,0.1 uF,C_0805_2012Metric,VLED decoupling,Place near J1 VLED/GND
+C2,1,100-470 uF >=6.3 V,CP_Elec_6.3x5.4,Optional VLED bulk capacitor,DNP if module/power path already has adequate bulk capacitance
 SJ1,1,,2-pad solder jumper,Select STEMMA SDA as data,Close one of SJ1/SJ2/SJ3 only
 SJ2,1,,2-pad solder jumper,Select STEMMA SCL as data,Close one of SJ1/SJ2/SJ3 only
 SJ3,1,,2-pad solder jumper,Select generic GPIO as data,Close one of SJ1/SJ2/SJ3 only

@@ -12,6 +12,76 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-05-20 — Ben + Codex — PCBWay assembly quote revised toward J5-only
+
+PCBWay's first assembly quote identified J1 / M5Stack A118 as the expensive and
+slow part: about $32.82 for five assembled boards and 7-10 working days of
+component lead time. Revised the PCBWay packet to match the practical prototype
+path:
+
+- Keep J1 pads in the Gerbers for later hand-solder/fit testing.
+- Mark J1 DNP for assembly so PCBWay does not source the A118 connector.
+- Use J5 as the assembled LED output through the Grove-to-STEMMA-QT cable.
+- Keep C2 DNP.
+- Update PCBWay notes and BOM to six placed SMD parts: J2, J3, J4, J5, R1, C1.
+
+PCB fabrication counts remain 46 SMT pads and 14 drill holes. Assembly counts
+are now six SMD components, zero through-hole components, and DNP parts J1/C2.
+
+## 2026-05-18 — Ben + Codex — PCBWay packet prepared for NeoHEX adapter
+
+Created `hardware/led-adapter/neohex-passive-rev-a/manufacturing/pcbway/` with
+a self-contained quick-turn PCBA upload packet:
+
+- `neohex-passive-rev-a-gerbers.zip` with Gerbers plus drill file.
+- `bom-pcbway.csv` with only populated parts: J1, J2, J3, J4, J5, R1, C1.
+- `neohex-passive-rev-a-pos-pcbway.csv` with C2 filtered out as DNP.
+- `neohex-passive-rev-a-pos-all.csv` as a full centroid reference.
+- `ORDER_NOTES.txt` and `README.md` with PCBWay settings, DNP notes, solder
+  jumper notes, and pad/hole counts.
+- `drc.rpt` showing zero violations and zero unconnected items.
+
+For the PCBWay enquiry, use 46 SMT pads and 14 drill holes if they mean board
+fabrication counts; use 7 SMD components and 0 through-hole components if they
+mean assembly placement counts.
+
+## 2026-05-18 — Ben + Codex — NeoHEX adapter gained JST-SH fallback output
+
+Added a second LED-output receptacle to the NeoHEX passive adapter starter PCB:
+
+- Kept J1 as the local M5Stack A118 HY2.0-4P SMD candidate.
+- Added J5 as a stock JST-SH 4-pin SMT receptacle intended for an Adafruit
+  4528-style Grove-to-STEMMA-QT cable.
+- Wired J5 in parallel with J1 so Rev A can use either output without solder
+  rework; the unused output should be left unplugged.
+- Mapped J5 as `1 GND`, `2 VLED`, `3 NC`, `4 DATA_OUT`, matching the NeoHEX
+  signal on the Grove yellow/SCL-position conductor.
+- Updated the design packet, BOM, netlist, KiCad README, and TODOs.
+
+`kicad-cli pcb drc` reports zero violations and zero unconnected items after
+adding J5. Remaining risks are physical cable/footprint verification, J2 power
+harness verification, and schematic capture/back-check.
+
+## 2026-05-18 — Ben + Codex — NeoHEX adapter moved toward SMT PCBA
+
+Ben preferred a PCBA-friendly adapter because the board will sit inside the
+enclosure and should not see meaningful cable forces. Reworked the NeoHEX
+adapter starter PCB away from through-hole populated connectors:
+
+- Added local footprint library `hardware/led-adapter/neohex-passive-rev-a/kicad/resonance.pretty/`.
+- Added local `M5Stack_HY2.0-4P_SMD_A118` candidate footprint for J1, based on
+  the M5Stack A118 HY2.0-4P SMD connector dimensions.
+- Replaced J2 with stock SMT
+  `Connector_JST:JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal`.
+- Grew the starter board to 72 mm x 35 mm so the larger SMT connector bodies,
+  routing, and labels remain easy to inspect.
+- Updated the J1 silkscreen label to `J1 HY2.0 SMD` next to the connector.
+
+`kicad-cli pcb drc` reports zero violations and zero unconnected items after the
+SMT conversion. The design is still not order-ready: physically verify J1
+against the actual M5Stack Grove/HY2.0 cable, verify J2 against the chosen power
+lead, and capture/back-check the schematic before sending to assembly.
+
 ## 2026-05-18 — Ben + Codex — Smoke mode 1 changed to max center
 
 Changed COTS smoke firmware mode `1` from dim warm-white center to max-white

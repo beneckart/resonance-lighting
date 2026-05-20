@@ -1,0 +1,41 @@
+Prototype PCBA for NeoHEX passive adapter Rev A.
+
+Please assemble top-side SMT parts only.
+
+Populate:
+- J2: JST PH S2B-PH-SM4-TB 2-pin SMT right-angle connector
+- J3: JST SH BM04B-SRSS-TB 4-pin SMT connector
+- J4: JST SH BM03B-SRSS-TB 3-pin SMT connector
+- J5: JST SH BM04B-SRSS-TB 4-pin SMT connector
+- R1: 330 ohm 0805 resistor
+- C1: 0.1 uF 0805 ceramic capacitor
+
+Do not populate:
+- J1: M5Stack A118 / HY2.0-4P SMD Grove-style connector, DNP for this
+  prototype packet. Please still fabricate the J1 pads from the Gerbers.
+- C2: optional bulk capacitor, DNP for this prototype packet
+
+Do not treat these as components:
+- SJ1, SJ2, SJ3, SJ4 are solder jumpers in copper. Leave them open.
+- TP1, TP2, TP3, TP4, TP5 are bare test pads.
+- H1 and H2 are mounting holes.
+
+Connector / orientation notes:
+- J5 fallback output pinout: 1 GND, 2 VLED, 3 NC, 4 DATA.
+- J1 and J5 are parallel output footprints. For this assembly, J1 is DNP and
+  J5 is the intended output connector.
+- Please verify connector rotation/polarity against silkscreen and
+  pick-and-place data before assembly.
+
+PCB enquiry counts:
+- SMT pads total number: 46.
+- Through-holes / drill holes: 14.
+- Through-hole components to assemble: 0.
+- SMD components to place from BOM: 6.
+
+Known prototype caveats:
+- J1 uses a local candidate footprint for the M5Stack A118 connector, but is
+  omitted from assembly because sourcing it dominates cost and lead time.
+- J5 is included as a fallback output for an Adafruit 4528-style
+  Grove-to-STEMMA-QT cable.
+- C2 is intentionally omitted to reduce prototype assembly sourcing friction.
