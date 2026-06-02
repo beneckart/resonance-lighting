@@ -63,15 +63,27 @@ fail. The sketch has a `#error` guard so a bare `arduino-cli compile` will refus
 build.
 
 ```sh
-# IS31FL3741 13x9, 4400 mAh Li-ion, build + flash
+# IS31FL3741 13x9, 4400 mAh Li-ion, build + USB flash
 ./build.sh --led is31 --cap 4400 --port /dev/ttyACM0
+
+# Same, but flash WIRELESSLY over WiFi (no USB) -- for deployed/outdoor harnesses
+./build.sh --led is31 --cap 4400 --ota 192.168.4.185
 
 # NeoHEX, 1500 mAh LiFePO4, no charging (clean LED-current run), build only
 ./build.sh --led neohex --cap 1500 --chem lfp --no-charge
 
 # options: --led is31|neohex|rgbw1|none  --cap MAH  --chem 3v7|lfp
-#          --no-charge  --maintain VOLTS  --port /dev/ttyACM0
+#          --charge-ma MA  --no-charge  --maintain VOLTS
+#          --port /dev/ttyACM0   (USB)  |  --ota <board-ip>   (WiFi)
 ```
+
+### OTA (wireless) flashing
+
+`--ota <ip>` compiles, then POSTs the binary to the firmware's web `/update`
+endpoint over WiFi — no USB. Keep USB as the recovery path: if an OTA build is
+broken, re-flash once over USB. The board must be on WiFi and serving (it is at
+boot when `RES_WIFI_AUTO_CONNECT=1`); a board put into mode `q` drops WiFi and
+can't be OTA'd until reset.
 
 Equivalent raw command (if not using build.sh, the V2 flag is mandatory):
 

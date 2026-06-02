@@ -7,18 +7,22 @@
 #
 # Usage:
 #   ./build.sh [--led is31|neohex|rgbw1|none] [--cap MAH] [--chem 3v7|lfp]
-#              [--charge-ma MA] [--no-charge] [--maintain V] [--port /dev/ttyACM0]
-#              [-- <extra ardocl args>]
+#              [--charge-ma MA] [--no-charge] [--maintain V]
+#              [--port /dev/ttyACM0 | --ota <ip>] [-- <extra ardocl args>]
+#
+# --port  flashes over USB; --ota flashes wirelessly via the firmware's web
+# /update endpoint (no USB needed -- use this for deployed/outdoor harnesses).
 #
 # Examples:
-#   ./build.sh --led is31 --cap 4400 --port /dev/ttyACM0          # build + flash
+#   ./build.sh --led is31 --cap 4400 --port /dev/ttyACM0          # build + USB flash
+#   ./build.sh --led is31 --cap 4400 --ota 192.168.4.185         # build + OTA flash
 #   ./build.sh --led neohex --cap 1500 --chem lfp --no-charge     # build only
 set -euo pipefail
 
 FQBN="esp32:esp32:esp32s3_powerfeather"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""
+LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --led) LED="$2"; shift 2;;
@@ -28,10 +32,14 @@ while [[ $# -gt 0 ]]; do
     --no-charge) CHARGE="0"; shift;;
     --maintain) MAINTAIN="$2"; shift 2;;
     --port) PORT="$2"; shift 2;;
+    --ota) OTA_IP="$2"; shift 2;;
     --) shift; break;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
+if [[ -n "${PORT}" && -n "${OTA_IP}" ]]; then
+  echo "use either --port (USB) or --ota (WiFi), not both" >&2; exit 2
+fi
 
 FLAGS="-DPOWERFEATHER_BOARD_V2=1"
 case "${LED}" in
@@ -55,9 +63,27 @@ esac
 [[ -n "${MAINTAIN}" ]] && FLAGS+=" -DRES_PF_MAINTAIN_V=${MAINTAIN}"
 
 echo "flags: ${FLAGS}"
-ARGS=(compile --fqbn "${FQBN}" --build-property "compiler.cpp.extra_flags=${FLAGS}")
-[[ -n "${PORT}" ]] && ARGS+=(-u -p "${PORT}")
-ARGS+=("$@" "${SKETCH_DIR}")
 
-set -x
-arduino-cli "${ARGS[@]}"
+if [[ -n "${OTA_IP}" ]]; then
+  # Compile to a temp dir, then POST the .bin to the firmware's /update endpoint.
+  OUT="$(mktemp -d)"
+  trap 'rm -rf "${OUT}"' EXIT
+  ( set -x
+    arduino-cli compile --fqbn "${FQBN}" \
+      --build-property "compiler.cpp.extra_flags=${FLAGS}" \
+      --output-dir "${OUT}" "$@" "${SKETCH_DIR}" )
+  BIN="${OUT}/$(basename "${SKETCH_DIR}").ino.bin"
+  [[ -f "${BIN}" ]] || { echo "no binary at ${BIN}" >&2; exit 1; }
+  echo "OTA flashing ${BIN} -> http://${OTA_IP}/update"
+  # -H 'Expect:' avoids the 100-continue some ESP servers dislike; board reboots
+  # on success so the connection may close as it replies -- that's expected.
+  curl -fsS -H 'Expect:' --max-time 180 \
+    -F "firmware=@${BIN}" "http://${OTA_IP}/update" || true
+  echo
+  echo "uploaded; board reboots into the new firmware (re-joins WiFi in a few s)."
+else
+  ARGS=(compile --fqbn "${FQBN}" --build-property "compiler.cpp.extra_flags=${FLAGS}")
+  [[ -n "${PORT}" ]] && ARGS+=(-u -p "${PORT}")
+  ARGS+=("$@" "${SKETCH_DIR}")
+  ( set -x; arduino-cli "${ARGS[@]}" )
+fi

@@ -12,7 +12,8 @@
 //
 // Build with build.sh (it always sets -DPOWERFEATHER_BOARD_V2=1, REQUIRED for the
 // V2 MAX17260 fuel gauge -- a bare `arduino-cli compile` will hit the #error guard):
-//   ./build.sh --led is31 --cap 4400 --port /dev/ttyACM0
+//   ./build.sh --led is31 --cap 4400 --port /dev/ttyACM0    # USB flash
+//   ./build.sh --led is31 --cap 4400 --ota 192.168.4.185   # wireless flash, no USB
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -37,7 +38,7 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define POWER_BENCH_VERSION "power-bench-2026-06-02.6"
+#define POWER_BENCH_VERSION "power-bench-2026-06-02.7"
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection
