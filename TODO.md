@@ -61,12 +61,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Capture NeoHEX passive adapter schematic in KiCad and back-annotate the PCB from it (Ben).
 - [ ] Order NeoHEX passive adapter Rev A quick-turn boards and record fab/shipping turnaround (Ben).
 
-## PowerFeather-specific tests
+## PowerFeather power-bench (2026-06-02, board 9E5AB8 — see docs/tests/POWER_BENCH_HARNESS_2026-06-02.md)
 
-- [ ] I2C-scan PowerFeather boards and identify BQ25628E / MAX17260 / TPS631013 vs V1 parts (Ben).
-- [ ] Configure LiFePO4 profile on confirmed V2 hardware only (Ben).
+- [x] Stand up Arduino power-bench firmware `firmware/power_bench/` with SDK 2.1.0 telemetry + `/telemetry` JSON (Ben).
+- [x] Confirm V2 hardware via Wire1 scan: MAX17260 (0x36), BQ25628E (0x6A), IS31 (0x30) (Ben).
+- [x] `Board.init(4400, Generic_3V7)` Ok; battery/supply voltage + current read correctly over WiFi (Ben).
+- [x] Wire up IS31FL3741 13x9 on the STEMMA-QT bus (Wire1, GPIO47/48) shared with the SDK (Ben).
+- [x] Host logger `ops/bench/power_logger.py` + `power_summary.py` + site-partitioned JSONL data layout (Ben).
+- [x] Resolve MAX17260 SOC/health/cycles `InvalidState` — root cause was the missing `-DPOWERFEATHER_BOARD_V2=1` compile flag (SDK fell back to V1 LC709204F gauge); now in build.sh + #error guard. SOC/health/cycles/time_left populate (Ben).
 - [ ] Verify BQ25628E charger telemetry: state, faults, input regulation, charge current (Ben).
-- [ ] Verify MAX17260 telemetry: voltage, current, temperature, SOC, time-to-empty/full (Ben).
+- [ ] Add NeoHEX + single-RGBW LED build variants on bench; confirm GPIO16 data + rail (Ben).
+- [ ] Solar harvest sweep across panels/conditions; set `RES_PF_MAINTAIN_V` to panel MPP (Ben).
+- [ ] Clean LED-current runs with `-DRES_PF_ENABLE_CHARGING=0` (charge current masks deltas) (Ben).
+- [ ] Steve mirrors the bench in TN; merge JSONL via the repo (Steve).
+- [ ] Add live telemetry readout to `ops/bench/cots-mode-dashboard.html` (Ben).
+- [ ] Configure LiFePO4 profile on confirmed V2 hardware only: `RES_PF_BATTERY_TYPE=Generic_LFP` (Ben).
 - [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
 - [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).
 - [ ] Test panel MPP/VINDPM settings for each panel (Ben).

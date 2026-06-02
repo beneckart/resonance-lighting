@@ -12,6 +12,61 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-02 — Ben + Claude — PowerFeather V2.R2 power-bench bring-up (Phase A)
+
+PowerFeather V2.R2 arrived. Stood up an Arduino-based power-telemetry bench
+harness on it. New firmware `firmware/power_bench/` forked from `smoke_test`,
+adding PowerFeather-SDK telemetry and a JSON `/telemetry` endpoint for WiFi data
+collection across the three test axes (battery, LED option, solar panel).
+
+Toolchain confirmed: FQBN `esp32:esp32:esp32s3_powerfeather`, board macro
+`ARDUINO_ESP32S3_POWERFEATHER`, ESP32 core 3.3.7, PowerFeather-SDK 2.1.0
+(namespace `PowerFeather`, singleton `Board`, `<PowerFeather.h>`). LED libs already
+installed.
+
+Battery chemistry is firmware-only (no jumpers): `Board.init(capacity_mAh,
+BatteryType)` — `Generic_3V7` for Li-ion (current), one-line swap to `Generic_LFP`
+for LiFePO4. Note the SDK leaves charging DISABLED by default; the firmware now
+calls `enableBatteryCharging(true)` with a conservative 200 mA cap (configurable).
+
+Flashed and validated against the SDK validation plan (board `9E5AB8`, fixture on
+WiFi at `192.168.4.185`), with a 4400 mAh PKCell Li-ion (2x18650), a 1 W panel on
+VDC, and the IS31FL3741 13x9 on STEMMA-QT:
+- Phase 1: I2C scan of Wire1 (STEMMA-QT, GPIO47/48) shows MAX17260 gauge (0x36),
+  BQ25628E charger (0x6A), and IS31 (0x30) -> confirmed V2 hardware. The STEMMA-QT
+  bus is shared by the power ICs and the LED module; the IS31 driver uses `Wire1`.
+- Phase 2: `Board.init(4400, Generic_3V7)` returns `Result::Ok`; charging enabled
+  at 200 mA cap; no SDK errors.
+- Phase 3: `/telemetry` JSON serves correct values over WiFi — `battery_v` 3.60 V,
+  `battery_ma` +204 mA (charging at the cap), `supply_v` 4.665 V, `supply_ma`
+  ~236 mA, `supply_good` true. Power balances: ~1.1 W in, ~0.73 W into the cell.
+
+Two findings:
+1. BUG (fixed): the float telemetry fields were one-position shifted due to C++
+   unspecified argument-evaluation order — the SDK getter was inlined as a function
+   argument alongside the out-param it writes. Sequenced the getter before the JSON
+   append (matching the integer-field pattern). Confirmed against the SDK's stock
+   `SupplyAndBatteryInfo` example, which read correctly the whole time.
+2. ROOT CAUSE FOUND + FIXED: `soc_pct/health_pct/cycles/time_left_min` returned
+   `InvalidState` because the SDK selects the fuel-gauge IC at COMPILE TIME —
+   MAX17260 (V2) only if `POWERFEATHER_BOARD_V2`/`CONFIG_ESP32S3_POWERFEATHER_V2`
+   is defined, else the V1 `LC709204F`. In an Arduino build neither is set, so it
+   defaulted to the V1 gauge and `probe()` failed on the wrong IC (the stock SDK
+   example fails the same way for the same reason). A power-cycle did not help — it
+   was never a learning issue. Fix: build with `-DPOWERFEATHER_BOARD_V2=1` (now in
+   `firmware/power_bench/build.sh`, with a `#error` guard in the sketch). With the
+   flag: gauge = MAX17260, probe ok, `soc 7%`, health 100%, cycles 0, time_left,
+   `telemetry_errors []`. Also added an init retry for the post-flash boot transient.
+
+Also noted: mode `q` (quiet baseline) stops WiFi, so the WiFi logger must use mode
+`0` (LEDs off, radio on) as its baseline. And the 200 mA charge current dominates
+LED-current deltas, so clean LED measurement wants `-DRES_PF_ENABLE_CHARGING=0`.
+
+Phase B done: `ops/bench/power_logger.py` (WiFi poller -> site-partitioned JSONL),
+`power_summary.py`, `ops/bench/data/{ca,tn}/`, ADR 0020, and
+`docs/tests/POWER_BENCH_HARNESS_2026-06-02.md`. Logger + summary validated against
+the live board. Firmware variant builds (IS31/NeoHEX/RGBW) all compile.
+
 ## 2026-05-20 — Ben + Codex — PCBWay assembly quote revised toward J5-only
 
 PCBWay's first assembly quote identified J1 / M5Stack A118 as the expensive and
