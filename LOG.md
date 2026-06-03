@@ -12,6 +12,32 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-03 — Ben + Claude — Battery-brownout investigation: tooling, plan, ported demo (ONGOING, no conclusions yet)
+
+Investigating the precise conditions under which the PowerFeather V2 takes a full
+power-on reset on battery while running fine on USB. Observations so far are
+partial and several are **confounded** (a marginal spring-splice test connection
+on the bare LFP, battery type switched mid-investigation, stacked loads), so this
+entry records **tooling and a plan, not findings**. Plan, hypotheses, and the open
+test matrix are in `docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md`.
+
+Added bench tooling to `firmware/power_bench` (via `build.sh` flags):
+- `--loadgen`: WiFi load generator (no HTTP server) emitting a UDP heartbeat with
+  phase + uptime + battery voltage for remote outage/reset detection; auto-sweeps
+  {light/heavy WiFi} x {LED off / full grid}. Phase persisted in NVS so it advances
+  past (not retries) a phase that reboots the board.
+- `--batt-stress` / `--batt-stress-full`: radio OFF, LED-panel heartbeat (center or
+  full grid) — radio-off baselines.
+- `--wifi-lowpower` (modem sleep + 8.5 dBm), `--charge-ma`, `--ota` (wireless flash).
+
+Ported PowerFeather's official ESPUI web-telemetry demo to V2 / SDK 2.x / core 3.x
+(`firmware/powerfeather_demo_port`): SDK 1.x->2.x API (mV->V floats, maintain-voltage
+units), `Generic_LFP`, and the ESP32Async core-3.x library stack. Compiles, boots,
+and brings up the `PowerFeather_Demo` AP on V2 (verified on USB); web UI + on-battery
+behavior still to exercise with a phone + a solid battery connection.
+
+Next: re-run the matrix on a solid (soldered) LFP connection at known SOC.
+
 ## 2026-06-02 — Ben + Claude — PowerFeather V2.R2 power-bench bring-up (Phase A)
 
 PowerFeather V2.R2 arrived. Stood up an Arduino-based power-telemetry bench

@@ -76,6 +76,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Steve mirrors the bench in TN; merge JSONL via the repo (Steve).
 - [ ] Add live telemetry readout to `ops/bench/cots-mode-dashboard.html` (Ben).
 - [ ] Configure LiFePO4 profile on confirmed V2 hardware only: `RES_PF_BATTERY_TYPE=Generic_LFP` (Ben).
+
+## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md — ONGOING)
+
+- [~] Characterize exact conditions for VSYS power-on reset on battery (plan + hypotheses + tooling done; results pending) (Ben).
+- [ ] Build a SOLID LFP connection (soldered/tabbed to JST) — spring splice keeps confounding tests (Ben).
+- [ ] Re-run on solid connection: light WiFi + full LED grid (Ben).
+- [ ] Re-run on solid connection: heavy WiFi +/- LED grid (Ben).
+- [ ] Test LFP full-SOC vs low-SOC under identical load (boost-mode hypothesis H3) (Ben).
+- [ ] Run ported demo on battery (firmware/powerfeather_demo_port, AP + ~10 Hz) +/- LED; does the reference app reset? (Ben).
+- [ ] If resets reproduce on a good connection, add a VSYS bulk cap and re-test (hypothesis H4) (Ben).
+- [ ] Exercise ported demo web UI: connect phone to PowerFeather_Demo AP -> 192.168.1.1 (Ben).
 - [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
 - [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).
 - [ ] Test panel MPP/VINDPM settings for each panel (Ben).
