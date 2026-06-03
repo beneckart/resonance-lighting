@@ -22,7 +22,7 @@ set -euo pipefail
 FQBN="esp32:esp32:esp32s3_powerfeather"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
+LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""; WIFI_LP=""; BATT_STRESS=""; BATT_STRESS_FULL=""; LOADGEN=""; LOADGEN_LED=""; LOADGEN_TXHEAVY=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --led) LED="$2"; shift 2;;
@@ -30,6 +30,12 @@ while [[ $# -gt 0 ]]; do
     --chem) CHEM="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
     --no-charge) CHARGE="0"; shift;;
+    --wifi-lowpower) WIFI_LP="1"; shift;;
+    --batt-stress) BATT_STRESS="1"; shift;;
+    --batt-stress-full) BATT_STRESS="1"; BATT_STRESS_FULL="1"; shift;;
+    --loadgen) LOADGEN="1"; shift;;
+    --loadgen-led) LOADGEN="1"; LOADGEN_LED="1"; shift;;
+    --tx-heavy) LOADGEN="1"; LOADGEN_TXHEAVY="1"; shift;;
     --maintain) MAINTAIN="$2"; shift 2;;
     --port) PORT="$2"; shift 2;;
     --ota) OTA_IP="$2"; shift 2;;
@@ -61,6 +67,12 @@ esac
 # literal (parsed as a user-defined-literal operator).
 [[ -n "${CHARGE_MA}" ]] && FLAGS+=" -DRES_PF_MAX_CHARGE_MA=${CHARGE_MA}"
 [[ -n "${MAINTAIN}" ]] && FLAGS+=" -DRES_PF_MAINTAIN_V=${MAINTAIN}"
+[[ -n "${WIFI_LP}" ]] && FLAGS+=" -DRES_WIFI_LOWPOWER=1"
+[[ -n "${BATT_STRESS}" ]] && FLAGS+=" -DRES_BATT_STRESS=1"
+[[ -n "${BATT_STRESS_FULL}" ]] && FLAGS+=" -DRES_BATT_STRESS_FULL=1"
+[[ -n "${LOADGEN}" ]] && FLAGS+=" -DRES_LOADGEN=1"
+[[ -n "${LOADGEN_LED}" ]] && FLAGS+=" -DRES_LOADGEN_LED=1"
+[[ -n "${LOADGEN_TXHEAVY}" ]] && FLAGS+=" -DRES_LOADGEN_TXHEAVY=1"
 
 echo "flags: ${FLAGS}"
 

@@ -19,6 +19,8 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <WiFiUdp.h>
+#include <Preferences.h>
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_IS31FL3741.h>
@@ -38,7 +40,44 @@
 #define RES_WIFI_AUTO_CONNECT 0
 #endif
 
-#define POWER_BENCH_VERSION "power-bench-2026-06-02.7"
+// Battery-friendly WiFi (modem sleep + reduced TX power) to reduce TX current
+// bursts that can brown out VSYS on battery. Off by default. See build.sh --wifi-lowpower.
+#ifndef RES_WIFI_LOWPOWER
+#define RES_WIFI_LOWPOWER 0
+#endif
+
+// Battery-stress test mode: radio fully OFF, no web server. Blinks the LED-panel
+// center pixel (+ onboard LED) as a 1 Hz heartbeat with a triple-flash on each
+// boot, so a reboot is visible without any connection. Isolates whether
+// battery-only resets are caused by WiFi current spikes (stable here => yes) or
+// the board's battery path (still resets here => board-level). See build.sh --batt-stress.
+#ifndef RES_BATT_STRESS
+#define RES_BATT_STRESS 0
+#endif
+
+// When set (with RES_BATT_STRESS), the heartbeat blinks the FULL LED array at max
+// brightness instead of one center pixel -- a large repeated current step to test
+// whether an LED-driven transient (not just WiFi) browns out VSYS on battery.
+#ifndef RES_BATT_STRESS_FULL
+#define RES_BATT_STRESS_FULL 0
+#endif
+
+// Load-generator mode for brownout characterization: WiFi station (no HTTP
+// server), emits a 1/s UDP heartbeat carrying uptime (so a host listener detects
+// resets/outages remotely). Sub-flags add a constant full-grid LED load and/or
+// heavy sustained UDP TX, so we can sweep {light/heavy WiFi} x {LED off/on} on a
+// fixed battery. See build.sh --loadgen / --loadgen-led / --tx-heavy.
+#ifndef RES_LOADGEN
+#define RES_LOADGEN 0
+#endif
+#ifndef RES_LOADGEN_LED
+#define RES_LOADGEN_LED 0
+#endif
+#ifndef RES_LOADGEN_TXHEAVY
+#define RES_LOADGEN_TXHEAVY 0
+#endif
+
+#define POWER_BENCH_VERSION "power-bench-2026-06-03.5"
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection
@@ -902,7 +941,16 @@ bool startWifiOta() {
   }
 
   WiFi.mode(WIFI_STA);
+#if RES_WIFI_LOWPOWER
+  // Battery-friendly: modem sleep (radio naps between DTIM beacons) + reduced TX
+  // power to flatten the WiFi-TX current bursts that can brown out VSYS on
+  // battery. Adds a little HTTP latency; fine for telemetry polling.
+  WiFi.setSleep(true);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  Serial.println("WiFi low-power mode: modem sleep on, TX power 8.5 dBm");
+#else
   WiFi.setSleep(false);
+#endif
   Serial.println();
   Serial.printf("Connecting to WiFi SSID: %s\n", RES_WIFI_SSID);
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
@@ -1010,6 +1058,158 @@ void handleSerial() {
   }
 }
 
+#if RES_BATT_STRESS
+// Heartbeat indicator for the WiFi-off battery-stress test: LED-panel center
+// pixel (primary, as requested) plus the onboard user LED (GPIO46) as backup.
+void heartbeatLed(bool on) {
+#if RES_HAS_IS31
+  if (is31Ready) {
+#if RES_BATT_STRESS_FULL
+    setIs31Drive(0xFF, 0xFF); // max scaling + global current
+    matrix.fill(on ? matrix.color565(255, 255, 255) : 0); // whole 13x9 grid
+    matrix.show();
+#else
+    matrix.fill(0);
+    if (on) {
+      matrix.drawPixel(6, 4, matrix.color565(255, 255, 255));
+    }
+    matrix.show();
+#endif
+  }
+#endif
+#if RES_HAS_NEOPIXEL
+  clearNeoPixelsFullScale();
+#if RES_BATT_STRESS_FULL
+  if (on) {
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) {
+      pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+    }
+  }
+#else
+  if (on) {
+    pixels.setPixelColor(RES_PIXEL_CENTER, pixels.Color(255, 255, 255));
+  }
+#endif
+  pixels.show();
+#endif
+  digitalWrite(46, on ? HIGH : LOW); // PowerFeather onboard user LED
+}
+#endif
+
+#if RES_LOADGEN
+WiFiUDP loadUdp;
+Preferences lgPrefs;
+const uint32_t LG_PHASE_MS = 300000UL; // 5 minutes per phase
+uint32_t lgStep = 0;     // persisted in NVS; phase = lgStep % 4
+int lgPhase = 0;
+uint32_t lgPhaseStart = 0;
+
+void lgApplyLed() {
+#if RES_HAS_IS31
+  if (is31Ready) {
+    bool ledOn = (lgPhase == 1 || lgPhase == 3);
+    setIs31Drive(0xFF, 0xFF);
+    matrix.fill(ledOn ? matrix.color565(255, 255, 255) : 0);
+    matrix.show();
+  }
+#endif
+}
+
+// Enter the phase given by lgStep, and PRE-COMMIT lgStep+1 to NVS. Because the
+// resets are full power-loss (poweron) -- which wipes RTC RAM -- the next phase
+// is persisted in flash, so a phase that crashes the board is not retried on the
+// next boot (the sweep advances past it instead of getting stuck).
+void lgEnterPhase() {
+  lgPhase = lgStep % 4;
+  lgPrefs.putUInt("step", lgStep + 1);
+  lgPhaseStart = millis();
+  bool ledOn = (lgPhase == 1 || lgPhase == 3);
+  bool heavy = (lgPhase == 2 || lgPhase == 3);
+  Serial.printf("LOADGEN phase %d (step %lu): tx=%s led=%s\n", lgPhase,
+                (unsigned long)lgStep, heavy ? "heavy" : "light",
+                ledOn ? "on" : "off");
+  lgApplyLed();
+}
+
+void loadgenSetup() {
+  pinMode(46, OUTPUT);
+  WiFi.mode(WIFI_STA);
+#if RES_WIFI_LOWPOWER
+  WiFi.setSleep(true);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+#else
+  WiFi.setSleep(false);
+#endif
+#if RES_HAS_WIFI_SECRETS
+  WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
+  uint32_t t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
+    delay(200);
+  }
+#endif
+  loadUdp.begin(54320);
+  lgPrefs.begin("loadgen", false);
+  lgStep = lgPrefs.getUInt("step", 0); // resumes/advances across power-loss reboots
+  Serial.printf("LOADGEN auto-sweep: wifi=%s ip=%s\n",
+                WiFi.status() == WL_CONNECTED ? "connected" : "FAILED",
+                WiFi.localIP().toString().c_str());
+  Serial.println("  5-min phases: 0=light/LED-off 1=light/LED-on 2=heavy/LED-off 3=heavy/LED-on");
+  Serial.println("  (NVS-persisted: a phase that reboots the board is skipped, not retried)");
+  lgEnterPhase();
+}
+
+void loadgenLoop() {
+  static uint32_t lastBeat = 0, lastTx = 0, lastBv = 0;
+  static bool on = false;
+  static float bv = 0.0f;
+  uint32_t now = millis();
+
+  if (now - lgPhaseStart >= LG_PHASE_MS) { // advance on timer (phase survived)
+    lgStep++;
+    lgEnterPhase();
+  }
+  bool ledOn = (lgPhase == 1 || lgPhase == 3);
+  bool heavy = (lgPhase == 2 || lgPhase == 3);
+  int phase = lgPhase;
+
+  if (now - lastBeat >= 250) { // onboard LED ~2 Hz liveness
+    lastBeat = now;
+    on = !on;
+    digitalWrite(46, on);
+  }
+
+#if RES_HAS_PF_TELEMETRY
+  if (now - lastBv >= 1000) { // cache battery voltage for the heartbeat payload
+    lastBv = now;
+    float v;
+    if (Board.getBatteryVoltage(v) == Result::Ok) {
+      bv = v;
+    }
+  }
+#endif
+
+  bool connected = (WiFi.status() == WL_CONNECTED);
+  uint32_t interval = heavy ? 5 : 500; // heavy ~200/s, light ~2/s
+  if (connected && now - lastTx >= interval) {
+    lastTx = now;
+    static char pkt[512];
+    int n = snprintf(pkt, sizeof(pkt),
+                     "pf-load ph=%d led=%d heavy=%d up=%lu bv=%.3f ", phase,
+                     (int)ledOn, (int)heavy, (unsigned long)now, bv);
+    int len = n;
+    if (heavy) { // pad to 512 B for heavier sustained TX
+      for (int i = n; i < (int)sizeof(pkt); i++) {
+        pkt[i] = 'x';
+      }
+      len = sizeof(pkt);
+    }
+    loadUdp.beginPacket("255.255.255.255", 54321);
+    loadUdp.write((const uint8_t *)pkt, len);
+    loadUdp.endPacket();
+  }
+}
+#endif // RES_LOADGEN
+
 void setup() {
   setupBoardPower();
   Serial.begin(115200);
@@ -1033,12 +1233,43 @@ void setup() {
   applyMeasurementMode('0');
   printHelp();
 
-#if RES_WIFI_AUTO_CONNECT
+#if RES_BATT_STRESS
+  // Radio fully off — this is the whole point of the test.
+  WiFi.mode(WIFI_OFF);
+  pinMode(46, OUTPUT);
+  Serial.println("BATTERY-STRESS MODE: WiFi off, blinking center pixel @1Hz");
+  // boot signature: 3 fast flashes so a reboot is visually obvious
+  for (int i = 0; i < 3; i++) {
+    heartbeatLed(true);
+    delay(120);
+    heartbeatLed(false);
+    delay(120);
+  }
+#elif RES_LOADGEN
+  loadgenSetup();
+#elif RES_WIFI_AUTO_CONNECT
   startWifiOta();
 #endif
 }
 
 void loop() {
+#if RES_LOADGEN
+  loadgenLoop();
+  return;
+#endif
+#if RES_BATT_STRESS
+  // 1 Hz heartbeat on the LED-panel center pixel; no WiFi, no web server.
+  static uint32_t hbLast = 0;
+  static bool hbOn = false;
+  uint32_t hbNow = millis();
+  if (hbNow - hbLast >= 500) {
+    hbLast = hbNow;
+    hbOn = !hbOn;
+    heartbeatLed(hbOn);
+  }
+  return;
+#endif
+
   handleSerial();
   if (otaActive) {
     server.handleClient();
