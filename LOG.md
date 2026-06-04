@@ -12,6 +12,35 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-03 (cont.) — Ben + Claude — Brownout cause isolated: IS31-on-bus + WiFi (load-stacking)
+
+On a SOLID soldered LFP connection (the spring splice had confounded earlier runs)
+and with cleaned-up instrumentation (uptime-based phase, no NVS write, `reset_reason`
++ battery V/I in the UDP heartbeat), the brownout reproduced cleanly and we isolated
+it. Full write-up + open questions in
+`docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md`.
+
+- WiFi off (any LED): stable. WiFi on + IS31 **unplugged** (light or heavy TX):
+  stable (9 min, 0 resets, bv to 3.24 V). WiFi on + IS31 **connected**: `poweron`
+  brownout ~7–17 s.
+- **Cause:** load-stacking — needs BOTH WiFi active AND the IS31 module physically on
+  the STEMMA/I2C bus; neither alone does it. `reset_reason=poweron` (VSYS collapse) at
+  healthy bv → not depletion / connector / chemistry. Modem sleep did not fix it.
+- **Sub-result:** firmware VSQT power-shed (`enableVSQT(false)`) did NOT fix it (~21
+  resets / 7 min) — only physically unplugging the module stops it. Candidate
+  mechanism: I2C back-powering (IS31 stays on SDA/SCL off the main 3V3). Unproven.
+
+Implications (firming, not final; n=1 board): **VSYS bulk capacitance** is the
+mechanism-independent fix (bench-validate next); an **I2C LED module can't be
+software-shed** (back-power) whereas a **GPIO WS2812** could; OTA-on-battery shouldn't
+rely on VSQT-shed for the IS31 (use bulk cap / daytime solar / a GPIO module).
+
+Also: ported demo gained an **Input Current Limit (IINDPM) slider** — confirmed the
+~500 mA USB charge cap is the **BC1.2/USB-C source-detection default** (not a port
+bug; the SDK sets IINDPM=3200 but USB-C advertises current via CC, not D+/D-).
+Doesn't affect solar/VDC charging. Tooling: loadgen heartbeat now carries
+phase+uptime+bv+reset_reason+lb+sqt, low-batt backoff, and a `--loadgen-shed` mode.
+
 ## 2026-06-03 — Ben + Claude — Battery-brownout investigation: tooling, plan, ported demo (ONGOING, no conclusions yet)
 
 Investigating the precise conditions under which the PowerFeather V2 takes a full

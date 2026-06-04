@@ -20,7 +20,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WiFiUdp.h>
-#include <Preferences.h>
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_IS31FL3741.h>
@@ -76,8 +75,14 @@
 #ifndef RES_LOADGEN_TXHEAVY
 #define RES_LOADGEN_TXHEAVY 0
 #endif
+// Load-shed test: during heavy-TX phases, drop the IS31's VSQT rail
+// (enableVSQT(false)); restore + re-init it for light phases. Emulates shedding
+// the LED rail during an OTA window, and exercises the rail-restore inrush.
+#ifndef RES_LOADGEN_SHED
+#define RES_LOADGEN_SHED 0
+#endif
 
-#define POWER_BENCH_VERSION "power-bench-2026-06-03.5"
+#define POWER_BENCH_VERSION "power-bench-2026-06-03.8"
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection
@@ -1098,16 +1103,13 @@ void heartbeatLed(bool on) {
 
 #if RES_LOADGEN
 WiFiUDP loadUdp;
-Preferences lgPrefs;
-const uint32_t LG_PHASE_MS = 300000UL; // 5 minutes per phase
-uint32_t lgStep = 0;     // persisted in NVS; phase = lgStep % 4
-int lgPhase = 0;
-uint32_t lgPhaseStart = 0;
+const uint32_t LG_PHASE_MS = 180000UL; // 3 minutes per phase
+const float LG_LOWBATT_V = 2.90f;      // back off heavy load below this (protect the bare cell; ends valid window)
+const char *lgResetReason = "unknown"; // this boot's reset reason (brownout vs crash)
 
-void lgApplyLed() {
+void lgApplyLed(bool ledOn) {
 #if RES_HAS_IS31
   if (is31Ready) {
-    bool ledOn = (lgPhase == 1 || lgPhase == 3);
     setIs31Drive(0xFF, 0xFF);
     matrix.fill(ledOn ? matrix.color565(255, 255, 255) : 0);
     matrix.show();
@@ -1115,24 +1117,9 @@ void lgApplyLed() {
 #endif
 }
 
-// Enter the phase given by lgStep, and PRE-COMMIT lgStep+1 to NVS. Because the
-// resets are full power-loss (poweron) -- which wipes RTC RAM -- the next phase
-// is persisted in flash, so a phase that crashes the board is not retried on the
-// next boot (the sweep advances past it instead of getting stuck).
-void lgEnterPhase() {
-  lgPhase = lgStep % 4;
-  lgPrefs.putUInt("step", lgStep + 1);
-  lgPhaseStart = millis();
-  bool ledOn = (lgPhase == 1 || lgPhase == 3);
-  bool heavy = (lgPhase == 2 || lgPhase == 3);
-  Serial.printf("LOADGEN phase %d (step %lu): tx=%s led=%s\n", lgPhase,
-                (unsigned long)lgStep, heavy ? "heavy" : "light",
-                ledOn ? "on" : "off");
-  lgApplyLed();
-}
-
 void loadgenSetup() {
   pinMode(46, OUTPUT);
+  lgResetReason = resetReasonName(esp_reset_reason());
   WiFi.mode(WIFI_STA);
 #if RES_WIFI_LOWPOWER
   WiFi.setSleep(true);
@@ -1148,29 +1135,67 @@ void loadgenSetup() {
   }
 #endif
   loadUdp.begin(54320);
-  lgPrefs.begin("loadgen", false);
-  lgStep = lgPrefs.getUInt("step", 0); // resumes/advances across power-loss reboots
-  Serial.printf("LOADGEN auto-sweep: wifi=%s ip=%s\n",
+  Serial.printf("LOADGEN sweep: wifi=%s ip=%s reset=%s\n",
                 WiFi.status() == WL_CONNECTED ? "connected" : "FAILED",
-                WiFi.localIP().toString().c_str());
-  Serial.println("  5-min phases: 0=light/LED-off 1=light/LED-on 2=heavy/LED-off 3=heavy/LED-on");
-  Serial.println("  (NVS-persisted: a phase that reboots the board is skipped, not retried)");
-  lgEnterPhase();
+                WiFi.localIP().toString().c_str(), lgResetReason);
+  Serial.println("  3-min phases (uptime-based): 0=light/off 1=light/on 2=heavy/off 3=heavy/on");
 }
 
 void loadgenLoop() {
-  static uint32_t lastBeat = 0, lastTx = 0, lastBv = 0;
+  static uint32_t lastBeat = 0, lastTx = 0, lastTel = 0;
   static bool on = false;
-  static float bv = 0.0f;
+  static int lastLedOn = -1;
+  static float bv = 0.0f, ima = 0.0f;
   uint32_t now = millis();
 
-  if (now - lgPhaseStart >= LG_PHASE_MS) { // advance on timer (phase survived)
-    lgStep++;
-    lgEnterPhase();
+  // Uptime-based phase. A reboot resets uptime -> restarts at phase 0; that's
+  // intentional now -- no NVS flash write in the hot path (it was a confounder).
+  int phase = (int)((now / LG_PHASE_MS) % 4);
+  bool ledOn = (phase == 1 || phase == 3);
+  bool heavy = (phase == 2 || phase == 3);
+
+  // Protect the unprotected cell + mark end of the valid window: below LG_LOWBATT_V
+  // back off to light/LED-off so we stop drawing heavy current.
+  bool lowbatt = (bv > 0.1f && bv < LG_LOWBATT_V);
+  if (lowbatt) {
+    ledOn = false;
+    heavy = false;
   }
-  bool ledOn = (lgPhase == 1 || lgPhase == 3);
-  bool heavy = (lgPhase == 2 || lgPhase == 3);
-  int phase = lgPhase;
+
+  int sqt = 1; // VSQT (STEMMA 3V3) rail state, reported in the heartbeat
+#if RES_LOADGEN_SHED && RES_HAS_PF_TELEMETRY
+  // VSQT is SHED (IS31 off) as the BASE -- that keeps the board alive under WiFi
+  // (per Test B), and the light/heavy WiFi sweep continues underneath, confirming
+  // firmware-shed survives even heavy TX. Every 30 s, pulse VSQT ON for ~1 s
+  // (re-init the IS31 + draw a frame) to exercise the rail-RESTORE inrush; WiFi is
+  // held light during the pulse so the only transient under test is the VSQT enable.
+  const uint32_t LG_PULSE_EVERY = 30000UL, LG_PULSE_DUR = 1000UL;
+  static int lastSqt = -1;
+  bool pulsing = (!lowbatt && (now % LG_PULSE_EVERY) < LG_PULSE_DUR);
+  sqt = pulsing ? 1 : 0;
+  if (pulsing) {
+    heavy = false; // keep WiFi light during the inrush pulse
+  }
+  if (sqt != lastSqt) {
+    lastSqt = sqt;
+    if (sqt == 0) {
+      Board.enableVSQT(false);
+    } else {
+      Board.enableVSQT(true); // <-- rail-restore inrush transient under test
+      delay(50);
+      setupIs31(); // re-init the IS31 after the rail powers back up
+    }
+    lastLedOn = -1; // force LED re-apply
+  }
+  ledOn = (sqt == 1); // drive the panel only during the pulse
+#endif
+
+  if ((int)ledOn != lastLedOn) { // re-apply LED only on change (no I2C spam)
+    lastLedOn = (int)ledOn;
+    if (sqt == 1) {
+      lgApplyLed(ledOn);
+    }
+  }
 
   if (now - lastBeat >= 250) { // onboard LED ~2 Hz liveness
     lastBeat = now;
@@ -1179,12 +1204,11 @@ void loadgenLoop() {
   }
 
 #if RES_HAS_PF_TELEMETRY
-  if (now - lastBv >= 1000) { // cache battery voltage for the heartbeat payload
-    lastBv = now;
-    float v;
-    if (Board.getBatteryVoltage(v) == Result::Ok) {
-      bv = v;
-    }
+  if (now - lastTel >= 1000) { // cache battery voltage + current for the payload
+    lastTel = now;
+    float v, c;
+    if (Board.getBatteryVoltage(v) == Result::Ok) bv = v;
+    if (Board.getBatteryCurrent(c) == Result::Ok) ima = c;
   }
 #endif
 
@@ -1194,12 +1218,13 @@ void loadgenLoop() {
     lastTx = now;
     static char pkt[512];
     int n = snprintf(pkt, sizeof(pkt),
-                     "pf-load ph=%d led=%d heavy=%d up=%lu bv=%.3f ", phase,
-                     (int)ledOn, (int)heavy, (unsigned long)now, bv);
+                     "pf-load ph=%d led=%d heavy=%d up=%lu bv=%.3f ima=%.1f rr=%s lb=%d sqt=%d ",
+                     phase, (int)ledOn, (int)heavy, (unsigned long)now, bv, ima,
+                     lgResetReason, (int)lowbatt, sqt);
     int len = n;
     if (heavy) { // pad to 512 B for heavier sustained TX
-      for (int i = n; i < (int)sizeof(pkt); i++) {
-        pkt[i] = 'x';
+      for (int k = n; k < (int)sizeof(pkt); k++) {
+        pkt[k] = 'x';
       }
       len = sizeof(pkt);
     }

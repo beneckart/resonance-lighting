@@ -120,6 +120,15 @@ void mppVoltageCallback(Control *sender, int type)
   Board.setSupplyMaintainVoltage(atoi(sender->value.c_str()) / 1000.0f); // mV slider -> V (SDK 2.x)
 }
 
+// PROBE (added to the port): force the charger's input current limit (IINDPM)
+// directly, to test whether the ~500 mA USB cap is the BC1.2/USB-C source-detection
+// default. Drag this up while on a wall charger and watch Supply Current.
+void inputCurrentLimitCallback(Control *sender, int type)
+{
+  generalCallback(sender, type);
+  Board.getCharger().setIINDPM(atoi(sender->value.c_str())); // mA, 100-3200
+}
+
 void enterShipModeCallback(Control *sender, int type)
 {
   generalCallback(sender, type);
@@ -216,6 +225,13 @@ void setUpUI()
   ESPUI.addControl(Min, "", "4600", None, mppVoltageSlider);
   ESPUI.addControl(Max, "", "16800", None, mppVoltageSlider);
   ESPUI.setElementStyle(ESPUI.addControl(Label, "", "Voltage (mV)", None, mppVoltageSlider), clearLabelStyle);
+
+  // PROBE: force charger input current limit (IINDPM). Drag up on a wall charger
+  // and watch Supply Current -- tests the ~500 mA USB source-detection default.
+  auto inputLimitSlider = ESPUI.addControl(Slider, "Input Current Limit", "500", Dark, Control::noParent, inputCurrentLimitCallback);
+  ESPUI.addControl(Min, "", "100", None, inputLimitSlider);
+  ESPUI.addControl(Max, "", "3200", None, inputLimitSlider);
+  ESPUI.setElementStyle(ESPUI.addControl(Label, "", "Input Limit (mA)", None, inputLimitSlider), clearLabelStyle);
 
   auto powerStatesGroup = ESPUI.addControl(Button, "Power States", "Ship Mode", Dark, Control::noParent, enterShipModeCallback);
   ESPUI.addControl(Button, "", "Deep Sleep", Dark, powerStatesGroup, enterDeepSleepCallback);

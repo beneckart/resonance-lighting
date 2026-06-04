@@ -1,9 +1,11 @@
 # PowerFeather V2 battery-brownout investigation — plan, hypotheses, open questions
 
 **Date:** 2026-06-03
-**Status:** ACTIVE / preliminary. Observations below are partial and several are
-**confounded**. Nothing here is a conclusion — this is a plan for pinning down the
-precise conditions under which the board loses power on battery.
+**Status:** A clear, repeatable cause was isolated on a solid connection (see
+**Findings** below). One board / one-to-two cells so far, and one sub-mechanism is
+a strong-but-unproven candidate, so treat the production guidance as well-supported,
+not final. The early observations further down are partly confounded and superseded
+by the Findings.
 
 ## The question
 
@@ -12,7 +14,71 @@ reset** (`reset_reason=poweron`, VSYS collapses) while running **on battery**? W
 want the boundary, not an impression. Motivating concern: whether routine
 operation and **OTA** are safe on battery in the field.
 
-## Observations so far (each with caveats — not conclusions)
+## Findings — controlled runs (solid soldered LFP cell)
+
+Once we had a **solid soldered LFP connection** (the spring splice had confounded
+earlier runs) and instrumentation that removed prior artifacts (uptime-based phase,
+no NVS flash write, `reset_reason` + battery V/I in the UDP heartbeat, low-battery
+backoff), a clear and repeatable picture emerged. **Every** reset was
+`reset_reason=poweron` (genuine VSYS collapse, not a crash), at healthy battery
+voltage (bv 3.2–3.6 V) — so not depletion and not the connector.
+
+| Condition (battery, solid connection) | Result |
+|---|---|
+| WiFi OFF, any LED state (incl. full grid) | stable |
+| WiFi ON (light **or heavy** TX), **IS31 cable unplugged** | **stable** — 9 min, 0 resets, bv down to 3.24 V |
+| WiFi ON, **IS31 connected** (normal, VSQT on) | brownout, **~7–17 s** (rapid) |
+| WiFi ON, IS31 connected, **VSQT power shed** (`enableVSQT(false)`) | brownout, **~21 in 7 min**, modem sleep matched |
+
+Things that turned out **not** to be the cause: the battery connector (now solid
+solder), cell depletion (healthy bv at reset), the battery chemistry switch, the
+NVS-write artifact, and the WiFi radio power mode (`--wifi-lowpower` = modem sleep +
+8.5 dBm did **not** fix it, and didn't differ materially from `setSleep(false)`).
+
+### What it points to (well-supported)
+
+The brownout requires **both** WiFi active **and** the IS31 LED module physically
+present on the STEMMA-QT / I2C bus. **Neither alone does it:** heavy WiFi with the
+module unplugged is stable; the full LED grid with WiFi off is stable; together they
+collapse VSYS. This is **load-stacking on a marginal VSYS** (hypothesis H5), with a
+**razor-thin transient margin** — the module tips it even with its LEDs *off*.
+
+### A specific sub-result (candidate mechanism, not proven)
+
+Cutting the module's **power** rail in firmware (`enableVSQT(false)`) **did not fix
+it** — still ~the same brownout rate. Only **physically disconnecting** the module
+stopped it. Most likely **I2C back-powering**: with VSQT (VCC) off, the IS31 stays on
+SDA1/SCL1 (pulled to the *main* 3V3), so current flows into the chip through its I/O
+clamp diodes and it keeps loading the rail; unplugging removes that path. Fits the
+data but not proven (would want a scope / a bus-isolation test).
+
+### Implications for production (firming up)
+
+1. **VSYS bulk capacitance is the mechanism-independent fix** — enough local energy
+   to ride through the sub-ms WiFi spike regardless of module load, so LEDs and radio
+   coexist on battery. Leading production requirement. **Not yet bench-validated** —
+   the next concrete step is to add a cap and re-test.
+2. **LED-module choice affects software load-shed.** An **I2C** module (IS31) can't be
+   cleanly shed in software (back-power); a **GPIO WS2812** module (NeoHEX / single
+   RGBW, one data line) could be fully shed by rail-off + data-low.
+3. **OTA-on-battery:** the simple "drop VSQT during the OTA window" mitigation does
+   **not** work for the I2C IS31. Robust paths: bulk cap; OTA in daylight (solar
+   supply present buffers spikes, as USB does); or a sheddable GPIO LED module.
+4. **Production radio profile helps anyway:** ESP-NOW + light sleep (radio mostly off)
+   is far gentler than the bench's continuous WiFi — the acute brownout is partly a
+   worst-case bench artifact. But the thin VSYS margin is real.
+
+### Open questions / next data
+
+- **Does a VSYS bulk cap actually stop it?** (Add a cap, re-run.) — the key unproven fix.
+- Confirm the I2C-back-power mechanism (scope, or tristate/isolate the bus).
+- The VSQT rail-**restore** inrush (hot-plugging the IS31 caused an instant reboot;
+  the firmware pulse test was inconclusive — too few clean pulses).
+- Does a **GPIO WS2812** module (NeoHEX / RGBW) brown out the same way, and can it be
+  software-shed where the IS31 can't?
+- Repeat on a known-good cell and a **second board** (n=1 board so far).
+
+## Early observations (partly confounded — superseded by the Findings above)
 
 | Condition | Battery | Result | Confounds / notes |
 |---|---|---|---|

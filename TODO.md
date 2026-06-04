@@ -79,7 +79,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md — ONGOING)
 
-- [~] Characterize exact conditions for VSYS power-on reset on battery (plan + hypotheses + tooling done; results pending) (Ben).
+- [x] Characterize exact conditions for VSYS power-on reset on battery — ISOLATED: needs WiFi active + IS31 module on the STEMMA/I2C bus (load-stacking); see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md (Ben).
+- [ ] **Validate the fix: add VSYS bulk capacitance and re-test** (does it stop the brownout with IS31 + WiFi?) — the key unproven fix (Ben).
+- [ ] Confirm the I2C-back-power mechanism (scope, or tristate/isolate the bus) — why `enableVSQT(false)` doesn't shed the IS31 (Ben).
+- [ ] Test a GPIO WS2812 module (NeoHEX / single RGBW): does it brown out the same, and can it be software-shed (rail-off + data-low) where the IS31 can't? (Ben).
+- [ ] Repeat brownout characterization on a second board + known-good cell (n=1 board so far) (Ben).
+- [ ] Investigate disabling BQ25628E input source-detection to beat the 500 mA USB charge cap (bench convenience only; solar unaffected) (Ben).
 - [ ] Build a SOLID LFP connection (soldered/tabbed to JST) — spring splice keeps confounding tests (Ben).
 - [ ] Re-run on solid connection: light WiFi + full LED grid (Ben).
 - [ ] Re-run on solid connection: heavy WiFi +/- LED grid (Ben).

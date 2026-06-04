@@ -22,7 +22,7 @@ set -euo pipefail
 FQBN="esp32:esp32:esp32s3_powerfeather"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""; WIFI_LP=""; BATT_STRESS=""; BATT_STRESS_FULL=""; LOADGEN=""; LOADGEN_LED=""; LOADGEN_TXHEAVY=""
+LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""; WIFI_LP=""; BATT_STRESS=""; BATT_STRESS_FULL=""; LOADGEN=""; LOADGEN_LED=""; LOADGEN_TXHEAVY=""; LOADGEN_SHED=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --led) LED="$2"; shift 2;;
@@ -36,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     --loadgen) LOADGEN="1"; shift;;
     --loadgen-led) LOADGEN="1"; LOADGEN_LED="1"; shift;;
     --tx-heavy) LOADGEN="1"; LOADGEN_TXHEAVY="1"; shift;;
+    --loadgen-shed) LOADGEN="1"; LOADGEN_SHED="1"; shift;;
     --maintain) MAINTAIN="$2"; shift 2;;
     --port) PORT="$2"; shift 2;;
     --ota) OTA_IP="$2"; shift 2;;
@@ -73,6 +74,7 @@ esac
 [[ -n "${LOADGEN}" ]] && FLAGS+=" -DRES_LOADGEN=1"
 [[ -n "${LOADGEN_LED}" ]] && FLAGS+=" -DRES_LOADGEN_LED=1"
 [[ -n "${LOADGEN_TXHEAVY}" ]] && FLAGS+=" -DRES_LOADGEN_TXHEAVY=1"
+[[ -n "${LOADGEN_SHED}" ]] && FLAGS+=" -DRES_LOADGEN_SHED=1"
 
 echo "flags: ${FLAGS}"
 
