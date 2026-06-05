@@ -1,0 +1,88 @@
+{
+  "label": "neohex",
+  "ts_utc": "2026-06-04T20:05:23.770189+00:00",
+  "baseline_draw_mA": 187.3,
+  "baseline_par": 1.0,
+  "rows": [
+    {
+      "brightness": 0,
+      "ima_mA": -187.3,
+      "draw_mA": 187.3,
+      "par": 1.0,
+      "n": 20,
+      "led_mA": 0.0,
+      "par_net": 0.0,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 5,
+      "ima_mA": -186.9,
+      "draw_mA": 186.9,
+      "par": 1.2,
+      "n": 14,
+      "led_mA": -0.4,
+      "par_net": 0.2,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 15,
+      "ima_mA": -199.4,
+      "draw_mA": 199.4,
+      "par": 1.5,
+      "n": 14,
+      "led_mA": 12.1,
+      "par_net": 0.5,
+      "eff_par_per_mA": 0.041
+    },
+    {
+      "brightness": 30,
+      "ima_mA": -234.7,
+      "draw_mA": 234.7,
+      "par": 2.8,
+      "n": 20,
+      "led_mA": 47.4,
+      "par_net": 1.8,
+      "eff_par_per_mA": 0.038
+    },
+    {
+      "brightness": 60,
+      "ima_mA": -309.3,
+      "draw_mA": 309.3,
+      "par": 6.5,
+      "n": 25,
+      "led_mA": 122.0,
+      "par_net": 5.5,
+      "eff_par_per_mA": 0.045
+    },
+    {
+      "brightness": 100,
+      "ima_mA": -380.2,
+      "draw_mA": 380.2,
+      "par": 9.6,
+      "n": 18,
+      "led_mA": 192.9,
+      "par_net": 8.6,
+      "eff_par_per_mA": 0.045
+    },
+    {
+      "brightness": 160,
+      "ima_mA": -478.4,
+      "draw_mA": 478.4,
+      "par": 13.4,
+      "n": 15,
+      "led_mA": 291.1,
+      "par_net": 12.4,
+      "eff_par_per_mA": 0.043
+    },
+    {
+      "brightness": 255,
+      "ima_mA": -571.6,
+      "draw_mA": 571.6,
+      "par": 16.4,
+      "n": 14,
+      "led_mA": 384.3,
+      "par_net": 15.4,
+      "eff_par_per_mA": 0.04
+    }
+  ]
+}

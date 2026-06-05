@@ -12,7 +12,279 @@ Body. What changed, what was decided, what's next.
 
 ---
 
-## 2026-06-03 (cont.) — Ben + Claude — Brownout cause isolated: IS31-on-bus + WiFi (load-stacking)
+## 2026-06-04 (cont. 9) — Ben + Claude — 4W RGBW characterized + full efficiency ranking (LED axis resolved)
+
+Tested Adafruit 5163 (4 W addressable RGBW NeoPixel) direct-GPIO. At 3.3 V it's
+**voltage-starved** — Vf ~3.0–3.2 V, and the rail sags into that band under load
+(bv→3.11 V at full), so current is non-linear and it only reaches ~half its rated
+output (~430 mA vs ~800 mA at 5 V). Diagnostic: `rgbw-undervolt.png`. **It needs 5 V**
+(unlike the hex, which under-volts gracefully). Cleaner re-run via `--wifi-lowpower`.
+
+Final PAR-vs-draw efficiency ranking (`led-par-vs-draw.png`, slope = PAR/mA):
+- **RGBW 4 W: steepest + highest PAR (~38)** — brightest and most efficient *at high
+  brightness*; but poor/non-linear dimming at 3.3 V and a single point source; wants 5 V.
+- **HEX-direct ~0.07**, **HEX/NeoDriver ~0.055**, **NeoHEX ~0.04** (least efficient, out).
+
+**Warm-white-only (RGBW W channel only, `--rgbw-white`):** the ultra-low-power "vibes"
+mode — **~78 mA at full but dim (PAR 8)** at 3.3 V (W channel under-driven; brighter at
+5 V). Efficient (~0.09 PAR/mA) but low absolute output. Cleaner data this run (45 s
+dwell + 100% cell) confirmed the earlier low-brightness "PAR>0, mA≈0" was the measurement
+floor (small LED current swamped by WiFi-baseline jitter), not real zero current. A clean
+all-channel re-run (longer dwell) **agrees with the noisy one at the endpoints** (full
+white ~430 mA / PAR 40, reproducible) and fixed the br=60 under-read (14→190 mA), **but the
+mid-range stayed non-monotonic** (br=160 drew less current than br=100 yet more light) —
+i.e. the messiness is the 4 W RGBW operating unstably *at its Vf on 3.3 V*, NOT measurement
+noise. PAR (light) is monotonic; current is erratic. Confirms: the 4 W RGBW **needs 5 V**
+for a clean/characterizable curve; at 3.3 V only the full-white point is trustworthy. So **LED
+draw is a knob ~80 mA (dim warm) → ~430 mA (full RGBW); the artistic brightness target
+picks the point.** Added flags `--rgbw-white`, `--step-ms`.
+
+**LED axis resolves to a use-case choice:** distributed dimmable glow → **SK6812 HEX,
+direct-GPIO @ 3.3 V** (no boost); single ultra-bright beacon → **4 W RGBW, needs 5 V
+boost**; ultra-low-power warm ambient → **RGBW warm-white-only ~80 mA**. IS31 ruled out
+(shared-bus brownout). Tooling added today: `--bright-sweep`,
+`--sweep-max`, `--brightness`, `--pixel-pin`, `--wifi-lowpower`; `led_efficiency_sweep.py`
+(+reboot-abort), `plot_led_eff.py`, `plot_par_vs_draw.py`, `plot_rgbw_diag.py`; Apogee
+SQ-420 PAR reader.
+
+## 2026-06-04 (cont. 8) — Ben + Claude — Direct-GPIO HEX validated; 3-way efficiency: direct-GPIO SK6812 wins
+
+Soldered a 4-pin header on board 2 (3V3 · QON-NC · GND · A0=GPIO10) and drove the HEX
+(SK6812) **direct from GPIO10** — no NeoDriver, off the I2C bus. Validated working
+(`--led neohex --pixel-pin 10`). Then a capped efficiency sweep (`--sweep-max`, new flag)
+overlaid on the NeoDriver curves (`led-eff-3way.png`):
+- **Efficiency order: hex-direct ≥ hex(NeoDriver) > neohex.** Direct-GPIO HEX is ~10% more
+  light/mA than HEX-via-NeoDriver (no passthrough/overhead loss), and both SK6812 beat the
+  WS2812C NeoHEX (~1.6x).
+- **Direct draws ~1.7-1.8x current+PAR per brightness setting** vs NeoDriver (br=60: 362 mA/
+  PAR27 vs 215 mA/PAR15) — because the NeoDriver's Vin→pixel **passthrough drops voltage**
+  and direct gives the LEDs the full 3.3 V (current is very VCC-sensitive near the WS2812/
+  SK6812 low-V knee). Gap widens with current.
+- **Confirmed by the 4-way 2x2** (`led-eff-4way.png`): NeoHEX shows direct≈NeoDriver (low
+  current → negligible passthrough drop), while the high-current HEX shows the 1.7x gap — so
+  efficiency is a chip property (HEX 1.6x), and the path-difference is current-dependent.
+- **BOM front-runner: SK6812 HEX, direct-GPIO** — most efficient, fewest parts, brownout-safe
+  by construction. Caveats: WS2812 latch their last frame (must send an explicit all-off to
+  blank); connect/bring-up gently (full-white inrush browns the rail); higher VCC = browns a
+  marginal cell sooner (run on a healthy pack / cap brightness).
+
+Process findings logged: (1) board 2's USB-JTAG **auto-reset is flaky** — after flashing, tap
+the physical reset if the green LED doesn't come up (chip is healthy; verified via esptool
+flash_id). (2) **SOC is trustworthy while the cell stays connected** (held 91→92% across a
+USB→battery unplug, only bv relaxed ~0.3 V) — the big SOC jumps earlier were from **cell
+hot-swaps** resetting the gauge's coulomb state, not from USB power. New tooling: `--sweep-max`,
+reboot-abort in `led_efficiency_sweep.py`, `ops/bench/plot_led_eff.py`.
+
+## 2026-06-04 (cont. 7) — Ben + Claude — CORRECTION: NeoDriver does NOT boost pixel power (only the data signal)
+
+Per Adafruit (product 5766): the NeoDriver's 5 V charge-pump is **only for the data
+signal** ("clean 5 V signal even on 3 V boards") — it does **NOT** power/boost the
+NeoPixels. *"No way the STEMMA QT port can provide that much current… need external 5 V
+on the terminal blocks."* Pixel power = whatever feeds Vin (3–5 V), passed through.
+- **Corrects** the earlier (cont. 3/5) claim that the NeoDriver "boosts Vin→5 V,
+  self-contained." It does not.
+- Explains the "dimmer on 3V3": pixels run at **3.3 V (under their 3.7–5 V spec)** →
+  under-driven, not a boost current cap (the draw-vs-brightness curve doesn't plateau,
+  confirming under-voltage scaling, not a current limit). On board 2's USB-hub 5 V the
+  pixels got full 5 V → "blindingly bright."
+- **BOM consequences:** (1) full brightness needs a real ~5 V pixel supply — battery
+  (3.2–4.2 V) and 3V3 are below 5 V, so add a **5 V boost** for max brightness, or accept
+  reduced brightness under-volted; (2) for dim/≤1 A operation under-volted is fine (matches
+  the budget); (3) VBAT (≤4.2 V Li-ion) > 3V3 (3.3 V) for brightness without a boost;
+  (4) the NeoHEX-vs-HEX efficiency was measured at 3.3 V (under-volt) — SK6812 tolerates
+  low V better, so re-check the 1.6x edge at the actual ship voltage.
+- Plot of the comparison: `ops/bench/data/ca/led-eff-compare.png` (via new
+  `ops/bench/plot_led_eff.py`).
+
+## 2026-06-04 (cont. 6) — Ben + Claude — NeoHEX vs HEX efficiency: HEX (SK6812) ~1.6x more light/mA
+
+Built brightness-sweep tooling: fw `--bright-sweep` (steps brightness {0,5,15,30,60,100,
+160,255}, 30s each, light-WiFi held constant, reports `br=` in heartbeat; br=0 = LEDs off
+for a clean baseline) + `--brightness` flag + `ops/bench/led_efficiency_sweep.py` (reads
+Apogee SQ-420 PAR on USB + board `ima` over WiFi, groups by br, prints PAR-per-LED-mA).
+Setup: 6" tube, PAR sensor at top pointing down, module at base, NeoDriver Vin from 3V3.
+
+- **Result: HEX (SK6812) ≈ 1.6x more light-efficient than NeoHEX (WS2812C-2020)** —
+  PAR/LED-mA: NeoHEX ~0.040-0.045 (flat), HEX ~0.062-0.072, consistent across all
+  brightness steps. At matched ~384 mA draw: NeoHEX PAR 15 vs HEX PAR 26 (~1.7x). HEX
+  reaches higher max (PAR 30 @ 491 mA vs 16 @ 384 mA). **For the power budget, HEX wins.**
+  Data: `ops/bench/data/ca/led-eff-{neohex,hex}.json`.
+- Both SK6812/WS2812C are 37-px RGB (GRB), Grove→NeoDriver, no reflash to swap.
+- **Caveats:** PAR is photon flux, not lumens (spectra differ, so perceived-brightness
+  ratio may shift — but 1.6x is consistent across 6 levels); 6" low-SNR geometry (dim
+  steps noisy, mid-high solid); color/dimming-smoothness not measured (visual call, also
+  tends to favor SK6812). Full-white NeoHEX/HEX off 3V3 = 384/491 mA LED — within 1 A.
+- Found + fixed a baseline bug: `setBrightness(0)` doesn't blank NeoPixels, so br=0 must
+  set ledOn=false (color 0) for a true LED-off baseline.
+
+## 2026-06-04 (cont. 5) — Ben + Claude — LED decision: IS31 ruled out, NeoHEX (via NeoDriver) leading; NeoHEX-vs-HEX + RGBW queued
+
+- **3V3-powered NeoDriver works on battery:** board 1 (the brownout-prone unit) + NeoDriver
+  fed from the **3V3 header** (dim, brightness 30 → ~0.5 A from 3V3, under the 1 A limit),
+  STEMMA for I2C, on battery + WiFi → **no brownout** (Ben observed). Dim-30 is still
+  "pretty bright." Added `--brightness` build-flag.
+- **DECISION: IS31FL3741 13×9 ruled out for the V2 battery product.** Cause: its presence
+  on the V2's shared charger/gauge I2C bus + WiFi reliably browns out on battery
+  (well-proven, IS31-specific). Caveats noted: (a) untested mitigations — VSYS bulk cap, or
+  moving it to the *second* I2C bus (GPIO35/36, not the shared bus) — might rescue it; (b)
+  it's a 13×9 grid vs the hex form. **Revisit only if the grid aesthetic is a hard
+  requirement.** Supersedes ADR 0018 (IS31 as primary module) for the battery build —
+  flag ADR 0018 for an update.
+- **Leading LED path: NeoHEX (WS2812C-2020) via Adafruit NeoDriver** — no brownout, no
+  solder on the I2C side, self-contained (NeoDriver boosts 3–5 V Vin → 5 V + level-shifts
+  data). Continue stability testing.
+- **Queued tests:** (1) **NeoHEX (WS2812C-2020) vs HEX (SK6812)** head-to-head — color
+  quality, dimming smoothness (low-end PWM), power efficiency vs brightness, low-V behavior
+  (SK6812 generally better at low V / finer PWM; WS2812C-2020 smaller/denser). (2) **single
+  high-power RGBW LED.** (3) LED-current measurement at field brightness (folds into #1).
+
+Fixed the brick-risk that ate ~1 h today (no-wake deep sleep stranded board 2, needed
+BOOT+RESET download-mode + `esptool erase_flash`). fw `power-bench-2026-06-04.2`:
+- **Never deep-sleep while external supply present** (USB/VDC) — root cause of the
+  stranding; on supply the board stays flashable/recoverable and there's no brownout
+  risk anyway. `lgSupplyPresent()` = `getSupplyVoltage > 4.0 V`.
+- **Timer wake** (15 min) instead of indefinite, via `esp_sleep_enable_timer_wakeup`.
+- On a timer wake **still on battery → re-sleep** (protect cell); **on supply → run/
+  charge**. So plugging USB self-recovers within one interval; can't brick.
+- Unified `lgEnterDeepSleep()` (loop-break, coulomb-budget, lowbatt-knee, maxrun all
+  route through it; LED-clear guarded for IS31/NeoPixel/NeoDriver). Compiles clean for
+  all LED variants.
+- **VALIDATED LIVE** (3 mAh budget / 60 s wake, `--budget-mah`/`--wake-s` flags): on USB
+  ran continuously w/o sleeping (charging, mah=0); on battery hit the 3 mAh budget →
+  SLEEPING announce → deep sleep; 124 s of timer-wake/re-sleep silence on battery; then
+  USB plug → recovered on the next wake (fresh boot, ima=+438 charging) with **no
+  BOOT+RESET download-mode needed**. Brick-risk resolved.
+
+## 2026-06-04 (cont. 3) — Ben + Claude — NeoDriver (I2C) is STABLE: brownout is IS31-SPECIFIC, not the bus
+
+Built a `--led neodriver` variant (Adafruit NeoDriver 5766, SeeSaw I2C → WS2812, on the
+STEMMA bus; added Adafruit_seesaw lib + seesaw_NeoPixel in lgApplyLed). Drove a NeoHEX
+full-white, **LED 5 V from an external USB hub** (LED current off the battery; the
+NeoDriver boosts 3–5 V Vin → 5 V and level-shifts data, per its silkscreen).
+
+- **Result: STABLE** — board 2, NeoDriver on the same shared I2C bus, battery + WiFi,
+  full-white → **371 s+, 0 reboots, through the heavy-WiFi phase**, bv steady 3.25. Same
+  board/cell/bus/WiFi that **looped the IS31 within ~1 min**.
+- **Verdict: the brownout is IS31-SPECIFIC**, not "any I2C device on the power-mgmt bus."
+  Since the IS31 browns out even LEDs-off (presence alone), it's the IS31FL3741 chip's
+  electrical behavior on SDA/SCL (back-current/loading during WiFi spikes), not LED
+  current and not a general bus property. Matches Ben's hypothesis, isolated to the part.
+- **LED-axis implication:** I2C LEDs are NOT categorically out. **NeoDriver + WS2812
+  (NeoHEX) is a strong no-solder, self-contained LED path** (bright, onboard 5 V boost +
+  data level-shift, no extra parts) that does NOT brown out the V2 on battery.
+- **Caveats:** n=1, ~6 min; the IS31 was *intermittent* (stable for minutes before
+  failing overnight), so the NeoDriver needs an **hours/overnight** run to trust. And
+  that needs the **auto-sleep wake-source fix first** (brick-risk; on TODO) — today the
+  no-wake deep sleep + download-mode recovery cost ~1 h and corrupted board 2's WiFi
+  (fixed via `esptool erase_flash`).
+
+## 2026-06-04 (cont. 2) — Ben + Claude — IS31 presence on the I2C bus is NECESSARY for the brownout (clean A/B)
+
+Decisive test: board 2, same deep-cycled cell, on battery, **IS31 physically unplugged**
+→ **stable 365 s+, 0 reboots, through light AND heavy WiFi** (bv 3.27, soc 93). Versus
+the same board+cell **with** the IS31 → brownout loop. Only variable changed = the IS31
+on the STEMMA/I2C bus.
+
+- **The IS31's presence on the shared I2C bus is necessary.** Rules out cell+WiFi alone
+  (stable) and WiFi-association-inrush alone (stable). Loops occurred in phase 0 with
+  **LEDs off**, so it's **not LED current** — it's the chip on the bus. Matches Ben's
+  back-current / I2C-disturbance hypothesis.
+- **Still open:** (a) IS31 *actively* misbehaving (spikes/back-current on SDA/SCL) vs
+  (b) *any* I2C device loading the shared charger/gauge bus tips VSYS under WiFi.
+  Next test: Adafruit NeoDriver (5766, I2C SeeSaw) on the same bus, NeoPixels powered
+  externally → also brownouts ⇒ (b); clean ⇒ (a). Needs a SeeSaw NeoPixel driver in fw.
+- **Procurement note:** an I2C LED module on the V2's shared power-management bus is a
+  real risk for the battery product; nudges toward a non-shared-bus (GPIO/SeeSaw-with-
+  external-power) LED path, or bus isolation / bulk cap mitigation.
+- Aside: board 2's WiFi wedged after the brownout/deep-sleep/download-mode gauntlet;
+  recovered only via full `esptool erase_flash` + reflash + clean reboot (corrupted
+  PHY/NVS). The loop-breaker's no-wake-source deep sleep also needed manual BOOT+RESET
+  download-mode to reflash — both reinforce the wake-on-USB fix already on the TODO.
+
+## 2026-06-04 — Ben + Claude — Brownout CAME BACK overnight (794-reboot loop); guard flaw fixed; SOC/voltage thesis confirmed
+
+Left board 1 on the loadgen on battery overnight (coulomb-budget auto-sleep at 91%
+SOC). Morning: a **794-reboot loop over 4.25 h** — every reset `poweron` (VSYS
+collapse), at **healthy bv 3.24–3.46 across SOC 98%→30%**, in the **lightest** phase
+(LEDs off, light WiFi), boots dying ~5–9 s in (around WiFi association). The first
+boot ran 112 s, then a steady ~100 reboots / 30 min.
+
+- **The brownout is real + intermittent on board 1.** Yesterday's "non-reproduction"
+  (n=3 boards stable, capstone, wiggle) was the fluke; it drifts marginal over
+  hours/temperature. Strengthens **H2 (marginal connection on board 1)**; per-boot
+  trigger looks like the **WiFi-association current spike**, not load-stacking
+  (lightest load) and not depletion (healthy V at every SOC).
+- **Guard flaw (Ben called it):** coulomb-budget + max-runtime + low-V auto-sleep are
+  all RAM state that resets each reboot, so a tight loop defeats them (`mah_used`
+  never passed 1.4 of the 1000 mAh budget). It only bled slowly (92%→30%) because
+  each short boot draws little. **Fix:** NVS-persisted boot counter (`--autosleep`) —
+  clean start (USB/SW reset) zeroes it, `poweron` boots increment, ≥25 sub-survival
+  boots ⇒ deep sleep before WiFi.begin; a boot surviving 120 s clears it. fw
+  `power-bench-2026-06-04.1`. Heartbeat now also carries `soc=` and `mah=`.
+- **SOC/voltage thesis confirmed hard:** bv pinned at ~3.24 V for 4 h while gauge SOC
+  drained 92%→30% — LFP voltage is useless for SOC, but the gauge's coulomb count
+  tracked the drain (it's the *voltage* that's untrustworthy, not the gauge number).
+  Plots via new `ops/bench/plot_soc_v.py`:
+  `2026-06-02-ca-liion-4400-soc_v.png` (Li-ion, usable slope) vs
+  `2026-06-03-ca-lfp-overnight-soc_v.png` (LFP, near-vertical plateau). Logger:
+  `ops/bench/loadgen_log.py` (JSONL + inline reboot flags + LED-current A/B).
+- **Now running (2026-06-04):** same cell+grid on **pristine board 2**, multi-hour
+  with the fixed guard — board-specificity test (loop like board 1, or run clean?),
+  and if stable it finally captures the LED-current A/B + LFP V-SOC discharge curve.
+
+### 2026-06-04 (cont.) — board 2 ALSO loops (NOT board-specific); loop-breaker validated
+
+- **Board 2 (pristine) brownout-looped too** — first boot 356 s (reached phase 1,
+  grid lit), then collapsed on the USB→battery unplug (Ben watched the grid cut out at
+  the instant of unplug = the first brownout), then looped (poweron, healthy bv ~3.23,
+  soc ~72). So the brownout is **NOT board-1-specific** — overturns the "board 1 solder
+  joint" read. Common factors across all looping cases: the **cell** (deep-cycled
+  overnight), the **IS31 grid + cable**, firmware.
+- **Loop-breaker FIRED (fix validated in the wild):** board 2 deep-slept itself out of
+  the loop. Logger saw only 8 reboots but the firmware NVS counter counts every boot —
+  including the sub-association boots that die before sending any UDP — so it hit 25 and
+  slept while staying silent to the logger. Cell protected at ~72%/3.23 V.
+- **Temperature ruled out** (Ben: office 72.5 °F now, ~74 when it worked, 79 max — too
+  narrow to matter).
+- **Leading hypotheses now:** (Ben) the **IS31 driver latching into a bad state** →
+  back-current/spikes on SDA/SCL (fits: IS31-unplugged always stable; `enableVSQT(false)`
+  never helped = I2C back-power); vs the **deep-cycled cell's raised ESR** exposing the
+  IS31+WiFi load. Next: (1) unplug IS31 + rerun same cell (presence necessary?), (2) GPIO
+  WS2812 vs IS31 (I2C-specific vs load), (3) fresh cell + IS31 (cell-ESR).
+
+## 2026-06-03 (cont. 2) — Ben + Claude — Brownout does NOT reproduce on n=3 boards; supersedes the "load-stacking" conclusion
+
+**Walk-back of the entry below.** We lifted n=1→n=3 by moving the **same LFP cell,
+same IS31 grid, same STEMMA cable** across three boards (only the board changed), then
+re-tested the original board. Result: the brownout reproduces on **none** of them.
+
+- **Board 2** (pristine): stable, light + heavy WiFi, 0 resets, bv to 3.19 V.
+- **Board 3** (pristine): stable, light + into heavy, 0 resets, bv to 3.20 V.
+- **Board 1** (the one that browned out earlier, capstone re-test, identical setup):
+  **stable**, 4 min, 0 resets, bv 3.24 V.
+- **Wiggle test** on board 1: 30 s of hard mechanical stress on the leads/connector
+  **plus STEMMA hot-replugs** (the action that caused an instant reset earlier) →
+  **0 resets / 0 dropouts over 200 s**. Could not re-induce the collapse by any means.
+
+**So both earlier conclusions are wrong/superseded:** not a platform "load-stacking"
+property (boards 2/3 fine), not "board 1 anomalous" (board 1 now fine too). With board,
+cell, grid, and cable all held constant, the only thing that changed across the
+afternoon is **repeated unplug/re-seat of connectors** → leading explanation is now
+**H2: a marginal physical connection** (soldered battery joint and/or STEMMA seat) that
+re-seated. **Inferred, not confirmed** — we showed the brownout *stopped*, not *why*,
+and could not reproduce it even deliberately. Also notable: stable while in **active
+boost** at 3.24 V (the *harder* regime) argues against H3 (low-LFP/boost instability).
+
+**Bottom line for procurement (unblocked):** three V2 boards run IS31 + continuous WiFi
+on battery with zero brownouts down to ~3.2 V, so we **cannot** call V2 + IS31 unsafe on
+battery. We also **cannot** claim full root-cause understanding (non-reproducible). Carry
+a **VSYS bulk cap as cheap insurance** and watch for recurrence in the field. Full
+write-up (Status, board-swap table, superseded sections) in
+`docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md`. Lesson logged: we wrote a firm
+conclusion twice today and were wrong both times — n=1 + a single connection was not
+enough.
+
+## 2026-06-03 (cont.) — Ben + Claude — Brownout cause isolated: IS31-on-bus + WiFi (load-stacking) [SUPERSEDED by the entry above]
 
 On a SOLID soldered LFP connection (the spring splice had confounded earlier runs)
 and with cleaned-up instrumentation (uptime-based phase, no NVS write, `reset_reason`

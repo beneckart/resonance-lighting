@@ -9,6 +9,9 @@
 //   -DRES_PF_LED_NEOHEX     M5Stack NeoHEX 37px WS2812 on GPIO16 (D6)
 //   -DRES_PF_LED_RGBW1       single high-power SK6812 RGBW pixel on GPIO16 (D6)
 //   -DRES_PF_LED_IS31        IS31FL3741 13x9 over STEMMA-QT (Wire1, GPIO47/48)
+//   -DRES_PF_LED_NEODRIVER   Adafruit NeoDriver (5766) I2C SeeSaw on STEMMA -> WS2812
+//                            (NeoHEX); LED power external. Tests I2C-bus brownout w/o
+//                            LED current on the battery.
 //
 // Build with build.sh (it always sets -DPOWERFEATHER_BOARD_V2=1, REQUIRED for the
 // V2 MAX17260 fuel gauge -- a bare `arduino-cli compile` will hit the #error guard):
@@ -23,10 +26,15 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_IS31FL3741.h>
+#if defined(RES_PF_LED_NEODRIVER)
+#include <seesaw_neopixel.h> // Adafruit NeoDriver (5766): I2C SeeSaw -> WS2812
+#endif
 
 #include "esp_mac.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_sleep.h"
+#include <Preferences.h>
 
 #if __has_include("wifi_secrets.h")
 #include "wifi_secrets.h"
@@ -82,7 +90,27 @@
 #define RES_LOADGEN_SHED 0
 #endif
 
-#define POWER_BENCH_VERSION "power-bench-2026-06-03.8"
+// Overnight guard: protect the cell from over-discharge on an unattended battery run.
+// RECOVERABLE-by-design (learned the hard way -- a no-wake sleep stranded a board):
+//   1. NEVER deep-sleep while external supply (USB/VDC) is present -- on supply there
+//      is no brownout risk and the board must stay flashable/recoverable.
+//   2. Sleep with a TIMER wake (not indefinite) so it always wakes to re-check.
+//   3. On a timer wake still on battery -> immediately re-sleep (protect cell); on
+//      supply -> run/charge. So plugging USB self-recovers within one wake interval.
+#ifndef RES_LOADGEN_AUTOSLEEP
+#define RES_LOADGEN_AUTOSLEEP 0
+#endif
+#ifndef LG_SLEEP_WAKE_S
+#define LG_SLEEP_WAKE_S 900UL // timer-wake interval while sleeping (re-check supply)
+#endif
+// Reboot-loop breaker (RAM guards reset every boot, so they cannot catch a brownout
+// loop -- see the 794-reboot overnight run). An NVS boot counter persists across the
+// poweron resets: cleared on supply-present or a >= LG_HEALTHY_MS survival; brownout
+// boots increment it; >= LG_LOOP_LIMIT sub-survival boots (on battery) => deep sleep.
+#define LG_LOOP_LIMIT 25
+#define LG_HEALTHY_MS 120000UL
+
+#define POWER_BENCH_VERSION "power-bench-2026-06-04.2"
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection
@@ -93,14 +121,19 @@
 
 #if defined(RES_PF_LED_NEOHEX)
 #define RES_HAS_NEOPIXEL 1
-#define RES_PIXEL_PIN 16 // D6 (GPIO16), free IO
+#ifndef RES_PIXEL_PIN
+#define RES_PIXEL_PIN 16 // D6 (GPIO16), free IO. Override -DRES_PIXEL_PIN=47 to drive
+                         // the WS2812 data line out the STEMMA-QT SDA pin (GPIO47).
+#endif
 #define RES_PIXEL_COUNT 37
 #define RES_PIXEL_CENTER 18
 #define RES_PIXEL_LAYOUT_HEX37 1
 #define RES_LED_OPTION "neohex37"
 #elif defined(RES_PF_LED_RGBW1)
 #define RES_HAS_NEOPIXEL 1
+#ifndef RES_PIXEL_PIN
 #define RES_PIXEL_PIN 16 // D6 (GPIO16), free IO
+#endif
 #define RES_PIXEL_COUNT 1
 #define RES_PIXEL_CENTER 0
 #define RES_PIXEL_TYPE_RGBW 1
@@ -108,6 +141,15 @@
 #elif defined(RES_PF_LED_IS31)
 #define RES_HAS_IS31 1
 #define RES_LED_OPTION "is31_13x9"
+#elif defined(RES_PF_LED_NEODRIVER)
+// Adafruit NeoDriver (5766): I2C SeeSaw on the STEMMA bus driving a WS2812 string
+// (e.g. NeoHEX 37px) on the driver's own output. LED power is supplied separately at
+// the driver's terminal -- so the board's battery sources only the I2C logic current.
+#define RES_HAS_NEODRIVER 1
+#define RES_PIXEL_COUNT 37
+#define RES_PIXEL_CENTER 18
+#define RES_PIXEL_LAYOUT_HEX37 1
+#define RES_LED_OPTION "neodriver_neohex37"
 #else
 #define RES_LED_OPTION "none"
 #endif
@@ -133,6 +175,19 @@
 #endif
 #ifndef RES_HAS_NEOPIXEL
 #define RES_HAS_NEOPIXEL 0
+#endif
+#ifndef RES_HAS_NEODRIVER
+#define RES_HAS_NEODRIVER 0
+#endif
+// LED drive brightness for the loadgen full-field drive (0-255). Default full; dim it
+// (e.g. -DRES_LED_BRIGHTNESS=30) to stay under a rail's current limit (e.g. 3V3 = 1 A).
+#ifndef RES_LED_BRIGHTNESS
+#define RES_LED_BRIGHTNESS 255
+#endif
+// RGBW: drive only the warm-white channel (the efficient white / likely "vibes" mode)
+// instead of all four channels. -DRES_RGBW_WHITE_ONLY=1.
+#ifndef RES_RGBW_WHITE_ONLY
+#define RES_RGBW_WHITE_ONLY 0
 #endif
 #ifndef RES_HAS_PF_TELEMETRY
 #define RES_HAS_PF_TELEMETRY 0
@@ -192,6 +247,17 @@ Adafruit_NeoPixel pixels(RES_PIXEL_COUNT, RES_PIXEL_PIN, NEO_GRBW + NEO_KHZ800);
 #else
 Adafruit_NeoPixel pixels(RES_PIXEL_COUNT, RES_PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 #endif
+#endif
+
+#if RES_HAS_NEODRIVER
+#ifndef RES_NEODRIVER_ADDR
+#define RES_NEODRIVER_ADDR 0x60 // NeoDriver default I2C address
+#endif
+#ifndef RES_NEODRIVER_PIN
+#define RES_NEODRIVER_PIN 15 // NeoDriver default NeoPixel output (seesaw pin 15)
+#endif
+seesaw_NeoPixel nd(RES_PIXEL_COUNT, RES_NEODRIVER_PIN, NEO_GRB + NEO_KHZ800, &Wire1);
+bool ndReady = false;
 #endif
 
 WebServer server(80);
@@ -573,6 +639,26 @@ void setupNeoPixels() {
   pixels.show();
   Serial.printf("NeoPixel setup: pin=%d count=%d brightness=255/255\n",
                 RES_PIXEL_PIN, RES_PIXEL_COUNT);
+#endif
+}
+
+void setupNeoDriver() {
+#if RES_HAS_NEODRIVER
+  // NeoDriver lives on the STEMMA-QT bus = Wire1 (47/48), shared with the SDK
+  // charger/gauge -- the whole point of this test (an I2C LED device on that bus).
+  Serial.println("NeoDriver (I2C SeeSaw) setup:");
+  Wire1.begin(47, 48, 100000);
+  if (!nd.begin(RES_NEODRIVER_ADDR)) {
+    Serial.printf("  NeoDriver not found at 0x%02X\n", RES_NEODRIVER_ADDR);
+    ndReady = false;
+    return;
+  }
+  ndReady = true;
+  nd.setBrightness(255);
+  nd.clear();
+  nd.show();
+  Serial.printf("  found at 0x%02X, %d px on seesaw pin %d (LED power external)\n",
+                RES_NEODRIVER_ADDR, RES_PIXEL_COUNT, RES_NEODRIVER_PIN);
 #endif
 }
 
@@ -1103,23 +1189,137 @@ void heartbeatLed(bool on) {
 
 #if RES_LOADGEN
 WiFiUDP loadUdp;
+uint8_t lgBrightness = RES_LED_BRIGHTNESS; // runtime LED brightness (stepped by sweep)
 const uint32_t LG_PHASE_MS = 180000UL; // 3 minutes per phase
+#ifndef RES_LOADGEN_BRIGHTSWEEP
+#define RES_LOADGEN_BRIGHTSWEEP 0
+#endif
+// Brightness-sweep: hold each level ~LG_SWEEP_STEP_MS so a PAR reading can be taken,
+// reporting the level as br= in the heartbeat. Pairs PAR (light) with ima (power) for
+// an efficiency curve. On 3V3 the high steps hit the 1 A rail limit (ima plateaus).
+const uint8_t LG_SWEEP_STEPS[] = {0, 5, 15, 30, 60, 100, 160, 255};
+#ifndef RES_SWEEP_STEP_MS
+#define RES_SWEEP_STEP_MS 30000UL // dwell per step; raise (e.g. 45000) for more samples / cleaner low currents
+#endif
+const uint32_t LG_SWEEP_STEP_MS = RES_SWEEP_STEP_MS;
+#ifndef RES_SWEEP_MAX
+#define RES_SWEEP_MAX 255 // cap the sweep brightness (-DRES_SWEEP_MAX=100 stays under a current/budget ceiling)
+#endif
 const float LG_LOWBATT_V = 2.90f;      // back off heavy load below this (protect the bare cell; ends valid window)
 const char *lgResetReason = "unknown"; // this boot's reset reason (brownout vs crash)
 
 void lgApplyLed(bool ledOn) {
+  const uint8_t B = lgBrightness; // 0-255 full-field brightness (runtime; stepped by sweep)
 #if RES_HAS_IS31
   if (is31Ready) {
     setIs31Drive(0xFF, 0xFF);
-    matrix.fill(ledOn ? matrix.color565(255, 255, 255) : 0);
+    matrix.fill(ledOn ? matrix.color565(B, B, B) : 0); // dim via per-channel value
     matrix.show();
+  }
+#endif
+#if RES_HAS_NEOPIXEL
+  // GPIO WS2812 module (NeoHEX / RGBW) -- full-field white, scaled by brightness.
+  pixels.setBrightness(B);
+#if defined(RES_PIXEL_TYPE_RGBW)
+#if RES_RGBW_WHITE_ONLY
+  uint32_t c = ledOn ? pixels.Color(0, 0, 0, 255) : 0; // warm-white channel only
+#else
+  uint32_t c = ledOn ? pixels.Color(255, 255, 255, 255) : 0; // all four channels
+#endif
+#else
+  uint32_t c = ledOn ? pixels.Color(255, 255, 255) : 0;
+#endif
+  for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) pixels.setPixelColor(i, c);
+  pixels.show();
+#endif
+#if RES_HAS_NEODRIVER
+  if (ndReady) {
+    nd.setBrightness(B); // SeeSaw scales the WS2812 output -> stays under rail limits
+    uint32_t c = ledOn ? nd.Color(255, 255, 255) : 0;
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) nd.setPixelColor(i, c);
+    nd.show();
   }
 #endif
 }
 
+#if RES_LOADGEN_AUTOSLEEP
+// External supply present (USB ~4.6 V or VDC/solar)? Used to decide whether sleeping
+// is safe -- on supply we never sleep, so the board stays flashable/recoverable.
+bool lgSupplyPresent() {
+#if RES_HAS_PF_TELEMETRY
+  float v = 0.0f;
+  if (Board.getSupplyVoltage(v) == Result::Ok) return v > 4.0f;
+#endif
+  return false;
+}
+
+// Recoverable deep sleep: shed LED rails, then sleep with a TIMER wake so the board
+// re-checks supply each interval (never bricks). All LED clears guarded so this works
+// for IS31 / NeoPixel / NeoDriver builds alike.
+void lgEnterDeepSleep(const char *why) {
+#if RES_HAS_IS31
+  if (is31Ready) { matrix.fill(0); matrix.show(); }
+#endif
+#if RES_HAS_NEOPIXEL
+  pixels.clear();
+  pixels.show();
+#endif
+#if RES_HAS_NEODRIVER
+  if (ndReady) {
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) nd.setPixelColor(i, 0);
+    nd.show();
+  }
+#endif
+  Serial.printf("LOADGEN deep sleep (%s) -> timer wake in %lus; wakes to run if USB present\n",
+                why, (unsigned long)LG_SLEEP_WAKE_S);
+  Serial.flush();
+#if RES_HAS_PF_TELEMETRY
+  Board.enableVSQT(false); // shed the STEMMA/LED rail before sleeping
+#endif
+  esp_sleep_enable_timer_wakeup((uint64_t)LG_SLEEP_WAKE_S * 1000000ULL);
+  esp_deep_sleep_start();
+}
+#endif // RES_LOADGEN_AUTOSLEEP
+
 void loadgenSetup() {
   pinMode(46, OUTPUT);
   lgResetReason = resetReasonName(esp_reset_reason());
+
+#if RES_LOADGEN_AUTOSLEEP
+  // Supply-aware reboot-loop breaker -- runs BEFORE WiFi.begin (the association current
+  // spike is what collapses a marginal VSYS). On external supply we never sleep (no
+  // brownout risk, stay recoverable); on battery we count poweron boots and sleep if
+  // they pile up. A timer wake re-checks supply each interval (see lgEnterDeepSleep).
+  {
+    esp_reset_reason_t rr = esp_reset_reason();
+    bool supply = lgSupplyPresent();
+    Preferences pf;
+    pf.begin("lg", false);
+    if (supply) {
+      // USB/VDC present: run normally, clear the loop counter (board stays flashable).
+      pf.putUInt("boots", 0);
+      pf.end();
+      Serial.println("LOADGEN supply present -> normal run (loop counter cleared)");
+    } else {
+      if (rr == ESP_RST_DEEPSLEEP) {
+        // We woke ourselves (timer) and there's still no supply -> stay asleep to
+        // protect the cell. (Plugging USB makes the next wake run/charge.)
+        pf.end();
+        Serial.println("LOADGEN timer wake, still on battery -> re-sleep");
+        lgEnterDeepSleep("battery-resleep");
+      }
+      uint32_t boots = (rr == ESP_RST_POWERON) ? pf.getUInt("boots", 0) + 1 : 1;
+      pf.putUInt("boots", boots);
+      pf.end();
+      Serial.printf("LOADGEN boot #%u (reset=%s, on battery)\n", boots, lgResetReason);
+      if (boots >= LG_LOOP_LIMIT) {
+        Serial.printf("LOADGEN reboot-loop (%u boots) -> deep sleep\n", boots);
+        lgEnterDeepSleep("loop-break");
+      }
+    }
+  }
+#endif
+
   WiFi.mode(WIFI_STA);
 #if RES_WIFI_LOWPOWER
   WiFi.setSleep(true);
@@ -1146,7 +1346,24 @@ void loadgenLoop() {
   static bool on = false;
   static int lastLedOn = -1;
   static float bv = 0.0f, ima = 0.0f;
+  static int socp = -1; // cached gauge SOC % (for the V-SOC trace; LFP=unreliable, that's the point)
+  static float mahUsed = 0.0f;      // coulomb-counted discharge (mAh) since boot
+  static uint32_t lastCoulomb = 0;  // last integration timestamp
   uint32_t now = millis();
+
+#if RES_LOADGEN_AUTOSLEEP
+  // Once this boot proves healthy (survived LG_HEALTHY_MS), clear the NVS reboot
+  // counter so only a genuine tight loop accumulates toward the loop-limit sleep.
+  static bool bootsCleared = false;
+  if (!bootsCleared && now > LG_HEALTHY_MS) {
+    Preferences pf;
+    pf.begin("lg", false);
+    pf.putUInt("boots", 0);
+    pf.end();
+    bootsCleared = true;
+    Serial.println("LOADGEN boot healthy -> NVS reboot counter cleared");
+  }
+#endif
 
   // Uptime-based phase. A reboot resets uptime -> restarts at phase 0; that's
   // intentional now -- no NVS flash write in the hot path (it was a confounder).
@@ -1161,6 +1378,37 @@ void loadgenLoop() {
     ledOn = false;
     heavy = false;
   }
+
+#if RES_LOADGEN_LED
+  // LED-LOAD test: drive the full 13x9 grid full-white CONTINUOUSLY (every phase),
+  // not just phases 1/3, so the IS31 driver is exercised at max current the whole
+  // run -- tests whether real LED current / driver activity (vs the chip merely
+  // sitting on the bus) does anything. Still honors the low-batt backoff.
+  if (!lowbatt) ledOn = true;
+#endif
+
+#if RES_LOADGEN_BRIGHTSWEEP
+  // Brightness sweep: LED on continuously, stepping lgBrightness through LG_SWEEP_STEPS
+  // (~LG_SWEEP_STEP_MS each) so PAR (light) can be paired with ima (power) per level.
+  // Force LIGHT WiFi the whole sweep so brightness is the ONLY variable in ima (a
+  // cycling heavy-WiFi load would confound the LED-current reading).
+  heavy = false;
+  // brightness 0 = LEDs OFF (setBrightness(0) doesn't blank NeoPixels), so ledOn
+  // tracks brightness -> the br=0 step is a true board+WiFi baseline.
+  {
+    const int nstep_full = (int)(sizeof(LG_SWEEP_STEPS) / sizeof(LG_SWEEP_STEPS[0]));
+    int nstep = 0; // only step through levels <= RES_SWEEP_MAX (current/budget cap)
+    while (nstep < nstep_full && LG_SWEEP_STEPS[nstep] <= RES_SWEEP_MAX) nstep++;
+    if (nstep < 1) nstep = 1;
+    uint8_t b = LG_SWEEP_STEPS[(int)((now / LG_SWEEP_STEP_MS) % nstep)];
+    if (b != lgBrightness) {
+      lgBrightness = b;
+      lastLedOn = -1; // force re-apply at the new brightness
+      Serial.printf("LOADGEN sweep -> brightness=%u\n", lgBrightness);
+    }
+  }
+  ledOn = (!lowbatt && lgBrightness > 0); // br=0 => LEDs truly off (clean baseline)
+#endif
 
   int sqt = 1; // VSQT (STEMMA 3V3) rail state, reported in the heartbeat
 #if RES_LOADGEN_SHED && RES_HAS_PF_TELEMETRY
@@ -1209,6 +1457,13 @@ void loadgenLoop() {
     float v, c;
     if (Board.getBatteryVoltage(v) == Result::Ok) bv = v;
     if (Board.getBatteryCurrent(c) == Result::Ok) ima = c;
+    uint8_t s;
+    if (Board.getBatteryCharge(s) == Result::Ok) socp = (int)s;
+    // Coulomb-count the discharge (ima < 0 on battery): integrate mAh used. This is
+    // the cell-protection budget -- independent of the (poorly understood, sag-prone)
+    // LFP voltage curve.
+    if (lastCoulomb && ima < 0.0f) mahUsed += (-ima) * ((now - lastCoulomb) / 3600000.0f);
+    lastCoulomb = now;
   }
 #endif
 
@@ -1218,9 +1473,9 @@ void loadgenLoop() {
     lastTx = now;
     static char pkt[512];
     int n = snprintf(pkt, sizeof(pkt),
-                     "pf-load ph=%d led=%d heavy=%d up=%lu bv=%.3f ima=%.1f rr=%s lb=%d sqt=%d ",
-                     phase, (int)ledOn, (int)heavy, (unsigned long)now, bv, ima,
-                     lgResetReason, (int)lowbatt, sqt);
+                     "pf-load ph=%d led=%d heavy=%d up=%lu bv=%.3f ima=%.1f soc=%d mah=%.1f rr=%s lb=%d sqt=%d br=%d ",
+                     phase, (int)ledOn, (int)heavy, (unsigned long)now, bv, ima, socp, mahUsed,
+                     lgResetReason, (int)lowbatt, sqt, (int)lgBrightness);
     int len = n;
     if (heavy) { // pad to 512 B for heavier sustained TX
       for (int k = n; k < (int)sizeof(pkt); k++) {
@@ -1232,6 +1487,42 @@ void loadgenLoop() {
     loadUdp.write((const uint8_t *)pkt, len);
     loadUdp.endPacket();
   }
+
+#if RES_LOADGEN_AUTOSLEEP
+  // Overnight cell guard. PRIMARY trigger is a coulomb budget (mAh discharged) --
+  // robust to the unknown/sag-prone LFP voltage curve. Backstops: sustained low-batt
+  // backoff (cell weaker than rated) and a hard max-runtime. On trip: shed rails,
+  // announce, deep sleep at a safe recoverable SOC; reset/USB to wake.
+#ifndef RES_LOADGEN_BUDGET_MAH
+#define RES_LOADGEN_BUDGET_MAH 1000.0f          // ~half of the 2000 mAh LFP cell
+#endif
+  static uint32_t lowSince = 0;
+  const uint32_t LG_LOW_HOLD_MS = 90000UL;      // sustained backoff before sleeping
+  const uint32_t LG_MAX_RUN_MS = 14400000UL;    // 4 h absolute backstop
+  if (lowbatt) { if (!lowSince) lowSince = now; } else { lowSince = 0; }
+  bool budgetHit = (mahUsed >= (float)(RES_LOADGEN_BUDGET_MAH));
+  bool kneeHit = (lowSince && (now - lowSince) > LG_LOW_HOLD_MS);
+  bool maxRun = (now > LG_MAX_RUN_MS);
+  // Only sleep on battery -- if USB/VDC is present there's no brownout/depletion risk
+  // and we must stay flashable/recoverable.
+  bool sleepNow = (budgetHit || kneeHit || maxRun) && !lgSupplyPresent();
+  if (sleepNow) {
+    const char *why = budgetHit ? "coulomb-budget" : (maxRun ? "maxrun" : "lowbatt-knee");
+    char msg[160];
+    int mn = snprintf(msg, sizeof(msg),
+                      "pf-load SLEEPING why=%s up=%lu bv=%.3f soc=%d mah=%.1f ",
+                      why, (unsigned long)now, bv, socp, mahUsed);
+    if (WiFi.status() == WL_CONNECTED) {
+      for (int k = 0; k < 6; k++) { // announce repeatedly so the logger catches it
+        loadUdp.beginPacket("255.255.255.255", 54321);
+        loadUdp.write((const uint8_t *)msg, mn);
+        loadUdp.endPacket();
+        delay(40);
+      }
+    }
+    lgEnterDeepSleep(why); // timer-wake sleep; wakes to run if USB present
+  }
+#endif // RES_LOADGEN_AUTOSLEEP
 }
 #endif // RES_LOADGEN
 
@@ -1254,6 +1545,7 @@ void setup() {
   setupNeoPixels();
   runI2cScan();
   setupIs31();
+  setupNeoDriver();
   printReport();
   applyMeasurementMode('0');
   printHelp();

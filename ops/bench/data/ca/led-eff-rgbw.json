@@ -1,0 +1,88 @@
+{
+  "label": "rgbw",
+  "ts_utc": "2026-06-05T00:20:57.784633+00:00",
+  "baseline_draw_mA": 74.9,
+  "baseline_par": 1.2,
+  "rows": [
+    {
+      "brightness": 0,
+      "ima_mA": -74.9,
+      "draw_mA": 74.9,
+      "par": 1.2,
+      "n": 12,
+      "led_mA": 0.0,
+      "par_net": 0.0,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 5,
+      "ima_mA": -75.9,
+      "draw_mA": 75.9,
+      "par": 1.8,
+      "n": 15,
+      "led_mA": 1.0,
+      "par_net": 0.6,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 15,
+      "ima_mA": -81.8,
+      "draw_mA": 81.8,
+      "par": 3.4,
+      "n": 23,
+      "led_mA": 6.9,
+      "par_net": 2.2,
+      "eff_par_per_mA": 0.319
+    },
+    {
+      "brightness": 30,
+      "ima_mA": -75.2,
+      "draw_mA": 75.2,
+      "par": 5.5,
+      "n": 12,
+      "led_mA": 0.3,
+      "par_net": 4.3,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 60,
+      "ima_mA": -88.9,
+      "draw_mA": 88.9,
+      "par": 10.3,
+      "n": 7,
+      "led_mA": 14.0,
+      "par_net": 9.1,
+      "eff_par_per_mA": 0.65
+    },
+    {
+      "brightness": 100,
+      "ima_mA": -295.6,
+      "draw_mA": 295.6,
+      "par": 16.1,
+      "n": 11,
+      "led_mA": 220.7,
+      "par_net": 14.9,
+      "eff_par_per_mA": 0.068
+    },
+    {
+      "brightness": 160,
+      "ima_mA": -361.8,
+      "draw_mA": 361.8,
+      "par": 25.2,
+      "n": 15,
+      "led_mA": 286.9,
+      "par_net": 24.0,
+      "eff_par_per_mA": 0.084
+    },
+    {
+      "brightness": 255,
+      "ima_mA": -504.5,
+      "draw_mA": 504.5,
+      "par": 39.6,
+      "n": 21,
+      "led_mA": 429.6,
+      "par_net": 38.4,
+      "eff_par_per_mA": 0.089
+    }
+  ]
+}

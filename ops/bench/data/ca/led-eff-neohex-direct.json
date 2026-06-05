@@ -1,0 +1,58 @@
+{
+  "label": "neohex-direct",
+  "ts_utc": "2026-06-04T23:40:06.817055+00:00",
+  "baseline_draw_mA": 168.6,
+  "baseline_par": 1.2,
+  "rows": [
+    {
+      "brightness": 0,
+      "ima_mA": -168.6,
+      "draw_mA": 168.6,
+      "par": 1.2,
+      "n": 25,
+      "led_mA": 0.0,
+      "par_net": 0.0,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 5,
+      "ima_mA": -170.5,
+      "draw_mA": 170.5,
+      "par": 1.2,
+      "n": 9,
+      "led_mA": 1.9,
+      "par_net": 0.0,
+      "eff_par_per_mA": 0.0
+    },
+    {
+      "brightness": 15,
+      "ima_mA": -182.1,
+      "draw_mA": 182.1,
+      "par": 1.8,
+      "n": 17,
+      "led_mA": 13.5,
+      "par_net": 0.6,
+      "eff_par_per_mA": 0.044
+    },
+    {
+      "brightness": 30,
+      "ima_mA": -215.9,
+      "draw_mA": 215.9,
+      "par": 3.3,
+      "n": 17,
+      "led_mA": 47.3,
+      "par_net": 2.1,
+      "eff_par_per_mA": 0.044
+    },
+    {
+      "brightness": 60,
+      "ima_mA": -299.1,
+      "draw_mA": 299.1,
+      "par": 6.9,
+      "n": 32,
+      "led_mA": 130.5,
+      "par_net": 5.7,
+      "eff_par_per_mA": 0.044
+    }
+  ]
+}

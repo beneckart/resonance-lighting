@@ -1,0 +1,58 @@
+{
+  "label": "hex-direct",
+  "ts_utc": "2026-06-04T23:21:22.685020+00:00",
+  "baseline_draw_mA": 165.4,
+  "baseline_par": 1.2,
+  "rows": [
+    {
+      "brightness": 0,
+      "ima_mA": -165.4,
+      "draw_mA": 165.4,
+      "par": 1.2,
+      "n": 18,
+      "led_mA": 0.0,
+      "par_net": 0.0,
+      "eff_par_per_mA": null
+    },
+    {
+      "brightness": 5,
+      "ima_mA": -189.2,
+      "draw_mA": 189.2,
+      "par": 3.4,
+      "n": 29,
+      "led_mA": 23.8,
+      "par_net": 2.2,
+      "eff_par_per_mA": 0.092
+    },
+    {
+      "brightness": 15,
+      "ima_mA": -243.1,
+      "draw_mA": 243.1,
+      "par": 8.1,
+      "n": 30,
+      "led_mA": 77.7,
+      "par_net": 6.9,
+      "eff_par_per_mA": 0.089
+    },
+    {
+      "brightness": 30,
+      "ima_mA": -331.1,
+      "draw_mA": 331.1,
+      "par": 14.7,
+      "n": 19,
+      "led_mA": 165.7,
+      "par_net": 13.5,
+      "eff_par_per_mA": 0.081
+    },
+    {
+      "brightness": 60,
+      "ima_mA": -527.0,
+      "draw_mA": 527.0,
+      "par": 27.8,
+      "n": 17,
+      "led_mA": 361.6,
+      "par_net": 26.6,
+      "eff_par_per_mA": 0.074
+    }
+  ]
+}

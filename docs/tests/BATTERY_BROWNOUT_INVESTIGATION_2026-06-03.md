@@ -1,11 +1,75 @@
 # PowerFeather V2 battery-brownout investigation — plan, hypotheses, open questions
 
-**Date:** 2026-06-03
-**Status:** A clear, repeatable cause was isolated on a solid connection (see
-**Findings** below). One board / one-to-two cells so far, and one sub-mechanism is
-a strong-but-unproven candidate, so treat the production guidance as well-supported,
-not final. The early observations further down are partly confounded and superseded
-by the Findings.
+**Date:** 2026-06-03 (updated 2026-06-04)
+**Status (2026-06-04 — the brownout CAME BACK):** Overnight, board 1 running the
+loadgen on battery went into a **794-reboot loop over 4.25 h** — every one a
+`poweron` VSYS collapse, at **healthy voltage (bv 3.24–3.46) across the whole SOC
+range (98%→30%)**, in the **lightest** load phase (LEDs off, light WiFi), boots dying
+at ~5–9 s right around **WiFi association**. So the afternoon "non-reproduction"
+(below) was the fluke; board 1's brownout is **real and intermittent** — solid for
+hours when freshly re-seated/warm, then it drifts marginal. This **strengthens H2
+(marginal connection on board 1)** and the per-boot trigger looks like the
+**WiFi-association current spike** on a marginal VSYS, *not* load-stacking (lightest
+load) and *not* depletion (healthy V, all SOC). Two consequences:
+(1) **Guard flaw found + fixed:** the coulomb-budget / max-runtime / low-V auto-sleep
+were all RAM state that **reset every reboot**, so a tight loop defeated them
+(mah_used never exceeded 1.4 of the 1000 budget). Fix = an **NVS-persisted boot
+counter** (`--autosleep`): clean start zeroes it, brownouts increment, ≥25
+sub-survival boots ⇒ deep sleep before WiFi. (2) **SOC/voltage thesis confirmed
+hard:** bv sat pinned at ~3.24 V for 4 h while the gauge SOC (coulomb-based) drained
+92%→30% — voltage is useless for LFP SOC, but the gauge's coulomb count tracked the
+drain. Plot: `ops/bench/data/ca/2026-06-03-ca-lfp-overnight-soc_v.png`.
+**Result (2026-06-04): board 2 ALSO loops — NOT board-specific.** Pristine board 2,
+same cell+grid, brownout-looped too (first boot 356 s reaching the lit-grid phase, then
+collapsed at the USB-unplug and looped at healthy bv ~3.23, soc ~72). So it is **not**
+board 1's solder joint. The **NVS loop-breaker fired and deep-slept the board** (fix
+validated). Temperature ruled out (office 72.5–79 °F, ~74 when it last worked). Common
+factors across every looping case: the **deep-cycled cell**, the **IS31 grid+cable**,
+firmware. Leading hypotheses: **IS31 driver latching into a bad state** (back-current /
+spikes on SDA/SCL — fits IS31-unplugged-always-stable and VSQT-shed-never-helped) vs the
+**cell's raised ESR** (post deep-cycle) exposing the IS31+WiFi load. Discriminating tests
+queued: (1) unplug IS31 + rerun same cell; (2) GPIO WS2812 vs IS31; (3) fresh cell + IS31.
+
+**Result — test (1), 2026-06-04: IS31 presence on the I2C bus is NECESSARY.** Board 2,
+same deep-cycled cell, on battery, **IS31 unplugged → stable 365 s+, 0 reboots, through
+light AND heavy WiFi** (vs the loop *with* the IS31, only variable changed). So it's
+**not** cell+WiFi alone and **not** WiFi-inrush alone (both stable); and since the loops
+were in phase 0 with **LEDs off**, **not LED current** either — it's the IS31 *chip on the
+shared charger/gauge I2C bus*. Backs the I2C-disturbance hypothesis. Remaining split:
+**(a)** IS31 actively misbehaving (SDA/SCL back-current/spikes) vs **(b)** any I2C device
+loading that shared bus tips VSYS under WiFi → distinguished by test (2)′: **Adafruit
+NeoDriver (5766) on the same bus, NeoPixels externally powered** (also brownouts ⇒ b;
+clean ⇒ a).
+
+**Result — test (2)′, 2026-06-04: NeoDriver STABLE ⇒ the brownout is IS31-SPECIFIC (a).**
+Board 2, NeoDriver (SeeSaw I2C) on the same shared bus, full-white NeoHEX (LED 5 V
+external, off the battery), battery + WiFi → **371 s+, 0 reboots, through heavy WiFi**,
+bv 3.25 — vs the IS31 looping within ~1 min on the same board/cell/bus. So it's **not**
+"any I2C device on the power-mgmt bus" — it's the **IS31FL3741 chip's own behavior** on
+SDA/SCL (back-current/loading during WiFi spikes; recall it browns out even LEDs-off).
+**LED-axis takeaway:** I2C LEDs are not categorically out; **NeoDriver + WS2812 (NeoHEX)
+is a viable no-solder, self-contained LED path** (onboard 5 V boost + data level-shift)
+that does NOT brown out on battery. **Caveats:** n=1/~6 min and the IS31 was intermittent
+(stable for minutes before failing) → confirm the NeoDriver with an **hours/overnight**
+run, which first needs the **auto-sleep wake-source fix** (deep sleep has no wake source →
+strands the board; cost ~1 h + a WiFi-PHY corruption recovered via `esptool erase_flash`).
+
+**Status (2026-06-03):** **The brownout no longer reproduces — leading suspect is a marginal
+physical connection, not the board/module/chemistry.** An n=3 board-swap, holding the
+**same cell, IS31 grid, and STEMMA cable** constant and changing only the board,
+found **all three boards stable** under the exact IS31+WiFi+battery condition that
+previously collapsed board 1 in 7–17 s — including **board 1 itself** on the capstone
+re-test (4 min, 0 resets, bv 3.24 V). So it is **not** a platform property, **not**
+board-1-specific, **not** the cell/grid/cable (all held constant). The one thing that
+changed across the afternoon is **repeated unplugging/re-seating of connectors**,
+which points at **H2 — battery-path / connection impedance** (a marginal soldered
+battery joint and/or STEMMA seat that re-seated): under WiFi current spikes a
+high-impedance contact collapses VSYS, a good contact rides through. **This is a
+hypothesis, not yet confirmed** — we've shown the brownout *stopped*, not *why*. Next
+step is a deliberate reproduction attempt (stress/wiggle connections under load).
+Both earlier conclusions in this doc (load-stacking platform property; board-1
+anomaly) are **superseded** by this section. The early observations further down are
+likewise superseded.
 
 ## The question
 
@@ -27,6 +91,7 @@ voltage (bv 3.2–3.6 V) — so not depletion and not the connector.
 |---|---|
 | WiFi OFF, any LED state (incl. full grid) | stable |
 | WiFi ON (light **or heavy** TX), **IS31 cable unplugged** | **stable** — 9 min, 0 resets, bv down to 3.24 V |
+| WiFi ON, heavy TX, `setSleep(false)` (radio full-on), **IS31 unplugged** | **stable** — re-confirm run, 0 resets, bv down to **3.20 V** |
 | WiFi ON, **IS31 connected** (normal, VSQT on) | brownout, **~7–17 s** (rapid) |
 | WiFi ON, IS31 connected, **VSQT power shed** (`enableVSQT(false)`) | brownout, **~21 in 7 min**, modem sleep matched |
 
@@ -35,13 +100,56 @@ solder), cell depletion (healthy bv at reset), the battery chemistry switch, the
 NVS-write artifact, and the WiFi radio power mode (`--wifi-lowpower` = modem sleep +
 8.5 dBm did **not** fix it, and didn't differ materially from `setSleep(false)`).
 
-### What it points to (well-supported)
+### Board-swap test (n=3) — the brownout stopped reproducing on every board
 
-The brownout requires **both** WiFi active **and** the IS31 LED module physically
-present on the STEMMA-QT / I2C bus. **Neither alone does it:** heavy WiFi with the
-module unplugged is stable; the full LED grid with WiFi off is stable; together they
-collapse VSYS. This is **load-stacking on a marginal VSYS** (hypothesis H5), with a
-**razor-thin transient margin** — the module tips it even with its LEDs *off*.
+All board-1 findings above were collected on a **single board**. To lift n=1, we
+moved the **same LFP cell, the same IS31 grid, and the same STEMMA cable** across
+three boards in turn (same `--loadgen` IS31 firmware on each), changing **only the
+board**:
+
+| Board | Physical state | Result (same cell+grid+cable, IS31 on bus, on battery) |
+|---|---|---|
+| **1** (earlier runs) | hand-soldered JST-XH on VDC/GND | brownout, **7–17 s**, repeatable (the Findings above) |
+| **2** | pristine, untouched | **stable** — light *and* heavy WiFi, ~9+ min, 0 resets, bv to **3.19 V** |
+| **3** | pristine, untouched | **stable** — light + into heavy, 0 resets, bv to **3.20 V** |
+| **1** (capstone re-test) | same board 1, after the swapping | **stable** — 4 min, 0 resets, bv 3.24 V |
+
+The capstone (last row) is the key result: board 1, which *did* collapse earlier, is
+now **stable with the identical setup** that boards 2 & 3 survived. So the brownout
+reproduces on **none** of the three boards anymore. It is therefore **not** the board,
+**not** the cell, **not** the grid/cable (all held constant across every run). The only
+variable that changed across the afternoon is the **repeated unplug/re-seat of
+connectors** during the swap — which makes **H2 (connection / battery-path impedance)**
+the leading explanation: a marginal soldered battery joint and/or STEMMA seat making
+intermittent high-impedance contact, re-seated by the handling. A bad contact collapses
+VSYS under a WiFi current spike; a good one rides through.
+
+This **de-risks the ~100-unit procurement** (the failure looks like a connector/solder
+quality issue, not a flaw in the V2, the IS31, or the chemistry) — *if* we can confirm
+it. We have only shown the brownout **stopped**, not the mechanism. We were too quick,
+twice today, to write a firm conclusion ("load-stacking platform property", then
+"board-1 anomaly"); both are superseded. Treat H2 as leading-but-unconfirmed.
+
+**Now-open, in priority order:**
+1. **Deliberately reproduce it** — re-run IS31+WiFi on board 1 and physically *stress
+   the connections* (wiggle/flex the battery leads and the STEMMA-QT connector). If the
+   collapse returns on a bad contact and clears on a good one, H2 is confirmed directly.
+2. **Inspect/reflow board 1's battery + VDC joints** under magnification (cold joint,
+   flux, hairline bridge); re-test.
+3. If it cannot be re-induced, log it as a non-reproducible connection transient, keep a
+   VSYS bulk cap as cheap insurance, and move on.
+
+### The original board-1 pattern (now superseded — kept for the record)
+
+When board 1 *was* browning out, the pattern was: it required **both** WiFi active
+**and** the IS31 module physically on the bus — heavy WiFi alone (module unplugged)
+was stable, the LED grid alone (WiFi off) was stable, together they collapsed VSYS.
+At the time we read this as **load-stacking on a marginal VSYS** (H5). **The n=3
+board-swap supersedes that reading:** board 1 no longer reproduces it, so the "WiFi +
+IS31 together" signature is now better explained as *a marginal contact that only
+drops out when total current (IS31 baseline + WiFi spike) is high enough* — i.e. H2,
+not H5. The "needs both" observation fits a connection-impedance cause just as well as
+a load-stacking one; we'd previously only entertained the load reading.
 
 ### A specific sub-result (candidate mechanism, not proven)
 
@@ -52,12 +160,19 @@ SDA1/SCL1 (pulled to the *main* 3V3), so current flows into the chip through its
 clamp diodes and it keeps loading the rail; unplugging removes that path. Fits the
 data but not proven (would want a scope / a bus-isolation test).
 
-### Implications for production (firming up)
+### Implications for production (re-scoped by the n=3 board-swap)
 
-1. **VSYS bulk capacitance is the mechanism-independent fix** — enough local energy
-   to ride through the sub-ms WiFi spike regardless of module load, so LEDs and radio
-   coexist on battery. Leading production requirement. **Not yet bench-validated** —
-   the next concrete step is to add a cap and re-test.
+**Read this section in light of the board-swap result:** two pristine boards did
+*not* brown out, so the items below describe the **board-1 failure mode** and the
+defensive options *if* the thin margin turns out to exist on production units too —
+not a confirmed platform-wide requirement. Pending the board-1 capstone re-confirm,
+the baseline expectation is now that a stock V2 + IS31 runs on battery fine.
+
+1. **VSYS bulk capacitance is the mechanism-independent fix** *if* a margin problem
+   shows up on stock units — enough local energy to ride through the sub-ms WiFi
+   spike regardless of module load. **Not yet bench-validated, and possibly
+   unnecessary** given boards 2 & 3 were stable without it. Demote from "leading
+   requirement" to "cheap insurance to characterize."
 2. **LED-module choice affects software load-shed.** An **I2C** module (IS31) can't be
    cleanly shed in software (back-power); a **GPIO WS2812** module (NeoHEX / single
    RGBW, one data line) could be fully shed by rail-off + data-low.
@@ -70,13 +185,18 @@ data but not proven (would want a scope / a bus-isolation test).
 
 ### Open questions / next data
 
-- **Does a VSYS bulk cap actually stop it?** (Add a cap, re-run.) — the key unproven fix.
-- Confirm the I2C-back-power mechanism (scope, or tristate/isolate the bus).
-- The VSQT rail-**restore** inrush (hot-plugging the IS31 caused an instant reboot;
-  the firmware pulse test was inconclusive — too few clean pulses).
-- Does a **GPIO WS2812** module (NeoHEX / RGBW) brown out the same way, and can it be
-  software-shed where the IS31 can't?
-- Repeat on a known-good cell and a **second board** (n=1 board so far).
+- **CAPSTONE: does board 1 still collapse?** Move the same cell + grid + cable back
+  onto board 1 and re-run. Confirms (or breaks) the board-swap conclusion via a pure
+  A/B. — now the single highest-value test.
+- If board 1 still fails: **is it the soldering or the unit?** Inspect/reflow the
+  VDC/GND joints (reflow, clean flux, check for bridges); re-test. Distinguishes a
+  fixable solder defect from an intrinsically bad board.
+- **n=3 done:** two pristine boards (2, 3) stable under the board-1 brownout
+  condition; brownout is board-specific. (Was: "repeat on a second board, n=1.")
+- Does a **GPIO WS2812** module (NeoHEX / RGBW) behave the same, and can it be
+  software-shed where the IS31 can't? (Still worth knowing for the LED-module axis.)
+- *(Lower priority now)* VSYS bulk cap effect; I2C-back-power mechanism; VSQT
+  rail-restore inrush — only matter if the thin margin shows on stock units.
 
 ## Early observations (partly confounded — superseded by the Findings above)
 
