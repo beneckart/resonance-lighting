@@ -12,6 +12,119 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 — Ben + Claude — Two findings: 3V3-rail-needs-enabling (GPIO4) + 8-bit gamma low-end dead-zone
+
+**1) PowerFeather V2 switchable 3V3 rail must be enabled (GPIO4 / EN_3V3).** The
+studio sketches drove the HEX/RGBW off the 3V3 header but didn't run the SDK, so the
+header read **0 V** — the rail is a load switch gated by GPIO4 (active HIGH), which
+`Board.init()` normally turns on. Fix: non-SDK apps drive GPIO4 HIGH in setup()
+(`pinMode(4,OUTPUT); digitalWrite(4,HIGH)`). Added to both studios, reflashed RGBW,
+rail + LED came up. Bonus: since the LEDs are on the *switchable* rail,
+`digitalWrite(4,LOW)` is a free LED kill-switch (the "software-cuttable 3V3"
+pixel-power option). Captured this + the other recurring PowerFeather gotchas
+(V2 board flag, native-USB reset/IP recovery, keep LEDs off the I2C bus) in a new
+**`firmware/POWERFEATHER_NOTES.md`** best-practices doc, linked from
+`firmware/README.md`.
+
+**2) 8-bit + gamma kills the low brightness end (relevant to ambient).** With gamma
+ON, the LED goes fully dark below ~brightness 24; gamma OFF lights it at very low
+levels. Mechanism: gamma correction linearizes *perceived* brightness via
+`out = (in/255)^2.6 * 255`, but Adafruit's gamma8 table maps **input 0..23 → 0**
+(then 1 for 24..35, 2 for 36..43…) — the bottom ~9% of the range quantizes to off
+because 8-bit PWM has no codes for the sub-1 values the curve demands. Tradeoff:
+gamma-on = smooth perceived dimming mid/high but a dead-zone + coarse steps at the
+bottom; gamma-off = usable ultra-dim but non-linear ramp. This matters because the
+lantern's ambient spec ("1–3 LEDs at ~10%") sits right in the dead-zone. Noted for
+later; fixes to consider when tuning the ambient look: dim-floor (`max(1,gamma8(x))`),
+gentler gamma, gamma-on-color-only, or temporal dithering. No change made now.
+
+## 2026-06-06 — Ben + Claude — RGBW Studio: interactive web app for the 4 W RGBW point source
+
+Built `firmware/rgbw_studio/` — sibling of hex_studio for the single high-power
+SK6812 RGBW pixel (Adafruit 5163, 4 W). Validated on hardware (PowerFeather ACM1,
+RGBW data on GPIO10): boots, joins WiFi, serves UI; all endpoints exercised OK
+(W-only, hue cycle, candle, off) and the board stayed alive through the animations.
+Came up at http://192.168.4.209 (same DHCP lease as the HEX session).
+
+The RGBW is a point source (crisp gobo) with a dedicated W die, so this studio is
+all about color + temporal modulation (no geometry): R/G/B/**W** sliders + color
+picker, gamma toggle; white/warmth presets (W-only, RGB-white, RGBW-full, warm amber)
++ a warmth crossfade slider (RGB-white ↔ W); and color animations — **Hue cycle**,
+**Breathe**, **Candle** (smoothed random-walk flicker of the chosen color), **Fade**
+(crossfade to a Color-B picker). Settings readback for recording good combos.
+
+Reminder from the LED findings: at 3.3 V the RGBW is voltage-starved (dim, non-linear
+mid-range) — fine for judging color/shadow geometry on the bench, but use 5 V for true
+brightness characterization. Next: run it through the inverted-lantern gobo rig
+alongside hex_studio to settle point-vs-area (and W-vs-RGB-white) by eye.
+
+## 2026-06-04 (cont. 11) — Ben + Claude — HEX Studio: interactive web app for HEX aesthetics + gobo dial-in
+
+Built `firmware/hex_studio/` — a standalone WiFi web app to dial in the SK6812 HEX
+look through the gobo, separate from `power_bench` (which is brownout/telemetry
+scaffolding). Validated on hardware: flashed to the PowerFeather (ACM1, HEX data on
+**GPIO10**, 3V3 + GND), boots, joins WiFi, serves the UI. Boot prints confirm the
+HEX37 geometry (`ring sizes 1/6/12/18`); all HTTP endpoints exercised OK (`/state`,
+`/set`, `/off`). Drove it red/center, then split-mode — the R channel pixel computed
+onto index 19, confirming the triad geometry.
+
+Features: brightness + R/G/B sliders (+ color picker), gamma toggle for smooth
+low-end dimming; shape selector (center / +inner ring / +two rings / all, computed
+from the real hex rings, center = px 18); animations — **Spiral** (single pixel
+outward, trail slider), **Orbit** (single pixel around a chosen ring = the gobo
+*moving-shadow* test), **Breathe**, **Twinkle**; **Freeze + Step+** to park a moving
+pixel and read off its index; and **Split RGB** (Ben's ask) — pure R/G/B on three
+pixels in a triad around an anchor, with **spread** (fringe width) + **rotate**
+sliders, anchor walked by Step+ — to deliberately throw *wide separated color
+fringes* through the gobo (vs the tight fringe of co-located channels). The page reads
+back the exact current settings (rgb/hex, bri, shape, anim, lit pixel, split anchor/
+spread) so a good-looking combo can be recorded precisely.
+
+Bench wiring confirmed this session: **ACM1 = PowerFeather MCU, ACM0 = Apogee PAR
+meter**, HEX on **pin 10**. Flash: `./build.sh --pin 10 --port /dev/ttyACM1`. The S3
+is native-USB-CDC, so the boot banner (with the IP) only appears on a reset — pulse
+RTS via pyserial (or just re-flash) to recover the IP; this session it came up at
+192.168.4.209 (DHCP, may change). Next: Ben drives it through the inverted-lantern +
+flat-filter rig (source on desk, shadow on ceiling) to compare point vs area vs
+split-fringe looks and record what reads well.
+
+## 2026-06-04 (cont. 10) — Ben + Claude — AMENDMENT: LED axis NOT resolved; RGBW undervolting is viable; gobo testing queued
+
+Walking back two overstatements from the cont. 8/9 entries below. Those entries
+stand as the record of what was measured, but their *conclusions* were too strong:
+
+1. **"LED axis resolved / SK6812 HEX direct-GPIO is the BOM front-runner" — overstated.**
+   The LED module is **not decided**. IS31-out is firm, but the HEX-direct and the
+   4 W RGBW are **roughly tied in viability** and serve **different, complementary
+   roles**, not the same one:
+   - **SK6812 HEX direct-GPIO** = distributed / area source → **washes out the gobo**
+     (good for general ambient glow), or animate by moving a single lit pixel around
+     the hex (the cast-shadow-in-motion idea — untested, want to try it).
+   - **4 W RGBW** = single **point source** → the only candidate that throws **crisp
+     mandala shadows** through the gobo. A multi-LED array can't do that geometry.
+   Because the gobo wants a point source and the ambient mode wants an area source,
+   the "winner" may be **application-dependent** rather than one part. No frontrunner
+   until gobo testing says so.
+
+2. **"4 W RGBW needs 5 V" — overstated.** It is **voltage-starved at 3.3 V in this
+   bench run** (non-monotonic mid-range current near its Vf), but Ben is fairly
+   convinced from prior experience that **undervolting it is viable — 5 V is NOT
+   required**, with caveats. What we actually have is a poorly-characterized low-V
+   curve, not a hard 5 V requirement. **Open work:** properly map the RGBW's 3.3 V
+   behavior — usable dimming range, color balance, max brightness — before deciding
+   whether any boost is warranted.
+
+Also flagging that the **PAR/mA efficiency ranking is muddied** by testbeds run at
+different SOC/load (each LED run sat at a different buck-boost operating point — see
+the Field-reliability "buck-boost efficiency vs VBAT" item), so the HEX-vs-NeoHEX
+~1.6× and HEX-vs-RGBW comparisons are *system* efficiency at as-measured conditions,
+not a clean intrinsic ranking. Re-rank at a fixed VBAT before trusting the slopes.
+
+**Next:** basic gobo testing (point vs area source, crisp-shadow vs wash, the
+single-moving-pixel animation idea) + a clean RGBW low-voltage characterization.
+TODO + ADR 0018 amended to drop the single-winner framing. ADR 0018 rewrite should
+record "IS31 out; HEX-direct and RGBW both live" — not a decided module.
+
 ## 2026-06-04 (cont. 9) — Ben + Claude — 4W RGBW characterized + full efficiency ranking (LED axis resolved)
 
 Tested Adafruit 5163 (4 W addressable RGBW NeoPixel) direct-GPIO. At 3.3 V it's
