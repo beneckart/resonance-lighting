@@ -2,6 +2,12 @@
 
 ESP32 firmware for the Resonance downlight. **Stub for now** — populated once the basic hardware design is locked down and bench validation begins.
 
+> **Building a new app on the PowerFeather V2 bench boards?** Read
+> [`POWERFEATHER_NOTES.md`](POWERFEATHER_NOTES.md) first — the switchable 3V3 rail
+> (GPIO4), the V2 SDK board flag, native-USB reset/IP recovery, and other gotchas
+> that have each cost real bench time. Working sketches: `power_bench/`,
+> `hex_studio/`, `rgbw_studio/`, `smoke_test/`, `powerfeather_demo_port/`.
+
 ## Planned structure
 
 ```

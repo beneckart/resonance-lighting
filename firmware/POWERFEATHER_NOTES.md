@@ -1,0 +1,99 @@
+# PowerFeather V2 — app dev notes / gotchas
+
+Practical best-practices for writing firmware that runs on the PowerFeather V2
+(ESP32-S3) bench boards. Accumulated from the power_bench + studio work. Read this
+before standing up a new sketch — several of these have cost real bench time.
+
+## The switchable 3V3 header rail must be enabled (GPIO4 / EN_3V3)
+
+The V2's **3V3 header rail** (and anything hanging off it — LEDs, STEMMA devices)
+is gated by a load switch on **GPIO4** (`EN_3V3`, active **HIGH**). If you don't
+turn it on, the 3V3 header measures **0 V (GND)** and nothing downstream powers up.
+
+Two ways to enable it:
+
+- **If you run the PowerFeather SDK:** `Board.init(...)` enables 3V3 for you (it also
+  enables VSQT and starts Wire1). Nothing else needed.
+- **If you DON'T run the SDK** (lightweight LED/UI app — e.g. `hex_studio`,
+  `rgbw_studio`): you are responsible for the rail. Drive it yourself in `setup()`:
+
+  ```cpp
+  #define EN_3V3_PIN 4
+  pinMode(EN_3V3_PIN, OUTPUT);
+  digitalWrite(EN_3V3_PIN, HIGH); // enable the switchable 3V3 header rail
+  ```
+
+GPIO4 is an RTC GPIO, so the SDK toggles it through the RTC domain (state can
+survive deep sleep). For a simple active-mode app a plain `digitalWrite` is fine.
+
+**Bonus:** because the LEDs sit on this *switchable* rail, `digitalWrite(4, LOW)` is
+a **free, zero-extra-parts LED kill-switch** — exactly the "software-cuttable 3V3"
+pixel-power option in TODO. Can't accidentally drain the pack with LEDs.
+
+> Note: **VSQT** (the STEMMA-QT connector's 3V3) is a *separate* switch
+> (`Board.enableVSQT()` in the SDK). Enabling the 3V3 header (GPIO4) is not the same
+> as enabling VSQT. Know which rail your device is actually on.
+
+## If you use the SDK, you MUST set the V2 board flag
+
+The PowerFeather SDK selects the fuel gauge **at compile time**. Build with:
+
+```
+-DPOWERFEATHER_BOARD_V2=1
+```
+
+Without it the SDK silently falls back to the V1 **LC709204F** gauge; on a V2 (which
+has the **MAX17260**) you'll get `InvalidState` for SOC/health/cycles. `power_bench`
+has an `#error` guard + sets this in its `build.sh`. The V2 charger/gauge/STEMMA live
+on **Wire1 (GPIO47/48)** at 100 kHz — keep the SDK's bus speed.
+
+## Native USB-CDC: the boot banner (and WiFi IP) only prints on reset
+
+The S3 uses its **built-in USB** as the serial port. Consequences:
+
+- **Opening the serial monitor does NOT reset the chip.** If the app only prints its
+  info (e.g. the WiFi IP) at boot, you'll see *nothing* by opening the monitor after
+  the fact — the banner already scrolled past before the port was open.
+- To recover the IP **without reflashing**, pulse a reset over the USB-serial lines
+  (esptool-style). A quick pyserial one-liner:
+
+  ```python
+  import serial, time
+  s = serial.Serial('/dev/ttyACM1', 115200, timeout=0.3)
+  s.setDTR(False); s.setRTS(True); time.sleep(0.15); s.setRTS(False)
+  # then read lines for ~12 s to catch the banner
+  ```
+
+- The post-flash **"Hard reset via RTS pin" is sometimes flaky** — the app may not
+  start (no liveness) until a *physical* reset or a serial-open nudge. The chip is
+  usually healthy (verify with `esptool flash_id`). This is a known field-reliability
+  concern (see TODO "Field reliability"): production reset paths must not depend on
+  the JTAG-RTS reset — prefer software reset (`esp_restart`) + watchdog so a deployed
+  lantern never needs a button press.
+
+## Keep LED driver chips OFF the shared charger/gauge I2C bus
+
+The IS31FL3741 on the V2's shared I2C bus browns out the board on battery under WiFi
+(IS31-specific; see ADR 0018 + the brownout investigation). **Drive addressable LEDs
+direct-GPIO** (off the I2C bus) — e.g. the studios use **GPIO10 / A0**. Brownout-safe
+by construction. If you must use an I2C LED device, a NeoDriver (SeeSaw) was stable
+where the IS31 wasn't, but direct-GPIO is the preferred path.
+
+## Misc pin notes
+
+- **GPIO4** — EN_3V3 (switchable 3V3 header rail enable, active HIGH).
+- **GPIO46** — onboard user LED.
+- **GPIO47 / GPIO48** — Wire1 (charger / gauge / STEMMA-QT), SDK-owned.
+- **GPIO10 / A0** — free IO; used as direct-GPIO LED data in the studios.
+
+## 8-bit LED dimming + gamma: the low-end dead-zone
+
+Addressable LEDs (WS2812/SK6812) are **8-bit per channel**, which fights gamma
+correction at very low brightness — relevant because the lantern's ambient spec lives
+there. With Adafruit's gamma 2.6 curve, `gamma8(input)` is **0 for input 0..23**,
+then 1 (24..35), 2 (36..43)… so the bottom ~9% of the range quantizes to **off**, and
+gamma-on gives only a few coarse steps low down. Gamma-off exposes PWM 1,2,3… (usable
+ultra-dim) but the perceived ramp is non-linear. 8-bit just isn't enough resolution
+for *smooth* ultra-dim. Possible fixes when we get to ambient tuning: a dim-floor
+(`max(1, gamma8(x))`), a gentler gamma, gamma-on-color-only, or temporal dithering.
+See the LOG 2026-06-07 entry; revisit for the ambient look.
