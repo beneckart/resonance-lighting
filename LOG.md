@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont. 2) — Ben + Claude — Second Split style (rotate-about-center) + ping-pong spiral
+
+Two small LED Studio refinements:
+- **Split RGB is now 3-state (Off / Triad / Rotate).** Triad = the original local R/G/B
+  offset cluster (spread/rotate). **Rotate** = R at the point, G/B the same point
+  rotated 120°/240° about the grid center → a 3-fold rotationally-symmetric color
+  split (collapses to white at the exact center; shines with a moving spiral/orbit
+  head). Both validated on hardware.
+- **Spiral now ping-pongs** (out to the edge, then retraces inward) instead of jumping
+  from the outer tip back to the center — no per-frame discontinuity. Orbit still wraps
+  seamlessly (closed ring). Verified: spiral order-index steps by ≤1 the whole cycle.
+
 ## 2026-06-07 (cont.) — Ben + Claude — Merged LED Studio (HEX + RGBW + RGB), Split-as-toggle
 
 Merged `hex_studio` + `rgbw_studio` into one **`firmware/led_studio/`** with a UI mode

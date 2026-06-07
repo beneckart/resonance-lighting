@@ -42,7 +42,7 @@ WebServer server(80);
 
 // ---- Modes & animations ----------------------------------------------------
 enum Mode { MODE_HEX = 0, MODE_RGBW = 1, MODE_RGB = 2 };
-// HEX anims:      0 static, 1 spiral, 2 orbit, 3 breathe, 4 twinkle, 5 split
+// HEX anims:      0 static, 1 spiral, 2 orbit, 3 breathe, 4 twinkle  (+ Split modifier)
 // RGBW/RGB anims: 0 static, 1 hue,    2 breathe, 3 candle, 4 fade
 // MODE_RGB is a single high-power RGB pixel (no white die): same render path as
 // RGBW but a 3-byte strip -- the W component is simply ignored by the library.
@@ -60,7 +60,7 @@ uint8_t gShape = 1;     // 0 center, 1 +ring1, 2 +ring1+2, 3 all
 uint8_t gTrail = 3;
 uint8_t gOrbitRing = 1; // 1..3
 bool gFrozen = false;
-bool gSplit = false; // Split-RGB modifier: render the moving "head" as an R/G/B triad
+uint8_t gSplit = 0; // Split-RGB style: 0 off, 1 triad (local offset), 2 rotate (120 deg about center)
 uint32_t hexAnimPos = 0;
 float hexBreathePhase = 0;
 uint8_t lastLit = CENTER;
@@ -162,41 +162,64 @@ bool inShape(uint8_t i) {
   }
 }
 
-// Accumulate a pure-R/G/B triad (spread/rotate around anchorIdx) into buffers,
-// scaled by factor. Channels max-combine where they overlap.
-void addTriad(uint8_t anchorIdx, float factor, uint8_t *R, uint8_t *G, uint8_t *B) {
+// Split the base point into pure R/G/B across three pixels (scaled by factor,
+// max-combining on overlap), by the current style:
+//  - gSplit==1 (triad):  R/G/B on a small triangle OFFSET from baseIdx by `spread`
+//    at 120 deg apart (orientation = `rotate`). A local color-fringe cluster.
+//  - gSplit==2 (rotate): R at baseIdx itself, G/B at baseIdx ROTATED 120/240 deg
+//    about the grid center (same radius). A 3-fold rotationally-symmetric split.
+void splitInto(uint8_t baseIdx, float factor, uint8_t *R, uint8_t *G, uint8_t *B) {
   const float T = 2.0943951f; // 120 deg
   if (factor < 0) factor = 0;
   if (factor > 1) factor = 1;
-  float ax = gX[anchorIdx], ay = gY[anchorIdx];
-  uint8_t pr = nearestPixel(ax + gSpread * cosf(gFringeAngle),
-                            ay + gSpread * sinf(gFringeAngle));
-  uint8_t pg = nearestPixel(ax + gSpread * cosf(gFringeAngle + T),
-                            ay + gSpread * sinf(gFringeAngle + T));
-  uint8_t pb = nearestPixel(ax + gSpread * cosf(gFringeAngle + 2 * T),
-                            ay + gSpread * sinf(gFringeAngle + 2 * T));
   uint8_t v = (uint8_t)((float)gBri * factor);
+  float ax = gX[baseIdx], ay = gY[baseIdx];
+  uint8_t pr, pg, pb;
+  if (gSplit == 2) { // rotate the point 120/240 deg about the center
+    float rad = sqrtf(ax * ax + ay * ay), th = atan2f(ay, ax);
+    pr = baseIdx;
+    pg = nearestPixel(rad * cosf(th + T), rad * sinf(th + T));
+    pb = nearestPixel(rad * cosf(th + 2 * T), rad * sinf(th + 2 * T));
+  } else { // local triad offset by `spread`
+    pr = nearestPixel(ax + gSpread * cosf(gFringeAngle),
+                      ay + gSpread * sinf(gFringeAngle));
+    pg = nearestPixel(ax + gSpread * cosf(gFringeAngle + T),
+                      ay + gSpread * sinf(gFringeAngle + T));
+    pb = nearestPixel(ax + gSpread * cosf(gFringeAngle + 2 * T),
+                      ay + gSpread * sinf(gFringeAngle + 2 * T));
+  }
   R[pr] = max(R[pr], v);
   G[pg] = max(G[pg], v);
   B[pb] = max(B[pb], v);
 }
 
-void showTriad(uint8_t *R, uint8_t *G, uint8_t *B) {
+void showSplit(uint8_t *R, uint8_t *G, uint8_t *B) {
   for (uint16_t i = 0; i < NUMPIXELS; i++)
     strip.setPixelColor(i, gam(R[i]), gam(G[i]), gam(B[i]));
   strip.show();
 }
 
 void renderStaticHex() {
-  if (gSplit) { // static triad at the anchor
+  if (gSplit) { // static split at the anchor
     uint8_t R[NUMPIXELS] = {0}, G[NUMPIXELS] = {0}, B[NUMPIXELS] = {0};
-    addTriad(gAnchor, 1.0f, R, G, B);
+    splitInto(gAnchor, 1.0f, R, G, B);
     lastLit = gAnchor;
-    showTriad(R, G, B);
+    showSplit(R, G, B);
     return;
   }
   for (uint16_t i = 0; i < NUMPIXELS; i++) setPxHex(i, inShape(i) ? 1.0f : 0.0f);
   strip.show();
+}
+
+// Map a monotonic step counter to a position along the path. Orbit (anim 2) wraps
+// seamlessly around the ring; Spiral (anim 1) ping-pongs (0..n-1..1..0) so it
+// reverses at the ends instead of jumping from the outer tip back to the center.
+int pathIndex(long step, int n) {
+  if (n <= 1) return 0;
+  if (gAnim == 2) return (int)(((step % n) + n) % n); // orbit: seamless ring wrap
+  long period = 2 * (n - 1);                          // spiral: ping-pong
+  long m = ((step % period) + period) % period;
+  return (int)(m < n ? m : period - m);
 }
 
 void renderFrameHex() {
@@ -211,21 +234,19 @@ void renderFrameHex() {
         order = ringMembers[r];
         n = ringSize[r];
       }
-      if (gSplit) { // a moving R/G/B triad at the head + each trail step
+      if (gSplit) { // a moving split at the head + each trail step
         uint8_t R[NUMPIXELS] = {0}, G[NUMPIXELS] = {0}, B[NUMPIXELS] = {0};
         for (int t = 0; t <= gTrail; t++) {
-          int p = ((int)(hexAnimPos % n) - t);
-          p = ((p % (int)n) + (int)n) % (int)n;
+          int p = pathIndex((long)hexAnimPos - t, n);
           float f = 1.0f - (float)t / (float)(gTrail + 1);
-          addTriad(order[p], f, R, G, B);
+          splitInto(order[p], f, R, G, B);
           if (t == 0) lastLit = order[p];
         }
-        showTriad(R, G, B);
+        showSplit(R, G, B);
       } else {
         for (uint16_t i = 0; i < NUMPIXELS; i++) strip.setPixelColor(i, 0);
         for (int t = 0; t <= gTrail; t++) {
-          int p = ((int)(hexAnimPos % n) - t);
-          p = ((p % (int)n) + (int)n) % (int)n;
+          int p = pathIndex((long)hexAnimPos - t, n);
           float f = 1.0f - (float)t / (float)(gTrail + 1);
           setPxHex(order[p], f);
           if (t == 0) lastLit = order[p];
@@ -239,9 +260,9 @@ void renderFrameHex() {
       float f = 0.5f + 0.5f * sinf(hexBreathePhase);
       if (gSplit) {
         uint8_t R[NUMPIXELS] = {0}, G[NUMPIXELS] = {0}, B[NUMPIXELS] = {0};
-        addTriad(gAnchor, f, R, G, B);
+        splitInto(gAnchor, f, R, G, B);
         lastLit = gAnchor;
-        showTriad(R, G, B);
+        showSplit(R, G, B);
       } else {
         for (uint16_t i = 0; i < NUMPIXELS; i++) setPxHex(i, inShape(i) ? f : 0.0f);
         strip.show();
@@ -426,9 +447,11 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
  <button id=ah3 onclick="anim(3)">Breathe</button>
  <button id=ah4 onclick="anim(4)">Twinkle</button>
 </div></div>
-<div class=row><div class=btns>
- <button id=sbtn onclick="toggleSplit()">Split RGB: off</button>
-</div><label style="margin-top:4px">Split = render the moving head as a separated R/G/B triad (applies to Static / Spiral / Orbit / Breathe). Tune with Fringe spread/rotate below.</label></div>
+<div class=row><label>Split RGB (applies to Static / Spiral / Orbit / Breathe)</label><div class=btns>
+ <button id=sp0 onclick="splitMode(0)">Off</button>
+ <button id=sp1 onclick="splitMode(1)">Triad</button>
+ <button id=sp2 onclick="splitMode(2)">Rotate 120&deg;</button>
+</div><label style="margin-top:4px">Triad = local R/G/B offset cluster (use Fringe spread/rotate). Rotate = R at the point, G/B the same point rotated 120/240&deg; about the grid center.</label></div>
 <div class=row><label>Trail (spiral/orbit) <span id=trl></span></label><input type=range id=tr min=0 max=10 value=3 oninput="ch('trail',this.value)"></div>
 <div class=row><label>Orbit ring</label><div class=btns>
  <button onclick="ch('ring',1)">1</button><button onclick="ch('ring',2)">2</button><button onclick="ch('ring',3)">3</button>
@@ -488,7 +511,7 @@ function applyModeUI(m){
 }
 function mode(m){st.mode=m;st.anim=0;send('mode='+m);applyModeUI(m);hl('ah',0,5);hl('ar',0,5);}
 function anim(n){st.anim=n;send('anim='+n);hl(st.mode==0?'ah':'ar',n,5);}
-function toggleSplit(){st.split^=1;send('split='+st.split);let e=document.getElementById('sbtn');e.textContent='Split RGB: '+(st.split?'on':'off');e.className=st.split?'on':'';}
+function splitMode(n){st.split=n;send('split='+n);hl('sp',n,3);}
 function shape(n){st.shape=n;send('shape='+n);hl('sh',n,4);}
 function setCol(hex){let r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16);
  st.r=r;st.g=g;st.b=b;document.getElementById('r').value=r;document.getElementById('g').value=g;document.getElementById('b').value=b;
@@ -514,9 +537,9 @@ function refresh(){fetch('/state').then(r=>r.json()).then(s=>{st.lit=s.lit;st.an
   '\nrgb'+(st.mode==1?'w':'')+'='+s.r+','+s.g+','+s.b+(st.mode==1?','+s.w:'')+'  hex=#'+hx(s.r)+hx(s.g)+hx(s.b)+
   '\nbri='+s.bri+'  gamma='+(s.gamma?'on':'off')+'  speed='+s.speed+
   (st.mode==0?'\nshape='+['center','+ring1','+ring2','all'][s.shape]+'  lit='+s.lit+
-    (s.split?'  split[anchor='+s.anchor+' spread='+(st.spread/10).toFixed(1)+' rot='+st.rotate+']':''):
+    (s.split?'  split='+['off','triad','rotate'][s.split]+'[anchor='+s.anchor+(s.split==1?' spread='+(st.spread/10).toFixed(1)+' rot='+st.rotate:'')+']':''):
     '\ncolorB=#'+hx(st.b2r)+hx(st.b2g)+hx(st.b2b));});}
-applyModeUI(0);hl('sh',1,4);hl('ah',0,5);syncLabels();setInterval(refresh,600);refresh();
+applyModeUI(0);hl('sh',1,4);hl('ah',0,5);hl('sp',0,3);syncLabels();setInterval(refresh,600);refresh();
 </script></body></html>)HTML";
 
 void handleSet() {
@@ -536,7 +559,7 @@ void handleSet() {
   if (server.hasArg("b2r")) gB2r = server.arg("b2r").toInt();
   if (server.hasArg("b2g")) gB2g = server.arg("b2g").toInt();
   if (server.hasArg("b2b")) gB2b = server.arg("b2b").toInt();
-  if (server.hasArg("split")) gSplit = server.arg("split").toInt() != 0;
+  if (server.hasArg("split")) gSplit = constrain(server.arg("split").toInt(), 0, 2);
   if (server.hasArg("step")) {
     if (gMode == MODE_HEX && (gAnim == 1 || gAnim == 2)) hexAnimPos++;
     else if (gMode == MODE_HEX && gAnim == 0 && gSplit)
@@ -569,7 +592,7 @@ void handleState() {
            "{\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u}",
            gMode, gAnim, gR, gG, gB, gW, gBri, gSpeed, gGamma ? 1 : 0, gShape,
-           lastLit, gAnchor, gSplit ? 1 : 0);
+           lastLit, gAnchor, gSplit);
   server.send(200, "application/json", buf);
 }
 

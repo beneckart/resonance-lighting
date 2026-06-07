@@ -42,8 +42,14 @@ Serial monitor (115200) prints the URL; SoftAP fallback `ResonanceLED`
   show/hide accordingly (the W slider + white/warmth presets appear only for RGBW).
 - **Shared**: color picker + R/G/B sliders, brightness, speed, gamma toggle, All off.
 - **HEX mode**: W slider hidden; shape rings (center/+inner/+two/all); animations
-  Spiral / Orbit / Breathe / Twinkle / Split-RGB (fringe spread + rotate); Trail;
-  Orbit ring; Freeze + Step.
+  Spiral / Orbit / Breathe / Twinkle; Trail; Orbit ring; Freeze + Step.
+  - **Split RGB** is a separate 3-state modifier (Off / Triad / Rotate) that applies
+    on top of Static / Spiral / Orbit / Breathe — it splits the moving "head" into
+    pure R/G/B across three pixels:
+    - **Triad** — a local color-fringe cluster offset from the point (tune with
+      Fringe **spread** + **rotate**).
+    - **Rotate** — R at the point, G/B the same point rotated 120°/240° about the
+      grid center (3-fold rotational symmetry; collapses to white at the exact center).
 - **RGBW mode**: W (white-die) slider; white/warmth presets + crossfade; animations
   Hue / Breathe / Candle / Fade (with Color B).
 - **RGB mode**: same single-pixel color animations as RGBW (Hue / Breathe / Candle /
