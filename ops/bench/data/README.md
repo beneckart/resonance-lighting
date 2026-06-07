@@ -67,3 +67,14 @@ Let it run, Ctrl-C (or `--duration`), then `git add` the new `.jsonl` and commit
   the V1 gauge). Build with `firmware/power_bench/build.sh`. With the flag they
   populate; SOC may read rough until the gauge learns over a charge/discharge cycle,
   so for precise sizing also coulomb-count from `battery_ma`.
+
+## net-bench rows (ESP-NOW feasibility, 2026-06-07)
+
+`net_bench_log.py` writes rows distinguished by `"src"`: `"master"` (one per bridge
+tick: `channel`, `frames`, `send_ok/fail`, `uptime_ms`, `battery_v`) and `"peer"`
+(per tracked peer: `peer_id`, `pdr` uplink, `dl_pdr` downlink/multicast, `rssi_dbm`,
+`dl_rssi_dbm`, `rx`/`gaps`, `soc_pct`, `reset_reason`, `uptime_ms`). Run-id form
+`<date>-<site>-<battery>-net-<topology>-<rate>hz-<HHMM>`. `net_bench_ota.py` appends
+`"event":"ota"` rows (`t_ack_s`, `t_ready_s`, `recovered`, `button_press_required`).
+Summarize with `net_bench_summary.py`. **All battery findings are Li-ion — re-verify
+on LFP.**

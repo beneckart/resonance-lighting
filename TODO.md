@@ -45,7 +45,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben).
 - [ ] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks (Ben).
 - [ ] Test standard OTA maintenance mode on at least two COTS boards (Ben).
-- [ ] Test ESP-NOW heartbeat/state packets with jitter/sequence numbers (Ben).
+- [~] Test ESP-NOW heartbeat/state packets with jitter/sequence numbers — prototyped + bench-validated on 1 board in `firmware/net_bench/` (broadcast heartbeat w/ seq + jitter, per-source seq-gap PDR). Multi-node matrix pending (see Networking feasibility below) (Ben).
 - [ ] Test LED fail-safe: stuck LEDs, MCU hang, watchdog reset, rail-off recovery (Ben).
 - [ ] Test gobo projection with IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix (Ben + Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
@@ -124,6 +124,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] If the swept-pixel / orbit moving-shadow looks good, decide whether it argues for a small multi-pixel array even in the "point source" role (Ben).
 - [ ] Re-test the **4 W RGBW** point source the same way (needs its own pixel-pin build or wiring) to settle the point-vs-area question with the actual candidate (Ben).
 
+## Networking feasibility — 5x PowerFeather V2 (net_bench, 2026-06-07; de-risk the 100-buy)
+
+See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_bench/`.
+
+- [x] Build the first ESP-NOW firmware + 5-node host harness (broadcast comms, master/peer roles, maintenance-mode WiFi OTA, watchdog, per-source PDR, scale-extrapolation summarizer). Bench-validated on 1 board (Ben/Claude).
+- [ ] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0–T7 — channel MUST match the AP or ESP-NOW silently fails (Ben).
+- [ ] Run the **rate sweep** (1/2/5/10/20/50 Hz) on master-multicast + peer-mesh → find the PDR loss knee → set the production heartbeat rate below it; extrapolate to 100 (Ben).
+- [ ] **Range** sweep (open-field cliff) + **through-obstruction** (body/bamboo/foil/battery-behind-antenna) RSSI+PDR (Ben).
+- [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` — confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
+- [ ] **Multi-hour battery stability** soak (Li-ion) — zero unexplained resets, log mAh/h drain (Ben).
+- [ ] **Master WiFi+ESP-NOW coexistence** current/stability run (Ben).
+- [ ] **RE-VERIFY all battery/stability findings on LFP** once Steve's cell holders/connectors exist — Li-ion is necessary-not-sufficient (LFP plateau = buck-boost crossover) (Ben).
+- [ ] 20+ node confirmation run if the rate knee lands near the production point (Ben).
+- [ ] Mock-hat antenna RF with panel/battery installed (Steve; COTS Phase 7).
+- [ ] Promote results into **ADR 0021 — ESP-NOW networking feasibility / 100-fixture go-no-go** (Ben).
+
 ## Field reliability concerns (surfaced 2026-06-04 — important for the deployed lantern)
 
 - [ ] **Auto/remote reset is unreliable on the bench USB-JTAG path — harden the FIELD reset paths so a deployed lantern NEVER needs a physical button press** (that would mean taking it down + disassembling = unacceptable). Observed: after a USB flash, the PowerFeather's "Hard reset via RTS pin" sometimes did NOT start the app (no liveness LED) until a *physical* reset or a serial-open nudge (chip verified healthy via esptool; worst on the heavily-abused board 2). Field paths to verify/build: (1) **OTA `/update` uses a software reset (`esp_restart`)** which shouldn't share the JTAG-RTS flakiness — **test end-to-end that it reliably boots the new image**; (2) **add a watchdog** so a hang auto-restarts with no human; (3) the `--autosleep` guard already wakes/recovers on USB-supply (validated) — keep it. Goal: zero field scenarios that require the reset button (Ben).
@@ -168,11 +184,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Implement LED driver abstraction: IS31FL3741 I2C matrix, WS2812/NeoPixelBus, integrated board LEDs (Ben).
 - [ ] Implement LED rail power abstraction (`VSQT`, onboard LED LDO, external rail enable) (Ben).
 - [ ] Implement standard OTA maintenance mode; no ESP-NOW firmware chunks (Ben).
-- [ ] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers (Ben).
+- [~] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers — done in `firmware/net_bench/` (feasibility); port the validated packet/PDR design into production `core/packet` after the matrix run (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).
 - [ ] **Revisit 8-bit LED low-end dimming for the ambient look** (deferred 2026-06-07): WS2812/SK6812 are 8-bit/channel, so gamma-on dims to OFF below ~brightness 24 (the ambient "~10%" spec sits in this dead-zone); gamma-off gives ultra-dim but non-linear steps. Options: dim-floor `max(1,gamma8(x))`, gentler gamma, gamma-on-color-only, or temporal dithering. See LOG 2026-06-07 + `firmware/POWERFEATHER_NOTES.md` (Ben).
 - [ ] **Use the switchable 3V3 rail (GPIO4) as the LED kill-switch** in production firmware (`digitalWrite(4,LOW)` = LEDs off, can't drain the pack) — folds into the pixel-power-architecture decision (option a). See `firmware/POWERFEATHER_NOTES.md` (Ben).
-- [ ] Implement watchdog/reset-reason/brownout logging (Ben).
+- [x] Implement watchdog/reset-reason/brownout logging — DONE in `firmware/net_bench/` (esp_task_wdt + `--wdt-hangtest`); **validated 2026-06-07**: induced hang → auto-reset → `reset_reason=task_watchdog`, no human. Port to production firmware (Ben).
 - [ ] Implement field telemetry logging schema for BM 2026 → 2027 design data (Ben).
 - [ ] Port `TalismanPatterns.cpp` into `firmware/core/pattern/` (Ben).
 - [ ] Implement minimum-viable CA tick + render loop on bench (Ben).

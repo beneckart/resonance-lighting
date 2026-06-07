@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Listen for net_bench master-bridge UDP stats and log them to JSONL.
+
+The net_bench MASTER (WiFi-STA on the bench AP) broadcasts to :54321 two line
+types every ~1 s, bridging the fully-wireless ESP-NOW peer fleet to one tether:
+
+  nb-master id=AABBCC ch=6 frames=N sendok=N sendfail=N up=N bv=F
+  nb-peer   id=AABBCC seq=N rx=N gaps=M pdr=F rssi=D bv=F ima=D soc=D rr=NAME \
+            ca=D mode=D dlpdr=F dlrssi=D up=N age=N
+
+  pdr     = uplink packet-delivery-ratio (peer->master) from seq gaps
+  dlpdr   = downlink PDR (master multicast as the peer sees it)
+  rssi    = peer's heartbeat RSSI at the master; dlrssi = master RSSI at the peer
+
+Writes site-partitioned JSONL to ops/bench/data/<site>/<run-id>.jsonl, schema-
+compatible with the rest of the bench. Reboots flagged inline (uptime drop).
+Stdlib only.
+
+Examples:
+  ./net_bench_log.py --site ca --operator ben --battery liion-4400 \\
+      --topology master-multicast --tx-rate 10 --notes "tree-scale 1-6m" --duration 7200
+  ./net_bench_log.py --site ca --master-ip 192.168.4.50   # filter one master
+"""
+import argparse, json, os, re, socket, time
+from datetime import datetime, timezone
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--site", default="ca")
+ap.add_argument("--operator", default="ben")
+ap.add_argument("--battery", default="liion-4400", help="ASTERISK: Li-ion now; re-verify on LFP")
+ap.add_argument("--topology", default="master-multicast", help="master-multicast | peer-mesh")
+ap.add_argument("--tx-rate", type=int, default=None, help="per-node send rate Hz (for the run-id/notes)")
+ap.add_argument("--notes", default="")
+ap.add_argument("--run-id", default=None)
+ap.add_argument("--master-ip", default=None, help="only log packets from this master IP")
+ap.add_argument("--port", type=int, default=54321)
+ap.add_argument("--duration", type=float, default=3600)
+ap.add_argument("--out", default=None, help="explicit output path (overrides site/run-id)")
+a = ap.parse_args()
+
+now0 = datetime.now(timezone.utc)
+run_id = a.run_id or "-".join(
+    [now0.strftime("%Y-%m-%d"), a.site, a.battery, "net", a.topology,
+     (f"{a.tx_rate}hz" if a.tx_rate else "rNA"), now0.strftime("%H%M")])
+out = a.out or os.path.join(DATA_DIR, a.site, run_id + ".jsonl")
+os.makedirs(os.path.dirname(out), exist_ok=True)
+
+rx_master = re.compile(
+    r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)")
+rx_peer = re.compile(
+    r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
+    r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)")
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("", a.port)); s.settimeout(1.0)
+
+t0 = time.time(); n = 0; reb = 0
+last_up = {}  # peer id -> last uptime, for reboot detection
+meta = dict(run_id=run_id, site=a.site, operator=a.operator, battery=a.battery,
+            topology=a.topology, tx_rate_hz=a.tx_rate, notes=a.notes)
+print(f"net_bench_log -> {out}  ({a.topology}, {a.duration:.0f}s). reboots flagged inline.", flush=True)
+with open(out, "w") as fh:
+    while time.time() - t0 < a.duration:
+        try:
+            d, addr = s.recvfrom(1024)
+        except socket.timeout:
+            continue
+        if a.master_ip and addr[0] != a.master_ip:
+            continue
+        text = d.decode(errors="replace")
+        ts = datetime.now(timezone.utc).isoformat()
+        el = round(time.time() - t0, 1)
+        m = rx_peer.search(text)
+        if m:
+            (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
+             dlpdr, dlrssi, up, age) = m.groups()
+            up = int(up)
+            if pid in last_up and up < last_up[pid] - 2000:
+                reb += 1
+                print(f"+{el:6.0f}s  REBOOT #{reb} peer {pid} up {last_up[pid]}->{up} rr={rr} bv~{bv}", flush=True)
+            last_up[pid] = up
+            row = dict(meta, ts_utc=ts, elapsed_s=el, src="peer", master_ip=addr[0],
+                       peer_id=pid, last_seq=int(seq), rx=int(rxc), gaps=int(gaps),
+                       pdr=float(pdr), rssi_dbm=int(rssi), battery_v=float(bv),
+                       battery_ma=int(ima), soc_pct=int(soc), reset_reason=rr,
+                       ca_state=int(ca), peer_mode=int(mode), dl_pdr=float(dlpdr),
+                       dl_rssi_dbm=int(dlrssi), uptime_ms=up, age_ms=int(age))
+            fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
+            if n % 50 == 0:
+                print(f"+{el:6.0f}s  peer {pid} pdr={pdr} rssi={rssi} dlpdr={dlpdr} soc={soc} reboots={reb}", flush=True)
+            continue
+        m = rx_master.search(text)
+        if m:
+            pid, ch, frames, sok, sfail, up, bv = m.groups()
+            row = dict(meta, ts_utc=ts, elapsed_s=el, src="master", master_ip=addr[0],
+                       master_id=pid, channel=int(ch), frames=int(frames),
+                       send_ok=int(sok), send_fail=int(sfail), uptime_ms=int(up),
+                       battery_v=float(bv))
+            fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
+s.close()
+print(f"=== DONE rows={n} reboots={reb} -> {out} ===", flush=True)

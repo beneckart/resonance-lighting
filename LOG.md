@@ -12,6 +12,34 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont. 3) — Ben + Claude — net_bench: first ESP-NOW firmware + 5-node feasibility harness
+
+Built the project's **first ESP-NOW firmware** to de-risk basing ~100 fixtures on the
+PowerFeather V2 (networking/radio/stability axis). New `firmware/net_bench/` (forked from
+power_bench): broadcast-only ESP-NOW (unencrypted FF:FF — the 100-node-scalable pattern;
+encrypted peers cap at ~17), **master** role (broadcasts SHOW_FRAME + WiFi-STA-bridges
+per-peer stats to the host over UDP:54321) and **peer** role (pure ESP-NOW on battery,
+HEARTBEAT with seq/battery/downlink-PDR). Per-source seq-gap PDR. **Maintenance-mode
+switch** (ESP-NOW metadata → peers join AP → standard WiFi OTA, ADR-0010 compliant; no
+firmware over ESP-NOW). **Watchdog** added (esp_task_wdt — net-new, closes the open
+field-reliability TODO) + `--wdt-hangtest`. Autosleep guard ported.
+
+Host harness: `ops/bench/net_bench_log.py` (master bridge → JSONL), `net_bench_ota.py`
+(parallel OTA + auto-recovery/no-button assertion), `net_bench_summary.py` (per-peer
+PDR/RSSI + scale-extrapolation loss knee). Test plan + acceptance targets:
+`docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md`.
+
+**Bench-validated on 1 board (9E5B0C):** boots, Board.init Ok, ESP-NOW up, heartbeats
+broadcasting (0 send-fail); **watchdog recovery PASS** (induced hang → task-WDT reset →
+reboot, post-reset reason `task_watchdog`, no human); master WiFi-join + host JSONL
+capture PASS. **Channel-lock confirmed real:** home AP "BubbyNet" is ch 11, so building
+with `--channel 6` made the master warn and every send fail (`Peer channel != home
+channel`). **Action for Ben: build all 5 boards with `--channel 11`** (= the AP channel)
+to run the multi-node matrix. All battery results will be Li-ion (JST-PH) — asterisked to
+re-verify on LFP (LFP plateau sits on the buck-boost crossover, the harder regime).
+Multi-node T0–T7 pending Ben's 5 boards on a matched channel. Plan approved; this is the
+implementation of that plan.
+
 ## 2026-06-07 (cont. 2) — Ben + Claude — Second Split style (rotate-about-center) + ping-pong spiral
 
 Two small LED Studio refinements:
