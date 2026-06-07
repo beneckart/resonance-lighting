@@ -6,7 +6,8 @@ ESP32 firmware for the Resonance downlight. **Stub for now** — populated once 
 > [`POWERFEATHER_NOTES.md`](POWERFEATHER_NOTES.md) first — the switchable 3V3 rail
 > (GPIO4), the V2 SDK board flag, native-USB reset/IP recovery, and other gotchas
 > that have each cost real bench time. Working sketches: `power_bench/`,
-> `hex_studio/`, `rgbw_studio/`, `smoke_test/`, `powerfeather_demo_port/`.
+> `led_studio/` (merged HEX + RGBW + RGB aesthetic tool), `smoke_test/`,
+> `powerfeather_demo_port/`.
 
 ## Planned structure
 

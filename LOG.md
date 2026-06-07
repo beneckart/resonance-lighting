@@ -12,6 +12,30 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont.) — Ben + Claude — Merged LED Studio (HEX + RGBW + RGB), Split-as-toggle
+
+Merged `hex_studio` + `rgbw_studio` into one **`firmware/led_studio/`** with a UI mode
+toggle that hot-swaps between three LED options on the same A0/GPIO10 data pin — no
+reflash — by reconfiguring the NeoPixel type/length at runtime
+(`updateType`/`updateLength`): **HEX grid (37px RGB)**, **RGBW point (1px)**, and a
+new **RGB point (1px)** for the high-power RGB LED (same as the RGBW minus the white
+die — same render path, 3-byte strip, W ignored). Removed the two now-superseded
+single sketches. Confirmed harmless to mismatch mode vs physical module (both SK6812):
+worst case is wrong colors / one LED until refreshed; strip is blanked on each switch.
+
+Per Ben's request, **Split-RGB is now a toggle modifier, not its own animation** — so
+the separated R/G/B triad follows the selected path: Static (parked at the anchor,
+Step+ to move it), Spiral, Orbit (sweeps the triad along the path with trail), and
+Breathe (pulses the triad). Spread/rotate tune the fringe width. Validated on hardware
+across all three modes + the split paths.
+
+Process note (field-reliability data): the **USB-JTAG flash flakiness recurred twice**
+this session — the port dropped after one upload (needed a replug) and a write failed
+with "Error during build" before succeeding on retry. Reinforces the TODO that the
+deployed lantern must never depend on the USB/RTS reset path (software reset + watchdog
++ the autosleep recovery instead). Recovering the IP after a reset still needs the
+pyserial RTS pulse (native USB-CDC) — see `firmware/POWERFEATHER_NOTES.md`.
+
 ## 2026-06-07 — Ben + Claude — Two findings: 3V3-rail-needs-enabling (GPIO4) + 8-bit gamma low-end dead-zone
 
 **1) PowerFeather V2 switchable 3V3 rail must be enabled (GPIO4 / EN_3V3).** The
