@@ -1,7 +1,15 @@
 # Plan: outdoor solar telemetry over ESP-NOW + a WiFi range diagnostic
 
 **Date:** 2026-06-08
-**Status:** Plan / handoff for a fresh agent. Not yet started.
+**Status:** (a) **BUILT + VALIDATED on hardware 2026-06-08** — supply/panel telemetry
+(`supply_mv/supply_ma/supply_good`) rides the heartbeat over ESP-NOW; logs panel V/I with
+no WiFi-STA; `net_bench_log.py` derives `supply_w/battery_w/load_w`. See LOG cont. 8.
+(b) **VALIDATED on hardware 2026-06-08** (2 boards, OTA) via
+the ESP-NOW serial-bridge route below (Ben's call: avoid a laptop tether), not the
+standalone tethered sketch. Coverage map streams to the desk; 3 Eero nodes resolved by
+RSSI; scan↔ESP-NOW coexistence holds; a shared-seq PDR bug was found+fixed. Remaining for
+(b): the actual yard walk (coverage-at-distance) + the AP-placement note. See "Update
+2026-06-08" + LOG 2026-06-08 (cont. 7).
 **Owner:** Ben
 
 ## For the agent picking this up — read these first
@@ -102,3 +110,47 @@ channel. ESP-NOW Long-Range mode is **not** usable for WiFi-STA-to-Eero (only ES
   solar logging. ~half-day firmware + a logger tweak; reuses net_bench.
 - **(b)** is a ~1-hour confirmation; nice for understanding + maintenance-AP placement, not a
   prerequisite for (a). Optional but cheap.
+
+---
+
+## Update 2026-06-08 — (b) reworked as a wireless ESP-NOW bridge (no laptop tether)
+
+Ben didn't want to walk a tethered laptop, so (b) was implemented as the **same
+wireless architecture (a) needs**, killing two birds: a **desk-tethered ESP-NOW
+"serial bridge"** prints the field fleet to USB on the PC, and a **field peer
+scan-reports** the 2.4 GHz landscape over ESP-NOW. This is *scan-only* (the field board
+never associates) — which sidesteps the channel problem (ESP-NOW rides the WiFi-STA
+channel; an associated board is locked to the Eero's channel, an unassociated one we
+pin freely) and still delivers the plan's own stated smoking gun ("a scan showing a
+closer node with better RSSI"). The empirical *roaming-decision* test (does it cling to
+the far BSSID?) is deferred to the tethered `firmware/wifi_diag/` sketch.
+
+**Built (compiles clean, all 4 net_bench variants; NOT yet hardware-tested):**
+- `firmware/net_bench/`: `--serial-bridge` (master relays `nb-*` to USB serial, no
+  WiFi) and `--scan-report` (peer async-scans 2.4 GHz, broadcasts `NB_SCANAP` packets:
+  per-AP BSSID/RSSI/channel/SSID, strongest-first, radio re-pinned to the ESP-NOW
+  channel after each scan). New packet `NB_SCANAP=7` (proto ver unchanged — additive).
+- `ops/bench/net_bench_serial_bridge.py`: serial→UDP:54321 relay so the existing
+  `net_bench_log.py` / `net_bench_monitor.py` work from the desk bridge unchanged.
+  `net_bench_log.py` extended with an `nb-scanap` row (logs `ssid/bssid/ap_rssi/...`).
+- `firmware/wifi_diag/`: the standalone tethered association/roaming probe (kept as the
+  complementary "does it actually roam" tool; RSSI/BSSID/channel + scan + missed-roam flag).
+
+**To run it (hardware step, Ben):**
+```
+# desk bridge on the PC's USB:
+cd firmware/net_bench && ./build.sh --role master --channel <clean 2.4 ch> --serial-bridge --port /dev/ttyACMx
+# field board (battery, walked):
+./build.sh --role peer --channel <same> --scan-report --scan-s 15 --hb-hz 1 --port /dev/ttyACMy
+# on the PC:
+ops/bench/net_bench_serial_bridge.py --port /dev/ttyACMx &
+ops/bench/net_bench_log.py --site ca --notes "yard 2.4GHz coverage"
+```
+PASS = `nb-scanap` rows update from the yard (per-Eero-node RSSI) with zero WiFi-STA on
+the field board, through positions WiFi-STA couldn't hold. Deliverable unchanged: the
+2.4 GHz RSSI map + maintenance-AP placement note in `LOG.md`.
+
+**Caveats / unknowns (be cautious — n=0 on hardware):** async `WiFi.scanNetworks()`
+coexisting with ESP-NOW on the S3 is assumed-fine but unverified; the post-scan channel
+re-pin is the load-bearing line. Confirm a scan doesn't wedge ESP-NOW and that the
+bridge actually receives `NB_SCANAP` across the yard before trusting any map.

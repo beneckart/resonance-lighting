@@ -18,6 +18,7 @@ SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROLE=""; CHANNEL=""; FRAME_HZ=""; HB_HZ=""; JITTER=""; WDT_S=""; WDT_HANG=""
 MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
+SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -33,6 +34,10 @@ while [[ $# -gt 0 ]]; do
     --budget-mah) BUDGET="$2"; shift 2;;
     --wake-s) WAKE="$2"; shift 2;;
     --wifi-lowpower) LOWPOWER="1"; shift;;
+    --serial-bridge) SERIAL_BRIDGE="1"; shift;;     # desk bridge: relay nb-* to USB serial (master, no WiFi)
+    --scan-report) SCAN_REPORT="1"; shift;;         # field peer: 2.4 GHz scan-report over ESP-NOW
+    --scan-s) SCAN_S="$2"; shift 2;;
+    --scan-max) SCAN_MAX="$2"; shift 2;;
     --chem) CHEM="$2"; shift 2;;
     --cap) CAP="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
@@ -69,6 +74,10 @@ esac
 [[ -n "${BUDGET}" ]]        && FLAGS+=" -DNB_BUDGET_MAH=${BUDGET}"
 [[ -n "${WAKE}" ]]          && FLAGS+=" -DNB_WAKE_S=${WAKE}"
 [[ -n "${LOWPOWER}" ]]      && FLAGS+=" -DNB_WIFI_LOWPOWER=1"
+[[ -n "${SERIAL_BRIDGE}" ]] && FLAGS+=" -DNB_SERIAL_BRIDGE=1"
+[[ -n "${SCAN_REPORT}" ]]   && FLAGS+=" -DNB_SCAN_REPORT=1"
+[[ -n "${SCAN_S}" ]]        && FLAGS+=" -DNB_SCAN_S=${SCAN_S}"
+[[ -n "${SCAN_MAX}" ]]      && FLAGS+=" -DNB_SCAN_MAX=${SCAN_MAX}"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7";;

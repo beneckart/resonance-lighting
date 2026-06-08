@@ -51,7 +51,13 @@ rx_master = re.compile(
     r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)")
 rx_peer = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
-    r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)")
+    r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
+    r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?")  # supply (panel) side; optional (pre-.7 peers omit it)
+# Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
+# ssid is LAST because it may contain spaces.
+rx_scanap = re.compile(
+    r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
+    r"ap_rssi=(-?\d+) ch=(\d+) enc=(\d+) linkrssi=(-?\d+) ssid=(.*)")
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -76,7 +82,7 @@ with open(out, "w") as fh:
         m = rx_peer.search(text)
         if m:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
-             dlpdr, dlrssi, up, age) = m.groups()
+             dlpdr, dlrssi, up, age, sv, sma, sgood) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -88,9 +94,19 @@ with open(out, "w") as fh:
                        battery_ma=int(ima), soc_pct=int(soc), reset_reason=rr,
                        ca_state=int(ca), peer_mode=int(mode), dl_pdr=float(dlpdr),
                        dl_rssi_dbm=int(dlrssi), uptime_ms=up, age_ms=int(age))
+            if sv is not None:  # supply (panel) side: V, current into board, charger-good
+                supply_w = round(float(sv) * int(sma) / 1000.0, 3)  # panel harvest
+                # net battery power (>0 charging) and derived system load
+                batt_w = round(float(bv) * int(ima) / 1000.0, 3)
+                row.update(supply_v=float(sv), supply_ma=int(sma),
+                           supply_good=bool(int(sgood)), supply_w=supply_w,
+                           battery_w=batt_w, load_w=round(supply_w - batt_w, 3))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
-                print(f"+{el:6.0f}s  peer {pid} pdr={pdr} rssi={rssi} dlpdr={dlpdr} soc={soc} reboots={reb}", flush=True)
+                extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "
+                         f"sgood={sgood}" if sv is not None else "")
+                print(f"+{el:6.0f}s  peer {pid} pdr={pdr} rssi={rssi} soc={soc} "
+                      f"batt_ma={ima}{extra} reboots={reb}", flush=True)
             continue
         m = rx_master.search(text)
         if m:
@@ -100,5 +116,17 @@ with open(out, "w") as fh:
                        send_ok=int(sok), send_fail=int(sfail), uptime_ms=int(up),
                        battery_v=float(bv))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
+            continue
+        m = rx_scanap.search(text)
+        if m:
+            (frm, scan, idx, cnt, bssid, ap_rssi, ch, enc, linkrssi, ssid) = m.groups()
+            row = dict(meta, ts_utc=ts, elapsed_s=el, src="scanap", master_ip=addr[0],
+                       field_id=frm, scan_id=int(scan), idx=int(idx), ap_count=int(cnt),
+                       bssid=bssid, ap_rssi_dbm=int(ap_rssi), ap_channel=int(ch),
+                       enc=int(enc), link_rssi_dbm=int(linkrssi), ssid=ssid.rstrip())
+            fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
+            if int(idx) == 0:  # log the strongest AP of each batch as a heartbeat of progress
+                print(f"+{el:6.0f}s  scan#{scan} from {frm}: best {ssid.rstrip()} "
+                      f"{ap_rssi}dBm ch{ch} ({cnt} APs, link {linkrssi}dBm)", flush=True)
 s.close()
 print(f"=== DONE rows={n} reboots={reb} -> {out} ===", flush=True)

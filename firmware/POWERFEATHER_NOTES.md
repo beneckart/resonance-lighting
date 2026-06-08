@@ -137,3 +137,20 @@ battery-only, no touch.
   watchdog, and mark valid only after the image proves stable for N s.
 - OTA does NOT update the bootloader (only the app partition); the rollback-capable bootloader
   is written during a full USB flash.
+
+## ESP32 WiFi does not roam between APs (latches one BSSID)
+
+The ESP32 WiFi-STA stack has **no 802.11k/v/r roaming**. It associates to the strongest
+BSSID for the SSID **at connect time**, then **stays latched to it** even as that AP's
+RSSI collapses and a stronger same-SSID AP (another mesh node) becomes available. Observed
+2026-06-08: a board associated indoors, carried to the yard, clung to the weak indoor Eero
+and dropped its link while a −46 dBm nearer node sat right there (a scan proved it was
+available). 5/6 GHz client devices roamed fine; the S3 (2.4 GHz only) did not.
+
+- **Fix:** force a fresh associate — a **reset, `esp_restart()`, or `WiFi.disconnect()` +
+  `WiFi.begin()`** re-scans and picks the **strongest** beacon. A production
+  "re-associate on link-loss / low-RSSI" guard gives cheap roaming. (The net_bench
+  maintenance-OTA path already does a fresh `WiFi.begin()`, so it self-selects the best AP.)
+- **Scope:** this bit us with a **moving** board. Deployed fixtures are **stationary**, so
+  they won't walk away from the AP they associated to — low field risk, but the
+  maintenance AP should still be the **strongest** thing near the tree during an OTA window.

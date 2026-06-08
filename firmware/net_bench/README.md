@@ -47,7 +47,39 @@ Recover the IP/banner via the pyserial RTS pulse (native USB-CDC; see
 pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-hangtest`,
 `--maint-timeout S`, `--start-maint`, `--autosleep`/`--budget-mah`/`--wake-s`,
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
-`--port`/`--ota`.
+`--serial-bridge`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--port`/`--ota`.
+
+## Serial bridge + field scan-report (no laptop in the field)
+
+Two modes that let you log the field fleet **from your desk over USB**, instead of
+tethering a laptop in the yard (the WiFi range diagnostic, item (b) of
+`docs/tests/SOLAR_TELEMETRY_RANGE_PLAN_2026-06-08.md`). Why ESP-NOW and not WiFi-STA:
+the ESP32-S3 is 2.4 GHz-only and won't hold an Eero association from the yard, but
+ESP-NOW reached the back fence — so carry the data on ESP-NOW.
+
+- **`--serial-bridge`** (a master): does **not** join WiFi — stays pinned to
+  `--channel` and **relays everything it hears to USB serial** (the same `nb-master` /
+  `nb-peer` / `nb-scanap` lines). A desk-tethered board thus logs the whole fleet.
+- **`--scan-report`** (a field peer): periodically WiFi-**scans** 2.4 GHz (never
+  associates → radio stays on `--channel` for ESP-NOW), and broadcasts the strongest
+  `--scan-max` APs (BSSID/RSSI/channel/SSID) as `NB_SCANAP` packets. This maps which
+  Eero node is reachable at what RSSI from anywhere in the yard — the coverage map +
+  the "a stronger node was available" half of the missed-roam story, streamed wirelessly.
+
+```
+# desk bridge (USB to your PC):
+./build.sh --role master --channel 11 --serial-bridge --port /dev/ttyACM0
+# field board (battery, walked); scans every 15 s:
+./build.sh --role peer --channel 11 --scan-report --scan-s 15 --hb-hz 1 --port /dev/ttyACM1
+# on the PC: relay serial -> UDP so the usual loggers work, then log:
+ops/bench/net_bench_serial_bridge.py --port /dev/ttyACM0   &
+ops/bench/net_bench_log.py --site ca --notes "yard 2.4GHz coverage"
+```
+
+Channel note: because the field board never associates, `--channel` is **yours to
+pick** (a clean 2.4 GHz channel) — no coupling to the Eero's channel. Both boards must
+share it. The **association/roaming** empirical test (does it actually cling to the far
+node?) is deferred — `firmware/wifi_diag/` is the tethered probe for that.
 
 ## Onboard LED = battery level (GPIO46)
 
@@ -80,6 +112,9 @@ maintenance + enter · `c` resume · `x` watchdog hang test (needs `--wdt-hangte
   OTA "Update complete. Rebooting." ack + software reset is the success signal; confirm
   rejoin via the master bridge). Default `--reboot maint` verifies via `/telemetry`.
 - `ops/bench/net_bench_summary.py` — per-peer + aggregate stats + scale extrapolation.
+- `ops/bench/net_bench_serial_bridge.py` — relay a `--serial-bridge` board's USB serial
+  to UDP:54321, so all the UDP tooling above works from a desk-tethered bridge (no
+  laptop in the field). `net_bench_log.py` also logs `nb-scanap` coverage rows.
 
 ## Caveats
 Battery runs are **Li-ion (`Generic_3V7`)** for now — *re-verify every stability finding

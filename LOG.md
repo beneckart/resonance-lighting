@@ -12,6 +12,137 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 9) — Ben + Claude — Conclusions: WiFi hypothesis settled (moving-board artifact) + stress-test framing
+
+Wrap-up of the day's two device tests.
+
+**WiFi drop — hypothesis settled (high confidence).** The board latches to one Eero BSSID
+at association and **does not auto-roam** (ESP32 has no 802.11k/v/r); carried from indoors
+to the yard, it clings to the now-weak indoor node instead of hopping to the strong (−46
+dBm) nearer one → the link collapses while a good AP sits right there (the scan is the
+smoking gun). Fix is cheap and already partly in place: **a reset, a software reset, or a
+firmware "re-associate on link loss" guard** forces a fresh scan-and-associate, which
+picks the strongest beacon (our maintenance-OTA path already does a fresh `WiFi.begin()`,
+which is why OTA worked from the bad spot). **Framing (Ben):** this is a **bench artifact
+of a *moving* board** — deployed fixtures are stationary and won't walk away from their
+Eero, so we're unlikely to hit this in the field. Logged as a **gotcha** (see
+POWERFEATHER_NOTES) + a firmware-guard TODO, not a blocker.
+
+**Panel 0.12 V → 5.55 V swing — explained:** Ben **reseated the solar connector** mid-check;
+that's the swing, not a mystery intermittent. Takeaway for production: **mechanically
+secure/strain-relieve the panel pigtail** (a loose connector = silent zero-harvest), and
+item (a) now makes a dark panel obvious live (`supply_good=0`, `supply_v≈0`).
+
+**Stress-test framing (important for reading the numbers):** this run **highly activated the
+radio (continuous ESP-NOW + 15 s all-channel WiFi scans) WHILE harvesting** — a deliberate
+worst case. Even so the cell net-charged in decent light. **In the field the fixture will
+be asleep / quiet during sunshine**, so real harvest-vs-load is *more favorable* than these
+bench numbers — i.e. the bench load figures are conservative, not representative. Next
+focus: a **sizing-oriented** solar run (realistic sleep/duty-cycle load, harvest across
+sun/cloud/shade) to actually spec the cell + panel.
+
+## 2026-06-08 (cont. 8) — Ben + Claude — Item (a): supply/panel telemetry over ESP-NOW — built + VALIDATED on hardware
+
+Built the solar-telemetry half of the plan (item (a)): carry the **supply (panel) side**
+over ESP-NOW so it logs from anywhere without WiFi-STA. Threaded `supply_mv`/`supply_ma`/
+`supply_good` end-to-end — peer reads `Board.getSupplyVoltage/Current/checkSupplyGood`
+(cached ~1 Hz in `readBattery`), **appended** to `NbHeartbeat` (kept `NB_PROTO_VER=1`;
+append-only + length-checks → no flag-day, a pre-supply master still reads the battery
+fields of a supply-capable peer; new master reads old peer via `offsetof` guard), stored
+in `NbPeerStat`, emitted as `sv=/sma=/sgood=` on the `nb-peer` bridge line. Host
+`net_bench_log.py` parses them (optional regex group) and derives `supply_w` (panel
+harvest), `battery_w`, and `load_w = supply_w − battery_w` into the JSONL. fw
+`net-bench-2026-06-08.7`.
+
+Deployed via the maintenance round-trip (master `u` → peer rejoined WiFi → OTA `.7`
+supply build → reflash master over USB). **Works end-to-end:** `sv=5.56 sma=160 sgood=1`
+→ **panel ~0.89 W**, battery flips to **net-charging +140 mA** under the (heavy) scan
+load; harvest swings 0.5–0.9 W with the clouds, all logged.
+
+**Solved the earlier "net-discharge at noon" puzzle:** while the peer was briefly in
+maintenance mode its `/telemetry` showed **`supply_v=0.123` — the panel was essentially
+dark** (shaded/mis-oriented in-hand, or a loose connector). So the discharge was simply
+**zero harvest**, not a battery/load problem. Once the panel saw light again, `supply_v`
+jumped to 5.55 V and it charged. Lesson: **harvest is very orientation-sensitive** — a
+real sizing finding, and exactly the thing item (a) now makes continuously visible.
+
+**Caveat for sizing:** the derived `load_w ≈ 0.39 W` here is the *diagnostic firmware's*
+load (radio always on + 15 s WiFi scans), NOT a fixture budget — don't size the cell to
+it. The **panel-harvest V/I is the directly-useful output**; the load side still needs
+the bottom-up fixture duty-cycle budget (existing TODO). Boards left running on ch 11,
+logging to `ops/bench/data/ca/2026-06-08-ca-lfp-2000-net-master-multicast-rNA-1946.jsonl`.
+
+## 2026-06-08 (cont. 7) — Ben + Claude — WiFi coverage diagnostic VALIDATED on hardware (2 boards, OTA) + PDR seq-bug fixed
+
+Took (cont. 6)'s firmware to hardware. Flashed the **serial-bridge master** (`9F2690`)
+over USB on ACM1 (`--serial-bridge --no-charge`, ch 11) — boots into "SERIAL BRIDGE (no
+WiFi)" and streams `nb-*` to USB as designed. Then **OTA'd the scan-report peer onto the
+live solar board** `9E5B0C` (the only wireless Resonance board — found by sweeping the
+LAN for `/telemetry`; note `192.168.4.73` is an unrelated "Grow Light", NOT ours, left
+untouched). Built the OTA with **`--chem lfp --cap 2000 --maintain 5.5`** to match the
+board's LFP cell + solar panel (Li-ion profile would overcharge the LFP — the
+POWERFEATHER_NOTES gotcha).
+
+**Worked end-to-end, first try.** Post-OTA the peer left WiFi, rejoined as an ESP-NOW
+peer (`rr=software`, LFP 3.33 V, still solar-charging ~40 mA), and streamed the **2.4 GHz
+coverage map to the desk with zero WiFi-STA on the field board** — resolving the **3
+BubbyNet Eero nodes separately by RSSI** (`…a3:06`/`…9c:06` @ −44, `…40:c6` @ −62, all ch
+11) plus neighbors on chs 1/6/11. The two things flagged as load-bearing-but-unverified
+in (cont. 6) — async `WiFi.scanNetworks()` coexisting with ESP-NOW, and the post-scan
+channel re-pin — **both hold**.
+
+**Found + fixed a real bug:** heartbeats and scan-AP packets shared one tx sequence
+counter, so each scan batch's N sends read as N phantom heartbeat *gaps* at the master
+(uplink PDR showed a bogus 0.65). Gave heartbeats their **own contiguous seq** (`hbSeq`
+in `sendHeartbeat`). Re-OTA'd the fix via the **maintenance round-trip** (master serial
+`u` → peer rejoined BubbyNet → OTA → both back to comms, no touch — also validates that
+path). After: `gaps=0` through scans, `pdr=1.0` with an honest occasional `gaps=1`.
+(Downlink `dlpdr≈0.8` is expected: the peer is deaf to the master's 10 Hz frames during
+its own ~2.5 s scan window — informative, not a fault.)
+
+Net: **item (b) is validated on hardware.** Still TODO: the actual **yard walk** (carry
+`9E5B0C` out, watch the per-Eero-node RSSI fall off → the coverage-at-distance map +
+where to place a field maintenance AP) and write that note. Tooling to capture it
+(`net_bench_serial_bridge.py` → `net_bench_log.py` `nb-scanap` rows) is ready but a
+background log wasn't started this session. Boards left running on ch 11.
+
+## 2026-06-08 (cont. 6) — Ben + Claude — WiFi coverage diagnostic, reworked as a wireless ESP-NOW bridge (firmware done, untested on hw)
+
+Picked up the solar-telemetry/range handoff plan, item (b) — the WiFi range diagnostic.
+Started on the standalone tethered sketch (`firmware/wifi_diag/`: associates, streams
+RSSI/BSSID/channel + a 2.4 GHz scan, flags a *missed-roam* when a stronger same-SSID Eero
+node wasn't chosen). Then Ben pushed back on the laptop tether and proposed a better
+setup: an **ESP-NOW "wireless serial" bridge** to his desktop. That's the right call —
+it's the *same* architecture item (a) needs, so building it once serves both.
+
+**Reworked (b) as scan-only over an ESP-NOW bridge** (extends `firmware/net_bench/`):
+- **`--serial-bridge`** (a master): does NOT join WiFi; stays pinned to `--channel` and
+  relays everything it hears (`nb-master`/`nb-peer`/`nb-scanap`) to **USB serial**, so a
+  desk-tethered board logs the whole field fleet — no laptop in the yard.
+- **`--scan-report`** (a field peer): async-scans 2.4 GHz (**never associates**), then
+  broadcasts the strongest `--scan-max` APs (BSSID/RSSI/ch/SSID) as a new `NB_SCANAP`
+  packet. Because it never associates, the radio is **ours to pin to `--channel`** (no
+  Eero-channel coupling — the key insight; an *associated* board is locked to the Eero's
+  channel and ESP-NOW rides that). Radio is re-pinned to `--channel` after each scan;
+  ESP-NOW TX is suppressed while the scan hops.
+- Host: `ops/bench/net_bench_serial_bridge.py` relays the bridge's serial → UDP:54321 so
+  the **existing** `net_bench_log.py`/`net_bench_monitor.py` work unchanged; `net_bench_log.py`
+  gained an `nb-scanap` row (per-AP coverage → JSONL).
+
+Why this answers (b): the plan's own stated smoking gun is "a scan showing a closer node
+with better RSSI it didn't pick" — a **scan needs no association**, so scan-only delivers
+the per-Eero-node RSSI coverage map from anywhere in the yard (and tells us where to put
+the field maintenance AP). The empirical roaming-*decision* test stays in the tethered
+`wifi_diag` probe.
+
+**Status: all 4 net_bench variants compile clean (28% flash); NOT yet run on hardware**
+(no board on USB this session — ACM0 is the PAR sensor). Cautions before trusting any
+map: async `WiFi.scanNetworks()` + ESP-NOW coexistence on the S3 is assumed-fine but
+unverified, and the post-scan channel re-pin is the load-bearing line. Next (Ben): flash
+2 boards on a shared `--channel`, walk the field peer, confirm `nb-scanap` updates from
+the yard, then write the RSSI map + AP-placement note here. Details: updated
+`SOLAR_TELEMETRY_RANGE_PLAN_2026-06-08.md` (end) + `firmware/net_bench/README.md`.
+
 ## 2026-06-08 (cont. 5) — Ben + Claude — A/B rollback VALIDATED (bad image auto-reverts) + the recipe
 
 Tested A/B rollback with a bad image (battery-only LFP). **PASS:** pushed a power_bench

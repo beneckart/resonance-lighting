@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-08.5"
+#define NET_BENCH_VERSION "net-bench-2026-06-08.7"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -97,7 +97,22 @@ using namespace PowerFeather;
 #ifndef NB_WIFI_LOWPOWER
 #define NB_WIFI_LOWPOWER 0
 #endif
-// NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP are presence-only flags.
+// ---- WiFi scan-report (field 2.4 GHz coverage mapping over ESP-NOW) ---------
+// A field PEER built with -DNB_SCAN_REPORT periodically WiFi-scans (never
+// associates) and broadcasts each visible AP as an NB_SCANAP packet. A board
+// built with -DNB_SERIAL_BRIDGE (a master) relays everything it hears to USB
+// serial (so a desk-tethered bridge logs the fleet WITHOUT a laptop in the
+// field) -- the answer to the WiFi range diagnostic / item (b) of the solar-
+// telemetry plan. Scan-only: no association, so the radio stays pinned to
+// NB_CHANNEL for ESP-NOW (no Eero-channel coupling). See README.
+#ifndef NB_SCAN_S
+#define NB_SCAN_S 20 // field-peer scan-report interval (s)
+#endif
+#ifndef NB_SCAN_MAX
+#define NB_SCAN_MAX 12 // max APs reported per scan batch (bounds the ESP-NOW burst)
+#endif
+// NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE
+// are presence-only flags.
 #ifndef NB_BUDGET_MAH
 #define NB_BUDGET_MAH 1000
 #endif
@@ -111,6 +126,12 @@ using namespace PowerFeather;
 static const bool IS_MASTER = true;
 #else
 static const bool IS_MASTER = false;
+#endif
+
+#if defined(NB_SERIAL_BRIDGE)
+static const bool SERIAL_BRIDGE = true; // master relays bridge lines to USB serial
+#else
+static const bool SERIAL_BRIDGE = false;
 #endif
 
 // ---- Globals ---------------------------------------------------------------
@@ -133,11 +154,21 @@ uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
 uint8_t gRateHz = IS_MASTER ? NB_FRAME_HZ : NB_HB_HZ; // runtime-settable (master '+'/'-')
 
-// cached battery (refreshed ~1 Hz; ESP-NOW callback must not read the SDK)
+// cached battery + supply (panel) telemetry (refreshed ~1 Hz; the ESP-NOW callback
+// must not touch the SDK). Supply = the solar/USB input side, the missing half for
+// battery/panel sizing -- supply_v x supply_ma = panel harvest; battery_ma = net.
 float cbV = 0, cbMa = 0;
 int cbSoc = -1;
+float csV = 0, csMa = 0; // supply (panel) voltage / current
+bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
 
 uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead of battery
+
+// field scan-report state (set on a -DNB_SCAN_REPORT peer). gScanRunning is read
+// unconditionally by the send loop (suppress ESP-NOW TX while the radio is hopping).
+bool gScanRunning = false;
+uint8_t gScanId = 0;
+uint32_t gNextScanMs = 0;
 
 // downlink (master SHOW_FRAME) tracking on peers
 uint32_t masterLastSeq = 0;
@@ -154,6 +185,7 @@ enum NbType : uint8_t {
   NB_RESUME = 4,      // master -> all: leave maintenance
   NB_SET_RATE = 5,    // master -> all: set heartbeat/frame rate (Hz) for sweeps
   NB_IDENTIFY = 6,    // master -> target (or all): blink the locate pattern to find a board
+  NB_SCANAP = 7,      // field peer -> bridge: one scanned 2.4 GHz AP (coverage mapping)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -179,6 +211,13 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t mode;
   uint16_t dl_pdr_x1000; // master-multicast PDR as seen by this peer
   int8_t dl_rssi;        // RSSI of master frames at this peer
+  // --- APPEND-ONLY below (supply/panel side) ---------------------------------
+  // New fields go at the END. Old parsers length-check (it.len >= sizeof) and
+  // ignore the tail, so NB_PROTO_VER stays 1 (no flag-day; a pre-supply master
+  // still reads the battery fields of a supply-capable peer). NEVER reorder/insert.
+  int16_t supply_mv; // panel/USB input voltage (mV)
+  int16_t supply_ma; // panel/USB input current INTO the board (mA)
+  uint8_t supply_good; // charger considers the supply valid (0/1)
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -188,6 +227,17 @@ struct __attribute__((packed)) NbIdentify { // locate a board (target 00:00:00 =
   NbHeader h;
   uint8_t target_id[3];
   uint8_t secs;
+};
+struct __attribute__((packed)) NbScanAp { // one AP from a field scan batch (45 bytes)
+  NbHeader h;
+  uint8_t scan_id;  // increments per scan batch (groups a batch on the host)
+  uint8_t idx;      // rank within the batch (0 = strongest), sorted by RSSI desc
+  uint8_t count;    // total APs found this scan (idx<count; >NB_SCAN_MAX => truncated)
+  uint8_t bssid[6]; // which radio (e.g. which Eero node)
+  int8_t ap_rssi;   // RSSI of this AP as seen from the FIELD board (the coverage metric)
+  uint8_t channel;
+  uint8_t enc;      // wifi_auth_mode_t
+  char ssid[20];    // truncated SSID (identifies home network vs neighbors)
 };
 
 // ---- per-source receive tracking (PDR) -------------------------------------
@@ -206,6 +256,8 @@ struct NbPeerStat {
   uint8_t soc, rr, ca, pmode;
   uint16_t dl_pdr_x1000;
   int8_t dl_rssi;
+  int16_t supply_mv, supply_ma; // panel side (0 if peer pre-dates supply telemetry)
+  uint8_t supply_good;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -303,6 +355,10 @@ void readBattery() {
   if (Board.getBatteryCurrent(v) == Result::Ok) cbMa = v;
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
+  if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
+  if (Board.getSupplyCurrent(v) == Result::Ok) csMa = v;
+  bool g;
+  if (Board.checkSupplyGood(g) == Result::Ok) csGood = g;
 }
 
 String telemetryJson() {
@@ -329,6 +385,9 @@ String telemetryJson() {
     uint8_t s;
     if (Board.getBatteryCharge(s) == Result::Ok) j += ",\"soc_pct\":" + String(s);
     if (Board.getSupplyVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"supply_v\":" + String(b); }
+    if (Board.getSupplyCurrent(v) == Result::Ok) { snprintf(b, sizeof(b), "%.1f", v); j += ",\"supply_ma\":" + String(b); }
+    bool g;
+    if (Board.checkSupplyGood(g) == Result::Ok) { j += ",\"supply_good\":"; j += g ? "true" : "false"; }
   }
   j += "}";
   return j;
@@ -490,8 +549,14 @@ void sendShowFrame() {
   esp_now_send(BCAST, (uint8_t *)&f, sizeof(f));
 }
 void sendHeartbeat(uint8_t caState) {
+  static uint32_t hbSeq = 0;
   NbHeartbeat hb;
   fillHeader(&hb.h, NB_HEARTBEAT);
+  // Heartbeats carry their OWN contiguous seq: the master derives uplink PDR from
+  // it, and the shared txSeq is also consumed by scan-AP sends -- without this, a
+  // scan batch's N packets would read as N phantom heartbeat gaps. (Suppressed
+  // heartbeats during a scan simply don't advance hbSeq, so they aren't gaps.)
+  hb.h.seq = hbSeq++;
   hb.batt_mv = (int16_t)(cbV * 1000.0f);
   hb.batt_ma = (int16_t)cbMa;
   hb.soc_pct = (cbSoc < 0) ? 255 : (uint8_t)cbSoc;
@@ -501,6 +566,9 @@ void sendHeartbeat(uint8_t caState) {
   uint32_t tot = masterRx + masterGaps;
   hb.dl_pdr_x1000 = tot ? (uint16_t)((uint64_t)masterRx * 1000 / tot) : 0;
   hb.dl_rssi = masterRssi;
+  hb.supply_mv = (int16_t)(csV * 1000.0f);
+  hb.supply_ma = (int16_t)csMa;
+  hb.supply_good = csGood ? 1 : 0;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -515,6 +583,23 @@ void sendIdentify(const uint8_t target[3], uint8_t secs) {
   memcpy(m.target_id, target, 3);
   m.secs = secs;
   for (int i = 0; i < 4; i++) { esp_now_send(BCAST, (uint8_t *)&m, sizeof(m)); delay(5); }
+}
+// Broadcast one scanned AP (rank within a batch). scanIdx indexes the live scan
+// results (valid until WiFi.scanDelete()).
+void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
+  NbScanAp p;
+  fillHeader(&p.h, NB_SCANAP);
+  p.scan_id = scanId;
+  p.idx = rank;
+  p.count = count;
+  uint8_t *b = WiFi.BSSID(scanIdx);
+  if (b) memcpy(p.bssid, b, 6); else memset(p.bssid, 0, 6);
+  p.ap_rssi = (int8_t)WiFi.RSSI(scanIdx);
+  p.channel = (uint8_t)WiFi.channel(scanIdx);
+  p.enc = (uint8_t)WiFi.encryptionType(scanIdx);
+  memset(p.ssid, 0, sizeof(p.ssid));
+  strncpy(p.ssid, WiFi.SSID(scanIdx).c_str(), sizeof(p.ssid) - 1);
+  esp_now_send(BCAST, (uint8_t *)&p, sizeof(p));
 }
 
 // ---- mode transitions ------------------------------------------------------
@@ -536,7 +621,12 @@ void enterComms() {
 #else
   WiFi.setSleep(false);
 #endif
-  if (IS_MASTER) {
+  if (IS_MASTER && SERIAL_BRIDGE) {
+    // Desk serial bridge: do NOT join WiFi. Stay STA-unassociated so the radio
+    // is freely pinned to NB_CHANNEL (no Eero-channel coupling); relay to USB.
+    WiFi.disconnect();
+    Serial.println("serial-bridge master: WiFi OFF, pure ESP-NOW on NB_CHANNEL -> USB");
+  } else if (IS_MASTER) {
 #if RES_HAS_WIFI_SECRETS
     // Master joins the bench AP (on NB_CHANNEL) to bridge stats + serve /telemetry.
     WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
@@ -562,18 +652,29 @@ void enterComms() {
   espNowInit();
 }
 
-// ---- master -> host UDP bridge ---------------------------------------------
+// ---- master -> host bridge (UDP and/or USB serial) -------------------------
+// A WiFi-STA master broadcasts to UDP:54321 (existing host tooling); a
+// -DNB_SERIAL_BRIDGE master (no WiFi needed) also prints to USB serial so a
+// desk-tethered board logs the field fleet with no laptop in the yard. Both
+// emit the SAME nb-* line format, so net_bench_log.py works from either source.
+void emitBridge(const char *line, int n) {
+  if (SERIAL_BRIDGE) Serial.write((const uint8_t *)line, n);
+  if (WiFi.status() == WL_CONNECTED) {
+    bridgeUdp.beginPacket(IPAddress(255, 255, 255, 255), 54321);
+    bridgeUdp.write((uint8_t *)line, n);
+    bridgeUdp.endPacket();
+  }
+}
+
 void bridgeStats() {
-  if (!IS_MASTER || WiFi.status() != WL_CONNECTED) return;
+  if (!IS_MASTER) return;
   char line[256];
-  // self line
+  // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
                    "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f\n",
-                   myId[0], myId[1], myId[2], WiFi.channel(), (unsigned long)txSeq,
+                   myId[0], myId[1], myId[2], NB_CHANNEL, (unsigned long)txSeq,
                    (unsigned long)sendOk, (unsigned long)sendFail, (unsigned long)millis(), cbV);
-  bridgeUdp.beginPacket(IPAddress(255, 255, 255, 255), 54321);
-  bridgeUdp.write((uint8_t *)line, n);
-  bridgeUdp.endPacket();
+  emitBridge(line, n);
   // per-peer lines
   for (int i = 0; i < NB_MAX_TRACKED; i++) {
     NbPeerStat *p = &peers[i];
@@ -581,16 +682,59 @@ void bridgeStats() {
     uint32_t tot = p->recv + p->gaps;
     float pdr = tot ? (float)p->recv / (float)tot : 0.0f;
     n = snprintf(line, sizeof(line),
-                 "nb-peer id=%02X%02X%02X seq=%lu rx=%lu gaps=%lu pdr=%.4f rssi=%d bv=%.3f ima=%d soc=%d rr=%s ca=%d mode=%d dlpdr=%.3f dlrssi=%d up=%lu age=%lu\n",
+                 "nb-peer id=%02X%02X%02X seq=%lu rx=%lu gaps=%lu pdr=%.4f rssi=%d bv=%.3f ima=%d soc=%d rr=%s ca=%d mode=%d dlpdr=%.3f dlrssi=%d up=%lu age=%lu sv=%.3f sma=%d sgood=%d\n",
                  p->id[0], p->id[1], p->id[2], (unsigned long)p->last_seq, (unsigned long)p->recv,
                  (unsigned long)p->gaps, pdr, p->rssi, p->batt_mv / 1000.0f, p->batt_ma,
                  (p->soc == 255 ? -1 : p->soc), resetReasonName((esp_reset_reason_t)p->rr), p->ca,
                  p->pmode, p->dl_pdr_x1000 / 1000.0f, p->dl_rssi, (unsigned long)p->up,
-                 (unsigned long)(millis() - p->last_heard_ms));
-    bridgeUdp.beginPacket(IPAddress(255, 255, 255, 255), 54321);
-    bridgeUdp.write((uint8_t *)line, n);
-    bridgeUdp.endPacket();
+                 (unsigned long)(millis() - p->last_heard_ms),
+                 p->supply_mv / 1000.0f, p->supply_ma, p->supply_good);
+    emitBridge(line, n);
   }
+}
+
+// Field scan-report: a -DNB_SCAN_REPORT peer async-scans 2.4 GHz (never
+// associates), then broadcasts up to NB_SCAN_MAX APs (strongest first) as
+// NB_SCANAP packets. The radio is re-pinned to NB_CHANNEL after each scan so
+// ESP-NOW keeps reaching the bridge. gScanRunning suppresses TX while hopping.
+void scanReportTick() {
+  uint32_t now = millis();
+  if (!gScanRunning) {
+    if (now < gNextScanMs) return;
+    WiFi.scanNetworks(/*async*/ true, /*show_hidden*/ false);
+    gScanRunning = true;
+    return;
+  }
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_RUNNING) return;
+  esp_wifi_set_channel(NB_CHANNEL, WIFI_SECOND_CHAN_NONE); // re-pin for ESP-NOW
+  if (n > 0) {
+    uint8_t count = (n > 255) ? 255 : (uint8_t)n;
+    uint8_t sendN = count < NB_SCAN_MAX ? count : NB_SCAN_MAX;
+    // rank the strongest sendN APs by RSSI (selection over a small list)
+    uint8_t order[NB_SCAN_MAX];
+    bool taken[64] = {false}; // n is small; guard the index
+    int cap = (n < 64) ? n : 64;
+    for (uint8_t k = 0; k < sendN && k < cap; k++) {
+      int best = -1;
+      for (int j = 0; j < cap; j++)
+        if (!taken[j] && (best < 0 || WiFi.RSSI(j) > WiFi.RSSI(best))) best = j;
+      if (best < 0) break;
+      taken[best] = true;
+      order[k] = (uint8_t)best;
+    }
+    for (uint8_t k = 0; k < sendN && k < cap; k++) {
+      sendScanAp(gScanId, k, count, order[k]);
+      delay(4); // pace the burst (unacked broadcast)
+    }
+    Serial.printf("scan id=%u found=%d sent=%u\n", gScanId, n, sendN);
+    gScanId++;
+  } else {
+    Serial.printf("scan id=%u failed (%d)\n", gScanId, n);
+  }
+  WiFi.scanDelete();
+  gScanRunning = false;
+  gNextScanMs = now + (uint32_t)NB_SCAN_S * 1000;
 }
 
 // ---- rx processing (loop context) ------------------------------------------
@@ -610,7 +754,7 @@ void processRx() {
         masterGaps += (h->seq - masterLastSeq - 1); masterRx++; masterLastSeq = h->seq;
       } else masterRx++;
       masterRssi = it.rssi;
-    } else if (h->type == NB_HEARTBEAT && it.len >= (int)sizeof(NbHeartbeat)) {
+    } else if (h->type == NB_HEARTBEAT && it.len >= (int)offsetof(NbHeartbeat, supply_mv)) {
       NbPeerStat *p = findPeer(h->src_id, true);
       if (p) {
         accountSeq(p, h->seq);
@@ -622,6 +766,11 @@ void processRx() {
         p->batt_mv = hb->batt_mv; p->batt_ma = hb->batt_ma; p->soc = hb->soc_pct;
         p->rr = hb->reset_reason; p->ca = hb->ca_state; p->pmode = hb->mode;
         p->dl_pdr_x1000 = hb->dl_pdr_x1000; p->dl_rssi = hb->dl_rssi;
+        if (it.len >= (int)sizeof(NbHeartbeat)) { // supply-capable peer (append-only tail)
+          p->supply_mv = hb->supply_mv; p->supply_ma = hb->supply_ma; p->supply_good = hb->supply_good;
+        } else {
+          p->supply_mv = 0; p->supply_ma = 0; p->supply_good = 0;
+        }
       }
     } else if (h->type == NB_ENTER_MAINT) {
       if (gMode == MODE_COMMS) enterMaintenance();
@@ -637,6 +786,20 @@ void processRx() {
         identifyUntil = millis() + (uint32_t)m->secs * 1000;
         Serial.printf("IDENTIFY me (%us)\n", m->secs);
       }
+    } else if (h->type == NB_SCANAP && it.len >= (int)sizeof(NbScanAp) && IS_MASTER) {
+      // bridge: relay a field-scanned AP to the host (ssid LAST -- may contain spaces)
+      NbScanAp *sp = (NbScanAp *)it.data;
+      char ssid[21];
+      memcpy(ssid, sp->ssid, 20);
+      ssid[20] = 0;
+      char line[160];
+      int n = snprintf(line, sizeof(line),
+                       "nb-scanap from=%02X%02X%02X scan=%u idx=%u count=%u "
+                       "bssid=%02x:%02x:%02x:%02x:%02x:%02x ap_rssi=%d ch=%u enc=%u linkrssi=%d ssid=%s\n",
+                       h->src_id[0], h->src_id[1], h->src_id[2], sp->scan_id, sp->idx, sp->count,
+                       sp->bssid[0], sp->bssid[1], sp->bssid[2], sp->bssid[3], sp->bssid[4],
+                       sp->bssid[5], sp->ap_rssi, sp->channel, sp->enc, it.rssi, ssid);
+      emitBridge(line, n);
     }
   }
 }
@@ -753,6 +916,11 @@ void setup() {
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
                 NB_CHANNEL, NB_FRAME_HZ, NB_HB_HZ);
+  if (SERIAL_BRIDGE) Serial.println("mode: SERIAL BRIDGE (no WiFi; relaying nb-* to USB serial)");
+#ifdef NB_SCAN_REPORT
+  Serial.printf("mode: SCAN-REPORT (2.4 GHz scan every %ds, <=%d APs over ESP-NOW)\n",
+                NB_SCAN_S, NB_SCAN_MAX);
+#endif
 
   esp_read_mac(myMac, ESP_MAC_WIFI_STA);
   myId[0] = myMac[3]; myId[1] = myMac[4]; myId[2] = myMac[5];
@@ -813,9 +981,13 @@ void loop() {
   processRx();
   if (IS_MASTER && WiFi.status() == WL_CONNECTED) server.handleClient();
 
-  // periodic jittered sends
+#ifdef NB_SCAN_REPORT
+  if (!IS_MASTER) scanReportTick(); // field peer: 2.4 GHz coverage over ESP-NOW
+#endif
+
+  // periodic jittered sends (suppressed while a scan has the radio hopping)
   static uint32_t nextSend = 0;
-  if (now >= nextSend) {
+  if (now >= nextSend && !gScanRunning) {
     uint8_t hz = gRateHz < 1 ? 1 : gRateHz;
     uint32_t period = 1000 / hz;
     if (IS_MASTER) { if (NB_FRAME_HZ > 0) sendShowFrame(); }
