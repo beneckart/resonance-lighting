@@ -234,6 +234,33 @@ Optional: open-field clean-LoS cliff (no house in the path) to get pure distance
 T5 already PASS (parallel OTA); T6 multi-hour drain (cells charged + correct caps done);
 T7 master coexistence; mock-hat RF (panel+battery installed, Steve).
 
+## Deployment notes (Q&A 2026-06-08)
+
+- **Link "budget":** ~−90 dBm is the *receiver sensitivity floor* (where ESP-NOW packets
+  start failing at ESP32's low rates), not a budget. Margin = measured RSSI − (−90). At the
+  fence we had only ~3–10 dB (RSSI −80..−87), hence the loss there. Unused headroom levers:
+  full TX power was already on (~+19 dBm, not the 8.5 dBm low-power mode), and ESP32's
+  **ESP-NOW long-range (LR) mode (~−110 dBm sensitivity, +15–20 dB reach)** is available if
+  range ever matters.
+- **Lanterns on posts beyond the tree diameter (entrance path idea):** fine — open-air LoS
+  is far easier than the house+yard+oak walk that held ~100 steps. The mesh is peer-to-peer
+  with nearest-neighbor awareness, so each post only needs to hear *some* neighbor (the next
+  post / the tree), not a central point; spaced posts chain naturally. Watch only for an
+  isolated post with no neighbor in range; a far-flung centralized-controller topology would
+  want a multi-hop relay (future lever).
+- **No reboots/brownouts during the range walk** — verified two ways: the master's per-source
+  `rx` for the walked board was strictly monotonic (a reboot resets the peer's seq → rx would
+  snap to ~1; it never did), and current uptime is ~54 min / `reset_reason=software` (the OTA),
+  with the 5.5-min walk entirely inside it. Healthy Li-ion at 4.14 V; none of our brownout
+  triggers (marginal/low cell, LFP buck-boost crossover, IS31-on-I2C-bus) apply here. The
+  walk logger now records `reset_reason`/`uptime`/`seq` + flags reboots explicitly. (The
+  low-cell / multi-hour-drain brownout case is still T6/LFP, untested.)
+- **Security posture — open by design.** We use unencrypted ESP-NOW broadcast (the 100-node
+  scalable pattern; encrypted-peer table caps at ~6–17). No encryption needed for BM (a
+  prankster hijacking the show is welcome). If a future public/festival/grant install needs
+  tamper-resistance, do it at the **app layer** (sign/authenticate broadcast payloads, command
+  allowlist/rolling code), NOT ESP-NOW per-peer crypto. Deferred; record in ADR 0021.
+
 ## Known issues / caveats
 
 - **Li-ion ≠ LFP (asterisk on everything battery):** all stability/current/brownout
