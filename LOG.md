@@ -12,6 +12,20 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 — Ben + Claude — Fuel-gauge false-low after charge (SOC needs voltage cross-check)
+
+Morning: one peer (`9E5AF0`, 10050 mAh) was blinking 4 Hz (LED "<10%"), but **bv=4.188 V
+= fully charged** — the cell charged fine; the gauge is misreading 1%. Extends yesterday's
+cap-reseed finding: after the `DesignCap` change the MAX17260 re-seeded per-board to
+*different wrong* values (`9F26F8`→~100%, `9E5AF0`→~1%), and the overnight charge didn't
+fix it because the board ran the whole time (~100-200 mA) so the charger likely never hit
+the clean **termination** event the gauge uses to anchor 100%. Lessons for production: (1)
+gauge SOC is untrustworthy after a cap change / without a real learn cycle; (2) an
+always-awake fixture solar-charging may never anchor its gauge (the duty-cycled CA design
+helps — low load during charge); (3) **low-battery logic must cross-check voltage** — a
+false 1% could trip a needless shutdown, a false 100% could over-discharge. Action: add a
+voltage sanity-check to the battery LED (bv>4.0 V => never show "critical").
+
 ## 2026-06-07 (cont. 6) — Ben + Claude — Rate sweep PASS: ESP-NOW scales to ~100 nodes
 
 Ran the broadcast-rate sweep (new `ops/bench/net_bench_ratesweep.py`, drives the master's
