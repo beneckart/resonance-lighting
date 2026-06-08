@@ -55,9 +55,17 @@ Every board shows its battery state-of-charge on the onboard user LED, so the wi
 fleet is readable at a glance: **>50% solid · 25-50% blink 1 Hz · 10-24% 2 Hz · <10%
 4 Hz · no reading = off**.
 
+**Locate / identify:** the master can tell a specific board (or all) to blink a distinct
+`..-` pattern for 8 s (overriding the battery display) so you can find it physically —
+the data-center "chassis ID LED" pattern. Master serial `i` cycles through peers one at a
+time (prints the ID it's pinging); `I` lights all peers at once. Forward-looking: a field
+build would assign each fixture an install-time index (NVS) for a readable per-fixture
+beacon; on-demand locate is the primitive that matters now.
+
 ## Serial commands (115200)
 `t` telemetry · `r` report (role/mode/rate/txseq/sendok/fail/peers) · `+`/`-` step the
-broadcast rate for a sweep (master broadcasts `SET_RATE` to peers) · `u` master: announce
+broadcast rate for a sweep (master broadcasts `SET_RATE` to peers) · `i` identify next
+peer (locate, blinks `..-` 8 s) · `I` identify all peers · `u` master: announce
 maintenance + enter · `c` resume · `x` watchdog hang test (needs `--wdt-hangtest`).
 
 ## Host tooling

@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-07.3"
+#define NET_BENCH_VERSION "net-bench-2026-06-07.4"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -137,6 +137,8 @@ uint8_t gRateHz = IS_MASTER ? NB_FRAME_HZ : NB_HB_HZ; // runtime-settable (maste
 float cbV = 0, cbMa = 0;
 int cbSoc = -1;
 
+uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead of battery
+
 // downlink (master SHOW_FRAME) tracking on peers
 uint32_t masterLastSeq = 0;
 uint32_t masterRx = 0, masterGaps = 0;
@@ -151,6 +153,7 @@ enum NbType : uint8_t {
   NB_ENTER_MAINT = 3, // master -> all: ADR-0010 metadata, "enter maintenance"
   NB_RESUME = 4,      // master -> all: leave maintenance
   NB_SET_RATE = 5,    // master -> all: set heartbeat/frame rate (Hz) for sweeps
+  NB_IDENTIFY = 6,    // master -> target (or all): blink the locate pattern to find a board
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -180,6 +183,11 @@ struct __attribute__((packed)) NbHeartbeat {
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
   uint8_t arg; // SET_RATE: Hz
+};
+struct __attribute__((packed)) NbIdentify { // locate a board (target 00:00:00 = all)
+  NbHeader h;
+  uint8_t target_id[3];
+  uint8_t secs;
 };
 
 // ---- per-source receive tracking (PDR) -------------------------------------
@@ -255,16 +263,29 @@ void setupPowerFeather() {
 #endif
 }
 
-// Onboard LED battery-level indicator (uses cached SOC, refreshed ~1 Hz):
-//   >50% solid on | 25-50% 1 Hz | 10-24% 2 Hz | <10% 4 Hz | no reading = off
+// Locate pattern "..-" (dot dot dash + gap), unmistakable vs the battery blinks.
+struct LedStep { uint16_t ms; bool on; };
+const LedStep IDENT_PAT[] = {
+    {150, true}, {150, false}, {150, true}, {150, false}, {450, true}, {700, false}};
+const uint8_t IDENT_N = 6;
+
+// Onboard LED indicator. Identify (locate) overrides battery for its window:
+//   identify: "..-" pattern | >50% solid | 25-50% 1 Hz | 10-24% 2 Hz | <10% 4 Hz | unknown off
 void updateStatusLed() {
+  uint32_t now = millis();
+  if (now < identifyUntil) { // locate beacon
+    static uint32_t t0 = 0;
+    static uint8_t i = 0;
+    if (now - t0 >= IDENT_PAT[i].ms) { i = (i + 1) % IDENT_N; t0 = now; }
+    digitalWrite(NB_LED_PIN, IDENT_PAT[i].on ? HIGH : LOW);
+    return;
+  }
   static uint32_t last = 0;
   static bool on = false;
   int soc = cbSoc;
   if (soc < 0) { digitalWrite(NB_LED_PIN, LOW); return; } // unknown -> off
   if (soc > 50) { digitalWrite(NB_LED_PIN, HIGH); return; } // solid
   uint16_t interval = (soc >= 25) ? 500 : (soc >= 10) ? 250 : 125; // 1/2/4 Hz
-  uint32_t now = millis();
   if (now - last >= interval) { last = now; on = !on; digitalWrite(NB_LED_PIN, on ? HIGH : LOW); }
 }
 
@@ -481,6 +502,13 @@ void sendCmd(uint8_t type, uint8_t arg) {
   c.arg = arg;
   for (int i = 0; i < 4; i++) { esp_now_send(BCAST, (uint8_t *)&c, sizeof(c)); delay(5); } // repeat (unacked)
 }
+void sendIdentify(const uint8_t target[3], uint8_t secs) {
+  NbIdentify m;
+  fillHeader(&m.h, NB_IDENTIFY);
+  memcpy(m.target_id, target, 3);
+  m.secs = secs;
+  for (int i = 0; i < 4; i++) { esp_now_send(BCAST, (uint8_t *)&m, sizeof(m)); delay(5); }
+}
 
 // ---- mode transitions ------------------------------------------------------
 void enterComms();
@@ -595,6 +623,13 @@ void processRx() {
     } else if (h->type == NB_SET_RATE && it.len >= (int)sizeof(NbCmd)) {
       uint8_t hz = ((NbCmd *)it.data)->arg;
       if (hz >= 1 && hz <= 100) { gRateHz = hz; Serial.printf("rate set -> %u Hz\n", hz); }
+    } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
+      NbIdentify *m = (NbIdentify *)it.data;
+      bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
+      if (all || memcmp(m->target_id, myId, 3) == 0) {
+        identifyUntil = millis() + (uint32_t)m->secs * 1000;
+        Serial.printf("IDENTIFY me (%us)\n", m->secs);
+      }
     }
   }
 }
@@ -636,6 +671,25 @@ void handleSerial() {
     while (1) { /* deliberately never esp_task_wdt_reset() */ }
     break;
 #endif
+  case 'i': { // master: identify (locate) the next peer in the table -> it blinks "..-"
+    if (!IS_MASTER) break;
+    static int ii = 0;
+    int found = -1;
+    for (int k = 0; k < NB_MAX_TRACKED; k++) { int j = (ii + k) % NB_MAX_TRACKED; if (peers[j].used) { found = j; break; } }
+    if (found < 0) { Serial.println("no peers to identify"); break; }
+    ii = (found + 1) % NB_MAX_TRACKED;
+    sendIdentify(peers[found].id, 8);
+    Serial.printf("identifying %02X%02X%02X for 8s (watch for the ..- blink)\n",
+                  peers[found].id[0], peers[found].id[1], peers[found].id[2]);
+    break;
+  }
+  case 'I': { // master: identify ALL peers at once
+    if (!IS_MASTER) break;
+    uint8_t all[3] = {0, 0, 0};
+    sendIdentify(all, 8);
+    Serial.println("identify ALL peers 8s");
+    break;
+  }
   case 'r':
     Serial.printf("role=%s mode=%d ch=%d rate=%uHz txseq=%lu sendok=%lu fail=%lu peers=", IS_MASTER ? "master" : "peer",
                   (int)gMode, NB_CHANNEL, gRateHz, (unsigned long)txSeq, (unsigned long)sendOk, (unsigned long)sendFail);
