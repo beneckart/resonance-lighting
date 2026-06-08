@@ -172,9 +172,18 @@ Caveats: 5-node small-N can't reproduce 100-node hidden-node/capture effects (sc
 guarantee — recommend a 20+ node confirm if the chosen prod rate is high); co-located
 (range/obstruction derate is T3/T4); Li-ion — re-verify on LFP.
 
+### T3/T4 preliminary (2026-06-07, incidental) — PASS
+Two peers placed ~25 ft away **through a wall + a large metal storage box**, two next to
+the master. All 4 still seen at 10 Hz: near pair −28/−32 dBm @ 100% PDR; **far pair
+−67/−71 dBm @ 98.7% PDR** (dl_pdr ~0.988). The obstruction cost ~35–40 dB but left ~20 dB
+margin over the ~−90 dBm floor — no dropouts. This is *harsher* than the real install
+(lanterns see ~20 ft of open air + bamboo, no walls/metal), so it bodes well. Still TODO:
+a proper open-field cliff sweep (find the actual drop-off distance) and controlled
+single-obstruction deltas (body/bamboo/foil).
+
 ### Remaining matrix (5 boards) — PENDING
-T3 range cliff, T4 obstruction, T5 already PASS (parallel OTA), T6 multi-hour drain (needs
-charged cells + correct caps — done), T7 master coexistence. Tables to be filled.
+Proper T3 range cliff + T4 obstruction deltas; T5 already PASS (parallel OTA); T6 multi-hour
+drain (cells charging overnight + correct caps done); T7 master coexistence.
 
 ## Known issues / caveats
 
