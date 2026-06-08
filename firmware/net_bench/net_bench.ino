@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-07.2"
+#define NET_BENCH_VERSION "net-bench-2026-06-07.3"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -125,6 +125,7 @@ String otaMode = "off";
 
 enum NetMode { MODE_COMMS = 0, MODE_MAINT = 1 };
 volatile NetMode gMode = MODE_COMMS;
+volatile bool gResumePending = false; // /resume sets this; loop() does the real enterComms()
 bool otaActive = false;
 uint32_t maintEnteredMs = 0;
 
@@ -311,7 +312,7 @@ void configureOtaRoutes() {
   if (otaRoutesConfigured) return;
   server.on("/", HTTP_GET, []() { server.send(200, "text/plain", "net-bench " NET_BENCH_VERSION "\n"); });
   server.on("/telemetry", HTTP_GET, []() { server.send(200, "application/json", telemetryJson()); });
-  server.on("/resume", HTTP_GET, []() { server.send(200, "text/plain", "resuming\n"); gMode = MODE_COMMS; });
+  server.on("/resume", HTTP_GET, []() { server.send(200, "text/plain", "resuming\n"); gResumePending = true; });
   server.on(
       "/update", HTTP_POST,
       []() {
@@ -732,6 +733,13 @@ void loop() {
 
   if (gMode == MODE_MAINT) {
     server.handleClient();
+    // /resume HTTP hit -> do a real comms transition (re-init ESP-NOW), not just a flag flip
+    if (gResumePending) {
+      gResumePending = false;
+      Serial.println("/resume -> comms");
+      enterComms();
+      return;
+    }
     // peers auto-resume if no OTA happens within the window (prevents stranding)
     if (!IS_MASTER && millis() - maintEnteredMs > (uint32_t)NB_MAINT_TIMEOUT_S * 1000) {
       Serial.println("maintenance timeout -> resume comms");
