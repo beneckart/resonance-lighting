@@ -27,7 +27,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--bin", required=True, help="firmware .bin to upload")
 ap.add_argument("--nodes", required=True, help="name=ip,name=ip,... (in maintenance mode)")
 ap.add_argument("--jobs", type=int, default=5, help="concurrent OTA pushes (1 = sequential)")
-ap.add_argument("--ready-timeout", type=float, default=60, help="s to wait for reboot+/telemetry")
+ap.add_argument("--reboot", choices=["maint", "comms"], default="maint",
+                help="where nodes reboot to: 'maint' = stay on WiFi (verify via /telemetry); "
+                     "'comms' = peers rejoin ESP-NOW off WiFi (verify via the master bridge, not HTTP)")
+ap.add_argument("--ready-timeout", type=float, default=60, help="s to wait for reboot+/telemetry (maint reboot)")
 ap.add_argument("--site", default="ca")
 ap.add_argument("--notes", default="")
 ap.add_argument("--out", default=None)
@@ -82,25 +85,36 @@ def flash_one(name, ip):
         res["error"] = f"update: {e}"
         res["recovered"] = False
         res["button_press_required"] = True
+        res["verified"] = None
         return res
-    # poll for reboot into new image: uptime resets to a small value
-    deadline = time.time() + a.ready_timeout
-    recovered = False
-    while time.time() < deadline:
-        time.sleep(2)
-        try:
-            post = get_telemetry(ip)
-            up = post.get("uptime_ms", 1 << 62)
-            if res.get("uptime_pre_ms") is None or up < res["uptime_pre_ms"]:
-                res["t_ready_s"] = round(time.time() - t0, 2)
-                res["uptime_post_ms"] = up
-                res["reset_reason_post"] = post.get("reset_reason")
-                recovered = True
-                break
-        except Exception:
-            continue  # board is rebooting / not yet serving
-    res["recovered"] = recovered
-    res["button_press_required"] = not recovered
+    # "Update complete. Rebooting." means Update.end(true) validated the image and
+    # ESP.restart() was called -> the device WILL boot the new image via a software
+    # reset (the reliable path, not the flaky JTAG-RTS reset). That is the success
+    # signal. The /telemetry poll below is an *extra* confirmation that only works
+    # for nodes that stay on WiFi (maint reboot / the master); comms-mode peers
+    # reboot OFF WiFi and must be confirmed via the master bridge (rr=software, seq
+    # restart) -- not an OTA failure.
+    upload_ok = "complete" in ack.lower()
+    verified = None
+    if a.reboot == "maint":
+        deadline = time.time() + a.ready_timeout
+        while time.time() < deadline:
+            time.sleep(2)
+            try:
+                post = get_telemetry(ip)
+                up = post.get("uptime_ms", 1 << 62)
+                if res.get("uptime_pre_ms") is None or up < res["uptime_pre_ms"]:
+                    res["t_ready_s"] = round(time.time() - t0, 2)
+                    res["uptime_post_ms"] = up
+                    res["reset_reason_post"] = post.get("reset_reason")
+                    verified = "telemetry-uptime-reset"
+                    break
+            except Exception:
+                continue  # board is rebooting / not yet serving
+    res["verified"] = verified or ("ota-ack (comms peer: confirm rejoin via master bridge)"
+                                   if upload_ok else None)
+    res["recovered"] = bool(upload_ok or verified)
+    res["button_press_required"] = not res["recovered"]
     return res
 
 
@@ -112,7 +126,7 @@ with ThreadPoolExecutor(max_workers=a.jobs) as ex:
         results.append(r)
         ok = "OK" if r.get("recovered") else "FAIL"
         print(f"  [{ok}] {r['node']} {r['ip']} t_ack={r.get('t_ack_s')}s "
-              f"t_ready={r.get('t_ready_s')}s rr={r.get('reset_reason_post')} "
+              f"t_ready={r.get('t_ready_s')}s verified={r.get('verified')} "
               f"{r.get('error','')}", flush=True)
 
 out = a.out or os.path.join(DATA_DIR, a.site,

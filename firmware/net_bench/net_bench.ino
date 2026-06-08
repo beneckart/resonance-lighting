@@ -32,8 +32,9 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-07.1"
+#define NET_BENCH_VERSION "net-bench-2026-06-07.2"
 #define RES_BOARD_NAME "powerfeather_v2"
+#define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
 // ---- WiFi secrets (gitignored; copied from ../power_bench by build.sh) ------
 #if __has_include("wifi_secrets.h")
@@ -251,6 +252,19 @@ void setupPowerFeather() {
 #else
   Board.enableBatteryCharging(false);
 #endif
+}
+
+// Onboard LED battery-level indicator (uses cached SOC, refreshed ~1 Hz):
+//   >50% solid on | 25-50% 1 Hz | 10-24% 2 Hz | <10% 4 Hz | no reading = off
+void updateStatusLed() {
+  static uint32_t last = 0;
+  static bool on = false;
+  int soc = cbSoc;
+  if (soc < 0) { digitalWrite(NB_LED_PIN, LOW); return; } // unknown -> off
+  if (soc > 50) { digitalWrite(NB_LED_PIN, HIGH); return; } // solid
+  uint16_t interval = (soc >= 25) ? 500 : (soc >= 10) ? 250 : 125; // 1/2/4 Hz
+  uint32_t now = millis();
+  if (now - last >= interval) { last = now; on = !on; digitalWrite(NB_LED_PIN, on ? HIGH : LOW); }
 }
 
 void readBattery() {
@@ -691,6 +705,8 @@ void setup() {
 #endif
   setupWatchdog();
 
+  pinMode(NB_LED_PIN, OUTPUT);
+  digitalWrite(NB_LED_PIN, LOW);
   rxQueue = xQueueCreate(32, sizeof(RxItem));
   memset(peers, 0, sizeof(peers));
 
@@ -708,6 +724,7 @@ void loop() {
   static uint32_t lastBat = 0;
   uint32_t now = millis();
   if (now - lastBat > 1000) { lastBat = now; readBattery(); }
+  updateStatusLed();
 
 #ifdef NB_AUTOSLEEP
   autosleepHealthyClear();

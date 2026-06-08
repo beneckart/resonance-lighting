@@ -12,6 +12,25 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont. 4) — Ben + Claude — net_bench first light: ESP-NOW works, OTA validated, battery-LED deployed
+
+Flashed the fleet (1 master USB + peers on Li-ion). **First light, ch 11:** master +
+**3 peers** up, uplink/downlink **PDR ~99.5%** at 10 Hz co-located, RSSI −25 to −33 dBm,
+**0 send-fail** — ESP-NOW works. (One flashed peer never booted — a silent no-boot the
+watchdog can't catch since it never reached loop(); post-flash boot flakiness or flat
+cell.) Added a **battery-level onboard LED** (GPIO46: >50% solid, 25-50% 1 Hz, 10-24%
+2 Hz, <10% 4 Hz) and **OTA-deployed it** (v07.2) to master + 2 reachable peers via the
+maintenance-mode cycle. **T5 effectively PASS** — all recovered via *software reset, no
+button* (master via /telemetry, peers via ESP-NOW rejoin with rr=software).
+
+Two findings: (1) `net_bench_ota.py` false-FAILED the peers — they reboot OFF WiFi into
+comms, so /telemetry polling can't see them; fixed with `--reboot comms` (the OTA
+"complete/Rebooting" ack + software reset IS the success signal; confirm rejoin via the
+bridge). (2) **Brownout de-risk:** the ~4%-SOC peer dropped out entering maintenance —
+the WiFi-association inrush on a near-empty Li-ion cell is the brownout failure mode; at
+100× we must gate OTA/maintenance on SOC (or lean on the autosleep guard). Next: charged
+cells on all boards, then the rate sweep + range/obstruction matrix.
+
 ## 2026-06-07 (cont. 3) — Ben + Claude — net_bench: first ESP-NOW firmware + 5-node feasibility harness
 
 Built the project's **first ESP-NOW firmware** to de-risk basing ~100 fixtures on the

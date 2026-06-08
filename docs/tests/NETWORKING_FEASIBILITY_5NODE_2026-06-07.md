@@ -113,9 +113,27 @@ margin. Small-N caveat: recommend a 20+ node confirmation run if the prod point 
   master warns and every send fails (`Peer channel is not equal to the home channel`).
   Fix = build all boards `--channel 11`.
 
-### Multi-node (5 boards) — PENDING
-T0–T7 to be run once 5 boards are flashed on a matched channel. Tables below to be filled:
-per-peer PDR/RSSI, OTA ack/ready, rate-sweep knee, multi-hour reboot count.
+### Multi-node first light (2026-06-07, 1 master + peers, ch 11, Li-ion)
+- **T0 PASS** for the boards that came up: master + **3 peers** at first power-on (one of
+  the flashed peers never started — a silent no-boot, NOT caught by the watchdog since it
+  never entered loop(); likely the documented post-flash boot flakiness or a flat cell).
+- **Early T1 point** (10 Hz, co-located): uplink & downlink **PDR ~99.5%**, RSSI −25 to
+  −33 dBm, master `sendok` with **0 send-fail**. Clean `poweron` boots.
+- **T5 parallel OTA — effectively PASS**: deployed a new firmware (battery-level LED,
+  v07.2) to the master + 2 reachable peers via the maintenance-mode cycle. All recovered
+  via **software reset, no physical button** (master verified by `/telemetry`; peers
+  verified by rejoining ESP-NOW with `rr=software`). Note: `net_bench_ota.py` initially
+  false-FAILED the peers because they reboot OFF WiFi into comms — fixed with `--reboot
+  comms` (the OTA ack + software reset is the success signal; confirm rejoin via bridge).
+- **Brownout finding (de-risk):** the low-SOC peer (`9F2690`, ~4% / 3.44 V) **dropped out
+  when entering maintenance mode** — the WiFi-association inrush on a nearly-empty Li-ion
+  cell is exactly the brownout failure mode. Implication at 100×: gate OTA/maintenance on
+  sufficient SOC, or rely on the autosleep guard; a depleted fixture can't be field-updated
+  until charged. *(Re-verify on LFP — different converter regime.)*
+
+### Multi-node matrix (5 boards) — PENDING
+T1 rate sweep, T2 peer-mesh scale, T3 range cliff, T4 obstruction, T6 multi-hour, T7
+coexistence to be run with charged cells on all boards. Tables to be filled.
 
 ## Known issues / caveats
 

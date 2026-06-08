@@ -49,6 +49,12 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
 `--port`/`--ota`.
 
+## Onboard LED = battery level (GPIO46)
+
+Every board shows its battery state-of-charge on the onboard user LED, so the wireless
+fleet is readable at a glance: **>50% solid · 25-50% blink 1 Hz · 10-24% 2 Hz · <10%
+4 Hz · no reading = off**.
+
 ## Serial commands (115200)
 `t` telemetry · `r` report (role/mode/rate/txseq/sendok/fail/peers) · `+`/`-` step the
 broadcast rate for a sweep (master broadcasts `SET_RATE` to peers) · `u` master: announce
@@ -58,6 +64,9 @@ maintenance + enter · `c` resume · `x` watchdog hang test (needs `--wdt-hangte
 - `ops/bench/net_bench_log.py` — capture the master's UDP bridge → JSONL (per-peer
   PDR/RSSI/reboots).
 - `ops/bench/net_bench_ota.py` — parallel OTA to N IPs + auto-recovery verification.
+  Use `--reboot comms` when OTA'ing peers (they reboot OFF WiFi into ESP-NOW, so the
+  OTA "Update complete. Rebooting." ack + software reset is the success signal; confirm
+  rejoin via the master bridge). Default `--reboot maint` verifies via `/telemetry`.
 - `ops/bench/net_bench_summary.py` — per-peer + aggregate stats + scale extrapolation.
 
 ## Caveats
