@@ -181,9 +181,31 @@ margin over the ~−90 dBm floor — no dropouts. This is *harsher* than the rea
 a proper open-field cliff sweep (find the actual drop-off distance) and controlled
 single-obstruction deltas (body/bamboo/foil).
 
+### T4 obstruction mapping (2026-06-08, via identify/locate, 10 Hz) — informative
+Placed each peer in a different obstruction and used the identify blink to label which is
+which. Note: each board is also at a slightly different distance, so these are *placement +
+obstruction* points (RSSI approximate), not pure per-material deltas — but the ordering and
+the two deployment-relevant materials are clear. **All held ~99-100% PDR** at bench range.
+
+| obstruction | board | RSSI | PDR |
+|---|---|---|---|
+| 3D-printed lantern cylinder (board inside) | 9E5AB8 | −15 dBm | 100% |
+| ceramic coffee cup | 9F2690 | −29 dBm | 100% |
+| metal laptop in a metal+glass cabinet | 9E5AF0 | −31 dBm | 99% |
+| glass+metal **solar panel** on a cardboard box | 9F26F8 | −52 dBm | 100% |
+
+**Two findings for the build:** (1) the **lantern enclosure is ~RF-transparent** (−15 dBm
+with the board *inside* the printed cylinder) — the housing won't detune/block the mesh;
+(2) the **solar panel (glass+metal) is the real attenuator (~25-35 dB)** — it sits over the
+antenna in the hat, so this is the antenna-keepout concern made concrete. Even so it held
+100% PDR / ~38 dB margin at bench range. The deployment worst case is *panel attenuation +
+full tree distance stacked* → that's the mock-hat RF test (Steve, COTS Phase 7). RSSI is
+approximate; metal-in-a-room reads mild because RF multipath routes around it.
+
 ### Remaining matrix (5 boards) — PENDING
-Proper T3 range cliff + T4 obstruction deltas; T5 already PASS (parallel OTA); T6 multi-hour
-drain (cells charging overnight + correct caps done); T7 master coexistence.
+Proper T3 range cliff (open-field walk-out); T5 already PASS (parallel OTA); T6 multi-hour
+drain (cells charged + correct caps done); T7 master coexistence; mock-hat RF (panel+battery
+installed, Steve).
 
 ## Known issues / caveats
 

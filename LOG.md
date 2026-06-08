@@ -12,6 +12,20 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont.) — Ben + Claude — Obstruction mapping: enclosure ~RF-transparent, solar panel is the attenuator
+
+Used the identify/locate blink to label peers placed in different obstructions (10 Hz, all
+held ~99-100% PDR at bench range): 3D-printed lantern cylinder (board inside) −15 dBm;
+ceramic cup −29; metal laptop in a metal+glass cabinet −31; **glass+metal solar panel on a
+box −52** (~25-35 dB hit). **Two build-relevant findings:** (1) the **lantern enclosure is
+~RF-transparent** — the printed/plastic housing won't detune or block the mesh; (2) the
+**solar panel is the one real attenuator (~25-35 dB)** and it sits over the antenna in the
+hat — the antenna-keepout concern made concrete (still 100% PDR / ~38 dB margin at bench
+range). Caveats: placement+obstruction combined (not pure material deltas), RSSI approximate,
+short range. Worst case = panel attenuation + full tree distance stacked → the mock-hat RF
+test (Steve). Also flagged: identify's 8 s blink is too short for human-in-the-loop / field
+use (Ben missed a single blink waiting on chat latency) — make it ~30 s or toggle-until-stop.
+
 ## 2026-06-08 — Ben + Claude — Fuel-gauge false-low after charge (SOC needs voltage cross-check)
 
 Morning: one peer (`9E5AF0`, 10050 mAh) was blinking 4 Hz (LED "<10%"), but **bv=4.188 V
