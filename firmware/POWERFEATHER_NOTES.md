@@ -97,3 +97,43 @@ ultra-dim) but the perceived ramp is non-linear. 8-bit just isn't enough resolut
 for *smooth* ultra-dim. Possible fixes when we get to ambient tuning: a dim-floor
 (`max(1, gamma8(x))`), a gentler gamma, gamma-on-color-only, or temporal dithering.
 See the LOG 2026-06-07 entry; revisit for the ambient look.
+
+## Charging into a missing battery / `maintain` > supply voltage = brownout
+
+Two ways the charger leaves VSYS unpowered and the board crash-loops (USB-CDC up ~1 s then
+reset), both seen 2026-06-08:
+
+- **`setSupplyMaintainVoltage` (VINDPM/`--maintain`) set ABOVE the supply voltage.** The
+  charger refuses to draw from a source it would have to pull below the maintain setpoint —
+  so e.g. `--maintain 5.5` (a solar-panel MPP) on **USB at 4.9 V** makes the charger ignore
+  USB entirely (`supply_ma = 0`). With a battery present it just runs/discharges off the
+  cell; with **no battery**, VSYS has no source → brownout loop. Rule: **`maintain` must be
+  ≤ the supply you're powering from** (use ~4.6 V for USB; the panel MPP only for solar).
+- **Enabling charging with no battery connected** is the trigger point of that crash. The
+  fix is just to connect the cell (or, for firmware robustness, don't `enableBatteryCharging`
+  if no battery is detected). Diagnose a 1-s crash-loop by busy-waiting for the port and
+  dumping the boot serial — the last printed SDK line points at the offending step.
+
+Also: changing battery **chemistry** (Li-ion ↔ LFP) means flashing the matching
+`--chem` FIRST (board on USB, cell *unplugged*), THEN connecting the cell — `Board.init`
+sets the charger termination voltage (LFP ~3.6 V vs Li-ion 4.2 V); charging an LFP under a
+Li-ion profile overcharges it.
+
+## OTA A/B rollback: the `verifyOta()` hook is C-linkage
+
+`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` in arduino-esp32 3.3.7. Rollback runs via a weak
+hook the core calls in `initArduino()` **before `setup()`**: if the freshly-OTA'd image is
+`PENDING_VERIFY`, it calls `verifyOta()` → true ⇒ `mark_app_valid` (keep), false ⇒
+`mark_app_invalid_rollback_and_reboot` (revert to last-good). Default returns true, which is
+why ordinary OTAs stick. **Validated 2026-06-08:** a `verifyOta()→false` image auto-reverts,
+battery-only, no touch.
+
+- **Gotcha:** the hook is **C-linkage** (defined in a `.c` core file). A plain C++
+  `bool verifyOta(){...}` is name-mangled, silently does NOT override, and the bad image
+  **sticks** (no rollback). Use **`extern "C" bool verifyOta()`**.
+- **Limit:** this catches self-test *failure* only. An image that passes `verifyOta()` then
+  crashes/hangs LATER (in `setup()`/`loop()`) is already marked valid → can brick. Robust
+  pattern: `verifyRollbackLater()=true` to defer the mark-valid, run extended checks + a
+  watchdog, and mark valid only after the image proves stable for N s.
+- OTA does NOT update the bootloader (only the app partition); the rollback-capable bootloader
+  is written during a full USB flash.

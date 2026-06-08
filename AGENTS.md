@@ -37,6 +37,7 @@ The wider Resonance project team is in `BACKGROUND.md` — read it for names and
 - Electronics in a separable hat on top of the bamboo lantern, not crammed inside (ADR 0007).
 - WS2812B powered direct from Vbat, no level shifter (ADR 0008).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
+- PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking — networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
@@ -44,11 +45,25 @@ The wider Resonance project team is in `BACKGROUND.md` — read it for names and
 - Cost decomposition of `INV_2026_00401` invoice.
 - Whether the Community Mandala Program goes ahead.
 
+**Validated on hardware** (2026-06, PowerFeather V2 COTS bench — see ADR 0021 +
+`docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + LOG 2026-06-07/08):
+- **ESP-NOW networking** scales to ~100 fixtures (5-node bench ~99% PDR, clean rate-knee) and
+  the radio reaches well past tree scale (held through a house + yard + oak, ~100 steps). The
+  lantern enclosure is RF-transparent; the solar panel is the main ~20 dB attenuator (antenna
+  keep-out matters).
+- **Battery-only, no-touch OTA + A/B rollback** (the "never take a lantern off the tree"
+  requirement): software-reset OTA recovered ~17/17 incl. worst-case LFP voltage; a
+  self-test-failing image auto-reverts to last-good. Watchdog + autosleep recovery validated.
+- **Solar charge path** end-to-end: net-positive into an LFP even in weak/partial light.
+
 **Assumed** but not yet validated on hardware:
-- Daily power budget closes with a 1–2 W panel and an 18650 LiFePO4 cell. Bench validation pending on TTGO T-Beam (Phase 1).
-- ESP-NOW range across the tree's ~20 ft scale is fine. Bench validation pending.
-- WS2812B-from-Vbat works on LiFePO4 (3.6 V max vs LiPo's 4.2 V — even more margin than 2018). Bench validation pending.
-- 1–3 WS2812B lit at a time at ~10% brightness gives the desired ambient look. Pulley-rig validation with new firmware pending.
+- The exact **nightly power budget** — SYSTEM.md's ~120 mAh/night is an optimistic FLOOR
+  (measured LED draw is 400–500 mA at full); re-derive bottom-up + size cell/panel. Full-sun
+  harvest number + LFP re-verify of the battery/stability runs still pending.
+- WS2812B-from-Vbat on LiFePO4 — superseded direction: LED axis is now direct-GPIO @ 3V3 off
+  the I2C bus (ADR 0018); rail/voltage choice still being characterized.
+- 1–3 LEDs at ~10% brightness gives the desired ambient look. Gobo + ambient tuning pending
+  (note the 8-bit dimming low-end limit — ADR 0018 / POWERFEATHER_NOTES).
 
 ## What this repo does NOT cover
 

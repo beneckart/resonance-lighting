@@ -78,3 +78,15 @@ tick: `channel`, `frames`, `send_ok/fail`, `uptime_ms`, `battery_v`) and `"peer"
 `"event":"ota"` rows (`t_ack_s`, `t_ready_s`, `recovered`, `button_press_required`).
 Summarize with `net_bench_summary.py`. **All battery findings are Li-ion — re-verify
 on LFP.**
+
+## net-bench / range / solar tooling (2026-06-08)
+
+Beyond the power-bench logger, `ops/bench/` now has the ESP-NOW + RF + OTA tools:
+- `net_bench_log.py` — capture the master's UDP bridge (per-peer PDR/RSSI) → JSONL.
+- `net_bench_monitor.py` — live terminal RSSI/PDR table (range walks).
+- `net_bench_ratesweep.py` — drive the broadcast-rate sweep, find the PDR loss knee → 100-node extrapolation.
+- `net_bench_walk.py` + `net_bench_walk_plot.py` — log + plot a range-walk RSSI "V" (with landmark markers).
+- `net_bench_ota.py` — parallelized OTA to N nodes + auto-recovery verification.
+
+Run data committed here: `2026-06-08-rangewalk.{jsonl,png,-markers.jsonl}` (range walk),
+`2026-06-08-ratesweep.jsonl` (rate sweep), `2026-06-08-ota-results.jsonl` (OTA recovery).

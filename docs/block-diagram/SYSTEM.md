@@ -138,6 +138,14 @@ Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED r
 
 **Daily total drain: ~120 mAh.**
 
+> **Caveat (2026-06-08 bench): treat ~120 mAh as an optimistic FLOOR, not the design number.**
+> It assumes ~5 mA time-averaged LEDs, but bench-measured HEX/RGBW draw is **400–500 mA at
+> full** (see ADR 0018 / LOG). Real nightly drain = show brightness × LED count × duty cycle,
+> plausibly **5–20× this floor**. Action: re-derive bottom-up from measured LED draw + a
+> realistic duty cycle, then size the cell + panel to that. The solar *path* is hardware-
+> validated (net-positive into an LFP even in weak/partial light, 2026-06-08); the harvest
+> table below is still plausible, but the drain side above is the part to redo.
+
 **Solar harvest estimate:**
 
 | Panel | Strong sun (6 hr) | Partial sun (2 hr) | Daily harvest |
