@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont. 6) — Ben + Claude — Rate sweep PASS: ESP-NOW scales to ~100 nodes
+
+Ran the broadcast-rate sweep (new `ops/bench/net_bench_ratesweep.py`, drives the master's
+`+`/`-` over serial + measures per-rate PDR from the bridge), 1→50 Hz, master + 4 peers,
+co-located, Li-ion. **Aggregate uplink PDR ≥97% across the whole range, no collapse:**
+1Hz 100%, 10Hz 99.5%, 20Hz(100 pkt/s) 99.1%, 50Hz(250 pkt/s) 97.2%. Clean airtime fit
+`loss ≈ 1.05e-4 × pkt/s` → **100 nodes @ 1–2 Hz/node ≈ 98–99% PDR**. Strong GREEN for the
+"can we base 100 fixtures on this" question. (Tooling fix: the naive worst-peer knee was a
+small-sample artifact — one lost packet of ~60 reads as 98%; switched the verdict to
+aggregate loss.) Caveats: 5-node small-N (no hidden-node at scale), co-located (range is
+T3/T4 next), Li-ion (re-verify on LFP). T5 parallel-OTA already passed; T3/T4/T6/T7 remain.
+
 ## 2026-06-07 (cont. 5) — Ben + Claude — Identify/locate command; per-board cap; MAX17260 re-seed finding
 
 Added an on-demand **identify/locate** command (master `i`/`I` → target board blinks a

@@ -146,9 +146,35 @@ change cap in the field. This is *more* critical on LFP (flat OCV → the gauge 
 on voltage, so a correct cap + coulomb learning is the only SOC source). Folds into T6
 prep: fully charge every cell before the autonomy/drain run.
 
-### Multi-node matrix (5 boards) — PENDING
-T1 rate sweep, T2 peer-mesh scale, T3 range cliff, T4 obstruction, T6 multi-hour, T7
-coexistence to be run with charged cells on all boards. Tables to be filled.
+### T1/T2 rate sweep — PASS (2026-06-07, master + 4 peers, ch 11, co-located, Li-ion)
+Swept the broadcast rate 1→50 Hz (`ops/bench/net_bench_ratesweep.py`), aggregate offered
+load = (4 peers + master) × rate. **Aggregate uplink PDR stayed ≥97% across the whole
+range** with a clean, gentle airtime trend (no collapse / no knee):
+
+| rate | aggregate | samples | agg PDR |
+|---|---|---|---|
+| 1 Hz | 5 pkt/s | 113 | 100.0% |
+| 2 Hz | 10 | 260 | 99.6% |
+| 5 Hz | 25 | 619 | 99.7% |
+| 10 Hz | 50 | 1279 | 99.5% |
+| 20 Hz | 100 | 2401 | 99.1% |
+| 50 Hz | 250 | 6434 | 97.2% |
+
+Linear fit `loss ≈ 1.05e-4 × pkt/s + 0.06%` → **extrapolation to 100 nodes**: @1 Hz/node
+(100 pkt/s) ≈ **98.9% PDR**, @2 Hz (200 pkt/s) ≈ **97.8%**, @5 Hz (500 pkt/s) ≈ 94.7%.
+Downlink (master→peer) `dl_pdr` held ~0.99 until 50 Hz (~0.985). RSSI −23 to −42 dBm
+(co-located). **Verdict: ESP-NOW broadcast comfortably supports 100 fixtures at a sane
+heartbeat rate (1–2 Hz/node) with ~98–99% PDR** — and lighting tolerates partial loss.
+*Note:* worst-*peer* PDR is noisy at low rates (one lost packet of ~60 = 98%), so the knee
+must be read off **aggregate** loss, not worst-peer (the tool now does this).
+
+Caveats: 5-node small-N can't reproduce 100-node hidden-node/capture effects (screen, not
+guarantee — recommend a 20+ node confirm if the chosen prod rate is high); co-located
+(range/obstruction derate is T3/T4); Li-ion — re-verify on LFP.
+
+### Remaining matrix (5 boards) — PENDING
+T3 range cliff, T4 obstruction, T5 already PASS (parallel OTA), T6 multi-hour drain (needs
+charged cells + correct caps — done), T7 master coexistence. Tables to be filled.
 
 ## Known issues / caveats
 
