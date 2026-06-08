@@ -181,26 +181,33 @@ margin over the ~−90 dBm floor — no dropouts. This is *harsher* than the rea
 a proper open-field cliff sweep (find the actual drop-off distance) and controlled
 single-obstruction deltas (body/bamboo/foil).
 
-### T4 obstruction mapping (2026-06-08, via identify/locate, 10 Hz) — informative
+### T4 obstruction mapping (2026-06-08, via identify/locate) — informative
 Placed each peer in a different obstruction and used the identify blink to label which is
-which. Note: each board is also at a slightly different distance, so these are *placement +
-obstruction* points (RSSI approximate), not pure per-material deltas — but the ordering and
-the two deployment-relevant materials are clear. **All held ~99-100% PDR** at bench range.
+which. **Settled re-capture** (25 s median ± spread; the first single-snapshot pass caught
+some boards mid-placement and read 8-17 dB off — see the RSSI-variability note):
 
-| obstruction | board | RSSI | PDR |
-|---|---|---|---|
-| 3D-printed lantern cylinder (board inside) | 9E5AB8 | −15 dBm | 100% |
-| ceramic coffee cup | 9F2690 | −29 dBm | 100% |
-| metal laptop in a metal+glass cabinet | 9E5AF0 | −31 dBm | 99% |
-| glass+metal **solar panel** on a cardboard box | 9F26F8 | −52 dBm | 100% |
+| obstruction | board | RSSI (median) | spread | PDR |
+|---|---|---|---|---|
+| 3D-printed lantern cylinder (board inside) | 9E5AB8 | −23 dBm | 3 dB | 100% |
+| ceramic coffee cup | 9F2690 | −33 dBm | 8 dB | 100% |
+| glass+metal **solar panel** on a box | 9F26F8 | −43 dBm | 2 dB | 99% |
+| metal laptop in a metal+glass cabinet | 9E5AF0 | −48 dBm | 4 dB | 99% |
 
-**Two findings for the build:** (1) the **lantern enclosure is ~RF-transparent** (−15 dBm
-with the board *inside* the printed cylinder) — the housing won't detune/block the mesh;
-(2) the **solar panel (glass+metal) is the real attenuator (~25-35 dB)** — it sits over the
-antenna in the hat, so this is the antenna-keepout concern made concrete. Even so it held
-100% PDR / ~38 dB margin at bench range. The deployment worst case is *panel attenuation +
-full tree distance stacked* → that's the mock-hat RF test (Steve, COTS Phase 7). RSSI is
-approximate; metal-in-a-room reads mild because RF multipath routes around it.
+**Two findings for the build:** (1) the **lantern enclosure is ~RF-transparent** (−23 dBm
+with the board *inside* the printed cylinder, the least-attenuated of all) — the housing
+won't detune/block the mesh; (2) the **solar panel (glass+metal) is a real attenuator
+(~20 dB)** — it sits over the antenna in the hat, so this is the antenna-keepout concern made
+concrete. Even so it held 99% PDR at bench range. Deployment worst case = panel attenuation
++ full tree distance stacked → the mock-hat RF test (Steve, COTS Phase 7).
+
+**RSSI variability caveat (important):** absolute RSSI is NOT a repeatable per-placement
+constant indoors — it's dominated by multipath, so the "same placement" can read 10-20 dB
+differently if anything in the room changes (board orientation, a person, a door). Within a
+25 s window each board was steady (2-8 dB spread), but readings shifted 8-17 dB vs a sweep
+taken minutes earlier (partly mid-placement, partly multipath drift). Treat RSSI as an
+approximate topology signal, not distance (per ADR 0004). For clean obstruction *deltas*,
+measure baseline vs obstruction back-to-back on the same board/spot/minute — don't compare
+across times.
 
 ### Remaining matrix (5 boards) — PENDING
 Proper T3 range cliff (open-field walk-out); T5 already PASS (parallel OTA); T6 multi-hour
