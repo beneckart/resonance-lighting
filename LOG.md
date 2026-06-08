@@ -12,6 +12,50 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 10) — Ben + Claude — Solar/sizing session: sleep-cycle + OTA-wake, idle floor, MPP sweep (cloud-caveated), drawdown started
+
+Long bench session toward battery/panel sizing. New firmware `net-bench-2026-06-08.9`
+(all validated on hardware via OTA) + several findings.
+
+**Firmware:**
+- **Sleep-cycle** (`--sleep-cycle --sleep-s N`): deep-sleep duty cycle (wake → telemetry
+  heartbeat → brief maint-listen → deep-sleep). Validated: `rr=deepsleep`, ~32 s cycle.
+  Trimmed the USB-CDC `delay(1500)` on deep-sleep wakes so the wake is lean.
+- **`U` sustained ENTER_MAINT** (~35 s): no-touch OTA-recovery of a **sleeping** board —
+  the normal `u` burst misses a board awake only ~400 ms/30 s. Validated: a deep-sleeping
+  peer caught it on a wake window and joined WiFi for OTA. The field **fleet wake-for-
+  maintenance** primitive.
+- **`SET_MAINTAIN`** (master `m`): runtime VINDPM/charger-maintain set over ESP-NOW (no
+  reflash) — the MPP-sweep actuator + future P&O MPPT primitive.
+
+**Idle-load floor (battery-only, clean):** an always-on ESP-NOW peer draws **~168 mA /
+~0.55 W**, and killing the WiFi scanning barely moved it — the load is **radio-RX-
+dominated**, not scanning. 168 mA flattens a 2 Ah cell in ~12 h, so **always-on is
+unsustainable on battery → deep-sleep duty-cycling is mandatory** (quantifies the "be
+quiet during sunshine" instinct).
+
+**Harvest (full sun):** Seeed 3 W panel, flat at ~2 pm, **lux 127 k (~1000 W/m² = full
+sun)**, panel **150 °F / ~65 °C** (IR; glass ε≈0.9, so true temp ~equal or a hair higher).
+Measured **~1.0–1.2 W** at the default VINDPM 5.5 V (SOC 34–58 %, bulk-charging). 3 W is
+STC; heat (−15–18 % + Vmp droop) + flat angle explain <3 W — but see MPP.
+
+**MPP sweep — finding + caveat:** swept VINDPM 5.5→4.4 V. **Peak power at ~4.85 V — matches
+the hot-panel Vmp prediction; 5.5 V is well past the IV knee** (power craters above ~5.0 V).
+BUT a **cloud rolled in mid-sweep (127 k→37 k lux)** with the panel temp drifting, so the
+absolute watts (0.14–0.37 W) and the apparent 2.6× are **NOT a clean full-sun number** (the
+start/end 5.5 V points disagreed, 0.138 vs 0.215 W = intra-sweep drift). **Robust:** MPP
+≈ 4.85 V hot, fixed 5.5 V is wrong when hot. **TBD:** the actual full-sun gain (no full-sun
+MPP point captured). **MPPT verdict: green-light to MEASURE properly (clean full-sun sweep
++ simultaneous lux/IR-temp at 2 panel temps), not yet to commit it's worth ~2×.**
+
+**Drawdown (started, cloudy evening):** brought inside, panel disconnected, always-on
+~157 mA battery-only discharge from ~SOC 60–76 % (gauge jumpy on the LFP plateau — trust
+the coulomb count). `--autosleep` deep-sleeps at brownout to protect the cell. Logging
+overnight → LFP discharge curve, gauge accuracy, delivered capacity, cutoff voltage
+(`ops/bench/data/ca/` + `/tmp/nb_drawdown_raw.log`; results next session). NOTE: this used
+the always-on load; the **sleep-cycle duty-cycled average** (the low overnight budget
+number) is still un-measured.
+
 ## 2026-06-08 (cont. 9) — Ben + Claude — Conclusions: WiFi hypothesis settled (moving-board artifact) + stress-test framing
 
 Wrap-up of the day's two device tests.

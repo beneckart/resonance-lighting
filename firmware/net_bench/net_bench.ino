@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-08.7"
+#define NET_BENCH_VERSION "net-bench-2026-06-08.9"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -111,8 +111,21 @@ using namespace PowerFeather;
 #ifndef NB_SCAN_MAX
 #define NB_SCAN_MAX 12 // max APs reported per scan batch (bounds the ESP-NOW burst)
 #endif
-// NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE
-// are presence-only flags.
+// ---- sleep-cycle (field-representative duty-cycled load measurement) --------
+// -DNB_SLEEP_CYCLE makes a peer wake -> send a telemetry heartbeat -> listen
+// briefly for ENTER_MAINT (preserve no-touch OTA) -> deep-sleep NB_SLEEP_S. On
+// battery-only this measures the duty-cycled average draw (the overnight/idle
+// budget) -- vs the always-on ~168 mA that flattens a 2 Ah cell in ~12 h. Run it
+// multi-hour/overnight: avg current = SOC/coulomb drop over time (gauge is too
+// coarse for a precise per-wake sleep current -> use an external meter for that).
+#ifndef NB_SLEEP_S
+#define NB_SLEEP_S 30 // deep-sleep interval between wakes (s)
+#endif
+#ifndef NB_WAKE_LISTEN_MS
+#define NB_WAKE_LISTEN_MS 400 // per-wake window to catch ENTER_MAINT before re-sleeping (ms)
+#endif
+// NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE,
+// NB_SLEEP_CYCLE are presence-only flags.
 #ifndef NB_BUDGET_MAH
 #define NB_BUDGET_MAH 1000
 #endif
@@ -186,6 +199,7 @@ enum NbType : uint8_t {
   NB_SET_RATE = 5,    // master -> all: set heartbeat/frame rate (Hz) for sweeps
   NB_IDENTIFY = 6,    // master -> target (or all): blink the locate pattern to find a board
   NB_SCANAP = 7,      // field peer -> bridge: one scanned 2.4 GHz AP (coverage mapping)
+  NB_SET_MAINTAIN = 8,// master -> all: set charger VINDPM/maintain V (panel MPP sweep / MPPT)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -779,6 +793,14 @@ void processRx() {
     } else if (h->type == NB_SET_RATE && it.len >= (int)sizeof(NbCmd)) {
       uint8_t hz = ((NbCmd *)it.data)->arg;
       if (hz >= 1 && hz <= 100) { gRateHz = hz; Serial.printf("rate set -> %u Hz\n", hz); }
+    } else if (h->type == NB_SET_MAINTAIN && it.len >= (int)sizeof(NbCmd)) {
+      // Live-set the charger VINDPM/maintain (panel MPP). arg = volts x10 (44..58).
+      // Lets the master sweep the setpoint or hill-climb it (P&O MPPT) with no reflash.
+      uint8_t v10 = ((NbCmd *)it.data)->arg;
+      if (pfReady && v10 >= 40 && v10 <= 58) {
+        Board.setSupplyMaintainVoltage((float)v10 / 10.0f);
+        Serial.printf("VINDPM/maintain set -> %.1f V\n", (float)v10 / 10.0f);
+      }
     } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
       NbIdentify *m = (NbIdentify *)it.data;
       bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
@@ -824,6 +846,21 @@ void handleSerial() {
   case 'u': // master: announce maintenance window then enter
     if (IS_MASTER) { Serial.println("broadcast ENTER_MAINT"); sendCmd(NB_ENTER_MAINT, 0); delay(50); enterMaintenance(); }
     break;
+  case 'U': // master: SUSTAINED ENTER_MAINT (~35s) to catch a SLEEPING (sleep-cycle) peer's
+            // brief wake window -- the fleet wake-for-maintenance primitive. Master stays in
+            // comms (keeps bridging); only the peer joins WiFi. Sustain must exceed the sleep period.
+    if (IS_MASTER) {
+      Serial.println("sustained ENTER_MAINT 35s (catching a sleeping peer's wake)...");
+      uint32_t endMs = millis() + 35000;
+      while ((int32_t)(endMs - millis()) > 0) {
+        NbCmd c; fillHeader(&c.h, NB_ENTER_MAINT); c.arg = 0;
+        esp_now_send(BCAST, (uint8_t *)&c, sizeof(c));
+        esp_task_wdt_reset();
+        delay(100);
+      }
+      Serial.println("sustained ENTER_MAINT done -> sweep for the peer + OTA");
+    }
+    break;
   case 'c': // master: resume
     if (IS_MASTER && gMode == MODE_COMMS) { Serial.println("broadcast RESUME"); sendCmd(NB_RESUME, 0); }
     else if (gMode == MODE_MAINT) enterComms();
@@ -858,6 +895,16 @@ void handleSerial() {
     uint8_t all[3] = {0, 0, 0};
     sendIdentify(all, 8);
     Serial.println("identify ALL peers 8s");
+    break;
+  }
+  case 'm': { // master: step the VINDPM/maintain setpoint (panel MPP sweep over the fleet)
+    if (!IS_MASTER) break;
+    static const uint8_t mv10[] = {55, 52, 50, 48, 46, 44}; // 5.5..4.4 V
+    static uint8_t mi = 0;
+    uint8_t v10 = mv10[mi];
+    mi = (mi + 1) % (uint8_t)(sizeof(mv10));
+    sendCmd(NB_SET_MAINTAIN, v10);
+    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", (float)v10 / 10.0f);
     break;
   }
   case 'r':
@@ -908,10 +955,44 @@ void autosleepHealthyClear() {
 }
 #endif
 
+// ---- sleep-cycle duty (deep-sleep load measurement) ------------------------
+#ifdef NB_SLEEP_CYCLE
+// Run at the end of setup() (ESP-NOW already up). Reports telemetry, gives a short
+// window to be commanded into maintenance (no-touch OTA), then deep-sleeps. Deep
+// sleep = full reboot, so setup() re-runs on each timer wake -> this repeats. The
+// per-wake radio-on time (boot + init + send + listen) IS the active duty; tune the
+// average via NB_SLEEP_S. Returns (without sleeping) only if maintenance is requested.
+void sleepCycleStep() {
+  readBattery();
+  for (int i = 0; i < 3; i++) { sendHeartbeat(0); delay(8); } // a few (lossy bcast) HBs
+  bool cold = (esp_reset_reason() == ESP_RST_POWERON);
+  uint32_t listenMs = cold ? 30000 : NB_WAKE_LISTEN_MS; // long catch window on cold boot
+  Serial.printf("sleep-cycle: awake, listen %lums for ENTER_MAINT...\n", (unsigned long)listenMs);
+  uint32_t t0 = millis();
+  while (millis() - t0 < listenMs) {
+    processRx(); // ENTER_MAINT -> enterMaintenance() flips gMode to MODE_MAINT
+    if (gMode == MODE_MAINT) {
+      Serial.println("sleep-cycle: maintenance requested -> staying awake for OTA");
+      return; // fall through to loop(), which serves /update
+    }
+    esp_task_wdt_reset();
+    delay(5);
+  }
+  digitalWrite(NB_LED_PIN, LOW);
+  Serial.printf("sleep-cycle: deep sleep %ds\n", NB_SLEEP_S);
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup((uint64_t)NB_SLEEP_S * 1000000ULL);
+  esp_deep_sleep_start(); // wakes into a fresh boot -> setup() again
+}
+#endif
+
 // ---- setup / loop ----------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-  delay(1500); // native USB-CDC: give the host time to attach before banner
+  // Native USB-CDC settle so the cold-boot banner isn't lost. SKIP it on a deep-sleep
+  // wake (sleep-cycle): it dominates the wake's active time and the field board has no
+  // host attached -- trimming it makes the duty-cycled load representative.
+  if (esp_reset_reason() != ESP_RST_DEEPSLEEP) delay(1500);
   Serial.println();
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
@@ -920,6 +1001,10 @@ void setup() {
 #ifdef NB_SCAN_REPORT
   Serial.printf("mode: SCAN-REPORT (2.4 GHz scan every %ds, <=%d APs over ESP-NOW)\n",
                 NB_SCAN_S, NB_SCAN_MAX);
+#endif
+#ifdef NB_SLEEP_CYCLE
+  Serial.printf("mode: SLEEP-CYCLE (deep-sleep %ds between telemetry wakes; %dms maint-listen)\n",
+                NB_SLEEP_S, NB_WAKE_LISTEN_MS);
 #endif
 
   esp_read_mac(myMac, ESP_MAC_WIFI_STA);
@@ -944,6 +1029,10 @@ void setup() {
   enterMaintenance();
 #else
   enterComms();
+#endif
+
+#ifdef NB_SLEEP_CYCLE
+  sleepCycleStep(); // wake->report->(maint?)->deep-sleep; only returns to run loop() for OTA
 #endif
 }
 

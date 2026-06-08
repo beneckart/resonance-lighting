@@ -18,7 +18,7 @@ SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROLE=""; CHANNEL=""; FRAME_HZ=""; HB_HZ=""; JITTER=""; WDT_S=""; WDT_HANG=""
 MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
-SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""
+SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -38,6 +38,9 @@ while [[ $# -gt 0 ]]; do
     --scan-report) SCAN_REPORT="1"; shift;;         # field peer: 2.4 GHz scan-report over ESP-NOW
     --scan-s) SCAN_S="$2"; shift 2;;
     --scan-max) SCAN_MAX="$2"; shift 2;;
+    --sleep-cycle) SLEEP_CYCLE="1"; shift;;         # field peer: deep-sleep duty-cycled load measurement
+    --sleep-s) SLEEP_S="$2"; shift 2;;
+    --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2;;
     --chem) CHEM="$2"; shift 2;;
     --cap) CAP="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
@@ -78,6 +81,9 @@ esac
 [[ -n "${SCAN_REPORT}" ]]   && FLAGS+=" -DNB_SCAN_REPORT=1"
 [[ -n "${SCAN_S}" ]]        && FLAGS+=" -DNB_SCAN_S=${SCAN_S}"
 [[ -n "${SCAN_MAX}" ]]      && FLAGS+=" -DNB_SCAN_MAX=${SCAN_MAX}"
+[[ -n "${SLEEP_CYCLE}" ]]   && FLAGS+=" -DNB_SLEEP_CYCLE=1"
+[[ -n "${SLEEP_S}" ]]       && FLAGS+=" -DNB_SLEEP_S=${SLEEP_S}"
+[[ -n "${WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_WAKE_LISTEN_MS=${WAKE_LISTEN_MS}"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7";;
