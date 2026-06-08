@@ -12,6 +12,23 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 2) — Ben + Claude — T3 range walk: clean V, link held through house+yard+oak
+
+Walked the cup board (`9F2690`) out the back door, across the yard to the fence (behind a
+big oak), and back, slowly, with the 3 stationary boards as controls. New tooling:
+`ops/bench/net_bench_walk.py` (continuous per-peer RSSI/PDR logger, run in background) +
+`net_bench_walk_plot.py` (Pillow V plot) + live landmark markers. Result: a clean V/bathtub
+(−19 dBm office → −80..−87 floor at fence/oak with a few brief dropouts → −30 back), 152
+samples / 328 s. **Findings:** (1) the **house doorway dominated** (~50 dB in the first ~30
+steps); open-yard distance added little; (2) the **oak trunk caused the deepest dips**,
+recovering at the fence past it; (3) RSSI is **path-asymmetric** (door −69 out / −47 back —
+multipath); (4) the **3 reference boards stayed flat** → the swing is real, environment
+stable (good control). The link **held ~100 steps through a house door + full backyard +
+behind an oak** — far harsher than the tree (open air + bamboo, no doorway), so a strong
+deployment result. Data/graph: `ops/bench/data/ca/2026-06-08-rangewalk.{jsonl,png,-markers}`.
+Live RSSI also viewable via `net_bench_monitor.py`. (Still un-measured: pure open-field
+clean-LoS cliff distance — the house doorway masked the distance falloff here.)
+
 ## 2026-06-08 (cont.) — Ben + Claude — Obstruction mapping: enclosure ~RF-transparent, solar panel is the attenuator
 
 Used the identify/locate blink to label peers placed in different obstructions (10 Hz, all

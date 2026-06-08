@@ -209,10 +209,30 @@ approximate topology signal, not distance (per ADR 0004). For clean obstruction 
 measure baseline vs obstruction back-to-back on the same board/spot/minute — don't compare
 across times.
 
+### T3 range walk (2026-06-08) — PASS (out-and-back, ~100 steps through house+yard)
+Walked the cup board (`9F2690`) slowly from the office out the back door, across the yard to
+the fence (behind a big oak), and back the same path; the 3 stationary boards logged as
+controls. Tooling: `ops/bench/net_bench_walk.py` (continuous per-peer RSSI/PDR log) +
+`net_bench_walk_plot.py` (the V plot) + live landmark markers. Data + graph:
+`ops/bench/data/ca/2026-06-08-rangewalk.{jsonl,png}` (+ `-markers.jsonl`).
+
+Result — a clean V/bathtub: −19 dBm (office) → broad floor **−80 to −87 dBm** at the
+fence/oak (a few brief dropouts behind the trunk; loss clustered entirely there) → back to
+−30 on return. Findings: (1) **the house doorway dominated the loss** (~50 dB in the first
+~30 steps) while 60 steps of open yard added little; (2) **the oak trunk caused the deepest
+dips/dropouts**, recovering a few dB at the fence past it; (3) **RSSI is path-asymmetric**
+(doorway −69 out vs −47 back — multipath/orientation, not repeatable); (4) **the 3 reference
+boards stayed flat** the whole 5.5 min → the walker's swing is real, environment stable.
+The link **held through a house door + full backyard + behind an oak (~100 steps)** —
+marginal at the bottom but mostly connected. That path is *far* harsher than the tree
+(fixtures see ~20 ft of open air + bamboo, no house/doorway), so this is a strong
+range result for the deployment. (Open-field clean-LoS cliff distance still un-measured —
+this run was through-the-house; the doorway masked the pure-distance falloff.)
+
 ### Remaining matrix (5 boards) — PENDING
-Proper T3 range cliff (open-field walk-out); T5 already PASS (parallel OTA); T6 multi-hour
-drain (cells charged + correct caps done); T7 master coexistence; mock-hat RF (panel+battery
-installed, Steve).
+Optional: open-field clean-LoS cliff (no house in the path) to get pure distance falloff;
+T5 already PASS (parallel OTA); T6 multi-hour drain (cells charged + correct caps done);
+T7 master coexistence; mock-hat RF (panel+battery installed, Steve).
 
 ## Known issues / caveats
 
