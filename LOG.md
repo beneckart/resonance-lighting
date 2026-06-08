@@ -12,6 +12,34 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 3) — Ben + Claude — Solar path validated (net-positive in weak light) + LFP bring-up + a brownout root-cause
+
+Moved to solar feasibility (power_bench, not net_bench). Switched to the LFP 2000 mAh cell —
+flashed `power_bench --chem lfp --cap 2000 --maintain 5.5` (Seeed 3W panel: Vmp 5.5 / Voc
+8.2 / Imp 540 mA) BEFORE connecting the cell (LFP charges to ~3.6 V, not Li-ion's 4.2 V —
+flashing the LFP profile first keeps the charger safe). `Board.init(2000, Generic_LFP) Ok`.
+
+**Brownout root-caused (clean):** on USB with NO battery, the board crash-looped (USB-CDC up
+~1 s then reset). Cause = `--maintain` (VINDPM) 5.5 V > USB 4.92 V → the charger *rejects*
+USB (won't pull its input below the 5.5 V setpoint) → with no battery to source VSYS, it
+brownouts; and enabling charging into a missing battery is the trigger point. Connecting the
+cell fixed it instantly (battery sources VSYS). Unifies the earlier brownout work: it was
+`maintain > supply voltage` + no buffer, not "no battery" per se. (Firmware guard TODO: don't
+enable charging if no battery detected; and `maintain` must be ≤ the supply you're on.)
+
+**Solar result (partly cloudy, ~10:18 am Oakland, through a window):** panel **5.56 V ×
+~66 mA ≈ 0.37 W**, VINDPM holding the panel steady at 5.5 V, **battery_ma +~10 mA — net
+POSITIVE charge** into the LFP (3.31 V / 33%, safe) *even with WiFi running* (the radio eats
+~56 of the 66 mA; ~10 mA banks). Path validated end-to-end. Extrapolations: asleep, ~all
+66 mA would bank; full sun → ~540 mA (≈8×) → the ~120 mAh/night budget closes with margin.
+Solar essentially de-risked (it's what the board is built for).
+
+Also: ESP-NOW reached the back fence but WiFi-STA couldn't hold the yard — expected, not a
+bug (different destination = router vs office-master, and WiFi assoc+TCP needs far more
+margin than ESP-NOW's loss-tolerant broadcast). It WiFi-reconnected fine once close — no
+instability. Next (do on USB so reflash/tune is safe): full-sun board-asleep harvest number
++ `--maintain` sweep (5.5/5.0/4.6) for the shaded canopy.
+
 ## 2026-06-08 (cont. 2) — Ben + Claude — T3 range walk: clean V, link held through house+yard+oak
 
 Walked the cup board (`9F2690`) out the back door, across the yard to the fence (behind a

@@ -71,7 +71,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Resolve MAX17260 SOC/health/cycles `InvalidState` — root cause was the missing `-DPOWERFEATHER_BOARD_V2=1` compile flag (SDK fell back to V1 LC709204F gauge); now in build.sh + #error guard. SOC/health/cycles/time_left populate (Ben).
 - [ ] Verify BQ25628E charger telemetry: state, faults, input regulation, charge current (Ben).
 - [x] Add NeoHEX + single-RGBW LED build variants on bench — DONE: `--led neohex/rgbw1/neodriver`, `--pixel-pin` to drive WS2812/SK6812 direct on any free GPIO (used A0/GPIO10) (Ben).
-- [ ] Solar harvest sweep across panels/conditions; set `RES_PF_MAINTAIN_V` to panel MPP (Ben).
+- [~] Solar harvest sweep across panels/conditions; set `RES_PF_MAINTAIN_V` to panel MPP — STARTED 2026-06-08: path validated on the Seeed 3W panel + LFP (net-positive ~10 mA charge even in partly-cloudy-through-glass @ 0.37W, VINDPM steady at 5.5V). Remaining (do on USB so reflash is safe): full-sun board-asleep harvest number + **`--maintain` sweep (5.5/5.0/4.6) for the shaded canopy** (lower VINDPM may harvest more when the panel sags) (Ben).
+- [ ] **Firmware guard: don't enable charging if no battery detected** — enabling charging into a missing battery (with `maintain` > supply V) browns out / crash-loops on USB. Also: `maintain` must be ≤ the supply you're powering from (Ben).
 - [x] Clean LED-current runs — DONE via `--bright-sweep` on battery + `--wifi-lowpower` (steadies the WiFi baseline so small LED currents resolve); the gauge `ima` is the metric, charging masks it so runs are on battery (Ben).
 - [ ] Steve mirrors the bench in TN; merge JSONL via the repo (Steve).
 - [ ] Add live telemetry readout to `ops/bench/cots-mode-dashboard.html` (Ben).
