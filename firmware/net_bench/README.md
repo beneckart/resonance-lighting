@@ -53,7 +53,11 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 
 Every board shows its battery state-of-charge on the onboard user LED, so the wireless
 fleet is readable at a glance: **>50% solid · 25-50% blink 1 Hz · 10-24% 2 Hz · <10%
-4 Hz · no reading = off**.
+4 Hz · no reading = off**. A **voltage cross-check** floors the level so a healthy cell
+never shows "critical" — the MAX17260 SOC can read wildly wrong after a `DesignCap`
+change / before a learn cycle (we saw a full 4.19 V cell report 1%); a loaded-Li-ion
+voltage floor vetoes a false-low gauge reading. (Production low-battery logic should do
+the same — never trust gauge SOC blindly.)
 
 **Locate / identify:** the master can tell a specific board (or all) to blink a distinct
 `..-` pattern for 8 s (overriding the battery display) so you can find it physically —

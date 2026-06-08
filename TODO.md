@@ -138,6 +138,8 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] **RE-VERIFY all battery/stability findings on LFP** once Steve's cell holders/connectors exist — Li-ion is necessary-not-sufficient (LFP plateau = buck-boost crossover) (Ben).
 - [ ] 20+ node confirmation run if the rate knee lands near the production point (Ben).
 - [ ] Mock-hat antenna RF with panel/battery installed (Steve; COTS Phase 7).
+- [ ] **Make battery capacity runtime-settable (NVS), not a build flag** — right now each per-board cap needs its own OTA bin; storing cap in NVS (set once via a command) would let one firmware image serve the whole fleet (Ben).
+- [ ] **Validate fuel-gauge SOC over a real charge/discharge cycle** + confirm the field (sleep + low-load solar charge) anchors the gauge cleanly, unlike the always-pinging bench (the false-low was likely a bench artifact). Production low-battery logic must cross-check voltage (done for the LED) (Ben).
 - [ ] Promote results into **ADR 0021 — ESP-NOW networking feasibility / 100-fixture go-no-go** (Ben).
 
 ## Field reliability concerns (surfaced 2026-06-04 — important for the deployed lantern)

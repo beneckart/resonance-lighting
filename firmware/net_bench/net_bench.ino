@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-07.4"
+#define NET_BENCH_VERSION "net-bench-2026-06-08.5"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -270,7 +270,11 @@ const LedStep IDENT_PAT[] = {
 const uint8_t IDENT_N = 6;
 
 // Onboard LED indicator. Identify (locate) overrides battery for its window:
-//   identify: "..-" pattern | >50% solid | 25-50% 1 Hz | 10-24% 2 Hz | <10% 4 Hz | unknown off
+//   identify: "..-" | >50% solid | 25-50% 1 Hz | 10-24% 2 Hz | <10% 4 Hz | no info off
+// VOLTAGE CROSS-CHECK: the MAX17260 SOC can read wildly wrong after a DesignCap change
+// or before a learn cycle (we saw a full 4.19 V cell report 1%). So floor the displayed
+// level by what the (loaded, Li-ion) terminal voltage allows -- a healthy cell never
+// shows "critical". Thresholds are Generic_3V7; LFP would need its own (flat curve).
 void updateStatusLed() {
   uint32_t now = millis();
   if (now < identifyUntil) { // locate beacon
@@ -283,9 +287,12 @@ void updateStatusLed() {
   static uint32_t last = 0;
   static bool on = false;
   int soc = cbSoc;
-  if (soc < 0) { digitalWrite(NB_LED_PIN, LOW); return; } // unknown -> off
-  if (soc > 50) { digitalWrite(NB_LED_PIN, HIGH); return; } // solid
-  uint16_t interval = (soc >= 25) ? 500 : (soc >= 10) ? 250 : 125; // 1/2/4 Hz
+  float v = cbV;
+  if (soc < 0 && v < 2.5f) { digitalWrite(NB_LED_PIN, LOW); return; } // no battery info -> off
+  int vfloor = (v >= 3.95f) ? 99 : (v >= 3.70f) ? 40 : (v >= 3.50f) ? 20 : (v >= 3.35f) ? 12 : 0;
+  int eff = (soc < 0) ? vfloor : (soc > vfloor ? soc : vfloor); // healthier of gauge vs voltage
+  if (eff > 50) { digitalWrite(NB_LED_PIN, HIGH); return; }      // solid
+  uint16_t interval = (eff >= 25) ? 500 : (eff >= 10) ? 250 : 125; // 1/2/4 Hz
   if (now - last >= interval) { last = now; on = !on; digitalWrite(NB_LED_PIN, on ? HIGH : LOW); }
 }
 

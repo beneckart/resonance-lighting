@@ -26,6 +26,15 @@ helps — low load during charge); (3) **low-battery logic must cross-check volt
 false 1% could trip a needless shutdown, a false 100% could over-discharge. Action: add a
 voltage sanity-check to the battery LED (bv>4.0 V => never show "critical").
 
+**Done (v07.5, OTA'd to all 5):** the battery LED now floors the displayed level by a
+loaded-Li-ion voltage estimate, so a false-low gauge can't show "critical" — `9E5AF0` now
+shows SOLID (gauge still reads 1% but bv 4.19 V vetoes it). Ben's field-vs-bench insight:
+this false-low is likely a **bench artifact** — deployed fixtures sleep + trickle-charge
+from solar under near-zero load, so the charger reaches termination and the gauge anchors
+(and gets a real cycle daily); the always-pinging bench run is the pathological case.
+Friction noted: each firmware OTA needs per-board cap bins (cap is a build flag) — a
+follow-up could store cap in NVS / make it runtime-settable so one bin serves all.
+
 ## 2026-06-07 (cont. 6) — Ben + Claude — Rate sweep PASS: ESP-NOW scales to ~100 nodes
 
 Ran the broadcast-rate sweep (new `ops/bench/net_bench_ratesweep.py`, drives the master's
