@@ -12,6 +12,29 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 4) — Ben + Claude — Battery-only OTA validated on worst-case LFP (the field-reset requirement)
+
+Per Ben (correctly): battery-only OTA with NO physical access is a hard requirement (can't
+take lanterns off the tree), so battle-test it now. Did 3 consecutive OTAs to the LFP board
+**battery-only (no USB), at ~3.2 V (the buck-boost-crossover, hardest regime), over WiFi**:
+**3/3 recovered cleanly, no button**, each via software reset (`rr=software`), and the new
+image confirmed running (`fw` flipped to `power-bench-2026-06-08.ota1` after OTA#1 — a real
+update, not a rollback). With the ~14 battery-only peer OTAs earlier this session that's
+**~17/17, zero failures.** Conclusion: **battery-only field OTA is trustworthy** — the
+"never touch a deployed lantern" requirement is met.
+
+Key clarification (resolves the earlier confusion): the flaky/stranding resets were the
+**USB-JTAG hardware reset** (esptool's RTS path during *USB* flashing) + the no-battery
+brownout — neither exists in field OTA, which uses `ESP.restart()` (software reset), reliable
+every time. "Use USB" was bench-iteration convenience, not a trust statement.
+
+Caveats (refinements, NOT blockers; a failed OTA is safe — stays on / A-B rolls back to the
+known-good image, never bricks): (1) tested over GOOD WiFi (the field model = a local AP near
+the tree for a maintenance window); OTA over a MARGINAL link is untested (TCP retries, but a
+bad link could fail the upload → no update). (2) A/B rollback not yet explicitly tested (push
+a deliberately-broken image → confirm auto-revert) — worth doing as the ultimate safety net
+alongside the watchdog + autosleep recovery.
+
 ## 2026-06-08 (cont. 3) — Ben + Claude — Solar path validated (net-positive in weak light) + LFP bring-up + a brownout root-cause
 
 Moved to solar feasibility (power_bench, not net_bench). Switched to the LFP 2000 mAh cell —

@@ -110,7 +110,7 @@
 #define LG_LOOP_LIMIT 25
 #define LG_HEALTHY_MS 120000UL
 
-#define POWER_BENCH_VERSION "power-bench-2026-06-04.2"
+#define POWER_BENCH_VERSION "power-bench-2026-06-08.ota1"
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection
