@@ -110,7 +110,19 @@
 #define LG_LOOP_LIMIT 25
 #define LG_HEALTHY_MS 120000UL
 
+#ifdef RES_OTA_FAIL_SELFTEST
+#define POWER_BENCH_VERSION "power-bench-2026-06-08.ota2BAD"
+// A/B-rollback test build: report this image UNHEALTHY via the Arduino core's weak
+// verifyOta() hook (called in initArduino() BEFORE setup()). The core then does
+// esp_ota_mark_app_invalid_rollback_and_reboot() and the bootloader reverts to the
+// previous good image. This is the SAFE, deterministic way to exercise rollback
+// (one reboot, no bootloop/brick) -- unlike a setup()/loop() crash, which would be
+// marked valid first and then brick. This is also the pattern production should use:
+// run a real self-test here and return false if unhealthy.
+extern "C" bool verifyOta() { return false; } // extern "C": the core's weak hook is C-linkage
+#else
 #define POWER_BENCH_VERSION "power-bench-2026-06-08.ota1"
+#endif
 
 // ---------------------------------------------------------------------------
 // Board / LED-option detection

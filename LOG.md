@@ -12,6 +12,29 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 5) — Ben + Claude — A/B rollback VALIDATED (bad image auto-reverts) + the recipe
+
+Tested A/B rollback with a bad image (battery-only LFP). **PASS:** pushed a power_bench
+build whose self-test hook reports unhealthy (`extern "C" bool verifyOta(){return false;}`,
+gated by `-DRES_OTA_FAIL_SELFTEST`); on first boot the Arduino core (`initArduino`, before
+`setup()`) saw the image `PENDING_VERIFY`, called `verifyOta()`→false →
+`esp_ota_mark_app_invalid_rollback_and_reboot()` → bootloader **reverted to the last-good
+image automatically, no touch** (board came back on `ota1`; the bad image never reached
+setup/WiFi). `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` is in the arduino-esp32 3.3.7 build.
+
+**Gotcha (caught the first try):** `verifyOta()` is a **C-linkage** weak hook (defined in a
+.c core file). A plain C++ override is name-mangled, silently does NOT override, the default
+(returns true) runs, and the bad image **sticks** (no rollback). Must use `extern "C"`.
+
+**Production recipe (the safety net):** implement `extern "C" bool verifyOta()` with a real
+self-test (power chip init + radio + fuel-gauge reachable) → return false on failure for an
+auto-revert. **Limitation:** this only catches self-test FAILURE; an image that passes
+verifyOta then crashes/hangs LATER in setup()/loop() is already marked valid → could brick.
+Robust pattern: `verifyRollbackLater()=true` to DEFER the mark-valid, run extended checks +
+the watchdog, and mark valid only after proving stable for N s — so a late crash/hang trips
+the watchdog while still PENDING_VERIFY and rolls back next boot. power_bench keeps the
+gated `RES_OTA_FAIL_SELFTEST` fixture as a reusable rollback test.
+
 ## 2026-06-08 (cont. 4) — Ben + Claude — Battery-only OTA validated on worst-case LFP (the field-reset requirement)
 
 Per Ben (correctly): battery-only OTA with NO physical access is a hard requirement (can't
