@@ -131,6 +131,21 @@ margin. Small-N caveat: recommend a 20+ node confirmation run if the prod point 
   sufficient SOC, or rely on the autosleep guard; a depleted fixture can't be field-updated
   until charged. *(Re-verify on LFP — different converter regime.)*
 
+### Board inventory + fuel-gauge finding (2026-06-07)
+Mapped board ID ↔ battery via the new **identify/locate** command (master `i` blinks a
+board's `..-` pattern): master `9E5B0C`=2200, `9F2690`/`9E5AB8`=4400, `9E5AF0`/`9F26F8`=
+10050 mAh. OTA'd each with its correct `--cap` (all recovered, no button).
+
+**MAX17260 DesignCap must be set once + needs a learn cycle.** Changing `--cap`
+re-initializes the gauge and **resets learned SOC → a transient bad reading**: `9F26F8`
+(10050) read 27% at 3.73 V with the wrong cap=2000, then **100% at 3.72 V** right after
+re-seeding to 10050 (true ~50%). So neither raw reading is trustworthy until the gauge
+re-converges. Production implications: **set DesignCap once at first boot, charge the cell
+to full to anchor 100%, and let the gauge learn over a charge/discharge cycle**; never
+change cap in the field. This is *more* critical on LFP (flat OCV → the gauge can't lean
+on voltage, so a correct cap + coulomb learning is the only SOC source). Folds into T6
+prep: fully charge every cell before the autonomy/drain run.
+
 ### Multi-node matrix (5 boards) — PENDING
 T1 rate sweep, T2 peer-mesh scale, T3 range cliff, T4 obstruction, T6 multi-hour, T7
 coexistence to be run with charged cells on all boards. Tables to be filled.

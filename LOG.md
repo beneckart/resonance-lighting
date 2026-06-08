@@ -12,6 +12,21 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-07 (cont. 5) — Ben + Claude — Identify/locate command; per-board cap; MAX17260 re-seed finding
+
+Added an on-demand **identify/locate** command (master `i`/`I` → target board blinks a
+distinct `..-` on the onboard LED for 8 s; the data-center chassis-ID pattern) and used it
+to map board↔battery without plugging in: master 2200, `9F2690`/`9E5AB8` 4400,
+`9E5AF0`/`9F26F8` 10050 mAh. OTA'd each board with its correct `--cap` (fw v07.4; all 5
+recovered no-button — cumulative OTA reliability still 100%).
+
+**Fuel-gauge finding:** changing the MAX17260 `DesignCap` re-inits the gauge and **resets
+learned SOC** → a transient bad reading (`9F26F8` 10050 mAh: 27% @3.73 V with cap=2000 →
+**100% @3.72 V** after re-seeding to 10050; true ~50%). So: **set DesignCap once at first
+boot, charge to full to anchor 100%, let the gauge learn over a cycle; don't change cap in
+the field.** More critical on LFP (flat OCV). Folds into T6 prep (fully charge cells
+first). Also shipped a `/resume` re-init fix (v07.3) in the same firmware.
+
 ## 2026-06-07 (cont. 4) — Ben + Claude — net_bench first light: ESP-NOW works, OTA validated, battery-LED deployed
 
 Flashed the fleet (1 master USB + peers on Li-ion). **First light, ch 11:** master +
