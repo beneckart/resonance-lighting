@@ -263,6 +263,17 @@ T7 master coexistence; mock-hat RF (panel+battery installed, Steve).
 
 ## Known issues / caveats
 
+- **The V-graph's synchronized all-peer trace gaps are a BRIDGE artifact, not the mesh.**
+  The master→host stats path (master WiFi-STA + UDP *broadcast*, ~1/s, unretried) drops in
+  bursts when the master is busy time-sharing its single radio between ESP-NOW (4 peers @
+  10 Hz) and the AP link. Verified: across every gap the master's ESP-NOW `rx` kept climbing
+  at full rate (~10/s) with **~0 added loss** (e.g. a 7 s bridge silence = `rx +80, gaps +0`)
+  — it was receiving every packet, including the adjacent cup board. **All PDR/scaling
+  numbers come from the master's cumulative seq-counting (`rx`/`gaps`), independent of bridge
+  delivery, so they're unaffected.** In deployment there is no WiFi bridge — ESP-NOW is the
+  data plane. Design note: a production WiFi-*gateway* node would have a bursty real-time
+  WiFi side under ESP-NOW load (fine for TCP/OTA; don't rely on it for real-time telemetry).
+
 - **Li-ion ≠ LFP (asterisk on everything battery):** all stability/current/brownout
   results are on `Generic_3V7`. LFP's ~3.2–3.3 V plateau parks on the TPS631013
   buck-boost crossover (a harder regime for current spikes) — stable-on-Li-ion is
