@@ -12,6 +12,34 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-08 (cont. 11) — Ben + Claude — Drawdown aborted (redundant); LFP capacity looks ~half rated; sleep-cycle idle budget negligible
+
+Ben flagged the running always-on LFP drawdown as redundant — correct. The 2026-06-03
+overnight reboot-loop drain (`...is31-loadgen-overnight.jsonl`) already has the LFP
+discharge curve at a similar load (mean −145 mA): SOC 92→30 %, **flat ~3.25 V throughout**
+(min 3.234), 4.25 h — the "LFP plateau → V-SOC useless → coulomb-count" lesson. Aborted the
+new run; switched the board to the sleep-cycle test instead.
+
+**Capacity finding (from the existing 06-03 data):** it integrates to **~617 mAh delivered
+for a 62 % SOC drop → real usable capacity ≈ ~1000 mAh, not the 2000 mAh rating.** The
+"2000 mAh" 18650 LFP looks **overrated ~2×** (physically, 18650 LFP are ~1000–1500 mAh;
+2000+ is Li-ion-class). This **~halves the assumed battery budget.** Caveat: LFP gauge SOC is
+shaky on the plateau — **confirm with a clean full→empty coulomb-counted run** (USB top-up
+first). Partly answers the "compare LFP sample vs rated capacity" TODO.
+
+**Sleep-cycle duty-cycled average (computed):** sleep-cycle validated on hw (lean wake
+~250 ms to HB + ~400 ms maint-listen ≈ **0.65 s radio-on per 30 s cycle**). The MAX17260
+can't catch the sub-second wake spike (reads ~0 mA), so computed from trusted pieces:
+avg ≈ (0.65 s / 30 s) × 168 mA (the always-on radio draw) + sleep floor ≈ **~4 mA at a 30 s
+wake interval** (~2 mA @ 60 s, ~1 mA @ 300 s). **Takeaway: the idle/sleep budget is
+negligible** (~48 mAh/night @30 s on a ~1 Ah cell ≈ a few %); **sizing is LED-show- and
+harvest-bound, not idle-bound.** Caveats: active current is the separately-measured always-on
+figure, sleep floor is estimated — a precise per-wake/sleep number needs an **external
+ammeter (SEN0291 / multimeter)**; the gauge fundamentally under-samples brief-pulse loads.
+**Field concern:** that under-sampling means a sleeping fixture's gauge SOC can read
+optimistically high → low-battery logic must cross-check **voltage** (reinforces existing
+TODO). Sleep-cycle left running overnight battery-only as a gauge-vs-pulse cross-check.
+
 ## 2026-06-08 (cont. 10) — Ben + Claude — Solar/sizing session: sleep-cycle + OTA-wake, idle floor, MPP sweep (cloud-caveated), drawdown started
 
 Long bench session toward battery/panel sizing. New firmware `net-bench-2026-06-08.9`
