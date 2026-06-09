@@ -34,6 +34,36 @@ pixel-power option in TODO. Can't accidentally drain the pack with LEDs.
 > (`Board.enableVSQT()` in the SDK). Enabling the 3V3 header (GPIO4) is not the same
 > as enabling VSQT. Know which rail your device is actually on.
 
+## Those two 3V3 rails dominate deep-sleep current — cut BOTH before sleeping
+
+There are **two** SDK-switchable 3.3 V rails, and **leaving them on through deep sleep
+dominates the sleep/idle current** (learned the hard way, 2026-06-09):
+
+- **3V3 header rail** — `Board.enable3V3(false)` (raw equivalent: `digitalWrite(4, LOW)`).
+- **VSQT** (STEMMA-QT 3.3 V) — `Board.enableVSQT(false)`.
+
+A `--sleep-cycle` build that deep-slept with both rails left ON drained the LFP cell at
+~**1.7 %/h** (gauge); cutting both right before `esp_deep_sleep_start()` dropped it to
+~**0.5 %/h** — a **~3–4× reduction** (≈ 20 %/night → ≈ 5 %/night). An external INA219 in
+the battery lead then showed the true rails-off duty-cycled drain is **sub-mA** — so small
+the LFP fuel gauge couldn't even resolve it on its flat plateau. So in any sleep path:
+
+```cpp
+if (pfReady) { Board.enable3V3(false); Board.enableVSQT(false); } // ambient-draw killer
+esp_sleep_enable_timer_wakeup(...);
+esp_deep_sleep_start();
+```
+
+- The switches are **I2C-latched in the power-management domain**, so they **persist
+  through ESP32 deep sleep** with no `gpio_hold` gymnastics; `Board.init()` re-enables them
+  on the next wake.
+- **On V2 the charger/gauge stay alive with VSQT off** (separate power-management I2C) — so
+  you keep telemetry while the rails are down. (On V1, VSQT-off also kills the gauge.)
+- For deeper storage the SDK has `enterShutdownMode()` (~1.4 µA, only charger+gauge powered,
+  wakes only on a good supply) and `enterShipMode()` (battery-FET disconnect, wakes via the
+  QON pin / good supply). Neither is timer-wakeable, so they're for shipping / dead-battery
+  modes, not a duty-cycled fixture — use deep sleep + rail-cut for that.
+
 ## If you use the SDK, you MUST set the V2 board flag
 
 The PowerFeather SDK selects the fuel gauge **at compile time**. Build with:

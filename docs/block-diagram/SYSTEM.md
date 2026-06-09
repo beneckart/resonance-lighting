@@ -153,9 +153,12 @@ Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED r
 >   sits past the IV knee and harvests roughly *half* of the available power. Real harvest
 >   needs software MPPT (prototyped via `SET_MAINTAIN`) or a temp-compensated setpoint; the
 >   table assumes a near-MPP operation it isn't getting by default.
-> - **The "2000 mAh" 18650 LFP cells measure ~1000 mAh** (overrated ~2×; LOG cont. 11), so the
->   autonomy table below (which uses 1500 mAh) is roughly ⅔ as good as written. Confirm with a
->   clean full→empty capacity run.
+> - **The "2000 mAh" 18650 LFP capacity is unconfirmed** and may be lower. A 06-03 drain
+>   delivered ≥617 mAh but stopped *mid-plateau* (not empty), and LFP's flat curve + an
+>   un-learned gauge make SOC-derived capacity unreliable (the gauge can't be trusted until
+>   several learn cycles or an external ammeter). So the autonomy table below (1500 mAh) is
+>   *optimistic-to-unknown*. Confirm with a clean full→empty coulomb run on a learned gauge /
+>   external meter. (Earlier "~1000 mAh / overrated 2×" wording was too strong — walked back.)
 > - So the **"1 W panel, 8× margin" verdict is not yet supported** — drain is LED-show-bound,
 >   harvest is MPP-limited, and the cell is smaller. Closing this energy balance is the gating
 >   de-risk before sizing the panel + cell (see TODO "sizing campaign").

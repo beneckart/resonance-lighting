@@ -12,6 +12,46 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-09 — Ben + Claude — Rails-cut idle win; 4-channel INA219 monitor built; ground-truth shows idle is tiny (gauge over-read it)
+
+**Rails-off A/B (the sleep-current fix).** Hypothesis from cont. 10/11: the ~20 %/night
+sleep-cycle drain was the two switchable 3V3 rails left on during deep sleep, not the wakes.
+Added `Board.enable3V3(false) + enableVSQT(false)` before `esp_deep_sleep_start()`
+(`net-bench-2026-06-09.1`) and ran a battery-only A/B vs the rails-on overnight baseline:
+**rails-on ~1.7 %/h → rails-off ~0.5 %/h, a ~3–4× cut** (≈ 20 %/night → ≈ 5 %/night). The
+rails were the dominant idle draw, as hypothesized. (Ratio is robust; the gauge only moved
+~1 SOC count in 2 h, so the absolute is coarse — see below.) **Captured as a gotcha in
+POWERFEATHER_NOTES** so we don't relearn it. V2 keeps the gauge alive with VSQT off (separate
+power-mgmt I2C), so telemetry survives the rail-cut.
+
+**Built a 4-channel ground-truth power monitor** (`firmware/ina_monitor/`): Adafruit Metro
+ESP32-S3 reading 4× DFRobot SEN0291 (INA219) at 0x40/41/44/45, separate-monitor topology
+(reads a board-under-test's current through its deep sleep — the thing the on-board gauge
+can't). Direct register reads (bus V + raw shunt mV → current; calibration-independent),
+streams `ina ...` lines. Saga worth noting: (1) a STEMMA↔Gravity cable that **swapped
+VCC/GND** dead-shorted + briefly killed USB on the Metro — *all four INA boards survived* the
+reversal; (2) Metro defaults to USB-OTG/TinyUSB which re-enumerates on sketch start (no
+serial) — flash with `USBMode=hwcdc,CDCOnBoot=cdc` like the PowerFeathers; (3) the hub works
+direct-wired to the Metro's SDA=47/SCL=48 headers (bypass the bad cable). A reverse-polarity
+JST also scared us but the PowerFeather + INA both survived.
+
+**First ground-truth measurement (INA in the peer's battery lead).** Caught the ~30 s wake
+as a current bump: **wake ≈ 11 mA for ~0.6 s, sleep ≈ 0** (below the ~0.2 mA PGA floor). So
+the duty-cycled **battery** drain is **sub-mA** — far below the gauge A/B's ~0.5 %/h (~4–5
+mA). Reconciliation (vindicates Ben's gauge-distrust): the gauge's ~0.5 %/h was within its
+own 1-count noise on the flat LFP plateau; the real drain was simply too small for it to
+resolve, and the INA finally does. **Idle is negligible — now ground-truth, not inferred.**
+Caveats: 10 Hz may undersample a brief (<100 ms) radio-init spike (40 mV bus sag hints at
+one) → a fast-sample capture is the next step to nail per-wake energy; sub-0.2 mA sleep is
+below this PGA range (sharpen by dropping the range); the ~11 mA wake being far under the
+~168 mA always-on RX wants understanding (likely boot/init-dominated, not full RX).
+
+**Walked back the LFP capacity claim** (Ben was right): cont. 11's "~1000 mAh / overrated 2×"
+was too strong. The 06-03 drain delivered ≥617 mAh but stopped *mid-plateau* (not empty), on
+an un-learned gauge → true capacity is unknown, likely a normal ~1–1.5 Ah 18650 LFP. Needs a
+clean full→empty coulomb run on a learned gauge or external meter. Softened in README /
+SYSTEM.md.
+
 ## 2026-06-08 (cont. 11) — Ben + Claude — Drawdown aborted (redundant); LFP capacity looks ~half rated; sleep-cycle idle budget negligible
 
 Ben flagged the running always-on LFP drawdown as redundant — correct. The 2026-06-03

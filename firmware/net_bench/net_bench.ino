@@ -32,7 +32,7 @@
 #include "esp_task_wdt.h"
 #include <Preferences.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-08.9"
+#define NET_BENCH_VERSION "net-bench-2026-06-09.1"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -979,7 +979,12 @@ void sleepCycleStep() {
     delay(5);
   }
   digitalWrite(NB_LED_PIN, LOW);
-  Serial.printf("sleep-cycle: deep sleep %ds\n", NB_SLEEP_S);
+  // Cut the switchable rails for minimum deep-sleep current. They're I2C-latched in the
+  // power-management domain, so they persist through ESP32 deep sleep (no gpio_hold); on V2
+  // the gauge/charger stay alive with VSQT off, so telemetry resumes on the next wake (when
+  // Board.init re-enables them). This is the rails-OFF arm of the idle-current A/B test.
+  if (pfReady) { Board.enable3V3(false); Board.enableVSQT(false); }
+  Serial.printf("sleep-cycle: rails cut (3V3+VSQT off), deep sleep %ds\n", NB_SLEEP_S);
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_SLEEP_S * 1000000ULL);
   esp_deep_sleep_start(); // wakes into a fresh boot -> setup() again
