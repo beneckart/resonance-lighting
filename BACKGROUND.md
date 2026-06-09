@@ -165,16 +165,18 @@ This is now the main reference architecture for the custom board, superseding th
 
 ### LED module candidates
 
-Current LED candidates are split by interface:
+Current LED candidates are split by interface. **(Stale — see ADR 0018 / README "Current
+architecture direction" for the live state: the IS31 is ruled out and the choice is now
+between SK6812 "HEX" direct-GPIO and a 4 W RGBW point source, both driven direct-GPIO.)**
 
-- **Adafruit IS31FL3741 13x9 RGB matrix** — primary no-solder PowerFeather companion. It uses STEMMA-QT/Qwiic I2C and can be powered from the switchable `VSQT` rail. It is multiplexed PWM, not NeoPixel, so gobo projection and current draw must be tested.
+- **Adafruit IS31FL3741 13x9 RGB matrix** — ~~primary no-solder PowerFeather companion~~ **RULED OUT (ADR 0018):** on the V2's shared charger/gauge I2C bus it browns out the board on battery under WiFi. It uses STEMMA-QT/Qwiic I2C; multiplexed PWM, not NeoPixel.
 - **M5Stack NeoHEX** — promising center-plus-rings optical geometry with 37 WS2812C LEDs. It uses M5Stack HY2.0/Grove physically but is not an I2C/STEMMA-QT device; it needs GPIO data and a suitable LED power rail.
 - **FeatherS2 Neo** — integrated ESP32-S2 + 5x5 RGB matrix + LiPo charging. Fastest optical prototype and LiPo fallback.
 - **M5Stack Atom Matrix** — tiny ESP32 + 5x5 WS2812C + USB-C module. Strong ultra-simple fallback when powered by DFRobot DFR0559.
 
 ### Current prototype tracks
 
-1. **PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 13x9 matrix.** Primary design-aligned candidate.
+1. **PowerFeather V2 + LiFePO4 + solar panel + ~~IS31FL3741 13x9~~ direct-GPIO LED (SK6812 HEX or 4 W RGBW).** The confirmed reference (ADR 0021); IS31 dropped (ADR 0018), LED module still being decided.
 2. **PowerFeather V2 + LiFePO4 + solar panel + M5Stack NeoHEX.** Alternate LED geometry test; not STEMMA-QT plug-and-play.
 3. **FeatherS2 Neo + DFRobot DFR0559.** LiPo fallback. DFR0559 owns battery/solar; FeatherS2 Neo battery JST stays empty.
 4. **M5Stack Atom Matrix + DFRobot DFR0559.** Ultra-simple LiPo fallback.

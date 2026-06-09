@@ -143,8 +143,22 @@ Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED r
 > full** (see ADR 0018 / LOG). Real nightly drain = show brightness × LED count × duty cycle,
 > plausibly **5–20× this floor**. Action: re-derive bottom-up from measured LED draw + a
 > realistic duty cycle, then size the cell + panel to that. The solar *path* is hardware-
-> validated (net-positive into an LFP even in weak/partial light, 2026-06-08); the harvest
-> table below is still plausible, but the drain side above is the part to redo.
+> validated (net-positive into an LFP even in weak/partial light, 2026-06-08).
+>
+> **Update (2026-06-08, LOG cont. 10–11): the harvest table, the margin verdict, AND the
+> autonomy table below are ALSO optimistic — treat this whole section as UNCONFIRMED pending
+> a bottom-up redo:**
+> - **Harvest is MPP-limited.** The charger holds a *fixed* input voltage (VINDPM); when the
+>   panel is hot (~65 °C measured) its Vmp droops to ~4.85 V, so the default 5.5 V setpoint
+>   sits past the IV knee and harvests roughly *half* of the available power. Real harvest
+>   needs software MPPT (prototyped via `SET_MAINTAIN`) or a temp-compensated setpoint; the
+>   table assumes a near-MPP operation it isn't getting by default.
+> - **The "2000 mAh" 18650 LFP cells measure ~1000 mAh** (overrated ~2×; LOG cont. 11), so the
+>   autonomy table below (which uses 1500 mAh) is roughly ⅔ as good as written. Confirm with a
+>   clean full→empty capacity run.
+> - So the **"1 W panel, 8× margin" verdict is not yet supported** — drain is LED-show-bound,
+>   harvest is MPP-limited, and the cell is smaller. Closing this energy balance is the gating
+>   de-risk before sizing the panel + cell (see TODO "sizing campaign").
 
 **Solar harvest estimate:**
 

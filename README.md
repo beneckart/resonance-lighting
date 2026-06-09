@@ -22,10 +22,14 @@ Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs
 
 ## Current architecture direction
 
-The project now has two active hardware tracks:
+**PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002).
 
-1. **COTS production/fallback track.** Use off-the-shelf boards where possible to remove custom-hardware risk. The leading candidate is **PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 13x9 STEMMA-QT matrix**. Other COTS candidates include FeatherS2 Neo, M5Stack Atom Matrix, M5Stack NeoHEX, and DFRobot DFR0559 Solar Power Manager.
-2. **Custom PCBA track.** If needed, design a bespoke board derived from the successful COTS/reference architecture. Current bias is toward a PowerFeather-like design: ESP32-S3-WROOM-class module, BQ25628E-class charger/power path, MAX17260-class fuel gauge, buck-boost 3.3 V rail, switchable LED/STEMMA rail, keyed connectors, and boring USB/pogo flashing.
+Two production paths remain open, pending procurement and the sizing/thermal de-risks:
+
+1. **COTS track.** Buy PowerFeather V2 boards (ideally with factory-soldered VDC + LED connectors via a custom assembly, to avoid per-unit hand-soldering — ADR 0009). Removes custom-hardware risk.
+2. **Custom PCBA track.** A PowerFeather-derived board (ESP32-S3-WROOM module, BQ25628E-class charger, MAX17260-class gauge, buck-boost 3.3 V rail, switchable LED/STEMMA rail, keyed connectors, boring USB/pogo flashing) if COTS supply/cost/assembly at 100+ units doesn't pencil out.
+
+The **LED module is still being decided** (ADR 0018): SK6812 "HEX" direct-GPIO @ 3.3 V (distributed area/wash) vs a 4 W RGBW point source (crisp gobo), both driven **direct-GPIO off a free pin**. The earlier Adafruit IS31FL3741 13×9 STEMMA-QT matrix was **ruled out** — it browns out the board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bake-off candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose; PowerFeather V2 won.
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
@@ -79,4 +83,4 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## Status
 
-R&D parts have been ordered for a COTS architecture bake-off. Immediate work is bench testing PowerFeather V2 vs FeatherS2 Neo / Atom Matrix fallback paths, validating LiFePO4/solar behavior, testing LED modules through the gobo/filter, and deciding whether 2026 production should use COTS boards, a custom PCBA, or a hybrid.
+The COTS bake-off concluded: **PowerFeather V2 is confirmed as the controller / solar / telemetry brain** (ADR 0021). Current work is the set of de-risks gating a bulk parts order: closing the **battery/panel sizing** (harvest-at-MPP vs LED-show + idle load; note the "2000 mAh" LFP samples measure closer to ~1000 mAh), **thermal** validation in a sealed hat (LFP charge-temperature limits), the **LED module** decision, and **procurement** at 100+ units (COTS vs custom assembly). See `LOG.md` and `TODO.md` for the live state.
