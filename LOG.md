@@ -1255,6 +1255,87 @@ Local tool state: Arduino CLI is installed with `esp32:esp32` core 3.3.7. No rep
 
 Immediate test direction: create a small USB smoke/OTA bring-up firmware before broader firmware architecture work. It should print board ID, MAC-derived fixture ID, reset reason, build version, LED driver status, I2C scan results where applicable, and OTA status. Use LiPo-only DFRobot DFR0559 tests for now and do not connect LiFePO4 to LiPo-only boards.
 
+## 2026-05-11 — Ben + GPT — PowerFeather SDK 2.0.0 release confirms V2 support path
+
+PowerFeather-SDK 2.0.0 was released shortly after the PowerFeather V2 hardware/schematic review. This is a strong positive signal that the PowerFeather developer is active and that V2 is far enough along to have first-class software support.
+
+Key release-note items relevant to Resonance Lighting:
+
+- Adds PowerFeather V2 board support selectable through ESP-IDF Kconfig or `POWERFEATHER_BOARD_V2`.
+- Adds MAX17260 fuel-gauge support, including battery current, health, cycles, time estimates, alarms, learned-state restore, LiFePO4 mode, and custom MAX17260 battery profiles.
+- Adds a shared fuel-gauge abstraction for LC709204F and MAX17260, which should let Resonance firmware support V1/LiPo fallback and V2/LiFePO4 paths behind one interface.
+- Adds `BatteryType::Generic_LFP`, directly matching the project's preferred LiFePO4 chemistry.
+- Adds `Board.init()` for no-battery operation and `Board.init(const MAX17260::Model&)` for custom battery profiles.
+- Adds `updateBatteryFuelGaugeTemp()` overload that reads the board thermistor and updates the fuel gauge.
+- V2 keeps the power-management I2C bus available while `VSQT` is disabled. This matters because Resonance wants to turn off external LED modules / STEMMA-QT loads while preserving housekeeping telemetry.
+- Charger settings can be retained across RTC-preserving warm boots when battery/profile configuration still matches.
+- Custom profiles now apply profile charge voltage and termination current to the charger.
+- Initialization safety was improved: charger part validation, POR/watchdog recovery, profile-change detection, and full policy reapplication.
+- MAX17260 LFP configuration, profile loading, learned-parameter handling, voltage alarms, and fuel-gauge reinitialization were fixed.
+- Missing/open/shorted battery temperature sensors now get sanity checks.
+- I2C fault latency was reduced with bounded transfer timeouts and the newer ESP-IDF I2C master driver.
+- ESP-IDF requirement is now >=5.2, <=5.5.
+
+Interpretation:
+
+PowerFeather V2 is no longer just an attractive schematic. It now has explicit SDK support for the exact features Resonance cares about: LiFePO4 fuel-gauge mode, MAX17260 telemetry, thermistor integration, custom profiles, power-domain behavior with `VSQT` off, and improved recovery from charger/gauge initialization edge cases.
+
+Action:
+
+- Treat PowerFeather V2 + PowerFeather-SDK 2.x as the primary COTS LiFePO4 prototype path.
+- On first hardware arrival, verify the boards are truly V2 by visual chip ID and I2C scan.
+- Build first firmware with ESP-IDF >=5.2 and PowerFeather-SDK 2.x, not the older 1.x docs/examples.
+- Add a small compatibility layer in Resonance firmware so PowerFeather telemetry can be consumed by the normal battery/power telemetry interface.
+- Capture telemetry from BM 2026 fixtures if this platform or a PowerFeather-derived custom board is used; this data should inform BM 2027 solar/battery sizing.
+
+Open questions:
+
+- Does the Elecrow stock currently shipping as "ESP32-S3 PowerFeather V2" contain V2 hardware, or could it be V1 stock/listing ambiguity?
+- Will the developer share V2 KiCad layout files, or only schematic/3D model?
+- How well has V2 been tested with actual LiFePO4 cells under solar/VDC input?
+- Does the SDK expose enough raw charger/fuel-gauge telemetry for long-term logging without significant custom driver work?
+
+## 2026-05-10 — Ben + ChatGPT — PowerFeather V2 / COTS R&D update
+
+Second-pass architecture update after COTS search, purchases, and schematic review.
+
+### What changed
+
+- **PowerFeather V2 is now the leading COTS/reference architecture.** It appears to match the project unusually well: ESP32-S3-WROOM-1, onboard PCB antenna, BQ25628E charger/power-path, LiFePO4 support in V2, MAX17260 fuel gauge, TPS631013 buck-boost 3.3 V rail, switchable VSQT/STEMMA-QT rail, solar/DC input, and rich power telemetry. V2 status is still preliminary until hardware arrives and is verified.
+- **PowerFeather V1 remains LiPo-only as a board-level system.** V1 uses BQ25628E, but the board-level fuel gauge and regulator choices make it unsuitable for LiFePO4 production use. It may still be a strong LiPo fallback.
+- **PowerFeather V1/V2 schematic diff completed.** V1 and V2 both use BQ25628E. V2 swaps the 3.3 V regulator from XC6220 LDO to TPS631013 buck-boost, swaps the fuel gauge from LC709204F to MAX17260, adds a 20 mΩ current-sense resistor, and adds I2C power-domain isolation around the STEMMA-QT rail.
+- **COTS purchases made.** Ben bought the R&D candidates discussed in the COTS survey except USB power meters, which are already on hand. Elecrow PowerFeather boards were ordered despite possible ambiguity about whether the listing is V2 or V1. Ben also contacted the PowerFeather creator about V2 availability and KiCad files.
+- **LED module plan narrowed.** The Adafruit IS31FL3741 13x9 RGB matrix is the leading plug-and-play STEMMA-QT LED module for PowerFeather. M5Stack NeoHEX is promising optically but is WS2812/Grove, not STEMMA-QT/I2C, and likely needs a GPIO data line plus a 5 V or otherwise suitable LED rail. M5Stack Atom Matrix is a compelling all-in-one fallback with ESP32 + 5x5 LEDs + USB-C.
+- **Battery sourcing narrowed.** Prefer one larger LiFePO4 cell per fixture, ideally 18650 1500–2000 mAh, instead of multiple 14430 cells in parallel. 14430 cells are easy to find and cheap, but packs of many small cells add contacts, matching, wiring, assembly, and QA risk.
+- **Solar-panel plan clarified.** Square/rectangular 1–5 W panels are fine for R&D. Round panels remain aesthetically attractive for production but are harder to source quickly and should not block testing.
+
+### Current COTS prototype tracks
+
+1. **PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 13x9 matrix.** Primary design-aligned candidate.
+2. **PowerFeather V2 + LiFePO4 + solar panel + M5Stack NeoHEX.** Alternative LED geometry test; not STEMMA-QT plug-and-play.
+3. **FeatherS2 Neo + DFRobot DFR0559.** LiPo fallback: DFR0559 owns battery/solar, FeatherS2 Neo battery JST stays empty, Feather is powered over USB.
+4. **M5Stack Atom Matrix + DFRobot DFR0559.** Ultra-simple LiPo fallback: small ESP32 + 5x5 LEDs powered by USB from the solar manager.
+
+### Immediate tests once parts arrive
+
+- Confirm whether Elecrow PowerFeather boards are V2 or V1 by chip markings and I2C scan.
+- Verify LiFePO4 configuration and charging behavior on actual V2 hardware before trusting it.
+- Measure sleep current with VSQT off and LED modules attached.
+- Measure solar harvest and charge behavior for each 1–5 W panel under sun, shade, and heat.
+- Compare IS31FL3741, NeoHEX, FeatherS2 Neo, and Atom Matrix for gobo projection, brightness, color fringing, PWM artifacts, current draw, and mechanical fit.
+- RF-test each candidate inside a mock hat with panel, battery, screws, and wiring in realistic locations.
+- Validate fail-safe behavior: LEDs stuck on, MCU hang, watchdog reset, low-battery cutoff, and recovery from depleted battery when solar input returns.
+
+### Follow-up docs added
+
+- `docs/research/COTS_SURVEY_2026-05-10.md`
+- `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md`
+- `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md`
+- ADR 0015 — PowerFeather V2 as leading COTS/reference architecture
+- ADR 0016 — Purchased COTS prototype shortlist
+- ADR 0017 — Battery cell format and sourcing
+- ADR 0018 — LED module/interface plan
+
 ## 2026-05-06 — Ben + Claude (Cowork) — Pre-share cleanup pass
 
 Final cleanup before pushing the repo to GitHub and sharing with Steve and the wider team:

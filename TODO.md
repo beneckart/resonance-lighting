@@ -4,14 +4,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [ ] Add `LOG_APPEND_2026-05-10.md` entry to `LOG.md` (Ben).
-- [ ] Add ADR 0015 — PowerFeather V2 as leading COTS/reference architecture (Ben).
-- [ ] Add ADR 0016 — COTS prototype shortlist after purchases (Ben).
-- [ ] Add ADR 0017 — Battery cell format and sourcing (Ben).
+- [x] Add `LOG_APPEND_2026-05-10.md` entry to `LOG.md` — **DONE 2026-06-08**: merged 05-10 + 05-11 entries into `LOG.md`; staging files (`LOG_APPEND_*`, `DROP_IN_INSTRUCTIONS.md`) removed (Ben/Claude).
+- [x] Add ADR 0015 — PowerFeather V2 as COTS/reference architecture — **DONE** (`docs/decisions/0015-powerfeather-v2-cots-reference.md`) (Ben).
+- [x] Add ADR 0016 — COTS prototype shortlist — **DONE** (`docs/decisions/0016-...`) (Ben).
+- [x] Add ADR 0017 — Battery cell format and sourcing — **DONE** (`docs/decisions/0017-...`) (Ben).
 - [x] Add/rewrite ADR 0018 — LED module/interface plan. **DONE 2026-06-04** — rewritten: IS31 ruled out, module left undecided (HEX-direct + 4 W RGBW both live, complementary roles), original decision preserved as superseded. **Partially settled by 2026-06-04 bench work:** IS31 13×9 OUT (shared-bus brownout) is firm. **LED module NOT yet decided** — two live, *complementary* candidates: SK6812 "HEX" direct-GPIO @ 3.3 V off the I2C bus (distributed/area source → washes gobo, good for general glow; no boost; *apparently* more efficient than WS2812C NeoHEX but the ~1.6× figure is muddied by varying-SOC testbeds) **vs** 4 W RGBW (single point source → crisp gobo shadows). The point-source-vs-area distinction maps onto the two lighting modes (crisp mandala vs wash), so the "winner" may be application-dependent, not one part. RGBW low-voltage behavior needs better characterization (undervolting looks viable — 5 V not strictly required — but its 3.3 V limits are not yet mapped). Gobo testing still pending. See LOG 2026-06-04 entries + `ops/bench/data/ca/led-par-vs-draw.png` (Ben).
-- [ ] Add `docs/research/COTS_SURVEY_2026-05-10.md` (Ben).
-- [ ] Add `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md` (Ben).
-- [ ] Add `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md` (Ben).
+- [x] Add `docs/research/COTS_SURVEY_2026-05-10.md` — **DONE** (exists) (Ben).
+- [x] Add `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md` — **DONE** (exists) (Ben).
+- [x] Add `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md` — **DONE** (exists) (Ben).
 
 ## COTS purchasing / arrival
 
