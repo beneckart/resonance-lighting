@@ -1571,12 +1571,45 @@ void loadgenLoop() {
 #endif // RES_LOADGEN
 
 #ifndef RES_BATT_FLOOR_V
-#define RES_BATT_FLOOR_V 2.90f // LFP protect floor (V): below this on battery -> cut LED + WiFi
+#define RES_BATT_FLOOR_V 2.90f // LFP protect floor (V): below this on battery -> protect sleep
 #endif
-// Unattended battery-floor guard for AFK runs: if on battery (no external supply) and
-// the cell sags below RES_BATT_FLOOR_V for a sustained window, latch a protect state --
-// cut the switchable 3V3 LED rail (GPIO4) and drop WiFi to a low idle. NON-bricking (no
-// deep sleep; recoverable by reset/USB). On external supply it never trips.
+#ifndef RES_PROTECT_WAKE_S
+#define RES_PROTECT_WAKE_S 900UL // timer-wake interval while battery-protected (re-checks supply)
+#endif
+
+#if RES_HAS_PF_TELEMETRY
+// Recoverable battery-protect deep sleep: shed BOTH 3V3 rails, then timer-wake so the board
+// always re-checks supply and never strands the cell (POWERFEATHER_NOTES rules: never sleep on
+// supply; timer-wake; re-sleep if still low). Plug USB -> next wake (<=RES_PROTECT_WAKE_S) runs
+// + charges; reset -> instant. Only ever called when ON BATTERY (callers verify).
+void enterProtectSleep(const char *why) {
+  protectLatched = true;
+  clearLeds();
+  Serial.printf("BATTERY PROTECT (%s) -> shed rails, deep sleep, timer wake %lus (USB/reset to recover)\n",
+                why, (unsigned long)RES_PROTECT_WAKE_S);
+  Serial.flush();
+  Board.enable3V3(false);
+  Board.enableVSQT(false);
+  esp_sleep_enable_timer_wakeup((uint64_t)RES_PROTECT_WAKE_S * 1000000ULL);
+  esp_deep_sleep_start();
+}
+
+// Run once in setup() right after the SDK is up: if we woke from a protect sleep and are still
+// on battery (no USB) and still low, re-sleep immediately -- don't spin WiFi and drain the cell.
+// On supply, fall through to a normal run (charging recovers the cell).
+void protectResleepIfNeeded() {
+  if (!pfReady || esp_reset_reason() != ESP_RST_DEEPSLEEP) return;
+  float sv = 0.0f, bv = 0.0f;
+  Board.getSupplyVoltage(sv);
+  Board.getBatteryVoltage(bv);
+  if (sv > 4.0f) return; // USB/VDC -> recovered; run + charge
+  if (bv > 0.5f && bv < (float)RES_BATT_FLOOR_V + 0.10f) enterProtectSleep("timer-wake-still-low");
+}
+#endif
+
+// Unattended battery-floor guard for AFK runs: on battery (no external supply), if the cell
+// sags below RES_BATT_FLOOR_V for a sustained window, enter a recoverable protect deep sleep
+// (see enterProtectSleep). On external supply it never trips.
 void batteryGuard() {
 #if RES_HAS_PF_TELEMETRY
   if (!pfReady || protectLatched) return;
@@ -1590,16 +1623,8 @@ void batteryGuard() {
   if (sv > 4.0f || bv < 0.5f) { lowSince = 0; return; } // USB/VDC present, or garbage read
   if (bv < RES_BATT_FLOOR_V) {
     if (!lowSince) lowSince = now;
-    if (now - lowSince > 8000) { // sustained under floor
-      protectLatched = true;
-      clearLeds();
-      Board.enable3V3(false); // LEDs sit on the switchable 3V3 rail -> free kill-switch
-      Serial.printf("BATTERY PROTECT: bv=%.3f < %.2f V -> LED rail cut, WiFi off (reset/USB to recover)\n",
-                    bv, (float)RES_BATT_FLOOR_V);
-      Serial.flush();
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
-      otaActive = false;
+    if (now - lowSince > 12000) { // sustained under floor (12 s avoids load-transient sag trips)
+      enterProtectSleep("battery-floor");
     }
   } else {
     lowSince = 0;
@@ -1620,6 +1645,7 @@ void setup() {
 #if RES_HAS_PF_TELEMETRY
   // Board.init sets EN high, 3V3 + VSQT enabled. Run before LED/I2C bring-up.
   setupPowerFeather();
+  protectResleepIfNeeded(); // woke from battery-protect & still low -> re-sleep, don't drain
 #endif
 
   Wire.begin();
