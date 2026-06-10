@@ -153,17 +153,15 @@ Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED r
 >   sits past the IV knee and harvests roughly *half* of the available power. Real harvest
 >   needs software MPPT (prototyped via `SET_MAINTAIN`) or a temp-compensated setpoint; the
 >   table assumes a near-MPP operation it isn't getting by default.
-> - **The "2000 mAh" 18650 LFP capacity is unverified — but there is no basis to call it
->   under-rated.** It has *demonstrably* delivered ≥617 mAh (06-03 drain) and was never run to
->   empty; a 06-09 INA-coulomb sweep then pulled 183 mAh while the **resting voltage stayed flat
->   at ~3.19 V — never reaching the knee** — even as the gauge SOC fell 33→9 %. So the gauge's
->   SOC is unreliable on LFP's flat plateau and a mid-plateau slice yields *zero* capacity info;
->   true capacity is genuinely unknown (could be at/near the 2000 rating). The autonomy table
->   below (1500 mAh) is a placeholder, not a measurement. Confirm with a clean full→empty coulomb
->   run on a learned gauge / external meter. (Earlier "~1000 mAh / overrated 2×" wording was
->   wrong — retracted; a 06-09 slice that implied "~760 mAh" was likewise an overreach.)
+> - **The "2000 mAh" 18650 LFP capacity is VERIFIED at ~2077 mAh** (2026-06-10 full charge→empty
+>   INA-coulomb run, SOC 98→0 %, n=1) — **at/above its rating.** Earlier slices read low only
+>   because they never reached the knee (the 06-03 ≥617 mAh and 06-09 183 mAh runs both stopped
+>   mid-plateau; the gauge's own SOC is unreliable on LFP's flat curve until it learns a cycle, so
+>   coulomb-count). The autonomy table below (1500 mAh) is conservative; production targets a
+>   larger LFP 32700 (~6000 mAh) anyway. (Retracted: the earlier "~1000 mAh / 2× overrated" and
+>   the 06-09 "~760 mAh" slice — both wrong.)
 > - So the **"1 W panel, 8× margin" verdict is not yet supported** — drain is LED-show-bound,
->   harvest is MPP-limited, and the cell capacity is unverified. Closing this energy balance is the gating
+>   and harvest is MPP-limited (the cell-capacity doubt is resolved: ~2077 mAh, at-spec). Closing this energy balance is the gating
 >   de-risk before sizing the panel + cell (see TODO "sizing campaign").
 
 **Solar harvest estimate:**

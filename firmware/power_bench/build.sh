@@ -22,11 +22,12 @@ set -euo pipefail
 FQBN="esp32:esp32:esp32s3_powerfeather"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""; WIFI_LP=""; BATT_STRESS=""; BATT_STRESS_FULL=""; LOADGEN=""; LOADGEN_LED=""; LOADGEN_TXHEAVY=""; LOADGEN_SHED=""; LOADGEN_AUTOSLEEP=""; PIXEL_PIN=""; BUDGET_MAH=""; WAKE_S=""; BRIGHTNESS=""; BRIGHT_SWEEP=""; SWEEP_MAX=""; RGBW_WHITE=""; STEP_MS=""
+LED=""; CAP=""; CHEM=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""; WIFI_LP=""; BATT_STRESS=""; BATT_STRESS_FULL=""; LOADGEN=""; LOADGEN_LED=""; LOADGEN_TXHEAVY=""; LOADGEN_SHED=""; LOADGEN_AUTOSLEEP=""; PIXEL_PIN=""; BUDGET_MAH=""; WAKE_S=""; BRIGHTNESS=""; BRIGHT_SWEEP=""; SWEEP_MAX=""; RGBW_WHITE=""; STEP_MS=""; BATT_FLOOR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --led) LED="$2"; shift 2;;
     --pixel-pin) PIXEL_PIN="$2"; shift 2;;
+    --batt-floor) BATT_FLOOR="$2"; shift 2;;
     --cap) CAP="$2"; shift 2;;
     --chem) CHEM="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
@@ -87,6 +88,9 @@ esac
 [[ -n "${LOADGEN_SHED}" ]] && FLAGS+=" -DRES_LOADGEN_SHED=1"
 [[ -n "${LOADGEN_AUTOSLEEP}" ]] && FLAGS+=" -DRES_LOADGEN_AUTOSLEEP=1"
 [[ -n "${PIXEL_PIN}" ]] && FLAGS+=" -DRES_PIXEL_PIN=${PIXEL_PIN}"
+# Battery-protect floor (V). Lower it for an aggressive bench drawdown (e.g. --batt-floor 2.3);
+# firmware default 2.90. No 'f' suffix (firmware casts with (float)).
+[[ -n "${BATT_FLOOR}" ]] && FLAGS+=" -DRES_BATT_FLOOR_V=${BATT_FLOOR}"
 [[ -n "${BUDGET_MAH}" ]] && FLAGS+=" -DRES_LOADGEN_BUDGET_MAH=${BUDGET_MAH}"
 [[ -n "${WAKE_S}" ]] && FLAGS+=" -DLG_SLEEP_WAKE_S=${WAKE_S}"
 [[ -n "${BRIGHTNESS}" ]] && FLAGS+=" -DRES_LED_BRIGHTNESS=${BRIGHTNESS}"

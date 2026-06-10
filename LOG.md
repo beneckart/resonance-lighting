@@ -12,6 +12,43 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-10 — Ben + Claude — Full discharge: bench LFP is AT/ABOVE its 2000 mAh rating (capacity vindicated); gauge learn cycle + brownout failure mode
+
+**Capacity, finally measured (gauge-independent).** A full charge→empty discharge on battery
+(`afk_discharge.py`, full-RGBW ~467 mA load, INA 0x45 coulomb integration) delivered **~2077 mAh
+to a 2.5 V cutoff over 280 min, SOC 98→0 %** → ≈ **2119 mAh** at 100 %. The bench "2000 mAh" 18650
+LFP is **at/above its rating** — every earlier under-capacity claim (the 06-09 "~760 mAh" slice,
+the older "~1000 mAh / 2× overrated") is **dead.** Ben's skepticism + the reputable-dealer prior
+were right; the low numbers were entirely the un-learned, plateau-fooled gauge + my slice
+extrapolation. (Production targets a different cell — LFP 32700 ~6000 mAh — so this is methodology
+validation, not a product sizing number.)
+(Data note: one spurious INA-0x45 sample — a −21 A I2C/serial glitch at 138 min — had inflated the
+logged integral to 2144 mAh; `afk_analyze` now ablates it + re-integrates → 2077 mAh. LED & gauge
+were normal at that instant, so it was a lone read glitch, not a real transient.)
+
+- **Usable under full LED load: ~1971 mAh** before the first brownout (first reset, bv 2.97; LED
+  held full to ~2045 mAh, bv 2.80). The brownout cascade is confined to the last ~100 mAh.
+- **Gauge vs INA (this run IS the learn cycle):** current bias **+8.3 %** high (median, |INA|>50 mA);
+  coulomb **+7.9 %** (gauge 2241 vs clean INA 2077 mAh) — now consistent with the instantaneous
+  bias (the glitch had masked it at +4.5 %). Gauge SOC hit 0 % at ~1977 mAh with ~100 mAh (~5 %)
+  still left — mildly pessimistic at the tail but respectable for an un-learned LFP gauge.
+  **DesignCap 2000 is ~correct** (measured ~2119) — the SOC flakiness was UN-LEARNED gauge, NOT a
+  wrong DesignCap (retracting the 06-09 "set DesignCap ~760"). This discharge + the recharge = a
+  full learn cycle; re-check SOC accuracy on the NEXT cycle.
+- **Gauge SOC shape (Ben's read):** SOC held at **1 % across the whole voltage knee** (where
+  dV/dQ steepens), and the **1 %→0 % step coincided almost exactly with the brownout onset** — a
+  usable "really empty now" signal even though the flat plateau hides SOC elsewhere.
+- **Failure mode (intended, aggressive):** 44 brownout-reboots in the deep knee — under the
+  ~467 mA full-RGBW load, once the cell sagged below ~2.97 V the board couldn't hold ESP+LED+WiFi
+  → reboot cascade (draw fell to ~145 mA). **LEDs went unstable ~2.7 V but the board kept running
+  to ~2.5 V.** Bounded by the `--batt-floor 2.3` build + the script's 2.5 V cutoff; recovered fine
+  on USB (charger precharge/trickle at 2.56 V). **Production lesson: set the low-battery cutoff
+  well ABOVE the heavy-load brownout point.**
+
+Tooling: `afk_discharge.py` (fixed-load coulomb run, reset-tolerant, waits-for-unplug),
+`build.sh --batt-floor`, `afk_analyze.py` (constant-load runs + robust median gauge bias + glitch
+ablation/re-integration). Plot: `ops/bench/data/ca/2026-06-10-discharge-1357-gauge.png`.
+
 ## 2026-06-09 (cont.) — Ben + Claude — SEN0291 wattmeter read 10× low (0.1 vs 0.01 Ω shunt); fixed, cross-checked, AFK gauge-cal sweep launched
 
 **The "400 mA (power_bench) vs 36 mA (wattmeter)" mystery was a units bug, not a measurement

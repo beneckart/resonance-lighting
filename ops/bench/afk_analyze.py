@@ -27,6 +27,25 @@ base = src.replace(".jsonl", "")
 fnum = lambda x: isinstance(x, (int, float))
 
 print(f"=== afk_analyze: {os.path.basename(src)} ({len(rows)} points) ===")
+
+# Repair glitches: reject physically-impossible INA 0x45 samples (I2C/serial spikes -- e.g. a
+# lone -21 A read) and RE-INTEGRATE mah_ina from the repaired current. The logged mah_ina_integ
+# baked any glitch into the running total, so recompute it here (hold the previous good current
+# across a glitch; trapezoidal on elapsed_s). Fixes both the scatter x-axis and the capacity.
+MAXMA = 1500.0
+ndrop = 0; cum = 0.0
+for i, r in enumerate(rows):
+    ma = r.get("batt_ina_ma")
+    if fnum(ma) and abs(ma) > MAXMA:
+        r["batt_ina_ma"] = rows[i - 1]["batt_ina_ma"] if i else 0.0
+        r["glitch"] = True; ndrop += 1
+    if i and fnum(r.get("batt_ina_ma")) and fnum(rows[i - 1].get("batt_ina_ma")) \
+       and fnum(r.get("elapsed_s")) and fnum(rows[i - 1].get("elapsed_s")):
+        cum += 0.5 * (abs(r["batt_ina_ma"]) + abs(rows[i - 1]["batt_ina_ma"])) * \
+               (r["elapsed_s"] - rows[i - 1]["elapsed_s"]) / 3600.0
+    r["mah_ina_integ"] = round(cum, 2)
+if ndrop:
+    print(f"[ablated {ndrop} INA glitch sample(s) (|>{MAXMA:.0f}| mA); re-integrated -> clean mah_ina = {cum:.0f} mAh]")
 soc0 = next((r["gauge_soc"] for r in rows if fnum(r.get("gauge_soc"))), None)
 socN = next((r["gauge_soc"] for r in reversed(rows) if fnum(r.get("gauge_soc"))), None)
 elapsed = rows[-1].get("elapsed_s", 0) / 60.0
@@ -37,22 +56,25 @@ print(f"duration {elapsed:.1f} min | SOC {soc0}% -> {socN}% | "
 COL = {"RGB": "#d62728", "W": "#1f77b4", "RGBW": "#9467bd"}
 agg = {}
 for r in rows:
-    if not fnum(r.get("led_ma")):
-        continue
+    if not fnum(r.get("led_ma")) or "pattern" not in r or "level" not in r:
+        continue  # discharge/constant-load rows have no sweep dims
     agg.setdefault((r["gamma"], r["pattern"]), {}).setdefault(r["level"], []).append(r["led_ma"])
-fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-for ax, g in zip(axes, (0, 1)):
-    for pat in ("RGB", "W", "RGBW"):
-        pts = sorted((lvl, statistics.mean(v)) for lvl, v in agg.get((g, pat), {}).items())
-        if pts:
-            x, y = zip(*pts)
-            ax.plot(x, y, "-o", ms=4, color=COL[pat], label=pat)
-    ax.set_title(f"gamma {'ON' if g else 'OFF'}", fontweight="bold")
-    ax.set_xlabel("channel level (0-255)"); ax.grid(True, alpha=0.3); ax.legend(title="pattern")
-axes[0].set_ylabel("LED current (mA)  [shunt-corrected 0.01 Ω]")
-fig.suptitle("4 W SK6812 RGBW — LED current vs level (avg over cycles)", fontsize=14, fontweight="bold")
-fig.tight_layout(rect=[0, 0.02, 1, 0.96]); fig.savefig(base + "-power.png", dpi=130)
-print("wrote", base + "-power.png")
+if agg:
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
+    for ax, g in zip(axes, (0, 1)):
+        for pat in ("RGB", "W", "RGBW"):
+            pts = sorted((lvl, statistics.mean(v)) for lvl, v in agg.get((g, pat), {}).items())
+            if pts:
+                x, y = zip(*pts)
+                ax.plot(x, y, "-o", ms=4, color=COL[pat], label=pat)
+        ax.set_title(f"gamma {'ON' if g else 'OFF'}", fontweight="bold")
+        ax.set_xlabel("channel level (0-255)"); ax.grid(True, alpha=0.3); ax.legend(title="pattern")
+    axes[0].set_ylabel("LED current (mA)  [shunt-corrected 0.01 Ω]")
+    fig.suptitle("4 W SK6812 RGBW — LED current vs level (avg over cycles)", fontsize=14, fontweight="bold")
+    fig.tight_layout(rect=[0, 0.02, 1, 0.96]); fig.savefig(base + "-power.png", dpi=130)
+    print("wrote", base + "-power.png")
+else:
+    print("(constant-load / discharge run — no sweep dims; skipping power-curve plot)")
 
 # ---- 2) gauge cross-check ----
 pairs = [(r["batt_ina_ma"], r["gauge_battery_ma"]) for r in rows
@@ -66,17 +88,14 @@ if len(pairs) >= 3:
     ax[0].scatter(xi, yg, s=10, alpha=0.5)
     lim = max(max(xi), max(yg)) * 1.05
     ax[0].plot([0, lim], [0, lim], "k--", lw=1, label="1:1")
-    try:
-        slope, intr = statistics.linear_regression(xi, yg)
-        xs = [0, lim]; ax[0].plot(xs, [slope * x + intr for x in xs], "r-", lw=1.5,
-                                  label=f"gauge={slope:.3f}·INA{intr:+.0f}")
-        ratio = statistics.mean(g / i for i, g in zip(xi, yg))
-        print(f"\nGAUGE current bias: gauge/INA slope={slope:.3f}, intercept={intr:+.1f} mA, "
-              f"mean ratio={ratio:.3f}")
-        print(f"  -> gauge reads ~{(ratio-1)*100:+.1f}% vs INA; to correct gauge current, "
-              f"multiply by {1/slope:.3f} (or /{slope:.3f})")
-    except Exception as e:
-        print("  (fit failed:", e, ")")
+    # robust median ratio (a linear fit is fooled by multi-regime discharge data + the
+    # brownout tail; skip tiny currents where the ratio is just division noise)
+    ratios = [g / i for i, g in zip(xi, yg) if i > 50]
+    if ratios:
+        rmed = statistics.median(ratios)
+        ax[0].plot([0, lim], [0, rmed * lim], "r-", lw=1.5, label=f"median {rmed:.3f}×")
+        print(f"\nGAUGE current bias (median, n={len(ratios)}, |INA|>50 mA): gauge/INA = {rmed:.3f}"
+              f"  -> gauge reads ~{(rmed-1)*100:+.1f}% high; correct gauge current by /{rmed:.3f}")
     ax[0].set_xlabel("|INA 0x45| mA (truth)"); ax[0].set_ylabel("|gauge battery_ma|")
     ax[0].set_title("instantaneous current"); ax[0].legend(fontsize=8); ax[0].grid(alpha=0.3)
 
@@ -92,6 +111,9 @@ soc_pts = [(r["mah_ina_integ"], r["gauge_soc"]) for r in rows
            if fnum(r.get("mah_ina_integ")) and fnum(r.get("gauge_soc"))]
 rest = [(r["mah_ina_integ"], r["gauge_battery_v"]) for r in rows
         if r.get("level") == 0 and fnum(r.get("gauge_battery_v")) and fnum(r.get("mah_ina_integ"))]
+if not rest:  # discharge/constant-load run: use the full under-load V-vs-mAh discharge curve
+    rest = [(r["mah_ina_integ"], r["gauge_battery_v"]) for r in rows
+            if fnum(r.get("mah_ina_integ")) and fnum(r.get("gauge_battery_v"))]
 if soc_pts:
     xm, ys = zip(*soc_pts); ax[2].plot(xm, ys, ".", ms=4, label="gauge SOC")
     drop = (soc_pts[0][1] - soc_pts[-1][1])
