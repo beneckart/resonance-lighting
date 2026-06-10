@@ -25,8 +25,16 @@ toggle** to match.
 
 ## Wiring / flash
 
-- LED data → `DATA_PIN` (default **GPIO10 / A0**); power 3V3 (or 5 V for the RGBW's
-  full brightness); GND. The sketch enables the V2 switchable 3V3 rail (GPIO4).
+- LED data → `DATA_PIN` (default **GPIO10 / A0**); power 3V3 (the RGBW runs fine undervolted
+  at 3.3 V — 5 V gives more Vf headroom / peak brightness but is *not* required); GND. The
+  sketch enables the V2 switchable 3V3 rail (GPIO4).
+
+> Note: the earlier "abnormally low" RGBW current at 3.3 V was a **measurement bug**, not a
+> wiring problem — `ina_monitor` divided by a 0.1 Ω shunt when the SEN0291 is 0.01 Ω, so it
+> under-read 10× (fixed 2026-06-09; corrected full-RGBW draw ≈ 290 mA). There is modest *real*
+> rail sag under load (LED bus → ~2.84 V at full RGBW), but **no evidence that lead / in-line
+> resistance was ever the culprit** — flaky DuPont jumpers can misbehave, but these tests don't
+> demonstrate it.
 
 ```
 ./build.sh --port /dev/ttyACM1            # USB flash

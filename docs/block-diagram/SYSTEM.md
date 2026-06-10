@@ -153,14 +153,17 @@ Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED r
 >   sits past the IV knee and harvests roughly *half* of the available power. Real harvest
 >   needs software MPPT (prototyped via `SET_MAINTAIN`) or a temp-compensated setpoint; the
 >   table assumes a near-MPP operation it isn't getting by default.
-> - **The "2000 mAh" 18650 LFP capacity is unconfirmed** and may be lower. A 06-03 drain
->   delivered ≥617 mAh but stopped *mid-plateau* (not empty), and LFP's flat curve + an
->   un-learned gauge make SOC-derived capacity unreliable (the gauge can't be trusted until
->   several learn cycles or an external ammeter). So the autonomy table below (1500 mAh) is
->   *optimistic-to-unknown*. Confirm with a clean full→empty coulomb run on a learned gauge /
->   external meter. (Earlier "~1000 mAh / overrated 2×" wording was too strong — walked back.)
+> - **The "2000 mAh" 18650 LFP capacity is unverified — but there is no basis to call it
+>   under-rated.** It has *demonstrably* delivered ≥617 mAh (06-03 drain) and was never run to
+>   empty; a 06-09 INA-coulomb sweep then pulled 183 mAh while the **resting voltage stayed flat
+>   at ~3.19 V — never reaching the knee** — even as the gauge SOC fell 33→9 %. So the gauge's
+>   SOC is unreliable on LFP's flat plateau and a mid-plateau slice yields *zero* capacity info;
+>   true capacity is genuinely unknown (could be at/near the 2000 rating). The autonomy table
+>   below (1500 mAh) is a placeholder, not a measurement. Confirm with a clean full→empty coulomb
+>   run on a learned gauge / external meter. (Earlier "~1000 mAh / overrated 2×" wording was
+>   wrong — retracted; a 06-09 slice that implied "~760 mAh" was likewise an overreach.)
 > - So the **"1 W panel, 8× margin" verdict is not yet supported** — drain is LED-show-bound,
->   harvest is MPP-limited, and the cell is smaller. Closing this energy balance is the gating
+>   harvest is MPP-limited, and the cell capacity is unverified. Closing this energy balance is the gating
 >   de-risk before sizing the panel + cell (see TODO "sizing campaign").
 
 **Solar harvest estimate:**
