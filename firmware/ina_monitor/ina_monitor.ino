@@ -19,14 +19,22 @@
 
 static const uint8_t INA_ADDR[4] = {0x40, 0x41, 0x44, 0x45};
 
-// SEN0291 shunt resistance (ohms). 0.1 is the INA219 reference value -- VERIFY by
-// calibration and correct here; raw shunt_mv is logged too, so current is recoverable
-// regardless.
+// SEN0291 shunt resistance (ohms). The DFRobot SEN0291 uses a 10 mOhm (0.01) alloy
+// shunt -- NOT the INA219 reference 0.1. Confirmed by datasheet ("10 mOhm" + "1 mA
+// resolution" = INA219's 10 uV LSB / 0.01) and a live cross-check vs PowerFeather
+// fuel-gauge telemetry (2026-06-09): the old 0.1 under-reported current ~10x. Raw
+// shunt_mv is still logged, so old data is recoverable by x10.
 #ifndef INA_RSHUNT_OHMS
-#define INA_RSHUNT_OHMS 0.1f
+#define INA_RSHUNT_OHMS 0.01f
 #endif
 #ifndef INA_HZ
 #define INA_HZ 10 // samples/s per channel
+#endif
+// INA219 config (reg 0x00): BRNG=32V, PG=/1 (+-40mV; @ 0.01ohm = +-4A range, 1mA/LSB),
+// BADC+SADC = 128-sample averaging, continuous. Low-noise for steady-state mA-class work
+// (~7 Hz fresh data). For fast transients (e.g. sleep-wake spikes) drop the averaging.
+#ifndef INA_CONFIG
+#define INA_CONFIG 0x27FF
 #endif
 
 #define REG_CONFIG 0x00
@@ -44,6 +52,14 @@ static bool readReg(uint8_t addr, uint8_t reg, uint16_t &val) {
   return true;
 }
 
+static bool writeReg(uint8_t addr, uint8_t reg, uint16_t val) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  Wire.write(val >> 8);
+  Wire.write(val & 0xFF);
+  return Wire.endTransmission() == 0;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1500);
@@ -51,14 +67,14 @@ void setup() {
   Wire.setClock(400000);
   Serial.println();
   Serial.println("=== ina_monitor: 4-ch INA219 reader ===");
-  Serial.printf("R_shunt=%.4f ohm (VERIFY by calibration), rate=%d Hz\n",
-                INA_RSHUNT_OHMS, INA_HZ);
+  Serial.printf("R_shunt=%.4f ohm (VERIFY by calibration), rate=%d Hz, config=0x%04X (PG/1, 128-avg)\n",
+                INA_RSHUNT_OHMS, INA_HZ, INA_CONFIG);
   int n = 0;
   for (int i = 0; i < 4; i++) {
     uint16_t v;
     present[i] = readReg(INA_ADDR[i], REG_CONFIG, v);
-    Serial.printf("  0x%02X %s\n", INA_ADDR[i], present[i] ? "present" : "MISSING");
-    if (present[i]) n++;
+    if (present[i]) { writeReg(INA_ADDR[i], REG_CONFIG, INA_CONFIG); n++; }
+    Serial.printf("  0x%02X %s\n", INA_ADDR[i], present[i] ? "present (cfg set)" : "MISSING");
   }
   Serial.printf("%d/4 meters present. Streaming 'ina' lines @ %d Hz.\n", n, INA_HZ);
 }

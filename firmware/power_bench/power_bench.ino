@@ -280,6 +280,7 @@ uint32_t lastHeartbeatMs = 0;
 String shortId;
 String otaMode = "off";
 char activeMeasurementMode = '0';
+bool protectLatched = false; // battery-floor guard tripped (LED rail + WiFi cut for AFK safety)
 
 #if RES_HAS_PF_TELEMETRY
 bool pfReady = false;
@@ -978,6 +979,37 @@ void configureOtaRoutes() {
     applyMeasurementMode(mode);
   });
 
+  // Arbitrary single-pixel drive for power sweeps: /set?r=&g=&b=&w=&bri=&gamma=
+  // (gamma=1 applies Adafruit's gamma8 per channel). Lets a host sweep RGB/RGBW/W x
+  // gamma x brightness while reading the fuel gauge here and the INA externally.
+  server.on("/set", HTTP_GET, []() {
+#if RES_HAS_NEOPIXEL
+    if (protectLatched) { server.send(200, "text/plain", "protect (battery floor)\n"); return; }
+    auto argI = [](const char *k, int d) { return server.hasArg(k) ? server.arg(k).toInt() : d; };
+    int r = constrain(argI("r", 0), 0, 255), g = constrain(argI("g", 0), 0, 255),
+        b = constrain(argI("b", 0), 0, 255), w = constrain(argI("w", 0), 0, 255),
+        bri = constrain(argI("bri", 255), 0, 255);
+    bool gamma = argI("gamma", 0) != 0;
+    if (gamma) {
+      r = Adafruit_NeoPixel::gamma8(r); g = Adafruit_NeoPixel::gamma8(g);
+      b = Adafruit_NeoPixel::gamma8(b); w = Adafruit_NeoPixel::gamma8(w);
+    }
+    pixels.setBrightness(bri);
+#ifdef RES_PIXEL_TYPE_RGBW
+    pixels.setPixelColor(0, pixels.Color(r, g, b, w));
+#else
+    pixels.setPixelColor(0, pixels.Color(r, g, b));
+#endif
+    pixels.show();
+    activeMeasurementMode = 'S';
+    char resp[96];
+    snprintf(resp, sizeof(resp), "set r=%d g=%d b=%d w=%d bri=%d gamma=%d\n", r, g, b, w, bri, (int)gamma);
+    server.send(200, "text/plain", resp);
+#else
+    server.send(400, "text/plain", "no neopixel in this build\n");
+#endif
+  });
+
   server.on(
       "/update", HTTP_POST,
       []() {
@@ -1538,6 +1570,43 @@ void loadgenLoop() {
 }
 #endif // RES_LOADGEN
 
+#ifndef RES_BATT_FLOOR_V
+#define RES_BATT_FLOOR_V 2.90f // LFP protect floor (V): below this on battery -> cut LED + WiFi
+#endif
+// Unattended battery-floor guard for AFK runs: if on battery (no external supply) and
+// the cell sags below RES_BATT_FLOOR_V for a sustained window, latch a protect state --
+// cut the switchable 3V3 LED rail (GPIO4) and drop WiFi to a low idle. NON-bricking (no
+// deep sleep; recoverable by reset/USB). On external supply it never trips.
+void batteryGuard() {
+#if RES_HAS_PF_TELEMETRY
+  if (!pfReady || protectLatched) return;
+  static uint32_t lastChk = 0, lowSince = 0;
+  uint32_t now = millis();
+  if (now - lastChk < 2000) return; // getters block ~100 ms; poll cheaply
+  lastChk = now;
+  float bv = 0.0f, sv = 0.0f;
+  if (Board.getBatteryVoltage(bv) != Result::Ok) return;
+  Board.getSupplyVoltage(sv);
+  if (sv > 4.0f || bv < 0.5f) { lowSince = 0; return; } // USB/VDC present, or garbage read
+  if (bv < RES_BATT_FLOOR_V) {
+    if (!lowSince) lowSince = now;
+    if (now - lowSince > 8000) { // sustained under floor
+      protectLatched = true;
+      clearLeds();
+      Board.enable3V3(false); // LEDs sit on the switchable 3V3 rail -> free kill-switch
+      Serial.printf("BATTERY PROTECT: bv=%.3f < %.2f V -> LED rail cut, WiFi off (reset/USB to recover)\n",
+                    bv, (float)RES_BATT_FLOOR_V);
+      Serial.flush();
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      otaActive = false;
+    }
+  } else {
+    lowSince = 0;
+  }
+#endif
+}
+
 void setup() {
   setupBoardPower();
   Serial.begin(115200);
@@ -1603,6 +1672,8 @@ void loop() {
   if (otaActive) {
     server.handleClient();
   }
+
+  batteryGuard();
 
   uint32_t now = millis();
   if (now - lastHeartbeatMs > 10000) {

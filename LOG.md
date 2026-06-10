@@ -12,6 +12,67 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-09 (cont.) — Ben + Claude — SEN0291 wattmeter read 10× low (0.1 vs 0.01 Ω shunt); fixed, cross-checked, AFK gauge-cal sweep launched
+
+**The "400 mA (power_bench) vs 36 mA (wattmeter)" mystery was a units bug, not a measurement
+conflict.** Same current, 10× apart: `ina_monitor` computed `ma = shunt_mv / INA_RSHUNT_OHMS`
+with `INA_RSHUNT_OHMS = 0.1` (the INA219 *reference* shunt), but the **DFRobot SEN0291 hardware
+shunt is 10 mΩ (0.01)**. Every current it ever printed was **10× low**. The gauge was right.
+
+**Evidence (convergent):**
+- Datasheet: SEN0291 = "10 mΩ alloy shunt", ±8 A, **1 mA resolution** — and 1 mA = INA219's
+  10 µV LSB ÷ 0.01 Ω. The resolution spec only closes at 0.01 Ω, not 0.1.
+- Live reconcile (`ops/bench/reconcile_ina_pf.py`, W-full): INA reported 6.7 mA → ×10 = 67 mA;
+  PF battery-current delta = 81 mA → ratio **~12×** (datasheet says 10; excess = WiFi-TX bursts
+  in the gauge average + sagging rail + a noisier INA on the sag). Order of magnitude confirmed.
+- Battery cross-check (INA 0x45 = battery line vs gauge): off −121 vs −138 mA; RGBW-full
+  −461 vs −502 mA.
+- `SYSTEM.md` already had RGBW at 400–500 mA; and this day's own puzzling "wake ≈ 11 mA … far
+  under the 168 mA RX" → **×10 = ~110 mA**, resolved.
+
+**Fix:** `ina_monitor.ino` → `INA_RSHUNT_OHMS 0.01` (Metro reflashed). **All prior INA numbers/
+plots ×10** — incl. the "11 mA/0.6 s wake" (→ ~110 mA) and the led-ina-sweep PNGs (regenerated
+×10). Sub-mA sleep floor stands (still below range; relabel only). At 0.01 Ω, PG=/1 = ±4 A range,
+1 mA/LSB (the old "caps ~400 mA" comment was the 0.1 Ω artifact). Raw `shunt_mv` was always
+logged, so historical JSONL is recoverable by ×10 without rewriting it.
+
+**Tooling for the AFK gauge-cal run:**
+- power_bench gained `/set?r&g&b&w&bri&gamma` (arbitrary single-pixel drive, per-channel gamma)
+  + an unattended **battery-floor guard** (on battery, sustained <2.90 V → cut the 3V3 LED rail +
+  WiFi; non-bricking, reset/USB recovers). Reflashed via USB. (Gotcha: the post-flash RTS reset
+  left the 3V3 rail off — needed a physical reset, per POWERFEATHER_NOTES.)
+- `ops/bench/afk_sweep.py`: loops {RGB,W,RGBW}×{gamma 0,1}×levels logging INA 0x41 (LED), INA
+  0x45 (battery) and gauge telemetry per point, with a **coulomb-budget cutoff** (sag-immune; a
+  voltage floor false-trips — the cell sags to 2.99 V at 460 mA even at 33 % SOC). Launched
+  battery-only, 200 mAh budget.
+
+**Run results** (`afk_sweep.py` → `afk_analyze.py`; 814 pts, 54.8 min, 13 cycles, battery
+33%→9% SOC; stopped on the 200 mAh coulomb budget; plots `*-power.png` / `*-gauge.png`):
+- Corrected LED draw: W-full ~63 mA, RGB-full ~250 mA, RGBW-full ~290 mA. Full-scale is
+  RAIL-SAG-limited: the LED bus droops to ~2.84 V under load (on USB *and* battery alike) so the
+  SK6812 channels lose headroom; current was flat-to-slightly-rising over the run (254→259 mA RGB)
+  i.e. NOT SOC-limited here. Gamma cleanly separates the mid-range (RGBW lvl 64: 70→9 mA).
+- **Gauge current bias** (n=814): gauge = 1.080·INA + 2.4 mA, mean ratio 1.094 → reads **~+9 %
+  high** vs INA ground truth → software-correct gauge current by ×0.926 (or trim the MAX17260
+  sense-R). Instantaneous gauge battery_ma is noisy/laggy; INA 0x45 is steady.
+- **Coulomb**: gauge integrated 200 mAh vs INA 183 mAh over the run (gauge +9 %, matching the
+  current bias).
+- **Capacity: NOT determined — the earlier "~760 mAh" was an overreach (Ben pushed back, rightly).**
+  Gauge SOC fell 33→9 % over 183 mAh (INA), but the **resting voltage stayed flat at 3.190→3.186 V**
+  (LED-off, ~120 mA) the whole run — we never reached the LFP knee. So we have NO read on remaining
+  capacity: 183 mAh could be ~24 % of a small (~760 mAh) cell OR ~9 % of the rated 2000 mAh with a
+  gauge that over-drops SOC on the flat plateau — a mid-plateau slice can't distinguish them, and
+  the un-learned LFP gauge (cycles=0) can't be trusted to either. Cell is BatterySpace (reputable,
+  rated 2000); no basis to call it bad, and the user's larger cells aren't testable yet (no holder).
+  Plausible too (Ben): a freshly-charged gauge may pin SOC near 100 % before dropping, so ΔSOC over
+  a slice misrepresents charge. **Resolve with a clean full-charge → full-discharge INA-coulomb run**
+  (now possible — charging re-enabled); leave DesignCap at the 2000 rating until then. The earlier
+  README/SYSTEM "~1000 mAh, 2× overrated" is likewise unverified.
+
+Caveats: the +9 % gauge current-bias fit is tight (n=814) but single-session. Post-run the cell
+idled ~120 mA; I cut it to ~66 mA via WiFi-off (`q`). Follow-up (this session) adds a recoverable
+timer-wake deep-sleep-on-floor + charge-enabled recovery so an unattended low cell can't be stranded.
+
 ## 2026-06-09 — Ben + Claude — Rails-cut idle win; 4-channel INA219 monitor built; ground-truth shows idle is tiny (gauge over-read it)
 
 **Rails-off A/B (the sleep-current fix).** Hypothesis from cont. 10/11: the ~20 %/night
