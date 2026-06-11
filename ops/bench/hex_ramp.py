@@ -108,8 +108,13 @@ def step(ramp, n, val, fh):
     reasons = []
     try:
         led_set(r=val, g=val, b=val, bri=255, gamma=0, n=n)
-    except OSError as e:
-        return False, [f"set-failed({e})"]
+    except OSError:
+        time.sleep(1.5)  # battery WiFi power-save can stall the first request
+        try:
+            led_set(r=val, g=val, b=val, bri=255, gamma=0, n=n)
+        except OSError as e:
+            print(f"  {ramp}: n={n:>2} val={val:>3}  SET FAILED ({e}) - aborting ramp")
+            return False, [f"set-failed({e})"]
     time.sleep(a.settle)
     ina = read_ina(a.avg)
     led = ina.get(ledch, {})

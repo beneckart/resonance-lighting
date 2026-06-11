@@ -12,6 +12,50 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-11 (cont.) — Ben + Claude — Pushed the HEX to the cliff: visual failure sequence mapped; protect latch validated live; 32700 charging for capacity test
+
+**The aggressive ramps (Ben watching, ~20 % SOC mule cell).** After the guarded runs,
+floors were dropped near hardware limits and the value ramp walked 37-px white from
+141 mA up. Results, all INA ground truth:
+- **Sustained ceiling ~480 mA** (val 208) at ~20 % SOC — far above the morning's
+  conservative floors; rail rode at 2.7 V (min 2.53) for whole steps without electrical
+  failure. The step toward ~500 mA (val 224) ended it: **the firmware battery-floor
+  protect latched mid-step** (rail CUT to 0 V, LEDs unloaded, WiFi off, no self-rejoin —
+  the designed endpoint, needing a button; the brownout-reset path self-recovers). Every
+  guard layer fired in design order across the night: script floors first, fw protect as
+  the backstop, zero bricks.
+- **Hot-step vs ramp asymmetry, quantified:** an idle->290 mA hot-step (n=10 @ full)
+  brownout-reset the board instantly (rr=poweron) at the same SOC where a gradual ramp
+  survived 480 mA — a ~1.7x margin difference. "Ramp gently / no full-white hot-steps"
+  is now a measured production rule, not folklore. (The danger zone also slid ~100 mA
+  down as SOC fell 98 %->20 % — the current cap must be SOC/voltage-aware or worst-case.)
+- **Visual failure sequence (Ben, thick packing foam as diffuser — too bright naked-eye):
+  (1) subtle flicker (onset before any electrical flag), (2) subtle "goldening" of white
+  (blue channel — highest Vf — starves first as the rail sags), (3) uneven lighting where
+  the brightest CONTIGUOUS run of pixels jumps around every few seconds** (WS-protocol
+  data corruption: pixels keep whichever frame last latched cleanly), then (4) the
+  protect cut. All graceful-degradation modes — nothing alarming below the cliff, which
+  supports dim-don't-die low-battery behavior.
+- First aggressive attempt (file `0549`) also caught the n=10@255 hot-step brownout live
+  (board uptime reset mid-ramp; script bug fixed: failed /set now prints + retries once).
+
+**32700 6 Ah LFP candidate — charging overnight.** Board 9F2690 (the former bridge
+master) flashed `power_bench --led none --cap 6000 --chem lfp` BEFORE cell connect (the
+LFP flash-order rule), then the 32700 attached: charging at **+515 mA** (USB input-
+limited), bv 3.328, supply_good. Gauge says SOC 99 — ignore (un-learned, cycles=0,
+plateau-blind); the REAL capacity test is tomorrow's full charge -> INA-coulomb
+discharge (the validated 06-10 methodology). At fullbattery.com bulk ~$5.10 (~$0.85/Ah)
+it's the leading production cell if it makes rating (ADR 0017 direction). Note: this
+board's Wire1 scan shows an extra mystery device at 0x2A (others have only 0x36/0x6A) —
+harmless so far, noted in case the board ever behaves oddly.
+
+**Bench state for tomorrow's MPP sweep:** mule 2000 cell DISCONNECTED at ~20 % SOC
+(ideal bulk-charge precondition); 9E5B0C powered off; a spare board still needs the
+serial-bridge master flash (9F2690 got the new master fw tonight but was immediately
+repurposed for the 32700); TSL2591 + SHT31 arrive early PM. The 32700 discharge can run
+on the bench INAs in parallel with the outdoor sweep — load/wiring decided in the
+morning (HEX board swap vs RGBW on 9F2690).
+
 ## 2026-06-11 — Ben + Claude — Loose-ends night: RGB-3W = RGBW-4W on RGB; STEMMA cable verdict; HEX ground truth + the "all-on-max" instability explained
 
 Bench session while waiting on the TSL2591/SHT31 delivery. Three loose ends closed.
