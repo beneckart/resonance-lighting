@@ -39,7 +39,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Run incoming inspection and board-ID procedure from COTS test plan (Ben).
 - [ ] Measure sleep current for each stack (Ben).
 - [ ] Measure active/radio/ESP-NOW current for each stack (Ben).
-- [~] Measure LED current for center-only, 3-pixel, 9-pixel/crop, and full-array capped modes (Ben).
+- [~] Measure LED current for center-only, 3-pixel, 9-pixel/crop, and full-array capped modes — LARGELY DONE 2026-06-11 via `/set?n=` + `ops/bench/hex_ramp.py` (INA ground truth, HEX): single px 41.8 mA full, count-ramp safe to n=10 @ full (288 mA) / n=37 @ val 64 (261 mA) on the bench LFP — the ceiling is battery sag, see LOG 2026-06-11 (Ben).
 - [ ] Add SEN0291 I2C wattmeters to power-test harness and bench worksheet when they arrive (Ben).
 - [ ] Run iso-current LED brightness/gobo comparison from `docs/tests/ISO_CURRENT_LED_BRIGHTNESS_TEST_2026-05-18.md` (Ben + Steve).
 - [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben).
@@ -106,7 +106,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Distinguish IS31-specific vs any-I2C-device: **NeoDriver (5766, SeeSaw I2C) on the same bus = STABLE** (371 s+, through heavy WiFi) where the IS31 loops in ~1 min ⇒ **brownout is IS31-SPECIFIC**, not the bus. NeoDriver+WS2812 is a viable no-solder LED path (Ben).
 - [ ] **Confirm NeoDriver robustness with an hours/overnight run** (the IS31 was intermittent — stable for minutes then failed; n=1/6min not enough). Do AFTER the wake-source fix (Ben).
 - [x] **Direct-GPIO WS2812/SK6812 validated** (board 2, HEX on A0/GPIO10, off the I2C bus) — works, brownout-safe by construction, and ~10% MORE efficient than via NeoDriver (no passthrough drop). **Strong candidate for the area/glow role — but NOT a settled BOM front-runner**: it's roughly tied in viability with the 4 W RGBW point-source, which serves the crisp-gobo role HEX can't, and the efficiency edge is muddied by varying-SOC testbeds. Decide after gobo testing. 3-way plot `led-eff-3way.png` (Ben).
-- [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner → cap brightness / healthy pack (Ben).
+- [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner → cap brightness / healthy pack. **Now quantified (2026-06-11 hex_ramp):** ~350–400 mA LED draw pulls the bench cell to its ~3.0 V brownout edge even at 98% SOC → production firmware needs a hard current cap = f(brightness × lit-count), scaled to the production cell's IR (the 32700 ~6 Ah cell lifts the ceiling substantially) (Ben).
 - [ ] **Decide pixel-power architecture (NeoDriver only level-shifts the DATA signal, does NOT boost pixel power — corrected; "3-5V vin/vlogic" = accepted *input* range):** pixels run at whatever Vin is. Options + a key power-mgmt axis (software-cuttability):
   - **(a) 3V3 header** → dim (3.3 V under-volt) but **software-cuttable via `enable3V3(false)`** (free LED kill-switch; can't accidentally drain the pack), zero extra parts. Strong budget default (Ben's pick-direction).
   - **(b) VBAT** → brighter (≤4.2 V Li-ion) but **always live** → needs a load-switch/MOSFET + GPIO to be safe.

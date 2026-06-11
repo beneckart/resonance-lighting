@@ -14,6 +14,10 @@
 //
 // Output (one line per present channel per sample):
 //   ina t=<ms> ch=0x40 bus_v=<V> shunt_mv=<mV> ma=<mA>
+//
+// Serial commands: 's' = full I2C bus scan (0x08-0x77) -- e.g. plug a known-good
+// STEMMA-QT device into the QT port to verify the port reaches the same bus as the
+// SDA/SCL headers (it does by schematic: QT = GPIO47/48); 'r' = re-probe INA channels.
 
 #include <Wire.h>
 
@@ -69,6 +73,29 @@ void setup() {
   Serial.println("=== ina_monitor: 4-ch INA219 reader ===");
   Serial.printf("R_shunt=%.4f ohm (VERIFY by calibration), rate=%d Hz, config=0x%04X (PG/1, 128-avg)\n",
                 INA_RSHUNT_OHMS, INA_HZ, INA_CONFIG);
+  probeInas();
+  Serial.printf("Streaming 'ina' lines @ %d Hz. Commands: 's' i2c scan, 'r' re-probe INAs.\n",
+                INA_HZ);
+}
+
+static void scanBus() {
+  Serial.println("i2c scan 0x08-0x77:");
+  int n = 0;
+  for (uint8_t a = 0x08; a <= 0x77; a++) {
+    Wire.beginTransmission(a);
+    if (Wire.endTransmission() == 0) {
+      const char *known = (a == 0x40 || a == 0x41 || a == 0x44 || a == 0x45) ? " (INA219)"
+                          : (a == 0x29) ? " (TSL2591?)" : (a == 0x30) ? " (IS31?)"
+                          : (a == 0x36) ? " (Metro onboard MAX17048)"
+                          : (a == 0x49 || a == 0x60) ? " (seesaw?)" : "";
+      Serial.printf("  found 0x%02X%s\n", a, known);
+      n++;
+    }
+  }
+  Serial.printf("scan done, %d device(s).\n", n);
+}
+
+static void probeInas() {
   int n = 0;
   for (int i = 0; i < 4; i++) {
     uint16_t v;
@@ -76,10 +103,15 @@ void setup() {
     if (present[i]) { writeReg(INA_ADDR[i], REG_CONFIG, INA_CONFIG); n++; }
     Serial.printf("  0x%02X %s\n", INA_ADDR[i], present[i] ? "present (cfg set)" : "MISSING");
   }
-  Serial.printf("%d/4 meters present. Streaming 'ina' lines @ %d Hz.\n", n, INA_HZ);
+  Serial.printf("%d/4 meters present.\n", n);
 }
 
 void loop() {
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 's') scanBus();
+    else if (c == 'r') probeInas();
+  }
   uint32_t t = millis();
   for (int i = 0; i < 4; i++) {
     if (!present[i]) continue;

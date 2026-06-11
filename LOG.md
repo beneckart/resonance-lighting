@@ -12,6 +12,60 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-11 — Ben + Claude — Loose-ends night: RGB-3W = RGBW-4W on RGB; STEMMA cable verdict; HEX ground truth + the "all-on-max" instability explained
+
+Bench session while waiting on the TSL2591/SHT31 delivery. Three loose ends closed.
+
+**1. RGB-3W vs RGBW-4W: identical RGB top-end.** The new 3 W RGB module (no W channel)
+at full r=g=b drew **256.5 mA** (3 cycles, +-0.3 mA) vs the 4 W RGBW's RGB-full
+**257.3 mA** at the same ~2.8 V sagged rail — 0.3 % apart. The "3 W vs 4 W" rating
+difference is entirely the W channel (+66.5 mA standalone, +34 mA on top of RGB under
+combined sag). W pattern on the new LED: ~0 mA (no channel, and the 4-byte RGBW frame
+drives a 3-byte pixel fine — first three bytes land). Shunt NOT backwards (Ben's worry):
+both INA channels kept the original sign convention. Caveats: n=1 of each module;
+tonight USB+charging vs 06-10 battery (rail sag happened to match, making it fair).
+Data: `2026-06-11-afk-sweep-0028.jsonl` + `-power/gauge.png`.
+
+**2. Metro STEMMA port: the CABLE was the whole story (port healthy).** The Metro
+ESP32-S3's QT port is the same I2C bus as the headers (SDA=47/SCL=48, 10 k pullups, no
+power gate; 0x36 on the bus = the Metro's own onboard MAX17048). STEMMA QT (GND,VCC,
+SDA,SCL) and Gravity PH2.0 (VCC,GND,SCL,SDA) are **pairwise-inverted**, so a
+straight-through adapter lands ALL FOUR pins wrong — power reversed (the 06-09
+dead-short/USB-kill incident, explained) AND SDA/SCL swapped. Ben re-matched the leads
+→ all 4 INAs + the MAX17048 found and streaming **through the QT port** (which also
+proves the port survived the 06-09 short). `ina_monitor` gained `s` (I2C scan) / `r`
+(re-probe) serial commands for future bus debugging.
+
+**3. HEX (37x SK6812) with INA ground truth — and the "all-on-max instability" is a
+BATTERY-SAG ceiling, not an LED/data failure.** power_bench `/set` gained `n=` (light
+first n pixels; fw 2026-06-11.1, OTA'd battery-only — another no-touch flash) and
+`ops/bench/hex_ramp.py` ramps count (1->37 @ full) then value (n=37, 16->255) with
+host-side abort guards (gauge-V floor primary, INA means secondary, board-reset/HTTP
+the real detectors), backing off BEFORE the board browns out:
+- Single pixel (INA, battery-only): **41.8 mA full white** (17.3 @ 64, 23.0 @ 128,
+  34.2 @ 192). Ground-truth replacement for the gauge-based HEX numbers.
+- Count ramp @ 255: safe through **n=10 (288 mA)**; n=14 (372 mA) tripped the gauge
+  floor (3.008 V). Value ramp @ n=37: safe through **val 64 (261 mA)**; val 96
+  (358 mA) tripped (gauge 2.980 V). Convergent: **~350-400 mA of LED draw pulls the
+  bench cell's terminal to ~3.0 V even at 98 % SOC** (LED + ~150 mA WiFi system ->
+  ~0.5 A battery draw; matches the 06-10 finding that brownout cascades start
+  ~2.97 V under load). Per-pixel current self-limits as the rail sags (41.8 -> ~27
+  mA/px at n=14), so all-37-full would NOT hit 37x41.8 — but the cell dives first.
+- Implications: (a) Ben's observed all-on-max instability = battery sag to the
+  brownout zone; rail/data stayed fine to the guard floors (rail mean >= 2.79 V).
+  (b) The ceiling is a CELL property (high effective IR incl. harness, ~0.7 ohm at
+  0.5 A) — the production 32700 ~6 Ah cell lifts it substantially. (c) Production
+  firmware needs a **current cap** (brightness x lit-count) for burst modes —
+  reinforces the existing cap-brightness TODO / ADR 0013 failsafe. We deliberately
+  never drove it to an actual reset; the guards stop at early-warning floors, and the
+  visual-flicker threshold (if lower) is a separate observation.
+- Gauge current bias replicated again: **+7.4 %** this session (and +8.8 % on the
+  CHARGE side in the morning run) → ~+8 +-1 % across 4 sessions, both directions;
+  the /1.08-ish software correction is solid.
+Data: `2026-06-11-afk-sweep-0119.jsonl` (+pngs), `2026-06-11-hex-ramp-0128.jsonl`
+(0126 = aborted first try whose floors were miscalibrated to transient WiFi dips —
+kept for the record).
+
 ## 2026-06-10 (cont. 2) — Ben + Claude — MPP sweep goes fully wireless: TSL2591 lux + SHT31 panel-temp ride the heartbeat
 
 Ben flagged the sweep's weak point: the Apogee PAR sensor is USB-tethered, so logging

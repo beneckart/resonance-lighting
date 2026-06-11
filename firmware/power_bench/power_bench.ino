@@ -121,7 +121,7 @@
 // run a real self-test here and return false if unhealthy.
 extern "C" bool verifyOta() { return false; } // extern "C": the core's weak hook is C-linkage
 #else
-#define POWER_BENCH_VERSION "power-bench-2026-06-08.ota1"
+#define POWER_BENCH_VERSION "power-bench-2026-06-11.1" // /set gained n= (multi-pixel ramp)
 #endif
 
 // ---------------------------------------------------------------------------
@@ -979,16 +979,20 @@ void configureOtaRoutes() {
     applyMeasurementMode(mode);
   });
 
-  // Arbitrary single-pixel drive for power sweeps: /set?r=&g=&b=&w=&bri=&gamma=
-  // (gamma=1 applies Adafruit's gamma8 per channel). Lets a host sweep RGB/RGBW/W x
-  // gamma x brightness while reading the fuel gauge here and the INA externally.
+  // Arbitrary pixel drive for power sweeps: /set?r=&g=&b=&w=&bri=&gamma=&n=
+  // (gamma=1 applies Adafruit's gamma8 per channel; n = how many pixels get the
+  // color, first n of the strip, rest off -- default 1 keeps the single-pixel
+  // semantics; n>1 is the multi-LED instability/scaling ramp axis). Lets a host
+  // sweep RGB/RGBW/W x gamma x brightness x count while reading the fuel gauge
+  // here and the INA externally.
   server.on("/set", HTTP_GET, []() {
 #if RES_HAS_NEOPIXEL
     if (protectLatched) { server.send(200, "text/plain", "protect (battery floor)\n"); return; }
     auto argI = [](const char *k, int d) { return server.hasArg(k) ? server.arg(k).toInt() : d; };
     int r = constrain(argI("r", 0), 0, 255), g = constrain(argI("g", 0), 0, 255),
         b = constrain(argI("b", 0), 0, 255), w = constrain(argI("w", 0), 0, 255),
-        bri = constrain(argI("bri", 255), 0, 255);
+        bri = constrain(argI("bri", 255), 0, 255),
+        n = constrain(argI("n", 1), 0, (int)RES_PIXEL_COUNT);
     bool gamma = argI("gamma", 0) != 0;
     if (gamma) {
       r = Adafruit_NeoPixel::gamma8(r); g = Adafruit_NeoPixel::gamma8(g);
@@ -996,14 +1000,15 @@ void configureOtaRoutes() {
     }
     pixels.setBrightness(bri);
 #ifdef RES_PIXEL_TYPE_RGBW
-    pixels.setPixelColor(0, pixels.Color(r, g, b, w));
+    uint32_t c = pixels.Color(r, g, b, w);
 #else
-    pixels.setPixelColor(0, pixels.Color(r, g, b));
+    uint32_t c = pixels.Color(r, g, b);
 #endif
+    for (uint16_t i = 0; i < RES_PIXEL_COUNT; i++) pixels.setPixelColor(i, i < (uint16_t)n ? c : 0);
     pixels.show();
     activeMeasurementMode = 'S';
-    char resp[96];
-    snprintf(resp, sizeof(resp), "set r=%d g=%d b=%d w=%d bri=%d gamma=%d\n", r, g, b, w, bri, (int)gamma);
+    char resp[112];
+    snprintf(resp, sizeof(resp), "set r=%d g=%d b=%d w=%d bri=%d gamma=%d n=%d\n", r, g, b, w, bri, (int)gamma, n);
     server.send(200, "text/plain", resp);
 #else
     server.send(400, "text/plain", "no neopixel in this build\n");
