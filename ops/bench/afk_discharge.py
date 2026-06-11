@@ -39,6 +39,7 @@ ap.add_argument("--load", default="RGBW", choices=list(LOADS) + ["custom"])
 ap.add_argument("--r", type=int, default=255); ap.add_argument("--g", type=int, default=255)
 ap.add_argument("--b", type=int, default=255); ap.add_argument("--w", type=int, default=255)
 ap.add_argument("--bri", type=int, default=255); ap.add_argument("--gamma", type=int, default=0)
+ap.add_argument("--n", type=int, default=1, help="pixels lit (multi-LED loads, e.g. 37 = full HEX)")
 ap.add_argument("--cutoff-v", type=float, default=2.5, help="stop when battery_v (under load) drops below this")
 ap.add_argument("--sample-s", type=float, default=10.0, help="seconds between samples")
 ap.add_argument("--ina-avg", type=float, default=2.0, help="seconds of INA averaging per sample")
@@ -63,7 +64,12 @@ def read_ina(secs):
     while time.time() - t0 < secs:
         m = rx.search(ser.readline().decode("utf-8", "replace"))
         if m:
-            acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
+            try:
+                if abs(float(m.group(4))) > 4500:  # beyond the INA's +-4A range = corrupt-but-parseable line
+                    continue
+                acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
+            except ValueError:
+                pass  # mangled serial line (two INA lines interleaved) -- skip
     return {ch: dict(ma=statistics.mean(x[0] for x in v), bus=statistics.mean(x[1] for x in v), n=len(v))
             for ch, v in acc.items()}
 
@@ -79,7 +85,7 @@ def telem(retries=4):
     return None
 
 def drive():
-    http(f"/set?r={r}&g={g}&b={b}&w={w}&bri={a.bri}&gamma={a.gamma}")
+    http(f"/set?r={r}&g={g}&b={b}&w={w}&bri={a.bri}&gamma={a.gamma}&n={a.n}")
 
 def wait_reachable(deadline_s):
     t0 = time.time()
@@ -95,7 +101,7 @@ out = a.out or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", 
                             now0.strftime("%Y-%m-%d") + "-discharge-" + now0.strftime("%H%M") + ".jsonl")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 print(f"afk_discharge -> {out}")
-print(f"load {a.load} rgbw=({r},{g},{b},{w}) bri={a.bri} gamma={a.gamma} | cutoff {a.cutoff_v} V | max {a.max_min} min")
+print(f"load {a.load} rgbw=({r},{g},{b},{w}) bri={a.bri} gamma={a.gamma} n={a.n} | cutoff {a.cutoff_v} V | max {a.max_min} min")
 
 d0 = wait_reachable(60)
 if not d0:
@@ -148,7 +154,7 @@ try:
             mah_gauge += abs(gma) * dt_h
 
         row = dict(ts_utc=datetime.now(timezone.utc).isoformat(), site=a.site, notes=a.notes,
-                   load=a.load, r=r, g=g, b=b, w=w, bri=a.bri, gamma=a.gamma,
+                   load=a.load, r=r, g=g, b=b, w=w, bri=a.bri, gamma=a.gamma, n=a.n,
                    led_ma=round(led.get("ma", float("nan")), 2), led_bus_v=round(led.get("bus", float("nan")), 3),
                    batt_ina_ma=round(batt.get("ma", float("nan")), 2),
                    batt_ina_bus_v=round(batt.get("bus", float("nan")), 3),
@@ -174,7 +180,7 @@ except KeyboardInterrupt:
     stop = "interrupted"
 finally:
     try:
-        http("/set?w=0&bri=0")  # LED off
+        http("/set?r=0&g=0&b=0&w=0&bri=0&n=0")  # LED off
     except Exception:
         pass
     fh.close()

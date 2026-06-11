@@ -37,7 +37,7 @@
 #include <Adafruit_TSL2591.h>
 #include <Adafruit_SHT31.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-10.1"
+#define NET_BENCH_VERSION "net-bench-2026-06-11.2" // onboard INA panel/battery meters in heartbeat
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -190,6 +190,25 @@ int16_t gEnvPtempX10 = INT16_MIN;
 uint8_t gEnvRh = 255;
 int16_t gEnvBtempX10 = INT16_MIN;
 
+// ---- onboard SEN0291/INA219 meters (panel + battery leads, on Wire1) --------
+// Address convention (uses the two UNAMBIGUOUS DIP settings -- no need to know
+// which switch is A0): both OFF = 0x40 = panel/VDC lead; both ON = 0x45 =
+// battery lead. Override with -DNB_INA_PANEL_ADDR / -DNB_INA_BATT_ADDR.
+// NOTE: 0x44 is reserved by the SHT31; 0x41 needs a single-switch guess.
+#ifndef NB_INA_PANEL_ADDR
+#define NB_INA_PANEL_ADDR 0x40
+#endif
+#ifndef NB_INA_BATT_ADDR
+#define NB_INA_BATT_ADDR 0x45
+#endif
+#define NB_INA_RSHUNT_OHMS 0.01f
+#define NB_INA_CONFIG 0x27FF // BRNG 32V, PG /1 (+-4A @ 10mR), 128-avg, continuous
+bool gInaPanel = false, gInaBatt = false;
+int16_t gInaPvMv = INT16_MIN, gInaPaMa = INT16_MIN, gInaBvMv = INT16_MIN, gInaBaMa = INT16_MIN;
+// (the ina* helper FUNCTIONS live below the struct definitions -- defining any
+// function this early moves the Arduino auto-prototype insertion point above
+// the structs and breaks every later type reference)
+
 uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead of battery
 
 // field scan-report state (set on a -DNB_SCAN_REPORT peer). gScanRunning is read
@@ -255,6 +274,14 @@ struct __attribute__((packed)) NbHeartbeat {
   int16_t ptemp_cx10; // SHT31 temp x10 C (tape it to the panel BACK); INT16_MIN = absent
   uint8_t prh_pct;    // SHT31 RH %; 255 = absent
   int16_t btemp_cx10; // battery NTC via charger TS x10 C (needs -DNB_BATT_NTC); INT16_MIN = absent
+  // --- APPEND-ONLY tail 3 (SEN0291/INA219 meters on the peer's OWN Wire1:
+  // ground-truth panel + battery power for the MPP sweep, no Metro tether.
+  // The peer is awake during sweeps, so self-metering works; sleep/reset tests
+  // still need the separate Metro monitor). INT16_MIN = channel absent.
+  int16_t ina_pv_mv; // panel-lead INA bus mV (0x40 default)
+  int16_t ina_pa_ma; // panel-lead INA current mA (wired so INTO the board = +)
+  int16_t ina_bv_mv; // battery-lead INA bus mV (0x41 default)
+  int16_t ina_ba_ma; // battery-lead INA current mA
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -301,6 +328,8 @@ struct NbPeerStat {
   int16_t ptemp_cx10;
   uint8_t prh_pct;
   int16_t btemp_cx10;
+  bool has_ina; // peer sent the onboard-INA tail
+  int16_t ina_pv_mv, ina_pa_ma, ina_bv_mv, ina_ba_ma;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -360,6 +389,36 @@ void setupPowerFeather() {
 #endif
 }
 
+// ---- onboard INA helpers (placed after the structs; see note at the globals) -
+static bool inaReadReg(uint8_t addr, uint8_t reg, uint16_t &val) {
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  if (Wire1.endTransmission(false) != 0) return false;
+  if (Wire1.requestFrom((int)addr, 2) != 2) return false;
+  val = ((uint16_t)Wire1.read() << 8) | Wire1.read();
+  return true;
+}
+static bool inaWriteReg(uint8_t addr, uint8_t reg, uint16_t val) {
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  Wire1.write(val >> 8);
+  Wire1.write(val & 0xFF);
+  return Wire1.endTransmission() == 0;
+}
+static bool inaProbe(uint8_t addr) {
+  uint16_t v;
+  if (!inaReadReg(addr, 0x00, v)) return false;
+  return inaWriteReg(addr, 0x00, NB_INA_CONFIG);
+}
+static bool inaRead(uint8_t addr, int16_t &bus_mv, int16_t &ma) {
+  uint16_t rs, rb;
+  if (!(inaReadReg(addr, 0x01, rs) && inaReadReg(addr, 0x02, rb))) return false;
+  float shunt_mv = (int16_t)rs * 0.01f;            // 10 uV LSB
+  bus_mv = (int16_t)((rb >> 3) * 4);               // 4 mV LSB
+  ma = (int16_t)(shunt_mv / NB_INA_RSHUNT_OHMS);   // mV / ohm = mA
+  return true;
+}
+
 // Env sensors: probe the STEMMA bus once at boot. Board.init() already started
 // Wire1 (47/48) and enabled VSQT, so a sensored board just works; a bare board
 // probes-and-misses and sends absent-sentinels. Battery NTC is OPT-IN
@@ -367,28 +426,43 @@ void setupPowerFeather() {
 // makes the BQ apply JEITA limits to a floating pin -> can suspend charging.
 void envInit() {
   Wire1.begin(47, 48, 100000); // idempotent; keep the SDK's 100 kHz
+  // Wiring check: list every ACK on the STEMMA bus (the power chips live here too)
+  Serial.print("Wire1 scan:");
+  for (uint8_t a = 0x08; a <= 0x77; a++) {
+    Wire1.beginTransmission(a);
+    if (Wire1.endTransmission() == 0) Serial.printf(" 0x%02X", a);
+  }
+  Serial.println();
   gEnvTsl = gTsl.begin(&Wire1);
   if (gEnvTsl) {
     gTsl.setGain(TSL2591_GAIN_LOW);                 // full-sun headroom
     gTsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // max count 36863
   }
   gEnvSht = gSht.begin(0x44);
+  gInaPanel = inaProbe(NB_INA_PANEL_ADDR);
+  gInaBatt = inaProbe(NB_INA_BATT_ADDR);
 #ifdef NB_BATT_NTC
   if (pfReady && Board.enableBatteryTempSense(true) == Result::Ok) {
     float t;
     gEnvBtemp = (Board.getBatteryTemperature(t) == Result::Ok);
   }
 #endif
-  Serial.printf("env sensors: TSL2591=%d SHT31=%d batt-NTC=%d\n",
-                gEnvTsl, gEnvSht, gEnvBtemp);
+  Serial.printf("env sensors: TSL2591=%d SHT31=%d batt-NTC=%d INA-panel(0x%02X)=%d INA-batt(0x%02X)=%d\n",
+                gEnvTsl, gEnvSht, gEnvBtemp, NB_INA_PANEL_ADDR, gInaPanel, NB_INA_BATT_ADDR, gInaBatt);
 }
 
 // Refresh the env cache at ~1 Hz. The TSL2591 read blocks ~120 ms (integration),
 // so heartbeats at high rates reuse the cache instead of reading inline.
 void envTick() {
   static uint32_t nextMs = 0;
-  if ((!gEnvTsl && !gEnvSht && !gEnvBtemp) || millis() < nextMs) return;
+  if ((!gEnvTsl && !gEnvSht && !gEnvBtemp && !gInaPanel && !gInaBatt) || millis() < nextMs) return;
   nextMs = millis() + 1000;
+  if (gInaPanel && !inaRead(NB_INA_PANEL_ADDR, gInaPvMv, gInaPaMa)) {
+    gInaPvMv = INT16_MIN; gInaPaMa = INT16_MIN;
+  }
+  if (gInaBatt && !inaRead(NB_INA_BATT_ADDR, gInaBvMv, gInaBaMa)) {
+    gInaBvMv = INT16_MIN; gInaBaMa = INT16_MIN;
+  }
   if (gEnvTsl) {
     uint32_t lum = gTsl.getFullLuminosity();
     gEnvCh0 = (uint16_t)(lum & 0xFFFF);
@@ -670,6 +744,10 @@ void sendHeartbeat(uint8_t caState) {
   hb.ptemp_cx10 = gEnvPtempX10;
   hb.prh_pct = gEnvRh;
   hb.btemp_cx10 = gEnvBtempX10;
+  hb.ina_pv_mv = gInaPvMv;
+  hb.ina_pa_ma = gInaPaMa;
+  hb.ina_bv_mv = gInaBvMv;
+  hb.ina_ba_ma = gInaBaMa;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -804,6 +882,10 @@ void bridgeStats() {
                     luxs, p->light_ch0, p->light_ch1, ptcs,
                     (p->prh_pct == 255 ? -1 : (int)p->prh_pct), btcs);
     }
+    if (p->has_ina && n < (int)sizeof(line)) { // onboard INA tail: -32768 = channel absent
+      n += snprintf(line + n, sizeof(line) - n, " ipv=%d ipa=%d ibv=%d iba=%d",
+                    p->ina_pv_mv, p->ina_pa_ma, p->ina_bv_mv, p->ina_ba_ma);
+    }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
   }
@@ -887,12 +969,19 @@ void processRx() {
         } else {
           p->supply_mv = 0; p->supply_ma = 0; p->supply_good = 0;
         }
-        if (it.len >= (int)sizeof(NbHeartbeat)) { // env-capable peer (append-only tail 2)
+        if (it.len >= (int)offsetof(NbHeartbeat, ina_pv_mv)) { // env-capable peer (append-only tail 2)
           p->has_env = true;
           p->lux_x10 = hb->lux_x10; p->light_ch0 = hb->light_ch0; p->light_ch1 = hb->light_ch1;
           p->ptemp_cx10 = hb->ptemp_cx10; p->prh_pct = hb->prh_pct; p->btemp_cx10 = hb->btemp_cx10;
         } else {
           p->has_env = false;
+        }
+        if (it.len >= (int)sizeof(NbHeartbeat)) { // onboard-INA peer (append-only tail 3)
+          p->has_ina = true;
+          p->ina_pv_mv = hb->ina_pv_mv; p->ina_pa_ma = hb->ina_pa_ma;
+          p->ina_bv_mv = hb->ina_bv_mv; p->ina_ba_ma = hb->ina_ba_ma;
+        } else {
+          p->has_ina = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {

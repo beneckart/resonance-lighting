@@ -12,6 +12,52 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-11 (cont. 2) — Ben + Claude — FIRST WIRELESS MPP SWEEP: hot-panel optimum 4.6-4.7 V = ~3x the default harvest; bright-sun input-latch gotcha; 32700 verdict pending
+
+**The harvest question (the sizing campaign's last unmeasured term) now has its hot-panel
+answer.** Full instrument cluster on the outdoor peer — TSL2591 (lux; saturated in full
+sun, IR ch1 used as the normalization channel), SHT31 taped to the panel back
+(60-61 °C; IR gun front 155-157 °F ≈ 68 °C → ~8 °C front-to-back offset, cell ~64-66 °C),
+and Ben's idea of SEN0291 INAs on the peer's OWN STEMMA bus (panel + battery leads,
+heartbeat tail 3, fw 2026-06-11.2) — zero outdoor tether, all data over ESP-NOW.
+
+- **Curve (bright sun ~3:40-4:15 pm, panel ~60 °C back):** 5.5 V → 0.59 W; 5.2 → 1.18;
+  5.0 → 1.45; 4.9 → 1.55; 4.8 → 1.66; 4.7 → 1.69; **4.6 → 1.73 W (best, both sweeps)**.
+  The default 5.5 V harvests **31 % of optimum (3.2x available)** — worse than the
+  06-08 cloud-confounded ~2.6x hint. Knee-bracket re-sweep reproduced 4.6 as peak
+  (anchor drift 5 % with the improved 4.9 anchor).
+- **Panel INA vs BQ telemetry: the BQ under-reports harvest ~10 %** (1.91 W panel-side
+  vs 1.73 BQ-side at the peak) — input-stage loss the sizing math must include. The
+  self-instrumentation cross-check earned its keep on day one.
+- **Below the knee:** sweep 1's 4.4 V point COLLAPSED (0.55 W, input parked near Voc —
+  VINDPM below the hot panel's knee has no stable operating point when stepped to from
+  near-idle); the re-sweep's 4.4 read 1.53 W but DEMAND-LIMITED (4.9/4.5/4.4 all
+  identically 1.53 W late-session — battery filling toward ~50 % and/or charger thermal
+  foldback in the heat caps demand, making VINDPM moot). Conservative rule: **fixed
+  setpoint >= 4.6 V hot, approach setpoint changes from above; run sweeps on a hungry
+  battery.** Cool-AM session pending for Vmp(T) → the fixed-vs-temp-comp-vs-P&O call.
+- **NEW FIELD GOTCHA (production-relevant): connect/boot under bright sun latches the
+  charger's input fault** — panel sat at Voc ~6.0-6.2 V, sgood=0, zero draw; a hand-
+  shade to 4.7 V did NOT clear it; only full VBUS removal (face-down/unplug) re-ran
+  qualification. Captured in POWERFEATHER_NOTES + firmware-guard TODO (playa bring-up
+  hazard at 100-fixture scale). Anchor methodology fix: anchor at 4.9 not 5.5 (the 5.5
+  point is load-noise-dominated; first sweep's 25 % "drift" was that artifact).
+
+**32700 capacity run (in progress at write time):** three CORRUPT-BUT-PARSEABLE INA
+samples (-256 to -343 A, physically impossible) inflated the live integral — caught by
+reconciling the integral against instantaneous currents; clean re-integration =
+**~4.8 Ah by the knee region, final pending the fading tail**. (An earlier in-chat
+"~7 Ah, above rating" read was glitched data — retracted within the hour. The 06-10
+lesson again: reconcile integrals before believing them.) All four INA host scripts now
+drop both mangled lines AND beyond-range values (the INA's +-4 A) at ingest. Notable
+along the way: the HEX load FADES gracefully as the rail sags (zero resets in 5.6 h,
+vs the RGBW point source's 44-reset brownout cascade on the mule) — the two LED
+architectures fail differently at end-of-charge.
+
+Also: 9F2690 reflashed as serial-bridge master; mpp_sweep gained ir-ch1 fallback
+(TSL2591 saturates in full sun even at min gain — expected); peer INA address
+convention: both-DIP-off = 0x40 = panel, both-on = 0x45 = battery (0x44 = SHT31).
+
 ## 2026-06-11 (cont.) — Ben + Claude — Pushed the HEX to the cliff: visual failure sequence mapped; protect latch validated live; 32700 charging for capacity test
 
 **The aggressive ramps (Ben watching, ~20 % SOC mule cell).** After the guarded runs,

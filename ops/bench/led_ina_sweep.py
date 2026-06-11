@@ -55,7 +55,10 @@ def read_ina(secs):
         m = rx.search(ser.readline().decode("utf-8", "replace"))
         if m:
             ch = m.group(1).lower()
-            acc.setdefault(ch, []).append((float(m.group(4)), float(m.group(2))))
+            try:
+                acc.setdefault(ch, []).append((float(m.group(4)), float(m.group(2))))
+            except ValueError:
+                pass  # mangled serial line -- skip
     return {ch: (sum(x[0] for x in v) / len(v), sum(x[1] for x in v) / len(v), len(v))
             for ch, v in acc.items()}
 

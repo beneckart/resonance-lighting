@@ -198,3 +198,22 @@ outside [0.1, 0.8] as open/short). So:
 - With the NTC attached it's doubly useful: real battery temp in the heartbeat (`btc=`)
   AND hardware charge-temperature protection (LFP charge limits — the sealed-hat thermal
   question).
+
+## Solar connect/boot under bright sun can latch the charger's input fault
+
+Observed 2026-06-11 (bright hot afternoon, Seeed 3 W panel): with the panel at
+open-circuit (~6.0-6.2 V on a hot panel; HIGHER on a cold bright morning), the
+BQ25628E rejected the input (`supply_good=false`, zero draw) and stayed at Voc
+indefinitely -- and a hand-shade that sagged the panel to ~4.7 V did NOT clear it.
+Only a full VBUS removal (panel face-down/unplugged until V collapsed under ~3.9 V)
+re-ran input qualification; the charger then engaged and pulled the panel down to
+VINDPM, where Voc is never seen again. A connect-order/weather-dependent deadlock:
+06-08's weak-light bring-up never hit it.
+
+- **Field implication (100 fixtures, playa):** connecting or resetting a fixture in
+  full sun can leave it silently not charging. Mitigations: connect panels shaded /
+  face-down; spec the production panel so its COLD-morning Voc clears the charger's
+  input window; and add a firmware guard (see TODO) that detects supply-present-but-
+  not-good and kicks a re-qualification.
+- Diagnosis signature: `sv=` ~Voc with `sma=0 sgood=0` (the onboard INA confirming
+  zero panel current).

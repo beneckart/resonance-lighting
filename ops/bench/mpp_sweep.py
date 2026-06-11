@@ -59,7 +59,8 @@ RX_PEER = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
     r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
     r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?"
-    r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?")
+    r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?"
+    r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?")
 RX_MAINT_ECHO = re.compile(r"broadcast SET_MAINTAIN ([\d.]+) V")
 
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -151,7 +152,15 @@ def parse_peer(line):
              supply_good=bool(int(g[18])), supply_w=round(sv * sma / 1000.0, 3))
     if g[19] is not None:  # env tail: lux (number|sat|nan), panel/battery temps
         s.update(lux=_numok(g[19]), lux_sat=(g[19] == "sat"),
+                 ch1=int(g[21]),  # TSL2591 IR channel: unsaturated fallback in full sun
                  panel_c=_numok(g[22]), batt_c=_numok(g[24]))
+    if g[25] is not None:  # onboard INA tail: ground-truth panel power; -32768 = absent
+        pv, pa = int(g[25]), int(g[26])
+        if pv != -32768 and pa != -32768:
+            s["ina_panel_w"] = round(pv * pa / 1e6, 3)
+        bv2, ba = int(g[27]), int(g[28])
+        if bv2 != -32768 and ba != -32768:
+            s["ina_batt_ma"] = ba
     return s
 
 
@@ -227,10 +236,19 @@ def dwell(v10, visit_idx, is_anchor, fh):
         flags.append("dark-panel")  # the reseated-connector gotcha
     # light: peer-side TSL2591 lux (over the air) preferred; Apogee PAR fallback
     luxes = [s["lux"] for s in samples if s.get("lux") is not None]
+    ch1s = [s["ch1"] for s in samples if s.get("ch1")]
     n_sat = sum(1 for s in samples if s.get("lux_sat"))
     if n_sat > len(samples) * 0.2:
-        flags.append(f"light-saturated({n_sat}/{len(samples)})")  # add a diffuser on the TSL2591
-    lights, light_src = (luxes, "lux") if luxes else ((pars, "par") if pars else ([], None))
+        flags.append(f"light-saturated({n_sat}/{len(samples)})")
+    # light source priority: unsaturated lux -> IR ch1 (full-sun fallback) -> host PAR
+    if luxes and n_sat <= len(samples) * 0.2:
+        lights, light_src = luxes, "lux"
+    elif ch1s:
+        lights, light_src = ch1s, "ir-ch1"
+    elif pars:
+        lights, light_src = pars, "par"
+    else:
+        lights, light_src = [], None
     light_med = statistics.median(lights) if lights else None
     light_cv = None
     if lights and light_med:
@@ -254,6 +272,9 @@ def dwell(v10, visit_idx, is_anchor, fh):
                  light_cv=round(light_cv, 4) if light_cv is not None else None,
                  light_src=light_src,
                  par_med=(statistics.median(pars) if pars else None),
+                 supply_w_ina_med=(round(statistics.median(
+                     [s["ina_panel_w"] for s in samples if s.get("ina_panel_w") is not None]), 3)
+                     if any(s.get("ina_panel_w") is not None for s in samples) else None),
                  panel_c_med=(round(statistics.median(ptcs), 1) if ptcs else None),
                  batt_c_med=(round(statistics.median(btcs), 1) if btcs else None),
                  flags=flags)

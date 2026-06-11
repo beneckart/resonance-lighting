@@ -63,8 +63,13 @@ def read_ina(secs):
     while time.time() - t0 < secs:
         m = rx.search(ser.readline().decode("utf-8", "replace"))
         if m:
-            acc.setdefault(m.group(1).lower(), []).append(
-                (float(m.group(4)), float(m.group(2)), float(m.group(3))))
+            try:
+                if abs(float(m.group(4))) > 4500:  # beyond the INA's +-4A range = corrupt-but-parseable line
+                    continue
+                acc.setdefault(m.group(1).lower(), []).append(
+                    (float(m.group(4)), float(m.group(2)), float(m.group(3))))
+            except ValueError:
+                pass  # mangled serial line -- skip
     out = {}
     for ch, v in acc.items():
         out[ch] = dict(ma=statistics.mean(x[0] for x in v), bus=statistics.mean(x[1] for x in v),

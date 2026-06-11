@@ -53,7 +53,8 @@ rx_peer = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
     r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
     r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?"   # supply (panel) side; optional (pre-.7 peers omit it)
-    r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?")  # env sensors (2026-06-10.1+); lux: number|sat|nan
+    r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?"   # env sensors (2026-06-10.1+); lux: number|sat|nan
+    r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?")  # onboard INA meters (2026-06-11.2+); -32768 = absent
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -84,7 +85,7 @@ with open(out, "w") as fh:
         if m:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
              dlpdr, dlrssi, up, age, sv, sma, sgood,
-             lux, ch0, ch1, ptc, prh, btc) = m.groups()
+             lux, ch0, ch1, ptc, prh, btc, ipv, ipa, ibv, iba) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -115,6 +116,15 @@ with open(out, "w") as fh:
                            panel_temp_c=numok(ptc),
                            panel_rh_pct=(None if int(prh) < 0 else int(prh)),
                            batt_temp_c=numok(btc))
+            if ipv is not None:  # onboard INA meters; -32768 = channel absent
+                def ina_ok(s):
+                    v = int(s)
+                    return None if v == -32768 else v
+                pv, pa, bv2, ba = ina_ok(ipv), ina_ok(ipa), ina_ok(ibv), ina_ok(iba)
+                row.update(ina_panel_mv=pv, ina_panel_ma=pa,
+                           ina_batt_mv=bv2, ina_batt_ma=ba)
+                if pv is not None and pa is not None:
+                    row["ina_panel_w"] = round(pv * pa / 1e6, 3)  # ground-truth harvest
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

@@ -86,7 +86,10 @@ def read_ina(secs):
     while time.time() - t0 < secs:
         m = rx.search(ser.readline().decode("utf-8", "replace"))
         if m:
-            acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
+            try:
+                acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
+            except ValueError:
+                pass  # mangled serial line -- skip
     return {ch: dict(ma=sum(x[0] for x in v) / len(v), bus_v=sum(x[1] for x in v) / len(v),
                      bus_v_min=min(x[1] for x in v), n=len(v))
             for ch, v in acc.items()}
