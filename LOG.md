@@ -12,6 +12,78 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-10 (cont. 2) — Ben + Claude — MPP sweep goes fully wireless: TSL2591 lux + SHT31 panel-temp ride the heartbeat
+
+Ben flagged the sweep's weak point: the Apogee PAR sensor is USB-tethered, so logging
+light outdoors meant a laptop or a dedicated rpi at the panel. Three options weighed:
+
+- **PowerFeather USB-C as USB-host to the Apogee: rejected.** The S3 silicon can do OTG
+  host, but this stack runs TinyUSB in device mode, the Apogee is an FTDI-class device
+  (needs a vendor VCP host driver under ESP-IDF, not Arduino), and the V2's USB-C is a
+  charge/device input that doesn't source VBUS — the sensor wouldn't even power up. A
+  research detour, not a bench fix.
+- **TSL2591 I2C lux module (arriving ~06-11): ADOPTED as the primary light channel.**
+  Chained on the peer's STEMMA-QT, auto-probed at boot, lux appended to the heartbeat
+  (append-only tail 2, `NB_PROTO_VER` unchanged — same pattern as the supply fields) →
+  light data arrives over ESP-NOW with **zero outdoor tether**. Note "lux vs PAR": neither
+  matches the panel's silicon spectral response — both are *relative* normalization
+  channels, which is all the sweep needs (absolute W comes from the anchors agreeing).
+  The TSL2591's raw ch0/ch1 (full+IR) are logged too. **Saturation caveat:** full sun
+  (~100k+ lux) can exceed its range even at min gain/integration; firmware detects and
+  reports `lux=sat`; the fix is a paper/PTFE diffuser (fine for relative use). The Apogee
+  remains an optional host-side cross-check for the indoor dry run (`--par-port`).
+- **SHT31-D taped to the panel BACK: ADOPTED for continuous panel temp** (back-surface
+  contact ≈ cell temp − a couple °C in sun; standard PV practice) → `ptc=`/`prh=` in the
+  heartbeat. The IR gun stays as the front-surface spot-check at anchors (the script
+  still prompts). **Battery NTC** (the V2's 103AT thermistor on the charger TS pin) is
+  exposed too (`btc=`) but **opt-in** (`--batt-ntc`): enabling TS with no thermistor
+  attached makes the BQ apply JEITA to a floating pin and can SUSPEND CHARGING — gotcha
+  captured in POWERFEATHER_NOTES. With the NTC taped to the cell it doubles as hardware
+  LFP charge-temp protection (a thermal-track freebie).
+
+Implementation (compiled both roles; on-hardware validation when the sensors arrive):
+`net_bench` fw 2026-06-10.1 — env auto-probe + 1 Hz cache (TSL2591 read blocks ~120 ms,
+so high-rate heartbeats reuse the cache), heartbeat tail 2, master bridge prints
+`lux=/ch0=/ch1=/ptc=/prh=/btc=`; `net_bench_log.py` + `mpp_sweep.py` + `mpp_analyze.py`
+parse them (host tooling re-validated end-to-end against a simulated master emitting the
+new tokens). Sweep flags generalized: `light-saturated`, `light-unstable`, `no-light`.
+
+## 2026-06-10 (cont.) — Ben + Claude — MPP-sweep tooling ready (next bench test); buck-boost show-load finding from existing data
+
+**Decision: the next bench test is the clean full-sun MPP sweep** (the open TODO from
+06-08 cont. 10). Rationale: with capacity, idle, and LED draw now measured, harvest is the
+last unmeasured term in the battery/panel sizing equation — and the dirty 06-08 sweep
+suggests the default VINDPM 5.5 V may give up ~2x vs the hot-panel MPP (~4.85 V), i.e. a
+potential ~2x panel-sizing error at 100 units, plus it settles the MPPT firmware decision.
+Runner-up was the gobo session (evening-compatible, doesn't compete for sun).
+
+**Tooling built + validated (no hardware in the loop yet):**
+- net_bench master `m<v10>` — explicit SET_MAINTAIN setpoint (e.g. `m48` -> 4.8 V) next to
+  the bare-`m` cycle; range-checked to the peer's 40–58 accept window. Compiles; reflash
+  the DESK master over USB — the outdoor peer needs nothing.
+- `ops/bench/mpp_sweep.py` — guided session: anchor (5.5 V) re-visited every 3 points so
+  light/temp drift is measured rather than silently corrupting the curve (the 06-08
+  lesson); 3x re-send of the unacked SET_MAINTAIN broadcast; Apogee PAR sampled each
+  heartbeat + IR-temp prompts; dark-panel + PAR-instability flags with a redo offer;
+  restores 5.5 V on exit; relays nb-* to UDP so net_bench_log co-records. Validated
+  end-to-end against a pty-simulated master (recovered a synthetic IV peak at 4.8 V).
+- `ops/bench/mpp_analyze.py` — PAR-normalized P-vs-VINDPM per session, anchor-drift
+  report, best-setpoint + "what fixed 5.5 V gives up" ratio, Vmp shift cool-vs-hot.
+Procedure (also in TODO): SOC <~60 % first (charger must stay in bulk/CC), indoor
+window dry run, then cool-AM + hot-midday sessions on a stable-sun day.
+
+**Buck-boost finding from EXISTING data** (`ops/bench/bb_efficiency.py` on the 06-10
+full-discharge JSONL; closes part of the "efficiency vs VBAT" TODO without bench time):
+at full-RGBW show load the LFP **terminal** voltage sags to ~2.9–3.05 V, so the TPS631013
+ran in **boost for the entire pre-brownout discharge — the 3.25–3.35 V buck/boost
+crossover was never visited under load.** Overhead (ESP+WiFi+converter, not separable
+with this instrumentation) ~0.48–0.52 W and roughly flat; P_led/P_batt lower bound
+0.61–0.64. Reframes the chemistry-tax concern: no crossover/mode-hunt tax at show loads;
+the residual open regime is the production **ambient** load (tens of mA), where the
+plateau terminal V (~3.2–3.3 V) does sit near the crossover. Caveats: n=1 cell/board/
+load; fine structure vs VBAT may be time-confounded (WiFi activity); plot
+`data/ca/2026-06-10-discharge-1357-bb-eff.png`.
+
 ## 2026-06-10 — Ben + Claude — Full discharge: bench LFP is AT/ABOVE its 2000 mAh rating (capacity vindicated); gauge learn cycle + brownout failure mode
 
 **Capacity, finally measured (gauge-independent).** A full charge→empty discharge on battery

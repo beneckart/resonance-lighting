@@ -52,7 +52,8 @@ rx_master = re.compile(
 rx_peer = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
     r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
-    r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?")  # supply (panel) side; optional (pre-.7 peers omit it)
+    r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?"   # supply (panel) side; optional (pre-.7 peers omit it)
+    r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?")  # env sensors (2026-06-10.1+); lux: number|sat|nan
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -82,7 +83,8 @@ with open(out, "w") as fh:
         m = rx_peer.search(text)
         if m:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
-             dlpdr, dlrssi, up, age, sv, sma, sgood) = m.groups()
+             dlpdr, dlrssi, up, age, sv, sma, sgood,
+             lux, ch0, ch1, ptc, prh, btc) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -101,6 +103,18 @@ with open(out, "w") as fh:
                 row.update(supply_v=float(sv), supply_ma=int(sma),
                            supply_good=bool(int(sgood)), supply_w=supply_w,
                            battery_w=batt_w, load_w=round(supply_w - batt_w, 3))
+            if lux is not None:  # env sensors on the peer's STEMMA bus
+                def numok(s):  # "nan"/"sat" -> None (absent / saturated)
+                    try:
+                        v = float(s)
+                        return None if v != v else v
+                    except ValueError:
+                        return None
+                row.update(lux=numok(lux), light_sat=(lux == "sat"),
+                           light_ch0=int(ch0), light_ch1=int(ch1),
+                           panel_temp_c=numok(ptc),
+                           panel_rh_pct=(None if int(prh) < 0 else int(prh)),
+                           batt_temp_c=numok(btc))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

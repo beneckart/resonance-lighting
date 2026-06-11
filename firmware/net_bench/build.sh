@@ -18,7 +18,7 @@ SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROLE=""; CHANNEL=""; FRAME_HZ=""; HB_HZ=""; JITTER=""; WDT_S=""; WDT_HANG=""
 MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
-SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""
+SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -41,6 +41,8 @@ while [[ $# -gt 0 ]]; do
     --sleep-cycle) SLEEP_CYCLE="1"; shift;;         # field peer: deep-sleep duty-cycled load measurement
     --sleep-s) SLEEP_S="$2"; shift 2;;
     --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2;;
+    --batt-ntc) BATT_NTC="1"; shift;;               # battery thermistor on charger TS -- ONLY with the NTC physically attached
+
     --chem) CHEM="$2"; shift 2;;
     --cap) CAP="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
@@ -84,6 +86,7 @@ esac
 [[ -n "${SLEEP_CYCLE}" ]]   && FLAGS+=" -DNB_SLEEP_CYCLE=1"
 [[ -n "${SLEEP_S}" ]]       && FLAGS+=" -DNB_SLEEP_S=${SLEEP_S}"
 [[ -n "${WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_WAKE_LISTEN_MS=${WAKE_LISTEN_MS}"
+[[ -n "${BATT_NTC}" ]]      && FLAGS+=" -DNB_BATT_NTC=1"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7";;

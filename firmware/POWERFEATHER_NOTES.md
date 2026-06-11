@@ -184,3 +184,17 @@ available). 5/6 GHz client devices roamed fine; the S3 (2.4 GHz only) did not.
 - **Scope:** this bit us with a **moving** board. Deployed fixtures are **stationary**, so
   they won't walk away from the AP they associated to — low field risk, but the
   maintenance AP should still be the **strongest** thing near the tree during an OTA window.
+
+## Don't enable the charger's battery temp-sense without a thermistor attached
+
+`Board.enableBatteryTempSense(true)` flips the BQ25628E's **TS input on** — the charger
+then applies JEITA temperature limits to whatever the TS pin reads. With **no NTC
+physically attached** the pin floats out of the plausible-bias window and the charger can
+**suspend or derate charging** (the SDK's `getBatteryTemperature()` itself rejects bias
+outside [0.1, 0.8] as open/short). So:
+
+- Battery NTC telemetry is **opt-in** in net_bench (`./build.sh --batt-ntc`) — only build
+  with it when the PowerFeather's 103AT thermistor is actually taped to the cell.
+- With the NTC attached it's doubly useful: real battery temp in the heartbeat (`btc=`)
+  AND hardware charge-temperature protection (LFP charge limits — the sealed-hat thermal
+  question).

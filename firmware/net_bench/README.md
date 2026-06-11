@@ -47,7 +47,19 @@ Recover the IP/banner via the pyserial RTS pulse (native USB-CDC; see
 pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-hangtest`,
 `--maint-timeout S`, `--start-maint`, `--autosleep`/`--budget-mah`/`--wake-s`,
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
-`--serial-bridge`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--port`/`--ota`.
+`--serial-bridge`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--batt-ntc` (battery
+thermistor on charger TS — ONLY with the NTC physically taped to the cell, see
+POWERFEATHER_NOTES), `--port`/`--ota`.
+
+### Env sensors (MPP sweep: light + panel temp over the air)
+A TSL2591 (lux, 0x29) and/or SHT31-D (temp/RH, 0x44) chained on the peer's STEMMA-QT
+are **auto-probed at boot** (no build flag; one image serves sensored and bare boards)
+and appended to the heartbeat: `lux=` (`sat` = saturated — full sun can exceed the
+TSL2591's range even at min gain; a paper/PTFE diffuser fixes it, and the relative
+normalization use survives the unknown attenuation), `ch0=`/`ch1=` raw counts,
+`ptc=`/`prh=` (tape the SHT31 to the panel BACK ≈ cell temp), `btc=` (battery NTC,
+needs `--batt-ntc`). Master `m<v10>` (e.g. `m48`) sets an explicit VINDPM for scripted
+sweeps; bare `m` cycles presets. Host: `ops/bench/mpp_sweep.py` + `mpp_analyze.py`.
 
 ## Serial bridge + field scan-report (no laptop in the field)
 

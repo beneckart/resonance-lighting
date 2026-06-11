@@ -31,8 +31,13 @@
 #include "esp_sleep.h"
 #include "esp_task_wdt.h"
 #include <Preferences.h>
+#include <Wire.h>
+// Env sensors (MPP sweep): auto-probed on the STEMMA bus (Wire1) at boot --
+// one image serves sensored and bare boards alike. See envInit()/envTick().
+#include <Adafruit_TSL2591.h>
+#include <Adafruit_SHT31.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-09.1"
+#define NET_BENCH_VERSION "net-bench-2026-06-10.1"
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -175,6 +180,16 @@ int cbSoc = -1;
 float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
 
+// ---- env sensors (MPP sweep: light + panel temp, no host tether) ------------
+Adafruit_TSL2591 gTsl(2591);          // lux/irradiance proxy (STEMMA, 0x29)
+Adafruit_SHT31 gSht(&Wire1);          // panel-back temp + RH (STEMMA, 0x44)
+bool gEnvTsl = false, gEnvSht = false, gEnvBtemp = false;
+uint32_t gEnvLuxX10 = 0xFFFFFFFF;     // 0xFFFFFFFE = saturated (full sun > range)
+uint16_t gEnvCh0 = 0, gEnvCh1 = 0;
+int16_t gEnvPtempX10 = INT16_MIN;
+uint8_t gEnvRh = 255;
+int16_t gEnvBtempX10 = INT16_MIN;
+
 uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead of battery
 
 // field scan-report state (set on a -DNB_SCAN_REPORT peer). gScanRunning is read
@@ -232,6 +247,14 @@ struct __attribute__((packed)) NbHeartbeat {
   int16_t supply_mv; // panel/USB input voltage (mV)
   int16_t supply_ma; // panel/USB input current INTO the board (mA)
   uint8_t supply_good; // charger considers the supply valid (0/1)
+  // --- APPEND-ONLY tail 2 (env sensors on the peer's STEMMA bus, for the MPP
+  // sweep: no-tether outdoor light + panel-temp logging). Same rules as above.
+  uint32_t lux_x10;   // TSL2591 lux*10; 0xFFFFFFFF = no sensor, 0xFFFFFFFE = SATURATED
+  uint16_t light_ch0; // TSL2591 raw full-spectrum count (GAIN_LOW / 100 ms, fixed)
+  uint16_t light_ch1; // TSL2591 raw IR count
+  int16_t ptemp_cx10; // SHT31 temp x10 C (tape it to the panel BACK); INT16_MIN = absent
+  uint8_t prh_pct;    // SHT31 RH %; 255 = absent
+  int16_t btemp_cx10; // battery NTC via charger TS x10 C (needs -DNB_BATT_NTC); INT16_MIN = absent
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -272,6 +295,12 @@ struct NbPeerStat {
   int8_t dl_rssi;
   int16_t supply_mv, supply_ma; // panel side (0 if peer pre-dates supply telemetry)
   uint8_t supply_good;
+  bool has_env; // peer sent the env-sensor tail
+  uint32_t lux_x10;
+  uint16_t light_ch0, light_ch1;
+  int16_t ptemp_cx10;
+  uint8_t prh_pct;
+  int16_t btemp_cx10;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -283,6 +312,8 @@ struct RxItem {
   uint8_t data[64];
 };
 QueueHandle_t rxQueue;
+static_assert(sizeof(NbHeartbeat) <= sizeof(RxItem::data),
+              "heartbeat outgrew the rx buffer -- bump RxItem::data");
 
 // ---- reused helpers (from power_bench) -------------------------------------
 const char *resetReasonName(esp_reset_reason_t r) {
@@ -327,6 +358,56 @@ void setupPowerFeather() {
 #else
   Board.enableBatteryCharging(false);
 #endif
+}
+
+// Env sensors: probe the STEMMA bus once at boot. Board.init() already started
+// Wire1 (47/48) and enabled VSQT, so a sensored board just works; a bare board
+// probes-and-misses and sends absent-sentinels. Battery NTC is OPT-IN
+// (-DNB_BATT_NTC): enabling the charger's TS input with no thermistor attached
+// makes the BQ apply JEITA limits to a floating pin -> can suspend charging.
+void envInit() {
+  Wire1.begin(47, 48, 100000); // idempotent; keep the SDK's 100 kHz
+  gEnvTsl = gTsl.begin(&Wire1);
+  if (gEnvTsl) {
+    gTsl.setGain(TSL2591_GAIN_LOW);                 // full-sun headroom
+    gTsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // max count 36863
+  }
+  gEnvSht = gSht.begin(0x44);
+#ifdef NB_BATT_NTC
+  if (pfReady && Board.enableBatteryTempSense(true) == Result::Ok) {
+    float t;
+    gEnvBtemp = (Board.getBatteryTemperature(t) == Result::Ok);
+  }
+#endif
+  Serial.printf("env sensors: TSL2591=%d SHT31=%d batt-NTC=%d\n",
+                gEnvTsl, gEnvSht, gEnvBtemp);
+}
+
+// Refresh the env cache at ~1 Hz. The TSL2591 read blocks ~120 ms (integration),
+// so heartbeats at high rates reuse the cache instead of reading inline.
+void envTick() {
+  static uint32_t nextMs = 0;
+  if ((!gEnvTsl && !gEnvSht && !gEnvBtemp) || millis() < nextMs) return;
+  nextMs = millis() + 1000;
+  if (gEnvTsl) {
+    uint32_t lum = gTsl.getFullLuminosity();
+    gEnvCh0 = (uint16_t)(lum & 0xFFFF);
+    gEnvCh1 = (uint16_t)(lum >> 16);
+    float lux = gTsl.calculateLux(gEnvCh0, gEnvCh1);
+    if (gEnvCh0 >= 36800 || gEnvCh1 >= 36800 || lux < 0.0f)
+      gEnvLuxX10 = 0xFFFFFFFE; // saturated: add a diffuser (relative use survives it)
+    else
+      gEnvLuxX10 = (uint32_t)(lux * 10.0f);
+  }
+  if (gEnvSht) {
+    float t = gSht.readTemperature(), h = gSht.readHumidity();
+    gEnvPtempX10 = isnan(t) ? INT16_MIN : (int16_t)(t * 10.0f);
+    gEnvRh = isnan(h) ? 255 : (uint8_t)(h + 0.5f);
+  }
+  if (gEnvBtemp) {
+    float t;
+    if (Board.getBatteryTemperature(t) == Result::Ok) gEnvBtempX10 = (int16_t)(t * 10.0f);
+  }
 }
 
 // Locate pattern "..-" (dot dot dash + gap), unmistakable vs the battery blinks.
@@ -583,6 +664,12 @@ void sendHeartbeat(uint8_t caState) {
   hb.supply_mv = (int16_t)(csV * 1000.0f);
   hb.supply_ma = (int16_t)csMa;
   hb.supply_good = csGood ? 1 : 0;
+  hb.lux_x10 = gEnvTsl ? gEnvLuxX10 : 0xFFFFFFFF;
+  hb.light_ch0 = gEnvCh0;
+  hb.light_ch1 = gEnvCh1;
+  hb.ptemp_cx10 = gEnvPtempX10;
+  hb.prh_pct = gEnvRh;
+  hb.btemp_cx10 = gEnvBtempX10;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -682,7 +769,7 @@ void emitBridge(const char *line, int n) {
 
 void bridgeStats() {
   if (!IS_MASTER) return;
-  char line[256];
+  char line[336]; // base peer line + the optional env tail
   // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
                    "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f\n",
@@ -696,13 +783,28 @@ void bridgeStats() {
     uint32_t tot = p->recv + p->gaps;
     float pdr = tot ? (float)p->recv / (float)tot : 0.0f;
     n = snprintf(line, sizeof(line),
-                 "nb-peer id=%02X%02X%02X seq=%lu rx=%lu gaps=%lu pdr=%.4f rssi=%d bv=%.3f ima=%d soc=%d rr=%s ca=%d mode=%d dlpdr=%.3f dlrssi=%d up=%lu age=%lu sv=%.3f sma=%d sgood=%d\n",
+                 "nb-peer id=%02X%02X%02X seq=%lu rx=%lu gaps=%lu pdr=%.4f rssi=%d bv=%.3f ima=%d soc=%d rr=%s ca=%d mode=%d dlpdr=%.3f dlrssi=%d up=%lu age=%lu sv=%.3f sma=%d sgood=%d",
                  p->id[0], p->id[1], p->id[2], (unsigned long)p->last_seq, (unsigned long)p->recv,
                  (unsigned long)p->gaps, pdr, p->rssi, p->batt_mv / 1000.0f, p->batt_ma,
                  (p->soc == 255 ? -1 : p->soc), resetReasonName((esp_reset_reason_t)p->rr), p->ca,
                  p->pmode, p->dl_pdr_x1000 / 1000.0f, p->dl_rssi, (unsigned long)p->up,
                  (unsigned long)(millis() - p->last_heard_ms),
                  p->supply_mv / 1000.0f, p->supply_ma, p->supply_good);
+    if (p->has_env && n < (int)sizeof(line)) { // env tail: lux/ptc/btc "nan" = absent, lux "sat" = saturated
+      char luxs[16];
+      if (p->lux_x10 == 0xFFFFFFFF) snprintf(luxs, sizeof(luxs), "nan");
+      else if (p->lux_x10 == 0xFFFFFFFE) snprintf(luxs, sizeof(luxs), "sat");
+      else snprintf(luxs, sizeof(luxs), "%.1f", p->lux_x10 / 10.0f);
+      char ptcs[12], btcs[12];
+      if (p->ptemp_cx10 == INT16_MIN) snprintf(ptcs, sizeof(ptcs), "nan");
+      else snprintf(ptcs, sizeof(ptcs), "%.1f", p->ptemp_cx10 / 10.0f);
+      if (p->btemp_cx10 == INT16_MIN) snprintf(btcs, sizeof(btcs), "nan");
+      else snprintf(btcs, sizeof(btcs), "%.1f", p->btemp_cx10 / 10.0f);
+      n += snprintf(line + n, sizeof(line) - n, " lux=%s ch0=%u ch1=%u ptc=%s prh=%d btc=%s",
+                    luxs, p->light_ch0, p->light_ch1, ptcs,
+                    (p->prh_pct == 255 ? -1 : (int)p->prh_pct), btcs);
+    }
+    if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
   }
 }
@@ -780,10 +882,17 @@ void processRx() {
         p->batt_mv = hb->batt_mv; p->batt_ma = hb->batt_ma; p->soc = hb->soc_pct;
         p->rr = hb->reset_reason; p->ca = hb->ca_state; p->pmode = hb->mode;
         p->dl_pdr_x1000 = hb->dl_pdr_x1000; p->dl_rssi = hb->dl_rssi;
-        if (it.len >= (int)sizeof(NbHeartbeat)) { // supply-capable peer (append-only tail)
+        if (it.len >= (int)offsetof(NbHeartbeat, lux_x10)) { // supply-capable peer (append-only tail 1)
           p->supply_mv = hb->supply_mv; p->supply_ma = hb->supply_ma; p->supply_good = hb->supply_good;
         } else {
           p->supply_mv = 0; p->supply_ma = 0; p->supply_good = 0;
+        }
+        if (it.len >= (int)sizeof(NbHeartbeat)) { // env-capable peer (append-only tail 2)
+          p->has_env = true;
+          p->lux_x10 = hb->lux_x10; p->light_ch0 = hb->light_ch0; p->light_ch1 = hb->light_ch1;
+          p->ptemp_cx10 = hb->ptemp_cx10; p->prh_pct = hb->prh_pct; p->btemp_cx10 = hb->btemp_cx10;
+        } else {
+          p->has_env = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {
@@ -897,12 +1006,33 @@ void handleSerial() {
     Serial.println("identify ALL peers 8s");
     break;
   }
-  case 'm': { // master: step the VINDPM/maintain setpoint (panel MPP sweep over the fleet)
+  case 'm': { // master: VINDPM/maintain setpoint (panel MPP sweep over the fleet).
+              // Bare 'm' cycles the preset list; 'm<v10>' (e.g. m48 -> 4.8 V) sets an
+              // explicit point so a host script can sweep with anchors/repeats.
     if (!IS_MASTER) break;
     static const uint8_t mv10[] = {55, 52, 50, 48, 46, 44}; // 5.5..4.4 V
     static uint8_t mi = 0;
-    uint8_t v10 = mv10[mi];
-    mi = (mi + 1) % (uint8_t)(sizeof(mv10));
+    int explicitV10 = -1;
+    uint32_t digitDeadline = millis() + 50; // digits (if any) arrive with the 'm'
+    while ((int32_t)(digitDeadline - millis()) > 0) {
+      if (!Serial.available()) { delay(1); continue; }
+      int p = Serial.peek();
+      if (p < '0' || p > '9') break;
+      Serial.read();
+      explicitV10 = (explicitV10 < 0 ? 0 : explicitV10 * 10) + (p - '0');
+      if (explicitV10 > 100) break;
+    }
+    uint8_t v10;
+    if (explicitV10 >= 0) {
+      if (explicitV10 < 40 || explicitV10 > 58) { // match the peer-side accept window
+        Serial.printf("SET_MAINTAIN %d rejected (range 40..58 = 4.0..5.8 V)\n", explicitV10);
+        break;
+      }
+      v10 = (uint8_t)explicitV10;
+    } else {
+      v10 = mv10[mi];
+      mi = (mi + 1) % (uint8_t)(sizeof(mv10));
+    }
     sendCmd(NB_SET_MAINTAIN, v10);
     Serial.printf("broadcast SET_MAINTAIN %.1f V\n", (float)v10 / 10.0f);
     break;
@@ -1020,6 +1150,8 @@ void setup() {
                 myMac[2], myMac[3], myMac[4], myMac[5]);
 
   setupPowerFeather();
+  envInit();
+  envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
 #ifdef NB_AUTOSLEEP
   autosleepBootCheck();
 #endif
@@ -1048,6 +1180,7 @@ void loop() {
   static uint32_t lastBat = 0;
   uint32_t now = millis();
   if (now - lastBat > 1000) { lastBat = now; readBattery(); }
+  envTick();
   updateStatusLed();
 
 #ifdef NB_AUTOSLEEP
