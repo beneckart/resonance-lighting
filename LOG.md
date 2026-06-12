@@ -12,6 +12,43 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-11 (cont. 3) — Ben + Claude — 32700 VERDICT: 5726 mAh (95 % of rating) = the production cell passes; "4 W" camera panel = a 1 W panel in a trench coat
+
+**32700 6 Ah LFP capacity (the production-cell gate): 5,726 mAh clean to a 2.473 V cutoff
+over 7.16 h, ZERO resets.** Stitch: run 1 981 + ~6 (gap at ~124 mA idle after run 1's
+parse crash) + run 2 4,739; **7 corrupt-but-parseable INA samples ablated** (−256 to
+−343 A class; the raw script integral read 10.9 Ah — reconcile-before-believing, again).
+Cross-check: the gauge's own run-2 integral came out **+8.5 % above the clean INA** —
+the MAX17260 current bias replicating for the **6th consecutive session** (+8 +-1 %,
+both directions, both cell types; the /1.08 software correction is now very solid).
+**Verdict: PASS at $5.10 ($0.89/delivered-Ah)** — 95 % is ratings-tolerance territory on
+a first cycle with a conservative cutoff. Qualify a 2nd sample from the batch before the
+100-unit order (n=1), but this is the production cell unless that surprises. Notable:
+under the fading HEX load the cell rode the whole tail gracefully (load self-dimmed
+605 -> ~250 mA as the rail sagged) — zero brownout resets, vs the mule's 44-reset
+cascade under the stiffer RGBW point-source load.
+
+**"4 W" ring-camera panel bake-off (Ben's economy-of-scale candidate): rejected, with
+numbers.** Voc only ~5.45 V hot at the connector (10-cell panel + blocking diode — Ben
+visually confirmed diode-only in the housing). Flat-mounted: a dead-flat ~0.28 W from
+VINDPM 4.6 down to 4.0 (current-source-starved, ~65 mA — no knee at all). Tilted
+square to the sun at 4.6 V: 0.579 W in ~57 klux — scaled to full sun ~1.0-1.1 W real
+capability = **~4x overrated**, plus bezel self-shading when flat (tilting doubled
+output, more than geometry alone explains) and the diode tax. Apples-to-apples the
+Seeed 3 W delivers ~4x the real harvest. The 10-minute sweep harness is now the
+panel qualifier: any candidate (incl. the ETFE panels) earns its place through it.
+(Sweep-tooling fixes from the session: anchor-all-zero ZeroDivision guard; "restore
+5.5 V on exit" bit us twice when the next panel's window sat below 5.5 — the live
+check is `sgood=1` + `sma=0` = setpoint above the panel's window, send `m46`.)
+
+Misc: lux-sensor bump mid-session produced a fake 30x light drop (the 3.5 klux
+"shade" reading) — worth a mount for the TSL. Sun-angle context for today's numbers:
+3:40 pm flat-mount cosine loss ~18 % + cell ~65 °C temp derate ~16 % fully explains
+"2 W from a 3 W panel" — the Seeed performs AT rating once physics is applied.
+Tomorrow: cool-AM Seeed sweep (Vmp(T) -> MPPT decision), then a dawn-to-dusk harvest
+log = measured effective-solar-hours (the fixture-specific derate of Ben's 5-h
+heuristic; pre-derate estimate ~2-3 h flat, ~1.5-2.5 in-tree).
+
 ## 2026-06-11 (cont. 2) — Ben + Claude — FIRST WIRELESS MPP SWEEP: hot-panel optimum 4.6-4.7 V = ~3x the default harvest; bright-sun input-latch gotcha; 32700 verdict pending
 
 **The harvest question (the sizing campaign's last unmeasured term) now has its hot-panel

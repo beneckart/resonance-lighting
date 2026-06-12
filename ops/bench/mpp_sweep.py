@@ -348,10 +348,15 @@ if len(anchors) >= 2:
     vals = [(1000 * p["supply_w_med"] / p["light_med"]) if p.get("light_med") else p["supply_w_med"]
             for p in anchors]
     unit = "W/klight" if anchors[0].get("light_med") else "W (no light channel!)"
-    drift = (max(vals) - min(vals)) / statistics.median(vals)
-    print(f"\nanchor {a.anchor/10:.1f}V across session ({unit}): "
-          + " ".join(f"{v:.3f}" for v in vals) + f"  drift={drift:.0%}")
-    if drift > a.anchor_drift_flag:
-        print(f"WARNING: anchor drift > {a.anchor_drift_flag:.0%} - conditions moved; "
-              "treat absolute watts with suspicion (light-normalized curve is the robust output).")
+    med = statistics.median(vals)
+    if med > 0:
+        drift = (max(vals) - min(vals)) / med
+        print(f"\nanchor {a.anchor/10:.1f}V across session ({unit}): "
+              + " ".join(f"{v:.3f}" for v in vals) + f"  drift={drift:.0%}")
+        if drift > a.anchor_drift_flag:
+            print(f"WARNING: anchor drift > {a.anchor_drift_flag:.0%} - conditions moved; "
+                  "treat absolute watts with suspicion (light-normalized curve is the robust output).")
+    else:
+        print(f"\nanchor {a.anchor/10:.1f}V produced ~0 W all session "
+              "(shaded? anchor above the panel's loaded window?) - no drift check possible.")
 print(f"\nDONE {len(points)} points -> {out}\nNext: ./mpp_analyze.py {out}")
