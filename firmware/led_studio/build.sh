@@ -28,8 +28,8 @@ if [[ ! -f "${SKETCH_DIR}/wifi_secrets.h" && -f "${SKETCH_DIR}/../power_bench/wi
   echo "copied wifi_secrets.h from ../power_bench"
 fi
 
-FLAGS=""
-[[ -n "${PIN}" ]] && FLAGS="-DDATA_PIN=${PIN}"
+FLAGS="-DPOWERFEATHER_BOARD_V2=1" # SDK targets the V2 gauge/charger (LFP-safe charge profile)
+[[ -n "${PIN}" ]] && FLAGS+=" -DDATA_PIN=${PIN}"
 
 ARGS=(compile --fqbn "${FQBN}" "${SKETCH_DIR}")
 [[ -n "${FLAGS}" ]] && ARGS+=(--build-property "compiler.cpp.extra_flags=${FLAGS}")

@@ -24,9 +24,22 @@
 // Constructed for HEX (RGB) by default; switched to RGBW at runtime via applyMode().
 Adafruit_NeoPixel strip(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 
+// PowerFeather SDK: we init it ONLY to program the charger's LFP profile (3.65 V
+// ceiling) -- without this the BQ25628E runs its 4.2 V Li-ion default, which
+// OVERCHARGES an attached LFP whenever USB/panel power is present (see
+// POWERFEATHER_NOTES "chemistry flash order"). Added 2026-06-11 so studio sessions
+// are safe with USB + cell simultaneously (and the cell charges correctly).
+#include <PowerFeather.h>
+using namespace PowerFeather;
+#if !defined(POWERFEATHER_BOARD_V2) && !defined(CONFIG_ESP32S3_POWERFEATHER_V2)
+#error "Build with -DPOWERFEATHER_BOARD_V2=1 (build.sh passes it) so the SDK targets the V2."
+#endif
+#define STUDIO_BATTERY_MAH 2000
+#define STUDIO_BATTERY_TYPE Mainboard::BatteryType::Generic_LFP
+
 // PowerFeather V2: the switchable 3V3 header rail (powers the LED) is gated by GPIO4
-// (EN_3V3, active HIGH). We don't run the SDK, so enable it ourselves in setup() --
-// see firmware/POWERFEATHER_NOTES.md.
+// (EN_3V3, active HIGH). Kept as a fallback in case Board.init() fails -- the rail
+// must be on either way. See firmware/POWERFEATHER_NOTES.md.
 #define EN_3V3_PIN 4
 
 #if __has_include("wifi_secrets.h")
@@ -623,8 +636,24 @@ void setupWifi() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+  // LFP-safe charger config (see note at the SDK include). Retry a few times like
+  // the bench firmwares; fall back to the manual rail-enable if init won't come up.
+  Result pf = Result::Failure;
+  for (int i = 0; i < 4 && pf != Result::Ok; i++) {
+    pf = Board.init((uint16_t)STUDIO_BATTERY_MAH, STUDIO_BATTERY_TYPE);
+    if (pf != Result::Ok) delay(250);
+  }
+  if (pf == Result::Ok) {
+    Board.setBatteryChargingMaxCurrent(500.0f); // gentle USB-friendly charge
+    Board.enableBatteryCharging(true);
+    Board.enable3V3(true); // LED rail (SDK path)
+    Serial.println("PowerFeather SDK Ok: charger = LFP profile, charging on (500 mA), 3V3 on");
+  } else {
+    Serial.println("WARNING: Board.init failed -- charger UNCONFIGURED (do NOT attach a cell "
+                   "while on USB); enabling 3V3 rail manually");
+  }
   pinMode(EN_3V3_PIN, OUTPUT);
-  digitalWrite(EN_3V3_PIN, HIGH); // enable the switchable 3V3 header rail
+  digitalWrite(EN_3V3_PIN, HIGH); // enable the switchable 3V3 header rail (fallback/no-op)
   delay(20);
   buildGeometry();
   strip.begin();
