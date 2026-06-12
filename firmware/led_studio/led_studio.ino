@@ -14,6 +14,7 @@
 #include <math.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
 #ifndef DATA_PIN
@@ -36,6 +37,7 @@ using namespace PowerFeather;
 #endif
 #define STUDIO_BATTERY_MAH 2000
 #define STUDIO_BATTERY_TYPE Mainboard::BatteryType::Generic_LFP
+bool gPfReady = false; // SDK up -> /state carries battery stats (SOC matters for sag/brightness)
 
 // PowerFeather V2: the switchable 3V3 header rail (powers the LED) is gated by GPIO4
 // (EN_3V3, active HIGH). Kept as a fallback in case Board.init() fails -- the rail
@@ -507,6 +509,7 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
  <button onclick="send('off=1')">All off</button>
 </div></div>
 <div class=row><label>Current settings</label><div id=rb>...</div></div>
+<div class=row><label>Battery</label><div id=bat>...</div></div>
 
 <script>
 let st={mode:0,r:255,g:140,b:40,w:0,bri:40,speed:30,anim:0,gamma:1,shape:1,trail:3,ring:1,
@@ -551,7 +554,12 @@ function refresh(){fetch('/state').then(r=>r.json()).then(s=>{st.lit=s.lit;st.an
   '\nbri='+s.bri+'  gamma='+(s.gamma?'on':'off')+'  speed='+s.speed+
   (st.mode==0?'\nshape='+['center','+ring1','+ring2','all'][s.shape]+'  lit='+s.lit+
     (s.split?'  split='+['off','triad','rotate'][s.split]+'[anchor='+s.anchor+(s.split==1?' spread='+(st.spread/10).toFixed(1)+' rot='+st.rotate:'')+']':''):
-    '\ncolorB=#'+hx(st.b2r)+hx(st.b2g)+hx(st.b2b));});}
+    '\ncolorB=#'+hx(st.b2r)+hx(st.b2g)+hx(st.b2b));
+ let bat=document.getElementById('bat');
+ if(!s.pf){bat.textContent='no battery data (SDK init failed)';}
+ else{let act=s.ma>30?('charging +'+s.ma+'mA'):(s.ma<-30?('discharging '+s.ma+'mA'):'idle ~'+s.ma+'mA');
+  bat.textContent='SOC '+s.soc+'%  '+s.bv.toFixed(3)+'V  '+act+
+   (s.sgood?('  |  supply '+s.sv.toFixed(2)+'V ok'):'  |  on battery');}});}
 applyModeUI(0);hl('sh',1,4);hl('ah',0,5);hl('sp',0,3);syncLabels();setInterval(refresh,600);refresh();
 </script></body></html>)HTML";
 
@@ -600,12 +608,25 @@ void handleSet() {
 }
 
 void handleState() {
-  char buf[240];
+  // battery stats (live SDK reads; the UI polls at 600 ms which the 100 kHz power
+  // I2C handles fine). pf=0 -> no data (init failed); ma > 0 = charging.
+  float bv = 0, ma = 0, sv = 0;
+  uint8_t soc = 0;
+  bool sgood = false;
+  if (gPfReady) {
+    Board.getBatteryVoltage(bv);
+    Board.getBatteryCurrent(ma);
+    Board.getBatteryCharge(soc);
+    Board.getSupplyVoltage(sv);
+    Board.checkSupplyGood(sgood);
+  }
+  char buf[360];
   snprintf(buf, sizeof(buf),
            "{\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
-           "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u}",
+           "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
+           "\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.2f,\"sgood\":%d}",
            gMode, gAnim, gR, gG, gB, gW, gBri, gSpeed, gGamma ? 1 : 0, gShape,
-           lastLit, gAnchor, gSplit);
+           lastLit, gAnchor, gSplit, gPfReady ? 1 : 0, bv, ma, soc, sv, sgood ? 1 : 0);
   server.send(200, "application/json", buf);
 }
 
@@ -644,6 +665,7 @@ void setup() {
     if (pf != Result::Ok) delay(250);
   }
   if (pf == Result::Ok) {
+    gPfReady = true;
     Board.setBatteryChargingMaxCurrent(500.0f); // gentle USB-friendly charge
     Board.enableBatteryCharging(true);
     Board.enable3V3(true); // LED rail (SDK path)
@@ -664,6 +686,35 @@ void setup() {
   server.on("/", []() { server.send_P(200, "text/html", PAGE); });
   server.on("/set", handleSet);
   server.on("/state", handleState);
+  // Standard OTA (same handler as power_bench) so studio tweaks never need a tether:
+  //   curl -F "firmware=@led_studio.ino.bin" http://<ip>/update   (or the GET form)
+  server.on("/update", HTTP_GET, []() {
+    server.send(200, "text/html",
+                "<form method=POST action=/update enctype=multipart/form-data>"
+                "<input type=file name=firmware><input type=submit value=Flash></form>");
+  });
+  server.on(
+      "/update", HTTP_POST,
+      []() {
+        bool ok = !Update.hasError();
+        server.send(ok ? 200 : 500, "text/plain",
+                    ok ? "Update complete. Rebooting.\n" : "Update failed.\n");
+        delay(500);
+        if (ok) ESP.restart();
+      },
+      []() {
+        HTTPUpload &upload = server.upload();
+        if (upload.status == UPLOAD_FILE_START) {
+          Serial.printf("OTA upload start: %s\n", upload.filename.c_str());
+          if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+          if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+            Update.printError(Serial);
+        } else if (upload.status == UPLOAD_FILE_END) {
+          if (Update.end(true)) Serial.printf("OTA upload done: %u bytes\n", upload.totalSize);
+          else Update.printError(Serial);
+        }
+      });
   server.begin();
   Serial.printf("LED Studio ready (GPIO%d). HEX ring sizes %u/%u/%u/%u\n", DATA_PIN,
                 ringSize[0], ringSize[1], ringSize[2], ringSize[3]);
