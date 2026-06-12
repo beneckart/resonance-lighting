@@ -12,6 +12,19 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-12 (cont. 3) — Ben + Claude — Interactivity/presence sensing: option space mapped (Elliot ask)
+
+Elliot (project lead) saw the 06-11 LED demo and asked for presence detection /
+interactivity — "what makes people spend quality time at the tree." Full landscape in
+`docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md`; headlines: it's ART not
+security (false positives are benign -> ~80 % reliability = success); the product is the
+MESH choreography (PRESENCE event + ripple, the packet layer already fits); primary
+candidate = downward VL53L1X ToF eye (sway-robust, ~$3, ~zero power, but needs a port
+next to the gobo aperture — Steve); radar = through-enclosure (no dust exposure) but
+LED-show-class power unless duty-cycled + self-sway artifacts (IMU veto); the FREE
+experiment = mesh-RSSI presence (bodies attenuate 2.4 GHz ~20 dB, already in every
+heartbeat). Bench kit ~$10, test plan Steve-compatible, TODOs queued.
+
 ## 2026-06-12 (cont. 2) — Ben + Claude — HEX 4.2 V boost direction (TPS63802); revised HEX budget; Steve-runnable bench TODO pushed
 
 Remote session while Ben travels. Two outcomes, both queued as Steve-runnable TODOs

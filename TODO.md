@@ -143,6 +143,29 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] If the swept-pixel / orbit moving-shadow looks good, decide whether it argues for a small multi-pixel array even in the "point source" role (Ben).
 - [x] Re-test the **4 W RGBW** point source the same way — DONE 2026-06-11 (led_studio dual-board session): point-vs-area settled as complementary, see verdict above (Ben).
 
+## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) — Elliot ask, 2026-06-12
+
+- [ ] Order the sensor bench kit (~$10): **VL53L1X ToF** (I2C, primary), **LD2420/LD2410
+  mmWave** (UART, through-enclosure candidate), **LIS3DH/MPU6050 IMU** (sway-veto +
+  wind-response + structure-touch) (Ben or Steve).
+- [ ] Add the sensors to the net_bench heartbeat (append-only tail, same pattern as
+  env/INA) so detection tuning happens wirelessly from the desk (Claude + whoever's bench).
+- [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height — detection vs
+  false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
+  ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).
+- [ ] **Radar test**: LD2420 duty-cycled power draw (continuous ~80 mA = LED-show-class,
+  unacceptable); through-enclosure detection from inside a mock hat/lantern body; self-sway
+  false positives +- IMU veto; 2-unit mutual-interference check (Steve-runnable).
+- [ ] **Mesh-RSSI presence experiment (FREE)**: 3-5 net_bench nodes in the yard, someone
+  walks figure-eights — do per-link RSSI step-changes localize people? Existing JSONL
+  tooling; zero new hardware (Ben or Steve).
+- [ ] **Enclosure**: downward eye port placement vs the gobo aperture (they share the
+  lantern bottom) — small recessed window beside the gobo margin? (Steve).
+- [ ] Sketch the PRESENCE event packet + a first ripple choreography (master-relayed or
+  peer-flooded with hop-count) — the mesh choreography IS the product; sensor is the seed
+  (Ben + Claude).
+- [ ] Report findings to Elliot (interactivity = his ask; BOM impact ~$3-6/lantern) (Ben).
+
 ## HEX 4.2 V boost bench test — TPS63802 (STEVE-RUNNABLE while Ben travels, 2026-06-12)
 
 Context (LOG 2026-06-12 cont.): at our sagged ~2.8-2.95 V LED rail the SK6812's blue/green
