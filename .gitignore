@@ -32,3 +32,4 @@ Thumbs.db
 # Manufacturing outputs (regenerate from sources)
 *.gerber/
 *.zip
+firmware/*/build/

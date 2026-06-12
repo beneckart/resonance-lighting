@@ -607,19 +607,32 @@ void handleSet() {
   server.send(200, "text/plain", "ok");
 }
 
-void handleState() {
-  // battery stats (live SDK reads; the UI polls at 600 ms which the 100 kHz power
-  // I2C handles fine). pf=0 -> no data (init failed); ma > 0 = charging.
-  float bv = 0, ma = 0, sv = 0;
-  uint8_t soc = 0;
-  bool sgood = false;
-  if (gPfReady) {
-    Board.getBatteryVoltage(bv);
-    Board.getBatteryCurrent(ma);
-    Board.getBatteryCharge(soc);
-    Board.getSupplyVoltage(sv);
-    Board.checkSupplyGood(sgood);
+// Battery stats CACHE: live SDK reads in handleState stalled the animation loop
+// (charger reads trigger ADC one-shots = tens of ms, x5 fields, every 600 ms poll).
+// Instead loop() refreshes ONE field per ~800 ms round-robin (a single short I2C
+// transaction per frame at worst) and /state serves the cache instantly.
+float gBatV = 0, gBatMa = 0, gSupV = 0;
+uint8_t gSoc = 0;
+bool gSupGood = false;
+
+void batteryTick() {
+  static uint32_t nextMs = 0;
+  static uint8_t idx = 0;
+  if (!gPfReady || millis() < nextMs) return;
+  nextMs = millis() + 800;
+  switch (idx++ % 5) {
+  case 0: Board.getBatteryVoltage(gBatV); break;
+  case 1: Board.getBatteryCurrent(gBatMa); break;
+  case 2: Board.getBatteryCharge(gSoc); break;
+  case 3: Board.getSupplyVoltage(gSupV); break;
+  case 4: Board.checkSupplyGood(gSupGood); break;
   }
+}
+
+void handleState() {
+  float bv = gBatV, ma = gBatMa, sv = gSupV;
+  uint8_t soc = gSoc;
+  bool sgood = gSupGood;
   char buf[360];
   snprintf(buf, sizeof(buf),
            "{\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
@@ -723,6 +736,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  batteryTick();
   if (isAnimating() && millis() - lastFrame >= (uint32_t)(400 - (gSpeed - 1) * (375.0f / 99.0f))) {
     lastFrame = millis();
     renderFrame();
