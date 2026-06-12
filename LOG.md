@@ -12,6 +12,28 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-12 (cont.) — Claude — BQ25628E datasheet read: the Voc ceiling is a REGISTER BIT; "6V" panel class unblocked
+
+Datasheet (SLUSFA4C) electrical characteristics resolve yesterday's bright-sun latch and
+the panel voltage window:
+- **V_VBUS_OVP is selectable**: VBUS_OVP=0 (POR default) -> 6.1/6.4/6.7 V rising;
+  VBUS_OVP=1 -> 18.2/18.5/18.8 V. Our connect-time Voc 6.15 V tripped a min-spec part at
+  the default setting. Chip operating range is 3.9-18 V (26 V abs max) — the ~6 V ceiling
+  was configuration, not silicon.
+- **Input qualification is EDGE-triggered** ("power up from input source" sequence runs at
+  insertion): explains why shading to 4.7 V did NOT recover but full VBUS removal did.
+  EN_HIZ toggle should synthesize a fresh edge (8.3.4.3) = the firmware re-qual kick.
+- Other gates are non-issues for panels: poor-source test = >=3.6-3.75 V at <=10 mA;
+  sleep-exit = VBUS > VBAT + 0.115-0.34 V; UVLO rising 3.2-3.5 V.
+- Bonus confirmations: chip charging defaults VREG 4.2 V / ICHG 320 mA (the exact
+  led_studio-uninitialized LFP hazard, now in writing); chip-level VINDPM floor is 3.8 V
+  (the 4.6 floor is the SDK clamp); VINDPM_BAT_TRACK = VBAT+400 mV dynamic floor option.
+- **Supersedes the "narrow viable window" panel conclusion from earlier tonight**: with
+  VBUS_OVP=1 + the requal kick (now a procurement-prerequisite TODO), the spec is
+  Vmp(STC) >= ~5.4 V, Voc <= ~16 V — the standard 6 V class (incl. Voltaic's 6 V ETFE
+  line) is fully in-window. Current was never a constraint (2 A charge ceiling; charger
+  draws only what it needs).
+
 ## 2026-06-12 — Ben + Claude — Gobo verdict: BOTH LED types, by role; full-brightness budget sketch
 
 **Gobo session result (Ben, inverted-lantern rig, dark):** both modules are excellent for
