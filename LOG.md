@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-12 — Ben + Claude — Gobo verdict: BOTH LED types, by role; full-brightness budget sketch
+
+**Gobo session result (Ben, inverted-lantern rig, dark):** both modules are excellent for
+DIFFERENT roles — the LED-axis answer is a MIXED FLEET, not a winner.
+- **HEX (37x SK6812):** beautiful animations, dancing patterns, the color-channel
+  separation (Split) modes shine — but it reads best within ~6 ft; at 10-15 ft the color
+  washes out and patterns lose crispness. The intimate/close-range module.
+- **4 W RGBW point source:** crisp and beautiful even at 15 ft; the color fringing acts
+  like a Venn diagram — overlap regions mix into NEW colors, far richer than plain
+  R/G/B edge fringing. The long-throw/gobo module.
+- Direction: lanterns of both types. Feeds ADR 0018 (update it to record both-by-role
+  and the placement question: which heights/positions get which module).
+
+**Full-brightness budget sketch** (gamma off, bri 255; measured LED-rail draws + 0.2 W
+assumed production overhead, /0.85 converter; harvest = derated effective-solar-hours
+estimate pending the dawn-dusk log): HEX-full ~2.1 W battery-side; 4W-module RGB-full
+~1.1 W; W-only ~0.45 W. Sustainable hours/night on the 3 W panel in-tree (unshaded):
+HEX 1.8-3.0 (2.4-3.6); RGB 3.6-6.0 (4.8-7.3); W-only all night. 5 W panel scales x1.67:
+HEX 3-5 h, RGB ~whole-night. The 32700 (18 Wh usable) banks 3-5 nights of sustainable
+show -> single nights can splurge and repay. 5 W buys storm-recovery margin more than
+capability. Caveats: shading factor dominant unknown; production overhead unmeasured;
+HEX "full" is rail-limited (stiffer cell = brighter AND hungrier).
+
+**Panel-shopping spec (from the BQ25628E limits + bench):** buck-only charger ->
+panel hot loaded Vmp >= 4.6 V (= the SDK's VINDPM floor; sub-4.6 setpoints are silently
+REJECTED — which re-explains the 06-11 "4.4 V collapse": those points measured a stale
+setpoint, not 4.4; LOG cont. 2/3's below-the-knee story is corrected accordingly, and the
+4W-cam panel's "flat no-knee curve" below 4.6 was the same artifact). Voc ceiling: input
+qualification failed at ~6.05-6.15 V and latched (the bright-sun gotcha), accepted 5.43 V
+-> as-configured ceiling ~6 V-ish; datasheet ACOV verification is now PROCUREMENT-GATING
+(if fixed ~6.3 V, the standard "6V" panel class (Voc 6.8-7.4) can never qualify at
+open-circuit and no firmware kick saves it; viable window narrows to Voc(STC) <= ~5.8 =
+the Seeed's class). Current is a non-issue (BQ = 2 A charge max; charger draws only what
+it needs). Voltaic P139 (Voc 2.76) = boost-ecosystem class, unusable on a buck charger.
+
 ## 2026-06-11 (cont. 3) — Ben + Claude — 32700 VERDICT: 5726 mAh (95 % of rating) = the production cell passes; "4 W" camera panel = a 1 W panel in a trench coat
 
 **32700 6 Ah LFP capacity (the production-cell gate): 5,726 mAh clean to a 2.473 V cutoff
