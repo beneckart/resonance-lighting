@@ -135,11 +135,48 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 - [x] Build interactive web app to dial in HEX looks (brightness/RGB sliders, shape rings, spiral/orbit/breathe/twinkle, Split-RGB fringing, Freeze+Step, settings readback) — DONE, validated on hardware (PowerFeather ACM1, HEX pin 10); served at the IP from the boot banner (Ben/Claude).
 - [x] Build interactive web app for the **4 W RGBW point source** (`firmware/rgbw_studio/`): R/G/B/W sliders, white/warmth presets + crossfade, hue/breathe/candle/fade animations, settings readback — DONE, validated on hardware (ACM1, pin 10) (Ben/Claude).
-- [ ] Run the gobo session on the inverted-lantern rig (source on desk, flat filter at the node, shadow on ceiling): compare **point** (RGBW) vs **area** (HEX full) vs **single HEX pixel** vs **Split-RGB fringe** for shadow crispness, wash, and color fringing; try the **Orbit** moving-shadow effect; record the settings (rgb/bri/shape/anim/spread) that read well (Ben).
+- [x] Run the gobo session on the inverted-lantern rig — **DONE 2026-06-11, VERDICT: BOTH module types, by role** (LOG 2026-06-12): HEX = animations/Split color-separation, best within ~6 ft (washes out at 10-15 ft); 4 W RGBW = crisp at 15 ft, Venn-diagram color fringing (overlaps mix NEW colors). Fleet = lanterns of both types. HEX looks best at 1-3 px (white or single-channel) → realistic HEX gobo draw ~0.4-0.6 W battery-side = all-night budget (Ben).
+- [ ] **Update ADR 0018: LED module = BOTH, by role** (HEX close-range/animation lanterns + 4 W RGBW long-throw gobo lanterns); record the open placement question — which tree heights/positions get which type, and the type mix ratio (Ben).
+- [ ] **Capture per-look settings**: when a look is a keeper, record the led_studio sliders + the UI Battery line voltage (brightness is SOC-dependent until the 4.2 V boost lands) (Ben + Steve).
 - [ ] Compare Steve's **3 flat sample filters** through the rig; note which pattern reads best at the install throw (Ben).
 - [ ] Capture ceiling photos per source/filter for the record; fold results into a gobo test write-up (Ben).
 - [ ] If the swept-pixel / orbit moving-shadow looks good, decide whether it argues for a small multi-pixel array even in the "point source" role (Ben).
-- [ ] Re-test the **4 W RGBW** point source the same way (needs its own pixel-pin build or wiring) to settle the point-vs-area question with the actual candidate (Ben).
+- [x] Re-test the **4 W RGBW** point source the same way — DONE 2026-06-11 (led_studio dual-board session): point-vs-area settled as complementary, see verdict above (Ben).
+
+## HEX 4.2 V boost bench test — TPS63802 (STEVE-RUNNABLE while Ben travels, 2026-06-12)
+
+Context (LOG 2026-06-12 cont.): at our sagged ~2.8-2.95 V LED rail the SK6812's blue/green
+channels run in dropout (starved -> the "goldening"); a regulated 4.2 V V+ should recover
+**~40-60 % more white lumens**, fix color balance, and make looks **SOC-invariant**
+(same sliders = same light on every lantern at any charge). 4.2 V (NOT 5 V!) keeps the
+WS-data threshold in spec for 3.3 V GPIO (VIH = 0.7 x VDD = 2.94 V; at 5 V it's 3.5 = broken).
+Steve has duplicate components; firmware/tools all in-repo (led_studio has battery stats +
+OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
+
+- [ ] Source a **TPS63802 buck-boost module with output-select solder jumpers (3V3/4V2/5V)**
+  (Amazon; MT3608-class adjustable boost = acceptable fallback, set 4.2 V by pot + meter).
+  Presoldered headers nice-to-have (Steve).
+- [ ] Re-jumper output 3V3 -> 4V2: fully OPEN the 3V3 bridge first (both bridged = wrong
+  feedback divider), close 4V2, **meter the output UNLOADED before any pixel sees it**.
+  Leave the tiny EN pad untouched (tied to VIN; kill-switch = the GPIO4 3V3 rail). Leave
+  the PS pad at default (power-save/PFM = light-load efficiency; flip ONLY if dim
+  single-pixel flicker appears) (Steve).
+- [ ] Wire: PowerFeather switchable 3V3 header -> module IN; module OUT 4.2 V -> HEX V+;
+  common GND; HEX data direct to GPIO10 as usual. led_studio drives it unchanged (Steve).
+- [ ] **Measure (the decision data): lumens-per-system-watt at rail-direct ~2.9 V vs
+  boosted 4.2 V** — PAR sensor (apogee_par.py) + INA harness (led_ina_sweep.py /
+  hex_ramp.py), 1 px and 3 px, white + per-channel (R, G, B singly). Expectations to
+  confirm/refute: white +40-60 %, blue/green large gains, red ~unchanged, goldening gone.
+  Repeat at two battery SOCs to confirm brightness is now SOC-invariant. JSONL ->
+  ops/bench/data/tn/ + commit (Steve).
+- [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
+  wants ~2 A out (~8 W in) = instant brownout — cap n (or estimated total current) in
+  led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
+  on a boosted rig (Steve or Ben).
+- [ ] If validated: spec the **production variant on the NeoHEX adapter PCB rev** —
+  boost fed from VBAT with EN routed to a GPIO + pull-down (single conversion ~92 % vs
+  ~83 % two-stage, keeps software kill, frees the 3V3 rail for the ESP). The Amazon
+  module proves the concept; the adapter PCB ships it (Ben).
 
 ## Networking feasibility — 5x PowerFeather V2 (net_bench, 2026-06-07; de-risk the 100-buy)
 

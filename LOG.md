@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-12 (cont. 2) — Ben + Claude — HEX 4.2 V boost direction (TPS63802); revised HEX budget; Steve-runnable bench TODO pushed
+
+Remote session while Ben travels. Two outcomes, both queued as Steve-runnable TODOs
+(Steve has duplicate components + Claude Code on his end; data site code `tn`):
+
+**Revised HEX budget — the gobo looks are cheap.** Ben's verdict: HEX looks best as
+1 px white or 3 px single-channel (plus trails). Measured: 1 px full = 41.8 mA
+(~0.12 W rail), 3 px ~105 mA (~0.3 W) → ~0.4-0.6 W battery-side with overhead =
+**all-night on the 3 W panel, in-tree**. Yesterday's 2.1 W HEX row was the all-37 case
+only; in its actual role the HEX lantern runs as cheap as the RGBW one.
+
+**4.2 V V+ boost (TPS63802) — why and how.** At the sagged ~2.9 V rail the SK6812
+blue/green drivers are in dropout (Vf 3.0-3.2 + ~0.5 V headroom needed) → starved
+channels = the goldening + ~25-30 % current deficit. A regulated 4.2 V V+ should give
+**~+40-60 % white lumens** (blue/green recovery, V(lambda)-weighted), restore color
+balance, and make looks **SOC- and fixture-invariant** (also quietly solves the
+Community-Mandala brightness-normalization concern). Key constraints discovered:
+- **4.2 V, NOT 5 V**: WS-data VIH = 0.7 x VDD; 5 V supply → 3.5 V threshold breaks
+  3.3 V GPIO data. 4.2 V → 2.94 V = in spec, no level shifter.
+- **TPS63802 module** (TI buck-boost, 1.3-5.5 Vin, 2 A, output-select solder jumpers):
+  re-bridge 3V3→4V2 (fully open 3V3 first; meter unloaded). Cheap boards don't break
+  out EN (tiny pad only) → bench version feeds from the **switchable 3V3** (kill-switch
+  inherited via GPIO4); the **VBAT-fed + EN-on-GPIO** single-conversion variant is the
+  production architecture, to live on the NeoHEX adapter PCB rev. PS pad = power-save
+  mode select; leave default (PFM efficiency matters at dim ambient).
+- **Count-cap required on boosted builds**: all-37 white at regulated 4.2 V ≈ 2 A out —
+  far beyond module + rail. Firmware n-cap before anyone maxes "all".
+- Rail-vs-pixel bottleneck clarified: at 1-3 px the limit is per-pixel undervolt (boost
+  fixes); the converter/rail limit only binds at high counts.
+- LM2596-class = buck, wrong direction; MT3608-class = acceptable fallback (pot-set,
+  drift risk — preset jumpers preferred for fleet).
+
+Decision data wanted from the bench (Steve): PAR + INA lumens-per-system-watt, 2.9 vs
+4.2 V, 1/3 px, per-channel, at two SOCs. TODO has the full procedure.
+
 ## 2026-06-12 (cont.) — Claude — BQ25628E datasheet read: the Voc ceiling is a REGISTER BIT; "6V" panel class unblocked
 
 Datasheet (SLUSFA4C) electrical characteristics resolve yesterday's bright-sun latch and
