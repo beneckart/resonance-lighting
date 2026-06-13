@@ -4,6 +4,7 @@ import { Scene } from "./Scene";
 import { Controls } from "./Controls";
 import { DjController } from "./DjController";
 import { AiPilot } from "./AiPilot";
+import { TouchConsole } from "./TouchConsole";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc } from "./fixtures";
@@ -35,6 +36,7 @@ export function App() {
       <Controls />
       <DjController />
       <AiPilot />
+      <TouchConsole />
       <AutoVj />
       <TimelineDriver />
       {err && (
