@@ -65,6 +65,7 @@ export interface Control {
   // auto-VJ (D)
   autoVj: boolean;
   autoBars: number; // phrase length in bars between look changes
+  aiPilot: boolean; // AI-VJ: audio-digest → auto-pick looks (smart sound→light)
 }
 
 interface TwinState {
@@ -142,6 +143,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     strobeHz: 10,
     autoVj: false,
     autoBars: 8,
+    aiPilot: false,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

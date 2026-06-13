@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
 import { Controls } from "./Controls";
 import { DjController } from "./DjController";
+import { AiPilot } from "./AiPilot";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc } from "./fixtures";
@@ -33,6 +34,7 @@ export function App() {
       </Canvas>
       <Controls />
       <DjController />
+      <AiPilot />
       <AutoVj />
       <TimelineDriver />
       {err && (
