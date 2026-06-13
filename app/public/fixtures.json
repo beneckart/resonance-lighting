@@ -4,7 +4,7 @@
   "exported": "2026-06-13T08:58:47",
   "up_axis": "Z",
   "units": "m",
-  "count": 78,
+  "count": 118,
   "bbox": {
    "min": [
     -8234.459,
@@ -17,10 +17,15 @@
     5136.358
    ]
   },
-  "schema": "resonance.fixtures/0.2",
+  "schema": "resonance.fixtures/0.3",
   "added_in_0.2": [
    "aim",
    "role=downlight"
+  ],
+  "added_in_0.3": [
+   "24 uplights role=uplight aim+Z (2 interior rings)",
+   "16 chandelier role=chandelier crown cluster",
+   "PROCEDURAL first-pass \u2014 refine in Blender/click-place"
   ]
  },
  "fixtures": [
@@ -1894,6 +1899,966 @@
     1.0,
     0.524,
     0.017
+   ]
+  },
+  {
+   "fixture_id": "F078",
+   "name": "Uplight_078",
+   "role": "uplight",
+   "position": [
+    24.5337,
+    -0.651,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F079",
+   "name": "Uplight_079",
+   "role": "uplight",
+   "position": [
+    21.403,
+    11.033,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F080",
+   "name": "Uplight_080",
+   "role": "uplight",
+   "position": [
+    12.8498,
+    19.5862,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F081",
+   "name": "Uplight_081",
+   "role": "uplight",
+   "position": [
+    1.1658,
+    22.7169,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F082",
+   "name": "Uplight_082",
+   "role": "uplight",
+   "position": [
+    -10.5182,
+    19.5862,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F083",
+   "name": "Uplight_083",
+   "role": "uplight",
+   "position": [
+    -19.0715,
+    11.033,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F084",
+   "name": "Uplight_084",
+   "role": "uplight",
+   "position": [
+    -22.2022,
+    -0.651,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F085",
+   "name": "Uplight_085",
+   "role": "uplight",
+   "position": [
+    -19.0715,
+    -12.335,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F086",
+   "name": "Uplight_086",
+   "role": "uplight",
+   "position": [
+    -10.5182,
+    -20.8883,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F087",
+   "name": "Uplight_087",
+   "role": "uplight",
+   "position": [
+    1.1658,
+    -24.019,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F088",
+   "name": "Uplight_088",
+   "role": "uplight",
+   "position": [
+    12.8498,
+    -20.8883,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F089",
+   "name": "Uplight_089",
+   "role": "uplight",
+   "position": [
+    21.403,
+    -12.335,
+    12.5224
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F090",
+   "name": "Uplight_090",
+   "role": "uplight",
+   "position": [
+    32.2646,
+    7.6819,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F091",
+   "name": "Uplight_091",
+   "role": "uplight",
+   "position": [
+    23.9317,
+    22.1149,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F092",
+   "name": "Uplight_092",
+   "role": "uplight",
+   "position": [
+    9.4987,
+    30.4478,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F093",
+   "name": "Uplight_093",
+   "role": "uplight",
+   "position": [
+    -7.1671,
+    30.4478,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F094",
+   "name": "Uplight_094",
+   "role": "uplight",
+   "position": [
+    -21.6002,
+    22.1149,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F095",
+   "name": "Uplight_095",
+   "role": "uplight",
+   "position": [
+    -29.9331,
+    7.6819,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F096",
+   "name": "Uplight_096",
+   "role": "uplight",
+   "position": [
+    -29.9331,
+    -8.9839,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F097",
+   "name": "Uplight_097",
+   "role": "uplight",
+   "position": [
+    -21.6002,
+    -23.417,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F098",
+   "name": "Uplight_098",
+   "role": "uplight",
+   "position": [
+    -7.1671,
+    -31.7499,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F099",
+   "name": "Uplight_099",
+   "role": "uplight",
+   "position": [
+    9.4987,
+    -31.7499,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F100",
+   "name": "Uplight_100",
+   "role": "uplight",
+   "position": [
+    23.9317,
+    -23.417,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F101",
+   "name": "Uplight_101",
+   "role": "uplight",
+   "position": [
+    32.2646,
+    -8.9839,
+    22.5166
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "zone": "interior",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 90.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F102",
+   "name": "Chandelier_102",
+   "role": "chandelier",
+   "position": [
+    1.1658,
+    -0.651,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F103",
+   "name": "Chandelier_103",
+   "role": "chandelier",
+   "position": [
+    1.1289,
+    -0.6173,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F104",
+   "name": "Chandelier_104",
+   "role": "chandelier",
+   "position": [
+    1.1719,
+    -0.7215,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F105",
+   "name": "Chandelier_105",
+   "role": "chandelier",
+   "position": [
+    1.2185,
+    -0.5823,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F106",
+   "name": "Chandelier_106",
+   "role": "chandelier",
+   "position": [
+    1.0673,
+    -0.6685,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F107",
+   "name": "Chandelier_107",
+   "role": "chandelier",
+   "position": [
+    1.2601,
+    -0.711,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F108",
+   "name": "Chandelier_108",
+   "role": "chandelier",
+   "position": [
+    1.134,
+    -0.5328,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F109",
+   "name": "Chandelier_109",
+   "role": "chandelier",
+   "position": [
+    1.1048,
+    -0.7684,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F110",
+   "name": "Chandelier_110",
+   "role": "chandelier",
+   "position": [
+    1.2986,
+    -0.6025,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F111",
+   "name": "Chandelier_111",
+   "role": "chandelier",
+   "position": [
+    1.0271,
+    -0.5938,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F112",
+   "name": "Chandelier_112",
+   "role": "chandelier",
+   "position": [
+    1.2328,
+    -0.7942,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F113",
+   "name": "Chandelier_113",
+   "role": "chandelier",
+   "position": [
+    1.2154,
+    -0.4928,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F114",
+   "name": "Chandelier_114",
+   "role": "chandelier",
+   "position": [
+    1.0159,
+    -0.7379,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F115",
+   "name": "Chandelier_115",
+   "role": "chandelier",
+   "position": [
+    1.3418,
+    -0.6897,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F116",
+   "name": "Chandelier_116",
+   "role": "chandelier",
+   "position": [
+    1.0582,
+    -0.498,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F117",
+   "name": "Chandelier_117",
+   "role": "chandelier",
+   "position": [
+    1.1409,
+    -0.8431,
+    40.7562
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "zone": "crown",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
    ]
   }
  ]
