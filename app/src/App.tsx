@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
 import { Controls } from "./Controls";
+import { DjController } from "./DjController";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc } from "./fixtures";
@@ -31,6 +32,7 @@ export function App() {
         <Suspense fallback={null}>{ready && <Scene />}</Suspense>
       </Canvas>
       <Controls />
+      <DjController />
       <AutoVj />
       <TimelineDriver />
       {err && (
