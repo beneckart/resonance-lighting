@@ -1,8 +1,31 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
+import { Mesh, MeshStandardMaterial } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
+
+/** Faint structural backdrop (decimated bamboo) so the lights read as a tree.
+ *  Dim + depthWrite off so it never occludes the fixtures. */
+function TreeContext() {
+  const { scene } = useGLTF("/tree-context.glb");
+  const styled = useMemo(() => {
+    const s = scene.clone(true);
+    const mat = new MeshStandardMaterial({
+      color: "#26303f",
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+    });
+    s.traverse((o) => {
+      if ((o as Mesh).isMesh) (o as Mesh).material = mat;
+    });
+    return s;
+  }, [scene]);
+  return <primitive object={styled} />;
+}
 
 /** Frame the camera + orbit target on the fixture cloud once it loads. */
 function CameraRig() {
@@ -27,7 +50,9 @@ export function Scene() {
   return (
     <>
       <color attach="background" args={["#05070a"]} />
+      <ambientLight intensity={0.6} />
       <CameraRig />
+      <TreeContext />
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
     </>
