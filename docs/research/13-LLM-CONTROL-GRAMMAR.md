@@ -52,3 +52,24 @@ hue 0.08
   add `dj <param> <v>` / `auto on|off` verbs so the LLM can drive the whole console.
 - A real LLM bridge (natural-language → this grammar) lives on the cortex (PRD §F); the app
   side is ready — anything that can POST a script to `runScript` drives the tree.
+
+---
+
+## LLM Operator — NL → command tool-spec (cycle 42, shipped in src/llm.ts)
+
+The command console IS the LLM's tool surface. An external LLM (or the offline
+`interpret()` stand-in) emits these grammar lines, run via `runScript`:
+
+**Tool: `run_lighting_commands(commands: string[])`** — each line is one of:
+- `pattern <id>` — id ∈ {solid,breathe,chase,ripple,sparkle,sequence,spectrum,tricolor,spiral,godray,rising,planewipe,warmcool,wind,ember,rain,beacon}
+- `hue <0..1>` · `bri <0..1>` · `sat <0..1>` · `speed <0..3>` (global)
+- `<target> color <cssName|#hex>` · `<target> on` · `<target> off`
+  - target = `all` | `zone <low|mid|high>` | `range <a-b>` | `every <n>` | `fixture <id|seq>`
+- `clear`
+
+**NL mapping (interpret()):** target words (canopy/top→`zone high`, trunk/base→`zone low`,
+middle→`zone mid`, "every other"→`every 2`, else `all`); pattern names + synonyms
+(rainbow→spectrum, pulse→breathe, comet→chase, shaft/godray→godray, fire→ember…);
+CSS colours only; fast/slow→speed; bright/dim→bri; vivid/pastel→sat; off/blackout→`<target> off`.
+Deterministic + offline + unit-tested (llm.test.ts) — this is also the contract the
+AI-VJ / smart-sound mode (#32) drives.

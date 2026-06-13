@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 import { compileShow, showToJson } from "./showcompiler";
+import { interpret } from "./llm";
 import { encodeFixture } from "./protocol";
 import { startMidi, ccToControl } from "./midi";
 
@@ -85,6 +86,8 @@ export function Controls() {
   const setSensors = useTwin((s) => s.setSensors);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
+  const [nl, setNl] = useState("");
+  const [nlNote, setNlNote] = useState("");
 
   const connectMidi = () =>
     startMidi(
@@ -278,6 +281,27 @@ export function Controls() {
           </div>
         </>
       )}
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>🧠 say it (LLM operator → commands)</div>
+      <input
+        value={nl}
+        placeholder='e.g. "make the canopy pulse blue and slow"'
+        onChange={(e) => setNl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && nl.trim()) {
+            const r = interpret(nl);
+            if (r.commands.length) runScript(r.commands.join("\n"));
+            setNlNote(r.note);
+            setNl("");
+          }
+        }}
+        style={{
+          width: "100%", marginTop: 4, padding: "6px 8px", borderRadius: 6,
+          border: "1px solid #3a4a6a", background: "#0b1119", color: "#dce6ff",
+          font: "11px ui-monospace, monospace", boxSizing: "border-box",
+        }}
+      />
+      {nlNote && <div style={{ fontSize: 9.5, opacity: 0.6, marginTop: 2 }}>{nlNote}</div>}
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>command console — any light command</div>
       <input
