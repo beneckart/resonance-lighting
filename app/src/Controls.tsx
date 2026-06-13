@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
+import { compileShow, showToJson } from "./showcompiler";
 import { encodeFixture } from "./protocol";
 import { startMidi, ccToControl } from "./midi";
 
@@ -60,6 +61,7 @@ export function Controls() {
   const ctrl = useTwin((s) => s.control);
   const setCtrl = useTwin((s) => s.set);
   const count = useTwin((s) => s.fixtures.length);
+  const fixtures = useTwin((s) => s.fixtures);
   const source = useTwin((s) => s.source);
   const runCommand = useTwin((s) => s.runCommand);
   const runScript = useTwin((s) => s.runScript);
@@ -263,6 +265,17 @@ export function Controls() {
             </button>
           </div>
           <Slider label="step (s)" v={timeline.stepSecs} min={1} max={30} step={1} on={(v) => setTimeline({ stepSecs: Math.round(v) })} />
+          <div style={row}>
+            <button style={btn(false)} onClick={() => {
+              const doc = compileShow(cues, fixtures, ctrl, net.channel, timeline.stepSecs * 1000);
+              const blob = new Blob([showToJson(doc)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "resonance-show.json";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}>⬇ compile show → JSON</button>
+          </div>
         </>
       )}
 
