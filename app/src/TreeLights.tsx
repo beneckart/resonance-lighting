@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { AdditiveBlending, Color, ConeGeometry, InstancedMesh, Object3D } from "three";
+import { AdditiveBlending, Color, ConeGeometry, InstancedMesh, Object3D, Quaternion, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
@@ -12,6 +12,10 @@ import { applyEnv } from "./sensors";
 
 const dummy = new Object3D();
 const col = new Color();
+// beam-aim helpers: orient each cast cone along its real direction
+const DOWN = new Vector3(0, -1, 0);
+const aimV = new Vector3();
+const aimQ = new Quaternion();
 const lit: Lit = { r: 0, g: 0, b: 0 };
 const litB: Lit = { r: 0, g: 0, b: 0 };
 const GAIN = 1.65;
@@ -27,6 +31,7 @@ const refTan = Math.tan(RAY_HALF);
 export function TreeLights() {
   const fixtures = useTwin((s) => s.fixtures);
   const treeSize = useTwin((s) => s.size);
+  const center = useTwin((s) => s.center);
   const viz = useTwin((s) => s.control.visualizer);
   const dotSize = treeSize * (viz === "orbs" ? 0.022 : viz === "wire" ? 0.009 : 0.012);
   const beamH = treeSize * 0.38;
@@ -75,10 +80,18 @@ export function TreeLights() {
         // map the fixture's real beam angle to a TIGHT visual ray: clamp wide
         // floods (≤70°) and cap width at 1.6× the reference so rays stay crisp.
         const s = Math.max(0.5, Math.min(1.6, Math.tan(Math.min(70, Math.max(12, f.beamDeg)) * 0.5 * DEG) / refTan));
+        // real cast geometry: canopy downlights aim DOWN + fan radially OUTWARD
+        // from the trunk (buried in tubes pointing down/out toward the crowd)
+        const rx = f.pos[0] - center[0], rz = f.pos[2] - center[2];
+        const rl = Math.hypot(rx, rz) || 1;
+        aimV.set((rx / rl) * 0.5, -1, (rz / rl) * 0.5).normalize();
+        aimQ.setFromUnitVectors(DOWN, aimV);
+        dummy.quaternion.copy(aimQ);
         dummy.scale.set(s, 1, s);
         dummy.updateMatrix();
         bm.setMatrixAt(i, dummy.matrix);
         bm.setColorAt(i, col.setRGB(0, 0, 0));
+        dummy.quaternion.identity(); // reset for next light-mesh write
       }
     });
     lm.instanceMatrix.needsUpdate = true;
