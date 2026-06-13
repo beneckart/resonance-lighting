@@ -206,6 +206,8 @@ export function TreeLights() {
 
       // BEACON safety preempt — force full white over everything (whiteout safety)
       if (ctrl.beaconPreempt) { const w = ctrl.master; lit.r = w; lit.g = w; lit.b = w; }
+      // BLACKOUT preempt — force all-off (wins over beacon; instant dark)
+      if (ctrl.blackout) { lit.r = lit.g = lit.b = 0; }
 
       const isDead = view.mock && f.seq < view.deadCount;
       if (!view.mock) {

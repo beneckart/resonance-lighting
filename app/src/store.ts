@@ -67,6 +67,7 @@ export interface Control {
   autoBars: number; // phrase length in bars between look changes
   aiPilot: boolean; // AI-VJ: audio-digest → auto-pick looks (smart sound→light)
   beaconPreempt: boolean; // safety preempt: force full white over everything
+  blackout: boolean; // safety preempt: force all-off (wins over beacon)
 }
 
 interface TwinState {
@@ -152,6 +153,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     autoBars: 8,
     aiPilot: false,
     beaconPreempt: false,
+    blackout: false,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

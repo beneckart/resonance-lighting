@@ -19,6 +19,7 @@ export function App() {
   const cinematic = useTwin((s) => s.cinematic);
   const setCinematic = useTwin((s) => s.setCinematic);
   const beacon = useTwin((s) => s.control.beaconPreempt);
+  const blackout = useTwin((s) => s.control.blackout);
   const setCtrl = useTwin((s) => s.set);
 
   useEffect(() => {
@@ -80,6 +81,20 @@ export function App() {
         }}
       >
         🔦 BEACON{beacon ? " ON" : ""}
+      </button>
+      {/* always-available BLACKOUT (instant all-off, pairs with BEACON) */}
+      <button
+        onClick={() => setCtrl({ blackout: !blackout })}
+        title="BLACKOUT — force all fixtures off instantly"
+        style={{
+          position: "fixed", bottom: 14, left: "calc(50% + 110px)", zIndex: 60,
+          padding: "8px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700, letterSpacing: 0.5,
+          border: blackout ? "1.5px solid #ff5b6e" : "1.5px solid #3a3a4a",
+          background: blackout ? "#1a1020" : "rgba(16,16,24,0.85)", color: blackout ? "#ff8fa0" : "#8a8aa0",
+          boxShadow: blackout ? "0 0 18px #ff5b6e88" : "none", font: "13px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        🌑 BLACKOUT{blackout ? " ON" : ""}
       </button>
       <PresenceDriver />
       <AutoVj />
