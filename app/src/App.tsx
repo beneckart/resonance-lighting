@@ -5,6 +5,7 @@ import { Controls } from "./Controls";
 import { DjController } from "./DjController";
 import { AiPilot } from "./AiPilot";
 import { TouchConsole } from "./TouchConsole";
+import { CommissioningPanel } from "./CommissioningPanel";
 import { PresenceDriver } from "./PresenceDriver";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
@@ -42,6 +43,7 @@ export function App() {
           <DjController />
           <AiPilot />
           <TouchConsole />
+          <CommissioningPanel />
         </>
       )}
       {/* always-on cinematic toggle — hide all panels to see just the tree */}
