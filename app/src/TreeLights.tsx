@@ -53,7 +53,7 @@ export function TreeLights() {
     fixtures.forEach((f, i) => {
       dummy.position.set(f.pos[0], f.pos[1], f.pos[2]);
       dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(1);
+      dummy.scale.setScalar(dotSize);
       dummy.updateMatrix();
       lm.setMatrixAt(i, dummy.matrix);
       lm.setColorAt(i, col.setRGB(0, 0, 0));
@@ -71,7 +71,7 @@ export function TreeLights() {
       bm.instanceMatrix.needsUpdate = true;
       if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
     }
-  }, [fixtures, viz]);
+  }, [fixtures, dotSize]);
 
   useFrame((state) => {
     const lm = lightRef.current;
@@ -164,14 +164,17 @@ export function TreeLights() {
   if (fixtures.length === 0) return null;
   return (
     <group>
-      {showBeams && (
-        <instancedMesh ref={beamRef} args={[undefined as never, undefined as never, fixtures.length]} key={`beam${viz}${fixtures.length}`}>
-          <primitive object={beamGeom} attach="geometry" />
-          <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.07} depthWrite={false} toneMapped={false} />
-        </instancedMesh>
-      )}
-      <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${viz}${fixtures.length}`}>
-        <sphereGeometry args={[dotSize, viz === "wire" ? 8 : 12, viz === "wire" ? 8 : 12]} />
+      <instancedMesh
+        ref={beamRef}
+        args={[undefined as never, undefined as never, fixtures.length]}
+        key={`beam${fixtures.length}`}
+        visible={showBeams}
+      >
+        <primitive object={beamGeom} attach="geometry" />
+        <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.07} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${fixtures.length}`}>
+        <sphereGeometry args={[1, 12, 12]} />
         <meshBasicMaterial toneMapped={false} wireframe={viz === "wire"} />
       </instancedMesh>
     </group>
