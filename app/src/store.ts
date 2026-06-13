@@ -3,6 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
+import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
@@ -79,6 +80,7 @@ interface TwinState {
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   ripples: Ripple[]; // presence→ripple interactions
   guest: boolean; // guest-DJ scoped mode (C3)
+  sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -92,6 +94,7 @@ interface TwinState {
   setTimeline: (p: Partial<{ playing: boolean; stepSecs: number }>) => void;
   pingPresence: (origin?: [number, number, number]) => void;
   setGuest: (b: boolean) => void;
+  setSensors: (p: Partial<Sensors>) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -108,6 +111,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
   guest: false,
+  sensors: DEFAULT_SENSORS,
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -239,4 +243,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
       return { ripples };
     }),
   setGuest: (b) => setState({ guest: b }),
+  setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
 }));

@@ -8,6 +8,7 @@ import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
 import { guestClamp } from "./guard";
 import { relativeBeam } from "./photometry";
+import { applyEnv } from "./sensors";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -98,7 +99,8 @@ export function TreeLights() {
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
     const { overrides, view } = st;
-    const ctrl = st.guest ? guestClamp(st.control) : st.control;
+    // fold live environmental sensors (crowd/temp/wind/daylight) into the look
+    const ctrl = applyEnv(st.guest ? guestClamp(st.control) : st.control, st.sensors);
     const audio = updateAudio();
     // DJ controller (C): crossfade to look B, master intensity, strobe gate
     const xfade = ctrl.xfade;

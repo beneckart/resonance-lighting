@@ -79,6 +79,8 @@ export function Controls() {
   const pingPresence = useTwin((s) => s.pingPresence);
   const guest = useTwin((s) => s.guest);
   const setGuest = useTwin((s) => s.setGuest);
+  const sensors = useTwin((s) => s.sensors);
+  const setSensors = useTwin((s) => s.setSensors);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
 
@@ -147,6 +149,15 @@ export function Controls() {
       </div>
       <div style={row}>
         <button style={btn(false)} onClick={() => pingPresence()}>✨ ping (presence ripple)</button>
+      </div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>environment sensors (sim)</div>
+      <div style={{ margin: "4px 0", padding: 8, background: "#0d141e", borderRadius: 6 }}>
+        <Slider label={`crowd ${Math.round(sensors.crowd * 100)}%`} v={sensors.crowd} min={0} max={1} step={0.01} on={(v) => setSensors({ crowd: v })} />
+        <Slider label={`temp ${sensors.tempC.toFixed(0)}°C`} v={sensors.tempC} min={-5} max={45} step={1} on={(v) => setSensors({ tempC: v })} />
+        <Slider label={`wind ${sensors.windKph.toFixed(0)} km/h`} v={sensors.windKph} min={0} max={80} step={1} on={(v) => setSensors({ windKph: v })} />
+        <Slider label={`daylight ${Math.round(sensors.ambient * 100)}%`} v={sensors.ambient} min={0} max={1} step={0.01} on={(v) => setSensors({ ambient: v })} />
+        <div style={{ fontSize: 9.5, opacity: 0.5, marginTop: 2 }}>cold→cool hue · wind→speed · crowd→energy · daylight→wash</div>
       </div>
 
       {ctrl.pattern === "sequence" && (
