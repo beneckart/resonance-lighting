@@ -42,6 +42,16 @@ export interface Control {
   syncToBeat: boolean; // snap sequencer step to detected BPM
   beatDiv: number; // 1=quarter, 2=eighth
   visualizer: VizMode; // render style (A7)
+  // DJ controller (C)
+  xfade: number; // 0=look A, 1=look B
+  djPatternB: PatternId; // look B pattern
+  djHueB: number; // look B hue
+  eqLow: number; // bass→low-zone gain 0..1
+  eqMid: number; // mid→mid-zone gain
+  eqHigh: number; // treble→high-zone gain
+  master: number; // final intensity 0..1
+  strobe: boolean;
+  strobeHz: number;
 }
 
 interface TwinState {
@@ -84,6 +94,15 @@ export const useTwin = create<TwinState>((setState, get) => ({
     syncToBeat: false,
     beatDiv: 1,
     visualizer: "lanterns",
+    xfade: 0,
+    djPatternB: "ripple",
+    djHueB: 0.6,
+    eqLow: 0,
+    eqMid: 0,
+    eqHigh: 0,
+    master: 1,
+    strobe: false,
+    strobeHz: 10,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

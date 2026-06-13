@@ -14,6 +14,8 @@ const panel: React.CSSProperties = {
   color: "#cdd6e4",
   font: "12px ui-monospace, SFMono-Regular, monospace",
   backdropFilter: "blur(6px)",
+  maxHeight: "94vh",
+  overflowY: "auto",
 };
 const row: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 4, margin: "8px 0" };
 
@@ -144,6 +146,28 @@ export function Controls() {
           />
         </label>
         <button style={btn(false)} onClick={() => stopAudio()}>stop</button>
+      </div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>DJ</div>
+      <Slider label="crossfade A↔B" v={ctrl.xfade} min={0} max={1} on={(v) => setCtrl({ xfade: v })} />
+      <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 0" }}>
+        <span style={{ fontSize: 10, opacity: 0.6 }}>look B</span>
+        <select
+          value={ctrl.djPatternB}
+          onChange={(e) => setCtrl({ djPatternB: e.target.value as PatternId })}
+          style={{ flex: 1, background: "#0b1119", color: "#dce6ff", border: "1px solid #2a3a52", borderRadius: 4, padding: "3px", font: "11px ui-monospace, monospace" }}
+        >
+          {PATTERN_IDS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </div>
+      <Slider label="EQ low→bass" v={ctrl.eqLow} min={0} max={1} on={(v) => setCtrl({ eqLow: v })} />
+      <Slider label="EQ mid" v={ctrl.eqMid} min={0} max={1} on={(v) => setCtrl({ eqMid: v })} />
+      <Slider label="EQ high→treble" v={ctrl.eqHigh} min={0} max={1} on={(v) => setCtrl({ eqHigh: v })} />
+      <Slider label="master" v={ctrl.master} min={0} max={1} on={(v) => setCtrl({ master: v })} />
+      <div style={row}>
+        <button style={btn(ctrl.strobe)} onClick={() => setCtrl({ strobe: !ctrl.strobe })}>⚡ strobe</button>
       </div>
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>command console — any light command</div>

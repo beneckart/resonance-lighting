@@ -4,10 +4,12 @@ import { AdditiveBlending, Color, ConeGeometry, InstancedMesh, Object3D } from "
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
+import { strobeGate, eqGain, lerp } from "./dj";
 
 const dummy = new Object3D();
 const col = new Color();
 const lit: Lit = { r: 0, g: 0, b: 0 };
+const litB: Lit = { r: 0, g: 0, b: 0 };
 const GAIN = 2.1;
 const DEG = Math.PI / 180;
 const refTan = Math.tan(60 * DEG);
@@ -79,12 +81,22 @@ export function TreeLights() {
     const st = useTwin.getState();
     const { control: ctrl, overrides, view } = st;
     const audio = updateAudio();
+    // DJ controller (C): crossfade to look B, master intensity, strobe gate
+    const xfade = ctrl.xfade;
+    const cb = xfade > 0.001 ? { ...ctrl, pattern: ctrl.djPatternB, hue: ctrl.djHueB } : null;
+    const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     let dead = 0;
     let stale = 0;
 
     for (let i = 0; i < n; i++) {
       const f = fixtures[i];
       litFor(t, f, ctrl, audio, n, lit);
+      if (cb) {
+        litFor(t, f, cb, audio, n, litB);
+        lit.r = lerp(lit.r, litB.r, xfade);
+        lit.g = lerp(lit.g, litB.g, xfade);
+        lit.b = lerp(lit.b, litB.b, xfade);
+      }
       const ov = overrides[i];
       if (ov) {
         if (ov.mode === "off") {
@@ -96,6 +108,9 @@ export function TreeLights() {
           lit.b = ov.rgb[2] * m;
         }
       }
+      // EQ→zone gain × master × strobe
+      const g = mg * eqGain(f.zone, ctrl.eqLow, ctrl.eqMid, ctrl.eqHigh, audio);
+      lit.r *= g; lit.g *= g; lit.b *= g;
 
       const isDead = view.mock && f.seq < view.deadCount;
       if (!view.mock) {
