@@ -15,6 +15,14 @@ export function quantizePhase(phase: number, division = 1): number {
   return Math.round(p * division) / division % 1;
 }
 
+/** Quantizer (doc 16 P0-3): a monotonic beats-elapsed value → a grid-locked
+ *  STEP index that advances by 1 every 1/division beat. Because beats is PLL-
+ *  locked to the downbeat, step boundaries land exactly ON the ¼/⅛/16th grid —
+ *  chases/sequencer steps hit on the beat, not floating off wall-clock. Pure. */
+export function quantizedStep(beats: number, division = 1): number {
+  return Math.floor(beats * Math.max(1, division));
+}
+
 export class BeatTracker {
   fluxAvg = 0;
   lastOnsetT = -1;
@@ -25,10 +33,13 @@ export class BeatTracker {
    *  detected tempo + corrected on each onset → lets the show land motion/flash
    *  ON the grid (predictive) instead of only reacting AT an onset. */
   phase = 0;
+  /** Monotonic beats elapsed since lock — continuous (no wrap). Drives the
+   *  Quantizer: floor(beats·div) = a grid-locked step index. */
+  beats = 0;
   private lastT = -1;
 
   /** @param flux spectral flux this frame (≥0). @param t seconds. */
-  push(flux: number, t: number): { onset: boolean; bpm: number; phase: number } {
+  push(flux: number, t: number): { onset: boolean; bpm: number; phase: number; beats: number } {
     this.fluxAvg += 0.05 * (flux - this.fluxAvg);
     const threshold = this.fluxAvg * 1.12 + 0.0015;
     this.onset = false;
@@ -52,15 +63,18 @@ export class BeatTracker {
     if (this.bpm > 0 && this.lastT >= 0) {
       const period = 60 / this.bpm;
       const dt = Math.max(0, t - this.lastT);
-      this.phase = (this.phase + dt / period) % 1;
+      const adv = dt / period;
+      this.phase = (this.phase + adv) % 1;
+      this.beats += adv; // monotonic, same advance as phase
       if (this.onset) {
         // phase error to the nearest beat, wrapped to [-0.5, 0.5]
         let err = this.phase;
         if (err > 0.5) err -= 1;
         this.phase = ((this.phase - 0.18 * err) % 1 + 1) % 1; // gentle correction
+        this.beats -= 0.18 * err; // keep the monotonic counter grid-aligned too
       }
     }
     this.lastT = t;
-    return { onset: this.onset, bpm: this.bpm, phase: this.phase };
+    return { onset: this.onset, bpm: this.bpm, phase: this.phase, beats: this.beats };
   }
 }

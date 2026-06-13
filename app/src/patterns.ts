@@ -1,7 +1,7 @@
 import { Color } from "three";
 import type { AudioFeatures } from "./audio";
 import type { Control, SimFixture } from "./store";
-import { beatStepMs } from "./beat";
+import { quantizedStep } from "./beat";
 
 export interface Lit {
   r: number;
@@ -35,10 +35,14 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       break;
     case "sequence": {
       const N = Math.max(1, n);
-      // snap the step to the beat when synced + a tempo is detected
-      const stepMs =
-        c.syncToBeat && audio.bpm > 0 ? beatStepMs(audio.bpm, c.beatDiv) : c.stepMs;
-      const step = Math.floor((t * 1000) / Math.max(20, stepMs));
+      // QUANTIZER (P0-3): when synced + a tempo is locked, derive the step from
+      // the PLL beat grid (quantizedStep) so step boundaries land exactly on the
+      // 1/beatDiv grid — the chase/sequence hits ON the beat, not floating off
+      // wall-clock. Falls back to the free-running stepMs clock when no audio.
+      const synced = c.syncToBeat && audio.active && audio.bpm > 0;
+      const step = synced
+        ? quantizedStep(audio.beatTime, c.beatDiv)
+        : Math.floor((t * 1000) / Math.max(20, c.stepMs));
       const r = f.seq;
       const mod = (a: number, m: number) => ((a % m) + m) % m;
       let on = false;

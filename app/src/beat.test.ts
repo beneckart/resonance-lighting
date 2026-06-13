@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BeatTracker, beatStepMs, quantizePhase } from "./beat";
+import { BeatTracker, beatStepMs, quantizePhase, quantizedStep } from "./beat";
 
 describe("beatStepMs", () => {
   it("maps BPM → step ms (quarter + eighth)", () => {
@@ -72,6 +72,36 @@ describe("BeatTracker", () => {
       const dist = Math.min(p, 1 - p);
       expect(dist).toBeLessThan(0.2);
     }
+  });
+
+  it("quantizedStep advances 1 per 1/division beat (grid-locked)", () => {
+    // division 1 (quarter): step increments once per whole beat
+    expect(quantizedStep(0.0, 1)).toBe(0);
+    expect(quantizedStep(0.99, 1)).toBe(0);
+    expect(quantizedStep(1.0, 1)).toBe(1);
+    expect(quantizedStep(3.5, 1)).toBe(3);
+    // division 2 (eighths): two steps per beat
+    expect(quantizedStep(0.5, 2)).toBe(1);
+    expect(quantizedStep(2.0, 2)).toBe(4);
+    // division 4 (sixteenths): four steps per beat
+    expect(quantizedStep(1.0, 4)).toBe(4);
+  });
+
+  it("BeatTracker.beats is monotonic + ~tracks elapsed beats on a steady train", () => {
+    const bt = new BeatTracker();
+    const fps = 60, period = 60 / 120; // 120 BPM → 0.5s/beat
+    let nextBeat = 0.5, last = 0;
+    for (let f = 0; f < fps * 10; f++) {
+      const t = f / fps;
+      let flux = 0.002;
+      if (t >= nextBeat) { flux = 0.06; nextBeat += period; }
+      const r = bt.push(flux, t);
+      expect(r.beats).toBeGreaterThanOrEqual(last - 0.2); // monotonic (PLL nudge is small)
+      last = r.beats;
+    }
+    // ~10s at 120 BPM ≈ 20 beats (allow PLL slack)
+    expect(bt.beats).toBeGreaterThan(16);
+    expect(bt.beats).toBeLessThan(24);
   });
 
   it("quantizePhase snaps to the division grid", () => {

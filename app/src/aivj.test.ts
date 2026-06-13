@@ -3,7 +3,7 @@ import { decideLook, energyOf, reactiveSpeed } from "./aivj";
 import type { AudioFeatures } from "./audio";
 
 const af = (p: Partial<AudioFeatures>): AudioFeatures => ({
-  active: true, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 120, drop: 0, section: "groove", beatPhase: 0, beatPulse: 0, centroid: 0, ...p,
+  active: true, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 120, drop: 0, section: "groove", beatPhase: 0, beatPulse: 0, centroid: 0, beatTime: 0, ...p,
 });
 const seq = (vals: number[]) => { let i = 0; return () => vals[i++ % vals.length]; };
 

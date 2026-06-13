@@ -19,10 +19,11 @@ export interface AudioFeatures {
   beatPhase: number; // PLL phase within the beat 0..1 (0 = downbeat) — predictive grid
   beatPulse: number; // 1 at the beat, decays toward next — on-grid swell for motion
   centroid: number; // spectral centroid 0..1 (timbre brightness) → drives hue
+  beatTime: number; // monotonic beats elapsed (PLL-locked) → Quantizer step grid
 }
 
 export const audioFeatures: AudioFeatures = {
-  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0, centroid: 0,
+  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0, centroid: 0, beatTime: 0,
 };
 
 /** Classify the live song SECTION from level dynamics (doc 16 P0-2): a drop or
@@ -232,6 +233,7 @@ export function updateAudio(): AudioFeatures {
   audioFeatures.onset = bt.onset;
   audioFeatures.bpm = bt.bpm;
   audioFeatures.beatPhase = bt.phase;
+  audioFeatures.beatTime = bt.beats;
   // on-grid swell: peaks at the downbeat (phase 0) and falls off toward the next
   // beat — a smooth, PREDICTIVE pulse that doesn't wait for an onset to fire
   audioFeatures.beatPulse = bt.bpm > 0 ? Math.pow(1 - bt.phase, 2) : 0;
