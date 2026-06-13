@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PATTERN_IDS, SEQ_MODES, useTwin, type PatternId, type SeqMode } from "./store";
 import { startMic, startFile, stopAudio } from "./audio";
 
@@ -56,6 +57,9 @@ export function Controls() {
   const setCtrl = useTwin((s) => s.set);
   const count = useTwin((s) => s.fixtures.length);
   const source = useTwin((s) => s.source);
+  const runCommand = useTwin((s) => s.runCommand);
+  const cmdLog = useTwin((s) => s.cmdLog);
+  const [cmd, setCmd] = useState("");
 
   return (
     <div style={panel}>
@@ -111,6 +115,38 @@ export function Controls() {
         </label>
         <button style={btn(false)} onClick={() => stopAudio()}>stop</button>
       </div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>command console — any light command</div>
+      <input
+        value={cmd}
+        placeholder="range 0-23 color #00aaff"
+        onChange={(e) => setCmd(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && cmd.trim()) {
+            runCommand(cmd);
+            setCmd("");
+          }
+        }}
+        style={{
+          width: "100%", marginTop: 4, padding: "6px 8px", borderRadius: 6,
+          border: "1px solid #2a3a52", background: "#0b1119", color: "#dce6ff",
+          font: "11px ui-monospace, monospace",
+        }}
+      />
+      <div style={row}>
+        {["zone high off", "every 4 color red", "all pattern sequence", "clear"].map((ex) => (
+          <button key={ex} style={{ ...btn(false), fontSize: 10 }} onClick={() => runCommand(ex)}>
+            {ex}
+          </button>
+        ))}
+      </div>
+      {cmdLog.length > 0 && (
+        <div style={{ marginTop: 4, fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
+          {cmdLog.map((l, i) => (
+            <div key={i}>› {l}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

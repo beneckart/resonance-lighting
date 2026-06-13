@@ -38,11 +38,24 @@ export function TreeLights() {
     const mesh = ref.current;
     if (!mesh || fixtures.length === 0) return;
     const t = state.clock.elapsedTime;
-    const ctrl = useTwin.getState().control;
+    const st = useTwin.getState();
+    const ctrl = st.control;
+    const overrides = st.overrides;
     const audio = updateAudio();
     const n = fixtures.length;
     for (let i = 0; i < n; i++) {
       litFor(t, fixtures[i], ctrl, audio, n, lit);
+      const ov = overrides[i];
+      if (ov) {
+        if (ov.mode === "off") {
+          lit.r = lit.g = lit.b = 0;
+        } else if (ov.rgb) {
+          const m = ctrl.brightness;
+          lit.r = ov.rgb[0] * m;
+          lit.g = ov.rgb[1] * m;
+          lit.b = ov.rgb[2] * m;
+        }
+      }
       col.setRGB(lit.r, lit.g, lit.b);
       mesh.setColorAt(i, col);
     }

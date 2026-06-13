@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
+import { runCommandStr, type Override } from "./command";
 
 export type PatternId = "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence";
 export const PATTERN_IDS: PatternId[] = ["solid", "breathe", "chase", "ripple", "sparkle", "sequence"];
@@ -39,15 +40,20 @@ interface TwinState {
   control: Control;
   center: [number, number, number];
   size: number;
+  overrides: Record<number, Override>; // per-fixture command overrides (H3)
+  cmdLog: string[];
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
+  runCommand: (cmd: string) => void;
 }
 
-export const useTwin = create<TwinState>((setState) => ({
+export const useTwin = create<TwinState>((setState, get) => ({
   fixtures: [],
   source: "",
   center: [0, 0, 0],
   size: 10,
+  overrides: {},
+  cmdLog: [],
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -114,4 +120,19 @@ export const useTwin = create<TwinState>((setState) => ({
     setState({ fixtures, center, size, source: doc.meta.source.split(":")[1] ?? doc.meta.source });
   },
   set: (p) => setState((s) => ({ control: { ...s.control, ...p } })),
+  runCommand: (cmd) => {
+    const r = runCommandStr(cmd, get().fixtures);
+    setState((s) => {
+      const next: Partial<TwinState> = {};
+      if (r.control) next.control = { ...s.control, ...r.control };
+      if (r.clear) next.overrides = {};
+      if (r.setOverrides) {
+        const o = { ...s.overrides };
+        for (const i of r.setOverrides.idx) o[i] = r.setOverrides.op;
+        next.overrides = o;
+      }
+      next.cmdLog = [r.msg, ...s.cmdLog].filter(Boolean).slice(0, 6);
+      return next;
+    });
+  },
 }));
