@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
+import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
@@ -72,6 +73,7 @@ interface TwinState {
   view: { mock: boolean; monitor: boolean; deadCount: number };
   monitorStats: { reporting: number; dead: number; stale: number };
   net: { channel: number; driveReal: boolean }; // ESP-NOW control-plane (E/I8)
+  cues: Cue[]; // saved looks (F1)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -79,6 +81,9 @@ interface TwinState {
   setView: (p: Partial<{ mock: boolean; monitor: boolean; deadCount: number }>) => void;
   setMonitorStats: (s: { reporting: number; dead: number; stale: number }) => void;
   setNet: (p: Partial<{ channel: number; driveReal: boolean }>) => void;
+  addCue: (name: string) => void;
+  recallCue: (id: string) => void;
+  deleteCue: (id: string) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -91,6 +96,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
   net: { channel: 11, driveReal: false },
+  cues: loadCues(),
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -193,4 +199,21 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setView: (p) => setState((s) => ({ view: { ...s.view, ...p } })),
   setMonitorStats: (s) => setState({ monitorStats: s }),
   setNet: (p) => setState((s) => ({ net: { ...s.net, ...p } })),
+  addCue: (name) =>
+    setState((s) => {
+      const cues = [...s.cues, makeCue(name, s.control)];
+      saveCues(cues);
+      return { cues };
+    }),
+  recallCue: (id) =>
+    setState((s) => {
+      const c = s.cues.find((x) => x.id === id);
+      return c ? { control: { ...s.control, ...c.control } } : {};
+    }),
+  deleteCue: (id) =>
+    setState((s) => {
+      const cues = s.cues.filter((x) => x.id !== id);
+      saveCues(cues);
+      return { cues };
+    }),
 }));

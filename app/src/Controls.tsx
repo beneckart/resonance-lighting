@@ -69,6 +69,11 @@ export function Controls() {
   const stats = useTwin((s) => s.monitorStats);
   const net = useTwin((s) => s.net);
   const setNet = useTwin((s) => s.setNet);
+  const cues = useTwin((s) => s.cues);
+  const addCue = useTwin((s) => s.addCue);
+  const recallCue = useTwin((s) => s.recallCue);
+  const deleteCue = useTwin((s) => s.deleteCue);
+  const [cueName, setCueName] = useState("");
   const f0 = useTwin((s) => s.fixtures[0]);
   const ov0 = useTwin((s) => s.overrides[0]);
   const [cmd, setCmd] = useState("");
@@ -195,6 +200,24 @@ export function Controls() {
       <div style={row}>
         <button style={btn(ctrl.strobe)} onClick={() => setCtrl({ strobe: !ctrl.strobe })}>⚡ strobe</button>
       </div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>cues</div>
+      <div style={{ display: "flex", gap: 4, margin: "4px 0" }}>
+        <input
+          value={cueName}
+          placeholder="cue name"
+          onChange={(e) => setCueName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { addCue(cueName); setCueName(""); } }}
+          style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #2a3a52", background: "#0b1119", color: "#dce6ff", font: "11px ui-monospace, monospace" }}
+        />
+        <button style={btn(false)} onClick={() => { addCue(cueName); setCueName(""); }}>💾 save</button>
+      </div>
+      {cues.map((c) => (
+        <div key={c.id} style={row}>
+          <button style={{ ...btn(false), flex: 1, textAlign: "left" }} onClick={() => recallCue(c.id)}>▶ {c.name}</button>
+          <button style={btn(false)} onClick={() => deleteCue(c.id)}>×</button>
+        </div>
+      ))}
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>command console — any light command</div>
       <input
