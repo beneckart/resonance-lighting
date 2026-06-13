@@ -24,7 +24,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   const sp = c.speed;
   let bri = c.brightness;
   let hue = c.hue;
-  const sat = c.sat;
+  let sat = c.sat;
 
   switch (c.pattern) {
     case "solid":
@@ -113,6 +113,35 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       const slot = Math.floor(f.seqT * 3 + t * sp * 0.6) % 3;
       hue = frac(c.hue + slot / 3);
       bri *= 0.5 + 0.5 * Math.sin(t * sp * 2.2 + f.seqT * 6.283);
+      break;
+    }
+    // --- element modes (D4) ---
+    case "wind": {
+      const w = Math.sin(f.seqT * 6.283 * 2 - t * sp * 0.9) * (0.6 + 0.4 * Math.sin(t * sp * 0.3));
+      bri *= 0.45 + 0.4 * (0.5 + 0.5 * w);
+      hue = frac(0.33 + 0.06 * w); // cool green-teal sway
+      break;
+    }
+    case "ember": {
+      hue = frac(0.03 + f.rnd * 0.05); // deep warm orange/red
+      const flick = (0.5 + 0.5 * Math.sin(t * sp * 6 + f.rnd * 30)) * (0.6 + 0.4 * Math.sin(t * sp * 2.3 + f.rnd * 10));
+      bri *= 0.22 + 0.6 * flick;
+      break;
+    }
+    case "rain": {
+      hue = frac(0.55 + 0.05 * Math.sin(t + f.rnd * 6)); // silver-blue
+      const fall = frac(t * sp * 0.45 + f.rnd);
+      const d = Math.abs(1 - f.heightT - fall);
+      bri *= 0.08 + 0.92 * Math.max(0, 1 - d * 6);
+      break;
+    }
+    case "beacon": {
+      const head = frac(t * sp * 0.3);
+      let d = Math.abs(f.seqT - head);
+      d = Math.min(d, 1 - d);
+      const swept = 1 - smooth(0.0, 0.18, d);
+      sat *= 0.15; // near-white whiteout safety beam
+      bri *= 0.15 + 0.95 * swept;
       break;
     }
   }

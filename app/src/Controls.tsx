@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PATTERN_IDS, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
+import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 import { encodeFixture } from "./protocol";
 
@@ -108,6 +108,14 @@ export function Controls() {
       <div style={{ marginTop: 10, opacity: 0.7 }}>pattern</div>
       <div style={row}>
         {PATTERN_IDS.map((p: PatternId) => (
+          <button key={p} style={btn(ctrl.pattern === p)} onClick={() => setCtrl({ pattern: p })}>
+            {p}
+          </button>
+        ))}
+      </div>
+      <div style={{ marginTop: 6, opacity: 0.7 }}>element modes</div>
+      <div style={row}>
+        {ELEMENT_MODES.map((p: PatternId) => (
           <button key={p} style={btn(ctrl.pattern === p)} onClick={() => setCtrl({ pattern: p })}>
             {p}
           </button>
