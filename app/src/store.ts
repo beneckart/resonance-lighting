@@ -7,11 +7,11 @@ import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
-  | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca"
+  | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];

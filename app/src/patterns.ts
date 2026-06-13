@@ -183,6 +183,20 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       hue = frac(hue + v * 0.2);
       break;
     }
+    case "hero": {
+      // SOUND-REACTIVE HERO — the whole tree as one organism (Radial Sonic
+      // Runway): an energy wavefront radiates from the trunk outward, brightness
+      // driven by the live audio (bass swell + beat flash + drop burst come from
+      // the global audio layer below); idles with a slow breath when silent.
+      const dx = f.norm[0] - 0.5, dz = f.norm[2] - 0.5;
+      const rad = Math.sqrt(dx * dx + dz * dz) * 2; // 0..~1.4 outward from trunk
+      const e = audio.active ? audio.level : 0.5 + 0.5 * Math.sin(t * sp); // energy
+      const wave = 0.5 + 0.5 * Math.sin(rad * 5 - t * sp * 3 - e * 4); // outward-travelling front
+      bri *= 0.15 + 0.85 * wave * (0.4 + 0.9 * e);
+      hue = frac(c.hue + rad * 0.25 + (audio.active ? audio.bass * 0.12 : 0));
+      sat = Math.max(sat, 0.85);
+      break;
+    }
     // --- element modes (D4) ---
     case "wind": {
       const w = Math.sin(f.seqT * 6.283 * 2 - t * sp * 0.9) * (0.6 + 0.4 * Math.sin(t * sp * 0.3));
