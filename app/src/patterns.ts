@@ -99,6 +99,18 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       hue = frac(hue + f.rnd * 0.12);
       break;
     }
+    case "spectrum": {
+      // full-spectrum rainbow wrapped around the tree, slowly rotating
+      hue = frac(f.seqT + t * sp * 0.08);
+      break;
+    }
+    case "tricolor": {
+      // three palette colors (120° apart) DANCING across fixtures, each pulsing
+      const slot = Math.floor(f.seqT * 3 + t * sp * 0.6) % 3;
+      hue = frac(c.hue + slot / 3);
+      bri *= 0.5 + 0.5 * Math.sin(t * sp * 2.2 + f.seqT * 6.283);
+      break;
+    }
   }
 
   if (audio.active) {

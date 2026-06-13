@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { Mesh, MeshStandardMaterial } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
@@ -63,6 +64,7 @@ export function Scene() {
       <OrbitControls makeDefault enableDamping />
       <EffectComposer>
         <Bloom intensity={1.15} luminanceThreshold={0.35} luminanceSmoothing={0.5} mipmapBlur radius={0.8} />
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       </EffectComposer>
     </>
   );

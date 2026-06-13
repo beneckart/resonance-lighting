@@ -2,8 +2,11 @@ import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, type Override } from "./command";
 
-export type PatternId = "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence";
-export const PATTERN_IDS: PatternId[] = ["solid", "breathe", "chase", "ripple", "sparkle", "sequence"];
+export type PatternId =
+  | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor";
+export const PATTERN_IDS: PatternId[] = [
+  "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
+];
 
 export type SeqMode = "fill" | "single" | "snake" | "groups" | "everyN" | "allOn" | "allOff";
 export const SEQ_MODES: SeqMode[] = ["fill", "single", "snake", "groups", "everyN", "allOn", "allOff"];
