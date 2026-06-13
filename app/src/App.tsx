@@ -41,8 +41,12 @@ export function App() {
     <div style={{ position: "fixed", inset: 0 }}>
       <Canvas
         shadows
+        // PERF: cap devicePixelRatio (a 2-3x HiDPI panel would otherwise fill
+        // 4-9x the pixels) + antialias off — Bloom hides the edges, and the
+        // pixel-fill saving dwarfs the AA cost on this fragment-heavy scene.
+        dpr={[1, 1.5]}
         camera={{ position: [40, 30, 60], fov: 45, near: 0.1, far: 5000 }}
-        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        gl={{ antialias: false, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
       >
         <Suspense fallback={null}>{ready && <Scene />}</Suspense>
       </Canvas>

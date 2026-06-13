@@ -10,6 +10,7 @@ export function HealthHud() {
   const total = useTwin((s) => s.fixtures.length);
   const mock = useTwin((s) => s.view.mock);
   const [fps, setFps] = useState(0);
+  const [calls, setCalls] = useState(0);
   const frames = useRef(0);
   const t0 = useRef(performance.now());
 
@@ -22,6 +23,9 @@ export function HealthHud() {
         setFps(Math.round((frames.current * 1000) / (now - t0.current)));
         frames.current = 0;
         t0.current = now;
+        // GPU draw-calls/frame from the renderer-info snapshot (Scene/ShadowFreeze)
+        const perf = (window as unknown as { __perf?: { calls?: number } }).__perf;
+        if (perf?.calls != null) setCalls(perf.calls);
       }
       raf = requestAnimationFrame(loop);
     };
@@ -38,6 +42,7 @@ export function HealthHud() {
       font: "11px ui-monospace, SFMono-Regular, monospace", backdropFilter: "blur(6px)",
     }}>
       <span style={{ color: fpsColor }}>{fps} fps</span>
+      {calls > 0 && <><span style={{ opacity: 0.4 }}>·</span><span style={{ color: "#9fb0c7" }}>{calls} calls</span></>}
       <span style={{ opacity: 0.4 }}>·</span>
       <span style={{ color: "#3ddc97" }}>{mock ? stats.reporting : total}/{total} lit</span>
       {mock && stats.dead > 0 && <span style={{ color: "#ff5b6e" }}>{stats.dead}✗</span>}

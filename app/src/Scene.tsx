@@ -116,6 +116,31 @@ function Chandelier() {
   return <primitive object={styled} />;
 }
 
+/** PERF: the gobo spotlight's shadow map covers the STATIC scene (tree + ground
+ *  never move; the instanced lanterns aren't shadow-casters and their colour
+ *  changes don't affect shadows). So render the shadow for the first ~45 frames
+ *  (let the async glb + gobo finish loading), then FREEZE it — autoUpdate=false
+ *  drops a full re-draw of the 2364-mesh bark scene every single frame. */
+function ShadowFreeze() {
+  const gl = useThree((s) => s.gl);
+  const frame = useRef(0);
+  useFrame(() => {
+    frame.current += 1;
+    if (frame.current === 45) {
+      gl.shadowMap.needsUpdate = true; // capture one final, fully-loaded shadow
+      gl.shadowMap.autoUpdate = false; // then stop re-rendering it every frame
+    }
+    // publish a lightweight render-stats snapshot for the HUD + perf verification
+    (window as unknown as { __perf?: object }).__perf = {
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      shadowAutoUpdate: gl.shadowMap.autoUpdate,
+      frame: frame.current,
+    };
+  });
+  return null;
+}
+
 /** Frame the whole tree at a hero 3/4 angle. */
 function CameraRig() {
   const center = useTwin((s) => s.center);
@@ -166,6 +191,7 @@ export function Scene() {
       <directionalLight position={[1, 1.6, 1]} intensity={0.85 + tod * 1.2} color="#fff1d8" />
       <directionalLight position={[-1.2, 0.4, -1]} intensity={0.32 + tod * 0.4} color="#4a63b0" />
       <CameraRig />
+      <ShadowFreeze />
       <ErrorBoundary>
         <GoboFloor />
       </ErrorBoundary>
