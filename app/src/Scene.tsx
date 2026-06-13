@@ -78,20 +78,25 @@ function GoboFloor() {
   );
 }
 
-/** Visible structural bamboo so the lights read as the Resonance Tree. */
+/** Visible structural bamboo + Plu Plu bark so the lights read as the Resonance
+ *  Tree. The bark ("treev4 Plupu") is the light-shaping SHELL — render it darker
+ *  and near-opaque so the lantern glow leaks through it; the bamboo structure is
+ *  lighter + more translucent. */
 function TreeContext() {
   const { scene } = useGLTF("/tree-context.glb");
   const styled = useMemo(() => {
     const s = scene.clone(true);
-    const mat = new MeshStandardMaterial({
-      color: "#9c7a44",
-      roughness: 0.82,
-      metalness: 0.0,
-      transparent: true,
-      opacity: 0.85,
+    const bamboo = new MeshStandardMaterial({
+      color: "#9c7a44", roughness: 0.82, metalness: 0, transparent: true, opacity: 0.7,
+    });
+    const bark = new MeshStandardMaterial({
+      color: "#6b5230", roughness: 0.95, metalness: 0, transparent: true, opacity: 0.96,
     });
     s.traverse((o) => {
-      if ((o as Mesh).isMesh) (o as Mesh).material = mat;
+      const m = o as Mesh;
+      if (!m.isMesh) return;
+      const nm = (m.name || m.parent?.name || "").toLowerCase();
+      m.material = nm.includes("plupu") ? bark : bamboo;
     });
     return s;
   }, [scene]);
