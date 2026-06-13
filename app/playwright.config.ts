@@ -6,9 +6,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1, // GL-heavy specs: run serially so concurrent WebGL contexts don't contend
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 1,
   reporter: [["list"]],
   outputDir: "test-results",
   use: {
