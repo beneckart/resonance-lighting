@@ -86,9 +86,32 @@ function connect(src: AudioNode, toDestination: boolean) {
   audioFeatures.active = true;
 }
 
-export async function startMic() {
+export interface AudioInput {
+  id: string;
+  label: string;
+}
+
+/** Pure: filter a MediaDeviceInfo list down to selectable audio inputs (mic,
+ *  line-in, booth-out…). Labels are blank until permission is granted, so fall
+ *  back to a short id stub. */
+export function audioInputsFrom(devices: { kind: string; deviceId: string; label?: string }[]): AudioInput[] {
+  return devices
+    .filter((d) => d.kind === "audioinput")
+    .map((d, i) => ({ id: d.deviceId, label: d.label || `input ${i + 1} (${d.deviceId.slice(0, 6) || "default"})` }));
+}
+
+/** Enumerate available audio inputs for the source picker (#5). */
+export async function listAudioInputs(): Promise<AudioInput[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  return audioInputsFrom(await navigator.mediaDevices.enumerateDevices());
+}
+
+/** Start from a mic / line-in / booth-out. Pass a deviceId from listAudioInputs
+ *  to pick a specific input (e.g. the DJ booth output), else the default. */
+export async function startMic(deviceId?: string) {
   await ensureCtx();
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const audio = deviceId ? { deviceId: { exact: deviceId } } : true;
+  const stream = await navigator.mediaDevices.getUserMedia({ audio });
   connect(ctx!.createMediaStreamSource(stream), false);
 }
 
