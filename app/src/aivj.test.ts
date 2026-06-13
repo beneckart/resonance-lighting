@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decideLook, energyOf } from "./aivj";
+import { decideLook, energyOf, reactiveSpeed } from "./aivj";
 import type { AudioFeatures } from "./audio";
 
 const af = (p: Partial<AudioFeatures>): AudioFeatures => ({
@@ -29,6 +29,15 @@ describe("AI-VJ policy", () => {
     const d = decideLook(af({ level: 0.05, bass: 0.05 }), seq([0]));
     expect(["breathe", "warmcool", "ember", "rain"]).toContain(d.pattern);
     expect(d.speed).toBeLessThan(1);
+  });
+
+  it("reactiveSpeed: silent=1, energy+tempo speed up, drop spikes, clamped 0.3..3", () => {
+    expect(reactiveSpeed({ ...af({}), active: false })).toBe(1);
+    const calm = reactiveSpeed(af({ level: 0.05, bass: 0.05, bpm: 90 }));
+    const hot = reactiveSpeed(af({ level: 0.9, bass: 0.9, bpm: 140 }));
+    expect(hot).toBeGreaterThan(calm);
+    expect(reactiveSpeed(af({ level: 1, bass: 1, bpm: 200, drop: 1 }))).toBeLessThanOrEqual(3);
+    expect(reactiveSpeed(af({ level: 0, bass: 0, bpm: 60 }))).toBeGreaterThanOrEqual(0.3);
   });
 
   it("hue + speed stay in range", () => {

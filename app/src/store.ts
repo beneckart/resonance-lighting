@@ -69,6 +69,7 @@ export interface Control {
   beaconPreempt: boolean; // safety preempt: force full white over everything
   blackout: boolean; // safety preempt: force all-off (wins over beacon)
   reverse: boolean; // jog-wheel direction: reverse the around-the-tree motion
+  audioSpeed: boolean; // auto-drive motion speed from the music (energy/BPM/drop)
 }
 
 interface TwinState {
@@ -156,6 +157,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     beaconPreempt: false,
     blackout: false,
     reverse: false,
+    audioSpeed: false,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

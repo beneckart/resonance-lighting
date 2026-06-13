@@ -24,6 +24,16 @@ export function energyOf(a: AudioFeatures): number {
   return Math.min(1, a.level * 0.5 + a.bass * 0.5);
 }
 
+/** Live motion speed from the music (Tier-1 'change speed by set features'):
+ *  energy + tempo drive it, the drop spikes it. Pure. Silent → 1 (neutral). */
+export function reactiveSpeed(a: AudioFeatures): number {
+  if (!a.active) return 1;
+  const energy = a.level * 0.6 + a.bass * 0.4;
+  const tempo = a.bpm > 0 ? Math.min(1.5, a.bpm / 120) : 1; // 120 BPM → 1.0
+  const drop = a.drop * 1.5; // the drop spikes speed
+  return Math.max(0.3, Math.min(3, (0.5 + energy * 1.8) * tempo + drop));
+}
+
 export function decideLook(a: AudioFeatures, rand: () => number = Math.random): AiDecision {
   // DROP → big energetic burst
   if (a.active && a.drop > 0.4) {

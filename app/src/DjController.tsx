@@ -339,6 +339,7 @@ export function DjController() {
           {toggle(control.syncToBeat, "🥁 SYNC", () => set({ syncToBeat: !control.syncToBeat }))}
           {toggle(control.strobe, "⚡ STROBE", () => set({ strobe: !control.strobe }), "#ff5b6e")}
           {toggle(control.autoVj, "🤖 AUTO", () => set({ autoVj: !control.autoVj }), "#9b6bff")}
+          {toggle(control.audioSpeed, "🎵 RX-SPD", () => set({ audioSpeed: !control.audioSpeed }), "#3ddc97")}
           {toggle(audioOn, audioOn ? "■ STOP" : "▶ TRACK", () => {
             if (audioOn) { stopAudio(); setAudioOn(false); }
             else { startTrack("/audio/test-beat-124bpm.wav"); setAudioOn(true); }

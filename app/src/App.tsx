@@ -8,6 +8,7 @@ import { TouchConsole } from "./TouchConsole";
 import { CommissioningPanel } from "./CommissioningPanel";
 import { HealthHud } from "./HealthHud";
 import { PresenceDriver } from "./PresenceDriver";
+import { AudioReactiveDriver } from "./AudioReactiveDriver";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc, auditFixtures } from "./fixtures";
@@ -97,6 +98,7 @@ export function App() {
         🌑 BLACKOUT{blackout ? " ON" : ""}
       </button>
       <PresenceDriver />
+      <AudioReactiveDriver />
       <AutoVj />
       <TimelineDriver />
       {err && (
