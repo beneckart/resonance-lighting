@@ -128,6 +128,32 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       }
       break;
     }
+    case "chromatic": {
+      // CHROMATIC TRICOLOR (Elliot's ask): three distinct colours moving OUTWARD
+      // from ONE source point — the crown (the chandelier hangs there). Each
+      // triad hue is a travelling wavefront; the three are phase-offset by 1/3 so
+      // they separate as they propagate, reading as three colours streaming out
+      // from a single origin. u = radial distance from the source (0 at crown).
+      const u = 1 - f.heightT; // crown(=1) → base(=0): distance from the top source
+      const flow = tt * sp * 0.22; // wavefronts travel outward over time
+      const width = 0.26; // band thickness
+      let best = -1, bestHue = hue, bestBri = 0;
+      for (let k = 0; k < 3; k++) {
+        const w = frac(flow + k / 3); // this colour's wavefront position
+        let d = Math.abs(u - w);
+        d = Math.min(d, 1 - d); // wrap so the ring is continuous
+        let inten = smooth(width, 0, d); // bright when the fixture sits on the front
+        if (audio.active) {
+          const bandK = k === 0 ? audio.bass : k === 1 ? audio.mid : audio.treble;
+          inten *= 0.5 + 0.9 * bandK; // each colour pulses to its own band
+        }
+        if (inten > best) { best = inten; bestHue = frac(c.hue + k / 3); bestBri = inten; }
+      }
+      hue = bestHue;
+      sat = Math.max(sat, 0.95); // keep the three colours vivid + distinct
+      bri *= 0.12 + 0.95 * bestBri; // dark between wavefronts → the bands read crisply
+      break;
+    }
     case "spiral": {
       // rainbow barber-pole spiralling UP the tree (azimuth + height), rotating
       hue = frac(f.seqT + f.heightT * 1.5 + tt * sp * 0.1);
