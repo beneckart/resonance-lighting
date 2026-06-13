@@ -1,11 +1,51 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Mesh, MeshStandardMaterial } from "three";
+import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
+
+/** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
+function GoboFloor() {
+  const center = useTwin((s) => s.center);
+  const size = useTwin((s) => s.size);
+  const gobo = useTexture("/gobo-mandala.png");
+  gobo.colorSpace = SRGBColorSpace;
+  const light = useRef<ThreeSpotLight>(null);
+  const target = useMemo(() => new Object3D(), []);
+  const groundY = center[1] - size * 0.5;
+
+  useEffect(() => {
+    target.position.set(center[0], groundY, center[2]);
+    target.updateMatrixWorld();
+    if (light.current) light.current.target = target;
+  }, [center, size, groundY, target]);
+
+  return (
+    <>
+      <mesh rotation-x={-Math.PI / 2} position={[center[0], groundY, center[2]]} receiveShadow>
+        <planeGeometry args={[size * 2.8, size * 2.8]} />
+        <meshStandardMaterial color="#0b0e14" roughness={1} />
+      </mesh>
+      <primitive object={target} />
+      <spotLight
+        ref={light}
+        position={[center[0], groundY + size * 1.15, center[2]]}
+        angle={0.62}
+        penumbra={0.5}
+        intensity={4.2}
+        decay={0}
+        distance={0}
+        castShadow
+        map={gobo}
+        color="#ffe1b0"
+        shadow-mapSize={[1024, 1024]}
+      />
+    </>
+  );
+}
 
 /** Visible structural bamboo so the lights read as the Resonance Tree. */
 function TreeContext() {
@@ -59,6 +99,7 @@ export function Scene() {
       <directionalLight position={[1, 1.6, 1]} intensity={1.2} color="#fff1d8" />
       <directionalLight position={[-1.2, 0.4, -1]} intensity={0.55} color="#4a63b0" />
       <CameraRig />
+      <GoboFloor />
       <TreeContext />
       <TreeLights />
       <OrbitControls makeDefault enableDamping />

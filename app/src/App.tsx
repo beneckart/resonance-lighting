@@ -18,6 +18,7 @@ export function App() {
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <Canvas
+        shadows
         camera={{ position: [40, 30, 60], fov: 45, near: 0.1, far: 5000 }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
