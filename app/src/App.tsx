@@ -9,7 +9,7 @@ import { CommissioningPanel } from "./CommissioningPanel";
 import { PresenceDriver } from "./PresenceDriver";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
-import { loadFixtures, validateFixturesDoc } from "./fixtures";
+import { loadFixtures, validateFixturesDoc, auditFixtures } from "./fixtures";
 import { useTwin } from "./store";
 
 export function App() {
@@ -23,6 +23,10 @@ export function App() {
       .then((doc) => {
         const v = validateFixturesDoc(doc);
         if (!v.ok) setErr(`fixtures.json invalid: ${v.errors.slice(0, 3).join("; ")}`);
+        // data-quality audit (role/zone counts + aim sanity) — surface anomalies
+        const a = auditFixtures(doc);
+        console.info(`[fixtures] ${doc.fixtures.length} loaded · roles`, a.byRole, "· zones", a.byZone, `· ${a.withAim} with aim`);
+        if (a.warnings.length) console.warn(`[fixtures] ${a.warnings.length} aim anomalies:`, a.warnings.slice(0, 8));
         useTwin.getState().init(doc);
       })
       .catch((e) => setErr(String(e)));
