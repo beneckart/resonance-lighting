@@ -1,0 +1,1506 @@
+{
+ "meta": {
+  "source": "blender:Tree_Resonance_packed_2026-06.13.ejf.blend",
+  "exported": "2026-06-13T03:07:53",
+  "up_axis": "Z",
+  "units": "blender",
+  "count": 78,
+  "bbox": {
+   "min": [
+    -8234.459,
+    -326.749,
+    -5136.358
+   ],
+   "max": [
+    5103.832,
+    8000.062,
+    5136.358
+   ]
+  },
+  "schema": "resonance.fixtures/0.1"
+ },
+ "fixtures": [
+  {
+   "fixture_id": "F000",
+   "name": "Point",
+   "role": "canopy",
+   "position": [
+    -0.084,
+    -0.847,
+    0.5294
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F001",
+   "name": "Point.002",
+   "role": "canopy",
+   "position": [
+    0.3157,
+    -1.2063,
+    9.5054
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F002",
+   "name": "Point.003",
+   "role": "canopy",
+   "position": [
+    46.4196,
+    19.641,
+    29.1886
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.193,
+    0.031
+   ]
+  },
+  {
+   "fixture_id": "F003",
+   "name": "Point.004",
+   "role": "canopy",
+   "position": [
+    40.0663,
+    30.9812,
+    28.8601
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.088,
+    0.053
+   ]
+  },
+  {
+   "fixture_id": "F004",
+   "name": "Point.005",
+   "role": "canopy",
+   "position": [
+    30.2649,
+    40.3005,
+    28.1993
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.413,
+    0.141
+   ]
+  },
+  {
+   "fixture_id": "F005",
+   "name": "Point.006",
+   "role": "canopy",
+   "position": [
+    50.0122,
+    7.0127,
+    28.5673
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.066,
+    0.06
+   ]
+  },
+  {
+   "fixture_id": "F006",
+   "name": "Point.007",
+   "role": "canopy",
+   "position": [
+    40.0663,
+    30.9812,
+    28.8601
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.44,
+    0.176
+   ]
+  },
+  {
+   "fixture_id": "F007",
+   "name": "Point.008",
+   "role": "canopy",
+   "position": [
+    50.1359,
+    -6.0442,
+    28.8922
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.537,
+    0.131
+   ]
+  },
+  {
+   "fixture_id": "F008",
+   "name": "Point.009",
+   "role": "canopy",
+   "position": [
+    33.1325,
+    24.952,
+    39.0202
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.094,
+    0.053
+   ]
+  },
+  {
+   "fixture_id": "F009",
+   "name": "Point.010",
+   "role": "canopy",
+   "position": [
+    41.437,
+    5.4473,
+    39.2249
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.511,
+    0.16
+   ]
+  },
+  {
+   "fixture_id": "F010",
+   "name": "Point.011",
+   "role": "canopy",
+   "position": [
+    21.5063,
+    16.7057,
+    34.8897
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.391,
+    0.046
+   ]
+  },
+  {
+   "fixture_id": "F011",
+   "name": "Point.012",
+   "role": "canopy",
+   "position": [
+    21.5063,
+    16.7057,
+    34.8897
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.598,
+    0.343
+   ]
+  },
+  {
+   "fixture_id": "F012",
+   "name": "Point.013",
+   "role": "canopy",
+   "position": [
+    16.0138,
+    20.9122,
+    34.3921
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.392,
+    0.179
+   ]
+  },
+  {
+   "fixture_id": "F013",
+   "name": "Point.014",
+   "role": "canopy",
+   "position": [
+    38.6558,
+    16.2106,
+    39.5529
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.149,
+    0.003
+   ]
+  },
+  {
+   "fixture_id": "F014",
+   "name": "Point.015",
+   "role": "canopy",
+   "position": [
+    25.2225,
+    33.145,
+    38.9972
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.005,
+    0.102
+   ]
+  },
+  {
+   "fixture_id": "F015",
+   "name": "Point.016",
+   "role": "canopy",
+   "position": [
+    24.5978,
+    10.2548,
+    34.8229
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.106,
+    0.005
+   ]
+  },
+  {
+   "fixture_id": "F016",
+   "name": "Point.017",
+   "role": "canopy",
+   "position": [
+    26.5075,
+    3.7318,
+    34.5814
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.101,
+    0.031
+   ]
+  },
+  {
+   "fixture_id": "F017",
+   "name": "Point.018",
+   "role": "canopy",
+   "position": [
+    -39.6551,
+    -30.9518,
+    29.6806
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.13,
+    0.061
+   ]
+  },
+  {
+   "fixture_id": "F018",
+   "name": "Point.019",
+   "role": "canopy",
+   "position": [
+    26.6431,
+    -3.2264,
+    34.5196
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.633,
+    0.206
+   ]
+  },
+  {
+   "fixture_id": "F019",
+   "name": "Point.020",
+   "role": "canopy",
+   "position": [
+    26.6431,
+    -3.2264,
+    34.5196
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.717,
+    0.289
+   ]
+  },
+  {
+   "fixture_id": "F020",
+   "name": "Point.022",
+   "role": "canopy",
+   "position": [
+    40.3447,
+    -30.3346,
+    30.0156
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.655,
+    0.136
+   ]
+  },
+  {
+   "fixture_id": "F021",
+   "name": "Point.023",
+   "role": "canopy",
+   "position": [
+    38.5012,
+    -16.2666,
+    37.8838
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.32,
+    0.028
+   ]
+  },
+  {
+   "fixture_id": "F022",
+   "name": "Point.024",
+   "role": "canopy",
+   "position": [
+    31.1386,
+    -39.7469,
+    30.0107
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.178,
+    0.067
+   ]
+  },
+  {
+   "fixture_id": "F023",
+   "name": "Point.025",
+   "role": "canopy",
+   "position": [
+    33.2846,
+    -25.4369,
+    39.0154
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.683,
+    0.156
+   ]
+  },
+  {
+   "fixture_id": "F024",
+   "name": "Point.026",
+   "role": "canopy",
+   "position": [
+    25.4754,
+    -32.9215,
+    39.4034
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.612,
+    0.438
+   ]
+  },
+  {
+   "fixture_id": "F025",
+   "name": "Point.028",
+   "role": "canopy",
+   "position": [
+    19.6057,
+    -46.6664,
+    29.6244
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.296,
+    0.048
+   ]
+  },
+  {
+   "fixture_id": "F026",
+   "name": "Point.029",
+   "role": "canopy",
+   "position": [
+    19.6057,
+    -46.6664,
+    29.6244
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F027",
+   "name": "Point.030",
+   "role": "canopy",
+   "position": [
+    19.6057,
+    -46.6664,
+    29.6244
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.828,
+    0.399
+   ]
+  },
+  {
+   "fixture_id": "F028",
+   "name": "Point.032",
+   "role": "canopy",
+   "position": [
+    7.13,
+    -50.0887,
+    28.5673
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.256,
+    0.008
+   ]
+  },
+  {
+   "fixture_id": "F029",
+   "name": "Point.033",
+   "role": "canopy",
+   "position": [
+    -6.113,
+    -49.9138,
+    29.6149
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.531,
+    0.006
+   ]
+  },
+  {
+   "fixture_id": "F030",
+   "name": "Point.034",
+   "role": "canopy",
+   "position": [
+    16.5227,
+    -38.2951,
+    39.6489
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.012,
+    0.003
+   ]
+  },
+  {
+   "fixture_id": "F031",
+   "name": "Point.035",
+   "role": "canopy",
+   "position": [
+    5.3135,
+    -41.2671,
+    39.4989
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.229,
+    0.008
+   ]
+  },
+  {
+   "fixture_id": "F032",
+   "name": "Point.036",
+   "role": "canopy",
+   "position": [
+    -18.8416,
+    -46.859,
+    29.4911
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.165,
+    0.066
+   ]
+  },
+  {
+   "fixture_id": "F033",
+   "name": "Point.037",
+   "role": "canopy",
+   "position": [
+    3.6776,
+    -26.3073,
+    34.5785
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.151,
+    0.005
+   ]
+  },
+  {
+   "fixture_id": "F034",
+   "name": "Point.038",
+   "role": "canopy",
+   "position": [
+    -30.307,
+    -40.5212,
+    29.9248
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.253,
+    0.02
+   ]
+  },
+  {
+   "fixture_id": "F035",
+   "name": "Point.039",
+   "role": "canopy",
+   "position": [
+    46.7316,
+    -19.1235,
+    29.5509
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.142,
+    0.035
+   ]
+  },
+  {
+   "fixture_id": "F036",
+   "name": "Point.040",
+   "role": "canopy",
+   "position": [
+    18.7025,
+    46.9941,
+    28.9736
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.466,
+    0.011
+   ]
+  },
+  {
+   "fixture_id": "F037",
+   "name": "Point.042",
+   "role": "canopy",
+   "position": [
+    -9.7614,
+    -24.5678,
+    34.73
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.3,
+    0.012
+   ]
+  },
+  {
+   "fixture_id": "F038",
+   "name": "Point.043",
+   "role": "canopy",
+   "position": [
+    -9.7614,
+    -24.5678,
+    34.73
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "fixture_id": "F039",
+   "name": "Point.044",
+   "role": "canopy",
+   "position": [
+    -47.0152,
+    -19.9048,
+    29.6408
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.14,
+    0.005
+   ]
+  },
+  {
+   "fixture_id": "F040",
+   "name": "Point.045",
+   "role": "canopy",
+   "position": [
+    -49.8539,
+    -7.2248,
+    29.6268
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.341,
+    0.211
+   ]
+  },
+  {
+   "fixture_id": "F041",
+   "name": "Point.046",
+   "role": "canopy",
+   "position": [
+    -41.3125,
+    -5.2383,
+    38.4951
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.323,
+    0.12
+   ]
+  },
+  {
+   "fixture_id": "F042",
+   "name": "Point.047",
+   "role": "canopy",
+   "position": [
+    -16.1722,
+    -39.0038,
+    40.2944
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.197,
+    0.025
+   ]
+  },
+  {
+   "fixture_id": "F043",
+   "name": "Point.048",
+   "role": "canopy",
+   "position": [
+    -41.6988,
+    5.3196,
+    39.7298
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.546,
+    0.369
+   ]
+  },
+  {
+   "fixture_id": "F044",
+   "name": "Point.049",
+   "role": "canopy",
+   "position": [
+    -38.5635,
+    -16.2072,
+    39.5178
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.705,
+    0.096
+   ]
+  },
+  {
+   "fixture_id": "F045",
+   "name": "Point.050",
+   "role": "canopy",
+   "position": [
+    -33.1033,
+    -24.9156,
+    39.4973
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.443,
+    0.066
+   ]
+  },
+  {
+   "fixture_id": "F046",
+   "name": "Point.051",
+   "role": "canopy",
+   "position": [
+    -38.5072,
+    16.5238,
+    40.1767
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.234,
+    0.028
+   ]
+  },
+  {
+   "fixture_id": "F047",
+   "name": "Point.052",
+   "role": "canopy",
+   "position": [
+    -46.7208,
+    18.5096,
+    29.2447
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.185,
+    0.044
+   ]
+  },
+  {
+   "fixture_id": "F048",
+   "name": "Point.053",
+   "role": "canopy",
+   "position": [
+    -40.3085,
+    30.2436,
+    28.6669
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.304,
+    0.102
+   ]
+  },
+  {
+   "fixture_id": "F049",
+   "name": "Point.054",
+   "role": "canopy",
+   "position": [
+    -33.1774,
+    25.1991,
+    39.9913
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.594,
+    0.055
+   ]
+  },
+  {
+   "fixture_id": "F050",
+   "name": "Point.055",
+   "role": "canopy",
+   "position": [
+    -24.6267,
+    2.7466,
+    34.7869
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.603,
+    0.204
+   ]
+  },
+  {
+   "fixture_id": "F051",
+   "name": "Point.056",
+   "role": "canopy",
+   "position": [
+    -25.2806,
+    10.2708,
+    34.5802
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.651,
+    0.106
+   ]
+  },
+  {
+   "fixture_id": "F052",
+   "name": "Point.057",
+   "role": "canopy",
+   "position": [
+    10.0343,
+    -22.8376,
+    35.0473
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.583,
+    0.059
+   ]
+  },
+  {
+   "fixture_id": "F053",
+   "name": "Point.058",
+   "role": "canopy",
+   "position": [
+    -2.9869,
+    -26.2294,
+    35.1924
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.658,
+    0.003
+   ]
+  },
+  {
+   "fixture_id": "F054",
+   "name": "Point.059",
+   "role": "canopy",
+   "position": [
+    -15.8816,
+    -21.1009,
+    35.2008
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.088,
+    0.028
+   ]
+  },
+  {
+   "fixture_id": "F055",
+   "name": "Point.060",
+   "role": "canopy",
+   "position": [
+    -31.1891,
+    39.8749,
+    30.4836
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.095,
+    0.031
+   ]
+  },
+  {
+   "fixture_id": "F056",
+   "name": "Point.061",
+   "role": "canopy",
+   "position": [
+    -25.2679,
+    33.404,
+    39.5719
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.543,
+    0.035
+   ]
+  },
+  {
+   "fixture_id": "F057",
+   "name": "Point.062",
+   "role": "canopy",
+   "position": [
+    -21.064,
+    15.5698,
+    35.1291
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.337,
+    0.128
+   ]
+  },
+  {
+   "fixture_id": "F058",
+   "name": "Point.063",
+   "role": "canopy",
+   "position": [
+    -16.6139,
+    21.1146,
+    35.2284
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.469,
+    0.216
+   ]
+  },
+  {
+   "fixture_id": "F059",
+   "name": "Point.064",
+   "role": "canopy",
+   "position": [
+    -25.0915,
+    -3.7741,
+    34.3355
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.069,
+    0.01
+   ]
+  },
+  {
+   "fixture_id": "F060",
+   "name": "Point.065",
+   "role": "canopy",
+   "position": [
+    -24.1074,
+    -10.0207,
+    35.1601
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.604,
+    0.052
+   ]
+  },
+  {
+   "fixture_id": "F061",
+   "name": "Point.066",
+   "role": "canopy",
+   "position": [
+    -20.7107,
+    -16.378,
+    34.7062
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.34,
+    0.052
+   ]
+  },
+  {
+   "fixture_id": "F062",
+   "name": "Point.067",
+   "role": "canopy",
+   "position": [
+    -50.3314,
+    6.0309,
+    29.5965
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.337,
+    0.103
+   ]
+  },
+  {
+   "fixture_id": "F063",
+   "name": "Point.068",
+   "role": "canopy",
+   "position": [
+    -19.7952,
+    46.6791,
+    29.7139
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.561,
+    0.016
+   ]
+  },
+  {
+   "fixture_id": "F064",
+   "name": "Point.069",
+   "role": "canopy",
+   "position": [
+    -7.1374,
+    50.1673,
+    29.0508
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.095,
+    0.025
+   ]
+  },
+  {
+   "fixture_id": "F065",
+   "name": "Point.070",
+   "role": "canopy",
+   "position": [
+    6.2291,
+    50.289,
+    29.7312
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.697,
+    0.43
+   ]
+  },
+  {
+   "fixture_id": "F066",
+   "name": "Point.071",
+   "role": "canopy",
+   "position": [
+    5.3578,
+    41.4866,
+    39.8821
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.252,
+    0.127
+   ]
+  },
+  {
+   "fixture_id": "F067",
+   "name": "Point.072",
+   "role": "canopy",
+   "position": [
+    16.5234,
+    38.3616,
+    39.7579
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.287,
+    0.124
+   ]
+  },
+  {
+   "fixture_id": "F068",
+   "name": "Point.073",
+   "role": "canopy",
+   "position": [
+    9.8482,
+    24.405,
+    34.5278
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.059,
+    0.012
+   ]
+  },
+  {
+   "fixture_id": "F069",
+   "name": "Point.074",
+   "role": "canopy",
+   "position": [
+    41.3513,
+    -5.2505,
+    39.4735
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.044,
+    0.004
+   ]
+  },
+  {
+   "fixture_id": "F070",
+   "name": "Point.075",
+   "role": "canopy",
+   "position": [
+    -25.0375,
+    -33.0806,
+    40.3862
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.253,
+    0.02
+   ]
+  },
+  {
+   "fixture_id": "F071",
+   "name": "Point.076",
+   "role": "canopy",
+   "position": [
+    -3.9668,
+    26.4998,
+    35.0489
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.4,
+    0.043
+   ]
+  },
+  {
+   "fixture_id": "F072",
+   "name": "Point.077",
+   "role": "canopy",
+   "position": [
+    3.0068,
+    26.5207,
+    35.1627
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.308,
+    0.037
+   ]
+  },
+  {
+   "fixture_id": "F073",
+   "name": "Point.078",
+   "role": "canopy",
+   "position": [
+    -5.5995,
+    41.7785,
+    40.5062
+   ],
+   "zone": "high",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.062,
+    0.013
+   ]
+  },
+  {
+   "fixture_id": "F074",
+   "name": "Sun.003",
+   "role": "canopy",
+   "position": [
+    0.1424,
+    -0.7675,
+    7.2399
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.589,
+    0.205
+   ]
+  },
+  {
+   "fixture_id": "F075",
+   "name": "Sun.009",
+   "role": "canopy",
+   "position": [
+    -0.1155,
+    -0.5321,
+    6.0073
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.548,
+    0.049
+   ]
+  },
+  {
+   "fixture_id": "F076",
+   "name": "Top Light 1",
+   "role": "canopy",
+   "position": [
+    -0.2947,
+    -0.7833,
+    8.6782
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.524,
+    0.017
+   ]
+  },
+  {
+   "fixture_id": "F077",
+   "name": "Top Light 2",
+   "role": "canopy",
+   "position": [
+    -0.2947,
+    -0.7833,
+    8.6782
+   ],
+   "zone": "low",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120.0,
+   "design_color": [
+    1.0,
+    0.524,
+    0.017
+   ]
+  }
+ ]
+}

@@ -2,8 +2,14 @@ node_modules/
 dist/
 .preview.pid
 screenshots/
+test-results/
+tsconfig.tsbuildinfo
+.claude-flow/
 *.local
 .DS_Store
+# tree.glb (10MB, structure-only ovoid shell) not used yet — re-export decimated
+# bamboo geometry as context in A4, then commit a good one.
+public/tree.glb
 # large model sources are never committed — only the exported, decimated .glb is
 public/*.blend
 public/*.3dm
