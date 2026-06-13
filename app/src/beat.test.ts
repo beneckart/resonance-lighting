@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { BeatTracker } from "./beat";
+import { BeatTracker, beatStepMs } from "./beat";
+
+describe("beatStepMs", () => {
+  it("maps BPM → step ms (quarter + eighth)", () => {
+    expect(beatStepMs(124)).toBeCloseTo(483.87, 1);
+    expect(beatStepMs(124, 2)).toBeCloseTo(241.94, 1);
+    expect(beatStepMs(140)).toBeCloseTo(428.57, 1);
+    expect(beatStepMs(0)).toBe(0);
+  });
+});
 
 // OBJECTIVE proof the detector math is correct, independent of audio hardware:
 // feed a synthetic 124-BPM kick impulse train and assert the detected BPM locks on.

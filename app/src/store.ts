@@ -36,6 +36,8 @@ export interface Control {
   stepMs: number; // step delay (Elliot's 0.2s default)
   groupSize: number; // 24 / 36 / 72 / ...
   everyN: number; // 2 / 4 / ...
+  syncToBeat: boolean; // snap sequencer step to detected BPM
+  beatDiv: number; // 1=quarter, 2=eighth
 }
 
 interface TwinState {
@@ -75,6 +77,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
     stepMs: 200,
     groupSize: 24,
     everyN: 2,
+    syncToBeat: false,
+    beatDiv: 1,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

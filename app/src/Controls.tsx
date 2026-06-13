@@ -98,6 +98,14 @@ export function Controls() {
           <Slider label="step (ms)" v={ctrl.stepMs} min={40} max={1000} step={10} on={(v) => setCtrl({ stepMs: v })} />
           <Slider label="group size" v={ctrl.groupSize} min={1} max={78} step={1} on={(v) => setCtrl({ groupSize: Math.round(v) })} />
           <Slider label="every N" v={ctrl.everyN} min={2} max={8} step={1} on={(v) => setCtrl({ everyN: Math.round(v) })} />
+          <div style={row}>
+            <button style={btn(ctrl.syncToBeat)} onClick={() => setCtrl({ syncToBeat: !ctrl.syncToBeat })}>
+              🥁 sync to beat
+            </button>
+            <button style={btn(ctrl.beatDiv === 2)} onClick={() => setCtrl({ beatDiv: ctrl.beatDiv === 2 ? 1 : 2 })}>
+              ½ {ctrl.beatDiv === 2 ? "eighths" : "quarters"}
+            </button>
+          </div>
         </div>
       )}
 

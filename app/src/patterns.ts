@@ -1,6 +1,7 @@
 import { Color } from "three";
 import type { AudioFeatures } from "./audio";
 import type { Control, SimFixture } from "./store";
+import { beatStepMs } from "./beat";
 
 export interface Lit {
   r: number;
@@ -30,7 +31,10 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       break;
     case "sequence": {
       const N = Math.max(1, n);
-      const step = Math.floor((t * 1000) / Math.max(20, c.stepMs));
+      // snap the step to the beat when synced + a tempo is detected
+      const stepMs =
+        c.syncToBeat && audio.bpm > 0 ? beatStepMs(audio.bpm, c.beatDiv) : c.stepMs;
+      const step = Math.floor((t * 1000) / Math.max(20, stepMs));
       const r = f.seq;
       const mod = (a: number, m: number) => ((a % m) + m) % m;
       let on = false;
@@ -116,7 +120,8 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   if (audio.active) {
     bri *= 0.4 + 0.6 * audio.level; // level → overall brightness
     bri *= 1 + 0.5 * audio.bass; // bass swell
-    bri += 0.45 * audio.beat; // beat flash
+    bri += 0.45 * audio.beat; // beat flash (onset)
+    bri = bri * (1 - audio.drop) + audio.drop; // DROP → burst all to full
     hue = frac(hue + audio.treble * 0.15); // highs shift hue
   }
 

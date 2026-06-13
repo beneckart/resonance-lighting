@@ -12,10 +12,11 @@ export interface AudioFeatures {
   beat: number; // onset envelope 0..1 (decays) — drives flashes
   onset: boolean; // true the frame an onset fires
   bpm: number; // detected tempo
+  drop: number; // drop burst 0..1 (decays) — quiet build → spike
 }
 
 export const audioFeatures: AudioFeatures = {
-  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0,
+  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0,
 };
 
 let ctx: AudioContext | null = null;
@@ -28,6 +29,8 @@ let audioEl: HTMLAudioElement | null = null;
 let envBass = 0, envMid = 0, envTreble = 0, envLevel = 0;
 let agcMax = 0.05;
 let lastT = 0;
+let lastDrop = -10;
+const levelHist: number[] = [];
 const tracker = new BeatTracker();
 
 const now = () => performance.now() / 1000;
@@ -88,6 +91,7 @@ export function updateAudio(): AudioFeatures {
   audioFeatures.onset = false;
   if (!analyser || !freq || !prevSpec || !audioFeatures.active) {
     audioFeatures.beat *= 0.85;
+    audioFeatures.drop *= 0.9;
     return audioFeatures;
   }
   const data = freq;
@@ -141,5 +145,17 @@ export function updateAudio(): AudioFeatures {
   audioFeatures.mid = envMid;
   audioFeatures.treble = envTreble;
   audioFeatures.level = Math.min(1, envLevel / agcMax);
+
+  // drop detection: quiet build (window min low) → current spike
+  levelHist.push(audioFeatures.level);
+  if (levelHist.length > 40) levelHist.shift();
+  const past = levelHist.slice(0, -6);
+  const pastMin = past.length ? Math.min(...past) : 1;
+  if (audioFeatures.level > 0.55 && pastMin < 0.18 && t - lastDrop > 2) {
+    lastDrop = t;
+    audioFeatures.drop = 1;
+  } else {
+    audioFeatures.drop *= 0.9;
+  }
   return audioFeatures;
 }

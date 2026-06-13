@@ -1,6 +1,12 @@
 // Pure, hardware-independent beat tracker: feed it per-frame spectral-flux + a
 // timestamp, get back onset + an interval-median BPM. Decoupled from Web-Audio so
 // it can be unit-tested against a synthetic impulse train (see beat.test.ts).
+/** Beat-synced sequencer step (ms). division 1 = quarter notes, 2 = eighths. */
+export function beatStepMs(bpm: number, division = 1): number {
+  if (bpm <= 0 || division <= 0) return 0;
+  return 60000 / (bpm * division);
+}
+
 export class BeatTracker {
   fluxAvg = 0;
   lastOnsetT = -1;
