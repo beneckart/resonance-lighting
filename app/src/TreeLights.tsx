@@ -13,9 +13,12 @@ const dummy = new Object3D();
 const col = new Color();
 const lit: Lit = { r: 0, g: 0, b: 0 };
 const litB: Lit = { r: 0, g: 0, b: 0 };
-const GAIN = 2.1;
+const GAIN = 1.65;
 const DEG = Math.PI / 180;
-const refTan = Math.tan(60 * DEG);
+// Tight "ray" cone: a narrow reference half-angle gives crisp light shafts
+// instead of a washy flood. Per-fixture beamDeg is mapped against this below.
+const RAY_HALF = 15 * DEG;
+const refTan = Math.tan(RAY_HALF);
 
 /** All lights as one InstancedMesh of lanterns + (optionally) one of beam cones.
  *  Render style (A7) is the `visualizer` mode: lanterns / orbs / wire.
@@ -25,7 +28,7 @@ export function TreeLights() {
   const treeSize = useTwin((s) => s.size);
   const viz = useTwin((s) => s.control.visualizer);
   const dotSize = treeSize * (viz === "orbs" ? 0.022 : viz === "wire" ? 0.009 : 0.012);
-  const beamH = treeSize * 0.22;
+  const beamH = treeSize * 0.38;
   const showBeams = viz !== "wire";
 
   const lightRef = useRef<InstancedMesh>(null);
@@ -60,7 +63,9 @@ export function TreeLights() {
       lm.setMatrixAt(i, dummy.matrix);
       lm.setColorAt(i, col.setRGB(0, 0, 0));
       if (bm) {
-        const s = Math.max(0.25, Math.tan(Math.min(160, Math.max(20, f.beamDeg)) * 0.5 * DEG) / refTan);
+        // map the fixture's real beam angle to a TIGHT visual ray: clamp wide
+        // floods (≤70°) and cap width at 1.6× the reference so rays stay crisp.
+        const s = Math.max(0.5, Math.min(1.6, Math.tan(Math.min(70, Math.max(12, f.beamDeg)) * 0.5 * DEG) / refTan));
         dummy.scale.set(s, 1, s);
         dummy.updateMatrix();
         bm.setMatrixAt(i, dummy.matrix);
@@ -178,7 +183,7 @@ export function TreeLights() {
         visible={showBeams}
       >
         <primitive object={beamGeom} attach="geometry" />
-        <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.07} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.06} depthWrite={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${fixtures.length}`}>
         <sphereGeometry args={[1, 12, 12]} />

@@ -36,7 +36,7 @@ function GoboFloor() {
         position={[center[0], groundY + size * 1.15, center[2]]}
         angle={0.62}
         penumbra={0.5}
-        intensity={4.2}
+        intensity={1.7}
         decay={0}
         distance={0}
         castShadow
@@ -96,9 +96,11 @@ export function Scene() {
   return (
     <>
       <color attach="background" args={["#04060a"]} />
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[1, 1.6, 1]} intensity={1.2} color="#fff1d8" />
-      <directionalLight position={[-1.2, 0.4, -1]} intensity={0.55} color="#4a63b0" />
+      {/* Darker stage = each fixture's ray reads distinctly, less cross-bleed
+          (light pollution) from neighbour to neighbour. */}
+      <ambientLight intensity={0.16} />
+      <directionalLight position={[1, 1.6, 1]} intensity={0.85} color="#fff1d8" />
+      <directionalLight position={[-1.2, 0.4, -1]} intensity={0.32} color="#4a63b0" />
       <CameraRig />
       <ErrorBoundary>
         <GoboFloor />
@@ -109,7 +111,7 @@ export function Scene() {
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
       <EffectComposer>
-        <Bloom intensity={1.15} luminanceThreshold={0.35} luminanceSmoothing={0.5} mipmapBlur radius={0.8} />
+        <Bloom intensity={0.85} luminanceThreshold={0.42} luminanceSmoothing={0.5} mipmapBlur radius={0.8} />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       </EffectComposer>
     </>
