@@ -6,6 +6,7 @@ import { ToneMappingMode } from "postprocessing";
 import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
+import { LanternBodies } from "./LanternBodies";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { groundTint } from "./groundtint";
 import { parseIES } from "./ies";
@@ -135,6 +136,9 @@ export function Scene() {
       </ErrorBoundary>
       <ErrorBoundary>
         <TreeContext />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <LanternBodies />
       </ErrorBoundary>
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
