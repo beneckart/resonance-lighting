@@ -71,6 +71,7 @@ export interface Control {
   blackout: boolean; // safety preempt: force all-off (wins over beacon)
   reverse: boolean; // jog-wheel direction: reverse the around-the-tree motion
   audioSpeed: boolean; // auto-drive motion speed from the music (energy/BPM/drop)
+  autoBalance: boolean; // sense ambient daylight → auto-boost drive to stay readable
 }
 
 interface TwinState {
@@ -159,6 +160,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     blackout: false,
     reverse: false,
     audioSpeed: false,
+    autoBalance: true, // on by default: boosts only as daylight rises, night unchanged
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

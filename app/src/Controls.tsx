@@ -4,6 +4,7 @@ import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./aud
 import { compileShow, showToJson } from "./showcompiler";
 import { interpret } from "./llm";
 import { encodeFixture } from "./protocol";
+import { autoBalanceGain } from "./sensors";
 import { startMidi, ccToControl } from "./midi";
 
 const panel: React.CSSProperties = {
@@ -179,7 +180,17 @@ export function Controls() {
         <Slider label={`temp ${sensors.tempC.toFixed(0)}°C`} v={sensors.tempC} min={-5} max={45} step={1} on={(v) => setSensors({ tempC: v })} />
         <Slider label={`wind ${sensors.windKph.toFixed(0)} km/h`} v={sensors.windKph} min={0} max={80} step={1} on={(v) => setSensors({ windKph: v })} />
         <Slider label={`daylight ${Math.round(sensors.ambient * 100)}%`} v={sensors.ambient} min={0} max={1} step={0.01} on={(v) => setSensors({ ambient: v })} />
-        <div style={{ fontSize: 9.5, opacity: 0.5, marginTop: 2 }}>cold→cool hue · wind→speed · crowd→energy · daylight→wash</div>
+        <button
+          onClick={() => setCtrl({ autoBalance: !ctrl.autoBalance })}
+          style={{
+            width: "100%", marginTop: 6, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: 10,
+            border: ctrl.autoBalance ? "1px solid #3ddc97" : "1px solid #243044",
+            background: ctrl.autoBalance ? "#10241c" : "#0d141e", color: ctrl.autoBalance ? "#7af0c0" : "#7a8aa0",
+          }}
+        >
+          ⚖ auto-balance {ctrl.autoBalance ? `ON · ${Math.round(autoBalanceGain(sensors.ambient) * 100)}% drive` : "OFF"}
+        </button>
+        <div style={{ fontSize: 9.5, opacity: 0.5, marginTop: 2 }}>cold→cool hue · wind→speed · crowd→energy · auto-balance: daylight→boost drive to stay readable</div>
       </div>
 
       {ctrl.pattern === "sequence" && (
