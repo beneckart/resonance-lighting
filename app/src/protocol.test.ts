@@ -8,7 +8,7 @@ const ctrl = {
 
 const fx = (id: string): SimFixture => ({
   id, name: id, role: "canopy", zone: "mid", pos: [0, 0, 0], norm: [0.5, 0.5, 0.5],
-  seqT: 0, seq: 0, heightT: 0.5, rnd: 0.5, beamDeg: 120,
+  seqT: 0, seq: 0, heightT: 0.5, rnd: 0.5, beamDeg: 120, lumens: 450,
 });
 
 describe("protocol v1", () => {

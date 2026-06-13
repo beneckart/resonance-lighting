@@ -31,6 +31,7 @@ export interface SimFixture {
   heightT: number; // 0..1 by height (low→high)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
   beamDeg: number; // beam cone angle (deg) from fixtures.json
+  lumens: number; // lumens_max from fixtures.json (beam photometrics)
 }
 
 export interface Control {
@@ -183,6 +184,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
         heightT: norm[1],
         rnd: rndOf(i),
         beamDeg: f.beam_deg ?? 120,
+        lumens: f.lumens_max ?? 450,
       };
     });
     setState({ fixtures, center, size, source: doc.meta.source.split(":")[1] ?? doc.meta.source });

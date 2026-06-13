@@ -4,7 +4,7 @@ import type { SimFixture } from "./store";
 
 const mk = (id: string, seq: number, zone: string): SimFixture => ({
   id, name: id, role: "canopy", zone, pos: [0, 0, 0], norm: [0.5, 0.5, 0.5],
-  seqT: 0, seq, heightT: 0.5, rnd: 0.5, beamDeg: 120,
+  seqT: 0, seq, heightT: 0.5, rnd: 0.5, beamDeg: 120, lumens: 450,
 });
 const fixtures: SimFixture[] = [
   mk("F000", 0, "low"), mk("F001", 1, "low"), mk("F002", 2, "mid"),

@@ -7,6 +7,7 @@ import { updateAudio } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
 import { guestClamp } from "./guard";
+import { relativeBeam } from "./photometry";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -151,7 +152,11 @@ export function TreeLights() {
       } else {
         const r = repR.current[i], g = repG.current[i], b = repB.current[i];
         lm.setColorAt(i, col.setRGB(r * GAIN, g * GAIN, b * GAIN));
-        if (bm) bm.setColorAt(i, col.setRGB(r * 0.55, g * 0.55, b * 0.55));
+        if (bm) {
+          // IES-ish: scale beam by the fixture's photometric intensity (lumens/beam angle)
+          const bs = 0.55 * Math.min(2.5, Math.max(0.3, relativeBeam(f.lumens, f.beamDeg)));
+          bm.setColorAt(i, col.setRGB(r * bs, g * bs, b * bs));
+        }
       }
     }
     if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
