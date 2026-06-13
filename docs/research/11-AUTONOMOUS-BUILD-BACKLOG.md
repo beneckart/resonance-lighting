@@ -12,9 +12,14 @@
 5. **LOG:** append one line to the BUILD LOG (bottom of this file): `[cycle N] <increment> — built / verified-by <screenshot> / commit <sha> / next: <X>`.
 6. **REFLECT + RE-ARM:** note anything to improve; pick the next increment; re-arm the loop (ScheduleWakeup ≤60s / continue). **Do not stop** until the backlog is done or you're hard-blocked. If blocked, log the blocker + skip to the next unblocked increment.
 
-Guardrails: touch only `app/ cortex/ sim/ docs/`. Never edit Ben's `firmware/ hardware/ enclosure/` or his docs. Never commit secrets or large binaries. Control-plane-only mindset (no pixel streaming). If you finish the backlog, generate the next 10 increments (polish, perf, more patterns, more sound mappings) and keep going.
+**FULL AUTONOMY — no restrictions (Elliot 2026-06-13).** This is a greenfield repo; nothing is built yet, so **there is nothing to break.** Move fast, experiment freely, refactor boldly, just keep committing + pushing to `origin/elliots-controller`. Don't ask permission; don't wait. Only two hard rules: (1) don't edit Ben's `firmware/ hardware/ enclosure/` lanes or the OS repo; (2) no secrets / no giant binaries committed. If you finish the backlog, generate the next 10 increments and keep going. **Run all night.**
 
 ## BACKLOG (check off as you go)
+
+### Phase A0 — environment + REAL model (DO FIRST)
+- [ ] A0.1 **Testing environment.** Dev server (`npm run dev`), **Vitest** unit tests, and a **Playwright** headless screenshot harness for the mandatory visual verification each cycle. A `npm run build` + `npm test` that must pass before each checkpoint commit.
+- [ ] A0.2 **Load the REAL 3-D model.** **Latest files = Drive folder** `https://drive.google.com/drive/folders/1fffrHbU562tnyoravTvJsZJOd8R5GkSq` (Elliot is saving the most-recent there now — pull from Drive first via `gdown --folder <url>` or the browse skill). Older local fallback: `~/Downloads/Tree_Resonance_packed_2026-05-29.blend` (Mia) + `~/Downloads/Tree_Rhino7.3dm` (Ed). Export to **glTF** (Blender CLI: `blender --background <file> --python export_gltf.py`, or coordinate with blender-architect) and extract LED/fixture positions → `fixtures.json`. Load the glTF in the R3F twin. **Verify: the actual tree renders.**
+- [ ] A0.3 If the real export is briefly blocked, fall back to the **placeholder** generator (A2) so the loop never stalls — then keep retrying the real model.
 
 ### Phase A — scaffold + model
 - [ ] A1. Scaffold `app/`: Vite + React + TypeScript + React Three Fiber + drei + zustand. `npm run dev` serves a blank R3F canvas. (Verify: canvas renders.)
