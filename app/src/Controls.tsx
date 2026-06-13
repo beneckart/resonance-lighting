@@ -167,6 +167,7 @@ export function Controls() {
       <div style={{ marginTop: 10, opacity: 0.7 }}>environment sensors (sim)</div>
       <div style={{ margin: "4px 0", padding: 8, background: "#0d141e", borderRadius: 6 }}>
         <Slider label={`crowd ${Math.round(sensors.crowd * 100)}%`} v={sensors.crowd} min={0} max={1} step={0.01} on={(v) => setSensors({ crowd: v })} />
+        <Slider label={`motion ${Math.round(sensors.motion * 100)}% → ripples`} v={sensors.motion} min={0} max={1} step={0.01} on={(v) => setSensors({ motion: v })} />
         <Slider label={`temp ${sensors.tempC.toFixed(0)}°C`} v={sensors.tempC} min={-5} max={45} step={1} on={(v) => setSensors({ tempC: v })} />
         <Slider label={`wind ${sensors.windKph.toFixed(0)} km/h`} v={sensors.windKph} min={0} max={80} step={1} on={(v) => setSensors({ windKph: v })} />
         <Slider label={`daylight ${Math.round(sensors.ambient * 100)}%`} v={sensors.ambient} min={0} max={1} step={0.01} on={(v) => setSensors({ ambient: v })} />
