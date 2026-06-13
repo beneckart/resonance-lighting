@@ -103,6 +103,19 @@ function TreeContext() {
   return <primitive object={styled} />;
 }
 
+/** The central chandelier (ring + wind-chimes) hung at the crown — blender-
+ *  architect's chandelier.glb, world-space so it lands at the crown fixtures. */
+function Chandelier() {
+  const { scene } = useGLTF("/chandelier.glb");
+  const styled = useMemo(() => {
+    const s = scene.clone(true);
+    const mat = new MeshStandardMaterial({ color: "#c08a3e", roughness: 0.65, metalness: 0.35, transparent: true, opacity: 0.9 });
+    s.traverse((o) => { if ((o as Mesh).isMesh) (o as Mesh).material = mat; });
+    return s;
+  }, [scene]);
+  return <primitive object={styled} />;
+}
+
 /** Frame the whole tree at a hero 3/4 angle. */
 function CameraRig() {
   const center = useTwin((s) => s.center);
@@ -159,6 +172,11 @@ export function Scene() {
       {!LIGHT_SCENE && (
         <ErrorBoundary>
           <TreeContext />
+        </ErrorBoundary>
+      )}
+      {!LIGHT_SCENE && (
+        <ErrorBoundary>
+          <Chandelier />
         </ErrorBoundary>
       )}
       <ErrorBoundary>
