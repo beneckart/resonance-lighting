@@ -86,6 +86,7 @@ interface TwinState {
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
+  cinematic: boolean; // hide all UI panels for a clean show/beauty view
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -101,6 +102,7 @@ interface TwinState {
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
+  setCinematic: (b: boolean) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -119,6 +121,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   guest: false,
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
+  cinematic: false,
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -255,4 +258,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),
+  setCinematic: (b) => setState({ cinematic: b }),
 }));

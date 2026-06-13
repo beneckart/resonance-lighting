@@ -14,6 +14,8 @@ import { useTwin } from "./store";
 export function App() {
   const [err, setErr] = useState<string | null>(null);
   const ready = useTwin((s) => s.fixtures.length > 0);
+  const cinematic = useTwin((s) => s.cinematic);
+  const setCinematic = useTwin((s) => s.setCinematic);
 
   useEffect(() => {
     loadFixtures()
@@ -34,10 +36,27 @@ export function App() {
       >
         <Suspense fallback={null}>{ready && <Scene />}</Suspense>
       </Canvas>
-      <Controls />
-      <DjController />
-      <AiPilot />
-      <TouchConsole />
+      {!cinematic && (
+        <>
+          <Controls />
+          <DjController />
+          <AiPilot />
+          <TouchConsole />
+        </>
+      )}
+      {/* always-on cinematic toggle — hide all panels to see just the tree */}
+      <button
+        onClick={() => setCinematic(!cinematic)}
+        title={cinematic ? "show controls" : "hide controls — clean view"}
+        style={{
+          position: "fixed", top: 12, left: cinematic ? 12 : "auto", right: cinematic ? "auto" : 280,
+          zIndex: 60, padding: "7px 11px", borderRadius: 10, cursor: "pointer",
+          border: "1px solid #2a3a52", background: "rgba(12,16,24,0.85)", color: "#cdd6e4",
+          font: "12px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        {cinematic ? "🎛 controls" : "✨ clean view"}
+      </button>
       <PresenceDriver />
       <AutoVj />
       <TimelineDriver />
