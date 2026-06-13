@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
@@ -8,6 +8,7 @@ import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { groundTint } from "./groundtint";
+import { parseIES } from "./ies";
 
 /** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
 function GoboFloor() {
@@ -18,6 +19,24 @@ function GoboFloor() {
   const light = useRef<ThreeSpotLight>(null);
   const target = useMemo(() => new Object3D(), []);
   const groundY = center[1] - size * 0.5;
+  // cone geometry from the real baked IES photometric profile
+  const [cone, setCone] = useState({ angle: 0.62, penumbra: 0.5 });
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/downlight.ies")
+      .then((r) => r.text())
+      .then((t) => {
+        const p = parseIES(t);
+        const DEG = Math.PI / 180;
+        const fieldHalf = (p.fieldDeg / 2) * DEG;
+        const beamHalf = (p.beamDeg / 2) * DEG;
+        const penumbra = Math.min(0.85, Math.max(0.1, (fieldHalf - beamHalf) / Math.max(fieldHalf, 1e-3)));
+        if (alive) setCone({ angle: Math.min(Math.PI / 2 - 0.01, fieldHalf), penumbra });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     target.position.set(center[0], groundY, center[2]);
@@ -43,8 +62,8 @@ function GoboFloor() {
       <spotLight
         ref={light}
         position={[center[0], groundY + size * 1.15, center[2]]}
-        angle={0.62}
-        penumbra={0.5}
+        angle={cone.angle}
+        penumbra={cone.penumbra}
         intensity={1.7}
         decay={0}
         distance={0}
