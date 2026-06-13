@@ -124,6 +124,41 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       }
       break;
     }
+    case "spiral": {
+      // rainbow barber-pole spiralling UP the tree (azimuth + height), rotating
+      hue = frac(f.seqT + f.heightT * 1.5 + t * sp * 0.1);
+      break;
+    }
+    case "godray": {
+      // four tight light SHAFTS sweeping around the tree (rotating azimuth sectors)
+      const g = frac(f.seqT * 4 - t * sp * 0.4);
+      bri *= 0.08 + 0.92 * Math.pow(0.5 + 0.5 * Math.cos(g * 6.283), 8);
+      break;
+    }
+    case "rising": {
+      // a band of light climbs trunk → canopy ("rising sap")
+      const wave = frac(t * sp * 0.25);
+      const d = Math.abs(f.heightT - wave);
+      bri *= 0.08 + 0.92 * Math.max(0, 1 - d * 5);
+      hue = frac(hue + f.heightT * 0.1);
+      break;
+    }
+    case "planewipe": {
+      // a flat sheet of light sweeps through the volume at a rotating angle
+      const ang = t * sp * 0.3;
+      const proj = (f.norm[0] - 0.5) * Math.cos(ang) + (f.norm[2] - 0.5) * Math.sin(ang);
+      const sweep = -0.7 + 1.4 * frac(t * sp * 0.15);
+      bri *= 0.08 + 0.92 * Math.max(0, 1 - Math.abs(proj - sweep) * 5);
+      break;
+    }
+    case "warmcool": {
+      // warm trunk / cool canopy with a breathing split boundary (reads as depth)
+      const split = 0.5 + 0.3 * Math.sin(t * sp * 0.5);
+      const w = smooth(split - 0.15, split + 0.15, f.heightT);
+      hue = frac(0.08 + w * 0.5); // amber → cyan
+      sat = Math.max(sat, 0.7);
+      break;
+    }
     // --- element modes (D4) ---
     case "wind": {
       const w = Math.sin(f.seqT * 6.283 * 2 - t * sp * 0.9) * (0.6 + 0.4 * Math.sin(t * sp * 0.3));
