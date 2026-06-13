@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.preview.pid
+screenshots/
+*.local
+.DS_Store
+# large model sources are never committed — only the exported, decimated .glb is
+public/*.blend
+public/*.3dm

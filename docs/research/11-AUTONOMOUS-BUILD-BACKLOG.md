@@ -17,7 +17,7 @@
 ## BACKLOG (check off as you go)
 
 ### Phase A0 — environment + REAL model (DO FIRST)
-- [ ] A0.1 **Testing environment.** Dev server (`npm run dev`), **Vitest** unit tests, and a **Playwright** headless screenshot harness for the mandatory visual verification each cycle. A `npm run build` + `npm test` that must pass before each checkpoint commit.
+- [x] A0.1 **Testing environment.** Dev server (`npm run dev`), **Vitest** unit tests, and a **Playwright** headless screenshot harness for the mandatory visual verification each cycle. A `npm run build` + `npm test` that must pass before each checkpoint commit. ✓ scaffolded in `app/` (Vite+React+TS+R3F+drei+zustand); `npm run build`/`npm test` green; `scripts/screenshot.mjs` harness working.
 - [ ] A0.2 **Load the REAL 3-D model.** It's a **mounted-Drive folder on this Mac — read it directly, no download:**
   `"/Users/resonanceartcollective/Library/CloudStorage/GoogleDrive-resonanceartcollective@gmail.com/.shortcut-targets-by-id/1v30ZnGHSid-Xt8f4MjVkRsSfNDoqwOxM/Resonance Master/Marketing/Cowork/Resonance Marketing OS/Portal Resonance/Resonance Studio/Resonance Tree/Portal System Current Read Only/design-and-construction/design-files/Blender/"`
   **CURRENT model = `Tree_Resonance_packed_2026-06.13.ejf.blend`** (2.4 GB, newest). Also `Tree_Rhino7.3dm` (Ed).
@@ -26,7 +26,7 @@
 - [ ] A0.3 If the real export is briefly blocked, fall back to the **placeholder** generator (A2) so the loop never stalls — then keep retrying the real model.
 
 ### Phase A — scaffold + model
-- [ ] A1. Scaffold `app/`: Vite + React + TypeScript + React Three Fiber + drei + zustand. `npm run dev` serves a blank R3F canvas. (Verify: canvas renders.)
+- [x] A1. Scaffold `app/`: Vite + React + TypeScript + React Three Fiber + drei + zustand. `npm run dev` serves a blank R3F canvas. (Verify: canvas renders.) ✓ live canvas: emissive icosahedron + infinite grid + OrbitControls; `preserveDrawingBuffer` on for reliable screenshots.
 - [ ] A2. Placeholder `fixtures.json` generator (procedural tree: trunk axis + rings + limbs, ~120 points, schema `{fixture_id, role, position[xyz], zone, "source":"placeholder"}`). Save to `app/public/fixtures.json`.
 - [ ] A3. Load `fixtures.json`; render each fixture as a small emissive sphere at its xyz; OrbitControls. (Verify: you see a tree-shaped point cloud.)
 - [ ] A4. Add a simple tree-proxy mesh (trunk cylinder + canopy) or a stub glTF for spatial context.
@@ -62,4 +62,6 @@
 - [ ] G4. Perf pass (instanced meshes for fixtures; 60fps with 150 points + beams).
 
 ## BUILD LOG (append one line per cycle — newest at bottom)
-<!-- [cycle 1] A1 scaffold — verified canvas — commit XXXX — next A2 -->
+<!-- template: [cycle N] <increment> — verified-by <shot> — commit <sha> — next <X> -->
+- [cycle 1] A0.1+A1 — Vite+React+TS+R3F+drei+zustand scaffold + full test env (Vitest + Playwright e2e + build) — verified-by screenshots/cycle1-scaffold.png (emissive icosahedron + grid render) — next A0.2 real model
+- [cycle 2] A0.1 full — Playwright config + e2e spec (canvas mounts, sized, 0 console errors, 543 distinct colors) + `npm run check` (build+test+e2e all green) — verified-by e2e pass — next A0.2 real model (EJF blend, 76 canopy lights)

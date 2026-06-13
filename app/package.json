@@ -1,0 +1,37 @@
+{
+  "name": "resonance-tree-twin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Resonance Tree — R3F mirror twin + sim (software-only lighting environment)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "check": "npm run build && npm run test && npm run e2e",
+    "shot": "node scripts/screenshot.mjs",
+    "verify": "npm run build && (npm run preview & echo $! > .preview.pid) && sleep 3 && npm run shot && kill $(cat .preview.pid) 2>/dev/null; rm -f .preview.pid"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.3",
+    "@react-three/fiber": "^8.17.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
