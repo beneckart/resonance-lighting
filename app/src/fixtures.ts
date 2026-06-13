@@ -68,3 +68,31 @@ export function validateFixturesDoc(doc: unknown): ValidationResult {
   }
   return { ok: errors.length === 0, errors };
 }
+
+export interface FixtureAudit {
+  byRole: Record<string, number>;
+  byZone: Record<string, number>;
+  withAim: number;
+  warnings: string[];
+}
+
+/** Data-quality audit of a fixtures doc — counts by role/zone + aim-sanity
+ *  (downlights must aim DOWN, uplights UP in Blender Z-up). Catches regressions
+ *  as the export evolves (0.3 is a procedural first pass). Pure. */
+export function auditFixtures(doc: FixturesDoc): FixtureAudit {
+  const byRole: Record<string, number> = {};
+  const byZone: Record<string, number> = {};
+  const warnings: string[] = [];
+  let withAim = 0;
+  for (const f of doc.fixtures) {
+    byRole[f.role] = (byRole[f.role] ?? 0) + 1;
+    byZone[f.zone] = (byZone[f.zone] ?? 0) + 1;
+    if (f.aim) {
+      withAim++;
+      const z = f.aim[2]; // Blender up axis
+      if (f.role === "downlight" && z > -0.3) warnings.push(`${f.fixture_id}: downlight aim not pointing down (z=${z.toFixed(2)})`);
+      if (f.role === "uplight" && z < 0.3) warnings.push(`${f.fixture_id}: uplight aim not pointing up (z=${z.toFixed(2)})`);
+    }
+  }
+  return { byRole, byZone, withAim, warnings };
+}
