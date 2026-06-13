@@ -43,6 +43,11 @@ export function TreeLights() {
   const repR = useRef<Float32Array>(new Float32Array(0));
   const repG = useRef<Float32Array>(new Float32Array(0));
   const repB = useRef<Float32Array>(new Float32Array(0));
+  // displayed (smoothed) colour — a low-pass slew toward the reported value so
+  // every transition (pattern / cue / crossfade / colour) eases instead of cutting
+  const dispR = useRef<Float32Array>(new Float32Array(0));
+  const dispG = useRef<Float32Array>(new Float32Array(0));
+  const dispB = useRef<Float32Array>(new Float32Array(0));
   const lastReport = useRef<Float32Array>(new Float32Array(0));
   const statsAt = useRef(0);
 
@@ -54,6 +59,9 @@ export function TreeLights() {
     repR.current = new Float32Array(n);
     repG.current = new Float32Array(n);
     repB.current = new Float32Array(n);
+    dispR.current = new Float32Array(n);
+    dispG.current = new Float32Array(n);
+    dispB.current = new Float32Array(n);
     lastReport.current = new Float32Array(n).fill(-1e9);
     fixtures.forEach((f, i) => {
       dummy.position.set(f.pos[0], f.pos[1], f.pos[2]);
@@ -80,10 +88,12 @@ export function TreeLights() {
     }
   }, [fixtures, dotSize]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const lm = lightRef.current;
     const n = fixtures.length;
     if (!lm || n === 0) return;
+    // low-pass slew factor: ~110ms time-constant → soft transitions, clamped
+    const k = Math.min(1, 1 - Math.exp(-Math.max(0, delta) / 0.11));
     const bm = beamRef.current;
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
@@ -155,7 +165,11 @@ export function TreeLights() {
         lm.setColorAt(i, col.setRGB(0.5, 0, 0));
         if (bm) bm.setColorAt(i, col.setRGB(0, 0, 0));
       } else {
-        const r = repR.current[i], g = repG.current[i], b = repB.current[i];
+        // ease displayed colour toward the reported value (smooth all transitions)
+        dispR.current[i] += (repR.current[i] - dispR.current[i]) * k;
+        dispG.current[i] += (repG.current[i] - dispG.current[i]) * k;
+        dispB.current[i] += (repB.current[i] - dispB.current[i]) * k;
+        const r = dispR.current[i], g = dispG.current[i], b = dispB.current[i];
         lm.setColorAt(i, col.setRGB(r * GAIN, g * GAIN, b * GAIN));
         if (bm) {
           // IES-ish: scale beam by the fixture's photometric intensity (lumens/beam angle)
