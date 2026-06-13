@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compileShow, showToJson } from "./showcompiler";
+import { compileShow, showToJson, validateShowDoc } from "./showcompiler";
 import type { Cue } from "./cues";
 import type { Control, SimFixture } from "./store";
 
@@ -53,5 +53,25 @@ describe("compileShow", () => {
     const empty = compileShow([], [fx("F000")], base, 6, 8000);
     expect(empty.keyframes).toHaveLength(0);
     expect(empty.meta.durationMs).toBe(0);
+  });
+});
+
+describe("validateShowDoc — the cortex ingest gate (round-trip)", () => {
+  it("a compiled show round-trips through JSON and validates", () => {
+    const doc = compileShow(cues, [fx("F000")], base, 11, 8000);
+    expect(validateShowDoc(JSON.parse(showToJson(doc))).ok).toBe(true);
+  });
+  it("rejects junk + wrong schema + bad proto + backwards time", () => {
+    expect(validateShowDoc(null).ok).toBe(false);
+    expect(validateShowDoc({ meta: { schema: "nope" }, keyframes: [] }).ok).toBe(false);
+    expect(validateShowDoc({
+      meta: { schema: "resonance.show/0.1", channel: 11, stepMs: 8000 },
+      keyframes: [{ tMs: 0, frame: { proto: 2, fixtures: [] } }],
+    }).ok).toBe(false);
+    expect(validateShowDoc({
+      meta: { schema: "resonance.show/0.1", channel: 11, stepMs: 8000 },
+      keyframes: [{ tMs: 8000, frame: { proto: 1, channel: 11, epoch: 0, fixtures: [] } },
+                  { tMs: 0, frame: { proto: 1, channel: 11, epoch: 1, fixtures: [] } }],
+    }).ok).toBe(false);
   });
 });
