@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { AdditiveBlending, Color, ConeGeometry, DoubleSide, InstancedMesh, Object3D, Quaternion, SRGBColorSpace, Vector3 } from "three";
+import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, Object3D, Quaternion, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio, setEqGains } from "./audio";
@@ -48,7 +48,17 @@ export function TreeLights() {
 
   const beamGeom = useMemo(() => {
     const g = new ConeGeometry(beamH * refTan, beamH, 18, 1, true);
-    g.translate(0, -beamH / 2, 0);
+    g.translate(0, -beamH / 2, 0); // apex (source) at y=0, base (far) at y=-beamH
+    // volumetric falloff: bright at the source, fading to nothing into the air
+    // (additive × this vertex gradient = a real light shaft, not a flat cone)
+    const pos = g.attributes.position;
+    const col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const v = Math.max(0, Math.min(1, (pos.getY(i) + beamH) / beamH)); // 1 source → 0 far
+      const f = v * v; // sharper near-source concentration
+      col[i * 3] = f; col[i * 3 + 1] = f; col[i * 3 + 2] = f;
+    }
+    g.setAttribute("color", new BufferAttribute(col, 3));
     return g;
   }, [beamH]);
 
@@ -262,7 +272,7 @@ export function TreeLights() {
         visible={showBeams}
       >
         <primitive object={beamGeom} attach="geometry" />
-        <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.06} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial vertexColors transparent blending={AdditiveBlending} opacity={0.09} depthWrite={false} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${fixtures.length}`}>
         <sphereGeometry args={[1, 12, 12]} />
