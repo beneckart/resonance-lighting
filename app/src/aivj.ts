@@ -35,13 +35,24 @@ export function reactiveSpeed(a: AudioFeatures): number {
 }
 
 export function decideLook(a: AudioFeatures, rand: () => number = Math.random): AiDecision {
-  // DROP → big energetic burst
+  // DROP → big energetic burst (instant override, beats section)
   if (a.active && a.drop > 0.4) {
     return { pattern: "godray", hue: rand(), speed: 2.6, reason: `DROP — godray shafts, full energy` };
   }
   const e = energyOf(a);
   // treble bias nudges the hue toward the cool end
   const hue = (a.active ? rand() * 0.85 + a.treble * 0.15 : 0.05 + rand() * 0.2) % 1;
+  // SECTION steers the pattern family for the climactic states so the show
+  // tracks musical STRUCTURE, not just instantaneous energy. peak forces the
+  // hot family; build ramps an upward "rising" sweep as anticipation. groove +
+  // ambient fall through to the energy tiers below.
+  if (a.active && a.section === "peak") {
+    const p = pick(HOT, rand);
+    return { pattern: p, hue, speed: 2.2 + Math.min(0.8, a.bass), reason: `PEAK section — ${p}` };
+  }
+  if (a.active && a.section === "build") {
+    return { pattern: "rising", hue, speed: 1.4 + e * 1.2, reason: `BUILD section — rising sweep, ramping` };
+  }
   if (e > 0.66) {
     const p = pick(HOT, rand);
     return { pattern: p, hue, speed: 1.8 + Math.min(1, a.bass), reason: `high energy ${e.toFixed(2)} — ${p}` };

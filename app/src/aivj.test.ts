@@ -31,6 +31,22 @@ describe("AI-VJ policy", () => {
     expect(d.speed).toBeLessThan(1);
   });
 
+  it("PEAK section forces a hot pattern, fast", () => {
+    const d = decideLook(af({ section: "peak", level: 0.5, bass: 0.6 }), seq([0.1]));
+    expect(["spectrum", "tricolor", "chase", "godray"]).toContain(d.pattern);
+    expect(d.speed).toBeGreaterThan(2);
+    expect(d.reason).toMatch(/PEAK/);
+  });
+
+  it("BUILD section → rising sweep that ramps with energy", () => {
+    const calm = decideLook(af({ section: "build", level: 0.2, bass: 0.2 }), seq([0.1]));
+    const hot = decideLook(af({ section: "build", level: 0.9, bass: 0.9 }), seq([0.1]));
+    expect(calm.pattern).toBe("rising");
+    expect(hot.pattern).toBe("rising");
+    expect(hot.speed).toBeGreaterThan(calm.speed); // ramps with energy
+    expect(calm.reason).toMatch(/BUILD/);
+  });
+
   it("reactiveSpeed: silent=1, energy+tempo speed up, drop spikes, clamped 0.3..3", () => {
     expect(reactiveSpeed({ ...af({}), active: false })).toBe(1);
     const calm = reactiveSpeed(af({ level: 0.05, bass: 0.05, bpm: 90 }));
