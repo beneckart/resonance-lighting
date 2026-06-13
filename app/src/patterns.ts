@@ -21,6 +21,10 @@ const smooth = (e0: number, e1: number, x: number) => {
  *  control + audio + time. This is the firmware stand-in; the renderer only shows
  *  the result (the mirror rule). */
 export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeatures, n: number, out: Lit) {
+  // jog-wheel direction: reverse the around-the-tree motion. `t` drives temporal
+  // motion; `tt` is the directional time used by azimuthal/orbiting patterns.
+  const dir = c.reverse ? -1 : 1;
+  const tt = t * dir;
   const sp = c.speed;
   let bri = c.brightness;
   let hue = c.hue;
@@ -82,7 +86,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       break;
     case "chase": {
       // a lit band travels AROUND the tree (azimuth order)
-      const head = frac(t * sp * 0.25);
+      const head = frac(tt * sp * 0.25);
       let d = Math.abs(f.seqT - head);
       d = Math.min(d, 1 - d); // wrap-around
       bri *= 1 - smooth(0.0, 0.12, d);
@@ -105,7 +109,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
     }
     case "spectrum": {
       // full-spectrum rainbow wrapped around the tree, slowly rotating
-      hue = frac(f.seqT + t * sp * 0.08);
+      hue = frac(f.seqT + tt * sp * 0.08);
       break;
     }
     case "tricolor": {
@@ -113,7 +117,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // hues (120° apart) in crisp azimuthal sectors that ORBIT the tree, each
       // sector pulsing out of phase + driven by its own frequency band so the
       // three colours dance against each other.
-      const orbit = t * sp * 0.18; // whole triad rotates around the trunk
+      const orbit = tt * sp * 0.18; // whole triad rotates around the trunk
       const slot = Math.floor(frac(f.seqT + orbit) * 3) % 3; // sector 0/1/2
       hue = frac(c.hue + slot / 3);
       sat = Math.max(sat, 0.92); // keep the three colours vivid + distinct
@@ -126,12 +130,12 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
     }
     case "spiral": {
       // rainbow barber-pole spiralling UP the tree (azimuth + height), rotating
-      hue = frac(f.seqT + f.heightT * 1.5 + t * sp * 0.1);
+      hue = frac(f.seqT + f.heightT * 1.5 + tt * sp * 0.1);
       break;
     }
     case "godray": {
       // four tight light SHAFTS sweeping around the tree (rotating azimuth sectors)
-      const g = frac(f.seqT * 4 - t * sp * 0.4);
+      const g = frac(f.seqT * 4 - tt * sp * 0.4);
       bri *= 0.08 + 0.92 * Math.pow(0.5 + 0.5 * Math.cos(g * 6.283), 8);
       break;
     }
