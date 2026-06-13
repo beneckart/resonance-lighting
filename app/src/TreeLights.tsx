@@ -9,6 +9,7 @@ import { rippleIntensity } from "./interaction";
 import { guestClamp } from "./guard";
 import { relativeBeam } from "./photometry";
 import { applyEnv } from "./sensors";
+import { easeGroundTint } from "./groundtint";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -130,6 +131,7 @@ export function TreeLights() {
     const rWidth = treeSize * 0.06;
     let dead = 0;
     let stale = 0;
+    let sumR = 0, sumG = 0, sumB = 0; // aggregate for the ground tint
 
     for (let i = 0; i < n; i++) {
       const f = fixtures[i];
@@ -190,6 +192,7 @@ export function TreeLights() {
         dispG.current[i] += (repG.current[i] - dispG.current[i]) * k;
         dispB.current[i] += (repB.current[i] - dispB.current[i]) * k;
         const r = dispR.current[i], g = dispG.current[i], b = dispB.current[i];
+        sumR += r; sumG += g; sumB += b;
         lm.setColorAt(i, col.setRGB(r * GAIN, g * GAIN, b * GAIN));
         if (bm) {
           // IES-ish: scale beam by the fixture's photometric intensity (lumens/beam angle)
@@ -200,6 +203,14 @@ export function TreeLights() {
     }
     if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
     if (bm?.instanceColor) bm.instanceColor.needsUpdate = true;
+
+    // feed the live aggregate colour to the ground projection (real coloured
+    // shapes on the floor): normalized hue + average luminance for intensity
+    const inv = 1 / n;
+    const ar = sumR * inv, ag = sumG * inv, ab = sumB * inv;
+    const level = Math.min(1, (ar + ag + ab) / 3 * GAIN * 1.6);
+    const mx = Math.max(ar, ag, ab, 1e-4);
+    easeGroundTint(ar / mx, ag / mx, ab / mx, level, k);
 
     if (t - statsAt.current > 0.5) {
       statsAt.current = t;

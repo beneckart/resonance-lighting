@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useThree } from "@react-three/fiber";
+import { useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -7,6 +7,7 @@ import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { groundTint } from "./groundtint";
 
 /** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
 function GoboFloor() {
@@ -23,6 +24,14 @@ function GoboFloor() {
     target.updateMatrixWorld();
     if (light.current) light.current.target = target;
   }, [center, size, groundY, target]);
+
+  // tint + brighten the floor projection from the tree's live aggregate colour
+  useFrame(() => {
+    const l = light.current;
+    if (!l) return;
+    l.color.setRGB(groundTint.r, groundTint.g, groundTint.b);
+    l.intensity = 0.9 + 2.4 * groundTint.level;
+  });
 
   return (
     <>
