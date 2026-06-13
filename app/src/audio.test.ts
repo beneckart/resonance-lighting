@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { eqDbForKnob, audioInputsFrom } from "./audio";
+import { eqDbForKnob, audioInputsFrom, classifySection } from "./audio";
 
 describe("eqDbForKnob — DJ EQ knob → filter gain (boost-only)", () => {
   it("0 = neutral (0 dB), 1 = +12 dB, linear between", () => {
@@ -10,6 +10,16 @@ describe("eqDbForKnob — DJ EQ knob → filter gain (boost-only)", () => {
   it("clamps out-of-range knobs (never cuts, never over-boosts)", () => {
     expect(eqDbForKnob(-1)).toBe(0);
     expect(eqDbForKnob(2)).toBe(12);
+  });
+});
+
+describe("classifySection — live song section (P0-2)", () => {
+  it("drop or loud → peak; rising-from-quiet → build; mid → groove; quiet → ambient", () => {
+    expect(classifySection(0.5, 0.4, 0.9)).toBe("peak"); // drop
+    expect(classifySection(0.8, 0.7, 0)).toBe("peak"); // loud
+    expect(classifySection(0.5, 0.1, 0)).toBe("build"); // rose from quiet
+    expect(classifySection(0.35, 0.3, 0)).toBe("groove");
+    expect(classifySection(0.1, 0.05, 0)).toBe("ambient");
   });
 });
 

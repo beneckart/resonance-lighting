@@ -30,7 +30,7 @@ export function AiPilot() {
   const ai = useTwin((s) => s.control.aiPilot);
   const set = useTwin((s) => s.set);
   const [dec, setDec] = useState<AiDecision | null>(null);
-  const [live, setLive] = useState({ bass: 0, mid: 0, treble: 0, level: 0, drop: 0, bpm: 0, active: false });
+  const [live, setLive] = useState({ bass: 0, mid: 0, treble: 0, level: 0, drop: 0, bpm: 0, active: false, section: "ambient" as string });
   const lastDrop = useRef(0);
 
   // drive the show while ON: re-decide each phrase + instantly on a drop edge
@@ -63,7 +63,7 @@ export function AiPilot() {
     let raf = 0;
     const loop = () => {
       const a = audioFeatures;
-      setLive({ bass: a.bass, mid: a.mid, treble: a.treble, level: a.level, drop: a.drop, bpm: a.bpm, active: a.active });
+      setLive({ bass: a.bass, mid: a.mid, treble: a.treble, level: a.level, drop: a.drop, bpm: a.bpm, active: a.active, section: a.section });
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -87,7 +87,7 @@ export function AiPilot() {
         </button>
       </div>
       <div style={{ fontSize: 9, color: "#8a82a8", margin: "2px 0 6px" }}>
-        smart sound → light · {live.active ? `${Math.round(live.bpm) || "–"} BPM` : "no audio (idle looks)"}
+        smart sound → light · {live.active ? `${Math.round(live.bpm) || "–"} BPM · ${live.section}` : "no audio (idle looks)"}
       </div>
       <Meter label="bass" v={live.bass} color="#ff7a59" />
       <Meter label="mid" v={live.mid} color="#ffd166" />

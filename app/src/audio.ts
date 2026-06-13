@@ -3,6 +3,8 @@
 // envelope followers (bass/mid/treble) + percentile-ish AGC. Per docs/research/12.
 import { BeatTracker } from "./beat";
 
+export type Section = "ambient" | "groove" | "build" | "peak";
+
 export interface AudioFeatures {
   active: boolean;
   level: number; // AGC-normalized overall 0..1
@@ -13,11 +15,22 @@ export interface AudioFeatures {
   onset: boolean; // true the frame an onset fires
   bpm: number; // detected tempo
   drop: number; // drop burst 0..1 (decays) — quiet build → spike
+  section: Section; // live song-section tier (rekordbox-phrase analog)
 }
 
 export const audioFeatures: AudioFeatures = {
-  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0,
+  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient",
 };
+
+/** Classify the live song SECTION from level dynamics (doc 16 P0-2): a drop or
+ *  loud passage = peak; a rising-from-quiet trend = build; steady mid = groove;
+ *  quiet = ambient. Pure + testable. */
+export function classifySection(level: number, pastMin: number, drop: number): Section {
+  if (drop > 0.4 || level > 0.72) return "peak";
+  if (level > 0.4 && level - pastMin > 0.28) return "build";
+  if (level > 0.22) return "groove";
+  return "ambient";
+}
 
 let ctx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -212,5 +225,7 @@ export function updateAudio(): AudioFeatures {
   } else {
     audioFeatures.drop *= 0.9;
   }
+
+  audioFeatures.section = classifySection(audioFeatures.level, pastMin, audioFeatures.drop);
   return audioFeatures;
 }
