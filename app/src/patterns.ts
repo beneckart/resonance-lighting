@@ -159,6 +159,30 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       sat = Math.max(sat, 0.7);
       break;
     }
+    case "bloom": {
+      // soft radial bloom from the trunk outward (saturation swells with audio)
+      const dx = f.norm[0] - 0.5, dz = f.norm[2] - 0.5;
+      const rad = Math.sqrt(dx * dx + dz * dz);
+      bri *= 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * sp * 1.2 - rad * 6));
+      hue = frac(hue + rad * 0.15);
+      break;
+    }
+    case "firefly": {
+      // fireflies: sparse warm blinks at per-fixture phase that snap together on the beat
+      const sync = audio.active ? audio.beat : 0;
+      const ph = frac(t * sp * 0.25 + f.rnd * (1 - sync));
+      const blink = Math.pow(0.5 + 0.5 * Math.sin(ph * 6.283), 8);
+      bri *= 0.04 + 0.96 * Math.max(blink, sync * 0.6);
+      hue = frac(0.12 + f.rnd * 0.03); // warm yellow-green
+      break;
+    }
+    case "ca": {
+      // cellular field: interfering sine lattices → shifting blobs (GoL / reaction-diffusion feel)
+      const v = Math.sin(f.norm[0] * 8 + t * sp) * Math.sin(f.norm[2] * 8 - t * sp * 0.7) * Math.sin(f.heightT * 6 + t * sp * 0.4);
+      bri *= 0.1 + 0.9 * smooth(-0.1, 0.4, v);
+      hue = frac(hue + v * 0.2);
+      break;
+    }
     // --- element modes (D4) ---
     case "wind": {
       const w = Math.sin(f.seqT * 6.283 * 2 - t * sp * 0.9) * (0.6 + 0.4 * Math.sin(t * sp * 0.3));
