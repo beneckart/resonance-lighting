@@ -4,7 +4,7 @@ import { useTexture } from "@react-three/drei";
 import { AdditiveBlending, Color, ConeGeometry, DoubleSide, InstancedMesh, Object3D, Quaternion, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
-import { updateAudio } from "./audio";
+import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
 import { guestClamp } from "./guard";
@@ -146,6 +146,7 @@ export function TreeLights() {
     // fold live environmental sensors (crowd/temp/wind/daylight) into the look
     const ctrl = applyEnv(st.guest ? guestClamp(st.control) : st.control, st.sensors);
     const audio = updateAudio();
+    setEqGains(ctrl.eqLow, ctrl.eqMid, ctrl.eqHigh); // EQ knobs also filter the live audio (DJ deck mixes)
     // DJ controller (C): crossfade to look B, master intensity, strobe gate
     const xfade = ctrl.xfade;
     const cb = xfade > 0.001 ? { ...ctrl, pattern: ctrl.djPatternB, hue: ctrl.djHueB } : null;

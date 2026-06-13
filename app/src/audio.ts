@@ -24,6 +24,16 @@ let analyser: AnalyserNode | null = null;
 let freq: Uint8Array | null = null;
 let prevSpec: Float32Array | null = null;
 let audioEl: HTMLAudioElement | null = null;
+// 3-band EQ (the DJ deck actually filters the sound). Boost-only to match the
+// light-zone EQ semantics: knob 0 = neutral (0 dB), knob 1 = +12 dB on that band.
+let eqLowNode: BiquadFilterNode | null = null;
+let eqMidNode: BiquadFilterNode | null = null;
+let eqHighNode: BiquadFilterNode | null = null;
+
+/** EQ knob (0..1) → filter gain in dB (boost-only: 0 dB .. +12 dB). Pure. */
+export function eqDbForKnob(knob: number): number {
+  return Math.max(0, Math.min(1, knob)) * 12;
+}
 
 // envelope + onset + bpm state
 let envBass = 0, envMid = 0, envTreble = 0, envLevel = 0;
@@ -44,13 +54,35 @@ async function ensureCtx() {
     analyser.smoothingTimeConstant = 0.2; // low → our own asymmetric smoothing keeps transients
     freq = new Uint8Array(analyser.frequencyBinCount);
     prevSpec = new Float32Array(analyser.frequencyBinCount);
+    // 3-band EQ filter chain
+    eqLowNode = ctx.createBiquadFilter();
+    eqLowNode.type = "lowshelf";
+    eqLowNode.frequency.value = 220;
+    eqMidNode = ctx.createBiquadFilter();
+    eqMidNode.type = "peaking";
+    eqMidNode.frequency.value = 1200;
+    eqMidNode.Q.value = 1;
+    eqHighNode = ctx.createBiquadFilter();
+    eqHighNode.type = "highshelf";
+    eqHighNode.frequency.value = 3800;
   }
   if (ctx.state === "suspended") await ctx.resume();
 }
 
+/** Set the live EQ band gains from the control knobs (0..1 each). Boost-only. */
+export function setEqGains(low: number, mid: number, high: number) {
+  if (eqLowNode) eqLowNode.gain.value = eqDbForKnob(low);
+  if (eqMidNode) eqMidNode.gain.value = eqDbForKnob(mid);
+  if (eqHighNode) eqHighNode.gain.value = eqDbForKnob(high);
+}
+
 function connect(src: AudioNode, toDestination: boolean) {
-  src.connect(analyser!);
-  if (toDestination) src.connect(ctx!.destination);
+  // src → low → mid → high → analyser (tap) ; high → destination (playback)
+  src.connect(eqLowNode!);
+  eqLowNode!.connect(eqMidNode!);
+  eqMidNode!.connect(eqHighNode!);
+  eqHighNode!.connect(analyser!);
+  if (toDestination) eqHighNode!.connect(ctx!.destination);
   audioFeatures.active = true;
 }
 
