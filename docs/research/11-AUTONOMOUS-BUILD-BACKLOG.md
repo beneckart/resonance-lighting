@@ -62,7 +62,7 @@
 - [~] G4. Perf pass — instanced mesh already in place (TreeLights InstancedMesh, 1 draw call); beams/bloom perf TBD.
 
 ### Phase H — Elliot's live asks (2026-06-13, via conductor)
-- [ ] H1 **Sequencer** (Elliot's explicit spec): ordered fixture activation with configurable step delay (e.g. 0.2s), group size (1 → 24 → 36 → 72 → all), fill vs single-moving, **snake bidirectional from a point**, every-2 / every-4, all-on / all-off. Uses `seqT`. THE priority pattern.
+- [x] H1 **Sequencer** ✓ — 7 modes on azimuth order (`seq`): fill (one-after-another around tree, then recede, then dark) · single (one light travels around) · snake (two heads sweep out from center, ping-pong) · groups (blocks of groupSize) · everyN (every 2nd/4th, animating) · allOn · allOff. Step-delay slider (default 200ms) + group-size + every-N. UI sub-panel shows when pattern=sequence. (`patterns.ts` sequence case + Controls.tsx)
 - [ ] H2 **Full fleet**: scan `06_Unplaced_REVIEW` (256) for uplight/chandelier light sources; include if present → 100–150 fixtures (pending conductor scope confirm). fixtures.json re-reads on change.
 - [ ] H3 **"Any possible lighting command"**: per-fixture + group + zone addressing; arbitrary param set; a command/console input (text or JSON) → commanded state. Generalize beyond presets.
 - [ ] H4 **Audio depth**: per-band → zone mapping, beat-synced cue triggers, spectrum→color; song scrub/transport.
@@ -75,3 +75,4 @@
 - [cycle 2] A0.1 full — Playwright config + e2e spec (canvas mounts, sized, 0 console errors, 543 distinct colors) + `npm run check` (build+test+e2e all green) — verified-by e2e pass — next A0.2 real model (EJF blend, 76 canopy lights)
 - [cycle 3] A0.2+A3 — headless Blender export of EJF blend → 78 real canopy fixtures in fixtures.json + render as emissive point cloud at true positions (Z-up→Y-up), Bounds auto-frame — verified-by screenshots/cycle3-real-tree.png (78 distinct colored points) — next B1-B4 controllable mirror
 - [cycle 4] B1-B4 + C1-C6 + E1-E2 — FULLY CONTROLLABLE twin: zustand store (commanded→tick→reported mirror), InstancedMesh render, control overlay (5 patterns + sliders), Web-Audio reactivity (mic/song→FFT). store/patterns/audio/TreeLights/Controls/Scene/App — verified-by screenshots/cycle4-controllable.png (78 lights + live control panel) — next H1 sequencer
+- [cycle 5] H1 sequencer — 7 modes (fill/single/snake/groups/everyN/allOn/allOff) on azimuth order, step-delay 200ms + group-size + every-N sliders, UI sub-panel — verified-by screenshots/cycle5-sequencer.png (sequence mode UI + on/off fill state) — next H3 any-command console / H6 tree context geometry

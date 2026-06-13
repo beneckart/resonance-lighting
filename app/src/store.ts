@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
 
-export type PatternId = "solid" | "breathe" | "chase" | "ripple" | "sparkle";
-export const PATTERN_IDS: PatternId[] = ["solid", "breathe", "chase", "ripple", "sparkle"];
+export type PatternId = "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence";
+export const PATTERN_IDS: PatternId[] = ["solid", "breathe", "chase", "ripple", "sparkle", "sequence"];
+
+export type SeqMode = "fill" | "single" | "snake" | "groups" | "everyN" | "allOn" | "allOff";
+export const SEQ_MODES: SeqMode[] = ["fill", "single", "snake", "groups", "everyN", "allOn", "allOff"];
 
 export interface SimFixture {
   id: string;
@@ -12,6 +15,7 @@ export interface SimFixture {
   pos: [number, number, number]; // three-space (Y-up)
   norm: [number, number, number]; // normalized 0..1 within the fixture bbox
   seqT: number; // 0..1 order AROUND the tree (by azimuth) — for chases/snakes
+  seq: number; // integer rank 0..N-1 around the tree — for the sequencer
   heightT: number; // 0..1 by height (low→high)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
 }
@@ -22,6 +26,11 @@ export interface Control {
   hue: number; // 0..1
   sat: number; // 0..1
   speed: number; // 0..3
+  // sequencer (H1)
+  seqMode: SeqMode;
+  stepMs: number; // step delay (Elliot's 0.2s default)
+  groupSize: number; // 24 / 36 / 72 / ...
+  everyN: number; // 2 / 4 / ...
 }
 
 interface TwinState {
@@ -39,7 +48,17 @@ export const useTwin = create<TwinState>((setState) => ({
   source: "",
   center: [0, 0, 0],
   size: 10,
-  control: { pattern: "breathe", brightness: 0.9, hue: 0.08, sat: 0.85, speed: 1 },
+  control: {
+    pattern: "sequence",
+    brightness: 0.9,
+    hue: 0.08,
+    sat: 0.85,
+    speed: 1,
+    seqMode: "fill",
+    stepMs: 200,
+    groupSize: 24,
+    everyN: 2,
+  },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));
     const min: [number, number, number] = [Infinity, Infinity, Infinity];
@@ -87,6 +106,7 @@ export const useTwin = create<TwinState>((setState) => ({
         pos: p,
         norm,
         seqT: rankOf[i] / denom,
+        seq: rankOf[i],
         heightT: norm[1],
         rnd: rndOf(i),
       };

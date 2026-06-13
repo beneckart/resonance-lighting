@@ -19,7 +19,7 @@ const smooth = (e0: number, e1: number, x: number) => {
 /** Compute a fixture's REPORTED color (brightness pre-applied) from the commanded
  *  control + audio + time. This is the firmware stand-in; the renderer only shows
  *  the result (the mirror rule). */
-export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeatures, out: Lit) {
+export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeatures, n: number, out: Lit) {
   const sp = c.speed;
   let bri = c.brightness;
   let hue = c.hue;
@@ -28,6 +28,51 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   switch (c.pattern) {
     case "solid":
       break;
+    case "sequence": {
+      const N = Math.max(1, n);
+      const step = Math.floor((t * 1000) / Math.max(20, c.stepMs));
+      const r = f.seq;
+      const mod = (a: number, m: number) => ((a % m) + m) % m;
+      let on = false;
+      switch (c.seqMode) {
+        case "allOn":
+          on = true;
+          break;
+        case "allOff":
+          on = false;
+          break;
+        case "single": // one light travels around the tree
+          on = mod(step, N) === r;
+          break;
+        case "everyN": // every 2nd / 4th, phase animates
+          on = mod(r, c.everyN) === mod(step, c.everyN);
+          break;
+        case "groups": { // consecutive blocks of groupSize light in sequence
+          const G = Math.max(1, c.groupSize);
+          const groups = Math.ceil(N / G);
+          on = Math.floor(r / G) === mod(step, groups);
+          break;
+        }
+        case "snake": { // two heads sweep OUT from a center point, then back
+          const center = Math.floor(N / 2);
+          const half = Math.max(1, Math.floor(N / 2));
+          const period = 2 * half;
+          const p = mod(step, period);
+          const off = p <= half ? p : period - p; // 0..half..0
+          on = r === mod(center + off, N) || r === mod(center - off, N);
+          break;
+        }
+        case "fill":
+        default: { // fill on one-after-another, then recede ("move back"), then dark
+          const cycle = 2 * N;
+          const p = mod(step, cycle);
+          on = p < N ? r <= p : r > p - N;
+          break;
+        }
+      }
+      bri = on ? bri : c.seqMode === "allOff" ? 0 : bri * 0.03;
+      break;
+    }
     case "breathe":
       bri *= 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(t * sp * 1.5));
       break;

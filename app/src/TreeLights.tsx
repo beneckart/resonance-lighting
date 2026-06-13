@@ -40,8 +40,9 @@ export function TreeLights() {
     const t = state.clock.elapsedTime;
     const ctrl = useTwin.getState().control;
     const audio = updateAudio();
-    for (let i = 0; i < fixtures.length; i++) {
-      litFor(t, fixtures[i], ctrl, audio, lit);
+    const n = fixtures.length;
+    for (let i = 0; i < n; i++) {
+      litFor(t, fixtures[i], ctrl, audio, n, lit);
       col.setRGB(lit.r, lit.g, lit.b);
       mesh.setColorAt(i, col);
     }

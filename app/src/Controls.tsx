@@ -1,4 +1,4 @@
-import { PATTERN_IDS, useTwin, type PatternId } from "./store";
+import { PATTERN_IDS, SEQ_MODES, useTwin, type PatternId, type SeqMode } from "./store";
 import { startMic, startFile, stopAudio } from "./audio";
 
 const panel: React.CSSProperties = {
@@ -72,6 +72,22 @@ export function Controls() {
           </button>
         ))}
       </div>
+
+      {ctrl.pattern === "sequence" && (
+        <div style={{ margin: "6px 0", padding: 8, background: "#0d141e", borderRadius: 6 }}>
+          <div style={{ opacity: 0.7, marginBottom: 4 }}>sequence mode</div>
+          <div style={row}>
+            {SEQ_MODES.map((m: SeqMode) => (
+              <button key={m} style={btn(ctrl.seqMode === m)} onClick={() => setCtrl({ seqMode: m })}>
+                {m}
+              </button>
+            ))}
+          </div>
+          <Slider label="step (ms)" v={ctrl.stepMs} min={40} max={1000} step={10} on={(v) => setCtrl({ stepMs: v })} />
+          <Slider label="group size" v={ctrl.groupSize} min={1} max={78} step={1} on={(v) => setCtrl({ groupSize: Math.round(v) })} />
+          <Slider label="every N" v={ctrl.everyN} min={2} max={8} step={1} on={(v) => setCtrl({ everyN: Math.round(v) })} />
+        </div>
+      )}
 
       <Slider label="brightness" v={ctrl.brightness} min={0} max={1} on={(v) => setCtrl({ brightness: v })} />
       <Slider label="hue" v={ctrl.hue} min={0} max={1} on={(v) => setCtrl({ hue: v })} />
