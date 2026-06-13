@@ -109,10 +109,19 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       break;
     }
     case "tricolor": {
-      // three palette colors (120° apart) DANCING across fixtures, each pulsing
-      const slot = Math.floor(f.seqT * 3 + t * sp * 0.6) % 3;
+      // TRICOLOR ORBIT (the "three-colour dancing" projection): three triad
+      // hues (120° apart) in crisp azimuthal sectors that ORBIT the tree, each
+      // sector pulsing out of phase + driven by its own frequency band so the
+      // three colours dance against each other.
+      const orbit = t * sp * 0.18; // whole triad rotates around the trunk
+      const slot = Math.floor(frac(f.seqT + orbit) * 3) % 3; // sector 0/1/2
       hue = frac(c.hue + slot / 3);
-      bri *= 0.5 + 0.5 * Math.sin(t * sp * 2.2 + f.seqT * 6.283);
+      sat = Math.max(sat, 0.92); // keep the three colours vivid + distinct
+      bri *= 0.5 + 0.5 * Math.sin(t * sp * 2.4 - slot * 2.0944); // phase-offset pulse
+      if (audio.active) {
+        const band = slot === 0 ? audio.bass : slot === 1 ? audio.mid : audio.treble;
+        bri *= 0.55 + 0.85 * band; // each colour dances to its own band
+      }
       break;
     }
     // --- element modes (D4) ---
