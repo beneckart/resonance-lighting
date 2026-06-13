@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId } from "./store";
-import { startMic, startTrack, stopAudio, audioFeatures } from "./audio";
+import { startMic, startTrack, stopAudio, audioFeatures, listAudioInputs, type AudioInput } from "./audio";
 
 /** A real-feeling virtual DJ controller (C): two spinning platters, crossfader,
  *  3-band EQ, tempo, transport + a performance-pad grid. Wired to the twin store
@@ -127,6 +127,10 @@ export function DjController() {
   const [audioOn, setAudioOn] = useState(false);
   const ledRef = useRef(0);
   const waveRef = useRef<HTMLCanvasElement>(null);
+  const [inputs, setInputs] = useState<AudioInput[]>([]);
+  const [deviceId, setDeviceId] = useState("");
+
+  useEffect(() => { listAudioInputs().then(setInputs).catch(() => {}); }, []);
 
   // scrolling waveform on the deck — live audio level history, tinted by treble,
   // with a red tick on each beat (idles with a faint pulse when no audio)
@@ -262,7 +266,21 @@ export function DjController() {
             if (audioOn) { stopAudio(); setAudioOn(false); }
             else { startTrack("/audio/test-beat-124bpm.wav"); setAudioOn(true); }
           }, "#3ddc97")}
-          {toggle(false, "🎤 MIC", () => { startMic(); setAudioOn(true); })}
+          {toggle(false, "🎤 MIC", () => { startMic(deviceId || undefined); setAudioOn(true); })}
+        </div>
+
+        {/* audio source / input device picker (#5) */}
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          <span style={{ color: "#7e8ea6", fontSize: 9 }}>🎚 source</span>
+          <select
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+            onMouseDown={() => listAudioInputs().then(setInputs).catch(() => {})}
+            style={{ flex: 1, minWidth: 0, padding: "3px 5px", borderRadius: 5, fontSize: 9.5, border: "1px solid #233149", background: "#0d131d", color: "#9fb0c7" }}
+          >
+            <option value="">default mic / line-in</option>
+            {inputs.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </select>
         </div>
 
         {/* performance pads — all patterns + element modes */}
