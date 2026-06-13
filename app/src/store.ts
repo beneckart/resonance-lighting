@@ -42,9 +42,14 @@ interface TwinState {
   size: number;
   overrides: Record<number, Override>; // per-fixture command overrides (H3)
   cmdLog: string[];
+  // truth-loop (G1/F3): mock heartbeat transport + monitor view
+  view: { mock: boolean; monitor: boolean; deadCount: number };
+  monitorStats: { reporting: number; dead: number; stale: number };
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
+  setView: (p: Partial<{ mock: boolean; monitor: boolean; deadCount: number }>) => void;
+  setMonitorStats: (s: { reporting: number; dead: number; stale: number }) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -54,6 +59,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
   size: 10,
   overrides: {},
   cmdLog: [],
+  view: { mock: false, monitor: false, deadCount: 6 },
+  monitorStats: { reporting: 0, dead: 0, stale: 0 },
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -135,4 +142,6 @@ export const useTwin = create<TwinState>((setState, get) => ({
       return next;
     });
   },
+  setView: (p) => setState((s) => ({ view: { ...s.view, ...p } })),
+  setMonitorStats: (s) => setState({ monitorStats: s }),
 }));

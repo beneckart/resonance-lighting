@@ -10,41 +10,61 @@ const col = new Color();
 const lit: Lit = { r: 0, g: 0, b: 0 };
 
 /**
- * Renders ALL fixtures as one InstancedMesh. The useFrame tick is the firmware
- * stand-in: it computes each fixture's REPORTED color (litFor) and writes it to the
- * instance — the render shows reported state only. Swap this tick for a real
- * heartbeat feed (G1) and the mirror is unchanged.
+ * Renders ALL fixtures as one InstancedMesh.
+ * - The pattern engine (litFor) + overrides compute each fixture's COMMANDED render.
+ * - A mock heartbeat transport (G1) turns that into REPORTED state: when enabled,
+ *   each fixture only "reports" its color at a jittered ~0.6–1.2s interval (held in
+ *   between → visible staleness), and `deadCount` fixtures stop reporting entirely.
+ * - The render shows REPORTED state only (the mirror rule). Monitor mode (F3) tints
+ *   dead fixtures red and the store publishes reporting/dead/stale counts.
+ * Swap this mock transport for the real ESP-NOW heartbeat and nothing else changes.
  */
 export function TreeLights() {
   const fixtures = useTwin((s) => s.fixtures);
   const size = useTwin((s) => s.size) * 0.006;
   const ref = useRef<InstancedMesh>(null);
 
+  // reported-state buffers (the "what the tree last told us" layer)
+  const repR = useRef<Float32Array>(new Float32Array(0));
+  const repG = useRef<Float32Array>(new Float32Array(0));
+  const repB = useRef<Float32Array>(new Float32Array(0));
+  const lastReport = useRef<Float32Array>(new Float32Array(0));
+  const statsAt = useRef(0);
+
   useLayoutEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
+    const n = fixtures.length;
+    repR.current = new Float32Array(n);
+    repG.current = new Float32Array(n);
+    repB.current = new Float32Array(n);
+    lastReport.current = new Float32Array(n).fill(-1e9);
     fixtures.forEach((f, i) => {
       dummy.position.set(f.pos[0], f.pos[1], f.pos[2]);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, col.setRGB(0, 0, 0));
     });
     mesh.instanceMatrix.needsUpdate = true;
-    fixtures.forEach((_, i) => mesh.setColorAt(i, col.setRGB(0, 0, 0)));
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [fixtures]);
 
   useFrame((state) => {
     const mesh = ref.current;
-    if (!mesh || fixtures.length === 0) return;
+    const n = fixtures.length;
+    if (!mesh || n === 0) return;
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
-    const ctrl = st.control;
-    const overrides = st.overrides;
+    const { control: ctrl, overrides, view } = st;
     const audio = updateAudio();
-    const n = fixtures.length;
+    let dead = 0;
+    let stale = 0;
+
     for (let i = 0; i < n; i++) {
-      litFor(t, fixtures[i], ctrl, audio, n, lit);
+      const f = fixtures[i];
+      // commanded render
+      litFor(t, f, ctrl, audio, n, lit);
       const ov = overrides[i];
       if (ov) {
         if (ov.mode === "off") {
@@ -56,10 +76,40 @@ export function TreeLights() {
           lit.b = ov.rgb[2] * m;
         }
       }
-      col.setRGB(lit.r, lit.g, lit.b);
+
+      const isDead = view.mock && f.seq < view.deadCount;
+      if (!view.mock) {
+        repR.current[i] = lit.r;
+        repG.current[i] = lit.g;
+        repB.current[i] = lit.b;
+        lastReport.current[i] = t;
+      } else if (isDead) {
+        dead++;
+        // never updates → frozen / no signal
+      } else {
+        const interval = 0.6 + f.rnd * 0.6;
+        if (t - lastReport.current[i] >= interval) {
+          repR.current[i] = lit.r;
+          repG.current[i] = lit.g;
+          repB.current[i] = lit.b;
+          lastReport.current[i] = t;
+        }
+        if (t - lastReport.current[i] > 1.3) stale++;
+      }
+
+      if (view.monitor && isDead) {
+        col.setRGB(0.4, 0.0, 0.0); // "no signal" marker
+      } else {
+        col.setRGB(repR.current[i], repG.current[i], repB.current[i]);
+      }
       mesh.setColorAt(i, col);
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+
+    if (t - statsAt.current > 0.5) {
+      statsAt.current = t;
+      st.setMonitorStats({ reporting: n - dead - stale, dead, stale });
+    }
   });
 
   if (fixtures.length === 0) return null;

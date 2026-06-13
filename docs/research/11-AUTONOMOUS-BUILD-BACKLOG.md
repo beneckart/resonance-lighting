@@ -53,10 +53,10 @@
 ### Phase F — timing / show / monitor
 - [ ] F1. Cue system: capture current look as a cue; list + recall cues.
 - [ ] F2. Simple timeline/schedule with tempo (cues fire on time).
-- [ ] F3. Monitor view: show `reported` vs `commanded`; flag desync/dead fixtures (the truth-mirror as Monitor).
+- [x] F3. Monitor view ✓ — `monitor` toggle: dead fixtures render as red "no-signal" markers; live readout `reporting N · dead D · stale S` (store.monitorStats updated ~2Hz from the tick). Proves the truth-mirror surfaces desync/dead.
 
 ### Phase G — swap-readiness + polish
-- [ ] G1. Mock heartbeat feed: simulate fixtures reporting state over a fake transport (jitter/latency); viz mirrors it (proves the real-telemetry path).
+- [x] G1. Mock heartbeat feed ✓ — `mock heartbeat` toggle: each fixture reports its color at a jittered 0.6–1.2s interval (held between → real reported-state staleness), `deadCount` fixtures stop reporting. TreeLights renders REPORTED buffers, not the instantaneous commanded render. Swap this transport for ESP-NOW heartbeats and nothing else changes.
 - [ ] G2. `fixtures.json` schema doc + runtime validation; ready to swap in the real Grasshopper export.
 - [ ] G3. PWA offline config (vite-plugin-pwa) + README with run instructions.
 - [~] G4. Perf pass — instanced mesh already in place (TreeLights InstancedMesh, 1 draw call); beams/bloom perf TBD.
@@ -76,5 +76,6 @@
 - [cycle 3] A0.2+A3 — headless Blender export of EJF blend → 78 real canopy fixtures in fixtures.json + render as emissive point cloud at true positions (Z-up→Y-up), Bounds auto-frame — verified-by screenshots/cycle3-real-tree.png (78 distinct colored points) — next B1-B4 controllable mirror
 - [cycle 4] B1-B4 + C1-C6 + E1-E2 — FULLY CONTROLLABLE twin: zustand store (commanded→tick→reported mirror), InstancedMesh render, control overlay (5 patterns + sliders), Web-Audio reactivity (mic/song→FFT). store/patterns/audio/TreeLights/Controls/Scene/App — verified-by screenshots/cycle4-controllable.png (78 lights + live control panel) — next H1 sequencer
 - [cycle 5] H1 sequencer — 7 modes (fill/single/snake/groups/everyN/allOn/allOff) on azimuth order, step-delay 200ms + group-size + every-N sliders, UI sub-panel — verified-by screenshots/cycle5-sequencer.png (sequence mode UI + on/off fill state) — next H3 any-command console
+- [cycle 8] G1+F3 truth loop — mock-heartbeat transport (held reports + jitter + dead fixtures) + Monitor (red no-signal markers + reporting/dead/stale readout); TreeLights renders reported buffers — verified-by screenshots/cycle8-monitor.png ("reporting 72 · dead 6 · stale 0", 6 red markers) — next D1 bloom
 - [cycle 7] H6 tree-context backdrop — bg agent's decimated bamboo glb (2364 meshes, 10.4MB) wired as faint backdrop; tree now reads as a tree — verified-by screenshots/cycle7-tree-context.png (canopy silhouette behind 78 lights) — next G1 mock-heartbeat + F3 Monitor
 - [cycle 6] H3 any-command console — command.ts parser (clear/on/off/globals + targeted overrides by all/zone/range/every/fixture) + per-fixture override layer + Controls input/chips/log — verified-by screenshots/cycle6-cmd-every4-red.png (live "every 4 color red" → 20 fixtures red, 0 errors) + build+e2e green — next: G1 mock-heartbeat + F3 Monitor (top audit pick), then D1 bloom + H6 tree geometry (bg agent running) / H6 tree context geometry

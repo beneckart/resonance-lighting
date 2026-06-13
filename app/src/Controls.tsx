@@ -59,6 +59,9 @@ export function Controls() {
   const source = useTwin((s) => s.source);
   const runCommand = useTwin((s) => s.runCommand);
   const cmdLog = useTwin((s) => s.cmdLog);
+  const view = useTwin((s) => s.view);
+  const setView = useTwin((s) => s.setView);
+  const stats = useTwin((s) => s.monitorStats);
   const [cmd, setCmd] = useState("");
 
   return (
@@ -145,6 +148,33 @@ export function Controls() {
           {cmdLog.map((l, i) => (
             <div key={i}>› {l}</div>
           ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>truth loop / monitor</div>
+      <div style={row}>
+        <button style={btn(view.mock)} onClick={() => setView({ mock: !view.mock })}>
+          mock heartbeat
+        </button>
+        <button style={btn(view.monitor)} onClick={() => setView({ monitor: !view.monitor })}>
+          monitor
+        </button>
+      </div>
+      {view.mock && (
+        <Slider
+          label="dead fixtures"
+          v={view.deadCount}
+          min={0}
+          max={30}
+          step={1}
+          on={(v) => setView({ deadCount: Math.round(v) })}
+        />
+      )}
+      {(view.mock || view.monitor) && (
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
+          reporting <b style={{ color: "#7fe0a0" }}>{stats.reporting}</b> · dead{" "}
+          <b style={{ color: "#ff6b6b" }}>{stats.dead}</b> · stale{" "}
+          <b style={{ color: "#ffd27f" }}>{stats.stale}</b>
         </div>
       )}
     </div>
