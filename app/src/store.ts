@@ -11,6 +11,9 @@ export const PATTERN_IDS: PatternId[] = [
 export type SeqMode = "fill" | "single" | "snake" | "groups" | "everyN" | "allOn" | "allOff";
 export const SEQ_MODES: SeqMode[] = ["fill", "single", "snake", "groups", "everyN", "allOn", "allOff"];
 
+export type VizMode = "lanterns" | "orbs" | "wire";
+export const VIZ_MODES: VizMode[] = ["lanterns", "orbs", "wire"];
+
 export interface SimFixture {
   id: string;
   name: string;
@@ -38,6 +41,7 @@ export interface Control {
   everyN: number; // 2 / 4 / ...
   syncToBeat: boolean; // snap sequencer step to detected BPM
   beatDiv: number; // 1=quarter, 2=eighth
+  visualizer: VizMode; // render style (A7)
 }
 
 interface TwinState {
@@ -79,6 +83,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     everyN: 2,
     syncToBeat: false,
     beatDiv: 1,
+    visualizer: "lanterns",
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

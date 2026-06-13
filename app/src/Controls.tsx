@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PATTERN_IDS, SEQ_MODES, useTwin, type PatternId, type SeqMode } from "./store";
+import { PATTERN_IDS, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 
 const panel: React.CSSProperties = {
@@ -75,6 +75,15 @@ export function Controls() {
         Resonance Tree · {count} lights
       </div>
       <div style={{ fontSize: 10, opacity: 0.55, marginTop: 2 }}>{source || "loading…"}</div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>visualizer</div>
+      <div style={row}>
+        {VIZ_MODES.map((v: VizMode) => (
+          <button key={v} style={btn(ctrl.visualizer === v)} onClick={() => setCtrl({ visualizer: v })}>
+            {v}
+          </button>
+        ))}
+      </div>
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>pattern</div>
       <div style={row}>
