@@ -7,15 +7,28 @@ export function beatStepMs(bpm: number, division = 1): number {
   return 60000 / (bpm * division);
 }
 
+/** Snap a 0..1 beat phase to the nearest sub-division grid line (division 1 =
+ *  quarter, 2 = eighth, 4 = sixteenth). Returns 0..1. */
+export function quantizePhase(phase: number, division = 1): number {
+  if (division <= 0) return phase;
+  const p = ((phase % 1) + 1) % 1;
+  return Math.round(p * division) / division % 1;
+}
+
 export class BeatTracker {
   fluxAvg = 0;
   lastOnsetT = -1;
   intervals: number[] = [];
   bpm = 0;
   onset = false;
+  /** Phase within the current beat, 0..1 (0 = the downbeat). PLL-locked to the
+   *  detected tempo + corrected on each onset → lets the show land motion/flash
+   *  ON the grid (predictive) instead of only reacting AT an onset. */
+  phase = 0;
+  private lastT = -1;
 
   /** @param flux spectral flux this frame (≥0). @param t seconds. */
-  push(flux: number, t: number): { onset: boolean; bpm: number } {
+  push(flux: number, t: number): { onset: boolean; bpm: number; phase: number } {
     this.fluxAvg += 0.05 * (flux - this.fluxAvg);
     const threshold = this.fluxAvg * 1.12 + 0.0015;
     this.onset = false;
@@ -33,6 +46,21 @@ export class BeatTracker {
       this.lastOnsetT = t;
       this.onset = true;
     }
-    return { onset: this.onset, bpm: this.bpm };
+
+    // --- phase-locked loop: free-run the phase at the detected tempo, nudge it
+    // toward the beat on each onset so it converges + stays locked through gaps.
+    if (this.bpm > 0 && this.lastT >= 0) {
+      const period = 60 / this.bpm;
+      const dt = Math.max(0, t - this.lastT);
+      this.phase = (this.phase + dt / period) % 1;
+      if (this.onset) {
+        // phase error to the nearest beat, wrapped to [-0.5, 0.5]
+        let err = this.phase;
+        if (err > 0.5) err -= 1;
+        this.phase = ((this.phase - 0.18 * err) % 1 + 1) % 1; // gentle correction
+      }
+    }
+    this.lastT = t;
+    return { onset: this.onset, bpm: this.bpm, phase: this.phase };
   }
 }

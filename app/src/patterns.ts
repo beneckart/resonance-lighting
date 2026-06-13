@@ -250,7 +250,8 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   if (audio.active) {
     bri *= 0.4 + 0.6 * audio.level; // level → overall brightness
     bri *= 1 + 0.5 * audio.bass; // bass swell
-    bri += 0.45 * audio.beat; // beat flash (onset)
+    bri += 0.45 * audio.beat; // beat flash (reactive — fires AT the onset)
+    bri += 0.18 * (audio.beatPulse || 0); // PLL on-grid swell (predictive — pumps ON the beat, fills gaps between onsets)
     bri = bri * (1 - audio.drop) + audio.drop; // DROP → burst all to full
     hue = frac(hue + audio.treble * 0.15); // highs shift hue
   }

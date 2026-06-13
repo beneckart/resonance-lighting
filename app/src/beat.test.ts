@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BeatTracker, beatStepMs } from "./beat";
+import { BeatTracker, beatStepMs, quantizePhase } from "./beat";
 
 describe("beatStepMs", () => {
   it("maps BPM → step ms (quarter + eighth)", () => {
@@ -48,5 +48,37 @@ describe("BeatTracker", () => {
     }
     expect(bt.bpm).toBeGreaterThanOrEqual(86);
     expect(bt.bpm).toBeLessThanOrEqual(94);
+  });
+
+  it("phase PLL locks near the downbeat on a steady train", () => {
+    const bt = new BeatTracker();
+    const fps = 60;
+    const period = 60 / 120; // 0.5s
+    let nextBeat = 0.5;
+    const phasesAtBeat: number[] = [];
+    for (let f = 0; f < fps * 16; f++) {
+      const t = f / fps;
+      let flux = 0.002;
+      let isBeat = false;
+      if (t >= nextBeat) { flux = 0.06; nextBeat += period; isBeat = true; }
+      const r = bt.push(flux, t);
+      // after lock-in, sample the phase at the kick frames — should be near 0/1
+      if (isBeat && t > 8) phasesAtBeat.push(r.phase);
+    }
+    expect(bt.phase).toBeGreaterThanOrEqual(0);
+    expect(bt.phase).toBeLessThan(1);
+    // every locked beat-frame phase sits near a beat boundary (0 or 1), not mid-beat
+    for (const p of phasesAtBeat) {
+      const dist = Math.min(p, 1 - p);
+      expect(dist).toBeLessThan(0.2);
+    }
+  });
+
+  it("quantizePhase snaps to the division grid", () => {
+    expect(quantizePhase(0.06, 1)).toBe(0);
+    expect(quantizePhase(0.46, 1)).toBe(0); // nearest quarter is the downbeat
+    expect(quantizePhase(0.6, 1)).toBe(0); // 0.6 rounds to 1 → wraps to 0
+    expect(quantizePhase(0.3, 2)).toBeCloseTo(0.5, 5); // nearest eighth
+    expect(quantizePhase(0.2, 4)).toBeCloseTo(0.25, 5); // nearest sixteenth
   });
 });

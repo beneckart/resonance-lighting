@@ -3,7 +3,7 @@ import { strobeGate, eqGain, lerp } from "./dj";
 import type { AudioFeatures } from "./audio";
 
 const af = (p: Partial<AudioFeatures>): AudioFeatures => ({
-  active: true, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", ...p,
+  active: true, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0, ...p,
 });
 
 describe("dj helpers", () => {
