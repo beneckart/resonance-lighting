@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PATTERN_IDS, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
+import { encodeFixture } from "./protocol";
 
 const panel: React.CSSProperties = {
   position: "fixed",
@@ -66,6 +67,10 @@ export function Controls() {
   const view = useTwin((s) => s.view);
   const setView = useTwin((s) => s.setView);
   const stats = useTwin((s) => s.monitorStats);
+  const net = useTwin((s) => s.net);
+  const setNet = useTwin((s) => s.setNet);
+  const f0 = useTwin((s) => s.fixtures[0]);
+  const ov0 = useTwin((s) => s.overrides[0]);
   const [cmd, setCmd] = useState("");
   const [bpm, setBpm] = useState(0);
   useEffect(() => {
@@ -255,6 +260,28 @@ export function Controls() {
           reporting <b style={{ color: "#7fe0a0" }}>{stats.reporting}</b> · dead{" "}
           <b style={{ color: "#ff6b6b" }}>{stats.dead}</b> · stale{" "}
           <b style={{ color: "#ffd27f" }}>{stats.stale}</b>
+        </div>
+      )}
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>control plane (ESP-NOW · params, not pixels)</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 0" }}>
+        <span style={{ fontSize: 10, opacity: 0.6 }}>ch</span>
+        <select
+          value={net.channel}
+          onChange={(e) => setNet({ channel: +e.target.value })}
+          style={{ background: "#0b1119", color: "#dce6ff", border: "1px solid #2a3a52", borderRadius: 4, padding: "3px", font: "11px ui-monospace, monospace" }}
+        >
+          {Array.from({ length: 13 }, (_, i) => i + 1).map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <button style={{ ...btn(net.driveReal), flex: 1 }} onClick={() => setNet({ driveReal: !net.driveReal })}>
+          📡 drive real {net.driveReal ? "(armed)" : "(off)"}
+        </button>
+      </div>
+      {f0 && (
+        <div style={{ fontSize: 9, opacity: 0.55, wordBreak: "break-all", lineHeight: 1.4 }}>
+          pkt → {JSON.stringify(encodeFixture(ctrl, f0, ov0))}
         </div>
       )}
     </div>

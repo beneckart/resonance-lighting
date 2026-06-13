@@ -68,12 +68,14 @@ interface TwinState {
   // truth-loop (G1/F3): mock heartbeat transport + monitor view
   view: { mock: boolean; monitor: boolean; deadCount: number };
   monitorStats: { reporting: number; dead: number; stale: number };
+  net: { channel: number; driveReal: boolean }; // ESP-NOW control-plane (E/I8)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
   runScript: (text: string) => void;
   setView: (p: Partial<{ mock: boolean; monitor: boolean; deadCount: number }>) => void;
   setMonitorStats: (s: { reporting: number; dead: number; stale: number }) => void;
+  setNet: (p: Partial<{ channel: number; driveReal: boolean }>) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -85,6 +87,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
+  net: { channel: 11, driveReal: false },
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -186,4 +189,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
   },
   setView: (p) => setState((s) => ({ view: { ...s.view, ...p } })),
   setMonitorStats: (s) => setState({ monitorStats: s }),
+  setNet: (p) => setState((s) => ({ net: { ...s.net, ...p } })),
 }));
