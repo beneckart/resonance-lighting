@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { AdditiveBlending, Color, ConeGeometry, InstancedMesh, Object3D, Quaternion, Vector3 } from "three";
+import { useTexture } from "@react-three/drei";
+import { AdditiveBlending, Color, ConeGeometry, DoubleSide, InstancedMesh, Object3D, Quaternion, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
@@ -40,6 +41,10 @@ export function TreeLights() {
 
   const lightRef = useRef<InstancedMesh>(null);
   const beamRef = useRef<InstancedMesh>(null);
+  const groundRef = useRef<InstancedMesh>(null); // per-fixture petal-gobo "light shades" on the floor
+  const groundY = center[1] - treeSize * 0.5;
+  const gobo = useTexture("/gobo.png");
+  gobo.colorSpace = SRGBColorSpace;
 
   const beamGeom = useMemo(() => {
     const g = new ConeGeometry(beamH * refTan, beamH, 18, 1, true);
@@ -99,6 +104,20 @@ export function TreeLights() {
         bm.setColorAt(i, col.setRGB(0, 0, 0));
         dummy.quaternion.identity(); // reset for next light-mesh write
       }
+      const gm = groundRef.current;
+      if (gm) {
+        // the "light shade": a petal-gobo cookie on the floor below each fixture,
+        // sized by its throw to the ground (≈ half the drop height) — overlapping
+        // colour-tinted cookies = the real projected petal shapes
+        const h = Math.max(0.2, f.pos[1] - groundY);
+        const sz = h * 0.5;
+        dummy.position.set(f.pos[0], groundY + treeSize * 0.003, f.pos[2]);
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
+        dummy.scale.set(sz, sz, sz);
+        dummy.updateMatrix();
+        gm.setMatrixAt(i, dummy.matrix);
+        gm.setColorAt(i, col.setRGB(0, 0, 0));
+      }
     });
     lm.instanceMatrix.needsUpdate = true;
     if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
@@ -106,7 +125,12 @@ export function TreeLights() {
       bm.instanceMatrix.needsUpdate = true;
       if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
     }
-  }, [fixtures, dotSize]);
+    const gm = groundRef.current;
+    if (gm) {
+      gm.instanceMatrix.needsUpdate = true;
+      if (gm.instanceColor) gm.instanceColor.needsUpdate = true;
+    }
+  }, [fixtures, dotSize, groundY, treeSize]);
 
   useFrame((state, delta) => {
     const lm = lightRef.current;
@@ -115,6 +139,7 @@ export function TreeLights() {
     // low-pass slew factor: ~110ms time-constant → soft transitions, clamped
     const k = Math.min(1, 1 - Math.exp(-Math.max(0, delta) / 0.11));
     const bm = beamRef.current;
+    const gm = groundRef.current;
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
     const { overrides, view } = st;
@@ -199,10 +224,13 @@ export function TreeLights() {
           const bs = 0.55 * Math.min(2.5, Math.max(0.3, relativeBeam(f.lumens, f.beamDeg)));
           bm.setColorAt(i, col.setRGB(r * bs, g * bs, b * bs));
         }
+        // the petal cookie on the floor, tinted by this fixture's colour
+        if (gm) gm.setColorAt(i, col.setRGB(r * GAIN * 1.4, g * GAIN * 1.4, b * GAIN * 1.4));
       }
     }
     if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
     if (bm?.instanceColor) bm.instanceColor.needsUpdate = true;
+    if (gm?.instanceColor) gm.instanceColor.needsUpdate = true;
 
     // feed the live aggregate colour to the ground projection (real coloured
     // shapes on the floor): normalized hue + average luminance for intensity
@@ -221,6 +249,11 @@ export function TreeLights() {
   if (fixtures.length === 0) return null;
   return (
     <group>
+      {/* per-fixture petal-gobo cookies on the floor — the real "light shades" */}
+      <instancedMesh ref={groundRef} args={[undefined as never, undefined as never, fixtures.length]} key={`grd${fixtures.length}`}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={gobo} transparent blending={AdditiveBlending} depthWrite={false} toneMapped={false} side={DoubleSide} opacity={0.95} />
+      </instancedMesh>
       <instancedMesh
         ref={beamRef}
         args={[undefined as never, undefined as never, fixtures.length]}
