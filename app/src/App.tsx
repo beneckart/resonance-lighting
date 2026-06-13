@@ -17,6 +17,8 @@ export function App() {
   const ready = useTwin((s) => s.fixtures.length > 0);
   const cinematic = useTwin((s) => s.cinematic);
   const setCinematic = useTwin((s) => s.setCinematic);
+  const beacon = useTwin((s) => s.control.beaconPreempt);
+  const setCtrl = useTwin((s) => s.set);
 
   useEffect(() => {
     loadFixtures()
@@ -62,6 +64,20 @@ export function App() {
         }}
       >
         {cinematic ? "🎛 controls" : "✨ clean view"}
+      </button>
+      {/* always-available BEACON safety preempt (reachable even in clean view) */}
+      <button
+        onClick={() => setCtrl({ beaconPreempt: !beacon })}
+        title="BEACON — force full-white safety beam over everything"
+        style={{
+          position: "fixed", bottom: 14, left: "50%", transform: "translateX(-50%)", zIndex: 60,
+          padding: "8px 16px", borderRadius: 12, cursor: "pointer", fontWeight: 700, letterSpacing: 0.5,
+          border: beacon ? "1.5px solid #fff" : "1.5px solid #5a3a3a",
+          background: beacon ? "#ffffff" : "rgba(40,16,16,0.85)", color: beacon ? "#111" : "#ffb4b4",
+          boxShadow: beacon ? "0 0 22px #ffffffcc" : "none", font: "13px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        🔦 BEACON{beacon ? " ON" : ""}
       </button>
       <PresenceDriver />
       <AutoVj />
