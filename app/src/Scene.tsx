@@ -13,7 +13,7 @@ import { groundTint } from "./groundtint";
 function GoboFloor() {
   const center = useTwin((s) => s.center);
   const size = useTwin((s) => s.size);
-  const gobo = useTexture("/gobo-mandala.png");
+  const gobo = useTexture("/gobo.png"); // real skirt-petal projection (blender-architect bake)
   gobo.colorSpace = SRGBColorSpace;
   const light = useRef<ThreeSpotLight>(null);
   const target = useMemo(() => new Object3D(), []);
