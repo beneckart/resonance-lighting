@@ -18,7 +18,11 @@
 
 ### Phase A0 — environment + REAL model (DO FIRST)
 - [ ] A0.1 **Testing environment.** Dev server (`npm run dev`), **Vitest** unit tests, and a **Playwright** headless screenshot harness for the mandatory visual verification each cycle. A `npm run build` + `npm test` that must pass before each checkpoint commit.
-- [ ] A0.2 **Load the REAL 3-D model.** **Latest files = Drive folder** `https://drive.google.com/drive/folders/1fffrHbU562tnyoravTvJsZJOd8R5GkSq` (Elliot is saving the most-recent there now — pull from Drive first via `gdown --folder <url>` or the browse skill). Older local fallback: `~/Downloads/Tree_Resonance_packed_2026-05-29.blend` (Mia) + `~/Downloads/Tree_Rhino7.3dm` (Ed). Export to **glTF** (Blender CLI: `blender --background <file> --python export_gltf.py`, or coordinate with blender-architect) and extract LED/fixture positions → `fixtures.json`. Load the glTF in the R3F twin. **Verify: the actual tree renders.**
+- [ ] A0.2 **Load the REAL 3-D model.** It's a **mounted-Drive folder on this Mac — read it directly, no download:**
+  `"/Users/resonanceartcollective/Library/CloudStorage/GoogleDrive-resonanceartcollective@gmail.com/.shortcut-targets-by-id/1v30ZnGHSid-Xt8f4MjVkRsSfNDoqwOxM/Resonance Master/Marketing/Cowork/Resonance Marketing OS/Portal Resonance/Resonance Studio/Resonance Tree/Portal System Current Read Only/design-and-construction/design-files/Blender/"`
+  **CURRENT model = `Tree_Resonance_packed_2026-06.13.ejf.blend`** (2.4 GB, newest). Also `Tree_Rhino7.3dm` (Ed).
+  Export with Blender CLI: `blender --background "<that .blend>" --python export_gltf.py` → write a **decimated/compressed glTF** (`app/public/tree.glb`, gltfpack) + extract LED/fixture positions → `app/public/fixtures.json`. (Coordinate w/ blender-architect if helpful — it knows this file's object names, e.g. `treev4 Lights`.)
+  ⚠ **Do NOT commit the .blend or the raw 2.4 GB** — only the exported `.glb` + `fixtures.json` (gitignore the rest). Load the `.glb` in the R3F twin. **Verify (screenshot): the actual tree renders.**
 - [ ] A0.3 If the real export is briefly blocked, fall back to the **placeholder** generator (A2) so the loop never stalls — then keep retrying the real model.
 
 ### Phase A — scaffold + model
