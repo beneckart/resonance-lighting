@@ -15,7 +15,7 @@ const ctrl = (pattern: string): Control => ({
   eqLow: 0, eqMid: 0, eqHigh: 0, master: 1, strobe: false, strobeHz: 10, autoVj: false, autoBars: 8,
 } as unknown as Control);
 const silent: AudioFeatures = {
-  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0,
+  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0, centroid: 0,
 };
 const loud: AudioFeatures = { ...silent, active: true, level: 0.8, bass: 0.7, mid: 0.5, treble: 0.4, beat: 1, onset: true, bpm: 124 };
 

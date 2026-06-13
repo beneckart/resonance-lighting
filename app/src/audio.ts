@@ -18,10 +18,11 @@ export interface AudioFeatures {
   section: Section; // live song-section tier (rekordbox-phrase analog)
   beatPhase: number; // PLL phase within the beat 0..1 (0 = downbeat) — predictive grid
   beatPulse: number; // 1 at the beat, decays toward next — on-grid swell for motion
+  centroid: number; // spectral centroid 0..1 (timbre brightness) → drives hue
 }
 
 export const audioFeatures: AudioFeatures = {
-  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0,
+  active: false, level: 0, bass: 0, mid: 0, treble: 0, beat: 0, onset: false, bpm: 0, drop: 0, section: "ambient", beatPhase: 0, beatPulse: 0, centroid: 0,
 };
 
 /** Classify the live song SECTION from level dynamics (doc 16 P0-2): a drop or
@@ -32,6 +33,28 @@ export function classifySection(level: number, pastMin: number, drop: number): S
   if (level > 0.4 && level - pastMin > 0.28) return "build";
   if (level > 0.22) return "groove";
   return "ambient";
+}
+
+/** Spectral centroid (doc 16 P0-4): the magnitude-weighted mean bin — the
+ *  "brightness" / timbre centre of the spectrum. Returns 0..1 (0 = all energy
+ *  in the lowest bin, 1 = the highest). Bassy/warm timbres → low, bright/harsh
+ *  (cymbals, leads) → high. Pure + testable. */
+export function spectralCentroid(bins: ArrayLike<number>): number {
+  let num = 0, den = 0;
+  for (let i = 0; i < bins.length; i++) {
+    const m = bins[i];
+    num += i * m;
+    den += m;
+  }
+  if (den <= 0) return 0;
+  return num / den / Math.max(1, bins.length - 1);
+}
+
+/** Map a 0..1 timbre centroid → hue 0..1: dark/bassy → warm amber-red (~0.02),
+ *  bright/harsh → cool cyan-blue (~0.58). Timbre-aware colour. Pure. */
+export function centroidToHue(centroid: number): number {
+  const c = Math.max(0, Math.min(1, centroid));
+  return 0.02 + c * 0.56;
 }
 
 let ctx: AudioContext | null = null;
@@ -51,7 +74,7 @@ export function eqDbForKnob(knob: number): number {
 }
 
 // envelope + onset + bpm state
-let envBass = 0, envMid = 0, envTreble = 0, envLevel = 0;
+let envBass = 0, envMid = 0, envTreble = 0, envLevel = 0, envCentroid = 0;
 let agcMax = 0.05;
 let lastT = 0;
 let lastDrop = -10;
@@ -219,6 +242,11 @@ export function updateAudio(): AudioFeatures {
   audioFeatures.mid = envMid;
   audioFeatures.treble = envTreble;
   audioFeatures.level = Math.min(1, envLevel / agcMax);
+
+  // spectral centroid (timbre brightness), smoothed so the hue doesn't strobe
+  const rawCentroid = spectralCentroid(data);
+  envCentroid += alphaFor(envCentroid < rawCentroid ? 8 : 40, dt) * (rawCentroid - envCentroid);
+  audioFeatures.centroid = envCentroid;
 
   // drop detection: quiet build (window min low) → current spike
   levelHist.push(audioFeatures.level);

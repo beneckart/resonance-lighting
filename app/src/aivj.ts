@@ -1,4 +1,4 @@
-import type { AudioFeatures } from "./audio";
+import { centroidToHue, type AudioFeatures } from "./audio";
 import type { PatternId } from "./store";
 
 /** AI-VJ policy (PRD #32): reads the live audio digest {level,bass,mid,treble,
@@ -40,8 +40,10 @@ export function decideLook(a: AudioFeatures, rand: () => number = Math.random): 
     return { pattern: "godray", hue: rand(), speed: 2.6, reason: `DROP — godray shafts, full energy` };
   }
   const e = energyOf(a);
-  // treble bias nudges the hue toward the cool end
-  const hue = (a.active ? rand() * 0.85 + a.treble * 0.15 : 0.05 + rand() * 0.2) % 1;
+  // TIMBRE-aware hue (P0-4): the spectral centroid sets the colour (bright/harsh
+  // → cool, bassy/warm → amber), with a little randomness for variety. Falls
+  // back to a warm idle hue when silent.
+  const hue = (a.active ? centroidToHue(a.centroid) * 0.8 + rand() * 0.2 : 0.05 + rand() * 0.2) % 1;
   // SECTION steers the pattern family for the climactic states so the show
   // tracks musical STRUCTURE, not just instantaneous energy. peak forces the
   // hot family; build ramps an upward "rising" sweep as anticipation. groove +
