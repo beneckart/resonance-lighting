@@ -52,6 +52,9 @@ export interface Control {
   master: number; // final intensity 0..1
   strobe: boolean;
   strobeHz: number;
+  // auto-VJ (D)
+  autoVj: boolean;
+  autoBars: number; // phrase length in bars between look changes
 }
 
 interface TwinState {
@@ -103,6 +106,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
     master: 1,
     strobe: false,
     strobeHz: 10,
+    autoVj: false,
+    autoBars: 8,
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

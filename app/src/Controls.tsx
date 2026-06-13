@@ -78,6 +78,17 @@ export function Controls() {
       </div>
       <div style={{ fontSize: 10, opacity: 0.55, marginTop: 2 }}>{source || "loading…"}</div>
 
+      <div style={row}>
+        <button style={btn(ctrl.autoVj)} onClick={() => setCtrl({ autoVj: !ctrl.autoVj })}>
+          🤖 auto-VJ
+        </button>
+        {ctrl.autoVj && (
+          <button style={btn(false)} onClick={() => setCtrl({ autoBars: ctrl.autoBars === 8 ? 4 : ctrl.autoBars === 4 ? 16 : 8 })}>
+            {ctrl.autoBars} bars
+          </button>
+        )}
+      </div>
+
       <div style={{ marginTop: 10, opacity: 0.7 }}>visualizer</div>
       <div style={row}>
         {VIZ_MODES.map((v: VizMode) => (

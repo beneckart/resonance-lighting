@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
 import { Controls } from "./Controls";
+import { AutoVj } from "./AutoVjDriver";
 import { loadFixtures } from "./fixtures";
 import { useTwin } from "./store";
 
@@ -25,6 +26,7 @@ export function App() {
         <Suspense fallback={null}>{ready && <Scene />}</Suspense>
       </Canvas>
       <Controls />
+      <AutoVj />
       {err && (
         <div style={{ position: "fixed", bottom: 12, left: 12, color: "#ff6b6b", font: "12px monospace" }}>
           ERROR: {err}
