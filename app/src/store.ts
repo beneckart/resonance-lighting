@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
+import type { Ripple } from "./interaction";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
@@ -75,6 +76,7 @@ interface TwinState {
   net: { channel: number; driveReal: boolean }; // ESP-NOW control-plane (E/I8)
   cues: Cue[]; // saved looks (F1)
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
+  ripples: Ripple[]; // presence→ripple interactions
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -86,6 +88,7 @@ interface TwinState {
   recallCue: (id: string) => void;
   deleteCue: (id: string) => void;
   setTimeline: (p: Partial<{ playing: boolean; stepSecs: number }>) => void;
+  pingPresence: (origin?: [number, number, number]) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -100,6 +103,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   net: { channel: 11, driveReal: false },
   cues: loadCues(),
   timeline: { playing: false, stepSecs: 8 },
+  ripples: [],
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -220,4 +224,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
       return { cues };
     }),
   setTimeline: (p) => setState((s) => ({ timeline: { ...s.timeline, ...p } })),
+  pingPresence: (origin) =>
+    setState((s) => {
+      const o =
+        origin ??
+        (s.fixtures.length ? s.fixtures[Math.floor(Math.random() * s.fixtures.length)].pos : [0, 0, 0]);
+      const t0 = performance.now() / 1000;
+      const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-8);
+      return { ripples };
+    }),
 }));

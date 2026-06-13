@@ -5,6 +5,7 @@ import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
+import { rippleIntensity } from "./interaction";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -85,6 +86,10 @@ export function TreeLights() {
     const xfade = ctrl.xfade;
     const cb = xfade > 0.001 ? { ...ctrl, pattern: ctrl.djPatternB, hue: ctrl.djHueB } : null;
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
+    const ripples = st.ripples;
+    const nowS = performance.now() / 1000;
+    const rSpeed = treeSize * 0.55;
+    const rWidth = treeSize * 0.06;
     let dead = 0;
     let stale = 0;
 
@@ -111,6 +116,17 @@ export function TreeLights() {
       // EQ→zone gain × master × strobe
       const g = mg * eqGain(f.zone, ctrl.eqLow, ctrl.eqMid, ctrl.eqHigh, audio);
       lit.r *= g; lit.g *= g; lit.b *= g;
+
+      // presence→ripple: brighten as a wavefront passes
+      if (ripples.length) {
+        let boost = 0;
+        for (const rp of ripples) {
+          const dx = f.pos[0] - rp.x, dy = f.pos[1] - rp.y, dz = f.pos[2] - rp.z;
+          const b = rippleIntensity(Math.sqrt(dx * dx + dy * dy + dz * dz), nowS - rp.t0, rSpeed, rWidth);
+          if (b > boost) boost = b;
+        }
+        if (boost > 0) { const m = 1 + 2.2 * boost; lit.r *= m; lit.g *= m; lit.b *= m; }
+      }
 
       const isDead = view.mock && f.seq < view.deadCount;
       if (!view.mock) {

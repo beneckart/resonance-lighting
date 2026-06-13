@@ -76,6 +76,7 @@ export function Controls() {
   const deleteCue = useTwin((s) => s.deleteCue);
   const timeline = useTwin((s) => s.timeline);
   const setTimeline = useTwin((s) => s.setTimeline);
+  const pingPresence = useTwin((s) => s.pingPresence);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
 
@@ -141,6 +142,9 @@ export function Controls() {
             {p}
           </button>
         ))}
+      </div>
+      <div style={row}>
+        <button style={btn(false)} onClick={() => pingPresence()}>✨ ping (presence ripple)</button>
       </div>
 
       {ctrl.pattern === "sequence" && (
