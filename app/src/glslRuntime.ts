@@ -43,6 +43,11 @@ export interface GlslPattern {
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const fract = (x: number) => x - Math.floor(x);
+/** GLSL smoothstep(e0,e1,x) CPU port (kept in parity for the referee). */
+const smoothstep = (e0: number, e1: number, x: number) => {
+  const t = clamp01((x - e0) / (e1 - e0 || 1e-6));
+  return t * t * (3 - 2 * t);
+};
 
 /** HSV→RGB, identical math to the GLSL `hsv2rgb` injected into the shader, so
  *  the CPU referee and the GPU pass agree bit-for-bit (modulo float precision). */
@@ -97,9 +102,78 @@ const spectrumBands: GlslPattern = {
   },
 };
 
+const spiral: GlslPattern = {
+  id: "spiral",
+  glsl: `
+    float az = atan(p.z, p.x) / 6.2831853;        // azimuth around the trunk
+    float h = fract(az + p.y * 0.4 + t * uSpeed * 0.1 + uHue); // barber-pole up
+    float v = 0.6 + 0.4 * uMid + 0.3 * uOnset;
+    return hsv2rgb(h, uSat, clamp(v, 0.0, 1.0));`,
+  cpu: (p, t, u) => {
+    const az = Math.atan2(p[2], p[0]) / (2 * Math.PI);
+    const h = fract(az + p[1] * 0.4 + t * u.speed * 0.1 + u.hue);
+    const v = 0.6 + 0.4 * u.mid + 0.3 * u.onset;
+    return hsv2rgb(h, u.sat, clamp01(v));
+  },
+};
+
+const plasma: GlslPattern = {
+  id: "plasma",
+  glsl: `
+    float s = sin(p.x * 3.0 + t * uSpeed)
+            + sin(p.y * 3.0 - t * uSpeed * 0.8)
+            + sin((p.x + p.z) * 2.0 + t * uSpeed * 1.3);
+    float h = fract(uHue + s * 0.12);
+    float v = 0.45 + 0.35 * (0.5 + 0.5 * sin(s + t * uSpeed)) + 0.4 * uBass;
+    return hsv2rgb(h, uSat, clamp(v, 0.0, 1.0));`,
+  cpu: (p, t, u) => {
+    const s = Math.sin(p[0] * 3 + t * u.speed)
+      + Math.sin(p[1] * 3 - t * u.speed * 0.8)
+      + Math.sin((p[0] + p[2]) * 2 + t * u.speed * 1.3);
+    const h = fract(u.hue + s * 0.12);
+    const v = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(s + t * u.speed)) + 0.4 * u.bass;
+    return hsv2rgb(h, u.sat, clamp01(v));
+  },
+};
+
+// three colours streaming OUT from the crown (top, p.y max) — the GPU twin of
+// the CPU "chromatic" pattern (Elliot's "3 colours from one source").
+const chromaticCrown: GlslPattern = {
+  id: "chromaticCrown",
+  glsl: `
+    float u = 1.0 - (p.y * 0.5 + 0.5);   // distance from the crown (normalized y)
+    float flow = t * uSpeed * 0.2;
+    float best = -1.0; float bh = uHue; float bv = 0.0;
+    for (int k = 0; k < 3; k++) {
+      float w = fract(flow + float(k) / 3.0);
+      float d = abs(u - w); d = min(d, 1.0 - d);
+      float inten = smoothstep(0.26, 0.0, d);
+      float band = k == 0 ? uBass : (k == 1 ? uMid : uTreble);
+      inten *= 0.5 + 0.9 * band + 0.0001; // tiny bias keeps k=0 winning ties
+      if (inten > best) { best = inten; bh = fract(uHue + float(k) / 3.0); bv = inten; }
+    }
+    return hsv2rgb(bh, uSat, clamp(0.12 + 0.95 * bv, 0.0, 1.0));`,
+  cpu: (p, t, u) => {
+    const uu = 1 - (p[1] * 0.5 + 0.5);
+    const flow = t * u.speed * 0.2;
+    let best = -1, bh = u.hue, bv = 0;
+    for (let k = 0; k < 3; k++) {
+      const w = fract(flow + k / 3);
+      let d = Math.abs(uu - w); d = Math.min(d, 1 - d);
+      const band = k === 0 ? u.bass : k === 1 ? u.mid : u.treble;
+      const inten = smoothstep(0.26, 0, d) * (0.5 + 0.9 * band) + 0.0001;
+      if (inten > best) { best = inten; bh = fract(u.hue + k / 3); bv = inten; }
+    }
+    return hsv2rgb(bh, u.sat, clamp01(0.12 + 0.95 * bv));
+  },
+};
+
 export const GLSL_PATTERNS: Record<string, GlslPattern> = {
   radialPulse,
   spectrumBands,
+  spiral,
+  plasma,
+  chromaticCrown,
 };
 
 /** Evaluate a pattern's CPU referee. Returns black for an unknown id. */

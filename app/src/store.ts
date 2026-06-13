@@ -164,7 +164,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     audioSpeed: false,
     autoBalance: true, // on by default: boosts only as daylight rises, night unchanged
     glslMode: typeof location !== "undefined" && new URLSearchParams(location.search).has("glsl"),
-    glslPattern: "radialPulse",
+    glslPattern: (typeof location !== "undefined" && new URLSearchParams(location.search).get("glslp")) || "radialPulse",
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));
