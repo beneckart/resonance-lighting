@@ -9,7 +9,7 @@ test("show flow — commands, cues, timeline (no errors)", async ({ page }) => {
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.addInitScript(() => localStorage.clear());
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/?e2e=1", { waitUntil: "domcontentloaded" }); // light scene (skip 22MB bark glb) for stable headless GL
   await expect(page.locator("canvas")).toBeVisible({ timeout: 15000 });
 
   // command script

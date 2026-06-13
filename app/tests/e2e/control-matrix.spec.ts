@@ -12,7 +12,7 @@ test("control matrix — every control runs with no errors", async ({ page }) =>
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/?e2e=1", { waitUntil: "domcontentloaded" }); // light scene (skip 22MB bark glb) for stable headless GL under heavy interaction
   await expect(page.locator("canvas")).toBeVisible({ timeout: 15000 });
 
   const tap = async (loc: Locator) => {

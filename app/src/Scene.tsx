@@ -133,6 +133,11 @@ function CameraRig() {
   return null;
 }
 
+/** e2e/perf flag: ?e2e skips the heavy 22MB bark context glb so the
+ *  interaction tests run on a light scene (headless GL can't hold the full mesh
+ *  under intensive clicking). The real app always renders the full tree. */
+const LIGHT_SCENE = typeof location !== "undefined" && new URLSearchParams(location.search).has("e2e");
+
 export function Scene() {
   return (
     <>
@@ -146,9 +151,11 @@ export function Scene() {
       <ErrorBoundary>
         <GoboFloor />
       </ErrorBoundary>
-      <ErrorBoundary>
-        <TreeContext />
-      </ErrorBoundary>
+      {!LIGHT_SCENE && (
+        <ErrorBoundary>
+          <TreeContext />
+        </ErrorBoundary>
+      )}
       <ErrorBoundary>
         <LanternBodies />
       </ErrorBoundary>

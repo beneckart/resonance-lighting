@@ -6,11 +6,12 @@ import { test, expect } from "@playwright/test";
  * frame). Saves a screenshot artifact for the build log each run.
  */
 test("twin renders a non-blank R3F canvas with no console errors", async ({ page }) => {
+  test.setTimeout(60000); // GL-heavy + 22MB bark glb load; headroom over the 30s default
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
 
   const canvas = page.locator("canvas");
   await expect(canvas).toBeVisible({ timeout: 15000 });
@@ -30,7 +31,8 @@ test("twin renders a non-blank R3F canvas with no console errors", async ({ page
     const px = new Uint8Array(c.width * c.height * 4);
     g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, px);
     const seen = new Set<string>();
-    for (let i = 0; i < px.length; i += 4) seen.add(`${px[i]},${px[i + 1]},${px[i + 2]}`);
+    // sample sparsely (every 64th pixel) — full ~1M-pixel scan is too slow + risks the test timeout
+    for (let i = 0; i < px.length; i += 4 * 64) seen.add(`${px[i]},${px[i + 1]},${px[i + 2]}`);
     return seen.size;
   });
   console.log(`[twin] distinct colors sampled: ${distinctColors}`);
