@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PATTERN_IDS, SEQ_MODES, useTwin, type PatternId, type SeqMode } from "./store";
-import { startMic, startFile, stopAudio } from "./audio";
+import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 
 const panel: React.CSSProperties = {
   position: "fixed",
@@ -63,6 +63,11 @@ export function Controls() {
   const setView = useTwin((s) => s.setView);
   const stats = useTwin((s) => s.monitorStats);
   const [cmd, setCmd] = useState("");
+  const [bpm, setBpm] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setBpm(audioFeatures.bpm), 250);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div style={panel}>
@@ -101,8 +106,13 @@ export function Controls() {
       <Slider label="saturation" v={ctrl.sat} min={0} max={1} on={(v) => setCtrl({ sat: v })} />
       <Slider label="speed" v={ctrl.speed} min={0} max={3} on={(v) => setCtrl({ speed: v })} />
 
-      <div style={{ marginTop: 10, opacity: 0.7 }}>sound → reactive</div>
+      <div style={{ marginTop: 10, opacity: 0.7 }}>
+        sound → reactive {bpm > 0 && <b style={{ color: "#7fe0a0" }}>· {bpm} BPM</b>}
+      </div>
       <div style={row}>
+        <button style={btn(false)} onClick={() => startTrack("/audio/test-beat-124bpm.wav").catch(console.error)}>
+          🎶 test track
+        </button>
         <button style={btn(false)} onClick={() => startMic().catch(console.error)}>🎤 mic</button>
         <label style={btn(false)}>
           🎵 song
