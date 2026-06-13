@@ -126,6 +126,37 @@ export function DjController() {
   const [beatLed, setBeatLed] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const ledRef = useRef(0);
+  const waveRef = useRef<HTMLCanvasElement>(null);
+
+  // scrolling waveform on the deck — live audio level history, tinted by treble,
+  // with a red tick on each beat (idles with a faint pulse when no audio)
+  useEffect(() => {
+    const cv = waveRef.current;
+    const g = cv?.getContext("2d");
+    if (!cv || !g) return;
+    const W = cv.width, H = cv.height;
+    const hist = new Float32Array(W);
+    let raf = 0;
+    const loop = () => {
+      const a = audioFeatures;
+      hist.copyWithin(0, 1);
+      hist[W - 1] = a.active ? a.level : 0.05 + 0.03 * (0.5 + 0.5 * Math.sin(performance.now() / 380));
+      g.fillStyle = "#0b0f17";
+      g.fillRect(0, 0, W, H);
+      g.beginPath();
+      g.moveTo(0, H);
+      for (let x = 0; x < W; x++) g.lineTo(x, H - hist[x] * H);
+      g.lineTo(W, H);
+      g.closePath();
+      const hue = a.active ? 210 - a.treble * 170 : 210;
+      g.fillStyle = `hsla(${hue},80%,56%,0.75)`;
+      g.fill();
+      if (a.active && a.beat > 0.6) { g.fillStyle = "rgba(255,91,110,0.6)"; g.fillRect(W - 2, 0, 2, H); }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // beat LED pulse from the live audio engine
   useEffect(() => {
@@ -197,6 +228,10 @@ export function DjController() {
             </span>
           </span>
         </div>
+
+        {/* scrolling waveform */}
+        <canvas ref={waveRef} width={420} height={34}
+          style={{ width: "100%", height: 34, borderRadius: 6, display: "block", border: "1px solid #1d2735" }} />
 
         {/* 3-band EQ */}
         <div style={{ display: "flex", gap: 6 }}>
