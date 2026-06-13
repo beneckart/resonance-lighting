@@ -11,6 +11,7 @@ import { guestClamp } from "./guard";
 import { relativeBeam } from "./photometry";
 import { applyEnv } from "./sensors";
 import { easeGroundTint } from "./groundtint";
+import { createGlslPass, type GlslPass } from "./glslPass";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -42,6 +43,7 @@ export function TreeLights() {
   const lightRef = useRef<InstancedMesh>(null);
   const beamRef = useRef<InstancedMesh>(null);
   const groundRef = useRef<InstancedMesh>(null); // per-fixture petal-gobo "light shades" on the floor
+  const glslRef = useRef<GlslPass | null>(null); // lazy GPU pattern pass (glslMode)
   const groundY = center[1] - treeSize * 0.5;
   const gobo = useTexture("/gobo.png");
   gobo.colorSpace = SRGBColorSpace;
@@ -169,9 +171,24 @@ export function TreeLights() {
     let stale = 0;
     let sumR = 0, sumG = 0, sumB = 0; // aggregate for the ground tint
 
+    // GLSL mode (opt-in): run the GPU pattern pass once + read N×1 RGB back to
+    // drive the fixtures, instead of the CPU litFor. Lazily built per fixture set.
+    let glslBuf: Uint8Array | null = null;
+    if (ctrl.glslMode) {
+      try {
+        if (!glslRef.current) glslRef.current = createGlslPass(fixtures, ctrl.glslPattern);
+        else glslRef.current.setPattern(ctrl.glslPattern);
+        glslBuf = glslRef.current.renderRead(state.gl, t, ctrl, audio);
+      } catch { glslBuf = null; } // any GL hiccup → fall back to CPU litFor
+    }
+
     for (let i = 0; i < n; i++) {
       const f = fixtures[i];
-      litFor(t, f, ctrl, audio, n, lit);
+      if (glslBuf) {
+        lit.r = glslBuf[i * 4] / 255; lit.g = glslBuf[i * 4 + 1] / 255; lit.b = glslBuf[i * 4 + 2] / 255;
+      } else {
+        litFor(t, f, ctrl, audio, n, lit);
+      }
       if (cb) {
         litFor(t, f, cb, audio, n, litB);
         lit.r = lerp(lit.r, litB.r, xfade);

@@ -72,6 +72,8 @@ export interface Control {
   reverse: boolean; // jog-wheel direction: reverse the around-the-tree motion
   audioSpeed: boolean; // auto-drive motion speed from the music (energy/BPM/drop)
   autoBalance: boolean; // sense ambient daylight → auto-boost drive to stay readable
+  glslMode: boolean; // opt-in: drive fixtures from the GPU GLSL pattern pass (vs CPU litFor)
+  glslPattern: string; // active GLSL pattern id (glslRuntime registry)
 }
 
 interface TwinState {
@@ -161,6 +163,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
     reverse: false,
     audioSpeed: false,
     autoBalance: true, // on by default: boosts only as daylight rises, night unchanged
+    glslMode: typeof location !== "undefined" && new URLSearchParams(location.search).has("glsl"),
+    glslPattern: "radialPulse",
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));
