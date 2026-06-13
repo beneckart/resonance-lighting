@@ -34,3 +34,34 @@ export async function loadFixtures(url = "/fixtures.json"): Promise<FixturesDoc>
   if (!res.ok) throw new Error(`fixtures.json ${res.status}`);
   return res.json();
 }
+
+export interface ValidationResult {
+  ok: boolean;
+  errors: string[];
+}
+
+/** Validate a fixtures.json against the resonance.fixtures/0.1 contract (G2). Pure;
+ *  used to gate a swapped-in Grasshopper export. */
+export function validateFixturesDoc(doc: unknown): ValidationResult {
+  const errors: string[] = [];
+  const d = doc as Partial<FixturesDoc> | null;
+  if (!d || typeof d !== "object") return { ok: false, errors: ["doc is not an object"] };
+  if (!d.meta || typeof d.meta !== "object") errors.push("missing meta");
+  else {
+    if (typeof d.meta.count !== "number") errors.push("meta.count is not a number");
+    if (!d.meta.bbox || !Array.isArray(d.meta.bbox.min) || !Array.isArray(d.meta.bbox.max))
+      errors.push("missing/invalid meta.bbox");
+  }
+  if (!Array.isArray(d.fixtures)) errors.push("fixtures is not an array");
+  else if (d.fixtures.length === 0) errors.push("fixtures is empty");
+  else {
+    d.fixtures.forEach((f, i) => {
+      if (!f || typeof f.fixture_id !== "string") errors.push(`fixtures[${i}].fixture_id missing`);
+      if (!Array.isArray(f?.position) || f.position.length !== 3 || f.position.some((n) => typeof n !== "number"))
+        errors.push(`fixtures[${i}].position must be [x,y,z] numbers`);
+      if (typeof f?.beam_deg !== "number") errors.push(`fixtures[${i}].beam_deg missing`);
+      if (typeof f?.zone !== "string") errors.push(`fixtures[${i}].zone missing`);
+    });
+  }
+  return { ok: errors.length === 0, errors };
+}

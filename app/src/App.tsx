@@ -3,7 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
 import { Controls } from "./Controls";
 import { AutoVj } from "./AutoVjDriver";
-import { loadFixtures } from "./fixtures";
+import { loadFixtures, validateFixturesDoc } from "./fixtures";
 import { useTwin } from "./store";
 
 export function App() {
@@ -12,7 +12,11 @@ export function App() {
 
   useEffect(() => {
     loadFixtures()
-      .then((doc) => useTwin.getState().init(doc))
+      .then((doc) => {
+        const v = validateFixturesDoc(doc);
+        if (!v.ok) setErr(`fixtures.json invalid: ${v.errors.slice(0, 3).join("; ")}`);
+        useTwin.getState().init(doc);
+      })
       .catch((e) => setErr(String(e)));
   }, []);
 
