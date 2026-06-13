@@ -60,7 +60,9 @@ export function Controls() {
   const count = useTwin((s) => s.fixtures.length);
   const source = useTwin((s) => s.source);
   const runCommand = useTwin((s) => s.runCommand);
+  const runScript = useTwin((s) => s.runScript);
   const cmdLog = useTwin((s) => s.cmdLog);
+  const [script, setScript] = useState("");
   const view = useTwin((s) => s.view);
   const setView = useTwin((s) => s.setView);
   const stats = useTwin((s) => s.monitorStats);
@@ -205,6 +207,22 @@ export function Controls() {
           </button>
         ))}
       </div>
+      <div style={{ marginTop: 8, opacity: 0.6, fontSize: 10 }}>LLM script (one command/line)</div>
+      <textarea
+        value={script}
+        placeholder={"all pattern sequence\nzone high color #00aaff\nevery 4 color red"}
+        onChange={(e) => setScript(e.target.value)}
+        rows={3}
+        style={{
+          width: "100%", marginTop: 2, padding: "6px 8px", borderRadius: 6, resize: "vertical",
+          border: "1px solid #2a3a52", background: "#0b1119", color: "#dce6ff",
+          font: "11px ui-monospace, monospace",
+        }}
+      />
+      <div style={row}>
+        <button style={btn(false)} onClick={() => script.trim() && runScript(script)}>▶ run script</button>
+      </div>
+
       {cmdLog.length > 0 && (
         <div style={{ marginTop: 4, fontSize: 10, opacity: 0.6, lineHeight: 1.5 }}>
           {cmdLog.map((l, i) => (

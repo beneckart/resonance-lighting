@@ -111,3 +111,12 @@ export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
   }
   return { msg: `? unrecognized — try: range 0-23 color #00aaff · zone high off · every 4 color red · clear` };
 }
+
+/** Split a multi-line command script (the LLM's output) into runnable commands.
+ *  Trims, drops blank lines and `#` comments. */
+export function parseScript(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("#"));
+}

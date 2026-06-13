@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
-import { runCommandStr, type Override } from "./command";
+import { runCommandStr, parseScript, type Override } from "./command";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor";
@@ -71,6 +71,7 @@ interface TwinState {
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
+  runScript: (text: string) => void;
   setView: (p: Partial<{ mock: boolean; monitor: boolean; deadCount: number }>) => void;
   setMonitorStats: (s: { reporting: number; dead: number; stale: number }) => void;
 }
@@ -179,6 +180,9 @@ export const useTwin = create<TwinState>((setState, get) => ({
       next.cmdLog = [r.msg, ...s.cmdLog].filter(Boolean).slice(0, 6);
       return next;
     });
+  },
+  runScript: (text) => {
+    for (const cmd of parseScript(text)) get().runCommand(cmd);
   },
   setView: (p) => setState((s) => ({ view: { ...s.view, ...p } })),
   setMonitorStats: (s) => setState({ monitorStats: s }),
