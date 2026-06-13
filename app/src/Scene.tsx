@@ -6,6 +6,7 @@ import { ToneMappingMode } from "postprocessing";
 import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 /** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
 function GoboFloor() {
@@ -99,8 +100,12 @@ export function Scene() {
       <directionalLight position={[1, 1.6, 1]} intensity={1.2} color="#fff1d8" />
       <directionalLight position={[-1.2, 0.4, -1]} intensity={0.55} color="#4a63b0" />
       <CameraRig />
-      <GoboFloor />
-      <TreeContext />
+      <ErrorBoundary>
+        <GoboFloor />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <TreeContext />
+      </ErrorBoundary>
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
       <EffectComposer>
