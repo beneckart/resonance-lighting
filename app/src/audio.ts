@@ -1,6 +1,8 @@
 // Web-Audio reactivity engine (B / the spine). Mic, file, or the test track →
 // spectral-flux onset detection + interval-based BPM + asymmetric attack/release
 // envelope followers (bass/mid/treble) + percentile-ish AGC. Per docs/research/12.
+import { BeatTracker } from "./beat";
+
 export interface AudioFeatures {
   active: boolean;
   level: number; // AGC-normalized overall 0..1
@@ -24,11 +26,9 @@ let audioEl: HTMLAudioElement | null = null;
 
 // envelope + onset + bpm state
 let envBass = 0, envMid = 0, envTreble = 0, envLevel = 0;
-let fluxAvg = 0;
 let agcMax = 0.05;
 let lastT = 0;
-let lastOnsetT = -1;
-const intervals: number[] = [];
+const tracker = new BeatTracker();
 
 const now = () => performance.now() / 1000;
 const alphaFor = (tauMs: number, dt: number) => 1 - Math.exp(-dt / (tauMs / 1000));
@@ -131,25 +131,11 @@ export function updateAudio(): AudioFeatures {
     prevSpec[i] = v;
   }
   flux /= fluxBins;
-  fluxAvg = fluxAvg + 0.05 * (flux - fluxAvg);
-  const threshold = fluxAvg * 1.12 + 0.0015;
-  if (flux > threshold && t - lastOnsetT > 0.3) {
-    if (lastOnsetT > 0) {
-      const iv = t - lastOnsetT;
-      if (iv > 0.25 && iv < 1.2) {
-        intervals.push(iv);
-        if (intervals.length > 12) intervals.shift();
-        const sorted = [...intervals].sort((a, b) => a - b);
-        const med = sorted[Math.floor(sorted.length / 2)];
-        audioFeatures.bpm = Math.round(60 / med);
-      }
-    }
-    lastOnsetT = t;
-    audioFeatures.onset = true;
-    audioFeatures.beat = 1;
-  } else {
-    audioFeatures.beat *= 0.86;
-  }
+  const bt = tracker.push(flux, t);
+  audioFeatures.onset = bt.onset;
+  audioFeatures.bpm = bt.bpm;
+  if (bt.onset) audioFeatures.beat = 1;
+  else audioFeatures.beat *= 0.86;
 
   audioFeatures.bass = envBass;
   audioFeatures.mid = envMid;
