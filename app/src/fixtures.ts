@@ -9,6 +9,7 @@ export interface Fixture {
   lumens_max: number;
   beam_deg: number;
   design_color: [number, number, number];
+  aim?: [number, number, number]; // schema 0.2: cast direction, Blender Z-up (optional)
 }
 
 export interface FixturesDoc {
@@ -61,6 +62,8 @@ export function validateFixturesDoc(doc: unknown): ValidationResult {
         errors.push(`fixtures[${i}].position must be [x,y,z] numbers`);
       if (typeof f?.beam_deg !== "number") errors.push(`fixtures[${i}].beam_deg missing`);
       if (typeof f?.zone !== "string") errors.push(`fixtures[${i}].zone missing`);
+      if (f?.aim !== undefined && (!Array.isArray(f.aim) || f.aim.length !== 3 || f.aim.some((n) => typeof n !== "number")))
+        errors.push(`fixtures[${i}].aim must be [x,y,z] numbers`); // schema 0.2
     });
   }
   return { ok: errors.length === 0, errors };

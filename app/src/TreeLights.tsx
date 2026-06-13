@@ -80,11 +80,16 @@ export function TreeLights() {
         // map the fixture's real beam angle to a TIGHT visual ray: clamp wide
         // floods (≤70°) and cap width at 1.6× the reference so rays stay crisp.
         const s = Math.max(0.5, Math.min(1.6, Math.tan(Math.min(70, Math.max(12, f.beamDeg)) * 0.5 * DEG) / refTan));
-        // real cast geometry: canopy downlights aim DOWN + fan radially OUTWARD
-        // from the trunk (buried in tubes pointing down/out toward the crowd)
-        const rx = f.pos[0] - center[0], rz = f.pos[2] - center[2];
-        const rl = Math.hypot(rx, rz) || 1;
-        aimV.set((rx / rl) * 0.5, -1, (rz / rl) * 0.5).normalize();
+        // real cast geometry: use the fixture's true aim (schema 0.2) when the
+        // Blender export provides it; else fall back to the heuristic (canopy
+        // downlights aim DOWN + fan radially OUTWARD from the trunk).
+        if (f.aim) {
+          aimV.set(f.aim[0], f.aim[1], f.aim[2]).normalize();
+        } else {
+          const rx = f.pos[0] - center[0], rz = f.pos[2] - center[2];
+          const rl = Math.hypot(rx, rz) || 1;
+          aimV.set((rx / rl) * 0.5, -1, (rz / rl) * 0.5).normalize();
+        }
         aimQ.setFromUnitVectors(DOWN, aimV);
         dummy.quaternion.copy(aimQ);
         dummy.scale.set(s, 1, s);

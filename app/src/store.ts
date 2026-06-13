@@ -35,6 +35,7 @@ export interface SimFixture {
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
   beamDeg: number; // beam cone angle (deg) from fixtures.json
   lumens: number; // lumens_max from fixtures.json (beam photometrics)
+  aim?: [number, number, number]; // three-space cast direction (schema 0.2; optional)
 }
 
 export interface Control {
@@ -191,6 +192,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
         rnd: rndOf(i),
         beamDeg: f.beam_deg ?? 120,
         lumens: f.lumens_max ?? 450,
+        // schema 0.2: real per-fixture aim (Blender Z-up) → three-space direction
+        aim: f.aim ? blenderToThree(f.aim) : undefined,
       };
     });
     setState({ fixtures, center, size, source: doc.meta.source.split(":")[1] ?? doc.meta.source });
