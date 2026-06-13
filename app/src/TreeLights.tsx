@@ -8,6 +8,7 @@ import { updateAudio } from "./audio";
 const dummy = new Object3D();
 const col = new Color();
 const lit: Lit = { r: 0, g: 0, b: 0 };
+const GAIN = 2.6; // push bright fixtures into HDR so Bloom makes them glow like lanterns
 
 /**
  * Renders ALL fixtures as one InstancedMesh.
@@ -21,7 +22,7 @@ const lit: Lit = { r: 0, g: 0, b: 0 };
  */
 export function TreeLights() {
   const fixtures = useTwin((s) => s.fixtures);
-  const size = useTwin((s) => s.size) * 0.006;
+  const size = useTwin((s) => s.size) * 0.012;
   const ref = useRef<InstancedMesh>(null);
 
   // reported-state buffers (the "what the tree last told us" layer)
@@ -98,9 +99,9 @@ export function TreeLights() {
       }
 
       if (view.monitor && isDead) {
-        col.setRGB(0.4, 0.0, 0.0); // "no signal" marker
+        col.setRGB(0.5, 0.0, 0.0); // "no signal" marker
       } else {
-        col.setRGB(repR.current[i], repG.current[i], repB.current[i]);
+        col.setRGB(repR.current[i] * GAIN, repG.current[i] * GAIN, repB.current[i] * GAIN);
       }
       mesh.setColorAt(i, col);
     }

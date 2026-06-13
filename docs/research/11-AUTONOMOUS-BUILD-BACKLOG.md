@@ -42,7 +42,7 @@
 - [x] C6. Pattern selector UI + params (brightness, hue, saturation, speed). ✓
 
 ### Phase D — light rays + gobo (the "accurate visuals")
-- [ ] D1. Add `@react-three/postprocessing` bloom/glow. (Verify: fixtures glow.)
+- [x] D1. Bloom/glow ✓ — @react-three/postprocessing EffectComposer + Bloom; fixtures rendered with HDR gain (×2.6) so they glow as lanterns. Also: bamboo glb now a VISIBLE warm lit material (#9c7a44) + key/rim directional lights + hero 3/4 camera framing the whole tree. **Now unmistakably reads as the Resonance Tree** (screenshots/cycle9-hero.png).
 - [ ] D2. Volumetric beam per fixture (drei volumetric SpotLight or a cone+raymarch pass). (Verify: visible beams.)
 - [ ] D3. Gobo projection: spotlight `.map` with a mandala texture casting a pattern on a ground plane. (Verify: mandala shadow visible.)
 
@@ -69,6 +69,19 @@
 - [ ] H5 **Feature-coverage audit** vs PRD + docs 01–11 + Ben's repo (Monitor go/no-go, cues+schedule, gobo/beams D-phase, MIDI APC-mini, commissioning, element modes) — ensure ALL interactions covered (Elliot: "check our repo + Ben's, all the features").
 - [x] H6 **Tree context geometry** ✓ — bg agent exported 01_Structure+02_Bamboo (2364 meshes, decimate 0.03 + Draco) → `app/public/tree-context.glb` (10.4MB, scratch on SUNEAST). Wired into Scene.tsx as a faint (#26303f, opacity 0.22, depthWrite off) backdrop; aligns with the 78 fixtures (Y-up). Now reads as a tree. (export_context.py committed.) Also covers A4.
 
+### Phase I — PRO-GRADE SCOPE (Elliot + conductor, 2026-06-13) — "super professional, festival/immersive quality"
+> Bar: must look + behave like a pro festival-stage / immersive-art lighting system. Spine = REAL MUSIC driving a BEAUTIFUL tree. Always cross-check PRD + docs 01–11 + Ben's repo for features; everything TESTED + VISUALLY VERIFIED.
+- [ ] I1 VISUAL FIDELITY polish — D2 volumetric beams + D3 gobo mandala projection; lantern look (warm halo/sprite per light); ground plane + projected shadows; richer materials/tone-mapping. (D1 bloom + visible bamboo + hero cam ✓ cycle 9.)
+- [ ] I2 FULL AUDIO SYNC (the spine) — real beat/BPM/tempo/onset/DROP detection (not just FFT bands); TESTED with real songs for rhythm/timing accuracy. (need test tracks → app/public/audio/.)
+- [ ] I3 DJ CONTROLLER — on-screen crossfader + EQ-band→light + intensity faders, wired; MIDI-ready (APC mini mk2 / Midi Fighter Twister mapping).
+- [ ] I4 RANDOM / AUTO-VJ — shuffle + generative modes.
+- [ ] I5 MULTIPLE VISUALIZERS — several distinct viz looks to switch between.
+- [ ] I6 SEQUENCES — many more sequence patterns, built + tested.
+- [ ] I7 LLM SMART SOUND→LIGHT MODE — an LLM "VJ" that reads audio features + crowd/section and arranges the pattern/visualizer vocabulary live (Addendum C Layer 2); multiple visualizations.
+- [ ] I8 ESP-NOW FREQUENCIES / CHANNEL config — channel-pinned control surface in the app (honor Ben's ADR 0004/0010 + SYSTEM.md); wire the param-output path (custom LXOutput-equivalent) toward the real mesh.
+- [ ] I9 FULLY-FUNCTIONAL APP CONTROLS — every control wired + tested; polished, professional UI.
+- [ ] I10 DEEP RESEARCH — how big festival stages + immersive art pieces do real-time music-reactive lighting/visuals (tools, pipelines, beat-sync, pro techniques) → fold into the build. (bg research agent dispatched cycle 9.)
+
 ## BUILD LOG (append one line per cycle — newest at bottom)
 <!-- template: [cycle N] <increment> — verified-by <shot> — commit <sha> — next <X> -->
 - [cycle 1] A0.1+A1 — Vite+React+TS+R3F+drei+zustand scaffold + full test env (Vitest + Playwright e2e + build) — verified-by screenshots/cycle1-scaffold.png (emissive icosahedron + grid render) — next A0.2 real model
@@ -76,6 +89,7 @@
 - [cycle 3] A0.2+A3 — headless Blender export of EJF blend → 78 real canopy fixtures in fixtures.json + render as emissive point cloud at true positions (Z-up→Y-up), Bounds auto-frame — verified-by screenshots/cycle3-real-tree.png (78 distinct colored points) — next B1-B4 controllable mirror
 - [cycle 4] B1-B4 + C1-C6 + E1-E2 — FULLY CONTROLLABLE twin: zustand store (commanded→tick→reported mirror), InstancedMesh render, control overlay (5 patterns + sliders), Web-Audio reactivity (mic/song→FFT). store/patterns/audio/TreeLights/Controls/Scene/App — verified-by screenshots/cycle4-controllable.png (78 lights + live control panel) — next H1 sequencer
 - [cycle 5] H1 sequencer — 7 modes (fill/single/snake/groups/everyN/allOn/allOff) on azimuth order, step-delay 200ms + group-size + every-N sliders, UI sub-panel — verified-by screenshots/cycle5-sequencer.png (sequence mode UI + on/off fill state) — next H3 any-command console
+- [cycle 9] D1 bloom + VISUAL FIDELITY — bloom (HDR gain), visible warm bamboo material + key/rim lights + hero camera — verified-by screenshots/cycle9-hero.png (NOW LOOKS LIKE THE RESONANCE TREE: bamboo lattice + glowing lanterns) — next I2 real audio beat/BPM sync + I1 beams/gobo
 - [cycle 8] G1+F3 truth loop — mock-heartbeat transport (held reports + jitter + dead fixtures) + Monitor (red no-signal markers + reporting/dead/stale readout); TreeLights renders reported buffers — verified-by screenshots/cycle8-monitor.png ("reporting 72 · dead 6 · stale 0", 6 red markers) — next D1 bloom
 - [cycle 7] H6 tree-context backdrop — bg agent's decimated bamboo glb (2364 meshes, 10.4MB) wired as faint backdrop; tree now reads as a tree — verified-by screenshots/cycle7-tree-context.png (canopy silhouette behind 78 lights) — next G1 mock-heartbeat + F3 Monitor
 - [cycle 6] H3 any-command console — command.ts parser (clear/on/off/globals + targeted overrides by all/zone/range/every/fixture) + per-fixture override layer + Controls input/chips/log — verified-by screenshots/cycle6-cmd-every4-red.png (live "every 4 color red" → 20 fixtures red, 0 errors) + build+e2e green — next: G1 mock-heartbeat + F3 Monitor (top audit pick), then D1 bloom + H6 tree geometry (bg agent running) / H6 tree context geometry
