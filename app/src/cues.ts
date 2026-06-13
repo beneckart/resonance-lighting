@@ -25,6 +25,11 @@ export function loadCues(): Cue[] {
   }
 }
 
+/** Next cue index in a wrapping timeline. */
+export function nextCueIndex(cur: number, len: number): number {
+  return len > 0 ? (cur + 1) % len : 0;
+}
+
 export function saveCues(cues: Cue[]): void {
   try {
     if (typeof localStorage !== "undefined") localStorage.setItem(KEY, JSON.stringify(cues));

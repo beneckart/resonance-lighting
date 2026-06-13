@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
 import { Controls } from "./Controls";
 import { AutoVj } from "./AutoVjDriver";
+import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc } from "./fixtures";
 import { useTwin } from "./store";
 
@@ -31,6 +32,7 @@ export function App() {
       </Canvas>
       <Controls />
       <AutoVj />
+      <TimelineDriver />
       {err && (
         <div style={{ position: "fixed", bottom: 12, left: 12, color: "#ff6b6b", font: "12px monospace" }}>
           ERROR: {err}

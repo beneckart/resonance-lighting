@@ -73,6 +73,8 @@ export function Controls() {
   const addCue = useTwin((s) => s.addCue);
   const recallCue = useTwin((s) => s.recallCue);
   const deleteCue = useTwin((s) => s.deleteCue);
+  const timeline = useTwin((s) => s.timeline);
+  const setTimeline = useTwin((s) => s.setTimeline);
   const [cueName, setCueName] = useState("");
   const f0 = useTwin((s) => s.fixtures[0]);
   const ov0 = useTwin((s) => s.overrides[0]);
@@ -218,6 +220,16 @@ export function Controls() {
           <button style={btn(false)} onClick={() => deleteCue(c.id)}>×</button>
         </div>
       ))}
+      {cues.length > 0 && (
+        <>
+          <div style={row}>
+            <button style={btn(timeline.playing)} onClick={() => setTimeline({ playing: !timeline.playing })}>
+              {timeline.playing ? "⏹ stop timeline" : "▶ play timeline"}
+            </button>
+          </div>
+          <Slider label="step (s)" v={timeline.stepSecs} min={1} max={30} step={1} on={(v) => setTimeline({ stepSecs: Math.round(v) })} />
+        </>
+      )}
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>command console — any light command</div>
       <input

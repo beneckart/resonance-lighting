@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { makeCue, loadCues, saveCues, type Cue } from "./cues";
+import { makeCue, loadCues, saveCues, nextCueIndex, type Cue } from "./cues";
 import type { Control } from "./store";
 
 const ctrl = { pattern: "ripple", brightness: 0.7, hue: 0.4 } as unknown as Control;
@@ -30,5 +30,11 @@ describe("cues", () => {
 
   it("loadCues is [] when empty", () => {
     expect(loadCues()).toEqual([]);
+  });
+
+  it("nextCueIndex wraps", () => {
+    expect(nextCueIndex(0, 3)).toBe(1);
+    expect(nextCueIndex(2, 3)).toBe(0);
+    expect(nextCueIndex(0, 0)).toBe(0);
   });
 });

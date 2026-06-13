@@ -74,6 +74,7 @@ interface TwinState {
   monitorStats: { reporting: number; dead: number; stale: number };
   net: { channel: number; driveReal: boolean }; // ESP-NOW control-plane (E/I8)
   cues: Cue[]; // saved looks (F1)
+  timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -84,6 +85,7 @@ interface TwinState {
   addCue: (name: string) => void;
   recallCue: (id: string) => void;
   deleteCue: (id: string) => void;
+  setTimeline: (p: Partial<{ playing: boolean; stepSecs: number }>) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -97,6 +99,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
   net: { channel: 11, driveReal: false },
   cues: loadCues(),
+  timeline: { playing: false, stepSecs: 8 },
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -216,4 +219,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
       saveCues(cues);
       return { cues };
     }),
+  setTimeline: (p) => setState((s) => ({ timeline: { ...s.timeline, ...p } })),
 }));
