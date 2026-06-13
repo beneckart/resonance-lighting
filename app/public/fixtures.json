@@ -17,13 +17,17 @@
     5136.358
    ]
   },
-  "schema": "resonance.fixtures/0.1"
+  "schema": "resonance.fixtures/0.2",
+  "added_in_0.2": [
+   "aim (Z-up unit dir, straight-down)",
+   "role=downlight"
+  ]
  },
  "fixtures": [
   {
    "fixture_id": "F000",
    "name": "Point",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -0.084,
     -0.847,
@@ -37,12 +41,17 @@
     1.0,
     1.0,
     1.0
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F001",
    "name": "Point.002",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     0.3157,
     -1.2063,
@@ -56,12 +65,17 @@
     1.0,
     1.0,
     1.0
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F002",
    "name": "Point.003",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     46.4196,
     19.641,
@@ -75,12 +89,17 @@
     1.0,
     0.193,
     0.031
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F003",
    "name": "Point.004",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     40.0663,
     30.9812,
@@ -94,12 +113,17 @@
     1.0,
     0.088,
     0.053
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F004",
    "name": "Point.005",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     30.2649,
     40.3005,
@@ -113,12 +137,17 @@
     1.0,
     0.413,
     0.141
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F005",
    "name": "Point.006",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     50.0122,
     7.0127,
@@ -132,12 +161,17 @@
     1.0,
     0.066,
     0.06
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F006",
    "name": "Point.007",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     40.0663,
     30.9812,
@@ -151,12 +185,17 @@
     1.0,
     0.44,
     0.176
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F007",
    "name": "Point.008",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     50.1359,
     -6.0442,
@@ -170,12 +209,17 @@
     1.0,
     0.537,
     0.131
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F008",
    "name": "Point.009",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     33.1325,
     24.952,
@@ -189,12 +233,17 @@
     1.0,
     0.094,
     0.053
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F009",
    "name": "Point.010",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     41.437,
     5.4473,
@@ -208,12 +257,17 @@
     1.0,
     0.511,
     0.16
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F010",
    "name": "Point.011",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     21.5063,
     16.7057,
@@ -227,12 +281,17 @@
     1.0,
     0.391,
     0.046
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F011",
    "name": "Point.012",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     21.5063,
     16.7057,
@@ -246,12 +305,17 @@
     1.0,
     0.598,
     0.343
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F012",
    "name": "Point.013",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     16.0138,
     20.9122,
@@ -265,12 +329,17 @@
     1.0,
     0.392,
     0.179
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F013",
    "name": "Point.014",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     38.6558,
     16.2106,
@@ -284,12 +353,17 @@
     1.0,
     0.149,
     0.003
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F014",
    "name": "Point.015",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     25.2225,
     33.145,
@@ -303,12 +377,17 @@
     1.0,
     0.005,
     0.102
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F015",
    "name": "Point.016",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     24.5978,
     10.2548,
@@ -322,12 +401,17 @@
     1.0,
     0.106,
     0.005
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F016",
    "name": "Point.017",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     26.5075,
     3.7318,
@@ -341,12 +425,17 @@
     1.0,
     0.101,
     0.031
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F017",
    "name": "Point.018",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -39.6551,
     -30.9518,
@@ -360,12 +449,17 @@
     1.0,
     0.13,
     0.061
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F018",
    "name": "Point.019",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     26.6431,
     -3.2264,
@@ -379,12 +473,17 @@
     1.0,
     0.633,
     0.206
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F019",
    "name": "Point.020",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     26.6431,
     -3.2264,
@@ -398,12 +497,17 @@
     1.0,
     0.717,
     0.289
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F020",
    "name": "Point.022",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     40.3447,
     -30.3346,
@@ -417,12 +521,17 @@
     1.0,
     0.655,
     0.136
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F021",
    "name": "Point.023",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     38.5012,
     -16.2666,
@@ -436,12 +545,17 @@
     1.0,
     0.32,
     0.028
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F022",
    "name": "Point.024",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     31.1386,
     -39.7469,
@@ -455,12 +569,17 @@
     1.0,
     0.178,
     0.067
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F023",
    "name": "Point.025",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     33.2846,
     -25.4369,
@@ -474,12 +593,17 @@
     1.0,
     0.683,
     0.156
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F024",
    "name": "Point.026",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     25.4754,
     -32.9215,
@@ -493,12 +617,17 @@
     1.0,
     0.612,
     0.438
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F025",
    "name": "Point.028",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     19.6057,
     -46.6664,
@@ -512,12 +641,17 @@
     1.0,
     0.296,
     0.048
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F026",
    "name": "Point.029",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     19.6057,
     -46.6664,
@@ -531,12 +665,17 @@
     1.0,
     1.0,
     1.0
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F027",
    "name": "Point.030",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     19.6057,
     -46.6664,
@@ -550,12 +689,17 @@
     1.0,
     0.828,
     0.399
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F028",
    "name": "Point.032",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     7.13,
     -50.0887,
@@ -569,12 +713,17 @@
     1.0,
     0.256,
     0.008
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F029",
    "name": "Point.033",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -6.113,
     -49.9138,
@@ -588,12 +737,17 @@
     1.0,
     0.531,
     0.006
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F030",
    "name": "Point.034",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     16.5227,
     -38.2951,
@@ -607,12 +761,17 @@
     1.0,
     0.012,
     0.003
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F031",
    "name": "Point.035",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     5.3135,
     -41.2671,
@@ -626,12 +785,17 @@
     1.0,
     0.229,
     0.008
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F032",
    "name": "Point.036",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -18.8416,
     -46.859,
@@ -645,12 +809,17 @@
     1.0,
     0.165,
     0.066
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F033",
    "name": "Point.037",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     3.6776,
     -26.3073,
@@ -664,12 +833,17 @@
     1.0,
     0.151,
     0.005
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F034",
    "name": "Point.038",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -30.307,
     -40.5212,
@@ -683,12 +857,17 @@
     1.0,
     0.253,
     0.02
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F035",
    "name": "Point.039",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     46.7316,
     -19.1235,
@@ -702,12 +881,17 @@
     1.0,
     0.142,
     0.035
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F036",
    "name": "Point.040",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     18.7025,
     46.9941,
@@ -721,12 +905,17 @@
     1.0,
     0.466,
     0.011
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F037",
    "name": "Point.042",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -9.7614,
     -24.5678,
@@ -740,12 +929,17 @@
     1.0,
     0.3,
     0.012
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F038",
    "name": "Point.043",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -9.7614,
     -24.5678,
@@ -759,12 +953,17 @@
     1.0,
     1.0,
     1.0
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F039",
    "name": "Point.044",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -47.0152,
     -19.9048,
@@ -778,12 +977,17 @@
     1.0,
     0.14,
     0.005
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F040",
    "name": "Point.045",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -49.8539,
     -7.2248,
@@ -797,12 +1001,17 @@
     1.0,
     0.341,
     0.211
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F041",
    "name": "Point.046",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -41.3125,
     -5.2383,
@@ -816,12 +1025,17 @@
     1.0,
     0.323,
     0.12
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F042",
    "name": "Point.047",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -16.1722,
     -39.0038,
@@ -835,12 +1049,17 @@
     1.0,
     0.197,
     0.025
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F043",
    "name": "Point.048",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -41.6988,
     5.3196,
@@ -854,12 +1073,17 @@
     1.0,
     0.546,
     0.369
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F044",
    "name": "Point.049",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -38.5635,
     -16.2072,
@@ -873,12 +1097,17 @@
     1.0,
     0.705,
     0.096
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F045",
    "name": "Point.050",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -33.1033,
     -24.9156,
@@ -892,12 +1121,17 @@
     1.0,
     0.443,
     0.066
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F046",
    "name": "Point.051",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -38.5072,
     16.5238,
@@ -911,12 +1145,17 @@
     1.0,
     0.234,
     0.028
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F047",
    "name": "Point.052",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -46.7208,
     18.5096,
@@ -930,12 +1169,17 @@
     1.0,
     0.185,
     0.044
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F048",
    "name": "Point.053",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -40.3085,
     30.2436,
@@ -949,12 +1193,17 @@
     1.0,
     0.304,
     0.102
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F049",
    "name": "Point.054",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -33.1774,
     25.1991,
@@ -968,12 +1217,17 @@
     1.0,
     0.594,
     0.055
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F050",
    "name": "Point.055",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -24.6267,
     2.7466,
@@ -987,12 +1241,17 @@
     1.0,
     0.603,
     0.204
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F051",
    "name": "Point.056",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -25.2806,
     10.2708,
@@ -1006,12 +1265,17 @@
     1.0,
     0.651,
     0.106
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F052",
    "name": "Point.057",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     10.0343,
     -22.8376,
@@ -1025,12 +1289,17 @@
     1.0,
     0.583,
     0.059
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F053",
    "name": "Point.058",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -2.9869,
     -26.2294,
@@ -1044,12 +1313,17 @@
     1.0,
     0.658,
     0.003
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F054",
    "name": "Point.059",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -15.8816,
     -21.1009,
@@ -1063,12 +1337,17 @@
     1.0,
     0.088,
     0.028
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F055",
    "name": "Point.060",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -31.1891,
     39.8749,
@@ -1082,12 +1361,17 @@
     1.0,
     0.095,
     0.031
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F056",
    "name": "Point.061",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -25.2679,
     33.404,
@@ -1101,12 +1385,17 @@
     1.0,
     0.543,
     0.035
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F057",
    "name": "Point.062",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -21.064,
     15.5698,
@@ -1120,12 +1409,17 @@
     1.0,
     0.337,
     0.128
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F058",
    "name": "Point.063",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -16.6139,
     21.1146,
@@ -1139,12 +1433,17 @@
     1.0,
     0.469,
     0.216
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F059",
    "name": "Point.064",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -25.0915,
     -3.7741,
@@ -1158,12 +1457,17 @@
     1.0,
     0.069,
     0.01
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F060",
    "name": "Point.065",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -24.1074,
     -10.0207,
@@ -1177,12 +1481,17 @@
     1.0,
     0.604,
     0.052
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F061",
    "name": "Point.066",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -20.7107,
     -16.378,
@@ -1196,12 +1505,17 @@
     1.0,
     0.34,
     0.052
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F062",
    "name": "Point.067",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -50.3314,
     6.0309,
@@ -1215,12 +1529,17 @@
     1.0,
     0.337,
     0.103
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F063",
    "name": "Point.068",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -19.7952,
     46.6791,
@@ -1234,12 +1553,17 @@
     1.0,
     0.561,
     0.016
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F064",
    "name": "Point.069",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -7.1374,
     50.1673,
@@ -1253,12 +1577,17 @@
     1.0,
     0.095,
     0.025
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F065",
    "name": "Point.070",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     6.2291,
     50.289,
@@ -1272,12 +1601,17 @@
     1.0,
     0.697,
     0.43
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F066",
    "name": "Point.071",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     5.3578,
     41.4866,
@@ -1291,12 +1625,17 @@
     1.0,
     0.252,
     0.127
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F067",
    "name": "Point.072",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     16.5234,
     38.3616,
@@ -1310,12 +1649,17 @@
     1.0,
     0.287,
     0.124
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F068",
    "name": "Point.073",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     9.8482,
     24.405,
@@ -1329,12 +1673,17 @@
     1.0,
     0.059,
     0.012
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F069",
    "name": "Point.074",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     41.3513,
     -5.2505,
@@ -1348,12 +1697,17 @@
     1.0,
     0.044,
     0.004
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F070",
    "name": "Point.075",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -25.0375,
     -33.0806,
@@ -1367,12 +1721,17 @@
     1.0,
     0.253,
     0.02
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F071",
    "name": "Point.076",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -3.9668,
     26.4998,
@@ -1386,12 +1745,17 @@
     1.0,
     0.4,
     0.043
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F072",
    "name": "Point.077",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     3.0068,
     26.5207,
@@ -1405,12 +1769,17 @@
     1.0,
     0.308,
     0.037
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F073",
    "name": "Point.078",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -5.5995,
     41.7785,
@@ -1424,12 +1793,17 @@
     1.0,
     0.062,
     0.013
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F074",
    "name": "Sun.003",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     0.1424,
     -0.7675,
@@ -1443,12 +1817,17 @@
     1.0,
     0.589,
     0.205
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F075",
    "name": "Sun.009",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -0.1155,
     -0.5321,
@@ -1462,12 +1841,17 @@
     1.0,
     0.548,
     0.049
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F076",
    "name": "Top Light 1",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -0.2947,
     -0.7833,
@@ -1481,12 +1865,17 @@
     1.0,
     0.524,
     0.017
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   },
   {
    "fixture_id": "F077",
    "name": "Top Light 2",
-   "role": "canopy",
+   "role": "downlight",
    "position": [
     -0.2947,
     -0.7833,
@@ -1500,6 +1889,11 @@
     1.0,
     0.524,
     0.017
+   ],
+   "aim": [
+    0.0,
+    0.0,
+    -1.0
    ]
   }
  ]
