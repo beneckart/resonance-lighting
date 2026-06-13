@@ -6,6 +6,7 @@ import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
+import { guestClamp } from "./guard";
 
 const dummy = new Object3D();
 const col = new Color();
@@ -80,7 +81,8 @@ export function TreeLights() {
     const bm = beamRef.current;
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
-    const { control: ctrl, overrides, view } = st;
+    const { overrides, view } = st;
+    const ctrl = st.guest ? guestClamp(st.control) : st.control;
     const audio = updateAudio();
     // DJ controller (C): crossfade to look B, master intensity, strobe gate
     const xfade = ctrl.xfade;

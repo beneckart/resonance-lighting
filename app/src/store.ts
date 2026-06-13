@@ -77,6 +77,7 @@ interface TwinState {
   cues: Cue[]; // saved looks (F1)
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   ripples: Ripple[]; // presence→ripple interactions
+  guest: boolean; // guest-DJ scoped mode (C3)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -89,6 +90,7 @@ interface TwinState {
   deleteCue: (id: string) => void;
   setTimeline: (p: Partial<{ playing: boolean; stepSecs: number }>) => void;
   pingPresence: (origin?: [number, number, number]) => void;
+  setGuest: (b: boolean) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -104,6 +106,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   cues: loadCues(),
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
+  guest: false,
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -233,4 +236,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
       const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-8);
       return { ripples };
     }),
+  setGuest: (b) => setState({ guest: b }),
 }));

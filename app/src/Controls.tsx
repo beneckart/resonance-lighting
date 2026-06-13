@@ -77,6 +77,8 @@ export function Controls() {
   const timeline = useTwin((s) => s.timeline);
   const setTimeline = useTwin((s) => s.setTimeline);
   const pingPresence = useTwin((s) => s.pingPresence);
+  const guest = useTwin((s) => s.guest);
+  const setGuest = useTwin((s) => s.setGuest);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
 
@@ -220,7 +222,9 @@ export function Controls() {
       <div style={row}>
         <button style={btn(ctrl.strobe)} onClick={() => setCtrl({ strobe: !ctrl.strobe })}>⚡ strobe</button>
         <button style={btn(!!midi)} onClick={connectMidi}>🎹 MIDI</button>
+        <button style={btn(guest)} onClick={() => setGuest(!guest)}>🔒 guest</button>
       </div>
+      {guest && <div style={{ fontSize: 10, color: "#ffd27f" }}>guest scope: brightness/master capped, strobe locked</div>}
       {midi && <div style={{ fontSize: 10, opacity: 0.6 }}>{midi}</div>}
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>cues</div>
