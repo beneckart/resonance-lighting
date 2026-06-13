@@ -88,6 +88,7 @@ interface TwinState {
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
   cinematic: boolean; // hide all UI panels for a clean show/beauty view
+  timeOfDay: number; // 0 = night, 0.5 = dusk, 1 = day (scene ambient/background)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -104,6 +105,7 @@ interface TwinState {
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
   setCinematic: (b: boolean) => void;
+  setTimeOfDay: (t: number) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -123,6 +125,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
   cinematic: false,
+  timeOfDay: 0,
   control: {
     pattern: "sequence",
     brightness: 0.9,
@@ -261,4 +264,5 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),
   setCinematic: (b) => setState({ cinematic: b }),
+  setTimeOfDay: (t) => setState((s) => ({ timeOfDay: Math.max(0, Math.min(1, t)), sensors: { ...s.sensors, ambient: Math.max(0, Math.min(1, t)) } })),
 }));

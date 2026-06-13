@@ -86,6 +86,8 @@ export function Controls() {
   const setSensors = useTwin((s) => s.setSensors);
   const cameraPreset = useTwin((s) => s.cameraPreset);
   const setCameraPreset = useTwin((s) => s.setCameraPreset);
+  const timeOfDay = useTwin((s) => s.timeOfDay);
+  const setTimeOfDay = useTwin((s) => s.setTimeOfDay);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
   const [nl, setNl] = useState("");
@@ -133,6 +135,12 @@ export function Controls() {
       <div style={row}>
         <button style={btn(cameraPreset === "hero")} onClick={() => setCameraPreset("hero")}>hero 3/4</button>
         <button style={btn(cameraPreset === "top")} onClick={() => setCameraPreset("top")}>⬇ top-down (petals)</button>
+      </div>
+      <div style={{ marginTop: 8, opacity: 0.7 }}>time of day</div>
+      <div style={row}>
+        <button style={btn(timeOfDay < 0.25)} onClick={() => setTimeOfDay(0)}>🌙 night</button>
+        <button style={btn(timeOfDay >= 0.25 && timeOfDay < 0.75)} onClick={() => setTimeOfDay(0.5)}>🌆 dusk</button>
+        <button style={btn(timeOfDay >= 0.75)} onClick={() => setTimeOfDay(1)}>☀️ day</button>
       </div>
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>visualizer</div>

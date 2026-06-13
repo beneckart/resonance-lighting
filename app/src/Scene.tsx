@@ -139,14 +139,19 @@ function CameraRig() {
 const LIGHT_SCENE = typeof location !== "undefined" && new URLSearchParams(location.search).has("e2e");
 
 export function Scene() {
+  const tod = useTwin((s) => s.timeOfDay); // 0 night → 1 day
+  // background + ambient ramp with time-of-day so we can preview the install
+  // at night (lights pop), dusk, and day (washed — real daytime visibility)
+  const bg = ["#04060a", "#0f1422", "#243044", "#5a6e88"][Math.min(3, Math.floor(tod * 3.001))];
+  const ambient = 0.16 + tod * 1.0;
   return (
     <>
-      <color attach="background" args={["#04060a"]} />
+      <color attach="background" args={[bg]} />
       {/* Darker stage = each fixture's ray reads distinctly, less cross-bleed
-          (light pollution) from neighbour to neighbour. */}
-      <ambientLight intensity={0.16} />
-      <directionalLight position={[1, 1.6, 1]} intensity={0.85} color="#fff1d8" />
-      <directionalLight position={[-1.2, 0.4, -1]} intensity={0.32} color="#4a63b0" />
+          (light pollution); ambient ramps up toward day. */}
+      <ambientLight intensity={ambient} />
+      <directionalLight position={[1, 1.6, 1]} intensity={0.85 + tod * 1.2} color="#fff1d8" />
+      <directionalLight position={[-1.2, 0.4, -1]} intensity={0.32 + tod * 0.4} color="#4a63b0" />
       <CameraRig />
       <ErrorBoundary>
         <GoboFloor />
