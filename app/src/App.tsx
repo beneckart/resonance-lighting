@@ -1,15 +1,17 @@
 import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Scene } from "./Scene";
-import { loadFixtures, type FixturesDoc } from "./fixtures";
+import { Controls } from "./Controls";
+import { loadFixtures } from "./fixtures";
+import { useTwin } from "./store";
 
 export function App() {
-  const [doc, setDoc] = useState<FixturesDoc | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const ready = useTwin((s) => s.fixtures.length > 0);
 
   useEffect(() => {
     loadFixtures()
-      .then(setDoc)
+      .then((doc) => useTwin.getState().init(doc))
       .catch((e) => setErr(String(e)));
   }, []);
 
@@ -19,22 +21,14 @@ export function App() {
         camera={{ position: [40, 30, 60], fov: 45, near: 0.1, far: 5000 }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
-        <Suspense fallback={null}>{doc && <Scene doc={doc} />}</Suspense>
+        <Suspense fallback={null}>{ready && <Scene />}</Suspense>
       </Canvas>
-      <div
-        style={{
-          position: "fixed",
-          top: 10,
-          left: 12,
-          color: "#7d8ca3",
-          font: "12px ui-monospace, monospace",
-          pointerEvents: "none",
-        }}
-      >
-        Resonance Tree — mirror twin
-        {doc && ` · ${doc.meta.count} fixtures · ${doc.meta.source.split(":")[1] ?? ""}`}
-        {err && ` · ERROR: ${err}`}
-      </div>
+      <Controls />
+      {err && (
+        <div style={{ position: "fixed", bottom: 12, left: 12, color: "#ff6b6b", font: "12px monospace" }}>
+          ERROR: {err}
+        </div>
+      )}
     </div>
   );
 }

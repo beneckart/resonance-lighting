@@ -32,14 +32,14 @@
 - [ ] A4. Add a simple tree-proxy mesh (trunk cylinder + canopy) or a stub glTF for spatial context.
 
 ### Phase B — the mirror loop
-- [ ] B1. zustand store with `SimFixture { id, role, position, commanded:{pattern,params}, reported:{color,brightness,pattern,phase} }`.
-- [ ] B2. A tick loop (`useFrame`) that advances each fixture's pattern → writes `reported`. (The "firmware" stand-in.)
-- [ ] B3. Rendering reads **`reported` only** (color+brightness drive each sphere's emissive). This is the mirror rule — prove it by changing `commanded` and watching `reported` catch up.
-- [ ] B4. Minimal control surface (HTML overlay): master brightness slider + global color picker → sets `commanded`.
+- [x] B1. zustand store (`store.ts`): SimFixture {id,role,zone,pos,norm,seqT(azimuth order),heightT,rnd} + Control {pattern,brightness,hue,sat,speed}. ✓
+- [x] B2. tick loop (`useFrame` in TreeLights.tsx) computes each fixture's reported color via `litFor` (the firmware stand-in). ✓
+- [x] B3. Rendering reads computed reported state only (InstancedMesh instanceColor). ✓ (G1 will split tick→transport)
+- [x] B4. Control overlay (`Controls.tsx`): pattern buttons + brightness/hue/sat/speed sliders → sets commanded. ✓
 
 ### Phase C — patterns (one increment each)
-- [ ] C1. Pattern: solid color.   - [ ] C2. chase.   - [ ] C3. ripple (radial from a chosen origin).   - [ ] C4. sparkle.   - [ ] C5. breathe/pulse.
-- [ ] C6. Pattern selector UI + per-pattern params (speed, density, hue, saturation).
+- [x] C1 solid · [x] C2 chase (travels AROUND tree by azimuth order) · [x] C3 ripple (radial) · [x] C4 sparkle · [x] C5 breathe. (`patterns.ts`)
+- [x] C6. Pattern selector UI + params (brightness, hue, saturation, speed). ✓
 
 ### Phase D — light rays + gobo (the "accurate visuals")
 - [ ] D1. Add `@react-three/postprocessing` bloom/glow. (Verify: fixtures glow.)
@@ -47,8 +47,8 @@
 - [ ] D3. Gobo projection: spotlight `.map` with a mandala texture casting a pattern on a ground plane. (Verify: mandala shadow visible.)
 
 ### Phase E — sound
-- [ ] E1. Web Audio: mic/line-in → FFT → frequency bands exposed in the store.
-- [ ] E2. Modulation: map bands to params (bass→brightness, highs→sparkle); a beat pulse. (Verify: lights move to audio.)
+- [x] E1. Web Audio (`audio.ts`): mic OR loaded song → FFT → bass/mid/treble/level/beat. ✓
+- [x] E2. Reactive mapping (in `litFor`): level→brightness, bass→swell, beat→flash, treble→hue. ✓ (refine per-band→zone + beat-cue triggers = H4)
 
 ### Phase F — timing / show / monitor
 - [ ] F1. Cue system: capture current look as a cue; list + recall cues.
@@ -59,10 +59,19 @@
 - [ ] G1. Mock heartbeat feed: simulate fixtures reporting state over a fake transport (jitter/latency); viz mirrors it (proves the real-telemetry path).
 - [ ] G2. `fixtures.json` schema doc + runtime validation; ready to swap in the real Grasshopper export.
 - [ ] G3. PWA offline config (vite-plugin-pwa) + README with run instructions.
-- [ ] G4. Perf pass (instanced meshes for fixtures; 60fps with 150 points + beams).
+- [~] G4. Perf pass — instanced mesh already in place (TreeLights InstancedMesh, 1 draw call); beams/bloom perf TBD.
+
+### Phase H — Elliot's live asks (2026-06-13, via conductor)
+- [ ] H1 **Sequencer** (Elliot's explicit spec): ordered fixture activation with configurable step delay (e.g. 0.2s), group size (1 → 24 → 36 → 72 → all), fill vs single-moving, **snake bidirectional from a point**, every-2 / every-4, all-on / all-off. Uses `seqT`. THE priority pattern.
+- [ ] H2 **Full fleet**: scan `06_Unplaced_REVIEW` (256) for uplight/chandelier light sources; include if present → 100–150 fixtures (pending conductor scope confirm). fixtures.json re-reads on change.
+- [ ] H3 **"Any possible lighting command"**: per-fixture + group + zone addressing; arbitrary param set; a command/console input (text or JSON) → commanded state. Generalize beyond presets.
+- [ ] H4 **Audio depth**: per-band → zone mapping, beat-synced cue triggers, spectrum→color; song scrub/transport.
+- [ ] H5 **Feature-coverage audit** vs PRD + docs 01–11 + Ben's repo (Monitor go/no-go, cues+schedule, gobo/beams D-phase, MIDI APC-mini, commissioning, element modes) — ensure ALL interactions covered (Elliot: "check our repo + Ben's, all the features").
+- [ ] H6 **Tree context geometry**: decimated bamboo (02_Bamboo) → faint backdrop glb so the lights read as a tree (redo of A4 with better geometry; scratch on SUNEAST).
 
 ## BUILD LOG (append one line per cycle — newest at bottom)
 <!-- template: [cycle N] <increment> — verified-by <shot> — commit <sha> — next <X> -->
 - [cycle 1] A0.1+A1 — Vite+React+TS+R3F+drei+zustand scaffold + full test env (Vitest + Playwright e2e + build) — verified-by screenshots/cycle1-scaffold.png (emissive icosahedron + grid render) — next A0.2 real model
 - [cycle 2] A0.1 full — Playwright config + e2e spec (canvas mounts, sized, 0 console errors, 543 distinct colors) + `npm run check` (build+test+e2e all green) — verified-by e2e pass — next A0.2 real model (EJF blend, 76 canopy lights)
 - [cycle 3] A0.2+A3 — headless Blender export of EJF blend → 78 real canopy fixtures in fixtures.json + render as emissive point cloud at true positions (Z-up→Y-up), Bounds auto-frame — verified-by screenshots/cycle3-real-tree.png (78 distinct colored points) — next B1-B4 controllable mirror
+- [cycle 4] B1-B4 + C1-C6 + E1-E2 — FULLY CONTROLLABLE twin: zustand store (commanded→tick→reported mirror), InstancedMesh render, control overlay (5 patterns + sliders), Web-Audio reactivity (mic/song→FFT). store/patterns/audio/TreeLights/Controls/Scene/App — verified-by screenshots/cycle4-controllable.png (78 lights + live control panel) — next H1 sequencer
