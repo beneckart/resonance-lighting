@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 import { encodeFixture } from "./protocol";
+import { startMidi, ccToControl } from "./midi";
 
 const panel: React.CSSProperties = {
   position: "fixed",
@@ -76,6 +77,19 @@ export function Controls() {
   const timeline = useTwin((s) => s.timeline);
   const setTimeline = useTwin((s) => s.setTimeline);
   const [cueName, setCueName] = useState("");
+  const [midi, setMidi] = useState("");
+
+  const connectMidi = () =>
+    startMidi(
+      (cc, value) => {
+        const p = ccToControl(cc, value);
+        if (p) useTwin.getState().set(p);
+      },
+      (note) => {
+        const cs = useTwin.getState().cues;
+        if (cs.length) useTwin.getState().recallCue(cs[note % cs.length].id);
+      }
+    ).then(setMidi);
   const f0 = useTwin((s) => s.fixtures[0]);
   const ov0 = useTwin((s) => s.overrides[0]);
   const [cmd, setCmd] = useState("");
@@ -201,7 +215,9 @@ export function Controls() {
       <Slider label="master" v={ctrl.master} min={0} max={1} on={(v) => setCtrl({ master: v })} />
       <div style={row}>
         <button style={btn(ctrl.strobe)} onClick={() => setCtrl({ strobe: !ctrl.strobe })}>⚡ strobe</button>
+        <button style={btn(!!midi)} onClick={connectMidi}>🎹 MIDI</button>
       </div>
+      {midi && <div style={{ fontSize: 10, opacity: 0.6 }}>{midi}</div>}
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>cues</div>
       <div style={{ display: "flex", gap: 4, margin: "4px 0" }}>
