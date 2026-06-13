@@ -197,6 +197,21 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       sat = Math.max(sat, 0.85);
       break;
     }
+    case "plasma": {
+      // classic PLASMA field — the GLSL fragment-shader math, evaluated per
+      // fixture on the CPU (Tier-1 #3 first piece): interfering sine waves over
+      // position + a radial term → flowing hue + brightness.
+      const x = f.norm[0] * 6, z = f.norm[2] * 6;
+      const v =
+        Math.sin(x + t * sp) +
+        Math.sin(z * 0.8 - t * sp * 0.7) +
+        Math.sin((x + z) * 0.5 + t * sp * 0.5) +
+        Math.sin(Math.hypot(x - 3, z - 3) - t * sp); // ~ -4..4
+      hue = frac(c.hue + (v + 4) / 8);
+      bri *= 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(v * 1.5 + t * sp));
+      sat = Math.max(sat, 0.85);
+      break;
+    }
     // --- element modes (D4) ---
     case "wind": {
       const w = Math.sin(f.seqT * 6.283 * 2 - t * sp * 0.9) * (0.6 + 0.4 * Math.sin(t * sp * 0.3));
