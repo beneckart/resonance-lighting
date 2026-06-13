@@ -84,6 +84,8 @@ export function Controls() {
   const setGuest = useTwin((s) => s.setGuest);
   const sensors = useTwin((s) => s.sensors);
   const setSensors = useTwin((s) => s.setSensors);
+  const cameraPreset = useTwin((s) => s.cameraPreset);
+  const setCameraPreset = useTwin((s) => s.setCameraPreset);
   const [cueName, setCueName] = useState("");
   const [midi, setMidi] = useState("");
   const [nl, setNl] = useState("");
@@ -125,6 +127,12 @@ export function Controls() {
             {ctrl.autoBars} bars
           </button>
         )}
+      </div>
+
+      <div style={{ marginTop: 10, opacity: 0.7 }}>camera</div>
+      <div style={row}>
+        <button style={btn(cameraPreset === "hero")} onClick={() => setCameraPreset("hero")}>hero 3/4</button>
+        <button style={btn(cameraPreset === "top")} onClick={() => setCameraPreset("top")}>⬇ top-down (petals)</button>
       </div>
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>visualizer</div>

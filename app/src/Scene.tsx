@@ -32,7 +32,8 @@ function GoboFloor() {
         const DEG = Math.PI / 180;
         const fieldHalf = (p.fieldDeg / 2) * DEG;
         const beamHalf = (p.beamDeg / 2) * DEG;
-        const penumbra = Math.min(0.85, Math.max(0.1, (fieldHalf - beamHalf) / Math.max(fieldHalf, 1e-3)));
+        // crisp cookie so the ~15 petal shapes resolve (penumbra down)
+        const penumbra = Math.min(0.4, Math.max(0.04, ((fieldHalf - beamHalf) / Math.max(fieldHalf, 1e-3)) * 0.5));
         if (alive) setCone({ angle: Math.min(Math.PI / 2 - 0.01, fieldHalf), penumbra });
       })
       .catch(() => {});
@@ -101,6 +102,7 @@ function TreeContext() {
 function CameraRig() {
   const center = useTwin((s) => s.center);
   const size = useTwin((s) => s.size);
+  const preset = useTwin((s) => s.cameraPreset);
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as
     | { target?: { set: (x: number, y: number, z: number) => void }; update?: () => void }
@@ -108,16 +110,21 @@ function CameraRig() {
 
   useEffect(() => {
     const d = size * 0.92;
-    camera.position.set(center[0] + d * 0.75, center[1] + d * 0.3, center[2] + d);
     camera.near = Math.max(0.1, size * 0.01);
     camera.far = size * 30;
+    if (preset === "top") {
+      // straight-down projection view — see the petal gobo pattern on the floor
+      camera.position.set(center[0], center[1] + d * 1.5, center[2] + 0.001);
+    } else {
+      camera.position.set(center[0] + d * 0.75, center[1] + d * 0.3, center[2] + d);
+    }
     camera.updateProjectionMatrix();
     camera.lookAt(center[0], center[1], center[2]);
     if (controls?.target) {
       controls.target.set(center[0], center[1], center[2]);
       controls.update?.();
     }
-  }, [center, size, camera, controls]);
+  }, [center, size, camera, controls, preset]);
   return null;
 }
 
