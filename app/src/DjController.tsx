@@ -208,6 +208,27 @@ export function DjController() {
       const hue = a.active ? 210 - a.treble * 170 : 210;
       g.fillStyle = `hsla(${hue},80%,56%,0.75)`;
       g.fill();
+      // BEAT-GRID overlay (rekordbox-style): vertical lines on every beat, bar
+      // lines (every 4th) brighter. When audio is live the grid is anchored to
+      // the PLL beatTime so it scrolls locked to the music; idle shows a faint
+      // static ruler. The right edge (W-1) is "now".
+      const beatPx = W / 8; // ~8 beats visible across the deck
+      if (a.active && a.bpm > 0) {
+        const nowBeat = a.beatTime;
+        for (let bn = Math.ceil(nowBeat - 8); bn <= Math.floor(nowBeat); bn++) {
+          const x = W - 1 - (nowBeat - bn) * beatPx;
+          if (x < 0) continue;
+          const isBar = ((bn % 4) + 4) % 4 === 0;
+          g.fillStyle = isBar ? "rgba(123,240,192,0.5)" : "rgba(159,176,199,0.2)";
+          g.fillRect(Math.round(x), 0, isBar ? 2 : 1, H);
+        }
+      } else {
+        for (let i = 0; i <= 8; i++) {
+          const x = W - 1 - i * beatPx;
+          g.fillStyle = i % 4 === 0 ? "rgba(159,176,199,0.18)" : "rgba(159,176,199,0.08)";
+          g.fillRect(Math.round(x), 0, 1, H);
+        }
+      }
       if (a.active && a.beat > 0.6) { g.fillStyle = "rgba(255,91,110,0.6)"; g.fillRect(W - 2, 0, 2, H); }
       raf = requestAnimationFrame(loop);
     };
