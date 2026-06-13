@@ -62,7 +62,7 @@ export function Scene() {
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
       <EffectComposer>
-        <Bloom intensity={1.6} luminanceThreshold={0.25} luminanceSmoothing={0.5} mipmapBlur radius={0.85} />
+        <Bloom intensity={1.15} luminanceThreshold={0.35} luminanceSmoothing={0.5} mipmapBlur radius={0.8} />
       </EffectComposer>
     </>
   );

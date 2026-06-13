@@ -19,6 +19,7 @@ export interface SimFixture {
   seq: number; // integer rank 0..N-1 around the tree — for the sequencer
   heightT: number; // 0..1 by height (low→high)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
+  beamDeg: number; // beam cone angle (deg) from fixtures.json
 }
 
 export interface Control {
@@ -122,6 +123,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
         seq: rankOf[i],
         heightT: norm[1],
         rnd: rndOf(i),
+        beamDeg: f.beam_deg ?? 120,
       };
     });
     setState({ fixtures, center, size, source: doc.meta.source.split(":")[1] ?? doc.meta.source });

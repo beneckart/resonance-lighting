@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Color, InstancedMesh, Object3D } from "three";
+import { AdditiveBlending, Color, ConeGeometry, InstancedMesh, Object3D } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio } from "./audio";
@@ -8,24 +8,31 @@ import { updateAudio } from "./audio";
 const dummy = new Object3D();
 const col = new Color();
 const lit: Lit = { r: 0, g: 0, b: 0 };
-const GAIN = 2.6; // push bright fixtures into HDR so Bloom makes them glow like lanterns
+const GAIN = 2.1; // push bright fixtures into HDR so Bloom makes them glow like lanterns
+const DEG = Math.PI / 180;
+const refTan = Math.tan(60 * DEG); // reference half-angle for a 120° beam
 
 /**
- * Renders ALL fixtures as one InstancedMesh.
- * - The pattern engine (litFor) + overrides compute each fixture's COMMANDED render.
- * - A mock heartbeat transport (G1) turns that into REPORTED state: when enabled,
- *   each fixture only "reports" its color at a jittered ~0.6–1.2s interval (held in
- *   between → visible staleness), and `deadCount` fixtures stop reporting entirely.
- * - The render shows REPORTED state only (the mirror rule). Monitor mode (F3) tints
- *   dead fixtures red and the store publishes reporting/dead/stale counts.
- * Swap this mock transport for the real ESP-NOW heartbeat and nothing else changes.
+ * The tree's lights, as ONE InstancedMesh of glowing lanterns + ONE InstancedMesh of
+ * additive volumetric beam cones (downward, sized by each fixture's beam angle, colored
+ * by its reported state). The useFrame tick is the firmware stand-in (mock heartbeat
+ * transport, G1); the render shows REPORTED state only (the mirror rule).
  */
 export function TreeLights() {
   const fixtures = useTwin((s) => s.fixtures);
-  const size = useTwin((s) => s.size) * 0.012;
-  const ref = useRef<InstancedMesh>(null);
+  const treeSize = useTwin((s) => s.size);
+  const dotSize = treeSize * 0.012;
+  const beamH = treeSize * 0.22;
 
-  // reported-state buffers (the "what the tree last told us" layer)
+  const lightRef = useRef<InstancedMesh>(null);
+  const beamRef = useRef<InstancedMesh>(null);
+
+  const beamGeom = useMemo(() => {
+    const g = new ConeGeometry(beamH * refTan, beamH, 18, 1, true);
+    g.translate(0, -beamH / 2, 0); // apex at fixture, opens downward
+    return g;
+  }, [beamH]);
+
   const repR = useRef<Float32Array>(new Float32Array(0));
   const repG = useRef<Float32Array>(new Float32Array(0));
   const repB = useRef<Float32Array>(new Float32Array(0));
@@ -33,28 +40,40 @@ export function TreeLights() {
   const statsAt = useRef(0);
 
   useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
+    const lm = lightRef.current;
+    const bm = beamRef.current;
+    if (!lm || !bm) return;
     const n = fixtures.length;
     repR.current = new Float32Array(n);
     repG.current = new Float32Array(n);
     repB.current = new Float32Array(n);
     lastReport.current = new Float32Array(n).fill(-1e9);
     fixtures.forEach((f, i) => {
+      // lantern
       dummy.position.set(f.pos[0], f.pos[1], f.pos[2]);
+      dummy.rotation.set(0, 0, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      mesh.setColorAt(i, col.setRGB(0, 0, 0));
+      lm.setMatrixAt(i, dummy.matrix);
+      // beam cone — scaled in XZ by the fixture's beam angle
+      const s = Math.max(0.25, Math.tan(Math.min(160, Math.max(20, f.beamDeg)) * 0.5 * DEG) / refTan);
+      dummy.scale.set(s, 1, s);
+      dummy.updateMatrix();
+      bm.setMatrixAt(i, dummy.matrix);
+      lm.setColorAt(i, col.setRGB(0, 0, 0));
+      bm.setColorAt(i, col.setRGB(0, 0, 0));
     });
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    lm.instanceMatrix.needsUpdate = true;
+    bm.instanceMatrix.needsUpdate = true;
+    if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
+    if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
   }, [fixtures]);
 
   useFrame((state) => {
-    const mesh = ref.current;
+    const lm = lightRef.current;
+    const bm = beamRef.current;
     const n = fixtures.length;
-    if (!mesh || n === 0) return;
+    if (!lm || !bm || n === 0) return;
     const t = state.clock.elapsedTime;
     const st = useTwin.getState();
     const { control: ctrl, overrides, view } = st;
@@ -64,7 +83,6 @@ export function TreeLights() {
 
     for (let i = 0; i < n; i++) {
       const f = fixtures[i];
-      // commanded render
       litFor(t, f, ctrl, audio, n, lit);
       const ov = overrides[i];
       if (ov) {
@@ -86,7 +104,6 @@ export function TreeLights() {
         lastReport.current[i] = t;
       } else if (isDead) {
         dead++;
-        // never updates → frozen / no signal
       } else {
         const interval = 0.6 + f.rnd * 0.6;
         if (t - lastReport.current[i] >= interval) {
@@ -99,13 +116,19 @@ export function TreeLights() {
       }
 
       if (view.monitor && isDead) {
-        col.setRGB(0.5, 0.0, 0.0); // "no signal" marker
+        col.setRGB(0.5, 0.0, 0.0);
+        lm.setColorAt(i, col);
+        bm.setColorAt(i, col.setRGB(0, 0, 0));
       } else {
-        col.setRGB(repR.current[i] * GAIN, repG.current[i] * GAIN, repB.current[i] * GAIN);
+        const r = repR.current[i];
+        const g = repG.current[i];
+        const b = repB.current[i];
+        lm.setColorAt(i, col.setRGB(r * GAIN, g * GAIN, b * GAIN));
+        bm.setColorAt(i, col.setRGB(r * 0.55, g * 0.55, b * 0.55));
       }
-      mesh.setColorAt(i, col);
     }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
+    if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
 
     if (t - statsAt.current > 0.5) {
       statsAt.current = t;
@@ -115,13 +138,15 @@ export function TreeLights() {
 
   if (fixtures.length === 0) return null;
   return (
-    <instancedMesh
-      ref={ref}
-      args={[undefined as never, undefined as never, fixtures.length]}
-      key={fixtures.length}
-    >
-      <sphereGeometry args={[size, 12, 12]} />
-      <meshBasicMaterial toneMapped={false} />
-    </instancedMesh>
+    <group>
+      <instancedMesh ref={beamRef} args={[undefined as never, undefined as never, fixtures.length]} key={`beam${fixtures.length}`}>
+        <primitive object={beamGeom} attach="geometry" />
+        <meshBasicMaterial transparent blending={AdditiveBlending} opacity={0.07} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${fixtures.length}`}>
+        <sphereGeometry args={[dotSize, 12, 12]} />
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
+    </group>
   );
 }
