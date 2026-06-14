@@ -6,7 +6,7 @@ import type { AudioFeatures } from "./audio";
 const fx = (seq: number): SimFixture => ({
   id: `F${seq}`, name: `F${seq}`, role: "canopy", zone: "mid",
   pos: [1, 2, 3], norm: [0.3, 0.6, 0.8], seqT: seq / 10, seq,
-  heightT: 0.6, rnd: 0.42, beamDeg: 120, lumens: 450,
+  heightT: 0.6, ring: 1, radialT: 0.5, rnd: 0.42, beamDeg: 120, lumens: 450,
 });
 const ctrl = (pattern: string): Control => ({
   pattern, brightness: 0.9, hue: 0.1, sat: 0.85, speed: 1,

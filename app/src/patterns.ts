@@ -132,6 +132,23 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       }
       break;
     }
+    case "rings": {
+      // THREE CONCENTRIC RINGS (Elliot): each ring rotates azimuthally in the
+      // OPPOSITE direction to its neighbours, with a radial IN/OUT wave so the
+      // light also travels toward + away from the trunk. The deck/jog `reverse`
+      // flips tt → flips every ring's direction together (directional control).
+      const ringDir = f.ring % 2 === 0 ? 1 : -1;          // opposite concentric spin
+      const spin = f.seqT + tt * sp * 0.16 * ringDir;     // each ring spins its own way
+      // radial wavefront travelling in/out across the rings over time
+      const radial = 0.5 + 0.5 * Math.sin((f.radialT * 2.2 - tt * sp * 0.5) * Math.PI * 2);
+      // a bright sector chasing around each ring (azimuthal head)
+      const head = 0.5 + 0.5 * Math.cos(spin * Math.PI * 2);
+      hue = frac(c.hue + f.ring / 3 + spin * 0.5);        // each ring its own colour band
+      sat = Math.max(sat, 0.9);
+      bri *= 0.12 + 0.6 * radial + 0.5 * head;            // in/out pulse × rotating head
+      if (audio.active) bri *= 0.6 + 0.8 * (f.ring === 0 ? audio.bass : f.ring === 1 ? audio.mid : audio.treble);
+      break;
+    }
     case "chromatic": {
       // CHROMATIC TRICOLOR (Elliot's ask): three distinct colours moving OUTWARD
       // from ONE source point — the crown (the chandelier hangs there). Each

@@ -8,11 +8,11 @@ import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
-  | "chromatic"
+  | "chromatic" | "rings"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
@@ -33,6 +33,8 @@ export interface SimFixture {
   seqT: number; // 0..1 order AROUND the tree (by azimuth) — for chases/snakes
   seq: number; // integer rank 0..N-1 around the tree — for the sequencer
   heightT: number; // 0..1 by height (low→high)
+  ring: number; // concentric ring index 0=inner 1=mid 2=outer (by radial distance from trunk)
+  radialT: number; // 0..1 normalized horizontal distance from the trunk axis (in/out)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
   beamDeg: number; // beam cone angle (deg) from fixtures.json
   lumens: number; // lumens_max from fixtures.json (beam photometrics)
@@ -198,6 +200,15 @@ export const useTwin = create<TwinState>((setState, get) => ({
     const rankOf = new Array<number>(raw.length);
     order.forEach((idx, rank) => (rankOf[idx] = rank));
     const denom = Math.max(1, raw.length - 1);
+    // concentric RINGS: horizontal distance from the trunk axis → ring index by
+    // value-tertiles (inner/mid/outer), + a normalized radial 0..1 (in/out).
+    const radiusOf = (p: [number, number, number]) => Math.hypot(p[0] - center[0], p[2] - center[2]);
+    const radii = raw.map(radiusOf);
+    const maxR = Math.max(...radii, 1e-3);
+    const sortedR = [...radii].sort((a, b) => a - b);
+    const t1 = sortedR[Math.floor(radii.length / 3)] ?? maxR / 3;
+    const t2 = sortedR[Math.floor((2 * radii.length) / 3)] ?? (2 * maxR) / 3;
+    const ringOf = (r: number) => (r <= t1 ? 0 : r <= t2 ? 1 : 2);
     // deterministic per-fixture pseudo-random
     const rndOf = (i: number) => {
       const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
@@ -221,6 +232,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
         seqT: rankOf[i] / denom,
         seq: rankOf[i],
         heightT: norm[1],
+        ring: ringOf(radii[i]),
+        radialT: radii[i] / maxR,
         rnd: rndOf(i),
         beamDeg: f.beam_deg ?? 120,
         lumens: f.lumens_max ?? 450,
