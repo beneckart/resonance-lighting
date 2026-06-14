@@ -1,7 +1,8 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
-import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, Object3D, Quaternion, SRGBColorSpace, Vector3 } from "three";
+import { useGLTF, useTexture } from "@react-three/drei";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { updateAudio, setEqGains } from "./audio";
@@ -48,6 +49,35 @@ export function TreeLights() {
   const gobo = useTexture("/gobo.png");
   gobo.colorSpace = SRGBColorSpace;
 
+  // The REAL downlight fixture body (blender's downlight_lantern.glb) — the LED
+  // is buried in the tube, so the BODY itself is what we see, glowing with the
+  // pattern colour (the source is hidden, not a bare floating dot). Swappable:
+  // drop a new glb in /public and it re-instances. The glb hangs along -Y.
+  const { scene: lanternScene } = useGLTF("/downlight_lantern.glb");
+  const lanternGeom = useMemo<BufferGeometry>(() => {
+    const geos: BufferGeometry[] = [];
+    lanternScene.updateMatrixWorld(true);
+    lanternScene.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh && m.geometry) {
+        const g = m.geometry.clone();
+        g.applyMatrix4(m.matrixWorld);
+        for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal") g.deleteAttribute(k);
+        if (!g.getAttribute("normal")) g.computeVertexNormals();
+        geos.push(g);
+      }
+    });
+    const g = geos.length ? (geos.length === 1 ? geos[0] : mergeGeometries(geos, false)) : new SphereGeometry(1, 12, 12);
+    g.computeBoundingBox();
+    return g;
+  }, [lanternScene]);
+  // normalize the body to a visible fixture size (≈4.5% of treeSize tall)
+  const lanternScale = useMemo(() => {
+    const bb = lanternGeom.boundingBox;
+    const h = bb ? Math.max(1e-4, bb.max.y - bb.min.y) : 0.25;
+    return (treeSize * 0.045) / h;
+  }, [lanternGeom, treeSize]);
+
   const beamGeom = useMemo(() => {
     const g = new ConeGeometry(beamH * refTan, beamH, 18, 1, true);
     g.translate(0, -beamH / 2, 0); // apex (source) at y=0, base (far) at y=-beamH
@@ -89,8 +119,8 @@ export function TreeLights() {
     lastReport.current = new Float32Array(n).fill(-1e9);
     fixtures.forEach((f, i) => {
       dummy.position.set(f.pos[0], f.pos[1], f.pos[2]);
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(dotSize);
+      dummy.rotation.set(0, 0, 0); // glb hangs along -Y → straight-down lantern (downlight, never up)
+      dummy.scale.setScalar(lanternScale);
       dummy.updateMatrix();
       lm.setMatrixAt(i, dummy.matrix);
       lm.setColorAt(i, col.setRGB(0, 0, 0));
@@ -108,6 +138,8 @@ export function TreeLights() {
           const rl = Math.hypot(rx, rz) || 1;
           aimV.set((rx / rl) * 0.5, -1, (rz / rl) * 0.5).normalize();
         }
+        // downlights cast DOWN only — never project upward (uplights are separate)
+        if (aimV.y > -0.1) { aimV.y = -0.1; aimV.normalize(); }
         aimQ.setFromUnitVectors(DOWN, aimV);
         dummy.quaternion.copy(aimQ);
         dummy.scale.set(s, 1, s);
@@ -296,8 +328,11 @@ export function TreeLights() {
         <primitive object={beamGeom} attach="geometry" />
         <meshBasicMaterial vertexColors transparent blending={AdditiveBlending} opacity={0.09} depthWrite={false} toneMapped={false} />
       </instancedMesh>
+      {/* the REAL downlight lantern bodies, glowing with the live pattern colour
+          (the LED source is hidden inside the tube — we see the lit housing, not
+          a bare dot). wire mode → wireframe of the same body. */}
       <instancedMesh ref={lightRef} args={[undefined as never, undefined as never, fixtures.length]} key={`led${fixtures.length}`}>
-        <sphereGeometry args={[1, 12, 12]} />
+        <primitive object={lanternGeom} attach="geometry" />
         <meshBasicMaterial toneMapped={false} wireframe={viz === "wire"} />
       </instancedMesh>
     </group>

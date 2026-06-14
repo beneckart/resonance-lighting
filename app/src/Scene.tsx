@@ -6,7 +6,6 @@ import { ToneMappingMode } from "postprocessing";
 import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
-import { LanternBodies } from "./LanternBodies";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { groundTint } from "./groundtint";
 import { parseIES } from "./ies";
@@ -205,9 +204,7 @@ export function Scene() {
           <Chandelier />
         </ErrorBoundary>
       )}
-      <ErrorBoundary>
-        <LanternBodies />
-      </ErrorBoundary>
+      {/* lantern bodies now render inside TreeLights (the lit fixture itself) */}
       <TreeLights />
       <OrbitControls makeDefault enableDamping />
       <EffectComposer>
