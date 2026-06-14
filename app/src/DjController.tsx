@@ -160,14 +160,17 @@ function Deck({ side }: { side: "A" | "B" }) {
           transform: "translate(-50%,-50%)", background: "#1c2433", border: "1px solid #34456a",
         }} />
       </div>
-      {/* tempo for A = global speed; pitch slider feel */}
+      {/* DIRECTION slider (not just tempo): signed — left half spins the lights
+          one way around the tree, right half the other; distance from centre =
+          speed. Mirrors the jog wheel (direction + speed), not a plain tempo. */}
       <input
-        type="range" min={0} max={3} step={0.01} value={control.speed}
-        onChange={(e) => set({ speed: Number(e.target.value) })}
+        type="range" min={-3} max={3} step={0.01}
+        value={control.reverse ? -control.speed : control.speed}
+        onChange={(e) => { const v = Number(e.target.value); set({ speed: Math.max(0.05, Math.abs(v)), reverse: v < 0 }); }}
         style={{ width: 60, accentColor: ACCENT }}
-        title="tempo / speed"
+        title="direction + speed of the lights around the tree (left = reverse, right = forward)"
       />
-      <span style={{ color: "#7e8ea6", fontSize: 9 }}>tempo {control.speed.toFixed(2)}×</span>
+      <span style={{ color: "#7e8ea6", fontSize: 9 }}>{control.reverse ? "◄" : "►"} {control.speed.toFixed(2)}× dir</span>
     </div>
   );
 }
