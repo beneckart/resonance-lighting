@@ -40,13 +40,20 @@ export function LanternBodies() {
       }
     });
     if (!geos.length) return null;
-    return geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+    const g = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+    g.computeBoundingBox();
+    return g;
   }, [scene]);
 
-  // the glb IS modelled at real-world scale (metres, ~0.07×0.25 m) in the same
-  // units as the fixture positions → scale 1 is geometrically accurate. The
-  // bodies are intentionally small + dim (the LED source is hidden in the tube).
-  const scale = useMemo(() => 1, []);
+  // SCALE FIX: the glb is modelled in metres (~0.25 m tall) but the fixture
+  // positions live in a ~100-unit tree space — so scale 1 = sub-pixel invisible.
+  // Normalize the body to a visible fraction of the tree (≈3.5% of treeSize ≈ a
+  // housing a bit larger than the LED dot) using the glb's own measured height.
+  const scale = useMemo(() => {
+    const bb = geom?.boundingBox;
+    const h = bb ? Math.max(1e-4, bb.max.y - bb.min.y) : 0.25;
+    return (treeSize * 0.035) / h;
+  }, [geom, treeSize]);
 
   useLayoutEffect(() => {
     const im = ref.current;

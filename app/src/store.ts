@@ -132,7 +132,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
   cinematic: false,
-  timeOfDay: 0,
+  // ?tod=<0..1> deep-links a time of day (0 night … 1 day) — handy for previewing
+  // the install in daylight (structure + fixture bodies read against a lit sky).
+  timeOfDay: (() => {
+    if (typeof location === "undefined") return 0;
+    const t = new URLSearchParams(location.search).get("tod");
+    return t == null ? 0 : Math.max(0, Math.min(1, parseFloat(t) || 0));
+  })(),
   control: {
     pattern: "sequence",
     brightness: 0.9,
