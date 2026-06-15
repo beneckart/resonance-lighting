@@ -37,6 +37,10 @@ or set a dedicated bench AP/router to a fixed channel.
 ./build.sh --role peer   --channel 11 --port /dev/ttyACM1   # 4 peers
 # OTA (node must be in maintenance mode first):
 ./build.sh --role peer   --channel 11 --ota 192.168.4.61
+
+# travel / client-isolated WiFi fallback:
+# peer starts its own temporary AP in maintenance mode instead of joining bench WiFi
+./build.sh --role peer   --channel 11 --maint-ap --port /dev/ttyACM1
 ```
 
 Recover the IP/banner via the pyserial RTS pulse (native USB-CDC; see
@@ -47,9 +51,13 @@ Recover the IP/banner via the pyserial RTS pulse (native USB-CDC; see
 pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-hangtest`,
 `--maint-timeout S`, `--start-maint`, `--autosleep`/`--budget-mah`/`--wake-s`,
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
-`--serial-bridge`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--batt-ntc` (battery
+`--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--batt-ntc` (battery
 thermistor on charger TS — ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
+
+The live master command `m<v10>` sets charger maintain/VINDPM in volts x10 across the
+fleet and accepts the PowerFeather SDK range 4.0-16.8 V, e.g. `m46` for 4.6 V or `m71`
+for a 7.1 V panel MPP.
 
 ### Env sensors (MPP sweep: light + panel temp over the air)
 A TSL2591 (lux, 0x29) and/or SHT31-D (temp/RH, 0x44) chained on the peer's STEMMA-QT
@@ -92,6 +100,33 @@ Channel note: because the field board never associates, `--channel` is **yours t
 pick** (a clean 2.4 GHz channel) — no coupling to the Eero's channel. Both boards must
 share it. The **association/roaming** empirical test (does it actually cling to the far
 node?) is deferred — `firmware/wifi_diag/` is the tethered probe for that.
+
+## Travel maintenance AP (client-isolated networks)
+
+Default maintenance mode is still the fleet path: peers join a normal bench/router WiFi
+with client isolation disabled, so `net_bench_ota.py` can update many nodes in parallel.
+
+For travel benches where the only available WiFi is client-isolated, build a field peer
+with `--maint-ap`. Normal telemetry still rides ESP-NOW to the USB serial-bridge master.
+When the master sends `U` (sustained `ENTER_MAINT`), the peer leaves ESP-NOW and starts a
+temporary AP named `ResonanceMaint-<nodeid>` with password `resonance`; the peer serves
+`/`, `/telemetry`, `/resume`, and `/update` at `http://192.168.4.1/`.
+
+```
+# USB desk bridge (keeps relaying telemetry; no WiFi dependency):
+./build.sh --role master --channel 11 --serial-bridge --port /dev/ttyACM0
+
+# Field peer: solar/INA/env telemetry over ESP-NOW, self-AP only during maintenance:
+./build.sh --role peer --channel 11 --maint-ap --chem lfp --cap 6000 --port /dev/ttyACM1
+
+# Later, on the bridge serial console: press `U`.
+# Then connect the laptop to WiFi SSID ResonanceMaint-<nodeid> / password resonance.
+# OTA from that temporary AP:
+./build.sh --role peer --channel 11 --maint-ap --chem lfp --cap 6000 --ota 192.168.4.1
+```
+
+This AP mode is intentionally one-peer-at-a-time. Use the default shared-WiFi maintenance
+mode whenever you have a non-isolated router and want parallel OTA.
 
 ## Onboard LED = battery level (GPIO46)
 

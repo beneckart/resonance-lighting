@@ -12,6 +12,24 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-15 - Ben + Codex - Travel maintenance AP committed; Voltaic ETFE panel prep captured
+
+Remote travel bench update. `net_bench` now has a `--maint-ap` option for client-isolated
+networks: the normal/parallel path remains shared WiFi maintenance mode, but a field peer
+can now enter maintenance by advertising `ResonanceMaint-<nodeid>` and serving OTA at
+`192.168.4.1`. The master serial-bridge path stays useful on USB for telemetry and the
+field peer can remain pure ESP-NOW until maintenance is requested. Also widened live
+`SET_MAINTAIN` (`m<v10>`) to the PowerFeather SDK range, 4.0-16.8 V, so high-Vmp panels
+such as Voltaic P126 can be swept without a reflash.
+
+Captured tomorrow's Voltaic ETFE test prep in
+`docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`: P105 5 W and P126 2 W source specs,
+derived size/weight/cost comparisons, P105-vs-P126 BOM read, and a concrete outdoor run
+shape for the COM7 serial bridge plus INA-instrumented peer. Key warning for the run:
+both panels have Voc above the BQ25628E default low input-OVP threshold, so a no-charge
+result may be the known bright-sun input qualification latch until the VBUS_OVP/HIZ-kick
+firmware item is handled.
+
 ## 2026-06-12 (cont. 3) — Ben + Claude — Interactivity/presence sensing: option space mapped (Elliot ask)
 
 Elliot (project lead) saw the 06-11 LED demo and asked for presence detection /

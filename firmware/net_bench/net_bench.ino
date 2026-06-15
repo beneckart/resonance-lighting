@@ -129,8 +129,20 @@ using namespace PowerFeather;
 #ifndef NB_WAKE_LISTEN_MS
 #define NB_WAKE_LISTEN_MS 400 // per-wake window to catch ENTER_MAINT before re-sleeping (ms)
 #endif
+#ifndef NB_MAINTAIN_MIN_V10
+#define NB_MAINTAIN_MIN_V10 40 // PowerFeather SDK supports 4.0 V minimum
+#endif
+#ifndef NB_MAINTAIN_MAX_V10
+#define NB_MAINTAIN_MAX_V10 168 // PowerFeather SDK supports 16.8 V maximum
+#endif
 // NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE,
-// NB_SLEEP_CYCLE are presence-only flags.
+// NB_MAINT_AP, NB_SLEEP_CYCLE are presence-only flags.
+#ifndef NB_MAINT_AP_PASS
+#define NB_MAINT_AP_PASS "resonance"
+#endif
+#ifndef NB_MAINT_AP_PREFIX
+#define NB_MAINT_AP_PREFIX "ResonanceMaint"
+#endif
 #ifndef NB_BUDGET_MAH
 #define NB_BUDGET_MAH 1000
 #endif
@@ -592,6 +604,24 @@ void configureOtaRoutes() {
 }
 
 bool startWifiOta() {
+#if defined(NB_MAINT_AP)
+  WiFi.mode(WIFI_AP);
+  WiFi.setSleep(false);
+  String ssid = String(NB_MAINT_AP_PREFIX) + "-" + shortId;
+  bool ok = WiFi.softAP(ssid.c_str(), NB_MAINT_AP_PASS, NB_CHANNEL);
+  if (!ok) {
+    Serial.println("maintenance AP start failed");
+    return false;
+  }
+  configureOtaRoutes();
+  server.begin();
+  otaActive = true;
+  otaMode = "ap";
+  Serial.print("maintenance AP '"); Serial.print(ssid);
+  Serial.print("' pass='" NB_MAINT_AP_PASS "' ip="); Serial.print(WiFi.softAPIP());
+  Serial.printf(" ch=%d\n", NB_CHANNEL);
+  return true;
+#else
 #if RES_HAS_WIFI_SECRETS
   WiFi.mode(WIFI_STA);
 #if NB_WIFI_LOWPOWER
@@ -616,10 +646,12 @@ bool startWifiOta() {
   Serial.println("no wifi_secrets.h -> cannot OTA");
   return false;
 #endif
+#endif
 }
 
 void stopOtaAndWifi() {
   if (otaActive) server.stop();
+  WiFi.softAPdisconnect(true);
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   otaActive = false;
@@ -992,10 +1024,10 @@ void processRx() {
       uint8_t hz = ((NbCmd *)it.data)->arg;
       if (hz >= 1 && hz <= 100) { gRateHz = hz; Serial.printf("rate set -> %u Hz\n", hz); }
     } else if (h->type == NB_SET_MAINTAIN && it.len >= (int)sizeof(NbCmd)) {
-      // Live-set the charger VINDPM/maintain (panel MPP). arg = volts x10 (44..58).
+      // Live-set the charger VINDPM/maintain (panel MPP). arg = volts x10.
       // Lets the master sweep the setpoint or hill-climb it (P&O MPPT) with no reflash.
       uint8_t v10 = ((NbCmd *)it.data)->arg;
-      if (pfReady && v10 >= 40 && v10 <= 58) {
+      if (pfReady && v10 >= NB_MAINTAIN_MIN_V10 && v10 <= NB_MAINTAIN_MAX_V10) {
         Board.setSupplyMaintainVoltage((float)v10 / 10.0f);
         Serial.printf("VINDPM/maintain set -> %.1f V\n", (float)v10 / 10.0f);
       }
@@ -1109,12 +1141,15 @@ void handleSerial() {
       if (p < '0' || p > '9') break;
       Serial.read();
       explicitV10 = (explicitV10 < 0 ? 0 : explicitV10 * 10) + (p - '0');
-      if (explicitV10 > 100) break;
+      if (explicitV10 > NB_MAINTAIN_MAX_V10) break;
     }
     uint8_t v10;
     if (explicitV10 >= 0) {
-      if (explicitV10 < 40 || explicitV10 > 58) { // match the peer-side accept window
-        Serial.printf("SET_MAINTAIN %d rejected (range 40..58 = 4.0..5.8 V)\n", explicitV10);
+      if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
+        Serial.printf("SET_MAINTAIN %d rejected (range %d..%d = %.1f..%.1f V)\n",
+                      explicitV10, NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10,
+                      (float)NB_MAINTAIN_MIN_V10 / 10.0f,
+                      (float)NB_MAINTAIN_MAX_V10 / 10.0f);
         break;
       }
       v10 = (uint8_t)explicitV10;
@@ -1229,6 +1264,9 @@ void setup() {
 #ifdef NB_SLEEP_CYCLE
   Serial.printf("mode: SLEEP-CYCLE (deep-sleep %ds between telemetry wakes; %dms maint-listen)\n",
                 NB_SLEEP_S, NB_WAKE_LISTEN_MS);
+#endif
+#ifdef NB_MAINT_AP
+  Serial.println("mode: MAINT-AP (maintenance starts a temporary self AP for /update)");
 #endif
 
   esp_read_mac(myMac, ESP_MAC_WIFI_STA);

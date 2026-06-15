@@ -42,7 +42,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [~] Measure LED current for center-only, 3-pixel, 9-pixel/crop, and full-array capped modes — LARGELY DONE 2026-06-11 via `/set?n=` + `ops/bench/hex_ramp.py` (INA ground truth, HEX): single px 41.8 mA full, count-ramp safe to n=10 @ full (288 mA) / n=37 @ val 64 (261 mA) on the bench LFP — the ceiling is battery sag, see LOG 2026-06-11 (Ben).
 - [ ] Add SEN0291 I2C wattmeters to power-test harness and bench worksheet when they arrive (Ben).
 - [ ] Run iso-current LED brightness/gobo comparison from `docs/tests/ISO_CURRENT_LED_BRIGHTNESS_TEST_2026-05-18.md` (Ben + Steve).
-- [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben).
+- [ ] Measure solar charge behavior for each 1–5 W panel in sun/shade/heat (Ben). Next
+  outdoor run: Voltaic P105/P126 ETFE prep in
+  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`.
 - [ ] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks (Ben).
 - [ ] Test standard OTA maintenance mode on at least two COTS boards (Ben).
 - [~] Test ESP-NOW heartbeat/state packets with jitter/sequence numbers — prototyped + bench-validated on 1 board in `firmware/net_bench/` (broadcast heartbeat w/ seq + jitter, per-source seq-gap PDR). Multi-node matrix pending (see Networking feasibility below) (Ben).
@@ -233,7 +235,10 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] Compare 18650 LiFePO4 sample capacity against rated capacity (Ben).
 - [ ] Evaluate 26650 LiFePO4 only if 18650 sourcing or autonomy becomes a problem (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
-- [ ] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
+- [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
+  P105/P126 Voltaic ETFE specs captured 2026-06-15 in
+  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`; still record shipping/lead-time
+  once procurement is active.
 - [ ] Search for round/circular panels for production aesthetics, but do not block R&D on them (Ben).
 - [ ] Design hat top so R&D rectangular panels and production round panels can both be accommodated if needed (Steve).
 

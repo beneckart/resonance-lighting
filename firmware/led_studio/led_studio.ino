@@ -644,8 +644,8 @@ void handleState() {
 }
 
 void setupWifi() {
-  WiFi.mode(WIFI_STA);
 #if HAVE_SECRETS
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   Serial.print("WiFi connecting");
   uint32_t t0 = millis();
@@ -655,8 +655,15 @@ void setupWifi() {
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("LED Studio at http://");
+    bool apOk = WiFi.softAP(AP_SSID, AP_PASS, WiFi.channel());
+    Serial.print("LED Studio STA at http://");
     Serial.println(WiFi.localIP());
+    if (apOk) {
+      Serial.print("LED Studio AP '" AP_SSID "' -> http://");
+      Serial.println(WiFi.softAPIP());
+    } else {
+      Serial.println("LED Studio AP start failed");
+    }
     return;
   }
   Serial.println("station failed; starting AP fallback");

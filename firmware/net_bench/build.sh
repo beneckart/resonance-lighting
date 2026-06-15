@@ -7,6 +7,7 @@
 #   ./build.sh --role master --channel 6 --port /dev/ttyACM0     # USB flash a master
 #   ./build.sh --role peer   --channel 6 --port /dev/ttyACM1     # USB flash a peer
 #   ./build.sh --role peer   --channel 6 --ota 192.168.4.61      # OTA flash (maintenance mode)
+#   ./build.sh --role peer   --channel 6 --maint-ap              # travel: peer advertises AP for OTA
 #   ./build.sh                                                    # compile only
 #
 # The bench AP MUST be configured to the same fixed channel as --channel.
@@ -18,7 +19,7 @@ SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROLE=""; CHANNEL=""; FRAME_HZ=""; HB_HZ=""; JITTER=""; WDT_S=""; WDT_HANG=""
 MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
-SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""
+SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""; MAINT_AP=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -35,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     --wake-s) WAKE="$2"; shift 2;;
     --wifi-lowpower) LOWPOWER="1"; shift;;
     --serial-bridge) SERIAL_BRIDGE="1"; shift;;     # desk bridge: relay nb-* to USB serial (master, no WiFi)
+    --maint-ap) MAINT_AP="1"; shift;;               # travel peer: maintenance mode starts its own AP for /update
     --scan-report) SCAN_REPORT="1"; shift;;         # field peer: 2.4 GHz scan-report over ESP-NOW
     --scan-s) SCAN_S="$2"; shift 2;;
     --scan-max) SCAN_MAX="$2"; shift 2;;
@@ -80,6 +82,7 @@ esac
 [[ -n "${WAKE}" ]]          && FLAGS+=" -DNB_WAKE_S=${WAKE}"
 [[ -n "${LOWPOWER}" ]]      && FLAGS+=" -DNB_WIFI_LOWPOWER=1"
 [[ -n "${SERIAL_BRIDGE}" ]] && FLAGS+=" -DNB_SERIAL_BRIDGE=1"
+[[ -n "${MAINT_AP}" ]]      && FLAGS+=" -DNB_MAINT_AP=1"
 [[ -n "${SCAN_REPORT}" ]]   && FLAGS+=" -DNB_SCAN_REPORT=1"
 [[ -n "${SCAN_S}" ]]        && FLAGS+=" -DNB_SCAN_S=${SCAN_S}"
 [[ -n "${SCAN_MAX}" ]]      && FLAGS+=" -DNB_SCAN_MAX=${SCAN_MAX}"
