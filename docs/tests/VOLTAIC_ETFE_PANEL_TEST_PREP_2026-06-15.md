@@ -66,6 +66,18 @@ Battery config note: both current test boards are on LFP 2000 mAh. A wrong capac
 hurts SOC/time-to-empty learning and any SOC-based decisions. The dangerous mismatch is
 chemistry/charge voltage. Charge current is still controlled separately by `--charge-ma`.
 
+SOC / gauge caution from the 2026-06-17 panel tests: do not use the MAX17260 percentage as
+the sole truth for whether an LFP cell can accept charge. We saw the gauge report roughly
+58% while the cell sat around 3.57-3.58 V and the charger would not pull the 5 W panel down
+to the requested VINDPM, indicating charge-taper / demand-limited behavior. For MPP tests,
+trust voltage, current, and charge acceptance first:
+
+- High LFP voltage near 3.55-3.60 V can mean "effectively full" even if SOC says mid-pack.
+- If changing VINDPM does not change input power, the run is probably demand-limited, not
+  panel-limited.
+- Use panel-side INA power for panel capability, and corrected battery-side current/Wh for
+  system energy accounting; treat SOC as a rough UI hint until the gauge has learned.
+
 ## Suggested outdoor run
 
 Use COM7 as the USB serial bridge/master and the INA-instrumented board as the field peer.
@@ -95,6 +107,10 @@ Run shape:
    sizing source when available because BQ supply telemetry has under-reported by about 10%.
 5. Log panel orientation, sky state, panel-back temperature, and any shading from the
    temporary enclosure or cable routing.
+   - Temperature comparisons need the measurement method attached: IR-gun front-surface
+     readings, SHT31/back-side readings, and panels with different backing thickness are
+     not apples-to-apples. For the ETFE panels, the beefier backing may make the taped
+     sensor lag or under-read actual cell/front temperature versus the thinner Seeed 3 W.
 6. Repeat one setpoint after moving the panel hot/cold if the temperature changed a lot.
 
 ## Decision read

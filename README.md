@@ -29,7 +29,14 @@ Two production paths remain open, pending procurement and the sizing/thermal de-
 1. **COTS track.** Buy PowerFeather V2 boards (ideally with factory-soldered VDC + LED connectors via a custom assembly, to avoid per-unit hand-soldering — ADR 0009). Removes custom-hardware risk.
 2. **Custom PCBA track.** A PowerFeather-derived board (ESP32-S3-WROOM module, BQ25628E-class charger, MAX17260-class gauge, buck-boost 3.3 V rail, switchable LED/STEMMA rail, keyed connectors, boring USB/pogo flashing) if COTS supply/cost/assembly at 100+ units doesn't pencil out.
 
-The **LED module is still being decided** (ADR 0018): SK6812 "HEX" direct-GPIO @ 3.3 V (distributed area/wash) vs a 4 W RGBW point source (crisp gobo), both driven **direct-GPIO off a free pin**. The earlier Adafruit IS31FL3741 13×9 STEMMA-QT matrix was **ruled out** — it browns out the board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bake-off candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose; PowerFeather V2 won.
+The **LED axis is now a mixed fleet by optical role** (ADR 0022): SK6812 "HEX"
+direct-GPIO for close-range animation / ambient glow, and a 4 W RGBW point source for
+long-throw crisp gobo projection. Both are driven **direct-GPIO off a free pin**. The
+exact type mix and placement by tree height are still open. The earlier Adafruit
+IS31FL3741 13x9 STEMMA-QT matrix was **ruled out** (ADR 0018) -- it browns out the
+board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bake-off
+candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose;
+PowerFeather V2 won.
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
@@ -83,4 +90,12 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## Status
 
-The COTS bake-off concluded: **PowerFeather V2 is confirmed as the controller / solar / telemetry brain** (ADR 0021). Current work is the set of de-risks gating a bulk parts order: closing the **battery/panel sizing** (harvest-at-MPP vs LED-show + idle load; the "2000 mAh" LFP cell capacity is now VERIFIED at ~2077 mAh (2026-06-10 full charge→empty INA-coulomb run) — at/above rating; the gauge's own SOC stays unreliable on LFP's flat plateau until it learns a cycle, so coulomb-count. Production targets a larger LFP 32700 (~6000 mAh) anyway), **thermal** validation in a sealed hat (LFP charge-temperature limits), the **LED module** decision, and **procurement** at 100+ units (COTS vs custom assembly). See `LOG.md` and `TODO.md` for the live state.
+The COTS bake-off concluded: **PowerFeather V2 is confirmed as the controller / solar /
+telemetry brain** (ADR 0021). Current work is the set of de-risks gating a bulk parts
+order: closing the **battery/panel sizing** (harvest-at-MPP vs LED-show + idle load), the
+**sealed-hat thermal** question, the **HEX/RGBW type mix and placement**, and
+**procurement** at 100+ units (COTS vs custom assembly). The 2000 mAh LFP bench cell is
+verified at about 2077 mAh, and the leading 32700 production-cell candidate measured
+5726 mAh on its first clean discharge. Treat LFP SOC as advisory until the gauge learns;
+use coulomb counting and voltage/current guardrails. See `LOG.md` and `TODO.md` for the
+live state.

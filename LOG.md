@@ -12,6 +12,27 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-17 - Codex - Reconciled stale architecture docs before commit
+
+Cleaned up stale overview context that still pointed at the early ESP32-C3/CN3058/AP2112K
+and IS31-primary direction. Added ADR 0022 to record the LED fleet decision from the gobo
+session: use both HEX and 4 W RGBW point-source modules by optical role, with type mix and
+placement still open. Rewrote the canonical system architecture/power-budget doc around
+PowerFeather V2, BQ25628E/MAX17260/TPS631013, direct-GPIO LEDs, role-specific panel sizing,
+and the still-open energy/thermal/RF gates. Updated the hardware README, BOM skeleton,
+roadmap, references, glossary, README status, and TODO entries to match the current state.
+
+## 2026-06-17 - Codex - Onboarding pass
+
+Read the repo orientation path (`README.md`, latest `LOG.md`, `TODO.md`, `BACKGROUND.md`,
+`docs/block-diagram/SYSTEM.md`, key ADRs, current test notes, and bench/tool README files)
+to re-establish the live state before taking on implementation work. Current mental model:
+PowerFeather V2 remains the validated COTS/reference architecture; networking, solar path,
+and battery-only OTA/rollback are feasibility-green; the active gates are panel/cell sizing,
+LED role split and placement, VBUS_OVP/HIZ charger guard, mock-hat RF/thermal, and production
+firmware hardening. Noted existing uncommitted work on Voltaic ETFE testing, PowerFeather
+SOC cautions, net_bench docs, and the new serial-bridge dashboard; left that WIP untouched.
+
 ## 2026-06-15 - Ben + Codex - Travel maintenance AP committed; Voltaic ETFE panel prep captured
 
 Remote travel bench update. `net_bench` now has a `--maint-ap` option for client-isolated

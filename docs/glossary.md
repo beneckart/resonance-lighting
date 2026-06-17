@@ -67,7 +67,8 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **CA** — Cellular Automaton / Automata.
 - **DMA** — Direct Memory Access.
 - **EDA** — Electronic Design Automation.
-- **FCC** — US Federal Communications Commission. ESP32-C3-MINI-1 module is FCC pre-certified.
+- **FCC** — US Federal Communications Commission. Use pre-certified Espressif modules
+  such as ESP32-S3-WROOM-class parts; avoid custom RF.
 - **GPIO** — General-Purpose Input/Output (pin).
 - **IDE** — Integrated Development Environment.
 - **I2S** — Inter-IC Sound bus. ESP32 uses it for parallel WS2812B output via DMA.

@@ -149,6 +149,24 @@ Also: changing battery **chemistry** (Li-ion ↔ LFP) means flashing the matchin
 sets the charger termination voltage (LFP ~3.6 V vs Li-ion 4.2 V); charging an LFP under a
 Li-ion profile overcharges it.
 
+## Treat LFP SOC as advisory, not control truth
+
+The MAX17260 current telemetry is useful after calibration, but its percentage SOC is not a
+hard state variable during LFP solar tests. LFP's voltage curve is flat through the middle
+and steep near the top/bottom, and the gauge can remain badly wrong after capacity/profile
+changes or before a full learn cycle.
+
+Observed 2026-06-17 on the Voltaic 5 W ETFE test: the gauge reported ~58% while the cell was
+around 3.57-3.58 V and the charger would not pull the panel down to the requested VINDPM.
+That is a charge-acceptance / taper signature, not a panel limit. In solar qualification
+and production power logic:
+
+- Use battery voltage and current as guardrails, especially near the LFP top and bottom.
+- Use corrected battery-current integration for Wh/mAh accounting.
+- Use panel-side INA only as a bench/sentinel truth source for panel capability and faults.
+- Avoid SOC-only decisions; require voltage/current cross-checks for low-battery and
+  "hungry enough for MPP test" decisions.
+
 ## OTA A/B rollback: the `verifyOta()` hook is C-linkage
 
 `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` in arduino-esp32 3.3.7. Rollback runs via a weak

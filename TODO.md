@@ -8,7 +8,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Add ADR 0015 — PowerFeather V2 as COTS/reference architecture — **DONE** (`docs/decisions/0015-powerfeather-v2-cots-reference.md`) (Ben).
 - [x] Add ADR 0016 — COTS prototype shortlist — **DONE** (`docs/decisions/0016-...`) (Ben).
 - [x] Add ADR 0017 — Battery cell format and sourcing — **DONE** (`docs/decisions/0017-...`) (Ben).
-- [x] Add/rewrite ADR 0018 — LED module/interface plan. **DONE 2026-06-04** — rewritten: IS31 ruled out, module left undecided (HEX-direct + 4 W RGBW both live, complementary roles), original decision preserved as superseded. **Partially settled by 2026-06-04 bench work:** IS31 13×9 OUT (shared-bus brownout) is firm. **LED module NOT yet decided** — two live, *complementary* candidates: SK6812 "HEX" direct-GPIO @ 3.3 V off the I2C bus (distributed/area source → washes gobo, good for general glow; no boost; *apparently* more efficient than WS2812C NeoHEX but the ~1.6× figure is muddied by varying-SOC testbeds) **vs** 4 W RGBW (single point source → crisp gobo shadows). The point-source-vs-area distinction maps onto the two lighting modes (crisp mandala vs wash), so the "winner" may be application-dependent, not one part. RGBW low-voltage behavior needs better characterization (undervolting looks viable — 5 V not strictly required — but its 3.3 V limits are not yet mapped). Gobo testing still pending. See LOG 2026-06-04 entries + `ops/bench/data/ca/led-par-vs-draw.png` (Ben).
+- [x] Add/rewrite ADR 0018 -- LED module/interface plan. **DONE 2026-06-04**: IS31 ruled out for the V2 battery build; direct-GPIO LED path established (Ben/Claude).
+- [x] Add ADR 0022 -- mixed LED fleet by optical role. **DONE 2026-06-17**: HEX for close-range animation / glow; 4 W RGBW point source for long-throw crisp gobo. Placement/type mix remains open below (Ben/Codex).
 - [x] Add `docs/research/COTS_SURVEY_2026-05-10.md` — **DONE** (exists) (Ben).
 - [x] Add `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md` — **DONE** (exists) (Ben).
 - [x] Add `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md` — **DONE** (exists) (Ben).
@@ -33,7 +34,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Test home-WiFi web OTA upload end-to-end on all three COTS smoke boards (Ben).
 - [ ] Test temporary AP / portable-router OTA upload path before field-style testing (Ben).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ — **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis → SK6812 HEX direct-GPIO (Ben).
-- [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + WS2812/SK6812 LED — **a leading path** (HEX direct-GPIO on a free pin @ 3V3, off the I2C bus). LED brownout-safety validated; **module choice still open** (HEX-direct vs 4 W RGBW point-source — see gobo/characterization TODOs); remaining: solar + enclosure (Ben).
+- [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED —
+  **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed
+  HEX + 4 W RGBW fleet by optical role. Remaining: solar sizing, type mix/placement,
+  enclosure, and production connectorization (Ben).
 - [ ] Build Track C: FeatherS2 Neo + DFRobot DFR0559; Feather battery JST left empty (Ben).
 - [ ] Build Track D: Atom Matrix + DFRobot DFR0559 (Ben).
 - [ ] Run incoming inspection and board-ID procedure from COTS test plan (Ben).
@@ -49,7 +53,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Test standard OTA maintenance mode on at least two COTS boards (Ben).
 - [~] Test ESP-NOW heartbeat/state packets with jitter/sequence numbers — prototyped + bench-validated on 1 board in `firmware/net_bench/` (broadcast heartbeat w/ seq + jitter, per-source seq-gap PDR). Multi-node matrix pending (see Networking feasibility below) (Ben).
 - [ ] Test LED fail-safe: stuck LEDs, MCU hang, watchdog reset, rail-off recovery (Ben).
-- [ ] Test gobo projection with IS31FL3741, NeoHEX, FeatherS2 Neo, Atom Matrix (Ben + Steve).
+- [ ] Test remaining production-relevant gobo/filter variants with HEX and 4 W RGBW
+  point-source modules; keep older IS31/NeoHEX/FeatherS2/Atom data as historical
+  fallback context only (Ben + Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
 - [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; PCBA-friendly starter PCB exists, schematic remains (Ben).
@@ -120,7 +126,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Confirm NeoDriver works powered from 3V3 (dim, under 1 A) on battery — YES, board 1 stable, no brownout; `--brightness` flag added (Ben).
 - [x] **NeoHEX (WS2812C-2020) vs HEX (SK6812) efficiency** — DONE: **HEX ~1.6x more PAR/mA** (consistent across brightness), so HEX favored for the power budget. Tooling: `--bright-sweep` fw + `ops/bench/led_efficiency_sweep.py` + Apogee SQ-420 PAR sensor. Still TODO: visual **color/dimming** comparison (PAR can't capture it); optional higher-SNR re-run (sensor closer than 6") (Ben).
 - [x] **Test single high-power RGBW LED** (Adafruit 5163, 4 W) — DONE (first pass): brightest + most efficient at high brightness; single point source (→ crisp gobo). At 3.3 V the current curve goes non-monotonic in the mid-range (operating near its Vf) — but **undervolting is viable (5 V NOT strictly required)** per Ben's prior experience; this run just didn't cleanly characterize its 3.3 V limits. **Open: map RGBW low-voltage behavior properly** (dimming range, color balance, max usable brightness at 3.3 V vs a small boost). `led-par-vs-draw.png` / `rgbw-undervolt.png` (Ben).
-- [~] **LED axis NARROWED (not resolved)** → IS31 out (firm). Two live, complementary candidates remain: distributed dimmable glow / gobo-wash = **SK6812 HEX direct-GPIO @3.3V** (no boost); crisp-shadow point source = **4 W RGBW** (undervolts at 3.3 V — viable, 5 V not strictly required, limits TBD). **No frontrunner yet** — the choice likely hinges on gobo behavior (point vs area) and the RGBW low-V characterization, and may end up application-dependent. Update ADR 0018 to reflect this (do NOT record a single winner yet) (Ben).
+- [x] **LED axis decision recorded** — ADR 0022 accepts a mixed fleet by role: SK6812
+  HEX direct-GPIO for close-range animation / glow, and 4 W RGBW point source for
+  long-throw crisp gobo. Open work moves to type mix, placement, power budget, and
+  boost/current-cap characterization (Ben/Codex, 2026-06-17).
 - [x] **Measure LED current vs brightness** — DONE across NeoHEX/HEX/RGBW/warm-white via `--bright-sweep` + Apogee PAR sensor; full efficiency map in `led-par-vs-draw.png`. (Caveat: confounded by buck-boost efficiency vs SOC — see Field reliability.) (Ben).
 - [ ] Investigate disabling BQ25628E input source-detection to beat the 500 mA USB charge cap (bench convenience only; solar unaffected) (Ben).
 - [x] ~~Build a SOLID LFP connection / re-run on solid connection~~ — **SUPERSEDED**: the brownout turned out IS31-specific (its chip on the shared I2C bus), not the battery connection. The H2-marginal-connection thread is closed (Ben).
@@ -138,7 +147,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] Build interactive web app to dial in HEX looks (brightness/RGB sliders, shape rings, spiral/orbit/breathe/twinkle, Split-RGB fringing, Freeze+Step, settings readback) — DONE, validated on hardware (PowerFeather ACM1, HEX pin 10); served at the IP from the boot banner (Ben/Claude).
 - [x] Build interactive web app for the **4 W RGBW point source** (`firmware/rgbw_studio/`): R/G/B/W sliders, white/warmth presets + crossfade, hue/breathe/candle/fade animations, settings readback — DONE, validated on hardware (ACM1, pin 10) (Ben/Claude).
 - [x] Run the gobo session on the inverted-lantern rig — **DONE 2026-06-11, VERDICT: BOTH module types, by role** (LOG 2026-06-12): HEX = animations/Split color-separation, best within ~6 ft (washes out at 10-15 ft); 4 W RGBW = crisp at 15 ft, Venn-diagram color fringing (overlaps mix NEW colors). Fleet = lanterns of both types. HEX looks best at 1-3 px (white or single-channel) → realistic HEX gobo draw ~0.4-0.6 W battery-side = all-night budget (Ben).
-- [ ] **Update ADR 0018: LED module = BOTH, by role** (HEX close-range/animation lanterns + 4 W RGBW long-throw gobo lanterns); record the open placement question — which tree heights/positions get which type, and the type mix ratio (Ben).
+- [x] **Record LED module = BOTH, by role** — DONE 2026-06-17 via ADR 0022
+  (`docs/decisions/0022-mixed-led-fleet-by-role.md`), preserving ADR 0018's IS31
+  rejection and direct-GPIO constraint (Ben/Codex).
+- [ ] Decide HEX/RGBW **type mix and placement**: which tree heights/positions get each
+  module type, and whether panel size also splits by role (Ben + Steve + team).
 - [ ] **Capture per-look settings**: when a look is a keeper, record the led_studio sliders + the UI Battery line voltage (brightness is SOC-dependent until the 4.2 V boost lands) (Ben + Steve).
 - [ ] Compare Steve's **3 flat sample filters** through the rig; note which pattern reads best at the install throw (Ben).
 - [ ] Capture ceiling photos per source/filter for the record; fold results into a gobo test write-up (Ben).

@@ -163,6 +163,13 @@ maintenance + enter · `c` resume · `x` watchdog hang test (needs `--wdt-hangte
   to UDP:54321, so all the UDP tooling above works from a desk-tethered bridge (no
   laptop in the field). `net_bench_log.py` also logs `nb-scanap` coverage rows.
 
+- `ops/bench/net_bench_dashboard.py` — local browser dashboard for a USB
+  `--serial-bridge` master. It owns the serial port, serves `http://127.0.0.1:8765/`,
+  shows live solar/battery/RF telemetry, writes safe controls back to the bridge
+  (`m<v10>`, `U`, `c`, identify, refresh), and can still forward `nb-*` lines to
+  UDP:54321 for the older tools. Travel example:
+  `python ops/bench/net_bench_dashboard.py --port COM7`.
+
 ## Caveats
 Battery runs are **Li-ion (`Generic_3V7`)** for now — *re-verify every stability finding
 on LFP* (LFP's plateau parks on the buck-boost crossover, a harder regime). USB/pogo
