@@ -106,13 +106,23 @@ function TreeContext() {
  *  architect's chandelier.glb, world-space so it lands at the crown fixtures. */
 function Chandelier() {
   const { scene } = useGLTF("/chandelier.glb");
+  const fixtures = useTwin((s) => s.fixtures);
   const styled = useMemo(() => {
     const s = scene.clone(true);
     const mat = new MeshStandardMaterial({ color: "#c08a3e", roughness: 0.65, metalness: 0.35, transparent: true, opacity: 0.9 });
     s.traverse((o) => { if ((o as Mesh).isMesh) (o as Mesh).material = mat; });
     return s;
   }, [scene]);
-  return <primitive object={styled} />;
+  // The glb is authored centred at its own origin; anchor it on the chandelier
+  // fixtures' centroid (three-space) so the mesh lands on the crown lights —
+  // robust to the real Blender export swapping in different crown coords.
+  const at = useMemo<[number, number, number]>(() => {
+    const ch = fixtures.filter((f) => f.role === "chandelier");
+    if (ch.length === 0) return [0, 0, 0];
+    const sum = ch.reduce((a, f) => [a[0] + f.pos[0], a[1] + f.pos[1], a[2] + f.pos[2]] as [number, number, number], [0, 0, 0] as [number, number, number]);
+    return [sum[0] / ch.length, sum[1] / ch.length, sum[2] / ch.length];
+  }, [fixtures]);
+  return <primitive object={styled} position={at} />;
 }
 
 /** PERF: the gobo spotlight's shadow map covers the STATIC scene (tree + ground
