@@ -140,5 +140,24 @@ const PERFORMANCE: LightShow = {
   ],
 };
 
-export const SHOWS: LightShow[] = [PERFORMANCE, AWAKENING, IGNITION, COSMOS];
+// ── 🌿 BIOLUMINESCENCE — emergent ambient: the tree's decentralised "living"
+// engine drifting between firefly-sync, spreading ripples, and a reaction-diffusion
+// organism. Each light decides from its neighbours; slow, no strobe; loops. ──
+const BIOLUMINESCENCE: LightShow = {
+  id: "bioluminescence", name: "🌿 Bioluminescence", vibe: "emergent · neighbours decide · 10 min", durationS: 600,
+  cues: [
+    { at: 0, note: "the colony stirs", base: { pattern: "living", hue: 0.62, sat: 0.85, brightness: 0.3, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.5, master: 1 } },
+    { at: 70, note: "ripples spread across neighbours", base: { pattern: "ripples", hue: 0.5, sat: 0.8, brightness: 0.46, speed: 0.6 } },
+    { at: 150, note: "an organism drifts in", base: { pattern: "organism", hue: 0.45, sat: 0.85, brightness: 0.56, speed: 0.8 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.5, speed: 0.3 } },
+    ] },
+    { at: 230, note: "the field comes alive", base: { pattern: "living", hue: 0.33, sat: 0.85, brightness: 0.6, colorCycle: "group", speed: 0.6 } },
+    { at: 320, note: "waves answer the colony", base: { pattern: "ripples", hue: 0.78, sat: 0.8, brightness: 0.62, speed: 0.7 } },
+    { at: 400, note: "a bloom of light", base: { pattern: "living", hue: 0.1, sat: 0.9, brightness: 0.78, colorCycle: "group", speed: 0.7 } },
+    { at: 470, note: "ripples recede", base: { pattern: "ripples", hue: 0.55, sat: 0.75, brightness: 0.5, speed: 0.5 } },
+    { at: 540, note: "the colony settles", base: { pattern: "living", hue: 0.62, sat: 0.8, brightness: 0.3, colorCycle: "off", speed: 0.45 } },
+  ],
+};
+
+export const SHOWS: LightShow[] = [PERFORMANCE, BIOLUMINESCENCE, AWAKENING, IGNITION, COSMOS];
 export const showById = (id: string | null): LightShow | undefined => SHOWS.find((s) => s.id === id);
