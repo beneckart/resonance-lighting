@@ -258,7 +258,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
         norm,
         seqT: rankOf[i] / denom,
         seq: rankOf[i],
-        num: (rankOf[i] % 72) + 1, // 1..72 addressable light number, by azimuth order
+        num: rankOf[i] + 1, // unique addressable number 1..N for EVERY light (by azimuth)
         heightT: norm[1],
         ring: ringOf(radii[i]),
         radialT: radii[i] / maxR,
