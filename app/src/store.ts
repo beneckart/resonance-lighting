@@ -32,6 +32,16 @@ export const VIZ_MODES: VizMode[] = ["lanterns", "orbs", "wire"];
 export type ColorCycle = "off" | "rainbow" | "group" | "shade" | "independent";
 export const COLOR_CYCLES: ColorCycle[] = ["off", "rainbow", "group", "shade", "independent"];
 
+/** Group "Mode" (Elliot's sketch): linear = pattern runs in spatial order;
+ *  random = each light fires in a shuffled order (seeded per fixture). */
+export type LightOrder = "linear" | "random";
+export const LIGHT_ORDERS: LightOrder[] = ["linear", "random"];
+
+/** Default look for a freshly-activated group (the sketch's per-group controls). */
+export const DEFAULT_GROUP_CONTROL: Partial<Control> = {
+  pattern: "chase", hue: 0.6, sat: 1, colorCycle: "off", reverse: false, speed: 1, brightness: 1, order: "linear",
+};
+
 /** A scene LAYER: a subset of light numbers (1..72) running its OWN control
  *  (pattern / colour / direction / speed) on top of the base. This is the engine
  *  behind per-group independent looks — the group panel and LLM-driven grouping
@@ -67,6 +77,7 @@ export interface Control {
   hue: number; // 0..1
   sat: number; // 0..1
   colorCycle: ColorCycle; // base-hue motion (off/rainbow/group/shade), any pattern
+  order: LightOrder; // group "Mode": linear (spatial) vs random firing order
   speed: number; // 0..3
   // sequencer (H1)
   seqMode: SeqMode;
@@ -120,6 +131,11 @@ interface TwinState {
   cinematic: boolean; // hide all UI panels for a clean show/beauty view
   timeOfDay: number; // 0 = night, 0.5 = dusk, 1 = day (scene ambient/background)
   layers: SceneLayer[]; // per-group/subset looks composed over the base control
+  // GROUPS (Elliot's panel): named light-number sets + each group's saved look + which are live
+  namedGroups: Record<string, number[]>; // group name → light numbers (presets + custom)
+  groupControls: Record<string, Partial<Control>>; // group name → its Pattern/Color/Direction/Speed/Mode
+  groupActive: Record<string, boolean>; // which groups are currently driving their layer
+  selectedGroup: string; // the group the panel is editing
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -140,6 +156,11 @@ interface TwinState {
   setLayer: (id: string, nums: number[], control: Partial<Control>) => void;
   removeLayer: (id: string) => void;
   clearLayers: () => void;
+  defineGroup: (name: string, nums: number[]) => void;
+  deleteGroup: (name: string) => void;
+  selectGroup: (name: string) => void;
+  setGroupControl: (name: string, partial: Partial<Control>) => void;
+  toggleGroupActive: (name: string, on: boolean) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -149,6 +170,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
   size: 10,
   overrides: {},
   layers: [],
+  namedGroups: {},
+  groupControls: {},
+  groupActive: {},
+  selectedGroup: "ring1",
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
@@ -173,6 +198,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     hue: 0.08,
     sat: 0.85,
     colorCycle: "off",
+    order: "linear",
     speed: 1,
     seqMode: "fill",
     stepMs: 200,
@@ -269,7 +295,21 @@ export const useTwin = create<TwinState>((setState, get) => ({
         aim: f.aim ? blenderToThree(f.aim) : undefined,
       };
     });
-    setState({ fixtures, center, size, source: doc.meta.source.split(":")[1] ?? doc.meta.source });
+    // seed preset GROUPS (Elliot's panel): 3 concentric rings of downlights split by
+    // radius + uplights + chandelier + all. Real ring IDs arrive with the Blender
+    // export; until then split downlights into radial thirds of ~equal count.
+    const downs = fixtures.filter((f) => f.role === "downlight").sort((a, b) => a.radialT - b.radialT);
+    const third = Math.ceil(downs.length / 3) || 1;
+    const numsOf = (arr: SimFixture[]) => arr.map((f) => f.num).sort((a, b) => a - b);
+    const namedGroups: Record<string, number[]> = {
+      ring1: numsOf(downs.slice(0, third)),
+      ring2: numsOf(downs.slice(third, 2 * third)),
+      ring3: numsOf(downs.slice(2 * third)),
+      uplights: numsOf(fixtures.filter((f) => f.role === "uplight")),
+      chandelier: numsOf(fixtures.filter((f) => f.role === "chandelier")),
+      all: numsOf(fixtures),
+    };
+    setState({ fixtures, center, size, namedGroups, source: doc.meta.source.split(":")[1] ?? doc.meta.source });
   },
   set: (p) => setState((s) => ({ control: { ...s.control, ...p } })),
   runCommand: (cmd) => {
@@ -328,6 +368,34 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setLayer: (id, nums, control) => setState((s) => ({ layers: [...s.layers.filter((l) => l.id !== id), { id, nums, control }] })),
   removeLayer: (id) => setState((s) => ({ layers: s.layers.filter((l) => l.id !== id) })),
   clearLayers: () => setState({ layers: [] }),
+  // GROUPS — the panel's create/select/edit/activate. Activating or editing an
+  // active group (re)derives its layer so the look applies immediately.
+  defineGroup: (name, nums) => setState((s) => ({ namedGroups: { ...s.namedGroups, [name]: nums }, selectedGroup: name })),
+  deleteGroup: (name) => setState((s) => {
+    const ng = { ...s.namedGroups }; delete ng[name];
+    const gc = { ...s.groupControls }; delete gc[name];
+    const ga = { ...s.groupActive }; delete ga[name];
+    return { namedGroups: ng, groupControls: gc, groupActive: ga, layers: s.layers.filter((l) => l.id !== name) };
+  }),
+  selectGroup: (name) => setState({ selectedGroup: name }),
+  setGroupControl: (name, partial) => setState((s) => {
+    const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name], ...partial };
+    const groupControls = { ...s.groupControls, [name]: ctl };
+    const nums = s.namedGroups[name] ?? [];
+    const layers = s.groupActive[name]
+      ? [...s.layers.filter((l) => l.id !== name), { id: name, nums, control: ctl }]
+      : s.layers;
+    return { groupControls, layers };
+  }),
+  toggleGroupActive: (name, on) => setState((s) => {
+    const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name] };
+    const nums = s.namedGroups[name] ?? [];
+    return {
+      groupActive: { ...s.groupActive, [name]: on },
+      groupControls: { ...s.groupControls, [name]: ctl },
+      layers: on ? [...s.layers.filter((l) => l.id !== name), { id: name, nums, control: ctl }] : s.layers.filter((l) => l.id !== name),
+    };
+  }),
 }));
 
 // LLM / external control hook: expose the store so an operator (or Claude driving

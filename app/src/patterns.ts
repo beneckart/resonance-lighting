@@ -120,9 +120,11 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       bri *= 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(t * sp * 1.5));
       break;
     case "chase": {
-      // a lit band travels AROUND the tree (azimuth order)
+      // a lit band travels AROUND the tree (azimuth order); random Mode shuffles
+      // which light fires when (seeded per fixture) instead of going in order
       const head = frac(tt * sp * 0.25);
-      let d = Math.abs(f.seqT - head);
+      const cpos = c.order === "random" ? f.rnd : f.seqT;
+      let d = Math.abs(cpos - head);
       d = Math.min(d, 1 - d); // wrap-around
       bri *= 1 - smooth(0.0, 0.12, d);
       break;
@@ -205,7 +207,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // `reverse` flips it right→left. Hue runs as a gradient across the width, so
       // a blue base (0.6) reads blue→red left→right — the "blue to red" sweep.
       const head = frac(tt * sp * 0.25);
-      const x = f.norm[0]; // 0 = left, 1 = right
+      const x = c.order === "random" ? f.rnd : f.norm[0]; // 0 = left, 1 = right (random shuffles)
       let d = Math.abs((((x - head) % 1) + 1) % 1);
       d = Math.min(d, 1 - d); // wrap so the band re-enters from the left
       bri *= 0.05 + 0.95 * Math.max(0, 1 - d * 7);

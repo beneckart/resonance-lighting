@@ -58,7 +58,9 @@ function GoboFloor() {
     const l = light.current;
     if (!l) return;
     l.color.setRGB(groundTint.r, groundTint.g, groundTint.b);
-    l.intensity = 0.9 + 2.4 * groundTint.level;
+    // ground projection ONLY when the tree is actually lit — fade fully to black as
+    // the aggregate level drops (was a constant 0.9 floor that kept petals always on)
+    l.intensity = Math.max(0, groundTint.level - 0.05) * 5.0;
   });
 
   return (
