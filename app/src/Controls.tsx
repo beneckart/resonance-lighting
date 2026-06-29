@@ -190,8 +190,8 @@ export function Controls() {
         <div style={{ ...row, marginBottom: 0 }}>
           {COLOR_CYCLES.map((m: ColorCycle) => (
             <button key={m} style={{ ...btn(ctrl.colorCycle === m), fontSize: 10 }} onClick={() => setCtrl({ colorCycle: m })}
-              title={m === "off" ? "hold the picked colour" : m === "rainbow" ? "sweep through ALL colours" : m === "group" ? "drift through the adjacent family (warm/cool)" : "drift through the shades of the picked colour"}>
-              {m === "off" ? "● hold" : m === "rainbow" ? "🌈 rainbow" : m === "group" ? "family" : "shades"}
+              title={m === "off" ? "hold the picked colour" : m === "rainbow" ? "sweep through ALL colours" : m === "group" ? "drift through the adjacent family (warm/cool)" : m === "shade" ? "drift through the shades of the picked colour" : "each light picks its own colour independently"}>
+              {m === "off" ? "● hold" : m === "rainbow" ? "🌈 rainbow" : m === "group" ? "family" : m === "shade" ? "shades" : "🎲 per-light"}
             </button>
           ))}
         </div>

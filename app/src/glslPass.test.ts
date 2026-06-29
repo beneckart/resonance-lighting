@@ -6,7 +6,7 @@ import type { Control } from "./store";
 
 const fx = (pos: [number, number, number]): SimFixture => ({
   id: "f", name: "f", role: "canopy", zone: "mid", pos, norm: [0, 1, 0],
-  seqT: 0, seq: 0, heightT: 0.5, ring: 1, radialT: 0.5, rnd: 0.5, beamDeg: 120, lumens: 400,
+  seqT: 0, seq: 0, heightT: 0.5, ring: 1, num: 1, radialT: 0.5, rnd: 0.5, beamDeg: 120, lumens: 400,
 });
 
 describe("packPositions", () => {

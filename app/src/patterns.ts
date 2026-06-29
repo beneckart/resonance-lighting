@@ -17,17 +17,31 @@ const smooth = (e0: number, e1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
+// addressable-light helper: fold ANY number into 1..72. Elliot's rule — last two
+// digits, then wrap the 73..99 remainder: 101→1, 112→12, 7747→47, 89→17.
+export const into72 = (n: number) => { const m = n % 100 || 100; return m > 72 ? m - 72 : m; };
+// Fibonacci numbers folded into 1..72 — a generative "interesting" light sequence
+const FIB72: number[] = (() => {
+  const out: number[] = [];
+  let a = 1, b = 1;
+  for (let i = 0; i < 24; i++) { out.push(into72(a)); const n = a + b; a = b; b = n; }
+  return out;
+})();
+
 /** Base-hue MOTION: returns the effective hue for this frame given the picked
  *  hue + the colour-cycle mode. Most patterns build their palette off this hue,
  *  so it tints whatever pattern is running.
  *   rainbow — sweep through ALL hues continuously
  *   group   — drift ±0.13 (≈3 adjacent families: warm red/orange/yellow, etc.)
  *   shade   — drift ±0.045 (the shades of just the one picked colour) */
-export function cycledHue(base: number, mode: Control["colorCycle"], t: number, speed: number): number {
+export function cycledHue(base: number, mode: Control["colorCycle"], t: number, speed: number, seed = 0): number {
   switch (mode) {
     case "rainbow": return frac(base + t * speed * 0.06);
     case "group": return frac(base + 0.13 * Math.sin(t * speed * 0.5));
     case "shade": return frac(base + 0.045 * Math.sin(t * speed * 0.6));
+    // each light decides its OWN colour — its own phase offset + its own drift
+    // rate (seeded by the fixture's stable random) so they desync into a field
+    case "independent": return frac(base + seed + t * speed * 0.045 * (0.4 + seed));
     default: return base;
   }
 }
@@ -42,7 +56,9 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   const tt = t * dir;
   const sp = c.speed;
   let bri = c.brightness;
-  let hue = c.hue;
+  // colour layer (per-fixture so "independent" lets each light pick its own) —
+  // applied to the base hue before the pattern; patterns that add to hue inherit it
+  let hue = c.colorCycle && c.colorCycle !== "off" ? cycledHue(c.hue, c.colorCycle, t, sp, f.rnd) : c.hue;
   let sat = c.sat;
 
   switch (c.pattern) {
@@ -162,6 +178,26 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       sat = Math.max(sat, 0.9);
       bri *= 0.12 + 0.6 * radial + 0.5 * head;            // in/out pulse × rotating head
       if (audio.active) bri *= 0.6 + 0.8 * (f.ring === 0 ? audio.bass : f.ring === 1 ? audio.mid : audio.treble);
+      break;
+    }
+    case "fibonacci": {
+      // GENERATIVE: walk the Fibonacci sequence across the numbered lights (1..72).
+      // A light glows when its number is the active fib value, with a fading tail,
+      // so 1,2,3,5,8,13,21… light up in turn and hop around the tree. Big fib
+      // numbers fold back in via into72 (101→1, 112→12, 7747→47).
+      const head = tt * sp * 1.1; // fractional step pointer (rides the speed dial)
+      const TAIL = 4; // how many recent steps still glow
+      const L = FIB72.length;
+      let glow = 0;
+      for (let kk = 0; kk < TAIL; kk++) {
+        const idx = Math.floor(head) - kk;
+        if (idx < 0) continue;
+        if (FIB72[((idx % L) + L) % L] === f.num) {
+          glow = Math.max(glow, 1 - kk / TAIL - frac(head) / TAIL);
+        }
+      }
+      bri *= 0.03 + 0.97 * Math.max(0, glow);
+      hue = frac(hue + f.num / 72); // each number its own tint
       break;
     }
     case "chromatic": {

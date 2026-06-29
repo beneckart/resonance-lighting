@@ -8,11 +8,11 @@ import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
-  | "chromatic" | "rings"
+  | "chromatic" | "rings" | "fibonacci"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
@@ -29,8 +29,8 @@ export const VIZ_MODES: VizMode[] = ["lanterns", "orbs", "wire"];
  *  group  — drift through the adjacent FAMILY band (warm red/orange/yellow,
  *           cool blue/purple/pink) around the picked colour
  *  shade  — drift through the SHADES of just the picked colour (all the reds…) */
-export type ColorCycle = "off" | "rainbow" | "group" | "shade";
-export const COLOR_CYCLES: ColorCycle[] = ["off", "rainbow", "group", "shade"];
+export type ColorCycle = "off" | "rainbow" | "group" | "shade" | "independent";
+export const COLOR_CYCLES: ColorCycle[] = ["off", "rainbow", "group", "shade", "independent"];
 
 export interface SimFixture {
   id: string;
@@ -41,6 +41,7 @@ export interface SimFixture {
   norm: [number, number, number]; // normalized 0..1 within the fixture bbox
   seqT: number; // 0..1 order AROUND the tree (by azimuth) — for chases/snakes
   seq: number; // integer rank 0..N-1 around the tree — for the sequencer
+  num: number; // addressable light number 1..72 (each light individually addressable)
   heightT: number; // 0..1 by height (low→high)
   ring: number; // concentric ring index 0=inner 1=mid 2=outer (by radial distance from trunk)
   radialT: number; // 0..1 normalized horizontal distance from the trunk axis (in/out)
@@ -242,6 +243,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
         norm,
         seqT: rankOf[i] / denom,
         seq: rankOf[i],
+        num: (rankOf[i] % 72) + 1, // 1..72 addressable light number, by azimuth order
         heightT: norm[1],
         ring: ringOf(radii[i]),
         radialT: radii[i] / maxR,

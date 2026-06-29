@@ -4,7 +4,7 @@ import { useGLTF, useTexture } from "@react-three/drei";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
-import { litFor, cycledHue, type Lit } from "./patterns";
+import { litFor, type Lit } from "./patterns";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
@@ -197,11 +197,7 @@ export function TreeLights() {
     const st = useTwin.getState();
     const { overrides, view } = st;
     // fold live environmental sensors (crowd/temp/wind/daylight) into the look
-    const ctrl0 = applyEnv(st.guest ? guestClamp(st.control) : st.control, st.sensors);
-    // base-hue motion (rainbow / family-group / shade) — tints whatever pattern runs
-    const ctrl = ctrl0.colorCycle && ctrl0.colorCycle !== "off"
-      ? { ...ctrl0, hue: cycledHue(ctrl0.hue, ctrl0.colorCycle, pt, ctrl0.speed) }
-      : ctrl0;
+    const ctrl = applyEnv(st.guest ? guestClamp(st.control) : st.control, st.sensors);
     const audio = updateAudio();
     setEqGains(ctrl.eqLow, ctrl.eqMid, ctrl.eqHigh); // EQ knobs also filter the live audio (DJ deck mixes)
     // DJ controller (C): crossfade to look B, master intensity, strobe gate

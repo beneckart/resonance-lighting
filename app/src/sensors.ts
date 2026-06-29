@@ -37,9 +37,18 @@ export function autoBalanceGain(ambient: number): number {
  *  look down — and (when autoBalance is on) auto-boosts master to compensate
  *  for that wash so the tree stays readable. Pure — returns a new Control. */
 export function applyEnv(c: Control, s: Sensors): Control {
-  // temperature → warm/cool hue bias: cold pushes toward blue (0.6), hot toward amber (0.08)
-  const tempShift = clamp((20 - s.tempC) / 40, -0.5, 0.5); // +cool / -warm
-  const hue = frac(c.hue + tempShift * 0.18);
+  // temperature → COLOUR: hotter pulls the hue toward red/orange (an absolute warm
+  // target) and saturates it; colder pulls toward blue. Neutral around 20°C.
+  const heat = clamp((s.tempC - 20) / 25, -1, 1); // -1 cold … 0 neutral … +1 hot
+  const hueDelta = (from: number, to: number) => { let d = to - from; if (d > 0.5) d -= 1; else if (d < -0.5) d += 1; return d; };
+  let hue = c.hue;
+  let sat = c.sat;
+  if (heat > 0) {
+    hue = frac(c.hue + hueDelta(c.hue, 0.04) * heat * 0.9); // toward red/orange
+    sat = clamp(c.sat + heat * 0.2, 0, 1); // hotter → richer warmth
+  } else if (heat < 0) {
+    hue = frac(c.hue + hueDelta(c.hue, 0.6) * -heat * 0.7); // toward blue
+  }
   // wind → faster animation (gusts liven the sway), capped
   const speed = c.speed * clamp(1 + s.windKph / 45, 1, 2.2);
   // crowd → more energy; daylight → washed out (perceptually dimmer)
@@ -48,7 +57,7 @@ export function applyEnv(c: Control, s: Sensors): Control {
   const brightness = clamp(c.brightness * crowdGain * dayWash, 0, 1);
   // AUTO-BALANCE: drive master harder as ambient rises to punch through daylight
   const master = clamp(c.master * (c.autoBalance ? autoBalanceGain(s.ambient) : 1), 0, 2.2);
-  return { ...c, hue, speed, brightness, master };
+  return { ...c, hue, sat, speed, brightness, master };
 }
 
 /** Wind-driven extra sway amount (0..~1) layered on top of pattern motion. */
