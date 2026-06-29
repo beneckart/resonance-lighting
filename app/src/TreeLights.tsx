@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
+import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
@@ -52,7 +52,13 @@ export function TreeLights() {
   const beamRef = useRef<InstancedMesh>(null);
   const groundRef = useRef<InstancedMesh>(null); // per-fixture petal-gobo "light shades" on the floor
   const glslRef = useRef<GlslPass | null>(null); // lazy GPU pattern pass (glslMode)
-  const groundY = center[1] - treeSize * 0.5;
+  // anchor the floor cookies to the VISIBLE TREE base (its glb bbox bottom) — same
+  // surface the gobo floor uses — so the projected orbs sit ON the ground, not below
+  const { scene: treeScene } = useGLTF("/tree-context.glb");
+  const groundY = useMemo(() => {
+    const minY = new Box3().setFromObject(treeScene).min.y;
+    return Number.isFinite(minY) ? minY : center[1] - treeSize * 0.5;
+  }, [treeScene, center, treeSize]);
   const gobo = useTexture("/gobo.png");
   gobo.colorSpace = SRGBColorSpace;
 
