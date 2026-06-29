@@ -116,11 +116,18 @@ export async function loadMidiPiece(id: string, name: string, url: string): Prom
   } catch { return false; }
 }
 
-function colorFor(voice: number, midi: number): [number, number] {
-  if (voice === 1) return [0.74, 0.7];
-  if (voice === 2) return [0.10, 0.4];
-  const frac = (midi - 36) / 71;
-  return [0.62 - frac * 0.18, 0.6];
+const fr = (x: number) => x - Math.floor(x);
+/** Note → colour. Each PITCH CLASS maps to a hue on a WARM arc (purple→pink→red→
+ *  orange→yellow, avoiding green/blue); the arc drifts slowly so a note is "red now,
+ *  a different red later". OCTAVE sets the shade (deep low → light high) so the same
+ *  note in different octaves reads as shades of one colour. */
+function pianoColor(midi: number, t: number): [number, number] {
+  const pc = midi % 12;
+  const oct = Math.floor(midi / 12);
+  const drift = 0.045 * Math.sin(t * 0.05 + pc * 0.5); // small + slow → same family, different shade over time
+  const hue = fr(0.75 + (pc / 11) * 0.4 + drift);      // 0.75(purple) … 1.15≡0.15(yellow); NO blue
+  const sat = Math.max(0.62, Math.min(0.95, 0.95 - (oct - 3) * 0.06)); // octave → shade; floor keeps it off white
+  return [hue, sat];
 }
 
 export function resetPiano() { t0 = -1; }
@@ -146,13 +153,15 @@ export function updatePiano(now: number) {
   for (const nt of piece.notes) {
     const dt = tt - nt.t;
     if (dt < 0 || dt > nt.dur + 1.4) continue;
-    const env = dt < 0.025 ? dt / 0.025 : Math.exp(-(dt - 0.025) / Math.max(0.28, nt.dur * 0.7));
+    // softer attack + longer ring → less strobey, more sustained glow
+    const env = dt < 0.04 ? dt / 0.04 : Math.exp(-(dt - 0.04) / Math.max(0.6, nt.dur * 0.95));
     const base = nt.vel * env;
     for (let o = -3; o <= 3; o++) {
       const mm = nt.midi + o * 12;
       if (mm < 36 || mm > 107) continue;
       const v = base * OCT[o + 3];
-      if (v > keyBri[mm]) { keyBri[mm] = v; const [h, s] = colorFor(nt.voice, nt.midi); keyHue[mm] = h; keySat[mm] = s; }
+      // colour by the ACTUAL key (pitch-class hue + octave shade), drifting over time
+      if (v > keyBri[mm]) { keyBri[mm] = v; const [h, s] = pianoColor(mm, now); keyHue[mm] = h; keySat[mm] = s; }
     }
   }
 }

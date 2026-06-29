@@ -63,7 +63,7 @@ export function ShowsPanel() {
         {pieces.map((p) => {
           const on = pianoOn && currentPiece() === p.id;
           return (
-            <button key={p.id} onClick={() => { playShow(null); setPiece(p.id); resetPiano(); setPianoSound(true); setSoundOn(true); set({ pattern: "piano", brightness: 0.95, sat: 0.6, colorCycle: "off", reverse: false }); setTod(0); }}
+            <button key={p.id} onClick={() => { playShow(null); setPiece(p.id); resetPiano(); setPianoSound(true); setSoundOn(true); set({ pattern: "piano", brightness: 0.8, sat: 0.85, colorCycle: "off", reverse: false }); setTod(0); }}
               style={{ flex: "1 0 auto", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11,
                 border: on ? "1px solid #5b8cff" : "1px solid #2a3a52", background: on ? "#21345e" : "#121a26", color: on ? "#dce6ff" : "#9fb0c7" }}>
               {on ? "▶ " : ""}{p.name}
