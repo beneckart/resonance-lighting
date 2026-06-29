@@ -1,4 +1,5 @@
 import type { SimFixture } from "./store";
+import { playPianoNote, isPianoSound } from "./pianoAudio";
 
 /** THE CANOPY AS A PIANO. The ~72 canopy ("high") lights are a 6-octave keyboard
  *  (MIDI 36..107, by azimuth). A selectable PIECE plays; each sounding note lights
@@ -106,10 +107,22 @@ function colorFor(voice: number, midi: number): [number, number] {
 
 export function resetPiano() { t0 = -1; }
 
+let prevTT = 0;
 export function updatePiano(now: number) {
+  const fresh = t0 < 0;
   if (t0 < 0) t0 = now;
   const piece = PIECES[current];
   const tt = (now - t0) % piece.len;
+  if (fresh) prevTT = -0.001;
+  // AUDIO: trigger each note's sound as its onset passes (synced to the lights)
+  if (isPianoSound()) {
+    for (const nt of piece.notes) {
+      const o = nt.t;
+      const hit = prevTT <= tt ? (o > prevTT && o <= tt) : (o > prevTT || o <= tt); // wrap-safe
+      if (hit) playPianoNote(nt.midi, nt.vel, nt.dur);
+    }
+  }
+  prevTT = tt;
   keyBri.fill(0);
   const OCT = [0.3, 0.5, 0.72, 1, 0.72, 0.5, 0.3];
   for (const nt of piece.notes) {
