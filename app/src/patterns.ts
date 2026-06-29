@@ -17,6 +17,21 @@ const smooth = (e0: number, e1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
+/** Base-hue MOTION: returns the effective hue for this frame given the picked
+ *  hue + the colour-cycle mode. Most patterns build their palette off this hue,
+ *  so it tints whatever pattern is running.
+ *   rainbow — sweep through ALL hues continuously
+ *   group   — drift ±0.13 (≈3 adjacent families: warm red/orange/yellow, etc.)
+ *   shade   — drift ±0.045 (the shades of just the one picked colour) */
+export function cycledHue(base: number, mode: Control["colorCycle"], t: number, speed: number): number {
+  switch (mode) {
+    case "rainbow": return frac(base + t * speed * 0.06);
+    case "group": return frac(base + 0.13 * Math.sin(t * speed * 0.5));
+    case "shade": return frac(base + 0.045 * Math.sin(t * speed * 0.6));
+    default: return base;
+  }
+}
+
 /** Compute a fixture's REPORTED color (brightness pre-applied) from the commanded
  *  control + audio + time. This is the firmware stand-in; the renderer only shows
  *  the result (the mirror rule). */

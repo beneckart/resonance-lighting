@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, useTwin, type PatternId, type SeqMode, type VizMode } from "./store";
+import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, COLOR_CYCLES, useTwin, type PatternId, type SeqMode, type VizMode, type ColorCycle } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
 import { compileShow, showToJson } from "./showcompiler";
 import { interpret } from "./llm";
@@ -57,6 +57,36 @@ function Slider({ label, v, min, max, step, on }: {
       />
     </label>
   );
+}
+
+// base-colour swatches — set the show's hue/saturation, available with ANY mode
+const SWATCHES: { name: string; hue: number; sat: number }[] = [
+  { name: "red", hue: 0.0, sat: 1 },
+  { name: "orange", hue: 0.07, sat: 1 },
+  { name: "yellow", hue: 0.15, sat: 1 },
+  { name: "green", hue: 0.33, sat: 1 },
+  { name: "cyan", hue: 0.5, sat: 1 },
+  { name: "blue", hue: 0.62, sat: 1 },
+  { name: "purple", hue: 0.78, sat: 1 },
+  { name: "pink", hue: 0.9, sat: 0.85 },
+  { name: "white", hue: 0, sat: 0 },
+];
+
+// native colour-picker hex → the store's hue (0..1) + saturation (0..1)
+function hexToHueSat(hex: string): { hue: number; sat: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+  return { hue: h, sat: max === 0 ? 0 : d / max };
 }
 
 export function Controls() {
@@ -125,6 +155,48 @@ export function Controls() {
           the whole show moves. Lives at the top so it's always one tap away. */}
       <div style={{ margin: "10px 0 4px", padding: "8px 10px", background: "#101a28", borderRadius: 8, border: "1px solid #2a3a52" }}>
         <Slider label="⚡ SPEED — how fast the lights move" v={ctrl.speed} min={0} max={3} on={(v) => setCtrl({ speed: v })} />
+      </div>
+
+      {/* COLOR — a base colour available with ANY mode/pattern. Most patterns
+          build their palette off this hue (solid uses it directly; rainbow modes
+          like spectrum override it). Swatches + a custom picker. */}
+      <div style={{ margin: "8px 0 4px", padding: "8px 10px", background: "#101a28", borderRadius: 8, border: "1px solid #2a3a52" }}>
+        <div style={{ opacity: 0.8, marginBottom: 6 }}>🎨 COLOR — works with any mode</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+          {SWATCHES.map((s) => {
+            const sel = Math.abs(ctrl.hue - s.hue) < 0.02 && Math.abs(ctrl.sat - s.sat) < 0.06;
+            return (
+              <button
+                key={s.name}
+                title={s.name}
+                onClick={() => setCtrl({ hue: s.hue, sat: s.sat })}
+                style={{
+                  width: 26, height: 26, borderRadius: "50%", cursor: "pointer", padding: 0,
+                  background: s.sat === 0 ? "#f4f6fb" : `hsl(${s.hue * 360},85%,55%)`,
+                  border: sel ? "2px solid #fff" : "1px solid #2a3a52",
+                  boxShadow: sel ? "0 0 7px rgba(255,255,255,0.5)" : "none",
+                }}
+              />
+            );
+          })}
+          <input
+            type="color"
+            title="custom colour"
+            onChange={(e) => { const { hue, sat } = hexToHueSat(e.target.value); setCtrl({ hue, sat }); }}
+            style={{ width: 32, height: 26, padding: 0, border: "1px solid #2a3a52", borderRadius: 6, background: "#0b1119", cursor: "pointer" }}
+          />
+        </div>
+        {/* colour MOTION on top of the picked colour — works with any pattern */}
+        <div style={{ ...row, marginBottom: 0 }}>
+          {COLOR_CYCLES.map((m: ColorCycle) => (
+            <button key={m} style={{ ...btn(ctrl.colorCycle === m), fontSize: 10 }} onClick={() => setCtrl({ colorCycle: m })}
+              title={m === "off" ? "hold the picked colour" : m === "rainbow" ? "sweep through ALL colours" : m === "group" ? "drift through the adjacent family (warm/cool)" : "drift through the shades of the picked colour"}>
+              {m === "off" ? "● hold" : m === "rainbow" ? "🌈 rainbow" : m === "group" ? "family" : "shades"}
+            </button>
+          ))}
+        </div>
+        <Slider label="hue" v={ctrl.hue} min={0} max={1} on={(v) => setCtrl({ hue: v })} />
+        <Slider label="saturation" v={ctrl.sat} min={0} max={1} on={(v) => setCtrl({ sat: v })} />
       </div>
 
       <div style={row}>
@@ -224,8 +296,6 @@ export function Controls() {
       )}
 
       <Slider label="brightness" v={ctrl.brightness} min={0} max={1} on={(v) => setCtrl({ brightness: v })} />
-      <Slider label="hue" v={ctrl.hue} min={0} max={1} on={(v) => setCtrl({ hue: v })} />
-      <Slider label="saturation" v={ctrl.sat} min={0} max={1} on={(v) => setCtrl({ sat: v })} />
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>
         sound → reactive {bpm > 0 && <b style={{ color: "#7fe0a0" }}>· {bpm} BPM</b>}

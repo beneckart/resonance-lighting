@@ -23,6 +23,15 @@ export const SEQ_MODES: SeqMode[] = ["fill", "single", "snake", "groups", "every
 export type VizMode = "lanterns" | "orbs" | "wire";
 export const VIZ_MODES: VizMode[] = ["lanterns", "orbs", "wire"];
 
+/** Base-hue MOTION on top of the picked colour (works with any pattern):
+ *  off    — hold the picked colour
+ *  rainbow— sweep continuously through ALL colours
+ *  group  — drift through the adjacent FAMILY band (warm red/orange/yellow,
+ *           cool blue/purple/pink) around the picked colour
+ *  shade  — drift through the SHADES of just the picked colour (all the reds…) */
+export type ColorCycle = "off" | "rainbow" | "group" | "shade";
+export const COLOR_CYCLES: ColorCycle[] = ["off", "rainbow", "group", "shade"];
+
 export interface SimFixture {
   id: string;
   name: string;
@@ -46,6 +55,7 @@ export interface Control {
   brightness: number; // 0..1 master
   hue: number; // 0..1
   sat: number; // 0..1
+  colorCycle: ColorCycle; // base-hue motion (off/rainbow/group/shade), any pattern
   speed: number; // 0..3
   // sequencer (H1)
   seqMode: SeqMode;
@@ -146,6 +156,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     brightness: 0.9,
     hue: 0.08,
     sat: 0.85,
+    colorCycle: "off",
     speed: 1,
     seqMode: "fill",
     stepMs: 200,

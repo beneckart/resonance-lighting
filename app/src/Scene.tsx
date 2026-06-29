@@ -3,7 +3,7 @@ import { useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
+import { Box3, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
 import { useTwin } from "./store";
 import { TreeLights } from "./TreeLights";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -16,9 +16,17 @@ function GoboFloor() {
   const size = useTwin((s) => s.size);
   const gobo = useTexture("/gobo.png"); // real skirt-petal projection (blender-architect bake)
   gobo.colorSpace = SRGBColorSpace;
+  const { scene: treeScene } = useGLTF("/tree-context.glb");
   const light = useRef<ThreeSpotLight>(null);
   const target = useMemo(() => new Object3D(), []);
-  const groundY = center[1] - size * 0.5;
+  // Anchor the ground to the VISIBLE TREE's base (the glb's bbox bottom), NOT the
+  // fixtures bbox — the two live in different coordinate systems, which left the
+  // floor floating ~25u below the trunk and beams shooting past it. Fall back to
+  // the fixtures bbox if the glb has no geometry.
+  const groundY = useMemo(() => {
+    const minY = new Box3().setFromObject(treeScene).min.y;
+    return Number.isFinite(minY) ? minY : center[1] - size * 0.5;
+  }, [treeScene, center, size]);
   // cone geometry from the real baked IES photometric profile
   const [cone, setCone] = useState({ angle: 0.62, penumbra: 0.5 });
 
