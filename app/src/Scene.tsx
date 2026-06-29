@@ -58,9 +58,11 @@ function GoboFloor() {
     const l = light.current;
     if (!l) return;
     l.color.setRGB(groundTint.r, groundTint.g, groundTint.b);
-    // ground projection ONLY when the tree is actually lit — fade fully to black as
-    // the aggregate level drops (was a constant 0.9 floor that kept petals always on)
-    l.intensity = Math.max(0, groundTint.level - 0.05) * 5.0;
+    // The GLOBAL mandala projector lit the whole circle off the tree's AVERAGE, so a
+    // few lit lights still drew a full circle. Gate it HARD (only fills when the tree
+    // is broadly lit); sparse modes (piano, sparkle) then show ONLY the per-fixture
+    // floor cookies under the lights that are actually on. (TreeLights groundRef.)
+    l.intensity = Math.max(0, groundTint.level - 0.32) * 7.0;
   });
 
   return (

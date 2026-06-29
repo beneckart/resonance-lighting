@@ -45,8 +45,8 @@ export function Widget({ id, title, x, y, w, h = 360, minW = 150, accent = "#5b8
       <div onPointerDown={onDragDown} onPointerMove={onMove} onPointerUp={onUp}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", cursor: "move", touchAction: "none", borderLeft: `3px solid ${accent}`, borderRadius: "10px 0 0 0", borderBottom: s.collapsed ? "none" : "1px solid #16202e" }}>
         <span style={{ fontWeight: 700, fontSize: 12, color: "#eef3fb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
-        <button onClick={() => setS((q) => ({ ...q, collapsed: !q.collapsed }))} title={s.collapsed ? "show" : "hide"}
-          style={{ flex: "0 0 auto", padding: "1px 7px", borderRadius: 5, cursor: "pointer", border: "1px solid #2a3a52", background: "#141a26", color: "#9fb0c7", fontSize: 11 }}>
+        <button onPointerDown={(e) => e.stopPropagation()} onClick={() => setS((q) => ({ ...q, collapsed: !q.collapsed }))} title={s.collapsed ? "show" : "hide"}
+          style={{ flex: "0 0 auto", padding: "1px 8px", borderRadius: 5, cursor: "pointer", border: "1px solid #2a3a52", background: "#141a26", color: "#9fb0c7", fontSize: 11 }}>
           {s.collapsed ? "▸" : "▾"}
         </button>
       </div>
