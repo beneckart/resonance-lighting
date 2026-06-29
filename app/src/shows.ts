@@ -103,12 +103,12 @@ const PERFORMANCE: LightShow = {
   id: "performance", name: "🌳 Performance", vibe: "18-min living arc · Bellagio-structured", durationS: 1080,
   cues: [
     // Phase 0 — darkness / the held breath
-    { at: 0, note: "darkness — the held breath", base: { pattern: "solid", hue: 0.62, sat: 0.7, brightness: 0.03, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.3, master: 1 }, layers: [
-      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.4, speed: 0.25 } },
+    { at: 0, note: "night — first stars", base: { pattern: "sparkle", hue: 0.62, sat: 0.6, brightness: 0.16, colorCycle: "independent", order: "random", reverse: false, strobe: false, speed: 0.5, master: 1 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.5, speed: 0.3 } },
     ] },
     // Phase 1 — stars emerge (density accelerates; desynced twinkle)
-    { at: 90, note: "stars begin to emerge", base: { pattern: "sparkle", hue: 0.6, sat: 0.6, brightness: 0.07, colorCycle: "independent", order: "random", speed: 0.4 } },
-    { at: 185, note: "the sky fills in", base: { pattern: "sparkle", hue: 0.58, sat: 0.6, brightness: 0.24, colorCycle: "independent", order: "random", speed: 0.45 } },
+    { at: 90, note: "stars begin to emerge", base: { pattern: "sparkle", hue: 0.6, sat: 0.6, brightness: 0.3, colorCycle: "independent", order: "random", speed: 0.55 } },
+    { at: 185, note: "the sky fills in", base: { pattern: "living", hue: 0.58, sat: 0.7, brightness: 0.42, colorCycle: "off", speed: 0.6 } },
     // Phase 2 — first breath / the signature motif wakes
     { at: 270, note: "first breath — a slow spiral wakes", base: { pattern: "spiral", hue: 0.55, sat: 0.7, brightness: 0.33, colorCycle: "off", speed: 0.4 } },
     { at: 350, note: "a global colour breath toward dawn", base: { pattern: "spiral", hue: 0.12, sat: 0.78, brightness: 0.42, colorCycle: "off", speed: 0.4 } },

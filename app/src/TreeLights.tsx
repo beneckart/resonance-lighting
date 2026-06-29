@@ -7,6 +7,7 @@ import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
 import { updateField, fieldOut, type Attractor } from "./field";
+import { updatePiano, keyBri, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
@@ -230,6 +231,10 @@ export function TreeLights() {
       ];
       updateField(fixtures, delta, ctrl.speed, att);
     }
+    // piano: the canopy plays a score — refresh per-key brightness once per frame
+    if (ctrl.pattern === "piano" || st.layers.some((l) => l.control.pattern === "piano")) {
+      updatePiano(performance.now() / 1000);
+    }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
@@ -259,6 +264,15 @@ export function TreeLights() {
         col.setHSL(fieldOut.hue[i], fctrl.sat, 0.5);
         const bv = fieldOut.bri[i] * fctrl.brightness;
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
+      } else if (fctrl.pattern === "piano") {
+        const m = fixtureMidi(fixtures, i);
+        if (m < 0) { lit.r = lit.g = lit.b = 0; }
+        else {
+          const bv = keyBri[m] * fctrl.brightness;
+          const hue = ((0.66 - ((m - 36) / 71) * 0.25) % 1 + 1) % 1; // low=deep blue → high=cyan
+          col.setHSL(hue, 0.6, 0.5);
+          lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
+        }
       } else {
         litFor(pt, f, fctrl, audio, n, lit);
       }
