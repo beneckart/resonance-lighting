@@ -9,11 +9,11 @@ export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
   | "chromatic" | "rings" | "fibonacci" | "sweep" | "living" | "piano" | "ripples" | "organism"
-  | "aurora" | "chladni" | "glyph"
+  | "aurora" | "chladni" | "glyph" | "interference" | "lissajous"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "aurora", "chladni", "glyph",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "aurora", "chladni", "glyph", "interference", "lissajous",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];

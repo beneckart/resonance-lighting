@@ -252,6 +252,26 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       bri *= on ? 1 : 0.025;
       break;
     }
+    case "interference": {
+      // two wave sources orbiting the trunk → ripple-tank interference shimmer
+      const s1x = 0.5 + 0.35 * Math.sin(tt * sp * 0.2), s1y = 0.6, s1z = 0.5 + 0.35 * Math.cos(tt * sp * 0.17);
+      const s2x = 0.5 + 0.35 * Math.cos(tt * sp * 0.14), s2y = 0.4, s2z = 0.5 + 0.35 * Math.sin(tt * sp * 0.22);
+      const d1 = Math.hypot(f.norm[0] - s1x, f.norm[1] - s1y, f.norm[2] - s1z);
+      const d2 = Math.hypot(f.norm[0] - s2x, f.norm[1] - s2y, f.norm[2] - s2z);
+      const w = Math.sin(d1 * 22 - tt * sp * 1.2) + Math.sin(d2 * 22 - tt * sp * 1.2);
+      bri *= 0.12 + 0.88 * Math.pow(0.5 + 0.25 * w, 1.5);
+      hue = frac(hue + 0.08 * w);
+      break;
+    }
+    case "lissajous": {
+      // a light orbiter traces a Lissajous figure through the canopy (Gaussian glow)
+      const ph = tt * sp * 0.3;
+      const px = 0.5 + 0.42 * Math.sin(ph * 2), py = 0.5 + 0.42 * Math.sin(ph * 3 + 1), pz = 0.5 + 0.42 * Math.sin(ph * 2.5);
+      const d2 = (f.norm[0] - px) ** 2 + (f.norm[1] - py) ** 2 + (f.norm[2] - pz) ** 2;
+      bri *= 0.02 + 0.98 * Math.exp(-d2 * 12); // near-dark except the moving glow
+      hue = frac(hue + ph * 0.05);
+      break;
+    }
     case "chromatic": {
       // CHROMATIC TRICOLOR (Elliot's ask): three distinct colours moving OUTWARD
       // from ONE source point — the crown (the chandelier hangs there). Each

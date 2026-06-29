@@ -159,5 +159,19 @@ const BIOLUMINESCENCE: LightShow = {
   ],
 };
 
-export const SHOWS: LightShow[] = [PERFORMANCE, BIOLUMINESCENCE, AWAKENING, IGNITION, COSMOS];
+// ── 🌠 AURORA — geometric/hypnotic: noise curtains, interference shimmer, standing
+// waves (Chladni), and a wandering Lissajous orbiter. Slow, cool, meditative. ──
+const AURORA: LightShow = {
+  id: "aurora-show", name: "🌠 Aurora", vibe: "noise curtains · standing waves · 8 min", durationS: 480,
+  cues: [
+    { at: 0, note: "noise curtains drift up", base: { pattern: "aurora", hue: 0.45, sat: 0.85, brightness: 0.45, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.5, master: 1 } },
+    { at: 80, note: "interference shimmer", base: { pattern: "interference", hue: 0.55, sat: 0.8, brightness: 0.52, speed: 0.6 } },
+    { at: 160, note: "a standing-wave mandala", base: { pattern: "chladni", hue: 0.7, sat: 0.85, brightness: 0.6, speed: 0.5, colorCycle: "group" } },
+    { at: 240, note: "an orbiter wanders the canopy", base: { pattern: "lissajous", hue: 0.1, sat: 0.9, brightness: 0.7, speed: 0.6, colorCycle: "off" } },
+    { at: 320, note: "aurora returns, fuller", base: { pattern: "aurora", hue: 0.35, sat: 0.9, brightness: 0.72, speed: 0.6, colorCycle: "group" } },
+    { at: 410, note: "settle to curtains", base: { pattern: "aurora", hue: 0.55, sat: 0.8, brightness: 0.4, speed: 0.4, colorCycle: "off" } },
+  ],
+};
+
+export const SHOWS: LightShow[] = [PERFORMANCE, BIOLUMINESCENCE, AURORA, AWAKENING, IGNITION, COSMOS];
 export const showById = (id: string | null): LightShow | undefined => SHOWS.find((s) => s.id === id);
