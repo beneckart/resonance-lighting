@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTwin } from "./store";
 import { SHOWS, showById } from "./shows";
-import { resetPiano, setPiece, PIECE_LIST, currentPiece } from "./piano";
+import { resetPiano, setPiece, PIECE_LIST, currentPiece, loadMidiPiece } from "./piano";
 import { setPianoSound } from "./pianoAudio";
 import { Widget } from "./Widget";
 
@@ -15,6 +15,16 @@ export function ShowsPanel() {
   const setTod = useTwin((s) => s.setTimeOfDay);
   const pianoOn = useTwin((s) => s.control.pattern === "piano");
   const [soundOn, setSoundOn] = useState(false);
+  const [pieces, setPieces] = useState(() => [...PIECE_LIST]);
+  // auto-load any full-score .mid files listed in /midi/manifest.json (drop your
+  // own public-domain MIDIs there → they appear as pieces). Graceful if absent.
+  useEffect(() => {
+    fetch("/midi/manifest.json").then((r) => (r.ok ? r.json() : [])).then(async (list: { id: string; name: string; file: string }[]) => {
+      let added = false;
+      for (const m of list || []) if (await loadMidiPiece(m.id, m.name, "/midi/" + m.file)) added = true;
+      if (added) setPieces([...PIECE_LIST]);
+    }).catch(() => { /* no manifest — fine */ });
+  }, []);
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!activeShow) return;
@@ -50,7 +60,7 @@ export function ShowsPanel() {
         </button>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-        {PIECE_LIST.map((p) => {
+        {pieces.map((p) => {
           const on = pianoOn && currentPiece() === p.id;
           return (
             <button key={p.id} onClick={() => { playShow(null); setPiece(p.id); resetPiano(); setPianoSound(true); setSoundOn(true); set({ pattern: "piano", brightness: 0.95, sat: 0.6, colorCycle: "off", reverse: false }); setTod(0); }}

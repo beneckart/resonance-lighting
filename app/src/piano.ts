@@ -1,5 +1,6 @@
 import type { SimFixture } from "./store";
 import { playPianoNote, isPianoSound } from "./pianoAudio";
+import { parseMidi } from "./midiParse";
 
 /** THE CANOPY AS A PIANO. The ~72 canopy ("high") lights are a 6-octave keyboard
  *  (MIDI 36..107, by azimuth). A selectable PIECE plays; each sounding note lights
@@ -97,6 +98,23 @@ export const PIECE_LIST = Object.values(PIECES).map((p) => ({ id: p.id, name: p.
 let current = "moonlight";
 export function setPiece(id: string) { if (PIECES[id]) { current = id; t0 = -1; } }
 export function currentPiece() { return current; }
+
+function rebuildList() { PIECE_LIST.length = 0; for (const pc of Object.values(PIECES)) PIECE_LIST.push({ id: pc.id, name: pc.name }); }
+
+/** Load a FULL real score from a Standard MIDI File (.mid) and register it as a
+ *  playable piece. Voice (→ colour) is inferred by pitch: low=bass, mid=arp, high=
+ *  melody. Returns false (silently) if the file is missing/unparseable. */
+export async function loadMidiPiece(id: string, name: string, url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const { notes, len } = parseMidi(await res.arrayBuffer());
+    if (!notes.length || !isFinite(len) || len <= 0) return false;
+    PIECES[id] = { id, name, len, notes: notes.map((n) => ({ midi: n.midi, t: n.t, dur: n.dur, vel: Math.max(0.25, n.vel), voice: n.midi < 52 ? 1 : n.midi >= 67 ? 2 : 0 })) };
+    rebuildList();
+    return true;
+  } catch { return false; }
+}
 
 function colorFor(voice: number, midi: number): [number, number] {
   if (voice === 1) return [0.74, 0.7];
