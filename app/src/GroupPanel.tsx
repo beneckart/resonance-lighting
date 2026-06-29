@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Widget } from "./Widget";
 import {
   useTwin, COLOR_CYCLES, LIGHT_ORDERS, DEFAULT_GROUP_CONTROL,
   type PatternId, type ColorCycle, type LightOrder,
@@ -28,11 +29,6 @@ function parseNums(s: string): number[] {
   return [...out].sort((a, b) => a - b);
 }
 
-const panel: React.CSSProperties = {
-  position: "fixed", top: 182, right: 12, width: 300, maxHeight: "calc(100vh - 200px)", overflowY: "auto",
-  padding: "12px 14px", background: "rgba(10,14,20,0.86)", border: "1px solid #1d2735", borderRadius: 10,
-  color: "#cdd6e4", font: "12px ui-monospace, SFMono-Regular, monospace", backdropFilter: "blur(6px)", zIndex: 40,
-};
 const row: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 4, margin: "6px 0" };
 function btn(active: boolean): React.CSSProperties {
   return {
@@ -55,7 +51,6 @@ export function GroupPanel() {
   const deleteGroup = useTwin((s) => s.deleteGroup);
   const [newName, setNewName] = useState("");
   const [newNums, setNewNums] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
 
   const names = Object.keys(namedGroups);
   const gc = { ...DEFAULT_GROUP_CONTROL, ...(groupControls[selected] ?? {}) };
@@ -64,24 +59,8 @@ export function GroupPanel() {
   const isPreset = selected in LABELS;
   const set = (p: Partial<typeof gc>) => setGroupControl(selected, p);
 
-  if (collapsed) {
-    return (
-      <button onClick={() => setCollapsed(false)} title="show groups"
-        style={{ position: "fixed", top: 182, right: 12, zIndex: 40, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-          border: "1px solid #2a3a52", background: "rgba(12,16,24,0.9)", color: "#cdd6e4", font: "12px ui-monospace, monospace" }}>
-        ▤ Groups ▸
-      </button>
-    );
-  }
-
   return (
-    <div style={panel}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 700, fontSize: 13, color: "#eef3fb" }}>▤ Groups</span>
-        <button onClick={() => setCollapsed(true)} title="hide"
-          style={{ padding: "2px 8px", borderRadius: 6, cursor: "pointer", border: "1px solid #2a3a52", background: "#141a26", color: "#9fb0c7", fontSize: 11 }}>▸</button>
-      </div>
-
+    <Widget id="groups" title="▤ Groups" x={980} y={12} w={300} h={460}>
       {/* GROUP selector (top row of the sketch) */}
       <div style={{ ...row, marginTop: 8 }}>
         {names.map((g) => (
@@ -163,6 +142,6 @@ export function GroupPanel() {
           </button>
         )}
       </div>
-    </div>
+    </Widget>
   );
 }

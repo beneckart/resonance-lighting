@@ -6,22 +6,8 @@ import { interpret } from "./llm";
 import { encodeFixture } from "./protocol";
 import { autoBalanceGain } from "./sensors";
 import { startMidi, ccToControl } from "./midi";
+import { Widget } from "./Widget";
 
-const panel: React.CSSProperties = {
-  position: "fixed",
-  top: 12,
-  left: 12,
-  width: 320,
-  padding: "14px 16px",
-  background: "rgba(10,14,20,0.82)",
-  border: "1px solid #1d2735",
-  borderRadius: 10,
-  color: "#cdd6e4",
-  font: "12px ui-monospace, SFMono-Regular, monospace",
-  backdropFilter: "blur(6px)",
-  maxHeight: "94vh",
-  overflowY: "auto",
-};
 const row: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 4, margin: "8px 0" };
 
 function btn(active: boolean): React.CSSProperties {
@@ -145,7 +131,7 @@ export function Controls() {
   }, []);
 
   return (
-    <div style={panel}>
+    <Widget id="controls" title="🎛 Resonance Tree" x={12} y={12} w={332} h={620}>
       <div style={{ fontWeight: 700, fontSize: 13, color: "#eef3fb" }}>
         Resonance Tree · {count} lights
       </div>
@@ -502,6 +488,6 @@ export function Controls() {
           pkt → {JSON.stringify(encodeFixture(ctrl, f0, ov0))}
         </div>
       )}
-    </div>
+    </Widget>
   );
 }
