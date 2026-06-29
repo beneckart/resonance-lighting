@@ -92,3 +92,41 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
     fieldOut.hue[i] = hue;
   }
 }
+
+// ── EXCITABLE MEDIA (Greenberg-Hastings) — legible ripple waves spreading across
+//    neighbours and fading. Slow CA tick + smoothed brightness = no strobe. ──
+const KAPPA = 10; // 0 = resting, 1 = excited, 2..KAPPA-1 = refractory tail
+let cell = new Int8Array(0);
+let ghAcc = 0;
+let ghN = -1;
+export const rippleOut = { bri: new Float32Array(0), age: new Float32Array(0) };
+
+export function updateRipples(fixtures: SimFixture[], dt: number, speed: number) {
+  const n = fixtures.length;
+  if (ghN !== n) { cell = new Int8Array(n); rippleOut.bri = new Float32Array(n); rippleOut.age = new Float32Array(n); ghN = n; }
+  ghAcc += Math.min(0.1, Math.max(0, dt)) * (0.6 + speed);
+  const TICK = 0.45; // seconds per CA step (slow, organic)
+  if (ghAcc >= TICK) {
+    ghAcc -= TICK;
+    const next = new Int8Array(n);
+    for (let i = 0; i < n; i++) {
+      const c = cell[i];
+      if (c === 1) next[i] = 2;                       // excited → refractory
+      else if (c >= 2) next[i] = c + 1 >= KAPPA ? 0 : c + 1; // refractory countdown → resting
+      else {                                          // resting: excite if a neighbour is excited
+        let ex = 0;
+        const nb = fixtures[i].neighbors;
+        for (let k = 0; k < nb.length; k++) if (cell[nb[k]] === 1) ex++;
+        next[i] = ex >= 1 ? 1 : (Math.random() < 0.0025 ? 1 : 0); // + rare spontaneous seed
+      }
+    }
+    cell = next;
+  }
+  const ease = Math.min(1, Math.max(0, dt) * 5); // smooth brightness (no hard on/off)
+  for (let i = 0; i < n; i++) {
+    const c = cell[i];
+    const target = c === 1 ? 1 : c >= 2 ? Math.max(0, 1 - (c - 1) / (KAPPA - 1)) : 0;
+    rippleOut.bri[i] += (target - rippleOut.bri[i]) * ease;
+    rippleOut.age[i] = c >= 2 ? (c - 1) / (KAPPA - 1) : 0; // 0 at wavefront → 1 at tail
+  }
+}

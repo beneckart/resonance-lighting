@@ -6,7 +6,7 @@ import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, Ins
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
-import { updateField, fieldOut, type Attractor } from "./field";
+import { updateField, fieldOut, updateRipples, rippleOut, type Attractor } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
@@ -235,6 +235,10 @@ export function TreeLights() {
     if (ctrl.pattern === "piano" || st.layers.some((l) => l.control.pattern === "piano")) {
       updatePiano(performance.now() / 1000);
     }
+    // excitable-media ripples — tick the CA once per frame if any look uses it
+    if (ctrl.pattern === "ripples" || st.layers.some((l) => l.control.pattern === "ripples")) {
+      updateRipples(fixtures, delta, ctrl.speed);
+    }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
@@ -263,6 +267,11 @@ export function TreeLights() {
       } else if (fctrl.pattern === "living") {
         col.setHSL(fieldOut.hue[i], fctrl.sat, 0.5);
         const bv = fieldOut.bri[i] * fctrl.brightness;
+        lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
+      } else if (fctrl.pattern === "ripples") {
+        const bv = rippleOut.bri[i] * fctrl.brightness;
+        const hue = ((fctrl.hue + rippleOut.age[i] * 0.16) % 1 + 1) % 1; // wavefront → tail hue shift
+        col.setHSL(hue, fctrl.sat, 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "piano") {
         const m = fixtureMidi(fixtures, i);
