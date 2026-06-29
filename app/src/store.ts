@@ -311,3 +311,11 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setCinematic: (b) => setState({ cinematic: b }),
   setTimeOfDay: (t) => setState((s) => ({ timeOfDay: Math.max(0, Math.min(1, t)), sensors: { ...s.sensors, ambient: Math.max(0, Math.min(1, t)) } })),
 }));
+
+// LLM / external control hook: expose the store so an operator (or Claude driving
+// the page) can issue commands from outside the UI — e.g.
+//   window.twin.getState().runCommand("light 1,7,17 color blue")
+//   window.twin.getState().runScript("light 1 color blue\nlight 7 color red")
+//   window.twin.getState().set({ pattern: "spiral", speed: 0.6 })
+// This is the Path-1 "Claude as the LLM" channel; harmless in the browser app.
+if (typeof window !== "undefined") (window as unknown as { twin: typeof useTwin }).twin = useTwin;

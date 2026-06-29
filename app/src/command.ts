@@ -43,7 +43,9 @@ const GLOBALS: Record<string, (v: string) => Partial<Control> | null> = {
  *   hue 0.5 / speed 2 / pattern sequence            (global shorthand)
  *   <target> <color #hex|name | on | off>           (per-fixture override)
  *     target = all | zone <low|mid|high> | range <a-b> | every <n> | fixture <id|seq>
+ *            | light <n|list|range>   (by addressable number 1..72: "light 1,7,17")
  * Addressing uses azimuth order (seq) for range/every — "range 0-23" = first 24 around the tree.
+ * `light` addresses by the 1..72 number: "light 7 color blue", "light 1,7,17 color red".
  */
 export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
   const t = cmd.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -97,6 +99,18 @@ export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
     idx = withIdx.filter((x) => x.f.id.toLowerCase() === t[1] || String(x.f.seq) === t[1]).map((x) => x.i);
     ti = 2;
     label = `fixture ${t[1]}`;
+  } else if ((t[0] === "light" || t[0] === "lights" || t[0] === "num") && t[1]) {
+    // address by ADDRESSABLE NUMBER 1..72 — supports lists + ranges:
+    //   "light 7" · "light 1,7,17" · "light 1-24" · "light 1,7,17-20"
+    const wanted = new Set<number>();
+    for (const part of t[1].split(",")) {
+      const r = part.match(/^(\d+)-(\d+)$/);
+      if (r) { for (let k = +r[1]; k <= +r[2]; k++) wanted.add(k); }
+      else if (/^\d+$/.test(part)) wanted.add(+part);
+    }
+    idx = withIdx.filter((x) => wanted.has(x.f.num)).map((x) => x.i);
+    ti = 2;
+    label = `light ${t[1]}`;
   }
 
   if (idx) {
@@ -109,7 +123,7 @@ export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
       if (rgb) return { setOverrides: { idx, op: { mode: "color", rgb } }, msg: `${label} ${t[ti + 1]} (${idx.length})` };
     }
   }
-  return { msg: `? unrecognized — try: range 0-23 color #00aaff · zone high off · every 4 color red · clear` };
+  return { msg: `? unrecognized — try: light 1,7,17 color blue · range 0-23 color #00aaff · zone high off · clear` };
 }
 
 /** Split a multi-line command script (the LLM's output) into runnable commands.
