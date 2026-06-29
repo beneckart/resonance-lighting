@@ -113,6 +113,29 @@ Run shape:
      sensor lag or under-read actual cell/front temperature versus the thinner Seeed 3 W.
 6. Repeat one setpoint after moving the panel hot/cold if the temperature changed a lot.
 
+## 2026-06-29 outdoor follow-up
+
+Ran the PowerFeather solar telemetry peer (`9E5AB8`) through the `COM7` serial bridge and
+local dashboard in late Oakland sun. Both panels were tilted about 15 deg. Data was logged
+to `ops/bench/data/ca/2026-06-29-ca-lfp-6000-net-solar-telemetry-1hz-2118.jsonl`; the
+file label is stale because the live peer config was changed to `C2000` for the 2 Ah pack.
+
+| Panel | Best setpoint | Panel-side INA | Charger input | Battery-side charge | Notes |
+|---|---:|---:|---:|---:|---|
+| P105 5 W ETFE | `m46`/`m48` | about 3.8-3.9 W at about 5.1-5.3 V | about 3.47 W | about 3.1-3.2 W | `m52` was worse; plausible vs datasheet expected Vmp, but may still be battery-acceptance limited. |
+| P126 smaller ETFE | `m58` | about 1.89 W at about 6.1 V | about 1.66-1.68 W | about 1.25-1.28 W | `m60`/`m62` fell off; proportionally close to nominal/nameplate in real hot/late-day conditions. |
+
+Findings:
+
+- The P126 looks increasingly credible for HEX fixtures where the average LED load is low.
+- The P105 remains the safer RGBW choice, but needs one more clean run with a hungry
+  larger 6-7.2 Ah LFP at mid-SOC to separate panel capability from charge-acceptance,
+  cell-IR, and CV/taper limits.
+- The MPP stair-steps were visible enough that a simple firmware hill-climber is likely
+  worth testing: first-good-sun sweep, then periodic 3-point perturbation around the last
+  best setpoint, skipping sweeps when battery voltage/current indicate taper or poor
+  demand-side truth.
+
 ## Decision read
 
 If P126 reliably nets enough Wh/day for the HEX profile, it is the more elegant enclosure

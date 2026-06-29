@@ -54,7 +54,9 @@ rx_peer = re.compile(
     r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
     r"(?: sv=([\d.-]+) sma=(-?\d+) sgood=(\d+))?"   # supply (panel) side; optional (pre-.7 peers omit it)
     r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?"   # env sensors (2026-06-10.1+); lux: number|sat|nan
-    r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?")  # onboard INA meters (2026-06-11.2+); -32768 = absent
+    r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?"  # onboard INA meters (2026-06-11.2+); -32768 = absent
+    r"(?: cap=(\d+) chg=(\d+))?"
+    r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -85,7 +87,8 @@ with open(out, "w") as fh:
         if m:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
              dlpdr, dlrssi, up, age, sv, sma, sgood,
-             lux, ch0, ch1, ptc, prh, btc, ipv, ipa, ibv, iba) = m.groups()
+             lux, ch0, ch1, ptc, prh, btc, ipv, ipa, ibv, iba,
+             cap, chg, dd, ddb, dda) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -125,6 +128,11 @@ with open(out, "w") as fh:
                            ina_batt_mv=bv2, ina_batt_ma=ba)
                 if pv is not None and pa is not None:
                     row["ina_panel_w"] = round(pv * pa / 1e6, 3)  # ground-truth harvest
+            if cap is not None:
+                row.update(config_capacity_mah=int(cap), config_charge_ma=int(chg))
+            if dd is not None:
+                row.update(drawdown_mah=float(dd), drawdown_budget_mah=int(ddb),
+                           drawdown_active=bool(int(dda)))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

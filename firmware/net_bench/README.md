@@ -59,6 +59,28 @@ The live master command `m<v10>` sets charger maintain/VINDPM in volts x10 acros
 fleet and accepts the PowerFeather SDK range 4.0-16.8 V, e.g. `m46` for 4.6 V or `m71`
 for a 7.1 V panel MPP.
 
+The live master command `S` parks peers in timed deep sleep for 6 hours by default
+(`S900` = 15 minutes). Peers cut the switchable 3V3/STEMMA rails before sleeping and
+wake by timer, preserving no-touch recoverability for the next maintenance window.
+
+The live master command `D<id>[:mah]` starts a **targeted HEX drawdown** on one peer,
+then the peer blanks the pixels and timed-sleeps when it reaches the mAh budget or the
+LFP voltage guard. Example: `D9E5AF0:3500` lights the 37px HEX on GPIO10 at the
+bench-default load, integrates discharge current, stops around 3500 mAh or the guarded
+voltage floor, and sleeps 12 hours so the battery is still hungry for a next-day solar
+run. Use the target id whenever more than one peer is online.
+
+Battery capacity and charger current are runtime bench config:
+
+- `C<mah>` stores battery capacity in peer NVS, then peers reboot so the next
+  `Board.init()` uses the new gauge capacity. Example: `C6000` for the 32700 LFP.
+- `G<mA>` stores and live-applies the charger current cap. Example: `G1500` for a
+  supervised 6 Ah solar run. Valid range is 40-2000 mA.
+
+Chemistry is still a build-time flag (`--chem lfp|3v7`) because that controls charge
+voltage and is safety-critical. The `--cap` and `--charge-ma` build flags remain useful
+as first-boot defaults; NVS overrides win after a command.
+
 ### Env sensors (MPP sweep: light + panel temp over the air)
 A TSL2591 (lux, 0x29) and/or SHT31-D (temp/RH, 0x44) chained on the peer's STEMMA-QT
 are **auto-probed at boot** (no build flag; one image serves sensored and bare boards)
@@ -149,7 +171,11 @@ beacon; on-demand locate is the primitive that matters now.
 `t` telemetry · `r` report (role/mode/rate/txseq/sendok/fail/peers) · `+`/`-` step the
 broadcast rate for a sweep (master broadcasts `SET_RATE` to peers) · `i` identify next
 peer (locate, blinks `..-` 8 s) · `I` identify all peers · `u` master: announce
-maintenance + enter · `c` resume · `x` watchdog hang test (needs `--wdt-hangtest`).
+maintenance + enter · `c` resume · `m<v10>` set VINDPM · `S[seconds]` timed
+deep-sleep peers (bare `S` = 6 h) · `D<id>[:mah]` targeted HEX drawdown + sleep ·
+`C<mah>` set capacity and reboot peers ·
+`G<mA>` set charge-current cap · `x` watchdog hang test (needs
+`--wdt-hangtest`).
 
 ## Host tooling
 - `ops/bench/net_bench_log.py` — capture the master's UDP bridge → JSONL (per-peer

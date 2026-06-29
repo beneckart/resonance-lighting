@@ -36,8 +36,9 @@
 // one image serves sensored and bare boards alike. See envInit()/envTick().
 #include <Adafruit_TSL2591.h>
 #include <Adafruit_SHT31.h>
+#include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-11.2" // onboard INA panel/battery meters in heartbeat
+#define NET_BENCH_VERSION "net-bench-2026-06-29.1" // targeted HEX drawdown + sleep
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -129,11 +130,61 @@ using namespace PowerFeather;
 #ifndef NB_WAKE_LISTEN_MS
 #define NB_WAKE_LISTEN_MS 400 // per-wake window to catch ENTER_MAINT before re-sleeping (ms)
 #endif
+
+// Remote low-battery park command. A bare serial 'S' sleeps peers for this long.
+#ifndef NB_REMOTE_SLEEP_S
+#define NB_REMOTE_SLEEP_S 21600 // 6 hours; enough to wait for sun without losing recoverability
+#endif
+#ifndef NB_DRAWDOWN_PIXEL_PIN
+#define NB_DRAWDOWN_PIXEL_PIN 10 // GPIO10 / A0: direct-GPIO HEX bench harness
+#endif
+#ifndef NB_DRAWDOWN_PIXEL_COUNT
+#define NB_DRAWDOWN_PIXEL_COUNT 37
+#endif
+#ifndef NB_DRAWDOWN_BRIGHTNESS
+#define NB_DRAWDOWN_BRIGHTNESS 128 // measured about 0.75 A battery-side on the current HEX rig
+#endif
+#ifndef NB_DRAWDOWN_R
+#define NB_DRAWDOWN_R 255
+#endif
+#ifndef NB_DRAWDOWN_G
+#define NB_DRAWDOWN_G 255
+#endif
+#ifndef NB_DRAWDOWN_B
+#define NB_DRAWDOWN_B 255
+#endif
+#ifndef NB_DRAWDOWN_DEFAULT_MAH
+#define NB_DRAWDOWN_DEFAULT_MAH 3500 // full 7.2 Ah -> roughly half-full/hungry
+#endif
+#ifndef NB_DRAWDOWN_SOFT_FLOOR_MV
+#define NB_DRAWDOWN_SOFT_FLOOR_MV 3180 // loaded LFP, after the initial sag window
+#endif
+#ifndef NB_DRAWDOWN_HARD_FLOOR_MV
+#define NB_DRAWDOWN_HARD_FLOOR_MV 3050 // stay well above precharge/trickle territory
+#endif
+#ifndef NB_DRAWDOWN_MIN_RUN_S
+#define NB_DRAWDOWN_MIN_RUN_S 1800 // ignore early load sag for the soft floor
+#endif
+#ifndef NB_DRAWDOWN_SLEEP_S
+#define NB_DRAWDOWN_SLEEP_S 43200 // 12 h: preserve the hungry cell for tomorrow morning
+#endif
 #ifndef NB_MAINTAIN_MIN_V10
 #define NB_MAINTAIN_MIN_V10 40 // PowerFeather SDK supports 4.0 V minimum
 #endif
 #ifndef NB_MAINTAIN_MAX_V10
 #define NB_MAINTAIN_MAX_V10 168 // PowerFeather SDK supports 16.8 V maximum
+#endif
+#ifndef NB_CAPACITY_MIN_MAH
+#define NB_CAPACITY_MIN_MAH 100
+#endif
+#ifndef NB_CAPACITY_MAX_MAH
+#define NB_CAPACITY_MAX_MAH 30000
+#endif
+#ifndef NB_CHARGE_MIN_MA
+#define NB_CHARGE_MIN_MA 40
+#endif
+#ifndef NB_CHARGE_MAX_MA
+#define NB_CHARGE_MAX_MA 2000
 #endif
 // NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE,
 // NB_MAINT_AP, NB_SLEEP_CYCLE are presence-only flags.
@@ -191,6 +242,9 @@ float cbV = 0, cbMa = 0;
 int cbSoc = -1;
 float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
+uint16_t gBatteryCapacityMah = (uint16_t)RES_PF_BATTERY_CAPACITY_MAH;
+uint16_t gChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
+bool gBenchConfigLoaded = false;
 
 // ---- env sensors (MPP sweep: light + panel temp, no host tether) ------------
 Adafruit_TSL2591 gTsl(2591);          // lux/irradiance proxy (STEMMA, 0x29)
@@ -221,6 +275,16 @@ int16_t gInaPvMv = INT16_MIN, gInaPaMa = INT16_MIN, gInaBvMv = INT16_MIN, gInaBa
 // function this early moves the Arduino auto-prototype insertion point above
 // the structs and breaks every later type reference)
 
+Adafruit_NeoPixel drawdownPixels(NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
+                                 NEO_GRB + NEO_KHZ800);
+bool gDrawdownPixelsBegun = false;
+bool gDrawdownActive = false;
+uint16_t gDrawdownBudgetMah = NB_DRAWDOWN_DEFAULT_MAH;
+float gDrawdownMah = 0.0f;
+uint32_t gDrawdownStartMs = 0;
+uint32_t gDrawdownLastMs = 0;
+uint32_t gDrawdownLastLogMs = 0;
+
 uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead of battery
 
 // field scan-report state (set on a -DNB_SCAN_REPORT peer). gScanRunning is read
@@ -246,6 +310,10 @@ enum NbType : uint8_t {
   NB_IDENTIFY = 6,    // master -> target (or all): blink the locate pattern to find a board
   NB_SCANAP = 7,      // field peer -> bridge: one scanned 2.4 GHz AP (coverage mapping)
   NB_SET_MAINTAIN = 8,// master -> all: set charger VINDPM/maintain V (panel MPP sweep / MPPT)
+  NB_SET_CAPACITY = 9,// master -> all: persist battery capacity (mAh), reboot to apply
+  NB_SET_CHARGE_MA = 10,// master -> all: persist/apply charger current cap (mA)
+  NB_SLEEP_FOR = 11,  // master -> all: cut rails and timed deep-sleep (seconds)
+  NB_DRAWDOWN = 12,   // master -> target: HEX drawdown load, then guarded timed sleep
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -294,10 +362,28 @@ struct __attribute__((packed)) NbHeartbeat {
   int16_t ina_pa_ma; // panel-lead INA current mA (wired so INTO the board = +)
   int16_t ina_bv_mv; // battery-lead INA bus mV (0x41 default)
   int16_t ina_ba_ma; // battery-lead INA current mA
+  // --- APPEND-ONLY tail 4 (runtime bench config). Lets the bridge/dashboard
+  // verify which NVS-backed gauge/charge settings this peer booted with.
+  uint16_t cfg_cap_mah;
+  uint16_t cfg_charge_ma;
+  // --- APPEND-ONLY tail 5 (targeted battery drawdown helper). This is bench-only
+  // telemetry for preparing a hungry LFP and estimating delivered capacity.
+  uint16_t drawdown_mah_x10;
+  uint16_t drawdown_budget_mah;
+  uint8_t drawdown_active;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
   uint8_t arg; // SET_RATE: Hz
+};
+struct __attribute__((packed)) NbSetU16 {
+  NbHeader h;
+  uint16_t value;
+};
+struct __attribute__((packed)) NbTargetU16 {
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all; otherwise node short ID
+  uint16_t value;
 };
 struct __attribute__((packed)) NbIdentify { // locate a board (target 00:00:00 = all)
   NbHeader h;
@@ -342,6 +428,11 @@ struct NbPeerStat {
   int16_t btemp_cx10;
   bool has_ina; // peer sent the onboard-INA tail
   int16_t ina_pv_mv, ina_pa_ma, ina_bv_mv, ina_ba_ma;
+  bool has_cfg; // peer sent the runtime-config tail
+  uint16_t cfg_cap_mah, cfg_charge_ma;
+  bool has_drawdown; // peer sent the targeted drawdown tail
+  uint16_t drawdown_mah_x10, drawdown_budget_mah;
+  uint8_t drawdown_active;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -379,22 +470,80 @@ const char *batteryTypeName() {
   }
 }
 
+uint16_t checkedStoredUInt(Preferences &pf, const char *key, uint16_t fallback,
+                           uint16_t minVal, uint16_t maxVal) {
+  uint32_t raw = pf.getUInt(key, fallback);
+  if (raw < minVal || raw > maxVal) return fallback;
+  return (uint16_t)raw;
+}
+
+void loadBenchConfig() {
+  if (gBenchConfigLoaded) return;
+  gBenchConfigLoaded = true;
+  uint16_t defaultChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
+  Preferences pf;
+  pf.begin("netbench", true);
+  gBatteryCapacityMah = checkedStoredUInt(pf, "cap_mah", (uint16_t)RES_PF_BATTERY_CAPACITY_MAH,
+                                          NB_CAPACITY_MIN_MAH, NB_CAPACITY_MAX_MAH);
+  gChargeMa = checkedStoredUInt(pf, "chg_ma", defaultChargeMa, NB_CHARGE_MIN_MA, NB_CHARGE_MAX_MA);
+  pf.end();
+  Serial.printf("  bench config: cap=%u mAh charge=%u mA%s\n",
+                gBatteryCapacityMah, gChargeMa,
+                (gBatteryCapacityMah == (uint16_t)RES_PF_BATTERY_CAPACITY_MAH &&
+                 gChargeMa == defaultChargeMa) ? " (build defaults)" : " (NVS override)");
+}
+
+bool persistCapacity(uint16_t mah) {
+  if (mah < NB_CAPACITY_MIN_MAH || mah > NB_CAPACITY_MAX_MAH) {
+    Serial.printf("capacity %u rejected (range %u..%u mAh)\n",
+                  mah, (unsigned)NB_CAPACITY_MIN_MAH, (unsigned)NB_CAPACITY_MAX_MAH);
+    return false;
+  }
+  Preferences pf;
+  pf.begin("netbench", false);
+  pf.putUInt("cap_mah", mah);
+  pf.end();
+  gBatteryCapacityMah = mah;
+  Serial.printf("battery capacity stored -> %u mAh; rebooting to apply gauge model\n", mah);
+  Serial.flush();
+  delay(150);
+  esp_restart();
+  return true;
+}
+
+bool persistAndApplyChargeMa(uint16_t ma) {
+  if (ma < NB_CHARGE_MIN_MA || ma > NB_CHARGE_MAX_MA) {
+    Serial.printf("charge current %u rejected (range %u..%u mA)\n",
+                  ma, (unsigned)NB_CHARGE_MIN_MA, (unsigned)NB_CHARGE_MAX_MA);
+    return false;
+  }
+  Preferences pf;
+  pf.begin("netbench", false);
+  pf.putUInt("chg_ma", ma);
+  pf.end();
+  gChargeMa = ma;
+  if (pfReady) Board.setBatteryChargingMaxCurrent((float)ma);
+  Serial.printf("charge current cap stored/applied -> %u mA\n", ma);
+  return true;
+}
+
 void setupPowerFeather() {
   Serial.println("PowerFeather SDK init:");
+  loadBenchConfig();
   Result r = Result::Failure;
   for (int a = 1; a <= 4; a++) {
-    r = Board.init((uint16_t)RES_PF_BATTERY_CAPACITY_MAH, RES_PF_BATTERY_TYPE);
+    r = Board.init(gBatteryCapacityMah, RES_PF_BATTERY_TYPE);
     if (r == Result::Ok) break;
     Serial.printf("  Board.init attempt %d -> %d, retrying\n", a, (int)r);
     delay(250);
   }
   pfReady = (r == Result::Ok);
-  Serial.printf("  Board.init(cap=%u, %s) -> %s\n", (unsigned)RES_PF_BATTERY_CAPACITY_MAH,
+  Serial.printf("  Board.init(cap=%u, %s) -> %s\n", (unsigned)gBatteryCapacityMah,
                 batteryTypeName(), pfReady ? "Ok" : "ERR");
   if (!pfReady) return;
   Board.setSupplyMaintainVoltage((float)RES_PF_MAINTAIN_V);
 #if RES_PF_ENABLE_CHARGING
-  Board.setBatteryChargingMaxCurrent((float)RES_PF_MAX_CHARGE_MA);
+  Board.setBatteryChargingMaxCurrent((float)gChargeMa);
   Board.enableBatteryCharging(true);
 #else
   Board.enableBatteryCharging(false);
@@ -553,6 +702,12 @@ String telemetryJson() {
   j += ",\"mode\":";
   j += (int)gMode;
   j += ",\"uptime_ms\":" + String((unsigned long)millis());
+  j += ",\"drawdown_active\":";
+  j += gDrawdownActive ? "true" : "false";
+  j += ",\"drawdown_mah\":";
+  j += String(gDrawdownMah, 1);
+  j += ",\"drawdown_budget_mah\":";
+  j += String(gDrawdownBudgetMah);
   j += ",\"heap_free\":" + String(ESP.getFreeHeap());
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
   j += ",\"pf_ready\":";
@@ -780,6 +935,11 @@ void sendHeartbeat(uint8_t caState) {
   hb.ina_pa_ma = gInaPaMa;
   hb.ina_bv_mv = gInaBvMv;
   hb.ina_ba_ma = gInaBaMa;
+  hb.cfg_cap_mah = gBatteryCapacityMah;
+  hb.cfg_charge_ma = gChargeMa;
+  hb.drawdown_mah_x10 = (uint16_t)min(65535UL, (unsigned long)(gDrawdownMah * 10.0f + 0.5f));
+  hb.drawdown_budget_mah = gDrawdownBudgetMah;
+  hb.drawdown_active = gDrawdownActive ? 1 : 0;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -787,6 +947,124 @@ void sendCmd(uint8_t type, uint8_t arg) {
   fillHeader(&c.h, type);
   c.arg = arg;
   for (int i = 0; i < 4; i++) { esp_now_send(BCAST, (uint8_t *)&c, sizeof(c)); delay(5); } // repeat (unacked)
+}
+void sendSetU16(uint8_t type, uint16_t value) {
+  NbSetU16 c;
+  fillHeader(&c.h, type);
+  c.value = value;
+  for (int i = 0; i < 4; i++) { esp_now_send(BCAST, (uint8_t *)&c, sizeof(c)); delay(5); }
+}
+void sendTargetU16(uint8_t type, const uint8_t target[3], uint16_t value) {
+  NbTargetU16 c;
+  fillHeader(&c.h, type);
+  memcpy(c.target_id, target, 3);
+  c.value = value;
+  for (int i = 0; i < 6; i++) { esp_now_send(BCAST, (uint8_t *)&c, sizeof(c)); delay(8); }
+}
+void enterTimedDeepSleep(uint16_t seconds, const char *why) {
+  if (seconds == 0) seconds = 1;
+  digitalWrite(NB_LED_PIN, LOW);
+  if (pfReady) {
+    Board.enable3V3(false);
+    Board.enableVSQT(false);
+  }
+  Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
+  esp_deep_sleep_start();
+}
+void drawdownPixelsBegin() {
+  if (gDrawdownPixelsBegun) return;
+  drawdownPixels.begin();
+  drawdownPixels.setBrightness(255);
+  drawdownPixels.clear();
+  drawdownPixels.show();
+  gDrawdownPixelsBegun = true;
+}
+void drawdownPixelsOff() {
+  drawdownPixelsBegin();
+  drawdownPixels.setBrightness(255);
+  drawdownPixels.clear();
+  drawdownPixels.show();
+  pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
+  digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
+}
+void drawdownPixelsLoadOn() {
+  if (pfReady) Board.enable3V3(true);
+  delay(20);
+  drawdownPixelsBegin();
+  drawdownPixels.setBrightness(NB_DRAWDOWN_BRIGHTNESS);
+  uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
+  for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) drawdownPixels.setPixelColor(i, c);
+  drawdownPixels.show();
+}
+void drawdownCancel(const char *why) {
+  if (!gDrawdownActive) return;
+  gDrawdownActive = false;
+  drawdownPixelsOff();
+  Serial.printf("drawdown canceled (%s), %.1f mAh delivered\n", why, gDrawdownMah);
+}
+void drawdownStopAndSleep(const char *why) {
+  if (!gDrawdownActive) return;
+  readBattery();
+  Serial.printf("drawdown stop: %s; delivered %.1f / %u mAh, bv=%.3f ima=%.0f -> sleep %us\n",
+                why, gDrawdownMah, gDrawdownBudgetMah, cbV, cbMa,
+                (unsigned)NB_DRAWDOWN_SLEEP_S);
+  for (int i = 0; i < 3; i++) { sendHeartbeat(0); delay(40); }
+  gDrawdownActive = false;
+  drawdownPixelsOff();
+  delay(40);
+  enterTimedDeepSleep((uint16_t)min((unsigned long)NB_DRAWDOWN_SLEEP_S, 65535UL), why);
+}
+void drawdownStart(uint16_t budgetMah) {
+  if (budgetMah == 0) {
+    drawdownCancel("remote-zero");
+    return;
+  }
+  readBattery();
+  if (cbV > 0 && cbV * 1000.0f <= NB_DRAWDOWN_HARD_FLOOR_MV) {
+    Serial.printf("drawdown rejected: bv %.3f <= hard floor %.3f\n",
+                  cbV, NB_DRAWDOWN_HARD_FLOOR_MV / 1000.0f);
+    drawdownPixelsOff();
+    return;
+  }
+  gDrawdownBudgetMah = budgetMah;
+  gDrawdownMah = 0.0f;
+  gDrawdownStartMs = millis();
+  gDrawdownLastMs = gDrawdownStartMs;
+  gDrawdownLastLogMs = 0;
+  gDrawdownActive = true;
+  drawdownPixelsLoadOn();
+  Serial.printf("drawdown start: budget=%u mAh load=HEX %upx rgb=(%u,%u,%u) bri=%u soft=%.3f hard=%.3f\n",
+                gDrawdownBudgetMah, NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R,
+                NB_DRAWDOWN_G, NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS,
+                NB_DRAWDOWN_SOFT_FLOOR_MV / 1000.0f, NB_DRAWDOWN_HARD_FLOOR_MV / 1000.0f);
+}
+void drawdownTick() {
+  if (!gDrawdownActive) return;
+  uint32_t now = millis();
+  if (gDrawdownLastMs == 0) gDrawdownLastMs = now;
+  uint32_t dtMs = now - gDrawdownLastMs;
+  if (dtMs >= 250) {
+    float dischargeMa = cbMa < 0 ? -cbMa : 0.0f;
+    gDrawdownMah += dischargeMa * (float)dtMs / 3600000.0f;
+    gDrawdownLastMs = now;
+  }
+  uint32_t elapsedS = (now - gDrawdownStartMs) / 1000;
+  if (now - gDrawdownLastLogMs > 30000) {
+    gDrawdownLastLogMs = now;
+    Serial.printf("drawdown: %.1f/%u mAh elapsed=%lus bv=%.3f ima=%.0f soc=%d\n",
+                  gDrawdownMah, gDrawdownBudgetMah, (unsigned long)elapsedS,
+                  cbV, cbMa, cbSoc);
+  }
+  if (cbV > 0 && cbV * 1000.0f <= NB_DRAWDOWN_HARD_FLOOR_MV) {
+    drawdownStopAndSleep("hard-floor");
+  } else if (elapsedS >= NB_DRAWDOWN_MIN_RUN_S &&
+             cbV > 0 && cbV * 1000.0f <= NB_DRAWDOWN_SOFT_FLOOR_MV) {
+    drawdownStopAndSleep("soft-floor");
+  } else if (gDrawdownMah >= gDrawdownBudgetMah) {
+    drawdownStopAndSleep("budget");
+  }
 }
 void sendIdentify(const uint8_t target[3], uint8_t secs) {
   NbIdentify m;
@@ -879,7 +1157,7 @@ void emitBridge(const char *line, int n) {
 
 void bridgeStats() {
   if (!IS_MASTER) return;
-  char line[336]; // base peer line + the optional env tail
+  char line[384]; // base peer line + optional env/INA/config/drawdown tails
   // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
                    "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f\n",
@@ -917,6 +1195,15 @@ void bridgeStats() {
     if (p->has_ina && n < (int)sizeof(line)) { // onboard INA tail: -32768 = channel absent
       n += snprintf(line + n, sizeof(line) - n, " ipv=%d ipa=%d ibv=%d iba=%d",
                     p->ina_pv_mv, p->ina_pa_ma, p->ina_bv_mv, p->ina_ba_ma);
+    }
+    if (p->has_cfg && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " cap=%u chg=%u",
+                    p->cfg_cap_mah, p->cfg_charge_ma);
+    }
+    if (p->has_drawdown && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " dd=%.1f ddb=%u dda=%u",
+                    p->drawdown_mah_x10 / 10.0f, p->drawdown_budget_mah,
+                    p->drawdown_active);
     }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
@@ -1008,12 +1295,26 @@ void processRx() {
         } else {
           p->has_env = false;
         }
-        if (it.len >= (int)sizeof(NbHeartbeat)) { // onboard-INA peer (append-only tail 3)
+        if (it.len >= (int)offsetof(NbHeartbeat, cfg_cap_mah)) { // onboard-INA peer (append-only tail 3)
           p->has_ina = true;
           p->ina_pv_mv = hb->ina_pv_mv; p->ina_pa_ma = hb->ina_pa_ma;
           p->ina_bv_mv = hb->ina_bv_mv; p->ina_ba_ma = hb->ina_ba_ma;
         } else {
           p->has_ina = false;
+        }
+        if (it.len >= (int)offsetof(NbHeartbeat, drawdown_mah_x10)) { // runtime-config tail 4
+          p->has_cfg = true;
+          p->cfg_cap_mah = hb->cfg_cap_mah; p->cfg_charge_ma = hb->cfg_charge_ma;
+        } else {
+          p->has_cfg = false;
+        }
+        if (it.len >= (int)sizeof(NbHeartbeat)) { // targeted drawdown tail 5
+          p->has_drawdown = true;
+          p->drawdown_mah_x10 = hb->drawdown_mah_x10;
+          p->drawdown_budget_mah = hb->drawdown_budget_mah;
+          p->drawdown_active = hb->drawdown_active;
+        } else {
+          p->has_drawdown = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {
@@ -1031,6 +1332,18 @@ void processRx() {
         Board.setSupplyMaintainVoltage((float)v10 / 10.0f);
         Serial.printf("VINDPM/maintain set -> %.1f V\n", (float)v10 / 10.0f);
       }
+    } else if (h->type == NB_SET_CAPACITY && it.len >= (int)sizeof(NbSetU16)) {
+      // Capacity changes affect the gauge model used by Board.init(), so store and reboot.
+      persistCapacity(((NbSetU16 *)it.data)->value);
+    } else if (h->type == NB_SET_CHARGE_MA && it.len >= (int)sizeof(NbSetU16)) {
+      // Charge-current cap is independent from gauge capacity and can apply immediately.
+      persistAndApplyChargeMa(((NbSetU16 *)it.data)->value);
+    } else if (h->type == NB_SLEEP_FOR && it.len >= (int)sizeof(NbSetU16)) {
+      enterTimedDeepSleep(((NbSetU16 *)it.data)->value, "remote");
+    } else if (h->type == NB_DRAWDOWN && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
+      if (all || memcmp(m->target_id, myId, 3) == 0) drawdownStart(m->value);
     } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
       NbIdentify *m = (NbIdentify *)it.data;
       bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
@@ -1063,6 +1376,61 @@ uint8_t caTick() {
   for (int i = 0; i < NB_MAX_TRACKED; i++)
     if (peers[i].used && now - peers[i].last_heard_ms < 3000) sum += peers[i].ca;
   return (uint8_t)(sum & 1);
+}
+
+int readSerialUint(uint32_t windowMs = 70, int maxValue = 100000) {
+  int value = -1;
+  uint32_t digitDeadline = millis() + windowMs;
+  while ((int32_t)(digitDeadline - millis()) > 0) {
+    if (!Serial.available()) { delay(1); continue; }
+    int p = Serial.peek();
+    if (p < '0' || p > '9') break;
+    Serial.read();
+    value = (value < 0 ? 0 : value * 10) + (p - '0');
+    if (value > maxValue) break;
+  }
+  return value;
+}
+int hexNibble(int c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return 10 + c - 'a';
+  if (c >= 'A' && c <= 'F') return 10 + c - 'A';
+  return -1;
+}
+bool readSerialHexId(uint8_t out[3], uint32_t windowMs = 120) {
+  uint8_t nibbles[6];
+  uint8_t n = 0;
+  uint32_t deadline = millis() + windowMs;
+  while (n < 6 && (int32_t)(deadline - millis()) > 0) {
+    if (!Serial.available()) { delay(1); continue; }
+    int h = hexNibble(Serial.peek());
+    if (h < 0) break;
+    Serial.read();
+    nibbles[n++] = (uint8_t)h;
+  }
+  if (n != 6) return false;
+  out[0] = (nibbles[0] << 4) | nibbles[1];
+  out[1] = (nibbles[2] << 4) | nibbles[3];
+  out[2] = (nibbles[4] << 4) | nibbles[5];
+  return true;
+}
+void consumeDrawdownSeparator() {
+  uint32_t deadline = millis() + 40;
+  while ((int32_t)(deadline - millis()) > 0) {
+    if (!Serial.available()) { delay(1); continue; }
+    int p = Serial.peek();
+    if (p == ':' || p == ',' || p == '=') Serial.read();
+    return;
+  }
+}
+int peerCount(uint8_t first[3]) {
+  int count = 0;
+  for (int i = 0; i < NB_MAX_TRACKED; i++) {
+    if (!peers[i].used) continue;
+    if (count == 0 && first) memcpy(first, peers[i].id, 3);
+    count++;
+  }
+  return count;
 }
 
 // ---- serial commands -------------------------------------------------------
@@ -1101,6 +1469,88 @@ void handleSerial() {
   case '-':
     if (IS_MASTER) { if (rateIdx > 0) rateIdx--; gRateHz = rates[rateIdx]; sendCmd(NB_SET_RATE, gRateHz); Serial.printf("rate -> %u Hz\n", gRateHz); }
     break;
+  case 'C': { // capacity mAh: C6000. Stored in NVS; peers reboot to apply Board.init().
+    int mah = readSerialUint(80, NB_CAPACITY_MAX_MAH);
+    if (mah < 0) {
+      Serial.printf("config: cap=%u mAh charge=%u mA\n", gBatteryCapacityMah, gChargeMa);
+      break;
+    }
+    if (mah < NB_CAPACITY_MIN_MAH || mah > NB_CAPACITY_MAX_MAH) {
+      Serial.printf("SET_CAPACITY %d rejected (range %u..%u mAh)\n",
+                    mah, (unsigned)NB_CAPACITY_MIN_MAH, (unsigned)NB_CAPACITY_MAX_MAH);
+      break;
+    }
+    if (IS_MASTER) {
+      sendSetU16(NB_SET_CAPACITY, (uint16_t)mah);
+      Serial.printf("broadcast SET_CAPACITY %d mAh (peers reboot to apply)\n", mah);
+    } else {
+      persistCapacity((uint16_t)mah);
+    }
+    break;
+  }
+  case 'G': { // charge cap mA: G1500. Stored in NVS and live-applied.
+    int ma = readSerialUint(80, NB_CHARGE_MAX_MA);
+    if (ma < 0) {
+      Serial.printf("config: cap=%u mAh charge=%u mA\n", gBatteryCapacityMah, gChargeMa);
+      break;
+    }
+    if (ma < NB_CHARGE_MIN_MA || ma > NB_CHARGE_MAX_MA) {
+      Serial.printf("SET_CHARGE_MA %d rejected (range %u..%u mA)\n",
+                    ma, (unsigned)NB_CHARGE_MIN_MA, (unsigned)NB_CHARGE_MAX_MA);
+      break;
+    }
+    if (IS_MASTER) {
+      sendSetU16(NB_SET_CHARGE_MA, (uint16_t)ma);
+      Serial.printf("broadcast SET_CHARGE_MA %d mA\n", ma);
+    } else {
+      persistAndApplyChargeMa((uint16_t)ma);
+    }
+    break;
+  }
+  case 'S': { // timed deep sleep: bare S uses NB_REMOTE_SLEEP_S; S900 sleeps 15 min.
+    int seconds = readSerialUint(80, 65535);
+    uint16_t sleepS = (uint16_t)(seconds < 0 ? NB_REMOTE_SLEEP_S : seconds);
+    if (sleepS == 0) {
+      Serial.println("SLEEP rejected (seconds must be 1..65535)");
+      break;
+    }
+    if (IS_MASTER) {
+      sendSetU16(NB_SLEEP_FOR, sleepS);
+      Serial.printf("broadcast SLEEP_FOR %us\n", (unsigned)sleepS);
+    } else {
+      enterTimedDeepSleep(sleepS, "serial");
+    }
+    break;
+  }
+  case 'D': { // targeted HEX drawdown: D9E5AF0:3500, D9E5AF0, or D when exactly one peer
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = readSerialHexId(target, 100);
+    if (haveTarget) consumeDrawdownSeparator();
+    int budget = readSerialUint(80, NB_CAPACITY_MAX_MAH);
+    if (budget < 0) budget = NB_DRAWDOWN_DEFAULT_MAH;
+    if (budget > NB_CAPACITY_MAX_MAH) {
+      Serial.printf("DRAWDOWN %d rejected (max %u mAh)\n", budget, (unsigned)NB_CAPACITY_MAX_MAH);
+      break;
+    }
+    if (IS_MASTER) {
+      if (!haveTarget) {
+        uint8_t only[3] = {0, 0, 0};
+        int n = peerCount(only);
+        if (n != 1) {
+          Serial.printf("DRAWDOWN rejected: %d peers known; use D<id>[:mah]\n", n);
+          break;
+        }
+        memcpy(target, only, 3);
+      }
+      sendTargetU16(NB_DRAWDOWN, target, (uint16_t)budget);
+      Serial.printf("target DRAWDOWN %02X%02X%02X budget=%d mAh\n",
+                    target[0], target[1], target[2], budget);
+    } else {
+      if (haveTarget && memcmp(target, myId, 3) != 0) break;
+      drawdownStart((uint16_t)budget);
+    }
+    break;
+  }
 #ifdef NB_WDT_HANGTEST
   case 'x':
     Serial.println("HANGTEST: stop feeding watchdog, busy-loop (expect WDT reset)...");
@@ -1162,8 +1612,9 @@ void handleSerial() {
     break;
   }
   case 'r':
-    Serial.printf("role=%s mode=%d ch=%d rate=%uHz txseq=%lu sendok=%lu fail=%lu peers=", IS_MASTER ? "master" : "peer",
-                  (int)gMode, NB_CHANNEL, gRateHz, (unsigned long)txSeq, (unsigned long)sendOk, (unsigned long)sendFail);
+    Serial.printf("role=%s mode=%d ch=%d rate=%uHz cap=%u charge=%umA txseq=%lu sendok=%lu fail=%lu peers=", IS_MASTER ? "master" : "peer",
+                  (int)gMode, NB_CHANNEL, gRateHz, gBatteryCapacityMah, gChargeMa,
+                  (unsigned long)txSeq, (unsigned long)sendOk, (unsigned long)sendFail);
     { int np = 0; for (int i = 0; i < NB_MAX_TRACKED; i++) if (peers[i].used) np++; Serial.println(np); }
     break;
   default: break;
@@ -1279,6 +1730,9 @@ void setup() {
   setupPowerFeather();
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
+  if (pfReady) Board.enable3V3(true); // clear any latched SK6812 frame from a previous image
+  delay(20);
+  drawdownPixelsBegin();
 #ifdef NB_AUTOSLEEP
   autosleepBootCheck();
 #endif
@@ -1308,6 +1762,7 @@ void loop() {
   uint32_t now = millis();
   if (now - lastBat > 1000) { lastBat = now; readBattery(); }
   envTick();
+  drawdownTick();
   updateStatusLed();
 
 #ifdef NB_AUTOSLEEP

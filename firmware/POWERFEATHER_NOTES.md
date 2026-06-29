@@ -167,6 +167,35 @@ and production power logic:
 - Avoid SOC-only decisions; require voltage/current cross-checks for low-battery and
   "hungry enough for MPP test" decisions.
 
+## Panel-specific MPP and battery-acceptance artifacts
+
+The charger VINDPM/maintain setpoint is a useful crude MPPT actuator, but the curve is
+panel-specific and can be distorted by the battery's ability to accept charge.
+
+Voltaic ETFE follow-up (2026-06-29, Oakland late sun, about 15 deg panel tilt):
+
+- P105 5 W ETFE: best observed around `m46`/`m48`; panel-side INA about 3.8-3.9 W,
+  charger input about 3.47 W. Raising toward `m52` lost power. This is plausible
+  against the P105 datasheet expected Vmp, but the absolute power may still be
+  limited by the 2 Ah LFP charge acceptance or CV/taper behavior.
+- P126 smaller ETFE: best observed around `m58`; panel-side INA about 1.89 W and
+  charger input about 1.66-1.68 W. `m60`/`m62` fell off. This is proportionally
+  close to the nominal 2 W rating.
+
+Rules of thumb from these runs:
+
+- Do not assume one fixed VINDPM works for every panel SKU. The P105 preferred a lower
+  setpoint than the P126.
+- A near-full, warm, high-IR, or small LFP cell can make a panel look weak because the
+  charger hits the battery regulation/taper behavior before the panel is actually at
+  its limit.
+- For fair panel qualification, use a hungry battery that is not in precharge and not
+  near the LFP top knee. For the larger production LFP, re-test while the resting cell
+  voltage is roughly mid-SOC rather than around 3.55-3.6 V while charging.
+- A simple software hill-climber is probably worth the firmware complexity: first-sun
+  sweep, then periodic 3-point checks around the last best setpoint, skipping sweeps
+  when voltage/current suggest CV/taper or poor charge-acceptance truth.
+
 ## OTA A/B rollback: the `verifyOta()` hook is C-linkage
 
 `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` in arduino-esp32 3.3.7. Rollback runs via a weak

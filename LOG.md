@@ -12,6 +12,184 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-29 - Ben + Codex - Multi-peer dashboard focus polish
+
+Updated `ops/bench/net_bench_dashboard.py` so the local net_bench dashboard behaves
+cleanly when multiple peers with different telemetry capabilities are online. Added an
+All/peer focus selector, metric source labels, and capability-aware top-card selection:
+panel and charger cards now stay sourced from the peer that actually has panel/supply
+telemetry, while All view shows net battery power across fresh peers. Selecting the
+indoor HEX drawdown peer now shows stable "no panel telemetry" instead of flickering
+between panel data and missing fields as heartbeats alternate.
+
+Condensed the peers table into grouped `link` / `battery` / `supply` / `panel` / `state`
+cells so both the outdoor solar peer and indoor drawdown peer fit together without a
+horizontal scrollbar at the normal dashboard viewport. Restarted the COM7 dashboard and
+verified the live page in-browser with both peers present; the drawdown logger and peer
+continued running.
+
+## 2026-06-29 - Ben + Codex - Targeted 7200 mAh HEX drawdown started
+
+Onboarded against the current repo context, then prepared the Amazon 7200 mAh LFP /
+PowerFeather / HEX stack for tomorrow's P105 full-sun demand-limit test. Found the old
+LED Studio image on the LAN at `192.168.4.30`; ARP mapped it to MAC
+`d8:85:ac:9e:5a:f0`, so the net_bench node id is `9E5AF0`. Brief LED Studio probes
+showed the battery around 3.30 V under the red-ring load and about `-0.75 A` with the
+HEX at all-white brightness 128.
+
+Added a targeted `net_bench` drawdown command, `D<nodeid>[:mah]`, so the serial bridge can
+start a HEX load on one peer without disturbing other live peers. The peer integrates
+discharge current in firmware, advertises `dd`/`ddb`/`dda` in the bridge line, stops on a
+mAh budget or guarded LFP voltage floor, explicitly blanks the SK6812 frame, cuts rails,
+and timed-sleeps for 12 hours. Updated the dashboard command whitelist/parser and
+`net_bench_log.py` so JSONL captures `cap`/`chg` and drawdown fields.
+
+Flashed the COM7 serial bridge (`9F26F8`) with `net-bench-2026-06-29.1`, then OTA-flashed
+`9E5AF0` from LED Studio to:
+
+`--role peer --channel 11 --chem lfp --cap 7200 --charge-ma 1500 --hb-hz 1 --maint-ap`
+
+Started logger
+`ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl` and sent
+`D9E5AF0:3500`. Initial drawdown telemetry: `bv` about 3.22 V loaded, `ima` about
+`-0.84 A`, `drawdown_active=1`, with existing solar peer `9E5AB8` unaffected. Expected
+end condition is either about 3500 mAh delivered or the guarded loaded-voltage floor, then
+12 h sleep to preserve the hungry battery for the next full-sun P105 run.
+
+## 2026-06-29 - Ben + Codex - Voltaic ETFE outdoor MPP comparison
+
+Ran the local power dashboard against the PowerFeather solar telemetry peer on `COM7`
+with the Voltaic 5 W ETFE panel (`P105`) and the smaller Voltaic ETFE panel (`P126`),
+both into a 2 Ah LFP that was hungry enough to accept real charge current. Data was logged
+to `ops/bench/data/ca/2026-06-29-ca-lfp-6000-net-solar-telemetry-1hz-2118.jsonl`
+(run label still says `lfp-6000`; the live peer config was changed to `C2000` for the
+2 Ah pack).
+
+Findings:
+
+- `P105` 5 W ETFE: with about 15 deg tilt, best observed region was around `m46`/`m48`.
+  At `m48`, panel-side INA was about 5.1-5.3 V and 0.73 A, roughly 3.8-3.9 W. Charger
+  input was about 3.47 W and battery-side charge about 3.1-3.2 W. Raising toward `m52`
+  lost power. This is less surprising against the P105 datasheet expected `Vmp` near
+  4.69 V than against the storefront headline values. Remaining caveat: the 5 W run may
+  still be battery-acceptance-limited; LFP near 3.55-3.6 V can enter CV/taper or hit
+  terminal-voltage limits early, especially on a smaller/higher-IR cell.
+- `P126` smaller ETFE: all results were with about 15 deg tilt. Best observed region was
+  around `m58`; panel-side INA reached about 6.1 V and 0.31 A, roughly 1.89 W, and
+  charger input was about 1.66-1.68 W. `m60`/`m62` fell off. The panel is proportionally
+  close to its nominal 2 W rating in real hot/late-day conditions.
+- MPP matters materially for both panels. The 5 W panel gained roughly 0.4 W charger-side
+  from a poor/higher setpoint to best; the 2 W panel gained roughly 0.2 W from `m48` to
+  best. As a daily-energy term, that is about 1-2 Wh/day over a 5-full-sun-hour heuristic.
+
+Interpretation: the Voltaic ETFE panels look promising for the BOM, especially the small
+panel for HEX fixtures. Use panel-side INA as panel-capability truth when available; use
+charger input/battery current as system truth. For a cleaner P105 verdict, re-run with the
+larger 6-7.2 Ah LFP intentionally discharged to a mid-SOC/hungry voltage region so charger
+taper and cell IR are less likely to cap demand. The stair-step sweep results also make a
+simple periodic software MPPT/hill-climber worth implementing and measuring.
+
+## 2026-06-29 - Codex - Re-onboarded and reviewed OTA/stuck-device failure modes
+
+Re-read the session-start project context (`README.md`, `LOG.md`, `TODO.md`,
+`docs/block-diagram/SYSTEM.md`, the OTA/LED/PowerFeather ADRs, `POWERFEATHER_NOTES.md`,
+`net_bench` docs, and the brownout/networking test notes) after context compaction.
+Current state is consistent with the earlier onboarding: PowerFeather V2 remains the
+validated reference, direct-GPIO LEDs remain the production LED interface, battery-only
+standard OTA with rollback is feasibility-green, and the hardening work is now about
+guardrails around power state, charger input qualification, rollback health, low-battery
+maintenance entry, and field recovery operations.
+
+Reliability read: the recent low-battery maintenance-AP experiment should be treated as a
+boundary warning, not a refutation of the validated OTA path. It showed that an
+always-awake, deeply depleted peer can brownout during AP/maintenance transition, and that
+a single-WiFi laptop cannot both join the peer AP and keep Codex/backend connectivity. The
+production answer should keep the default shared-router OTA path for parallel updates,
+retain self-AP as a one-device recovery lane, gate maintenance on voltage/current/supply
+state, and keep USB/pogo or at least external USB-power recovery as the guaranteed last
+resort.
+
+## 2026-06-29 - Ben + Codex - Recovered solar peer over USB with USB-safe VINDPM
+
+After the low-battery maintenance-AP experiment stranded peer `9E5AB8`, unplugged the
+USB serial bridge and connected the peer directly as `COM4`. Direct-flashed the updated
+`net_bench` peer image (`--role peer --channel 11 --maint-ap --chem lfp --cap 6000
+--charge-ma 1500 --hb-hz 1`) with `--maintain 4.6` instead of the prior 5.2 V default.
+Flash succeeded and verified on MAC `d8:85:ac:9e:5a:b8`.
+
+Rationale: a 5 V USB power bank/USB source can be blocked or heavily current-limited when
+the charger's input-regulation/maintain setpoint is above the source voltage. Keep the
+boot default USB-recovery-safe (about 4.6 V) and raise VINDPM live with `m<v10>` only
+during panel MPP testing, or implement a persisted setting with a USB/supply-voltage clamp.
+
+## 2026-06-29 - Ben + Codex - Low-battery maintenance-AP OTA boundary test
+
+Tried to push the current `net_bench` peer image to solar telemetry board `9E5AB8`
+while it was intentionally deep in the low-battery region. Starting point before the
+maintenance command: about 2.57 V, SOC 0 %, and ~0.45-0.50 W net load. The peer heard the
+bridge's sustained `ENTER_MAINT` and stopped fresh ESP-NOW telemetry. It advertised the
+expected `ResonanceMaint-9E5AB8` AP briefly enough for Windows to connect when given an
+explicit profile, but the Codex laptop cannot stay reachable to the backend while its only
+WiFi interface is joined to the peer AP.
+
+After returning the laptop to BubbyNet, the bridge showed the useful boundary result:
+the peer had brownout-reset, emitted only two fresh post-brownout heartbeats at about
+2.33 V (`rr=brownout`, uptime ~3.3 s), and then went stale. This does **not** prove that
+a full OTA upload cannot ever complete at low battery, because the single-WiFi laptop
+constraint prevented the upload attempt. It does show that this starting point is below a
+comfortable maintenance-entry floor for the always-awake bench image: AP startup /
+maintenance transition alone was enough to hit a brownout-adjacent state. Retest the full
+upload with external power or a second host network interface. The temporary Windows
+maintenance-AP profile was deleted and BubbyNet auto-connect was restored.
+
+## 2026-06-29 - Codex - Onboarding pass
+
+Read the session-start orientation path (`README.md`, `LOG.md`, `TODO.md`,
+`BACKGROUND.md`, `docs/block-diagram/SYSTEM.md`, ADRs 0001-0022, root `ROADMAP.md`,
+and the PowerFeather/networking/Voltaic notes) before taking on new work. Current state:
+PowerFeather V2 is the validated COTS/reference architecture; ESP-NOW, battery-only OTA
+with rollback, watchdog recovery, rails-off sleep, and the solar charge path are green.
+The active gates remain role-specific energy sizing, BQ25628E VBUS_OVP/HIZ guard,
+Voltaic P105/P126 outdoor tests, HEX/RGBW type mix and placement, HEX 4.2 V boost,
+mock-hat RF, sealed-hat thermal behavior, and production firmware hardening.
+
+Noted existing uncommitted WIP adding runtime `net_bench` battery capacity and
+charge-current config (`C<mah>` / `G<mA>`) plus peer timed sleep and dashboard support;
+left that work intact.
+
+## 2026-06-28 - Ben + Codex - Runtime battery capacity and charge-current config for net_bench
+
+Added NVS-backed bench config to `firmware/net_bench`: `C<mah>` broadcasts a battery
+capacity update to peers, persists it, and reboots them so `Board.init()` applies the new
+MAX17260 gauge capacity; `G<mA>` broadcasts/persists the charger current cap and applies
+it live. Heartbeats now carry `cap=`/`chg=` so the serial bridge/dashboard can verify the
+peer's active config after OTA. Chemistry remains build-time because the charge-voltage
+profile is safety-critical.
+
+Updated the local power dashboard with capacity/charge controls and parser support. This
+is primarily for swapping the 2 Ah bench LFP and the fullbattery.com 32700 6 Ah LFP during
+solar-panel tests without rebuilding firmware for a simple constant.
+
+## 2026-06-20 - Codex - Onboarding pass and PowerFeather SDK 2.1.1 review
+
+Read the current repo orientation path (`README.md`, `LOG.md`, `TODO.md`,
+`BACKGROUND.md`, `docs/block-diagram/SYSTEM.md`, and the active PowerFeather/LED/OTA
+ADRs) before reviewing the PowerFeather-SDK 2.1.1 release. Current state remains:
+PowerFeather V2 is the validated COTS/reference path; ESP-NOW, battery-only OTA +
+rollback, watchdog recovery, and solar charge path are feasibility-green; active gates are
+bottom-up role-specific energy sizing, BQ25628E VBUS_OVP/HIZ charger guard, Voltaic panel
+tests, HEX/RGBW placement, boosted-HEX characterization, mock-hat RF, thermal, and
+production firmware hardening.
+
+PowerFeather-SDK 2.1.1 is a narrow MAX17260 time-estimate fix plus version bumps. The
+MAX17260 driver now preserves raw `0xFFFF` for time-to-empty/time-to-full so
+`Mainboard::getBatteryTimeLeft()` returns `Result::NotReady` instead of a bogus large
+estimate. Resonance impact is limited to `firmware/power_bench/` telemetry
+(`time_left_min`) and the older `powerfeather_demo_port` UI; `net_bench`, `led_studio`,
+charger/VINDPM behavior, OTA, sleep, LED control, and mesh feasibility are not touched.
+Recommendation: update bench machines from SDK 2.1.0 to 2.1.1 when convenient, but no
+architecture or firmware changes are required.
+
 ## 2026-06-17 - Codex - Reconciled stale architecture docs before commit
 
 Cleaned up stale overview context that still pointed at the early ESP32-C3/CN3058/AP2112K
