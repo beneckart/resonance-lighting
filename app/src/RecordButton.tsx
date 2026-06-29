@@ -14,6 +14,7 @@ function pickMime(): string {
 export function RecordButton() {
   const [recording, setRecording] = useState(false);
   const [secs, setSecs] = useState(0);
+  const [saved, setSaved] = useState("");
   const recRef = useRef<MediaRecorder | null>(null);
   const timer = useRef<number | null>(null);
 
@@ -32,12 +33,18 @@ export function RecordButton() {
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
       const blob = new Blob(chunks, { type: rec.mimeType || mime });
+      if (blob.size < 1000) { setSaved("⚠ empty — record longer"); setTimeout(() => setSaved(""), 4000); return; }
       const url = URL.createObjectURL(blob);
+      const name = `resonance-tree.${(rec.mimeType || mime).includes("mp4") ? "mp4" : "webm"}`;
       const link = document.createElement("a");
       link.href = url;
-      link.download = `resonance-tree.${(rec.mimeType || mime).includes("mp4") ? "mp4" : "webm"}`;
+      link.download = name;
+      link.style.display = "none";
+      document.body.appendChild(link); // MUST be in the DOM or some browsers block the download
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 8000);
+      setSaved(`✓ saved ${name} (${(blob.size / 1e6).toFixed(1)} MB) → Downloads`);
+      setTimeout(() => setSaved(""), 8000);
     };
     rec.start(250);
     recRef.current = rec;
@@ -63,7 +70,7 @@ export function RecordButton() {
         color: recording ? "#ff8fa0" : "#cdd6e4", font: "12px ui-monospace, monospace", backdropFilter: "blur(6px)",
         boxShadow: recording ? "0 0 16px #ff5b6e66" : "none",
       }}>
-      {recording ? `⏺ recording ${secs}s · stop & save` : "🎥 record video + audio"}
+      {recording ? `⏺ recording ${secs}s · stop & save` : (saved || "🎥 record video + audio")}
     </button>
   );
 }
