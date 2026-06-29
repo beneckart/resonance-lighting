@@ -16,6 +16,7 @@ export interface Attractor { x: number; y: number; z: number; hue: number; }
 const TAU = Math.PI * 2;
 let phase = new Float32Array(0); // 0..1 firefly oscillator
 let hueF = new Float32Array(0); // 0..1 per-light hue (diffuses to neighbours)
+let tAcc = 0; // wall-clock accumulator (drives the slow spatial colour source)
 let n0 = -1;
 export const fieldOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
 
@@ -35,19 +36,23 @@ function reseed(n: number, fixtures: SimFixture[]) {
 export function updateField(fixtures: SimFixture[], dt: number, speed: number, attractors: Attractor[]) {
   const n = fixtures.length;
   if (n0 !== n) reseed(n, fixtures);
-  const rate = Math.min(0.05, Math.max(0, dt)) * (0.5 + speed); // organic, slow
-  const K = 1.6; // firefly coupling strength (sync without snapping)
+  const dts = Math.min(0.05, Math.max(0, dt));
+  tAcc += dts;
+  const rate = dts * (0.5 + speed); // organic, slow
+  const K = 0.25; // weak local coupling → PARTIAL sync (travelling waves, not a tree-wide strobe)
 
   for (let i = 0; i < n; i++) {
     const f = fixtures[i];
     const nb = f.neighbors;
     const L = nb.length || 1;
 
-    // 1. firefly phase nudged toward neighbours
+    // 1. firefly phase nudged toward neighbours — mean pull → partial sync; a
+    //    bottom→top frequency gradient makes the flash waves sweep UP the tree
     let coupling = 0;
     for (let k = 0; k < nb.length; k++) coupling += Math.sin((phase[nb[k]] - phase[i]) * TAU);
-    const omega = 0.12 + 0.04 * (f.rnd - 0.5); // slow base flash rate, slight spread
-    phase[i] += rate * (omega + (K / L) * coupling / TAU);
+    coupling /= L;
+    const omega = (0.10 + 0.05 * (f.rnd - 0.5)) * (1 + 0.5 * f.heightT);
+    phase[i] += rate * (omega + K * coupling);
     if (phase[i] >= 1) phase[i] -= 1; else if (phase[i] < 0) phase[i] += 1;
     // soft flash envelope (gaussian around the wrap point) — NEVER a hard strobe
     const dmin = Math.min(phase[i], 1 - phase[i]);
@@ -59,7 +64,12 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
     const target = Math.atan2(cy, cx) / TAU; // [-0.5,0.5]
     let dh = target - hueF[i];
     dh -= Math.round(dh); // shortest way around the colour wheel
-    hueF[i] += rate * (0.6 * dh) + rate * 0.02; // diffuse + drift the whole palette slowly
+    // a slowly-drifting SPATIAL source keeps the field colour-VARIED across the tree
+    // (pure neighbour diffusion alone collapses everything to ONE colour over time)
+    const src = f.pos[0] * 0.014 + f.pos[2] * 0.014 + f.heightT * 0.25 + tAcc * 0.025;
+    let ds = (src - Math.floor(src)) - hueF[i];
+    ds -= Math.round(ds);
+    hueF[i] += rate * (0.5 * dh + 0.35 * ds); // diffuse toward neighbours + toward the source
     hueF[i] -= Math.floor(hueF[i]);
 
     // 3. attractors: brighten + pull hue toward the focal point's colour

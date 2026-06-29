@@ -93,5 +93,52 @@ const COSMOS: LightShow = {
   ],
 };
 
-export const SHOWS: LightShow[] = [AWAKENING, IGNITION, COSMOS];
+// ── 🌳 PERFORMANCE — the Bellagio-structured 18-min living show ──────────────
+// Five-act dramatic arc, climax at the golden section (~61.8% ≈ 11:08), partial-
+// release ratcheting, one signature motif (the spiral) recurring transformed, a
+// cool-night→warm-dawn→spectrum→warm colour journey, the decentralised "living"
+// engine as its heartbeat. Slow + organic, NO strobe; resolves to rest, not black,
+// so each hourly run is one breath. (Research: WET/Bellagio + Freytag + φ-climax.)
+const PERFORMANCE: LightShow = {
+  id: "performance", name: "🌳 Performance", vibe: "18-min living arc · Bellagio-structured", durationS: 1080,
+  cues: [
+    // Phase 0 — darkness / the held breath
+    { at: 0, note: "darkness — the held breath", base: { pattern: "solid", hue: 0.62, sat: 0.7, brightness: 0.03, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.3, master: 1 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.4, speed: 0.25 } },
+    ] },
+    // Phase 1 — stars emerge (density accelerates; desynced twinkle)
+    { at: 90, note: "stars begin to emerge", base: { pattern: "sparkle", hue: 0.6, sat: 0.6, brightness: 0.07, colorCycle: "independent", order: "random", speed: 0.4 } },
+    { at: 185, note: "the sky fills in", base: { pattern: "sparkle", hue: 0.58, sat: 0.6, brightness: 0.24, colorCycle: "independent", order: "random", speed: 0.45 } },
+    // Phase 2 — first breath / the signature motif wakes
+    { at: 270, note: "first breath — a slow spiral wakes", base: { pattern: "spiral", hue: 0.55, sat: 0.7, brightness: 0.33, colorCycle: "off", speed: 0.4 } },
+    { at: 350, note: "a global colour breath toward dawn", base: { pattern: "spiral", hue: 0.12, sat: 0.78, brightness: 0.42, colorCycle: "off", speed: 0.4 } },
+    // Phase 3 — rising action / nested swells, baseline ratchets up
+    { at: 420, note: "the tree comes alive", base: { pattern: "living", hue: 0.1, sat: 0.85, brightness: 0.5, colorCycle: "off", speed: 0.5 } },
+    { at: 485, note: "swell — ripples answer (call & response)", base: { pattern: "ripple", hue: 0.16, sat: 0.82, brightness: 0.62, colorCycle: "group", speed: 0.5 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.85, speed: 0.4 } },
+    ] },
+    { at: 545, note: "partial release — baseline higher than before", base: { pattern: "living", hue: 0.32, sat: 0.85, brightness: 0.54, colorCycle: "off", speed: 0.55 } },
+    { at: 605, note: "rings converge on a moving focus", base: { pattern: "rings", hue: 0.5, sat: 0.9, brightness: 0.74, colorCycle: "group", speed: 0.6 }, layers: [
+      { group: "ring1", control: { pattern: "rings", hue: 0.45, speed: 0.6, brightness: 0.88 } },
+      { group: "ring2", control: { pattern: "rings", hue: 0.6, speed: 0.6, reverse: true, brightness: 0.88 } },
+      { group: "ring3", control: { pattern: "rings", hue: 0.75, speed: 0.6, brightness: 0.88 } },
+    ] },
+    // Phase 4 — CLIMAX at φ (~668s): full spectrum bloom, everything converges
+    { at: 668, note: "✦ CLIMAX — full-spectrum bloom", base: { pattern: "bloom", hue: 0.0, sat: 1, brightness: 0.97, colorCycle: "group", speed: 0.7 }, layers: [
+      { group: "chandelier", control: { pattern: "solid", hue: 0, sat: 0, brightness: 1 } },
+    ] },
+    { at: 712, note: "the living organism at full bloom", base: { pattern: "living", hue: 0.55, sat: 1, brightness: 0.99, colorCycle: "off", speed: 0.7 } },
+    // Phase 5 — falling action: the motif unwinds (inversion), spectrum recedes
+    { at: 752, note: "falling — the spiral unwinds", base: { pattern: "spiral", hue: 0.1, sat: 0.85, brightness: 0.7, colorCycle: "off", speed: 0.5, reverse: true } },
+    { at: 842, note: "the spectrum recedes warm", base: { pattern: "ripple", hue: 0.08, sat: 0.7, brightness: 0.45, colorCycle: "off", speed: 0.4, reverse: false } },
+    // Phase 6 — denouement / rest: the exhale, loop back toward darkness
+    { at: 875, note: "the exhale", base: { pattern: "living", hue: 0.08, sat: 0.7, brightness: 0.3, colorCycle: "off", speed: 0.35 } },
+    { at: 965, note: "settling to embers", base: { pattern: "breathe", hue: 0.07, sat: 0.7, brightness: 0.16, speed: 0.3 } },
+    { at: 1045, note: "a few stars remain", base: { pattern: "solid", hue: 0.6, sat: 0.7, brightness: 0.04, speed: 0.3 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0, sat: 0, brightness: 0.4, speed: 0.25 } },
+    ] },
+  ],
+};
+
+export const SHOWS: LightShow[] = [PERFORMANCE, AWAKENING, IGNITION, COSMOS];
 export const showById = (id: string | null): LightShow | undefined => SHOWS.find((s) => s.id === id);
