@@ -136,6 +136,8 @@ interface TwinState {
   groupControls: Record<string, Partial<Control>>; // group name → its Pattern/Color/Direction/Speed/Mode
   groupActive: Record<string, boolean>; // which groups are currently driving their layer
   selectedGroup: string; // the group the panel is editing
+  activeShow: string | null; // running timed light show (shows.ts), or null
+  showStartedAt: number; // performance.now()/1000 when the show began (for elapsed)
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -161,6 +163,7 @@ interface TwinState {
   selectGroup: (name: string) => void;
   setGroupControl: (name: string, partial: Partial<Control>) => void;
   toggleGroupActive: (name: string, on: boolean) => void;
+  playShow: (id: string | null) => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -174,6 +177,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
   groupControls: {},
   groupActive: {},
   selectedGroup: "ring1",
+  activeShow: null,
+  showStartedAt: 0,
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
@@ -386,6 +391,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
       ? [...s.layers.filter((l) => l.id !== name), { id: name, nums, control: ctl }]
       : s.layers;
     return { groupControls, layers };
+  }),
+  playShow: (id) => setState(() => {
+    if (!id) return { activeShow: null, layers: [] }; // stop → drop show layers
+    return { activeShow: id, showStartedAt: performance.now() / 1000 };
   }),
   toggleGroupActive: (name, on) => setState((s) => {
     const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name] };

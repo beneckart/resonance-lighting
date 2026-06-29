@@ -8,6 +8,8 @@ import { TouchConsole } from "./TouchConsole";
 import { CommissioningPanel } from "./CommissioningPanel";
 import { GroupPanel } from "./GroupPanel";
 import { DataLog } from "./DataLog";
+import { ShowsPanel } from "./ShowsPanel";
+import { ShowPlayer } from "./ShowPlayer";
 import { HealthHud } from "./HealthHud";
 import { PresenceDriver } from "./PresenceDriver";
 import { AudioReactiveDriver } from "./AudioReactiveDriver";
@@ -56,6 +58,7 @@ export function App() {
         <>
           <Controls />
           <GroupPanel />
+          <ShowsPanel />
           <DataLog />
           <DjController />
           <AiPilot />
@@ -105,6 +108,7 @@ export function App() {
       >
         🌑 BLACKOUT{blackout ? " ON" : ""}
       </button>
+      <ShowPlayer />
       <PresenceDriver />
       <AudioReactiveDriver />
       <AutoVj />
