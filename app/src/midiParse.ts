@@ -23,18 +23,20 @@ export function parseMidi(buf: ArrayBuffer): { notes: MidiNote[]; len: number } 
 
   for (let tr = 0; tr < ntracks; tr++) {
     if (u32() !== 0x4d54726b) { const len = u32(); p += len; continue; }
-    const end = p + u32();
+    const len = u32();
+    const end = p + len; // read length FIRST (p + u32() would use the pre-advance p)
     let tick = 0, status = 0;
     const pending: Record<number, { tick: number; vel: number }[]> = {};
     while (p < end) {
       tick += vlq();
       let s = u8();
-      if (s < 0x80) { p--; s = status; } else status = s;
+      if (s < 0x80) { p--; s = status; }
+      else if (s < 0xf0) status = s; // running status applies ONLY to channel messages
       const type = s & 0xf0;
-      if (s === 0xff) { // meta
-        const meta = u8(); const mlen = vlq();
-        if (meta === 0x51) { tempos.push({ tick, uspq: (u8() << 16) | (u8() << 8) | u8() }); }
-        else p += mlen;
+      if (s === 0xff) { // meta — always consume exactly its declared length
+        const meta = u8(); const mlen = vlq(); const mend = p + mlen;
+        if (meta === 0x51 && mlen >= 3) tempos.push({ tick, uspq: (d.getUint8(p) << 16) | (d.getUint8(p + 1) << 8) | d.getUint8(p + 2) });
+        p = mend;
       } else if (s === 0xf0 || s === 0xf7) { p += vlq(); }
       else if (type === 0x90) {
         const midi = u8(), vel = u8();
