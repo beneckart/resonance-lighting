@@ -203,6 +203,13 @@ export function TreeLights() {
     // DJ controller (C): crossfade to look B, master intensity, strobe gate
     const xfade = ctrl.xfade;
     const cb = xfade > 0.001 ? { ...ctrl, pattern: ctrl.djPatternB, hue: ctrl.djHueB } : null;
+    // per-group/subset LAYERS: map each owned light number → its effective control
+    // (the layer's control merged over the base). Last layer to claim a number wins.
+    const layerCtrl = st.layers.length ? new Map<number, typeof ctrl>() : null;
+    if (layerCtrl) for (const ly of st.layers) {
+      const merged = { ...ctrl, ...ly.control };
+      for (const nn of ly.nums) layerCtrl.set(nn, merged);
+    }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
@@ -225,12 +232,13 @@ export function TreeLights() {
 
     for (let i = 0; i < n; i++) {
       const f = fixtures[i];
+      const fctrl = layerCtrl ? (layerCtrl.get(f.num) ?? ctrl) : ctrl;
       if (glslBuf) {
         lit.r = glslBuf[i * 4] / 255; lit.g = glslBuf[i * 4 + 1] / 255; lit.b = glslBuf[i * 4 + 2] / 255;
       } else {
-        litFor(pt, f, ctrl, audio, n, lit);
+        litFor(pt, f, fctrl, audio, n, lit);
       }
-      if (cb) {
+      if (cb && !(layerCtrl && layerCtrl.has(f.num))) {
         litFor(pt, f, cb, audio, n, litB);
         lit.r = lerp(lit.r, litB.r, xfade);
         lit.g = lerp(lit.g, litB.g, xfade);

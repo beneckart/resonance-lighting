@@ -200,6 +200,18 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       hue = frac(hue + f.num / 72); // each number its own tint
       break;
     }
+    case "sweep": {
+      // a band of light travels LEFT→RIGHT across the tree (world X via norm[0]);
+      // `reverse` flips it right→left. Hue runs as a gradient across the width, so
+      // a blue base (0.6) reads blue→red left→right — the "blue to red" sweep.
+      const head = frac(tt * sp * 0.25);
+      const x = f.norm[0]; // 0 = left, 1 = right
+      let d = Math.abs((((x - head) % 1) + 1) % 1);
+      d = Math.min(d, 1 - d); // wrap so the band re-enters from the left
+      bri *= 0.05 + 0.95 * Math.max(0, 1 - d * 7);
+      hue = frac(hue + x * 0.4); // colour gradient across the width
+      break;
+    }
     case "chromatic": {
       // CHROMATIC TRICOLOR (Elliot's ask): three distinct colours moving OUTWARD
       // from ONE source point — the crown (the chandelier hangs there). Each

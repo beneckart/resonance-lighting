@@ -8,11 +8,11 @@ import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
-  | "chromatic" | "rings" | "fibonacci"
+  | "chromatic" | "rings" | "fibonacci" | "sweep"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
@@ -31,6 +31,16 @@ export const VIZ_MODES: VizMode[] = ["lanterns", "orbs", "wire"];
  *  shade  — drift through the SHADES of just the picked colour (all the reds…) */
 export type ColorCycle = "off" | "rainbow" | "group" | "shade" | "independent";
 export const COLOR_CYCLES: ColorCycle[] = ["off", "rainbow", "group", "shade", "independent"];
+
+/** A scene LAYER: a subset of light numbers (1..72) running its OWN control
+ *  (pattern / colour / direction / speed) on top of the base. This is the engine
+ *  behind per-group independent looks — the group panel and LLM-driven grouping
+ *  both just push layers. A fixture matched by a later layer wins (last-write). */
+export interface SceneLayer {
+  id: string;
+  nums: number[]; // light numbers 1..72 this layer drives
+  control: Partial<Control>;
+}
 
 export interface SimFixture {
   id: string;
@@ -109,6 +119,7 @@ interface TwinState {
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
   cinematic: boolean; // hide all UI panels for a clean show/beauty view
   timeOfDay: number; // 0 = night, 0.5 = dusk, 1 = day (scene ambient/background)
+  layers: SceneLayer[]; // per-group/subset looks composed over the base control
   init: (doc: FixturesDoc) => void;
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
@@ -126,6 +137,9 @@ interface TwinState {
   setCameraPreset: (c: "hero" | "top") => void;
   setCinematic: (b: boolean) => void;
   setTimeOfDay: (t: number) => void;
+  setLayer: (id: string, nums: number[], control: Partial<Control>) => void;
+  removeLayer: (id: string) => void;
+  clearLayers: () => void;
 }
 
 export const useTwin = create<TwinState>((setState, get) => ({
@@ -134,6 +148,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   center: [0, 0, 0],
   size: 10,
   overrides: {},
+  layers: [],
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
@@ -310,6 +325,9 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setCameraPreset: (c) => setState({ cameraPreset: c }),
   setCinematic: (b) => setState({ cinematic: b }),
   setTimeOfDay: (t) => setState((s) => ({ timeOfDay: Math.max(0, Math.min(1, t)), sensors: { ...s.sensors, ambient: Math.max(0, Math.min(1, t)) } })),
+  setLayer: (id, nums, control) => setState((s) => ({ layers: [...s.layers.filter((l) => l.id !== id), { id, nums, control }] })),
+  removeLayer: (id) => setState((s) => ({ layers: s.layers.filter((l) => l.id !== id) })),
+  clearLayers: () => setState({ layers: [] }),
 }));
 
 // LLM / external control hook: expose the store so an operator (or Claude driving
