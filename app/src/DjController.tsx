@@ -297,12 +297,13 @@ export function DjController() {
         onClick={() => setCollapsed(false)}
         title="show DJ console"
         style={{
-          position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", zIndex: 20,
+          // bottom-RIGHT, clear of the centered BEACON/BLACKOUT safety buttons
+          position: "fixed", bottom: 0, right: 16, zIndex: 20,
           padding: "5px 16px", borderRadius: "10px 10px 0 0", cursor: "pointer",
           border: "1px solid #1d2735", borderBottom: "none", background: "rgba(16,20,29,0.92)",
           color: "#9fb0c7", font: "11px ui-monospace, monospace", backdropFilter: "blur(8px)",
         }}
-      >🎛 DJ ▲</button>
+      >🎛 DJ decks ▲</button>
     );
   }
 
@@ -310,12 +311,13 @@ export function DjController() {
     <div style={console_}>
       <button
         onClick={() => setCollapsed(true)}
-        title="collapse DJ console"
+        title="minimize DJ decks"
         style={{
-          position: "absolute", top: 6, right: 8, zIndex: 1, width: 22, height: 22, borderRadius: 6,
-          border: "1px solid #2a3a52", background: "#141a26", color: "#9fb0c7", cursor: "pointer", fontSize: 11,
+          position: "absolute", top: 6, right: 8, zIndex: 2, padding: "4px 10px", height: 24, borderRadius: 7,
+          border: "1px solid #3a4a6a", background: "#1a2233", color: "#cdd6e4", cursor: "pointer",
+          font: "10px ui-monospace, monospace", fontWeight: 700, letterSpacing: 0.3,
         }}
-      >▾</button>
+      >▾ minimize</button>
       <Deck side="A" />
 
       {/* center: mixer — EQ, crossfader, transport, pads */}

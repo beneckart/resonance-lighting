@@ -11,8 +11,8 @@ const panel: React.CSSProperties = {
   position: "fixed",
   top: 12,
   left: 12,
-  width: 260,
-  padding: "12px 14px",
+  width: 320,
+  padding: "14px 16px",
   background: "rgba(10,14,20,0.82)",
   border: "1px solid #1d2735",
   borderRadius: 10,
@@ -121,6 +121,12 @@ export function Controls() {
       </div>
       <div style={{ fontSize: 10, opacity: 0.55, marginTop: 2 }}>{source || "loading…"}</div>
 
+      {/* PROMINENT speed dial — the one control people reach for most: how fast
+          the whole show moves. Lives at the top so it's always one tap away. */}
+      <div style={{ margin: "10px 0 4px", padding: "8px 10px", background: "#101a28", borderRadius: 8, border: "1px solid #2a3a52" }}>
+        <Slider label="⚡ SPEED — how fast the lights move" v={ctrl.speed} min={0} max={3} on={(v) => setCtrl({ speed: v })} />
+      </div>
+
       <div style={row}>
         <button style={btn(ctrl.autoVj)} onClick={() => setCtrl({ autoVj: !ctrl.autoVj })}>
           🤖 auto-VJ
@@ -220,7 +226,6 @@ export function Controls() {
       <Slider label="brightness" v={ctrl.brightness} min={0} max={1} on={(v) => setCtrl({ brightness: v })} />
       <Slider label="hue" v={ctrl.hue} min={0} max={1} on={(v) => setCtrl({ hue: v })} />
       <Slider label="saturation" v={ctrl.sat} min={0} max={1} on={(v) => setCtrl({ sat: v })} />
-      <Slider label="speed" v={ctrl.speed} min={0} max={3} on={(v) => setCtrl({ speed: v })} />
 
       <div style={{ marginTop: 10, opacity: 0.7 }}>
         sound → reactive {bpm > 0 && <b style={{ color: "#7fe0a0" }}>· {bpm} BPM</b>}

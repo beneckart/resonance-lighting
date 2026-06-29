@@ -176,8 +176,16 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       break;
     }
     case "spiral": {
-      // rainbow barber-pole spiralling UP the tree (azimuth + height), rotating
-      hue = frac(f.seqT + f.heightT * 1.5 + tt * sp * 0.1);
+      // rainbow barber-pole spiralling UP the tree: azimuth + height form a spiral
+      // coordinate; bright stripes wrap up it and rotate, so the spiral is VISIBLE
+      // (was hue-only before → just a flat colour wash with no readable motion).
+      const travel = tt * sp * 0.09;              // slow continuous wrap around the trunk
+      const sway = 0.35 * Math.sin(t * sp * 0.45); // AND a back-and-forth sweep
+      const s = frac(f.seqT + f.heightT * 1.5 - travel - sway); // spiral phase 0..1
+      const arms = 3; // bright stripes wrapping the trunk
+      const band = Math.pow(0.5 + 0.5 * Math.cos(frac(s * arms) * 6.283), 5);
+      bri *= 0.12 + 0.9 * band; // dark between arms → the spiral reads crisply
+      hue = frac(hue + s); // rainbow runs along the spiral
       break;
     }
     case "godray": {

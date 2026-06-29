@@ -57,7 +57,10 @@ function GoboFloor() {
     <>
       <mesh rotation-x={-Math.PI / 2} position={[center[0], groundY, center[2]]} receiveShadow>
         <planeGeometry args={[size * 2.8, size * 2.8]} />
-        <meshStandardMaterial color="#0b0e14" roughness={1} />
+        {/* visible ground surface at the tree base — was near-black (#0b0e14) and
+            blended into the night background; lift it to a dark slate so it reads
+            as a floor and catches the gobo projection. */}
+        <meshStandardMaterial color="#222a39" roughness={0.95} />
       </mesh>
       <primitive object={target} />
       <spotLight

@@ -14,6 +14,10 @@ import { applyEnv } from "./sensors";
 import { easeGroundTint } from "./groundtint";
 import { createGlslPass, type GlslPass } from "./glslPass";
 
+// Global pattern-motion slowdown (everything was tuned too fast). 1.0 = old
+// frantic baseline; lower = calmer. The speed dial multiplies on top of this.
+const TIME_SCALE = 0.35;
+
 const dummy = new Object3D();
 const col = new Color();
 // beam-aim helpers: orient each cast cone along its real direction
@@ -185,6 +189,11 @@ export function TreeLights() {
     const bm = beamRef.current;
     const gm = groundRef.current;
     const t = state.clock.elapsedTime;
+    // GLOBAL SLOWDOWN: the per-pattern motion constants were tuned too hot —
+    // everything read as frantic. Scale the time fed into the patterns so the
+    // baseline is calm; the speed dial (c.speed) still rides on top of this.
+    // (strobe + ripples below keep real `t` — only pattern motion is slowed.)
+    const pt = t * TIME_SCALE;
     const st = useTwin.getState();
     const { overrides, view } = st;
     // fold live environmental sensors (crowd/temp/wind/daylight) into the look
@@ -210,7 +219,7 @@ export function TreeLights() {
       try {
         if (!glslRef.current) glslRef.current = createGlslPass(fixtures, ctrl.glslPattern);
         else glslRef.current.setPattern(ctrl.glslPattern);
-        glslBuf = glslRef.current.renderRead(state.gl, t, ctrl, audio);
+        glslBuf = glslRef.current.renderRead(state.gl, pt, ctrl, audio);
       } catch { glslBuf = null; } // any GL hiccup → fall back to CPU litFor
     }
 
@@ -219,10 +228,10 @@ export function TreeLights() {
       if (glslBuf) {
         lit.r = glslBuf[i * 4] / 255; lit.g = glslBuf[i * 4 + 1] / 255; lit.b = glslBuf[i * 4 + 2] / 255;
       } else {
-        litFor(t, f, ctrl, audio, n, lit);
+        litFor(pt, f, ctrl, audio, n, lit);
       }
       if (cb) {
-        litFor(t, f, cb, audio, n, litB);
+        litFor(pt, f, cb, audio, n, litB);
         lit.r = lerp(lit.r, litB.r, xfade);
         lit.g = lerp(lit.g, litB.g, xfade);
         lit.b = lerp(lit.b, litB.b, xfade);
