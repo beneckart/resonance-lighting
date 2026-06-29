@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTwin } from "./store";
 import { SHOWS, showById } from "./shows";
-import { resetPiano } from "./piano";
+import { resetPiano, setPiece, PIECE_LIST, currentPiece } from "./piano";
 import { Widget } from "./Widget";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -40,15 +40,23 @@ export function ShowsPanel() {
           </button>
         );
       })}
-      <button onClick={() => {
-        if (pianoOn) { set({ pattern: "solid" }); }
-        else { playShow(null); resetPiano(); set({ pattern: "piano", brightness: 0.95, sat: 0.6, colorCycle: "off", reverse: false }); setTod(0); }
-      }}
-        style={{ display: "block", width: "100%", textAlign: "left", margin: "4px 0", padding: "6px 8px", borderRadius: 7, cursor: "pointer",
-          border: pianoOn ? "1px solid #5b8cff" : "1px solid #2a3a52", background: pianoOn ? "#21345e" : "#121a26", color: pianoOn ? "#dce6ff" : "#9fb0c7" }}>
-        <div style={{ fontWeight: 700 }}>{pianoOn ? "⏹ " : "🎹 "}Moonlight Sonata</div>
-        <div style={{ fontSize: 9.5, opacity: 0.7 }}>the canopy plays the keys · 72-key piano</div>
-      </button>
+      <div style={{ marginTop: 8, fontWeight: 700, color: "#eef3fb", fontSize: 12 }}>🎹 Piano · canopy = 72 keys</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+        {PIECE_LIST.map((p) => {
+          const on = pianoOn && currentPiece() === p.id;
+          return (
+            <button key={p.id} onClick={() => { playShow(null); setPiece(p.id); resetPiano(); set({ pattern: "piano", brightness: 0.95, sat: 0.6, colorCycle: "off", reverse: false }); setTod(0); }}
+              style={{ flex: "1 0 auto", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11,
+                border: on ? "1px solid #5b8cff" : "1px solid #2a3a52", background: on ? "#21345e" : "#121a26", color: on ? "#dce6ff" : "#9fb0c7" }}>
+              {on ? "▶ " : ""}{p.name}
+            </button>
+          );
+        })}
+        {pianoOn && (
+          <button onClick={() => set({ pattern: "solid" })}
+            style={{ flex: "1 0 auto", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, border: "1px solid #5a3a3a", background: "#1a1016", color: "#ff8fa0" }}>⏹ stop</button>
+        )}
+      </div>
       {show && (
         <div style={{ marginTop: 6 }}>
           <div style={{ height: 4, background: "#1a2233", borderRadius: 3, overflow: "hidden" }}>
