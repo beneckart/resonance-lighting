@@ -7,7 +7,7 @@ import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
 import { updateField, fieldOut, type Attractor } from "./field";
-import { updatePiano, keyBri, fixtureMidi } from "./piano";
+import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
@@ -269,8 +269,7 @@ export function TreeLights() {
         if (m < 0) { lit.r = lit.g = lit.b = 0; }
         else {
           const bv = keyBri[m] * fctrl.brightness;
-          const hue = ((0.66 - ((m - 36) / 71) * 0.25) % 1 + 1) % 1; // low=deep blue → high=cyan
-          col.setHSL(hue, 0.6, 0.5);
+          col.setHSL(keyHue[m], keySat[m], 0.5); // colour by voice (bass/arp/melody) + pitch
           lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
         }
       } else {
