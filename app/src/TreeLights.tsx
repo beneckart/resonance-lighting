@@ -285,8 +285,18 @@ export function TreeLights() {
         const m = fixtureMidi(fixtures, i);
         if (m < 0) { lit.r = lit.g = lit.b = 0; }
         else {
-          const bv = keyBri[m] * fctrl.brightness;
-          col.setHSL(keyHue[m], keySat[m], 0.5); // colour by voice (bass/arp/melody) + pitch
+          // soft GLOW: this key + a ripple bleeding from its neighbour keys → more
+          // lights, more brightness dynamics, a rippling wash around each struck note
+          let bv = keyBri[m];
+          if (m > 36) bv = Math.max(bv, keyBri[m - 1] * 0.55);
+          if (m < 107) bv = Math.max(bv, keyBri[m + 1] * 0.55);
+          if (m > 37) bv = Math.max(bv, keyBri[m - 2] * 0.3);
+          if (m < 106) bv = Math.max(bv, keyBri[m + 2] * 0.3);
+          bv *= fctrl.brightness;
+          const struck = keyBri[m] > 0.01;
+          // struck keys keep their voice colour; glow-only keys get a cool pitch tint
+          const hue = struck ? keyHue[m] : 0.62 - ((m - 36) / 71) * 0.22;
+          col.setHSL(((hue % 1) + 1) % 1, struck ? keySat[m] : 0.7, 0.5);
           lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
         }
       } else {
