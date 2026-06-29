@@ -7,6 +7,7 @@ import { AiPilot } from "./AiPilot";
 import { TouchConsole } from "./TouchConsole";
 import { CommissioningPanel } from "./CommissioningPanel";
 import { GroupPanel } from "./GroupPanel";
+import { DataLog } from "./DataLog";
 import { HealthHud } from "./HealthHud";
 import { PresenceDriver } from "./PresenceDriver";
 import { AudioReactiveDriver } from "./AudioReactiveDriver";
@@ -55,6 +56,7 @@ export function App() {
         <>
           <Controls />
           <GroupPanel />
+          <DataLog />
           <DjController />
           <AiPilot />
           <TouchConsole />

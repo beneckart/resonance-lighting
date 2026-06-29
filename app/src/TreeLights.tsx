@@ -5,6 +5,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
+import { telemetry, type LightState } from "./telemetry";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
@@ -108,6 +109,8 @@ export function TreeLights() {
   const dispB = useRef<Float32Array>(new Float32Array(0));
   const lastReport = useRef<Float32Array>(new Float32Array(0));
   const statsAt = useRef(0);
+  const lastTele = useRef(0); // throttle the telemetry/data-log snapshot (~5 Hz)
+  const teleBuf = useRef<LightState[]>([]);
 
   useLayoutEffect(() => {
     const lm = lightRef.current;
@@ -194,6 +197,11 @@ export function TreeLights() {
     // baseline is calm; the speed dial (c.speed) still rides on top of this.
     // (strobe + ripples below keep real `t` — only pattern motion is slowed.)
     const pt = t * TIME_SCALE;
+    // throttle the data-log snapshot (~5 Hz); (re)size the buffer with the fixture set
+    const writeTele = t - lastTele.current > 0.18;
+    if (writeTele && teleBuf.current.length !== n) {
+      teleBuf.current = fixtures.map((f) => ({ num: f.num, id: f.id, bri: 0, rgb: [0, 0, 0] as [number, number, number] }));
+    }
     const st = useTwin.getState();
     const { overrides, view } = st;
     // fold live environmental sensors (crowd/temp/wind/daylight) into the look
@@ -290,6 +298,15 @@ export function TreeLights() {
         if (t - lastReport.current[i] > 1.3) stale++;
       }
 
+      // data-log snapshot: capture each light's REPORTED output (what really ships)
+      if (writeTele && teleBuf.current.length === n) {
+        const tb = teleBuf.current[i];
+        tb.num = f.num; tb.id = f.id;
+        const rr = isDead ? 0 : repR.current[i], gg = isDead ? 0 : repG.current[i], bb = isDead ? 0 : repB.current[i];
+        tb.bri = Math.max(rr, gg, bb);
+        tb.rgb[0] = rr; tb.rgb[1] = gg; tb.rgb[2] = bb;
+      }
+
       if (view.monitor && isDead) {
         lm.setColorAt(i, col.setRGB(0.5, 0, 0));
         if (bm) bm.setColorAt(i, col.setRGB(0, 0, 0));
@@ -321,6 +338,8 @@ export function TreeLights() {
     const level = Math.min(1, (ar + ag + ab) / 3 * GAIN * 1.6);
     const mx = Math.max(ar, ag, ab, 1e-4);
     easeGroundTint(ar / mx, ag / mx, ab / mx, level, k);
+
+    if (writeTele) { lastTele.current = t; telemetry.states = teleBuf.current; telemetry.t = t; }
 
     if (t - statsAt.current > 0.5) {
       statsAt.current = t;
