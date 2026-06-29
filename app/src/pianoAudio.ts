@@ -6,10 +6,16 @@ import { Soundfont } from "smplr";
 // system audio device (route to a Bluetooth speaker). Triggered from the same
 // piano clock as the lights → audio + lights stay in sync.
 let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
+let master: GainNode | null = null;   // synth bus
+let out: GainNode | null = null;      // master bus → speakers + recording tap
+let recDest: MediaStreamAudioDestinationNode | null = null;
 let soundOn = false;
 let piano: Soundfont | null = null;
 let pianoReady = false;
+
+/** A live audio MediaStream of the piano output — for the in-app screen recorder
+ *  (so the recording captures the music). Null until sound is enabled. */
+export function getPianoAudioStream(): MediaStream | null { return recDest?.stream ?? null; }
 
 export function pianoLoading() { return !!piano && !pianoReady; }
 export function pianoSampled() { return pianoReady; }
@@ -19,13 +25,17 @@ export function setPianoSound(on: boolean) {
   if (on) {
     if (!ctx) {
       ctx = new AudioContext();
+      out = ctx.createGain();                       // master bus
+      out.connect(ctx.destination);                 // → speakers
+      recDest = ctx.createMediaStreamDestination();
+      out.connect(recDest);                          // → recording tap
       master = ctx.createGain();
       master.gain.value = 0.5;
       const comp = ctx.createDynamicsCompressor();
       master.connect(comp);
-      comp.connect(ctx.destination);
+      comp.connect(out);                             // synth → master bus
       try {
-        piano = new Soundfont(ctx, { instrument: "acoustic_grand_piano", volume: 100 });
+        piano = new Soundfont(ctx, { instrument: "acoustic_grand_piano", volume: 100, destination: out }); // sampled → master bus
         piano.load.then(() => { pianoReady = true; }).catch(() => { pianoReady = false; });
       } catch { piano = null; }
     }

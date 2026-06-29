@@ -10,6 +10,7 @@ import { GroupPanel } from "./GroupPanel";
 import { DataLog } from "./DataLog";
 import { ShowsPanel } from "./ShowsPanel";
 import { ShowPlayer } from "./ShowPlayer";
+import { RecordButton } from "./RecordButton";
 import { HealthHud } from "./HealthHud";
 import { PresenceDriver } from "./PresenceDriver";
 import { AudioReactiveDriver } from "./AudioReactiveDriver";
@@ -109,6 +110,7 @@ export function App() {
         🌑 BLACKOUT{blackout ? " ON" : ""}
       </button>
       <ShowPlayer />
+      <RecordButton />
       <PresenceDriver />
       <AudioReactiveDriver />
       <AutoVj />
