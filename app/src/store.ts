@@ -8,11 +8,11 @@ import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
-  | "chromatic" | "rings" | "fibonacci" | "sweep"
+  | "chromatic" | "rings" | "fibonacci" | "sweep" | "living"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living",
 ];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
@@ -66,6 +66,7 @@ export interface SimFixture {
   ring: number; // concentric ring index 0=inner 1=mid 2=outer (by radial distance from trunk)
   radialT: number; // 0..1 normalized horizontal distance from the trunk axis (in/out)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
+  neighbors: number[]; // indices of nearest fixtures — decentralised/neighbour-coupled patterns
   beamDeg: number; // beam cone angle (deg) from fixtures.json
   lumens: number; // lumens_max from fixtures.json (beam photometrics)
   aim?: [number, number, number]; // three-space cast direction (schema 0.2; optional)
@@ -294,12 +295,23 @@ export const useTwin = create<TwinState>((setState, get) => ({
         ring: ringOf(radii[i]),
         radialT: radii[i] / maxR,
         rnd: rndOf(i),
+        neighbors: [], // filled below once all positions exist
         beamDeg: f.beam_deg ?? 120,
         lumens: f.lumens_max ?? 450,
         // schema 0.2: real per-fixture aim (Blender Z-up) → three-space direction
         aim: f.aim ? blenderToThree(f.aim) : undefined,
       };
     });
+    // k-nearest neighbours per fixture (3D) — the substrate for decentralised
+    // "living" patterns where each light decides from what its neighbours do.
+    const KN = 6;
+    for (let i = 0; i < fixtures.length; i++) {
+      const p = fixtures[i].pos;
+      const d = fixtures.map((g, j) => ({ j, d2: (g.pos[0] - p[0]) ** 2 + (g.pos[1] - p[1]) ** 2 + (g.pos[2] - p[2]) ** 2 }));
+      d.sort((a, b) => a.d2 - b.d2);
+      fixtures[i].neighbors = d.slice(1, KN + 1).map((x) => x.j);
+    }
+
     // seed preset GROUPS (Elliot's panel): 3 concentric rings of downlights split by
     // radius + uplights + chandelier + all. Real ring IDs arrive with the Blender
     // export; until then split downlights into radial thirds of ~equal count.

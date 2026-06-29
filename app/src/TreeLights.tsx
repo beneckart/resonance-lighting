@@ -6,6 +6,7 @@ import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, Ins
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
+import { updateField, fieldOut, type Attractor } from "./field";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
 import { rippleIntensity } from "./interaction";
@@ -218,6 +219,17 @@ export function TreeLights() {
       const merged = { ...ctrl, ...ly.control };
       for (const nn of ly.nums) layerCtrl.set(nn, merged);
     }
+    // decentralised "living" field — run once per frame if any active look uses it
+    const useField = ctrl.pattern === "living" || st.layers.some((l) => l.control.pattern === "living");
+    if (useField) {
+      const c = st.center, sz = st.size;
+      const fr = (x: number) => x - Math.floor(x);
+      const att: Attractor[] = [
+        { x: c[0] + Math.cos(t * 0.05) * sz * 0.3, y: c[1] + Math.sin(t * 0.037) * sz * 0.22, z: c[2] + Math.sin(t * 0.045) * sz * 0.3, hue: fr(t * 0.012) },
+        { x: c[0] + Math.cos(t * 0.031 + 2) * sz * 0.34, y: c[1] + Math.cos(t * 0.052) * sz * 0.26, z: c[2] + Math.sin(t * 0.041 + 1) * sz * 0.3, hue: fr(t * 0.012 + 0.5) },
+      ];
+      updateField(fixtures, delta, ctrl.speed, att);
+    }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
@@ -243,6 +255,10 @@ export function TreeLights() {
       const fctrl = layerCtrl ? (layerCtrl.get(f.num) ?? ctrl) : ctrl;
       if (glslBuf) {
         lit.r = glslBuf[i * 4] / 255; lit.g = glslBuf[i * 4 + 1] / 255; lit.b = glslBuf[i * 4 + 2] / 255;
+      } else if (fctrl.pattern === "living") {
+        col.setHSL(fieldOut.hue[i], fctrl.sat, 0.5);
+        const bv = fieldOut.bri[i] * fctrl.brightness;
+        lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else {
         litFor(pt, f, fctrl, audio, n, lit);
       }
