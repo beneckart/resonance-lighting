@@ -28,6 +28,15 @@ const FIB72: number[] = (() => {
   return out;
 })();
 
+// tiny 8×8 1-bit images (8 bytes each, MSB = left pixel) to "play" on the canopy —
+// mapped by azimuth × height, scrolling round the trunk (the ≤100-byte graphics idea)
+const GLYPHS: number[][] = [
+  [0x00, 0x66, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C, 0x18], // heart
+  [0x10, 0x38, 0xFE, 0x7C, 0x38, 0x7C, 0x6C, 0xC6], // star
+  [0x3C, 0x42, 0xA5, 0x81, 0xA5, 0x99, 0x42, 0x3C], // smiley
+  [0x18, 0x3C, 0x7E, 0xFF, 0x18, 0x18, 0x18, 0x18], // arrow up
+];
+
 /** Base-hue MOTION: returns the effective hue for this frame given the picked
  *  hue + the colour-cycle mode. Most patterns build their palette off this hue,
  *  so it tints whatever pattern is running.
@@ -212,6 +221,35 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       d = Math.min(d, 1 - d); // wrap so the band re-enters from the left
       bri *= 0.05 + 0.95 * Math.max(0, 1 - d * 7);
       hue = frac(hue + x * 0.4); // colour gradient across the width
+      break;
+    }
+    case "aurora": {
+      // Perlin-ish plasma flow → green/violet curtains drifting up the tree (no strobe)
+      const n1 = Math.sin(f.norm[0] * 4 + tt * sp * 0.3)
+        + Math.sin(f.norm[2] * 5 - tt * sp * 0.22)
+        + Math.sin(f.heightT * 7 + tt * sp * 0.18);
+      bri *= 0.18 + 0.82 * (0.5 + 0.5 * Math.sin(n1 * 1.3));
+      hue = frac(0.45 + 0.22 * Math.sin(n1) + f.heightT * 0.15); // green↔violet, drifts up
+      sat = Math.max(sat, 0.8);
+      break;
+    }
+    case "chladni": {
+      // standing-wave (Chladni) mandala — antinodes bright; modes morph slowly
+      const m = 2 + Math.floor(3 * (0.5 + 0.5 * Math.sin(t * sp * 0.08)));
+      const nn = 1 + Math.floor(3 * (0.5 + 0.5 * Math.cos(t * sp * 0.06)));
+      const az = f.seqT * Math.PI * 2;
+      const val = Math.abs(Math.sin(m * az) * Math.sin(nn * Math.PI * f.heightT));
+      bri *= 0.05 + 0.95 * Math.pow(val, 1.4);
+      break;
+    }
+    case "glyph": {
+      // tiny 8×8 1-bit images mapped onto the canopy (azimuth × height), scrolling
+      const g = GLYPHS[Math.floor(t * sp * 0.04) % GLYPHS.length];
+      const u = frac(f.seqT + t * sp * 0.03); // scroll around the trunk
+      const col = Math.min(7, Math.floor(u * 8));
+      const row = Math.min(7, Math.floor((1 - f.heightT) * 8));
+      const on = (g[row] >> (7 - col)) & 1;
+      bri *= on ? 1 : 0.025;
       break;
     }
     case "chromatic": {
