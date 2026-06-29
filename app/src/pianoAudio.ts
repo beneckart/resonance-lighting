@@ -1,22 +1,33 @@
-// PIANO AUDIO — synthesises the piece's notes with Web Audio so you actually HEAR
-// the music (output goes to the system audio device, e.g. a Bluetooth speaker).
-// Triggered from the same piano clock as the lights → audio + lights stay in sync.
+import { Soundfont } from "smplr";
+
+// PIANO AUDIO — plays a REAL sampled acoustic grand piano (recorded notes, via
+// smplr) so it sounds like an actual piano, not a chiptune. Until the samples
+// finish loading it falls back to a warmer additive synth. Output goes to the
+// system audio device (route to a Bluetooth speaker). Triggered from the same
+// piano clock as the lights → audio + lights stay in sync.
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let soundOn = false;
+let piano: Soundfont | null = null;
+let pianoReady = false;
 
-/** Enable/disable + (lazily) create the AudioContext. MUST be called from a user
- *  gesture (a button click) the first time, or the browser blocks audio. */
+export function pianoLoading() { return !!piano && !pianoReady; }
+export function pianoSampled() { return pianoReady; }
+
 export function setPianoSound(on: boolean) {
   soundOn = on;
   if (on) {
     if (!ctx) {
       ctx = new AudioContext();
       master = ctx.createGain();
-      master.gain.value = 0.32;
-      const comp = ctx.createDynamicsCompressor(); // tame stacked notes
+      master.gain.value = 0.5;
+      const comp = ctx.createDynamicsCompressor();
       master.connect(comp);
       comp.connect(ctx.destination);
+      try {
+        piano = new Soundfont(ctx, { instrument: "acoustic_grand_piano", volume: 100 });
+        piano.load.then(() => { pianoReady = true; }).catch(() => { pianoReady = false; });
+      } catch { piano = null; }
     }
     void ctx.resume();
   }
@@ -25,26 +36,32 @@ export function isPianoSound() { return soundOn && !!ctx; }
 
 const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-/** Play one note: a short piano-ish tone (triangle + octave partial, fast attack,
- *  exponential decay scaled to the note's duration). */
+/** Play one note: the sampled grand piano if loaded, else a warm additive synth. */
 export function playPianoNote(midi: number, vel: number, dur: number) {
   if (!soundOn || !ctx || !master) return;
+  if (pianoReady && piano) {
+    piano.start({ note: midi, velocity: Math.max(18, Math.round(vel * 110)), duration: Math.max(0.25, dur) });
+    return;
+  }
+  // ── fallback synth (warmer than a single triangle: 4 partials + lowpass) ──
   const now = ctx.currentTime;
   const freq = midiToFreq(midi);
-  const peak = Math.min(0.5, 0.12 + vel * 0.5);
+  const peak = Math.min(0.45, 0.1 + vel * 0.45);
   const decay = Math.max(0.35, dur * 0.9);
-
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, now);
-  g.gain.exponentialRampToValueAtTime(peak, now + 0.006);   // percussive attack
-  g.gain.exponentialRampToValueAtTime(0.0001, now + decay); // ring out
-  g.connect(master);
-
-  const o1 = ctx.createOscillator(); o1.type = "triangle"; o1.frequency.value = freq;
-  const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = freq * 2;
-  const g2 = ctx.createGain(); g2.gain.value = 0.28; o2.connect(g2); g2.connect(g);
-  o1.connect(g);
-  o1.start(now); o2.start(now);
+  g.gain.exponentialRampToValueAtTime(peak, now + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.setValueAtTime(Math.min(8000, freq * 8), now);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(600, freq * 2.5), now + decay); // timbre darkens as it decays
+  g.connect(lp); lp.connect(master);
+  const parts: [number, number, OscillatorType][] = [[1, 1, "triangle"], [2, 0.4, "sine"], [3, 0.18, "sine"], [4, 0.08, "sine"]];
   const stop = now + decay + 0.05;
-  o1.stop(stop); o2.stop(stop);
+  for (const [mult, amp, type] of parts) {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq * mult;
+    const og = ctx.createGain(); og.gain.value = amp; o.connect(og); og.connect(g);
+    o.start(now); o.stop(stop);
+  }
 }
