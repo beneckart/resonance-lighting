@@ -6,7 +6,7 @@ import { AdditiveBlending, BufferAttribute, Color, ConeGeometry, DoubleSide, Ins
 import { useTwin } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
-import { updateField, fieldOut, updateRipples, rippleOut, type Attractor } from "./field";
+import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, lorenzFoci } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
@@ -223,13 +223,11 @@ export function TreeLights() {
     // decentralised "living" field — run once per frame if any active look uses it
     const useField = ctrl.pattern === "living" || st.layers.some((l) => l.control.pattern === "living");
     if (useField) {
-      const c = st.center, sz = st.size;
-      const fr = (x: number) => x - Math.floor(x);
-      const att: Attractor[] = [
-        { x: c[0] + Math.cos(t * 0.05) * sz * 0.3, y: c[1] + Math.sin(t * 0.037) * sz * 0.22, z: c[2] + Math.sin(t * 0.045) * sz * 0.3, hue: fr(t * 0.012) },
-        { x: c[0] + Math.cos(t * 0.031 + 2) * sz * 0.34, y: c[1] + Math.cos(t * 0.052) * sz * 0.26, z: c[2] + Math.sin(t * 0.041 + 1) * sz * 0.3, hue: fr(t * 0.012 + 0.5) },
-      ];
-      updateField(fixtures, delta, ctrl.speed, att);
+      updateField(fixtures, delta, ctrl.speed, lorenzFoci(st.center, st.size, delta));
+    }
+    // reaction-diffusion organism
+    if (ctrl.pattern === "organism" || st.layers.some((l) => l.control.pattern === "organism")) {
+      updateOrganism(fixtures, ctrl.speed);
     }
     // piano: the canopy plays a score — refresh per-key brightness once per frame
     if (ctrl.pattern === "piano" || st.layers.some((l) => l.control.pattern === "piano")) {
@@ -267,6 +265,10 @@ export function TreeLights() {
       } else if (fctrl.pattern === "living") {
         col.setHSL(fieldOut.hue[i], fctrl.sat, 0.5);
         const bv = fieldOut.bri[i] * fctrl.brightness;
+        lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
+      } else if (fctrl.pattern === "organism") {
+        const bv = organismOut.bri[i] * fctrl.brightness;
+        col.setHSL(((organismOut.hue[i] + fctrl.hue * 0.3) % 1 + 1) % 1, fctrl.sat, 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "ripples") {
         const bv = rippleOut.bri[i] * fctrl.brightness;

@@ -130,3 +130,61 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
     rippleOut.age[i] = c >= 2 ? (c - 1) / (KAPPA - 1) : 0; // 0 at wavefront → 1 at tail
   }
 }
+
+// ── REACTION-DIFFUSION (Gray-Scott) on the neighbour graph — organic blobs that
+//    drift, split and merge. Row-normalised graph Laplacian (mean of neighbours). ──
+let gu = new Float32Array(0), gv = new Float32Array(0), su = new Float32Array(0), sv = new Float32Array(0);
+let gsN = -1;
+export const organismOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
+
+export function updateOrganism(fixtures: SimFixture[], speed: number) {
+  const n = fixtures.length;
+  if (gsN !== n) {
+    gu = new Float32Array(n).fill(1); gv = new Float32Array(n);
+    su = new Float32Array(n); sv = new Float32Array(n);
+    organismOut.bri = new Float32Array(n); organismOut.hue = new Float32Array(n);
+    for (let s = 0; s < 8; s++) { const i = Math.floor(Math.random() * n); gv[i] = 0.5; gu[i] = 0.25; }
+    gsN = n;
+  }
+  const Du = 0.5, Dv = 0.25, F = 0.025, k = 0.06; // stable "gentle spots" regime (low node count → ~1 drifting blob)
+  const steps = Math.max(2, Math.round(3 + speed * 5)); // evolution rate rides the speed dial
+  for (let s = 0; s < steps; s++) {
+    for (let i = 0; i < n; i++) {
+      const nb = fixtures[i].neighbors, L = nb.length || 1;
+      let lu = 0, lv = 0;
+      for (let j = 0; j < nb.length; j++) { lu += gu[nb[j]] - gu[i]; lv += gv[nb[j]] - gv[i]; }
+      lu /= L; lv /= L;
+      const uvv = gu[i] * gv[i] * gv[i];
+      su[i] = Math.min(1, Math.max(0, gu[i] + (Du * lu - uvv + F * (1 - gu[i]))));
+      sv[i] = Math.min(1, Math.max(0, gv[i] + (Dv * lv + uvv - (F + k) * gv[i])));
+    }
+    [gu, su] = [su, gu]; [gv, sv] = [sv, gv];
+  }
+  for (let i = 0; i < n; i++) {
+    const v = gv[i];
+    organismOut.bri[i] = Math.min(1, v * 2.6);
+    organismOut.hue[i] = (0.62 - Math.min(1, v / (gu[i] + v + 1e-3)) * 0.42 + 1) % 1; // ratio → blue→green
+  }
+}
+
+// ── LORENZ attractors — two hypnotic two-lobe foci that crawl + hand off, used as
+//    the living engine's drifting points of focus. ──
+const lz = [{ x: 0.1, y: 0, z: 0 }, { x: -6, y: 2, z: 22 }];
+let lzAcc = 0;
+export function lorenzFoci(center: [number, number, number], size: number, dt: number): Attractor[] {
+  lzAcc += Math.min(0.06, Math.max(0, dt));
+  const h = 0.006;
+  while (lzAcc > h) {
+    lzAcc -= h;
+    for (const s of lz) {
+      const dx = 10 * (s.y - s.x), dy = s.x * (28 - s.z) - s.y, dz = s.x * s.y - (8 / 3) * s.z;
+      s.x += dx * h; s.y += dy * h; s.z += dz * h;
+    }
+  }
+  return lz.map((s, i) => ({
+    x: center[0] + (s.x / 22) * size * 0.5,
+    y: center[1] + ((s.z - 25) / 28) * size * 0.5,
+    z: center[2] + (s.y / 22) * size * 0.5,
+    hue: i === 0 ? 0.58 : 0.05,
+  }));
+}
