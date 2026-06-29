@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { telemetry } from "./telemetry";
+import { Widget } from "./Widget";
 
 // nearest readable colour name (research: show "blue", not "#1e90ff")
 const NAMED: [string, [number, number, number]][] = [
@@ -20,42 +21,20 @@ function colorName(r: number, g: number, b: number): string {
 const hex = (r: number, g: number, b: number) =>
   "#" + [r, g, b].map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
 
-const panel: React.CSSProperties = {
-  position: "fixed", left: 12, bottom: 12, width: 320, maxHeight: "38vh", overflowY: "auto",
-  padding: "10px 12px", background: "rgba(8,11,16,0.9)", border: "1px solid #1d2735", borderRadius: 10,
-  color: "#cdd6e4", font: "11px ui-monospace, SFMono-Regular, monospace", backdropFilter: "blur(6px)", zIndex: 45,
-};
-
 export function DataLog() {
   const [, setTick] = useState(0);
-  const [collapsed, setCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setTick((x) => x + 1), 250); // poll the module-level snapshot ~4 Hz
     return () => clearInterval(id);
   }, []);
 
-  if (collapsed) {
-    return (
-      <button onClick={() => setCollapsed(false)} title="show data log"
-        style={{ position: "fixed", left: 12, bottom: 12, zIndex: 45, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-          border: "1px solid #2a3a52", background: "rgba(12,16,24,0.9)", color: "#cdd6e4", font: "11px ui-monospace, monospace" }}>
-        📟 data log ▴
-      </button>
-    );
-  }
-
   const states = telemetry.states;
   const lit = states.filter((s) => s.bri > 0.02);
   const rows = (showAll ? states : lit).slice().sort((a, b) => a.num - b.num);
 
   return (
-    <div style={panel}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontWeight: 700, color: "#eef3fb" }}>📟 data log · what the lights are doing</span>
-        <button onClick={() => setCollapsed(true)} title="hide"
-          style={{ padding: "1px 7px", borderRadius: 6, cursor: "pointer", border: "1px solid #2a3a52", background: "#141a26", color: "#9fb0c7", fontSize: 11 }}>▾</button>
-      </div>
+    <Widget id="datalog" title="📟 data log — what the lights are doing" x={12} y={430} w={300} h={280}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 4 }}>
         <span><b style={{ color: "#7fe0a0" }}>{lit.length}</b> lit / {states.length} lights</span>
         <button onClick={() => setShowAll((v) => !v)}
@@ -77,6 +56,6 @@ export function DataLog() {
           </div>
         );
       })}
-    </div>
+    </Widget>
   );
 }

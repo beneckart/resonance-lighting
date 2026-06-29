@@ -2,12 +2,8 @@ import { useEffect, useState } from "react";
 import { useTwin } from "./store";
 import { SHOWS, showById } from "./shows";
 import { resetPiano } from "./piano";
+import { Widget } from "./Widget";
 
-const panel: React.CSSProperties = {
-  position: "fixed", top: 12, left: 344, width: 208, padding: "10px 12px",
-  background: "rgba(10,14,20,0.86)", border: "1px solid #1d2735", borderRadius: 10,
-  color: "#cdd6e4", font: "11px ui-monospace, SFMono-Regular, monospace", backdropFilter: "blur(6px)", zIndex: 44,
-};
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 export function ShowsPanel() {
@@ -32,8 +28,7 @@ export function ShowsPanel() {
   }
 
   return (
-    <div style={panel}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#eef3fb", marginBottom: 6 }}>🎬 Light Shows</div>
+    <Widget id="shows" title="🎬 Light Shows" x={344} y={12} w={216} h={330}>
       {SHOWS.map((s) => {
         const on = activeShow === s.id;
         return (
@@ -65,6 +60,6 @@ export function ShowsPanel() {
           <div style={{ fontSize: 10, color: "#9fc0ff", marginTop: 3 }}>▸ {cueNote}</div>
         </div>
       )}
-    </div>
+    </Widget>
   );
 }
