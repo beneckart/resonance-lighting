@@ -1,4 +1,4 @@
-# 0019 — Use PowerFeather-SDK 2.x for PowerFeather V2 prototypes
+# 0019 -- Use PowerFeather-SDK 2.x for PowerFeather V2 prototypes
 
 **Date:** 2026-05-11
 **Status:** Accepted for COTS prototype track

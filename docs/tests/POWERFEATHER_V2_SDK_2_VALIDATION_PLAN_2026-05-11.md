@@ -20,16 +20,16 @@
 - Build option: `POWERFEATHER_BOARD_V2` or ESP-IDF Kconfig V2 selection.
 - Initial battery type: `BatteryType::Generic_LFP`, unless a custom MAX17260 battery model is available.
 
-## Phase 1 — identify hardware version
+## Phase 1 -- identify hardware version
 
 - [ ] Photograph front/back of each PowerFeather under macro.
-- [ ] Visually identify V2 components if possible: MAX17260, TPS631013, BQ25628E, 20 mΩ sense resistor.
+- [ ] Visually identify V2 components if possible: MAX17260, TPS631013, BQ25628E, 20 mohm sense resistor.
 - [ ] I2C scan internal bus.
 - [ ] Confirm fuel gauge is MAX17260, not LC709204F.
 - [ ] Confirm regulator/control device expected for V2.
 - [ ] Label physical boards `PFV2-001`, `PFV2-002`, etc.
 
-## Phase 2 — minimal SDK bring-up
+## Phase 2 -- minimal SDK bring-up
 
 - [ ] Build minimal SDK 2.0.0 firmware for V2.
 - [ ] Run `Board.init()` with no battery, powered from USB/VDC.
@@ -38,7 +38,7 @@
 - [ ] Confirm no unexpected SDK errors on boot.
 - [ ] Log SDK version, ESP-IDF version, board config, and detected devices.
 
-## Phase 3 — battery and fuel-gauge telemetry
+## Phase 3 -- battery and fuel-gauge telemetry
 
 Log once per second for at least 10 minutes, then once per minute for long tests:
 
@@ -66,7 +66,7 @@ Tests:
 - [ ] VDC input with no battery.
 - [ ] VDC input with depleted or partially depleted battery.
 
-## Phase 4 — VSQT / external LED-module power behavior
+## Phase 4 -- VSQT / external LED-module power behavior
 
 For the IS31FL3741 STEMMA-QT matrix:
 
@@ -81,7 +81,7 @@ For the IS31FL3741 STEMMA-QT matrix:
 - [ ] Reinitialize matrix and display center pixel.
 - [ ] Repeat 100 cycles and log any I2C or matrix failures.
 
-## Phase 5 — sleep current
+## Phase 5 -- sleep current
 
 Measure with a USB power meter only for rough tests; use a power profiler or DMM/uCurrent-style setup for serious sleep numbers.
 
@@ -94,9 +94,9 @@ Cases:
 - [ ] Ship mode.
 - [ ] Shutdown mode.
 
-Record whether results match the documented order-of-magnitude: tens of µA in deep sleep and ~1 µA in ship/shutdown.
+Record whether results match the documented order-of-magnitude: tens of uA in deep sleep and ~1 uA in ship/shutdown.
 
-## Phase 6 — solar/VDC input
+## Phase 6 -- solar/VDC input
 
 For each panel:
 
@@ -109,7 +109,7 @@ For each panel:
 - [ ] Confirm panel does not collapse below maintain voltage under normal conditions.
 - [ ] Confirm battery charge current stays within selected cell limits.
 
-## Phase 7 — failure and recovery
+## Phase 7 -- failure and recovery
 
 - [ ] Watchdog reset while LEDs are on.
 - [ ] Brownout-like low-battery condition if safely reproducible.
@@ -119,7 +119,7 @@ For each panel:
 - [ ] Low-battery cutoff: external LED rail off, telemetry preserved, no reboot loop.
 - [ ] Dead/depleted battery + sun recovery test.
 
-## Phase 8 — RF and enclosure
+## Phase 8 -- RF and enclosure
 
 - [ ] Run ESP-NOW packet tests bare board.
 - [ ] Run ESP-NOW packet tests inside mock hat with battery and panel in realistic positions.

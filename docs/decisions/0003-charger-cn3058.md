@@ -1,12 +1,12 @@
-# 0003 — CN3058 LiFePO4 charger IC
+# 0003 -- CN3058 LiFePO4 charger IC
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0014 — LiFePO4-capable solar charger reference first, bq25185 preferred candidate
+**Status:** Superseded by ADR 0014 -- LiFePO4-capable solar charger reference first, bq25185 preferred candidate
 **Owners:** Ben
 
 ## Context
 
-Need a charger IC compatible with single-cell LiFePO4, input from a small solar panel, and a load that includes an ESP32-class MCU plus 1–25 addressable RGB LEDs.
+Need a charger IC compatible with single-cell LiFePO4, input from a small solar panel, and a load that includes an ESP32-class MCU plus 1-25 addressable RGB LEDs.
 
 ## Original decision
 

@@ -56,7 +56,9 @@ rx_peer = re.compile(
     r"(?: lux=([\w.\-]+) ch0=(\d+) ch1=(\d+) ptc=([\w.\-]+) prh=(-?\d+) btc=([\w.\-]+))?"   # env sensors (2026-06-10.1+); lux: number|sat|nan
     r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?"  # onboard INA meters (2026-06-11.2+); -32768 = absent
     r"(?: cap=(\d+) chg=(\d+))?"
-    r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?")
+    r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?"
+    r"(?: fw=(\S+))?"
+    r"(?: mt=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -88,7 +90,7 @@ with open(out, "w") as fh:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
              dlpdr, dlrssi, up, age, sv, sma, sgood,
              lux, ch0, ch1, ptc, prh, btc, ipv, ipa, ibv, iba,
-             cap, chg, dd, ddb, dda) = m.groups()
+             cap, chg, dd, ddb, dda, fw, mt) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -133,6 +135,10 @@ with open(out, "w") as fh:
             if dd is not None:
                 row.update(drawdown_mah=float(dd), drawdown_budget_mah=int(ddb),
                            drawdown_active=bool(int(dda)))
+            if fw is not None:
+                row["firmware_rev"] = fw
+            if mt is not None:
+                row["maint_status"] = int(mt)
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

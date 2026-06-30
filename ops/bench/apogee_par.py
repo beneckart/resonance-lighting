@@ -2,7 +2,7 @@
 """
 Apogee SQ-420 USB PAR Sensor Reader
 
-Reads photosynthetically active radiation (PAR) in µmol/m²/s.
+Reads photosynthetically active radiation (PAR) in umol/m^2/s.
 Protocol reverse-engineered: sends 0x55 0x21, reads back 5 bytes
 (1 byte status + little-endian float), applies calibration.
 
@@ -33,7 +33,7 @@ def find_sensor_port():
     if len(candidates) == 1:
         return candidates[0]
     print(f"Multiple serial devices found: {', '.join(candidates)}")
-    print(f"Trying {candidates[0]} — override with --port if wrong.")
+    print(f"Trying {candidates[0]} -- override with --port if wrong.")
     return candidates[0]
 
 
@@ -82,14 +82,14 @@ def main():
                 if args.csv:
                     print(f"{time.time():.3f},{par:.1f}")
                 else:
-                    print(f"\r  PAR: {par:7.1f} µmol/m²/s", end="", flush=True)
+                    print(f"\r  PAR: {par:7.1f} umol/m^2/s", end="", flush=True)
                 time.sleep(args.interval)
         else:
             par = read_par(ser)
             if args.csv:
                 print(f"{time.time():.3f},{par:.1f}")
             else:
-                print(f"  PAR: {par:.1f} µmol/m²/s")
+                print(f"  PAR: {par:.1f} umol/m^2/s")
     except KeyboardInterrupt:
         print("\n")
     finally:

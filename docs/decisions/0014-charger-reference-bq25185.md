@@ -1,4 +1,4 @@
-# 0014 — LiFePO4-capable solar charger reference first; bq25185 preferred candidate
+# 0014 -- LiFePO4-capable solar charger reference first; bq25185 preferred candidate
 
 **Date:** 2026-05-08
 **Status:** Accepted

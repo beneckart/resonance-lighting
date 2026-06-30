@@ -1,4 +1,4 @@
-# 0017 — Prefer one larger LiFePO4 cell over multi-14430 packs
+# 0017 -- Prefer one larger LiFePO4 cell over multi-14430 packs
 
 **Date:** 2026-05-10
 **Status:** Accepted
@@ -6,13 +6,13 @@
 
 ## Context
 
-LiFePO4 remains the preferred production chemistry because of heat tolerance, safety, cycle life, and storage behavior. However, sourcing revealed a practical issue: low-cost LiFePO4 cells on Amazon are often 14430 format at roughly 400–450 mAh, while 18650 LiFePO4 cells around 1500–2000 mAh are less common and may require specialty suppliers such as BatterySpace.
+LiFePO4 remains the preferred production chemistry because of heat tolerance, safety, cycle life, and storage behavior. However, sourcing revealed a practical issue: low-cost LiFePO4 cells on Amazon are often 14430 format at roughly 400-450 mAh, while 18650 LiFePO4 cells around 1500-2000 mAh are less common and may require specialty suppliers such as BatterySpace.
 
 One possible workaround is building a larger pack from several 14430 cells in parallel.
 
 ## Decision
 
-Prefer **one larger LiFePO4 cell per fixture**, ideally 18650 in the 1500–2000 mAh range.
+Prefer **one larger LiFePO4 cell per fixture**, ideally 18650 in the 1500-2000 mAh range.
 
 Do not build production packs from many 14430 cells in parallel unless mechanical constraints force it and the pack is designed/assembled/QA'd deliberately.
 

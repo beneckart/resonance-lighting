@@ -1,4 +1,4 @@
-# 0020 — Use Arduino-ESP32 for the PowerFeather power-bench harness
+# 0020 -- Use Arduino-ESP32 for the PowerFeather power-bench harness
 
 **Date:** 2026-06-02
 **Status:** Accepted for the bench/feasibility track (amends 0019)

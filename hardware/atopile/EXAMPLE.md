@@ -1,6 +1,6 @@
 # atopile module example: voltage_regulator
 
-This is a sketch showing what one of our atopile modules will look like. It's not yet buildable (no atopile project file) — it exists to make the pattern concrete for whoever picks up the schematic-as-code workstream next.
+This is a sketch showing what one of our atopile modules will look like. It's not yet buildable (no atopile project file) -- it exists to make the pattern concrete for whoever picks up the schematic-as-code workstream next.
 
 ## What atopile is
 
@@ -17,7 +17,7 @@ import Power from "generics/interfaces.ato"
 import Capacitor from "generics/capacitors.ato"
 
 # AP2112K-3.3V LDO regulator. ~600 mA, 450 mV dropout.
-# Input range: 2.5–6V. Output: 3.3V regulated.
+# Input range: 2.5-6V. Output: 3.3V regulated.
 component AP2112K_3v3:
     package = "SOT-25-5"
     mpn = "AP2112K-3.3TRG1"  # Diodes Inc.
@@ -75,7 +75,7 @@ module ResonanceCarrier:
     regulator = new VoltageRegulator3v3
     mcu = new ESP32C3Mini
 
-    # Connect: charger output → regulator input → MCU power
+    # Connect: charger output -> regulator input -> MCU power
     charger.power_out ~ regulator.power_in
     regulator.power_out ~ mcu.power
 ```

@@ -1,4 +1,4 @@
-# COTS / reference-design survey — 2026-05-08
+# COTS / reference-design survey -- 2026-05-08
 
 Status: first-pass web survey. Re-check stock and distributor availability before purchasing.
 
@@ -22,7 +22,7 @@ Why it matters:
 - Supports power path and solar/weak-source behavior via VINDPM.
 - Up to 1 A charge current.
 - Supports up to ~3.125 A discharge/system-load current through the battery FET path.
-- Low quiescent current: TI lists 4 µA in battery-only mode.
+- Low quiescent current: TI lists 4 uA in battery-only mode.
 - Includes battery temperature/fault protections and thermal regulation.
 
 Implication:
@@ -36,7 +36,7 @@ References:
 - https://www.ti.com/product/BQ25185
 - https://www.ti.com/tool/BQ25185EVM
 
-### Adafruit bq25185 USB / DC / Solar charger — product 6091
+### Adafruit bq25185 USB / DC / Solar charger -- product 6091
 
 Important details:
 
@@ -66,7 +66,7 @@ References:
 Important details:
 
 - bq25185 plus a separate 3.3 V buck output rated by Adafruit at 1 A max.
-- VIN accepts 5–18 V DC/solar.
+- VIN accepts 5-18 V DC/solar.
 - 3.3 V output has an enable pin; low disables output.
 - Good candidate for powering ESP32 board or custom logic in a prototype.
 - Learn guide says /CE is tied to ground, so the bq25185 safety timer cannot be reset except by removing/reapplying input supply on that specific board.
@@ -106,7 +106,7 @@ References:
 Important details:
 
 - CN3165-based solar power manager.
-- 5 V solar input range 4.4–6 V.
+- 5 V solar input range 4.4-6 V.
 - 5 V fixed MPPT behavior.
 - Charges 3.7 V Li battery up to 900 mA from solar/USB.
 - Provides 5 V 1 A USB/regulator output.
@@ -126,7 +126,7 @@ References:
 
 ## MCU / integrated-board candidates
 
-### FeatherS2 Neo — Adafruit product 5629 / Unexpected Maker
+### FeatherS2 Neo -- Adafruit product 5629 / Unexpected Maker
 
 Important details:
 
@@ -151,7 +151,7 @@ References:
 - https://www.adafruit.com/product/5629
 - https://circuitpython.org/board/unexpectedmaker_feathers2_neo/
 
-### Adafruit 5x5 NeoPixel Grid BFF — product 5646
+### Adafruit 5x5 NeoPixel Grid BFF -- product 5646
 
 Important details:
 
@@ -170,7 +170,7 @@ References:
 
 - https://www.adafruit.com/product/5646
 
-### Adafruit ESP32-S3 Feather — product 5323 / related variants
+### Adafruit ESP32-S3 Feather -- product 5323 / related variants
 
 Important details:
 
@@ -181,7 +181,7 @@ Important details:
 - MAX17048 battery monitor on some variants.
 - STEMMA QT with switchable power.
 - Status NeoPixel has pin-controlled power.
-- Deep sleep from LiPo around ~100 µA per Adafruit product text.
+- Deep sleep from LiPo around ~100 uA per Adafruit product text.
 
 Use:
 
@@ -218,7 +218,7 @@ References:
 
 - https://esp32s3.com/feathers3d.html
 
-### DFRobot FireBeetle 2 ESP32-C6 — product 2771 / SKU DFR1075
+### DFRobot FireBeetle 2 ESP32-C6 -- product 2771 / SKU DFR1075
 
 Important details:
 
@@ -241,15 +241,15 @@ References:
 - https://wiki.dfrobot.com/SKU_DFR1075_FireBeetle_2_Board_ESP32_C6
 - https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/network/esp_now.html
 
-### DFRobot FireBeetle 2 ESP32-C5 — product 2976 / SKU DFR1222
+### DFRobot FireBeetle 2 ESP32-C5 -- product 2976 / SKU DFR1222
 
 Important details:
 
 - Product 2976 is ESP32-C5, not ESP32-C6.
 - Dual-band 2.4/5 GHz WiFi 6.
-- Solar charging input 4.5–6 V.
+- Solar charging input 4.5-6 V.
 - Max charging current 0.5 A.
-- Sleep current listed as 21 µA.
+- Sleep current listed as 21 uA.
 - 240 MHz RISC-V single-core, 4 MB flash.
 - Supports BLE, Zigbee, Thread ecosystem.
 
@@ -312,7 +312,7 @@ Why it matters:
 Use:
 
 - Conservative lower-compute option if headroom tests show S3 unnecessary.
-- Better aligned with “no custom RF” than the original C3-MINI compactness bias.
+- Better aligned with "no custom RF" than the original C3-MINI compactness bias.
 
 References:
 
@@ -349,41 +349,41 @@ References:
 4. DFRobot Solar Power Manager 5V for LiPo fallback.
 5. DFRobot FireBeetle C6/C5 solar board for solar-integrated LiPo fallback testing.
 6. Adafruit 5x5 NeoPixel BFF for LED daughterboard layout reference.
-7. 1–3 W solar panels, both premium and cheap samples.
+7. 1-3 W solar panels, both premium and cheap samples.
 8. LiFePO4 18650 cells and LiPo fallback cells, labeled and isolated by chemistry.
 
 ## Recommended prototype stacks
 
-### Stack 1 — preferred LiFePO4 architecture reference
+### Stack 1 -- preferred LiFePO4 architecture reference
 
 ```
-5–7 V solar panel
-  → bq25185 LiFePO4-configured charger board
-  → LiFePO4 18650
-  → ESP32-S3 board or custom dev carrier
-  → switchable 5x5 LED daughterboard
+5-7 V solar panel
+  -> bq25185 LiFePO4-configured charger board
+  -> LiFePO4 18650
+  -> ESP32-S3 board or custom dev carrier
+  -> switchable 5x5 LED daughterboard
 ```
 
 Purpose: prove preferred chemistry, charger behavior, standard OTA, LED power safety, and RF.
 
-### Stack 2 — fastest optical prototype
+### Stack 2 -- fastest optical prototype
 
 ```
 LiPo battery / USB power
-  → FeatherS2 Neo
-  → onboard 5x5 LED matrix
+  -> FeatherS2 Neo
+  -> onboard 5x5 LED matrix
 ```
 
 Purpose: prove center-pixel optics, chromatic fringing, animation modes, firmware structure.
 
-### Stack 3 — no-solder LiPo production fallback
+### Stack 3 -- no-solder LiPo production fallback
 
 ```
 5 V solar panel
-  → DFRobot DFR0559 Solar Power Manager 5V
-  → LiPo battery
-  → short USB cable
-  → ESP32 board / FeatherS2 Neo / FireBeetle
+  -> DFRobot DFR0559 Solar Power Manager 5V
+  -> LiPo battery
+  -> short USB cable
+  -> ESP32 board / FeatherS2 Neo / FireBeetle
 ```
 
 Purpose: prove that a very simple unskilled assembly path can keep the project alive if LiFePO4/custom PCBA slips.

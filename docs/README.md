@@ -4,9 +4,9 @@ Design artifacts and decision records. Read alongside `BACKGROUND.md` at repo ro
 
 ```
 docs/
-├── block-diagram/    System block diagram + power budget.
-├── decisions/        ADR-style decision records — short, dated, one decision per file.
-└── tests/            Test plans and measured results from bench / field validation.
+|-- block-diagram/    System block diagram + power budget.
+|-- decisions/        ADR-style decision records -- short, dated, one decision per file.
+`-- tests/            Test plans and measured results from bench / field validation.
 ```
 
 ## Decision Record (ADR) format
@@ -14,7 +14,7 @@ docs/
 One file per architectural decision, named `NNNN-short-slug.md`. Keep short. Format:
 
 ```
-# NNNN — [decision title]
+# NNNN -- [decision title]
 
 **Date:** YYYY-MM-DD
 **Status:** Proposed / Accepted / Superseded by [link]

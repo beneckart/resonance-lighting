@@ -1,4 +1,4 @@
-# 0011 — MCU module selection: pre-certified module with RF/headroom margin
+# 0011 -- MCU module selection: pre-certified module with RF/headroom margin
 
 **Date:** 2026-05-08
 **Status:** Accepted

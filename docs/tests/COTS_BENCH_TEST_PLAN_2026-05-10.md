@@ -1,36 +1,36 @@
-# COTS bench test plan — 2026-05-10
+# COTS bench test plan -- 2026-05-10
 
 Purpose: turn the R&D shopping spree into actionable data for the production decision. The goal is not to crown a board by intuition; it is to measure power, charging, sleep, optics, RF, robustness, and assembly time.
 
 ## Test articles
 
-### Track A — PowerFeather V2 + IS31FL3741
+### Track A -- PowerFeather V2 + IS31FL3741
 
 - PowerFeather board from Elecrow.
 - LiFePO4 18650 sample cell.
 - Solar panels: 1 W, 2 W, 3 W, 5 W samples.
 - Adafruit IS31FL3741 13x9 RGB matrix via STEMMA-QT.
 
-### Track B — PowerFeather V2 + NeoHEX
+### Track B -- PowerFeather V2 + NeoHEX
 
 - PowerFeather board from Elecrow.
 - LiFePO4 18650 sample cell.
 - M5Stack NeoHEX via GPIO/data and suitable LED power rail.
 
-### Track C — FeatherS2 Neo + DFR0559
+### Track C -- FeatherS2 Neo + DFR0559
 
 - DFRobot DFR0559 Solar Power Manager 5V.
 - LiPo cell.
 - FeatherS2 Neo powered from DFR0559 USB output.
 - FeatherS2 Neo battery connector left empty.
 
-### Track D — Atom Matrix + DFR0559
+### Track D -- Atom Matrix + DFR0559
 
 - DFRobot DFR0559 Solar Power Manager 5V.
 - LiPo cell.
 - M5Stack Atom Matrix powered from DFR0559 USB output.
 
-## Phase 1 — incoming inspection and identity
+## Phase 1 -- incoming inspection and identity
 
 For each board:
 
@@ -48,7 +48,7 @@ PowerFeather-specific:
 - Run an I2C scan over the internal bus and record detected devices.
 - Only use LiFePO4 on confirmed V2 hardware or hardware explicitly cleared by the designer.
 
-## Phase 2 — bring-up and firmware sanity
+## Phase 2 -- bring-up and firmware sanity
 
 For each MCU board:
 
@@ -61,7 +61,7 @@ For each MCU board:
 - Confirm standard OTA maintenance-mode update on local WiFi.
 - Confirm no custom mesh OTA firmware transfer code is present.
 
-## Phase 3 — sleep/current measurements
+## Phase 3 -- sleep/current measurements
 
 Use a USB power meter for USB-powered setups and a low-current profiler or DMM/shunt for battery-powered setups.
 
@@ -87,7 +87,7 @@ Record:
 - Measured current.
 - Notes.
 
-## Phase 4 — charger and solar tests
+## Phase 4 -- charger and solar tests
 
 For PowerFeather V2:
 
@@ -120,7 +120,7 @@ Recovery tests:
 - Solar input removed during operation.
 - USB input added/removed during operation.
 
-## Phase 5 — LED module electrical tests
+## Phase 5 -- LED module electrical tests
 
 For each LED module:
 
@@ -163,7 +163,7 @@ Test:
 - Ability to power down LED matrix in sleep.
 - Whether the integrated board geometry can place the center LED on the optical axis inside the hat.
 
-## Phase 6 — optics / gobo tests
+## Phase 6 -- optics / gobo tests
 
 Use Steve's existing filter/gobo rig or a simple repeatable setup.
 
@@ -185,7 +185,7 @@ Acceptance target:
 - Center-only mode must produce a recognizably crisp mandala at realistic height.
 - Multi-pixel modes may be intentionally showy, but must not make the default mode look broken or washed out.
 
-## Phase 7 — RF tests
+## Phase 7 -- RF tests
 
 For each candidate MCU/hat arrangement:
 
@@ -209,7 +209,7 @@ Acceptance target:
 - The final hat geometry must not bury the antenna under a solar panel, battery, or metal hardware.
 - PCB antenna should remain the default. Do not switch to u.FL/external antenna unless RF tests fail.
 
-## Phase 8 — fault and fail-safe tests
+## Phase 8 -- fault and fail-safe tests
 
 For each plausible production architecture:
 
@@ -227,7 +227,7 @@ Acceptance target:
 - A stuck LED command must not be able to quietly drain a battery into an unrecoverable field state.
 - Hardware default should bias external LED rails off until firmware intentionally enables them.
 
-## Phase 9 — mechanical / assembly tests
+## Phase 9 -- mechanical / assembly tests
 
 For each candidate stack:
 
@@ -246,7 +246,7 @@ Acceptance target:
 - The production architecture can be assembled by a careful non-expert using a written checklist.
 - Any soldering must be minimal, fixture-jigged, and not repeated across long header rows.
 
-## Phase 10 — data logging for 2027
+## Phase 10 -- data logging for 2027
 
 For PowerFeather-like architectures, log enough to inform 2027 solar sizing:
 

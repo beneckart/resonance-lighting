@@ -33,7 +33,7 @@ xmax = max(x for _, _, pts in data for x, _ in pts) * 1.08
 ymax = max(y for _, _, pts in data for _, y in pts) * 1.12
 W, H = 1100, 760
 img = Image.new("RGB", (W, H), "white"); d = ImageDraw.Draw(img)
-d.text((30, 16), "LED output vs power — PAR per mA (slope = efficiency)", fill=(0, 0, 0), font=FT)
+d.text((30, 16), "LED output vs power -- PAR per mA (slope = efficiency)", fill=(0, 0, 0), font=FT)
 x0, y0, x1, y1 = 110, 70, 1060, 690
 d.rectangle([x0, y0, x1, y1], outline=(0, 0, 0), width=2)
 def sx(v): return x0 + v / xmax * (x1 - x0)
@@ -61,7 +61,7 @@ for i, (lab, col, pts) in enumerate(data):
     P = [(sx(x), sy(y)) for x, y in pts]
     for j in range(1, len(P)): d.line([P[j-1], P[j]], fill=col, width=3)
     for px, py in P: d.ellipse([px-5, py-5, px+5, py+5], fill=col)
-    d.text((x0+30, y0+20+i*24), f"— {lab}", fill=col, font=F)
+    d.text((x0+30, y0+20+i*24), f"-- {lab}", fill=col, font=F)
 
 img.save(DIR + "led-par-vs-draw.png")
 print("wrote " + DIR + "led-par-vs-draw.png")

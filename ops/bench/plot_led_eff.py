@@ -24,7 +24,7 @@ COLORS = [(30, 90, 200), (210, 60, 40), (0, 150, 0), (160, 80, 200)]
 
 W, H = 1500, 720
 img = Image.new("RGB", (W, H), "white"); d = ImageDraw.Draw(img)
-d.text((40, 18), "LED efficiency sweep — " + " vs ".join(s[0] for s in series), fill=(0, 0, 0), font=FT)
+d.text((40, 18), "LED efficiency sweep -- " + " vs ".join(s[0] for s in series), fill=(0, 0, 0), font=FT)
 
 def panel(x0, y0, x1, y1, xs, ys, xlabel, ylabel, title, xmax=None, ymax=None):
     d.rectangle([x0, y0, x1, y1], outline=(0, 0, 0), width=2)
@@ -51,7 +51,7 @@ for i, (lab, rows) in enumerate(series):
     pts = [(sx(r["led_mA"]), sy(r["par_net"])) for r in rows if r["led_mA"] > 0]
     for j in range(1, len(pts)): d.line([pts[j - 1], pts[j]], fill=COLORS[i], width=3)
     for px, py in pts: d.ellipse([px - 4, py - 4, px + 4, py + 4], fill=COLORS[i])
-    d.text((130, 90 + i * 22), f"— {lab}", fill=COLORS[i], font=F)
+    d.text((130, 90 + i * 22), f"-- {lab}", fill=COLORS[i], font=F)
 
 # Panel B: LED_mA vs brightness (power scaling with setting)
 allb = [r["brightness"] for _, rows in series for r in rows]
@@ -62,7 +62,7 @@ for i, (lab, rows) in enumerate(series):
     pts = [(sx2(r["brightness"]), sy2(r["led_mA"])) for r in rows]
     for j in range(1, len(pts)): d.line([pts[j - 1], pts[j]], fill=COLORS[i], width=3)
     for px, py in pts: d.ellipse([px - 4, py - 4, px + 4, py + 4], fill=COLORS[i])
-    d.text((840, 90 + i * 22), f"— {lab}", fill=COLORS[i], font=F)
+    d.text((840, 90 + i * 22), f"-- {lab}", fill=COLORS[i], font=F)
 
 img.save(out)
 print("wrote", out)

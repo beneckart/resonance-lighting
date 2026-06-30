@@ -63,7 +63,7 @@ while time.time() - t0 < a.secs:
             # SAFETY: a brightness step browned out the board (uptime dropped) -> abort
             # before it loops, and report the level it died at (the safe ceiling).
             if last_up is not None and up < last_up - 2000:
-                print(f"\n!!! REBOOT DETECTED (up {last_up}->{up}, bv~{bv:.3f}) — brightness ~{last_br} "
+                print(f"\n!!! REBOOT DETECTED (up {last_up}->{up}, bv~{bv:.3f}) -- brightness ~{last_br} "
                       f"browned out the board. ABORTING. Replug USB to stop the loop. !!!", flush=True)
                 aborted = True
                 break
@@ -76,7 +76,7 @@ while time.time() - t0 < a.secs:
         pass
 par.close(); s.close()
 if aborted:
-    print(f">>> aborted at/after brightness {last_br} — treat that as the unstable ceiling on this rail/connection.", flush=True)
+    print(f">>> aborted at/after brightness {last_br} -- treat that as the unstable ceiling on this rail/connection.", flush=True)
 
 # Per-brightness summary: drop the first 40% of each step's samples (settling), median the rest.
 by_br = {}

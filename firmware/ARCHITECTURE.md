@@ -6,20 +6,20 @@ Firmware runs across COTS prototypes and the eventual production target. The arc
 
 ```
 firmware/
-├── core/             Platform-independent C++. Compiles native. Unit-tested.
-│   ├── ca/           Cellular automata engine.
-│   ├── packet/       ESP-NOW packet codec.
-│   ├── pattern/      LED animation generators.
-│   ├── state/        Fixture state representation.
-│   └── tests/        Native tests.
-│
-├── esp32/            ESP32-specific glue.
-│   ├── boards/       Board definitions: powerfeather_v2, feathers2_neo, atom_matrix, resonance_custom.
-│   ├── drivers/      ESP-NOW, OTA, LED drivers, charger/fuel gauge, rail control.
-│   ├── tasks/        FreeRTOS tasks.
-│   └── main.cpp
-│
-└── tools/            Host-side smoke test, log parser, telemetry tools.
+|-- core/             Platform-independent C++. Compiles native. Unit-tested.
+|   |-- ca/           Cellular automata engine.
+|   |-- packet/       ESP-NOW packet codec.
+|   |-- pattern/      LED animation generators.
+|   |-- state/        Fixture state representation.
+|   `-- tests/        Native tests.
+|
+|-- esp32/            ESP32-specific glue.
+|   |-- boards/       Board definitions: powerfeather_v2, feathers2_neo, atom_matrix, resonance_custom.
+|   |-- drivers/      ESP-NOW, OTA, LED drivers, charger/fuel gauge, rail control.
+|   |-- tasks/        FreeRTOS tasks.
+|   `-- main.cpp
+|
+`-- tools/            Host-side smoke test, log parser, telemetry tools.
 ```
 
 ## Board abstraction
@@ -37,10 +37,10 @@ Each board definition should specify:
 
 Initial board targets:
 
-- `powerfeather_v2` — ESP32-S3-WROOM, BQ25628E, MAX17260, TPS631013, switchable VSQT.
-- `feathers2_neo` — ESP32-S2 with integrated 5x5 matrix and LiPo charging.
-- `atom_matrix` — ESP32-PICO-D4 with integrated 5x5 WS2812C.
-- `resonance_custom` — future PowerFeather-derived custom board.
+- `powerfeather_v2` -- ESP32-S3-WROOM, BQ25628E, MAX17260, TPS631013, switchable VSQT.
+- `feathers2_neo` -- ESP32-S2 with integrated 5x5 matrix and LiPo charging.
+- `atom_matrix` -- ESP32-PICO-D4 with integrated 5x5 WS2812C.
+- `resonance_custom` -- future PowerFeather-derived custom board.
 
 ## OTA policy
 

@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-29.1" // targeted HEX drawdown + sleep
+#define NET_BENCH_VERSION "net-bench-2026-06-30.1" // shared-WiFi low-voltage OTA proof
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -52,6 +52,7 @@
 
 // ---- PowerFeather SDK (telemetry) ------------------------------------------
 #include <PowerFeather.h>
+#include "../powerfeather_solar_guard.h"
 using namespace PowerFeather;
 #if !defined(POWERFEATHER_BOARD_V2) && !defined(CONFIG_ESP32S3_POWERFEATHER_V2)
 #error "Build with -DPOWERFEATHER_BOARD_V2=1 so the SDK uses the V2 MAX17260 fuel gauge. See firmware/net_bench/build.sh."
@@ -135,6 +136,9 @@ using namespace PowerFeather;
 #ifndef NB_REMOTE_SLEEP_S
 #define NB_REMOTE_SLEEP_S 21600 // 6 hours; enough to wait for sun without losing recoverability
 #endif
+#ifndef NB_TARGET_SLEEP_DEFAULT_S
+#define NB_TARGET_SLEEP_DEFAULT_S 3600 // selected-peer "solar nap" default
+#endif
 #ifndef NB_DRAWDOWN_PIXEL_PIN
 #define NB_DRAWDOWN_PIXEL_PIN 10 // GPIO10 / A0: direct-GPIO HEX bench harness
 #endif
@@ -173,6 +177,21 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_MAINTAIN_MAX_V10
 #define NB_MAINTAIN_MAX_V10 168 // PowerFeather SDK supports 16.8 V maximum
+#endif
+#ifndef NB_MAINT_MIN_LFP_MV
+#define NB_MAINT_MIN_LFP_MV 3200 // below this, defer OTA until the LFP has charged
+#endif
+#ifndef NB_MAINT_MIN_3V7_MV
+#define NB_MAINT_MIN_3V7_MV 3600 // low Li-ion cells have browned out on WiFi entry
+#endif
+#ifndef NB_MAINT_SUPPLY_OVERRIDE_MA
+#define NB_MAINT_SUPPLY_OVERRIDE_MA 250 // strong external/solar input can override low Vbat
+#endif
+#ifndef NB_MAINT_POWER_ENFORCE
+#define NB_MAINT_POWER_ENFORCE 0 // default: report low-power maintenance risk; do not block OTA tests
+#endif
+#ifndef NB_MAINT_REFUSE_REPORT_MS
+#define NB_MAINT_REFUSE_REPORT_MS 5000 // throttle warning prints/HBs during sustained U
 #endif
 #ifndef NB_CAPACITY_MIN_MAH
 #define NB_CAPACITY_MIN_MAH 100
@@ -226,10 +245,20 @@ static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String otaMode = "off";
 
 enum NetMode { MODE_COMMS = 0, MODE_MAINT = 1 };
+enum MaintStatus : uint8_t {
+  MAINT_STATUS_IDLE = 0,
+  MAINT_STATUS_ACTIVE = 1,
+  MAINT_STATUS_POWER_WARN = 2,
+  MAINT_STATUS_START_FAILED = 3,
+  MAINT_STATUS_TIMEOUT = 4,
+  MAINT_STATUS_RESUMED = 5,
+};
 volatile NetMode gMode = MODE_COMMS;
 volatile bool gResumePending = false; // /resume sets this; loop() does the real enterComms()
 bool otaActive = false;
 uint32_t maintEnteredMs = 0;
+uint8_t gMaintStatus = MAINT_STATUS_IDLE;
+uint32_t gLastMaintRefuseMs = 0;
 
 uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
@@ -244,6 +273,7 @@ float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
 uint16_t gBatteryCapacityMah = (uint16_t)RES_PF_BATTERY_CAPACITY_MAH;
 uint16_t gChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
+float gMaintainV = (float)RES_PF_MAINTAIN_V;
 bool gBenchConfigLoaded = false;
 
 // ---- env sensors (MPP sweep: light + panel temp, no host tether) ------------
@@ -314,6 +344,9 @@ enum NbType : uint8_t {
   NB_SET_CHARGE_MA = 10,// master -> all: persist/apply charger current cap (mA)
   NB_SLEEP_FOR = 11,  // master -> all: cut rails and timed deep-sleep (seconds)
   NB_DRAWDOWN = 12,   // master -> target: HEX drawdown load, then guarded timed sleep
+  NB_TARGET_SLEEP_FOR = 13, // master -> target: cut rails and timed deep-sleep
+  NB_TARGET_CAPACITY = 14,  // master -> target: persist capacity (mAh), reboot to apply
+  NB_TARGET_CHARGE_MA = 15, // master -> target: persist/apply charger current cap (mA)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -371,6 +404,12 @@ struct __attribute__((packed)) NbHeartbeat {
   uint16_t drawdown_mah_x10;
   uint16_t drawdown_budget_mah;
   uint8_t drawdown_active;
+  // --- APPEND-ONLY tail 6 (dashboard/debug identity). Fixed-size to keep the
+  // heartbeat binary and parser simple; NUL-terminated when sent by this firmware.
+  char fw_rev[24];
+  // --- APPEND-ONLY tail 7 (maintenance health). Lets the bridge see power warnings
+  // and maintenance-start failures instead of inferring them from silence.
+  uint8_t maint_status;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -433,6 +472,10 @@ struct NbPeerStat {
   bool has_drawdown; // peer sent the targeted drawdown tail
   uint16_t drawdown_mah_x10, drawdown_budget_mah;
   uint8_t drawdown_active;
+  bool has_fw;
+  char fw_rev[24];
+  bool has_maint_status;
+  uint8_t maint_status;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -441,7 +484,7 @@ struct RxItem {
   uint8_t mac[6];
   int8_t rssi;
   uint8_t len;
-  uint8_t data[64];
+  uint8_t data[96];
 };
 QueueHandle_t rxQueue;
 static_assert(sizeof(NbHeartbeat) <= sizeof(RxItem::data),
@@ -541,13 +584,15 @@ void setupPowerFeather() {
   Serial.printf("  Board.init(cap=%u, %s) -> %s\n", (unsigned)gBatteryCapacityMah,
                 batteryTypeName(), pfReady ? "Ok" : "ERR");
   if (!pfReady) return;
-  Board.setSupplyMaintainVoltage((float)RES_PF_MAINTAIN_V);
+  gMaintainV = (float)RES_PF_MAINTAIN_V;
+  Board.setSupplyMaintainVoltage(gMaintainV);
 #if RES_PF_ENABLE_CHARGING
   Board.setBatteryChargingMaxCurrent((float)gChargeMa);
   Board.enableBatteryCharging(true);
 #else
   Board.enableBatteryCharging(false);
 #endif
+  pfSolarGuardInit("net_bench", gMaintainV, RES_PF_ENABLE_CHARGING != 0);
 }
 
 // ---- onboard INA helpers (placed after the structs; see note at the globals) -
@@ -689,6 +734,7 @@ void readBattery() {
   if (Board.getSupplyCurrent(v) == Result::Ok) csMa = v;
   bool g;
   if (Board.checkSupplyGood(g) == Result::Ok) csGood = g;
+  pfSolarGuardTick("net_bench", csV, csMa, csGood, gMaintainV, RES_PF_ENABLE_CHARGING != 0);
 }
 
 String telemetryJson() {
@@ -712,6 +758,8 @@ String telemetryJson() {
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
   j += ",\"pf_ready\":";
   j += pfReady ? "true" : "false";
+  j += ",\"maint_status\":";
+  j += String(gMaintStatus);
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
   if (pfReady) {
     char b[24];
@@ -739,12 +787,14 @@ void configureOtaRoutes() {
   server.on(
       "/update", HTTP_POST,
       []() {
+        esp_task_wdt_reset();
         bool ok = !Update.hasError();
         server.send(ok ? 200 : 500, "text/plain", ok ? "Update complete. Rebooting.\n" : "Update failed.\n");
         delay(500);
         if (ok) ESP.restart();
       },
       []() {
+        esp_task_wdt_reset();
         HTTPUpload &up = server.upload();
         if (up.status == UPLOAD_FILE_START) {
           if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
@@ -760,10 +810,12 @@ void configureOtaRoutes() {
 
 bool startWifiOta() {
 #if defined(NB_MAINT_AP)
+  esp_task_wdt_reset();
   WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
   String ssid = String(NB_MAINT_AP_PREFIX) + "-" + shortId;
   bool ok = WiFi.softAP(ssid.c_str(), NB_MAINT_AP_PASS, NB_CHANNEL);
+  esp_task_wdt_reset();
   if (!ok) {
     Serial.println("maintenance AP start failed");
     return false;
@@ -787,7 +839,11 @@ bool startWifiOta() {
 #endif
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   uint32_t t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(250); Serial.print("."); }
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
+    esp_task_wdt_reset();
+    delay(250);
+    Serial.print(".");
+  }
   Serial.println();
   if (WiFi.status() != WL_CONNECTED) { Serial.println("WiFi join failed"); return false; }
   configureOtaRoutes();
@@ -855,7 +911,7 @@ void accountSeq(NbPeerStat *p, uint32_t seq) {
 
 // ---- ESP-NOW callbacks -----------------------------------------------------
 void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  if (len < (int)sizeof(NbHeader) || len > 64) return;
+  if (len < (int)sizeof(NbHeader) || len > (int)sizeof(RxItem::data)) return;
   RxItem it;
   memcpy(it.mac, info->src_addr, 6);
   it.rssi = info->rx_ctrl ? info->rx_ctrl->rssi : 0;
@@ -940,6 +996,9 @@ void sendHeartbeat(uint8_t caState) {
   hb.drawdown_mah_x10 = (uint16_t)min(65535UL, (unsigned long)(gDrawdownMah * 10.0f + 0.5f));
   hb.drawdown_budget_mah = gDrawdownBudgetMah;
   hb.drawdown_active = gDrawdownActive ? 1 : 0;
+  memset(hb.fw_rev, 0, sizeof(hb.fw_rev));
+  strncpy(hb.fw_rev, NET_BENCH_VERSION, sizeof(hb.fw_rev) - 1);
+  hb.maint_status = gMaintStatus;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -960,6 +1019,42 @@ void sendTargetU16(uint8_t type, const uint8_t target[3], uint16_t value) {
   memcpy(c.target_id, target, 3);
   c.value = value;
   for (int i = 0; i < 6; i++) { esp_now_send(BCAST, (uint8_t *)&c, sizeof(c)); delay(8); }
+}
+bool targetMatchesMe(const uint8_t target[3]) {
+  bool all = (target[0] == 0 && target[1] == 0 && target[2] == 0);
+  return all || memcmp(target, myId, 3) == 0;
+}
+uint16_t maintenanceBatteryFloorMv() {
+  return (RES_PF_BATTERY_TYPE == Mainboard::BatteryType::Generic_LFP)
+             ? NB_MAINT_MIN_LFP_MV
+             : NB_MAINT_MIN_3V7_MV;
+}
+bool maintenancePowerOk() {
+  if (IS_MASTER || !pfReady) return true;
+
+  readBattery();
+  esp_task_wdt_reset();
+  int battMv = (int)(cbV * 1000.0f + 0.5f);
+  uint16_t floorMv = maintenanceBatteryFloorMv();
+  bool batteryKnown = battMv > 500;
+  bool batteryOk = !batteryKnown || battMv >= (int)floorMv;
+  bool supplyOk = csGood && csMa >= (float)NB_MAINT_SUPPLY_OVERRIDE_MA;
+  if (batteryOk || supplyOk) return true;
+
+  gMaintStatus = MAINT_STATUS_POWER_WARN;
+  uint32_t now = millis();
+  if (!gLastMaintRefuseMs || now - gLastMaintRefuseMs >= NB_MAINT_REFUSE_REPORT_MS) {
+    gLastMaintRefuseMs = now;
+    Serial.printf("maintenance power warning: bv=%dmV floor=%umV sv=%.3fV sma=%.0fmA sgood=%d enforce=%d\n",
+                  battMv, (unsigned)floorMv, csV, csMa, csGood ? 1 : 0,
+                  NB_MAINT_POWER_ENFORCE);
+    sendHeartbeat(0);
+  }
+#if NB_MAINT_POWER_ENFORCE
+  return false;
+#else
+  return true;
+#endif
 }
 void enterTimedDeepSleep(uint16_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
@@ -1093,12 +1188,20 @@ void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
 
 // ---- mode transitions ------------------------------------------------------
 void enterComms();
-void enterMaintenance() {
+bool enterMaintenance() {
+  if (!maintenancePowerOk()) return false;
   Serial.println("-> MAINTENANCE (WiFi OTA)");
   espNowDeinit();
   gMode = MODE_MAINT;
   maintEnteredMs = millis();
-  startWifiOta();
+  if (!startWifiOta()) {
+    gMaintStatus = MAINT_STATUS_START_FAILED;
+    Serial.println("maintenance startup failed -> resume comms");
+    enterComms();
+    return false;
+  }
+  gMaintStatus = MAINT_STATUS_ACTIVE;
+  return true;
 }
 void enterComms() {
   Serial.println("-> COMMS (ESP-NOW)");
@@ -1120,7 +1223,11 @@ void enterComms() {
     // Master joins the bench AP (on NB_CHANNEL) to bridge stats + serve /telemetry.
     WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
     uint32_t t0 = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(250); Serial.print("."); }
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
+      esp_task_wdt_reset();
+      delay(250);
+      Serial.print(".");
+    }
     Serial.println();
     if (WiFi.status() == WL_CONNECTED) {
       Serial.print("master WiFi-STA ip="); Serial.print(WiFi.localIP());
@@ -1157,12 +1264,13 @@ void emitBridge(const char *line, int n) {
 
 void bridgeStats() {
   if (!IS_MASTER) return;
-  char line[384]; // base peer line + optional env/INA/config/drawdown tails
+  char line[512]; // base peer line + optional env/INA/config/drawdown/fw tails
   // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
-                   "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f\n",
+                   "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f fw=%s\n",
                    myId[0], myId[1], myId[2], NB_CHANNEL, (unsigned long)txSeq,
-                   (unsigned long)sendOk, (unsigned long)sendFail, (unsigned long)millis(), cbV);
+                   (unsigned long)sendOk, (unsigned long)sendFail, (unsigned long)millis(), cbV,
+                   NET_BENCH_VERSION);
   emitBridge(line, n);
   // per-peer lines
   for (int i = 0; i < NB_MAX_TRACKED; i++) {
@@ -1204,6 +1312,12 @@ void bridgeStats() {
       n += snprintf(line + n, sizeof(line) - n, " dd=%.1f ddb=%u dda=%u",
                     p->drawdown_mah_x10 / 10.0f, p->drawdown_budget_mah,
                     p->drawdown_active);
+    }
+    if (p->has_fw && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " fw=%s", p->fw_rev);
+    }
+    if (p->has_maint_status && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " mt=%u", p->maint_status);
     }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
@@ -1308,13 +1422,28 @@ void processRx() {
         } else {
           p->has_cfg = false;
         }
-        if (it.len >= (int)sizeof(NbHeartbeat)) { // targeted drawdown tail 5
+        if (it.len >= (int)offsetof(NbHeartbeat, fw_rev)) { // targeted drawdown tail 5
           p->has_drawdown = true;
           p->drawdown_mah_x10 = hb->drawdown_mah_x10;
           p->drawdown_budget_mah = hb->drawdown_budget_mah;
           p->drawdown_active = hb->drawdown_active;
         } else {
           p->has_drawdown = false;
+        }
+        if (it.len >= (int)offsetof(NbHeartbeat, maint_status)) { // firmware revision tail 6
+          p->has_fw = true;
+          memcpy(p->fw_rev, hb->fw_rev, sizeof(p->fw_rev));
+          p->fw_rev[sizeof(p->fw_rev) - 1] = '\0';
+        } else {
+          p->has_fw = false;
+          p->fw_rev[0] = '\0';
+        }
+        if (it.len >= (int)sizeof(NbHeartbeat)) { // maintenance status tail 7
+          p->has_maint_status = true;
+          p->maint_status = hb->maint_status;
+        } else {
+          p->has_maint_status = false;
+          p->maint_status = MAINT_STATUS_IDLE;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {
@@ -1329,8 +1458,9 @@ void processRx() {
       // Lets the master sweep the setpoint or hill-climb it (P&O MPPT) with no reflash.
       uint8_t v10 = ((NbCmd *)it.data)->arg;
       if (pfReady && v10 >= NB_MAINTAIN_MIN_V10 && v10 <= NB_MAINTAIN_MAX_V10) {
-        Board.setSupplyMaintainVoltage((float)v10 / 10.0f);
-        Serial.printf("VINDPM/maintain set -> %.1f V\n", (float)v10 / 10.0f);
+        gMaintainV = (float)v10 / 10.0f;
+        Board.setSupplyMaintainVoltage(gMaintainV);
+        Serial.printf("VINDPM/maintain set -> %.1f V\n", gMaintainV);
       }
     } else if (h->type == NB_SET_CAPACITY && it.len >= (int)sizeof(NbSetU16)) {
       // Capacity changes affect the gauge model used by Board.init(), so store and reboot.
@@ -1342,12 +1472,19 @@ void processRx() {
       enterTimedDeepSleep(((NbSetU16 *)it.data)->value, "remote");
     } else if (h->type == NB_DRAWDOWN && it.len >= (int)sizeof(NbTargetU16)) {
       NbTargetU16 *m = (NbTargetU16 *)it.data;
-      bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
-      if (all || memcmp(m->target_id, myId, 3) == 0) drawdownStart(m->value);
+      if (targetMatchesMe(m->target_id)) drawdownStart(m->value);
+    } else if (h->type == NB_TARGET_SLEEP_FOR && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      if (targetMatchesMe(m->target_id)) enterTimedDeepSleep(m->value, "target-remote");
+    } else if (h->type == NB_TARGET_CAPACITY && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      if (targetMatchesMe(m->target_id)) persistCapacity(m->value);
+    } else if (h->type == NB_TARGET_CHARGE_MA && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      if (targetMatchesMe(m->target_id)) persistAndApplyChargeMa(m->value);
     } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
       NbIdentify *m = (NbIdentify *)it.data;
-      bool all = (m->target_id[0] == 0 && m->target_id[1] == 0 && m->target_id[2] == 0);
-      if (all || memcmp(m->target_id, myId, 3) == 0) {
+      if (targetMatchesMe(m->target_id)) {
         identifyUntil = millis() + (uint32_t)m->secs * 1000;
         Serial.printf("IDENTIFY me (%us)\n", m->secs);
       }
@@ -1414,7 +1551,7 @@ bool readSerialHexId(uint8_t out[3], uint32_t windowMs = 120) {
   out[2] = (nibbles[4] << 4) | nibbles[5];
   return true;
 }
-void consumeDrawdownSeparator() {
+void consumeOptionalSeparator() {
   uint32_t deadline = millis() + 40;
   while ((int32_t)(deadline - millis()) > 0) {
     if (!Serial.available()) { delay(1); continue; }
@@ -1422,6 +1559,69 @@ void consumeDrawdownSeparator() {
     if (p == ':' || p == ',' || p == '=') Serial.read();
     return;
   }
+}
+size_t readSerialArg(char *out, size_t outLen, uint32_t windowMs = 90) {
+  size_t n = 0;
+  bool saw = false;
+  uint32_t deadline = millis() + windowMs;
+  while ((int32_t)(deadline - millis()) > 0) {
+    if (!Serial.available()) { delay(1); continue; }
+    int p = Serial.peek();
+    if (p == '\r' || p == '\n' || p == ' ' || p == '\t') {
+      Serial.read();
+      if (saw) break;
+      continue;
+    }
+    Serial.read();
+    saw = true;
+    if (n + 1 < outLen) out[n++] = (char)p;
+    deadline = millis() + 20;
+  }
+  if (outLen > 0) out[n] = 0;
+  return n;
+}
+bool parseHexIdText(const char *s, uint8_t out[3]) {
+  if (strlen(s) != 6) return false;
+  uint8_t nibbles[6];
+  for (int i = 0; i < 6; i++) {
+    int h = hexNibble(s[i]);
+    if (h < 0) return false;
+    nibbles[i] = (uint8_t)h;
+  }
+  out[0] = (nibbles[0] << 4) | nibbles[1];
+  out[1] = (nibbles[2] << 4) | nibbles[3];
+  out[2] = (nibbles[4] << 4) | nibbles[5];
+  return true;
+}
+bool parseUint16Text(const char *s, uint16_t minValue, uint16_t maxValue, uint16_t *out) {
+  if (!s || !*s) return false;
+  uint32_t value = 0;
+  for (const char *p = s; *p; p++) {
+    if (*p < '0' || *p > '9') return false;
+    value = value * 10 + (uint32_t)(*p - '0');
+    if (value > maxValue) return false;
+  }
+  if (value < minValue) return false;
+  *out = (uint16_t)value;
+  return true;
+}
+bool parseTargetU16Arg(const char *arg, uint8_t target[3], bool *haveTarget,
+                       uint16_t minValue, uint16_t maxValue, uint16_t *value) {
+  *haveTarget = false;
+  const char *sep = strchr(arg, ':');
+  if (!sep) sep = strchr(arg, ',');
+  if (!sep) sep = strchr(arg, '=');
+  if (!sep) return parseUint16Text(arg, minValue, maxValue, value);
+
+  char id[7];
+  size_t idLen = (size_t)(sep - arg);
+  if (idLen != 6) return false;
+  memcpy(id, arg, 6);
+  id[6] = 0;
+  if (!parseHexIdText(id, target)) return false;
+  if (!parseUint16Text(sep + 1, minValue, maxValue, value)) return false;
+  *haveTarget = true;
+  return true;
 }
 int peerCount(uint8_t first[3]) {
   int count = 0;
@@ -1461,7 +1661,7 @@ void handleSerial() {
     break;
   case 'c': // master: resume
     if (IS_MASTER && gMode == MODE_COMMS) { Serial.println("broadcast RESUME"); sendCmd(NB_RESUME, 0); }
-    else if (gMode == MODE_MAINT) enterComms();
+    else if (gMode == MODE_MAINT) { gMaintStatus = MAINT_STATUS_RESUMED; enterComms(); }
     break;
   case '+':
     if (IS_MASTER) { if (rateIdx < 5) rateIdx++; gRateHz = rates[rateIdx]; sendCmd(NB_SET_RATE, gRateHz); Serial.printf("rate -> %u Hz\n", gRateHz); }
@@ -1469,41 +1669,85 @@ void handleSerial() {
   case '-':
     if (IS_MASTER) { if (rateIdx > 0) rateIdx--; gRateHz = rates[rateIdx]; sendCmd(NB_SET_RATE, gRateHz); Serial.printf("rate -> %u Hz\n", gRateHz); }
     break;
-  case 'C': { // capacity mAh: C6000. Stored in NVS; peers reboot to apply Board.init().
-    int mah = readSerialUint(80, NB_CAPACITY_MAX_MAH);
-    if (mah < 0) {
-      Serial.printf("config: cap=%u mAh charge=%u mA\n", gBatteryCapacityMah, gChargeMa);
+  case 'R': { // direct heartbeat/frame rate: R1, R2, R5...R100
+    int hz = readSerialUint(80, 100);
+    if (hz < 0) {
+      Serial.printf("rate=%u Hz\n", gRateHz);
       break;
     }
-    if (mah < NB_CAPACITY_MIN_MAH || mah > NB_CAPACITY_MAX_MAH) {
-      Serial.printf("SET_CAPACITY %d rejected (range %u..%u mAh)\n",
-                    mah, (unsigned)NB_CAPACITY_MIN_MAH, (unsigned)NB_CAPACITY_MAX_MAH);
+    if (hz < 1 || hz > 100) {
+      Serial.printf("SET_RATE %d rejected (range 1..100 Hz)\n", hz);
       break;
+    }
+    gRateHz = (uint8_t)hz;
+    for (uint8_t i = 0; i < (uint8_t)(sizeof(rates)); i++) {
+      if (rates[i] <= gRateHz) rateIdx = i;
     }
     if (IS_MASTER) {
-      sendSetU16(NB_SET_CAPACITY, (uint16_t)mah);
-      Serial.printf("broadcast SET_CAPACITY %d mAh (peers reboot to apply)\n", mah);
+      sendCmd(NB_SET_RATE, gRateHz);
+      Serial.printf("broadcast SET_RATE %u Hz\n", gRateHz);
     } else {
-      persistCapacity((uint16_t)mah);
+      Serial.printf("rate set -> %u Hz\n", gRateHz);
     }
     break;
   }
-  case 'G': { // charge cap mA: G1500. Stored in NVS and live-applied.
-    int ma = readSerialUint(80, NB_CHARGE_MAX_MA);
-    if (ma < 0) {
+  case 'C': { // capacity mAh: C6000 broadcasts; C9E5AB8:6000 targets one peer.
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t mah = 0;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0) {
       Serial.printf("config: cap=%u mAh charge=%u mA\n", gBatteryCapacityMah, gChargeMa);
       break;
     }
-    if (ma < NB_CHARGE_MIN_MA || ma > NB_CHARGE_MAX_MA) {
-      Serial.printf("SET_CHARGE_MA %d rejected (range %u..%u mA)\n",
-                    ma, (unsigned)NB_CHARGE_MIN_MA, (unsigned)NB_CHARGE_MAX_MA);
+    if (!parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_CAPACITY_MIN_MAH, NB_CAPACITY_MAX_MAH, &mah)) {
+      Serial.printf("SET_CAPACITY rejected: use C<mah> or C<id>:<mah> (range %u..%u mAh)\n",
+                    (unsigned)NB_CAPACITY_MIN_MAH, (unsigned)NB_CAPACITY_MAX_MAH);
       break;
     }
     if (IS_MASTER) {
-      sendSetU16(NB_SET_CHARGE_MA, (uint16_t)ma);
-      Serial.printf("broadcast SET_CHARGE_MA %d mA\n", ma);
+      if (haveTarget) {
+        sendTargetU16(NB_TARGET_CAPACITY, target, mah);
+        Serial.printf("target SET_CAPACITY %02X%02X%02X %u mAh (peer reboots to apply)\n",
+                      target[0], target[1], target[2], (unsigned)mah);
+      } else {
+        sendSetU16(NB_SET_CAPACITY, mah);
+        Serial.printf("broadcast SET_CAPACITY %u mAh (peers reboot to apply)\n", (unsigned)mah);
+      }
     } else {
-      persistAndApplyChargeMa((uint16_t)ma);
+      if (haveTarget && !targetMatchesMe(target)) break;
+      persistCapacity(mah);
+    }
+    break;
+  }
+  case 'G': { // charge cap mA: G1500 broadcasts; G9E5AB8:1500 targets one peer.
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t ma = 0;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0) {
+      Serial.printf("config: cap=%u mAh charge=%u mA\n", gBatteryCapacityMah, gChargeMa);
+      break;
+    }
+    if (!parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_CHARGE_MIN_MA, NB_CHARGE_MAX_MA, &ma)) {
+      Serial.printf("SET_CHARGE_MA rejected: use G<mA> or G<id>:<mA> (range %u..%u mA)\n",
+                    (unsigned)NB_CHARGE_MIN_MA, (unsigned)NB_CHARGE_MAX_MA);
+      break;
+    }
+    if (IS_MASTER) {
+      if (haveTarget) {
+        sendTargetU16(NB_TARGET_CHARGE_MA, target, ma);
+        Serial.printf("target SET_CHARGE_MA %02X%02X%02X %u mA\n",
+                      target[0], target[1], target[2], (unsigned)ma);
+      } else {
+        sendSetU16(NB_SET_CHARGE_MA, ma);
+        Serial.printf("broadcast SET_CHARGE_MA %u mA\n", (unsigned)ma);
+      }
+    } else {
+      if (haveTarget && !targetMatchesMe(target)) break;
+      persistAndApplyChargeMa(ma);
     }
     break;
   }
@@ -1522,10 +1766,33 @@ void handleSerial() {
     }
     break;
   }
+  case 'P': { // targeted timed park: P9E5AB8:3600, default 1 h if seconds omitted.
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = readSerialHexId(target, 100);
+    if (!haveTarget) {
+      Serial.println("PARK rejected: use P<id>[:seconds]");
+      break;
+    }
+    consumeOptionalSeparator();
+    int seconds = readSerialUint(80, 65535);
+    uint16_t sleepS = (uint16_t)(seconds < 0 ? NB_TARGET_SLEEP_DEFAULT_S : seconds);
+    if (sleepS == 0) {
+      Serial.println("PARK rejected (seconds must be 1..65535)");
+      break;
+    }
+    if (IS_MASTER) {
+      sendTargetU16(NB_TARGET_SLEEP_FOR, target, sleepS);
+      Serial.printf("target PARK %02X%02X%02X sleep=%us\n",
+                    target[0], target[1], target[2], (unsigned)sleepS);
+    } else if (memcmp(target, myId, 3) == 0) {
+      enterTimedDeepSleep(sleepS, "serial-target");
+    }
+    break;
+  }
   case 'D': { // targeted HEX drawdown: D9E5AF0:3500, D9E5AF0, or D when exactly one peer
     uint8_t target[3] = {0, 0, 0};
     bool haveTarget = readSerialHexId(target, 100);
-    if (haveTarget) consumeDrawdownSeparator();
+    if (haveTarget) consumeOptionalSeparator();
     int budget = readSerialUint(80, NB_CAPACITY_MAX_MAH);
     if (budget < 0) budget = NB_DRAWDOWN_DEFAULT_MAH;
     if (budget > NB_CAPACITY_MAX_MAH) {
@@ -1774,6 +2041,7 @@ void loop() {
     // /resume HTTP hit -> do a real comms transition (re-init ESP-NOW), not just a flag flip
     if (gResumePending) {
       gResumePending = false;
+      gMaintStatus = MAINT_STATUS_RESUMED;
       Serial.println("/resume -> comms");
       enterComms();
       return;
@@ -1781,6 +2049,7 @@ void loop() {
     // peers auto-resume if no OTA happens within the window (prevents stranding)
     if (!IS_MASTER && millis() - maintEnteredMs > (uint32_t)NB_MAINT_TIMEOUT_S * 1000) {
       Serial.println("maintenance timeout -> resume comms");
+      gMaintStatus = MAINT_STATUS_TIMEOUT;
       enterComms();
     }
     return;

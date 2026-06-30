@@ -69,12 +69,12 @@ if agg:
                 ax.plot(x, y, "-o", ms=4, color=COL[pat], label=pat)
         ax.set_title(f"gamma {'ON' if g else 'OFF'}", fontweight="bold")
         ax.set_xlabel("channel level (0-255)"); ax.grid(True, alpha=0.3); ax.legend(title="pattern")
-    axes[0].set_ylabel("LED current (mA)  [shunt-corrected 0.01 Ω]")
-    fig.suptitle("4 W SK6812 RGBW — LED current vs level (avg over cycles)", fontsize=14, fontweight="bold")
+    axes[0].set_ylabel("LED current (mA)  [shunt-corrected 0.01 ohm]")
+    fig.suptitle("4 W SK6812 RGBW -- LED current vs level (avg over cycles)", fontsize=14, fontweight="bold")
     fig.tight_layout(rect=[0, 0.02, 1, 0.96]); fig.savefig(base + "-power.png", dpi=130)
     print("wrote", base + "-power.png")
 else:
-    print("(constant-load / discharge run — no sweep dims; skipping power-curve plot)")
+    print("(constant-load / discharge run -- no sweep dims; skipping power-curve plot)")
 
 # ---- 2) gauge cross-check ----
 pairs = [(r["batt_ina_ma"], r["gauge_battery_ma"]) for r in rows
@@ -93,7 +93,7 @@ if len(pairs) >= 3:
     ratios = [g / i for i, g in zip(xi, yg) if i > 50]
     if ratios:
         rmed = statistics.median(ratios)
-        ax[0].plot([0, lim], [0, rmed * lim], "r-", lw=1.5, label=f"median {rmed:.3f}×")
+        ax[0].plot([0, lim], [0, rmed * lim], "r-", lw=1.5, label=f"median {rmed:.3f}x")
         print(f"\nGAUGE current bias (median, n={len(ratios)}, |INA|>50 mA): gauge/INA = {rmed:.3f}"
               f"  -> gauge reads ~{(rmed-1)*100:+.1f}% high; correct gauge current by /{rmed:.3f}")
     ax[0].set_xlabel("|INA 0x45| mA (truth)"); ax[0].set_ylabel("|gauge battery_ma|")
@@ -126,7 +126,7 @@ if soc_pts:
         print(f"  gauge DesignCap is set to 2000 mAh (20 mAh/%); measured {mah_per_pct:.1f} mAh/% "
               f"=> set DesignCap ~{cap_true:.0f} mAh for accurate SOC")
     else:
-        print(f"\nCAPACITY: SOC moved only {drop:.0f}% ({used:.0f} mAh) — too little; need a longer run.")
+        print(f"\nCAPACITY: SOC moved only {drop:.0f}% ({used:.0f} mAh) -- too little; need a longer run.")
 ax[2].set_xlabel("mAh removed (INA)"); ax[2].set_ylabel("gauge SOC %")
 ax[2].set_title("SOC vs true coulombs"); ax[2].grid(alpha=0.3)
 if rest:

@@ -1,4 +1,4 @@
-# 0016 — COTS prototype shortlist after R&D purchases
+# 0016 -- COTS prototype shortlist after R&D purchases
 
 **Date:** 2026-05-10
 **Status:** Accepted
@@ -8,7 +8,7 @@
 
 Ben purchased the current R&D candidate set after the COTS survey. The purpose is to test several realistic paths in parallel rather than betting the project on one custom board.
 
-The purchased candidates include PowerFeather boards from Elecrow, FeatherS2 Neo, M5Stack Atom Matrix, M5Stack NeoHEX, Adafruit IS31FL3741 13x9 RGB matrix, DFRobot DFR0559 Solar Power Manager 5V, several 1–5 W panels, and battery samples / fallback LiPo hardware.
+The purchased candidates include PowerFeather boards from Elecrow, FeatherS2 Neo, M5Stack Atom Matrix, M5Stack NeoHEX, Adafruit IS31FL3741 13x9 RGB matrix, DFRobot DFR0559 Solar Power Manager 5V, several 1-5 W panels, and battery samples / fallback LiPo hardware.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Focus bench testing on four COTS stacks:
 - The old TTGO-only Phase 1 plan is no longer the main bench path. Existing TTGO modules remain useful, but COTS production candidates should be tested first.
 - FeatherS2 Neo and Atom Matrix are not ideal production reference architectures, but they are valuable optical and fallback candidates because they remove LED daughterboard soldering.
 - PowerFeather V2 + IS31FL3741 is the first COTS path that satisfies most desired constraints at once.
-- The production decision should be based on measured current, solar behavior, optics, RF, assembly time, and sourcing — not on board elegance.
+- The production decision should be based on measured current, solar behavior, optics, RF, assembly time, and sourcing -- not on board elegance.
 
 ## Explicit constraints
 

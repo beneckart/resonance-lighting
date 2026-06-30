@@ -29,6 +29,7 @@ import serial  # pyserial
 
 RX_MASTER = re.compile(
     r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)"
+    r"(?: fw=(\S+))?"
 )
 RX_PEER = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
@@ -38,11 +39,14 @@ RX_PEER = re.compile(
     r"(?: ipv=(-?\d+) ipa=(-?\d+) ibv=(-?\d+) iba=(-?\d+))?"
     r"(?: cap=(\d+) chg=(\d+))?"
     r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?"
+    r"(?: fw=(\S+))?"
+    r"(?: mt=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
     r"ap_rssi=(-?\d+) ch=(\d+) enc=(\d+) linkrssi=(-?\d+) ssid=(.*)"
 )
+RX_BOOT = re.compile(r"=== Resonance net-bench (\S+) ===")
 
 
 def now_iso() -> str:
@@ -89,6 +93,7 @@ class DashboardState:
         }
         self.last_command: dict[str, Any] | None = None
         self.serial_handle: serial.Serial | None = None
+        self.bridge_boot_fw: str | None = None
 
     def add_event(self, kind: str, payload: dict[str, Any]) -> None:
         with self.lock:
@@ -181,7 +186,7 @@ class SerialWorker(threading.Thread):
 
         m = RX_MASTER.search(line)
         if m:
-            pid, ch, frames, send_ok, send_fail, up, bv = m.groups()
+            pid, ch, frames, send_ok, send_fail, up, bv, fw = m.groups()
             row = {
                 "id": pid,
                 "channel": int(ch),
@@ -190,11 +195,22 @@ class SerialWorker(threading.Thread):
                 "send_fail": int(send_fail),
                 "uptime_ms": int(up),
                 "battery_v": float(bv),
+                "firmware_rev": fw or self.state.bridge_boot_fw,
                 "ts_utc": ts,
             }
             with self.state.lock:
                 self.state.master = row
             self.state.add_event("master", row)
+            return
+
+        m = RX_BOOT.search(line)
+        if m:
+            fw = m.group(1)
+            with self.state.lock:
+                self.state.bridge_boot_fw = fw
+                if self.state.master:
+                    self.state.master["firmware_rev"] = fw
+            self.state.add_event("status", {"message": f"bridge firmware {fw}"})
             return
 
         m = RX_PEER.search(line)
@@ -234,6 +250,8 @@ class SerialWorker(threading.Thread):
                 dd,
                 ddb,
                 dda,
+                fw,
+                mt,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -282,6 +300,8 @@ class SerialWorker(threading.Thread):
                 "drawdown_mah": float(dd) if dd is not None else None,
                 "drawdown_budget_mah": int(ddb) if ddb is not None else None,
                 "drawdown_active": bool(int(dda)) if dda is not None else None,
+                "firmware_rev": fw,
+                "maint_status": int(mt) if mt is not None else None,
                 "ts_utc": ts,
             }
             if row["supply_w"] is not None and row["battery_w"] is not None:
@@ -538,12 +558,26 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <button id="maintainBtn">Set</button>
       </div>
       <div class="maintain">
-        <input id="capacityInput" inputmode="numeric" placeholder="Capacity mAh, e.g. 6000">
-        <button id="capacityBtn">Cap</button>
+        <input id="capacityInput" inputmode="numeric" placeholder="Selected peer capacity mAh">
+        <button id="capacityBtn">Cap peer</button>
       </div>
       <div class="maintain">
-        <input id="chargeInput" inputmode="numeric" placeholder="Charge mA, e.g. 1500">
-        <button id="chargeBtn">Charge</button>
+        <input id="chargeInput" inputmode="numeric" placeholder="Selected peer charge mA">
+        <button id="chargeBtn">Charge peer</button>
+      </div>
+      <div class="controls">
+        <button class="warn" data-cmd="R1">Radio 1 Hz</button>
+        <button data-cmd="R2">2 Hz</button>
+        <button data-cmd="R5">5 Hz</button>
+        <button data-cmd="R10">10 Hz</button>
+      </div>
+      <div class="maintain">
+        <input id="rateInput" inputmode="numeric" placeholder="Heartbeat Hz, e.g. 1">
+        <button id="rateBtn">Hz</button>
+      </div>
+      <div class="maintain">
+        <input id="napInput" inputmode="numeric" placeholder="Nap selected seconds, e.g. 3600">
+        <button id="napBtn">Nap</button>
       </div>
       <div class="metric-foot" id="commandStatus">No command sent</div>
     </div>
@@ -701,6 +735,11 @@ function setFocus(peerId) {
   localStorage.setItem("netBenchPeerFocus", focusedPeerId);
   if (state) render(state);
 }
+function commandTargetPeer() {
+  if (!state || focusedPeerId === "all") return null;
+  const peers = sortedPeers(state);
+  return peers.find(p => p.id === focusedPeerId) || null;
+}
 function renderPeerSelector(peers, effectiveFocus) {
   const freshCount = peers.filter(freshPeer).length;
   const allClass = effectiveFocus === "all" ? "peer-chip active" : "peer-chip";
@@ -733,6 +772,8 @@ function tagsForPeer(peer) {
   if (freshPeer(peer)) tags.push(["fresh", "good"]);
   if (hasPanel(peer)) tags.push(["panel", "good"]);
   if (peer.drawdown_active) tags.push(["drawdown", "warn"]);
+  if (peer.maint_status === 2) tags.push(["OTA power warn", "warn"]);
+  else if (peer.maint_status === 3) tags.push(["OTA start failed", "bad"]);
   if (peer.supply_good === true) tags.push(["charge", "good"]);
   else if (hasSupply(peer) && !peer.drawdown_active) tags.push(["no charge", "warn"]);
   return `<div class="state-list">${tags.map(([label, klass]) => `<span class="state-tag ${klass}">${label}</span>`).join("")}</div>`;
@@ -875,12 +916,15 @@ function render(s) {
     const cfgLine = p.config_capacity_mah
       ? `<div class="row-sub">${p.config_capacity_mah} mAh / ${p.config_charge_ma} mA</div>`
       : "";
+    const fwLine = p.firmware_rev
+      ? `<div class="row-sub">fw ${esc(p.firmware_rev)}</div>`
+      : `<div class="row-sub">fw ?</div>`;
     const ddCell = p.drawdown_mah !== null && p.drawdown_mah !== undefined
       ? `<div class="row-sub">dd ${fmt(p.drawdown_mah, 1)}/${p.drawdown_budget_mah ?? "--"} mAh</div>`
       : "";
     const active = p.id === effectiveFocus ? " active-row" : "";
     return `<tr class="peer-row${active}" data-peer-id="${esc(p.id)}">
-      <td><div class="row-main">${esc(p.id)}</div>${cfgLine}${ddCell}</td>
+      <td><div class="row-main">${esc(p.id)}</div>${fwLine}${cfgLine}${ddCell}</td>
       <td>${msAge(p.age_ms)}</td>
       <td><div>${p.rssi_dbm} dBm</div><div class="signal"><span style="width:${pct}%"></span></div><div class="row-sub">${fmt(p.pdr * 100, 1)}% PDR</div></td>
       <td><div>${fmt(p.battery_w, 3)} W</div><div class="row-sub">${fmt(p.battery_v, 3)} V / ${p.battery_ma} mA / ${p.soc_pct}%</div></td>
@@ -896,6 +940,7 @@ function render(s) {
   const m = s.master;
   document.getElementById("masterRows").innerHTML = m ? `
     <tr><th>id</th><td>${esc(m.id)}</td></tr>
+    <tr><th>firmware</th><td>${esc(m.firmware_rev || "?")}</td></tr>
     <tr><th>channel</th><td>${m.channel}</td></tr>
     <tr><th>uptime</th><td>${Math.round(m.uptime_ms / 1000)} s</td></tr>
     <tr><th>battery</th><td>${fmt(m.battery_v, 3)} V</td></tr>
@@ -930,22 +975,55 @@ document.getElementById("maintainBtn").addEventListener("click", () => {
   sendCommand(`m${Math.round(v * 10)}`, `Set ${v.toFixed(1)} V`);
 });
 document.getElementById("capacityBtn").addEventListener("click", () => {
+  const peer = commandTargetPeer();
+  if (!peer) {
+    document.getElementById("commandStatus").textContent = "Select one peer for capacity";
+    return;
+  }
   const raw = document.getElementById("capacityInput").value.trim();
   const mah = Number(raw);
   if (!Number.isInteger(mah) || mah < 100 || mah > 30000) {
     document.getElementById("commandStatus").textContent = "Enter 100 to 30000 mAh";
     return;
   }
-  sendCommand(`C${mah}`, `Set capacity ${mah} mAh`);
+  sendCommand(`C${peer.id}:${mah}`, `Set ${peer.id} capacity ${mah} mAh`);
 });
 document.getElementById("chargeBtn").addEventListener("click", () => {
+  const peer = commandTargetPeer();
+  if (!peer) {
+    document.getElementById("commandStatus").textContent = "Select one peer for charge";
+    return;
+  }
   const raw = document.getElementById("chargeInput").value.trim();
   const ma = Number(raw);
   if (!Number.isInteger(ma) || ma < 40 || ma > 2000) {
     document.getElementById("commandStatus").textContent = "Enter 40 to 2000 mA";
     return;
   }
-  sendCommand(`G${ma}`, `Set charge ${ma} mA`);
+  sendCommand(`G${peer.id}:${ma}`, `Set ${peer.id} charge ${ma} mA`);
+});
+document.getElementById("rateBtn").addEventListener("click", () => {
+  const raw = document.getElementById("rateInput").value.trim();
+  const hz = Number(raw);
+  if (!Number.isInteger(hz) || hz < 1 || hz > 100) {
+    document.getElementById("commandStatus").textContent = "Enter 1 to 100 Hz";
+    return;
+  }
+  sendCommand(`R${hz}`, `Set radio ${hz} Hz`);
+});
+document.getElementById("napBtn").addEventListener("click", () => {
+  const peer = commandTargetPeer();
+  if (!peer) {
+    document.getElementById("commandStatus").textContent = "Select one peer to nap";
+    return;
+  }
+  const raw = document.getElementById("napInput").value.trim();
+  const seconds = raw ? Number(raw) : 3600;
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 65535) {
+    document.getElementById("commandStatus").textContent = "Enter 1 to 65535 seconds";
+    return;
+  }
+  sendCommand(`P${peer.id}:${seconds}`, `Nap ${peer.id} ${seconds}s`);
 });
 document.getElementById("tempToggle").addEventListener("click", () => {
   tempUnit = tempUnit === "F" ? "C" : "F";
@@ -984,14 +1062,24 @@ def valid_command(cmd: str) -> bool:
     if m:
         value = int(m.group(1))
         return 40 <= value <= 168
-    m = re.fullmatch(r"C(\d{3,5})", cmd)
+    m = re.fullmatch(r"C(?:[0-9A-Fa-f]{6}:)?(\d{3,5})", cmd)
     if m:
         value = int(m.group(1))
         return 100 <= value <= 30000
-    m = re.fullmatch(r"G(\d{2,4})", cmd)
+    m = re.fullmatch(r"G(?:[0-9A-Fa-f]{6}:)?(\d{2,4})", cmd)
     if m:
         value = int(m.group(1))
         return 40 <= value <= 2000
+    m = re.fullmatch(r"R(\d{1,3})", cmd)
+    if m:
+        value = int(m.group(1))
+        return 1 <= value <= 100
+    m = re.fullmatch(r"P([0-9A-Fa-f]{6})(?::(\d{1,5}))?", cmd)
+    if m:
+        if m.group(2) is None:
+            return True
+        value = int(m.group(2))
+        return 1 <= value <= 65535
     m = re.fullmatch(r"D(?:[0-9A-Fa-f]{6})?(?::\d{1,5})?", cmd)
     if m:
         if cmd == "D":

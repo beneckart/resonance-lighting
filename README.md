@@ -1,13 +1,13 @@
 # Resonance Lighting
 
-Power and lighting workstream for the **Resonance Tree** — a bamboo art installation for Burning Man 2026 + 2027. This repo covers the 100 solar-powered, mesh-networked downlight fixtures that hang inside the tree.
+Power and lighting workstream for the **Resonance Tree** -- a bamboo art installation for Burning Man 2026 + 2027. This repo covers the 100 solar-powered, mesh-networked downlight fixtures that hang inside the tree.
 
 Sister tracks (not in this repo): bamboo structure (Bamboo Pure, Bali), structural engineering (Ed), parametric lighting design (Vishnu), project management (Elliot + Co-Work agent).
 
 ## Who's working here
 
-- **Ben Eckart** — power systems, firmware, mesh networking. Owns `/firmware/` and `/hardware/`.
-- **Steve Eckart** — enclosure design, 3D printing, mechanical fit. Owns `/enclosure/`.
+- **Ben Eckart** -- power systems, firmware, mesh networking. Owns `/firmware/` and `/hardware/`.
+- **Steve Eckart** -- enclosure design, 3D printing, mechanical fit. Owns `/enclosure/`.
 
 Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs.
 
@@ -26,7 +26,7 @@ Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs
 
 Two production paths remain open, pending procurement and the sizing/thermal de-risks:
 
-1. **COTS track.** Buy PowerFeather V2 boards (ideally with factory-soldered VDC + LED connectors via a custom assembly, to avoid per-unit hand-soldering — ADR 0009). Removes custom-hardware risk.
+1. **COTS track.** Buy PowerFeather V2 boards (ideally with factory-soldered VDC + LED connectors via a custom assembly, to avoid per-unit hand-soldering -- ADR 0009). Removes custom-hardware risk.
 2. **Custom PCBA track.** A PowerFeather-derived board (ESP32-S3-WROOM module, BQ25628E-class charger, MAX17260-class gauge, buck-boost 3.3 V rail, switchable LED/STEMMA rail, keyed connectors, boring USB/pogo flashing) if COTS supply/cost/assembly at 100+ units doesn't pencil out.
 
 The **LED axis is now a mixed fleet by optical role** (ADR 0022): SK6812 "HEX"
@@ -54,27 +54,27 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ```
 .
-├── README.md
-├── LOG.md
-├── TODO.md
-├── BACKGROUND.md
-├── hardware/
-│   ├── atopile/
-│   ├── kicad/
-│   └── references/
-├── enclosure/
-│   ├── stl/
-│   ├── source/
-│   └── references/
-├── firmware/
-│   ├── ARCHITECTURE.md
-│   └── README.md
-├── docs/
-│   ├── block-diagram/
-│   ├── decisions/
-│   ├── research/
-│   └── tests/
-└── ops/
+|-- README.md
+|-- LOG.md
+|-- TODO.md
+|-- BACKGROUND.md
+|-- hardware/
+|   |-- atopile/
+|   |-- kicad/
+|   `-- references/
+|-- enclosure/
+|   |-- stl/
+|   |-- source/
+|   `-- references/
+|-- firmware/
+|   |-- ARCHITECTURE.md
+|   `-- README.md
+|-- docs/
+|   |-- block-diagram/
+|   |-- decisions/
+|   |-- research/
+|   `-- tests/
+`-- ops/
 ```
 
 ## Read order for agents and humans
@@ -83,7 +83,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 2. `LOG.md`
 3. `TODO.md`
 4. `BACKGROUND.md`
-5. `docs/decisions/` — especially ADRs 0010 onward
+5. `docs/decisions/` -- especially ADRs 0010 onward
 6. `docs/research/COTS_SURVEY_2026-05-10.md`
 7. `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md`
 8. `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md`

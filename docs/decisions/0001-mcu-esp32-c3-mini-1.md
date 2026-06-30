@@ -1,7 +1,7 @@
-# 0001 — Use ESP32-C3-MINI-1 for production
+# 0001 -- Use ESP32-C3-MINI-1 for production
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0011 — MCU module selection: pre-certified module with RF/headroom margin
+**Status:** Superseded by ADR 0011 -- MCU module selection: pre-certified module with RF/headroom margin
 **Owners:** Ben
 
 ## Context
