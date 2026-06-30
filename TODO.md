@@ -60,6 +60,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the earlier 2.95-3.03 V failures were wrong-path/pre-upload failures with stale WiFi
   secrets, AP-contaminated firmware, and/or pre-`.5` watchdog behavior; they do **not**
   prove low VBAT was the root cause (Ben/Codex).
+- [ ] Add a targeted shared-WiFi maintenance command (`U<id>` or dashboard peer action)
+  so a single-peer OTA does not pull every awake peer off ESP-NOW. The 2026-06-30
+  overnight test exposed this: while OTAing only `9E5AF0`, the USB-revived `9E5AB8`
+  also entered shared-WiFi maintenance because current `U` is broadcast-only. It was
+  recoverable via HTTP `/resume`, but targeted maintenance will make future low-voltage
+  rescue tests cleaner (Ben/Codex).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ -- **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis -> SK6812 HEX direct-GPIO (Ben).
 - [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED --
   **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed

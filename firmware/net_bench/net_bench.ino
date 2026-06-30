@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-30.1" // shared-WiFi low-voltage OTA proof
+#define NET_BENCH_VERSION "net-bench-2026-06-30.3" // low-VBAT charging OTA stress check
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 

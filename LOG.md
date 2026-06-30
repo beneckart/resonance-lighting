@@ -12,6 +12,93 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-30 - Ben + Codex - Low-VBAT charging OTA stress pass on 5AB8
+
+Ran a targeted low-voltage charging OTA stress test on `9E5AB8` after the overnight
+run-down rescue. No AP maintenance mode was used.
+
+Starting bridge state at 2026-06-30T14:05Z:
+
+- `9E5AB8`: live at 2.461 V, +37 mA into the battery, 0% SOC,
+  `supply_v=4.863 V`, `supply_ma=92 mA`, `supply_good=true`,
+  `net-bench-2026-06-30.1`.
+- `9E5AF0`: live at 3.150 V loaded, -168 mA, `net-bench-2026-06-30.2`.
+
+Bumped the peer test image to `net-bench-2026-06-30.3` solely to make the OTA proof
+unambiguous, then built the peer image for channel 11 / LFP / 6000 mAh /
+1500 mA charge limit. Binary string check before upload found `BubbyNet` and
+`maintenance WiFi up`; `ResonanceMaint`, `Brandon Springs`, and old `.1`/`.2`
+firmware markers were absent.
+
+Sent the shared-WiFi maintenance command `U` through the COM7 bridge. At the maintenance
+endpoint, `9E5AB8` was at about 2.496 V, +36.2 mA into the battery, 4.875 V USB supply,
+and `supply_good=true` on `192.168.4.40`.
+
+Uploaded only to `9E5AB8`:
+
+`python ops\bench\net_bench_ota.py --bin firmware\net_bench\build\ota-20260630-lowvbat-charging-5AB8-peer-bubbynet\net_bench.ino.bin --nodes 9E5AB8=192.168.4.40 --jobs 1 --reboot comms`
+
+Result file:
+`ops/bench/data/ca/2026-06-30-low-vbat-charging-5AB8-ota-results.jsonl`.
+
+The upload acked in 5.88 s with no button:
+`Update complete. Rebooting.` `9E5AB8` rejoined ESP-NOW as
+`net-bench-2026-06-30.3`, `reset_reason=software`, about 2.50 V, still charging
+from USB (`supply_good=true`, about 92 mA supply current). The bounded monitor ran to
+`ops/bench/data/ca/2026-06-30-5AB8-low-vbat-charging-ota-monitor.jsonl`; final sample
+showed 2.507 V, +33 mA battery current, `supply_good=true`, `.3`, and fresh ESP-NOW
+heartbeats.
+
+Operational note: because `U` is still broadcast-only, `9E5AF0` also entered the
+shared-WiFi maintenance window. The HTTP `/resume` request to `192.168.4.39` timed out
+at the client, but the peer was verified fresh on the bridge again at 3.151 V,
+`net-bench-2026-06-30.2`, no button.
+
+## 2026-06-30 - Ben + Codex - Overnight run-down rescue and single-peer OTA pass
+
+Ben accidentally ran the two wireless peers down overnight, which produced a useful
+recovery/OTA boundary test. Baseline from the COM7 dashboard:
+
+- `9E5AB8`: stale by about 35k seconds, last heartbeat at 2.381 V, -173 mA,
+  no supply, `net-bench-2026-06-30.1`.
+- `9E5AF0`: live at about 3.151 V loaded, -169 mA, SOC 8%,
+  `net-bench-2026-06-30.1`.
+
+Started a rescue monitor at
+`ops/bench/data/ca/2026-06-30-5AB8-usb-revive-monitor.jsonl`, then Ben turned on the
+USB battery feeding `9E5AB8`. The transition was immediate:
+
+- 2026-06-30T13:58:20Z: still stale, 2.381 V, -173 mA, `supply_good=false`.
+- 2026-06-30T13:58:21Z: fresh heartbeat, 2.388 V, +34 mA into the battery,
+  `supply_v=4.855 V`, `supply_ma=88 mA`, `supply_good=true`.
+- By 2026-06-30T14:04:10Z after HTTP `/resume`, it was back on ESP-NOW at 2.449 V,
+  +35 mA, supply good, no button/USB data cable required.
+
+For the other peer, bumped the net-bench version to `net-bench-2026-06-30.2` solely to
+make the OTA proof unambiguous, then built a peer image for channel 11 / LFP / 7200 mAh
+with `ARDUINO_BUILD_PATH` set only to keep a stable artifact path. `build.sh` already
+uses a unique Arduino build path by default, so the cache-collision protection remains
+inside the helper. Binary string check before upload: `BubbyNet` and `maintenance WiFi
+up` present; `ResonanceMaint`, `Brandon Springs`, and old `.1` version absent.
+
+Sent shared-WiFi maintenance command `U` through the bridge. Both awake peers joined
+BubbyNet maintenance because the current command is broadcast-only:
+
+- `9E5AF0` -> `192.168.4.39`, about 3.156 V, no supply.
+- `9E5AB8` -> `192.168.4.40`, about 2.435 V, USB supply good.
+
+Uploaded only to `9E5AF0`:
+
+`python ops\bench\net_bench_ota.py --bin firmware\net_bench\build\ota-20260630-overrun-5AF0-peer-bubbynet\net_bench.ino.bin --nodes 9E5AF0=192.168.4.39 --jobs 1 --reboot comms`
+
+Result file:
+`ops/bench/data/ca/2026-06-30-overnight-5AF0-ota-results.jsonl`.
+
+The upload acked in 5.06 s with no button. `9E5AF0` rejoined ESP-NOW as
+`net-bench-2026-06-30.2`, `reset_reason=software`, about 3.15 V loaded. `9E5AB8` was
+returned from maintenance via `http://192.168.4.40/resume` and rejoined ESP-NOW while
+continuing to charge from the USB battery. No AP maintenance mode was used.
+
 ## 2026-06-29 - Ben + Codex - OTA failure interpretation softened after clean low-voltage pass
 
 Interpretation update after the official shared-WiFi low-voltage OTA pass: the earlier
