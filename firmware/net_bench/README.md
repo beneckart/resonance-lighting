@@ -62,7 +62,9 @@ sequentially.
 pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-hangtest`,
 `--maint-timeout S`, `--start-maint`, `--autosleep`/`--budget-mah`/`--wake-s`,
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
-`--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`, `--batt-ntc` (battery
+`--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`,
+`--field-cycle`/`--field-charge-s S`/`--field-wait-s S`/`--field-protect-s S`,
+`--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
 
@@ -114,6 +116,55 @@ All view refuses those actions so a row click cannot accidentally become a fleet
 Chemistry is still a build-time flag (`--chem lfp|3v7`) because that controls charge
 voltage and is safety-critical. The `--cap` and `--charge-ma` build flags remain useful
 as first-boot defaults; NVS overrides win after a command.
+
+Shared-WiFi maintenance can be fleet-wide or targeted. Bare `U` remains the sustained
+fleet `ENTER_MAINT` wake and is also the migration path for old peers that do not yet
+understand targeted maintenance. `U<id>` sends sustained targeted maintenance to one
+peer, e.g. `U9E5AB8`, so a single OTA does not pull drawdown or solar-cycle peers off
+ESP-NOW. The dashboard's `Peer maint` button sends `U<id>` for the selected peer.
+
+## Field-cycle day/night lifecycle mode
+
+`--field-cycle` is the first production-ish lifecycle test mode. It keeps the normal
+ESP-NOW heartbeat, supply telemetry, shared-WiFi OTA, and serial-bridge dashboard, but
+adds an autonomous peer state machine:
+
+1. If external supply/solar is present, the peer enters `charge`, emits telemetry, cuts
+   both switchable rails, and timer-sleeps in chunks while the charger works.
+2. When voltage/current indicate "full enough" (`NB_FIELD_FULL_MV` plus taper current),
+   it enters `wait-dark` and keeps sleeping/checking until supply disappears.
+3. In dark/no-supply, it enters `draw` and stays awake at the field-cycle heartbeat rate
+   (`NB_FIELD_DRAWDOWN_HZ`, default 1 Hz). This intentionally uses the always-awake radio
+   load as a repeatable night drawdown.
+4. At the low/critical LFP floor it sends final heartbeats, blanks pixels, cuts both
+   rails, and enters `protect` timer sleep. The next solar/USB/supply window wakes it
+   on a timer, it sees supply, starts the next cycle, and resumes charging.
+
+Solar does not need to electrically wake the ESP32 in the normal case: the charger keeps
+charging while the ESP32 is in timer deep sleep, and the next timer wake observes the
+supply. This is more recoverable than deliberately running the cell into protection.
+
+Example peer build for the current BubbyNet/channel-11 field rig:
+
+```
+./build.sh --role peer --channel 11 --hb-hz 1 --field-cycle \
+  --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.8
+```
+
+The heartbeat tail adds `fc=` (phase), `fcr=` (reason), `fcc=` (cycle), `fce=` (phase
+elapsed seconds), `fcchg=`/`fcdis=` (rough charge/discharge mAh integrated from sampled
+battery current), and `fcmin=`/`fcmax=` (cycle voltage bounds). The dashboard and
+`net_bench_log.py` parse these fields.
+
+`net-bench-2026-06-30.7` also appends BQ25628E charger telemetry for low-VBAT
+solar/USB rescue debugging:
+
+- `bqv=` VINDPM in mV, `bqichg=` charge-current limit in mA, `bqvreg=` CV limit in mV.
+- Raw BQ bytes: `bq16`, `bq18`, `bq1d`, `bq1e`, `bq1f`, `bq20`, `bq21`, `bq22`,
+  and `bq38`.
+- The dashboard/log derive the most useful bits: `bq_chg_en`, `bq_en_hiz`,
+  `bq_batfet_ctrl`, `bq_vbus_stat`, and `bq_chg_stat`, while preserving raw bytes for
+  later decode.
 
 ### Env sensors (MPP sweep: light + panel temp over the air)
 A TSL2591 (lux, 0x29) and/or SHT31-D (temp/RH, 0x44) chained on the peer's STEMMA-QT
@@ -208,10 +259,10 @@ beacon; on-demand locate is the primitive that matters now.
 ## Serial commands (115200)
 `t` telemetry * `r` report (role/mode/rate/txseq/sendok/fail/peers) * `+`/`-` step the
 broadcast rate for a sweep (master broadcasts `SET_RATE` to peers) * `i` identify next
-peer (locate, blinks `..-` 8 s) * `I` identify all peers * `u` master: announce
-maintenance + enter * `c` resume * `m<v10>` set VINDPM * `S[seconds]` timed
-deep-sleep peers (bare `S` = 6 h) * `D<id>[:mah]` targeted HEX drawdown + sleep *
-`C<mah>` set capacity and reboot peers *
+peer (locate, blinks `..-` 8 s) * `I` identify all peers * `U[peerid]` master:
+sustained maintenance wake, bare = fleet and `U9E5AB8` = one peer * `c` resume *
+`m<v10>` set VINDPM * `S[seconds]` timed deep-sleep peers (bare `S` = 6 h) *
+`D<id>[:mah]` targeted HEX drawdown + sleep * `C<mah>` set capacity and reboot peers *
 `G<mA>` set charge-current cap * `x` watchdog hang test (needs
 `--wdt-hangtest`).
 
@@ -233,7 +284,7 @@ Additional solar-charge helpers: `R<hz>` sets the heartbeat/frame rate directly,
 - `ops/bench/net_bench_dashboard.py` -- local browser dashboard for a USB
   `--serial-bridge` master. It owns the serial port, serves `http://127.0.0.1:8765/`,
   shows live solar/battery/RF telemetry, writes safe controls back to the bridge
-  (`m<v10>`, `U`, `c`, identify, refresh), and can still forward `nb-*` lines to
+  (`m<v10>`, targeted `U<id>`, `c`, identify, refresh), and can still forward `nb-*` lines to
   UDP:54321 for the older tools. Travel example:
   `python ops/bench/net_bench_dashboard.py --port COM7`.
 

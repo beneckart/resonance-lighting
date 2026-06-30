@@ -12,6 +12,225 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-06-30 - Codex - Hungry 6 Ah cell pulled near-nominal solar power
+
+Ben moved the nearly-depleted 6 Ah 32700 LiFePO4 cell back onto the solar `9E5AB8`
+PowerFeather after briefly proving that the same cell would take high power from an
+Anker USB bank on the bench rig. The next fresh solar wake showed the earlier sub-watt
+behavior was not a hard panel/charger ceiling:
+
+- `battery_v=3.404..3.458`, `battery_ma=1000..1020`, and `battery_w=3.46..3.47`.
+- `supply_v=4.859`, `supply_ma=774..792`, and `supply_w=3.76..3.85`.
+- Panel-side INA reported about `5.16 V` and `0.79..0.81 A`, or about 4.1 W by
+  magnitude (`ina_panel_w=-4.09..-4.16`; sign is wiring direction).
+- BQ telemetry still showed `bq_vindpm_mv=4800`, `bq_ichg_ma=1480`,
+  `bq_vreg_mv=3600`, charge enabled, HIZ false, VBUS source detected, and no fault.
+
+Interpretation: the P105/5 W-class panel and BQ path can source roughly 4 W in direct hot
+sun with a charge-hungry LFP cell. The earlier low-watt plateau was likely a transient
+combination of very-low-VBAT charger behavior, battery acceptance/surface-voltage state,
+solar input qualification/VINDPM interaction, and/or simply not yet enough sun. The brief
+USB charge may have lifted the cell/charger out of a low-voltage regime, making this a
+good candidate for a repeatable "recover from below 3.0 V" characterization rather than
+evidence of a failed solar path.
+
+## 2026-06-30 - Codex - 7200 mAh cell swap restored multi-watt solar harvest
+
+Ben swapped the 7200 mAh 32700 LiFePO4 cell from the disconnected `9E5AF0` setup into
+the solar-powered `9E5AB8` PowerFeather while the panel was connected. This produced
+the expected harvest jump:
+
+- Before the swap, low-cell / USB-rescue samples were around `supply_v=4.887`,
+  `supply_ma=94..104`, and `battery_ma=36..38`; earlier solar-only samples with the
+  depleted cell were roughly 0.3-0.6 W input and near-zero battery current after the
+  OTA threshold event.
+- After the swap, `9E5AB8` reported `battery_v=3.571`, `battery_ma=774`,
+  `supply_v=5.554`, `supply_ma=542`, and `ina_panel_mv=5832`, `ina_panel_ma=-565`.
+  That is about 3.01 W at the charger telemetry and about 3.30 W by panel-side INA
+  magnitude, with about 2.76 W into the battery.
+- BQ telemetry showed `bq_vindpm_mv=4800`, charge enabled, HIZ false, BATFET normal,
+  VBUS adapter/source detected, charge-state 2 (CV/taper bucket), and no fault.
+
+Interpretation: the panel/charger path can harvest multi-watt power in this setup. The
+earlier sub-watt behavior was not a simple panel/MPP ceiling; it was dominated by the
+deeply depleted cell's charge-acceptance/precharge/power-path state and/or the source
+interaction. `9E5AB8` still has `cap=6000` in NVS after the physical 7200 mAh swap; leave
+it alone for a clean short harvest comparison, then set targeted capacity to 7200 mAh
+before relying on gauge/SOC accounting.
+
+During the swap the COM7 serial bridge briefly USB-disconnected/rebooted (Windows eject
+sound; dashboard raw log shows a fresh `.7` boot banner at about 2026-06-30 14:14
+America/Los_Angeles). It came back on COM7. The dashboard backend and logger remained
+alive; the browser page may need a refresh because its event stream can stale after a
+USB reconnect.
+
+## 2026-06-30 - Codex - BQ charger telemetry OTA added during USB-rescue test
+
+Added `net-bench-2026-06-30.7` charger telemetry while `9E5AB8` was recovering from
+low VBAT on an Anker USB bank with the solar panel disconnected. The change appends a
+new heartbeat tail with BQ25628E VINDPM, charge-current limit, CV limit, raw
+control/status/fault registers, and dashboard/log decodes for `CHG_EN`, `EN_HIZ`,
+BATFET control, VBUS state, and charge state. Updated `ops/bench/net_bench_dashboard.py`,
+`ops/bench/net_bench_log.py`, and this README path's telemetry docs.
+
+Builds/flash:
+
+- Built peer image at
+  `firmware/net_bench/build/field-cycle-peer-20260630-v7/net_bench.ino.bin`.
+- Built and USB-flashed the COM7 serial bridge/master to `.7`.
+- Used targeted `U9E5AB8` so older drawdown peer `9E5AF0` was not pulled into
+  maintenance.
+- `9E5AB8` entered shared-WiFi maintenance at `192.168.4.40` and accepted OTA to `.7`;
+  `net_bench_ota.py` recorded `t_ack_s=6.21`, recovered true, no button.
+
+First `.7` post-OTA heartbeat:
+
+- `battery_v=2.938`, `battery_ma=36`, `supply_v=4.887`, `supply_ma=104`.
+- `bq_vindpm_mv=4800`, `bq_ichg_ma=1480`, `bq_vreg_mv=3600`.
+- `CHG_EN=true`, `EN_HIZ=false`, BATFET normal, VBUS adapter state, charge-state CC
+  bucket, `fault0=0`.
+
+Interpretation: the charger/power path is healthy; the low Anker wattage is not ship
+mode, HIZ, or a BQ fault. It is ordinary charge regulation/source behavior with the
+board near a 4.8 V VINDPM point and the cell around 2.94 V. Logger continuation now
+writes to `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8-v7-bq.jsonl`.
+
+## 2026-06-30 - Codex - USB bank masked by higher solar input during field-cycle rescue
+
+During the `9E5AB8` low-VBAT field-cycle run, Ben connected an Anker USB battery while
+the solar panel was still attached. The Anker did not detect a load, while dashboard
+telemetry still showed the PowerFeather supply at about `6.2 V` from the panel. After
+Ben disconnected the solar panel, then disconnected/reconnected the Anker, the board
+accepted USB input. A fresh wake at 2026-06-30 13:25 America/Los_Angeles showed:
+
+- `supply_v=4.887`, `supply_ma=92`, `supply_good=true` from the charger telemetry.
+- `battery_v=2.916`, `battery_ma=38`, `ina_batt_ma=34`, so the battery was charging
+  slowly rather than disconnected.
+- `ina_panel_mv=4788`, `ina_panel_ma=0`, confirming the panel path was no longer the
+  active source.
+
+Interpretation: a 5 V USB bank will not necessarily source current while the solar/VDC
+input is already sitting above it. Once the solar input is removed, USB works, but this
+build's `--maintain 4.8` solar VINDPM setting leaves little headroom on a 5 V bank
+(`4.887 V` observed at the board) and likely throttles input current. Low-VBAT
+precharge/trickle behavior may also be limiting cell current around 2.9 V. Follow-up:
+add direct BQ25628E charger status/fault telemetry and consider a USB-rescue policy
+that lowers VINDPM toward 4.6 V when the source is a USB/power-bank input rather than
+a solar panel.
+
+## 2026-06-30 - Codex - Solar-only low-VBAT OTA succeeded at 2.901 V
+
+The armed field-cycle watcher caught `9E5AB8` on a fresh solar wake at
+2026-06-30 11:58:58 America/Los_Angeles with `battery_v=2.901`, `supply_v=6.217`,
+`supply_ma=76`, and `supply_good=true`. Because the peer was still running `.4`, the
+watcher intentionally sent one last bare `U`, observed maintenance telemetry at
+`192.168.4.40`, and uploaded the `.6` field-cycle image:
+
+- `ops/bench/net_bench_ota.py` wrote `t_ack_s=5.08`, `ack="Update complete. Rebooting."`,
+  `recovered=true`, `button_press_required=false`, notes
+  `9E5AB8 .6 solar-only low-VBAT OTA at >=2.90V`.
+- The peer rejoined ESP-NOW as `net-bench-2026-06-30.6`.
+- The `.6` rail-restore change worked: lux, SHT31 panel temperature/RH, and onboard INA
+  telemetry returned after sleep. Live sample after the OTA showed `lux=sat`,
+  `ptc=45.5`, `prh=19`, `ipv=6456`, `ipa=-71`, `ibv=2888`, `iba=0`.
+
+This validates the "low VBAT + external solar panel" OTA stress path at about 2.90 V
+loaded/charging. Future maintenance on `.6` peers can use targeted `U9E5AB8`, so parallel
+drawdown tests no longer need to be disturbed by single-peer OTAs.
+
+## 2026-06-30 - Codex - Targeted maintenance command added for single-peer OTA
+
+Added the non-universal maintenance command Ben asked for before starting parallel
+drawdown tests. `net-bench-2026-06-30.6` keeps bare `U` as the sustained fleet
+maintenance wake, but also supports `U<id>` such as `U9E5AB8`:
+
+- Firmware: added `NB_TARGET_ENTER_MAINT`; peers enter maintenance only when the
+  packet's 3-byte target id matches their short id. The master serial handler sustains
+  either bare fleet `U` or targeted `U<id>` for 35 s so it can catch timer-wake windows.
+- Dashboard: validates `U[0-9A-Fa-f]{6}` and changes `Peer maint` to send targeted
+  maintenance for the selected peer instead of broadcasting to every awake peer.
+- Sensor rail restore: on boot, PowerFeather 3V3 and VSQT/STEMMA rails are explicitly
+  re-enabled before env/INA probing, with a short settle delay. This should restore
+  panel/battery INA telemetry after a field-cycle rail-off sleep.
+
+Built and USB-flashed the COM7 serial bridge/master to `.6`; built the `.6` field-cycle
+peer OTA artifact. Because outdoor peer `9E5AB8` is still running `.4`, the solar-only
+low-VBAT migration to `.6` must use one last bare `U`; after that, targeted `U9E5AB8`
+can be used without disturbing separate 6 Ah vs 7.2 Ah drawdown experiments.
+
+At 2026-06-30 10:37 America/Los_Angeles, `9E5AB8` was alive on solar-only `.4`, charging
+around 2.79 V with about 0.48 W supply input. A single `.6` watcher remains armed to
+trigger the solar-only low-VBAT OTA at a fresh wake with `battery_v >= 2.90` and
+`supply_good=true`; an accidentally leftover `.5` watcher was stopped so only one upload
+can fire.
+
+## 2026-06-30 - Codex - Field-cycle lifecycle mode implemented and deployed to 9E5AB8
+
+Graduated the low-VBAT stress-test path into a first production-ish lifecycle mode inside
+`firmware/net_bench` rather than starting a new sketch, preserving the proven ESP-NOW
+bridge, shared-WiFi OTA, PowerFeather solar guard, and dashboard tooling.
+
+Implemented `--field-cycle`:
+
+- Peer state machine: `charge` on external supply/solar -> rail-cut timer sleep while
+  charging -> `wait-dark` when full-ish -> always-awake `draw` in dark using the normal
+  1 Hz radio load -> `protect` timer sleep at low/critical LFP voltage.
+- Sleep paths blank the pixels, cut both PowerFeather switchable rails, and use timer
+  wake so the board remains recoverable. Solar/USB does not have to electrically wake the
+  ESP32; the charger works while the ESP32 sleeps and the next timer wake observes supply.
+- Added append-only heartbeat tail: `fc`/`fcr`/`fcc`/`fce`/`fcchg`/`fcdis`/`fcmin`/`fcmax`
+  for lifecycle phase, transition reason, cycle count, phase elapsed seconds, rough
+  charge/discharge mAh, and cycle voltage bounds.
+- Bumped the ESP-NOW receive buffer from 96 to 128 bytes and fixed append-tail length
+  checks so a `.4` bridge can still parse older `.2`/`.3` peers.
+- Updated `build.sh`, `firmware/net_bench/README.md`, `ops/bench/net_bench_dashboard.py`,
+  and `ops/bench/net_bench_log.py` for the new mode/telemetry.
+
+Verification/deployment:
+
+- Compiled field-cycle peer:
+  `--role peer --channel 11 --hb-hz 1 --field-cycle --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.8`.
+- Compiled and USB-flashed COM7 bridge/master to `net-bench-2026-06-30.4`
+  (`--role master --channel 11 --serial-bridge`). Dashboard restarted on
+  `http://127.0.0.1:8765/` and showed bridge `.4`.
+- Shared-WiFi OTA uploaded the field-cycle peer image to `9E5AB8` at `192.168.4.40`
+  from about 2.67 V VBAT, USB bank supply good. Upload acked in 4.45 s with no button.
+- `9E5AB8` rejoined as `net-bench-2026-06-30.4`, emitted `fc=2` (`charge`),
+  `fcr=2`, `fcc=1`, `fce=305`, `fcchg=3`, `fcmin=2675`, `fcmax=2678`, then entered
+  the 5-minute charge sleep with rails cut.
+- `9E5AF0` was not OTA-updated; it was resumed from maintenance and then targeted-parked
+  for 21600 s to stop draining while `9E5AB8` runs the field-cycle test.
+- Started long JSONL logger:
+  `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl`
+  (`--duration 172800`, notes `9E5AB8 field-cycle .4 first day/night lifecycle`).
+
+Next: let the logger run through the next wake/charge/dark/protect transitions, then
+summarize charge recovery, sleep cadence, drawdown duration, cutoff reason, and whether
+the full/taper heuristic needs adjustment.
+
+## 2026-06-30 - Codex - Low-VBAT remove-from-bank behavior check
+
+Checked the live COM7 serial-bridge dashboard and current `firmware/net_bench` code for
+Ben's question about removing a very low `9E5AB8` from a USB battery bank.
+
+Live dashboard snapshot at about 2026-06-30T14:16Z:
+
+- `9E5AB8`: `net-bench-2026-06-30.3`, COMMS mode, 2.54 V VBAT, 0% SOC,
+  +35 mA into the battery, `supply_good=true`, 4.875 V / 92 mA supply, about 0.36 W
+  running load, `drawdown_active=false`.
+- `9E5AF0`: `net-bench-2026-06-30.2`, 3.15 V loaded, about -165 mA, no supply.
+
+Conclusion: the current ordinary net_bench COMMS image does **not** automatically enter
+deep sleep just because VBAT is low or external supply disappears. Low-voltage sleep
+exists only in specific paths: manual/broadcast `S`, targeted `P<id>[:seconds]`,
+`--sleep-cycle`, `--autosleep`, and the targeted drawdown helper's soft/hard floors
+(3.18 V / 3.05 V). The maintenance power check is advisory by default and protects OTA
+entry reporting, not normal runtime. At 2.5 V, removing USB supply without first parking
+the peer is expected to run the board at roughly always-on peer load until voltage
+collapses, likely ending in shutdown/brownout behavior rather than graceful sleep.
+Recommended bench action before unplugging: targeted park, e.g. `P9E5AB8:21600`, then
+let it charge/recover later.
+
 ## 2026-06-30 - Ben + Codex - Low-VBAT charging OTA stress pass on 5AB8
 
 Ran a targeted low-voltage charging OTA stress test on `9E5AB8` after the overnight

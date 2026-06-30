@@ -41,6 +41,10 @@ RX_PEER = re.compile(
     r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?"
     r"(?: fw=(\S+))?"
     r"(?: mt=(\d+))?"
+    r"(?: fc=(\d+) fcr=(\d+) fcc=(\d+) fce=(\d+) fcchg=(\d+) fcdis=(\d+) fcmin=(\d+) fcmax=(\d+))?"
+    r"(?: bqv=(\d+) bqichg=(\d+) bqvreg=(\d+) bq16=([0-9A-Fa-f]{2}) bq18=([0-9A-Fa-f]{2})"
+    r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
+    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -68,6 +72,13 @@ def maybe_ina(text: str | None) -> int | None:
         return None
     value = int(text)
     return None if value == -32768 else value
+
+
+def maybe_u16(text: str | None) -> int | None:
+    if text is None:
+        return None
+    value = int(text)
+    return None if value == 65535 else value
 
 
 def watts(volts: float | None, milliamps: int | None) -> float | None:
@@ -252,6 +263,26 @@ class SerialWorker(threading.Thread):
                 dda,
                 fw,
                 mt,
+                fc,
+                fcr,
+                fcc,
+                fce,
+                fcchg,
+                fcdis,
+                fcmin,
+                fcmax,
+                bqv,
+                bqichg,
+                bqvreg,
+                bq16,
+                bq18,
+                bq1d,
+                bq1e,
+                bq1f,
+                bq20,
+                bq21,
+                bq22,
+                bq38,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -302,8 +333,39 @@ class SerialWorker(threading.Thread):
                 "drawdown_active": bool(int(dda)) if dda is not None else None,
                 "firmware_rev": fw,
                 "maint_status": int(mt) if mt is not None else None,
+                "field_phase": int(fc) if fc is not None else None,
+                "field_reason": int(fcr) if fcr is not None else None,
+                "field_cycle": int(fcc) if fcc is not None else None,
+                "field_elapsed_s": int(fce) if fce is not None else None,
+                "field_charge_mah": int(fcchg) if fcchg is not None else None,
+                "field_discharge_mah": int(fcdis) if fcdis is not None else None,
+                "field_min_mv": int(fcmin) if fcmin is not None else None,
+                "field_max_mv": int(fcmax) if fcmax is not None else None,
                 "ts_utc": ts,
             }
+            if bq16 is not None:
+                r16 = int(bq16, 16)
+                r18 = int(bq18, 16)
+                s1 = int(bq1e, 16)
+                row.update(
+                    bq_vindpm_mv=maybe_u16(bqv),
+                    bq_ichg_ma=maybe_u16(bqichg),
+                    bq_vreg_mv=maybe_u16(bqvreg),
+                    bq_reg16=r16,
+                    bq_reg18=r18,
+                    bq_stat0=int(bq1d, 16),
+                    bq_stat1=s1,
+                    bq_fault0=int(bq1f, 16),
+                    bq_flag0=int(bq20, 16),
+                    bq_flag1=int(bq21, 16),
+                    bq_fault_flag0=int(bq22, 16),
+                    bq_part=int(bq38, 16),
+                    bq_chg_en=bool(r16 & (1 << 5)),
+                    bq_en_hiz=bool(r16 & (1 << 4)),
+                    bq_batfet_ctrl=r18 & 0x03,
+                    bq_vbus_stat=s1 & 0x07,
+                    bq_chg_stat=(s1 >> 3) & 0x03,
+                )
             if row["supply_w"] is not None and row["battery_w"] is not None:
                 row["load_w"] = round(row["supply_w"] - row["battery_w"], 4)
             with self.state.lock:
@@ -547,7 +609,7 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <button class="primary" data-cmd="m46">4.6 V</button>
         <button class="primary" data-cmd="m52">5.2 V</button>
         <button class="primary" data-cmd="m71">7.1 V</button>
-        <button class="warn" data-cmd="U">Peer maint</button>
+        <button class="warn" id="peerMaintBtn">Peer maint</button>
         <button class="warn" data-cmd="S">Sleep 6h</button>
         <button data-cmd="c">Resume</button>
         <button data-cmd="I">Identify all</button>
@@ -749,7 +811,7 @@ function renderPeerSelector(peers, effectiveFocus) {
   peers.forEach(peer => {
     const active = effectiveFocus === peer.id ? " active" : "";
     const stale = freshPeer(peer) ? "" : " bad";
-    const suffix = peer.drawdown_active ? "draw" : (hasPanel(peer) ? "panel" : "node");
+    const suffix = fieldPhase(peer) || (peer.drawdown_active ? "draw" : (hasPanel(peer) ? "panel" : "node"));
     buttons.push(`<button class="peer-chip${active}${stale}" type="button" data-peer-focus="${esc(peer.id)}">${esc(peer.id)} <span class="chip-sub">${suffix}</span></button>`);
   });
   document.getElementById("peerSelector").innerHTML = buttons.join("");
@@ -766,10 +828,23 @@ function metricClassForPower(value) {
   if (Number(value) < -0.02) return "bad";
   return "";
 }
+const FIELD_PHASE = {
+  0: "off",
+  1: "boot",
+  2: "charge",
+  3: "wait-dark",
+  4: "draw",
+  5: "protect"
+};
+function fieldPhase(peer) {
+  return FIELD_PHASE[peer.field_phase] || null;
+}
 function tagsForPeer(peer) {
   const tags = [];
   if (!freshPeer(peer)) tags.push(["stale", "warn"]);
   if (freshPeer(peer)) tags.push(["fresh", "good"]);
+  const phase = fieldPhase(peer);
+  if (phase) tags.push([phase, phase === "protect" ? "bad" : (phase === "draw" ? "warn" : "good")]);
   if (hasPanel(peer)) tags.push(["panel", "good"]);
   if (peer.drawdown_active) tags.push(["drawdown", "warn"]);
   if (peer.maint_status === 2) tags.push(["OTA power warn", "warn"]);
@@ -922,9 +997,13 @@ function render(s) {
     const ddCell = p.drawdown_mah !== null && p.drawdown_mah !== undefined
       ? `<div class="row-sub">dd ${fmt(p.drawdown_mah, 1)}/${p.drawdown_budget_mah ?? "--"} mAh</div>`
       : "";
+    const fcCell = p.field_phase !== null && p.field_phase !== undefined
+      ? `<div class="row-sub">cycle ${p.field_cycle} ${esc(fieldPhase(p) || "?")} ${p.field_elapsed_s}s ` +
+        `+${p.field_charge_mah} / -${p.field_discharge_mah} mAh</div>`
+      : "";
     const active = p.id === effectiveFocus ? " active-row" : "";
     return `<tr class="peer-row${active}" data-peer-id="${esc(p.id)}">
-      <td><div class="row-main">${esc(p.id)}</div>${fwLine}${cfgLine}${ddCell}</td>
+      <td><div class="row-main">${esc(p.id)}</div>${fwLine}${cfgLine}${ddCell}${fcCell}</td>
       <td>${msAge(p.age_ms)}</td>
       <td><div>${p.rssi_dbm} dBm</div><div class="signal"><span style="width:${pct}%"></span></div><div class="row-sub">${fmt(p.pdr * 100, 1)}% PDR</div></td>
       <td><div>${fmt(p.battery_w, 3)} W</div><div class="row-sub">${fmt(p.battery_v, 3)} V / ${p.battery_ma} mA / ${p.soc_pct}%</div></td>
@@ -964,6 +1043,14 @@ function sendCommand(cmd, label) {
 }
 document.querySelectorAll("button[data-cmd]").forEach(btn => {
   btn.addEventListener("click", () => sendCommand(btn.dataset.cmd, btn.textContent.trim()));
+});
+document.getElementById("peerMaintBtn").addEventListener("click", () => {
+  const peer = commandTargetPeer();
+  if (!peer) {
+    document.getElementById("commandStatus").textContent = "Select one peer for maintenance";
+    return;
+  }
+  sendCommand(`U${peer.id}`, `Target ${peer.id} maintenance`);
 });
 document.getElementById("maintainBtn").addEventListener("click", () => {
   const raw = document.getElementById("maintainInput").value.trim();
@@ -1053,6 +1140,8 @@ def parse_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 def valid_command(cmd: str) -> bool:
     if cmd in {"r", "U", "S", "c", "I", "i", "+", "-"}:
+        return True
+    if re.fullmatch(r"U[0-9A-Fa-f]{6}", cmd):
         return True
     m = re.fullmatch(r"S(\d{1,5})", cmd)
     if m:

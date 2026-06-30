@@ -60,12 +60,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the earlier 2.95-3.03 V failures were wrong-path/pre-upload failures with stale WiFi
   secrets, AP-contaminated firmware, and/or pre-`.5` watchdog behavior; they do **not**
   prove low VBAT was the root cause (Ben/Codex).
-- [ ] Add a targeted shared-WiFi maintenance command (`U<id>` or dashboard peer action)
-  so a single-peer OTA does not pull every awake peer off ESP-NOW. The 2026-06-30
-  overnight test exposed this: while OTAing only `9E5AF0`, the USB-revived `9E5AB8`
-  also entered shared-WiFi maintenance because current `U` is broadcast-only. It was
-  recoverable via HTTP `/resume`, but targeted maintenance will make future low-voltage
-  rescue tests cleaner (Ben/Codex).
+- [x] Add a targeted shared-WiFi maintenance command (`U<id>` or dashboard peer action)
+  so a single-peer OTA does not pull every awake peer off ESP-NOW. **DONE 2026-06-30
+  in `net-bench-2026-06-30.6`:** the bridge accepts `U9E5AB8`-style sustained targeted
+  maintenance, peers handle `NB_TARGET_ENTER_MAINT`, and the dashboard `Peer maint`
+  button sends `U<selected-id>`. Bare `U` remains available for deliberate fleet wake
+  and for first-hop migration of older peers that cannot parse the targeted packet
+  yet (Ben/Codex).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ -- **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis -> SK6812 HEX direct-GPIO (Ben).
 - [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED --
   **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed
@@ -82,7 +83,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Measure solar charge behavior for each 1-5 W panel in sun/shade/heat (Ben). Next
   outdoor run: Voltaic P105/P126 ETFE prep in
   `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`.
-- [ ] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks (Ben).
+- [~] Test low-battery + solar recovery for PowerFeather V2 and fallback stacks.
+  **PowerFeather V2 solar-only OTA path validated 2026-06-30:** `9E5AB8` recovered from
+  low VBAT on panel-only charge, crossed the watcher threshold at 2.901 V, entered
+  shared-WiFi maintenance via one last bare `U` from `.4`, accepted OTA to
+  `net-bench-2026-06-30.6`, rebooted/rejoined without a button, and resumed field-cycle
+  telemetry. Remaining scope: characterize full day/night cycle behavior and repeat/port
+  any needed checks on fallback stacks if they stay in contention (Ben/Codex).
 - [x] Flash outdoor solar peer `9E5AB8` to current targeted-control net_bench peer image
   -- **DONE 2026-06-29**: USB-flashed `net-bench-2026-06-29.3`, shared-WiFi maintenance
   path, LFP/6000 mAh/1500 mA, channel 11, 1 Hz heartbeat (Ben/Codex).
@@ -345,6 +352,32 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] Implement LED driver abstraction: IS31FL3741 I2C matrix, WS2812/NeoPixelBus, integrated board LEDs (Ben).
 - [ ] Implement LED rail power abstraction (`VSQT`, onboard LED LDO, external rail enable) (Ben).
 - [ ] Implement standard OTA maintenance mode; no ESP-NOW firmware chunks (Ben).
+- [~] Add an autonomous low-VBAT park/cutoff policy for ordinary net_bench/production
+  COMMS mode. **FIRST NET_BENCH PASS DONE 2026-06-30:** `--field-cycle` in
+  `net-bench-2026-06-30.4` adds a production-ish solar day / radio-night lifecycle:
+  charge-sleep on supply, wait-dark, always-awake 1 Hz radio drawdown, then protect
+  timer-sleep at the LFP floor. Deployed to `9E5AB8` and logging to
+  `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl`. Remaining: analyze the
+  first full cycle, tune full/taper and cutoff thresholds, then port the proven policy
+  into production firmware (Ben/Codex).
+- [ ] Analyze first `--field-cycle` run for `9E5AB8`: confirm 5-minute charge wakes,
+  charge recovery from ~2.67 V on USB/solar, full-ish detection, transition to dark
+  drawdown, protect cutoff reason/voltage, and mAh/Wh accounting quality. Data:
+  `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl` (Ben/Codex).
+- [~] Add BQ25628E charger-state telemetry to `net_bench` and production telemetry:
+  charge state, VBUS/source state, `CHG_EN`, `EN_HIZ`, BATFET control, input/charge
+  faults, VINDPM/IINDPM, and effective charge-current limit. This is now important
+  for interpreting low-VBAT solar/USB rescue: on 2026-06-30 a 5 V Anker bank was
+  masked while solar held the input near 6.2 V; after solar removal USB worked but
+  charged slowly at `supply_v=4.887`, `supply_ma=92`, `battery_ma=38`, likely due
+  to 4.8 V solar VINDPM and/or low-VBAT precharge. Consider an automatic USB-rescue
+  VINDPM policy around 4.6 V when the input is a 5 V bank rather than a panel
+  (Ben/Codex). **NET_BENCH DONE 2026-06-30 in `.7`:** heartbeat/dashboard/logger now
+  expose BQ VINDPM/ICHG/VREG plus raw control/status/fault registers and decoded
+  `CHG_EN`, `EN_HIZ`, BATFET, VBUS, and charge-state bits. First USB-rescue sample:
+  `bqv=4800`, `bqichg=1480`, `bqvreg=3600`, `CHG_EN=1`, `HIZ=0`, BATFET normal,
+  VBUS adapter, charge-state CC bucket, `fault0=0`. Remaining: port to production
+  telemetry and decide whether to add automatic USB-rescue VINDPM behavior.
 - [ ] **WiFi re-associate guard (cheap roaming):** the ESP32 latches one Eero BSSID and won't auto-roam (no 802.11k/v/r -- LOG cont. 9, POWERFEATHER_NOTES). On link-loss / low-RSSI in maintenance mode, do `WiFi.disconnect()` + `WiFi.begin()` to re-pick the strongest beacon. Low field priority (deployed fixtures are stationary; the maintenance-OTA path already does a fresh `WiFi.begin`) -- but a belt-and-suspenders guard for OTA windows (Ben).
 - [~] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers -- done in `firmware/net_bench/` (feasibility); port the validated packet/PDR design into production `core/packet` after the matrix run (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).

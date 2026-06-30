@@ -22,6 +22,7 @@ ROLE=""; CHANNEL=""; FRAME_HZ=""; HB_HZ=""; JITTER=""; WDT_S=""; WDT_HANG=""
 MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
 SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""; MAINT_AP=""
+FIELD_CYCLE=""; FIELD_CHARGE_SLEEP=""; FIELD_WAIT_SLEEP=""; FIELD_PROTECT_SLEEP=""; FIELD_WAKE_LISTEN_MS=""; FIELD_COLD_LISTEN_MS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -45,6 +46,12 @@ while [[ $# -gt 0 ]]; do
     --sleep-cycle) SLEEP_CYCLE="1"; shift;;         # field peer: deep-sleep duty-cycled load measurement
     --sleep-s) SLEEP_S="$2"; shift 2;;
     --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2;;
+    --field-cycle) FIELD_CYCLE="1"; shift;;         # field peer: solar day / radio-night lifecycle loop
+    --field-charge-s) FIELD_CHARGE_SLEEP="$2"; shift 2;;
+    --field-wait-s) FIELD_WAIT_SLEEP="$2"; shift 2;;
+    --field-protect-s) FIELD_PROTECT_SLEEP="$2"; shift 2;;
+    --field-wake-ms) FIELD_WAKE_LISTEN_MS="$2"; shift 2;;
+    --field-cold-ms) FIELD_COLD_LISTEN_MS="$2"; shift 2;;
     --batt-ntc) BATT_NTC="1"; shift;;               # battery thermistor on charger TS -- ONLY with the NTC physically attached
 
     --chem) CHEM="$2"; shift 2;;
@@ -58,6 +65,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 if [[ -n "${PORT}" && -n "${OTA_IP}" ]]; then echo "use --port OR --ota, not both" >&2; exit 2; fi
+if [[ -n "${FIELD_CYCLE}" && -n "${SLEEP_CYCLE}" ]]; then echo "use --field-cycle OR --sleep-cycle, not both" >&2; exit 2; fi
 
 # Reuse known local WiFi creds if we don't have our own. This keeps the default
 # maintenance path on shared WiFi, which is the only fleet-scalable OTA mode.
@@ -97,6 +105,12 @@ esac
 [[ -n "${SLEEP_CYCLE}" ]]   && FLAGS+=" -DNB_SLEEP_CYCLE=1"
 [[ -n "${SLEEP_S}" ]]       && FLAGS+=" -DNB_SLEEP_S=${SLEEP_S}"
 [[ -n "${WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_WAKE_LISTEN_MS=${WAKE_LISTEN_MS}"
+[[ -n "${FIELD_CYCLE}" ]]   && FLAGS+=" -DNB_FIELD_CYCLE=1"
+[[ -n "${FIELD_CHARGE_SLEEP}" ]] && FLAGS+=" -DNB_FIELD_CHARGE_SLEEP_S=${FIELD_CHARGE_SLEEP}"
+[[ -n "${FIELD_WAIT_SLEEP}" ]] && FLAGS+=" -DNB_FIELD_WAIT_SLEEP_S=${FIELD_WAIT_SLEEP}"
+[[ -n "${FIELD_PROTECT_SLEEP}" ]] && FLAGS+=" -DNB_FIELD_PROTECT_SLEEP_S=${FIELD_PROTECT_SLEEP}"
+[[ -n "${FIELD_WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_WAKE_LISTEN_MS=${FIELD_WAKE_LISTEN_MS}"
+[[ -n "${FIELD_COLD_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_COLD_LISTEN_MS=${FIELD_COLD_LISTEN_MS}"
 [[ -n "${BATT_NTC}" ]]      && FLAGS+=" -DNB_BATT_NTC=1"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in

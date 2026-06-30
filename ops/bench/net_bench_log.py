@@ -58,7 +58,11 @@ rx_peer = re.compile(
     r"(?: cap=(\d+) chg=(\d+))?"
     r"(?: dd=([\d.]+) ddb=(\d+) dda=(\d+))?"
     r"(?: fw=(\S+))?"
-    r"(?: mt=(\d+))?")
+    r"(?: mt=(\d+))?"
+    r"(?: fc=(\d+) fcr=(\d+) fcc=(\d+) fce=(\d+) fcchg=(\d+) fcdis=(\d+) fcmin=(\d+) fcmax=(\d+))?"
+    r"(?: bqv=(\d+) bqichg=(\d+) bqvreg=(\d+) bq16=([0-9A-Fa-f]{2}) bq18=([0-9A-Fa-f]{2})"
+    r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
+    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -90,7 +94,10 @@ with open(out, "w") as fh:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,
              dlpdr, dlrssi, up, age, sv, sma, sgood,
              lux, ch0, ch1, ptc, prh, btc, ipv, ipa, ibv, iba,
-             cap, chg, dd, ddb, dda, fw, mt) = m.groups()
+             cap, chg, dd, ddb, dda, fw, mt,
+             fc, fcr, fcc, fce, fcchg, fcdis, fcmin, fcmax,
+             bqv, bqichg, bqvreg, bq16, bq18, bq1d, bq1e, bq1f,
+             bq20, bq21, bq22, bq38) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -139,6 +146,32 @@ with open(out, "w") as fh:
                 row["firmware_rev"] = fw
             if mt is not None:
                 row["maint_status"] = int(mt)
+            if fc is not None:
+                row.update(field_phase=int(fc), field_reason=int(fcr),
+                           field_cycle=int(fcc), field_elapsed_s=int(fce),
+                           field_charge_mah=int(fcchg),
+                           field_discharge_mah=int(fcdis),
+                           field_min_mv=int(fcmin), field_max_mv=int(fcmax))
+            if bq16 is not None:
+                def u16_or_none(s):
+                    v = int(s)
+                    return None if v == 65535 else v
+                r16, r18, s1 = int(bq16, 16), int(bq18, 16), int(bq1e, 16)
+                row.update(bq_vindpm_mv=u16_or_none(bqv),
+                           bq_ichg_ma=u16_or_none(bqichg),
+                           bq_vreg_mv=u16_or_none(bqvreg),
+                           bq_reg16=r16, bq_reg18=r18,
+                           bq_stat0=int(bq1d, 16), bq_stat1=s1,
+                           bq_fault0=int(bq1f, 16),
+                           bq_flag0=int(bq20, 16),
+                           bq_flag1=int(bq21, 16),
+                           bq_fault_flag0=int(bq22, 16),
+                           bq_part=int(bq38, 16),
+                           bq_chg_en=bool(r16 & (1 << 5)),
+                           bq_en_hiz=bool(r16 & (1 << 4)),
+                           bq_batfet_ctrl=r18 & 0x03,
+                           bq_vbus_stat=s1 & 0x07,
+                           bq_chg_stat=(s1 >> 3) & 0x03)
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "
