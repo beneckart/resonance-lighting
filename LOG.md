@@ -12,6 +12,119 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-01 - Codex - Extended Moonlight to first high melody entrance
+
+Extended the `Moonlight` button in `firmware/clacker_demo/` so it continues past the
+opening triplet setup into the first high G#4 melody entrance ("duh duh-duh" piano-line
+moment Ben called out). Because the bench output is still monophonic square-wave PWM, the
+G#4 entrance is exaggerated as separated longer hits rather than layered over the arpeggio
+like the real piano score.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Verified
+`/api/tune?id=moonlight` starts playback and muted with `/api/tune?id=stop`; final state
+reported `tune="none"`.
+
+## 2026-07-01 - Codex - Routed sweep buttons through melody scheduler
+
+Ben reported the three sweep buttons were still silent while the Moonlight melody worked.
+Changed `firmware/clacker_demo/` so `Sweep up`, `Sweep down`, and `Laser sweep` are now
+explicit stepped note sequences run through the same proven monophonic scheduler as the
+working melody buttons, instead of the separate continuous-retune sweep state machine.
+This should avoid the silent behavior from rapid frequency retuning.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Verified
+`/api/sweep?id=up`, `/api/sweep?id=down`, and `/api/sweep?id=laser` each report the
+expected active tune state, then muted with `/api/tune?id=stop`; final state reported
+`tune="none"`. Acoustic confirmation still depends on Ben's bench listen.
+
+## 2026-07-01 - Codex - Corrected Moonlight opening from referenced MIDI
+
+Downloaded Ben's reference MIDI (`https://bitmidi.com/uploads/16752.mid`) to inspect the
+opening. It is format 1 with 8 tracks and 120 ticks/quarter; the initial tempo is about
+50 BPM, making the opening triplet notes about 400 ms apart. The recognizable opening
+texture repeats the G#3-C#4-E4 triplet cell eight times before moving, whereas the prior
+bench melody compressed each harmony into one ascending gesture and climbed too quickly.
+
+Updated `firmware/clacker_demo/` so `Moonlight` is now a short monophonic reduction of
+the first 16 triplet groups from the MIDI-derived opening pattern. This remains square-wave
+single-voice playback on Metro `D5`/GPIO5, not a piano/PCM arrangement, but it preserves the
+repeated triplet texture. Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on
+`/dev/ttyACM1`, triggered `/api/tune?id=moonlight`, and then muted with
+`/api/tune?id=stop`; final state reported `tune="none"`.
+
+## 2026-07-01 - Codex - Reworked clacker sweeps and Moonlight melody
+
+Updated `firmware/clacker_demo/` after Ben reported the three sweep buttons were silent
+and the Moonlight sequence was too fast / not recognizable. Replaced the sweep playback
+path with direct LEDC frequency control instead of rapid queued `tone()` calls, which is a
+better fit for continuously changing frequencies. Also lowered and slowed the Moonlight
+sequence into a more recognizable opening-arpeggio approximation, still monophonic square
+wave rather than piano/PCM audio.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Exercised
+`/api/sweep?id=up`, `/api/sweep?id=laser`, `/api/tune?id=moonlight`, then muted with
+`/api/tune?id=stop`; API state returned to `tune="none"`. Actual acoustic quality still
+needs Ben's ears at the bench.
+
+## 2026-07-01 - Codex - Added sweep and melody buttons to noisemaker dashboard
+
+Extended `firmware/clacker_demo/` speaker controls with nonblocking frequency sweeps
+(`Sweep up`, `Sweep down`, `Laser sweep`) plus a simple monophonic Moonlight-style
+arpeggio sequence. The new controls still use the existing `tone()`/PWM path on Metro
+`D5`/GPIO5; this is not PCM or polyphonic audio, just note/sweep scheduling over square
+waves.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Verified
+the page contains the new buttons, exercised `/api/sweep?id=laser` and
+`/api/tune?id=moonlight`, then muted with `/api/tune?id=stop`.
+
+## 2026-07-01 - Codex - Fixed clacker dashboard slider persistence
+
+Fixed the `firmware/clacker_demo/` dashboard sliders snapping back during the 1 Hz state
+refresh. Slider changes now push timing values immediately to a new `/api/settings`
+endpoint, and the browser suppresses slider rewrites while a drag/update is in flight.
+Added `Cache-Control: no-store` on dashboard/API responses so the browser reloads the
+new JavaScript after reflashing.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Verified
+`/api/settings?interval=760&pulse=115` persisted through `/api/state`, then restored the
+bench defaults to `interval=420` and `pulse=70`.
+
+## 2026-07-01 - Codex - Added WiFi dashboard for relay/speaker noisemaker bench
+
+Onboarded against the repo read order and fetched `origin/main`; local `main` was current
+with `origin/main` (`0 0` ahead/behind), with pre-existing local changes in `LOG.md` and
+untracked `firmware/clacker_demo/` preserved.
+
+Reworked `firmware/clacker_demo/` from an automatic two-relay pulse sketch into an Adafruit
+Metro ESP32-S3 WiFi dashboard for Ben's lantern noisemaker bench. The dashboard connects to
+the shared bench AP via ignored `wifi_secrets.h`, serves at `http://clacker.local/`, drives
+relay modules on Metro `A0`/`A1`, supports one-shot relay clicks plus adjustable A/B
+auto-clack timing, and drives the 8002A amp/speaker signal from Metro `D5`/GPIO5 with
+simple tone/melody buttons. Added a local build helper that uses a dedicated Arduino
+`--build-path` to avoid shared-cache collisions.
+
+Compiled the sketch for `esp32:esp32:adafruit_metro_esp32s3`, uploaded it to the connected
+Metro on `/dev/ttyACM1`, and verified the dashboard API at `http://clacker.local/api/state`
+with the board reporting IP `192.168.4.57`.
+
+## 2026-06-30 - Codex - Updated clacker sketch for two-relay comparison
+
+Updated `firmware/clacker_demo/` for Ben's A/B relay sound comparison: the sketch now
+drives relay modules on Metro `A0` and `A1`, assumes high-trigger modules, and alternates
+short pulses through slow, medium, and double-tap patterns. Reflashed the connected
+Adafruit Metro ESP32-S3 on `/dev/ttyACM1` after compiling with a dedicated Arduino build
+path.
+
+## 2026-06-30 - Codex - Added relay clacker bench sketch
+
+Added `firmware/clacker_demo/`, a small Arduino sketch for Ben's relay/noisemaker
+experiment using a cheap Songle-based relay module. The sketch toggles Metro D13 through
+slow, medium, and double-tap patterns so active-low and active-high relay boards can be
+heard without changing firmware. The README records the initial 3V3/GND/D13 wiring and
+notes that common SRD-05VDC relay modules may need USB 5 V on VCC while keeping D13 as
+the logic input.
+
 ## 2026-06-30 - Codex - Hungry 6 Ah cell pulled near-nominal solar power
 
 Ben moved the nearly-depleted 6 Ah 32700 LiFePO4 cell back onto the solar `9E5AB8`

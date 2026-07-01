@@ -226,6 +226,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] If the swept-pixel / orbit moving-shadow looks good, decide whether it argues for a small multi-pixel array even in the "point source" role (Ben).
 - [x] Re-test the **4 W RGBW** point source the same way -- DONE 2026-06-11 (led_studio dual-board session): point-vs-area settled as complementary, see verdict above (Ben).
 
+## Noisemaker / audio bench
+
+- [~] Evaluate lantern noisemaker options on the Metro bench: `firmware/clacker_demo/`
+  now exposes a BubbyNet dashboard for A0/A1 relay clicking plus 8002A amp/speaker tones on
+  Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
+  draw, decide whether any relay/speaker noisemaker belongs in production, and record the
+  mechanical mounting/power implications if it stays live (Ben).
+
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
 - [ ] Order the sensor bench kit (~$10): **VL53L1X ToF** (I2C, primary), **LD2420/LD2410
