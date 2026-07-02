@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - r9 completes the matrix: boosted-VBAT-fat hits 3044 lux with NO wall; both predictions land
+
+Final cell: TPS63802 4.2 V boost fed straight from VBAT on the larger-gauge wiring
+(no INAs; lux + gauge bv). Both ladders linear end to end, no aborts:
+
+  wonly:    129 / 259 / 513 / 766 / 1016   (prediction was ~1040-1060: hit, -3 %)
+  rgbwhite: 396 / 785 / 1554 / 2305 / 3044 (prediction ~2900-3000: hit)
+  Cell sag at rgbwhite-255 (~1.3-1.4 A draw): bv 3.299 -> 3.203, ~100 mV. Comfortable.
+
+THE COMPLETED MATRIX (usual aim, bri=255, gamma 0, ~SOC 63-75 LFP):
+
+  config                     W-only (clean white)   RGB-white (fringed)
+  bare, rail-fed                    470                1310  (no wall)
+  bare, VBAT + fat wire             448                1746  (no wall)
+  boosted, rail-fed                1044                wall at bri=128 (rail limit)
+  boosted, VBAT + thin harness    ~1060 aim-corr       wall at bri=128 (harness R)
+  boosted, VBAT + fat wire         1016                3044  (NO WALL)
+
+Campaign conclusions (RGBW 4 W point source):
+- **The "wall" was never the architecture.** Rail regulator first, instrumented-
+  harness resistance second; with VBAT + proper wire the module delivers its full
+  ~4 W: 3044 lux, 1.74x the bare-VBAT rgbwhite and ~2.3x anything rail-fed.
+- **Boost value, final form (VBAT-fed, good wiring): clean white 448 -> 1016 lux
+  (2.3x); max fringed white 1746 -> 3044 (1.7x).** Efficacy tax ~25-30 % (battery
+  plane, from the r7 accounting) -- boost converts efficiency into output ceiling,
+  consistently, in every topology tested today.
+- **Production topology, if the RGBW ships with or without boost: LED power from
+  VBAT (downstream of the gauge shunt!), fat conductors, ESP rail untouched.** The
+  rail-fed path gives up 33 % of bare rgbwhite and walls any boost; VBAT-direct is
+  simpler AND better. EN->GPIO for the kill; connector quality is worth 25 % of
+  top-end light (the day's thrice-learned lesson).
+- Bare remains Ben's production GO (bare-VBAT rgbwhite 1746 lux is plenty per the
+  eye test); the boost option file is complete and shelved with real numbers at
+  every operating point it could be revived for.
+
 ## 2026-07-02 - Ben + Claude - Audit: gamma bug invalidates NOTHING (verified per-file); r8 blindness re-attributed to an I2C bus wedge + board reboot
 
 Ben challenged two claims in the r8 entry; both corrections below are evidence-based.

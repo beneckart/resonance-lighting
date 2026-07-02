@@ -298,8 +298,13 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   decoupling PROVEN (board draw constant 116-118 mA through a branch collapse), and
   the rgbwhite wall becomes a harness-wiring limit (~0.3 ohm loop) instead of the
   rail regulator.** BOTH variants now characterized; boost stays SHELVED (bare is
-  the GO). If ever revived for the 2.2x clean white: VBAT-fed single conversion on
-  the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
+  the GO). **MATRIX COMPLETED 2026-07-02 (r8/r9, LOG same date): VBAT-direct + fat
+  wire is the production topology with or without boost -- bare-VBAT rgbwhite 1746
+  lux (+33 % over rail-fed, no wall), boosted-VBAT-fat 3044 lux rgbwhite / 1016 W-only,
+  no wall anywhere on proper wiring; the walls were the rail regulator and harness R,
+  never the architecture. LED power must tap DOWNSTREAM of the gauge shunt (header
+  tap is coulomb-invisible).** If boost is ever revived: VBAT-fed single conversion
+  on the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
   to VIN = always-live V+; SK6812 latches -- blank before unplugging), and
   connector/trace quality specced (worth ~25 % of top-end light). Original design
   note below stands: the
