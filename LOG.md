@@ -36,8 +36,11 @@ ladder, compare to bare r2. Result splits into three clean findings:
    pushed high current through the RGB dies; uniform -11 % across all three from
    brief events seems less likely, but not excluded). DISCRIMINATING TEST when
    curious: nudge/rotate the module slightly and re-check rgbwhite lux at one step --
-   recovery = aim; no recovery = degradation (then check per-channel R/G/B singles
-   vs r2's, which are in the r2 JSONL).
+   recovery = aim; no recovery = degradation. (No RGBW per-channel singles baseline
+   exists from the r2 era -- the ramps only ran wonly + rgbwhite -- so the singles
+   looks in rgbw_boost_ramp.py can only characterize the current state, not compare
+   backward. If degradation is suspected, capture singles NOW as the go-forward
+   baseline.)
 
 Current-seating headline numbers (r4 boosted + r5 bare, adjacent mounts):
 bare W-full 470 lux @ 0.21 W; boosted W-full 1315 lux @ 0.73 W (2.8x, ~20 % efficacy
