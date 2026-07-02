@@ -12,6 +12,38 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Repeatability due diligence (bare r5): electrical perfect, W-die aim perfect, RGB dies -11% at identical current
+
+Ben (rightly) disliked that a reseat moved numbers 27 %, so: bare remount, exact
+ladder, compare to bare r2. Result splits into three clean findings:
+
+1. **Bare electrical path: perfectly repeatable.** Stable-step currents identical
+   across the remount (W-full 64 vs 64 mA, rgbwhite-full 263 vs 264 mA; power within
+   1 %). The bare config has no reseat sensitivity.
+2. **W-die optics: perfectly repeatable.** Whole W lux ladder identical to 0.1 %
+   (470.5 vs 470.0 at full). The hot-swap procedure holds the W die's aim through the
+   tube essentially exactly. This retroactively CLEANS UP the r1-vs-r4 boost analysis:
+   W-die geometry is proven stable across mounts, so r4's kinked ladder (+5 % low,
+   +27 % high, current DOWN 7 %) is pure electrical -- the lossy-contact story
+   survives due diligence, and the boost-path connection is confirmed as the sole
+   large variance source in the whole rig.
+3. **RGB dies: -11 % lux at IDENTICAL current, uniform across the ladder** (0.89x at
+   every step, r5 vs r2). Same drive, same watts, less light, W unmoved. Two candidate
+   explanations, unresolved: (a) per-die aim shift -- the 4 dies sit mm apart in the
+   package, and a small module rotation about the W-die axis changes the RGB dies'
+   throw through the tube (the same die-offset physics as Ben's color-fringing
+   observation); (b) RGB die degradation from the collapse/abort events (r1/r3/r4
+   pushed high current through the RGB dies; uniform -11 % across all three from
+   brief events seems less likely, but not excluded). DISCRIMINATING TEST when
+   curious: nudge/rotate the module slightly and re-check rgbwhite lux at one step --
+   recovery = aim; no recovery = degradation (then check per-channel R/G/B singles
+   vs r2's, which are in the r2 JSONL).
+
+Current-seating headline numbers (r4 boosted + r5 bare, adjacent mounts):
+bare W-full 470 lux @ 0.21 W; boosted W-full 1315 lux @ 0.73 W (2.8x, ~20 % efficacy
+tax); bare rgbwhite-full 1310 lux @ 0.84 W (was 1475 at r2 aim -- absolute rgbwhite
+lux carries the per-die aim factor, ratios within a mount do not).
+
 ## 2026-07-02 - Ben + Claude - r4 after reseat: r1 was the sick mount; healthy boost = 1315 lux clean white at only ~20% efficacy tax
 
 Ben questioned whether the INA had settled; the within-step drift analysis that
