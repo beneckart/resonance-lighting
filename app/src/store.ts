@@ -10,11 +10,16 @@ export type PatternId =
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
   | "chromatic" | "rings" | "fibonacci" | "sweep" | "living" | "piano" | "ripples" | "organism"
   | "aurora" | "chladni" | "glyph" | "interference" | "lissajous"
+  | "life"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "aurora", "chladni", "glyph", "interference", "lissajous",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous",
 ];
+/** Decentralised cellular-automata rules (Ben's BACKGROUND.md mesh spec): each light
+ *  runs a simple local rule over its pre-baked neighbour list. The "interactivity mode"
+ *  vocabulary — the tree lives on its own + reacts to presence pokes. */
+export const CA_RULES: PatternId[] = ["life", "ripples", "organism", "living"];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
 

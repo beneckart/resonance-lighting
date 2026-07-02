@@ -131,6 +131,85 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
   }
 }
 
+// ── GAME OF LIFE on the neighbour graph — Ben's "Game of Life variants" (BACKGROUND.md).
+//    A TRUE decentralised automaton: each light is a cell that reads its k-nearest
+//    neighbours (the pre-baked flash neighbour list) and lives/dies by a simple count
+//    rule. Tuned for a ~6-neighbour irregular graph (not an 8-neighbour grid), so it
+//    stays alive and legible instead of dying out or saturating. Rendered with a slow
+//    tick + a dying-ember glow tail so it reads organic, NEVER strobey.
+//      born   : dead cell with BORN_LO..BORN_HI live neighbours → alive
+//      survive: live cell with SURV_LO..SURV_HI live neighbours → stays alive
+//    + a rare spontaneous spark (keeps the field from ever fully dying).
+const BORN_LO = 2, BORN_HI = 3;   // graph-tuned "B2-3"
+const SURV_LO = 1, SURV_HI = 3;   // graph-tuned "S1-3"
+const LIFE_AGE_MAX = 8;           // ticks a cell counts up while alive → age→hue shade
+let lifeCell = new Int8Array(0);  // 0 dead, 1..LIFE_AGE_MAX alive (age in ticks)
+let lifeGlow = new Float32Array(0); // smoothed render brightness (fades on death)
+let lifeAcc = 0;
+let lifeN = -1;
+let lifeSeeds: number[] = [];     // pending presence pokes → birth these next tick
+export const lifeOut = { bri: new Float32Array(0), age: new Float32Array(0) };
+
+/** Presence/wand poke: request a birth at these fixture indices (and let the Life
+ *  rule propagate the disturbance outward across neighbour hops next ticks). */
+export function seedLife(indices: number[]) {
+  for (const i of indices) lifeSeeds.push(i);
+}
+
+export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
+  const n = fixtures.length;
+  if (lifeN !== n) {
+    lifeCell = new Int8Array(n);
+    lifeGlow = new Float32Array(n);
+    lifeOut.bri = new Float32Array(n);
+    lifeOut.age = new Float32Array(n);
+    // seed ~18% alive so there's something living from frame 1
+    for (let i = 0; i < n; i++) lifeCell[i] = fixtures[i].rnd < 0.18 ? 1 : 0;
+    lifeN = n;
+  }
+  // drain any pending presence pokes → birth that cell + its neighbours
+  if (lifeSeeds.length) {
+    for (const i of lifeSeeds) {
+      if (i < 0 || i >= n) continue;
+      if (lifeCell[i] === 0) lifeCell[i] = 1;
+      for (const j of fixtures[i].neighbors) if (lifeCell[j] === 0) lifeCell[j] = 1;
+    }
+    lifeSeeds = [];
+  }
+  const TICK = 0.42 / (0.5 + speed); // slow, organic generations (speed dial rides it)
+  lifeAcc += Math.min(0.1, Math.max(0, dt));
+  if (lifeAcc >= TICK) {
+    lifeAcc -= TICK;
+    const next = new Int8Array(n);
+    let live = 0;
+    for (let i = 0; i < n; i++) {
+      const nb = fixtures[i].neighbors;
+      let a = 0;
+      for (let k = 0; k < nb.length; k++) if (lifeCell[nb[k]] > 0) a++;
+      const alive = lifeCell[i] > 0;
+      let born: boolean;
+      if (alive) born = a >= SURV_LO && a <= SURV_HI;
+      else born = a >= BORN_LO && a <= BORN_HI;
+      if (!born && !alive && Math.random() < 0.006) born = true; // rare spontaneous spark
+      next[i] = born ? Math.min(LIFE_AGE_MAX, (alive ? lifeCell[i] : 0) + 1) : 0;
+      if (next[i] > 0) live++;
+    }
+    // guard against total extinction — reseed a few cells if the field flatlines
+    if (live < 3) for (let s = 0; s < 6; s++) next[(Math.random() * n) | 0] = 1;
+    lifeCell = next;
+  }
+  // smoothed render: alive → glow up fast, dead → fade out slow (ember tail, no strobe)
+  const up = Math.min(1, Math.max(0, dt) * 6);
+  const down = Math.min(1, Math.max(0, dt) * 2.2);
+  for (let i = 0; i < n; i++) {
+    const alive = lifeCell[i] > 0;
+    const target = alive ? 1 : 0;
+    lifeGlow[i] += (target - lifeGlow[i]) * (alive ? up : down);
+    lifeOut.bri[i] = lifeGlow[i];
+    lifeOut.age[i] = alive ? (lifeCell[i] - 1) / (LIFE_AGE_MAX - 1) : 1; // young→old 0..1
+  }
+}
+
 // ── REACTION-DIFFUSION (Gray-Scott) on the neighbour graph — organic blobs that
 //    drift, split and merge. Row-normalised graph Laplacian (mean of neighbours). ──
 let gu = new Float32Array(0), gv = new Float32Array(0), su = new Float32Array(0), sv = new Float32Array(0);
