@@ -12,6 +12,43 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - r6 GOLD STANDARD: boost verdict settles at 2.2x clean white / ~37% efficacy tax; r4's +27% was aim, not electronics
+
+Root cause found by Ben while simplifying the boost wiring: **two blown-out female
+duponts**. The RGBW's 3-pin JST cable-to-cable pins are oversized for female duponts
+-- forcing them in splays the socket, and it then makes a poor friction fit on normal
+header pins (the boost PCB). That is the physical mechanism behind the flaky boost
+path. Rewired simply with fresh duponts, all snug; r6 run as the gold standard.
+
+r6 boosted, default ladder:
+  wonly lux: 135 / 265 / 525 / 786 / 1044   (r1: 133/263/521/777/1033 -- MATCHES r1)
+  wonly @255 stable: 229 mA / 0.731 W -> 1044 lux = 1428 lux/W
+  rgbwhite: 323 @32, 641 @64; HARD ABORT at 128 (2.516 V) -- wall replicated 3rd time
+
+Interpretation (corrects the r4 entry):
+- **Electrical fix confirmed and quantified**: r6 matches r4's current draw (229 vs
+  227 mA at W-full) vs r1's 243 -- the bad contact wasted ~6 % input power. That is
+  the WHOLE electrical story.
+- **r4's +27 % light was an aim outlier**, not the contact fix: r6 has r4's
+  electrical numbers with r1's optical numbers. The r4 entry's "2.7x / 20 % tax"
+  claim is RETRACTED; the kinked r4 ladder (low-bri matching r1, high-bri +27 %)
+  remains unexplained -- fixed geometry cannot be bri-dependent; a thermal-mechanical
+  tilt of that particular mount under high drive is the surviving speculation. Logged
+  as a mystery, not a finding.
+- Mount-to-mount aim statistics across the day: r1/r2/r5/r6 all land within ~1-3 %
+  of each other (the taped outline works); r4 was a single +26 % outlier; RGB-die aim
+  separately moved -11 % once (r5). Absolute lux carries this seating uncertainty;
+  within-mount ratios do not.
+
+**GOLD STANDARD RGBW boost verdict** (r6 boosted vs r5 bare, usual seating):
+  bare W-full 470 lux @ 0.208 W (2260 lux/W); boosted W-full 1044 lux @ 0.731 W
+  (1428 lux/W) -> **boost = 2.2x the clean white at ~37 % efficacy tax**; boosted
+  rgbwhite rail-walls at bri=128 every time; bare rgbwhite-full ~1310 lux is the
+  free bright-white option (color fringe/tint tradeoff). The original r1-era numbers
+  were right all along -- the day's detours bought their confirmation plus the
+  dupont root cause. Bench rule going forward: NEVER mate JST cable-to-cable pins
+  into female duponts; use proper JST pigtails or crimp housings.
+
 ## 2026-07-02 - Ben + Claude - Repeatability due diligence (bare r5): electrical perfect, W-die aim perfect, RGB dies -11% at identical current
 
 Ben (rightly) disliked that a reseat moved numbers 27 %, so: bare remount, exact
