@@ -12,6 +12,48 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - RGBW bare ramp r2: the boost EARNS ITS KEEP on the W die (+120% light)
+
+Bare RGBW ladder, same harness position, same aborts (none triggered -- bare never
+approaches the rail wall):
+
+  look      bri  led_V  led_mA  led_W  batt_mA   lux
+  wonly      32  3.280    11    0.036    131      60
+  wonly      64  3.276    18    0.059    138     119
+  wonly     128  3.268    27    0.088    153     236
+  wonly     192  3.264    46    0.150    181     353
+  wonly     255  3.260    64    0.209    186     470
+  rgbwhite   32  3.264    39    0.127    161     185
+  rgbwhite   64  3.244    70    0.227    198     369
+  rgbwhite  128  3.232   127    0.410    264     737
+  rgbwhite  192  3.200   192    0.614    330    1106
+  rgbwhite  255  3.188   264    0.842    397    1475
+
+Bare vs boosted, same looks (the opposite of the HEX story):
+- **W-only @ full: bare 470 lux / 64 mA vs boosted 1033 lux / 243 mA = +120 % light.**
+  The W die is severely current-starved at the ~3.26 V rail at EVERY brightness (it
+  passes ~26 % of its boosted current; its Vf stack is the tallest on the module).
+  Both ladders are linear in bri -- the starvation is a constant current ceiling, not
+  compression at the top.
+- rgbwhite @ 64: bare 369 vs boosted 654 lux (+77 %). Boosted rgbwhite is rail-limited
+  to bri<=64-96; bare rgbwhite runs clean to FULL (264 mA, 3.19 V, no wall) because
+  the starved green/blue dies cap their own draw.
+- Bare rgbwhite @ full = 1475 lux = the brightest white measured through the tube --
+  but presumably golden/warm (green/blue starved; VEML cannot see chromaticity).
+  EYE CHECK WANTED: bare rgbwhite-255 color vs boosted wonly-255.
+- Efficiency: bare W 2249 lux/W vs boosted W 1331 lux/W -- the boost still costs ~40 %
+  lumens/W (same tax as HEX). The boost does not create efficiency; it buys OUTPUT
+  CEILING: max clean white 470 lux bare -> 1033 boosted (2.2x).
+
+Verdict shape for the RGBW (differs from HEX): criterion B is YES -- +120 % is
+unmistakable to the eye; criterion C is still NO (~40 % efficacy tax). So the boost
+decision reduces to an optics/artistic question: does the gobo role need more white
+than the bare W die's ceiling? If bare W-full is bright enough at height, skip the
+boost (best lumens/W on the fixture); if not, the boost is the only clean way to 2x
+(bare rgbwhite is brighter still but color-compromised). Field test at projection
+distance decides. Caveats: n=1 module/position; absolute lux is rig-specific;
+chromaticity unmeasured.
+
 ## 2026-07-02 - Ben + Claude - RGBW boosted ramp r1: W-die is the efficiency star; RGB-white hits the rail wall
 
 RGBW 4 W point source (led_studio mode=1, single SK6812 RGBW px on GPIO10) hot-swapped
