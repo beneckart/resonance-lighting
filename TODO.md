@@ -306,8 +306,17 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   tap is coulomb-invisible).** If boost is ever revived: VBAT-fed single conversion
   on the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
   to VIN = always-live V+; SK6812 latches -- blank before unplugging), and
-  connector/trace quality specced (worth ~25 % of top-end light). Original design
-  note below stands: the
+  connector/trace quality specced (worth ~25 % of top-end light).
+  **REMAINING MEASUREMENT (r10): battery-plane watts for the two uninstrumented
+  configs** -- bare-VBAT-fat and boosted-VBAT-fat (the 3044 lux point has NO measured
+  power; current estimate ~3.0-4.5 W, ~700-1000 lux/W, estimate-on-estimate). Method
+  that avoids re-poisoning the loop: SEN0291 IN+/IN- are SCREW TERMINALS -- clamp the
+  fat wire directly, no duponts; shunt adds only 10 mOhm. One ladder per config,
+  update the report's fig 4. Also note for any "boost for top-end only" revival: the
+  efficacy tax is per-lumen and duty-independent (dies at 4.2 V whenever lit), so
+  selective-boost needs a bypass path around the TPS63802 (EN-low disconnects the
+  output entirely) -- a real adapter-PCB circuit decision (Ben).
+  Original design note below stands: the
   PowerFeather 3V3 header is ~1 A-limited (per Ben), so full-power RGBW white is
   supply-limited in BOTH configs off that rail: rail-direct 4 W white already wants
   ~1.2 A at 3.3 V, and a boost fed from the header tops out around 3 W in minus
