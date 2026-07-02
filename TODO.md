@@ -289,8 +289,18 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   3V3 rail, so bare is SOC-invariant by construction until deep discharge): low-SOC
   spot-check = watch for rail droop under load at low VIN only, 10 min on a drained
   cell, unlikely to flip; 4 W RGBW point source is a separate question (Ben/Steve).
-- [ ] **Redo the boost A/B for the 4 W RGBW point source** (Ben 2026-07-02: worth
-  doing -- it lives in a different regime entirely). Design note before wiring: the
+- [~] **Redo the boost A/B for the 4 W RGBW point source** -- **rail-fed variant
+  MEASURED 2026-07-02 (gold standard r6, LOG same date): boost = 2.2x clean white
+  (1044 vs 470 lux W-full) at ~37 % efficacy tax; rgbwhite rail-walls at bri=128
+  (3x replicated); bare rgbwhite-full ~1310 lux is the free bright option and Ben's
+  production GO.** REMAINING: the VBAT-fed single-conversion variant (Ben wiring
+  2026-07-02: VBAT header pin + GND borrowed via 2-pin JST-XH split from the free
+  VDC/solar port; INA 0x41 moves into the VBAT->boost branch, making ESP overhead =
+  0x45 - 0x41). Predictions to check: same ~1044 lux W-full at ~0.62-0.65 W (tax
+  ~37 % -> ~25 %), no rgbwhite wall, LED transients decoupled from the ESP rail.
+  Sharp edge: bench module EN is tied to VIN = always-live V+, no software kill --
+  blank LEDs before unplugging (SK6812 latches); production variant needs EN->GPIO
+  + pull-down. Original design note below stands: the
   PowerFeather 3V3 header is ~1 A-limited (per Ben), so full-power RGBW white is
   supply-limited in BOTH configs off that rail: rail-direct 4 W white already wants
   ~1.2 A at 3.3 V, and a boost fed from the header tops out around 3 W in minus
