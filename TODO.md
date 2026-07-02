@@ -285,14 +285,18 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   Ben's product call is that >1 full-white px washes out the gobo, so the heavy-load
   regime is moot for HEX. The +40-60 % white expectation REFUTED at plateau voltage
   (it assumed the 2.8-2.95 V heavy-load sag, which the single-px look never causes).
-  REMAINING: cheap low-SOC repeat (knee, ~3.0 V open) on a run-down battery before
-  final BOM removal; 4 W RGBW point source is a separate question (Ben/Steve).
+  REMAINING (demoted 2026-07-02 after topology correction: hex V+ is the regulated
+  3V3 rail, so bare is SOC-invariant by construction until deep discharge): low-SOC
+  spot-check = watch for rail droop under load at low VIN only, 10 min on a drained
+  cell, unlikely to flip; 4 W RGBW point source is a separate question (Ben/Steve).
 - [ ] **Redo the boost A/B for the 4 W RGBW point source** (Ben 2026-07-02: worth
   doing -- it lives in a different regime entirely). Design note before wiring: the
   PowerFeather 3V3 header is ~1 A-limited (per Ben), so full-power RGBW white is
-  supply-limited in BOTH configs off that rail -- a boost fed from the header tops out
-  around 3 W in minus conversion loss, which may make header-fed boost moot on its
-  own. The honest comparison is likely rail-direct vs **boost-fed-from-VBAT** (the
+  supply-limited in BOTH configs off that rail: rail-direct 4 W white already wants
+  ~1.2 A at 3.3 V, and a boost fed from the header tops out around 3 W in minus
+  conversion loss. Step 0 is characterizing what the rail actually delivers (the HEX
+  A/B peaked at 0.21 A -- clean data, but says nothing about the ceiling). The honest
+  full-power comparison is likely rail-direct vs **boost-fed-from-VBAT** (the
   adapter-PCB production topology), battery INA as truth source. W channel is real on
   this module (unlike the RGB-only NeoHEX) -- include W-only and W-vs-RGB-white looks.
   Harness/tooling reuse as-is: boost_ab_log.py + a boost_ab_suite variant with

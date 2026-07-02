@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Correction: hex V+ is the regulated 3V3 rail, not VBAT; verdict rationale updated
+
+Ben corrected a topology assumption threaded through the verdict entry below: the hex
+V+ is fed from the PowerFeather's regulated 3.3 V buck-boost rail (switchable header),
+NOT from VBAT. LFP at 3.1-3.2 V terminal just means the TPS631013 runs in boost mode.
+What the pixel sees is the regulator setpoint minus harness/switch IR: bare runs read
+~3.20 V at the branch INA at 42-122 mA (modest ~0.2 ohm apparent drop). The boosted
+runs read lower (3.05-3.13 V) at the same point, but that node feeds the TPS63802's
+switching input -- do not treat those as a clean impedance measurement.
+
+What changes (the measured verdict does NOT -- it is photons vs watts):
+
+- The "LFP plateau picks your operating point" framing was wrong in mechanism. The
+  regulator picks the operating point; harness IR does the sagging. The pixel-level
+  conclusion stands: ~3.2 V effective at the pixel is a mildly-undervolted sweet spot,
+  blue's -5 % marks the knee edge.
+- The low-SOC caveat WEAKENS: the bare config is already SOC-invariant by
+  construction, because the rail regulates until deep discharge (bb_efficiency data
+  showed the rail carrying much larger loads at VBAT 2.9-3.05). A low-SOC verdict
+  flip is now unlikely; the residual check is rail droop under load at low VIN --
+  still a 10-minute spot-check when a drained cell is around, but demoted.
+- June's "goldening at 2.8-2.95 V LED rail" under show loads must have been mostly
+  harness-IR/regulator droop (possibly the old thin STEMMA feed), not battery sag
+  reaching the pixel. Production harness impedance is therefore a first-class spec:
+  short fat LED feed wires buy lumens at show loads. (Hedge: old measurement, other
+  differences possible.)
+- The boosted config as tested was a double conversion (VBAT -> 3V3 boost -> 4.2 V
+  boost); the battery-side numbers already include that tax, so the efficiency
+  verdict is if anything generous to the boost.
+- RGBW A/B design sharpens: today's HEX data never exceeded 0.21 A on the ~1 A rail
+  (clean, uncontaminated by any limit), but 4 W white rail-direct wants ~1.2 A at
+  3.3 V -- the BARE config hits the rail ceiling too. The RGBW experiment is really a
+  topology question (rail-fed vs VBAT-fed boost) with a rail-capability
+  characterization as step 0. TODO updated.
+
 ## 2026-07-02 - Ben + Claude - Boost A/B verdict (HEX, single-px gobo regime): boost NOT worth it at healthy SOC
 
 Boosted r3 remount closed the loop: every r3 number matches r1 to <1 % across a
