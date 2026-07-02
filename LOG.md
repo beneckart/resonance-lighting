@@ -12,6 +12,46 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Boost A/B verdict (HEX, single-px gobo regime): boost NOT worth it at healthy SOC
+
+Boosted r3 remount closed the loop: every r3 number matches r1 to <1 % across a
+physical swap (white 217.0 vs 216.7 lux, ring1 596.8 vs 596.0). Combined bound on
+seating error across the full bare/boosted/bare/boosted series: <=2 %, usually <1 %.
+
+Consolidated results, center-anchor looks, LFP bench cell at SOC ~97 (rail 3.12-3.20 V
+under load), VEML7700 at the tube exit (only ratios are portable):
+
+  look              bare lux    boosted lux   delta     LED branch W (bare->boosted)
+  white 1 px full   211.5-215.6 216.7-217.4   +1.6 %*   0.134 -> 0.216  (+60 %)
+  red single        33.3        33.2-33.5     ~0        0.065 -> 0.113
+  green single      128.6       129.4-129.5   +0.7 %*   0.065 -> 0.113
+  blue single       60.4        63.4-63.6     +5.1 %    0.062 -> 0.113
+  ring1 7px bri128  557.9       596.0-596.8   +6.9 %    0.388 -> 0.62-0.63
+  (* within the +-2 % seating noise)
+
+Verdict against Ben's three "worth it" criteria, for the HEX in its production role
+(Ben's product call: >1 full-white px washes out the gobo, so single white px full --
+or color-separated singles distributing the same load -- IS the operating point; the
+heavy-load ladder is moot for HEX):
+  A) install effort: NOT justified by B/C below.
+  B) visible lumens/color gain: NO. White +1.6 % is inside the noise; blue +5 % is
+     below brightness JND. No goldening on bare at this load -- the drivers are not
+     meaningfully starved at plateau voltage with a single pixel.
+  C) lumens/W: boost is ~40 % WORSE (white ~1594 -> ~1006 lux/W); the extra 60 %
+     branch power becomes constant-current-driver heat, not photons.
+
+Why this likely holds in production: LFP spends most of the night at 3.2-3.3 V
+terminal, and a single-px look (~170 mA system) barely sags it -- today's rail IS the
+plateau operating point. The 2026-06-12 goldening lived at 2.8-2.95 V under multi-px
+show loads the gobo role never uses. Boost gain visibly grows with load (+7 % at just
+7 px half) exactly as the dropout physics predicts -- the effect is real, the
+production HEX just does not operate where it pays.
+
+Caveats / remaining: n=1 hex pair, board, cell; single SOC. The one surviving boost
+case for HEX is the low-SOC end (knee, ~3.0 V open) -- worth a cheap repeat on a
+run-down battery before final BOM removal. The 4 W RGBW point source is a separate
+question (different LED, own Vf stack) and inherits none of this verdict.
+
 ## 2026-07-02 - Ben + Claude - Bare r2 suite: swap reproducibility ~2%; boost gain grows with load
 
 Bare hex remounted (swap 2). Third protocol gotcha closed for good: led_studio only

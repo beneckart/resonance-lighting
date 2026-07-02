@@ -267,9 +267,8 @@ WS-data threshold in spec for 3.3 V GPIO (VIH = 0.7 x VDD = 2.94 V; at 5 V it's 
 Steve has duplicate components; firmware/tools all in-repo (led_studio has battery stats +
 OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
 
-- [ ] Source a **TPS63802 buck-boost module with output-select solder jumpers (3V3/4V2/5V)**
-  (Amazon; MT3608-class adjustable boost = acceptable fallback, set 4.2 V by pot + meter).
-  Presoldered headers nice-to-have (Steve).
+- [x] Source a **TPS63802 buck-boost module** -- DONE 2026-07-02: Ben bulk-bought
+  Amazon modules pre-jumpered to 4.2 V (Ben).
 - [ ] Re-jumper output 3V3 -> 4V2: fully OPEN the 3V3 bridge first (both bridged = wrong
   feedback divider), close 4V2, **meter the output UNLOADED before any pixel sees it**.
   Leave the tiny EN pad untouched (tied to VIN; kill-switch = the GPIO4 3V3 rail). Leave
@@ -277,19 +276,17 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   single-pixel flicker appears) (Steve).
 - [ ] Wire: PowerFeather switchable 3V3 header -> module IN; module OUT 4.2 V -> HEX V+;
   common GND; HEX data direct to GPIO10 as usual. led_studio drives it unchanged (Steve).
-- [ ] **Measure (the decision data): lumens-per-system-watt at rail-direct ~2.9 V vs
-  boosted 4.2 V** -- primary light metric is now a PHOTOPIC lux sensor (TSL2591 or
-  VEML7700 on the KB2040 ina_monitor QT chain, auto-detected, 'lux' serial lines):
-  lumens-weighted like the eye, which matters because the recovering channels are
-  blue/green (PAR's flat quantum response over-credits blue). Keep the PAR sensor
-  (apogee_par.py) logging as spectrum-robust cross-check + continuity with older data.
-  INA harness (led_ina_sweep.py / hex_ramp.py), 1 px and 3 px, white + per-channel
-  (R, G, B singly). Compare at SAME SLIDERS (what boost buys) and at MATCHED LUX
-  (true lumens/system-watt). Expectations to confirm/refute: white +40-60 %,
-  blue/green large gains, red ~unchanged, goldening gone. Repeat at two battery SOCs
-  to confirm brightness is now SOC-invariant. Control the two-hex confound (bare vs
-  boosted are different physical boards): baseline both bare or swap the boost between
-  them. JSONL -> ops/bench/data/tn/ + commit (Ben/Steve).
+- [~] **Measure (the decision data): lumens-per-system-watt rail-direct vs boosted
+  4.2 V** -- **MEASURED 2026-07-02 at healthy SOC (LOG same date): boost NOT worth it
+  for the HEX gobo regime.** VEML7700 photopic harness + boost_ab_log.py/
+  boost_ab_suite.sh, 4-swap A/B/A/B series, seating error bounded <=2 %. Single white
+  px full: +1.6 % light for +60 % LED-branch power (lumens/W ~40 % WORSE); blue single
+  +5.1 %, ring1 7 px bri128 +6.9 % -- gain grows with load per dropout physics, but
+  Ben's product call is that >1 full-white px washes out the gobo, so the heavy-load
+  regime is moot for HEX. The +40-60 % white expectation REFUTED at plateau voltage
+  (it assumed the 2.8-2.95 V heavy-load sag, which the single-px look never causes).
+  REMAINING: cheap low-SOC repeat (knee, ~3.0 V open) on a run-down battery before
+  final BOM removal; 4 W RGBW point source is a separate question (Ben/Steve).
 - [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
   wants ~2 A out (~8 W in) = instant brownout -- cap n (or estimated total current) in
   led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
@@ -297,7 +294,9 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
 - [ ] If validated: spec the **production variant on the NeoHEX adapter PCB rev** --
   boost fed from VBAT with EN routed to a GPIO + pull-down (single conversion ~92 % vs
   ~83 % two-stage, keeps software kill, frees the 3V3 rail for the ESP). The Amazon
-  module proves the concept; the adapter PCB ships it (Ben).
+  module proves the concept; the adapter PCB ships it. **STATUS 2026-07-02: current
+  data says SKIP the boost for the HEX gobo role (see LOG verdict); revisit only if
+  the low-SOC repeat flips it or for the 4 W RGBW module** (Ben).
 
 ## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risk the 100-buy)
 
