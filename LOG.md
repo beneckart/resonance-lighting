@@ -12,6 +12,37 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Boost re-mount r3: electrical operating point shifted; rgbwhite cliff moved; curiosity answered
+
+Boost re-mounted after the bare r2 run (Ben flagged a possible LED bump). The r3
+alignment ladder says the change is NOT (mainly) optical seating -- the boosted
+electrical operating point itself moved:
+
+- W-only @ full: r1 243 mA / 0.776 W / 1033 lux vs r3 199 mA / 0.639 W / 968 lux.
+  Current -18 % at the same commanded look; lux only -6 %; lux-per-mA UP 14 %
+  (consistent with lower current density, not geometry). A pure bump cannot change
+  die current.
+- rgbwhite fine ladder (curiosity run): @32 120 mA / 318 lux and @64 227 mA / 633 lux
+  -- HALF of r1's branch current at 64 (481 mA) for nearly the same lux -- then
+  HARD ABORT at bri=72 (branch bus 2.58 V). The wall moved from somewhere in
+  (64, 128] down to (64, 72], at half the current of r1's healthy 64-step.
+  Nonmonotonic collapse at lower current = smells like boost-module input
+  instability (IR-dip -> UVLO/foldback oscillation), not a simple rail ceiling.
+
+Prime suspect: contact/series resistance in the re-mated boost path (input or output
+connector), possibly a nudged wire/jumper; module damage from the r1 collapse event
+not excluded. ACTION: reseat/meter the boost module connections (output should read
+4.2 V unloaded), then re-run `--config boosted --runtag r4-align --looks wonly` and
+compare to r1. Treat ALL r3 numbers as suspect for A/B purposes. Also a production
+data point: a hand-wired boost path showed ~18 % current shift across one re-mating
+-- connectorization/soldering quality matters if a boost ever ships.
+
+Curiosity question (can boosted rgbwhite beat bare's 1475 lux before collapse?):
+answered NO even for the healthy r1 mount by slope -- ~10.2 lux/bri projects ~1300
+lux at bri=128, which is already past the wall. Bare rgbwhite wins on raw output
+because the starved dies self-limit: full duty cycle, no conversion loss, no wall.
+Boosted W-only (~1033 lux healthy) remains the brightest CLEAN white.
+
 ## 2026-07-02 - Ben + Claude - RGBW bare ramp r2: the boost EARNS ITS KEEP on the W die (+120% light)
 
 Bare RGBW ladder, same harness position, same aborts (none triggered -- bare never
