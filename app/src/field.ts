@@ -134,92 +134,130 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
 // ── GAME OF LIFE on the neighbour graph — Ben's "Game of Life variants" (BACKGROUND.md).
 //    A TRUE decentralised automaton: each light is a cell that reads its k-nearest
 //    neighbours (the pre-baked flash neighbour list) and lives/dies by a simple count
-//    rule. Tuned for a ~6-neighbour irregular graph (not an 8-neighbour grid), so it
-//    stays alive and legible instead of dying out or saturating. Rendered with a slow
-//    tick + a dying-ember glow tail so it reads organic, NEVER strobey.
-//      born   : dead cell with BORN_LO..BORN_HI live neighbours → alive
-//      survive: live cell with SURV_LO..SURV_HI live neighbours → stays alive
-//    + a rare spontaneous spark (keeps the field from ever fully dying).
+//    rule (graph-tuned for ~6 neighbours, not an 8-grid). Rendered with a glow tail so
+//    it reads organic, NEVER strobey.
+//
+//    PERPETUAL: a plain GoL on a sparse graph freezes into a still-life within seconds.
+//    A steady churn (spontaneous births + isolated deaths, rate rides `speed`) keeps it
+//    evolving CONTINUALLY — it never settles, so clicks always land on a living field.
+//
+//    PER-CELL RESPONSE: each cell carries its own HUE, BRIGHTNESS and TIME-ON (ttl). A
+//    click/sensor seeds a blob tagged with the trigger rule's colour/brightness/duration;
+//    those "held" cells stay lit for their ttl (immune to rule-death), propagate to
+//    neighbours, then fade — so a touch's colour blooms and rolls out through the mesh.
 const BORN_LO = 2, BORN_HI = 3;   // graph-tuned "B2-3"
 const SURV_LO = 1, SURV_HI = 3;   // graph-tuned "S1-3"
-const LIFE_AGE_MAX = 8;           // ticks a cell counts up while alive → age→hue shade
+const LIFE_AGE_MAX = 12;          // ticks a cell counts up while alive
 let lifeCell = new Int8Array(0);  // 0 dead, 1..LIFE_AGE_MAX alive (age in ticks)
+let lifeHue = new Float32Array(0);// per-cell hue 0..1
+let lifeBri = new Float32Array(0);// per-cell brightness multiplier (default 1)
+let lifeTtl = new Float32Array(0);// per-cell "held on" seconds remaining (0 = rule governs)
 let lifeGlow = new Float32Array(0); // smoothed render brightness (fades on death)
 let lifeAcc = 0;
 let lifeN = -1;
-let lifeSeeds: { i: number; hops: number }[] = []; // pending pokes → birth next tick
-export const lifeOut = { bri: new Float32Array(0), age: new Float32Array(0) };
+export const lifeOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
+export interface SeedOpts { hops?: number; hue?: number; bri?: number; ttl?: number }
+let lifeSeeds: { i: number; o: SeedOpts }[] = []; // pending pokes → birth next frame
+let baseHueFn: (i: number) => number = () => 0.05;
 
-/** Presence/sensor poke: request a birth at these fixture indices (and let the Life
- *  rule propagate the disturbance outward across neighbour hops next ticks). `hops`
- *  grows the seeded blob (0 = just the cell, 1 = + neighbours, 2 = + neighbours-of-…). */
-export function seedLife(indices: number[], hops = 1) {
-  const h = Math.max(0, Math.round(hops));
-  for (const i of indices) lifeSeeds.push({ i, hops: h });
+/** Presence/sensor poke: birth a blob at these fixtures and TAG it with a response —
+ *  `hue` (reaction colour), `bri` (brightness), `ttl` (seconds the light stays on),
+ *  `hops` (how far the blob spreads across neighbours). The Game of Life then carries
+ *  the disturbance onward. Omitted fields fall back to the living field's defaults. */
+export function seedLife(indices: number[], opts: SeedOpts = {}) {
+  for (const i of indices) lifeSeeds.push({ i, o: opts });
+}
+
+function reseedLife(n: number, fixtures: SimFixture[]) {
+  lifeCell = new Int8Array(n); lifeHue = new Float32Array(n);
+  lifeBri = new Float32Array(n).fill(1); lifeTtl = new Float32Array(n);
+  lifeGlow = new Float32Array(n);
+  lifeOut.bri = new Float32Array(n); lifeOut.hue = new Float32Array(n);
+  baseHueFn = (i: number) => (0.02 + fixtures[i].heightT * 0.10 + fixtures[i].rnd * 0.04) % 1; // warm ambers/reds
+  for (let i = 0; i < n; i++) { if (fixtures[i].rnd < 0.16) lifeCell[i] = 1; lifeHue[i] = baseHueFn(i); }
+  lifeN = n;
 }
 
 export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
   const n = fixtures.length;
-  if (lifeN !== n) {
-    lifeCell = new Int8Array(n);
-    lifeGlow = new Float32Array(n);
-    lifeOut.bri = new Float32Array(n);
-    lifeOut.age = new Float32Array(n);
-    // seed ~18% alive so there's something living from frame 1
-    for (let i = 0; i < n; i++) lifeCell[i] = fixtures[i].rnd < 0.18 ? 1 : 0;
-    lifeN = n;
-  }
-  // drain any pending sensor pokes → birth that cell + its neighbours out to `hops`
+  if (lifeN !== n) reseedLife(n, fixtures);
+  const dts = Math.min(0.1, Math.max(0, dt));
+
+  // drain sensor pokes → birth a blob out to `hops`, tagged with the response
   if (lifeSeeds.length) {
-    for (const { i, hops } of lifeSeeds) {
+    for (const { i, o } of lifeSeeds) {
       if (i < 0 || i >= n) continue;
-      let frontier = [i];
-      const seen = new Set<number>([i]);
-      if (lifeCell[i] === 0) lifeCell[i] = 1;
+      const hops = Math.max(0, Math.round(o.hops ?? 1));
+      let frontier = [i]; const seen = new Set<number>([i]);
+      const tag = (c: number, atten: number) => {
+        lifeCell[c] = Math.max(1, lifeCell[c]);
+        if (o.hue != null) lifeHue[c] = o.hue;
+        if (o.bri != null) lifeBri[c] = o.bri * atten;
+        if (o.ttl != null && o.ttl > 0) lifeTtl[c] = Math.max(lifeTtl[c], o.ttl * (0.6 + 0.4 * atten));
+      };
+      tag(i, 1);
       for (let h = 0; h < hops; h++) {
         const nextFront: number[] = [];
+        const atten = 1 - (h + 1) / (hops + 1); // outer ring a touch dimmer/shorter
         for (const c of frontier) for (const j of fixtures[c].neighbors) {
-          if (seen.has(j)) continue;
-          seen.add(j); nextFront.push(j);
-          if (lifeCell[j] === 0) lifeCell[j] = 1;
+          if (seen.has(j)) continue; seen.add(j); nextFront.push(j); tag(j, atten);
         }
         frontier = nextFront;
       }
     }
     lifeSeeds = [];
   }
-  const TICK = 0.42 / (0.5 + speed); // slow, organic generations (speed dial rides it)
-  lifeAcc += Math.min(0.1, Math.max(0, dt));
-  if (lifeAcc >= TICK) {
-    lifeAcc -= TICK;
+
+  // count down "held on" cells every frame → gives the rules editor a real TIME-ON knob
+  for (let i = 0; i < n; i++) if (lifeTtl[i] > 0) {
+    lifeTtl[i] -= dts;
+    if (lifeTtl[i] <= 0) { lifeTtl[i] = 0; lifeCell[i] = 0; } // held time elapsed → let it fade
+  }
+
+    const TICK = 0.6 / (0.14 + speed); // generations — speed clearly rides this: slow≈1.8s/gen, fast≈0.19s/gen
+  lifeAcc += dts;
+  let ticked = false;
+  while (lifeAcc >= TICK) {
+    lifeAcc -= TICK; ticked = true;
     const next = new Int8Array(n);
+    const nextHue = new Float32Array(n);
+    const churn = 0.005 + 0.022 * Math.min(1.5, speed); // spontaneous births — calm when slow, busy when fast, never freezes
     let live = 0;
     for (let i = 0; i < n; i++) {
       const nb = fixtures[i].neighbors;
-      let a = 0;
-      for (let k = 0; k < nb.length; k++) if (lifeCell[nb[k]] > 0) a++;
+      let a = 0, cx = 0, cy = 0;
+      for (let k = 0; k < nb.length; k++) if (lifeCell[nb[k]] > 0) { a++; const hh = lifeHue[nb[k]] * TAU; cx += Math.cos(hh); cy += Math.sin(hh); }
       const alive = lifeCell[i] > 0;
-      let born: boolean;
-      if (alive) born = a >= SURV_LO && a <= SURV_HI;
-      else born = a >= BORN_LO && a <= BORN_HI;
-      if (!born && !alive && Math.random() < 0.006) born = true; // rare spontaneous spark
-      next[i] = born ? Math.min(LIFE_AGE_MAX, (alive ? lifeCell[i] : 0) + 1) : 0;
-      if (next[i] > 0) live++;
+      const held = lifeTtl[i] > 0; // click-held cells ignore the rule until their time is up
+      let born = held || (alive ? a >= SURV_LO && a <= SURV_HI : a >= BORN_LO && a <= BORN_HI);
+      // perpetual churn: rare spontaneous birth, rare isolated death → continual motion
+      if (!born && !alive && Math.random() < churn) born = true;
+      if (born && alive && !held && a <= 1 && Math.random() < 0.06) born = false;
+      if (born) {
+        next[i] = Math.min(LIFE_AGE_MAX, (alive ? lifeCell[i] : 0) + 1);
+        // colour: keep own if alive/held, else inherit neighbours' mean (diffuses colour),
+        // else base warm. Slow drift back toward base so injected colour eventually fades.
+        let hue = alive || held ? lifeHue[i] : (a > 0 ? (Math.atan2(cy, cx) / TAU + 1) % 1 : baseHueFn(i));
+        if (!held) { let d = baseHueFn(i) - hue; d -= Math.round(d); hue = (hue + d * 0.05 + 1) % 1; }
+        nextHue[i] = hue;
+        live++;
+      } else { next[i] = 0; nextHue[i] = lifeHue[i]; }
     }
-    // guard against total extinction — reseed a few cells if the field flatlines
-    if (live < 3) for (let s = 0; s < 6; s++) next[(Math.random() * n) | 0] = 1;
-    lifeCell = next;
+    if (live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = baseHueFn(j); }
+    lifeCell = next; lifeHue = nextHue;
   }
-  // smoothed render: alive → glow up fast, dead → fade out slow (ember tail, no strobe)
-  const up = Math.min(1, Math.max(0, dt) * 6);
-  const down = Math.min(1, Math.max(0, dt) * 2.2);
+
+  // smoothed render — alive glows up, dead fades out; both snappier at higher speed so
+  // the SPEED dial visibly changes the pace (not just the invisible generation clock).
+  const up = Math.min(1, dts * (2 + speed * 5));
+  const down = Math.min(1, dts * (1 + speed * 1.8));
   for (let i = 0; i < n; i++) {
-    const alive = lifeCell[i] > 0;
-    const target = alive ? 1 : 0;
-    lifeGlow[i] += (target - lifeGlow[i]) * (alive ? up : down);
+    const target = lifeCell[i] > 0 ? Math.min(1.4, lifeBri[i]) : 0;
+    lifeGlow[i] += (target - lifeGlow[i]) * (lifeCell[i] > 0 ? up : down);
     lifeOut.bri[i] = lifeGlow[i];
-    lifeOut.age[i] = alive ? (lifeCell[i] - 1) / (LIFE_AGE_MAX - 1) : 1; // young→old 0..1
+    lifeOut.hue[i] = lifeHue[i];
   }
+  void ticked;
 }
 
 // ── REACTION-DIFFUSION (Gray-Scott) on the neighbour graph — organic blobs that

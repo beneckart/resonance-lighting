@@ -6,7 +6,7 @@ import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSid
 import { useTwin, CA_RULES, type SimFixture } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
-import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, seedLife, lorenzFoci } from "./field";
+import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, lorenzFoci } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
@@ -244,24 +244,9 @@ export function TreeLights() {
       updateRipples(fixtures, delta, ctrl.speed);
     }
     // Game of Life on the neighbour graph — tick once per frame if any look uses it.
-    // Presence pings (the "wand" poke) seed births at the nearest fixture so the
-    // disturbance rolls outward across neighbour hops.
+    // Cell seeding is owned by the event sources (store.triggerAt / pingPresence), so a
+    // tap's colour/brightness/time-on tag the cells directly — here we just evolve.
     if (ctrl.pattern === "life" || st.layers.some((l) => l.control.pattern === "life")) {
-      if (st.ripples.length) {
-        const nowS0 = performance.now() / 1000;
-        const seedIdx: number[] = [];
-        for (const rp of st.ripples) {
-          if (nowS0 - rp.t0 > 0.2) continue; // only fresh pokes
-          let best = -1, bestD = Infinity;
-          for (let i = 0; i < n; i++) {
-            const dx = fixtures[i].pos[0] - rp.x, dy = fixtures[i].pos[1] - rp.y, dz = fixtures[i].pos[2] - rp.z;
-            const d = dx * dx + dy * dy + dz * dz;
-            if (d < bestD) { bestD = d; best = i; }
-          }
-          if (best >= 0) seedIdx.push(best);
-        }
-        if (seedIdx.length) seedLife(seedIdx);
-      }
       updateLife(fixtures, delta, ctrl.speed);
     }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
@@ -303,12 +288,11 @@ export function TreeLights() {
         col.setHSL(hue, fctrl.sat, 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "life") {
-        // Game of Life: newborn cells bright + warm at the picked hue; as a cell ages
-        // it shades along a warm arc (picked hue → +0.14) and dims toward its ember tail.
-        const bv = lifeOut.bri[i] * fctrl.brightness;
-        const age = lifeOut.age[i]; // 0 young → 1 old/dying
-        const hue = ((fctrl.hue + age * 0.14) % 1 + 1) % 1;
-        col.setHSL(hue, Math.max(0.55, fctrl.sat), 0.5 - age * 0.08);
+        // Game of Life: each cell carries its OWN hue + brightness (base warm field, or
+        // the colour a click/sensor tagged it with). The engine already folds per-cell
+        // brightness into lifeOut.bri; render uses the per-cell hue directly.
+        const bv = Math.min(1.4, lifeOut.bri[i]) * fctrl.brightness;
+        col.setHSL(lifeOut.hue[i], Math.max(0.55, fctrl.sat), 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "piano") {
         const m = fixtureMidi(fixtures, i);

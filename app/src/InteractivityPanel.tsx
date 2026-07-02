@@ -44,7 +44,7 @@ export function InteractivityPanel() {
   };
 
   return (
-    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={430} accent="#3ddc97">
+    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={476} accent="#3ddc97">
       <div style={{ fontSize: 10.5, color: "#8fb9a6", lineHeight: 1.35, marginBottom: 8 }}>
         The tree lives on its own <b>local rules</b> — each light decides from its
         neighbours. <b style={{ color: "#b7f5db" }}>Tap the tree</b> to fire a sensor there;
@@ -93,9 +93,13 @@ export function InteractivityPanel() {
               style={{ width: "100%", accentColor: `hsl(${tr.hue * 360},85%,55%)` }} />
           </Row>
         )}
-        <Row label={`Intensity · ${tr.intensity.toFixed(1)}×`}>
+        <Row label={`Brightness · ${tr.intensity.toFixed(1)}×`}>
           <input type="range" min={0.2} max={2.5} step={0.1} value={tr.intensity}
             onChange={(e) => setTr({ intensity: +e.target.value })} style={{ width: "100%" }} />
+        </Row>
+        <Row label={`Time on · ${tr.duration.toFixed(1)}s`}>
+          <input type="range" min={0.5} max={15} step={0.5} value={tr.duration}
+            onChange={(e) => setTr({ duration: +e.target.value })} style={{ width: "100%" }} />
         </Row>
         <Row label={`Spread · ${tr.spread.toFixed(1)}${control.pattern === "life" ? ` · ${Math.max(1, Math.round(tr.spread * 2))} hops` : ""}`}>
           <input type="range" min={0.3} max={2} step={0.1} value={tr.spread}

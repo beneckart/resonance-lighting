@@ -68,12 +68,13 @@ export const TRIGGER_COLOR_MODES: TriggerColorMode[] = ["fixed", "random", "cycl
 export interface TriggerRule {
   rule: PatternId; // CA the tree runs / a touch kicks
   hue: number; // reaction colour 0..1 (used when colorMode = "fixed")
-  intensity: number; // 0..2 brightness boost at the wavefront
+  intensity: number; // 0..2.5 brightness of the reaction
   spread: number; // 0.3..2 how far/fast the disturbance rolls (radius/speed + Life hops)
+  duration: number; // seconds the triggered lights stay ON before fading (Life: cell ttl)
   colorMode: TriggerColorMode;
 }
 export const DEFAULT_TRIGGER_RULE: TriggerRule = {
-  rule: "life", hue: 0.05, intensity: 1.6, spread: 1, colorMode: "cycle",
+  rule: "life", hue: 0.05, intensity: 1.6, spread: 1, duration: 4, colorMode: "cycle",
 };
 
 export interface SimFixture {
@@ -398,11 +399,21 @@ export const useTwin = create<TwinState>((setState, get) => ({
   setTimeline: (p) => setState((s) => ({ timeline: { ...s.timeline, ...p } })),
   pingPresence: (origin) =>
     setState((s) => {
-      const o =
-        origin ??
-        (s.fixtures.length ? s.fixtures[Math.floor(Math.random() * s.fixtures.length)].pos : [0, 0, 0]);
+      // pick the fixture at/nearest the ping (or a random one for the ambient motion sim)
+      let idx = -1;
+      if (origin && s.fixtures.length) {
+        let bd = Infinity;
+        for (let i = 0; i < s.fixtures.length; i++) {
+          const p = s.fixtures[i].pos;
+          const d = (p[0] - origin[0]) ** 2 + (p[1] - origin[1]) ** 2 + (p[2] - origin[2]) ** 2;
+          if (d < bd) { bd = d; idx = i; }
+        }
+      } else if (s.fixtures.length) idx = Math.floor(Math.random() * s.fixtures.length);
+      const o = idx >= 0 ? s.fixtures[idx].pos : (origin ?? [0, 0, 0]);
       const t0 = performance.now() / 1000;
-      const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-8);
+      const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-16);
+      // in Game of Life, a presence ping also seeds a small living blob there
+      if (idx >= 0 && s.control.pattern === "life") seedLife([idx], { hops: 2 });
       return { ripples };
     }),
   // fire a SENSOR at fixture `idx` (a touch/click on the tree): push a colour+
@@ -422,8 +433,11 @@ export const useTwin = create<TwinState>((setState, get) => ({
       ...s.ripples.filter((r) => t0 - r.t0 < 3),
       { x: o[0], y: o[1], z: o[2], t0, hue, intensity: tr.intensity, spread: tr.spread },
     ].slice(-16); // keep more for multi-touch
-    // Game of Life: seed live cells at the sensor, spread grows the birth blob
-    if (s.control.pattern === "life") seedLife([idx], Math.max(1, Math.round(tr.spread * 2)));
+    // Game of Life: seed live cells at the sensor, TAGGED with the rule's colour /
+    // brightness / time-on; spread grows the birth blob. The field carries it onward.
+    if (s.control.pattern === "life") {
+      seedLife([idx], { hops: Math.max(1, Math.round(tr.spread * 2)), hue, bri: tr.intensity, ttl: tr.duration });
+    }
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
