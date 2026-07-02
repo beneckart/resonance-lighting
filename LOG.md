@@ -12,6 +12,36 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Boost A/B harness live; bare-hex baseline captured
+
+Ben's harness: desk | bare HEX | upside-down 3D-printed lantern proto (cylindrical
+tube) | VEML7700 taped at the tube exit, ~6 in from the hex. Look: center pixel only,
+r=g=b=255, w=0, bri=255, PowerFeather battery-only (sv=0.02). New
+`ops/bench/boost_ab_log.py` merges the KB2040 'ina'/'lux' serial stream with
+led_studio /state into labeled JSONL (ops/bench/data/boost_ab/).
+
+INA channel map CONFIRMED (corrects the earlier idle-based guess, which had it
+backwards): **0x41 = LED power out, 0x45 = battery (charge-positive, so discharge
+reads negative)**. Three independent cross-checks: (1) 0x41 = 42.1 mA at center-white
+== the known 41.8 mA single-px number from 2026-06-11; (2) 0x45 = -170 mA vs the fuel
+gauge's -175 mA; (3) LED-off floor: 0x41 drops to 8.3 mA (= 37-px dark quiescent),
+0x45 stays ~-135 mA (ESP + WiFi overhead). Budget closes: 42 (LED) + ~128 (system) ~=
+170 (battery).
+
+Bare-hex baseline (60 s, `2026-07-02_091851_bare-center-rgbwhite-full.jsonl`):
+**215.6 lux** (sd 0.22) at the tube exit; LED 42.1 mA @ 3.19 V = **0.134 W**; battery
+170 mA @ 3.16 V = **0.537 W** system. Ambient-dark reference (bri=0, same position):
+**2.3 lux** floor -- LED dominates the reading; look restored and verified after.
+
+Caution flag: a quick 12 s glance ~10 min before the logged run read 167.3 lux at the
+SAME LED current (42.3 mA) -- a 29 % optical difference with an unchanged electrical
+operating point, almost certainly geometry (final taping happened in between), not the
+LED. Protocol consequences for the A/B: (1) nothing moves once positioned -- mark the
+hex outline on the desk so bare and boosted hexes seat identically under the tube;
+(2) take an ambient-dark reference each session; (3) run bare vs boosted back-to-back
+at similar SOC; (4) compare same-sliders AND matched-lux. n=1 harness, unshrouded room
+light -- treat absolute lux as position-specific, only ratios are portable.
+
 ## 2026-07-02 - Ben + Claude - ledstudio.local live on the desk board + lux channel on the monitor
 
 Two bench-tooling steps for the TPS63802 4.2 V boost experiment:
