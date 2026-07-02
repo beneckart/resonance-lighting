@@ -12,6 +12,57 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-01 - Codex - Added Modulino Buzzer and Vibro I2C controls
+
+Extended `firmware/clacker_demo/` for Ben's Arduino Modulino Buzzer and Modulino Vibro
+boards on the Metro ESP32-S3 STEMMA/Qwiic bus. The dashboard now shows Buzzer and Vibro
+detection status next to the Omron relay, has `Scan I2C`, adds `Modulino buzzer` as a
+selectable tone output, and adds Vibro `Pulse`, `Buzz`, `Soft buzz`, and `Vibro off`
+buttons.
+
+Implemented the Modulino protocol directly from the Arduino libraries instead of adding
+another dependency: Buzzer receives 8-byte little-endian frequency/duration packets at
+7-bit address `0x1E` (firmware address `0x3C`), while Vibro receives 12-byte
+frequency/duration/power packets at `0x38` (firmware address `0x70`, with a fallback probe
+for the `0x3A`/`0x1D` address listed in some docs). Existing beep/sweep/Moonlight playback
+now routes through the Modulino Buzzer when selected.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. The live
+bench detected the SparkFun relay at `0x18`, Modulino Buzzer at `0x1E`, and Modulino Vibro
+at `0x38`. Verified a short Modulino Buzzer chirp and a short Vibro pulse via the API,
+then restored the amp output selection and left all relays/audio/vibro off with default
+`420 ms` gap / `70 ms` pulse settings.
+
+## 2026-07-01 - Codex - Added Qwiic Omron relay dashboard controls
+
+Extended `firmware/clacker_demo/` so the Metro ESP32-S3 dashboard can click/clack the
+SparkFun Qwiic Omron relay on the STEMMA/Qwiic port. Added an `Omron Qwiic click` button,
+Qwiic scan/status display, and an `Start Omron` repeat-clack mode using the same gap and
+pulse-width sliders as the existing relay controls. Starting Omron repeat mode stops the
+A/B relay auto mode so the audible timing stays easy to compare.
+
+The first implementation targeted the newer TCA9555-based SparkFun Qwiic Relay Line at
+`0x20`/`0x21`, but the connected board did not detect there. Added support for the older
+SparkFun Qwiic Single Relay protocol at `0x18`/`0x19` as well; the bench board detected as
+`single` at `0x18`. Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on
+`/dev/ttyACM1`, verified the dashboard API at `http://clacker.local/`, exercised a short
+Qwiic pulse plus a short repeat-clack run, then restored defaults (`420 ms` gap, `70 ms`
+pulse) and left all relays/audio off.
+
+## 2026-07-01 - Codex - Added selectable D5/D6/D7 noisemaker outputs
+
+Updated `firmware/clacker_demo/` after Ben wired a passive piezo to Metro `D6`/GPIO6 and
+a SparkFun RedBot buzzer to `D7`/GPIO7 while keeping the 8002A amp/speaker on `D5`/GPIO5.
+The dashboard now has a noisemaker selector plus quick chirp buttons for amp, piezo, and
+RedBot; all existing beep, sweep, and melody controls play through the selected output.
+The firmware detaches the prior LEDC/PWM pin before moving playback to another output so
+only one noisemaker is driven at a time. The large alarm remains intentionally unpowered.
+
+Rebuilt and reflashed the connected Adafruit Metro ESP32-S3 on `/dev/ttyACM1`. Verified
+the board rejoined as `http://clacker.local/` / `192.168.4.57`, exercised short chirps on
+all three outputs via the API, muted playback, and left the selected output back on the
+8002A amp.
+
 ## 2026-07-01 - Codex - Extended Moonlight to first high melody entrance
 
 Extended the `Moonlight` button in `firmware/clacker_demo/` so it continues past the

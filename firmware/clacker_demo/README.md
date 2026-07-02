@@ -7,7 +7,10 @@ It connects to the shared WiFi AP and serves a small dashboard with:
 
 - relay pulse buttons for A0, A1, and both;
 - adjustable A/B auto-clack timing;
-- short tone, sweep, and melody buttons for an 8002A amplifier/speaker module.
+- Qwiic/STEMMA relay click and repeat-clack controls;
+- selectable noisemaker output on D5, D6, D7, or Modulino Buzzer over I2C;
+- Modulino Vibro pulse/buzz controls over I2C;
+- short tone, sweep, and melody buttons for the selected noisemaker.
 
 ## Wiring
 
@@ -17,9 +20,20 @@ Metro GND       -> relay module GND pins
 Metro A0        -> relay module A IN
 Metro A1        -> relay module B IN
 
+Metro STEMMA/Qwiic -> SparkFun Qwiic Omron relay
+Metro STEMMA/Qwiic -> Arduino Modulino Buzzer
+Metro STEMMA/Qwiic -> Arduino Modulino Vibro
+
 Metro 3V3       -> 8002A V
 Metro GND       -> 8002A G
 Metro D5/GPIO5  -> 8002A S
+
+Metro D6/GPIO6  -> passive piezo lead 1
+Metro GND       -> passive piezo lead 2
+
+Metro 3V3       -> RedBot buzzer POW
+Metro GND       -> RedBot buzzer GND
+Metro D7/GPIO7  -> RedBot buzzer signal
 ```
 
 The relay outputs assume high-trigger relay modules: LOW is idle, HIGH energizes the
@@ -27,10 +41,25 @@ relay. If a relay module is silent with `3V3 -> VCC` and the relay can is marked
 `SRD-05VDC-*`, try `5V -> VCC` from USB power, keep grounds common, and leave the MCU
 pin connected to `IN`. Do not drive a bare relay coil directly from an MCU pin.
 
-For the speaker module, `D5/GPIO5` is a PWM/tone output. The 8002A README shows classic
-ESP32 DAC pins GPIO25/GPIO26, but the Metro ESP32-S3 does not expose the old ESP32 DAC
-peripheral. PWM square-wave tone output is enough for this click/tune bench. If the
-module is too loud or harsh, put a 1k-10k resistor in series with `S`.
+The Qwiic relay is controlled over the Metro ESP32-S3 STEMMA bus (`SDA`/GPIO47,
+`SCL`/GPIO48). The firmware supports both SparkFun protocols seen on these relay boards:
+the older Qwiic Single Relay at `0x18`/`0x19` and the newer TCA9555-based relay at
+`0x20`/`0x21`. The dashboard reports which one was detected.
+
+The Arduino Modulino boards are also controlled on the same STEMMA bus. The firmware uses
+the Arduino Modulino protocol directly, without adding the Arduino_Modulino library:
+Modulino Buzzer default firmware address `0x3C` appears on the 7-bit bus as `0x1E`, and
+Modulino Vibro default firmware address `0x70` appears as `0x38`. A fallback Vibro
+address `0x1D` is also probed because some Arduino docs/datasheets list `0x3A`/`0x1D`.
+If the I2C boards are plugged in after boot, press `Scan I2C`.
+
+For these noisemakers, `D5/GPIO5`, `D6/GPIO6`, and `D7/GPIO7` are PWM/tone outputs. The
+dashboard drives only one selected tone output at a time. The Modulino Buzzer is an I2C
+tone output and can also play the same beep/sweep/melody buttons. The 8002A README shows
+classic ESP32 DAC pins GPIO25/GPIO26, but the Metro ESP32-S3 does not expose the old ESP32
+DAC peripheral. PWM square-wave tone output is enough for this click/tune bench. If the
+8002A module is too loud or harsh, put a 1k-10k resistor in series with `S`; a
+100 ohm-1k series resistor is also fine on the passive piezo lead.
 
 ## WiFi
 

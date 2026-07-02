@@ -5,6 +5,7 @@
 #include <ESPmDNS.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <Wire.h>
 
 #if __has_include("wifi_secrets.h")
 #include "wifi_secrets.h"
@@ -20,9 +21,27 @@
 
 constexpr uint8_t RELAY_A_PIN = A0;     // Metro A0, GPIO14.
 constexpr uint8_t RELAY_B_PIN = A1;     // Metro A1, GPIO15.
-constexpr uint8_t SPEAKER_PIN = 5;      // Metro D5, GPIO5.
+constexpr uint8_t AMP_SPEAKER_PIN = 5;  // Metro D5, GPIO5.
+constexpr uint8_t PIEZO_PIN = 6;        // Metro D6, GPIO6.
+constexpr uint8_t REDBOT_PIN = 7;       // Metro D7, GPIO7.
 constexpr uint8_t RELAY_ACTIVE = HIGH;  // Assumes high-trigger relay modules.
 constexpr uint8_t RELAY_IDLE = LOW;
+constexpr uint8_t QWIIC_RELAY_DEFAULT_ADDR = 0x20;
+constexpr uint8_t QWIIC_RELAY_ALT_ADDR = 0x21;
+constexpr uint8_t QWIIC_SINGLE_RELAY_DEFAULT_ADDR = 0x18;
+constexpr uint8_t QWIIC_SINGLE_RELAY_ALT_ADDR = 0x19;
+constexpr uint8_t TCA9555_REG_OUTPUT0 = 0x02;
+constexpr uint8_t TCA9555_REG_CONFIG0 = 0x06;
+constexpr uint8_t QWIIC_RELAY_MASK = 0x01;      // Expander pin P00, high = relay on.
+constexpr uint8_t QWIIC_STATUS_LED_MASK = 0x02; // Expander pin P01, low = status LED on.
+constexpr uint8_t QWIIC_SINGLE_RELAY_OFF = 0x00;
+constexpr uint8_t QWIIC_SINGLE_RELAY_ON = 0x01;
+constexpr uint8_t MODULINO_BUZZER_ADDR = 0x1E;      // 7-bit form of default firmware address 0x3C.
+constexpr uint8_t MODULINO_BUZZER_STRAP = 0x3C;
+constexpr uint8_t MODULINO_VIBRO_ADDR = 0x38;       // 7-bit form of default firmware address 0x70.
+constexpr uint8_t MODULINO_VIBRO_STRAP = 0x70;
+constexpr uint8_t MODULINO_VIBRO_OLD_ADDR = 0x1D;   // Some docs/datasheets list 0x3A/0x1D.
+constexpr uint8_t MODULINO_VIBRO_OLD_STRAP = 0x3A;
 
 constexpr uint16_t MIN_PULSE_MS = 20;
 constexpr uint16_t MAX_PULSE_MS = 500;
@@ -42,6 +61,44 @@ struct Note {
   uint16_t durationMs;
 };
 
+enum class AudioOutputKind : uint8_t {
+  Pwm,
+  ModulinoBuzzer,
+};
+
+struct AudioOutput {
+  const char *id;
+  const char *label;
+  const char *pinLabel;
+  AudioOutputKind kind;
+  uint8_t pin;
+};
+
+enum class QwiicRelayKind : uint8_t {
+  None,
+  Tca9555,
+  SparkFunSingle,
+};
+
+struct QwiicRelayState {
+  bool present;
+  QwiicRelayKind kind;
+  uint8_t address;
+  bool on;
+  uint32_t pulseUntilMs;
+};
+
+struct ModulinoDeviceState {
+  bool present;
+  uint8_t address;
+  uint8_t pinstrap;
+};
+
+struct VibroState {
+  bool on;
+  uint32_t offAtMs;
+};
+
 struct SweepState {
   bool active;
   uint16_t startFreq;
@@ -55,12 +112,27 @@ struct SweepState {
 
 RelayState relayA{RELAY_A_PIN, "A0", false, 0};
 RelayState relayB{RELAY_B_PIN, "A1", false, 0};
+QwiicRelayState qwiicRelay{false, QwiicRelayKind::None, QWIIC_RELAY_DEFAULT_ADDR, false, 0};
+
+const AudioOutput audioOutputs[] = {
+    {"amp", "8002A amp", "D5 / GPIO5", AudioOutputKind::Pwm, AMP_SPEAKER_PIN},
+    {"piezo", "Passive piezo", "D6 / GPIO6", AudioOutputKind::Pwm, PIEZO_PIN},
+    {"redbot", "RedBot buzzer", "D7 / GPIO7", AudioOutputKind::Pwm, REDBOT_PIN},
+    {"modbuz", "Modulino buzzer", "I2C", AudioOutputKind::ModulinoBuzzer, 0},
+};
+constexpr size_t AUDIO_OUTPUT_COUNT = sizeof(audioOutputs) / sizeof(audioOutputs[0]);
+
+ModulinoDeviceState modulinoBuzzer{false, MODULINO_BUZZER_ADDR, 0};
+ModulinoDeviceState modulinoVibro{false, MODULINO_VIBRO_ADDR, 0};
+VibroState vibroState{false, 0};
 
 bool autoClack = false;
+bool autoQwiicClack = false;
 bool nextClackIsA = true;
 uint16_t relayPulseMs = 70;
 uint16_t clackIntervalMs = 420;
 uint32_t nextClackMs = 0;
+uint32_t nextQwiicClackMs = 0;
 
 const Note tuneScale[] = {
     {262, 170}, {294, 170}, {330, 170}, {349, 170}, {392, 170},
@@ -134,7 +206,9 @@ uint32_t noteOffMs = 0;
 uint32_t manualToneOffMs = 0;
 const char *activeTuneName = "none";
 SweepState activeSweep{false, 0, 0, 0, 0, 0, 0, "none"};
-bool speakerAttached = false;
+size_t activeOutputIndex = 0;
+size_t attachedOutputIndex = 0;
+bool toneAttached = false;
 
 WebServer server(80);
 uint32_t lastWifiReconnectMs = 0;
@@ -154,7 +228,7 @@ h1{font-size:24px;line-height:1.1;margin:0}#status{color:var(--muted);font-size:
 section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0}
 h2{font-size:16px;margin:0 0 12px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 button{min-height:42px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--text);font:inherit;font-weight:650;padding:9px 13px;cursor:pointer}
-button:hover{border-color:var(--blue)}button.primary{background:#21472f;border-color:#2d8051}button.warn{background:#4a3520;border-color:#8d641e}button.danger{background:#4d2927;border-color:#924039}
+button:hover{border-color:var(--blue)}button.selected{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}button.primary{background:#21472f;border-color:#2d8051}button.warn{background:#4a3520;border-color:#8d641e}button.danger{background:#4d2927;border-color:#924039}
 label{display:grid;gap:6px;color:var(--muted);font-size:13px}input[type=range]{width:100%;accent-color:var(--blue)}output{color:var(--text);font-variant-numeric:tabular-nums}
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 9px;color:var(--muted);font-size:13px}
 .on{color:var(--green)}.off{color:var(--muted)}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:620px){header{display:block}#status{text-align:left;margin-top:8px}.split{grid-template-columns:1fr}}
@@ -172,13 +246,20 @@ label{display:grid;gap:6px;color:var(--muted);font-size:13px}input[type=range]{w
   <div class="grid">
     <button class="primary" onclick="pulse('a')">A0 click</button>
     <button class="primary" onclick="pulse('b')">A1 click</button>
+    <button class="primary" onclick="pulse('qwiic')">Omron Qwiic click</button>
     <button onclick="pulse('both')">Both click</button>
+    <button onclick="scanI2c()">Scan I2C</button>
     <button class="danger" onclick="allOff()">All off</button>
   </div>
   <div class="row" style="margin-top:12px">
     <span class="pill">A0 <span id="relayA" class="off">off</span></span>
     <span class="pill">A1 <span id="relayB" class="off">off</span></span>
+    <span class="pill">Omron <span id="qwiicRelay" class="off">off</span></span>
+    <span class="pill">Qwiic <span id="qwiicStatus" class="off">scan...</span></span>
+    <span class="pill">Buzzer <span id="modBuzzerStatus" class="off">scan...</span></span>
+    <span class="pill">Vibro <span id="modVibroStatus" class="off">scan...</span></span>
     <span class="pill">auto <span id="autoState" class="off">off</span></span>
+    <span class="pill">omron auto <span id="autoQwiicState" class="off">off</span></span>
   </div>
 </section>
 
@@ -190,12 +271,46 @@ label{display:grid;gap:6px;color:var(--muted);font-size:13px}input[type=range]{w
   </div>
   <div class="row" style="margin-top:12px">
     <button class="warn" onclick="setClack(true)">Start A/B</button>
+    <button class="warn" onclick="setQwiicClack(true)">Start Omron</button>
     <button onclick="setClack(false)">Stop</button>
+    <button onclick="setQwiicClack(false)">Stop Omron</button>
   </div>
 </section>
 
 <section>
-  <h2>Speaker</h2>
+  <h2>Noisemaker output</h2>
+  <div class="grid">
+    <button id="out_amp" class="selected" onclick="selectOutput('amp')">8002A amp D5</button>
+    <button id="out_piezo" onclick="selectOutput('piezo')">Piezo D6</button>
+    <button id="out_redbot" onclick="selectOutput('redbot')">RedBot D7</button>
+    <button id="out_modbuz" onclick="selectOutput('modbuz')">Modulino buzzer</button>
+  </div>
+  <div class="grid" style="margin-top:10px">
+    <button class="primary" onclick="beepOutput('amp')">Amp chirp</button>
+    <button class="primary" onclick="beepOutput('piezo')">Piezo chirp</button>
+    <button class="primary" onclick="beepOutput('redbot')">RedBot chirp</button>
+    <button class="primary" onclick="beepOutput('modbuz')">Modulino chirp</button>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <span class="pill">selected <span id="outputName">8002A amp D5 / GPIO5</span></span>
+  </div>
+</section>
+
+<section>
+  <h2>Modulino vibro</h2>
+  <div class="grid">
+    <button class="primary" onclick="vibro('pulse')">Pulse</button>
+    <button class="warn" onclick="vibro('buzz')">Buzz</button>
+    <button onclick="vibro('soft')">Soft buzz</button>
+    <button class="danger" onclick="vibro('off')">Vibro off</button>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <span class="pill">state <span id="vibroState" class="off">off</span></span>
+  </div>
+</section>
+
+<section>
+  <h2>Tones</h2>
   <div class="grid">
     <button class="primary" onclick="beep(440,180)">440 Hz</button>
     <button class="primary" onclick="beep(880,160)">880 Hz</button>
@@ -209,7 +324,7 @@ label{display:grid;gap:6px;color:var(--muted);font-size:13px}input[type=range]{w
     <button class="danger" onclick="tune('stop')">Mute</button>
   </div>
   <div class="row" style="margin-top:12px">
-    <span class="pill">pin <span>D5 / GPIO5</span></span>
+    <span class="pill">output <span id="outputPin">D5 / GPIO5</span></span>
     <span class="pill">tune <span id="tuneName">none</span></span>
   </div>
 </section>
@@ -217,6 +332,7 @@ label{display:grid;gap:6px;color:var(--muted);font-size:13px}input[type=range]{w
 
 <script>
 const $=id=>document.getElementById(id);
+const outputButtons={amp:'out_amp',piezo:'out_piezo',redbot:'out_redbot',modbuz:'out_modbuz'};
 let settingsTimer=0;
 let slidersDirtyUntil=0;
 function syncLabels(){
@@ -248,19 +364,41 @@ async function api(path){
 function pulse(which){api(`/api/pulse?which=${which}&ms=${$('pulseMs').value}`)}
 function allOff(){api('/api/alloff')}
 function setClack(on){api(`/api/clack?on=${on?1:0}&interval=${$('interval').value}&pulse=${$('pulseMs').value}`)}
+function setQwiicClack(on){api(`/api/qwiic_clack?on=${on?1:0}&interval=${$('interval').value}&pulse=${$('pulseMs').value}`)}
+function scanI2c(){api('/api/i2c_scan')}
+function selectOutput(id){api(`/api/output?id=${id}`)}
 function beep(freq,ms){api(`/api/beep?freq=${freq}&ms=${ms}`)}
+function beepOutput(id){api(`/api/beep?output=${id}&freq=880&ms=180`)}
+function vibro(mode){api(`/api/vibro?mode=${mode}`)}
 function tune(id){api(`/api/tune?id=${id}`)}
 function sweep(id){api(`/api/sweep?id=${id}`)}
 function setFlag(id,on){const e=$(id);e.textContent=on?'on':'off';e.className=on?'on':'off'}
 function applyState(s,allowSliderUpdate=true){
   setFlag('relayA',s.relay_a);
   setFlag('relayB',s.relay_b);
+  setFlag('qwiicRelay',s.qwiic_relay_on);
   setFlag('autoState',s.auto_clack);
+  setFlag('autoQwiicState',s.auto_qwiic_clack);
+  setFlag('vibroState',s.modulino_vibro_on);
+  const qs=$('qwiicStatus');
+  qs.textContent=s.qwiic_relay_present?`${s.qwiic_relay_kind} 0x${Number(s.qwiic_relay_addr).toString(16)}`:'missing';
+  qs.className=s.qwiic_relay_present?'on':'off';
+  const bs=$('modBuzzerStatus');
+  bs.textContent=s.modulino_buzzer_present?`0x${Number(s.modulino_buzzer_addr).toString(16)}`:'missing';
+  bs.className=s.modulino_buzzer_present?'on':'off';
+  const vs=$('modVibroStatus');
+  vs.textContent=s.modulino_vibro_present?`0x${Number(s.modulino_vibro_addr).toString(16)}`:'missing';
+  vs.className=s.modulino_vibro_present?'on':'off';
   if(allowSliderUpdate && Date.now()>slidersDirtyUntil){
     $('interval').value=s.clack_interval_ms;
     $('pulseMs').value=s.relay_pulse_ms;
     syncLabels();
   }
+  for(const id in outputButtons){
+    $(outputButtons[id]).classList.toggle('selected',s.output===id);
+  }
+  $('outputName').textContent=`${s.output_label} ${s.output_pin}`;
+  $('outputPin').textContent=s.output_pin;
   $('tuneName').textContent=s.tune;
   $('status').textContent=`${s.ip}  RSSI ${s.rssi_dbm} dBm`;
 }
@@ -293,11 +431,238 @@ void setRelay(RelayState &relay, bool on) {
   digitalWrite(relay.pin, on ? RELAY_ACTIVE : RELAY_IDLE);
 }
 
+bool qwiicWriteRegister(uint8_t address, uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(address);
+  Wire.write(reg);
+  Wire.write(value);
+  return Wire.endTransmission() == 0;
+}
+
+bool qwiicWriteCommand(uint8_t address, uint8_t command) {
+  Wire.beginTransmission(address);
+  Wire.write(command);
+  return Wire.endTransmission() == 0;
+}
+
+bool i2cWriteBytes(uint8_t address, const uint8_t *buf, size_t len) {
+  Wire.beginTransmission(address);
+  for (size_t i = 0; i < len; i++) {
+    Wire.write(buf[i]);
+  }
+  return Wire.endTransmission() == 0;
+}
+
+void putU32LE(uint8_t *buf, size_t offset, uint32_t value) {
+  buf[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  buf[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  buf[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  buf[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
+bool i2cDeviceAcks(uint8_t address) {
+  Wire.beginTransmission(address);
+  return Wire.endTransmission() == 0;
+}
+
+bool readFirstByte(uint8_t address, uint8_t &value) {
+  const uint8_t count = Wire.requestFrom(address, static_cast<uint8_t>(1));
+  if (count < 1 || !Wire.available()) {
+    return false;
+  }
+  value = Wire.read();
+  return true;
+}
+
+bool detectModulino(ModulinoDeviceState &device, const uint8_t *addresses,
+                    const uint8_t *pinstraps, size_t count) {
+  device.present = false;
+  device.pinstrap = 0;
+
+  for (size_t i = 0; i < count; i++) {
+    if (!i2cDeviceAcks(addresses[i])) {
+      continue;
+    }
+
+    uint8_t pinstrap = 0;
+    if (readFirstByte(addresses[i], pinstrap) && pinstrap == pinstraps[i]) {
+      device.address = addresses[i];
+      device.pinstrap = pinstrap;
+      device.present = true;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool initModulinoBuzzer() {
+  const uint8_t addresses[] = {MODULINO_BUZZER_ADDR};
+  const uint8_t pinstraps[] = {MODULINO_BUZZER_STRAP};
+  return detectModulino(modulinoBuzzer, addresses, pinstraps, sizeof(addresses) / sizeof(addresses[0]));
+}
+
+bool initModulinoVibro() {
+  const uint8_t addresses[] = {MODULINO_VIBRO_ADDR, MODULINO_VIBRO_OLD_ADDR};
+  const uint8_t pinstraps[] = {MODULINO_VIBRO_STRAP, MODULINO_VIBRO_OLD_STRAP};
+  return detectModulino(modulinoVibro, addresses, pinstraps, sizeof(addresses) / sizeof(addresses[0]));
+}
+
+void initModulinoDevices() {
+  initModulinoBuzzer();
+  initModulinoVibro();
+}
+
+bool ensureModulinoBuzzer() {
+  return modulinoBuzzer.present || initModulinoBuzzer();
+}
+
+bool ensureModulinoVibro() {
+  return modulinoVibro.present || initModulinoVibro();
+}
+
+bool modulinoBuzzerTone(uint16_t freq, uint16_t durationMs) {
+  if (!ensureModulinoBuzzer()) {
+    return false;
+  }
+  uint8_t buf[8] = {};
+  if (freq != 0) {
+    freq = clampU16(freq, 180, 6000);
+  }
+  putU32LE(buf, 0, freq);
+  putU32LE(buf, 4, durationMs);
+  const bool ok = i2cWriteBytes(modulinoBuzzer.address, buf, sizeof(buf));
+  if (!ok) {
+    modulinoBuzzer.present = false;
+  }
+  return ok;
+}
+
+void modulinoBuzzerQuiet() {
+  if (modulinoBuzzer.present) {
+    modulinoBuzzerTone(0, 0);
+  }
+}
+
+bool modulinoVibroOff() {
+  vibroState.on = false;
+  vibroState.offAtMs = 0;
+  if (!modulinoVibro.present && !initModulinoVibro()) {
+    return false;
+  }
+  uint8_t buf[12] = {};
+  const bool ok = i2cWriteBytes(modulinoVibro.address, buf, sizeof(buf));
+  if (!ok) {
+    modulinoVibro.present = false;
+  }
+  return ok;
+}
+
+bool modulinoVibroOn(uint16_t durationMs, uint8_t power) {
+  if (!ensureModulinoVibro()) {
+    return false;
+  }
+  durationMs = clampU16(durationMs, 20, 8000);
+  power = static_cast<uint8_t>(clampU16(power, 25, 75));
+  uint8_t buf[12] = {};
+  putU32LE(buf, 0, 1000);
+  putU32LE(buf, 4, durationMs);
+  putU32LE(buf, 8, power);
+  const bool ok = i2cWriteBytes(modulinoVibro.address, buf, sizeof(buf));
+  if (!ok) {
+    modulinoVibro.present = false;
+    vibroState.on = false;
+    vibroState.offAtMs = 0;
+    return false;
+  }
+  vibroState.on = true;
+  vibroState.offAtMs = millis() + durationMs + 20;
+  return true;
+}
+
+bool qwiicRelayWriteOutput(bool on) {
+  if (!qwiicRelay.present) {
+    return false;
+  }
+
+  bool ok = false;
+  if (qwiicRelay.kind == QwiicRelayKind::Tca9555) {
+    const uint8_t output = on ? QWIIC_RELAY_MASK : QWIIC_STATUS_LED_MASK;
+    ok = qwiicWriteRegister(qwiicRelay.address, TCA9555_REG_OUTPUT0, output);
+  } else if (qwiicRelay.kind == QwiicRelayKind::SparkFunSingle) {
+    ok = qwiicWriteCommand(qwiicRelay.address, on ? QWIIC_SINGLE_RELAY_ON : QWIIC_SINGLE_RELAY_OFF);
+  }
+
+  if (!ok) {
+    qwiicRelay.present = false;
+    qwiicRelay.kind = QwiicRelayKind::None;
+    qwiicRelay.on = false;
+    qwiicRelay.pulseUntilMs = 0;
+    return false;
+  }
+  qwiicRelay.on = on;
+  return true;
+}
+
+bool initQwiicRelay() {
+  const uint8_t tcaAddresses[] = {QWIIC_RELAY_DEFAULT_ADDR, QWIIC_RELAY_ALT_ADDR};
+  const uint8_t singleAddresses[] = {QWIIC_SINGLE_RELAY_DEFAULT_ADDR, QWIIC_SINGLE_RELAY_ALT_ADDR};
+  qwiicRelay.present = false;
+  qwiicRelay.kind = QwiicRelayKind::None;
+  qwiicRelay.on = false;
+  qwiicRelay.pulseUntilMs = 0;
+
+  for (const uint8_t address : tcaAddresses) {
+    const bool outputOk = qwiicWriteRegister(address, TCA9555_REG_OUTPUT0, QWIIC_STATUS_LED_MASK);
+    const bool configOk = qwiicWriteRegister(address, TCA9555_REG_CONFIG0, 0xFC);
+    if (outputOk && configOk) {
+      qwiicRelay.address = address;
+      qwiicRelay.kind = QwiicRelayKind::Tca9555;
+      qwiicRelay.present = true;
+      qwiicRelay.on = false;
+      return true;
+    }
+  }
+
+  for (const uint8_t address : singleAddresses) {
+    if (qwiicWriteCommand(address, QWIIC_SINGLE_RELAY_OFF)) {
+      qwiicRelay.address = address;
+      qwiicRelay.kind = QwiicRelayKind::SparkFunSingle;
+      qwiicRelay.present = true;
+      qwiicRelay.on = false;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool ensureQwiicRelay() {
+  return qwiicRelay.present || initQwiicRelay();
+}
+
+bool setQwiicRelay(bool on) {
+  if (!ensureQwiicRelay()) {
+    return false;
+  }
+  return qwiicRelayWriteOutput(on);
+}
+
+const char *qwiicRelayKindLabel() {
+  if (qwiicRelay.kind == QwiicRelayKind::Tca9555) {
+    return "tca9555";
+  }
+  if (qwiicRelay.kind == QwiicRelayKind::SparkFunSingle) {
+    return "single";
+  }
+  return "none";
+}
+
 void allRelaysOff() {
   relayA.pulseUntilMs = 0;
   relayB.pulseUntilMs = 0;
+  qwiicRelay.pulseUntilMs = 0;
   setRelay(relayA, false);
   setRelay(relayB, false);
+  setQwiicRelay(false);
 }
 
 void pulseRelay(RelayState &relay, uint16_t durationMs) {
@@ -306,10 +671,33 @@ void pulseRelay(RelayState &relay, uint16_t durationMs) {
   relay.pulseUntilMs = millis() + durationMs;
 }
 
+bool pulseQwiicRelay(uint16_t durationMs) {
+  if (!setQwiicRelay(true)) {
+    return false;
+  }
+  durationMs = clampU16(durationMs, MIN_PULSE_MS, MAX_PULSE_MS);
+  qwiicRelay.pulseUntilMs = millis() + durationMs;
+  return true;
+}
+
 void serviceRelayPulse(RelayState &relay, uint32_t nowMs) {
   if (relay.pulseUntilMs != 0 && static_cast<int32_t>(nowMs - relay.pulseUntilMs) >= 0) {
     relay.pulseUntilMs = 0;
     setRelay(relay, false);
+  }
+}
+
+void serviceQwiicRelayPulse(uint32_t nowMs) {
+  if (qwiicRelay.pulseUntilMs != 0 &&
+      static_cast<int32_t>(nowMs - qwiicRelay.pulseUntilMs) >= 0) {
+    qwiicRelay.pulseUntilMs = 0;
+    setQwiicRelay(false);
+  }
+}
+
+void serviceVibro(uint32_t nowMs) {
+  if (vibroState.offAtMs != 0 && static_cast<int32_t>(nowMs - vibroState.offAtMs) >= 0) {
+    modulinoVibroOff();
   }
 }
 
@@ -323,6 +711,27 @@ void serviceAutoClack(uint32_t nowMs) {
   nextClackMs = nowMs + clackIntervalMs;
 }
 
+void serviceAutoQwiicClack(uint32_t nowMs) {
+  if (!autoQwiicClack || static_cast<int32_t>(nowMs - nextQwiicClackMs) < 0) {
+    return;
+  }
+
+  pulseQwiicRelay(relayPulseMs);
+  nextQwiicClackMs = nowMs + clackIntervalMs;
+}
+
+const AudioOutput &activeAudioOutput() {
+  return audioOutputs[activeOutputIndex];
+}
+
+void driveAudioPinsLow() {
+  for (size_t i = 0; i < AUDIO_OUTPUT_COUNT; i++) {
+    if (audioOutputs[i].kind == AudioOutputKind::Pwm) {
+      digitalWrite(audioOutputs[i].pin, LOW);
+    }
+  }
+}
+
 void stopTune() {
   activeTune = nullptr;
   activeTuneLen = 0;
@@ -332,29 +741,62 @@ void stopTune() {
   manualToneOffMs = 0;
   activeSweep.active = false;
   activeTuneName = "none";
-  if (speakerAttached) {
-    ledcWriteTone(SPEAKER_PIN, 0);
-    ledcDetach(SPEAKER_PIN);
-    speakerAttached = false;
+  if (toneAttached) {
+    const uint8_t pin = audioOutputs[attachedOutputIndex].pin;
+    ledcWriteTone(pin, 0);
+    ledcDetach(pin);
+    toneAttached = false;
   }
-  digitalWrite(SPEAKER_PIN, LOW);
+  modulinoBuzzerQuiet();
+  driveAudioPinsLow();
 }
 
-void speakerTone(uint16_t freq) {
-  freq = clampU16(freq, 60, 6000);
-  if (!speakerAttached) {
-    speakerAttached = ledcAttach(SPEAKER_PIN, freq, 10);
+void speakerTone(uint16_t freq, uint16_t durationMs = 0) {
+  if (activeAudioOutput().kind == AudioOutputKind::ModulinoBuzzer) {
+    modulinoBuzzerTone(freq, durationMs == 0 ? 0xFFFF : durationMs);
+    return;
   }
-  if (speakerAttached) {
-    ledcWriteTone(SPEAKER_PIN, freq);
+
+  freq = clampU16(freq, 60, 6000);
+  if (toneAttached && attachedOutputIndex != activeOutputIndex) {
+    const uint8_t pin = audioOutputs[attachedOutputIndex].pin;
+    ledcWriteTone(pin, 0);
+    ledcDetach(pin);
+    digitalWrite(pin, LOW);
+    toneAttached = false;
+  }
+  if (!toneAttached) {
+    toneAttached = ledcAttach(activeAudioOutput().pin, freq, 10);
+    attachedOutputIndex = activeOutputIndex;
+  }
+  if (toneAttached) {
+    ledcWriteTone(activeAudioOutput().pin, freq);
   }
 }
 
 void speakerQuiet() {
-  if (speakerAttached) {
-    ledcWriteTone(SPEAKER_PIN, 0);
+  if (activeAudioOutput().kind == AudioOutputKind::ModulinoBuzzer) {
+    modulinoBuzzerQuiet();
+    return;
   }
-  digitalWrite(SPEAKER_PIN, LOW);
+
+  if (toneAttached) {
+    ledcWriteTone(audioOutputs[attachedOutputIndex].pin, 0);
+  }
+  digitalWrite(activeAudioOutput().pin, LOW);
+}
+
+bool selectAudioOutput(const String &id) {
+  for (size_t i = 0; i < AUDIO_OUTPUT_COUNT; i++) {
+    if (id == audioOutputs[i].id) {
+      if (activeOutputIndex != i) {
+        stopTune();
+        activeOutputIndex = i;
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 void startTune(const char *name, const Note *notes, size_t len) {
@@ -386,7 +828,7 @@ void playManualTone(uint16_t freq, uint16_t durationMs) {
   stopTune();
   freq = clampU16(freq, 60, 6000);
   durationMs = clampU16(durationMs, 20, 2000);
-  speakerTone(freq);
+  speakerTone(freq, durationMs);
   manualToneOffMs = millis() + durationMs + 10;
   activeTuneName = "beep";
 }
@@ -439,7 +881,7 @@ void serviceSpeaker(uint32_t nowMs) {
     noteOffMs = 0;
   } else {
     const uint16_t toneMs = note.durationMs > 20 ? note.durationMs - 20 : note.durationMs;
-    speakerTone(note.freq);
+    speakerTone(note.freq, toneMs);
     noteOffMs = nowMs + toneMs;
   }
   nextNoteMs = nowMs + note.durationMs;
@@ -447,19 +889,47 @@ void serviceSpeaker(uint32_t nowMs) {
 
 String jsonState() {
   String out;
-  out.reserve(220);
+  out.reserve(430);
+  const AudioOutput &output = activeAudioOutput();
   out += "{";
   out += "\"relay_a\":";
   out += relayA.on ? "true" : "false";
   out += ",\"relay_b\":";
   out += relayB.on ? "true" : "false";
+  out += ",\"qwiic_relay_present\":";
+  out += qwiicRelay.present ? "true" : "false";
+  out += ",\"qwiic_relay_on\":";
+  out += qwiicRelay.on ? "true" : "false";
+  out += ",\"qwiic_relay_addr\":";
+  out += qwiicRelay.address;
+  out += ",\"qwiic_relay_kind\":\"";
+  out += qwiicRelayKindLabel();
+  out += "\"";
+  out += ",\"modulino_buzzer_present\":";
+  out += modulinoBuzzer.present ? "true" : "false";
+  out += ",\"modulino_buzzer_addr\":";
+  out += modulinoBuzzer.address;
+  out += ",\"modulino_vibro_present\":";
+  out += modulinoVibro.present ? "true" : "false";
+  out += ",\"modulino_vibro_addr\":";
+  out += modulinoVibro.address;
+  out += ",\"modulino_vibro_on\":";
+  out += vibroState.on ? "true" : "false";
   out += ",\"auto_clack\":";
   out += autoClack ? "true" : "false";
+  out += ",\"auto_qwiic_clack\":";
+  out += autoQwiicClack ? "true" : "false";
   out += ",\"relay_pulse_ms\":";
   out += relayPulseMs;
   out += ",\"clack_interval_ms\":";
   out += clackIntervalMs;
-  out += ",\"tune\":\"";
+  out += ",\"output\":\"";
+  out += output.id;
+  out += "\",\"output_label\":\"";
+  out += output.label;
+  out += "\",\"output_pin\":\"";
+  out += output.pinLabel;
+  out += "\",\"tune\":\"";
   out += activeTuneName;
   out += "\",\"ip\":\"";
   out += WiFi.localIP().toString();
@@ -478,6 +948,17 @@ uint16_t argU16(const char *name, uint16_t fallback, uint16_t lo, uint16_t hi) {
     return fallback;
   }
   return clampU16(static_cast<uint16_t>(value), lo, hi);
+}
+
+bool selectAudioOutputArg(const char *name) {
+  if (!server.hasArg(name)) {
+    return true;
+  }
+  if (selectAudioOutput(server.arg(name))) {
+    return true;
+  }
+  server.send(400, "text/plain", "output must be amp, piezo, redbot, or modbuz");
+  return false;
 }
 
 void sendNoStore() {
@@ -501,8 +982,13 @@ void handlePulse() {
   } else if (which == "both") {
     pulseRelay(relayA, durationMs);
     pulseRelay(relayB, durationMs);
+  } else if (which == "qwiic") {
+    if (!pulseQwiicRelay(durationMs)) {
+      server.send(503, "text/plain", "qwiic relay not detected at 0x18, 0x19, 0x20, or 0x21");
+      return;
+    }
   } else {
-    server.send(400, "text/plain", "which must be a, b, or both");
+    server.send(400, "text/plain", "which must be a, b, both, or qwiic");
     return;
   }
   sendState();
@@ -510,7 +996,9 @@ void handlePulse() {
 
 void handleAllOff() {
   autoClack = false;
+  autoQwiicClack = false;
   allRelaysOff();
+  modulinoVibroOff();
   stopTune();
   sendState();
 }
@@ -529,12 +1017,78 @@ void handleClack() {
   } else {
     autoClack = !autoClack;
   }
+  if (autoClack) {
+    autoQwiicClack = false;
+  }
   nextClackIsA = true;
   nextClackMs = millis();
   sendState();
 }
 
+void handleQwiicClack() {
+  relayPulseMs = argU16("pulse", relayPulseMs, MIN_PULSE_MS, MAX_PULSE_MS);
+  clackIntervalMs = argU16("interval", clackIntervalMs, MIN_CLACK_INTERVAL_MS, MAX_CLACK_INTERVAL_MS);
+  if (server.hasArg("on")) {
+    autoQwiicClack = server.arg("on").toInt() != 0;
+  } else {
+    autoQwiicClack = !autoQwiicClack;
+  }
+  if (autoQwiicClack) {
+    if (!ensureQwiicRelay()) {
+      autoQwiicClack = false;
+      server.send(503, "text/plain", "qwiic relay not detected at 0x18, 0x19, 0x20, or 0x21");
+      return;
+    }
+    autoClack = false;
+  }
+  nextQwiicClackMs = millis();
+  sendState();
+}
+
+void handleI2cScan() {
+  initQwiicRelay();
+  initModulinoDevices();
+  sendState();
+}
+
+void handleOutput() {
+  if (!server.hasArg("id")) {
+    server.send(400, "text/plain", "id must be amp, piezo, redbot, or modbuz");
+    return;
+  }
+  if (!selectAudioOutput(server.arg("id"))) {
+    server.send(400, "text/plain", "id must be amp, piezo, redbot, or modbuz");
+    return;
+  }
+  sendState();
+}
+
+void handleVibro() {
+  const String mode = server.arg("mode");
+  bool ok = false;
+  if (mode == "pulse" || mode.length() == 0) {
+    ok = modulinoVibroOn(220, 75);
+  } else if (mode == "buzz") {
+    ok = modulinoVibroOn(800, 65);
+  } else if (mode == "soft") {
+    ok = modulinoVibroOn(650, 35);
+  } else if (mode == "off") {
+    ok = modulinoVibroOff();
+  } else {
+    server.send(400, "text/plain", "mode must be pulse, buzz, soft, or off");
+    return;
+  }
+  if (!ok) {
+    server.send(503, "text/plain", "modulino vibro not detected");
+    return;
+  }
+  sendState();
+}
+
 void handleBeep() {
+  if (!selectAudioOutputArg("output")) {
+    return;
+  }
   const uint16_t freq = argU16("freq", 880, 60, 6000);
   const uint16_t durationMs = argU16("ms", 160, 20, 2000);
   playManualTone(freq, durationMs);
@@ -542,6 +1096,9 @@ void handleBeep() {
 }
 
 void handleTune() {
+  if (!selectAudioOutputArg("output")) {
+    return;
+  }
   const String id = server.arg("id");
   if (id == "scale") {
     startTune("scale", tuneScale, sizeof(tuneScale) / sizeof(tuneScale[0]));
@@ -561,6 +1118,9 @@ void handleTune() {
 }
 
 void handleSweep() {
+  if (!selectAudioOutputArg("output")) {
+    return;
+  }
   const String id = server.arg("id");
   if (id == "up") {
     startTune("sweep up", tuneSweepUp, sizeof(tuneSweepUp) / sizeof(tuneSweepUp[0]));
@@ -589,6 +1149,10 @@ void startServer() {
   server.on("/api/alloff", HTTP_GET, handleAllOff);
   server.on("/api/settings", HTTP_GET, handleSettings);
   server.on("/api/clack", HTTP_GET, handleClack);
+  server.on("/api/qwiic_clack", HTTP_GET, handleQwiicClack);
+  server.on("/api/i2c_scan", HTTP_GET, handleI2cScan);
+  server.on("/api/output", HTTP_GET, handleOutput);
+  server.on("/api/vibro", HTTP_GET, handleVibro);
   server.on("/api/beep", HTTP_GET, handleBeep);
   server.on("/api/tune", HTTP_GET, handleTune);
   server.on("/api/sweep", HTTP_GET, handleSweep);
@@ -628,14 +1192,42 @@ void setup() {
 
   pinMode(relayA.pin, OUTPUT);
   pinMode(relayB.pin, OUTPUT);
-  pinMode(SPEAKER_PIN, OUTPUT);
+  for (size_t i = 0; i < AUDIO_OUTPUT_COUNT; i++) {
+    pinMode(audioOutputs[i].pin, OUTPUT);
+    digitalWrite(audioOutputs[i].pin, LOW);
+  }
+  Wire.begin();
+  initQwiicRelay();
+  initModulinoDevices();
   allRelaysOff();
   stopTune();
 
   Serial.println();
   Serial.println("clacker_demo dashboard");
   Serial.println("Relays: A0/GPIO14 and A1/GPIO15, high-trigger");
-  Serial.println("Speaker signal: Metro D5/GPIO5");
+  Serial.print("Qwiic Omron relay: ");
+  if (qwiicRelay.present) {
+    Serial.print(qwiicRelayKindLabel());
+    Serial.print(" at 0x");
+    Serial.println(qwiicRelay.address, HEX);
+  } else {
+    Serial.println("not detected");
+  }
+  Serial.print("Modulino buzzer: ");
+  if (modulinoBuzzer.present) {
+    Serial.print("found at 0x");
+    Serial.println(modulinoBuzzer.address, HEX);
+  } else {
+    Serial.println("not detected");
+  }
+  Serial.print("Modulino vibro: ");
+  if (modulinoVibro.present) {
+    Serial.print("found at 0x");
+    Serial.println(modulinoVibro.address, HEX);
+  } else {
+    Serial.println("not detected");
+  }
+  Serial.println("Audio outputs: D5/GPIO5 amp, D6/GPIO6 piezo, D7/GPIO7 RedBot");
 
   connectWifi();
   startServer();
@@ -647,7 +1239,10 @@ void loop() {
   server.handleClient();
   serviceRelayPulse(relayA, nowMs);
   serviceRelayPulse(relayB, nowMs);
+  serviceQwiicRelayPulse(nowMs);
+  serviceVibro(nowMs);
   serviceAutoClack(nowMs);
+  serviceAutoQwiicClack(nowMs);
   serviceSpeaker(nowMs);
 
   if (WiFi.status() != WL_CONNECTED && nowMs - lastWifiReconnectMs >= WIFI_RECONNECT_MS) {
