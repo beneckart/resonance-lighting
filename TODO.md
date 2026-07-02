@@ -295,7 +295,9 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   supply-limited in BOTH configs off that rail: rail-direct 4 W white already wants
   ~1.2 A at 3.3 V, and a boost fed from the header tops out around 3 W in minus
   conversion loss. Step 0 is characterizing what the rail actually delivers (the HEX
-  A/B peaked at 0.21 A -- clean data, but says nothing about the ceiling). The honest
+  A/B peaked at 0.21 A; the 2026-06-10 discharge gives one heavier anchor: ~2.97 V at
+  the LED at ~290 mA -- LOG 2026-07-02. Also probe Ben's recalled radio-burst-during-
+  LED-hogging brownout: rail voltage during WiFi/radio bursts at high LED load). The honest
   full-power comparison is likely rail-direct vs **boost-fed-from-VBAT** (the
   adapter-PCB production topology), battery INA as truth source. W channel is real on
   this module (unlike the RGB-only NeoHEX) -- include W-only and W-vs-RGB-white looks.

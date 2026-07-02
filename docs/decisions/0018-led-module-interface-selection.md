@@ -155,3 +155,12 @@ FeatherS2 Neo and Atom Matrix remained integrated 5x5 fallback/optics boards.
   brightness/current from the start.
 - The final custom board should keep LED module choice flexible until optics tests complete.
   **(Still true -- reaffirmed above.)**
+
+## Clarification appended 2026-07-02
+
+The phrase "off the I2C bus" used throughout this ADR means the LED module is NOT on
+the I2C bus: data comes from a free GPIO (e.g. GPIO10/A0) and V+ from the regulated
+switchable 3V3 header rail. It does not mean "powered off of the I2C bus". The
+contrast is with the IS31 path this ADR rejects, which sat ON the shared
+charger/gauge I2C bus. Wording flagged as ambiguous by Ben; clarified by appending
+per the ADR append-only convention.

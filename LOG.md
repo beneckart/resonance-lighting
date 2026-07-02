@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - June discharge data settles it: the pixel really saw ~2.97 V at show loads
+
+Ben recalled the June harness metered BOTH nodes -- confirmed, the "conflation"
+hypothesis from the previous entry is dead. `2026-06-10-discharge-1357.jsonl` logs
+`batt_ina_bus_v` (0x45) AND `led_bus_v` (0x41, post-regulator at the LED), same
+channel convention as today's boost harness. Binned medians at full-RGBW bri=255:
+
+  batt_ina_v  led_bus_v  led_ma  batt_ma
+     3.00       2.964      292     456
+     2.95       2.968      292     459     <- most of the plateau lived here
+     2.90       2.974      291     463
+     2.85       2.859      291     468     <- LED V+ converges to VBAT: boost out of
+     2.80       2.807      291     479        headroom at this load ("battery dying")
+
+So the June "goldening at 2.8-2.95 V LED rail" was DIRECTLY MEASURED at the pixel,
+provenance solid. The regulated rail delivers ~3.2 V at 42-122 mA (today's data) but
+only ~2.97 V at ~290 mA show load (droop + harness IR, split not separable across the
+two harnesses). Ben's slow-decline recollection is in the data too: led_ma holds ~291
+constant while led_bus_v drifts down -- constant current, slowly starving voltage =
+slow dimming, no cliff until VBAT < ~2.9 where LED V+ tracks the battery down.
+
+Consistency check with today's boost verdict: intact and enriched. Single-px gobo
+look (~42 mA) sits at ~3.2 V un-starved -> boost buys nothing (measured +1.6 %).
+Show-class loads sit at ~2.97 V mildly starved -> boost buys a little (+6.9 % at
+ring1) and would buy more at full show loads -- but the gobo role never goes there
+(Ben). Ben also recalls evidence that a RADIO BURST while LEDs hog the ~1 A rail can
+brown out -- consistent with the rail being the shared choke point; relevant to the
+RGBW step-0 rail characterization, where the June curve already gives an anchor
+(~2.97 V at ~290 mA).
+
+Doc hygiene: "off the I2C bus" ambiguity fixed in the living docs (AGENTS.md,
+POWERFEATHER_NOTES.md -- exact wording: data on a free GPIO, V+ from the regulated
+3V3 header, NOT on the I2C bus) and a clarification APPENDED to ADR 0018 rather than
+editing it -- the append-only rule holds, ambiguity fixed by addendum.
+
 ## 2026-07-02 - Ben + Claude - Correction: hex V+ is the regulated 3V3 rail, not VBAT; verdict rationale updated
 
 Ben corrected a topology assumption threaded through the verdict entry below: the hex

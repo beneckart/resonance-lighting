@@ -105,7 +105,8 @@ The S3 uses its **built-in USB** as the serial port. Consequences:
 
 The IS31FL3741 on the V2's shared I2C bus browns out the board on battery under WiFi
 (IS31-specific; see ADR 0018 + the brownout investigation). **Drive addressable LEDs
-direct-GPIO** (off the I2C bus) -- e.g. the studios use **GPIO10 / A0**. Brownout-safe
+direct-GPIO** -- data on a free GPIO (the studios use **GPIO10 / A0**), V+ from the
+regulated switchable 3V3 header rail, NOT on the I2C bus. Brownout-safe
 by construction. If you must use an I2C LED device, a NeoDriver (SeeSaw) was stable
 where the IS31 wasn't, but direct-GPIO is the preferred path.
 

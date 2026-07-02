@@ -75,8 +75,11 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   bottom-up from measured LED draw (400-500 mA at full) x show duty cycle, then size
   cell/panel. Full-sun harvest number + LFP re-verify of the battery/stability runs
   still pending.
-- WS2812B-from-Vbat on LiFePO4 -- superseded direction: LED axis is now direct-GPIO @ 3V3 off
-  the I2C bus (ADR 0018); rail/voltage choice still being characterized.
+- WS2812B-from-Vbat on LiFePO4 -- superseded direction: LED axis is now direct-GPIO --
+  data on a free GPIO (e.g. GPIO10/A0), V+ from the regulated switchable 3V3 header
+  rail, deliberately NOT on the I2C/STEMMA bus the IS31 shared with the charger/gauge
+  (ADR 0018). Note the rail is not stiff at show loads: the 2026-06-10 discharge
+  measured ~2.96-2.97 V at the LED at ~290 mA (see LOG 2026-07-02).
 - 1-3 LEDs at ~10% brightness gives the desired ambient look. Gobo + ambient tuning pending
   (note the 8-bit dimming low-end limit -- ADR 0018 / POWERFEATHER_NOTES).
 
