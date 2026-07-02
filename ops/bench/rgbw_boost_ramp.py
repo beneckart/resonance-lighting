@@ -109,8 +109,10 @@ def main():
     time.sleep(0.3)
 
     # Enter RGBW mode dark, then wiggle bri to force renders (led_studio only
-    # redraws on change).
-    set_url(args.studio, "mode=1&r=0&g=0&b=0&w=0&bri=0")
+    # redraws on change). gamma is pinned OFF: a UI-toggled gamma=1 makes the lux
+    # ladder superlinear (~bri^2.2) and silently breaks cross-run comparability
+    # everywhere except bri=255 (bit us in r8b, 2026-07-02).
+    set_url(args.studio, "mode=1&r=0&g=0&b=0&w=0&bri=0&gamma=0")
     time.sleep(0.5)
     set_url(args.studio, "bri=1")
     time.sleep(0.3)

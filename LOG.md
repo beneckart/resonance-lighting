@@ -12,6 +12,48 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - r8 bare-VBAT fat-wire: the wall was bench wiring, and VBAT-direct beats the rail by +33% on RGB-white
+
+Production-similar test per Ben: RGBW V+ direct from the VBAT header pin, larger-gauge
+JST-XH, GND via the split cable, NO boost, NO INA instrumentation (the dupont-wired
+INA harness was the suspect). Instrumentation = VEML lux + gauge bv only; the ramp
+tool gained a gauge-bv abort floor for uninstrumented runs. Protocol notes: the first
+run (r8) was optically blind -- the STEMMA cable to the VEML had loosened during
+rewiring (reseat fixed it; KB2040 re-enumerated to ttyACM1); r8b then produced a
+superlinear ladder because the UI's GAMMA toggle had been left on from eye-testing
+(identity at bri=255, so full-brightness points remain valid; ramp tool now pins
+gamma=0). r8c is the clean run. r8b/r8c bri=255 agreement: 0.5 %.
+
+r8c (bare, VBAT-direct, fat wire, gamma 0, "usual" aim per the W anchor):
+  wonly lux:    59 / 116 / 226 / 338 / 448   (linear; ==rail-fed 470 within mount noise)
+  rgbwhite lux: 225 / 444 / 882 / 1317 / 1746 (linear; NO WALL, all steps completed;
+                cell terminal sag ~40 mV at full per the r8 gauge rows)
+
+Findings:
+- **The rgbwhite collapse was the bench wiring.** On fat wire from VBAT, full
+  RGB-white runs clean -- no abort, no sag worth naming. The r7 "wall" was ~0.3 ohm
+  of instrumented-harness loop resistance, confirmed by its absence here.
+- **VBAT-direct beats the rail path by +33 % on RGB-white** (1746 vs 1310 lux at the
+  same aim): under load the 3V3 rail delivered ~2.97-3.1 V at the die while VBAT +
+  fat wire holds ~3.25-3.3 V -- the starved green/blue dies convert every extra
+  100 mV into light. W-only is unchanged (448 vs 470: the W die is equally starved
+  either way). 1746 lux is the BRIGHTEST white of every configuration tested today,
+  boosted ones included -- fringed/warm, but free.
+- This quietly revalidates the old ADR 0008 topology (LED direct from VBAT) for the
+  RGBW: simpler, brighter at full, and it inherits r7's proven ESP decoupling.
+- **Production caveat (important): tapping VBAT at the header BYPASSES the fuel
+  gauge's current shunt** (r7/r8 finding: gauge ma blind to the whole LED branch).
+  A production VBAT-fed LED rail must tap downstream of the gauge sense resistor
+  (trivial on a custom PCBA; needs schematic check on the PowerFeather COTS path)
+  or SOC/coulomb telemetry undercounts the dominant load.
+
+Matrix now (usual aim, bri=255): bare-rail W 470 / rgbw 1310; bare-VBAT W 448 /
+rgbw 1746 no-wall; boosted-rail W 1044 / rgbw walls at 128; boosted-VBAT-thin W
+~1060 aim-corr / walls at 128 (harness). Remaining cell: boosted-VBAT on fat wire
+(r9) when Ben re-adds the boost -- prediction: W ~1040-1060, rgbwhite runs past the
+old wall and lands ~2900-3000 if the ladder stays linear (~10.2 lux/bri at usual aim
+x3.98), cell sag permitting.
+
 ## 2026-07-02 - Ben + Claude - r7 VBAT-fed boost: ~11% battery-side saving, ESP fully decoupled, wall becomes a wiring problem
 
 Ben rewired the boost input to VBAT (VBAT header pin + GND borrowed via 2-pin JST-XH
