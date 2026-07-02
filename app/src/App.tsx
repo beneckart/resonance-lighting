@@ -9,6 +9,7 @@ import { CommissioningPanel } from "./CommissioningPanel";
 import { GroupPanel } from "./GroupPanel";
 import { DataLog } from "./DataLog";
 import { ShowsPanel } from "./ShowsPanel";
+import { InteractivityPanel } from "./InteractivityPanel";
 import { ShowPlayer } from "./ShowPlayer";
 import { RecordButton } from "./RecordButton";
 import { HealthHud } from "./HealthHud";
@@ -60,6 +61,7 @@ export function App() {
           <Controls />
           <GroupPanel />
           <ShowsPanel />
+          <InteractivityPanel />
           <DataLog />
           <DjController />
           <AiPilot />
