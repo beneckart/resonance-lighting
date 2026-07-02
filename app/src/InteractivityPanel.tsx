@@ -1,4 +1,4 @@
-import { useTwin, CA_RULES, type PatternId } from "./store";
+import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
 import { Widget } from "./Widget";
 
 /** INTERACTIVITY MODE — the tree lives on its own DECENTRALISED rules (Ben's
@@ -6,39 +6,49 @@ import { Widget } from "./Widget";
  *  neighbour list) and reacts to presence. Sibling to Light-Show mode: shows are
  *  authored/central, this is emergent/local + interactive.
  *
- *  The four rules are true cellular automata already living in field.ts — this
- *  panel just frames them as one coherent mode with a "poke the tree" control that
- *  injects a disturbance the mesh propagates outward (the carried "wand", in sim). */
+ *  TAP THE TREE to fire a "motion sensor" at that spot — the RULES EDITOR below says
+ *  what happens (reaction colour, intensity, how far it spreads across neighbours,
+ *  which CA runs). Many taps/touches fire at once. For Game of Life a tap also
+ *  births live cells there, so the disturbance propagates hop-by-hop through the mesh. */
 const RULE_META: Record<string, { name: string; blurb: string; emoji: string; hue: number }> = {
   life: { name: "Game of Life", blurb: "cells born & die by neighbour count", emoji: "🌱", hue: 0.05 },
   ripples: { name: "Excitable", blurb: "waves ripple out & fade · Greenberg-Hastings", emoji: "💫", hue: 0.55 },
   organism: { name: "Reaction-Diffusion", blurb: "blobs drift, split & merge · Gray-Scott", emoji: "🫧", hue: 0.5 },
   living: { name: "Firefly Sync", blurb: "fireflies fall into travelling waves · Kuramoto", emoji: "✨", hue: 0.12 },
 };
+const CM_LABEL: Record<TriggerColorMode, string> = { fixed: "one colour", random: "random / touch", cycle: "cycle" };
 
 export function InteractivityPanel() {
   const control = useTwin((s) => s.control);
   const set = useTwin((s) => s.set);
-  const ping = useTwin((s) => s.pingPresence);
+  const tr = useTwin((s) => s.triggerRule);
+  const setTr = useTwin((s) => s.setTriggerRule);
+  const trigger = useTwin((s) => s.triggerAt);
+  const fixtures = useTwin((s) => s.fixtures);
   const setTod = useTwin((s) => s.setTimeOfDay);
   const active = control.pattern;
   const isCA = (CA_RULES as PatternId[]).includes(active);
 
   const pickRule = (r: PatternId) => {
-    // enter the rule with safe, non-strobe defaults; keep it dark so the CA reads
     set({
       pattern: r, colorCycle: "off", order: "linear", reverse: false,
       strobe: false, blackout: false, beaconPreempt: false, master: 1,
       brightness: 0.95, sat: 0.85, hue: RULE_META[r]?.hue ?? control.hue,
     });
+    setTr({ rule: r });
     setTod(0); // night — the living field reads best against black
+  };
+  const pokeRandom = () => {
+    if (!isCA) pickRule(tr.rule);
+    if (fixtures.length) trigger((Math.random() * fixtures.length) | 0);
   };
 
   return (
-    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={232} h={318} accent="#3ddc97">
+    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={430} accent="#3ddc97">
       <div style={{ fontSize: 10.5, color: "#8fb9a6", lineHeight: 1.35, marginBottom: 8 }}>
         The tree lives on its own <b>local rules</b> — each light decides from its
-        neighbours, no central pattern. Then you disturb it.
+        neighbours. <b style={{ color: "#b7f5db" }}>Tap the tree</b> to fire a sensor there;
+        many touches at once. The rules below say what a touch does.
       </div>
 
       {(CA_RULES as PatternId[]).map((r) => {
@@ -54,24 +64,53 @@ export function InteractivityPanel() {
         );
       })}
 
-      {/* the "wand" poke — inject a disturbance the mesh propagates outward */}
-      <button onClick={() => { if (!isCA) pickRule("life"); ping(); }}
-        title="poke the tree — seed a disturbance that rolls outward across the mesh (the carried wand, in sim)"
-        style={{ width: "100%", marginTop: 10, padding: "10px 8px", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 13,
+      <button onClick={pokeRandom}
+        title="fire a sensor at a random spot (or just tap the tree in the 3D view)"
+        style={{ width: "100%", marginTop: 8, padding: "9px 8px", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 12.5,
           border: "1.5px solid #3ddc97", background: "#12402f", color: "#b7f5db", boxShadow: "0 0 14px #3ddc9744" }}>
-        👋 Poke the tree
+        👋 Poke a random spot
       </button>
-      <div style={{ fontSize: 9.5, color: "#6f8a7e", marginTop: 4, textAlign: "center" }}>
-        seeds a wavefront at the nearest fixture → hops outward
+
+      {/* ── RULES EDITOR: what a sensor firing DOES ── */}
+      <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
+        <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>⚙ When a sensor fires…</div>
+
+        <Row label="Colour">
+          <div style={{ display: "flex", gap: 4 }}>
+            {TRIGGER_COLOR_MODES.map((cm) => (
+              <button key={cm} onClick={() => setTr({ colorMode: cm })}
+                style={{ flex: 1, padding: "4px 2px", borderRadius: 6, cursor: "pointer", fontSize: 9.5,
+                  border: tr.colorMode === cm ? "1px solid #3ddc97" : "1px solid #2a3a52", background: tr.colorMode === cm ? "#10362a" : "#121a26", color: tr.colorMode === cm ? "#a9f0d4" : "#9fb0c7" }}>
+                {CM_LABEL[cm]}
+              </button>
+            ))}
+          </div>
+        </Row>
+        {tr.colorMode === "fixed" && (
+          <Row label={`Reaction hue · ${tr.hue.toFixed(2)}`}>
+            <input type="range" min={0} max={1} step={0.01} value={tr.hue}
+              onChange={(e) => setTr({ hue: +e.target.value })}
+              style={{ width: "100%", accentColor: `hsl(${tr.hue * 360},85%,55%)` }} />
+          </Row>
+        )}
+        <Row label={`Intensity · ${tr.intensity.toFixed(1)}×`}>
+          <input type="range" min={0.2} max={2.5} step={0.1} value={tr.intensity}
+            onChange={(e) => setTr({ intensity: +e.target.value })} style={{ width: "100%" }} />
+        </Row>
+        <Row label={`Spread · ${tr.spread.toFixed(1)}${control.pattern === "life" ? ` · ${Math.max(1, Math.round(tr.spread * 2))} hops` : ""}`}>
+          <input type="range" min={0.3} max={2} step={0.1} value={tr.spread}
+            onChange={(e) => setTr({ spread: +e.target.value })} style={{ width: "100%" }} />
+        </Row>
       </div>
 
-      {/* live shaping — speed / palette / brightness ride the running field */}
-      <div style={{ marginTop: 12, opacity: isCA ? 1 : 0.4, pointerEvents: isCA ? "auto" : "none" }}>
+      {/* ── the running field itself ── */}
+      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735", opacity: isCA ? 1 : 0.4, pointerEvents: isCA ? "auto" : "none" }}>
+        <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
         <Row label={`Speed · ${control.speed.toFixed(2)}`}>
           <input type="range" min={0.15} max={3} step={0.05} value={control.speed}
             onChange={(e) => set({ speed: +e.target.value })} style={{ width: "100%" }} />
         </Row>
-        <Row label={`Palette · hue ${control.hue.toFixed(2)}`}>
+        <Row label={`Base hue · ${control.hue.toFixed(2)}`}>
           <input type="range" min={0} max={1} step={0.01} value={control.hue}
             onChange={(e) => set({ hue: +e.target.value })}
             style={{ width: "100%", accentColor: `hsl(${control.hue * 360},80%,55%)` }} />

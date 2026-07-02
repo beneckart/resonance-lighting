@@ -3,6 +3,10 @@ export interface Ripple {
   y: number;
   z: number;
   t0: number; // performance.now()/1000 at trigger
+  // TRIGGER RESPONSE (rules editor): what the "sensor firing here" looks like.
+  hue?: number; // reaction colour 0..1 (undefined = don't tint, just brighten)
+  intensity?: number; // brightness-boost multiplier at the wavefront (default ~2.2)
+  spread?: number; // radius/speed scale — how far/fast the disturbance rolls (default 1)
 }
 
 /**

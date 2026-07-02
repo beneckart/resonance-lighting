@@ -1,9 +1,9 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
-import { useTwin } from "./store";
+import { useTwin, CA_RULES, type SimFixture } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
 import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, seedLife, lorenzFoci } from "./field";
@@ -347,15 +347,27 @@ export function TreeLights() {
       const g = mg * eqGain(f.zone, ctrl.eqLow, ctrl.eqMid, ctrl.eqHigh, audio);
       lit.r *= g; lit.g *= g; lit.b *= g;
 
-      // presence→ripple: brighten as a wavefront passes
+      // sensor→ripple: a wavefront rolls out from each touch, tinting to the
+      // trigger's reaction colour + brightening by its intensity, at its spread.
       if (ripples.length) {
-        let boost = 0;
+        let boost = 0, bHue = -1, bInt = 2.2;
         for (const rp of ripples) {
+          const sp = rp.spread ?? 1;
           const dx = f.pos[0] - rp.x, dy = f.pos[1] - rp.y, dz = f.pos[2] - rp.z;
-          const b = rippleIntensity(Math.sqrt(dx * dx + dy * dy + dz * dz), nowS - rp.t0, rSpeed, rWidth);
-          if (b > boost) boost = b;
+          const b = rippleIntensity(Math.sqrt(dx * dx + dy * dy + dz * dz), nowS - rp.t0, rSpeed * sp, rWidth * (0.6 + 0.6 * sp));
+          if (b > boost) { boost = b; bHue = rp.hue ?? -1; bInt = rp.intensity ?? 2.2; }
         }
-        if (boost > 0) { const m = 1 + 2.2 * boost; lit.r *= m; lit.g *= m; lit.b *= m; }
+        if (boost > 0) {
+          if (bHue >= 0) {
+            col.setHSL(bHue, 0.9, 0.5);
+            const mix = Math.min(1, boost * 1.2); // tint strongest at the wavefront
+            lit.r = lit.r * (1 - mix) + col.r * mix;
+            lit.g = lit.g * (1 - mix) + col.g * mix;
+            lit.b = lit.b * (1 - mix) + col.b * mix;
+          }
+          const m = 1 + bInt * boost;
+          lit.r *= m; lit.g *= m; lit.b *= m;
+        }
       }
 
       // BEACON safety preempt — force full white over everything (whiteout safety)
@@ -430,6 +442,7 @@ export function TreeLights() {
   if (fixtures.length === 0) return null;
   return (
     <group>
+      <TreeTapHandler fixtures={fixtures} />
       {/* per-fixture petal-gobo cookies on the floor — the real "light shades" */}
       <instancedMesh ref={groundRef} args={[undefined as never, undefined as never, fixtures.length]} key={`grd${fixtures.length}`}>
         <planeGeometry args={[1, 1]} />
@@ -453,4 +466,50 @@ export function TreeLights() {
       </instancedMesh>
     </group>
   );
+}
+
+/** INTERACTIVITY: tapping the tree fires a "motion sensor" at the NEAREST light to
+ *  where you tapped. Uses SCREEN-SPACE nearest-fixture picking (not a raycast) so it
+ *  works through the bamboo structure that occludes the fixtures — tap anywhere on
+ *  the canopy and the closest light reacts. Per-pointerId tracking → many fingers
+ *  fire many sensors at once. Drags (orbit) are ignored (moved too far / held too
+ *  long). Gated to CA looks so taps can't disrupt an authored show. */
+function TreeTapHandler({ fixtures }: { fixtures: SimFixture[] }) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  useLayoutEffect(() => {
+    const el = gl.domElement;
+    const downs = new Map<number, { x: number; y: number; t: number }>();
+    const proj = new Vector3();
+    const onDown = (e: PointerEvent) => downs.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
+    const onUp = (e: PointerEvent) => {
+      const d = downs.get(e.pointerId); downs.delete(e.pointerId);
+      if (!d) return;
+      if (performance.now() - d.t > 500) return; // held = not a tap
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return; // moved = orbit drag
+      const st = useTwin.getState();
+      if (!(CA_RULES as string[]).includes(st.control.pattern)) return;
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      let best = -1, bestD = Infinity;
+      for (let i = 0; i < fixtures.length; i++) {
+        const p = fixtures[i].pos;
+        proj.set(p[0], p[1], p[2]).project(camera);
+        if (proj.z > 1) continue; // behind the camera
+        const sx = (proj.x * 0.5 + 0.5) * rect.width, sy = (-proj.y * 0.5 + 0.5) * rect.height;
+        const dd = (sx - px) ** 2 + (sy - py) ** 2;
+        if (dd < bestD) { bestD = dd; best = i; }
+      }
+      const reach = Math.max(rect.width, rect.height) * 0.18; // tap tolerance
+      if (best >= 0 && bestD < reach * reach) {
+        const p = fixtures[best].pos;
+        st.triggerAt(best, [p[0], p[1], p[2]]);
+      }
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", (e) => downs.delete(e.pointerId));
+    return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); };
+  }, [gl, camera, fixtures]);
+  return null;
 }

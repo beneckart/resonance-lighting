@@ -147,13 +147,15 @@ let lifeCell = new Int8Array(0);  // 0 dead, 1..LIFE_AGE_MAX alive (age in ticks
 let lifeGlow = new Float32Array(0); // smoothed render brightness (fades on death)
 let lifeAcc = 0;
 let lifeN = -1;
-let lifeSeeds: number[] = [];     // pending presence pokes → birth these next tick
+let lifeSeeds: { i: number; hops: number }[] = []; // pending pokes → birth next tick
 export const lifeOut = { bri: new Float32Array(0), age: new Float32Array(0) };
 
-/** Presence/wand poke: request a birth at these fixture indices (and let the Life
- *  rule propagate the disturbance outward across neighbour hops next ticks). */
-export function seedLife(indices: number[]) {
-  for (const i of indices) lifeSeeds.push(i);
+/** Presence/sensor poke: request a birth at these fixture indices (and let the Life
+ *  rule propagate the disturbance outward across neighbour hops next ticks). `hops`
+ *  grows the seeded blob (0 = just the cell, 1 = + neighbours, 2 = + neighbours-of-…). */
+export function seedLife(indices: number[], hops = 1) {
+  const h = Math.max(0, Math.round(hops));
+  for (const i of indices) lifeSeeds.push({ i, hops: h });
 }
 
 export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
@@ -167,12 +169,22 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     for (let i = 0; i < n; i++) lifeCell[i] = fixtures[i].rnd < 0.18 ? 1 : 0;
     lifeN = n;
   }
-  // drain any pending presence pokes → birth that cell + its neighbours
+  // drain any pending sensor pokes → birth that cell + its neighbours out to `hops`
   if (lifeSeeds.length) {
-    for (const i of lifeSeeds) {
+    for (const { i, hops } of lifeSeeds) {
       if (i < 0 || i >= n) continue;
+      let frontier = [i];
+      const seen = new Set<number>([i]);
       if (lifeCell[i] === 0) lifeCell[i] = 1;
-      for (const j of fixtures[i].neighbors) if (lifeCell[j] === 0) lifeCell[j] = 1;
+      for (let h = 0; h < hops; h++) {
+        const nextFront: number[] = [];
+        for (const c of frontier) for (const j of fixtures[c].neighbors) {
+          if (seen.has(j)) continue;
+          seen.add(j); nextFront.push(j);
+          if (lifeCell[j] === 0) lifeCell[j] = 1;
+        }
+        frontier = nextFront;
+      }
     }
     lifeSeeds = [];
   }

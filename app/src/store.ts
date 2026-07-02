@@ -3,6 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
+import { seedLife } from "./field";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
@@ -57,6 +58,23 @@ export interface SceneLayer {
   nums: number[]; // light numbers 1..72 this layer drives
   control: Partial<Control>;
 }
+
+/** TRIGGER RESPONSE (interactivity rules editor): what a "sensor firing at a spot"
+ *  does. A touch/click on the tree fires a sensor at the nearest fixture; this rule
+ *  says what happens — which CA runs, the reaction colour, how bright, how far it
+ *  spreads across neighbours. Colour can be fixed, random per touch, or cycling. */
+export type TriggerColorMode = "fixed" | "random" | "cycle";
+export const TRIGGER_COLOR_MODES: TriggerColorMode[] = ["fixed", "random", "cycle"];
+export interface TriggerRule {
+  rule: PatternId; // CA the tree runs / a touch kicks
+  hue: number; // reaction colour 0..1 (used when colorMode = "fixed")
+  intensity: number; // 0..2 brightness boost at the wavefront
+  spread: number; // 0.3..2 how far/fast the disturbance rolls (radius/speed + Life hops)
+  colorMode: TriggerColorMode;
+}
+export const DEFAULT_TRIGGER_RULE: TriggerRule = {
+  rule: "life", hue: 0.05, intensity: 1.6, spread: 1, colorMode: "cycle",
+};
 
 export interface SimFixture {
   id: string;
@@ -132,6 +150,7 @@ interface TwinState {
   cues: Cue[]; // saved looks (F1)
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   ripples: Ripple[]; // presence→ripple interactions
+  triggerRule: TriggerRule; // interactivity rules editor: what a sensor-firing does
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
@@ -157,6 +176,8 @@ interface TwinState {
   deleteCue: (id: string) => void;
   setTimeline: (p: Partial<{ playing: boolean; stepSecs: number }>) => void;
   pingPresence: (origin?: [number, number, number]) => void;
+  triggerAt: (idx: number, origin?: [number, number, number]) => void; // fire a sensor at a fixture
+  setTriggerRule: (p: Partial<TriggerRule>) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
@@ -193,6 +214,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   cues: loadCues(),
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
+  triggerRule: DEFAULT_TRIGGER_RULE,
   guest: false,
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
@@ -383,6 +405,28 @@ export const useTwin = create<TwinState>((setState, get) => ({
       const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-8);
       return { ripples };
     }),
+  // fire a SENSOR at fixture `idx` (a touch/click on the tree): push a colour+
+  // intensity wavefront per the trigger rule, and — if the active CA is Game of
+  // Life — birth cells there so the disturbance propagates across neighbour hops.
+  // Many simultaneous touches just append; the wave/seed engines handle overlap.
+  triggerAt: (idx, origin) => setState((s) => {
+    const f = s.fixtures[idx];
+    if (!f) return {};
+    const o = origin ?? f.pos;
+    const tr = s.triggerRule;
+    let hue = tr.hue;
+    if (tr.colorMode === "random") hue = ((idx * 0.147 + performance.now() * 0.00013) % 1 + 1) % 1;
+    else if (tr.colorMode === "cycle") hue = ((s.ripples.length * 0.11 + performance.now() * 0.00003) % 1 + 1) % 1;
+    const t0 = performance.now() / 1000;
+    const ripples = [
+      ...s.ripples.filter((r) => t0 - r.t0 < 3),
+      { x: o[0], y: o[1], z: o[2], t0, hue, intensity: tr.intensity, spread: tr.spread },
+    ].slice(-16); // keep more for multi-touch
+    // Game of Life: seed live cells at the sensor, spread grows the birth blob
+    if (s.control.pattern === "life") seedLife([idx], Math.max(1, Math.round(tr.spread * 2)));
+    return { ripples };
+  }),
+  setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),
