@@ -12,6 +12,21 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Bench report written: docs/tests/BOOST_AB_BENCH_REPORT_2026-07-02.html
+
+Full narrative report of today's boost A/B campaign, written for future-us and for
+Steve (plain language, no session shorthand). Every claim carries an evidence grade
+(REPLICATED / MEASURED ONCE / STRONG EVIDENCE / HYPOTHESIS / OPEN) -- the session's
+own corrected-mid-stream claims (the "flaky STEMMA cable", r4's "+27% from the
+contact fix") are used as the worked examples of why the grading matters. Includes
+five figures (HEX A/B bars, RGBW brightness ladders, the full-power topology matrix,
+efficacy with measurement-plane caveats, and the raw partial-brightness
+current-instability trace), regenerable via ops/bench/report_figs_boost_ab.py.
+One in-session claim is explicitly downgraded in the report: "W-die 3x efficacy vs
+RGB-white" was computed from unstable current readings; the defensible number is
+~1.4x (bare, full brightness), and boosted RGB-white efficacy was never cleanly
+measured. Open-questions table mirrors the TODO items.
+
 ## 2026-07-02 - Ben + Claude - r9 completes the matrix: boosted-VBAT-fat hits 3044 lux with NO wall; both predictions land
 
 Final cell: TPS63802 4.2 V boost fed straight from VBAT on the larger-gauge wiring

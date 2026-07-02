@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boost A/B Bench Report -- 2026-07-02</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 900px;
+         margin: 2em auto; padding: 0 1.5em; color: #222; line-height: 1.55; }
+  h1, h2, h3 { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a3550; }
+  h1 { font-size: 1.7em; border-bottom: 3px solid #1a3550; padding-bottom: 0.3em; }
+  h2 { font-size: 1.3em; margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+  h3 { font-size: 1.05em; margin-top: 1.5em; }
+  .meta { color: #666; font-size: 0.95em; }
+  .tldr { background: #eef4fa; border-left: 5px solid #1a3550; padding: 1em 1.2em; margin: 1.5em 0; }
+  .tldr h2 { margin-top: 0; border: none; }
+  figure { margin: 1.5em 0; text-align: center; }
+  figure img { max-width: 100%; border: 1px solid #ddd; }
+  figcaption { font-size: 0.88em; color: #555; text-align: left; margin-top: 0.5em;
+               font-family: 'Helvetica Neue', Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92em; margin: 1em 0;
+          font-family: 'Helvetica Neue', Arial, sans-serif; }
+  th, td { border: 1px solid #ccc; padding: 0.45em 0.6em; text-align: left; vertical-align: top; }
+  th { background: #f0f3f6; }
+  code { background: #f4f4f4; padding: 0.1em 0.3em; font-size: 0.92em; }
+  .badge { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 0.78em;
+           font-weight: bold; padding: 0.15em 0.5em; border-radius: 3px; white-space: nowrap; }
+  .replicated { background: #d7ecd9; color: #1e5c24; }
+  .once { background: #d9e6f5; color: #1c4c7a; }
+  .strong { background: #fdeecb; color: #7a5a10; }
+  .hypo { background: #f5dcda; color: #8a2f28; }
+  .open { background: #e8e8e8; color: #555; }
+  .lesson { background: #fbf6ea; border-left: 5px solid #c8a020; padding: 0.8em 1.2em; margin: 1.2em 0; }
+  .glossary { font-size: 0.9em; background: #f7f7f7; padding: 0.8em 1.2em; border: 1px solid #ddd; }
+  li { margin-bottom: 0.35em; }
+</style>
+</head>
+<body>
+
+<h1>Does a 4.2 V boost converter earn its place in the lantern?<br>
+<span style="font-size:0.65em; color:#555;">Bench report: LED supply-voltage A/B campaign, 2026-07-02</span></h1>
+
+<p class="meta">Ben Eckart + Claude (pair bench session), Oakland desk rig.
+52 logged runs across 32 data files (<code>ops/bench/data/boost_ab/</code>).
+Figures regenerate via <code>ops/bench/report_figs_boost_ab.py</code>.
+Written for readers who did not sit through the session: terms are spelled out,
+and every claim carries an evidence grade (see "How to read this report").</p>
+
+<div class="tldr">
+<h2>TL;DR</h2>
+<ul>
+<li><b>For the 37-pixel HEX board in its gobo role (one white pixel): the boost is not
+worth it.</b> It adds 60% more electrical power for a light increase we could not
+distinguish from zero (&le;2%, inside measurement noise). Verified by four
+back-and-forth hardware swaps.</li>
+<li><b>For the 4 W RGBW point source, the boost genuinely works</b> -- it roughly
+<b>2.3x's the clean white output</b> (448&rarr;1016 lux) -- but it costs roughly a
+quarter to a third of the light-per-watt, and the un-boosted module was already judged
+bright enough by eye. <b>Decision: ship without the boost;</b> the option is fully
+characterized if the field test at height ever demands more white.</li>
+<li><b>The biggest practical discovery wasn't the boost at all: it's the wiring.</b>
+Feeding the RGBW straight from the battery over decent-gauge wire beat the board's
+3.3 V regulated output by <b>+33%</b> on full white (1746 vs 1310 lux) -- for free.
+Every "collapse" we chased all day traced to power <i>delivery</i> (a regulator limit,
+damaged connectors, thin wires), never to the LEDs or the boost itself.</li>
+<li>Two instrument gotchas were caught, diagnosed, and fenced off: a firmware gamma
+setting that silently re-enables itself after a reboot (contaminated exactly 2 of 32
+files, verified exhaustively), and current readings that are untrustworthy at partial
+brightness (light readings stayed trustworthy throughout).</li>
+</ul>
+</div>
+
+<h2>0. How to read this report</h2>
+<p>Every substantive claim is graded. The day itself demonstrated why this matters:
+two confident mid-session explanations (a "loose sensor cable", a "+27% boost
+improvement") were later overturned by our own data. Grades used:</p>
+<table>
+<tr><th>Grade</th><th>Meaning</th></tr>
+<tr><td><span class="badge replicated">REPLICATED</span></td>
+<td>Measured multiple times, across hardware swaps or independent runs, with agreement.
+As close to fact as this bench gets.</td></tr>
+<tr><td><span class="badge once">MEASURED ONCE</span></td>
+<td>A clean, direct measurement, but from a single run or mount. Could shift with
+repetition.</td></tr>
+<tr><td><span class="badge strong">STRONG EVIDENCE</span></td>
+<td>Multiple independent observations point the same way, but at least one alternative
+explanation is not fully excluded.</td></tr>
+<tr><td><span class="badge hypo">HYPOTHESIS</span></td>
+<td>A plausible mechanism consistent with the data; could be disproven by a test we
+have not run.</td></tr>
+<tr><td><span class="badge open">OPEN</span></td>
+<td>Unknown; a defined test exists but has not been run.</td></tr>
+</table>
+
+<div class="glossary">
+<b>Mini-glossary.</b>
+<b>Lux</b>: light intensity as the human eye weighs it, measured here by a photopic
+sensor at a fixed position -- absolute values are specific to this rig; <i>ratios</i>
+are the portable result.
+<b>Boost converter</b>: a small circuit that raises voltage (here a TPS63802 module
+set to 4.2 V).
+<b>VBAT</b>: the battery's own terminal, ~3.2-3.3 V for our LiFePO4 cells.
+<b>3.3 V rail</b>: the PowerFeather's regulated output (a buck-boost converter fed
+from the battery); it also powers the ESP32 processor.
+<b>Starvation / dropout</b>: addressable LEDs contain per-color constant-current
+drivers; if the supply voltage is too low for a color's forward voltage plus driver
+headroom, that color runs below its regulated current and dims -- blue and white
+suffer first, red last (this is the "goldening" seen in June).
+<b>Brightness (0-255)</b>: the commanded dimming level; light should scale linearly
+with it.
+</div>
+
+<h2>1. The question</h2>
+<p>We can buy TPS63802 boost modules pre-jumpered to 4.2 V. 4.2 V is the sweet spot
+because the LEDs' data-input threshold is 0.7 x supply: at 4.2 V a 3.3 V logic signal
+still clears it (2.94 V threshold); at 5 V it would not (3.5 V threshold)
+<span class="badge replicated">REPLICATED</span> -- every boosted configuration ran
+all day with direct 3.3 V data.</p>
+<p>"Worth it" was defined three ways before testing:
+<b>(A)</b> worth the per-fixture installation effort,
+<b>(B)</b> a visually noticeable gain in brightness or color accuracy,
+<b>(C)</b> better efficiency in light per watt.</p>
+
+<h2>2. The rig</h2>
+<p>Desk harness: an upside-down 3D-printed lantern prototype forms a cylindrical tube;
+the LED under test sits beneath it, and a VEML7700 photopic light sensor is taped at
+the tube exit ~6 inches away. LEDs are driven by a PowerFeather V2 running the
+<code>led_studio</code> firmware (web UI at <code>http://ledstudio.local/</code>,
+battery-only). Power was measured by two INA219-based wattmeters read by a KB2040
+microcontroller streaming over USB; light and power land in one timestamped log.
+Capture tools: <code>boost_ab_log.py</code> / <code>boost_ab_suite.sh</code> (HEX),
+<code>rgbw_boost_ramp.py</code> (RGBW brightness ladders with automatic
+supply-collapse aborts).</p>
+<p><b>Repeatability of the rig itself</b> <span class="badge replicated">REPLICATED</span>:
+across careful hardware swaps, electrical readings reproduced to ~1 mA and the HEX
+optical readings to 1-2%. The one caveat: the RGBW point source has (at least) two
+quasi-stable seating positions roughly <b>27% apart in measured lux</b>
+<span class="badge strong">STRONG EVIDENCE</span> -- absolute lux numbers carry that
+uncertainty across re-mountings; within-mount comparisons do not.</p>
+
+<h2>3. Part one: the HEX board (37-pixel RGB, close-range glow + gobo)</h2>
+<p>Product constraint that frames everything: more than one full-white pixel washes
+out the gobo projection, so the production operating point is a single white pixel
+(or color-separated single pixels carrying the same total load).</p>
+
+<figure>
+<img src="figures/boost_ab/fig1_hex_ab.png" alt="HEX bare vs boosted by look">
+<figcaption><b>Figure 1.</b> HEX light output, bare vs boosted, per look. Dots are
+individual mounts from the bare/boosted/bare/boosted swap series; the red/green
+single-color looks act as built-in null controls (physics predicts no gain there, and
+none was seen -- which validates the harness). Power labels are watts into the LED
+branch at the measurement plane described in section 5.</figcaption>
+</figure>
+
+<p>Findings:</p>
+<ul>
+<li><b>Single white pixel: +60% electrical power, &le;2% more light</b> (inside the
+&plusmn;2% seating noise), so light-per-watt is ~40% worse boosted.
+<span class="badge replicated">REPLICATED</span> (4 mounts, null controls).</li>
+<li><b>The boost's gain grows with load</b>: +5% on the blue single (highest forward
+voltage, first to starve), +7% on 7 pixels at half brightness -- both above the noise
+floor. <span class="badge replicated">REPLICATED</span>. This is the dropout physics
+announcing itself: the effect is real, the production look just doesn't operate where
+it pays.</li>
+<li>Why a single pixel doesn't benefit: at a healthy battery the LED supply sits
+around 3.2 V and the pixel's internal current regulators are already at (or near)
+full current; extra voltage headroom becomes heat inside the pixel's driver
+transistors, not photons. <span class="badge strong">STRONG EVIDENCE</span>
+(the current/power/light accounting closes; not instrumented inside the pixel).</li>
+<li>June's "goldening" (warm, blue-starved white under heavy loads) is consistent
+with this: the June discharge data shows the LED supply really did sit at ~2.97 V at
+~290 mA show loads -- measured at the LED, both battery and LED nodes were recorded.
+<span class="badge once">MEASURED ONCE</span> (one recorded discharge).</li>
+</ul>
+<p><b>HEX verdict: skip the boost.</b> (A) not justified; (B) no visible difference
+at the production look; (C) clearly worse. One caveat keeps a small door open: all
+HEX tests ran at healthy charge. Because the LED feed is regulated, low state of
+charge should change nothing until deep discharge
+<span class="badge strong">STRONG EVIDENCE</span>, but a ten-minute spot check on a
+run-down battery <span class="badge open">OPEN</span> would close it.</p>
+
+<h2>4. Part two: the RGBW 4 W point source (long-throw crisp gobo)</h2>
+<p>A single high-power addressable LED with four separate emitters: red, green, blue,
+and a phosphor white ("W"). Two white looks exist: <b>W-only</b> (clean, no color
+fringing) and <b>R+G+B all on</b> (much brighter, but the three colored emitters sit
+millimeters apart so their beams fringe at the edges of a projection).</p>
+
+<figure>
+<img src="figures/boost_ab/fig2_rgbw_ladders.png" alt="RGBW brightness ladders">
+<figcaption><b>Figure 2.</b> Light vs commanded brightness for four power topologies,
+all at the same mounting position. Left: the W (clean white) channel. Right: R+G+B.
+All ladders are linear -- dimming behaves -- and the boost roughly doubles the W
+channel everywhere. The X marks where the rail-fed boosted configuration collapsed
+its supply.</figcaption>
+</figure>
+
+<figure>
+<img src="figures/boost_ab/fig3_matrix.png" alt="RGBW full brightness matrix">
+<figcaption><b>Figure 3.</b> The completed topology matrix at full brightness.
+"Fat" = larger-gauge JST-XH wiring; "thin" = the original instrumented harness with
+small jumper wires.</figcaption>
+</figure>
+
+<p>Findings, in the order they matter:</p>
+<ul>
+<li><b>The W emitter is severely current-starved at ~3.3 V.</b> Un-boosted it passes
+roughly a quarter of its boosted current; the boost takes clean white from 448-470 to
+1016-1060 lux (~2.3x). <span class="badge replicated">REPLICATED</span> (four
+un-boosted and three boosted measurements across mounts and both feed topologies,
+agreeing within a few percent once the known aim outlier is corrected).</li>
+<li><b>Feeding the LED straight from the battery beats the 3.3 V rail by +33% on
+R+G+B white</b> (1746 vs 1310 lux at the same seating) -- the rail droops under load,
+the battery doesn't. W-only is unchanged (equally starved either way).
+<span class="badge once">MEASURED ONCE</span>, but anchored: the W channel matched
+across the two runs, pinning the seating.</li>
+<li><b>Every supply collapse was a delivery problem, not an architecture problem.</b>
+Rail-fed boosted R+G+B collapsed at half brightness three separate times
+<span class="badge replicated">REPLICATED</span> (the rail is roughly 1 A limited);
+battery-fed boosted through the thin instrumented harness collapsed the same way
+(~0.3 ohm of loop resistance, measured from load-dependent sag
+<span class="badge once">MEASURED ONCE</span>); battery-fed over proper wire ran
+everything to full with ~100 mV of battery sag at an estimated 1.3-1.4 A
+<span class="badge replicated">REPLICATED</span> (bare and boosted runs).</li>
+<li><b>Boosted + battery + proper wire delivers the module's full capability: 3044
+lux</b> of R+G+B white, 1.74x the un-boosted maximum -- and this landed inside the
+prediction band written down before the run.
+<span class="badge once">MEASURED ONCE</span>.</li>
+<li><b>The processor is immune to LED-side trouble when the LED feeds from the
+battery</b>: during an intentional LED-branch collapse the board's own supply current
+never moved (a dead-constant 116-118 mA) and it kept serving its web interface.
+<span class="badge strong">STRONG EVIDENCE</span> (one clean collapse event,
+unambiguous). This retires an old worry that radio bursts plus LED load could brown
+out the controller -- for this topology.</li>
+</ul>
+<p><b>RGBW verdict: ship un-boosted, feed the LED from the battery, use decent wire.</b>
+The eye test judged un-boosted R+G+B white "plenty bright" (1746 lux at the bench).
+The boost is shelved with a complete option file: if the field test at real projection
+distance ever demands ~2.3x the clean white, the production shape is a battery-fed
+single-conversion boost on the adapter board with a proper enable pin.</p>
+
+<h2>5. Efficiency (light per watt)</h2>
+<p>One accounting subtlety, learned mid-session: watts were measured at two different
+places. "Rail plane" = into the LED branch after the board's 3.3 V converter (its
+~10% loss not included); "battery plane" = true battery draw. Comparing across planes
+without correcting is how one of the day's predictions initially looked wrong.</p>
+
+<figure>
+<img src="figures/boost_ab/fig4_efficacy.png" alt="Efficacy comparison">
+<figcaption><b>Figure 4.</b> Light per watt at full brightness -- only from steps with
+stable current readings (see section 6). The boost consistently trades efficiency for
+output ceiling.</figcaption>
+</figure>
+
+<ul>
+<li>Boost efficiency cost on clean white: ~37% via the rail (double conversion), and
+roughly 25-30% when fed from the battery (single conversion, ~11% battery-side
+saving vs the rail-fed path at matched output).
+<span class="badge once">MEASURED ONCE</span> each, consistent with converter
+physics.</li>
+<li>W-only vs R+G+B white efficacy, un-boosted at full: ~2260 vs ~1570 lux/W (about
+1.4x in W's favor). <span class="badge once">MEASURED ONCE</span>.
+<i>Correction to a mid-session claim:</i> an earlier "phosphor white is 3x more
+efficient than RGB white" figure was computed from current readings later shown
+unreliable; the defensible number is the 1.4x above, and the boosted R+G+B efficacy
+was never cleanly measured (its only stable steps were behind the collapse).</li>
+<li>ESP32 + radio overhead while driving the bench: 116-118 mA, measured cleanly as
+the isolated board branch. <span class="badge once">MEASURED ONCE</span> (but dead
+flat across ten steps).</li>
+</ul>
+
+<h2>6. Measurement quality, gotchas, and what they taught us</h2>
+
+<figure>
+<img src="figures/boost_ab/fig5_stability.png" alt="Current reading stability">
+<figcaption><b>Figure 5.</b> Raw current samples within two 15-second steps of the
+same un-boosted run. At full brightness the reading is rock stable; at half
+brightness it swings across nearly the full range while the light output (measured
+simultaneously) is steady.</figcaption>
+</figure>
+
+<ul>
+<li><b>Current readings at partial brightness are unreliable; light readings are good
+everywhere.</b> The swings appear in un-boosted runs too (so it is not the boost
+module) and vanish at full brightness. <span class="badge replicated">REPLICATED</span>.
+The suspected mechanism -- the supply converter enters a bursty light-load mode and
+the meter's 68 ms averaging window aliases against it --
+<span class="badge hypo">HYPOTHESIS</span>: consistent with everything observed,
+never confirmed with an oscilloscope. All conclusions in this report rest on
+full-brightness (stable) current readings or on light readings.</li>
+<li><b>The damaged-connector saga.</b> The boosted numbers shifted after a re-mount;
+a first analysis credited the reseat with +27% more light. Replication then showed
+the +27% was a <i>seating/aim</i> change and the electrical fix was worth ~6% of
+input power. The physical root cause was found by hand: the RGBW's 3-pin JST
+cable-to-cable pins are oversized for female dupont sockets -- forcing them in splays
+the socket, which then grips a normal header pin poorly. Two damaged duponts were
+recovered from the harness. <span class="badge strong">STRONG EVIDENCE</span> that
+this was the r1-era fault (damage in hand + matching electrical signature; the exact
+6% attribution rests on one before/after pair). <b>Bench rule: never mate JST
+cable-to-cable pins into female duponts.</b></li>
+<li class="lesson"><b>The featured epistemics example -- the "flaky sensor cable"
+that wasn't.</b> A run came back optically blind and the first explanation, stated
+too confidently, was a loosened sensor cable "fixed by reseating". Later analysis of
+the monitor's own output showed the light sensor's I2C bus had almost certainly been
+<i>wedged</i>: the wattmeter harness was unplugged mid-transaction, a classic way to
+leave the shared data line held low, which made the still-connected light sensor
+unreachable and slowed the monitor to a crawl. What actually fixed it was the
+monitor rebooting during the reseat handling (its uptime counter proves the reboot).
+<span class="badge strong">STRONG EVIDENCE</span> for the wedge; a marginal cable
+contact is not 100% excluded. The end result was the same -- reseat, works again --
+but the <i>lesson</i> is different: don't unplug I2C devices from a live, actively
+polling bus, and the monitor firmware should add bus recovery (queued in TODO).</li>
+<li><b>The gamma trap.</b> The LED firmware's gamma-correction option silently
+defaults to ON at boot; the board rebooted unnoticed during a rewiring session, and
+the next runs produced a brightness curve bent by gamma (light proportional to
+brightness^2.2 instead of linear). An exhaustive audit of all 32 data files confirmed
+contamination is limited to exactly two files (both already quarantined as artifacts;
+gamma is mathematically a no-op at full brightness, which is where all headline
+numbers live). <span class="badge replicated">REPLICATED</span> (file audit +
+firmware source + a reboot fingerprint in the logged state). The capture tools now
+pin gamma off. <b>Bench rule: a board reboot silently resets the whole look state --
+re-verify settings after any power interruption.</b></li>
+<li><b>Render-on-change.</b> The LED firmware only pushes pixel data when a value
+actually changes, so a hot-swapped LED stays dark until the next change -- two runs
+captured a dark LED before this was understood. The capture tools now force a
+render by wiggling brightness by one count. <span class="badge replicated">REPLICATED</span>
+(and mechanism read directly from the firmware source).</li>
+<li><b>The fuel gauge cannot see a battery-terminal LED feed.</b> Tapping the VBAT
+header bypasses the gauge's sense resistor: the gauge reported a constant ~120 mA
+while the LED branch drew up to ~450 mA. <span class="badge replicated">REPLICATED</span>
+(many steps, two runs). Production consequence below.</li>
+</ul>
+
+<h2>7. Production implications</h2>
+<ul>
+<li><b>LED power comes from the battery, not the 3.3 V rail</b>: +33% on bright white
+for free, no ~1 A rail ceiling, and the processor is isolated from LED transients.
+Design the tap <b>downstream of the fuel gauge's sense resistor</b> or state-of-charge
+telemetry will miss the fixture's dominant load (trivial on a custom board; needs a
+schematic check for the COTS PowerFeather path).</li>
+<li><b>Conductor and connector quality is a first-class spec.</b> Today it was worth
+25-30% of top-end light across three different failure costumes (rail droop, damaged
+duponts, thin-harness resistance). Production: proper crimped JST, short fat wires,
+no hand-wired jumpers in the LED power path.</li>
+<li><b>A battery-fed LED rail is always live.</b> These LEDs latch their last frame,
+so firmware must guarantee an all-off frame in every shutdown path, and a production
+boost (if ever) needs its enable pin on a GPIO with a pull-down. Worth considering a
+load switch for the LED feed regardless of the boost.</li>
+<li><b>Emitter aim through collimating optics is very sensitive</b>: ~27% lux swings
+between quasi-stable seatings on this bench. The production optical assembly should
+positively locate the LED module, not rely on adhesive placement.</li>
+<li><b>Numbers now available for the bottom-up power budget</b> (which replaced the
+retired 120 mAh/night guess): full-brightness LED branch draws 0.21-0.84 W un-boosted
+depending on look, plus ~0.38 W of always-on controller overhead at bench duty
+(WiFi-heavy; production ESP-NOW duty will differ).</li>
+</ul>
+
+<h2>8. Open questions</h2>
+<table>
+<tr><th>Question</th><th>Status</th><th>Defined next step</th></tr>
+<tr><td>Is the un-boosted clean white bright enough through a real gobo at tree
+height? This is the actual decision input for ever reviving the boost.</td>
+<td><span class="badge open">OPEN</span></td>
+<td>Night field test with real lantern optics at projection distance.</td></tr>
+<tr><td>R+G+B "white" color quality: predicted warm/fringed (green and blue starved),
+but chromaticity was never measured -- the lux sensor is color-blind by design.</td>
+<td><span class="badge hypo">HYPOTHESIS</span></td>
+<td>Camera or colorimeter comparison, or a deliberate eye test at matched
+brightness.</td></tr>
+<tr><td>RGB emitters read 11% dimmer at identical current after one remount (W emitter
+unchanged): aim shift or damage from the collapse events?</td>
+<td><span class="badge open">OPEN</span></td>
+<td>Nudge/rotate the module and re-check: recovery = aim; no recovery = degradation
+(then capture per-channel singles as the go-forward baseline -- none exist from
+before).</td></tr>
+<tr><td>One run (r4) showed a brightness-<i>dependent</i> +27% that fixed geometry
+cannot explain; the surviving speculation is a thermal/mechanical tilt under drive.</td>
+<td><span class="badge hypo">HYPOTHESIS</span></td>
+<td>Logged as an anomaly; would need a deliberately instrumented repeat.</td></tr>
+<tr><td>Exact 3.3 V rail current ceiling (bracketed 0.5-1 A).</td>
+<td><span class="badge open">OPEN</span></td>
+<td>Rail ramp with the INA monitor if the number ever matters; likely moot given the
+battery-feed decision.</td></tr>
+<tr><td>Low-state-of-charge spot check for the HEX verdict (expected to change
+nothing, since the LED feed is regulated).</td>
+<td><span class="badge open">OPEN</span></td>
+<td>Ten minutes with a run-down cell: re-run the white A/B.</td></tr>
+<tr><td>Partial-brightness current-reading artifact mechanism (burst-mode
+aliasing).</td>
+<td><span class="badge hypo">HYPOTHESIS</span></td>
+<td>Oscilloscope on the rail if anyone cares; the workaround (trust lux, trust
+full-brightness current) is sufficient for now.</td></tr>
+</table>
+
+<h2>9. Data and reproduction</h2>
+<p>All raw data: <code>ops/bench/data/boost_ab/*.jsonl</code> (32 files, one per
+labeled run; each row is a timestamped sensor sample or a snapshot of the LED
+firmware's state, and each file ends with or contains machine-readable summaries).
+Naming: date_time + config + look + run tag; files tagged <code>r8</code>/<code>r8b</code>
+are the two known-contaminated artifacts and say so in the log. Capture and analysis
+tools: <code>ops/bench/boost_ab_log.py</code>, <code>boost_ab_suite.sh</code>,
+<code>rgbw_boost_ramp.py</code>, <code>report_figs_boost_ab.py</code>. The narrative
+audit trail -- including the corrections this report summarizes -- is the sequence of
+2026-07-02 entries in <code>LOG.md</code>.</p>
+
+<p class="meta">Report written 2026-07-02 by Claude, reviewed against the raw data;
+corrections during the session came from Ben's skepticism at least four times, which
+is the review process working as intended.</p>
+
+</body>
+</html>
