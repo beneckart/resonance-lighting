@@ -115,9 +115,11 @@ Bench/sizing rules:
 
 ## Power Budget Status
 
-There is **no final production nightly budget yet**. The old ~120 mAh/night number was an
-optimistic floor based on a low-current ESP32-C3 and very dim 1-3 pixel assumptions; it is
-not the design budget.
+There is **no final production nightly budget yet**. The old ~120 mAh/night number is
+**retired** (2026-07-02): it was pre-hardware napkin math (low-current ESP32-C3, very dim
+1-3 pixel assumptions) and the gobo bench work shows crisp projection needs far more LED
+power than it assumed. Do not use it as a floor or an anchor; the budget comes bottom-up
+from measured LED draw x a realistic show duty cycle.
 
 Use this accounting shape until the real duty cycle is chosen:
 

@@ -12,6 +12,16 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Retired the 120 mAh/night budget floor
+
+Removed the old ~120 mAh/night nightly-budget number as a reference point in SYSTEM.md,
+AGENTS.md, and TODO.md (ADR 0021 left as-is, append-only). It was napkin math from before
+hardware testing -- low-current ESP32-C3, very dim 1-3 pixel ambient assumptions -- and
+the gobo work since shows crisp projection needs far more LED power than it assumed, so
+keeping it around even as a "floor" invited anchoring. The production budget will be
+derived bottom-up: measured LED draw (400-500 mA at full on HEX/RGBW) x a realistic show
+duty cycle, minus measured harvest at MPP. The TODO item to compute it stays open.
+
 ## 2026-07-01 - Codex - Added Modulino Buzzer and Vibro I2C controls
 
 Extended `firmware/clacker_demo/` for Ben's Arduino Modulino Buzzer and Modulino Vibro

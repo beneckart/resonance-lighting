@@ -70,9 +70,11 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - **Solar charge path** end-to-end: net-positive into an LFP even in weak/partial light.
 
 **Assumed** but not yet validated on hardware:
-- The exact **nightly power budget** -- SYSTEM.md's ~120 mAh/night is an optimistic FLOOR
-  (measured LED draw is 400-500 mA at full); re-derive bottom-up + size cell/panel. Full-sun
-  harvest number + LFP re-verify of the battery/stability runs still pending.
+- The exact **nightly power budget** -- the old ~120 mAh/night napkin number is RETIRED
+  (2026-07-02): pre-hardware math that crisp-gobo light levels invalidate. Derive
+  bottom-up from measured LED draw (400-500 mA at full) x show duty cycle, then size
+  cell/panel. Full-sun harvest number + LFP re-verify of the battery/stability runs
+  still pending.
 - WS2812B-from-Vbat on LiFePO4 -- superseded direction: LED axis is now direct-GPIO @ 3V3 off
   the I2C bus (ADR 0018); rail/voltage choice still being characterized.
 - 1-3 LEDs at ~10% brightness gives the desired ambient look. Gobo + ambient tuning pending
