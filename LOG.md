@@ -12,6 +12,47 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Audit: gamma bug invalidates NOTHING (verified per-file); r8 blindness re-attributed to an I2C bus wedge + board reboot
+
+Ben challenged two claims in the r8 entry; both corrections below are evidence-based.
+
+**Gamma audit (Ben's worry: "huge repercussions -- how much does this invalidate?"):
+answer NOTHING, verified against every file, not from memory.** All 31 capture files
+log /state rows; scanning every row: gamma=0 in ALL runs through r7 and in r8c;
+gamma=1 ONLY in r8 (optically blind anyway; its salvaged claim -- full rgbwhite at
+~40 mV cell sag -- rests on the bri=255 step, where gamma8(255)=255 is identity) and
+r8b (flagged at capture; its bri=255 points match r8c within 0.5 %). Every HEX suite,
+every RGBW ramp r1-r7, and every verdict built on them: gamma=0 throughout, zero
+impact. Render-path check: setRGBWpix applies gamma8 AFTER brightness scaling, so
+gamma distorts sub-255 bri steps as ~bri^2.2 and is exactly identity at bri=255 --
+matching the observed r8b curve.
+
+**Gamma mechanism correction: not "left on from eye-testing" -- it is the BOOT
+DEFAULT.** `gGamma = true` in led_studio; the PowerFeather rebooted during the
+rewiring window (fingerprint in the state rows: r7 shows the all-day session state
+lit=12/speed=38, r8 shows boot defaults lit=18/speed=30 -- battery feed interrupted
+while working at the VBAT header). The ramp's mode-set never touched gamma, so the
+default survived into r8/r8b. Ramp tool already pins gamma=0 now; the boot default
+itself is a bench trap for any future /set-driven capture that assumes session state.
+
+**r8 blindness correction: Ben is right that the STEMMA cable was likely never
+flaky -- but it was not a port jump either.** Evidence: the post-r8 probe of
+/dev/ttyACM2 returned live ina_monitor output with a fresh 5-hour-uptime timestamp,
+so the ramp HAD been reading the correct device (the port jump to ttyACM1 happened
+later, at the reseat, when the KB2040 re-enumerated and its uptime reset to ~3.5
+min). During r8 the monitor was emitting almost nothing (~1 line per 2 s where ~20
+expected) with 0x41 stuck present-but-ERR and the still-attached VEML undetected.
+Best-fit mechanism: **wedged I2C bus** -- the INA harness was unplugged mid-session
+from an actively polling monitor (classic SDA-held-low), stalling every transaction
+into timeouts: slow loop, unreachable VEML, ERR spam all explained. The fix was the
+KB2040 REBOOT during the reseat handling (Wire re-init cleared the wedge); the cable
+reseat itself was probably incidental. Hedge: a marginal contact cannot be fully
+excluded, but the sparse-output signature favors the wedge.
+
+Hardening TODO queued: ina_monitor should clear a channel's present flag after N
+consecutive ERRs and attempt I2C bus recovery (9 SCL pulses + Wire re-init) when the
+whole bus errors, so a mid-session unplug cannot blind the monitor until a reboot.
+
 ## 2026-07-02 - Ben + Claude - r8 bare-VBAT fat-wire: the wall was bench wiring, and VBAT-direct beats the rail by +33% on RGB-white
 
 Production-similar test per Ben: RGBW V+ direct from the VBAT header pin, larger-gauge
