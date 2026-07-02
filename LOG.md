@@ -12,6 +12,46 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - RGBW boosted ramp r1: W-die is the efficiency star; RGB-white hits the rail wall
+
+RGBW 4 W point source (led_studio mode=1, single SK6812 RGBW px on GPIO10) hot-swapped
+into the tube harness, boosted (TPS63802 4.2 V fed from the 3V3 header). New
+`ops/bench/rgbw_boost_ramp.py`: stepped brightness ladder per look with live
+rail-droop aborts (hard floor 2.60 V on the LED branch, soft 2.80 V, /state
+reachability check), one JSONL per run, LEDs blanked on any exit.
+
+Boosted r1 (W-only then RGB-white, ladder 32/64/128/192/255):
+
+  look      bri  led_V  led_mA  led_W  batt_mA   lux
+  wonly      32  3.264    39    0.127    163     133
+  wonly      64  3.248    67    0.218    178     263
+  wonly     128  3.224   103    0.332    247     521
+  wonly     192  3.208   194    0.622    302     777
+  wonly     255  3.192   243    0.776    373    1033
+  rgbwhite   32  3.176   174    0.553    346     339
+  rgbwhite   64  3.104   481    1.493    684     654
+  rgbwhite  128  HARD ABORT: branch bus hit 2.452 V mid-step; LEDs blanked; board
+                 survived (no reset -- /state kept the script's values)
+
+Findings (boosted config, n=1):
+- **W-only is rail-safe to full**: 0.776 W input at bri=255, branch droop only
+  3.26 -> 3.19 V. Lux tracks bri linearly (no compression) -- the die holds constant
+  current across the ladder.
+- **RGB-white hits the wall between bri 64 and 128**: 481 mA input at 64 was fine
+  (3.10 V); the 128 step collapsed the branch to 2.45 V. Usable boosted RGB-white
+  domain ~bri<=64-96. Rail ceiling between ~0.5 and ~1 A demand, consistent with
+  Ben's ~1 A rating.
+- **W-die efficacy crushes RGB-mixed white**: 1033 lux / 0.776 W = ~1330 lux/W vs
+  654 / 1.49 = ~440 lux/W at rgbwhite-64. Phosphor white beats RGB mixing 3x for
+  white gobo throw -- W-only should be the default white look on RGBW fixtures.
+- Cross-module ballpark (same rig, different emitter geometry -- caveat): W-only
+  full = 1033 lux vs HEX center-px white full = 216 lux, ~5x.
+
+Next: swap to bare RGBW, same ladder (`--config bare --runtag r2`). The real boost
+question this time is the W ladder: the W die's Vf stack may genuinely starve at the
+bare ~3.2 V rail -- if bare W-only compresses/plateaus where boosted stayed linear,
+the boost earns its keep on the RGBW; if not, same verdict as HEX.
+
 ## 2026-07-02 - Ben + Claude - June discharge data settles it: the pixel really saw ~2.97 V at show loads
 
 Ben recalled the June harness metered BOTH nodes -- confirmed, the "conflation"
