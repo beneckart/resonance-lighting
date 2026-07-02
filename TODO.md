@@ -287,6 +287,16 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   (it assumed the 2.8-2.95 V heavy-load sag, which the single-px look never causes).
   REMAINING: cheap low-SOC repeat (knee, ~3.0 V open) on a run-down battery before
   final BOM removal; 4 W RGBW point source is a separate question (Ben/Steve).
+- [ ] **Redo the boost A/B for the 4 W RGBW point source** (Ben 2026-07-02: worth
+  doing -- it lives in a different regime entirely). Design note before wiring: the
+  PowerFeather 3V3 header is ~1 A-limited (per Ben), so full-power RGBW white is
+  supply-limited in BOTH configs off that rail -- a boost fed from the header tops out
+  around 3 W in minus conversion loss, which may make header-fed boost moot on its
+  own. The honest comparison is likely rail-direct vs **boost-fed-from-VBAT** (the
+  adapter-PCB production topology), battery INA as truth source. W channel is real on
+  this module (unlike the RGB-only NeoHEX) -- include W-only and W-vs-RGB-white looks.
+  Harness/tooling reuse as-is: boost_ab_log.py + a boost_ab_suite variant with
+  RGBW-appropriate looks (Ben).
 - [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
   wants ~2 A out (~8 W in) = instant brownout -- cap n (or estimated total current) in
   led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
