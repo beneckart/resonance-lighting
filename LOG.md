@@ -33,11 +33,16 @@ What changes (the measured verdict does NOT -- it is photons vs watts):
   showed the rail carrying much larger loads at VBAT 2.9-3.05). A low-SOC verdict
   flip is now unlikely; the residual check is rail droop under load at low VIN --
   still a 10-minute spot-check when a drained cell is around, but demoted.
-- June's "goldening at 2.8-2.95 V LED rail" under show loads must have been mostly
-  harness-IR/regulator droop (possibly the old thin STEMMA feed), not battery sag
-  reaching the pixel. Production harness impedance is therefore a first-class spec:
-  short fat LED feed wires buy lumens at show loads. (Hedge: old measurement, other
-  differences possible.)
+- June's "goldening at 2.8-2.95 V LED rail" under show loads: PROVENANCE NOW UNCLEAR
+  (correction within this session: the feed was never STEMMA -- always 3V3 + GND +
+  GPIO; and per Ben, brightness back then was measured with the serial-USB PAR
+  sensor). bb_efficiency notes say the LFP *terminal* sagged to ~2.9-3.05 V under
+  show loads -- the June note may have conflated battery terminal with pixel V+. If
+  the regulated rail actually held ~3.2-3.3 V, the goldening mechanism needs a
+  re-look (rail droop near the ~1 A ceiling under ESP+LED show load is the leading
+  candidate). Directly answerable now: with the bare hex mounted, ramp ring2/all at
+  rising bri and log 0x41 bus_v vs branch current = the rail droop curve, ~5 min.
+  Same measurement doubles as step 0 of the RGBW rail-capability check.
 - The boosted config as tested was a double conversion (VBAT -> 3V3 boost -> 4.2 V
   boost); the battery-side numbers already include that tax, so the efficiency
   verdict is if anything generous to the boost.
