@@ -160,6 +160,18 @@ def main():
                 led = ina.get(args.led_ch, [])
                 led_v = statistics.median(v for v, _ in led) if led else float("nan")
                 led_ma = statistics.median(a for _, a in led) if led else float("nan")
+                # Stability flag: the 3V3 rail regulator burst-modes at light-mid
+                # loads and the INA's 68 ms window aliases it into slow wander --
+                # current medians there are unreliable (lux stays good). Full-bri
+                # steps run continuous-PWM and are stable. (LOG 2026-07-02.)
+                unstable = False
+                if len(led) >= 30:
+                    mas = [a for _, a in led]
+                    fifth = max(1, len(mas) // 5)
+                    drift = statistics.median(mas[-fifth:]) - statistics.median(mas[:fifth])
+                    sd = statistics.stdev(mas)
+                    unstable = abs(drift) > 0.15 * max(abs(led_ma), 1) or \
+                        sd > 0.2 * max(abs(led_ma), 1)
                 batt = ina.get("0x45", [])
                 batt_ma = statistics.median(a for _, a in batt) if batt else float("nan")
                 lux = statistics.median(lux_vals) if lux_vals else float("nan")
@@ -167,12 +179,13 @@ def main():
                            "led_bus_v": round(led_v, 3), "led_ma": round(led_ma, 1),
                            "led_w": round(led_v * led_ma / 1000, 3),
                            "batt_ma": round(batt_ma, 1), "lux": round(lux, 1),
-                           "sat_n": sat_n, "n": len(led)}
+                           "sat_n": sat_n, "n": len(led), "ma_unstable": unstable}
                 f.write(json.dumps(summary) + "\n")
                 results.append(summary)
                 print(f"{look:>9} {bri:>4} {led_v:6.3f} {led_ma:7.1f} "
                       f"{led_v * led_ma / 1000:6.3f} {batt_ma:8.1f} {lux:8.1f} "
-                      f"{'YES' if sat_n else '':>3}")
+                      f"{'YES' if sat_n else '':>3}"
+                      f"{'  ~mA UNSTABLE (rail burst-mode; trust lux)' if unstable else ''}")
                 if sat_n:
                     print(f"  NOTE: lux saturated on {sat_n} samples -- optical data "
                           f"invalid at this step, electrical still good", file=sys.stderr)

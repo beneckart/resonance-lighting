@@ -12,6 +12,42 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - r4 after reseat: r1 was the sick mount; healthy boost = 1315 lux clean white at only ~20% efficacy tax
+
+Ben questioned whether the INA had settled; the within-step drift analysis that
+followed found something better: partial-brightness current medians are UNRELIABLE in
+ALL runs (bare included -- so not the boost module), stable only at bri=255. Mechanism:
+the 3V3 rail regulator (TPS631013) burst-modes at light-mid loads and the INA219's
+68 ms averaging window aliases the bursts into slow apparent wander; at full drive the
+regulator runs continuous PWM and readings are rock-stable (sd ~2 mA). Lux (VEML,
+100 ms integration) stays clean throughout -- trust lux everywhere, trust mA only on
+stable steps. rgbw_boost_ramp.py now flags unstable steps automatically.
+
+r4 = exact r1 replication after Ben reseated the boost connections:
+
+  wonly lux ladder:  139 / 275 / 544 / 982 / 1315   (r1: 133 / 263 / 521 / 777 / 1033)
+  wonly @255 (stable): 227 mA / 0.726 W in -> 1315 lux = 1811 lux/W
+  rgbwhite: 359 @32; 716 @64 (branch 2.846 V, at the soft-floor edge);
+            HARD ABORT at 128 (2.52 V) -- r1's wall REPLICATED (r3's cliff-at-72
+            does not reproduce; that was the bad contact).
+
+Decomposition: low-bri steps match r1 within 4-5 % (at light drive even a lossy
+contact reaches die regulation -> bounds the optical/geometry shift at ~+5 %); high-bri
+steps are +26-27 % with 7 % LESS input power. Conclusion: **r1's boost path had
+contact/series resistance from the start** -- it starved the die at high drive and
+burned input power in the connection. The reseat fixed it. All r1/r3 boosted absolute
+numbers were depressed at high drive; bare runs unaffected (no boost path).
+
+Updated headline (healthy mount, geometry-matched approximately):
+  bare W-full ~470-490 lux @ 0.21 W (~2250-2350 lux/W)
+  boosted W-full 1315 lux @ 0.73 W (~1810 lux/W)
+  -> the boost buys ~2.7x the clean white at only ~20 % efficacy tax (was stated as
+  2.2x / 40 % tax off the sick mount). The RGBW boost case is STRONGER than reported.
+Caveats: geometry shifted ~+5 % across the re-matings, so cross-era absolute lux
+carries that error; a fresh bare run at current geometry would clean up the pair.
+Reliability lesson for production: the boost path connection quality is worth ~25 %
+of top-end light -- connectorization/solder, not hand-wired jumpers.
+
 ## 2026-07-02 - Ben + Claude - Boost re-mount r3: electrical operating point shifted; rgbwhite cliff moved; curiosity answered
 
 Boost re-mounted after the bare r2 run (Ben flagged a possible LED bump). The r3
