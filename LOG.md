@@ -12,6 +12,47 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - r7 VBAT-fed boost: ~11% battery-side saving, ESP fully decoupled, wall becomes a wiring problem
+
+Ben rewired the boost input to VBAT (VBAT header pin + GND borrowed via 2-pin JST-XH
+split from the free VDC/solar port; 0x41 INA moved into the VBAT->boost branch).
+Board topology surprise: the VBAT tap bypasses the 0x45 shunt, so 0x45 now reads the
+BOARD's own draw only -- a dead-constant 116-118 mA at every step (cleanest ESP+radio
+overhead number of the day); total system = 0x41 + 0x45.
+
+r7 (VBAT-fed), W ladder lux: 169/335/665/992/1347; W-full stable: 225 mA @ 3.212 V =
+0.723 W -> 1346.5 lux. rgbwhite: 380 @32, 759 @64; HARD ABORT at 128 (branch node
+2.588 V). Board never blinked.
+
+Predictions graded:
+- **Aim moved again**: whole W ladder is a UNIFORM 1.26-1.29x vs r6 (clean geometry
+  factor this time, unlike r4's kink) -- the rewiring session re-seated the module at
+  the "favorable" aim, same ~+27 % magnitude as the r4 outlier; the rig plausibly has
+  two quasi-stable seatings. Aim-corrected die output == r6 (~1060 vs 1044 lux):
+  same 4.2 V at the die either way, as physics requires.
+- **Efficiency: PASS after fixing my reference-plane sloppiness.** The 0.62-0.65 W
+  prediction wrongly treated r6's 0.731 W (measured on the 3V3 RAIL, already
+  once-converted, ~0.81 W at the battery) as battery-plane. Honest battery-plane
+  comparison at matched die output: two-stage ~0.81 W -> single-stage 0.723 W =
+  **~11 % saving**, consistent with deleting a ~90 %-efficient stage. Aim-corrected
+  efficacy tax vs bare (also converted to battery plane, ~0.23 W): **~37 % -> ~28 %**.
+- **"No rgbwhite wall": FAIL on this harness, but the mechanism changed.** The wall
+  is no longer the 3V3 rail regulator -- it is ~0.3 ohm of harness loop resistance
+  (measured: 72 mV sag at 225 mA on the W-full step; loop = VBAT pin -> dupont ->
+  module -> LED -> borrowed-GND JST-XH split -> VDC port) plus cell/protection sag,
+  collapsing the branch node at ~1 A demand. On a production VBAT feed (PCB traces,
+  proper connectors) this wall is a wiring spec, not an architecture limit.
+- **ESP decoupling: PROVEN.** Board draw stayed at 116-118 mA through every step
+  INCLUDING the branch collapse; /state clean after, no reset. In this topology LED
+  transients structurally cannot brown out the controller -- the radio-burst-during-
+  LED-load concern is dead where it matters.
+
+Boost option file (still shelved -- bare remains the GO): if the field test at height
+ever demands the 2.2x clean white, the production shape is VBAT-fed single conversion
+on the adapter PCB: ~28 % efficacy tax, ESP immune to LED transients, EN->GPIO +
+pull-down for the software kill, and connector/trace quality worth ~25 % of top-end
+light (today's recurring lesson, three different ways).
+
 ## 2026-07-02 - Ben + Claude - r6 GOLD STANDARD: boost verdict settles at 2.2x clean white / ~37% efficacy tax; r4's +27% was aim, not electronics
 
 Root cause found by Ben while simplifying the boost wiring: **two blown-out female

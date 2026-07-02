@@ -293,14 +293,16 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   MEASURED 2026-07-02 (gold standard r6, LOG same date): boost = 2.2x clean white
   (1044 vs 470 lux W-full) at ~37 % efficacy tax; rgbwhite rail-walls at bri=128
   (3x replicated); bare rgbwhite-full ~1310 lux is the free bright option and Ben's
-  production GO.** REMAINING: the VBAT-fed single-conversion variant (Ben wiring
-  2026-07-02: VBAT header pin + GND borrowed via 2-pin JST-XH split from the free
-  VDC/solar port; INA 0x41 moves into the VBAT->boost branch, making ESP overhead =
-  0x45 - 0x41). Predictions to check: same ~1044 lux W-full at ~0.62-0.65 W (tax
-  ~37 % -> ~25 %), no rgbwhite wall, LED transients decoupled from the ESP rail.
-  Sharp edge: bench module EN is tied to VIN = always-live V+, no software kill --
-  blank LEDs before unplugging (SK6812 latches); production variant needs EN->GPIO
-  + pull-down. Original design note below stands: the
+  production GO.** **VBAT-fed variant MEASURED 2026-07-02 (r7, LOG same date):
+  ~11 % battery-side saving vs two-stage (tax ~37 % -> ~28 % aim-corrected), ESP
+  decoupling PROVEN (board draw constant 116-118 mA through a branch collapse), and
+  the rgbwhite wall becomes a harness-wiring limit (~0.3 ohm loop) instead of the
+  rail regulator.** BOTH variants now characterized; boost stays SHELVED (bare is
+  the GO). If ever revived for the 2.2x clean white: VBAT-fed single conversion on
+  the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
+  to VIN = always-live V+; SK6812 latches -- blank before unplugging), and
+  connector/trace quality specced (worth ~25 % of top-end light). Original design
+  note below stands: the
   PowerFeather 3V3 header is ~1 A-limited (per Ben), so full-power RGBW white is
   supply-limited in BOTH configs off that rail: rail-direct 4 W white already wants
   ~1.2 A at 3.3 V, and a boost fed from the header tops out around 3 W in minus
