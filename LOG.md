@@ -12,6 +12,33 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - Bare r2 suite: swap reproducibility ~2%; boost gain grows with load
+
+Bare hex remounted (swap 2). Third protocol gotcha closed for good: led_studio only
+redraws static frames on an actual VALUE change -- re-sending identical values does
+not render, so the r2 white capture caught a dark hex despite the "poke" (artifact
+file kept). boost_ab_log.py now wiggles bri by 1 count and back, forcing two real
+renders; the r2b redo is the valid bare white run.
+
+Cross-swap reproducibility (the geometry error bound Ben's back-and-forth was for):
+bare white 215.6 -> 211.5 lux across two physical swaps (~2 %); red single 33.3 vs
+boosted 33.5, green 128.6 vs 129.5 (<1 % where no optical gain is expected). Seating
+noise ~ +-1-2 %.
+
+Bare r2 vs boosted r1, same sliders (diffs above the noise floor in bold):
+  white 1 px full: 211.5-215.6 vs 216.7-217.4 lux (+1-3 %, marginal) at +60 % LED power
+  red single: 33.3 vs 33.5 (nil)   green single: 128.6 vs 129.5 (nil)
+  **blue single: 60.4 vs 63.6 (+5.3 %)** -- blue is the highest-Vf channel; mild
+    starvation at ~3.2 V rail is visible exactly where physics says it should be
+  **ring1 7 px bri=128: 557.9 vs 596.0 (+6.8 %)** at 0.388 vs 0.631 W branch power
+Trend: boost gain grows with load (1 px white ~+1-2 %, blue single +5 %, 7 px +7 %) --
+consistent with the dropout/sag hypothesis; the decisive regime (ring2/all-37, low
+SOC, where bare sags to ~2.8-2.95 V) is still unprobed. Efficiency so far: boost
+costs ~+60 % LED-branch power for single-digit optical gains at all probed points.
+Next: boosted r3 remount (boosted-side reproducibility), then design the heavy-load
+ladder carefully (boosted all-37 at bri=128 projects to ~1.1 A into the 3V3 header --
+brownout risk; step up with live sag watch, abort below ~2.8 V input).
+
 ## 2026-07-02 - Ben + Claude - First boosted captures: +60% LED power, +1% light at the single-px test point
 
 Boosted hex (TPS63802 4.2 V inline on V+) swapped in, same taped position. Two protocol

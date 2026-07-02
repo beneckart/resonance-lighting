@@ -66,15 +66,18 @@ def main():
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     out_path = out_dir / f"{stamp}_{args.label}.jsonl"
 
-    # Poke a re-render before capturing: led_studio only pushes static frames on
-    # change, so a hex hot-swapped after the last render sits BLANK until the next
-    # /set (bit us 2026-07-02: a "boosted" run captured a dark hex). Re-sending the
-    # current brightness is a no-op that forces strip.show().
+    # Poke a re-render before capturing: led_studio only pushes static frames on an
+    # actual VALUE CHANGE, so a hex hot-swapped after the last render sits BLANK until
+    # something changes (bit us twice 2026-07-02 -- re-sending identical values does
+    # NOT redraw). Wiggle brightness by 1 count and back to force two real renders.
     st = fetch_state(args.studio)
     if "bri" in st:
+        bri = int(st["bri"])
+        wiggle = bri - 1 if bri > 0 else 1
         try:
-            urllib.request.urlopen(
-                f"{args.studio}/set?bri={st['bri']}", timeout=5).read()
+            urllib.request.urlopen(f"{args.studio}/set?bri={wiggle}", timeout=5).read()
+            time.sleep(0.4)
+            urllib.request.urlopen(f"{args.studio}/set?bri={bri}", timeout=5).read()
             time.sleep(1.0)
         except Exception as e:
             print(f"WARNING: render poke failed: {e}", file=sys.stderr)
