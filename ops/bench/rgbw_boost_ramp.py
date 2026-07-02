@@ -85,6 +85,12 @@ def main():
     ap.add_argument("--led-ch", default="0x41")
     ap.add_argument("--hard-floor", type=float, default=2.60)
     ap.add_argument("--soft-floor", type=float, default=2.80)
+    # No-INA / production-similar runs: with the branch fed from the VBAT header,
+    # BOTH the 0x45 INA and the fuel gauge's current shunt are bypassed (r7 finding),
+    # so an uninstrumented run has NO current numbers -- lux decides the outcome and
+    # the gauge's terminal VOLTAGE (bv, which does see cell sag) is the safety abort.
+    ap.add_argument("--bv-floor", type=float, default=3.00,
+                    help="stop the ladder if /state bv drops below this (per-step)")
     ap.add_argument("--notes", default="")
     args = ap.parse_args()
 
@@ -204,6 +210,10 @@ def main():
                 else:
                     st.update({"type": "state", "look": look, "bri": bri})
                     f.write(json.dumps(st) + "\n")
+                    if st.get("bv", 99) < args.bv_floor:
+                        print(f"ABORT: gauge bv {st['bv']:.3f} < {args.bv_floor} "
+                              f"(cell sag floor)", file=sys.stderr)
+                        hard_abort = True
     finally:
         try:
             set_url(args.studio, "r=0&g=0&b=0&w=0&bri=0")
