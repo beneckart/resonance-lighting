@@ -12,6 +12,35 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - First boosted captures: +60% LED power, +1% light at the single-px test point
+
+Boosted hex (TPS63802 4.2 V inline on V+) swapped in, same taped position. Two protocol
+gotchas caught first: (1) a run captured a BLANK hex -- led_studio only pushes static
+frames on change, so a hex hot-swapped after the last render stays dark until the next
+/set; boost_ab_log.py now pokes a no-op render before every capture (the artifact file
+`092726_boosted-center-rgbwhite-full-r1.jsonl` is kept as a record). (2) W-channel-only
+is dark: the NeoHEX is RGB-only SK6812, so W drops out of the HEX protocol (still
+relevant for the 4 W RGBW point source).
+
+Headline (60 s runs, center px RGB white full, SOC ~97, battery ~3.2-3.3 V open):
+bare 215.6 lux @ 0.134 W LED branch; boosted 216.7-217.4 lux @ 0.215 W LED branch =
+**+60 % electrical, +<1 % optical, lumens/W drops ~40 % (1608 -> ~1010 lux/W)**.
+Battery total 0.537 -> 0.635 W. Interpretation (single test point, n=1): a SINGLE pixel
+at a healthy battery is NOT in dropout -- the SK6812 constant-current drivers were
+already at regulated current at ~3.19 V, so the 4.2 V headroom burns in the drivers as
+heat. The boost's claimed value regime (blue/green dropout, goldening) needs the
+heavy-load rail sag (~2.8-2.95 V) and/or low SOC -- not yet probed. Do NOT generalize
+to "boost is worthless" from this point alone.
+
+New `ops/bench/boost_ab_suite.sh <config> <runtag>` runs the per-mount battery:
+white-full 60 s, R/G/B singles 30 s, ring1 (7 px) white bri=128 30 s, restores the
+look. Boosted r1 suite: red 33.5 lux / green 129.5 / blue 63.6 (channel branch powers
+nearly equal at 0.112-0.114 W; singles sum to 226.6 vs white 216.7, additive within
+~5 %), ring1-half 596 lux @ 0.631 W branch, battery 1.07 W, boost input bus sagged to
+3.05 V. Next: swap to bare, `boost_ab_suite.sh bare r2`, then keep alternating
+(Ben's plan: multiple back-and-forth mounts to bound the seating/geometry error), then
+push into the heavy-load/low-SOC regime where the boost hypothesis actually lives.
+
 ## 2026-07-02 - Ben + Claude - Boost A/B harness live; bare-hex baseline captured
 
 Ben's harness: desk | bare HEX | upside-down 3D-printed lantern proto (cylindrical

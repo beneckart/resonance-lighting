@@ -66,6 +66,21 @@ def main():
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     out_path = out_dir / f"{stamp}_{args.label}.jsonl"
 
+    # Poke a re-render before capturing: led_studio only pushes static frames on
+    # change, so a hex hot-swapped after the last render sits BLANK until the next
+    # /set (bit us 2026-07-02: a "boosted" run captured a dark hex). Re-sending the
+    # current brightness is a no-op that forces strip.show().
+    st = fetch_state(args.studio)
+    if "bri" in st:
+        try:
+            urllib.request.urlopen(
+                f"{args.studio}/set?bri={st['bri']}", timeout=5).read()
+            time.sleep(1.0)
+        except Exception as e:
+            print(f"WARNING: render poke failed: {e}", file=sys.stderr)
+    else:
+        print(f"WARNING: no /state before run: {st.get('error')}", file=sys.stderr)
+
     ser = serial.Serial(args.port, 115200, timeout=0.3)
     time.sleep(0.3)
     ser.reset_input_buffer()
