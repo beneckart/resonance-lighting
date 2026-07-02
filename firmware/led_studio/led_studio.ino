@@ -14,6 +14,7 @@
 #include <math.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ESPmDNS.h>
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
@@ -668,6 +669,7 @@ void handleState() {
 void setupWifi() {
 #if HAVE_SECRETS
   WiFi.mode(WIFI_AP_STA);
+  WiFi.setHostname("ledstudio");
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   Serial.print("WiFi connecting");
   uint32_t t0 = millis();
@@ -727,6 +729,12 @@ void setup() {
   strip.clear();
   strip.show();
   setupWifi();
+  if (MDNS.begin("ledstudio")) { // http://ledstudio.local/ -- works on STA and the AP
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("mDNS: http://ledstudio.local/");
+  } else {
+    Serial.println("mDNS start failed (use the IP)");
+  }
   server.on("/", []() { server.send_P(200, "text/html", PAGE); });
   server.on("/set", handleSet);
   server.on("/state", handleState);

@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - ledstudio.local live on the desk board + lux channel on the monitor
+
+Two bench-tooling steps for the TPS63802 4.2 V boost experiment:
+
+- `firmware/led_studio/` now sets hostname + mDNS (`http://ledstudio.local/`) and was
+  USB-flashed to the desk PowerFeather `9E5B0C` (ttyACM1), replacing
+  `power-bench-2026-06-11.1` -- that image predates the `/update` endpoint, so there
+  was no OTA path off it; the board was already tethered. Verified live:
+  `ledstudio.local` resolves (192.168.4.76), the LED Studio UI serves, and the new
+  image has `/update`, so future studio tweaks go over OTA per the standing preference.
+
+- `firmware/ina_monitor/` gains an optional photopic lux channel on the same QT chain:
+  TSL2591 (0x29) and VEML7700 (0x10) are auto-detected at boot, on 'r', and by a 5 s
+  background re-probe (hot-plug friendly), and stream as `lux` lines interleaved with
+  the `ina` lines -- light + electrical power in one timestamped serial stream. Fixed
+  low-gain / 100 ms configs sized for LED-bench levels; a `sat=1` flag marks
+  saturation (move the sensor back rather than re-gaining mid-comparison). KB2040
+  reflashed no-touch via the 1200-baud bootloader touch; verified INAs still stream
+  and both lux probes correctly report MISSING with nothing plugged in.
+
+Sensor rationale (Ben's question: switch from PAR?): yes, for the boost verdict use a
+photopic lux sensor as the primary light metric. The decision criteria are lumens and
+lumens/W as perceived, and the channels the boost should recover are blue/green -- a
+photopic sensor weights them like the eye, while the PAR meter's flat 400-700 nm
+quantum response over-credits blue (it counts blue photons ~1:1 that the eye weights
+~0.05). Keep the PAR meter (ttyACM0) logging as a spectrum-robust cross-check and for
+continuity with plot_par_vs_draw data. For A/B ratios, absolute calibration is moot;
+linearity + not saturating + fixed geometry are what matter. VEML7700 is the cleaner
+photopic instrument; TSL2591 has more dynamic range -- either works, both supported.
+
+Tentative INA channel labels from the live stream after the led_studio flash: 0x41
+carries the system load (~44-45 mA with the ESP awake) = battery side; 0x45 idles at
+1-2 mA = LED power out with LEDs off. n=1, unlabeled wiring -- confirm by lighting
+pixels and watching which channel jumps before logging real runs.
+
 ## 2026-07-02 - Ben + Claude - KB2040 flashed as the INA monitor for the boost bench
 
 The Metro that ran `firmware/ina_monitor/` is now on noisemaker duty, so the monitor role

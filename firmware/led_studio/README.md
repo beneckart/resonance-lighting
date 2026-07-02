@@ -41,8 +41,9 @@ toggle** to match.
 ./build.sh --pin 16 --port /dev/ttyACM1   # if data is on D6/GPIO16
 ```
 
-Serial monitor (115200) prints the URL; SoftAP fallback `ResonanceLED`
-(pw `resonance`) at `http://192.168.4.1`.
+On shared WiFi the board registers mDNS: open `http://ledstudio.local/`
+(since 2026-07-02). Serial monitor (115200) also prints the IP; SoftAP
+fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 
 ## Controls
 

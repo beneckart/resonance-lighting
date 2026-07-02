@@ -278,11 +278,18 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
 - [ ] Wire: PowerFeather switchable 3V3 header -> module IN; module OUT 4.2 V -> HEX V+;
   common GND; HEX data direct to GPIO10 as usual. led_studio drives it unchanged (Steve).
 - [ ] **Measure (the decision data): lumens-per-system-watt at rail-direct ~2.9 V vs
-  boosted 4.2 V** -- PAR sensor (apogee_par.py) + INA harness (led_ina_sweep.py /
-  hex_ramp.py), 1 px and 3 px, white + per-channel (R, G, B singly). Expectations to
-  confirm/refute: white +40-60 %, blue/green large gains, red ~unchanged, goldening gone.
-  Repeat at two battery SOCs to confirm brightness is now SOC-invariant. JSONL ->
-  ops/bench/data/tn/ + commit (Steve).
+  boosted 4.2 V** -- primary light metric is now a PHOTOPIC lux sensor (TSL2591 or
+  VEML7700 on the KB2040 ina_monitor QT chain, auto-detected, 'lux' serial lines):
+  lumens-weighted like the eye, which matters because the recovering channels are
+  blue/green (PAR's flat quantum response over-credits blue). Keep the PAR sensor
+  (apogee_par.py) logging as spectrum-robust cross-check + continuity with older data.
+  INA harness (led_ina_sweep.py / hex_ramp.py), 1 px and 3 px, white + per-channel
+  (R, G, B singly). Compare at SAME SLIDERS (what boost buys) and at MATCHED LUX
+  (true lumens/system-watt). Expectations to confirm/refute: white +40-60 %,
+  blue/green large gains, red ~unchanged, goldening gone. Repeat at two battery SOCs
+  to confirm brightness is now SOC-invariant. Control the two-hex confound (bare vs
+  boosted are different physical boards): baseline both bare or swap the boost between
+  them. JSONL -> ops/bench/data/tn/ + commit (Ben/Steve).
 - [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
   wants ~2 A out (~8 W in) = instant brownout -- cap n (or estimated total current) in
   led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
