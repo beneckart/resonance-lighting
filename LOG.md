@@ -12,6 +12,26 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 - Ben + Claude - KB2040 flashed as the INA monitor for the boost bench
+
+The Metro that ran `firmware/ina_monitor/` is now on noisemaker duty, so the monitor role
+moves to an Adafruit KB2040 (RP2040) for the TPS63802 4.2 V boost experiment (bare vs
+boosted HEX, INAs on battery and LED power out). The sketch needed zero code changes:
+`Wire.begin()` default pins are the STEMMA-QT port on both boards (KB2040 = GPIO12/13),
+and `Serial.printf` works on the arduino-pico core. Compiled with
+`rp2040:rp2040:adafruit_kb2040` and flashed by UF2 drop onto the RPI-RP2 bootloader
+drive; header comment now documents both targets and the KB2040 flash path.
+
+Bench note: the KB2040 initially did not enumerate at all (no lsusb entry despite power).
+BOOTSEL-hold + reset brought up the RPI-RP2 bootloader on the same cable, so the cable
+was fine; whatever firmware was previously on the board was not exposing USB. After the
+UF2 drop it enumerates as 239a:8105 with CDC serial (ttyACM2 on this host; the Apogee PAR
+meter is ttyACM0 and the desk PowerFeather 9E5B0C is ttyACM1). Verified live: probe found
+the two SEN0291s at 0x41 and 0x45, i2c scan clean, both streaming at 10 Hz (~3.2-3.3 V
+bus, ~7-10 mA idle on each -- which INA is battery vs LED rail still needs a load test to
+label). Next: wire the boost hot-swap and run the eye test + PAR/INA comparison per the
+TPS63802 TODO section.
+
 ## 2026-07-02 - Ben + Claude - Retired the 120 mAh/night budget floor
 
 Removed the old ~120 mAh/night nightly-budget number as a reference point in SYSTEM.md,

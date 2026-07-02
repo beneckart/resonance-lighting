@@ -1,16 +1,25 @@
-// ina_monitor -- Adafruit Metro ESP32-S3 as a standalone 4-channel power monitor for the
-// Resonance bench. Reads 4x INA219 (DFRobot SEN0291) on the Metro's I2C (SDA=47/SCL=48,
-// the STEMMA-QT / header bus) and streams V/I per channel so the host logs a board-under-
-// test's current GROUND-TRUTH -- gauge-independent, continuous, even while the tested board
-// deep-sleeps (the separate-monitor topology). See LOG / the "sizing campaign" TODO.
+// ina_monitor -- standalone 4-channel power monitor for the Resonance bench. Reads up to
+// 4x INA219 (DFRobot SEN0291) on the default I2C / STEMMA-QT bus and streams V/I per
+// channel so the host logs a board-under-test's current GROUND-TRUTH -- gauge-independent,
+// continuous, even while the tested board deep-sleeps (the separate-monitor topology).
+// See LOG / the "sizing campaign" TODO.
+//
+// Targets (sketch is portable; Wire.begin() default pins hit the QT port on both):
+//   - Adafruit Metro ESP32-S3 (SDA=47/SCL=48) -- original monitor, now on clacker duty.
+//   - Adafruit KB2040 / RP2040 (SDA=GPIO12/SCL=GPIO13, arduino-pico core) -- since
+//     2026-07-02 for the TPS63802 4.2 V boost bench.
 //
 // Reads BUS voltage (reg 0x02) + RAW SHUNT voltage (reg 0x01) directly -- calibration-
 // independent. Current = shunt_mV / R_shunt; R_shunt is set once by calibration (force a
 // known current through IN+/IN-, read shunt_mv, R = shunt_mv / I_mA).
 //
-// Flash (hardware-CDC so serial is stable like the PowerFeathers):
+// Flash, Metro (hardware-CDC so serial is stable like the PowerFeathers):
 //   arduino-cli compile -u -p <port> \
 //     --fqbn esp32:esp32:adafruit_metro_esp32s3:USBMode=hwcdc,CDCOnBoot=cdc firmware/ina_monitor
+// Flash, KB2040 (UF2 drop -- hold BOOTSEL, tap RESET, release BOOTSEL -> RPI-RP2 drive):
+//   arduino-cli compile --fqbn rp2040:rp2040:adafruit_kb2040 \
+//     --build-path /tmp/ina_monitor_kb2040_build firmware/ina_monitor
+//   cp /tmp/ina_monitor_kb2040_build/ina_monitor.ino.uf2 /media/$USER/RPI-RP2/ && sync
 //
 // Output (one line per present channel per sample):
 //   ina t=<ms> ch=0x40 bus_v=<V> shunt_mv=<mV> ma=<mA>
