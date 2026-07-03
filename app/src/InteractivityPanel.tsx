@@ -26,8 +26,17 @@ export function InteractivityPanel() {
   const trigger = useTwin((s) => s.triggerAt);
   const fixtures = useTwin((s) => s.fixtures);
   const setTod = useTwin((s) => s.setTimeOfDay);
+  const gol = useTwin((s) => s.gol);
+  const armGol = useTwin((s) => s.armGol);
+  const golSetPhase = useTwin((s) => s.golSetPhase);
+  const clearNodes = useTwin((s) => s.clearNodes);
+  const setGolAmbient = useTwin((s) => s.setGolAmbient);
   const active = control.pattern;
   const isCA = (CA_RULES as PatternId[]).includes(active);
+  const PHASE_LABEL: Record<string, string> = {
+    off: "— not armed —", standby: "🌙 standby · waiting for first visitor",
+    off1: "○ sensed — going dark", flash: "✷ ignition flourish", off2: "○ dark", live: "🟢 LIVE · interactive",
+  };
 
   const pickRule = (r: PatternId) => {
     set({
@@ -44,11 +53,33 @@ export function InteractivityPanel() {
   };
 
   return (
-    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={476} accent="#3ddc97">
+    <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={560} accent="#3ddc97">
       <div style={{ fontSize: 10.5, color: "#8fb9a6", lineHeight: 1.35, marginBottom: 8 }}>
         The tree lives on its own <b>local rules</b> — each light decides from its
         neighbours. <b style={{ color: "#b7f5db" }}>Tap the tree</b> to fire a sensor there;
         many touches at once. The rules below say what a touch does.
+      </div>
+
+      {/* ── GAME OF LIGHT lifecycle: arm → first visitor → ignite → live nodes ── */}
+      <div style={{ padding: "7px 8px", borderRadius: 8, background: gol.unity ? "#2a1040" : "#0e1826", border: `1px solid ${gol.unity ? "#b060ff" : "#1d2f28"}`, marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontWeight: 700, color: "#cfeede" }}>🎇 Game of Light</span>
+          <span style={{ fontSize: 9.5, color: gol.phase === "live" ? "#7af0c0" : "#8aa0bb" }}>{PHASE_LABEL[gol.phase]}</span>
+        </div>
+        {gol.unity && <div style={{ fontSize: 11, fontWeight: 700, color: "#e0a0ff", marginTop: 4, textAlign: "center" }}>🌈 UNITY — community mode!</div>}
+        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+          {gol.phase === "off"
+            ? <button onClick={armGol} style={btn("#3ddc97", "#12402f", "#b7f5db")}>▶ Arm (standby)</button>
+            : <button onClick={() => golSetPhase("off")} style={btn("#5a3a3a", "#1a1016", "#ff8fa0")}>⏹ Disarm</button>}
+          {gol.phase === "standby" && <button onClick={() => useTwin.getState().golFirstVisitor(fixtures.length ? (Math.random() * fixtures.length) | 0 : 0)} style={btn("#5b8cff", "#21345e", "#dce6ff")}>👤 Sim first visitor</button>}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+          <span style={{ fontSize: 10, color: "#8aa0bb" }}>nodes (visitors): <b style={{ color: "#cfeede" }}>{gol.nodes.length}</b></span>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => setGolAmbient(!gol.ambient)} title="ambient field vs dark-at-rest" style={btn(gol.ambient ? "#c8a24a" : "#2a3a52", gol.ambient ? "#2a2410" : "#141a26", gol.ambient ? "#f0d890" : "#9fb0c7")}>{gol.ambient ? "☀ ambient" : "🌙 dark-rest"}</button>
+            <button onClick={clearNodes} style={btn("#2a3a52", "#141a26", "#9fb0c7")}>clear</button>
+          </div>
+        </div>
       </div>
 
       {(CA_RULES as PatternId[]).map((r) => {
@@ -126,6 +157,10 @@ export function InteractivityPanel() {
       </div>
     </Widget>
   );
+}
+
+function btn(border: string, bg: string, color: string): React.CSSProperties {
+  return { flex: 1, padding: "5px 6px", borderRadius: 6, cursor: "pointer", fontSize: 10.5, fontWeight: 700, border: `1px solid ${border}`, background: bg, color };
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

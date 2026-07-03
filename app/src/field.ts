@@ -159,6 +159,18 @@ export const lifeOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
 export interface SeedOpts { hops?: number; hue?: number; bri?: number; ttl?: number }
 let lifeSeeds: { i: number; o: SeedOpts }[] = []; // pending pokes → birth next frame
 let baseHueFn: (i: number) => number = () => 0.05;
+// ── Game-of-Light state: persistent visitor NODES + ambient mode ──
+//    A node = a person activating a sensor: a PERMANENT live source that each
+//    generation keeps itself + a rotating pair of neighbours alive, so Game-of-Life
+//    patterns continually emanate from it and interact with the other nodes. `ambient`
+//    off = tree is DARK at rest and only lights where visitors are (nodes/taps).
+let lifeNodes: { i: number; hue: number }[] = [];
+let lifeAmbient = true;
+let lifeGen = 0;
+export function setLifeState(o: { nodes?: { i: number; hue: number }[]; ambient?: boolean }) {
+  if (o.nodes) lifeNodes = o.nodes;
+  if (o.ambient != null) lifeAmbient = o.ambient;
+}
 
 /** Presence/sensor poke: birth a blob at these fixtures and TAG it with a response —
  *  `hue` (reaction colour), `bri` (brightness), `ttl` (seconds the light stays on),
@@ -174,7 +186,7 @@ function reseedLife(n: number, fixtures: SimFixture[]) {
   lifeGlow = new Float32Array(n);
   lifeOut.bri = new Float32Array(n); lifeOut.hue = new Float32Array(n);
   baseHueFn = (i: number) => (0.02 + fixtures[i].heightT * 0.10 + fixtures[i].rnd * 0.04) % 1; // warm ambers/reds
-  for (let i = 0; i < n; i++) { if (fixtures[i].rnd < 0.16) lifeCell[i] = 1; lifeHue[i] = baseHueFn(i); }
+  for (let i = 0; i < n; i++) { if (lifeAmbient && fixtures[i].rnd < 0.16) lifeCell[i] = 1; lifeHue[i] = baseHueFn(i); }
   lifeN = n;
 }
 
@@ -220,10 +232,11 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
   lifeAcc += dts;
   let ticked = false;
   while (lifeAcc >= TICK) {
-    lifeAcc -= TICK; ticked = true;
+    lifeAcc -= TICK; ticked = true; lifeGen++;
     const next = new Int8Array(n);
     const nextHue = new Float32Array(n);
-    const churn = 0.004 + 0.020 * Math.min(1.5, speed); // spontaneous births — very calm when slow, busy when fast, never freezes
+    // dark-at-rest (ambient off): NO spontaneous churn — only nodes/taps light the tree
+    const churn = lifeAmbient ? 0.004 + 0.020 * Math.min(1.5, speed) : 0;
     let live = 0;
     for (let i = 0; i < n; i++) {
       const nb = fixtures[i].neighbors;
@@ -245,7 +258,20 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
         live++;
       } else { next[i] = 0; nextHue[i] = lifeHue[i]; }
     }
-    if (live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = baseHueFn(j); }
+    // extinction guard only when the tree should stay alive on its own (ambient)
+    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = baseHueFn(j); }
+    // PERSISTENT NODES (visitors): keep each node + a rotating pair of its neighbours
+    // alive so Game-of-Life patterns emanate from every person and interact. The node
+    // itself is a bright anchor in its quadrant's colour.
+    for (const nd of lifeNodes) {
+      if (nd.i < 0 || nd.i >= n) continue;
+      next[nd.i] = Math.max(1, next[nd.i]); nextHue[nd.i] = nd.hue; lifeBri[nd.i] = 1.35;
+      const nb = fixtures[nd.i].neighbors;
+      if (nb.length) for (let e = 0; e < 2; e++) {
+        const j = nb[(lifeGen + e) % nb.length];
+        next[j] = Math.max(1, next[j]); nextHue[j] = nd.hue;
+      }
+    }
     lifeCell = next; lifeHue = nextHue;
   }
 

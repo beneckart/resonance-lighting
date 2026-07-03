@@ -14,6 +14,7 @@ import { ShowPlayer } from "./ShowPlayer";
 import { RecordButton } from "./RecordButton";
 import { HealthHud } from "./HealthHud";
 import { PresenceDriver } from "./PresenceDriver";
+import { IgnitionDriver } from "./IgnitionDriver";
 import { AudioReactiveDriver } from "./AudioReactiveDriver";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
@@ -114,6 +115,7 @@ export function App() {
       <ShowPlayer />
       <RecordButton />
       <PresenceDriver />
+      <IgnitionDriver />
       <AudioReactiveDriver />
       <AutoVj />
       <TimelineDriver />

@@ -485,10 +485,14 @@ function TreeTapHandler({ fixtures }: { fixtures: SimFixture[] }) {
         if (dd < bestD) { bestD = dd; best = i; }
       }
       const reach = Math.max(rect.width, rect.height) * 0.18; // tap tolerance
-      if (best >= 0 && bestD < reach * reach) {
-        const p = fixtures[best].pos;
-        st.triggerAt(best, [p[0], p[1], p[2]]);
-      }
+      if (best < 0 || bestD >= reach * reach) return;
+      const p = fixtures[best].pos, origin: [number, number, number] = [p[0], p[1], p[2]];
+      const phase = st.gol.phase;
+      if (phase === "standby") st.golFirstVisitor(best); // first visitor → ignite
+      else if (phase === "off1" || phase === "flash" || phase === "off2") { /* mid-ignition: ignore */ }
+      else if (phase === "live") { st.addNode(best); st.triggerAt(best, origin); } // visitor → persistent node
+      else st.triggerAt(best, origin); // plain (un-armed) Game of Life: one-shot sensor
+
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointerup", onUp);

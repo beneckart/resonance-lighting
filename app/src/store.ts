@@ -3,7 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { seedLife } from "./field";
+import { seedLife, setLifeState } from "./field";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
@@ -77,6 +77,24 @@ export const DEFAULT_TRIGGER_RULE: TriggerRule = {
   rule: "life", hue: 0.05, intensity: 1.6, spread: 1, duration: 4, colorMode: "cycle",
 };
 
+/** GAME OF LIGHT lifecycle. The tree senses its first visitor → ignites (all off → a
+ *  quick flourish → off) → goes LIVE. In live mode the tree is dark at rest and each
+ *  visitor who activates a sensor drops a persistent NODE (a live Game-of-Life source
+ *  in its quadrant's colour). When nodes ring the whole tree → UNITY (community mode). */
+export type GolPhase = "off" | "standby" | "off1" | "flash" | "off2" | "live";
+export const GOL_PHASES: GolPhase[] = ["off", "standby", "off1", "flash", "off2", "live"];
+/** 4 quadrant colours around the trunk — visitors light their side in these hues. */
+export const QUADRANT_HUES = [0.02, 0.13, 0.55, 0.83]; // red · amber · teal · magenta
+export interface GolState {
+  phase: GolPhase;
+  t0: number; // performance.now()/1000 at the current phase start
+  ambient: boolean; // true = always-alive field; false (live default) = dark at rest, react to visitors
+  nodes: number[]; // persistent visitor-node fixture indices
+  unity: boolean; // community/Unity effect active
+  unityT0: number;
+}
+export const DEFAULT_GOL: GolState = { phase: "off", t0: 0, ambient: true, nodes: [], unity: false, unityT0: 0 };
+
 export interface SimFixture {
   id: string;
   name: string;
@@ -89,6 +107,8 @@ export interface SimFixture {
   num: number; // addressable light number 1..72 (each light individually addressable)
   heightT: number; // 0..1 by height (low→high)
   ring: number; // concentric ring index 0=inner 1=mid 2=outer (by radial distance from trunk)
+  quadrant: number; // 0..3 azimuth quadrant around the trunk (Game-of-Light regions)
+  azimuth: number; // -PI..PI angle around the trunk (for Unity ring detection)
   radialT: number; // 0..1 normalized horizontal distance from the trunk axis (in/out)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
   neighbors: number[]; // indices of nearest fixtures — decentralised/neighbour-coupled patterns
@@ -152,6 +172,7 @@ interface TwinState {
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   ripples: Ripple[]; // presence→ripple interactions
   triggerRule: TriggerRule; // interactivity rules editor: what a sensor-firing does
+  gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
@@ -179,6 +200,13 @@ interface TwinState {
   pingPresence: (origin?: [number, number, number]) => void;
   triggerAt: (idx: number, origin?: [number, number, number]) => void; // fire a sensor at a fixture
   setTriggerRule: (p: Partial<TriggerRule>) => void;
+  armGol: () => void; // enter standby: dark, waiting for the first visitor
+  golSetPhase: (p: GolPhase) => void; // ignition state machine (driven by IgnitionDriver)
+  golFirstVisitor: (idx: number) => void; // first visitor sensed → begin ignition
+  addNode: (idx: number) => void; // a visitor activates a sensor → persistent node
+  clearNodes: () => void;
+  setGolAmbient: (b: boolean) => void;
+  setUnity: (on: boolean) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
@@ -216,6 +244,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
   triggerRule: DEFAULT_TRIGGER_RULE,
+  gol: DEFAULT_GOL,
   guest: false,
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
@@ -322,6 +351,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
         num: rankOf[i] + 1, // unique addressable number 1..N for EVERY light (by azimuth)
         heightT: norm[1],
         ring: ringOf(radii[i]),
+        quadrant: (Math.floor(((angle(p) + Math.PI) / (2 * Math.PI)) * 4) % 4 + 4) % 4,
+        azimuth: angle(p),
         radialT: radii[i] / maxR,
         rnd: rndOf(i),
         neighbors: [], // filled below once all positions exist
@@ -441,6 +472,36 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
+  // ── GAME OF LIGHT lifecycle ──
+  armGol: () => {
+    setLifeState({ nodes: [], ambient: false });
+    setState((s) => ({
+      control: { ...s.control, pattern: "life", blackout: true, beaconPreempt: false },
+      gol: { ...DEFAULT_GOL, phase: "standby", ambient: false, t0: performance.now() / 1000 },
+    }));
+  },
+  golSetPhase: (p) => setState((s) => {
+    const dark = p === "standby" || p === "off1" || p === "off2" || p === "off";
+    const ambient = p === "live" ? false : s.gol.ambient;
+    setLifeState({ ambient });
+    return { gol: { ...s.gol, phase: p, ambient, t0: performance.now() / 1000 }, control: { ...s.control, blackout: dark } };
+  }),
+  golFirstVisitor: (idx) => setState((s) => {
+    if (s.gol.phase !== "standby") return {};
+    void idx; // the ignition flourish blooms from the trunk; the visitor's node is placed once LIVE
+    return { gol: { ...s.gol, phase: "off1", t0: performance.now() / 1000 }, control: { ...s.control, blackout: true } };
+  }),
+  addNode: (idx) => setState((s) => {
+    const f = s.fixtures[idx]; if (!f) return {};
+    if (s.gol.nodes.includes(idx)) return {}; // already a node
+    const nodes = [...s.gol.nodes, idx].slice(-32);
+    setLifeState({ nodes: nodes.map((i) => ({ i, hue: QUADRANT_HUES[s.fixtures[i].quadrant] ?? 0.05 })) });
+    seedLife([idx], { hops: 1, hue: QUADRANT_HUES[f.quadrant] ?? 0.05, bri: 1.35, ttl: 0 });
+    return { gol: { ...s.gol, nodes } };
+  }),
+  clearNodes: () => { setLifeState({ nodes: [] }); setState((s) => ({ gol: { ...s.gol, nodes: [] } })); },
+  setGolAmbient: (b) => { setLifeState({ ambient: b }); setState((s) => ({ gol: { ...s.gol, ambient: b } })); },
+  setUnity: (on) => setState((s) => ({ gol: { ...s.gol, unity: on, unityT0: on ? performance.now() / 1000 : s.gol.unityT0 } })),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),

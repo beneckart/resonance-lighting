@@ -4,7 +4,7 @@ import type { SimFixture } from "./store";
 
 const fx = (id: string): SimFixture => ({
   id, name: id, role: "downlight", zone: "mid", pos: [0, 0, 0], norm: [0.5, 0.5, 0.5],
-  seqT: 0, seq: 0, heightT: 0.5, ring: 1, num: 1, radialT: 0.5, rnd: 0.5, neighbors: [], beamDeg: 120, lumens: 450,
+  seqT: 0, seq: 0, heightT: 0.5, ring: 1, quadrant: 0, azimuth: 0, num: 1, radialT: 0.5, rnd: 0.5, neighbors: [], beamDeg: 120, lumens: 450,
 });
 const fixtures = [fx("F000"), fx("F001"), fx("F002")];
 const T = "2026-06-13T00:00:00Z";
