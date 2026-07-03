@@ -12,9 +12,14 @@ cd resonance-lighting/app
 npm ci             # Node 18+ required
 npm run dev        # http://localhost:5173 (+ a Network URL for other devices)
 ```
-Everything needed is in the repo (tree model, fixtures, MIDI, audio) — no hardware, no
-extra downloads. Other scripts: `npm run build` · `npm test` (Vitest) · `npm run e2e`
-(Playwright) · `npm run check` (build + test + e2e).
+Everything needed is in the repo — the 3-D tree geometry (`tree-context.glb`), the real
+lantern + chandelier bodies, `fixtures.json` (118 fixtures from the Blender export),
+gobos, photometry (`downlight.ies`), MIDI scores and test audio — so a clone runs the
+exact same system and controls. Two footnotes: (1) the piano's *sampled* grand-piano
+sound streams once from a CDN on first play (the lights and the built-in synth fallback
+are fully offline); (2) layouts/cues/themes persist per-browser (localStorage), so each
+operator starts from clean defaults. Other scripts: `npm run build` · `npm test`
+(Vitest) · `npm run e2e` (Playwright) · `npm run check` (build + test + e2e).
 
 ## The four operator modes (pick first, top of the panel)
 - 🌱 **Interactive** — the tree is reactive; you only set the rules. Tap the tree =
