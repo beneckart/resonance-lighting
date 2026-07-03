@@ -5,14 +5,33 @@ Tree: the actual bamboo tree rendered with its lanterns glowing, driven by music
 by a DJ/VJ, scriptable by an LLM, and ready to bridge to Ben's solar-mesh fixtures.
 Built offline-first (PWA), control-plane only (params, never pixels).
 
-## Run
+## Run (fresh clone → live twin in ~2 min)
 ```bash
-cd app
-npm install
-npm run dev        # http://localhost:5173
+git clone --branch Lighting-Controller https://github.com/beneckart/resonance-lighting.git
+cd resonance-lighting/app
+npm ci             # Node 18+ required
+npm run dev        # http://localhost:5173 (+ a Network URL for other devices)
 ```
-Other scripts: `npm run build` · `npm test` (Vitest) · `npm run e2e` (Playwright) ·
-`npm run check` (build + test + e2e).
+Everything needed is in the repo (tree model, fixtures, MIDI, audio) — no hardware, no
+extra downloads. Other scripts: `npm run build` · `npm test` (Vitest) · `npm run e2e`
+(Playwright) · `npm run check` (build + test + e2e).
+
+## The four operator modes (pick first, top of the panel)
+- 🌱 **Interactive** — the tree is reactive; you only set the rules. Tap the tree =
+  a presence sensor fires; the Game of Life trickles the disturbance outward.
+  Rules editor (colour/brightness/time-on/spread + never-same-as-last, ranges),
+  colour THEMES (⚡ Energize · 🕯 Intimate · 💗 Love · 🌊 Ocean …), and the
+  Game-of-Light lifecycle: arm → first-visitor ignition → visitors drop living
+  nodes by quadrant → a chain all the way around = 🌈 Unity (organic only).
+- 🎬 **Light Show** — scope first (whole tree · custom groups · single lights),
+  sliders + patterns, three authored shows, the piano playing real scores.
+  Groups can each run their OWN mode simultaneously (canopy interactive while
+  the chandelier follows sound) — pick a group chip, assign it a mode.
+- 🎵 **Sound** — beat-tracked audio engine, DJ decks (only visible here), AI-VJ.
+- 🔧 **Calibrate** — commissioning (MAC↔slot) + AUTO-CALIBRATION: all lights off,
+  each light solo-steps group-by-group with confirm-or-timeout against its own
+  reported heartbeat (catches dead/wrong fixtures), ToF self-location histogram,
+  JSON report = the photogrammetry frame-sync log.
 
 ## Play with it from another computer / iPad (LAN — no deploy)
 The dev server listens on the whole network (`server.host: true`). From the machine
