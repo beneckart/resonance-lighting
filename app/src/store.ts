@@ -4,6 +4,7 @@ import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
 import { seedLife, setLifeState } from "./field";
+import { themeById, themeHue } from "./themes";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
@@ -191,6 +192,7 @@ interface TwinState {
   timeline: { playing: boolean; stepSecs: number }; // cue timeline (F2)
   ripples: Ripple[]; // presence→ripple interactions
   triggerRule: TriggerRule; // interactivity rules editor: what a sensor-firing does
+  caTheme: string; // interactive-mode colour THEME (themes.ts) — "" = free palette
   gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
   uiMode: UiMode; // which operator mode the side panel shows (persisted)
   dock: boolean; // split-screen dock layout (tree left · one organized panel right)
@@ -225,6 +227,7 @@ interface TwinState {
   pingPresence: (origin?: [number, number, number]) => void;
   triggerAt: (idx: number, origin?: [number, number, number]) => void; // fire a sensor at a fixture
   setTriggerRule: (p: Partial<TriggerRule>) => void;
+  setCaTheme: (id: string) => void; // pick a colour theme for interactive mode
   armGol: () => void; // enter standby: dark, waiting for the first visitor
   golSetPhase: (p: GolPhase) => void; // ignition state machine (driven by IgnitionDriver)
   golFirstVisitor: (idx: number) => void; // first visitor sensed → begin ignition
@@ -280,6 +283,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
   triggerRule: DEFAULT_TRIGGER_RULE,
+  caTheme: (typeof localStorage !== "undefined" && localStorage.getItem("ca.theme")) || "ember",
   gol: DEFAULT_GOL,
   uiMode: (typeof localStorage !== "undefined" && (localStorage.getItem("ui.mode") as UiMode)) || "lightshow",
   dock: typeof localStorage !== "undefined" ? localStorage.getItem("ui.dock") !== "0" : true,
@@ -506,13 +510,20 @@ export const useTwin = create<TwinState>((setState, get) => ({
     if (!f) return {};
     const o = origin ?? f.pos;
     const tr = s.triggerRule;
+    const theme = themeById(s.caTheme);
+    const themed = s.caTheme !== "random" && theme.hues.length > 0;
     let hue = tr.hue;
-    if (tr.colorMode === "random") hue = ((idx * 0.147 + performance.now() * 0.00013) % 1 + 1) % 1;
-    else if (tr.colorMode === "cycle") hue = ((s.ripples.length * 0.11 + performance.now() * 0.00003) % 1 + 1) % 1;
-    // CONSTRAINT: never the same colour as the last reaction — if the draw lands
-    // within MIN_HUE_DIST of the previous hue on the wheel, walk it around by the
-    // golden-ratio step until it clears (guaranteed to terminate).
-    if (tr.noRepeatColor && tr.colorMode !== "fixed" && lastTriggerHue >= 0) {
+    if (tr.colorMode === "random") {
+      const r = ((idx * 0.147 + performance.now() * 0.00013) % 1 + 1) % 1;
+      // themed reactions draw from the THEME's anchors (no-repeat picks a different one)
+      hue = themed ? themeHue(theme, r, tr.noRepeatColor ? lastTriggerHue : -1) : r;
+    } else if (tr.colorMode === "cycle") {
+      const r = ((s.ripples.length * 0.11 + performance.now() * 0.00003) % 1 + 1) % 1;
+      hue = themed ? themeHue(theme, r, tr.noRepeatColor ? lastTriggerHue : -1) : r;
+    }
+    // CONSTRAINT: never the same colour as the last reaction. Themed draws already
+    // avoided the last anchor; free draws walk the wheel by the golden ratio.
+    if (!themed && tr.noRepeatColor && tr.colorMode !== "fixed" && lastTriggerHue >= 0) {
       let guard = 0;
       const dist = (a: number, b: number) => { let d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
       while (dist(hue, lastTriggerHue) < MIN_HUE_DIST && guard++ < 8) hue = (hue + 0.381966) % 1;
@@ -539,6 +550,17 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
+  // COLOUR THEME (interactive mode): the field's births/drift and every touch
+  // reaction stay inside the theme's colour world. "ember"/"random" map to the
+  // engine's built-ins; everything else feeds its hue anchors as a theme.
+  setCaTheme: (id) => {
+    try { localStorage.setItem("ca.theme", id); } catch { /* fine */ }
+    const t = themeById(id);
+    if (id === "random") setLifeState({ palette: "random" });
+    else if (id === "ember") setLifeState({ palette: "warm" });
+    else setLifeState({ palette: "theme", themeHues: t.hues });
+    setState((s) => ({ caTheme: id, control: { ...s.control, sat: t.sat, hue: t.hues[0] ?? s.control.hue } }));
+  },
   // ── GAME OF LIGHT lifecycle ──
   armGol: () => {
     setLifeState({ nodes: [], ambient: false });

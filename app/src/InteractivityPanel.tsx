@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
-import { setLifeState } from "./field";
+import { THEMES } from "./themes";
 import { Widget } from "./Widget";
 
 // log-mapped speed slider: u∈0..1 → speed 0.03..4 (exponential), so HALF the travel
@@ -41,7 +41,10 @@ export function InteractivityPanel() {
   const golSetPhase = useTwin((s) => s.golSetPhase);
   const clearNodes = useTwin((s) => s.clearNodes);
   const setGolAmbient = useTwin((s) => s.setGolAmbient);
-  const [palette, setPalette] = useState<"warm" | "random">("warm");
+  const caTheme = useTwin((s) => s.caTheme);
+  const setCaTheme = useTwin((s) => s.setCaTheme);
+  // sync the engine with the persisted theme once on mount
+  useEffect(() => { setCaTheme(useTwin.getState().caTheme); }, [setCaTheme]);
   const active = control.pattern;
   const isCA = (CA_RULES as PatternId[]).includes(active);
   const PHASE_LABEL: Record<string, string> = {
@@ -181,18 +184,24 @@ export function InteractivityPanel() {
           <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
             onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
         </Row>
-        <Row label="Population colours">
-          <div style={{ display: "flex", gap: 4 }}>
-            <button onClick={() => { setPalette("warm"); setLifeState({ palette: "warm" }); }}
-              style={btn(palette === "warm" ? "#c8a24a" : "#2a3a52", palette === "warm" ? "#2a2410" : "#141a26", palette === "warm" ? "#f0d890" : "#9fb0c7")}>🔥 warm</button>
-            <button onClick={() => { setPalette("random"); setLifeState({ palette: "random" }); }}
-              style={btn(palette === "random" ? "#b060ff" : "#2a3a52", palette === "random" ? "#22103a" : "#141a26", palette === "random" ? "#dfb8ff" : "#9fb0c7")}>🎲 random</button>
+        <Row label="Colour theme — the mood the field lives in">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {THEMES.map((t) => {
+              const on = caTheme === t.id;
+              return (
+                <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
+                  style={{ flex: "1 0 30%", padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                    border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
+                  <div>{t.emoji} {t.name}</div>
+                  <div style={{ display: "flex", gap: 1, marginTop: 3, height: 5, borderRadius: 2, overflow: "hidden" }}>
+                    {(t.hues.length ? t.hues : [0, 0.17, 0.33, 0.5, 0.67, 0.83]).map((h, k) => (
+                      <div key={k} style={{ flex: 1, background: `hsl(${h * 360},85%,55%)` }} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        </Row>
-        <Row label={`Base hue · ${control.hue.toFixed(2)}`}>
-          <input type="range" min={0} max={1} step={0.01} value={control.hue}
-            onChange={(e) => set({ hue: +e.target.value })}
-            style={{ width: "100%", accentColor: `hsl(${control.hue * 360},80%,55%)` }} />
         </Row>
         <Row label={`Brightness · ${Math.round(control.brightness * 100)}%`}>
           <input type="range" min={0.1} max={1} step={0.02} value={control.brightness}

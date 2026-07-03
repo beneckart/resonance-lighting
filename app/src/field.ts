@@ -171,16 +171,30 @@ let baseHueFn: (i: number) => number = () => 0.05;
 //    off = tree is DARK at rest and only lights where visitors are (nodes/taps).
 let lifeNodes: { i: number; hue: number }[] = [];
 let lifeAmbient = true;
-let lifePalette: "warm" | "random" = "warm"; // birth colours: warm base field vs random population
+let lifePalette: "warm" | "random" | "theme" = "warm"; // birth colours: warm base · random · a colour THEME
+let lifeThemeHues: number[] = []; // theme anchors (when palette === "theme")
 let lifeGen = 0;
-export function setLifeState(o: { nodes?: { i: number; hue: number }[]; ambient?: boolean; palette?: "warm" | "random" }) {
+// nearest theme anchor to a hue (circular) — drift target inside the theme
+function nearestThemeHue(h: number): number {
+  let best = h, bd = Infinity;
+  for (const a of lifeThemeHues) { let d = Math.abs(a - h) % 1; d = Math.min(d, 1 - d); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+const themeBirthHue = (i: number, gen: number) => {
+  if (!lifeThemeHues.length) return rndHue(i, gen);
+  const base = lifeThemeHues[Math.floor(rndHue(i, gen) * lifeThemeHues.length) % lifeThemeHues.length];
+  return ((base + (rndHue(i + 313, gen) - 0.5) * 0.05) % 1 + 1) % 1;
+};
+export function setLifeState(o: { nodes?: { i: number; hue: number }[]; ambient?: boolean; palette?: "warm" | "random" | "theme"; themeHues?: number[] }) {
   if (o.nodes) lifeNodes = o.nodes;
   if (o.ambient != null) lifeAmbient = o.ambient;
-  if (o.palette && o.palette !== lifePalette) {
+  if (o.themeHues) lifeThemeHues = o.themeHues;
+  if (o.palette && (o.palette !== lifePalette || o.themeHues)) {
     lifePalette = o.palette;
-    // switching to random: instantly SCATTER the living population's colours so the
-    // change reads immediately (otherwise neighbour-inheritance keeps the old blend)
-    if (o.palette === "random") for (let i = 0; i < lifeHue.length; i++) if (lifeCell[i] > 0) lifeHue[i] = rndHue(i, lifeGen + i);
+    // switching palette: instantly RE-COLOUR the living population so the change
+    // reads immediately (otherwise neighbour-inheritance keeps the old blend)
+    if (o.palette === "random") for (let i = 0; i < lifeHue.length; i++) { if (lifeCell[i] > 0) lifeHue[i] = rndHue(i, lifeGen + i); }
+    else if (o.palette === "theme") for (let i = 0; i < lifeHue.length; i++) { if (lifeCell[i] > 0) lifeHue[i] = themeBirthHue(i, lifeGen + i); }
   }
 }
 // deterministic per-(fixture, generation) random hue — a fresh colour for each birth
@@ -301,11 +315,15 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
         // its colour as it spreads); else a fresh birth takes the palette's colour —
         // "warm" = the amber base field, "random" = every new birth its own random hue
         // (a multicoloured population whose patches then diffuse into each other).
-        let hue = alive || held ? lifeHue[i] : (a > 0 ? (Math.atan2(cy, cx) / TAU + 1) % 1 : lifePalette === "random" ? rndHue(i, lifeGen) : baseHueFn(i));
-        // warm palette slowly re-converges to base; random palette keeps DIVERGING —
-        // per-generation hue jitter stops neighbour-inheritance from blending the
-        // population into one colour, so it stays genuinely multicoloured
+        let hue = alive || held ? lifeHue[i] : (a > 0 ? (Math.atan2(cy, cx) / TAU + 1) % 1
+          : lifePalette === "random" ? rndHue(i, lifeGen)
+          : lifePalette === "theme" ? themeBirthHue(i, lifeGen)
+          : baseHueFn(i));
+        // warm re-converges to the amber base · random keeps DIVERGING (jitter beats
+        // neighbour-blend) · theme drifts toward its NEAREST theme anchor, so the
+        // field evolves freely but always stays inside the picked colour world
         if (!held && lifePalette === "warm") { let d = baseHueFn(i) - hue; d -= Math.round(d); hue = (hue + d * 0.05 + 1) % 1; }
+        else if (!held && lifePalette === "theme") { let d = nearestThemeHue(hue) - hue; d -= Math.round(d); hue = (hue + d * 0.12 + (rndHue(i, lifeGen) - 0.5) * 0.03 + 1) % 1; }
         else if (!held) hue = (hue + (rndHue(i, lifeGen) - 0.5) * 0.10 + 1) % 1;
         nextHue[i] = hue;
         live++;
@@ -319,7 +337,7 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       }
     }
     // extinction guard only when the tree should stay alive on its own (ambient)
-    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = lifePalette === "random" ? rndHue(j, lifeGen + s) : baseHueFn(j); }
+    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = lifePalette === "random" ? rndHue(j, lifeGen + s) : lifePalette === "theme" ? themeBirthHue(j, lifeGen + s) : baseHueFn(j); }
     // PERSISTENT NODES (visitors): keep each node + a rotating pair of its neighbours
     // alive so Game-of-Life patterns emanate from every person and interact. The node
     // itself is a bright anchor in its quadrant's colour.
