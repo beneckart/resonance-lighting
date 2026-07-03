@@ -281,7 +281,10 @@ export function TreeLights() {
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
-    const rSpeed = treeSize * 0.55;
+    // in a CA look the touch-wavefront tracks the FIELD's pace (a fast flash would
+    // undercut the slow hop-by-hop trickle at glacial speeds)
+    const caLook = (CA_RULES as string[]).includes(ctrl.pattern);
+    const rSpeed = treeSize * 0.55 * (caLook ? Math.min(1.2, Math.max(0.1, st.control.speed)) : 1);
     const rWidth = treeSize * 0.06;
     let dead = 0;
     let stale = 0;

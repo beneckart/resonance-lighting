@@ -160,6 +160,9 @@ let lifeN = -1;
 export const lifeOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
 export interface SeedOpts { hops?: number; hue?: number; bri?: number; ttl?: number }
 let lifeSeeds: { i: number; o: SeedOpts }[] = []; // pending pokes → birth next frame
+// STAGED births: ring k of a seed blob is born at generation gen+k, so a touch
+// visibly TRICKLES outward hop-by-hop (Elliot: "obvious how they trickle through")
+let lifePending: { gen: number; i: number; hue?: number; bri?: number; ttl?: number }[] = [];
 let baseHueFn: (i: number) => number = () => 0.05;
 // ── Game-of-Light state: persistent visitor NODES + ambient mode ──
 //    A node = a person activating a sensor: a PERMANENT live source that each
@@ -207,29 +210,46 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
   if (lifeN !== n) reseedLife(n, fixtures);
   const dts = Math.min(0.1, Math.max(0, dt));
 
-  // drain sensor pokes → birth a blob out to `hops`, tagged with the response
+  // drain sensor pokes → schedule the blob STAGED: the tapped cell births NOW, each
+  // neighbour ring births one GENERATION later — so the touch visibly trickles
+  // outward hop-by-hop at the field's own pace instead of appearing all at once.
   if (lifeSeeds.length) {
     for (const { i, o } of lifeSeeds) {
       if (i < 0 || i >= n) continue;
       const hops = Math.max(0, Math.round(o.hops ?? 1));
-      let frontier = [i]; const seen = new Set<number>([i]);
       const tag = (c: number, atten: number) => {
-        lifeCell[c] = Math.max(1, lifeCell[c]);
+        lifeCell[c] = Math.max(1, lifeCell[c]); lifeRefr[c] = 0;
         if (o.hue != null) lifeHue[c] = o.hue;
         if (o.bri != null) lifeBri[c] = o.bri * atten;
         if (o.ttl != null && o.ttl > 0) lifeTtl[c] = Math.max(lifeTtl[c], o.ttl * (0.6 + 0.4 * atten));
       };
-      tag(i, 1);
+      tag(i, 1); // the touched light answers IMMEDIATELY
+      let frontier = [i]; const seen = new Set<number>([i]);
       for (let h = 0; h < hops; h++) {
         const nextFront: number[] = [];
         const atten = 1 - (h + 1) / (hops + 1); // outer ring a touch dimmer/shorter
         for (const c of frontier) for (const j of fixtures[c].neighbors) {
-          if (seen.has(j)) continue; seen.add(j); nextFront.push(j); tag(j, atten);
+          if (seen.has(j)) continue; seen.add(j); nextFront.push(j);
+          lifePending.push({ gen: lifeGen + h + 1, i: j, hue: o.hue, bri: o.bri != null ? o.bri * atten : undefined, ttl: o.ttl != null && o.ttl > 0 ? o.ttl * (0.6 + 0.4 * atten) : undefined });
         }
         frontier = nextFront;
       }
     }
     lifeSeeds = [];
+  }
+  // staged ring births whose generation has arrived
+  if (lifePending.length) {
+    const due = lifePending.filter((p) => p.gen <= lifeGen);
+    if (due.length) {
+      lifePending = lifePending.filter((p) => p.gen > lifeGen);
+      for (const p of due) {
+        if (p.i < 0 || p.i >= n) continue;
+        lifeCell[p.i] = Math.max(1, lifeCell[p.i]); lifeRefr[p.i] = 0;
+        if (p.hue != null) lifeHue[p.i] = p.hue;
+        if (p.bri != null) lifeBri[p.i] = p.bri;
+        if (p.ttl != null) lifeTtl[p.i] = Math.max(lifeTtl[p.i], p.ttl);
+      }
+    }
   }
 
   // count down "held on" cells every frame → gives the rules editor a real TIME-ON knob
