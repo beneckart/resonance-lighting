@@ -236,6 +236,9 @@ interface TwinState {
   setDock: (b: boolean) => void;
   setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
   setSelectedScope: (g: string) => void;
+  /** Auto-calibration solo-light: ALL fixtures off; `test` lights exactly one in
+   *  the given colour. null = end of sequence, clear every override. */
+  calSolo: (test: { idx: number; rgb: [number, number, number] } | null) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
@@ -607,6 +610,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
     setState((q) => ({ groupModes: { ...q.groupModes, [group]: m }, selectedScope: group }));
   },
   setSelectedScope: (g) => setState({ selectedScope: g }),
+  calSolo: (test) => setState((s) => {
+    if (!test) return { overrides: {} }; // sequence done → normal output
+    const o: Record<number, Override> = {};
+    for (let i = 0; i < s.fixtures.length; i++) o[i] = { mode: "off" };
+    o[test.idx] = { mode: "color", rgb: test.rgb };
+    return { overrides: o };
+  }),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),
