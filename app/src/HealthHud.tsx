@@ -6,6 +6,7 @@ import { useTwin } from "./store";
  *  mock-heartbeat truth loop) so an operator sees the rig's state at a glance.
  *  Diagnostic, so it hides in cinematic/clean view. */
 export function HealthHud() {
+  const dockOn = useTwin((s) => s.dock && !s.cinematic);
   const stats = useTwin((s) => s.monitorStats);
   const total = useTwin((s) => s.fixtures.length);
   const mock = useTwin((s) => s.view.mock);
@@ -36,7 +37,7 @@ export function HealthHud() {
   const fpsColor = fps >= 50 ? "#3ddc97" : fps >= 30 ? "#ffd166" : "#ff5b6e";
   return (
     <div style={{
-      position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 14,
+      position: "fixed", top: 12, left: dockOn ? "25%" : "50%", transform: "translateX(-50%)", zIndex: 14,
       display: "flex", gap: 10, alignItems: "center", padding: "5px 12px", borderRadius: 999,
       background: "rgba(10,14,20,0.82)", border: "1px solid #1d2735", color: "#9fb0c7",
       font: "11px ui-monospace, SFMono-Regular, monospace", backdropFilter: "blur(6px)",

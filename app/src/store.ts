@@ -86,6 +86,16 @@ export const DEFAULT_TRIGGER_RULE: TriggerRule = {
 /** Minimum hue-wheel distance between successive reactions when noRepeatColor is on. */
 export const MIN_HUE_DIST = 0.15;
 
+/** TOP-LEVEL OPERATOR MODES (Elliot's taxonomy). Pick the mode FIRST; the side panel
+ *  shows only that mode's controls:
+ *   interactive — the tree is REACTIVE (presence sensors); you only set the rules
+ *   lightshow   — you drive it: scope (whole tree → group → single light), sliders,
+ *                 patterns, pre-designed shows or build-your-own with music
+ *   sound       — the tree is reactive to SOUND (DJ / AI-VJ / audio-reactive)
+ *   calibrate   — commissioning, photogrammetry, testing, health */
+export type UiMode = "interactive" | "lightshow" | "sound" | "calibrate";
+export const UI_MODES: UiMode[] = ["interactive", "lightshow", "sound", "calibrate"];
+
 /** GAME OF LIGHT lifecycle. The tree senses its first visitor → ignites (all off → a
  *  quick flourish → off) → goes LIVE. In live mode the tree is dark at rest and each
  *  visitor who activates a sensor drops a persistent NODE (a live Game-of-Life source
@@ -182,6 +192,8 @@ interface TwinState {
   ripples: Ripple[]; // presence→ripple interactions
   triggerRule: TriggerRule; // interactivity rules editor: what a sensor-firing does
   gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
+  uiMode: UiMode; // which operator mode the side panel shows (persisted)
+  dock: boolean; // split-screen dock layout (tree left · one organized panel right)
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
@@ -216,6 +228,8 @@ interface TwinState {
   clearNodes: () => void;
   setGolAmbient: (b: boolean) => void;
   setUnity: (on: boolean) => void;
+  setUiMode: (m: UiMode) => void;
+  setDock: (b: boolean) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
@@ -258,6 +272,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
   ripples: [],
   triggerRule: DEFAULT_TRIGGER_RULE,
   gol: DEFAULT_GOL,
+  uiMode: (typeof localStorage !== "undefined" && (localStorage.getItem("ui.mode") as UiMode)) || "lightshow",
+  dock: typeof localStorage !== "undefined" ? localStorage.getItem("ui.dock") !== "0" : true,
   guest: false,
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
@@ -548,6 +564,23 @@ export const useTwin = create<TwinState>((setState, get) => ({
   clearNodes: () => { setLifeState({ nodes: [] }); setState((s) => ({ gol: { ...s.gol, nodes: [] } })); },
   setGolAmbient: (b) => { setLifeState({ ambient: b }); setState((s) => ({ gol: { ...s.gol, ambient: b } })); },
   setUnity: (on) => setState((s) => ({ gol: { ...s.gol, unity: on, unityT0: on ? performance.now() / 1000 : s.gol.unityT0 } })),
+  // switching operator mode reshapes the panel AND nudges the engine into that world:
+  // interactive → a CA rule runs (the tree reacts, you set rules); leaving interactive
+  // disarms Game of Light so a latched dark phase can't strand the next mode.
+  setUiMode: (m) => {
+    try { localStorage.setItem("ui.mode", m); } catch { /* fine */ }
+    const s = get();
+    if (m === "interactive") {
+      if (!(CA_RULES as PatternId[]).includes(s.control.pattern)) s.set({ pattern: "life", strobe: false, blackout: false });
+    } else if (s.gol.phase !== "off") {
+      s.golSetPhase("off");
+    }
+    setState({ uiMode: m });
+  },
+  setDock: (b) => {
+    try { localStorage.setItem("ui.dock", b ? "1" : "0"); } catch { /* fine */ }
+    setState({ dock: b });
+  },
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),

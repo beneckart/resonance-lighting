@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useTwin } from "./store";
+import { DockCtx } from "./Widget";
 import {
   loadCalibration, saveCalibration, assign, resolveMac, progress, type CalibrationMap,
 } from "./calibration";
@@ -21,6 +22,7 @@ let simN = 0;
 const simMac = () => { simN += 1; return `SIM${simN.toString(16).toUpperCase().padStart(3, "0")}`; };
 
 export function CommissioningPanel() {
+  const docked = useContext(DockCtx);
   const [open, setOpen] = useState(false);
   const fixtures = useTwin((s) => s.fixtures);
   const runCommand = useTwin((s) => s.runCommand);
@@ -36,7 +38,7 @@ export function CommissioningPanel() {
     window.setTimeout(() => runCommand("clear"), 1100);
   };
 
-  if (!open) {
+  if (!open && !docked) {
     return (
       <button onClick={() => setOpen(true)} style={{
         position: "fixed", bottom: 14, left: 14, zIndex: 17, padding: "7px 11px", borderRadius: 10,
@@ -47,10 +49,10 @@ export function CommissioningPanel() {
   }
 
   return (
-    <div style={panel}>
+    <div style={docked ? { ...panel, position: "static", width: "100%", maxHeight: "none", marginBottom: 8, boxSizing: "border-box" as const } : panel}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ color: ACCENT, fontWeight: 700 }}>📍 Commissioning</span>
-        <button onClick={() => setOpen(false)} style={{ border: "1px solid #1d3a2a", background: "#0c1812", color: "#9fc7b0", borderRadius: 6, cursor: "pointer", padding: "2px 8px" }}>✕</button>
+        {!docked && <button onClick={() => setOpen(false)} style={{ border: "1px solid #1d3a2a", background: "#0c1812", color: "#9fc7b0", borderRadius: 6, cursor: "pointer", padding: "2px 8px" }}>✕</button>}
       </div>
       <div style={{ fontSize: 9.5, color: "#7ea692", margin: "4px 0" }}>
         bind each physical fixture (MAC) → its slot · {prog.assigned}/{prog.total} done

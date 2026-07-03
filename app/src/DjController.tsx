@@ -11,12 +11,12 @@ import { startMic, startTrack, stopAudio, audioFeatures, listAudioInputs, type A
 const ACCENT = "#5b8cff";
 const PADS: PatternId[] = [...PATTERN_IDS, ...ELEMENT_MODES]; // 12 performance pads
 
-const console_: React.CSSProperties = {
+const console_ = (dockOn: boolean): React.CSSProperties => ({
   position: "fixed",
   bottom: 0,
-  left: "50%",
+  left: dockOn ? "25%" : "50%",
   transform: "translateX(-50%)",
-  width: "min(880px, 96vw)",
+  width: dockOn ? "min(880px, 46vw)" : "min(880px, 96vw)",
   padding: "6px 16px 8px",
   maxHeight: "48vh",
   overflowY: "auto",
@@ -33,7 +33,7 @@ const console_: React.CSSProperties = {
   alignItems: "start",
   zIndex: 20,
   backdropFilter: "blur(8px)",
-};
+});
 
 /** Touch/mouse draggable knob — drag up/down (or scroll) to turn. Pointer capture
  *  + touchAction:none so it works on tablets without stealing the scroll. */
@@ -176,6 +176,7 @@ function Deck({ side }: { side: "A" | "B" }) {
 }
 
 export function DjController() {
+  const dockOn = useTwin((s) => s.dock && !s.cinematic);
   const control = useTwin((s) => s.control);
   const set = useTwin((s) => s.set);
   const [beatLed, setBeatLed] = useState(false);
@@ -298,7 +299,7 @@ export function DjController() {
         title="show DJ console"
         style={{
           // bottom-RIGHT, clear of the centered BEACON/BLACKOUT safety buttons
-          position: "fixed", bottom: 0, right: 16, zIndex: 20,
+          position: "fixed", bottom: 0, right: dockOn ? "calc(50% + 16px)" : 16, zIndex: 20,
           padding: "5px 16px", borderRadius: "10px 10px 0 0", cursor: "pointer",
           border: "1px solid #1d2735", borderBottom: "none", background: "rgba(16,20,29,0.92)",
           color: "#9fb0c7", font: "11px ui-monospace, monospace", backdropFilter: "blur(8px)",
@@ -308,7 +309,7 @@ export function DjController() {
   }
 
   return (
-    <div style={console_}>
+    <div style={console_(dockOn)}>
       <button
         onClick={() => setCollapsed(true)}
         title="minimize DJ decks"

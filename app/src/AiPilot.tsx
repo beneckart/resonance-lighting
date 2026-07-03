@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useTwin } from "./store";
+import { DockCtx } from "./Widget";
 import { audioFeatures } from "./audio";
 import { decideLook, energyOf, type AiDecision } from "./aivj";
 import { phraseSeconds } from "./autovj";
@@ -70,8 +71,9 @@ export function AiPilot() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const docked = useContext(DockCtx);
   return (
-    <div style={panel}>
+    <div style={docked ? { ...panel, position: "static", width: "100%", marginBottom: 8, boxSizing: "border-box" as const } : panel}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ color: ACCENT, fontWeight: 700 }}>🤖 AI auto-pilot</span>
         <button

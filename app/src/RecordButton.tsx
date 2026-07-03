@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTwin } from "./store";
 import { getPianoAudioStream, setPianoSound } from "./pianoAudio";
 
 // pick the best container the browser can record — mp4 (best for social/iMessage) else webm
@@ -12,6 +13,7 @@ function pickMime(): string {
  *  (same Web Audio graph that plays the music) into a single downloadable video —
  *  so a social clip has the music baked in, no external screen-recorder needed. */
 export function RecordButton() {
+  const dockOn = useTwin((s) => s.dock && !s.cinematic);
   const [recording, setRecording] = useState(false);
   const [secs, setSecs] = useState(0);
   const [saved, setSaved] = useState("");
@@ -63,7 +65,7 @@ export function RecordButton() {
     <button onClick={() => (recording ? stop() : start())}
       title={recording ? "stop & save the video" : "record video + audio (for a social post)"}
       style={{
-        position: "fixed", top: 46, left: "50%", transform: "translateX(-50%)", zIndex: 60,
+        position: "fixed", top: 46, left: dockOn ? "25%" : "50%", transform: "translateX(-50%)", zIndex: 60,
         padding: "7px 13px", borderRadius: 10, cursor: "pointer", fontWeight: 700,
         border: recording ? "1.5px solid #ff5b6e" : "1px solid #2a3a52",
         background: recording ? "#2a1016" : "rgba(12,16,24,0.85)",
