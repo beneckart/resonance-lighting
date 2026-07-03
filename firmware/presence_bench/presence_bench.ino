@@ -52,7 +52,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.22"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.26"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
@@ -124,6 +124,14 @@ using namespace PowerFeather;
 #endif
 #define AP_SSID "PresenceBench"
 #define AP_PASS "resonance"
+// Keep the SoftAP alongside the STA? A SoftAP cannot modem-sleep -- it beacons at
+// full TX power every ~100 ms forever, a spike diet that battery-only VSYS has
+// NEVER been soak-tested against (June's stable battery runs were all STA-only).
+// Default OFF as of the 2026-07-02 reboot hunt; AP still comes up as the no-secrets
+// fallback either way.
+#ifndef PB_STA_AP
+#define PB_STA_AP 0
+#endif
 
 WebServer server(80);
 SemaphoreHandle_t gDataMux;
@@ -775,9 +783,32 @@ static void chargeTick() {
 
 // Pre-death breadcrumb: stash uptime + battery voltage to NVS every 10 s so the
 // NEXT boot can report what the run looked like just before it died (see the
-// boot block). 10 s because the 2026-07-02 battery-only reboots arrived every
-// ~30-60 s -- 30 s missed whole runs. Wear-leveled NVS is fine for a bench week.
+// boot block). GATED (PB_BREADCRUMB=0 to disable): periodic NVS commits are
+// flash program/erase ops -- current spikes with both cores cache-stalled --
+// and "brownout during flash writes on marginal supply" is a classic ESP32
+// failure mode. June's loadgen instrumentation deliberately ran with "no NVS
+// flash write" for artifact reasons. Ironic suspect #1 in the reboot hunt this
+// instrument was built for.
+#ifndef PB_BREADCRUMB
+#define PB_BREADCRUMB 1
+#endif
+// Bisect knob: PB_NO_TASK=1 skips creating the core-0 sensor task entirely --
+// no I2C, no SDK reads, no charging call after setup. Isolates the task (the
+// biggest structural difference vs the historically-stable loop()-idiom
+// firmwares, and it shares core 0 with the WiFi stack).
+#ifndef PB_NO_TASK
+#define PB_NO_TASK 0
+#endif
+// Sub-bisect knob: task runs but makes NO PowerFeather SDK calls (no battery
+// round-robin, no charge-enable) -- splits "SDK I2C from core 0" from the
+// task's probe/scheduling machinery.
+#ifndef PB_TASK_NO_SDK
+#define PB_TASK_NO_SDK 0
+#endif
 static void breadcrumbTick() {
+#if !PB_BREADCRUMB
+  return;
+#endif
   static uint32_t lastMs = 0;
   uint32_t now = millis();
   if (now - lastMs < 10000) return;
@@ -914,8 +945,10 @@ static void sensorTask(void *) {
 #if PB_ENABLE_L1X
     l1xTick();
 #endif
+#if !PB_TASK_NO_SDK
     batteryTick();
     chargeTick();
+#endif
     breadcrumbTick();
     reprobeTick();
     vTaskDelay(pdMS_TO_TICKS(5));
@@ -1537,7 +1570,7 @@ setInterval(pollFrame,300);setInterval(pollState,1000);pollState();
 // ---- WiFi / setup -----------------------------------------------------------------
 static void setupWifi() {
 #if HAVE_SECRETS
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(PB_STA_AP ? WIFI_AP_STA : WIFI_STA);
   WiFi.setHostname("presencebench");
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   Serial.print("WiFi connecting");
@@ -1548,13 +1581,15 @@ static void setupWifi() {
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    bool apOk = WiFi.softAP(AP_SSID, AP_PASS, WiFi.channel());
+    logf("STA up, rssi %d, %s", (int)WiFi.RSSI(), PB_STA_AP ? "AP+STA" : "STA-only");
     Serial.print("Presence bench STA at http://");
     Serial.println(WiFi.localIP());
-    if (apOk) {
+#if PB_STA_AP
+    if (WiFi.softAP(AP_SSID, AP_PASS, WiFi.channel())) {
       Serial.print("AP '" AP_SSID "' -> http://");
       Serial.println(WiFi.softAPIP());
     }
+#endif
     return;
   }
   Serial.println("station failed; starting AP fallback");
@@ -1711,10 +1746,14 @@ void setup() {
   server.begin();
 
   gDataMux = xSemaphoreCreateMutex();
+#if PB_NO_TASK
+  logf("PB_NO_TASK bisect build: sensor task NOT created (no I2C/SDK/charging after setup)");
+#else
   // All I2C lives on core 0; HTTP stays on core 1 (Arduino loop). Sensors init
   // lazily inside the task -- the dashboard is already reachable at this point.
   xTaskCreatePinnedToCore(sensorTask, "sensors", 16384, NULL, 1, NULL, 0);
   Serial.println("Dashboard up; sensors initializing in background.");
+#endif
 }
 
 void loop() {

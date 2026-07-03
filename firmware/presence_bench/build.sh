@@ -30,6 +30,9 @@ while [[ $# -gt 0 ]]; do
     --no-tmf) NO_TMF="1"; shift;;
     --no-xm) NO_XM="1"; shift;;
     --no-l1x) NO_L1X="1"; shift;;
+    --no-breadcrumb) NO_BC="1"; shift;;
+    --no-task) NO_TASK="1"; shift;;
+    --task-no-sdk) TASK_NO_SDK="1"; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
@@ -58,6 +61,9 @@ fi
 [[ -n "${NO_TMF}" ]] && FLAGS+=" -DPB_ENABLE_TMF=0"
 [[ -n "${NO_XM}" ]] && FLAGS+=" -DPB_ENABLE_XM=0"
 [[ -n "${NO_L1X}" ]] && FLAGS+=" -DPB_ENABLE_L1X=0"
+[[ -n "${NO_BC:-}" ]] && FLAGS+=" -DPB_BREADCRUMB=0"
+[[ -n "${NO_TASK:-}" ]] && FLAGS+=" -DPB_NO_TASK=1"
+[[ -n "${TASK_NO_SDK:-}" ]] && FLAGS+=" -DPB_TASK_NO_SDK=1"
 
 BUILD_PATH="${ARDUINO_BUILD_PATH:-$(mktemp -d)}"
 if [[ -z "${ARDUINO_BUILD_PATH:-}" ]]; then

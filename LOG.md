@@ -12,6 +12,42 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 (cont. 9) - Ben + Claude - The reboot hunt goes firmware-side: hardware fully exonerated, bisect narrowing on the core-0 sensor task
+
+The elimination cascade, in one evening: A0 jumper pulled -> still dies; holder
+replaced with a FULL 7.2 Ah LFP on soldered welded-tab leads -> still dies (at
+bv 3.50-3.55, killing the crossover theory -- clean buck region); SoftAP
+disabled (.23 STA-only) -> still dies; **cell + firmware moved to the
+led_studio desk board -> DIES THERE TOO** (110 s at 3.55 V). Hardware is out.
+Then the anchor test, Ben's idea: **June's `power_bench --loadgen` on the same
+board + cell survived 10 min on battery INCLUDING its heavy phase (200x512 B
+UDP/s + LED at bv 3.33)** -- an order of magnitude more TX than presence_bench
+generates. presence_bench firmware convicted by contrast. RSSI spread across
+boots (-22 vs -52) explained by the June Eero-latching finding (each boot
+re-associates to a different node) -- consequence, not cause.
+
+Bisect ladder (each build = ONE variable, battery-run on the desk board):
+- `.24` = .23 minus the 10 s NVS breadcrumb writes -> **DIED. NVS acquitted**
+  (despite being suspect #1 and the classic ESP32 flash-write-brownout story).
+- `.25` = .24 minus the core-0 sensor task entirely (no I2C/SDK/charging after
+  setup; WiFi + WebServer + mDNS remain) -> **~300 s stable, no deaths**
+  (provisional; 10-min confirmation queued for tomorrow). Sensor task
+  provisionally convicted.
+- `.26` = .24 with the task ON but its SDK calls gated out (PB_TASK_NO_SDK: no
+  battery round-robin, no charge-enable; probes/init machinery intact) --
+  **RUNNING OVERNIGHT.** Survival => "PowerFeather SDK I2C from core 0"
+  convicted (note led_studio does the same calls from core 1's loop() and is
+  stable -> the variable would be WHICH CORE / concurrency, directly relevant
+  to ADR 0005's FreeRTOS production architecture). Death => the task's
+  probe/scheduling side.
+
+Instrumentation kept honest: bisect builds without batteryTick report bv/ma=0
+(watcher survival rule switched to uptime-only; Ben controls the unplug).
+All state samples in `ops/bench/data/presence/2026-07-02_rebootwatch.jsonl`;
+loadgen heartbeats in `2026-07-02_loadgen_udp.log`. Flags added: build.sh
+--no-breadcrumb / --no-task / --task-no-sdk. NOTE: the desk board needs
+led_studio reflashed when the hunt concludes (r10 pending).
+
 ## 2026-07-02 (cont. 8) - Ben + Claude - CORRECTION: the spare is a PRISTINE board (not June's board 1); suspects re-ranked
 
 Ben inspected: the spare has NO hand-soldered JST (June board 1's marker) --
