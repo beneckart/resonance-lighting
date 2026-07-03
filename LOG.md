@@ -12,6 +12,31 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 (cont. 8) - Ben + Claude - CORRECTION: the spare is a PRISTINE board (not June's board 1); suspects re-ranked
+
+Ben inspected: the spare has NO hand-soldered JST (June board 1's marker) --
+nothing but the A0 flying jumper added hours ago. So cont. 7's "board-1
+signature" reads as the same FAILURE CLASS, not the same board, and the June
+doc's n=3 twist now cuts differently: June's pristine boards were stable on
+battery **with a soldered cell**; tonight's pristine board loops **with a 26650
+HOLDER**. Re-ranked suspects: (1) holder/pigtail loop impedance (H2 relocated
+to the holder -- spring holders are the classic variable-milliohm offender);
+(2) the A0 flying jumper (only non-stock element, installed hours before the
+reboots were noticed -- electrically innocent on paper, mechanically a bench
+confound; 30-second test: remove it); (3) the AP+STA + HTTP radio profile on a
+marginal loop (June's stable runs were STA+UDP loadgen -- fix ladder if so:
+--wifi-lowpower -> STA-only -> localhost dashboard + sparse updates, the
+net_bench recipe); (4) stock-V2 thin VSYS margin under AP+STA (June H4, the
+never-tested bulk-cap insurance). Also noted from the June doc: a LIT panel on
+VDC buffers spikes like USB (BQ power path supplements from input when a supply
+is present) -- explains the solar peer's daytime immunity; a dark panel is
+near-negligible, its nights survive on the sleep-dominated ESP-NOW profile.
+NEXT ladder (cheapest first): pull the A0 jumper + battery run; then Ben's
+plan: run June's own `power_bench --loadgen` (STA+UDP, no AP/HTTP) on this
+board+cell -- stable => radio profile implicated; loops => bypass the holder
+with tabbed/soldered leads (or the INA screw terminals as the fat path) to
+split holder-R from H4.
+
 ## 2026-07-02 (cont. 7) - Ben + Claude - Decisive: reboots persist with the ENTIRE sensor chain unplugged -- WiFi alone kills it; this is June's board-1 signature
 
 Ben physically unplugged the whole STEMMA/Qwiic chain: the board still

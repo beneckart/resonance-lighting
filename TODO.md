@@ -267,14 +267,16 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the distance app reports all static reflectors, which made desk testing
   uncorrelatable with motion) (Ben/Claude).
 - [ ] **Presence-bench battery-only reboots -- NARROWED 2026-07-02 (LOG cont.
-  6+7): reboots persist with the WHOLE sensor chain unplugged (WiFi alone,
-  ~-120 mA), matching June's unresolved board-1 brownout signature (marginal
-  battery-path solder joint, H2).** Sensor load exonerated; USB immune (VBUS
-  bypasses the battery input). NEXT: (1) same board + different cell/leads --
-  persists => board joint, inspect/reflow under magnification (executes the
-  open June TODO); (2) same cell/holder + different PowerFeather -- moves =>
-  harness; (3) identify whether spare 9F2690 IS June's board 1. INA-in-the-
-  battery-lead remains the waveform-level confirmation if swaps are ambiguous.
+  6-8): reboots persist with the WHOLE sensor chain unplugged (WiFi alone,
+  ~-120 mA); board confirmed PRISTINE (not June's board 1), so suspects are the
+  26650 HOLDER loop impedance (June's stable pristine boards used a SOLDERED
+  cell), the A0 flying jumper, the AP+STA/HTTP radio profile, or stock thin
+  VSYS margin (June H4).** USB immune. Test ladder, cheapest first: (1) pull
+  the A0 jumper, battery run; (2) June's own `power_bench --loadgen` (STA+UDP,
+  no AP/HTTP) on this board+cell -- stable => radio profile (fix: lowpower ->
+  STA-only -> localhost dashboard); loops => (3) bypass the holder with
+  tabbed/soldered leads or the INA screw-terminal path (also the waveform
+  instrument), splitting holder-R from the never-tested VSYS bulk-cap item.
   Death data: `ops/bench/data/presence/2026-07-02_rebootwatch.jsonl` (Ben/Claude).
 - [ ] **Fleet hygiene: chemistry profile must match the attached cell.** The old
   net_bench master image (Li-ion profile) was found actively overcharging the
