@@ -91,12 +91,9 @@ export function InteractivityPanel() {
             <button onClick={clearNodes} style={btn("#2a3a52", "#141a26", "#9fb0c7")}>clear</button>
           </div>
         </div>
-        {/* demo: drop a ring of OUTER-downlight nodes all the way around → Unity.
-            (ring detection is sensor-real: only ground-reachable outer downlights count) */}
-        <button onClick={() => { const st = useTwin.getState(); const byQ: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] }; st.fixtures.forEach((f, i) => { if (f.role === "downlight" && f.radialT >= 0.45) byQ[f.quadrant]?.push(i); }); [0, 1, 2, 3].forEach((q) => { const a = byQ[q]; if (a.length) { st.addNode(a[(a.length * 0.3) | 0]); st.addNode(a[(a.length * 0.7) | 0]); } }); }}
-          style={{ ...btn("#b060ff", "#2a1040", "#e0b0ff"), width: "100%", marginTop: 6 }}>
-          🌈 Sim community ring → Unity
-        </button>
+        {/* Unity/community mode has NO button in the main flow — it only triggers
+            ORGANICALLY when visitors form a chain of lit nodes all the way around.
+            Demo/testing shortcuts live in the collapsed 🧪 drawer at the bottom. */}
       </div>
 
       {(CA_RULES as PatternId[]).map((r) => {
@@ -202,6 +199,17 @@ export function InteractivityPanel() {
             onChange={(e) => set({ brightness: +e.target.value })} style={{ width: "100%" }} />
         </Row>
       </div>
+
+      {/* ── 🧪 test & demo drawer — collapsed, OUT of the operator flow. Unity itself
+          only ever triggers organically (a real chain of nodes around the tree). ── */}
+      <details style={{ marginTop: 10, borderTop: "1px solid #1d2735", paddingTop: 6 }}>
+        <summary style={{ cursor: "pointer", fontSize: 10, color: "#6f8a7e" }}>🧪 test & demo</summary>
+        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+          <button onClick={() => { const st = useTwin.getState(); const byQ: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] }; st.fixtures.forEach((f, i) => { if (f.role === "downlight" && f.radialT >= 0.45) byQ[f.quadrant]?.push(i); }); [0, 1, 2, 3].forEach((q) => { const a = byQ[q]; if (a.length) { st.addNode(a[(a.length * 0.3) | 0]); st.addNode(a[(a.length * 0.7) | 0]); } }); }}
+            style={btn("#5a4a6a", "#171022", "#b8a0d0")}>sim ring (unity test)</button>
+          <button onClick={pokeRandom} style={btn("#2a3a52", "#141a26", "#9fb0c7")}>poke random</button>
+        </div>
+      </details>
     </Widget>
   );
 }
