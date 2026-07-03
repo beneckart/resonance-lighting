@@ -80,6 +80,11 @@ export function InteractivityPanel() {
             <button onClick={clearNodes} style={btn("#2a3a52", "#141a26", "#9fb0c7")}>clear</button>
           </div>
         </div>
+        {/* demo: drop a ring of nodes all the way around → triggers Unity */}
+        <button onClick={() => { const st = useTwin.getState(); const byQ: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] }; st.fixtures.forEach((f, i) => byQ[f.quadrant]?.push(i)); [0, 1, 2, 3].forEach((q) => { const a = byQ[q]; if (a.length) { st.addNode(a[(a.length * 0.35) | 0]); st.addNode(a[(a.length * 0.7) | 0]); } }); }}
+          style={{ ...btn("#b060ff", "#2a1040", "#e0b0ff"), width: "100%", marginTop: 6 }}>
+          🌈 Sim community ring → Unity
+        </button>
       </div>
 
       {(CA_RULES as PatternId[]).map((r) => {

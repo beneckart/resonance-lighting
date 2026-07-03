@@ -16,6 +16,7 @@ import { relativeBeam } from "./photometry";
 import { applyEnv } from "./sensors";
 import { easeGroundTint } from "./groundtint";
 import { createGlslPass, type GlslPass } from "./glslPass";
+import { playUnityFanfare } from "./unityAudio";
 
 // Global pattern-motion slowdown (everything was tuned too fast). 1.0 = old
 // frantic baseline; lower = calmer. The speed dial multiplies on top of this.
@@ -117,6 +118,7 @@ export function TreeLights() {
   const dispB = useRef<Float32Array>(new Float32Array(0));
   const lastReport = useRef<Float32Array>(new Float32Array(0));
   const statsAt = useRef(0);
+  const unityAt = useRef(0); // throttle the Unity ring-detection + twinkle-ripple spawn
   const lastTele = useRef(0); // throttle the telemetry/data-log snapshot (~5 Hz)
   const teleBuf = useRef<LightState[]>([]);
 
@@ -249,6 +251,25 @@ export function TreeLights() {
     if (ctrl.pattern === "life" || st.layers.some((l) => l.control.pattern === "life")) {
       updateLife(fixtures, delta, ctrl.speed);
     }
+    // ── UNITY / community mode ── when the visitor NODES ring the whole tree (a
+    // continuous chain of lit sensors all the way around), everything goes rainbow +
+    // twinkle-ripple + a fanfare. Checked ~3 Hz off the node azimuths' max angular gap.
+    const gol = st.gol;
+    if (t - unityAt.current > 0.33) {
+      unityAt.current = t;
+      if (!gol.unity) {
+        const nodes = gol.nodes;
+        if (nodes.length >= 5) {
+          const angs = nodes.map((i) => fixtures[i]?.azimuth ?? 0).sort((a, b) => a - b);
+          let maxGap = angs[0] + Math.PI * 2 - angs[angs.length - 1]; // wraparound gap
+          for (let i = 1; i < angs.length; i++) maxGap = Math.max(maxGap, angs[i] - angs[i - 1]);
+          if (maxGap <= (100 * Math.PI) / 180) { st.setUnity(true); playUnityFanfare(); } // ring closed all the way around
+        }
+      } else {
+        if (performance.now() / 1000 - gol.unityT0 > 10) st.setUnity(false); // auto-clear after ~10s
+        else st.pingPresence(); // keep spawning twinkle ripples during the celebration
+      }
+    }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
     const ripples = st.ripples;
     const nowS = performance.now() / 1000;
@@ -315,6 +336,15 @@ export function TreeLights() {
         lit.r = lerp(lit.r, litB.r, xfade);
         lit.g = lerp(lit.g, litB.g, xfade);
         lit.b = lerp(lit.b, litB.b, xfade);
+      }
+      // UNITY override: whole tree goes rainbow (spinning by azimuth+height) + a
+      // per-fixture twinkle. The ripple boost below adds the "ripple" on top.
+      if (gol.unity) {
+        const hue = ((f.azimuth / (Math.PI * 2) + 0.5) + f.heightT * 0.25 + t * 0.12) % 1;
+        const tw = 0.55 + 0.45 * Math.sin(t * 7 + f.rnd * 6.2831); // twinkle
+        col.setHSL((hue + 1) % 1, 0.92, 0.55);
+        const bv = (0.45 + 0.55 * tw) * fctrl.brightness;
+        lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       }
       const ov = overrides[i];
       if (ov) {
