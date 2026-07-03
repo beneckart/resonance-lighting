@@ -194,6 +194,10 @@ interface TwinState {
   gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
   uiMode: UiMode; // which operator mode the side panel shows (persisted)
   dock: boolean; // split-screen dock layout (tree left · one organized panel right)
+  // GROUPS ABOVE MODES (Elliot): each group can run its OWN mode simultaneously —
+  // canopy interactive while the chandelier follows sound. "follow" = ride the base.
+  groupModes: Record<string, UiMode | "follow">;
+  selectedScope: string; // which group the panel is dialling in ("all" = whole tree)
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
@@ -230,6 +234,8 @@ interface TwinState {
   setUnity: (on: boolean) => void;
   setUiMode: (m: UiMode) => void;
   setDock: (b: boolean) => void;
+  setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
+  setSelectedScope: (g: string) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
   setCameraPreset: (c: "hero" | "top") => void;
@@ -274,6 +280,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
   gol: DEFAULT_GOL,
   uiMode: (typeof localStorage !== "undefined" && (localStorage.getItem("ui.mode") as UiMode)) || "lightshow",
   dock: typeof localStorage !== "undefined" ? localStorage.getItem("ui.dock") !== "0" : true,
+  groupModes: {},
+  selectedScope: "all",
   guest: false,
   sensors: DEFAULT_SENSORS,
   cameraPreset: "hero",
@@ -581,6 +589,24 @@ export const useTwin = create<TwinState>((setState, get) => ({
     try { localStorage.setItem("ui.dock", b ? "1" : "0"); } catch { /* fine */ }
     setState({ dock: b });
   },
+  // PER-GROUP MODE ROUTING — maps a group's mode onto the layer engine so different
+  // regions run different worlds at once (canopy interactive + chandelier on sound):
+  //   interactive → that group's layer runs the Game of Life (the shared field
+  //                 renders on its members; taps there seed it)
+  //   sound       → its layer runs the audio-reactive hero look
+  //   lightshow   → its saved Group look drives it (GroupPanel controls)
+  //   follow      → no layer; the group rides the whole-tree base
+  setGroupMode: (group, m) => {
+    const s = get();
+    const nums = group === "all" ? s.fixtures.map((f) => f.num) : (s.namedGroups[group] ?? []);
+    if (group === "all") { s.setUiMode(m === "follow" ? s.uiMode : (m as UiMode)); setState((q) => ({ groupModes: { ...q.groupModes, all: m } })); return; }
+    if (m === "interactive") s.setLayer(group, nums, { pattern: "life", brightness: 0.95, colorCycle: "off", strobe: false });
+    else if (m === "sound") s.setLayer(group, nums, { pattern: "hero", audioSpeed: true, brightness: 0.95 });
+    else if (m === "lightshow") { s.toggleGroupActive(group, true); }
+    else s.removeLayer(group); // follow the base
+    setState((q) => ({ groupModes: { ...q.groupModes, [group]: m }, selectedScope: group }));
+  },
+  setSelectedScope: (g) => setState({ selectedScope: g }),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   setCameraPreset: (c) => setState({ cameraPreset: c }),

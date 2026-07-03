@@ -58,6 +58,11 @@ export function SidePanel() {
   const uiMode = useTwin((s) => s.uiMode);
   const setUiMode = useTwin((s) => s.setUiMode);
   const setDock = useTwin((s) => s.setDock);
+  const namedGroups = useTwin((s) => s.namedGroups);
+  const groupModes = useTwin((s) => s.groupModes);
+  const scope = useTwin((s) => s.selectedScope);
+  const setScope = useTwin((s) => s.setSelectedScope);
+  const setGroupMode = useTwin((s) => s.setGroupMode);
   const defs = SECTIONS[uiMode];
   const [order, setOrder] = useState<string[]>(() => loadOrder(uiMode, defs.map((d) => d.key)));
   const [prevMode, setPrevMode] = useState(uiMode);
@@ -105,14 +110,32 @@ export function SidePanel() {
 
   return (
     <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "50%", zIndex: 40, display: "flex", flexDirection: "column", background: "rgba(7,10,15,0.97)", borderLeft: "1px solid #1d2735", backdropFilter: "blur(8px)" }}>
-      {/* ── MODE SWITCH — pick this first ── */}
+      {/* ── SCOPE FIRST (Elliot: groups sit ABOVE modes) — pick who you're driving:
+            the whole tree or one group. Each group can hold a DIFFERENT mode. ── */}
       <div style={{ padding: "10px 12px 8px", borderBottom: "1px solid #16202e" }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          {UI_MODES.map((m) => {
-            const mm = MODE_META[m];
-            const on = uiMode === m;
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+          {["all", ...Object.keys(namedGroups).filter((g) => g !== "all")].map((g) => {
+            const on = scope === g;
+            const gm = groupModes[g];
+            const dotColor = gm === "interactive" ? "#3ddc97" : gm === "sound" ? "#ff7b54" : gm === "lightshow" ? "#5b8cff" : null;
             return (
-              <button key={m} onClick={() => setUiMode(m)}
+              <button key={g} onClick={() => setScope(g)}
+                style={{ padding: "6px 10px", minHeight: 32, borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                  border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#0c121c",
+                  color: on ? "#eef3fb" : "#8aa0bb", font: "11px ui-monospace, monospace" }}>
+                {g === "all" ? "🌳 whole tree" : g}
+                {dotColor && <span style={{ marginLeft: 5, color: dotColor }}>●</span>}
+              </button>
+            );
+          })}
+        </div>
+        {/* mode tabs — assign the SELECTED scope's mode */}
+        <div style={{ display: "flex", gap: 6 }}>
+          {UI_MODES.filter((m) => scope === "all" || m !== "calibrate").map((m) => {
+            const mm = MODE_META[m];
+            const on = scope === "all" ? uiMode === m : groupModes[scope] === m;
+            return (
+              <button key={m} onClick={() => (scope === "all" ? setUiMode(m) : setGroupMode(scope, m))}
                 style={{ flex: 1, minHeight: 44, padding: "6px 4px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 12,
                   border: on ? `1.5px solid ${mm.accent}` : "1px solid #2a3a52", background: on ? "#101c2a" : "#0c121c",
                   color: on ? mm.accent : "#8aa0bb", font: "12px ui-monospace, monospace" }}>
@@ -121,9 +144,21 @@ export function SidePanel() {
               </button>
             );
           })}
+          {scope !== "all" && (
+            <button onClick={() => setGroupMode(scope, "follow")}
+              title="this group follows whatever the whole tree does"
+              style={{ flex: 0.7, minHeight: 44, padding: "6px 4px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 11,
+                border: !groupModes[scope] || groupModes[scope] === "follow" ? "1.5px solid #8aa0bb" : "1px solid #2a3a52",
+                background: "#0c121c", color: "#8aa0bb", font: "11px ui-monospace, monospace" }}>
+              <div style={{ fontSize: 14 }}>↩</div>
+              follow
+            </button>
+          )}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-          <span style={{ fontSize: 10, color: "#7a8ba3", font: "10px ui-monospace, monospace" }}>{meta.blurb}</span>
+          <span style={{ fontSize: 10, color: "#7a8ba3", font: "10px ui-monospace, monospace" }}>
+            {scope === "all" ? meta.blurb : `assign ${scope} its own mode — it runs ALONGSIDE the rest of the tree`}
+          </span>
           <button onClick={() => setDock(false)} title="switch to free-floating widgets"
             style={{ padding: "4px 9px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, border: "1px solid #2a3a52", background: "#0c121c", color: "#8aa0bb", font: "10.5px ui-monospace, monospace" }}>
             ⧉ float
