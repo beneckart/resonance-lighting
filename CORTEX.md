@@ -1,5 +1,8 @@
 # Resonance Tree — Lighting Cortex (controller / show system)
 
+**v1.0 “Emergence”** — the first complete release: the full digital twin + control
+system, runnable by anyone from a fresh clone (below), sound included, offline-capable.
+
 ## ▶ Run it (2 minutes, no hardware needed)
 ```bash
 git clone --branch Lighting-Controller https://github.com/beneckart/resonance-lighting.git

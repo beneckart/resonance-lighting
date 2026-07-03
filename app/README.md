@@ -1,4 +1,4 @@
-# Resonance Tree — Mirror Twin (`app/`)
+# Resonance Tree — Mirror Twin (`app/`) · v1.0 “Emergence”
 
 A real-time, hardware-true 3D **digital twin + control/show system** for the Resonance
 Tree: the actual bamboo tree rendered with its lanterns glowing, driven by music, playable
@@ -15,10 +15,10 @@ npm run dev        # http://localhost:5173 (+ a Network URL for other devices)
 Everything needed is in the repo — the 3-D tree geometry (`tree-context.glb`), the real
 lantern + chandelier bodies, `fixtures.json` (118 fixtures from the Blender export),
 gobos, photometry (`downlight.ies`), MIDI scores and test audio — so a clone runs the
-exact same system and controls. Two footnotes: (1) the piano's *sampled* grand-piano
-sound streams once from a CDN on first play (the lights and the built-in synth fallback
-are fully offline); (2) layouts/cues/themes persist per-browser (localStorage), so each
-operator starts from clean defaults. Other scripts: `npm run build` · `npm test`
+exact same system and controls — including the sampled grand piano, whose soundfont is
+vendored in the repo (`public/soundfont/`), so it all runs fully offline. One footnote:
+layouts/cues/themes persist per-browser (localStorage), so each operator starts from
+clean defaults. Other scripts: `npm run build` · `npm test`
 (Vitest) · `npm run e2e` (Playwright) · `npm run check` (build + test + e2e).
 
 ## The four operator modes (pick first, top of the panel)
@@ -88,6 +88,24 @@ pattern <id> | hue 0.5 | bri 0.8 | speed 1.5
   target = all | zone low|mid|high | range a-b | every n | fixture <id|seq>
 on | off | clear
 ```
+
+## Expand it — where things live
+The codebase is deliberately hackable; each concept is one file:
+- **Add a pattern**: `src/patterns.ts` — add a `case` to `litFor` (per-fixture, pure:
+  position/time in → RGB out) + register the id in `src/store.ts` `PATTERN_IDS`.
+- **Add a CA rule**: `src/field.ts` — the decentralised engines (Game of Life,
+  excitable media, reaction-diffusion, firefly sync) evolve per-fixture state over
+  each light's `neighbors` list; export an `updateX()` + output buffer, tick it in
+  `src/TreeLights.tsx`, add the id to `CA_RULES`.
+- **Add a colour theme**: `src/themes.ts` — one object: hue anchors + saturation.
+- **Add a light show**: `src/shows.ts` — timed cues driving base + group layers.
+- **Trigger rules** (what a touch does): `src/store.ts` `TriggerRule`/`triggerAt`.
+- **The mesh seam**: `src/protocol.ts` — Protocol-v1 param encoder (control-plane
+  only, never pixels); `src/calibration.ts` + `src/autocal.ts` — commissioning &
+  the auto-calibration sweep. Sensors story: `docs/research/` + Ben's
+  `PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md`.
+- **Tests**: `src/*.test.ts` (Vitest) — `npm test`; the Game-of-Life invariants
+  live in `src/field.test.ts`.
 
 ## Re-export the model (optional)
 `scripts/blender/export_tree.py` (fixtures) + `export_context.py` (geometry) run via
