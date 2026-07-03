@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 import { useTwin } from "./store";
 
-/** Presence / motion sensor → ripple wavefronts. On real hardware a PIR/mmWave
- *  fires on movement; here `sensors.motion` (0..1) sets the spawn rate so a
- *  passer-by sends a wave of light pulsing through the tree. Renders nothing. */
+/** Presence sensor → ripple wavefronts. Real hardware (Ben's PRESENCE_SENSING doc):
+ *  a per-lantern downward ToF lidar "eye" (VL53L1X class) is the primary candidate —
+ *  PIR is RULED OUT (a swaying lantern self-triggers on its own moving warm scene) —
+ *  with mmWave (LD2410/LD2420) and mesh-RSSI attenuation as parallel channels. Here
+ *  `sensors.motion` (0..1) sets the spawn rate so a passer-by sends a wave of light
+ *  pulsing through the tree. Renders nothing. */
 export function PresenceDriver() {
   const motion = useTwin((s) => s.sensors.motion);
   useEffect(() => {

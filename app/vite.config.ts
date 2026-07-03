@@ -4,6 +4,10 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // LAN access: serve on all interfaces so Ben (or any laptop/iPad on the same
+  // network) can open the twin at http://<this-machine's-ip>:5173 — no deploy needed.
+  server: { host: true },
+  preview: { host: true },
   plugins: [
     react(),
     VitePWA({

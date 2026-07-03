@@ -443,8 +443,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
       const o = idx >= 0 ? s.fixtures[idx].pos : (origin ?? [0, 0, 0]);
       const t0 = performance.now() / 1000;
       const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-16);
-      // in Game of Life, a presence ping also seeds a small living blob there
-      if (idx >= 0 && s.control.pattern === "life") seedLife([idx], { hops: 2 });
+      // in Game of Life, a presence ping also seeds a small living blob there —
+      // EXCEPT during Unity, whose celebration pings are ripple-only (seeding every
+      // 0.33s for 10s would leave the field over-grown after the celebration ends)
+      if (idx >= 0 && s.control.pattern === "life" && !s.gol.unity) seedLife([idx], { hops: 2 });
       return { ripples };
     }),
   // fire a SENSOR at fixture `idx` (a touch/click on the tree): push a colour+
@@ -481,7 +483,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
     }));
   },
   golSetPhase: (p) => setState((s) => {
-    const dark = p === "standby" || p === "off1" || p === "off2" || p === "off";
+    // "off" = DISARM: back to a normal always-alive field, lights back on, nodes gone.
+    // (A previous bug left the tree blacked out + dark-at-rest after disarming.)
+    if (p === "off") {
+      setLifeState({ ambient: true, nodes: [] });
+      return { gol: { ...DEFAULT_GOL, phase: "off" }, control: { ...s.control, blackout: false } };
+    }
+    const dark = p === "standby" || p === "off1" || p === "off2";
     const ambient = p === "live" ? false : s.gol.ambient;
     setLifeState({ ambient });
     return { gol: { ...s.gol, phase: p, ambient, t0: performance.now() / 1000 }, control: { ...s.control, blackout: dark } };

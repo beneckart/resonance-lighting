@@ -7,7 +7,19 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 interface WState { x: number; y: number; w: number; h: number; collapsed: boolean }
 
 function load(id: string, def: WState): WState {
-  try { const r = localStorage.getItem("widget." + id); if (r) return { ...def, ...JSON.parse(r) }; } catch { /* ignore */ }
+  try {
+    const r = localStorage.getItem("widget." + id);
+    if (r) {
+      const s = { ...def, ...JSON.parse(r) } as WState;
+      // clamp to the CURRENT viewport — a layout saved on a wide screen (or before an
+      // iPad rotation) must never leave a widget stranded offscreen and unreachable
+      if (typeof window !== "undefined") {
+        s.x = Math.max(0, Math.min(s.x, window.innerWidth - 64));
+        s.y = Math.max(0, Math.min(s.y, window.innerHeight - 48));
+      }
+      return s;
+    }
+  } catch { /* ignore */ }
   return def;
 }
 function persist(id: string, s: WState) { try { localStorage.setItem("widget." + id, JSON.stringify(s)); } catch { /* ignore */ } }
@@ -53,8 +65,9 @@ export function Widget({ id, title, x, y, w, h = 360, minW = 150, accent = "#5b8
       {!s.collapsed && (
         <div style={{ position: "relative" }}>
           <div style={{ height: s.h, overflowY: "auto", overflowX: "hidden", padding: "8px 10px" }}>{children}</div>
+          {/* touch-sized resize grip (44px hit area per Apple HIG; glyph stays small) */}
           <div onPointerDown={onRezDown} onPointerMove={onMove} onPointerUp={onUp} title="resize"
-            style={{ position: "absolute", right: 2, bottom: 2, width: 16, height: 16, cursor: "nwse-resize", color: "#46577a", fontSize: 12, lineHeight: "16px", textAlign: "center", touchAction: "none", userSelect: "none" }}>◢</div>
+            style={{ position: "absolute", right: 0, bottom: 0, width: 40, height: 40, cursor: "nwse-resize", color: "#46577a", fontSize: 12, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: "0 4px 2px 0", touchAction: "none", userSelect: "none" }}>◢</div>
         </div>
       )}
     </div>

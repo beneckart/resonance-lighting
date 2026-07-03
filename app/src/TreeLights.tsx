@@ -249,25 +249,33 @@ export function TreeLights() {
     // Cell seeding is owned by the event sources (store.triggerAt / pingPresence), so a
     // tap's colour/brightness/time-on tag the cells directly — here we just evolve.
     if (ctrl.pattern === "life" || st.layers.some((l) => l.control.pattern === "life")) {
-      updateLife(fixtures, delta, ctrl.speed);
+      // RAW dial speed (not the wind-inflated env speed): the interactivity dial's
+      // glacial low end must be reachable regardless of the simulated wind.
+      updateLife(fixtures, delta, st.control.speed);
     }
     // ── UNITY / community mode ── when the visitor NODES ring the whole tree (a
     // continuous chain of lit sensors all the way around), everything goes rainbow +
     // twinkle-ripple + a fanfare. Checked ~3 Hz off the node azimuths' max angular gap.
+    // Sensor-real: only GROUND-REACHABLE nodes count — people stand under the OUTER
+    // downlights ("on the outside of the tree"), not in the crown.
     const gol = st.gol;
     if (t - unityAt.current > 0.33) {
       unityAt.current = t;
       if (!gol.unity) {
-        const nodes = gol.nodes;
-        if (nodes.length >= 5) {
-          const angs = nodes.map((i) => fixtures[i]?.azimuth ?? 0).sort((a, b) => a - b);
+        const ring = gol.nodes.filter((i) => fixtures[i] && fixtures[i].role === "downlight" && fixtures[i].radialT >= 0.4);
+        if (ring.length >= 5) {
+          const angs = ring.map((i) => fixtures[i].azimuth).sort((a, b) => a - b);
           let maxGap = angs[0] + Math.PI * 2 - angs[angs.length - 1]; // wraparound gap
           for (let i = 1; i < angs.length; i++) maxGap = Math.max(maxGap, angs[i] - angs[i - 1]);
           if (maxGap <= (100 * Math.PI) / 180) { st.setUnity(true); playUnityFanfare(); } // ring closed all the way around
         }
+      } else if (performance.now() / 1000 - gol.unityT0 > 10) {
+        // celebration over → the ring is SPENT: clear the nodes so Unity doesn't
+        // instantly re-trigger in a loop; the tree returns to dark, awaiting new play
+        st.setUnity(false);
+        st.clearNodes();
       } else {
-        if (performance.now() / 1000 - gol.unityT0 > 10) st.setUnity(false); // auto-clear after ~10s
-        else st.pingPresence(); // keep spawning twinkle ripples during the celebration
+        st.pingPresence(); // keep spawning twinkle ripples during the celebration
       }
     }
     const mg = ctrl.master * (ctrl.strobe ? strobeGate(t, ctrl.strobeHz) : 1);
@@ -505,8 +513,14 @@ function TreeTapHandler({ fixtures }: { fixtures: SimFixture[] }) {
       if (!(CA_RULES as string[]).includes(st.control.pattern)) return;
       const rect = el.getBoundingClientRect();
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      // Sensor-real gating: in Game-of-Light (standby/live) a "sensor firing" means a
+      // person under a lantern's downward ToF eye — only DOWNLIGHTS are triggerable
+      // (you can't stand inside the crown chandelier). Plain CA play = any fixture.
+      const golPhase0 = st.gol.phase;
+      const downOnly = golPhase0 === "standby" || golPhase0 === "live";
       let best = -1, bestD = Infinity;
       for (let i = 0; i < fixtures.length; i++) {
+        if (downOnly && fixtures[i].role !== "downlight") continue;
         const p = fixtures[i].pos;
         proj.set(p[0], p[1], p[2]).project(camera);
         if (proj.z > 1) continue; // behind the camera

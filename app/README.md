@@ -14,6 +14,29 @@ npm run dev        # http://localhost:5173
 Other scripts: `npm run build` · `npm test` (Vitest) · `npm run e2e` (Playwright) ·
 `npm run check` (build + test + e2e).
 
+## Play with it from another computer / iPad (LAN — no deploy)
+The dev server listens on the whole network (`server.host: true`). From the machine
+running it, find its address, then open that from any device on the same WiFi:
+```bash
+npm run dev              # prints  ➜ Network: http://192.168.x.x:5173
+```
+Open `http://<that-ip>:5173` on Ben's laptop / an iPad. Full-screen on iPad: share →
+"Add to Home Screen" (it's a PWA; it launches chromeless and keeps working offline).
+
+### 60-second tour (for Ben)
+- **Tap the tree** (in 🌱 Interactivity with a CA rule active) — fires a simulated
+  presence sensor at the nearest downlight; the disturbance propagates via each
+  fixture's pre-baked k-nearest-neighbour list (your flash neighbour table).
+- **🎇 Game of Light**: `Arm` → tap → ignition (off → flourish → off) → live: dark at
+  rest, each visitor-tap drops a persistent node in its quadrant colour. Ring the
+  whole tree with outer nodes → 🌈 Unity (rainbow + fanfare). Rules editor sets what
+  a sensor firing does (colour/brightness/time-on/spread).
+- **🎬 Light Shows**: three authored ~5-min timed shows + the piano (real scores).
+- **🎛 Controls**: patterns, sequencer, colour, speed; **DJ** panel: crossfade/EQ/strobe;
+  **AI-VJ**: audio-reactive auto-looks (mic or built-in track).
+- Everything renders the fixtures' *reported* state — the mirror-twin contract; the
+  ESP-NOW seam is `protocol.ts` (control params only, never pixels).
+
 ## What it is
 - **Real tree**: loads `public/fixtures.json` (78 real canopy lights exported from the
   Blender model) + `public/tree-context.glb` (decimated bamboo) — renders as the tree.

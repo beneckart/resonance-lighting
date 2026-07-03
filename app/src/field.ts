@@ -166,11 +166,20 @@ let baseHueFn: (i: number) => number = () => 0.05;
 //    off = tree is DARK at rest and only lights where visitors are (nodes/taps).
 let lifeNodes: { i: number; hue: number }[] = [];
 let lifeAmbient = true;
+let lifePalette: "warm" | "random" = "warm"; // birth colours: warm base field vs random population
 let lifeGen = 0;
-export function setLifeState(o: { nodes?: { i: number; hue: number }[]; ambient?: boolean }) {
+export function setLifeState(o: { nodes?: { i: number; hue: number }[]; ambient?: boolean; palette?: "warm" | "random" }) {
   if (o.nodes) lifeNodes = o.nodes;
   if (o.ambient != null) lifeAmbient = o.ambient;
+  if (o.palette && o.palette !== lifePalette) {
+    lifePalette = o.palette;
+    // switching to random: instantly SCATTER the living population's colours so the
+    // change reads immediately (otherwise neighbour-inheritance keeps the old blend)
+    if (o.palette === "random") for (let i = 0; i < lifeHue.length; i++) if (lifeCell[i] > 0) lifeHue[i] = rndHue(i, lifeGen + i);
+  }
 }
+// deterministic per-(fixture, generation) random hue — a fresh colour for each birth
+const rndHue = (i: number, gen: number) => { const x = Math.sin(i * 71.7 + gen * 13.13) * 43758.5453; return x - Math.floor(x); };
 
 /** Presence/sensor poke: birth a blob at these fixtures and TAG it with a response —
  *  `hue` (reaction colour), `bri` (brightness), `ttl` (seconds the light stays on),
@@ -226,9 +235,10 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     if (lifeTtl[i] <= 0) { lifeTtl[i] = 0; lifeCell[i] = 0; } // held time elapsed → let it fade
   }
 
-  // generation clock — wide range so the dial goes from a VERY slow drift to snappy:
-  //   speed 0.03 ≈ 10.5s/gen · 0.15 ≈ 5s · 1 ≈ 1.1s · 4 ≈ 0.37s
-  const TICK = 0.1 + 2.2 / (speed * 2 + 0.15);
+  // generation clock — POWER-LAW so the dial truly reaches glacial: slider min (0.03)
+  // ≈ 2 min/generation · 0.1 ≈ 28s · 0.3 ≈ 8s · 1 ≈ 2s · 4 ≈ 0.4s. Callers pass the
+  // RAW dial value (not the wind-inflated env speed) so the slow floor is real.
+  const TICK = Math.min(120, 2.0 * Math.pow(Math.max(0.02, speed), -1.15));
   lifeAcc += dts;
   let ticked = false;
   while (lifeAcc >= TICK) {
@@ -250,16 +260,27 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       if (born && alive && !held && a <= 1 && Math.random() < 0.06) born = false;
       if (born) {
         next[i] = Math.min(LIFE_AGE_MAX, (alive ? lifeCell[i] : 0) + 1);
-        // colour: keep own if alive/held, else inherit neighbours' mean (diffuses colour),
-        // else base warm. Slow drift back toward base so injected colour eventually fades.
-        let hue = alive || held ? lifeHue[i] : (a > 0 ? (Math.atan2(cy, cx) / TAU + 1) % 1 : baseHueFn(i));
-        if (!held) { let d = baseHueFn(i) - hue; d -= Math.round(d); hue = (hue + d * 0.05 + 1) % 1; }
+        // colour: keep own if alive/held; else inherit neighbours' mean (a patch KEEPS
+        // its colour as it spreads); else a fresh birth takes the palette's colour —
+        // "warm" = the amber base field, "random" = every new birth its own random hue
+        // (a multicoloured population whose patches then diffuse into each other).
+        let hue = alive || held ? lifeHue[i] : (a > 0 ? (Math.atan2(cy, cx) / TAU + 1) % 1 : lifePalette === "random" ? rndHue(i, lifeGen) : baseHueFn(i));
+        // warm palette slowly re-converges to base; random palette keeps DIVERGING —
+        // per-generation hue jitter stops neighbour-inheritance from blending the
+        // population into one colour, so it stays genuinely multicoloured
+        if (!held && lifePalette === "warm") { let d = baseHueFn(i) - hue; d -= Math.round(d); hue = (hue + d * 0.05 + 1) % 1; }
+        else if (!held) hue = (hue + (rndHue(i, lifeGen) - 0.5) * 0.10 + 1) % 1;
         nextHue[i] = hue;
         live++;
-      } else { next[i] = 0; nextHue[i] = lifeHue[i]; }
+      } else {
+        next[i] = 0; nextHue[i] = lifeHue[i];
+        // decay any tap-boosted brightness back to normal while dead — otherwise a
+        // bright touch leaves a permanent hot-spot at this fixture forever
+        lifeBri[i] += (1 - lifeBri[i]) * 0.35;
+      }
     }
     // extinction guard only when the tree should stay alive on its own (ambient)
-    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = baseHueFn(j); }
+    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = lifePalette === "random" ? rndHue(j, lifeGen + s) : baseHueFn(j); }
     // PERSISTENT NODES (visitors): keep each node + a rotating pair of its neighbours
     // alive so Game-of-Life patterns emanate from every person and interact. The node
     // itself is a bright anchor in its quadrant's colour.

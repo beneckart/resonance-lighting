@@ -1,10 +1,12 @@
 import type { Control } from "./store";
 
-/** Environmental sensors (on-playa inputs). On real hardware these arrive from
- *  PIR/mmWave (crowd + motion), a temp probe, and an anemometer (wind); here
- *  they're simulated via the sensor panel so the show can be tuned to them. */
+/** Environmental sensors (on-playa inputs). Real hardware (Ben's PRESENCE_SENSING
+ *  doc): per-lantern downward ToF lidar eyes (VL53L1X, primary; PIR ruled out) +
+ *  mesh-RSSI attenuation (aggregate crowd) + optional mmWave, an IMU (sway/touch),
+ *  a temp probe, and an anemometer (wind); here they're simulated via the sensor
+ *  panel so the show can be tuned to them. */
 export interface Sensors {
-  crowd: number; // 0..1 estimated crowd density around the tree (mmWave/PIR count)
+  crowd: number; // 0..1 estimated crowd density around the tree (mesh-RSSI aggregate / ToF count)
   motion: number; // 0..1 instantaneous motion energy (someone moving past)
   tempC: number; // ambient temperature °C
   windKph: number; // wind speed km/h (anemometer)

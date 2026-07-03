@@ -1,5 +1,15 @@
+import { useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
+import { setLifeState } from "./field";
 import { Widget } from "./Widget";
+
+// log-mapped speed slider: u∈0..1 → speed 0.03..4 (exponential), so HALF the travel
+// is the slow zone. Life gen-period ≈ 2.0·speed^-1.15 (shown live in the label).
+const SPD_MIN = 0.03, SPD_MAX = 4;
+const uToSpeed = (u: number) => SPD_MIN * Math.pow(SPD_MAX / SPD_MIN, u);
+const speedToU = (s: number) => Math.log(Math.max(SPD_MIN, Math.min(SPD_MAX, s)) / SPD_MIN) / Math.log(SPD_MAX / SPD_MIN);
+const genPeriod = (s: number) => Math.min(120, 2.0 * Math.pow(Math.max(0.02, s), -1.15));
+const fmtPeriod = (p: number) => (p >= 60 ? `${(p / 60).toFixed(1)}min` : p >= 10 ? `${Math.round(p)}s` : `${p.toFixed(1)}s`);
 
 /** INTERACTIVITY MODE — the tree lives on its own DECENTRALISED rules (Ben's
  *  BACKGROUND.md mesh spec: each light runs a simple local rule over its pre-baked
@@ -31,6 +41,7 @@ export function InteractivityPanel() {
   const golSetPhase = useTwin((s) => s.golSetPhase);
   const clearNodes = useTwin((s) => s.clearNodes);
   const setGolAmbient = useTwin((s) => s.setGolAmbient);
+  const [palette, setPalette] = useState<"warm" | "random">("warm");
   const active = control.pattern;
   const isCA = (CA_RULES as PatternId[]).includes(active);
   const PHASE_LABEL: Record<string, string> = {
@@ -80,8 +91,9 @@ export function InteractivityPanel() {
             <button onClick={clearNodes} style={btn("#2a3a52", "#141a26", "#9fb0c7")}>clear</button>
           </div>
         </div>
-        {/* demo: drop a ring of nodes all the way around → triggers Unity */}
-        <button onClick={() => { const st = useTwin.getState(); const byQ: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] }; st.fixtures.forEach((f, i) => byQ[f.quadrant]?.push(i)); [0, 1, 2, 3].forEach((q) => { const a = byQ[q]; if (a.length) { st.addNode(a[(a.length * 0.35) | 0]); st.addNode(a[(a.length * 0.7) | 0]); } }); }}
+        {/* demo: drop a ring of OUTER-downlight nodes all the way around → Unity.
+            (ring detection is sensor-real: only ground-reachable outer downlights count) */}
+        <button onClick={() => { const st = useTwin.getState(); const byQ: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] }; st.fixtures.forEach((f, i) => { if (f.role === "downlight" && f.radialT >= 0.45) byQ[f.quadrant]?.push(i); }); [0, 1, 2, 3].forEach((q) => { const a = byQ[q]; if (a.length) { st.addNode(a[(a.length * 0.3) | 0]); st.addNode(a[(a.length * 0.7) | 0]); } }); }}
           style={{ ...btn("#b060ff", "#2a1040", "#e0b0ff"), width: "100%", marginTop: 6 }}>
           🌈 Sim community ring → Unity
         </button>
@@ -146,9 +158,18 @@ export function InteractivityPanel() {
       {/* ── the running field itself ── */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735", opacity: isCA ? 1 : 0.4, pointerEvents: isCA ? "auto" : "none" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
-        <Row label={`Speed · ${control.speed.toFixed(2)}${control.speed < 0.12 ? " · very slow" : ""}`}>
-          <input type="range" min={0.03} max={4} step={0.01} value={control.speed}
-            onChange={(e) => set({ speed: +e.target.value })} style={{ width: "100%" }} />
+        <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
+          {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
+          <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
+            onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+        </Row>
+        <Row label="Population colours">
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => { setPalette("warm"); setLifeState({ palette: "warm" }); }}
+              style={btn(palette === "warm" ? "#c8a24a" : "#2a3a52", palette === "warm" ? "#2a2410" : "#141a26", palette === "warm" ? "#f0d890" : "#9fb0c7")}>🔥 warm</button>
+            <button onClick={() => { setPalette("random"); setLifeState({ palette: "random" }); }}
+              style={btn(palette === "random" ? "#b060ff" : "#2a3a52", palette === "random" ? "#22103a" : "#141a26", palette === "random" ? "#dfb8ff" : "#9fb0c7")}>🎲 random</button>
+          </div>
         </Row>
         <Row label={`Base hue · ${control.hue.toFixed(2)}`}>
           <input type="range" min={0} max={1} step={0.01} value={control.hue}
