@@ -236,11 +236,62 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
-- [ ] Order the sensor bench kit (~$10): **VL53L1X ToF** (I2C, primary), **LD2420/LD2410
-  mmWave** (UART, through-enclosure candidate), **LIS3DH/MPU6050 IMU** (sway-veto +
-  wind-response + structure-touch) (Ben or Steve).
-- [ ] Add the sensors to the net_bench heartbeat (append-only tail, same pattern as
-  env/INA) so detection tuning happens wirelessly from the desk (Claude + whoever's bench).
+- [x] **Stand up the 4-sensor comparison bench -- DONE 2026-07-02** (LOG same date):
+  `firmware/presence_bench/` on the repurposed spare PowerFeather V2, wireless
+  dashboard at `presencebench.local` (live thermal heatmap, tap-a-zone multizone ToF
+  grids, radar depth strip, browser-side baseline/delta/occlusion-mask/PRESENT
+  tiles), `ops/bench/presence_logger.py` JSONL logging with Enter-key ground-truth
+  marks. Sensors: MLX90640 (0x33), VL53L5CX 8x8 w/ vendored 2-target driver (0x29),
+  TMF8821 (0x41), XM125 (0x52, ships with the Acconeer DISTANCE app). Multi-target
+  per zone VERIFIED on hardware (10 desk zones with near+far pairs). Supersedes the
+  original "$10 kit" plan for the imaging axis; LD2420 mmWave + IMU remain open
+  below (Ben/Claude).
+- [ ] **Dashboard eyeball pass + first walk-under session** (Ben): capture a
+  baseline, walk under the rig, check the four PRESENT tiles + event-log ordering;
+  log a run with presence_logger.py.
+- [ ] **Rig session on the actual lantern** (Ben + Steve): hang under the solar
+  overhang pointing down, capture baseline -> occlusion hatching over the bamboo
+  splay, record **"usable zones X/64 (VL53), Y/9 (TMF)"** -- the self-occlusion
+  deliverable -- and check whether occluded zones still range the floor via T1.
+- [x] Add the TOF400C/VL53L1X (the ~$3 original primary candidate) as a 5th bench
+  sensor -- **DONE 2026-07-02** (`.13` + TCA9548A mux): both 0x29 ToFs behind
+  their own mux ports, all five sensors verified streaming (L1X 1612 mm status-0,
+  agreeing with the VL53's far targets). Software VL53L5CX address relocation was
+  ABANDONED after a reproducible zombie-until-power-cycle (known ST issue; LOG
+  cont. 2); the mux is the architecture. XSHUT jumper on A0 retained as the
+  no-mux fallback gate (Ben/Claude).
+- [ ] Investigate XM125 distance-app decode against the Acconeer A121 register
+  spec: peak strengths return a 0xEEEEEE00 sentinel, and peaks 2+ read beyond the
+  configured 0.2-5 m window (10.4 m / 31.6 m) -- treat as one bug. Also consider
+  reflashing the module with the PRESENCE app (motion-tuned intra/inter scores;
+  the distance app reports all static reflectors, which made desk testing
+  uncorrelatable with motion) (Ben/Claude).
+- [ ] **Presence-bench battery-only reboots -- NARROWED 2026-07-02 (LOG cont.
+  6+7): reboots persist with the WHOLE sensor chain unplugged (WiFi alone,
+  ~-120 mA), matching June's unresolved board-1 brownout signature (marginal
+  battery-path solder joint, H2).** Sensor load exonerated; USB immune (VBUS
+  bypasses the battery input). NEXT: (1) same board + different cell/leads --
+  persists => board joint, inspect/reflow under magnification (executes the
+  open June TODO); (2) same cell/holder + different PowerFeather -- moves =>
+  harness; (3) identify whether spare 9F2690 IS June's board 1. INA-in-the-
+  battery-lead remains the waveform-level confirmation if swaps are ambiguous.
+  Death data: `ops/bench/data/presence/2026-07-02_rebootwatch.jsonl` (Ben/Claude).
+- [ ] **Fleet hygiene: chemistry profile must match the attached cell.** The old
+  net_bench master image (Li-ion profile) was found actively overcharging the
+  4 Ah LFP toward 4.2 V on USB (real terminal reading 4.19 V; relaxed to plateau
+  once charging was disabled). Audit any board that gets a cell: image `--chem`
+  vs physical chemistry (Ben).
+- [ ] Confirm which cell is attached to the presence-bench PowerFeather; its gauge
+  telemetry is inconsistent (bv 4.12 vs 3.68, ma -290 vs 0) and this sketch
+  deliberately leaves charging OFF (Ben).
+- [ ] Order the remaining kit: **LD2420/LD2410 mmWave** (UART, through-enclosure
+  candidate), **LD2450** (~$10, 24 GHz multi-antenna -- tracks up to 3 targets
+  with real x/y, the "radar blobs" the 1TX/1RX XM125 physically cannot do),
+  **LIS3DH/MPU6050 IMU** (sway-veto + wind-response + structure-touch)
+  (Ben or Steve).
+- [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
+  pattern as env/INA) for yard/field tuning -- the desk bench uses its own HTTP
+  dashboard instead (Claude + whoever's bench).
 - [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height -- detection vs
   false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
   ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).

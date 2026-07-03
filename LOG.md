@@ -12,7 +12,265 @@ Body. What changed, what was decided, what's next.
 
 ---
 
-## 2026-07-02 - Ben + Claude - Bench report written: docs/tests/BOOST_AB_BENCH_REPORT_2026-07-02.html
+## 2026-07-02 (cont. 7) - Ben + Claude - Decisive: reboots persist with the ENTIRE sensor chain unplugged -- WiFi alone kills it; this is June's board-1 signature
+
+Ben physically unplugged the whole STEMMA/Qwiic chain: the board still
+reboot-cycles on battery (rst=1, 10-30 s uptimes, bv 3.31, ~-120 mA = ESP +
+WiFi AP+STA only). Sensor load fully exonerated. This matches the UNRESOLVED
+June board-1 brownout point for point (LOG 2026-06-04: 794-reboot loop
+overnight on battery, poweron resets, healthy bv 3.24-3.46, lightest load,
+dying at WiFi association; hypothesis H2 = marginal battery solder joint; the
+"inspect/reflow board 1's battery + VDC joints" TODO was never executed).
+Consolidated theory: THIS board's battery input path has a resistive/cold
+joint; WiFi TX spikes (~300-500 mA sub-ms) dip it below the power path's
+undervoltage cutoff; USB is immune because VBUS bypasses the battery input.
+Whether the spare (old net_bench master 9F2690) IS June's board 1 or a second
+specimen of the same defect class is unknown -- worth identifying.
+
+Fleet reassurance: validated fleet boards ran radio-on-battery at LOWER
+voltages all June without this. Next: two 5-minute swap tests -- (1) same
+board + different cell/leads (persists -> board joint, reflow it); (2) same
+cell/holder + different board (moves -> harness). The config-ladder deaths in
+cont. 6 remain valid data but their load-correlation now reads as "more TX/load
+peaks = more dice rolls against a marginal joint," not converter crossover.
+
+## 2026-07-02 (cont. 6) - Ben + Claude - Battery-reboot investigation: config ladder run; load-correlated but not load-gated; verdict needs the INA
+
+Instrumented hunt (NVS boot counter + reset reason + 10 s pre-death voltage
+breadcrumb + a host watcher appending every sample to
+`ops/bench/data/presence/2026-07-02_rebootwatch.jsonl`). ALL deaths are rst=1
+(full power loss -- panic/watchdog would read 4-6, the ESP brownout detector 9);
+USB runs indefinitely; battery runs die at plateau voltage. Death uptimes by
+firmware config (cell drifting 3.33 -> 3.28 V across the session -- a real
+confound, noted):
+
+| Config (battery, ~bv 3.28-3.33) | Death uptimes (s) |
+|---|---|
+| all 5 sensors                  | 11, 11, 11, 10, 103 |
+| no MLX / no XM (3 ToFs)        | 173, ~161 |
+| MLX on / XM off                | 184, 123, 40, 63 |
+| TMF8821 only                   | 81, 20, 30 |
+
+Reading (hedged, n small, drift confound): the full-stack 11 s mode = death at
+the moment the 5th sensor comes up and load peaks -- strongly load-correlated.
+But lighter configs still die on minute scales, including TMF-only where the
+only frequent transmitter left is WiFi itself (bench runs AP+STA -- SoftAP
+beacons every ~100 ms). Working model: a MARGINAL BATTERY LOOP (cell IR + holder
++ pigtail R) on the LFP plateau, where instantaneous current peaks (radar
+bursts, WiFi TX) transiently dip the BQ's battery undervoltage lockout ->
+BATFET opens -> full power-off. The TPS631013 crossover band (3.25-3.35 V --
+exactly where the plateau parks) remains an unexcluded co-suspect. Echoes r8's
+lesson from this morning's boost bench: harness/loop resistance is a
+first-class design parameter.
+
+Production framing: a deployed lantern runs ESP-NOW + deep-sleep duty cycles,
+NOT an AP+STA dashboard -- this exact workload is bench-shaped. The transferable
+lessons: (1) battery-loop R budget matters; (2) LFP plateau parks the converter
+in its crossover band for most of discharge -- deliberate stability margin
+needed; (3) the boot-counter + reset-reason + pre-death-breadcrumb pattern is a
+cheap, effective field-diagnostics idiom worth porting to production firmware.
+
+NEXT (the decisive steps): (a) clamp a SEN0291 INA219 into the battery lead
+(screw terminals, the r10 method) and catch the collapse waveform at death --
+separates loop-R sag from converter misbehavior; (b) optional software rung
+first: STA-only + WiFi modem power-save build (kills the beacon TX cadence);
+(c) fatten/shorten the battery leads and re-run the ladder. Also fixed tonight:
+build.sh was missing --no-l1x (added); dashboard pitch-drag inverted (fixed,
+`.22`); flip-H no longer mirrors the 3D orbit direction.
+
+## 2026-07-02 (cont. 5) - Ben + Claude - Reboot mystery: cell is a 4Ah LFP 26650 (sag ruled out); old image was OVERCHARGING it; crossover-band + contact hypotheses live
+
+Ben identified the presence-bench cell: **26650 4 Ah LFP**. That kills the
+"drained Li-ion sags" theory (the observed ~257 mA battery draw is 0.06C -- a
+healthy 26650 cannot sag from that) and RE-DATES the early 4.19/4.12 V readings:
+gauge voltage is chemistry-profile-independent, so those were REAL terminal
+volts -- **the old net_bench master image (Li-ion charge profile) was charging
+the LFP toward 4.2 V on USB = overcharge**. Cell has been relaxing back to
+plateau all session (4.12 -> 3.68 -> 3.29-3.33 V); LFP is forgiving, cell
+presumed fine, but this is a fleet-level hygiene flag: image chemistry profile
+MUST match the attached cell (POWERFEATHER_NOTES "chemistry flash order" gotcha,
+now with a live specimen). presence_bench's LFP profile + 3.65 V ceiling was
+already correct.
+
+Reboot status: on battery the board now power-on-resets (rst=1, NOT
+panic/watchdog -- software crash ruled out by reset-reason) about every 30-60 s
+at bv 3.29-3.33 V, and runs indefinitely on USB. Two hypotheses, in tension:
+(1) **intermittent battery contact** (holder/pigtail -- the June H2 ghost);
+(2) **TPS631013 buck-boost CROSSOVER-BAND instability under bursty load** --
+the cell is parked at exactly the documented 3.25-3.35 V mode-hunting band
+while the bench draws radar bursts every 300 ms + WiFi. The June stability runs
+were at 3.18-3.24 V (clean boost) and never tested parked-in-crossover with
+spiky loads; if (2) is real it is PRODUCTION-RELEVANT (an LFP spends most of
+its discharge on that plateau). Discriminating experiment queued: USB-charge to
+full (rest ~3.4 V, above the band), run on battery, and watch the new
+10-s-resolution pre-death breadcrumb (`.17`: boot log prints "previous run:
+up=Xs bv=Y.YV") -- deaths clustering in 3.25-3.35 V and stopping above it
+indict the converter; deaths at any voltage / correlated with bumping the rig
+indict the contact. Cautious framing: n=1 board, bench wiring quality unverified,
+the two causes can coexist.
+
+## 2026-07-02 (cont. 4) - Ben + Claude - First eyeball verdicts + .14/.15 fixes (flip toggle, boot counter, charging)
+
+Ben's first live dashboard session, verbatim verdicts worth keeping: **thermal
+"simply beautiful, so much information"; TMF8821 "likely the sweet spot for this
+project"**; VL53L1X works but single-zone makes him nervous vs multizone's
+robustness to dust/self-occlusion (agreed -- that IS the $3-vs-$10 question the
+rig session will quantify); VL53 multizone was mirrored horizontally (fixed:
+flip-H/V display toggles, `.14`); XM125 distance-app output hard to correlate
+with motion (expected: the DISTANCE app reports all static reflectors -- desk and
+wall are permanent peaks; the PRESENCE app is the motion-tuned firmware; also its
+peak-strength decode returns a 0xEEEEEE00 sentinel and peaks 2+ read beyond the
+configured 5 m window = decode bug, queued). Radar x-y blobs are physically
+impossible on the A121 (1 TX / 1 RX, ~+-35 deg cone, range-profile only) -- if 2D
+radar matters, add an LD2450 (~$10, tracks 3 targets with real x/y) to the kit
+order. UI blank-outs + all Qwiic LEDs blinking = the board IS rebooting
+(VSQT-cycle signature). Instrumented + mitigated: NVS boot counter + reset reason
+in the status strip (`boot#N rst=R`; 1=power/brownout, 4-6=crash), and gentle
+charging (500 mA, 3.65 V LFP ceiling = safe undercharge for any chemistry) now
+turns on via a deferred one-shot once the gauge reads a plausible cell (`.15`
+verified: "battery 3.32V present -> charging ON"; boot-time reads give a false
+0.00 V). If boot# still climbs with rst=1, next suspect is the BQ's USB
+input-current-limit negotiation.
+
+## 2026-07-02 (cont. 3) - Ben + Claude - ALL FIVE presence sensors live behind the mux; bench complete
+
+Ben wired the TCA9548A per plan (main chain = MLX + TMF + XM125 + mux; VL53L5CX ->
+port 0, TOF400C -> port 1); the armed watcher auto-OTA'd `.13` on reappearance and
+the full bench initialized in 11 s: mux detected, **all five sensors ok**, both
+0x29 chips coexisting behind their own ports with zero address changes. Data
+sanity: MLX 25.9-31.4 C scene; VL53 8 zones with 2 valid targets (near ~135 mm
+bench clutter + far ~1.5 m); TMF 9 results; XM distance app 3 peaks; **VL53L1X
+1612 mm status-0 sig-1784 -- the ~$3 production candidate is ranging**, and its
+distance agrees with the VL53's far targets on the same scene. The presence bench
+is feature-complete: 5 sensors side-by-side, wireless dashboard w/ baseline/
+occlusion/PRESENT tiles, /api/log, JSONL logger. Next: Ben's dashboard eyeball
+pass + first walk-under runs, then the lantern-rig occlusion session (usable-zone
+counts = the deliverable). Open: XM peak-strength decode (bogus sentinel; peaks 2+
+also look noisy -- distances beyond ~5 m window), XM ~5% read errors, MLX at
+~1 fps effective (knob to 8 subpages/s available).
+
+## 2026-07-02 (cont. 2) - Ben + Claude - VL53L5CX address-change is a silicon dead end (reproducible zombie); pivot to TCA9548A mux
+
+Ben soldered the XSHUT header (continuity-verified; the on-board diag flipped to
+"gated=F002 released=... jumper works" -- the earlier NO CHANGE verdict was the
+unsoldered pin, as suspected). That unblocked the relocation dance and exposed the
+real boss fight: **changing the VL53L5CX's I2C address bricks it until power
+cycle**, reproducibly, in BOTH orders tried: (a) SparkFun `setAddress()` after full
+init, and (b) raw ST-equivalent register writes (page 0x7fff=0, reg 0x4=0x2A) at
+POR before any init. In every case the chip MOVES (bus scan ACKs at 0x2A, 0x29
+empty) but answers 0000 to all register reads and times out every DCI op --
+per-step logging isolated it to CANNOT_SET_RESOLUTION with a healthy F002 id read
+seconds earlier at 0x29. Matches multiple ST community reports ("address changes
+but comms fail until power cycle"); ST's official multi-VL53L5CX recipe uses the
+LPn pin, which the SparkFun breakout does not wire to anything controllable.
+Conclusion: software relocation ABANDONED (left in the sketch behind
+PB_VL53_RELOCATE=0).
+
+**Resolution: Ben's SparkFun TCA9548A Qwiic mux.** Wiring: main chain keeps MLX +
+TMF + XM125 + mux (0x70); VL53L5CX -> mux port 0, TOF400C/VL53L1X -> mux port 1
+(BOTH 0x29 residents must be behind ports -- one open channel at a time).
+Firmware `.13` (built, awaiting the rewired board): mux auto-detect at boot,
+select-before-use in the two ToF paths, no address games at all; without the mux
+it falls back to `.12` behavior (L5CX direct at 0x29, L1X XSHUT-gated). `.12`
+verified before teardown: all four original sensors ok incl. VL53 multi-target.
+
+Debug-tooling lessons this arc (all now in the sketch): identity probes (device-id
+reads) beat bare ACK probes -- arduino-esp32 3.x phantom-ACKs zero-length write
+probes and its `endTransmission(false)` is deferred, so bare-read probes can also
+mislead; ticks must never run on ERROR state (an un-begun driver "recovered" by
+reading garbage from the WRONG chip at a shared address); reset_reason in the boot
+log line; per-step init logging.
+
+## 2026-07-02 (cont.) - Ben + Claude - TOF400C/VL53L1X added as 5th sensor; XSHUT jumper diagnosed NOT conducting (hardware fix pending)
+
+Ben wired the TOF400C's XSHUT to A0/GPIO10 and chained it onto the Qwiic bus.
+Firmware `.6/.7` adds the full 5th-sensor integration: XSHUT gated LOW from the
+first lines of setup, VL53L5CX relocates itself 0x29 -> 0x2A after init, then the
+L1X is released to own 0x29 (`reinit=vl53` re-runs the whole dance); 5th dashboard
+tile + panel (distance sparkline w/ baseline line), SparkFun VL53L1X lib (gotcha:
+`begin()` returns 0 on SUCCESS).
+
+**Hardware verdict from the new on-board diagnostic:** `id@0x29 gated=0000
+released=0000 -> NO CHANGE: jumper likely NOT conducting`. The raw device-id bytes
+at 0x29 are identical with XSHUT driven low vs high, and read 0000 (wired-AND of
+two chips fighting the bus) instead of the L5CX's F0/02 -- the L1X is squatting on
+0x29 regardless of the gate. Until the wire is fixed (check: continuity GPIO10 ->
+module XSHUT pad; check the pad isn't strapped to VCC on the module -- some
+TOF400C clones tie it high), BOTH ToFs are down (contention); MLX/TMF/XM run fine.
+After a wire fix the bench self-recovers via reprobe+backoff (worst ~2 min) or
+instantly via the dashboard "Reinit all".
+
+Also fixed this round (found via the fake-recovery it caused): sensor ticks were
+allowed to run in ERROR state, so the never-initialized L1X object "read" garbage
+from whatever sat at 0x29 and self-promoted to ok. Ticks now run only in OK;
+ERROR recovers exclusively through reprobe -> full re-init. First-soak data (pre-
+L1X): MLX/TMF/VL53 0 errors over 5 min at 400 kHz; XM ~5% read-error rate
+(intermittent, seq still advances -- open item); VL53 froze when the un-gated
+TOF400C was hot-plugged mid-soak (the collision, live) -- now covered by both the
+gating and a mid-session stall self-heal.
+
+The presence-sensing research track (Elliot ask, 2026-06-12 note) got its bench.
+Ben's 4 SparkFun Qwiic modules (MLX90640 thermal 32x24, VL53L5CX 8x8 ToF imager,
+TMF8821 multizone ToF, XM125 radar -- co-facing, one Qwiic chain) now stream to a
+wireless dashboard from the repurposed spare PowerFeather V2 (was an old net_bench
+master, id 9F2690). New: `firmware/presence_bench/` (single .ino, led_studio-derived
+WiFi/mDNS/OTA + PROGMEM dashboard), `ops/bench/presence_logger.py` (JSONL to
+`data/presence/`), README with API + bring-up notes.
+
+**Working end-to-end (verified `.5`):** all four sensors init in <9 s from sensor
+POR; i2c scan shows exactly the six expected devices (4 sensors + gauge 0x36 +
+charger 0x6A); MLX streams clean thermal (25-36 C desk scene); XM125 probe
+identified Ben's module as running the Acconeer DISTANCE app (not presence) --
+its multi-peak list is genuinely useful for the splay/floor/person separation;
+TMF8821 reports 2 objects/zone off the desk; **VL53L5CX multi-target WORKS: the
+vendored driver (2 targets/zone) returned 10 zones with two valid returns each
+(e.g. zone 0: T0 115 mm + T1 269 mm, both status-5)** -- the instrument the
+splay-self-occlusion question needs. Dashboard: 4 live panels (thermal heatmap,
+tap-a-zone ToF grids, radar depth strip), browser-side baseline capture / delta
+view / occlusion masking / PRESENT tiles / event log; detection logic deliberately
+lives in JS so thresholds tune live and rules re-run offline against logged frames.
+
+**Architecture notes:** all I2C (sensors + battery round-robin) in ONE task on core
+0, HTTP serves caches on core 1 -- proved its worth when a wedged sensor task left
+OTA fully functional. Shared SDK Wire1 retuned to 400 kHz (deliberate, documented
+exception to POWERFEATHER_NOTES' 100 kHz; BQ25628E + MAX17260 are 400 kHz parts) --
+the VL53 blob uploads in 2.7 s and nothing errored in the first soak. Sensor rail
+(VSQT) is POWER-CYCLED at boot: it stays up across ESP reboots and stale sensor
+state from a previous image cost an hour of debugging (below). `/api/log` ring
+buffer added because native-USB serial kept eating boot banners -- wireless
+debugging paid for itself immediately.
+
+**Bugs found + fixed (the debugging story):**
+1. **Two infinite loops in ST's VL53L5CX ULD** (vendored into the sketch precisely
+   so we could patch -- see `src/vl53l5cx/VENDORED.md`): `_vl53l5cx_poll_for_answer`
+   never exits if the device goes mute (timeout only ORs an error and keeps
+   spinning), and `vl53l5cx_stop_ranging` sets ERROR on its 5 s timeout but never
+   breaks -- stop-on-a-non-ranging-device spins forever. The second one wedged the
+   whole sensor task on first boot (`begin()` fine in 2.7 s, then the sketch's
+   stop-before-start config path hung). Both patched with breaks; sketch also
+   tracks ranging state and never stops a non-ranging device.
+2. **Stale sensor state across reboots**: VSQT stays powered through ESP
+   soft-resets, so the VL53 carried a half-stopped state through reflashes and
+   "ranged" silently (init ok, zero frames). Fix: VSQT off/on at boot + a
+   self-heal reinit if a sensor is ok-but-silent for 8 s.
+3. **arduino-esp32 3.x zero-length-write probes phantom-ACK** half the address
+   space (scan returned ~40 bogus devices on a healthy bus). Probe by 1-byte read
+   instead -- scan now exact.
+4. Failed sensor inits now back off exponentially (a failing VL53 init costs
+   MINUTES of blocked bus because the ULD doesn't early-exit between steps --
+   without backoff it starved the other three sensors).
+
+**Open / next:** browser dashboard needs Ben's eyeball pass (walk-under test +
+baseline capture); 5-min soak at 400 kHz running at session end (err counters
+clean so far); XM125 peak-STRENGTH decode returns a bogus sentinel (-286331392)
+-- distance values are fine, strength only sizes dots, investigate later; MLX
+effective ~1 fps at the default 4-subpages/s knob (8 available); the spare
+board's battery telemetry is inconsistent (bv 4.12 then 3.68, ma -290 then 0;
+gauge was configured LFP by this sketch, cell chemistry unverified, charging
+deliberately OFF) -- Ben should confirm what cell is physically attached. Ben also
+has a TOF400C/VL53L1X (the original $3 production candidate): it collides with
+the VL53L5CX at 0x29 (the "0x52" in its docs is the 8-bit notation, not a radar
+conflict) -- add via XSHUT-gate on GPIO10 + relocate one of them, ~a session.
 
 Full narrative report of today's boost A/B campaign, written for future-us and for
 Steve (plain language, no session shorthand). Every claim carries an evidence grade
