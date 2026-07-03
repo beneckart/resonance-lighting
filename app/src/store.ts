@@ -452,7 +452,15 @@ export const useTwin = create<TwinState>((setState, get) => ({
           const d = (p[0] - origin[0]) ** 2 + (p[1] - origin[1]) ** 2 + (p[2] - origin[2]) ** 2;
           if (d < bd) { bd = d; idx = i; }
         }
-      } else if (s.fixtures.length) idx = Math.floor(Math.random() * s.fixtures.length);
+      } else if (s.fixtures.length) {
+        // ambient motion sim: a passer-by is a person ON THE GROUND — in Game-of-Light
+        // live mode pick a random OUTER DOWNLIGHT (canopy edge), never a crown fixture
+        if (s.gol.phase === "live") {
+          const walkable = s.fixtures.map((f, i) => ({ f, i })).filter((x) => x.f.role === "downlight" && x.f.radialT >= 0.4);
+          if (walkable.length) idx = walkable[Math.floor(Math.random() * walkable.length)].i;
+        }
+        if (idx < 0) idx = Math.floor(Math.random() * s.fixtures.length);
+      }
       const o = idx >= 0 ? s.fixtures[idx].pos : (origin ?? [0, 0, 0]);
       const t0 = performance.now() / 1000;
       const ripples = [...s.ripples.filter((r) => t0 - r.t0 < 3), { x: o[0], y: o[1], z: o[2], t0 }].slice(-16);
@@ -567,8 +575,14 @@ export const useTwin = create<TwinState>((setState, get) => ({
       : s.layers;
     return { groupControls, layers };
   }),
-  playShow: (id) => setState(() => {
+  playShow: (id) => setState((s) => {
     if (!id) return { activeShow: null, layers: [] }; // stop → drop show layers
+    // starting a SHOW exits the Game-of-Light lifecycle — otherwise a blackout
+    // latched by an armed/dark GoL phase silently renders the whole show black
+    if (s.gol.phase !== "off") {
+      setLifeState({ ambient: true, nodes: [] });
+      return { activeShow: id, showStartedAt: performance.now() / 1000, gol: { ...DEFAULT_GOL }, control: { ...s.control, blackout: false } };
+    }
     return { activeShow: id, showStartedAt: performance.now() / 1000 };
   }),
   toggleGroupActive: (name, on) => setState((s) => {
