@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 src = sys.argv[1]
 out = sys.argv[2] if len(sys.argv) > 2 else src.rsplit(".", 1)[0] + "-soc_v.png"
-TITLE = sys.argv[3] if len(sys.argv) > 3 else "PowerFeather V2 — Li-ion 4400 mAh USB charge: SOC vs battery voltage"
+TITLE = sys.argv[3] if len(sys.argv) > 3 else "PowerFeather V2 -- Li-ion 4400 mAh USB charge: SOC vs battery voltage"
 
 rows = []
 with open(src) as fh:
@@ -141,9 +141,9 @@ def slope_note():
 lo, hi = slope_note()
 notes = [
     "Reading this plot:",
-    f"- Li-ion (Generic_3V7): SOC 20%->80% spans ~{hi-lo:.2f} V ({lo:.2f}->{hi:.2f} V) — a usable slope, gauge can map V->SOC.",
+    f"- Li-ion (Generic_3V7): SOC 20%->80% spans ~{hi-lo:.2f} V ({lo:.2f}->{hi:.2f} V) -- a usable slope, gauge can map V->SOC.",
     "- This is a CHARGE curve, so V sits ABOVE the resting curve (IR rise from charge current); resting V-SOC is lower/flatter.",
-    "- Contrast LFP: its plateau is ~3.2-3.3 V across roughly 20-90% SOC — almost no slope, so V->SOC is unreliable there.",
+    "- Contrast LFP: its plateau is ~3.2-3.3 V across roughly 20-90% SOC -- almost no slope, so V->SOC is unreliable there.",
     "- Under load the cell sags (we saw ~2.85 V), which on LFP reads near-empty even at decent true SOC. Coulomb-count, don't trust V.",
 ]
 y = 770

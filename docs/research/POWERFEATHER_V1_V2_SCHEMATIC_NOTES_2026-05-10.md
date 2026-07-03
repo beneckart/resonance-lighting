@@ -1,9 +1,9 @@
-# PowerFeather V1/V2 schematic notes — 2026-05-10
+# PowerFeather V1/V2 schematic notes -- 2026-05-10
 
 Inputs reviewed:
 
-- `esp32-s3-powerfeather-7620cc4fefa671436564aefb91d09158.pdf` — V1 schematic, Rev 5, dated 2023-08-14.
-- `esp32-s3-powerfeather-v2-c8fb0b7f2b084b2013f65c973cfaf223.pdf` — V2 schematic, Rev 2, dated 2026-01-11.
+- `esp32-s3-powerfeather-7620cc4fefa671436564aefb91d09158.pdf` -- V1 schematic, Rev 5, dated 2023-08-14.
+- `esp32-s3-powerfeather-v2-c8fb0b7f2b084b2013f65c973cfaf223.pdf` -- V2 schematic, Rev 2, dated 2026-01-11.
 
 Status: first-pass schematic comparison. This is not a layout review.
 
@@ -14,7 +14,7 @@ PowerFeather V2 is a strong reference architecture for the Resonance Lighting cu
 The important discovery is that V1 and V2 share the same basic charger/power-path architecture. Both use **BQ25628E**. V2 becomes LiFePO4-appropriate at the board level mainly by replacing the fuel gauge and 3.3 V regulator:
 
 - V1: **LC709204F** fuel gauge + **XC6220B331ER-G** LDO.
-- V2: **MAX17260** fuel gauge + **20 mΩ sense resistor** + **TPS631013** buck-boost regulator.
+- V2: **MAX17260** fuel gauge + **20 mohm sense resistor** + **TPS631013** buck-boost regulator.
 
 That is exactly the class of change needed for LiFePO4: the charger was already capable, but the fuel-gauge/regulator system had to change.
 
@@ -56,9 +56,9 @@ V2 uses:
 
 - `U4` BQ25628E charger/power-path.
 - `U5` MAX17260 fuel gauge.
-- `R22` 20 mΩ sense resistor in the battery/fuel-gauge path.
+- `R22` 20 mohm sense resistor in the battery/fuel-gauge path.
 - `U1` TPS631013YBGR buck-boost regulator for `+3.3VP`.
-- `L2` 2.2 µH inductor for the buck-boost stage.
+- `L2` 2.2 uH inductor for the buck-boost stage.
 - `Q1A/Q1B` BSS138 FETs around the STEMMA-QT I2C lines.
 - `VSQT`, `SDA_SQT`, and `SCL_SQT` nets for the external STEMMA-QT power/I2C domain.
 
@@ -76,16 +76,16 @@ When Elecrow boards arrive, identify V1 vs V2 before attaching LiFePO4.
 Likely V2 identifiers:
 
 - TPS631013 regulator package near the 3.3 V rail.
-- 2.2 µH inductor associated with the buck-boost converter.
+- 2.2 uH inductor associated with the buck-boost converter.
 - MAX17260 fuel gauge near the battery connector.
-- 20 mΩ current-sense resistor near battery/fuel-gauge path.
+- 20 mohm current-sense resistor near battery/fuel-gauge path.
 - BSS138 I2C level/power-domain components near STEMMA-QT connector.
 
 Likely V1 identifiers:
 
 - XC6220 LDO.
 - LC709204F fuel gauge.
-- No 20 mΩ current-sense resistor for fuel-gauge current measurement.
+- No 20 mohm current-sense resistor for fuel-gauge current measurement.
 - Simpler STEMMA-QT I2C connection without the V2 BSS138 isolation scheme.
 
 Firmware/I2C scan should also distinguish revisions:
@@ -127,14 +127,14 @@ The custom board should now be PowerFeather-derived, not CN3058-derived:
 
 ```
 Solar panel / VDC connector
-  → input protection / Schottky or ideal-diode input handling
-  → BQ25628E-class charger + power path
-  → LiFePO4 cell + thermistor
-  → MAX17260-class fuel gauge / current sensing
-  → TPS631013-class 3.3 V buck-boost
-  → ESP32-S3-WROOM-class module
-  → switched external LED/STEMMA rail
-  → LED module connector(s)
+  -> input protection / Schottky or ideal-diode input handling
+  -> BQ25628E-class charger + power path
+  -> LiFePO4 cell + thermistor
+  -> MAX17260-class fuel gauge / current sensing
+  -> TPS631013-class 3.3 V buck-boost
+  -> ESP32-S3-WROOM-class module
+  -> switched external LED/STEMMA rail
+  -> LED module connector(s)
 ```
 
 The old target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-Vbat WS2812B is now superseded by the headroom/RF/telemetry/fail-safe architecture.

@@ -1,4 +1,4 @@
-# 0010 — Standard OTA only; no mesh-gossiped firmware images
+# 0010 -- Standard OTA only; no mesh-gossiped firmware images
 
 **Date:** 2026-05-08
 **Status:** Accepted
@@ -29,7 +29,7 @@ Deployment/update model:
 - A local laptop or Raspberry Pi hosts the firmware image over ordinary WiFi.
 - Fixtures connect to a known local AP or temporarily enter a controlled WiFi mode to fetch the image.
 - Use A/B OTA partitions with validation and rollback.
-- ESP-NOW may advertise small metadata only: current firmware version, maintenance window, or “update available.” It must not carry firmware image chunks.
+- ESP-NOW may advertise small metadata only: current firmware version, maintenance window, or "update available." It must not carry firmware image chunks.
 - USB-C / pogo flashing remains the guaranteed recovery path.
 
 ## Consequences
@@ -38,5 +38,5 @@ Deployment/update model:
 - Field updates are slower and more deliberate, which is acceptable.
 - The show-control mesh and firmware-update path remain decoupled.
 - The smoke-test rig should report firmware version and OTA partition status for every node.
-- The firmware architecture should remove all “peer serves image to peers” language.
+- The firmware architecture should remove all "peer serves image to peers" language.
 - If future work wants distributed OTA, it is a 2027 R&D feature, not a 2026 production dependency.

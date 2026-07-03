@@ -1,4 +1,4 @@
-# 0005 — Firmware as FreeRTOS tasks, not Arduino loop()
+# 0005 -- Firmware as FreeRTOS tasks, not Arduino loop()
 
 **Date:** 2026-05-06
 **Status:** Accepted, updated 2026-05-08 to remove ESP32-C3-specific rationale
@@ -22,11 +22,11 @@ Use FreeRTOS tasks with priorities and queues.
 
 | Task | Priority | Period | Job |
 |------|----------|--------|-----|
-| `led_render_task` | High | 30–60 Hz fixed | Render local state, manage LED rail, call LED driver |
-| `ca_tick_task` / `state_task` | Medium | 5–10 Hz | Drain neighbor-state queue, compute next local state |
+| `led_render_task` | High | 30-60 Hz fixed | Render local state, manage LED rail, call LED driver |
+| `ca_tick_task` / `state_task` | Medium | 5-10 Hz | Drain neighbor-state queue, compute next local state |
 | `mesh_tx_task` | Medium | Low-rate + event-driven | Heartbeat, state broadcasts, wand events |
 | `mesh_rx_callback` | WiFi task callback | event-driven | Enqueue packet only; no heavy work |
-| `housekeeping_task` | Low | 0.2–1 Hz | Battery/charger telemetry, watchdog, reset logging, sleep, OTA maintenance |
+| `housekeeping_task` | Low | 0.2-1 Hz | Battery/charger telemetry, watchdog, reset logging, sleep, OTA maintenance |
 
 ## Consequences
 

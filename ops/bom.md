@@ -1,77 +1,98 @@
-# BOM — first pass
+# BOM - Working Procurement Skeleton
 
-**Status:** Estimate, not yet validated against JLCPCB part library or current spot pricing. Verify each part before committing the order.
+**Status:** Current working BOM shape, 2026-06-17. This is not a buy sheet. Prices, lead
+times, and exact SKUs must be re-verified before procurement. The old ESP32-C3 + CN3058 +
+AP2112K first-pass BOM is superseded by the PowerFeather V2 feasibility results.
 
-## Per-fixture electronics (the carrier board)
+## BOM Strategy
 
-| Designator | Part | Function | Qty | Source | Unit @ qty 100 | Notes |
-|------------|------|----------|-----|--------|----------------|-------|
-| U1 | ESP32-C3-MINI-1 | MCU module (RF + USB + flash) | 1 | JLCPCB Basic | $1.50 | C2934560 confirm before order |
-| U2 | CN3058 | LiFePO4 charger | 1 | JLCPCB Basic | $0.30 | Verify part number on JLCPCB |
-| U3 | AP2112K-3.3 | 3.3 V LDO | 1 | JLCPCB Basic | $0.10 | SOT-25 |
-| Q1 | P-MOSFET (SOT-23) | Reverse-polarity protection / power-path | 1 | JLCPCB Basic | $0.10 | E.g. AO3401 |
-| D1 | Schottky (SOD-123) | Solar input protection | 1 | JLCPCB Basic | $0.05 | E.g. SS14 |
-| D2 | TVS (SOD-123) | Solar input clamp | 1 | JLCPCB Basic | $0.10 | Optional, recommended |
-| LED1 | 0603 LED (status) | Charge indicator | 1 | JLCPCB Basic | $0.02 | Green |
-| LED2-10 | WS2812B-2020 | Lighting LEDs (1–9 per fixture, typically 3×3 grid) | 1–9 | JLCPCB Basic | $0.10 each | Final count TBD; budget $0.50–$0.90 per fixture |
-| C bulk | 10 µF 0805 | Bulk on Vbat rail | 2 | JLCPCB Basic | $0.04 | |
-| C decouple | 100 nF 0402 | Decoupling per IC + per LED | ~12 | JLCPCB Basic | $0.005 each = $0.06 | |
-| R | Various 0402 | Pull-ups, pull-downs, ADC divider, Iset | ~10 | JLCPCB Basic | $0.005 each = $0.05 | |
-| J1 | USB-C 16-pin | USB programming + charge | 1 | JLCPCB Basic | $0.40 | E.g. TYPE-C-31-M-12 |
-| J2 | JST-PH 2-pin SMT | Solar panel connector | 1 | JLCPCB Basic | $0.15 | |
-| J3 | JST-PH 2-pin SMT | Battery connector | 1 | JLCPCB Basic | $0.15 | |
-| J4 | JST-PH 3-pin SMT | LED chain output (Vbat, GND, Data) | 1 | JLCPCB Basic | $0.20 | |
-| F1 | Polyfuse 0805 | Battery overcurrent protection | 1 | JLCPCB Basic | $0.10 | E.g. 2 A hold, 4 A trip |
-| SW1 | Tactile button SMT | Reset / mode | 1 | JLCPCB Basic | $0.10 | Optional, accessible through hat hole |
-| **PCB + assembly** | | 2-layer 4-layer | 1 | JLCPCB | ~$3.00 | At qty 100, SMT both sides |
-| **Carrier board subtotal** | | | | | **~$7.00** | |
+The 2026 production decision is still COTS vs custom vs hybrid, but all paths now derive
+from the same measured architecture:
 
-## Per-fixture non-PCB electronics
+- PowerFeather V2 or PowerFeather-derived controller/power board.
+- One larger LiFePO4 cell per fixture, likely 32700 class if hat geometry allows.
+- Role-specific direct-GPIO LED modules:
+  - HEX for close-range animation / glow.
+  - 4 W RGBW point source for crisp long-throw gobos.
+- Role-specific solar panel may be rational:
+  - P126-class 2 W ETFE for lower-power HEX fixtures if the budget closes.
+  - P105-class 5 W ETFE for RGBW point-source fixtures or margin-heavy placements.
 
-| Part | Function | Source | Unit @ qty 100 |
-|------|----------|--------|----------------|
-| LiFePO4 18650 cell | Battery | Generic AliExpress / Battery Junction | $3.00 |
-| 18650 holder (PCB-mount or wired) | Battery holder | Keystone / generic | $0.50 |
-| 2 W solar panel (~5 V) | Solar input | Voltaic Systems / generic | $5.00 |
-| WS2812B chain on flex strip with JST-PH (alternate to PCB-mount LEDs) | LED option | Adafruit / AliExpress | $1.00 |
-| **Non-PCB subtotal** | | | **~$9.50** |
+Avoid per-unit skilled operations: no hand-soldering 100 header sets, no hand-crimping
+100 harnesses, no per-unit pairing/config rituals.
 
-## Per-fixture mechanical
+## Track A - COTS / Hybrid Production BOM
 
-| Part | Function | Source | Unit @ qty 100 |
-|------|----------|--------|----------------|
-| Hat enclosure (MJF nylon, ~50 g) | Sealed solar-electronics housing | JLC3DP / PCBWay / Xometry | $5.00 |
-| Filter / gobo (FDM PLA, ~10 g) | Patterned aperture | Bambu print on Steve's machine | $0.30 |
-| Set screws × 3 (M3 × 8 mm) | Bamboo clamping | McMaster | $0.30 |
-| Wire harness (panel + battery + LED) | Internal connections | JST-PH pre-crimped | $1.00 |
-| **Mechanical subtotal** | | | **~$6.60** |
+| Item | Function | Current direction | Notes |
+|---|---|---|---|
+| PowerFeather V2 | MCU, charger, gauge, buck-boost, telemetry, USB | Leading COTS/reference board | ADR 0021 go decision. Check supply and connector assembly options before 100+ buy. |
+| LiFePO4 cell | Energy storage | One large cell; 32700 6 Ah candidate leading | One sample measured 5726 mAh. Spot-check more before bulk. |
+| Solar panel, HEX role | Daily harvest | Voltaic P126 2 W ETFE candidate | Mechanically elegant. Use only if HEX role budget closes. |
+| Solar panel, RGBW role | Daily harvest / storm margin | Voltaic P105 5 W ETFE candidate | Larger, mounting holes, better margin. |
+| HEX LED module | Close-range animation / glow | SK6812 direct-GPIO HEX | 4.2 V boost under test; cap all-pixel full-white modes. |
+| RGBW point-source LED | Crisp long-throw gobo | 4 W RGBW direct-GPIO | Needs role-specific current budget and thermal/mechanical placement. |
+| LED adapter PCB | Connectorization / rail option | NeoHEX passive Rev A now; future boosted adapter possible | Use keyed/polarized connectors and production-safe power path. |
+| Panel lead / VDC connector | Solar input | Pre-crimped or factory-installed pigtail | Strain relief required; do not rely on bare soldered panel wires. |
+| Battery lead / holder | Cell retention/service | Holder or spot-welded lead with keyed connector | Must survive vibration/heat; avoid fragile spring/contact assumptions. |
+| Hat enclosure | Sealed electronics + panel mount | Steve design, likely MJF nylon for production | Must respect antenna keep-out and thermal constraints. |
+| Gobo/filter | Patterned aperture | Steve printed cone/flat variants | Role-specific optical test photos still needed. |
+| Fasteners/standoffs | Mechanical retention | Off-the-shelf | Include set screws, board standoffs, panel backup retention. |
+| Flashing jig/cable | Production QA/recovery | USB-C or pogo | Needed even with OTA. |
 
-## Per-fixture summary
+## Track B - Custom Board Candidate Blocks
 
-| Category | Cost |
-|----------|------|
-| Carrier PCB + assembly | $7.00 |
-| Non-PCB electronics (battery, panel, LEDs) | $9.50 |
-| Mechanical (enclosure, filter, harness) | $6.60 |
-| **Per-fixture total target** | **~$23.10** |
+Use these only if the COTS/connector path fails cost, assembly, packaging, or availability.
 
-## 100-fixture total
+| Block | Current reference | Notes |
+|---|---|---|
+| MCU/RF | ESP32-S3-WROOM-class module | Pre-certified module, PCB antenna, strict keep-out. |
+| Charger/power path | BQ25628E-class | Must set VBUS_OVP=1 and implement HIZ requalification guard. |
+| Fuel gauge | MAX17260-class | Treat LFP SOC as advisory until learned; expose raw current/voltage. |
+| 3.3 V regulator | TPS631013-class buck-boost | LFP plateau sits near crossover at light loads; measure real efficiency. |
+| LED rail | Switchable/default-off rail or boost with EN | HEX boost candidate: 4.2 V, not 5 V, unless level shifting is added. |
+| Connectors | Keyed solar, battery, LED, test pads | Production operations matter more than schematic elegance. |
+| Temperature | Battery NTC / charger TS strategy | Needed for sealed-hat LFP charge-temperature limits. |
 
-**~$2,310.** Plus shipping (overland from Asian fab partners), customs (negligible at this scale), and a 10–20% margin for prototype iterations and spares (target 110–120 units fab to have spares).
+## Explicitly Superseded
 
-**Comparison target:** decompose `INV_2026_00401` (Elliot, 04-16, "rough cost of the light") to see where that quote lands. Differences likely driven by labor (handmade vs SMT-assembled), per-unit panel cost (Voltaic premium vs generic), and battery chemistry (LiPo vs LiFePO4).
+Do not use this as the current production BOM:
 
-## Open BOM questions
+```
+ESP32-C3-MINI-1 + CN3058 + AP2112K + always-live direct-Vbat WS2812B
+```
 
-- Confirm CN3058 is actually in JLCPCB Basic (not Extended). If Extended, fee adds ~$3 setup + small per-unit. Worth checking MCP73123 too.
-- Decide between WS2812B-2020 (PCB-mount) and a separate flex-strip WS2812B (off-board, plugged in). Off-board is more flexible mechanically and lets the LEDs be positioned wherever the optics work best inside the bamboo lantern, but adds a JST connector and harness.
-- 18650 holder choice: PCB-mount (clean, but takes a lot of board area) or wired-to-board with a JST-PH (more flexible, fewer constraints on hat layout). Likely wired.
-- Polyfuse value: bench-test the worst-case load current under the wand-stress scenario to size correctly. 2 A hold / 4 A trip is a starting estimate.
+That old sketch is useful history only. Later ADRs and bench data moved the project to the
+PowerFeather V2 reference architecture, switchable rails, telemetry, direct-GPIO LED roles,
+and a measured panel/cell sizing campaign.
 
-## Sourcing logistics for 100 units
+## Open Procurement Inputs
 
-- **JLCPCB**: PCBs and SMT assembly. ~3 weeks turnaround. Order one prototype run of 5 boards (~$30–60) before committing 100.
-- **JLC3DP**: MJF hat enclosures. ~10 days turnaround. Same caveat — order 5 enclosures first to verify mechanical fit on a real bamboo lantern.
-- **Voltaic Systems**: solar panels with the right form factor and reliability for desert. Check their 2 W ETFE panels.
-- **Battery Junction / 18650.com**: LiFePO4 18650 cells, US-based.
-- **AliExpress**: cheaper LiFePO4 cells if c
+- PowerFeather V2 supply/cost at 100-150 units, including factory connector options.
+- Voltaic P105/P126 real outdoor harvest after firmware OVP/HIZ guard.
+- HEX/RGBW type mix and placement by tree height / sightline.
+- Battery sample count beyond the single passing 32700 capacity run.
+- Hat envelope: panel size, battery retention, antenna keep-out, and thermal result.
+- Custom vs COTS go/no-go date based on actual lead times.
+- Cost decomposition for `INV_2026_00401`, still needed as a comparison baseline.
+
+## Costing Guidance
+
+Do not publish a precise per-fixture total until the architecture mix is chosen. The big
+drivers are now:
+
+- controller path: COTS PowerFeather vs custom assembly;
+- solar panel role: P126-class vs P105-class;
+- battery format and sourcing;
+- LED role mix and any HEX boost adapter;
+- hat production method and panel retention;
+- labor removed by factory soldering / pre-crimped harnesses.
+
+For each candidate BOM, compute both dollars and operations:
+
+```
+total_cost = parts + shipping + spares + assembly labor + QA/rework allowance
+ops_risk = solder joints + crimps + one-off configs + fragile connectors + field access
+```
+
+The winning BOM is the one that closes energy and reliability while keeping 100-unit
+assembly boring.

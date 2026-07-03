@@ -1,4 +1,4 @@
-# 0009 — Minimize per-fixture operations at scale (O(1), not O(N))
+# 0009 -- Minimize per-fixture operations at scale (O(1), not O(N))
 
 **Date:** 2026-05-06
 **Status:** Accepted, clarified by ADR 0012
@@ -6,7 +6,7 @@
 
 ## Context
 
-Producing 100 functional, deployable fixtures imposes operations cost on whoever does the assembly. Anything done per-fixture is multiplied by 100 — a 10-minute task becomes a 17-hour day, a 30-second annoyance becomes 50 minutes of unpaid grunt work. The 2018 LoRa-pendant project burned ~40 hours of one weekend just hand-soldering headers onto carrier boards for 16 devices. That experience should not be repeated at 100 units.
+Producing 100 functional, deployable fixtures imposes operations cost on whoever does the assembly. Anything done per-fixture is multiplied by 100 -- a 10-minute task becomes a 17-hour day, a 30-second annoyance becomes 50 minutes of unpaid grunt work. The 2018 LoRa-pendant project burned ~40 hours of one weekend just hand-soldering headers onto carrier boards for 16 devices. That experience should not be repeated at 100 units.
 
 This is a top-tier design constraint. The original implementation interpreted it as "all custom SMT, no dev boards, no headers." ADR 0012 clarifies the more important rule: **no skilled, slow, error-prone per-fixture work.** A COTS/daughterboard architecture is allowed if it meets that rule.
 

@@ -4,7 +4,7 @@
   ./plot_led_ina_sweep.py data/ca/2026-06-09-led-ina-sweep-2152.jsonl [out.png] [scale=10]
 
 scale=N multiplies the logged led_ma (use scale=10 for sweeps recorded BEFORE the
-SEN0291 shunt fix, when ina_monitor assumed 0.1 Ω instead of the true 0.01 Ω).
+SEN0291 shunt fix, when ina_monitor assumed 0.1 ohm instead of the true 0.01 ohm).
 """
 import json, sys, os
 import matplotlib
@@ -42,13 +42,13 @@ for ax, g in zip(axes, (0, 1)):
     ax.set_ylim(0, ymax)
     ax.legend(title="channels", loc="upper left")
 axes[0].set_ylabel("LED current (mA)")
-corr = f"  ·  shunt-corrected ×{scale:g} (SEN0291 0.01 Ω)" if scale != 1.0 else ""
-fig.suptitle("SK6812 RGBW @ 3.3 V rail — LED current vs brightness" + corr,
+corr = f"  *  shunt-corrected x{scale:g} (SEN0291 0.01 ohm)" if scale != 1.0 else ""
+fig.suptitle("SK6812 RGBW @ 3.3 V rail -- LED current vs brightness" + corr,
              fontsize=14, fontweight="bold")
-fig.text(0.5, 0.005, (notes + "   ·   " if notes else "")
-         + f"baseline-corrected (−{base * scale:+.2f} mA LED-off offset)"
-         + (f", ×{scale:g} shunt fix" if scale != 1.0 else "")
-         + f"   ·   {os.path.basename(src)}",
+fig.text(0.5, 0.005, (notes + "   *   " if notes else "")
+         + f"baseline-corrected (-{base * scale:+.2f} mA LED-off offset)"
+         + (f", x{scale:g} shunt fix" if scale != 1.0 else "")
+         + f"   *   {os.path.basename(src)}",
          ha="center", fontsize=8, color="#666")
 fig.tight_layout(rect=[0, 0.03, 1, 0.96])
 fig.savefig(out, dpi=130)

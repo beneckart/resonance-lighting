@@ -1,7 +1,7 @@
-# 0021 — PowerFeather V2 feasibility validated (networking, solar, field-OTA): proceed
+# 0021 -- PowerFeather V2 feasibility validated (networking, solar, field-OTA): proceed
 
 **Date:** 2026-06-08
-**Status:** Accepted — go. PowerFeather V2 survived the COTS feasibility de-risking on its
+**Status:** Accepted -- go. PowerFeather V2 survived the COTS feasibility de-risking on its
 highest-risk axes; continue building the COTS prototype track on it (confirms ADR 0015/0016).
 **Owners:** Ben
 
@@ -21,19 +21,19 @@ board's purpose) but was unmeasured. This ADR records the bench results and the 
 testing on networking, field-OTA, and solar. Remaining work is *spec/refinement*, not
 viability (listed below); none blocks committing to the board.
 
-## Evidence (2026-06-07/08 bench — `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md`, LOG)
+## Evidence (2026-06-07/08 bench -- `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md`, LOG)
 
-- **Networking (ESP-NOW) — strong.** 5-node bench: ~99% PDR; rate sweep 1→50 Hz with a clean
-  airtime trend extrapolating to **~98–99% PDR at 100 nodes** at a 1–2 Hz heartbeat (broadcast,
-  unencrypted — sidesteps the ~6–17 encrypted-peer cap). Range held **through a house + full
+- **Networking (ESP-NOW) -- strong.** 5-node bench: ~99% PDR; rate sweep 1->50 Hz with a clean
+  airtime trend extrapolating to **~98-99% PDR at 100 nodes** at a 1-2 Hz heartbeat (broadcast,
+  unencrypted -- sidesteps the ~6-17 encrypted-peer cap). Range held **through a house + full
   backyard + behind an oak (~100 steps)**; the **lantern enclosure is RF-transparent**, and the
   **solar panel is the main ~20 dB attenuator** (antenna keep-out matters). No brownouts on a
   healthy cell.
-- **Field-OTA (the no-touch requirement) — met.** Battery-only, no-physical-access OTA recovered
+- **Field-OTA (the no-touch requirement) -- met.** Battery-only, no-physical-access OTA recovered
   **~17/17** (incl. 3/3 on an LFP at the ~3.2 V buck-boost crossover) via software reset.
   **A/B rollback validated**: a self-test-failing image auto-reverts to the last-good image,
   no touch. Watchdog (auto-restart on hang) and the autosleep guard also validated.
-- **Solar — path validated.** Charger → LFP is net-positive even in partly-cloudy, through-glass
+- **Solar -- path validated.** Charger -> LFP is net-positive even in partly-cloudy, through-glass
   light; full-sun + the board's purpose-built charging give ample margin.
 
 ## Consequences
@@ -54,5 +54,5 @@ viability (listed below); none blocks committing to the board.
 - **LFP re-verify** of the battery/stability runs (most bench work was on Li-ion); full-sun
   harvest number; `--maintain` (MPP) sweep for the shaded canopy.
 - OTA over a **marginal WiFi link**; 20+ node confirmation if the production rate nears the loss knee.
-- **Mock-hat RF** with panel + battery installed (Steve) — the real antenna-detuning case.
+- **Mock-hat RF** with panel + battery installed (Steve) -- the real antenna-detuning case.
 - Implement the production rollback/health + watchdog pattern in the real firmware.

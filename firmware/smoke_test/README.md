@@ -55,19 +55,19 @@ Grove yellow LED signal on GPIO26, uses 37 pixels, and leaves GPIO32 unused.
 
 ## Serial Commands
 
-- `h` or `?` — print help.
-- `r` — print boot/status report again.
-- `i` — run I2C scan.
-- `l` — run conservative LED test.
-- `c` or `0` — clear LEDs, keeping the current WiFi/OTA state.
-- `q` — quiet current baseline: stop OTA/WiFi and clear LEDs.
-- `1` — center max-white LED.
-- `2` — 3-pixel RGB/fringing pattern.
-- `3` — center 3x3 dim warm-white crop.
-- `4` — full-array very-low white.
-- `5` — full-array capped white, brief measurements only.
-- `w` — connect to configured WiFi and start web OTA updater.
-- `o` — start temporary AP web OTA updater.
+- `h` or `?` -- print help.
+- `r` -- print boot/status report again.
+- `i` -- run I2C scan.
+- `l` -- run conservative LED test.
+- `c` or `0` -- clear LEDs, keeping the current WiFi/OTA state.
+- `q` -- quiet current baseline: stop OTA/WiFi and clear LEDs.
+- `1` -- center max-white LED.
+- `2` -- 3-pixel RGB/fringing pattern.
+- `3` -- center 3x3 dim warm-white crop.
+- `4` -- full-array very-low white.
+- `5` -- full-array capped white, brief measurements only.
+- `w` -- connect to configured WiFi and start web OTA updater.
+- `o` -- start temporary AP web OTA updater.
 
 When AP OTA mode is started, connect to the printed `resonance-smoke-*` WiFi AP
 and open `http://192.168.4.1/` in a browser. When station OTA mode is started,

@@ -1,7 +1,7 @@
-# 0006 — Custom carrier PCB, not dev-board-on-carrier
+# 0006 -- Custom carrier PCB, not dev-board-on-carrier
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0012 — Dual-track production architecture: COTS fallback plus custom PCBA optimization
+**Status:** Superseded by ADR 0012 -- Dual-track production architecture: COTS fallback plus custom PCBA optimization
 **Owners:** Ben
 
 ## Context
@@ -19,4 +19,4 @@ Use a custom carrier PCB only; no dev-board-on-carrier; no headers anywhere exce
 
 ## Why this is superseded
 
-The operational constraint is not “never use dev boards.” The real constraint is “no skilled, slow, error-prone per-fixture work.” Factory-soldered headers, screw-mounted COTS boards, USB/JST connections, daughterboards, and pre-crimped cables can satisfy the no-solder / low-skill assembly goal. A COTS path should be built as a production-credible fallback while the custom PCBA path proceeds in parallel. See ADR 0012.
+The operational constraint is not "never use dev boards." The real constraint is "no skilled, slow, error-prone per-fixture work." Factory-soldered headers, screw-mounted COTS boards, USB/JST connections, daughterboards, and pre-crimped cables can satisfy the no-solder / low-skill assembly goal. A COTS path should be built as a production-credible fallback while the custom PCBA path proceeds in parallel. See ADR 0012.

@@ -1,4 +1,4 @@
-# COTS LED Measurements — 2026-05-15
+# COTS LED Measurements -- 2026-05-15
 
 Purpose: first current and optics measurements for the three connected COTS
 prototype stacks.

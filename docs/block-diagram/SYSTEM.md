@@ -1,223 +1,170 @@
-# System Block Diagram + Power Budget
+# System Architecture + Power Budget
 
-**Status:** First pass. Numbers below are sized to LiFePO4 chemistry, ESP32-C3 platform, 1–9 WS2812B LEDs (typically 1–3 lit at a time). Refine as bench measurements come in.
+**Status:** Current working architecture, 2026-06-17. This supersedes the old
+ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
+ADRs; for the live path read this with ADR 0021 and ADR 0022.
 
-## Block Diagram
+## System Goal
+
+Build 100 autonomous bamboo downlight fixtures for Burning Man 2026/2027. Each fixture is
+fungible: no per-unit pairing, no fixed wiring topology, no infrastructure dependency, and
+no skilled repetitive assembly operation at 100-unit scale.
+
+## Current Block Diagram
 
 ```
-                    ┌────────────────────┐
-                    │   Solar panel      │
-                    │   1–2 W, ~5–6 V    │
-                    │   Connector: JST-PH│
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐
-                    │ Reverse-polarity   │
-                    │ protection         │
-                    │ (Schottky diode)   │
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐
-                    │   CN3058 charger   │
-                    │   LiFePO4 profile  │
-                    │   3.6 V max charge │
-                    │   ~500 mA Iset     │◄─── status LED (charging / done)
-                    └─────────┬──────────┘
-                              │
-                              ▼
-                    ┌────────────────────┐         ┌──────────────────┐
-                    │   Power-path       │◄────────┤ LiFePO4 cell     │
-                    │ (ideal-diode MOSFET│         │ 14430 ~400 mAh   │
-                    │  on battery side)  │         │ or 18650 1500mAh │
-                    └─────────┬──────────┘         │ JST-PH connector │
-                              │                    └──────────────────┘
-                              │ Vbat = 2.5–3.6 V
-                              │
-              ┌───────────────┼───────────────────────┐
-              ▼               ▼                       ▼
-    ┌──────────────┐  ┌────────────────┐    ┌─────────────────────┐
-    │ AP2112K-3.3  │  │ Battery sense  │    │ WS2812B chain       │
-    │ LDO          │  │ ADC divider    │    │ 1–9 LEDs (1–3 typ.) │
-    │ 450 mV drop  │  │ (gated by GPIO │    │ Direct from Vbat    │
-    │ ~600 mA cap. │  │  to save power)│    │ (3.3 V data sat.)   │
-    └──────┬───────┘  └────────┬───────┘    │ JST-PH out          │
-           │                   │            └─────────┬───────────┘
-           │ 3V3                                      │
-           ▼                                          │ Data + Vbat + GND
-    ┌──────────────────────────────────────┐         │
-    │  ESP32-C3-MINI-1                     │─────────┘ (GPIO data line)
-    │  RISC-V single-core 160 MHz          │
-    │  WiFi + BLE + ESP-NOW                │
-    │  ~22 GPIO available                  │◄─── USB-C (D+/D-) ─── flashing + charge fallback
-    │                                      │
-    │  Tasks: led_render, ca_tick,         │
-    │         mesh_rx, mesh_tx,            │
-    │         housekeeping                 │
-    └──────────────────────────────────────┘
+                     Solar panel
+          Voltaic P105/P126 class, or measured alternate
+                              |
+                              v
+                   PowerFeather V2 VDC input
+          BQ25628E charger / power path / VINDPM
+          - set VBUS_OVP=1 for 6 V-class panels
+          - HIZ-toggle requalification guard needed
+                              |
+                              v
+                      LiFePO4 cell
+          production target: one large cell, likely 32700
+          measured sample: 5726 mAh clean discharge
+                              |
+                              v
+         PowerFeather V2 power-management + telemetry stack
+          MAX17260 gauge/current sense
+          TPS631013 3.3 V buck-boost
+          ESP32-S3-WROOM controller
+          switchable 3V3 header rail (GPIO4)
+          switchable VSQT/STEMMA-QT rail
+                              |
+                +-------------+--------------+
+                |                            |
+                v                            v
+        Direct-GPIO LED role          Optional sensors
+        GPIO10/A0 in bench rigs       ToF / IMU / env / INA
+        - HEX SK6812 array            via I2C/UART as tested
+        - 4 W RGBW point source
+        - LED rail switchable/default-off
 ```
 
-## Voltage rails
+The production path may be COTS PowerFeather V2, a PowerFeather-derived custom assembly,
+or a hybrid with a custom LED/power adapter. The reference architecture is the same either
+way: ESP32-S3 WROOM-class RF, BQ25628E-class charger/power path, MAX17260-class gauge,
+buck-boost 3.3 V rail, direct-GPIO LEDs, keyed/serviceable connectors, and boring USB/pogo
+recovery.
 
-| Rail | Source | Range | Loads |
-|------|--------|-------|-------|
-| Vsolar | Panel | 0–7 V (Voc when unloaded) | Charger input only |
-| Vbat | LiFePO4 | 2.5–3.6 V | LEDs (direct), LDO input, battery sense |
-| 3V3 | LDO | 3.3 V (when Vbat ≥ 3.55 V) | ESP32-C3, pull-ups, status LEDs |
+## Validated On Hardware
 
-**LiFePO4-specific design notes:**
+- **PowerFeather V2 feasibility:** ADR 0021 is the go decision. ESP-NOW at the projected
+  100-node scale, battery-only no-touch OTA with A/B rollback, watchdog recovery, and the
+  solar charge path are all validated.
+- **Network/radio:** 5-node bench showed roughly 98-99% projected PDR at 100 nodes for a
+  1-2 Hz heartbeat. Range held through a house, yard, and oak; the bamboo lantern is
+  RF-transparent enough, while the solar panel is the major attenuator.
+- **OTA/recovery:** battery-only OTA recovered repeatedly with no button press; a
+  self-test-failing image auto-reverted. Production firmware still needs the same
+  rollback/health pattern, including delayed mark-valid for late crashes.
+- **Sleep:** always-on receive is too expensive, but deep sleep with both switchable 3.3 V
+  rails cut is sub-mA by external INA ground truth.
+- **Battery:** the 2000 mAh LFP bench cell measured about 2077 mAh. A 32700 6 Ah candidate
+  measured 5726 mAh clean to cutoff and is the leading production cell pending more sample
+  checks.
 
-- LiFePO4 max charge voltage is **3.6 V**, not 4.2 V. CN3058 is tuned for this. Do not substitute LiPo chargers (TP4056, bq24074, CN3791).
-- Discharge cutoff for LiFePO4 longevity is **2.5 V** absolute / **2.8–3.0 V** practical.
-- AP2112K-3.3 has 450 mV dropout. Output regulates cleanly when Vbat ≥ 3.55 V; below that, 3.3 V rail droops with the battery. ESP32-C3 runs down to ~3.0 V on the 3.3 V rail without issue. Effective system cutoff: ~3.05 V Vbat (matches LiFePO4 longevity target).
-- WS2812B data-line threshold: logic high needs ≥0.7 × Vcc. With Vcc = 3.6 V max, threshold = 2.52 V. With 3.3 V GPIO data, margin = 780 mV. **No level shifter required.** Verified on Talisman v2 (2018 build, same trick).
+## LED Architecture
 
-## Current draw — measured + estimated
+ADR 0022 records the current LED decision: use a **mixed fleet by optical role**.
 
-Per-LED current numbers derived from 2018 Talisman v2 measurements on a 16-LED ring (`beneckart/future-robotics`). WS2812B current scales linearly per LED — the 16-LED measurements divide cleanly to per-LED values that match the datasheet.
+- **HEX SK6812 array:** close-range animation, split-color effects, ambient glow, and
+  intimate fixtures. Ben's current visual preference is usually 1 pixel white or 3 pixels
+  single-channel/trail rather than all-37 full white.
+- **4 W RGBW point source:** long-throw crisp gobo projection with useful color-fringe
+  overlap effects.
+- **IS31FL3741 13x9 matrix:** ruled out for the PowerFeather V2 battery build. It browns
+  out the board on the shared charger/gauge I2C bus under WiFi; use direct-GPIO LEDs.
 
-**Per-LED reference table** (at Vbat = 3.3 V):
+Firmware implications:
 
-| Brightness | Color | Current per LED |
-|------------|-------|-----------------|
-| 255 (full) | White (R+G+B) | ~31 mA |
-| 255 (full) | Single color | ~12.5 mA |
-| 128 (~50%) | White | ~17.5 mA |
-| 26 (~10%) | White | ~4.4 mA |
-| 1 (~0.4%) | White | ~1.25 mA |
+- send an explicit all-off frame before sleep or rail shutdown;
+- ramp gently and cap `brightness x lit_count`, especially for boosted HEX builds;
+- keep the LED rail switchable/default-off so a hung MCU cannot drain the pack;
+- keep role-specific patterns/config while sharing one direct-GPIO LED abstraction.
 
-**Resonance fixture has 1–9 WS2812B per lantern.** Real usage model (per Ben):
+## Solar Architecture
 
-- *Default ambient:* 1 LED (the center of a 3×3 grid) at ~10% brightness.
-- *Showy "color-fringing" mode:* 3 neighboring LEDs at moderate brightness for the chromatic offset effect.
-- *Wand-burst peaks:* up to 9 LEDs lit simultaneously, briefly.
+The charger path works, but sizing is still being closed from measured harvest and measured
+show loads.
 
-**Subsystem current table:**
+Measured/known:
 
-| Subsystem | Mode | Current @ Vbat=3.3V | Notes |
-|-----------|------|---------------------|-------|
-| ESP32-C3 | WiFi TX active | ~80 mA | Brief bursts during ESP-NOW sends |
-| ESP32-C3 | WiFi RX listening | ~20 mA | ESP-NOW receive-window |
-| ESP32-C3 | Light sleep, radio off | ~0.8 mA | Wake on timer or interrupt |
-| ESP32-C3 | Deep sleep | ~5 µA | No RTC RAM, full restart on wake |
-| WS2812B (1 LED) | Ambient: 10% white | ~4 mA | Default operational mode |
-| WS2812B (3 LEDs) | Showy: 30% white | ~30 mA | Color-fringing mode |
-| WS2812B (9 LEDs) | Burst: 100% white | ~280 mA peak | Wand-interaction event, brief |
-| AP2112K-3.3 | Quiescent | ~55 µA | Add to all sleep estimates |
-| Battery sense | ADC measurement | ~0.5 mA × ms | Gate on/off via GPIO; sample once/min |
-| CN3058 | Quiescent (charging) | ~150 µA | Negligible when sun is up |
-| CN3058 | Standby (no input) | ~10 µA | At night |
+- Seeed 3 W hot-panel sweep: best point around 4.6-4.7 V; panel-side INA measured about
+  1.91 W while BQ-side telemetry reported about 1.73 W. The default 5.5 V setpoint left a
+  large amount of harvest on the table in heat.
+- BQ25628E default input OVP is too low for many "6 V" panels at connect-time Voc. Set
+  VBUS_OVP=1 and add a supply-present-but-not-good HIZ requalification kick before any
+  panel buy with Voc above about 6 V.
+- Voltaic ETFE candidates:
+  - P105 5 W: larger, heavier, mounting holes, better energy/storm/dust margin.
+  - P126 2 W: much nicer hat footprint, likely role-specific if the HEX budget closes.
 
-## Power budget — single fixture, single night
+Bench/sizing rules:
 
-**Assumptions:**
+- use panel-side INA power as the panel-capability truth source when available;
+- treat MAX17260 LFP SOC as advisory until learned; use voltage/current/charge acceptance
+  as guardrails;
+- run MPP sweeps on a hungry battery to avoid demand-limited false flats;
+- record panel temperature method, because IR front readings, back-side SHT31 readings, and
+  different backing thicknesses are not interchangeable.
 
-- 100 fixtures; each is autonomous on its own battery and panel.
-- Active operation from dusk (~7:30 PM) to dawn (~6:00 AM) = **10.5 hr active**
-- Daylight charging window: ~6 hr of strong sun, ~2 hr of partial sun (panel partially shaded by bamboo skin and the tree's canopy)
-- Mesh duty cycle: ESP-NOW sends own state every 1 s, listens between. Effective average MCU current: ~5 mA (mostly light sleep with periodic wake).
-- LED usage averaged over the night: **time-weighted average of ~5 mA**. Most of the night is "default ambient" (1 LED at ~10% = 4 mA), interspersed with brief "showy" mode (3 LEDs at ~30% = 30 mA). Wand-burst peaks (9 LEDs full) are brief and rare.
+## Power Budget Status
 
-**Night drain:**
+There is **no final production nightly budget yet**. The old ~120 mAh/night number is
+**retired** (2026-07-02): it was pre-hardware napkin math (low-current ESP32-C3, very dim
+1-3 pixel assumptions) and the gobo bench work shows crisp projection needs far more LED
+power than it assumed. Do not use it as a floor or an anchor; the budget comes bottom-up
+from measured LED draw x a realistic show duty cycle.
 
-| Component | Current avg | Hours | Charge consumed |
-|-----------|-------------|-------|-----------------|
-| ESP32-C3 (mostly light sleep, periodic wake) | 5 mA | 10.5 | 52.5 mAh |
-| WS2812B (1–3 LEDs at low/mid brightness, time-weighted avg) | 5 mA | 10.5 | 52.5 mAh |
-| LDO + miscellaneous quiescent | 0.2 mA | 10.5 | 2 mAh |
-| **Total night drain** | | | **~107 mAh** |
+Use this accounting shape until the real duty cycle is chosen:
 
-**Day standby + charge:**
+```
+daily_energy_deficit_Wh =
+    night_LED_show_Wh
+  + night_controller_and_radio_Wh
+  + daytime_sleep_overhead_Wh
+  - measured_harvest_at_MPP_Wh
+```
 
-| Component | Current avg | Hours | Charge consumed |
-|-----------|-------------|-------|-----------------|
-| ESP32-C3 deep sleep + periodic wake to maintain mesh sync | 0.5 mA | 13.5 | 7 mAh |
-| Charger quiescent | 0.2 mA | 13.5 | 3 mAh |
-| **Total day standby drain** | | | **~10 mAh** |
+Known measured anchors:
 
-**Daily total drain: ~120 mAh.**
+| Item | Measured / current read |
+|---|---|
+| Always-on ESP-NOW peer | about 168 mA / 0.55 W, unsustainable |
+| Rails-off duty-cycled sleep | sub-mA by external INA |
+| HEX 1 px full | about 41.8 mA LED-rail draw |
+| HEX 3 px | about 105 mA LED-rail draw |
+| HEX actual preferred looks | rough 0.4-0.6 W battery-side with overhead |
+| HEX all-37 full class | rough 2 W+ battery-side, not a normal show state |
+| 4 W RGBW RGB-full class | rough 1.1 W battery-side |
+| 4 W RGBW white-only class | rough 0.45 W battery-side |
+| 32700 candidate | 5726 mAh, roughly 18 Wh usable class |
 
-> **Caveat (2026-06-08 bench): treat ~120 mAh as an optimistic FLOOR, not the design number.**
-> It assumes ~5 mA time-averaged LEDs, but bench-measured HEX/RGBW draw is **400–500 mA at
-> full** (see ADR 0018 / LOG). Real nightly drain = show brightness × LED count × duty cycle,
-> plausibly **5–20× this floor**. Action: re-derive bottom-up from measured LED draw + a
-> realistic duty cycle, then size the cell + panel to that. The solar *path* is hardware-
-> validated (net-positive into an LFP even in weak/partial light, 2026-06-08).
->
-> **Update (2026-06-08, LOG cont. 10–11): the harvest table, the margin verdict, AND the
-> autonomy table below are ALSO optimistic — treat this whole section as UNCONFIRMED pending
-> a bottom-up redo:**
-> - **Harvest is MPP-limited.** The charger holds a *fixed* input voltage (VINDPM); when the
->   panel is hot (~65 °C measured) its Vmp droops to ~4.85 V, so the default 5.5 V setpoint
->   sits past the IV knee and harvests roughly *half* of the available power. Real harvest
->   needs software MPPT (prototyped via `SET_MAINTAIN`) or a temp-compensated setpoint; the
->   table assumes a near-MPP operation it isn't getting by default.
-> - **The "2000 mAh" 18650 LFP capacity is VERIFIED at ~2077 mAh** (2026-06-10 full charge→empty
->   INA-coulomb run, SOC 98→0 %, n=1) — **at/above its rating.** Earlier slices read low only
->   because they never reached the knee (the 06-03 ≥617 mAh and 06-09 183 mAh runs both stopped
->   mid-plateau; the gauge's own SOC is unreliable on LFP's flat curve until it learns a cycle, so
->   coulomb-count). The autonomy table below (1500 mAh) is conservative; production targets a
->   larger LFP 32700 (~6000 mAh) anyway. (Retracted: the earlier "~1000 mAh / 2× overrated" and
->   the 06-09 "~760 mAh" slice — both wrong.)
-> - So the **"1 W panel, 8× margin" verdict is not yet supported** — drain is LED-show-bound,
->   and harvest is MPP-limited (the cell-capacity doubt is resolved: ~2077 mAh, at-spec). Closing this energy balance is the gating
->   de-risk before sizing the panel + cell (see TODO "sizing campaign").
+The next sizing output should be role-specific: one budget for HEX fixtures and one for
+point-source RGBW fixtures, then panel size by role.
 
-**Solar harvest estimate:**
+## Production Design Rules
 
-| Panel | Strong sun (6 hr) | Partial sun (2 hr) | Daily harvest |
-|-------|-------------------|---------------------|---------------|
-| 1 W | ~150 mA | ~30 mA | 960 mAh |
-| 2 W | ~300 mA | ~60 mA | 1920 mAh |
-| 3 W | ~450 mA | ~90 mA | 2880 mAh |
+- Do not use IS31FL3741 on the PowerFeather V2 shared power-management I2C bus.
+- Do not trust LFP percentage SOC alone for solar qualification or low-battery decisions.
+- Do not connect/boot high-Voc panels in bright sun without the BQ25628E OVP/HIZ firmware
+  guard, or at least shade the panel during connection.
+- Keep the antenna out from under the panel, battery, screws, wiring, and metal.
+- Keep USB/pogo flashing as the guaranteed recovery path even if OTA is strong.
+- Avoid per-unit hand soldering/crimping/configuration. Use keyed connectors, fixtures,
+  factory assembly, and one firmware image with runtime/NVS config where possible.
 
-(Numbers assume ~5 V panel, charger conversion ~80%, partial bamboo shading derated.)
+## Open Gates
 
-**Verdict:** A 1 W panel covers the 120 mAh daily drain with 8× margin. A 2 W panel gives ~16× margin and tolerates heavy shading or much higher LED duty cycle (e.g. for sustained wand-interaction events). **Recommendation: target 1–2 W panel — 1 W is sufficient if hat layout constrains panel area; 2 W provides margin for the 2027 brighter-mode spec.**
-
-**Battery sizing:**
-
-| Cell | Capacity | Total Wh | Nights of autonomy at 120 mAh / night, no sun |
-|------|----------|----------|------------------------------------------------|
-| LiFePO4 14430 | ~400 mAh | 1.3 Wh | 3.3 nights |
-| LiFePO4 18650 | ~1500 mAh | 4.8 Wh | 12.5 nights |
-| LiFePO4 26650 | ~3000 mAh | 9.6 Wh | 25 nights |
-
-**Recommendation: LiFePO4 18650** — well-known cell format, robust holders available, gives ~12 nights of dark-survival autonomy if panels ever fail. Weight is ~50 g, well inside the 1 kg per-fixture structural budget. The 14430 (~3 nights autonomy) is now reasonable and would save weight + cost if cell sourcing is tight, but 18650 is the safer call for a 2-year-life deployment where battery aging is a factor and where the desert can easily produce multi-day dust storms blocking panels.
-
-## Power budget — back-of-envelope max-stress check
-
-What if the wand-interaction events trigger every fixture into "9 LEDs full white" mode for 30 min total over a night?
-
-- 9 WS2812B at full white = 280 mA. 30 min × 280 mA = 140 mAh.
-- Same fixture's regular 10 hr ambient at 5 mA avg = 50 mAh.
-- ESP32-C3 active during the burst (extra mesh traffic): ~30 mA × 30 min = 15 mAh.
-- Total stress night: ~210 mAh.
-
-Still inside 18650 capacity (1500 mAh — using 14% in the worst night). Still inside 1 W panel daily harvest (960 mAh — replacing ~22% of capacity in one good day). System tolerates considerable showy-mode duty cycle without battery deficit. The 14430 (400 mAh) starts to feel marginal here (52% drain in stress night) — another reason to prefer 18650.
-
-## What's NOT in this budget
-
-- Cold-start charging from depleted battery. CN3058 handles this with trickle-charge below 2 V; tested behavior should be verified on bench.
-- Long sleep / shipping mode. Battery self-discharge of LiFePO4 is ~3% / month; storage for 1+ year between BM 2026 and 2027 means the 100 fixtures need to be brought up to charge before deployment. Plan for a desert-arrival "charge day" at BRC.
-- BMS / overcurrent protection. CN3058 has internal over-temp and over-voltage protection but no short-circuit cutoff on the load side. A polyfuse on the battery output is cheap insurance and worth adding.
-- PCB and connector resistance losses. Accounted for in ~80% charger conversion estimate.
-
-## Sanity check against `INV_2026_00401`
-
-When the cost decomposition for INV_2026_00401 is done (see `TODO.md`), the BOM-cost target should be substantially below what's quoted there. Rough sketch:
-
-- ESP32-C3-MINI-1 module: ~$1.50
-- CN3058 charger + supporting passives: ~$1.00
-- AP2112K-3.3 LDO + caps: ~$0.30
-- 4× WS2812B: ~$0.50
-- USB-C connector: ~$0.50
-- JST-PH connectors × 3: ~$0.60
-- Misc passives, MOSFET, Schottky, LED indicator, fuse: ~$1.50
-- **PCB SMT-assembled at qty 100 (JLCPCB): ~$3 / board**
-- LiFePO4 18650 cell with holder: ~$3
-- 2 W solar panel (Voltaic or generic): ~$5
-- **Per-fixture electronics target: ~$17**
-
-If the invoice is 3–5× this number, the cost driver is probably labor or hand-assembly assumptions; pushing to JLCPCB SMT assembly closes the gap. If the invoice is <2× this, the gap may be enclosure + battery + panel, which we control here.
+- Bottom-up nightly energy budget by LED role and show duty cycle.
+- Voltaic P105/P126 outdoor harvest tests after BQ25628E OVP/HIZ guard.
+- MPPT policy: fixed setpoint, temperature-compensated setpoint, or software P&O.
+- HEX 4.2 V boost bench result and boosted-build current cap.
+- Mock-hat RF with real panel/battery placement.
+- Sealed-hat thermal test, especially LFP charge-temperature behavior.
+- Production path: COTS PowerFeather V2, custom PowerFeather-derived assembly, or hybrid.

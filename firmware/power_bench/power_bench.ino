@@ -121,7 +121,7 @@
 // run a real self-test here and return false if unhealthy.
 extern "C" bool verifyOta() { return false; } // extern "C": the core's weak hook is C-linkage
 #else
-#define POWER_BENCH_VERSION "power-bench-2026-06-11.1" // /set gained n= (multi-pixel ramp)
+#define POWER_BENCH_VERSION "power-bench-2026-06-29.1" // shared solar charger guard
 #endif
 
 // ---------------------------------------------------------------------------
@@ -210,6 +210,7 @@ extern "C" bool verifyOta() { return false; } // extern "C": the core's weak hoo
 
 #if RES_HAS_PF_TELEMETRY
 #include <PowerFeather.h>
+#include "../powerfeather_solar_guard.h"
 using namespace PowerFeather;
 
 // The PowerFeather SDK selects the fuel gauge at COMPILE TIME: MAX17260 (V2) only
@@ -285,6 +286,7 @@ bool protectLatched = false; // battery-floor guard tripped (LED rail + WiFi cut
 #if RES_HAS_PF_TELEMETRY
 bool pfReady = false;
 int pfInitResult = -1;
+float gMaintainV = (float)RES_PF_MAINTAIN_V;
 #endif
 
 #if RES_HAS_NEOPIXEL
@@ -718,8 +720,9 @@ void setupPowerFeather() {
     return;
   }
 
-  Result mr = Board.setSupplyMaintainVoltage((float)RES_PF_MAINTAIN_V);
-  Serial.printf("  setSupplyMaintainVoltage(%.2f) -> %d\n", (float)RES_PF_MAINTAIN_V,
+  gMaintainV = (float)RES_PF_MAINTAIN_V;
+  Result mr = Board.setSupplyMaintainVoltage(gMaintainV);
+  Serial.printf("  setSupplyMaintainVoltage(%.2f) -> %d\n", gMaintainV,
                 static_cast<int>(mr));
 
 #if RES_PF_ENABLE_CHARGING
@@ -732,6 +735,21 @@ void setupPowerFeather() {
   Board.enableBatteryCharging(false);
   Serial.println("  charging disabled");
 #endif
+  pfSolarGuardInit("power_bench", gMaintainV, RES_PF_ENABLE_CHARGING != 0);
+}
+
+void solarGuardTick() {
+  if (!pfReady) return;
+  static uint32_t lastMs = 0;
+  uint32_t now = millis();
+  if (now - lastMs < 2000) return;
+  lastMs = now;
+  float sv = 0.0f, sma = 0.0f;
+  bool good = false;
+  if (Board.getSupplyVoltage(sv) != Result::Ok) return;
+  if (Board.getSupplyCurrent(sma) != Result::Ok) return;
+  if (Board.checkSupplyGood(good) != Result::Ok) return;
+  pfSolarGuardTick("power_bench", sv, sma, good, gMaintainV, RES_PF_ENABLE_CHARGING != 0);
 }
 
 // JSON helpers: append a numeric field, or null + record the field name in errs.
@@ -767,6 +785,10 @@ void addNumI(String &j, String &errs, const char *key, long v, bool ok) {
   }
 }
 #endif // RES_HAS_PF_TELEMETRY
+
+#if !RES_HAS_PF_TELEMETRY
+void solarGuardTick() {}
+#endif
 
 String telemetryJson() {
   String j = "{";
@@ -1399,6 +1421,7 @@ void loadgenLoop() {
   static float mahUsed = 0.0f;      // coulomb-counted discharge (mAh) since boot
   static uint32_t lastCoulomb = 0;  // last integration timestamp
   uint32_t now = millis();
+  solarGuardTick();
 
 #if RES_LOADGEN_AUTOSLEEP
   // Once this boot proves healthy (survived LG_HEALTHY_MS), clear the NVS reboot
@@ -1663,7 +1686,7 @@ void setup() {
   printHelp();
 
 #if RES_BATT_STRESS
-  // Radio fully off — this is the whole point of the test.
+  // Radio fully off -- this is the whole point of the test.
   WiFi.mode(WIFI_OFF);
   pinMode(46, OUTPUT);
   Serial.println("BATTERY-STRESS MODE: WiFi off, blinking center pixel @1Hz");
@@ -1687,6 +1710,7 @@ void loop() {
   return;
 #endif
 #if RES_BATT_STRESS
+  solarGuardTick();
   // 1 Hz heartbeat on the LED-panel center pixel; no WiFi, no web server.
   static uint32_t hbLast = 0;
   static bool hbOn = false;
@@ -1705,6 +1729,7 @@ void loop() {
   }
 
   batteryGuard();
+  solarGuardTick();
 
   uint32_t now = millis();
   if (now - lastHeartbeatMs > 10000) {

@@ -1,4 +1,4 @@
-# Power-bench harness — three-axis test matrix
+# Power-bench harness -- three-axis test matrix
 
 **Date:** 2026-06-02
 **Status:** Live (Phase A validated; collecting data)
@@ -24,7 +24,7 @@ operator-supplied run metadata. Each `power_logger.py` run pins one combination.
 ## Firmware build per LED option
 
 Use `firmware/power_bench/build.sh` (always sets `-DPOWERFEATHER_BOARD_V2=1`, which
-is REQUIRED for the V2 MAX17260 fuel gauge — see the known-issues note below):
+is REQUIRED for the V2 MAX17260 fuel gauge -- see the known-issues note below):
 
 ```sh
 # IS31FL3741 13x9 over STEMMA-QT, 4400 mAh Li-ion, build + flash
@@ -38,9 +38,9 @@ firmware/power_bench/build.sh --led is31 --cap 4400 --port /dev/ttyACM0
 
 ## LED measurement modes (set via /mode?m= or serial)
 
-Same as smoke_test: `0` off · `1` center max white · `2` 3-pixel RGB fringe ·
-`3` center 3x3 dim warm · `4` full-array very low · `5` full-array capped (brief) ·
-`q` quiet (LEDs off + WiFi off — USB-meter baseline only, NOT for WiFi logging).
+Same as smoke_test: `0` off * `1` center max white * `2` 3-pixel RGB fringe *
+`3` center 3x3 dim warm * `4` full-array very low * `5` full-array capped (brief) *
+`q` quiet (LEDs off + WiFi off -- USB-meter baseline only, NOT for WiFi logging).
 
 ## Run procedure
 
@@ -59,7 +59,7 @@ Same as smoke_test: `0` off · `1` center max white · `2` 3-pixel RGB fringe ·
 
 ## What we read (per `/telemetry`)
 
-`battery_v`, `battery_ma` (+charge/−discharge), `supply_v`, `supply_ma`,
+`battery_v`, `battery_ma` (+charge/-discharge), `supply_v`, `supply_ma`,
 `supply_good`; `soc_pct/health_pct/cycles/time_left_min` when the gauge is up;
 plus board/fw/led identifiers. Derived: input power `supply_v*supply_ma`, battery
 power `battery_v*battery_ma`. For autonomy, integrate `battery_ma` over a

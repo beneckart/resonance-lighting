@@ -1,4 +1,4 @@
-# 0007 — Electronics live in a hat, not inside the bamboo
+# 0007 -- Electronics live in a hat, not inside the bamboo
 
 **Date:** 2026-05-06
 **Status:** Accepted
@@ -6,12 +6,12 @@
 
 ## Context
 
-The bamboo lantern enclosure is designed by Vishnu (sealed shop drawing, in fab at Bamboo Pure). Interior diameter at the top of the bamboo lantern is 5.5 cm. Solar panel for ~1–3 W needs a footprint larger than 5.5 cm. Either:
+The bamboo lantern enclosure is designed by Vishnu (sealed shop drawing, in fab at Bamboo Pure). Interior diameter at the top of the bamboo lantern is 5.5 cm. Solar panel for ~1-3 W needs a footprint larger than 5.5 cm. Either:
 
-1. Crowbar all electronics into the bamboo (sub-5.5 cm form factor, with a panel that doesn't extend beyond the bamboo lantern — limits panel to ~1 W, and is fragile to the bamboo dimensional variability).
+1. Crowbar all electronics into the bamboo (sub-5.5 cm form factor, with a panel that doesn't extend beyond the bamboo lantern -- limits panel to ~1 W, and is fragile to the bamboo dimensional variability).
 2. Put electronics in a separate "hat" that sits partially in / partially over the top of the bamboo, like the solar-cap of a standard solar garden lantern.
 
-Reference: common metal Moroccan-style solar garden lanterns (Amazon ASIN B0DKNLGCDM and similar) — separable solar top, decorative metal body, mechanical decoupling.
+Reference: common metal Moroccan-style solar garden lanterns (Amazon ASIN B0DKNLGCDM and similar) -- separable solar top, decorative metal body, mechanical decoupling.
 
 ## Options considered
 
@@ -20,7 +20,7 @@ Reference: common metal Moroccan-style solar garden lanterns (Amazon ASIN B0DKNL
 
 ## Decision
 
-**Modular hat.** Electronics, panel, battery, LEDs, antenna all live in a sealed 3D-printed enclosure on top of the bamboo. Hat clamps to the bamboo neck via set screws (3 at 120° initial plan) to absorb bamboo dimensional variability.
+**Modular hat.** Electronics, panel, battery, LEDs, antenna all live in a sealed 3D-printed enclosure on top of the bamboo. Hat clamps to the bamboo neck via set screws (3 at 120 deg initial plan) to absorb bamboo dimensional variability.
 
 ## Consequences
 

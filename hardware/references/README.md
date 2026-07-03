@@ -1,55 +1,108 @@
 # References
 
-Reference schematics, datasheets, and reference designs we're lifting from. Cite the file or URL each module's design draws from in its atopile source.
+Reference schematics, datasheets, and reference designs for the current hardware path.
+Download/cite exact PDFs in design files when a custom board or adapter actually uses them.
 
-## Status
+## Current Reference Architecture
 
-This directory will be populated as we work through each module. Initial pulls below — not yet downloaded; URLs and intent only.
+### PowerFeather V2
 
-## Power management
+Primary COTS/reference design for 2026:
 
-### CN3058 — LiFePO4 charger (our pick)
+- ESP32-S3-WROOM-1 module with PCB antenna.
+- BQ25628E charger / power path.
+- MAX17260 fuel gauge.
+- TPS631013 buck-boost 3.3 V regulator.
+- Switchable `3V3` and `VSQT` rails.
+- USB-C and VDC solar input.
 
-- Datasheet: search "CN3058 datasheet" — Consonance / Shanghai Belling. Multiple Chinese-vendor mirrors.
-- JLCPCB part: confirm at jlcpcb.com → Parts Library → search "CN3058". Typically a Basic part.
-- Reference circuit: from datasheet figure "Typical Application." Single LiFePO4 cell, programmable charge current via Rprog resistor, status output.
+Use the official PowerFeather docs, SDK, and any licensed KiCad/Gerber files if the creator
+shares them. Do not blindly copy switching-regulator or RF layout without review.
 
-### bq24074 — LiPo charger with power-path (rejected — wrong chemistry, but useful reference)
+### BQ25628E - Charger / Power Path
 
-The bq24074's *power-path topology* is what we want to mimic for LiFePO4. The IC does load sharing internally. CN3058 doesn't have built-in power-path, so we'll add a simple ideal-diode P-MOSFET ahead of the regulator.
+Current charger reference because it is validated on PowerFeather V2.
 
-- Datasheet: ti.com/lit/ds/symlink/bq24074.pdf
-- Adafruit "Universal USB / DC / Solar LiPo Charger": adafruit.com/product/4755 — schematic at learn.adafruit.com.
+Design notes:
 
-### AP2112K-3.3 — 3.3 V LDO
+- Set `VBUS_OVP=1` for standard 6 V-class panels whose open-circuit voltage can exceed the
+  default low input-OVP threshold.
+- Add a supply-present-but-not-good HIZ requalification kick so bright-sun connect does not
+  leave a fixture silently not charging.
+- Verify LiFePO4 charge voltage/current and battery temperature behavior in firmware.
 
-- Diodes Inc. datasheet: diodes.com/assets/Datasheets/AP2112.pdf
-- JLCPCB Basic part. Used in Adafruit Feathers, Sparkfun ESP32, and many others — verified to handle ESP32 transient peaks (~500 mA momentary).
+### MAX17260 - Fuel Gauge
 
-## MCU
+Current gauge reference because it is validated on PowerFeather V2.
 
-### ESP32-C3-MINI-1 — Espressif
+Design notes:
 
-- Datasheet: espressif.com/sites/default/files/documentation/esp32-c3-mini-1_datasheet_en.pdf
-- Hardware design guidelines: espressif.com/sites/default/files/documentation/esp32-c3-mini-1_hardware_design_guidelines_en.pdf
-- Reference circuit: from datasheet "Application Schematics" section. Includes USB-C wiring, programming pins, strapping pin requirements at boot.
-- JLCPCB Basic part.
+- Set battery capacity/profile deliberately and avoid changing it in the field.
+- Treat LiFePO4 percentage SOC as advisory until the gauge learns a real cycle.
+- Use voltage/current and corrected coulomb counting for production guardrails.
 
-## LEDs
+### TPS631013 - 3.3 V Buck-Boost
 
-### WS2812B — Worldsemi
+Current 3.3 V rail reference because it is validated on PowerFeather V2.
 
-- Datasheet: cdn-shop.adafruit.com/datasheets/WS2812B.pdf
-- Direct-from-battery wiring confirmed in Talisman v2 (`beneckart/future-robotics`). One 100 nF decoupling cap per LED, plus a bulk 10 µF on the rail.
+Design notes:
 
-## Mechanical reference
+- LFP terminal voltage can sit near buck/boost crossover at light loads.
+- Measure real efficiency at production loads; do not rely on nominal curves.
 
-- Bamboo lantern: `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` — Vishnu's shop drawing, 04-22.
-- Hat dimensional constraints: see `BACKGROUND.md` Lighting section. ~165 mm OD placeholder; final dimension TBD.
+### ESP32-S3-WROOM-Class Module
 
-## Existing dev boards we lifted ideas from
+Current MCU/RF reference. Use a pre-certified module with PCB antenna and generous
+keep-out. Avoid custom RF and avoid u.FL unless mock-hat RF tests require it.
 
-- **TTGO T-Beam** (LilyGO) — schematics on github.com/Xinyuan-LilyGO/LilyGo-T-Beam-Series. Ben's prior platform on Talisman v2; Steve has multiple in workshop.
-- **TTGO T-Ice** (LilyGO, discontinued) — purpose-built ESP32 + WS2812B board. The white-enclosure modules in Steve's workshop.
-- **DFRobot FireBeetle ESP32-E** — well-documented low-power IoT reference. Schematic at wiki.dfrobot.com.
-- **Adafruit Feather ESP32-S3** — modular, schematic on Adafruit.
+## LED References
+
+### SK6812 / WS2812-Protocol LEDs
+
+Current direct-GPIO LED family for both live roles:
+
+- HEX SK6812 array for close-range animation / glow.
+- 4 W RGBW point source for crisp gobo projection.
+
+Design notes:
+
+- LED rail must be switchable/default-off.
+- Send explicit all-off before sleep/rail shutdown.
+- Add current caps for lit-count x brightness.
+- Use 4.2 V, not 5 V, for the HEX boost experiment unless a data level shifter is added.
+
+### IS31FL3741 - Historical / Ruled Out For V2 Battery Build
+
+The IS31FL3741 matrix was useful early bench hardware but is ruled out for the PowerFeather
+V2 battery architecture because it browns out the board on the shared charger/gauge I2C bus
+under WiFi. Keep references only for historical tests or a future isolated-bus experiment.
+
+## Historical / Superseded References
+
+### CN3058 - Historical LiFePO4 Charger Candidate
+
+CN3058 was the early custom-board charger pick. It is now superseded by the
+PowerFeather/BQ25628E reference architecture and should be treated as fallback history.
+
+### AP2112K-3.3 - Historical LDO Candidate
+
+AP2112K was part of the original ESP32-C3 first pass. The current reference uses a
+buck-boost 3.3 V rail.
+
+### ESP32-C3-MINI-1 - Historical MCU Candidate
+
+ESP32-C3-MINI-1 was the original production MCU pick. Later ADRs moved the default bias to
+ESP32-S3-WROOM-class modules for RF/headroom margin.
+
+## Mechanical Reference
+
+- Bamboo lantern: `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` - Vishnu's shop drawing,
+  2026-04-22.
+- Hat dimensional constraints: see `BACKGROUND.md` and `enclosure/README.md`.
+
+## Existing Dev Boards We Lifted Ideas From
+
+- **TTGO T-Beam** - Ben's prior Talisman v2 platform; useful historical reference.
+- **TTGO T-Ice** - discontinued ESP32 + WS2812B driver board from the Marquee workstream.
+- **DFRobot DFR0559** - LiPo fallback solar manager, not the leading LFP architecture.
+- **Adafruit Feather ESP32-S3** - modular ESP32-S3 reference.

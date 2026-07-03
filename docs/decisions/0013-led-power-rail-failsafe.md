@@ -1,4 +1,4 @@
-# 0013 — LED rail must be switchable and fail-safe; exact voltage rail chosen by test
+# 0013 -- LED rail must be switchable and fail-safe; exact voltage rail chosen by test
 
 **Date:** 2026-05-08
 **Status:** Accepted
@@ -9,7 +9,7 @@
 
 The earlier design powered WS2812B LEDs directly from the LiFePO4 battery rail and relied on the logic-high threshold math to avoid a level shifter. That remains a useful technique, but it is not the most important requirement.
 
-Addressable LEDs remember their last command. If the MCU hangs or crashes after commanding nonzero pixels, the LEDs can remain on and drain the battery. A deeply drained battery can then cause brownouts, reboot loops, failed OTA, or difficult field recovery. With 1–25 LEDs per fixture, this stuck-on failure mode matters more than saving a small boost converter or level shifter.
+Addressable LEDs remember their last command. If the MCU hangs or crashes after commanding nonzero pixels, the LEDs can remain on and drain the battery. A deeply drained battery can then cause brownouts, reboot loops, failed OTA, or difficult field recovery. With 1-25 LEDs per fixture, this stuck-on failure mode matters more than saving a small boost converter or level shifter.
 
 ## Options considered
 
@@ -36,7 +36,7 @@ Minimum hardware requirements:
 
 ## Consequences
 
-- “No level shifter” is no longer a design goal. It is an optimization allowed only if testing supports it.
+- "No level shifter" is no longer a design goal. It is an optimization allowed only if testing supports it.
 - Direct Vbat remains allowed when paired with a fail-safe switch.
 - COTS boards with user-controlled NeoPixel/LED power are preferred for prototypes.
 - Test plans must include a simulated MCU hang with LEDs on, watchdog reset, low-battery cutoff, and cold boot from a depleted battery.

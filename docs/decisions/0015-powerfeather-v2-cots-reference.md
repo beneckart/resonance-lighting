@@ -1,4 +1,4 @@
-# 0015 — Treat PowerFeather V2 as the leading COTS/reference architecture
+# 0015 -- Treat PowerFeather V2 as the leading COTS/reference architecture
 
 **Date:** 2026-05-10
 **Status:** Accepted
@@ -48,8 +48,8 @@ Before production reliance:
 - Confirm boards are V2, not V1.
 - Confirm LiFePO4 configuration and charging behavior.
 - Confirm sleep current with external LED module attached and `VSQT` off.
-- Confirm solar input behavior with the actual 1–5 W panels.
+- Confirm solar input behavior with the actual 1-5 W panels.
 - Confirm telemetry accuracy enough for operational logging.
 - Confirm RF performance inside a mock hat.
 - Confirm thermal behavior inside a sealed or semi-sealed hat.
-- Confirm supply availability for 100–150 units if using COTS production.
+- Confirm supply availability for 100-150 units if using COTS production.

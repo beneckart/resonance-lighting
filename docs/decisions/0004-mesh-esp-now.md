@@ -1,7 +1,7 @@
-# 0004 — ESP-NOW for mesh
+# 0004 -- ESP-NOW for mesh
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0010 — Standard OTA only; ESP-NOW for lighting/control packets, not firmware-image transport
+**Status:** Superseded by ADR 0010 -- Standard OTA only; ESP-NOW for lighting/control packets, not firmware-image transport
 **Owners:** Ben
 
 ## Context

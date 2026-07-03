@@ -11,7 +11,7 @@ br     = [0, 5, 15, 30, 60, 100, 160, 255]
 led_mA = [0, 1, 7, 0, 14, 221, 287, 430]
 par    = [1, 2, 3, 6, 10, 16, 25, 40]
 bv     = [3.41, 3.404, 3.398, 3.380, 3.363, 3.348, 3.205, 3.111]
-# hex-direct (smooth, for contrast) — same rig, 37x SK6812
+# hex-direct (smooth, for contrast) -- same rig, 37x SK6812
 hb, hled = [0, 5, 15, 30, 60], [0, 24, 78, 166, 362]
 VF_LO, VF_HI = 3.0, 3.2  # warm-white LED forward-voltage band
 
@@ -21,7 +21,7 @@ def font(s):
 F, FB, FS, FT = font(19), font(22), font(14), font(26)
 W, H = 1500, 640
 img = Image.new("RGB", (W, H), "white"); d = ImageDraw.Draw(img)
-d.text((30, 16), "4W RGBW (Adafruit 5163) on 3.3V — voltage-starved", fill=(0, 0, 0), font=FT)
+d.text((30, 16), "4W RGBW (Adafruit 5163) on 3.3V -- voltage-starved", fill=(0, 0, 0), font=FT)
 
 def axes(x0, y0, x1, y1, xmax, ymin, ymax, title, ylab):
     d.rectangle([x0, y0, x1, y1], outline=(0, 0, 0), width=2)
@@ -54,9 +54,9 @@ line(sx, syp, br, par, (210, 60, 40))
 for v in (0, 9, 18, 27, 36, 45):
     d.line([700, syp(v), 706, syp(v)], fill=(210, 60, 40), width=2); d.text((710, syp(v)-8), f"{v}", fill=(210, 60, 40), font=FS)
 d.text((715, 300), "PAR", fill=(210, 60, 40), font=F)
-d.text((120, 90), "— LED draw (RGBW): flat-low, then jumps", fill=(30, 90, 200), font=FS)
-d.text((120, 110), "— hex-direct draw (smooth, for contrast)", fill=(0, 150, 0), font=FS)
-d.text((120, 130), "— PAR (light): rises smoothly the whole way", fill=(210, 60, 40), font=FS)
+d.text((120, 90), "-- LED draw (RGBW): flat-low, then jumps", fill=(30, 90, 200), font=FS)
+d.text((120, 110), "-- hex-direct draw (smooth, for contrast)", fill=(0, 150, 0), font=FS)
+d.text((120, 130), "-- PAR (light): rises smoothly the whole way", fill=(210, 60, 40), font=FS)
 
 # Panel B: bv vs brightness with the Vf band
 sx2, sy2 = axes(840, 70, 1430, 560, 255, 2.9, 3.45, "Rail sags into the LED's Vf zone", "battery_v (V)")

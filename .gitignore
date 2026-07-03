@@ -19,6 +19,7 @@ __pycache__/
 firmware/smoke_test/wifi_secrets.h
 firmware/power_bench/wifi_secrets.h
 firmware/*/wifi_secrets.h
+ops/bench/*.log
 
 # OS
 .DS_Store

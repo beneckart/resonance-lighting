@@ -14,6 +14,7 @@
 #include <math.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ESPmDNS.h>
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
@@ -31,12 +32,15 @@ Adafruit_NeoPixel strip(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 // POWERFEATHER_NOTES "chemistry flash order"). Added 2026-06-11 so studio sessions
 // are safe with USB + cell simultaneously (and the cell charges correctly).
 #include <PowerFeather.h>
+#include "../powerfeather_solar_guard.h"
 using namespace PowerFeather;
 #if !defined(POWERFEATHER_BOARD_V2) && !defined(CONFIG_ESP32S3_POWERFEATHER_V2)
 #error "Build with -DPOWERFEATHER_BOARD_V2=1 (build.sh passes it) so the SDK targets the V2."
 #endif
 #define STUDIO_BATTERY_MAH 2000
 #define STUDIO_BATTERY_TYPE Mainboard::BatteryType::Generic_LFP
+#define STUDIO_CHARGE_MA 500.0f
+#define STUDIO_MAINTAIN_V 4.6f
 bool gPfReady = false; // SDK up -> /state carries battery stats (SOC matters for sag/brightness)
 
 // PowerFeather V2: the switchable 3V3 header rail (powers the LED) is gated by GPIO4
@@ -611,7 +615,7 @@ void handleSet() {
 // (charger reads trigger ADC one-shots = tens of ms, x5 fields, every 600 ms poll).
 // Instead loop() refreshes ONE field per ~800 ms round-robin (a single short I2C
 // transaction per frame at worst) and /state serves the cache instantly.
-float gBatV = 0, gBatMa = 0, gSupV = 0;
+float gBatV = 0, gBatMa = 0, gSupV = 0, gSupMa = 0;
 uint8_t gSoc = 0;
 bool gSupGood = false;
 
@@ -620,32 +624,52 @@ void batteryTick() {
   static uint8_t idx = 0;
   if (!gPfReady || millis() < nextMs) return;
   nextMs = millis() + 800;
-  switch (idx++ % 5) {
+  switch (idx++ % 6) {
   case 0: Board.getBatteryVoltage(gBatV); break;
   case 1: Board.getBatteryCurrent(gBatMa); break;
   case 2: Board.getBatteryCharge(gSoc); break;
   case 3: Board.getSupplyVoltage(gSupV); break;
-  case 4: Board.checkSupplyGood(gSupGood); break;
+  case 4: Board.getSupplyCurrent(gSupMa); break;
+  case 5: Board.checkSupplyGood(gSupGood); break;
   }
 }
 
+void solarGuardTick() {
+  if (!gPfReady) return;
+  static uint32_t lastMs = 0;
+  uint32_t now = millis();
+  if (now - lastMs < 2000) return;
+  lastMs = now;
+  float sv = 0.0f, sma = 0.0f;
+  bool good = false;
+  if (Board.getSupplyVoltage(sv) != Result::Ok) return;
+  if (Board.getSupplyCurrent(sma) != Result::Ok) return;
+  if (Board.checkSupplyGood(good) != Result::Ok) return;
+  gSupV = sv;
+  gSupMa = sma;
+  gSupGood = good;
+  pfSolarGuardTick("led_studio", sv, sma, good, STUDIO_MAINTAIN_V, true);
+}
+
 void handleState() {
-  float bv = gBatV, ma = gBatMa, sv = gSupV;
+  float bv = gBatV, ma = gBatMa, sv = gSupV, sma = gSupMa;
   uint8_t soc = gSoc;
   bool sgood = gSupGood;
-  char buf[360];
+  char buf[420];
   snprintf(buf, sizeof(buf),
            "{\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
-           "\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.2f,\"sgood\":%d}",
+           "\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.2f,\"sma\":%.0f,\"sgood\":%d}",
            gMode, gAnim, gR, gG, gB, gW, gBri, gSpeed, gGamma ? 1 : 0, gShape,
-           lastLit, gAnchor, gSplit, gPfReady ? 1 : 0, bv, ma, soc, sv, sgood ? 1 : 0);
+           lastLit, gAnchor, gSplit, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
+           sgood ? 1 : 0);
   server.send(200, "application/json", buf);
 }
 
 void setupWifi() {
-  WiFi.mode(WIFI_STA);
 #if HAVE_SECRETS
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.setHostname("ledstudio");
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   Serial.print("WiFi connecting");
   uint32_t t0 = millis();
@@ -655,8 +679,15 @@ void setupWifi() {
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("LED Studio at http://");
+    bool apOk = WiFi.softAP(AP_SSID, AP_PASS, WiFi.channel());
+    Serial.print("LED Studio STA at http://");
     Serial.println(WiFi.localIP());
+    if (apOk) {
+      Serial.print("LED Studio AP '" AP_SSID "' -> http://");
+      Serial.println(WiFi.softAPIP());
+    } else {
+      Serial.println("LED Studio AP start failed");
+    }
     return;
   }
   Serial.println("station failed; starting AP fallback");
@@ -679,10 +710,12 @@ void setup() {
   }
   if (pf == Result::Ok) {
     gPfReady = true;
-    Board.setBatteryChargingMaxCurrent(500.0f); // gentle USB-friendly charge
+    Board.setSupplyMaintainVoltage(STUDIO_MAINTAIN_V);
+    Board.setBatteryChargingMaxCurrent(STUDIO_CHARGE_MA); // gentle USB-friendly charge
     Board.enableBatteryCharging(true);
+    pfSolarGuardInit("led_studio", STUDIO_MAINTAIN_V, true);
     Board.enable3V3(true); // LED rail (SDK path)
-    Serial.println("PowerFeather SDK Ok: charger = LFP profile, charging on (500 mA), 3V3 on");
+    Serial.println("PowerFeather SDK Ok: LFP charger on (500 mA, maintain 4.6 V), 3V3 on");
   } else {
     Serial.println("WARNING: Board.init failed -- charger UNCONFIGURED (do NOT attach a cell "
                    "while on USB); enabling 3V3 rail manually");
@@ -696,6 +729,12 @@ void setup() {
   strip.clear();
   strip.show();
   setupWifi();
+  if (MDNS.begin("ledstudio")) { // http://ledstudio.local/ -- works on STA and the AP
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("mDNS: http://ledstudio.local/");
+  } else {
+    Serial.println("mDNS start failed (use the IP)");
+  }
   server.on("/", []() { server.send_P(200, "text/html", PAGE); });
   server.on("/set", handleSet);
   server.on("/state", handleState);
@@ -737,6 +776,7 @@ void setup() {
 void loop() {
   server.handleClient();
   batteryTick();
+  solarGuardTick();
   if (isAnimating() && millis() - lastFrame >= (uint32_t)(400 - (gSpeed - 1) * (375.0f / 99.0f))) {
     lastFrame = millis();
     renderFrame();
