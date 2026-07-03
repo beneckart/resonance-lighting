@@ -12,6 +12,40 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-02 (cont. 10) - Ben + Claude - CONVICTED: the PowerFeather SDK battery round-robin from the core-0 task
+
+Final bisect verdicts, same night: `.26` (task ON, SDK calls gated) ran 380+ s
+stable on battery; `.27` (task ON, battery round-robin ON, charge-enable gated)
+**died within seconds, repeatedly**. Combined with `.24` (everything on) dying
+and `.25` (no task) stable: **the killer is the SDK battery round-robin -- one
+PowerFeather SDK read (getBatteryVoltage / getBatteryCurrent / getBatteryCharge
+/ getSupplyVoltage / checkSupplyGood, one field per 800 ms) issued from the
+FreeRTOS task pinned to CORE 0 -- concurrent with the WiFi stack that lives on
+the same core.** Charge-enable acquitted (and timeline-consistent: it did not
+exist before `.15` yet `.13/.14` already died). NVS acquitted earlier.
+
+The mechanism puzzle for tomorrow: led_studio issues the IDENTICAL SDK calls at
+the IDENTICAL cadence from core 1's loop() and is historically stable on
+battery, and the loadgen reads the gauge every heartbeat from loop() likewise.
+So the variable is not the reads -- it is WHICH CORE / what concurrency they run
+under. Working hypotheses to test with a scope or targeted builds: (a) SDK I2C
+transactions from core 0 delay/preempt WiFi-stack timing so the radio's power
+state machine misbehaves mid-TX (VSYS spike alignment); (b) an SDK-internal
+critical section / interrupt-disable window that is benign on core 1 but toxic
+on core 0 during TX; (c) Wire1 clock-stretch or bus stall interacting with
+core-0 interrupt latency. Production takeaway REGARDLESS of mechanism: on this
+platform, keep PowerFeather SDK / power-management I2C OFF core 0 (or off a
+core-0-pinned task) when WiFi is active -- direct constraint on ADR 0005's
+task-architecture design.
+
+Overnight: ~10 min of `.27` death samples accumulated for the record, then
+`.28` (= the stable no-SDK config, version-bumped for log clarity) auto-flashed
+for an 8 h battery soak -- morning silence = long-horizon confirmation.
+Tomorrow: implement the fix (battery reads from loop()/core 1, led_studio-style,
+with explicit Wire1 serialization vs the sensor task -- or a core-1 task),
+restore full presence_bench, reflash led_studio onto its board, re-run the
+formal 10-min confirmations, label boards.
+
 ## 2026-07-02 (cont. 9) - Ben + Claude - The reboot hunt goes firmware-side: hardware fully exonerated, bisect narrowing on the core-0 sensor task
 
 The elimination cascade, in one evening: A0 jumper pulled -> still dies; holder

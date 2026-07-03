@@ -52,7 +52,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.27"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.28"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
