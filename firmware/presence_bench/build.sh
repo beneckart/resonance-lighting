@@ -33,6 +33,7 @@ while [[ $# -gt 0 ]]; do
     --no-breadcrumb) NO_BC="1"; shift;;
     --no-task) NO_TASK="1"; shift;;
     --task-no-sdk) TASK_NO_SDK="1"; shift;;
+    --task-no-charge) TASK_NO_CHARGE="1"; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
@@ -64,6 +65,7 @@ fi
 [[ -n "${NO_BC:-}" ]] && FLAGS+=" -DPB_BREADCRUMB=0"
 [[ -n "${NO_TASK:-}" ]] && FLAGS+=" -DPB_NO_TASK=1"
 [[ -n "${TASK_NO_SDK:-}" ]] && FLAGS+=" -DPB_TASK_NO_SDK=1"
+[[ -n "${TASK_NO_CHARGE:-}" ]] && FLAGS+=" -DPB_TASK_NO_CHARGE=1"
 
 BUILD_PATH="${ARDUINO_BUILD_PATH:-$(mktemp -d)}"
 if [[ -z "${ARDUINO_BUILD_PATH:-}" ]]; then

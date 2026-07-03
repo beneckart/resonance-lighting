@@ -52,7 +52,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.26"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.27"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
@@ -805,6 +805,12 @@ static void chargeTick() {
 #ifndef PB_TASK_NO_SDK
 #define PB_TASK_NO_SDK 0
 #endif
+// Final split: keep the battery round-robin but skip the charge-enable one-shot.
+// Timeline note: charge-enable didn't exist before .15 yet .13/.14 already died
+// on the spare -- the round-robin is the only suspect present in every dying build.
+#ifndef PB_TASK_NO_CHARGE
+#define PB_TASK_NO_CHARGE 0
+#endif
 static void breadcrumbTick() {
 #if !PB_BREADCRUMB
   return;
@@ -947,7 +953,9 @@ static void sensorTask(void *) {
 #endif
 #if !PB_TASK_NO_SDK
     batteryTick();
+#if !PB_TASK_NO_CHARGE
     chargeTick();
+#endif
 #endif
     breadcrumbTick();
     reprobeTick();
