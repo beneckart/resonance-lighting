@@ -110,8 +110,8 @@ export function InteractivityPanel() {
       {/* ── the running field itself ── */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735", opacity: isCA ? 1 : 0.4, pointerEvents: isCA ? "auto" : "none" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
-        <Row label={`Speed · ${control.speed.toFixed(2)}`}>
-          <input type="range" min={0.15} max={3} step={0.05} value={control.speed}
+        <Row label={`Speed · ${control.speed.toFixed(2)}${control.speed < 0.12 ? " · very slow" : ""}`}>
+          <input type="range" min={0.03} max={4} step={0.01} value={control.speed}
             onChange={(e) => set({ speed: +e.target.value })} style={{ width: "100%" }} />
         </Row>
         <Row label={`Base hue · ${control.hue.toFixed(2)}`}>

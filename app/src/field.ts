@@ -214,14 +214,16 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     if (lifeTtl[i] <= 0) { lifeTtl[i] = 0; lifeCell[i] = 0; } // held time elapsed → let it fade
   }
 
-    const TICK = 0.6 / (0.14 + speed); // generations — speed clearly rides this: slow≈1.8s/gen, fast≈0.19s/gen
+  // generation clock — wide range so the dial goes from a VERY slow drift to snappy:
+  //   speed 0.03 ≈ 10.5s/gen · 0.15 ≈ 5s · 1 ≈ 1.1s · 4 ≈ 0.37s
+  const TICK = 0.1 + 2.2 / (speed * 2 + 0.15);
   lifeAcc += dts;
   let ticked = false;
   while (lifeAcc >= TICK) {
     lifeAcc -= TICK; ticked = true;
     const next = new Int8Array(n);
     const nextHue = new Float32Array(n);
-    const churn = 0.005 + 0.022 * Math.min(1.5, speed); // spontaneous births — calm when slow, busy when fast, never freezes
+    const churn = 0.004 + 0.020 * Math.min(1.5, speed); // spontaneous births — very calm when slow, busy when fast, never freezes
     let live = 0;
     for (let i = 0; i < n; i++) {
       const nb = fixtures[i].neighbors;
