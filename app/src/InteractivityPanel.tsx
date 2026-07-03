@@ -141,10 +141,31 @@ export function InteractivityPanel() {
               style={{ width: "100%", accentColor: `hsl(${tr.hue * 360},85%,55%)` }} />
           </Row>
         )}
-        <Row label={`Brightness · ${tr.intensity.toFixed(1)}×`}>
-          <input type="range" min={0.2} max={2.5} step={0.1} value={tr.intensity}
-            onChange={(e) => setTr({ intensity: +e.target.value })} style={{ width: "100%" }} />
-        </Row>
+        {tr.colorMode !== "fixed" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 10, color: "#8aa0bb", cursor: "pointer" }}>
+            <input type="checkbox" checked={tr.noRepeatColor} onChange={(e) => setTr({ noRepeatColor: e.target.checked })} />
+            never the same colour as the last
+          </label>
+        )}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: 10, color: "#8aa0bb", cursor: "pointer" }}>
+          <input type="checkbox" checked={tr.briRange} onChange={(e) => setTr({ briRange: e.target.checked })} />
+          different brightness each time, within a range
+        </label>
+        {tr.briRange ? (
+          <Row label={`Brightness range · ${tr.briLo.toFixed(1)}× – ${tr.briHi.toFixed(1)}×`}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input type="range" min={0.2} max={2.5} step={0.1} value={tr.briLo}
+                onChange={(e) => setTr({ briLo: +e.target.value })} style={{ flex: 1 }} />
+              <input type="range" min={0.2} max={2.5} step={0.1} value={tr.briHi}
+                onChange={(e) => setTr({ briHi: +e.target.value })} style={{ flex: 1 }} />
+            </div>
+          </Row>
+        ) : (
+          <Row label={`Brightness · ${tr.intensity.toFixed(1)}×`}>
+            <input type="range" min={0.2} max={2.5} step={0.1} value={tr.intensity}
+              onChange={(e) => setTr({ intensity: +e.target.value })} style={{ width: "100%" }} />
+          </Row>
+        )}
         <Row label={`Time on · ${tr.duration.toFixed(1)}s`}>
           <input type="range" min={0.5} max={15} step={0.5} value={tr.duration}
             onChange={(e) => setTr({ duration: +e.target.value })} style={{ width: "100%" }} />

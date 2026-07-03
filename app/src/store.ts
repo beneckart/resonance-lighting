@@ -68,14 +68,23 @@ export const TRIGGER_COLOR_MODES: TriggerColorMode[] = ["fixed", "random", "cycl
 export interface TriggerRule {
   rule: PatternId; // CA the tree runs / a touch kicks
   hue: number; // reaction colour 0..1 (used when colorMode = "fixed")
-  intensity: number; // 0..2.5 brightness of the reaction
+  intensity: number; // 0..2.5 brightness of the reaction (used when briRange off)
   spread: number; // 0.3..2 how far/fast the disturbance rolls (radius/speed + Life hops)
   duration: number; // seconds the triggered lights stay ON before fading (Life: cell ttl)
   colorMode: TriggerColorMode;
+  // CONSTRAINTS (Elliot): "always a random colour but NEVER the same as the last;
+  // always a different brightness, but within a certain range"
+  noRepeatColor: boolean; // successive reactions must differ by ≥ MIN_HUE_DIST on the wheel
+  briRange: boolean; // randomize each reaction's brightness within [briLo, briHi]
+  briLo: number;
+  briHi: number;
 }
 export const DEFAULT_TRIGGER_RULE: TriggerRule = {
   rule: "life", hue: 0.05, intensity: 1.6, spread: 1, duration: 4, colorMode: "cycle",
+  noRepeatColor: true, briRange: false, briLo: 0.8, briHi: 1.8,
 };
+/** Minimum hue-wheel distance between successive reactions when noRepeatColor is on. */
+export const MIN_HUE_DIST = 0.15;
 
 /** GAME OF LIGHT lifecycle. The tree senses its first visitor → ignites (all off → a
  *  quick flourish → off) → goes LIVE. In live mode the tree is dark at rest and each
@@ -222,6 +231,10 @@ interface TwinState {
   toggleGroupActive: (name: string, on: boolean) => void;
   playShow: (id: string | null) => void;
 }
+
+// last trigger-reaction memory for the "never the same as the last" constraints
+let lastTriggerHue = -1;
+let lastTriggerBri = -1;
 
 export const useTwin = create<TwinState>((setState, get) => ({
   fixtures: [],
@@ -461,15 +474,32 @@ export const useTwin = create<TwinState>((setState, get) => ({
     let hue = tr.hue;
     if (tr.colorMode === "random") hue = ((idx * 0.147 + performance.now() * 0.00013) % 1 + 1) % 1;
     else if (tr.colorMode === "cycle") hue = ((s.ripples.length * 0.11 + performance.now() * 0.00003) % 1 + 1) % 1;
+    // CONSTRAINT: never the same colour as the last reaction — if the draw lands
+    // within MIN_HUE_DIST of the previous hue on the wheel, walk it around by the
+    // golden-ratio step until it clears (guaranteed to terminate).
+    if (tr.noRepeatColor && tr.colorMode !== "fixed" && lastTriggerHue >= 0) {
+      let guard = 0;
+      const dist = (a: number, b: number) => { let d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
+      while (dist(hue, lastTriggerHue) < MIN_HUE_DIST && guard++ < 8) hue = (hue + 0.381966) % 1;
+    }
+    lastTriggerHue = hue;
+    // CONSTRAINT: a different brightness each time, within the configured range
+    let intensity = tr.intensity;
+    if (tr.briRange) {
+      const lo = Math.min(tr.briLo, tr.briHi), hi = Math.max(tr.briLo, tr.briHi);
+      intensity = lo + Math.random() * (hi - lo);
+      if (Math.abs(intensity - lastTriggerBri) < (hi - lo) * 0.2) intensity = lo + (hi - lo) - (intensity - lo); // reflect → different from last
+      lastTriggerBri = intensity;
+    }
     const t0 = performance.now() / 1000;
     const ripples = [
       ...s.ripples.filter((r) => t0 - r.t0 < 3),
-      { x: o[0], y: o[1], z: o[2], t0, hue, intensity: tr.intensity, spread: tr.spread },
+      { x: o[0], y: o[1], z: o[2], t0, hue, intensity, spread: tr.spread },
     ].slice(-16); // keep more for multi-touch
     // Game of Life: seed live cells at the sensor, TAGGED with the rule's colour /
     // brightness / time-on; spread grows the birth blob. The field carries it onward.
     if (s.control.pattern === "life") {
-      seedLife([idx], { hops: Math.max(1, Math.round(tr.spread * 2)), hue, bri: tr.intensity, ttl: tr.duration });
+      seedLife([idx], { hops: Math.max(1, Math.round(tr.spread * 2)), hue, bri: intensity, ttl: tr.duration });
     }
     return { ripples };
   }),

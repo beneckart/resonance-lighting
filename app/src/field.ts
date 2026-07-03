@@ -149,6 +149,8 @@ const BORN_LO = 2, BORN_HI = 3;   // graph-tuned "B2-3"
 const SURV_LO = 1, SURV_HI = 3;   // graph-tuned "S1-3"
 const LIFE_AGE_MAX = 12;          // ticks a cell counts up while alive
 let lifeCell = new Int8Array(0);  // 0 dead, 1..LIFE_AGE_MAX alive (age in ticks)
+let lifeRefr = new Int8Array(0);  // refractory countdown after death (dark-at-rest: waves burn out)
+let lifeFatigue = 0;              // generations since the last stimulation (dark-at-rest decay pressure)
 let lifeHue = new Float32Array(0);// per-cell hue 0..1
 let lifeBri = new Float32Array(0);// per-cell brightness multiplier (default 1)
 let lifeTtl = new Float32Array(0);// per-cell "held on" seconds remaining (0 = rule governs)
@@ -187,10 +189,11 @@ const rndHue = (i: number, gen: number) => { const x = Math.sin(i * 71.7 + gen *
  *  the disturbance onward. Omitted fields fall back to the living field's defaults. */
 export function seedLife(indices: number[], opts: SeedOpts = {}) {
   for (const i of indices) lifeSeeds.push({ i, o: opts });
+  lifeFatigue = 0; // fresh stimulation → the field wakes up fully again
 }
 
 function reseedLife(n: number, fixtures: SimFixture[]) {
-  lifeCell = new Int8Array(n); lifeHue = new Float32Array(n);
+  lifeCell = new Int8Array(n); lifeRefr = new Int8Array(n); lifeHue = new Float32Array(n);
   lifeBri = new Float32Array(n).fill(1); lifeTtl = new Float32Array(n);
   lifeGlow = new Float32Array(n);
   lifeOut.bri = new Float32Array(n); lifeOut.hue = new Float32Array(n);
@@ -243,6 +246,7 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
   let ticked = false;
   while (lifeAcc >= TICK) {
     lifeAcc -= TICK; ticked = true; lifeGen++;
+    if (!lifeAmbient) lifeFatigue++;
     const next = new Int8Array(n);
     const nextHue = new Float32Array(n);
     // dark-at-rest (ambient off): NO spontaneous churn — only nodes/taps light the tree
@@ -258,6 +262,19 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       // perpetual churn: rare spontaneous birth, rare isolated death → continual motion
       if (!born && !alive && Math.random() < churn) born = true;
       if (born && alive && !held && a <= 1 && Math.random() < 0.06) born = false;
+      // DARK-AT-REST (ambient off): a disturbance must BURN OUT, not self-sustain
+      // (caught by field.test — plain B2-3/S1-3 oscillates forever on this graph):
+      //  · cells die of OLD AGE (age cap), and
+      //  · dead cells are REFRACTORY for a few generations (excitable-medium rule) so
+      //    the wave rolls outward and leaves quiet darkness behind it.
+      if (!lifeAmbient && !held) {
+        if (born && alive && lifeCell[i] >= LIFE_AGE_MAX - 1) born = false; // old age
+        if (born && !alive && lifeRefr[i] > 0) born = false; // still refractory
+        // FATIGUE: without fresh stimulation the death pressure rises each generation,
+        // guaranteeing extinction on ANY topology (a rotating ring-wave otherwise laps
+        // forever). Any seedLife (a touch / node placement) resets it to zero.
+        if (born && Math.random() < Math.min(0.85, lifeFatigue * 0.02)) born = false;
+      }
       if (born) {
         next[i] = Math.min(LIFE_AGE_MAX, (alive ? lifeCell[i] : 0) + 1);
         // colour: keep own if alive/held; else inherit neighbours' mean (a patch KEEPS
@@ -274,6 +291,8 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
         live++;
       } else {
         next[i] = 0; nextHue[i] = lifeHue[i];
+        if (alive) lifeRefr[i] = 5; // just died → refractory (dark-at-rest burn-out)
+        else if (lifeRefr[i] > 0) lifeRefr[i]--;
         // decay any tap-boosted brightness back to normal while dead — otherwise a
         // bright touch leaves a permanent hot-spot at this fixture forever
         lifeBri[i] += (1 - lifeBri[i]) * 0.35;

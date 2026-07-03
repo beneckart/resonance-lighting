@@ -1,0 +1,127 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import { updateLife, seedLife, setLifeState, lifeOut } from "./field";
+import type { SimFixture } from "./store";
+
+/** ALGORITHMIC CONSISTENCY CHECK — Game of Life on the neighbour graph (Elliot:
+ *  "algorithmic check on the Game of Life to ensure consistency"). Exercises the
+ *  engine's invariants: dark-at-rest really stays dark, nodes persist, ttl expires,
+ *  brightness leaks decay, hues stay valid, the field never freezes or explodes. */
+
+// a ring of n fixtures, each neighbouring its ±1..±3 — a graph like the real tree's k-NN
+function ringFixtures(n: number): SimFixture[] {
+  const fx: SimFixture[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI;
+    fx.push({
+      id: `F${i}`, name: `f${i}`, role: "downlight", zone: "mid",
+      pos: [Math.cos(a) * 10, 2, Math.sin(a) * 10], norm: [0.5, 0.5, 0.5],
+      seqT: i / n, seq: i, heightT: 0.5, ring: 1, quadrant: ((i * 4 / n) | 0) % 4, azimuth: a,
+      num: i + 1, radialT: 0.8, rnd: (Math.sin(i * 127.1) * 43758.5453) % 1 < 0 ? ((Math.sin(i * 127.1) * 43758.5453) % 1) + 1 : (Math.sin(i * 127.1) * 43758.5453) % 1,
+      neighbors: [(i + 1) % n, (i + n - 1) % n, (i + 2) % n, (i + n - 2) % n, (i + 3) % n, (i + n - 3) % n],
+      beamDeg: 120, lumens: 450,
+    });
+  }
+  return fx;
+}
+
+// run the engine for `secs` sim-seconds in small steps
+function run(fx: SimFixture[], secs: number, speed: number, step = 0.05) {
+  for (let t = 0; t < secs; t += step) updateLife(fx, step, speed);
+}
+
+const N = 60;
+let fx: SimFixture[];
+
+beforeEach(() => {
+  fx = ringFixtures(N);
+  // force a reseed by running once at a different count, then at N
+  updateLife(ringFixtures(N + 1), 0.01, 1);
+  setLifeState({ ambient: true, nodes: [], palette: "warm" });
+  updateLife(fx, 0.01, 1); // reseeds for N
+});
+
+describe("Game of Life — algorithmic consistency", () => {
+  it("outputs stay in range: bri finite 0..1.4+, hue always in [0,1)", () => {
+    run(fx, 20, 2);
+    for (let i = 0; i < N; i++) {
+      expect(Number.isFinite(lifeOut.bri[i])).toBe(true);
+      expect(lifeOut.bri[i]).toBeGreaterThanOrEqual(0);
+      expect(lifeOut.bri[i]).toBeLessThanOrEqual(1.45);
+      expect(lifeOut.hue[i]).toBeGreaterThanOrEqual(0);
+      expect(lifeOut.hue[i]).toBeLessThan(1.0001);
+    }
+  });
+
+  it("ambient field NEVER freezes or goes extinct (perpetual churn)", () => {
+    run(fx, 10, 1);
+    const snap1 = Array.from(lifeOut.bri);
+    run(fx, 10, 1);
+    const snap2 = Array.from(lifeOut.bri);
+    const changed = snap1.filter((v, i) => Math.abs(v - snap2[i]) > 0.05).length;
+    expect(changed).toBeGreaterThan(2); // still evolving after 20s
+    expect(snap2.some((v) => v > 0.3)).toBe(true); // not extinct
+  });
+
+  it("dark-at-rest: ambient off + no nodes → the tree goes fully dark and STAYS dark", () => {
+    setLifeState({ ambient: false, nodes: [] });
+    run(fx, 60, 2); // fatigue guarantees burn-out; give it a realistic settle window
+    const totalBri = Array.from(lifeOut.bri).reduce((a, b) => a + b, 0);
+    expect(totalBri).toBeLessThan(0.5); // essentially dark everywhere
+    // and a fresh touch WAKES it (fatigue resets) — the tree still responds
+    seedLife([10], { hops: 2, hue: 0.5, bri: 1.2, ttl: 2 });
+    run(fx, 1, 2);
+    expect(lifeOut.bri[10]).toBeGreaterThan(0.4);
+  });
+
+  it("a visitor NODE keeps its region alive in dark-at-rest (patterns emanate)", () => {
+    setLifeState({ ambient: false, nodes: [{ i: 7, hue: 0.55 }] });
+    run(fx, 20, 1);
+    expect(lifeOut.bri[7]).toBeGreaterThan(0.5); // the node itself is lit
+    expect(Math.abs(lifeOut.hue[7] - 0.55)).toBeLessThan(0.02); // in its colour
+    // its neighbourhood shows life; far side of the ring is dark
+    const near = fx[7].neighbors.reduce((a, j) => a + lifeOut.bri[j], 0);
+    const far = [37, 38, 39].reduce((a, j) => a + lifeOut.bri[j], 0);
+    expect(near).toBeGreaterThan(far);
+  });
+
+  it("time-on (ttl): a held cell stays lit its full duration, then fades", () => {
+    setLifeState({ ambient: false, nodes: [] });
+    run(fx, 25, 2); // clear the field
+    seedLife([20], { hops: 0, hue: 0.3, bri: 1.2, ttl: 3 });
+    run(fx, 1.5, 0.03); // glacial speed → the RULE won't tick; only ttl holds it
+    expect(lifeOut.bri[20]).toBeGreaterThan(0.5); // still held on at 1.5s
+    run(fx, 6, 0.03); // past the 3s ttl (+ fade time)
+    expect(lifeOut.bri[20]).toBeLessThan(0.2); // released and faded
+  });
+
+  it("brightness never leaks: a bright touch decays back toward normal after death", () => {
+    seedLife([5], { hops: 0, hue: 0.1, bri: 2.5, ttl: 0.5 });
+    run(fx, 30, 2); // many generations after the hold expires
+    // wherever cell 5 is now (alive or dead), its render bri must be ≤ ~1.4 cap and
+    // not stuck at the 2.5 tap boost
+    expect(lifeOut.bri[5]).toBeLessThanOrEqual(1.45);
+  });
+
+  it("random palette produces a genuinely multicoloured population", () => {
+    setLifeState({ palette: "random" });
+    run(fx, 15, 2);
+    const hues = [];
+    for (let i = 0; i < N; i++) if (lifeOut.bri[i] > 0.3) hues.push(lifeOut.hue[i]);
+    const bins = new Set(hues.map((h) => Math.floor(h * 8)));
+    expect(bins.size).toBeGreaterThanOrEqual(3); // several distinct colour families
+  });
+
+  it("speed scales the generation rate (fast churns, glacial barely moves)", () => {
+    setLifeState({ ambient: true, palette: "warm" });
+    run(fx, 5, 3);
+    const fastSnap = Array.from(lifeOut.bri);
+    run(fx, 5, 3);
+    const fastChanged = fastSnap.filter((v, i) => Math.abs(v - lifeOut.bri[i]) > 0.05).length;
+    // now glacial: 0.03 → ~2min/gen → in 5s the CELLS can't tick at all
+    run(fx, 5, 0.03);
+    const slowSnap = Array.from(lifeOut.bri);
+    run(fx, 5, 0.03);
+    const slowChanged = slowSnap.filter((v, i) => Math.abs(v - lifeOut.bri[i]) > 0.05).length;
+    expect(fastChanged).toBeGreaterThan(slowChanged);
+  });
+});
