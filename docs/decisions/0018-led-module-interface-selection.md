@@ -45,6 +45,15 @@ New context from the 2026-06-04 V2 battery bench work (see LOG 2026-06-04 entrie
   (n=2 boards; the same cell/bus/WiFi is stable with the IS31 unplugged, and stable with an
   Adafruit NeoDriver on the same bus), and it triggers even with LEDs off, so it's the
   IS31 chip's behavior on SDA/SCL, not LED current and not a general bus property.
+  *(2026-07-03 addendum: "not a general bus property" is now REFINED by the July
+  presence-bench root-cause -- running the same shared bus at 400 kHz reproduced the
+  identical kill signature with no IS31 anywhere. The general property IS the bus:
+  anything degrading signal integrity on the power-management bus -- a chip dragging
+  SDA/SCL, or an elevated clock -- can upset the BQ25628E's power-path registers and
+  open the battery switch. The NeoDriver result showed that device is benign, not that
+  the bus is robust. Unified story + rules: POWERFEATHER_NOTES "Wire1 at >100 kHz",
+  BATTERY_BROWNOUT_INVESTIGATION retro-analysis, LOG 2026-07-02/03. The decision below
+  is unchanged -- if anything, strengthened: LEDs stay OFF the power-management bus.)*
 - **Direct-GPIO WS2812/SK6812 (off the I2C bus) is brownout-safe by construction** and
   validated on hardware (HEX on GPIO10/A0).
 - Efficiency numbers measured so far (e.g. HEX ~1.6x the PAR/mA of WS2812C NeoHEX) are

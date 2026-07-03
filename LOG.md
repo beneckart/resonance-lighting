@@ -12,6 +12,31 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-03 (cont.) - Ben + Claude - Housekeeping: June brownout docs re-graded under the unified bus-integrity story
+
+Ben's call: with the story straight, purge the stale hypotheses. Done, with
+evidence-honest framing (June was never instrumented at the BQ register level,
+so the unification is best-supported inference, clearly labeled):
+- `BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md` gains a RETRO-ANALYSIS header
+  re-grading every hypothesis: H2 (connectors/"marginal connection") RETIRED as
+  leading explanation -- no confirmed connector kill in either dataset, and the
+  June re-seating observations are equally explained by the IS31/STEMMA seat
+  changing bus loading; H5 load-stacking and H3 boost-mode DEAD; H4 bulk-cap
+  RETIRED as remedy (caps fix sag, not switch-openings); H1 TX-transients
+  subsumed as the noise source, not the load. The best-aged June sub-result:
+  "VSQT shed didn't help, only physical disconnection did" -- the bus-integrity
+  mechanism announcing itself.
+- ADR 0018: dated addendum refining "not a general bus property" -- the general
+  property IS the bus; the NeoDriver result proved that device benign, not the
+  bus robust. Decision unchanged (strengthened).
+- TODO brownout section: header updated to RESOLVED + UNIFIED; retired items:
+  reflow-board-1-joints, VSYS-bulk-cap (x2), NeoDriver-overnight; the
+  field-watch item reframed to the July telemetry lens (rr=poweron on battery
+  => suspect the bus first; port the boot-counter/reset-reason/breadcrumb idiom
+  to production firmware).
+Droopy-battery / bad-connector language survives nowhere as an active suspect;
+connector hygiene remains noted as ordinary good practice only.
+
 ## 2026-07-03 - Ben + Claude - CASE CLOSED: the 400 kHz Wire1 clock was the killer; 100 kHz full bench rock-solid on battery
 
 Morning wrap of the reboot hunt. Overnight `.28` soak: 7.3 h on battery, ZERO

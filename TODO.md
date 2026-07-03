@@ -170,18 +170,33 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Add live telemetry readout to `ops/bench/cots-mode-dashboard.html` (Ben).
 - [x] Configure LiFePO4 profile on V2 -- DONE: `--chem lfp` (`RES_PF_BATTERY_TYPE=Generic_LFP`) used throughout; LFP favored for safety/heat/cycles (counterpoint = buck-boost crossover tax, see Field reliability) (Ben).
 
-## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md -- LARGELY RESOLVED 2026-06-04: cause = IS31FL3741 chip on the V2's shared charger/gauge I2C bus + WiFi; fix = don't put LEDs on that bus -> direct-GPIO WS2812/SK6812. Remaining items are follow-ups, not blockers.)
+## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md -- RESOLVED + UNIFIED 2026-07-03: mechanism class = power-management-bus signal integrity -> BQ25628E power-path register upsets (BATFET/HIZ) -> instant battery-path loss. June's disturbance source = the IS31 chip on the bus; July's = our 400 kHz bus clock. Rules in POWERFEATHER_NOTES; retro-analysis atop the investigation doc re-grades all hypotheses (H2 connectors retired, H3/H4/H5 dead). Remaining open items below are follow-ups.)
 
 - [x] Characterize exact conditions for VSYS power-on reset on battery -- ~~load-stacking~~ ~~not-reproducible~~ **UPDATED 2026-06-04: brownout CAME BACK** -- board 1 did a 794-reboot loop overnight on battery (poweron, healthy bv 3.24-3.46, all SOC, lightest load, dying at WiFi association). Real + intermittent on board 1 => H2 (marginal connection) strengthened. See doc Status (Ben).
 - [x] Repeat brownout characterization on a second board + known-good cell -- DONE (n=3 all stable in short runs); **NOW extending: pristine board 2 multi-hour with fixed guard to see if it loops like board 1 overnight (board-specificity)** (Ben).
 - [x] Fix the overnight auto-sleep guard -- RAM coulomb/timer state reset every reboot, so a brownout loop defeated it. Added **NVS-persisted reboot-loop breaker** (`--autosleep`, >=25 sub-survival boots => deep sleep before WiFi); fw power-bench-2026-06-04.1 (Ben).
-- [ ] **Inspect/reflow board 1's battery + VDC solder joints** under magnification (cold joint / flux / hairline bridge); re-run overnight to confirm the loop is gone -- the direct H2 test now that it reproduces (Ben).
+- [x] ~~Inspect/reflow board 1's battery + VDC solder joints~~ -- **RETIRED
+  2026-07-03**: H2 (connection impedance) demoted from leading explanation by the
+  July root-cause (power-bus signal integrity -> BQ register upsets; identical
+  signature reproduced with soldered welded-tab leads on two boards). Board 1's
+  identity was also never durably tracked. See the retro-analysis atop
+  BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md (Ben/Claude).
 - [x] **Verify the reboot-loop breaker actually fires** -- DONE: board 2 looped and the breaker deep-slept it (validated in the wild) (Ben).
 - [x] **FIX loop-breaker brick-risk** -- DONE (fw 2026-06-04.2): (1) **never deep-sleep while external supply is present** (USB/VDC -> stay flashable/recoverable -- the root cause of the stranding); (2) sleep with a **15-min timer wake** (not indefinite); (3) on a timer wake still on battery -> re-sleep, on supply -> run/charge. So plugging USB self-recovers within one wake interval; never bricks. **VALIDATED LIVE 2026-06-04** (3 mAh budget / 60 s wake test): ran on USB w/o sleeping -> coulomb-budget sleep on battery -> 124 s of timer-wake/re-sleep -> recovered (charging, fresh boot) on USB plug, no BOOT+RESET needed. Tuning flags added: `--budget-mah`, `--wake-s` (Ben/Claude).
-- [ ] Keep a **VSYS bulk cap as cheap insurance** and bench-characterize it opportunistically -- demoted from "key fix" to "nice to have" now that 3 boards are stable without it (Ben).
-- [ ] Watch for brownout **recurrence in the field**; if it returns, capture which connection/board and whether re-seating clears it (Ben).
+- [x] ~~Keep a VSYS bulk cap as cheap insurance and bench-characterize it~~ --
+  **RETIRED 2026-07-03**: capacitance answers a sag mechanism; the confirmed kill
+  class is a power-path switch OPENING (BQ register upset), which no cap prevents.
+  Bulk capacitance remains ordinary good design, not a brownout fix (Ben/Claude).
+- [ ] Watch for poweron-reset **recurrence in the field** -- through the July lens:
+  battery-only `rr=poweron` at healthy voltage = suspect the power-management bus
+  first (what shares it, what clocks it), not connectors/cells. Production
+  firmware should carry the boot-counter + reset-reason + pre-death-breadcrumb
+  telemetry idiom from presence_bench (Ben).
 - [x] Distinguish IS31-specific vs any-I2C-device: **NeoDriver (5766, SeeSaw I2C) on the same bus = STABLE** (371 s+, through heavy WiFi) where the IS31 loops in ~1 min => **brownout is IS31-SPECIFIC**, not the bus. NeoDriver+WS2812 is a viable no-solder LED path (Ben).
-- [ ] **Confirm NeoDriver robustness with an hours/overnight run** (the IS31 was intermittent -- stable for minutes then failed; n=1/6min not enough). Do AFTER the wake-source fix (Ben).
+- [x] ~~Confirm NeoDriver robustness with an hours/overnight run~~ -- **RETIRED
+  2026-07-03**: moot; the LED axis went direct-GPIO (ADR 0022) and the standing
+  rule is now "nothing optional on the power-management bus" regardless of how
+  benign a given device tested (Ben/Claude).
 - [x] **Direct-GPIO WS2812/SK6812 validated** (board 2, HEX on A0/GPIO10, off the I2C bus) -- works, brownout-safe by construction, and ~10% MORE efficient than via NeoDriver (no passthrough drop). **Strong candidate for the area/glow role -- but NOT a settled BOM front-runner**: it's roughly tied in viability with the 4 W RGBW point-source, which serves the crisp-gobo role HEX can't, and the efficiency edge is muddied by varying-SOC testbeds. Decide after gobo testing. 3-way plot `led-eff-3way.png` (Ben).
 - [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner -> cap brightness / healthy pack. **Now quantified (2026-06-11 hex_ramp):** ~350-400 mA LED draw pulls the bench cell to its ~3.0 V brownout edge even at 98% SOC -> production firmware needs a hard current cap = f(brightness x lit-count), scaled to the production cell's IR (the 32700 ~6 Ah cell lifts the ceiling substantially) (Ben).
 - [ ] **Decide pixel-power architecture (NeoDriver only level-shifts the DATA signal, does NOT boost pixel power -- corrected; "3-5V vin/vlogic" = accepted *input* range):** pixels run at whatever Vin is. Options + a key power-mgmt axis (software-cuttability):
@@ -203,7 +218,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] ~~Build a SOLID LFP connection / re-run on solid connection~~ -- **SUPERSEDED**: the brownout turned out IS31-specific (its chip on the shared I2C bus), not the battery connection. The H2-marginal-connection thread is closed (Ben).
 - [x] Test LFP full-SOC vs low-SOC under identical load (boost-mode hypothesis H3) -- evidence AGAINST H3: boards ran stable in **active boost** at 3.18-3.24 V (the harder regime), so low-LFP/boost is not the brownout cause (Ben).
 - [ ] Run ported demo on battery (firmware/powerfeather_demo_port, AP + ~10 Hz) +/- LED; does the reference app reset? (Ben).
-- [ ] If resets reproduce on a good connection, add a VSYS bulk cap and re-test (hypothesis H4) (Ben).
+- [x] ~~If resets reproduce on a good connection, add a VSYS bulk cap and re-test
+  (H4)~~ -- **RETIRED 2026-07-03**: resets DID reproduce on gold-plated
+  connections (July) and the mechanism (switch-opening, not sag) is one a cap
+  cannot fix. H4 closed (Ben/Claude).
 - [ ] Exercise ported demo web UI: connect phone to PowerFeather_Demo AP -> 192.168.1.1 (Ben).
 - [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
 - [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).

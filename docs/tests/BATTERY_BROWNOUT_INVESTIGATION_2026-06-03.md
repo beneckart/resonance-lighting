@@ -1,6 +1,56 @@
 # PowerFeather V2 battery-brownout investigation -- plan, hypotheses, open questions
 
-**Date:** 2026-06-03 (updated 2026-06-04)
+**Date:** 2026-06-03 (updated 2026-06-04; retro-analysis 2026-07-03)
+
+**RETRO-ANALYSIS (2026-07-03) -- read this first; it re-grades every hypothesis
+below.** The July presence-bench reboot epidemic (LOG 2026-07-02 cont. 5-10,
+2026-07-03) was root-caused by controlled A/B to **signal integrity on the shared
+power-management I2C bus**: elevated-clock (400 kHz) traffic under WiFi TX
+corrupts transactions to the BQ25628E -- the chip the battery current flows
+through -- and a bad transaction near its power-path control registers
+(BATFET/ship/EN_HIZ class) opens the battery switch outright. That failure's
+signature is IDENTICAL to this doc's: instantaneous `poweron` reset at healthy
+voltage, battery-only (USB immune -- VBUS bypasses the BATFET), requires active
+WiFi, stochastic. The unifying lens for BOTH investigations is therefore:
+**anything that degrades the power-management bus can kill VSYS** -- in June the
+degrader was the IS31 chip loading/back-powering SDA/SCL; in July it was our own
+bus clock. One mechanism class, two disturbance sources.
+
+Hypothesis re-grades under this lens (evidence-honest, June was never
+instrumented at the BQ register level, so this is best-supported inference, not
+re-proof):
+
+- **H2 (connection/battery-path impedance) -- RETIRED as the leading explanation.**
+  It was always "leading-but-unconfirmed" (this doc's own words); the July
+  elimination round reproduced the exact signature with soldered welded-tab
+  leads, no holder, two boards, two healthy cells -- and the June observations
+  H2 leaned on (stability after re-seating) are equally explained by re-seating
+  the IS31/STEMMA connection changing how that chip loaded the bus. No confirmed
+  connector kill exists in either dataset. Connector hygiene remains good
+  practice; it is no longer a suspect of record.
+- **H5 (load-stacking) / "low droopy battery" framings -- DEAD.** Already
+  superseded in June (loops at lightest load, healthy V); July adds stability
+  at 3.33 V under 100 kB/s TX. Load raises the dice-roll rate at most.
+- **H3 (LFP low-voltage / boost mode) -- DEAD** (June: stable in boost at
+  3.18-3.24 V; July: stable in the crossover band under heavy TX).
+- **H4 (VSYS bulk capacitance) -- RETIRED as a remedy.** Capacitance answers a
+  sag mechanism; the observed kills are switch-openings, which no cap prevents.
+  Bulk capacitance stays ordinary good design, not a brownout fix.
+- **H1 (TX di/dt transients) -- PARTIALLY SUBSUMED:** TX matters, but as the
+  NOISE source coupling into the bus during transactions, not (on the evidence)
+  as a VSYS-collapsing load by itself: heavy TX alone was stable in June
+  (IS31 unplugged) and in July (loadgen heavy phase; 100 kHz full bench).
+- **The June sub-result that aged best:** "VSQT power-shed did NOT fix it; only
+  physical disconnection did" + "back-powering through I/O clamps keeps the IS31
+  on the bus" -- i.e. the kill tracked the chip's PRESENCE ON THE BUS, not its
+  power. That was the bus-integrity mechanism announcing itself.
+
+Standing rules from the unified story now live in
+`firmware/POWERFEATHER_NOTES.md` ("Wire1 at >100 kHz can OPEN YOUR BATTERY
+SWITCH"): never raise the clock on, or attach bus-degrading devices to, any bus
+shared with the charger/gauge; custom PCBA gets a dedicated power-management
+bus; treat battery-only `poweron` resets as possible power-path register upsets
+and check the bus before probing connectors and cells.
 **Status (2026-06-04 -- the brownout CAME BACK):** Overnight, board 1 running the
 loadgen on battery went into a **794-reboot loop over 4.25 h** -- every one a
 `poweron` VSYS collapse, at **healthy voltage (bv 3.24-3.46) across the whole SOC
