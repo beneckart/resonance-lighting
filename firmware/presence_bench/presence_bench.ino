@@ -52,7 +52,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-02.28"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-03.30"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
@@ -101,8 +101,17 @@
 #ifndef PB_MUX_L1X_CH
 #define PB_MUX_L1X_CH 1 // TOF400C / VL53L1X on mux port 1
 #endif
+// DEFAULT 100 kHz -- the SDK's bus speed, per POWERFEATHER_NOTES. The 400 kHz
+// "measured exception" this bench originally shipped with was the ROOT CAUSE of
+// the 2026-07-02 battery reboot epidemic (~60+ poweron collapses across two
+// boards): elevated-clock traffic on the shared power-management bus under WiFi
+// TX upsets the BQ25628E power path (BATFET/HIZ-class register corruption ->
+// instant battery-path loss; USB immune). Controlled A/B: identical firmware,
+// 400 kHz died in seconds, 100 kHz ran indefinitely (LOG 2026-07-03 cont. 11).
+// Cost of 100 kHz: sensor cadence 0.8 -> 0.6 Hz, VL53 blob 2.7 -> 9.4 s. Do NOT
+// raise this on any bus shared with the charger/gauge.
 #ifndef PB_I2C_HZ
-#define PB_I2C_HZ 400000
+#define PB_I2C_HZ 100000
 #endif
 
 #ifdef PB_BOARD_METRO

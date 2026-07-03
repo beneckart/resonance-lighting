@@ -266,18 +266,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   reflashing the module with the PRESENCE app (motion-tuned intra/inter scores;
   the distance app reports all static reflectors, which made desk testing
   uncorrelatable with motion) (Ben/Claude).
-- [ ] **Presence-bench battery-only reboots -- NARROWED 2026-07-02 (LOG cont.
-  6-8): reboots persist with the WHOLE sensor chain unplugged (WiFi alone,
-  ~-120 mA); board confirmed PRISTINE (not June's board 1), so suspects are the
-  26650 HOLDER loop impedance (June's stable pristine boards used a SOLDERED
-  cell), the A0 flying jumper, the AP+STA/HTTP radio profile, or stock thin
-  VSYS margin (June H4).** USB immune. Test ladder, cheapest first: (1) pull
-  the A0 jumper, battery run; (2) June's own `power_bench --loadgen` (STA+UDP,
-  no AP/HTTP) on this board+cell -- stable => radio profile (fix: lowpower ->
-  STA-only -> localhost dashboard); loops => (3) bypass the holder with
-  tabbed/soldered leads or the INA screw-terminal path (also the waveform
-  instrument), splitting holder-R from the never-tested VSYS bulk-cap item.
-  Death data: `ops/bench/data/presence/2026-07-02_rebootwatch.jsonl` (Ben/Claude).
+- [x] **Presence-bench battery-only reboots -- SOLVED 2026-07-03 (LOG 07-02
+  cont. 5-10 + 07-03): root cause was OUR 400 kHz Wire1 clock on the shared
+  power-management bus** (the "measured exception" to POWERFEATHER_NOTES).
+  Controlled A/B: identical firmware at 400 kHz died in seconds on battery; at
+  100 kHz the full 5-sensor bench runs indefinitely (7.3 h + 900 s formal
+  soaks). Mechanism: corrupted charger (BQ25628E) transactions under WiFi TX
+  open the power path (BATFET/HIZ class) -> instant poweron reset; USB immune.
+  100 kHz now the compiled default; rules added to POWERFEATHER_NOTES. The
+  elimination ladder also formally exonerated: sensors, A0 jumper, 26650
+  holder, both cells, both boards, SoftAP beaconing, the TPS631013 crossover
+  band (stable at 3.33 V under heavy TX), NVS writes, charge-enable (Ben/Claude).
+- [ ] Reboot-hunt residuals: reflash led_studio onto the desk board (r10 still
+  queued); sharpie-label both boards (spare = ex-9F2690 master, desk =
+  led_studio home); OPTIONAL Test B (400 kHz round-robin from core 1) if the
+  core-aggravator question ever matters; custom-PCBA design rule captured in
+  POWERFEATHER_NOTES: dedicated I2C bus for charger/gauge (Ben/Claude).
 - [ ] **Fleet hygiene: chemistry profile must match the attached cell.** The old
   net_bench master image (Li-ion profile) was found actively overcharging the
   4 Ah LFP toward 4.2 V on USB (real terminal reading 4.19 V; relaxed to plateau

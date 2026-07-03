@@ -12,6 +12,45 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-03 - Ben + Claude - CASE CLOSED: the 400 kHz Wire1 clock was the killer; 100 kHz full bench rock-solid on battery
+
+Morning wrap of the reboot hunt. Overnight `.28` soak: 7.3 h on battery, ZERO
+deaths (the no-SDK config). Then the decisive Test A: **`.29` = the FULL
+firmware (sensor task, SDK round-robin, breadcrumbs, all five sensors + mux)
+with ONE change -- Wire1 at 100 kHz instead of 400 kHz -- ran 900+ s on battery
+on the WORST board (the spare, ~60 deaths of history), in the old crossover
+band, at -318 mA full load.** Against `.23` (same STA-only radio profile,
+400 kHz) dying in 10-160 s: only the clock differed. Bus speed convicted;
+POWERFEATHER_NOTES' "keep the SDK's bus speed" guidance vindicated -- our
+"measured exception" was the root cause all along.
+
+Refined mechanism (and two corrections for honesty): the shared Wire1 also
+carries the BQ25628E -- the chip the battery current flows through. At 400 kHz
+under WiFi TX noise, corrupted transactions near the power path's control
+registers (BATFET/ship/EN_HIZ class) open the battery switch outright: no sag,
+no brownout detector, straight to reset_reason=poweron; USB immune because VBUS
+bypasses the BATFET. Retro-explains the early -290 mA-discharge-on-USB anomaly
+(a stray EN_HIZ set, later cleared). CORRECTIONS: (1) cont. 10's "core-0"
+attribution was inference, not measurement -- the bisect varied WHAT ran, never
+WHERE; the round-robin was simply the only 400 kHz talker to the charger. Core
+interaction remains at most an aggravator (optional Test B if we ever care).
+(2) The XM125's ~5% read errors were cited as 400 kHz-marginality evidence --
+RETRACTED: they persist at 100 kHz (the XM's own protocol quirk, already on
+the TODO). The conviction rests on the controlled A/B, not the tea leaves.
+
+Cost of the fix: sensor cadence 0.8 -> 0.6 Hz, VL53 blob 2.7 -> 9.4 s. Nothing.
+`.30` makes 100 kHz the compiled default; README bus section rewritten;
+POWERFEATHER_NOTES gains a hard-won section with the rules ("never raise the
+clock on any bus shared with the charger/gauge"; dedicated power-management bus
+on the custom PCBA; treat battery-only poweron resets as possible power-path
+register upsets). Note the June IS31 brownout rhymes (shared-power-bus
+disturbance, ADR 0018) -- the general pattern is now documented.
+
+Remaining follow-ups: reflash led_studio onto the desk board (r10 pending);
+label both boards; optional Test B (400 kHz from core 1) for mechanism rigor;
+XM125 decode session; and back to the actual mission -- walk-under datasets +
+the lantern-rig splay-occlusion session.
+
 ## 2026-07-02 (cont. 10) - Ben + Claude - CONVICTED: the PowerFeather SDK battery round-robin from the core-0 task
 
 Final bisect verdicts, same night: `.26` (task ON, SDK calls gated) ran 380+ s

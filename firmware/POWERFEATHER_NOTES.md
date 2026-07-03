@@ -77,6 +77,35 @@ has the **MAX17260**) you'll get `InvalidState` for SOC/health/cycles. `power_be
 has an `#error` guard + sets this in its `build.sh`. The V2 charger/gauge/STEMMA live
 on **Wire1 (GPIO47/48)** at 100 kHz -- keep the SDK's bus speed.
 
+## Wire1 at >100 kHz can OPEN YOUR BATTERY SWITCH (2026-07-02/03, hard-won)
+
+The line above ("keep the SDK's bus speed") is not a style preference -- it is
+**load-bearing**. Raising Wire1 to 400 kHz (a "measured exception" for sensor
+throughput on the presence bench) caused an epidemic of instantaneous
+`reset_reason=poweron` collapses on battery: ~60+ across TWO boards and TWO cells,
+radio-correlated, USB-immune. Root-caused by controlled A/B (identical firmware,
+only the clock changed): 400 kHz died in seconds-to-minutes, 100 kHz ran
+indefinitely under a heavier bus load. Best-supported mechanism: Wire1 also
+carries the **BQ25628E -- the chip the battery current flows THROUGH** -- and
+corrupted transactions under WiFi TX noise can flip power-path register bits
+(BATFET / ship / EN_HIZ class), opening the battery path outright. No sag, no
+brownout detector, straight to poweron; USB survives because VBUS bypasses the
+BATFET. A stray EN_HIZ corruption (board discharging at -290 mA WITH USB
+attached) was observed in the same sessions. Full story: LOG 2026-07-02 cont.
+5-10, 2026-07-03 cont. 11.
+
+Rules:
+- **Never raise the clock on any bus shared with the charger/gauge.** If sensors
+  need fast I2C, give them a separate controller on free GPIOs.
+- Treat unexplained `poweron` resets on battery (but not USB) as possible
+  power-path register upsets, not just "brownout" -- check what shares the bus
+  and what clocks it runs at, before probing connectors and cells (we executed
+  five hardware suspects first; the bus clock was the killer).
+- Related history: the June IS31 brownout was also a shared-power-bus disturbance
+  (ADR 0018). The pattern is general: anything that degrades signal integrity on
+  the power-management bus can kill VSYS. The custom-PCBA track should give the
+  charger/gauge a DEDICATED bus.
+
 ## Native USB-CDC: the boot banner (and WiFi IP) only prints on reset
 
 The S3 uses its **built-in USB** as the serial port. Consequences:

@@ -48,17 +48,33 @@ which the SparkFun breakout does not expose to a controllable line. See LOG
 also froze the VL53L5CX mid-soak (the collision, live); a mid-session stall
 self-heal now recovers that case.
 
-## Bus speed: a deliberate exception to POWERFEATHER_NOTES
+## Bus speed: 100 kHz, NOT negotiable on this hardware
 
-POWERFEATHER_NOTES says "keep the SDK's bus speed" (100 kHz). This bench retunes the
-shared Wire1 to **400 kHz** (`PB_I2C_HZ`): the MLX90640's ~1.7 KB subpage reads and
-the VL53L5CX's ~84 KB init blob are not usable at 100 kHz. Both SDK chips (BQ25628E,
-MAX17260) are 400 kHz parts, and the SDK drives them through the same Arduino
-`Wire1` object, so one `setClock` retunes everything coherently. Validate with a
-5-minute all-sensors soak (err counters in `/api/state` should stay ~0); fall back
-with `./build.sh --i2c-hz 100000` if it misbehaves (expect degraded MLX/VL53 rates).
-If the soak shows errors, suspect Qwiic pull-up stacking first (4 breakouts' pull-ups
-in parallel) -- cut the pull-up jumpers on 2-3 of the boards.
+This bench originally shipped with a "measured exception" to POWERFEATHER_NOTES'
+"keep the SDK's bus speed (100 kHz)" guidance, running Wire1 at 400 kHz for MLX
+frame rate and VL53 blob-upload speed. **That exception was the root cause of the
+2026-07-02 battery reboot epidemic**: ~60+ instantaneous poweron collapses across
+TWO boards and TWO cells, USB-immune, radio-correlated. Mechanism (best-supported):
+elevated-clock traffic on the bus that ALSO carries the BQ25628E charger -- i.e.
+the chip your battery current flows through -- gets corrupted under WiFi TX noise,
+and a bad transaction near the power path's control registers (BATFET / HIZ class)
+opens the battery switch outright. No sag, no brownout detector, straight to
+reset_reason=poweron; VBUS keeps the board alive on USB, which is why the bench
+only died on battery. A stray EN_HIZ corruption (board silently discharging at
+-290 mA WITH USB attached) was observed hours before the epidemic was recognized.
+
+Verdict was by controlled A/B on the same board/cell/firmware with ONLY the clock
+changed: 400 kHz died within seconds-to-minutes, every time; 100 kHz ran
+indefinitely under the full five-sensor load (LOG 2026-07-02 cont. 5-10 and
+2026-07-03 cont. 11 tell the whole elimination story -- sensors, jumper, holder,
+cells, SoftAP, crossover band, NVS writes, charge-enable, and both boards were
+each exonerated first).
+
+Cost of 100 kHz: sensor cadence ~0.8 -> ~0.6 Hz, VL53 init blob 2.7 -> 9.4 s.
+Acceptable. If a future bench truly needs fast sensor I2C, put the sensors on a
+SEPARATE bus (second I2C controller on free GPIOs) -- never raise the clock on a
+bus shared with the power-management chips. `--i2c-hz` remains only as an
+experimental override.
 
 ## Charging is OFF on this bench
 
