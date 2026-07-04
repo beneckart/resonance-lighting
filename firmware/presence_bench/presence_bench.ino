@@ -52,7 +52,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-03.30"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-03.31"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
@@ -538,6 +538,9 @@ static void vl53Tick() {
 #endif
 
 #if PB_ENABLE_TMF
+volatile uint16_t gTmfKilo = 0; // kilo_iterations; 0 = leave factory default.
+                                // Integration count = the TMF's RANGE lever
+                                // (more = longer range in ambient, slower).
 static bool tmfInit() {
   if (!ackProbe(SEN_ADDR[SEN_TMF])) return false;
   if (!tmf.begin(PB_WIRE, SEN_ADDR[SEN_TMF])) return false; // uploads tof_bin_image
@@ -545,6 +548,9 @@ static bool tmfInit() {
   if (!tmf.getTMF882XConfig(cfg)) return false;
   cfg.report_period_ms = gTmfPeriod;
   cfg.spad_map_id = gTmfMap;
+  if (gTmfKilo) cfg.kilo_iterations = gTmfKilo;
+  logf("[tmf] map=%u period=%ums kilo_iterations=%u", (unsigned)gTmfMap,
+       (unsigned)gTmfPeriod, (unsigned)cfg.kilo_iterations);
   return tmf.setTMF882XConfig(cfg);
 }
 
@@ -1140,6 +1146,10 @@ static void handleSet() {
     gTmfPeriod = constrain(server.arg("tmf_period").toInt(), 50, 1000);
     gReinitReq |= (1 << SEN_TMF);
   }
+  if (server.hasArg("tmf_kilo")) { // 0 = factory; pair big values with a longer period
+    gTmfKilo = constrain(server.arg("tmf_kilo").toInt(), 0, 4000);
+    gReinitReq |= (1 << SEN_TMF);
+  }
 #endif
   if (server.hasArg("reinit")) {
     String w = server.arg("reinit");
@@ -1219,6 +1229,7 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
   <label>VL53 res</label><select id=k_vlres onchange="kset('vl_res',this.value)"><option value=8 selected>8x8 (15Hz)</option><option value=4>4x4 (30Hz)</option></select>
   <label>TMF map</label><select id=k_tmfmap onchange="kset('tmf_map',this.value)"><option value=1 selected>3x3 29deg</option><option value=2>3x3 29x44</option><option value=6>3x3 44x48</option><option value=7>4x4 44x48 (mux)</option></select>
   <label>TMF ms</label><select id=k_tmfp onchange="kset('tmf_period',this.value)"><option selected>100</option><option>250</option><option>500</option></select>
+  <label>TMF kilo-iter (range)</label><select id=k_tmfk onchange="kset('tmf_kilo',this.value)"><option value=0 selected>factory</option><option>900</option><option>1500</option><option>2500</option></select>
   <label>enable</label>
   <button id=en_mlx class=on onclick="toggleEn('mlx')">MLX</button>
   <button id=en_vl53 class=on onclick="toggleEn('vl53')">VL53</button>
@@ -1283,19 +1294,29 @@ function th(id){return +document.getElementById('th_'+id).value;}
 function el(id){return document.getElementById(id);}
 
 // ---- baseline ----
-function capBase(){capN=20;capBuf={mlx:[],vlN:[],vlF:[],vlNt:[],tmf:[],xmPk:[],l1x:[]};el('bcap').textContent='capturing...';}
+let capSeq={};
+function capBase(){capN=50;capSeq={};capBuf={mlx:[],vlN:[],vlF:[],vlNt:[],tmf:[],xmPk:[],l1x:[]};el('bcap').textContent='capturing...';}
+function fresh(k,f){let s=f[k]&&f[k].ok?f[k].seq:-1;if(s<0||capSeq[k]===s)return false;capSeq[k]=s;return true;}
 function median(a){if(!a.length)return -1;let s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)];}
 function finishBase(){
  let b={mlx:null,vlN:[],vlF:[],vlNt:[],tmf:{},xmNear:-1,l1x:-1};
  if(capBuf.mlx.length){b.mlx=[];for(let i=0;i<768;i++)b.mlx[i]=median(capBuf.mlx.map(f=>f[i]));}
  if(capBuf.vlN.length){for(let z=0;z<64;z++){b.vlN[z]=median(capBuf.vlN.map(f=>f[z]).filter(v=>v>0));
   b.vlF[z]=median(capBuf.vlF.map(f=>f[z]).filter(v=>v>0));b.vlNt[z]=median(capBuf.vlNt.map(f=>f[z]));}}
+ b.tmfSeen=capBuf.tmf.length>0;
  if(capBuf.tmf.length){let zs={};capBuf.tmf.forEach(m=>{for(let z in m){(zs[z]=zs[z]||[]).push(m[z]);}});
   for(let z in zs)b.tmf[z]=median(zs[z]);}
+ // Empty per-sensor captures are VALID "empty scene" baselines (no return during
+ // capture -> any valid return later IS the presence signal). Mark with -1 but
+ // record that the sensor was sampled (xmSeen/l1xSeen).
+ b.xmSeen=capBuf.xmPk.length>0;
  if(capBuf.xmPk.length){let n=capBuf.xmPk.filter(v=>v>0);b.xmNear=n.length?median(n):-1;}
+ b.l1xSeen=capBuf.l1x.length>0;
  if(capBuf.l1x.length){let n=capBuf.l1x.filter(v=>v>0);b.l1x=n.length?median(n):-1;}
  base=b;localStorage.setItem('pb_base',JSON.stringify(b));el('bcap').textContent='Capture baseline';
- logEv('baseline captured ('+(b.mlx?'mlx ':'')+(b.vlN.length?'vl53 ':'')+(Object.keys(b.tmf).length?'tmf ':'')+(b.xmNear>0?'xm ':'')+(b.l1x>0?'l1x':'')+')');
+ logEv('baseline: mlx='+(b.mlx?capBuf.mlx.length+'f':'NONE')+' vl53='+(b.vlN.length?capBuf.vlN.length+'f':'NONE')+
+  ' tmf='+(capBuf.tmf.length?capBuf.tmf.length+'f':'NONE')+' xm='+(b.xmSeen?(b.xmNear>0?b.xmNear+'mm':'empty-scene'):'NONE')+
+  ' l1x='+(b.l1xSeen?(b.l1x>0?b.l1x+'mm':'empty-scene'):'NONE'));
 }
 function clearBase(){base=null;localStorage.removeItem('pb_base');logEv('baseline cleared');}
 function dlBase(){if(!base)return;let a=document.createElement('a');
@@ -1328,24 +1349,30 @@ function runDetect(){
  // MLX: N pixels hotter than baseline by dT
  if(F.mlx.ok&&base&&base.mlx){let hot=0;for(let i=0;i<768;i++)if(F.mlx.t[i]-base.mlx[i]>th('mlxDc'))hot++;
   setDet('mlx',hot>=th('mlxPx'),now,'hot='+hot);}else setDet('mlx',null,now,'');
- // VL53: zones whose FAR target stepped closer than baseline-far by dmm
+ // VL53: zones whose FAR target stepped closer by dmm, OR a valid return appearing
+ // in a zone that had NONE at baseline (empty-scene semantics)
  if(F.vl53.ok&&base&&base.vlN.length){let nz=0,res=F.vl53.res,zone=res*res;
-  for(let z=0;z<zone;z++){let v=vlZone(F,z);if(v.far>0&&base.vlF[z]>0&&base.vlF[z]-v.far>th('tofMm'))nz++;}
+  for(let z=0;z<zone;z++){let v=vlZone(F,z);
+   if(v.far>0&&base.vlF[z]>0&&base.vlF[z]-v.far>th('tofMm'))nz++;
+   else if(v.far>0&&!(base.vlF[z]>0))nz++;}
   setDet('vl53',nz>=th('tofZones'),now,'zones='+nz);}else setDet('vl53',null,now,'');
- // TMF: any zone's farthest target stepped closer by dmm
- if(F.tmf.ok&&base&&Object.keys(base.tmf).length){let nz=0,m=tmfZones(F);
-  for(let z in m)if(base.tmf[z]>0&&base.tmf[z]-m[z]>th('tofMm'))nz++;
+ // TMF: zone stepped closer by dmm, OR a return in a baseline-empty zone
+ if(F.tmf.ok&&base&&base.tmfSeen){let nz=0,m=tmfZones(F);
+  for(let z in m){if(base.tmf[z]>0&&base.tmf[z]-m[z]>th('tofMm'))nz++;
+   else if(!(base.tmf[z]>0)&&m[z]>0)nz++;}
   setDet('tmf',nz>=1,now,'zones='+nz);}else setDet('tmf',null,now,'');
- // XM: presence app = module flag or score; distance app = new near peak
+ // XM: presence app = module flag or score; distance app = new/nearer peak
  if(F.xm.ok&&F.xm.app==1){setDet('xm',F.xm.pres==1||F.xm.intra>th('xmScore')||F.xm.inter>th('xmScore'),now,
   'i='+F.xm.intra+' e='+F.xm.inter);}
- else if(F.xm.ok&&F.xm.app==2&&base&&base.xmNear>0){let near=-1;
+ else if(F.xm.ok&&F.xm.app==2&&base&&base.xmSeen){let near=-1;
   F.xm.pk.forEach(p=>{if(p[0]>0&&(near<0||p[0]<near))near=p[0];});
-  setDet('xm',near>0&&base.xmNear-near>th('tofMm'),now,'near='+near);}
+  let on=(base.xmNear>0)?(near>0&&base.xmNear-near>th('tofMm')):(near>0&&near<4500);
+  setDet('xm',on,now,'near='+near+(base.xmNear>0?'':' (empty-scene base)'));}
  else setDet('xm',null,now,'');
- // L1X: single-zone distance stepped closer than baseline by dmm (status 0 = valid)
- if(F.l1x.ok&&base&&base.l1x>0){let v=F.l1x.st==0&&F.l1x.mm>0;
-  setDet('l1x',v&&base.l1x-F.l1x.mm>th('tofMm'),now,F.l1x.mm+'mm');}
+ // L1X: delta vs baseline, or empty-scene semantics if baseline had no return
+ if(F.l1x.ok&&base&&base.l1xSeen){let v=F.l1x.st==0&&F.l1x.mm>0;
+  let on=(base.l1x>0)?(v&&base.l1x-F.l1x.mm>th('tofMm')):(v&&F.l1x.mm<4000);
+  setDet('l1x',on,now,F.l1x.mm+'mm'+(base.l1x>0?'':' (empty-scene base)'));}
  else setDet('l1x',null,now,F.l1x.ok?F.l1x.mm+'mm':'');
 }
 function setDet(k,on,now,info){
@@ -1562,13 +1589,13 @@ function scanI2C(){el('scanout').textContent='scanning...';
 function pollFrame(){
  if(inflight)return;inflight=true;
  fetch('/api/frame').then(r=>r.json()).then(f=>{F=f;
-  if(capN>0){
-   if(f.mlx.ok)capBuf.mlx.push([...f.mlx.t]);
-   if(f.vl53.ok){let N=[],Fa=[],Nt=[];for(let z=0;z<64;z++){let v=vlZone(f,z);N[z]=v.near;Fa[z]=v.far;Nt[z]=v.nt;}
+  if(capN>0){ // dedup by sensor seq: at 0.6 Hz sensors, polls repeat frames 4-5x
+   if(fresh('mlx',f))capBuf.mlx.push([...f.mlx.t]);
+   if(fresh('vl53',f)){let N=[],Fa=[],Nt=[];for(let z=0;z<64;z++){let v=vlZone(f,z);N[z]=v.near;Fa[z]=v.far;Nt[z]=v.nt;}
     capBuf.vlN.push(N);capBuf.vlF.push(Fa);capBuf.vlNt.push(Nt);}
-   if(f.tmf.ok)capBuf.tmf.push(tmfZones(f));
-   if(f.xm.ok&&f.xm.app==2){let near=-1;f.xm.pk.forEach(p=>{if(p[0]>0&&(near<0||p[0]<near))near=p[0];});capBuf.xmPk.push(near);}
-   if(f.l1x.ok&&f.l1x.st==0)capBuf.l1x.push(f.l1x.mm);
+   if(fresh('tmf',f))capBuf.tmf.push(tmfZones(f));
+   if(fresh('xm',f)&&f.xm.app==2){let near=-1;f.xm.pk.forEach(p=>{if(p[0]>0&&(near<0||p[0]<near))near=p[0];});capBuf.xmPk.push(near);}
+   if(fresh('l1x',f))capBuf.l1x.push(f.l1x.st==0?f.l1x.mm:-1);
    el('bcap').textContent='capturing '+capN;
    if(--capN==0)finishBase();}
   drawMlx();drawVl();drawTmf();drawXm();drawL1x();runDetect();
