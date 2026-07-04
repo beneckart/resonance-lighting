@@ -62,7 +62,9 @@ rx_peer = re.compile(
     r"(?: fc=(\d+) fcr=(\d+) fcc=(\d+) fce=(\d+) fcchg=(\d+) fcdis=(\d+) fcmin=(\d+) fcmax=(\d+))?"
     r"(?: bqv=(\d+) bqichg=(\d+) bqvreg=(\d+) bq16=([0-9A-Fa-f]{2}) bq18=([0-9A-Fa-f]{2})"
     r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
-    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?")
+    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?"
+    r"(?: fcwhc=(\d+) fcwhd=(\d+) fcpw=(\d+) fcbw=(\d+) fcdw=(\d+) fclow=(\d+)"
+    r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -97,7 +99,9 @@ with open(out, "w") as fh:
              cap, chg, dd, ddb, dda, fw, mt,
              fc, fcr, fcc, fce, fcchg, fcdis, fcmin, fcmax,
              bqv, bqichg, bqvreg, bq16, bq18, bq1d, bq1e, bq1f,
-             bq20, bq21, bq22, bq38) = m.groups()
+             bq20, bq21, bq22, bq38,
+             fcwhc, fcwhd, fcpw, fcbw, fcdw, fclow, fcmchg, fcmwait,
+             fcmdraw, fcmprot) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -172,6 +176,17 @@ with open(out, "w") as fh:
                            bq_batfet_ctrl=r18 & 0x03,
                            bq_vbus_stat=s1 & 0x07,
                            bq_chg_stat=(s1 >> 3) & 0x03)
+            if fcwhc is not None:
+                row.update(field_charge_wh=round(int(fcwhc) / 10.0, 1),
+                           field_discharge_wh=round(int(fcwhd) / 10.0, 1),
+                           field_peak_panel_w=round(int(fcpw) / 100.0, 2),
+                           field_peak_charge_w=round(int(fcbw) / 100.0, 2),
+                           field_peak_draw_w=round(int(fcdw) / 100.0, 2),
+                           field_low_s=int(fclow),
+                           field_charge_min=int(fcmchg),
+                           field_wait_min=int(fcmwait),
+                           field_draw_min=int(fcmdraw),
+                           field_protect_min=int(fcmprot))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

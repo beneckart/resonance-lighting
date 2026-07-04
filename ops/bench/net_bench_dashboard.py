@@ -45,6 +45,8 @@ RX_PEER = re.compile(
     r"(?: bqv=(\d+) bqichg=(\d+) bqvreg=(\d+) bq16=([0-9A-Fa-f]{2}) bq18=([0-9A-Fa-f]{2})"
     r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
     r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?"
+    r"(?: fcwhc=(\d+) fcwhd=(\d+) fcpw=(\d+) fcbw=(\d+) fcdw=(\d+) fclow=(\d+)"
+    r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -283,6 +285,16 @@ class SerialWorker(threading.Thread):
                 bq21,
                 bq22,
                 bq38,
+                fcwhc,
+                fcwhd,
+                fcpw,
+                fcbw,
+                fcdw,
+                fclow,
+                fcmchg,
+                fcmwait,
+                fcmdraw,
+                fcmprot,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -365,6 +377,19 @@ class SerialWorker(threading.Thread):
                     bq_batfet_ctrl=r18 & 0x03,
                     bq_vbus_stat=s1 & 0x07,
                     bq_chg_stat=(s1 >> 3) & 0x03,
+                )
+            if fcwhc is not None:
+                row.update(
+                    field_charge_wh=round(int(fcwhc) / 10.0, 1),
+                    field_discharge_wh=round(int(fcwhd) / 10.0, 1),
+                    field_peak_panel_w=round(int(fcpw) / 100.0, 2),
+                    field_peak_charge_w=round(int(fcbw) / 100.0, 2),
+                    field_peak_draw_w=round(int(fcdw) / 100.0, 2),
+                    field_low_s=int(fclow),
+                    field_charge_min=int(fcmchg),
+                    field_wait_min=int(fcmwait),
+                    field_draw_min=int(fcmdraw),
+                    field_protect_min=int(fcmprot),
                 )
             if row["supply_w"] is not None and row["battery_w"] is not None:
                 row["load_w"] = round(row["supply_w"] - row["battery_w"], 4)
@@ -999,7 +1024,11 @@ function render(s) {
       : "";
     const fcCell = p.field_phase !== null && p.field_phase !== undefined
       ? `<div class="row-sub">cycle ${p.field_cycle} ${esc(fieldPhase(p) || "?")} ${p.field_elapsed_s}s ` +
-        `+${p.field_charge_mah} / -${p.field_discharge_mah} mAh</div>`
+        `+${p.field_charge_mah} / -${p.field_discharge_mah} mAh</div>` +
+        (p.field_charge_wh !== null && p.field_charge_wh !== undefined
+          ? `<div class="row-sub">${fmt(p.field_charge_wh, 1)}Wh in / ${fmt(p.field_discharge_wh, 1)}Wh out ` +
+            `peak ${fmt(p.field_peak_panel_w, 2)}W panel low ${p.field_low_s}s</div>`
+          : "")
       : "";
     const active = p.id === effectiveFocus ? " active-row" : "";
     return `<tr class="peer-row${active}" data-peer-id="${esc(p.id)}">

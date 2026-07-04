@@ -12,6 +12,41 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-03 - Codex - HEX-load field-cycle v4 OTA after bridge/peer swap
+
+Swapped the bench roles so the PowerFeather with the soldered HEX header (`9F26F8`)
+became the outdoor field-cycle peer and the former solar peer (`9E5AB8`) became the
+USB serial bridge on COM4. The bridge is running the serial-bridge master image; the
+field peer is logging under:
+
+- `ops/bench/data/ca/2026-07-03-ca-field-cycle-9F26F8-hexload-v1.jsonl`
+
+First field-cycle HEX load build (`net-bench-2026-07-03.1`, 18 pixels at brightness
+96) successfully OTA'd and entered draw mode, but the dashboard showed only one fresh
+post-OTA packet before going stale. The root cause was likely command timing, not a
+radio brownout: the sustained targeted `U9F26F8` maintenance command was still being
+sent while the freshly OTA'd peer rebooted, so the new image was immediately caught
+back into maintenance. Maintenance telemetry later showed the peer alive at
+`192.168.4.42` and still drawing about 400 mA because the field-cycle HEX load was not
+blanked before entering maintenance.
+
+Patched `firmware/net_bench/net_bench.ino` to `net-bench-2026-07-03.2` so
+`enterMaintenance()` explicitly blanks/cancels bench loads before switching to WiFi
+OTA. Built and OTA'd a gentler night-run image for `9F26F8` after waiting for the
+sustained `U` window to end:
+
+```
+--field-low-mv 3100 --field-critical-mv 3000 --field-low-confirm-s 60
+--field-led-load --drawdown-lit 9 --drawdown-brightness 64
+```
+
+OTA ack succeeded via `ops/bench/net_bench_ota.py` using the shared-WiFi maintenance
+path. The peer rejoined ESP-NOW with `fw=net-bench-2026-07-03.2`,
+`reset_reason=software`, `field_phase=draw`, no supply, and a stable load around
+0.74-0.76 W (`battery_v` about 3.20 V, `battery_ma` about -232 to -236 mA) after a
+short soak. This should produce a more useful overnight drawdown than the 1.4 W
+short-blast configuration.
+
 ## 2026-07-03 (cont.) - Ben + Claude - Housekeeping: June brownout docs re-graded under the unified bus-integrity story
 
 Ben's call: with the story straight, purge the stale hypotheses. Done, with
@@ -1089,6 +1124,52 @@ the gobo work since shows crisp projection needs far more LED power than it assu
 keeping it around even as a "floor" invited anchoring. The production budget will be
 derived bottom-up: measured LED draw (400-500 mA at full on HEX/RGBW) x a realistic show
 duty cycle, minus measured harvest at MPP. The TODO item to compute it stays open.
+
+## 2026-07-01 - Codex - Field-cycle v2 deployed for multi-day solar run
+
+Upgraded `firmware/net_bench` to `net-bench-2026-07-01.1` for the next multi-day
+`9E5AB8` solar-cycle experiment.
+
+Firmware changes:
+
+- Added field-cycle v2 summaries to the heartbeat while keeping the packet at 128 bytes:
+  charge/discharge Wh, peak panel/charge/draw W, soft-low debounce seconds, and phase
+  duration minutes.
+- Added soft-low debounce for field-cycle drawdown: critical floor still sleeps
+  immediately, but soft low must persist for `NB_FIELD_LOW_CONFIRM_S`.
+- Added optional `--field-led-load` for draw phase, reusing the direct-GPIO HEX/SK6812
+  load with separate `--drawdown-lit` and `--drawdown-brightness` controls.
+- Extended `ops/bench/net_bench_dashboard.py` and `ops/bench/net_bench_log.py` to parse
+  the v2 summary suffixes.
+
+Deployed build on the outdoor solar peer `9E5AB8` via targeted shared-WiFi OTA:
+
+```
+./build.sh --role peer --channel 11 --field-cycle \
+  --field-charge-s 300 --field-wait-s 300 --field-protect-s 900 \
+  --field-wake-ms 8000 --field-cold-ms 30000 \
+  --field-low-mv 3150 --field-critical-mv 3050 --field-low-confirm-s 30 \
+  --field-led-load --drawdown-lit 18 --drawdown-brightness 128 \
+  --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.6
+```
+
+OTA path: targeted `U9E5AB8` caught the peer in shared-WiFi maintenance at
+`192.168.4.64`; upload returned `Update complete. Rebooting.` The peer rejoined ESP-NOW
+with `fw=net-bench-2026-07-01.1`, reset reason `software`, then resumed charge-mode
+timer sleeps. The COM7 serial bridge/master was USB-flashed to `.1` too, so it can decode
+and emit the new field summary tail.
+
+Live verification after restart:
+
+- Dashboard backend running on `http://127.0.0.1:8765/`, COM7 bridge `.1`.
+- New logger run: `ops/bench/data/ca/2026-07-01-ca-field-cycle-9E5AB8-v2.jsonl`.
+- First v2 rows show `field_charge_wh`, `field_peak_panel_w`, `field_peak_charge_w`,
+  `field_low_s`, and phase-minute fields. Example: charge phase, `field_charge_wh=0.4`,
+  `field_peak_panel_w=3.15`, `field_peak_charge_w=2.59`, `field_charge_min=10`.
+
+Next: let this run through several day/night cycles, then analyze whether the 18-pixel
+load reaches protect nightly, whether `3.15 V` + 30 s debounce avoids false cutoffs, and
+whether panel Wh/day covers the configured night load.
 
 ## 2026-07-01 - Codex - Added Modulino Buzzer and Vibro I2C controls
 

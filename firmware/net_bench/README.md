@@ -135,10 +135,15 @@ adds an autonomous peer state machine:
    it enters `wait-dark` and keeps sleeping/checking until supply disappears.
 3. In dark/no-supply, it enters `draw` and stays awake at the field-cycle heartbeat rate
    (`NB_FIELD_DRAWDOWN_HZ`, default 1 Hz). This intentionally uses the always-awake radio
-   load as a repeatable night drawdown.
-4. At the low/critical LFP floor it sends final heartbeats, blanks pixels, cuts both
-   rails, and enters `protect` timer sleep. The next solar/USB/supply window wakes it
-   on a timer, it sees supply, starts the next cycle, and resumes charging.
+   load as a repeatable night drawdown. `--field-led-load` optionally adds a direct-GPIO
+   HEX/SK6812 load during this draw phase; tune it with `--drawdown-lit` and
+   `--drawdown-brightness`.
+4. At the critical LFP floor it sleeps immediately. At the soft floor it now requires
+   `NB_FIELD_LOW_CONFIRM_S` seconds of sustained low voltage first, so one transient
+   telemetry sample does not end the night. Before sleeping it sends final heartbeats,
+   blanks pixels, cuts both rails, and enters `protect` timer sleep. The next
+   solar/USB/supply window wakes it on a timer, it sees supply, starts the next cycle,
+   and resumes charging.
 
 Solar does not need to electrically wake the ESP32 in the normal case: the charger keeps
 charging while the ESP32 is in timer deep sleep, and the next timer wake observes the
@@ -147,14 +152,28 @@ supply. This is more recoverable than deliberately running the cell into protect
 Example peer build for the current BubbyNet/channel-11 field rig:
 
 ```
-./build.sh --role peer --channel 11 --hb-hz 1 --field-cycle \
-  --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.8
+./build.sh --role peer --channel 11 --field-cycle \
+  --field-charge-s 300 --field-wait-s 300 --field-protect-s 900 \
+  --field-wake-ms 8000 --field-cold-ms 30000 \
+  --field-low-mv 3150 --field-critical-mv 3050 --field-low-confirm-s 30 \
+  --field-led-load --drawdown-lit 18 --drawdown-brightness 128 \
+  --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.6
 ```
 
 The heartbeat tail adds `fc=` (phase), `fcr=` (reason), `fcc=` (cycle), `fce=` (phase
 elapsed seconds), `fcchg=`/`fcdis=` (rough charge/discharge mAh integrated from sampled
 battery current), and `fcmin=`/`fcmax=` (cycle voltage bounds). The dashboard and
 `net_bench_log.py` parse these fields.
+
+`net-bench-2026-07-01.1` adds field-cycle v2 summaries while keeping the heartbeat at
+128 bytes for old-bridge compatibility:
+
+- `fcwhc=` / `fcwhd=`: cycle charge/discharge Wh x10 from sampled battery power.
+- `fcpw=`, `fcbw=`, `fcdw=`: peak panel, battery-charge, and battery-draw W x100.
+- `fclow=`: current soft-low debounce seconds, capped at 255.
+- `fcmchg=`, `fcmwait=`, `fcmdraw=`, `fcmprot=`: time spent in each field-cycle phase,
+  in minutes, capped at 255. The `/telemetry` JSON exposes the same phase totals in
+  seconds for an OTA-maintenance check.
 
 `net-bench-2026-06-30.7` also appends BQ25628E charger telemetry for low-VBAT
 solar/USB rescue debugging:

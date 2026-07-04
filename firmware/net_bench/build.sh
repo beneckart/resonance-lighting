@@ -23,6 +23,8 @@ MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
 SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""; MAINT_AP=""
 FIELD_CYCLE=""; FIELD_CHARGE_SLEEP=""; FIELD_WAIT_SLEEP=""; FIELD_PROTECT_SLEEP=""; FIELD_WAKE_LISTEN_MS=""; FIELD_COLD_LISTEN_MS=""
+FIELD_LOW_MV=""; FIELD_CRITICAL_MV=""; FIELD_LOW_CONFIRM_S=""; FIELD_LED_LOAD=""
+DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -52,6 +54,15 @@ while [[ $# -gt 0 ]]; do
     --field-protect-s) FIELD_PROTECT_SLEEP="$2"; shift 2;;
     --field-wake-ms) FIELD_WAKE_LISTEN_MS="$2"; shift 2;;
     --field-cold-ms) FIELD_COLD_LISTEN_MS="$2"; shift 2;;
+    --field-low-mv) FIELD_LOW_MV="$2"; shift 2;;
+    --field-critical-mv) FIELD_CRITICAL_MV="$2"; shift 2;;
+    --field-low-confirm-s) FIELD_LOW_CONFIRM_S="$2"; shift 2;;
+    --field-led-load) FIELD_LED_LOAD="1"; shift;;
+    --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
+    --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
+    --drawdown-r) DRAWDOWN_R="$2"; shift 2;;
+    --drawdown-g) DRAWDOWN_G="$2"; shift 2;;
+    --drawdown-b) DRAWDOWN_B="$2"; shift 2;;
     --batt-ntc) BATT_NTC="1"; shift;;               # battery thermistor on charger TS -- ONLY with the NTC physically attached
 
     --chem) CHEM="$2"; shift 2;;
@@ -111,6 +122,15 @@ esac
 [[ -n "${FIELD_PROTECT_SLEEP}" ]] && FLAGS+=" -DNB_FIELD_PROTECT_SLEEP_S=${FIELD_PROTECT_SLEEP}"
 [[ -n "${FIELD_WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_WAKE_LISTEN_MS=${FIELD_WAKE_LISTEN_MS}"
 [[ -n "${FIELD_COLD_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_COLD_LISTEN_MS=${FIELD_COLD_LISTEN_MS}"
+[[ -n "${FIELD_LOW_MV}" ]] && FLAGS+=" -DNB_FIELD_LOW_MV=${FIELD_LOW_MV}"
+[[ -n "${FIELD_CRITICAL_MV}" ]] && FLAGS+=" -DNB_FIELD_CRITICAL_MV=${FIELD_CRITICAL_MV}"
+[[ -n "${FIELD_LOW_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_LOW_CONFIRM_S=${FIELD_LOW_CONFIRM_S}"
+[[ -n "${FIELD_LED_LOAD}" ]] && FLAGS+=" -DNB_FIELD_LED_LOAD=1"
+[[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
+[[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"
+[[ -n "${DRAWDOWN_R}" ]] && FLAGS+=" -DNB_DRAWDOWN_R=${DRAWDOWN_R}"
+[[ -n "${DRAWDOWN_G}" ]] && FLAGS+=" -DNB_DRAWDOWN_G=${DRAWDOWN_G}"
+[[ -n "${DRAWDOWN_B}" ]] && FLAGS+=" -DNB_DRAWDOWN_B=${DRAWDOWN_B}"
 [[ -n "${BATT_NTC}" ]]      && FLAGS+=" -DNB_BATT_NTC=1"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in

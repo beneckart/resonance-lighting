@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-06-30.7" // charger-status telemetry
+#define NET_BENCH_VERSION "net-bench-2026-07-03.2" // field-cycle v4: blank bench loads before maintenance
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -145,6 +145,9 @@ using namespace PowerFeather;
 #ifndef NB_DRAWDOWN_PIXEL_COUNT
 #define NB_DRAWDOWN_PIXEL_COUNT 37
 #endif
+#ifndef NB_DRAWDOWN_LIT_COUNT
+#define NB_DRAWDOWN_LIT_COUNT NB_DRAWDOWN_PIXEL_COUNT
+#endif
 #ifndef NB_DRAWDOWN_BRIGHTNESS
 #define NB_DRAWDOWN_BRIGHTNESS 128 // measured about 0.75 A battery-side on the current HEX rig
 #endif
@@ -204,8 +207,17 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_CRITICAL_MV
 #define NB_FIELD_CRITICAL_MV NB_DRAWDOWN_HARD_FLOOR_MV
 #endif
+#ifndef NB_FIELD_LOW_CONFIRM_S
+#define NB_FIELD_LOW_CONFIRM_S 30 // soft-low must persist; critical still sleeps immediately
+#endif
+#ifndef NB_FIELD_PROTECT_RETRY_MV
+#define NB_FIELD_PROTECT_RETRY_MV (NB_FIELD_LOW_MV + 80) // recover margin before retrying a dark draw
+#endif
 #ifndef NB_FIELD_DRAWDOWN_MIN_S
 #define NB_FIELD_DRAWDOWN_MIN_S NB_DRAWDOWN_MIN_RUN_S
+#endif
+#ifndef NB_FIELD_LED_LOAD
+#define NB_FIELD_LED_LOAD 0 // opt-in: use the HEX drawdown load during field-cycle draw
 #endif
 #ifndef NB_FIELD_SUN_SUPPLY_MV
 #define NB_FIELD_SUN_SUPPLY_MV 4000 // supply/panel voltage that counts as present
@@ -332,7 +344,18 @@ RTC_DATA_ATTR uint32_t rtcFieldChargeMas = 0;
 RTC_DATA_ATTR uint32_t rtcFieldDischargeMas = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMinMv = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMaxMv = 0;
+RTC_DATA_ATTR uint32_t rtcFieldChargeMws = 0;
+RTC_DATA_ATTR uint32_t rtcFieldDischargeMws = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakPanelWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakChargeWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakDrawWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldLowS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldChargeS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldWaitS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDrawS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldProtectS = 0;
 uint32_t fieldLastIntegrateMs = 0;
+uint32_t fieldLowSinceMs = 0;
 
 uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
@@ -387,6 +410,7 @@ Adafruit_NeoPixel drawdownPixels(NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
                                  NEO_GRB + NEO_KHZ800);
 bool gDrawdownPixelsBegun = false;
 bool gDrawdownActive = false;
+bool gFieldLedLoadOn = false;
 uint16_t gDrawdownBudgetMah = NB_DRAWDOWN_DEFAULT_MAH;
 float gDrawdownMah = 0.0f;
 uint32_t gDrawdownStartMs = 0;
@@ -514,6 +538,18 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t bq_flag1;      // Charger_Flag_1
   uint8_t bq_fault_flag0;// FAULT_Flag_0
   uint8_t bq_part;       // Part_Information
+  // --- APPEND-ONLY tail 10 (field-cycle v2 summary). Keep the heartbeat <=128B:
+  // Wh x10, W x100, soft-low debounce seconds, and time in phase minutes.
+  uint16_t field_charge_wh_x10;
+  uint16_t field_discharge_wh_x10;
+  uint16_t field_peak_panel_w_x100;
+  uint16_t field_peak_charge_w_x100;
+  uint16_t field_peak_draw_w_x100;
+  uint8_t field_low_s;
+  uint8_t field_charge_min;
+  uint8_t field_wait_min;
+  uint8_t field_draw_min;
+  uint8_t field_protect_min;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -593,6 +629,10 @@ struct NbPeerStat {
   uint16_t bq_vindpm_mv, bq_ichg_ma, bq_vreg_mv;
   uint8_t bq_reg16, bq_reg18, bq_stat0, bq_stat1, bq_fault0, bq_flag0, bq_flag1;
   uint8_t bq_fault_flag0, bq_part;
+  bool has_field_summary;
+  uint16_t field_charge_wh_x10, field_discharge_wh_x10;
+  uint16_t field_peak_panel_w_x100, field_peak_charge_w_x100, field_peak_draw_w_x100;
+  uint8_t field_low_s, field_charge_min, field_wait_min, field_draw_min, field_protect_min;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -929,6 +969,26 @@ String telemetryJson() {
   j += String(rtcFieldMinMv);
   j += ",\"field_max_mv\":";
   j += String(rtcFieldMaxMv);
+  j += ",\"field_charge_wh\":";
+  j += String((float)rtcFieldChargeMws / 3600000.0f, 2);
+  j += ",\"field_discharge_wh\":";
+  j += String((float)rtcFieldDischargeMws / 3600000.0f, 2);
+  j += ",\"field_peak_panel_w\":";
+  j += String((float)rtcFieldPeakPanelWx100 / 100.0f, 2);
+  j += ",\"field_peak_charge_w\":";
+  j += String((float)rtcFieldPeakChargeWx100 / 100.0f, 2);
+  j += ",\"field_peak_draw_w\":";
+  j += String((float)rtcFieldPeakDrawWx100 / 100.0f, 2);
+  j += ",\"field_low_s\":";
+  j += String(rtcFieldLowS);
+  j += ",\"field_charge_s\":";
+  j += String(rtcFieldChargeS);
+  j += ",\"field_wait_s\":";
+  j += String(rtcFieldWaitS);
+  j += ",\"field_draw_s\":";
+  j += String(rtcFieldDrawS);
+  j += ",\"field_protect_s\":";
+  j += String(rtcFieldProtectS);
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
   if (pfReady) {
     char b[24];
@@ -1188,6 +1248,16 @@ void sendHeartbeat(uint8_t caState) {
   hb.bq_flag1 = gBqFlag1;
   hb.bq_fault_flag0 = gBqFaultFlag0;
   hb.bq_part = gBqPart;
+  hb.field_charge_wh_x10 = (uint16_t)min(65535UL, rtcFieldChargeMws / 360000UL);
+  hb.field_discharge_wh_x10 = (uint16_t)min(65535UL, rtcFieldDischargeMws / 360000UL);
+  hb.field_peak_panel_w_x100 = rtcFieldPeakPanelWx100;
+  hb.field_peak_charge_w_x100 = rtcFieldPeakChargeWx100;
+  hb.field_peak_draw_w_x100 = rtcFieldPeakDrawWx100;
+  hb.field_low_s = (uint8_t)min(255UL, (unsigned long)rtcFieldLowS);
+  hb.field_charge_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldChargeS + 30) / 60));
+  hb.field_wait_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldWaitS + 30) / 60));
+  hb.field_draw_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldDrawS + 30) / 60));
+  hb.field_protect_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldProtectS + 30) / 60));
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -1286,7 +1356,9 @@ void drawdownPixelsLoadOn() {
   drawdownPixelsBegin();
   drawdownPixels.setBrightness(NB_DRAWDOWN_BRIGHTNESS);
   uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
-  for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) drawdownPixels.setPixelColor(i, c);
+  uint16_t lit = min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT);
+  for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
+    drawdownPixels.setPixelColor(i, i < lit ? c : 0);
   drawdownPixels.show();
 }
 void drawdownCancel(const char *why) {
@@ -1326,9 +1398,9 @@ void drawdownStart(uint16_t budgetMah) {
   gDrawdownLastLogMs = 0;
   gDrawdownActive = true;
   drawdownPixelsLoadOn();
-  Serial.printf("drawdown start: budget=%u mAh load=HEX %upx rgb=(%u,%u,%u) bri=%u soft=%.3f hard=%.3f\n",
-                gDrawdownBudgetMah, NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R,
-                NB_DRAWDOWN_G, NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS,
+  Serial.printf("drawdown start: budget=%u mAh load=HEX %u/%upx rgb=(%u,%u,%u) bri=%u soft=%.3f hard=%.3f\n",
+                gDrawdownBudgetMah, (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
+                NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS,
                 NB_DRAWDOWN_SOFT_FLOOR_MV / 1000.0f, NB_DRAWDOWN_HARD_FLOOR_MV / 1000.0f);
 }
 void drawdownTick() {
@@ -1359,6 +1431,86 @@ void drawdownTick() {
 }
 
 #ifdef NB_FIELD_CYCLE
+uint16_t fieldCycleWx100(float w) {
+  if (isnan(w) || w <= 0.0f) return 0;
+  return (uint16_t)min(65535UL, (unsigned long)(w * 100.0f + 0.5f));
+}
+void fieldCycleAddMws(uint32_t *accum, float watts, uint32_t seconds) {
+  if (watts <= 0.0f || seconds == 0) return;
+  uint64_t add = (uint64_t)(watts * 1000.0f + 0.5f) * seconds;
+  uint64_t next = (uint64_t)(*accum) + add;
+  *accum = (uint32_t)min(next, (uint64_t)0xFFFFFFFFUL);
+}
+void fieldCycleAddPhaseSeconds(uint32_t seconds) {
+  switch (rtcFieldPhase) {
+  case FC_CHARGE:
+    rtcFieldChargeS = (uint16_t)min(65535UL, (unsigned long)rtcFieldChargeS + seconds);
+    break;
+  case FC_WAIT_DARK:
+    rtcFieldWaitS = (uint16_t)min(65535UL, (unsigned long)rtcFieldWaitS + seconds);
+    break;
+  case FC_DRAWDOWN:
+    rtcFieldDrawS = (uint16_t)min(65535UL, (unsigned long)rtcFieldDrawS + seconds);
+    break;
+  case FC_PROTECT:
+    rtcFieldProtectS = (uint16_t)min(65535UL, (unsigned long)rtcFieldProtectS + seconds);
+    break;
+  default: break;
+  }
+}
+float fieldCyclePanelW() {
+  if (gInaPanel && gInaPvMv != INT16_MIN && gInaPaMa != INT16_MIN) {
+    return fabsf((float)gInaPvMv * (float)gInaPaMa / 1000000.0f);
+  }
+  return (csMa > 0.0f) ? (csV * csMa / 1000.0f) : 0.0f;
+}
+void fieldCycleUpdatePowerStats(uint32_t seconds) {
+  float panelW = fieldCyclePanelW();
+  uint16_t panelWx100 = fieldCycleWx100(panelW);
+  if (panelWx100 > rtcFieldPeakPanelWx100) rtcFieldPeakPanelWx100 = panelWx100;
+
+  float battW = cbV * cbMa / 1000.0f;
+  if (battW > 0.0f) {
+    fieldCycleAddMws(&rtcFieldChargeMws, battW, seconds);
+    uint16_t wx100 = fieldCycleWx100(battW);
+    if (wx100 > rtcFieldPeakChargeWx100) rtcFieldPeakChargeWx100 = wx100;
+  } else if (battW < 0.0f) {
+    fieldCycleAddMws(&rtcFieldDischargeMws, -battW, seconds);
+    uint16_t wx100 = fieldCycleWx100(-battW);
+    if (wx100 > rtcFieldPeakDrawWx100) rtcFieldPeakDrawWx100 = wx100;
+  }
+}
+void fieldCycleLedLoadOn() {
+#if NB_FIELD_LED_LOAD
+  if (gFieldLedLoadOn) return;
+  drawdownPixelsLoadOn();
+  gFieldLedLoadOn = true;
+  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u)\n",
+                (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
+                NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
+                NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS);
+#endif
+}
+void fieldCycleLedLoadOff() {
+#if NB_FIELD_LED_LOAD
+  if (!gFieldLedLoadOn) return;
+  drawdownPixelsOff();
+  gFieldLedLoadOn = false;
+  Serial.println("field-cycle LED load OFF");
+#endif
+}
+bool fieldCycleSoftLowConfirmed(bool low) {
+  if (!low || rtcFieldPhase != FC_DRAWDOWN ||
+      rtcFieldPhaseElapsedS < NB_FIELD_DRAWDOWN_MIN_S) {
+    fieldLowSinceMs = 0;
+    rtcFieldLowS = 0;
+    return false;
+  }
+  uint32_t now = millis();
+  if (fieldLowSinceMs == 0) fieldLowSinceMs = now;
+  rtcFieldLowS = (uint16_t)min(65535UL, (unsigned long)((now - fieldLowSinceMs) / 1000UL));
+  return rtcFieldLowS >= NB_FIELD_LOW_CONFIRM_S;
+}
 void fieldCycleMarkSample() {
   if (cbV < 0.5f) return;
   uint16_t mv = (uint16_t)min(65535UL, (unsigned long)(cbV * 1000.0f + 0.5f));
@@ -1368,6 +1520,8 @@ void fieldCycleMarkSample() {
 void fieldCycleIntegrateSeconds(uint32_t seconds) {
   if (seconds == 0) return;
   fieldCycleMarkSample();
+  fieldCycleAddPhaseSeconds(seconds);
+  fieldCycleUpdatePowerStats(seconds);
   rtcFieldPhaseElapsedS = min(65535UL, rtcFieldPhaseElapsedS + seconds);
   float ma = cbMa;
   if (ma > 0.5f) {
@@ -1398,6 +1552,17 @@ void fieldCycleResetCounters() {
   rtcFieldDischargeMas = 0;
   rtcFieldMinMv = 0;
   rtcFieldMaxMv = 0;
+  rtcFieldChargeMws = 0;
+  rtcFieldDischargeMws = 0;
+  rtcFieldPeakPanelWx100 = 0;
+  rtcFieldPeakChargeWx100 = 0;
+  rtcFieldPeakDrawWx100 = 0;
+  rtcFieldLowS = 0;
+  rtcFieldChargeS = 0;
+  rtcFieldWaitS = 0;
+  rtcFieldDrawS = 0;
+  rtcFieldProtectS = 0;
+  fieldLowSinceMs = 0;
   fieldCycleMarkSample();
 }
 void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
@@ -1405,10 +1570,14 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
     rtcFieldReason = reason;
     return;
   }
+  if (rtcFieldPhase == FC_DRAWDOWN && phase != FC_DRAWDOWN) fieldCycleLedLoadOff();
   rtcFieldPhase = phase;
   rtcFieldReason = reason;
   rtcFieldPhaseElapsedS = 0;
+  fieldLowSinceMs = 0;
+  rtcFieldLowS = 0;
   fieldLastIntegrateMs = millis();
+  if (rtcFieldPhase == FC_DRAWDOWN) fieldCycleLedLoadOn();
   Serial.printf("field-cycle phase -> %u reason=%u cycle=%u bv=%.3f ima=%.0f sv=%.3f sma=%.0f sgood=%d\n",
                 rtcFieldPhase, rtcFieldReason, rtcFieldCycle, cbV, cbMa, csV, csMa,
                 csGood ? 1 : 0);
@@ -1419,8 +1588,7 @@ void fieldCycleStartNewCycle(uint8_t reason) {
   fieldCycleSetPhase(FC_CHARGE, reason);
 }
 bool fieldCycleSupplyPresent() {
-  return csGood || csMa >= (float)NB_FIELD_SUN_CHARGE_MA ||
-         csV >= (float)NB_FIELD_SUN_SUPPLY_MV / 1000.0f;
+  return csGood || csMa >= (float)NB_FIELD_SUN_CHARGE_MA;
 }
 bool fieldCycleFullEnough() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
@@ -1435,6 +1603,10 @@ bool fieldCycleCritical() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
   return cbV > 0.5f && mv <= NB_FIELD_CRITICAL_MV;
 }
+bool fieldCycleRecoveredForRetry() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_PROTECT_RETRY_MV;
+}
 bool fieldCycleInWakeWindow() {
   uint32_t window = (esp_reset_reason() == ESP_RST_POWERON) ? NB_FIELD_COLD_LISTEN_MS : NB_FIELD_WAKE_LISTEN_MS;
   return millis() < window;
@@ -1442,6 +1614,10 @@ bool fieldCycleInWakeWindow() {
 void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool integrateSleepCurrent) {
   rtcFieldReason = reason;
   if (integrateSleepCurrent) fieldCycleIntegrateSeconds(seconds);
+  else {
+    fieldCycleAddPhaseSeconds(seconds);
+    rtcFieldPhaseElapsedS = min(65535UL, rtcFieldPhaseElapsedS + seconds);
+  }
   drawdownPixelsOff();
   for (int i = 0; i < 3; i++) {
     sendHeartbeat(0);
@@ -1463,11 +1639,15 @@ void fieldCycleInit() {
   if (supply) {
     if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_PROTECT)
       fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
+  } else if (rtcFieldPhase == FC_PROTECT && fieldCycleRecoveredForRetry()) {
+    fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
   } else if (fieldCycleLow()) {
     fieldCycleSetPhase(FC_PROTECT, fieldCycleCritical() ? FC_REASON_CRITICAL : FC_REASON_LOW);
   } else if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK) {
     fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
   }
+  if (rtcFieldPhase == FC_DRAWDOWN) fieldCycleLedLoadOn();
+  else fieldCycleLedLoadOff();
 }
 void fieldCycleTick() {
   if (IS_MASTER || !pfReady || gMode != MODE_COMMS) return;
@@ -1477,6 +1657,7 @@ void fieldCycleTick() {
   bool supply = fieldCycleSupplyPresent();
   bool critical = fieldCycleCritical();
   bool low = fieldCycleLow();
+  bool lowConfirmed = fieldCycleSoftLowConfirmed(low);
 
   if (supply && (rtcFieldPhase == FC_PROTECT || rtcFieldPhase == FC_DRAWDOWN)) {
     fieldCycleStartNewCycle(FC_REASON_SUNRISE);
@@ -1514,11 +1695,12 @@ void fieldCycleTick() {
     break;
 
   case FC_DRAWDOWN:
+    fieldCycleLedLoadOn();
     if (supply) {
       fieldCycleStartNewCycle(FC_REASON_SUNRISE);
       break;
     }
-    if (critical || (low && rtcFieldPhaseElapsedS >= NB_FIELD_DRAWDOWN_MIN_S)) {
+    if (critical || lowConfirmed) {
       fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       fieldCycleSleep(NB_FIELD_PROTECT_SLEEP_S, "field-protect", rtcFieldReason, false);
     }
@@ -1527,6 +1709,10 @@ void fieldCycleTick() {
   case FC_PROTECT:
     if (supply) {
       fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+      break;
+    }
+    if (fieldCycleRecoveredForRetry()) {
+      fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
     }
     if (!fieldCycleInWakeWindow())
@@ -1569,9 +1755,19 @@ void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
 
 // ---- mode transitions ------------------------------------------------------
 void enterComms();
+void benchLoadsOffForMaintenance() {
+  if (gDrawdownActive) drawdownCancel("maintenance");
+#ifdef NB_FIELD_CYCLE
+  if (gFieldLedLoadOn) fieldCycleLedLoadOff();
+  else drawdownPixelsOff();
+#else
+  drawdownPixelsOff();
+#endif
+}
 bool enterMaintenance() {
   if (!maintenancePowerOk()) return false;
   Serial.println("-> MAINTENANCE (WiFi OTA)");
+  benchLoadsOffForMaintenance();
   espNowDeinit();
   gMode = MODE_MAINT;
   maintEnteredMs = millis();
@@ -1645,7 +1841,7 @@ void emitBridge(const char *line, int n) {
 
 void bridgeStats() {
   if (!IS_MASTER) return;
-  char line[512]; // base peer line + optional env/INA/config/drawdown/fw tails
+  char line[768]; // base peer line + optional env/INA/config/drawdown/fw/field/BQ tails
   // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
                    "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f fw=%s\n",
@@ -1713,6 +1909,15 @@ void bridgeStats() {
                     p->bq_vindpm_mv, p->bq_ichg_ma, p->bq_vreg_mv,
                     p->bq_reg16, p->bq_reg18, p->bq_stat0, p->bq_stat1, p->bq_fault0,
                     p->bq_flag0, p->bq_flag1, p->bq_fault_flag0, p->bq_part);
+    }
+    if (p->has_field_summary && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " fcwhc=%u fcwhd=%u fcpw=%u fcbw=%u fcdw=%u fclow=%u fcmchg=%u fcmwait=%u fcmdraw=%u fcmprot=%u",
+                    p->field_charge_wh_x10, p->field_discharge_wh_x10,
+                    p->field_peak_panel_w_x100, p->field_peak_charge_w_x100,
+                    p->field_peak_draw_w_x100, p->field_low_s,
+                    p->field_charge_min, p->field_wait_min, p->field_draw_min,
+                    p->field_protect_min);
     }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
@@ -1869,6 +2074,21 @@ void processRx() {
           p->bq_part = hb->bq_part;
         } else {
           p->has_bq = false;
+        }
+        if (NB_HAS_HB_FIELD(it.len, field_protect_min)) { // field-cycle v2 summary tail 10
+          p->has_field_summary = true;
+          p->field_charge_wh_x10 = hb->field_charge_wh_x10;
+          p->field_discharge_wh_x10 = hb->field_discharge_wh_x10;
+          p->field_peak_panel_w_x100 = hb->field_peak_panel_w_x100;
+          p->field_peak_charge_w_x100 = hb->field_peak_charge_w_x100;
+          p->field_peak_draw_w_x100 = hb->field_peak_draw_w_x100;
+          p->field_low_s = hb->field_low_s;
+          p->field_charge_min = hb->field_charge_min;
+          p->field_wait_min = hb->field_wait_min;
+          p->field_draw_min = hb->field_draw_min;
+          p->field_protect_min = hb->field_protect_min;
+        } else {
+          p->has_field_summary = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {

@@ -67,6 +67,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   button sends `U<selected-id>`. Bare `U` remains available for deliberate fleet wake
   and for first-hop migration of older peers that cannot parse the targeted packet
   yet (Ben/Codex).
+- [ ] Harden the targeted `U<id>` OTA workflow so a fresh image cannot be immediately
+  recaptured by the still-sustained maintenance command after reboot. Candidate fixes:
+  host-side OTA helper waits for the 35 s `U` window to expire before upload, or firmware
+  adds a one-shot targeted-maintenance guard after a software OTA reset. Gotcha observed
+  2026-07-03 on `9F26F8`: OTA succeeded, first heartbeat appeared, then the peer was
+  caught back into maintenance by the command tail (Ben/Codex).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ -- **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis -> SK6812 HEX direct-GPIO (Ben).
 - [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED --
   **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed
@@ -158,6 +164,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
     - [ ] **MPPT decision** -- green-lit to *measure*, not yet to commit. After the clean sweep, choose: better fixed setpoint (~4.8-5.0) / temp-compensated Vmp(T) / software P&O (use `SET_MAINTAIN` to hill-climb `supply_W`). Optimum ~ 4.85 V hot vs 5.5 V cool -> a single fixed point can't be optimal across temp (Ben).
     - [ ] Full **0-100 % capacity** drawdown (USB top-up to full first) + buck-boost efficiency vs VBAT on LFP (needs rail-side metering for the latter -- SEN0291) (Ben).
     - [ ] Combine harvest-at-MPP (Wh/day) + load budget + a chosen LED-show profile -> the cell + panel spec; pair with the bottom-up nightly-budget re-derivation (Field reliability TODO) (Ben).
+    - [ ] **Analyze field-cycle v2 multi-day run**:
+      `ops/bench/data/ca/2026-07-01-ca-field-cycle-9E5AB8-v2.jsonl`. Check whether
+      the 18/37px brightness-128 draw load reaches protect nightly, whether the 3.15 V
+      soft floor + 30 s debounce avoids one-sample false cutoffs, and whether measured
+      panel Wh/day covers the configured night load. Tune thresholds/load after 2-3
+      full cycles. (Ben/Codex)
 - [ ] **Firmware guard: don't enable charging if no battery detected** -- enabling charging into a missing battery (with `maintain` > supply V) browns out / crash-loops on USB. Also: `maintain` must be <= the supply you're powering from (Ben).
 - [ ] **Firmware guard: make charger VINDPM/maintain USB-recovery-safe by construction**:
   keep boot default at ~4.6 V, treat higher panel-MPP setpoints as live/test state unless
