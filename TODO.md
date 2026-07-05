@@ -67,12 +67,28 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   button sends `U<selected-id>`. Bare `U` remains available for deliberate fleet wake
   and for first-hop migration of older peers that cannot parse the targeted packet
   yet (Ben/Codex).
-- [ ] Harden the targeted `U<id>` OTA workflow so a fresh image cannot be immediately
+- [x] Harden the targeted `U<id>` OTA workflow so a fresh image cannot be immediately
   recaptured by the still-sustained maintenance command after reboot. Candidate fixes:
   host-side OTA helper waits for the 35 s `U` window to expire before upload, or firmware
   adds a one-shot targeted-maintenance guard after a software OTA reset. Gotcha observed
   2026-07-03 on `9F26F8`: OTA succeeded, first heartbeat appeared, then the peer was
-  caught back into maintenance by the command tail (Ben/Codex).
+  caught back into maintenance by the command tail. **DONE 2026-07-05 for the recommended
+  scripted path:** `ops/bench/field_cycle_ota.py` waits out the 35 s targeted-maintenance
+  tail before invoking `net_bench_ota.py --reboot comms`; direct manual dashboard OTAs
+  should use the helper or wait out the tail by hand (Ben/Codex).
+- [x] Add a host-side maintenance discovery helper for targeted sleeping-peer OTA:
+  after sending `U<id>` through the bridge, scan the shared-WiFi subnet for `/telemetry`
+  with the matching `fixture_id`. Once a peer leaves ESP-NOW for WiFi maintenance, the
+  dashboard cannot learn or display its IP through the serial bridge; this added manual
+  scan step was needed for the 2026-07-05 `9F26F8` v5 OTA. **DONE 2026-07-05:**
+  `ops/bench/field_cycle_ota.py` scans auto-discovered local /24s plus `192.168.4.0/24`
+  and matches `/telemetry` by `fixture_id` before upload (Ben/Codex).
+- [ ] After a few more bench/field passes, extract the reusable OTA workflow primitives
+  from `ops/bench/field_cycle_ota.py` into a small shared module for future firmware and
+  deployment tooling: targeted maintenance command retry, fixture-ID `/telemetry`
+  discovery, command-tail wait, OTA upload invocation, and post-reboot rejoin
+  verification. Keep `field_cycle_ota.py` field-cycle-specific until production
+  software needs the shared path (Ben/Codex).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ -- **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis -> SK6812 HEX direct-GPIO (Ben).
 - [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED --
   **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed

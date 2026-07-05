@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-03.2" // field-cycle v4: blank bench loads before maintenance
+#define NET_BENCH_VERSION "net-bench-2026-07-05.1" // field-cycle v5: heavier HEX drawdown load
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 

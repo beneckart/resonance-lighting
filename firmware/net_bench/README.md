@@ -295,6 +295,12 @@ Additional solar-charge helpers: `R<hz>` sets the heartbeat/frame rate directly,
   Use `--reboot comms` when OTA'ing peers (they reboot OFF WiFi into ESP-NOW, so the
   OTA "Update complete. Rebooting." ack + software reset is the success signal; confirm
   rejoin via the master bridge). Default `--reboot maint` verifies via `/telemetry`.
+- `ops/bench/field_cycle_ota.py` -- pit-crew wrapper for the field-cycle peer path:
+  persistent named build dir, targeted `U<id>` through the dashboard, automatic
+  shared-WiFi `/telemetry` IP discovery by `fixture_id`, wait-out of the 35 s targeted
+  maintenance tail, OTA via `net_bench_ota.py --reboot comms`, and dashboard rejoin
+  verification. Example:
+  `python ops/bench/field_cycle_ota.py 9F26F8 --hex-lit 18 --brightness 128`.
 - `ops/bench/net_bench_summary.py` -- per-peer + aggregate stats + scale extrapolation.
 - `ops/bench/net_bench_serial_bridge.py` -- relay a `--serial-bridge` board's USB serial
   to UDP:54321, so all the UDP tooling above works from a desk-tethered bridge (no

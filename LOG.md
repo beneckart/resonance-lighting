@@ -12,6 +12,50 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-05 - Codex - Field-cycle OTA helper guardrails
+
+Reviewed `ops/bench/field_cycle_ota.py` as the bench-specific wrapper for targeted
+field-cycle OTAs. Kept the scope intentionally narrow, but added two guardrails from
+the 2026-07-05 `9F26F8` OTA:
+
+- `--maint-resend-s` re-sends targeted `U<id>` during discovery so a sleeping field
+  peer has multiple chances to catch the maintenance command.
+- `--ip` now validates `/telemetry` fixture identity before upload unless explicitly
+  overridden with `--trust-ip`.
+
+Also added a TODO to later extract the generic OTA workflow primitives into a shared
+Python module once production firmware/deployment tooling needs them. For now,
+`field_cycle_ota.py` remains a field-cycle pit-crew helper, not a general deployment
+framework.
+
+## 2026-07-05 - Codex - Aggressive HEX-load field-cycle v5 OTA
+
+Ben freed disk space and asked to OTA the higher-information solar cycle build. Bumped
+`firmware/net_bench/net_bench.ino` to `net-bench-2026-07-05.1` and built a peer image
+for outdoor node `9F26F8` with the same state thresholds but a heavier dark-period
+HEX load:
+
+```
+--field-low-mv 3100 --field-critical-mv 3000 --field-low-confirm-s 60
+--field-led-load --drawdown-lit 18 --drawdown-brightness 128
+```
+
+Targeted `U9F26F8` maintenance worked, but the peer disappears from the ESP-NOW
+dashboard while it is in WiFi-only maintenance, so the IP must be discovered from the
+shared WiFi side. A subnet `/telemetry` scan found `9F26F8` at `192.168.4.71`.
+`ops/bench/net_bench_ota.py --reboot comms` uploaded the v5 image successfully; the
+peer rejoined ESP-NOW as `fw=net-bench-2026-07-05.1`, `reset_reason=software`,
+`maint_status=0`, then resumed field-cycle charge/sleep behavior.
+
+Started a fresh 48 h logger:
+
+- `ops/bench/data/ca/2026-07-05-ca-field-cycle-9F26F8-hexload-v2-aggressive.jsonl`
+
+First post-OTA charge sample showed about `battery_v=3.395 V`, `supply_w=0.94 W`,
+`battery_w=0.59 W`, `lux=18079`, BQ charge current target near `1480 mA`, and
+`field_phase=charge`. Between 5-minute charge wakes the dashboard peer row will age
+out; that is expected for this experiment, not by itself a dropout.
+
 ## 2026-07-03 - Codex - HEX-load field-cycle v4 OTA after bridge/peer swap
 
 Swapped the bench roles so the PowerFeather with the soldered HEX header (`9F26F8`)
