@@ -65,6 +65,17 @@ export function SelfMapPanel() {
     setBusy("solving…");
     setTimeout(() => {
       anchors.current = [...anchors.current, ...extra];
+      // MANUAL ADJUSTMENTS feed the solver: any installer-confirmed entry in
+      // the calibration map (e.g. re-slotted by hand in the Fleet panel) is an
+      // anchor here — human truth always outranks the solver's own hypotheses
+      const macsInSurvey = new Set(nodes.map((n) => n.mac));
+      const manual = loadCalibration().entries
+        .filter((e) => (e.stage === "confirmed" || e.stage === "locked") && macsInSurvey.has(e.mac))
+        .map((e) => ({ mac: e.mac, fixtureId: e.fixtureId }));
+      const byMac = new Map<string, Anchor>();
+      for (const a of anchors.current) byMac.set(a.mac, a);
+      for (const a of manual) byMac.set(a.mac, a); // map-confirmed wins on conflict
+      anchors.current = [...byMac.values()];
       const res = solveMapping(nodes, slots, anchors.current);
       setResult(res);
       const score = scoreAgainstTruth(res, survey.truth);

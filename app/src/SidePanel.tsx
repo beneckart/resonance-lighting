@@ -10,6 +10,7 @@ import { AiPilot } from "./AiPilot";
 import { CommissioningPanel } from "./CommissioningPanel";
 import { AutoCalPanel } from "./AutoCalPanel";
 import { SelfMapPanel } from "./SelfMapPanel";
+import { FleetPanel } from "./FleetPanel";
 
 /** THE DOCK — Elliot's split-screen layout: tree on the left, ONE organized,
  *  scrollable panel on the right. Pick the MODE first; the panel shows only that
@@ -39,6 +40,7 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
     { key: "controls", el: <Controls /> }, // EQ/strobe/auto-VJ toggles live here too
   ],
   calibrate: [
+    { key: "fleet", el: <FleetPanel /> }, // two-way bridge: live MAC ledger + manual re-slot
     { key: "selfmap", el: <SelfMapPanel /> }, // staged sync: survey → solve → confirm → lock
     { key: "autocal", el: <AutoCalPanel /> },
     { key: "commission", el: <CommissioningPanel /> },

@@ -1,0 +1,264 @@
+{
+ "meta": {
+  "source": "bench:10-light-rope",
+  "exported": "2026-07-05",
+  "up_axis": "Z",
+  "units": "m",
+  "count": 10,
+  "bbox": {
+   "min": [
+    -8.5,
+    0.0,
+    0.4
+   ],
+   "max": [
+    8.5,
+    0.6,
+    3.2
+   ]
+  },
+  "schema": "resonance.fixtures/0.3"
+ },
+ "fixtures": [
+  {
+   "fixture_id": "B000",
+   "name": "bench-down-1",
+   "role": "downlight",
+   "position": [
+    -7,
+    0.0,
+    2.2
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B001",
+   "name": "bench-down-2",
+   "role": "downlight",
+   "position": [
+    -5,
+    0.0,
+    2.7
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B002",
+   "name": "bench-down-3",
+   "role": "downlight",
+   "position": [
+    -3,
+    0.0,
+    3.2
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B003",
+   "name": "bench-down-4",
+   "role": "downlight",
+   "position": [
+    -1,
+    0.0,
+    2.2
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B004",
+   "name": "bench-down-5",
+   "role": "downlight",
+   "position": [
+    1,
+    0.0,
+    2.7
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B005",
+   "name": "bench-down-6",
+   "role": "downlight",
+   "position": [
+    3,
+    0.0,
+    3.2
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B006",
+   "name": "bench-down-7",
+   "role": "downlight",
+   "position": [
+    5,
+    0.0,
+    2.2
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B007",
+   "name": "bench-down-8",
+   "role": "downlight",
+   "position": [
+    7,
+    0.0,
+    2.7
+   ],
+   "aim": [
+    0,
+    0,
+    -1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 120,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B008",
+   "name": "bench-up-1",
+   "role": "uplight",
+   "position": [
+    -8.5,
+    0.6,
+    0.4
+   ],
+   "aim": [
+    0,
+    0,
+    1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "fixture_id": "B009",
+   "name": "bench-up-2",
+   "role": "uplight",
+   "position": [
+    8.5,
+    0.6,
+    0.4
+   ],
+   "aim": [
+    0,
+    0,
+    1
+   ],
+   "zone": "bench",
+   "led_type": "rgbw_4w",
+   "lumens_max": 450,
+   "beam_deg": 60,
+   "design_color": [
+    1,
+    1,
+    1
+   ]
+  }
+ ]
+}
