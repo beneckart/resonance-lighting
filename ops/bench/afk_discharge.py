@@ -21,6 +21,13 @@ PRE-REQS (do these in the morning, board present so you can tap reset if the 3V3
   ./afk_discharge.py --led-ip 192.168.4.63 --ina-port /dev/ttyACM2
   ./afk_discharge.py --led-ip ... --load RGBW --cutoff-v 2.5     # standard LFP empty
   ./afk_discharge.py --led-ip ... --cutoff-v 2.1                 # let it ride to brownout
+  ./afk_discharge.py --led-ip ... --no-ina                       # gauge-only rig (no INA
+                                                                 # monitor; 2nd board of a
+                                                                 # two-cell crossover run)
+  # Two rigs, ONE 4-ch monitor: ina_logger.py owns the port; both instances tail its file:
+  #   ./ina_logger.py --port /dev/ttyACM2 --out data/ca/<date>-ina.log &
+  #   ./afk_discharge.py --led-ip <rig1> --ina-file data/ca/<date>-ina.log                 # 0x45/0x41
+  #   ./afk_discharge.py --led-ip <rig2> --ina-file ... --batt-ch 0x40 --led-ch 0x44
 
 Stdlib + pyserial. Writes data/<site>/<date>-discharge-<hhmm>.jsonl + a live table.
 """
@@ -46,6 +53,8 @@ ap.add_argument("--ina-avg", type=float, default=2.0, help="seconds of INA avera
 ap.add_argument("--max-min", type=float, default=720.0, help="absolute time cap (min)")
 ap.add_argument("--down-stop-s", type=float, default=120.0, help="stop if unreachable this long (=brownout/protect)")
 ap.add_argument("--allow-usb", action="store_true", help="skip the wait-for-USB-unplug at start")
+ap.add_argument("--no-ina", action="store_true", help="no INA monitor on this rig: gauge integral only (mah_ina stays 0)")
+ap.add_argument("--ina-file", default=None, help="tail an ina_logger.py file instead of opening the serial port (two rigs sharing one monitor)")
 ap.add_argument("--site", default="ca")
 ap.add_argument("--notes", default="aggressive full discharge: capacity + gauge learn (mule cell)")
 ap.add_argument("--out", default=None)
@@ -54,22 +63,43 @@ a = ap.parse_args()
 r, g, b, w = (a.r, a.g, a.b, a.w) if a.load == "custom" else LOADS[a.load]
 ledch, battch = a.led_ch.lower(), a.batt_ch.lower()
 
-ser = serial.Serial(a.ina_port, 115200, timeout=0.3)
+ser = ina_fh = None
+if a.ina_file:
+    ina_fh = open(a.ina_file, "r")
+    ina_fh.seek(0, os.SEEK_END)  # only lines written from now on belong to this run
+elif not a.no_ina:
+    ser = serial.Serial(a.ina_port, 115200, timeout=0.3)
 rx = re.compile(r"ina t=\d+ ch=(0x[0-9a-fA-F]+) bus_v=([\-\d.]+) shunt_mv=(-?[\d.]+) ma=(-?[\d.]+)")
+ina_tail = ""  # partial last line between --ina-file reads (writer may be mid-line)
+
+def _ingest(line, acc):
+    m = rx.search(line)
+    if not m:
+        return
+    try:
+        if abs(float(m.group(4))) > 4500:  # beyond the INA's +-4A range = corrupt-but-parseable line
+            return
+        acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
+    except ValueError:
+        pass  # mangled serial line (two INA lines interleaved) -- skip
 
 def read_ina(secs):
-    ser.reset_input_buffer()
+    global ina_tail
     acc = {}
-    t0 = time.time()
-    while time.time() - t0 < secs:
-        m = rx.search(ser.readline().decode("utf-8", "replace"))
-        if m:
-            try:
-                if abs(float(m.group(4))) > 4500:  # beyond the INA's +-4A range = corrupt-but-parseable line
-                    continue
-                acc.setdefault(m.group(1).lower(), []).append((float(m.group(4)), float(m.group(2))))
-            except ValueError:
-                pass  # mangled serial line (two INA lines interleaved) -- skip
+    if ina_fh is not None:
+        time.sleep(secs)  # window = everything ina_logger appended since the last sample
+        lines = (ina_tail + ina_fh.read()).split("\n")
+        ina_tail = lines.pop()
+        for line in lines:
+            _ingest(line, acc)
+    elif ser is not None:
+        ser.reset_input_buffer()
+        t0 = time.time()
+        while time.time() - t0 < secs:
+            _ingest(ser.readline().decode("utf-8", "replace"), acc)
+    else:
+        time.sleep(secs)  # gauge-only rig: keep the sample cadence comparable
+        return {}
     return {ch: dict(ma=statistics.mean(x[0] for x in v), bus=statistics.mean(x[1] for x in v), n=len(v))
             for ch, v in acc.items()}
 
@@ -191,6 +221,9 @@ if dN:
     socN = dN.get("soc_pct")
 dur = (time.time() - t_run0) / 60.0
 print(f"\nDONE ({stop}) after {dur:.1f} min | resets={resets}")
-print(f"USABLE CAPACITY (INA 0x45 integral) = {mah_ina:.0f} mAh ; gauge integral = {mah_gauge:.0f} mAh")
+if a.no_ina:
+    print(f"GAUGE-ONLY RUN: gauge integral = {mah_gauge:.0f} mAh (raw; /1.08 bias-corrected ~{mah_gauge/1.08:.0f} mAh; no INA truth on this rig)")
+else:
+    print(f"USABLE CAPACITY (INA {battch} integral) = {mah_ina:.0f} mAh ; gauge integral = {mah_gauge:.0f} mAh")
 print(f"gauge SOC {soc_start}% -> {socN}%  (compare INA mAh to SOC swing for the DesignCap fix)")
 print("JSONL:", out, "\nNext: ./afk_analyze.py", out)
