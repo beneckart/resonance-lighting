@@ -1,4 +1,5 @@
 import { Soundfont } from "smplr";
+import { asset } from "./fixtures";
 
 // PIANO AUDIO — plays a REAL sampled acoustic grand piano (recorded notes, via
 // smplr) so it sounds like an actual piano, not a chiptune. Until the samples
@@ -38,7 +39,7 @@ export function setPianoSound(on: boolean) {
         // sampled grand piano from the VENDORED soundfont (public/soundfont/) — the
         // whole system, sound included, runs offline from a fresh clone. Falls back
         // to the CDN copy only if the local file is somehow missing.
-        const local = { instrument: "acoustic_grand_piano", instrumentUrl: "/soundfont/acoustic_grand_piano-mp3.js", volume: 100, destination: out };
+        const local = { instrument: "acoustic_grand_piano", instrumentUrl: asset("/soundfont/acoustic_grand_piano-mp3.js"), volume: 100, destination: out };
         piano = new Soundfont(ctx, local);
         piano.load.then(() => { pianoReady = true; }).catch(() => {
           try {

@@ -1,4 +1,13 @@
 // fixtures.json contract (resonance.fixtures/0.1) — the neutral geometry handoff.
+
+/** Base-aware asset URL: the app normally serves from "/", but the published
+ *  copy on the Resonance Network site lives under "/lighting/" (vite
+ *  --base=/lighting/). Every runtime fetch/loader path goes through here so
+ *  ONE build flag relocates the whole app. */
+export function asset(p: string): string {
+  const base = import.meta.env.BASE_URL ?? "/";
+  return base.replace(/\/$/, "") + p;
+}
 export interface Fixture {
   fixture_id: string;
   name: string;
@@ -30,7 +39,7 @@ export function blenderToThree(p: [number, number, number]): [number, number, nu
   return [p[0], p[2], -p[1]];
 }
 
-export async function loadFixtures(url = "/fixtures.json"): Promise<FixturesDoc> {
+export async function loadFixtures(url = asset("/fixtures.json")): Promise<FixturesDoc> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fixtures.json ${res.status}`);
   return res.json();

@@ -4,6 +4,7 @@ import { SHOWS, showById } from "./shows";
 import { resetPiano, setPiece, PIECE_LIST, currentPiece, loadMidiPiece } from "./piano";
 import { setPianoSound } from "./pianoAudio";
 import { Widget } from "./Widget";
+import { asset } from "./fixtures";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -19,9 +20,9 @@ export function ShowsPanel() {
   // auto-load any full-score .mid files listed in /midi/manifest.json (drop your
   // own public-domain MIDIs there → they appear as pieces). Graceful if absent.
   useEffect(() => {
-    fetch("/midi/manifest.json").then((r) => (r.ok ? r.json() : [])).then(async (list: { id: string; name: string; file: string }[]) => {
+    fetch(asset("/midi/manifest.json")).then((r) => (r.ok ? r.json() : [])).then(async (list: { id: string; name: string; file: string }[]) => {
       let added = false;
-      for (const m of list || []) if (await loadMidiPiece(m.id, m.name, "/midi/" + m.file)) added = true;
+      for (const m of list || []) if (await loadMidiPiece(m.id, m.name, asset("/midi/" + m.file))) added = true;
       if (added) setPieces([...PIECE_LIST]);
     }).catch(() => { /* no manifest — fine */ });
   }, []);

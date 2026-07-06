@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId } from "./store";
 import { startMic, startTrack, stopAudio, audioFeatures, listAudioInputs, type AudioInput } from "./audio";
+import { asset } from "./fixtures";
 
 /** A real-feeling virtual DJ controller (C): two spinning platters, crossfader,
  *  3-band EQ, tempo, transport + a performance-pad grid. Wired to the twin store
@@ -369,7 +370,7 @@ export function DjController() {
           {toggle(control.audioSpeed, "🎵 RX-SPD", () => set({ audioSpeed: !control.audioSpeed }), "#3ddc97")}
           {toggle(audioOn, audioOn ? "■ STOP" : "▶ TRACK", () => {
             if (audioOn) { stopAudio(); setAudioOn(false); }
-            else { startTrack("/audio/test-beat-124bpm.wav"); setAudioOn(true); }
+            else { startTrack(asset("/audio/test-beat-124bpm.wav")); setAudioOn(true); }
           }, "#3ddc97")}
           {toggle(false, "🎤 MIC", () => { startMic(deviceId || undefined); setAudioOn(true); })}
         </div>

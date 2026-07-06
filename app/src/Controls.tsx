@@ -7,6 +7,7 @@ import { encodeFixture } from "./protocol";
 import { autoBalanceGain } from "./sensors";
 import { startMidi, ccToControl } from "./midi";
 import { Widget } from "./Widget";
+import { asset } from "./fixtures";
 
 const row: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 4, margin: "8px 0" };
 
@@ -287,7 +288,7 @@ export function Controls() {
         sound → reactive {bpm > 0 && <b style={{ color: "#7fe0a0" }}>· {bpm} BPM</b>}
       </div>
       <div style={row}>
-        <button style={btn(false)} onClick={() => startTrack("/audio/test-beat-124bpm.wav").catch(console.error)}>
+        <button style={btn(false)} onClick={() => startTrack(asset("/audio/test-beat-124bpm.wav")).catch(console.error)}>
           🎶 test track
         </button>
         <button style={btn(false)} onClick={() => startMic().catch(console.error)}>🎤 mic</button>

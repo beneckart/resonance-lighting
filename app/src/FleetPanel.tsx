@@ -8,7 +8,7 @@ import {
 } from "./macregistry";
 import { macFromNum } from "./selfmap";
 import { loadCalibration, saveCalibration, assign as assignEntry, resolveFixtureId } from "./calibration";
-import { loadFixtures, validateFixturesDoc } from "./fixtures";
+import { asset, loadFixtures, validateFixturesDoc } from "./fixtures";
 
 /** FLEET — the live two-way bridge console (Elliot's 2026-07-05 spec).
  *
@@ -177,13 +177,13 @@ export function FleetPanel() {
 
   const loadBench10 = async () => {
     disconnect();
-    const doc = await loadFixtures("/fixtures-bench10.json");
+    const doc = await loadFixtures(asset("/fixtures-bench10.json"));
     const v = validateFixturesDoc(doc);
     if (v.ok) useTwin.getState().init(doc);
   };
   const loadTree = async () => {
     disconnect();
-    const doc = await loadFixtures("/fixtures.json");
+    const doc = await loadFixtures(asset("/fixtures.json"));
     const v = validateFixturesDoc(doc);
     if (v.ok) useTwin.getState().init(doc);
   };

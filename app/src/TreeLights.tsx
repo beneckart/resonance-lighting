@@ -17,6 +17,7 @@ import { applyEnv } from "./sensors";
 import { easeGroundTint } from "./groundtint";
 import { createGlslPass, type GlslPass } from "./glslPass";
 import { playUnityFanfare } from "./unityAudio";
+import { asset } from "./fixtures";
 
 // Global pattern-motion slowdown (everything was tuned too fast). 1.0 = old
 // frantic baseline; lower = calmer. The speed dial multiplies on top of this.
@@ -55,19 +56,19 @@ export function TreeLights() {
   const glslRef = useRef<GlslPass | null>(null); // lazy GPU pattern pass (glslMode)
   // anchor the floor cookies to the VISIBLE TREE base (its glb bbox bottom) — same
   // surface the gobo floor uses — so the projected orbs sit ON the ground, not below
-  const { scene: treeScene } = useGLTF("/tree-context.glb");
+  const { scene: treeScene } = useGLTF(asset("/tree-context.glb"));
   const groundY = useMemo(() => {
     const minY = new Box3().setFromObject(treeScene).min.y;
     return Number.isFinite(minY) ? minY : center[1] - treeSize * 0.5;
   }, [treeScene, center, treeSize]);
-  const gobo = useTexture("/gobo.png");
+  const gobo = useTexture(asset("/gobo.png"));
   gobo.colorSpace = SRGBColorSpace;
 
   // The REAL downlight fixture body (blender's downlight_lantern.glb) — the LED
   // is buried in the tube, so the BODY itself is what we see, glowing with the
   // pattern colour (the source is hidden, not a bare floating dot). Swappable:
   // drop a new glb in /public and it re-instances. The glb hangs along -Y.
-  const { scene: lanternScene } = useGLTF("/downlight_lantern.glb");
+  const { scene: lanternScene } = useGLTF(asset("/downlight_lantern.glb"));
   const lanternGeom = useMemo<BufferGeometry>(() => {
     const geos: BufferGeometry[] = [];
     lanternScene.updateMatrixWorld(true);

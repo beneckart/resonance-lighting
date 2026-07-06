@@ -9,14 +9,15 @@ import { TreeLights } from "./TreeLights";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { groundTint } from "./groundtint";
 import { parseIES } from "./ies";
+import { asset } from "./fixtures";
 
 /** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
 function GoboFloor() {
   const center = useTwin((s) => s.center);
   const size = useTwin((s) => s.size);
-  const gobo = useTexture("/gobo.png"); // real skirt-petal projection (blender-architect bake)
+  const gobo = useTexture(asset("/gobo.png")); // real skirt-petal projection (blender-architect bake)
   gobo.colorSpace = SRGBColorSpace;
-  const { scene: treeScene } = useGLTF("/tree-context.glb");
+  const { scene: treeScene } = useGLTF(asset("/tree-context.glb"));
   const light = useRef<ThreeSpotLight>(null);
   const target = useMemo(() => new Object3D(), []);
   // Anchor the ground to the VISIBLE TREE's base (the glb's bbox bottom), NOT the
@@ -32,7 +33,7 @@ function GoboFloor() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/downlight.ies")
+    fetch(asset("/downlight.ies"))
       .then((r) => r.text())
       .then((t) => {
         const p = parseIES(t);
@@ -97,7 +98,7 @@ function GoboFloor() {
  *  and near-opaque so the lantern glow leaks through it; the bamboo structure is
  *  lighter + more translucent. */
 function TreeContext() {
-  const { scene } = useGLTF("/tree-context.glb");
+  const { scene } = useGLTF(asset("/tree-context.glb"));
   const styled = useMemo(() => {
     const s = scene.clone(true);
     const bamboo = new MeshStandardMaterial({
@@ -120,7 +121,7 @@ function TreeContext() {
 /** The central chandelier (ring + wind-chimes) hung at the crown — blender-
  *  architect's chandelier.glb, world-space so it lands at the crown fixtures. */
 function Chandelier() {
-  const { scene } = useGLTF("/chandelier.glb");
+  const { scene } = useGLTF(asset("/chandelier.glb"));
   const fixtures = useTwin((s) => s.fixtures);
   const styled = useMemo(() => {
     const s = scene.clone(true);
@@ -240,4 +241,4 @@ export function Scene() {
   );
 }
 
-useGLTF.preload("/tree-context.glb");
+useGLTF.preload(asset("/tree-context.glb"));
