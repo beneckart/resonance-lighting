@@ -57,7 +57,10 @@ export type UpFrame = HbFrame | EvtFrame;
 export interface ShowDown { kind: "show"; phase: number; hue: number; flags: number } // NbShowFrame
 export interface IdentifyDown { kind: "identify"; mac: string | null; seconds: number } // NB_IDENTIFY (null = all)
 export interface SetRateDown { kind: "set_rate"; hbHz: number; frameHz: number } // NB_SET_RATE
-export type DownFrame = ShowDown | IdentifyDown | SetRateDown;
+/** PROPOSED NB_RULESET — broadcast a compiled rule table (rules.ts bytes,
+ *  ≤ 240 B = one frame); nodes store it in flash and run it locally. */
+export interface RulesetDown { kind: "ruleset"; epoch: number; bytes: number[] }
+export type DownFrame = ShowDown | IdentifyDown | SetRateDown | RulesetDown;
 
 // ── the seam ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +73,8 @@ export interface BridgeLink {
   onUp(cb: (f: UpFrame) => void): () => void;
   connected(): boolean;
 }
+
+import { decodeRules, evalRules, PATTERNS, type RuleSet, type SensorInputs } from "./rules";
 
 // ── MOCK bridge: a tick-driven fleet sim behind the same seam ────────────────
 /** Simulates N fixtures running their rules LOCALLY (the control-plane
@@ -107,6 +112,11 @@ export class MockBridge implements BridgeLink {
   private nowMs = 0;
   private hbHz = 2; // Ben's NB_HB_HZ default
   private rnd: () => number;
+  /** the rule table each node stored in "flash" (decoded from the broadcast) */
+  private ruleset: RuleSet | null = null;
+  /** shared environment for the sim (per-node inputs like soc are per node) */
+  env: { hour: number; presence: number; sound: number; supply: number } =
+    { hour: 21, presence: 0, sound: 0, supply: 0 };
 
   constructor(specs: MockNodeSpec[], seed = 1) {
     let s = (seed >>> 0) || 1;
@@ -149,8 +159,27 @@ export class MockBridge implements BridgeLink {
       }
     } else if (frame.kind === "set_rate") {
       this.hbHz = Math.max(0.1, Math.min(10, frame.hbHz));
+    } else if (frame.kind === "ruleset") {
+      // ONE broadcast reprograms the whole fleet's behavior (rules are data)
+      this.ruleset = decodeRules(new Uint8Array(frame.bytes));
+      for (const n of this.nodes) {
+        n.seq += 1;
+        this.emit({ kind: "evt", mac: n.spec.mac, seq: n.seq, event: "state", value: frame.epoch });
+      }
     }
     // "show" frames: params only — nodes render locally; no uplink needed
+  }
+
+  /** what a node's rule engine sees this tick (soc/presence are ITS OWN) */
+  private inputsFor(n: MockNode): SensorInputs {
+    return {
+      hour: this.env.hour,
+      soc: Math.round(n.soc),
+      presence: this.env.presence, // sim: shared presence wave; real: per-node ToF
+      sound: this.env.sound,
+      supply: this.env.supply,
+      mode: n.mode,
+    };
   }
 
   /** A person touches/triggers a physical light (presence, tap sensor).
@@ -171,9 +200,20 @@ export class MockBridge implements BridgeLink {
     const hbPeriod = 1000 / this.hbHz;
     for (const n of this.nodes) {
       n.uptimeMs += dtMs;
-      // local rules advance state with NO radio (the whole point) — but a
-      // state edge emits one tiny event frame (the proposed NB_STATE_EVT)
-      if (this.nowMs >= n.nextEdgeMs) {
+      if (this.ruleset) {
+        // RULE ENGINE (what firmware runs): first match wins, local inputs only
+        const hit = evalRules(this.ruleset, this.inputsFor(n));
+        const pattern = hit ? PATTERNS[hit.action.pattern] : 0;
+        const ruleIdx = hit ? hit.index : 255;
+        if (pattern !== n.caState || ruleIdx !== n.mode) {
+          n.caState = pattern;
+          n.mode = ruleIdx;
+          n.seq += 1;
+          // rule switch = a state edge → one tiny instant event
+          this.emit({ kind: "evt", mac: n.spec.mac, seq: n.seq, event: "state", value: pattern });
+        }
+      } else if (this.nowMs >= n.nextEdgeMs) {
+        // no ruleset: legacy local pattern clock advancing state with NO radio
         n.caState = (n.caState + 1) % 8;
         n.seq += 1;
         this.emit({ kind: "evt", mac: n.spec.mac, seq: n.seq, event: "state", value: n.caState });

@@ -43,7 +43,8 @@ export function FleetPanel() {
   const tapSentAt = useRef<Record<string, number>>({});
   const [calVersion, setCalVersion] = useState(0);
   const [editMac, setEditMac] = useState<string | null>(null);
-  const calMap = useMemo(() => loadCalibration(), [calVersion, connected]); // eslint-disable-line react-hooks/exhaustive-deps
+  void calVersion; // reslot bumps this to force a re-read below
+  const calMap = loadCalibration(); // fresh each render — SelfMap writes show up live
   const [hbHz, setHbHz] = useState(2);
 
   const specs = useMemo(
@@ -107,6 +108,11 @@ export function FleetPanel() {
       const b = bridge.current;
       if (b instanceof MockBridge) b.tick(1000 / UI_HZ);
       sweepOffline(reg.current, Date.now());
+      const cutoff = Date.now();
+      setFlash((m) => {
+        const live = Object.entries(m).filter(([, until]) => until > cutoff);
+        return live.length === Object.keys(m).length ? m : Object.fromEntries(live);
+      });
       bump((v) => v + 1);
     }, 1000 / UI_HZ);
     return () => window.clearInterval(t);
@@ -230,7 +236,7 @@ export function FleetPanel() {
         )}
         {/* the ledger */}
         {records.length > 0 && (
-          <div style={{ maxHeight: 230, overflowY: "auto", border: "1px solid #1d2735", borderRadius: 8 }}>
+          <div style={{ maxHeight: 230, overflowY: "auto", overflowX: "auto", border: "1px solid #1d2735", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", font: "10.5px ui-monospace, monospace" }}>
               <thead>
                 <tr style={{ color: "#7e8ca1", textAlign: "left", position: "sticky", top: 0, background: "#0d1420" }}>

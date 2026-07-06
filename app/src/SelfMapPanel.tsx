@@ -45,6 +45,7 @@ export function SelfMapPanel() {
   const runSurvey = () => {
     setBusy("surveying…");
     setTimeout(() => {
+      try {
       const sim = simulateSurvey(fixtures, { seed, maxRangeM: radioRange, placementJitterM: drift });
       // route through the REAL wire shapes: sim nodes → cal_rssi/cal_tof frames → fold
       const session = seed;
@@ -56,7 +57,7 @@ export function SelfMapPanel() {
       setRounds([]);
       setLocked(null);
       anchors.current = [];
-      setBusy(null);
+      } finally { setBusy(null); }
     }, 30);
   };
 
@@ -64,6 +65,7 @@ export function SelfMapPanel() {
     if (!nodes || !survey) return;
     setBusy("solving…");
     setTimeout(() => {
+      try {
       anchors.current = [...anchors.current, ...extra];
       // MANUAL ADJUSTMENTS feed the solver: any installer-confirmed entry in
       // the calibration map (e.g. re-slotted by hand in the Fleet panel) is an
@@ -91,7 +93,7 @@ export function SelfMapPanel() {
           : { stage: "hypothesis", confidence: e.confidence, method: "mesh" });
       }
       saveCalibration(map);
-      setBusy(null);
+      } finally { setBusy(null); }
     }, 30);
   };
 
