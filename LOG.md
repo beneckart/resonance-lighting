@@ -12,6 +12,16 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-06 - Codex - Low-VBAT OTA boundary TODO
+
+Added a TODO to bracket the true low-VBAT OTA boundary on the current shared-WiFi
+path with historical confounders removed. The clean successes so far are around
+3.10 V loaded battery-only, 2.901 V solar-assisted, and 2.496 V USB-assisted, while
+the lower-voltage "failures" in the logs are contaminated by wrong maintenance paths,
+stale WiFi secrets, deprecated AP-mode images, or pre-upload failures. Future tests
+should record separate bounds for battery-only, solar/VDC-assisted, and USB-assisted
+OTA using known-good credentials and targeted `U<id>` maintenance.
+
 ## 2026-07-05 - Codex - Field-cycle OTA helper guardrails
 
 Reviewed `ops/bench/field_cycle_ota.py` as the bench-specific wrapper for targeted

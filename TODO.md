@@ -60,6 +60,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the earlier 2.95-3.03 V failures were wrong-path/pre-upload failures with stale WiFi
   secrets, AP-contaminated firmware, and/or pre-`.5` watchdog behavior; they do **not**
   prove low VBAT was the root cause (Ben/Codex).
+- [ ] Bracket the true low-VBAT OTA boundary on the current shared-WiFi path with
+  historical confounders removed. Use known-good WiFi secrets, no deprecated
+  `NB_MAINT_AP` images, targeted `U<id>` / `field_cycle_ota.py` maintenance discovery,
+  and explicit pre/post voltage plus supply state. Record separate brackets for:
+  battery-only/no-supply, solar/VDC-assisted, and USB-assisted. Current clean
+  successes: about 3.10 V loaded battery-only, 2.901 V solar-assisted, and 2.496 V
+  USB-assisted. Current lower-voltage "failures" around 2.57 V, 2.95 V, and
+  3.02-3.03 V are pre-upload/wrong-path/stale-secret/AP-contaminated data, not clean
+  OTA voltage cutoffs (Ben/Codex).
 - [x] Add a targeted shared-WiFi maintenance command (`U<id>` or dashboard peer action)
   so a single-peer OTA does not pull every awake peer off ESP-NOW. **DONE 2026-06-30
   in `net-bench-2026-06-30.6`:** the bridge accepts `U9E5AB8`-style sustained targeted
