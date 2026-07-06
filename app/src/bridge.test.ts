@@ -113,7 +113,7 @@ describe("MAC registry (map + log every light)", () => {
     applyHeartbeat(reg, hb("AABBCC", 1), 1000);
     applyEvent(reg, { kind: "evt", mac: "AABBCC", seq: 2, event: "tap", value: 6 }, 1100);
     expect(reg.records["AABBCC"].caState).toBe(6);
-    expect(reg.events.at(-1)!.kind).toBe("tap");
+    expect(reg.events[reg.events.length - 1].kind).toBe("tap");
   });
 
   it("offline sweep flags quiet nodes, heartbeat brings them back online", () => {
