@@ -19,29 +19,40 @@ import type { SimFixture } from "./store";
  *  Protocol-v1 frames stay fixtureId-addressed; the cortex holds this map to
  *  translate fixtureId ⇄ MAC on the wire. */
 
+export type EntryStage = "hypothesis" | "confirmed" | "locked";
+export type EntryMethod = "manual" | "mesh" | "photo";
+
 export interface FixtureMapEntry {
   mac: string; // e.g. "A1B2C3" (compactIdFromMac: last 3 MAC bytes)
   fixtureId: string; // fixtures.json fixture_id, e.g. "F012"
   at: string; // ISO timestamp of assignment
+  // v2 (staged sync protocol) — optional so v1 entries stay valid:
+  stage?: EntryStage; // where on the confidence ladder this entry sits
+  confidence?: number; // 0..1 at assignment time (1 for manual confirms)
+  method?: EntryMethod; // what produced it (mesh solve / installer tap / photo)
 }
 
 export interface CalibrationMap {
-  version: 1;
+  version: 2;
   entries: FixtureMapEntry[];
 }
 
-const KEY = "resonance.calibration.v1";
+const KEY = "resonance.calibration.v1"; // storage key kept stable across versions
 
 export function emptyMap(): CalibrationMap {
-  return { version: 1, entries: [] };
+  return { version: 2, entries: [] };
 }
 
 export function loadCalibration(): CalibrationMap {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return emptyMap();
-    const m = JSON.parse(raw) as CalibrationMap;
-    return m && Array.isArray(m.entries) ? { version: 1, entries: m.entries } : emptyMap();
+    const m = JSON.parse(raw) as { version?: number; entries?: FixtureMapEntry[] };
+    if (!m || !Array.isArray(m.entries)) return emptyMap();
+    // migrate v1 → v2: hand-commissioned entries are installer-confirmed truth
+    const entries = m.entries.map((e) =>
+      e.stage ? e : { ...e, stage: "confirmed" as const, confidence: 1, method: "manual" as const });
+    return { version: 2, entries };
   } catch {
     return emptyMap();
   }
@@ -56,11 +67,30 @@ export function saveCalibration(m: CalibrationMap) {
 }
 
 /** Assign a MAC to a fixtureId (idempotent: replaces any prior mapping of either
- *  the MAC or the fixtureId so each maps 1:1). Pure — returns a new map. */
-export function assign(map: CalibrationMap, mac: string, fixtureId: string, at: string): CalibrationMap {
+ *  the MAC or the fixtureId so each maps 1:1). Pure — returns a new map.
+ *  Default provenance is an installer tap (confirmed/manual); the mesh solver
+ *  passes its own stage/confidence/method. */
+export function assign(
+  map: CalibrationMap,
+  mac: string,
+  fixtureId: string,
+  at: string,
+  meta: { stage: EntryStage; confidence: number; method: EntryMethod } = { stage: "confirmed", confidence: 1, method: "manual" },
+): CalibrationMap {
   const entries = map.entries.filter((e) => e.mac !== mac && e.fixtureId !== fixtureId);
-  entries.push({ mac, fixtureId, at });
-  return { version: 1, entries };
+  entries.push({ mac, fixtureId, at, ...meta });
+  return { version: 2, entries };
+}
+
+/** Promote every entry to `locked` (photogrammetry residuals accepted). */
+export function lockAll(map: CalibrationMap): CalibrationMap {
+  return { version: 2, entries: map.entries.map((e) => ({ ...e, stage: "locked" as const })) };
+}
+
+/** Entries the installer should walk with a flash-and-confirm pass. */
+export function unconfirmedEntries(map: CalibrationMap): FixtureMapEntry[] {
+  return map.entries.filter((e) => (e.stage ?? "confirmed") === "hypothesis")
+    .sort((a, b) => (a.confidence ?? 0) - (b.confidence ?? 0));
 }
 
 export function resolveFixtureId(map: CalibrationMap, mac: string): string | null {
