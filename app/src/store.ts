@@ -3,7 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { seedLife, setLifeState } from "./field";
+import { clearLife, seedLife, setFieldTheme, setLifeState } from "./field";
 import { themeById, themeHue } from "./themes";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
@@ -115,6 +115,14 @@ export interface GolState {
 }
 export const DEFAULT_GOL: GolState = { phase: "off", t0: 0, ambient: true, nodes: [], unity: false, unityT0: 0 };
 
+/** MODE-ENTRY ceremony (Elliot): picking an interactive rule first takes the tree
+ *  DARK (blank field), runs a short themed flourish so folks nearby KNOW the tree
+ *  is entering this mode, goes dark again, then the chosen automaton starts from
+ *  an empty board. Driven by IgnitionDriver, same as Game-of-Light ignition. */
+export type AnnouncePhase = "idle" | "dark" | "flourish" | "settle";
+export interface AnnounceState { phase: AnnouncePhase; target: PatternId; t0: number }
+export const DEFAULT_ANNOUNCE: AnnounceState = { phase: "idle", target: "life", t0: 0 };
+
 export interface SimFixture {
   id: string;
   name: string;
@@ -194,6 +202,7 @@ interface TwinState {
   triggerRule: TriggerRule; // interactivity rules editor: what a sensor-firing does
   caTheme: string; // interactive-mode colour THEME (themes.ts) — "" = free palette
   gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
+  announce: AnnounceState; // CA mode-entry ceremony (dark → flourish → blank start)
   uiMode: UiMode; // which operator mode the side panel shows (persisted)
   dock: boolean; // split-screen dock layout (tree left · one organized panel right)
   // GROUPS ABOVE MODES (Elliot): each group can run its OWN mode simultaneously —
@@ -230,6 +239,8 @@ interface TwinState {
   setCaTheme: (id: string) => void; // pick a colour theme for interactive mode
   armGol: () => void; // enter standby: dark, waiting for the first visitor
   golSetPhase: (p: GolPhase) => void; // ignition state machine (driven by IgnitionDriver)
+  enterCa: (r: PatternId) => void; // pick a CA rule WITH the entry ceremony (dark → announce → blank)
+  announceSetPhase: (p: AnnouncePhase) => void; // ceremony state machine (IgnitionDriver)
   golFirstVisitor: (idx: number) => void; // first visitor sensed → begin ignition
   addNode: (idx: number) => void; // a visitor activates a sensor → persistent node
   clearNodes: () => void;
@@ -285,6 +296,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   triggerRule: DEFAULT_TRIGGER_RULE,
   caTheme: (typeof localStorage !== "undefined" && localStorage.getItem("ca.theme")) || "ember",
   gol: DEFAULT_GOL,
+  announce: DEFAULT_ANNOUNCE,
   uiMode: (typeof localStorage !== "undefined" && (localStorage.getItem("ui.mode") as UiMode)) || "lightshow",
   dock: typeof localStorage !== "undefined" ? localStorage.getItem("ui.dock") !== "0" : true,
   groupModes: {},
@@ -559,8 +571,43 @@ export const useTwin = create<TwinState>((setState, get) => ({
     if (id === "random") setLifeState({ palette: "random" });
     else if (id === "ember") setLifeState({ palette: "warm" });
     else setLifeState({ palette: "theme", themeHues: t.hues });
+    // the OTHER engines (living / organism / ripples) pull their hues into the
+    // theme's world through this map — one theme, every mode
+    setFieldTheme(id === "random" ? null : t.hues);
     setState((s) => ({ caTheme: id, control: { ...s.control, sat: t.sat, hue: t.hues[0] ?? s.control.hue } }));
   },
+  // ── CA MODE-ENTRY ceremony: dark → themed flourish → dark → BLANK start ──
+  enterCa: (r) => {
+    const s = get();
+    const style = {
+      pattern: r as PatternId, colorCycle: "off" as const, order: "linear" as const, reverse: false,
+      strobe: false, beaconPreempt: false, master: 1, brightness: 0.95,
+    };
+    // Game of Light armed = it owns the lifecycle; announcing would fight it.
+    // Mid-ceremony re-picks just retarget the ceremony's landing rule.
+    if (s.gol.phase !== "off") { s.set({ ...style, blackout: false }); return; }
+    if (s.announce.phase !== "idle") { setState((st) => ({ announce: { ...st.announce, target: r } })); return; }
+    clearLife(); // the automaton must start from an EMPTY board
+    setState((st) => ({
+      control: { ...st.control, ...style, pattern: "life", blackout: true }, // life renders the flourish
+      announce: { phase: "dark", target: r, t0: performance.now() / 1000 },
+    }));
+  },
+  announceSetPhase: (p) => setState((s) => {
+    if (p === "idle") {
+      // ceremony over → land on the chosen rule with a BLANK field, lights ready
+      clearLife();
+      return {
+        announce: { ...s.announce, phase: "idle", t0: performance.now() / 1000 },
+        control: { ...s.control, pattern: s.announce.target, blackout: false },
+      };
+    }
+    return {
+      announce: { ...s.announce, phase: p, t0: performance.now() / 1000 },
+      control: { ...s.control, blackout: p !== "flourish" },
+    };
+  }),
+
   // ── GAME OF LIGHT lifecycle ──
   armGol: () => {
     setLifeState({ nodes: [], ambient: false });

@@ -13,6 +13,24 @@ import type { SimFixture } from "./store";
  *  State persists across frames (this is a simulation, not a stateless pattern). */
 export interface Attractor { x: number; y: number; z: number; hue: number; }
 
+// ── COLOUR THEME constraint for ALL the CA engines (Elliot: the picked theme —
+//    love, ocean, … — must hold across Game of Life, Excitable, the lot). The
+//    life engine themes its BIRTHS; free-running engines (living, organism,
+//    ripples) pass their computed hue through this map, which pulls it to the
+//    nearest theme anchor while keeping most of the local variation.
+let fieldThemeHues: number[] | null = null;
+export function setFieldTheme(hues: number[] | null) {
+  fieldThemeHues = hues && hues.length ? hues : null;
+}
+export function themeMapHue(h: number): number {
+  const t = fieldThemeHues;
+  if (!t) return h;
+  let best = t[0], bd = Infinity;
+  for (const a of t) { let d = Math.abs(a - h) % 1; d = Math.min(d, 1 - d); if (d < bd) { bd = d; best = a; } }
+  let off = h - best; off -= Math.round(off); // signed shortest offset
+  return ((best + off * 0.22) % 1 + 1) % 1; // compress toward the anchor, keep life
+}
+
 const TAU = Math.PI * 2;
 let phase = new Float32Array(0); // 0..1 firefly oscillator
 let hueF = new Float32Array(0); // 0..1 per-light hue (diffuses to neighbours)
@@ -89,7 +107,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
     }
 
     fieldOut.bri[i] = Math.min(1, 0.10 + 0.7 * env + 0.55 * aBoost);
-    fieldOut.hue[i] = hue;
+    fieldOut.hue[i] = themeMapHue(hue);
   }
 }
 
@@ -145,8 +163,15 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
 //    click/sensor seeds a blob tagged with the trigger rule's colour/brightness/duration;
 //    those "held" cells stay lit for their ttl (immune to rule-death), propagate to
 //    neighbours, then fade — so a touch's colour blooms and rolls out through the mesh.
-const BORN_LO = 2, BORN_HI = 3;   // graph-tuned "B2-3"
-const SURV_LO = 1, SURV_HI = 3;   // graph-tuned "S1-3"
+// EDITABLE rule (Elliot: "to accurately get the game of life patterns to work we
+// need to be able to edit the rules"). Defaults = the graph-tuned B2-3/S1-3.
+// `pure` = TEXTBOOK mode: no churn, no old-age, no refractory, no fatigue, no
+// extinction guard — exact birth/survive counts on the neighbour graph, so seeded
+// patterns evolve by the rule and nothing else (start it from a BLANK field).
+export interface LifeRules { bLo: number; bHi: number; sLo: number; sHi: number; pure: boolean }
+let lifeRules: LifeRules = { bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false };
+export function setLifeRules(r: Partial<LifeRules>) { lifeRules = { ...lifeRules, ...r }; }
+export function getLifeRules(): LifeRules { return { ...lifeRules }; }
 const LIFE_AGE_MAX = 12;          // ticks a cell counts up while alive
 let lifeCell = new Int8Array(0);  // 0 dead, 1..LIFE_AGE_MAX alive (age in ticks)
 let lifeRefr = new Int8Array(0);  // refractory countdown after death (dark-at-rest: waves burn out)
@@ -204,6 +229,15 @@ const rndHue = (i: number, gen: number) => { const x = Math.sin(i * 71.7 + gen *
  *  `hue` (reaction colour), `bri` (brightness), `ttl` (seconds the light stays on),
  *  `hops` (how far the blob spreads across neighbours). The Game of Life then carries
  *  the disturbance onward. Omitted fields fall back to the living field's defaults. */
+/** Wipe the field to BLANK (all dead, nothing pending) — the mode-entry contract:
+ *  the tree goes dark and the automaton starts from an empty board. */
+export function clearLife() {
+  lifeCell.fill(0); lifeRefr.fill(0); lifeTtl.fill(0); lifeGlow.fill(0);
+  lifeBri.fill(1);
+  lifeSeeds = []; lifePending = []; lifeFatigue = 0;
+  lifeOut.bri.fill(0);
+}
+
 export function seedLife(indices: number[], opts: SeedOpts = {}) {
   for (const i of indices) lifeSeeds.push({ i, o: opts });
   lifeFatigue = 0; // fresh stimulation → the field wakes up fully again
@@ -284,7 +318,7 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     const next = new Int8Array(n);
     const nextHue = new Float32Array(n);
     // dark-at-rest (ambient off): NO spontaneous churn — only nodes/taps light the tree
-    const churn = lifeAmbient ? 0.004 + 0.020 * Math.min(1.5, speed) : 0;
+    const churn = lifeAmbient && !lifeRules.pure ? 0.004 + 0.020 * Math.min(1.5, speed) : 0;
     let live = 0;
     for (let i = 0; i < n; i++) {
       const nb = fixtures[i].neighbors;
@@ -292,16 +326,16 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       for (let k = 0; k < nb.length; k++) if (lifeCell[nb[k]] > 0) { a++; const hh = lifeHue[nb[k]] * TAU; cx += Math.cos(hh); cy += Math.sin(hh); }
       const alive = lifeCell[i] > 0;
       const held = lifeTtl[i] > 0; // click-held cells ignore the rule until their time is up
-      let born = held || (alive ? a >= SURV_LO && a <= SURV_HI : a >= BORN_LO && a <= BORN_HI);
+      let born = held || (alive ? a >= lifeRules.sLo && a <= lifeRules.sHi : a >= lifeRules.bLo && a <= lifeRules.bHi);
       // perpetual churn: rare spontaneous birth, rare isolated death → continual motion
       if (!born && !alive && Math.random() < churn) born = true;
-      if (born && alive && !held && a <= 1 && Math.random() < 0.06) born = false;
+      if (born && alive && !held && a <= 1 && !lifeRules.pure && Math.random() < 0.06) born = false;
       // DARK-AT-REST (ambient off): a disturbance must BURN OUT, not self-sustain
       // (caught by field.test — plain B2-3/S1-3 oscillates forever on this graph):
       //  · cells die of OLD AGE (age cap), and
       //  · dead cells are REFRACTORY for a few generations (excitable-medium rule) so
       //    the wave rolls outward and leaves quiet darkness behind it.
-      if (!lifeAmbient && !held) {
+      if (!lifeAmbient && !held && !lifeRules.pure) {
         if (born && alive && lifeCell[i] >= LIFE_AGE_MAX - 1) born = false; // old age
         if (born && !alive && lifeRefr[i] > 0) born = false; // still refractory
         // FATIGUE: without fresh stimulation the death pressure rises each generation,
@@ -337,7 +371,7 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       }
     }
     // extinction guard only when the tree should stay alive on its own (ambient)
-    if (lifeAmbient && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = lifePalette === "random" ? rndHue(j, lifeGen + s) : lifePalette === "theme" ? themeBirthHue(j, lifeGen + s) : baseHueFn(j); }
+    if (lifeAmbient && !lifeRules.pure && live < 4) for (let s = 0; s < 8; s++) { const j = (Math.random() * n) | 0; next[j] = 1; nextHue[j] = lifePalette === "random" ? rndHue(j, lifeGen + s) : lifePalette === "theme" ? themeBirthHue(j, lifeGen + s) : baseHueFn(j); }
     // PERSISTENT NODES (visitors): keep each node + a rotating pair of its neighbours
     // alive so Game-of-Life patterns emanate from every person and interact. The node
     // itself is a bright anchor in its quadrant's colour.
@@ -398,7 +432,7 @@ export function updateOrganism(fixtures: SimFixture[], speed: number) {
   for (let i = 0; i < n; i++) {
     const v = gv[i];
     organismOut.bri[i] = Math.min(1, v * 2.6);
-    organismOut.hue[i] = (0.62 - Math.min(1, v / (gu[i] + v + 1e-3)) * 0.42 + 1) % 1; // ratio → blue→green
+    organismOut.hue[i] = themeMapHue((0.62 - Math.min(1, v / (gu[i] + v + 1e-3)) * 0.42 + 1) % 1); // ratio → blue→green, pulled into the theme
   }
 }
 

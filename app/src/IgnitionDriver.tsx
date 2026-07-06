@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTwin } from "./store";
 import { seedLife } from "./field";
+import { themeById, themeHue } from "./themes";
 
 /** GAME OF LIGHT ignition. When the tree senses its first visitor (a tap in standby),
  *  it runs a short cinematic to announce interactive mode, exactly as Elliot described:
@@ -39,5 +40,44 @@ export function IgnitionDriver() {
       return () => clearTimeout(t);
     }
   }, [phase, golSetPhase]);
+  useCaEntryCeremony();
   return null;
+}
+
+/** CA MODE-ENTRY ceremony (Elliot): picking a rule takes the tree DARK, runs a
+ *  short flourish IN THE SELECTED THEME's colours (folks nearby see the tree
+ *  announce the mode), goes dark again, then the automaton starts from a BLANK
+ *  board. Same shape as Game-of-Light ignition, driven off `announce`. */
+function useCaEntryCeremony() {
+  const phase = useTwin((s) => s.announce.phase);
+  const announceSetPhase = useTwin((s) => s.announceSetPhase);
+  useEffect(() => {
+    if (phase === "dark") {
+      const t = setTimeout(() => announceSetPhase("flourish"), 650);
+      return () => clearTimeout(t);
+    }
+    if (phase === "flourish") {
+      const st = useTwin.getState();
+      const fx = st.fixtures;
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      if (fx.length) {
+        // three waves rising bottom→top, colours drawn from the ACTIVE theme
+        const t0 = themeById(st.caTheme);
+        const hues = [themeHue(t0, 0.13), themeHue(t0, 0.51), themeHue(t0, 0.89)];
+        const byH = fx.map((f, i) => ({ i, h: f.heightT })).sort((a, b) => a.h - b.h);
+        const third = Math.ceil(byH.length / 3) || 1;
+        const wave = (band: { i: number }[], hue: number, delay: number) =>
+          timers.push(setTimeout(() => band.forEach((o) => seedLife([o.i], { hops: 1, hue, bri: 2.2, ttl: 1.2 })), delay));
+        wave(byH.slice(0, third), hues[0], 0);
+        wave(byH.slice(third, 2 * third), hues[1], 340);
+        wave(byH.slice(2 * third), hues[2], 680);
+      }
+      timers.push(setTimeout(() => announceSetPhase("settle"), 2000));
+      return () => timers.forEach(clearTimeout);
+    }
+    if (phase === "settle") {
+      const t = setTimeout(() => announceSetPhase("idle"), 550);
+      return () => clearTimeout(t);
+    }
+  }, [phase, announceSetPhase]);
 }

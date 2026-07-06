@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { updateLife, seedLife, setLifeState, lifeOut } from "./field";
+import { updateLife, seedLife, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue } from "./field";
 import type { SimFixture } from "./store";
 
 /** ALGORITHMIC CONSISTENCY CHECK — Game of Life on the neighbour graph (Elliot:
@@ -123,5 +123,67 @@ describe("Game of Life — algorithmic consistency", () => {
     run(fx, 5, 0.03);
     const slowChanged = slowSnap.filter((v, i) => Math.abs(v - lifeOut.bri[i]) > 0.05).length;
     expect(fastChanged).toBeGreaterThan(slowChanged);
+  });
+});
+
+describe("editable rules + pure mode + blank start (Elliot 2026-07-06)", () => {
+  beforeEach(() => {
+    setLifeRules({ bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false });
+  });
+
+  it("clearLife wipes the board to blank", () => {
+    setLifeState({ ambient: true, nodes: [], palette: "warm" });
+    run(fx, 3, 2);
+    clearLife();
+    setLifeState({ ambient: false, nodes: [] }); // no ambient reseed pressure
+    setLifeRules({ pure: true }); // no churn either
+    updateLife(fx, 0.05, 2);
+    expect(Math.max(...lifeOut.bri)).toBeLessThan(0.05);
+  });
+
+  it("setLifeRules changes who is born: B-never means seeds never spread", () => {
+    clearLife();
+    setLifeState({ ambient: false, nodes: [] });
+    setLifeRules({ bLo: 9, bHi: 9, sLo: 0, sHi: 8, pure: true }); // births impossible, survival free
+    seedLife([10], { hops: 0 });
+    run(fx, 6, 2);
+    // the seeded cell survives (S0-8) but NOTHING else was ever born (B9)
+    const lit = [...lifeOut.bri].map((b, i) => (b > 0.15 ? i : -1)).filter((i) => i >= 0);
+    expect(lit).toContain(10);
+    expect(lit.length).toBeLessThanOrEqual(1);
+  });
+
+  it("pure mode is deathless under a permissive rule; organic mode burns out", () => {
+    // PURE + survive-anything: the population can never shrink
+    clearLife();
+    setLifeState({ ambient: false, nodes: [] });
+    setLifeRules({ bLo: 2, bHi: 3, sLo: 0, sHi: 8, pure: true });
+    seedLife([5, 6, 7], { hops: 1 });
+    run(fx, 8, 2);
+    const alivePure = [...lifeOut.bri].filter((b) => b > 0.15).length;
+    expect(alivePure).toBeGreaterThan(0);
+    // ORGANIC dark-at-rest: fatigue + ageing guarantee the same seeding burns out
+    clearLife();
+    setLifeRules({ bLo: 2, bHi: 3, sLo: 0, sHi: 8, pure: false });
+    seedLife([5, 6, 7], { hops: 1 });
+    run(fx, 60, 2);
+    const aliveOrganic = [...lifeOut.bri].filter((b) => b > 0.15).length;
+    expect(aliveOrganic).toBe(0);
+  });
+
+  it("getLifeRules round-trips setLifeRules", () => {
+    setLifeRules({ bLo: 3, bHi: 3, sLo: 2, sHi: 3, pure: true });
+    expect(getLifeRules()).toEqual({ bLo: 3, bHi: 3, sLo: 2, sHi: 3, pure: true });
+  });
+});
+
+describe("theme map (one theme, every engine)", () => {
+  it("pulls any hue into the theme's world and is identity when unthemed", () => {
+    setFieldTheme([0.9, 0.0, 0.8]); // love-ish anchors
+    const mapped = themeMapHue(0.45); // teal → must land near an anchor
+    const dist = (a: number, b: number) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
+    expect(Math.min(dist(mapped, 0.9), dist(mapped, 0.0), dist(mapped, 0.8))).toBeLessThan(0.13);
+    setFieldTheme(null);
+    expect(themeMapHue(0.45)).toBe(0.45);
   });
 });

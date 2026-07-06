@@ -1,7 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
 import { THEMES } from "./themes";
 import { Widget } from "./Widget";
+import { getLifeRules, setLifeRules, type LifeRules } from "./field";
+
+// editable Game-of-Life rule presets (graph has ~6 neighbours, not a grid's 8)
+const LIFE_PRESETS: Record<string, Partial<LifeRules>> = {
+  "mesh (default)": { bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false },
+  "classic B3/S23": { bLo: 3, bHi: 3, sLo: 2, sHi: 3, pure: true },
+  "blooms B2/S1-4": { bLo: 2, bHi: 2, sLo: 1, sHi: 4, pure: true },
+};
+const RULES_KEY = "ca.liferules";
 
 // log-mapped speed slider: u∈0..1 → speed 0.03..4 (exponential), so HALF the travel
 // is the slow zone. Life gen-period ≈ 2.0·speed^-1.15 (shown live in the label).
@@ -43,8 +52,23 @@ export function InteractivityPanel() {
   const setGolAmbient = useTwin((s) => s.setGolAmbient);
   const caTheme = useTwin((s) => s.caTheme);
   const setCaTheme = useTwin((s) => s.setCaTheme);
-  // sync the engine with the persisted theme once on mount
-  useEffect(() => { setCaTheme(useTwin.getState().caTheme); }, [setCaTheme]);
+  const announce = useTwin((s) => s.announce);
+  const enterCa = useTwin((s) => s.enterCa);
+  const [rules, setRulesUi] = useState<LifeRules>(() => getLifeRules());
+  // sync the engine with the persisted theme + life rules once on mount
+  useEffect(() => {
+    setCaTheme(useTwin.getState().caTheme);
+    try {
+      const raw = localStorage.getItem(RULES_KEY);
+      if (raw) { const r = JSON.parse(raw) as LifeRules; setLifeRules(r); setRulesUi(getLifeRules()); }
+    } catch { /* fine */ }
+  }, [setCaTheme]);
+  const applyRules = (p: Partial<LifeRules>) => {
+    setLifeRules(p);
+    const next = getLifeRules();
+    setRulesUi(next);
+    try { localStorage.setItem(RULES_KEY, JSON.stringify(next)); } catch { /* fine */ }
+  };
   const active = control.pattern;
   const isCA = (CA_RULES as PatternId[]).includes(active);
   const PHASE_LABEL: Record<string, string> = {
@@ -53,11 +77,10 @@ export function InteractivityPanel() {
   };
 
   const pickRule = (r: PatternId) => {
-    set({
-      pattern: r, colorCycle: "off", order: "linear", reverse: false,
-      strobe: false, blackout: false, beaconPreempt: false, master: 1,
-      brightness: 0.95, sat: 0.85, hue: RULE_META[r]?.hue ?? control.hue,
-    });
+    // ENTRY CEREMONY (Elliot): dark → themed flourish ("entering this mode") →
+    // dark → the automaton starts from a BLANK board. store.enterCa owns it.
+    if (caTheme === "random") set({ sat: 0.85, hue: RULE_META[r]?.hue ?? control.hue });
+    enterCa(r);
     setTr({ rule: r });
     setTod(0); // night — the living field reads best against black
   };
@@ -119,6 +142,74 @@ export function InteractivityPanel() {
         👋 Poke a random spot
       </button>
 
+      {/* ── the running field itself ── */}
+      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
+        <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
+        <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
+          {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
+          <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
+            onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+        </Row>
+        {announce.phase !== "idle" && (
+          <div style={{ fontSize: 10.5, color: "#f0d890", margin: "2px 0 6px" }}>
+            ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → blank start…
+          </div>
+        )}
+        {active === "life" && (
+          <Row label={`Game-of-Life rule · B${rules.bLo}${rules.bHi !== rules.bLo ? "-" + rules.bHi : ""} / S${rules.sLo}${rules.sHi !== rules.sLo ? "-" + rules.sHi : ""}${rules.pure ? " · pure" : ""}`}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+              {Object.entries(LIFE_PRESETS).map(([name, p]) => {
+                const on = rules.bLo === (p.bLo ?? rules.bLo) && rules.bHi === (p.bHi ?? rules.bHi) && rules.sLo === (p.sLo ?? rules.sLo) && rules.sHi === (p.sHi ?? rules.sHi) && rules.pure === (p.pure ?? rules.pure);
+                return (
+                  <button key={name} onClick={() => applyRules(p)}
+                    style={{ flex: 1, padding: "4px 2px", borderRadius: 6, cursor: "pointer", fontSize: 9,
+                      border: on ? "1px solid #3ddc97" : "1px solid #2a3a52", background: on ? "#10362a" : "#121a26", color: on ? "#a9f0d4" : "#9fb0c7" }}>
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 10, color: "#8aa0bb", flexWrap: "wrap" }}>
+              <span>birth</span>
+              <Stepper v={rules.bLo} set={(v) => applyRules({ bLo: v, bHi: Math.max(v, rules.bHi) })} />
+              <span>–</span>
+              <Stepper v={rules.bHi} set={(v) => applyRules({ bHi: v, bLo: Math.min(v, rules.bLo) })} />
+              <span style={{ marginLeft: 6 }}>survive</span>
+              <Stepper v={rules.sLo} set={(v) => applyRules({ sLo: v, sHi: Math.max(v, rules.sHi) })} />
+              <span>–</span>
+              <Stepper v={rules.sHi} set={(v) => applyRules({ sHi: v, sLo: Math.min(v, rules.sLo) })} />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 10, color: "#8aa0bb", cursor: "pointer" }}>
+              <input type="checkbox" checked={rules.pure} onChange={(e) => applyRules({ pure: e.target.checked })} />
+              pure (textbook) — exact rule only: no churn, ageing or burn-out
+            </label>
+          </Row>
+        )}
+        <Row label="Colour theme — the mood the field lives in">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {THEMES.map((t) => {
+              const on = caTheme === t.id;
+              return (
+                <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
+                  style={{ flex: "1 0 30%", padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                    border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
+                  <div>{t.emoji} {t.name}</div>
+                  <div style={{ display: "flex", gap: 1, marginTop: 3, height: 5, borderRadius: 2, overflow: "hidden" }}>
+                    {(t.hues.length ? t.hues : [0, 0.17, 0.33, 0.5, 0.67, 0.83]).map((h, k) => (
+                      <div key={k} style={{ flex: 1, background: `hsl(${h * 360},85%,55%)` }} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Row>
+        <Row label={`Brightness · ${Math.round(control.brightness * 100)}%`}>
+          <input type="range" min={0.1} max={1} step={0.02} value={control.brightness}
+            onChange={(e) => set({ brightness: +e.target.value })} style={{ width: "100%" }} />
+        </Row>
+      </div>
+
       {/* ── RULES EDITOR: what a sensor firing DOES ── */}
       <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>⚙ When a sensor fires…</div>
@@ -176,39 +267,6 @@ export function InteractivityPanel() {
         </Row>
       </div>
 
-      {/* ── the running field itself ── */}
-      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735", opacity: isCA ? 1 : 0.4, pointerEvents: isCA ? "auto" : "none" }}>
-        <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
-        <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
-          {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
-          <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-            onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
-        </Row>
-        <Row label="Colour theme — the mood the field lives in">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {THEMES.map((t) => {
-              const on = caTheme === t.id;
-              return (
-                <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
-                  style={{ flex: "1 0 30%", padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
-                    border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
-                  <div>{t.emoji} {t.name}</div>
-                  <div style={{ display: "flex", gap: 1, marginTop: 3, height: 5, borderRadius: 2, overflow: "hidden" }}>
-                    {(t.hues.length ? t.hues : [0, 0.17, 0.33, 0.5, 0.67, 0.83]).map((h, k) => (
-                      <div key={k} style={{ flex: 1, background: `hsl(${h * 360},85%,55%)` }} />
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </Row>
-        <Row label={`Brightness · ${Math.round(control.brightness * 100)}%`}>
-          <input type="range" min={0.1} max={1} step={0.02} value={control.brightness}
-            onChange={(e) => set({ brightness: +e.target.value })} style={{ width: "100%" }} />
-        </Row>
-      </div>
-
       {/* ── 🧪 test & demo drawer — collapsed, OUT of the operator flow. Unity itself
           only ever triggers organically (a real chain of nodes around the tree). ── */}
       <details style={{ marginTop: 10, borderTop: "1px solid #1d2735", paddingTop: 6 }}>
@@ -225,6 +283,17 @@ export function InteractivityPanel() {
 
 function btn(border: string, bg: string, color: string): React.CSSProperties {
   return { flex: 1, padding: "5px 6px", borderRadius: 6, cursor: "pointer", fontSize: 10.5, fontWeight: 700, border: `1px solid ${border}`, background: bg, color };
+}
+
+function Stepper({ v, set }: { v: number; set: (v: number) => void }) {
+  const b: React.CSSProperties = { width: 18, height: 18, lineHeight: "14px", padding: 0, borderRadius: 5, border: "1px solid #2a3a52", background: "#121a26", color: "#9fb0c7", cursor: "pointer", fontSize: 11 };
+  return (
+    <span style={{ display: "inline-flex", gap: 2, alignItems: "center" }}>
+      <button style={b} onClick={() => set(Math.max(0, v - 1))}>−</button>
+      <b style={{ color: "#cfeede", minWidth: 10, textAlign: "center" }}>{v}</b>
+      <button style={b} onClick={() => set(Math.min(8, v + 1))}>+</button>
+    </span>
+  );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

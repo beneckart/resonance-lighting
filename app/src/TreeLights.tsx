@@ -6,7 +6,7 @@ import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSid
 import { useTwin, CA_RULES, type SimFixture } from "./store";
 import { litFor, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
-import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, lorenzFoci } from "./field";
+import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, lorenzFoci, themeMapHue } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
@@ -317,7 +317,7 @@ export function TreeLights() {
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "ripples") {
         const bv = rippleOut.bri[i] * fctrl.brightness;
-        const hue = ((fctrl.hue + rippleOut.age[i] * 0.16) % 1 + 1) % 1; // wavefront → tail hue shift
+        const hue = themeMapHue(((fctrl.hue + rippleOut.age[i] * 0.16) % 1 + 1) % 1); // wavefront → tail shift, held inside the colour theme
         col.setHSL(hue, fctrl.sat, 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "life") {
