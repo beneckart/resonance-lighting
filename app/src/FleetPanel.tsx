@@ -46,6 +46,13 @@ export function FleetPanel() {
   void calVersion; // reslot bumps this to force a re-read below
   const calMap = loadCalibration(); // fresh each render — SelfMap writes show up live
   const [hbHz, setHbHz] = useState(2);
+  const [env, setEnv] = useState({ hour: 21, presence: 0, sound: 0, supply: 0 });
+
+  const setEnvVal = (k: keyof typeof env, v: number) => {
+    setEnv((e) => ({ ...e, [k]: v }));
+    const b = bridge.current;
+    if (b instanceof MockBridge) b.env[k] = v;
+  };
 
   const specs = useMemo(
     () => fixtures.map((f) => ({ mac: macFromNum(f.num), role: f.role })),
@@ -100,6 +107,16 @@ export function FleetPanel() {
     setConnected(true);
     setTransport("serial");
   };
+
+  // the Rules panel hands compiled rule bytes to whoever holds the bridge
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent<{ epoch: number; bytes: number[] }>).detail;
+      bridge.current?.send({ kind: "ruleset", epoch: d.epoch, bytes: d.bytes });
+    };
+    window.addEventListener("resonance:flash-rules", h);
+    return () => window.removeEventListener("resonance:flash-rules", h);
+  }, []);
 
   // drive: mock tick + offline sweep + batched UI refresh
   useEffect(() => {
@@ -219,6 +236,27 @@ export function FleetPanel() {
             {lastEvtLatency !== null && <> · last tap→twin <b style={{ color: "#3ddc97" }}>{lastEvtLatency.toFixed(0)} ms</b></>}
           </div>
         )}
+        {/* environment (sim): drive the conditions the fleet's RULES react to */}
+        {connected && transport === "mock" && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", color: "#9fb0c7" }}>
+            <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              🕐<input type="range" min={0} max={23} value={env.hour}
+                onChange={(e) => setEnvVal("hour", +e.target.value)} style={{ width: 56 }} />{env.hour}h
+            </label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              🚶<input type="range" min={0} max={10} value={env.presence}
+                onChange={(e) => setEnvVal("presence", +e.target.value)} style={{ width: 46 }} />{env.presence}
+            </label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              🔊<input type="range" min={0} max={10} value={env.sound}
+                onChange={(e) => setEnvVal("sound", +e.target.value)} style={{ width: 46 }} />{env.sound}
+            </label>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }} title="daylight / supply good">
+              ☀️<input type="checkbox" checked={env.supply === 1}
+                onChange={(e) => setEnvVal("supply", e.target.checked ? 1 : 0)} />
+            </label>
+          </div>
+        )}
         {/* MANUAL ADJUSTMENT: click any slot cell, pick the true slot here */}
         {editMac && (
           <div style={{ display: "flex", gap: 6, alignItems: "center", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "5px 8px" }}>
@@ -278,7 +316,7 @@ export function FleetPanel() {
             <div style={{ color: "#eef3fb", fontWeight: 700 }}>events (instant)</div>
             {events.map((e, i) => (
               <div key={i} style={{ color: "#9fb0c7" }}>
-                <span style={{ color: "#7e8ca1" }}>{(e.atMs / 1000).toFixed(1)}s</span>{" "}
+                <span style={{ color: "#7e8ca1" }}>{new Date(e.atMs).toLocaleTimeString([], { hour12: false })}</span>{" "}
                 {e.mac} <b style={{ color: e.kind === "offline" ? "#ff5470" : e.kind === "tap" ? "#3ddc97" : "#e8eefb" }}>{e.kind}</b>
                 {e.kind === "state" || e.kind === "tap" ? ` → ${e.value}` : ""}
               </div>

@@ -11,6 +11,7 @@ import { CommissioningPanel } from "./CommissioningPanel";
 import { AutoCalPanel } from "./AutoCalPanel";
 import { SelfMapPanel } from "./SelfMapPanel";
 import { FleetPanel } from "./FleetPanel";
+import { RulesPanel } from "./RulesPanel";
 
 /** THE DOCK — Elliot's split-screen layout: tree on the left, ONE organized,
  *  scrollable panel on the right. Pick the MODE first; the panel shows only that
@@ -28,6 +29,7 @@ const MODE_META: Record<UiMode, { label: string; emoji: string; blurb: string; a
 const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
   interactive: [
     { key: "rules", el: <InteractivityPanel /> },
+    { key: "fleetrules", el: <RulesPanel /> }, // behavior program → flash to the fleet
     { key: "datalog", el: <DataLog /> },
   ],
   lightshow: [
@@ -41,6 +43,7 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
   ],
   calibrate: [
     { key: "fleet", el: <FleetPanel /> }, // two-way bridge: live MAC ledger + manual re-slot
+    { key: "fleetrules", el: <RulesPanel /> }, // behavior program → flash to the fleet
     { key: "selfmap", el: <SelfMapPanel /> }, // staged sync: survey → solve → confirm → lock
     { key: "autocal", el: <AutoCalPanel /> },
     { key: "commission", el: <CommissioningPanel /> },
