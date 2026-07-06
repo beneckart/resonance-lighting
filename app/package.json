@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Resonance Tree — R3F mirror twin + sim (software-only lighting environment)",
+  "description": "Resonance Tree \u2014 R3F mirror twin + sim (software-only lighting environment)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -13,7 +13,8 @@
     "e2e": "playwright test",
     "check": "npm run build && npm run test && npm run e2e",
     "shot": "node scripts/screenshot.mjs",
-    "verify": "npm run build && (npm run preview & echo $! > .preview.pid) && sleep 3 && npm run shot && kill $(cat .preview.pid) 2>/dev/null; rm -f .preview.pid"
+    "verify": "npm run build && (npm run preview & echo $! > .preview.pid) && sleep 3 && npm run shot && kill $(cat .preview.pid) 2>/dev/null; rm -f .preview.pid",
+    "publish:pages": "bash scripts/publish-pages.sh"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.3",
@@ -32,6 +33,7 @@
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/coverage-v8": "^2.1.9",
     "jsdom": "^25.0.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
