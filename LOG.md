@@ -22,6 +22,23 @@ stale WiFi secrets, deprecated AP-mode images, or pre-upload failures. Future te
 should record separate bounds for battery-only, solar/VDC-assisted, and USB-assisted
 OTA using known-good credentials and targeted `U<id>` maintenance.
 
+## 2026-07-05 - Ben + Claude - 46-hour continuous battery soak seals the 100 kHz fix; ended by honest cell exhaustion
+
+The Test-A configuration quietly kept running: **boot#136 (fw `.31`, full
+five-sensor bench, Wire1 at 100 kHz) ran 46.2 h continuously** (2026-07-03
+18:10 -> 2026-07-05 16:20), mean discharge 209 mA, ending only when the 7.2 Ah
+LFP hit the cliff (bv 2.51 -> 2.31 V in the final samples, then dark). The
+July-2 configuration averaged ~60 s per boot on battery; this ran ~2770x
+longer and died of an empty cell. Bus-clock fix considered SEALED.
+
+Honest bookkeeping: (1) a watcher fired a stale "bus-speed story FALSIFIED"
+template on the end-of-discharge reboots -- WRONG, it was speaking outside its
+15-minute design window; the JSONL shows one 46 h boot then cliff-voltage
+cycling. (2) The integrated 5830 mAh "delivered" is NOT a clean capacity number:
+mid-run bv reached 3.54 V, so USB was attached for part of the window (charging
+while running). (3) Gauge SOC (42 -> 0) advisory as always on LFP. Cell needs a
+recharge; board revives on USB.
+
 ## 2026-07-05 - Codex - Field-cycle OTA helper guardrails
 
 Reviewed `ops/bench/field_cycle_ota.py` as the bench-specific wrapper for targeted
