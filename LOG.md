@@ -32,7 +32,7 @@ a brownout rattle only below ~2.6 V (31/35 resets — state-difference artifact,
 (5) MAX17260 won't cold-POR off a ~2.8 V cell (looks like no-cell; self-recovers on
 precharge — POWERFEATHER_NOTES).
 
-Tooling (commit d0de866): `afk_discharge.py --ina-file/--no-ina` + `ina_logger.py` tee =
+Tooling (commit 3668554): `afk_discharge.py --ina-file/--no-ina` + `ina_logger.py` tee =
 two rigs share one 4-ch INA monitor; `ina_mapcheck.py` green-pulse wiring diagnostic
 **caught 3 reversed shunts + 1 crossed rig label before they touched data** (also: KB2040
 QT-rail short = red/black-swapped adapter; run mapcheck on any new rat's nest). Boards

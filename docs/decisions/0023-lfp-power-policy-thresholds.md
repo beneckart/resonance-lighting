@@ -119,4 +119,4 @@ cold-night run exists), n=2 cells, one rig's lead resistance. Boundaries are goo
 - `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html` (report with charts)
 - `ops/bench/data/ca/2026-07-06-discharge-{F,P}-cycle1.jsonl`, `2026-07-06-ina.log.gz`
 - LOG 2026-06-11 (cont. 3) — first F sample, 5,726 mAh; LOG 2026-07-06/07 — shootout
-- Commits: d0de866 (tooling), d5cb269 (data), cf32c80 (report)
+- Commits: 3668554 (tooling), 3932434 (data), f0c92ca (report)
