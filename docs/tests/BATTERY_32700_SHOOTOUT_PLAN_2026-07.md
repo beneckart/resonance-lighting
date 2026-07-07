@@ -160,6 +160,37 @@ sign. Run TWICE: once any time (LED channels), once **on battery at cell-connect
     --rig 9E5B0C=192.168.4.39:0x45:0x41 --rig 9E5AF0=192.168.4.40:0x40:0x44
 ```
 
+## Results — cycle 1 (2026-07-06 evening, ambient 79.9 °F)
+
+| | F (fullbattery, 6 Ah label) | P (Palowextra, 7.2 Ah label) |
+|---|---|---|
+| INA coulomb to 2.5 V | **5,752 mAh (95.9 % of label)** | **5,643 mAh (78.4 % of label)** |
+| delivered above 3.0 V (product floor) | **5,139 mAh** | **4,342 mAh (−15.5 % vs F)** |
+| fell through 3.0 V at | 6.19 h | 4.83 h |
+| duration to cutoff | 7.09 h | 6.43 h |
+| gauge/INA bias (median, n≈2k) | +9.3 % | +8.1 % |
+| resets | 0 until bv<2.6, then 31 in the deep rattle | 0 until knee, then 35 |
+
+Files: `data/ca/2026-07-06-discharge-{F,P}-cycle1.jsonl` (+`-gauge.png`), raw INA
+stream `2026-07-06-ina.log.gz`. afk_analyze re-integration matches the live integrals
+within ~2 mAh (no glitch inflation; corrupt lines filtered at ingest).
+
+Cycle-1 findings (n=1 each, rig-confounded until the cycle-2 swap):
+- **P's label is busted**: 78 % of claim, third independent confirmation
+  (weight parity, 2.3× IR, Off-Grid Garage's 5,450 on a cycler).
+- **To 2.5 V the cells are nearly equal** (F +1.9 %) — the meaningful gap is the knee
+  position: P's high IR drops it through the 3.0 V product floor 1.4 h earlier, so
+  **F delivers ~18 % more product-usable capacity**.
+- **F reproduced June 11 within +0.5 %** (5,752 vs 5,726) — the fullbattery batch is
+  now qualified at **n=2**; the 75-unit purchase stands validated.
+- Both cells end in a brownout-reset rattle below ~2.6 V (deep past the product
+  floor — informational only). Earlier "P cascades / F fades" contrast was a
+  state-difference artifact; both boards cycle once bv < ~2.6 V under re-driven load.
+- Gauge bias now replicated on BOTH boards (+9.3 / +8.1 %) — 7th & 8th consecutive
+  sessions in the +8 ± 1 % family; treat /1.08 as a universal MAX17260 correction.
+- Caveat for the equal-to-2.5 V read: P's rig drew ~8 % more current (rig 2 LED unit
+  pulls harder), which slightly penalizes P; cycle 2 bounds this.
+
 ## Status (2026-07-06)
 
 - [x] Firmware image builds clean (neohex pin10, LFP, no-charge, floor 2.3)
@@ -178,6 +209,10 @@ sign. Run TWICE: once any time (LED channels), once **on battery at cell-connect
       batt channels negative on discharge, both LED channels positive under load,
       map confirmed vs green-pulse + gauges
 - [x] Cells weighed/IR'd (see table above); re-seat the P cell and re-read IR once
-- [ ] F and P on the Nitecore (record slots), rest ≥1 h, DMM rested-V (~3.40–3.45 V)
-- [ ] Mule cells (4 Ah / 2 Ah) off the rigs, F → board 1, P → board 2
-- [ ] Optional 30 s insurance: `ina_mapcheck.py` on battery with real cells, then cycle 1
+- [x] Cycle 1 complete (results above); cells rested at 3.575/3.581 V pre-run;
+      pre-flight mapcheck passed all channels on battery
+- [ ] IMMEDIATELY POST-RUN: USB into both boards (or cells off) — don't let empty LFP
+      loiter self-draining toward the 2.3 V bench floor
+- [ ] Cycle 2 (the swap): recharge F and P on the Nitecore (same slots as cycle 1),
+      rest ≥1 h, then **F → board 2, P → board 1**, mapcheck, same run commands with
+      swapped cell↔IP and fresh --out names (`-cycle2`)
