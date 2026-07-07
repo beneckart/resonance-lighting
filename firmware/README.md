@@ -8,7 +8,8 @@ ESP32 firmware for the Resonance downlight. **Stub for now** -- populated once t
 > that have each cost real bench time. Working sketches: `power_bench/`,
 > `led_studio/` (merged HEX + RGBW + RGB aesthetic tool),
 > `net_bench/` (ESP-NOW networking feasibility bench), `smoke_test/`,
-> `powerfeather_demo_port/`.
+> `powerfeather_demo_port/`, `presence_bench/` (I2C multi-sensor bench),
+> `sway_demo/` (MSA311 tilt/sway -> RGBW color, with a web verifier).
 
 Solar/charging baseline: any Resonance sketch that enables PowerFeather charging must
 use `powerfeather_solar_guard.h` to force the BQ25628E wide input-OVP bit and to kick

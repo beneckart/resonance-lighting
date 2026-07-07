@@ -12,6 +12,38 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-06/07 - Ben + Claude - 32700 SHOOTOUT: Palowextra "7.2Ah" busted (5,643); fullbattery qualified n=2 (5,752); power-policy thresholds derived (ADR 0023)
+
+**The Amazon "7.2 Ah" 32700 (Palowextra) is a ~5.6 Ah cell in a big wrapper, and it
+loses to the $1-cheaper fullbattery 6 Ah where it counts.** Head-to-head full-discharge
+coulomb runs (both cells virgin, HEX37 val224 ~0.86 A, 79.9 °F, INA219 truth, Nitecore-only
+charging): P delivered **5,643 mAh to 2.5 V (78 % of label)** vs F's **5,752 (96 %)** —
+near-tie to a lab cutoff, but P's **2.3× IR (136 vs 60 mΩ)** pulls its knee through the
+3.0 V product floor 1.4 h early: **4,342 vs 5,139 mAh usable (−15.5 %)**. Corroborated by
+weight parity (136/138 g) and Off-Grid Garage's 5,450 on a cycler. **Ben's decision: buy F,
+skip P; cycle-2 rig swap deliberately cancelled** (rig confound ~8 % can't close 15.5 %).
+Report with charts: `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html`.
+
+Free findings: (1) **F reproduced June 11 within +0.5 %** — production cell qualified
+n=2, 75-unit purchase validated at $0.89/Ah; (2) **MAX17260 +8 % bias is a chip trait**
+(+9.3/+8.1 % on two boards, replications 7-8 — /1.08 is universal); (3) both cells end in
+a brownout rattle only below ~2.6 V (31/35 resets — state-difference artifact, earlier
+"P cascades / F fades" read was wrong); (4) gauge SOC swept 98→0 %, plateau-blind as ever;
+(5) MAX17260 won't cold-POR off a ~2.8 V cell (looks like no-cell; self-recovers on
+precharge — POWERFEATHER_NOTES).
+
+Tooling (commit d0de866): `afk_discharge.py --ina-file/--no-ina` + `ina_logger.py` tee =
+two rigs share one 4-ch INA monitor; `ina_mapcheck.py` green-pulse wiring diagnostic
+**caught 3 reversed shunts + 1 crossed rig label before they touched data** (also: KB2040
+QT-rail short = red/black-swapped adapter; run mapcheck on any new rat's nest). Boards
+9E5B0C/9E5AF0 flashed power_bench no-charge floor-2.3 for the runs, restored to
+charge-ma 500 / floor 2.90 after.
+
+**ADR 0023** distills the F curve into production dim/off/sleep thresholds (standard
+tier: dim 3.00 / off 2.95 / sleep 2.90 under full load — LED holds full brightness to
+2.70 V, first instability 2.69 V at 99 % delivered, overnight+OTA reserve is only
+~50 mAh; hysteresis + coulomb-primary hybrid required). Re-derivation recipe in the ADR.
+
 ## 2026-07-06 - Codex - Low-VBAT OTA boundary TODO
 
 Added a TODO to bracket the true low-VBAT OTA boundary on the current shared-WiFi
@@ -21,6 +53,37 @@ the lower-voltage "failures" in the logs are contaminated by wrong maintenance p
 stale WiFi secrets, deprecated AP-mode images, or pre-upload failures. Future tests
 should record separate bounds for battery-only, solar/VDC-assisted, and USB-assisted
 OTA using known-good credentials and targeted `U<id>` maintenance.
+
+## 2026-07-06 - Ben + Claude - sway_demo: MSA311 tilt/sway drives the RGBW point source, with a web verifier
+
+First motion-reactive lighting bench app: `firmware/sway_demo/`. An MSA311
+(Adafruit STEMMA-QT) on Wire1 feeds a 50 Hz gravity low-pass (tilt vs a
+calibrated rest pose) + high-pass delta -> fast-attack/slow-decay envelope
+(sway), mapped onto the single 4 W SK6812 RGBW on GPIO10. Three web-selectable
+mappings: sway (default; hue amber->violet + brightness with motion energy, W
+flash on big spikes), tilt (hue = lean azimuth, brightness = lean angle), both.
+The built-in web app (http://swaydemo.local/) draws a bubble level + sway pulse
+ring + 30 s strip chart, painted in the exact RGBW the LED is showing, so the
+mapping is verifiable by eye. Patterns reused: led_studio (LED/web/OTA),
+presence_bench (SDK init with charging OFF, VSQT power-cycle, EN_HIZ clear,
+Wire1 pinned at 100 kHz per the bus-integrity rule).
+
+Bench verification (USB flash to /dev/ttyACM1, then the .2 tweak via WiFi OTA):
+MSA311 found at 0x62, |g| ~= 0.96-1.00 flat on the bench, idle noise floor
+env ~0.005 g (2% of the default 0.22 g full scale -- rock-stable resting
+color), sway/tilt/color all tracked motion as intended. One real finding: the
+resting base brightness of 30 landed in the SK6812 gamma dead-zone
+(rgbw=1,0,0 -- POWERFEATHER_NOTES low-end issue), so .2 raised the default to
+60. Charging is OFF in this sketch; port the led_studio charger + solar-guard
+config before using it with a cell unattended.
+
+Housekeeping: removed a stray `<<<<<<< HEAD` merge-conflict marker that had
+been committed at the top of this file.
+
+Next: hang the sensor+light in a lantern and tune the mapping against real
+pendulum dynamics (envelope decay vs swing period, sensitivity default), and
+decide whether tilt-hue or sway-hue reads better through the gobo.
+>>>>>>> 0fbccd2 (log + sway_demo: 32700 shootout session entry; land MSA311 tilt/sway RGBW bench app)
 
 ## 2026-07-05 - Ben + Claude - 46-hour continuous battery soak seals the 100 kHz fix; ended by honest cell exhaustion
 
