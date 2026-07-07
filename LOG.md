@@ -83,7 +83,6 @@ been committed at the top of this file.
 Next: hang the sensor+light in a lantern and tune the mapping against real
 pendulum dynamics (envelope decay vs swing period, sensitivity default), and
 decide whether tilt-hue or sway-hue reads better through the gobo.
->>>>>>> 0fbccd2 (log + sway_demo: 32700 shootout session entry; land MSA311 tilt/sway RGBW bench app)
 
 ## 2026-07-05 - Ben + Claude - 46-hour continuous battery soak seals the 100 kHz fix; ended by honest cell exhaustion
 
