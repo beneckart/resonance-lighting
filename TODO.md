@@ -481,6 +481,11 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Battery / solar sourcing
 
+- [x] Qualify a second 32700 sample before committing to the bulk buy — **DONE
+  2026-07-06**: second fullbattery cell delivered 5,752 mAh (+0.5 % vs June's 5,726),
+  n=2, 75-unit purchase validated. The Amazon Palowextra "7.2 Ah" alternative measured
+  5,643 mAh (78 % of label) with 2.3× IR and was REJECTED — see LOG 2026-07-06/07 and
+  `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html` (Ben/Claude).
 - [ ] Compare 18650 LiFePO4 sample capacity against rated capacity (Ben).
 - [ ] Evaluate 26650 LiFePO4 only if 18650 sourcing or autonomy becomes a problem (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
@@ -527,7 +532,18 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   timer-sleep at the LFP floor. Deployed to `9E5AB8` and logging to
   `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl`. Remaining: analyze the
   first full cycle, tune full/taper and cutoff thresholds, then port the proven policy
-  into production firmware (Ben/Codex).
+  into production firmware (Ben/Codex). **THRESHOLDS NOW MEASURED (2026-07-07): use
+  ADR 0023's tiers (standard: dim 3.00 / off 2.95 / sleep 2.90 under full load) — the
+  current field-cycle floors (3.10/3.00) strand capacity; hysteresis + coulomb-primary
+  hybrid requirements are in the ADR.**
+- [ ] Implement the ADR 0023 low-battery state machine in field-cycle/production
+  firmware: latched dim/off/sleep transitions with 60 s confirm + ≥150 mV re-entry
+  hysteresis, load-compensated voltage (`bv + 0.15 × I_A`), coulomb-remaining primary
+  (DesignCap ≈ 5750, gauge current /1.08), voltage tiers as backstop, watchdogged
+  sleep (Ben/Claude).
+- [ ] Optional backlog: one cold-night discharge at a representative dim load to
+  sharpen ADR 0023's tiers for winter (they're currently 79.9 °F, n=2 data;
+  conservative tier is the hedge until then) (Ben).
 - [ ] Analyze first `--field-cycle` run for `9E5AB8`: confirm 5-minute charge wakes,
   charge recovery from ~2.67 V on USB/solar, full-ish detection, transition to dark
   drawdown, protect cutoff reason/voltage, and mAh/Wh accounting quality. Data:

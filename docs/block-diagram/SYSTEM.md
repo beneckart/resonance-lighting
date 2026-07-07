@@ -25,7 +25,7 @@ no skilled repetitive assembly operation at 100-unit scale.
                               v
                       LiFePO4 cell
           production target: one large cell, likely 32700
-          measured sample: 5726 mAh clean discharge
+          measured: 5726 / 5752 mAh (n=2, 2026-07-06)
                               |
                               v
          PowerFeather V2 power-management + telemetry stack
@@ -64,9 +64,12 @@ recovery.
   rollback/health pattern, including delayed mark-valid for late crashes.
 - **Sleep:** always-on receive is too expensive, but deep sleep with both switchable 3.3 V
   rails cut is sub-mA by external INA ground truth.
-- **Battery:** the 2000 mAh LFP bench cell measured about 2077 mAh. A 32700 6 Ah candidate
-  measured 5726 mAh clean to cutoff and is the leading production cell pending more sample
-  checks.
+- **Battery:** the 2000 mAh LFP bench cell measured about 2077 mAh. The 32700 6 Ah
+  production cell is qualified at n=2 (5,726 / 5,752 mAh clean to 2.5 V); the Amazon
+  "7.2 Ah" alternative measured 5,643 mAh with 2.3x IR and was rejected (LOG
+  2026-07-06/07). For autonomy math use usable-above-floor, not the lab number:
+  5,139 mAh above 3.0 V (ADR 0023 has the full voltage-to-remaining map and the
+  dim/off/sleep thresholds derived from it).
 
 ## LED Architecture
 
@@ -143,7 +146,7 @@ Known measured anchors:
 | HEX all-37 full class | rough 2 W+ battery-side, not a normal show state |
 | 4 W RGBW RGB-full class | rough 1.1 W battery-side |
 | 4 W RGBW white-only class | rough 0.45 W battery-side |
-| 32700 candidate | 5726 mAh, roughly 18 Wh usable class |
+| 32700 production cell (n=2) | 5,726/5,752 mAh to 2.5 V; 5,139 mAh usable above the 3.0 V floor (ADR 0023) |
 
 The next sizing output should be role-specific: one budget for HEX fixtures and one for
 point-source RGBW fixtures, then panel size by role.

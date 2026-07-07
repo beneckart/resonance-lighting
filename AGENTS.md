@@ -51,6 +51,8 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - WS2812B powered direct from Vbat, no level shifter (ADR 0008).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
+- Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (LOG 2026-07-06/07, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
+- **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore — read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
