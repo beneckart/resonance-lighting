@@ -24,7 +24,29 @@ Two ways to enable it:
   ```
 
 GPIO4 is an RTC GPIO, so the SDK toggles it through the RTC domain (state can
-survive deep sleep). For a simple active-mode app a plain `digitalWrite` is fine.
+survive deep sleep). For a simple active-mode app a plain `digitalWrite` is fine
+-- but ONLY if the SDK is not running; see the next section.
+
+## With the SDK up, EN_3V3/VSQT are RTC-HELD pads -- raw digitalWrite is IGNORED
+
+Verified in SDK 2.1.0 source (speaker_demo bring-up, 2026-07-07): `Board.init()`
+configures EN_3V3 (GPIO4) as an RTC pin and every write goes through
+`Mainboard::_setRTCPin` = `rtc_gpio_hold_dis` -> set level -> `rtc_gpio_hold_en`
+(Mainboard.cpp ~737). The pad is left HELD, so:
+
+- After a successful `Board.init()`, `pinMode(4, OUTPUT)` + `digitalWrite(4, ...)`
+  do NOTHING (the hold freezes the pad, and pinMode remuxes the pad away from the
+  SDK's RTC config besides). Use `Board.enable3V3()` / `Board.enableVSQT()` only.
+  Raw GPIO4 writes are correct ONLY in the no-SDK / init-failed fallback path.
+- `Board.enable3V3()` TRY-LOCKS the SDK mutex and can return non-Ok without doing
+  anything. Check the `Result` and retry; don't fire-and-forget.
+- To read the actual pad state for diagnostics: `rtc_gpio_get_level(GPIO_NUM_4)`
+  (`driver/rtc_io.h`) -- the SDK inits the pad INPUT_OUTPUT so it reads back.
+  speaker_demo exposes this as `en3v3` in `/state`, which is how a
+  software-vs-electrical rail fault gets split remotely.
+- Also on init: the SDK PRESERVES the pre-existing pad level on a warm boot
+  (`_isFirst() ? true : rtc_gpio_get_level(...)`) -- a rail state left by a prior
+  image can carry over; set it explicitly if you care.
 
 **Bonus:** because the LEDs sit on this *switchable* rail, `digitalWrite(4, LOW)` is
 a **free, zero-extra-parts LED kill-switch** -- exactly the "software-cuttable 3V3"

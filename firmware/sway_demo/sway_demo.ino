@@ -16,6 +16,13 @@
 // (POWERFEATHER_NOTES "Wire1 at >100 kHz can OPEN YOUR BATTERY SWITCH").
 // RGBW data on GPIO10 / A0, V+ from the switchable 3V3 header rail (GPIO4).
 //
+// Since .3: a VL53L5CX multizone ToF (same Wire1 bus, 0x29) fits a plane to the
+// ground and reports GEOMETRIC tilt -- immune to the pendulum degeneracy that
+// blinds accel-only tilt while hanging. The web UI shows both tilt estimates
+// side by side (filled dot = accel, cyan ring = ToF) plus the zone heatmap and
+// height above ground. Note the two sensors' axes are aligned only as well as
+// the breakouts are physically squared to each other on the rig.
+//
 // Build/flash (USB): ./build.sh --port /dev/ttyACM1
 // Web: http://swaydemo.local/ (mDNS) or the IP in the serial banner (115200).
 // OTA: curl -F "firmware=@sway_demo.ino.bin" http://<ip>/update
@@ -29,8 +36,9 @@
 #include <Wire.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_MSA301.h> // library also provides Adafruit_MSA311 (part id 0x13)
+#include "src/vl53l5cx/SparkFun_VL53L5CX_Library.h" // vendored (see src/vl53l5cx/VENDORED.md)
 
-#define FW_VERSION "sway-demo-2026-07-06.2"
+#define FW_VERSION "sway-demo-2026-07-07.6"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0, direct-GPIO LED data (ADR 0018/0022)
@@ -38,16 +46,20 @@
 Adafruit_NeoPixel strip(1, DATA_PIN, NEO_GRBW + NEO_KHZ800);
 Adafruit_MSA311 msa;
 
-// PowerFeather SDK: rails + telemetry ONLY. Charging stays OFF -- this is a
-// bench demo, often cell-less on USB, and enabling charge into a missing
-// battery brownout-loops (POWERFEATHER_NOTES). Attach a cell + port the solar
-// guard (see led_studio) before enabling charging here.
+// PowerFeather SDK: rails + telemetry, plus GUARDED charging (since .3 -- Ben's
+// demo unit carries a cell now). Charging is off at boot and enabled one-shot by
+// chargeTick() only once the gauge reports a plausible cell voltage: enabling
+// charge into a missing battery brownout-loops (POWERFEATHER_NOTES), and the LFP
+// 3.65 V ceiling is a safe undercharge even for a mislabeled Li-ion cell.
 #include <PowerFeather.h>
+#include "../powerfeather_solar_guard.h"
 using namespace PowerFeather;
 #if !defined(POWERFEATHER_BOARD_V2) && !defined(CONFIG_ESP32S3_POWERFEATHER_V2)
 #error "Build with -DPOWERFEATHER_BOARD_V2=1 (build.sh passes it) so the SDK targets the V2."
 #endif
+#define SWAY_MAINTAIN_V 4.6f // correct for USB; re-tune toward the panel MPP for solar work
 bool gPfReady = false;
+bool gChargeOn = false;
 
 #define EN_3V3_PIN 4 // switchable 3V3 header rail (LED V+), active HIGH; fallback if SDK init fails
 
@@ -134,6 +146,219 @@ void captureRest() {
   gCalPending = false;
   Serial.printf("rest pose captured: pitch0=%.1f roll0=%.1f g=[%.2f %.2f %.2f]\n",
                 gPitch0, gRoll0, gRestX, gRestY, gRestZ);
+}
+
+// ---- VL53L5CX ground-plane tilt ----------------------------------------------
+// Least-squares plane over the multizone ranges = tilt relative to the actual
+// ground (geometric, not inertial). 4x4 @ 10 Hz keeps the per-frame read short
+// on the shared 100 kHz bus, since this sketch reads from loop() (presence_bench
+// runs 8x8 from a dedicated task). One robust pass drops outlier zones (a person
+// / cable in the FoV); per zone we keep the FARTHEST valid target, since ground
+// sits behind whatever partially occludes it.
+#define TOF_RES 4 // 4 or 8 (8x8 max 15 Hz; mind the loop-blocking read time)
+#define TOF_HZ 10
+#define TOF_FOV_DEG 45.0f
+#define TOF_ZONES (TOF_RES * TOF_RES)
+#define TOF_MIN_FIT 8 // fewer clean zones than this -> no fit reported
+SparkFun_VL53L5CX tof;
+VL53L5CX_ResultsData tofData;
+bool gTofOk = false, gTofRanging = false;
+uint32_t gTofSeq = 0, gTofLastFrameMs = 0, gTofRetryAtMs = 0;
+int16_t gTofD[TOF_ZONES];  // farthest-valid-target range per zone, mm (-1 = none)
+uint32_t gTofUsedMask = 0; // zones the (robust) plane fit actually used
+float gTofTiltX = 0, gTofTiltY = 0; // tilt components (deg) RELATIVE to the zeroed mount
+float gTofTilt = 0, gTofAz = 0;     // magnitude + direction (deg) of that delta
+// Zero reference = unit ground-normal at cal time + a basis spanning its
+// perpendicular plane, all fixed in the sensor frame. Relative tilt is then the
+// exact 3D angle acos(n . n0) -- spin-invariant for ANY mount tilt (a fixed
+// component-wise offset is NOT: yaw rotates the swing term under it, and the
+// tangent-plane projection distorts at a 15 deg mount). Azimuth remains in the
+// spinning body frame -- no yaw reference on board.
+float gTofN0[3] = {0, 0, 1}, gTofE1[3] = {1, 0, 0}, gTofE2[3] = {0, 1, 0};
+bool gTofCalPending = true;         // auto-zero on the first good fit; Re-zero re-arms
+float gTofHmm = 0;                  // range to ground along boresight (mm)
+uint8_t gTofValid = 0, gTofUsed = 0;
+float tofRayX[TOF_ZONES], tofRayY[TOF_ZONES], tofRayZ[TOF_ZONES];
+
+void tofBuildRays() { // zone-center rays on a tangent-plane grid across the FoV
+  float half = tanf(TOF_FOV_DEG * 0.5f * 0.0174533f);
+  for (int r = 0; r < TOF_RES; r++)
+    for (int c = 0; c < TOF_RES; c++) {
+      float u = ((c + 0.5f) / TOF_RES * 2.0f - 1.0f) * half;
+      float v = ((r + 0.5f) / TOF_RES * 2.0f - 1.0f) * half;
+      float n = sqrtf(u * u + v * v + 1.0f);
+      int i = r * TOF_RES + c;
+      tofRayX[i] = u / n;
+      tofRayY[i] = v / n;
+      tofRayZ[i] = 1.0f / n;
+    }
+}
+
+// Fit z = a*x + b*y + c over the kept points (normal equations, Cramer).
+bool planeFitLS(const float *px, const float *py, const float *pz, const bool *keep,
+                uint8_t n, float *a, float *b, float *c) {
+  double sx = 0, sy = 0, sz = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0;
+  uint16_t m = 0;
+  for (uint8_t k = 0; k < n; k++) {
+    if (!keep[k]) continue;
+    double x = px[k], y = py[k], z = pz[k];
+    sx += x; sy += y; sz += z;
+    sxx += x * x; syy += y * y; sxy += x * y;
+    sxz += x * z; syz += y * z;
+    m++;
+  }
+  if (m < TOF_MIN_FIT) return false;
+  double det = sxx * (syy * m - sy * sy) - sxy * (sxy * m - sy * sx) + sx * (sxy * sy - syy * sx);
+  if (fabs(det) < 1e-3) return false;
+  double da = sxz * (syy * m - sy * sy) - sxy * (syz * m - sy * sz) + sx * (syz * sy - syy * sz);
+  double db = sxx * (syz * m - sz * sy) - sxz * (sxy * m - sy * sx) + sx * (sxy * sz - syz * sx);
+  double dc = sxx * (syy * sz - syz * sy) - sxy * (sxy * sz - syz * sx) + sxz * (sxy * sy - syy * sx);
+  *a = (float)(da / det);
+  *b = (float)(db / det);
+  *c = (float)(dc / det);
+  return true;
+}
+
+bool tofApply() {
+  // Only stop if actually ranging: stop_ranging on a fresh device hangs on an
+  // MCU-stop bit that never asserts (see src/vl53l5cx/VENDORED.md).
+  if (gTofRanging) {
+    tof.stopRanging();
+    gTofRanging = false;
+  }
+  if (!tof.setResolution(TOF_ZONES)) { Serial.println("[tof] setResolution FAILED"); return false; }
+  if (!tof.setRangingFrequency(TOF_HZ)) { Serial.println("[tof] setRangingFrequency FAILED"); return false; }
+  gTofRanging = tof.startRanging();
+  if (!gTofRanging) Serial.println("[tof] startRanging FAILED");
+  gTofLastFrameMs = millis();
+  return gTofRanging;
+}
+
+void tofInit() {
+  uint32_t t0 = millis();
+  Serial.println("[tof] VL53L5CX begin (fw blob upload over 100 kHz I2C, several s)...");
+  if (!tof.begin(0x29, Wire1)) {
+    Serial.println("[tof] begin FAILED (absent/unpowered? retry in 30 s)");
+    gTofOk = false;
+    gTofRetryAtMs = millis() + 30000;
+    return;
+  }
+  tof.setWireMaxPacketSize(124); // ESP32 Wire buffer is 128
+  gTofOk = tofApply();
+  Serial.printf("[tof] up in %lu ms: %dx%d @ %d Hz -> ground-plane tilt\n",
+                (unsigned long)(millis() - t0), TOF_RES, TOF_RES, TOF_HZ);
+  if (!gTofOk) gTofRetryAtMs = millis() + 30000;
+}
+
+void tofTick() {
+  uint32_t now = millis();
+  if (!gTofOk) {
+    if (gTofRetryAtMs && now >= gTofRetryAtMs) {
+      gTofRetryAtMs = 0;
+      tofInit();
+    }
+    return;
+  }
+  static uint32_t nextPollMs = 0;
+  if (now < nextPollMs) return;
+  nextPollMs = now + 40;
+  if (gTofRanging && now - gTofLastFrameMs > 5000) { // presence_bench-style self-heal
+    Serial.println("[tof] ranging stalled -> re-apply");
+    gTofOk = tofApply();
+    if (!gTofOk) gTofRetryAtMs = now + 30000;
+    return;
+  }
+  if (!tof.isDataReady()) return;
+  if (!tof.getRangingData(&tofData)) return;
+  gTofLastFrameMs = now;
+  gTofSeq++;
+
+  float px[TOF_ZONES], py[TOF_ZONES], pz[TOF_ZONES];
+  uint8_t zoneOf[TOF_ZONES], nP = 0;
+  gTofValid = 0;
+  for (uint8_t z = 0; z < TOF_ZONES; z++) {
+    int16_t best = -1;
+    uint8_t nt = tofData.nb_target_detected[z];
+    if (nt > VL53L5CX_NB_TARGET_PER_ZONE) nt = VL53L5CX_NB_TARGET_PER_ZONE;
+    for (uint8_t t = 0; t < nt; t++) {
+      uint16_t i = z * VL53L5CX_NB_TARGET_PER_ZONE + t;
+      uint8_t st = tofData.target_status[i];
+      int16_t d = tofData.distance_mm[i];
+      if ((st == 5 || st == 9) && d > 30 && d > best) best = d; // farthest valid = ground
+    }
+    gTofD[z] = best;
+    if (best > 0) {
+      px[nP] = best * tofRayX[z];
+      py[nP] = best * tofRayY[z];
+      pz[nP] = best * tofRayZ[z];
+      zoneOf[nP] = z;
+      nP++;
+      gTofValid++;
+    }
+  }
+
+  gTofUsedMask = 0;
+  gTofUsed = 0;
+  bool keep[TOF_ZONES];
+  for (uint8_t k = 0; k < nP; k++) keep[k] = true;
+  float a, b, c;
+  bool ok = planeFitLS(px, py, pz, keep, nP, &a, &b, &c);
+  if (ok) { // one robust pass: drop outliers (person/cable), refit on the rest
+    uint8_t nKeep = 0;
+    for (uint8_t k = 0; k < nP; k++) {
+      keep[k] = fabsf(pz[k] - (a * px[k] + b * py[k] + c)) < 120.0f;
+      if (keep[k]) nKeep++;
+    }
+    if (nKeep >= TOF_MIN_FIT) {
+      if (nKeep < nP) ok = planeFitLS(px, py, pz, keep, nP, &a, &b, &c);
+    } else { // too crowded to trim -- keep the all-points fit rather than nothing
+      for (uint8_t k = 0; k < nP; k++) keep[k] = true;
+    }
+  }
+  if (ok) {
+    for (uint8_t k = 0; k < nP; k++)
+      if (keep[k]) {
+        gTofUsedMask |= (1UL << zoneOf[k]);
+        gTofUsed++;
+      }
+    float nn = sqrtf(a * a + b * b + 1.0f); // unit ground normal, +z toward sensor
+    float nx = -a / nn, ny = -b / nn, nz = 1.0f / nn;
+    if (gTofCalPending) { // zero against the (possibly jury-rigged, tilted) mount
+      gTofN0[0] = nx;
+      gTofN0[1] = ny;
+      gTofN0[2] = nz;
+      // e1 = x_hat projected off n0 (n0 stays within ~45 deg of boresight, so
+      // this never degenerates); e2 = n0 x e1
+      float d = gTofN0[0];
+      gTofE1[0] = 1.0f - d * gTofN0[0];
+      gTofE1[1] = -d * gTofN0[1];
+      gTofE1[2] = -d * gTofN0[2];
+      float e1n = sqrtf(gTofE1[0] * gTofE1[0] + gTofE1[1] * gTofE1[1] + gTofE1[2] * gTofE1[2]);
+      for (int i = 0; i < 3; i++) gTofE1[i] /= e1n;
+      gTofE2[0] = gTofN0[1] * gTofE1[2] - gTofN0[2] * gTofE1[1];
+      gTofE2[1] = gTofN0[2] * gTofE1[0] - gTofN0[0] * gTofE1[2];
+      gTofE2[2] = gTofN0[0] * gTofE1[1] - gTofN0[1] * gTofE1[0];
+      gTofCalPending = false;
+      Serial.printf("[tof] mount zeroed: %.1f deg off boresight\n",
+                    acosf(nz > 1 ? 1 : nz) * 57.29578f);
+    }
+    float dot = nx * gTofN0[0] + ny * gTofN0[1] + nz * gTofN0[2];
+    if (dot > 1) dot = 1;
+    if (dot < -1) dot = -1;
+    gTofTilt = acosf(dot) * 57.29578f; // exact relative tilt: spin-invariant
+    float pxv = nx - dot * gTofN0[0], pyv = ny - dot * gTofN0[1], pzv = nz - dot * gTofN0[2];
+    float pn = sqrtf(pxv * pxv + pyv * pyv + pzv * pzv);
+    if (pn > 1e-6f) { // direction of the lean in the (spinning) body frame
+      float u1 = (pxv * gTofE1[0] + pyv * gTofE1[1] + pzv * gTofE1[2]) / pn;
+      float u2 = (pxv * gTofE2[0] + pyv * gTofE2[1] + pzv * gTofE2[2]) / pn;
+      gTofTiltX = gTofTilt * u1;
+      gTofTiltY = gTofTilt * u2;
+    } else {
+      gTofTiltX = gTofTiltY = 0;
+    }
+    gTofAz = atan2f(gTofTiltY, gTofTiltX) * 57.29578f;
+    gTofHmm = c; // range along boresight (x=y=0)
+  }
 }
 
 // ---- LED rendering ----------------------------------------------------------
@@ -234,7 +459,7 @@ void sensorTick() {
 }
 
 // ---- Battery stats cache (led_studio pattern: one short SDK read per 800 ms) --
-float gBatV = 0, gBatMa = 0, gSupV = 0;
+float gBatV = 0, gBatMa = 0, gSupV = 0, gSupMa = 0;
 uint8_t gSoc = 0;
 bool gSupGood = false;
 
@@ -250,6 +475,48 @@ void batteryTick() {
     case 3: Board.getSupplyVoltage(gSupV); break;
     case 4: Board.checkSupplyGood(gSupGood); break;
   }
+}
+
+// One-shot guarded charge-enable (presence_bench pattern): the gauge reads 0.00 V
+// right after Board.init, so the decision waits for a real voltage from the
+// round-robin. Plausible cell -> gentle 500 mA charge under the LFP profile.
+void chargeTick() {
+  static bool done = false;
+  if (done || !gPfReady || millis() < 6000) return;
+  if (gBatV < 0.1f) {
+    if (millis() > 60000) {
+      done = true;
+      Serial.println("no battery reading after 60 s -> charging stays OFF");
+    }
+    return;
+  }
+  done = true;
+  if (gBatV > 2.5f && gBatV < 4.4f) {
+    Board.setBatteryChargingMaxCurrent(500);
+    Board.enableBatteryCharging(true);
+    gChargeOn = true;
+    pfSolarGuardInit("sway_demo", SWAY_MAINTAIN_V, true);
+    Serial.printf("battery %.2fV present -> charging ON (500 mA, LFP 3.65 V ceiling)\n", gBatV);
+  } else {
+    Serial.printf("battery %.2fV implausible -> charging stays OFF\n", gBatV);
+  }
+}
+
+void solarGuardTick() { // project baseline for any charging-enabled sketch
+  if (!gPfReady || !gChargeOn) return;
+  static uint32_t lastMs = 0;
+  uint32_t now = millis();
+  if (now - lastMs < 2000) return;
+  lastMs = now;
+  float sv = 0.0f, sma = 0.0f;
+  bool good = false;
+  if (Board.getSupplyVoltage(sv) != Result::Ok) return;
+  if (Board.getSupplyCurrent(sma) != Result::Ok) return;
+  if (Board.checkSupplyGood(good) != Result::Ok) return;
+  gSupV = sv;
+  gSupMa = sma;
+  gSupGood = good;
+  pfSolarGuardTick("sway_demo", sv, sma, good, SWAY_MAINTAIN_V, true);
 }
 
 // ---- Web UI -----------------------------------------------------------------
@@ -273,7 +540,11 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
 <h2>Sway Demo <span style="font-size:12px;color:#888" id=fw></span></h2>
 <div id=warn></div>
 
-<div class=row><canvas id=lvl width=300 height=300></canvas></div>
+<div class=row><canvas id=lvl width=300 height=300></canvas>
+ <label style="text-align:center;margin-top:4px">filled dot = accel tilt (LED color) &middot; cyan ring = ToF ground-plane tilt</label></div>
+<div class=row><label>ToF ground plane (gray = range, green box = used in fit)</label>
+ <canvas id=tofc width=160 height=160></canvas>
+ <div id=tofinfo style="font-family:monospace;font-size:12px;color:#0cf;margin-top:4px">...</div></div>
 <div class=row><label>Sway envelope (last 30 s, line = full scale)</label>
  <canvas id=spark width=300 height=60></canvas></div>
 <div class=row><div id=vals>...</div></div>
@@ -330,6 +601,29 @@ function drawLevel(s){
  x.beginPath();x.arc(bx,by,12,0,7);x.fill();x.stroke();
  if(s.w>0){x.fillStyle='rgba(255,255,255,'+(s.w/255)+')';
   x.beginPath();x.arc(bx,by,6,0,7);x.fill();}
+ if(s.tof&&s.tu>=8){ // ToF ground-plane tilt, same 45-deg mapping
+  const tx=cx+Math.max(-1,Math.min(1,s.ttx/45))*R,
+        ty=cy-Math.max(-1,Math.min(1,s.tty/45))*R;
+  x.strokeStyle='#0cf';x.lineWidth=3;
+  x.beginPath();x.arc(tx,ty,10,0,7);x.stroke();}
+}
+function drawTof(s){
+ const c=document.getElementById('tofc'),x=c.getContext('2d'),n=s.tres,cs=160/n;
+ x.clearRect(0,0,160,160);
+ if(!s.tof){x.fillStyle='#888';x.font='13px monospace';x.fillText('no VL53L5CX',35,84);
+  tofinfo.textContent='ToF not found (retrying)';return;}
+ let mn=1e9,mx=-1e9;
+ for(const d of s.td)if(d>0){if(d<mn)mn=d;if(d>mx)mx=d;}
+ if(mx<=mn){mn=0;mx=1;}
+ const um=parseInt(s.tum,16);
+ for(let z=0;z<n*n;z++){const r=(z/n)|0,cc=z%n,d=s.td[z],px=cc*cs,py=r*cs;
+  if(d<0)x.fillStyle='#311';
+  else{const g=Math.round(45+180*(1-(d-mn)/(mx-mn)));x.fillStyle='rgb('+g+','+g+','+g+')';}
+  x.fillRect(px,py,cs-1,cs-1);
+  if(um&(1<<z)){x.strokeStyle='#0a7';x.lineWidth=2;x.strokeRect(px+1,py+1,cs-3,cs-3);}}
+ tofinfo.textContent='height '+(s.th/1000).toFixed(3)+' m   tilt '+s.ttilt.toFixed(1)+
+  ' deg  az '+s.taz.toFixed(0)+' deg (vs mount, zeroed at '+s.tt0.toFixed(1)+
+  ' deg)   zones '+s.tu+'/'+s.tv+'   frame #'+s.tseq;
 }
 function drawSpark(s){
  hist.push(s.env/s.fs);if(hist.length>300)hist.shift();
@@ -345,6 +639,7 @@ function tick(){fetch('/state').then(r=>r.json()).then(s=>{
  document.getElementById('fw').textContent=s.fw;
  document.getElementById('warn').textContent=s.msa?'':'MSA311 NOT FOUND -- check the STEMMA cable (retrying every 5 s)';
  if(s.msa){drawLevel(s);drawSpark(s);}
+ drawTof(s);
  vals.textContent=
   'accel  ['+s.ax.toFixed(3)+' '+s.ay.toFixed(3)+' '+s.az.toFixed(3)+'] g\n'+
   'tilt   '+s.tilt.toFixed(1)+' deg   az '+s.azdeg.toFixed(0)+' deg   pitch '+s.pitch.toFixed(1)+'  roll '+s.roll.toFixed(1)+'\n'+
@@ -354,7 +649,8 @@ function tick(){fetch('/state').then(r=>r.json()).then(s=>{
  if(!s.pf){bat.textContent='no battery data (SDK init failed)';}
  else{let act=s.ma>30?('charging +'+s.ma+'mA'):(s.ma<-30?('discharging '+s.ma+'mA'):'idle ~'+s.ma+'mA');
   bat.textContent='SOC '+s.soc+'%  '+s.bv.toFixed(3)+'V  '+act+
-   (s.sgood?('  |  supply '+s.sv.toFixed(2)+'V ok'):'  |  on battery');}
+   (s.sgood?('  |  supply '+s.sv.toFixed(2)+'V ok'):'  |  on battery')+
+   (s.chg?'':'  |  charger disabled');}
  setTimeout(tick,100);}).catch(()=>setTimeout(tick,600));}
 hl(0);syncLabels();tick();
 </script></body></html>)HTML";
@@ -370,7 +666,8 @@ void handleSet() {
   if (server.hasArg("gamma")) gGamma = server.arg("gamma").toInt() != 0;
   if (server.hasArg("cal")) {
     gCalPending = true;
-    gCalDueMs = 0; // capture on the next sample
+    gCalDueMs = 0;         // accel: capture on the next sample
+    gTofCalPending = true; // ToF: capture on the next good plane fit
   }
   server.send(200, "text/plain", "ok");
 }
@@ -378,19 +675,46 @@ void handleSet() {
 void handleState() {
   float envN = gEnv / gFullScaleG;
   if (envN > 1) envN = 1;
-  char buf[640];
-  snprintf(buf, sizeof(buf),
+  static char buf[1400];
+  int p = snprintf(buf, sizeof(buf),
            "{\"fw\":\"%s\",\"msa\":%d,"
            "\"ax\":%.3f,\"ay\":%.3f,\"az\":%.3f,"
            "\"pitch\":%.1f,\"roll\":%.1f,\"tilt\":%.1f,\"azdeg\":%.0f,"
            "\"sway\":%.3f,\"env\":%.3f,\"envn\":%.3f,\"fs\":%.3f,"
            "\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,"
            "\"mode\":%u,\"sens\":%u,\"base\":%u,\"led\":%d,\"gamma\":%d,"
-           "\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.2f,\"sgood\":%d}",
+           "\"pf\":%d,\"chg\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.2f,\"sgood\":%d,"
+           "\"tof\":%d,\"tres\":%d,\"ttx\":%.1f,\"tty\":%.1f,\"ttilt\":%.1f,\"taz\":%.0f,"
+           "\"tt0\":%.1f,\"th\":%.0f,\"tv\":%u,\"tu\":%u,\"tseq\":%lu,\"tum\":\"%04lX\",\"td\":[",
            FW_VERSION, gMsaOk ? 1 : 0, gAx, gAy, gAz, gPitch, gRoll, gTiltDeg,
            gAzDeg, gSwayInst, gEnv, envN, gFullScaleG, gOutR, gOutG, gOutB,
            gOutW, gMode, gSens, gBase, gLedOn ? 1 : 0, gGamma ? 1 : 0,
-           gPfReady ? 1 : 0, gBatV, gBatMa, gSoc, gSupV, gSupGood ? 1 : 0);
+           gPfReady ? 1 : 0, gChargeOn ? 1 : 0, gBatV, gBatMa, gSoc, gSupV,
+           gSupGood ? 1 : 0, gTofOk ? 1 : 0, TOF_RES, gTofTiltX, gTofTiltY,
+           gTofTilt, gTofAz,
+           acosf(gTofN0[2] > 1 ? 1 : gTofN0[2]) * 57.29578f,
+           gTofHmm, gTofValid, gTofUsed,
+           (unsigned long)gTofSeq, (unsigned long)gTofUsedMask);
+  for (int z = 0; z < TOF_ZONES && p < (int)sizeof(buf) - 16; z++)
+    p += snprintf(buf + p, sizeof(buf) - p, z ? ",%d" : "%d", (int)gTofD[z]);
+  snprintf(buf + p, sizeof(buf) - p, "]}");
+  server.send(200, "application/json", buf);
+}
+
+void handleTofRaw() { // bench debug: last frame's raw targets (both), unfiltered
+  static char buf[1400];
+  int p = snprintf(buf, sizeof(buf), "{\"seq\":%lu,\"z\":[", (unsigned long)gTofSeq);
+  for (int z = 0; z < TOF_ZONES && p < (int)sizeof(buf) - 80; z++) {
+    p += snprintf(buf + p, sizeof(buf) - p, "%s{\"nt\":%u", z ? "," : "",
+                  tofData.nb_target_detected[z]);
+    for (int t = 0; t < VL53L5CX_NB_TARGET_PER_ZONE; t++) {
+      uint16_t i = z * VL53L5CX_NB_TARGET_PER_ZONE + t;
+      p += snprintf(buf + p, sizeof(buf) - p, ",\"d%d\":%d,\"s%d\":%u", t,
+                    (int)tofData.distance_mm[i], t, tofData.target_status[i]);
+    }
+    p += snprintf(buf + p, sizeof(buf) - p, "}");
+  }
+  snprintf(buf + p, sizeof(buf) - p, "]}");
   server.send(200, "application/json", buf);
 }
 
@@ -437,7 +761,8 @@ void setup() {
   }
   if (pf == Result::Ok) {
     gPfReady = true;
-    Board.enableBatteryCharging(false);
+    Board.enableBatteryCharging(false); // chargeTick() enables it once the gauge warms up
+    Board.setSupplyMaintainVoltage(SWAY_MAINTAIN_V);
     // Power-CYCLE the sensor rail so the MSA311 gets a fresh POR (VSQT persists
     // across ESP reboots; presence_bench learned this the hard way).
     Board.enableVSQT(false);
@@ -480,6 +805,8 @@ void setup() {
   Serial.printf("MSA311 on Wire1 (GPIO47/48 @ 100 kHz): %s\n",
                 gMsaOk ? "OK" : "NOT FOUND (will retry every 5 s)");
   gCalDueMs = millis() + 1500; // auto re-zero once the gravity filter settles
+  tofBuildRays();
+  tofInit(); // several seconds (fw blob upload) -- before WiFi so boot order is stable
 
   setupWifi();
   if (MDNS.begin("swaydemo")) { // http://swaydemo.local/
@@ -491,6 +818,7 @@ void setup() {
   server.on("/", []() { server.send_P(200, "text/html", PAGE); });
   server.on("/set", handleSet);
   server.on("/state", handleState);
+  server.on("/tofraw", handleTofRaw);
   // Standard OTA (led_studio/net_bench pattern) so tweaks never need the tether:
   //   curl -F "firmware=@sway_demo.ino.bin" http://<ip>/update
   server.on("/update", HTTP_GET, []() {
@@ -529,5 +857,8 @@ void loop() {
   server.handleClient();
   msaRetryTick();
   sensorTick();
+  tofTick();
   batteryTick();
+  chargeTick();
+  solarGuardTick();
 }

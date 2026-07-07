@@ -293,6 +293,32 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
   draw, decide whether any relay/speaker noisemaker belongs in production, and record the
   mechanical mounting/power implications if it stays live (Ben).
+- [~] **Candidate A: STEMMA speaker #3885 percussion synth -- BENCH APP LIVE 2026-07-07**
+  (`firmware/speaker_demo/` at `speakerdemo.local`, LOG same date): organic percussion
+  (knock/marimba/chime/drip + ripple/grove scenes) instead of the square waves everyone
+  hated. Bench unit's trim pot is broken (LOG item 6): solder-bridge the tweezer-found
+  pad pair + order 1-2 spare #3885s before any crowd test. Remaining: controlled
+  re-listen for residual whine on fw .8 (FIXED speaker mounting -- placement confounded
+  tonight's spectra), Ben's listen test, crowd re-test, idle + playing current draw
+  (amp quiescent on the 3V3 rail matters for the night budget), speaker-coupled-into-
+  lantern acoustics (mounting coupling is first-order; the bamboo tube is a resonator),
+  and volume ceiling outdoors. Amp-oscillator beats confirmed on this unit (LOG item 7):
+  the PAM8302's free-running oscillator varies per chip, so for the fleet either add an
+  inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
+  true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
+  per-unit probe (Ben).
+- [ ] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
+  the bamboo -- the authentic knock the synth imitates). **Ben's current lean
+  (2026-07-07 session close): physical noisemakers (relays or this) over synthesized
+  speaker audio -- this bench test is now the priority item.** Verify the driver's control
+  pinout (JST PH 3-pin, same header shape as the speaker signal input); pick the strike
+  power source -- the 3V3 header rail is NOT it (sags at ~290 mA; solenoids pulse
+  0.7-1+ A). Options: battery/VS pin, or Ben's JST XH 2-pin Y-cable off the panel VDC
+  input for a "daytime-only" striker -- needs a storage cap sized for the strike pulse
+  (rough numbers say supercap-class, not electrolytic) and a check that strike
+  transients on the VDC line don't confuse the BQ charger input. Single-unit strike
+  test before any fleet math; also weigh per-fixture mallet mounting labor against the
+  O(1)-ops constraint (ADR 0009) (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 

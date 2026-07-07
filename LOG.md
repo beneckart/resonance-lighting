@@ -23,6 +23,237 @@ UDP datagrams so the next MPPT-tail OTA/logging pass does not trip the same Wind
 Also recorded a bench TODO for one clean sunrise-to-sunrise solar-cycle capture with
 known fixture placement, sensor orientation, disk headroom, and the corrected logger.
 
+## 2026-07-07 - Ben + Claude - speaker_demo: STEMMA speaker (#3885) percussion-synth bench; noisemaker shootout status
+
+Noisemaker shootout status from Ben's informal crowd testing (small n, treat as
+directional): piezo too soft (and needs solder); vibration motor reads as a
+cell phone; SparkFun Qwiic Omron relay has a great click (more click than
+clack) but $18/unit kills it at fleet scale; Modulino buzzer and RedBot
+speaker read as buzzers; 8002A amp is loud but its square-wave "nintendo
+sounds" were disliked. The consistent signal across testers: SQUARE-WAVE TONES
+feel harsh / at odds with the bamboo-tree aesthetic. Relay clicks got mixed
+reviews (some loved, some meh -- possibly a failure to imagine 150 rippling
+through the tree rather than a verdict on the sound). Two candidates remain:
+(A) Adafruit STEMMA speaker #3885 ($4.76, PAM8302 analog amp + mini speaker),
+(B) Adafruit MOSFET driver + push-pull solenoid mallet striking the bamboo
+itself (idea stage, see TODO).
+
+New `firmware/speaker_demo/` for candidate A, on the PowerFeather V2 demo unit,
+repurposing the LED header: speaker V+ on the GPIO4-gated 3V3 rail, GND, signal
+on A0/GPIO10. Since the #3885 is an ANALOG amp, the sketch skips tone() square
+waves entirely and runs a small fixed-point synth: 16 kHz GPTimer sample ISR
+mixing up to 12 voices (decaying sine partials via 1024-entry LUT, xorshift
+noise with one-pole LP, optional pitch glide) into a 78.125 kHz / 10-bit LEDC
+carrier, duty written by direct LEDC register access (driver calls are not
+ISR-safe; S3 needs the conf0.low_speed_update latch strobe). DC bias slews
+0<->512 over ~32 ms (no pop into the AC-coupled amp input) and auto-mutes to
+PWM-low after 3 s of silence. Sound palette targets "organic": bamboo
+knock/tock/tick (sine partials + contact-noise chiff), shaker, marimba (random
+A-minor pentatonic), chime (inharmonic partials, ~1.3 s tail), water drip
+(rising glide) -- plus one square "beep" kept as the A/B baseline. "Ripple"
+plays a ~2.4 s 20-knock cascade and "Grove" free-runs sparse random knocks
+(exponential gaps, adjustable events/min) -- single-fixture previews of the
+150-fixture idea. Dashboard at `speakerdemo.local` (sway_demo plumbing: BubbyNet
+STA + AP fallback, /update OTA, guarded charging + solar guard, telemetry);
+"Amp power" button cuts the 3V3 header rail itself -- the production-style
+software kill-switch.
+
+Fixed-point lesson worth keeping: voice amplitude at Q15 with a Q30 decay
+multiply truncates ~0.5 LSB/sample, which flattens long quiet tails -- the
+1.3 s chime died at ~250 ms, matching the truncation math exactly. Amplitude
+now Q23 (mix does one more 64-bit multiply); with wall-clock polling of
+/state the three chime partials now die on their designed 0.45/0.8/1.3 s
+schedule. (First measurement looked 2.5x fast even after the fix -- that was
+curl latency inflating a sleep-based poll loop, not firmware. Measure with
+timestamps.)
+
+Verified on hardware tonight: USB flash of .1, then .2 via /update OTA (works,
+mutes audio during flash); PF SDK up, guarded charging found the cell at
+3.38 V and enabled 500 mA (SOC ~98 % on USB, solar guard active); boot knock,
+full palette, ripple, grove all trigger via HTTP; bias wake/mute observed.
+NOT yet judged: how it actually sounds (Ben's ears, then crowd), idle vs
+playing current draw, and acoustics through the lantern/hat geometry.
+
+Bring-up addendum (.3-.5, all OTA'd on battery, no tether): the speaker was
+silent and the rail read 0 V. Three separate faults, each with a lesson:
+
+1. **3V3 header at 0 V with everything commanded on** -- Ben found the rail
+   came alive after reseating/fixing the harness; consistent with the header
+   load switch folding back into a short in the custom JST hookup. Debug aid
+   that settled the software half remotely: .3 exposes the actual GPIO4 pad
+   level (`rtc_gpio_get_level`) as `en3v3` in /state -- pad read 1 while the
+   header read 0 V, proving the fault electrical, not firmware.
+2. **SDK rail-pin traps found while chasing (1)** (POWERFEATHER_NOTES updated):
+   with the SDK up, EN_3V3/VSQT are RTC-HELD pads -- raw pinMode/digitalWrite
+   on GPIO4 is silently ignored (and remuxes the pad); `Board.enable3V3()`
+   try-locks and can fail silently -- check the Result and retry. speaker_demo
+   .3 does both; raw GPIO4 writes now only in the init-failed fallback.
+3. **A0 never drove: ledcAttachChannel(78125 Hz, 10-bit) fails** -- silently
+   (bool return, warning only on the unread serial). 78125 x 1024 = 80 MHz
+   exactly, and the LEDC auto-clock picked the 40 MHz XTAL, where that needs an
+   impossible 0.5 divider. The 16 kHz sample ISR ran perfectly (bias/voice
+   state machine all consistent over HTTP) while writing duty into a
+   never-started timer -- the pin floated, and the PAM8302's input-bias leakage
+   read ~30 mV at SIG, which is what finally pointed at the pin. .5 carrier is
+   39062 Hz / 10-bit (divider 2.0 at 80 MHz, 1.0 at 40 MHz XTAL -- accepted
+   either way) with lower fallbacks; /diag dumps the live LEDC registers
+   (attach ok, timer res/div, counter moving, latched duty) + ISR-rate counter
+   so the pin-drives-or-not question is answerable without a scope. Measured
+   after .5: ISR 16007 Hz, timer running, duty 8192 = the 512<<4 awake
+   midpoint. Lesson: on S3, always CHECK ledcAttach* returns, and don't design
+   a carrier at exactly the clock ceiling.
+4. **Audible whine at 5.2 kHz (+ ~21 kHz on a phone spectrum app) once sound
+   worked** -- intermod beats between the 39062.5 Hz carrier and the 16 kHz
+   sample clock, which were not integer-related: |3fc-7fs| = 5187 Hz and
+   |fc-fs| = 23.06 kHz (folds to ~21 kHz at the phone's 44.1 kHz Nyquist).
+   Numbers matched Ben's measured peaks. .6 integer-locks the clocks: carrier
+   78125 Hz @ 9-bit (LEDC divider exactly 1.0 on the 40 MHz XTAL, no
+   fractional-divider dither) with the sample ISR at exactly fc/4 = 19531.25 Hz
+   (GPTimer 40 MHz / 2048, same crystal) -- every beat product now lands at
+   n x 19.53 kHz or DC, out of the audible band. Also stopped re-strobing the
+   LEDC duty registers when the value is unchanged, so the idle carrier is
+   untouched between notes. Verified via /diag: attach ok, 9-bit, div=256,
+   fc/fs = 4.00. Lesson for ANY future PWM-audio (or PWM-LED-near-audio)
+   design: pick carrier and sample clocks integer-related and dither-free, or
+   the difference tones end up in ears.
+5. **Residual whine after the clock lock (~5-14 kHz peaks; source still OPEN;
+   one diagnosis made and RETRACTED the same evening).** A "whine tracks the
+   pitch slider" observation (x0.5 -> 5.8 + 9.7 kHz; x0.26 -> 7.4 + 14 kHz)
+   briefly pointed at quantization limit cycles on the decaying tails, but
+   Ben could NOT reproduce it and identified the confound: the speaker's
+   MOUNTING changed between measurements (bare desk vs coaster -- which also
+   audibly changed the richness), so every phone-app spectrum from tonight
+   has placement as an uncontrolled variable. What remains established:
+   (a) the whine rides the awake-carrier window and stops at the idle mute,
+   so the energy source is our carrier/output path, not amp/rail background;
+   (b) the .7 156250 Hz/8-bit A/B played grossly distorted -- a gross effect,
+   robust to the placement confound -- consistent with exceeding the
+   PAM8302's ~250 kHz internal modulator's input Nyquist; mode removed, keep
+   PWM carriers ~40-80 kHz for this amp. Candidate sources, none confirmed:
+   quantization limit cycles (tonal, would pitch-track), PAM oscillator beats
+   (analog, chip-dependent), speaker/mount electromechanical resonance
+   demodulating carrier energy (placement-dependent -- the one the confound
+   observation actually favors). .8 ships TPDF dither (+-1 duty LSB in the
+   ISR), carrier 39062.5 Hz @ 10-bit integer-locked at exactly 2 x fs (fault
+   4 cannot return; halves the LSB), and a half-LSB voice-kill floor --
+   cheap regardless of verdict, and they eliminate the limit-cycle candidate
+   outright. Controlled re-listen pending, complicated by (6). Lesson:
+   pin the MECHANICAL setup before trusting acoustic spectra.
+6. **Bench casualty + an acoustics finding.** The #3885's tiny trim pot lost
+   its wiper top mid-adjustment; the board now passes signal only with the
+   pot pressed or its pads bridged. Fix: solder-bridge the pad pair Ben
+   already identified with tweezers (pins the gain; the firmware volume
+   slider becomes the volume control -- which production wants anyway) and
+   order a spare #3885 for the crowd test. Fleet lesson: an exposed trim pot
+   is a liability at playa scale (dust, vibration, fingers) -- bridge/epoxy
+   it in production, or evaluate the MAX98357A I2S amp (no pot, true DAC
+   path, ~same price, 3 data wires) if the PWM path keeps fighting. Genuine
+   finding from the confound: mounting coupling is a first-order acoustic
+   variable (coaster >> bare desk for richness) -- the bamboo lantern is a
+   resonant tube, so test the speaker coupled into the lantern geometry.
+7. **Controlled carrier A/B (fixed placement, fixed pot bridge) settled fault
+   5's open verdict: the AMP-OSCILLATOR BEAT theory is the one that fits.**
+   On fw .8 (dither active in both modes): 39 kHz/10-bit carrier -> strong
+   ~6 kHz whine; 78 kHz/9-bit -> no whine, just louder broadband hiss with a
+   slight ~5.2 kHz bump. Dither had already removed the limit-cycle
+   candidate, and fixed placement removed the mount-resonance candidate --
+   what remains, and fits the asymmetry, is the PAM8302's free-running
+   class-D oscillator beating the carrier's odd harmonics: with this unit's
+   oscillator near ~200 kHz, the 39 kHz carrier's strong 5th harmonic
+   (195.3 kHz) beats at ~6 kHz, while the 78 kHz carrier's nearest strong
+   harmonics beat at 33-45 kHz (ultrasonic). The broadband hiss was the .8
+   dither itself, +6 dB at 9-bit. fw .9: default carrier 78125 Hz/9-bit;
+   sample rate doubled to 39062.5 Hz (still exactly fc/2, locked); dither is
+   now HIGH-PASS-SHAPED TPDF (energy pushed toward fs/2 = 19.5 kHz, off-ear
+   and off-speaker) and GATED on voice activity (idle-awake carrier runs
+   mathematically clean; in-note dither hides under the program). FLEET
+   CAVEAT (important): the PAM oscillator is loose and varies chip to chip,
+   so NO carrier choice is universally safe across ~114 amps -- some unit
+   will always land a harmonic near its oscillator. Per-unit A/B button is
+   the bench probe; the robust production fixes are an inline RC low-pass
+   (~1k + 10 nF) on SIG or an I2S amp (MAX98357A). Estimates of this unit's
+   oscillator are rough (phone-app "ish" numbers); the mechanism call rests
+   on the controlled A/B contrast, not the exact frequencies.
+
+VERDICT (end of session, Ben's ear): fw .9 is CLEAN -- no whine, hiss
+"basically inaudible and pleasant" with ear against the speaker. Remaining
+wish: more loudness. Headroom notes for next session: (a) the bench tests ran
+at vol 60 = 0.36 of full scale (the slider's square-law taper) -- vol 100 is
++9 dB and was set at session end; (b) per-sound amplitudes sit at 0.7-0.95 --
+a "loud mode" with >1 drive into a soft clipper could buy several more
+perceived dB at some percussive edge cost; (c) the #3885 is running from the
+3V3 rail; the PAM8302 makes ~2x the power at 5 V, but the PowerFeather has no
+5 V rail in the field, so don't count on that; (d) the big free lever is
+ACOUSTIC: the coaster observation says coupling/baffling dominates -- mount
+the speaker against/into the bamboo lantern tube before judging loudness
+(also the artistically right answer: the lantern becomes the instrument).
+Still open: idle + playing current draw for the night power budget.
+
+Direction check from Ben at session close: even with candidate A clean, he
+still leans toward PHYSICAL noisemakers -- relay clicks (mixed crowd reviews,
+but he suspects listeners couldn't imagine 150 of them rippling through the
+tree) or the completely untested MOSFET + solenoid mallet (candidate B). So
+candidate B's first bench test rises in priority; the speaker stands as the
+proven fallback/complement (and its synth knock is the preview instrument for
+selling the ripple concept to the team).
+
+Ben's overnight hang test (constrained rig, n=1): accel bubble tracked hand
+tilt well; sway barely moved the bubble but the light effects read nicely --
+consistent with the pendulum-degeneracy prediction (accel-only tilt can't see
+swing direction while hanging; note also the sketch's 0.4 s gravity low-pass
+partially tracks a ~2 s swing, so some bubble motion under big pushes is filter
+leakage, not disproof). Sensor-selection discussion concluded: keep MSA311-class
+accel for production (sway energy, ~zero power, no per-unit cal -- BNO055/085
+per-device calibration effectively disqualifies them at fleet scale), and get
+true tilt GEOMETRICALLY from the downward multizone ToF that every downlight
+carries anyway. Deployment context recorded: ~74 hanging at ~10 ft, ~40 on 5 ft
+perimeter shepherd hooks.
+
+sway_demo .3/.4 (OTA'd, no tether):
+- VL53L5CX (vendored driver copied from presence_bench; additionally disabled
+  signal_per_spad -- loop-idiom sketch, the per-frame read must stay short on
+  the shared 100 kHz Wire1) at 4x4 @ 10 Hz. Robust LS plane fit over the zone
+  ranges -> geometric tilt vs ground + height at nadir; per zone we keep the
+  FARTHEST valid target (ground sits behind a person). Web UI: cyan ToF ring
+  next to the accel dot on the bubble display, zone heatmap, height readout;
+  /tofraw debug endpoint dumps the raw two-target frame.
+- Fit math verified on host: synthetic planes 0-40 deg recovered exactly, incl.
+  a one-zone occluder rejected by the outlier pass.
+- NOT yet verified on real geometry: the bench unit is lying face-down, every
+  zone returns a valid target at 0-13 mm (correctly rejected by the >30 mm
+  floor) plus status-4/13 multipath ghosts (correctly rejected). Needs aiming
+  at the floor from >0.5 m to light up the fit.
+- Charging: Ben's demo cell accidentally ran the fixture overnight, and .1/.2
+  (bench default, charger OFF) meant USB was NOT recharging it (found at 13%
+  SOC, ma=-3 on USB). .3 ports the presence_bench guarded one-shot: charging
+  stays off unless the warmed-up gauge reports a plausible cell (2.5-4.4 V),
+  then 500 mA LFP-profile charge + solar guard. Verified live: +381 mA into
+  the cell immediately after OTA.
+
+.5 (same day): Ben's jury-rig holds the ToF off-level and hard to shim, so the
+Re-zero button now also zeros the ToF: it captures the fitted plane as the
+mount reference (auto on first good fit). Verified live on the propped rig:
+16/16 zones valid, 15 used (one outlier auto-rejected), mount captured at
+15.7 deg -> relative tilt near zero, height 0.62 m. The full accel-vs-ToF chain
+is now verified on real geometry.
+
+.6 (same day): Ben reports the rig SPINS hard when swung -> re-derived the
+geometry. Result: the mount-zero survives spin (the offset is rigid in the
+sensor frame), but (a) reported tilt DIRECTION is in the spinning body frame --
+unavoidable without a yaw reference -- and (b) .5's component-wise subtraction
+added a spin-phase flutter (~0.5 deg on a 10 deg swing at the 15.7 deg mount;
+synthetic test). .6 stores the zero as a unit normal and reports the exact 3D
+angle acos(n . n0): synthetically spin-invariant to 0.000 deg at every spin
+phase, any mount tilt. Also noted: heavy spin corrupts the ACCEL side more
+(centripetal ~1 g at 3 rev/s a few cm off-axis pollutes bubble + sway env) --
+production implication: mount the accel near the spin axis. OTA'd to the unit
+battery-only (USB came loose during rig fiddling -- cell draining ~130-180 mA,
+37% SOC; charging re-arms when USB returns).
+
+Next: eyeball accel-vs-ToF bubbles on the hang rig (prediction: sway pulses the
+accel dot's color while the cyan ToF ring actually swings); consider a ToF-tilt
+LED mode once trusted; then the outdoor lantern test.
+
 ## 2026-07-06/07 - Ben + Claude - 32700 SHOOTOUT: Palowextra "7.2Ah" busted (5,643); fullbattery qualified n=2 (5,752); power-policy thresholds derived (ADR 0023)
 
 **The Amazon "7.2 Ah" 32700 (Palowextra) is a ~5.6 Ah cell in a big wrapper, and it
