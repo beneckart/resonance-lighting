@@ -179,6 +179,17 @@ Also: changing battery **chemistry** (Li-ion <-> LFP) means flashing the matchin
 sets the charger termination voltage (LFP ~3.6 V vs Li-ion 4.2 V); charging an LFP under a
 Li-ion profile overcharges it.
 
+## MAX17260 won't cold-POR from a deeply discharged cell — it self-recovers on charge
+
+Observed 2026-07-06 (32700 shootout): after a deep discharge to ~2.45 V and an OTA
+reboot with the cell at ~2.78 V, the gauge went mute — battery_ma/soc/health/cycles all
+error (the same signature as no-cell-attached), while battery_v (charger-side) still
+read. The gauge had operated fine down to 2.49 V when *continuously powered*; a cold
+boot at ~2.8 V is below its wake threshold. No intervention needed: once the charger's
+precharge lifted the cell to ~2.81 V the gauge came back on its own (sibling board woke
+at ~2.93 V). If one stays mute after the cell is charged, a 10 s cell re-seat hard-PORs
+it. Don't debug "broken gauge telemetry" on a board that just came off a deep drawdown.
+
 ## Treat LFP SOC as advisory, not control truth
 
 The MAX17260 current telemetry is useful after calibration, but its percentage SOC is not a
