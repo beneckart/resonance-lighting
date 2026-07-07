@@ -213,6 +213,10 @@ Cycle-1 findings (n=1 each, rig-confounded until the cycle-2 swap):
       pre-flight mapcheck passed all channels on battery
 - [ ] IMMEDIATELY POST-RUN: USB into both boards (or cells off) — don't let empty LFP
       loiter self-draining toward the 2.3 V bench floor
-- [ ] Cycle 2 (the swap): recharge F and P on the Nitecore (same slots as cycle 1),
-      rest ≥1 h, then **F → board 2, P → board 1**, mapcheck, same run commands with
-      swapped cell↔IP and fresh --out names (`-cycle2`)
+- [x] **DECISION (Ben, 2026-07-06): buy F, skip P — cycle 2 deliberately cancelled.**
+      Rationale: the rig confound (~8 % on load current) cannot close a 15.5 %
+      usable-capacity gap; three independent corroborations agree; P also costs ~$1
+      more per cell ($1.40 vs $0.99 per usable Ah). EV of the swap run doesn't justify
+      the bench day.
+- [x] Report (charts + verdict + method):
+      `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html`
