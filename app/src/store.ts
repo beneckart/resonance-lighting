@@ -9,6 +9,7 @@ import { clearLife, seedLife, seedRandomCluster, exciteRipples, setFieldTheme, s
 // rules are snapshotted here and restored on disarm.
 let preGolRules: LifeRules | null = null;
 import { themeById, themeHue } from "./themes";
+import { loadFixtures, makeTestGridDoc } from "./fixtures";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
@@ -227,6 +228,7 @@ interface TwinState {
   activeShow: string | null; // running timed light show (shows.ts), or null
   showStartedAt: number; // performance.now()/1000 when the show began (for elapsed)
   init: (doc: FixturesDoc) => void;
+  loadLayout: (which: "tree" | "grid", seed?: number) => void; // testing rig ⇄ the real tree
   set: (p: Partial<Control>) => void;
   runCommand: (cmd: string) => void;
   runScript: (text: string) => void;
@@ -353,6 +355,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
     autoBalance: true, // on by default: boosts only as daylight rises, night unchanged
     glslMode: typeof location !== "undefined" && new URLSearchParams(location.search).has("glsl"),
     glslPattern: (typeof location !== "undefined" && new URLSearchParams(location.search).get("glslp")) || "radialPulse",
+  },
+  loadLayout: (which, seed = 1) => {
+    if (which === "grid") { get().init(makeTestGridDoc(seed)); return; }
+    loadFixtures().then((doc) => get().init(doc)).catch(() => { /* keep current */ });
   },
   init: (doc) => {
     const raw = doc.fixtures.map((f) => blenderToThree(f.position));

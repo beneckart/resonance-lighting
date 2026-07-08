@@ -28,6 +28,9 @@ interface RoundLog { round: number; accuracy: number; confirmed: number; queue: 
 
 export function SelfMapPanel() {
   const fixtures = useTwin((s) => s.fixtures);
+  const source = useTwin((s) => s.source);
+  const loadLayout = useTwin((s) => s.loadLayout);
+  const gridOn = source === "testgrid";
   const [radioRange, setRadioRange] = useState(60); // open-air ESP-NOW reach (m)
   const [drift, setDrift] = useState(0.35); // install placement drift vs model (m)
   const [seed, setSeed] = useState(7);
@@ -166,6 +169,21 @@ export function SelfMapPanel() {
 
   return (
     <Widget id="selfmap" title="🛰 Self-Map · staged sync protocol" x={16} y={64} w={290} h={560} accent={ACCENT}>
+      {/* ── TEST RIG (Elliot): swap the 3-D layout under the solver — a 7×7 grid
+          of 49 lights hung over a 20×20 m square at varied heights/spacing. The
+          TREE is the piece; the grid is a lab bench for "which light am I?". ── */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+        <button onClick={() => loadLayout("tree")}
+          style={{ flex: 1, padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+            border: !gridOn ? "1.5px solid #3ddc97" : "1px solid #2a3a52", background: !gridOn ? "#10362a" : "#121a26", color: !gridOn ? "#a9f0d4" : "#9fb0c7" }}>
+          🌳 Tree (real)
+        </button>
+        <button onClick={() => loadLayout("grid", Math.floor(Math.random() * 1e6))}
+          style={{ flex: 1, padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+            border: gridOn ? "1.5px solid #c8a24a" : "1px solid #2a3a52", background: gridOn ? "#2a2410" : "#121a26", color: gridOn ? "#f0d890" : "#9fb0c7" }}>
+          ⊞ Test grid 7×7{gridOn ? " · re-hang" : ""}
+        </button>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ color: "#9fb0c7", lineHeight: 1.45 }}>
           The mesh locates every light on the tree: <b>survey</b> (RSSI + ToF) →{" "}

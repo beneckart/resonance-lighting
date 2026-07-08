@@ -202,6 +202,7 @@ function CameraRig() {
 const LIGHT_SCENE = typeof location !== "undefined" && new URLSearchParams(location.search).has("e2e");
 
 export function Scene() {
+  const TEST_RIG = useTwin((s) => s.source) === "testgrid"; // grid bench mode: no sculpture
   const tod = useTwin((s) => s.timeOfDay); // 0 night → 1 day
   // background + ambient ramp with time-of-day so we can preview the install
   // at night (lights pop), dusk, and day (washed — real daytime visibility)
@@ -220,12 +221,14 @@ export function Scene() {
       <ErrorBoundary>
         <GoboFloor />
       </ErrorBoundary>
-      {!LIGHT_SCENE && (
+      {/* the test-grid rig replaces the sculpture — hide the tree + chandelier
+          so the 49 hung lights read cleanly (the tree is the PIECE; this is a bench) */}
+      {!LIGHT_SCENE && !TEST_RIG && (
         <ErrorBoundary>
           <TreeContext />
         </ErrorBoundary>
       )}
-      {!LIGHT_SCENE && (
+      {!LIGHT_SCENE && !TEST_RIG && (
         <ErrorBoundary>
           <Chandelier />
         </ErrorBoundary>
