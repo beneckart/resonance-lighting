@@ -27,6 +27,8 @@ export function RecordButton() {
   const [secs, setSecs] = useState(0);
   const [saved, setSaved] = useState("");
   const recRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null); // so stop() can release the tab-share
+  const pipeRef = useRef<{ raf: number; vid: HTMLVideoElement } | null>(null); // fixed-res draw loop
   const timer = useRef<number | null>(null);
   // DRAGGABLE (Elliot: "we should be able to move it") — drag to reposition
   // (persisted), tap to record. >6px of movement = a drag, not a click.
@@ -58,24 +60,76 @@ export function RecordButton() {
     if (d?.moved && posRef.current) { try { localStorage.setItem("recbtn.pos", JSON.stringify(posRef.current)); } catch { /* fine */ } }
   };
 
-  const start = () => {
+  const stopRef = useRef<() => void>(() => {});
+  const start = async () => {
     const canvas = document.querySelector("canvas") as HTMLCanvasElement | null;
     if (!canvas) return;
     setPianoSound(true); // ensure the audio bus exists (this click is the user gesture)
-    const v = canvas.captureStream(30);
+    // capture the WHOLE tab — tree + the organized dock/console — when the browser
+    // allows it (Elliot: demo clips must show the sidebar, not just the canvas).
+    // Falls back to canvas-only capture where getDisplayMedia is unavailable.
+    let v: MediaStream | null = null;
+    try {
+      type GDM = MediaDevices & { getDisplayMedia(o?: object): Promise<MediaStream> };
+      v = await (navigator.mediaDevices as GDM).getDisplayMedia({
+        video: { frameRate: 30 }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include",
+      });
+    } catch { v = null; } // declined / unsupported → canvas fallback
+    if (v) {
+      // Chrome's "sharing this tab" bar reshapes the page RIGHT after capture
+      // starts. avc1-in-mp4 cannot survive a resolution change mid-stream — it
+      // silently corrupts the whole file (the "saved but never opens" bug). Let
+      // the layout settle before the encoder sees its first frame.
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    if (!v) v = canvas.captureStream(30);
+    streamRef.current = v; // video source only — the piano bus must outlive the take
+    console.info("[rec] source track:", JSON.stringify(v.getVideoTracks()[0]?.getSettings() ?? {}));
+    // ending the share from the browser's own "stop sharing" bar must still SAVE
+    v.getVideoTracks()[0]?.addEventListener("ended", () => { console.info("[rec] source track ENDED"); if (recRef.current) stopRef.current(); });
+    // ── FIXED-RESOLUTION pipe ── avc1-in-mp4 dies (whole file unopenable) if the
+    // source resolution changes mid-take: share-bar appearing, window resize, dock
+    // toggle reshaping the canvas. So the encoder never sees the live track — it
+    // sees a fixed-size canvas we letterbox every frame onto.
+    const track = v.getVideoTracks()[0];
+    const ts = track?.getSettings() ?? {};
+    const W = (ts.width || canvas.width) & ~1, H = (ts.height || canvas.height) & ~1; // h264 wants even dims
+    const off = document.createElement("canvas"); off.width = W; off.height = H;
+    const ctx = off.getContext("2d");
+    const vid = document.createElement("video");
+    vid.srcObject = new MediaStream(track ? [track] : []);
+    vid.muted = true;
+    try { await vid.play(); } catch { /* if play is blocked we still record (black) rather than corrupt */ }
+    const pipe = { raf: 0, vid };
+    const draw = () => {
+      const vw = vid.videoWidth || W, vh = vid.videoHeight || H;
+      const s = Math.min(W / vw, H / vh), dw = vw * s, dh = vh * s;
+      if (ctx) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.drawImage(vid, (W - dw) / 2, (H - dh) / 2, dw, dh); }
+      pipe.raf = requestAnimationFrame(draw);
+    };
+    draw();
+    pipeRef.current = pipe;
     const a = getPianoAudioStream();
-    const stream = new MediaStream([...v.getVideoTracks(), ...(a ? a.getAudioTracks() : [])]);
+    const stream = new MediaStream([...off.captureStream(30).getVideoTracks(), ...(a ? a.getAudioTracks() : [])]);
     const mime = pickMime();
     let rec: MediaRecorder;
     try { rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 }); }
     catch { rec = new MediaRecorder(stream); }
     const chunks: BlobPart[] = [];
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    rec.onerror = (e) => { // e.g. window resized mid-take → avc1 stream is dead
+      console.error("[rec] MediaRecorder error:", (e as ErrorEvent).error ?? e);
+      setSaved("⚠ recording broke (window resized?) — keep the window still & retry");
+      setTimeout(() => setSaved(""), 6000);
+      stopRef.current();
+    };
     rec.onstop = () => {
       const blob = new Blob(chunks, { type: rec.mimeType || mime });
       if (blob.size < 1000) { setSaved("⚠ empty — record longer"); setTimeout(() => setSaved(""), 4000); return; }
       const url = URL.createObjectURL(blob);
-      const name = `resonance-tree.${(rec.mimeType || mime).includes("mp4") ? "mp4" : "webm"}`;
+      const isMp4 = (rec.mimeType || mime).includes("mp4");
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-"); // takes don't overwrite each other
+      const name = `resonance-tree-${stamp}.${isMp4 ? "mp4" : "webm"}`;
       const link = document.createElement("a");
       link.href = url;
       link.download = name;
@@ -83,7 +137,7 @@ export function RecordButton() {
       document.body.appendChild(link); // MUST be in the DOM or some browsers block the download
       link.click();
       setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 8000);
-      setSaved(`✓ saved ${name} (${(blob.size / 1e6).toFixed(1)} MB) → Downloads`);
+      setSaved(`✓ saved ${name} (${(blob.size / 1e6).toFixed(1)} MB) → Downloads${isMp4 ? "" : " · ⚠ webm — open with Chrome or VLC, not QuickTime"}`);
       setTimeout(() => setSaved(""), 8000);
     };
     rec.start(250);
@@ -95,9 +149,15 @@ export function RecordButton() {
   const stop = () => {
     recRef.current?.stop();
     recRef.current = null;
+    if (pipeRef.current) { cancelAnimationFrame(pipeRef.current.raf); pipeRef.current.vid.srcObject = null; pipeRef.current = null; }
+    // release the capture — otherwise the tab-share (and its indicator) lives on,
+    // and stacked shares eventually make the next take record nothing
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     if (timer.current) { clearInterval(timer.current); timer.current = null; }
     setRecording(false);
   };
+  stopRef.current = stop;
 
   return (
     <button
