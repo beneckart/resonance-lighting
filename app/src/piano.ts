@@ -1,6 +1,7 @@
 import type { SimFixture } from "./store";
 import { playPianoNote, isPianoSound } from "./pianoAudio";
 import { parseMidi } from "./midiParse";
+import { themeMapHue } from "./field";
 
 /** THE CANOPY AS A PIANO. The ~72 canopy ("high") lights are a 6-octave keyboard
  *  (MIDI 36..107, by azimuth). A selectable PIECE plays; each sounding note lights
@@ -120,14 +121,17 @@ const fr = (x: number) => x - Math.floor(x);
 /** Note → colour. Each PITCH CLASS maps to a hue on a WARM arc (purple→pink→red→
  *  orange→yellow, avoiding green/blue); the arc drifts slowly so a note is "red now,
  *  a different red later". OCTAVE sets the shade (deep low → light high) so the same
- *  note in different octaves reads as shades of one colour. */
+ *  note in different octaves reads as shades of one colour.
+ *  A picked COLOUR THEME (love, ocean, …) pulls every note's hue into its world
+ *  via the same themeMapHue the CAs use (Elliot: "play Für Elise to different
+ *  colored themes") — pitch classes become shades around the theme's anchors. */
 function pianoColor(midi: number, t: number): [number, number] {
   const pc = midi % 12;
   const oct = Math.floor(midi / 12);
   const drift = 0.045 * Math.sin(t * 0.05 + pc * 0.5); // small + slow → same family, different shade over time
   const hue = fr(0.75 + (pc / 11) * 0.4 + drift);      // 0.75(purple) … 1.15≡0.15(yellow); NO blue
   const sat = Math.max(0.62, Math.min(0.95, 0.95 - (oct - 3) * 0.06)); // octave → shade; floor keeps it off white
-  return [hue, sat];
+  return [themeMapHue(hue), sat]; // identity when no theme (Wild) is active
 }
 
 export function resetPiano() { t0 = -1; }

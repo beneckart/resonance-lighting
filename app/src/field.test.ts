@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { updateLife, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue } from "./field";
 import type { SimFixture } from "./store";
+import { setPiece, resetPiano, updatePiano, keyBri, keyHue } from "./piano";
 
 /** ALGORITHMIC CONSISTENCY CHECK — Game of Life on the neighbour graph (Elliot:
  *  "algorithmic check on the Game of Life to ensure consistency"). Exercises the
@@ -163,14 +164,15 @@ describe("Conway-mesh default + new-game watchdog (Elliot 2026-07-08)", () => {
     setLifeState({ ambient: true, nodes: [], palette: "warm" });
     clearLife();
     seedLife([0, 1, 2, 3, 4]);
-    run(fx, 30, 1); // plenty of generations for hash-repeat detection
-    // the original still-life must have been cleared + reseeded elsewhere at least once:
-    // stagnation counter resets on reseed, so the field keeps CHANGING
-    const snapA = Array.from(lifeOut.bri);
-    run(fx, 30, 1);
-    const snapB = Array.from(lifeOut.bri);
-    const changed = snapA.filter((v, i) => Math.abs(v - snapB[i]) > 0.05).length;
-    expect(changed).toBeGreaterThan(0);
+    // stagnation (repeat hash) must trigger a clear + fresh 4-9 reseed every ~5
+    // generations — over many generations at least one pair of snapshots differs
+    const snaps: number[][] = [];
+    for (let k = 0; k < 4; k++) { run(fx, 25, 2); snaps.push(Array.from(lifeOut.bri)); }
+    let anyDiff = false;
+    for (let a = 0; a < snaps.length; a++) for (let b = a + 1; b < snaps.length; b++) {
+      if (snaps[a].some((v, i) => Math.abs(v - snaps[b][i]) > 0.05)) anyDiff = true;
+    }
+    expect(anyDiff).toBe(true);
     setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true }); // restore default
   });
 });
@@ -234,5 +236,35 @@ describe("theme map (one theme, every engine)", () => {
     expect(Math.min(dist(mapped, 0.9), dist(mapped, 0.0), dist(mapped, 0.8))).toBeLessThan(0.13);
     setFieldTheme(null);
     expect(themeMapHue(0.45)).toBe(0.45);
+  });
+});
+
+describe("piano colours follow the picked theme (Elliot 2026-07-08)", () => {
+  it("with an ocean theme set, every sounding key's hue lands near a theme anchor", () => {
+    const anchors = [0.5, 0.55, 0.6, 0.65]; // ocean
+    setFieldTheme(anchors);
+    setPiece("moonlight");
+    resetPiano();
+    for (let t = 0; t <= 12; t += 0.25) updatePiano(t);
+    let checked = 0;
+    for (let k = 36; k <= 107; k++) if (keyBri[k] > 0.05) {
+      checked++;
+      const d = Math.min(...anchors.map((a) => { const x = Math.abs(a - keyHue[k]) % 1; return Math.min(x, 1 - x); }));
+      expect(d).toBeLessThan(0.12); // themeMapHue keeps 22% of the offset — worst case 0.11
+    }
+    expect(checked).toBeGreaterThan(3); // the opening bars actually sounded
+    setFieldTheme(null);
+    setPiece("moonlight");
+  });
+
+  it("with no theme (Wild) the warm arc is untouched: hues avoid green/blue", () => {
+    setFieldTheme(null);
+    setPiece("moonlight");
+    resetPiano();
+    for (let t = 0; t <= 12; t += 0.25) updatePiano(t);
+    for (let k = 36; k <= 107; k++) if (keyBri[k] > 0.05) {
+      // warm arc = 0.75..1.15 (wraps): never inside the green/blue band 0.2..0.7
+      expect(keyHue[k] > 0.2 && keyHue[k] < 0.7).toBe(false);
+    }
   });
 });

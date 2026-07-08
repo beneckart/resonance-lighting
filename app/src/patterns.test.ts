@@ -1,3 +1,5 @@
+import { setFieldTheme } from "./field";
+import { applyThemeToLit, tameWhite, WHITE_CAP } from "./patterns";
 import { describe, it, expect } from "vitest";
 import { litFor, type Lit } from "./patterns";
 import { PATTERN_IDS, ELEMENT_MODES, type Control, type SimFixture } from "./store";
@@ -45,4 +47,35 @@ describe("litFor — every pattern produces valid colour", () => {
       }
     });
   }
+});
+
+describe("theme funnel + white cap (Elliot 2026-07-08)", () => {
+  it("tameWhite caps bright near-white to the low-glow ceiling", () => {
+    const o = { r: 1, g: 0.97, b: 0.92 };
+    tameWhite(o);
+    expect(Math.max(o.r, o.g, o.b)).toBeCloseTo(WHITE_CAP, 5);
+    expect(o.g / o.r).toBeCloseTo(0.97, 5); // neutrality preserved, only dimmed
+  });
+  it("tameWhite leaves colours and dim whites alone", () => {
+    const red = { r: 1, g: 0.2, b: 0.2 };
+    tameWhite(red);
+    expect(red.r).toBe(1);
+    const dim = { r: 0.3, g: 0.3, b: 0.3 };
+    tameWhite(dim);
+    expect(dim.r).toBe(0.3);
+  });
+  it("applyThemeToLit pulls a saturated colour toward the theme; identity without one; whites untouched", () => {
+    setFieldTheme(null);
+    const o1 = { r: 1, g: 0.1, b: 0.1 };
+    applyThemeToLit(o1);
+    expect(o1.r).toBeCloseTo(1, 5); // no theme → untouched
+    setFieldTheme([0.5, 0.55, 0.6, 0.65]); // ocean
+    const o2 = { r: 1, g: 0.1, b: 0.1 };
+    applyThemeToLit(o2);
+    expect(o2.b).toBeGreaterThan(o2.r); // pulled into the blue world
+    const w = { r: 0.9, g: 0.9, b: 0.9 };
+    applyThemeToLit(w);
+    expect(w.r).toBeCloseTo(0.9, 5); // whites pass through
+    setFieldTheme(null);
+  });
 });

@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTwin } from "./store";
 import { SHOWS, showById } from "./shows";
-import { resetPiano, setPiece, PIECE_LIST, currentPiece, loadMidiPiece } from "./piano";
-import { setPianoSound } from "./pianoAudio";
 import { Widget } from "./Widget";
-import { asset } from "./fixtures";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -12,20 +9,6 @@ export function ShowsPanel() {
   const activeShow = useTwin((s) => s.activeShow);
   const startedAt = useTwin((s) => s.showStartedAt);
   const playShow = useTwin((s) => s.playShow);
-  const set = useTwin((s) => s.set);
-  const setTod = useTwin((s) => s.setTimeOfDay);
-  const pianoOn = useTwin((s) => s.control.pattern === "piano");
-  const [soundOn, setSoundOn] = useState(false);
-  const [pieces, setPieces] = useState(() => [...PIECE_LIST]);
-  // auto-load any full-score .mid files listed in /midi/manifest.json (drop your
-  // own public-domain MIDIs there → they appear as pieces). Graceful if absent.
-  useEffect(() => {
-    fetch(asset("/midi/manifest.json")).then((r) => (r.ok ? r.json() : [])).then(async (list: { id: string; name: string; file: string }[]) => {
-      let added = false;
-      for (const m of list || []) if (await loadMidiPiece(m.id, m.name, asset("/midi/" + m.file))) added = true;
-      if (added) setPieces([...PIECE_LIST]);
-    }).catch(() => { /* no manifest — fine */ });
-  }, []);
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!activeShow) return;
@@ -41,7 +24,7 @@ export function ShowsPanel() {
   }
 
   return (
-    <Widget id="shows" title="🎬 Shows · 🎹 Piano" x={344} y={12} w={216} h={330}>
+    <Widget id="shows" title="🎬 Light Shows" x={344} y={12} w={216} h={330}>
       {SHOWS.map((s) => {
         const on = activeShow === s.id;
         return (
@@ -53,29 +36,6 @@ export function ShowsPanel() {
           </button>
         );
       })}
-      <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 700, color: "#eef3fb", fontSize: 12 }}>🎹 Piano · 72 keys</span>
-        <button onClick={() => { const v = !soundOn; setSoundOn(v); setPianoSound(v); }} title="play sound (to your speaker / Bluetooth)"
-          style={{ padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, border: soundOn ? "1px solid #3ddc97" : "1px solid #2a3a52", background: soundOn ? "#10241c" : "#141a26", color: soundOn ? "#7af0c0" : "#9fb0c7" }}>
-          {soundOn ? "🔊 sound on" : "🔇 sound"}
-        </button>
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-        {pieces.map((p) => {
-          const on = pianoOn && currentPiece() === p.id;
-          return (
-            <button key={p.id} onClick={() => { playShow(null); setPiece(p.id); resetPiano(); setPianoSound(true); setSoundOn(true); set({ pattern: "piano", brightness: 0.8, sat: 0.85, colorCycle: "off", reverse: false }); setTod(0); }}
-              style={{ flex: "1 0 auto", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11,
-                border: on ? "1px solid #5b8cff" : "1px solid #2a3a52", background: on ? "#21345e" : "#121a26", color: on ? "#dce6ff" : "#9fb0c7" }}>
-              {on ? "▶ " : ""}{p.name}
-            </button>
-          );
-        })}
-        {pianoOn && (
-          <button onClick={() => set({ pattern: "solid" })}
-            style={{ flex: "1 0 auto", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, border: "1px solid #5a3a3a", background: "#1a1016", color: "#ff8fa0" }}>⏹ stop</button>
-        )}
-      </div>
       {show && (
         <div style={{ marginTop: 6 }}>
           <div style={{ height: 4, background: "#1a2233", borderRadius: 3, overflow: "hidden" }}>

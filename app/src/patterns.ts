@@ -2,6 +2,7 @@ import { Color } from "three";
 import type { AudioFeatures } from "./audio";
 import type { Control, SimFixture } from "./store";
 import { quantizedStep } from "./beat";
+import { themeMapHue } from "./field";
 
 export interface Lit {
   r: number;
@@ -439,4 +440,32 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   out.r = col.r * bri;
   out.g = col.g * bri;
   out.b = col.b * bri;
+}
+
+// pull an RGB colour into the active theme's hue world (identity when no theme).
+// Whites/greys pass through untouched — the theme constrains COLOUR, not shade.
+const themeCol = new Color();
+const themeHsl = { h: 0, s: 0, l: 0 };
+export function applyThemeToLit(o: Lit) {
+  const mx = Math.max(o.r, o.g, o.b);
+  if (mx <= 0.001) return;
+  const k = mx > 1 ? 1 / mx : 1; // getHSL needs 0..1; keep the overdrive scale
+  themeCol.setRGB(o.r * k, o.g * k, o.b * k).getHSL(themeHsl);
+  if (themeHsl.s < 0.08) return; // near-white stays white (tameWhite handles level)
+  const h2 = themeMapHue(themeHsl.h);
+  if (h2 === themeHsl.h) return; // no theme active — free
+  themeCol.setHSL(h2, themeHsl.s, themeHsl.l);
+  o.r = themeCol.r / k; o.g = themeCol.g / k; o.b = themeCol.b / k;
+}
+
+// near-white above this level gets scaled DOWN to it (Elliot: "white low
+// brightness can be ok, but not full brightness") — the beacon is exempt.
+export const WHITE_CAP = 0.5;
+export function tameWhite(o: Lit) {
+  const mx = Math.max(o.r, o.g, o.b);
+  if (mx <= WHITE_CAP) return; // already a low glow
+  const mn = Math.min(o.r, o.g, o.b);
+  if ((mx - mn) / mx > 0.3) return; // clearly a colour, not white
+  const k = WHITE_CAP / mx;
+  o.r *= k; o.g *= k; o.b *= k;
 }

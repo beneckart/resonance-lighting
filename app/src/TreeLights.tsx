@@ -4,7 +4,7 @@ import { useGLTF, useTexture } from "@react-three/drei";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSide, InstancedMesh, type BufferGeometry, Mesh, Object3D, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from "three";
 import { useTwin, CA_RULES, type SimFixture } from "./store";
-import { litFor, type Lit } from "./patterns";
+import { litFor, applyThemeToLit, tameWhite, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
 import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, lorenzFoci, themeMapHue } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
@@ -31,6 +31,7 @@ const aimV = new Vector3();
 const aimQ = new Quaternion();
 const lit: Lit = { r: 0, g: 0, b: 0 };
 const litB: Lit = { r: 0, g: 0, b: 0 };
+
 const GAIN = 1.65;
 const DEG = Math.PI / 180;
 // Tight "ray" cone: a narrow reference half-angle gives crisp light shafts
@@ -349,6 +350,10 @@ export function TreeLights() {
         lit.g = lerp(lit.g, litB.g, xfade);
         lit.b = lerp(lit.b, litB.b, xfade);
       }
+      // COLOUR THEME constraint for LIGHT-SHOW patterns too (Elliot) — the CA
+      // engines + piano already theme themselves; everything else (incl. GLSL)
+      // gets its colour pulled into the picked theme's world here.
+      if (!(CA_RULES as string[]).includes(fctrl.pattern) && fctrl.pattern !== "piano") applyThemeToLit(lit);
       // UNITY override: whole tree goes rainbow (spinning by azimuth+height) + a
       // per-fixture twinkle. The ripple boost below adds the "ripple" on top.
       if (gol.unity) {
@@ -396,6 +401,10 @@ export function TreeLights() {
         }
       }
 
+      // NO SUSTAINED BRIGHT WHITE (Elliot): near-white is fine at LOW brightness,
+      // never at full — cap the whole colour so white reads as soft lantern glow.
+      // Runs after every look/boost, but BEFORE the beacon, which must stay full.
+      tameWhite(lit);
       // BEACON safety preempt — force full white over everything (whiteout safety)
       if (ctrl.beaconPreempt) { const w = ctrl.master; lit.r = w; lit.g = w; lit.b = w; }
       // BLACKOUT preempt — force all-off (wins over beacon; instant dark)

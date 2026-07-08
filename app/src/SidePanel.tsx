@@ -4,6 +4,7 @@ import { DockCtx } from "./Widget";
 import { Controls } from "./Controls";
 import { GroupPanel } from "./GroupPanel";
 import { ShowsPanel } from "./ShowsPanel";
+import { PianoPanel } from "./PianoPanel";
 import { InteractivityPanel } from "./InteractivityPanel";
 import { DataLog } from "./DataLog";
 import { AiPilot } from "./AiPilot";
@@ -33,14 +34,14 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
     { key: "datalog", el: <DataLog /> },
   ],
   lightshow: [
+    { key: "shows", el: <ShowsPanel /> }, // pre-designed shows FIRST (Elliot: "bring the shows up to the top")
     { key: "scope", el: <GroupPanel /> }, // whole tree · custom groups · single lights
-    { key: "controls", el: <Controls /> }, // sliders: colour · brightness · speed · patterns
-    { key: "shows", el: <ShowsPanel /> }, // pre-designed shows + piano (build-your-own: cues)
+    { key: "controls", el: <Controls /> }, // sliders: colour · themes · brightness · speed · patterns
   ],
   sound: [
-    { key: "shows", el: <ShowsPanel /> }, // 🎹 piano pieces (Moonlight etc.) belong in Sound too
+    { key: "piano", el: <PianoPanel /> }, // 🎹 pieces + colour themes (sound belongs HERE, not Light Show)
     { key: "aivj", el: <AiPilot /> },
-    { key: "controls", el: <Controls /> }, // EQ/strobe/auto-VJ toggles live here too
+    { key: "controls", el: <Controls /> }, // EQ/DJ/auto-VJ toggles live here on the Sound page
   ],
   calibrate: [
     { key: "fleet", el: <FleetPanel /> }, // two-way bridge: live MAC ledger + manual re-slot
@@ -54,7 +55,7 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
 
 function loadOrder(mode: UiMode, keys: string[]): string[] {
   try {
-    const raw = localStorage.getItem("dock.order." + mode);
+    const raw = localStorage.getItem("dock.order.v2." + mode);
     if (raw) {
       const saved = JSON.parse(raw) as string[];
       const valid = saved.filter((k) => keys.includes(k));
@@ -88,7 +89,7 @@ export function SidePanel() {
 
   const commitOrder = (next: string[]) => {
     setOrder(next);
-    try { localStorage.setItem("dock.order." + uiMode, JSON.stringify(next)); } catch { /* ignore */ }
+    try { localStorage.setItem("dock.order.v2." + uiMode, JSON.stringify(next)); } catch { /* ignore */ }
   };
 
   // pointer drag-to-reorder: grab a section's ⠿ grip, drag past a neighbour's
