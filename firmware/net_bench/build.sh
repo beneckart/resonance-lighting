@@ -25,6 +25,7 @@ SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_
 FIELD_CYCLE=""; FIELD_CHARGE_SLEEP=""; FIELD_WAIT_SLEEP=""; FIELD_PROTECT_SLEEP=""; FIELD_WAKE_LISTEN_MS=""; FIELD_COLD_LISTEN_MS=""
 FIELD_LOW_MV=""; FIELD_CRITICAL_MV=""; FIELD_LOW_CONFIRM_S=""; FIELD_LED_LOAD=""
 DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
+FIELD_MPPT=""; FIELD_MPPT_HOLD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -58,6 +59,8 @@ while [[ $# -gt 0 ]]; do
     --field-critical-mv) FIELD_CRITICAL_MV="$2"; shift 2;;
     --field-low-confirm-s) FIELD_LOW_CONFIRM_S="$2"; shift 2;;
     --field-led-load) FIELD_LED_LOAD="1"; shift;;
+    --field-mppt) FIELD_MPPT="1"; shift;;
+    --field-mppt-hold) FIELD_MPPT_HOLD="1"; shift;;
     --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
     --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
     --drawdown-r) DRAWDOWN_R="$2"; shift 2;;
@@ -126,6 +129,8 @@ esac
 [[ -n "${FIELD_CRITICAL_MV}" ]] && FLAGS+=" -DNB_FIELD_CRITICAL_MV=${FIELD_CRITICAL_MV}"
 [[ -n "${FIELD_LOW_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_LOW_CONFIRM_S=${FIELD_LOW_CONFIRM_S}"
 [[ -n "${FIELD_LED_LOAD}" ]] && FLAGS+=" -DNB_FIELD_LED_LOAD=1"
+[[ -n "${FIELD_MPPT}" ]] && FLAGS+=" -DNB_FIELD_MPPT=1"
+[[ -n "${FIELD_MPPT_HOLD}" ]] && FLAGS+=" -DNB_FIELD_MPPT_HOLD_BEST=1"
 [[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
 [[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"
 [[ -n "${DRAWDOWN_R}" ]] && FLAGS+=" -DNB_DRAWDOWN_R=${DRAWDOWN_R}"

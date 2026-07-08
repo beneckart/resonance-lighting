@@ -25,6 +25,7 @@ import argparse, json, os, re, socket, time
 from datetime import datetime, timezone
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+UDP_RECV_BYTES = 65535
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--site", default="ca")
@@ -64,7 +65,9 @@ rx_peer = re.compile(
     r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
     r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?"
     r"(?: fcwhc=(\d+) fcwhd=(\d+) fcpw=(\d+) fcbw=(\d+) fcdw=(\d+) fclow=(\d+)"
-    r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?")
+    r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
+    r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
+    r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -83,7 +86,7 @@ print(f"net_bench_log -> {out}  ({a.topology}, {a.duration:.0f}s). reboots flagg
 with open(out, "w") as fh:
     while time.time() - t0 < a.duration:
         try:
-            d, addr = s.recvfrom(1024)
+            d, addr = s.recvfrom(UDP_RECV_BYTES)
         except socket.timeout:
             continue
         if a.master_ip and addr[0] != a.master_ip:
@@ -101,7 +104,9 @@ with open(out, "w") as fh:
              bqv, bqichg, bqvreg, bq16, bq18, bq1d, bq1e, bq1f,
              bq20, bq21, bq22, bq38,
              fcwhc, fcwhd, fcpw, fcbw, fcdw, fclow, fcmchg, fcmwait,
-             fcmdraw, fcmprot) = m.groups()
+             fcmdraw, fcmprot,
+             mppts, mpptr, mpptn, mpptv, mpptbest, mpptlast, mppt46, mppt48,
+             mppt50) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -187,6 +192,16 @@ with open(out, "w") as fh:
                            field_wait_min=int(fcmwait),
                            field_draw_min=int(fcmdraw),
                            field_protect_min=int(fcmprot))
+            if mppts is not None:
+                row.update(mppt_status=int(mppts),
+                           mppt_reason=int(mpptr),
+                           mppt_runs=int(mpptn),
+                           mppt_active_v=round(int(mpptv) / 10.0, 1),
+                           mppt_best_v=round(int(mpptbest) / 10.0, 1),
+                           mppt_last_v=round(int(mpptlast) / 10.0, 1),
+                           mppt_p46_w=round(int(mppt46) / 100.0, 2),
+                           mppt_p48_w=round(int(mppt48) / 100.0, 2),
+                           mppt_p50_w=round(int(mppt50) / 100.0, 2))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

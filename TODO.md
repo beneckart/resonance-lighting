@@ -185,7 +185,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
       `ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl`; record stop
       condition, delivered mAh, final loaded/resting voltage, and whether the 12 h sleep
       preserved the desired hungry-but-not-precharge state. (Ben/Codex)
-    - [ ] **Prototype simple production MPPT / hill-climb policy**: full sweep on first good-sun boot, then periodic 3-point perturb around the last best VINDPM (`best - 0.2`, `best`, `best + 0.2 V`) during daylight; skip or de-prioritize when battery voltage/current indicate CV/taper or near-full acceptance. Validate energy gained vs wake/sweep cost on P105 and P126. (Ben/Codex)
+    - [~] **Prototype simple production MPPT / hill-climb policy**: full sweep on first good-sun boot, then periodic 3-point perturb around the last best VINDPM (`best - 0.2`, `best`, `best + 0.2 V`) during daylight; skip or de-prioritize when battery voltage/current indicate CV/taper or near-full acceptance. **BUILT 2026-07-06 for field-cycle bench v6, not deployed yet:** `--field-mppt` samples fixed P105 candidates 4.6/4.8/5.0 V during charge wakes after the OTA listen window, logs candidate W and skip/run reasons, and clamps back to 4.6 V before sleep/maintenance unless a future `--field-mppt-hold` build is explicitly chosen. Next: flash matching serial bridge first, then OTA peer, then validate candidate powers/wake cost on a sunny day. (Ben/Codex)
     - [ ] **MPPT decision** -- green-lit to *measure*, not yet to commit. After the clean sweep, choose: better fixed setpoint (~4.8-5.0) / temp-compensated Vmp(T) / software P&O (use `SET_MAINTAIN` to hill-climb `supply_W`). Optimum ~ 4.85 V hot vs 5.5 V cool -> a single fixed point can't be optimal across temp (Ben).
     - [ ] Full **0-100 % capacity** drawdown (USB top-up to full first) + buck-boost efficiency vs VBAT on LFP (needs rail-side metering for the latter -- SEN0291) (Ben).
     - [ ] Combine harvest-at-MPP (Wh/day) + load budget + a chosen LED-show profile -> the cell + panel spec; pair with the bottom-up nightly-budget re-derivation (Field reliability TODO) (Ben).
@@ -195,6 +195,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
       soft floor + 30 s debounce avoids one-sample false cutoffs, and whether measured
       panel Wh/day covers the configured night load. Tune thresholds/load after 2-3
       full cycles. (Ben/Codex)
+    - [ ] **Capture one clean 24 h solar-cycle dataset before treating field-cycle data
+      as sizing-grade**: corrected JSONL logger, laptop disk headroom, stable panel
+      placement, lux sensor aimed consistently, and no manual device moves. Goal is an
+      uninterrupted sunrise-to-sunrise file with charge peak, taper/full decision,
+      night drawdown, and protect/dim behavior all in one comparable run. (Ben/Codex)
 - [ ] **Firmware guard: don't enable charging if no battery detected** -- enabling charging into a missing battery (with `maintain` > supply V) browns out / crash-loops on USB. Also: `maintain` must be <= the supply you're powering from (Ben).
 - [ ] **Firmware guard: make charger VINDPM/maintain USB-recovery-safe by construction**:
   keep boot default at ~4.6 V, treat higher panel-MPP setpoints as live/test state unless

@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-05.1" // field-cycle v5: heavier HEX drawdown load
+#define NET_BENCH_VERSION "net-bench-2026-07-06.1" // field-cycle v6: safe daylight VINDPM perturb telemetry
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -228,6 +228,39 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_DRAWDOWN_HZ
 #define NB_FIELD_DRAWDOWN_HZ 1 // production-ish always-awake radio draw cadence
 #endif
+#ifndef NB_FIELD_MPPT
+#define NB_FIELD_MPPT 0 // opt-in: daylight-only 4.6/4.8/5.0 V VINDPM perturb
+#endif
+#ifndef NB_FIELD_MPPT_HOLD_BEST
+#define NB_FIELD_MPPT_HOLD_BEST 0 // default bench mode clamps back to 4.6 V before sleep
+#endif
+#ifndef NB_FIELD_MPPT_DEFAULT_V10
+#define NB_FIELD_MPPT_DEFAULT_V10 46 // 4.6 V: USB/power-bank rescue-safe default
+#endif
+#ifndef NB_FIELD_MPPT_MID_V10
+#define NB_FIELD_MPPT_MID_V10 48
+#endif
+#ifndef NB_FIELD_MPPT_HIGH_V10
+#define NB_FIELD_MPPT_HIGH_V10 50
+#endif
+#ifndef NB_FIELD_MPPT_MIN_BATT_MV
+#define NB_FIELD_MPPT_MIN_BATT_MV NB_FIELD_PROTECT_RETRY_MV
+#endif
+#ifndef NB_FIELD_MPPT_TAPER_MV
+#define NB_FIELD_MPPT_TAPER_MV NB_FIELD_FULL_MV
+#endif
+#ifndef NB_FIELD_MPPT_TAPER_MA
+#define NB_FIELD_MPPT_TAPER_MA 220 // skip if near top and not accepting much current
+#endif
+#ifndef NB_FIELD_MPPT_MIN_SUPPLY_MA
+#define NB_FIELD_MPPT_MIN_SUPPLY_MA 200 // avoid noisy weak-sun comparisons
+#endif
+#ifndef NB_FIELD_MPPT_MIN_PANEL_W_X100
+#define NB_FIELD_MPPT_MIN_PANEL_W_X100 100 // 1.00 W minimum baseline panel power
+#endif
+#ifndef NB_FIELD_MPPT_SETTLE_MS
+#define NB_FIELD_MPPT_SETTLE_MS 900
+#endif
 #ifndef NB_MAINTAIN_MIN_V10
 #define NB_MAINTAIN_MIN_V10 40 // PowerFeather SDK supports 4.0 V minimum
 #endif
@@ -327,6 +360,26 @@ enum FieldReason : uint8_t {
   FC_REASON_CRITICAL = 6,
   FC_REASON_SUNRISE = 7,
 };
+enum FieldMpptStatus : uint8_t {
+  MPPT_STATUS_DISABLED = 0,
+  MPPT_STATUS_SKIPPED = 1,
+  MPPT_STATUS_RAN = 2,
+  MPPT_STATUS_CLAMPED = 3,
+  MPPT_STATUS_HELD_BEST = 4,
+};
+enum FieldMpptReason : uint8_t {
+  MPPT_REASON_NONE = 0,
+  MPPT_REASON_DISABLED = 1,
+  MPPT_REASON_PHASE = 2,
+  MPPT_REASON_WAKE_WINDOW = 3,
+  MPPT_REASON_LOW_BATT = 4,
+  MPPT_REASON_WEAK_SUN = 5,
+  MPPT_REASON_TAPER = 6,
+  MPPT_REASON_BQ_FAULT = 7,
+  MPPT_REASON_MEASURED = 8,
+  MPPT_REASON_CLAMP = 9,
+  MPPT_REASON_MAINT = 10,
+};
 volatile NetMode gMode = MODE_COMMS;
 volatile bool gResumePending = false; // /resume sets this; loop() does the real enterComms()
 bool otaActive = false;
@@ -354,6 +407,15 @@ RTC_DATA_ATTR uint16_t rtcFieldChargeS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldWaitS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldDrawS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldProtectS = 0;
+RTC_DATA_ATTR uint8_t rtcFieldMpptStatus = MPPT_STATUS_DISABLED;
+RTC_DATA_ATTR uint8_t rtcFieldMpptReason = MPPT_REASON_DISABLED;
+RTC_DATA_ATTR uint8_t rtcFieldMpptRuns = 0;
+RTC_DATA_ATTR uint8_t rtcFieldMpptActiveV10 = NB_FIELD_MPPT_DEFAULT_V10;
+RTC_DATA_ATTR uint8_t rtcFieldMpptBestV10 = NB_FIELD_MPPT_DEFAULT_V10;
+RTC_DATA_ATTR uint8_t rtcFieldMpptLastV10 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP46Wx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP48Wx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP50Wx100 = 0;
 uint32_t fieldLastIntegrateMs = 0;
 uint32_t fieldLowSinceMs = 0;
 
@@ -550,6 +612,18 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t field_wait_min;
   uint8_t field_draw_min;
   uint8_t field_protect_min;
+  // --- APPEND-ONLY tail 11 (field-cycle safe VINDPM perturb). This intentionally
+  // extends the heartbeat past 128 B; deploy the matching serial bridge before
+  // deploying an MPPT peer. Powers are W x100 at fixed P105 candidate setpoints.
+  uint8_t mppt_status;
+  uint8_t mppt_reason;
+  uint8_t mppt_runs;
+  uint8_t mppt_active_v10;
+  uint8_t mppt_best_v10;
+  uint8_t mppt_last_v10;
+  uint16_t mppt_p46_w_x100;
+  uint16_t mppt_p48_w_x100;
+  uint16_t mppt_p50_w_x100;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -633,6 +707,9 @@ struct NbPeerStat {
   uint16_t field_charge_wh_x10, field_discharge_wh_x10;
   uint16_t field_peak_panel_w_x100, field_peak_charge_w_x100, field_peak_draw_w_x100;
   uint8_t field_low_s, field_charge_min, field_wait_min, field_draw_min, field_protect_min;
+  bool has_mppt;
+  uint8_t mppt_status, mppt_reason, mppt_runs, mppt_active_v10, mppt_best_v10, mppt_last_v10;
+  uint16_t mppt_p46_w_x100, mppt_p48_w_x100, mppt_p50_w_x100;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -641,7 +718,7 @@ struct RxItem {
   uint8_t mac[6];
   int8_t rssi;
   uint8_t len;
-  uint8_t data[128];
+  uint8_t data[160];
 };
 QueueHandle_t rxQueue;
 static_assert(sizeof(NbHeartbeat) <= sizeof(RxItem::data),
@@ -745,6 +822,7 @@ void setupPowerFeather() {
   if (!pfReady) return;
   gMaintainV = (float)RES_PF_MAINTAIN_V;
   Board.setSupplyMaintainVoltage(gMaintainV);
+  rtcFieldMpptActiveV10 = (uint8_t)(gMaintainV * 10.0f + 0.5f);
 #if RES_PF_ENABLE_CHARGING
   Board.setBatteryChargingMaxCurrent((float)gChargeMa);
   Board.enableBatteryCharging(true);
@@ -989,6 +1067,24 @@ String telemetryJson() {
   j += String(rtcFieldDrawS);
   j += ",\"field_protect_s\":";
   j += String(rtcFieldProtectS);
+  j += ",\"mppt_status\":";
+  j += String(rtcFieldMpptStatus);
+  j += ",\"mppt_reason\":";
+  j += String(rtcFieldMpptReason);
+  j += ",\"mppt_runs\":";
+  j += String(rtcFieldMpptRuns);
+  j += ",\"mppt_active_v10\":";
+  j += String(rtcFieldMpptActiveV10);
+  j += ",\"mppt_best_v10\":";
+  j += String(rtcFieldMpptBestV10);
+  j += ",\"mppt_last_v10\":";
+  j += String(rtcFieldMpptLastV10);
+  j += ",\"mppt_p46_w\":";
+  j += String((float)rtcFieldMpptP46Wx100 / 100.0f, 2);
+  j += ",\"mppt_p48_w\":";
+  j += String((float)rtcFieldMpptP48Wx100 / 100.0f, 2);
+  j += ",\"mppt_p50_w\":";
+  j += String((float)rtcFieldMpptP50Wx100 / 100.0f, 2);
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
   if (pfReady) {
     char b[24];
@@ -1258,6 +1354,15 @@ void sendHeartbeat(uint8_t caState) {
   hb.field_wait_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldWaitS + 30) / 60));
   hb.field_draw_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldDrawS + 30) / 60));
   hb.field_protect_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldProtectS + 30) / 60));
+  hb.mppt_status = rtcFieldMpptStatus;
+  hb.mppt_reason = rtcFieldMpptReason;
+  hb.mppt_runs = rtcFieldMpptRuns;
+  hb.mppt_active_v10 = rtcFieldMpptActiveV10;
+  hb.mppt_best_v10 = rtcFieldMpptBestV10;
+  hb.mppt_last_v10 = rtcFieldMpptLastV10;
+  hb.mppt_p46_w_x100 = rtcFieldMpptP46Wx100;
+  hb.mppt_p48_w_x100 = rtcFieldMpptP48Wx100;
+  hb.mppt_p50_w_x100 = rtcFieldMpptP50Wx100;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -1464,6 +1569,114 @@ float fieldCyclePanelW() {
   }
   return (csMa > 0.0f) ? (csV * csMa / 1000.0f) : 0.0f;
 }
+uint8_t maintainV10() {
+  return (uint8_t)min(255UL, (unsigned long)(gMaintainV * 10.0f + 0.5f));
+}
+void fieldMpptRecord(uint8_t status, uint8_t reason) {
+  rtcFieldMpptStatus = status;
+  rtcFieldMpptReason = reason;
+  rtcFieldMpptActiveV10 = maintainV10();
+}
+void fieldMpptSetV10(uint8_t v10) {
+  if (!pfReady) return;
+  gMaintainV = (float)v10 / 10.0f;
+  Board.setSupplyMaintainVoltage(gMaintainV);
+  rtcFieldMpptActiveV10 = v10;
+}
+void fieldMpptClampDefault(uint8_t reason) {
+  if (!pfReady) {
+    fieldMpptRecord(MPPT_STATUS_SKIPPED, reason);
+    return;
+  }
+  if (maintainV10() != NB_FIELD_MPPT_DEFAULT_V10) {
+    fieldMpptSetV10(NB_FIELD_MPPT_DEFAULT_V10);
+    Serial.printf("field-MPPT clamp -> %.1f V reason=%u\n", gMaintainV, reason);
+  }
+  fieldMpptRecord(MPPT_STATUS_CLAMPED, reason);
+}
+bool fieldMpptBqFaulted() {
+  if (gBqFault0 != 0xFF && gBqFault0 != 0) return true;
+  if (gBqFaultFlag0 != 0xFF && gBqFaultFlag0 != 0) return true;
+  return false;
+}
+bool fieldMpptTapered() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_MPPT_TAPER_MV &&
+         cbMa >= 0.0f && cbMa <= (float)NB_FIELD_MPPT_TAPER_MA;
+}
+uint16_t fieldMpptSampleV10(uint8_t v10) {
+  fieldMpptSetV10(v10);
+  rtcFieldMpptLastV10 = v10;
+  delay(NB_FIELD_MPPT_SETTLE_MS);
+  esp_task_wdt_reset();
+  readBattery();
+  envTick();
+  delay(120);
+  esp_task_wdt_reset();
+  readBattery();
+  envTick();
+  return fieldCycleWx100(fieldCyclePanelW());
+}
+void fieldMpptMaybeRun() {
+#if NB_FIELD_MPPT
+  if (rtcFieldPhase != FC_CHARGE) {
+    fieldMpptClampDefault(MPPT_REASON_PHASE);
+    return;
+  }
+  if (fieldCycleInWakeWindow()) {
+    fieldMpptRecord(MPPT_STATUS_SKIPPED, MPPT_REASON_WAKE_WINDOW);
+    return;
+  }
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  if (cbV > 0.5f && mv < NB_FIELD_MPPT_MIN_BATT_MV) {
+    fieldMpptClampDefault(MPPT_REASON_LOW_BATT);
+    return;
+  }
+  if (fieldMpptBqFaulted()) {
+    fieldMpptClampDefault(MPPT_REASON_BQ_FAULT);
+    return;
+  }
+  if (fieldMpptTapered()) {
+    fieldMpptClampDefault(MPPT_REASON_TAPER);
+    return;
+  }
+
+  uint16_t p46 = fieldMpptSampleV10(NB_FIELD_MPPT_DEFAULT_V10);
+  if (csMa < (float)NB_FIELD_MPPT_MIN_SUPPLY_MA || p46 < NB_FIELD_MPPT_MIN_PANEL_W_X100) {
+    rtcFieldMpptP46Wx100 = p46;
+    rtcFieldMpptP48Wx100 = 0;
+    rtcFieldMpptP50Wx100 = 0;
+    fieldMpptClampDefault(MPPT_REASON_WEAK_SUN);
+    return;
+  }
+
+  uint16_t p48 = fieldMpptSampleV10(NB_FIELD_MPPT_MID_V10);
+  uint16_t p50 = fieldMpptSampleV10(NB_FIELD_MPPT_HIGH_V10);
+  rtcFieldMpptP46Wx100 = p46;
+  rtcFieldMpptP48Wx100 = p48;
+  rtcFieldMpptP50Wx100 = p50;
+
+  uint8_t best = NB_FIELD_MPPT_DEFAULT_V10;
+  uint16_t bestW = p46;
+  if (p48 > bestW) { bestW = p48; best = NB_FIELD_MPPT_MID_V10; }
+  if (p50 > bestW) { bestW = p50; best = NB_FIELD_MPPT_HIGH_V10; }
+  rtcFieldMpptBestV10 = best;
+  if (rtcFieldMpptRuns < 255) rtcFieldMpptRuns++;
+
+#if NB_FIELD_MPPT_HOLD_BEST
+  fieldMpptSetV10(best);
+  fieldMpptRecord(MPPT_STATUS_HELD_BEST, MPPT_REASON_MEASURED);
+#else
+  fieldMpptClampDefault(MPPT_REASON_CLAMP);
+  rtcFieldMpptStatus = MPPT_STATUS_RAN;
+  rtcFieldMpptReason = MPPT_REASON_MEASURED;
+#endif
+  Serial.printf("field-MPPT p46=%u p48=%u p50=%u best=%u hold=%d active=%u\n",
+                p46, p48, p50, best, NB_FIELD_MPPT_HOLD_BEST, rtcFieldMpptActiveV10);
+#else
+  fieldMpptRecord(MPPT_STATUS_DISABLED, MPPT_REASON_DISABLED);
+#endif
+}
 void fieldCycleUpdatePowerStats(uint32_t seconds) {
   float panelW = fieldCyclePanelW();
   uint16_t panelWx100 = fieldCycleWx100(panelW);
@@ -1562,6 +1775,15 @@ void fieldCycleResetCounters() {
   rtcFieldWaitS = 0;
   rtcFieldDrawS = 0;
   rtcFieldProtectS = 0;
+  rtcFieldMpptStatus = NB_FIELD_MPPT ? MPPT_STATUS_SKIPPED : MPPT_STATUS_DISABLED;
+  rtcFieldMpptReason = NB_FIELD_MPPT ? MPPT_REASON_NONE : MPPT_REASON_DISABLED;
+  rtcFieldMpptRuns = 0;
+  rtcFieldMpptActiveV10 = maintainV10();
+  rtcFieldMpptBestV10 = NB_FIELD_MPPT_DEFAULT_V10;
+  rtcFieldMpptLastV10 = 0;
+  rtcFieldMpptP46Wx100 = 0;
+  rtcFieldMpptP48Wx100 = 0;
+  rtcFieldMpptP50Wx100 = 0;
   fieldLowSinceMs = 0;
   fieldCycleMarkSample();
 }
@@ -1577,6 +1799,9 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
   fieldLowSinceMs = 0;
   rtcFieldLowS = 0;
   fieldLastIntegrateMs = millis();
+#if NB_FIELD_MPPT
+  if (phase != FC_CHARGE) fieldMpptClampDefault(MPPT_REASON_PHASE);
+#endif
   if (rtcFieldPhase == FC_DRAWDOWN) fieldCycleLedLoadOn();
   Serial.printf("field-cycle phase -> %u reason=%u cycle=%u bv=%.3f ima=%.0f sv=%.3f sma=%.0f sgood=%d\n",
                 rtcFieldPhase, rtcFieldReason, rtcFieldCycle, cbV, cbMa, csV, csMa,
@@ -1618,6 +1843,9 @@ void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool int
     fieldCycleAddPhaseSeconds(seconds);
     rtcFieldPhaseElapsedS = min(65535UL, rtcFieldPhaseElapsedS + seconds);
   }
+#if NB_FIELD_MPPT && !NB_FIELD_MPPT_HOLD_BEST
+  if (maintainV10() != NB_FIELD_MPPT_DEFAULT_V10) fieldMpptClampDefault(MPPT_REASON_CLAMP);
+#endif
   drawdownPixelsOff();
   for (int i = 0; i < 3; i++) {
     sendHeartbeat(0);
@@ -1680,8 +1908,10 @@ void fieldCycleTick() {
       fieldCycleSetPhase(FC_WAIT_DARK, FC_REASON_FULL);
       break;
     }
-    if (!fieldCycleInWakeWindow())
+    if (!fieldCycleInWakeWindow()) {
+      fieldMpptMaybeRun();
       fieldCycleSleep(NB_FIELD_CHARGE_SLEEP_S, "field-charge", FC_REASON_SUPPLY, true);
+    }
     break;
 
   case FC_WAIT_DARK:
@@ -1758,6 +1988,9 @@ void enterComms();
 void benchLoadsOffForMaintenance() {
   if (gDrawdownActive) drawdownCancel("maintenance");
 #ifdef NB_FIELD_CYCLE
+#if NB_FIELD_MPPT
+  fieldMpptClampDefault(MPPT_REASON_MAINT);
+#endif
   if (gFieldLedLoadOn) fieldCycleLedLoadOff();
   else drawdownPixelsOff();
 #else
@@ -1918,6 +2151,13 @@ void bridgeStats() {
                     p->field_peak_draw_w_x100, p->field_low_s,
                     p->field_charge_min, p->field_wait_min, p->field_draw_min,
                     p->field_protect_min);
+    }
+    if (p->has_mppt && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " mppts=%u mpptr=%u mpptn=%u mpptv=%u mpptbest=%u mpptlast=%u mppt46=%u mppt48=%u mppt50=%u",
+                    p->mppt_status, p->mppt_reason, p->mppt_runs,
+                    p->mppt_active_v10, p->mppt_best_v10, p->mppt_last_v10,
+                    p->mppt_p46_w_x100, p->mppt_p48_w_x100, p->mppt_p50_w_x100);
     }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
@@ -2089,6 +2329,20 @@ void processRx() {
           p->field_protect_min = hb->field_protect_min;
         } else {
           p->has_field_summary = false;
+        }
+        if (NB_HAS_HB_FIELD(it.len, mppt_p50_w_x100)) { // field-cycle MPPT perturb tail 11
+          p->has_mppt = true;
+          p->mppt_status = hb->mppt_status;
+          p->mppt_reason = hb->mppt_reason;
+          p->mppt_runs = hb->mppt_runs;
+          p->mppt_active_v10 = hb->mppt_active_v10;
+          p->mppt_best_v10 = hb->mppt_best_v10;
+          p->mppt_last_v10 = hb->mppt_last_v10;
+          p->mppt_p46_w_x100 = hb->mppt_p46_w_x100;
+          p->mppt_p48_w_x100 = hb->mppt_p48_w_x100;
+          p->mppt_p50_w_x100 = hb->mppt_p50_w_x100;
+        } else {
+          p->has_mppt = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {
@@ -2649,6 +2903,11 @@ void setup() {
   Serial.printf("mode: FIELD-CYCLE (charge sleep %ds, wait sleep %ds, protect sleep %ds, low/hard %.3f/%.3fV)\n",
                 NB_FIELD_CHARGE_SLEEP_S, NB_FIELD_WAIT_SLEEP_S, NB_FIELD_PROTECT_SLEEP_S,
                 NB_FIELD_LOW_MV / 1000.0f, NB_FIELD_CRITICAL_MV / 1000.0f);
+#if NB_FIELD_MPPT
+  Serial.printf("mode: FIELD-MPPT perturb %u/%u/%u x0.1V, default=%u x0.1V, hold_best=%d\n",
+                NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_MID_V10, NB_FIELD_MPPT_HIGH_V10,
+                NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_HOLD_BEST);
+#endif
 #endif
 #ifdef NB_MAINT_AP
   Serial.println("mode: MAINT-AP (maintenance starts a temporary self AP for /update)");

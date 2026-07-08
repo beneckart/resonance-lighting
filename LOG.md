@@ -12,6 +12,17 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-07 - Codex - Hardened field-cycle JSONL logging before next OTA
+
+The 2026-07-05 HEX-load field-cycle logger stopped around 2026-07-07 05:03 PT because
+the host UDP receive buffer was still 1024 B while the `nb-peer` line had grown with
+field-cycle/BQ telemetry. Increased `ops/bench/net_bench_log.py` to receive full-size
+UDP datagrams so the next MPPT-tail OTA/logging pass does not trip the same Windows
+`WSAEMSGSIZE` failure.
+
+Also recorded a bench TODO for one clean sunrise-to-sunrise solar-cycle capture with
+known fixture placement, sensor orientation, disk headroom, and the corrected logger.
+
 ## 2026-07-06/07 - Ben + Claude - 32700 SHOOTOUT: Palowextra "7.2Ah" busted (5,643); fullbattery qualified n=2 (5,752); power-policy thresholds derived (ADR 0023)
 
 **The Amazon "7.2 Ah" 32700 (Palowextra) is a ~5.6 Ah cell in a big wrapper, and it
@@ -43,6 +54,25 @@ charge-ma 500 / floor 2.90 after.
 tier: dim 3.00 / off 2.95 / sleep 2.90 under full load — LED holds full brightness to
 2.70 V, first instability 2.69 V at 99 % delivered, overnight+OTA reserve is only
 ~50 mAh; hysteresis + coulomb-primary hybrid required). Re-derivation recipe in the ADR.
+
+## 2026-07-06 - Codex - Built safe field-cycle MPPT perturb firmware, not deployed
+
+Designed and built `net-bench-2026-07-06.1` for tomorrow's solar-cycle experiment.
+The new `--field-mppt` field-cycle option preserves the initial OTA listen window, then
+samples 4.6/4.8/5.0 V VINDPM candidates during healthy charge wakes. It records status,
+skip/run reason, run count, active/best/last VINDPM, and candidate panel powers as a new
+heartbeat tail plus `/telemetry` JSON. Safety policy for this first bench build: 4.6 V
+remains the only persistent/rescue default; the peer clamps back to 4.6 V before sleep
+or maintenance unless a future `--field-mppt-hold` build is explicitly used.
+
+Host updates: `ops/bench/net_bench_dashboard.py` and `ops/bench/net_bench_log.py` parse
+the new `mppt*` suffix. The heartbeat now exceeds the old 128 B bridge buffer, so the
+matching serial bridge must be flashed before an MPPT peer is deployed.
+
+Built but did not deploy:
+
+- `firmware/net_bench/build/field-cycle-peer-20260706-mppt-safe/net_bench.ino.bin`
+- `firmware/net_bench/build/serial-bridge-20260706-mppt-tail/net_bench.ino.bin`
 
 ## 2026-07-06 - Codex - Low-VBAT OTA boundary TODO
 

@@ -175,6 +175,23 @@ battery current), and `fcmin=`/`fcmax=` (cycle voltage bounds). The dashboard an
   in minutes, capped at 255. The `/telemetry` JSON exposes the same phase totals in
   seconds for an OTA-maintenance check.
 
+`net-bench-2026-07-06.1` adds an opt-in safe VINDPM perturb helper for the field-cycle
+bench:
+
+```
+./build.sh --role peer --channel 11 --field-cycle --field-mppt ... --maintain 4.6
+```
+
+With `--field-mppt`, a charge wake preserves the OTA listen window, then samples fixed
+P105 candidates 4.6/4.8/5.0 V when the battery/input gates are healthy enough. It logs
+`mppts=` (status), `mpptr=` (reason), `mpptn=` (run count), `mpptv=`/`mpptbest=`/
+`mpptlast=` (volts x10), and `mppt46=`/`mppt48=`/`mppt50=` (W x100). By default it
+clamps back to 4.6 V before sleeping or entering maintenance so USB/power-bank rescue
+stays safe. `--field-mppt-hold` is available for a later harvest-optimization test, but
+do not use it for the first safety/learning deployment. This tail extends the heartbeat
+past the old 128 B bridge buffer, so flash/build the matching serial bridge before an
+MPPT peer.
+
 `net-bench-2026-06-30.7` also appends BQ25628E charger telemetry for low-VBAT
 solar/USB rescue debugging:
 
