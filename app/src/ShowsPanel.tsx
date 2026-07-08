@@ -41,7 +41,7 @@ export function ShowsPanel() {
   }
 
   return (
-    <Widget id="shows" title="🎬 Light Shows" x={344} y={12} w={216} h={330}>
+    <Widget id="shows" title="🎬 Shows · 🎹 Piano" x={344} y={12} w={216} h={330}>
       {SHOWS.map((s) => {
         const on = activeShow === s.id;
         return (

@@ -38,6 +38,7 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
     { key: "shows", el: <ShowsPanel /> }, // pre-designed shows + piano (build-your-own: cues)
   ],
   sound: [
+    { key: "shows", el: <ShowsPanel /> }, // 🎹 piano pieces (Moonlight etc.) belong in Sound too
     { key: "aivj", el: <AiPilot /> },
     { key: "controls", el: <Controls /> }, // EQ/strobe/auto-VJ toggles live here too
   ],
