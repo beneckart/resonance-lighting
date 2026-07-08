@@ -19,11 +19,11 @@ const grab = () => page.evaluate(() => {
   for (let i = 0; i < d.length; i += 4) { sum += d[i] + d[i+1] + d[i+2]; arr[i / 4] = d[i] + d[i+1] + d[i+2]; }
   return { sum, arr };
 });
-const pats = await page.evaluate(() => window.twin.getState().fixtures && [
+const pats = process.argv[2] ? process.argv[2].split(",") : [
   "solid","breathe","chase","ripple","sparkle","sequence","spectrum","tricolor","spiral","godray","rising",
   "planewipe","warmcool","bloom","firefly","ca","hero","plasma","chromatic","rings","fibonacci","sweep",
   "aurora","chladni","glyph","interference","lissajous","shockwave","hurricane","wind","ember","rain",
-]);
+];
 console.log("pattern            lit-sum   motion(2s)  motion(4s)");
 for (const pat of pats) {
   await page.evaluate((p) => window.twin.getState().set({ pattern: p, brightness: 0.9, sat: 0.9, hue: 0.08, speed: 1, colorCycle: "off", blackout: false }), pat);

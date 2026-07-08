@@ -243,7 +243,7 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // A light glows when its number is the active fib value, with a fading tail,
       // so 1,2,3,5,8,13,21… light up in turn and hop around the tree. Big fib
       // numbers fold back in via into72 (101→1, 112→12, 7747→47).
-      const head = tt * sp * 1.1; // fractional step pointer (rides the speed dial)
+      const head = tt * sp * 2.4; // fractional step pointer (a hop ~every 1.2 s at speed 1 — was too sparse to read)
       const TAIL = 4; // how many recent steps still glow
       const L = FIB72.length;
       let glow = 0;
@@ -272,9 +272,9 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
     }
     case "aurora": {
       // Perlin-ish plasma flow → green/violet curtains drifting up the tree (no strobe)
-      const n1 = Math.sin(f.norm[0] * 4 + tt * sp * 0.3)
-        + Math.sin(f.norm[2] * 5 - tt * sp * 0.22)
-        + Math.sin(f.heightT * 7 + tt * sp * 0.18);
+      const n1 = Math.sin(f.norm[0] * 4 + tt * sp * 0.9)
+        + Math.sin(f.norm[2] * 5 - tt * sp * 0.66)
+        + Math.sin(f.heightT * 7 + tt * sp * 0.54 + Math.sin(tt * sp * 0.31) * 1.3); // extra drift → curtains visibly flow
       bri *= 0.18 + 0.82 * (0.5 + 0.5 * Math.sin(n1 * 1.3));
       hue = frac(0.45 + 0.22 * Math.sin(n1) + f.heightT * 0.15); // green↔violet, drifts up
       sat = Math.max(sat, 0.8);
@@ -282,10 +282,12 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
     }
     case "chladni": {
       // standing-wave (Chladni) mandala — antinodes bright; modes morph slowly
-      const m = 2 + Math.floor(3 * (0.5 + 0.5 * Math.sin(t * sp * 0.08)));
-      const nn = 1 + Math.floor(3 * (0.5 + 0.5 * Math.cos(t * sp * 0.06)));
+      // the mandala now ROTATES between mode morphs (it was frozen for minutes
+      // at a time — flagged dead by the pattern sweep 2026-07-08)
+      const m = 2 + Math.floor(3 * (0.5 + 0.5 * Math.sin(t * sp * 0.24)));
+      const nn = 1 + Math.floor(3 * (0.5 + 0.5 * Math.cos(t * sp * 0.19)));
       const az = f.seqT * Math.PI * 2;
-      const val = Math.abs(Math.sin(m * az) * Math.sin(nn * Math.PI * f.heightT));
+      const val = Math.abs(Math.sin(m * az + t * sp * 0.8) * Math.sin(nn * Math.PI * f.heightT + 0.35 * Math.sin(t * sp * 0.61)));
       bri *= 0.05 + 0.95 * Math.pow(val, 1.4);
       break;
     }
@@ -382,9 +384,11 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
     }
     case "warmcool": {
       // warm trunk / cool canopy with a breathing split boundary (reads as depth)
-      const split = 0.5 + 0.3 * Math.sin(t * sp * 0.5);
+      // breathing split + a wobble that TRAVELS around the tree (was a 36 s
+      // near-static crawl — flagged dead by the pattern sweep 2026-07-08)
+      const split = 0.5 + 0.22 * Math.sin(t * sp * 1.4) + 0.14 * Math.sin(f.azimuth * 2 + t * sp * 0.9);
       const w = smooth(split - 0.15, split + 0.15, f.heightT);
-      hue = frac(0.08 + w * 0.5); // amber → cyan
+      hue = frac(0.08 + w * 0.5 + 0.02 * Math.sin(t * sp * 0.53 + f.rnd * 6.28)); // amber → cyan, shimmering
       sat = Math.max(sat, 0.7);
       break;
     }
