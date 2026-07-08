@@ -74,6 +74,52 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
   switch (c.pattern) {
     case "solid":
       break;
+    case "shockwave": {
+      // SHOCKWAVE (Elliot): a physical front — sharp leading edge, decaying wake,
+      // one reflected pass — from a NEW random origin every wave, so it never
+      // repeats. Distance is measured in normalized cylinder space.
+      const period = 6 / Math.max(0.15, sp);
+      const k = Math.floor(t / period); // wave index
+      const ph = t / period - k; // 0..1 through this wave
+      const h1 = frac(Math.sin(k * 127.1) * 43758.5453); // per-wave origin (stable for the wave)
+      const h2 = frac(Math.sin(k * 311.7) * 12543.853);
+      const oa = h1 * Math.PI * 2 - Math.PI, oh = h2;
+      const dx = Math.cos(f.azimuth) * f.radialT - Math.cos(oa) * 0.9;
+      const dz = Math.sin(f.azimuth) * f.radialT - Math.sin(oa) * 0.9;
+      const dy = (f.heightT - oh) * 1.4;
+      const d = Math.sqrt(dx * dx + dz * dz + dy * dy); // 0..~2.6
+      const R = 2.7;
+      const front = ph * 1.35 * R; // outbound front…
+      const refl = 2 * R - front; // …and its reflection off the far edge
+      const edge = (r: number, w: number, gain: number) => {
+        const lead = Math.exp(-((d - r) * (d - r)) / (w * w)); // sharp leading edge
+        const tail = d < r ? Math.exp(-(r - d) * 2.2) * 0.45 : 0; // decaying wake
+        return gain * (lead + tail);
+      };
+      const e = edge(front, 0.14, 1) + (refl < R ? edge(refl, 0.2, 0.5) : 0);
+      bri *= Math.min(1.3, e);
+      hue = frac(hue + d * 0.06 + k * 0.13); // each wave lands a shifted colour
+      break;
+    }
+    case "hurricane": {
+      // HURRICANE (Elliot): a swirling vortex that WANDERS around the tree and
+      // slowly reverses spin — non-commensurate drift frequencies mean the path
+      // never retraces (no repetitive patterning).
+      const w = tt * (0.25 + sp * 0.5);
+      const wander = Math.sin(t * 0.071) * 1.7 + Math.sin(t * 0.0233 + 1.7) * 1.1; // eye azimuth
+      const eyeH = 0.5 + 0.38 * Math.sin(t * 0.043 + 2.1); // eye height drifts too
+      const spin = Math.sin(t * 0.017) >= 0 ? 1 : -1; // slow direction changes
+      let da = f.azimuth - wander;
+      da = Math.atan2(Math.sin(da), Math.cos(da)); // wrap
+      const dh = (f.heightT - eyeH) * 2.2;
+      const dEye = Math.sqrt(da * da * 0.8 + dh * dh);
+      const arm = Math.sin(da * 3 * spin + f.heightT * 7 - w * 6 * spin + dEye * 4); // spiral arms
+      const band = Math.exp(-dEye * 0.9);
+      const eye = Math.exp(-dEye * dEye * 6); // calm bright eye at the centre
+      bri *= Math.min(1.25, Math.max(0, 0.12 + band * (0.45 + 0.55 * arm) + eye * 0.5));
+      hue = frac(hue + dEye * 0.09 + spin * 0.02);
+      break;
+    }
     case "sequence": {
       const N = Math.max(1, n);
       // QUANTIZER (P0-3): when synced + a tempo is locked, derive the step from

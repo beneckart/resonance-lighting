@@ -15,12 +15,12 @@ export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
   | "chromatic" | "rings" | "fibonacci" | "sweep" | "living" | "piano" | "ripples" | "organism"
-  | "aurora" | "chladni" | "glyph" | "interference" | "lissajous"
+  | "aurora" | "chladni" | "glyph" | "interference" | "lissajous" | "shockwave" | "hurricane"
   | "life"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous", "shockwave", "hurricane",
 ];
 /** Decentralised cellular-automata rules (Ben's BACKGROUND.md mesh spec): each light
  *  runs a simple local rule over its pre-baked neighbour list. The "interactivity mode"
