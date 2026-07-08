@@ -3,7 +3,11 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { clearLife, seedLife, setFieldTheme, setLifeState } from "./field";
+import { clearLife, seedLife, seedRandomCluster, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
+
+// Game-of-Light swaps the life rules to organic while armed; the player's own
+// rules are snapshotted here and restored on disarm.
+let preGolRules: LifeRules | null = null;
 import { themeById, themeHue } from "./themes";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
@@ -576,7 +580,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
     setFieldTheme(id === "random" ? null : t.hues);
     setState((s) => ({ caTheme: id, control: { ...s.control, sat: t.sat, hue: t.hues[0] ?? s.control.hue } }));
   },
-  // ── CA MODE-ENTRY ceremony: dark → themed flourish → dark → BLANK start ──
+  // ── CA MODE-ENTRY ceremony: dark → themed flourish → dark → fresh start
+  //    (Game of Life lands on a 4-9-light seed cluster, not a blank board) ──
   enterCa: (r) => {
     const s = get();
     const style = {
@@ -595,8 +600,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
   },
   announceSetPhase: (p) => setState((s) => {
     if (p === "idle") {
-      // ceremony over → land on the chosen rule with a BLANK field, lights ready
+      // ceremony over → land on the chosen rule: field wiped, and for Game of
+      // Life a fresh 4-9-light cluster is dealt immediately (Elliot: no blank start)
       clearLife();
+      if (s.announce.target === "life") seedRandomCluster(s.fixtures);
       return {
         announce: { ...s.announce, phase: "idle", t0: performance.now() / 1000 },
         control: { ...s.control, pattern: s.announce.target, blackout: false },
@@ -610,6 +617,11 @@ export const useTwin = create<TwinState>((setState, get) => ({
 
   // ── GAME OF LIGHT lifecycle ──
   armGol: () => {
+    // the visitor lifecycle NEEDS burn-out physics (waves must die back to dark),
+    // which pure mode exempts by spec — run armed sessions on the organic rules
+    // and hand the player's own rules back on disarm
+    preGolRules = getLifeRules();
+    setLifeRules({ bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false });
     setLifeState({ nodes: [], ambient: false });
     setState((s) => ({
       control: { ...s.control, pattern: "life", blackout: true, beaconPreempt: false },
@@ -620,6 +632,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     // "off" = DISARM: back to a normal always-alive field, lights back on, nodes gone.
     // (A previous bug left the tree blacked out + dark-at-rest after disarming.)
     if (p === "off") {
+      if (preGolRules) { setLifeRules(preGolRules); preGolRules = null; } // restore the player's rules
       setLifeState({ ambient: true, nodes: [] });
       return { gol: { ...DEFAULT_GOL, phase: "off" }, control: { ...s.control, blackout: false } };
     }

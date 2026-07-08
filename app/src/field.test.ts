@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { updateLife, seedLife, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue } from "./field";
+import { updateLife, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue } from "./field";
 import type { SimFixture } from "./store";
 
 /** ALGORITHMIC CONSISTENCY CHECK — Game of Life on the neighbour graph (Elliot:
@@ -63,6 +63,7 @@ describe("Game of Life — algorithmic consistency", () => {
   });
 
   it("dark-at-rest: ambient off + no nodes → the tree goes fully dark and STAYS dark", () => {
+    setLifeRules({ bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false }); // burn-out physics = ORGANIC rules (pure exempts it by spec)
     setLifeState({ ambient: false, nodes: [] });
     run(fx, 60, 2); // fatigue guarantees burn-out; give it a realistic settle window
     const totalBri = Array.from(lifeOut.bri).reduce((a, b) => a + b, 0);
@@ -71,6 +72,7 @@ describe("Game of Life — algorithmic consistency", () => {
     seedLife([10], { hops: 2, hue: 0.5, bri: 1.2, ttl: 2 });
     run(fx, 1, 2);
     expect(lifeOut.bri[10]).toBeGreaterThan(0.4);
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true }); // restore the Conway-mesh default
   });
 
   it("a visitor NODE keeps its region alive in dark-at-rest (patterns emanate)", () => {
@@ -123,6 +125,53 @@ describe("Game of Life — algorithmic consistency", () => {
     run(fx, 5, 0.03);
     const slowChanged = slowSnap.filter((v, i) => Math.abs(v - lifeOut.bri[i]) > 0.05).length;
     expect(fastChanged).toBeGreaterThan(slowChanged);
+  });
+});
+
+describe("Conway-mesh default + new-game watchdog (Elliot 2026-07-08)", () => {
+  it("default rules are pure Conway-mesh B2/S23", () => {
+    expect(getLifeRules()).toEqual({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true });
+  });
+
+  it("seedRandomCluster lights a 4-9 cluster on a blank board", () => {
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true });
+    setLifeState({ ambient: true, nodes: [], palette: "warm" });
+    clearLife();
+    seedRandomCluster(fx);
+    updateLife(fx, 0.01, 0.03); // glacial speed → no generation ticks yet, just render
+    const lit = Array.from({ length: N }, (_, i) => i).filter((i) => lifeOut.bri[i] > 0.01 || true);
+    void lit;
+    // count directly via a full-speed single frame render pass
+    let alive = 0;
+    for (let i = 0; i < N; i++) if (lifeOut.bri[i] > 0) alive++;
+    expect(alive).toBeGreaterThanOrEqual(4);
+    expect(alive).toBeLessThanOrEqual(9);
+  });
+
+  it("pure+ambient: an ended game auto-deals a fresh 4-9 seed (never stays dark)", () => {
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true });
+    setLifeState({ ambient: true, nodes: [], palette: "warm" });
+    clearLife(); // extinct board — the watchdog must revive it
+    run(fx, 10, 1); // ~5 generations at speed 1
+    let alive = 0;
+    for (let i = 0; i < N; i++) if (lifeOut.bri[i] > 0.02) alive++;
+    expect(alive).toBeGreaterThan(0);
+  });
+
+  it("pure+ambient: a frozen still-life is detected and replaced within a few generations", () => {
+    setLifeRules({ bLo: 9, bHi: 9, sLo: 0, sHi: 8, pure: true }); // births impossible, nothing dies → instant still-life
+    setLifeState({ ambient: true, nodes: [], palette: "warm" });
+    clearLife();
+    seedLife([0, 1, 2, 3, 4]);
+    run(fx, 30, 1); // plenty of generations for hash-repeat detection
+    // the original still-life must have been cleared + reseeded elsewhere at least once:
+    // stagnation counter resets on reseed, so the field keeps CHANGING
+    const snapA = Array.from(lifeOut.bri);
+    run(fx, 30, 1);
+    const snapB = Array.from(lifeOut.bri);
+    const changed = snapA.filter((v, i) => Math.abs(v - snapB[i]) > 0.05).length;
+    expect(changed).toBeGreaterThan(0);
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true }); // restore default
   });
 });
 

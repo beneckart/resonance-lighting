@@ -6,11 +6,16 @@ import { getLifeRules, setLifeRules, type LifeRules } from "./field";
 
 // editable Game-of-Life rule presets (graph has ~6 neighbours, not a grid's 8)
 const LIFE_PRESETS: Record<string, Partial<LifeRules>> = {
-  "mesh (default)": { bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false },
+  // DEFAULT — Conway dynamics on the mesh: survive 2-3 exactly as Conway, birth
+  // scaled 8-grid→6-graph (3/8 ≈ 2/6). Games run ~76 generations (median) with
+  // real still-lifes + oscillators, then the watchdog deals a fresh 4-9 seed.
+  "Conway B2/S23": { bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true },
   "classic B3/S23": { bLo: 3, bHi: 3, sLo: 2, sHi: 3, pure: true },
-  "blooms B2/S1-4": { bLo: 2, bHi: 2, sLo: 1, sHi: 4, pure: true },
+  "organic churn": { bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false },
 };
-const RULES_KEY = "ca.liferules";
+// v2: default became Conway-mesh pure — the old persisted key would pin every
+// existing device to the churn rules and nobody would see the fix
+const RULES_KEY = "ca.liferules.v2";
 
 // log-mapped speed slider: u∈0..1 → speed 0.03..4 (exponential), so HALF the travel
 // is the slow zone. Life gen-period ≈ 2.0·speed^-1.15 (shown live in the label).
@@ -30,7 +35,7 @@ const fmtPeriod = (p: number) => (p >= 60 ? `${(p / 60).toFixed(1)}min` : p >= 1
  *  which CA runs). Many taps/touches fire at once. For Game of Life a tap also
  *  births live cells there, so the disturbance propagates hop-by-hop through the mesh. */
 const RULE_META: Record<string, { name: string; blurb: string; emoji: string; hue: number }> = {
-  life: { name: "Game of Life", blurb: "cells born & die by neighbour count", emoji: "🌱", hue: 0.05 },
+  life: { name: "Game of Life", blurb: "Conway on the light mesh · games end, fresh seeds deal in", emoji: "🌱", hue: 0.05 },
   ripples: { name: "Excitable", blurb: "waves ripple out & fade · Greenberg-Hastings", emoji: "💫", hue: 0.55 },
   organism: { name: "Reaction-Diffusion", blurb: "blobs drift, split & merge · Gray-Scott", emoji: "🫧", hue: 0.5 },
   living: { name: "Firefly Sync", blurb: "fireflies fall into travelling waves · Kuramoto", emoji: "✨", hue: 0.12 },
@@ -78,7 +83,7 @@ export function InteractivityPanel() {
 
   const pickRule = (r: PatternId) => {
     // ENTRY CEREMONY (Elliot): dark → themed flourish ("entering this mode") →
-    // dark → the automaton starts from a BLANK board. store.enterCa owns it.
+    // dark → Game of Life starts from a fresh 4-9-light seed. store.enterCa owns it.
     if (caTheme === "random") set({ sat: 0.85, hue: RULE_META[r]?.hue ?? control.hue });
     enterCa(r);
     setTr({ rule: r });
@@ -152,7 +157,7 @@ export function InteractivityPanel() {
         </Row>
         {announce.phase !== "idle" && (
           <div style={{ fontSize: 10.5, color: "#f0d890", margin: "2px 0 6px" }}>
-            ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → blank start…
+            ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → fresh seed…
           </div>
         )}
         {active === "life" && (

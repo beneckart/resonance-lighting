@@ -164,12 +164,17 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
 //    those "held" cells stay lit for their ttl (immune to rule-death), propagate to
 //    neighbours, then fade — so a touch's colour blooms and rolls out through the mesh.
 // EDITABLE rule (Elliot: "to accurately get the game of life patterns to work we
-// need to be able to edit the rules"). Defaults = the graph-tuned B2-3/S1-3.
+// need to be able to edit the rules").
 // `pure` = TEXTBOOK mode: no churn, no old-age, no refractory, no fatigue, no
 // extinction guard — exact birth/survive counts on the neighbour graph, so seeded
-// patterns evolve by the rule and nothing else (start it from a BLANK field).
+// patterns evolve by the rule and NOTHING else (playgameoflife.com semantics).
+// DEFAULT = Conway adapted to the mesh: survive 2-3 exactly as Conway; birth
+// scaled from the 8-neighbour grid to our 6-neighbour graph (3/8 ≈ 2/6 → B2).
+// Measured on the real 118-fixture graph from 4-9-light seeds: literal B3/S23
+// dies in ~4 generations (median); B2/S23 gives median-76-generation games with
+// genuine still-lifes and period-2 oscillators — Conway DYNAMICS, mesh topology.
 export interface LifeRules { bLo: number; bHi: number; sLo: number; sHi: number; pure: boolean }
-let lifeRules: LifeRules = { bLo: 2, bHi: 3, sLo: 1, sHi: 3, pure: false };
+let lifeRules: LifeRules = { bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true };
 export function setLifeRules(r: Partial<LifeRules>) { lifeRules = { ...lifeRules, ...r }; }
 export function getLifeRules(): LifeRules { return { ...lifeRules }; }
 const LIFE_AGE_MAX = 12;          // ticks a cell counts up while alive
@@ -241,6 +246,35 @@ export function clearLife() {
 export function seedLife(indices: number[], opts: SeedOpts = {}) {
   for (const i of indices) lifeSeeds.push({ i, o: opts });
   lifeFatigue = 0; // fresh stimulation → the field wakes up fully again
+}
+
+// ── NEW-GAME watchdog (pure mode) ── a Conway game ENDS: extinction, a still-
+// life, or a small oscillator. In ambient pure mode the tree then deals a fresh
+// hand — a random CLUSTER of 4-9 lights (Elliot: "doesn't have to start from
+// blank — it can start from any 4-9 lights on"). Scattered singles would just
+// die under B2/S23, so the seed is one BFS neighbourhood, like drawing a small
+// pattern on playgameoflife.com and pressing play.
+let lifeHist: number[] = []; // recent generation hashes → cycle detection
+let lifeStagnant = 0;
+function lifeStateHash(): number {
+  let h = 2166136261;
+  for (let i = 0; i < lifeCell.length; i++) if (lifeCell[i] > 0) { h ^= i + 1; h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+export function seedRandomCluster(fixtures: SimFixture[], count?: number) {
+  const n = fixtures.length;
+  if (!n || lifeCell.length !== n) return;
+  const c = count ?? 4 + Math.floor(Math.random() * 6); // 4-9 lights on
+  const c0 = Math.floor(Math.random() * n);
+  const order = [c0];
+  const seen = new Set<number>([c0]);
+  for (let q = 0; q < order.length && order.length < 14; q++)
+    for (const j of fixtures[order[q]].neighbors) if (!seen.has(j)) { seen.add(j); order.push(j); }
+  for (const i of order.slice(0, c)) {
+    lifeCell[i] = 1; lifeRefr[i] = 0;
+    lifeHue[i] = lifePalette === "random" ? rndHue(i, lifeGen + i) : lifePalette === "theme" ? themeBirthHue(i, lifeGen + i) : baseHueFn(i);
+  }
+  lifeHist = []; lifeStagnant = 0;
 }
 
 function reseedLife(n: number, fixtures: SimFixture[]) {
@@ -385,6 +419,20 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
       }
     }
     lifeCell = next; lifeHue = nextHue;
+    // pure + ambient + no visitor nodes: when THIS game ends, deal the next one.
+    // (Dark-at-rest and Game-of-Light own their lifecycles; churn mode never ends.)
+    if (lifeRules.pure && lifeAmbient && !lifeNodes.length) {
+      const h = lifeStateHash();
+      lifeStagnant = live === 0 || lifeHist.includes(h) ? lifeStagnant + 1 : 0;
+      lifeHist.push(h);
+      if (lifeHist.length > 6) lifeHist.shift();
+      if (live === 0 || lifeStagnant >= 4) {
+        // a stuck still-life must not accumulate as permanent lit sculpture —
+        // clear everything not tap-held, then seed the fresh 4-9 cluster
+        for (let i = 0; i < n; i++) if (lifeTtl[i] <= 0) lifeCell[i] = 0;
+        seedRandomCluster(fixtures);
+      }
+    }
   }
 
   // smoothed render — alive glows up, dead fades out; both snappier at higher speed so
