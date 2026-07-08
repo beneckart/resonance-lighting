@@ -18,6 +18,7 @@ import { easeGroundTint } from "./groundtint";
 import { createGlslPass, type GlslPass } from "./glslPass";
 import { playUnityFanfare } from "./unityAudio";
 import { asset } from "./fixtures";
+import { themeById } from "./themes";
 
 // Global pattern-motion slowdown (everything was tuned too fast). 1.0 = old
 // frantic baseline; lower = calmer. The speed dial multiplies on top of this.
@@ -226,18 +227,23 @@ export function TreeLights() {
     // per-group/subset LAYERS: map each owned light number → its effective control
     // (the layer's control merged over the base). Last layer to claim a number wins.
     const layerCtrl = st.layers.length ? new Map<number, typeof ctrl>() : null;
+    // per-GROUP colour themes (Elliot): a group's layer can live in its own theme
+    // world; fixtures not claimed by a themed group follow the global theme
+    const layerTheme = st.layers.length ? new Map<number, number[] | null>() : null;
     if (layerCtrl) for (const ly of st.layers) {
       const merged = { ...ctrl, ...ly.control };
-      for (const nn of ly.nums) layerCtrl.set(nn, merged);
+      const tid = st.groupThemes[ly.id];
+      const th = tid ? (tid === "random" ? null : themeById(tid).hues) : undefined;
+      for (const nn of ly.nums) { layerCtrl.set(nn, merged); if (th !== undefined && layerTheme) layerTheme.set(nn, th); }
     }
     // decentralised "living" field — run once per frame if any active look uses it
     const useField = ctrl.pattern === "living" || st.layers.some((l) => l.control.pattern === "living");
     if (useField) {
-      updateField(fixtures, delta, ctrl.speed, lorenzFoci(st.center, st.size, delta));
+      updateField(fixtures, delta, st.control.speed, lorenzFoci(st.center, st.size, delta * Math.max(0.05, st.control.speed))); // RAW dial; the drifting foci ride it too, or the dial can't slow the look
     }
     // reaction-diffusion organism
     if (ctrl.pattern === "organism" || st.layers.some((l) => l.control.pattern === "organism")) {
-      updateOrganism(fixtures, ctrl.speed);
+      updateOrganism(fixtures, delta, st.control.speed); // RAW dial
     }
     // piano: the canopy plays a score — refresh per-key brightness once per frame
     if (ctrl.pattern === "piano" || st.layers.some((l) => l.control.pattern === "piano")) {
@@ -245,7 +251,7 @@ export function TreeLights() {
     }
     // excitable-media ripples — tick the CA once per frame if any look uses it
     if (ctrl.pattern === "ripples" || st.layers.some((l) => l.control.pattern === "ripples")) {
-      updateRipples(fixtures, delta, ctrl.speed);
+      updateRipples(fixtures, delta, st.control.speed); // RAW dial
     }
     // Game of Life on the neighbour graph — tick once per frame if any look uses it.
     // Cell seeding is owned by the event sources (store.triggerAt / pingPresence), so a
@@ -353,7 +359,7 @@ export function TreeLights() {
       // COLOUR THEME constraint for LIGHT-SHOW patterns too (Elliot) — the CA
       // engines + piano already theme themselves; everything else (incl. GLSL)
       // gets its colour pulled into the picked theme's world here.
-      if (!(CA_RULES as string[]).includes(fctrl.pattern) && fctrl.pattern !== "piano") applyThemeToLit(lit);
+      if (!(CA_RULES as string[]).includes(fctrl.pattern) && fctrl.pattern !== "piano") applyThemeToLit(lit, layerTheme && layerTheme.has(f.num) ? layerTheme.get(f.num) : undefined);
       // UNITY override: whole tree goes rainbow (spinning by azimuth+height) + a
       // per-fixture twinkle. The ripple boost below adds the "ripple" on top.
       if (gol.unity) {

@@ -22,9 +22,9 @@ let fieldThemeHues: number[] | null = null;
 export function setFieldTheme(hues: number[] | null) {
   fieldThemeHues = hues && hues.length ? hues : null;
 }
-export function themeMapHue(h: number): number {
-  const t = fieldThemeHues;
-  if (!t) return h;
+export function themeMapHue(h: number, hues?: number[] | null): number {
+  const t = hues === undefined ? fieldThemeHues : hues; // undefined = global theme · null = unconstrained
+  if (!t || !t.length) return h;
   let best = t[0], bd = Infinity;
   for (const a of t) { let d = Math.abs(a - h) % 1; d = Math.min(d, 1 - d); if (d < bd) { bd = d; best = a; } }
   let off = h - best; off -= Math.round(off); // signed shortest offset
@@ -56,7 +56,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
   if (n0 !== n) reseed(n, fixtures);
   const dts = Math.min(0.05, Math.max(0, dt));
   tAcc += dts;
-  const rate = dts * (0.5 + speed); // organic, slow
+  const rate = dts * Math.max(0.05, speed) * 1.5; // multiplicative: the dial reaches GLACIAL (0.05×) and fast (6×); ×1.5 keeps speed-1 parity
   const K = 0.25; // weak local coupling → PARTIAL sync (travelling waves, not a tree-wide strobe)
 
   for (let i = 0; i < n; i++) {
@@ -119,10 +119,17 @@ let ghAcc = 0;
 let ghN = -1;
 export const rippleOut = { bri: new Float32Array(0), age: new Float32Array(0) };
 
+/** Excite the medium at these fixtures (a touch/sensor) — the wave rolls out
+ *  from there by the GH rule. Without this the mode only self-seeds rarely and
+ *  can sit dark for many seconds, which reads as "broken". */
+export function exciteRipples(indices: number[]) {
+  for (const i of indices) if (i >= 0 && i < cell.length && cell[i] === 0) cell[i] = 1;
+}
+
 export function updateRipples(fixtures: SimFixture[], dt: number, speed: number) {
   const n = fixtures.length;
   if (ghN !== n) { cell = new Int8Array(n); rippleOut.bri = new Float32Array(n); rippleOut.age = new Float32Array(n); ghN = n; }
-  ghAcc += Math.min(0.1, Math.max(0, dt)) * (0.6 + speed);
+  ghAcc += Math.min(0.1, Math.max(0, dt)) * Math.max(0.05, speed) * 1.6; // multiplicative dial (glacial→fast), speed-1 parity with the old 0.6+1
   const TICK = 0.45; // seconds per CA step (slow, organic)
   if (ghAcc >= TICK) {
     ghAcc -= TICK;
@@ -454,7 +461,8 @@ let gu = new Float32Array(0), gv = new Float32Array(0), su = new Float32Array(0)
 let gsN = -1;
 export const organismOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
 
-export function updateOrganism(fixtures: SimFixture[], speed: number) {
+let gsAcc = 0; // fractional evolution steps (dial-scaled) carried across frames
+export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number) {
   const n = fixtures.length;
   if (gsN !== n) {
     gu = new Float32Array(n).fill(1); gv = new Float32Array(n);
@@ -464,7 +472,11 @@ export function updateOrganism(fixtures: SimFixture[], speed: number) {
     gsN = n;
   }
   const Du = 0.5, Dv = 0.25, F = 0.025, k = 0.06; // stable "gentle spots" regime (low node count → ~1 drifting blob)
-  const steps = Math.max(2, Math.round(3 + speed * 5)); // evolution rate rides the speed dial
+  // MULTIPLICATIVE dial: ~480 steps/s at speed 1 (the old 8-per-frame at 60 fps),
+  // a step every few frames at the glacial end, capped so fast can't hitch the CPU
+  gsAcc += Math.min(0.1, Math.max(0, dt)) * Math.min(720, Math.max(10, speed * 480)); // band 10..720 steps/s — fast can't over-evolve the spots into a frozen steady state
+  const steps = Math.min(24, Math.floor(gsAcc));
+  gsAcc -= steps;
   for (let s = 0; s < steps; s++) {
     for (let i = 0; i < n; i++) {
       const nb = fixtures[i].neighbors, L = nb.length || 1;
@@ -477,6 +489,11 @@ export function updateOrganism(fixtures: SimFixture[], speed: number) {
     }
     [gu, su] = [su, gu]; [gv, sv] = [sv, gv];
   }
+  // the reaction can go EXTINCT (v → 0 everywhere) — the organism must live on:
+  // quietly re-inject a few spots so the mode never fades to permanent black
+  let vsum = 0;
+  for (let i = 0; i < n; i++) vsum += gv[i];
+  if (vsum < 0.05) for (let sd = 0; sd < 8; sd++) { const i = Math.floor(Math.random() * n); gv[i] = 0.5; gu[i] = 0.25; }
   for (let i = 0; i < n; i++) {
     const v = gv[i];
     organismOut.bri[i] = Math.min(1, v * 2.6);

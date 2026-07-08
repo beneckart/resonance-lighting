@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { THEMES } from "./themes";
 import { Widget } from "./Widget";
 import {
   useTwin, COLOR_CYCLES, LIGHT_ORDERS, DEFAULT_GROUP_CONTROL,
@@ -58,6 +59,8 @@ export function GroupPanel() {
   const nums = namedGroups[selected] ?? [];
   const isPreset = selected in LABELS;
   const set = (p: Partial<typeof gc>) => setGroupControl(selected, p);
+  const groupThemes = useTwin((st) => st.groupThemes);
+  const setGroupTheme = useTwin((st) => st.setGroupTheme);
 
   return (
     <Widget id="groups" title="▤ Groups" x={980} y={12} w={300} h={460}>
@@ -96,6 +99,22 @@ export function GroupPanel() {
           ))}
         </div>
 
+
+        {/* colour THEME for THIS group (Elliot) — its lights live in the picked
+            world; tap the active chip again to follow the global theme */}
+        <div style={lbl}>Theme</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "4px 0" }}>
+          {THEMES.map((t) => {
+            const on = groupThemes[selected] === t.id;
+            return (
+              <button key={t.id} title={t.blurb} onClick={() => setGroupTheme(selected, on ? "" : t.id)}
+                style={{ flex: "1 0 22%", padding: "4px 3px", borderRadius: 6, cursor: "pointer", fontSize: 9.5, fontWeight: 700,
+                  border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
+                {t.emoji} {t.name}
+              </button>
+            );
+          })}
+        </div>
         <div style={lbl}>Color</div>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center", margin: "6px 0" }}>
           {SWATCHES.map((sw) => {

@@ -446,13 +446,13 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
 // Whites/greys pass through untouched — the theme constrains COLOUR, not shade.
 const themeCol = new Color();
 const themeHsl = { h: 0, s: 0, l: 0 };
-export function applyThemeToLit(o: Lit) {
+export function applyThemeToLit(o: Lit, hues?: number[] | null) {
   const mx = Math.max(o.r, o.g, o.b);
   if (mx <= 0.001) return;
   const k = mx > 1 ? 1 / mx : 1; // getHSL needs 0..1; keep the overdrive scale
   themeCol.setRGB(o.r * k, o.g * k, o.b * k).getHSL(themeHsl);
   if (themeHsl.s < 0.08) return; // near-white stays white (tameWhite handles level)
-  const h2 = themeMapHue(themeHsl.h);
+  const h2 = themeMapHue(themeHsl.h, hues);
   if (h2 === themeHsl.h) return; // no theme active — free
   themeCol.setHSL(h2, themeHsl.s, themeHsl.l);
   o.r = themeCol.r / k; o.g = themeCol.g / k; o.b = themeCol.b / k;

@@ -3,7 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { clearLife, seedLife, seedRandomCluster, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
+import { clearLife, seedLife, seedRandomCluster, exciteRipples, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
 
 // Game-of-Light swaps the life rules to organic while armed; the player's own
 // rules are snapshotted here and restored on disarm.
@@ -269,6 +269,8 @@ interface TwinState {
   deleteGroup: (name: string) => void;
   selectGroup: (name: string) => void;
   setGroupControl: (name: string, partial: Partial<Control>) => void;
+  groupThemes: Record<string, string>; // per-group colour theme id ("" / absent = follow global)
+  setGroupTheme: (name: string, id: string) => void;
   toggleGroupActive: (name: string, on: boolean) => void;
   playShow: (id: string | null) => void;
 }
@@ -284,6 +286,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   size: 10,
   overrides: {},
   layers: [],
+  groupThemes: {},
   namedGroups: {},
   groupControls: {},
   groupActive: {},
@@ -448,7 +451,11 @@ export const useTwin = create<TwinState>((setState, get) => ({
     };
     setState({ fixtures, center, size, namedGroups, source: doc.meta.source.split(":")[1] ?? doc.meta.source });
   },
-  set: (p) => setState((s) => ({ control: { ...s.control, ...p } })),
+  set: (p) => setState((s) => ({
+    // picking any pattern/mode RELEASES a latched blackout (Elliot: blackout is
+    // "all off", not a hold — clicking a mode must visibly run it)
+    control: { ...s.control, ...p, ...(p.pattern != null && p.blackout === undefined && s.control.blackout ? { blackout: false } : null) },
+  })),
   runCommand: (cmd) => {
     const r = runCommandStr(cmd, get().fixtures);
     setState((s) => {
@@ -563,6 +570,9 @@ export const useTwin = create<TwinState>((setState, get) => ({
     if (s.control.pattern === "life") {
       seedLife([idx], { hops: Math.max(1, Math.round(tr.spread * 2)), hue, bri: intensity, ttl: tr.duration });
     }
+    // Excitable (Greenberg-Hastings): a touch EXCITES the medium there — the CA
+    // wave propagates at the field's own pace (the overlay ripple is just a flash)
+    if (s.control.pattern === "ripples") exciteRipples([idx]);
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
@@ -717,6 +727,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { namedGroups: ng, groupControls: gc, groupActive: ga, layers: s.layers.filter((l) => l.id !== name) };
   }),
   selectGroup: (name) => setState({ selectedGroup: name }),
+  setGroupTheme: (name, id) => setState((s) => ({ groupThemes: { ...s.groupThemes, [name]: id } })),
   setGroupControl: (name, partial) => setState((s) => {
     const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name], ...partial };
     const groupControls = { ...s.groupControls, [name]: ctl };
