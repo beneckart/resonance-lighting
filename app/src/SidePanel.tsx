@@ -58,7 +58,9 @@ function loadOrder(mode: UiMode, keys: string[]): string[] {
     if (raw) {
       const saved = JSON.parse(raw) as string[];
       const valid = saved.filter((k) => keys.includes(k));
-      return [...valid, ...keys.filter((k) => !valid.includes(k))];
+      // sections ADDED since the order was saved go on TOP — a new feature
+      // hidden at the bottom of a long dock reads as "missing" (Moonlight, 2026-07-07)
+      return [...keys.filter((k) => !valid.includes(k)), ...valid];
     }
   } catch { /* ignore */ }
   return keys;
