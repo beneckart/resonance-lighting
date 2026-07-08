@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
-import { THEMES } from "./themes";
+import { ThemePicker } from "./ThemePicker";
 import { Widget } from "./Widget";
 import { getLifeRules, setLifeRules, type LifeRules } from "./field";
 
@@ -191,23 +191,7 @@ export function InteractivityPanel() {
           </Row>
         )}
         <Row label="Colour theme — the mood the field lives in">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {THEMES.map((t) => {
-              const on = caTheme === t.id;
-              return (
-                <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
-                  style={{ flex: "1 0 30%", padding: "5px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10.5, fontWeight: 700,
-                    border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
-                  <div>{t.emoji} {t.name}</div>
-                  <div style={{ display: "flex", gap: 1, marginTop: 3, height: 5, borderRadius: 2, overflow: "hidden" }}>
-                    {(t.hues.length ? t.hues : [0, 0.17, 0.33, 0.5, 0.67, 0.83]).map((h, k) => (
-                      <div key={k} style={{ flex: 1, background: `hsl(${h * 360},85%,55%)` }} />
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <ThemePicker value={caTheme} onPick={setCaTheme} />
         </Row>
         <Row label={`Brightness · ${Math.round(control.brightness * 100)}%`}>
           <input type="range" min={0.1} max={1} step={0.02} value={control.brightness}

@@ -222,7 +222,15 @@ export function Scene() {
         <GoboFloor />
       </ErrorBoundary>
       {/* the test-grid rig replaces the sculpture — hide the tree + chandelier
-          so the 49 hung lights read cleanly (the tree is the PIECE; this is a bench) */}
+          so the 49 hung lights read cleanly (the tree is the PIECE; this is a bench).
+          The bench gets LAB FURNITURE: a graduated 1 m floor grid + an XYZ axis
+          marker, so "where does each light think it is" reads against a scale. */}
+      {TEST_RIG && (
+        <group>
+          <gridHelper args={[24, 24, "#3a5a7a", "#1d2f42"]} position={[0, 0.02, 0]} />
+          <axesHelper args={[5]} position={[-12, 0.02, -12]} />
+        </group>
+      )}
       {!LIGHT_SCENE && !TEST_RIG && (
         <ErrorBoundary>
           <TreeContext />

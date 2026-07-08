@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTwin } from "./store";
 import { resetPiano, setPiece, PIECE_LIST, currentPiece, loadMidiPiece } from "./piano";
 import { setPianoSound } from "./pianoAudio";
-import { THEMES } from "./themes";
+import { ThemePicker } from "./ThemePicker";
 import { Widget } from "./Widget";
 import { asset } from "./fixtures";
 
@@ -59,18 +59,9 @@ export function PianoPanel() {
       </div>
       {/* colour THEME — the same moods as interactive mode; Wild 🎲 = the piano's
           native warm arc */}
-      <div style={{ marginTop: 8, fontSize: 10, color: "#8aa0bb" }}>🎨 theme</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
-        {THEMES.map((t) => {
-          const on = caTheme === t.id;
-          return (
-            <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
-              style={{ flex: "1 0 22%", padding: "4px 3px", borderRadius: 6, cursor: "pointer", fontSize: 9.5, fontWeight: 700,
-                border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
-              {t.emoji} {t.name}
-            </button>
-          );
-        })}
+      <div style={{ marginTop: 8, fontSize: 10, color: "#8aa0bb" }}>🎨 theme — the piece plays inside this colour world</div>
+      <div style={{ marginTop: 3 }}>
+        <ThemePicker value={caTheme} onPick={setCaTheme} />
       </div>
     </Widget>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, SEQ_MODES, VIZ_MODES, COLOR_CYCLES, useTwin, type PatternId, type SeqMode, type VizMode, type ColorCycle } from "./store";
 import { startMic, startFile, startTrack, stopAudio, audioFeatures } from "./audio";
-import { THEMES } from "./themes";
+import { ThemePicker } from "./ThemePicker";
 import { compileShow, showToJson } from "./showcompiler";
 import { interpret } from "./llm";
 import { encodeFixture } from "./protocol";
@@ -188,21 +188,10 @@ export function Controls() {
         </div>
         <Slider label="hue" v={ctrl.hue} min={0} max={1} on={(v) => setCtrl({ hue: v })} />
         <Slider label="saturation" v={ctrl.sat} min={0} max={1} on={(v) => setCtrl({ sat: v })} />
-        {/* colour THEMES (Elliot: themes in Light Show mode too) — pulls EVERY
+        {/* colour THEMES (Elliot: same tiles as Interactive mode) — pulls EVERY
             pattern's colours into the picked world; Wild = unconstrained */}
-        <div style={{ margin: "8px 0 3px", opacity: 0.8 }}>🎭 THEME</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-          {THEMES.map((t) => {
-            const on = caTheme === t.id;
-            return (
-              <button key={t.id} onClick={() => setCaTheme(t.id)} title={t.blurb}
-                style={{ flex: "1 0 22%", padding: "4px 3px", borderRadius: 6, cursor: "pointer", fontSize: 9.5, fontWeight: 700,
-                  border: on ? "1.5px solid #cdd6e4" : "1px solid #2a3a52", background: on ? "#1a2434" : "#121a26", color: on ? "#eef3fb" : "#9fb0c7" }}>
-                {t.emoji} {t.name}
-              </button>
-            );
-          })}
-        </div>
+        <div style={{ margin: "8px 0 3px", opacity: 0.8 }}>🎭 THEME — the mood the show lives in</div>
+        <ThemePicker value={caTheme} onPick={setCaTheme} />
       </div>
 
       <div style={row}>
