@@ -292,7 +292,11 @@ export function TreeLights() {
     // in a CA look the touch-wavefront tracks the FIELD's pace (a fast flash would
     // undercut the slow hop-by-hop trickle at glacial speeds)
     const caLook = (CA_RULES as string[]).includes(ctrl.pattern);
-    const rSpeed = treeSize * 0.55 * (caLook ? Math.min(1.2, Math.max(0.1, st.control.speed)) : 1);
+    // CA looks: the tap's flash front must roll ONE NEIGHBOUR HOP PER TURN — the
+    // same clock the staged births use (Elliot: "how quickly each light triggers
+    // the next"; the old floor made the flash race ahead no matter the dial)
+    const genT = Math.min(120, 1.0 * Math.pow(Math.max(0.02, st.control.speed), -1.15));
+    const rSpeed = caLook ? (treeSize * 0.16) / genT : treeSize * 0.55;
     const rWidth = treeSize * 0.06;
     let dead = 0;
     let stale = 0;

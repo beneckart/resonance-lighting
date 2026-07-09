@@ -22,7 +22,7 @@ const RULES_KEY = "ca.liferules.v2";
 const SPD_MIN = 0.03, SPD_MAX = 4;
 const uToSpeed = (u: number) => SPD_MIN * Math.pow(SPD_MAX / SPD_MIN, u);
 const speedToU = (s: number) => Math.log(Math.max(SPD_MIN, Math.min(SPD_MAX, s)) / SPD_MIN) / Math.log(SPD_MAX / SPD_MIN);
-const genPeriod = (s: number) => Math.min(120, 2.0 * Math.pow(Math.max(0.02, s), -1.15));
+const genPeriod = (s: number) => Math.min(120, 1.0 * Math.pow(Math.max(0.02, s), -1.15)); // MUST match field.ts TICK (baseline 1 s/turn)
 const fmtPeriod = (p: number) => (p >= 60 ? `${(p / 60).toFixed(1)}min` : p >= 10 ? `${Math.round(p)}s` : `${p.toFixed(1)}s`);
 
 /** INTERACTIVITY MODE — the tree lives on its own DECENTRALISED rules (Ben's
@@ -154,7 +154,8 @@ export function InteractivityPanel() {
           <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
             {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
             <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })}
+              style={{ width: "100%", accentColor: "#5b8cff" }} />
           </Row>
         )}
         {announce.phase !== "idle" && (
@@ -180,7 +181,8 @@ export function InteractivityPanel() {
               })}
             </div>
             <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })}
+              style={{ width: "100%", accentColor: "#5b8cff" }} /> {/* BLUE (Elliot: "make the bar blue so I can see it") */}
           </Row>
         )}
         {active === "life" && (

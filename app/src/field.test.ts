@@ -268,3 +268,33 @@ describe("piano colours follow the picked theme (Elliot 2026-07-08)", () => {
     }
   });
 });
+
+describe("tap propagation rides the TURN clock (Elliot 2026-07-08 evening)", () => {
+  it("each ring of a tap lights ONE TURN after the previous — no racing ahead", () => {
+    setLifeRules({ bLo: 9, bHi: 9, sLo: 0, sHi: 8, pure: true }); // isolate staging: no rule births, no deaths
+    setLifeState({ ambient: false, nodes: [] });
+    clearLife();
+    seedLife([30], { hops: 2, ttl: 30 });
+    const alive = () => [...lifeOut.bri].filter((b) => b > 0.1).length;
+    run(fx, 0.5, 1); // baseline speed 1 = ONE SECOND per turn → no turn yet
+    const t0 = alive();
+    expect(t0).toBeLessThanOrEqual(2); // just the tapped light
+    run(fx, 1.0, 1); // past turn 1 → ring 1 (its ~6 neighbours) joins
+    const t1 = alive();
+    expect(t1).toBeGreaterThan(t0);
+    run(fx, 1.0, 1); // past turn 2 → ring 2 joins
+    expect(alive()).toBeGreaterThan(t1);
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true }); // restore default
+  });
+
+  it("at a slow dial the tap stays LOCAL for seconds (one turn ≈ 14s at 0.1)", () => {
+    setLifeRules({ bLo: 9, bHi: 9, sLo: 0, sHi: 8, pure: true });
+    setLifeState({ ambient: false, nodes: [] });
+    clearLife();
+    seedLife([30], { hops: 2, ttl: 60 });
+    run(fx, 3, 0.1); // 3 s at ~14 s/turn → ring 1 must NOT have fired
+    const lit = [...lifeOut.bri].filter((b) => b > 0.1).length;
+    expect(lit).toBeLessThanOrEqual(2);
+    setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true });
+  });
+});

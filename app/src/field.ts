@@ -347,10 +347,11 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     if (lifeTtl[i] <= 0) { lifeTtl[i] = 0; lifeCell[i] = 0; } // held time elapsed → let it fade
   }
 
-  // generation clock — POWER-LAW so the dial truly reaches glacial: slider min (0.03)
-  // ≈ 2 min/generation · 0.1 ≈ 28s · 0.3 ≈ 8s · 1 ≈ 2s · 4 ≈ 0.4s. Callers pass the
-  // RAW dial value (not the wind-inflated env speed) so the slow floor is real.
-  const TICK = Math.min(120, 2.0 * Math.pow(Math.max(0.02, speed), -1.15));
+  // generation clock — POWER-LAW so the dial truly reaches glacial. BASELINE
+  // (speed 1) = ONE SECOND per turn (Elliot: Conway-ish, tuned in fractions of
+  // a second): 0.25 ≈ 4.9s · 1 = 1s · 2.5 ≈ 0.35s · 4 ≈ 0.2s · slider min ≈ 90s.
+  // Callers pass the RAW dial value (not wind-inflated env speed).
+  const TICK = Math.min(120, 1.0 * Math.pow(Math.max(0.02, speed), -1.15));
   lifeAcc += dts;
   let ticked = false;
   while (lifeAcc >= TICK) {
