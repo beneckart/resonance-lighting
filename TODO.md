@@ -627,6 +627,15 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   hysteresis, load-compensated voltage (`bv + 0.15 x I_A`), coulomb-remaining primary
   (DesignCap ~5750, gauge current /1.08), voltage tiers as backstop, watchdogged
   sleep (Ben/Claude).
+- [ ] Add a production dusk/dawn light-enable gate instead of using the field-cycle
+  bench shortcut "charger input disappeared == dark." Current net_bench field-cycle
+  enters draw when `fieldCycleSupplyPresent()` is false (`csV >= 4.0 V` and useful
+  input/charge current >= 20 mA), so clouds, shade, panel angle, or taper can turn the
+  lights on before visual dusk. Production should require a sustained low-light/low-panel
+  window with hysteresis before enabling LEDs: calibrate panel INA watts/current/voltage
+  and optional TSL/lux from field logs, then use separate dusk-on and dawn-off thresholds
+  plus a multi-minute confirm so temporary shade does not start the night show early
+  (Ben/Codex).
 - [ ] Optional backlog: one cold-night discharge at a representative dim load to
   sharpen ADR 0023's tiers for winter (they're currently 79.9 deg F, n=2 data;
   conservative tier is the hedge until then) (Ben).

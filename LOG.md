@@ -136,6 +136,50 @@ Next: the interview left two factual TBCs for Ben to backfill in
 `ops/PROCUREMENT.md` (delivery confirmations for the June orders, Elecrow batch-2
 invoice landing 07-10).
 
+## 2026-07-08 - Codex - Noted production dusk gate separate from charger input
+
+Ben observed that the field-cycle lights came on earlier than desired for production.
+Captured a TODO to add a real production dusk/dawn light-enable gate instead of using the
+current bench shortcut where "charger input disappeared" means dark. Current net_bench
+field-cycle uses panel/supply voltage plus useful input or battery charge current; it
+does not use lux or a sustained dusk classifier for the state transition.
+
+## 2026-07-08 - Codex - Flashed ADR23 bridge and OTA'd 9F26F8 peer
+
+Deployed the `net-bench-2026-07-08.1` ADR23 latched field-cycle build. USB-flashed the
+COM4 serial bridge (`9E5AB8`) from:
+
+- `firmware/net_bench/build/serial-bridge-20260708-adr23-latch-tail/net_bench.ino.bin`
+
+Restarted the dashboard/logger and then used targeted shared-WiFi maintenance for
+`9F26F8`. Maintenance discovery found the peer at `192.168.4.38`; OTA uploaded:
+
+- `firmware/net_bench/build/field-cycle-peer-20260708-adr23-latched/net_bench.ino.bin`
+
+`ops/bench/field_cycle_ota.py` verified no-button recovery: OTA ack succeeded, the peer
+rejoined ESP-NOW with `fw=net-bench-2026-07-08.1`, `reset_reason=software`, and field
+phase `draw`. The live deployment logger is:
+
+- `ops/bench/data/ca/2026-07-08-ca-field-cycle-9F26F8-adr23-deploy.jsonl`
+
+## 2026-07-08 - Codex - Restarted field logger and built ADR23 latched field-cycle firmware
+
+Restarted the standalone JSONL logger for the live 9F26F8 field-cycle run:
+
+- `ops/bench/data/ca/2026-07-08-ca-field-cycle-9F26F8-hexload-v2-resumed-latchparser.jsonl`
+
+Then prepared `net-bench-2026-07-08.1` for the next field-cycle OTA. The new build aligns
+the bench low-voltage policy with ADR 0023's measured 32700 LFP curve: dim at 3.00 V
+loaded, protect/LED-off at 2.95 V after 60 s confirmation, and critical protect at
+2.90 V. Protect is now latched until a timer wake sees real battery charge current from
+solar/USB, so resting-voltage rebound in the dark will not restart the HEX draw load.
+
+Added `fcdim=` / `fclat=` bridge/dashboard/logger fields plus `/telemetry` booleans
+`field_load_dimmed` and `field_protect_latched`. Build artifacts:
+
+- `firmware/net_bench/build/field-cycle-peer-20260708-adr23-latched/net_bench.ino.bin`
+- `firmware/net_bench/build/serial-bridge-20260708-adr23-latch-tail/net_bench.ino.bin`
+
 ## 2026-07-07 - Codex - Hardened field-cycle JSONL logging before next OTA
 
 The 2026-07-05 HEX-load field-cycle logger stopped around 2026-07-07 05:03 PT because

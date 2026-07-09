@@ -139,12 +139,13 @@ adds an autonomous peer state machine:
    load as a repeatable night drawdown. `--field-led-load` optionally adds a direct-GPIO
    HEX/SK6812 load during this draw phase; tune it with `--drawdown-lit` and
    `--drawdown-brightness`.
-4. At the critical LFP floor it sleeps immediately. At the soft floor it now requires
-   `NB_FIELD_LOW_CONFIRM_S` seconds of sustained low voltage first, so one transient
-   telemetry sample does not end the night. Before sleeping it sends final heartbeats,
-   blanks pixels, cuts both rails, and enters `protect` timer sleep. The next
-   solar/USB/supply window wakes it on a timer, it sees supply, starts the next cycle,
-   and resumes charging.
+4. At `NB_FIELD_DIM_MV` it latches the draw load to the configured dim brightness. At
+   `NB_FIELD_LOW_MV` it requires `NB_FIELD_LOW_CONFIRM_S` seconds of sustained low
+   voltage before entering `protect`; `NB_FIELD_CRITICAL_MV` remains an immediate hard
+   backstop. Before sleeping it sends final heartbeats, blanks pixels, cuts both rails,
+   and enters `protect` timer sleep. By default `protect` is latched until a timer wake
+   sees real battery charge current from solar/USB; it no longer retries drawdown just
+   because resting voltage rebounded in the dark.
 
 Solar does not need to electrically wake the ESP32 in the normal case: the charger keeps
 charging while the ESP32 is in timer deep sleep, and the next timer wake observes the
@@ -156,7 +157,8 @@ Example peer build for the current BubbyNet/channel-11 field rig:
 ./build.sh --role peer --channel 11 --field-cycle \
   --field-charge-s 300 --field-wait-s 300 --field-protect-s 900 \
   --field-wake-ms 8000 --field-cold-ms 30000 \
-  --field-low-mv 3150 --field-critical-mv 3050 --field-low-confirm-s 30 \
+  --field-dim-mv 3000 --field-dim-brightness 64 \
+  --field-low-mv 2950 --field-critical-mv 2900 --field-low-confirm-s 60 \
   --field-led-load --drawdown-lit 18 --drawdown-brightness 128 \
   --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.6
 ```
@@ -175,6 +177,19 @@ battery current), and `fcmin=`/`fcmax=` (cycle voltage bounds). The dashboard an
 - `fcmchg=`, `fcmwait=`, `fcmdraw=`, `fcmprot=`: time spent in each field-cycle phase,
   in minutes, capped at 255. The `/telemetry` JSON exposes the same phase totals in
   seconds for an OTA-maintenance check.
+
+`net-bench-2026-07-08.1` aligns the field-cycle low-voltage behavior with ADR 0023's
+measured 32700 LFP curve for the current HEX-load bench:
+
+- `NB_FIELD_DIM_MV` defaults to 3000 mV loaded and halves the field-cycle HEX load by
+  default (`--field-dim-brightness` can override).
+- `NB_FIELD_LOW_MV` defaults to 2950 mV loaded and is confirmed for 60 s before protect.
+- `NB_FIELD_CRITICAL_MV` defaults to 2900 mV loaded and enters protect immediately.
+- Protect is latched until `NB_FIELD_RECOVER_CHARGE_MA` of battery charge current is
+  seen on a timer wake. `--field-protect-retry-dark` restores the older stress-test
+  behavior where resting-voltage rebound can restart drawdown in the dark.
+- The bridge line appends `fcdim=` and `fclat=`, also exposed in `/telemetry` as
+  `field_load_dimmed` and `field_protect_latched`.
 
 `net-bench-2026-07-06.1` adds an opt-in safe VINDPM perturb helper for the field-cycle
 bench:

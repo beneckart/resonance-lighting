@@ -49,6 +49,7 @@ RX_PEER = re.compile(
     r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
     r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
     r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?"
+    r"(?: fcdim=(\d+) fclat=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -306,6 +307,8 @@ class SerialWorker(threading.Thread):
                 mppt46,
                 mppt48,
                 mppt50,
+                fcdim,
+                fclat,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -413,6 +416,11 @@ class SerialWorker(threading.Thread):
                     mppt_p46_w=round(int(mppt46) / 100.0, 2),
                     mppt_p48_w=round(int(mppt48) / 100.0, 2),
                     mppt_p50_w=round(int(mppt50) / 100.0, 2),
+                )
+            if fcdim is not None:
+                row.update(
+                    field_load_dimmed=bool(int(fcdim)),
+                    field_protect_latched=bool(int(fclat)),
                 )
             if row["supply_w"] is not None and row["battery_w"] is not None:
                 row["load_w"] = round(row["supply_w"] - row["battery_w"], 4)
@@ -1053,6 +1061,9 @@ function render(s) {
             `peak ${fmt(p.field_peak_panel_w, 2)}W panel low ${p.field_low_s}s</div>`
           : "")
       : "";
+    const latchCell = p.field_load_dimmed !== null && p.field_load_dimmed !== undefined
+      ? `<div class="row-sub">dim ${p.field_load_dimmed ? 1 : 0} latched ${p.field_protect_latched ? 1 : 0}</div>`
+      : "";
     const mpptCell = p.mppt_status !== null && p.mppt_status !== undefined
       ? `<div class="row-sub">mppt best ${fmt(p.mppt_best_v, 1)}V active ${fmt(p.mppt_active_v, 1)}V ` +
         `p46/p48/p50 ${fmt(p.mppt_p46_w, 2)}/${fmt(p.mppt_p48_w, 2)}/${fmt(p.mppt_p50_w, 2)}W ` +
@@ -1060,7 +1071,7 @@ function render(s) {
       : "";
     const active = p.id === effectiveFocus ? " active-row" : "";
     return `<tr class="peer-row${active}" data-peer-id="${esc(p.id)}">
-      <td><div class="row-main">${esc(p.id)}</div>${fwLine}${cfgLine}${ddCell}${fcCell}${mpptCell}</td>
+      <td><div class="row-main">${esc(p.id)}</div>${fwLine}${cfgLine}${ddCell}${fcCell}${latchCell}${mpptCell}</td>
       <td>${msAge(p.age_ms)}</td>
       <td><div>${p.rssi_dbm} dBm</div><div class="signal"><span style="width:${pct}%"></span></div><div class="row-sub">${fmt(p.pdr * 100, 1)}% PDR</div></td>
       <td><div>${fmt(p.battery_w, 3)} W</div><div class="row-sub">${fmt(p.battery_v, 3)} V / ${p.battery_ma} mA / ${p.soc_pct}%</div></td>
