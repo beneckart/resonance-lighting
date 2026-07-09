@@ -150,15 +150,38 @@ export function InteractivityPanel() {
       {/* ── the running field itself ── */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
-        <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
-          {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
-          <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-            onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
-        </Row>
+        {active !== "life" && (
+          <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
+            {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
+            <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
+              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+          </Row>
+        )}
         {announce.phase !== "idle" && (
           <div style={{ fontSize: 10.5, color: "#f0d890", margin: "2px 0 6px" }}>
             ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → fresh seed…
           </div>
+        )}
+        {active === "life" && (
+          <Row label={`⏱ TURN SPEED · one turn every ${fmtPeriod(genPeriod(control.speed))}`}>
+            {/* playgameoflife-style: a Conway BASELINE with obvious slower/faster.
+                Baseline ▶ = one turn every 2 s; the slider fine-tunes (log-scaled,
+                2 min/turn at the far left → 0.4 s/turn at the far right). */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+              {([["🐢 slow", 0.25], ["▶ baseline", 1], ["⚡ fast", 2.5], ["🚀 turbo", 4]] as [string, number][]).map(([lb, v]) => {
+                const on = Math.abs(control.speed - v) < 0.03;
+                return (
+                  <button key={lb} onClick={() => set({ speed: v })}
+                    style={{ flex: 1, padding: "5px 2px", borderRadius: 6, cursor: "pointer", fontSize: 10, fontWeight: 700,
+                      border: on ? "1.5px solid #f0d890" : "1px solid #2a3a52", background: on ? "#2a2410" : "#121a26", color: on ? "#f0d890" : "#9fb0c7" }}>
+                    {lb}
+                  </button>
+                );
+              })}
+            </div>
+            <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
+              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })} style={{ width: "100%" }} />
+          </Row>
         )}
         {active === "life" && (
           <Row label={`Game-of-Life rule · B${rules.bLo}${rules.bHi !== rules.bLo ? "-" + rules.bHi : ""} / S${rules.sLo}${rules.sHi !== rules.sLo ? "-" + rules.sHi : ""}${rules.pure ? " · pure" : ""}`}>
