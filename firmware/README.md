@@ -1,6 +1,10 @@
 # Firmware
 
-ESP32 firmware for the Resonance downlight. **Stub for now** -- populated once the basic hardware design is locked down and bench validation begins.
+ESP32 firmware for the Resonance fixtures. Current reality: a set of standalone
+Arduino-ESP32 bench sketches (below), each proving a production subsystem on the
+PowerFeather V2. The layered production codebase in `ARCHITECTURE.md` is the target,
+not yet built; `net_bench` is the closest thing to production firmware today
+(ESP-NOW + OTA + watchdog + field-cycle low-battery lifecycle).
 
 > **Building a new app on the PowerFeather V2 bench boards?** Read
 > [`POWERFEATHER_NOTES.md`](POWERFEATHER_NOTES.md) first -- the switchable 3V3 rail
@@ -16,7 +20,7 @@ Solar/charging baseline: any Resonance sketch that enables PowerFeather charging
 use `powerfeather_solar_guard.h` to force the BQ25628E wide input-OVP bit and to kick
 input re-qualification if the panel is present but the charger is latched not-good.
 
-## Planned structure
+## Planned production structure (NOT yet built -- see ARCHITECTURE.md)
 
 ```
 firmware/
@@ -28,8 +32,8 @@ firmware/
 |
 |-- esp32/            ESP32-specific glue. Builds against ESP-IDF or Arduino-ESP32.
 |   |-- tasks/        FreeRTOS task definitions.
-|   |-- drivers/      NeoPixelBus, ESP-NOW, charger ADC, button.
-|   `-- boards/       Pin mappings per board (TTGO T-Beam, T-Ice, custom).
+|   |-- drivers/      NeoPixelBus, ESP-NOW, charger/gauge, rail control.
+|   `-- boards/       Pin mappings per board (powerfeather_v2, resonance_custom).
 |
 `-- tests/            Native unit tests. Run on host, not target.
 ```
@@ -51,12 +55,18 @@ FreeRTOS tasks, not bag-of-timers in `loop()`:
 - Marquee Python OPC clients -- useful as host-side test harness once we want to stream test patterns to a single bench fixture.
 - Marquee C++ effect engine (`particle_trail.cpp`, `rings.cpp`, etc.) -- reference for spatial-aware effects.
 
-## Bench validation targets (parallel work, not blocked on custom board)
+## Validated on hardware (superseding the old TTGO bench plan)
 
-Run on existing TTGO T-Beam and T-Ice modules in Steve's workshop:
+The COTS campaign ran on PowerFeather V2, not the TTGO modules. Record of record:
 
-1. Solar panel charges battery via the T-Beam's built-in charger. Verify charge profile, runtime.
-2. WS2812B output via NeoPixelBus + I2S DMA. Animation runs cleanly.
-3. ESP-NOW between two TTGO modules. Range, latency, packet loss measurements.
-4. OTA over WiFi to one TTGO. Validate A/B partition flow.
-5. RTOS task decomposition with scaffolded `core/` + `esp32/` split.
+1. Solar charge path end-to-end incl. the bright-sun OVP/HIZ guard (ADR 0021/0026;
+   `powerfeather_solar_guard.h`).
+2. Direct-GPIO LED drive measured per role; boost shelved (ADR 0029; `led_studio`).
+3. ESP-NOW at 5 nodes with a 100-node projection, range through house+yard+oak
+   (ADR 0021; `net_bench`).
+4. Battery-only standard OTA + A/B rollback + watchdog recovery; low-VBAT OTA
+   brackets (ADR 0021; `net_bench`, `docs/tests/OTA_FLASH_BENCHMARKS_2026-05-15.md`).
+5. Low-battery day/night lifecycle (field-cycle) with measured thresholds
+   (ADR 0023); bus-integrity rules (ADR 0028; `POWERFEATHER_NOTES.md`).
+6. Sensor chain: MSA311 + multizone ToF fusion on real geometry (ADR 0027;
+   `sway_demo`, `presence_bench`).

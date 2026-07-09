@@ -1,6 +1,7 @@
 # net_bench -- ESP-NOW networking feasibility bench
 
-Throwaway-friendly firmware to de-risk basing ~100 fixtures on PowerFeather V2 by
+Throwaway-friendly firmware to de-risk basing ~100 fixtures (fleet now plans ~150 --
+ADR 0024) on PowerFeather V2 by
 validating ESP-NOW comms, range, OTA, watchdog, and battery stability on 5 boards.
 Forked from `../power_bench` (reuses telemetry, OTA `/update`, autosleep guard).
 See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` for the full test plan.

@@ -1,7 +1,7 @@
 # 0008 -- WS2812B powered direct from battery rail
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0013 -- LED rail must be switchable and fail-safe; exact voltage rail chosen by test
+**Status:** Superseded by ADR 0013 -- LED rail must be switchable and fail-safe; exact voltage rail chosen by test. Annotation 2026-07-08: VBAT-direct measured BETTER for the 4 W RGBW's fringed white (+33 %, ADR 0029), vindicating the instinct -- but production adoption is still open, weighed against the 3V3 rail's free fail-safe kill and simpler harness.
 **Owners:** Ben
 
 ## Context

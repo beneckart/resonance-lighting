@@ -1,98 +1,118 @@
-# BOM - Working Procurement Skeleton
+# BOM -- Fleet Bill of Materials vs Real Orders
 
-**Status:** Current working BOM shape, 2026-06-17. This is not a buy sheet. Prices, lead
-times, and exact SKUs must be re-verified before procurement. The old ESP32-C3 + CN3058 +
-AP2112K first-pass BOM is superseded by the PowerFeather V2 feasibility results.
+**Status:** Rewritten 2026-07-08 against actual procurement. Fixture counts MIRROR the
+canonical fleet table in `docs/block-diagram/SYSTEM.md` -- when counts change, update
+SYSTEM.md first, then this file. Order dates, costs, and statuses live in
+`ops/PROCUREMENT.md`. Counts are tentative until installation (ADR 0024).
 
-## BOM Strategy
+## Shared core (every fixture class)
 
-The 2026 production decision is still COTS vs custom vs hybrid, but all paths now derive
-from the same measured architecture:
-
-- PowerFeather V2 or PowerFeather-derived controller/power board.
-- One larger LiFePO4 cell per fixture, likely 32700 class if hat geometry allows.
-- Role-specific direct-GPIO LED modules:
-  - HEX for close-range animation / glow.
-  - 4 W RGBW point source for crisp long-throw gobos.
-- Role-specific solar panel may be rational:
-  - P126-class 2 W ETFE for lower-power HEX fixtures if the budget closes.
-  - P105-class 5 W ETFE for RGBW point-source fixtures or margin-heavy placements.
-
-Avoid per-unit skilled operations: no hand-soldering 100 header sets, no hand-crimping
-100 harnesses, no per-unit pairing/config rituals.
-
-## Track A - COTS / Hybrid Production BOM
-
-| Item | Function | Current direction | Notes |
+| Item | Per fixture | Source / status | Notes |
 |---|---|---|---|
-| PowerFeather V2 | MCU, charger, gauge, buck-boost, telemetry, USB | Leading COTS/reference board | ADR 0021 go decision. Check supply and connector assembly options before 100+ buy. |
-| LiFePO4 cell | Energy storage | One large cell; 32700 6 Ah candidate leading | One sample measured 5726 mAh. Spot-check more before bulk. |
-| Solar panel, HEX role | Daily harvest | Voltaic P126 2 W ETFE candidate | Mechanically elegant. Use only if HEX role budget closes. |
-| Solar panel, RGBW role | Daily harvest / storm margin | Voltaic P105 5 W ETFE candidate | Larger, mounting holes, better margin. |
-| HEX LED module | Close-range animation / glow | SK6812 direct-GPIO HEX | 4.2 V boost under test; cap all-pixel full-white modes. |
-| RGBW point-source LED | Crisp long-throw gobo | 4 W RGBW direct-GPIO | Needs role-specific current budget and thermal/mechanical placement. |
-| LED adapter PCB | Connectorization / rail option | NeoHEX passive Rev A now; future boosted adapter possible | Use keyed/polarized connectors and production-safe power path. |
-| Panel lead / VDC connector | Solar input | Pre-crimped or factory-installed pigtail | Strain relief required; do not rely on bare soldered panel wires. |
-| Battery lead / holder | Cell retention/service | Holder or spot-welded lead with keyed connector | Must survive vibration/heat; avoid fragile spring/contact assumptions. |
-| Hat enclosure | Sealed electronics + panel mount | Steve design, likely MJF nylon for production | Must respect antenna keep-out and thermal constraints. |
-| Gobo/filter | Patterned aperture | Steve printed cone/flat variants | Role-specific optical test photos still needed. |
-| Fasteners/standoffs | Mechanical retention | Off-the-shelf | Include set screws, board standoffs, panel backup retention. |
-| Flashing jig/cable | Production QA/recovery | USB-C or pogo | Needed even with OTA. |
+| PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 received-class + 82 invoicing 07-10 | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
+| 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
+| Battery lead / retention | 1 | to-buy (JST-XH pre-crimped) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). |
+| LED harness | 1 | to-buy (JST-XH right-angle set) | Forks on the RGBW feed decision (3V3 rail as wired vs VBAT-direct + Y-cable GND tap) -- decide before ordering (ADR 0029). |
+| Hat enclosure + fasteners | 1 | Steve (print/MJF); design in progress | Four variants: downlight hat, perimeter hat, uplight "boot", chandelier hat. |
+| Firmware | one image | this repo | Runtime/NVS config only; no per-unit builds (ADR 0009). |
 
-## Track B - Custom Board Candidate Blocks
+## Per-class additions
 
-Use these only if the COTS/connector path fails cost, assembly, packaging, or availability.
+### Hanging downlight x72 (7-10 ft, gobo projection)
 
-| Block | Current reference | Notes |
+| Item | Per fixture | Source / status |
 |---|---|---|
-| MCU/RF | ESP32-S3-WROOM-class module | Pre-certified module, PCB antenna, strict keep-out. |
-| Charger/power path | BQ25628E-class | Must set VBUS_OVP=1 and implement HIZ requalification guard. |
-| Fuel gauge | MAX17260-class | Treat LFP SOC as advisory until learned; expose raw current/voltage. |
-| 3.3 V regulator | TPS631013-class buck-boost | LFP plateau sits near crossover at light loads; measure real efficiency. |
-| LED rail | Switchable/default-off rail or boost with EN | HEX boost candidate: 4.2 V, not 5 V, unless level shifting is added. |
-| Connectors | Keyed solar, battery, LED, test pads | Production operations matter more than schematic elegance. |
-| Temperature | Battery NTC / charger TS strategy | Needed for sealed-hat LFP charge-temperature limits. |
+| 4 W RGBW warm white (point source) | 1 | Adafruit, 100 bought |
+| Gobo / patterned filter | 1 | Steve print program (in-house + generative bamboo-leaf patterns) |
+| Voltaic P105-class 5 W panel + 3.5x11 mm pigtail | 1 + 1 | Voltaic, 110 panels + 160 pigtails bought |
+| TMF8820-mini ToF, facing downward | 1 | SparkFun, 100 bought (bench-validated on same-family TMF8821) |
+| MSA311 accel + STEMMA cable | 1 + 1-2 | Adafruit, 150 accels + 250 cables bought |
 
-## Explicitly Superseded
+### Perimeter x38-40 (5 ft shepherd hooks)
 
-Do not use this as the current production BOM:
+| Item | Per fixture | Source / status |
+|---|---|---|
+| SK6812 HEX | 1 | M5Stack, 90 bought (70+20; plus 20 NeoHEX fallback units) |
+| Voltaic P126-class 2 W panel + pigtail | 1 + 1 | Voltaic, 50 panels bought |
+| VL53L5CX ToF, facing outward + protective cover | 1 + 1 | Mouser 48 + Gilisymo 60 covers bought |
+| MSA311 accel + STEMMA cable (likely) | 1 + 1 | from the 150-accel pool |
+| Shepherd hook | 1 | project-side sourcing, outside this electronics BOM |
 
-```
-ESP32-C3-MINI-1 + CN3058 + AP2112K + always-live direct-Vbat WS2812B
-```
+### Uplight x24 (simple bamboo cylinder, no gobo)
 
-That old sketch is useful history only. Later ADRs and bench data moved the project to the
-PowerFeather V2 reference architecture, switchable rails, telemetry, direct-GPIO LED roles,
-and a measured panel/cell sizing campaign.
+| Item | Per fixture | Source / status |
+|---|---|---|
+| 4 W RGBW warm white | 1 | from the 100-RGBW pool |
+| Power source | 1 | OPEN (ADRs 0025/0026): off-light P105 panel vs 20 Ah LFP in-cylinder (batteryspace #6832, bench-gated) vs budgeted 6 Ah |
+| Gasketed panel-mount USB-C port + USB cabling | 1 | to-buy (if solar-free wins) |
+| Base "boot" enclosure | 1 | Steve; battery may fill the bamboo cylinder, LED near the lit end |
+| Sensors | none (tentative) | |
 
-## Open Procurement Inputs
+### Chandelier x16 (central shafts; scope still loose)
 
-- PowerFeather V2 supply/cost at 100-150 units, including factory connector options.
-- Voltaic P105/P126 real outdoor harvest after firmware OVP/HIZ guard.
-- HEX/RGBW type mix and placement by tree height / sightline.
-- Battery sample count beyond the single passing 32700 capacity run.
-- Hat envelope: panel size, battery retention, antenna keep-out, and thermal result.
-- Custom vs COTS go/no-go date based on actual lead times.
-- Cost decomposition for `INV_2026_00401`, still needed as a comparison baseline.
+| Item | Per fixture | Source / status |
+|---|---|---|
+| HEX or RGBW (mix TBD) | 1 | from the HEX/RGBW pools; mix drives a possible RGBW top-up |
+| Power source | 1 | likely solar-free + USB-C, like uplights (OPEN) |
+| Hat (similar to uplight boot; shafts packed closely) | 1 | Steve; possibly a distinct enclosure |
+| Sensors | none (tentative) | |
 
-## Costing Guidance
+## Fleet totals + spares math (needed at 150-152 vs bought)
 
-Do not publish a precise per-fixture total until the architecture mix is chosen. The big
-drivers are now:
+| Part | Needed | Bought | Margin | Flag |
+|---|---|---|---|---|
+| PowerFeather V2 | 150-152 | 150 (+~8 bench: 5 Ben, 3 Steve) | -2..0 production | **THIN** -- top-up order likely if Elecrow allows; risk-register item |
+| 32700 6 Ah | 150-152 (drops to ~112 if 20 Ah takes uplights+chandelier) | 175 | +23..+63 | healthy |
+| 4 W RGBW | 96 + chandelier share (up to ~104) | 100 | -4..+4 today | top-up PLANNED (cheap; 20+ units); chandelier mix sizes it |
+| SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
+| P105 5 W panel | 72 (+24 if uplights go solar) | 110 | +14..+38 | healthy |
+| P126 2 W panel | 38-40 | 50 | +10..+12 | ok |
+| DC pigtails | = deployed panels (110-136) | 160 | +24..+50 | ok |
+| MSA311 | ~110-112 | 150 | +38..+40 | healthy |
+| TMF8820-mini | 72 | 100 | +28 | healthy |
+| VL53L5CX | 38-40 | 48 | +8..+10 | ok |
+| ToF protective covers | 38-40 | 60 | +20 | ok |
+| STEMMA cables | ~150-250 uses | 250 | ok | |
+| 20 Ah LFP | 0 or ~40 | 2 samples | conditional | bench test gates the buy |
+| Noisemaker parts | subset TBD | 1x #3885 (damaged pot) + bench relays | -- | all options live incl. relays/beeps; camp-meeting input 07-09 |
 
-- controller path: COTS PowerFeather vs custom assembly;
-- solar panel role: P126-class vs P105-class;
-- battery format and sourcing;
-- LED role mix and any HEX boost adapter;
-- hat production method and panel retention;
-- labor removed by factory soldering / pre-crimped harnesses.
+Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
+with the bench/sample units already on hand the total is **150 depth sensors** --
+parity with the 150 accelerometers.
 
-For each candidate BOM, compute both dollars and operations:
+## To-buy (summary -- live queue in ops/PROCUREMENT.md)
+
+JST-XH right-angle headers + pre-crimped harness (feed-decision-gated); Grove
+breakout(s); 82 PowerFeathers (invoicing 07-10); USB cabling + panel-mount USB-C
+ports; conditional ~40x 20 Ah LFP; conditional ~100x JST 2-pin Y-cables (VBAT feed
+option); noisemaker parts; spare #3885 speakers; planned RGBW top-up (20+).
+
+## Open BOM inputs
+
+- 20 Ah vs 6 Ah vs off-light-panel for uplights/chandelier (bench test on samples).
+- Chandelier HEX/RGBW mix (drives the RGBW top-up question).
+- Sensor allocation confirmation per class (ADR 0027 marks it tentative).
+- USB-C panel-mount part selection + gasket approach.
+- **RGBW feed decision (ADR 0029): 3V3 rail as wired vs VBAT-direct** -- forks the
+  harness set, the firmware pinout (A0 vs D13), the fail-safe design, and the
+  Y-cable buy. Decide before the harness order.
+- Harness/connector part numbers (JST-XH family) and, if VBAT-fed, the default-off
+  kill element (ADR 0029 open implementation detail).
+- Spares policy per part once deploy counts firm up at installation.
+- Shepherd-hook sourcing (project-side).
+
+## Superseded
+
+The 2026-06-17 "working procurement skeleton" version of this file (pre-purchase
+Track A/B tables, costing guidance) is preserved in git history. Its two tracks
+resolved to COTS production (ADR 0024); its open procurement inputs are either
+executed (see `ops/PROCUREMENT.md`) or carried in the lists above. The still-useful
+costing rule survives here:
 
 ```
 total_cost = parts + shipping + spares + assembly labor + QA/rework allowance
 ops_risk = solder joints + crimps + one-off configs + fragile connectors + field access
 ```
 
-The winning BOM is the one that closes energy and reliability while keeping 100-unit
+The winning BOM is the one that closes energy and reliability while keeping 150-unit
 assembly boring.

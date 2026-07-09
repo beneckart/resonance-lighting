@@ -1,7 +1,7 @@
 # 0004 -- ESP-NOW for mesh
 
 **Date:** 2026-05-06
-**Status:** Superseded by ADR 0010 -- Standard OTA only; ESP-NOW for lighting/control packets, not firmware-image transport
+**Status:** Superseded by ADR 0010 -- Standard OTA only; ESP-NOW for lighting/control packets, not firmware-image transport. Annotation 2026-07-08: the supersession applies only to the firmware-image-transport portion. ESP-NOW as the state/control plane remains accepted and was validated at fleet scale (ADR 0021).
 **Owners:** Ben
 
 ## Context

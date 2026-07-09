@@ -1,7 +1,7 @@
 # 0012 -- Dual-track production architecture: COTS fallback plus custom PCBA optimization
 
 **Date:** 2026-05-08
-**Status:** Accepted
+**Status:** Accepted. Annotation 2026-07-08: the 2026 production path is resolved -- COTS PowerFeather V2 at ~150 units (ADR 0024). The custom-PCBA track (Track B) is deferred to a 2027 option, carrying ADR 0028's dedicated power-management-bus rule.
 **Owners:** Ben + Steve
 **Supersedes:** ADR 0006 where it bans all dev-board / daughterboard architectures
 

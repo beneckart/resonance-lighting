@@ -12,6 +12,130 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-08 (cont.) - Ben + Claude - Review corrections: RGBW feed stays rail-wired (VBAT option open), site timeline corroborated, battery dates pinned
+
+Ben's review of the housekeeping pass produced corrections, all folded in:
+
+- **RGBW feed (the important one):** ADR 0029 was overstated -- the MEASURED
+  verdict (VBAT-direct +33 % fringed white) is not the PRODUCTION decision. The
+  fleet still runs both LED roles from the switchable 3V3 rail (V+/GND/A0 via
+  right-angle JST-XH 4-pin, QON unconnected), and Ben is hesitant to convert:
+  clean W-only is unchanged, the rail cut is a robust hard LED kill, and there is
+  no clean VBAT tap on the COTS board. His sketched conversion (solder 4-pin
+  header on {VBAT|EN|VS|D13}, GND via ~$0.50 JST 2-pin Y-cable off the pin next
+  to VDC, ~100 needed, firmware A0->D13, fail-safe redesign so a stuck frame
+  cannot kill the pack; side benefit: frees 3V3/GND/A0 for a clacker/relay) is
+  recorded in ADR 0029 as an OPEN decision to revisit before the harness buy.
+  Cascaded through SYSTEM/README/AGENTS/glossary/hardware/ARCHITECTURE/TODO/bom.
+- **Battery dates pinned:** 75 cells ordered 2026-06-11 (same day the first
+  sample qualified), 100 on 2026-07-07. ADR 0025 + ledger updated.
+- **Sensor count:** 150 depth sensors total incl. bench/sample units (48 L5CX +
+  100 TMF8820 orders + bench) -- parity with the 150 accels.
+- **Customs delay recorded:** the 05-10 R&D PowerFeather order sat in customs
+  ~3 weeks; boards landed ~Jun 2-5. Also recorded: Jun 15-20 was travel-bench
+  solar testing in TN, codified by the 06-29 home runs.
+- **Noisemakers re-opened wider:** relay clicks and even simple beeps stay on the
+  table; the early crowd sample was small. First big camp-wide meeting 2026-07-09
+  will collect more opinions.
+- **Project timeline corroborated against https://resonancenetwork.org/camp
+  (gold standard):** container lands Port of Oakland Jul 12; NC prebuild is
+  **Bodhi Hive, Nevada City** Jul 31-Aug 19 (repo docs had said "Grass Valley");
+  all-hands container unload Aug 1-2; **lights + camp systems team build
+  Aug 8-9**; container load Aug 21; gates Aug 30; burn night Sep 5. ROADMAP,
+  PROCUREMENT, and glossary aligned.
+- **New tentative plan:** Ben may spend ~Jul 20-31 in TN fleet-testing the ~70
+  boards at Steve's (production-firmware mesh effects + presence, indoors if
+  enclosures lag), back for the container unload. Recorded in ROADMAP Phase 6 +
+  TODO.
+- **RGBW top-up is now PLANNED** (not conditional) -- "definitely buy more,
+  they're cheap"; sizing waits on the chandelier mix.
+- Team brief updated to match (figures rebuilt with collision-proof callout keys,
+  bench-work timeline entries added, spend donut added, Nevada City dates).
+- Second review round (same day): gobo MVP direction recorded (flat discs likely;
+  cones add complexity/brittleness -- few or none; enclosure/README + glossary);
+  bridge-directed multicast show concept recorded in BACKGROUND (DJ/MIDI/mic at
+  the bridge streaming a sound-reactive show); brief polish (battery "two-year
+  life" rephrased -- it is ADR 0002's reuse requirement, not a measured lifetime;
+  throw distances restated as 7-10 ft deployment / crisp to 15 ft tested; ToF
+  window drawn in the hat; bridge topology panel; sun-to-moon battery-meter state
+  diagram; bigger spend donut with icon legend).
+
+## 2026-07-08 - Ben + Claude - Documentation housekeeping: fleet plan recorded (150-152, four classes), ADRs 0024-0029, procurement ledger, stale-doc sweep, team write-up
+
+Pre-crunch documentation reconciliation (~6 weeks to Aug 20). The live docs were
+current but the canonical docs had frozen in mid-June: "100 fixtures" everywhere,
+COTS-vs-custom framed as future (it resolved), procurement (~$12.7k committed)
+recorded nowhere, and several settled decisions had no ADR. Interviewed Ben for the
+ground truth, then swept.
+
+Fleet plan recorded (tentative until installation; placement is free because the
+design is fungible/wireless): 72 hanging downlights (RGBW + gobo, 7-10 ft) + 38-40
+perimeter HEX on 5 ft shepherd hooks + 24 uplights (RGBW, no gobo, battery may fill
+the bamboo cylinder, gasketed USB-C at a base "boot") + 16 chandelier lights
+(HEX/RGBW mix TBD, scope/ownership loose) = 150-152. Canonical living counts table
+added to SYSTEM.md; everything else points at it. Uplight/chandelier power is the
+big open decision: off-light 5 W panel vs solar-free 20 Ah LFP (batteryspace #6832,
+2 samples; bench test gates a ~40-cell buy) vs budgeted 6 Ah.
+
+New ADRs (retroactive records of decisions made 06-11 through 07-08):
+- 0024 production architecture lock: COTS PowerFeather V2 at ~150 in four classes;
+  68 boards bought 06-11, 82 more invoicing 07-10 (ships same day per Elecrow rep);
+  custom PCBA deferred to a 2027 option. Spares thin (~8 bench boards) -- risk-registered.
+- 0025 battery vendor: fullbattery 32700 6 Ah qualified n=2; Palowextra rejected;
+  175 cells bought (75 on 06-11, same day the first sample qualified; 100 on
+  07-07); 20 Ah option OPEN.
+- 0026 panels: Voltaic ETFE P105 5 W (110) / P126 2 W (50) + 160 pigtails, bought
+  06-24, measured 06-29; role map P105->downlights, P126->perimeter.
+- 0027 sensors: MSA311 + multizone ToF by class (TMF8820-mini downward on
+  downlights; VL53L5CX outward on perimeter; uplights/chandelier none, tentative);
+  fused IMUs rejected (per-device cal); 150 accel + 148 ToF + 60 protective covers
+  ordered 07-07.
+- 0028 power-management bus integrity: the 100 kHz rule + dedicated bus on custom
+  PCBA + no power-mgmt I2C from core-0 tasks under WiFi (the reboot-epidemic
+  conviction, sealed by the 46 h soak).
+- 0029 LED electrical drive: HEX on the switchable 3V3 rail (decided); boost
+  shelved with its complete numbers + revival spec (decided); RGBW production feed
+  OPEN -- rail-wired today (V+/GND/A0 JST-XH), with the measured-better VBAT
+  option (+33 % fringed white) and its conversion plan/costs recorded.
+Backward Status annotations added on 0002/0004/0008/0012/0013/0014/0016/0017/0018
+(append-only, both-ways links).
+
+Ops docs: NEW `ops/PROCUREMENT.md` (orders ledger with Ben's real dates -- five
+orders placed 07-07: MSA311+STEMMA cables, VL53L5CX, ToF covers, TMF8820-mini, 100x
+6 Ah; panels+pigtails 06-24; PowerFeathers 06-11; LED buy 06-17; HEX/NeoHEX samples
+05-10; plus small-order history, to-buy queue, lead-time risks backward from Aug 20,
+vendor directory). `ops/bom.md` rewritten as shared-core + four per-class tables +
+fleet-totals/spares math (flags: PF spares thin; RGBW tight at 100 bought vs up to
+~104 needed depending on chandelier mix). `ops/README.md` refreshed.
+
+Stale-doc sweep: README (fleet, repo tree to reality, status), AGENTS (superseded
+Decided entries annotated, new decisions added, ESP-NOW claim re-hedged at 150),
+BACKGROUND (fleet, chandelier update, mandala program PULLED -- new plan is in-house
++ generative bamboo-leaf patterns per species; 05-10 R&D section banner),
+SYSTEM.md (fleet table, sensors as production intent, noisemaker line, 0028/0029
+design rules, measured solar results, open-gates refresh), ROADMAP (Phase 3 stamped
+RESOLVED, done items checked with evidence, Phase 1b/1c workstream sections added,
+risk register updated -- battery/boost/COTS-supply risks retired; 82-board schedule
+risk added), glossary (mid-word truncation at "PCB Assem" fixed; ~40 entries added
+for the current stack), docs/README (+research/), firmware README/ARCHITECTURE
+(target-vs-reality framing, dead boards removed, IS31 section replaced, OTA aligned
+to shared-WiFi maintenance, 0028 task constraint + sensor_task), hardware README
+(0028/0029 custom-PCB constraints, test list updated), enclosure README (uplight
+boot stub for Steve, ToF apertures), two never-filled test docs banner-marked
+SUPERSEDED, TODO reconciled (boost/battery/networking items closed with evidence,
+INV_2026_00401 retired -- identity unclear, probably the Bamboo Pure invoice; new
+items: 82-board tracking, cabling/USB-C buys, 20 Ah bench test, sensor-allocation
+confirm, uplight boot, chandelier mix, ESP-NOW 150 re-run).
+
+Also produced: a team-facing scrolling write-up (shareable artifact + HTML copy
+committed under docs/) covering the system story -- what's proven with dates,
+architecture, network topology, the power/day-night state machine, OTA, sensors,
+noisemakers, procurement status, and the road to Aug 20.
+
+Next: the interview left two factual TBCs for Ben to backfill in
+`ops/PROCUREMENT.md` (delivery confirmations for the June orders, Elecrow batch-2
+invoice landing 07-10).
+
 ## 2026-07-07 - Codex - Hardened field-cycle JSONL logging before next OTA
 
 The 2026-07-05 HEX-load field-cycle logger stopped around 2026-07-07 05:03 PT because

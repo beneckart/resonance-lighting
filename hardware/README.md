@@ -128,10 +128,17 @@ boring wired recovery path via USB or pogo pads even though OTA is validated.
 
 ## Custom PCB Constraints
 
-If a custom board proceeds:
+If a custom board proceeds (2027 option -- ADR 0024):
 
 - Use a pre-certified WROOM-class module with onboard PCB antenna by default.
 - Do not use u.FL/external antenna unless final hat RF testing fails.
+- **Dedicated power-management I2C bus** for charger + gauge only, run at 100 kHz;
+  user peripherals on a separate bus. No power-management I2C from core-0-pinned
+  tasks under WiFi. This rule closed the two-month reboot epidemic (ADR 0028).
+- **Any VBAT-fed LED branch taps downstream of the gauge current-sense shunt**, with
+  fat conductors and a default-off kill (the 3V3-rail shutoff no longer covers it);
+  HEX rides the switchable 3V3 rail; the RGBW feed decision (rail vs VBAT) is open
+  in ADR 0029.
 - Include USB/pogo flashing/recovery pads regardless of factory flashing.
 - Use a switchable/default-off LED/module rail.
 - Include charger/fuel-gauge telemetry.
@@ -144,11 +151,17 @@ If a custom board proceeds:
 
 ## Immediate Hardware Tests
 
-Top priorities:
+Top priorities (updated 2026-07-08):
 
-- Run Voltaic P105/P126 harvest tests with BQ25628E VBUS_OVP/HIZ guard in firmware.
+- [x] Voltaic P105/P126 harvest tests with the OVP/HIZ guard (2026-06-29, ADR 0026;
+  hungrier-cell P105 re-run still queued).
+- [x] HEX 4.2 V boost test -- concluded SKIP; the RGBW rail-vs-VBAT feed is measured
+  but the production decision is open (ADR 0029).
 - Close bottom-up power budget by LED role.
-- Finish HEX 4.2 V boost test and boosted-build current cap.
+- Bench the 20 Ah solar-free option for uplights/chandelier (gates the
+  batteryspace #6832 buy -- ADRs 0025/0026).
 - RF test inside a mock hat with panel/battery/wiring installed.
 - Thermal test sealed hat in sun/heat with charger and LEDs operating.
 - Time-trial a production-like COTS assembly with keyed connectors and strain relief.
+- Select the USB-C panel-mount port + gasket for the solar-free classes; integrate
+  the ToF aperture (downward on downlights, outward window on perimeter hats).

@@ -1,7 +1,11 @@
 # 0002 -- LiFePO4 chemistry for battery
 
 **Date:** 2026-05-06
-**Status:** Accepted
+**Status:** Accepted. Annotation 2026-07-08: the chemistry decision stands. The
+sizing/format specifics in the body are historical -- the ~170 mAh/night budget is
+retired, the 18650/1500 mAh target is superseded by the 32700 6 Ah production cell
+(ADR 0025), the CN3058 charger by the ADR 0014 -> BQ25628E chain, and the voltage
+floors by the measured thresholds in ADR 0023.
 **Owners:** Ben
 
 ## Context

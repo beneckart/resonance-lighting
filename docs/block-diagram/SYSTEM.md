@@ -1,14 +1,34 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-06-17. This supersedes the old
+**Status:** Current working architecture, 2026-07-08. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADR 0021 and ADR 0022.
+ADRs; for the live path read this with ADRs 0021-0029. **The Fleet Plan table below is
+the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
 
-Build 100 autonomous bamboo downlight fixtures for Burning Man 2026/2027. Each fixture is
+Build ~150 autonomous bamboo lighting fixtures for Burning Man 2026/2027. Each fixture is
 fungible: no per-unit pairing, no fixed wiring topology, no infrastructure dependency, and
-no skilled repetitive assembly operation at 100-unit scale.
+no skilled repetitive assembly operation at 150-unit scale.
+
+## Fleet Plan (living counts -- canonical)
+
+Counts are TENTATIVE until installation (decision record: ADR 0024). The design is
+fungible and fully wireless, so placement is free and the split can shift on-site.
+`ops/bom.md` mirrors these counts; update here first.
+
+| Class | Count | LED | Power | Sensors (tentative) |
+|---|---|---|---|---|
+| Hanging downlight (7-10 ft) | 72 | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
+| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel | VL53L5CX (outward); MSA311 likely |
+| Uplight (simple cylinder, no gobo) | 24 | 4 W RGBW | OPEN: off-light 5 W panel vs solar-free 20 Ah LFP vs budgeted 6 Ah | none |
+| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely solar-free, USB-charged | none |
+
+Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
+behavior; solar-free variants add a gasketed panel-mount USB-C charge/flash port.
+Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
+and some may stay unpopulated. Spares are thin (~8 boards beyond the 150 buy) -- see
+the ROADMAP risk register and `ops/bom.md` spares math.
 
 ## Current Block Diagram
 
@@ -38,18 +58,22 @@ no skilled repetitive assembly operation at 100-unit scale.
                 +-------------+--------------+
                 |                            |
                 v                            v
-        Direct-GPIO LED role          Optional sensors
-        GPIO10/A0 in bench rigs       ToF / IMU / env / INA
-        - HEX SK6812 array            via I2C/UART as tested
-        - 4 W RGBW point source
+        Direct-GPIO LED role          Sensors by class (ADR 0027)
+        GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
+        - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
+        - 4 W RGBW on 3V3 rail today  VL53L5CX outward (perimeter)
+          (VBAT option OPEN, 0029)    bench-only: thermal/radar/INA
         - LED rail switchable/default-off
+
+        Noisemaker (OPEN): STEMMA speaker synth vs solenoid
+        bamboo-strike -- candidates benched, none selected (LOG 2026-07-07)
 ```
 
-The production path may be COTS PowerFeather V2, a PowerFeather-derived custom assembly,
-or a hybrid with a custom LED/power adapter. The reference architecture is the same either
-way: ESP32-S3 WROOM-class RF, BQ25628E-class charger/power path, MAX17260-class gauge,
-buck-boost 3.3 V rail, direct-GPIO LEDs, keyed/serviceable connectors, and boring USB/pogo
-recovery.
+The 2026 production path is **COTS PowerFeather V2** (ADR 0024); the
+PowerFeather-derived custom assembly is the 2027 option. The reference architecture is
+the same either way: ESP32-S3 WROOM-class RF, BQ25628E-class charger/power path,
+MAX17260-class gauge, buck-boost 3.3 V rail, direct-GPIO LEDs, keyed/serviceable
+connectors, and boring USB/pogo recovery.
 
 ## Validated On Hardware
 
@@ -66,10 +90,22 @@ recovery.
   rails cut is sub-mA by external INA ground truth.
 - **Battery:** the 2000 mAh LFP bench cell measured about 2077 mAh. The 32700 6 Ah
   production cell is qualified at n=2 (5,726 / 5,752 mAh clean to 2.5 V); the Amazon
-  "7.2 Ah" alternative measured 5,643 mAh with 2.3x IR and was rejected (LOG
-  2026-07-06/07). For autonomy math use usable-above-floor, not the lab number:
+  "7.2 Ah" alternative measured 5,643 mAh with 2.3x IR and was rejected (ADR 0025,
+  LOG 2026-07-06/07). For autonomy math use usable-above-floor, not the lab number:
   5,139 mAh above 3.0 V (ADR 0023 has the full voltage-to-remaining map and the
   dim/off/sleep thresholds derived from it).
+- **Bus integrity:** the June/July battery-only reboot epidemics were one mechanism --
+  degraded signal integrity on the shared charger/gauge I2C bus upsetting the
+  BQ25628E's power path (ADR 0028). Convicted by a controlled 400-vs-100 kHz A/B and
+  sealed by a 46.2 h continuous battery soak that ended in honest cell exhaustion.
+- **LED electrical drive:** measured per role (ADR 0029) -- the full rail/VBAT/boost
+  matrix exists (VBAT-direct buys +33 % fringed white, 1,746 lux no wall; clean
+  W-only unchanged; TPS63802 boost = 2.3x clean-white ceiling at ~25-30 % efficacy
+  tax, shelved). HEX feed decided (3V3 rail); the RGBW production feed is OPEN --
+  rail-wired today, VBAT conversion plan recorded in the ADR.
+- **Low-battery lifecycle:** net_bench field-cycle (charge -> wait-dark -> draw ->
+  protect) has run multi-day outdoor solar cycles; low-VBAT OTA proven to ~3.10 V
+  loaded battery-only, 2.901 V solar-assisted, 2.496 V USB-assisted.
 
 ## LED Architecture
 
@@ -82,6 +118,12 @@ ADR 0022 records the current LED decision: use a **mixed fleet by optical role**
   overlap effects.
 - **IS31FL3741 13x9 matrix:** ruled out for the PowerFeather V2 battery build. It browns
   out the board on the shared charger/gauge I2C bus under WiFi; use direct-GPIO LEDs.
+
+Electrical feed per role (ADR 0029): the HEX stays on the regulated switchable 3V3
+rail (decided); the 4.2 V boost is shelved with complete numbers (decided); the
+4 W RGBW currently also runs from the 3V3 rail (V+/GND/A0, right-angle JST-XH) --
+the measured-better VBAT-direct option (+33 % fringed white) is OPEN, with its
+conversion plan and fail-safe costs recorded in the ADR.
 
 Firmware implications:
 
@@ -100,12 +142,18 @@ Measured/known:
 - Seeed 3 W hot-panel sweep: best point around 4.6-4.7 V; panel-side INA measured about
   1.91 W while BQ-side telemetry reported about 1.73 W. The default 5.5 V setpoint left a
   large amount of harvest on the table in heat.
-- BQ25628E default input OVP is too low for many "6 V" panels at connect-time Voc. Set
-  VBUS_OVP=1 and add a supply-present-but-not-good HIZ requalification kick before any
-  panel buy with Voc above about 6 V.
-- Voltaic ETFE candidates:
-  - P105 5 W: larger, heavier, mounting holes, better energy/storm/dust margin.
-  - P126 2 W: much nicer hat footprint, likely role-specific if the HEX budget closes.
+- BQ25628E default input OVP is too low for many "6 V" panels at connect-time Voc. The
+  fix is firmware: `firmware/powerfeather_solar_guard.h` (baseline in every charging
+  sketch since 2026-06-29) forces wide VBUS_OVP and kicks a HIZ requalification when
+  supply is present-but-not-good. Bright-sun hardware validation still pending.
+- **Panels selected and bought** (ADR 0026; 110x P105 + 50x P126 + 160 pigtails,
+  2026-06-24), measured outdoors 2026-06-29 into a hungry LFP:
+  - P105 5 W -> downlight/RGBW role: ~3.8-3.9 W panel-side at the ~m46-m48 optimum
+    (charger input ~3.47 W). Possibly still acceptance-limited; hungrier re-run queued.
+  - P126 2 W -> perimeter/HEX role: ~1.89 W panel-side at ~m58 -- at rating in real
+    heat.
+  - Uplights/chandelier may go solar-free instead (20 Ah or budgeted 6 Ah cell +
+    USB-C charging) -- open decision shared by ADRs 0025/0026.
 
 Bench/sizing rules:
 
@@ -154,6 +202,14 @@ point-source RGBW fixtures, then panel size by role.
 ## Production Design Rules
 
 - Do not use IS31FL3741 on the PowerFeather V2 shared power-management I2C bus.
+- **Bus integrity (ADR 0028):** any I2C bus shared with the charger/gauge runs at
+  100 kHz -- never raise the clock; a custom PCBA gets a dedicated power-management
+  bus; no power-management I2C from core-0-pinned tasks while WiFi is active; treat
+  battery-only `poweron` resets as possible power-path register upsets.
+- **LED wiring (ADR 0029):** if any LED branch is ever VBAT-fed, tap downstream of
+  the gauge's current-sense shunt (or coulomb telemetry goes blind to the dominant
+  load), use fat conductors, and provide a default-off kill per ADR 0013 -- the
+  3V3-rail shutoff no longer covers it.
 - Do not trust LFP percentage SOC alone for solar qualification or low-battery decisions.
 - Do not connect/boot high-Voc panels in bright sun without the BQ25628E OVP/HIZ firmware
   guard, or at least shade the panel during connection.
@@ -165,9 +221,18 @@ point-source RGBW fixtures, then panel size by role.
 ## Open Gates
 
 - Bottom-up nightly energy budget by LED role and show duty cycle.
-- Voltaic P105/P126 outdoor harvest tests after BQ25628E OVP/HIZ guard.
+- Uplight/chandelier power source: off-light panel vs solar-free 20 Ah (bench test on
+  the two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+- Sensor allocation confirmation per class + presence choreography firmware
+  (ADR 0027 open items).
+- RGBW production feed: 3V3 rail as wired vs VBAT-direct conversion (+33 % fringed
+  white; harness/firmware/fail-safe costs in ADR 0029). Decide before the harness buy.
+- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth vs relay
+  clicks (all still live, even simple beeps; wider crowd input at the 2026-07-09
+  camp meeting).
 - MPPT policy: fixed setpoint, temperature-compensated setpoint, or software P&O.
-- HEX 4.2 V boost bench result and boosted-build current cap.
 - Mock-hat RF with real panel/battery placement.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.
-- Production path: COTS PowerFeather V2, custom PowerFeather-derived assembly, or hybrid.
+- ADR 0023 low-battery state machine into production firmware (current bench floors
+  strand capacity).
+- Re-check the ESP-NOW scale extrapolation at 150 nodes (computed at 100).

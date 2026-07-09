@@ -1,6 +1,11 @@
 # Enclosure
 
-Solar "hat" enclosure for the Resonance downlight. Steve's workstream.
+Solar "hat" enclosure for the Resonance fixtures. Steve's workstream.
+
+Now four variants (fleet plan 2026-07-08 -- see `docs/block-diagram/SYSTEM.md`):
+the downlight hat described below, a perimeter-fixture hat (adds an outward ToF
+window), the uplight "boot" (new -- see below), and a chandelier hat (likely a
+close-packed variant of the boot).
 
 ## Architecture
 
@@ -15,7 +20,7 @@ A sealed cap that mounts on top of the bamboo lantern:
 ## Print pipeline
 
 - **Prototyping:** Bambu Labs printer (Steve's workshop). Iterate fit and look.
-- **Production (100 units):** MJF nylon at JLC3DP, PCBWay, or Xometry. ~$3-10 per part. Better dust/UV/heat tolerance than FDM PLA, and 100 units takes hours not weeks.
+- **Production (~150 units):** MJF nylon at JLC3DP, PCBWay, or Xometry. ~$3-10 per part. Better dust/UV/heat tolerance than FDM PLA, and 150 units takes hours not weeks.
 
 ## Filter / gobo (separate consumable component)
 
@@ -23,14 +28,38 @@ A thin 3D-printed disc with patterned cutouts that sits at the bamboo node notch
 
 A more recent iteration extrudes the 2D pattern into a translucent cone via projective geometry -- looks like a glowing cone-shaped bulb from above, casts undistorted mandala below.
 
-If the Community Mandala Program goes ahead, each fixture gets a unique filter sourced from a contributor sketch. See `docs/decisions/` for the program design.
+MVP direction (Ben + Steve, 2026-07-08): for time and robustness, production gobos
+are likely FLAT DISCS -- the cone extrusion adds print complexity and makes the
+"bulb" more brittle, so cones may be reserved for a few designs (or none),
+depending on the pattern.
+
+Pattern program update (2026-07-08): community submissions were pulled for time;
+the plan is in-house designs plus generative-AI-modulated bamboo-leaf patterns per
+bamboo species (see `BACKGROUND.md`).
+
+## Uplight "boot" (new fixture class, tentative -- design input for Steve)
+
+The 24 uplights are simple bamboo cylinders (no lower splay, no gobo). Current
+concept (Ben, 2026-07-08): the battery may FILL the bamboo cylinder -- possibly the
+20 Ah LFP cylindrical cell if the solar-free option wins -- with the 4 W RGBW near
+the lit end, and a small enclosure ("boot") at the base carrying the PowerFeather
+and a gasketed panel-mount USB-C charge/flash port. Same internals as every other
+fixture; sleeps during the day. The 16 chandelier lights would likely reuse this
+boot concept in a close-packed variant. All tentative until the uplight power
+decision lands (ADRs 0025/0026).
 
 ## Reference
 
-- `references/DOWN LIGHTS DRAWINGS.pdf` -- Vishnu's bamboo lantern shop drawing, 2026-04-22.
+- `references/DOWN LIGHTS DRAWINGS.pdf` -- Vishnu's bamboo lantern shop drawing,
+  2026-04-22. (Not committed to the repo yet -- lives with Steve/Drive; TODO to
+  commit or re-point.)
 
 ## Open mechanical decisions
 
 - Rope attachment point (hat / bamboo / hybrid). See `BACKGROUND.md`.
 - Vent gap vs sealed (thermal vs IP rating trade-off).
 - Set screw count and placement (currently planned 3 at 120 deg , may revise based on prototype fit).
+- Uplight boot: battery retention in-cylinder, USB-C port gasketing, LED mount at
+  the lit end.
+- ToF apertures: downward beside the gobo (downlights), outward window with
+  protective cover (perimeter).

@@ -16,13 +16,24 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## COTS purchasing / arrival
 
+**2026-07-08: the live procurement record is `ops/PROCUREMENT.md`** (orders ledger,
+to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
+
 - [x] Buy R&D candidate set: PowerFeather, FeatherS2 Neo, Atom Matrix, NeoHEX, Adafruit IS31FL3741 matrix, DFR0559, panels, battery samples (Ben).
 - [x] Contact PowerFeather creator re: V2 availability and KiCad files (Ben).
 - [ ] Follow up on PowerFeather forum thread if no reply within a few days (Ben).
-- [ ] Confirm whether Elecrow boards are V2 or V1 on arrival (Ben).
+- [x] Confirm whether Elecrow boards are V2 or V1 on arrival -- **DONE 2026-06-02**: V2.R2 confirmed on the bench (Ben).
 - [ ] Confirm whether PowerFeather V2 KiCad/Gerbers can be shared or licensed (Ben).
-- [ ] Call/email BatterySpace if order confirmation is missing; verify 18650 LiFePO4 availability (Ben).
-- [ ] Buy alternate LiFePO4 18650/26650 sources if BatterySpace order fails (Ben).
+- [x] ~~Call/email BatterySpace re: 18650 LiFePO4~~ -- **SUPERSEDED 2026-07-08**: production cell is the fullbattery 32700 6 Ah (ADR 0025). BatterySpace returns only as the 20 Ah #6832 candidate below (Ben).
+- [x] ~~Buy alternate LiFePO4 18650/26650 sources~~ -- **SUPERSEDED** by ADR 0025 (175x 32700 bought) (Ben).
+- [ ] **Confirm Elecrow batch-2 (82 boards) invoices AND ships 2026-07-10** per the rep's commitment; escalate immediately if not -- the schedule long pole (Ben).
+- [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
+- [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
+- [ ] Buy Grove breakout(s) for the HEX HY2.0 connector adaptation (Ben).
+- [ ] Buy USB cabling + panel-mount female USB-C ports (~40) for the solar-free classes -- gated on the uplight power decision (Ben).
+- [ ] Order the RGBW top-up (**planned** -- they're cheap): sized by the chandelier mix + spares appetite, likely 20+ units (Ben).
+- [ ] Source ~100 JST 2-pin Y-cables (~$0.50 each found; verify quantity availability) -- CONDITIONAL on the RGBW VBAT-feed decision (Ben).
+- [ ] Commit `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` to the repo, or re-point the three references to its actual home (Ben/Steve).
 
 ## COTS bench testing
 
@@ -270,7 +281,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Test panel MPP/VINDPM settings for each panel (Ben).
 - [ ] Test thermistor / battery-temperature path if accessible (Ben).
 
-## Gobo / aesthetic LED testing (HEX Studio app -- `firmware/hex_studio/`, 2026-06-04)
+## Gobo / aesthetic LED testing (led_studio -- `firmware/led_studio/`, merged from hex_studio/rgbw_studio 2026-06-07)
 
 - [x] Build interactive web app to dial in HEX looks (brightness/RGB sliders, shape rings, spiral/orbit/breathe/twinkle, Split-RGB fringing, Freeze+Step, settings readback) -- DONE, validated on hardware (PowerFeather ACM1, HEX pin 10); served at the IP from the boot banner (Ben/Claude).
 - [x] Build interactive web app for the **4 W RGBW point source** (`firmware/rgbw_studio/`): R/G/B/W sliders, white/warmth presets + crossfade, hue/breathe/candle/fade animations, settings readback -- DONE, validated on hardware (ACM1, pin 10) (Ben/Claude).
@@ -278,8 +289,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] **Record LED module = BOTH, by role** -- DONE 2026-06-17 via ADR 0022
   (`docs/decisions/0022-mixed-led-fleet-by-role.md`), preserving ADR 0018's IS31
   rejection and direct-GPIO constraint (Ben/Codex).
-- [ ] Decide HEX/RGBW **type mix and placement**: which tree heights/positions get each
-  module type, and whether panel size also splits by role (Ben + Steve + team).
+- [~] Decide HEX/RGBW **type mix and placement** -- **FLEET PLAN RECORDED 2026-07-08**
+  (ADR 0024 + SYSTEM.md fleet table): RGBW on 72 downlights + 24 uplights, HEX on
+  38-40 perimeter hooks, mixed on the 16 chandelier shafts; panels split by role
+  (ADR 0026). Counts tentative until installation; final placement happens on-site
+  (placement is free -- fungible wireless design) (Ben + Steve + team).
 - [ ] **Capture per-look settings**: when a look is a keeper, record the led_studio sliders + the UI Battery line voltage (brightness is SOC-dependent until the 4.2 V boost lands) (Ben + Steve).
 - [ ] Compare Steve's **3 flat sample filters** through the rig; note which pattern reads best at the install throw (Ben).
 - [ ] Capture ceiling photos per source/filter for the record; fold results into a gobo test write-up (Ben).
@@ -307,6 +321,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
   true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
   per-unit probe (Ben).
+- [ ] **Gather wider noisemaker opinions at the first big camp-wide meeting
+  2026-07-09** -- relay clicks and even simple beeps stay technically on the table;
+  the earlier square-wave/click reactions were small-n and possibly a failure to
+  imagine 150 rippling through the tree (Ben).
 - [ ] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
   the bamboo -- the authentic knock the synth imitates). **Ben's current lean
   (2026-07-07 session close): physical noisemakers (relays or this) over synthesized
@@ -376,11 +394,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Confirm which cell is attached to the presence-bench PowerFeather; its gauge
   telemetry is inconsistent (bv 4.12 vs 3.68, ma -290 vs 0) and this sketch
   deliberately leaves charging OFF (Ben).
-- [ ] Order the remaining kit: **LD2420/LD2410 mmWave** (UART, through-enclosure
-  candidate), **LD2450** (~$10, 24 GHz multi-antenna -- tracks up to 3 targets
-  with real x/y, the "radar blobs" the 1TX/1RX XM125 physically cannot do),
-  **LIS3DH/MPU6050 IMU** (sway-veto + wind-response + structure-touch)
-  (Ben or Steve).
+- [x] ~~Order the remaining kit (LD2420/LD2410 mmWave, LD2450, LIS3DH/MPU6050 IMU)~~
+  -- **SUPERSEDED 2026-07-08 by the production sensor buy (ADR 0027)**: MSA311 +
+  TMF8820-mini + VL53L5CX ordered at fleet scale on 2026-07-07; mmWave dropped
+  (continuous-power appetite); fused/other IMUs rejected (per-device cal). LD2450
+  remains a possible future choreography experiment, not a fleet part (Ben).
+- [ ] **Confirm the per-class sensor allocation on hardware** (ADR 0027 marks it
+  tentative): TMF8820-mini downward on downlights, VL53L5CX outward on perimeter,
+  none on uplights/chandelier; verify one downlight-height bench run on the exact
+  ordered TMF8820-mini part (bench work used the TMF8821) (Ben).
 - [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
   pattern as env/INA) for yard/field tuning -- the desk bench uses its own HTTP
   dashboard instead (Claude + whoever's bench).
@@ -419,9 +441,9 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   single-pixel flicker appears) (Steve).
 - [ ] Wire: PowerFeather switchable 3V3 header -> module IN; module OUT 4.2 V -> HEX V+;
   common GND; HEX data direct to GPIO10 as usual. led_studio drives it unchanged (Steve).
-- [~] **Measure (the decision data): lumens-per-system-watt rail-direct vs boosted
-  4.2 V** -- **MEASURED 2026-07-02 at healthy SOC (LOG same date): boost NOT worth it
-  for the HEX gobo regime.** VEML7700 photopic harness + boost_ab_log.py/
+- [x] **Measure (the decision data): lumens-per-system-watt rail-direct vs boosted
+  4.2 V** -- **MEASURED 2026-07-02, decision recorded in ADR 0029 (HEX stays on the
+  3V3 rail; boost NOT worth it for the HEX gobo regime).** VEML7700 photopic harness + boost_ab_log.py/
   boost_ab_suite.sh, 4-swap A/B/A/B series, seating error bounded <=2 %. Single white
   px full: +1.6 % light for +60 % LED-branch power (lumens/W ~40 % WORSE); blue single
   +5.1 %, ring1 7 px bri128 +6.9 % -- gain grows with load per dropout physics, but
@@ -432,7 +454,10 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   3V3 rail, so bare is SOC-invariant by construction until deep discharge): low-SOC
   spot-check = watch for rail droop under load at low VIN only, 10 min on a drained
   cell, unlikely to flip; 4 W RGBW point source is a separate question (Ben/Steve).
-- [~] **Redo the boost A/B for the 4 W RGBW point source** -- **rail-fed variant
+- [x] **Redo the boost A/B for the 4 W RGBW point source** -- **CAMPAIGN COMPLETE
+  2026-07-02, matrix recorded in ADR 0029 (boost shelved with complete numbers;
+  the rail-vs-VBAT production feed decision is OPEN there). r10 residual + the
+  feed-decision item carved out below.** Detail: rail-fed variant
   MEASURED 2026-07-02 (gold standard r6, LOG same date): boost = 2.2x clean white
   (1044 vs 470 lux W-full) at ~37 % efficacy tax; rgbwhite rail-walls at bri=128
   (3x replicated); bare rgbwhite-full ~1310 lux is the free bright option and Ben's
@@ -450,12 +475,7 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   on the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
   to VIN = always-live V+; SK6812 latches -- blank before unplugging), and
   connector/trace quality specced (worth ~25 % of top-end light).
-  **REMAINING MEASUREMENT (r10): battery-plane watts for the two uninstrumented
-  configs** -- bare-VBAT-fat and boosted-VBAT-fat (the 3044 lux point has NO measured
-  power; current estimate ~3.0-4.5 W, ~700-1000 lux/W, estimate-on-estimate). Method
-  that avoids re-poisoning the loop: SEN0291 IN+/IN- are SCREW TERMINALS -- clamp the
-  fat wire directly, no duponts; shunt adds only 10 mOhm. One ladder per config,
-  update the report's fig 4. Also note for any "boost for top-end only" revival: the
+  (r10 detail moved to its own item below.) Also note for any "boost for top-end only" revival: the
   efficacy tax is per-lumen and duty-independent (dies at 4.2 V whenever lit), so
   selective-boost needs a bypass path around the TPS63802 (EN-low disconnects the
   output entirely) -- a real adapter-PCB circuit decision (Ben).
@@ -472,25 +492,41 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   this module (unlike the RGB-only NeoHEX) -- include W-only and W-vs-RGB-white looks.
   Harness/tooling reuse as-is: boost_ab_log.py + a boost_ab_suite variant with
   RGBW-appropriate looks (Ben).
-- [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
-  wants ~2 A out (~8 W in) = instant brownout -- cap n (or estimated total current) in
-  led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
-  on a boosted rig (Steve or Ben).
-- [ ] If validated: spec the **production variant on the NeoHEX adapter PCB rev** --
-  boost fed from VBAT with EN routed to a GPIO + pull-down (single conversion ~92 % vs
-  ~83 % two-stage, keeps software kill, frees the 3V3 rail for the ESP). The Amazon
-  module proves the concept; the adapter PCB ships it. **STATUS 2026-07-02: current
-  data says SKIP the boost for the HEX gobo role (see LOG verdict); revisit only if
-  the low-SOC repeat flips it or for the 4 W RGBW module** (Ben).
+- [ ] **r10: battery-plane watts for the two uninstrumented configs** -- bare-VBAT-fat
+  and boosted-VBAT-fat (the 3044 lux point has NO measured power; current estimate
+  ~3.0-4.5 W, ~700-1000 lux/W, estimate-on-estimate). Method that avoids re-poisoning
+  the loop: SEN0291 IN+/IN- are SCREW TERMINALS -- clamp the fat wire directly, no
+  duponts; shunt adds only 10 mOhm. One ladder per config, update the report's fig 4.
+  Requires reflashing led_studio onto the desk board first (Ben).
+- [ ] **Firmware count-cap for boosted builds** -- **moot unless the boost is revived
+  (ADR 0029 shelved it)**: all-37 full white at a regulated 4.2 V wants ~2 A out
+  (~8 W in) = instant brownout -- cap n (or estimated total current) in led_studio
+  when V+ is boosted (Steve or Ben).
+- [x] ~~Spec the production boost variant on the NeoHEX adapter PCB rev~~ -- **CLOSED
+  2026-07-08 as SKIP per ADR 0029** (no boost for either role). The revival spec
+  (VBAT-fed single conversion, EN->GPIO + pull-down, fat wiring) is preserved in
+  ADR 0029 if a future look needs the ceiling (Ben).
+- [ ] **DECIDE the RGBW production feed: 3V3 rail (as wired today) vs VBAT-direct
+  (+33 % fringed white, free)** -- before the harness buy, since it forks connector
+  set and firmware pinout (ADR 0029 has the full trade). Ben's sketched conversion:
+  solder a 4-pin header along {VBAT | EN | VS | D13} pulling VBAT -> V+ and
+  D13 -> signal, GND via a cheap JST 2-pin Y-cable (~$0.50) off the GND pin next to
+  VDC/solar+ -- needs ~100 Y-cables sourced at quantity, firmware A0 -> D13, and a
+  fail-safe redesign (no 3V3-rail shutoff means a stuck-on frame can kill the
+  battery -- verify all-off + a default-off switch element per ADR 0013). Reasons
+  to stay on the rail: clean W-only is unchanged, the rail cut is a robust hard
+  kill, and the rail hookup is easy/robust. Side benefit of converting: frees
+  3V3/GND/A0 for a clacker/relay payload (Ben).
 
-## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risk the 100-buy)
+## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risked the buy -- fleet now ~150, ADR 0024)
 
 See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_bench/`.
 
 - [x] Build the first ESP-NOW firmware + 5-node host harness (broadcast comms, master/peer roles, maintenance-mode WiFi OTA, watchdog, per-source PDR, scale-extrapolation summarizer). Bench-validated on 1 board (Ben/Claude).
-- [ ] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0-T7 -- channel MUST match the AP or ESP-NOW silently fails (Ben).
-- [ ] Run the **rate sweep** (1/2/5/10/20/50 Hz) on master-multicast + peer-mesh -> find the PDR loss knee -> set the production heartbeat rate below it; extrapolate to 100 (Ben).
-- [ ] **Range** sweep (open-field cliff) + **through-obstruction** (body/bamboo/foil/battery-behind-antenna) RSSI+PDR (Ben).
+- [~] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0-T7 -- channel MUST match the AP or ESP-NOW silently fails. Partial 2026-06-07/08: master + 3-4 peers ran the matrix (one board never booted); full 5-board pass still open (Ben).
+- [x] Run the **rate sweep** (1/2/5/10/20/50 Hz) -- **PASS 2026-06-07** (LOG): >=97 % PDR to 250 pkt/s aggregate, clean knee; ~100-node projection at 1-2 Hz = 98-99 % PDR (Ben).
+- [x] **Range** T3 -- **PASS 2026-06-08**: link held through house + yard + oak (~100 steps); solar panel is the main ~20 dB attenuator; obstruction mapping captured (Ben).
+- [ ] **Re-run the scale extrapolation at 150 nodes** (it was computed at 100; fleet is now 150-152 per ADR 0024) and restate the projected PDR honestly (Ben/Claude).
 - [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` -- confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
 - [ ] **Multi-hour battery stability** soak (Li-ion) -- zero unexplained resets, log mAh/h drain (Ben).
 - [ ] **Master WiFi+ESP-NOW coexistence** current/stability run (Ben).
@@ -512,25 +548,38 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Battery / solar sourcing
 
-- [x] Qualify a second 32700 sample before committing to the bulk buy — **DONE
+- [x] Qualify a second 32700 sample before committing to the bulk buy -- **DONE
   2026-07-06**: second fullbattery cell delivered 5,752 mAh (+0.5 % vs June's 5,726),
-  n=2, 75-unit purchase validated. The Amazon Palowextra "7.2 Ah" alternative measured
-  5,643 mAh (78 % of label) with 2.3× IR and was REJECTED — see LOG 2026-07-06/07 and
+  n=2, 75-unit purchase validated (100 more bought 2026-07-07 -- ADR 0025). The Amazon
+  Palowextra "7.2 Ah" alternative measured 5,643 mAh (78 % of label) with 2.3x IR and
+  was REJECTED -- see LOG 2026-07-06/07 and
   `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html` (Ben/Claude).
-- [ ] Compare 18650 LiFePO4 sample capacity against rated capacity (Ben).
-- [ ] Evaluate 26650 LiFePO4 only if 18650 sourcing or autonomy becomes a problem (Ben).
+- [x] ~~Compare 18650 LiFePO4 sample capacity against rated capacity~~ -- **SUPERSEDED
+  2026-07-08**: production format is the 32700 (ADR 0025); the 18650 remains a bench
+  cell only (Ben).
+- [x] ~~Evaluate 26650 LiFePO4~~ -- **SUPERSEDED**: the open big-cell question is now
+  the 20 Ah #6832 for solar-free classes, below (Ben).
+- [ ] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
+  solar-free uplight/chandelier option**: capacity + IR run per the ADR 0023 recipe,
+  plus an uplight-profile drawdown (dim mood lighting, week-long budget). Decide by
+  ~late July; a win triggers the ~40-cell buy in `ops/PROCUREMENT.md` (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in
-  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`; still record shipping/lead-time
-  once procurement is active.
-- [ ] Search for round/circular panels for production aesthetics, but do not block R&D on them (Ben).
-- [ ] Design hat top so R&D rectangular panels and production round panels can both be accommodated if needed (Steve).
+  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`; order/lead-time record now
+  lives in `ops/PROCUREMENT.md` (panels bought 2026-06-24).
+- [x] ~~Search for round/circular panels~~ -- **CLOSED 2026-07-08**: production panels
+  are the rectangular Voltaic ETFE (ADR 0026); round panels dropped for 2026 (Ben).
+- [ ] Design hat top so the rectangular production panels mount cleanly with backup
+  retention (round-panel accommodation no longer needed) (Steve).
 
 ## Custom hardware track
 
-- [ ] Decide whether custom board is needed after COTS tests (Ben + Steve).
-- [ ] If custom board proceeds, use PowerFeather V2 as reference architecture (Ben).
+- [x] Decide whether custom board is needed after COTS tests -- **DECIDED 2026-07-08
+  (ADR 0024): 2026 production is COTS PowerFeather V2; custom PCBA is the 2027
+  option.** Items below apply only if/when that option activates (Ben + Steve).
+- [ ] If custom board proceeds, use PowerFeather V2 as reference architecture, with a
+  dedicated power-management I2C bus (ADR 0028) and the ADR 0029 LED wiring rules (Ben).
 - [ ] Select charger/fuel-gauge/regulator architecture: BQ25628E + MAX17260 + buck-boost is current leading reference (Ben).
 - [ ] Keep LED module/daughterboard separate until optics are frozen (Ben + Steve).
 - [ ] Add keyed solar connector/pigtail plan; do not rely on direct panel wires to board pads for production (Ben + Steve).
@@ -540,8 +589,14 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Enclosure track
 
-- [ ] Design hat v1 around COTS stack envelope as well as possible custom board envelope (Steve).
-- [ ] Add mounting/standoff options for PowerFeather, FeatherS2 Neo, Atom Matrix, DFR0559, and LED modules (Steve).
+- [ ] Design hat v1 around the PowerFeather V2 + 32700 + panel + LED-role envelope (Steve).
+- [ ] Add mounting/standoff options for PowerFeather and both LED module roles (Steve).
+- [ ] **Design the uplight "boot" variant** (new class, tentative -- see
+  `enclosure/README.md`): battery-in-cylinder retention (possibly the 20 Ah cell),
+  RGBW mount at the lit end, base enclosure with gasketed panel-mount USB-C
+  charge/flash port; chandelier hat likely a close-packed variant (Steve + Ben).
+- [ ] **ToF apertures**: downward eye port beside the gobo (downlights), outward
+  window with protective cover (perimeter hats) (Steve).
 - [ ] Add strain-relief plan for panel pigtail / VDC connector (Steve + Ben).
 - [ ] Keep antenna region away from solar panel, battery, screws, and metal (Steve + Ben).
 - [ ] Decide rope attachment point with team; hybrid primary-hat + secondary-bamboo safety tie remains current recommendation (Ben + Steve).
@@ -551,9 +606,9 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Firmware track
 
-- [ ] Create board definitions for PowerFeather V2, FeatherS2 Neo, Atom Matrix, and custom target (Ben).
+- [ ] Create board definitions for `powerfeather_v2` and the possible `resonance_custom` target (bake-off boards retired -- ADR 0016 annotation) (Ben).
 - [ ] Implement telemetry abstraction for charger/fuel gauge / battery monitor (Ben).
-- [ ] Implement LED driver abstraction: IS31FL3741 I2C matrix, WS2812/NeoPixelBus, integrated board LEDs (Ben).
+- [ ] Implement LED driver abstraction per ADR 0029 roles: SK6812/WS2812 via NeoPixelBus (3V3 rail) + 4 W RGBW point source (VBAT-direct); no I2C LED controllers (Ben).
 - [ ] Implement LED rail power abstraction (`VSQT`, onboard LED LDO, external rail enable) (Ben).
 - [ ] Implement standard OTA maintenance mode; no ESP-NOW firmware chunks (Ben).
 - [~] Add an autonomous low-VBAT park/cutoff policy for ordinary net_bench/production
@@ -564,16 +619,16 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl`. Remaining: analyze the
   first full cycle, tune full/taper and cutoff thresholds, then port the proven policy
   into production firmware (Ben/Codex). **THRESHOLDS NOW MEASURED (2026-07-07): use
-  ADR 0023's tiers (standard: dim 3.00 / off 2.95 / sleep 2.90 under full load) — the
+  ADR 0023's tiers (standard: dim 3.00 / off 2.95 / sleep 2.90 under full load) -- the
   current field-cycle floors (3.10/3.00) strand capacity; hysteresis + coulomb-primary
   hybrid requirements are in the ADR.**
 - [ ] Implement the ADR 0023 low-battery state machine in field-cycle/production
-  firmware: latched dim/off/sleep transitions with 60 s confirm + ≥150 mV re-entry
-  hysteresis, load-compensated voltage (`bv + 0.15 × I_A`), coulomb-remaining primary
-  (DesignCap ≈ 5750, gauge current /1.08), voltage tiers as backstop, watchdogged
+  firmware: latched dim/off/sleep transitions with 60 s confirm + >=150 mV re-entry
+  hysteresis, load-compensated voltage (`bv + 0.15 x I_A`), coulomb-remaining primary
+  (DesignCap ~5750, gauge current /1.08), voltage tiers as backstop, watchdogged
   sleep (Ben/Claude).
 - [ ] Optional backlog: one cold-night discharge at a representative dim load to
-  sharpen ADR 0023's tiers for winter (they're currently 79.9 °F, n=2 data;
+  sharpen ADR 0023's tiers for winter (they're currently 79.9 deg F, n=2 data;
   conservative tier is the hedge until then) (Ben).
 - [ ] Analyze first `--field-cycle` run for `9E5AB8`: confirm 5-minute charge wakes,
   charge recovery from ~2.67 V on USB/solar, full-ish detection, transition to dark
@@ -615,16 +670,33 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] Confirm timing for Bamboo Pure air-ship of prototype lanterns to Steve in TN (Ben -> Elliot / Dipta).
 - [ ] Align with Elliot on rope-attachment decision (Ben).
 - [ ] Confirm hat OD / height / bamboo-overlap to Vishnu so he can finalize renders (Ben).
-- [ ] Pull `INV_2026_00401`, decompose cost, compare to COTS/custom BOMs (Ben).
+- [x] ~~Pull `INV_2026_00401`, decompose cost, compare to COTS/custom BOMs~~ --
+  **RETIRED 2026-07-08**: the invoice's identity is unclear (probably the Bamboo
+  Pure lantern invoice, possibly the early custom-PCBA quote), and with real COTS
+  procurement recorded in `ops/PROCUREMENT.md` the comparison baseline is no longer
+  useful (Ben).
+- [ ] Clarify chandelier-light scope/ownership with Elliot + Vishnu (16 shafts,
+  internals fungible with the fleet -- ADR 0024) and decide the HEX/RGBW mix, which
+  sizes the planned RGBW top-up buy (Ben).
+- [ ] Decide the TENTATIVE TN trip (~3rd-4th week of July): fleet-scale test of the
+  ~70 boards at Steve's -- production-firmware mesh lighting effects + presence
+  detection, indoors if enclosures aren't ready; back for the Aug 1-2 container
+  unload (Ben + Steve).
 - [ ] Get Steve on project's official core build team wiki (Ben -> Elliot).
 - [ ] Get shared access to Co-Work's wiki folder once cloud-hosted (Ben -> Elliot).
-- [ ] Drop lighting workstream digest into WhatsApp after COTS bench results (Ben).
+- [ ] Drop lighting workstream digest into WhatsApp -- the 2026-07-08 team write-up
+  (`docs/`) is the candidate artifact (Ben).
 
-## Community Mandala Program (parked until Elliot signs off)
+## Gobo pattern program (community submissions PULLED 2026-07-08)
 
-- [ ] Validate concept with Elliot + Vishnu (Ben).
-- [ ] Pipeline: photo -> vectorize -> constraint check -> cone projection -> STL.
+The community Mandala submission program was pulled for time. Current plan: in-house
+designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the tree
+(BACKGROUND.md has the full record). Surviving work items:
+
+- [ ] Generate/curate the in-house + bamboo-leaf pattern set (Ben + Steve + Vishnu).
+- [ ] Pipeline: pattern -> vectorize -> constraint check -> cone projection -> STL
+  (unchanged from the original program design).
 - [ ] Brightness normalization in firmware or per-filter metadata.
-- [ ] Cataloging schema.
-- [ ] Contributor brief / submission form.
-- [ ] Submission window opens/closes early enough for printing and reprints.
+- [ ] Cataloging schema (per-fixture pattern identity -- useful regardless of source).
+- [ ] Print schedule backward from ~Aug 10 filters-in-hand (Steve's Bambu + possible
+  batch service).

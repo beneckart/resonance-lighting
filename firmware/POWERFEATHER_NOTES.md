@@ -320,7 +320,7 @@ re-ran input qualification; the charger then engaged and pulled the panel down t
 VINDPM, where Voc is never seen again. A connect-order/weather-dependent deadlock:
 06-08's weak-light bring-up never hit it.
 
-- **Field implication (100 fixtures, playa):** connecting or resetting a fixture in
+- **Field implication (~150 fixtures, playa):** connecting or resetting a fixture in
   full sun can leave it silently not charging. Mitigations: connect panels shaded /
   face-down; spec the production panel so its COLD-morning Voc clears the charger's
   input window; and keep the firmware guard enabled in every solar/charging image.

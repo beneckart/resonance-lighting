@@ -1,5 +1,11 @@
 # Firmware Architecture
 
+**Status (2026-07-08):** this is the TARGET production architecture. Current code is
+standalone bench sketches under `firmware/<app>/` (see `firmware/README.md`);
+`net_bench` is the closest ancestor of production firmware. Constraints learned on
+the bench that bind this design: ADR 0028 (power-management bus integrity), ADR 0029
+(LED drive per role), ADR 0023 (low-battery thresholds), ADR 0027 (sensors).
+
 Firmware runs across COTS prototypes and the eventual production target. The architecture must support multiple board definitions, standard OTA maintenance updates, ESP-NOW state exchange, LED rail fail-safes, and telemetry logging.
 
 ## Layered structure
@@ -14,7 +20,7 @@ firmware/
 |   `-- tests/        Native tests.
 |
 |-- esp32/            ESP32-specific glue.
-|   |-- boards/       Board definitions: powerfeather_v2, feathers2_neo, atom_matrix, resonance_custom.
+|   |-- boards/       Board definitions: powerfeather_v2, resonance_custom.
 |   |-- drivers/      ESP-NOW, OTA, LED drivers, charger/fuel gauge, rail control.
 |   |-- tasks/        FreeRTOS tasks.
 |   `-- main.cpp
@@ -27,7 +33,8 @@ firmware/
 Each board definition should specify:
 
 - MCU type / build flags.
-- LED driver type: IS31FL3741 I2C, WS2812/NeoPixelBus, integrated matrix, or no LED.
+- LED driver type: WS2812/SK6812 via NeoPixelBus, 4 W RGBW point source, or no LED
+  (direct-GPIO only -- I2C LED controllers are ruled out, ADR 0018/0028).
 - LED/module rail control: `VSQT`, onboard LDO enable, external load switch, or always-on fallback.
 - Charger/fuel-gauge devices available.
 - Battery chemistry support.
@@ -35,20 +42,25 @@ Each board definition should specify:
 - ESP-NOW radio settings.
 - Sleep capabilities.
 
-Initial board targets:
+Board targets:
 
-- `powerfeather_v2` -- ESP32-S3-WROOM, BQ25628E, MAX17260, TPS631013, switchable VSQT.
-- `feathers2_neo` -- ESP32-S2 with integrated 5x5 matrix and LiPo charging.
-- `atom_matrix` -- ESP32-PICO-D4 with integrated 5x5 WS2812C.
-- `resonance_custom` -- future PowerFeather-derived custom board.
+- `powerfeather_v2` -- ESP32-S3-WROOM, BQ25628E, MAX17260, TPS631013, switchable
+  VSQT. The 2026 production board (ADR 0024).
+- `resonance_custom` -- possible 2027 PowerFeather-derived custom board (dedicated
+  power-management I2C bus per ADR 0028).
+
+(The COTS bake-off boards `feathers2_neo` / `atom_matrix` are retired -- ADR 0016
+annotation.)
 
 ## OTA policy
 
 OTA must remain boring and standard.
 
 - Use normal ESP32 OTA partition/rollback mechanisms.
-- Enter OTA in a deliberate maintenance mode.
-- A laptop/Pi/local AP may host firmware.
+- Enter OTA in a deliberate maintenance mode: an ESP-NOW metadata packet sends the
+  fixture(s) onto shared WiFi (portable router), where each serves `/update`; the
+  host uploads in parallel (`ops/bench/net_bench_ota.py`). This is the fleet
+  default; the self-hosted-AP fallback is deprecated (AGENTS.md bench gotchas).
 - USB/pogo flashing remains the recovery path.
 - ESP-NOW may advertise firmware version or maintenance availability.
 - ESP-NOW must **not** carry firmware image chunks.
@@ -99,8 +111,16 @@ mesh_tx_task
 power_task
   - read battery/charger/fuel gauge
   - manage LED/module rails
-  - low-battery state machine
+  - low-battery state machine (ADR 0023 tiers: dim/off/sleep, hysteresis,
+    coulomb-primary voltage-backstop)
   - sleep/shipping mode transitions
+  - NEVER pinned to core 0 while WiFi is active, and the shared charger/gauge
+    bus stays at 100 kHz (ADR 0028)
+
+sensor_task
+  - MSA311 sway/tilt + multizone ToF presence (per class -- ADR 0027)
+  - short per-frame reads sized to the 100 kHz bus budget
+  - feeds choreography state into ca_tick_task
 
 telemetry_task
   - log power/solar/battery/RF/reset data
@@ -114,19 +134,26 @@ ota_task
 
 ## LED drivers
 
-### IS31FL3741 matrix
+### IS31FL3741 matrix -- RULED OUT
 
-- I2C LED matrix over STEMMA-QT.
-- Used by Adafruit 13x9 matrix.
-- Must support power cycling `VSQT`, reinitialization, and low-current modes.
-- Test for PWM/multiplex artifacts in gobo projection.
+Rejected for the battery build (ADR 0018): it disturbs the shared charger/gauge I2C
+bus and browns out the board under WiFi. Nothing optional rides the power-management
+bus (ADR 0028). Kept here only so nobody re-adds it.
 
-### WS2812 / NeoPixelBus
+### WS2812 / SK6812 via NeoPixelBus (HEX role)
 
-- Used by NeoHEX, Atom Matrix, FeatherS2 Neo, and possible custom LED boards.
+- SK6812 HEX on the switchable 3V3 rail (the rail is its kill switch -- ADR 0029).
 - Use DMA-capable driver where supported.
 - Include brightness/current caps.
-- Include data-line safe state before powering rails off.
+- Include data-line safe state + explicit all-off before powering rails off.
+
+### 4 W RGBW point source (gobo role)
+
+- Currently fed from the switchable 3V3 rail (V+/GND/A0 via right-angle JST-XH);
+  the VBAT-direct option (+33 % fringed white) is OPEN -- taking it means a pin
+  move (A0 -> D13), a fail-safe redesign (rail shutoff no longer kills the LED),
+  and tapping downstream of the gauge shunt (ADR 0029).
+- Single-emitter PWM drive; supports the swept/single-pixel gobo modes.
 
 ## Power / telemetry subsystem
 

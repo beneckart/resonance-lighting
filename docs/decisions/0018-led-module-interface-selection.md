@@ -6,7 +6,9 @@ bench work. Net: IS31FL3741 13x9 is **ruled out** for the V2 battery build; the 
 module is **deliberately left undecided** -- SK6812 "HEX" direct-GPIO and the 4 W RGBW
 point source are both still live and serve *different optical roles*. The original
 2026-05-10 decision (IS31 primary, NeoHEX secondary) is preserved at the bottom as
-superseded.
+superseded. Annotation 2026-07-08: the "deliberately undecided" module choice was
+resolved by ADR 0022 (mixed HEX + RGBW fleet by optical role) and the electrical
+feed per role by ADR 0029; the IS31 rejection and the direct-GPIO constraint stand.
 **Owners:** Ben + Steve
 
 ## Context

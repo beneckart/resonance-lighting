@@ -1,7 +1,7 @@
 # 0014 -- LiFePO4-capable solar charger reference first; bq25185 preferred candidate
 
 **Date:** 2026-05-08
-**Status:** Accepted
+**Status:** Accepted. Annotation 2026-07-08: the reference-first strategy was fulfilled by the PowerFeather V2's BQ25628E (ADRs 0015/0021) rather than a bq25185 board; the named IC is historical. Charger-bus design constraints for any custom board now live in ADR 0028.
 **Owners:** Ben
 **Supersedes:** ADR 0003
 

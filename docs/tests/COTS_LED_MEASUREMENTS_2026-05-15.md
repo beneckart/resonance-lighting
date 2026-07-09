@@ -1,5 +1,12 @@
 # COTS LED Measurements -- 2026-05-15
 
+> **Status 2026-07-08: SUPERSEDED, results tables never filled.** The COTS bake-off
+> moved to the PowerFeather V2 direct-GPIO path before this plan was executed
+> (ADR 0018/0022). The measurements this planned live in LOG 2026-06-04/11 (LED
+> efficiency + gobo sessions), LOG 2026-07-02 (LED drive matrix),
+> `docs/tests/BOOST_AB_BENCH_REPORT_2026-07-02.html`, and ADR 0029. Kept as a
+> record of the planned protocol.
+
 Purpose: first current and optics measurements for the three connected COTS
 prototype stacks.
 

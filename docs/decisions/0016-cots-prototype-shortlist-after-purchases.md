@@ -1,7 +1,7 @@
 # 0016 -- COTS prototype shortlist after R&D purchases
 
 **Date:** 2026-05-10
-**Status:** Accepted
+**Status:** Accepted; historical. Annotation 2026-07-08: the bake-off concluded -- PowerFeather V2 won (ADR 0021) and the production buy is recorded in ADR 0024. Stack 1's IS31FL3741 was later ruled out (ADR 0018); FeatherS2 Neo and Atom Matrix retired to bench duty.
 **Owners:** Ben
 
 ## Context

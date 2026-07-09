@@ -4,13 +4,17 @@ Project context for the Resonance Lighting workstream. Read alongside `README.md
 
 ## What this project is
 
-The **Resonance Tree** is a two-year bamboo art installation for Burning Man 2026 + 2027, fabricated by Bamboo Pure in Bali. The 2026 build is a ~7.5 m bamboo tree with two laminated rings (1.5 m and 1.7 m), 7.5 m doubled bamboo poles, 30 limbs, held together with steel wire and capped with a wind chime cluster. In 2027 the trunk becomes the inside of a multi-level conch shell built around it; the bamboo trunk and the 100 lighting fixtures are reused both years.
+The **Resonance Tree** is a two-year bamboo art installation for Burning Man 2026 + 2027, fabricated by Bamboo Pure in Bali. The 2026 build is a ~7.5 m bamboo tree with two laminated rings (1.5 m and 1.7 m), 7.5 m doubled bamboo poles, 30 limbs, held together with steel wire and capped with a wind chime cluster. In 2027 the trunk becomes the inside of a multi-level conch shell built around it; the bamboo trunk and the ~150 lighting fixtures are reused both years.
 
-Hanging from the tree: **100 bamboo "downlights"** plus a chandelier-and-wind-chime assembly at the top.
+The lighting fleet (2026-07-08 plan, tentative until installation -- canonical counts
+in `docs/block-diagram/SYSTEM.md`, decision in ADR 0024): **72 hanging bamboo
+"downlights"** at 7-10 ft, **38-40 perimeter lights** on 5 ft shepherd hooks,
+**24 uplights**, and **16 chandelier lights** in the central cluster, plus the
+wind-chime assembly at the top.
 
-This repo's scope is the 100 downlight fixtures: solar-powered, mesh-networked, autonomous, fungible.
+This repo's scope is those fixtures: solar/battery-powered, mesh-networked, autonomous, fungible.
 
-**Two-year framing matters for the electronics spec.** The 100 downlights are durable infrastructure, not a 2026-only throwaway build. The chandelier at the top of the tree is a separate solar-shading testbed for the 2027 expansion's larger lighting loads -- it does not gate the downlight feature set.
+**Two-year framing matters for the electronics spec.** The fixtures are durable infrastructure, not a 2026-only throwaway build. (Historical note: this document originally scoped "100 downlights" with the chandelier as a separate testbed; the fleet grew to four classes and the 16 chandelier lights are now tentatively part of this repo's fleet -- ownership still being clarified.)
 
 ## 2026 architecture correction -- risk-reduction policy
 
@@ -52,7 +56,10 @@ Per `enclosure/references/DOWN LIGHTS DRAWINGS.pdf`:
 - **Bamboo split ring** (3 mm thick) wraps the join at the node, 15 cm down from the top.
 - **Tooling:** jig saw cuts, expansion via heated metal ring, 1-day setting.
 - **Interior diameter (top cylinder):** 5.5 cm minimum -- confirmed by Bamboo Pure.
-- **Quantity:** 100 lanterns in BOQ R6.
+- **Quantity:** 100 lanterns in BOQ R6. (2026-07-08 note: bamboo body supply is
+  ample -- enough splayed lantern bodies to cover the hanging downlights, simple
+  cylinders for the uplights, and the chandelier structure is finished and already
+  in the shipping container.)
 
 ### Solar "hat" / electronics enclosure (this repo's deliverable)
 
@@ -86,15 +93,29 @@ Steve has 3D-printed the bamboo lantern body to Vishnu's spec and built a series
 - The WS2812B's R/G/B dies are physically offset (~1-2 mm), producing slight chromatic fringing on the cast mandala. Reads as a feature, not a bug -- same physics as chromatic aberration in cheap lenses. Amplifies when the LED is close to the filter; suppresses when far.
 - Actuating LED-to-filter distance was considered for "mandala zoom" but rejected -- moving parts are a maintenance liability. Static distance, set by hat geometry, is the right call.
 
-**Geometric note:** Because the filter sits at the bamboo node notch and the LED sits at a known depth in the hat, LED-to-filter distance is geometrically determined and consistent across all 100 fixtures. No per-unit calibration needed.
+**Geometric note:** Because the filter sits at the bamboo node notch and the LED sits at a known depth in the hat, LED-to-filter distance is geometrically determined and consistent across all downlight-class fixtures. No per-unit calibration needed.
 
 **Aesthetic alignment:** The team has explicitly accepted plastic in the design (the hat enclosure itself sticks out the top of the bamboo). Position is "if 3D printing affords something we can't otherwise do artistically, it is worth doing." The filter program fits this.
 
-### Chandelier / wind chime cluster (top of tree, Vishnu's workstream -- not in this repo)
+### Chandelier / wind chime cluster (top of tree, Vishnu's workstream)
 
-A 6-inch bamboo *asper* in the center of the chime cluster becomes a chandelier providing center-tower lighting. The ring holding the chandelier hosts a 0.8 m diameter solar panel (partially shaded by the bamboo skin). Elliot frames this as a testbed for whether bamboo-shaded solar can sustain the larger lighting loads planned for the 2027 conch-shell expansion. The 100 downlight spec is *not* gated on this; downlights are durable infrastructure for both years.
+A 6-inch bamboo *asper* in the center of the chime cluster becomes a chandelier providing center-tower lighting. The ring holding the chandelier hosts a 0.8 m diameter solar panel (partially shaded by the bamboo skin). Elliot frames this as a testbed for whether bamboo-shaded solar can sustain the larger lighting loads planned for the 2027 conch-shell expansion. The downlight spec is *not* gated on this; downlights are durable infrastructure for both years.
 
-## Community Mandala Program (proposed)
+(2026-07-08 update: the chandelier's **16 light shafts** are now tentatively a fleet
+class in this repo -- likely 16 PowerFeather fixtures with a HEX/RGBW mix, probably
+solar-free with USB-C charging, in hats similar to the uplight "boots"; the shafts
+are cylindrical tubes possibly matching the uplight dimensions, packed closely, so
+the enclosure may differ. Scope/ownership still being clarified; the chandelier
+structure itself is built and in the shipping container. See ADR 0024.)
+
+## Community Mandala Program (PULLED 2026-07-08 -- kept for the record)
+
+**Status 2026-07-08: the community-submission program was pulled back for lack of
+time.** The current gobo-pattern plan is a mix of in-house designs plus
+generative-AI-modulated bamboo-leaf patterns, distinct per bamboo species used in
+the tree. The pipeline below (vectorize -> constraint check -> cone-projection
+extrude -> batch print) still applies to the in-house patterns; the submission
+/curation machinery does not. Original proposal preserved below.
 
 Concept: instead of one designer producing 100 patterns, source them from a wider artist community. The piece becomes a 100-pattern "art gallery": visitors find favorite patterns, hunt for easter eggs (designer initials hidden in the geometry, references to past Burning Man art cars, in-jokes for the team and contributors).
 
@@ -123,16 +144,30 @@ Going fully wireless -- no data lines, no fixed wiring topology -- opens creativ
 - **Cellular automata light fields.** Each lantern reads its neighbors' state and updates per a rule. Reaction-diffusion rules (Belousov-Zhabotinsky-style) produce organic, flock-like, forest-fire-like wave dynamics -- much more compelling than randomness or pre-programmed sequences. Other CA candidates: Greenberg-Hastings (excitable medium), Game of Life variants, continuous Lenia (smooth blob dynamics).
 - **Spatial / topological neighbor awareness.** ESP-NOW exposes RSSI per packet. With a one-time install-time calibration (each lantern learns its top-K nearest neighbors by signal strength, or is told its physical position), neighbor lists can be pre-baked. This solves the CA neighbor-identification problem cleanly without GPS or fancy hardware. Stored in flash, doesn't change at runtime.
 - **Hand-carried "wand" lantern.** A battle-hardened lantern variant (or a custom unit) that participants pick up and carry through the piece. The wand broadcasts presence over ESP-NOW; tree fixtures measure RSSI to determine proximity; nearest fixtures react (brighten, color-shift, kick off a CA wave). Mesh hops propagate the disturbance outward -- the network topology becomes visible as a wavefront rolling away from the wand.
-- **Synced "choir" moments.** Loose CA most of the time, with occasional global-sync events where all 100 lanterns coordinate (NTP-style time sync over mesh) for a unified moment, then break back into local rule.
+- **Synced "choir" moments.** Loose CA most of the time, with occasional global-sync events where all ~150 lanterns coordinate (NTP-style time sync over mesh) for a unified moment, then break back into local rule.
 - **Wind-chime coupling.** If the chime cluster ends up with a microphone or accelerometer, real wind events at the top of the tree could feed into the CA below -- wind literally drives the light waves through the tree.
 - **Time/state programs.** Different rule sets per night (e.g. one CA Monday, another Tuesday), pushed OTA the day before.
+- **Bridge-directed multicast show (added 2026-07-08).** A bridge -- one fleet board
+  wired to a host -- already exists for bench telemetry/OTA (net_bench serial
+  bridge). The same topology can stream a centrally-directed show: connect the
+  bridge host to a DJ set-top / MIDI controller / microphone and multicast
+  sound-reactive frames to every fixture from one clean audio source, instead of
+  equipping each lantern with a cheap electret mic. Bridge roles: fleet OTA
+  trigger, telemetry collection, health diagnostics, device ID / position
+  initialization, and multicast show mode.
 - **Solar-aware grace.** Lanterns with low battery contribute less to the show, fade to lower brightness, drop out gracefully -- turning a power-budget reality into a visible "the tree is breathing" effect rather than a failure.
 
 **Firmware architecture implication.** To leave all of this on the table without painting into a corner, the firmware: (a) stores position / neighbor-list / per-fixture brightness calibration in flash; (b) treats the rendering loop as a function of (local state + neighbor states + time + global mode), rather than hardcoding any one mode; (c) keeps the global "mode" pushable through a normal control/config path, while firmware updates use standard ESP32 OTA maintenance mode rather than a custom mesh firmware transport. Build for the framework first, then the modes.
 
 
 
-## Current COTS / PowerFeather R&D state (2026-05-10)
+## COTS / PowerFeather R&D state -- HISTORICAL SNAPSHOT (2026-05-10)
+
+> 2026-07-08: this whole section is a dated snapshot from the start of the COTS
+> campaign, kept for context. The bake-off concluded (PowerFeather V2 won -- ADR
+> 0021), production locked COTS at ~150 units (ADR 0024), and the battery/panel
+> paragraphs below are superseded by ADRs 0025/0026. Inline corrections were added
+> earlier where claims aged worst.
 
 The hardware strategy has shifted from custom-PCBA-first to a **dual COTS/custom track**. This is not a retreat from a custom board; it is a risk-control strategy. The project can now test real boards, real solar input, real batteries, real LED modules, and real hat geometry before deciding whether 2026 production needs a bespoke PCBA.
 

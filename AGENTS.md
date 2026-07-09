@@ -40,32 +40,49 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 
 ## What's known vs assumed
 
-**Decided** (see ADRs):
-- ESP32-C3-MINI-1 module for production (ADR 0001).
+**Decided** (see ADRs; superseded entries kept for history -- do not build on them):
+- ~~ESP32-C3-MINI-1 module for production (ADR 0001)~~ -- superseded by ADR 0011/0021: ESP32-S3 PowerFeather V2.
 - LiFePO4 battery chemistry (ADR 0002).
-- CN3058 LiFePO4 charger IC (ADR 0003).
-- ESP-NOW mesh, no infrastructure required (ADR 0004).
-- FreeRTOS task architecture, not Arduino loop() (ADR 0005).
-- Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006).
+- ~~CN3058 LiFePO4 charger IC (ADR 0003)~~ -- superseded by ADR 0014; reality is the PowerFeather's BQ25628E.
+- ESP-NOW mesh, no infrastructure required (ADR 0004; the mesh-gossip OTA part alone was superseded by ADR 0010).
+- FreeRTOS task architecture, not Arduino loop() (ADR 0005; constrained by ADR 0028 -- no power-management I2C from core-0 tasks under WiFi).
+- ~~Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006)~~ -- superseded by ADR 0012; resolved to COTS production by ADR 0024.
 - Electronics in a separable hat on top of the bamboo lantern, not crammed inside (ADR 0007).
-- WS2812B powered direct from Vbat, no level shifter (ADR 0008).
+- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; VBAT-direct measured BETTER for the 4 W RGBW's fringed white, but production adoption is still open (ADR 0029).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
-- Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (LOG 2026-07-06/07, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
-- **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore — read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
+- Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
+- **Production locked: COTS PowerFeather V2 at ~150 fixtures in four classes** -- 72 downlights + 38-40 perimeter + 24 uplights + 16 chandelier, tentative until installation; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0024).
+- Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (ADR 0025, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
+- Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
+- Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027).
+- **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
+- LED electrical drive by role (ADR 0029): HEX on the switchable 3V3 rail (decided); boost shelved with complete numbers (decided); RGBW feed OPEN -- rail-wired today (V+/GND/A0 JST-XH), measured-better VBAT-direct option documented with conversion plan + fail-safe costs.
+- **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- Cost decomposition of `INV_2026_00401` invoice.
-- Whether the Community Mandala Program goes ahead.
+- Uplight/chandelier power: off-light panel vs solar-free 20 Ah (bench test on the
+  two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+- Chandelier light electronics scope/ownership (16 shafts, internals fungible with
+  the fleet -- ADR 0024) and its HEX/RGBW mix.
+- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth.
+- Bottom-up nightly energy budget by role; MPPT policy.
+- Retired 2026-07-08: `INV_2026_00401` cost decomposition (invoice identity unclear
+  -- probably the Bamboo Pure lantern invoice; no longer a useful baseline now that
+  real procurement is recorded in `ops/PROCUREMENT.md`). The Community Mandala
+  Program was pulled for time; gobos are now in-house + generative bamboo-leaf
+  patterns (see BACKGROUND.md).
 
 **Validated on hardware** (2026-06, PowerFeather V2 COTS bench -- see ADR 0021 +
 `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + LOG 2026-06-07/08):
 - **ESP-NOW networking** scales to ~100 fixtures (5-node bench ~99% PDR, clean rate-knee) and
   the radio reaches well past tree scale (held through a house + yard + oak, ~100 steps). The
   lantern enclosure is RF-transparent; the solar panel is the main ~20 dB attenuator (antenna
-  keep-out matters).
+  keep-out matters). Note: the extrapolation was computed at 100 nodes; the fleet now plans
+  150-152 -- re-running the projection at 150 is a queued TODO (physics gives margin, but the
+  claim should say 100 until re-run).
 - **Battery-only, no-touch OTA + A/B rollback** (the "never take a lantern off the tree"
   requirement): software-reset OTA recovered ~17/17 incl. worst-case LFP voltage; a
   self-test-failing image auto-reverts to last-good. Watchdog + autosleep recovery validated.
@@ -89,7 +106,9 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 
 - Bamboo lantern fabrication (Bamboo Pure / Vishnu, Bali).
 - Tree structural design (Ed Wilkes, Bristol).
-- Wind chime cluster electronics (separate workstream, Vishnu).
+- Wind chime cluster electronics (separate workstream, Vishnu). Note: the 16
+  chandelier *lights* are now tentatively a fleet class in this repo (ADR 0024);
+  scope/ownership still being clarified with the team.
 - Project-wide logistics, budget, container shipping (Elliot, Co-Work agent).
 - The Resonance project's grant strategy / fundraising (Elliot).
 
