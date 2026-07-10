@@ -50,6 +50,13 @@ function reseed(n: number, fixtures: SimFixture[]) {
   n0 = n;
 }
 
+/** A touch KICKS the firefly field: the touched lights' oscillators jump to the
+ *  flash point → an immediate bright pulse that then re-synchronises outward —
+ *  the crowd's tap visibly perturbs the swarm (Elliot: clearly see the response). */
+export function exciteField(indices: number[]) {
+  for (const i of indices) if (i >= 0 && i < phase.length) phase[i] = 0.99;
+}
+
 /** Advance the living field one step and write fieldOut.bri/hue (both 0..1). */
 export function updateField(fixtures: SimFixture[], dt: number, speed: number, attractors: Attractor[]) {
   const n = fixtures.length;
@@ -461,6 +468,13 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
 let gu = new Float32Array(0), gv = new Float32Array(0), su = new Float32Array(0), sv = new Float32Array(0);
 let gsN = -1;
 export const organismOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
+
+/** A touch INJECTS chemistry into the reaction: a fresh blob of activator at the
+ *  tapped lights that then drifts/splits by Gray-Scott dynamics — the tap grows
+ *  a living blob instead of doing nothing (Elliot: RD must be interactive). */
+export function exciteOrganism(indices: number[]) {
+  for (const i of indices) if (i >= 0 && i < gv.length) { gv[i] = 0.55; gu[i] = 0.25; }
+}
 
 let gsAcc = 0; // fractional evolution steps (dial-scaled) carried across frames
 export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number) {

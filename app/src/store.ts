@@ -3,7 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { clearLife, seedLife, seedRandomCluster, exciteRipples, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
+import { clearLife, seedLife, seedRandomCluster, exciteRipples, exciteOrganism, exciteField, themeMapHue, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
 
 // Game-of-Light swaps the life rules to organic while armed; the player's own
 // rules are snapshotted here and restored on disarm.
@@ -576,9 +576,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
     if (s.control.pattern === "life") {
       seedLife([idx], { hops: Math.max(1, Math.round(tr.spread * 2)), hue, bri: intensity, ttl: tr.duration });
     }
-    // Excitable (Greenberg-Hastings): a touch EXCITES the medium there — the CA
-    // wave propagates at the field's own pace (the overlay ripple is just a flash)
-    if (s.control.pattern === "ripples") exciteRipples([idx]);
+    // every CA answers a touch with a VISIBLE local response that its own
+    // dynamics then carry onward (Elliot: Excitable/RD/Firefly must be
+    // interactive, not autonomous shows) — a 1-hop blob reads clearly
+    const blob = [idx, ...(f.neighbors ?? [])];
+    if (s.control.pattern === "ripples") exciteRipples(blob);
+    if (s.control.pattern === "organism") exciteOrganism(blob);
+    if (s.control.pattern === "living") exciteField(blob);
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),
@@ -666,8 +670,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
     const f = s.fixtures[idx]; if (!f) return {};
     if (s.gol.nodes.includes(idx)) return {}; // already a node
     const nodes = [...s.gol.nodes, idx].slice(-32);
-    setLifeState({ nodes: nodes.map((i) => ({ i, hue: QUADRANT_HUES[s.fixtures[i].quadrant] ?? 0.05 })) });
-    seedLife([idx], { hops: 1, hue: QUADRANT_HUES[f.quadrant] ?? 0.05, bri: 1.35, ttl: 0 });
+    // node colours live INSIDE the picked theme (identity when Wild) — armed
+    // "live" mode was ignoring the theme and reading washed-out (Elliot)
+    setLifeState({ nodes: nodes.map((i) => ({ i, hue: themeMapHue(QUADRANT_HUES[s.fixtures[i].quadrant] ?? 0.05) })) });
+    seedLife([idx], { hops: 1, hue: themeMapHue(QUADRANT_HUES[f.quadrant] ?? 0.05), bri: 1.15, ttl: 0 });
     return { gol: { ...s.gol, nodes } };
   }),
   clearNodes: () => { setLifeState({ nodes: [] }); setState((s) => ({ gol: { ...s.gol, nodes: [] } })); },

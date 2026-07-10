@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
 import { ThemePicker } from "./ThemePicker";
 import { Widget } from "./Widget";
@@ -93,6 +93,31 @@ export function InteractivityPanel() {
     if (!isCA) pickRule(tr.rule);
     if (fixtures.length) trigger((Math.random() * fixtures.length) | 0);
   };
+  // ONE PERSON WALKING THROUGH triggers MANY lights (Elliot): a virtual visitor
+  // strolls ~a third of the way around the outer canopy, firing the nearest
+  // sensor as they pass — each footfall seeds cells that then LIVE by the rule.
+  const walkRef = useRef<number[]>([]);
+  const simWalk = () => {
+    if (!isCA) pickRule(tr.rule);
+    walkRef.current.forEach((t) => clearTimeout(t));
+    walkRef.current = [];
+    const st = useTwin.getState();
+    const outer = st.fixtures.map((f, i) => ({ f, i })).filter((x) => x.f.role === "downlight" && x.f.radialT >= 0.4);
+    if (!outer.length) return;
+    const a0 = Math.random() * Math.PI * 2;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const STEPS = 9;
+    for (let k = 0; k < STEPS; k++) {
+      const az = a0 + dir * (k / STEPS) * (Math.PI * 2 * 0.38); // ~a third of the circle
+      let best = outer[0].i, bd = Infinity;
+      for (const x of outer) {
+        let d = Math.abs(x.f.azimuth - ((az + Math.PI) % (Math.PI * 2)) + Math.PI) % (Math.PI * 2);
+        d = Math.min(d, Math.PI * 2 - d);
+        if (d < bd) { bd = d; best = x.i; }
+      }
+      walkRef.current.push(window.setTimeout(() => useTwin.getState().triggerAt(best), k * 850));
+    }
+  };
 
   return (
     <Widget id="interactivity" title="🌱 Interactivity" x={568} y={12} w={244} h={560} accent="#3ddc97">
@@ -140,50 +165,51 @@ export function InteractivityPanel() {
         );
       })}
 
-      <button onClick={pokeRandom}
-        title="fire a sensor at a random spot (or just tap the tree in the 3D view)"
-        style={{ width: "100%", marginTop: 8, padding: "9px 8px", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 12.5,
-          border: "1.5px solid #3ddc97", background: "#12402f", color: "#b7f5db", boxShadow: "0 0 14px #3ddc9744" }}>
-        👋 Poke a random spot
-      </button>
+      {/* ⏱ TURN SPEED — how fast each light triggers the next; drives EVERY rule.
+          Front and centre (Elliot could not find it below the fold). */}
+      <div style={{ marginTop: 8, padding: "7px 8px", borderRadius: 8, background: "#0e1826", border: "1px solid #1d2f28" }}>
+        <div style={{ fontWeight: 700, color: "#f0d890", fontSize: 11.5, marginBottom: 4 }}>
+          ⏱ TURN SPEED · one turn every {fmtPeriod(genPeriod(control.speed))}
+        </div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+          {([["🐢 slow", 0.25], ["▶ baseline", 1], ["⚡ fast", 2.5], ["🚀 turbo", 4]] as [string, number][]).map(([lb, v]) => {
+            const on = Math.abs(control.speed - v) < 0.03;
+            return (
+              <button key={lb} onClick={() => set({ speed: v })}
+                style={{ flex: 1, padding: "5px 2px", borderRadius: 6, cursor: "pointer", fontSize: 10, fontWeight: 700,
+                  border: on ? "1.5px solid #f0d890" : "1px solid #2a3a52", background: on ? "#2a2410" : "#121a26", color: on ? "#f0d890" : "#9fb0c7" }}>
+                {lb}
+              </button>
+            );
+          })}
+        </div>
+        <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
+          onChange={(e) => set({ speed: uToSpeed(+e.target.value) })}
+          style={{ width: "100%", accentColor: "#5b8cff" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <button onClick={pokeRandom}
+          title="fire a sensor at a random spot (or just tap the tree in the 3D view)"
+          style={{ flex: 1, padding: "9px 8px", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 12,
+            border: "1.5px solid #3ddc97", background: "#12402f", color: "#b7f5db", boxShadow: "0 0 14px #3ddc9744" }}>
+          👋 Poke a spot
+        </button>
+        <button onClick={simWalk}
+          title="ONE person walking under the canopy — the nearest sensor fires as they pass; every footfall's cells then live by the rule"
+          style={{ flex: 1, padding: "9px 8px", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 12,
+            border: "1.5px solid #5b8cff", background: "#16264a", color: "#cfe0ff", boxShadow: "0 0 14px #5b8cff44" }}>
+          🚶 Sim a walk-through
+        </button>
+      </div>
 
       {/* ── the running field itself ── */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
-        {active !== "life" && (
-          <Row label={`Speed · one generation every ${fmtPeriod(genPeriod(control.speed))}`}>
-            {/* LOG-scaled: half the slider travel covers the SLOW zone (2min → ~4s/gen) */}
-            <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })}
-              style={{ width: "100%", accentColor: "#5b8cff" }} />
-          </Row>
-        )}
         {announce.phase !== "idle" && (
           <div style={{ fontSize: 10.5, color: "#f0d890", margin: "2px 0 6px" }}>
             ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → fresh seed…
           </div>
-        )}
-        {active === "life" && (
-          <Row label={`⏱ TURN SPEED · one turn every ${fmtPeriod(genPeriod(control.speed))}`}>
-            {/* playgameoflife-style: a Conway BASELINE with obvious slower/faster.
-                Baseline ▶ = one turn every 2 s; the slider fine-tunes (log-scaled,
-                2 min/turn at the far left → 0.4 s/turn at the far right). */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-              {([["🐢 slow", 0.25], ["▶ baseline", 1], ["⚡ fast", 2.5], ["🚀 turbo", 4]] as [string, number][]).map(([lb, v]) => {
-                const on = Math.abs(control.speed - v) < 0.03;
-                return (
-                  <button key={lb} onClick={() => set({ speed: v })}
-                    style={{ flex: 1, padding: "5px 2px", borderRadius: 6, cursor: "pointer", fontSize: 10, fontWeight: 700,
-                      border: on ? "1.5px solid #f0d890" : "1px solid #2a3a52", background: on ? "#2a2410" : "#121a26", color: on ? "#f0d890" : "#9fb0c7" }}>
-                    {lb}
-                  </button>
-                );
-              })}
-            </div>
-            <input type="range" min={0} max={1} step={0.005} value={speedToU(control.speed)}
-              onChange={(e) => set({ speed: uToSpeed(+e.target.value) })}
-              style={{ width: "100%", accentColor: "#5b8cff" }} /> {/* BLUE (Elliot: "make the bar blue so I can see it") */}
-          </Row>
         )}
         {active === "life" && (
           <Row label={`Game-of-Life rule · B${rules.bLo}${rules.bHi !== rules.bLo ? "-" + rules.bHi : ""} / S${rules.sLo}${rules.sHi !== rules.sLo ? "-" + rules.sHi : ""}${rules.pure ? " · pure" : ""}`}>

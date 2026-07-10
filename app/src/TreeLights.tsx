@@ -335,7 +335,7 @@ export function TreeLights() {
         // Game of Life: each cell carries its OWN hue + brightness (base warm field, or
         // the colour a click/sensor tagged it with). The engine already folds per-cell
         // brightness into lifeOut.bri; render uses the per-cell hue directly.
-        const bv = Math.min(1.4, lifeOut.bri[i]) * fctrl.brightness;
+        const bv = Math.min(1.12, lifeOut.bri[i]) * fctrl.brightness; // cap: boosted taps/nodes were clipping RGB > 1 → bloom washed them WHITE (Elliot)
         col.setHSL(lifeOut.hue[i], Math.max(0.55, fctrl.sat), 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "piano") {
