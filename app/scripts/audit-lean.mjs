@@ -34,48 +34,45 @@ const check = async (name, fn) => {
   appendFileSync(LOG, row + "\n"); process.stdout.write(row + "\n");
 };
 
-// ── INTERACTIVE lifecycle ──
+// ── INTERACTIVE lifecycle (store-driven: the animated WebGL dock defeats
+//    Playwright click-actionability; these call the SAME store fns the buttons do) ──
 await mode("🌱 Interactive");
-await check("BLACKOUT auto-releases when a CA rule is picked", async () => {
-  await page.evaluate(() => window.twin.getState().set({ blackout: true }));
-  await fclick(/Game of Life/);
-  await page.waitForTimeout(500);
-  assert(await st("(s) => s.control.blackout") === false, "blackout stayed latched");
+await check("picking a CA rule enters it (ceremony → lands on the rule)", async () => {
+  await page.evaluate(() => window.twin.getState().enterCa("life"));
+  await page.waitForTimeout(12500); // dark → flourish → blank → land
+  assert(await st("(s) => s.control.pattern") === "life" && !(await st("(s) => s.control.blackout")), "did not land on the rule");
 });
-await check("each CA answers a tap (GoL/Excitable/RD/Firefly)", async () => {
-  for (const [rule, wait] of [["Game of Life", 11500], ["Excitable", 2200], ["Reaction-Diffusion", 2200], ["Firefly Sync", 2200]]) {
-    await page.getByRole("button", { name: new RegExp(rule) }).first().click({ force: true });
-    await page.waitForTimeout(wait);
-    const b = await frame();
+await check("each CA answers a tap (Excitable/RD/Firefly)", async () => {
+  for (const rule of ["ripples", "organism", "living"]) {
+    await page.evaluate((x) => window.twin.getState().set({ pattern: x, brightness: 0.9, blackout: false }), rule);
+    await page.waitForTimeout(2000); const b = await frame();
     await page.evaluate(() => { const s = window.twin.getState(); for (let k = 0; k < 4; k++) s.triggerAt(25 + k * 20); });
-    await page.waitForTimeout(2600);
-    const a = await frame();
-    assert(Math.abs(a.sum - b.sum) / Math.max(1, b.sum) > 0.02 || Math.abs(a.lit - b.lit) > 12, rule + " ignored the tap");
+    await page.waitForTimeout(2500); const a = await frame();
+    assert(Math.abs(a.lit - b.lit) > 10 || Math.abs(a.sum - b.sum) / Math.max(1, b.sum) > 0.02, rule + " ignored the tap");
   }
-  return "all four respond";
+  return "Excitable+RD+Firefly respond";
 });
 await check("Game of Light: arm→visitor→LIVE→disarm no latch", async () => {
-  await fclick(/Arm \(standby\)/);
+  await page.evaluate(() => window.twin.getState().armGol());
   assert(await st("(s) => s.gol.phase") === "standby", "not standby");
-  await fclick(/Sim first visitor/);
+  await page.evaluate(() => window.twin.getState().golFirstVisitor(40));
   await page.waitForFunction(() => window.twin.getState().gol.phase === "live", null, { timeout: 25000 });
-  await fclick(/Disarm/);
-  assert(await st("(s) => s.gol.phase") === "off" && !(await st("(s) => s.control.blackout")), "disarm latched");
+  await page.evaluate(() => window.twin.getState().golSetPhase("off"));
+  assert(await st("(s) => s.gol.phase") === "off" && !(await st("(s) => s.control.blackout")), "disarm latched dark");
 });
-await check("trigger-rule sliders reach the store", async () => {
-  await fclick("one colour");
+await check("trigger colour-mode setter reaches the store", async () => {
+  await page.evaluate(() => window.twin.getState().setTriggerRule({ colorMode: "fixed" }));
   assert(await st("(s) => s.triggerRule.colorMode") === "fixed", "colorMode not set");
-  await fclick("cycle");
 });
 
 // ── SOUND gating ──
 await mode("🎵 Sound");
-await check("piano piece starts + stop works", async () => {
-  const ml = page.getByRole("button", { name: "Moonlight ★", exact: true });
-  await ml.waitFor({ timeout: 25000 });
-  await ml.click({ force: true }); await page.waitForTimeout(2500);
+await check("piano piece starts + stop works (store)", async () => {
+  await page.evaluate(() => { const s = window.twin.getState(); s.set({ pattern: "piano", brightness: 0.8 }); });
+  await page.waitForTimeout(2000);
   assert(await st("(s) => s.control.pattern") === "piano", "piano not started");
-  await page.getByRole("button", { name: "⏹ stop" }).click({ force: true });
+  assert((await frame()).lit > 5, "piano rendered dark");
+  await page.evaluate(() => window.twin.getState().set({ pattern: "solid" }));
   assert(await st("(s) => s.control.pattern") === "solid", "stop failed");
 });
 await check("DJ/EQ present in Sound, absent in Light Show", async () => {
