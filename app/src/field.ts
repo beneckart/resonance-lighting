@@ -55,6 +55,7 @@ export function getCaParams(): CaParams { return { ...caParams }; }
 let excite = new Float32Array(0); // 0..1 per-fixture liveliness; taps raise, decays
 let interactiveRest = true;       // true = quiet at rest, wake on touch (interactive); false = free-run (show)
 export function setInteractiveRest(on: boolean) { interactiveRest = on; }
+function ensureExcite(n: number) { if (excite.length !== n) excite = new Float32Array(n); } // shared buffer; any engine may touch it first
 function bumpExcite(indices: number[], amp = 1) {
   for (const i of indices) if (i >= 0 && i < excite.length) excite[i] = Math.min(1, excite[i] + amp);
 }
@@ -101,6 +102,7 @@ export function exciteField(indices: number[]) {
 export function updateField(fixtures: SimFixture[], dt: number, speed: number, attractors: Attractor[]) {
   const n = fixtures.length;
   if (n0 !== n) reseed(n, fixtures);
+  ensureExcite(n);
   const dts = Math.min(0.05, Math.max(0, dt));
   tAcc += dts;
   const rate = dts * Math.max(0.05, speed) * 1.5; // multiplicative: the dial reaches GLACIAL (0.05×) and fast (6×); ×1.5 keeps speed-1 parity
@@ -156,7 +158,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
 
     // INTERACTIVE REST: the flashing lives only where excitation is (taps/presence);
     // at rest a faint breath so the tree isn't dead. Free-run mode = old always-on show.
-    const gate = interactiveRest ? Math.max(0.05, excite[i]) : 1;
+    const gate = interactiveRest ? Math.max(0.05, excite[i] || 0) : 1;
     fieldOut.bri[i] = Math.min(1, (0.10 + 0.7 * env) * gate + 0.55 * aBoost);
     fieldOut.hue[i] = themeMapHue(hue);
   }
@@ -526,6 +528,7 @@ export function exciteOrganism(indices: number[]) {
 let gsAcc = 0; // fractional evolution steps (dial-scaled) carried across frames
 export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number) {
   const n = fixtures.length;
+  ensureExcite(n);
   if (gsN !== n) {
     gu = new Float32Array(n).fill(1); gv = new Float32Array(n);
     su = new Float32Array(n); sv = new Float32Array(n);
@@ -551,7 +554,7 @@ export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number
     }
     [gu, su] = [su, gu]; [gv, sv] = [sv, gv];
   }
-  if (excite.length === n) decayExcite(fixtures, Math.min(0.1, Math.max(0, dt)));
+  decayExcite(fixtures, Math.min(0.1, Math.max(0, dt)));
   // the reaction can go EXTINCT (v → 0 everywhere) — the organism must live on:
   // quietly re-inject a few spots so the mode never fades to permanent black
   let vsum = 0;
@@ -559,7 +562,7 @@ export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number
   if (vsum < 0.05) for (let sd = 0; sd < 8; sd++) { const i = Math.floor(Math.random() * n); gv[i] = 0.5; gu[i] = 0.25; }
   for (let i = 0; i < n; i++) {
     const v = gv[i];
-    const gate = interactiveRest ? Math.max(0.04, excite[i]) : 1; // quiet at rest, blob blooms where touched
+    const gate = interactiveRest ? Math.max(0.04, excite[i] || 0) : 1; // quiet at rest, blob blooms where touched
     organismOut.bri[i] = Math.min(1, v * 2.6 * gate);
     organismOut.hue[i] = themeMapHue((0.62 - Math.min(1, v / (gu[i] + v + 1e-3)) * 0.42 + 1) % 1); // ratio → blue→green, pulled into the theme
   }

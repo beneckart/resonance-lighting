@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { updateLife, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue, getCaParams, setCaParams } from "./field";
+import { updateLife, updateOrganism, updateField, organismOut, fieldOut, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue, getCaParams, setCaParams } from "./field";
 import type { SimFixture } from "./store";
 import { setPiece, resetPiano, updatePiano, keyBri, keyHue } from "./piano";
 
@@ -307,5 +307,25 @@ describe("editable CA params for Excitable/RD/Firefly (Elliot 2026-07-10)", () =
     expect(p.rdFeed).toBeCloseTo(0.03, 5);
     expect(p.ffCouple).toBeCloseTo(0.5, 5);
     setCaParams({ ghKappa: 10, rdFeed: 0.025, ffCouple: 0.25 }); // restore defaults
+  });
+});
+
+describe("black-tree regression: shared excitation buffer sizing (Elliot 2026-07-10)", () => {
+  it("organism entered COLD (firefly never ran) produces finite, non-zero brightness", () => {
+    for (let t = 0; t < 3; t += 0.05) updateOrganism(fx, 0.05, 1);
+    let sum = 0, allFinite = true;
+    for (let i = 0; i < N; i++) { if (!Number.isFinite(organismOut.bri[i])) allFinite = false; sum += organismOut.bri[i]; }
+    expect(allFinite).toBe(true);        // no NaN → not black
+    expect(sum).toBeGreaterThan(0);
+  });
+  it("firefly + organism survive a fixture-count change without NaN", () => {
+    const small = ringFixtures(N - 20);
+    updateField(small, 0.05, 1, []);     // firefly at N-20
+    updateOrganism(fx, 0.05, 1);         // organism at N → buffer must resize, not read OOB
+    updateField(fx, 0.05, 1, []);        // firefly back at N
+    for (let i = 0; i < N; i++) {
+      expect(Number.isFinite(fieldOut.bri[i])).toBe(true);
+      expect(Number.isFinite(organismOut.bri[i])).toBe(true);
+    }
   });
 });
