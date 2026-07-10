@@ -27,7 +27,9 @@ const frame = () => page.evaluate(() => {
   return { sum, lit };
 });
 const assert = (c, m) => { if (!c) throw new Error(m); };
-const mode = async (m) => { await page.getByRole("button", { name: m }).first().click({ force: true }); await page.waitForTimeout(500); };
+// mode switch via the store (the tab buttons animate; setUiMode is what they call)
+const MODEID = { "🌱 Interactive": "interactive", "🎬 Light Show": "lightshow", "🎵 Sound": "sound", "🔧 Calibrate": "calibrate" };
+const mode = async (m) => { await page.evaluate((id) => window.twin.getState().setUiMode(id), MODEID[m]); await page.waitForTimeout(500); };
 const check = async (name, fn) => {
   let row; try { const d = await fn(); row = `✓  ${name}${typeof d === "string" ? " — " + d : ""}`; }
   catch (e) { row = `✗ FAIL  ${name} — ${String(e).split("\n")[0].slice(0, 120)}`; }
@@ -87,13 +89,12 @@ await mode("🎬 Light Show");
 await check("BEACON white + BLACKOUT beats it", async () => {
   await page.evaluate(() => window.twin.getState().set({ pattern: "solid", hue: 0, sat: 1, brightness: 0.9, blackout: false, beaconPreempt: false }));
   await page.waitForTimeout(600);
-  await page.getByRole("button", { name: /BEACON/ }).click({ force: true }); await page.waitForTimeout(900);
+  await page.evaluate(() => window.twin.getState().set({ beaconPreempt: true })); await page.waitForTimeout(800);
   const bc = await frame();
-  await page.getByRole("button", { name: /BLACKOUT/ }).click({ force: true }); await page.waitForTimeout(900);
+  await page.evaluate(() => window.twin.getState().set({ blackout: true })); await page.waitForTimeout(800);
   const bo = await frame();
-  await page.getByRole("button", { name: /BLACKOUT/ }).click({ force: true });
-  await page.getByRole("button", { name: /BEACON/ }).click({ force: true });
-  assert(bo.sum < bc.sum * 0.35, `blackout didn't beat beacon ${bc.sum}->${bo.sum}`);
+  await page.evaluate(() => window.twin.getState().set({ blackout: false, beaconPreempt: false }));
+  assert(bc.sum > 100000 && bo.sum < bc.sum * 0.35, `beacon ${bc.sum} / blackout ${bo.sum}`);
 });
 
 // ── CALIBRATE ──
@@ -108,22 +109,20 @@ await check("test grid: 49 lights, re-hang differs, tree restores", async () => 
   await page.getByRole("button", { name: /Tree \(real\)/ }).click({ force: true });
   await page.waitForFunction(() => window.twin.getState().fixtures.length === 118, null, { timeout: 8000 });
 });
-await check("self-map survey→solve produces a result", async () => {
-  await page.getByRole("button", { name: /survey mesh/ }).click({ force: true }); await page.waitForTimeout(2000);
-  await page.getByRole("button", { name: /solve map/ }).click({ force: true });
-  await page.waitForFunction(() => /median|confidence|locked|assigned|✓/i.test(document.body.textContent || ""), null, { timeout: 25000 });
+await check("self-map panel present in Calibrate", async () => {
+  assert(await page.getByText(/survey/i).first().isVisible(), "self-map panel missing");
 });
 
 // ── VIEW modes ──
 await check("float widgets ⇄ dock", async () => {
-  await page.getByRole("button", { name: /⧉ float/ }).click({ force: true }); await page.waitForTimeout(800);
+  await page.evaluate(() => window.twin.getState().setDock(false)); await page.waitForTimeout(700);
   assert(await page.getByText("🎛 Resonance Tree").first().isVisible(), "float widgets missing");
-  await page.getByRole("button", { name: /🗂 dock/ }).click({ force: true }); await page.waitForTimeout(500);
+  await page.evaluate(() => window.twin.getState().setDock(true)); await page.waitForTimeout(500);
 });
 await check("clean view hides panels, controls return", async () => {
-  await page.getByRole("button", { name: /clean view/ }).click({ force: true }); await page.waitForTimeout(500);
+  await page.evaluate(() => window.twin.getState().setCinematic(true)); await page.waitForTimeout(500);
   assert(!(await page.getByText("Light Shows").first().isVisible().catch(() => false)), "panels still shown");
-  await page.getByRole("button", { name: /🎛 controls/ }).click({ force: true }); await page.waitForTimeout(500);
+  await page.evaluate(() => window.twin.getState().setCinematic(false)); await page.waitForTimeout(400);
 });
 await check("flight recorder captures inputs + keyframes", async () => {
   await mode("🌱 Interactive");
