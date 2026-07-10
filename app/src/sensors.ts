@@ -13,11 +13,14 @@ export interface Sensors {
   ambient: number; // 0..1 ambient daylight (0 = night, 1 = full sun)
 }
 
+// NEUTRAL at rest (Elliot: the controller must be TRUTHFUL — a slider set to
+// 90% shows 90%). The environmental sim is opt-in: raise these to preview how
+// wind/crowd/temp/daylight would reshape the show. Defaults = no environment.
 export const DEFAULT_SENSORS: Sensors = {
-  crowd: 0.4,
+  crowd: 0,
   motion: 0,
-  tempC: 20,
-  windKph: 8,
+  tempC: 20, // neutral (no colour shift)
+  windKph: 0,
   ambient: 0,
 };
 
@@ -54,7 +57,7 @@ export function applyEnv(c: Control, s: Sensors): Control {
   // wind → faster animation (gusts liven the sway), capped
   const speed = c.speed * clamp(1 + s.windKph / 45, 1, 2.2);
   // crowd → more energy; daylight → washed out (perceptually dimmer)
-  const crowdGain = 0.7 + 0.45 * clamp(s.crowd, 0, 1);
+  const crowdGain = 1 + 0.45 * clamp(s.crowd, 0, 1); // 1.0 at rest → 1.45 packed; crowd ADDS energy, never dims
   const dayWash = 1 - 0.5 * clamp(s.ambient, 0, 1);
   const brightness = clamp(c.brightness * crowdGain * dayWash, 0, 1);
   // AUTO-BALANCE: drive master harder as ambient rises to punch through daylight

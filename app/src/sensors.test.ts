@@ -18,10 +18,12 @@ describe("applyEnv", () => {
     expect(applyEnv(base, sens({ windKph: 999 })).speed).toBeLessThanOrEqual(2.2);
   });
   it("crowd raises brightness, daylight washes it down", () => {
-    const empty = applyEnv(base, sens({ crowd: 0, ambient: 0 })).brightness;
-    const packed = applyEnv(base, sens({ crowd: 1, ambient: 0 })).brightness;
+    const dim = { ...base, brightness: 0.6 } as typeof base; // headroom so crowd can raise it within the [0,1] clamp
+    const empty = applyEnv(dim, sens({ crowd: 0, ambient: 0 })).brightness;
+    const packed = applyEnv(dim, sens({ crowd: 1, ambient: 0 })).brightness;
     expect(packed).toBeGreaterThan(empty);
-    expect(applyEnv(base, sens({ ambient: 1 })).brightness).toBeLessThan(empty + 0.01);
+    expect(empty).toBeCloseTo(0.6, 5); // zero crowd = IDENTITY (no rest-state dimming)
+    expect(applyEnv(dim, sens({ ambient: 1 })).brightness).toBeLessThan(empty + 0.01);
   });
   it("does not mutate the input control", () => {
     const c = { ...base };
