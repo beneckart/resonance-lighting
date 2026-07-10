@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { updateLife, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue } from "./field";
+import { updateLife, seedLife, seedRandomCluster, setLifeState, lifeOut, clearLife, setLifeRules, getLifeRules, setFieldTheme, themeMapHue, getCaParams, setCaParams } from "./field";
 import type { SimFixture } from "./store";
 import { setPiece, resetPiano, updatePiano, keyBri, keyHue } from "./piano";
 
@@ -296,5 +296,16 @@ describe("tap propagation rides the TURN clock (Elliot 2026-07-08 evening)", () 
     const lit = [...lifeOut.bri].filter((b) => b > 0.1).length;
     expect(lit).toBeLessThanOrEqual(2);
     setLifeRules({ bLo: 2, bHi: 2, sLo: 2, sHi: 3, pure: true });
+  });
+});
+
+describe("editable CA params for Excitable/RD/Firefly (Elliot 2026-07-10)", () => {
+  it("setCaParams round-trips and clamps are the UI's job", () => {
+    setCaParams({ ghKappa: 14, rdFeed: 0.03, ffCouple: 0.5 });
+    const p = getCaParams();
+    expect(p.ghKappa).toBe(14);
+    expect(p.rdFeed).toBeCloseTo(0.03, 5);
+    expect(p.ffCouple).toBeCloseTo(0.5, 5);
+    setCaParams({ ghKappa: 10, rdFeed: 0.025, ffCouple: 0.25 }); // restore defaults
   });
 });

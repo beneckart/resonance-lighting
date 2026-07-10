@@ -32,6 +32,22 @@ export function themeMapHue(h: number, hues?: number[] | null): number {
 }
 
 const TAU = Math.PI * 2;
+
+// ── EDITABLE RULE PARAMS for Excitable / Reaction-Diffusion / Firefly (Elliot:
+//    "the ability to control the rules"). Game of Life already has B/S; these
+//    give the other three the same tunability. Safe ranges enforced by the UI. ──
+export interface CaParams {
+  ghKappa: number;   // Excitable: refractory length (wave cool-down); higher = slower re-fire
+  ghSeed: number;    // Excitable: spontaneous ignition rate (0 = only taps/presence)
+  rdFeed: number;    // Reaction-Diffusion: feed F
+  rdKill: number;    // Reaction-Diffusion: kill k
+  ffCouple: number;  // Firefly: sync strength K (0 = no sync, chaotic; high = tree-wide pulse)
+  ffRate: number;    // Firefly: base flash rate
+}
+let caParams: CaParams = { ghKappa: 10, ghSeed: 0.0025, rdFeed: 0.025, rdKill: 0.06, ffCouple: 0.25, ffRate: 0.10 };
+export function setCaParams(p: Partial<CaParams>) { caParams = { ...caParams, ...p }; }
+export function getCaParams(): CaParams { return { ...caParams }; }
+
 // ── INTERACTIVE-REST excitation (shared by Firefly + Reaction-Diffusion) ──
 let excite = new Float32Array(0); // 0..1 per-fixture liveliness; taps raise, decays
 let interactiveRest = true;       // true = quiet at rest, wake on touch (interactive); false = free-run (show)
@@ -86,7 +102,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
   tAcc += dts;
   const rate = dts * Math.max(0.05, speed) * 1.5; // multiplicative: the dial reaches GLACIAL (0.05×) and fast (6×); ×1.5 keeps speed-1 parity
   decayExcite(fixtures, dts);
-  const K = 0.25; // weak local coupling → PARTIAL sync (travelling waves, not a tree-wide strobe)
+  const K = caParams.ffCouple; // coupling → sync strength (editable)
 
   for (let i = 0; i < n; i++) {
     const f = fixtures[i];
@@ -98,7 +114,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
     let coupling = 0;
     for (let k = 0; k < nb.length; k++) coupling += Math.sin((phase[nb[k]] - phase[i]) * TAU);
     coupling /= L;
-    const omega = (0.10 + 0.05 * (f.rnd - 0.5)) * (1 + 0.5 * f.heightT);
+    const omega = (caParams.ffRate + 0.05 * (f.rnd - 0.5)) * (1 + 0.5 * f.heightT);
     phase[i] += rate * (omega + K * coupling);
     if (phase[i] >= 1) phase[i] -= 1; else if (phase[i] < 0) phase[i] += 1;
     // soft flash envelope (gaussian around the wrap point) — NEVER a hard strobe
@@ -145,7 +161,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
 
 // ── EXCITABLE MEDIA (Greenberg-Hastings) — legible ripple waves spreading across
 //    neighbours and fading. Slow CA tick + smoothed brightness = no strobe. ──
-const KAPPA = 10; // 0 = resting, 1 = excited, 2..KAPPA-1 = refractory tail
+// KAPPA (refractory length) is now caParams.ghKappa (editable)
 let cell = new Int8Array(0);
 let ghAcc = 0;
 let ghN = -1;
@@ -168,23 +184,25 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
     const next = new Int8Array(n);
     for (let i = 0; i < n; i++) {
       const c = cell[i];
+      const KAPPA = Math.max(3, Math.round(caParams.ghKappa));
       if (c === 1) next[i] = 2;                       // excited → refractory
       else if (c >= 2) next[i] = c + 1 >= KAPPA ? 0 : c + 1; // refractory countdown → resting
       else {                                          // resting: excite if a neighbour is excited
         let ex = 0;
         const nb = fixtures[i].neighbors;
         for (let k = 0; k < nb.length; k++) if (cell[nb[k]] === 1) ex++;
-        next[i] = ex >= 1 ? 1 : (Math.random() < 0.0025 ? 1 : 0); // + rare spontaneous seed
+        next[i] = ex >= 1 ? 1 : (Math.random() < caParams.ghSeed ? 1 : 0); // + spontaneous seed (editable)
       }
     }
     cell = next;
   }
   const ease = Math.min(1, Math.max(0, dt) * 5); // smooth brightness (no hard on/off)
+  const KA = Math.max(3, Math.round(caParams.ghKappa));
   for (let i = 0; i < n; i++) {
     const c = cell[i];
-    const target = c === 1 ? 1 : c >= 2 ? Math.max(0, 1 - (c - 1) / (KAPPA - 1)) : 0;
+    const target = c === 1 ? 1 : c >= 2 ? Math.max(0, 1 - (c - 1) / (KA - 1)) : 0;
     rippleOut.bri[i] += (target - rippleOut.bri[i]) * ease;
-    rippleOut.age[i] = c >= 2 ? (c - 1) / (KAPPA - 1) : 0; // 0 at wavefront → 1 at tail
+    rippleOut.age[i] = c >= 2 ? (c - 1) / (KA - 1) : 0; // 0 at wavefront → 1 at tail
   }
 }
 
@@ -512,7 +530,7 @@ export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number
     for (let s = 0; s < 8; s++) { const i = Math.floor(Math.random() * n); gv[i] = 0.5; gu[i] = 0.25; }
     gsN = n;
   }
-  const Du = 0.5, Dv = 0.25, F = 0.025, k = 0.06; // stable "gentle spots" regime (low node count → ~1 drifting blob)
+  const Du = 0.5, Dv = 0.25, F = caParams.rdFeed, k = caParams.rdKill; // feed/kill editable (Du/Dv fixed for stability)
   // MULTIPLICATIVE dial: ~480 steps/s at speed 1 (the old 8-per-frame at 60 fps),
   // a step every few frames at the glacial end, capped so fast can't hitch the CPU
   gsAcc += Math.min(0.1, Math.max(0, dt)) * Math.min(720, Math.max(10, speed * 480)); // band 10..720 steps/s — fast can't over-evolve the spots into a frozen steady state

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
 import { ThemePicker } from "./ThemePicker";
 import { Widget } from "./Widget";
-import { getLifeRules, setLifeRules, type LifeRules } from "./field";
+import { getLifeRules, setLifeRules, getCaParams, setCaParams, type LifeRules, type CaParams } from "./field";
 
 // editable Game-of-Life rule presets (graph has ~6 neighbours, not a grid's 8)
 const LIFE_PRESETS: Record<string, Partial<LifeRules>> = {
@@ -16,6 +16,15 @@ const LIFE_PRESETS: Record<string, Partial<LifeRules>> = {
 // v2: default became Conway-mesh pure — the old persisted key would pin every
 // existing device to the churn rules and nobody would see the fix
 const RULES_KEY = "ca.liferules.v2";
+
+function ParamSlider({ label, v, min, max, step, on, hint }: { label: string; v: number; min: number; max: number; step: number; on: (v: number) => void; hint?: string }) {
+  return (
+    <div style={{ margin: "4px 0" }}>
+      <div style={{ fontSize: 10, color: "#8aa0bb" }}>{label}</div>
+      <input type="range" min={min} max={max} step={step} value={v} onChange={(e) => on(+e.target.value)} style={{ width: "100%", accentColor: "#5b8cff" }} title={hint} />
+    </div>
+  );
+}
 
 // log-mapped speed slider: u∈0..1 → speed 0.03..4 (exponential), so HALF the travel
 // is the slow zone. Life gen-period ≈ 2.0·speed^-1.15 (shown live in the label).
@@ -85,12 +94,16 @@ export function InteractivityPanel() {
   const announce = useTwin((s) => s.announce);
   const enterCa = useTwin((s) => s.enterCa);
   const [rules, setRulesUi] = useState<LifeRules>(() => getLifeRules());
+  const [cap, setCapUi] = useState<CaParams>(() => getCaParams());
+  const applyCap = (p: Partial<CaParams>) => { setCaParams(p); const n = getCaParams(); setCapUi(n); try { localStorage.setItem("ca.params.v1", JSON.stringify(n)); } catch { /* fine */ } };
   // sync the engine with the persisted theme + life rules once on mount
   useEffect(() => {
     setCaTheme(useTwin.getState().caTheme);
     try {
       const raw = localStorage.getItem(RULES_KEY);
       if (raw) { const r = JSON.parse(raw) as LifeRules; setLifeRules(r); setRulesUi(getLifeRules()); }
+      const rawP = localStorage.getItem("ca.params.v1");
+      if (rawP) { setCaParams(JSON.parse(rawP) as CaParams); setCapUi(getCaParams()); }
     } catch { /* fine */ }
   }, [setCaTheme]);
   const applyRules = (p: Partial<LifeRules>) => {
@@ -274,6 +287,25 @@ export function InteractivityPanel() {
               <input type="checkbox" checked={rules.pure} onChange={(e) => applyRules({ pure: e.target.checked })} />
               pure (textbook) — exact rule only: no churn, ageing or burn-out
             </label>
+          </Row>
+        )}
+        {active === "ripples" && (
+          <Row label="Excitable rules">
+            <ParamSlider label={`wave cool-down · ${cap.ghKappa} steps`} v={cap.ghKappa} min={3} max={20} step={1} on={(v) => applyCap({ ghKappa: v })} hint="how long a light rests before it can flash again — longer = slower, more spaced waves" />
+            <ParamSlider label={`self-ignite · ${cap.ghSeed <= 0.0002 ? "off (taps only)" : (cap.ghSeed * 1000).toFixed(1) + "‰"}`} v={cap.ghSeed} min={0} max={0.02} step={0.0005} on={(v) => applyCap({ ghSeed: v })} hint="0 = the tree waits for people; higher = it sparks its own waves" />
+          </Row>
+        )}
+        {active === "organism" && (
+          <Row label="Reaction-Diffusion rules">
+            <ParamSlider label={`feed · ${cap.rdFeed.toFixed(3)}`} v={cap.rdFeed} min={0.01} max={0.06} step={0.001} on={(v) => applyCap({ rdFeed: v })} hint="how fast new material grows — shifts spots ↔ stripes ↔ churn" />
+            <ParamSlider label={`kill · ${cap.rdKill.toFixed(3)}`} v={cap.rdKill} min={0.045} max={0.07} step={0.001} on={(v) => applyCap({ rdKill: v })} hint="how fast blobs dissolve — tune with feed for different textures" />
+            <button onClick={() => applyCap({ rdFeed: 0.025, rdKill: 0.06 })} style={{ marginTop: 4, padding: "3px 8px", borderRadius: 6, cursor: "pointer", fontSize: 9, border: "1px solid #2a3a52", background: "#121a26", color: "#9fb0c7" }}>reset (gentle spots)</button>
+          </Row>
+        )}
+        {active === "living" && (
+          <Row label="Firefly Sync rules">
+            <ParamSlider label={`sync strength · ${cap.ffCouple.toFixed(2)}`} v={cap.ffCouple} min={0} max={0.8} step={0.02} on={(v) => applyCap({ ffCouple: v })} hint="0 = each light flashes alone (scattered); high = the whole tree pulses together" />
+            <ParamSlider label={`flash rate · ${cap.ffRate.toFixed(2)}`} v={cap.ffRate} min={0.03} max={0.3} step={0.01} on={(v) => applyCap({ ffRate: v })} hint="how often the fireflies flash" />
           </Row>
         )}
         <Row label="Colour theme — the mood the field lives in">
