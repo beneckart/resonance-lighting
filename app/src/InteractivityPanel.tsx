@@ -55,25 +55,25 @@ const CM_LABEL: Record<TriggerColorMode, string> = { fixed: "one colour", random
 // is working would be super useful." Plain-language mechanism + the live rule.
 const RULE_EXPLAIN: Record<string, { rule: string; how: string; onTouch: string; rest: string }> = {
   life: {
-    rule: "Each light looks at its ~6 nearest neighbours every turn. LIT: stays lit if 2–3 are lit, else turns off. DARK: turns on if exactly 2 are lit. (B2/S23)",
-    how: "This is Conway's Game of Life ADAPTED to the tree: survival is exactly Conway (2–3), but birth is 2 not 3 because the tree is a 6-neighbour mesh, not Conway's 8-neighbour grid — literal B3 dies out in seconds here. Edit the counts below; 'classic B3/S23' is the textbook rule.",
+    rule: "", // built live from K + birth/survive below
+    how: "A Game of Life REDESIGNED for the tree's geometry: instead of Conway's 8-neighbour square grid, each light counts its K nearest lights in 3-D. Survival 2–3 keeps Conway's feel; birth is tuned to K (at K=6, born on 2 — Conway's grid birth-3 just dies out on a sparse mesh). Widen K above and raise the birth count to match.",
     onTouch: "a touch is born as live cells that then evolve by this rule and spread hop-by-hop.",
     rest: "when a game ends (dies out or freezes) a fresh 4–9-light seed is dealt in.",
   },
   ripples: {
-    rule: "Each light is RESTING, EXCITED, or COOLING. A resting light EXCITES next turn if any neighbour is excited. An excited light then COOLS for a few turns before it can fire again.",
+    rule: "Each light is RESTING, EXCITED, or COOLING. A resting light EXCITES next turn if any of its K nearest lights is excited. An excited light then COOLS for a few turns before it can fire again.",
     how: "Excitable medium (Greenberg-Hastings) — the rule that models nerve impulses and forest fires. Waves can only travel forward (the cool-down stops them backing up), so they roll outward and fade.",
     onTouch: "a touch excites the medium there; the wave spreads one hop per turn and fades behind it.",
     rest: "dark and quiet until someone touches or walks by.",
   },
   organism: {
-    rule: "Each light holds two virtual chemicals. It DIFFUSES them toward its neighbours and they REACT (one feeds on the other). Where the second chemical builds up, the light glows.",
+    rule: "Each light holds two virtual chemicals. It DIFFUSES them toward its K nearest lights and they REACT (one feeds on the other). Where the second chemical builds up, the light glows.",
     how: "Reaction-Diffusion (Gray-Scott) — the maths behind leopard spots and coral. Blobs grow, drift, split and merge. Tune feed/kill below for spots ↔ stripes ↔ churn.",
     onTouch: "a touch injects a fresh blob of chemical that blooms then drifts away.",
     rest: "a faint breath; the chemistry only shows where people are.",
   },
   living: {
-    rule: "Each light has a flash timer. Every tick it nudges its timer toward the average of its neighbours' timers, so neighbours drift INTO STEP and flash together in travelling waves.",
+    rule: "Each light has a flash timer. Every tick it nudges its timer toward the average of its K nearest lights' timers, so they drift INTO STEP and flash together in travelling waves.",
     how: "Firefly synchronisation (Kuramoto) — how real fireflies end up blinking in unison. Sync strength below sets how strongly neighbours pull together (scattered ↔ whole-tree pulse).",
     onTouch: "a touch flashes that region and re-triggers the sync wave outward from it.",
     rest: "a faint breath; the swarm only lights where it's stirred.",
@@ -211,7 +211,7 @@ export function InteractivityPanel() {
       {isCA && RULE_EXPLAIN[active] && (
         <div style={{ margin: "2px 0 8px", padding: "8px 9px", borderRadius: 8, background: "#0c1620", border: "1px solid #21323f" }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "#7fd0b0", marginBottom: 4 }}>ⓘ The rule — how each light reacts to its neighbours</div>
-          <div style={{ fontSize: 10.5, color: "#dfe9f5", lineHeight: 1.45, fontWeight: 600, padding: "5px 7px", background: "#101c14", borderRadius: 6, border: "1px solid #234a30" }}>{RULE_EXPLAIN[active].rule}</div>
+          <div style={{ fontSize: 10.5, color: "#dfe9f5", lineHeight: 1.45, fontWeight: 600, padding: "5px 7px", background: "#101c14", borderRadius: 6, border: "1px solid #234a30" }}>{active === "life" ? `Each light counts its ${cap.neighbourK} nearest lights every turn. LIT: stays lit if ${rules.sLo}${rules.sHi !== rules.sLo ? "–" + rules.sHi : ""} are lit, else turns off. DARK: turns on if ${rules.bLo}${rules.bHi !== rules.bLo ? "–" + rules.bHi : ""} are lit.` : RULE_EXPLAIN[active].rule}</div>
           <div style={{ fontSize: 9.5, color: "#9fb0c7", lineHeight: 1.4, marginTop: 5 }}>{RULE_EXPLAIN[active].how}</div>
           <div style={{ fontSize: 9.5, color: "#8fb9a6", marginTop: 4 }}><b style={{ color: "#b7f5db" }}>on touch:</b> {RULE_EXPLAIN[active].onTouch}</div>
           <div style={{ fontSize: 9.5, color: "#8aa0bb", marginTop: 2 }}><b>at rest:</b> {RULE_EXPLAIN[active].rest}</div>
@@ -259,13 +259,21 @@ export function InteractivityPanel() {
       {/* ── the running field itself ── */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #1d2735" }}>
         <div style={{ fontWeight: 700, color: "#eef3fb", marginBottom: 6 }}>🌿 The field</div>
+        {isCA && (
+          <div style={{ marginBottom: 8, padding: "7px 8px", borderRadius: 8, background: "#0e1620", border: "1px solid #21323f" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9fd0ff" }}>△ Geometry · each light reacts to its {cap.neighbourK} nearest lights</div>
+            <div style={{ fontSize: 9, color: "#7a8ba3", margin: "1px 0 3px" }}>the tree is a 3-D mesh (not a grid) — this sets the neighbourhood every rule below counts over</div>
+            <input type="range" min={3} max={12} step={1} value={cap.neighbourK}
+              onChange={(e) => applyCap({ neighbourK: +e.target.value })} style={{ width: "100%", accentColor: "#5b8cff" }} />
+          </div>
+        )}
         {announce.phase !== "idle" && (
           <div style={{ fontSize: 10.5, color: "#f0d890", margin: "2px 0 6px" }}>
             ✷ entering {RULE_META[announce.target]?.name ?? announce.target} — dark → flourish → fresh seed…
           </div>
         )}
         {active === "life" && (
-          <Row label={`Game-of-Life rule · B${rules.bLo}${rules.bHi !== rules.bLo ? "-" + rules.bHi : ""} / S${rules.sLo}${rules.sHi !== rules.sLo ? "-" + rules.sHi : ""}${rules.pure ? " · pure" : ""}`}>
+          <Row label={`Life rule · of ${cap.neighbourK} neighbours: born ${rules.bLo}${rules.bHi !== rules.bLo ? "-" + rules.bHi : ""} · survive ${rules.sLo}${rules.sHi !== rules.sLo ? "-" + rules.sHi : ""}${rules.pure ? " · pure" : ""}`}>
             <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
               {Object.entries(LIFE_PRESETS).map(([name, p]) => {
                 const on = rules.bLo === (p.bLo ?? rules.bLo) && rules.bHi === (p.bHi ?? rules.bHi) && rules.sLo === (p.sLo ?? rules.sLo) && rules.sHi === (p.sHi ?? rules.sHi) && rules.pure === (p.pure ?? rules.pure);

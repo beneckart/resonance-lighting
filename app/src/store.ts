@@ -436,7 +436,9 @@ export const useTwin = create<TwinState>((setState, get) => ({
     });
     // k-nearest neighbours per fixture (3D) — the substrate for decentralised
     // "living" patterns where each light decides from what its neighbours do.
-    const KN = 6;
+    // Bake 12 (distance-sorted); the RULES use the first `neighbourK` of them,
+    // so the operator can widen/narrow the neighbourhood to fit the geometry.
+    const KN = 12;
     for (let i = 0; i < fixtures.length; i++) {
       const p = fixtures[i].pos;
       const d = fixtures.map((g, j) => ({ j, d2: (g.pos[0] - p[0]) ** 2 + (g.pos[1] - p[1]) ** 2 + (g.pos[2] - p[2]) ** 2 }));

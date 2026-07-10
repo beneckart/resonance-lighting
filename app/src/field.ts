@@ -37,6 +37,7 @@ const TAU = Math.PI * 2;
 //    "the ability to control the rules"). Game of Life already has B/S; these
 //    give the other three the same tunability. Safe ranges enforced by the UI. ──
 export interface CaParams {
+  neighbourK: number; // how many nearest lights each light reacts to (GEOMETRY knob, 3..12)
   ghKappa: number;   // Excitable: refractory length (wave cool-down); higher = slower re-fire
   ghSeed: number;    // Excitable: spontaneous ignition rate (0 = only taps/presence)
   rdFeed: number;    // Reaction-Diffusion: feed F
@@ -44,7 +45,9 @@ export interface CaParams {
   ffCouple: number;  // Firefly: sync strength K (0 = no sync, chaotic; high = tree-wide pulse)
   ffRate: number;    // Firefly: base flash rate
 }
-let caParams: CaParams = { ghKappa: 10, ghSeed: 0.0025, rdFeed: 0.025, rdKill: 0.06, ffCouple: 0.25, ffRate: 0.10 };
+let caParams: CaParams = { neighbourK: 6, ghKappa: 10, ghSeed: 0.0025, rdFeed: 0.025, rdKill: 0.06, ffCouple: 0.25, ffRate: 0.10 };
+// first K nearest neighbours (list is distance-sorted) — the geometry-native neighbourhood
+function nK(nb: number[]): number { return Math.min(caParams.neighbourK, nb.length); }
 export function setCaParams(p: Partial<CaParams>) { caParams = { ...caParams, ...p }; }
 export function getCaParams(): CaParams { return { ...caParams }; }
 
@@ -107,12 +110,12 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
   for (let i = 0; i < n; i++) {
     const f = fixtures[i];
     const nb = f.neighbors;
-    const L = nb.length || 1;
+    const K6 = nK(nb); const L = K6 || 1;
 
     // 1. firefly phase nudged toward neighbours — mean pull → partial sync; a
     //    bottom→top frequency gradient makes the flash waves sweep UP the tree
     let coupling = 0;
-    for (let k = 0; k < nb.length; k++) coupling += Math.sin((phase[nb[k]] - phase[i]) * TAU);
+    for (let k = 0; k < K6; k++) coupling += Math.sin((phase[nb[k]] - phase[i]) * TAU);
     coupling /= L;
     const omega = (caParams.ffRate + 0.05 * (f.rnd - 0.5)) * (1 + 0.5 * f.heightT);
     phase[i] += rate * (omega + K * coupling);
@@ -123,7 +126,7 @@ export function updateField(fixtures: SimFixture[], dt: number, speed: number, a
 
     // 2. hue diffuses toward neighbours' circular mean + slow global rotation
     let cx = 0, cy = 0;
-    for (let k = 0; k < nb.length; k++) { cx += Math.cos(hueF[nb[k]] * TAU); cy += Math.sin(hueF[nb[k]] * TAU); }
+    for (let k = 0; k < K6; k++) { cx += Math.cos(hueF[nb[k]] * TAU); cy += Math.sin(hueF[nb[k]] * TAU); }
     const target = Math.atan2(cy, cx) / TAU; // [-0.5,0.5]
     let dh = target - hueF[i];
     dh -= Math.round(dh); // shortest way around the colour wheel
@@ -189,8 +192,8 @@ export function updateRipples(fixtures: SimFixture[], dt: number, speed: number)
       else if (c >= 2) next[i] = c + 1 >= KAPPA ? 0 : c + 1; // refractory countdown → resting
       else {                                          // resting: excite if a neighbour is excited
         let ex = 0;
-        const nb = fixtures[i].neighbors;
-        for (let k = 0; k < nb.length; k++) if (cell[nb[k]] === 1) ex++;
+        const nb = fixtures[i].neighbors; const K6 = nK(nb);
+        for (let k = 0; k < K6; k++) if (cell[nb[k]] === 1) ex++;
         next[i] = ex >= 1 ? 1 : (Math.random() < caParams.ghSeed ? 1 : 0); // + spontaneous seed (editable)
       }
     }
@@ -413,9 +416,9 @@ export function updateLife(fixtures: SimFixture[], dt: number, speed: number) {
     const churn = lifeAmbient && !lifeRules.pure ? 0.004 + 0.020 * Math.min(1.5, speed) : 0;
     let live = 0;
     for (let i = 0; i < n; i++) {
-      const nb = fixtures[i].neighbors;
+      const nb = fixtures[i].neighbors; const K6 = nK(nb);
       let a = 0, cx = 0, cy = 0;
-      for (let k = 0; k < nb.length; k++) if (lifeCell[nb[k]] > 0) { a++; const hh = lifeHue[nb[k]] * TAU; cx += Math.cos(hh); cy += Math.sin(hh); }
+      for (let k = 0; k < K6; k++) if (lifeCell[nb[k]] > 0) { a++; const hh = lifeHue[nb[k]] * TAU; cx += Math.cos(hh); cy += Math.sin(hh); }
       const alive = lifeCell[i] > 0;
       const held = lifeTtl[i] > 0; // click-held cells ignore the rule until their time is up
       let born = held || (alive ? a >= lifeRules.sLo && a <= lifeRules.sHi : a >= lifeRules.bLo && a <= lifeRules.bHi);
@@ -538,9 +541,9 @@ export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number
   gsAcc -= steps;
   for (let s = 0; s < steps; s++) {
     for (let i = 0; i < n; i++) {
-      const nb = fixtures[i].neighbors, L = nb.length || 1;
+      const nb = fixtures[i].neighbors, K6 = nK(nb), L = K6 || 1;
       let lu = 0, lv = 0;
-      for (let j = 0; j < nb.length; j++) { lu += gu[nb[j]] - gu[i]; lv += gv[nb[j]] - gv[i]; }
+      for (let j = 0; j < K6; j++) { lu += gu[nb[j]] - gu[i]; lv += gv[nb[j]] - gv[i]; }
       lu /= L; lv /= L;
       const uvv = gu[i] * gv[i] * gv[i];
       su[i] = Math.min(1, Math.max(0, gu[i] + (Du * lu - uvv + F * (1 - gu[i]))));
