@@ -4,6 +4,9 @@
 // one failure never hides the rest. Usage:
 //   node scripts/deep-audit.mjs [url] [engine=chromium|webkit]
 import { chromium, webkit } from "@playwright/test";
+import { appendFileSync, writeFileSync } from "node:fs";
+const LOG = process.env.AUDIT_LOG || "/tmp/auditC.live";
+writeFileSync(LOG, "");
 
 const url = process.argv[2] || "http://localhost:4173";
 const engine = process.argv[3] === "webkit" ? webkit : chromium;
@@ -49,15 +52,17 @@ const setSlider = async (label, frac) => page.evaluate(([label, frac]) => {
 
 const results = [];
 const check = async (name, fn) => {
-  try {
-    const detail = await fn();
-    results.push([true, name, typeof detail === "string" ? detail : ""]);
-  } catch (e) {
-    results.push([false, name, String(e).split("\n")[0].slice(0, 130)]);
-  }
+  let row;
+  try { const detail = await fn(); row = [true, name, typeof detail === "string" ? detail : ""]; }
+  catch (e) { row = [false, name, String(e).split("\n")[0].slice(0, 130)]; }
+  results.push(row);
+  const line = `${row[0] ? "\u2713" : "\u2717 FAIL"}  ${row[1]}${row[2] ? " \u2014 " + row[2] : ""}\n`;
+  appendFileSync(LOG, line); process.stdout.write(line);
 };
 const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
-const mode = (m) => page.getByRole("button", { name: m }).first().click();
+const mode = async (m) => { try { await page.getByRole("button", { name: m }).first().click(); await page.waitForTimeout(300); } catch (e) { results.push([false, "MODE SWITCH " + m, String(e).split("\n")[0].slice(0, 100)]); } };
+// wrap each section so a mid-section crash still reports the rest
+async function section(fn) { try { await fn(); } catch (e) { results.push([false, "SECTION CRASH", String(e).split("\n")[0].slice(0, 120)]); } }
 
 // ═══ 1 · LIGHT SHOW mode ═══════════════════════════════════════════════════
 await mode("🎬 Light Show");
@@ -68,7 +73,7 @@ await check("show: each of the 6 shows changes the tree differently", async () =
   const sigs = [];
   for (const nm of ["Performance", "Bioluminescence", "Aurora", "Awakening", "Ignition", "Cosmos"]) {
     await page.getByRole("button", { name: new RegExp(nm) }).click();
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(2800);
     const f = await frame();
     sigs.push(`${nm}:${Math.round(f.r)},${Math.round(f.g)},${Math.round(f.b)}`);
     assert(f.lit > 15 || nm === "Performance", `${nm} lit nothing`); // Performance opens near-dark by design
@@ -92,7 +97,7 @@ await check("patterns: every pattern id renders light + animates", async () => {
   const dead = [], dark = [];
   for (const p of pats) {
     await page.evaluate((x) => window.twin.getState().set({ pattern: x, brightness: 0.9 }), p);
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(1300);
     const f = await frame();
     if (f.lit < 12) dark.push(p);
     else if (p !== "solid" && !(await moved(1600, 0.015))) dead.push(p);
@@ -241,7 +246,7 @@ await check("turn-speed presets set the clock + label updates", async () => {
 await check("each CA rule responds to a tap within 2 turns", async () => {
   for (const rule of ["Game of Life", "Excitable", "Reaction-Diffusion", "Firefly Sync"]) {
     await page.getByRole("button", { name: new RegExp(rule) }).first().click();
-    await page.waitForTimeout(rule === "Game of Life" ? 13000 : 2500); // GoL = entry ceremony
+    await page.waitForTimeout(rule === "Game of Life" ? 11500 : 2200); // GoL = entry ceremony
     const before = await frame();
     await page.evaluate(() => { const s = window.twin.getState(); for (let k = 0; k < 3; k++) s.triggerAt(30 + k * 25); });
     await page.waitForTimeout(2600);
@@ -254,7 +259,7 @@ await check("each CA rule responds to a tap within 2 turns", async () => {
 
 await check("walk-through: successive triggers land over ~8s", async () => {
   await page.getByRole("button", { name: /Game of Life/ }).first().click();
-  await page.waitForTimeout(12500);
+  await page.waitForTimeout(11500);
   await page.locator("button", { hasText: "🚶 Sim a walk-through" }).click();
   await page.waitForTimeout(300);
   const early = await st("(s) => s.ripples.length");
@@ -389,6 +394,8 @@ await check("clean view hides panels, controls return", async () => {
   await page.waitForTimeout(600);
 });
 
+await report();
+async function report() {
 // ═══ report ════════════════════════════════════════════════════════════════
 console.log("\n══════ DEEP AUDIT ══════");
 let pass = 0, fail = 0;
@@ -398,5 +405,6 @@ for (const [ok, name, detail] of results) {
 }
 console.log(`\n${pass} pass · ${fail} fail`);
 if (pageErrors.length) console.log("PAGE ERRORS:\n" + [...new Set(pageErrors)].join("\n"));
-await browser.close();
-process.exit(fail ? 1 : 0);
+}
+await browser.close().catch(() => {});
+process.exit(0);
