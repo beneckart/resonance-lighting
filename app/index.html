@@ -10,6 +10,22 @@
     <style>
       html, body, #root { margin: 0; height: 100%; background: #07090c; }
       * { box-sizing: border-box; }
+      /* SLIDERS — Safari renders range inputs as a bare white thumb on an
+         invisible track (accentColor styles no track there). Explicit WebKit/
+         Gecko parts: BLUE thumb + visible track, everywhere (Elliot). */
+      input[type="range"] { -webkit-appearance: none; appearance: none; height: 20px; background: transparent; }
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px; border-radius: 3px;
+        background: linear-gradient(90deg, #5b8cff 0%, #2a3a52 0%); /* JS sets --fill */
+        background: #24344e; border: 1px solid #35496b;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px;
+        border-radius: 50%; background: #5b8cff; border: 2px solid #dce6ff;
+        box-shadow: 0 0 6px rgba(91, 140, 255, 0.7);
+      }
+      input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: #24344e; border: 1px solid #35496b; }
+      input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #5b8cff; border: 2px solid #dce6ff; }
     </style>
   </head>
   <body>
