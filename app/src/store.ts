@@ -10,6 +10,7 @@ import { clearLife, seedLife, seedRandomCluster, exciteRipples, exciteOrganism, 
 let preGolRules: LifeRules | null = null;
 import { themeById, themeHue } from "./themes";
 import { loadFixtures, makeTestGridDoc } from "./fixtures";
+import { recEvent } from "./flightrec";
 import { DEFAULT_SENSORS, type Sensors } from "./sensors";
 
 export type PatternId =
@@ -537,6 +538,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   triggerAt: (idx, origin) => setState((s) => {
     const f = s.fixtures[idx];
     if (!f) return {};
+    recEvent("trigger", { idx, num: f.num, rule: s.triggerRule.rule });
     const o = origin ?? f.pos;
     const tr = s.triggerRule;
     const theme = themeById(s.caTheme);
@@ -590,6 +592,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // reaction stay inside the theme's colour world. "ember"/"random" map to the
   // engine's built-ins; everything else feeds its hue anchors as a theme.
   setCaTheme: (id) => {
+    recEvent("theme", { id });
     try { localStorage.setItem("ca.theme", id); } catch { /* fine */ }
     const t = themeById(id);
     if (id === "random") setLifeState({ palette: "random" });
@@ -603,6 +606,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // ── CA MODE-ENTRY ceremony: dark → themed flourish → dark → fresh start
   //    (Game of Life lands on a 4-9-light seed cluster, not a blank board) ──
   enterCa: (r) => {
+    recEvent("rule", { rule: r });
     const s = get();
     const style = {
       pattern: r as PatternId, colorCycle: "off" as const, order: "linear" as const, reverse: false,
@@ -637,6 +641,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
 
   // ── GAME OF LIGHT lifecycle ──
   armGol: () => {
+    recEvent("arm", { on: true });
     // the visitor lifecycle NEEDS burn-out physics (waves must die back to dark),
     // which pure mode exempts by spec — run armed sessions on the organic rules
     // and hand the player's own rules back on disarm
@@ -683,6 +688,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // interactive → a CA rule runs (the tree reacts, you set rules); leaving interactive
   // disarms Game of Light so a latched dark phase can't strand the next mode.
   setUiMode: (m) => {
+    recEvent("mode", { to: m });
     try { localStorage.setItem("ui.mode", m); } catch { /* fine */ }
     const s = get();
     if (m === "interactive") {
@@ -750,6 +756,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { groupControls, layers };
   }),
   playShow: (id) => setState((s) => {
+    recEvent("show", { id });
     if (!id) return { activeShow: null, layers: [] }; // stop → drop show layers
     // starting a SHOW exits the Game-of-Light lifecycle — otherwise a blackout
     // latched by an armed/dark GoL phase silently renders the whole show black

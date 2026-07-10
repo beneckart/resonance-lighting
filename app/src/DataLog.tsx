@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { telemetry } from "./telemetry";
+import { flagBug, recSummary } from "./flightrec";
 import { Widget } from "./Widget";
 
 // nearest readable colour name (research: show "blue", not "#1e90ff")
@@ -35,6 +36,29 @@ export function DataLog() {
 
   return (
     <Widget id="datalog" title="📟 data log — what the lights are doing" x={12} y={430} w={300} h={280}>
+      {/* 🐞 FLIGHT RECORDER (doc 18C): always recording a rolling window of
+          inputs + output keyframes; flagging freezes the last 2 min into a
+          downloadable repro the twin can replay. */}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+        <button onClick={() => {
+          const note = window.prompt("What looked wrong? (goes into the bug file)") ?? "";
+          const log = flagBug(note, telemetry.states.length);
+          const blob = new Blob([JSON.stringify(log)], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `tree-bug-${new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-")}.json`;
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 5000);
+        }}
+          title="freeze the last 2 minutes (every tap, mode change + what every light did) into a bug file"
+          style={{ flex: 1, padding: "6px 8px", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 11,
+            border: "1.5px solid #ffb74d", background: "#2a1d0c", color: "#ffd9a0" }}>
+          🐞 flag a bug — save last 2 min
+        </button>
+        <span style={{ fontSize: 9, color: "#7a8ba3" }} title="events + output keyframes in the rolling black box">
+          ⏺ {recSummary().events}ev · {recSummary().keyframes}kf
+        </span>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: 0.7, marginBottom: 4 }}>
         <span><b style={{ color: "#7fe0a0" }}>{lit.length}</b> lit / {states.length} lights</span>
         <button onClick={() => setShowAll((v) => !v)}

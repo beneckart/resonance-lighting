@@ -19,6 +19,7 @@ import { createGlslPass, type GlslPass } from "./glslPass";
 import { playUnityFanfare } from "./unityAudio";
 import { asset } from "./fixtures";
 import { themeById } from "./themes";
+import { recKeyframe } from "./flightrec";
 
 // Global pattern-motion slowdown (everything was tuned too fast). 1.0 = old
 // frantic baseline; lower = calmer. The speed dial multiplies on top of this.
@@ -476,7 +477,26 @@ export function TreeLights() {
     const mx = Math.max(ar, ag, ab, 1e-4);
     easeGroundTint(ar / mx, ag / mx, ab / mx, level, k);
 
-    if (writeTele) { lastTele.current = t; telemetry.states = teleBuf.current; telemetry.t = t; }
+    if (writeTele) {
+      lastTele.current = t; telemetry.states = teleBuf.current; telemetry.t = t;
+      // flight recorder output keyframes (self-throttles to 2 Hz): brightness +
+      // dominant-channel hue per light — the black box for interactive bug repro
+      const n2 = teleBuf.current.length;
+      const kb = new Float32Array(n2), kh = new Float32Array(n2);
+      for (let j = 0; j < n2; j++) {
+        const tb = teleBuf.current[j];
+        kb[j] = Math.min(1, tb.bri);
+        const r = tb.rgb[0], g = tb.rgb[1], b = tb.rgb[2];
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        let h = 0;
+        if (d > 1e-4) {
+          if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4;
+          h = ((h / 6) % 1 + 1) % 1;
+        }
+        kh[j] = h;
+      }
+      recKeyframe(kb, kh);
+    }
 
     if (t - statsAt.current > 0.5) {
       statsAt.current = t;
