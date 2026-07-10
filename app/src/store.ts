@@ -228,6 +228,7 @@ interface TwinState {
   selectedGroup: string; // the group the panel is editing
   activeShow: string | null; // running timed light show (shows.ts), or null
   showStartedAt: number; // performance.now()/1000 when the show began (for elapsed)
+  showSeed: number; // per-RUN seed → each playthrough varies (hue rotation, speed, cue jitter); reset on start + loop
   init: (doc: FixturesDoc) => void;
   loadLayout: (which: "tree" | "grid", seed?: number) => void; // testing rig ⇄ the real tree
   set: (p: Partial<Control>) => void;
@@ -296,6 +297,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   selectedGroup: "ring1",
   activeShow: null,
   showStartedAt: 0,
+  showSeed: 0,
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
@@ -768,9 +770,9 @@ export const useTwin = create<TwinState>((setState, get) => ({
     // latched by an armed/dark GoL phase silently renders the whole show black
     if (s.gol.phase !== "off") {
       setLifeState({ ambient: true, nodes: [] });
-      return { activeShow: id, showStartedAt: performance.now() / 1000, gol: { ...DEFAULT_GOL }, control: { ...s.control, blackout: false } };
+      return { activeShow: id, showStartedAt: performance.now() / 1000, showSeed: Math.random(), gol: { ...DEFAULT_GOL }, control: { ...s.control, blackout: false } };
     }
-    return { activeShow: id, showStartedAt: performance.now() / 1000 };
+    return { activeShow: id, showStartedAt: performance.now() / 1000, showSeed: Math.random() };
   }),
   toggleGroupActive: (name, on) => setState((s) => {
     const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name] };
