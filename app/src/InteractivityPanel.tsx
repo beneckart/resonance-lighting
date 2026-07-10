@@ -53,26 +53,30 @@ const CM_LABEL: Record<TriggerColorMode, string> = { fixed: "one colour", random
 
 // HOW EACH MODE WORKS — Elliot: "showing the rules for how each interactive mode
 // is working would be super useful." Plain-language mechanism + the live rule.
-const RULE_EXPLAIN: Record<string, { how: string; onTouch: string; rest: string }> = {
+const RULE_EXPLAIN: Record<string, { rule: string; how: string; onTouch: string; rest: string }> = {
   life: {
-    how: "Conway's Game of Life on the light mesh. Each light is a cell; every TURN it reads its ~6 nearest neighbours and lives or dies by the birth/survive counts below.",
-    onTouch: "a touch is born as live cells that then evolve by the rule and spread hop-by-hop.",
+    rule: "Each light looks at its ~6 nearest neighbours every turn. LIT: stays lit if 2–3 are lit, else turns off. DARK: turns on if exactly 2 are lit. (B2/S23)",
+    how: "This is Conway's Game of Life ADAPTED to the tree: survival is exactly Conway (2–3), but birth is 2 not 3 because the tree is a 6-neighbour mesh, not Conway's 8-neighbour grid — literal B3 dies out in seconds here. Edit the counts below; 'classic B3/S23' is the textbook rule.",
+    onTouch: "a touch is born as live cells that then evolve by this rule and spread hop-by-hop.",
     rest: "when a game ends (dies out or freezes) a fresh 4–9-light seed is dealt in.",
   },
   ripples: {
-    how: "Excitable medium (Greenberg-Hastings). A light flips resting → excited → a refractory cool-down → resting. An excited neighbour is what excites the next.",
-    onTouch: "a touch excites the medium there; the wave rolls outward one hop per turn and fades behind it.",
+    rule: "Each light is RESTING, EXCITED, or COOLING. A resting light EXCITES next turn if any neighbour is excited. An excited light then COOLS for a few turns before it can fire again.",
+    how: "Excitable medium (Greenberg-Hastings) — the rule that models nerve impulses and forest fires. Waves can only travel forward (the cool-down stops them backing up), so they roll outward and fade.",
+    onTouch: "a touch excites the medium there; the wave spreads one hop per turn and fades behind it.",
     rest: "dark and quiet until someone touches or walks by.",
   },
   organism: {
-    how: "Reaction-Diffusion (Gray-Scott). Two virtual chemicals react and diffuse across neighbours, forming blobs that drift, split and merge.",
-    onTouch: "a touch injects a fresh blob of activator that blooms and then drifts away.",
-    rest: "a faint breath; the chemistry only becomes visible where people are.",
+    rule: "Each light holds two virtual chemicals. It DIFFUSES them toward its neighbours and they REACT (one feeds on the other). Where the second chemical builds up, the light glows.",
+    how: "Reaction-Diffusion (Gray-Scott) — the maths behind leopard spots and coral. Blobs grow, drift, split and merge. Tune feed/kill below for spots ↔ stripes ↔ churn.",
+    onTouch: "a touch injects a fresh blob of chemical that blooms then drifts away.",
+    rest: "a faint breath; the chemistry only shows where people are.",
   },
   living: {
-    how: "Firefly synchronisation (Kuramoto). Each light is an oscillator nudged toward its neighbours' phase, so soft flashes fall into travelling waves.",
+    rule: "Each light has a flash timer. Every tick it nudges its timer toward the average of its neighbours' timers, so neighbours drift INTO STEP and flash together in travelling waves.",
+    how: "Firefly synchronisation (Kuramoto) — how real fireflies end up blinking in unison. Sync strength below sets how strongly neighbours pull together (scattered ↔ whole-tree pulse).",
     onTouch: "a touch flashes that region and re-triggers the sync wave outward from it.",
-    rest: "a faint breath; the swarm only lights up where it's stirred.",
+    rest: "a faint breath; the swarm only lights where it's stirred.",
   },
 };
 
@@ -206,8 +210,9 @@ export function InteractivityPanel() {
       {/* HOW THE ACTIVE MODE WORKS — the actual rule, in plain language */}
       {isCA && RULE_EXPLAIN[active] && (
         <div style={{ margin: "2px 0 8px", padding: "8px 9px", borderRadius: 8, background: "#0c1620", border: "1px solid #21323f" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#7fd0b0", marginBottom: 4 }}>ⓘ How {RULE_META[active]?.name} works</div>
-          <div style={{ fontSize: 10, color: "#b7c6d6", lineHeight: 1.4 }}>{RULE_EXPLAIN[active].how}</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#7fd0b0", marginBottom: 4 }}>ⓘ The rule — how each light reacts to its neighbours</div>
+          <div style={{ fontSize: 10.5, color: "#dfe9f5", lineHeight: 1.45, fontWeight: 600, padding: "5px 7px", background: "#101c14", borderRadius: 6, border: "1px solid #234a30" }}>{RULE_EXPLAIN[active].rule}</div>
+          <div style={{ fontSize: 9.5, color: "#9fb0c7", lineHeight: 1.4, marginTop: 5 }}>{RULE_EXPLAIN[active].how}</div>
           <div style={{ fontSize: 9.5, color: "#8fb9a6", marginTop: 4 }}><b style={{ color: "#b7f5db" }}>on touch:</b> {RULE_EXPLAIN[active].onTouch}</div>
           <div style={{ fontSize: 9.5, color: "#8aa0bb", marginTop: 2 }}><b>at rest:</b> {RULE_EXPLAIN[active].rest}</div>
         </div>
