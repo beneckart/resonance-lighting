@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-08.1" // field-cycle v7: ADR23 thresholds + latched protect
+#define NET_BENCH_VERSION "net-bench-2026-07-10.1" // P126 HEX field cycle: spiral RGB + corrected gauge current
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -71,6 +71,9 @@ using namespace PowerFeather;
 #endif
 #ifndef RES_PF_MAINTAIN_V
 #define RES_PF_MAINTAIN_V 4.6f
+#endif
+#ifndef NB_GAUGE_CURRENT_DIVISOR
+#define NB_GAUGE_CURRENT_DIVISOR 1.08f // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions
 #endif
 
 // ---- net-bench config (override with -D at build time) ---------------------
@@ -228,8 +231,17 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_LED_LOAD
 #define NB_FIELD_LED_LOAD 0 // opt-in: use the HEX drawdown load during field-cycle draw
 #endif
+#ifndef NB_FIELD_LED_SPIRAL_RGB
+#define NB_FIELD_LED_SPIRAL_RGB 0 // LED Studio spiral + 120-degree symmetric pure-R/G/B triplet
+#endif
+#ifndef NB_FIELD_LED_FRAME_MS
+#define NB_FIELD_LED_FRAME_MS 290 // LED Studio default speed=30; ~21 s center-edge-center cycle
+#endif
 #ifndef NB_FIELD_LED_DIM_BRIGHTNESS
 #define NB_FIELD_LED_DIM_BRIGHTNESS ((NB_DRAWDOWN_BRIGHTNESS > 1) ? (NB_DRAWDOWN_BRIGHTNESS / 2) : 1)
+#endif
+#if NB_FIELD_LED_SPIRAL_RGB && NB_DRAWDOWN_PIXEL_COUNT != 37
+#error "NB_FIELD_LED_SPIRAL_RGB requires the 37-pixel M5Stack HEX geometry"
 #endif
 #ifndef NB_FIELD_SUN_SUPPLY_MV
 #define NB_FIELD_SUN_SUPPLY_MV 4000 // supply/panel voltage that counts as present
@@ -445,7 +457,7 @@ uint8_t gRateHz = IS_MASTER ? NB_FRAME_HZ : NB_HB_HZ; // runtime-settable (maste
 // cached battery + supply (panel) telemetry (refreshed ~1 Hz; the ESP-NOW callback
 // must not touch the SDK). Supply = the solar/USB input side, the missing half for
 // battery/panel sizing -- supply_v x supply_ma = panel harvest; battery_ma = net.
-float cbV = 0, cbMa = 0;
+float cbV = 0, cbMa = 0, cbMaRaw = 0;
 int cbSoc = -1;
 float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
@@ -493,6 +505,11 @@ bool gDrawdownPixelsBegun = false;
 bool gDrawdownActive = false;
 bool gFieldLedLoadOn = false;
 bool gFieldLedLoadDimmedApplied = false;
+bool gFieldSpiralGeometryReady = false;
+uint8_t gFieldSpiralOrder[NB_DRAWDOWN_PIXEL_COUNT];
+float gFieldPixelX[NB_DRAWDOWN_PIXEL_COUNT], gFieldPixelY[NB_DRAWDOWN_PIXEL_COUNT];
+uint16_t gFieldSpiralPosition = 0;
+uint32_t gFieldSpiralLastFrameMs = 0;
 uint16_t gDrawdownBudgetMah = NB_DRAWDOWN_DEFAULT_MAH;
 float gDrawdownMah = 0.0f;
 uint32_t gDrawdownStartMs = 0;
@@ -1022,7 +1039,10 @@ void readBattery() {
   if (!pfReady) return;
   float v;
   if (Board.getBatteryVoltage(v) == Result::Ok) cbV = v;
-  if (Board.getBatteryCurrent(v) == Result::Ok) cbMa = v;
+  if (Board.getBatteryCurrent(v) == Result::Ok) {
+    cbMaRaw = v;
+    cbMa = v / NB_GAUGE_CURRENT_DIVISOR;
+  }
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
   if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
@@ -1121,7 +1141,13 @@ String telemetryJson() {
     char b[24];
     float v;
     if (Board.getBatteryVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"battery_v\":" + String(b); }
-    if (Board.getBatteryCurrent(v) == Result::Ok) { snprintf(b, sizeof(b), "%.1f", v); j += ",\"battery_ma\":" + String(b); }
+    if (Board.getBatteryCurrent(v) == Result::Ok) {
+      snprintf(b, sizeof(b), "%.1f", v / NB_GAUGE_CURRENT_DIVISOR);
+      j += ",\"battery_ma\":" + String(b);
+      snprintf(b, sizeof(b), "%.1f", v);
+      j += ",\"battery_ma_raw\":" + String(b);
+      j += ",\"battery_current_divisor\":" + String(NB_GAUGE_CURRENT_DIVISOR, 2);
+    }
     uint8_t s;
     if (Board.getBatteryCharge(s) == Result::Ok) j += ",\"soc_pct\":" + String(s);
     if (Board.getSupplyVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"supply_v\":" + String(b); }
@@ -1499,6 +1525,98 @@ void drawdownPixelsLoadOn(uint8_t brightness = NB_DRAWDOWN_BRIGHTNESS) {
     drawdownPixels.setPixelColor(i, i < lit ? c : 0);
   drawdownPixels.show();
 }
+
+// Exact geometry/path model used by led_studio's Spiral + Rotate split. The
+// moving anchor walks the center-to-outer ring order and ping-pongs back inward;
+// its green and blue partners are the nearest pixels at +120/+240 degrees.
+void fieldSpiralBuildGeometry() {
+  if (gFieldSpiralGeometryReady) return;
+  static const uint8_t rowCount[7] = {4, 5, 6, 7, 6, 5, 4};
+  uint8_t ringOf[NB_DRAWDOWN_PIXEL_COUNT];
+  float angle[NB_DRAWDOWN_PIXEL_COUNT];
+  uint8_t idx = 0;
+  for (uint8_t row = 0; row < 7; row++) {
+    uint8_t count = rowCount[row];
+    float y = (3.0f - (float)row) * 0.8660254f;
+    for (uint8_t col = 0; col < count; col++) {
+      float x = (float)col - (float)(count - 1) / 2.0f;
+      gFieldPixelX[idx] = x;
+      gFieldPixelY[idx] = y;
+      ringOf[idx] = (uint8_t)min(3L, lroundf(sqrtf(x * x + y * y)));
+      angle[idx] = atan2f(y, x);
+      gFieldSpiralOrder[idx] = idx;
+      idx++;
+    }
+  }
+  for (uint8_t i = 1; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    uint8_t key = gFieldSpiralOrder[i];
+    int8_t k = i - 1;
+    while (k >= 0) {
+      uint8_t a = gFieldSpiralOrder[k];
+      bool greater = (ringOf[a] > ringOf[key]) ||
+                     (ringOf[a] == ringOf[key] && angle[a] > angle[key]);
+      if (!greater) break;
+      gFieldSpiralOrder[k + 1] = gFieldSpiralOrder[k];
+      k--;
+    }
+    gFieldSpiralOrder[k + 1] = key;
+  }
+  gFieldSpiralGeometryReady = true;
+}
+
+uint8_t fieldSpiralNearestPixel(float x, float y) {
+  uint8_t best = 0;
+  float bestDistance = 1e9f;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    float dx = gFieldPixelX[i] - x, dy = gFieldPixelY[i] - y;
+    float distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+uint8_t fieldSpiralPathIndex(uint16_t step) {
+  const uint16_t n = NB_DRAWDOWN_PIXEL_COUNT;
+  const uint16_t period = 2 * (n - 1);
+  uint16_t m = step % period;
+  return (uint8_t)(m < n ? m : period - m);
+}
+
+void fieldSpiralRender(uint8_t brightness) {
+  fieldSpiralBuildGeometry();
+  drawdownPixelsBegin();
+  drawdownPixels.setBrightness(brightness);
+  drawdownPixels.clear();
+  uint8_t anchor = gFieldSpiralOrder[fieldSpiralPathIndex(gFieldSpiralPosition)];
+  float x = gFieldPixelX[anchor], y = gFieldPixelY[anchor];
+  float radius = sqrtf(x * x + y * y), theta = atan2f(y, x);
+  const float thirdTurn = 2.0943951f;
+  uint8_t pixels[3] = {
+      anchor,
+      fieldSpiralNearestPixel(radius * cosf(theta + thirdTurn),
+                              radius * sinf(theta + thirdTurn)),
+      fieldSpiralNearestPixel(radius * cosf(theta + 2 * thirdTurn),
+                              radius * sinf(theta + 2 * thirdTurn))};
+  uint8_t red[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t green[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t blue[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  red[pixels[0]] = 255;
+  green[pixels[1]] = 255;
+  blue[pixels[2]] = 255;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
+    drawdownPixels.setPixelColor(i, red[i], green[i], blue[i]);
+  drawdownPixels.show();
+}
+
+void fieldSpiralLoadOn(uint8_t brightness) {
+  if (pfReady) Board.enable3V3(true);
+  delay(20);
+  fieldSpiralRender(brightness);
+  gFieldSpiralLastFrameMs = millis();
+}
 void drawdownCancel(const char *why) {
   if (!gDrawdownActive) return;
   gDrawdownActive = false;
@@ -1735,13 +1853,25 @@ void fieldCycleLedLoadOn() {
   bool dimmed = rtcFieldLoadDimmed != 0;
   if (gFieldLedLoadOn && gFieldLedLoadDimmedApplied == dimmed) return;
   uint8_t brightness = fieldCycleLoadBrightness();
+#if NB_FIELD_LED_SPIRAL_RGB
+  fieldSpiralLoadOn(brightness);
+#else
   drawdownPixelsLoadOn(brightness);
+#endif
   gFieldLedLoadOn = true;
   gFieldLedLoadDimmedApplied = dimmed;
-  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u dim=%d)\n",
+  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u dim=%d spiral_rgb=%d)\n",
                 (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
                 NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
-                NB_DRAWDOWN_B, brightness, dimmed ? 1 : 0);
+                NB_DRAWDOWN_B, brightness, dimmed ? 1 : 0, NB_FIELD_LED_SPIRAL_RGB);
+#endif
+}
+void fieldCycleLedLoadTick() {
+#if NB_FIELD_LED_LOAD && NB_FIELD_LED_SPIRAL_RGB
+  if (!gFieldLedLoadOn || millis() - gFieldSpiralLastFrameMs < NB_FIELD_LED_FRAME_MS) return;
+  gFieldSpiralPosition++;
+  fieldSpiralRender(fieldCycleLoadBrightness());
+  gFieldSpiralLastFrameMs = millis();
 #endif
 }
 void fieldCycleLedLoadOff() {
@@ -1750,6 +1880,8 @@ void fieldCycleLedLoadOff() {
   drawdownPixelsOff();
   gFieldLedLoadOn = false;
   gFieldLedLoadDimmedApplied = false;
+  gFieldSpiralPosition = 0;
+  gFieldSpiralLastFrameMs = 0;
   Serial.println("field-cycle LED load OFF");
 #endif
 }
@@ -2002,6 +2134,7 @@ void fieldCycleTick() {
 
   case FC_DRAWDOWN:
     fieldCycleLedLoadOn();
+    fieldCycleLedLoadTick();
     if (supply) {
       fieldCycleStartNewCycle(FC_REASON_SUNRISE);
       break;

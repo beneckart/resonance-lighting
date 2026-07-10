@@ -65,6 +65,7 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
 `--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`,
 `--field-cycle`/`--field-charge-s S`/`--field-wait-s S`/`--field-protect-s S`,
+`--field-led-load`/`--field-led-spiral-rgb`/`--field-led-frame-ms MS`,
 `--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
@@ -146,6 +147,15 @@ adds an autonomous peer state machine:
    and enters `protect` timer sleep. By default `protect` is latched until a timer wake
    sees real battery charge current from solar/USB; it no longer retries drawdown just
    because resting voltage rebounded in the dark.
+
+`--field-led-spiral-rgb` selects the production-HEX draw profile copied from LED
+Studio: one anchor spirals center-to-edge-to-center while pure red, green, and blue
+pixels stay at symmetric 120-degree offsets. Use `--drawdown-brightness 255` for
+three full-brightness single-channel LEDs. Field-cycle battery current, mAh, and Wh
+are corrected at acquisition by `/1.08` for the replicated MAX17260 +8% bias;
+`/telemetry` exposes corrected `battery_ma`, `battery_ma_raw`, and
+`battery_current_divisor` for auditability. Supply-side telemetry remains the
+charger-input measurement and is not given the MAX17260 correction.
 
 Solar does not need to electrically wake the ESP32 in the normal case: the charger keeps
 charging while the ESP32 is in timer deep sleep, and the next timer wake observes the

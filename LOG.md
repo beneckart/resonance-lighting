@@ -12,6 +12,101 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-10 (cont. 2) - Codex - Exact P126 4.6 V penalty and apparent peer delta explained
+
+Closed the P126 USB-safe-setpoint question on the production-cabling fixture with a
+same-wake 5.8 -> 4.6 V step. Fresh onboard samples (no INA) gave:
+
+| Setpoint | BQ input W median | Corrected battery mA median |
+|---|---:|---:|
+| 5.8 V, immediately before step | 1.306 W | 261 mA |
+| 4.6 V | 1.094 W | 212 mA |
+
+That is a 16.2% input-power penalty and about a 19% battery-charge-current penalty at
+4.6 V in the current sun/setup, strengthening the earlier estimate from the June 29
+4.8 V P126 point. The live restore command missed the end of the 8 s wake window, so
+the charger spent one normal 300 s sleep interval at 4.6 V; the compiled configuration
+then reapplied 5.8 V on the next wake. Verified live: `bq_vindpm_mv=5800`,
+`supply_good=true`; the three-day logger stayed running.
+
+Also explained the dashboard's apparent `supply_w - battery_w` difference between the
+two outdoor peers. They were not on the same battery-current calibration:
+
+- P126 peer `9E5B0C`, fw `net-bench-2026-07-10.1`: MAX17260 current already `/1.08` corrected.
+- P105 peer `9F26F8`, fw `net-bench-2026-07-08.1`: raw MAX17260 current, known +8% high.
+
+One representative P105 display sample read 2.088 W supply, 517 mA at the battery,
+and a 0.239 W apparent delta. Correcting 517/1.08 = 479 mA changes battery power from
+1.849 W to 1.712 W and the same-basis delta to 0.376 W. The P126's typical corrected
+delta is about 0.40-0.44 W, so almost all of the apparent 0.4-vs-0.2 W mismatch was
+mixed firmware accounting. The remaining few hundredths includes real system load,
+conversion loss, different wake/MPPT timing, and the error of subtracting telemetry
+from two different IC boundaries; dashboard `load_w` is therefore a residual, not a
+pure ESP/fixture-load measurement.
+
+## 2026-07-10 (cont.) - Codex - P126 onboard MPP quick check keeps 5.8 V
+
+Ran a quick live VINDPM sweep on production-cabling P126/HEX fixture `9E5B0C`
+using only onboard BQ supply telemetry plus the `/1.08`-corrected MAX17260 battery
+current. The field-cycle image normally sleeps 300 s at a time, so the check caught
+one natural charge wake and then used target-only 1 s sleeps to create fresh 8 s
+measurement windows. Each point had 3-6 live samples; the normal three-day logger
+captured the raw rows. No INA or light-normalization channel was present.
+
+| VINDPM | BQ input W median | Corrected battery mA median |
+|---|---:|---:|
+| 6.2 V | 1.414 W | 292 mA |
+| 6.0 V | 1.476 W | 306 mA |
+| 5.8 V (anchor 1) | 1.419 W | 306 mA |
+| 5.6 V | 1.412 W | 305 mA |
+| 5.4 V | 1.398 W | 299 mA |
+| 5.8 V (anchor 2) | 1.425 W | 303 mA |
+
+The two 5.8 V anchors differed by only 0.4%, so conditions were reasonably stable.
+6.0 V read 3.8% higher at the charger-input boundary, but delivered no measurable
+battery-current gain over the first 5.8 V anchor; 6.2 V had already rolled over and
+the lower points declined. Verdict: the optimum is broad around 5.8-6.0 V and the
+external-INA-qualified 5.8 V setpoint still holds. Kept production fixed at 5.8 V
+rather than chasing an onboard-only 3.8% input-boundary difference. Verified final
+`bq_vindpm_mv=5800`, `supply_good=true`, logger still running, and the other field
+peer retained its own MPPT/default behavior.
+
+## 2026-07-10 - Codex - Deployed P126 production-cabling HEX field cycle on former speaker board
+
+Repurposed the PowerFeather previously running `speaker_demo` as a production-like
+perimeter/HEX solar fixture: PowerFeather V2 + fullbattery 32700 6 Ah LFP + Voltaic
+P126 2 W panel + production cabling/crimps + 37-pixel HEX, with no external INAs or
+Dupont wiring. The old speaker image was reachable at `speakerdemo.local`, so it was
+OTA-updated directly without bringing the board inside or attaching USB. New fixture
+ID is `9E5B0C`; it rejoined the channel-11 serial bridge with software reset, 100% PDR,
+and `net-bench-2026-07-10.1`.
+
+Field draw uses LED Studio's Spiral + Rotate geometry: an anchor ping-pongs from the
+center to the outer ring and back while pure full-bright red, green, and blue pixels
+stay at 120-degree rotational offsets. Frame interval is 290 ms; ADR 0023 still dims
+at 3.00 V, cuts the LED load at 2.95 V after 60 s, and treats 2.90 V as critical.
+
+Applied the replicated MAX17260 +8% current bias at acquisition (`battery_ma = raw /
+1.08`) so heartbeat current plus field-cycle mAh/Wh totals are corrected before they
+reach the logger. `/telemetry` also exposes `battery_ma_raw` and the divisor. The
+supply-side BQ reading remains uncorrected charger-input telemetry; without a
+panel-side INA, harvest is useful for this installation's end-to-end comparison but
+is not panel-capability ground truth.
+
+The fixed P126 VINDPM is 5.8 V (its measured outdoor optimum). First bridge sample:
+`sv=5.839 V`, `sma=252 mA`, `sgood=1`, corrected battery charge `310 mA`,
+`bqv=5800`, battery `3.369 V`; no INAs were detected, as intended. A dedicated
+three-day logger is running at:
+
+- `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`
+
+Implementation: added `--field-led-spiral-rgb` / `--field-led-frame-ms` to
+`net_bench`, added matching `field_cycle_ota.py` switches, corrected that helper's
+stale pre-ADR-0023 3.10/3.00 V defaults to 2.95/2.90 V, and documented the corrected
+telemetry boundary. Build artifact:
+
+- `firmware/net_bench/build/field-cycle-peer-20260710-p126-spiral-rgb-r2/net_bench.ino.bin`
+
 ## 2026-07-08 (cont.) - Ben + Claude - Review corrections: RGBW feed stays rail-wired (VBAT option open), site timeline corroborated, battery dates pinned
 
 Ben's review of the housekeeping pass produced corrections, all folded in:

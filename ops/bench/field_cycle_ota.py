@@ -44,8 +44,8 @@ FIELD_DEFAULTS = {
     "field_protect_s": 900,
     "field_wake_ms": 8000,
     "field_cold_ms": 30000,
-    "field_low_mv": 3100,
-    "field_critical_mv": 3000,
+    "field_low_mv": 2950,
+    "field_critical_mv": 2900,
     "field_low_confirm_s": 60,
     "capacity_mah": 6000,
     "charge_ma": 1500,
@@ -69,6 +69,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--channel", type=int, default=11)
     ap.add_argument("--hex-lit", type=int, default=18)
     ap.add_argument("--brightness", type=int, default=128)
+    ap.add_argument(
+        "--spiral-rgb",
+        action="store_true",
+        help="animate LED Studio's in/out spiral with a 120-degree pure-R/G/B triplet",
+    )
+    ap.add_argument("--frame-ms", type=int, default=290)
     ap.add_argument("--field-charge-s", type=int, default=FIELD_DEFAULTS["field_charge_s"])
     ap.add_argument("--field-wait-s", type=int, default=FIELD_DEFAULTS["field_wait_s"])
     ap.add_argument("--field-protect-s", type=int, default=FIELD_DEFAULTS["field_protect_s"])
@@ -161,11 +167,12 @@ def build_name(args: argparse.Namespace) -> str:
     if args.build_name:
         return args.build_name
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    return f"field-cycle-peer-{stamp}-{args.peer_id}-hex{args.hex_lit}b{args.brightness}"
+    lit = 3 if args.spiral_rgb else args.hex_lit
+    return f"field-cycle-peer-{stamp}-{args.peer_id}-hex{lit}b{args.brightness}"
 
 
 def build_args(args: argparse.Namespace) -> list[str]:
-    return [
+    result = [
         "--role",
         "peer",
         "--channel",
@@ -189,7 +196,7 @@ def build_args(args: argparse.Namespace) -> list[str]:
         str(args.field_low_confirm_s),
         "--field-led-load",
         "--drawdown-lit",
-        str(args.hex_lit),
+        str(3 if args.spiral_rgb else args.hex_lit),
         "--drawdown-brightness",
         str(args.brightness),
         "--chem",
@@ -201,6 +208,9 @@ def build_args(args: argparse.Namespace) -> list[str]:
         "--maintain",
         str(args.maintain),
     ]
+    if args.spiral_rgb:
+        result.extend(["--field-led-spiral-rgb", "--field-led-frame-ms", str(args.frame_ms)])
+    return result
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None, dry_run: bool = False) -> None:
@@ -399,7 +409,8 @@ def wait_out_maintenance_tail(sent_at: float, tail_s: float, ip: str | None) -> 
 def run_ota(args: argparse.Namespace, bin_path: Path, ip: str) -> None:
     require_file(OTA_TOOL)
     notes = args.notes or (
-        f"{args.peer_id} field-cycle OTA hex-lit={args.hex_lit} brightness={args.brightness}"
+        f"{args.peer_id} field-cycle OTA "
+        f"hex-lit={3 if args.spiral_rgb else args.hex_lit} brightness={args.brightness}"
     )
     cmd = [
         sys.executable,
