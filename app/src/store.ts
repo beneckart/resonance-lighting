@@ -529,6 +529,12 @@ export const useTwin = create<TwinState>((setState, get) => ({
       // EXCEPT during Unity, whose celebration pings are ripple-only (seeding every
       // 0.33s for 10s would leave the field over-grown after the celebration ends)
       if (idx >= 0 && s.control.pattern === "life" && !s.gol.unity) seedLife([idx], { hops: 2 });
+      // a passer-by also WAKES the free-running fields at that spot (interactive rest)
+      if (idx >= 0) {
+        if (s.control.pattern === "ripples") exciteRipples([idx]);
+        if (s.control.pattern === "organism") exciteOrganism([idx, ...(s.fixtures[idx].neighbors ?? [])]);
+        if (s.control.pattern === "living") exciteField([idx, ...(s.fixtures[idx].neighbors ?? [])]);
+      }
       return { ripples };
     }),
   // fire a SENSOR at fixture `idx` (a touch/click on the tree): push a colour+
