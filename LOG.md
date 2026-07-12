@@ -12,6 +12,31 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-12 -- Ben + Claude -- 20 Ah UPLIGHT CELL VERIFIED: 19,412 mAh (97.1% of label), knee so tight 95% clears the product floor
+
+**The batteryspace 20 Ah cylindrical ("34184", sample 1 of 2) is honest — the anti-Palowextra.**
+Full charge->discharge on the shootout rig (board 9E5AF0, INA 0x45 truth, HEX37 val224
+~0.78 A): **19,412 mAh to cell-side 2.5 V (97.1%)**, **19,055 above the 3.0 V product floor
+(95.3% of label)**, knee width just **360 mAh** (vs F's 613, P's 1,301 — the low-IR big-cell
+signature). 27.2 h run, zero resets for 23+ h, 181 only in the terminal rattle; ended
+"unreachable" when the board could no longer restart at cell ~2.5 V. Gauge bias **x1.071 —
+9th consecutive** +8+-1% replication. Report + charts:
+`docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`.
+
+Method firsts: cell too big for any charger on hand -> **BQ25628E on-board charge through the
+same INA** (6.03 Ah in; free polarity check; the charge chart is a three-throttle story: USB
+hub 500 mA BC1.2 cap -> wall brick ~820 mA -> CV taper). Leads were alligator clips at a
+DMM-verified **0.263 ohm** -> all cell-side numbers use cell_v = board_v + I(t)*0.263; cutoff
+2.40 V board-side ~= 2.5 cell-side. SDK gotcha: **MAX17260 driver caps DesignCap at 16,383 mAh**
+(20 mohm sense assumption) -- Board.init(20000) fails into silent retry purgatory; ran at 16000
+(SOC advisory anyway). Gauge cold-POR mute reconfirmed twice post-rattle (POWERFEATHER_NOTES).
+
+**Uplight verdict:** one cell = **6 h/night x 7 nights solar-free at ~450 mA avg RGBW**
+(showable brightness) with margin; W-die palettes trivial. Conditions: watchdogged daytime
+sleep (ADR 0023) + night radio duty budget (~1.7 Ah/wk at 40 mA avg). **n=1 — qualify sample 2
+before the ~40-cell buy** (rig stays assembled). Production needs a real end-cap connection;
+clips survived 27 h on tape and prayer.
+
 ## 2026-07-11 (cont.) -- Ben + Claude -- RGBW feed A/B (rail vs VBAT), instrumented: RAIL wins +2.5% mean, ADR 0029 fork closed
 
 Automated the rail-vs-VBAT question with two 4 W RGBW units mounted at once (unit1

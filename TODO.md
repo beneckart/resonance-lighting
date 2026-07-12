@@ -559,10 +559,15 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   cell only (Ben).
 - [x] ~~Evaluate 26650 LiFePO4~~ -- **SUPERSEDED**: the open big-cell question is now
   the 20 Ah #6832 for solar-free classes, below (Ben).
-- [ ] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
-  solar-free uplight/chandelier option**: capacity + IR run per the ADR 0023 recipe,
-  plus an uplight-profile drawdown (dim mood lighting, week-long budget). Decide by
-  ~late July; a win triggers the ~40-cell buy in `ops/PROCUREMENT.md` (Ben).
+- [~] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
+  solar-free uplight/chandelier option** -- **SAMPLE 1 VERIFIED 2026-07-12: 19,412 mAh
+  (97.1% of label), 19,055 above the 3.0 V floor, 360 mAh knee — supports 6 h/night x
+  7-night solar-free RGBW duty with margin.** Report:
+  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`. Remaining before the
+  ~40-cell buy: (1) qualify **sample 2** (rig assembled; overnight charge + ~27 h
+  discharge); (2) solve the **end-cap connection** (alligator clips were 0.263 ohm and
+  survive only taped -- Steve fixture or proper clamps); (3) optional uplight-profile
+  drawdown (dim mood lighting, week-long budget) (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in
