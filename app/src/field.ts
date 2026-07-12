@@ -589,3 +589,80 @@ export function lorenzFoci(center: [number, number, number], size: number, dt: n
     hue: i === 0 ? 0.58 : 0.05,
   }));
 }
+
+// ── NODE CHAINS (Elliot's Instagram reel: "like a node chain") ── glowing
+//    pulses that TRAVEL node-to-node along the mesh's neighbour graph, leaving a
+//    fading trail — sparks running through the tree's wiring / a growing network.
+//    Mesh-native: the chain literally walks the k-NN edges. Taps spawn chains;
+//    a background population keeps a few always crawling. Editable params below.
+export interface ChainParams { count: number; maxLen: number; branch: number; fade: number }
+let chainParams: ChainParams = { count: 8, maxLen: 22, branch: 0.12, fade: 0.9 };
+export function setChainParams(p: Partial<ChainParams>) { chainParams = { ...chainParams, ...p }; }
+export function getChainParams(): ChainParams { return { ...chainParams }; }
+
+interface Chain { head: number; visited: Set<number>; len: number; hue: number; alive: boolean }
+let chains: Chain[] = [];
+let chainGlow = new Float32Array(0); // per-fixture render brightness (decays)
+let chainHue = new Float32Array(0);
+let chainAcc = 0;
+let chainN = -1;
+let chainSpawnQ: { i: number; hue?: number }[] = [];
+export const chainsOut = { bri: new Float32Array(0), hue: new Float32Array(0) };
+
+function spawnChain(fixtures: SimFixture[], start: number, hue?: number) {
+  if (start < 0 || start >= fixtures.length) return;
+  const h = hue ?? (Math.sin(start * 12.9898 + chains.length * 3.7) * 0.5 + 0.5);
+  chains.push({ head: start, visited: new Set([start]), len: 1, hue: ((h % 1) + 1) % 1, alive: true });
+  if (chainGlow.length) { chainGlow[start] = 1; chainHue[start] = ((h % 1) + 1) % 1; }
+}
+/** A touch launches a fresh chain from that node (interactive). */
+export function exciteChains(indices: number[], hue?: number) {
+  for (const i of indices) chainSpawnQ.push({ i, hue });
+}
+
+export function updateChains(fixtures: SimFixture[], dt: number, speed: number) {
+  const n = fixtures.length;
+  if (chainN !== n) {
+    chainGlow = new Float32Array(n); chainHue = new Float32Array(n);
+    chainsOut.bri = new Float32Array(n); chainsOut.hue = new Float32Array(n);
+    chains = []; chainN = n; chainSpawnQ = [];
+  }
+  const dts = Math.min(0.1, Math.max(0, dt));
+  // drain tap spawns
+  if (chainSpawnQ.length) { for (const q of chainSpawnQ) spawnChain(fixtures, q.i, q.hue); chainSpawnQ = []; }
+
+  // advance the heads on a speed-driven clock (one hop per step)
+  const STEP = Math.min(2, Math.max(0.03, 0.28 / Math.max(0.05, speed))); // ~one hop / 0.28s at speed 1
+  chainAcc += dts;
+  const K = nK(fixtures[0]?.neighbors ?? []); void K;
+  while (chainAcc >= STEP) {
+    chainAcc -= STEP;
+    for (const c of chains) {
+      if (!c.alive) continue;
+      const nb = fixtures[c.head].neighbors;
+      const K6 = nK(nb);
+      // prefer an UNVISITED nearest neighbour; else the chain dead-ends
+      let next = -1;
+      for (let k = 0; k < K6; k++) { if (!c.visited.has(nb[k])) { next = nb[k]; break; } }
+      if (next < 0) { c.alive = false; continue; } // trapped → retire
+      c.head = next; c.visited.add(next); c.len++;
+      chainGlow[next] = 1; chainHue[next] = c.hue;
+      // occasional BRANCH — a spark forks off a new chain (theme-consistent hue)
+      if (Math.random() < chainParams.branch && chains.length < chainParams.count * 2.2) {
+        for (let k = 0; k < K6; k++) if (!c.visited.has(nb[k])) { spawnChain(fixtures, nb[k], c.hue); break; }
+      }
+      if (c.len >= chainParams.maxLen) c.alive = false; // reached full length → retire (trail fades)
+    }
+    chains = chains.filter((c) => c.alive);
+    // keep the background population up (unless dark-driven; taps always add)
+    while (chains.length < chainParams.count) spawnChain(fixtures, (Math.random() * n) | 0);
+  }
+
+  // decay the trails (fade tail) + emit; theme-map the hue so chains stay in-world
+  const dec = Math.pow(chainParams.fade, dts * 60 / 12); // frame-rate independent-ish
+  for (let i = 0; i < n; i++) {
+    chainGlow[i] *= dec;
+    chainsOut.bri[i] = Math.min(1, chainGlow[i]);
+    chainsOut.hue[i] = themeMapHue(chainHue[i]);
+  }
+}

@@ -6,7 +6,7 @@ import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSid
 import { useTwin, CA_RULES, type SimFixture } from "./store";
 import { litFor, applyThemeToLit, tameWhite, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
-import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, lorenzFoci, themeMapHue } from "./field";
+import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, updateChains, chainsOut, lorenzFoci, themeMapHue } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
 import { strobeGate, eqGain, lerp } from "./dj";
@@ -254,6 +254,10 @@ export function TreeLights() {
     if (ctrl.pattern === "ripples" || st.layers.some((l) => l.control.pattern === "ripples")) {
       updateRipples(fixtures, delta, st.control.speed); // RAW dial
     }
+    // Node Chains — sparks crawling the neighbour graph; tick if any look uses it
+    if (ctrl.pattern === "chains" || st.layers.some((l) => l.control.pattern === "chains")) {
+      updateChains(fixtures, delta, st.control.speed);
+    }
     // Game of Life on the neighbour graph — tick once per frame if any look uses it.
     // Cell seeding is owned by the event sources (store.triggerAt / pingPresence), so a
     // tap's colour/brightness/time-on tag the cells directly — here we just evolve.
@@ -331,6 +335,10 @@ export function TreeLights() {
         const bv = rippleOut.bri[i] * fctrl.brightness;
         const hue = themeMapHue(((fctrl.hue + rippleOut.age[i] * 0.16) % 1 + 1) % 1); // wavefront → tail shift, held inside the colour theme
         col.setHSL(hue, fctrl.sat, 0.5);
+        lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
+      } else if (fctrl.pattern === "chains") {
+        const bv = chainsOut.bri[i] * fctrl.brightness;
+        col.setHSL(chainsOut.hue[i], Math.max(0.6, fctrl.sat), 0.5);
         lit.r = col.r * bv; lit.g = col.g * bv; lit.b = col.b * bv;
       } else if (fctrl.pattern === "life") {
         // Game of Life: each cell carries its OWN hue + brightness (base warm field, or

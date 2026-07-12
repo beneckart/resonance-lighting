@@ -3,7 +3,7 @@ import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
 import type { Ripple } from "./interaction";
-import { clearLife, seedLife, seedRandomCluster, exciteRipples, exciteOrganism, exciteField, themeMapHue, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
+import { clearLife, seedLife, seedRandomCluster, exciteRipples, exciteOrganism, exciteField, exciteChains, themeMapHue, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
 
 // Game-of-Light swaps the life rules to organic while armed; the player's own
 // rules are snapshotted here and restored on disarm.
@@ -17,17 +17,17 @@ export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
   | "chromatic" | "rings" | "fibonacci" | "sweep" | "living" | "piano" | "ripples" | "organism"
-  | "aurora" | "chladni" | "glyph" | "interference" | "lissajous" | "shockwave" | "hurricane"
+  | "aurora" | "chladni" | "glyph" | "interference" | "lissajous" | "shockwave" | "hurricane" | "chains"
   | "life"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous", "shockwave", "hurricane",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous", "shockwave", "hurricane", "chains",
 ];
 /** Decentralised cellular-automata rules (Ben's BACKGROUND.md mesh spec): each light
  *  runs a simple local rule over its pre-baked neighbour list. The "interactivity mode"
  *  vocabulary — the tree lives on its own + reacts to presence pokes. */
-export const CA_RULES: PatternId[] = ["life", "ripples", "organism", "living"];
+export const CA_RULES: PatternId[] = ["life", "ripples", "organism", "living", "chains"];
 /** Element / environmental modes (dossier PART 7). */
 export const ELEMENT_MODES: PatternId[] = ["wind", "ember", "rain", "beacon"];
 
@@ -539,6 +539,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
         if (s.control.pattern === "ripples") exciteRipples([idx]);
         if (s.control.pattern === "organism") exciteOrganism([idx, ...(s.fixtures[idx].neighbors ?? [])]);
         if (s.control.pattern === "living") exciteField([idx, ...(s.fixtures[idx].neighbors ?? [])]);
+        if (s.control.pattern === "chains") exciteChains([idx]);
       }
       return { ripples };
     }),
@@ -596,6 +597,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     if (s.control.pattern === "ripples") exciteRipples(blob);
     if (s.control.pattern === "organism") exciteOrganism(blob);
     if (s.control.pattern === "living") exciteField(blob);
+    if (s.control.pattern === "chains") exciteChains([idx], hue);
     return { ripples };
   }),
   setTriggerRule: (p) => setState((s) => ({ triggerRule: { ...s.triggerRule, ...p } })),

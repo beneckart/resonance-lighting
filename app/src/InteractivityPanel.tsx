@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTwin, CA_RULES, TRIGGER_COLOR_MODES, type PatternId, type TriggerColorMode } from "./store";
 import { ThemePicker } from "./ThemePicker";
 import { Widget } from "./Widget";
-import { getLifeRules, setLifeRules, getCaParams, setCaParams, type LifeRules, type CaParams } from "./field";
+import { getLifeRules, setLifeRules, getCaParams, setCaParams, getChainParams, setChainParams, type LifeRules, type CaParams, type ChainParams } from "./field";
 
 // editable Game-of-Life rule presets (graph has ~6 neighbours, not a grid's 8)
 const LIFE_PRESETS: Record<string, Partial<LifeRules>> = {
@@ -48,6 +48,7 @@ const RULE_META: Record<string, { name: string; blurb: string; emoji: string; hu
   ripples: { name: "Excitable", blurb: "waves ripple out & fade · Greenberg-Hastings", emoji: "💫", hue: 0.55 },
   organism: { name: "Reaction-Diffusion", blurb: "blobs drift, split & merge · Gray-Scott", emoji: "🫧", hue: 0.5 },
   living: { name: "Firefly Sync", blurb: "fireflies fall into travelling waves · Kuramoto", emoji: "✨", hue: 0.12 },
+  chains: { name: "Node Chains", blurb: "sparks crawl the wiring, leaving trails · graph walk", emoji: "⛓", hue: 0.55 },
 };
 const CM_LABEL: Record<TriggerColorMode, string> = { fixed: "one colour", random: "random / touch", cycle: "cycle" };
 
@@ -78,6 +79,12 @@ const RULE_EXPLAIN: Record<string, { rule: string; how: string; onTouch: string;
     onTouch: "a touch flashes that region and re-triggers the sync wave outward from it.",
     rest: "a faint breath; the swarm only lights where it's stirred.",
   },
+  chains: {
+    rule: "A bright HEAD hops from a light to one of its nearest un-visited neighbours every step, tracing a chain through the mesh and leaving a glowing trail that fades behind it. Chains branch, dead-end, and respawn.",
+    how: "A graph walk on the tree's own wiring — sparks running node-to-node along the neighbour connections, like a growing network. Tune how many chains, how long, how often they branch, and how fast the trail fades below.",
+    onTouch: "a touch launches a fresh chain from that spot in the trigger colour.",
+    rest: "a handful of chains keep crawling; touches add more.",
+  },
 };
 
 export function InteractivityPanel() {
@@ -100,6 +107,8 @@ export function InteractivityPanel() {
   const [rules, setRulesUi] = useState<LifeRules>(() => getLifeRules());
   const [cap, setCapUi] = useState<CaParams>(() => getCaParams());
   const applyCap = (p: Partial<CaParams>) => { setCaParams(p); const n = getCaParams(); setCapUi(n); try { localStorage.setItem("ca.params.v1", JSON.stringify(n)); } catch { /* fine */ } };
+  const [chp, setChpUi] = useState<ChainParams>(() => getChainParams());
+  const applyChp = (p: Partial<ChainParams>) => { setChainParams(p); const n = getChainParams(); setChpUi(n); try { localStorage.setItem("ca.chains.v1", JSON.stringify(n)); } catch { /* fine */ } };
   // sync the engine with the persisted theme + life rules once on mount
   useEffect(() => {
     setCaTheme(useTwin.getState().caTheme);
@@ -108,6 +117,8 @@ export function InteractivityPanel() {
       if (raw) { const r = JSON.parse(raw) as LifeRules; setLifeRules(r); setRulesUi(getLifeRules()); }
       const rawP = localStorage.getItem("ca.params.v1");
       if (rawP) { setCaParams(JSON.parse(rawP) as CaParams); setCapUi(getCaParams()); }
+      const rawC = localStorage.getItem("ca.chains.v1");
+      if (rawC) { setChainParams(JSON.parse(rawC) as ChainParams); setChpUi(getChainParams()); }
     } catch { /* fine */ }
   }, [setCaTheme]);
   const applyRules = (p: Partial<LifeRules>) => {
@@ -319,6 +330,14 @@ export function InteractivityPanel() {
           <Row label="Firefly Sync rules">
             <ParamSlider label={`sync strength · ${cap.ffCouple.toFixed(2)}`} v={cap.ffCouple} min={0} max={0.8} step={0.02} on={(v) => applyCap({ ffCouple: v })} hint="0 = each light flashes alone (scattered); high = the whole tree pulses together" />
             <ParamSlider label={`flash rate · ${cap.ffRate.toFixed(2)}`} v={cap.ffRate} min={0.03} max={0.3} step={0.01} on={(v) => applyCap({ ffRate: v })} hint="how often the fireflies flash" />
+          </Row>
+        )}
+        {active === "chains" && (
+          <Row label="Node Chains rules">
+            <ParamSlider label={`chains · ${chp.count}`} v={chp.count} min={1} max={24} step={1} on={(v) => applyChp({ count: v })} hint="how many sparks crawl at once" />
+            <ParamSlider label={`chain length · ${chp.maxLen}`} v={chp.maxLen} min={4} max={60} step={1} on={(v) => applyChp({ maxLen: v })} hint="how far each chain travels before it retires" />
+            <ParamSlider label={`branch · ${Math.round(chp.branch * 100)}%`} v={chp.branch} min={0} max={0.5} step={0.02} on={(v) => applyChp({ branch: v })} hint="chance a spark forks a new chain each hop" />
+            <ParamSlider label={`trail fade · ${chp.fade.toFixed(2)}`} v={chp.fade} min={0.6} max={0.98} step={0.01} on={(v) => applyChp({ fade: v })} hint="how long the glowing trail lingers behind the head" />
           </Row>
         )}
         <Row label="Colour theme — the mood the field lives in">
