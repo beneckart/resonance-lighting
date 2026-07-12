@@ -30,12 +30,17 @@ ADR 0024 (annotation) / TODO:
   hat (solar-free classes charge through it). Same order: **50x RGBW top-up**
   ($247.50) -- 150 RGBW total, spares healthy at any chandelier mix. Committed
   electronics spend now ~$17.7k.
+- **Grove breakouts DONE, twice over:** 55x Electromaker 07-10 ($85.26) -- and a
+  FORGOTTEN ORDER recovered while reconciling: 70x RobotShop 2026-06-18 ($64.86),
+  shipped straight to Steve in TN. 125 total vs ~46-48 needed. Committed spend
+  ~$17.8k.
 - Ledger audit of what remains un-placed: the JST-XH harness set (UNBLOCKED by the
-  07-11 rail decision -- now the biggest outstanding order), RGBW top-up (planned),
-  Grove breakouts, USB-C ports + cabling (solar-free gate), ~40x 20 Ah cells +
+  07-11 rail decision -- now the biggest outstanding order), ~40x 20 Ah cells +
   end-cap connection hardware (sample-2 gate), solenoid strike-power residuals
   (VDC-tap Y-cables + storage caps vs battery/VS, driver control cables, mallet
-  mounting), spare #3885 speakers.
+  mounting), spare #3885 speakers. Camp-side USB-C charging gear (chargers/hubs
+  off camp power for the solar-free classes) belongs to no workstream yet -- raise
+  with Elliot.
 - Team brief refreshed to match (board counts, ~$16.9k spend donut with a
   noisemaker slice, timeline, risks).
 

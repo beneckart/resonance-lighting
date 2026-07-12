@@ -36,7 +36,9 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   now the biggest un-placed buy (Ben).
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
-- [ ] Buy Grove breakout(s) for the HEX HY2.0 connector adaptation (Ben).
+- [x] ~~Buy Grove breakout(s) for the HEX HY2.0 connector adaptation~~ -- **DONE,
+  twice over: 70x RobotShop 2026-06-18 (shipped to Steve, order recovered from
+  memory 07-12) + 55x Electromaker 2026-07-10** ($64.86 + $85.26; 125 total) (Ben).
 - [x] ~~Buy USB cabling + panel-mount USB-C ports~~ -- **ORDERED 2026-07-10, and
   bigger than planned: 150x waterproof panel-mount USB-C extension cables** ($540
   portion of an $860.34 Adafruit order) -- the rescue/charge port goes on EVERY

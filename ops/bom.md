@@ -34,6 +34,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Item | Per fixture | Source / status |
 |---|---|---|
 | SK6812 HEX | 1 | M5Stack, 90 bought (70+20; plus 20 NeoHEX fallback units) |
+| Grove/HY2.0 breakout (HEX connector adaptation) | 1 | 125 bought: 70x RobotShop 06-18 (at Steve's) + 55x Electromaker 07-10 |
 | Voltaic P126-class 2 W panel + pigtail | 1 + 1 | Voltaic, 50 panels bought |
 | VL53L5CX ToF, facing outward + protective cover | 1 + 1 | Mouser 48 + Gilisymo 60 covers bought |
 | MSA311 accel + STEMMA cable (likely) | 1 + 1 | from the 150-accel pool |
@@ -75,6 +76,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | ToF protective covers | 38-40 | 60 | +20 | ok |
 | STEMMA cables | ~150-250 uses | 250 | ok | |
 | USB-C panel-mount rescue ports | 150-152 (one per fixture) | 150 ordered 07-10 | ~0 | universal rescue/charge port; margin thin but ports are only needed on deployed units |
+| Grove/HY2.0 breakouts | ~46-48 (HEX fixtures incl. chandelier share) | 125 (70 + 55) | +77 | healthy |
 | 20 Ah LFP | 0 or ~40 | 2 samples | conditional | sample 1 VERIFIED 07-12 (19,412 mAh); sample 2 gates the ~40-cell buy |
 | MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | candidate B hardware secured |
 | Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | voltage A/B pending; strike-power + wiring residuals in to-buy |
@@ -87,12 +89,12 @@ parity with the 150 accelerometers.
 ## To-buy (summary -- live queue in ops/PROCUREMENT.md)
 
 JST-XH right-angle headers + pre-crimped harness (UNBLOCKED 07-11 -- the biggest
-un-placed order); Grove breakout(s); conditional ~40x 20 Ah LFP + end-cap
-connection hardware (sample 2 gates); solenoid strike-power + wiring residuals
-(VDC-tap Y-cables + storage caps vs battery/VS, driver control cables, mallet
-mounting); spare #3885 speakers. DONE since 07-08: 90 PowerFeathers (07-09),
-100 MOSFET drivers + 150 solenoids (07-10), 150 USB-C rescue ports + 50 RGBW
-(07-10).
+un-placed order); conditional ~40x 20 Ah LFP + end-cap connection hardware
+(sample 2 gates); solenoid strike-power + wiring residuals (VDC-tap Y-cables +
+storage caps vs battery/VS, driver control cables, mallet mounting); spare #3885
+speakers. DONE since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150
+solenoids (07-10), 150 USB-C rescue ports + 50 RGBW (07-10), 125 Grove breakouts
+(70 on 06-18 + 55 on 07-10).
 
 ## Open BOM inputs
 

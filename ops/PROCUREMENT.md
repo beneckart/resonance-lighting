@@ -16,6 +16,7 @@ LOG inference) -- correct them from receipts when convenient.
 | led-rgbw | Adafruit | 2026-06-17 | 100x 4 W RGBW warm white ($440 portion of a $690.13 order; remainder = other items, unitemized) | $440.00 | received (assumed -- confirm) |
 | led-hex | M5Stack | 2026-06-17 | 70x SK6812 HEX | $633.50 | received (assumed -- confirm) |
 | solar-panels | Voltaic Systems | 2026-06-24 | 110x P105-class 5 W + 50x P126-class 2 W ETFE | $3,521.99 | received (assumed -- confirm) |
+| grove-robotshop | RobotShop | 2026-06-18 | 70x Grove/HY2.0 breakouts (HEX connector adaptation) -- shipped to Steve (TN) | $64.86 | received (recovered from memory 2026-07-12 -- the one forgotten order found so far) |
 | solar-pigtails | Voltaic Systems | 2026-06-24 | 160x 3.5x11 mm DC pigtails | $364.79 | received (assumed -- confirm) |
 | batteries-75 | fullbattery.com | 2026-06-11 (same day the first sample qualified) | 75x 32700 LiFePO4 6 Ah | $441.70 | received |
 | sensors-cables ("order A") | Adafruit | 2026-07-07 | 150x MSA311 accel + 150x tiny/small STEMMA + 100x long/xlong STEMMA cables | $1,057.54 | placed, in transit |
@@ -27,10 +28,12 @@ LOG inference) -- correct them from receipts when convenient.
 | mosfet-drivers | Adafruit | 2026-07-10 | 100x MOSFET driver (solenoid noisemaker, candidate B) | $345.00 | placed, in transit |
 | solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
 | usbc-rgbw | Adafruit | 2026-07-10 | 150x waterproof USB-C panel-mount extension cables ($540 -- a rescue/charge port on EVERY fixture, wired to the PowerFeather USB-C) + 50x 4 W RGBW top-up ($247.50); remainder ~$73 s&h/tax | $860.34 | placed, in transit |
+| grove-electromaker | Electromaker | 2026-07-10 | 55x Grove/HY2.0 breakouts (125 total with the 06-18 RobotShop 70) | $85.26 | placed, in transit |
 
-Committed so far: **~$17,677** across the rows above (production boards now total
-68 + 90 = **158**; RGBW now 150). The $440 / $170 / $159 rows are the
-fixture-relevant portions of larger orders; the remainders are not itemized here.
+Committed so far: **~$17,827** across the rows above (production boards now total
+68 + 90 = **158**; RGBW now 150; Grove breakouts 125). The $440 / $170 / $159 rows
+are the fixture-relevant portions of larger orders; the remainders are not
+itemized here.
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -58,7 +61,7 @@ fixture-relevant portions of larger orders; the remainders are not itemized here
 |---|---|---|---|---|---|
 | ~~PowerFeather V2 batch 2~~ | ~~82~~ | fleet boards | ORDERED 2026-07-09 as **90 boards** ($3,494.24) -- see ledger | -- | residual risk = CN transit only; track receipt |
 | JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | **NOW** (~mid-July) | Medium -- the biggest un-placed order |
-| Grove breakout(s) | small | HEX (HY2.0 physical connector) adaptation | harness design | ~mid-July | Low |
+| ~~Grove breakout(s)~~ | ~~small~~ -> 125 | DONE: 70x RobotShop 06-18 (at Steve's) + 55x Electromaker 07-10 -- covers every HEX fixture at any chandelier mix | -- | -- |
 | ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
 | 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: sample 2 qualification (sample 1 verified 07-12 at 19,412 mAh; rig assembled) | decide by ~late July | Medium: lead time unverified |
 | 20 Ah end-cap connection hardware | ~40 | production battery connection (bench used alligator clips "on tape and prayer") | with the 20 Ah buy | with cells | Medium |
@@ -81,7 +84,7 @@ corroborated 2026-07-08):
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
   (JST-XH harness set -- now the biggest un-placed order; batteryspace 20 Ah +
-  end-caps; solenoid strike-power parts; Grove breakouts; spare #3885s).
+  end-caps; solenoid strike-power parts; spare #3885s).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
   puts boards ~mid-to-late July; residual risk is transit, not commitment.
 - July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
@@ -100,6 +103,7 @@ corroborated 2026-07-08):
 - 2026-06-15/20 -- travel-bench solar testing (Ben in TN); codified by the 06-29
   home runs.
 - 2026-06-17 -- **LED production buy**: 100x RGBW + 70x HEX (ADR 0022 same day).
+- 2026-06-18 -- 70x Grove breakouts (RobotShop, to Steve/TN).
 - 2026-06-24 -- **panel buy**: 110x P105 + 50x P126 + 160 pigtails (ADR 0026).
 - 2026-06-29 -- Voltaic outdoor MPP measurements; solar guard ships in firmware.
 - 2026-07-02/03/05 -- boost campaign (ADR 0029); presence bench (5 sensors);
@@ -113,7 +117,8 @@ corroborated 2026-07-08):
   150x solenoids (75x 3 V + 75x 5 V, AliExpress, $319.12); solenoid candidate-B
   first bench same day (815 strikes, no resets). Also **150x waterproof USB-C
   panel-mount rescue ports + 50x RGBW top-up** (Adafruit, $860.34) -- the USB
-  rescue/charge port goes universal, one per fixture.
+  rescue/charge port goes universal, one per fixture -- and 55x Grove breakouts
+  (Electromaker, $85.26).
 - 2026-07-11 -- RGBW feed DECIDED rail-fed (ADR 0029 amendment, instrumented A/B);
   harness buy unblocked.
 - 2026-07-12 -- container lands, Port of Oakland (resonancenetwork.org/camp);
@@ -141,6 +146,8 @@ corroborated 2026-07-08):
 | Amazon | Palowextra 32700 (REJECTED -- ADR 0025); misc bench | |
 | AliExpress | Push-pull solenoids (75x 3 V + 75x 5 V) | Noisemaker candidate B; watch transit time |
 | DFRobot | SEN0291 wattmeters, DFR0559 | Bench instrumentation |
+| RobotShop | Grove/HY2.0 breakouts (70, at Steve's) | |
+| Electromaker | Grove/HY2.0 breakouts (55) | |
 | PCBWay | NeoHEX adapter Rev A assembly quote (~$32.82/5) | Quoted 2026-05-20, never ordered |
 
 Shipping: electronics ship domestic to Ben (CA) and Steve (TN); the staging point is
