@@ -367,7 +367,10 @@ void applyMode() {
   strip.clear();
   strip.show();
   if (gMode == MODE_RGBW) {
-    strip.updateType(NEO_GRBW + NEO_KHZ800);
+    // RGBW, not GRBW: slot-tested on the production 4 W module 2026-07-11
+    // (led_sol_bench /raw) -- GRBW had R/G silently swapped in every prior
+    // studio session. MODE_RGB below is a different module and is UNVERIFIED.
+    strip.updateType(NEO_RGBW + NEO_KHZ800);
     strip.updateLength(1);
   } else if (gMode == MODE_RGB) {
     strip.updateType(NEO_GRB + NEO_KHZ800);
