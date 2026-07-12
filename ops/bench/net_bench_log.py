@@ -67,7 +67,8 @@ rx_peer = re.compile(
     r"(?: fcwhc=(\d+) fcwhd=(\d+) fcpw=(\d+) fcbw=(\d+) fcdw=(\d+) fclow=(\d+)"
     r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
     r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
-    r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?")
+    r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?"
+    r"(?: fcdim=(\d+) fclat=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -106,7 +107,7 @@ with open(out, "w") as fh:
              fcwhc, fcwhd, fcpw, fcbw, fcdw, fclow, fcmchg, fcmwait,
              fcmdraw, fcmprot,
              mppts, mpptr, mpptn, mpptv, mpptbest, mpptlast, mppt46, mppt48,
-             mppt50) = m.groups()
+             mppt50, fcdim, fclat) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -202,6 +203,9 @@ with open(out, "w") as fh:
                            mppt_p46_w=round(int(mppt46) / 100.0, 2),
                            mppt_p48_w=round(int(mppt48) / 100.0, 2),
                            mppt_p50_w=round(int(mppt50) / 100.0, 2))
+            if fcdim is not None:
+                row.update(field_load_dimmed=bool(int(fcdim)),
+                           field_protect_latched=bool(int(fclat)))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

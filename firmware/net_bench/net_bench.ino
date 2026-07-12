@@ -38,7 +38,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-06.1" // field-cycle v6: safe daylight VINDPM perturb telemetry
+#define NET_BENCH_VERSION "net-bench-2026-07-10.1" // P126 HEX field cycle: spiral RGB + corrected gauge current
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -71,6 +71,9 @@ using namespace PowerFeather;
 #endif
 #ifndef RES_PF_MAINTAIN_V
 #define RES_PF_MAINTAIN_V 4.6f
+#endif
+#ifndef NB_GAUGE_CURRENT_DIVISOR
+#define NB_GAUGE_CURRENT_DIVISOR 1.08f // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions
 #endif
 
 // ---- net-bench config (override with -D at build time) ---------------------
@@ -196,22 +199,31 @@ using namespace PowerFeather;
 #define NB_FIELD_COLD_LISTEN_MS 30000 // cold boot catch window before first sleep
 #endif
 #ifndef NB_FIELD_FULL_MV
-#define NB_FIELD_FULL_MV 3550 // LFP top knee / effectively full candidate
+#define NB_FIELD_FULL_MV 3600 // PowerFeather LFP CV target / effectively full candidate
 #endif
 #ifndef NB_FIELD_FULL_TAPER_MA
 #define NB_FIELD_FULL_TAPER_MA 120 // net battery charge current at/under this near top = full-ish
 #endif
+#ifndef NB_FIELD_DIM_MV
+#define NB_FIELD_DIM_MV 3000 // ADR 0023 standard tier: dim load at 3.00 V loaded
+#endif
+#ifndef NB_FIELD_DIM_CLEAR_MV
+#define NB_FIELD_DIM_CLEAR_MV (NB_FIELD_DIM_MV + 150) // hysteresis; bench dim latch normally clears on charge cycle
+#endif
 #ifndef NB_FIELD_LOW_MV
-#define NB_FIELD_LOW_MV NB_DRAWDOWN_SOFT_FLOOR_MV
+#define NB_FIELD_LOW_MV 2950 // ADR 0023 standard tier: LED-off/protect threshold under load
 #endif
 #ifndef NB_FIELD_CRITICAL_MV
-#define NB_FIELD_CRITICAL_MV NB_DRAWDOWN_HARD_FLOOR_MV
+#define NB_FIELD_CRITICAL_MV 2900 // ADR 0023 standard tier: sparse sleep / hard backstop under load
 #endif
 #ifndef NB_FIELD_LOW_CONFIRM_S
-#define NB_FIELD_LOW_CONFIRM_S 30 // soft-low must persist; critical still sleeps immediately
+#define NB_FIELD_LOW_CONFIRM_S 60 // ADR 0023: avoid one-sample load-sag false transitions
 #endif
 #ifndef NB_FIELD_PROTECT_RETRY_MV
-#define NB_FIELD_PROTECT_RETRY_MV (NB_FIELD_LOW_MV + 80) // recover margin before retrying a dark draw
+#define NB_FIELD_PROTECT_RETRY_MV (NB_FIELD_LOW_MV + 150) // only used when dark retry is explicitly enabled
+#endif
+#ifndef NB_FIELD_PROTECT_RETRY_DARK
+#define NB_FIELD_PROTECT_RETRY_DARK 0 // default: latch protect until clear solar/USB charge recovery
 #endif
 #ifndef NB_FIELD_DRAWDOWN_MIN_S
 #define NB_FIELD_DRAWDOWN_MIN_S NB_DRAWDOWN_MIN_RUN_S
@@ -219,11 +231,26 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_LED_LOAD
 #define NB_FIELD_LED_LOAD 0 // opt-in: use the HEX drawdown load during field-cycle draw
 #endif
+#ifndef NB_FIELD_LED_SPIRAL_RGB
+#define NB_FIELD_LED_SPIRAL_RGB 0 // LED Studio spiral + 120-degree symmetric pure-R/G/B triplet
+#endif
+#ifndef NB_FIELD_LED_FRAME_MS
+#define NB_FIELD_LED_FRAME_MS 290 // LED Studio default speed=30; ~21 s center-edge-center cycle
+#endif
+#ifndef NB_FIELD_LED_DIM_BRIGHTNESS
+#define NB_FIELD_LED_DIM_BRIGHTNESS ((NB_DRAWDOWN_BRIGHTNESS > 1) ? (NB_DRAWDOWN_BRIGHTNESS / 2) : 1)
+#endif
+#if NB_FIELD_LED_SPIRAL_RGB && NB_DRAWDOWN_PIXEL_COUNT != 37
+#error "NB_FIELD_LED_SPIRAL_RGB requires the 37-pixel M5Stack HEX geometry"
+#endif
 #ifndef NB_FIELD_SUN_SUPPLY_MV
 #define NB_FIELD_SUN_SUPPLY_MV 4000 // supply/panel voltage that counts as present
 #endif
 #ifndef NB_FIELD_SUN_CHARGE_MA
 #define NB_FIELD_SUN_CHARGE_MA 20 // input current into board that counts as useful sun/supply
+#endif
+#ifndef NB_FIELD_RECOVER_CHARGE_MA
+#define NB_FIELD_RECOVER_CHARGE_MA 20 // battery charge current needed to release protect latch
 #endif
 #ifndef NB_FIELD_DRAWDOWN_HZ
 #define NB_FIELD_DRAWDOWN_HZ 1 // production-ish always-awake radio draw cadence
@@ -244,7 +271,7 @@ using namespace PowerFeather;
 #define NB_FIELD_MPPT_HIGH_V10 50
 #endif
 #ifndef NB_FIELD_MPPT_MIN_BATT_MV
-#define NB_FIELD_MPPT_MIN_BATT_MV NB_FIELD_PROTECT_RETRY_MV
+#define NB_FIELD_MPPT_MIN_BATT_MV NB_FIELD_DIM_CLEAR_MV
 #endif
 #ifndef NB_FIELD_MPPT_TAPER_MV
 #define NB_FIELD_MPPT_TAPER_MV NB_FIELD_FULL_MV
@@ -403,10 +430,13 @@ RTC_DATA_ATTR uint16_t rtcFieldPeakPanelWx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldPeakChargeWx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldPeakDrawWx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldLowS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDimS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldChargeS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldWaitS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldDrawS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldProtectS = 0;
+RTC_DATA_ATTR uint8_t rtcFieldLoadDimmed = 0;
+RTC_DATA_ATTR uint8_t rtcFieldProtectLatched = 0;
 RTC_DATA_ATTR uint8_t rtcFieldMpptStatus = MPPT_STATUS_DISABLED;
 RTC_DATA_ATTR uint8_t rtcFieldMpptReason = MPPT_REASON_DISABLED;
 RTC_DATA_ATTR uint8_t rtcFieldMpptRuns = 0;
@@ -418,6 +448,7 @@ RTC_DATA_ATTR uint16_t rtcFieldMpptP48Wx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMpptP50Wx100 = 0;
 uint32_t fieldLastIntegrateMs = 0;
 uint32_t fieldLowSinceMs = 0;
+uint32_t fieldDimSinceMs = 0;
 
 uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
@@ -426,7 +457,7 @@ uint8_t gRateHz = IS_MASTER ? NB_FRAME_HZ : NB_HB_HZ; // runtime-settable (maste
 // cached battery + supply (panel) telemetry (refreshed ~1 Hz; the ESP-NOW callback
 // must not touch the SDK). Supply = the solar/USB input side, the missing half for
 // battery/panel sizing -- supply_v x supply_ma = panel harvest; battery_ma = net.
-float cbV = 0, cbMa = 0;
+float cbV = 0, cbMa = 0, cbMaRaw = 0;
 int cbSoc = -1;
 float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
@@ -473,6 +504,12 @@ Adafruit_NeoPixel drawdownPixels(NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
 bool gDrawdownPixelsBegun = false;
 bool gDrawdownActive = false;
 bool gFieldLedLoadOn = false;
+bool gFieldLedLoadDimmedApplied = false;
+bool gFieldSpiralGeometryReady = false;
+uint8_t gFieldSpiralOrder[NB_DRAWDOWN_PIXEL_COUNT];
+float gFieldPixelX[NB_DRAWDOWN_PIXEL_COUNT], gFieldPixelY[NB_DRAWDOWN_PIXEL_COUNT];
+uint16_t gFieldSpiralPosition = 0;
+uint32_t gFieldSpiralLastFrameMs = 0;
 uint16_t gDrawdownBudgetMah = NB_DRAWDOWN_DEFAULT_MAH;
 float gDrawdownMah = 0.0f;
 uint32_t gDrawdownStartMs = 0;
@@ -624,6 +661,9 @@ struct __attribute__((packed)) NbHeartbeat {
   uint16_t mppt_p46_w_x100;
   uint16_t mppt_p48_w_x100;
   uint16_t mppt_p50_w_x100;
+  // --- APPEND-ONLY tail 12 (field-cycle low-voltage latches).
+  uint8_t field_load_dimmed;
+  uint8_t field_protect_latched;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -710,6 +750,8 @@ struct NbPeerStat {
   bool has_mppt;
   uint8_t mppt_status, mppt_reason, mppt_runs, mppt_active_v10, mppt_best_v10, mppt_last_v10;
   uint16_t mppt_p46_w_x100, mppt_p48_w_x100, mppt_p50_w_x100;
+  bool has_field_latches;
+  uint8_t field_load_dimmed, field_protect_latched;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
@@ -997,7 +1039,10 @@ void readBattery() {
   if (!pfReady) return;
   float v;
   if (Board.getBatteryVoltage(v) == Result::Ok) cbV = v;
-  if (Board.getBatteryCurrent(v) == Result::Ok) cbMa = v;
+  if (Board.getBatteryCurrent(v) == Result::Ok) {
+    cbMaRaw = v;
+    cbMa = v / NB_GAUGE_CURRENT_DIVISOR;
+  }
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
   if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
@@ -1067,6 +1112,12 @@ String telemetryJson() {
   j += String(rtcFieldDrawS);
   j += ",\"field_protect_s\":";
   j += String(rtcFieldProtectS);
+  j += ",\"field_dim_s\":";
+  j += String(rtcFieldDimS);
+  j += ",\"field_load_dimmed\":";
+  j += rtcFieldLoadDimmed ? "true" : "false";
+  j += ",\"field_protect_latched\":";
+  j += rtcFieldProtectLatched ? "true" : "false";
   j += ",\"mppt_status\":";
   j += String(rtcFieldMpptStatus);
   j += ",\"mppt_reason\":";
@@ -1090,7 +1141,13 @@ String telemetryJson() {
     char b[24];
     float v;
     if (Board.getBatteryVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"battery_v\":" + String(b); }
-    if (Board.getBatteryCurrent(v) == Result::Ok) { snprintf(b, sizeof(b), "%.1f", v); j += ",\"battery_ma\":" + String(b); }
+    if (Board.getBatteryCurrent(v) == Result::Ok) {
+      snprintf(b, sizeof(b), "%.1f", v / NB_GAUGE_CURRENT_DIVISOR);
+      j += ",\"battery_ma\":" + String(b);
+      snprintf(b, sizeof(b), "%.1f", v);
+      j += ",\"battery_ma_raw\":" + String(b);
+      j += ",\"battery_current_divisor\":" + String(NB_GAUGE_CURRENT_DIVISOR, 2);
+    }
     uint8_t s;
     if (Board.getBatteryCharge(s) == Result::Ok) j += ",\"soc_pct\":" + String(s);
     if (Board.getSupplyVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"supply_v\":" + String(b); }
@@ -1363,6 +1420,8 @@ void sendHeartbeat(uint8_t caState) {
   hb.mppt_p46_w_x100 = rtcFieldMpptP46Wx100;
   hb.mppt_p48_w_x100 = rtcFieldMpptP48Wx100;
   hb.mppt_p50_w_x100 = rtcFieldMpptP50Wx100;
+  hb.field_load_dimmed = rtcFieldLoadDimmed;
+  hb.field_protect_latched = rtcFieldProtectLatched;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -1455,16 +1514,108 @@ void drawdownPixelsOff() {
   pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
   digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
 }
-void drawdownPixelsLoadOn() {
+void drawdownPixelsLoadOn(uint8_t brightness = NB_DRAWDOWN_BRIGHTNESS) {
   if (pfReady) Board.enable3V3(true);
   delay(20);
   drawdownPixelsBegin();
-  drawdownPixels.setBrightness(NB_DRAWDOWN_BRIGHTNESS);
+  drawdownPixels.setBrightness(brightness);
   uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
   uint16_t lit = min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT);
   for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
     drawdownPixels.setPixelColor(i, i < lit ? c : 0);
   drawdownPixels.show();
+}
+
+// Exact geometry/path model used by led_studio's Spiral + Rotate split. The
+// moving anchor walks the center-to-outer ring order and ping-pongs back inward;
+// its green and blue partners are the nearest pixels at +120/+240 degrees.
+void fieldSpiralBuildGeometry() {
+  if (gFieldSpiralGeometryReady) return;
+  static const uint8_t rowCount[7] = {4, 5, 6, 7, 6, 5, 4};
+  uint8_t ringOf[NB_DRAWDOWN_PIXEL_COUNT];
+  float angle[NB_DRAWDOWN_PIXEL_COUNT];
+  uint8_t idx = 0;
+  for (uint8_t row = 0; row < 7; row++) {
+    uint8_t count = rowCount[row];
+    float y = (3.0f - (float)row) * 0.8660254f;
+    for (uint8_t col = 0; col < count; col++) {
+      float x = (float)col - (float)(count - 1) / 2.0f;
+      gFieldPixelX[idx] = x;
+      gFieldPixelY[idx] = y;
+      ringOf[idx] = (uint8_t)min(3L, lroundf(sqrtf(x * x + y * y)));
+      angle[idx] = atan2f(y, x);
+      gFieldSpiralOrder[idx] = idx;
+      idx++;
+    }
+  }
+  for (uint8_t i = 1; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    uint8_t key = gFieldSpiralOrder[i];
+    int8_t k = i - 1;
+    while (k >= 0) {
+      uint8_t a = gFieldSpiralOrder[k];
+      bool greater = (ringOf[a] > ringOf[key]) ||
+                     (ringOf[a] == ringOf[key] && angle[a] > angle[key]);
+      if (!greater) break;
+      gFieldSpiralOrder[k + 1] = gFieldSpiralOrder[k];
+      k--;
+    }
+    gFieldSpiralOrder[k + 1] = key;
+  }
+  gFieldSpiralGeometryReady = true;
+}
+
+uint8_t fieldSpiralNearestPixel(float x, float y) {
+  uint8_t best = 0;
+  float bestDistance = 1e9f;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    float dx = gFieldPixelX[i] - x, dy = gFieldPixelY[i] - y;
+    float distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+uint8_t fieldSpiralPathIndex(uint16_t step) {
+  const uint16_t n = NB_DRAWDOWN_PIXEL_COUNT;
+  const uint16_t period = 2 * (n - 1);
+  uint16_t m = step % period;
+  return (uint8_t)(m < n ? m : period - m);
+}
+
+void fieldSpiralRender(uint8_t brightness) {
+  fieldSpiralBuildGeometry();
+  drawdownPixelsBegin();
+  drawdownPixels.setBrightness(brightness);
+  drawdownPixels.clear();
+  uint8_t anchor = gFieldSpiralOrder[fieldSpiralPathIndex(gFieldSpiralPosition)];
+  float x = gFieldPixelX[anchor], y = gFieldPixelY[anchor];
+  float radius = sqrtf(x * x + y * y), theta = atan2f(y, x);
+  const float thirdTurn = 2.0943951f;
+  uint8_t pixels[3] = {
+      anchor,
+      fieldSpiralNearestPixel(radius * cosf(theta + thirdTurn),
+                              radius * sinf(theta + thirdTurn)),
+      fieldSpiralNearestPixel(radius * cosf(theta + 2 * thirdTurn),
+                              radius * sinf(theta + 2 * thirdTurn))};
+  uint8_t red[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t green[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t blue[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  red[pixels[0]] = 255;
+  green[pixels[1]] = 255;
+  blue[pixels[2]] = 255;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
+    drawdownPixels.setPixelColor(i, red[i], green[i], blue[i]);
+  drawdownPixels.show();
+}
+
+void fieldSpiralLoadOn(uint8_t brightness) {
+  if (pfReady) Board.enable3V3(true);
+  delay(20);
+  fieldSpiralRender(brightness);
+  gFieldSpiralLastFrameMs = millis();
 }
 void drawdownCancel(const char *why) {
   if (!gDrawdownActive) return;
@@ -1693,15 +1844,34 @@ void fieldCycleUpdatePowerStats(uint32_t seconds) {
     if (wx100 > rtcFieldPeakDrawWx100) rtcFieldPeakDrawWx100 = wx100;
   }
 }
+uint8_t fieldCycleLoadBrightness() {
+  unsigned long brightness = rtcFieldLoadDimmed ? NB_FIELD_LED_DIM_BRIGHTNESS : NB_DRAWDOWN_BRIGHTNESS;
+  return (uint8_t)min(255UL, brightness);
+}
 void fieldCycleLedLoadOn() {
 #if NB_FIELD_LED_LOAD
-  if (gFieldLedLoadOn) return;
-  drawdownPixelsLoadOn();
+  bool dimmed = rtcFieldLoadDimmed != 0;
+  if (gFieldLedLoadOn && gFieldLedLoadDimmedApplied == dimmed) return;
+  uint8_t brightness = fieldCycleLoadBrightness();
+#if NB_FIELD_LED_SPIRAL_RGB
+  fieldSpiralLoadOn(brightness);
+#else
+  drawdownPixelsLoadOn(brightness);
+#endif
   gFieldLedLoadOn = true;
-  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u)\n",
+  gFieldLedLoadDimmedApplied = dimmed;
+  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u dim=%d spiral_rgb=%d)\n",
                 (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
                 NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
-                NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS);
+                NB_DRAWDOWN_B, brightness, dimmed ? 1 : 0, NB_FIELD_LED_SPIRAL_RGB);
+#endif
+}
+void fieldCycleLedLoadTick() {
+#if NB_FIELD_LED_LOAD && NB_FIELD_LED_SPIRAL_RGB
+  if (!gFieldLedLoadOn || millis() - gFieldSpiralLastFrameMs < NB_FIELD_LED_FRAME_MS) return;
+  gFieldSpiralPosition++;
+  fieldSpiralRender(fieldCycleLoadBrightness());
+  gFieldSpiralLastFrameMs = millis();
 #endif
 }
 void fieldCycleLedLoadOff() {
@@ -1709,20 +1879,29 @@ void fieldCycleLedLoadOff() {
   if (!gFieldLedLoadOn) return;
   drawdownPixelsOff();
   gFieldLedLoadOn = false;
+  gFieldLedLoadDimmedApplied = false;
+  gFieldSpiralPosition = 0;
+  gFieldSpiralLastFrameMs = 0;
   Serial.println("field-cycle LED load OFF");
 #endif
 }
-bool fieldCycleSoftLowConfirmed(bool low) {
-  if (!low || rtcFieldPhase != FC_DRAWDOWN ||
+bool fieldCycleThresholdConfirmed(bool active, uint32_t *sinceMs, uint16_t *elapsedS) {
+  if (!active || rtcFieldPhase != FC_DRAWDOWN ||
       rtcFieldPhaseElapsedS < NB_FIELD_DRAWDOWN_MIN_S) {
-    fieldLowSinceMs = 0;
-    rtcFieldLowS = 0;
+    *sinceMs = 0;
+    *elapsedS = 0;
     return false;
   }
   uint32_t now = millis();
-  if (fieldLowSinceMs == 0) fieldLowSinceMs = now;
-  rtcFieldLowS = (uint16_t)min(65535UL, (unsigned long)((now - fieldLowSinceMs) / 1000UL));
-  return rtcFieldLowS >= NB_FIELD_LOW_CONFIRM_S;
+  if (*sinceMs == 0) *sinceMs = now;
+  *elapsedS = (uint16_t)min(65535UL, (unsigned long)((now - *sinceMs) / 1000UL));
+  return *elapsedS >= NB_FIELD_LOW_CONFIRM_S;
+}
+bool fieldCycleDimConfirmed(bool dim) {
+  return fieldCycleThresholdConfirmed(dim, &fieldDimSinceMs, &rtcFieldDimS);
+}
+bool fieldCycleSoftLowConfirmed(bool low) {
+  return fieldCycleThresholdConfirmed(low, &fieldLowSinceMs, &rtcFieldLowS);
 }
 void fieldCycleMarkSample() {
   if (cbV < 0.5f) return;
@@ -1771,10 +1950,13 @@ void fieldCycleResetCounters() {
   rtcFieldPeakChargeWx100 = 0;
   rtcFieldPeakDrawWx100 = 0;
   rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
   rtcFieldChargeS = 0;
   rtcFieldWaitS = 0;
   rtcFieldDrawS = 0;
   rtcFieldProtectS = 0;
+  rtcFieldLoadDimmed = 0;
+  rtcFieldProtectLatched = 0;
   rtcFieldMpptStatus = NB_FIELD_MPPT ? MPPT_STATUS_SKIPPED : MPPT_STATUS_DISABLED;
   rtcFieldMpptReason = NB_FIELD_MPPT ? MPPT_REASON_NONE : MPPT_REASON_DISABLED;
   rtcFieldMpptRuns = 0;
@@ -1785,6 +1967,7 @@ void fieldCycleResetCounters() {
   rtcFieldMpptP48Wx100 = 0;
   rtcFieldMpptP50Wx100 = 0;
   fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
   fieldCycleMarkSample();
 }
 void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
@@ -1797,8 +1980,11 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
   rtcFieldReason = reason;
   rtcFieldPhaseElapsedS = 0;
   fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
   rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
   fieldLastIntegrateMs = millis();
+  if (phase == FC_PROTECT) rtcFieldProtectLatched = 1;
 #if NB_FIELD_MPPT
   if (phase != FC_CHARGE) fieldMpptClampDefault(MPPT_REASON_PHASE);
 #endif
@@ -1813,12 +1999,25 @@ void fieldCycleStartNewCycle(uint8_t reason) {
   fieldCycleSetPhase(FC_CHARGE, reason);
 }
 bool fieldCycleSupplyPresent() {
-  return csGood || csMa >= (float)NB_FIELD_SUN_CHARGE_MA;
+  bool voltagePresent = csV > 0.5f && (int)(csV * 1000.0f + 0.5f) >= NB_FIELD_SUN_SUPPLY_MV;
+  bool usefulInput = csMa >= (float)NB_FIELD_SUN_CHARGE_MA || cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
+  return voltagePresent && usefulInput;
+}
+bool fieldCycleRecoverySupplyPresent() {
+  return fieldCycleSupplyPresent() && cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
 }
 bool fieldCycleFullEnough() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
   return fieldCycleSupplyPresent() && mv >= NB_FIELD_FULL_MV &&
          cbMa >= 0.0f && cbMa <= (float)NB_FIELD_FULL_TAPER_MA;
+}
+bool fieldCycleDim() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv <= NB_FIELD_DIM_MV;
+}
+bool fieldCycleDimClear() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_DIM_CLEAR_MV;
 }
 bool fieldCycleLow() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
@@ -1864,11 +2063,15 @@ void fieldCycleInit() {
     fieldCycleResetCounters();
   }
   bool supply = fieldCycleSupplyPresent();
-  if (supply) {
-    if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_PROTECT)
+  bool recoverySupply = fieldCycleRecoverySupplyPresent();
+  if (rtcFieldPhase == FC_PROTECT) {
+    if (recoverySupply) fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+#if NB_FIELD_PROTECT_RETRY_DARK
+    else if (fieldCycleRecoveredForRetry()) fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
+#endif
+  } else if (supply) {
+    if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)
       fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
-  } else if (rtcFieldPhase == FC_PROTECT && fieldCycleRecoveredForRetry()) {
-    fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
   } else if (fieldCycleLow()) {
     fieldCycleSetPhase(FC_PROTECT, fieldCycleCritical() ? FC_REASON_CRITICAL : FC_REASON_LOW);
   } else if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK) {
@@ -1883,11 +2086,16 @@ void fieldCycleTick() {
   readBattery();
   fieldCycleIntegrateActive();
   bool supply = fieldCycleSupplyPresent();
+  bool recoverySupply = fieldCycleRecoverySupplyPresent();
+  bool dim = fieldCycleDim();
   bool critical = fieldCycleCritical();
   bool low = fieldCycleLow();
+  bool dimConfirmed = fieldCycleDimConfirmed(dim);
   bool lowConfirmed = fieldCycleSoftLowConfirmed(low);
 
-  if (supply && (rtcFieldPhase == FC_PROTECT || rtcFieldPhase == FC_DRAWDOWN)) {
+  if (rtcFieldPhase == FC_PROTECT && recoverySupply) {
+    fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+  } else if (supply && rtcFieldPhase == FC_DRAWDOWN) {
     fieldCycleStartNewCycle(FC_REASON_SUNRISE);
   } else if (supply && (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)) {
     fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
@@ -1926,6 +2134,7 @@ void fieldCycleTick() {
 
   case FC_DRAWDOWN:
     fieldCycleLedLoadOn();
+    fieldCycleLedLoadTick();
     if (supply) {
       fieldCycleStartNewCycle(FC_REASON_SUNRISE);
       break;
@@ -1933,18 +2142,26 @@ void fieldCycleTick() {
     if (critical || lowConfirmed) {
       fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       fieldCycleSleep(NB_FIELD_PROTECT_SLEEP_S, "field-protect", rtcFieldReason, false);
+    } else if (dimConfirmed && !rtcFieldLoadDimmed) {
+      rtcFieldLoadDimmed = 1;
+      fieldCycleLedLoadOn();
+      Serial.printf("field-cycle dim latch: bv=%.3f <= %.3f for %us, brightness=%u\n",
+                    cbV, NB_FIELD_DIM_MV / 1000.0f, (unsigned)rtcFieldDimS,
+                    (unsigned)fieldCycleLoadBrightness());
     }
     break;
 
   case FC_PROTECT:
-    if (supply) {
+    if (recoverySupply) {
       fieldCycleStartNewCycle(FC_REASON_SUPPLY);
       break;
     }
+#if NB_FIELD_PROTECT_RETRY_DARK
     if (fieldCycleRecoveredForRetry()) {
       fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
     }
+#endif
     if (!fieldCycleInWakeWindow())
       fieldCycleSleep(NB_FIELD_PROTECT_SLEEP_S, "field-protect", rtcFieldReason, false);
     break;
@@ -2159,6 +2376,10 @@ void bridgeStats() {
                     p->mppt_active_v10, p->mppt_best_v10, p->mppt_last_v10,
                     p->mppt_p46_w_x100, p->mppt_p48_w_x100, p->mppt_p50_w_x100);
     }
+    if (p->has_field_latches && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " fcdim=%u fclat=%u",
+                    p->field_load_dimmed, p->field_protect_latched);
+    }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
   }
@@ -2343,6 +2564,13 @@ void processRx() {
           p->mppt_p50_w_x100 = hb->mppt_p50_w_x100;
         } else {
           p->has_mppt = false;
+        }
+        if (NB_HAS_HB_FIELD(it.len, field_protect_latched)) { // field-cycle latch tail 12
+          p->has_field_latches = true;
+          p->field_load_dimmed = hb->field_load_dimmed;
+          p->field_protect_latched = hb->field_protect_latched;
+        } else {
+          p->has_field_latches = false;
         }
       }
     } else if (h->type == NB_ENTER_MAINT) {
@@ -2900,9 +3128,10 @@ void setup() {
                 NB_SLEEP_S, NB_WAKE_LISTEN_MS);
 #endif
 #ifdef NB_FIELD_CYCLE
-  Serial.printf("mode: FIELD-CYCLE (charge sleep %ds, wait sleep %ds, protect sleep %ds, low/hard %.3f/%.3fV)\n",
+  Serial.printf("mode: FIELD-CYCLE (charge sleep %ds, wait sleep %ds, protect sleep %ds, dim/low/hard %.3f/%.3f/%.3fV, latch=%d)\n",
                 NB_FIELD_CHARGE_SLEEP_S, NB_FIELD_WAIT_SLEEP_S, NB_FIELD_PROTECT_SLEEP_S,
-                NB_FIELD_LOW_MV / 1000.0f, NB_FIELD_CRITICAL_MV / 1000.0f);
+                NB_FIELD_DIM_MV / 1000.0f, NB_FIELD_LOW_MV / 1000.0f,
+                NB_FIELD_CRITICAL_MV / 1000.0f, NB_FIELD_PROTECT_RETRY_DARK ? 0 : 1);
 #if NB_FIELD_MPPT
   Serial.printf("mode: FIELD-MPPT perturb %u/%u/%u x0.1V, default=%u x0.1V, hold_best=%d\n",
                 NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_MID_V10, NB_FIELD_MPPT_HIGH_V10,
