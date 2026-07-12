@@ -34,3 +34,6 @@ Thumbs.db
 *.gerber/
 *.zip
 firmware/*/build/
+
+# LibreOffice lock files
+.~lock.*#
