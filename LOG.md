@@ -23,8 +23,13 @@ ADR 0024 (annotation) / TODO:
   Residual risk is CN transit only (chase tracking by ~07-16).
 - **Noisemaker candidate-B fleet buys (2026-07-10):** 100x Adafruit MOSFET drivers
   ($345; 110 total with 10 from a prior ~$46 order) + 150x AliExpress push-pull
-  solenoids, 75x 3 V + 75x 5 V for the voltage A/B ($319.12). Committed electronics
-  spend now ~$16.8k.
+  solenoids, 75x 3 V + 75x 5 V for the voltage A/B ($319.12).
+- **USB-C rescue port goes UNIVERSAL (2026-07-10, $860.34 Adafruit order):** 150x
+  waterproof panel-mount USB-C extension cables ($540) -- one per fixture, wired to
+  the PowerFeather USB-C, so any lantern can be rescued/charged without opening the
+  hat (solar-free classes charge through it). Same order: **50x RGBW top-up**
+  ($247.50) -- 150 RGBW total, spares healthy at any chandelier mix. Committed
+  electronics spend now ~$17.7k.
 - Ledger audit of what remains un-placed: the JST-XH harness set (UNBLOCKED by the
   07-11 rail decision -- now the biggest outstanding order), RGBW top-up (planned),
   Grove breakouts, USB-C ports + cabling (solar-free gate), ~40x 20 Ah cells +

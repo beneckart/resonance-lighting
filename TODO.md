@@ -37,8 +37,14 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
 - [ ] Buy Grove breakout(s) for the HEX HY2.0 connector adaptation (Ben).
-- [ ] Buy USB cabling + panel-mount female USB-C ports (~40) for the solar-free classes -- gated on the uplight power decision (Ben).
-- [ ] Order the RGBW top-up (**planned** -- they're cheap): sized by the chandelier mix + spares appetite, likely 20+ units (Ben).
+- [x] ~~Buy USB cabling + panel-mount USB-C ports~~ -- **ORDERED 2026-07-10, and
+  bigger than planned: 150x waterproof panel-mount USB-C extension cables** ($540
+  portion of an $860.34 Adafruit order) -- the rescue/charge port goes on EVERY
+  fixture, not just solar-free classes (Ben).
+- [x] ~~Order the RGBW top-up~~ -- **DONE 2026-07-10: 50 more** ($247.50, same
+  order) -- 150 RGBW total, spares healthy at any chandelier mix (Ben).
+- [ ] Hat design: gasketed USB-C port cutout on ALL four hat variants (part on
+  hand once the 07-10 order lands) (Steve).
 - [ ] Source ~100 JST 2-pin Y-cables (~$0.50 each found; verify quantity availability) -- CONDITIONAL on the RGBW VBAT-feed decision (Ben).
 - [ ] Commit `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` to the repo, or re-point the three references to its actual home (Ben/Steve).
 

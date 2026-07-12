@@ -25,7 +25,9 @@ fungible and fully wireless, so placement is free and the split can shift on-sit
 | Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely solar-free, USB-charged | none |
 
 Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
-behavior; solar-free variants add a gasketed panel-mount USB-C charge/flash port.
+behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
+to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
+without opening the hat; the solar-free classes also charge through it.
 Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
 and some may stay unpopulated. Spares are thin (~8 boards beyond the 150 buy) -- see
 the ROADMAP risk register and `ops/bom.md` spares math.

@@ -26,10 +26,11 @@ LOG inference) -- correct them from receipts when convenient.
 | pf-batch-2 | Elecrow | 2026-07-09 | 90x PowerFeather V2 ($30/board + s&h + bank fee + tariff) | $3,494.24 | placed, in transit (CN; grew from the planned 82) |
 | mosfet-drivers | Adafruit | 2026-07-10 | 100x MOSFET driver (solenoid noisemaker, candidate B) | $345.00 | placed, in transit |
 | solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
+| usbc-rgbw | Adafruit | 2026-07-10 | 150x waterproof USB-C panel-mount extension cables ($540 -- a rescue/charge port on EVERY fixture, wired to the PowerFeather USB-C) + 50x 4 W RGBW top-up ($247.50); remainder ~$73 s&h/tax | $860.34 | placed, in transit |
 
-Committed so far: **~$16,817** across the rows above (production boards now total
-68 + 90 = **158**). The $440 / $170 / $159 rows are the fixture-relevant portions
-of larger orders; the remainders are not itemized here.
+Committed so far: **~$17,677** across the rows above (production boards now total
+68 + 90 = **158**; RGBW now 150). The $440 / $170 / $159 rows are the
+fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -58,12 +59,12 @@ of larger orders; the remainders are not itemized here.
 | ~~PowerFeather V2 batch 2~~ | ~~82~~ | fleet boards | ORDERED 2026-07-09 as **90 boards** ($3,494.24) -- see ledger | -- | residual risk = CN transit only; track receipt |
 | JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | **NOW** (~mid-July) | Medium -- the biggest un-placed order |
 | Grove breakout(s) | small | HEX (HY2.0 physical connector) adaptation | harness design | ~mid-July | Low |
-| USB cabling + panel-mount female USB-C ports | ~40 | uplight/chandelier charge+flash port | solar-free decision (20 Ah sample 1 PASSED 07-12; sample 2 next) | ~late July | Medium |
+| ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
 | 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: sample 2 qualification (sample 1 verified 07-12 at 19,412 mAh; rig assembled) | decide by ~late July | Medium: lead time unverified |
 | 20 Ah end-cap connection hardware | ~40 | production battery connection (bench used alligator clips "on tape and prayer") | with the 20 Ah buy | with cells | Medium |
 | Noisemaker strike-power + wiring residuals | subset TBD | solenoid strike supply (VDC-tap Y-cables + storage caps vs battery/VS pin), driver control cables, mallet mounting | strike-power decision (VDC-tap sweep in progress); drivers + solenoids ALREADY ORDERED 07-10 | ~late July | Low/Medium |
 | Spare STEMMA speakers #3885 | 2+ | candidate-A crowd test (bench unit's trim pot died) | none | soon | Low |
-| RGBW top-up (PLANNED -- "definitely buy more, they're cheap") | 20+ | chandelier mix + healthy spares | sizing only (chandelier HEX/RGBW split) | ~mid-late July | Low |
+| ~~RGBW top-up~~ | ~~20+~~ -> 50 | ORDERED 2026-07-10 ($247.50 portion of usbc-rgbw) -- 150 RGBW total, spares healthy at any chandelier mix | -- | -- |
 | ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean). NOTE: XH 2-pin Y-cables may return as the solenoid VDC strike tap -- see the strike-power row | -- | -- |
 
 ## Lead-time picture (backward from the Aug 21 container load)
@@ -80,7 +81,7 @@ corroborated 2026-07-08):
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
   (JST-XH harness set -- now the biggest un-placed order; batteryspace 20 Ah +
-  end-caps; USB-C ports; RGBW top-up; solenoid strike-power parts).
+  end-caps; solenoid strike-power parts; Grove breakouts; spare #3885s).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
   puts boards ~mid-to-late July; residual risk is transit, not commitment.
 - July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
@@ -110,7 +111,9 @@ corroborated 2026-07-08):
   **90-board Elecrow batch-2 ordered** ($3,494.24 -- grew from the planned 82).
 - 2026-07-10 -- **noisemaker fleet buys**: 100x MOSFET drivers (Adafruit, $345) +
   150x solenoids (75x 3 V + 75x 5 V, AliExpress, $319.12); solenoid candidate-B
-  first bench same day (815 strikes, no resets).
+  first bench same day (815 strikes, no resets). Also **150x waterproof USB-C
+  panel-mount rescue ports + 50x RGBW top-up** (Adafruit, $860.34) -- the USB
+  rescue/charge port goes universal, one per fixture.
 - 2026-07-11 -- RGBW feed DECIDED rail-fed (ADR 0029 amendment, instrumented A/B);
   harness buy unblocked.
 - 2026-07-12 -- container lands, Port of Oakland (resonancenetwork.org/camp);

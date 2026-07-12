@@ -13,6 +13,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
 | Battery lead / retention | 1 | to-buy (JST-XH pre-crimped) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). |
 | LED harness | 1 | to-buy (JST-XH right-angle set) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11, A/B lux): one harness + one pinout for both LED roles; order unblocked. |
+| Waterproof USB-C panel-mount rescue port | 1 | Adafruit, 150 bought 07-10 | Extension cable from the PowerFeather USB-C to a gasketed panel-mount port on EVERY hat -- USB rescue/charging without opening the enclosure; solar-free classes charge through it. |
 | Hat enclosure + fasteners | 1 | Steve (print/MJF); design in progress | Four variants: downlight hat, perimeter hat, uplight "boot", chandelier hat. |
 | Firmware | one image | this repo | Runtime/NVS config only; no per-unit builds (ADR 0009). |
 
@@ -43,8 +44,8 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Item | Per fixture | Source / status |
 |---|---|---|
 | 4 W RGBW warm white | 1 | from the 100-RGBW pool |
-| Power source | 1 | OPEN (ADRs 0025/0026): off-light P105 panel vs 20 Ah LFP in-cylinder (batteryspace #6832, bench-gated) vs budgeted 6 Ah |
-| Gasketed panel-mount USB-C port + USB cabling | 1 | to-buy (if solar-free wins) |
+| Power source | 1 | OPEN (ADRs 0025/0026): off-light P105 panel vs 20 Ah LFP in-cylinder (batteryspace #6832; sample 1 verified 07-12, sample 2 gates) vs budgeted 6 Ah |
+| Gasketed panel-mount USB-C port | 1 | from the 150-port pool (bought 07-10; now a shared-core item) |
 | Base "boot" enclosure | 1 | Steve; battery may fill the bamboo cylinder, LED near the lit end |
 | Sensors | none (tentative) | |
 
@@ -63,7 +64,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 |---|---|---|---|---|
 | PowerFeather V2 | 150-152 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +6..+8 production | healthy -- spares risk RESOLVED by the 90-board order |
 | 32700 6 Ah | 150-152 (drops to ~112 if 20 Ah takes uplights+chandelier) | 175 | +23..+63 | healthy |
-| 4 W RGBW | 96 + chandelier share (up to ~104) | 100 | -4..+4 today | top-up PLANNED (cheap; 20+ units); chandelier mix sizes it |
+| 4 W RGBW | 96 + chandelier share (up to ~104) | 150 (100 + 50 ordered 07-10) | +46..+54 | healthy -- top-up DONE |
 | SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
 | P105 5 W panel | 72 (+24 if uplights go solar) | 110 | +14..+38 | healthy |
 | P126 2 W panel | 38-40 | 50 | +10..+12 | ok |
@@ -73,6 +74,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | VL53L5CX | 38-40 | 48 | +8..+10 | ok |
 | ToF protective covers | 38-40 | 60 | +20 | ok |
 | STEMMA cables | ~150-250 uses | 250 | ok | |
+| USB-C panel-mount rescue ports | 150-152 (one per fixture) | 150 ordered 07-10 | ~0 | universal rescue/charge port; margin thin but ports are only needed on deployed units |
 | 20 Ah LFP | 0 or ~40 | 2 samples | conditional | sample 1 VERIFIED 07-12 (19,412 mAh); sample 2 gates the ~40-cell buy |
 | MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | candidate B hardware secured |
 | Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | voltage A/B pending; strike-power + wiring residuals in to-buy |
@@ -85,20 +87,21 @@ parity with the 150 accelerometers.
 ## To-buy (summary -- live queue in ops/PROCUREMENT.md)
 
 JST-XH right-angle headers + pre-crimped harness (UNBLOCKED 07-11 -- the biggest
-un-placed order); Grove breakout(s); USB cabling + panel-mount USB-C ports;
-conditional ~40x 20 Ah LFP + end-cap connection hardware (sample 2 gates); solenoid
-strike-power + wiring residuals (VDC-tap Y-cables + storage caps vs battery/VS,
-driver control cables, mallet mounting); spare #3885 speakers; planned RGBW top-up
-(20+). DONE since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150
-solenoids (07-10).
+un-placed order); Grove breakout(s); conditional ~40x 20 Ah LFP + end-cap
+connection hardware (sample 2 gates); solenoid strike-power + wiring residuals
+(VDC-tap Y-cables + storage caps vs battery/VS, driver control cables, mallet
+mounting); spare #3885 speakers. DONE since 07-08: 90 PowerFeathers (07-09),
+100 MOSFET drivers + 150 solenoids (07-10), 150 USB-C rescue ports + 50 RGBW
+(07-10).
 
 ## Open BOM inputs
 
 - 20 Ah vs 6 Ah vs off-light-panel for uplights/chandelier (sample 1 verified
   07-12; sample 2 qualification + the formal solar-free call remain).
-- Chandelier HEX/RGBW mix (drives the RGBW top-up sizing).
+- Chandelier HEX/RGBW mix (RGBW spares now cover any split).
 - Sensor allocation confirmation per class (ADR 0027 marks it tentative).
-- USB-C panel-mount part selection + gasket approach.
+- USB-C port gasket/cutout approach per hat variant (part selected + bought 07-10;
+  mechanical integration is Steve's).
 - ~~RGBW feed decision~~ -- DECIDED rail-fed 2026-07-11 (ADR 0029 amendment); one
   harness + one pinout for both LED roles; the rail is the fail-safe kill.
 - Harness/connector part numbers (JST-XH family).

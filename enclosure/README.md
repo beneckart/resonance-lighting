@@ -61,5 +61,8 @@ decision lands (ADRs 0025/0026).
 - Set screw count and placement (currently planned 3 at 120 deg , may revise based on prototype fit).
 - Uplight boot: battery retention in-cylinder, USB-C port gasketing, LED mount at
   the lit end.
+- USB-C rescue port is now UNIVERSAL (150 panel-mount extension cables bought
+  2026-07-10): every hat variant needs a gasketed panel-mount USB-C cutout wired
+  to the PowerFeather -- rescue/charging without opening the enclosure.
 - ToF apertures: downward beside the gobo (downlights), outward window with
   protective cover (perimeter).
