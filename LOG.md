@@ -12,6 +12,28 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-12 (cont.) -- Ben + Claude -- Procurement update: 90-board batch ordered, noisemaker fleet buys, ledger reconciled
+
+Ben's order updates folded into `ops/PROCUREMENT.md` / `ops/bom.md` / ROADMAP /
+ADR 0024 (annotation) / TODO:
+
+- **pf-batch-2 is real and bigger: 90x PowerFeather V2 ordered 2026-07-09 for
+  $3,494.24** ($30/board + s&h + bank fee + tariff) -- grew from the planned 82.
+  Production boards now total 158 (+~8 bench); the spares-thin risk is RESOLVED.
+  Residual risk is CN transit only (chase tracking by ~07-16).
+- **Noisemaker candidate-B fleet buys (2026-07-10):** 100x Adafruit MOSFET drivers
+  ($345; 110 total with 10 from a prior ~$46 order) + 150x AliExpress push-pull
+  solenoids, 75x 3 V + 75x 5 V for the voltage A/B ($319.12). Committed electronics
+  spend now ~$16.8k.
+- Ledger audit of what remains un-placed: the JST-XH harness set (UNBLOCKED by the
+  07-11 rail decision -- now the biggest outstanding order), RGBW top-up (planned),
+  Grove breakouts, USB-C ports + cabling (solar-free gate), ~40x 20 Ah cells +
+  end-cap connection hardware (sample-2 gate), solenoid strike-power residuals
+  (VDC-tap Y-cables + storage caps vs battery/VS, driver control cables, mallet
+  mounting), spare #3885 speakers.
+- Team brief refreshed to match (board counts, ~$16.9k spend donut with a
+  noisemaker slice, timeline, risks).
+
 ## 2026-07-12 -- Ben + Claude -- 20 Ah UPLIGHT CELL VERIFIED: 19,412 mAh (97.1% of label), knee so tight 95% clears the product floor
 
 **The batteryspace 20 Ah cylindrical ("34184", sample 1 of 2) is honest — the anti-Palowextra.**

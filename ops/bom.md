@@ -9,7 +9,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 
 | Item | Per fixture | Source / status | Notes |
 |---|---|---|---|
-| PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 received-class + 82 invoicing 07-10 | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
+| PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 at Steve's + 90 ordered 07-09 (in transit) | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
 | 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
 | Battery lead / retention | 1 | to-buy (JST-XH pre-crimped) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). |
 | LED harness | 1 | to-buy (JST-XH right-angle set) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11, A/B lux): one harness + one pinout for both LED roles; order unblocked. |
@@ -61,7 +61,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 
 | Part | Needed | Bought | Margin | Flag |
 |---|---|---|---|---|
-| PowerFeather V2 | 150-152 | 150 (+~8 bench: 5 Ben, 3 Steve) | -2..0 production | **THIN** -- top-up order likely if Elecrow allows; risk-register item |
+| PowerFeather V2 | 150-152 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +6..+8 production | healthy -- spares risk RESOLVED by the 90-board order |
 | 32700 6 Ah | 150-152 (drops to ~112 if 20 Ah takes uplights+chandelier) | 175 | +23..+63 | healthy |
 | 4 W RGBW | 96 + chandelier share (up to ~104) | 100 | -4..+4 today | top-up PLANNED (cheap; 20+ units); chandelier mix sizes it |
 | SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
@@ -73,8 +73,10 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | VL53L5CX | 38-40 | 48 | +8..+10 | ok |
 | ToF protective covers | 38-40 | 60 | +20 | ok |
 | STEMMA cables | ~150-250 uses | 250 | ok | |
-| 20 Ah LFP | 0 or ~40 | 2 samples | conditional | bench test gates the buy |
-| Noisemaker parts | subset TBD | 1x #3885 (damaged pot) + bench relays | -- | all options live incl. relays/beeps; camp-meeting input 07-09 |
+| 20 Ah LFP | 0 or ~40 | 2 samples | conditional | sample 1 VERIFIED 07-12 (19,412 mAh); sample 2 gates the ~40-cell buy |
+| MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | candidate B hardware secured |
+| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | voltage A/B pending; strike-power + wiring residuals in to-buy |
+| Other noisemaker parts | -- | 1x #3885 (damaged pot) + bench relays | -- | speaker/relay/beep options still live; verdict open |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
 with the bench/sample units already on hand the total is **150 depth sensors** --
@@ -82,22 +84,26 @@ parity with the 150 accelerometers.
 
 ## To-buy (summary -- live queue in ops/PROCUREMENT.md)
 
-JST-XH right-angle headers + pre-crimped harness (feed-decision-gated); Grove
-breakout(s); 82 PowerFeathers (invoicing 07-10); USB cabling + panel-mount USB-C
-ports; conditional ~40x 20 Ah LFP; conditional ~100x JST 2-pin Y-cables (VBAT feed
-option); noisemaker parts; spare #3885 speakers; planned RGBW top-up (20+).
+JST-XH right-angle headers + pre-crimped harness (UNBLOCKED 07-11 -- the biggest
+un-placed order); Grove breakout(s); USB cabling + panel-mount USB-C ports;
+conditional ~40x 20 Ah LFP + end-cap connection hardware (sample 2 gates); solenoid
+strike-power + wiring residuals (VDC-tap Y-cables + storage caps vs battery/VS,
+driver control cables, mallet mounting); spare #3885 speakers; planned RGBW top-up
+(20+). DONE since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150
+solenoids (07-10).
 
 ## Open BOM inputs
 
-- 20 Ah vs 6 Ah vs off-light-panel for uplights/chandelier (bench test on samples).
-- Chandelier HEX/RGBW mix (drives the RGBW top-up question).
+- 20 Ah vs 6 Ah vs off-light-panel for uplights/chandelier (sample 1 verified
+  07-12; sample 2 qualification + the formal solar-free call remain).
+- Chandelier HEX/RGBW mix (drives the RGBW top-up sizing).
 - Sensor allocation confirmation per class (ADR 0027 marks it tentative).
 - USB-C panel-mount part selection + gasket approach.
-- **RGBW feed decision (ADR 0029): 3V3 rail as wired vs VBAT-direct** -- forks the
-  harness set, the firmware pinout (A0 vs D13), the fail-safe design, and the
-  Y-cable buy. Decide before the harness order.
-- Harness/connector part numbers (JST-XH family) and, if VBAT-fed, the default-off
-  kill element (ADR 0029 open implementation detail).
+- ~~RGBW feed decision~~ -- DECIDED rail-fed 2026-07-11 (ADR 0029 amendment); one
+  harness + one pinout for both LED roles; the rail is the fail-safe kill.
+- Harness/connector part numbers (JST-XH family).
+- Solenoid strike-power source (VDC-tap + storage cap vs battery/VS pin) and
+  noisemaker scope per class -- drives the residual wiring buy.
 - Spares policy per part once deploy counts firm up at installation.
 - Shepherd-hook sourcing (project-side).
 

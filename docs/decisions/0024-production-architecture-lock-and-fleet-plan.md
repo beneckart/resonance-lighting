@@ -4,6 +4,9 @@
 **Status:** Accepted. Resolves the COTS-vs-custom production decision left open by
 ADR 0012. Fleet counts are tentative until installation; the living counts table is
 `docs/block-diagram/SYSTEM.md` (this ADR records the decision snapshot).
+Annotation 2026-07-12: batch 2 landed as **90 boards ordered 2026-07-09**
+($3,494.24 incl. s&h, bank fee, tariff), not the planned 82 -- production boards
+now total 158 and the spares-thin consequence below is resolved.
 **Owners:** Ben
 
 ## Context

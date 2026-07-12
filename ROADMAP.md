@@ -29,8 +29,10 @@ integration and hardening, not architecture:
 4. **Firmware productization:** ADR 0023 low-battery state machine, production OTA
    health/rollback, watchdog, telemetry schema, sensor + choreography integration,
    and the RGBW feed decision (rail vs VBAT -- forks harness + pinout, ADR 0029).
-5. **Procurement completion:** 82-board Elecrow batch (invoice 2026-07-10), cabling
-   (JST-XH + crimped), USB-C ports, conditional 20 Ah cells, noisemaker parts.
+5. **Procurement completion:** 90-board Elecrow batch ordered 07-09 (in transit);
+   remaining buys: cabling (JST-XH + crimped -- unblocked 07-11), USB-C ports,
+   conditional 20 Ah cells + end-caps (sample 2 gates), solenoid strike-power
+   residuals, RGBW top-up.
 6. **Assembly at 150-unit scale:** smoke-test rig, acceptance checklist, low
    per-fixture operations (ADR 0009).
 
@@ -154,8 +156,9 @@ Deliverables:
 
 ## Phase 3 - Architecture Decision: COTS, Custom, Or Hybrid
 
-**RESOLVED 2026-07-08: COTS PowerFeather V2 at ~150 units (ADR 0024; 68 + 82 board
-Elecrow buy).** The criteria below are kept as the historical decision framework.
+**RESOLVED 2026-07-08: COTS PowerFeather V2 at ~150 units (ADR 0024; 68 + 90 board
+Elecrow buy, second batch ordered 2026-07-09).** The criteria below are kept as the
+historical decision framework.
 
 **Window:** After Phase 1/2 data, before procurement lead time becomes risky.
 **Owner:** Ben + Steve.
@@ -223,8 +226,8 @@ testing. **Status 2026-07-08: procurement largely executed -- the ledger is
 
 Deliverables:
 
-- [x] Board/module procurement: 68 boards received-class + 82 invoicing 2026-07-10
-  (Elecrow). Spares thin -- see risk register.
+- [x] Board/module procurement: 68 boards received-class + 90 ordered 2026-07-09
+  ($3,494.24, Elecrow) = 158 total. Spares healthy (+6..+8 production, ~8 bench).
 - [x] Battery procurement: 175x 32700 6 Ah bought (ADR 0025); 20 Ah decision open.
 - [x] Solar panel procurement, role-specific: 110x P105 + 50x P126 + 160 pigtails
   (ADR 0026).
@@ -294,16 +297,17 @@ Deliverables:
 | BQ25628E rejects high-Voc panels in bright sun | Medium (guard shipped, bright-sun hardware validation pending) | `firmware/powerfeather_solar_guard.h` baseline in all charging sketches; shade panels during bench connect until validated. |
 | RF degraded by solar panel / battery / hat geometry | Medium | Mock-hat RF test; antenna keep-out; avoid u.FL unless necessary. |
 | Sealed hat gets too hot for LFP charging | High | Thermal test; battery thermistor / charge-temp policy; venting/material changes if needed. |
-| PowerFeather spares thin (150 bought vs 150-152 plan; ~8 bench boards as buffer) | High | 82-board batch lands ~mid-July (invoice 2026-07-10); further Elecrow top-up if allowed; deploy count can trim to boards on hand. |
-| Second Elecrow batch (82 boards) slips past assembly window | High | Invoice/ship 2026-07-10 per rep; track receipt in `ops/PROCUREMENT.md`; escalate immediately if not shipped. |
+| Second Elecrow batch (90 boards, ordered 2026-07-09) slips in CN transit past the assembly window | Medium (commitment done; transit residual) | Track receipt in `ops/PROCUREMENT.md`; expected ~mid-late July; escalate with the rep if no tracking by ~07-16. |
+| Harness/cabling order not yet placed (JST-XH set, unblocked 07-11) | Medium | Order NOW; short domestic lead; the biggest remaining un-placed buy. |
 | 20 Ah solar-free decision starves uplight/chandelier build time | Medium | Bench test on samples ASAP; fallback is budgeted 6 Ah cells already on hand (175 bought). |
 | Cabling/connector buy (JST-XH, USB-C ports) not yet placed | Medium | Small-dollar, short-lead items -- order once counts firm; tracked in the to-buy queue. |
 | Firmware bug discovered after hanging | High | Standard OTA, A/B rollback, watchdog, USB/pogo recovery, spares. |
 | Hat/rope attachment unresolved | Medium | Hybrid primary-hat plus secondary-bamboo safety tie is current recommendation; align with team. |
 
 Retired risks: HEX-boost destructive all-pixel current (boost shelved -- ADR 0029);
-COTS supply at 100+ (150 boards bought/committed -- ADR 0024); battery vendor
-uncertainty (qualified n=2 -- ADR 0025).
+COTS supply at 100+ (158 boards bought/committed -- ADR 0024 annotation); battery
+vendor uncertainty (qualified n=2 -- ADR 0025); PowerFeather spares thin (resolved
+2026-07-09 by the 90-board order); RGBW feed fork (decided rail 2026-07-11).
 
 ## Open Dependencies On Wider Team
 

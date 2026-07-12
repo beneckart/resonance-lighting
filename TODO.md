@@ -26,7 +26,14 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Confirm whether PowerFeather V2 KiCad/Gerbers can be shared or licensed (Ben).
 - [x] ~~Call/email BatterySpace re: 18650 LiFePO4~~ -- **SUPERSEDED 2026-07-08**: production cell is the fullbattery 32700 6 Ah (ADR 0025). BatterySpace returns only as the 20 Ah #6832 candidate below (Ben).
 - [x] ~~Buy alternate LiFePO4 18650/26650 sources~~ -- **SUPERSEDED** by ADR 0025 (175x 32700 bought) (Ben).
-- [ ] **Confirm Elecrow batch-2 (82 boards) invoices AND ships 2026-07-10** per the rep's commitment; escalate immediately if not -- the schedule long pole (Ben).
+- [x] ~~Confirm Elecrow batch-2 invoices AND ships 2026-07-10~~ -- **ORDERED
+  2026-07-09 as 90 boards** ($3,494.24 incl. s&h/bank fee/tariff); spares risk
+  resolved (158 production boards total) (Ben).
+- [ ] Track pf-batch-2 (90 boards) CN transit; chase the rep if no tracking by
+  ~07-16 -- must land before the ~Jul 20-31 TN trip / Aug 1 parts-on-hand line (Ben).
+- [ ] **Place the JST-XH harness order** (right-angle headers + pre-crimped set,
+  battery leads + LED harness) -- unblocked 2026-07-11 by the rail-fed decision;
+  now the biggest un-placed buy (Ben).
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
 - [ ] Buy Grove breakout(s) for the HEX HY2.0 connector adaptation (Ben).
@@ -323,22 +330,21 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
   true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
   per-unit probe (Ben).
-- [ ] **Gather wider noisemaker opinions at the first big camp-wide meeting
+- [~] **Gather wider noisemaker opinions at the first big camp-wide meeting
   2026-07-09** -- relay clicks and even simple beeps stay technically on the table;
   the earlier square-wave/click reactions were small-n and possibly a failure to
-  imagine 150 rippling through the tree (Ben).
-- [ ] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
-  the bamboo -- the authentic knock the synth imitates). **Ben's current lean
-  (2026-07-07 session close): physical noisemakers (relays or this) over synthesized
-  speaker audio -- this bench test is now the priority item.** Verify the driver's control
-  pinout (JST PH 3-pin, same header shape as the speaker signal input); pick the strike
-  power source -- the 3V3 header rail is NOT it (sags at ~290 mA; solenoids pulse
-  0.7-1+ A). Options: battery/VS pin, or Ben's JST XH 2-pin Y-cable off the panel VDC
-  input for a "daytime-only" striker -- needs a storage cap sized for the strike pulse
-  (rough numbers say supercap-class, not electrolytic) and a check that strike
-  transients on the VDC line don't confuse the BQ charger input. Single-unit strike
-  test before any fleet math; also weigh per-fixture mallet mounting labor against the
-  O(1)-ops constraint (ADR 0009) (Ben).
+  imagine 150 rippling through the tree. (Meeting happened 07-09; outcome not yet
+  logged here) (Ben).
+- [~] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
+  the bamboo -- the authentic knock the synth imitates). **FIRST BENCH DONE
+  2026-07-10** (`firmware/solenoid_demo/`, LOG same date): 815 strikes, no resets,
+  no failsafes. **FLEET PARTS ORDERED**: 100x MOSFET drivers (Adafruit 07-10, $345;
+  110 total with the 10 prior) + 150x solenoids (75x 3 V + 75x 5 V, AliExpress
+  07-10, $319.12). Remaining: strike-power source decision (VDC-tap sweep tooling
+  landed 07-11: Y-cable + storage cap vs battery/VS pin -- check strike transients
+  don't confuse the BQ input), 3 V vs 5 V voltage A/B, driver control cabling
+  (JST PH 3-pin), mallet/mounting design vs the O(1)-ops constraint (ADR 0009),
+  and the formal candidate verdict vs the speaker synth (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
@@ -563,7 +569,7 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   the 20 Ah #6832 for solar-free classes, below (Ben).
 - [~] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
   solar-free uplight/chandelier option** -- **SAMPLE 1 VERIFIED 2026-07-12: 19,412 mAh
-  (97.1% of label), 19,055 above the 3.0 V floor, 360 mAh knee — supports 6 h/night x
+  (97.1% of label), 19,055 above the 3.0 V floor, 360 mAh knee -- supports 6 h/night x
   7-night solar-free RGBW duty with margin.** Report:
   `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`. Remaining before the
   ~40-cell buy: (1) qualify **sample 2** (rig assembled; overnight charge + ~27 h

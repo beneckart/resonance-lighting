@@ -23,11 +23,13 @@ LOG inference) -- correct them from receipts when convenient.
 | tof-covers | Gilisymo (EUR) | 2026-07-07 | 60x protective optical covers for ToF apertures | ~$384.00 | placed, in transit |
 | tof-tmf | SparkFun | 2026-07-07 | 100x TMF8820-mini multizone ToF | $1,422.05 | placed, in transit |
 | batteries-100 | fullbattery.com | 2026-07-07 | 100x 32700 LiFePO4 6 Ah | $565.20 | placed, in transit |
-| pf-batch-2 | Elecrow | pending -- invoice expected 2026-07-10, ships same day (per Elecrow rep, direct comms) | 82x PowerFeather V2 (~$30/board) | ~$2,460 (TBC) | NOT YET INVOICED |
+| pf-batch-2 | Elecrow | 2026-07-09 | 90x PowerFeather V2 ($30/board + s&h + bank fee + tariff) | $3,494.24 | placed, in transit (CN; grew from the planned 82) |
+| mosfet-drivers | Adafruit | 2026-07-10 | 100x MOSFET driver (solenoid noisemaker, candidate B) | $345.00 | placed, in transit |
+| solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
 
-Committed so far: **~$12,659** across the rows above; **~$15.1k** once pf-batch-2
-invoices. The $440 / $170 / $159 rows are the fixture-relevant portions of larger
-orders; the remainders are not itemized here.
+Committed so far: **~$16,817** across the rows above (production boards now total
+68 + 90 = **158**). The $440 / $170 / $159 rows are the fixture-relevant portions
+of larger orders; the remainders are not itemized here.
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -46,21 +48,23 @@ orders; the remainders are not itemized here.
 - ~2026-07 -- SparkFun presence-bench kit (MLX90640, VL53L5CX, TMF8821, XM125,
   TCA9548A mux, TOF400C/VL53L1X); Adafruit KB2040; noisemaker candidates (Songle
   relay, SparkFun Qwiic Omron relay + RedBot buzzer, Arduino Modulino Buzzer/Vibro,
-  piezo, 8002A amp, Adafruit STEMMA speaker #3885 at $4.76).
+  piezo, 8002A amp, Adafruit STEMMA speaker #3885 at $4.76); 10x Adafruit MOSFET
+  drivers ($46, pre-fleet order -- so 110 drivers total with the 07-10 buy).
 
 ## To-buy queue
 
 | Item | Est qty | Serves | Decision gate | Order-by | Risk |
 |---|---|---|---|---|---|
-| PowerFeather V2 batch 2 | 82 | fleet boards | none -- invoice 2026-07-10 | immediate | HIGH: the schedule long pole; escalate if not shipped 07-10 |
-| JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | ~mid-July | Medium |
+| ~~PowerFeather V2 batch 2~~ | ~~82~~ | fleet boards | ORDERED 2026-07-09 as **90 boards** ($3,494.24) -- see ledger | -- | residual risk = CN transit only; track receipt |
+| JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | **NOW** (~mid-July) | Medium -- the biggest un-placed order |
 | Grove breakout(s) | small | HEX (HY2.0 physical connector) adaptation | harness design | ~mid-July | Low |
-| USB cabling + panel-mount female USB-C ports | ~40 | uplight/chandelier charge+flash port | solar-free decision | ~late July | Medium |
-| 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: uplight energy bench on the 2 samples | decide by ~late July | Medium: lead time unverified |
-| Noisemaker parts (MOSFET drivers, solenoids, relays, wire) | subset TBD | noisemaker fleet option | candidate-B bench verdict | ~late July | Low/Medium |
+| USB cabling + panel-mount female USB-C ports | ~40 | uplight/chandelier charge+flash port | solar-free decision (20 Ah sample 1 PASSED 07-12; sample 2 next) | ~late July | Medium |
+| 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: sample 2 qualification (sample 1 verified 07-12 at 19,412 mAh; rig assembled) | decide by ~late July | Medium: lead time unverified |
+| 20 Ah end-cap connection hardware | ~40 | production battery connection (bench used alligator clips "on tape and prayer") | with the 20 Ah buy | with cells | Medium |
+| Noisemaker strike-power + wiring residuals | subset TBD | solenoid strike supply (VDC-tap Y-cables + storage caps vs battery/VS pin), driver control cables, mallet mounting | strike-power decision (VDC-tap sweep in progress); drivers + solenoids ALREADY ORDERED 07-10 | ~late July | Low/Medium |
 | Spare STEMMA speakers #3885 | 2+ | candidate-A crowd test (bench unit's trim pot died) | none | soon | Low |
 | RGBW top-up (PLANNED -- "definitely buy more, they're cheap") | 20+ | chandelier mix + healthy spares | sizing only (chandelier HEX/RGBW split) | ~mid-late July | Low |
-| ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean) | -- | -- |
+| ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean). NOTE: XH 2-pin Y-cables may return as the solenoid VDC strike tap -- see the strike-power row | -- | -- |
 
 ## Lead-time picture (backward from the Aug 21 container load)
 
@@ -75,11 +79,12 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (batteryspace 20 Ah, USB-C ports, cabling, RGBW top-up).
-- **2026-07-10:** Elecrow batch-2 invoice/ship date per rep. CN transit 1-2 weeks
-  puts boards ~mid-to-late July -- fine if it ships on time; the single most
-  schedule-critical line item.
-- July-07 domestic orders (sensors, cables, batteries) should land ~mid-July.
+  (JST-XH harness set -- now the biggest un-placed order; batteryspace 20 Ah +
+  end-caps; USB-C ports; RGBW top-up; solenoid strike-power parts).
+- **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
+  puts boards ~mid-to-late July; residual risk is transit, not commitment.
+- July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
+  orders should land ~mid-July (AliExpress solenoids possibly later -- watch).
 
 ## Procurement timeline (dated milestones)
 
@@ -101,9 +106,16 @@ corroborated 2026-07-08):
 - 2026-07-06/07 -- battery shootout; vendor locked (ADR 0025); thresholds
   (ADR 0023); sway/tilt bench (accel + ToF fusion); noisemaker bench (speaker synth).
 - 2026-07-07 -- **sensor + cable + 100-cell battery buys** (ADR 0027).
-- 2026-07-09 -- first big camp-wide meeting (noisemaker opinions, team sync).
-- 2026-07-10 (planned) -- Elecrow batch-2 invoice + ship (82 boards).
-- 2026-07-12 -- container lands, Port of Oakland (resonancenetwork.org/camp).
+- 2026-07-09 -- first big camp-wide meeting (noisemaker opinions, team sync);
+  **90-board Elecrow batch-2 ordered** ($3,494.24 -- grew from the planned 82).
+- 2026-07-10 -- **noisemaker fleet buys**: 100x MOSFET drivers (Adafruit, $345) +
+  150x solenoids (75x 3 V + 75x 5 V, AliExpress, $319.12); solenoid candidate-B
+  first bench same day (815 strikes, no resets).
+- 2026-07-11 -- RGBW feed DECIDED rail-fed (ADR 0029 amendment, instrumented A/B);
+  harness buy unblocked.
+- 2026-07-12 -- container lands, Port of Oakland (resonancenetwork.org/camp);
+  **20 Ah sample 1 verified** (19,412 mAh = 97.1 % of label) -- sample 2 gates the
+  ~40-cell buy.
 - ~2026-07-20/31 (TENTATIVE) -- Ben TN trip: ~70-board fleet test at Steve's.
 - 2026-07-31/08-19 -- NC prebuild, Bodhi Hive, Nevada City; **08-01/02 container
   unload (all hands)**; **08-08/09 lights + camp systems team build**.
@@ -124,6 +136,7 @@ corroborated 2026-07-08):
 | Gilisymo | ToF protective optical covers | EUR pricing |
 | batteryspace.com | 20 Ah LFP cylindrical (#6832) candidate; 18650 bench LFP | Conditional buy pending bench test |
 | Amazon | Palowextra 32700 (REJECTED -- ADR 0025); misc bench | |
+| AliExpress | Push-pull solenoids (75x 3 V + 75x 5 V) | Noisemaker candidate B; watch transit time |
 | DFRobot | SEN0291 wattmeters, DFR0559 | Bench instrumentation |
 | PCBWay | NeoHEX adapter Rev A assembly quote (~$32.82/5) | Quoted 2026-05-20, never ordered |
 
