@@ -53,14 +53,14 @@ orders; the remainders are not itemized here.
 | Item | Est qty | Serves | Decision gate | Order-by | Risk |
 |---|---|---|---|---|---|
 | PowerFeather V2 batch 2 | 82 | fleet boards | none -- invoice 2026-07-10 | immediate | HIGH: the schedule long pole; escalate if not shipped 07-10 |
-| JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts | ~mid-July | Medium |
+| JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | ~mid-July | Medium |
 | Grove breakout(s) | small | HEX (HY2.0 physical connector) adaptation | harness design | ~mid-July | Low |
 | USB cabling + panel-mount female USB-C ports | ~40 | uplight/chandelier charge+flash port | solar-free decision | ~late July | Medium |
 | 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: uplight energy bench on the 2 samples | decide by ~late July | Medium: lead time unverified |
 | Noisemaker parts (MOSFET drivers, solenoids, relays, wire) | subset TBD | noisemaker fleet option | candidate-B bench verdict | ~late July | Low/Medium |
 | Spare STEMMA speakers #3885 | 2+ | candidate-A crowd test (bench unit's trim pot died) | none | soon | Low |
 | RGBW top-up (PLANNED -- "definitely buy more, they're cheap") | 20+ | chandelier mix + healthy spares | sizing only (chandelier HEX/RGBW split) | ~mid-late July | Low |
-| JST 2-pin Y-cables (~$0.50 ea) | ~100 | GND tap for the VBAT LED-feed option | CONDITIONAL: RGBW feed decision (ADR 0029); verify quantity availability | with harness buy | Low/Medium |
+| ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean) | -- | -- |
 
 ## Lead-time picture (backward from the Aug 21 container load)
 
@@ -75,7 +75,7 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (batteryspace 20 Ah, USB-C ports, cabling, RGBW top-up, Y-cables).
+  (batteryspace 20 Ah, USB-C ports, cabling, RGBW top-up).
 - **2026-07-10:** Elecrow batch-2 invoice/ship date per rep. CN transit 1-2 weeks
   puts boards ~mid-to-late July -- fine if it ships on time; the single most
   schedule-critical line item.

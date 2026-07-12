@@ -2,10 +2,9 @@
 
 **Date:** 2026-07-08 (records the 2026-07-02 boost A/B campaign verdicts, r1-r9, and
 Ben's 2026-07-08 production-wiring stance)
-**Status:** Accepted for the HEX feed and the boost shelving. The RGBW production
-feed is OPEN: currently wired from the 3V3 rail; the measured-better VBAT-direct
-option is documented below with its conversion plan and costs. ADR 0013's
-switchable/default-off requirement stands unchanged either way.
+**Status:** Accepted. The RGBW production feed, OPEN at acceptance, was DECIDED
+**rail-fed** on 2026-07-11 by an instrumented A/B campaign -- see the Amendment
+at the bottom. ADR 0013's switchable/default-off requirement stands unchanged.
 **Owners:** Ben + Claude
 
 ## Context
@@ -62,9 +61,10 @@ pinout, and the rail IS the hard LED kill.
    revival spec if a future look needs the ceiling: VBAT-fed single conversion on
    an adapter PCB, EN -> GPIO with pull-down, fat wiring; every operating point is
    already measured.
-3. **4 W RGBW feed: OPEN -- rail-fed as wired today; VBAT-direct is the
-   measured-better option with real conversion costs.** Ben's 2026-07-08 stance,
-   recorded so the trade is explicit when this is revisited (before the harness
+3. **4 W RGBW feed: ~~OPEN~~ DECIDED rail-fed (2026-07-11 Amendment below).**
+   Original framing kept for the record -- rail-fed as wired; VBAT-direct was
+   the fat-wire-measured-better option with real conversion costs. Ben's
+   2026-07-08 stance, recorded so the trade was explicit (before the harness
    buy):
    - **For staying on the rail:** clean W-only output is unchanged; cutting the
      3V3 rail is a robust hard LED kill (ADR 0013 satisfied by construction); one
@@ -108,11 +108,56 @@ pinout, and the rail IS the hard LED kill.
 - The boosted-build firmware count/current cap (ADR 0022 follow-up) is moot unless
   the boost is revived.
 
+## Amendment 2026-07-11 -- RGBW feed DECIDED: 3V3 rail (A/B lux campaign)
+
+Instrumented rail-vs-VBAT A/B with production-realistic cabling (WAGO 221 +
+JST-XH + adapter on the VBAT path; standard right-angle XH on the rail path),
+two 4 W RGBW units, VEML7700 lux, ABBA ordering, and cable-crossover 2x2s at
+frozen geometry across three sensor positions (method + confounds in LOG
+2026-07-11 (cont.); data `ops/bench/data/ab-lux-2026-07-11.csv`; tool
+`ops/bench/ab_lux.py`; battery-only, SOC 78-88%).
+
+Pooled clean same-unit/same-position feed contrasts (rail advantage vs VBAT):
+
+| look | mean of 5 contrasts |
+|---|---|
+| W only | +2.2 % |
+| red | +1.2 % |
+| green | +2.1 % |
+| blue | +2.5 % |
+| RGB white (fringed) | **+4.7 %** |
+
+Rail wins 22/25 comparisons (mean +2.5 %, range -3.0..+6.6 %). The 07-02
+fat-wire "+33 % VBAT on fringed white" INVERTS through production cabling --
+IR drop in the realistic VBAT path scales with current, so the rail's margin is
+largest on exactly the look VBAT was supposed to win. Measured at the SOC range
+most favorable to VBAT; overnight terminal voltage (3.2-3.3 V) only widens the
+rail's edge (rail is SOC-invariant until dropout).
+
+**Decision: the 4 W RGBW stays on the switchable 3V3 rail** -- same feed as the
+HEX. Consequences:
+
+- One harness + one firmware pinout for both LED roles; the JST-XH harness buy
+  is UNBLOCKED (the fork this ADR left open is resolved).
+- JST 2-pin Y-cables (~100, GND-tap for the VBAT option) DROPPED from
+  procurement; no per-board VBAT header soldering; LED fail-safe redesign not
+  needed (rail cut remains the hard kill, ADR 0013 satisfied by construction).
+- Coulomb accounting stays honest (decision 4's gauge-blind concern is moot).
+- Scope: n=2 units, one board, one harness build, indoor, SOC 78-88 %. The
+  contrast bundles each feed with its own production cabling -- deliberately:
+  an idealized soldered VBAT feed would measure better but is ruled out by ADR
+  0009 regardless.
+- Wire-order note discovered same session: the production 4 W RGBW decodes
+  **RGBW**, not GRBW -- led_studio's MODE_RGBW rendered R/G-swapped until
+  2026-07-11 (fixed). Production firmware must use NEO_RGBW for this module.
+
 ## References
 
 - LOG 2026-07-02: boost A/B verdict (HEX), r6 gold standard, r7 VBAT-fed, r8
   bare-VBAT fat-wire (+33 %), r9 completed matrix (3044 lux), gamma/wedge audit,
   hex-V+ topology correction; LOG 2026-07-08 (cont.) -- production-wiring stance
+- LOG 2026-07-11 + (cont.): ground-fault saga, wire order, A/B lux campaign
 - `docs/tests/BOOST_AB_BENCH_REPORT_2026-07-02.html` (charts, evidence-graded)
+- `ops/bench/ab_lux.py`, `ops/bench/data/ab-lux-2026-07-11.csv` (2026-07-11 A/B)
 - ADR 0008 (historical), 0009 (O(1) ops), 0013 (fail-safe, stands), 0018
   (interface), 0022 (roles), 0023 (coulomb policy)

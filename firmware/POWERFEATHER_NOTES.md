@@ -167,6 +167,28 @@ where the IS31 wasn't, but direct-GPIO is the preferred path.
 - **GPIO46** -- onboard user LED.
 - **GPIO47 / GPIO48** -- Wire1 (charger / gauge / STEMMA-QT), SDK-owned.
 - **GPIO10 / A0** -- free IO; used as direct-GPIO LED data in the studios.
+- **The D13 header position is GPIO11, NOT GPIO13** (variant pins_arduino.h and
+  SDK `Mainboard.h:97` agree; same trap for D5..D11 = 15/16/37/6/17/18/45; only
+  D12 = GPIO12 coincides). Cost a debug hour on 2026-07-11.
+- **GPIO13 is EN0** -- the FeatherWings enable/disable line, SDK-owned and driven
+  HIGH (`Mainboard.h:123`). Never wire user signals to it. It also reads solid
+  HIGH on an input-pulldown probe, which mimics a fault signature.
+
+## Firmware-only ground-fault probe for VBAT-fed NeoPixels (2026-07-11)
+
+Symptom: ghost/wrong colors (some dies bright, some missing) at near-zero
+measured supply draw. Cause: open/floating module GND -- the pixel's return
+current can only exit via the DATA line into the GPIO. Confirm without touching
+hardware: tri-state the data pin as `INPUT_PULLDOWN` and sample. Healthy module
+DIN is high-Z -> reads ~0 % high; ground-faulted module holds it near 100 %
+high. Validate the method against a known-empty pin (should read 0 %). A solid
+0 % does NOT exonerate the harness -- an open V+ also reads 0 % (module fully
+dead). Implemented as `/gndprobe` in `firmware/led_sol_bench/`. Root cause that
+day: fine-strand silicone wire not seated under a WAGO 221 lever; ferrules are
+the fleet-scale fix. Park the data pin OUTPUT-LOW afterward -- it sinks the
+stray return current at 0 V. Related: the VBAT header tap is upstream of the
+gauge shunt, so gauge current/SOC are blind to VBAT-fed loads; with USB
+attached, supply current is the working ammeter.
 
 ## 8-bit LED dimming + gamma: the low-end dead-zone
 
@@ -229,6 +251,18 @@ and production power logic:
 - Use panel-side INA only as a bench/sentinel truth source for panel capability and faults.
 - Avoid SOC-only decisions; require voltage/current cross-checks for low-battery and
   "hungry enough for MPP test" decisions.
+
+Quantified on the production 6 Ah 32700s (cycle 0, shootout data
+`ops/bench/data/ca/2026-07-06-discharge-{F,P}-cycle1.jsonl`, re-read 2026-07-11):
+RepSOC is ~2x pessimistic through the whole midrange (reads 34-37 % with ~74 %
+really left) and **parks at 1 % from ~59-61 % delivered onward** -- i.e. it reads
+"empty" with ~40 % of the cell still in the tank. The exception is the 1 % -> 0 %
+step, which lands at 98-99 % delivered (bv 2.5-2.8 V): a genuine "dying now" edge
+signal. Fleet-ops corollary: a fixture reporting 1 % SOC all night is normal, not
+an emergency. Whether learn cycles improve RepSOC is unanswered (candidate
+dataset: the long-running outdoor solar-cycle log). The smaller 2 Ah bench cell
+behaved far better at the tail (0 % at ~95 % delivered, LOG 2026-06-10) -- cell
+size/load ratio matters; don't generalize from the bench cell.
 
 ## Panel-specific MPP and battery-acceptance artifacts
 

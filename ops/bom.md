@@ -12,7 +12,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 received-class + 82 invoicing 07-10 | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
 | 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
 | Battery lead / retention | 1 | to-buy (JST-XH pre-crimped) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). |
-| LED harness | 1 | to-buy (JST-XH right-angle set) | Forks on the RGBW feed decision (3V3 rail as wired vs VBAT-direct + Y-cable GND tap) -- decide before ordering (ADR 0029). |
+| LED harness | 1 | to-buy (JST-XH right-angle set) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11, A/B lux): one harness + one pinout for both LED roles; order unblocked. |
 | Hat enclosure + fasteners | 1 | Steve (print/MJF); design in progress | Four variants: downlight hat, perimeter hat, uplight "boot", chandelier hat. |
 | Firmware | one image | this repo | Runtime/NVS config only; no per-unit builds (ADR 0009). |
 

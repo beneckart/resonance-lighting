@@ -113,6 +113,19 @@ cold-night run exists), n=2 cells, one rig's lead resistance. Boundaries are goo
   its 2.3× IR pulling the knee 1.4 h earlier is the cautionary tale for why knee
   position — not label capacity — drives these thresholds.
 
+## Addendum 2026-07-11 -- RepSOC on the 6 Ah cells, quantified (reinforces "SOC % advisory only")
+
+Re-read of the cycle-1 shootout JSONL: gauge RepSOC is ~2x pessimistic through
+the midrange and **parks at 1 % from ~59-61 % delivered** (F: 1 % at 3,515 of
+5,751 mAh; P: 3,308 of 5,643) -- it reads "empty" with ~40 % of the cell left.
+The 1 % -> 0 % step is the one honest edge: 98-99 % delivered, bv 2.5-2.8 V.
+No policy change -- the coulomb-primary thresholds above already ignore SOC % --
+but dashboards/ops must not treat a fixture at 1 % SOC as an emergency, and the
+15/7/5 % tiers MUST be computed as coulomb-remaining, never read from RepSOC.
+Open question: whether learn cycles improve RepSOC (candidate dataset: the
+long-running outdoor solar-cycle log). Detail in POWERFEATHER_NOTES "Treat LFP
+SOC as advisory" and LOG 2026-07-11 (cont.).
+
 ## References
 
 - `docs/tests/BATTERY_32700_SHOOTOUT_PLAN_2026-07.md` (protocol + results)

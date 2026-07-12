@@ -12,6 +12,161 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-11 (cont.) -- Ben + Claude -- RGBW feed A/B (rail vs VBAT), instrumented: RAIL wins +2.5% mean, ADR 0029 fork closed
+
+Automated the rail-vs-VBAT question with two 4 W RGBW units mounted at once (unit1
+on the hand-soldered {VBAT|EN|VS|D13} header, unit2 on the standard 3V3/A0 header),
+VEML7700 on the STEMMA-QT port (ina_monitor register pattern: gain 1/8, IT 100 ms),
+`led_sol_bench` feed toggle switching pin+rail together, and `ops/bench/ab_lux.py`
+(ABBA ordering per look, dark baseline per look, per-row gauge/supply telemetry,
+CSV: `ops/bench/data/ab-lux-2026-07-11.csv`, 7 runs). Battery-only the whole
+campaign (the production night condition), SOC 88->78%, resting bv ~3.31 V flat.
+
+Design that made it trustworthy: cable-crossover 2x2s at FROZEN geometry (swap
+feeds at the converters, touch neither modules nor sensor), three geometries.
+Confounds caught en route -- each would have flipped the naive conclusion:
+
+- Run 1's "VBAT +16..45%" was unit binning + geometry, not feed (unit-to-unit
+  spread up to ~20% on blue; position worth ±5-20% per look, look-dependent).
+- A stray piece of plastic sat on one module for runs ~2-3 (found run 4: its
+  removal jumped that unit +4..+19%); the contaminated contrast was discarded.
+- mDNS blipped mid-run once (script now resolves-once + retries).
+
+Pooled clean contrasts (5 sets: same unit, same position, feed swapped; rail
+advantage vs VBAT):
+
+| look | contrasts | mean |
+|---|---|---|
+| W only | +3.1 +5.0 -0.8 +1.6 +1.9 | +2.2% |
+| red | +2.9 +2.4 -3.0 +2.0 +1.9 | +1.2% |
+| green | +4.2 +1.6 +1.6 +1.5 +1.4 | +2.1% |
+| blue | +4.5 -0.2 +4.0 +2.1 +2.1 | +2.5% |
+| RGB white | +6.6 +4.1 +3.9 +4.4 +4.4 | **+4.7%** |
+
+Rail wins 22/25 comparisons (mean +2.5%, range -3.0..+6.6%); the third 2x2 was
+the cleanest (both units agree per look to a few tenths of a %). Physically
+coherent: the highest-current look (fringed RGB white) shows the rail's LARGEST
+margin -- IR drop in the realistic VBAT path (WAGO + XH + converter) scales with
+current. ADR 0029's fat-wire "+33% VBAT" does not survive production cabling; it
+inverts. And this ran at SOC 78-88% -- the condition MOST favorable to VBAT;
+overnight (3.2-3.3 V terminal) the rail's edge only grows.
+
+**Decision recorded (ADR 0029 amendment): 4 W RGBW stays on the 3V3 rail.**
+Rail also keeps the hard LED kill (ADR 0013 by construction), one harness/pinout
+for both LED roles, no Y-cables (~100 dropped from procurement), no per-board
+soldering, and coulomb accounting intact (VBAT header tap is upstream of the
+gauge shunt = gauge-blind to the dominant load). Harness buy unblocked.
+
+Also re-read the shootout data on Ben's challenge -- he was right, prior session
+summary corrected: on the production 6 Ah cells (cycle 0), gauge RepSOC is ~2x
+pessimistic through the midrange and parks at 1% from ~59-61% delivered
+(F: 1% at 3,515 of 5,751 mAh; P: 3,308 of 5,643); the 1->0% step lands at 98-99%
+delivered (bv 2.5-2.8) -- a genuine "dying now" edge. Coulomb integral remains
+the good signal (+8-9% bias, /1.08, ADR 0023 unchanged). Fleet-ops note: a
+fixture reporting 1% SOC all night is Tuesday, not an emergency. Un-answered:
+whether learn cycles improve RepSOC -- Ben's long-running outdoor solar-cycle
+JSONL (on his laptop) is the dataset for that.
+
+Caveats for the record: n=2 units, one board, one harness build, SOC 78-88%
+window, indoor. The "feed" contrast bundles each feed with its own upstream
+cabling -- which is the production-realistic comparison, but an idealized
+soldered VBAT feed would do better than measured (and is ruled out by ADR 0009
+anyway). `led_studio` RGBW order fix landed (GRBW->RGBW, see prior entry).
+
+---
+
+## 2026-07-11 -- Ben + Claude -- led_sol_bench (RGBW+solenoid on VBAT): WAGO ground-fault saga, D13 != GPIO13 (it's GPIO11; 13 is EN0), wire order is RGBW
+
+New `firmware/led_sol_bench/` (solenoid_demo safety machinery + led_studio RGBW
+render): RGBW data D13, solenoid driver D12, both loads VBAT-direct (the ADR
+0029 fork test). Solenoid worked immediately; the RGBW showed ghost colors
+(green bright / no red / faint blue at all-255, picker R/G "swapped") at
+near-zero measured draw. The debug chain, for posterity:
+
+- **Channel sweep via telemetry:** every slot at 255 added ~0 mA supply draw ->
+  the module wasn't being fed; battery was healthy (gauge blind to VBAT loads
+  anyway -- ADR 0029 §4's exact warning; with USB attached, supply current is
+  the working ammeter).
+- **Firmware-only ground-fault probe (new technique, kept as `/gndprobe`):**
+  tri-state the data pin INPUT_PULLDOWN and sample. Healthy module DIN = high-Z
+  -> reads ~0% high. Open/floating module GND -> its return current exits via
+  the data line and holds the pin ~100% high. Read 100% -- fault confirmed
+  electrically before touching hardware. Control probe on empty GPIO10 read 0%
+  (validates the method). Corroborating strike-pulse VBAT-sag modulation was
+  below digital-read resolution (null, as expected).
+- **Red herring with a lesson:** GPIO13 ALSO probed 100% high -> "is 13
+  special?" Yes: **GPIO13 = EN0, the SDK-owned FeatherWings enable
+  (Mainboard.h:123), and the D13 header position routes to GPIO11**
+  (Mainboard.h:97, variant pins_arduino.h). Cost an hour; now in
+  POWERFEATHER_NOTES pin table.
+- **Root cause:** fine-stranded wire not seated under a WAGO 221 lever on the
+  GND path (the JST Y-splitter was exonerated). Reseated -> module fed
+  properly. Harness-buy lesson: WAGO levers want full-depth seating on
+  fine-strand silicone wire; ferrules are the robust fix at fleet scale.
+- **Wire order:** slot-tested (raw `/raw` bytes, mapping bypassed): the
+  production 4 W RGBW is **RGBW order, not GRBW**. `led_studio` MODE_RGBW had
+  GRBW -> every color it ever showed was R/G-swapped (nobody had cross-checked
+  the picker against die color). Fixed in led_studio; led_sol_bench defaults
+  RGBW. MODE_RGB (different module) unverified -- check before trusting.
+
+Bench app kept: web UI (strike machinery + RGBW anims + flash-sync strike
+percussion+light), runtime feed A/B toggle (3V3+A0 vs VBAT+D13, blanks outgoing
+module -- pixels latch), runtime wire-order switch, `/gndprobe`, `/raw`, `/lux`
+(VEML7700 on SQT), OTA. GPIO13/EN0 excluded from the pin allowlist.
+
+---
+
+## 2026-07-10 (cont.) -- Ben + Claude -- solenoid strike bench first session: 815 strikes, no resets, no failsafes
+
+First real session on the 3D-printed plastic lantern replica (wooden lanterns
+still in the shipping container): Ben reports it "works amazingly well and
+sounds quite nice." End-of-session `/state`: strikes=815, blocked=27,
+failsafes=0, last=test 120 ms, pulse slider at 85 ms.
+
+Reading the counters:
+
+- No MCU reset the whole session: the counters live in RAM, so strikes=815
+  still standing is itself the no-reboot proof.
+- failsafes=0 -- the esp_timer pulse-end path never missed; the loop() backstop
+  was never needed.
+- blocked=27 (~3 %) is the coil-rest/mid-pulse guard refusing rapid-fire
+  requests, not lost strikes -- expected under UI mashing.
+- The board was on battery at session end (supply 0.00 V / not good,
+  discharging ~120 mA, LFP 3.321 V under load, SOC 98 %) -- so it survived a
+  USB unplug and at least part of the session ran battery-only. The USB/battery
+  split of the 815 strikes was not tracked, so battery-only strike stability is
+  suggestive, not measured.
+
+Caveats before calling candidate B validated: n=1 board, n=1 solenoid, plastic
+replica not bamboo (acoustics will differ), no deliberate battery-only strike
+session, minimum-reliable-width number not yet written down. Noisemaker verdict
+(vs speaker synth candidate A) stays OPEN -- more crowd input queued after the
+2026-07-09 camp meeting reopened the field.
+
+---
+
+## 2026-07-10 -- Ben + Claude -- solenoid_demo: 3 V solenoid strike bench (noisemaker candidate B)
+
+New `firmware/solenoid_demo/` app, modeled on speaker_demo: drives a 3 V mini
+solenoid through an Adafruit MOSFET driver off the standard LED header (3V3
+switchable rail / GND / A0 = GPIO10). Web dashboard (STRIKE, fixed-width test
+strikes 10-120 ms for the min-reliable-width sweep, double/burst, auto-repeat,
+coil-power rail toggle) + `/state` JSON + OTA `/update`. Coil safety: esp_timer
+one-shot pulse end + loop() failsafe deadline, 5-300 ms hard clamp, 80 ms
+coil-rest gap, gate LOW before rail-up and on OTA start. Standard SDK pattern:
+V2 flag, guarded charge-enable, solar guard, EN_HIZ clear, Wire1 at 100 kHz.
+
+Flashed over USB to the bench PowerFeather (D8:85:AC:9F:26:90, /dev/ttyACM1).
+Verified: SDK Ok, 3V3 pad reads 1, boot strike pulse fired, STA at
+192.168.4.26 / http://solenoiddemo.local/, telemetry live (LFP 3.597 V, SOC
+100 %, charging on, supply 4.72 V good). Physical strike + rail-sag behavior
+not yet assessed -- that is the point of the bench. Open questions it exists
+to answer (see the app README): minimum reliable pulse width, MCU/rail
+stability during pulses on USB vs battery, burst/auto endurance (watch
+`failsafes` and `reset_reason`).
+
+---
+
 ## 2026-07-08 (cont.) - Ben + Claude - Review corrections: RGBW feed stays rail-wired (VBAT option open), site timeline corroborated, battery dates pinned
 
 Ben's review of the housekeeping pass produced corrections, all folded in:
