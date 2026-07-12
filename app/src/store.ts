@@ -257,6 +257,7 @@ interface TwinState {
   setUiMode: (m: UiMode) => void;
   setDock: (b: boolean) => void;
   setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
+  resetAllOff: () => void; // BLACKOUT: stop every mode/show/group and go dark (a reset, not a hold)
   setSelectedScope: (g: string) => void;
   /** Auto-calibration solo-light: ALL fixtures off; `test` lights exactly one in
    *  the given colour. null = end of sequence, clear every override. */
@@ -706,12 +707,27 @@ export const useTwin = create<TwinState>((setState, get) => ({
     } else if (s.gol.phase !== "off") {
       s.golSetPhase("off");
     }
-    setState({ uiMode: m });
+    // entering ANY mode turns the lights back on (Elliot: blackout is a reset,
+    // not a permanent hold — you leave it by choosing a mode)
+    setState((q) => ({ uiMode: m, control: { ...q.control, blackout: false } }));
   },
   setDock: (b) => {
     try { localStorage.setItem("ui.dock", b ? "1" : "0"); } catch { /* fine */ }
     setState({ dock: b });
   },
+  // BLACKOUT = reset to all-off: stop shows, disarm Game of Light, drop every
+  // group layer, clear the field, go dark. Entering a mode afterwards lights the
+  // tree back up (setUiMode/setGroupMode/playShow/set all lift blackout).
+  resetAllOff: () => setState((s) => {
+    clearLife();
+    return {
+      activeShow: null,
+      layers: [],
+      gol: { ...DEFAULT_GOL },
+      groupModes: {},
+      control: { ...s.control, blackout: true, beaconPreempt: false },
+    };
+  }),
   // PER-GROUP MODE ROUTING — maps a group's mode onto the layer engine so different
   // regions run different worlds at once (canopy interactive + chandelier on sound):
   //   interactive → that group's layer runs the Game of Life (the shared field
@@ -727,7 +743,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     else if (m === "sound") s.setLayer(group, nums, { pattern: "hero", audioSpeed: true, brightness: 0.95 });
     else if (m === "lightshow") { s.toggleGroupActive(group, true); }
     else s.removeLayer(group); // follow the base
-    setState((q) => ({ groupModes: { ...q.groupModes, [group]: m }, selectedScope: group }));
+    setState((q) => ({ groupModes: { ...q.groupModes, [group]: m }, selectedScope: group, control: { ...q.control, blackout: false } }));
   },
   setSelectedScope: (g) => setState({ selectedScope: g }),
   calSolo: (test) => setState((s) => {
@@ -774,7 +790,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
       setLifeState({ ambient: true, nodes: [] });
       return { activeShow: id, showStartedAt: performance.now() / 1000, showSeed: Math.random(), gol: { ...DEFAULT_GOL }, control: { ...s.control, blackout: false } };
     }
-    return { activeShow: id, showStartedAt: performance.now() / 1000, showSeed: Math.random() };
+    return { activeShow: id, showStartedAt: performance.now() / 1000, showSeed: Math.random(), control: { ...s.control, blackout: false } };
   }),
   toggleGroupActive: (name, on) => setState((s) => {
     const ctl = { ...DEFAULT_GROUP_CONTROL, ...s.groupControls[name] };

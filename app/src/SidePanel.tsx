@@ -76,12 +76,17 @@ export function SidePanel() {
   const scope = useTwin((s) => s.selectedScope);
   const setScope = useTwin((s) => s.setSelectedScope);
   const setGroupMode = useTwin((s) => s.setGroupMode);
-  const defs = SECTIONS[uiMode];
-  const [order, setOrder] = useState<string[]>(() => loadOrder(uiMode, defs.map((d) => d.key)));
-  const [prevMode, setPrevMode] = useState(uiMode);
-  if (prevMode !== uiMode) { // mode switched → load that mode's saved order
-    setPrevMode(uiMode);
-    setOrder(loadOrder(uiMode, defs.map((d) => d.key)));
+  // the panel BODY follows the SELECTED scope's mode: pick a group + switch its
+  // mode and the controls below cycle to that mode (Elliot). "all", "follow" or
+  // an unset group ride the whole-tree uiMode.
+  const groupMode = scope === "all" ? undefined : groupModes[scope];
+  const effMode: UiMode = (groupMode && groupMode !== "follow" ? groupMode : uiMode) as UiMode;
+  const defs = SECTIONS[effMode];
+  const [order, setOrder] = useState<string[]>(() => loadOrder(effMode, defs.map((d) => d.key)));
+  const [prevMode, setPrevMode] = useState(effMode);
+  if (prevMode !== effMode) { // mode (or selected scope's mode) changed → load its saved order
+    setPrevMode(effMode);
+    setOrder(loadOrder(effMode, defs.map((d) => d.key)));
   }
   const [dragKey, setDragKey] = useState<string | null>(null);
   const dragRef = useRef<string | null>(null); // synchronous mirror of dragKey (pointer events outrun state)
@@ -89,7 +94,7 @@ export function SidePanel() {
 
   const commitOrder = (next: string[]) => {
     setOrder(next);
-    try { localStorage.setItem("dock.order.v2." + uiMode, JSON.stringify(next)); } catch { /* ignore */ }
+    try { localStorage.setItem("dock.order.v2." + effMode, JSON.stringify(next)); } catch { /* ignore */ }
   };
 
   // pointer drag-to-reorder: grab a section's ⠿ grip, drag past a neighbour's
@@ -118,7 +123,7 @@ export function SidePanel() {
   };
   const onGripUp = () => { dragRef.current = null; setDragKey(null); };
 
-  const meta = MODE_META[uiMode];
+  const meta = MODE_META[effMode];
   const ordered = order.map((k) => defs.find((d) => d.key === k)).filter(Boolean) as { key: string; el: ReactNode }[];
 
   return (

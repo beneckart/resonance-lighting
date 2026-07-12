@@ -30,6 +30,7 @@ export function App() {
   const beacon = useTwin((s) => s.control.beaconPreempt);
   const blackout = useTwin((s) => s.control.blackout);
   const setCtrl = useTwin((s) => s.set);
+  const resetAllOff = useTwin((s) => s.resetAllOff);
   const dock = useTwin((s) => s.dock);
   const setDock = useTwin((s) => s.setDock);
   const uiMode = useTwin((s) => s.uiMode);
@@ -118,10 +119,11 @@ export function App() {
       >
         🔦 BEACON{beacon ? " ON" : ""}
       </button>
-      {/* always-available BLACKOUT (instant all-off, pairs with BEACON) */}
+      {/* always-available BLACKOUT — resets ALL modes to off (not a hold): click
+          to go dark, then pick a mode to bring the tree back on */}
       <button
-        onClick={() => setCtrl({ blackout: !blackout })}
-        title="BLACKOUT — force all fixtures off instantly"
+        onClick={() => (blackout ? setCtrl({ blackout: false }) : resetAllOff())}
+        title="BLACKOUT — turn off all modes & reset to dark (pick a mode to bring it back)"
         style={{
           position: "fixed", bottom: 14, left: docked ? "calc(25% + 110px)" : "calc(50% + 110px)", zIndex: 60,
           padding: "8px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700, letterSpacing: 0.5,
