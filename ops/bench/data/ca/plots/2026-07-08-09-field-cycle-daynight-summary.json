@@ -1,0 +1,181 @@
+{
+  "log": "C:\\Users\\benec\\Documents\\resonance-tree\\ops\\bench\\data\\ca\\2026-07-08-ca-field-cycle-9F26F8-adr23-deploy.jsonl",
+  "plot": "C:\\Users\\benec\\Documents\\resonance-tree\\ops\\bench\\data\\ca\\plots\\2026-07-08-09-field-cycle-daynight.png",
+  "start_local": "2026-07-07T21:31:03-07:00",
+  "end_local": "2026-07-09T12:08:10-07:00",
+  "duration_h": 38.62,
+  "master_rows": 138848,
+  "peer_rows_total": 138851,
+  "fresh_peer_packets": 36150,
+  "master_gap_count_gt_2p5s": 2,
+  "master_max_gap_s": 36.09,
+  "master_max_gap_from": "2026-07-07T21:31:35-07:00",
+  "master_max_gap_to": "2026-07-07T21:32:11-07:00",
+  "fresh_max_gap_s": 892.9,
+  "fresh_max_gap_from": "2026-07-08T05:50:47-07:00",
+  "fresh_max_gap_to": "2026-07-08T06:05:40-07:00",
+  "fresh_max_gap_phase_from": 5,
+  "fresh_max_gap_phase_to": 5,
+  "days": {
+    "2026-07-07": {
+      "panel_wh_est": 0.0,
+      "battery_charge_wh_est": 0.0,
+      "battery_discharge_wh_est": 3.82,
+      "load_wh_est": 3.82,
+      "fresh_samples": 7867,
+      "min_v": 3.004,
+      "min_v_ts": "2026-07-07T23:54:36-07:00",
+      "max_v": 3.096,
+      "max_v_ts": "2026-07-07T21:41:00-07:00",
+      "phase_h_est": {
+        "draw": 2.48
+      }
+    },
+    "2026-07-08": {
+      "panel_wh_est": 10.06,
+      "battery_charge_wh_est": 6.32,
+      "battery_discharge_wh_est": 16.99,
+      "load_wh_est": 18.88,
+      "fresh_samples": 25473,
+      "min_v": 2.886,
+      "min_v_ts": "2026-07-08T01:36:17-07:00",
+      "max_v": 3.576,
+      "max_v_ts": "2026-07-08T14:31:52-07:00",
+      "phase_h_est": {
+        "draw": 7.71,
+        "protect": 7.48,
+        "charge": 8.81
+      }
+    },
+    "2026-07-09": {
+      "panel_wh_est": 5.41,
+      "battery_charge_wh_est": 3.57,
+      "battery_discharge_wh_est": 6.0,
+      "load_wh_est": 6.99,
+      "fresh_samples": 2810,
+      "min_v": 2.891,
+      "min_v_ts": "2026-07-09T07:39:26-07:00",
+      "max_v": 3.574,
+      "max_v_ts": "2026-07-09T12:06:45-07:00",
+      "phase_h_est": {
+        "draw": 0.72,
+        "protect": 7.73,
+        "charge": 3.66
+      }
+    }
+  },
+  "mppt_complete_runs": 42,
+  "mppt_best_counts": {
+    "5.0": 25,
+    "4.6": 4,
+    "4.8": 13
+  },
+  "mppt_gain_vs_4p6_avg_w": 0.0381,
+  "mppt_gain_vs_4p6_max_w": 0.2,
+  "mppt_today_runs": 14,
+  "mppt_today_best_counts": {
+    "5.0": 4,
+    "4.8": 10
+  },
+  "mppt_today_gain_vs_4p6_avg_w": 0.045,
+  "mppt_latest": [
+    {
+      "local": "2026-07-09T10:34:05-07:00",
+      "best": 5.0,
+      "p46": 1.14,
+      "p48": 1.19,
+      "p50": 1.22
+    },
+    {
+      "local": "2026-07-09T11:04:51-07:00",
+      "best": 4.8,
+      "p46": 3.6,
+      "p48": 3.65,
+      "p50": 3.64
+    },
+    {
+      "local": "2026-07-09T11:10:03-07:00",
+      "best": 4.8,
+      "p46": 3.7,
+      "p48": 3.77,
+      "p50": 3.75
+    },
+    {
+      "local": "2026-07-09T11:15:14-07:00",
+      "best": 4.8,
+      "p46": 3.74,
+      "p48": 3.79,
+      "p50": 3.77
+    },
+    {
+      "local": "2026-07-09T11:20:23-07:00",
+      "best": 4.8,
+      "p46": 3.8,
+      "p48": 3.85,
+      "p50": 3.83
+    },
+    {
+      "local": "2026-07-09T11:25:33-07:00",
+      "best": 4.8,
+      "p46": 3.83,
+      "p48": 3.89,
+      "p50": 3.86
+    },
+    {
+      "local": "2026-07-09T11:30:45-07:00",
+      "best": 4.8,
+      "p46": 3.88,
+      "p48": 3.92,
+      "p50": 3.88
+    },
+    {
+      "local": "2026-07-09T11:35:55-07:00",
+      "best": 4.8,
+      "p46": 3.91,
+      "p48": 3.94,
+      "p50": 3.9
+    },
+    {
+      "local": "2026-07-09T11:41:05-07:00",
+      "best": 4.8,
+      "p46": 3.92,
+      "p48": 3.94,
+      "p50": 3.87
+    },
+    {
+      "local": "2026-07-09T11:46:16-07:00",
+      "best": 4.8,
+      "p46": 3.94,
+      "p48": 3.95,
+      "p50": 3.87
+    },
+    {
+      "local": "2026-07-09T11:51:25-07:00",
+      "best": 4.8,
+      "p46": 3.97,
+      "p48": 3.98,
+      "p50": 3.9
+    },
+    {
+      "local": "2026-07-09T11:56:35-07:00",
+      "best": 5.0,
+      "p46": 3.85,
+      "p48": 3.87,
+      "p50": 3.91
+    },
+    {
+      "local": "2026-07-09T12:01:46-07:00",
+      "best": 5.0,
+      "p46": 3.8,
+      "p48": 3.79,
+      "p50": 3.84
+    },
+    {
+      "local": "2026-07-09T12:06:56-07:00",
+      "best": 5.0,
+      "p46": 3.77,
+      "p48": 3.79,
+      "p50": 3.83
+    }
+  ]
+}

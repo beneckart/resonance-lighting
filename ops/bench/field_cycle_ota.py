@@ -44,9 +44,15 @@ FIELD_DEFAULTS = {
     "field_protect_s": 900,
     "field_wake_ms": 8000,
     "field_cold_ms": 30000,
+    "field_dim_mv": 3000,
+    "field_dim_confirm_s": 10,
     "field_low_mv": 2950,
     "field_critical_mv": 2900,
     "field_low_confirm_s": 60,
+    "field_dusk_lux_x10": 2000,
+    "field_dawn_lux_x10": 5000,
+    "field_dusk_confirm_s": 300,
+    "field_dusk_no_sensor_confirm_s": 1800,
     "capacity_mah": 6000,
     "charge_ma": 1500,
     "maintain_v": "4.6",
@@ -80,10 +86,28 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--field-protect-s", type=int, default=FIELD_DEFAULTS["field_protect_s"])
     ap.add_argument("--field-wake-ms", type=int, default=FIELD_DEFAULTS["field_wake_ms"])
     ap.add_argument("--field-cold-ms", type=int, default=FIELD_DEFAULTS["field_cold_ms"])
+    ap.add_argument("--field-dim-mv", type=int, default=FIELD_DEFAULTS["field_dim_mv"])
+    ap.add_argument(
+        "--field-dim-confirm-s", type=int, default=FIELD_DEFAULTS["field_dim_confirm_s"]
+    )
     ap.add_argument("--field-low-mv", type=int, default=FIELD_DEFAULTS["field_low_mv"])
     ap.add_argument("--field-critical-mv", type=int, default=FIELD_DEFAULTS["field_critical_mv"])
     ap.add_argument(
         "--field-low-confirm-s", type=int, default=FIELD_DEFAULTS["field_low_confirm_s"]
+    )
+    ap.add_argument(
+        "--field-dusk-lux-x10", type=int, default=FIELD_DEFAULTS["field_dusk_lux_x10"]
+    )
+    ap.add_argument(
+        "--field-dawn-lux-x10", type=int, default=FIELD_DEFAULTS["field_dawn_lux_x10"]
+    )
+    ap.add_argument(
+        "--field-dusk-confirm-s", type=int, default=FIELD_DEFAULTS["field_dusk_confirm_s"]
+    )
+    ap.add_argument(
+        "--field-dusk-no-sensor-confirm-s",
+        type=int,
+        default=FIELD_DEFAULTS["field_dusk_no_sensor_confirm_s"],
     )
     ap.add_argument("--capacity-mah", type=int, default=FIELD_DEFAULTS["capacity_mah"])
     ap.add_argument("--charge-ma", type=int, default=FIELD_DEFAULTS["charge_ma"])
@@ -188,12 +212,24 @@ def build_args(args: argparse.Namespace) -> list[str]:
         str(args.field_wake_ms),
         "--field-cold-ms",
         str(args.field_cold_ms),
+        "--field-dim-mv",
+        str(args.field_dim_mv),
+        "--field-dim-confirm-s",
+        str(args.field_dim_confirm_s),
         "--field-low-mv",
         str(args.field_low_mv),
         "--field-critical-mv",
         str(args.field_critical_mv),
         "--field-low-confirm-s",
         str(args.field_low_confirm_s),
+        "--field-dusk-lux-x10",
+        str(args.field_dusk_lux_x10),
+        "--field-dawn-lux-x10",
+        str(args.field_dawn_lux_x10),
+        "--field-dusk-confirm-s",
+        str(args.field_dusk_confirm_s),
+        "--field-dusk-no-sensor-confirm-s",
+        str(args.field_dusk_no_sensor_confirm_s),
         "--field-led-load",
         "--drawdown-lit",
         str(3 if args.spiral_rgb else args.hex_lit),

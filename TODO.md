@@ -206,8 +206,31 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
     - [x] **External ammeter -- BUILT: 4-channel INA219 monitor** (`firmware/ina_monitor/`, Adafruit Metro S3 + 4x SEN0291 @ 0x40/41/44/45, separate-monitor topology; since 2026-07-02 also runs on the KB2040 with optional VEML7700/TSL2591 lux). Reads a board-under-test's current through deep sleep, gauge-independent. **Next:** (a) **fast-sample capture** (raise rate) to nail per-wake energy -- 10 Hz may miss a <100 ms radio-init spike; (b) **calibrate R_shunt** (0.1 ohm provisional; raw shunt_mV logged so recoverable); (c) wire **panel-lead + LED-rail** channels for the full power-flow map; (d) sharpen sleep resolution (drop PGA range); (e) **I2C robustness (2026-07-02): clear a channel's present flag after N consecutive ERRs, and attempt bus recovery (9 SCL pulses + Wire re-init) when the whole bus errors** -- unplugging the INA harness mid-session wedged the bus (SDA held low) and blinded the still-attached VEML until a reboot (LOG 2026-07-02 audit entry) (Ben).
     - [~] **Clean full-sun MPP sweep -- HOT SESSION DONE 2026-06-11** (LOG 06-11 cont. 2; data `2026-06-11-mpp-sweep-hot-pm-*.jsonl` + knee re-sweep): hot panel (~60 deg C back / 68 deg C front IR) optimum **4.6-4.7 V -> 1.73 W BQ-side / 1.91 W panel-INA ground truth = 3.2x the 5.5 V default (0.59 W)**; instability/knee immediately below 4.6 (one real collapse at 4.4 when stepped to from near-idle); **BQ supply telemetry under-reports harvest ~10 % vs the panel-lead INA** (sizing must use panel-side). Fully wireless: TSL2591 (saturated in full sun -> ir-ch1 normalization fallback, works well; diffuser optional), SHT31 panel-back temp, onboard SEN0291s (0x40 panel / 0x45 battery) all in the heartbeat (fw 2026-06-11.2). **Remaining: the cool-AM session** for Vmp(T) -> the fixed-vs-temp-comp-vs-P&O decision. Lessons baked in: anchor at 4.9 not 5.5 (5.5 is load-noise-dominated); run on a hungry battery (<~50 % SOC -- late-session demand-limiting flattens the curve); approach setpoints from above; beware the bright-sun input-latch on connect (see Firmware guard TODO) (Ben).
     - [x] **Voltaic ETFE P105/P126 outdoor MPP comparison** (2026-06-29, Oakland late sun, both panels about 15 deg tilted): P105 5 W best observed around `m46`/`m48`, panel-side INA about 3.8-3.9 W and charger input about 3.47 W; P126 smaller ETFE best around `m58`, panel-side INA about 1.89 W and charger input about 1.66-1.68 W. P126 is proportionally close to nominal/nameplate; P105 is plausible vs datasheet expected Vmp but may be demand-limited by LFP charge acceptance/taper. See LOG 2026-06-29. (Ben/Codex)
-    - [~] **P126 production-cabling perimeter/HEX field cycle** -- deployed 2026-07-10 on former speaker board `9E5B0C`: 2 W panel at fixed 5.8 V VINDPM, 6 Ah production LFP, no INAs/Dupont, and three full-bright R/G/B pixels spiraling in/out at symmetric 120-degree offsets. MAX17260 current and onboard mAh/Wh totals are corrected `/1.08` in firmware. Logger: `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`. Let it run through charge -> dark/draw -> dim/protect -> sunrise; visually confirm the spiral after dark, then analyze charger-input Wh harvested vs corrected battery/load Wh. Treat BQ supply power as end-to-end onboard telemetry, not panel-side ground truth. (Ben/Codex)
+    - [~] **P126 production-cabling perimeter/HEX field cycle** -- deployed 2026-07-10 on former speaker board `9E5B0C`: 2 W panel at fixed 5.8 V VINDPM, 6 Ah production LFP, no INAs/Dupont, and three full-bright R/G/B pixels spiraling in/out at symmetric 120-degree offsets. MAX17260 current and onboard mAh/Wh totals are corrected `/1.08` in firmware. Logger: `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`; consolidated analysis: `docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`. Let it run through charge -> dark/draw -> dim/protect -> sunrise; visually confirm the spiral after dark, then analyze charger-input Wh harvested vs corrected battery/load Wh. Treat BQ supply power as end-to-end onboard telemetry, not panel-side ground truth. (Ben/Codex)
       - [x] Quick onboard MPP re-check 2026-07-10: broad optimum at 5.8-6.0 V; 6.0 V showed +3.8% BQ-input W but no battery-current gain, 6.2 V rolled over, and two 5.8 V anchors agreed within 0.4%. Keep the external-INA-qualified 5.8 V fixed setpoint. (Codex)
+      - [ ] **Fix the nightly show window and active-time integration before sizing:**
+        Ben confirmed that the measured roughly 158 mA draw from the three-pixel spiral
+        is intentionally representative of a deployed HEX show; do not raise the load
+        merely to force a one-night empty. The clean July 11-12 session actually ran
+        18:07:33-08:53:54 PDT (14 h 46 min) and logger-time integration gives 2.33 Ah.
+        The peer reported only 13.02 h / 2.08 Ah because `fieldCycleIntegrateActive()`
+        discards the fractional part of every `dt / 1000` step. Carry milliseconds
+        across integrations. Separately, the no-lux solar-current fallback turns the
+        show on well before visual sunset and leaves it on until useful morning input.
+        Use a provisional 9-10 h production HEX show window for the next emulation:
+        during the Aug 30-Sep 7 event, civil dusk to civil dawn is about 9 h 53 min to
+        10 h 15 min at Black Rock Desert. Exact schedule/trigger remains open. (Ben/Codex)
+      - [ ] Repeat the clean overnight capture after host-power reliability is fixed: the first production-cabling run has a 13 h 04 min laptop-suspend gap (2026-07-10 18:20 -> 2026-07-11 07:25 PDT). Device-retained counters preserve the total, but the overnight time series is missing. (Ben/Codex)
+      - [~] **Observe the P126 daily harvest range until this peer is needed elsewhere:**
+        leave `net-bench-2026-07-10.1` and fixed 5.8 V in place rather than OTA solely
+        to shorten the artificial night. For every additional day, record BQ-input Ah
+        and Wh, positive corrected battery Ah/Wh, weather, coverage, and any reset.
+        Current complete/provisional weather points are about 1.55 Ah / 9.02 Wh BQ input
+        on July 11 and 1.12 Ah / 6.51 Wh through about 18:00 on the overcast July 12.
+        Logger is alive but its current 259200 s run expires around July 13 15:25 PDT;
+        restart to a continuation file if the peer remains outside beyond then.
+        Stop without a firmware change when Ben disassembles it for the next bench.
+        (Ben/Codex)
     - [ ] **Re-run P105 5 W with a hungry larger LFP**: use the 6-7.2 Ah cell intentionally discharged to roughly the mid-SOC voltage region (about 3.25-3.40 V resting, not 3.55+ V while charging), hold around `m46`/`m48`, and confirm whether panel-side power can climb beyond the 3.8-3.9 W seen with the 2 Ah cell. Goal: separate panel capability from cell IR/CV-taper demand limiting. (Ben)
     - [ ] **Analyze 7200 mAh HEX drawdown run before the next P105 test**: data path
       `ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl`; record stop
@@ -648,7 +671,25 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   hysteresis, load-compensated voltage (`bv + 0.15 x I_A`), coulomb-remaining primary
   (DesignCap ~5750, gauge current /1.08), voltage tiers as backstop, watchdogged
   sleep (Ben/Claude).
-- [ ] Add a production dusk/dawn light-enable gate instead of using the field-cycle
+  - [ ] Add the missing LED-off state. Current field-cycle treats confirmed 2.95 V as
+    `FC_PROTECT` and immediately timer-sleeps; ADR 0023 calls for LEDs off with
+    duty-cycled OTA reachability until the separate 2.90 V sparse-sleep threshold.
+    This did not cause P105's July 11 early POR failure at about 3.04 V, but it leaves
+    the 2.95-to-2.90 V reserve unused in a clean run. (Codex)
+  - [~] Make low-VBAT protection survive rail-collapse/POR loops. P105 `9F26F8`
+    produced 31 `poweron` resets in about 19 minutes on 2026-07-11 while the HEX load
+    held VBAT near 3.0 V; every hard reset erased the RTC cycle state and in-RAM 60 s
+    debounce, then boot re-enabled the load. **P105 FIX DEPLOYED 2026-07-12:**
+    `net-bench-2026-07-12.1` persists idle/full/dim/protect session stages before
+    rail-on. A POR from full consumes one staged retry at dim brightness; a POR from
+    dim or protect hard-parks until verified charge. The exact P105 artifact is
+    `build/field-cycle-peer-20260712-p105-dusk-dim-retry-r3/net_bench.ino.bin` with
+    dim 3.10 V / 10 s, low 2.95 V / 60 s, and critical 2.90 V immediate. OTA ack,
+    explicit `/resume`, ESP-NOW rejoin, and one natural five-minute charge-sleep wake
+    are verified. Remaining: validate tonight's real dim/POR behavior; optionally
+    induce one full-stage reset and a second dim-stage reset under supervision. The
+    P126 version remains compiled-only and has not received this revision. (Ben/Codex)
+- [~] Add a production dusk/dawn light-enable gate instead of using the field-cycle
   bench shortcut "charger input disappeared == dark." Current net_bench field-cycle
   enters draw when `fieldCycleSupplyPresent()` is false (`csV >= 4.0 V` and useful
   input/charge current >= 20 mA), so clouds, shade, panel angle, or taper can turn the
@@ -656,7 +697,19 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   window with hysteresis before enabling LEDs: calibrate panel INA watts/current/voltage
   and optional TSL/lux from field logs, then use separate dusk-on and dawn-off thresholds
   plus a multi-minute confirm so temporary shade does not start the night show early
+  **P105 BENCH IMPLEMENTATION DEPLOYED 2026-07-12:** TSL2591 peers now require five
+  minutes at <=200 lux for dusk and use >=500 lux for dawn; peers without TSL fall
+  back to 30 minutes without useful charger input. The first post-OTA five-minute
+  charge sleep stayed in the same charge cycle at 5,388-5,812 lux despite low input.
+  Production sensor/time-source policy and tonight's actual transition remain open.
   (Ben/Codex).
+  - [x] **Confirmed failure mode 2026-07-11/12:** charge termination drives both
+    `supply_ma` and `battery_ma` below 20 mA while panel voltage remains high, so the
+    peer declares false dark, pulses the LED load, then declares sunrise when current
+    returns. This produced dozens of false P105 cycles and repeatedly reset coulomb
+    counters. Addressed for P105 by the qualified 200/500 lux gate above; the bare-peer
+    fallback uses a 30-minute confirm rather than panel voltage, which remains high at
+    zero current. (Codex)
 - [ ] Optional backlog: one cold-night discharge at a representative dim load to
   sharpen ADR 0023's tiers for winter (they're currently 79.9 deg F, n=2 data;
   conservative tier is the hedge until then) (Ben).

@@ -201,6 +201,47 @@ measured 32700 LFP curve for the current HEX-load bench:
 - The bridge line appends `fcdim=` and `fclat=`, also exposed in `/telemetry` as
   `field_load_dimmed` and `field_protect_latched`.
 
+`net-bench-2026-07-12.1` makes the field LED load fail-safe across resets that erase
+RTC state without abandoning the remaining battery after the first full-load collapse.
+This guard is automatic for `--field-cycle --field-led-load` builds:
+
+- Before energizing the LED rail, firmware persists an NVS session stage: idle, full,
+  dim, or protect. Verified solar recovery clears it.
+- A power-on, brownout, panic, or watchdog from the full stage consumes exactly one
+  retry before rail-on and restarts through the staged ramp at dim brightness. A reset
+  from dim, or any reset from protect, keeps 3V3 off and hard-parks until verified
+  charge. Thus POR cannot recreate the old full-power loop, while the first event does
+  not automatically strand the remaining Ah.
+- Boot drives the pixel data and EN_3V3 low before PowerFeather initialization, parks
+  the SDK's cold-init rail enable immediately, and initializes ESP-NOW before the field
+  load. A deliberate start waits 1 s, clears the newly enabled rail, and ramps brightness
+  in four steps over 400 ms. A <=2.95 V sample during that ramp parks immediately; a
+  sample below the configured dim threshold selects the dim target. The P105 deployment
+  uses 3.10 V with a 10 s steady-state confirmation; protect remains 2.95 V / 60 s and
+  critical remains 2.90 V immediate.
+- `/telemetry` adds `field_session_stage`, `field_session_marker`,
+  `field_interrupted_boot`, `field_interrupted_retry`, and `field_interrupted_park`.
+  Existing bridge logs identify the parked state through `field_phase=5`,
+  `field_reason=8`, and `field_protect_latched=true`, so the heartbeat protocol did not
+  need another tail.
+
+The same revision qualifies visual dusk instead of treating one low-current charger
+sample as darkness. A TSL2591-equipped peer requires five minutes at <=200 lux and uses
+>=500 lux as the separate dawn threshold. This prevents a full battery from creating
+false afternoon night/sunrise cycles. A peer without the light sensor falls back to
+30 minutes without useful charger input. Build overrides are
+`--field-dusk-lux-x10`, `--field-dawn-lux-x10`, `--field-dusk-confirm-s`, and
+`--field-dusk-no-sensor-confirm-s`; `/telemetry` exposes `field_dusk_s`.
+
+The old optional `--autosleep` counter remains useful for non-field bench modes, but is
+not the field LED safety mechanism: it runs later in setup and waits many resets. The
+NVS field-session stage is armed before the first LED load and catches the first
+unexpected reset.
+
+The full P105/P126 field reconstruction, production show-duration math, daily-harvest
+ledger, POR regression chain, and reusable telemetry gotchas are recorded in
+`docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`.
+
 `net-bench-2026-07-06.1` adds an opt-in safe VINDPM perturb helper for the field-cycle
 bench:
 

@@ -56,6 +56,39 @@ pixel-power option in TODO. Can't accidentally drain the pack with LEDs.
 > (`Board.enableVSQT()` in the SDK). Enabling the 3V3 header (GPIO4) is not the same
 > as enabling VSQT. Know which rail your device is actually on.
 
+## A POR can erase low-voltage protection and recreate its own boot loop
+
+The July 2026 P105 field cycle exposed a general failure pattern. A heavy LED load
+pulled loaded VBAT into a marginal region before the dim/off debounce completed. The
+board took a true `poweron` reset; load release raised VBAT; RTC phase, latches, and
+confirmation timers were gone; boot interpreted the rebound as healthy and reapplied
+the full load. Resets happened faster than the protection timeout, so the safety logic
+could be defeated forever.
+
+This applies to any cause that removes VSYS, not only ordinary cell sag. A high-ohm
+power path can move the loaded knee upward, and an I2C upset that opens the BQ25628E
+battery switch produces the same `poweron` signature at healthy voltage. The boot-loop
+guard must therefore be cause-independent:
+
+- Keep pixel data and every switchable load-enable **off from the first boot
+  instructions**, before `Board.init()`. Cold SDK init enables 3V3, so park it again
+  immediately afterward.
+- Persist the intended load tier in NVS **before** rail-on. RAM and RTC slow memory do
+  not survive POR.
+- Treat resting/rebound voltage as insufficient recovery evidence. Require verified
+  positive charge or a persisted, strictly bounded retry budget.
+- If one recovery attempt is allowed, atomically consume it before energizing the rail.
+  The P105 policy retries `full` exactly once at `dim`; a reset from `dim` or `protect`
+  parks with LEDs off until verified charge.
+- Clear stale pixel state and ramp the load while sampling VBAT. Do not stack rail-on,
+  old LED data, and WiFi startup into one uncontrolled transient.
+- Put an immediate critical check below the debounced thresholds. A reset can erase a
+  confirmation timer; it cannot erase the current sample.
+
+`net-bench-2026-07-12.1` implements this pattern with NVS stages `idle`, `full`, `dim`,
+and `protect`. Full reconstruction and telemetry signatures are in
+`docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`.
+
 ## Those two 3V3 rails dominate deep-sleep current -- cut BOTH before sleeping
 
 There are **two** SDK-switchable 3.3 V rails, and **leaving them on through deep sleep

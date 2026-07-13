@@ -23,7 +23,8 @@ MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
 SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""; MAINT_AP=""
 FIELD_CYCLE=""; FIELD_CHARGE_SLEEP=""; FIELD_WAIT_SLEEP=""; FIELD_PROTECT_SLEEP=""; FIELD_WAKE_LISTEN_MS=""; FIELD_COLD_LISTEN_MS=""
-FIELD_DIM_MV=""; FIELD_DIM_BRIGHTNESS=""; FIELD_LOW_MV=""; FIELD_CRITICAL_MV=""; FIELD_LOW_CONFIRM_S=""; FIELD_LED_LOAD=""
+FIELD_DIM_MV=""; FIELD_DIM_BRIGHTNESS=""; FIELD_DIM_CONFIRM_S=""; FIELD_LOW_MV=""; FIELD_CRITICAL_MV=""; FIELD_LOW_CONFIRM_S=""; FIELD_LED_LOAD=""
+FIELD_DUSK_LUX_X10=""; FIELD_DAWN_LUX_X10=""; FIELD_DUSK_CONFIRM_S=""; FIELD_DUSK_NO_SENSOR_CONFIRM_S=""
 FIELD_LED_SPIRAL_RGB=""; FIELD_LED_FRAME_MS=""
 FIELD_RECOVER_CHARGE_MA=""; FIELD_PROTECT_RETRY_DARK=""
 DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
@@ -59,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --field-cold-ms) FIELD_COLD_LISTEN_MS="$2"; shift 2;;
     --field-dim-mv) FIELD_DIM_MV="$2"; shift 2;;
     --field-dim-brightness) FIELD_DIM_BRIGHTNESS="$2"; shift 2;;
+    --field-dim-confirm-s) FIELD_DIM_CONFIRM_S="$2"; shift 2;;
     --field-low-mv) FIELD_LOW_MV="$2"; shift 2;;
     --field-critical-mv) FIELD_CRITICAL_MV="$2"; shift 2;;
     --field-low-confirm-s) FIELD_LOW_CONFIRM_S="$2"; shift 2;;
@@ -66,6 +68,10 @@ while [[ $# -gt 0 ]]; do
     --field-led-spiral-rgb) FIELD_LED_SPIRAL_RGB="1"; shift;;
     --field-led-frame-ms) FIELD_LED_FRAME_MS="$2"; shift 2;;
     --field-recover-charge-ma) FIELD_RECOVER_CHARGE_MA="$2"; shift 2;;
+    --field-dusk-lux-x10) FIELD_DUSK_LUX_X10="$2"; shift 2;;
+    --field-dawn-lux-x10) FIELD_DAWN_LUX_X10="$2"; shift 2;;
+    --field-dusk-confirm-s) FIELD_DUSK_CONFIRM_S="$2"; shift 2;;
+    --field-dusk-no-sensor-confirm-s) FIELD_DUSK_NO_SENSOR_CONFIRM_S="$2"; shift 2;;
     --field-protect-retry-dark) FIELD_PROTECT_RETRY_DARK="1"; shift;;
     --field-mppt) FIELD_MPPT="1"; shift;;
     --field-mppt-hold) FIELD_MPPT_HOLD="1"; shift;;
@@ -135,6 +141,7 @@ esac
 [[ -n "${FIELD_COLD_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_COLD_LISTEN_MS=${FIELD_COLD_LISTEN_MS}"
 [[ -n "${FIELD_DIM_MV}" ]] && FLAGS+=" -DNB_FIELD_DIM_MV=${FIELD_DIM_MV}"
 [[ -n "${FIELD_DIM_BRIGHTNESS}" ]] && FLAGS+=" -DNB_FIELD_LED_DIM_BRIGHTNESS=${FIELD_DIM_BRIGHTNESS}"
+[[ -n "${FIELD_DIM_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DIM_CONFIRM_S=${FIELD_DIM_CONFIRM_S}"
 [[ -n "${FIELD_LOW_MV}" ]] && FLAGS+=" -DNB_FIELD_LOW_MV=${FIELD_LOW_MV}"
 [[ -n "${FIELD_CRITICAL_MV}" ]] && FLAGS+=" -DNB_FIELD_CRITICAL_MV=${FIELD_CRITICAL_MV}"
 [[ -n "${FIELD_LOW_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_LOW_CONFIRM_S=${FIELD_LOW_CONFIRM_S}"
@@ -142,6 +149,10 @@ esac
 [[ -n "${FIELD_LED_SPIRAL_RGB}" ]] && FLAGS+=" -DNB_FIELD_LED_SPIRAL_RGB=1"
 [[ -n "${FIELD_LED_FRAME_MS}" ]] && FLAGS+=" -DNB_FIELD_LED_FRAME_MS=${FIELD_LED_FRAME_MS}"
 [[ -n "${FIELD_RECOVER_CHARGE_MA}" ]] && FLAGS+=" -DNB_FIELD_RECOVER_CHARGE_MA=${FIELD_RECOVER_CHARGE_MA}"
+[[ -n "${FIELD_DUSK_LUX_X10}" ]] && FLAGS+=" -DNB_FIELD_DUSK_LUX_X10=${FIELD_DUSK_LUX_X10}"
+[[ -n "${FIELD_DAWN_LUX_X10}" ]] && FLAGS+=" -DNB_FIELD_DAWN_LUX_X10=${FIELD_DAWN_LUX_X10}"
+[[ -n "${FIELD_DUSK_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DUSK_CONFIRM_S=${FIELD_DUSK_CONFIRM_S}"
+[[ -n "${FIELD_DUSK_NO_SENSOR_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DUSK_NO_SENSOR_CONFIRM_S=${FIELD_DUSK_NO_SENSOR_CONFIRM_S}"
 [[ -n "${FIELD_PROTECT_RETRY_DARK}" ]] && FLAGS+=" -DNB_FIELD_PROTECT_RETRY_DARK=1"
 [[ -n "${FIELD_MPPT}" ]] && FLAGS+=" -DNB_FIELD_MPPT=1"
 [[ -n "${FIELD_MPPT_HOLD}" ]] && FLAGS+=" -DNB_FIELD_MPPT_HOLD_BEST=1"

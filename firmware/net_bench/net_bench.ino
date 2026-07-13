@@ -30,6 +30,7 @@
 #include "esp_ota_ops.h"
 #include "esp_sleep.h"
 #include "esp_task_wdt.h"
+#include "driver/rtc_io.h"
 #include <Preferences.h>
 #include <Wire.h>
 // Env sensors (MPP sweep): auto-probed on the STEMMA bus (Wire1) at boot --
@@ -38,7 +39,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-10.1" // P126 HEX field cycle: spiral RGB + corrected gauge current
+#define NET_BENCH_VERSION "net-bench-2026-07-12.1" // qualified dusk + persisted one-time dim POR retry
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -210,6 +211,9 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_DIM_CLEAR_MV
 #define NB_FIELD_DIM_CLEAR_MV (NB_FIELD_DIM_MV + 150) // hysteresis; bench dim latch normally clears on charge cycle
 #endif
+#ifndef NB_FIELD_DIM_CONFIRM_S
+#define NB_FIELD_DIM_CONFIRM_S 10 // dim before a marginal source can reset for the full 60 s low debounce
+#endif
 #ifndef NB_FIELD_LOW_MV
 #define NB_FIELD_LOW_MV 2950 // ADR 0023 standard tier: LED-off/protect threshold under load
 #endif
@@ -240,6 +244,15 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_LED_DIM_BRIGHTNESS
 #define NB_FIELD_LED_DIM_BRIGHTNESS ((NB_DRAWDOWN_BRIGHTNESS > 1) ? (NB_DRAWDOWN_BRIGHTNESS / 2) : 1)
 #endif
+#ifndef NB_FIELD_LED_START_DELAY_MS
+#define NB_FIELD_LED_START_DELAY_MS 1000 // let power + ESP-NOW settle before applying the field load
+#endif
+#ifndef NB_FIELD_LED_RAMP_MS
+#define NB_FIELD_LED_RAMP_MS 400 // four brightness steps; an interrupted ramp is caught by the NVS guard
+#endif
+#ifndef NB_FIELD_LED_RAMP_STEPS
+#define NB_FIELD_LED_RAMP_STEPS 4
+#endif
 #if NB_FIELD_LED_SPIRAL_RGB && NB_DRAWDOWN_PIXEL_COUNT != 37
 #error "NB_FIELD_LED_SPIRAL_RGB requires the 37-pixel M5Stack HEX geometry"
 #endif
@@ -251,6 +264,18 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_FIELD_RECOVER_CHARGE_MA
 #define NB_FIELD_RECOVER_CHARGE_MA 20 // battery charge current needed to release protect latch
+#endif
+#ifndef NB_FIELD_DUSK_LUX_X10
+#define NB_FIELD_DUSK_LUX_X10 2000 // 200 lux: July field trace reaches this near visual sunset
+#endif
+#ifndef NB_FIELD_DAWN_LUX_X10
+#define NB_FIELD_DAWN_LUX_X10 5000 // 500 lux: separate dawn hysteresis avoids LED/light chatter
+#endif
+#ifndef NB_FIELD_DUSK_CONFIRM_S
+#define NB_FIELD_DUSK_CONFIRM_S 300 // sensored peer: require 5 min below the lux threshold
+#endif
+#ifndef NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S
+#define NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S 1800 // bare peer fallback: 30 min without useful input
 #endif
 #ifndef NB_FIELD_DRAWDOWN_HZ
 #define NB_FIELD_DRAWDOWN_HZ 1 // production-ish always-awake radio draw cadence
@@ -386,6 +411,13 @@ enum FieldReason : uint8_t {
   FC_REASON_LOW = 5,
   FC_REASON_CRITICAL = 6,
   FC_REASON_SUNRISE = 7,
+  FC_REASON_INTERRUPTED = 8,
+};
+enum FieldSessionStage : uint8_t {
+  FIELD_SESSION_IDLE = 0,
+  FIELD_SESSION_FULL = 1,
+  FIELD_SESSION_DIM = 2,
+  FIELD_SESSION_PROTECT = 3,
 };
 enum FieldMpptStatus : uint8_t {
   MPPT_STATUS_DISABLED = 0,
@@ -435,6 +467,7 @@ RTC_DATA_ATTR uint16_t rtcFieldChargeS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldWaitS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldDrawS = 0;
 RTC_DATA_ATTR uint16_t rtcFieldProtectS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDuskS = 0;
 RTC_DATA_ATTR uint8_t rtcFieldLoadDimmed = 0;
 RTC_DATA_ATTR uint8_t rtcFieldProtectLatched = 0;
 RTC_DATA_ATTR uint8_t rtcFieldMpptStatus = MPPT_STATUS_DISABLED;
@@ -449,6 +482,14 @@ RTC_DATA_ATTR uint16_t rtcFieldMpptP50Wx100 = 0;
 uint32_t fieldLastIntegrateMs = 0;
 uint32_t fieldLowSinceMs = 0;
 uint32_t fieldDimSinceMs = 0;
+uint32_t fieldDuskLastMs = 0;
+bool gFieldSessionMarker = false;
+bool gFieldInterruptedBoot = false;
+bool gFieldInterruptedRetry = false;
+bool gFieldInterruptedPark = false;
+bool gFieldSessionStateLoaded = false;
+uint8_t gFieldSessionStage = FIELD_SESSION_IDLE;
+uint32_t gFieldLedEarliestOnMs = 0;
 
 uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
@@ -814,6 +855,109 @@ void loadBenchConfig() {
                  gChargeMa == defaultChargeMa) ? " (build defaults)" : " (NVS override)");
 }
 
+bool fieldSessionUnexpectedReset(esp_reset_reason_t reason) {
+  switch (reason) {
+  case ESP_RST_POWERON:
+  case ESP_RST_PANIC:
+  case ESP_RST_INT_WDT:
+  case ESP_RST_TASK_WDT:
+  case ESP_RST_WDT:
+  case ESP_RST_BROWNOUT:
+    return true;
+  default:
+    return false;
+  }
+}
+
+void fieldSessionRawRailOff() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
+  digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
+  rtc_gpio_hold_dis(GPIO_NUM_4);
+  rtc_gpio_init(GPIO_NUM_4);
+  rtc_gpio_set_direction(GPIO_NUM_4, RTC_GPIO_MODE_INPUT_OUTPUT);
+  rtc_gpio_set_level(GPIO_NUM_4, 0);
+  rtc_gpio_hold_en(GPIO_NUM_4);
+#endif
+}
+
+void fieldSessionGuardPreInit() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  // Fail-safe from the first instructions: keep pixel data and the switchable header
+  // rail low until the power stack, reset guard, and ESP-NOW are initialized. Board.init()
+  // will briefly reconfigure EN_3V3, so setupPowerFeather() parks it again immediately.
+  fieldSessionRawRailOff();
+
+  Preferences pf;
+  if (pf.begin("netbench", false)) {
+    if (pf.isKey("fc_led_stage")) {
+      gFieldSessionStage = min((uint8_t)FIELD_SESSION_PROTECT,
+                               pf.getUChar("fc_led_stage", FIELD_SESSION_IDLE));
+    } else if (pf.getBool("fc_led_active", false)) {
+      // Migration from the compiled-but-not-normally-deployed boolean guard. Treat an
+      // armed legacy marker as a full-load attempt so it receives one safe dim retry.
+      gFieldSessionStage = FIELD_SESSION_FULL;
+      pf.putUChar("fc_led_stage", gFieldSessionStage);
+    }
+    gFieldSessionStateLoaded = true;
+
+    if (gFieldSessionStage != FIELD_SESSION_IDLE &&
+        fieldSessionUnexpectedReset(esp_reset_reason())) {
+      gFieldInterruptedBoot = true;
+      if (gFieldSessionStage == FIELD_SESSION_FULL) {
+        // Consume the only retry BEFORE any rail can turn on. A reset during the dim
+        // attempt therefore boots with DIM already persisted and hard-parks below.
+        if (pf.putUChar("fc_led_stage", FIELD_SESSION_DIM) == sizeof(uint8_t)) {
+          gFieldSessionStage = FIELD_SESSION_DIM;
+          gFieldInterruptedRetry = true;
+        } else {
+          gFieldSessionStage = FIELD_SESSION_PROTECT;
+          gFieldInterruptedPark = true;
+        }
+      } else {
+        gFieldInterruptedPark = true;
+      }
+    }
+    pf.end();
+  }
+  if (!gFieldSessionStateLoaded && fieldSessionUnexpectedReset(esp_reset_reason())) {
+    // If NVS itself cannot be read, fail safe rather than applying a blind full load.
+    gFieldInterruptedBoot = true;
+    gFieldInterruptedPark = true;
+    gFieldSessionStage = FIELD_SESSION_PROTECT;
+  }
+  gFieldSessionMarker = gFieldSessionStage != FIELD_SESSION_IDLE;
+#endif
+}
+
+bool fieldSessionSetStage(uint8_t stage) {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  stage = min((uint8_t)FIELD_SESSION_PROTECT, stage);
+  if (gFieldSessionStateLoaded && gFieldSessionStage == stage) return true;
+  Preferences pf;
+  if (!pf.begin("netbench", false)) return false;
+  size_t written = pf.putUChar("fc_led_stage", stage);
+  pf.end();
+  if (written != sizeof(uint8_t)) return false;
+  gFieldSessionStage = stage;
+  gFieldSessionMarker = stage != FIELD_SESSION_IDLE;
+  gFieldSessionStateLoaded = true;
+#else
+  (void)stage;
+#endif
+  return true;
+}
+
+void fieldSessionReportBootState() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  Serial.printf("field-session guard: stage=%u marker=%d interrupted=%d retry=%d park=%d reset=%s nvs=%d\n",
+                gFieldSessionStage, gFieldSessionMarker ? 1 : 0,
+                gFieldInterruptedBoot ? 1 : 0, gFieldInterruptedRetry ? 1 : 0,
+                gFieldInterruptedPark ? 1 : 0,
+                resetReasonName(esp_reset_reason()), gFieldSessionStateLoaded ? 1 : 0);
+#endif
+}
+
 bool persistCapacity(uint16_t mah) {
   if (mah < NB_CAPACITY_MIN_MAH || mah > NB_CAPACITY_MAX_MAH) {
     Serial.printf("capacity %u rejected (range %u..%u mAh)\n",
@@ -854,6 +998,9 @@ void setupPowerFeather() {
   Result r = Result::Failure;
   for (int a = 1; a <= 4; a++) {
     r = Board.init(gBatteryCapacityMah, RES_PF_BATTERY_TYPE);
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+    fieldSessionRawRailOff();
+#endif
     if (r == Result::Ok) break;
     Serial.printf("  Board.init attempt %d -> %d, retrying\n", a, (int)r);
     delay(250);
@@ -862,6 +1009,13 @@ void setupPowerFeather() {
   Serial.printf("  Board.init(cap=%u, %s) -> %s\n", (unsigned)gBatteryCapacityMah,
                 batteryTypeName(), pfReady ? "Ok" : "ERR");
   if (!pfReady) return;
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  // The SDK intentionally enables this rail on cold init. Field-cycle owns the LED
+  // rail, so park it before any charger policy writes or network startup can overlap
+  // an old/unknown pixel frame. Only fieldCycleLedLoadOn() may re-enable it.
+  if (Board.enable3V3(false) != Result::Ok)
+    Serial.println("field-session guard: WARN failed to park 3V3 after Board.init");
+#endif
   gMaintainV = (float)RES_PF_MAINTAIN_V;
   Board.setSupplyMaintainVoltage(gMaintainV);
   rtcFieldMpptActiveV10 = (uint8_t)(gMaintainV * 10.0f + 0.5f);
@@ -1035,7 +1189,7 @@ void updateStatusLed() {
   if (now - last >= interval) { last = now; on = !on; digitalWrite(NB_LED_PIN, on ? HIGH : LOW); }
 }
 
-void readBattery() {
+void readBatteryCell() {
   if (!pfReady) return;
   float v;
   if (Board.getBatteryVoltage(v) == Result::Ok) cbV = v;
@@ -1045,6 +1199,12 @@ void readBattery() {
   }
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
+}
+
+void readBattery() {
+  if (!pfReady) return;
+  readBatteryCell();
+  float v;
   if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
   if (Board.getSupplyCurrent(v) == Result::Ok) csMa = v;
   bool g;
@@ -1118,6 +1278,18 @@ String telemetryJson() {
   j += rtcFieldLoadDimmed ? "true" : "false";
   j += ",\"field_protect_latched\":";
   j += rtcFieldProtectLatched ? "true" : "false";
+  j += ",\"field_session_marker\":";
+  j += gFieldSessionMarker ? "true" : "false";
+  j += ",\"field_session_stage\":";
+  j += String(gFieldSessionStage);
+  j += ",\"field_interrupted_boot\":";
+  j += gFieldInterruptedBoot ? "true" : "false";
+  j += ",\"field_interrupted_retry\":";
+  j += gFieldInterruptedRetry ? "true" : "false";
+  j += ",\"field_interrupted_park\":";
+  j += gFieldInterruptedPark ? "true" : "false";
+  j += ",\"field_dusk_s\":";
+  j += String(rtcFieldDuskS);
   j += ",\"mppt_status\":";
   j += String(rtcFieldMpptStatus);
   j += ",\"mppt_reason\":";
@@ -1514,16 +1686,36 @@ void drawdownPixelsOff() {
   pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
   digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
 }
-void drawdownPixelsLoadOn(uint8_t brightness = NB_DRAWDOWN_BRIGHTNESS) {
-  if (pfReady) Board.enable3V3(true);
+
+bool drawdownPixelsRailOnCleared() {
+  // Pre-init fail-safe holds EN_3V3 low in the RTC domain. Release that hold only here,
+  // after the session tier is durable and the caller has deliberately requested load.
+  rtc_gpio_hold_dis(GPIO_NUM_4);
+  rtc_gpio_deinit(GPIO_NUM_4);
+  if (!pfReady || Board.enable3V3(true) != Result::Ok) return false;
   delay(20);
   drawdownPixelsBegin();
+  // Make rail-on deterministic before applying a load. This also clears any frame
+  // retained across a warm reset before the session marker is considered healthy.
+  drawdownPixels.setBrightness(255);
+  drawdownPixels.clear();
+  drawdownPixels.show();
+  delay(5);
+  return true;
+}
+
+void drawdownPixelsRenderLoad(uint8_t brightness) {
   drawdownPixels.setBrightness(brightness);
   uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
   uint16_t lit = min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT);
   for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
     drawdownPixels.setPixelColor(i, i < lit ? c : 0);
   drawdownPixels.show();
+}
+
+void drawdownPixelsLoadOn(uint8_t brightness = NB_DRAWDOWN_BRIGHTNESS) {
+  if (!drawdownPixelsRailOnCleared()) return;
+  drawdownPixelsRenderLoad(brightness);
 }
 
 // Exact geometry/path model used by led_studio's Spiral + Rotate split. The
@@ -1612,8 +1804,7 @@ void fieldSpiralRender(uint8_t brightness) {
 }
 
 void fieldSpiralLoadOn(uint8_t brightness) {
-  if (pfReady) Board.enable3V3(true);
-  delay(20);
+  if (!drawdownPixelsRailOnCleared()) return;
   fieldSpiralRender(brightness);
   gFieldSpiralLastFrameMs = millis();
 }
@@ -1848,22 +2039,61 @@ uint8_t fieldCycleLoadBrightness() {
   unsigned long brightness = rtcFieldLoadDimmed ? NB_FIELD_LED_DIM_BRIGHTNESS : NB_DRAWDOWN_BRIGHTNESS;
   return (uint8_t)min(255UL, brightness);
 }
+void fieldCycleParkInterrupted(const char *why);
+void fieldCycleRenderLoad(uint8_t brightness) {
+#if NB_FIELD_LED_SPIRAL_RGB
+  fieldSpiralRender(brightness);
+#else
+  drawdownPixelsRenderLoad(brightness);
+#endif
+}
 void fieldCycleLedLoadOn() {
 #if NB_FIELD_LED_LOAD
+  if ((int32_t)(millis() - gFieldLedEarliestOnMs) < 0) return;
   bool dimmed = rtcFieldLoadDimmed != 0;
   if (gFieldLedLoadOn && gFieldLedLoadDimmedApplied == dimmed) return;
-  uint8_t brightness = fieldCycleLoadBrightness();
+
+  // Persist the intended load tier before rail-on. FULL receives exactly one DIM retry
+  // after an unexpected reset; a reset from DIM is terminal until verified charge.
+  uint8_t sessionStage = rtcFieldLoadDimmed ? FIELD_SESSION_DIM : FIELD_SESSION_FULL;
+  if (!fieldSessionSetStage(sessionStage)) {
+    fieldCycleParkInterrupted("NVS arm failed");
+    return;
+  }
+  if (!drawdownPixelsRailOnCleared()) {
+    fieldCycleParkInterrupted("3V3 rail enable failed");
+    return;
+  }
+
+  uint8_t target = fieldCycleLoadBrightness();
+  const uint8_t steps = max((uint8_t)1, (uint8_t)NB_FIELD_LED_RAMP_STEPS);
+  for (uint8_t step = 1; step <= steps; step++) {
+    uint8_t brightness = (uint8_t)max(1UL, ((unsigned long)target * step + steps - 1) / steps);
+    fieldCycleRenderLoad(brightness);
+    delay(NB_FIELD_LED_RAMP_MS / steps);
+    esp_task_wdt_reset();
+    readBatteryCell();
+    int mv = (int)(cbV * 1000.0f + 0.5f);
+    if (cbV > 0.5f && mv <= NB_FIELD_LOW_MV) {
+      fieldCycleParkInterrupted("startup ramp low VBAT");
+      return;
+    }
+    if (cbV > 0.5f && mv <= NB_FIELD_DIM_MV && !rtcFieldLoadDimmed) {
+      rtcFieldLoadDimmed = 1;
+      target = fieldCycleLoadBrightness();
+      dimmed = true;
+    }
+  }
+  fieldCycleRenderLoad(target);
 #if NB_FIELD_LED_SPIRAL_RGB
-  fieldSpiralLoadOn(brightness);
-#else
-  drawdownPixelsLoadOn(brightness);
+  gFieldSpiralLastFrameMs = millis();
 #endif
   gFieldLedLoadOn = true;
   gFieldLedLoadDimmedApplied = dimmed;
   Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u dim=%d spiral_rgb=%d)\n",
                 (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
                 NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
-                NB_DRAWDOWN_B, brightness, dimmed ? 1 : 0, NB_FIELD_LED_SPIRAL_RGB);
+                NB_DRAWDOWN_B, target, dimmed ? 1 : 0, NB_FIELD_LED_SPIRAL_RGB);
 #endif
 }
 void fieldCycleLedLoadTick() {
@@ -1878,6 +2108,7 @@ void fieldCycleLedLoadOff() {
 #if NB_FIELD_LED_LOAD
   if (!gFieldLedLoadOn) return;
   drawdownPixelsOff();
+  if (pfReady) Board.enable3V3(false);
   gFieldLedLoadOn = false;
   gFieldLedLoadDimmedApplied = false;
   gFieldSpiralPosition = 0;
@@ -1885,7 +2116,33 @@ void fieldCycleLedLoadOff() {
   Serial.println("field-cycle LED load OFF");
 #endif
 }
-bool fieldCycleThresholdConfirmed(bool active, uint32_t *sinceMs, uint16_t *elapsedS) {
+void fieldCycleParkInterrupted(const char *why) {
+#if NB_FIELD_LED_LOAD
+  drawdownPixelsOff();
+  if (pfReady) Board.enable3V3(false);
+  gFieldLedLoadOn = false;
+  gFieldLedLoadDimmedApplied = false;
+  gFieldSpiralPosition = 0;
+  gFieldSpiralLastFrameMs = 0;
+#endif
+  gFieldInterruptedBoot = true;
+  gFieldInterruptedRetry = false;
+  gFieldInterruptedPark = true;
+  fieldSessionSetStage(FIELD_SESSION_PROTECT);
+  rtcFieldPhase = FC_PROTECT;
+  rtcFieldReason = FC_REASON_INTERRUPTED;
+  rtcFieldProtectLatched = 1;
+  rtcFieldPhaseElapsedS = 0;
+  fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
+  rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
+  fieldLastIntegrateMs = millis();
+  Serial.printf("field-session guard: PARK (%s), marker=%d bv=%.3f ima=%.0f\n",
+                why, gFieldSessionMarker ? 1 : 0, cbV, cbMa);
+}
+bool fieldCycleThresholdConfirmed(bool active, uint32_t *sinceMs, uint16_t *elapsedS,
+                                  uint16_t confirmS) {
   if (!active || rtcFieldPhase != FC_DRAWDOWN ||
       rtcFieldPhaseElapsedS < NB_FIELD_DRAWDOWN_MIN_S) {
     *sinceMs = 0;
@@ -1895,13 +2152,15 @@ bool fieldCycleThresholdConfirmed(bool active, uint32_t *sinceMs, uint16_t *elap
   uint32_t now = millis();
   if (*sinceMs == 0) *sinceMs = now;
   *elapsedS = (uint16_t)min(65535UL, (unsigned long)((now - *sinceMs) / 1000UL));
-  return *elapsedS >= NB_FIELD_LOW_CONFIRM_S;
+  return *elapsedS >= confirmS;
 }
 bool fieldCycleDimConfirmed(bool dim) {
-  return fieldCycleThresholdConfirmed(dim, &fieldDimSinceMs, &rtcFieldDimS);
+  return fieldCycleThresholdConfirmed(dim, &fieldDimSinceMs, &rtcFieldDimS,
+                                      NB_FIELD_DIM_CONFIRM_S);
 }
 bool fieldCycleSoftLowConfirmed(bool low) {
-  return fieldCycleThresholdConfirmed(low, &fieldLowSinceMs, &rtcFieldLowS);
+  return fieldCycleThresholdConfirmed(low, &fieldLowSinceMs, &rtcFieldLowS,
+                                      NB_FIELD_LOW_CONFIRM_S);
 }
 void fieldCycleMarkSample() {
   if (cbV < 0.5f) return;
@@ -1955,6 +2214,7 @@ void fieldCycleResetCounters() {
   rtcFieldWaitS = 0;
   rtcFieldDrawS = 0;
   rtcFieldProtectS = 0;
+  rtcFieldDuskS = 0;
   rtcFieldLoadDimmed = 0;
   rtcFieldProtectLatched = 0;
   rtcFieldMpptStatus = NB_FIELD_MPPT ? MPPT_STATUS_SKIPPED : MPPT_STATUS_DISABLED;
@@ -1968,6 +2228,7 @@ void fieldCycleResetCounters() {
   rtcFieldMpptP50Wx100 = 0;
   fieldLowSinceMs = 0;
   fieldDimSinceMs = 0;
+  fieldDuskLastMs = 0;
   fieldCycleMarkSample();
 }
 void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
@@ -1984,11 +2245,16 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
   rtcFieldLowS = 0;
   rtcFieldDimS = 0;
   fieldLastIntegrateMs = millis();
-  if (phase == FC_PROTECT) rtcFieldProtectLatched = 1;
+  if (phase == FC_PROTECT) {
+    rtcFieldProtectLatched = 1;
+    if (!fieldSessionSetStage(FIELD_SESSION_PROTECT))
+      Serial.println("field-session guard: WARN failed to persist protect stage");
+  }
 #if NB_FIELD_MPPT
   if (phase != FC_CHARGE) fieldMpptClampDefault(MPPT_REASON_PHASE);
 #endif
-  if (rtcFieldPhase == FC_DRAWDOWN) fieldCycleLedLoadOn();
+  if (rtcFieldPhase == FC_DRAWDOWN)
+    gFieldLedEarliestOnMs = millis() + NB_FIELD_LED_START_DELAY_MS;
   Serial.printf("field-cycle phase -> %u reason=%u cycle=%u bv=%.3f ima=%.0f sv=%.3f sma=%.0f sgood=%d\n",
                 rtcFieldPhase, rtcFieldReason, rtcFieldCycle, cbV, cbMa, csV, csMa,
                 csGood ? 1 : 0);
@@ -1997,11 +2263,64 @@ void fieldCycleStartNewCycle(uint8_t reason) {
   if (rtcFieldCycle < 65535) rtcFieldCycle++;
   fieldCycleResetCounters();
   fieldCycleSetPhase(FC_CHARGE, reason);
+  gFieldInterruptedBoot = false;
+  gFieldInterruptedRetry = false;
+  gFieldInterruptedPark = false;
+  if (!fieldSessionSetStage(FIELD_SESSION_IDLE))
+    Serial.println("field-session guard: WARN failed to clear stage on recovery");
+  else
+    Serial.println("field-session guard: recovery verified, stage cleared");
 }
 bool fieldCycleSupplyPresent() {
   bool voltagePresent = csV > 0.5f && (int)(csV * 1000.0f + 0.5f) >= NB_FIELD_SUN_SUPPLY_MV;
   bool usefulInput = csMa >= (float)NB_FIELD_SUN_CHARGE_MA || cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
   return voltagePresent && usefulInput;
+}
+bool fieldCycleLuxAvailable() {
+  return gEnvTsl && gEnvLuxX10 != 0xFFFFFFFF;
+}
+bool fieldCycleLuxSaysDay() {
+  if (!fieldCycleLuxAvailable()) return false;
+  if (gEnvLuxX10 == 0xFFFFFFFE) return true; // saturated is unambiguously daylight
+  return gEnvLuxX10 >= NB_FIELD_DAWN_LUX_X10;
+}
+uint16_t fieldCycleDuskConfirmS() {
+  return fieldCycleLuxAvailable() ? NB_FIELD_DUSK_CONFIRM_S :
+                                    NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S;
+}
+bool fieldCycleDuskCandidate() {
+  if (fieldCycleSupplyPresent()) return false;
+  if (fieldCycleLuxAvailable()) {
+    if (gEnvLuxX10 == 0xFFFFFFFE) return false;
+    return gEnvLuxX10 <= NB_FIELD_DUSK_LUX_X10;
+  }
+  return true;
+}
+void fieldCycleDuskAccumulate(uint32_t seconds) {
+  if (!fieldCycleDuskCandidate()) {
+    rtcFieldDuskS = 0;
+    return;
+  }
+  rtcFieldDuskS = (uint16_t)min(65535UL, (unsigned long)rtcFieldDuskS + seconds);
+}
+void fieldCycleDuskTick() {
+  uint32_t now = millis();
+  if (fieldDuskLastMs == 0) {
+    fieldDuskLastMs = now;
+    if (!fieldCycleDuskCandidate()) rtcFieldDuskS = 0;
+    return;
+  }
+  uint32_t dt = now - fieldDuskLastMs;
+  if (dt < 1000) return;
+  fieldDuskLastMs = now;
+  if (rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK)
+    fieldCycleDuskAccumulate(dt / 1000);
+  else if (!fieldCycleDuskCandidate())
+    rtcFieldDuskS = 0;
+}
+bool fieldCycleDayPresent() {
+  if (fieldCycleSupplyPresent() || fieldCycleLuxSaysDay()) return true;
+  return rtcFieldDuskS < fieldCycleDuskConfirmS();
 }
 bool fieldCycleRecoverySupplyPresent() {
   return fieldCycleSupplyPresent() && cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
@@ -2032,11 +2351,14 @@ bool fieldCycleRecoveredForRetry() {
   return cbV > 0.5f && mv >= NB_FIELD_PROTECT_RETRY_MV;
 }
 bool fieldCycleInWakeWindow() {
-  uint32_t window = (esp_reset_reason() == ESP_RST_POWERON) ? NB_FIELD_COLD_LISTEN_MS : NB_FIELD_WAKE_LISTEN_MS;
+  uint32_t window = (esp_reset_reason() == ESP_RST_POWERON || gFieldInterruptedBoot) ?
+                    NB_FIELD_COLD_LISTEN_MS : NB_FIELD_WAKE_LISTEN_MS;
   return millis() < window;
 }
 void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool integrateSleepCurrent) {
   rtcFieldReason = reason;
+  if (rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK)
+    fieldCycleDuskAccumulate(seconds);
   if (integrateSleepCurrent) fieldCycleIntegrateSeconds(seconds);
   else {
     fieldCycleAddPhaseSeconds(seconds);
@@ -2062,14 +2384,41 @@ void fieldCycleInit() {
     rtcFieldCycle = 1;
     fieldCycleResetCounters();
   }
-  bool supply = fieldCycleSupplyPresent();
+  fieldCycleDuskTick();
+  bool realDayEvidence = fieldCycleSupplyPresent() || fieldCycleLuxSaysDay();
+  bool daylight = fieldCycleDayPresent();
   bool recoverySupply = fieldCycleRecoverySupplyPresent();
+  if (gFieldInterruptedPark) {
+    if (recoverySupply) fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+    else fieldCycleParkInterrupted("unclean reset during LED session");
+    return;
+  }
+  if (gFieldInterruptedRetry) {
+    if (recoverySupply) {
+      fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+    } else if (realDayEvidence) {
+      fieldCycleStartNewCycle(FC_REASON_SUNRISE);
+    } else if (fieldCycleLow()) {
+      fieldCycleParkInterrupted("interrupted boot low VBAT");
+      return;
+    } else {
+      rtcFieldDuskS = fieldCycleDuskConfirmS(); // persisted active session proves this was night
+      rtcFieldLoadDimmed = 1;
+      rtcFieldProtectLatched = 0;
+      fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_INTERRUPTED);
+      Serial.println("field-session guard: one-time DIM retry armed");
+      fieldCycleLedLoadOn();
+      return;
+    }
+  }
   if (rtcFieldPhase == FC_PROTECT) {
+    if (!fieldSessionSetStage(FIELD_SESSION_PROTECT))
+      Serial.println("field-session guard: WARN failed to restore protect stage");
     if (recoverySupply) fieldCycleStartNewCycle(FC_REASON_SUPPLY);
 #if NB_FIELD_PROTECT_RETRY_DARK
     else if (fieldCycleRecoveredForRetry()) fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
 #endif
-  } else if (supply) {
+  } else if (daylight) {
     if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)
       fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
   } else if (fieldCycleLow()) {
@@ -2085,7 +2434,8 @@ void fieldCycleTick() {
 
   readBattery();
   fieldCycleIntegrateActive();
-  bool supply = fieldCycleSupplyPresent();
+  fieldCycleDuskTick();
+  bool daylight = fieldCycleDayPresent();
   bool recoverySupply = fieldCycleRecoverySupplyPresent();
   bool dim = fieldCycleDim();
   bool critical = fieldCycleCritical();
@@ -2095,19 +2445,19 @@ void fieldCycleTick() {
 
   if (rtcFieldPhase == FC_PROTECT && recoverySupply) {
     fieldCycleStartNewCycle(FC_REASON_SUPPLY);
-  } else if (supply && rtcFieldPhase == FC_DRAWDOWN) {
+  } else if (daylight && rtcFieldPhase == FC_DRAWDOWN) {
     fieldCycleStartNewCycle(FC_REASON_SUNRISE);
-  } else if (supply && (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)) {
+  } else if (daylight && (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)) {
     fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
   }
 
-  if (!supply && critical) {
+  if (!daylight && critical) {
     fieldCycleSetPhase(FC_PROTECT, FC_REASON_CRITICAL);
   }
 
   switch (rtcFieldPhase) {
   case FC_CHARGE:
-    if (!supply) {
+    if (!daylight) {
       if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
@@ -2123,7 +2473,7 @@ void fieldCycleTick() {
     break;
 
   case FC_WAIT_DARK:
-    if (!supply) {
+    if (!daylight) {
       if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
@@ -2135,7 +2485,7 @@ void fieldCycleTick() {
   case FC_DRAWDOWN:
     fieldCycleLedLoadOn();
     fieldCycleLedLoadTick();
-    if (supply) {
+    if (daylight) {
       fieldCycleStartNewCycle(FC_REASON_SUNRISE);
       break;
     }
@@ -2167,7 +2517,7 @@ void fieldCycleTick() {
     break;
 
   default:
-    if (supply) fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
+    if (daylight) fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
     else if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
     else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
     break;
@@ -3109,6 +3459,9 @@ void sleepCycleStep() {
 
 // ---- setup / loop ----------------------------------------------------------
 void setup() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  fieldSessionGuardPreInit();
+#endif
   Serial.begin(115200);
   // Native USB-CDC settle so the cold-boot banner isn't lost. SKIP it on a deep-sleep
   // wake (sleep-cycle): it dominates the wake's active time and the field board has no
@@ -3128,10 +3481,13 @@ void setup() {
                 NB_SLEEP_S, NB_WAKE_LISTEN_MS);
 #endif
 #ifdef NB_FIELD_CYCLE
-  Serial.printf("mode: FIELD-CYCLE (charge sleep %ds, wait sleep %ds, protect sleep %ds, dim/low/hard %.3f/%.3f/%.3fV, latch=%d)\n",
+  Serial.printf("mode: FIELD-CYCLE (charge/wait/protect %d/%d/%ds, dim %.3fV/%ds, low %.3fV/%ds, hard %.3fV, dusk/dawn %u/%ulux-x10 confirm=%ds fallback=%ds)\n",
                 NB_FIELD_CHARGE_SLEEP_S, NB_FIELD_WAIT_SLEEP_S, NB_FIELD_PROTECT_SLEEP_S,
-                NB_FIELD_DIM_MV / 1000.0f, NB_FIELD_LOW_MV / 1000.0f,
-                NB_FIELD_CRITICAL_MV / 1000.0f, NB_FIELD_PROTECT_RETRY_DARK ? 0 : 1);
+                NB_FIELD_DIM_MV / 1000.0f, NB_FIELD_DIM_CONFIRM_S,
+                NB_FIELD_LOW_MV / 1000.0f, NB_FIELD_LOW_CONFIRM_S,
+                NB_FIELD_CRITICAL_MV / 1000.0f, (unsigned)NB_FIELD_DUSK_LUX_X10,
+                (unsigned)NB_FIELD_DAWN_LUX_X10, NB_FIELD_DUSK_CONFIRM_S,
+                NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S);
 #if NB_FIELD_MPPT
   Serial.printf("mode: FIELD-MPPT perturb %u/%u/%u x0.1V, default=%u x0.1V, hold_best=%d\n",
                 NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_MID_V10, NB_FIELD_MPPT_HIGH_V10,
@@ -3148,15 +3504,29 @@ void setup() {
   shortId = String(idb);
   Serial.printf("node id=%s mac=%02X:%02X:%02X:%02X:%02X:%02X\n", idb, myMac[0], myMac[1],
                 myMac[2], myMac[3], myMac[4], myMac[5]);
+  fieldSessionReportBootState();
 
   setupPowerFeather();
   if (pfReady) {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+    Board.enable3V3(false); // deliberate field-load startup happens after ESP-NOW init
+    Board.enableVSQT(!gFieldInterruptedPark); // a hard-park needs only onboard power telemetry
+#else
     Board.enable3V3(true);  // clear any latched SK6812 frame from a previous image
     Board.enableVSQT(true); // restore STEMMA/INA rail after a rails-off deep sleep
+#endif
     delay(150);             // give external sensors time to power up before probing
   }
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  if (!gFieldInterruptedPark) {
+    envInit();
+    envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
+  }
+  gFieldLedEarliestOnMs = millis() + NB_FIELD_LED_START_DELAY_MS;
+#else
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
+#endif
   delay(20);
   drawdownPixelsBegin();
 #ifdef NB_FIELD_CYCLE

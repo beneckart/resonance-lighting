@@ -223,6 +223,479 @@ stability during pulses on USB vs battery, burst/auto endurance (watch
 `failsafes` and `reset_reason`).
 
 ---
+## 2026-07-12 - Codex - Consolidated solar-cycle and POR-loop field record
+
+Added `docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md` as the durable record for
+the July two-peer outdoor bench. It consolidates P126's fixed-5.8-V result, preliminary
+daily BQ-input and positive-battery Ah/Wh range, the representative 157.7 mA HEX draw,
+the 9-10 h playa civil-dark sizing window, and the active-time counter's roughly
+12 percent truncation error. It also records the P105 POR regression chain, distinguishes
+possible initiating causes from the firmware loop amplifier, preserves the exact
+`net-bench-2026-07-12.1` recovery policy/artifact, and lists the reusable rail/NVS/dusk/
+telemetry gotchas.
+
+Important deployed-version distinction captured there: P126 remains on the July 10
+image, where loss of useful charger input declares dark immediately. The 30-minute bare-
+peer dusk confirmation belongs to the July 12 source/P105 image and is not running on
+P126. Its observed 14.8 h window is therefore an instantaneous solar-threshold artifact,
+not a qualified no-lux timeout.
+
+Mirrored the general POR lesson into `firmware/POWERFEATHER_NOTES.md` and linked the
+field record from `firmware/net_bench/README.md` and TODO. Operating decision: do not
+OTA P126 solely to shorten its current 14.8 h fallback show. Ben expects to disassemble
+it for another experiment; if it remains outside for a few days, preserve the current
+image and use those days to expand the weather-conditioned P126 harvest envelope.
+The logger was still alive and writing at 18:05 PDT, but its 259200-second duration
+expires around July 13 15:25; TODO and the field record now call out the required
+continuation if the peer remains deployed.
+
+## 2026-07-12 - Codex - Playa civil-dark interval supports a 9-10 h HEX show
+
+Checked Black Rock Desert sun/twilight tables for the 2026 event rather than using
+the page's current July summary. Burning Man runs Aug 30-Sep 7; over that interval,
+sunset moves from about 19:31 to 19:18 and sunrise from about 06:21 to 06:29. More
+usefully for lighting, evening civil twilight ends about 19:59-19:46 and morning
+civil twilight begins about 05:52-06:01, giving roughly 9 h 53 min to 10 h 15 min.
+Use 9-10 h as the provisional production HEX sizing/emulation window. At the P126
+peer's measured 157.7 mA draw, 10 h costs about 1.58 Ah, versus the good July 11
+charge estimate of about 1.74 Ah; that is a small positive-day margin, not yet a
+weather/dust/shading-qualified production margin.
+
+## 2026-07-12 - Codex - P126 draw is representative; bench show window is too long
+
+Ben clarified that the P126 peer's three-pixel, roughly 158 mA corrected load is meant
+to emulate the intended deployed HEX light show. Retract the earlier recommendation to
+raise it to 400-450 mA merely to empty the battery nightly: that would test a different
+fixture load.
+
+The clean July 11-12 draw ran from 18:07:33 to 08:53:54 PDT, or 14 h 46 min wall time,
+with 14.773 h of continuous logger coverage and 2.33 Ah integrated from corrected
+`battery_ma`. The peer's retained counters reported 13.02 h / 2.08 Ah because
+`fieldCycleIntegrateActive()` advances by integer `dt / 1000` seconds and resets its
+millisecond origin each iteration, losing the fractional remainder every roughly-1 Hz
+loop. Those counters under-report this session by about 12 percent.
+
+The P126 peer has no lux sensor, so its fallback show window is 30 minutes after useful
+solar input disappears until useful input returns. That made this a 14.8 h solar-loss
+window, not a realistic timed show. At the measured 157.7 mA average, an 8 h show costs
+about 1.26 Ah, 10 h costs 1.58 Ah, and 11 h costs 1.73 Ah. The July 11 observed charge
+estimate of about 1.74 Ah would therefore be roughly break-even at 11 h and positive at
+shorter show durations, subject to the known sparse charge-sampling uncertainty. The
+previous daily-negative conclusion applies to the artificial 14.8 h window, not yet to
+the intended production HEX schedule.
+
+## 2026-07-12 - Codex - P126 avoids POR under its lighter load but is not energy-positive
+
+Reviewed the P126 production-cabling peer (`9E5B0C`) from its July 10 deployment
+through July 12 around 17:43 PDT. Its corrected nighttime battery draw is about
+160 mA, versus roughly 460-480 mA on the P105/HEX peer. The smaller load, combined
+with the lower-resistance production harness, leaves substantially more loaded-VBAT
+margin; P126 has remained roughly 3.24-3.33 V and has not exercised the low-voltage
+or POR-recovery paths. This is absence of the stress condition, not evidence that its
+older dusk/POR policy is safe.
+
+Integrating corrected `battery_ma` at the logger's 1 Hz sample-and-hold cadence,
+discarding gaps over 5 seconds and cached protect-mode current, gives the following
+provisional calendar-day ledger:
+
+| Local date | Current coverage | Charge | Discharge | Net |
+|---|---:|---:|---:|---:|
+| July 10 (partial deployment) | 0.72 h | 0.190 Ah | 0.001 Ah | +0.190 Ah |
+| July 11 | 16.56 h | 1.738 Ah | 1.315 Ah | +0.423 Ah |
+| July 12 through 17:43 | 17.69 h | 1.114 Ah | 1.640 Ah | -0.526 Ah |
+
+The observed deployment-to-date subtotal is therefore only +0.087 Ah before the
+July 12 night show, effectively flat within the incomplete-telemetry uncertainty.
+Cycle alignment is more informative: the well-observed July 11 solar interval put
+back about 1.74 Ah, while the following full show removed about 2.08 Ah, for roughly
+-0.34 Ah. July 12's overcast interval put back about 1.11 Ah; against another
+2.08 Ah show it would leave roughly -0.97 Ah. The P126 setup therefore does not
+currently demonstrate a positive daily Ah balance, although a sunny day is close
+to break-even. Sleep-period charge is sparsely sampled, so the battery-side charge
+totals are conservative by an uncertain few tenths of an Ah.
+
+## 2026-07-12 - Codex - Fixed P105 dusk/POR regression and OTA deployed 2026-07-12.1
+
+Reworked the compiled-but-undeployed July 11 guard after the firmware-history review
+showed that parking on the first POR would preserve the early-sleep/Ah-loss failure.
+`net-bench-2026-07-12.1` now:
+
+- persists an NVS LED-session stage (`idle`, `full`, `dim`, `protect`) before rail-on;
+- on an unexpected reset from `full`, atomically consumes one retry before any rail can
+  turn on and resumes through the staged ramp at dim brightness;
+- on a reset from `dim` or `protect`, holds 3V3 off and hard-parks until verified
+  positive battery charge; a second POR can no longer recreate the full-power loop;
+- drives data/EN_3V3 low before PowerFeather init, explicitly releases the RTC GPIO4
+  hold only at deliberate rail-on, clears the pixels, and ramps in four steps;
+- separates dim confirmation from low confirmation. The P105 build dims at 3.10 V
+  after 10 s, protects at 2.95 V after 60 s, and keeps 2.90 V immediate critical;
+- qualifies dusk from the existing TSL2591: <=200 lux for five minutes turns the light
+  on, >=500 lux is dawn. A peer without TSL falls back to 30 minutes without useful
+  charger input. This replaces the one-sample `input disappeared == dark` decision that
+  caused full-battery afternoon cycle chatter.
+
+Added matching build/OTA switches for dim confirm and dusk/dawn thresholds. `/telemetry`
+now exposes `field_session_stage`, retry/park booleans, and `field_dusk_s`; the ESP-NOW
+heartbeat remains backward-compatible with the existing bridge.
+
+Compiled the exact P105 image with 18 pixels at brightness 128, LFP 6 Ah, 1.5 A charger,
+and fixed 4.6 V VINDPM:
+
+`firmware/net_bench/build/field-cycle-peer-20260712-p105-dusk-dim-retry-r3/net_bench.ino.bin`
+
+Compile result: 1,028,373 bytes flash (30%), 51,932 bytes globals (15%). The first two
+wrapper builds were deliberately discarded: the short host command orphaned their
+compiler process, and the final source also added the required RTC-hold release before
+the clean isolated `r3` compile.
+
+OTA deployment to P105 `9F26F8`:
+
+- preflight: old `net-bench-2026-07-08.1`, VBAT 3.577 V, phase charge, 8,770 lux;
+- first 75 s maintenance discovery expired without catching the five-minute sleep wake;
+  no upload occurred;
+- extended discovery caught the peer at `192.168.4.87`; 1,028,704-byte OTA upload was
+  acknowledged in 5.82 s with no button (`2026-07-13-ota-results.jsonl` is UTC-dated);
+- the image remained in WiFi maintenance, so the helper's ESP-NOW verification timed
+  out on a stale old heartbeat. Direct `/telemetry` nevertheless confirmed the new
+  revision, software reset, `pf_ready=true`, session stage idle, phase charge, and no
+  interrupted state. An explicit `/resume` returned it to ESP-NOW;
+- dashboard then verified `net-bench-2026-07-12.1`. Across the next natural five-minute
+  charge sleep, it remained cycle 1 / charge / no dim / no protect, and woke at 5,812
+  lux with low charger current instead of creating a false dark/sunrise cycle.
+
+The continuing two-peer logger remained alive and captured the deployment. Tonight's
+real <=200 lux transition, 3.10 V dim point, and any naturally occurring persisted POR
+retry remain the decisive autonomous validation.
+
+## 2026-07-12 - Codex - P105 firmware/threshold flash timeline and regression review
+
+Reviewed git history, preserved `build.options.json`, OTA result JSONL, LOG deployment
+notes, and the first observed firmware revision in every P105 field log. Times below are
+America/Los_Angeles; the ADR23 OTA file is dated July 8 UTC but the actual local flash
+was July 7 at 21:32 PDT.
+
+| P105 flash / first seen | Image | Load | Effective low-voltage behavior | Change |
+|---|---|---|---|---|
+| Jul 3 <=20:15 (first seen; exact P105 flash record absent) | `net-bench-2026-07-01.1` | likely 18 px @ 128 from the v2 artifact | no dim; soft 3.15 V / 30 s, critical 3.05 V immediate, then 900 s protect sleep; supply clears protect | inherited field-cycle-v2 baseline during role swap |
+| Jul 3 21:21 (first seen) | `net-bench-2026-07-03.1` | 18 px @ 96 | no dim; soft about 3.10 V / 60 s, critical 3.00 V immediate; new dark retry when rebound reached soft +80 mV | added HEX field load, debounce, and rebound retry |
+| Jul 3 21:33 (OTA ack) | `net-bench-2026-07-03.2` | 9 px @ 64 | same 3.10 / 3.00 V, 60 s, unlatched rebound-retry logic | only blanked loads before maintenance and reduced load |
+| Jul 5 10:17 (OTA ack) | `net-bench-2026-07-05.1` | 18 px @ 128 | thresholds and sleep decisions unchanged: 3.10 V / 60 s, 3.00 V immediate, 3.18 V dark retry | restored the heavy load; no policy change |
+| Jul 7 21:32 (OTA ack; LOG/file label July 8) | `net-bench-2026-07-08.1` | 18 px @ 128; dim brightness 64 | dim at <=3.00 V for 60 s; protect/sleep at <=2.95 V for 60 s; critical <=2.90 V immediate; dark retry disabled; protect clears only on real >=20 mA battery charge | major ADR23 threshold/latch rewrite; still deployed on P105 |
+
+No later P105 image was deployed. The July 10 image/commit went only to the new P126
+peer. `net-bench-2026-07-11.1` with the persistent interrupted-session guard was compiled
+for P105 but explicitly not OTA'd.
+
+The leading firmware regression chain is the July 7/8 deployment:
+
+1. The previous heavy-load image would begin its soft exit at 3.10 V. ADR23 moved the
+   loaded protect decision down 150 mV to 2.95 V.
+2. The new dim decision does not occur until voltage remains <=3.00 V for 60 s. P105's
+   July 11 PORs occurred mostly around 3.00-3.05 V, so the source can collapse before
+   the dim threshold is reached or confirmed.
+3. `rtcFieldLoadDimmed` and `rtcFieldProtectLatched` are RTC-memory state. They survive
+   timer deep sleep but not a hard power-on reset. A POR therefore returns to `FC_BOOT`;
+   rebound voltage above the low threshold selects draw and reapplies all 18 pixels at
+   brightness 128.
+4. Every POR also erases the in-RAM 60 s dim/low timers. Repeated resets can therefore
+   prevent both intended decisions forever until one instantaneous sample reaches the
+   2.90 V critical check.
+
+This firmware explanation fits the timing better than a new constant harness resistance:
+the harness did not change, the old 3.10 V policy generally exited before the newly
+exposed 3.00 V marginal region, and dense POR behavior appears after the ADR23 image.
+It is not the entire story: the same July 7/8 image later delivered roughly 2.7-4.1 Ah
+on better nights, so temperature, starting state, connection variation, or a transient
+power-path event still determines when the marginal condition is hit.
+
+The already-built July 11 guard would stop the reset storm but would park immediately
+after the first POR, preserving the July 11 early-sleep failure. Before deploying it,
+decide whether an interrupted full-load session gets one persisted, staged retry at the
+dim load; only a second POR (or an already-low preflight) should hard-latch protect. That
+retains the POR safety property without automatically abandoning the remaining Ah.
+
+## 2026-07-12 - Codex - Reconstructed P105 daily Ah ledger and POR history
+
+Combined all available outdoor P105 `9F26F8` field-cycle logs from July 3 onward,
+cutting the July 10 overlap at the newer two-peer logger. Used battery-lead INA current
+as truth. The state-aware estimate interpolates normal 5-minute charge wakes, integrates
+the continuously awake draw phase, treats the long cached current during protect sleep
+as zero, and does not bridge large host gaps. Rounded calendar-day ledger:
+
+| Local date | Positive charge | Discharge | Net battery delta | Coverage note |
+|---|---:|---:|---:|---|
+| Jul 3 | 0.00 Ah | 0.56 Ah | -0.56 Ah | from 20:15 only |
+| Jul 4 | 2.04 Ah | 0.65 Ah | +1.38 Ah | split partial windows |
+| Jul 5 | 1.26 Ah | 1.84 Ah | -0.58 Ah | from 10:19 |
+| Jul 6 | 3.16 Ah | 4.48 Ah | -1.32 Ah | near-complete; strongest early cycle |
+| Jul 7 | 0.00 Ah observed | 2.85 Ah | -2.85 Ah observed | daylight host gap; actual net unknown |
+| Jul 8 | 1.62 Ah | 3.72 Ah | -2.10 Ah | mostly covered; many recovery/protect events |
+| Jul 9 | 4.01 Ah | 3.07 Ah | +0.94 Ah | mostly covered |
+| Jul 10 | 3.82 Ah | 1.74 Ah | +2.08 Ah | protect/sleep gaps mostly near-zero |
+| Jul 11 | 1.80 Ah | 0.86 Ah | +0.94 Ah | complete host log; 0.68 Ah after full before POR |
+| Jul 12 | 0.63 Ah | 0.07 Ah | +0.56 Ah | through about 16:25 PDT only |
+
+These are battery-terminal ledger estimates, not panel harvest. A cached-row-only
+integration changes most daily net values by less than about 0.2 Ah; July 7 remains
+unrecoverable because the logger missed the daylight charge window. Charge during deep
+sleep is sampled only at wakes, so the positive side still has systematic uncertainty.
+
+Historical draw counters corroborate that July 11 was abnormal. Better observed P105
+nights delivered roughly 2.7-4.1 Ah corrected before low/protect behavior (about 2.9 Ah
+raw by July 9 morning and 4.47 Ah raw by July 10 morning, with the MAX17260 divided by
+1.08). The July 11 post-full battery-INA integral was only 0.679 Ah before the POR loop.
+
+POR was not completely new: one power-on event appears July 6 around 23:09, about 18
+power-on boots occurred July 8 around 10:38-13:04 during low-battery/daylight recovery,
+and one appears July 10 around 14:16 near 2.89 V. July 11 was the first clearly captured
+dense nighttime storm: roughly 30-plus power-on boots from about 20:38-20:58. July 12
+then had repeated dawn recovery retries plus one brownout. Exact event counts vary by a
+few depending on cached-heartbeat deduplication, but the qualitative distinction is
+strong: prior PORs existed, while July 11's early full-to-POR window was an outlier.
+
+## 2026-07-12 - Codex - Field-cycle audit found invalid full-empty cycling
+
+Reconstructed unique peer heartbeats and phase transitions after the apparent P105
+charge termination conflicted with the known 5.7 Ah production-cell capacity. The
+current outdoor run is not a valid daily full-to-low cycling validation.
+
+- P126 `9E5B0C` did not sleep or reach a low-voltage threshold overnight. Its three
+  single-channel full-bright pixels plus system load averaged about 160 mA corrected.
+  From the stable July 11 dusk cycle to July 12 sunrise it ran 13.0 integrated hours,
+  removed 2.08 Ah / 6.8 Wh, and remained at about 3.27 V. At that load, using the
+  5.37 Ah available above the 2.95 V LED-off threshold takes roughly 34 hours, not one
+  night. The small load therefore tests multi-day energy balance, not daily emptying.
+- P105 `9F26F8` did stop far too early. From its July 11 charge-full transition through
+  the start of its 20:38 POR loop, continuous battery-INA data accounts for only
+  0.679 Ah / 2.10 Wh of discharge. The load was about 0.46-0.48 A and the board-side
+  voltage had fallen to about 3.04-3.06 V. This is nowhere near the production-cell
+  drawdown's 5.1+ Ah-to-3.0-V result. Hard resets, not the intentional 2.95 V / 60 s
+  rule, ended the useful draw; the final sub-2.90 V sample only latched protect after
+  repeated restarts.
+- The firmware's daylight predicate also fails at charge termination. It requires
+  `supply_v >= 4.0 V` plus at least 20 mA input or battery charge current. When a full
+  battery stops accepting current, firmware declares false darkness, briefly applies
+  the LEDs, sees input current recover, declares sunrise, increments the cycle, and
+  resets counters. P105 churned through dozens of false cycles on July 11. A latched,
+  hysteretic day state must remain day from panel voltage after useful-sun acquisition;
+  dusk requires a sustained low-input interval.
+- Field-cycle also jumps directly from the 2.95 V LED-off threshold to protect sleep.
+  It does not implement ADR 0023's separate LED-off/duty-cycled-OTA state down to the
+  2.90 V sleep threshold. This was not the cause of the P105 early stop, but it would
+  leave the 2.95-to-2.90 V reserve unused in an otherwise clean cycle.
+
+The P105 battery instrumentation path remains a plausible but unproven common cause for
+both early apparent CV and early loaded undervoltage: the charger and onboard telemetry
+are downstream of the series lead, so neither reports actual cell-terminal voltage.
+The observed load-release slope is about 0.5 ohm effective versus ADR 0023's roughly
+0.15-0.17 ohm qualified source path, but that estimate includes cell polarization and
+cannot assign the excess to cabling alone. The clean A/B is to replace only the P105
+battery power path with the production cable while leaving the panel INA and I2C sensor
+topology in place. If the usable window remains compressed, remove the shared-bus
+instrumentation next to isolate an I2C/BQ power-path disturbance.
+
+## 2026-07-12 - Codex - Solar harvest through 15:50 PDT: P126 6.09 Wh BQ, P105 6.22 Wh panel
+
+Integrated the continuing two-peer field logger from local midnight through 15:50 PDT.
+The host log was continuous over this window. Integration uses the 1 Hz cached
+sample-and-hold rows, does not bridge gaps over 5 s, and divides the older P105 peer's
+raw MAX17260 battery power by 1.08.
+
+| Fixture | Panel-side harvest | BQ charger input | Positive battery charge |
+|---|---:|---:|---:|
+| P126 `9E5B0C` | no INA | **6.09 Wh** | **3.57 Wh** |
+| P105 `9F26F8` | **6.22 Wh** | **4.85 Wh** | **2.08 Wh corrected** |
+
+P105 panel-side input began around 06:42, peaked at 1.736 W at 11:16, and fell to a
+roughly 0.49 W last-15-minute median under the afternoon overcast. Its battery/charger
+behavior was acceptance-limited from about noon onward: last-15-minute medians were
+about 0.328 W BQ input and effectively zero net battery charge, with VBAT around 3.56 V.
+Do not use gauge SOC as evidence for that conclusion.
+
+P126 useful BQ input began around 08:26, peaked at 1.668 W at 14:04, and had a 0.257 W
+last-15-minute median at cutoff. Its higher awake/system load meant that this weak
+overcast input was no longer net-positive at the battery (about 0.10 W median net draw).
+The P126 total is charger-input energy, not panel-side ground truth.
+
+A time split separates panel capability from battery acceptance. From 09:00-noon,
+while both peers accepted charge, P105 delivered 3.14 Wh at the BQ input versus P126's
+1.65 Wh; corrected positive battery charge was 2.04 Wh versus 0.68 Wh. From noon-16:00,
+P105 reached charge taper/termination and delivered only 1.42 Wh at the BQ input and
+0.04 Wh to the battery, while P126 remained below CV and delivered 4.42 Wh at the BQ
+input and 2.90 Wh to the battery. The daily reversal is therefore primarily battery
+acceptance/headroom, not evidence that the 2 W panel had more available solar power.
+Exact dawn depth cannot be reconstructed from this run because gauge SOC is unreliable,
+the logger holds cached awake current across protect sleeps, and field-cycle coulomb
+counters reset during dawn phase chatter. The P105 instrumented battery path can also
+raise its charger-side voltage during charge and cause earlier apparent CV/termination.
+
+## 2026-07-11 (cont.) - Codex - Built first-reset persistent LED-session guard for next OTA
+
+Implemented the P105 reset-loop follow-up in `firmware/net_bench` as
+`net-bench-2026-07-11.1`; no live device was OTA'd in this session. The protection is
+cause-agnostic: a higher-ohm instrumented harness, 3V3 regulator collapse, watchdog, or
+an I2C/BQ disturbance that momentarily disconnects the battery all produce the same safe
+next-boot behavior.
+
+For `--field-cycle --field-led-load` images, firmware now:
+
+- drives pixel data and EN_3V3 low before PowerFeather initialization, then immediately
+  parks the SDK's cold-init rail enable;
+- writes NVS `fc_led_active=true` before the LED rail is energized and retains it through
+  the whole dark session and low-voltage protect;
+- interprets power-on, brownout, panic, or watchdog plus the uncleared marker as an
+  interrupted LED session, enters protect with reason 8, keeps the LED rail off, and
+  retains the normal cold OTA window;
+- clears the marker only after the existing recovery gate sees useful input plus at
+  least 20 mA positive battery charge current -- never from gauge SOC or rebound voltage;
+- starts LEDs only after ESP-NOW initialization plus 1 s settle, clears the rail, and
+  ramps in four steps over 400 ms while checking loaded VBAT; <=2.95 V parks immediately
+  and <=3.00 V selects the dim target;
+- exposes `field_session_marker` and `field_interrupted_boot` on `/telemetry`; the bridge
+  already carries phase 5 / reason 8 / protect-latched without a protocol extension.
+
+Migration is safe for the currently protected P105: after OTA's software reset, its RTC
+protect state remains; the new image backfills the NVS marker while in protect. A later
+full POR therefore cannot lose the latch. Verified by compiling the exact next-P126
+configuration (6 Ah LFP, fixed 5.8 V, three-pixel full-bright spiral RGB) into:
+
+`firmware/net_bench/build/field-cycle-peer-20260711-por-guard-compile-r4/net_bench.ino.bin`
+
+Compile result: 1,032,209 bytes flash (30%), 52,260 bytes globals (15%). The final
+revision limits ramp-time I2C reads to MAX17260 voltage/current and avoids four extra
+charger-status/solar-guard passes while applying the load. Hardware validation remains
+for the next OTA: exercise a deliberate power interruption during
+draw, confirm the next boot reports reason 8 with no LED pulse, then confirm real solar
+charge clears the marker and starts a fresh cycle.
+
+Also compiled the P105/static-HEX variant (18 pixels, brightness 128, 4.6 V) to exercise
+the non-spiral rendering branch:
+
+`firmware/net_bench/build/field-cycle-peer-20260711-por-guard-p105-compile-r2/net_bench.ino.bin`
+
+Result: 1,026,549 bytes flash (30%), 51,924 bytes globals (15%).
+
+## 2026-07-11 (cont.) - Codex - P105 protect at 3.255 V traced to loaded sag plus reset loop
+
+Investigated why P105 peer `9F26F8` showed `FC_PROTECT` while its last reported VBAT
+was 3.255 V. The displayed value is post-load rebound, not the cutoff sample. The exact
+deployed artifact's `build.options.json` confirms ADR 0023 thresholds: dim 3.00 V,
+soft-low 2.95 V for 60 s, and immediate critical 2.90 V.
+
+At 20:38 PDT, the peer began a 31-event `reset_reason=poweron` loop lasting about
+19 minutes. Immediately before/among resets, the 18-pixel HEX load drew about 0.47-0.55 A
+raw gauge current and VBAT was generally about 3.00-3.05 V, with retained loaded minima
+as low as 2.935-2.940 V. Each hard power loss reset RTC field-cycle counters and the
+in-RAM 60 s low-voltage confirmation, so the new boot re-enabled the draw load. This is
+strong evidence of a rail-collapse/POR loop occurring before the soft-low state machine
+could park the load.
+
+At 20:57:53 PDT, firmware finally observed an unlogged/sub-second sample at or below the
+2.90 V critical threshold, entered protect with reason 6, blanked the HEX, and latched.
+The first reported post-transition VBAT was 3.229 V at about -142 mA raw; later 15-minute
+protect wakes reported about 3.255 V at -133 mA raw. `field_min_mv=3004` for that final
+short boot does not capture the trigger because the retained min is updated at the
+one-second integration cadence, while the immediate critical predicate runs every tick
+and removes the load before the next heartbeat.
+
+The current protect state is therefore internally consistent and safe; it will remain
+latched until a wake sees real recovery charge current. The reset loop is a separate
+production-policy defect: the low-VBAT latch/debounce must survive or infer repeated
+power-on resets so a marginal rail cannot repeatedly re-enable the LED load.
+
+Why this does not directly contradict the ADR 0023 drawdown: that test used a qualified
+6 Ah production cell at 26.6 deg C under a continuous, already-running load and found
+first instability near 2.69 V. This event used a different PowerFeather plus the legacy
+instrumented P105 harness at about 15.8 deg C. Just before the loop, its battery-lead INA
+was about 3.064 V / -0.475 A; after the HEX was removed, it was about 3.232 V / -0.131 A,
+showing materially more effective sag than ADR 0023's 150-170 mohm path assumption. The
+current boot order also lets `Board.init()` power the switchable 3V3 rail, waits 150 ms
+for sensors, and restores the field LED load before any reboot-loop guard. Repeated POR
+therefore exercises rail/LED/radio/sensor startup behavior that the steady shootout did
+not. `poweron` rather than `brownout` also leaves a transient BQ power-path interruption
+as a secondary possibility on this heavily populated shared Wire1 harness; logged BQ
+state showed no persistent BATFET control/fault, so a rail capture or harness A/B is
+needed to separate regulator/source sag from a momentary power-path opening.
+
+Ben confirmed that all cells in these outdoor rigs are from the same fullbattery.com
+batch; the two qualification samples were extremely close in both capacity and
+resistance. Cell-to-cell variation is therefore deprioritized. The leading explanation
+is the higher-ohm legacy INA/instrumented path plus cooler, repeated startup transients;
+the I2C/BQ disconnect mechanism remains a secondary failure mode worth making safe.
+
+Recommended production pattern: persist an NVS `led_session_active` marker BEFORE
+energizing the LED rail and clear it only after a normal rail-off transition. On the
+next `poweron`/`brownout`, an uncleared marker plus no verified recovery charge means
+"the LED session collapsed power": keep the rail off, persist protect, and timer-sleep.
+This costs about two NVS writes per night and requires no flash write during the actual
+collapse. Clear protect only after sustained positive battery charge, not gauge SOC.
+Then add boot staging as defense in depth: data low and LED rail off, initialize/read
+power at low load, let radio/power settle, enable a cleared rail, and ramp brightness
+while watching loaded VBAT. Delay/ramp alone is insufficient because unloaded rebound
+would otherwise pass preflight and recreate the same loop.
+
+## 2026-07-11 (cont.) - Codex - Post-gap solar harvest: P126 9.02 Wh input, P105 12.39 Wh panel-side
+
+Integrated the surviving July 10 logger from host reconnection at 07:25 PDT through
+the end of useful solar on July 11. Integration uses the dashboard's 1 Hz cached
+sample-and-hold rows (appropriate to the peers' duty-cycled five-minute charge wakes),
+does not bridge the 13 h outage, and applies `/1.08` to the older P105 peer's raw
+MAX17260 battery current.
+
+| Fixture | Useful-input window | Peak | Harvest / positive charge |
+|---|---|---:|---|
+| P126 `9E5B0C` | 08:09-18:19 PDT | 1.679 W BQ input | **9.02 Wh BQ input; 5.84 Wh battery charge** |
+| P105 `9F26F8` | <=07:25-19:40 PDT | 2.363 W panel INA / 2.101 W BQ | **12.39 Wh panel-side INA; 10.22 Wh BQ input; 6.43 Wh corrected battery charge** |
+
+These are lower bounds for the complete calendar day because the host was absent until
+07:25. The P105 was already harvesting weakly at reconnect, so it misses some dawn
+energy. P126 still showed zero useful input at reconnect and did not cross the logger's
+20 mW threshold until 08:09, so its missing pre-host contribution was likely negligible.
+
+Do not read the similar BQ/battery totals as equal panel capability: the P105 has
+panel-side INA truth and its battery acceptance/load state can cap what the charger
+draws; P126 has onboard telemetry only. For this deployment/day, however, the compact
+P126 delivered 88% of the P105's BQ-input Wh (9.02/10.22) and 91% of its corrected
+positive battery-charge Wh (5.84/6.43).
+
+Battery acceptance materially biased that ratio in the P126's favor, but do NOT use
+the logged MAX17260 `soc_pct` values to quantify the morning state: the 32700 shootout
+showed that percentage SOC can be grossly wrong on the LFP plateau. Trustworthy evidence
+is that P126's corrected onboard coulomb counter retained about 1,958 mAh of overnight
+discharge at reconnect, while P105 later reached charger termination around 14:00.
+From 14:00-16:00, P105 drew only about 0.3-0.36 W at the BQ input while the still-accepting
+P126 drew about 1.3-1.6 W. Thus these daily Wh totals measure energy the complete fixture
+could accept, not an unloaded comparison of the two panels' available energy. Exact
+morning remaining capacity cannot be reconstructed across the host logging gap without
+a known full anchor and continuous corrected coulomb integration.
+
+## 2026-07-11 - Codex - Laptop power loss created 13 h host gap; current logger survived
+
+The laptop charger stopped charging and Windows suspended/hibernated when the battery
+ran out. The COM4 bridge board lost USB power and rebooted, but the dashboard and the
+current P126 production-cabling logger processes survived suspension with the same
+PIDs and resumed automatically when the laptop returned.
+
+Gap analysis of
+`ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`:
+
+- last pre-outage row: 2026-07-10 18:20:40 PDT;
+- first resumed row: 2026-07-11 07:25:09 PDT;
+- missing host interval: 13 h 04 min 28 s, covering almost the entire overnight draw;
+- current logger remained alive and continued in the same file; no overwrite/splice;
+- both peers were reachable again through the rebooted COM4 bridge.
+
+The fixtures themselves continued autonomously. P126 `9E5B0C` retained field-cycle
+counters showing about 1,969 mAh / 6.4 Wh discharged, minimum battery 3.247 V, and
+about 43,785 s in draw when host logging resumed. Those counters preserve the overnight
+total but not the missing time series, so this file is explicitly NOT the clean
+sunrise-to-sunrise sizing capture requested in TODO.
+
+The older dedicated P105 logger
+`2026-07-08-ca-field-cycle-9F26F8-adr23-deploy.jsonl` had its configured wall-clock
+duration expire during suspension and exited cleanly on resume. It was not restarted:
+the surviving July 10 logger already records both P105 `9F26F8` and P126 `9E5B0C`.
+
 ## 2026-07-10 (cont. 2) - Codex - Exact P126 4.6 V penalty and apparent peer delta explained
 
 Closed the P126 USB-safe-setpoint question on the production-cabling fixture with a

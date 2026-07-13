@@ -1,0 +1,1 @@
+{"node": "9F26F8", "ip": "192.168.4.71", "event": "ota", "ts_utc": "2026-07-05T17:17:42.168473+00:00", "uptime_pre_ms": 28007, "t_ack_s": 4.93, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "9F26F8 v5 field-cycle HEX18 brightness128 thresholds unchanged"}
