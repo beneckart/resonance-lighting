@@ -126,6 +126,34 @@ Open question: whether learn cycles improve RepSOC (candidate dataset: the
 long-running outdoor solar-cycle log). Detail in POWERFEATHER_NOTES "Treat LFP
 SOC as advisory" and LOG 2026-07-11 (cont.).
 
+## Addendum 2026-07-13 -- POR fault injection separates mechanisms from constants
+
+The outdoor P105 reset loop is provisionally attributed to its resistive/instrumented
+INA harness, pending the production-cabling A/B. That interpretation does not weaken
+the production requirements in this ADR. A harness fault exposed a generic reset-loop
+class that can also begin with a poor crimp, cold/aged cell, load transient, or BQ
+power-path/BATFET disconnect.
+
+Production firmware must retain default-off rail sequencing, persistence of the
+intended load tier before rail-on, one pre-consumed reduced-load retry, and durable
+PROTECT across POR/watchdog/software reset. These are cause-independent safeguards,
+not voltage-calibration workarounds.
+
+The exact startup-ramp duration and raw voltage points remain calibration. In
+particular, the P105 field profile's 3.10 V dim threshold is a temporary bench override,
+not a change to this ADR's 3.00 / 2.95 / 2.90 V standard tier. Re-derive loaded sag and
+load compensation on each production electrical class after removing instrumentation.
+
+One production requirement is strengthened: rebound voltage or a single positive-
+current sample cannot release PROTECT. Require valid charger/no-fault state, sustained
+positive corrected battery current, a recovered-voltage floor with hysteresis, and
+preferably positive coulombs since protection. RepSOC remains forbidden as a gate.
+
+The complete harness A/B, threshold qualification, deterministic reset matrix, and
+production exit criteria are in
+`docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`, section "Production power-policy
+hardening plan (2026-07-13)."
+
 ## References
 
 - `docs/tests/BATTERY_32700_SHOOTOUT_PLAN_2026-07.md` (protocol + results)

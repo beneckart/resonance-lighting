@@ -29,6 +29,7 @@
 #include "esp_system.h"
 #include "esp_ota_ops.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"
 #include "esp_task_wdt.h"
 #include "driver/rtc_io.h"
 #include <Preferences.h>
@@ -39,7 +40,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-12.1" // qualified dusk + persisted one-time dim POR retry
+#define NET_BENCH_VERSION "net-bench-2026-07-13.3" // targeted fail-safe D7/VDC solenoid strike control
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -142,6 +143,24 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_TARGET_SLEEP_DEFAULT_S
 #define NB_TARGET_SLEEP_DEFAULT_S 3600 // selected-peer "solar nap" default
+#endif
+// Optional P126 VDC-tap solenoid. The Adafruit MOSFET driver's flyback diode and
+// gate pulldown are mandatory because VDC is always live; unlike a 3V3-fed coil,
+// the firmware cannot kill coil power with EN_3V3. Enable only on the wired peer.
+#ifndef NB_SOLENOID_PIN
+#define NB_SOLENOID_PIN D7 // PowerFeather D7 is GPIO37 (not GPIO7)
+#endif
+#ifndef NB_SOLENOID_DEFAULT_MS
+#define NB_SOLENOID_DEFAULT_MS 40
+#endif
+#ifndef NB_SOLENOID_MIN_MS
+#define NB_SOLENOID_MIN_MS 5
+#endif
+#ifndef NB_SOLENOID_MAX_MS
+#define NB_SOLENOID_MAX_MS 300
+#endif
+#ifndef NB_SOLENOID_REST_MS
+#define NB_SOLENOID_REST_MS 80
 #endif
 #ifndef NB_DRAWDOWN_PIXEL_PIN
 #define NB_DRAWDOWN_PIXEL_PIN 10 // GPIO10 / A0: direct-GPIO HEX bench harness
@@ -247,8 +266,11 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_LED_START_DELAY_MS
 #define NB_FIELD_LED_START_DELAY_MS 1000 // let power + ESP-NOW settle before applying the field load
 #endif
+#ifndef NB_FIELD_LED_RETRY_DELAY_MS
+#define NB_FIELD_LED_RETRY_DELAY_MS 10000 // let a tripped cell/protection path recover before the one dim retry
+#endif
 #ifndef NB_FIELD_LED_RAMP_MS
-#define NB_FIELD_LED_RAMP_MS 400 // four brightness steps; an interrupted ramp is caught by the NVS guard
+#define NB_FIELD_LED_RAMP_MS 3200 // four 800 ms steps expose delayed harness/cell sag before full load
 #endif
 #ifndef NB_FIELD_LED_RAMP_STEPS
 #define NB_FIELD_LED_RAMP_STEPS 4
@@ -479,6 +501,11 @@ RTC_DATA_ATTR uint8_t rtcFieldMpptLastV10 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMpptP46Wx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMpptP48Wx100 = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMpptP50Wx100 = 0;
+// Capability, not sample validity: once this peer has produced a real TSL2591
+// sample, keep using the qualified 5-minute dusk policy across deep-sleep wakes.
+// A transient sensor read failure must not expand an already-qualified night to
+// the 30-minute no-sensor fallback.
+RTC_DATA_ATTR uint8_t rtcFieldLuxSensorSeen = 0;
 uint32_t fieldLastIntegrateMs = 0;
 uint32_t fieldLowSinceMs = 0;
 uint32_t fieldDimSinceMs = 0;
@@ -565,6 +592,20 @@ bool gScanRunning = false;
 uint8_t gScanId = 0;
 uint32_t gNextScanMs = 0;
 
+// D7/VDC solenoid state is deliberately outside the LED rail state machine. VDC
+// remains live in every phase, so the gate gets an esp_timer one-shot, an
+// independent loop deadline, and explicit LOW calls before init/OTA/sleep.
+#if defined(NB_SOLENOID_D7)
+volatile bool gSolenoidGateOn = false;
+volatile uint32_t gSolenoidLastEndMs = 0;
+uint32_t gSolenoidFailsafeMs = 0;
+uint32_t gSolenoidStrikes = 0;
+uint32_t gSolenoidBlocked = 0;
+uint32_t gSolenoidFailsafes = 0;
+uint16_t gSolenoidLastPulseMs = 0;
+esp_timer_handle_t gSolenoidPulseTimer = nullptr;
+#endif
+
 // downlink (master SHOW_FRAME) tracking on peers
 uint32_t masterLastSeq = 0;
 uint32_t masterRx = 0, masterGaps = 0;
@@ -590,6 +631,7 @@ enum NbType : uint8_t {
   NB_TARGET_CAPACITY = 14,  // master -> target: persist capacity (mAh), reboot to apply
   NB_TARGET_CHARGE_MA = 15, // master -> target: persist/apply charger current cap (mA)
   NB_TARGET_ENTER_MAINT = 16, // master -> target: enter shared-WiFi maintenance/OTA
+  NB_TARGET_SOLENOID = 17, // master -> target: one bounded D7 gate pulse (milliseconds)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -796,6 +838,101 @@ struct NbPeerStat {
 };
 NbPeerStat peers[NB_MAX_TRACKED];
 
+// ---- optional D7/VDC solenoid ---------------------------------------------
+// There is intentionally no automatic/boot strike. Only a targeted command can
+// energize the gate, and every exit path returns it LOW.
+void solenoidPreInit() {
+#if defined(NB_SOLENOID_D7)
+  pinMode(NB_SOLENOID_PIN, OUTPUT);
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+#endif
+}
+
+#if defined(NB_SOLENOID_D7)
+void solenoidPulseEnd(void *) { // esp_timer task context, not an ISR
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+  gSolenoidGateOn = false;
+  gSolenoidLastEndMs = millis();
+}
+
+void solenoidInit() {
+  solenoidPreInit();
+  gSolenoidLastEndMs = millis() - NB_SOLENOID_REST_MS;
+  const esp_timer_create_args_t timerArgs = {
+      .callback = &solenoidPulseEnd,
+      .arg = nullptr,
+      .dispatch_method = ESP_TIMER_TASK,
+      .name = "nb_solenoid",
+      .skip_unhandled_events = true,
+  };
+  esp_err_t err = esp_timer_create(&timerArgs, &gSolenoidPulseTimer);
+  if (err != ESP_OK) {
+    gSolenoidPulseTimer = nullptr;
+    Serial.printf("solenoid timer init failed: %s\n", esp_err_to_name(err));
+  } else {
+    Serial.printf("solenoid armed: PowerFeather D7/GPIO%d, VDC tap, pulse %u..%u ms\n",
+                  NB_SOLENOID_PIN, NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS);
+  }
+}
+
+void solenoidStop(const char *why) {
+  if (gSolenoidPulseTimer) esp_timer_stop(gSolenoidPulseTimer);
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+  if (gSolenoidGateOn) {
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    Serial.printf("solenoid forced LOW (%s)\n", why);
+  }
+}
+
+bool solenoidStrike(uint16_t pulseMs, const char *why) {
+  pulseMs = constrain(pulseMs, (uint16_t)NB_SOLENOID_MIN_MS,
+                      (uint16_t)NB_SOLENOID_MAX_MS);
+  uint32_t now = millis();
+  if (!gSolenoidPulseTimer || gSolenoidGateOn ||
+      now - gSolenoidLastEndMs < NB_SOLENOID_REST_MS) {
+    gSolenoidBlocked++;
+    return false;
+  }
+
+  gSolenoidFailsafeMs = now + pulseMs + 50;
+  gSolenoidGateOn = true;
+  digitalWrite(NB_SOLENOID_PIN, HIGH);
+  esp_err_t err = esp_timer_start_once(gSolenoidPulseTimer,
+                                       (uint64_t)pulseMs * 1000ULL);
+  if (err != ESP_OK) {
+    digitalWrite(NB_SOLENOID_PIN, LOW);
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    gSolenoidFailsafes++;
+    Serial.printf("solenoid timer start failed: %s\n", esp_err_to_name(err));
+    return false;
+  }
+
+  gSolenoidStrikes++;
+  gSolenoidLastPulseMs = pulseMs;
+  Serial.printf("solenoid strike #%lu: %ums (%s)\n",
+                (unsigned long)gSolenoidStrikes, (unsigned)pulseMs, why);
+  return true;
+}
+
+void solenoidFailsafeTick() {
+  if (gSolenoidGateOn &&
+      (int32_t)(millis() - gSolenoidFailsafeMs) >= 0) {
+    digitalWrite(NB_SOLENOID_PIN, LOW);
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    gSolenoidFailsafes++;
+    Serial.println("solenoid FAILSAFE: gate forced LOW");
+  }
+}
+#else
+void solenoidInit() {}
+void solenoidStop(const char *) {}
+bool solenoidStrike(uint16_t, const char *) { return false; }
+void solenoidFailsafeTick() {}
+#endif
+
 // ESP-NOW rx -> loop queue (callback enqueues only; loop processes)
 struct RxItem {
   uint8_t mac[6];
@@ -901,8 +1038,14 @@ void fieldSessionGuardPreInit() {
     }
     gFieldSessionStateLoaded = true;
 
-    if (gFieldSessionStage != FIELD_SESSION_IDLE &&
-        fieldSessionUnexpectedReset(esp_reset_reason())) {
+    if (gFieldSessionStage == FIELD_SESSION_PROTECT) {
+      // PROTECT is a durable charge-release latch, not merely a reset diagnosis.
+      // RTC phase data can be lost across an OTA/software reset, so NVS must remain
+      // authoritative on every boot type until verified charge clears the stage.
+      gFieldInterruptedPark = true;
+      gFieldInterruptedBoot = fieldSessionUnexpectedReset(esp_reset_reason());
+    } else if (gFieldSessionStage != FIELD_SESSION_IDLE &&
+               fieldSessionUnexpectedReset(esp_reset_reason())) {
       gFieldInterruptedBoot = true;
       if (gFieldSessionStage == FIELD_SESSION_FULL) {
         // Consume the only retry BEFORE any rail can turn on. A reset during the dim
@@ -917,6 +1060,10 @@ void fieldSessionGuardPreInit() {
       } else {
         gFieldInterruptedPark = true;
       }
+    } else if (gFieldSessionStage == FIELD_SESSION_DIM) {
+      // A deliberate software reset/OTA is not a retry failure. Preserve the
+      // already-selected dim tier if RTC state was reinitialized by the new image.
+      rtcFieldLoadDimmed = 1;
     }
     pf.end();
   }
@@ -1290,6 +1437,8 @@ String telemetryJson() {
   j += gFieldInterruptedPark ? "true" : "false";
   j += ",\"field_dusk_s\":";
   j += String(rtcFieldDuskS);
+  j += ",\"field_lux_sensor_seen\":";
+  j += rtcFieldLuxSensorSeen ? "true" : "false";
   j += ",\"mppt_status\":";
   j += String(rtcFieldMpptStatus);
   j += ",\"mppt_reason\":";
@@ -1327,6 +1476,18 @@ String telemetryJson() {
     bool g;
     if (Board.checkSupplyGood(g) == Result::Ok) { j += ",\"supply_good\":"; j += g ? "true" : "false"; }
   }
+#if defined(NB_SOLENOID_D7)
+  j += ",\"solenoid_enabled\":true";
+  j += ",\"solenoid_pin\":" + String(NB_SOLENOID_PIN);
+  j += ",\"solenoid_gate_on\":";
+  j += gSolenoidGateOn ? "true" : "false";
+  j += ",\"solenoid_strikes\":" + String((unsigned long)gSolenoidStrikes);
+  j += ",\"solenoid_blocked\":" + String((unsigned long)gSolenoidBlocked);
+  j += ",\"solenoid_failsafes\":" + String((unsigned long)gSolenoidFailsafes);
+  j += ",\"solenoid_last_ms\":" + String(gSolenoidLastPulseMs);
+#else
+  j += ",\"solenoid_enabled\":false";
+#endif
   j += "}";
   return j;
 }
@@ -1351,6 +1512,7 @@ void configureOtaRoutes() {
         esp_task_wdt_reset();
         HTTPUpload &up = server.upload();
         if (up.status == UPLOAD_FILE_START) {
+          solenoidStop("OTA");
           if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
         } else if (up.status == UPLOAD_FILE_WRITE) {
           if (Update.write(up.buf, up.currentSize) != up.currentSize) Update.printError(Serial);
@@ -1660,6 +1822,7 @@ bool maintenancePowerOk() {
 }
 void enterTimedDeepSleep(uint16_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
+  solenoidStop("deep sleep");
   digitalWrite(NB_LED_PIN, LOW);
   if (pfReady) {
     Board.enable3V3(false);
@@ -1690,9 +1853,18 @@ void drawdownPixelsOff() {
 bool drawdownPixelsRailOnCleared() {
   // Pre-init fail-safe holds EN_3V3 low in the RTC domain. Release that hold only here,
   // after the session tier is durable and the caller has deliberately requested load.
+  // The SDK setter assumes an already-valid RTC pad and ignores rtc_gpio_set_level()
+  // errors. Re-initialize and verify the physical pad after the SDK call so Result::Ok
+  // cannot leave EN_3V3 low (observed on the first .2 P105 deployment).
+  if (!pfReady) return false;
   rtc_gpio_hold_dis(GPIO_NUM_4);
-  rtc_gpio_deinit(GPIO_NUM_4);
-  if (!pfReady || Board.enable3V3(true) != Result::Ok) return false;
+  if (Board.enable3V3(true) != Result::Ok) return false;
+  if (rtc_gpio_hold_dis(GPIO_NUM_4) != ESP_OK ||
+      rtc_gpio_init(GPIO_NUM_4) != ESP_OK ||
+      rtc_gpio_set_direction(GPIO_NUM_4, RTC_GPIO_MODE_INPUT_OUTPUT) != ESP_OK ||
+      rtc_gpio_set_level(GPIO_NUM_4, 1) != ESP_OK ||
+      rtc_gpio_get_level(GPIO_NUM_4) != 1 ||
+      rtc_gpio_hold_en(GPIO_NUM_4) != ESP_OK) return false;
   delay(20);
   drawdownPixelsBegin();
   // Make rail-on deterministic before applying a load. This also clears any frame
@@ -2254,7 +2426,8 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
   if (phase != FC_CHARGE) fieldMpptClampDefault(MPPT_REASON_PHASE);
 #endif
   if (rtcFieldPhase == FC_DRAWDOWN)
-    gFieldLedEarliestOnMs = millis() + NB_FIELD_LED_START_DELAY_MS;
+    gFieldLedEarliestOnMs = millis() + (gFieldInterruptedRetry ?
+                            NB_FIELD_LED_RETRY_DELAY_MS : NB_FIELD_LED_START_DELAY_MS);
   Serial.printf("field-cycle phase -> %u reason=%u cycle=%u bv=%.3f ima=%.0f sv=%.3f sma=%.0f sgood=%d\n",
                 rtcFieldPhase, rtcFieldReason, rtcFieldCycle, cbV, cbMa, csV, csMa,
                 csGood ? 1 : 0);
@@ -2277,7 +2450,9 @@ bool fieldCycleSupplyPresent() {
   return voltagePresent && usefulInput;
 }
 bool fieldCycleLuxAvailable() {
-  return gEnvTsl && gEnvLuxX10 != 0xFFFFFFFF;
+  bool available = gEnvTsl && gEnvLuxX10 != 0xFFFFFFFF;
+  if (available) rtcFieldLuxSensorSeen = 1;
+  return available;
 }
 bool fieldCycleLuxSaysDay() {
   if (!fieldCycleLuxAvailable()) return false;
@@ -2285,8 +2460,12 @@ bool fieldCycleLuxSaysDay() {
   return gEnvLuxX10 >= NB_FIELD_DAWN_LUX_X10;
 }
 uint16_t fieldCycleDuskConfirmS() {
-  return fieldCycleLuxAvailable() ? NB_FIELD_DUSK_CONFIRM_S :
-                                    NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S;
+  // Refresh the capability latch when this wake has a valid sample. Do not make
+  // the threshold depend on each individual read: TSL2591 availability can be
+  // intermittent while VSQT is power-cycled between charge-phase wakes.
+  fieldCycleLuxAvailable();
+  return rtcFieldLuxSensorSeen ? NB_FIELD_DUSK_CONFIRM_S :
+                                 NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S;
 }
 bool fieldCycleDuskCandidate() {
   if (fieldCycleSupplyPresent()) return false;
@@ -2320,6 +2499,11 @@ void fieldCycleDuskTick() {
 }
 bool fieldCycleDayPresent() {
   if (fieldCycleSupplyPresent() || fieldCycleLuxSaysDay()) return true;
+  // Entering DRAWDOWN is the durable darkness latch. Missing lux after that point
+  // is unknown, not daylight; only affirmative supply/lux dawn evidence may end
+  // the nightly load. PROTECT follows the same rule so it cannot churn cycles in
+  // darkness while waiting for verified charging current.
+  if (rtcFieldPhase == FC_DRAWDOWN || rtcFieldPhase == FC_PROTECT) return false;
   return rtcFieldDuskS < fieldCycleDuskConfirmS();
 }
 bool fieldCycleRecoverySupplyPresent() {
@@ -2377,6 +2561,7 @@ void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool int
 }
 void fieldCycleInit() {
   if (IS_MASTER) return;
+  if (rtcFieldLuxSensorSeen > 1) rtcFieldLuxSensorSeen = 0;
   if (rtcFieldMagic != NB_FIELD_RTC_MAGIC || rtcFieldCycle == 0) {
     rtcFieldMagic = NB_FIELD_RTC_MAGIC;
     rtcFieldPhase = FC_BOOT;
@@ -2553,6 +2738,7 @@ void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
 // ---- mode transitions ------------------------------------------------------
 void enterComms();
 void benchLoadsOffForMaintenance() {
+  solenoidStop("maintenance");
   if (gDrawdownActive) drawdownCancel("maintenance");
 #ifdef NB_FIELD_CYCLE
 #if NB_FIELD_MPPT
@@ -2962,6 +3148,15 @@ void processRx() {
     } else if (h->type == NB_TARGET_CHARGE_MA && it.len >= (int)sizeof(NbTargetU16)) {
       NbTargetU16 *m = (NbTargetU16 *)it.data;
       if (targetMatchesMe(m->target_id)) persistAndApplyChargeMa(m->value);
+    } else if (h->type == NB_TARGET_SOLENOID && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      if (targetMatchesMe(m->target_id)) {
+#if defined(NB_SOLENOID_D7)
+        solenoidStrike(m->value, "ESP-NOW");
+#else
+        Serial.println("solenoid strike ignored: this peer was not built with --solenoid-d7");
+#endif
+      }
     } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
       NbIdentify *m = (NbIdentify *)it.data;
       if (targetMatchesMe(m->target_id)) {
@@ -3245,6 +3440,28 @@ void handleSerial() {
     }
     break;
   }
+  case 'K': { // one targeted D7/VDC solenoid strike: K9E5B0C:40
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t pulseMs = NB_SOLENOID_DEFAULT_MS;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0 ||
+        !parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS, &pulseMs) ||
+        !haveTarget) {
+      Serial.printf("SOLENOID rejected: use K<id>:<ms> (range %u..%u ms)\n",
+                    (unsigned)NB_SOLENOID_MIN_MS, (unsigned)NB_SOLENOID_MAX_MS);
+      break;
+    }
+    if (IS_MASTER) {
+      sendTargetU16(NB_TARGET_SOLENOID, target, pulseMs);
+      Serial.printf("target SOLENOID %02X%02X%02X pulse=%ums\n",
+                    target[0], target[1], target[2], (unsigned)pulseMs);
+    } else if (targetMatchesMe(target)) {
+      solenoidStrike(pulseMs, "serial");
+    }
+    break;
+  }
   case 'S': { // timed deep sleep: bare S uses NB_REMOTE_SLEEP_S; S900 sleeps 15 min.
     int seconds = readSerialUint(80, 65535);
     uint16_t sleepS = (uint16_t)(seconds < 0 ? NB_REMOTE_SLEEP_S : seconds);
@@ -3391,6 +3608,7 @@ bool nbSupplyPresent() {
   return false;
 }
 void nbDeepSleep(const char *why) {
+  solenoidStop("autosleep");
   Serial.printf("deep sleep (%s), timer wake %ds\n", why, NB_WAKE_S);
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_WAKE_S * 1000000ULL);
@@ -3450,6 +3668,7 @@ void sleepCycleStep() {
   // the gauge/charger stay alive with VSQT off, so telemetry resumes on the next wake (when
   // Board.init re-enables them). This is the rails-OFF arm of the idle-current A/B test.
   if (pfReady) { Board.enable3V3(false); Board.enableVSQT(false); }
+  solenoidStop("sleep-cycle");
   Serial.printf("sleep-cycle: rails cut (3V3+VSQT off), deep sleep %ds\n", NB_SLEEP_S);
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_SLEEP_S * 1000000ULL);
@@ -3459,6 +3678,7 @@ void sleepCycleStep() {
 
 // ---- setup / loop ----------------------------------------------------------
 void setup() {
+  solenoidPreInit(); // VDC is always live: force the MOSFET gate LOW before SDK/init work
 #if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
   fieldSessionGuardPreInit();
 #endif
@@ -3469,6 +3689,7 @@ void setup() {
   if (esp_reset_reason() != ESP_RST_DEEPSLEEP) delay(1500);
   Serial.println();
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
+  solenoidInit();
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
                 NB_CHANNEL, NB_FRAME_HZ, NB_HB_HZ);
   if (SERIAL_BRIDGE) Serial.println("mode: SERIAL BRIDGE (no WiFi; relaying nb-* to USB serial)");
@@ -3522,7 +3743,8 @@ void setup() {
     envInit();
     envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
   }
-  gFieldLedEarliestOnMs = millis() + NB_FIELD_LED_START_DELAY_MS;
+  gFieldLedEarliestOnMs = millis() + (gFieldInterruptedRetry ?
+                          NB_FIELD_LED_RETRY_DELAY_MS : NB_FIELD_LED_START_DELAY_MS);
 #else
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
@@ -3559,6 +3781,7 @@ void setup() {
 
 void loop() {
   esp_task_wdt_reset();
+  solenoidFailsafeTick();
   handleSerial();
 
   static uint32_t lastBat = 0;

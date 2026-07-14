@@ -55,6 +55,8 @@ FIELD_DEFAULTS = {
     "field_dusk_no_sensor_confirm_s": 1800,
     "capacity_mah": 6000,
     "charge_ma": 1500,
+    # Safe/generic and P105 5 W operating point. The P126 2 W deployment must pass
+    # --maintain 5.8 explicitly (qualified by its 2026-07-12 MPP sweep).
     "maintain_v": "4.6",
 }
 
@@ -81,6 +83,11 @@ def parse_args() -> argparse.Namespace:
         help="animate LED Studio's in/out spiral with a 120-degree pure-R/G/B triplet",
     )
     ap.add_argument("--frame-ms", type=int, default=290)
+    ap.add_argument(
+        "--solenoid-d7",
+        action="store_true",
+        help="enable one-shot D7/GPIO37 solenoid strikes for a VDC/GND MOSFET-driver tap",
+    )
     ap.add_argument("--field-charge-s", type=int, default=FIELD_DEFAULTS["field_charge_s"])
     ap.add_argument("--field-wait-s", type=int, default=FIELD_DEFAULTS["field_wait_s"])
     ap.add_argument("--field-protect-s", type=int, default=FIELD_DEFAULTS["field_protect_s"])
@@ -192,7 +199,8 @@ def build_name(args: argparse.Namespace) -> str:
         return args.build_name
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     lit = 3 if args.spiral_rgb else args.hex_lit
-    return f"field-cycle-peer-{stamp}-{args.peer_id}-hex{lit}b{args.brightness}"
+    solenoid = "-solenoid-d7" if args.solenoid_d7 else ""
+    return f"field-cycle-peer-{stamp}-{args.peer_id}-hex{lit}b{args.brightness}{solenoid}"
 
 
 def build_args(args: argparse.Namespace) -> list[str]:
@@ -246,6 +254,8 @@ def build_args(args: argparse.Namespace) -> list[str]:
     ]
     if args.spiral_rgb:
         result.extend(["--field-led-spiral-rgb", "--field-led-frame-ms", str(args.frame_ms)])
+    if args.solenoid_d7:
+        result.append("--solenoid-d7")
     return result
 
 

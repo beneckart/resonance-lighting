@@ -5,6 +5,10 @@ standalone bench sketches under `firmware/<app>/` (see `firmware/README.md`);
 `net_bench` is the closest ancestor of production firmware. Constraints learned on
 the bench that bind this design: ADR 0028 (power-management bus integrity), ADR 0029
 (LED drive per role), ADR 0023 (low-battery thresholds), ADR 0027 (sensors).
+The non-binding candidate behavior/timing layer is explored in
+`docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md`; it broadens
+CA into a generic autonomous/bridge-optional choreography runtime but is not yet an
+adopted architecture decision.
 
 Firmware runs across COTS prototypes and the eventual production target. The architecture must support multiple board definitions, standard OTA maintenance updates, ESP-NOW state exchange, LED rail fail-safes, and telemetry logging.
 

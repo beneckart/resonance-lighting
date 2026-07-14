@@ -1,7 +1,9 @@
 # P105/P126 outdoor solar field cycle and POR-loop findings -- July 2026
 
-**Status:** Active bench record. P105 safety firmware was OTA-deployed July 12;
-P126 may remain outside for several more harvest days before being disassembled.
+**Status:** Active bench record. Final P105 safety firmware was OTA-deployed July 13.
+The original P126 peer was then disassembled and retired after a header-rework hardware
+failure; replacement `9F2690` is flashed and staged for the VDC solenoid trial. The P105
+external INAs are next scheduled for removal for a production-harness A/B.
 
 ## Purpose
 
@@ -21,8 +23,9 @@ no INAs, no Dupont leads, and no lux sensor.
 
 | Peer | Panel/load | Instrumentation | Image/status |
 |---|---|---|---|
-| `9E5B0C` | P126 2 W, fixed 5.8 V; three full-bright single-channel R/G/B HEX pixels spiraling at 120 deg offsets | PowerFeather BQ/MAX17260 only; production cables | `net-bench-2026-07-10.1`; leave in place until teardown |
-| `9F26F8` | P105 5 W, fixed 4.6 V; 18-pixel HEX load at brightness 128 | Panel/battery INAs plus onboard telemetry and TSL2591 | `net-bench-2026-07-12.1`; OTA-deployed July 12 |
+| `9E5B0C` (historical) | P126 2 W, fixed 5.8 V; three full-bright single-channel R/G/B HEX pixels spiraling at 120 deg offsets | PowerFeather BQ/MAX17260 only; production cables | `net-bench-2026-07-10.1`; disassembled July 13 and board retired after header-rework failure |
+| `9F2690` (replacement) | Same P126/HEX profile plus manual D7/VDC solenoid strike | Onboard telemetry; production cables; no driver connected during verification | `net-bench-2026-07-13.3`; USB-flashed and safety-verified July 13, bright-sun strike pending |
+| `9F26F8` | P105 5 W, fixed 4.6 V; 18-pixel HEX load at brightness 128 | Panel/battery INAs plus onboard telemetry and TSL2591; INAs next removed for A/B | `net-bench-2026-07-13.2`; durable protect currently validated live |
 
 P126 logger:
 `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`.
@@ -30,6 +33,25 @@ P126 logger:
 P105/P126 share the master/logger, so the same file also captures the P105 peer after
 the July 10 P126 deployment. Earlier P105 history is in the July 3-8 field-cycle files
 under `ops/bench/data/ca/`.
+
+### P126 VDC solenoid trial staged July 13
+
+The next P126 experiment adds an Adafruit #5648 MOSFET driver on D7/GPIO37 with its
+load supply tapped from VDC/GND. The first bright-sun trial deliberately omits the VDC
+storage capacitor to answer whether the panel/BQ input path can deliver a useful strike
+without it. Begin at one 40 ms pulse; record physical actuation, reset reason, supply
+collapse, and post-strike telemetry before changing pulse width or adding capacitance.
+
+`net-bench-2026-07-13.3` implements targeted manual-only strikes, timer plus loop
+gate-off protection, a 5-300 ms hard range, 80 ms rest guard, and gate LOW across boot,
+OTA, maintenance, and sleep. The driver schematic includes a 10K signal pulldown and
+flyback diode. Its input therefore remains off while older firmware leaves D7
+high-impedance. The P126 image retains the fixed 5.8 V and three-pixel spiral profile.
+The original `9E5B0C` never received it and was retired after the failed header rework.
+Replacement `9F2690` was USB-flashed July 13; direct telemetry verified `.3`,
+`solenoid_enabled=true`, GPIO37, gate LOW, and zero strike/block/failsafe counters.
+Solar and the driver were still disconnected at verification, so the no-capacitor
+bright-sun strike remains the next hardware step.
 
 ## Executive read
 
@@ -276,22 +298,149 @@ called fully validated.
     day-to-day proxy, but external panel-lead instrumentation remains the qualification
     reference.
 
+## Production power-policy hardening plan (2026-07-13)
+
+### Working interpretation
+
+Assume the P105's unexpectedly early collapse was dominated by the resistance and/or
+intermittency of its external INA harness. This changes how the P105 voltage points are
+interpreted; it does not justify removing the safety mechanisms the event exercised.
+A production fixture can produce the same reset signature through a poor crimp, aging
+or cold-cell resistance, a connector fault, an abrupt LED frame, or a BQ power-path /
+BATFET disconnect after an I2C upset.
+
+Treat the bad harness as a fault-injection test. Preserve cause-independent recovery,
+then re-derive its numeric thresholds on the production electrical path.
+
+| Firmware behavior | Production disposition | Reason |
+|---|---|---|
+| Force the LED rail off at the first boot instructions and after board init | Keep | A stale LED frame or SDK rail side effect must not energize the load during recovery. |
+| Persist intended `full` / `dim` / `protect` tier before rail-on | Keep | A POR must not erase the safety decision that the load was active. |
+| Allow one pre-consumed DIM retry, then hard-park | Keep | Recovers from a one-off transient without recreating an unlimited boot loop. |
+| Preserve PROTECT across POR, watchdog, and OTA software reset | Keep | Reset type is not proof that the battery or power path recovered. |
+| Stage LED startup and sample loaded VBAT during the ramp | Keep mechanism; tune duration by load class | It bounds inrush and exposes delayed sag before steady-state policy runs. |
+| Latch night and require positive dawn evidence | Keep semantics; replace bench sensor constants | A missing lux or current sample is unknown, not sunrise. |
+| Correct MAX17260 current by `/1.08`; ignore RepSOC for gates | Keep | This is replicated gauge behavior; RepSOC is not trustworthy on the LFP plateau. |
+| P105 special 3.10 V dim threshold | Recalibrate | It was selected around an 18-pixel stress load on the instrumented harness. |
+| 3.00 / 2.95 / 2.90 V standard tiers | Starting point only | ADR 0023 requires known-load evaluation, load compensation, and cold/variance margin. |
+| Clear PROTECT from one `battery_ma >= +20 mA` sample | Strengthen before production | One borderline sunrise sample can be bias or a transient, not restored load capacity. |
+| Field-cycle charge/wait/full telemetry cadence | Bench-only | It measures cycling; it is not the production show or low-battery state machine. |
+
+The healthy-harness cost of the retained protections is small: one staged start at
+show onset and a few durable state writes at transitions. The retry delay and park path
+run only after a fault.
+
+### Phase 1 -- production-harness A/B
+
+1. Remove the P105 panel/battery INAs and Dupont/instrumented interconnects. Use the
+   intended cable gauges, crimps, and connector path.
+2. Leave `net-bench-2026-07-13.2`, the cell, panel, LED load, and thresholds unchanged
+   for the first complete dusk/show/recovery cycle. Do not tune out the symptom before
+   measuring the electrical change.
+3. Record, from onboard telemetry and the reset/session markers:
+   - pre-load or lowest-available low-load VBAT;
+   - VBAT and battery current through each startup-ramp step;
+   - minimum steady full- and DIM-load VBAT;
+   - selected tier, reset reason, retry count, and final persisted stage;
+   - charger state, battery current, and VBAT used to release PROTECT; and
+   - any missing lux/I2C sample around a state transition.
+4. Compare load-step sag, stable current, and resets against the July 13 instrumented
+   values: roughly 493-506 mA / 2.93 V at full and 299-308 mA / 3.07-3.09 V at DIM.
+
+Interpretation:
+
+- A materially smaller sag and stable show supports the harness hypothesis. Retain the
+  reset guard and move the P105 3.10 V value back into the calibration queue.
+- A reset that persists on production wiring keeps the BQ/BATFET-disconnect hypothesis
+  open. Capture charger/gauge reachability and reset reason before changing thresholds.
+- Regardless of the initiating cause, the safety pass criterion is no repeated full-
+  load loop: at most one DIM retry, followed by a rail-off durable park.
+
+### Phase 2 -- strengthen recovery from PROTECT
+
+Replace the current single-sample release with a compound recovery gate. Do not use
+MAX17260 RepSOC. Production release requires all of:
+
+1. valid external input and a BQ charging/no-relevant-fault indication;
+2. corrected positive battery current sustained across a defined interval or multiple
+   wake observations;
+3. VBAT above a separately measured restart floor with hysteresis; and
+4. preferably, a small positive-coulomb recovery budget accumulated since PROTECT.
+
+Derive the exact current, time/sample count, VBAT, and coulomb constants from the
+production-harness recovery trace. The July 13 morning release at about +24 mA, only
+4 mA above the present gate, is specifically not sufficient evidence by itself. Weak
+sun may delay recovery, but it must not repeatedly re-arm a load the source cannot yet
+support.
+
+### Phase 3 -- qualify thresholds by production electrical class
+
+1. Exercise each distinct battery-to-LED power path at its worst credible show frame,
+   not only the 18-pixel P105 stress pattern or the three-pixel P126 pattern.
+2. Start from ADR 0023's standard loaded tiers: dim 3.00 V, LED-off 2.95 V, sparse
+   sleep 2.90 V. Keep the P105 3.10 V dim point as a temporary bench override only.
+3. Measure effective path resistance and either evaluate at a known load or implement
+   `bv_comp = bv + R_path * I_load`. Do not copy raw loaded thresholds between fixture
+   classes with different currents or cabling.
+4. Repeat at the expected cold boundary and with production cell/connector variance.
+   The existing room-temperature n=2 result is not a cold qualification.
+5. Make corrected coulomb remaining the primary energy estimate, anchored to measured
+   usable capacity. Use the 15 / 7 / 5 percent dim/off/sleep targets from ADR 0023;
+   retain voltage as the immediate safety backstop. Gauge RepSOC remains advisory.
+6. Fix the retained integrator's lost-millisecond remainder and quantify onboard
+   coulomb error against an external reference before using it for production gates.
+
+Only low energy enters PROTECT/sparse-wake behavior. Routine charge-phase timer sleeps
+may reduce MCU telemetry energy because the BQ continues charging autonomously, but
+they must not declare the cell full, end harvest, or authorize a show from weak input.
+
+### Phase 4 -- deterministic transition tests
+
+The production state machine is not accepted from an outdoor happy-path run alone.
+Inject or simulate this matrix:
+
+| Starting condition / event | Required result |
+|---|---|
+| POR while persisted FULL | Consume the only retry before rail-on; start DIM after the recovery delay. |
+| POR while persisted DIM | Rail remains off; enter durable PROTECT. |
+| POR or software reset while persisted PROTECT | Remain protected; no sensor or LED startup before verified recovery. |
+| NVS read/write failure | Fail rail-off; remain remotely recoverable on timed wakes. |
+| I2C/BQ/gauge read failure | Do not interpret missing data as healthy voltage, daylight, or charge recovery. |
+| One short positive-current or supply transient | Stay in PROTECT. |
+| Sustained qualified charging and recovered VBAT | Clear the stage once and begin a new charge cycle; do not immediately start the show. |
+| Missing lux during an active night | Continue the latched night/show state. |
+| Explicit dawn evidence | End the show once, without charge-current chatter. |
+| Low threshold crossing under known load | Dim/off only after the specified confirmation; critical floor remains immediate. |
+
+### Production exit criteria
+
+The policy is ready to port from `net_bench` when all of the following are true:
+
+- the post-INA P105 A/B is captured and the initiating-cause conclusion is recorded;
+- every production power/load class has a room-temperature loaded-sag profile and a
+  cold/variance margin;
+- the compound PROTECT-release gate passes transient and sustained-charge tests;
+- coulomb integration error and persistence behavior are measured and acceptable for
+  the selected energy margins;
+- the complete reset matrix above produces no unlimited load/reset loop; and
+- at least one clean multi-day field run covers charge, dusk, show, dim/off/protect,
+  sunrise recovery, intermittent sensing, and OTA maintenance.
+
+The reusable state machine and PowerFeather rail sequencing belong in production
+firmware/board abstractions. `net_bench` profile flags, TSL2591 thresholds, P105/P126
+loads, and charge-cycle reporting remain test-harness configuration.
+
 ## Current operating decision
 
-Do **not** OTA P126 merely to shorten the current show window. Ben expects to disassemble
-this peer for another bench experiment and may leave it outside only a few more days.
-Changing firmware now would interrupt the small harvest series and add little value.
+The original outdoor harvest series ended when Ben disassembled `9E5B0C` on July 13.
+Keep its `.1` data as one historical fixture series; replacement `9F2690` starts a new
+hardware/run boundary even though the cell, panel, and load profile are reused.
 
-If it stays deployed, preserve `net-bench-2026-07-10.1` at fixed 5.8 V and use the added
-days only to observe the weather-conditioned P126 BQ-input and battery-charge Ah/Wh
-range. Treat its night discharge as an intentionally overlong load soak, not the
-production daily-energy profile. The next purpose-built field cycle should implement a
-9-10 h show cap and fix millisecond carry in the retained integrator.
-
-As checked July 12 at 18:05 PDT, the logger process was alive and the file was still
-growing. It was launched with `--duration 259200`, so it will stop around July 13 at
-15:25 PDT. Restart it with a continuation file or longer duration if P126 remains
-outside beyond then; do not silently treat later missing rows as zero harvest.
+The immediate replacement-board experiment is the manual 40 ms D7/VDC strike in bright
+sun without a storage capacitor. Keep fixed 5.8 V VINDPM. After that experiment, any new
+field-cycle run should implement the provisional 9-10 h show cap and fix millisecond
+carry in the retained integrator. Do not compare the old overlong nighttime soak with a
+new capped run as though they were the same daily-energy profile.
 
 ## Related records
 

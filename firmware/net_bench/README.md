@@ -66,6 +66,7 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`,
 `--field-cycle`/`--field-charge-s S`/`--field-wait-s S`/`--field-protect-s S`,
 `--field-led-load`/`--field-led-spiral-rgb`/`--field-led-frame-ms MS`,
+`--solenoid-d7` (targeted, fail-safe D7/GPIO37 strike control),
 `--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
@@ -124,6 +125,27 @@ fleet `ENTER_MAINT` wake and is also the migration path for old peers that do no
 understand targeted maintenance. `U<id>` sends sustained targeted maintenance to one
 peer, e.g. `U9E5AB8`, so a single OTA does not pull drawdown or solar-cycle peers off
 ESP-NOW. The dashboard's `Peer maint` button sends `U<id>` for the selected peer.
+
+### Optional D7/VDC solenoid strike
+
+`--solenoid-d7` enables manual, targeted solenoid strikes on PowerFeather D7/GPIO37
+(D7 is not GPIO7). The intended wiring is an Adafruit #5648 MOSFET driver's V+ and
+GND tapped from VDC/GND, with its SIGNAL input on D7. The driver board's onboard 10K
+signal pulldown and flyback diode must be present; do not drive a coil from the GPIO.
+Because VDC is always live, this build drives D7 LOW before board initialization and
+forces it LOW for OTA, maintenance entry, and sleep.
+
+The serial bridge command is `K<id>:<ms>`, for example `K9F2690:40`. Only the named
+peer responds. Pulse width is clamped to 5-300 ms, an 80 ms rest gap rejects repeated
+requests, and both an `esp_timer` one-shot and a loop deadline force the gate LOW. The
+dashboard exposes the same operation as `Strike D7`; the default is 40 ms. There is no
+automatic boot strike or repeat mode. `/telemetry` reports `solenoid_enabled`,
+`solenoid_pin`, gate state, strike/block/failsafe counters, and the last pulse width.
+
+The July 2026 P126 trial intentionally begins without a VDC storage capacitor to learn
+whether a bright-sun strike works directly from the panel/charger input. Treat a weak
+strike, input collapse, or peer reset as the result of that experiment; do not increase
+the pulse limit to compensate. Add and size the capacitor from measured strike data.
 
 ## Field-cycle day/night lifecycle mode
 
@@ -237,6 +259,43 @@ The old optional `--autosleep` counter remains useful for non-field bench modes,
 not the field LED safety mechanism: it runs later in setup and waits many resets. The
 NVS field-session stage is armed before the first LED load and catches the first
 unexpected reset.
+
+`net-bench-2026-07-12.2` repairs the day/night regression found on the first P105
+deployment of the reset guard. Darkness is latched once drawdown begins, so a missing
+TSL2591 sample is unknown rather than synthetic daylight. The firmware also remembers
+that a lux sensor has produced a valid sample across deep-sleep wakes, keeping its
+5-minute dusk qualification stable instead of switching to the 30-minute bare-peer
+fallback on an intermittent read. `/telemetry` exposes that capability latch as
+`field_lux_sensor_seen`.
+
+The first `.2` rail repair removed an erroneous GPIO4 deinitialization, but live P105
+current proved that was insufficient: the PowerFeather SDK's held-RTC-pin setter can
+return success even when its unchecked level write did not energize the physical rail.
+`net-bench-2026-07-12.3` explicitly reinitializes EN_3V3/GPIO4 as an RTC input/output,
+drives it high, reads the level back, and re-enables hold after the SDK call. Any failed
+step now takes the existing interrupted-session park path instead of reporting a false
+LED-on state.
+
+Live `.3` validation on P105 proved the rail repair and exposed the real startup
+transient: the former 400 ms ramp reached about 500 mA / 2.93 V before a power-on reset;
+the one-time dim retry held about 300 mA / 3.07 V for roughly 9 s before a second POR,
+then correctly hard-parked. `net-bench-2026-07-13.1` stretches the four-step ramp to
+3.2 s so delayed harness/cell sag is visible before full brightness, and waits 10 s
+after an interrupted full-load boot before applying the one allowed dim retry. The P105
+profile should continue to deploy with `--field-dim-mv 3100 --maintain 4.6`; the
+generic/bare-peer dim default remains 3000 mV. The P126 2 W profile uses
+`--maintain 5.8`.
+
+`net-bench-2026-07-13.2` also makes the NVS `protect` stage authoritative after every
+reset type. Live OTA validation found that a software reset could reinitialize the RTC
+phase to charge while NVS still said protect, which would have bypassed the
+charge-release latch after maintenance. A persisted protect stage now parks before
+sensor/LED startup until verified charge clears it; a persisted dim stage survives a
+deliberate software reset without silently returning to full brightness.
+
+The targeted field-cycle OTA helper defaults to 4.6 V VINDPM, which is both the
+USB-rescue-safe setting and the qualified P105 5 W operating point. The P126 2 W peer
+uses its separately qualified 5.8 V point and must pass `--maintain 5.8` explicitly.
 
 The full P105/P126 field reconstruction, production show-duration math, daily-harvest
 ledger, POR regression chain, and reusable telemetry gotchas are recorded in

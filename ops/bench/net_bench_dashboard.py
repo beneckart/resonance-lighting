@@ -551,8 +551,9 @@ button { cursor: pointer; font-weight: 700; }
 button:hover { border-color: #9aaba1; background: #f9fbfa; }
 button.primary { background: var(--soft-blue); border-color: #b8d5ec; color: var(--blue); }
 button.warn { background: var(--soft-amber); border-color: #f0d198; color: var(--amber); }
+button.danger { background: var(--soft-red); border-color: #efc2bd; color: var(--red); }
 input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
-.maintain { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 8px; margin-top: 8px; }
+.maintain { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; margin-top: 8px; }
 .history { height: 168px; overflow: auto; background: #111814; color: #dbe8df; border-radius: 7px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.45; }
 .history div { white-space: pre-wrap; overflow-wrap: anywhere; }
 .signal { width: 100%; height: 8px; background: #edf1ef; border-radius: 999px; overflow: hidden; }
@@ -682,6 +683,10 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
       <div class="maintain">
         <input id="chargeInput" inputmode="numeric" placeholder="Selected peer charge mA">
         <button id="chargeBtn">Charge peer</button>
+      </div>
+      <div class="maintain">
+        <input id="solenoidPulseInput" type="number" min="5" max="300" step="1" value="40" aria-label="Solenoid pulse milliseconds">
+        <button class="danger" id="solenoidBtn">Strike D7</button>
       </div>
       <div class="controls">
         <button class="warn" data-cmd="R1">Radio 1 Hz</button>
@@ -1157,6 +1162,20 @@ document.getElementById("chargeBtn").addEventListener("click", () => {
   }
   sendCommand(`G${peer.id}:${ma}`, `Set ${peer.id} charge ${ma} mA`);
 });
+document.getElementById("solenoidBtn").addEventListener("click", () => {
+  const peer = commandTargetPeer();
+  if (!peer) {
+    document.getElementById("commandStatus").textContent = "Select one solenoid peer";
+    return;
+  }
+  const raw = document.getElementById("solenoidPulseInput").value.trim();
+  const ms = Number(raw);
+  if (!Number.isInteger(ms) || ms < 5 || ms > 300) {
+    document.getElementById("commandStatus").textContent = "Enter a 5 to 300 ms pulse";
+    return;
+  }
+  sendCommand(`K${peer.id}:${ms}`, `Strike ${peer.id} D7 for ${ms} ms`);
+});
 document.getElementById("rateBtn").addEventListener("click", () => {
   const raw = document.getElementById("rateInput").value.trim();
   const hz = Number(raw);
@@ -1227,6 +1246,10 @@ def valid_command(cmd: str) -> bool:
     if m:
         value = int(m.group(1))
         return 40 <= value <= 2000
+    m = re.fullmatch(r"K[0-9A-Fa-f]{6}:(\d{1,3})", cmd)
+    if m:
+        value = int(m.group(1))
+        return 5 <= value <= 300
     m = re.fullmatch(r"R(\d{1,3})", cmd)
     if m:
         value = int(m.group(1))

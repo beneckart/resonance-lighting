@@ -12,6 +12,29 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-14 -- Codex -- Seven-day solar-cycle JSONL logger health check
+
+Checked the paired P105/P126 weather-range run without changing the process or
+firmware. The original logger process (PID 25296, started 2026-07-13 21:19:22 PDT)
+was still listening on UDP/54321 and writing continuously to
+`ops/bench/data/ca/2026-07-13-ca-field-cycle-9F26F8-9F2690-weather-range-r1.jsonl`.
+Its configured 604800 s duration should end about 2026-07-20 21:19 PDT. The stderr
+file remained empty and stdout remained live.
+
+At about 07:39 PDT, the file contained 111,471 rows / 177 MB covering 37,202 s.
+A complete streaming parse found zero malformed or blank rows, zero timestamp
+regressions, only master `192.168.4.72`, and only the two expected peers. The largest
+per-source host gap was 3.0 s and no gap exceeded 5 s. P105's maximum reported
+`age_ms` was 297,888 ms, matching its intentional 300 s charge sleep; P126 remained
+fresh within 3.5 s. All observed reset reasons for both peers were `deepsleep`.
+The logger's stdout `REBOOT` counter therefore reflects P105 timer wakes, not crashes.
+
+Current write rate was about 4.6 KiB/s, projecting roughly 2.7 GB for the full run;
+C: had about 564 GB free. Latest telemetry showed P105 in charge phase on cycle 2
+with dawn lux available, and P126 still in draw phase at about 3.15 V. Neither peer
+reported a BQ fault, dim state, or protect latch. No intervention or new TODO was
+needed.
+
 ## 2026-07-13 (cont.) -- Ben + Claude -- Harness abundance + 172 COTS enclosures bought; chandelier goes carpenter-built
 
 Procurement wave folded into the ledger/BOM/ROADMAP/TODO/enclosure docs
@@ -133,6 +156,182 @@ Ben; ops/bench stays stdlib-only).
   downtilt, ADR 0030 after Ben's review). Machine notes: user-site scipy
   1.15.3 installed (system 1.8 broken vs numpy 2.x); system mpl_toolkits
   shadows user matplotlib (no mplot3d -- 2D panels + HTML viewer instead).
+## 2026-07-13 (cont.) -- Ben + Codex -- Rootless autonomous choreography concept documented
+
+Added the explicitly non-binding research/design note
+`docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md` as a
+strong candidate production-firmware direction. The top-level abstraction is a generic
+distributed choreography runtime, not a CA-only engine: CA, deterministic timelines,
+spatial light/solenoid ripples, presence-triggered easter eggs, and temporary
+bridge-directed performances share one observation/event/scheduling layer. The normal
+artwork remains autonomous with no permanent coordinator. A bridge is an optional
+leased participant for DJ modulation, special shows, health checks, identification,
+photogrammetry/registration, and maintenance; expiry returns nodes to autonomy.
+
+The note records the field-inferred default sleep-clock error (roughly 9-15 minutes/day
+fast across the observed 300/900 s sleeps), distinguishes wall time from local monotonic
+time and peer-corrected fleet phase, and proposes an A/B of the ESP32-S3 internal
+8.5-17.5 MHz/256 RTC source. Its documented roughly +5 uA cost is only 0.12 mAh/day,
+negligible beside the current eight-second/five-minute bench radio window. The better
+clock would improve holdover/rendezvous efficiency but is not a correctness dependency;
+POR reacquisition and peer resynchronization remain mandatory.
+
+Daytime telemetry windows may double as rootlessly synchronized solenoid chorus/ripple
+events, with compact future-scheduled programs for longer audio scenes. Autonomous night
+behavior is explicitly broader than CA; a distributed presence condition can schedule
+a preloaded synchronized sequence without a master. Raw distinct-origin observations,
+idempotent future events, local energy vetoes, adaptive day/twilight radio duty, bridge
+leases, fungible runtime capability/site data, failure behavior, implementation phases,
+and measurement gates are all captured.
+
+Solenoid power remains OPEN pending the capacitor arrival/test on July 14. Current
+roughly 90 percent likely MVP is the previously battle-tested switchable 3V3/GND path,
+using the purchased five-pin JST-XH Y-splitter to keep the harness in XH land, tentatively
+sharing power with LED signal A0 and solenoid signal A1. The VDC-plus-capacitor branch
+must produce a clearly better strike or power result to earn its extra parts, inrush,
+packaging, and assembly. This records a strong design hypothesis, not a hardware lock.
+
+## 2026-07-13 (cont.) -- Ben + Codex -- Seven-day paired P105/P126 weather-range logger started
+
+The prior P105/P126 JSONL run did not crash: it reached its configured 259200 s
+(72-hour) duration and closed cleanly at about 15:25 PDT. At about 21:19 PDT a new
+seven-day UDP logger was started for the adjacent outdoor peers `9F26F8` (P105 5 W)
+and replacement `9F2690` (P126 2 W):
+`ops/bench/data/ca/2026-07-13-ca-field-cycle-9F26F8-9F2690-weather-range-r1.jsonl`.
+It is configured for 604800 s, is not pinned to a DHCP address, and therefore can
+coexist with the COM4 dashboard and survive a bridge IP change. Initial verification
+captured both peers through master `192.168.4.72`; the logger error file was empty.
+
+The analysis target is one row per complete America/Los_Angeles day and peer: positive
+corrected battery Ah/Wh, discharge Ah/Wh, net delta, charge/draw phase duration, peak
+charger-input power, minimum loaded VBAT, and reset/dim/protect events. Do not use the
+MAX17260 SOC field for this comparison. Sum monotonic device-counter increments within
+each day and segment counter decreases, cycle changes, and real uptime resets rather
+than subtracting endpoints blindly. P105 lux, panel temperature, and humidity are the
+shared weather proxy for the two adjacent panels; BQ supply power remains charger-input
+telemetry, not panel-lead ground truth.
+
+## 2026-07-13 (cont.) -- Ben + Codex -- Failed P126 board retired; replacement 9F2690 USB-flashed and safety-verified
+
+The former P126 peer `9E5B0C` did not recover after the D7/VDC/GND header rework. With
+the battery and USB paths checked separately it still had the expected battery voltage
+at JST/VBAT, about 3.3 V at RST/BTN, and about 5.0 V at VS on USB, but it would not
+enumerate or enter the ESP32-S3 ROM loader on a known-good cable. The likely fault is
+physical damage or a solder bridge near the ESP module pads during header rework; the
+board is retired rather than treated as an OTA/firmware failure. No `.3` image or strike
+command ever reached it.
+
+Replacement PowerFeather `9F2690` (`D8:85:AC:9F:26:90`) passed the ROM-loader probe and
+was USB-flashed with the already-built P126 image
+`field-cycle-peer-20260713-p126-spiral-solenoid-d7-r1` (`net-bench-2026-07-13.3`, binary
+SHA-256 `EE26C8CCE33A2EE4939B3334F76DFEB49EA1B0FEF4A65E30D8F85F995D4FB992`). Flash
+verification and reset succeeded. The peer then joined the channel-11 bridge with
+65/65 frames, RSSI about -4 dBm, and the expected fixed 5.8 V VINDPM, 6000 mAh LFP,
+1500 mA charge limit, and three-pixel full-bright R/G/B spiral profile.
+
+Direct telemetry before any driver connection verified `solenoid_enabled=true`, GPIO37,
+gate LOW, zero strikes, zero blocked commands, and zero failsafe trips. VBAT was about
+3.28 V. The board was explicitly returned from targeted maintenance to normal ESP-NOW
+mode. Solar and the solenoid driver remained disconnected throughout; the next action is
+the first bright-sun, no-capacitor 40 ms strike while watching reset and supply telemetry.
+
+## 2026-07-13 (cont.) -- Ben + Codex -- P126 D7/VDC solenoid control built; bridge deployed, peer OTA waiting for power
+
+Added an opt-in `--solenoid-d7` path to `net_bench` for the P126 bright-sun
+strike-power experiment. PowerFeather D7 is GPIO37, not GPIO7. The feature has no
+boot strike or repeat mode: a targeted `K<id>:<ms>` command produces one 5-300 ms
+pulse (40 ms dashboard default), with an 80 ms rest guard, `esp_timer` one-shot,
+loop deadline, and forced gate LOW before board initialization plus OTA, maintenance,
+and sleep transitions. `/telemetry` exposes the enable/pin/gate state and
+strike/block/failsafe counters.
+
+The local dashboard now has a selected-peer `Strike D7` button and validates the
+same pulse bounds. The USB serial-bridge master `9E5AB8` was flashed successfully to
+`net-bench-2026-07-13.3`; the dashboard restarted on COM4, reconnected, and served the
+new control. Both the bridge and P126 variants compiled in separate build paths, and
+the P126 image preserves its fixed 5.8 V VINDPM, three-pixel full-bright R/G/B spiral,
+6 Ah capacity, and 1.5 A charger profile.
+
+The intended test wiring is the Adafruit #5648 MOSFET driver on D7/VDC/GND, initially
+without the VDC storage capacitor. Its official schematic confirms a 10K SIGNAL-to-GND
+pulldown plus onboard flyback diode. Therefore the previous P126 firmware, which left
+D7 as a high-impedance input, did not actively command the solenoid on; the hardware
+pulldown held the MOSFET off.
+
+Peer OTA is NOT yet complete. `9E5B0C` was already stale before deployment work and
+did not appear during 20 minutes of targeted `U9E5B0C` retries, 324 fixture-ID-checked
+maintenance scans, or its expected 900 s protect wake boundary. The last cached sample
+was old firmware `.1`, 3.285 V, no supply, phase protect. Next step: leave the driver
+unplugged, restore panel/battery power, tap RESET once, then rerun the already-built
+targeted OTA and verify `.3`, `bq_vindpm_mv=5800`, `solenoid_enabled=true`, pin 37,
+gate LOW, and zero strike/failsafe counters before Ben connects the driver and initiates
+the first 40 ms strike.
+
+## 2026-07-13 (cont.) -- Ben + Codex -- Production power-policy hardening plan codified
+
+Recorded the production disposition of the P105 POR work in
+`docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md` and ADR 0023. Working assumption is
+that the external INA harness caused the unusually early P105 collapse, but that event
+is treated as useful fault injection rather than a reason to remove the recovery logic.
+
+The plan keeps cause-independent default-off rail ownership, durable load-tier state,
+one pre-consumed DIM retry, staged startup, night latching, and PROTECT persistence
+across POR/watchdog/OTA resets. It explicitly leaves the P105 3.10 V dim point and exact
+ramp timing as bench calibration to be re-derived on production wiring. The canonical
+3.00 / 2.95 / 2.90 V tier remains an ADR 0023 starting point subject to known-load,
+class-specific, and cold qualification.
+
+The first post-INA run is a controlled A/B: remove the instrumentation but do not change
+`net-bench-2026-07-13.2`, the load, or the thresholds for one complete cycle. The plan
+defines telemetry to retain, comparison points, a deterministic reset/fault matrix, and
+production exit criteria. It also identifies the present single-sample +20 mA PROTECT
+release as not production-ready; replace it with valid charger/no-fault state, sustained
+positive corrected current, recovered VBAT with hysteresis, and preferably positive
+coulombs. RepSOC remains advisory only.
+
+## 2026-07-13 -- Ben + Codex -- P105 dark-show repair OTA: GPIO4 rail truth, stable night latch, durable protect, P105=4.6 V
+
+Investigated why outdoor P105 peer `9F26F8` reported drawdown near 22:00 while its
+HEX was dark. The live logger separated two firmware regressions in
+`net-bench-2026-07-12.1`:
+
+- Phase 4 drew only about 116-134 mA INA instead of the historical roughly 470 mA.
+  `drawdownPixelsRailOnCleared()` deinitialized EN_3V3/GPIO4 immediately before the
+  PowerFeather SDK's RTC-pin setter. Worse, the SDK ignores the result of its actual
+  `rtc_gpio_set_level()` call and can return `Result::Ok` while the physical rail stays
+  low. Final firmware explicitly initializes GPIO4 as RTC input/output, drives it high,
+  reads the level back, and re-enables hold before applying pixels.
+- Intermittent TSL2591 samples switched dusk qualification dynamically between the
+  5-minute sensored threshold and 30-minute bare fallback. That turned missing lux into
+  synthetic daylight and produced repeated 1-2 s drawdown / false-sunrise cycles.
+  Sensor capability is now retained across deep-sleep wakes, and entry to drawdown is a
+  durable darkness latch: only positive supply/lux dawn evidence can end the show.
+
+Live `.3` rail validation proved the electrical drive and exposed a real startup event
+that the falsely-off rail had hidden. Full HEX load reached about 493-506 mA INA and
+2.93 V, then POR. The NVS guard consumed its one dim retry; that ran about 299-308 mA at
+3.07-3.09 V for roughly 9 s, then POR again. The next boot hard-parked with phase/reason
+`5/8` instead of looping. The final `net-bench-2026-07-13.2` image therefore also:
+
+- stretches the four-step ramp from 0.4 s to 3.2 s so delayed harness/cell sag is seen
+  before full brightness;
+- waits 10 s after a full-load POR before the single dim retry;
+- preserves the P105 3.10 V dim profile; and
+- treats persisted NVS `PROTECT` as authoritative across every reset type, including
+  OTA software reset when RTC phase state is reinitialized. Persisted DIM also survives
+  deliberate software reset.
+
+Corrected a deployment-profile mix-up during the repair: **P105 5 W uses 4.6 V VINDPM;
+P126 2 W uses its separately swept 5.8 V point.** The generic/P105 OTA-helper default is
+back to 4.6 V; P126 must request `--maintain 5.8` explicitly.
+
+Final targeted shared-WiFi OTA to `9F26F8` succeeded with no button/USB. Direct
+maintenance telemetry and the independent ESP-NOW logger both verified
+`net-bench-2026-07-13.2`, `bq_vindpm_mv=4600`, phase 5/reason 8, and the protect latch
+still set after `/resume`. This is intentionally dark until verified charge releases
+protect. Next daylight/USB recovery must validate the slow start and distinguish a
+remaining dim-load POR between instrumented-harness resistance/protection behavior and
+the hypothesized power-I2C/BATFET disconnect path.
 
 ## 2026-07-12 (cont.) -- Ben + Claude -- Procurement update: 90-board batch ordered, noisemaker fleet buys, ledger reconciled
 
