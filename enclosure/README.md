@@ -2,10 +2,25 @@
 
 Solar "hat" enclosure for the Resonance fixtures. Steve's workstream.
 
-Now four variants (fleet plan 2026-07-08 -- see `docs/block-diagram/SYSTEM.md`):
-the downlight hat described below, a perimeter-fixture hat (adds an outward ToF
-window), the uplight "boot" (new -- see below), and a chandelier hat (likely a
-close-packed variant of the boot).
+**STRATEGY UPDATE 2026-07-13: the enclosure bodies are BOUGHT, not printed.**
+172x COTS sealed enclosures + screws ordered ~07-12/13 ($5,306.50 total; vendor/
+part details TBC in `ops/PROCUREMENT.md`), split 22 to TN / 150 to CA:
+
+- **LARGE (111):** fits the larger solar panel -> hanging downlights + perimeter
+  lights. NOTE: 111 vs 110-112 needed = effectively zero spares on this line.
+- **SMALL (61):** fits the smaller panel, and doubles as the uplight "boot"
+  (uplight power still TBD: off-device panel vs 20 Ah cell).
+- **Chandelier:** no hat -- a team carpenter builds a box housing the 16 lights
+  (coordinate venting, access, and USB-charging reach).
+
+Steve's workstream shifts from print-the-hat to **integrate-the-hat**: panel
+mounting, bamboo clamp/set-screw attachment, gasketed USB-C rescue-port cutout
+(all variants), ToF windows (downward on downlights, outward + cover on
+perimeter), LED/gobo positioning, strain relief, and thermal/RF proof on the
+real boxes. 3D printing remains for the gobo/filter program and custom internal
+fittings. The original printed-hat architecture below is kept for reference --
+its constraints (antenna keep-out, set-screw clamping, panel-over-bamboo
+geometry) still apply to the bought boxes.
 
 ## Architecture
 
@@ -19,8 +34,11 @@ A sealed cap that mounts on top of the bamboo lantern:
 
 ## Print pipeline
 
+(2026-07-13: the hat BODIES are now bought COTS boxes -- this pipeline serves the
+gobo/filter program and custom internal fittings, not hat production.)
+
 - **Prototyping:** Bambu Labs printer (Steve's workshop). Iterate fit and look.
-- **Production (~150 units):** MJF nylon at JLC3DP, PCBWay, or Xometry. ~$3-10 per part. Better dust/UV/heat tolerance than FDM PLA, and 150 units takes hours not weeks.
+- **Batch parts if needed:** MJF nylon at JLC3DP, PCBWay, or Xometry. ~$3-10 per part.
 
 ## Filter / gobo (separate consumable component)
 

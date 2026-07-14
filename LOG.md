@@ -12,6 +12,128 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-13 (cont.) -- Ben + Claude -- Harness abundance + 172 COTS enclosures bought; chandelier goes carpenter-built
+
+Procurement wave folded into the ledger/BOM/ROADMAP/TODO/enclosure docs
+(~$5.9k this wave; committed total now ~$23.7k):
+
+- **XH cabling in deliberate abundance** (~$575, multiple vendors as a lead-time
+  hedge -- final harness lengths are unknowable until hats + fixtures mate, and
+  the cables are cheap): 150x 10 cm red + 150x 10 cm black + 60x PH pigtails
+  (Keszoox $220.26); 1,800x double-ended pre-crimped XH -- 150 each of
+  yellow/blue/black/red in 30/20/10 cm (AliExpress $139.22); 70x + 90x JST XH
+  5-pin Y-splitters ($94.96 + $120.81, split TN/CA); plus small receptacle/header
+  orders. Sidebar settled first: EH pre-crimped cables are NOT XH-compatible
+  (different housings AND terminals despite the 2.5 mm pitch) -- the buy stayed
+  XH per ADR 0029/BOM.
+- **Enclosure strategy update: the hat bodies are BOUGHT, not printed.** 172x
+  COTS sealed enclosures + screws (~07-12/13, $822.67 to TN [11 large + 11
+  small] + $4,483.83 to CA [100 large + 50 small]; vendor/part details TBC).
+  Large (111) fits the larger panel -> downlight + perimeter hats; small (61)
+  fits the smaller panel + doubles as the uplight boot. **Large-line margin is
+  ~zero** (111 vs 110-112 needed) -- flagged in BOM + risk register. Steve's
+  workstream shifts to integration (panel mount, bamboo clamp, USB-C gasket,
+  ToF windows, thermal/RF on the real boxes); printing continues for
+  gobos/fittings.
+- **Chandelier housing: a team carpenter builds a box** for the 16-light
+  cluster (not a hat variant) -- coordinate venting/access/USB reach.
+
+## 2026-07-12 (cont. 2) -- Ben + Claude -- Noisemaker design intent: solenoids are DAYTIME-ONLY (solar-surplus percussion); night is the light show
+
+Ben clarified the solenoid concept: strikes are a daytime feature ("something
+cool the lights can do during the day occasionally"); nighttime is the light
+show, untouched. This is why the VDC-tap strike supply (bench-supply results
+good on the 2 on-hand units; panel-in-sun still untested) is the intended
+topology, and it resolves the night-supply objection by design:
+
+- Self-gating: no sun -> no VDC -> strikes physically impossible at night; a
+  stuck gate at night has nothing to drain (pack-killer failure mode gone).
+  Firmware interlock is cheap: strike only when sgood (solar guard reads it).
+- Night energy budget untouched: ~0.2 J/strike from solar surplus; even 1000
+  strikes/day ~ 0.06 Wh vs ~10-25 Wh/day harvest. ADR 0023 coulombs unaffected.
+- Strike force tracks panel voltage (harder in bright sun, softer in clouds,
+  harder again near Voc when a full battery tapers the charger) -- accepted as
+  organic behavior, but LISTEN to the SOC/taper extremes on the bench before
+  calling it charming.
+- Engineering residuals for the VDC sweep: storage-cap bank sizing (~40-80 mC
+  per strike; droop partly self-correcting via force ~ V^2), cap voltage rated
+  for COLD-MORNING Voc (~7 V on P105 -> use 16 V caps), VINDPM sharing during
+  cap refill (graceful by design; verify no input-requal latch), winding choice
+  at panel voltage (5 V winding = matched ~3.5 W; 3 V winding = 2.2 A overdrive).
+
+Battery/VS-fed strikes are now the fallback branch only; they would violate the
+solar-surplus premise. Qualification of shipment samples (75x 3 V + 75x 5 V in
+transit, different listing than the proven DS-0420S) still gates everything.
+
+---
+
+## 2026-07-13 -- Ben + Claude -- CAD downlight artifacts patched; uplight elevation is (possibly) intentional
+
+Ben inspected the CAD top-down and decomposed the 78 downlights: outer ring
+24/24, middle 22/24, inner 20/24 DISTINCT positions (6 fixtures stacked at
+duplicate coordinates mask the counts), plus 6 strays at the trunk base --
+procedural-export glitches. New `ops/locate/patch_cad_0.3.1.py`
+deterministically moves the 6 strays into the 6 ring holes (slots inferred
+from angular gaps); `fixtures-0.3.1-patched.json` is now the tooling default
+until the refined Blender export (already a TODO). Effect at the 4 dB /
+3-beacon point: downlight class 0.94 -> 0.97 median (the strays were exactly
+the trunk-occluded devices the rescue machinery kept fishing back); overall
+~0.885 -> ~0.91. Also per Ben: the export's elevated uplights (two rings of
+12 at mid-height) may be INTENTIONAL -- uplighting the upper trunk -- so they
+are not treated as artifacts. Sidebar answered along the way: chandelier
+devices can self-identify their CLASS from solved positions (~100% zone-ID;
+only the within-crown shaft order is below the RSSI floor), and hardware
+already distinguishes downlight/perimeter (ToF complement), leaving only
+uplight-vs-chandelier needing zone-ID at all.
+
+## 2026-07-12 (cont. 2) -- Ben + Claude -- Fixture auto-localization feasibility: ops/locate sim study, verdict = feasible-with-recipe
+
+Ben's ask: simulate ~150 devices with playa-realistic noisy RSSI, solve a 3D
+point cloud from pairwise RSSI + the per-class ToF z-anchors, register it onto
+the CAD fixture layout, and find where it breaks -- the go/no-go gut check for
+the "autoconfiguring tree" vs photogrammetry vs manual entry. Full study:
+`docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md`; tooling:
+`ops/locate/` (NEW -- also the repo's first sanctioned numpy/scipy area, per
+Ben; ops/bench stays stdlib-only).
+
+- **Architecture**: solver library (`locate/`) strictly separated from the
+  simulator (`sim/`) behind a JSONL contract real hardware will emit
+  (pairwise censoring-corrected median RSSI + roster with ToF heights), so
+  the identical math runs on real captures via `locate_run.py --pairwise`.
+  Pipeline: anchored 2D-MDS init -> robust NLS in dB space (positions +
+  per-device offsets + P0, huber, one-sided residuals for floor-censored
+  links) -> CAD-footprint scale fix -> stranded-device rescue -> beacon-pinned
+  gauge search -> per-class rectangular assignment -> confidence (exact LAP
+  margins, registration-ambiguity ratio, Hessian proxy) -> flags. 30 tests
+  (`locate_selftest.py`), 4 CLIs, PNG figures + a self-contained interactive
+  HTML 3D viewer per run.
+- **Verdict (sim)**: at the optimistic-to-middle playa noise estimate
+  (sigma_link 2-4 dB) with 3 surveyed beacons: ~90% of 152 devices correct
+  (~95% excluding chandelier), ~0.3 m median position error, silent-wrong
+  4-6%, ~17% flagged for manual check. Breakage knee at ~5-6 dB -- INSIDE the
+  upper half of the 2-6 dB playa estimate band, so the queued small-N real
+  capture is the calibration gate before trusting it. Indoor-band noise
+  (8-17 dB) is past breakage, consistent with ADR 0004's caveat.
+- **Findings with operational teeth**: (1) receiver-floor censoring bends the
+  map -- the firmware neighbor dump must record expected packet counts so the
+  survivor-median bias is correctable (contract field `n_expected`); (2) a
+  FROZEN solar-panel shadow collapses the method (0.18 acc) -- capture needs
+  wind/orientation churn; (3) without beacons the rotational gauge rests on a
+  measured 1-2% cost margin (dense layouts re-match under wrong rotations) --
+  THREE hand-surveyed devices close it, and 2 beacons alone CANNOT pin the
+  mirror (regression-tested); (4) downward ToF anchors are worth ~10 accuracy
+  points and halve silent-wrong; (5) chandelier (0.24 m spacing) is below the
+  RSSI resolution floor -- manual mapping for those 16.
+- CAD ground truth: fixtures.json from `Lighting-Controller` (vendored,
+  commit 0558a5d) with Ben's scale ruling (downlights 7-10 ft is truth, the
+  export's unit claim is not); perimeter ring synthesized (absent from
+  export); duplicate-slot groups + 78-vs-72 handled in scoring.
+- New TODO section "Fixture auto-localization" (small-N capture gate,
+  firmware pairwise dump, CAD re-export, beacon planning, perimeter ToF
+  downtilt, ADR 0030 after Ben's review). Machine notes: user-site scipy
+  1.15.3 installed (system 1.8 broken vs numpy 2.x); system mpl_toolkits
+  shadows user matplotlib (no mplot3d -- 2D panels + HTML viewer instead).
+
 ## 2026-07-12 (cont.) -- Ben + Claude -- Procurement update: 90-board batch ordered, noisemaker fleet buys, ledger reconciled
 
 Ben's order updates folded into `ops/PROCUREMENT.md` / `ops/bom.md` / ROADMAP /

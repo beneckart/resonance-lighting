@@ -22,7 +22,7 @@
     --risk: #e07856;
     --risk-bg: rgba(224,120,86,.12);
     --card: #201913;
-    --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300; --c5: #9085e9; --c6: #e66767; --c7: #d55181;
+    --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300; --c5: #9085e9; --c6: #e66767; --c7: #d55181; --c8: #d95926;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -34,7 +34,7 @@
       --bamboo: #5d7a42; --good: #2e7d4f; --good-bg: rgba(46,125,79,.10);
       --open: #5d5344; --open-bg: rgba(93,83,68,.08);
       --risk: #b74e2e; --risk-bg: rgba(183,78,46,.10); --card: #f4eee1;
-      --c1: #2a78d6; --c2: #1baf7a; --c3: #eda100; --c4: #008300; --c5: #4a3aa7; --c6: #e34948; --c7: #e87ba4;
+      --c1: #2a78d6; --c2: #1baf7a; --c3: #eda100; --c4: #008300; --c5: #4a3aa7; --c6: #e34948; --c7: #e87ba4; --c8: #eb6834;
     }
   }
   :root[data-theme="dark"] {
@@ -43,7 +43,7 @@
     --bamboo: #8aa76e; --good: #6fbf8a; --good-bg: rgba(111,191,138,.12);
     --open: #b8ab97; --open-bg: rgba(184,171,151,.10);
     --risk: #e07856; --risk-bg: rgba(224,120,86,.12); --card: #201913;
-    --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300; --c5: #9085e9; --c6: #e66767; --c7: #d55181;
+    --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300; --c5: #9085e9; --c6: #e66767; --c7: #d55181; --c8: #d95926;
   }
   :root[data-theme="light"] {
     --bg: #faf6ee; --bg2: #f2ecdf; --ink: #2b241c; --ink2: #5d5344; --ink3: #8a7d69;
@@ -51,7 +51,7 @@
     --bamboo: #5d7a42; --good: #2e7d4f; --good-bg: rgba(46,125,79,.10);
     --open: #5d5344; --open-bg: rgba(93,83,68,.08);
     --risk: #b74e2e; --risk-bg: rgba(183,78,46,.10); --card: #f4eee1;
-    --c1: #2a78d6; --c2: #1baf7a; --c3: #eda100; --c4: #008300; --c5: #4a3aa7; --c6: #e34948; --c7: #e87ba4;
+    --c1: #2a78d6; --c2: #1baf7a; --c3: #eda100; --c4: #008300; --c5: #4a3aa7; --c6: #e34948; --c7: #e87ba4; --c8: #eb6834;
   }
   html { background: var(--bg); }
   body {
@@ -267,7 +267,7 @@
         <li><span class="k">1</span><span><strong>72 hanging downlights</strong> at 7&ndash;10 ft: warm point-source LED, pattern gobo, solar hat, downward people-sensor.</span></li>
         <li><span class="k">2</span><span><strong>38&ndash;40 perimeter lights</strong> on ~5 ft shepherd hooks: hex LED, outward people-sensor, small solar panel.</span></li>
         <li><span class="k">3</span><span><strong>24 uplights</strong> on simple bamboo cylinders lighting the structure; possibly solar-free (big battery + USB-C).</span></li>
-        <li><span class="k">4</span><span><strong>16 chandelier lights</strong> in the central cluster's bamboo shafts: mixed LEDs, likely battery + USB-C charged.</span></li>
+        <li><span class="k">4</span><span><strong>16 chandelier lights</strong> in the central cluster's bamboo shafts: mixed LEDs, likely battery + USB-C charged, housed in a carpenter-built box.</span></li>
       </ol>
     </div>
     <figcaption>The four fixture classes -- 150&ndash;152 total, tentative until installation. All share the same electronics and firmware; the differences are LED type, optics, sensors, and how they get their energy.</figcaption>
@@ -279,7 +279,7 @@
 <section>
   <p class="eyebrow">02 &middot; Anatomy</p>
   <h2>What one fixture is</h2>
-  <p>The archetype is the hanging downlight: a bamboo lantern body (made by Bamboo Pure in Bali) wearing a 3D-printed "solar hat" that Steve designs and prints. The hat is the whole machine -- everything electronic lives inside it, sealed against dust.</p>
+  <p>The archetype is the hanging downlight: a bamboo lantern body (made by Bamboo Pure in Bali) wearing a sealed "solar hat" that holds the whole machine, dust-tight. The hat bodies are commercial enclosures bought at fleet scale (172 of them, in two sizes); Steve owns turning boxes into hats -- panel mounts, the bamboo clamp, the gasketed USB-C port, sensor windows, and gobo positioning. The 16 chandelier lights skip the hat entirely: a carpenter on the team builds their shared housing.</p>
 
   <figure>
     <div class="figbox">
@@ -371,6 +371,7 @@
     <li class="win"><span class="d">JUL 10</span><span class="t"><strong>Solenoid mallet first bench:</strong> 815 bamboo strikes, zero resets. Fleet hardware ordered the same day (100 drivers + 150 solenoids).</span></li>
     <li class="win"><span class="d">JUL 11</span><span class="t"><strong>LED wiring decided by measurement:</strong> an instrumented A/B with production-realistic cabling inverted the earlier fat-wire result -- the simple rail feed wins on every color (+2.5% mean), so both LED types share one harness, one pinout, and a built-in hard kill switch.</span></li>
     <li class="win"><span class="d">JUL 12</span><span class="t"><strong>Big uplight cell verified:</strong> the 20 Ah candidate delivered 19,412 mAh (97% of label) -- enough for 6 h/night across the whole burn week with no solar. Second sample confirms before the bulk buy.</span></li>
+    <li class="win"><span class="d">JUL 12-13</span><span class="t"><strong>Hats + harness bought:</strong> 172 enclosure bodies (two sizes) and a deliberate abundance of pre-crimped harness cable in many lengths across multiple vendors, so at least some orders land early.</span></li>
   </ul>
 
   <div class="note"><strong>Also measured:</strong> deep-sleep draw is under a milliamp (a fixture asleep all day costs almost nothing); the LED holds full, flicker-free brightness down to 2.70 V -- 99% of the battery's usable energy is already delivered before anything misbehaves.</div>
@@ -577,7 +578,7 @@
 <section>
   <p class="eyebrow">08 &middot; Procurement</p>
   <h2>Where the money and parts stand</h2>
-  <p>The architecture bets were settled by measurement first, and then the buy happened. About <strong>$17.9k of electronics is committed</strong> across ~19 orders -- the last wave (July 9-10) added 90 more boards, the noisemaker hardware, 50 more point-source LEDs, connector breakouts, and a waterproof USB-C rescue port for every fixture. Parts on hand or in transit, against a 150-152 fixture plan:</p>
+  <p>The architecture bets were settled by measurement first, and then the buy happened. About <strong>$23.8k is committed</strong> across ~25 orders -- the July 9-13 wave added 90 more boards, the noisemaker hardware, 50 more point-source LEDs, a waterproof USB-C rescue port for every fixture, a deliberate abundance of pre-crimped harness cable in many lengths (multiple vendors, so at least some land early), and <strong>172 enclosure bodies</strong>. Parts on hand or in transit, against a 150-152 fixture plan:</p>
 
   <div class="tiles">
     <div class="tile"><div class="n">158 <em>+ ~8 bench</em></div><div class="l">controller boards (68 at Steve's in TN + 90 ordered Jul 9, in transit)</div></div>
@@ -586,30 +587,34 @@
     <div class="tile"><div class="n">260</div><div class="l">LED modules (150 warm point-source + 110 hex-class) -- healthy spares at any mix</div></div>
     <div class="tile"><div class="n">300</div><div class="l">sensors (150 accel + 150 depth, incl. bench units) + 60 dust covers</div></div>
     <div class="tile"><div class="n">260</div><div class="l">noisemaker parts (110 MOSFET drivers + 150 solenoids, 3 V/5 V split)</div></div>
+    <div class="tile"><div class="n">172</div><div class="l">enclosures (111 large for downlights + perimeter, 61 small for uplight boots) + screws</div></div>
+    <div class="tile"><div class="n">2,100+</div><div class="l">pre-crimped harness cables + 160 splitters, many lengths on purpose</div></div>
   </div>
 
   <div class="donutrow">
     <div class="chart">
       <svg width="260" height="260" viewBox="0 0 240 240" role="img" aria-label="Donut chart of electronics spend by category; each slice's icon sits just outside its arc, and the table beside it lists exact values.">
         <g transform="rotate(-90 120 120)">
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c1)" stroke-width="30" pathLength="100" stroke-dasharray="31.2 68.8" stroke-dashoffset="0"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c2)" stroke-width="30" pathLength="100" stroke-dasharray="20.9 79.1" stroke-dashoffset="-32"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c3)" stroke-width="30" pathLength="100" stroke-dasharray="20.6 79.4" stroke-dashoffset="-53.7"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c4)" stroke-width="30" pathLength="100" stroke-dasharray="8.6 91.4" stroke-dashoffset="-75.1"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c6)" stroke-width="30" pathLength="100" stroke-dasharray="5.1 94.9" stroke-dashoffset="-84.5"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c5)" stroke-width="30" pathLength="100" stroke-dasharray="4.8 95.2" stroke-dashoffset="-90.4"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c7)" stroke-width="30" pathLength="100" stroke-dasharray="3.2 96.8" stroke-dashoffset="-96"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c1)" stroke-width="30" pathLength="100" stroke-dasharray="23.3 76.7" stroke-dashoffset="0"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c8)" stroke-width="30" pathLength="100" stroke-dasharray="21.5 78.5" stroke-dashoffset="-24.1"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c2)" stroke-width="30" pathLength="100" stroke-dasharray="15.6 84.4" stroke-dashoffset="-46.4"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c3)" stroke-width="30" pathLength="100" stroke-dasharray="15.3 84.7" stroke-dashoffset="-62.8"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c4)" stroke-width="30" pathLength="100" stroke-dasharray="6.2 93.8" stroke-dashoffset="-78.9"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c6)" stroke-width="30" pathLength="100" stroke-dasharray="6.1 93.9" stroke-dashoffset="-85.9"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c5)" stroke-width="30" pathLength="100" stroke-dasharray="3.4 96.6" stroke-dashoffset="-92.8"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c7)" stroke-width="30" pathLength="100" stroke-dasharray="2.2 97.8" stroke-dashoffset="-97"/>
         </g>
-        <text x="120" y="127" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">$17.9k</text>
+        <text x="120" y="127" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">$23.8k</text>
         <!-- category icons at each slice's midpoint angle, just outside the ring -->
         <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-          <g transform="translate(191.2 60.1) scale(0.75)" stroke="var(--c1)"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></g>
-          <g transform="translate(152.2 196.6) scale(0.75)" stroke="var(--c2)"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></g>
-          <g transform="translate(36.2 169.6) scale(0.75)" stroke="var(--c3)"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></g>
-          <g transform="translate(20.4 82.6) scale(0.75)" stroke="var(--c4)"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></g>
-          <g transform="translate(43.6 44.1) scale(0.75)" stroke="var(--c6)"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></g>
-          <g transform="translate(71.8 24.5) scale(0.75)" stroke="var(--c5)"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></g>
-          <g transform="translate(98.0 6.8) scale(0.75)" stroke="var(--c7)"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
+          <g transform="translate(176.2 41.9) scale(0.75)" stroke="var(--c1)"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></g>
+          <g transform="translate(187.1 167.9) scale(0.75)" stroke="var(--c8)"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></g>
+          <g transform="translate(84.0 202.1) scale(0.75)" stroke="var(--c2)"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></g>
+          <g transform="translate(19.3 135.7) scale(0.75)" stroke="var(--c3)"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></g>
+          <g transform="translate(26.1 68.5) scale(0.75)" stroke="var(--c4)"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></g>
+          <g transform="translate(52.0 36.5) scale(0.75)" stroke="var(--c6)"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></g>
+          <g transform="translate(81.0 20.9) scale(0.75)" stroke="var(--c5)"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></g>
+          <g transform="translate(101.1 6.5) scale(0.75)" stroke="var(--c7)"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
         </g>
       </svg>
     </div>
@@ -617,20 +622,21 @@
       <div class="tablewrap"><table>
         <thead><tr><th>Category</th><th style="text-align:right">Spend</th><th style="text-align:right">Share</th></tr></thead>
         <tbody>
-          <tr><td><span class="icn" style="color:var(--c1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>Controller boards</td><td class="num">$5,714</td><td class="num">34%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></span>Solar (panels + pigtails)</td><td class="num">$3,887</td><td class="num">23%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg></span>Sensors</td><td class="num">$3,828</td><td class="num">23%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></svg></span>Lights (LEDs)</td><td class="num">$1,673</td><td class="num">9%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c6)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></svg></span>Cabling (incl. USB-C rescue ports + Grove breakouts)</td><td class="num">$1,055</td><td class="num">6%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></svg></span>Batteries</td><td class="num">$1,007</td><td class="num">6%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c7)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>Noisemakers</td><td class="num">$710</td><td class="num">4%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>Controller boards</td><td class="num">$5,714</td><td class="num">24%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c8)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Enclosures (172 + screws)</td><td class="num">$5,307</td><td class="num">22%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></span>Solar (panels + pigtails)</td><td class="num">$3,887</td><td class="num">16%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg></span>Sensors</td><td class="num">$3,828</td><td class="num">16%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></svg></span>Lights (LEDs)</td><td class="num">$1,673</td><td class="num">7%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c6)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></svg></span>Cabling (XH harness, rescue ports, breakouts)</td><td class="num">$1,630</td><td class="num">7%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></svg></span>Batteries</td><td class="num">$1,007</td><td class="num">4%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c7)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>Noisemakers</td><td class="num">$710</td><td class="num">3%</td></tr>
         </tbody>
       </table></div>
       <p class="small muted" style="margin:.5rem 0 0">Boards include the 90-unit batch ordered Jul 9 ($3.5k with shipping, fees, and tariff). The sensors/cabling split of one combined order is estimated. More cabling spend is coming (harness, USB-C ports).</p>
     </div>
   </div>
 
-  <p>Still to buy: the crimped cabling/connector set (unblocked by the July 11 wiring decision -- now the biggest un-placed order), the 20 Ah cells + their end-cap connection hardware (one sample verified July 12; the second sample confirms before the bulk buy), and the solenoid strike-power odds and ends. Every major part line now has healthy spares -- the board-count worry was retired by the 90-board order, and every fixture now gets a <strong>waterproof panel-mount USB-C rescue port</strong> (150 bought), so any lantern can be rescued or charged without opening its hat.</p>
+  <p>Still to buy: the 20 Ah cells + their end-cap connection hardware (one sample verified July 12; the second sample confirms before the bulk buy) and the solenoid strike-power odds and ends. Nearly every part line has healthy spares; the one tight line is now the <strong>large enclosures (111 bought vs 110-112 needed -- effectively zero spares)</strong>, being confirmed at receipt. And every fixture gets a <strong>waterproof panel-mount USB-C rescue port</strong> (150 bought), so any lantern can be rescued or charged without opening its hat.</p>
 </section>
 
 <section>
@@ -642,7 +648,7 @@
     <li class="win"><span class="d">JUL 09</span><span class="t"><strong>Camp meeting + board order:</strong> the first big camp-wide gathering, and the second board batch goes in -- grown to 90 boards ($3.5k), retiring the spares worry.</span></li>
     <li class="win"><span class="d">JUL 10</span><span class="t"><strong>Fleet buys round two:</strong> 100 driver boards + 150 solenoids (the mallet's first bench run lands 815 clean strikes the same day), plus 150 waterproof USB-C rescue ports and 50 more point-source LEDs.</span></li>
     <li class="win"><span class="d">JUL 12</span><span class="t"><strong>Container lands</strong> at the Port of Oakland (bamboo tree + finished chandelier structure aboard); the 20 Ah uplight cell verifies at 97% of label.</span></li>
-    <li><span class="d">MID-JUL</span><span class="t"><strong>Orders land, last buys go out:</strong> the July 7-10 orders arrive (boards in transit from CN -- tracked); the cabling/harness order goes out now that the wiring decision landed; second 20 Ah sample confirms the bulk cell buy.</span></li>
+    <li><span class="d">MID-JUL</span><span class="t"><strong>Everything lands:</strong> the July 7-13 orders arrive (boards, cables, and solenoids in transit from CN -- tracked); enclosure counts confirmed at receipt; the second 20 Ah sample confirms the bulk cell buy.</span></li>
     <li><span class="d">JUL 20-31</span><span class="t"><strong>TN fleet test (tentative):</strong> Ben spends a week in Tennessee with Steve fleet-testing the ~70 boards there -- production firmware, mesh lighting effects, presence detection, indoors if enclosures aren't ready. The first time the system runs at real scale.</span></li>
     <li><span class="d">JUL 31</span><span class="t"><strong>Prebuild opens:</strong> Nevada City staging at Bodhi Hive (through Aug 19).</span></li>
     <li><span class="d">AUG 1-2</span><span class="t"><strong>Container unload</strong> -- all hands, Nevada City.</span></li>
@@ -653,9 +659,9 @@
 
   <h3>Honest risk list</h3>
   <ul>
-    <li><span class="chip risk">Risk</span> The 90-board batch and the AliExpress solenoids are in transit from China -- both tracked, both needed by ~Aug 1.</li>
-    <li><span class="chip risk">Risk</span> Sealed-hat thermal in desert sun and antenna behavior inside the finished hat -- both have tests planned, neither has run yet.</li>
-    <li><span class="chip risk">Risk</span> The cabling/harness order is the biggest buy not yet placed -- unblocked July 11, going out now.</li>
+    <li><span class="chip risk">Risk</span> The China-transit lines (90 boards, 1,800 cables, 150 solenoids) are all needed by ~Aug 1 -- tracked, and the cable buy is deliberately redundant across vendors.</li>
+    <li><span class="chip risk">Risk</span> Sealed-hat thermal in desert sun and antenna behavior inside the finished hat -- both have tests planned, now on the real bought boxes.</li>
+    <li><span class="chip risk">Risk</span> Large enclosures have effectively zero spares (111 vs 110-112 needed) -- counts confirmed at receipt; a top-up or trimming to 38 perimeter covers it.</li>
     <li><span class="chip open">Open</span> Per-role nightly energy budget; uplight/chandelier power source (second 20 Ah sample confirms); chandelier light mix and ownership; noisemaker verdict; rope attachment point.</li>
     <li><span class="chip good">Retired</span> Battery vendor, panel choice, board architecture and spares, the LED feed (rail, by A/B), the boost converter, the reboot mystery -- all closed by measurement this summer.</li>
   </ul>
@@ -664,7 +670,7 @@
 </section>
 
 <footer>
-  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-12 (rev 8) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
+  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-13 (rev 9) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
 </footer>
 
 </div>

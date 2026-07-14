@@ -29,11 +29,28 @@ LOG inference) -- correct them from receipts when convenient.
 | solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
 | usbc-rgbw | Adafruit | 2026-07-10 | 150x waterproof USB-C panel-mount extension cables ($540 -- a rescue/charge port on EVERY fixture, wired to the PowerFeather USB-C) + 50x 4 W RGBW top-up ($247.50); remainder ~$73 s&h/tax | $860.34 | placed, in transit |
 | grove-electromaker | Electromaker | 2026-07-10 | 55x Grove/HY2.0 breakouts (125 total with the 06-18 RobotShop 70) | $85.26 | placed, in transit |
+| xh-keszoox | Keszoox (Amazon) | ~2026-07-12/13 | 150x 10 cm red + 150x 10 cm black pre-crimped XH + 60x PH pigtails 10 cm (just-in-case) | $220.26 | placed, in transit |
+| xh-aliexpress | AliExpress | ~2026-07-12/13 | 1,800x double-ended pre-crimped XH: 150 each of yellow/blue/black/red in 30/20/10 cm | $139.22 | placed, in transit -- watch lead time |
+| xh-ysplit-1 | (TBC) | ~2026-07-12/13 | 70x JST XH 5-pin Y-splitter cables | $94.96 | placed, in transit (split TN/CA) |
+| xh-ysplit-2 | (TBC) | ~2026-07-12/13 | 90x JST XH 5-pin Y-splitter cables | $120.81 | placed, in transit (split TN/CA) |
+| enclosures-tn | (vendor TBC) | ~2026-07-12/13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
+| enclosures-ca | (vendor TBC) | ~2026-07-12/13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
 
-Committed so far: **~$17,827** across the rows above (production boards now total
-68 + 90 = **158**; RGBW now 150; Grove breakouts 125). The $440 / $170 / $159 rows
-are the fixture-relevant portions of larger orders; the remainders are not
-itemized here.
+Committed so far: **~$23,709** across the rows above (production boards 158; RGBW
+150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
+deliberate lead-time-hedged abundance). The $440 / $170 / $159 rows are the
+fixture-relevant portions of larger orders; the remainders are not itemized here.
+
+Cabling strategy note (2026-07-13): final harness lengths are unknown until the
+hats + fixtures come together, so Ben ordered pre-crimped XH across MANY lengths/
+colors from multiple vendors ("they are cheap") betting that a few orders land
+early -- an abundance is the plan, not an accident. Additional small
+receptacle/header orders (Amazon/AliExpress) exist beyond the itemized rows.
+
+Enclosure mapping (2026-07-13): LARGE (111) fits the larger panel -> hanging
+downlights + perimeter lights; SMALL (61) fits the smaller panel and doubles as
+the uplight "boot" (uplight power still TBD: off-device panel vs 20 Ah cell).
+The 16 chandelier lights get a carpenter-built box (team-side, not this ledger).
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -60,7 +77,7 @@ itemized here.
 | Item | Est qty | Serves | Decision gate | Order-by | Risk |
 |---|---|---|---|---|---|
 | ~~PowerFeather V2 batch 2~~ | ~~82~~ | fleet boards | ORDERED 2026-07-09 as **90 boards** ($3,494.24) -- see ledger | -- | residual risk = CN transit only; track receipt |
-| JST-XH right-angle headers + pre-crimped harness | fleet-wide | LED/battery wiring (ADR 0029 fat conductors) | harness design + counts (feed fork RESOLVED 2026-07-11: RGBW rail-fed, one harness for both LED roles) | **NOW** (~mid-July) | Medium -- the biggest un-placed order |
+| ~~JST-XH cabling + receptacles + headers~~ | ~~fleet-wide~~ | DONE ~2026-07-12/13 across multiple redundant orders (lead-time hedge): 300x 10 cm single-color + 1,800x multi-length/color pre-crimped + 160x 5-pin Y-splitters + 60x PH pigtails + receptacle/header smalls | -- | residual = lead times only; abundance intended |
 | ~~Grove breakout(s)~~ | ~~small~~ -> 125 | DONE: 70x RobotShop 06-18 (at Steve's) + 55x Electromaker 07-10 -- covers every HEX fixture at any chandelier mix | -- | -- |
 | ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
 | 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: sample 2 qualification (sample 1 verified 07-12 at 19,412 mAh; rig assembled) | decide by ~late July | Medium: lead time unverified |
@@ -83,8 +100,8 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (JST-XH harness set -- now the biggest un-placed order; batteryspace 20 Ah +
-  end-caps; solenoid strike-power parts; spare #3885s).
+  (batteryspace 20 Ah + end-caps; solenoid strike-power parts; spare #3885s --
+  the harness and enclosure buys landed ~07-12/13).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
   puts boards ~mid-to-late July; residual risk is transit, not commitment.
 - July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
@@ -124,6 +141,10 @@ corroborated 2026-07-08):
 - 2026-07-12 -- container lands, Port of Oakland (resonancenetwork.org/camp);
   **20 Ah sample 1 verified** (19,412 mAh = 97.1 % of label) -- sample 2 gates the
   ~40-cell buy.
+- ~2026-07-12/13 -- **harness + enclosure wave**: pre-crimped XH cabling in
+  lead-time-hedged abundance (~$575 across 4+ orders) and **172 COTS enclosures**
+  (111 large + 61 small + screws, $5,306.50, split TN/CA). Chandelier housing =
+  carpenter-built box (team-side).
 - ~2026-07-20/31 (TENTATIVE) -- Ben TN trip: ~70-board fleet test at Steve's.
 - 2026-07-31/08-19 -- NC prebuild, Bodhi Hive, Nevada City; **08-01/02 container
   unload (all hands)**; **08-08/09 lights + camp systems team build**.
@@ -148,6 +169,8 @@ corroborated 2026-07-08):
 | DFRobot | SEN0291 wattmeters, DFR0559 | Bench instrumentation |
 | RobotShop | Grove/HY2.0 breakouts (70, at Steve's) | |
 | Electromaker | Grove/HY2.0 breakouts (55) | |
+| Keszoox (Amazon) | Pre-crimped XH cables, PH pigtails | Multiple lengths/colors |
+| (enclosure vendor TBC) | 172x COTS enclosures + screws | Large = downlight/perimeter hats; small = small-panel fit + uplight boots |
 | PCBWay | NeoHEX adapter Rev A assembly quote (~$32.82/5) | Quoted 2026-05-20, never ordered |
 
 Shipping: electronics ship domestic to Ben (CA) and Steve (TN); the staging point is

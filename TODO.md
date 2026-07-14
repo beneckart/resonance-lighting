@@ -31,9 +31,16 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   resolved (158 production boards total) (Ben).
 - [ ] Track pf-batch-2 (90 boards) CN transit; chase the rep if no tracking by
   ~07-16 -- must land before the ~Jul 20-31 TN trip / Aug 1 parts-on-hand line (Ben).
-- [ ] **Place the JST-XH harness order** (right-angle headers + pre-crimped set,
-  battery leads + LED harness) -- unblocked 2026-07-11 by the rail-fed decision;
-  now the biggest un-placed buy (Ben).
+- [x] ~~Place the JST-XH harness order~~ -- **DONE ~2026-07-12/13, in deliberate
+  abundance across multiple vendors** (lead-time hedge): 300x 10 cm red/black
+  (Keszoox) + 1,800x multi-length/color (AliExpress) + 160x 5-pin Y-splitters +
+  60x PH pigtails + receptacle/header smalls, ~$575 total (Ben).
+- [x] ~~Buy hat enclosures~~ (was implicit in the hat plan) -- **BOUGHT
+  ~2026-07-12/13: 172x COTS enclosures + screws** ($5,306.50; 111 large for
+  downlights/perimeter, 61 small for small-panel fit + uplight boots; 22 to TN,
+  150 to CA). Record vendor/part details in `ops/PROCUREMENT.md` (TBC) (Ben).
+- [ ] Confirm LARGE enclosure count on receipt -- 111 vs 110-112 needed leaves
+  ~zero spares; decide top-up vs trim-to-38-perimeter (Ben + Steve).
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
 - [x] ~~Buy Grove breakout(s) for the HEX HY2.0 connector adaptation~~ -- **DONE,
@@ -577,6 +584,40 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] **Validate fuel-gauge SOC over a real charge/discharge cycle** + confirm the field (sleep + low-load solar charge) anchors the gauge cleanly, unlike the always-pinging bench (the false-low was likely a bench artifact). Production low-battery logic must cross-check voltage (done for the LED) (Ben).
 - [x] Promote results into **ADR 0021** -- DONE 2026-06-08: `docs/decisions/0021-powerfeather-v2-feasibility-validated.md` (go; networking + solar + field-OTA validated, open follow-ups listed) (Ben).
 
+## Fixture auto-localization (RSSI + ToF -> CAD registration; sim study 2026-07-12)
+
+See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
+
+- [ ] **Small-N real pairwise capture (the calibration gate)**: 10-20 boards in the
+  backyard, full pairwise RSSI for ~1 min, solve with `locate_run.py --pairwise`.
+  Measures the real sigma_link (playa-band estimate is 2-6 dB, unverified) -- the
+  sim verdict is conditional on this number (Ben).
+- [ ] **Firmware pairwise neighbor-RSSI dump** emitting the `ops/locate` JSONL
+  contract: every device reports per-neighbor median RSSI per window, WITH expected
+  packet counts and the on-device censoring-corrected median (reference:
+  `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
+  already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
+- [ ] **Get a refined fixtures.json export from Elliot/Vishnu** -- concrete punch
+  list from the 0.3.1 export (Ben's top-down inspection 2026-07-13): downlight
+  rings should be 24/24/24 but have 2 middle + 4 inner holes, 6 fixtures stacked at
+  duplicate coordinates, 6 strays at the trunk base (interim fix:
+  `ops/locate/patch_cad_0.3.1.py` moves strays into holes; patched file is the
+  tooling default); vertical layout puts downlights near the crown and the unit
+  claim is wrong (`ops/locate` scales the downlight band to 7-10 ft per fleet spec,
+  Ben's call 2026-07-12); CONFIRM whether the elevated uplights (two rings of 12 at
+  mid-height, aiming up the trunk) are intentional -- Ben suspects yes for this
+  design iteration. A refined export re-runs the study in minutes (Ben -> Elliot).
+- [ ] **Plan THREE surveyed "beacon" fixtures into installation** -- record which
+  fixture slot 3 distinctive devices occupy (hand note or bridge identify-blink).
+  This pins the registration gauge; without it the rotational alignment rests on a
+  ~1-2 % cost margin, and 2 beacons cannot pin the mirror (measured + regression-
+  tested, see report) (Ben).
+- [ ] Confirm perimeter VL53L5CX **mount downtilt** with Steve: at 5 ft with ~4 m
+  range, ground zones need ~15 deg downtilt for the plane-fit height anchor the
+  study assumes (Steve).
+- [ ] **ADR 0030 after Ben reviews the verdict**: fixture auto-location = RSSI+ToF
+  (+beacons) / photogrammetry / manual -- decision + consequences (Ben).
+
 ## Field reliability concerns (surfaced 2026-06-04 -- important for the deployed lantern)
 
 - [ ] **Auto/remote reset is unreliable on the bench USB-JTAG path -- harden the FIELD reset paths so a deployed lantern NEVER needs a physical button press** (that would mean taking it down + disassembling = unacceptable). Observed: after a USB flash, the PowerFeather's "Hard reset via RTS pin" sometimes did NOT start the app (no liveness LED) until a *physical* reset or a serial-open nudge (chip verified healthy via esptool; worst on the heavily-abused board 2). Field paths: (1) **OTA `/update` software reset (`esp_restart`)** -- **VALIDATED 2026-06-08: ~17/17 battery-only OTAs recovered, no button, incl. 3/3 on LFP at the ~3.2 V buck-boost crossover; new image confirmed running, `rr=software` every time.** The JTAG-RTS flakiness is USB-flash-only, not OTA; (2) **watchdog** -- DONE + validated in `net_bench` (port to production); (3) `--autosleep` USB-supply recovery -- validated. **Remaining OTA-robustness (refinements, not blockers -- a failed OTA is safe: stays on / A-B rolls back, never bricks):** (a) OTA over a **marginal/lossy WiFi link** (field maintenance assumes a decent local AP). (b) **A/B rollback -- VALIDATED 2026-06-08:** a self-test-failing image (`extern "C" verifyOta()`->false) auto-reverts to the last-good image, no touch, battery-only. Gotcha: the hook is C-linkage (needs `extern "C"`, else it silently doesn't override and the bad image sticks). Goal met for the happy path: zero field scenarios needing the reset button (Ben).
@@ -633,8 +674,13 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Enclosure track
 
-- [ ] Design hat v1 around the PowerFeather V2 + 32700 + panel + LED-role envelope (Steve).
-- [ ] Add mounting/standoff options for PowerFeather and both LED module roles (Steve).
+- [ ] **Integrate the bought COTS enclosures** (strategy update 2026-07-13 --
+  hats are purchased boxes now, see `enclosure/README.md`): panel mounting,
+  bamboo clamp/attachment, internal mounting for PowerFeather + cell + both LED
+  roles, USB-C gasket cutout, ToF windows, strain relief; then thermal/RF proof
+  on the real boxes (Steve + Ben).
+- [ ] Coordinate the chandelier carpenter box: dimensions for 16 fixtures,
+  venting, service access, USB-charging reach (Ben -> Elliot/carpenter).
 - [ ] **Design the uplight "boot" variant** (new class, tentative -- see
   `enclosure/README.md`): battery-in-cylinder retention (possibly the 20 Ah cell),
   RGBW mount at the lit end, base enclosure with gasketed panel-mount USB-C

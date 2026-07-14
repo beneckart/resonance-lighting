@@ -11,10 +11,10 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 |---|---|---|---|
 | PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 at Steve's + 90 ordered 07-09 (in transit) | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
 | 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
-| Battery lead / retention | 1 | to-buy (JST-XH pre-crimped) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). |
-| LED harness | 1 | to-buy (JST-XH right-angle set) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11, A/B lux): one harness + one pinout for both LED roles; order unblocked. |
+| Battery lead / retention | 1 | XH cabling BOUGHT ~07-12/13 (abundance, multiple lengths) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). Final lengths chosen at integration from the on-hand variety. |
+| LED harness | 1 | XH cabling BOUGHT ~07-12/13 (same abundance; incl. 160x 5-pin Y-splitters) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11): one harness + one pinout for both LED roles. |
 | Waterproof USB-C panel-mount rescue port | 1 | Adafruit, 150 bought 07-10 | Extension cable from the PowerFeather USB-C to a gasketed panel-mount port on EVERY hat -- USB rescue/charging without opening the enclosure; solar-free classes charge through it. |
-| Hat enclosure + fasteners | 1 | Steve (print/MJF); design in progress | Four variants: downlight hat, perimeter hat, uplight "boot", chandelier hat. |
+| Hat enclosure + fasteners | 1 | **BOUGHT ~07-12/13: 172x COTS enclosures + screws** (111 large + 61 small; vendor details TBC in ledger) | Large = downlight/perimeter hats (fits the larger panel); small = smaller-panel fit + uplight "boot". Steve owns mechanical integration (panel mount, USB-C gasket cutout, ToF windows, bamboo clamp). Chandelier lights get a carpenter-built box (team-side). |
 | Firmware | one image | this repo | Runtime/NVS config only; no per-unit builds (ADR 0009). |
 
 ## Per-class additions
@@ -47,7 +47,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | 4 W RGBW warm white | 1 | from the 100-RGBW pool |
 | Power source | 1 | OPEN (ADRs 0025/0026): off-light P105 panel vs 20 Ah LFP in-cylinder (batteryspace #6832; sample 1 verified 07-12, sample 2 gates) vs budgeted 6 Ah |
 | Gasketed panel-mount USB-C port | 1 | from the 150-port pool (bought 07-10; now a shared-core item) |
-| Base "boot" enclosure | 1 | Steve; battery may fill the bamboo cylinder, LED near the lit end |
+| Base "boot" enclosure | 1 | small COTS enclosure from the 61-unit pool (bought ~07-12/13); battery may fill the bamboo cylinder, LED near the lit end |
 | Sensors | none (tentative) | |
 
 ### Chandelier x16 (central shafts; scope still loose)
@@ -56,7 +56,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 |---|---|---|
 | HEX or RGBW (mix TBD) | 1 | from the HEX/RGBW pools; mix drives a possible RGBW top-up |
 | Power source | 1 | likely solar-free + USB-C, like uplights (OPEN) |
-| Hat (similar to uplight boot; shafts packed closely) | 1 | Steve; possibly a distinct enclosure |
+| Housing | shared | carpenter-built box for the 16-light cluster (team carpenter; not this BOM) |
 | Sensors | none (tentative) | |
 
 ## Fleet totals + spares math (needed at 150-152 vs bought)
@@ -77,6 +77,9 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | STEMMA cables | ~150-250 uses | 250 | ok | |
 | USB-C panel-mount rescue ports | 150-152 (one per fixture) | 150 ordered 07-10 | ~0 | universal rescue/charge port; margin thin but ports are only needed on deployed units |
 | Grove/HY2.0 breakouts | ~46-48 (HEX fixtures incl. chandelier share) | 125 (70 + 55) | +77 | healthy |
+| Pre-crimped XH cables | ~2-4 per fixture | ~2,100+ pieces + 160 Y-splitters across lengths/colors | abundant | deliberate lead-time hedge; lengths chosen at integration |
+| Enclosure, LARGE | 110-112 (72 downlight + 38-40 perimeter) | 111 | -1..+1 | **TIGHT -- effectively zero spares**; a cracked box has no backup |
+| Enclosure, SMALL | 24 uplight boots (+ any small-panel use) | 61 | +37 | healthy |
 | 20 Ah LFP | 0 or ~40 | 2 samples | conditional | sample 1 VERIFIED 07-12 (19,412 mAh); sample 2 gates the ~40-cell buy |
 | MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | candidate B hardware secured |
 | Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | voltage A/B pending; strike-power + wiring residuals in to-buy |
@@ -88,13 +91,13 @@ parity with the 150 accelerometers.
 
 ## To-buy (summary -- live queue in ops/PROCUREMENT.md)
 
-JST-XH right-angle headers + pre-crimped harness (UNBLOCKED 07-11 -- the biggest
-un-placed order); conditional ~40x 20 Ah LFP + end-cap connection hardware
-(sample 2 gates); solenoid strike-power + wiring residuals (VDC-tap Y-cables +
-storage caps vs battery/VS, driver control cables, mallet mounting); spare #3885
-speakers. DONE since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150
-solenoids (07-10), 150 USB-C rescue ports + 50 RGBW (07-10), 125 Grove breakouts
-(70 on 06-18 + 55 on 07-10).
+Remaining: conditional ~40x 20 Ah LFP + end-cap connection hardware (sample 2
+gates); solenoid strike-power + wiring residuals (storage caps vs battery/VS,
+driver control cables, mallet mounting -- 5-pin XH Y-splitters now on hand);
+spare #3885 speakers. DONE since 07-08: 90 PowerFeathers (07-09), 100 MOSFET
+drivers + 150 solenoids (07-10), 150 USB-C rescue ports + 50 RGBW (07-10), 125
+Grove breakouts (06-18 + 07-10), XH cabling abundance + 172 COTS enclosures
+(~07-12/13).
 
 ## Open BOM inputs
 
@@ -109,7 +112,12 @@ solenoids (07-10), 150 USB-C rescue ports + 50 RGBW (07-10), 125 Grove breakouts
 - Harness/connector part numbers (JST-XH family).
 - Solenoid strike-power source (VDC-tap + storage cap vs battery/VS pin) and
   noisemaker scope per class -- drives the residual wiring buy.
-- Spares policy per part once deploy counts firm up at installation.
+- Spares policy per part once deploy counts firm up at installation -- note the
+  LARGE enclosure line has effectively zero spares (111 vs 110-112 needed).
+- Enclosure vendor/part details to record in the ledger (TBC); mechanical
+  integration design (Steve): panel mount, bamboo clamp, USB-C gasket, ToF windows.
+- Chandelier carpenter box: specs to coordinate (venting, access, USB charging
+  reach for 16 fixtures).
 - Shepherd-hook sourcing (project-side).
 
 ## Superseded

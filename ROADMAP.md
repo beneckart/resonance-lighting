@@ -29,10 +29,10 @@ integration and hardening, not architecture:
 4. **Firmware productization:** ADR 0023 low-battery state machine, production OTA
    health/rollback, watchdog, telemetry schema, sensor + choreography integration,
    and the RGBW feed decision (rail vs VBAT -- forks harness + pinout, ADR 0029).
-5. **Procurement completion:** 90-board Elecrow batch ordered 07-09 (in transit);
-   remaining buys: cabling (JST-XH + crimped -- unblocked 07-11), USB-C ports,
-   conditional 20 Ah cells + end-caps (sample 2 gates), solenoid strike-power
-   residuals, RGBW top-up.
+5. **Procurement completion:** effectively done as of ~07-13 -- boards, cabling
+   abundance, 172 COTS enclosures, USB-C ports, RGBW top-up all ordered. Remaining:
+   conditional 20 Ah cells + end-caps (sample 2 gates) and solenoid strike-power
+   residuals. Watch the CN-transit lines (90 boards, AliExpress cables/solenoids).
 6. **Assembly at 150-unit scale:** smoke-test rig, acceptance checklist, low
    per-fixture operations (ADR 0009).
 
@@ -298,7 +298,8 @@ Deliverables:
 | RF degraded by solar panel / battery / hat geometry | Medium | Mock-hat RF test; antenna keep-out; avoid u.FL unless necessary. |
 | Sealed hat gets too hot for LFP charging | High | Thermal test; battery thermistor / charge-temp policy; venting/material changes if needed. |
 | Second Elecrow batch (90 boards, ordered 2026-07-09) slips in CN transit past the assembly window | Medium (commitment done; transit residual) | Track receipt in `ops/PROCUREMENT.md`; expected ~mid-late July; escalate with the rep if no tracking by ~07-16. |
-| Harness/cabling order not yet placed (JST-XH set, unblocked 07-11) | Medium | Order NOW; short domestic lead; the biggest remaining un-placed buy. |
+| LARGE enclosure line has ~zero spares (111 bought vs 110-112 hats needed) | Medium | Confirm counts at receipt; a small top-up order or trimming perimeter to 38 covers it; flag any shipping damage immediately. |
+| AliExpress lines (1,800 XH cables, 150 solenoids) slip in transit | Medium | Redundant cable orders already hedge this; track; domestic Keszoox order covers the core 10 cm harness need. |
 | 20 Ah solar-free decision starves uplight/chandelier build time | Medium | Bench test on samples ASAP; fallback is budgeted 6 Ah cells already on hand (175 bought). |
 | Cabling/connector buy (JST-XH, USB-C ports) not yet placed | Medium | Small-dollar, short-lead items -- order once counts firm; tracked in the to-buy queue. |
 | Firmware bug discovered after hanging | High | Standard OTA, A/B rollback, watchdog, USB/pogo recovery, spares. |
