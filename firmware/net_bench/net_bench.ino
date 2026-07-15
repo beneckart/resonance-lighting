@@ -40,7 +40,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-13.3" // targeted fail-safe D7/VDC solenoid strike control
+#define NET_BENCH_VERSION "net-bench-2026-07-14.1" // single-pixel RGBW field load + precise active integration
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -252,7 +252,10 @@ using namespace PowerFeather;
 #define NB_FIELD_DRAWDOWN_MIN_S NB_DRAWDOWN_MIN_RUN_S
 #endif
 #ifndef NB_FIELD_LED_LOAD
-#define NB_FIELD_LED_LOAD 0 // opt-in: use the HEX drawdown load during field-cycle draw
+#define NB_FIELD_LED_LOAD 0 // opt-in: use the configured addressable-LED load during field-cycle draw
+#endif
+#ifndef NB_FIELD_LED_RGBW
+#define NB_FIELD_LED_RGBW 0 // production 4 W single pixel: RGBW wire order, RGB full and W off
 #endif
 #ifndef NB_FIELD_LED_SPIRAL_RGB
 #define NB_FIELD_LED_SPIRAL_RGB 0 // LED Studio spiral + 120-degree symmetric pure-R/G/B triplet
@@ -277,6 +280,12 @@ using namespace PowerFeather;
 #endif
 #if NB_FIELD_LED_SPIRAL_RGB && NB_DRAWDOWN_PIXEL_COUNT != 37
 #error "NB_FIELD_LED_SPIRAL_RGB requires the 37-pixel M5Stack HEX geometry"
+#endif
+#if NB_FIELD_LED_SPIRAL_RGB && NB_FIELD_LED_RGBW
+#error "NB_FIELD_LED_SPIRAL_RGB and NB_FIELD_LED_RGBW are mutually exclusive"
+#endif
+#if NB_FIELD_LED_RGBW && NB_DRAWDOWN_PIXEL_COUNT != 1
+#error "NB_FIELD_LED_RGBW requires NB_DRAWDOWN_PIXEL_COUNT=1"
 #endif
 #ifndef NB_FIELD_SUN_SUPPLY_MV
 #define NB_FIELD_SUN_SUPPLY_MV 4000 // supply/panel voltage that counts as present
@@ -567,8 +576,13 @@ int16_t gInaPvMv = INT16_MIN, gInaPaMa = INT16_MIN, gInaBvMv = INT16_MIN, gInaBa
 // function this early moves the Arduino auto-prototype insertion point above
 // the structs and breaks every later type reference)
 
-Adafruit_NeoPixel drawdownPixels(NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
-                                 NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel drawdownPixels(
+    NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
+#if NB_FIELD_LED_RGBW
+    NEO_RGBW + NEO_KHZ800);
+#else
+    NEO_GRB + NEO_KHZ800);
+#endif
 bool gDrawdownPixelsBegun = false;
 bool gDrawdownActive = false;
 bool gFieldLedLoadOn = false;
@@ -1878,7 +1892,11 @@ bool drawdownPixelsRailOnCleared() {
 
 void drawdownPixelsRenderLoad(uint8_t brightness) {
   drawdownPixels.setBrightness(brightness);
+#if NB_FIELD_LED_RGBW
+  uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B, 0);
+#else
   uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
+#endif
   uint16_t lit = min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT);
   for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
     drawdownPixels.setPixelColor(i, i < lit ? c : 0);
@@ -2262,10 +2280,11 @@ void fieldCycleLedLoadOn() {
 #endif
   gFieldLedLoadOn = true;
   gFieldLedLoadDimmedApplied = dimmed;
-  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) bri=%u dim=%d spiral_rgb=%d)\n",
+  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) w=0 bri=%u dim=%d rgbw=%d spiral_rgb=%d)\n",
                 (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
                 NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
-                NB_DRAWDOWN_B, target, dimmed ? 1 : 0, NB_FIELD_LED_SPIRAL_RGB);
+                NB_DRAWDOWN_B, target, dimmed ? 1 : 0, NB_FIELD_LED_RGBW,
+                NB_FIELD_LED_SPIRAL_RGB);
 #endif
 }
 void fieldCycleLedLoadTick() {
@@ -2366,8 +2385,11 @@ void fieldCycleIntegrateActive() {
   }
   uint32_t dt = now - fieldLastIntegrateMs;
   if (dt < 1000) return;
-  fieldLastIntegrateMs = now;
-  fieldCycleIntegrateSeconds(dt / 1000);
+  uint32_t wholeSeconds = dt / 1000;
+  // Advance only by the integrated whole seconds. Assigning `now` here discarded
+  // the sub-second remainder on every pass and biased retained Ah/Wh counters low.
+  fieldLastIntegrateMs += wholeSeconds * 1000;
+  fieldCycleIntegrateSeconds(wholeSeconds);
 }
 void fieldCycleResetCounters() {
   rtcFieldPhaseElapsedS = 0;

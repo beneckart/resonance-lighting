@@ -12,6 +12,178 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-14 (cont.) -- Ben + Codex -- RGBW dusk turn-on matches the 418 mA ceiling
+
+Checked P105 `9F26F8` after Ben installed the production 4 W RGBW and the autonomous
+dusk transition occurred. The peer entered DRAW at 20:29:37 PDT after the five-minute
+low-lux qualification; the first DRAW heartbeat reported about 102 lux. The four-step
+ramp settled near -385 to -420 mA. At the 20:54 check it was 3.295 V, -414 mA, or
+1.364 W battery-side, with lux 7.3, no DIM/PROTECT latch, and no fault reset. That is
+essentially the same current as the earlier independent full-RGB measurement of
+417.6 mA, so the new `NEO_RGBW`, `R=G=B=255`, `W=0` profile is electrically correct.
+
+The retained integrator correction also passed its first live cross-check. The
+cycle-total discharge counter was already 238 mAh at the DRAW boundary because the
+daytime charge/wait sleep estimator had accumulated wake-current extrapolations. After
+1,535 DRAW seconds it read 416 mAh. The phase delta is therefore 178 mAh / 1,535 s =
+417.5 mA average, matching the direct telemetry. `field_elapsed_s` is phase-local but
+`field_discharge_mah/wh` is cycle-total; nightly analysis must subtract the counter at
+the DRAW boundary rather than divide the absolute cycle counter by DRAW elapsed time.
+
+## 2026-07-14 (cont.) -- Ben + Codex -- P105 production-RGBW ceiling OTA and build-pipeline hardening
+
+Added an explicit single-pixel production-RGBW field-load profile to `net_bench` and
+OTA-deployed it to P105 peer `9F26F8` for tonight's literal production-load ceiling
+run. `--field-led-rgbw` selects one `NEO_RGBW` pixel in the module's slot-tested RGBW
+wire order and drives `R=G=B=255`, `W=0`; the deployed image uses brightness 255 on
+A0/GPIO10 and the switchable 3V3 rail. Fixed 4.6 V P105 VINDPM, five-minute
+charge/wait sleeps, dusk/dawn thresholds, four-step load ramp, 3.10/2.95/2.90 V
+DIM/LOW/CRITICAL thresholds, durable FULL/DIM/PROTECT guard, and recovery policy are
+unchanged. This is deliberately a load substitution, not a state-machine experiment.
+
+Also fixed the retained active-time integrator's known low bias. It now advances its
+millisecond cursor only by the whole seconds actually integrated, preserving the
+sub-second remainder for the next pass. This affects retained Ah/Wh/time accounting,
+not load or transition policy. Tonight's logger-vs-retained comparison will validate
+the correction.
+
+The verified artifact is
+`firmware/net_bench/build/field-cycle-peer-20260714-p105-rgbfull-r2/net_bench.ino.bin`
+(1,029,216 bytes, SHA-256
+`B7C75B53F278CE3A87E3301A376578569C994A51030E1F48EC3B42D233367FA6`). Compile used
+30 percent flash and 15 percent RAM. The first uncached build was killed by an outer
+120 s timeout; reusing that partial directory produced the expected `core.a` `bad
+reloc symbol index` linker flood. It was abandoned and the clean `r2` build completed
+in 133.5 s. The first OTA discovery safely expired at 75 s without uploading because
+it missed the peer's 300 s sleep / 8 s listen window. A 360 s retry found
+`192.168.4.105`, uploaded successfully, and verified ESP-NOW rejoin as
+`net-bench-2026-07-14.1`, software reset, daylight-wait phase, no DIM/PROTECT latch.
+P126 `9F2690` remained on `.3` and was untouched. Physical HEX-to-RGBW swap remains
+Ben's before-dusk step.
+
+Hardened the workflow around both failures. `field_cycle_ota.py` now supports
+`--rgbw`, labels the profile in artifact/OTA notes, and defaults sleeping-peer
+discovery to 360 s. `AGENTS.md` now tells agents to budget 2-3 minutes / >=300 s for an
+uncached PowerFeather build, wait on yielded builds, never reuse an interrupted build
+directory, recognize partial-archive linker corruption, verify `.bin` plus
+`build.options.json`, build once then OTA by `--bin`, and distinguish discovery timeout
+from failed flash. `firmware/net_bench/README.md`, `TODO.md`, and the consolidated
+P105/P126 field record were updated with the new profile, artifact, and remaining
+validation.
+
+## 2026-07-14 (cont.) -- Ben + Codex -- P105 ideal-day closure and production RGBW full-night bound
+
+Interpreted the first clean P105 night/day pair against the measured production-cell
+capacity and the prior 4 W RGBW power sweep. The P105 cycle very likely began full:
+its retained maximum was 3.598 V. It then delivered 4.505 Ah / 14.7 Wh over about
+9.76 h before dawn, with a 3.179 V logged minimum. Against ADR 0023's 5.139 Ah usable
+above the 3.0 V product floor, that is an 87.7 percent draw, not a literal full drain;
+about 0.634 Ah remained above the conservative product floor (and about 1.25 Ah to the
+2.5 V lab endpoint of the 5.75 Ah measured cell).
+
+By 15:15 the same cell was back at 3.593 V with corrected charge current tapered to
++43 mA, then remained around 3.55 V with near-zero acceptance. That is strong direct
+evidence that this outdoor P105 refilled the deep stress cycle by mid-afternoon under
+the July 14 weather. The sparse charge integrals are less reliable than the CV/taper
+observation. This supports an ideal-weather energy-closure claim, not a production
+policy of deliberately emptying the cell nightly: tree shading, panel angle, dust,
+cloud/smoke days, cold, aging, and recovery reserve still require margin.
+
+The battery-only 4 W RGBW sweep (`2026-06-10-afk-sweep-0031.jsonl`) measured total
+system draw, including the active controller/WiFi, at about 417.6 mA for full RGB
+(`R=G=B=255, W=0`), 463.9 mA for all-four-channel RGBW full, and 193.8 mA for W-only.
+For the roughly 9 h 53 min to 10 h 15 min playa civil-dark window, using 3.2 V as a
+representative LFP energy voltage:
+
+| Continuous look | Ah/night | Wh/night | Fraction of 5.139 Ah product-usable capacity |
+|---|---:|---:|---:|
+| RGB full | 4.13-4.28 | 13.2-13.7 | 80-83 percent |
+| RGBW all four full | 4.59-4.76 | 14.7-15.2 | 89-93 percent |
+| W-only full | 1.92-1.99 | 6.1-6.4 | 37-39 percent |
+
+Therefore full RGB from the production point source should consume less than the
+P105 HEX stress night's 14.7 Wh, but only by roughly 1-1.5 Wh. The as-measured full-RGB
+case is conservative for a future duty-cycled radio policy; the exact production
+sensor/radio load remains to be measured. Under weather like July 14, the P105 evidence
+says an all-night full-RGB ceiling should refill. The next decisive qualification is
+the literal production pairing: P105 + 32700 + rail-fed 4 W RGBW, `RGB=255/W=0`, a
+fixed 10 h show, repeated across several weather/shading days. The right sizing output
+is recharge margin by weather class, not permission to hit empty every dawn.
+
+## 2026-07-14 (cont.) -- Ben + Codex -- Solar-cycle evening check; P126 resets identified as solenoid-test interventions
+
+Checked the seven-day P105/P126 logger at about 16:55 PDT. The original PID 25296
+was still running on UDP/54321, the JSONL was writing continuously at about 335.5 MB,
+stderr remained empty, and a full streaming parse found zero malformed rows. There
+were no host gaps over 5 s. The run remains healthy.
+
+P105 `9F26F8` completed a roughly 9.27 h logged draw window and changed to charge at
+06:35 PDT with dawn lux about 502. Its complete retained night counter reached about
+4.505 Ah / 14.7 Wh discharged; minimum logged VBAT was 3.179 V. It had no
+non-deep-sleep reset, dim event, protect latch, or BQ fault. The P105 BQ-input total
+through about 17:00 was 16.58 Wh with a 3.865 W peak. It reached the 3.6 V CV/taper
+region at about 15:15 (3.593 V, corrected battery current +43 mA), and was about
+3.55 V at the check. The host sample-and-hold battery integral over the logger's
+partial-cycle coverage was 13.21 Wh charged versus 13.91 Wh discharged (-0.70 Wh);
+that small apparent deficit is within the known sparse-wake/current-hold uncertainty,
+while the live taper is direct evidence that the cell refilled.
+
+P126 replacement `9F2690` stayed in draw for roughly 11.64 h from logger start until
+08:57 PDT -- intentionally longer than the planned playa show. Its retained counter
+just before the first intervention showed about 2.275 Ah / 7.3 Wh discharged. Minimum
+logged VBAT was 2.989 V at 08:56. The first manual reset at 08:48 was useful fault
+injection: the persisted-session guard recognized the interrupted full-load session,
+selected the one DIM retry (`field_reason=8`, `field_load_dimmed=true`), and remained
+stable near 3.0 V until dawn cleared the session. It did not enter PROTECT.
+
+Ben identified all 15 P126 `poweron` uptime drops as manual/solenoid-test interventions:
+one at 08:48 and fourteen from 11:28-11:59. The later resets occurred during charge
+and repeatedly restarted the retained field-cycle counters, so July 14 P126 endpoints
+must not be subtracted directly or treated as spontaneous reliability failures. The
+continuous host integration, which is the better summary for this intervention day,
+showed 10.48 Wh at the BQ input, 6.66 Wh battery charge, 5.84 Wh battery discharge,
+and net +0.82 Wh over the logged interval. Peak BQ input was 1.599 W. At the check it
+remained in charge phase around 3.31 V with no BQ fault, dim state, or protect latch.
+
+Shared P105 weather telemetry recorded 63.5 klux maximum, panel-back temperature
+13.4-59.0 deg C, and 8-89 percent RH. Because the P126 day includes manual resets,
+long cold-listen windows, and solenoid-driver testing, retain it as an intervention
+day rather than a clean weather-only daily point. Even with that overhead and the
+overlong night, the 2 W system was net-positive by late afternoon -- an encouraging
+margin result for the planned 9-10 h HEX show.
+
+## 2026-07-14 (cont.) -- Ben + Codex -- 10,000 uF turns P126 VDC solenoid into leading daytime design
+
+The first P126-panel solenoid strike without local storage was qualitatively weak. Ben
+then soldered a 10,000 uF, 16 V electrolytic directly across V+/GND at the panel-input
+adapter and found that the strike "works so well." This materially reverses yesterday's
+roughly 90%-likely 3V3 harness preference: VDC + local storage is now the leading
+candidate, while the 815-strike-proven 3V3 path remains the fallback. This is a strong
+bench/design result, not yet a production lock.
+
+The assembly is unexpectedly elegant. Voltaic P105/P126 panels end in a 3.5 x 1.1 mm
+male DC plug; the path uses Voltaic's female-DC-to-male-USB-C adapter, then a small female
+USB-C-to-four-pin JST-XH breakout. Only V+ and GND are moved into the two-pin XH housing
+that lands on PowerFeather VDC/GND; the other two breakout conductors remain unused.
+The capacitor's diameter/lead geometry happens to align its leads directly with the
+breakout's V+ and GND holes, making the addition about one minute of soldering with no
+bare-wire PowerFeather work. The Amazon prototype capacitors cost roughly $1 each;
+volume sourcing has not been investigated.
+
+The daytime-only behavior is now attractive in its own right: solar percussion by day
+and a lightshow by night gives visitors a reason to experience the tree twice. At 5.8 V,
+10,000 uF stores an ideal ~0.168 J -- enough instantaneous energy for a convincing short
+kick even though the 2 W panel replenishes it slowly.
+
+Remaining qualification is deliberately retained: exact coil/pulse and VDC droop/
+recharge capture; sun/cloud/shade and P105/P126 behavior; hot-plug, repeated-strike,
+BQ/reset/fault, and dusk-residual-energy tests; possible bleeder; ESR/tolerance/
+temperature/lifetime; polarity/keying and mechanical retention. The successful bench
+part is 16 V while P126 published nominal Voc is about 8.59 V; measure worst-case cold
+Voc and production tolerance to document the actual derating margin.
+Updated the distributed choreography concept, solar field-cycle record, net_bench README,
+and TODO. No ADR was made.
+
 ## 2026-07-14 -- Codex -- Seven-day solar-cycle JSONL logger health check
 
 Checked the paired P105/P126 weather-range run without changing the process or

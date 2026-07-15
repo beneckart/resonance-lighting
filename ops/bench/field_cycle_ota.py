@@ -77,10 +77,16 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--channel", type=int, default=11)
     ap.add_argument("--hex-lit", type=int, default=18)
     ap.add_argument("--brightness", type=int, default=128)
-    ap.add_argument(
+    load = ap.add_mutually_exclusive_group()
+    load.add_argument(
         "--spiral-rgb",
         action="store_true",
         help="animate LED Studio's in/out spiral with a 120-degree pure-R/G/B triplet",
+    )
+    load.add_argument(
+        "--rgbw",
+        action="store_true",
+        help="drive one production 4 W RGBW pixel as R=G=B=255, W=0",
     )
     ap.add_argument("--frame-ms", type=int, default=290)
     ap.add_argument(
@@ -131,7 +137,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="known maintenance IP; skips discovery but still validates fixture_id unless --trust-ip",
     )
-    ap.add_argument("--discover-timeout", type=float, default=75.0)
+    ap.add_argument(
+        "--discover-timeout",
+        type=float,
+        default=360.0,
+        help="maintenance discovery deadline; 360 s covers one default field sleep cadence",
+    )
     ap.add_argument("--probe-timeout", type=float, default=0.55)
     ap.add_argument("--probe-jobs", type=int, default=96)
     ap.add_argument(
@@ -198,9 +209,10 @@ def build_name(args: argparse.Namespace) -> str:
     if args.build_name:
         return args.build_name
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    lit = 3 if args.spiral_rgb else args.hex_lit
+    lit = 1 if args.rgbw else (3 if args.spiral_rgb else args.hex_lit)
+    profile = "rgbw-rgbfull" if args.rgbw else f"hex{lit}"
     solenoid = "-solenoid-d7" if args.solenoid_d7 else ""
-    return f"field-cycle-peer-{stamp}-{args.peer_id}-hex{lit}b{args.brightness}{solenoid}"
+    return f"field-cycle-peer-{stamp}-{args.peer_id}-{profile}b{args.brightness}{solenoid}"
 
 
 def build_args(args: argparse.Namespace) -> list[str]:
@@ -240,7 +252,7 @@ def build_args(args: argparse.Namespace) -> list[str]:
         str(args.field_dusk_no_sensor_confirm_s),
         "--field-led-load",
         "--drawdown-lit",
-        str(3 if args.spiral_rgb else args.hex_lit),
+        str(1 if args.rgbw else (3 if args.spiral_rgb else args.hex_lit)),
         "--drawdown-brightness",
         str(args.brightness),
         "--chem",
@@ -254,6 +266,8 @@ def build_args(args: argparse.Namespace) -> list[str]:
     ]
     if args.spiral_rgb:
         result.extend(["--field-led-spiral-rgb", "--field-led-frame-ms", str(args.frame_ms)])
+    if args.rgbw:
+        result.append("--field-led-rgbw")
     if args.solenoid_d7:
         result.append("--solenoid-d7")
     return result
@@ -456,7 +470,9 @@ def run_ota(args: argparse.Namespace, bin_path: Path, ip: str) -> None:
     require_file(OTA_TOOL)
     notes = args.notes or (
         f"{args.peer_id} field-cycle OTA "
-        f"hex-lit={3 if args.spiral_rgb else args.hex_lit} brightness={args.brightness}"
+        f"load={'rgbw-rgbfull' if args.rgbw else 'hex'} "
+        f"lit={1 if args.rgbw else (3 if args.spiral_rgb else args.hex_lit)} "
+        f"brightness={args.brightness}"
     )
     cmd = [
         sys.executable,

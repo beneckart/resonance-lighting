@@ -232,14 +232,19 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
     - [x] **Voltaic ETFE P105/P126 outdoor MPP comparison** (2026-06-29, Oakland late sun, both panels about 15 deg tilted): P105 5 W best observed around `m46`/`m48`, panel-side INA about 3.8-3.9 W and charger input about 3.47 W; P126 smaller ETFE best around `m58`, panel-side INA about 1.89 W and charger input about 1.66-1.68 W. P126 is proportionally close to nominal/nameplate; P105 is plausible vs datasheet expected Vmp but may be demand-limited by LFP charge acceptance/taper. See LOG 2026-06-29. (Ben/Codex)
     - [~] **P126 production-cabling perimeter/HEX field cycle** -- deployed 2026-07-10 on former speaker board `9E5B0C`: 2 W panel at fixed 5.8 V VINDPM, 6 Ah production LFP, no INAs/Dupont, and three full-bright R/G/B pixels spiraling in/out at symmetric 120-degree offsets. MAX17260 current and onboard mAh/Wh totals are corrected `/1.08` in firmware. Logger: `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`; consolidated analysis: `docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`. That original peer was disassembled and retired after a July 13 header-rework hardware failure. Replacement `9F2690` was USB-flashed and safety-verified on `.3` with the same P126 profile; its next phase is the VDC solenoid trial. Treat BQ supply power as end-to-end onboard telemetry, not panel-side ground truth. (Ben/Codex)
       - [x] Quick onboard MPP re-check 2026-07-10: broad optimum at 5.8-6.0 V; 6.0 V showed +3.8% BQ-input W but no battery-current gain, 6.2 V rolled over, and two 5.8 V anchors agreed within 0.4%. Keep the external-INA-qualified 5.8 V fixed setpoint. (Codex)
-      - [ ] **Fix the nightly show window and active-time integration before sizing:**
+      - [~] **Fix the nightly show window and active-time integration before sizing:**
         Ben confirmed that the measured roughly 158 mA draw from the three-pixel spiral
         is intentionally representative of a deployed HEX show; do not raise the load
         merely to force a one-night empty. The clean July 11-12 session actually ran
         18:07:33-08:53:54 PDT (14 h 46 min) and logger-time integration gives 2.33 Ah.
         The peer reported only 13.02 h / 2.08 Ah because `fieldCycleIntegrateActive()`
         discards the fractional part of every `dt / 1000` step. Carry milliseconds
-        across integrations. Separately, the no-lux solar-current fallback turns the
+        across integrations. **Integrator carry fixed and OTA-deployed to P105
+        `9F26F8` in `net-bench-2026-07-14.1`; first live validation passed at RGBW
+        turn-on: 178 mAh over 1,535 DRAW seconds = 417.5 mA average versus about
+        414-420 mA direct telemetry.** Counters are cycle-total, so subtract the DRAW
+        boundary; `field_elapsed_s` alone is phase-local. Separately, the no-lux
+        solar-current fallback turns the
         show on well before visual sunset and leaves it on until useful morning input.
         Use a provisional 9-10 h production HEX show window for the next emulation:
         during the Aug 30-Sep 7 event, civil dusk to civil dawn is about 9 h 53 min to
@@ -265,6 +270,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
         decreases/cycle changes rather than trusting endpoint subtraction; ignore gauge
         SOC. Use P105 lux/panel-temperature/RH plus its charger-input curve as the shared
         sunny/cloudy/overcast proxy for the adjacent panels. (Ben/Codex)
+      - [~] **Literal P105 + production RGBW ceiling run:** OTA-deployed
+        `net-bench-2026-07-14.1` to `9F26F8` on July 14 with fixed 4.6 V P105 policy,
+        one rail-fed `NEO_RGBW` pixel on A0/GPIO10, `R=G=B=255`, `W=0`, brightness
+        255, and all dusk/dawn/load-protection settings otherwise unchanged. Ben will
+        physically replace the HEX before dusk. Compare the complete night Ah/Wh,
+        loaded VBAT, DIM/PROTECT/reset behavior, and next-day refill/taper against the
+        July 13-14 18-pixel HEX stress cycle. (Ben/Codex)
     - [ ] **Re-run P105 5 W with a hungry larger LFP**: use the 6-7.2 Ah cell intentionally discharged to roughly the mid-SOC voltage region (about 3.25-3.40 V resting, not 3.55+ V while charging), hold around `m46`/`m48`, and confirm whether panel-side power can climb beyond the 3.8-3.9 W seen with the 2 Ah cell. Goal: separate panel capability from cell IR/CV-taper demand limiting. (Ben)
     - [ ] **Analyze 7200 mAh HEX drawdown run before the next P105 test**: data path
       `ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl`; record stop
@@ -376,16 +388,19 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## Noisemaker / audio bench
 
-- [ ] **Complete the production solenoid power/harness A/B without prematurely locking
-  the capacitor path:** capacitors arrive 2026-07-14; compare the current VDC-plus-cap
-  experiment against the already stable switchable-3V3 path on strike strength, rail/
-  input transients, reset/fault behavior, combined LED+coil load, low-battery behavior,
-  added parts, packaging, and assembly time. Current roughly 90% likely MVP is shared
-  3V3/GND through the purchased five-pin JST-XH Y-splitter, with LED signal A0 and
-  solenoid signal A1 subject to exact pin-order verification. Default to that simpler
-  all-XH assembly if it is acoustically adequate; VDC/cap must clearly earn its added
-  complexity. See
-  `docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md` (Ben).
+- [~] **Qualify the now-leading VDC + 10,000 uF daytime-solenoid power path without
+  prematurely locking the exact capacitor:** FIRST CAP TEST PASSED qualitatively
+  2026-07-14. The no-cap P126-panel kick was weak; a 10,000 uF/16 V electrolytic across
+  V+/GND at the female-USB-C-to-XH breakout made it dramatically stronger. The leads
+  align directly with the breakout holes, so installation was roughly one minute of
+  soldering; prototype cost was about $1. Exact stack and design reasoning:
+  `docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md`.
+  Remaining: capture coil/pulse/VDC droop/recharge and physical-strike data; test sun/
+  cloud/shade, P105/P126, charge/taper, hot-plug inrush, repeated strikes, BQ/reset/fault
+  behavior, residual energy at dusk and possible bleeder, ESR/tolerance/temp/lifetime,
+  strain relief, polarity/keying, and cold-Voc margin. P126 nominal Voc is about 8.59 V;
+  measure worst-case cold Voc/tolerance to document margin for the 16 V part.
+  Keep the 815-strike-proven 3V3/XH path as fallback (Ben).
 - [~] Evaluate lantern noisemaker options on the Metro bench: `firmware/clacker_demo/`
   now exposes a BubbyNet dashboard for A0/A1 relay clicking plus 8002A amp/speaker tones on
   Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
@@ -422,9 +437,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   and the formal candidate verdict vs the speaker synth. **P126 bright-sun trial
   staged 2026-07-13:** D7/GPIO37 targeted, timer-bounded manual strike firmware and
   dashboard control are USB-flashed and safety-verified on replacement peer `9F2690`;
-  the original `9E5B0C` failed during header rework and was retired. First trial has no
-  VDC storage capacitor. Record whether a 40 ms strike fires, whether the peer resets
-  or VDC collapses, and the post-strike telemetry before adding the capacitor. (Ben).
+  the original `9E5B0C` failed during header rework and was retired. **JULY 14 RESULT:**
+  the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
+  a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
+  cap now leads; quantify it and complete the qualification list above before the formal
+  candidate/harness verdict. (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 

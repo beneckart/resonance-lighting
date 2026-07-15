@@ -1,8 +1,10 @@
 # P105/P126 outdoor solar field cycle and POR-loop findings -- July 2026
 
-**Status:** Active bench record. Final P105 safety firmware was OTA-deployed July 13.
+**Status:** Active bench record. Final P105 safety firmware was OTA-deployed July 13;
+the production-RGBW ceiling profile and active-integrator fix were OTA-deployed July 14.
 The original P126 peer was then disassembled and retired after a header-rework hardware
-failure; replacement `9F2690` is flashed and staged for the VDC solenoid trial. The P105
+failure; replacement `9F2690` completed the first VDC-capacitor solenoid trial, and
+VDC plus 10,000 uF is now the leading but not-yet-qualified path. The P105
 external INAs are next scheduled for removal for a production-harness A/B.
 
 ## Purpose
@@ -24,8 +26,8 @@ no INAs, no Dupont leads, and no lux sensor.
 | Peer | Panel/load | Instrumentation | Image/status |
 |---|---|---|---|
 | `9E5B0C` (historical) | P126 2 W, fixed 5.8 V; three full-bright single-channel R/G/B HEX pixels spiraling at 120 deg offsets | PowerFeather BQ/MAX17260 only; production cables | `net-bench-2026-07-10.1`; disassembled July 13 and board retired after header-rework failure |
-| `9F2690` (replacement) | Same P126/HEX profile plus manual D7/VDC solenoid strike | Onboard telemetry; production cables; no driver connected during verification | `net-bench-2026-07-13.3`; USB-flashed and safety-verified July 13, bright-sun strike pending |
-| `9F26F8` | P105 5 W, fixed 4.6 V; 18-pixel HEX load at brightness 128 | Panel/battery INAs plus onboard telemetry and TSL2591; INAs next removed for A/B | `net-bench-2026-07-13.2`; durable protect currently validated live |
+| `9F2690` (replacement) | Same P126/HEX profile plus manual D7/VDC solenoid strike | Onboard telemetry; production cables; 10,000 uF cap trial on panel-input adapter | `net-bench-2026-07-13.3`; safety-verified July 13; no-cap weak / cap-assisted strike qualitatively strong July 14 |
+| `9F26F8` | P105 5 W, fixed 4.6 V; one rail-fed 4 W RGBW point source, RGB full/W off | PowerFeather telemetry and TSL2591; external-INA status must be recorded at physical swap | `net-bench-2026-07-14.1`; OTA verified, physical HEX-to-RGBW swap pending before dusk |
 
 P126 logger:
 `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`.
@@ -34,7 +36,38 @@ P105/P126 share the master/logger, so the same file also captures the P105 peer 
 the July 10 P126 deployment. Earlier P105 history is in the July 3-8 field-cycle files
 under `ops/bench/data/ca/`.
 
-### P126 VDC solenoid trial staged July 13
+### P105 production-RGBW ceiling run -- armed July 14
+
+The July 13-14 P105 HEX stress night delivered 4.505 Ah / 14.7 Wh over about 9.76 h,
+then reached the 3.6 V CV/taper region by about 15:15 the next day. To remove the main
+load mismatch, `net-bench-2026-07-14.1` changes only the LED profile to one 4 W RGBW
+point source on the switchable 3V3 rail and A0/GPIO10: measured RGBW wire order,
+`R=G=B=255`, `W=0`, brightness 255. Fixed P105 4.6 V VINDPM, charge/wait/protect
+sleeps, lux thresholds, ramp, DIM/LOW/CRITICAL thresholds, durable session guard, and
+recovery policy are unchanged.
+
+The same image fixes the retained active-time integrator by carrying the sub-second
+millisecond remainder instead of discarding it on every `dt / 1000` step. This changes
+telemetry accounting only, not state transitions or load policy. Artifact:
+`firmware/net_bench/build/field-cycle-peer-20260714-p105-rgbfull-r2/net_bench.ino.bin`,
+SHA-256 `B7C75B53F278CE3A87E3301A376578569C994A51030E1F48EC3B42D233367FA6`.
+Targeted shared-WiFi OTA completed at about 17:29 PDT and the peer rejoined ESP-NOW as
+`.1`, software reset, still in daylight wait with no DIM or PROTECT latch. The first
+75 s discovery attempt safely expired without uploading because it missed the peer's
+300 s sleep / 8 s listen window; the successful retry used 360 s, now the helper
+default. Ben installed the physical RGBW before dusk.
+
+The peer entered DRAW at 20:29:37 PDT after the five-minute low-lux qualification.
+The first DRAW heartbeat carried about 102 lux; by 20:54 the light sensor read about
+7 lux and the rail-fed RGBW was stable at 3.295 V / -414 mA = 1.364 W battery-side,
+with no DIM/PROTECT latch or fault reset. This agrees almost exactly with the earlier
+417.6 mA full-RGB bench measurement. The corrected retained integrator rose 178 mAh
+over the first 1,535 DRAW seconds, equivalent to 417.5 mA average. The absolute
+counter included a 238 mAh pre-DRAW cycle baseline from charge/wait sleep-current
+estimation: `field_elapsed_s` is phase-local, but discharge Ah/Wh are cycle-total, so
+analysis must subtract the counter at the DRAW boundary.
+
+### P126 VDC solenoid trial -- staged July 13, first capacitor result July 14
 
 The next P126 experiment adds an Adafruit #5648 MOSFET driver on D7/GPIO37 with its
 load supply tapped from VDC/GND. The first bright-sun trial deliberately omits the VDC
@@ -51,7 +84,34 @@ The original `9E5B0C` never received it and was retired after the failed header 
 Replacement `9F2690` was USB-flashed July 13; direct telemetry verified `.3`,
 `solenoid_enabled=true`, GPIO37, gate LOW, and zero strike/block/failsafe counters.
 Solar and the driver were still disconnected at verification, so the no-capacitor
-bright-sun strike remains the next hardware step.
+bright-sun strike remained the next hardware step at that point.
+
+July 14 qualitative result: the panel-only/no-storage-capacitor strike was weak. Adding
+a 10,000 uF, 16 V electrolytic directly across the panel adapter's V+/GND made the kick
+dramatically stronger; Ben's assessment was that it was both effective and a design he
+liked. This is not yet a quantified strike-energy result, but it moves VDC + local
+storage from an alternative to the leading production candidate.
+
+The tested cable/adapter stack was:
+
+```text
+Voltaic panel 3.5 x 1.1 mm male DC
+  -> Voltaic female DC-to-male-USB-C adapter
+  -> female USB-C-to-four-pin JST-XH breakout
+  -> V+ and GND alone rehoused into two-pin XH
+  -> PowerFeather VDC/GND
+```
+
+The capacitor leads happen to align directly with the V+ and GND through-holes on the
+USB-C/XH breakout, so the addition took roughly one minute of soldering and no bare-wire
+PowerFeather work. The prototype 10,000 uF/16 V parts cost roughly $1 each from Amazon;
+volume price is expected to be lower but has not been sourced.
+
+Remaining qualification: capture coil/pulse/VDC/recharge telemetry, repeated-strike and
+hot-plug behavior, BQ/reset/fault response, dusk discharge/residual energy, capacitor
+ESR/tolerance/temperature/lifetime, strain relief, and cold-Voc voltage margin. P126's
+published nominal Voc is about 8.59 V; measure worst-case cold Voc and production
+tolerance to document the derating margin of the successful 16 V part.
 
 ## Executive read
 

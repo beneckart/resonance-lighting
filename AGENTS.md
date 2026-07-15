@@ -29,6 +29,25 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   `arduino-cli` calls must do it manually. Parallel builds against the default Arduino
   sketch cache can collide with `unlinkat ... directory is not empty` errors and can
   corrupt mixed build artifacts.
+- **Arduino build timeout and recovery:** an uncached ESP32-S3/PowerFeather build on
+  this Windows bench normally takes about 2-3 minutes. Give the outer command at least
+  300 seconds; if it yields a running cell, keep waiting on that cell instead of
+  starting another build. If a compile is killed or times out, first confirm no
+  `arduino-cli` or Xtensa compiler process remains, then abandon that build directory
+  and retry with a fresh unique suffix (`...-r2`, `...-r3`, etc.). Never resume a
+  killed build directory: a partially written `core/core.a` produces misleading linker
+  floods such as `bad reloc symbol index`, even though the sketch source compiled.
+  A valid build ends with the flash/RAM usage summary and a non-empty
+  `net_bench.ino.bin`; inspect `build.options.json` to verify the exact deployed flags.
+- **Build once, OTA the artifact:** for field-cycle work, use
+  `ops/bench/field_cycle_ota.py ... --build-only` with a named build, verify it, then
+  pass that `.bin` back with `--bin` for OTA. This avoids an accidental second compile
+  or a changed flag set between validation and deployment.
+- **Sleeping-peer OTA timing:** a field-cycle peer may deep-sleep for 300 seconds and
+  listen for only 8 seconds. `field_cycle_ota.py` therefore defaults to a 360-second
+  discovery deadline; do not shorten it below one full sleep cadence for an already
+  sleeping peer, and leave maintenance resends enabled. A discovery timeout means no
+  OTA was attempted; it is not a failed flash.
 
 ## Who's working in this repo
 

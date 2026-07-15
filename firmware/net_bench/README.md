@@ -65,7 +65,7 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--wifi-lowpower`, `--chem 3v7|lfp`, `--cap MAH`, `--charge-ma`/`--no-charge`/`--maintain`,
 `--serial-bridge`, `--maint-ap`, `--scan-report`/`--scan-s S`/`--scan-max N`,
 `--field-cycle`/`--field-charge-s S`/`--field-wait-s S`/`--field-protect-s S`,
-`--field-led-load`/`--field-led-spiral-rgb`/`--field-led-frame-ms MS`,
+`--field-led-load`/`--field-led-spiral-rgb`/`--field-led-rgbw`/`--field-led-frame-ms MS`,
 `--solenoid-d7` (targeted, fail-safe D7/GPIO37 strike control),
 `--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
@@ -147,6 +147,13 @@ whether a bright-sun strike works directly from the panel/charger input. Treat a
 strike, input collapse, or peer reset as the result of that experiment; do not increase
 the pulse limit to compensate. Add and size the capacitor from measured strike data.
 
+July 14 qualitative follow-up: the no-capacitor panel strike was weak, while a 10,000 uF,
+16 V electrolytic placed across V+/GND at the USB-C-to-XH panel adapter produced a
+dramatically stronger kick. This makes VDC + local storage the leading candidate, not a
+locked production circuit. Still capture voltage droop/recharge, resets/BQ faults,
+hot-plug inrush, repeated strikes, residual charge at dusk, cold-Voc rating margin, and
+mechanical retention before freezing the capacitor or harness.
+
 ## Field-cycle day/night lifecycle mode
 
 `--field-cycle` is the first production-ish lifecycle test mode. It keeps the normal
@@ -160,8 +167,9 @@ adds an autonomous peer state machine:
 3. In dark/no-supply, it enters `draw` and stays awake at the field-cycle heartbeat rate
    (`NB_FIELD_DRAWDOWN_HZ`, default 1 Hz). This intentionally uses the always-awake radio
    load as a repeatable night drawdown. `--field-led-load` optionally adds a direct-GPIO
-   HEX/SK6812 load during this draw phase; tune it with `--drawdown-lit` and
-   `--drawdown-brightness`.
+   SK6812 load during this draw phase; tune it with `--drawdown-lit` and
+   `--drawdown-brightness`. The default is the GRB HEX. `--field-led-rgbw` selects one
+   production 4 W RGBW point source in the measured RGBW wire order.
 4. At `NB_FIELD_DIM_MV` it latches the draw load to the configured dim brightness. At
    `NB_FIELD_LOW_MV` it requires `NB_FIELD_LOW_CONFIRM_S` seconds of sustained low
    voltage before entering `protect`; `NB_FIELD_CRITICAL_MV` remains an immediate hard
@@ -179,6 +187,11 @@ are corrected at acquisition by `/1.08` for the replicated MAX17260 +8% bias;
 `battery_current_divisor` for auditability. Supply-side telemetry remains the
 charger-input measurement and is not given the MAX17260 correction.
 
+`--field-led-rgbw` fixes the configured strip to one pixel, selects `NEO_RGBW`, and
+drives `R=G=B=255, W=0` at the requested global brightness. This is the production
+downlight full-RGB ceiling, not all four dies full. The normal rail-off startup,
+four-step ramp, DIM retry, and PROTECT behavior remain unchanged.
+
 Solar does not need to electrically wake the ESP32 in the normal case: the charger keeps
 charging while the ESP32 is in timer deep sleep, and the next timer wake observes the
 supply. This is more recoverable than deliberately running the cell into protection.
@@ -195,10 +208,18 @@ Example peer build for the current BubbyNet/channel-11 field rig:
   --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.6
 ```
 
+For the July 14 P105/RGBW ceiling run, replace the HEX load line with:
+
+```
+  --field-led-load --field-led-rgbw --drawdown-lit 1 --drawdown-brightness 255
+```
+
 The heartbeat tail adds `fc=` (phase), `fcr=` (reason), `fcc=` (cycle), `fce=` (phase
 elapsed seconds), `fcchg=`/`fcdis=` (rough charge/discharge mAh integrated from sampled
 battery current), and `fcmin=`/`fcmax=` (cycle voltage bounds). The dashboard and
-`net_bench_log.py` parse these fields.
+`net_bench_log.py` parse these fields. `fce` resets at each phase transition, while
+`fcchg`/`fcdis` and the Wh counters are cycle-total. For a night-only result, subtract
+the counters at the DRAW boundary; do not divide an absolute cycle counter by `fce`.
 
 `net-bench-2026-07-01.1` adds field-cycle v2 summaries while keeping the heartbeat at
 128 bytes for old-bridge compatibility:
@@ -442,8 +463,10 @@ Additional solar-charge helpers: `R<hz>` sets the heartbeat/frame rate directly,
   persistent named build dir, targeted `U<id>` through the dashboard, automatic
   shared-WiFi `/telemetry` IP discovery by `fixture_id`, wait-out of the 35 s targeted
   maintenance tail, OTA via `net_bench_ota.py --reboot comms`, and dashboard rejoin
-  verification. Example:
-  `python ops/bench/field_cycle_ota.py 9F26F8 --hex-lit 18 --brightness 128`.
+  verification. Its 360 s discovery default covers one 300 s field-sleep cadence.
+  Build once with `--build-only`, then deploy the verified artifact with `--bin`.
+  Examples: `python ops/bench/field_cycle_ota.py 9F26F8 --hex-lit 18 --brightness 128`
+  or `python ops/bench/field_cycle_ota.py 9F26F8 --rgbw --brightness 255`.
 - `ops/bench/net_bench_summary.py` -- per-peer + aggregate stats + scale extrapolation.
 - `ops/bench/net_bench_serial_bridge.py` -- relay a `--serial-bridge` board's USB serial
   to UDP:54321, so all the UDP tooling above works from a desk-tethered bridge (no
