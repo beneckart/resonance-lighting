@@ -1,0 +1,916 @@
+{
+ "devices": [
+  {
+   "dev_id": "S000",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S001",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S002",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S003",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S004",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S005",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S006",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S007",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S008",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S009",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S010",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S011",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S012",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S013",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S014",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S015",
+   "role": "chandelier",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S016",
+   "role": "downlight",
+   "z_tof_m": 0.042,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S017",
+   "role": "downlight",
+   "z_tof_m": 0.548,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S018",
+   "role": "downlight",
+   "z_tof_m": 2.3068,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S019",
+   "role": "downlight",
+   "z_tof_m": 2.0514,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S020",
+   "role": "downlight",
+   "z_tof_m": 1.9028,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S021",
+   "role": "downlight",
+   "z_tof_m": 2.1352,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S022",
+   "role": "downlight",
+   "z_tof_m": 2.0297,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S023",
+   "role": "downlight",
+   "z_tof_m": 2.1689,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S024",
+   "role": "downlight",
+   "z_tof_m": 2.7406,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S025",
+   "role": "downlight",
+   "z_tof_m": 3.0878,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S026",
+   "role": "downlight",
+   "z_tof_m": 2.556,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S027",
+   "role": "downlight",
+   "z_tof_m": 2.5832,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S028",
+   "role": "downlight",
+   "z_tof_m": 2.4664,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S029",
+   "role": "downlight",
+   "z_tof_m": 2.8016,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S030",
+   "role": "downlight",
+   "z_tof_m": 2.4105,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S031",
+   "role": "downlight",
+   "z_tof_m": 2.3408,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S032",
+   "role": "downlight",
+   "z_tof_m": 2.2375,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S033",
+   "role": "downlight",
+   "z_tof_m": 2.5306,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S034",
+   "role": "downlight",
+   "z_tof_m": 2.41,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S035",
+   "role": "downlight",
+   "z_tof_m": 2.3181,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S036",
+   "role": "downlight",
+   "z_tof_m": 2.7705,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S037",
+   "role": "downlight",
+   "z_tof_m": 2.2374,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S038",
+   "role": "downlight",
+   "z_tof_m": 3.0227,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S039",
+   "role": "downlight",
+   "z_tof_m": 2.7812,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S040",
+   "role": "downlight",
+   "z_tof_m": 2.2071,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S041",
+   "role": "downlight",
+   "z_tof_m": 2.35,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S042",
+   "role": "downlight",
+   "z_tof_m": 2.4645,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S043",
+   "role": "downlight",
+   "z_tof_m": 2.2148,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S044",
+   "role": "downlight",
+   "z_tof_m": 2.4588,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S045",
+   "role": "downlight",
+   "z_tof_m": 3.0943,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S046",
+   "role": "downlight",
+   "z_tof_m": 3.1036,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S047",
+   "role": "downlight",
+   "z_tof_m": 2.2476,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S048",
+   "role": "downlight",
+   "z_tof_m": 2.5894,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S049",
+   "role": "downlight",
+   "z_tof_m": 2.2208,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S050",
+   "role": "downlight",
+   "z_tof_m": 2.2849,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S051",
+   "role": "downlight",
+   "z_tof_m": 2.4705,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S052",
+   "role": "downlight",
+   "z_tof_m": 2.4806,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S053",
+   "role": "downlight",
+   "z_tof_m": 2.2889,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S054",
+   "role": "downlight",
+   "z_tof_m": 2.0213,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S055",
+   "role": "downlight",
+   "z_tof_m": 2.891,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S056",
+   "role": "downlight",
+   "z_tof_m": 3.1438,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S057",
+   "role": "downlight",
+   "z_tof_m": 2.9565,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S058",
+   "role": "downlight",
+   "z_tof_m": 2.6417,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S059",
+   "role": "downlight",
+   "z_tof_m": 2.4767,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S060",
+   "role": "downlight",
+   "z_tof_m": 3.0206,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S061",
+   "role": "downlight",
+   "z_tof_m": 2.368,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S062",
+   "role": "downlight",
+   "z_tof_m": 2.1416,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S063",
+   "role": "downlight",
+   "z_tof_m": 3.1109,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S064",
+   "role": "downlight",
+   "z_tof_m": 2.6825,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S065",
+   "role": "downlight",
+   "z_tof_m": 2.4006,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S066",
+   "role": "downlight",
+   "z_tof_m": 2.4355,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S067",
+   "role": "downlight",
+   "z_tof_m": 2.5851,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S068",
+   "role": "downlight",
+   "z_tof_m": 2.583,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S069",
+   "role": "downlight",
+   "z_tof_m": 2.6463,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S070",
+   "role": "downlight",
+   "z_tof_m": 2.616,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S071",
+   "role": "downlight",
+   "z_tof_m": 2.5793,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S072",
+   "role": "downlight",
+   "z_tof_m": 2.597,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S073",
+   "role": "downlight",
+   "z_tof_m": 2.7464,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S074",
+   "role": "downlight",
+   "z_tof_m": 2.2427,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S075",
+   "role": "downlight",
+   "z_tof_m": 2.1992,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S076",
+   "role": "downlight",
+   "z_tof_m": 2.2726,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S077",
+   "role": "downlight",
+   "z_tof_m": 2.1459,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S078",
+   "role": "downlight",
+   "z_tof_m": 2.9965,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S079",
+   "role": "downlight",
+   "z_tof_m": 3.0055,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S080",
+   "role": "downlight",
+   "z_tof_m": 2.5659,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S081",
+   "role": "downlight",
+   "z_tof_m": 2.7262,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S082",
+   "role": "downlight",
+   "z_tof_m": 3.1627,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S083",
+   "role": "downlight",
+   "z_tof_m": 2.8634,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S084",
+   "role": "downlight",
+   "z_tof_m": 2.6749,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S085",
+   "role": "downlight",
+   "z_tof_m": 0.5271,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S086",
+   "role": "downlight",
+   "z_tof_m": 0.6226,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S087",
+   "role": "downlight",
+   "z_tof_m": 0.4708,
+   "z_sigma_m": 0.01
+  },
+  {
+   "dev_id": "S088",
+   "role": "perimeter",
+   "z_tof_m": 1.38,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S089",
+   "role": "perimeter",
+   "z_tof_m": 1.5422,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S090",
+   "role": "perimeter",
+   "z_tof_m": 1.4633,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S091",
+   "role": "perimeter",
+   "z_tof_m": 1.4936,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S092",
+   "role": "perimeter",
+   "z_tof_m": 1.3879,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S093",
+   "role": "perimeter",
+   "z_tof_m": 1.5666,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S094",
+   "role": "perimeter",
+   "z_tof_m": 1.5541,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S095",
+   "role": "perimeter",
+   "z_tof_m": 1.5446,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S096",
+   "role": "perimeter",
+   "z_tof_m": 1.8255,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S097",
+   "role": "perimeter",
+   "z_tof_m": 1.2452,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S098",
+   "role": "perimeter",
+   "z_tof_m": 1.3132,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S099",
+   "role": "perimeter",
+   "z_tof_m": 1.4966,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S100",
+   "role": "perimeter",
+   "z_tof_m": 1.4676,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S101",
+   "role": "perimeter",
+   "z_tof_m": 1.5575,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S102",
+   "role": "perimeter",
+   "z_tof_m": 1.5043,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S103",
+   "role": "perimeter",
+   "z_tof_m": 1.5311,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S104",
+   "role": "perimeter",
+   "z_tof_m": 1.6223,
+   "z_sigma_m": 0.0055
+  },
+  {
+   "dev_id": "S105",
+   "role": "perimeter",
+   "z_tof_m": 1.5687,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S106",
+   "role": "perimeter",
+   "z_tof_m": 1.4604,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S107",
+   "role": "perimeter",
+   "z_tof_m": 1.6301,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S108",
+   "role": "perimeter",
+   "z_tof_m": 1.6345,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S109",
+   "role": "perimeter",
+   "z_tof_m": 1.537,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S110",
+   "role": "perimeter",
+   "z_tof_m": 1.6341,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S111",
+   "role": "perimeter",
+   "z_tof_m": 1.3863,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S112",
+   "role": "perimeter",
+   "z_tof_m": 1.2268,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S113",
+   "role": "perimeter",
+   "z_tof_m": 1.7191,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S114",
+   "role": "perimeter",
+   "z_tof_m": 1.31,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S115",
+   "role": "perimeter",
+   "z_tof_m": 1.744,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S116",
+   "role": "perimeter",
+   "z_tof_m": 1.2831,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S117",
+   "role": "perimeter",
+   "z_tof_m": 1.3263,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S118",
+   "role": "perimeter",
+   "z_tof_m": 1.3686,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S119",
+   "role": "perimeter",
+   "z_tof_m": 1.4957,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S120",
+   "role": "perimeter",
+   "z_tof_m": 1.4873,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S121",
+   "role": "perimeter",
+   "z_tof_m": 1.4985,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S122",
+   "role": "perimeter",
+   "z_tof_m": 1.5144,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S123",
+   "role": "perimeter",
+   "z_tof_m": 1.6049,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S124",
+   "role": "perimeter",
+   "z_tof_m": 1.3943,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S125",
+   "role": "perimeter",
+   "z_tof_m": 1.3964,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S126",
+   "role": "perimeter",
+   "z_tof_m": 1.612,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S127",
+   "role": "perimeter",
+   "z_tof_m": 1.5541,
+   "z_sigma_m": 0.005
+  },
+  {
+   "dev_id": "S128",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S129",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S130",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S131",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S132",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S133",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S134",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S135",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S136",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S137",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S138",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S139",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S140",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S141",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S142",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S143",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S144",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S145",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S146",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S147",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S148",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S149",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S150",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  },
+  {
+   "dev_id": "S151",
+   "role": "uplight",
+   "z_tof_m": null,
+   "z_sigma_m": null
+  }
+ ]
+}

@@ -1,0 +1,2259 @@
+{
+ "args": {
+  "sim": true,
+  "pairwise": null,
+  "roster": null,
+  "cad": "/home/ben/PycharmProjects/resonance-lighting/ops/locate/data/fixtures-0.3.1.json",
+  "cad_scale": "auto:downlights",
+  "perimeter_n": 40,
+  "perimeter_radius": null,
+  "seed": 7,
+  "n_downlights": 72,
+  "placement_jitter": 0.15,
+  "sigma_link": 4.0,
+  "sigma_dev": 3.0,
+  "sigma_pkt": 2.0,
+  "sigma_asym": 1.5,
+  "p_fade": 0.05,
+  "panel_mode": "spin",
+  "panel_depth": 20.0,
+  "k_packets": 50,
+  "rf_floor": -90.0,
+  "trunk_off": false,
+  "trunk_loss": 10.0,
+  "two_ray": false,
+  "n_true": 2.7,
+  "tof_max_range": 6.0,
+  "mount_downtilt": 15.0,
+  "p0_prior": -40.0,
+  "sigma_p0": 10.0,
+  "n_assumed": 2.7,
+  "fit_n": false,
+  "init": "auto",
+  "beacons": 3,
+  "beacons_map": "",
+  "bootstrap": 0,
+  "out_dir": "/home/ben/PycharmProjects/resonance-lighting/ops/locate/data/sim",
+  "run_id": null,
+  "plots": true,
+  "html": true,
+  "emit_jsonl": true
+ },
+ "n_devices": 152,
+ "n_links": 11462,
+ "n_censored": 1215,
+ "n_anchors": 112,
+ "pathloss_fit": {
+  "p0_dbm": -60.74946155856816,
+  "n": 2.7
+ },
+ "register": {
+  "theta_deg": 259.819886260541,
+  "mirror": -1,
+  "cost": 38.14486789634658,
+  "ambiguity_ratio": Infinity,
+  "ambiguous": false
+ },
+ "arm": "smacof",
+ "flagged": 34,
+ "assignment_accuracy": {
+  "overall": 0.875,
+  "wrong_idx": [
+   0,
+   1,
+   2,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   12,
+   13,
+   15,
+   68,
+   72,
+   73,
+   85,
+   87,
+   103,
+   104
+  ],
+  "per_role": {
+   "chandelier": 0.25,
+   "downlight": 0.9305555555555556,
+   "perimeter": 0.95,
+   "uplight": 1.0
+  }
+ },
+ "position_error": {
+  "overall": {
+   "rmse_m": 0.45059417149030484,
+   "median_m": 0.3173177644350266,
+   "p95_m": 0.8081887033560703,
+   "n": 152
+  },
+  "per_role": {
+   "chandelier": {
+    "rmse_m": 0.6251803089940157,
+    "median_m": 0.6334682388201116,
+    "p95_m": 0.8443502194424476,
+    "n": 16
+   },
+   "downlight": {
+    "rmse_m": 0.36167715067145667,
+    "median_m": 0.266484827818053,
+    "p95_m": 0.7194755059805054,
+    "n": 72
+   },
+   "perimeter": {
+    "rmse_m": 0.5169869833882684,
+    "median_m": 0.4143735431208591,
+    "p95_m": 0.8965699334622895,
+    "n": 40
+   },
+   "uplight": {
+    "rmse_m": 0.4329338848319392,
+    "median_m": 0.3348394218068898,
+    "p95_m": 0.7128392219699546,
+    "n": 24
+   }
+  }
+ },
+ "verdict": {
+  "auto_correct": 0.743421052631579,
+  "flagged": 0.2236842105263158,
+  "silent_wrong": 0.03289473684210526,
+  "n": 152
+ },
+ "per_device": [
+  {
+   "dev_id": "S000",
+   "role": "chandelier",
+   "fixture_id": "F104",
+   "degree": 151,
+   "sigma_pos_m": 0.0713,
+   "margin": 0.0123,
+   "flagged": true,
+   "pos_m": [
+    -0.25,
+    -0.186,
+    2.394
+   ]
+  },
+  {
+   "dev_id": "S001",
+   "role": "chandelier",
+   "fixture_id": "F110",
+   "degree": 151,
+   "sigma_pos_m": 0.1438,
+   "margin": 0.0294,
+   "flagged": false,
+   "pos_m": [
+    0.807,
+    0.271,
+    2.665
+   ]
+  },
+  {
+   "dev_id": "S002",
+   "role": "chandelier",
+   "fixture_id": "F103",
+   "degree": 149,
+   "sigma_pos_m": 0.0763,
+   "margin": 0.0123,
+   "flagged": true,
+   "pos_m": [
+    -0.175,
+    -0.141,
+    2.333
+   ]
+  },
+  {
+   "dev_id": "S003",
+   "role": "chandelier",
+   "fixture_id": "F105",
+   "degree": 151,
+   "sigma_pos_m": 0.0789,
+   "margin": 0.0123,
+   "flagged": true,
+   "pos_m": [
+    -0.321,
+    -0.191,
+    2.376
+   ]
+  },
+  {
+   "dev_id": "S004",
+   "role": "chandelier",
+   "fixture_id": "F114",
+   "degree": 151,
+   "sigma_pos_m": 0.1284,
+   "margin": 0.0119,
+   "flagged": true,
+   "pos_m": [
+    -0.699,
+    -0.64,
+    2.493
+   ]
+  },
+  {
+   "dev_id": "S005",
+   "role": "chandelier",
+   "fixture_id": "F115",
+   "degree": 151,
+   "sigma_pos_m": 0.1167,
+   "margin": 0.0031,
+   "flagged": true,
+   "pos_m": [
+    -0.425,
+    -0.676,
+    2.466
+   ]
+  },
+  {
+   "dev_id": "S006",
+   "role": "chandelier",
+   "fixture_id": "F109",
+   "degree": 151,
+   "sigma_pos_m": 0.0998,
+   "margin": 0.0031,
+   "flagged": true,
+   "pos_m": [
+    0.427,
+    -0.561,
+    2.38
+   ]
+  },
+  {
+   "dev_id": "S007",
+   "role": "chandelier",
+   "fixture_id": "F111",
+   "degree": 151,
+   "sigma_pos_m": 0.0784,
+   "margin": 0.0222,
+   "flagged": false,
+   "pos_m": [
+    -0.02,
+    -0.208,
+    2.235
+   ]
+  },
+  {
+   "dev_id": "S008",
+   "role": "chandelier",
+   "fixture_id": "F117",
+   "degree": 151,
+   "sigma_pos_m": 0.095,
+   "margin": 0.0582,
+   "flagged": false,
+   "pos_m": [
+    0.68,
+    -0.397,
+    2.356
+   ]
+  },
+  {
+   "dev_id": "S009",
+   "role": "chandelier",
+   "fixture_id": "F107",
+   "degree": 151,
+   "sigma_pos_m": 0.0712,
+   "margin": 0.0031,
+   "flagged": true,
+   "pos_m": [
+    -0.158,
+    -0.269,
+    2.237
+   ]
+  },
+  {
+   "dev_id": "S010",
+   "role": "chandelier",
+   "fixture_id": "F112",
+   "degree": 150,
+   "sigma_pos_m": 0.1454,
+   "margin": 0.0308,
+   "flagged": false,
+   "pos_m": [
+    -0.68,
+    0.346,
+    2.382
+   ]
+  },
+  {
+   "dev_id": "S011",
+   "role": "chandelier",
+   "fixture_id": "F113",
+   "degree": 151,
+   "sigma_pos_m": 0.1254,
+   "margin": 0.0096,
+   "flagged": true,
+   "pos_m": [
+    -0.692,
+    -0.404,
+    2.486
+   ]
+  },
+  {
+   "dev_id": "S012",
+   "role": "chandelier",
+   "fixture_id": "F106",
+   "degree": 151,
+   "sigma_pos_m": 0.1213,
+   "margin": 0.0096,
+   "flagged": true,
+   "pos_m": [
+    -0.647,
+    -0.604,
+    2.48
+   ]
+  },
+  {
+   "dev_id": "S013",
+   "role": "chandelier",
+   "fixture_id": "F108",
+   "degree": 151,
+   "sigma_pos_m": 0.0999,
+   "margin": 0.0013,
+   "flagged": true,
+   "pos_m": [
+    -0.054,
+    -0.754,
+    2.394
+   ]
+  },
+  {
+   "dev_id": "S014",
+   "role": "chandelier",
+   "fixture_id": "F116",
+   "degree": 151,
+   "sigma_pos_m": 0.1083,
+   "margin": 0.0013,
+   "flagged": true,
+   "pos_m": [
+    0.213,
+    -0.761,
+    2.468
+   ]
+  },
+  {
+   "dev_id": "S015",
+   "role": "chandelier",
+   "fixture_id": "F102",
+   "degree": 151,
+   "sigma_pos_m": 0.0984,
+   "margin": 0.0031,
+   "flagged": true,
+   "pos_m": [
+    0.691,
+    -0.356,
+    2.493
+   ]
+  },
+  {
+   "dev_id": "S016",
+   "role": "downlight",
+   "fixture_id": "F000",
+   "degree": 150,
+   "sigma_pos_m": 0.1196,
+   "margin": 0.1222,
+   "flagged": true,
+   "pos_m": [
+    0.038,
+    -0.27,
+    0.111
+   ]
+  },
+  {
+   "dev_id": "S017",
+   "role": "downlight",
+   "fixture_id": "F001",
+   "degree": 151,
+   "sigma_pos_m": 0.0917,
+   "margin": 0.0133,
+   "flagged": true,
+   "pos_m": [
+    0.009,
+    -0.85,
+    0.614
+   ]
+  },
+  {
+   "dev_id": "S018",
+   "role": "downlight",
+   "fixture_id": "F002",
+   "degree": 151,
+   "sigma_pos_m": 0.1379,
+   "margin": 0.8804,
+   "flagged": false,
+   "pos_m": [
+    3.812,
+    1.047,
+    2.372
+   ]
+  },
+  {
+   "dev_id": "S019",
+   "role": "downlight",
+   "fixture_id": "F003",
+   "degree": 151,
+   "sigma_pos_m": 0.126,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    2.772,
+    2.437,
+    2.118
+   ]
+  },
+  {
+   "dev_id": "S020",
+   "role": "downlight",
+   "fixture_id": "F004",
+   "degree": 151,
+   "sigma_pos_m": 0.1541,
+   "margin": 1.0829,
+   "flagged": false,
+   "pos_m": [
+    2.623,
+    3.042,
+    1.968
+   ]
+  },
+  {
+   "dev_id": "S021",
+   "role": "downlight",
+   "fixture_id": "F005",
+   "degree": 150,
+   "sigma_pos_m": 0.1233,
+   "margin": 0.8804,
+   "flagged": false,
+   "pos_m": [
+    3.706,
+    0.562,
+    2.201
+   ]
+  },
+  {
+   "dev_id": "S022",
+   "role": "downlight",
+   "fixture_id": "F006",
+   "degree": 150,
+   "sigma_pos_m": 0.1297,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    2.906,
+    2.366,
+    2.096
+   ]
+  },
+  {
+   "dev_id": "S023",
+   "role": "downlight",
+   "fixture_id": "F007",
+   "degree": 151,
+   "sigma_pos_m": 0.1054,
+   "margin": 1.231,
+   "flagged": false,
+   "pos_m": [
+    3.229,
+    -0.275,
+    2.235
+   ]
+  },
+  {
+   "dev_id": "S024",
+   "role": "downlight",
+   "fixture_id": "F008",
+   "degree": 151,
+   "sigma_pos_m": 0.1017,
+   "margin": 0.5795,
+   "flagged": false,
+   "pos_m": [
+    2.488,
+    1.846,
+    2.806
+   ]
+  },
+  {
+   "dev_id": "S025",
+   "role": "downlight",
+   "fixture_id": "F009",
+   "degree": 150,
+   "sigma_pos_m": 0.1718,
+   "margin": 0.9485,
+   "flagged": false,
+   "pos_m": [
+    4.109,
+    0.507,
+    3.154
+   ]
+  },
+  {
+   "dev_id": "S026",
+   "role": "downlight",
+   "fixture_id": "F010",
+   "degree": 151,
+   "sigma_pos_m": 0.0728,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    1.807,
+    1.356,
+    2.622
+   ]
+  },
+  {
+   "dev_id": "S027",
+   "role": "downlight",
+   "fixture_id": "F011",
+   "degree": 151,
+   "sigma_pos_m": 0.0727,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    1.755,
+    1.41,
+    2.649
+   ]
+  },
+  {
+   "dev_id": "S028",
+   "role": "downlight",
+   "fixture_id": "F012",
+   "degree": 151,
+   "sigma_pos_m": 0.068,
+   "margin": 0.405,
+   "flagged": false,
+   "pos_m": [
+    1.166,
+    1.433,
+    2.532
+   ]
+  },
+  {
+   "dev_id": "S029",
+   "role": "downlight",
+   "fixture_id": "F014",
+   "degree": 150,
+   "sigma_pos_m": 0.1072,
+   "margin": 0.7761,
+   "flagged": false,
+   "pos_m": [
+    2.182,
+    2.332,
+    2.868
+   ]
+  },
+  {
+   "dev_id": "S030",
+   "role": "downlight",
+   "fixture_id": "F015",
+   "degree": 151,
+   "sigma_pos_m": 0.0755,
+   "margin": 0.3235,
+   "flagged": false,
+   "pos_m": [
+    2.001,
+    1.117,
+    2.477
+   ]
+  },
+  {
+   "dev_id": "S031",
+   "role": "downlight",
+   "fixture_id": "F016",
+   "degree": 151,
+   "sigma_pos_m": 0.0671,
+   "margin": 0.4094,
+   "flagged": false,
+   "pos_m": [
+    2.03,
+    0.299,
+    2.406
+   ]
+  },
+  {
+   "dev_id": "S032",
+   "role": "downlight",
+   "fixture_id": "F017",
+   "degree": 151,
+   "sigma_pos_m": 0.1477,
+   "margin": 0.8865,
+   "flagged": false,
+   "pos_m": [
+    -3.341,
+    -2.37,
+    2.303
+   ]
+  },
+  {
+   "dev_id": "S033",
+   "role": "downlight",
+   "fixture_id": "F018",
+   "degree": 151,
+   "sigma_pos_m": 0.0661,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    2.069,
+    -0.092,
+    2.596
+   ]
+  },
+  {
+   "dev_id": "S034",
+   "role": "downlight",
+   "fixture_id": "F019",
+   "degree": 151,
+   "sigma_pos_m": 0.0702,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    2.176,
+    -0.231,
+    2.476
+   ]
+  },
+  {
+   "dev_id": "S035",
+   "role": "downlight",
+   "fixture_id": "F020",
+   "degree": 151,
+   "sigma_pos_m": 0.1622,
+   "margin": 0.5618,
+   "flagged": false,
+   "pos_m": [
+    3.895,
+    -2.01,
+    2.383
+   ]
+  },
+  {
+   "dev_id": "S036",
+   "role": "downlight",
+   "fixture_id": "F021",
+   "degree": 151,
+   "sigma_pos_m": 0.1019,
+   "margin": 0.9125,
+   "flagged": false,
+   "pos_m": [
+    2.978,
+    -1.037,
+    2.835
+   ]
+  },
+  {
+   "dev_id": "S037",
+   "role": "downlight",
+   "fixture_id": "F022",
+   "degree": 151,
+   "sigma_pos_m": 0.1652,
+   "margin": 2.4803,
+   "flagged": false,
+   "pos_m": [
+    2.943,
+    -3.359,
+    2.303
+   ]
+  },
+  {
+   "dev_id": "S038",
+   "role": "downlight",
+   "fixture_id": "F023",
+   "degree": 151,
+   "sigma_pos_m": 0.1126,
+   "margin": 0.9125,
+   "flagged": false,
+   "pos_m": [
+    2.899,
+    -1.622,
+    3.089
+   ]
+  },
+  {
+   "dev_id": "S039",
+   "role": "downlight",
+   "fixture_id": "F024",
+   "degree": 151,
+   "sigma_pos_m": 0.1029,
+   "margin": 1.334,
+   "flagged": false,
+   "pos_m": [
+    1.84,
+    -2.507,
+    2.847
+   ]
+  },
+  {
+   "dev_id": "S040",
+   "role": "downlight",
+   "fixture_id": "F025",
+   "degree": 151,
+   "sigma_pos_m": 0.1228,
+   "margin": null,
+   "flagged": false,
+   "pos_m": [
+    1.536,
+    -3.484,
+    2.276
+   ]
+  },
+  {
+   "dev_id": "S041",
+   "role": "downlight",
+   "fixture_id": "F026",
+   "degree": 150,
+   "sigma_pos_m": 0.1255,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    1.607,
+    -3.52,
+    2.413
+   ]
+  },
+  {
+   "dev_id": "S042",
+   "role": "downlight",
+   "fixture_id": "F027",
+   "degree": 150,
+   "sigma_pos_m": 0.1174,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    1.476,
+    -3.447,
+    2.53
+   ]
+  },
+  {
+   "dev_id": "S043",
+   "role": "downlight",
+   "fixture_id": "F028",
+   "degree": 151,
+   "sigma_pos_m": 0.1327,
+   "margin": 1.3684,
+   "flagged": false,
+   "pos_m": [
+    0.534,
+    -3.763,
+    2.281
+   ]
+  },
+  {
+   "dev_id": "S044",
+   "role": "downlight",
+   "fixture_id": "F029",
+   "degree": 151,
+   "sigma_pos_m": 0.1233,
+   "margin": 1.3684,
+   "flagged": false,
+   "pos_m": [
+    -0.132,
+    -3.613,
+    2.525
+   ]
+  },
+  {
+   "dev_id": "S045",
+   "role": "downlight",
+   "fixture_id": "F030",
+   "degree": 151,
+   "sigma_pos_m": 0.1107,
+   "margin": 1.334,
+   "flagged": false,
+   "pos_m": [
+    1.223,
+    -3.115,
+    3.16
+   ]
+  },
+  {
+   "dev_id": "S046",
+   "role": "downlight",
+   "fixture_id": "F031",
+   "degree": 151,
+   "sigma_pos_m": 0.1229,
+   "margin": 1.7452,
+   "flagged": false,
+   "pos_m": [
+    0.284,
+    -3.477,
+    3.168
+   ]
+  },
+  {
+   "dev_id": "S047",
+   "role": "downlight",
+   "fixture_id": "F032",
+   "degree": 151,
+   "sigma_pos_m": 0.1868,
+   "margin": 2.1883,
+   "flagged": false,
+   "pos_m": [
+    -1.641,
+    -4.322,
+    2.312
+   ]
+  },
+  {
+   "dev_id": "S048",
+   "role": "downlight",
+   "fixture_id": "F033",
+   "degree": 151,
+   "sigma_pos_m": 0.0733,
+   "margin": 0.2148,
+   "flagged": false,
+   "pos_m": [
+    0.381,
+    -2.162,
+    2.655
+   ]
+  },
+  {
+   "dev_id": "S049",
+   "role": "downlight",
+   "fixture_id": "F034",
+   "degree": 150,
+   "sigma_pos_m": 0.1764,
+   "margin": 2.1883,
+   "flagged": false,
+   "pos_m": [
+    -2.469,
+    -3.523,
+    2.287
+   ]
+  },
+  {
+   "dev_id": "S050",
+   "role": "downlight",
+   "fixture_id": "F035",
+   "degree": 151,
+   "sigma_pos_m": 0.1283,
+   "margin": 0.5618,
+   "flagged": false,
+   "pos_m": [
+    3.543,
+    -1.478,
+    2.351
+   ]
+  },
+  {
+   "dev_id": "S051",
+   "role": "downlight",
+   "fixture_id": "F037",
+   "degree": 151,
+   "sigma_pos_m": 0.0683,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    -0.887,
+    -1.838,
+    2.537
+   ]
+  },
+  {
+   "dev_id": "S052",
+   "role": "downlight",
+   "fixture_id": "F038",
+   "degree": 151,
+   "sigma_pos_m": 0.0746,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    -0.908,
+    -2.106,
+    2.547
+   ]
+  },
+  {
+   "dev_id": "S053",
+   "role": "downlight",
+   "fixture_id": "F039",
+   "degree": 151,
+   "sigma_pos_m": 0.1276,
+   "margin": 0.8865,
+   "flagged": false,
+   "pos_m": [
+    -3.26,
+    -1.783,
+    2.355
+   ]
+  },
+  {
+   "dev_id": "S054",
+   "role": "downlight",
+   "fixture_id": "F040",
+   "degree": 151,
+   "sigma_pos_m": 0.1356,
+   "margin": 1.7408,
+   "flagged": false,
+   "pos_m": [
+    -3.621,
+    -0.483,
+    2.087
+   ]
+  },
+  {
+   "dev_id": "S055",
+   "role": "downlight",
+   "fixture_id": "F041",
+   "degree": 150,
+   "sigma_pos_m": 0.1119,
+   "margin": 1.4299,
+   "flagged": false,
+   "pos_m": [
+    -3.136,
+    -0.623,
+    2.956
+   ]
+  },
+  {
+   "dev_id": "S056",
+   "role": "downlight",
+   "fixture_id": "F042",
+   "degree": 151,
+   "sigma_pos_m": 0.1195,
+   "margin": 0.4349,
+   "flagged": false,
+   "pos_m": [
+    -1.554,
+    -3.054,
+    3.209
+   ]
+  },
+  {
+   "dev_id": "S057",
+   "role": "downlight",
+   "fixture_id": "F043",
+   "degree": 151,
+   "sigma_pos_m": 0.1092,
+   "margin": 1.6253,
+   "flagged": false,
+   "pos_m": [
+    -3.004,
+    0.404,
+    3.022
+   ]
+  },
+  {
+   "dev_id": "S058",
+   "role": "downlight",
+   "fixture_id": "F044",
+   "degree": 151,
+   "sigma_pos_m": 0.0993,
+   "margin": 0.9713,
+   "flagged": false,
+   "pos_m": [
+    -2.703,
+    -1.404,
+    2.707
+   ]
+  },
+  {
+   "dev_id": "S059",
+   "role": "downlight",
+   "fixture_id": "F045",
+   "degree": 151,
+   "sigma_pos_m": 0.1138,
+   "margin": 0.9713,
+   "flagged": false,
+   "pos_m": [
+    -2.717,
+    -2.154,
+    2.542
+   ]
+  },
+  {
+   "dev_id": "S060",
+   "role": "downlight",
+   "fixture_id": "F046",
+   "degree": 151,
+   "sigma_pos_m": 0.1234,
+   "margin": 0.9288,
+   "flagged": false,
+   "pos_m": [
+    -2.96,
+    1.54,
+    3.086
+   ]
+  },
+  {
+   "dev_id": "S061",
+   "role": "downlight",
+   "fixture_id": "F047",
+   "degree": 151,
+   "sigma_pos_m": 0.1395,
+   "margin": 0.9638,
+   "flagged": false,
+   "pos_m": [
+    -3.605,
+    1.113,
+    2.434
+   ]
+  },
+  {
+   "dev_id": "S062",
+   "role": "downlight",
+   "fixture_id": "F048",
+   "degree": 151,
+   "sigma_pos_m": 0.1699,
+   "margin": 0.6725,
+   "flagged": false,
+   "pos_m": [
+    -3.211,
+    2.703,
+    2.208
+   ]
+  },
+  {
+   "dev_id": "S063",
+   "role": "downlight",
+   "fixture_id": "F049",
+   "degree": 150,
+   "sigma_pos_m": 0.1329,
+   "margin": 0.6768,
+   "flagged": false,
+   "pos_m": [
+    -2.761,
+    2.208,
+    3.177
+   ]
+  },
+  {
+   "dev_id": "S064",
+   "role": "downlight",
+   "fixture_id": "F050",
+   "degree": 151,
+   "sigma_pos_m": 0.0799,
+   "margin": 0.3852,
+   "flagged": false,
+   "pos_m": [
+    -2.212,
+    0.044,
+    2.748
+   ]
+  },
+  {
+   "dev_id": "S065",
+   "role": "downlight",
+   "fixture_id": "F051",
+   "degree": 151,
+   "sigma_pos_m": 0.0895,
+   "margin": 0.6041,
+   "flagged": false,
+   "pos_m": [
+    -2.247,
+    1.057,
+    2.466
+   ]
+  },
+  {
+   "dev_id": "S066",
+   "role": "downlight",
+   "fixture_id": "F052",
+   "degree": 151,
+   "sigma_pos_m": 0.0693,
+   "margin": 0.9341,
+   "flagged": false,
+   "pos_m": [
+    1.007,
+    -1.499,
+    2.502
+   ]
+  },
+  {
+   "dev_id": "S067",
+   "role": "downlight",
+   "fixture_id": "F053",
+   "degree": 151,
+   "sigma_pos_m": 0.0644,
+   "margin": 0.2148,
+   "flagged": false,
+   "pos_m": [
+    0.172,
+    -1.749,
+    2.652
+   ]
+  },
+  {
+   "dev_id": "S068",
+   "role": "downlight",
+   "fixture_id": "F055",
+   "degree": 151,
+   "sigma_pos_m": 0.1341,
+   "margin": 0.0469,
+   "flagged": true,
+   "pos_m": [
+    -2.051,
+    2.89,
+    2.648
+   ]
+  },
+  {
+   "dev_id": "S069",
+   "role": "downlight",
+   "fixture_id": "F057",
+   "degree": 151,
+   "sigma_pos_m": 0.082,
+   "margin": 0.4087,
+   "flagged": false,
+   "pos_m": [
+    -1.699,
+    1.353,
+    2.712
+   ]
+  },
+  {
+   "dev_id": "S070",
+   "role": "downlight",
+   "fixture_id": "F058",
+   "degree": 151,
+   "sigma_pos_m": 0.0953,
+   "margin": 0.1982,
+   "flagged": false,
+   "pos_m": [
+    -1.687,
+    1.912,
+    2.682
+   ]
+  },
+  {
+   "dev_id": "S071",
+   "role": "downlight",
+   "fixture_id": "F059",
+   "degree": 151,
+   "sigma_pos_m": 0.0686,
+   "margin": 0.3728,
+   "flagged": false,
+   "pos_m": [
+    -1.867,
+    -0.366,
+    2.645
+   ]
+  },
+  {
+   "dev_id": "S072",
+   "role": "downlight",
+   "fixture_id": "F061",
+   "degree": 151,
+   "sigma_pos_m": 0.0721,
+   "margin": 0.1278,
+   "flagged": true,
+   "pos_m": [
+    -2.083,
+    -0.818,
+    2.663
+   ]
+  },
+  {
+   "dev_id": "S073",
+   "role": "downlight",
+   "fixture_id": "F060",
+   "degree": 151,
+   "sigma_pos_m": 0.0798,
+   "margin": 0.1278,
+   "flagged": true,
+   "pos_m": [
+    -2.292,
+    -0.807,
+    2.814
+   ]
+  },
+  {
+   "dev_id": "S074",
+   "role": "downlight",
+   "fixture_id": "F062",
+   "degree": 151,
+   "sigma_pos_m": 0.13,
+   "margin": 0.9638,
+   "flagged": false,
+   "pos_m": [
+    -3.576,
+    0.588,
+    2.308
+   ]
+  },
+  {
+   "dev_id": "S075",
+   "role": "downlight",
+   "fixture_id": "F063",
+   "degree": 151,
+   "sigma_pos_m": 0.1724,
+   "margin": 1.6937,
+   "flagged": false,
+   "pos_m": [
+    -1.398,
+    3.993,
+    2.265
+   ]
+  },
+  {
+   "dev_id": "S076",
+   "role": "downlight",
+   "fixture_id": "F064",
+   "degree": 151,
+   "sigma_pos_m": 0.2244,
+   "margin": 1.4752,
+   "flagged": false,
+   "pos_m": [
+    -0.599,
+    4.69,
+    2.338
+   ]
+  },
+  {
+   "dev_id": "S077",
+   "role": "downlight",
+   "fixture_id": "F065",
+   "degree": 151,
+   "sigma_pos_m": 0.224,
+   "margin": 0.3682,
+   "flagged": false,
+   "pos_m": [
+    0.98,
+    4.561,
+    2.212
+   ]
+  },
+  {
+   "dev_id": "S078",
+   "role": "downlight",
+   "fixture_id": "F066",
+   "degree": 151,
+   "sigma_pos_m": 0.1298,
+   "margin": 0.74,
+   "flagged": false,
+   "pos_m": [
+    0.926,
+    3.319,
+    3.062
+   ]
+  },
+  {
+   "dev_id": "S079",
+   "role": "downlight",
+   "fixture_id": "F067",
+   "degree": 151,
+   "sigma_pos_m": 0.1158,
+   "margin": 1.0364,
+   "flagged": false,
+   "pos_m": [
+    1.408,
+    2.839,
+    3.071
+   ]
+  },
+  {
+   "dev_id": "S080",
+   "role": "downlight",
+   "fixture_id": "F068",
+   "degree": 151,
+   "sigma_pos_m": 0.0794,
+   "margin": 0.405,
+   "flagged": false,
+   "pos_m": [
+    1.03,
+    1.959,
+    2.631
+   ]
+  },
+  {
+   "dev_id": "S081",
+   "role": "downlight",
+   "fixture_id": "F069",
+   "degree": 151,
+   "sigma_pos_m": 0.0946,
+   "margin": 1.231,
+   "flagged": false,
+   "pos_m": [
+    2.967,
+    -0.265,
+    2.79
+   ]
+  },
+  {
+   "dev_id": "S082",
+   "role": "downlight",
+   "fixture_id": "F070",
+   "degree": 151,
+   "sigma_pos_m": 0.1188,
+   "margin": 0.4349,
+   "flagged": false,
+   "pos_m": [
+    -1.77,
+    -2.891,
+    3.228
+   ]
+  },
+  {
+   "dev_id": "S083",
+   "role": "downlight",
+   "fixture_id": "F071",
+   "degree": 151,
+   "sigma_pos_m": 0.104,
+   "margin": 0.2021,
+   "flagged": false,
+   "pos_m": [
+    -0.281,
+    2.459,
+    2.929
+   ]
+  },
+  {
+   "dev_id": "S084",
+   "role": "downlight",
+   "fixture_id": "F072",
+   "degree": 151,
+   "sigma_pos_m": 0.084,
+   "margin": 0.5845,
+   "flagged": false,
+   "pos_m": [
+    0.543,
+    2.187,
+    2.74
+   ]
+  },
+  {
+   "dev_id": "S085",
+   "role": "downlight",
+   "fixture_id": "F077",
+   "degree": 151,
+   "sigma_pos_m": 0.0929,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    0.006,
+    -0.69,
+    0.592
+   ]
+  },
+  {
+   "dev_id": "S086",
+   "role": "downlight",
+   "fixture_id": "F076",
+   "degree": 151,
+   "sigma_pos_m": 0.0823,
+   "margin": 0.0,
+   "flagged": true,
+   "pos_m": [
+    0.089,
+    -0.297,
+    0.686
+   ]
+  },
+  {
+   "dev_id": "S087",
+   "role": "downlight",
+   "fixture_id": "F074",
+   "degree": 151,
+   "sigma_pos_m": 0.0911,
+   "margin": 0.0078,
+   "flagged": true,
+   "pos_m": [
+    -0.077,
+    -0.2,
+    0.536
+   ]
+  },
+  {
+   "dev_id": "S088",
+   "role": "perimeter",
+   "fixture_id": "P000",
+   "degree": 151,
+   "sigma_pos_m": 0.157,
+   "margin": 0.4649,
+   "flagged": false,
+   "pos_m": [
+    3.984,
+    0.266,
+    1.446
+   ]
+  },
+  {
+   "dev_id": "S089",
+   "role": "perimeter",
+   "fixture_id": "P001",
+   "degree": 151,
+   "sigma_pos_m": 0.1736,
+   "margin": 0.4649,
+   "flagged": false,
+   "pos_m": [
+    4.262,
+    0.625,
+    1.608
+   ]
+  },
+  {
+   "dev_id": "S090",
+   "role": "perimeter",
+   "fixture_id": "P002",
+   "degree": 151,
+   "sigma_pos_m": 0.2059,
+   "margin": 0.193,
+   "flagged": false,
+   "pos_m": [
+    4.421,
+    1.857,
+    1.529
+   ]
+  },
+  {
+   "dev_id": "S091",
+   "role": "perimeter",
+   "fixture_id": "P003",
+   "degree": 150,
+   "sigma_pos_m": 0.1738,
+   "margin": 0.193,
+   "flagged": false,
+   "pos_m": [
+    3.894,
+    1.789,
+    1.559
+   ]
+  },
+  {
+   "dev_id": "S092",
+   "role": "perimeter",
+   "fixture_id": "P004",
+   "degree": 151,
+   "sigma_pos_m": 0.1243,
+   "margin": 0.335,
+   "flagged": false,
+   "pos_m": [
+    2.677,
+    1.826,
+    1.453
+   ]
+  },
+  {
+   "dev_id": "S093",
+   "role": "perimeter",
+   "fixture_id": "P005",
+   "degree": 151,
+   "sigma_pos_m": 0.1682,
+   "margin": 0.335,
+   "flagged": false,
+   "pos_m": [
+    3.232,
+    2.618,
+    1.632
+   ]
+  },
+  {
+   "dev_id": "S094",
+   "role": "perimeter",
+   "fixture_id": "P006",
+   "degree": 151,
+   "sigma_pos_m": 0.1903,
+   "margin": 0.6354,
+   "flagged": false,
+   "pos_m": [
+    2.791,
+    3.447,
+    1.62
+   ]
+  },
+  {
+   "dev_id": "S095",
+   "role": "perimeter",
+   "fixture_id": "P007",
+   "degree": 150,
+   "sigma_pos_m": 0.1866,
+   "margin": 0.6354,
+   "flagged": false,
+   "pos_m": [
+    2.302,
+    3.525,
+    1.61
+   ]
+  },
+  {
+   "dev_id": "S096",
+   "role": "perimeter",
+   "fixture_id": "P008",
+   "degree": 151,
+   "sigma_pos_m": 0.1994,
+   "margin": 0.074,
+   "flagged": true,
+   "pos_m": [
+    1.726,
+    4.133,
+    1.891
+   ]
+  },
+  {
+   "dev_id": "S097",
+   "role": "perimeter",
+   "fixture_id": "P009",
+   "degree": 151,
+   "sigma_pos_m": 0.2724,
+   "margin": 0.074,
+   "flagged": true,
+   "pos_m": [
+    1.748,
+    4.454,
+    1.311
+   ]
+  },
+  {
+   "dev_id": "S098",
+   "role": "perimeter",
+   "fixture_id": "P010",
+   "degree": 151,
+   "sigma_pos_m": 0.2449,
+   "margin": 1.5487,
+   "flagged": false,
+   "pos_m": [
+    0.429,
+    4.485,
+    1.379
+   ]
+  },
+  {
+   "dev_id": "S099",
+   "role": "perimeter",
+   "fixture_id": "P011",
+   "degree": 150,
+   "sigma_pos_m": 0.2461,
+   "margin": 1.5487,
+   "flagged": false,
+   "pos_m": [
+    -0.703,
+    4.631,
+    1.563
+   ]
+  },
+  {
+   "dev_id": "S100",
+   "role": "perimeter",
+   "fixture_id": "P012",
+   "degree": 151,
+   "sigma_pos_m": 0.2469,
+   "margin": 0.1125,
+   "flagged": true,
+   "pos_m": [
+    -1.913,
+    4.797,
+    1.533
+   ]
+  },
+  {
+   "dev_id": "S101",
+   "role": "perimeter",
+   "fixture_id": "P013",
+   "degree": 149,
+   "sigma_pos_m": 0.2658,
+   "margin": 0.1125,
+   "flagged": true,
+   "pos_m": [
+    -2.07,
+    4.965,
+    1.623
+   ]
+  },
+  {
+   "dev_id": "S102",
+   "role": "perimeter",
+   "fixture_id": "P014",
+   "degree": 151,
+   "sigma_pos_m": 0.2369,
+   "margin": 1.5281,
+   "flagged": false,
+   "pos_m": [
+    -2.69,
+    3.866,
+    1.57
+   ]
+  },
+  {
+   "dev_id": "S103",
+   "role": "perimeter",
+   "fixture_id": "P016",
+   "degree": 150,
+   "sigma_pos_m": 0.2226,
+   "margin": 0.1602,
+   "flagged": false,
+   "pos_m": [
+    -3.643,
+    3.099,
+    1.597
+   ]
+  },
+  {
+   "dev_id": "S104",
+   "role": "perimeter",
+   "fixture_id": "P015",
+   "degree": 151,
+   "sigma_pos_m": 0.2743,
+   "margin": 0.1602,
+   "flagged": false,
+   "pos_m": [
+    -4.083,
+    3.628,
+    1.688
+   ]
+  },
+  {
+   "dev_id": "S105",
+   "role": "perimeter",
+   "fixture_id": "P017",
+   "degree": 151,
+   "sigma_pos_m": 0.2351,
+   "margin": 1.095,
+   "flagged": false,
+   "pos_m": [
+    -4.069,
+    2.245,
+    1.634
+   ]
+  },
+  {
+   "dev_id": "S106",
+   "role": "perimeter",
+   "fixture_id": "P018",
+   "degree": 151,
+   "sigma_pos_m": 0.2084,
+   "margin": 1.0842,
+   "flagged": false,
+   "pos_m": [
+    -3.985,
+    1.356,
+    1.526
+   ]
+  },
+  {
+   "dev_id": "S107",
+   "role": "perimeter",
+   "fixture_id": "P019",
+   "degree": 151,
+   "sigma_pos_m": 0.1911,
+   "margin": 0.6329,
+   "flagged": false,
+   "pos_m": [
+    -4.251,
+    0.615,
+    1.696
+   ]
+  },
+  {
+   "dev_id": "S108",
+   "role": "perimeter",
+   "fixture_id": "P020",
+   "degree": 151,
+   "sigma_pos_m": 0.1747,
+   "margin": 0.6329,
+   "flagged": false,
+   "pos_m": [
+    -4.123,
+    0.147,
+    1.7
+   ]
+  },
+  {
+   "dev_id": "S109",
+   "role": "perimeter",
+   "fixture_id": "P021",
+   "degree": 149,
+   "sigma_pos_m": 0.2175,
+   "margin": 0.6774,
+   "flagged": false,
+   "pos_m": [
+    -4.736,
+    -0.707,
+    1.603
+   ]
+  },
+  {
+   "dev_id": "S110",
+   "role": "perimeter",
+   "fixture_id": "P022",
+   "degree": 150,
+   "sigma_pos_m": 0.1949,
+   "margin": 0.6774,
+   "flagged": false,
+   "pos_m": [
+    -4.348,
+    -1.116,
+    1.7
+   ]
+  },
+  {
+   "dev_id": "S111",
+   "role": "perimeter",
+   "fixture_id": "P023",
+   "degree": 151,
+   "sigma_pos_m": 0.2174,
+   "margin": 1.2513,
+   "flagged": false,
+   "pos_m": [
+    -3.889,
+    -2.105,
+    1.452
+   ]
+  },
+  {
+   "dev_id": "S112",
+   "role": "perimeter",
+   "fixture_id": "P024",
+   "degree": 150,
+   "sigma_pos_m": 0.1572,
+   "margin": 0.5783,
+   "flagged": false,
+   "pos_m": [
+    -2.847,
+    -2.524,
+    1.293
+   ]
+  },
+  {
+   "dev_id": "S113",
+   "role": "perimeter",
+   "fixture_id": "P025",
+   "degree": 151,
+   "sigma_pos_m": 0.1975,
+   "margin": 0.5783,
+   "flagged": false,
+   "pos_m": [
+    -2.908,
+    -3.125,
+    1.785
+   ]
+  },
+  {
+   "dev_id": "S114",
+   "role": "perimeter",
+   "fixture_id": "P026",
+   "degree": 151,
+   "sigma_pos_m": 0.2406,
+   "margin": 1.2102,
+   "flagged": false,
+   "pos_m": [
+    -2.356,
+    -3.863,
+    1.376
+   ]
+  },
+  {
+   "dev_id": "S115",
+   "role": "perimeter",
+   "fixture_id": "P027",
+   "degree": 151,
+   "sigma_pos_m": 0.2243,
+   "margin": 1.2102,
+   "flagged": false,
+   "pos_m": [
+    -1.687,
+    -4.442,
+    1.81
+   ]
+  },
+  {
+   "dev_id": "S116",
+   "role": "perimeter",
+   "fixture_id": "P028",
+   "degree": 150,
+   "sigma_pos_m": 0.1895,
+   "margin": null,
+   "flagged": false,
+   "pos_m": [
+    -1.157,
+    -4.279,
+    1.349
+   ]
+  },
+  {
+   "dev_id": "S117",
+   "role": "perimeter",
+   "fixture_id": "P029",
+   "degree": 151,
+   "sigma_pos_m": 0.2099,
+   "margin": 0.9475,
+   "flagged": false,
+   "pos_m": [
+    -0.627,
+    -4.576,
+    1.392
+   ]
+  },
+  {
+   "dev_id": "S118",
+   "role": "perimeter",
+   "fixture_id": "P030",
+   "degree": 151,
+   "sigma_pos_m": 0.1492,
+   "margin": 0.6487,
+   "flagged": false,
+   "pos_m": [
+    0.118,
+    -3.822,
+    1.434
+   ]
+  },
+  {
+   "dev_id": "S119",
+   "role": "perimeter",
+   "fixture_id": "P031",
+   "degree": 151,
+   "sigma_pos_m": 0.21,
+   "margin": 0.6487,
+   "flagged": false,
+   "pos_m": [
+    0.665,
+    -4.815,
+    1.561
+   ]
+  },
+  {
+   "dev_id": "S120",
+   "role": "perimeter",
+   "fixture_id": "P032",
+   "degree": 151,
+   "sigma_pos_m": 0.2262,
+   "margin": 1.0857,
+   "flagged": false,
+   "pos_m": [
+    1.477,
+    -4.843,
+    1.553
+   ]
+  },
+  {
+   "dev_id": "S121",
+   "role": "perimeter",
+   "fixture_id": "P033",
+   "degree": 151,
+   "sigma_pos_m": 0.193,
+   "margin": 1.1601,
+   "flagged": false,
+   "pos_m": [
+    2.157,
+    -4.011,
+    1.564
+   ]
+  },
+  {
+   "dev_id": "S122",
+   "role": "perimeter",
+   "fixture_id": "P034",
+   "degree": 151,
+   "sigma_pos_m": 0.2392,
+   "margin": 1.1543,
+   "flagged": false,
+   "pos_m": [
+    3.196,
+    -4.105,
+    1.58
+   ]
+  },
+  {
+   "dev_id": "S123",
+   "role": "perimeter",
+   "fixture_id": "P035",
+   "degree": 151,
+   "sigma_pos_m": 0.2275,
+   "margin": 1.1504,
+   "flagged": false,
+   "pos_m": [
+    3.654,
+    -3.36,
+    1.671
+   ]
+  },
+  {
+   "dev_id": "S124",
+   "role": "perimeter",
+   "fixture_id": "P036",
+   "degree": 151,
+   "sigma_pos_m": 0.1736,
+   "margin": 0.7759,
+   "flagged": false,
+   "pos_m": [
+    3.571,
+    -2.198,
+    1.46
+   ]
+  },
+  {
+   "dev_id": "S125",
+   "role": "perimeter",
+   "fixture_id": "P037",
+   "degree": 151,
+   "sigma_pos_m": 0.1987,
+   "margin": 0.7759,
+   "flagged": false,
+   "pos_m": [
+    4.103,
+    -1.867,
+    1.462
+   ]
+  },
+  {
+   "dev_id": "S126",
+   "role": "perimeter",
+   "fixture_id": "P038",
+   "degree": 149,
+   "sigma_pos_m": 0.1579,
+   "margin": 0.7255,
+   "flagged": false,
+   "pos_m": [
+    3.954,
+    -0.962,
+    1.678
+   ]
+  },
+  {
+   "dev_id": "S127",
+   "role": "perimeter",
+   "fixture_id": "P039",
+   "degree": 151,
+   "sigma_pos_m": 0.2025,
+   "margin": 0.7255,
+   "flagged": false,
+   "pos_m": [
+    4.71,
+    -0.605,
+    1.62
+   ]
+  },
+  {
+   "dev_id": "S128",
+   "role": "uplight",
+   "fixture_id": "F078",
+   "degree": 151,
+   "sigma_pos_m": 0.1129,
+   "margin": 0.2999,
+   "flagged": false,
+   "pos_m": [
+    1.71,
+    0.2,
+    2.518
+   ]
+  },
+  {
+   "dev_id": "S129",
+   "role": "uplight",
+   "fixture_id": "F079",
+   "degree": 151,
+   "sigma_pos_m": 0.1232,
+   "margin": 0.2999,
+   "flagged": false,
+   "pos_m": [
+    1.632,
+    0.371,
+    2.651
+   ]
+  },
+  {
+   "dev_id": "S130",
+   "role": "uplight",
+   "fixture_id": "F080",
+   "degree": 151,
+   "sigma_pos_m": 0.1804,
+   "margin": 1.0065,
+   "flagged": false,
+   "pos_m": [
+    0.841,
+    1.264,
+    2.584
+   ]
+  },
+  {
+   "dev_id": "S131",
+   "role": "uplight",
+   "fixture_id": "F081",
+   "degree": 151,
+   "sigma_pos_m": 0.1949,
+   "margin": 1.0065,
+   "flagged": false,
+   "pos_m": [
+    0.258,
+    1.481,
+    2.554
+   ]
+  },
+  {
+   "dev_id": "S132",
+   "role": "uplight",
+   "fixture_id": "F082",
+   "degree": 151,
+   "sigma_pos_m": 0.1648,
+   "margin": 1.2246,
+   "flagged": false,
+   "pos_m": [
+    -1.209,
+    1.414,
+    2.487
+   ]
+  },
+  {
+   "dev_id": "S133",
+   "role": "uplight",
+   "fixture_id": "F083",
+   "degree": 151,
+   "sigma_pos_m": 0.1706,
+   "margin": 1.2246,
+   "flagged": false,
+   "pos_m": [
+    -1.645,
+    0.784,
+    2.59
+   ]
+  },
+  {
+   "dev_id": "S134",
+   "role": "uplight",
+   "fixture_id": "F084",
+   "degree": 151,
+   "sigma_pos_m": 0.1143,
+   "margin": 1.3399,
+   "flagged": false,
+   "pos_m": [
+    -1.834,
+    -0.019,
+    2.494
+   ]
+  },
+  {
+   "dev_id": "S135",
+   "role": "uplight",
+   "fixture_id": "F085",
+   "degree": 151,
+   "sigma_pos_m": 0.1427,
+   "margin": 1.1076,
+   "flagged": false,
+   "pos_m": [
+    -1.825,
+    -1.03,
+    2.735
+   ]
+  },
+  {
+   "dev_id": "S136",
+   "role": "uplight",
+   "fixture_id": "F086",
+   "degree": 151,
+   "sigma_pos_m": 0.1512,
+   "margin": 1.3279,
+   "flagged": false,
+   "pos_m": [
+    -0.922,
+    -1.428,
+    2.559
+   ]
+  },
+  {
+   "dev_id": "S137",
+   "role": "uplight",
+   "fixture_id": "F087",
+   "degree": 151,
+   "sigma_pos_m": 0.0851,
+   "margin": 0.9455,
+   "flagged": false,
+   "pos_m": [
+    0.061,
+    -1.665,
+    2.864
+   ]
+  },
+  {
+   "dev_id": "S138",
+   "role": "uplight",
+   "fixture_id": "F088",
+   "degree": 151,
+   "sigma_pos_m": 0.1152,
+   "margin": 1.046,
+   "flagged": false,
+   "pos_m": [
+    0.684,
+    -1.503,
+    2.7
+   ]
+  },
+  {
+   "dev_id": "S139",
+   "role": "uplight",
+   "fixture_id": "F089",
+   "degree": 150,
+   "sigma_pos_m": 0.1403,
+   "margin": 1.4264,
+   "flagged": false,
+   "pos_m": [
+    1.403,
+    -0.761,
+    2.767
+   ]
+  },
+  {
+   "dev_id": "S140",
+   "role": "uplight",
+   "fixture_id": "F090",
+   "degree": 151,
+   "sigma_pos_m": 0.116,
+   "margin": 1.1583,
+   "flagged": false,
+   "pos_m": [
+    2.24,
+    0.488,
+    2.578
+   ]
+  },
+  {
+   "dev_id": "S141",
+   "role": "uplight",
+   "fixture_id": "F091",
+   "degree": 151,
+   "sigma_pos_m": 0.0879,
+   "margin": 1.2998,
+   "flagged": false,
+   "pos_m": [
+    1.938,
+    1.028,
+    2.239
+   ]
+  },
+  {
+   "dev_id": "S142",
+   "role": "uplight",
+   "fixture_id": "F092",
+   "degree": 151,
+   "sigma_pos_m": 0.1651,
+   "margin": 2.6367,
+   "flagged": false,
+   "pos_m": [
+    0.593,
+    2.844,
+    2.655
+   ]
+  },
+  {
+   "dev_id": "S143",
+   "role": "uplight",
+   "fixture_id": "F093",
+   "degree": 151,
+   "sigma_pos_m": 0.1626,
+   "margin": 1.946,
+   "flagged": false,
+   "pos_m": [
+    -0.738,
+    2.3,
+    2.54
+   ]
+  },
+  {
+   "dev_id": "S144",
+   "role": "uplight",
+   "fixture_id": "F094",
+   "degree": 151,
+   "sigma_pos_m": 0.1315,
+   "margin": null,
+   "flagged": false,
+   "pos_m": [
+    -1.806,
+    2.101,
+    3.017
+   ]
+  },
+  {
+   "dev_id": "S145",
+   "role": "uplight",
+   "fixture_id": "F095",
+   "degree": 151,
+   "sigma_pos_m": 0.127,
+   "margin": 1.5105,
+   "flagged": false,
+   "pos_m": [
+    -2.636,
+    0.265,
+    2.196
+   ]
+  },
+  {
+   "dev_id": "S146",
+   "role": "uplight",
+   "fixture_id": "F096",
+   "degree": 151,
+   "sigma_pos_m": 0.1226,
+   "margin": 1.1076,
+   "flagged": false,
+   "pos_m": [
+    -2.509,
+    -0.741,
+    1.889
+   ]
+  },
+  {
+   "dev_id": "S147",
+   "role": "uplight",
+   "fixture_id": "F097",
+   "degree": 151,
+   "sigma_pos_m": 0.1594,
+   "margin": 1.6538,
+   "flagged": false,
+   "pos_m": [
+    -1.969,
+    -1.788,
+    3.003
+   ]
+  },
+  {
+   "dev_id": "S148",
+   "role": "uplight",
+   "fixture_id": "F098",
+   "degree": 151,
+   "sigma_pos_m": 0.1184,
+   "margin": 0.9455,
+   "flagged": false,
+   "pos_m": [
+    -0.371,
+    -2.042,
+    2.384
+   ]
+  },
+  {
+   "dev_id": "S149",
+   "role": "uplight",
+   "fixture_id": "F099",
+   "degree": 151,
+   "sigma_pos_m": 0.1593,
+   "margin": 1.9529,
+   "flagged": false,
+   "pos_m": [
+    0.788,
+    -2.481,
+    2.738
+   ]
+  },
+  {
+   "dev_id": "S150",
+   "role": "uplight",
+   "fixture_id": "F100",
+   "degree": 150,
+   "sigma_pos_m": 0.1471,
+   "margin": 1.4264,
+   "flagged": false,
+   "pos_m": [
+    1.829,
+    -1.222,
+    3.33
+   ]
+  },
+  {
+   "dev_id": "S151",
+   "role": "uplight",
+   "fixture_id": "F101",
+   "degree": 151,
+   "sigma_pos_m": 0.1216,
+   "margin": 2.1355,
+   "flagged": false,
+   "pos_m": [
+    2.629,
+    -0.711,
+    2.387
+   ]
+  }
+ ]
+}

@@ -656,6 +656,13 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   packet counts and the on-device censoring-corrected median (reference:
   `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
   already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
+- [ ] **Replacement/swap flow** (validated in sim 2026-07-15, report addendum: 6/6
+  correct even at 8 dB): unconfigured node beacons "whoami" -> bridge roll-call
+  diffs live MACs vs fleet map -> ~1 min neighbor RSSI capture -> pinned solve
+  (existing pipeline, survivors = known) -> write fixture_id/xyz/neighbor-table NVS
+  OTA. Firmware needs: unconfigured-beacon state, NVS config schema + epoch, bridge
+  assign command. Same machinery doubles as a drift watchdog (node compares live
+  neighbor RSSI vs stored expectations, self-reports if moved/fallen) (Ben/Claude).
 - [ ] **Get a refined fixtures.json export from Elliot/Vishnu** -- concrete punch
   list from the 0.3.1 export (Ben's top-down inspection 2026-07-13): downlight
   rings should be 24/24/24 but have 2 middle + 4 inner holes, 6 fixtures stacked at

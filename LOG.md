@@ -262,6 +262,21 @@ transit, different listing than the proven DS-0420S) still gates everything.
 
 ---
 
+## 2026-07-15 -- Ben + Claude -- Auto-localization: sensor complement = class ID; uplight/chandelier ambiguity measured free
+
+Ben's observation that the ToF payloads identify class on I2C (TMF8820 =
+downlight, VL53L5CX = perimeter, neither = uplight/chandelier) is exactly the
+assumption the ops/locate solver builds on (per-class assignment, class-typed
+anchors, per-class registration cost). The one distinction hardware cannot
+give -- uplight vs chandelier, both sensorless -- was tested by merging them
+into a single assignment class: ZERO accuracy cost at the realistic operating
+point across 3 seeds, with 100% class recovery from geometry alone (crown
+clump vs uplight rings are far apart vs ~0.3 m position error). No
+provisioning step needed to distinguish those boards. Report addendum added.
+Also quantified the flag-rule ROC on a representative run (margin-score AUC
+0.83): at the default threshold all silent-wrongs were chandelier -- the
+non-chandelier fleet had 2 wrongs, both flagged.
+
 ## 2026-07-13 -- Ben + Claude -- CAD downlight artifacts patched; uplight elevation is (possibly) intentional
 
 Ben inspected the CAD top-down and decomposed the 78 downlights: outer ring

@@ -3,11 +3,18 @@
 Pairwise contract (the interface a future firmware neighbor-table dump must emit;
 one row per direction per aggregation window):
 
-    {"ts_utc": "...", "tx": "9E5AF0", "rx": "9F2690", "rssi_dbm": -61, "n": 12}
+    {"ts_utc": "...", "tx": "9E5AF0", "rx": "9F2690", "rssi_dbm": -61,
+     "n": 12, "n_expected": 50, "censored": false}
 
-Each row is treated as ONE aggregated sample (the window's representative value);
-per-link aggregation medians across windows. Roster JSON carries device identity,
-role, and any ToF-derived height:
+rssi_dbm is the window's CENSORING-CORRECTED median: packets below the receiver
+floor are never received, so the plain survivor median is biased high (pairs look
+closer than they are -- measured to warp the whole map). Since the sender beacons
+at a fixed rate, the expected count is known and the true median is the
+(n_expected/2)-th largest received sample; when the median rank itself was lost,
+censored=true and rssi_dbm is only an upper bound (the solver treats the link as
+"at least this far"). Emit rows through rows_from_directed() to get this right.
+
+Roster JSON carries device identity, role, and any ToF-derived height:
 
     {"devices": [{"dev_id": "...", "role": "downlight",
                   "z_tof_m": 2.41, "z_sigma_m": 0.01}, ...]}
@@ -20,7 +27,8 @@ rows -- format smoke test only, a star cannot feed a full localization.
 import json
 from typing import Dict, List, Optional, Tuple
 
-from .model import Device, ZAnchor
+from .model import Device, LinkObs, ZAnchor
+from .rssi import _directional_median, merge_pair_directions
 
 
 def write_pairwise(path: str, rows: List[dict]):
@@ -42,7 +50,8 @@ def read_pairwise(path: str) -> List[dict]:
 def pairwise_to_directed(
     rows: List[dict], id_to_idx: Dict[str, int]
 ) -> Dict[Tuple[int, int], List[float]]:
-    """Contract rows -> directed sample dict for rssi.aggregate_directed()."""
+    """Contract rows -> directed sample dict for rssi.aggregate_directed().
+    NOTE: drops censoring flags; prefer rows_to_links() for solving."""
     directed: Dict[Tuple[int, int], List[float]] = {}
     for r in rows:
         tx, rx = r.get("tx"), r.get("rx")
@@ -50,6 +59,46 @@ def pairwise_to_directed(
             continue
         directed.setdefault((id_to_idx[tx], id_to_idx[rx]), []).append(float(r["rssi_dbm"]))
     return directed
+
+
+def rows_from_directed(
+    directed: Dict[Tuple[int, int], List[float]],
+    dev_ids: List[str],
+    expected: int = None,
+    ts_utc: str = "",
+) -> List[dict]:
+    """Directed per-packet samples -> contract rows, one per direction, with the
+    censoring-corrected median (see module docstring)."""
+    rows = []
+    for (tx, rx), samples in sorted(directed.items()):
+        if not samples:
+            continue
+        med, cen = _directional_median(samples, expected)
+        rows.append({
+            "ts_utc": ts_utc, "tx": dev_ids[tx], "rx": dev_ids[rx],
+            "rssi_dbm": round(med, 2), "n": len(samples),
+            "n_expected": expected, "censored": cen,
+        })
+    return rows
+
+
+def rows_to_links(rows: List[dict], id_to_idx: Dict[str, int]) -> List[LinkObs]:
+    """Contract rows -> symmetrized LinkObs, honoring per-row censored flags.
+    Each row is one directional aggregation window."""
+    pair_dirs: Dict[Tuple[int, int], dict] = {}
+    for r in rows:
+        tx, rx = r.get("tx"), r.get("rx")
+        if tx not in id_to_idx or rx not in id_to_idx:
+            continue
+        i, j = id_to_idx[tx], id_to_idx[rx]
+        if i == j:
+            continue
+        key = (min(i, j), max(i, j))
+        d = pair_dirs.setdefault(key, {})
+        d.setdefault("medians", []).append(
+            (float(r["rssi_dbm"]), bool(r.get("censored", False))))
+        d["n"] = d.get("n", 0) + int(r.get("n", 1))
+    return merge_pair_directions(pair_dirs)
 
 
 def write_roster(path: str, devices: List[Device], anchors: List[ZAnchor]):
