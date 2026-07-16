@@ -68,8 +68,8 @@ downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
           (DECIDED by A/B, 0029)      bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
-        Noisemaker (OPEN): STEMMA speaker synth vs solenoid
-        bamboo-strike -- candidates benched, none selected (LOG 2026-07-07)
+        Noisemaker (DECIDED, ADR 0030): solenoid mallet strikes
+        the bamboo -- daytime solar-surplus percussion (speaker path abandoned)
 ```
 
 The 2026 production path is **COTS PowerFeather V2** (ADR 0024); the
@@ -231,9 +231,9 @@ point-source RGBW fixtures, then panel size by role.
   (ADR 0027 open items).
 - Uplight wing: mechanical design (hinge + panel mount on the boot), panel choice
   (likely P105 5 W), and the low-brightness budget (NC prebuild experiments).
-- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth vs relay
-  clicks (all still live, even simple beeps; wider crowd input at the 2026-07-09
-  camp meeting).
+- (RESOLVED 2026-07-15, ADR 0030) Noisemaker -> solenoid bamboo-strike; speaker
+  abandoned. Remaining: 3 V vs 5 V variant, strike power source (VDC-tap sweep),
+  mallet mounting, per-class scope, daytime gating policy.
 - MPPT policy: fixed setpoint, temperature-compensated setpoint, or software P&O.
 - Mock-hat RF with real panel/battery placement.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.

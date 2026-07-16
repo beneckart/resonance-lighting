@@ -372,7 +372,7 @@
     <li class="win"><span class="d">JUL 11</span><span class="t"><strong>LED wiring decided by measurement:</strong> an instrumented A/B with production-realistic cabling inverted the earlier fat-wire result -- the simple rail feed wins on every color (+2.5% mean), so both LED types share one harness, one pinout, and a built-in hard kill switch.</span></li>
     <li class="win"><span class="d">JUL 12</span><span class="t"><strong>Big uplight cell verified:</strong> the 20 Ah candidate delivered 19,412 mAh (97% of label) -- enough for 6 h/night across the whole burn week with no solar. Second sample confirms before the bulk buy.</span></li>
     <li class="win"><span class="d">JUL 12-13</span><span class="t"><strong>Hats + harness bought:</strong> 172 Polycase enclosure bodies (two sizes, two with transparent show-and-tell lids) and a deliberate abundance of pre-crimped harness cable in many lengths across multiple vendors, so at least some orders land early.</span></li>
-    <li class="win"><span class="d">JUL 15</span><span class="t"><strong>Uplight power lands:</strong> the 20 Ah cell verified honest but couldn't be sourced in time, so uplights get a hinged solar wing on the boot + the standard cell -- decision closed, wing design starts.</span></li>
+    <li class="win"><span class="d">JUL 15</span><span class="t"><strong>Two decisions land:</strong> uplights get a hinged solar wing on the boot + the standard cell (the verified 20 Ah cell couldn't be sourced in time), and the <strong>noisemaker verdict arrives</strong> -- the solenoid mallet strikes the bamboo so well the speaker path is abandoned.</span></li>
   </ul>
 
   <div class="note"><strong>Also measured:</strong> deep-sleep draw is under a milliamp (a fixture asleep all day costs almost nothing); the LED holds full, flicker-free brightness down to 2.70 V -- 99% of the battery's usable energy is already delivered before anything misbehaves.</div>
@@ -574,7 +574,7 @@
   <h2>Sensing people and wind (and maybe making sound)</h2>
   <p>Most fixtures carry a tiny accelerometer (sway and motion energy -- the tree's own movement becomes an input) and a small depth sensor: downward on the hanging downlights to notice someone standing beneath, outward on the perimeter lights to catch passers-by. Chosen specifically because they need <em>zero per-unit calibration</em> -- a hard requirement at 150 units. With bench units included we hold 150 of each.</p>
   <p>This is art, not security: ~80% detection is a complete success. The product is the choreography -- a lantern noticing you and the reaction rippling outward through the mesh to its neighbors. A working demo already exists: a swaying fixture drives its LED color from the fused motion + depth signal (bench-validated July 6, including the subtle geometry of a lantern that spins while it swings).</p>
-  <p><strong>Noisemakers: hardware secured, verdict still open.</strong> <span class="chip open">Open</span> Candidates benched: relay clickers (a lovely mechanical tick), simple beeps, buzzers, a small speaker running a custom "organic percussion" synth (bamboo knocks, chimes, water drips -- proven clean on hardware), and the one Ben leans toward: a tiny solenoid mallet that knocks the bamboo itself, making the lantern the instrument. The mallet's first bench run (July 10) fired <strong>815 strikes without a single hiccup</strong>, and fleet-scale parts are already in transit -- 150 solenoids (two voltage variants to compare) and 110 driver boards -- so whichever sound wins, the hardware can ship. Everything stays on the table, including the humble beep, until more ears weigh in. Imagine 150 of anything rippling a sound through the tree.</p>
+  <p><strong>Noisemakers: decided -- the lantern becomes the instrument.</strong> <span class="chip good">Decided</span> After a bake-off spanning relay clickers, buzzers, beeps, and a custom "organic percussion" speaker synth, the winner is the most physical option: a tiny <strong>solenoid mallet that knocks the bamboo itself</strong>. The strikes work so well (815 of them without a hiccup in the first bench run, and a genuinely satisfying knock once a storage capacitor joined the solar feed) that the speaker path was abandoned outright -- no recordings of percussion when you can have percussion. Fleet parts are in transit: 150 solenoids (two voltage variants to compare) + 110 driver boards. The design intent: knocks are a <em>daytime</em> feature, spending surplus solar while the sun makes light pointless -- night belongs to the light show. Imagine 150 of them rippling a knock through the tree. Remaining: voltage pick, strike-power wiring, and mallet mounting.</p>
 </section>
 
 <section>
@@ -664,15 +664,15 @@
     <li><span class="chip risk">Risk</span> The China-transit lines (90 boards, 1,800 cables, 150 solenoids) are all needed by ~Aug 1 -- tracked, and the cable buy is deliberately redundant across vendors.</li>
     <li><span class="chip risk">Risk</span> Sealed-hat thermal in desert sun and antenna behavior inside the finished hat -- both have tests planned, now on the real bought boxes.</li>
     <li><span class="chip risk">Risk</span> The small-enclosure pool caps perimeter + uplights at ~60 against a loose 62-64 sketch -- the allocation flexes at installation (the project lead is flexible on the split).</li>
-    <li><span class="chip open">Open</span> Per-role nightly energy budget; uplight wing design + brightness experiments; chandelier light mix and ownership; noisemaker verdict; rope attachment point.</li>
-    <li><span class="chip good">Retired</span> Battery vendor, panel choice, board architecture and spares, the LED feed (rail, by A/B), the boost converter, the uplight power question, the reboot mystery -- all closed by measurement (or supply chain) this summer.</li>
+    <li><span class="chip open">Open</span> Per-role nightly energy budget; uplight wing design + brightness experiments; chandelier light mix and ownership; solenoid voltage/wiring/mounting; rope attachment point.</li>
+    <li><span class="chip good">Retired</span> Battery vendor, panel choice, board architecture and spares, the LED feed (rail, by A/B), the boost converter, the uplight power question, the noisemaker verdict (solenoid, by ear), the reboot mystery -- all closed by measurement (or supply chain) this summer.</li>
   </ul>
 
   <p class="muted">Everything here is documented in the project repo -- every decision has a dated record, every measurement has a log entry, and the procurement ledger tracks each order. Ask Ben for details on anything.</p>
 </section>
 
 <footer>
-  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-15 (rev 10) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
+  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-15 (rev 11) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
 </footer>
 
 </div>

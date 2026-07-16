@@ -408,12 +408,14 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   strain relief, polarity/keying, and cold-Voc margin. P126 nominal Voc is about 8.59 V;
   measure worst-case cold Voc/tolerance to document margin for the 16 V part.
   Keep the 815-strike-proven 3V3/XH path as fallback (Ben).
-- [~] Evaluate lantern noisemaker options on the Metro bench: `firmware/clacker_demo/`
-  now exposes a BubbyNet dashboard for A0/A1 relay clicking plus 8002A amp/speaker tones on
-  Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
-  draw, decide whether any relay/speaker noisemaker belongs in production, and record the
-  mechanical mounting/power implications if it stays live (Ben).
-- [~] **Candidate A: STEMMA speaker #3885 percussion synth -- BENCH APP LIVE 2026-07-07**
+- [x] ~~Evaluate lantern noisemaker options on the Metro bench~~ -- **CLOSED
+  2026-07-15 (ADR 0030)**: the shootout ended with the solenoid bamboo-strike;
+  relay/speaker options are not pursued. `clacker_demo` stays as bench history (Ben).
+- [x] **Candidate A: STEMMA speaker #3885 percussion synth -- ABANDONED 2026-07-15
+  (ADR 0030): the solenoids strike the bamboo so well the speaker path is dropped.**
+  The percussion synth + `speaker_demo` survive as bench/preview instruments only;
+  the spare-#3885 buy is cancelled; the listen-test/loudness/RC-filter follow-ups
+  below are moot for production. Original item preserved: BENCH APP LIVE 2026-07-07
   (`firmware/speaker_demo/` at `speakerdemo.local`, LOG same date): organic percussion
   (knock/marimba/chime/drip + ripple/grove scenes) instead of the square waves everyone
   hated. Bench unit's trim pot is broken (LOG item 6): solder-bridge the tweezer-found
@@ -427,12 +429,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
   true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
   per-unit probe (Ben).
-- [~] **Gather wider noisemaker opinions at the first big camp-wide meeting
-  2026-07-09** -- relay clicks and even simple beeps stay technically on the table;
-  the earlier square-wave/click reactions were small-n and possibly a failure to
-  imagine 150 rippling through the tree. (Meeting happened 07-09; outcome not yet
-  logged here) (Ben).
-- [~] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
+- [x] ~~Gather wider noisemaker opinions~~ -- **OVERTAKEN 2026-07-15 (ADR 0030)**:
+  the solenoid's physical strikes settled the question on the bench (Ben).
+- [~] **Candidate B -> THE noisemaker (DECIDED 2026-07-15, ADR 0030): MOSFET-driver
+  + push-pull solenoid mallet** (physically striking
   the bamboo -- the authentic knock the synth imitates). **FIRST BENCH DONE
   2026-07-10** (`firmware/solenoid_demo/`, LOG same date): 815 strikes, no resets,
   no failsafes. **FLEET PARTS ORDERED**: 100x MOSFET drivers (Adafruit 07-10, $345;
@@ -447,8 +447,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the original `9E5B0C` failed during header rework and was retired. **JULY 14 RESULT:**
   the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
-  cap now leads; quantify it and complete the qualification list above before the formal
-  candidate/harness verdict. (Ben).
+  cap now leads; quantify it and complete the qualification list above -- the
+  candidate verdict itself is now DECIDED (ADR 0030); what remains is engineering:
+  voltage variant, strike power (VDC + 10,000 uF leads), mounting, scope, daytime
+  gating (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 

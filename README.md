@@ -52,8 +52,10 @@ PowerFeather V2 won.
 
 **Sensors** (ADR 0027): every downlight carries an MSA311 accelerometer + downward
 TMF8820-mini multizone ToF; perimeter lights carry an outward VL53L5CX. Fused IMUs
-were rejected (per-device calibration doesn't scale to 150 units). A **noisemaker**
-axis is in exploration (speaker synth vs solenoid bamboo-strike -- open).
+were rejected (per-device calibration doesn't scale to 150 units). The **noisemaker**
+is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
+solar-surplus percussion; the speaker-synth path was abandoned once the strikes
+proved out.
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
@@ -127,6 +129,7 @@ Remaining gates before Nevada City assembly (~Aug 1): the bottom-up nightly ener
 budget by role, the uplight wing design (power decision resolved 2026-07-15: hinged
 solar wing + 6 Ah; the 20 Ah option died on sourcing), hat thermal/RF proof on the
 Polycase boxes, the ADR 0023 state machine into production firmware, and the
-noisemaker verdict. Treat LFP SOC as advisory until the gauge learns; use
+noisemaker sub-decisions (solenoid selected 2026-07-15 -- ADR 0030; voltage
+variant, strike power, and mounting remain). Treat LFP SOC as advisory until the gauge learns; use
 coulomb counting and voltage/current guardrails. See `LOG.md` and `TODO.md` for the
 live state.

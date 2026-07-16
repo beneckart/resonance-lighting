@@ -67,7 +67,7 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - FreeRTOS task architecture, not Arduino loop() (ADR 0005; constrained by ADR 0028 -- no power-management I2C from core-0 tasks under WiFi).
 - ~~Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006)~~ -- superseded by ADR 0012; resolved to COTS production by ADR 0024.
 - Electronics in a separable hat on top of the bamboo lantern, not crammed inside (ADR 0007).
-- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; VBAT-direct measured BETTER for the 4 W RGBW's fringed white, but production adoption is still open (ADR 0029).
+- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; the VBAT-direct idea won the fat-wire bench but LOST the production-cabling A/B -- both LED roles ship rail-fed (ADR 0029 + 2026-07-11 amendment).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 - Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
@@ -77,6 +77,7 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027).
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
 - LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
+- Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
@@ -88,7 +89,7 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   honest but died on sourcing/timeline (ADR 0025/0026 annotations).
 - Chandelier light electronics scope/ownership (16 shafts, internals fungible with
   the fleet -- ADR 0024) and its HEX/RGBW mix.
-- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth.
+- ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
 - Bottom-up nightly energy budget by role; MPPT policy.
 - Retired 2026-07-08: `INV_2026_00401` cost decomposition (invoice identity unclear
   -- probably the Bamboo Pure lantern invoice; no longer a useful baseline now that

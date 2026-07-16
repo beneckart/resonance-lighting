@@ -12,6 +12,23 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-15 (cont.) -- Ben + Claude -- NOISEMAKER DECIDED: solenoid bamboo-strike; #3885 speaker path abandoned (ADR 0030)
+
+**The solenoids strike the bamboo so well that the speaker path is abandoned.**
+ADR 0030 records the verdict: the MOSFET-driven solenoid mallet physically
+knocking the bamboo IS the fleet noisemaker -- real percussion, the lantern as
+the instrument, daytime solar-surplus by design intent (07-12). The #3885
+percussion synth survives only as a bench/preview tool (`speaker_demo`); the
+spare-speaker buy is cancelled; relay clicks and beeps are not pursued.
+
+Remaining engineering (not candidate questions): 3 V vs 5 V variant A/B, strike
+power source (VDC-tap + 10,000 uF cap leads after the 07-14 result), mallet
+mounting vs O(1)-ops, per-class scope, daytime gating policy, and the strike
+current/loudness numbers. Swept: AGENTS Decided/Open lists, SYSTEM diagram +
+gates, README, BOM, ledger (+#3885 spares cancelled), TODO (candidate A closed,
+opinions item overtaken, candidate B promoted), glossary (Solenoid mallet
+entry), team brief rev 11.
+
 ## 2026-07-15 -- Ben + Claude -- Uplight power RESOLVED (hinged solar wing); 20 Ah cancelled; Polycase pinned; enclosure mapping corrected
 
 Ledger + docs reconciliation from Ben's updates:

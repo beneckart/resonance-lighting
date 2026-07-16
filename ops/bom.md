@@ -10,7 +10,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Item | Per fixture | Source / status | Notes |
 |---|---|---|---|
 | PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 at Steve's + 90 ordered 07-09 (in transit) | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
-| 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. Solar-free classes may swap to 20 Ah (OPEN). |
+| 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. One cell per fixture, every class (the 20 Ah alternative was cancelled 07-15). |
 | Battery lead / retention | 1 | XH cabling BOUGHT ~07-12/13 (abundance, multiple lengths) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). Final lengths chosen at integration from the on-hand variety. |
 | LED harness | 1 | XH cabling BOUGHT ~07-12/13 (same abundance; incl. 160x 5-pin Y-splitters) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11): one harness + one pinout for both LED roles. |
 | Waterproof USB-C panel-mount rescue port | 1 | Adafruit, 150 bought 07-10 | Extension cable from the PowerFeather USB-C to a gasketed panel-mount port on EVERY hat -- USB rescue/charging without opening the enclosure; solar-free classes charge through it. |
@@ -23,7 +23,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 
 | Item | Per fixture | Source / status |
 |---|---|---|
-| 4 W RGBW warm white (point source) | 1 | Adafruit, 100 bought |
+| 4 W RGBW warm white (point source) | 1 | from the 150-RGBW pool |
 | Gobo / patterned filter | 1 | Steve print program (in-house + generative bamboo-leaf patterns) |
 | Voltaic P105-class 5 W panel + 3.5x11 mm pigtail | 1 + 1 | Voltaic, 110 panels + 160 pigtails bought |
 | TMF8820-mini ToF, facing downward | 1 | SparkFun, 100 bought (bench-validated on same-family TMF8821) |
@@ -64,7 +64,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Part | Needed | Bought | Margin | Flag |
 |---|---|---|---|---|
 | PowerFeather V2 | 150-152 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +6..+8 production | healthy -- spares risk RESOLVED by the 90-board order |
-| 32700 6 Ah | 150-152 (drops to ~112 if 20 Ah takes uplights+chandelier) | 175 | +23..+63 | healthy |
+| 32700 6 Ah | 150-152 (every class) | 175 | +23..+25 | healthy |
 | 4 W RGBW | 96 + chandelier share (up to ~104) | 150 (100 + 50 ordered 07-10) | +46..+54 | healthy -- top-up DONE |
 | SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
 | P105 5 W panel | ~96 (72 downlights + ~24 uplight wings, likely) | 110 | +14 | ok -- wing panel choice to confirm |
@@ -81,9 +81,9 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Enclosure, LARGE | downlights, <=110 deployed (72 planned) | 111 (incl. 1 transparent-lid demo) | +38 at plan | healthy (mapping corrected 07-15: perimeter is SMALL, not large) |
 | Enclosure, SMALL | perimeter + uplight boots, <=60 combined (38-40 + 24 = 62-64 planned!) | 61 (incl. 1 transparent-lid demo) | -3..-1 vs the loose plan | allocation flexes under the <=60 cap (Elliot flexible); watch at installation |
 | ~~20 Ah LFP~~ | 0 | 2 samples (verified honest: 19,412 mAh) | -- | CANCELLED 07-15: sourcing/timeline; uplights go solar-wing + 6 Ah; Alibaba ~$4.50/cell = 2027 lead |
-| MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | candidate B hardware secured |
-| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | voltage A/B pending; strike-power + wiring residuals in to-buy |
-| Other noisemaker parts | -- | 1x #3885 (damaged pot) + bench relays | -- | speaker/relay/beep options still live; verdict open |
+| MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | THE noisemaker (ADR 0030) |
+| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | selected 07-15 (ADR 0030); voltage A/B + strike-power + mounting remain |
+| ~~Other noisemaker parts~~ | -- | 1x #3885 (damaged pot) + bench relays | -- | DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike wins; speaker path abandoned (spares cancelled); relays/beeps not pursued |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
 with the bench/sample units already on hand the total is **150 depth sensors** --
@@ -93,8 +93,9 @@ parity with the 150 accelerometers.
 
 Remaining: uplight wing hardware (hinges + panel mount; Steve designs); solenoid
 strike-power + wiring residuals (storage caps vs battery/VS, driver control
-cables, mallet mounting -- 5-pin XH Y-splitters now on hand); spare #3885
-speakers. CANCELLED 07-15: the 20 Ah cells + end-caps (sourcing/timeline). DONE
+cables, mallet mounting -- 5-pin XH Y-splitters now on hand). CANCELLED 07-15:
+the 20 Ah cells + end-caps (sourcing/timeline) and the spare #3885 speakers
+(speaker path abandoned -- ADR 0030). DONE
 since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150 solenoids
 (07-10), 150 USB-C rescue ports + 50 RGBW (07-10), 125 Grove breakouts (06-18 +
 07-10), XH cabling abundance + 172 Polycase enclosures (07-13).
@@ -116,7 +117,7 @@ since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150 solenoids
   harness + one pinout for both LED roles; the rail is the fail-safe kill.
 - Harness/connector part numbers (JST-XH family).
 - Solenoid strike-power source (VDC-tap + storage cap vs battery/VS pin) and
-  noisemaker scope per class -- drives the residual wiring buy.
+  noisemaker (solenoid, ADR 0030) scope per class -- drives the residual wiring buy.
 - Spares policy per part once deploy counts firm up at installation -- note the
   LARGE enclosure line has effectively zero spares (111 vs 110-112 needed).
 - Enclosure vendor/part details to record in the ledger (TBC); mechanical

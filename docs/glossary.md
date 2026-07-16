@@ -112,6 +112,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **MSA311** -- Adafruit STEMMA 3-axis accelerometer; per-fixture sway/tilt sensing, no per-unit calibration (ADR 0027).
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo).
+- **Solenoid mallet** -- The fleet noisemaker (decided 2026-07-15, ADR 0030): a MOSFET-driven push-pull solenoid physically knocks the bamboo -- daytime solar-surplus percussion; night belongs to the light show. 150 bought (3 V / 5 V A/B pending); the #3885 speaker-synth path was abandoned.
 - **STEMMA-QT / Qwiic** -- JST-SH 4-pin I2C connector standard used by the sensor boards.
 - **Grove / HY2.0** -- M5Stack's physical connector family (carries GPIO data for the HEX, not I2C).
 - **JST-XH** -- Keyed wire-to-board connector family planned for battery/LED harnesses (right-angle headers + pre-crimped cables in the to-buy queue).
