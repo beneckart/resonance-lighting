@@ -266,7 +266,7 @@
       <ol class="figkey">
         <li><span class="k">1</span><span><strong>72 hanging downlights</strong> at 7&ndash;10 ft: warm point-source LED, pattern gobo, solar hat, downward people-sensor.</span></li>
         <li><span class="k">2</span><span><strong>38&ndash;40 perimeter lights</strong> on ~5 ft shepherd hooks: hex LED, outward people-sensor, small solar panel.</span></li>
-        <li><span class="k">3</span><span><strong>24 uplights</strong> on simple bamboo cylinders lighting the structure; possibly solar-free (big battery + USB-C).</span></li>
+        <li><span class="k">3</span><span><strong>24 uplights</strong> on simple bamboo cylinders lighting the structure; a hinged solar "wing" on the base catches partial sun, and they run a gentle low-brightness budget.</span></li>
         <li><span class="k">4</span><span><strong>16 chandelier lights</strong> in the central cluster's bamboo shafts: mixed LEDs, likely battery + USB-C charged, housed in a carpenter-built box.</span></li>
       </ol>
     </div>
@@ -279,7 +279,7 @@
 <section>
   <p class="eyebrow">02 &middot; Anatomy</p>
   <h2>What one fixture is</h2>
-  <p>The archetype is the hanging downlight: a bamboo lantern body (made by Bamboo Pure in Bali) wearing a sealed "solar hat" that holds the whole machine, dust-tight. The hat bodies are commercial enclosures bought at fleet scale (172 of them, in two sizes); Steve owns turning boxes into hats -- panel mounts, the bamboo clamp, the gasketed USB-C port, sensor windows, and gobo positioning. The 16 chandelier lights skip the hat entirely: a carpenter on the team builds their shared housing.</p>
+  <p>The archetype is the hanging downlight: a bamboo lantern body (made by Bamboo Pure in Bali) wearing a sealed "solar hat" that holds the whole machine, dust-tight. The hat bodies are commercial Polycase enclosures bought at fleet scale (172 of them, in two sizes -- including one of each with a <em>transparent lid</em>, show-and-tell demo units for explaining the machine to visitors at the piece); Steve owns turning boxes into hats -- panel mounts, the bamboo clamp, the gasketed USB-C port, sensor windows, and gobo positioning. The 16 chandelier lights skip the hat entirely: a carpenter on the team builds their shared housing.</p>
 
   <figure>
     <div class="figbox">
@@ -345,7 +345,7 @@
         <li><span class="k">8</span><span><strong>Mandala shadow</strong> cast on the ground from the 7-10 ft hang -- tested crisp out to 15 ft; the sweet spot gets field-tuned.</span></li>
       </ol>
     </div>
-    <figcaption>Downlight cutaway. Perimeter lights swap in a 37-LED hex array and aim the people-sensor outward. Uplights and chandelier lights drop the gobo, and may skip solar entirely in favor of a big cell topped up over USB-C -- that decision is being bench-tested now.</figcaption>
+    <figcaption>Downlight cutaway. Perimeter lights swap in a 37-LED hex array and aim the people-sensor outward. Uplights and chandelier lights drop the gobo; uplights carry a hinged solar wing on their base "boot", and chandelier lights live in the carpenter-built box with USB-C top-ups.</figcaption>
   </figure>
 
   <p class="small muted">Gobo patterns: the community-submission program was pulled for time. The plan now is a set of in-house designs plus generative patterns derived from the leaves of the actual bamboo species used in the tree -- so the light the tree casts is, literally, its own foliage.</p>
@@ -371,7 +371,8 @@
     <li class="win"><span class="d">JUL 10</span><span class="t"><strong>Solenoid mallet first bench:</strong> 815 bamboo strikes, zero resets. Fleet hardware ordered the same day (100 drivers + 150 solenoids).</span></li>
     <li class="win"><span class="d">JUL 11</span><span class="t"><strong>LED wiring decided by measurement:</strong> an instrumented A/B with production-realistic cabling inverted the earlier fat-wire result -- the simple rail feed wins on every color (+2.5% mean), so both LED types share one harness, one pinout, and a built-in hard kill switch.</span></li>
     <li class="win"><span class="d">JUL 12</span><span class="t"><strong>Big uplight cell verified:</strong> the 20 Ah candidate delivered 19,412 mAh (97% of label) -- enough for 6 h/night across the whole burn week with no solar. Second sample confirms before the bulk buy.</span></li>
-    <li class="win"><span class="d">JUL 12-13</span><span class="t"><strong>Hats + harness bought:</strong> 172 enclosure bodies (two sizes) and a deliberate abundance of pre-crimped harness cable in many lengths across multiple vendors, so at least some orders land early.</span></li>
+    <li class="win"><span class="d">JUL 12-13</span><span class="t"><strong>Hats + harness bought:</strong> 172 Polycase enclosure bodies (two sizes, two with transparent show-and-tell lids) and a deliberate abundance of pre-crimped harness cable in many lengths across multiple vendors, so at least some orders land early.</span></li>
+    <li class="win"><span class="d">JUL 15</span><span class="t"><strong>Uplight power lands:</strong> the 20 Ah cell verified honest but couldn't be sourced in time, so uplights get a hinged solar wing on the boot + the standard cell -- decision closed, wing design starts.</span></li>
   </ul>
 
   <div class="note"><strong>Also measured:</strong> deep-sleep draw is under a milliamp (a fixture asleep all day costs almost nothing); the LED holds full, flicker-free brightness down to 2.70 V -- 99% of the battery's usable energy is already delivered before anything misbehaves.</div>
@@ -552,7 +553,8 @@
     <li><strong>Overnight survival is cheap.</strong> Sleeping through the night with hourly check-ins costs ~50 mAh -- about 1% of the cell.</li>
     <li><strong>Solar has one trap, and it's guarded.</strong> Connecting a panel in bright sun can latch the charger off until the input is physically removed. A small firmware guard now detects and clears that state automatically; it ships in every charging build.</li>
     <li><strong>LED wiring: settled by measurement.</strong> <span class="chip good">Decided</span> Both LED types run off the board's switchable 3.3 V rail -- which doubles as a rock-solid hard kill switch. A battery-direct feed looked +33% brighter in early fat-wire tests, but a July 11 instrumented A/B through <em>production-realistic</em> cabling inverted that: the rail wins on every color (+2.5% mean). Simpler AND brighter -- one harness, one pinout. (The boost converter was measured thoroughly and shelved too.)</li>
-    <li><strong>Still open:</strong> the per-role nightly energy budget, and the uplight/chandelier power choice -- dedicated panel vs a big 20 Ah cell that lasts the whole week without sun. That cell passed its first verification July 12 (19,412 mAh, 97% of label); a second sample confirms before the bulk buy. <span class="chip open">Open</span></li>
+    <li><strong>Uplight power: resolved by supply chain.</strong> <span class="chip good">Decided</span> The big 20 Ah cell passed its verification (19,412 mAh, 97% of label, July 12) -- and then lost anyway: not enough cells sourceable in time (the cheap overseas alternative needed ocean freight). So uplights get a <strong>hinged solar "wing"</strong> on the boot catching partial sun, the standard cell, and a low-brightness budget tuned by experiments at the Nevada City prebuild. The big-cell idea is parked for 2027.</li>
+    <li><strong>Still open:</strong> the per-role nightly energy budget and the wing's exact panel + brightness level. <span class="chip open">Open</span></li>
   </ul>
 </section>
 
@@ -587,7 +589,7 @@
     <div class="tile"><div class="n">260</div><div class="l">LED modules (150 warm point-source + 110 hex-class) -- healthy spares at any mix</div></div>
     <div class="tile"><div class="n">300</div><div class="l">sensors (150 accel + 150 depth, incl. bench units) + 60 dust covers</div></div>
     <div class="tile"><div class="n">260</div><div class="l">noisemaker parts (110 MOSFET drivers + 150 solenoids, 3 V/5 V split)</div></div>
-    <div class="tile"><div class="n">172</div><div class="l">enclosures (111 large for downlights + perimeter, 61 small for uplight boots) + screws</div></div>
+    <div class="tile"><div class="n">172</div><div class="l">Polycase enclosures (111 large: downlights; 61 small: perimeter + uplight boots) + screws</div></div>
     <div class="tile"><div class="n">2,100+</div><div class="l">pre-crimped harness cables + 160 splitters, many lengths on purpose</div></div>
   </div>
 
@@ -636,7 +638,7 @@
     </div>
   </div>
 
-  <p>Still to buy: the 20 Ah cells + their end-cap connection hardware (one sample verified July 12; the second sample confirms before the bulk buy) and the solenoid strike-power odds and ends. Nearly every part line has healthy spares; the one tight line is now the <strong>large enclosures (111 bought vs 110-112 needed -- effectively zero spares)</strong>, being confirmed at receipt. And every fixture gets a <strong>waterproof panel-mount USB-C rescue port</strong> (150 bought), so any lantern can be rescued or charged without opening its hat.</p>
+  <p>Still to buy: the uplight wing hardware (hinge + panel mount) and the solenoid strike-power odds and ends -- that's it. Every part line now has workable spares, and every fixture gets a <strong>waterproof panel-mount USB-C rescue port</strong> (150 bought), so any lantern can be rescued or charged without opening its hat.</p>
 </section>
 
 <section>
@@ -648,7 +650,7 @@
     <li class="win"><span class="d">JUL 09</span><span class="t"><strong>Camp meeting + board order:</strong> the first big camp-wide gathering, and the second board batch goes in -- grown to 90 boards ($3.5k), retiring the spares worry.</span></li>
     <li class="win"><span class="d">JUL 10</span><span class="t"><strong>Fleet buys round two:</strong> 100 driver boards + 150 solenoids (the mallet's first bench run lands 815 clean strikes the same day), plus 150 waterproof USB-C rescue ports and 50 more point-source LEDs.</span></li>
     <li class="win"><span class="d">JUL 12</span><span class="t"><strong>Container lands</strong> at the Port of Oakland (bamboo tree + finished chandelier structure aboard); the 20 Ah uplight cell verifies at 97% of label.</span></li>
-    <li><span class="d">MID-JUL</span><span class="t"><strong>Everything lands:</strong> the July 7-13 orders arrive (boards, cables, and solenoids in transit from CN -- tracked); enclosure counts confirmed at receipt; the second 20 Ah sample confirms the bulk cell buy.</span></li>
+    <li><span class="d">MID-JUL</span><span class="t"><strong>Everything lands:</strong> the July 7-13 orders arrive (boards, cables, and solenoids in transit from CN -- tracked); enclosure counts confirmed at receipt; the uplight wing gets designed.</span></li>
     <li><span class="d">JUL 20-31</span><span class="t"><strong>TN fleet test (tentative):</strong> Ben spends a week in Tennessee with Steve fleet-testing the ~70 boards there -- production firmware, mesh lighting effects, presence detection, indoors if enclosures aren't ready. The first time the system runs at real scale.</span></li>
     <li><span class="d">JUL 31</span><span class="t"><strong>Prebuild opens:</strong> Nevada City staging at Bodhi Hive (through Aug 19).</span></li>
     <li><span class="d">AUG 1-2</span><span class="t"><strong>Container unload</strong> -- all hands, Nevada City.</span></li>
@@ -661,16 +663,16 @@
   <ul>
     <li><span class="chip risk">Risk</span> The China-transit lines (90 boards, 1,800 cables, 150 solenoids) are all needed by ~Aug 1 -- tracked, and the cable buy is deliberately redundant across vendors.</li>
     <li><span class="chip risk">Risk</span> Sealed-hat thermal in desert sun and antenna behavior inside the finished hat -- both have tests planned, now on the real bought boxes.</li>
-    <li><span class="chip risk">Risk</span> Large enclosures have effectively zero spares (111 vs 110-112 needed) -- counts confirmed at receipt; a top-up or trimming to 38 perimeter covers it.</li>
-    <li><span class="chip open">Open</span> Per-role nightly energy budget; uplight/chandelier power source (second 20 Ah sample confirms); chandelier light mix and ownership; noisemaker verdict; rope attachment point.</li>
-    <li><span class="chip good">Retired</span> Battery vendor, panel choice, board architecture and spares, the LED feed (rail, by A/B), the boost converter, the reboot mystery -- all closed by measurement this summer.</li>
+    <li><span class="chip risk">Risk</span> The small-enclosure pool caps perimeter + uplights at ~60 against a loose 62-64 sketch -- the allocation flexes at installation (the project lead is flexible on the split).</li>
+    <li><span class="chip open">Open</span> Per-role nightly energy budget; uplight wing design + brightness experiments; chandelier light mix and ownership; noisemaker verdict; rope attachment point.</li>
+    <li><span class="chip good">Retired</span> Battery vendor, panel choice, board architecture and spares, the LED feed (rail, by A/B), the boost converter, the uplight power question, the reboot mystery -- all closed by measurement (or supply chain) this summer.</li>
   </ul>
 
   <p class="muted">Everything here is documented in the project repo -- every decision has a dated record, every measurement has a log entry, and the procurement ledger tracks each order. Ask Ben for details on anything.</p>
 </section>
 
 <footer>
-  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-13 (rev 9) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
+  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-15 (rev 10) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
 </footer>
 
 </div>

@@ -22,17 +22,20 @@ integration and hardening, not architecture:
 
 1. **Energy sizing:** close role-specific nightly load vs measured harvest-at-MPP
    (panels measured 2026-06-29; budget-by-role still open).
-2. **Uplight/chandelier power:** off-light panel vs solar-free 20 Ah vs budgeted 6 Ah
-   -- bench test on the 20 Ah samples gates the batteryspace buy (ADRs 0025/0026).
+2. **Uplight wing:** power decision RESOLVED 2026-07-15 (hinged solar wing on the
+   boot, likely P105 5 W, + 6 Ah at a low-brightness budget; 20 Ah cancelled on
+   sourcing). Remaining: wing mechanical design (Steve) + NC prebuild brightness
+   experiments.
 3. **Hat proof:** fit, antenna keep-out, panel retention, thermal behavior, rope/hybrid
    tie; new uplight/chandelier enclosure variants (battery-in-cylinder, USB-C port).
 4. **Firmware productization:** ADR 0023 low-battery state machine, production OTA
-   health/rollback, watchdog, telemetry schema, sensor + choreography integration,
-   and the RGBW feed decision (rail vs VBAT -- forks harness + pinout, ADR 0029).
+   health/rollback, watchdog, telemetry schema, sensor + choreography integration
+   (the RGBW feed was decided onto the rail 2026-07-11 -- ADR 0029 amendment).
 5. **Procurement completion:** effectively done as of ~07-13 -- boards, cabling
    abundance, 172 COTS enclosures, USB-C ports, RGBW top-up all ordered. Remaining:
-   conditional 20 Ah cells + end-caps (sample 2 gates) and solenoid strike-power
-   residuals. Watch the CN-transit lines (90 boards, AliExpress cables/solenoids).
+   uplight wing hardware and solenoid strike-power residuals (the 20 Ah buy was
+   CANCELLED 07-15). Watch the CN-transit lines (90 boards, AliExpress
+   cables/solenoids).
 6. **Assembly at 150-unit scale:** smoke-test rig, acceptance checklist, low
    per-fixture operations (ADR 0009).
 
@@ -106,8 +109,9 @@ Open deliverables:
   SYSTEM.md fleet table; counts tentative until installation.)
 - [ ] Validate mock-hat RF with panel and battery installed.
 - [ ] Run sealed-hat thermal test with charger and LEDs operating.
-- [ ] Bench-test the 20 Ah solar-free option on the two samples (gates the
-  batteryspace #6832 buy for uplights/chandelier).
+- [x] Bench-test the 20 Ah solar-free option. (Sample 1 verified honest 2026-07-12:
+  19,412 mAh, 97.1 % of label -- but the buy was CANCELLED 2026-07-15 on
+  sourcing/timeline; uplights go hinged-solar-wing + 6 Ah instead.)
 
 ## Phase 1b - Presence Sensing / Interactivity (active workstream)
 
@@ -228,7 +232,7 @@ Deliverables:
 
 - [x] Board/module procurement: 68 boards received-class + 90 ordered 2026-07-09
   ($3,494.24, Elecrow) = 158 total. Spares healthy (+6..+8 production, ~8 bench).
-- [x] Battery procurement: 175x 32700 6 Ah bought (ADR 0025); 20 Ah decision open.
+- [x] Battery procurement: 175x 32700 6 Ah bought (ADR 0025); 20 Ah cancelled 07-15 (wing instead).
 - [x] Solar panel procurement, role-specific: 110x P105 + 50x P126 + 160 pigtails
   (ADR 0026).
 - [x] LED module procurement: 100x RGBW + 110x HEX-class bought (~60 spares).
@@ -300,7 +304,7 @@ Deliverables:
 | Second Elecrow batch (90 boards, ordered 2026-07-09) slips in CN transit past the assembly window | Medium (commitment done; transit residual) | Track receipt in `ops/PROCUREMENT.md`; expected ~mid-late July; escalate with the rep if no tracking by ~07-16. |
 | LARGE enclosure line has ~zero spares (111 bought vs 110-112 hats needed) | Medium | Confirm counts at receipt; a small top-up order or trimming perimeter to 38 covers it; flag any shipping damage immediately. |
 | AliExpress lines (1,800 XH cables, 150 solenoids) slip in transit | Medium | Redundant cable orders already hedge this; track; domestic Keszoox order covers the core 10 cm harness need. |
-| 20 Ah solar-free decision starves uplight/chandelier build time | Medium | Bench test on samples ASAP; fallback is budgeted 6 Ah cells already on hand (175 bought). |
+| Uplight wing design/hardware lags the assembly window | Medium | Wing is simple (hinge + panel on the boot); Steve designs at TN integration; brightness budget tuned at NC -- fallback is dimmer uplights on 6 Ah alone. |
 | Cabling/connector buy (JST-XH, USB-C ports) not yet placed | Medium | Small-dollar, short-lead items -- order once counts firm; tracked in the to-buy queue. |
 | Firmware bug discovered after hanging | High | Standard OTA, A/B rollback, watchdog, USB/pogo recovery, spares. |
 | Hat/rope attachment unresolved | Medium | Hybrid primary-hat plus secondary-bamboo safety tie is current recommendation; align with team. |

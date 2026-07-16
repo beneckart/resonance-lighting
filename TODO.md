@@ -39,8 +39,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   ~2026-07-12/13: 172x COTS enclosures + screws** ($5,306.50; 111 large for
   downlights/perimeter, 61 small for small-panel fit + uplight boots; 22 to TN,
   150 to CA). Record vendor/part details in `ops/PROCUREMENT.md` (TBC) (Ben).
-- [ ] Confirm LARGE enclosure count on receipt -- 111 vs 110-112 needed leaves
-  ~zero spares; decide top-up vs trim-to-38-perimeter (Ben + Steve).
+- [ ] Confirm Polycase counts on receipt (mapping corrected 2026-07-15: LARGE ->
+  downlights only, healthy spares at 72 planned; SMALL -> perimeter + uplight
+  boots, capped at ~60 vs a loose 62-64 sketch -- allocation flexes at
+  installation, Elliot flexible). Set aside the 2 transparent-lid demo units
+  (1 large + 1 small) for show-and-tell (Ben + Steve).
+- [ ] **Design the uplight hinged solar "wing"** (hinge + panel mount on the small
+  Polycase boot; likely carries the P105 5 W): mechanicals + hardware buy; then
+  low-brightness budget experiments at the NC prebuild decide the show level
+  (Steve + Ben).
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
 - [x] ~~Buy Grove breakout(s) for the HEX HY2.0 connector adaptation~~ -- **DONE,
@@ -663,16 +670,23 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   OTA. Firmware needs: unconfigured-beacon state, NVS config schema + epoch, bridge
   assign command. Same machinery doubles as a drift watchdog (node compares live
   neighbor RSSI vs stored expectations, self-reports if moved/fallen) (Ben/Claude).
-- [ ] **Get a refined fixtures.json export from Elliot/Vishnu** -- concrete punch
-  list from the 0.3.1 export (Ben's top-down inspection 2026-07-13): downlight
-  rings should be 24/24/24 but have 2 middle + 4 inner holes, 6 fixtures stacked at
-  duplicate coordinates, 6 strays at the trunk base (interim fix:
-  `ops/locate/patch_cad_0.3.1.py` moves strays into holes; patched file is the
-  tooling default); vertical layout puts downlights near the crown and the unit
-  claim is wrong (`ops/locate` scales the downlight band to 7-10 ft per fleet spec,
-  Ben's call 2026-07-12); CONFIRM whether the elevated uplights (two rings of 12 at
-  mid-height, aiming up the trunk) are intentional -- Ben suspects yes for this
-  design iteration. A refined export re-runs the study in minutes (Ben -> Elliot).
+- [ ] **Design the light placement layout** -- per Elliot (2026-07-15, via Ben):
+  the build-dashboard STRUCTURAL geometry is correct (6.5 m tree, 10 m canopy,
+  24 limbs, 2.7 m waist) but its lighting sketch (~90 lights) is NOT the plan;
+  light number and placement are Ben + Steve's (+ Claude's) creative call, all
+  ~150 fixtures deployed (extras become camp lights off-tree). Design inputs to
+  reconcile in one layout: (1) gobo non-overlap -- at 7 ft hang with the LED
+  dropped 6", ground-pattern diameter ~0.84 m, so downlight spacing >= ~0.85 m
+  (the 10 m canopy makes this feasible; the 0.3.1 CAD's inner ring at ~0.5 m
+  spacing does not); (2) inner ring moves outward anyway (bamboo criss-cross
+  above it shades the panels; better hang points at the bamboo split
+  criss-crosses, per Ben + Steve); (3) mild rotational ASYMMETRY in the perimeter
+  ring helps the auto-localization registration gauge (even spacing is the worst
+  case, see AUTOLOCATE report); (4) hang points must exist on the real limbs --
+  get the structural export/hang-point map from Elliot. Output: our own
+  fixtures.json (schema resonance.fixtures/0.x) that replaces the 0.3.1 patch as
+  ops/locate ground truth and feeds the Lighting-Controller app (Ben + Steve +
+  Claude).
 - [ ] **Plan THREE surveyed "beacon" fixtures into installation** -- record which
   fixture slot 3 distinctive devices occupy (hand note or bridge identify-blink).
   This pins the registration gauge; without it the rotational alignment rests on a
@@ -705,15 +719,13 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   cell only (Ben).
 - [x] ~~Evaluate 26650 LiFePO4~~ -- **SUPERSEDED**: the open big-cell question is now
   the 20 Ah #6832 for solar-free classes, below (Ben).
-- [~] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
-  solar-free uplight/chandelier option** -- **SAMPLE 1 VERIFIED 2026-07-12: 19,412 mAh
-  (97.1% of label), 19,055 above the 3.0 V floor, 360 mAh knee -- supports 6 h/night x
-  7-night solar-free RGBW duty with margin.** Report:
-  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`. Remaining before the
-  ~40-cell buy: (1) qualify **sample 2** (rig assembled; overnight charge + ~27 h
-  discharge); (2) solve the **end-cap connection** (alligator clips were 0.263 ohm and
-  survive only taped -- Steve fixture or proper clamps); (3) optional uplight-profile
-  drawdown (dim mood lighting, week-long budget) (Ben).
+- [x] **Bench-test the 20 Ah LFP samples -- CLOSED 2026-07-15 (option cancelled).**
+  Sample 1 verified honest 2026-07-12 (19,412 mAh, 97.1% of label; report
+  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`), but batteryspace could
+  not supply ~40 cells in time and the Alibaba counterpart (~$4.50/cell bulk!)
+  needs ocean freight that misses 2026. **Uplights go hinged-solar-wing + 6 Ah
+  instead** (ADR 0025/0026 annotations); sample-2 qualification and the end-cap
+  fixture are moot for 2026 -- the Alibaba route is the 2027 lead (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in

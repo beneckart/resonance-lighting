@@ -76,14 +76,16 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027).
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
-- LED electrical drive by role (ADR 0029): HEX on the switchable 3V3 rail (decided); boost shelved with complete numbers (decided); RGBW feed OPEN -- rail-wired today (V+/GND/A0 JST-XH), measured-better VBAT-direct option documented with conversion plan + fail-safe costs.
+- LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- Uplight/chandelier power: off-light panel vs solar-free 20 Ah (bench test on the
-  two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+- ~~Uplight/chandelier power~~ -- RESOLVED 2026-07-15: uplights get a hinged solar
+  "wing" on the boot (likely P105 5 W) + 6 Ah at a low-brightness budget (NC
+  prebuild tunes it); chandelier likely 6 Ah + USB-C. The 20 Ah cell verified
+  honest but died on sourcing/timeline (ADR 0025/0026 annotations).
 - Chandelier light electronics scope/ownership (16 shafts, internals fungible with
   the fleet -- ADR 0024) and its HEX/RGBW mix.
 - Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth.

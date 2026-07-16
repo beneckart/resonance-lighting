@@ -9,9 +9,9 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **Resonance Lighting** -- This repo's scope. The ~150-fixture lighting fleet (four classes; canonical counts in `docs/block-diagram/SYSTEM.md`, ADR 0024).
 - **Downlight** -- Hanging lantern fixture inside the tree (72 planned, 7-10 ft). Bamboo lantern + electronics hat + filter + 4 W RGBW + downward ToF.
 - **Perimeter light** -- HEX fixture on a ~5 ft shepherd hook around the piece (38-40 planned), with an outward-facing ToF to catch passers-by.
-- **Uplight** -- Ground-pointing-up fixture on a simple bamboo cylinder (24 planned). RGBW, no gobo; battery may fill the cylinder; possibly solar-free with a gasketed USB-C charge port in a base "boot".
-- **Chandelier light** -- One of 16 lights in the central chandelier cluster's bamboo shafts. HEX/RGBW mix TBD; likely solar-free like uplights. Scope/ownership still loose (ADR 0024).
-- **Hat** -- The 3D-printed solar/electronics enclosure that mounts on top of each bamboo lantern. Our workstream. Now four variants (downlight, perimeter, uplight "boot", chandelier).
+- **Uplight** -- Ground-pointing-up fixture on a simple bamboo cylinder (24 planned). RGBW, no gobo; small Polycase "boot" at the base with a hinged solar "wing" (likely P105 5 W; decided 2026-07-15), 6 Ah cell, gasketed USB-C port; runs a low-brightness budget tuned at the NC prebuild.
+- **Chandelier light** -- One of 16 lights in the central chandelier cluster's bamboo shafts. HEX/RGBW mix TBD; likely 6 Ah + USB-C top-ups, housed in a carpenter-built box. Scope/ownership still loose (ADR 0024).
+- **Hat** -- The sealed solar/electronics enclosure that mounts on top of each bamboo lantern. Since 2026-07-13 the bodies are bought Polycase boxes (111 large -> downlights; 61 small -> perimeter + uplight boots; 2 transparent-lid demo units); Steve owns the mechanical integration. Chandelier lights use a carpenter-built box instead.
 - **Filter** / **gobo** -- Patterned-aperture insert that sits at the bamboo node notch. Casts mandala shadows on the ground. Two physical forms: flat disc (the likely production default -- simpler and less brittle) and projective cone (prototype; may be used for a few designs or none). Pattern program: in-house + generative bamboo-leaf designs (community submissions pulled 2026-07-08).
 - **Wand** -- A hand-carryable lantern variant (proposed) that participants can take through the piece. Tree fixtures react to its proximity.
 - **Chandelier** -- The larger assembly at the top of the tree, sharing a wind chime cluster with a 0.8 m solar panel. Vishnu's design; structure built and in the shipping container. Its 16 light shafts are tentatively this repo's fleet class (see Chandelier light).
@@ -81,7 +81,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **LiPo** -- Lithium Polymer (Li-ion variant, 4.2 V max charge).
 - **LiFePO4** -- Lithium Iron Phosphate (3.6 V max charge, our chemistry).
 - **MCU** -- Microcontroller Unit.
-- **MJF** -- Multi Jet Fusion (HP's powder-bed-fusion 3D printing process). Our planned production enclosure technology.
+- **MJF** -- Multi Jet Fusion (HP's powder-bed-fusion 3D printing process). Was the planned hat production technology; superseded by the bought Polycase boxes (2026-07-13) -- still an option for gobo/fitting batches.
 - **MPP** / **MPPT** -- Maximum Power Point / MPP Tracking (solar panel optimization).
 - **OPC** -- Open Pixel Control (LED streaming protocol used in Marquee).
 - **OTA** -- Over-the-Air firmware update.
@@ -108,7 +108,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **Voltaic P105 / P126** -- ETFE-laminated solar panels, 5 W / 2 W: P105 for downlights, P126 for perimeter fixtures (ADR 0026). ETFE = the tough fluoropolymer front layer.
 - **SK6812 "HEX"** -- M5Stack 37-LED hexagonal addressable board; the close-range/ambient LED role, fed from the switchable 3V3 rail.
 - **NeoHEX** -- M5Stack WS2812C-2020 hex board; least-efficient fallback (20 on hand).
-- **4 W RGBW** -- Adafruit warm-white 4 W RGBW point-source emitter; the crisp-gobo long-throw role. Fed from the switchable 3V3 rail today; a measured-better VBAT-direct option is open (ADR 0029).
+- **4 W RGBW** -- Adafruit warm-white 4 W RGBW point-source emitter; the crisp-gobo long-throw role. Fed from the switchable 3V3 rail, same as the HEX -- decided by instrumented A/B 2026-07-11 (ADR 0029 amendment).
 - **MSA311** -- Adafruit STEMMA 3-axis accelerometer; per-fixture sway/tilt sensing, no per-unit calibration (ADR 0027).
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo).
@@ -116,7 +116,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **Grove / HY2.0** -- M5Stack's physical connector family (carries GPIO data for the HEX, not I2C).
 - **JST-XH** -- Keyed wire-to-board connector family planned for battery/LED harnesses (right-angle headers + pre-crimped cables in the to-buy queue).
 - **TCA9548A** -- I2C mux used on the presence bench to host same-address sensors.
-- **#6832** -- batteryspace.com product ID for the 20 Ah LFP cylindrical cell, the candidate solar-free supply for uplights/chandelier (2 samples on hand; bench test gates the buy).
+- **#6832** -- batteryspace.com product ID for the 20 Ah LFP cylindrical cell. Verified honest (19,412 mAh, 2026-07-12) but the bulk buy was CANCELLED 2026-07-15 on sourcing/timeline; uplights use a hinged solar wing + 6 Ah instead. The ~$4.50/cell Alibaba equivalent is a 2027 idea.
 
 ## Firmware / bench terms
 

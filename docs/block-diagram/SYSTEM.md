@@ -19,18 +19,19 @@ fungible and fully wireless, so placement is free and the split can shift on-sit
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
-| Hanging downlight (7-10 ft) | 72 | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
+| Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
 | Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel | VL53L5CX (outward); MSA311 likely |
-| Uplight (simple cylinder, no gobo) | 24 | 4 W RGBW | OPEN: off-light 5 W panel vs solar-free 20 Ah LFP vs budgeted 6 Ah | none |
-| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely solar-free, USB-charged | none |
+| Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | none |
+| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
 Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
 to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
 without opening the hat; the solar-free classes also charge through it.
 Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
-and some may stay unpopulated. Spares are thin (~8 boards beyond the 150 buy) -- see
-the ROADMAP risk register and `ops/bom.md` spares math.
+and some may stay unpopulated. Board spares are healthy since the 90-board order
+(158 production + ~8 bench); enclosure pools cap the allocation (large <=110
+downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
 
 ## Current Block Diagram
 
@@ -42,7 +43,7 @@ the ROADMAP risk register and `ops/bom.md` spares math.
                    PowerFeather V2 VDC input
           BQ25628E charger / power path / VINDPM
           - set VBUS_OVP=1 for 6 V-class panels
-          - HIZ-toggle requalification guard needed
+          - HIZ requalification guard (shipped: solar_guard.h)
                               |
                               v
                       LiFePO4 cell
@@ -63,8 +64,8 @@ the ROADMAP risk register and `ops/bom.md` spares math.
         Direct-GPIO LED role          Sensors by class (ADR 0027)
         GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
         - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
-        - 4 W RGBW on 3V3 rail today  VL53L5CX outward (perimeter)
-          (VBAT option OPEN, 0029)    bench-only: thermal/radar/INA
+        - 4 W RGBW on 3V3 rail        VL53L5CX outward (perimeter)
+          (DECIDED by A/B, 0029)      bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
         Noisemaker (OPEN): STEMMA speaker synth vs solenoid
@@ -103,8 +104,9 @@ connectors, and boring USB/pogo recovery.
 - **LED electrical drive:** measured per role (ADR 0029) -- the full rail/VBAT/boost
   matrix exists (VBAT-direct buys +33 % fringed white, 1,746 lux no wall; clean
   W-only unchanged; TPS63802 boost = 2.3x clean-white ceiling at ~25-30 % efficacy
-  tax, shelved). HEX feed decided (3V3 rail); the RGBW production feed is OPEN --
-  rail-wired today, VBAT conversion plan recorded in the ADR.
+  tax, shelved). Both feeds DECIDED on the 3V3 rail: the 2026-07-11 instrumented
+  A/B through production-realistic cabling inverted the fat-wire result -- rail
+  wins +2.5 % mean, 22/25 comparisons (ADR 0029 amendment).
 - **Low-battery lifecycle:** net_bench field-cycle (charge -> wait-dark -> draw ->
   protect) has run multi-day outdoor solar cycles; low-VBAT OTA proven to ~3.10 V
   loaded battery-only, 2.901 V solar-assisted, 2.496 V USB-assisted.
@@ -121,11 +123,11 @@ ADR 0022 records the current LED decision: use a **mixed fleet by optical role**
 - **IS31FL3741 13x9 matrix:** ruled out for the PowerFeather V2 battery build. It browns
   out the board on the shared charger/gauge I2C bus under WiFi; use direct-GPIO LEDs.
 
-Electrical feed per role (ADR 0029): the HEX stays on the regulated switchable 3V3
-rail (decided); the 4.2 V boost is shelved with complete numbers (decided); the
-4 W RGBW currently also runs from the 3V3 rail (V+/GND/A0, right-angle JST-XH) --
-the measured-better VBAT-direct option (+33 % fringed white) is OPEN, with its
-conversion plan and fail-safe costs recorded in the ADR.
+Electrical feed per role (ADR 0029 + 2026-07-11 amendment): BOTH roles on the
+regulated switchable 3V3 rail (V+/GND/A0, right-angle JST-XH) -- one harness, one
+pinout, and the rail is the hard LED kill. The VBAT-direct option was measured
+better only through fat bench wire; through production-realistic cabling the rail
+wins on every color. The 4.2 V boost stays shelved with complete numbers.
 
 Firmware implications:
 
@@ -223,12 +225,12 @@ point-source RGBW fixtures, then panel size by role.
 ## Open Gates
 
 - Bottom-up nightly energy budget by LED role and show duty cycle.
-- Uplight/chandelier power source: off-light panel vs solar-free 20 Ah (bench test on
-  the two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+- (RESOLVED 2026-07-15) Uplight/chandelier power -> hinged solar wing + 6 Ah for
+  uplights; 6 Ah + USB-C for chandelier. Remaining wing items are in the gate above.
 - Sensor allocation confirmation per class + presence choreography firmware
   (ADR 0027 open items).
-- RGBW production feed: 3V3 rail as wired vs VBAT-direct conversion (+33 % fringed
-  white; harness/firmware/fail-safe costs in ADR 0029). Decide before the harness buy.
+- Uplight wing: mechanical design (hinge + panel mount on the boot), panel choice
+  (likely P105 5 W), and the low-brightness budget (NC prebuild experiments).
 - Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth vs relay
   clicks (all still live, even simple beeps; wider crowd input at the 2026-07-09
   camp meeting).

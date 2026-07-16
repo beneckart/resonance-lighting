@@ -12,6 +12,33 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-15 -- Ben + Claude -- Uplight power RESOLVED (hinged solar wing); 20 Ah cancelled; Polycase pinned; enclosure mapping corrected
+
+Ledger + docs reconciliation from Ben's updates:
+
+- **20 Ah is OUT -- and not on the merits.** The cell verified honest (07-12),
+  but batteryspace cannot supply ~40 in time, and the Alibaba counterpart (a
+  bargain at ~$4.50/cell bulk) needs ocean freight that misses 2026. Recorded as
+  a 2027 lead. **Uplights instead get a hinged solar "wing" on the small Polycase
+  boot** -- partial/shaded sun, likely carrying the P105 5 W (fits the panel buy:
+  ~96 of 110 P105s allocated), 6 Ah cell, run mostly at low brightness with the
+  budget tuned by Nevada City prebuild experiments. ADR 0025/0026 annotated;
+  SYSTEM/README/AGENTS/glossary/BOM/ROADMAP/TODO swept. Chandelier stays likely
+  6 Ah + USB-C in its carpenter box.
+- **Enclosure vendor = Polycase; both orders placed 2026-07-13.** Mapping
+  CORRECTED from the 07-13 entry: **large (111) -> downlights ONLY (<=110
+  deployed); small (61) -> perimeter + uplight boots (<=60 combined)**. That
+  retires the "zero large spares" flag (72 downlights planned vs 110 available)
+  and replaces it with a softer one: the small pool caps perimeter + uplights at
+  ~60 vs the loose 62-64 sketch -- allocation flexes at installation, and Elliot
+  is flexible on the split. Two enclosures (1 large + 1 small) have TRANSPARENT
+  LIDS -- show-and-tell demo units for explaining the fixture to visitors.
+- Also propagated the 07-11 rail-fed amendment into the spots that still said
+  "RGBW feed OPEN" (AGENTS Decided list, SYSTEM block diagram + validated list +
+  LED section, firmware/ARCHITECTURE, README, glossary).
+- To-buy queue now: uplight wing hardware, solenoid strike-power residuals,
+  spare #3885s. Team brief updated to rev 10.
+
 ## 2026-07-14 (cont.) -- Ben + Codex -- RGBW dusk turn-on matches the 418 mA ceiling
 
 Checked P105 `9F26F8` after Ben installed the production 4 W RGBW and the autonomous
@@ -261,6 +288,26 @@ solar-surplus premise. Qualification of shipment samples (75x 3 V + 75x 5 V in
 transit, different listing than the proven DS-0420S) still gates everything.
 
 ---
+
+## 2026-07-15 (cont.) -- Ben + Claude -- Elliot confirms structure geometry; light placement is OURS to design
+
+From the build dashboard (resonancenetwork.org/camp/build) + Elliot's
+clarification via Ben: STRUCTURAL numbers are correct and supersede
+BACKGROUND's early spec -- 6.5 m tree (was ~7.5), 10 m canopy, 24 limbs
+(was 30), 2.7 m waist, 48x14 m grid shell, 9-day build in 3 shifts, Windelier
+(55 chimes) Day 7. The dashboard's ~90-light sketch is NOT the lighting plan:
+fixture count and placement are Ben + Steve's (+ Claude's) creative call;
+all ~150 fixtures deploy, extras become off-tree "camp lights" (which also
+double as the hot-spares pool for the 30-second swap flow). Consequences:
+(1) the 10 m canopy stretches downlight ground spacing ~1.3x vs the 0.3.1
+CAD, which combined with a deep (6") LED drop makes 7 ft hangs workable for
+gobo non-overlap on the outer rings -- the inner ring still needs to move
+outward, which Ben + Steve already planned for solar-shading reasons (bamboo
+criss-cross overhead); (2) the next fixtures.json is authored by this
+workstream (layout design TODO added: gobo spacing >= ~0.85 m, shading,
+mild perimeter asymmetry for the registration gauge, real hang points from
+the structural export); (3) localization conclusions are scale-invariant to
+the wider canopy (spacing and position error scale together).
 
 ## 2026-07-15 -- Ben + Claude -- Auto-localization: sensor complement = class ID; uplight/chandelier ambiguity measured free
 

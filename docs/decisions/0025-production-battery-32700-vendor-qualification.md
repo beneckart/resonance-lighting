@@ -4,8 +4,13 @@
 shootout verdict, and the resulting purchases)
 **Status:** Accepted. Supersedes the 18650-default format guidance of ADR 0017 (its
 one-larger-cell-per-fixture principle stands) and the sizing specifics of ADR 0002
-(its LiFePO4 chemistry decision stands). One sub-decision remains OPEN: the 20 Ah
-solar-free option for uplights/chandelier (shared with ADR 0026).
+(its LiFePO4 chemistry decision stands). ~~One sub-decision remains OPEN: the 20 Ah
+solar-free option for uplights/chandelier (shared with ADR 0026).~~
+Annotation 2026-07-15: the 20 Ah sub-decision is CLOSED -- the sample verified
+honest (19,412 mAh, 97.1 % of label, 2026-07-12) but batteryspace could not supply
+quantity in time and the Alibaba counterpart (~$4.50/cell bulk) needs ocean freight
+that misses 2026. Uplights get a hinged solar "wing" on the boot + the standard
+6 Ah cell (low-brightness budget); the 20 Ah + Alibaba route is a 2027 idea.
 **Owners:** Ben + Claude
 
 ## Context
