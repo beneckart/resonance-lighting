@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resonance Tree — Solar Panel Performance Report</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --ring: rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --series-2: #008300;
+    --night: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #008300;
+      --night: #232322;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--page); color: var(--ink-1);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 28px 24px 60px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; font-weight: 650; margin: 36px 0 4px; }
+  .sub { color: var(--ink-2); margin-top: 4px; }
+  .note { color: var(--ink-2); font-size: 12.5px; margin: 4px 0 12px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px; }
+  .tile .v { font-size: 26px; font-weight: 650; letter-spacing: -0.01em; }
+  .tile .l { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 18px; margin-top: 10px; overflow-x: auto; }
+  /* heatmap */
+  .hm { display: grid; grid-template-columns: 118px 1fr; row-gap: 3px; min-width: 760px; }
+  .hm .rl { font-size: 12px; color: var(--ink-2); align-self: center; white-space: nowrap; padding-right: 10px; }
+  .hm .row { display: grid; grid-template-columns: repeat(56, 1fr); gap: 1px; }
+  .hm .c { aspect-ratio: 1 / 1.35; border-radius: 2px; min-width: 6px; }
+  .hm .c:hover { outline: 2px solid var(--ink-1); outline-offset: -1px; }
+  .axis { display: grid; grid-template-columns: 118px 1fr; margin-top: 6px; min-width: 760px; }
+  .axis .t { display: grid; grid-template-columns: repeat(56, 1fr); color: var(--muted); font-size: 11px; }
+  .axis .t span { grid-column: span 8; }
+  .lg { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--ink-2); font-size: 12px; flex-wrap: wrap; }
+  .lg .sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  /* bars */
+  .bars { min-width: 700px; }
+  .brow { display: grid; grid-template-columns: 118px 1fr 130px; align-items: center; gap: 10px; margin: 5px 0; }
+  .brow .bl { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .btrack { position: relative; height: 16px; background: transparent; border-left: 1px solid var(--baseline); }
+  .bfill { position: absolute; top: 2px; bottom: 2px; left: 0; background: var(--series-1); border-radius: 0 4px 4px 0; }
+  .btick { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--series-2); border-radius: 2px; }
+  .bval { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .bval b { color: var(--ink-1); font-weight: 650; }
+  /* table */
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 900px; }
+  th { text-align: left; color: var(--ink-2); font-weight: 600; border-bottom: 1px solid var(--baseline); padding: 6px 10px 6px 0; white-space: nowrap; }
+  td { border-bottom: 1px solid var(--grid); padding: 6px 10px 6px 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.name { font-weight: 650; }
+  .reco { color: var(--series-2); font-weight: 650; }
+  .warn { color: var(--ink-2); font-size: 12.5px; }
+  #tip { position: fixed; pointer-events: none; background: var(--ink-1); color: var(--page);
+    font-size: 12px; padding: 5px 9px; border-radius: 6px; display: none; z-index: 9; white-space: nowrap; }
+  ul { padding-left: 20px; }
+  li { margin: 3px 0; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Resonance Tree — solar panel performance</h1>
+  <div class="sub">Black Rock City (40.786°N, −119.206°W) · Aug 30 – Sep 8 2026 · 15-minute sun steps ray-traced against the woven structure · 15 sample points per panel face (10×7″ 5W panels)</div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Sun exposure through the day — every panel, minute by minute</h2>
+  <div class="note">Each cell = 15 minutes (10-day average). Darker blue = more of the panel face in direct sun. Pale = fully shaded or facing away. Hover any cell for exact time and %.</div>
+  <div class="card">
+    <div class="hm" id="hm"></div>
+    <div class="axis"><span></span><div class="t"><span>6:00</span><span>8:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span><span>18:00</span></div></div>
+    <div class="lg" id="hmlg"><span>% of panel face in direct sun:</span></div>
+  </div>
+
+  <h2>Daily energy — as mounted vs. at its best angle</h2>
+  <div class="note">Bar = as currently mounted. Green tick = same spot, panel turned to its recommended angle. Values are per-panel Wh/day (clear sky, 5W panel).</div>
+  <div class="card bars" id="bars"></div>
+  <div class="lg"><span class="sw" style="background:var(--series-1)"></span> as mounted <span class="sw" style="background:var(--series-2); width:4px; height:16px;"></span> at recommended angle</div>
+
+  <h2>Exact numbers &amp; angle recommendations</h2>
+  <div class="card"><table id="tbl"></table></div>
+
+  <h2>Reading the results</h2>
+  <div class="card" id="findings"></div>
+
+  <h2>Method &amp; caveats</h2>
+  <div class="card">
+    <ul>
+      <li>Sun position verified in-model: solar noon Sep 2 = 12:57 PDT, altitude 56.9°, shadow due north.</li>
+      <li>Direct-sun fraction = 15 ray tests across each panel's actual face toward the sun, every 15 minutes, all 10 days (≈125,000 rays). The weave is real strut geometry, so light passing through gaps is captured correctly.</li>
+      <li>Energy = clear-sky beam (Meinel model, +1.2% for 1,190m elevation) × cos(incidence) × lit fraction, plus sky-diffuse scaled by each panel's measured sky-view factor, plus playa-reflected (albedo 0.3). Numbers are for comparing positions/angles — real-world yield will be lower (heat, dust, panel losses).</li>
+      <li>"Full sun" = ≥14 of 15 face points lit. "Partial" = 1–13 points lit.</li>
+      <li>Angle recommendations searched 5° tilt × 15° azimuth steps at each panel's actual position with its actual shading.</li>
+      <li>The 4 door lights were deleted from the model and are not measured. TB-01 ENE and TB-07 WSW sit on the root-arm bulge at r≈3.8m — verify those two locations.</li>
+    </ul>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+const DATA = {"generated": "2026-07-16", "dates": "2026-08-30..2026-09-08", "slot0": "06:00 PDT", "slot_min": 15, "panels": {"TB-01 ENE": {"pos": [3.7, 0.99, 0.7], "svf": 0.563, "mounted_tilt": 87, "mounted_az": 75, "full_sun_min": 242, "partial_min": 48, "avg_lit_pct": 35, "actual_whm2": 2528, "best_tilt": 60, "best_az": 120, "best_whm2": 3531, "profile": [null, null, 100, 100, 100, 100, 100, 100, 63, 55, 4, 0, 0, 0, 0, 95, 100, 100, 100, 100, 100, 100, 91, 100, 100, 100, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null]}, "TB-02 NE": {"pos": [1.53, 1.53, 0.7], "svf": 0.648, "mounted_tilt": 52, "mounted_az": 45, "full_sun_min": 308, "partial_min": 117, "avg_lit_pct": 47, "actual_whm2": 2810, "best_tilt": 60, "best_az": 120, "best_whm2": 4584, "profile": [null, null, 100, 100, 100, 100, 96, 75, 100, 100, 85, 100, 100, 100, 100, 100, 100, 93, 91, 93, 99, 98, 98, 89, 75, 93, 97, 24, 18, 10, 6, 0, 5, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null]}, "TB-03 NNE": {"pos": [0.56, 2.09, 0.7], "svf": 0.633, "mounted_tilt": 27, "mounted_az": 15, "full_sun_min": 278, "partial_min": 305, "avg_lit_pct": 56, "actual_whm2": 2233, "best_tilt": 65, "best_az": 120, "best_whm2": 3943, "profile": [null, null, 100, 100, 100, 100, 27, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 99, 97, 97, 92, 67, 50, 1, 8, 1, 0, 4, 3, 2, 1, 3, 3, 3, 0, 1, 23, 39, 43, 44, 57, 65, 69, 72, 78, 77, 73, 71, 68, 39, 16, 11, 0, null, null]}, "TB-04 NNW": {"pos": [-0.56, 2.11, 0.7], "svf": 0.76, "mounted_tilt": 51, "mounted_az": 345, "full_sun_min": 279, "partial_min": 119, "avg_lit_pct": 41, "actual_whm2": 1566, "best_tilt": 60, "best_az": 240, "best_whm2": 4159, "profile": [null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 29, 13, 0, 11, 19, 4, 9, 17, 13, 13, 5, 0, 20, 11, 33, 98, 97, 100, 99, 99, 92, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 69, 42, 32, 100, 100, null, null]}, "TB-05 NW": {"pos": [-1.53, 1.53, 0.7], "svf": 0.622, "mounted_tilt": 25, "mounted_az": 315, "full_sun_min": 0, "partial_min": 531, "avg_lit_pct": 31, "actual_whm2": 2040, "best_tilt": 65, "best_az": 240, "best_whm2": 3045, "profile": [null, null, 0, 0, 0, 0, 0, 0, 0, 5, 21, 29, 37, 3, 8, 0, 3, 2, 1, 21, 29, 22, 14, 7, 2, 7, 7, 3, 7, 37, 45, 47, 41, 44, 41, 37, 39, 49, 45, 69, 70, 71, 73, 74, 74, 65, 67, 71, 69, 35, 69, 67, 33, 11, null, null]}, "TB-06 WNW": {"pos": [-2.11, 0.57, 0.7], "svf": 0.732, "mounted_tilt": 51, "mounted_az": 285, "full_sun_min": 314, "partial_min": 111, "avg_lit_pct": 49, "actual_whm2": 3737, "best_tilt": 45, "best_az": 225, "best_whm2": 4938, "profile": [null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 24, 59, 68, 77, 91, 97, 84, 100, 99, 100, 99, 93, 97, 89, 100, 100, 100, 100, 99, 100, 100, 100, 100, 15, 0, 0, 0, 29, 100, 100, 100, 100, null, null]}, "TB-07 WSW": {"pos": [-3.72, -0.79, 0.85], "svf": 0.603, "mounted_tilt": 87, "mounted_az": 255, "full_sun_min": 380, "partial_min": 35, "avg_lit_pct": 52, "actual_whm2": 4129, "best_tilt": 50, "best_az": 225, "best_whm2": 5219, "profile": [null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 99, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 43, 81, 100, 100, 95, 21, 0, null, null]}, "TB-08 SW": {"pos": [-1.52, -1.52, 0.7], "svf": 0.689, "mounted_tilt": 52, "mounted_az": 225, "full_sun_min": 545, "partial_min": 68, "avg_lit_pct": 76, "actual_whm2": 6155, "best_tilt": 35, "best_az": 195, "best_whm2": 6557, "profile": [null, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 97, 96, 100, 100, 95, 99, 99, 98, 100, 100, 99, 99, 83, 96, 97, 100, 100, 92, 85, 100, 100, 100, 100, 97, 98, 100, 100, 100, 100, 100, 100, 100, 100, 97, 53, 100, 100, 100, 33, null, null]}, "TB-09 SSW": {"pos": [-0.6, -2.23, 0.7], "svf": 0.709, "mounted_tilt": 26, "mounted_az": 195, "full_sun_min": 657, "partial_min": 66, "avg_lit_pct": 89, "actual_whm2": 6719, "best_tilt": 35, "best_az": 180, "best_whm2": 6801, "profile": [null, null, 0, 0, 0, 53, 44, 81, 93, 93, 93, 93, 93, 93, 93, 93, 93, 93, 93, 93, 87, 93, 93, 100, 93, 100, 100, 97, 96, 100, 100, 99, 96, 99, 100, 100, 100, 100, 99, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 65, 81, 100, 100, 100, null, null]}, "TB-10 SSE": {"pos": [0.56, -2.1, 0.7], "svf": 0.676, "mounted_tilt": 52, "mounted_az": 165, "full_sun_min": 668, "partial_min": 27, "avg_lit_pct": 89, "actual_whm2": 6605, "best_tilt": 35, "best_az": 180, "best_whm2": 6886, "profile": [null, null, 100, 100, 100, 100, 46, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 98, 100, 100, 98, 93, 100, 100, 97, 95, 100, 100, 93, 93, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0, 0, 0, 0, 0, null, null]}, "TB-11 SE": {"pos": [1.63, -1.63, 0.7], "svf": 0.738, "mounted_tilt": 25, "mounted_az": 135, "full_sun_min": 617, "partial_min": 63, "avg_lit_pct": 86, "actual_whm2": 6481, "best_tilt": 35, "best_az": 165, "best_whm2": 6816, "profile": [null, null, 78, 100, 100, 100, 93, 59, 100, 100, 100, 100, 100, 100, 100, 100, 100, 97, 100, 100, 100, 100, 100, 94, 99, 100, 100, 100, 95, 99, 100, 95, 93, 98, 93, 98, 97, 93, 87, 100, 95, 93, 100, 100, 100, 100, 100, 67, 0, 0, 0, 0, 0, 0, null, null]}, "TB-12 ESE": {"pos": [2.1, -0.56, 0.7], "svf": 0.701, "mounted_tilt": 51, "mounted_az": 105, "full_sun_min": 426, "partial_min": 74, "avg_lit_pct": 61, "actual_whm2": 5297, "best_tilt": 40, "best_az": 150, "best_whm2": 6075, "profile": [null, null, 0, 0, 0, 18, 87, 37, 100, 100, 100, 100, 100, 100, 100, 100, 98, 100, 100, 100, 100, 100, 91, 93, 100, 99, 99, 100, 95, 93, 100, 100, 86, 94, 100, 91, 90, 97, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, null]}, "RT-SE": {"pos": [2.96, -3.21, 0.32], "svf": 0.849, "mounted_tilt": 0, "mounted_az": 0, "full_sun_min": 689, "partial_min": 62, "avg_lit_pct": 94, "actual_whm2": 5936, "best_tilt": 35, "best_az": 180, "best_whm2": 6936, "profile": [null, null, 100, 100, 100, 100, 100, 100, 100, 86, 40, 100, 100, 100, 94, 90, 80, 79, 94, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 98, 100, 100, 97, 100, 100, 99, 100, 100, 100, 100, 100, 100, 73, 18, 90, 73, null, null]}, "RT-NNE": {"pos": [1.31, 4.17, 0.32], "svf": 0.821, "mounted_tilt": 0, "mounted_az": 0, "full_sun_min": 410, "partial_min": 221, "avg_lit_pct": 67, "actual_whm2": 4280, "best_tilt": 35, "best_az": 165, "best_whm2": 5001, "profile": [null, null, 0, 0, 0, 25, 90, 100, 31, 100, 100, 100, 100, 100, 100, 100, 100, 100, 89, 85, 89, 93, 94, 97, 75, 83, 71, 69, 23, 9, 3, 1, 3, 11, 14, 21, 60, 93, 95, 99, 98, 79, 87, 100, 100, 100, 100, 100, 100, 57, 41, 0, 0, 31, null, null]}, "RT-NW": {"pos": [-2.93, 3.25, 0.33], "svf": 0.852, "mounted_tilt": 0, "mounted_az": 0, "full_sun_min": 530, "partial_min": 179, "avg_lit_pct": 78, "actual_whm2": 4525, "best_tilt": 40, "best_az": 210, "best_whm2": 5350, "profile": [null, null, 0, 51, 100, 100, 95, 100, 100, 100, 100, 100, 100, 93, 100, 83, 4, 13, 27, 26, 12, 5, 3, 14, 32, 72, 52, 95, 69, 96, 95, 98, 96, 96, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 95, 0, 93, 100, 100, 100, 100, 100, null, null]}, "RT-SSW": {"pos": [-0.93, -3.61, 0.32], "svf": 0.851, "mounted_tilt": 0, "mounted_az": 0, "full_sun_min": 704, "partial_min": 36, "avg_lit_pct": 94, "actual_whm2": 5973, "best_tilt": 35, "best_az": 180, "best_whm2": 6986, "profile": [null, null, 100, 100, 100, 100, 85, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 58, 23, 69, 55, 100, 100, 100, 66, 12, null, null]}}};
+const RAMP = ["#cde2fb","#b7d3f6","#9ec5f4","#86b6ef","#6da7ec","#5598e7","#3987e5","#2a78d6","#256abf","#1c5cab","#184f95","#104281","#0d366b"];
+const WIND = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const wind = a => WIND[Math.round(((a % 360) + 360) % 360 / 22.5) % 16];
+const slotTime = q => { const mn = 360 + q * 15; return String(Math.floor(mn / 60)).padStart(2, "0") + ":" + String(mn % 60).padStart(2, "0"); };
+const wh = w => (w / 1000 * 5);
+const names = Object.keys(DATA.panels);
+const P = DATA.panels;
+
+// tiles
+const tot = names.reduce((s, n) => s + wh(P[n].actual_whm2), 0);
+const best = names.reduce((a, b) => wh(P[a].actual_whm2) > wh(P[b].actual_whm2) ? a : b);
+const worst = names.reduce((a, b) => wh(P[a].actual_whm2) < wh(P[b].actual_whm2) ? a : b);
+const totBest = names.reduce((s, n) => s + wh(P[n].best_whm2), 0);
+document.getElementById("tiles").innerHTML = [
+  [tot.toFixed(0) + " Wh/day", "system total, as mounted (16 panels)"],
+  [totBest.toFixed(0) + " Wh/day", "system total if every panel at its best angle"],
+  [best + " · " + wh(P[best].actual_whm2).toFixed(1) + " Wh", "strongest panel"],
+  [worst + " · " + wh(P[worst].actual_whm2).toFixed(1) + " Wh", "weakest panel"]
+].map(([v, l]) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+
+// heatmap (sorted: ring by compass walk, then roots)
+const tip = document.getElementById("tip");
+const hm = document.getElementById("hm");
+names.forEach(n => {
+  const lab = document.createElement("div"); lab.className = "rl"; lab.textContent = n;
+  const row = document.createElement("div"); row.className = "row";
+  P[n].profile.forEach((v, q) => {
+    const c = document.createElement("div"); c.className = "c";
+    c.style.background = v === null ? "transparent" : (v === 0 ? "var(--night)" : RAMP[Math.min(12, Math.floor(v / 100 * 12.99))]);
+    if (v !== null) {
+      c.addEventListener("mousemove", ev => { tip.style.display = "block";
+        tip.textContent = `${n} · ${slotTime(q)} — ${v}% in sun`;
+        tip.style.left = (ev.clientX + 14) + "px"; tip.style.top = (ev.clientY - 10) + "px"; });
+      c.addEventListener("mouseleave", () => tip.style.display = "none");
+    }
+    row.appendChild(c);
+  });
+  hm.appendChild(lab); hm.appendChild(row);
+});
+const lg = document.getElementById("hmlg");
+[0, 25, 50, 75, 100].forEach(v => {
+  const s = document.createElement("span"); s.className = "sw";
+  s.style.background = v === 0 ? "var(--night)" : RAMP[Math.min(12, Math.floor(v / 100 * 12.99))];
+  lg.appendChild(s); lg.appendChild(document.createTextNode(v + "%"));
+});
+
+// bars sorted desc by as-mounted
+const maxW = Math.max(...names.map(n => wh(P[n].best_whm2)));
+document.getElementById("bars").innerHTML = names.slice().sort((a, b) => P[b].actual_whm2 - P[a].actual_whm2)
+  .map(n => {
+    const a = wh(P[n].actual_whm2), b = wh(P[n].best_whm2);
+    return `<div class="brow"><span class="bl">${n}</span>
+      <div class="btrack"><div class="bfill" style="width:${a / maxW * 100}%"></div>
+      <div class="btick" style="left:calc(${b / maxW * 100}% - 1px)"></div></div>
+      <span class="bval"><b>${a.toFixed(1)}</b> → ${b.toFixed(1)} Wh</span></div>`;
+  }).join("");
+
+// shading window helper: longest daytime run below 20%
+function shadeWindow(prof) {
+  let best = [0, 0], run = null;
+  prof.forEach((v, q) => {
+    if (v !== null && v < 20) { run = run || [q, q]; run[1] = q; if (run[1] - run[0] > best[1] - best[0]) best = [...run]; }
+    else run = null;
+  });
+  return best[1] > best[0] ? slotTime(best[0]) + "–" + slotTime(best[1] + 1) : "—";
+}
+
+// table
+document.getElementById("tbl").innerHTML =
+  `<tr><th>Panel</th><th>Where</th><th>Mounted (tilt / facing)</th><th>Full sun</th><th>Partial</th><th>Face lit avg</th><th>Main shade window</th><th>As mounted</th><th>Recommended angle</th><th>At best</th><th>Gain</th></tr>` +
+  names.map(n => { const p = P[n];
+    const grp = n.startsWith("TB") ? "trunk ring" : "root";
+    const gain = Math.round((p.best_whm2 / Math.max(p.actual_whm2, 1) - 1) * 100);
+    return `<tr><td class="name">${n}</td><td>${grp}</td>
+      <td>${p.mounted_tilt}° / ${wind(p.mounted_az)}</td>
+      <td>${Math.floor(p.full_sun_min / 60)}h ${String(p.full_sun_min % 60).padStart(2, "0")}m</td>
+      <td>${p.partial_min} min</td><td>${p.avg_lit_pct}%</td>
+      <td>${shadeWindow(p.profile)}</td>
+      <td>${wh(p.actual_whm2).toFixed(1)} Wh</td>
+      <td class="reco">${p.best_tilt}° tilt, face ${wind(p.best_az)}</td>
+      <td>${wh(p.best_whm2).toFixed(1)} Wh</td><td>+${gain}%</td></tr>`;
+  }).join("");
+
+// findings
+const south = ["TB-08 SW","TB-09 SSW","TB-10 SSE","TB-11 SE"].reduce((s, n) => s + wh(P[n].actual_whm2), 0);
+document.getElementById("findings").innerHTML = `<ul>
+  <li><b>The south face of the trunk is the prize.</b> TB-08…TB-11 (SW→SE) average ${(south / 4).toFixed(0)} Wh/day each — they ride the sun from mid-morning to sunset and are already mounted within ~10% of their theoretical best.</li>
+  <li><b>Roots RT-SSW and RT-SE are the most reliable panels</b> — 11.5+ hours of full sun (94% face-lit average). Lying flat they give ~30 Wh; tilting them 35° toward south adds ~5 Wh each.</li>
+  <li><b>The north-side ring panels are morning-only (or evening-only) devices.</b> TB-01…TB-05 see sun early then go dark as the tree blocks the southern sky. The optimizer's fix: rotate them to face ESE (morning) or WSW (evening) at ~60° tilt — worth +40–165%.</li>
+  <li><b>TB-05 NW never gets one full-sun minute</b> — the weave always dapples it. Even optimized it reaches only ${wh(P["TB-05 NW"].best_whm2).toFixed(0)} Wh. If any light moves, move this one.</li>
+  <li><b>TB-04 NNW is the weakest as-mounted</b> (${wh(P["TB-04 NNW"].actual_whm2).toFixed(1)} Wh) but has the most to gain from re-aiming (+166% at 60° facing WSW).</li>
+  <li><b>Rule of thumb from the optimizer:</b> south-side panels want ~35° tilt facing S; east-side want ~40–60° facing ESE–SE; west/north-side want ~45–65° facing WSW. Nothing wants to lie flat against the bark on the north half.</li>
+</ul>`;
+</script>
+</body>
+</html>
