@@ -12,6 +12,26 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-16 (cont.) -- Ben + Claude -- Solenoid bake-off status (Ben-reported; bench data pending commit): stronger solenoids, 0730B 6 V/1 A leads; transients benign
+
+Status capture from Ben's bench work -- **the post-07-11 experiment data is NOT
+yet in the repo** (likely on the bench laptop; only `solenoid_demo`,
+`led_sol_bench`, and the 07-11 VDC sweep are committed -- commit-from-laptop
+TODO added):
+
+- **22,000 uF buys headroom for STRONGER solenoids** -- that is what the 07-16
+  cap buy is really for, not just a better kick from the current parts.
+- **A solenoid part bake-off is mid-flight; primary candidate: 0730B 6 V / 1 A.**
+  The in-transit 3 V/5 V AliExpress units (150x, $319.12) may be RETURNED --
+  return-window decision flagged in TODO + ledger.
+- **Transient correction:** strikes do NOT confuse the BQ charger. They appear
+  as droops on VDC, indistinguishable from a passing cloud / shadow on the
+  panel. The "verify BQ transients" item is closed-benign; wording fixed in
+  ADR 0030 annotation, ledger, BOM, TODO.
+
+Treat the bake-off findings as directional until the data lands in the repo
+(mid-experiment, Ben-reported).
+
 ## 2026-07-16 -- Ben + Claude -- Strike caps ordered: 210x 22,000 uF 16 V ($161.39)
 
 Fleet-scale storage for the solenoid VDC-tap strike supply: 210x 22,000 uF 16 V

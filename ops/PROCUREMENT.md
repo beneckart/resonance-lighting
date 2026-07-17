@@ -26,7 +26,7 @@ LOG inference) -- correct them from receipts when convenient.
 | batteries-100 | fullbattery.com | 2026-07-07 | 100x 32700 LiFePO4 6 Ah | $565.20 | placed, in transit |
 | pf-batch-2 | Elecrow | 2026-07-09 | 90x PowerFeather V2 ($30/board + s&h + bank fee + tariff) | $3,494.24 | placed, in transit (CN; grew from the planned 82) |
 | mosfet-drivers | Adafruit | 2026-07-10 | 100x MOSFET driver (solenoid noisemaker, candidate B) | $345.00 | placed, in transit |
-| solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
+| solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | in transit -- **MAY BE RETURNED**: bench trending toward stronger solenoids (0730B 6 V/1 A bake-off leader, 07-16); decide before the return window closes |
 | usbc-rgbw | Adafruit | 2026-07-10 | 150x waterproof USB-C panel-mount extension cables ($540 -- a rescue/charge port on EVERY fixture, wired to the PowerFeather USB-C) + 50x 4 W RGBW top-up ($247.50); remainder ~$73 s&h/tax | $860.34 | placed, in transit |
 | grove-electromaker | Electromaker | 2026-07-10 | 55x Grove/HY2.0 breakouts (125 total with the 06-18 RobotShop 70) | $85.26 | placed, in transit |
 | xh-keszoox | Keszoox (Amazon) | ~2026-07-12/13 | 150x 10 cm red + 150x 10 cm black pre-crimped XH + 60x PH pigtails 10 cm (just-in-case) | $220.26 | placed, in transit |
@@ -35,7 +35,7 @@ LOG inference) -- correct them from receipts when convenient.
 | xh-ysplit-2 | (TBC) | ~2026-07-12/13 | 90x JST XH 5-pin Y-splitter cables | $120.81 | placed, in transit (split TN/CA) |
 | enclosures-tn | Polycase | 2026-07-13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
 | enclosures-ca | Polycase | 2026-07-13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
-| strike-caps | AliExpress (2 sellers) | 2026-07-16 | 210x 22,000 uF 16 V capacitors -- solenoid strike storage for the VDC-tap supply (2.2x the 10,000 uF that gave the excellent 07-14 kick) | $161.39 ($140.89 + $20.50) | placed, in transit -- watch lead time |
+| strike-caps | AliExpress (2 sellers) | 2026-07-16 | 210x 22,000 uF 16 V capacitors -- solenoid strike storage for the VDC-tap supply; bench shows 22k uF buys the headroom for STRONGER solenoids | $161.39 ($140.89 + $20.50) | placed, in transit -- watch lead time |
 
 Committed so far: **~$23,871** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
@@ -94,7 +94,8 @@ tuned by experiments at the Nevada City prebuild.
 | ~~20 Ah LFP cells (batteryspace #6832)~~ | ~~40~~ | ~~solar-free uplights/chandelier~~ | **CANCELLED 2026-07-15**: batteryspace quantity short; Alibaba alternative (~$4.50/cell bulk!) needs ocean freight = misses 2026. Uplights go hinged-solar-wing + 6 Ah instead. Revisit for 2027. | -- | -- |
 | ~~20 Ah end-cap connection hardware~~ | ~~40~~ | -- | CANCELLED with the cells | -- | -- |
 | Uplight wing hardware (hinges, panel mount on the boot) | ~24 | hinged solar wing on the uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
-| Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16 -- 210x 22,000 uF commits hardware to the leading VDC-tap direction; 22,000 uF kick + BQ-transient verification remain) | mounting design | ~late July | Low |
+| Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16; transient question CLOSED -- strikes read as benign VDC droops, cloud-indistinguishable) | mounting design | ~late July | Low |
+| Stronger solenoids (0730B 6 V/1 A class) | up to fleet | replaces the 3 V/5 V units if the bake-off confirms | bake-off verdict (in progress on the bench laptop); pair with the 3 V/5 V return decision | ASAP after verdict | Medium: another CN lead time |
 | ~~Spare STEMMA speakers #3885~~ | -- | -- | CANCELLED 2026-07-15: speaker path ABANDONED (ADR 0030) -- solenoid bamboo-strike wins | -- | -- |
 | ~~RGBW top-up~~ | ~~20+~~ -> 50 | ORDERED 2026-07-10 ($247.50 portion of usbc-rgbw) -- 150 RGBW total, spares healthy at any chandelier mix | -- | -- |
 | ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean). NOTE: XH 2-pin Y-cables may return as the solenoid VDC strike tap -- see the strike-power row | -- | -- |

@@ -82,8 +82,8 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Enclosure, SMALL | perimeter + uplight boots, <=60 combined (38-40 + 24 = 62-64 planned!) | 61 (incl. 1 transparent-lid demo) | -3..-1 vs the loose plan | allocation flexes under the <=60 cap (Elliot flexible); watch at installation |
 | ~~20 Ah LFP~~ | 0 | 2 samples (verified honest: 19,412 mAh) | -- | CANCELLED 07-15: sourcing/timeline; uplights go solar-wing + 6 Ah; Alibaba ~$4.50/cell = 2027 lead |
 | MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | THE noisemaker (ADR 0030) |
-| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | selected 07-15 (ADR 0030); voltage A/B + mounting remain |
-| Strike caps (22,000 uF 16 V) | 1 per noisemaker fixture | 210 ordered 07-16 | abundant | VDC-tap strike storage; verify the 22,000 uF kick + BQ transients |
+| Solenoids (push-pull) | subset TBD (up to fleet) | 150 in transit (75x 3 V + 75x 5 V) -- MAY BE RETURNED | -- | bake-off trending STRONGER (0730B 6 V/1 A primary, 07-16); mounting remains |
+| Strike caps (22,000 uF 16 V) | 1 per noisemaker fixture | 210 ordered 07-16 | abundant | VDC-tap strike storage; 22k uF = headroom for stronger solenoids; transients benign (VDC droop, reads like a passing cloud) |
 | ~~Other noisemaker parts~~ | -- | 1x #3885 (damaged pot) + bench relays | -- | DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike wins; speaker path abandoned (spares cancelled); relays/beeps not pursued |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;

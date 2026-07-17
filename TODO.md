@@ -448,11 +448,20 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
   cap now leads; quantify it and complete the qualification list above -- the
-  candidate verdict itself is now DECIDED (ADR 0030); what remains is engineering:
-  voltage variant, strike-supply verification (fleet caps ORDERED 2026-07-16:
-  210x 22,000 uF 16 V = 2.2x the tested 10,000 uF -- confirm the kick and that
-  charge/strike transients don't confuse the BQ input), driver control cabling,
-  mounting, scope, daytime gating (Ben).
+  candidate verdict itself is now DECIDED (ADR 0030); what remains is engineering.
+  **BENCH STATUS 2026-07-16 (Ben-reported; data on the bench laptop, commit
+  pending):** 22,000 uF buys headroom for STRONGER solenoids; solenoid bake-off
+  mid-flight with the **0730B 6 V/1 A as the primary candidate** (the in-transit
+  3 V/5 V AliExpress units may be returned). Transient question CLOSED-benign:
+  strikes read as VDC droops indistinguishable from a passing cloud/shadow -- the
+  BQ is not confused. Remaining: bake-off verdict + possible stronger-solenoid
+  order/return, driver control cabling, mounting, scope, daytime gating (Ben).
+- [ ] **Commit the solenoid bake-off experiments from the bench laptop** -- the
+  post-07-11 work (22k uF headroom sweeps, stronger-solenoid bake-off) is not in
+  the repo; only solenoid_demo/led_sol_bench + the 07-11 VDC sweep are (Ben).
+- [ ] **Decide the 3 V/5 V solenoid return** (150 units, $319.12, still in
+  transit) once the 0730B verdict lands -- watch the AliExpress return window
+  (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 

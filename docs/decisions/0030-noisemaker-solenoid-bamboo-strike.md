@@ -3,7 +3,13 @@
 **Date:** 2026-07-15
 **Status:** Accepted. The candidate question is closed; sub-decisions remain open
 (solenoid voltage variant, strike power source, mounting, per-class scope --
-listed below).
+listed below). Annotation 2026-07-16: the solenoid PART question widened -- bench
+work (data pending commit from the bench laptop) shows 22,000 uF of strike storage
+buys headroom for STRONGER solenoids, and a part bake-off is in progress with the
+**0730B 6 V/1 A as primary candidate**; the in-transit 3 V/5 V units may be
+returned. The strike-transient concern is CLOSED-benign: strikes appear as VDC
+droops indistinguishable from a passing cloud/shadow -- the BQ charger is not
+confused.
 **Owners:** Ben + Claude
 
 ## Context
