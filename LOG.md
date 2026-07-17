@@ -12,6 +12,16 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-16 -- Ben + Claude -- Strike caps ordered: 210x 22,000 uF 16 V ($161.39)
+
+Fleet-scale storage for the solenoid VDC-tap strike supply: 210x 22,000 uF 16 V
+capacitors, $140.89 + $20.50 across two AliExpress sellers (lead-time hedge
+habit). 2.2x the 10,000 uF that produced the excellent 07-14 kick -- hardware is
+now committed to the VDC-tap direction; verification remains (confirm the
+22,000 uF kick and that charge/strike transients don't confuse the BQ charger
+input). Committed spend ~$23.9k. Ledger/BOM/TODO/brief updated; the noisemaker
+to-buy residual shrinks to driver control cables + mallet mounting.
+
 ## 2026-07-15 (cont.) -- Ben + Claude -- NOISEMAKER DECIDED: solenoid bamboo-strike; #3885 speaker path abandoned (ADR 0030)
 
 **The solenoids strike the bamboo so well that the speaker path is abandoned.**

@@ -82,7 +82,8 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Enclosure, SMALL | perimeter + uplight boots, <=60 combined (38-40 + 24 = 62-64 planned!) | 61 (incl. 1 transparent-lid demo) | -3..-1 vs the loose plan | allocation flexes under the <=60 cap (Elliot flexible); watch at installation |
 | ~~20 Ah LFP~~ | 0 | 2 samples (verified honest: 19,412 mAh) | -- | CANCELLED 07-15: sourcing/timeline; uplights go solar-wing + 6 Ah; Alibaba ~$4.50/cell = 2027 lead |
 | MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | THE noisemaker (ADR 0030) |
-| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | selected 07-15 (ADR 0030); voltage A/B + strike-power + mounting remain |
+| Solenoids (push-pull) | subset TBD (up to fleet) | 150 ordered 07-10 (75x 3 V + 75x 5 V) | -- | selected 07-15 (ADR 0030); voltage A/B + mounting remain |
+| Strike caps (22,000 uF 16 V) | 1 per noisemaker fixture | 210 ordered 07-16 | abundant | VDC-tap strike storage; verify the 22,000 uF kick + BQ transients |
 | ~~Other noisemaker parts~~ | -- | 1x #3885 (damaged pot) + bench relays | -- | DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike wins; speaker path abandoned (spares cancelled); relays/beeps not pursued |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
@@ -92,8 +93,8 @@ parity with the 150 accelerometers.
 ## To-buy (summary -- live queue in ops/PROCUREMENT.md)
 
 Remaining: uplight wing hardware (hinges + panel mount; Steve designs); solenoid
-strike-power + wiring residuals (storage caps vs battery/VS, driver control
-cables, mallet mounting -- 5-pin XH Y-splitters now on hand). CANCELLED 07-15:
+driver control cables + mallet mounting (strike caps ORDERED 07-16: 210x
+22,000 uF 16 V; 5-pin XH Y-splitters already on hand for the VDC tap). CANCELLED 07-15:
 the 20 Ah cells + end-caps (sourcing/timeline) and the spare #3885 speakers
 (speaker path abandoned -- ADR 0030). DONE
 since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150 solenoids

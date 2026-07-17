@@ -449,8 +449,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
   cap now leads; quantify it and complete the qualification list above -- the
   candidate verdict itself is now DECIDED (ADR 0030); what remains is engineering:
-  voltage variant, strike power (VDC + 10,000 uF leads), mounting, scope, daytime
-  gating (Ben).
+  voltage variant, strike-supply verification (fleet caps ORDERED 2026-07-16:
+  210x 22,000 uF 16 V = 2.2x the tested 10,000 uF -- confirm the kick and that
+  charge/strike transients don't confuse the BQ input), driver control cabling,
+  mounting, scope, daytime gating (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 

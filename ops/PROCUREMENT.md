@@ -35,10 +35,11 @@ LOG inference) -- correct them from receipts when convenient.
 | xh-ysplit-2 | (TBC) | ~2026-07-12/13 | 90x JST XH 5-pin Y-splitter cables | $120.81 | placed, in transit (split TN/CA) |
 | enclosures-tn | Polycase | 2026-07-13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
 | enclosures-ca | Polycase | 2026-07-13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
+| strike-caps | AliExpress (2 sellers) | 2026-07-16 | 210x 22,000 uF 16 V capacitors -- solenoid strike storage for the VDC-tap supply (2.2x the 10,000 uF that gave the excellent 07-14 kick) | $161.39 ($140.89 + $20.50) | placed, in transit -- watch lead time |
 
-Committed so far: **~$23,709** across the rows above (production boards 158; RGBW
+Committed so far: **~$23,871** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
-deliberate lead-time-hedged abundance). The $440 / $170 / $159 rows are the
+deliberate lead-time-hedged abundance; 210 strike caps). The $440 / $170 / $159 rows are the
 fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 Cabling strategy note (2026-07-13): final harness lengths are unknown until the
@@ -93,7 +94,7 @@ tuned by experiments at the Nevada City prebuild.
 | ~~20 Ah LFP cells (batteryspace #6832)~~ | ~~40~~ | ~~solar-free uplights/chandelier~~ | **CANCELLED 2026-07-15**: batteryspace quantity short; Alibaba alternative (~$4.50/cell bulk!) needs ocean freight = misses 2026. Uplights go hinged-solar-wing + 6 Ah instead. Revisit for 2027. | -- | -- |
 | ~~20 Ah end-cap connection hardware~~ | ~~40~~ | -- | CANCELLED with the cells | -- | -- |
 | Uplight wing hardware (hinges, panel mount on the boot) | ~24 | hinged solar wing on the uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
-| Noisemaker strike-power + wiring residuals | subset TBD | solenoid strike supply (VDC-tap Y-cables + storage caps vs battery/VS pin), driver control cables, mallet mounting | strike-power decision (VDC-tap sweep in progress); drivers + solenoids ALREADY ORDERED 07-10 | ~late July | Low/Medium |
+| Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16 -- 210x 22,000 uF commits hardware to the leading VDC-tap direction; 22,000 uF kick + BQ-transient verification remain) | mounting design | ~late July | Low |
 | ~~Spare STEMMA speakers #3885~~ | -- | -- | CANCELLED 2026-07-15: speaker path ABANDONED (ADR 0030) -- solenoid bamboo-strike wins | -- | -- |
 | ~~RGBW top-up~~ | ~~20+~~ -> 50 | ORDERED 2026-07-10 ($247.50 portion of usbc-rgbw) -- 150 RGBW total, spares healthy at any chandelier mix | -- | -- |
 | ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean). NOTE: XH 2-pin Y-cables may return as the solenoid VDC strike tap -- see the strike-power row | -- | -- |
@@ -111,8 +112,9 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (solenoid strike-power parts; uplight wing hardware -- the harness and enclosure
-  buys landed 07-12/13; the 20 Ah and #3885-spare buys are cancelled).
+  (uplight wing hardware; solenoid control cabling -- strike caps ordered 07-16;
+  the harness and enclosure buys landed 07-12/13; the 20 Ah and #3885-spare buys
+  are cancelled).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
   puts boards ~mid-to-late July; residual risk is transit, not commitment.
 - July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
@@ -160,6 +162,10 @@ corroborated 2026-07-08):
 - 2026-07-15 -- **uplight power RESOLVED: hinged solar wing + 6 Ah** (20 Ah
   cancelled on sourcing/timeline; Alibaba ~$4.50/cell noted for 2027). Enclosure
   mapping corrected: large -> downlights only; small -> perimeter + boots.
+  **Noisemaker DECIDED same day (ADR 0030)**: solenoid bamboo-strike; speaker
+  path abandoned.
+- 2026-07-16 -- **strike caps ordered**: 210x 22,000 uF 16 V ($161.39, two
+  AliExpress sellers) -- fleet-scale storage for the VDC-tap strike supply.
 - ~2026-07-20/31 (TENTATIVE) -- Ben TN trip: ~70-board fleet test at Steve's.
 - 2026-07-31/08-19 -- NC prebuild, Bodhi Hive, Nevada City; **08-01/02 container
   unload (all hands)**; **08-08/09 lights + camp systems team build**.
