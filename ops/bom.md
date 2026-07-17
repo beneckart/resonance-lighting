@@ -48,7 +48,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Power source | 1 | **RESOLVED 2026-07-15: hinged solar "wing" on the boot** (partial/shady sun; likely wants the 5 W P105) + standard 6 Ah cell; run mostly low-brightness, tuned by Nevada City prebuild experiments. (20 Ah CANCELLED on sourcing/timeline -- ADR 0025 annotation.) |
 | Gasketed panel-mount USB-C port | 1 | from the 150-port pool (bought 07-10; now a shared-core item) |
 | Base "boot" enclosure + wing | 1 | small Polycase from the 61-unit pool (bought 07-13) + hinged wing hardware (to-buy; Steve designs) |
-| Sensors | none (tentative) | |
+| BMP581 temp + barometric pressure (STEMMA chain) | 1 | Adafruit, 30 bought 07-16 -- generic environmental data (playa weather telemetry) |
 
 ### Chandelier x16 (central shafts; scope still loose)
 
@@ -81,10 +81,12 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Enclosure, LARGE | downlights, <=110 deployed (72 planned) | 111 (incl. 1 transparent-lid demo) | +38 at plan | healthy (mapping corrected 07-15: perimeter is SMALL, not large) |
 | Enclosure, SMALL | perimeter + uplight boots, <=60 combined (38-40 + 24 = 62-64 planned!) | 61 (incl. 1 transparent-lid demo) | -3..-1 vs the loose plan | allocation flexes under the <=60 cap (Elliot flexible); watch at installation |
 | ~~20 Ah LFP~~ | 0 | 2 samples (verified honest: 19,412 mAh) | -- | CANCELLED 07-15: sourcing/timeline; uplights go solar-wing + 6 Ah; Alibaba ~$4.50/cell = 2027 lead |
-| MOSFET drivers (solenoid) | subset TBD (up to fleet) | 110 (100 ordered 07-10 + 10 prior) | -- | THE noisemaker (ADR 0030) |
+| MOSFET drivers (solenoid) | trending: all downlights + perimeter (~110-112) | 160 (110 + 50 ordered 07-16) | +48 | THE noisemaker (ADR 0030); scope promotion in the air |
 | Solenoids (push-pull) | subset TBD (up to fleet) | 150 in transit (75x 3 V + 75x 5 V) -- MAY BE RETURNED | -- | bake-off trending STRONGER (0730B 6 V/1 A primary, 07-16); mounting remains |
 | Strike caps (22,000 uF 16 V) | 1 per noisemaker fixture | 210 ordered 07-16 | abundant | VDC-tap strike storage; 22k uF = headroom for stronger solenoids; transients benign (VDC droop, reads like a passing cloud) |
 | ~~Other noisemaker parts~~ | -- | 1x #3885 (damaged pot) + bench relays | -- | DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike wins; speaker path abandoned (spares cancelled); relays/beeps not pursued |
+
+| BMP581 env sensor | 24 uplights | 30 ordered 07-16 | +6 | temp + barometric pressure on the uplight STEMMA chain |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
 with the bench/sample units already on hand the total is **150 depth sensors** --

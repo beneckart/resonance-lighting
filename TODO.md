@@ -526,8 +526,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   remains a possible future choreography experiment, not a fleet part (Ben).
 - [ ] **Confirm the per-class sensor allocation on hardware** (ADR 0027 marks it
   tentative): TMF8820-mini downward on downlights, VL53L5CX outward on perimeter,
-  none on uplights/chandelier; verify one downlight-height bench run on the exact
-  ordered TMF8820-mini part (bench work used the TMF8821) (Ben).
+  BMP581 temp/pressure on uplights (added 07-16; chandelier still none); verify
+  one downlight-height bench run on the exact ordered TMF8820-mini part (bench
+  work used the TMF8821) (Ben).
+- [ ] Bring up the BMP581 on the STEMMA chain (100 kHz bus rules apply -- ADR
+  0028) and add its temp/pressure fields to the telemetry tail (Ben).
 - [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
   pattern as env/INA) for yard/field tuning -- the desk bench uses its own HTTP
   dashboard instead (Claude + whoever's bench).

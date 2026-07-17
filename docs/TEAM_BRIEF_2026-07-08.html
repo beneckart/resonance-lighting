@@ -573,6 +573,7 @@
   <p class="eyebrow">07 &middot; Interactivity</p>
   <h2>Sensing people and wind (and maybe making sound)</h2>
   <p>Most fixtures carry a tiny accelerometer (sway and motion energy -- the tree's own movement becomes an input) and a small depth sensor: downward on the hanging downlights to notice someone standing beneath, outward on the perimeter lights to catch passers-by. Chosen specifically because they need <em>zero per-unit calibration</em> -- a hard requirement at 150 units. With bench units included we hold 150 of each.</p>
+  <p>The uplights get a different sense entirely: a small <strong>environmental sensor</strong> (temperature + barometric pressure) rides each one -- so while they wash the structure in light, the tree quietly logs a week of playa weather for next year's design.</p>
   <p>This is art, not security: ~80% detection is a complete success. The product is the choreography -- a lantern noticing you and the reaction rippling outward through the mesh to its neighbors. A working demo already exists: a swaying fixture drives its LED color from the fused motion + depth signal (bench-validated July 6, including the subtle geometry of a lantern that spins while it swings).</p>
   <p><strong>Noisemakers: decided -- the lantern becomes the instrument.</strong> <span class="chip good">Decided</span> After a bake-off spanning relay clickers, buzzers, beeps, and a custom "organic percussion" speaker synth, the winner is the most physical option: a tiny <strong>solenoid mallet that knocks the bamboo itself</strong>. The strikes work so well (815 of them without a hiccup in the first bench run, and a genuinely satisfying knock once a storage capacitor joined the solar feed) that the speaker path was abandoned outright -- no recordings of percussion when you can have percussion. Fleet driver boards and 210 strike-storage capacitors are in transit, and a solenoid bake-off is choosing the final mallet -- the big capacitors turn out to buy headroom for <em>stronger</em> solenoids than the first batch, so the current front-runner is a beefier part and the first 150 may go back. The design intent: knocks are a <em>daytime</em> feature, spending surplus solar while the sun makes light pointless -- night belongs to the light show. Imagine 150 of them rippling a knock through the tree. Remaining: the bake-off verdict, wiring, and mallet mounting.</p>
 </section>
@@ -580,15 +581,15 @@
 <section>
   <p class="eyebrow">08 &middot; Procurement</p>
   <h2>Where the money and parts stand</h2>
-  <p>The architecture bets were settled by measurement first, and then the buy happened. About <strong>$23.9k is committed</strong> across ~26 orders -- the July 9-13 wave added 90 more boards, the noisemaker hardware, 50 more point-source LEDs, a waterproof USB-C rescue port for every fixture, a deliberate abundance of pre-crimped harness cable in many lengths (multiple vendors, so at least some land early), and <strong>172 enclosure bodies</strong>. Parts on hand or in transit, against a 150-152 fixture plan:</p>
+  <p>The architecture bets were settled by measurement first, and then the buy happened. About <strong>$24.4k is committed</strong> across ~27 orders -- the July 9-13 wave added 90 more boards, the noisemaker hardware, 50 more point-source LEDs, a waterproof USB-C rescue port for every fixture, a deliberate abundance of pre-crimped harness cable in many lengths (multiple vendors, so at least some land early), and <strong>172 enclosure bodies</strong>. Parts on hand or in transit, against a 150-152 fixture plan:</p>
 
   <div class="tiles">
     <div class="tile"><div class="n">158 <em>+ ~8 bench</em></div><div class="l">controller boards (68 at Steve's in TN + 90 ordered Jul 9, in transit)</div></div>
     <div class="tile"><div class="n">175</div><div class="l">6 Ah battery cells (vendor qualified by shootout)</div></div>
     <div class="tile"><div class="n">160</div><div class="l">solar panels (110x 5 W + 50x 2 W) + pigtails</div></div>
     <div class="tile"><div class="n">260</div><div class="l">LED modules (150 warm point-source + 110 hex-class) -- healthy spares at any mix</div></div>
-    <div class="tile"><div class="n">300</div><div class="l">sensors (150 accel + 150 depth, incl. bench units) + 60 dust covers</div></div>
-    <div class="tile"><div class="n">260</div><div class="l">noisemaker parts (110 MOSFET drivers + 150 solenoids, 3 V/5 V split)</div></div>
+    <div class="tile"><div class="n">330</div><div class="l">sensors (150 accel + 150 depth + 30 environmental) + 60 dust covers</div></div>
+    <div class="tile"><div class="n">310</div><div class="l">noisemaker parts (160 MOSFET drivers + 150 solenoids; a stronger-solenoid bake-off is running)</div></div>
     <div class="tile"><div class="n">172</div><div class="l">Polycase enclosures (111 large: downlights; 61 small: perimeter + uplight boots) + screws</div></div>
     <div class="tile"><div class="n">2,100+</div><div class="l">pre-crimped harness cables + 160 splitters, many lengths on purpose</div></div>
   </div>
@@ -597,26 +598,26 @@
     <div class="chart">
       <svg width="260" height="260" viewBox="0 0 240 240" role="img" aria-label="Donut chart of electronics spend by category; each slice's icon sits just outside its arc, and the table beside it lists exact values.">
         <g transform="rotate(-90 120 120)">
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c1)" stroke-width="30" pathLength="100" stroke-dasharray="23.1 76.9" stroke-dashoffset="0"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c8)" stroke-width="30" pathLength="100" stroke-dasharray="21.4 78.6" stroke-dashoffset="-23.9"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c2)" stroke-width="30" pathLength="100" stroke-dasharray="15.5 84.5" stroke-dashoffset="-46.1"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c3)" stroke-width="30" pathLength="100" stroke-dasharray="15.2 84.8" stroke-dashoffset="-62.3"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c4)" stroke-width="30" pathLength="100" stroke-dasharray="6.2 93.8" stroke-dashoffset="-78.3"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c6)" stroke-width="30" pathLength="100" stroke-dasharray="6.0 94.0" stroke-dashoffset="-85.3"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c5)" stroke-width="30" pathLength="100" stroke-dasharray="3.4 96.6" stroke-dashoffset="-92.1"/>
-          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c7)" stroke-width="30" pathLength="100" stroke-dasharray="2.8 97.2" stroke-dashoffset="-96.4"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c1)" stroke-width="30" pathLength="100" stroke-dasharray="22.6 77.4" stroke-dashoffset="0"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c8)" stroke-width="30" pathLength="100" stroke-dasharray="20.9 79.1" stroke-dashoffset="-23.4"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c3)" stroke-width="30" pathLength="100" stroke-dasharray="16.1 83.9" stroke-dashoffset="-45.2"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c2)" stroke-width="30" pathLength="100" stroke-dasharray="15.1 84.9" stroke-dashoffset="-62"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c4)" stroke-width="30" pathLength="100" stroke-dasharray="6.1 93.9" stroke-dashoffset="-78"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c6)" stroke-width="30" pathLength="100" stroke-dasharray="5.9 94.1" stroke-dashoffset="-84.8"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c7)" stroke-width="30" pathLength="100" stroke-dasharray="3.6 96.4" stroke-dashoffset="-91.5"/>
+          <circle r="62" cx="120" cy="120" fill="none" stroke="var(--c5)" stroke-width="30" pathLength="100" stroke-dasharray="3.3 96.7" stroke-dashoffset="-95.9"/>
         </g>
-        <text x="120" y="127" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">$23.9k</text>
+        <text x="120" y="127" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">$24.4k</text>
         <!-- category icons at each slice's midpoint angle, just outside the ring -->
         <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-          <g transform="translate(175.8 41.5) scale(0.75)" stroke="var(--c1)"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></g>
-          <g transform="translate(187.9 166.8) scale(0.75)" stroke="var(--c8)"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></g>
-          <g transform="translate(86.1 202.7) scale(0.75)" stroke="var(--c2)"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></g>
-          <g transform="translate(20.1 138.5) scale(0.75)" stroke="var(--c3)"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></g>
-          <g transform="translate(24.6 71.5) scale(0.75)" stroke="var(--c4)"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></g>
-          <g transform="translate(49.2 38.9) scale(0.75)" stroke="var(--c6)"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></g>
-          <g transform="translate(77.4 22.2) scale(0.75)" stroke="var(--c5)"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></g>
-          <g transform="translate(98.9 6.7) scale(0.75)" stroke="var(--c7)"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
+          <g transform="translate(174.8 40.6) scale(0.75)" stroke="var(--c1)"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></g>
+          <g transform="translate(190.3 163.3) scale(0.75)" stroke="var(--c8)"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></g>
+          <g transform="translate(20.7 140.4) scale(0.75)" stroke="var(--c2)"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></g>
+          <g transform="translate(89.6 203.5) scale(0.75)" stroke="var(--c3)"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></g>
+          <g transform="translate(23.6 73.9) scale(0.75)" stroke="var(--c4)"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></g>
+          <g transform="translate(46.8 41.1) scale(0.75)" stroke="var(--c6)"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></g>
+          <g transform="translate(97.5 6.8) scale(0.75)" stroke="var(--c5)"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></g>
+          <g transform="translate(74.3 23.4) scale(0.75)" stroke="var(--c7)"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
         </g>
       </svg>
     </div>
@@ -626,12 +627,12 @@
         <tbody>
           <tr><td><span class="icn" style="color:var(--c1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>Controller boards</td><td class="num">$5,714</td><td class="num">24%</td></tr>
           <tr><td><span class="icn" style="color:var(--c8)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Enclosures (172 + screws)</td><td class="num">$5,307</td><td class="num">22%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg></span>Sensors</td><td class="num">$4,121</td><td class="num">17%</td></tr>
           <tr><td><span class="icn" style="color:var(--c2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></span>Solar (panels + pigtails)</td><td class="num">$3,887</td><td class="num">16%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg></span>Sensors</td><td class="num">$3,828</td><td class="num">16%</td></tr>
           <tr><td><span class="icn" style="color:var(--c4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.8.7 1.3 1.5 1.5 2.5h5c.2-1 .7-1.8 1.5-2.5A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 22h3"/></svg></span>Lights (LEDs)</td><td class="num">$1,673</td><td class="num">7%</td></tr>
           <tr><td><span class="icn" style="color:var(--c6)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-6 6 6 6 0 0 1-6-6V7z"/><path d="M12 17v5"/></svg></span>Cabling (XH harness, rescue ports, breakouts)</td><td class="num">$1,630</td><td class="num">7%</td></tr>
+          <tr><td><span class="icn" style="color:var(--c7)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>Noisemakers</td><td class="num">$1,066</td><td class="num">4%</td></tr>
           <tr><td><span class="icn" style="color:var(--c5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21.5 11v2M6.5 11v2M10.5 11v2"/></svg></span>Batteries</td><td class="num">$1,007</td><td class="num">4%</td></tr>
-          <tr><td><span class="icn" style="color:var(--c7)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>Noisemakers</td><td class="num">$872</td><td class="num">4%</td></tr>
         </tbody>
       </table></div>
       <p class="small muted" style="margin:.5rem 0 0">Boards include the 90-unit batch ordered Jul 9 ($3.5k with shipping, fees, and tariff). The sensors/cabling split of one combined order is estimated. More cabling spend is coming (harness, USB-C ports).</p>
@@ -672,7 +673,7 @@
 </section>
 
 <footer>
-  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-16 (rev 13) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
+  Resonance Tree lighting workstream &middot; Ben Eckart (power, firmware, radio) + Steve Eckart (enclosure, printing) &middot; brief generated 2026-07-08 from the project repo, updated 2026-07-16 (rev 14) &middot; project dates: resonancenetwork.org/camp &middot; fleet counts tentative until installation
 </footer>
 
 </div>

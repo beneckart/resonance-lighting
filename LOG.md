@@ -12,6 +12,24 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-16 (cont. 2) -- Ben + Claude -- 50 more MOSFET drivers (scope promotion in the air) + 30x BMP581 env sensors for the uplights
+
+Missed order recovered: Adafruit 2026-07-16, $488.13 total.
+
+- **50 more MOSFET drivers ($178) -> 160 total.** "The solenoids are cool enough
+  we may promote them to a feature on all the downlights and perimeter lights"
+  -- ADR 0030's scope sub-decision is trending fleet-wide on those two classes
+  (annotated).
+- **30x BMP581 temp + barometric-pressure sensors ($268.80)** -- a NEW sensor
+  class: they ride the uplight STEMMA chain as generic environmental loggers
+  (playa weather telemetry feeding the 2027 design). Uplights are no longer
+  sensor-less; ADR 0027 annotated, SYSTEM fleet table + BOM + glossary updated,
+  firmware TODO added (100 kHz bus rules apply; add temp/pressure to the
+  telemetry tail).
+
+Committed spend ~$24.4k. Brief rev 14 (sensors tile 330, donut re-flowed --
+sensors now the #3 category, above solar).
+
 ## 2026-07-16 (cont.) -- Ben + Claude -- Solenoid bake-off status (Ben-reported; bench data pending commit): stronger solenoids, 0730B 6 V/1 A leads; transients benign
 
 Status capture from Ben's bench work -- **the post-07-11 experiment data is NOT

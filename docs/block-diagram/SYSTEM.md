@@ -21,7 +21,7 @@ fungible and fully wireless, so placement is free and the split can shift on-sit
 |---|---|---|---|---|
 | Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
 | Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel | VL53L5CX (outward); MSA311 likely |
-| Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | none |
+| Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
 | Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
 Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
@@ -65,7 +65,8 @@ downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
         GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
         - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
         - 4 W RGBW on 3V3 rail        VL53L5CX outward (perimeter)
-          (DECIDED by A/B, 0029)      bench-only: thermal/radar/INA
+          (DECIDED by A/B, 0029)      BMP581 temp/pressure (uplights)
+                                      bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
         Noisemaker (DECIDED, ADR 0030): solenoid mallet strikes

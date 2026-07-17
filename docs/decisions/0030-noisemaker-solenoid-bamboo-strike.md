@@ -9,7 +9,9 @@ buys headroom for STRONGER solenoids, and a part bake-off is in progress with th
 **0730B 6 V/1 A as primary candidate**; the in-transit 3 V/5 V units may be
 returned. The strike-transient concern is CLOSED-benign: strikes appear as VDC
 droops indistinguishable from a passing cloud/shadow -- the BQ charger is not
-confused.
+confused. Scope is trending fleet-wide on downlights + perimeter: the driver
+count was topped up to 160 on 2026-07-16 ("the solenoids are cool enough we may
+promote them to a feature on all the downlights and perimeter lights").
 **Owners:** Ben + Claude
 
 ## Context

@@ -4,6 +4,10 @@
 sway_demo validation and fused-IMU rejection, and the 2026-07-08 allocation)
 **Status:** Accepted. Per-class allocation recorded below is tentative until
 installation (ADR 0024); per-fixture presence choreography remains future firmware.
+Annotation 2026-07-16: uplights are no longer sensor-less -- 30x BMP581
+temp/barometric-pressure sensors were bought for the uplight STEMMA chain as
+generic environmental loggers (playa weather telemetry for the 2027 design).
+Motion/presence allocation is unchanged.
 **Owners:** Ben + Claude
 
 ## Context

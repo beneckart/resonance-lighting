@@ -36,10 +36,12 @@ LOG inference) -- correct them from receipts when convenient.
 | enclosures-tn | Polycase | 2026-07-13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
 | enclosures-ca | Polycase | 2026-07-13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
 | strike-caps | AliExpress (2 sellers) | 2026-07-16 | 210x 22,000 uF 16 V capacitors -- solenoid strike storage for the VDC-tap supply; bench shows 22k uF buys the headroom for STRONGER solenoids | $161.39 ($140.89 + $20.50) | placed, in transit -- watch lead time |
+| drivers-bmp | Adafruit | 2026-07-16 | 50x MOSFET drivers ($178 -- 160 total; solenoids may be PROMOTED to a standard feature on all downlights + perimeter lights) + 30x BMP581 temp/barometric sensors ($268.80 -- env data on the uplight STEMMA chain); ~$41 s&h/tax | $488.13 | placed, in transit |
 
-Committed so far: **~$23,871** across the rows above (production boards 158; RGBW
+Committed so far: **~$24,359** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
-deliberate lead-time-hedged abundance; 210 strike caps). The $440 / $170 / $159 rows are the
+deliberate lead-time-hedged abundance; 210 strike caps; 160 MOSFET drivers; 30
+BMP581 env sensors). The $440 / $170 / $159 rows are the
 fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 Cabling strategy note (2026-07-13): final harness lengths are unknown until the
@@ -166,7 +168,10 @@ corroborated 2026-07-08):
   **Noisemaker DECIDED same day (ADR 0030)**: solenoid bamboo-strike; speaker
   path abandoned.
 - 2026-07-16 -- **strike caps ordered**: 210x 22,000 uF 16 V ($161.39, two
-  AliExpress sellers) -- fleet-scale storage for the VDC-tap strike supply.
+  AliExpress sellers) -- fleet-scale storage for the VDC-tap strike supply. Also
+  **50 more MOSFET drivers** (160 total -- solenoid knock trending toward a
+  standard downlight + perimeter feature) and **30x BMP581 temp/barometric
+  sensors** for the uplight STEMMA chain ($488.13, Adafruit).
 - ~2026-07-20/31 (TENTATIVE) -- Ben TN trip: ~70-board fleet test at Steve's.
 - 2026-07-31/08-19 -- NC prebuild, Bodhi Hive, Nevada City; **08-01/02 container
   unload (all hands)**; **08-08/09 lights + camp systems team build**.

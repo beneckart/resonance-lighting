@@ -110,6 +110,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **NeoHEX** -- M5Stack WS2812C-2020 hex board; least-efficient fallback (20 on hand).
 - **4 W RGBW** -- Adafruit warm-white 4 W RGBW point-source emitter; the crisp-gobo long-throw role. Fed from the switchable 3V3 rail, same as the HEX -- decided by instrumented A/B 2026-07-11 (ADR 0029 amendment).
 - **MSA311** -- Adafruit STEMMA 3-axis accelerometer; per-fixture sway/tilt sensing, no per-unit calibration (ADR 0027).
+- **BMP581** -- Bosch temp + barometric pressure sensor (Adafruit STEMMA); rides the uplight STEMMA chain as a generic environmental logger (30 bought 2026-07-16) -- playa weather data for the 2027 design.
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo).
 - **Solenoid mallet** -- The fleet noisemaker (decided 2026-07-15, ADR 0030): a MOSFET-driven push-pull solenoid physically knocks the bamboo -- daytime solar-surplus percussion; night belongs to the light show. 150 bought (3 V / 5 V A/B pending); the #3885 speaker-synth path was abandoned.
