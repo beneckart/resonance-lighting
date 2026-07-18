@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Resonance Tree \u2014 R3F mirror twin + sim (software-only lighting environment)",
+  "description": "Resonance Tree — R3F mirror twin + sim (software-only lighting environment)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
+    "@types/node": "^20.19.43",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
