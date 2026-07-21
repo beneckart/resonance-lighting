@@ -953,7 +953,9 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 - [ ] **Hinged downlight panels**: tangential bracket+hinge (pitch-only) measured
   +15.7% fleet solar (free-azimuth ideal +25.3%); two-family install rule (pitch
-  outward ~40 deg, northern arc inward ~30) needs no per-unit config. Blockers to
+  outward ~40 deg, northern arc inward ~30) needs no per-unit config; a ONE-rule
+  aesthetic variant (uniform outward 30 deg) measured +10.7% (-4.4% vs optimal,
+  cost concentrated in the north arc: -27%, 5 lights back under 3 h). Blockers to
   resolve: whole-lantern tilt would wreck the gobo projection (wants a panel-only
   flap -- Steve); no-spin harness freezes RF panel azimuths at KNOWN radial angles
   -- run the frozen-radial arm in ops/locate before committing (data + figures in
