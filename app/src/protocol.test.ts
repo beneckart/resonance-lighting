@@ -12,12 +12,24 @@ const fx = (id: string): SimFixture => ({
 });
 
 describe("protocol v1", () => {
-  it("encodes control params (not pixels): bri/hue 0..255", () => {
+  it("encodes control params (not pixels): bri/hue/sat 0..255", () => {
     const p = encodeFixture(ctrl, fx("F000"));
-    expect(p).toEqual({ id: "F000", pattern: "spectrum", bri: 255, hue: 128 });
+    expect(p).toEqual({ id: "F000", pattern: "spectrum", bri: 255, hue: 128, sat: 255 });
+  });
+  it("carries saturation — white (sat 0) must be distinguishable from red (hue 0, sat 255)", () => {
+    const white = encodeFixture({ ...ctrl, hue: 0, sat: 0 } as Control, fx("F000"));
+    const red = encodeFixture({ ...ctrl, hue: 0, sat: 1 } as Control, fx("F000"));
+    expect(white.sat).toBe(0);
+    expect(red.sat).toBe(255);
+    expect(white).not.toEqual(red);
+  });
+  it("BLACKOUT commands the fleet off (mirror rule: dark twin ⇒ off packet)", () => {
+    const p = encodeFixture({ ...ctrl, blackout: true } as Control, fx("F000"));
+    expect(p.pattern).toBe("off");
+    expect(p.bri).toBe(0);
   });
   it("override off → pattern off, bri 0", () => {
-    expect(encodeFixture(ctrl, fx("F001"), { mode: "off" })).toEqual({ id: "F001", pattern: "off", bri: 0, hue: 0 });
+    expect(encodeFixture(ctrl, fx("F001"), { mode: "off" })).toEqual({ id: "F001", pattern: "off", bri: 0, hue: 0, sat: 0 });
   });
   it("override color → static rgb 0..255", () => {
     const p = encodeFixture(ctrl, fx("F002"), { mode: "color", rgb: [1, 0, 0] });

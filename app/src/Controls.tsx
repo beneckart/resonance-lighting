@@ -180,7 +180,10 @@ export function Controls() {
         {/* colour MOTION on top of the picked colour — works with any pattern */}
         <div style={{ ...row, marginBottom: 0 }}>
           {COLOR_CYCLES.map((m: ColorCycle) => (
-            <button key={m} style={{ ...btn(ctrl.colorCycle === m), fontSize: 10 }} onClick={() => setCtrl({ colorCycle: m })}
+            <button key={m} style={{ ...btn(ctrl.colorCycle === m), fontSize: 10 }}
+              // rainbow/per-light promise "ALL colours" — with a desaturated base (e.g.
+              // after picking white) they'd render invisibly white, so revive saturation
+              onClick={() => setCtrl({ colorCycle: m, ...((m === "rainbow" || m === "independent") && ctrl.sat < 0.15 ? { sat: 0.85 } : {}) })}
               title={m === "off" ? "hold the picked colour" : m === "rainbow" ? "sweep through ALL colours" : m === "group" ? "drift through the adjacent family (warm/cool)" : m === "shade" ? "drift through the shades of the picked colour" : "each light picks its own colour independently"}>
               {m === "off" ? "● hold" : m === "rainbow" ? "🌈 rainbow" : m === "group" ? "family" : m === "shade" ? "shades" : "🎲 per-light"}
             </button>

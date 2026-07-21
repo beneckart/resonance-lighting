@@ -143,8 +143,13 @@ export function InteractivityPanel() {
     setTod(0); // night — the living field reads best against black
   };
   const pokeRandom = () => {
+    const idx = fixtures.length ? (Math.random() * fixtures.length) | 0 : 0;
+    // a poke IS a presence event (PRESENCE doc: any sensor fire in standby = the
+    // first visitor) — while the Game of Light waits armed, the poke ignites it
+    // instead of feeding a field that standby renders black.
+    if (useTwin.getState().gol.phase === "standby") { useTwin.getState().golFirstVisitor(idx); return; }
     if (!isCA) pickRule(tr.rule);
-    if (fixtures.length) trigger((Math.random() * fixtures.length) | 0);
+    if (fixtures.length) trigger(idx);
   };
   // ONE PERSON WALKING THROUGH triggers MANY lights (Elliot): a virtual visitor
   // strolls ~a third of the way around the outer canopy, firing the nearest
@@ -157,6 +162,9 @@ export function InteractivityPanel() {
     const st = useTwin.getState();
     const outer = st.fixtures.map((f, i) => ({ f, i })).filter((x) => x.f.role === "downlight" && x.f.radialT >= 0.4);
     if (!outer.length) return;
+    // walking under an armed tree IS the first visitor — ignite, then the
+    // footfalls below land in the now-live field.
+    if (st.gol.phase === "standby") st.golFirstVisitor(outer[0].i);
     const a0 = Math.random() * Math.PI * 2;
     const dir = Math.random() < 0.5 ? 1 : -1;
     const STEPS = 9;

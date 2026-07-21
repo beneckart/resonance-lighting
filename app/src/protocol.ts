@@ -10,6 +10,7 @@ export interface ParamPacket {
   pattern: string; // pattern the fixture runs (or "off"/"static")
   bri: number; // 0..255
   hue: number; // 0..255
+  sat: number; // 0..255 — without this, white/pastels are unrepresentable (white ≡ red on the fleet)
   rgb?: [number, number, number]; // 0..255, only for a static override color
 }
 
@@ -21,15 +22,19 @@ export interface ShowFrame {
 }
 
 export function encodeFixture(c: Control, f: SimFixture, ov?: Override): ParamPacket {
+  // BLACKOUT is a state the fleet must hear about — the twin renders black, so the
+  // packet must command "off" too, or the physical tree stays lit (mirror rule).
+  if (c.blackout) return { id: f.id, pattern: "off", bri: 0, hue: 0, sat: 0 };
   const bri = Math.round(Math.min(1, Math.max(0, c.brightness * c.master)) * 255);
-  if (ov?.mode === "off") return { id: f.id, pattern: "off", bri: 0, hue: 0 };
+  const sat = Math.round(Math.min(1, Math.max(0, c.sat)) * 255);
+  if (ov?.mode === "off") return { id: f.id, pattern: "off", bri: 0, hue: 0, sat: 0 };
   if (ov?.rgb) {
     return {
-      id: f.id, pattern: "static", bri, hue: 0,
+      id: f.id, pattern: "static", bri, hue: 0, sat: 0,
       rgb: [Math.round(ov.rgb[0] * 255), Math.round(ov.rgb[1] * 255), Math.round(ov.rgb[2] * 255)],
     };
   }
-  return { id: f.id, pattern: c.pattern, bri, hue: Math.round(c.hue * 255) };
+  return { id: f.id, pattern: c.pattern, bri, hue: Math.round(c.hue * 255), sat };
 }
 
 export function buildShowFrame(

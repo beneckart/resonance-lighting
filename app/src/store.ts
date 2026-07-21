@@ -284,6 +284,11 @@ interface TwinState {
 let lastTriggerHue = -1;
 let lastTriggerBri = -1;
 
+// what the operator had before a show took the controls — ShowPlayer interpolates
+// brightness/hue/sat/speed/master into global control every tick, so stopping a
+// show must RESTORE these or the tree stays wherever the show last faded it.
+let showControlSnapshot: Partial<Control> | null = null;
+
 export const useTwin = create<TwinState>((setState, get) => ({
   fixtures: [],
   source: "",
@@ -722,6 +727,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // tree back up (setUiMode/setGroupMode/playShow/set all lift blackout).
   resetAllOff: () => setState((s) => {
     clearLife();
+    showControlSnapshot = null; // BLACKOUT is a full reset — never restore pre-show state after it
     return {
       activeShow: null,
       layers: [],
@@ -785,7 +791,17 @@ export const useTwin = create<TwinState>((setState, get) => ({
   }),
   playShow: (id) => setState((s) => {
     recEvent("show", { id });
-    if (!id) return { activeShow: null, layers: [] }; // stop → drop show layers
+    if (!id) {
+      // stop → drop show layers + hand the driven controls back to the operator
+      const restore = showControlSnapshot;
+      showControlSnapshot = null;
+      return { activeShow: null, layers: [], ...(restore ? { control: { ...s.control, ...restore } } : {}) };
+    }
+    if (!s.activeShow) {
+      // snapshot ONCE when starting from idle — switching shows keeps the original
+      const { brightness, hue, sat, speed, master, pattern, colorCycle } = s.control;
+      showControlSnapshot = { brightness, hue, sat, speed, master, pattern, colorCycle };
+    }
     // starting a SHOW exits the Game-of-Light lifecycle — otherwise a blackout
     // latched by an armed/dark GoL phase silently renders the whole show black
     if (s.gol.phase !== "off") {

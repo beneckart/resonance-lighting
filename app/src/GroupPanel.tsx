@@ -120,7 +120,9 @@ export function GroupPanel() {
         </div>
         <div style={row}>
           {COLOR_CYCLES.map((m: ColorCycle) => (
-            <button key={m} style={{ ...btn(gc.colorCycle === m), fontSize: 10 }} onClick={() => set({ colorCycle: m })}>
+            <button key={m} style={{ ...btn(gc.colorCycle === m), fontSize: 10 }}
+              // same guard as the main panel: rainbow/per-light need saturation to be visible
+              onClick={() => set({ colorCycle: m, ...((m === "rainbow" || m === "independent") && (gc.sat ?? 1) < 0.15 ? { sat: 0.85 } : {}) })}>
               {m === "off" ? "● hold" : m === "rainbow" ? "🌈" : m === "group" ? "family" : m === "shade" ? "shades" : "🎲 per-light"}
             </button>
           ))}
