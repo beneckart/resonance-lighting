@@ -948,3 +948,18 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 - [ ] Cataloging schema (per-fixture pattern identity -- useful regardless of source).
 - [ ] Print schedule backward from ~Aug 10 filters-in-hand (Steve's Bambu + possible
   batch service).
+
+## Solar layout levers (solarsim studies, 2026-07-20/21)
+
+- [ ] **Hinged downlight panels**: tangential bracket+hinge (pitch-only) measured
+  +15.7% fleet solar (free-azimuth ideal +25.3%); two-family install rule (pitch
+  outward ~40 deg, northern arc inward ~30) needs no per-unit config. Blockers to
+  resolve: whole-lantern tilt would wreck the gobo projection (wants a panel-only
+  flap -- Steve); no-spin harness freezes RF panel azimuths at KNOWN radial angles
+  -- run the frozen-radial arm in ops/locate before committing (data + figures in
+  ops/solarsim/data) (Ben + Steve).
+- [ ] **Inner ring at 3.26 m** (middle equidistant): +28% inner-ring solar, fixes
+  gobo spacing; door-axis finding: treev4 tunnels sit at az 75.4/255.4 (rotated
+  14.6 deg CCW, near-sunrise-aligned) -- reconcile orientation + door lights with
+  Elliot; rise/set chord can NEVER hit both doors (non-antipodal), belly crossings
+  at ~07:25/~18:25 are the symmetric photo-op (Ben -> Elliot).
