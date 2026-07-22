@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { litFor, solarRayStage, type Lit } from "./patterns";
+import { litFor, solarRayStage, assignSunRays, SUN_RAY_COUNT, type Lit } from "./patterns";
 import { solarHandoffFired } from "./sensors";
 import { useTwin, type Control, type SimFixture } from "./store";
 
@@ -39,7 +39,7 @@ describe("solarray pattern", () => {
 
   it("every fixture renders in the warm red→yellow palette only (never blue/green-dominant)", () => {
     for (let i = 0; i < 40; i++) {
-      const f = fx({ azimuth: (i / 40) * Math.PI * 2 - Math.PI, radialT: (i % 10) / 10, ring: i % 3, rnd: (i * 0.37) % 1 });
+      const f = fx({ sunRay: i % 3 === 0 ? i % 12 : undefined, radialT: (i % 10) / 10, ring: i % 3, rnd: (i * 0.37) % 1 });
       for (const t of [0, 2.7, 9.1]) {
         const o = lit(f, t);
         expect(o.b).toBeLessThanOrEqual(o.r + 1e-6); // blue never beats red
@@ -56,7 +56,7 @@ describe("solarray pattern", () => {
   });
 
   it("chains ignite inner → middle → outer as the frames advance (the wave)", () => {
-    const onRay = (ring: number) => fx({ azimuth: 0, ring, radialT: 0.3 + ring * 0.3 }); // azimuth 0 = a ray spine
+    const onRay = (ring: number) => fx({ sunRay: 0, ring, radialT: 0.3 + ring * 0.3 }); // stencil member of ray 0
     const level = (f: SimFixture, t: number) => { const o = lit(f, t); return Math.max(o.r, o.g, o.b); };
     // frame 1: inner lit, middle+outer still dark
     expect(level(onRay(0), tAtStage(1))).toBeGreaterThan(0.3);
@@ -71,21 +71,36 @@ describe("solarray pattern", () => {
     expect(level(onRay(2), tAtStage(3))).toBeGreaterThan(0.3);
   });
 
-  it("skips the lights in between — off-chain fixtures are HARD OFF in every frame (ray definition)", () => {
-    const m = (Math.PI * 2) / 12;
-    const between = fx({ azimuth: m / 2, ring: 1, radialT: 0.6 }); // halfway between two ray spines
+  it("lights outside the stencil are HARD OFF in every frame (ray definition)", () => {
+    const between = fx({ sunRay: undefined, ring: 1, radialT: 0.6 }); // not part of the drawing
     for (let s = 0; s < 6; s++) {
       const o = lit(between, tAtStage(s));
       expect(Math.max(o.r, o.g, o.b)).toBeLessThan(0.001); // fully off, not dim
     }
   });
 
+  it("assignSunRays stencils EXACTLY one light per ring per ray — most of the tree stays dark", () => {
+    // simulate the real tree: 3 rings × 26 evenly spaced downlights
+    const fleet: SimFixture[] = [];
+    for (let ring = 0; ring < 3; ring++)
+      for (let i = 0; i < 26; i++)
+        fleet.push(fx({ azimuth: (i / 26) * Math.PI * 2 - Math.PI + ring * 0.04, ring, radialT: 0.3 + ring * 0.3 }));
+    assignSunRays(fleet);
+    const assigned = fleet.filter((f) => f.sunRay !== undefined);
+    expect(assigned.length).toBe(3 * SUN_RAY_COUNT); // 36 lights draw the sun
+    expect(fleet.length - assigned.length).toBe(78 - 36); // 42 lights NEVER light
+    // each ray has exactly one light per ring
+    for (let k = 0; k < SUN_RAY_COUNT; k++)
+      for (let ring = 0; ring < 3; ring++)
+        expect(fleet.filter((f) => f.sunRay === k && f.ring === ring).length).toBe(1);
+  });
+
   it("colour grades outward along the ray: gold near the disk → deeper red at the tip", () => {
     // at full-sun frame, compare a lit inner vs outer chain light on the same ray:
     // yellow-gold has a higher green/red ratio than deep red.
     const t3 = tAtStage(3);
-    const inner = lit(fx({ azimuth: 0, ring: 0, radialT: 0.25 }), t3);
-    const outer = lit(fx({ azimuth: 0, ring: 2, radialT: 0.95 }), t3);
+    const inner = lit(fx({ sunRay: 0, ring: 0, radialT: 0.25 }), t3);
+    const outer = lit(fx({ sunRay: 0, ring: 2, radialT: 0.95 }), t3);
     const gr = (o: Lit) => o.g / Math.max(1e-6, o.r);
     expect(gr(inner)).toBeGreaterThan(gr(outer) + 0.1); // inner visibly more golden
     expect(outer.r).toBeGreaterThan(0.2); // tip still burns (red, not black)

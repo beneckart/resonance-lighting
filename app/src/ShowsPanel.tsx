@@ -16,8 +16,10 @@ export function ShowsPanel() {
     return () => clearInterval(id);
   }, [activeShow]);
 
+  const showRate = useTwin((s) => s.showRate);
+  const setShowRate = useTwin((s) => s.setShowRate);
   const show = showById(activeShow);
-  const elapsed = show ? Math.min(show.durationS, performance.now() / 1000 - startedAt) : 0;
+  const elapsed = show ? Math.min(show.durationS, (performance.now() / 1000 - startedAt) * (showRate || 1)) : 0;
   let cueNote = "";
   if (show) {
     for (const c of show.cues) if (c.at <= elapsed) cueNote = c.note;
@@ -45,6 +47,13 @@ export function ShowsPanel() {
             <span>{fmt(elapsed)} / {fmt(show.durationS)}</span><span>↻ loops</span>
           </div>
           <div style={{ fontSize: 10, color: "#9fc0ff", marginTop: 3 }}>▸ {cueNote}</div>
+          {/* ⏩ preview speed — play through the arc fast to SEE the whole show */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+            <span style={{ fontSize: 9.5, opacity: 0.75, whiteSpace: "nowrap" }}>⏩ preview ×{showRate}</span>
+            <input type="range" min={1} max={10} step={1} value={showRate}
+              onChange={(e) => setShowRate(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#5b8cff" }} />
+          </div>
         </div>
       )}
     </Widget>

@@ -19,7 +19,7 @@ export function ShowPlayer() {
       const st = useTwin.getState();
       const show = showById(st.activeShow);
       if (!show) return;
-      let elapsed = performance.now() / 1000 - st.showStartedAt;
+      let elapsed = (performance.now() / 1000 - st.showStartedAt) * (st.showRate || 1); // ⏩ preview rate scrubs the whole arc
       if (elapsed > show.durationS) { // loop the show (one breath cycle) — RESEED so each loop differs
         useTwin.setState({ showStartedAt: performance.now() / 1000, showSeed: Math.random() });
         elapsed = 0;

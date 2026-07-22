@@ -66,6 +66,32 @@ export function solarRayStage(t: number, speed: number): number {
   return ((i % 6) + 6) % 6;
 }
 
+export const SUN_RAY_COUNT = 12;
+/** THE SUN STENCIL (Elliot: "overlay Ben's ray image on the piece to scale and
+ *  only light the ones that are colored in"). The hang positions are irregular —
+ *  an angular window either floods the ring or misses everything — so membership
+ *  is EXPLICIT: for each of the 12 ray spines and each physical ring, assign the
+ *  ONE nearest downlight. Those chains ARE the drawing (~36 of 78 downlights);
+ *  every other light is not part of the sun and never lights in solarray. */
+export function assignSunRays(fixtures: SimFixture[], rays = SUN_RAY_COUNT): void {
+  const m = (Math.PI * 2) / rays;
+  for (const f of fixtures) f.sunRay = undefined;
+  const wrapDist = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  for (let ring = 0; ring <= 2; ring++) {
+    const ringFx = fixtures.filter((f) => f.role === "downlight" && f.ring === ring);
+    for (let k = 0; k < rays; k++) {
+      const spine = -Math.PI + k * m;
+      let best: SimFixture | null = null, bd = Infinity;
+      for (const f of ringFx) {
+        if (f.sunRay !== undefined) continue; // each light draws at most one ray
+        const dd = wrapDist(f.azimuth, spine);
+        if (dd < bd) { bd = dd; best = f; }
+      }
+      if (best) best.sunRay = k;
+    }
+  }
+}
+
 /** Compute a fixture's REPORTED color (brightness pre-applied) from the commanded
  *  control + audio + time. This is the firmware stand-in; the renderer only shows
  *  the result (the mirror rule). */
@@ -499,19 +525,16 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
         sat = 0.75;
         break;
       }
-      const NR = 12; // rays around the trunk
-      const m = (Math.PI * 2) / NR;
-      const k = Math.round(f.azimuth / m); // this light's nearest ray (STATIC — chains don't move)
-      const d = f.azimuth - k * m; // angular offset from the ray's spine
-      const onChain = Math.abs(d) < m * 0.25; // chain member? (skip the lights in between)
-      // off-chain lights are HARD OFF in every frame (Elliot: "some need to
-      // always be off" — lighting them would dissolve the ray definition)
-      if (!onChain) { bri = 0; hue = 0.03; sat = 1; break; }
+      // THE STENCIL: membership is precomputed (assignSunRays — one light per
+      // ring per spine, from the real hang positions). Lights outside the
+      // stencil are not part of the sun and are OFF in every frame.
+      if (f.sunRay === undefined) { bri = 0; hue = 0.03; sat = 1; break; }
+      const k = f.sunRay;
       // which wave frame does THIS light ignite at? inner=1, middle=2, outer=3
       const igniteAt = f.ring <= 0 ? 1 : f.ring === 1 ? 2 : 3;
       const isLit = stage >= igniteAt;
       const justLit = stage === igniteAt; // pop harder on the frame it ignites
-      const pulsing = stage >= 4 ? 0.55 + 0.45 * Math.sin(t * 7 * Math.max(0.4, sp) + f.ring * 0.9) : 1;
+      const pulsing = stage >= 4 ? 0.55 + 0.45 * Math.sin(t * 7 * Math.max(0.4, sp) + f.ring * 0.9 + k * 0.5) : 1; // each ray shimmers on its own phase
       // EMBER-SUN GRADIENT (Ben's ember-suns chart): the ray burns gold where it
       // leaves the disk and deepens smoothly through orange into red at the tip —
       // colour + intensity both graded by radius, not flat per-ring steps.

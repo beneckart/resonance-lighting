@@ -12,6 +12,7 @@ import { themeById, themeHue } from "./themes";
 import { loadFixtures, makeTestGridDoc } from "./fixtures";
 import { recEvent } from "./flightrec";
 import { DEFAULT_SENSORS, solarHandoffFired, type Sensors } from "./sensors";
+import { assignSunRays } from "./patterns"; // ☀️ Solar Ray stencil (type-only imports back — no cycle)
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
@@ -146,6 +147,7 @@ export interface SimFixture {
   radialT: number; // 0..1 normalized horizontal distance from the trunk axis (in/out)
   rnd: number; // stable per-fixture random 0..1 — for sparkle/jitter
   neighbors: number[]; // indices of nearest fixtures — decentralised/neighbour-coupled patterns
+  sunRay?: number; // ☀️ solarray stencil: which of the 12 sun rays this light draws (undefined = not part of the sun, never lights)
   beamDeg: number; // beam cone angle (deg) from fixtures.json
   lumens: number; // lumens_max from fixtures.json (beam photometrics)
   aim?: [number, number, number]; // three-space cast direction (schema 0.2; optional)
@@ -229,6 +231,8 @@ interface TwinState {
   selectedGroup: string; // the group the panel is editing
   activeShow: string | null; // running timed light show (shows.ts), or null
   showStartedAt: number; // performance.now()/1000 when the show began (for elapsed)
+  showRate: number; // preview playback rate ×1..×10 — scrub through a show fast to SEE it
+  setShowRate: (r: number) => void;
   showSeed: number; // per-RUN seed → each playthrough varies (hue rotation, speed, cue jitter); reset on start + loop
   init: (doc: FixturesDoc) => void;
   loadLayout: (which: "tree" | "grid", seed?: number) => void; // testing rig ⇄ the real tree
@@ -310,6 +314,8 @@ export const useTwin = create<TwinState>((setState, get) => ({
   activeShow: null,
   showStartedAt: 0,
   showSeed: 0,
+  showRate: 1,
+  setShowRate: (r) => setState({ showRate: Math.min(10, Math.max(0.25, r)) }),
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
@@ -458,6 +464,10 @@ export const useTwin = create<TwinState>((setState, get) => ({
       d.sort((a, b) => a.d2 - b.d2);
       fixtures[i].neighbors = d.slice(1, KN + 1).map((x) => x.j);
     }
+
+    // ☀️ bake the Solar Ray stencil from the real hang positions (one light per
+    // ring per ray spine — the "overlay Ben's image" membership)
+    assignSunRays(fixtures);
 
     // seed preset GROUPS (Elliot's panel): 3 concentric rings of downlights split by
     // radius + uplights + chandelier + all. Real ring IDs arrive with the Blender

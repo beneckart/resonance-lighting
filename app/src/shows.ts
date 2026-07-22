@@ -193,9 +193,9 @@ const SOLAR_RAY: LightShow = {
     ] },
     { at: 14, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.6, speed: 0.55, colorCycle: "off" } },
     { at: 40, note: "the sun turns — full wave", base: { pattern: "solarray", brightness: 0.9, speed: 1 } },
-    { at: 110, note: "full corona", base: { pattern: "solarray", brightness: 1, speed: 1.3 }, layers: [
-      { group: "uplights", control: { pattern: "ember", hue: 0.05, sat: 1, brightness: 0.6, speed: 0.8 } },
-    ] },
+    // no flood layers here — lighting the uplights would fill the dark wedges
+    // that define the rays (Elliot: "some need to always be off")
+    { at: 110, note: "full corona", base: { pattern: "solarray", brightness: 1, speed: 1.3 } },
     { at: 190, note: "solar flares", base: { pattern: "solarray", brightness: 1, speed: 1.7 }, layers: [
       { group: "chandelier", control: { pattern: "sparkle", hue: 0.11, sat: 0.7, brightness: 1, speed: 1.4 } },
     ] },
