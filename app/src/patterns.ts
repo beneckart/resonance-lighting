@@ -512,10 +512,14 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       const isLit = stage >= igniteAt;
       const justLit = stage === igniteAt; // pop harder on the frame it ignites
       const pulsing = stage >= 4 ? 0.55 + 0.45 * Math.sin(t * 7 * Math.max(0.4, sp) + f.ring * 0.9) : 1;
-      bri *= isLit ? (justLit ? 1.25 : 1.0) * pulsing : 0.015;
-      // discrete warm palette per ring — crisp video-frame colours, no noise:
-      hue = f.ring <= 0 ? 0.1 : f.ring === 1 ? 0.055 : 0.015; // inner yellow → middle orange → outer red
-      sat = f.ring <= 0 ? 0.85 : 1;
+      // EMBER-SUN GRADIENT (Ben's ember-suns chart): the ray burns gold where it
+      // leaves the disk and deepens smoothly through orange into red at the tip —
+      // colour + intensity both graded by radius, not flat per-ring steps.
+      const rT = Math.min(1, Math.max(0, f.radialT));
+      const taper = 1.05 - 0.3 * rT; // rays taper: brightest at the core end
+      bri *= isLit ? (justLit ? 1.25 : 1.0) * pulsing * taper : 0;
+      hue = Math.max(0.004, 0.11 * (1 - rT)); // gold → orange → deep red, continuously
+      sat = 0.75 + 0.25 * rT; // whiter-hot near the disk, saturated red tips
       break;
     }
     case "beacon": {

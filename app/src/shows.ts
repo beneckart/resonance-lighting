@@ -185,22 +185,22 @@ const SOLAR_RAY: LightShow = {
   id: "solarray-show", name: "☀️ Solar Ray", vibe: "the tree becomes the sun · auto-fires at solar handoff", durationS: 300,
   paletteLock: true, // a sun is red/orange/yellow — the per-run hue rotation must never push it into pink
   cues: [
-    { at: 0, note: "the last ray dies — warm ember glow", base: { pattern: "ember", hue: 0.03, sat: 1, brightness: 0.14, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.4, master: 1 }, layers: [
-      { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.5, speed: 0.4 } },
-    ] },
-    { at: 12, note: "the core ignites (chandelier only)", base: { pattern: "solid", hue: 0.03, sat: 0.95, brightness: 0.05 }, layers: [
+    // DARK open (Elliot: "start dark, not pink") — pure black, nothing lit
+    { at: 0, note: "darkness — the sun is gone", base: { pattern: "solid", hue: 0.03, sat: 1, brightness: 0, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.5, master: 1 } },
+    // core ignites fast, rays follow immediately (Elliot: "move into the solar more quickly")
+    { at: 5, note: "the core ignites (chandelier only — everything else stays black)", base: { pattern: "solid", hue: 0.03, sat: 0.95, brightness: 0 }, layers: [
       { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.85, speed: 0.5 } },
     ] },
-    { at: 38, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.5, speed: 0.45, colorCycle: "off" } },
-    { at: 90, note: "the sun turns", base: { pattern: "solarray", brightness: 0.8, speed: 0.9 } },
-    { at: 150, note: "full corona", base: { pattern: "solarray", brightness: 0.95, speed: 1.3 }, layers: [
+    { at: 14, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.6, speed: 0.55, colorCycle: "off" } },
+    { at: 40, note: "the sun turns — full wave", base: { pattern: "solarray", brightness: 0.9, speed: 1 } },
+    { at: 110, note: "full corona", base: { pattern: "solarray", brightness: 1, speed: 1.3 }, layers: [
       { group: "uplights", control: { pattern: "ember", hue: 0.05, sat: 1, brightness: 0.6, speed: 0.8 } },
     ] },
-    { at: 210, note: "solar flares", base: { pattern: "solarray", brightness: 1, speed: 1.7 }, layers: [
+    { at: 190, note: "solar flares", base: { pattern: "solarray", brightness: 1, speed: 1.7 }, layers: [
       { group: "chandelier", control: { pattern: "sparkle", hue: 0.11, sat: 0.7, brightness: 1, speed: 1.4 } },
     ] },
-    { at: 255, note: "the sun breathes down", base: { pattern: "solarray", brightness: 0.55, speed: 0.5 } },
-    { at: 286, note: "ember rest — ready to loop", base: { pattern: "ember", hue: 0.03, sat: 1, brightness: 0.18, speed: 0.4 } },
+    { at: 255, note: "the sun breathes down", base: { pattern: "solarray", brightness: 0.6, speed: 0.5 } },
+    { at: 290, note: "back to darkness — ready to loop", base: { pattern: "solid", hue: 0.03, sat: 1, brightness: 0.02 } },
   ],
 };
 

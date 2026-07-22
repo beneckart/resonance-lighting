@@ -80,6 +80,17 @@ describe("solarray pattern", () => {
     }
   });
 
+  it("colour grades outward along the ray: gold near the disk → deeper red at the tip", () => {
+    // at full-sun frame, compare a lit inner vs outer chain light on the same ray:
+    // yellow-gold has a higher green/red ratio than deep red.
+    const t3 = tAtStage(3);
+    const inner = lit(fx({ azimuth: 0, ring: 0, radialT: 0.25 }), t3);
+    const outer = lit(fx({ azimuth: 0, ring: 2, radialT: 0.95 }), t3);
+    const gr = (o: Lit) => o.g / Math.max(1e-6, o.r);
+    expect(gr(inner)).toBeGreaterThan(gr(outer) + 0.1); // inner visibly more golden
+    expect(outer.r).toBeGreaterThan(0.2); // tip still burns (red, not black)
+  });
+
   it("chandelier core is lit in EVERY frame (the sun never goes out)", () => {
     for (let s = 0; s < 6; s++) {
       const o = lit(fx({ role: "chandelier", zone: "crown", radialT: 0.05 }), tAtStage(s));
