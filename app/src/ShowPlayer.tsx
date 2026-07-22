@@ -33,10 +33,13 @@ export function ShowPlayer() {
       const speedMul = 0.85 + seed * 0.35;       // 0.85–1.2× pace
       const jit = (k: number) => ((Math.sin((k + 1) * 12.9898 + seed * 78.233) * 43758.5453) % 1); // ±per-cue
       const cues = show.cues;
-      // jittered cue times (±6% of the gap to the next cue) — cues drift per run
-      const at = (k: number) => {
+      // jittered cue times (±6% of the gap to the next cue) — cues drift per run.
+      // BOUNDS-SAFE: guard k BEFORE indexing (the last cue calls at(i+1), which is
+      // cues[length] — indexing that first crashed every show on its final cue).
+      const at = (k: number): number => {
+        if (k <= 0) return cues[0].at;
+        if (k >= cues.length) return cues[cues.length - 1].at + 8; // a bound just past the last cue
         const base = cues[k].at;
-        if (k === 0 || k >= cues.length) return base;
         const gap = (cues[k + 1]?.at ?? base + 8) - base;
         return base + jit(k) * 0.06 * gap;
       };
