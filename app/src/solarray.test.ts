@@ -71,12 +71,12 @@ describe("solarray pattern", () => {
     expect(level(onRay(2), tAtStage(3))).toBeGreaterThan(0.3);
   });
 
-  it("skips the lights in between — off-chain fixtures stay dark in every frame", () => {
+  it("skips the lights in between — off-chain fixtures are HARD OFF in every frame (ray definition)", () => {
     const m = (Math.PI * 2) / 12;
     const between = fx({ azimuth: m / 2, ring: 1, radialT: 0.6 }); // halfway between two ray spines
     for (let s = 0; s < 6; s++) {
       const o = lit(between, tAtStage(s));
-      expect(Math.max(o.r, o.g, o.b)).toBeLessThan(0.05);
+      expect(Math.max(o.r, o.g, o.b)).toBeLessThan(0.001); // fully off, not dim
     }
   });
 

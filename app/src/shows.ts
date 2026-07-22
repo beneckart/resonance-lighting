@@ -7,7 +7,12 @@ import type { Control } from "./store";
  *  groups — "the lighting god playing with every control." */
 export interface ShowLayer { group: string; control: Partial<Control>; }
 export interface ShowCue { at: number; note: string; base?: Partial<Control>; layers?: ShowLayer[]; }
-export interface LightShow { id: string; name: string; vibe: string; durationS: number; cues: ShowCue[]; }
+export interface LightShow {
+  id: string; name: string; vibe: string; durationS: number; cues: ShowCue[];
+  /** true = this show's colours are part of its identity — the per-run hue
+   *  rotation must NOT touch them (a sun can never drift into pink). */
+  paletteLock?: boolean;
+}
 
 // ── 🌅 AWAKENING — organic, slow, breathing. A tree waking from night to bloom ──
 const AWAKENING: LightShow = {
@@ -178,9 +183,12 @@ const AURORA: LightShow = {
 // Chandelier = molten core; red/orange/yellow rays radiate outward. ──
 const SOLAR_RAY: LightShow = {
   id: "solarray-show", name: "☀️ Solar Ray", vibe: "the tree becomes the sun · auto-fires at solar handoff", durationS: 300,
+  paletteLock: true, // a sun is red/orange/yellow — the per-run hue rotation must never push it into pink
   cues: [
-    { at: 0, note: "the last ray dies — ember dark", base: { pattern: "solid", hue: 0.02, sat: 0.95, brightness: 0.06, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.4, master: 1 } },
-    { at: 12, note: "the core ignites (chandelier only)", base: { pattern: "solid", hue: 0.02, sat: 0.95, brightness: 0.05 }, layers: [
+    { at: 0, note: "the last ray dies — warm ember glow", base: { pattern: "ember", hue: 0.03, sat: 1, brightness: 0.14, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.4, master: 1 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.5, speed: 0.4 } },
+    ] },
+    { at: 12, note: "the core ignites (chandelier only)", base: { pattern: "solid", hue: 0.03, sat: 0.95, brightness: 0.05 }, layers: [
       { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.85, speed: 0.5 } },
     ] },
     { at: 38, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.5, speed: 0.45, colorCycle: "off" } },

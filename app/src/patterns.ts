@@ -504,7 +504,9 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       const k = Math.round(f.azimuth / m); // this light's nearest ray (STATIC — chains don't move)
       const d = f.azimuth - k * m; // angular offset from the ray's spine
       const onChain = Math.abs(d) < m * 0.25; // chain member? (skip the lights in between)
-      if (!onChain) { bri *= 0.015; hue = 0.03; sat = 1; break; } // dark sky between rays
+      // off-chain lights are HARD OFF in every frame (Elliot: "some need to
+      // always be off" — lighting them would dissolve the ray definition)
+      if (!onChain) { bri = 0; hue = 0.03; sat = 1; break; }
       // which wave frame does THIS light ignite at? inner=1, middle=2, outer=3
       const igniteAt = f.ring <= 0 ? 1 : f.ring === 1 ? 2 : 3;
       const isLit = stage >= igniteAt;

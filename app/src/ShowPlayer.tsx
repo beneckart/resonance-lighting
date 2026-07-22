@@ -29,7 +29,7 @@ export function ShowPlayer() {
       // a deterministic seed rotates the whole palette, nudges the pace, and
       // jitters cue timing — the show's ARC is preserved, its surface is fresh.
       const seed = st.showSeed || 0.5;
-      const hueRot = (seed - 0.5) * 0.24;         // ±0.12 palette shift — fresh but keeps each show's identity (Cosmos stays cool, Ember warm)
+      const hueRot = show.paletteLock ? 0 : (seed - 0.5) * 0.24; // ±0.12 palette shift — fresh but keeps each show's identity; LOCKED shows (☀️ Solar Ray) keep exact colours
       const speedMul = 0.85 + seed * 0.35;       // 0.85–1.2× pace
       const jit = (k: number) => ((Math.sin((k + 1) * 12.9898 + seed * 78.233) * 43758.5453) % 1); // ±per-cue
       const cues = show.cues;
