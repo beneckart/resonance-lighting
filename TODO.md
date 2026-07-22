@@ -973,7 +973,14 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   resolve: whole-lantern tilt would wreck the gobo projection (wants a panel-only
   flap -- Steve); no-spin harness freezes RF panel azimuths at KNOWN radial angles
   -- run the frozen-radial arm in ops/locate before committing (data + figures in
-  ops/solarsim/data) (Ben + Steve).
+  ops/solarsim/data). HARNESS CANDIDATE (Ben + Steve, 2026-07-22): V-hang between
+  adjacent attach points, two ropes to the polycase short-edge lips (3 holes each,
+  already there) -- solves anti-spin + keeps rope shade off the panel (the lit^2 x
+  0.75 mismatch penalty makes even a thin center-rope shadow expensive; unmodeled
+  in the sim). Simulated between-limbs positions: solar-NEUTRAL (+0.8% hinged,
+  -1.0% flat; middle ring +7%, inner -3%) -- the roof weave dominates occlusion,
+  not the limbs, so the V-hang is justified mechanically, not by harvest
+  (Ben + Steve).
 - [ ] **Inner ring at 3.26 m** (middle equidistant): +28% inner-ring solar, fixes
   gobo spacing; door-axis finding: treev4 tunnels sit at az 75.4/255.4 (rotated
   14.6 deg CCW, near-sunrise-aligned) -- reconcile orientation + door lights with
