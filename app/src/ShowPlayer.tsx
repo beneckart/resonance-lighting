@@ -1,6 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useTwin, type Control } from "./store";
-import { showById } from "./shows";
+import { showById, type ShowCue } from "./shows";
+
+/** Bounds-safe jittered cue time. Pure + exported so the boundary that once
+ *  crashed every show (the last cue asks for cueTime(cues, length)) is tested.
+ *  Guards k BEFORE indexing; out-of-range k returns a sane bound. */
+export function cueTime(cues: ShowCue[], k: number, jit: (k: number) => number): number {
+  if (k <= 0) return cues[0].at;
+  if (k >= cues.length) return cues[cues.length - 1].at + 8; // a bound just past the last cue
+  const base = cues[k].at;
+  const gap = (cues[k + 1]?.at ?? base + 8) - base;
+  return base + jit(k) * 0.06 * gap;
+}
 
 /** Drives a running light show. Discrete fields (pattern/colorCycle/order/reverse/
  *  strobe + per-group layers) switch at cue boundaries; CONTINUOUS fields
@@ -34,15 +45,7 @@ export function ShowPlayer() {
       const jit = (k: number) => ((Math.sin((k + 1) * 12.9898 + seed * 78.233) * 43758.5453) % 1); // ±per-cue
       const cues = show.cues;
       // jittered cue times (±6% of the gap to the next cue) — cues drift per run.
-      // BOUNDS-SAFE: guard k BEFORE indexing (the last cue calls at(i+1), which is
-      // cues[length] — indexing that first crashed every show on its final cue).
-      const at = (k: number): number => {
-        if (k <= 0) return cues[0].at;
-        if (k >= cues.length) return cues[cues.length - 1].at + 8; // a bound just past the last cue
-        const base = cues[k].at;
-        const gap = (cues[k + 1]?.at ?? base + 8) - base;
-        return base + jit(k) * 0.06 * gap;
-      };
+      const at = (k: number): number => cueTime(cues, k, jit);
       let i = 0;
       for (let k = 0; k < cues.length; k++) { if (at(k) <= elapsed) i = k; else break; }
 
