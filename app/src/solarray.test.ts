@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { litFor, type Lit } from "./patterns";
+import { litFor, solarRayStage, type Lit } from "./patterns";
 import { solarHandoffFired } from "./sensors";
 import { useTwin, type Control, type SimFixture } from "./store";
 
@@ -39,7 +39,7 @@ describe("solarray pattern", () => {
 
   it("every fixture renders in the warm red→yellow palette only (never blue/green-dominant)", () => {
     for (let i = 0; i < 40; i++) {
-      const f = fx({ azimuth: (i / 40) * Math.PI * 2 - Math.PI, radialT: (i % 10) / 10, rnd: (i * 0.37) % 1 });
+      const f = fx({ azimuth: (i / 40) * Math.PI * 2 - Math.PI, radialT: (i % 10) / 10, ring: i % 3, rnd: (i * 0.37) % 1 });
       for (const t of [0, 2.7, 9.1]) {
         const o = lit(f, t);
         expect(o.b).toBeLessThanOrEqual(o.r + 1e-6); // blue never beats red
@@ -47,37 +47,44 @@ describe("solarray pattern", () => {
     }
   });
 
-  it("rays are directional: on-ray fixtures outshine between-ray sky", () => {
-    // sample many azimuths at fixed radius/time; the ray structure ⇒ big contrast
-    const levels: number[] = [];
-    for (let i = 0; i < 96; i++) {
-      const f = fx({ azimuth: (i / 96) * Math.PI * 2 - Math.PI, radialT: 0.6 });
-      const o = lit(f, 3.3);
-      levels.push(Math.max(o.r, o.g, o.b));
-    }
-    const mx = Math.max(...levels), mn = Math.min(...levels);
-    expect(mx).toBeGreaterThan(0.25); // rays visibly lit
-    expect(mn).toBeLessThan(mx * 0.35); // dark sky between rays
+  // the frame clock: 0 core · 1 +inner · 2 +middle · 3 +outer · 4-5 pulse
+  const tAtStage = (s: number) => s * 0.55 + 0.27; // mid-frame time at speed 1
+
+  it("frame clock steps 0..5 and loops", () => {
+    for (let s = 0; s < 6; s++) expect(solarRayStage(tAtStage(s), 1)).toBe(s);
+    expect(solarRayStage(tAtStage(6), 1)).toBe(0); // loops
   });
 
-  it("packets travel OUTWARD along a ray (peak radius advances with time)", () => {
-    // fix an azimuth; find the brightest radius at t, then at t+dt — it should move out
-    const peakR = (t: number): number => {
-      let best = 0, bestR = 0;
-      for (let r = 0.05; r <= 1; r += 0.01) {
-        // stay ON the (curled, precessing) ray at each radius: azimuth tracks the spine
-        const f = fx({ azimuth: 0.9 * r + t * 0.11, radialT: r });
-        const o = lit(f, t);
-        const v = Math.max(o.r, o.g, o.b);
-        if (v > best) { best = v; bestR = r; }
-      }
-      return bestR;
-    };
-    const t0 = 2.0, dt = 0.35; // small step so the packet doesn't wrap
-    const r0 = peakR(t0), r1 = peakR(t0 + dt);
-    const forward = (r1 - r0 + 1) % 1; // cyclic outward distance
-    expect(forward).toBeGreaterThan(0.0);
-    expect(forward).toBeLessThan(0.5); // moved outward, not a wrap-around artifact
+  it("chains ignite inner → middle → outer as the frames advance (the wave)", () => {
+    const onRay = (ring: number) => fx({ azimuth: 0, ring, radialT: 0.3 + ring * 0.3 }); // azimuth 0 = a ray spine
+    const level = (f: SimFixture, t: number) => { const o = lit(f, t); return Math.max(o.r, o.g, o.b); };
+    // frame 1: inner lit, middle+outer still dark
+    expect(level(onRay(0), tAtStage(1))).toBeGreaterThan(0.3);
+    expect(level(onRay(1), tAtStage(1))).toBeLessThan(0.05);
+    expect(level(onRay(2), tAtStage(1))).toBeLessThan(0.05);
+    // frame 2: middle joins, outer still dark
+    expect(level(onRay(1), tAtStage(2))).toBeGreaterThan(0.3);
+    expect(level(onRay(2), tAtStage(2))).toBeLessThan(0.05);
+    // frame 3: full sun — all three rings lit
+    expect(level(onRay(0), tAtStage(3))).toBeGreaterThan(0.3);
+    expect(level(onRay(1), tAtStage(3))).toBeGreaterThan(0.3);
+    expect(level(onRay(2), tAtStage(3))).toBeGreaterThan(0.3);
+  });
+
+  it("skips the lights in between — off-chain fixtures stay dark in every frame", () => {
+    const m = (Math.PI * 2) / 12;
+    const between = fx({ azimuth: m / 2, ring: 1, radialT: 0.6 }); // halfway between two ray spines
+    for (let s = 0; s < 6; s++) {
+      const o = lit(between, tAtStage(s));
+      expect(Math.max(o.r, o.g, o.b)).toBeLessThan(0.05);
+    }
+  });
+
+  it("chandelier core is lit in EVERY frame (the sun never goes out)", () => {
+    for (let s = 0; s < 6; s++) {
+      const o = lit(fx({ role: "chandelier", zone: "crown", radialT: 0.05 }), tAtStage(s));
+      expect(Math.max(o.r, o.g, o.b)).toBeGreaterThan(0.25);
+    }
   });
 });
 

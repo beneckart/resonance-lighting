@@ -56,6 +56,16 @@ export function cycledHue(base: number, mode: Control["colorCycle"], t: number, 
   }
 }
 
+/** SOLAR RAY frame clock — 6 video frames per cycle (Elliot's "72-bit video
+ *  player" model): 0 core · 1 +inner · 2 +middle · 3 +outer · 4-5 all pulse.
+ *  ~0.55s per frame at speed 1. Shared by the twin, the tests, and (one day)
+ *  the firmware port so every renderer agrees on the frame. */
+export function solarRayStage(t: number, speed: number): number {
+  const beat = 0.55 / Math.max(0.15, speed);
+  const i = Math.floor(t / beat);
+  return ((i % 6) + 6) % 6;
+}
+
 /** Compute a fixture's REPORTED color (brightness pre-applied) from the commanded
  *  control + audio + time. This is the firmware stand-in; the renderer only shows
  *  the result (the mirror rule). */
@@ -472,35 +482,38 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // look of Ben's solar-harvest sun chart ("each ray = one downlight's day").
       // Auto-fires at the solar handoff (SolarRayDriver): when the last panel
       // stops harvesting, the tree takes over as the sun.
-      const warmHue = (r: number) => 0.13 * (1 - 0.85 * Math.min(1, Math.max(0, r))); // yellow core → deep red tips
-      // THE SUN DISK (top-down = Ben's chart): the chandelier AND the innermost
-      // fixtures form one solid molten circle — not just the crown.
+      // FRAME-ANIMATED (Elliot: "treat the tree like a 72-bit video player").
+      // Discrete chains, not fields: each ray = a radial CHAIN of specific
+      // lights (inner ring → middle ring → outer ring, aligned by azimuth,
+      // skipping the lights in between). The animation is a stepped wave:
+      //   frame 0  core only          frame 1  core + inner
+      //   frame 2  + middle           frame 3  + outer (full sun)
+      //   frames 4-5  everything PULSES together
+      // then it loops. reverse plays the wave inward (sunrise).
+      const stage = solarRayStage(tt, sp); // 0..5 — exported so tests/firmware share the clock
+      // THE SUN DISK: chandelier + innermost fixtures = one steady molten circle
       if (f.role === "chandelier" || f.radialT < 0.14) {
-        const breath = 0.85 + 0.15 * Math.sin(t * (0.8 + sp * 0.4) + f.rnd * 2.1);
-        bri *= (f.role === "chandelier" ? 1.25 : 1.05) * breath;
-        hue = warmHue(0.05);
-        sat = 0.72 + 0.08 * Math.sin(t * 0.6 + f.rnd * 6.3);
+        const pulsing = stage >= 4 ? 0.7 + 0.3 * Math.sin(t * 7 * Math.max(0.4, sp)) : 1;
+        bri *= (f.role === "chandelier" ? 1.25 : 1.05) * pulsing;
+        hue = 0.11; // molten gold
+        sat = 0.75;
         break;
       }
       const NR = 12; // rays around the trunk
       const m = (Math.PI * 2) / NR;
-      // the fixtures hang on ~3 discrete rings — a ray only READS as a line from
-      // the top if the lit lights ALIGN radially ring-to-ring, so the curl must
-      // stay small (the chart's curl is suggestion, not geometry).
-      const swirl = 0.3; // radians of curl core→tip
-      const prec = tt * (0.05 + sp * 0.06); // whole sun slowly precesses (reversible)
-      const a = f.azimuth - swirl * f.radialT - prec; // uncurled angle in the sun's frame
-      const k = Math.round(a / m); // nearest ray index
-      const wig = Math.sin(f.radialT * 9 + k * 5.7 + t * 0.35) * 0.04; // per-ray watt-wiggle
-      const d = a - k * m + wig; // angular distance to the ray's (wiggled) spine
-      const member = Math.exp(-(d * d) / (2 * 0.095 * 0.095)); // crisp spokes, dark sky between
-      // rays are CONTINUOUS lines (the chart); a bright packet rides outward as a glint
-      const wavePh = frac(f.radialT * 2.2 - tt * (0.25 + sp * 0.45) - k * 0.13);
-      const dw = Math.min(wavePh, 1 - wavePh); // circular distance to the packet peak
-      const pulse = Math.exp(-dw * dw * 18);
-      bri *= Math.min(1.3, member * (0.65 + 0.55 * pulse) + 0.02); // steady spine + traveling glint, near-black between rays
-      hue = frac(warmHue(f.radialT) + wig * 0.12); // warm palette only, wiggle shimmers it
-      sat = 0.8 + 0.2 * Math.min(1, f.radialT); // whiter near the core, saturated red tips
+      const k = Math.round(f.azimuth / m); // this light's nearest ray (STATIC — chains don't move)
+      const d = f.azimuth - k * m; // angular offset from the ray's spine
+      const onChain = Math.abs(d) < m * 0.25; // chain member? (skip the lights in between)
+      if (!onChain) { bri *= 0.015; hue = 0.03; sat = 1; break; } // dark sky between rays
+      // which wave frame does THIS light ignite at? inner=1, middle=2, outer=3
+      const igniteAt = f.ring <= 0 ? 1 : f.ring === 1 ? 2 : 3;
+      const isLit = stage >= igniteAt;
+      const justLit = stage === igniteAt; // pop harder on the frame it ignites
+      const pulsing = stage >= 4 ? 0.55 + 0.45 * Math.sin(t * 7 * Math.max(0.4, sp) + f.ring * 0.9) : 1;
+      bri *= isLit ? (justLit ? 1.25 : 1.0) * pulsing : 0.015;
+      // discrete warm palette per ring — crisp video-frame colours, no noise:
+      hue = f.ring <= 0 ? 0.1 : f.ring === 1 ? 0.055 : 0.015; // inner yellow → middle orange → outer red
+      sat = f.ring <= 0 ? 0.85 : 1;
       break;
     }
     case "beacon": {
