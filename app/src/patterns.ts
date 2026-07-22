@@ -68,7 +68,10 @@ export function assignSunRays(fixtures: SimFixture[], rays = SUN_RAY_COUNT): voi
   for (const f of fixtures) f.sunRay = undefined;
   const wrapDist = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
   for (let ring = 0; ring <= 2; ring++) {
-    const ringFx = fixtures.filter((f) => f.role === "downlight" && f.ring === ring);
+    // exclude the near-trunk lights (radialT < 0.14) — those render as the sun's
+    // CORE disk, so if the stencil picked one the ray would lose its inner point
+    // into the core. Skipping them gives every ray a clean, distinct inner light.
+    const ringFx = fixtures.filter((f) => f.role === "downlight" && f.ring === ring && f.radialT >= 0.14);
     for (let k = 0; k < rays; k++) {
       const spine = -Math.PI + k * m;
       let best: SimFixture | null = null, bd = Infinity;

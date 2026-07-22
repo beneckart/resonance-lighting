@@ -102,6 +102,16 @@ describe("solarray pattern", () => {
     }
   });
 
+  it("stencil never picks a core-zone light (radialT<0.14) — every ray keeps a clean inner point", () => {
+    const fleet: SimFixture[] = [];
+    // ring 0 has some near-trunk lights (radialT 0.05) that belong to the CORE
+    for (let i = 0; i < 26; i++) fleet.push(fx({ azimuth: (i / 26) * Math.PI * 2 - Math.PI, ring: 0, radialT: i < 6 ? 0.05 : 0.4 }));
+    for (let ring = 1; ring < 3; ring++)
+      for (let i = 0; i < 26; i++) fleet.push(fx({ azimuth: (i / 26) * Math.PI * 2 - Math.PI, ring, radialT: 0.3 + ring * 0.3 }));
+    assignSunRays(fleet);
+    for (const f of fleet) if (f.sunRay !== undefined) expect(f.radialT).toBeGreaterThanOrEqual(0.14);
+  });
+
   it("assignSunRays stencils EXACTLY one light per ring per ray — most of the tree stays dark", () => {
     // simulate the real tree: 3 rings × 26 evenly spaced downlights
     const fleet: SimFixture[] = [];
