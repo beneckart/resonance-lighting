@@ -56,16 +56,6 @@ export function cycledHue(base: number, mode: Control["colorCycle"], t: number, 
   }
 }
 
-/** SOLAR RAY frame clock — 6 video frames per cycle (Elliot's "72-bit video
- *  player" model): 0 core · 1 +inner · 2 +middle · 3 +outer · 4-5 all pulse.
- *  ~0.55s per frame at speed 1. Shared by the twin, the tests, and (one day)
- *  the firmware port so every renderer agrees on the frame. */
-export function solarRayStage(t: number, speed: number): number {
-  const beat = 0.55 / Math.max(0.15, speed);
-  const i = Math.floor(t / beat);
-  return ((i % 6) + 6) % 6;
-}
-
 export const SUN_RAY_COUNT = 12;
 /** THE SUN STENCIL (Elliot: "overlay Ben's ray image on the piece to scale and
  *  only light the ones that are colored in"). The hang positions are irregular —
@@ -508,41 +498,46 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // look of Ben's solar-harvest sun chart ("each ray = one downlight's day").
       // Auto-fires at the solar handoff (SolarRayDriver): when the last panel
       // stops harvesting, the tree takes over as the sun.
-      // FRAME-ANIMATED (Elliot: "treat the tree like a 72-bit video player").
-      // Discrete chains, not fields: each ray = a radial CHAIN of specific
-      // lights (inner ring → middle ring → outer ring, aligned by azimuth,
-      // skipping the lights in between). The animation is a stepped wave:
-      //   frame 0  core only          frame 1  core + inner
-      //   frame 2  + middle           frame 3  + outer (full sun)
-      //   frames 4-5  everything PULSES together
-      // then it loops. reverse plays the wave inward (sunrise).
-      const stage = solarRayStage(tt, sp); // 0..5 — exported so tests/firmware share the clock
-      // THE SUN DISK: chandelier + innermost fixtures = one steady molten circle
+      // SOLAR RAY — a CONTINUOUS sun (Elliot: "rays travel in continuous
+      // changes, not broken patterns"). The chandelier is the molten core;
+      // along each ray, pulses of energy are EMITTED at the core and flow
+      // smoothly OUTWARD to the tips — brightness and colour changing
+      // continuously, never snapping on/off. reverse = the flow runs inward.
+      const TAU = Math.PI * 2;
+      // THE CORE: chandelier + innermost fixtures = one steady molten-gold disk
       if (f.role === "chandelier" || f.radialT < 0.14) {
-        const pulsing = stage >= 4 ? 0.7 + 0.3 * Math.sin(t * 7 * Math.max(0.4, sp)) : 1;
-        bri *= (f.role === "chandelier" ? 1.25 : 1.05) * pulsing;
-        hue = 0.11; // molten gold
-        sat = 0.75;
+        const breath = 0.9 + 0.1 * Math.sin(t * 0.7 + f.rnd * 3);
+        bri *= (f.role === "chandelier" ? 1.3 : 1.1) * breath;
+        hue = 0.12; // white-hot gold
+        sat = 0.66;
         break;
       }
-      // THE STENCIL: membership is precomputed (assignSunRays — one light per
-      // ring per spine, from the real hang positions). Lights outside the
-      // stencil are not part of the sun and are OFF in every frame.
+      // THE STENCIL: only the 36 chosen lights (assignSunRays — one per ring per
+      // ray, from real hang positions) draw the sun; the rest are always OFF,
+      // so the dark wedges between rays hold their shape.
       if (f.sunRay === undefined) { bri = 0; hue = 0.03; sat = 1; break; }
-      const k = f.sunRay;
-      // which wave frame does THIS light ignite at? inner=1, middle=2, outer=3
-      const igniteAt = f.ring <= 0 ? 1 : f.ring === 1 ? 2 : 3;
-      const isLit = stage >= igniteAt;
-      const justLit = stage === igniteAt; // pop harder on the frame it ignites
-      const pulsing = stage >= 4 ? 0.55 + 0.45 * Math.sin(t * 7 * Math.max(0.4, sp) + f.ring * 0.9 + k * 0.5) : 1; // each ray shimmers on its own phase
-      // EMBER-SUN GRADIENT (Ben's ember-suns chart): the ray burns gold where it
-      // leaves the disk and deepens smoothly through orange into red at the tip —
-      // colour + intensity both graded by radius, not flat per-ring steps.
-      const rT = Math.min(1, Math.max(0, f.radialT));
-      const taper = 1.05 - 0.3 * rT; // rays taper: brightest at the core end
-      bri *= isLit ? (justLit ? 1.25 : 1.0) * pulsing * taper : 0;
-      hue = Math.max(0.004, 0.11 * (1 - rT)); // gold → orange → deep red, continuously
-      sat = 0.75 + 0.25 * rT; // whiter-hot near the disk, saturated red tips
+      const rT = clamp01(f.radialT); // position ALONG the ray: 0 core-side → 1 tip
+      // CONTINUOUS OUTWARD WAVE: phase grows with radius and shrinks with time,
+      // so a fixed brightness value moves to larger radius as time advances —
+      // energy flowing outward. 1.5 spatial cycles span the ray; each ray gets
+      // its own phase (k) so they shimmer independently, like solar plasma.
+      const w = 0.5 + sp * 0.55; // flow speed (reverse via tt flips direction)
+      // ALL rays radiate outward together (NOT a rotating wedge) — the phase
+      // depends on radius + time only, so every ray shows the same outward flow
+      // at once. A tiny NON-sequential jitter per ray keeps it organic, not
+      // robotic (hash of the ray index, so neighbours don't move in lockstep).
+      const jitter = (frac(Math.sin(f.sunRay * 12.9898) * 43758.5453) - 0.5) * 0.28;
+      const phase = rT * 1.7 - tt * w + jitter;
+      // a moderately sharp crest reads as a pulse travelling out, while the
+      // baseline keeps every ray's LINE visible between pulses (continuous).
+      const crest = Math.pow(0.5 + 0.5 * Math.cos(phase * TAU), 2);
+      const energy = clamp01((0.22 + 0.85 * crest) * (1.1 - 0.28 * rT));
+      bri *= energy;
+      // COLOUR follows the energy (Ben's watt colourbar): deep red in the trough,
+      // through orange, to gold at the crest — a continuous gradient that FLOWS
+      // outward with the pulse, so colour changes are never broken either.
+      hue = 0.006 + 0.125 * (energy * energy); // eased: only the hottest crest reaches gold
+      sat = 1 - 0.34 * energy; // brighter → whiter-hot
       break;
     }
     case "beacon": {

@@ -185,22 +185,18 @@ const SOLAR_RAY: LightShow = {
   id: "solarray-show", name: "☀️ Solar Ray", vibe: "the tree becomes the sun · auto-fires at solar handoff", durationS: 300,
   paletteLock: true, // a sun is red/orange/yellow — the per-run hue rotation must never push it into pink
   cues: [
-    // DARK open (Elliot: "start dark, not pink") — pure black, nothing lit
+    // Slow, few cues — the pattern itself is the continuous animation, so the
+    // show just breathes the intensity up and back down (Elliot: "you're
+    // switching patterns too quickly"). Speed stays gentle so the flow reads.
     { at: 0, note: "darkness — the sun is gone", base: { pattern: "solid", hue: 0.03, sat: 1, brightness: 0, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.5, master: 1 } },
-    // core ignites fast, rays follow immediately (Elliot: "move into the solar more quickly")
-    { at: 5, note: "the core ignites (chandelier only — everything else stays black)", base: { pattern: "solid", hue: 0.03, sat: 0.95, brightness: 0 }, layers: [
-      { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.85, speed: 0.5 } },
+    { at: 6, note: "the core ignites — a gold ember at the centre", base: { pattern: "solid", hue: 0.03, sat: 0.95, brightness: 0 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.7, brightness: 0.85, speed: 0.45 } },
     ] },
-    { at: 14, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.6, speed: 0.55, colorCycle: "off" } },
-    { at: 40, note: "the sun turns — full wave", base: { pattern: "solarray", brightness: 0.9, speed: 1 } },
-    // no flood layers here — lighting the uplights would fill the dark wedges
-    // that define the rays (Elliot: "some need to always be off")
-    { at: 110, note: "full corona", base: { pattern: "solarray", brightness: 1, speed: 1.3 } },
-    { at: 190, note: "solar flares", base: { pattern: "solarray", brightness: 1, speed: 1.7 }, layers: [
-      { group: "chandelier", control: { pattern: "sparkle", hue: 0.11, sat: 0.7, brightness: 1, speed: 1.4 } },
-    ] },
-    { at: 255, note: "the sun breathes down", base: { pattern: "solarray", brightness: 0.6, speed: 0.5 } },
-    { at: 290, note: "back to darkness — ready to loop", base: { pattern: "solid", hue: 0.03, sat: 1, brightness: 0.02 } },
+    { at: 18, note: "rays begin to flow outward", base: { pattern: "solarray", brightness: 0.6, speed: 0.5, colorCycle: "off" } },
+    { at: 70, note: "the sun radiates — energy flowing out along every ray", base: { pattern: "solarray", brightness: 0.9, speed: 0.6 } },
+    { at: 165, note: "full warmth — the sun at its height", base: { pattern: "solarray", brightness: 1, speed: 0.65 } },
+    { at: 250, note: "the sun settles toward dusk", base: { pattern: "solarray", brightness: 0.6, speed: 0.5 } },
+    { at: 292, note: "back to darkness — ready to loop", base: { pattern: "solid", hue: 0.03, sat: 1, brightness: 0.02 } },
   ],
 };
 

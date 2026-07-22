@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { litFor, solarRayStage, assignSunRays, SUN_RAY_COUNT, type Lit } from "./patterns";
+import { litFor, assignSunRays, SUN_RAY_COUNT, type Lit } from "./patterns";
 import { solarHandoffFired } from "./sensors";
 import { useTwin, type Control, type SimFixture } from "./store";
 
@@ -47,34 +47,57 @@ describe("solarray pattern", () => {
     }
   });
 
-  // the frame clock: 0 core · 1 +inner · 2 +middle · 3 +outer · 4-5 pulse
-  const tAtStage = (s: number) => s * 0.55 + 0.27; // mid-frame time at speed 1
+  const level = (f: SimFixture, t: number) => { const o = lit(f, t); return Math.max(o.r, o.g, o.b); };
 
-  it("frame clock steps 0..5 and loops", () => {
-    for (let s = 0; s < 6; s++) expect(solarRayStage(tAtStage(s), 1)).toBe(s);
-    expect(solarRayStage(tAtStage(6), 1)).toBe(0); // loops
+  it("a ray light varies CONTINUOUSLY over time — not a few discrete on/off levels", () => {
+    const f = fx({ sunRay: 0, ring: 1, radialT: 0.6 });
+    const vals = new Set<number>();
+    for (let i = 0; i < 60; i++) vals.add(+level(f, i * 0.1).toFixed(2));
+    expect(vals.size).toBeGreaterThan(15); // a smooth wave, many distinct brightnesses (not ≤6 frames)
   });
 
-  it("chains ignite inner → middle → outer as the frames advance (the wave)", () => {
-    const onRay = (ring: number) => fx({ sunRay: 0, ring, radialT: 0.3 + ring * 0.3 }); // stencil member of ray 0
-    const level = (f: SimFixture, t: number) => { const o = lit(f, t); return Math.max(o.r, o.g, o.b); };
-    // frame 1: inner lit, middle+outer still dark
-    expect(level(onRay(0), tAtStage(1))).toBeGreaterThan(0.3);
-    expect(level(onRay(1), tAtStage(1))).toBeLessThan(0.05);
-    expect(level(onRay(2), tAtStage(1))).toBeLessThan(0.05);
-    // frame 2: middle joins, outer still dark
-    expect(level(onRay(1), tAtStage(2))).toBeGreaterThan(0.3);
-    expect(level(onRay(2), tAtStage(2))).toBeLessThan(0.05);
-    // frame 3: full sun — all three rings lit
-    expect(level(onRay(0), tAtStage(3))).toBeGreaterThan(0.3);
-    expect(level(onRay(1), tAtStage(3))).toBeGreaterThan(0.3);
-    expect(level(onRay(2), tAtStage(3))).toBeGreaterThan(0.3);
+  it("energy flows OUTWARD along the ray: the bright crest's radius advances with time", () => {
+    // dense sampling along one ray; find the peak-brightness radius at t and t+dt
+    const peakR = (t: number): number => {
+      let best = -1, bestR = 0;
+      for (let r = 0.15; r <= 1; r += 0.01) {
+        const v = level(fx({ sunRay: 0, ring: 1, radialT: r }), t);
+        if (v > best) { best = v; bestR = r; }
+      }
+      return bestR;
+    };
+    const t0 = 1.0, dt = 0.2; // small step so the crest doesn't wrap a whole cycle
+    const forward = (peakR(t0 + dt) - peakR(t0) + 1) % 1; // cyclic outward distance
+    expect(forward).toBeGreaterThan(0.0);
+    expect(forward).toBeLessThan(0.5); // moved outward, not a wrap artifact
+    // and reverse runs it inward
+    const rc = { ...ctrl, reverse: true } as Control;
+    const peakRrev = (t: number): number => {
+      let best = -1, bestR = 0;
+      for (let r = 0.15; r <= 1; r += 0.01) {
+        const out: Lit = { r: 0, g: 0, b: 0 };
+        litFor(t, fx({ sunRay: 0, ring: 1, radialT: r }), rc, AUDIO, 118, out);
+        const v = Math.max(out.r, out.g, out.b);
+        if (v > best) { best = v; bestR = r; }
+      }
+      return bestR;
+    };
+    const back = (peakRrev(t0) - peakRrev(t0 + dt) + 1) % 1; // inward distance
+    expect(back).toBeGreaterThan(0.0);
+    expect(back).toBeLessThan(0.5);
   });
 
-  it("lights outside the stencil are HARD OFF in every frame (ray definition)", () => {
+  it("a lit ray never fully blacks out (its shape stays visible as energy flows)", () => {
+    const f = fx({ sunRay: 0, ring: 1, radialT: 0.55 });
+    let mn = Infinity;
+    for (let i = 0; i < 80; i++) mn = Math.min(mn, level(f, i * 0.13));
+    expect(mn).toBeGreaterThan(0.05); // faint baseline glow — the ray line persists
+  });
+
+  it("lights outside the stencil are HARD OFF at all times (ray definition)", () => {
     const between = fx({ sunRay: undefined, ring: 1, radialT: 0.6 }); // not part of the drawing
-    for (let s = 0; s < 6; s++) {
-      const o = lit(between, tAtStage(s));
+    for (let i = 0; i < 30; i++) {
+      const o = lit(between, i * 0.2);
       expect(Math.max(o.r, o.g, o.b)).toBeLessThan(0.001); // fully off, not dim
     }
   });
@@ -95,20 +118,24 @@ describe("solarray pattern", () => {
         expect(fleet.filter((f) => f.sunRay === k && f.ring === ring).length).toBe(1);
   });
 
-  it("colour grades outward along the ray: gold near the disk → deeper red at the tip", () => {
-    // at full-sun frame, compare a lit inner vs outer chain light on the same ray:
-    // yellow-gold has a higher green/red ratio than deep red.
-    const t3 = tAtStage(3);
-    const inner = lit(fx({ sunRay: 0, ring: 0, radialT: 0.25 }), t3);
-    const outer = lit(fx({ sunRay: 0, ring: 2, radialT: 0.95 }), t3);
-    const gr = (o: Lit) => o.g / Math.max(1e-6, o.r);
-    expect(gr(inner)).toBeGreaterThan(gr(outer) + 0.1); // inner visibly more golden
-    expect(outer.r).toBeGreaterThan(0.2); // tip still burns (red, not black)
+  it("colour follows the energy: the bright crest is golden, the dim trough is deep red", () => {
+    // sample one light across time; its most golden moment (peak brightness)
+    // must be more yellow than its dimmest moment (Ben's watt colourbar).
+    const f = fx({ sunRay: 0, ring: 1, radialT: 0.55 });
+    let bright: Lit = { r: 0, g: 0, b: 0 }, dim: Lit = { r: 9, g: 9, b: 9 };
+    for (let i = 0; i < 80; i++) {
+      const o = lit(f, i * 0.13);
+      if (Math.max(o.r, o.g, o.b) > Math.max(bright.r, bright.g, bright.b)) bright = o;
+      if (Math.max(o.r, o.g, o.b) < Math.max(dim.r, dim.g, dim.b)) dim = o;
+    }
+    const goldenness = (o: Lit) => o.g / Math.max(1e-6, o.r); // yellow ⇒ high green/red
+    expect(goldenness(bright)).toBeGreaterThan(goldenness(dim) + 0.08);
+    expect(dim.r).toBeGreaterThan(dim.b); // even the trough stays warm (red, never blue)
   });
 
-  it("chandelier core is lit in EVERY frame (the sun never goes out)", () => {
-    for (let s = 0; s < 6; s++) {
-      const o = lit(fx({ role: "chandelier", zone: "crown", radialT: 0.05 }), tAtStage(s));
+  it("chandelier core is lit at all times (the sun never goes out)", () => {
+    for (let i = 0; i < 20; i++) {
+      const o = lit(fx({ role: "chandelier", zone: "crown", radialT: 0.05 }), i * 0.31);
       expect(Math.max(o.r, o.g, o.b)).toBeGreaterThan(0.25);
     }
   });
