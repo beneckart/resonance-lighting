@@ -473,28 +473,32 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       // Auto-fires at the solar handoff (SolarRayDriver): when the last panel
       // stops harvesting, the tree takes over as the sun.
       const warmHue = (r: number) => 0.13 * (1 - 0.85 * Math.min(1, Math.max(0, r))); // yellow core → deep red tips
-      if (f.role === "chandelier") {
-        // the core: molten gold, slow breathing, slightly desaturated (white-hot)
-        const breath = 0.82 + 0.18 * Math.sin(t * (0.8 + sp * 0.4) + f.rnd * 2.1);
-        bri *= 1.25 * breath;
+      // THE SUN DISK (top-down = Ben's chart): the chandelier AND the innermost
+      // fixtures form one solid molten circle — not just the crown.
+      if (f.role === "chandelier" || f.radialT < 0.14) {
+        const breath = 0.85 + 0.15 * Math.sin(t * (0.8 + sp * 0.4) + f.rnd * 2.1);
+        bri *= (f.role === "chandelier" ? 1.25 : 1.05) * breath;
         hue = warmHue(0.05);
-        sat = 0.74 + 0.08 * Math.sin(t * 0.6 + f.rnd * 6.3);
+        sat = 0.72 + 0.08 * Math.sin(t * 0.6 + f.rnd * 6.3);
         break;
       }
       const NR = 12; // rays around the trunk
       const m = (Math.PI * 2) / NR;
-      const swirl = 0.9; // radians of curl core→tip (the chart's spiral curl)
+      // the fixtures hang on ~3 discrete rings — a ray only READS as a line from
+      // the top if the lit lights ALIGN radially ring-to-ring, so the curl must
+      // stay small (the chart's curl is suggestion, not geometry).
+      const swirl = 0.3; // radians of curl core→tip
       const prec = tt * (0.05 + sp * 0.06); // whole sun slowly precesses (reversible)
       const a = f.azimuth - swirl * f.radialT - prec; // uncurled angle in the sun's frame
       const k = Math.round(a / m); // nearest ray index
-      const wig = Math.sin(f.radialT * 9 + k * 5.7 + t * 0.35) * 0.05; // per-ray watt-wiggle
+      const wig = Math.sin(f.radialT * 9 + k * 5.7 + t * 0.35) * 0.04; // per-ray watt-wiggle
       const d = a - k * m + wig; // angular distance to the ray's (wiggled) spine
-      const member = Math.exp(-(d * d) / (2 * 0.11 * 0.11)); // on-ray membership
-      // bright packets travel OUTWARD along each ray (reverse = sunrise, flows inward)
+      const member = Math.exp(-(d * d) / (2 * 0.095 * 0.095)); // crisp spokes, dark sky between
+      // rays are CONTINUOUS lines (the chart); a bright packet rides outward as a glint
       const wavePh = frac(f.radialT * 2.2 - tt * (0.25 + sp * 0.45) - k * 0.13);
       const dw = Math.min(wavePh, 1 - wavePh); // circular distance to the packet peak
       const pulse = Math.exp(-dw * dw * 18);
-      bri *= Math.min(1.3, member * (0.3 + 1.0 * pulse) + 0.05); // dark sky between rays, faint warm floor
+      bri *= Math.min(1.3, member * (0.65 + 0.55 * pulse) + 0.02); // steady spine + traveling glint, near-black between rays
       hue = frac(warmHue(f.radialT) + wig * 0.12); // warm palette only, wiggle shimmers it
       sat = 0.8 + 0.2 * Math.min(1, f.radialT); // whiter near the core, saturated red tips
       break;
