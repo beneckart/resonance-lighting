@@ -98,26 +98,27 @@ describe("solar handoff trigger", () => {
       });
     });
 
-    it("sun up then down → Solar Ray activates", () => {
+    it("sun up then down → the ☀️ Solar Ray SHOW starts", () => {
       useTwin.getState().solarPanelsCharging(1); // dawn: panels harvesting
-      expect(useTwin.getState().control.pattern).toBe("solid"); // nothing yet
+      expect(useTwin.getState().activeShow).toBe(null); // nothing yet
       useTwin.getState().solarPanelsCharging(0); // sunset: last panel done
-      expect(useTwin.getState().control.pattern).toBe("solarray");
+      expect(useTwin.getState().activeShow).toBe("solarray-show");
+      useTwin.getState().playShow(null);
     });
 
     it("does not refire while it stays dark", () => {
       useTwin.getState().solarPanelsCharging(1);
       useTwin.getState().solarPanelsCharging(0);
-      useTwin.setState({ control: { ...useTwin.getState().control, pattern: "chase" } }); // operator moved on
+      useTwin.getState().playShow(null); // operator stopped it
       useTwin.getState().solarPanelsCharging(0); // still night
-      expect(useTwin.getState().control.pattern).toBe("chase");
+      expect(useTwin.getState().activeShow).toBe(null);
     });
 
     it("never steals from a running show", () => {
       useTwin.getState().solarPanelsCharging(1);
       useTwin.setState({ activeShow: "performance" });
       useTwin.getState().solarPanelsCharging(0);
-      expect(useTwin.getState().control.pattern).toBe("solid");
+      expect(useTwin.getState().activeShow).toBe("performance");
       useTwin.setState({ activeShow: null });
     });
 
@@ -125,7 +126,7 @@ describe("solar handoff trigger", () => {
       useTwin.getState().solarPanelsCharging(1);
       useTwin.setState({ control: { ...useTwin.getState().control, blackout: true } });
       useTwin.getState().solarPanelsCharging(0);
-      expect(useTwin.getState().control.pattern).toBe("solid");
+      expect(useTwin.getState().activeShow).toBe(null);
     });
   });
 });

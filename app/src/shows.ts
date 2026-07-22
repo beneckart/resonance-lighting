@@ -173,5 +173,28 @@ const AURORA: LightShow = {
   ],
 };
 
-export const SHOWS: LightShow[] = [PERFORMANCE, BIOLUMINESCENCE, AURORA, AWAKENING, IGNITION, COSMOS];
+// ── ☀️ SOLAR RAY — the tree AS the sun (Ben's mode). Auto-fires at the solar
+// handoff: the moment the last panel stops harvesting, the tree takes over.
+// Chandelier = molten core; red/orange/yellow rays radiate outward. ──
+const SOLAR_RAY: LightShow = {
+  id: "solarray-show", name: "☀️ Solar Ray", vibe: "the tree becomes the sun · auto-fires at solar handoff", durationS: 300,
+  cues: [
+    { at: 0, note: "the last ray dies — ember dark", base: { pattern: "solid", hue: 0.02, sat: 0.95, brightness: 0.06, colorCycle: "off", order: "linear", reverse: false, strobe: false, speed: 0.4, master: 1 } },
+    { at: 12, note: "the core ignites (chandelier only)", base: { pattern: "solid", hue: 0.02, sat: 0.95, brightness: 0.05 }, layers: [
+      { group: "chandelier", control: { pattern: "breathe", hue: 0.1, sat: 0.75, brightness: 0.85, speed: 0.5 } },
+    ] },
+    { at: 38, note: "first rays reach out", base: { pattern: "solarray", brightness: 0.5, speed: 0.45, colorCycle: "off" } },
+    { at: 90, note: "the sun turns", base: { pattern: "solarray", brightness: 0.8, speed: 0.9 } },
+    { at: 150, note: "full corona", base: { pattern: "solarray", brightness: 0.95, speed: 1.3 }, layers: [
+      { group: "uplights", control: { pattern: "ember", hue: 0.05, sat: 1, brightness: 0.6, speed: 0.8 } },
+    ] },
+    { at: 210, note: "solar flares", base: { pattern: "solarray", brightness: 1, speed: 1.7 }, layers: [
+      { group: "chandelier", control: { pattern: "sparkle", hue: 0.11, sat: 0.7, brightness: 1, speed: 1.4 } },
+    ] },
+    { at: 255, note: "the sun breathes down", base: { pattern: "solarray", brightness: 0.55, speed: 0.5 } },
+    { at: 286, note: "ember rest — ready to loop", base: { pattern: "ember", hue: 0.03, sat: 1, brightness: 0.18, speed: 0.4 } },
+  ],
+};
+
+export const SHOWS: LightShow[] = [SOLAR_RAY, PERFORMANCE, BIOLUMINESCENCE, AURORA, AWAKENING, IGNITION, COSMOS];
 export const showById = (id: string | null): LightShow | undefined => SHOWS.find((s) => s.id === id);

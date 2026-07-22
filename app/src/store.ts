@@ -770,17 +770,19 @@ export const useTwin = create<TwinState>((setState, get) => ({
   }),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
-  solarPanelsCharging: (n) => setState((s) => {
-    if (n === s.solarChargingCount) return {}; // no edge, no churn
-    const next: Partial<TwinState> = { solarChargingCount: n };
-    // the SOLAR HANDOFF: the last panel just stopped harvesting → Solar Ray.
-    // Guards: never steal from a running show, a guest DJ, or an armed blackout.
-    if (solarHandoffFired(s.solarChargingCount, n) && !s.activeShow && !s.guest && !s.control.blackout) {
+  solarPanelsCharging: (n) => {
+    const s = get();
+    if (n === s.solarChargingCount) return; // no edge, no churn
+    const fired = solarHandoffFired(s.solarChargingCount, n);
+    setState({ solarChargingCount: n });
+    // the SOLAR HANDOFF: the last panel just stopped harvesting → play the
+    // ☀️ Solar Ray show (the tree takes over as the sun). Guards: never steal
+    // from a running show, a guest DJ, or an armed blackout.
+    if (fired && !s.activeShow && !s.guest && !s.control.blackout) {
       recEvent("solarray", { auto: true });
-      next.control = { ...s.control, pattern: "solarray" };
+      get().playShow("solarray-show");
     }
-    return next;
-  }),
+  },
   setCameraPreset: (c) => setState({ cameraPreset: c }),
   setCinematic: (b) => setState({ cinematic: b }),
   setTimeOfDay: (t) => setState((s) => ({ timeOfDay: Math.max(0, Math.min(1, t)), sensors: { ...s.sensors, ambient: Math.max(0, Math.min(1, t)) } })),
