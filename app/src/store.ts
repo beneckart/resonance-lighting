@@ -11,18 +11,18 @@ let preGolRules: LifeRules | null = null;
 import { themeById, themeHue } from "./themes";
 import { loadFixtures, makeTestGridDoc } from "./fixtures";
 import { recEvent } from "./flightrec";
-import { DEFAULT_SENSORS, type Sensors } from "./sensors";
+import { DEFAULT_SENSORS, solarHandoffFired, type Sensors } from "./sensors";
 
 export type PatternId =
   | "solid" | "breathe" | "chase" | "ripple" | "sparkle" | "sequence" | "spectrum" | "tricolor"
   | "spiral" | "godray" | "rising" | "planewipe" | "warmcool" | "bloom" | "firefly" | "ca" | "hero" | "plasma"
   | "chromatic" | "rings" | "fibonacci" | "sweep" | "living" | "piano" | "ripples" | "organism"
   | "aurora" | "chladni" | "glyph" | "interference" | "lissajous" | "shockwave" | "hurricane" | "chains"
-  | "life"
+  | "life" | "solarray"
   | "wind" | "ember" | "rain" | "beacon";
 export const PATTERN_IDS: PatternId[] = [
   "solid", "breathe", "chase", "ripple", "sparkle", "sequence", "spectrum", "tricolor",
-  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous", "shockwave", "hurricane", "chains",
+  "spiral", "godray", "rising", "planewipe", "warmcool", "bloom", "firefly", "ca", "hero", "plasma", "chromatic", "rings", "fibonacci", "sweep", "living", "piano", "ripples", "organism", "life", "aurora", "chladni", "glyph", "interference", "lissajous", "shockwave", "hurricane", "chains", "solarray",
 ];
 /** Decentralised cellular-automata rules (Ben's BACKGROUND.md mesh spec): each light
  *  runs a simple local rule over its pre-baked neighbour list. The "interactivity mode"
@@ -217,6 +217,7 @@ interface TwinState {
   selectedScope: string; // which group the panel is dialling in ("all" = whole tree)
   guest: boolean; // guest-DJ scoped mode (C3)
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
+  solarChargingCount: number; // panels currently harvesting (sim: daylight>0; fleet: nodes with battMa>0)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
   cinematic: boolean; // hide all UI panels for a clean show/beauty view
   timeOfDay: number; // 0 = night, 0.5 = dusk, 1 = day (scene ambient/background)
@@ -264,6 +265,11 @@ interface TwinState {
   calSolo: (test: { idx: number; rgb: [number, number, number] } | null) => void;
   setGuest: (b: boolean) => void;
   setSensors: (p: Partial<Sensors>) => void;
+  /** Report how many solar panels are currently harvesting. When the count falls
+   *  to ZERO (the last panel lost the sun — the solar handoff), Solar Ray fires:
+   *  the tree takes over as the sun. Sim feeds this from the daylight sensor
+   *  (SolarRayDriver); the USB bridge should feed it nodes-with-battMa>0. */
+  solarPanelsCharging: (n: number) => void;
   setCameraPreset: (c: "hero" | "top") => void;
   setCinematic: (b: boolean) => void;
   setTimeOfDay: (t: number) => void;
@@ -321,6 +327,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   selectedScope: "all",
   guest: false,
   sensors: DEFAULT_SENSORS,
+  solarChargingCount: 0,
   cameraPreset: "hero",
   cinematic: false,
   // ?tod=<0..1> deep-links a time of day (0 night … 1 day) — handy for previewing
@@ -763,6 +770,17 @@ export const useTwin = create<TwinState>((setState, get) => ({
   }),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
+  solarPanelsCharging: (n) => setState((s) => {
+    if (n === s.solarChargingCount) return {}; // no edge, no churn
+    const next: Partial<TwinState> = { solarChargingCount: n };
+    // the SOLAR HANDOFF: the last panel just stopped harvesting → Solar Ray.
+    // Guards: never steal from a running show, a guest DJ, or an armed blackout.
+    if (solarHandoffFired(s.solarChargingCount, n) && !s.activeShow && !s.guest && !s.control.blackout) {
+      recEvent("solarray", { auto: true });
+      next.control = { ...s.control, pattern: "solarray" };
+    }
+    return next;
+  }),
   setCameraPreset: (c) => setState({ cameraPreset: c }),
   setCinematic: (b) => setState({ cinematic: b }),
   setTimeOfDay: (t) => setState((s) => ({ timeOfDay: Math.max(0, Math.min(1, t)), sensors: { ...s.sensors, ambient: Math.max(0, Math.min(1, t)) } })),

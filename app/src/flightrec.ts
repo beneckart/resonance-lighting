@@ -17,7 +17,7 @@
 
 export interface RecEvent {
   t: number; // ms since session start
-  kind: "trigger" | "presence" | "mode" | "rule" | "theme" | "speed" | "arm" | "show" | "mark";
+  kind: "trigger" | "presence" | "mode" | "rule" | "theme" | "speed" | "arm" | "show" | "mark" | "solarray";
   detail: Record<string, unknown>;
 }
 export interface RecKeyframe {

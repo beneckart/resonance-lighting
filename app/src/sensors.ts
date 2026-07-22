@@ -65,6 +65,13 @@ export function applyEnv(c: Control, s: Sensors): Control {
   return { ...c, hue, sat, speed, brightness, master };
 }
 
+/** SOLAR HANDOFF edge (Ben's Solar Ray trigger): true exactly when the count of
+ *  panels still harvesting falls from >0 to 0 — the last panel just lost the
+ *  sun, and the tree takes over as the sun. Pure; callers own the prev state. */
+export function solarHandoffFired(prev: number, now: number): boolean {
+  return prev > 0 && now <= 0;
+}
+
 /** Wind-driven extra sway amount (0..~1) layered on top of pattern motion. */
 export function windSway(s: Sensors, t: number, phase: number): number {
   const amp = clamp(s.windKph / 60, 0, 1);

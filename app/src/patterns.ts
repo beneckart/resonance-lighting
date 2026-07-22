@@ -465,6 +465,40 @@ export function litFor(t: number, f: SimFixture, c: Control, audio: AudioFeature
       bri *= 0.08 + 0.92 * Math.max(0, 1 - d * 6);
       break;
     }
+    case "solarray": {
+      // SOLAR RAY (Ben's mode, 2026-07-21): the tree AS a sun. The chandelier is
+      // the molten core; red/orange/yellow rays radiate outward through the
+      // canopy, each ray curling slightly and carrying a per-ray wiggle — the
+      // look of Ben's solar-harvest sun chart ("each ray = one downlight's day").
+      // Auto-fires at the solar handoff (SolarRayDriver): when the last panel
+      // stops harvesting, the tree takes over as the sun.
+      const warmHue = (r: number) => 0.13 * (1 - 0.85 * Math.min(1, Math.max(0, r))); // yellow core → deep red tips
+      if (f.role === "chandelier") {
+        // the core: molten gold, slow breathing, slightly desaturated (white-hot)
+        const breath = 0.82 + 0.18 * Math.sin(t * (0.8 + sp * 0.4) + f.rnd * 2.1);
+        bri *= 1.25 * breath;
+        hue = warmHue(0.05);
+        sat = 0.74 + 0.08 * Math.sin(t * 0.6 + f.rnd * 6.3);
+        break;
+      }
+      const NR = 12; // rays around the trunk
+      const m = (Math.PI * 2) / NR;
+      const swirl = 0.9; // radians of curl core→tip (the chart's spiral curl)
+      const prec = tt * (0.05 + sp * 0.06); // whole sun slowly precesses (reversible)
+      const a = f.azimuth - swirl * f.radialT - prec; // uncurled angle in the sun's frame
+      const k = Math.round(a / m); // nearest ray index
+      const wig = Math.sin(f.radialT * 9 + k * 5.7 + t * 0.35) * 0.05; // per-ray watt-wiggle
+      const d = a - k * m + wig; // angular distance to the ray's (wiggled) spine
+      const member = Math.exp(-(d * d) / (2 * 0.11 * 0.11)); // on-ray membership
+      // bright packets travel OUTWARD along each ray (reverse = sunrise, flows inward)
+      const wavePh = frac(f.radialT * 2.2 - tt * (0.25 + sp * 0.45) - k * 0.13);
+      const dw = Math.min(wavePh, 1 - wavePh); // circular distance to the packet peak
+      const pulse = Math.exp(-dw * dw * 18);
+      bri *= Math.min(1.3, member * (0.3 + 1.0 * pulse) + 0.05); // dark sky between rays, faint warm floor
+      hue = frac(warmHue(f.radialT) + wig * 0.12); // warm palette only, wiggle shimmers it
+      sat = 0.8 + 0.2 * Math.min(1, f.radialT); // whiter near the core, saturated red tips
+      break;
+    }
     case "beacon": {
       const head = frac(t * sp * 0.3);
       let d = Math.abs(f.seqT - head);
