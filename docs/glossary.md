@@ -103,7 +103,8 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **BQ25628E** -- TI solar charger / power-path IC on the PowerFeather. Buck-only: panel hot Vmp must be >= 4.6 V.
 - **MAX17260** -- Fuel gauge IC. Known traits: +8 % current bias (/1.08 correction), no cold-POR off a deeply discharged cell, LFP-plateau-blind SOC.
 - **TPS631013** -- The PowerFeather's 3.3 V buck-boost rail regulator.
-- **32700** -- Large cylindrical cell format (32 mm dia x 70 mm). Production cell: fullbattery.com LiFePO4 6 Ah, qualified n=2 at ~5.75 Ah (ADR 0025).
+- **32700** -- Cylindrical cell format (32 mm dia x 70 mm). fullbattery.com LiFePO4 6 Ah, qualified n=2 at ~5.75 Ah (ADR 0025); since 07-24 the cell for SMALL-enclosure classes (perimeter + uplight boots -- the only cell that fits) + chandelier.
+- **33140** -- Larger cylindrical cell format (33 mm dia x 140 mm). batteryhookup.com LiFePO4 15 Ah at an absurd ~$4.50/cell (130 bought 2026-07-24); the fleet-standard cell for LARGE-enclosure fixtures (downlights). Qualification pending -- capacity/IR run + ADR 0023 threshold re-map.
 - **fullbattery.com** -- Production battery vendor. The Amazon "Palowextra 7.2 Ah" alternative measured 78 % of label with 2.3x IR and was rejected.
 - **Voltaic P105 / P126** -- ETFE-laminated solar panels, 5 W / 2 W: P105 for downlights, P126 for perimeter fixtures (ADR 0026). ETFE = the tough fluoropolymer front layer.
 - **SK6812 "HEX"** -- M5Stack 37-LED hexagonal addressable board; the close-range/ambient LED role, fed from the switchable 3V3 rail.

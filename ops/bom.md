@@ -10,7 +10,8 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Item | Per fixture | Source / status | Notes |
 |---|---|---|---|
 | PowerFeather V2 (ESP32-S3) | 1 | Elecrow, 68 at Steve's + 90 ordered 07-09 (in transit) | ADR 0024. The controller, charger (BQ25628E), gauge (MAX17260), buck-boost, telemetry, USB-C. |
-| 32700 LiFePO4 6 Ah cell | 1 | fullbattery.com, 175 bought | ADR 0025. One cell per fixture, every class (the 20 Ah alternative was cancelled 07-15). |
+| Battery cell -- LARGE-enclosure fixtures (downlights) | 1 | **33140 LiFePO4 15 Ah, batteryhookup.com, 130 bought 07-24** (10 TN + 120 CA) | ADR 0025 annotation: new fleet standard for the large hats; QUALIFICATION PENDING (capacity/IR run + ADR 0023 threshold re-map on the new cell). |
+| Battery cell -- SMALL-enclosure classes + chandelier | 1 | 32700 LiFePO4 6 Ah, fullbattery.com, 175 bought | ADR 0025. The only cell that fits the small enclosure; qualified n=2. |
 | Battery lead / retention | 1 | XH cabling BOUGHT ~07-12/13 (abundance, multiple lengths) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). Final lengths chosen at integration from the on-hand variety. |
 | LED harness | 1 | XH cabling BOUGHT ~07-12/13 (same abundance; incl. 160x 5-pin Y-splitters) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11): one harness + one pinout for both LED roles. |
 | Waterproof USB-C panel-mount rescue port | 1 | Adafruit, 150 bought 07-10 | Extension cable from the PowerFeather USB-C to a gasketed panel-mount port on EVERY hat -- USB rescue/charging without opening the enclosure; solar-free classes charge through it. |
@@ -64,7 +65,8 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Part | Needed | Bought | Margin | Flag |
 |---|---|---|---|---|
 | PowerFeather V2 | 150-152 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +6..+8 production | healthy -- spares risk RESOLVED by the 90-board order |
-| 32700 6 Ah | 150-152 (every class) | 175 | +23..+25 | healthy |
+| 32700 6 Ah | ~78-80 (perimeter + uplights + chandelier) | 175 | ~+95 | huge margin -- downlights moved to the 33140 |
+| 33140 15 Ah | <=110 downlights (72 planned) | 130 | +20..+58 | qualification pending: capacity/IR + ADR 0023 threshold re-map |
 | 4 W RGBW | 96 + chandelier share (up to ~104) | 150 (100 + 50 ordered 07-10) | +46..+54 | healthy -- top-up DONE |
 | SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
 | P105 5 W panel | ~96 (72 downlights + ~24 uplight wings, likely) | 110 | +14 | ok -- wing panel choice to confirm |

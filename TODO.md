@@ -756,6 +756,12 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   needs ocean freight that misses 2026. **Uplights go hinged-solar-wing + 6 Ah
   instead** (ADR 0025/0026 annotations); sample-2 qualification and the end-cap
   fixture are moot for 2026 -- the Alibaba route is the 2027 lead (Ben).
+- [ ] **Qualify the 33140 15 Ah** (new large-hat fleet standard, 130 bought 07-24,
+  QUALIFICATION PENDING): full charge->discharge capacity + IR run per the ADR
+  0023 recipe (shootout rig; n>=2), then re-derive the dim/off/sleep voltage map
+  on the new cell -- the current ADR 0023 tiers are 6 Ah-derived. Gauge:
+  DesignCap 15,000 fits under the MAX17260 16,383 cap. Also verify physical fit
+  in the large Polycase with panel + board + LED installed (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in

@@ -30,7 +30,7 @@ box, likely on 6 Ah cells with USB-C top-ups. All share one firmware image.
 
 ## Current architecture direction
 
-**PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002); the production cell is the fullbattery 32700 6 Ah, qualified n=2 (ADR 0025).
+**PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002); batteries are two-tier since 2026-07-24 (ADR 0025): 33140 15 Ah in the large hats (downlights; qualification pending) and the fullbattery 32700 6 Ah, qualified n=2, in the small hats.
 
 **The production path is decided: COTS PowerFeather V2 at ~150 units (ADR 0024).**
 158 boards are bought (68 received + 90 ordered 2026-07-09; ledger: `ops/PROCUREMENT.md`).

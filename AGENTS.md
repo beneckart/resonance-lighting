@@ -72,7 +72,7 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 - Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
 - **Production locked: COTS PowerFeather V2 at ~150 fixtures in four classes** -- 72 downlights + 38-40 perimeter + 24 uplights + 16 chandelier, tentative until installation; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0024).
-- Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (ADR 0025, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
+- Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027). BMP581 temp/barometric env sensors added to uplights (30 bought 2026-07-16).
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.

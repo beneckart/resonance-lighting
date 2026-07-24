@@ -19,8 +19,8 @@ fungible and fully wireless, so placement is free and the split can shift on-sit
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
-| Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
-| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel | VL53L5CX (outward); MSA311 likely |
+| Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward) |
+| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel + 32700 6 Ah (the only cell that fits the small enclosure) | VL53L5CX (outward); MSA311 likely |
 | Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
 | Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
@@ -47,8 +47,9 @@ downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
                               |
                               v
                       LiFePO4 cell
-          production target: one large cell, likely 32700
-          measured: 5726 / 5752 mAh (n=2, 2026-07-06)
+          two-tier (07-24): 33140 15 Ah in large hats
+          (qualification pending); 32700 6 Ah in small
+          hats -- measured 5726/5752 mAh (n=2)
                               |
                               v
          PowerFeather V2 power-management + telemetry stack

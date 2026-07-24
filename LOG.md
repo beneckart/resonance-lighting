@@ -12,6 +12,28 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-24 -- Ben + Claude -- BATTERY FLEET GOES TWO-TIER: 130x 33140 15 Ah at an absurd price; 32700 6 Ah stays for small hats
+
+**batteryhookup.com turned up 33140 LiFePO4 15 Ah cells at ~$4.50/cell** -- the
+Alibaba price point that killed the 20 Ah idea, but domestic, no ocean freight.
+Ben bought 130 over two orders on 2026-07-24 ($52.76 for 10 to Steve/TN +
+$532.84 for 120 to CA = $585.60).
+
+- **33140 15 Ah = the new fleet standard paired with the LARGE enclosures**
+  (downlights, <=110 deployed): 2.5x the night budget for the class that spends
+  the most light.
+- **32700 6 Ah stays for the small-enclosure classes** (perimeter + uplight
+  boots -- the small Polycase physically fits nothing bigger) and the
+  chandelier. The 175 x 6 Ah now cover ~78-80 positions with ~+95 margin.
+- **Qualification PENDING, per our own shootout culture**: capacity/IR run on
+  the 33140 (n>=2, shootout rig) + re-derive the ADR 0023 dim/off/sleep map on
+  the new cell (current tiers are 6 Ah-derived); DesignCap 15,000 fits under
+  the MAX17260 16,383 driver cap (unlike the 20 Ah); verify physical fit in the
+  large Polycase with panel + board + LED. TODO added.
+- ADR 0025 annotated; SYSTEM fleet table + block diagram, BOM (two battery
+  rows + spares math), AGENTS, README, glossary (33140 entry), ledger
+  (~$24.9k committed) all updated; brief rev 15.
+
 ## 2026-07-16 (cont. 2) -- Ben + Claude -- 50 more MOSFET drivers (scope promotion in the air) + 30x BMP581 env sensors for the uplights
 
 Missed order recovered: Adafruit 2026-07-16, $488.13 total.
