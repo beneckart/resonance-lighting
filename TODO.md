@@ -682,6 +682,12 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   packet counts and the on-device censoring-corrected median (reference:
   `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
   already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
+- [ ] **Perimeter light count (unpinned; was 38-40)**: blind-spot geometry says
+  N >= 2*pi*(R+x)/(0.83x) for VL53L5CX 45-deg FoV closure at x beyond the ring.
+  Bare minimum ~23-26 (R 6-7 m, closure at the ~3 m reliable night range, zero
+  fault tolerance); 38-40 closes at ~1.5-1.7 m AND survives one dead/yawed
+  sensor (wedge degrades to ~3.8-4.3 m, marginal not blind). Recommend staying
+  in 36-40; extras double as plane-fit z-anchors for localization (Ben).
 - [ ] **GPS soft anchors (4x SAM-M8Q)**: bought for dusk/dawn time; also usable as
   hands-free gauge anchors -- not slot-level (2-2.5 m CEP vs 0.7-1 m spacing) but
   4 units spread wide give mirror + rotation to ~8-10 deg (= the 3-hand-beacon
@@ -983,7 +989,12 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## Solar layout levers (solarsim studies, 2026-07-20/21)
 
-- [ ] **Hinged downlight panels**: tangential bracket+hinge (pitch-only) measured
+- [~] **Hinged downlight panels -- NOT ADOPTED for the 72 large enclosures**
+  (Ben + Steve, 2026-07-24); the trunk lights DO get a hinged "wing" (per-light
+  optimal angles in the rotation-sweep data). Downlight harvest reverts to the
+  FLAT baseline (550 Wh fleet, worst ~3.4 Wh, 6 lights under 3 h full runtime) --
+  re-check the power-budget note's show floor against flat numbers. Study kept
+  for the record: tangential bracket+hinge (pitch-only) measured
   +15.7% fleet solar (free-azimuth ideal +25.3%); two-family install rule (pitch
   outward ~40 deg, northern arc inward ~30) needs no per-unit config; a ONE-rule
   aesthetic variant (uniform outward 30 deg) measured +10.7% (-4.4% vs optimal,
