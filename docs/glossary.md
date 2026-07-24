@@ -114,7 +114,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **BMP581** -- Bosch temp + barometric pressure sensor (Adafruit STEMMA); rides the uplight STEMMA chain as a generic environmental logger (30 bought 2026-07-16) -- playa weather data for the 2027 design.
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo).
-- **Solenoid mallet** -- The fleet noisemaker (decided 2026-07-15, ADR 0030): a MOSFET-driven push-pull solenoid physically knocks the bamboo -- daytime solar-surplus percussion; night belongs to the light show. 150 bought (3 V / 5 V A/B pending); the #3885 speaker-synth path was abandoned.
+- **Solarnoid** -- The fleet noisemaker, design finalized ~2026-07-24 (ADR 0030): a solar-fed striker -- VDC-tap + 22,000 uF storage cap + MOSFET-driven push-pull solenoid + craft-store mallet -- physically knocks the bamboo. Daytime solar-surplus percussion; night belongs to the light show. Paired with LARGE-enclosure fixtures (downlights) only. The #3885 speaker-synth path was abandoned; a stronger-solenoid bake-off picked the part (0730B-class primary).
 - **STEMMA-QT / Qwiic** -- JST-SH 4-pin I2C connector standard used by the sensor boards.
 - **Grove / HY2.0** -- M5Stack's physical connector family (carries GPIO data for the HEX, not I2C).
 - **JST-XH** -- Keyed wire-to-board connector family planned for battery/LED harnesses (right-angle headers + pre-crimped cables in the to-buy queue).

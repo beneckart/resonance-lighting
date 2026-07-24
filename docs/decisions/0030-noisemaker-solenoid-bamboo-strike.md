@@ -12,6 +12,12 @@ droops indistinguishable from a passing cloud/shadow -- the BQ charger is not
 confused. Scope is trending fleet-wide on downlights + perimeter: the driver
 count was topped up to 160 on 2026-07-16 ("the solenoids are cool enough we may
 promote them to a feature on all the downlights and perimeter lights").
+Annotation 2026-07-24: **the design is FINALIZED and named -- the "solarnoid"**
+(VDC-tap solar supply + storage cap + solenoid + craft-store bulk mallet, order
+TBC). Scope SETTLED narrower than the 07-16 trend: solarnoids pair with the
+LARGE enclosures only (they need the extra space) -> downlights, <=110. The
+perimeter's small hats sit this one out; expect a healthy MOSFET-driver surplus
+(160 bought vs <=110 needed).
 **Owners:** Ben + Claude
 
 ## Context

@@ -448,7 +448,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
   cap now leads; quantify it and complete the qualification list above -- the
-  candidate verdict itself is now DECIDED (ADR 0030); what remains is engineering.
+  candidate verdict itself is now DECIDED (ADR 0030) and the **"solarnoid" design
+  is FINALIZED ~07-24, mallet and all** (craft-store bulk mallets, order TBC);
+  scope SETTLED: large-enclosure fixtures (downlights) only -- expect surplus
+  drivers.
   **BENCH STATUS 2026-07-16 (Ben-reported; data on the bench laptop, commit
   pending):** 22,000 uF buys headroom for STRONGER solenoids; solenoid bake-off
   mid-flight with the **0730B 6 V/1 A as the primary candidate** (the in-transit

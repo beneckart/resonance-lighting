@@ -70,8 +70,9 @@ downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
                                       bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
-        Noisemaker (DECIDED, ADR 0030): solenoid mallet strikes
-        the bamboo -- daytime solar-surplus percussion (speaker path abandoned)
+        Noisemaker (DECIDED, ADR 0030): the "solarnoid" -- VDC-tap
+        solar supply + cap + solenoid + mallet strikes the bamboo.
+        Daytime percussion; LARGE-hat fixtures (downlights) only
 ```
 
 The 2026 production path is **COTS PowerFeather V2** (ADR 0024); the
@@ -233,9 +234,9 @@ point-source RGBW fixtures, then panel size by role.
   (ADR 0027 open items).
 - Uplight wing: mechanical design (hinge + panel mount on the boot), panel choice
   (likely P105 5 W), and the low-brightness budget (NC prebuild experiments).
-- (RESOLVED 2026-07-15, ADR 0030) Noisemaker -> solenoid bamboo-strike; speaker
-  abandoned. Remaining: 3 V vs 5 V variant, strike power source (VDC-tap sweep),
-  mallet mounting, per-class scope, daytime gating policy.
+- (RESOLVED, ADR 0030) Noisemaker -> the "solarnoid", design finalized ~07-24,
+  downlights only. Remaining: solenoid part order/return (0730B-class), daytime
+  gating firmware, strike energy numbers.
 - MPPT policy: fixed setpoint, temperature-compensated setpoint, or software P&O.
 - Mock-hat RF with real panel/battery placement.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.

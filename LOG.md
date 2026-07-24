@@ -12,6 +12,22 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-24 (cont.) -- Ben + Claude -- "Solarnoid" design FINALIZED (downlights only); GPS/RTC timing experiments ordered
+
+- **The solarnoid has its final form** -- VDC-tap solar supply + 22,000 uF cap +
+  solenoid + craft-store bulk mallet (mallet order details TBC, "very cheap").
+  Scope SETTLED narrower than the 07-16 promotion trend: **paired with the LARGE
+  enclosures only** (needs the extra space) -> downlights, <=110. Perimeter's
+  small hats sit it out; the 160 MOSFET drivers now carry a healthy surplus
+  (+50 at the cap, more at the 72-downlight plan). ADR 0030 annotated; SYSTEM
+  diagram + gates, BOM, glossary ("Solarnoid" entry) updated.
+- **Timing experiments (ordered 2026-07-20, recovered)**: 4x SparkFun SAM-M8Q
+  Qwiic GPS ($132.68) + 4x Adafruit DS3231 STEMMA RTC w/ batteries ($97.09).
+  Purpose: accurate clock/time makes dusk/dawn bring-up and sleep scheduling
+  trivial -- need not yet certain, bench quantities. Side note: the GPS units
+  double as candidate position anchors for the ops/locate auto-localization
+  work. Committed spend ~$25.2k; brief rev 16.
+
 ## 2026-07-24 -- Ben + Claude -- BATTERY FLEET GOES TWO-TIER: 130x 33140 15 Ah at an absurd price; 32700 6 Ah stays for small hats
 
 **batteryhookup.com turned up 33140 LiFePO4 15 Ah cells at ~$4.50/cell** -- the
