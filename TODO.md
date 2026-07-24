@@ -682,6 +682,15 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   packet counts and the on-device censoring-corrected median (reference:
   `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
   already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
+- [ ] **GPS soft anchors (4x SAM-M8Q)**: bought for dusk/dawn time; also usable as
+  hands-free gauge anchors -- not slot-level (2-2.5 m CEP vs 0.7-1 m spacing) but
+  4 units spread wide give mirror + rotation to ~8-10 deg (= the 3-hand-beacon
+  coarse gauge, inside the solver's +-20 deg refinement) + true-north/geo-reference
+  of the as-built tree (measures real door-axis azimuth vs sun arc) + mesh time.
+  Needs: soft 3D position priors in ops/locate refine (sibling of z-anchors,
+  sigma ~2 m) + a sim arm vs the 0/3-beacon baselines; antenna needs sky view
+  (NOT under the panel); SBAS on, hours-long static average; ADR 0028 bus rules
+  (Ben/Claude).
 - [ ] **Replacement/swap flow** (validated in sim 2026-07-15, report addendum: 6/6
   correct even at 8 dB): unconfigured node beacons "whoami" -> bridge roll-call
   diffs live MACs vs fleet map -> ~1 min neighbor RSSI capture -> pinned solve
