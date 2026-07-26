@@ -7,12 +7,15 @@ Board: 88 x 40 mm, 2 layer. Changes from v0.5:
     Socket order (left to right): GND, 5V*, D0, D1, D2, D3, VT -- the common
     RX480E-4 order. !! VERIFY against the actual modules before fab !!
     D1/D2/D3/VT land on unconnected (labeled) socket positions.
-    Orientation is geometry-keyed: inserted correctly the module hangs out
-    over the board edge; inserted backwards it bumps into the C2 can.
+    The module mounts VERTICALLY (right-angle pins). Correct insertion
+    overhangs the open space above the caps/AMS1117; backwards insertion
+    visibly blankets the J1 connector -- obvious at a glance.
     A dumb 2-wire button still works: dupont its leads into 5V* and D0.
   - 5V* rail (AMS1117-5.0, populated): min(5V, VDC-1.1) = 3.5-5.0V, always
     inside the receiver's 3.3-5V window. R7 1k in series with D0->one-shot.
   - Telemetry divider moved right of J4; same nets, same J4 2p XH port.
+  - Resonance shell mark (marketing/brand-assets Logo7c_shell) rendered to
+    silkscreen from logo_shell.png: small front badge + large back badge.
 
 Connector map (confusion-proof: each port a different family):
   J1/J2 XH 3p (the ONLY 3p XH -> unmistakable daisy in/out): 1:D7 2:VDC 3:GND
@@ -289,7 +292,52 @@ board.Add(z)
 # zones filled afterwards: kicad-cli pcb drc --refill-zones --save-board
 
 # ---- silkscreen -------------------------------------------------------------
-silk("SOLARNOID CAPBANK v0.6", 72, 3.2, 1.4)
+def silk_bitmap(path, cx, cy, height_mm, layer, mirror=False, pitch=0.15):
+    """Render a black-on-white bitmap as run-length silkscreen rectangles."""
+    import os
+    if not os.path.exists(path):
+        print(f"note: {path} missing, skipping badge")
+        return
+    from PIL import Image
+    im = Image.open(path)
+    if im.mode in ("RGBA", "LA", "P"):
+        bg = Image.new("RGB", im.size, "white")
+        bg.paste(im, mask=im.convert("RGBA").split()[-1])
+        im = bg
+    im = im.convert("L")
+    rows = int(round(height_mm / pitch))
+    cols = int(round(im.size[0] / im.size[1] * rows))
+    im = im.resize((cols, rows))
+    px = im.load()
+    x0, y0 = cx - cols * pitch / 2, cy - rows * pitch / 2
+    n = 0
+    for r in range(rows):
+        c = 0
+        while c < cols:
+            if px[c, r] < 128:
+                c2 = c
+                while c2 < cols and px[c2, r] < 128:
+                    c2 += 1
+                xa, xb = x0 + c * pitch, x0 + c2 * pitch
+                if mirror:
+                    xa, xb = 2 * cx - xa, 2 * cx - xb
+                s = pcbnew.PCB_SHAPE(board)
+                s.SetShape(pcbnew.SHAPE_T_RECT)
+                s.SetStart(VECTOR2I_MM(min(xa, xb), y0 + r * pitch))
+                s.SetEnd(VECTOR2I_MM(max(xa, xb), y0 + (r + 1) * pitch))
+                s.SetFilled(True)
+                s.SetWidth(0)
+                s.SetLayer(layer)
+                board.Add(s)
+                n += 1
+                c = c2
+            else:
+                c += 1
+    print(f"badge {path} -> {n} silk rects on {'B' if mirror else 'F'}")
+
+silk_bitmap("logo_shell.png", 58, 4.7, 7.6, pcbnew.F_SilkS)
+silk_bitmap("logo_shell.png", 44, 26.3, 10, pcbnew.B_SilkS, mirror=True)
+silk("SOLARNOID CAPBANK v0.6", 73, 3.2, 1.2)
 silk("TAP=1 KNOCK", 6.9, 6.7, 0.9)
 silk("D7 VDC GND", 10, 31.9, 0.65)
 silk("D7 VDC GND", 74, 31.9, 0.65)
@@ -297,7 +345,7 @@ for i, lbl in enumerate(RX_LABELS):
     silk(lbl, 18.6 + 2.54 * i, 33.2, 0.55)
 silk("RX HANGS OFF EDGE", 26.2, 39.2, 0.55)
 silk("VSNS D7S", 58, 33.1, 0.6)
-silk("NO DIODE! (shade = disarm)", 72, 5.6, 0.85)
+silk("NO DIODE! (shade = disarm)", 73, 5.6, 0.8)
 
 pcbnew.SaveBoard(OUT, board)
 print("wrote", OUT)

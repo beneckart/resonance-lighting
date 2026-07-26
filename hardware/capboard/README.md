@@ -22,7 +22,11 @@ kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/
 `build/capbank_gerbers_v0.6.zip` is the fab upload; `build/capbank_cpl.csv` is
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
-leads, before the washboard drive in.
+leads, before the washboard drive in. The Resonance shell mark (from
+`marketing/brand-assets/Logo/Project/Logo7c_shell_black.png`, checked into
+this dir as `logo_shell.png`) is rendered to silkscreen by the generator:
+small badge on the front, large one on the back. Silkscreen art is free at
+any fab — it's just ink on a layer they print regardless.
 
 ## Ports (confusion-proof: each role a different connector family)
 
@@ -53,9 +57,11 @@ All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
   always inside the module's 3.3–5 V window (raw VDC floats to ~7 V and would
   cook it). R7 (1k) between D0 and the one-shot protects the receiver's
   output if SW1 is pressed while it's docked; the one-shot's series cap means
-  a stuck transmitter can't park the coil. Orientation is geometry-keyed:
-  inserted correctly the module hangs out over the board edge; backwards, it
-  physically bumps into the C2 can before seating. A dumb 2-wire button
+  a stuck transmitter can't park the coil. The module mounts vertically
+  (right-angle pins); inserted correctly its board overhangs the open space
+  above the caps and U1 — the metal RF can's 1–2 mm bump has ample clearance.
+  Inserted backwards it visibly blankets the J1 connector: obvious at a
+  glance. A dumb 2-wire button
   still works — dupont its leads into the 5V and D0 positions.
 
 ## Assembly split (JLCPCB economic PCBA)
@@ -74,10 +80,17 @@ through-hole footprint precisely so field tuning stays iron-friendly.
   D7 and GND and puts the cap bank across VDC–D7 (the gate line).
 - **Connector MPNs**: B3B-XH-A (x2), B2B-XH-A (x1), any 1x03 2.54 mm male
   pin header — all ubiquitous.
-- **VERIFY the RX480E pin order** against your actual modules before fab —
-  the socket hard-codes it. Assumed: GND, +V, D0, D1, D2, D3, VT. One
-  continuity beep identifies GND (it ties to the module's ground pour).
-  If your batch differs, edit RX_ORDER/RX_LABELS in the script and re-run.
+- **RX480E pin order** (GND, +V, D0, D1, D2, D3, VT) verified against product
+  photos; give one physical module a continuity beep on arrival (GND ties to
+  the module's ground pour). If a batch ever differs, edit RX_ORDER/RX_LABELS
+  and re-run.
+- **Why the 480E and not a 4-pin RX470/WL101**: the 470-class part is a raw
+  superheterodyne receiver — its DATA pin outputs the demodulated bitstream,
+  including every burst of 433 MHz noise (TPMS, weather stations, doorbells).
+  Driving the one-shot from it would fire randomly. The 480E's onboard
+  EV1527 decoder (learn/pair, per-button outputs) is exactly the part that
+  makes MCU-less firing possible; the 470 only makes sense feeding an MCU,
+  and our MCU nodes already have ESP-NOW.
 - **RF receiver notes** (RX480E-4 class, EV1527 protocol): D0–D3 are the four
   per-fob-button outputs (not channel select); VT asserts on any valid code —
   D0 fires the knock. Buy the *momentary* (M) variant, not latching/interlock.
