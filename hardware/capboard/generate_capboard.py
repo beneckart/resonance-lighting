@@ -207,6 +207,13 @@ r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 23.68, 31, rot=90, value="
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
 
+# ---- strip stray 'REF**' silk texts some library footprints ship -------------
+for fp in board.GetFootprints():
+    for it in [g for g in fp.GraphicalItems()
+               if hasattr(g, "GetText") and g.GetText().startswith("REF**")
+               and g.GetLayer() in (pcbnew.F_SilkS, pcbnew.B_SilkS)]:
+        fp.Remove(it)
+
 # ---- reference-label placement (Ben's GUI pass, captions only) ---------------
 REF_STYLE = [
     (sw1, 21.00, 1.44, 0),   (r1, 31.00, 4.85, 0),   (c1, 35.50, 4.65, 0),
