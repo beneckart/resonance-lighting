@@ -292,19 +292,24 @@ board.Add(z)
 # zones filled afterwards: kicad-cli pcb drc --refill-zones --save-board
 
 # ---- silkscreen -------------------------------------------------------------
-def silk_bitmap(path, cx, cy, height_mm, layer, mirror=False, pitch=0.15):
+def silk_bitmap(path, cx, cy, height_mm, layer, mirror=False, pitch=0.15,
+                rotate=0, autocrop=False):
     """Render a black-on-white bitmap as run-length silkscreen rectangles."""
     import os
     if not os.path.exists(path):
         print(f"note: {path} missing, skipping badge")
         return
-    from PIL import Image
+    from PIL import Image, ImageOps
     im = Image.open(path)
     if im.mode in ("RGBA", "LA", "P"):
         bg = Image.new("RGB", im.size, "white")
         bg.paste(im, mask=im.convert("RGBA").split()[-1])
         im = bg
     im = im.convert("L")
+    if autocrop:
+        im = im.crop(ImageOps.invert(im).getbbox())
+    if rotate:
+        im = im.rotate(rotate, expand=True, fillcolor=255)
     rows = int(round(height_mm / pitch))
     cols = int(round(im.size[0] / im.size[1] * rows))
     im = im.resize((cols, rows))
@@ -336,7 +341,8 @@ def silk_bitmap(path, cx, cy, height_mm, layer, mirror=False, pitch=0.15):
     print(f"badge {path} -> {n} silk rects on {'B' if mirror else 'F'}")
 
 silk_bitmap("logo_shell.png", 58, 4.7, 7.6, pcbnew.F_SilkS)
-silk_bitmap("logo_shell.png", 44, 26.3, 10, pcbnew.B_SilkS, mirror=True)
+silk_bitmap("logo_shell.png", 44, 20, 37, pcbnew.B_SilkS, mirror=True,
+            pitch=0.2, rotate=90, autocrop=True)
 silk("SOLARNOID CAPBANK v0.6", 73, 3.2, 1.2)
 silk("TAP=1 KNOCK", 6.9, 6.7, 0.9)
 silk("D7 VDC GND", 10, 31.9, 0.65)
