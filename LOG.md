@@ -12,6 +12,46 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-24 (cont. 2) -- Ben + Claude -- Gilisymo ToF "goggles" identified; install + integration notes
+
+Research session ahead of attaching the Gilisymo covers to the VL53L5CX units; no
+hardware touched yet.
+
+- **SKU identified (high confidence, unconfirmed against invoice -- Gmail token
+  expired):** the 60x "protective optical covers" are almost certainly Gilisymo
+  **CG-VL53L5-D "dust free"** (supplier ref Hornix IR109C0-IC09-A066) -- the price
+  math fits (EUR 7.50 base / ~6.00 at qty vs ~$384/60) and ADR 0027's stated dust
+  purpose matches. ST community confirms IR109C0 as THE cover for L5CX. Visual
+  check: dust-free = molded black oval, TWO windows with a raised center rib
+  (septum); standard CG-VL53L5 = single continuous window, no rib. Confirm which
+  is in the bag on receipt.
+- **Mechanicals (from Hornix drawings on the product page):** 15.5 x 9.5 mm oval,
+  3.08 mm tall; underside pocket 6.50 x 3.22 x ~1.5 mm deep drops directly over
+  the module; 0.5-0.6 mm septum descends between TX and RX (this is why crosstalk
+  is spec'd 0 kcps vs 0.1-0.3 for the standard). PEI+PC, 0-100 degC, >90 %
+  transmission. Bottom tape, pre-applied.
+- **Orientation:** the two windows are identical plain optical-grade windows (no
+  lensing) -- in-plane 180-degree rotation is functionally equivalent; nothing
+  distinguishes a TX vs RX end. Can't be installed upside-down (pocket + tape
+  down, domed rib up). Minor mold features are not perfectly rotation-symmetric,
+  so dry-fit first; if it rocks, rotate 180.
+- **Install is ONE-WAY:** Gilisymo warns removal can damage the ToF. Therefore:
+  functional-test each sensor BEFORE goggling; apply on a clean bench (dust
+  sealed under the cover is permanent); press on the rim, never the windows.
+- **Enclosure constraint for Steve:** the goggle IS the sealing/window element.
+  The perimeter-hat outward aperture should be an open cutout clearing
+  15.5 x 9.5 x ~3.1 mm -- do NOT put enclosure plastic/glass in front of it
+  (ST AN5856: any extra window with an air gap >0.5-0.7 mm needs a gasket and
+  reintroduces crosstalk).
+- **Firmware/cal (to verify, n>=2 per shootout culture):** with 0 kcps claimed,
+  default ULD xtalk data should be fine (the "calibration-free" selling point).
+  Before locking a no-per-unit-cal fleet policy, bench-compare ranging with vs
+  without the cover on a couple of units, incl. min-range/target-status, and try
+  `vl53l5cx_calibrate_xtalk` (UM2884; target >=600 mm covering full FoV) once to
+  see if it moves anything.
+- 60 covers / 48 sensors = 12 spares; treat covers as consumables given the
+  one-way install.
+
 ## 2026-07-24 (cont.) -- Ben + Claude -- "Solarnoid" design FINALIZED (downlights only); GPS/RTC timing experiments ordered
 
 - **The solarnoid has its final form** -- VDC-tap solar supply + 22,000 uF cap +
