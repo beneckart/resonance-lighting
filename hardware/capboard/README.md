@@ -1,4 +1,4 @@
-# Solarnoid cap-bank board (v0.6)
+# Solarnoid cap-bank board (v1.0)
 
 Inline XH pass-through capacitor bank for the striker drive. Drops into the
 solar power chain between the Y-splitter leg and the Adafruit 5648 MOSFET
@@ -19,10 +19,17 @@ kicad-cli pcb export drill --excellon-separate-th -o build/gerbers/ build/capban
 kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/capbank.kicad_pcb
 ```
 
-`build/capbank_gerbers_v0.6.zip` is the fab upload; `build/capbank_cpl.csv` is
+`build/capbank_gerbers_v1.0.zip` is the fab upload; `build/capbank_cpl.csv` is
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
-leads, before the washboard drive in. The Resonance shell mark (from
+leads, before the washboard drive in. Four bare 3.2 mm NPTH mounting holes
+(M3, silk-ringed) take nylon standoffs; three sit in corners, the fourth at
+(3.2, 28.5) because the IN connector housing owns the bottom-left corner.
+v1.0 folds Ben's KiCad GUI pass back into the script (component nudges,
+caption placement, connector references renamed as labels: IN/OUT x2, RECVR,
+TELE-METRY); his hand-edited board is kept at build/capbank_ben_edit.kicad_pcb
+for comparison. The script remains the source of truth — GUI edits to
+build/capbank.kicad_pcb are overwritten on regeneration unless folded in. The Resonance shell mark (from
 `marketing/brand-assets/Logo/Project/Logo7c_shell_black.png`, checked into
 this dir as `logo_shell.png`) is rendered to silkscreen by the generator:
 small badge on the front, large one on the back. Silkscreen art is free at
@@ -35,10 +42,10 @@ All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
 
 | Ref | Connector | Role | Pin 1 | Pin 2 | Pin 3 |
 |---|---|---|---|---|---|
-| J1 | XH 3p | pass-through in | D7 | VDC | GND |
-| J2 | XH 3p | pass-through out | D7 | VDC | GND |
-| J4 | XH 2p | telemetry | VSNS -> A4 | D7S -> A5 | — |
-| J3 | 1x7 0.1" female socket | RX receiver dock / button | see below | | |
+| IN/OUT (J1) | XH 3p | pass-through in | D7 | VDC | GND |
+| IN/OUT (J2) | XH 3p | pass-through out | D7 | VDC | GND |
+| TELE-METRY (J4) | XH 2p | telemetry | VSNS -> A4 | D7S -> A5 | — |
+| RECVR (J3) | 1x7 0.1" female socket | RX receiver dock / button | see below | | |
 
 - **J4**: 2p-to-2p cable to the PowerFeather A4/A5 header. Plugging it
   reversed is harmless — both lines are ADC inputs, and firmware can
