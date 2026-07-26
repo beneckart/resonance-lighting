@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Generate the solarnoid cap-bank PCB, v0.5 (inline XH pass-through module).
+"""Generate the solarnoid cap-bank PCB, v0.6 (inline XH pass-through module).
 
-Board: 88 x 40 mm, 2 layer. Changes from v0.3:
-  - Connectors are VERTICAL: JST B3B-XH-A THT (JST makes no vertical SMT XH;
-    THT is also mechanically strongest for repeated mating, and JLC assembles
-    THT). Still one BOM line x4, wire entry from above, in line with the caps.
-  - Through-hole connector pins reach the back copper directly -- no vias at
-    the connectors; D7 back spine moved to y=33.8 under the connector row.
+Board: 88 x 40 mm, 2 layer. Changes from v0.5:
+  - J3 is now a 7-position 0.1" FEMALE socket: an RX480E-class 433 MHz
+    receiver module plugs straight in, standing off the bottom edge.
+    Socket order (left to right): GND, 5V*, D0, D1, D2, D3, VT -- the common
+    RX480E-4 order. !! VERIFY against the actual modules before fab !!
+    D1/D2/D3/VT land on unconnected (labeled) socket positions.
+    Orientation is geometry-keyed: inserted correctly the module hangs out
+    over the board edge; inserted backwards it bumps into the C2 can.
+    A dumb 2-wire button still works: dupont its leads into 5V* and D0.
+  - 5V* rail (AMS1117-5.0, populated): min(5V, VDC-1.1) = 3.5-5.0V, always
+    inside the receiver's 3.3-5V window. R7 1k in series with D0->one-shot.
+  - Telemetry divider moved right of J4; same nets, same J4 2p XH port.
 
 Connector map (confusion-proof: each port a different family):
   J1/J2 XH 3p (the ONLY 3p XH -> unmistakable daisy in/out): 1:D7 2:VDC 3:GND
-  J4 XH 2p telemetry: 1:VSNS 2:D7S -> PowerFeather A4/A5 (2p-2p cable;
-     reversal is harmless -- both are ADC inputs, firmware can auto-detect)
-  J3 0.1" male header (dupont) remote/button port: 1:BTN 2:5V* 3:GND
-     5V* = AMS1117-5.0 output (populated): min(5V, VDC-1.1) = 3.5-5.0V,
-     always inside an RX480E receiver's 3.3-5V window. A dumb button
-     bridges BTN-5V*; an RX480E takes 5V*/GND power, D0 output -> BTN.
-     R7 1k in series with BTN protects a receiver output from SW1's VDC.
+  J4 XH 2p telemetry: 1:VSNS 2:D7S -> PowerFeather A4/A5 (reversal harmless)
+  J3 1x7 female socket: RX receiver dock / button port
 
 Run:  python3 generate_capboard.py   then fill zones + DRC via kicad-cli
       (ZONE_FILLER.Fill segfaults headless in KiCad 10.0.3).
@@ -30,6 +31,8 @@ BXH = "JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
 
 # ---- parameters -------------------------------------------------------------
 PIN_ORDER = {"1": "D7", "2": "VDC", "3": "GND"}   # J1/J2, matches PowerFeather
+RX_ORDER = ["GND", "P5V", "BTNP", None, None, None, None]   # GND 5V D0 D1 D2 D3 VT
+RX_LABELS = ["G", "5V", "D0", "D1", "D2", "D3", "VT"]
 BOARD_W, BOARD_H = 88, 40
 CAP_CENTERS = [20, 41, 62]
 CAP_Y = 18.3
@@ -119,15 +122,18 @@ edge_rect(0, 0, BOARD_W, BOARD_H)
 for sx in [9.7, 30.5, 51.5, 72.3]:
     edge_rect(sx - 0.9, CAP_Y - 5, sx + 0.9, CAP_Y + 5)
 
-# ---- connectors (all B3B-XH-A vertical THT, bottom row) ---------------------
+# ---- connectors (bottom row) ------------------------------------------------
 jy = 35.5
 j1 = place("Connector_JST", BXH, "J1", 7.5, jy)
 j2 = place("Connector_JST", BXH, "J2", 71.5, jy)
 assign(j1, PIN_ORDER)
 assign(j2, PIN_ORDER)
-j3 = place("Connector_PinHeader_2.54mm", "PinHeader_1x03_P2.54mm_Vertical",
-           "J3", 22.5, jy, rot=90, value="REMOTE")
-assign(j3, {"1": "BTNP", "2": "P5V", "3": "GND"})
+j3 = place("Connector_PinSocket_2.54mm", "PinSocket_1x07_P2.54mm_Vertical",
+           "J3", 18.6, jy, rot=90, value="RX480E DOCK")
+for pad in j3.Pads():
+    net = RX_ORDER[int(pad.GetNumber()) - 1]
+    if net:
+        pad.SetNet(nets[net])
 j4 = place("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "J4",
            56.8, jy, value="SENSE")
 assign(j4, {"1": "VSNS", "2": "D7S"})
@@ -162,25 +168,27 @@ d1 = place("Package_TO_SOT_SMD", "SOT-23", "D1", 51, 8.56, rot=270,
            value="BZX84C3V3")
 assign(d1, {"1": "GND", "3": "D7"})   # SOT-23 zener: 1=anode, 3=cathode
 
-# ---- telemetry divider + gate sense -----------------------------------------
-r4 = place("Resistor_SMD", "R_0805_2012Metric", "R4", 42, 28.9, value="100k")
-assign(r4, {"1": "VDC", "2": "VSNS"})
-r5 = place("Resistor_SMD", "R_0805_2012Metric", "R5", 47, 28.9, value="33k")
-assign(r5, {"1": "VSNS", "2": "GND"})
-c5 = place("Capacitor_SMD", "C_0805_2012Metric", "C5", 47, 30.9, value="100n")
-assign(c5, {"1": "VSNS", "2": "GND"})
+# ---- telemetry divider + gate sense (right of J4) ---------------------------
+r4 = place("Resistor_SMD", "R_0805_2012Metric", "R4", 63.5, 29.8, rot=90,
+           value="100k")
+assign(r4, {"1": "VSNS", "2": "VDC"})     # pad1 lands low (VSNS), pad2 high
+r5 = place("Resistor_SMD", "R_0805_2012Metric", "R5", 65.5, 31.62, rot=90,
+           value="33k")
+assign(r5, {"1": "GND", "2": "VSNS"})
+c5 = place("Capacitor_SMD", "C_0805_2012Metric", "C5", 67.5, 31.62, rot=90,
+           value="100n")
+assign(c5, {"1": "GND", "2": "VSNS"})
 r6 = place("Resistor_SMD", "R_0805_2012Metric", "R6", 54.8, 29.9, value="1k")
 assign(r6, {"1": "D7", "2": "D7S"})
 
-# ---- remote-port 5V rail + BTN series protection ----------------------------
-u1 = place("Package_TO_SOT_SMD", "SOT-223-3_TabPin2", "U1", 34, 31.7, rot=180,
+# ---- remote-dock 5V rail + D0 series protection -----------------------------
+u1 = place("Package_TO_SOT_SMD", "SOT-223-3_TabPin2", "U1", 40.3, 31.7, rot=180,
            value="AMS1117-5.0")
 assign(u1, {"1": "GND", "2": "P5V", "3": "VDC"})
-c7 = place("Capacitor_SMD", "C_1206_3216Metric", "C7", 28.2, 30.9, rot=90,
+c7 = place("Capacitor_SMD", "C_1206_3216Metric", "C7", 40.3, 37.9,
            value="10uF X7R 16V")
-c7p = sorted(c7.Pads(), key=lambda q: q.GetPosition().y)
-c7p[0].SetNet(nets["GND"]); c7p[1].SetNet(nets["P5V"])
-r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 22.5, 31, rot=90, value="1k")
+assign(c7, {"1": "P5V", "2": "GND"})
+r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 23.68, 31, rot=90, value="1k")
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
 
@@ -205,29 +213,29 @@ track(*j2d, j2d[0], D7_Y, 0.8, B, "D7")
 track(j1d[0], D7_Y, j2d[0], D7_Y, 0.8, B, "D7")
 # (connector GND pins are THT -- the back pour picks them up, no tracks)
 
-# J3 remote port: BTN pin -> R7 -> NETA; front column crosses the back D7
-# spine, via above the VDC spine, then a back column up to the cluster row
-j3a = pxy(j3, "1")
-track(*j3a, j3a[0], r7p[1].GetPosition().y / 1e6, 0.5, F, "BTNP")
-track(j3a[0], r7p[0].GetPosition().y / 1e6, j3a[0], 28.5, 0.5, F, "NETA")
-via(j3a[0], 28.5, "NETA")
-track(j3a[0], 28.5, 20, 27, 0.5, B, "NETA")
+# J3 dock: D0 pin -> R7 -> NETA; front column crosses the back D7 spine,
+# via above the VDC spine, then a back column up to the cluster row
+d0 = pxy(j3, "3")
+track(*d0, d0[0], r7p[1].GetPosition().y / 1e6, 0.5, F, "BTNP")
+track(d0[0], r7p[0].GetPosition().y / 1e6, d0[0], 28.5, 0.5, F, "NETA")
+via(d0[0], 28.5, "NETA")
+track(d0[0], 28.5, 20, 27, 0.5, B, "NETA")
 track(20, 27, 20, 7.5, 0.5, B, "NETA")
 via(20, 7.5, "NETA")
 
-# AMS1117: VIN from spine, GND to pour, VOUT (tab) -> C7 -> J3 pin 2
-u1vin, u1gnd, u1out = pxy(u1, "3"), pxy(u1, "1"), (34 - 3.15, 31.7)
-track(34 + 3.15, 31.7, *u1out, 0.5, F, "P5V")   # pin-side pad 2 to tab
+# AMS1117: VIN from spine, GND to pour, VOUT (tab) -> C7 -> socket 5V pin
+u1vin, u1gnd, u1out = pxy(u1, "3"), pxy(u1, "1"), (40.3 - 3.15, 31.7)
+track(40.3 + 3.15, 31.7, *u1out, 0.5, F, "P5V")   # pin-side pad 2 to tab
 track(*u1vin, u1vin[0], SPINE_Y, 0.5, F, "VDC")
 track(*u1gnd, u1gnd[0], 35.4, 0.5, F, "GND")
 via(u1gnd[0], 35.4, "GND")
-c7g, c7v = c7p[0].GetPosition(), c7p[1].GetPosition()
-track(c7g.x / 1e6, c7g.y / 1e6, 28.2, 28.4, 0.4, F, "GND")
-via(28.2, 28.4, "GND")
-track(c7v.x / 1e6, c7v.y / 1e6, *u1out, 0.5, F, "P5V")
-j3p5 = pxy(j3, "2")
-track(*u1out, j3p5[0], 33.5, 0.5, F, "P5V")
-track(j3p5[0], 33.5, *j3p5, 0.5, F, "P5V")
+p5 = pxy(j3, "2")
+track(*u1out, u1out[0], 38.7, 0.5, F, "P5V")      # down past the socket
+track(38.83, 38.7, p5[0], 38.7, 0.5, F, "P5V")
+track(p5[0], 38.7, *p5, 0.5, F, "P5V")
+track(38.83, 37.9, 38.83, 38.7, 0.4, F, "P5V")    # C7.1
+track(41.78, 37.9, 41.78, 36.8, 0.4, F, "GND")    # C7.2
+via(41.78, 36.8, "GND")
 
 # one-shot cluster
 sw_a = pxy(sw1, "2")
@@ -250,17 +258,15 @@ track(*d1k, d1k[0], LANE_Y, 0.4, F, "D7")
 via(54, LANE_Y, "D7")                                       # lane -> back spine
 track(54, LANE_Y, 54, D7_Y, 0.8, B, "D7")
 
-# telemetry
-track(41.09, 28.9, 41.09, SPINE_Y, 0.5, F, "VDC")           # R4.1 tap
-track(42.91, 28.9, 46.09, 28.9, 0.5, F, "VSNS")             # R4.2 -> R5.1
-track(46.09, 28.9, 46.09, 30.9, 0.4, F, "VSNS")             # -> C5.1
-track(47.91, 28.9, 47.91, 30.9, 0.4, F, "GND")              # R5.2 / C5.2
-track(47.91, 28.9, 49.5, 28.9, 0.4, F, "GND")
-via(49.5, 28.9, "GND")
+# telemetry (vertical stack right of J4)
+track(63.5, 28.89, 63.5, SPINE_Y, 0.5, F, "VDC")            # R4.2 tap
+track(63.5, 30.71, 67.5, 30.71, 0.5, F, "VSNS")             # R4.1/R5.2/C5.2
+track(65.5, 32.53, 67.5, 32.53, 0.4, F, "GND")              # R5.1/C5.1
+via(66.5, 32.53, "GND")
 j4v_, j4s = pxy(j4, "1"), pxy(j4, "2")
-track(46.09, 30.9, 46.09, 34.75, 0.5, F, "VSNS")            # around the pads
-track(46.09, 34.75, j4v_[0], 34.75, 0.5, F, "VSNS")
-track(j4v_[0], 34.75, *j4v_, 0.5, F, "VSNS")
+track(63.5, 30.71, 63.5, 37.6, 0.5, F, "VSNS")              # around the pads
+track(63.5, 37.6, j4v_[0], 37.6, 0.5, F, "VSNS")
+track(j4v_[0], 37.6, *j4v_, 0.5, F, "VSNS")
 track(53.89, 29.9, 53.89, D7_Y, 0.4, F, "D7")               # R6.1 tap
 via(53.89, D7_Y, "D7")
 track(55.71, 29.9, j4s[0], 31.8, 0.5, F, "D7S")             # R6.2 -> J4.2
@@ -283,13 +289,15 @@ board.Add(z)
 # zones filled afterwards: kicad-cli pcb drc --refill-zones --save-board
 
 # ---- silkscreen -------------------------------------------------------------
-silk("SOLARNOID CAPBANK v0.5", 72, 3.2, 1.4)
+silk("SOLARNOID CAPBANK v0.6", 72, 3.2, 1.4)
 silk("TAP=1 KNOCK", 6.9, 6.7, 0.9)
 silk("D7 VDC GND", 10, 31.9, 0.65)
 silk("D7 VDC GND", 74, 31.9, 0.65)
-silk("BTN 5V GND", 25, 38.4, 0.6)
+for i, lbl in enumerate(RX_LABELS):
+    silk(lbl, 18.6 + 2.54 * i, 33.2, 0.55)
+silk("RX HANGS OFF EDGE", 26.2, 39.2, 0.55)
 silk("VSNS D7S", 58, 33.1, 0.6)
-silk("NO DIODE! (shade = disarm)", 42, 37, 0.85)
+silk("NO DIODE! (shade = disarm)", 72, 5.6, 0.85)
 
 pcbnew.SaveBoard(OUT, board)
 print("wrote", OUT)

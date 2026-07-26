@@ -1,4 +1,4 @@
-# Solarnoid cap-bank board (v0.5)
+# Solarnoid cap-bank board (v0.6)
 
 Inline XH pass-through capacitor bank for the striker drive. Drops into the
 solar power chain between the Y-splitter leg and the Adafruit 5648 MOSFET
@@ -19,7 +19,7 @@ kicad-cli pcb export drill --excellon-separate-th -o build/gerbers/ build/capban
 kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/capbank.kicad_pcb
 ```
 
-`build/capbank_gerbers_v0.5.zip` is the fab upload; `build/capbank_cpl.csv` is
+`build/capbank_gerbers_v0.6.zip` is the fab upload; `build/capbank_cpl.csv` is
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
 leads, before the washboard drive in.
@@ -34,7 +34,7 @@ All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
 | J1 | XH 3p | pass-through in | D7 | VDC | GND |
 | J2 | XH 3p | pass-through out | D7 | VDC | GND |
 | J4 | XH 2p | telemetry | VSNS -> A4 | D7S -> A5 | — |
-| J3 | 0.1" male header | remote / button | BTN | 5V* | GND |
+| J3 | 1x7 0.1" female socket | RX receiver dock / button | see below | | |
 
 - **J4**: 2p-to-2p cable to the PowerFeather A4/A5 header. Plugging it
   reversed is harmless — both lines are ADC inputs, and firmware can
@@ -45,15 +45,18 @@ All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
   ~±0.15 V of charger-current offset). For bench-grade absolutes,
   double-crimp a sense-ground wire into the LED header's GND cavity at the
   Feather — a free Kelvin tap, no board pins consumed.
-- **J3**: dupont-friendly male pins. A dumb 2-wire button bridges BTN–5V*.
-  An RF receiver (RX480E-class) uses all three: 5V*/GND power, its D0 data
-  output into BTN. 5V* comes from the on-board AMS1117-5.0 (populated):
-  output = min(5.0 V, VDC − 1.1 V) ≈ 3.5–5.0 V across the whole panel range —
-  always inside the receiver's 3.3–5 V window (never feed the module raw VDC;
-  the bus floats to ~7 V). R7 (1k) in series with BTN protects a receiver's
-  push-pull output if someone presses SW1 while it's connected. The one-shot's
-  series cap means a stuck transmitter can't park the coil, same as a stuck
-  button.
+- **J3**: a 7-position female socket the RX480E module plugs straight into —
+  no wiring at all. Socket order (silkscreen-labeled, left to right):
+  **GND · 5V · D0 · D1 · D2 · D3 · VT**. Only GND/5V/D0 are connected;
+  D1–D3/VT land on labeled no-connect positions (jumper-accessible later).
+  5V comes from the on-board AMS1117-5.0: min(5.0 V, VDC − 1.1 V) ≈ 3.5–5.0 V,
+  always inside the module's 3.3–5 V window (raw VDC floats to ~7 V and would
+  cook it). R7 (1k) between D0 and the one-shot protects the receiver's
+  output if SW1 is pressed while it's docked; the one-shot's series cap means
+  a stuck transmitter can't park the coil. Orientation is geometry-keyed:
+  inserted correctly the module hangs out over the board edge; backwards, it
+  physically bumps into the C2 can before seating. A dumb 2-wire button
+  still works — dupont its leads into the 5V and D0 positions.
 
 ## Assembly split (JLCPCB economic PCBA)
 
@@ -71,13 +74,18 @@ through-hole footprint precisely so field tuning stays iron-friendly.
   D7 and GND and puts the cap bank across VDC–D7 (the gate line).
 - **Connector MPNs**: B3B-XH-A (x2), B2B-XH-A (x1), any 1x03 2.54 mm male
   pin header — all ubiquitous.
+- **VERIFY the RX480E pin order** against your actual modules before fab —
+  the socket hard-codes it. Assumed: GND, +V, D0, D1, D2, D3, VT. One
+  continuity beep identifies GND (it ties to the module's ground pour).
+  If your batch differs, edit RX_ORDER/RX_LABELS in the script and re-run.
 - **RF receiver notes** (RX480E-4 class, EV1527 protocol): D0–D3 are the four
-  per-fob-button outputs (not channel select); VT asserts on any valid code.
-  Wire D0 -> BTN. Buy the *momentary* (M) variant, not latching/interlock.
+  per-fob-button outputs (not channel select); VT asserts on any valid code —
+  D0 fires the knock. Buy the *momentary* (M) variant, not latching/interlock.
   Each receiver has a learn button — pair every receiver to ONE fob (press
   learn, press fob button A), so 20 receivers need a single transmitter.
   Solder a ~17 cm wire antenna for range. Idle draw is a few mA from the
-  panel — irrelevant by day, and the bus is dead at night anyway.
+  panel — irrelevant by day, and the bus is dead at night anyway. On washboard
+  roads a socketed module deserves a dab of hot glue.
 - Cap footprint: 18 mm can, oblong drills accept 7.5–8.3 mm lead pitch
   (AliExpress 22,000 uF @ 8 mm and Rubycon 16,000 uF @ 7.5 mm both fit).
 - **No blocking diode anywhere** — deliberate. Shade-to-disarm depends on the
@@ -118,7 +126,7 @@ Populated by default; ignore in firmware until wanted.
 |---|---|---|---|
 | J1, J2 | JST B3B-XH-A | THT vertical XH 3p | daisy in/out |
 | J4 | JST B2B-XH-A | THT vertical XH 2p | telemetry |
-| J3 | pin header 1x03 2.54 mm | THT vertical | remote/button port |
+| J3 | female socket 1x07 2.54 mm | THT vertical | RX receiver dock |
 | U1 | AMS1117-5.0 | SOT-223 | 5V* rail for receiver |
 | C7 | 10 uF X7R 16 V | 1206 | LDO output cap (same MPN as C1) |
 | R7 | 1 k | 0805 | BTN series protection (same MPN as R6) |
