@@ -8,8 +8,9 @@ Board: 88 x 40 mm, 2 layer. Changes from v0.6:
     with a v1.0 stamp. All affected tracks rerouted to the new positions.
     Ben's hand-edited board is preserved at build/capbank_ben_edit.kicad_pcb.
   - Four M3 mounting holes for nylon standoffs (bare 3.2mm NPTH cutouts with
-    silk rings; zip-tie slots retained). Bottom-left hole sits at (3.2,28.5)
-    -- the true corner is occupied by the IN connector housing.
+    silk rings; zip-tie slots retained), one in each true corner: the left
+    connector group (IN + RECVR dock) sits +3mm right to free the bottom-left
+    corner; U1/C7 nudged right to preserve courtyard gaps.
   - VDC rail riser moved from x=5 to x=6.8 to clear the top-left hole.
 
 Port map (confusion-proof: each port a different family):
@@ -41,7 +42,7 @@ D7_Y = 33.8           # D7 spine (back, under the connector row)
 RAIL_X = 6.8          # VDC rail riser (clears the top-left mounting hole)
 RAIL_Y = 1.3          # VDC rail to button cluster
 LANE_Y = 9.5          # D7 lane in the button cluster
-HOLES = [(3.2, 3.2), (84.8, 3.2), (84.8, 36.8), (3.2, 28.5)]   # M3 standoffs
+HOLES = [(3.2, 3.2), (84.8, 3.2), (84.8, 36.8), (3.2, 36.8)]   # M3 standoffs
 
 board = pcbnew.CreateEmptyBoard()
 board.GetDesignSettings().SetCopperLayerCount(2)
@@ -137,12 +138,12 @@ for hx, hy in HOLES:
 
 # ---- connectors (bottom row) ------------------------------------------------
 jy = 35.5
-j1 = place("Connector_JST", BXH, "IN/OUT", 7.5, jy)
+j1 = place("Connector_JST", BXH, "IN/OUT", 10.5, jy)
 j2 = place("Connector_JST", BXH, "IN/OUT", 71.5, jy)
 assign(j1, PIN_ORDER)
 assign(j2, PIN_ORDER)
 j3 = place("Connector_PinSocket_2.54mm", "PinSocket_1x07_P2.54mm_Vertical",
-           "RECVR", 18.6, jy, rot=90, value="RX480E DOCK")
+           "RECVR", 21.6, jy, rot=90, value="RX480E DOCK")
 for pad in j3.Pads():
     net = RX_ORDER[int(pad.GetNumber()) - 1]
     if net:
@@ -197,13 +198,13 @@ r6 = place("Resistor_SMD", "R_0805_2012Metric", "R6", 54.8, 29.9, value="1k")
 assign(r6, {"1": "D7", "2": "D7S"})
 
 # ---- remote-dock 5V rail + D0 series protection -----------------------------
-u1 = place("Package_TO_SOT_SMD", "SOT-223-3_TabPin2", "U1", 42.3, 31.7, rot=180,
+u1 = place("Package_TO_SOT_SMD", "SOT-223-3_TabPin2", "U1", 43.3, 31.7, rot=180,
            value="AMS1117-5.0")
 assign(u1, {"1": "GND", "2": "P5V", "3": "VDC"})
-c7 = place("Capacitor_SMD", "C_1206_3216Metric", "C7", 38.8, 37.4,
+c7 = place("Capacitor_SMD", "C_1206_3216Metric", "C7", 41.4, 37.4,
            value="10uF X7R 16V")
 assign(c7, {"1": "P5V", "2": "GND"})
-r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 23.68, 31, rot=90, value="1k")
+r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 26.74, 31, rot=90, value="1k")
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
 
@@ -219,10 +220,10 @@ REF_STYLE = [
     (sw1, 21.00, 1.44, 0),   (r1, 31.00, 4.85, 0),   (c1, 35.50, 4.65, 0),
     (c1b, 40.00, 2.50, 0),   (r2, 39.91, 4.75, 0),   (r3, 45.35, 7.09, 90),
     (d1, 53.40, 7.00, 270),  (r4, 63.35, 33.12, 90), (r5, 65.35, 33.12, 90),
-    (c5, 67.32, 33.12, 90),  (r6, 54.80, 28.25, 0),  (r7, 22.03, 31.00, 90),
-    (u1, 42.30, 36.20, 180), (c7, 38.80, 35.55, 0),
-    (j1, 10.00, 30.45, 0),   (j2, 74.00, 30.45, 0),
-    (j3, 31.00, 31.50, 0),   (j4, 51.00, 36.95, 0),
+    (c5, 67.32, 33.12, 90),  (r6, 54.80, 28.25, 0),  (r7, 25.09, 31.00, 90),
+    (u1, 43.30, 36.20, 180), (c7, 41.40, 35.55, 0),
+    (j1, 13.00, 30.45, 0),   (j2, 74.00, 30.45, 0),
+    (j3, 34.00, 31.50, 0),   (j4, 51.00, 36.95, 0),
     (bigcaps[0], 20.00, 8.05, 0), (bigcaps[1], 41.00, 8.05, 0),
     (bigcaps[2], 62.00, 8.05, 0),
 ]
@@ -266,8 +267,8 @@ track(20, 27, 20, 6.5, 0.5, B, "NETA")
 via(20, 6.5, "NETA")
 
 # AMS1117: VIN from spine, GND to pour, VOUT (tab) -> C7.1 -> socket 5V pin
-u1vin, u1gnd, u1out = pxy(u1, "3"), pxy(u1, "1"), (42.3 - 3.15, 31.7)
-track(42.3 + 3.15, 31.7, *u1out, 0.5, F, "P5V")   # pin-side pad 2 to tab
+u1vin, u1gnd, u1out = pxy(u1, "3"), pxy(u1, "1"), (43.3 - 3.15, 31.7)
+track(43.3 + 3.15, 31.7, *u1out, 0.5, F, "P5V")   # pin-side pad 2 to tab
 track(*u1vin, u1vin[0], SPINE_Y, 0.5, F, "VDC")
 track(*u1gnd, u1gnd[0], 35.4, 0.5, F, "GND")
 via(u1gnd[0], 35.4, "GND")
@@ -399,10 +400,10 @@ silk_bitmap("logo_shell.png", 44, 20, 37, pcbnew.B_SilkS, mirror=True,
 silk("SOLARNOID CAPBANK", 70, 3.2, 1.2)
 silk("v1.0", 74, 5.1, 0.8)
 silk("TAP=1 KNOCK", 11.9, 8.2, 0.9)
-silk("D7 VDC GND", 10, 31.9, 0.65)
+silk("D7 VDC GND", 13, 31.9, 0.65)
 silk("D7 VDC GND", 74, 31.9, 0.65)
 for i, lbl in enumerate(RX_LABELS):
-    silk(lbl, 18.6 + 2.54 * i, 33.2, 0.55)
+    silk(lbl, 21.6 + 2.54 * i, 33.2, 0.55)
 silk("VSNS D7S", 58, 32.1, 0.6)
 silk("TELE-", 51, 35.5, 1.0)
 

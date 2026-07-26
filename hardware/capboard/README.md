@@ -23,8 +23,8 @@ kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
 leads, before the washboard drive in. Four bare 3.2 mm NPTH mounting holes
-(M3, silk-ringed) take nylon standoffs; three sit in corners, the fourth at
-(3.2, 28.5) because the IN connector housing owns the bottom-left corner.
+(M3, silk-ringed) take nylon standoffs, one in each corner — the IN + RECVR
+group sits 3 mm right of dead-center to clear the bottom-left standoff.
 v1.0 folds Ben's KiCad GUI pass back into the script (component nudges,
 caption placement, connector references renamed as labels: IN/OUT x2, RECVR,
 TELE-METRY); his hand-edited board is kept at build/capbank_ben_edit.kicad_pcb
