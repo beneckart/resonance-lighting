@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the solarnoid cap-bank PCB, v0.3 (inline XH pass-through module).
+"""Generate the solarnoid cap-bank PCB, v0.4 (inline XH pass-through module).
 
-Board: 88 x 40 mm, 2 layer. Changes from v0.2:
-  - All four connectors are the SAME part: JST S3B-XH-SM4-TB right-angle SMT
-    (one BOM line, all JLC-assembled, all wires exit off the bottom edge).
-    J3 gained a GND pin (illuminated-button option); J4 gained a dedicated
-    GND return for clean ADC sensing.
-  - C1B (optional pulse-stretch cap) is now through-hole for hand-soldering.
-  - Back-side D7 spine runs straight (no more through-holes in its path).
-  - Silkscreen decluttered: title top-right, button label left of SW1.
+Board: 88 x 40 mm, 2 layer. Changes from v0.3:
+  - Connectors are VERTICAL: JST B3B-XH-A THT (JST makes no vertical SMT XH;
+    THT is also mechanically strongest for repeated mating, and JLC assembles
+    THT). Still one BOM line x4, wire entry from above, in line with the caps.
+  - Through-hole connector pins reach the back copper directly -- no vias at
+    the connectors; D7 back spine moved to y=33.8 under the connector row.
 
 Connector pinouts (left to right, silkscreen-labeled):
   J1/J2 (pass-through): 1:D7  2:VDC  3:GND   -- matches PowerFeather header
   J3 (remote button):   1:BTN 2:VDC  3:GND
-  J4 (telemetry):       1:D7S 2:VSNS 3:GND   -- to PowerFeather A5/A4/GND
+  J4 (telemetry):       1:VSNS 2:D7S 3:GND   -- to PowerFeather A4/A5/GND (GND optional)
 
 Run:  python3 generate_capboard.py   then fill zones + DRC via kicad-cli
       (ZONE_FILLER.Fill segfaults headless in KiCad 10.0.3).
@@ -23,7 +21,7 @@ from pcbnew import VECTOR2I_MM, FromMM
 
 LIB = "/usr/share/kicad/footprints/"
 OUT = "build/capbank.kicad_pcb"
-SM4 = "JST_XH_S3B-XH-SM4-TB_1x03-1MP_P2.50mm_Horizontal"
+BXH = "JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
 
 # ---- parameters -------------------------------------------------------------
 PIN_ORDER = {"1": "D7", "2": "VDC", "3": "GND"}   # J1/J2, matches PowerFeather
@@ -32,8 +30,7 @@ CAP_CENTERS = [20, 41, 62]
 CAP_Y = 18.3
 CAP_PITCH = 7.5
 SPINE_Y = 26.5        # VDC spine (front)
-D7_Y = 31.5           # D7 spine (back, straight)
-VIA_Y = 34.3          # via row between connector pads and MP anchors
+D7_Y = 33.8           # D7 spine (back, under the connector row)
 RAIL_Y = 1.3          # VDC rail to button cluster
 LANE_Y = 9.5          # D7 lane in the button cluster
 
@@ -117,19 +114,16 @@ edge_rect(0, 0, BOARD_W, BOARD_H)
 for sx in [9.7, 30.5, 51.5, 72.3]:
     edge_rect(sx - 0.9, CAP_Y - 5, sx + 0.9, CAP_Y + 5)
 
-# ---- connectors (all S3B-XH-SM4, bottom edge) -------------------------------
-probe = pcbnew.FootprintLoad(LIB + "Connector_JST.pretty", SM4)
-mp_half = max(p.GetSize().y for p in probe.Pads()
-              if p.GetNumber() == "MP") / 2e6
-jy = BOARD_H - 0.5 - mp_half - 3.55
-j1 = place("Connector_JST", SM4, "J1", 10, jy)
-j2 = place("Connector_JST", SM4, "J2", 74, jy)
+# ---- connectors (all B3B-XH-A vertical THT, bottom row) ---------------------
+jy = 35.5
+j1 = place("Connector_JST", BXH, "J1", 7.5, jy)
+j2 = place("Connector_JST", BXH, "J2", 71.5, jy)
 assign(j1, PIN_ORDER)
 assign(j2, PIN_ORDER)
-j3 = place("Connector_JST", SM4, "J3", 25, jy, value="BTN")
+j3 = place("Connector_JST", BXH, "J3", 22.5, jy, value="BTN")
 assign(j3, {"1": "NETA", "2": "VDC", "3": "GND"})
-j4 = place("Connector_JST", SM4, "J4", 59.3, jy, value="SENSE")
-assign(j4, {"1": "D7S", "2": "VSNS", "3": "GND"})
+j4 = place("Connector_JST", BXH, "J4", 56.8, jy, value="SENSE")
+assign(j4, {"1": "VSNS", "2": "D7S", "3": "GND"})
 
 # ---- capacitors (THT, hand-solder) ------------------------------------------
 for i, cx in enumerate(CAP_CENTERS):
@@ -189,23 +183,19 @@ track(5, RAIL_Y, sw_vdc[0], RAIL_Y, 0.8, F, "VDC")
 track(sw_vdc[0], RAIL_Y, *sw_vdc, 0.6, F, "VDC")
 track(37.09, 28.9, 37.09, SPINE_Y, 0.5, F, "VDC")           # R4.1 tap
 
-# D7 pass-through: front stubs down to vias, straight spine on back
-for d in (j1d, j2d):
-    track(*d, d[0], VIA_Y, 0.6, F, "D7")
-    via(d[0], VIA_Y, "D7")
-    track(d[0], VIA_Y, d[0], D7_Y, 0.8, B, "D7")
+# D7 pass-through: THT pins reach the back layer directly, spine on back
+track(*j1d, j1d[0], D7_Y, 0.8, B, "D7")
+track(*j2d, j2d[0], D7_Y, 0.8, B, "D7")
 track(j1d[0], D7_Y, j2d[0], D7_Y, 0.8, B, "D7")
+# (connector GND pins are THT -- the back pour picks them up, no tracks)
 
-# GND stubs from SMT connector pads to the back pour
-for g in (j1g, j2g, pxy(j3, "3"), pxy(j4, "3")):
-    track(*g, g[0], VIA_Y, 0.8, F, "GND")
-    via(g[0], VIA_Y, "GND")
-
-# J3 remote button: NETA rides the back layer up to the cluster row
+# J3 remote button: front column crosses the back D7 spine, via above the
+# VDC spine, then a back column (clear of the cap pads) up to the cluster row
 j3a = pxy(j3, "1")
-track(*j3a, 20, 29.3, 0.5, F, "NETA")
-via(20, 29.3, "NETA")
-track(20, 29.3, 20, 7.5, 0.5, B, "NETA")
+track(*j3a, j3a[0], 28.5, 0.5, F, "NETA")
+via(j3a[0], 28.5, "NETA")
+track(j3a[0], 28.5, 20, 27, 0.5, B, "NETA")
+track(20, 27, 20, 7.5, 0.5, B, "NETA")
 via(20, 7.5, "NETA")
 
 # one-shot cluster
@@ -235,13 +225,14 @@ track(42.09, 28.9, 42.09, 30.9, 0.4, F, "VSNS")             # -> C5.1
 track(43.91, 28.9, 43.91, 30.9, 0.4, F, "GND")              # R5.2 / C5.2
 track(43.91, 28.9, 45.5, 28.9, 0.4, F, "GND")
 via(45.5, 28.9, "GND")
-j4s, j4v_ = pxy(j4, "1"), pxy(j4, "2")
-track(42.09, 30.9, 42.09, 35, 0.5, F, "VSNS")               # around the pads
-track(42.09, 35, j4v_[0], 35, 0.5, F, "VSNS")
-track(j4v_[0], 35, *j4v_, 0.5, F, "VSNS")
+j4v_, j4s = pxy(j4, "1"), pxy(j4, "2")
+track(42.09, 30.9, 42.09, 34.75, 0.5, F, "VSNS")            # around the pads
+track(42.09, 34.75, j4v_[0], 34.75, 0.5, F, "VSNS")
+track(j4v_[0], 34.75, *j4v_, 0.5, F, "VSNS")
 via(47.49, D7_Y, "D7")                                      # tap back spine
 track(47.49, D7_Y, 47.49, 29.9, 0.4, F, "D7")               # -> R6.1
-track(49.31, 29.9, *j4s, 0.5, F, "D7S")                     # R6.2 -> J4.1
+track(49.31, 29.9, j4s[0], 31.8, 0.5, F, "D7S")             # R6.2 -> J4.2
+track(j4s[0], 31.8, *j4s, 0.5, F, "D7S")
 
 # ---- back copper: GND pour --------------------------------------------------
 z = pcbnew.ZONE(board)
@@ -260,12 +251,12 @@ board.Add(z)
 # zones filled afterwards: kicad-cli pcb drc --refill-zones --save-board
 
 # ---- silkscreen -------------------------------------------------------------
-silk("SOLARNOID CAPBANK v0.3", 72, 3.2, 1.4)
+silk("SOLARNOID CAPBANK v0.4", 72, 3.2, 1.4)
 silk("TAP=1 KNOCK", 6.9, 6.7, 0.9)
-silk("D7 VDC GND", 10, 25.6, 0.65)
-silk("D7 VDC GND", 74, 25.6, 0.65)
-silk("BTN VDC GND", 25, 27.85, 0.6)
-silk("D7S VSNS GND", 59.3, 27.85, 0.6)
+silk("D7 VDC GND", 10, 31.9, 0.65)
+silk("D7 VDC GND", 74, 31.9, 0.65)
+silk("BTN VDC GND", 25, 31.9, 0.6)
+silk("VSNS D7S GND", 59.3, 31.9, 0.6)
 silk("NO DIODE! (shade = disarm)", 42, 37, 0.85)
 
 pcbnew.SaveBoard(OUT, board)

@@ -1,4 +1,4 @@
-# Solarnoid cap-bank board (v0.3)
+# Solarnoid cap-bank board (v0.4)
 
 Inline XH pass-through capacitor bank for the striker drive. Drops into the
 solar power chain between the Y-splitter leg and the Adafruit 5648 MOSFET
@@ -19,48 +19,54 @@ kicad-cli pcb export drill --excellon-separate-th -o build/gerbers/ build/capban
 kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/capbank.kicad_pcb
 ```
 
-`build/capbank_gerbers_v0.3.zip` is the fab upload; `build/capbank_cpl.csv` is
+`build/capbank_gerbers_v0.4.zip` is the fab upload; `build/capbank_cpl.csv` is
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
 leads, before the washboard drive in.
 
-## Connectors (all the same part: JST S3B-XH-SM4-TB, right-angle SMT)
+## Connectors (all the same part: JST B3B-XH-A, vertical THT)
 
-All four exit off the bottom board edge. Pin 1 is leftmost; every pin is
-silkscreen-labeled.
+All four in a row along the bottom edge, wire entry from above — cables run
+in line with the caps. Pin 1 is leftmost; every pin is silkscreen-labeled.
+(JST makes no vertical SMT XH; THT is also the strongest option for a
+connector mated at every node build, and JLC's THT assembly service places
+them, so the board stays fully machine-assembled.)
 
 | Ref | Role | Pin 1 | Pin 2 | Pin 3 |
 |---|---|---|---|---|
 | J1 | pass-through in | D7 | VDC | GND |
 | J2 | pass-through out | D7 | VDC | GND |
 | J3 | remote fire button | BTN | VDC | GND |
-| J4 | telemetry sense | D7S -> A5 | VSNS -> A4 | GND |
+| J4 | telemetry sense | VSNS -> A4 | D7S -> A5 | GND (optional) |
 
-J3's button just bridges pin 1 to pin 2; GND is spare (illuminated-button
-option). J4's GND gives the ADC sense loop its own return.
+J3's VDC/GND come from the board's own pass-through traces — a 2-wire button
+pigtail crimps into pins 1–2 and the GND cavity stays empty (it exists for a
+future lit-button option). J4's GND is likewise optional: ground is shared
+via the power harness, but during a strike ~2 A of return current drops
+0.2–0.5 V across the harness ground, which shows up as an artifact in
+intra-strike VSNS readings. Leave it empty for casual telemetry; crimp the
+third wire for bench-grade droop characterization.
 
 ## Assembly split (JLCPCB economic PCBA)
 
-Every part except the big caps is top-side SMD, connectors included — all on
-the assembly line. Hand-soldering per board: **2–3 electrolytics, that's all**
-(your AliExpress stock isn't in the JLC catalog). C1B is a through-hole
-footprint precisely so field tuning stays iron-friendly.
+Small parts are top-side SMD; the four XH connectors are THT and go through
+JLC's THT assembly service (small surcharge — or 12 easy through-hole joints
+per board by hand). Hand-soldering per board beyond that: **2–3
+electrolytics** (your AliExpress stock isn't in the JLC catalog). C1B is a
+through-hole footprint precisely so field tuning stays iron-friendly.
 
 ## ⚠ Before ordering
 
 - **Pin order** matches the reported PowerFeather header (1:D7, 2:VDC, 3:GND).
-  With pre-crimped male-male XH cables, verify the batch is **straight
-  (pin1->pin1), not mirrored (pin1->pin3)** — a mirrored cable swaps D7 and
-  GND and puts the cap bank across VDC–D7 (the gate line). One continuity
-  beep on the first cable of the batch settles it.
-- **Connector MPN**: S3B-XH-SM4-TB (genuine JST) or an LCSC clone with the
-  same footprint — verify JLC stock before submitting assembly.
+  Cables are assembled from raw pre-crimped leads into empty housings — press
+  them in **straight (pin1->pin1), never mirrored**: a mirrored cable swaps
+  D7 and GND and puts the cap bank across VDC–D7 (the gate line).
+- **Connector MPN**: B3B-XH-A(LF)(SN) — ubiquitous, verify JLC THT-assembly
+  stock or hand-solder.
 - Cap footprint: 18 mm can, oblong drills accept 7.5–8.3 mm lead pitch
   (AliExpress 22,000 uF @ 8 mm and Rubycon 16,000 uF @ 7.5 mm both fit).
 - **No blocking diode anywhere** — deliberate. Shade-to-disarm depends on the
   cap back-draining through the panel.
-- KiCad's library has no 3D model for the SM4 connector, so renders show bare
-  pads there — the fab data (courtyard, paste, copper) is complete regardless.
 
 ## Manual-fire one-shot (SW1 / J3)
 
@@ -95,7 +101,7 @@ Populated by default; ignore in firmware until wanted.
 
 | Ref | Part | Package | Note |
 |---|---|---|---|
-| J1–J4 | JST S3B-XH-SM4-TB | SMT right-angle XH 3p | one MPN, qty 4 |
+| J1–J4 | JST B3B-XH-A | THT vertical XH 3p | one MPN, qty 4 |
 | C2–C4 | 22,000 uF 16 V radial, 18 mm | THT | populate 2 or 3, hand-solder |
 | SW1 | 6x6 SMD tactile (1TS009 style) | SMD | stiff actuation preferred |
 | R1 | 470 R | 0805 | one-shot series |
