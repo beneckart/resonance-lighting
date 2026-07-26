@@ -152,9 +152,11 @@ j4 = place("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "METRY",
 assign(j4, {"1": "VSNS", "2": "D7S"})
 
 # ---- capacitors (THT, hand-solder) ------------------------------------------
+bigcaps = []
 for i, cx in enumerate(CAP_CENTERS):
     fp = place("Capacitor_THT", "CP_Radial_D18.0mm_P7.50mm", f"C{i+2}",
                cx - CAP_PITCH / 2, CAP_Y, value="22000u 16V")
+    bigcaps.append(fp)
     for pad in fp.Pads():
         pad.SetShape(pcbnew.PAD_SHAPE_OVAL)
         pad.SetSize(VECTOR2I_MM(3.6, 2.6))
@@ -204,6 +206,26 @@ assign(c7, {"1": "P5V", "2": "GND"})
 r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 23.68, 31, rot=90, value="1k")
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
+
+# ---- reference-label placement (Ben's GUI pass, captions only) ---------------
+REF_STYLE = [
+    (sw1, 21.00, 1.44, 0),   (r1, 31.00, 4.85, 0),   (c1, 35.50, 4.65, 0),
+    (c1b, 40.00, 2.50, 0),   (r2, 39.91, 4.75, 0),   (r3, 45.35, 7.09, 90),
+    (d1, 53.40, 7.00, 270),  (r4, 63.35, 33.12, 90), (r5, 65.35, 33.12, 90),
+    (c5, 67.32, 33.12, 90),  (r6, 54.80, 28.25, 0),  (r7, 22.03, 31.00, 90),
+    (u1, 42.30, 36.20, 180), (c7, 38.80, 35.55, 0),
+    (j1, 10.00, 30.45, 0),   (j2, 74.00, 30.45, 0),
+    (j3, 31.00, 31.50, 0),   (j4, 51.00, 36.95, 0),
+    (bigcaps[0], 20.00, 8.05, 0), (bigcaps[1], 41.00, 8.05, 0),
+    (bigcaps[2], 62.00, 8.05, 0),
+]
+for fp, rx, ry, rang in REF_STYLE:
+    ref = fp.Reference()
+    ref.SetPosition(VECTOR2I_MM(rx, ry))
+    try:
+        ref.SetTextAngleDegrees(rang)
+    except AttributeError:
+        ref.SetTextAngle(pcbnew.EDA_ANGLE(rang, pcbnew.DEGREES_T))
 
 # ---- routing ----------------------------------------------------------------
 j1d, j1v, j1g = pxy(j1, "1"), pxy(j1, "2"), pxy(j1, "3")
