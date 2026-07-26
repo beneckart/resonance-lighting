@@ -1,4 +1,4 @@
-# Solarnoid cap-bank board (v0.4)
+# Solarnoid cap-bank board (v0.5)
 
 Inline XH pass-through capacitor bank for the striker drive. Drops into the
 solar power chain between the Y-splitter leg and the Adafruit 5648 MOSFET
@@ -19,40 +19,48 @@ kicad-cli pcb export drill --excellon-separate-th -o build/gerbers/ build/capban
 kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/capbank.kicad_pcb
 ```
 
-`build/capbank_gerbers_v0.4.zip` is the fab upload; `build/capbank_cpl.csv` is
+`build/capbank_gerbers_v0.5.zip` is the fab upload; `build/capbank_cpl.csv` is
 the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
 numbers). Zip-tie slots flank each can — lash the can bodies, not just the
 leads, before the washboard drive in.
 
-## Connectors (all the same part: JST B3B-XH-A, vertical THT)
+## Ports (confusion-proof: each role a different connector family)
 
-All four in a row along the bottom edge, wire entry from above — cables run
-in line with the caps. Pin 1 is leftmost; every pin is silkscreen-labeled.
-(JST makes no vertical SMT XH; THT is also the strongest option for a
-connector mated at every node build, and JLC's THT assembly service places
-them, so the board stays fully machine-assembled.)
+All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
+3-pin XH on the board are the daisy-chain pair — impossible to misplug.
 
-| Ref | Role | Pin 1 | Pin 2 | Pin 3 |
-|---|---|---|---|---|
-| J1 | pass-through in | D7 | VDC | GND |
-| J2 | pass-through out | D7 | VDC | GND |
-| J3 | remote fire button | BTN | VDC | GND |
-| J4 | telemetry sense | VSNS -> A4 | D7S -> A5 | GND (optional) |
+| Ref | Connector | Role | Pin 1 | Pin 2 | Pin 3 |
+|---|---|---|---|---|---|
+| J1 | XH 3p | pass-through in | D7 | VDC | GND |
+| J2 | XH 3p | pass-through out | D7 | VDC | GND |
+| J4 | XH 2p | telemetry | VSNS -> A4 | D7S -> A5 | — |
+| J3 | 0.1" male header | remote / button | BTN | 5V* | GND |
 
-J3's VDC/GND come from the board's own pass-through traces — a 2-wire button
-pigtail crimps into pins 1–2 and the GND cavity stays empty (it exists for a
-future lit-button option). J4's GND is likewise optional: ground is shared
-via the power harness, but during a strike ~2 A of return current drops
-0.2–0.5 V across the harness ground, which shows up as an artifact in
-intra-strike VSNS readings. Leave it empty for casual telemetry; crimp the
-third wire for bench-grade droop characterization.
+- **J4**: 2p-to-2p cable to the PowerFeather A4/A5 header. Plugging it
+  reversed is harmless — both lines are ADC inputs, and firmware can
+  auto-detect which is which (VSNS reads mid-scale analog; D7S reads
+  rail-or-zero). Ground returns via the power harness; because the strike
+  loop never crosses the board↔Feather ground path, 2-wire readings keep
+  droop *shape*, inflection timing, and ΔV-per-strike intact (absolutes carry
+  ~±0.15 V of charger-current offset). For bench-grade absolutes,
+  double-crimp a sense-ground wire into the LED header's GND cavity at the
+  Feather — a free Kelvin tap, no board pins consumed.
+- **J3**: dupont-friendly male pins. A dumb 2-wire button bridges BTN–5V*.
+  An RF receiver (RX480E-class) uses all three: 5V*/GND power, its D0 data
+  output into BTN. 5V* comes from the on-board AMS1117-5.0 (populated):
+  output = min(5.0 V, VDC − 1.1 V) ≈ 3.5–5.0 V across the whole panel range —
+  always inside the receiver's 3.3–5 V window (never feed the module raw VDC;
+  the bus floats to ~7 V). R7 (1k) in series with BTN protects a receiver's
+  push-pull output if someone presses SW1 while it's connected. The one-shot's
+  series cap means a stuck transmitter can't park the coil, same as a stuck
+  button.
 
 ## Assembly split (JLCPCB economic PCBA)
 
-Small parts are top-side SMD; the four XH connectors are THT and go through
-JLC's THT assembly service (small surcharge — or 12 easy through-hole joints
-per board by hand). Hand-soldering per board beyond that: **2–3
-electrolytics** (your AliExpress stock isn't in the JLC catalog). C1B is a
+Small parts are top-side SMD; the connectors (2x XH 3p, 1x XH 2p, 1x pin
+header) are THT — JLC THT assembly or ~11 easy through-hole joints per board
+by hand (Ben's call: hand-solder is fine). Hand-soldering beyond that: **2–3
+electrolytics** (the AliExpress stock isn't in the JLC catalog). C1B is a
 through-hole footprint precisely so field tuning stays iron-friendly.
 
 ## ⚠ Before ordering
@@ -61,8 +69,15 @@ through-hole footprint precisely so field tuning stays iron-friendly.
   Cables are assembled from raw pre-crimped leads into empty housings — press
   them in **straight (pin1->pin1), never mirrored**: a mirrored cable swaps
   D7 and GND and puts the cap bank across VDC–D7 (the gate line).
-- **Connector MPN**: B3B-XH-A(LF)(SN) — ubiquitous, verify JLC THT-assembly
-  stock or hand-solder.
+- **Connector MPNs**: B3B-XH-A (x2), B2B-XH-A (x1), any 1x03 2.54 mm male
+  pin header — all ubiquitous.
+- **RF receiver notes** (RX480E-4 class, EV1527 protocol): D0–D3 are the four
+  per-fob-button outputs (not channel select); VT asserts on any valid code.
+  Wire D0 -> BTN. Buy the *momentary* (M) variant, not latching/interlock.
+  Each receiver has a learn button — pair every receiver to ONE fob (press
+  learn, press fob button A), so 20 receivers need a single transmitter.
+  Solder a ~17 cm wire antenna for range. Idle draw is a few mA from the
+  panel — irrelevant by day, and the bus is dead at night anyway.
 - Cap footprint: 18 mm can, oblong drills accept 7.5–8.3 mm lead pitch
   (AliExpress 22,000 uF @ 8 mm and Rubycon 16,000 uF @ 7.5 mm both fit).
 - **No blocking diode anywhere** — deliberate. Shade-to-disarm depends on the
@@ -84,7 +99,7 @@ pulldown, D1 BZX84C3V3 zener clamping the D7 line to 3.3 V.
   Exact width also depends on the 5648's own input pulldown.
 - Button only works with a lit panel — inherits the shade disarm.
 
-## Telemetry (J4 -> PowerFeather A5/A4/GND)
+## Telemetry (J4 -> PowerFeather A4/A5)
 
 Populated by default; ignore in firmware until wanted.
 
@@ -101,7 +116,12 @@ Populated by default; ignore in firmware until wanted.
 
 | Ref | Part | Package | Note |
 |---|---|---|---|
-| J1–J4 | JST B3B-XH-A | THT vertical XH 3p | one MPN, qty 4 |
+| J1, J2 | JST B3B-XH-A | THT vertical XH 3p | daisy in/out |
+| J4 | JST B2B-XH-A | THT vertical XH 2p | telemetry |
+| J3 | pin header 1x03 2.54 mm | THT vertical | remote/button port |
+| U1 | AMS1117-5.0 | SOT-223 | 5V* rail for receiver |
+| C7 | 10 uF X7R 16 V | 1206 | LDO output cap (same MPN as C1) |
+| R7 | 1 k | 0805 | BTN series protection (same MPN as R6) |
 | C2–C4 | 22,000 uF 16 V radial, 18 mm | THT | populate 2 or 3, hand-solder |
 | SW1 | 6x6 SMD tactile (1TS009 style) | SMD | stiff actuation preferred |
 | R1 | 470 R | 0805 | one-shot series |
