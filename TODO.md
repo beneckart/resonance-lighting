@@ -765,12 +765,17 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   packet counts and the on-device censoring-corrected median (reference:
   `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
   already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
-- [ ] **Perimeter light count (unpinned; was 38-40)**: blind-spot geometry says
-  N >= 2*pi*(R+x)/(0.83x) for VL53L5CX 45-deg FoV closure at x beyond the ring.
-  Bare minimum ~23-26 (R 6-7 m, closure at the ~3 m reliable night range, zero
-  fault tolerance); 38-40 closes at ~1.5-1.7 m AND survives one dead/yawed
-  sensor (wedge degrades to ~3.8-4.3 m, marginal not blind). Recommend staying
-  in 36-40; extras double as plane-fit z-anchors for localization (Ben).
+- [ ] **Perimeter ring: 24 lights at R ~6.5 m (DIRECTION, Ben 2026-07-27)** --
+  redundancy waived (bridge health visits every few days + swap flow); geometry:
+  N >= 2*pi*(R+x)/(0.83x) for VL53L5CX 45-deg FoV -> N=24 closes blind spots at
+  exactly x=3 m (the reliable night range) when R <= 6.5 m; spacing 1.70 m;
+  closure distance scales as 0.46*R if the ring moves. ZERO-margin geometry:
+  a ~10-deg yawed hook opens a seam -- do an aim-audit pass at install (the
+  8x8 ground-plane fit doubles as an automatic aim check via the bridge).
+  Bonuses: ring sits outside canopy shade (P126 panels in clean sky); wider
+  ring = longer rotation-gauge lever arm for localization (96 vs 112 anchors,
+  minor cost per the anchors sweep). Re-run the ops/locate sim with
+  perimeter_n=24, radius 6.5 m when the layout firms up (Ben/Claude).
 - [ ] **GPS soft anchors (4x SAM-M8Q)**: bought for dusk/dawn time; also usable as
   hands-free gauge anchors -- not slot-level (2-2.5 m CEP vs 0.7-1 m spacing) but
   4 units spread wide give mirror + rotation to ~8-10 deg (= the 3-hand-beacon
