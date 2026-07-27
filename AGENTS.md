@@ -48,6 +48,13 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   discovery deadline; do not shorten it below one full sleep cadence for an already
   sleeping peer, and leave maintenance resends enabled. A discovery timeout means no
   OTA was attempted; it is not a failed flash.
+- **Field logger output safety:** `ops/bench/net_bench_log.py` exclusive-creates output
+  by default and refuses an existing JSONL path. Use a new path for a new run. Use
+  `--append --out <existing>` only to continue the same logical run after an outage;
+  it preserves the original metadata and writes a numbered segment boundary. Never use
+  `--overwrite` unless Ben explicitly wants the existing trace destroyed. After launch,
+  verify the file is growing and contains each expected peer; process existence alone
+  does not prove that dashboard/UDP forwarding is reaching disk.
 
 ## Who's working in this repo
 
@@ -75,8 +82,17 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (ADR 0025, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027).
+- **Production show timing uses deterministic site/date schedules from sparse time
+  anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are the
+  initial GPS/GNSS soft anchors for absolute UTC; another TBD subset gets
+  battery-backed external RTCs
+  for holdover; ESP-NOW distributes time quality to the rest of the fleet, so all 150
+  fixtures do not need RTCs (ADR 0031). GPS qualification, the RTC module, final
+  counts, schedule offsets, and invalid-time fallback remain open.
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
-- LED electrical drive by role (ADR 0029): HEX on the switchable 3V3 rail (decided); boost shelved with complete numbers (decided); RGBW feed OPEN -- rail-wired today (V+/GND/A0 JST-XH), measured-better VBAT-direct option documented with conversion plan + fail-safe costs.
+- LED electrical drive by role (ADR 0029): HEX and RGBW both use the switchable 3V3
+  rail (decided); boost shelved with complete numbers (decided). The July 11
+  production-cabling A/B closed the earlier RGBW VBAT option as rail-fed.
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
@@ -88,6 +104,9 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   the fleet -- ADR 0024) and its HEX/RGBW mix.
 - Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth.
 - Bottom-up nightly energy budget by role; MPPT policy.
+- SAM-M8Q GPS-anchor qualification; external-RTC module selection; final anchor
+  counts/placement, power/backup strategy, time-quality protocol, schedule versioning,
+  and invalid-time fallback (ADR 0031).
 - Retired 2026-07-08: `INV_2026_00401` cost decomposition (invoice identity unclear
   -- probably the Bamboo Pure lantern invoice; no longer a useful baseline now that
   real procurement is recorded in `ops/PROCUREMENT.md`). The Community Mandala

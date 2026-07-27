@@ -1,8 +1,8 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-07-08. This supersedes the old
+**Status:** Current working architecture, 2026-07-26. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0029. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0031. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
@@ -31,6 +31,12 @@ without opening the hat; the solar-free classes also charge through it.
 Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
 and some may stay unpopulated. Spares are thin (~8 boards beyond the 150 buy) -- see
 the ROADMAP risk register and `ops/bom.md` spares math.
+
+Time hardware is also a sparse capability rather than a per-fixture requirement
+(ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for
+absolute UTC; another still-TBD subset receives battery-backed external RTCs for
+holdover. These anchors distribute time quality over ESP-NOW; ordinary fixtures learn
+the schedule from peers and use their local clock only for bounded holdover.
 
 ## Current Block Diagram
 
@@ -64,8 +70,13 @@ the ROADMAP risk register and `ops/bom.md` spares math.
         GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
         - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
         - 4 W RGBW on 3V3 rail today  VL53L5CX outward (perimeter)
-          (VBAT option OPEN, 0029)    bench-only: thermal/radar/INA
+          (both rail-fed, 0029)       bench-only: thermal/radar/INA
         - LED rail switchable/default-off
+
+        Sparse time anchors (ADR 0031; final counts OPEN)
+        - GPS/GNSS: initial 4x SAM-M8Q -> absolute UTC
+        - battery-backed external RTC -> low-power holdover
+        - ESP-NOW time-quality beacons -> remaining fixtures
 
         Noisemaker (OPEN): STEMMA speaker synth vs solenoid
         bamboo-strike -- candidates benched, none selected (LOG 2026-07-07)
@@ -101,13 +112,16 @@ connectors, and boring USB/pogo recovery.
   BQ25628E's power path (ADR 0028). Convicted by a controlled 400-vs-100 kHz A/B and
   sealed by a 46.2 h continuous battery soak that ended in honest cell exhaustion.
 - **LED electrical drive:** measured per role (ADR 0029) -- the full rail/VBAT/boost
-  matrix exists (VBAT-direct buys +33 % fringed white, 1,746 lux no wall; clean
-  W-only unchanged; TPS63802 boost = 2.3x clean-white ceiling at ~25-30 % efficacy
-  tax, shelved). HEX feed decided (3V3 rail); the RGBW production feed is OPEN --
-  rail-wired today, VBAT conversion plan recorded in the ADR.
+  matrix exists and TPS63802 boost is shelved. HEX and RGBW feeds are both decided on
+  the switchable 3V3 rail; the July 11 production-cabling A/B closed the earlier RGBW
+  VBAT option.
 - **Low-battery lifecycle:** net_bench field-cycle (charge -> wait-dark -> draw ->
   protect) has run multi-day outdoor solar cycles; low-VBAT OTA proven to ~3.10 V
   loaded battery-only, 2.901 V solar-assisted, 2.496 V USB-assisted.
+- **Time/schedule:** architecture direction is decided (ADR 0031): scheduled site/date
+  show windows from sparse GPS/GNSS and external-RTC anchors. Module choice, counts,
+  enclosure reception, holdover, propagation, and invalid-time behavior are not yet
+  validated. The current panel/lux field-cycle dusk classifier remains bench firmware.
 
 ## LED Architecture
 
@@ -193,6 +207,7 @@ Known measured anchors:
 | HEX 1 px full | about 41.8 mA LED-rail draw |
 | HEX 3 px | about 105 mA LED-rail draw |
 | HEX actual preferred looks | rough 0.4-0.6 W battery-side with overhead |
+| P126 three-pixel show | 157.7 mA whole-fixture average; 14.773 h bench artifact = 2.33 Ah, while a scheduled 9-10 h show is 1.42-1.58 Ah / about 4.6-5.1 Wh |
 | HEX all-37 full class | rough 2 W+ battery-side, not a normal show state |
 | 4 W RGBW RGB-full class | rough 1.1 W battery-side |
 | 4 W RGBW white-only class | rough 0.45 W battery-side |
@@ -213,6 +228,10 @@ point-source RGBW fixtures, then panel size by role.
   load), use fat conductors, and provide a default-off kill per ADR 0013 -- the
   3V3-rail shutoff no longer covers it.
 - Do not trust LFP percentage SOC alone for solar qualification or low-battery decisions.
+- **Scheduled shows (ADR 0031):** use explicit UTC start/stop instants distributed from
+  redundant GPS/GNSS and external-RTC anchors. Do not use the field-cycle
+  panel-current classifier as the production show clock, and do not treat its
+  13-15-hour P126 nights as the production energy budget.
 - Do not connect/boot high-Voc panels in bright sun without the BQ25628E OVP/HIZ firmware
   guard, or at least shade the panel during connection.
 - Keep the antenna out from under the panel, battery, screws, wiring, and metal.
@@ -223,6 +242,11 @@ point-source RGBW fixtures, then panel size by role.
 ## Open Gates
 
 - Bottom-up nightly energy budget by LED role and show duty cycle.
+- GPS/GNSS and external-RTC anchor implementation (ADR 0031): qualify the four
+  purchased SAM-M8Qs, select the RTC module and final counts/placement, define the
+  power/backup strategy, time-quality protocol, schedule representation, UTC
+  commissioning/update path, holdover limits, and invalid-time fallback; validate
+  through the real hat without Starlink.
 - Uplight/chandelier power source: off-light panel vs solar-free 20 Ah (bench test on
   the two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
 - Sensor allocation confirmation per class + presence choreography firmware

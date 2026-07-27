@@ -40,7 +40,7 @@
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NET_BENCH_VERSION "net-bench-2026-07-14.1" // single-pixel RGBW field load + precise active integration
+#define NET_BENCH_VERSION "net-bench-2026-07-16.5" // Qwiic navigation DOWN -> guarded solenoid strike
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -161,6 +161,42 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_SOLENOID_REST_MS
 #define NB_SOLENOID_REST_MS 80
+#endif
+#ifndef NB_SOLENOID_BUTTON_PIN
+#define NB_SOLENOID_BUTTON_PIN BTN // PowerFeather USER/BOOT button, GPIO0, active LOW
+#endif
+#ifndef NB_SOLENOID_BUTTON_DEBOUNCE_MS
+#define NB_SOLENOID_BUTTON_DEBOUNCE_MS 30
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_POLL_MS
+#define NB_SOLENOID_RGB_BUTTON_POLL_MS 50
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS
+#define NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS 50
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_MAX_ERRORS
+#define NB_SOLENOID_RGB_BUTTON_MAX_ERRORS 3
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_PROBE_MS
+#define NB_SOLENOID_RGB_BUTTON_PROBE_MS 250
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS
+#define NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS 8
+#endif
+#ifndef NB_SOLENOID_NAV_POLL_MS
+#define NB_SOLENOID_NAV_POLL_MS 50
+#endif
+#ifndef NB_SOLENOID_NAV_DEBOUNCE_MS
+#define NB_SOLENOID_NAV_DEBOUNCE_MS 50
+#endif
+#ifndef NB_SOLENOID_NAV_PROBE_MS
+#define NB_SOLENOID_NAV_PROBE_MS 250
+#endif
+#ifndef NB_SOLENOID_NAV_PROBE_ATTEMPTS
+#define NB_SOLENOID_NAV_PROBE_ATTEMPTS 8
+#endif
+#ifndef NB_SOLENOID_NAV_MAX_ERRORS
+#define NB_SOLENOID_NAV_MAX_ERRORS 3
 #endif
 #ifndef NB_DRAWDOWN_PIXEL_PIN
 #define NB_DRAWDOWN_PIXEL_PIN 10 // GPIO10 / A0: direct-GPIO HEX bench harness
@@ -618,6 +654,37 @@ uint32_t gSolenoidBlocked = 0;
 uint32_t gSolenoidFailsafes = 0;
 uint16_t gSolenoidLastPulseMs = 0;
 esp_timer_handle_t gSolenoidPulseTimer = nullptr;
+bool gSolenoidButtonRawReleased = true;
+bool gSolenoidButtonStableReleased = true;
+bool gSolenoidButtonWakePending = false;
+uint32_t gSolenoidButtonChangedMs = 0;
+bool gSolenoidRgbButtonPresent = false;
+uint8_t gSolenoidRgbButtonAddr = 0;
+bool gSolenoidRgbButtonRawPressed = false;
+bool gSolenoidRgbButtonStablePressed = false;
+uint8_t gSolenoidRgbButtonConsecutiveErrors = 0;
+uint32_t gSolenoidRgbButtonChangedMs = 0;
+uint32_t gSolenoidRgbButtonNextPollMs = 0;
+uint32_t gSolenoidRgbButtonPresses = 0;
+uint32_t gSolenoidRgbButtonErrors = 0;
+uint8_t gSolenoidRgbButtonProbeAttempts = 0;
+uint8_t gSolenoidRgbButtonAckMask = 0;
+uint8_t gSolenoidRgbButtonPidAddr = 0;
+uint16_t gSolenoidRgbButtonPid = 0;
+bool gSolenoidNavPresent = false;
+uint8_t gSolenoidNavAddr = 0;
+bool gSolenoidNavRawReleased = true;
+bool gSolenoidNavStableReleased = true;
+uint8_t gSolenoidNavProbeAttempts = 0;
+uint8_t gSolenoidNavAckMask = 0;
+uint8_t gSolenoidNavLastInput = 0xFF;
+uint8_t gSolenoidNavLastConfig = 0xFF;
+uint8_t gSolenoidNavLastPolarity = 0xFF;
+uint8_t gSolenoidNavConsecutiveErrors = 0;
+uint32_t gSolenoidNavChangedMs = 0;
+uint32_t gSolenoidNavNextPollMs = 0;
+uint32_t gSolenoidNavPresses = 0;
+uint32_t gSolenoidNavErrors = 0;
 #endif
 
 // downlink (master SHOW_FRAME) tracking on peers
@@ -853,8 +920,11 @@ struct NbPeerStat {
 NbPeerStat peers[NB_MAX_TRACKED];
 
 // ---- optional D7/VDC solenoid ---------------------------------------------
-// There is intentionally no automatic/boot strike. Only a targeted command can
-// energize the gate, and every exit path returns it LOW.
+// Only a targeted command or a deliberate PowerFeather USER-button press can
+// energize the gate. Every exit path returns it LOW. The button is also an
+// active-LOW deep-sleep wake source so the local control remains useful during
+// five-minute field-cycle sleeps. Physical release before re-sleep is the only
+// re-arm condition; no retained debounce state can get stuck across boots.
 void solenoidPreInit() {
 #if defined(NB_SOLENOID_D7)
   pinMode(NB_SOLENOID_PIN, OUTPUT);
@@ -872,6 +942,21 @@ void solenoidPulseEnd(void *) { // esp_timer task context, not an ISR
 void solenoidInit() {
   solenoidPreInit();
   gSolenoidLastEndMs = millis() - NB_SOLENOID_REST_MS;
+  // EXT0 owns the RTC pad through deep sleep. Return it to normal GPIO before
+  // sampling the active-LOW USER button and enabling its internal pull-up.
+  rtc_gpio_deinit((gpio_num_t)NB_SOLENOID_BUTTON_PIN);
+  pinMode(NB_SOLENOID_BUTTON_PIN, INPUT_PULLUP);
+  delay(1);
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  gSolenoidButtonWakePending =
+      esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0;
+  // EXT0 itself proves a deliberate LOW. Start latched as pressed even if the
+  // user released before setup sampled GPIO0, so contact bounce cannot create a
+  // second active-mode falling edge during the same press.
+  gSolenoidButtonRawReleased = gSolenoidButtonWakePending ? false : released;
+  gSolenoidButtonStableReleased = gSolenoidButtonWakePending ? false : released;
+  gSolenoidButtonChangedMs = millis();
+
   const esp_timer_create_args_t timerArgs = {
       .callback = &solenoidPulseEnd,
       .arg = nullptr,
@@ -886,6 +971,8 @@ void solenoidInit() {
   } else {
     Serial.printf("solenoid armed: PowerFeather D7/GPIO%d, VDC tap, pulse %u..%u ms\n",
                   NB_SOLENOID_PIN, NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS);
+    Serial.printf("solenoid local trigger: USER/GPIO%d, %ums debounce, deep-sleep wake\n",
+                  NB_SOLENOID_BUTTON_PIN, NB_SOLENOID_BUTTON_DEBOUNCE_MS);
   }
 }
 
@@ -930,6 +1017,287 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
   return true;
 }
 
+void solenoidButtonHandleWake() {
+  if (!gSolenoidButtonWakePending) return;
+  gSolenoidButtonWakePending = false;
+  solenoidStrike(NB_SOLENOID_DEFAULT_MS, "user button wake");
+}
+
+void solenoidButtonTick() {
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  uint32_t now = millis();
+  if (released != gSolenoidButtonRawReleased) {
+    gSolenoidButtonRawReleased = released;
+    gSolenoidButtonChangedMs = now;
+  }
+  if (released == gSolenoidButtonStableReleased ||
+      now - gSolenoidButtonChangedMs < NB_SOLENOID_BUTTON_DEBOUNCE_MS) return;
+
+  gSolenoidButtonStableReleased = released;
+  if (!released) {
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "user button");
+    else
+      Serial.println("solenoid USER button ignored during maintenance");
+  }
+}
+
+// DFR0991 Gravity I2C RGB Button. Its eight DIP-selectable addresses are
+// 0x23..0x2A (default 0x2A); PID 0x43DF prevents an unrelated device at one of
+// those addresses from becoming a solenoid trigger. This is intentionally an
+// awake-only trigger: the four-wire I2C lead does not expose a wake/interrupt
+// signal, and the field-cycle code cuts VSQT before deep sleep.
+bool solenoidRgbButtonRead(uint8_t addr, uint8_t reg, uint8_t *data, size_t len) {
+  // ADR 0028: never raise a bus shared with the PowerFeather charger/gauge over
+  // 100 kHz. Reassert it here in case another peripheral changed the clock.
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  if (Wire1.endTransmission() != 0) return false;
+  if (Wire1.requestFrom((int)addr, (int)len) != len) return false;
+  for (size_t i = 0; i < len; ++i) data[i] = Wire1.read();
+  return true;
+}
+
+bool solenoidRgbButtonPing(uint8_t addr) {
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  return Wire1.endTransmission() == 0;
+}
+
+bool solenoidRgbButtonProbe() {
+  constexpr uint8_t kAddrMin = 0x23;
+  constexpr uint8_t kAddrMax = 0x2A;
+  constexpr uint16_t kPid = 0x43DF;
+  constexpr uint8_t kPidMsbReg = 0x09;
+  constexpr uint8_t kButtonReg = 0x04;
+
+  gSolenoidRgbButtonProbeAttempts++;
+  gSolenoidRgbButtonPresent = false;
+  gSolenoidRgbButtonAddr = 0;
+  gSolenoidRgbButtonConsecutiveErrors = 0;
+  gSolenoidRgbButtonAckMask = 0;
+  gSolenoidRgbButtonPidAddr = 0;
+  gSolenoidRgbButtonPid = 0;
+  for (uint8_t addr = kAddrMin; addr <= kAddrMax; ++addr) {
+    if (!solenoidRgbButtonPing(addr)) continue;
+    gSolenoidRgbButtonAckMask |= (uint8_t)(1U << (addr - kAddrMin));
+
+    uint8_t pidBytes[2];
+    if (!solenoidRgbButtonRead(addr, kPidMsbReg, pidBytes, sizeof(pidBytes))) continue;
+    uint16_t pid = ((uint16_t)pidBytes[0] << 8) | pidBytes[1];
+    gSolenoidRgbButtonPidAddr = addr;
+    gSolenoidRgbButtonPid = pid;
+    if (pid != kPid) continue;
+
+    uint8_t state = 0;
+    if (!solenoidRgbButtonRead(addr, kButtonReg, &state, 1)) continue;
+    gSolenoidRgbButtonPresent = true;
+    gSolenoidRgbButtonAddr = addr;
+    gSolenoidRgbButtonRawPressed = state != 0;
+    gSolenoidRgbButtonStablePressed = state != 0;
+    gSolenoidRgbButtonChangedMs = millis();
+    gSolenoidRgbButtonNextPollMs = millis() + NB_SOLENOID_RGB_BUTTON_POLL_MS;
+    Serial.printf("solenoid local trigger: DFR0991 at 0x%02X, %ums poll/debounce\n",
+                  addr, NB_SOLENOID_RGB_BUTTON_POLL_MS);
+    return true;
+  }
+  return false;
+}
+
+void solenoidRgbButtonInit() {
+  gSolenoidRgbButtonProbeAttempts = 0;
+  if (solenoidRgbButtonProbe()) return;
+  gSolenoidRgbButtonNextPollMs = millis() + NB_SOLENOID_RGB_BUTTON_PROBE_MS;
+}
+
+void solenoidRgbButtonTick() {
+  constexpr uint8_t kButtonReg = 0x04;
+  uint32_t now = millis();
+  if (!gSolenoidRgbButtonPresent) {
+    if (gSolenoidRgbButtonProbeAttempts >= NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS ||
+        (int32_t)(now - gSolenoidRgbButtonNextPollMs) < 0) return;
+    if (!solenoidRgbButtonProbe()) {
+      gSolenoidRgbButtonNextPollMs = now + NB_SOLENOID_RGB_BUTTON_PROBE_MS;
+      if (gSolenoidRgbButtonProbeAttempts == NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS) {
+        Serial.printf("solenoid DFR0991 absent after %u probes: ack_mask=0x%02X pid_addr=0x%02X pid=0x%04X\n",
+                      gSolenoidRgbButtonProbeAttempts, gSolenoidRgbButtonAckMask,
+                      gSolenoidRgbButtonPidAddr, gSolenoidRgbButtonPid);
+      }
+    }
+    return;
+  }
+
+  if ((int32_t)(now - gSolenoidRgbButtonNextPollMs) < 0) return;
+  gSolenoidRgbButtonNextPollMs = now + NB_SOLENOID_RGB_BUTTON_POLL_MS;
+
+  uint8_t state = 0;
+  if (!solenoidRgbButtonRead(gSolenoidRgbButtonAddr, kButtonReg, &state, 1)) {
+    gSolenoidRgbButtonErrors++;
+    if (++gSolenoidRgbButtonConsecutiveErrors >= NB_SOLENOID_RGB_BUTTON_MAX_ERRORS) {
+      gSolenoidRgbButtonPresent = false;
+      Serial.printf("solenoid DFR0991 at 0x%02X disabled after %u read errors\n",
+                    gSolenoidRgbButtonAddr, NB_SOLENOID_RGB_BUTTON_MAX_ERRORS);
+    }
+    return;
+  }
+  gSolenoidRgbButtonConsecutiveErrors = 0;
+
+  bool pressed = state != 0;
+  if (pressed != gSolenoidRgbButtonRawPressed) {
+    gSolenoidRgbButtonRawPressed = pressed;
+    gSolenoidRgbButtonChangedMs = now;
+  }
+  if (pressed == gSolenoidRgbButtonStablePressed ||
+      now - gSolenoidRgbButtonChangedMs < NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS) return;
+
+  gSolenoidRgbButtonStablePressed = pressed;
+  if (pressed) {
+    gSolenoidRgbButtonPresses++;
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "DFR0991 button");
+    else
+      Serial.println("solenoid DFR0991 button ignored during maintenance");
+  }
+}
+
+// SparkFun Qwiic Navigation Switch PRT-27576. The board is a PCA9554 with
+// UP/DOWN/RIGHT/LEFT/CENTER on active-LOW GPIO0..4. We only consume DOWN/GPIO1
+// and leave the RGB outputs plus optional INT pin untouched. A PCA9554 has no
+// product-ID register, so probe conservatively: address 0x20..0x27 must ACK and
+// the five switch GPIOs must retain their power-on input/non-inverted config.
+bool solenoidNavRead(uint8_t addr, uint8_t reg, uint8_t &value) {
+  Wire1.setClock(100000); // ADR 0028 shared-bus ceiling
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  if (Wire1.endTransmission() != 0) return false;
+  if (Wire1.requestFrom((int)addr, 1) != 1) return false;
+  value = Wire1.read();
+  return true;
+}
+
+bool solenoidNavPing(uint8_t addr) {
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  return Wire1.endTransmission() == 0;
+}
+
+bool solenoidNavProbe() {
+  constexpr uint8_t kAddrMin = 0x20;
+  constexpr uint8_t kAddrMax = 0x27;
+  constexpr uint8_t kInputReg = 0x00;
+  constexpr uint8_t kPolarityReg = 0x02;
+  constexpr uint8_t kConfigReg = 0x03;
+
+  gSolenoidNavProbeAttempts++;
+  gSolenoidNavPresent = false;
+  gSolenoidNavAddr = 0;
+  gSolenoidNavAckMask = 0;
+  for (uint8_t addr = kAddrMin; addr <= kAddrMax; ++addr) {
+    if (!solenoidNavPing(addr)) continue;
+    gSolenoidNavAckMask |= (uint8_t)(1U << (addr - kAddrMin));
+
+    uint8_t input = 0, polarity = 0, config = 0;
+    if (!solenoidNavRead(addr, kInputReg, input) ||
+        !solenoidNavRead(addr, kPolarityReg, polarity) ||
+        !solenoidNavRead(addr, kConfigReg, config)) continue;
+    gSolenoidNavLastInput = input;
+    gSolenoidNavLastPolarity = polarity;
+    gSolenoidNavLastConfig = config;
+    if ((config & 0x1F) != 0x1F || (polarity & 0x1F) != 0x00) continue;
+
+    gSolenoidNavPresent = true;
+    gSolenoidNavAddr = addr;
+    gSolenoidNavRawReleased = (input & (1U << 1)) != 0;
+    gSolenoidNavStableReleased = gSolenoidNavRawReleased;
+    gSolenoidNavChangedMs = millis();
+    gSolenoidNavNextPollMs = millis() + NB_SOLENOID_NAV_POLL_MS;
+    gSolenoidNavConsecutiveErrors = 0;
+    Serial.printf("solenoid local trigger: Qwiic Navigation Switch at 0x%02X, DOWN/GPIO1\n",
+                  addr);
+    return true;
+  }
+  return false;
+}
+
+void solenoidNavInit() {
+  gSolenoidNavProbeAttempts = 0;
+  if (solenoidNavProbe()) return;
+  gSolenoidNavNextPollMs = millis() + NB_SOLENOID_NAV_PROBE_MS;
+}
+
+void solenoidNavTick() {
+  constexpr uint8_t kInputReg = 0x00;
+  uint32_t now = millis();
+  if (!gSolenoidNavPresent) {
+    if (gSolenoidNavProbeAttempts >= NB_SOLENOID_NAV_PROBE_ATTEMPTS ||
+        (int32_t)(now - gSolenoidNavNextPollMs) < 0) return;
+    if (!solenoidNavProbe()) {
+      gSolenoidNavNextPollMs = now + NB_SOLENOID_NAV_PROBE_MS;
+      if (gSolenoidNavProbeAttempts == NB_SOLENOID_NAV_PROBE_ATTEMPTS) {
+        Serial.printf("solenoid Qwiic nav absent after %u probes: ack_mask=0x%02X config=0x%02X polarity=0x%02X\n",
+                      gSolenoidNavProbeAttempts, gSolenoidNavAckMask,
+                      gSolenoidNavLastConfig, gSolenoidNavLastPolarity);
+      }
+    }
+    return;
+  }
+
+  if ((int32_t)(now - gSolenoidNavNextPollMs) < 0) return;
+  gSolenoidNavNextPollMs = now + NB_SOLENOID_NAV_POLL_MS;
+
+  uint8_t input = 0;
+  if (!solenoidNavRead(gSolenoidNavAddr, kInputReg, input)) {
+    gSolenoidNavErrors++;
+    if (++gSolenoidNavConsecutiveErrors >= NB_SOLENOID_NAV_MAX_ERRORS) {
+      gSolenoidNavPresent = false;
+      Serial.printf("solenoid Qwiic nav at 0x%02X disabled after %u read errors\n",
+                    gSolenoidNavAddr, NB_SOLENOID_NAV_MAX_ERRORS);
+    }
+    return;
+  }
+  gSolenoidNavConsecutiveErrors = 0;
+  gSolenoidNavLastInput = input;
+
+  bool released = (input & (1U << 1)) != 0;
+  if (released != gSolenoidNavRawReleased) {
+    gSolenoidNavRawReleased = released;
+    gSolenoidNavChangedMs = now;
+  }
+  if (released == gSolenoidNavStableReleased ||
+      now - gSolenoidNavChangedMs < NB_SOLENOID_NAV_DEBOUNCE_MS) return;
+
+  gSolenoidNavStableReleased = released;
+  if (!released) {
+    gSolenoidNavPresses++;
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "Qwiic nav DOWN");
+    else
+      Serial.println("solenoid Qwiic nav DOWN ignored during maintenance");
+  }
+}
+
+void solenoidButtonPrepareSleep() {
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  // Reset any wake configuration inherited within this boot, then re-enable it
+  // only from a physically released level. A held LOW therefore gets the timer
+  // wake only and cannot form an immediate EXT0 reboot/strike loop.
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0);
+  if (!released) {
+    Serial.println("solenoid USER button held: button wake disabled for this sleep");
+    return;
+  }
+
+  gpio_num_t pin = (gpio_num_t)NB_SOLENOID_BUTTON_PIN;
+  esp_err_t err = rtc_gpio_init(pin);
+  if (err == ESP_OK) err = rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY);
+  if (err == ESP_OK) err = rtc_gpio_pullup_en(pin);
+  if (err == ESP_OK) err = rtc_gpio_pulldown_dis(pin);
+  if (err == ESP_OK) err = esp_sleep_enable_ext0_wakeup(pin, 0);
+  if (err != ESP_OK)
+    Serial.printf("solenoid USER button wake setup failed: %s\n", esp_err_to_name(err));
+}
+
 void solenoidFailsafeTick() {
   if (gSolenoidGateOn &&
       (int32_t)(millis() - gSolenoidFailsafeMs) >= 0) {
@@ -944,6 +1312,13 @@ void solenoidFailsafeTick() {
 void solenoidInit() {}
 void solenoidStop(const char *) {}
 bool solenoidStrike(uint16_t, const char *) { return false; }
+void solenoidButtonHandleWake() {}
+void solenoidButtonTick() {}
+void solenoidRgbButtonInit() {}
+void solenoidRgbButtonTick() {}
+void solenoidNavInit() {}
+void solenoidNavTick() {}
+void solenoidButtonPrepareSleep() {}
 void solenoidFailsafeTick() {}
 #endif
 
@@ -1499,6 +1874,40 @@ String telemetryJson() {
   j += ",\"solenoid_blocked\":" + String((unsigned long)gSolenoidBlocked);
   j += ",\"solenoid_failsafes\":" + String((unsigned long)gSolenoidFailsafes);
   j += ",\"solenoid_last_ms\":" + String(gSolenoidLastPulseMs);
+  j += ",\"solenoid_button_pin\":" + String(NB_SOLENOID_BUTTON_PIN);
+  j += ",\"solenoid_button_armed\":";
+  j += gSolenoidButtonStableReleased ? "true" : "false";
+  j += ",\"solenoid_button_pressed\":";
+  j += digitalRead(NB_SOLENOID_BUTTON_PIN) == LOW ? "true" : "false";
+  j += ",\"solenoid_rgb_button_present\":";
+  j += gSolenoidRgbButtonPresent ? "true" : "false";
+  j += ",\"solenoid_rgb_button_addr\":" + String(gSolenoidRgbButtonAddr);
+  j += ",\"solenoid_rgb_button_pressed\":";
+  j += gSolenoidRgbButtonStablePressed ? "true" : "false";
+  j += ",\"solenoid_rgb_button_presses\":" +
+       String((unsigned long)gSolenoidRgbButtonPresses);
+  j += ",\"solenoid_rgb_button_errors\":" +
+       String((unsigned long)gSolenoidRgbButtonErrors);
+  j += ",\"solenoid_rgb_button_probe_attempts\":" +
+       String(gSolenoidRgbButtonProbeAttempts);
+  j += ",\"solenoid_rgb_button_ack_mask\":" +
+       String(gSolenoidRgbButtonAckMask);
+  j += ",\"solenoid_rgb_button_pid_addr\":" +
+       String(gSolenoidRgbButtonPidAddr);
+  j += ",\"solenoid_rgb_button_pid\":" +
+       String(gSolenoidRgbButtonPid);
+  j += ",\"solenoid_nav_present\":";
+  j += gSolenoidNavPresent ? "true" : "false";
+  j += ",\"solenoid_nav_addr\":" + String(gSolenoidNavAddr);
+  j += ",\"solenoid_nav_down_pressed\":";
+  j += gSolenoidNavStableReleased ? "false" : "true";
+  j += ",\"solenoid_nav_presses\":" + String((unsigned long)gSolenoidNavPresses);
+  j += ",\"solenoid_nav_errors\":" + String((unsigned long)gSolenoidNavErrors);
+  j += ",\"solenoid_nav_probe_attempts\":" + String(gSolenoidNavProbeAttempts);
+  j += ",\"solenoid_nav_ack_mask\":" + String(gSolenoidNavAckMask);
+  j += ",\"solenoid_nav_input\":" + String(gSolenoidNavLastInput);
+  j += ",\"solenoid_nav_config\":" + String(gSolenoidNavLastConfig);
+  j += ",\"solenoid_nav_polarity\":" + String(gSolenoidNavLastPolarity);
 #else
   j += ",\"solenoid_enabled\":false";
 #endif
@@ -1843,6 +2252,7 @@ void enterTimedDeepSleep(uint16_t seconds, const char *why) {
     Board.enableVSQT(false);
   }
   Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
@@ -3632,6 +4042,7 @@ bool nbSupplyPresent() {
 void nbDeepSleep(const char *why) {
   solenoidStop("autosleep");
   Serial.printf("deep sleep (%s), timer wake %ds\n", why, NB_WAKE_S);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_WAKE_S * 1000000ULL);
   esp_deep_sleep_start();
@@ -3692,6 +4103,7 @@ void sleepCycleStep() {
   if (pfReady) { Board.enable3V3(false); Board.enableVSQT(false); }
   solenoidStop("sleep-cycle");
   Serial.printf("sleep-cycle: rails cut (3V3+VSQT off), deep sleep %ds\n", NB_SLEEP_S);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_SLEEP_S * 1000000ULL);
   esp_deep_sleep_start(); // wakes into a fresh boot -> setup() again
@@ -3712,6 +4124,7 @@ void setup() {
   Serial.println();
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
   solenoidInit();
+  solenoidButtonHandleWake();
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
                 NB_CHANNEL, NB_FRAME_HZ, NB_HB_HZ);
   if (SERIAL_BRIDGE) Serial.println("mode: SERIAL BRIDGE (no WiFi; relaying nb-* to USB serial)");
@@ -3771,6 +4184,8 @@ void setup() {
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
 #endif
+  solenoidRgbButtonInit();
+  solenoidNavInit();
   delay(20);
   drawdownPixelsBegin();
 #ifdef NB_FIELD_CYCLE
@@ -3804,6 +4219,9 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   solenoidFailsafeTick();
+  solenoidButtonTick();
+  solenoidRgbButtonTick();
+  solenoidNavTick();
   handleSerial();
 
   static uint32_t lastBat = 0;

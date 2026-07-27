@@ -12,6 +12,251 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-26 -- Ben + Codex -- Seven-day solar result normalized; scheduled GPS/RTC timing adopted
+
+Reviewed the completed 604,800-second P105/P126 logger
+`ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
+It ended cleanly on schedule at 2026-07-24 10:18 PDT rather than crashing. Fresh-
+telemetry integration over seven consecutive 24-hour windows put the P105/RGBW at
+about 113 Wh charger input, 94 Wh positive battery charge, and 102 Wh battery load
+(about -8 Wh as run). P126 measured about 52 Wh charger input, 35 Wh positive battery
+charge, and 49 Wh load (about -14 Wh as run). No active BQ fault was observed.
+
+The P126 result requires an explicit sizing correction. Its no-lux field-cycle policy
+ran roughly 13-15-hour shows; the earlier clean session measured 14 h 46 min at
+157.7 mA average. That is a bench-policy artifact, not the intended 9-10-hour Black
+Rock Desert show. At the same load, 9-10 hours is about 4.6-5.1 Wh/night, or roughly
+32-36 Wh across this seven-day weather sample versus about 35 Wh charged. The P126
+role was therefore approximately break-even after schedule normalization, with little
+poor-weather margin; the literal "every day negative" chart must not be presented as
+evidence that the 2 W panel is inherently undersized.
+
+Ben chose deterministic scheduled dusk/dawn lightshows as the production direction.
+ADR 0031 records a redundant sparse time architecture: four purchased SAM-M8Q modules
+are the initial onboard-antenna GPS/GNSS anchors for absolute UTC, some fixtures
+receive battery-backed external RTCs for holdover, and ESP-NOW distributes
+source/age/uncertainty to ordinary fixtures.
+This does not require RTCs on all 150 nodes and does not make one anchor a permanent
+leader. Starlink may commission/verify time during build week but is not an event
+dependency. Panel/lux inference is demoted to bench telemetry, sanity checking, and a
+still-open bounded degraded mode. Updated the canonical system architecture, solar
+test report, choreography research note, TODO, and agent onboarding notes. SAM-M8Q
+qualification, the RTC module, final counts, schedule offsets, and invalid-time
+behavior remain open; no firmware or hardware was changed in this documentation pass.
+
+During the origin-integration review, also documented the previously unlogged
+SparkFun PRT-27576 Qwiic Navigation Switch path already present in `net_bench`. With
+`--solenoid-d7`, firmware read-only probes PCA9554 addresses `0x20`-`0x27`, recognizes
+the expected input/non-inverted switch configuration, and maps debounced DOWN/GPIO1
+to the existing guarded 40 ms strike. It leaves RGB and INT untouched and exposes
+probe/press/error telemetry. This path remains an awake-only, physically unqualified
+bench trigger; USER remains the deep-sleep wake source. No new firmware behavior was
+added during this documentation/integration pass.
+
+Pre-integration validation passed five focused `net_bench_log.py` output-safety tests
+plus `py_compile` for the logger and OTA helper. An isolated exact-profile P126 build
+also passed at 31 percent flash / 15 percent RAM:
+`firmware/net_bench/build/field-cycle-peer-20260726-p126-solenoid-nav-validation-r1/`
+used fixed 5.8 V VINDPM, 6 Ah LFP, 1.5 A charge cap, three full-bright spiral RGB
+pixels, and `NB_SOLENOID_D7`. The 1,042,832-byte binary SHA-256 is
+`967F420FFCABCFCBB429F8F682502C324FE3870449851E3C8FF9A1E85C664449`. This was a
+build-only validation; it was not OTA-deployed.
+
+## 2026-07-17 -- Ben + Codex -- Outage-safe field logger deployed; P105/P126 capture resumed
+
+Closed the host-side data-loss failure exposed by the July 15 Windows Update reboot.
+`ops/bench/net_bench_log.py` no longer opens outputs with unconditional `w`: normal
+launches exclusive-create and refuse any existing path, `--append` validates the first
+and last JSONL rows and preserves the original run identity, and only explicit
+`--overwrite` can truncate. New and resumed runs write machine-readable `src=segment`
+boundaries; all following rows carry `segment_index` and `segment_started_utc`, making
+the per-process `elapsed_s` reset explicit. `--segment-notes` records outage context.
+Append refuses an empty/malformed file or repeated run-identity flags instead of
+guessing. Added five stdlib regression tests covering exclusive creation, unchanged
+collision refusal, identity-preserving resume, malformed-tail refusal, and deliberate
+overwrite; `py_compile`, all tests, and `git diff --check` pass.
+
+Started a fresh 604800 s run as PID 3132:
+`ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
+It began at about 10:18 PDT with an explicit segment-1 start row. A six-second live
+verification saw the file grow from 100,235 to 130,175 bytes with empty stderr and 26
+fresh peer rows apiece from P105 `9F26F8` and P126 `9F2690`. At the check both were in
+charge: P105 about 3.304 V / +178 mA with 0.943 W charger input; P126 about 3.246 V /
+0 mA with 0.303 W input. The COM4 dashboard remains live alongside the logger. Updated
+the net-bench README and agent gotchas with restart/resume commands and the requirement
+to verify actual file growth plus expected peer IDs. The separate firmware task to
+retain the previous completed cycle across sunrise remains open.
+
+## 2026-07-16 (cont.) -- Ben + Codex -- DFR0991 local D7 trigger OTA; module not visible
+
+Added optional DFRobot DFR0991 I2C RGB-button input to the P126 solenoid build. The
+implementation uses direct Wire1 register access rather than adding a new Arduino
+library, reasserts the ADR 0028 100 kHz ceiling for every transaction, scans only the
+module's eight DIP-selectable addresses (`0x23` through `0x2A`), and requires the
+official `0x43DF` PID. A 50 ms debounced press edge calls the existing bounded 40 ms
+D7 strike path once; release re-arms it, a hold does not repeat, and maintenance-mode
+presses are ignored. It is deliberately awake-only: the four-wire Gravity I2C lead
+does not carry the separate INT signal, and field deep sleep cuts the external rail.
+USER/RESET remains the wake mechanism. `/telemetry` now exposes DFR0991 presence,
+address, pressed state, press count, and read-error count.
+
+Built the exact P126 field profile in
+`firmware/net_bench/build/field-cycle-peer-20260716-p126-dfr0991-trigger-r3` (6 Ah LFP,
+1.5 A charge cap, fixed 5.8 V VINDPM, three full-bright spiral RGB pixels, D7 enabled).
+The 1,039,616-byte binary has SHA-256
+`3EB4DE93FE4F5C2A9B71AA31403072CC3E71AE10A537070391283DF3A7229E5B`; its compile
+flags exactly match the prior P126 image. A short outer-wrapper timeout lost the live
+compile output, but the single compiler process remained active and was allowed to
+finish; no competing build was started. Targeted OTA to `9F2690` succeeded and the
+peer rejoined as `net-bench-2026-07-16.3`, software reset, charge phase, about 3.34 V.
+
+Post-OTA maintenance telemetry reported `solenoid_rgb_button_present=false`, address
+0, and zero runtime read errors. The direct transaction matches DFRobot's official
+library (PID registers `0x09`/`0x0A`, status register `0x04`), and Wire1/VSQT was
+enabled before probing, so the remaining first check is the physical Gravity-to-
+STEMMA power/SDA/SCL adapter and cable seating. The peer returned to comms/field-cycle
+operation after the diagnostic. Firmware support is deployed, but no physical
+DFR0991 press has yet been observed and no D7 strike from that button is claimed.
+
+Follow-up after reseating: Ben confirmed all DIP switches at `1` (`0x2A`) and correct
+signal mapping from the STEMMA-to-female-Dupont cable (yellow -> SCL/C, blue -> SDA/D).
+A probe from the subsequently confirmed `poweron` boot still reported `pf_ready=true`
+but DFR0991 absent/address 0. During the next sustained-maintenance catch the peer also
+logged one `brownout` reset at about 3.33 V battery, then recovered at about 3.34 V.
+That single reset does not by itself prove the button wiring caused the brownout, but
+combined with no I2C ACK it raises the priority of checking red -> `+`, black -> `-`,
+measuring the module supply while VSQT is awake, and inspecting Dupont contact/shorts
+before more powered reseating.
+
+Ben then measured 3.3 V directly across the DFR0991 `+`/`-` header, confirming the
+VSQT rail and power contacts reach the module. The one brownout most likely coincided
+with accidentally bridging 3V3 and GND using the meter probes; treat that as the
+leading explanation rather than evidence of a firmware regression. The unresolved
+fault is now narrowed to SCL/SDA continuity/contact, a faulty module, or (less likely)
+an unexpected I2C response/PID. Check the unpowered data wiring before adding more
+firmware diagnostics.
+
+`net-bench-2026-07-16.4` added eight non-blocking probes at 250 ms spacing plus raw
+DFR0991 ACK/PID telemetry, without changing the P126 field profile or D7 safeguards.
+The isolated artifact is
+`firmware/net_bench/build/field-cycle-peer-20260716-p126-dfr0991-diag-r4/net_bench.ino.bin`
+(1,040,496 bytes, SHA-256
+`8807EEE6B0FBBF5DFC4E0947B8A2BE376CE44DE4B474D94E599964CE2AD47385`). It compiled
+at 31 percent flash / 15 percent RAM with a flag string exactly matching `.3` and was
+successfully OTA-deployed to `9F2690`; the peer rejoined as `.4`, software reset, about
+3.34 V.
+
+The new data narrowed the fault: after seven delayed attempts the module ACKed at
+`0x2A` (`ack_mask=0x80`), proving the powered SCL/SDA path and DIP address, but PID
+registers `0x09`/`0x0A` returned `0x0000` rather than DFRobot's `0x43DF`. DFRobot
+specifies 3.3-5 V operation, so do not put 5 V pull-ups onto the ESP32 bus merely to
+work around the invalid PID. Next independent test: measure the module's active-high
+INT pin at 3.3 V. If it toggles on press, use a free 3.3 V GPIO as the simple trigger
+and bypass the nonconforming I2C register interface; if not, treat the module as faulty
+or separately bench-test it while electrically isolated from the PowerFeather.
+
+## 2026-07-16 (cont.) -- Ben + Codex -- USER-button repeat-wake bug fixed in `.2`
+
+Ben's first physical test found that USER/GPIO0 could wake and strike once, but after
+the peer returned to daylight deep sleep later presses did nothing until a manual reset.
+Live telemetry showed that the peer itself remained healthy and continued normal timer
+wakes, isolating the fault to the new button re-arm path rather than the solar state
+machine, ESP-NOW, or board power. The `.1` design retained an extra armed/disarmed flag
+in RTC memory. That state was unnecessary and could remain disarmed across the
+wake/sleep handoff.
+
+`net-bench-2026-07-16.2` removes the retained button state. An actual EXT0 wake is now
+the complete proof of one deliberate sleeping-button event and produces exactly one
+40 ms strike. Active-mode presses still use 30 ms edge debounce. Before every deep
+sleep, firmware explicitly clears the previous EXT0 configuration, samples GPIO0, and
+re-enables active-LOW wake only when the button is physically released. If it is held,
+the normal timer remains the only wake source for that sleep, preventing an immediate
+reboot/strike loop. Maintenance suppression and every D7 pulse cutoff remain unchanged.
+
+The corrected P126 artifact is
+`firmware/net_bench/build/field-cycle-peer-20260716-p126-solenoid-button-rearm-r2/net_bench.ino.bin`
+(1,038,224 bytes, SHA-256
+`935A608CBA6A94E59CF31C29F9FBAF25E9BA22A48D29976E40CA7BE03388D28D`). Its compile
+flags exactly match the prior P126 field profile. Targeted OTA waited for the broken
+image's timer wake, uploaded successfully, and verified `9F2690` rejoined ESP-NOW as
+`.2`, software reset, charge phase, about 3.34 V. Repeat physical wake testing remains.
+
+Ben also proposed the DFRobot DFR0991 illuminated I2C button. It accepts 3.3-5 V and
+has a separate INT output that goes HIGH on press, so it is not limited to I2C polling.
+It can be an attractive awake-mode trigger. It cannot wake the current sleeping fixture
+when powered from the switchable external rails because field sleep cuts both rails;
+INT-based wake would require keeping the module powered, with its idle-energy cost, or
+providing a separate always-on regulated source. No DFR0991 firmware was added here.
+
+## 2026-07-16 -- Ben + Codex -- P126 local USER-button solenoid wake/strike OTA
+
+Added a laptop-free local trigger to the existing opt-in P126 D7/VDC solenoid path.
+With `--solenoid-d7`, the PowerFeather USER/BOOT button (`BTN`/GPIO0, active LOW) now
+requests the same bounded 40 ms strike as the dashboard. The input has 30 ms debounce,
+one press per release, and no hold-to-repeat. Because the daylight field cycle normally
+sleeps for five minutes at a time, GPIO0 is also an EXT0 deep-sleep wake source. An
+RTC-retained armed latch and a held-low check prevent immediate wake/strike loops.
+Button presses are suppressed during OTA maintenance, and only a real EXT0 wake can
+request a strike during boot; an arbitrary reset with GPIO0 low cannot do so. Existing
+5-300 ms clamping, 80 ms rest guard, `esp_timer` cutoff, loop failsafe, and forced D7
+LOW handling are unchanged.
+
+Built the exact prior P126 field profile in the isolated directory
+`firmware/net_bench/build/field-cycle-peer-20260716-p126-spiral-solenoid-button-r1`:
+fixed 5.8 V VINDPM, 6 Ah LFP, 1.5 A charge cap, three full-bright spiral R/G/B pixels,
+and all previous dusk/dawn/protection settings. The 1,038,368-byte binary has SHA-256
+`61868DF9EB0295207E5E81E306E60361D5E6F9BE0468C5D844727A6331E80B45`; its compiled
+flag string exactly matches the July 13 P126 image. Targeted shared-WiFi OTA to
+`9F2690` succeeded without a button or physical reset. It rejoined ESP-NOW as
+`net-bench-2026-07-16.1`, software reset, charge phase, about 3.34 V, with no DIM or
+PROTECT latch. Physical awake-press and deep-sleep-wake validation remain pending.
+
+Ben also noted that both solar devices were moved indoors in late afternoon July 15,
+which likely satisfied the dusk qualification and turned the LEDs on early. Moving them
+back outside late in the day did not visibly reverse the transition. Treat July 15 as
+an intervention day rather than a clean weather-cycle point; retain the event as a
+useful dusk/dawn hysteresis and weak-late-sun test case.
+
+## 2026-07-15 -- Ben + Codex -- Planned Windows restart interrupted host trace; retained counters bound RGBW night
+
+Windows Event Log showed that Windows Update (`MoUsoCoreWorker.exe`, followed by
+`TrustedInstaller.exe`) initiated a planned service-pack / operating-system-upgrade
+restart at 03:34 PDT. This was not a crash or power failure. The active JSONL ends
+cleanly at 03:34:09, exactly when the restart began; Windows booted at 03:37. Neither
+the dashboard nor logger restarted automatically. Reconnected the COM4 dashboard at
+07:35 without sending fixture commands. Did not restart `net_bench_log.py` against the
+old path because the current script opens output with `w` and would erase the
+pre-reboot trace.
+
+P105 `9F26F8` entered full-RGB DRAW at 20:29:37 and the trace remained continuous for
+7 h 04 min 32 s through the restart. Subtracting the DRAW-boundary counters gives
+2.973 Ah / 9.7 Wh over that interval, or 420.2 mA / 1.371 W average. At the last host
+sample it was 3.241 V / -422 mA, with no DIM or PROTECT. Fresh retained telemetry at
+07:36 showed cycle 2 CHARGE had begun at about 06:41, placing the complete RGBW window
+at about 10 h 11 min. The new cycle minimum was 3.195 V, still above the 3.10 V DIM
+threshold. Because sunrise reset the previous cycle counters before host reconnection,
+the final night is a tight extrapolation rather than an exact retained endpoint:
+about 4.25-4.30 Ah / 13.8-14.0 Wh (central estimate 4.28 Ah / 13.9 Wh). This is exactly
+in line with the prior 417.6 mA RGB-full bench result and below the 14.7 Wh HEX stress
+night.
+
+As of 07:36, P105 had been in the new charge cycle for about 56 min but had recorded
+<1 mAh / <0.1 Wh positive charge. The wake sample was still weak early light: panel
+4.64 V / 2 mA, battery 3.246 V / -70 mA. Its apparent 113 mAh cycle discharge is the
+known charge-sleep sample-and-hold overestimate, not a real one-hour drain.
+
+P126 `9F2690` was still in DRAW at 07:37 because its no-lux fallback had not yet seen
+>=20 mA useful panel input. It was 3.179 V / about -145 mA, panel 5.33 V / 0 mA, no
+DIM/PROTECT. From the first observed DRAW row to the fresh retained row, its old `.3`
+counters added 1.820 Ah / 5.9 Wh at about 156 mA; those totals retain the known
+millisecond-truncation undercount. The wall-clock show was already roughly 13.4 h,
+again demonstrating why the no-lux useful-current fallback is not the production show
+schedule.
+
+Queued two outage-recovery fixes: make the host logger refuse overwrite and support
+explicit append/resume segments, and retain a previous-completed-cycle summary across
+sunrise so a host outage spanning dawn cannot erase the exact night endpoint.
+
 ## 2026-07-14 (cont.) -- Ben + Codex -- RGBW dusk turn-on matches the 418 mA ceiling
 
 Checked P105 `9F26F8` after Ben installed the production 4 W RGBW and the autonomous

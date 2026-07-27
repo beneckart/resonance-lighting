@@ -7,8 +7,10 @@
 ## Why this note exists
 
 The production fixtures need to feel like one artwork without depending on a permanently
-installed master, bridge, infrastructure network, or accurate wall clock. At the same
-time, the desired behavior is broader than a single cellular-automata (CA) show:
+installed master, bridge, or infrastructure network. The normal daily lightshow now
+does depend on distributed wall time from sparse GPS/GNSS and external-RTC anchors
+(ADR 0031), but not on one coordinator or continuing Starlink. At the same time, the
+desired behavior is broader than a single cellular-automata (CA) show:
 
 - autonomous light behavior after dusk;
 - presence-modulated local and spatial effects;
@@ -31,6 +33,19 @@ The main design shift is:
 > Treat CA as one program family inside a distributed choreography runtime, not as the
 > top-level firmware architecture.
 
+## Decision update -- 2026-07-26
+
+ADR 0031 accepts a deterministic scheduled dusk/dawn lightshow as the production
+direction. A subset of fixtures will carry onboard-antenna GPS/GNSS receivers for
+absolute UTC and another subset will carry battery-backed external RTCs for holdover.
+They distribute time quality over ESP-NOW; all 150 fixtures do not need their own RTC.
+
+This supersedes this note's earlier assumption that wall time was unnecessary for the
+daily lifecycle and demotes distributed dusk inference from the production trigger to
+telemetry, sanity checking, and an explicitly designed degraded-mode option. The
+coordinator-free logical-phase work remains relevant for tight choreography after the
+scheduled show begins.
+
 ## Working design intent
 
 The candidate production design follows these principles:
@@ -42,8 +57,9 @@ The candidate production design follows these principles:
 3. **Bridge as an optional leased participant.** A bridge may temporarily inject DJ
    modulation, select a show, synchronize a special moment, run registration, or open
    maintenance. Its disappearance must not stop the autonomous artwork.
-4. **Logical fleet time, not wall-clock dependence.** Most choreography needs shared
-   phase and future event scheduling, not a date and timezone.
+4. **Scheduled wall time plus logical show phase.** Sparse GPS/RTC anchors establish
+   the daily UTC schedule; most choreography after turn-on still uses shared phase and
+   future event scheduling rather than repeatedly consulting civil time.
 5. **One firmware image.** Hardware capabilities, fixture class, position, topology,
    and artistic role are runtime data rather than separately compiled personalities.
 6. **Local power veto.** No mesh message or show program may force an unhealthy fixture
@@ -120,12 +136,15 @@ every problem.
 ### 1. Wall time
 
 Wall time means date, timezone, and civil time. It is useful for logs, named schedules,
-or a bridge operator asking for a show at a known time. It is not necessary for daily
-dusk detection, CA ticks, synchronized knocks, or a preprogrammed sequence.
+or a bridge operator asking for a show at a known time. Per ADR 0031 it is now the
+primary production authority for daily show start/stop. CA ticks, synchronized knocks,
+and scene rendering still use monotonic/logical time once a show is active.
 
-A bridge may provide wall time when present. Autonomous correctness should not require
-it. Adding a backed RTC to every fixture is not currently justified solely for dusk or
-choreography.
+Wall time comes from a redundant sparse set of GPS/GNSS and battery-backed external-RTC
+anchors, not from a permanent bridge and not from an RTC on every fixture. Starlink
+during build week may seed and verify time, but the installed fleet must remain
+autonomous after it disappears. Store show boundaries as UTC instants so timezone and
+DST conversion is performed before deployment.
 
 ### 2. Local monotonic time
 
@@ -211,8 +230,11 @@ rendezvous efficiency; peer resynchronization and POR recovery remain required.
 
 ## Coordinator-free fleet alignment
 
-A permanent leader or special clock-keeper fixture conflicts with autonomy and
-fungibility. It is also unnecessary for the intended effects.
+A permanent leader still conflicts with autonomy and fungibility. Sparse GPS/RTC
+anchors do not create one: they are replicated capabilities, any recent high-quality
+source may teach time, and loss of one anchor must not stop the fleet. Wall-time
+distribution establishes the daily schedule; the candidate model below aligns the
+logical phase used inside a show.
 
 The candidate model is a peer-corrected logical phase:
 
@@ -341,19 +363,22 @@ than the field-cycle sketch's fixed eight-second/five-minute bench behavior.
 - Execute a chorus or ripple only after local power permission.
 - Return to deep sleep unless a show or maintenance lease says otherwise.
 
-### TWILIGHT_WATCH
+### SCHEDULE_ACQUIRE / TWILIGHT_DIAGNOSTICS
 
-- Enter when sustained local panel/lux evidence says dusk is approaching, not after one
-  low-current sample.
-- Increase listen duration/frequency so peers actually overlap.
-- Broadcast independent dusk evidence.
-- Join night mode when local evidence is decisive or enough distinct peers provide
-  corroborating evidence.
-- Keep separate dusk-on and dawn-off thresholds plus confirmation time.
+- Wake before the next scheduled transition and increase listen duration/frequency so
+  fixtures reacquire fresh time from several anchors or recently synchronized peers.
+- Enter night mode at the configured UTC instant, subject to the local power veto.
+- Broadcast time source, age, uncertainty, and next-transition version rather than
+  treating one panel-current sample as authoritative dusk.
+- Continue collecting panel/lux evidence as diagnostics and as an input to whatever
+  invalid-time degraded mode is explicitly selected.
+- Never allow missing/stale wall time to recreate an accidental unbounded 13-15-hour
+  P126 show.
 
-There need not be one official fleet-start message. Regions may converge seconds apart,
-which can look like a gentle awakening. A special synchronized opening sequence can
-still be scheduled after enough peers are known awake.
+There need not be one official fleet-start packet. Each fixture evaluates the same
+versioned schedule against a qualified time estimate. Regions may still differ by the
+bounded uncertainty of their current estimate, and the logical-phase/event layer can
+schedule a tighter synchronized opening once the show is active.
 
 ### NIGHT_AUTONOMOUS
 
@@ -422,6 +447,12 @@ hard-code synchronous generations before that comparison.
 
 Daylight cannot support the intended lightshow, but it can support an acoustic network.
 A telemetry/listen rendezvous can double as an artistic moment.
+
+The daytime-only constraint may be an artistic advantage rather than a compromise. A
+tree that has a solar-percussion personality by day and a light personality by night
+rewards a second visit and makes the energy source legible in the experience. The
+daytime show can therefore remain exclusive even if a future electrical design could
+technically strike after dark.
 
 Two distinct effects should be first-class:
 
@@ -496,52 +527,82 @@ Every production path should preserve the already validated safety shape:
 - battery, rail, fault, and recovery vetoes;
 - telemetry counters for requested, executed, blocked, and failsafe-ended strikes.
 
-## Solenoid power and harness stance -- explicitly TBD
+## Solenoid power and harness stance -- VDC + 10,000 uF now leads, still not locked
 
-The production power path is not decided. Capacitors arrive for testing on 2026-07-14,
-and the VDC/capacitor experiment may still reveal a compelling acoustic benefit.
+The July 14 first-capacitor trial materially changed the trade. A 10,000 uF, 16 V
+electrolytic placed directly across the solar V+/GND feed transformed the previously
+weak no-capacitor P126-panel strike into a qualitatively strong result. Ben's immediate
+assessment was that it "works so well." Exact pulse width, coil SKU, VDC droop,
+recharge time, and telemetry still need a controlled capture, so this remains a leading
+candidate rather than a production decision.
 
-However, the current approximately 90 percent likely MVP direction is:
+The tested panel-input harness is unusually assembly-friendly:
 
-- power the MOSFET driver/solenoid from the switchable regulated 3V3 rail and GND;
-- use the newly sourced five-pin JST-XH Y-splitter to stay in XH cabling and avoid
-  hand-crimping mixed PH/XH harnesses;
-- share 3V3/GND with the LED branch;
-- retain A0 as the LED signal and use adjacent A1 as the solenoid signal, subject to
-  exact header pin-order and harness verification;
-- prefer the simplest assembly if the strike remains acoustically adequate.
+```text
+Voltaic P105/P126 3.5 x 1.1 mm male DC plug
+  -> Voltaic female 3.5 x 1.1 mm DC to male USB-C adapter
+  -> small female USB-C to four-pin JST-XH breakout
+       V+ and GND alone are moved into a two-pin XH housing
+       the other two breakout conductors are left disconnected
+  -> PowerFeather VDC/GND
 
-Reasons this is the current favorite:
+10,000 uF capacitor:
+  + lead -> V+ through-hole on the USB-C/XH breakout
+  - lead -> GND through-hole on the USB-C/XH breakout
+```
 
-- the 3V3 solenoid path has already survived an 815-strike bench session with no MCU
-  reset and no pulse failsafe;
-- the rail provides a simple, known, gauge-visible power path;
-- the Y-splitter avoids a PH-to-XH transition and manual crimping;
-- the switchable rail supplies a hardware-level kill for both loads;
-- fewer special taps and storage parts improve production assembly and serviceability.
+The capacitor diameter and lead spacing happen to place its leads directly over the
+breakout's V+ and GND holes (roughly a 2.54 x 3 mm spacing pattern). The result is about
+one minute of straightforward soldering, no bare wire soldered to the PowerFeather, and
+an observed Amazon prototype price of roughly $1/capacitor. Volume sourcing should be
+investigated only after the electrical/mechanical rating is qualified.
 
-Open checks before treating it as production-ready:
+This means the VDC/capacitor branch has provisionally earned its extra component:
 
-- combined LED-plus-solenoid rail transient, not merely solenoid-only operation;
-- minimum reliable pulse and acoustic output on real bamboo at battery plateau and low
-  battery;
-- 3 V versus 5 V coil comparison on the chosen rail;
-- voltage droop, regulator current/thermal margin, reset behavior, and gauge response;
-- Y-splitter conductor gauge, contact resistance, pin order, keying, and strain relief;
-- whether cutting the shared rail during low-battery or sleep always leaves the driver
-  signal safe;
-- whether a solenoid strike should momentarily dim/freeze the LED renderer to reduce
-  coincident peak load.
+- the strike improvement is large and immediately audible, not marginal;
+- the capacitor attaches to an existing adapter board rather than creating a new
+  PowerFeather solder operation or mixed PH/XH hand-crimp workflow;
+- the solar rail supplies the high instantaneous strike energy without placing that
+  pulse on the battery/3V3 rail;
+- solar availability naturally supports a distinct daytime percussion personality;
+- the added assembly appears consistent with the O(1)-operations/MVP philosophy.
 
-Alternative under test:
+At 5.8 V, an ideal 10,000 uF capacitor stores about 0.168 J. That is the right order of
+magnitude for one short solenoid pulse, explaining why a 2 W panel can recharge slowly
+but still deliver a convincing instantaneous kick. Actual usable energy is lower because
+the driver/coil stops benefiting before the capacitor reaches zero volts and because
+ESR, wiring, and the panel/charger share the rail.
 
-- panel/VDC-fed MOSFET driver with a storage capacitor local to the driver/coil.
+The previous 3V3 design remains the fallback. It is electrically proven over 815 strikes
+and may still be useful for a class without solar/VDC, but it no longer wins merely on
+assembly simplicity. The five-pin XH Y-splitter remains useful elsewhere and remains a
+fallback way to share 3V3/GND with LED signal A0 and solenoid signal A1.
 
-That branch must earn its added capacitor, inrush behavior, protection, packaging,
-connectorization, and assembly burden through a clearly better strike or power-path
-result. A result that is merely different, or only slightly louder, should lose to the
-simpler 3V3/XH MVP. Capacitance value, voltage rating, charge path, discharge behavior,
-and physical safety remain bench questions.
+Open checks before treating VDC + 10,000 uF as production-ready:
+
+- record the exact coil (3 V/5 V and resistance), command pulse width, light conditions,
+  pre-strike VDC, minimum VDC during strike, recharge curve, and physical result;
+- repeat across bright sun, cloud, shade, P105/P126, charging versus full-battery taper,
+  and relevant panel/cable orientations;
+- confirm no MCU reset, BQ input fault/requalification loop, charge-state upset, false
+  dusk transition, or corrupted telemetry during single and repeated strikes;
+- measure hot-plug/inrush behavior with a discharged 10,000 uF capacitor;
+- measure how long VDC/cap energy remains after shade, sunset, or panel disconnect.
+  "Daytime only" must remain an explicit firmware policy unless a bleeder or measured
+  discharge makes it a physical guarantee;
+- decide whether a high-value bleeder is useful for predictable discharge/service and
+  include its continuous solar loss in the calculation;
+- qualify voltage rating against worst-case cold bright-sun Voc. The successful bench
+  part is 16 V, while P126's published nominal Voc is about 8.59 V. Measure cold Voc
+  and production tolerance to document the actual derating margin;
+- qualify capacitance tolerance, ESR, ripple/pulse current, temperature rating, lifetime,
+  polarity marking, supplier consistency, and behavior after long storage;
+- add mechanical retention so the capacitor leads and breakout solder joints are not
+  the structural mount under transport, wind, or vibration;
+- verify USB-C adapter and XH pin order/keying on production samples and prevent reverse
+  insertion or reversed capacitor population;
+- compare total parts/assembly time against 3V3 one final time after strain relief and
+  enclosure mounting are included.
 
 Firmware should keep the actuator power source abstract enough that the first hardware
 choice does not contaminate the event/choreography protocol.
@@ -638,11 +699,12 @@ parts until registration completes.
 | bridge absent | autonomous program continues normally |
 | bridge lease expires mid-show | fade/transition to autonomous mode |
 | network partition | each connected region continues from local evidence/state |
-| isolated fixture | local dusk and local sensor fallback; generic local program |
+| isolated fixture with fresh-enough held time | follow the stored schedule and run a generic local program |
+| isolated fixture with invalid/stale time | use the explicitly bounded ADR 0031 fallback; never infer an unbounded long show |
 | missed event announcement | do not execute late unless event explicitly permits catch-up |
 | duplicate event | dedupe by event ID; never repeat the strike/sequence |
 | stale event after POR | reject by boot/session/freshness rules |
-| one shaded panel | raw distinct-origin dusk evidence prevents rumor amplification |
+| one shaded panel | scheduled lifecycle is unchanged; retain the observation as diagnostic telemetry |
 | one missing presence sensor | sector/quorum rule degrades instead of requiring unanimity |
 | new POR with unknown phase | acquire before joining tightly synchronized events |
 | low battery or power fault | local power veto; optionally advertise abstention |
@@ -654,12 +716,17 @@ parts until registration completes.
 
 The architecture is large enough that it should be validated in narrow slices.
 
-### Phase 1 -- clock and wake-window experiment
+### Phase 1 -- external time anchors, holdover, and wake-window experiment
 
-- Build otherwise identical default-RC and divided-fast-RC images.
-- Measure actual sleep current and timer error on several PowerFeathers.
-- Repeat at useful temperatures and sleep durations.
-- Decide whether the 5 uA option is worth carrying into production builds.
+- Bench candidate onboard-antenna GPS/GNSS modules through the real hat and near the
+  production panel/battery geometry; measure acquisition time and energy.
+- Bench candidate battery-backed external RTCs for drift, backup current, reset
+  survival, and hot-day/cold-night holdover.
+- Define time-quality messages and verify that non-anchor fixtures acquire UTC from
+  multiple peers without Starlink.
+- In parallel, build otherwise identical default-RC and divided-fast-RC images and
+  decide whether the optional sleep oscillator improves bounded holdover enough to
+  retain.
 
 ### Phase 2 -- host-testable event and phase core
 
@@ -681,13 +748,17 @@ The architecture is large enough that it should be validated in narrow slices.
 - Record command time, GPIO edge, mechanical strike, and audible arrival if practical.
 - Compare chorus versus hop/spatial ripple.
 - Measure rail voltage, reset/fault behavior, and energy per strike/show.
-- Separately complete the VDC/capacitor A/B before locking the harness.
+- Quantify and durability-test the now-leading VDC/10,000 uF path before locking the
+  harness; retain 3V3 as the measured fallback.
 
-### Phase 5 -- adaptive day/twilight lifecycle
+### Phase 5 -- scheduled day/night lifecycle
 
-- Replace fixed field-cycle wake windows with energy/phase/twilight-adaptive windows.
-- Verify dusk convergence in sun, clouds, shade, full-battery taper, and partitions.
-- Verify dawn hysteresis and that temporary panel changes do not restart the night.
+- Replace fixed field-cycle wake windows with schedule- and time-quality-aware windows.
+- Verify deterministic start/stop using sparse GPS/RTC anchors with Starlink removed.
+- Exercise stale time, partitions, conflicting anchors, true power loss, and the chosen
+  invalid-time fallback.
+- Verify that clouds, shade, full-battery taper, and temporary panel changes do not
+  start or extend the scheduled show.
 
 ### Phase 6 -- generic choreography runtime
 
@@ -707,6 +778,10 @@ The architecture is large enough that it should be validated in narrow slices.
 
 Avoid locking attractive algorithms or packet fields until the following are measured:
 
+- onboard-antenna GPS/GNSS acquisition time and energy through the production hat;
+- external-RTC drift, backup current, and reset/power-loss survival across temperature;
+- wall-time acquisition, disagreement, holdover, and stale-time behavior without
+  Starlink;
 - alternative sleep-clock drift versus temperature and added current;
 - acquisition time from random phases and after POR;
 - rendezvous capture rate and radio energy per day;
@@ -714,7 +789,8 @@ Avoid locking attractive algorithms or packet fields until the following are mea
 - chorus GPIO and mechanical strike skew;
 - visually/audibly best ripple delay;
 - packet airtime/PDR at 150-node-equivalent traffic;
-- false dusk and missed dusk behavior under panel/charger confounds;
+- proof that panel/charger confounds cannot move a valid scheduled boundary, plus
+  separate characterization of any explicitly bounded degraded-time fallback;
 - presence-sector false positive/negative rate in actual lantern geometry;
 - 3V3 shared-rail solenoid strength and combined LED transient;
 - VDC-plus-capacitor acoustic gain versus assembly/power cost;
@@ -732,11 +808,19 @@ Avoid locking attractive algorithms or packet fields until the following are mea
 - Should all 150 fixtures knock together, or should audio density be capped by role,
   region, or energy?
 - What acknowledgment/coverage level is useful before a bridge performance starts?
+- How many GPS/GNSS and RTC anchors are required, and how should they be distributed
+  across fixture classes and physical regions?
+- What time-age/uncertainty threshold makes a schedule valid, and what bounded behavior
+  applies after it expires?
+- Should any fixture carry both GPS and RTC, or should those capabilities remain
+  separate and cross-check each other over ESP-NOW?
+- What exact UTC start/stop instants and offsets apply to each event date and role?
 - How much program data is preloaded versus supplied as compact parameters?
 - How is the site map distributed, versioned, and recovered after flash replacement?
 - What is the exact 5-pin XH header order and branch harness pinout?
 - Does the shared 3V3 rail remain stable under the worst LED-plus-solenoid coincidence?
-- Does the capacitor experiment produce enough benefit to justify a separate VDC path?
+- Does the VDC/10,000 uF result remain strong across weather, coil samples, panel class,
+  recharge cadence, cold Voc, and production mounting?
 - What local metric best grants a solenoid show: recent solar surplus, corrected coulomb
   budget, voltage margin, or a combination?
 
@@ -745,18 +829,25 @@ Avoid locking attractive algorithms or packet fields until the following are mea
 The strongest current candidate is:
 
 - one common firmware image and generic choreography runtime;
+- deterministic site/date show windows from a redundant sparse set of GPS/GNSS and
+  battery-backed external-RTC anchors (ADR 0031);
+- time-quality distribution over ESP-NOW so ordinary fixtures need neither module;
 - rootless peer-corrected fleet phase;
 - optional divided-fast-RC sleep clock if the A/B validates it;
-- adaptive daytime sleep/listen windows and a twilight acquisition state;
-- independent raw dusk/presence observations plus distributed trigger evaluation;
+- schedule-aware daytime sleep/listen windows and pre-transition time reacquisition;
+- raw panel/lux evidence retained for diagnostics, sanity checks, and a deliberately
+  bounded degraded mode rather than primary production dusk authority;
+- independent presence observations plus distributed trigger evaluation;
 - future-scheduled idempotent events for aligned effects;
 - CA, timelines, spatial effects, solenoids, easter eggs, and bridge modulation as peers
   in the same runtime;
 - bridge behavior controlled by expiring leases;
 - local power policy always authoritative;
-- simplest adequate solenoid assembly, currently leaning strongly toward shared 3V3/GND
-  through a five-pin JST-XH Y-splitter with A0 LED and A1 solenoid signals;
-- VDC/capacitor power retained as an experiment until its acoustic/power result is known.
+- VDC/GND plus a directly breakout-mounted 10,000 uF capacitor as the new leading
+  daytime-solenoid candidate because its strike and one-minute assembly both passed the
+  first qualitative test;
+- 3V3/GND through a five-pin JST-XH Y-splitter retained as the proven fallback until
+  VDC/capacitor voltage, recharge, durability, and production mounting are qualified.
 
 This direction preserves the most important property: removing the bridge, replacing a
 fixture, losing a packet, or declining an energy-expensive action does not stop the tree

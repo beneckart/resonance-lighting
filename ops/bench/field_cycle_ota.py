@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument(
         "--solenoid-d7",
         action="store_true",
-        help="enable one-shot D7/GPIO37 solenoid strikes for a VDC/GND MOSFET-driver tap",
+        help="enable remote/local-button D7/GPIO37 solenoid strikes for a VDC/GND driver",
     )
     ap.add_argument("--field-charge-s", type=int, default=FIELD_DEFAULTS["field_charge_s"])
     ap.add_argument("--field-wait-s", type=int, default=FIELD_DEFAULTS["field_wait_s"])

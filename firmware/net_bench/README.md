@@ -128,19 +128,64 @@ ESP-NOW. The dashboard's `Peer maint` button sends `U<id>` for the selected peer
 
 ### Optional D7/VDC solenoid strike
 
-`--solenoid-d7` enables manual, targeted solenoid strikes on PowerFeather D7/GPIO37
-(D7 is not GPIO7). The intended wiring is an Adafruit #5648 MOSFET driver's V+ and
-GND tapped from VDC/GND, with its SIGNAL input on D7. The driver board's onboard 10K
-signal pulldown and flyback diode must be present; do not drive a coil from the GPIO.
-Because VDC is always live, this build drives D7 LOW before board initialization and
-forces it LOW for OTA, maintenance entry, and sleep.
+`--solenoid-d7` enables manual solenoid strikes on PowerFeather D7/GPIO37 (D7 is not
+GPIO7), from a targeted bridge command, the onboard USER button, or an attached
+DFRobot DFR0991 I2C RGB button or SparkFun PRT-27576 Qwiic Navigation Switch. The
+intended wiring is an Adafruit #5648 MOSFET driver's V+ and GND tapped from VDC/GND,
+with its SIGNAL input on D7. The driver board's onboard 10K signal pulldown and flyback
+diode must be present; do not drive a coil from the GPIO. Because VDC is always live,
+this build drives D7 LOW before board initialization and forces it LOW for OTA,
+maintenance entry, and sleep.
 
 The serial bridge command is `K<id>:<ms>`, for example `K9F2690:40`. Only the named
 peer responds. Pulse width is clamped to 5-300 ms, an 80 ms rest gap rejects repeated
 requests, and both an `esp_timer` one-shot and a loop deadline force the gate LOW. The
 dashboard exposes the same operation as `Strike D7`; the default is 40 ms. There is no
 automatic boot strike or repeat mode. `/telemetry` reports `solenoid_enabled`,
-`solenoid_pin`, gate state, strike/block/failsafe counters, and the last pulse width.
+`solenoid_pin`, gate state, strike/block/failsafe counters, the last pulse width, and
+the local-button pin/armed/pressed state. It also reports DFR0991 and Qwiic Navigation
+Switch presence, detected address, stable press state, press count, probe state, and
+read-error diagnostics.
+
+The onboard USER/BOOT button is `BTN/GPIO0`, active LOW. A debounced press produces one
+normal 40 ms strike and must be released before another press can fire. GPIO0 is also
+configured as an EXT0 deep-sleep wake source, so the control works during the field
+cycle's five-minute daylight sleeps. An actual EXT0 wake produces exactly one strike.
+Before each sleep, firmware first clears the prior EXT0 configuration and re-enables it
+only if GPIO0 is physically released; a held button therefore receives only the normal
+timer wake and cannot form an immediate wake/strike loop. No debounce/re-arm state is
+retained across boots. A button press during OTA maintenance is ignored. Because GPIO0
+is also the ESP32-S3 boot strap, do not hold USER through a power-on or manual reset.
+Ordinary presses while the application is awake or in deep sleep are the supported path.
+
+The optional DFR0991 is an awake-only trigger on the PowerFeather STEMMA/Wire1 bus.
+Firmware keeps the shared bus at the ADR 0028 limit of 100 kHz, auto-detects the
+module's eight DIP-selectable addresses (`0x23` through `0x2A`, default `0x2A`), and
+requires the official `0x43DF` product ID before accepting it as a trigger. A new
+debounced press calls the same guarded 40 ms strike path; holding the button does not
+repeat, and release re-arms it. Presses during OTA maintenance are ignored. The normal
+four-wire Gravity I2C connection does not carry the module's separate INT signal, and
+field sleep cuts the external rail, so this button does not wake the peer. Use USER or
+RESET first when the field-cycle peer is asleep. An absent module is harmless and is
+probed again after every timer/button/reset wake.
+
+The probe is non-blocking and retries eight times at 250 ms intervals after VSQT comes
+up, covering a slow-starting module without extending the field wake. Maintenance
+telemetry includes the probe-attempt count, an ACK bitmask for `0x23` through `0x2A`,
+the address that returned PID bytes, and the raw PID. This distinguishes absent wiring
+from a module that ACKs but returns an invalid register table.
+
+The optional SparkFun Qwiic Navigation Switch PRT-27576 is also an awake-only Wire1
+trigger. Firmware probes the PCA9554 address range `0x20` through `0x27` without
+writing configuration, accepts only a device whose five switch pins retain the
+power-on input/non-inverted configuration, and maps DOWN (PCA9554 GPIO1, active LOW)
+to one guarded 40 ms strike. A 30 ms press/release debounce prevents repeat while
+held. RGB outputs and the separate interrupt pin are untouched. Maintenance telemetry
+reports presence, address, DOWN state, press/error/probe counts, ACK mask, and the
+last input/configuration/polarity bytes. Because the interrupt pin is not connected
+and the external rail is cut during sleep, use USER to wake the peer before pressing
+DOWN. Physical DOWN-to-D7 validation is still required before calling this trigger
+qualified.
 
 The July 2026 P126 trial intentionally begins without a VDC storage capacitor to learn
 whether a bright-sun strike works directly from the panel/charger input. Treat a weak
@@ -454,7 +499,14 @@ Additional solar-charge helpers: `R<hz>` sets the heartbeat/frame rate directly,
 
 ## Host tooling
 - `ops/bench/net_bench_log.py` -- capture the master's UDP bridge -> JSONL (per-peer
-  PDR/RSSI/reboots, firmware revision, and maintenance status when present).
+  PDR/RSSI/reboots, firmware revision, and maintenance status when present). Output is
+  exclusive-create by default: an existing trace causes a hard error and is never
+  silently truncated. Use a new `--out` path for a new run, `--append --out <path>` to
+  resume the same run after a host/logger outage, or explicit destructive `--overwrite`
+  only when old data is intentionally disposable. Append validates both ends of the
+  file, inherits the original run metadata, and writes a numbered `src=segment` resume
+  boundary; do not repeat run-identity flags with `--append`. `elapsed_s` restarts per
+  process segment, while `segment_index` and `segment_started_utc` identify that reset.
 - `ops/bench/net_bench_ota.py` -- parallel OTA to N IPs + auto-recovery verification.
   Use `--reboot comms` when OTA'ing peers (they reboot OFF WiFi into ESP-NOW, so the
   OTA "Update complete. Rebooting." ack + software reset is the success signal; confirm
@@ -478,6 +530,22 @@ Additional solar-charge helpers: `R<hz>` sets the heartbeat/frame rate directly,
   (`m<v10>`, targeted `U<id>`, `c`, identify, refresh), and can still forward `nb-*` lines to
   UDP:54321 for the older tools. Travel example:
   `python ops/bench/net_bench_dashboard.py --port COM7`.
+
+After a Windows restart, launch the dashboard first, then either start a new trace or
+explicitly resume the old one. Redirect stdout/stderr to sibling files for unattended
+runs and verify the JSONL grows with both expected peer IDs; a live PID alone is not a
+data-path check.
+
+```
+python ops/bench/net_bench_dashboard.py --port COM4
+python ops/bench/net_bench_log.py --out ops/bench/data/ca/<new-run>.jsonl \
+  --run-id <new-run> --site ca --operator ben --battery fullbattery-32700-6Ah \
+  --topology master-multicast --tx-rate 1 --duration 604800
+
+# Same logical run only; existing metadata is loaded from the first JSONL row.
+python ops/bench/net_bench_log.py --out ops/bench/data/ca/<existing-run>.jsonl \
+  --append --segment-notes "Windows restart" --duration 604800
+```
 
 ## Caveats
 Battery runs are **Li-ion (`Generic_3V7`)** for now -- *re-verify every stability finding

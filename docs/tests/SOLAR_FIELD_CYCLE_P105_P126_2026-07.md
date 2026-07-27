@@ -1,11 +1,13 @@
 # P105/P126 outdoor solar field cycle and POR-loop findings -- July 2026
 
 **Status:** Active bench record. Final P105 safety firmware was OTA-deployed July 13;
-the production-RGBW ceiling profile and active-integrator fix were OTA-deployed July 14.
-The original P126 peer was then disassembled and retired after a header-rework hardware
-failure; replacement `9F2690` completed the first VDC-capacitor solenoid trial, and
-VDC plus 10,000 uF is now the leading but not-yet-qualified path. The P105
-external INAs are next scheduled for removal for a production-harness A/B.
+the production-RGBW ceiling profile and active-integrator fix were OTA-deployed July 14,
+and the RGBW was installed before dusk. The original P126 peer was then disassembled
+and retired after a header-rework hardware failure; replacement `9F2690` completed the
+first VDC-capacitor solenoid trial. The paired replacements completed a clean seven-day
+logger run on July 24. VDC plus 10,000 uF remains the leading but not-yet-qualified
+solenoid path. The P105 external INAs are next scheduled for removal for a
+production-harness A/B.
 
 ## Purpose
 
@@ -27,10 +29,13 @@ no INAs, no Dupont leads, and no lux sensor.
 |---|---|---|---|
 | `9E5B0C` (historical) | P126 2 W, fixed 5.8 V; three full-bright single-channel R/G/B HEX pixels spiraling at 120 deg offsets | PowerFeather BQ/MAX17260 only; production cables | `net-bench-2026-07-10.1`; disassembled July 13 and board retired after header-rework failure |
 | `9F2690` (replacement) | Same P126/HEX profile plus manual D7/VDC solenoid strike | Onboard telemetry; production cables; 10,000 uF cap trial on panel-input adapter | `net-bench-2026-07-13.3`; safety-verified July 13; no-cap weak / cap-assisted strike qualitatively strong July 14 |
-| `9F26F8` | P105 5 W, fixed 4.6 V; one rail-fed 4 W RGBW point source, RGB full/W off | PowerFeather telemetry and TSL2591; external-INA status must be recorded at physical swap | `net-bench-2026-07-14.1`; OTA verified, physical HEX-to-RGBW swap pending before dusk |
+| `9F26F8` | P105 5 W, fixed 4.6 V; one rail-fed 4 W RGBW point source, RGB full/W off | PowerFeather telemetry and TSL2591; external-INA status at swap was not recorded | `net-bench-2026-07-14.1`; OTA verified and RGBW installed before dusk July 14 |
 
 P126 logger:
 `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`.
+
+Completed paired seven-day logger:
+`ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
 
 P105/P126 share the master/logger, so the same file also captures the P105 peer after
 the July 10 P126 deployment. Earlier P105 history is in the July 3-8 field-cycle files
@@ -135,6 +140,43 @@ tolerance to document the derating margin of the successful 16 V part.
   and firmware reapplied the full LED load until the next POR. A power-path I2C glitch
   can create the same reset signature, so the loop breaker must be independent of the
   initiating cause.
+
+### Seven-day P126 follow-up -- do not size from the artificial show window
+
+The clean 604,800-second paired logger run from 2026-07-17 10:18 PDT through
+2026-07-24 10:18 PDT extended the weather range. Integrating fresh telemetry into seven
+consecutive 24-hour windows gives the replacement P126 fixture approximately:
+
+| Quantity | Seven-day total |
+|---|---:|
+| BQ/fixture input | 52.3 Wh |
+| Positive battery charge | 35.0 Wh |
+| Battery discharge/load | 48.6 Wh |
+| As-run battery balance | -13.6 Wh |
+
+Some individual windows have 18.5-22.0 hours of usable telemetry, so the affected
+daily values are lower-confidence. The week-level interpretation is nevertheless
+clear: the no-lux bench policy still kept the LEDs on for roughly 13-15 hours on most
+complete nights, close to the earlier directly measured 14.773-hour session. That is
+not the production show duration.
+
+At the measured 157.7 mA average whole-fixture draw, a scheduled 9-hour show is about
+1.42 Ah / 4.6 Wh and a 10-hour show is about 1.58 Ah / 5.1 Wh. Normalizing the same
+seven days to that 9-10 hour production window yields roughly 32-36 Wh of load versus
+about 35 Wh charged. Therefore:
+
+- the literal bench result ("every 24-hour window energy-negative") is true for the
+  overlong as-run show;
+- it is not evidence that the P126 2 W production role is undersized;
+- this weather week is approximately break-even after schedule normalization, with
+  little poor-weather margin and some telemetry uncertainty;
+- future charts and sizing summaries must show both the as-run bench load and the
+  schedule-normalized production load.
+
+Production direction as of 2026-07-26 is deterministic scheduled dusk/dawn operation
+from a sparse fleet of external GPS/GNSS and battery-backed RTC time anchors (ADR 0031),
+not continued refinement of panel-current-only dusk inference. Local panel/lux
+telemetry remains useful for diagnostics and optional degraded-mode policy.
 
 ## P126 MPP and daily harvest
 

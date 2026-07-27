@@ -54,6 +54,12 @@ TMF8820-mini multizone ToF; perimeter lights carry an outward VL53L5CX. Fused IM
 were rejected (per-device calibration doesn't scale to 150 units). A **noisemaker**
 axis is in exploration (speaker synth vs solenoid bamboo-strike -- open).
 
+**Production show timing is scheduled** (ADR 0031): four purchased SAM-M8Q modules
+are the initial GPS/GNSS soft anchors for absolute UTC, and another TBD subset carries
+battery-backed external RTCs for holdover. ESP-NOW distributes time quality to the
+rest of the fleet, so all ~150 fixtures do not need RTCs. Panel/lux dusk inference
+remains useful bench telemetry but is not the production show clock.
+
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
 ## Goals
@@ -89,7 +95,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |   `-- <app>/             bench sketches (net_bench, power_bench, led_studio, ...)
 |-- docs/
 |   |-- block-diagram/     SYSTEM.md -- canonical architecture + fleet table
-|   |-- decisions/         ADRs 0001-0029
+|   |-- decisions/         ADRs 0001-0031
 |   |-- research/
 |   `-- tests/
 `-- ops/
@@ -111,19 +117,20 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## Status
 
-As of 2026-07-08: **production is locked on COTS PowerFeather V2 at ~150 fixtures in
+As of 2026-07-26: **production is locked on COTS PowerFeather V2 at ~150 fixtures in
 four classes (ADR 0024) and the bulk buy has largely happened** -- boards, batteries,
 panels, LEDs, and sensors are ordered or received (~$12.7k committed; ledger in
 `ops/PROCUREMENT.md`). The battery vendor is qualified n=2 with measured dim/off/sleep
 thresholds (ADRs 0025/0023); panels are selected and outdoor-measured (ADR 0026);
 sensors are chosen and allocated by class (ADR 0027); the LED electrical drive
-matrix is measured with the boost shelved and the RGBW feed decision open (ADR
-0029); and the two-month reboot mystery closed as a bus-integrity rule, sealed by a
-46-hour soak (ADR 0028).
+matrix is measured with the boost shelved and rail feed selected (ADR 0029); sparse
+GPS/GNSS plus external-RTC time anchors and deterministic scheduled shows are the
+production timing direction (ADR 0031); and the two-month reboot mystery closed as a
+bus-integrity rule, sealed by a 46-hour soak (ADR 0028).
 
 Remaining gates before Grass Valley assembly (~Aug 1): the bottom-up nightly energy
 budget by role, the uplight/chandelier power decision (solar vs 20 Ah vs 6 Ah), hat
 thermal/RF proof, cabling buys, the ADR 0023 state machine into production firmware,
-and the noisemaker verdict. Treat LFP SOC as advisory until the gauge learns; use
-coulomb counting and voltage/current guardrails. See `LOG.md` and `TODO.md` for the
-live state.
+GPS/RTC module/count/holdover and invalid-time qualification, and the noisemaker
+verdict. Treat LFP SOC as advisory until the gauge learns; use coulomb counting and
+voltage/current guardrails. See `LOG.md` and `TODO.md` for the live state.

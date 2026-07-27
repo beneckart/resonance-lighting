@@ -28,7 +28,8 @@ integration and hardening, not architecture:
    tie; new uplight/chandelier enclosure variants (battery-in-cylinder, USB-C port).
 4. **Firmware productization:** ADR 0023 low-battery state machine, production OTA
    health/rollback, watchdog, telemetry schema, sensor + choreography integration,
-   and the RGBW feed decision (rail vs VBAT -- forks harness + pinout, ADR 0029).
+   scheduled UTC show lifecycle from sparse GPS/RTC anchors (ADR 0031), and the
+   already-decided rail-fed RGBW path (ADR 0029).
 5. **Procurement completion:** effectively done as of ~07-13 -- boards, cabling
    abundance, 172 COTS enclosures, USB-C ports, RGBW top-up all ordered. Remaining:
    conditional 20 Ah cells + end-caps (sample 2 gates) and solenoid strike-power
@@ -38,7 +39,7 @@ integration and hardening, not architecture:
 
 ## Phase 0 - Documentation And Decision Correction
 
-**Status:** Done through ADR 0029, with living TODOs for implementation.
+**Status:** Done through ADR 0031, with living TODOs for implementation.
 
 Delivered:
 
@@ -58,6 +59,8 @@ Delivered:
 - Selected the sensor architecture: MSA311 + multizone ToF by class (ADR 0027).
 - Recorded the power-management bus-integrity rules from the reboot hunt (ADR 0028).
 - Recorded the measured LED electrical drive per role; shelved the boost (ADR 0029).
+- Selected deterministic scheduled shows from sparse GPS/GNSS and battery-backed
+  external-RTC time anchors; all fixtures do not need RTCs (ADR 0031).
 
 ## Phase 1 - COTS Bench And Sizing Campaign
 
@@ -97,9 +100,11 @@ Open deliverables:
 - [ ] Choose MPPT policy: fixed, temperature-compensated, or software P&O
   (`--field-mppt` perturb firmware built, not yet deployed).
 - [ ] Re-derive nightly power budget bottom-up by LED role and show duty cycle.
+- [ ] Qualify the four purchased SAM-M8Q GPS anchors, select external-RTC anchors, and
+  implement the ADR 0031 time-quality/schedule path without Starlink.
 - [x] Finish HEX 4.2 V boost bench test. (2026-07-02 campaign: boost NOT worth it for
-  HEX at healthy SOC; boost shelved; RGBW rail-vs-VBAT feed measured but the
-  production decision is open -- ADR 0029. The boosted-build count/current cap is
+  HEX at healthy SOC; boost shelved; the July 11 production-cabling A/B selected the
+  3V3 rail for RGBW too -- ADR 0029. The boosted-build count/current cap is
   moot unless the boost is revived.)
 - [ ] Capture keeper `led_studio` settings and gobo photos for both LED roles.
 - [~] Decide HEX/RGBW type mix and placement. (Fleet plan recorded 2026-07-08 --
@@ -303,6 +308,7 @@ Deliverables:
 | 20 Ah solar-free decision starves uplight/chandelier build time | Medium | Bench test on samples ASAP; fallback is budgeted 6 Ah cells already on hand (175 bought). |
 | Cabling/connector buy (JST-XH, USB-C ports) not yet placed | Medium | Small-dollar, short-lead items -- order once counts firm; tracked in the to-buy queue. |
 | Firmware bug discovered after hanging | High | Standard OTA, A/B rollback, watchdog, USB/pogo recovery, spares. |
+| Invalid/stale fleet time starts or extends the wrong show | High | Redundant GPS/RTC anchors, source-age/uncertainty checks, versioned UTC schedule, bounded invalid-time fallback, no-Starlink partition/POR tests (ADR 0031). |
 | Hat/rope attachment unresolved | Medium | Hybrid primary-hat plus secondary-bamboo safety tie is current recommendation; align with team. |
 
 Retired risks: HEX-boost destructive all-pixel current (boost shelved -- ADR 0029);

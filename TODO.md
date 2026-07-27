@@ -59,6 +59,62 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
+- [~] **Finish DFR0991 local-solenoid-button validation on P126 `9F2690`:** firmware
+  support is OTA-deployed in `net-bench-2026-07-16.3`, but the first post-OTA probe
+  reported `present=false`/address 0. Verify the Gravity PH2.0-to-STEMMA adapter has
+  3V3/GND/SDA/SCL in the correct order and is seated on the PowerFeather STEMMA/Wire1
+  connector. Yellow -> SCL and blue -> SDA are confirmed; next measure red/black at
+  the button while VSQT is awake and inspect the female Dupont contacts. **Power is
+  now confirmed at 3.3 V on the button board.** One 3.33 V `brownout` occurred during
+  the post-reseat maintenance catch but likely came from accidentally bridging 3V3/GND
+  with meter probes. Next, with power removed, continuity-check yellow -> C/SCL and
+  blue -> D/SDA and verify neither data line is shorted. Then wake/reset the peer,
+  confirm telemetry detects `0x23`-`0x2A`, and
+  physically validate one 40 ms D7 strike per press/release. Do not claim the I2C
+  trigger proven until that press test passes (Ben/Codex).
+  **2026-07-16 `.4` diagnostic:** power and continuity pass; the module ACKs at `0x2A`
+  (`ack_mask=0x80`) but returns PID `0x0000` after seven delayed probes instead of
+  `0x43DF`. Next measure INT-to-GND at 3.3 V idle/pressed. If INT toggles, wire it to a
+  confirmed-free 3.3 V GPIO and use a debounced digital trigger; if not, isolate/test
+  or replace the module. Do not apply 5 V to the live ESP32 I2C/INT lines.
+- [~] **Physically validate the SparkFun PRT-27576 Qwiic Navigation Switch DOWN
+  trigger on P126 `9F2690`:** opt-in `--solenoid-d7` firmware probes PCA9554 addresses
+  `0x20`-`0x27` read-only, accepts the expected five input/non-inverted switch bits,
+  and maps debounced active-LOW DOWN/GPIO1 to the normal guarded 40 ms strike. Confirm
+  telemetry presence/address, one strike per DOWN press/release, no repeats while
+  held, maintenance suppression, and normal field-cycle sleep/rejoin. INT is
+  deliberately unused, so this is an awake-only trigger; USER remains the wake path.
+  (Ben/Codex).
+
+- [x] **Make field logging outage-safe -- DONE 2026-07-17:** `net_bench_log.py` now
+  exclusive-creates by default and refuses an existing output before binding/listening.
+  `--append` validates the first/last JSON rows, inherits the original run identity, and
+  writes a numbered resume boundary; `--overwrite` is the only destructive mode. Every
+  new data row carries its segment index/start timestamp. Five focused tests cover
+  create/refuse/resume/malformed-tail/overwrite behavior. A fresh seven-day P105/P126
+  segment is live at `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-
+  weather-range-r2.jsonl`; dashboard and logger restart commands are documented in the
+  net-bench README. The July 15 Windows Update reboot exposed the old failure (Ben/Codex).
+- [ ] **Retain the previous completed field-cycle summary across sunrise:** current
+  firmware resets cycle Ah/Wh/min/max at `fieldCycleStartNewCycle()`. If the host is
+  absent across dawn, the exact completed-night endpoint is gone by reconnection even
+  though RTC counters survived the outage. Snapshot the previous cycle number, phase
+  durations, charge/discharge Ah/Wh, min/max VBAT, peak powers, DIM/PROTECT/reset
+  outcome, and completion reason before reset; expose it in heartbeat/telemetry with a
+  validity marker. Avoid per-second NVS writes (Ben/Codex).
+- [ ] **Implement and qualify sparse GPS/RTC time anchors plus scheduled shows
+  (ADR 0031):** production direction is deterministic site/date UTC start/stop, not
+  panel-current consensus. Four SAM-M8Q modules are already bought as GPS soft anchors
+  for absolute UTC; fit battery-backed external RTCs to another TBD subset for
+  holdover. Distribute source/age/uncertainty over ESP-NOW so all 150 fixtures do not
+  need time hardware. Qualify the SAM-M8Qs through the real hat/panel/battery geometry;
+  select the RTC module and final anchor counts; measure acquisition energy, RTC
+  drift/backup current across temperature, and local-clock holdover; define schedule
+  versioning, safe slew/correction, POR and partition recovery, and the
+  invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
+  real overnight scheduled cycle before production use. Keep the SAM-M8Q
+  autolocation/true-north benefits in the same anchor plan rather than treating the
+  four receivers as separate inventory. (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
   load, and thresholds unchanged for the first complete dusk/show/recovery cycle.
@@ -248,7 +304,14 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
         show on well before visual sunset and leaves it on until useful morning input.
         Use a provisional 9-10 h production HEX show window for the next emulation:
         during the Aug 30-Sep 7 event, civil dusk to civil dawn is about 9 h 53 min to
-        10 h 15 min at Black Rock Desert. Exact schedule/trigger remains open. (Ben/Codex)
+        10 h 15 min at Black Rock Desert. **SEVEN-DAY FOLLOW-UP 2026-07-17 through
+        07-24:** the artificial 13-15 h P126 policy consumed about 48.6 Wh while about
+        35.0 Wh reached the battery. Normalizing the same week to a scheduled 9-10 h
+        show gives roughly 32-36 Wh of load, so the 2 W role was approximately
+        break-even, not proven undersized. Future plots must show both as-run and
+        schedule-normalized load. **PRODUCTION TRIGGER DECIDED 2026-07-26:** use sparse
+        GPS/GNSS plus battery-backed RTC anchors and explicit UTC show windows per
+        ADR 0031; implementation/qualification remains open. (Ben/Codex)
       - [ ] Repeat the clean overnight capture after host-power reliability is fixed: the first production-cabling run has a 13 h 04 min laptop-suspend gap (2026-07-10 18:20 -> 2026-07-11 07:25 PDT). Device-retained counters preserve the total, but the overnight time series is missing. (Ben/Codex)
       - [x] **Observe the P126 daily harvest range until this peer is needed elsewhere:**
         leave `net-bench-2026-07-10.1` and fixed 5.8 V in place rather than OTA solely
@@ -260,23 +323,27 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
         13. The old-board record remains under fixture `9E5B0C`; do not splice replacement
         `9F2690` samples into that fixture history without an explicit run boundary.
         (Ben/Codex)
-      - [~] **Paired P105/P126 seven-day weather-range capture -- running from 2026-07-13
-        21:19 PDT:** `net_bench_log.py` is writing both `9F26F8` (P105 5 W) and
-        replacement `9F2690` (P126 2 W) to
-        `ops/bench/data/ca/2026-07-13-ca-field-cycle-9F26F8-9F2690-weather-range-r1.jsonl`
-        for 604800 s. After each complete local day, sum monotonic corrected charge and
-        discharge counter increments per peer, report charge/discharge/net Ah and Wh,
-        phase durations, minimum loaded VBAT, and resets/dim/protect. Segment counter
-        decreases/cycle changes rather than trusting endpoint subtraction; ignore gauge
-        SOC. Use P105 lux/panel-temperature/RH plus its charger-input curve as the shared
-        sunny/cloudy/overcast proxy for the adjacent panels. (Ben/Codex)
-      - [~] **Literal P105 + production RGBW ceiling run:** OTA-deployed
+      - [x] **Paired P105/P126 seven-day weather-range capture -- complete
+        2026-07-17 10:18 -> 2026-07-24 10:18 PDT:** the clean 604800 s logger run is
+        `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
+        Approximate corrected totals were 113 Wh panel input, 94 Wh positive battery
+        charge, 102 Wh load, and -8 Wh battery net for P105; P126 measured 52 Wh panel
+        input, 35 Wh positive battery charge, 49 Wh load, and -14 Wh battery net.
+        Neither peer reported an active BQ fault. The P126 result is an intentionally
+        severe 13-15 h show, not a production-sizing result: at its observed load,
+        scheduled 9-10 h nights normalize to about 32-36 Wh/week versus about 35 Wh
+        charged. Preserve both as-run and schedule-normalized views in future analysis.
+        (Ben/Codex)
+      - [x] **Literal P105 + production RGBW ceiling run -- complete:** OTA-deployed
         `net-bench-2026-07-14.1` to `9F26F8` on July 14 with fixed 4.6 V P105 policy,
         one rail-fed `NEO_RGBW` pixel on A0/GPIO10, `R=G=B=255`, `W=0`, brightness
-        255, and all dusk/dawn/load-protection settings otherwise unchanged. Ben will
-        physically replace the HEX before dusk. Compare the complete night Ah/Wh,
-        loaded VBAT, DIM/PROTECT/reset behavior, and next-day refill/taper against the
-        July 13-14 18-pixel HEX stress cycle. (Ben/Codex)
+        255, and all dusk/dawn/load-protection settings otherwise unchanged. The RGBW
+        was installed before dusk and drew about 1.35-1.4 W, or roughly 14-16 Wh on
+        the long bench nights. Across the seven-day follow-up, P105 supplied about
+        94 Wh of positive battery charge against about 102 Wh of load and reached
+        protect after the cloudier deficit. Full RGB all night is therefore a useful
+        ceiling test, not yet the production show budget; duty cycle and brightness
+        still need to be set bottom-up by fixture role. (Ben/Codex)
     - [ ] **Re-run P105 5 W with a hungry larger LFP**: use the 6-7.2 Ah cell intentionally discharged to roughly the mid-SOC voltage region (about 3.25-3.40 V resting, not 3.55+ V while charging), hold around `m46`/`m48`, and confirm whether panel-side power can climb beyond the 3.8-3.9 W seen with the 2 Ah cell. Goal: separate panel capability from cell IR/CV-taper demand limiting. (Ben)
     - [ ] **Analyze 7200 mAh HEX drawdown run before the next P105 test**: data path
       `ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl`; record stop
@@ -441,7 +508,18 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
   cap now leads; quantify it and complete the qualification list above before the formal
-  candidate/harness verdict. (Ben).
+  candidate/harness verdict. **JULY 16 LOCAL CONTROL:** corrected
+  `net-bench-2026-07-16.2` is OTA-deployed to `9F2690`; one debounced PowerFeather
+  USER/GPIO0 press now wakes the peer if needed and requests the same fail-safe 40 ms
+  D7 strike, with physical-release re-arm and maintenance suppression. The first `.1`
+  implementation woke once but its RTC-retained re-arm state could remain disarmed after
+  re-sleep; `.2` removes that state, treats EXT0 wake itself as the one-shot event, and
+  re-enables EXT0 before every sleep only when GPIO0 is actually HIGH. Physical repeat
+  validation remains: sleep -> press/strike -> re-sleep -> press/strike, plus no held-
+  button loop, normal ESP-NOW rejoin, and no BQ/reset fault. The DFR0991 illuminated I2C
+  button is an optional awake-mode trigger; its separate active-HIGH INT pin could wake
+  an RTC GPIO only if the module remains powered, while current field sleep cuts both
+  external 3V3 rails. (Ben/Codex).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
@@ -674,8 +752,8 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 - [ ] Confirm perimeter VL53L5CX **mount downtilt** with Steve: at 5 ft with ~4 m
   range, ground zones need ~15 deg downtilt for the plane-fit height anchor the
   study assumes (Steve).
-- [ ] **ADR 0030 after Ben reviews the verdict**: fixture auto-location = RSSI+ToF
-  (+beacons) / photogrammetry / manual -- decision + consequences (Ben).
+- [ ] **Write an ADR after Ben reviews the verdict**: fixture auto-location =
+  RSSI+ToF (+beacons) / photogrammetry / manual -- decision + consequences. (Ben).
 
 ## Field reliability concerns (surfaced 2026-06-04 -- important for the deployed lantern)
 
@@ -817,20 +895,17 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
     The original P126 peer remained on `.1`; replacement `9F2690` received `.3` by USB
     on July 13 and now carries the same durable reset/protect logic. Hardware fault
     injection during its lighter three-pixel load remains unvalidated. (Ben/Codex)
-- [~] Add a production dusk/dawn light-enable gate instead of using the field-cycle
-  bench shortcut "charger input disappeared == dark." Current net_bench field-cycle
-  enters draw when `fieldCycleSupplyPresent()` is false (`csV >= 4.0 V` and useful
-  input/charge current >= 20 mA), so clouds, shade, panel angle, or taper can turn the
-  lights on before visual dusk. Production should require a sustained low-light/low-panel
-  window with hysteresis before enabling LEDs: calibrate panel INA watts/current/voltage
-  and optional TSL/lux from field logs, then use separate dusk-on and dawn-off thresholds
-  plus a multi-minute confirm so temporary shade does not start the night show early
-  **P105 BENCH IMPLEMENTATION DEPLOYED 2026-07-12:** TSL2591 peers now require five
-  minutes at <=200 lux for dusk and use >=500 lux for dawn; peers without TSL fall
-  back to 30 minutes without useful charger input. The first post-OTA five-minute
-  charge sleep stayed in the same charge cycle at 5,388-5,812 lux despite low input.
-  Production sensor/time-source policy and tonight's actual transition remain open.
-  (Ben/Codex).
+- [~] Replace the field-cycle dusk/dawn shortcut with the ADR 0031 scheduled production
+  gate. Current net_bench enters draw from local panel/lux classification:
+  `fieldCycleSupplyPresent()` requires `csV >= 4.0 V` plus useful input/charge current
+  >=20 mA; TSL2591 peers use five minutes at <=200 lux and >=500 lux for dawn; bare
+  peers use 30 minutes without useful input. These remain useful bench classifiers, but
+  clouds, shade, panel angle, charge taper, or moving a fixture can still start early,
+  and bare peers have produced 13-15 h shows. Production should wake before a versioned
+  UTC transition, reacquire time from sparse GPS/RTC anchors, start/stop on schedule,
+  and expose source/age/uncertainty. Panel/lux telemetry becomes a sanity check and
+  optional explicitly bounded degraded-mode input. Exact invalid-time fallback remains
+  open; it must not silently recreate the artificial long show. (Ben/Codex).
   - [x] **Confirmed failure mode 2026-07-11/12:** charge termination drives both
     `supply_ma` and `battery_ma` below 20 mA while panel voltage remains high, so the
     peer declares false dark, pulses the LED load, then declares sunrise when current
