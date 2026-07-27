@@ -157,9 +157,15 @@ bigcaps = []
 for i, cx in enumerate(CAP_CENTERS):
     fp = place("Capacitor_THT", "CP_Radial_D18.0mm_P7.50mm", f"C{i+2}",
                cx - CAP_PITCH / 2, CAP_Y, value="22000u 16V")
-    for m in fp.Models():   # true-height 35.5mm can for the 3D viewer (cosmetic)
-        m.m_Filename = m.m_Filename.replace("CP_Radial_D18.0mm_P7.50mm",
-                                            "C_Radial_D18.0mm_H35.5mm_P7.50mm")
+    # True-height 35.5mm can (the library default for this footprint is a 20mm
+    # model). Rebuild the list: mutating fp.Models() entries in place is a
+    # no-op because the iterator hands back copies.
+    tall = pcbnew.FP_3DMODEL()
+    tall.m_Filename = ("${KICAD10_3DMODEL_DIR}/Capacitor_THT.3dshapes/"
+                       "C_Radial_D18.0mm_H35.5mm_P7.50mm.step")
+    tall.m_Scale.x = tall.m_Scale.y = tall.m_Scale.z = 1.0
+    fp.Models().clear()
+    fp.Models().push_back(tall)
     bigcaps.append(fp)
     for pad in fp.Pads():
         pad.SetShape(pcbnew.PAD_SHAPE_OVAL)
