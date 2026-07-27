@@ -5,8 +5,8 @@ Geometry: the woven-tree mesh extracted from the viewer's embedded Draco glb
 (data/tree_mesh.ply, Y-up glTF frame) transformed to the study frame (meters,
 tree-centered, Z-up, height 6.66 m). Sun: the 84 shipped 10-min slot unit
 vectors from solar_phase2_data.json (point TOWARD the sun, Z-up). Panels:
-0.5 x 0.35 m rectangles (the SketchUp SOLAR_LIGHT panel), sampled on an NxM
-grid, each sample raytested toward the sun -- fraction unoccluded = lit.
+0.127 x 0.089 m rectangles (the true 5" x 3.5" SOLAR_LIGHT panel), sampled on
+an NxM grid, each sample raytested toward the sun -- fraction unoccluded = lit.
 
 Validation target: the shipped per-panel `lit` arrays (see validate_lit.py).
 """
@@ -17,8 +17,8 @@ import numpy as np
 import trimesh
 
 TREE_HEIGHT_M = 6.66
-PANEL_W = 0.50          # m (SketchUp model panel: 2*0.25 x 2*0.175)
-PANEL_H = 0.35
+PANEL_W = 0.127         # m (true SOLAR_LIGHT panel 5" x 3.5"; the 0.50 x 0.35
+PANEL_H = 0.089         # stand-in was the .rb fallback branch -- RERUN_2026-07-27)
 SAMPLE_GRID = (7, 5)    # across W, H -> 35 rays per panel per slot
 EPS_ALONG_RAY = 0.004   # ~0.15 in self-hit offset, as the .rb does
 

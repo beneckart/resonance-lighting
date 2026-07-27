@@ -10,10 +10,10 @@ Raytraces every placement position against the woven-tree mesh (84 shipped
 face-up panels at attach + 0.109 m (the phase-2 canopy convention); a
 placement entry may carry "n": [x,y,z] to override.
 
-Calibration status (see README.md): ranking vs the SketchUp reference is
-excellent (Spearman 0.92-0.96 across all 94 panels); absolute lit runs ~10
-points conservative -- use for RELATIVE layout comparison, and the SketchUp
-rerun for bankable Wh.
+Calibration status (see README.md): ranking vs the 88-panel SketchUp
+reference is good (wh Spearman 0.82); absolute energy ~15% conservative
+(occluder-mesh residual) -- use for RELATIVE layout comparison, and the
+SketchUp rerun for bankable Wh.
 """
 
 import argparse
@@ -46,7 +46,7 @@ def main():
     ap.add_argument("--placement", help="placement JSON (canopy_positions_corrected"
                                         " format: [{fixture_id|id, pos_m, [n]}...])")
     ap.add_argument("--validate", action="store_true",
-                    help="score the shipped 94-panel set and compare")
+                    help="score the shipped 88-panel reference set and compare")
     ap.add_argument("--out", help="write per-light results JSON here")
     args = ap.parse_args()
 

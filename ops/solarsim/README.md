@@ -11,7 +11,7 @@ for solar access in the same loop as gobo spacing and localization geometry.
   partial-shade mismatch, calculated heat derate normalized to Ben's bench
   full-sun measurement, x0.95 dust, x0.63 field-cycle chain into the cell,
   /1.364 W measured full-RGBW draw).
-- `solar_score.py` -- CLI: `--validate` (compare against the shipped 94-panel
+- `solar_score.py` -- CLI: `--validate` (compare against the shipped 88-panel
   phase-2 dataset) or `--placement <json>` (score any placement; format =
   `canopy_positions_corrected.json` on the solar-visualizer-lights branch).
 - `data/tree_draco.glb` + `data/tree_mesh.ply` -- the woven-tree occluder
@@ -25,21 +25,28 @@ Deps: numpy, trimesh, embreex, rtree, DracoPy (all user-site installed
 
 ## Calibration status -- read before quoting numbers
 
-Validated against the SketchUp reference on the shipped 94-panel set:
+Panel footprint fixed 2026-07-27: true 5"x3.5" (0.127x0.089 m) SOLAR_LIGHT
+panel; the old 0.50x0.35 m stand-in (the .rb fallback branch) cost ~16 pts of
+absolute energy. Validated against the regenerated 88-panel corrected-canopy
+reference (branch solar-visualizer-lights, RERUN_2026-07-27.md):
 
-- position RANKING: excellent (daylight-lit Spearman 0.92-0.96 by class;
-  wh_day_batt Spearman 0.87).
-- ABSOLUTE energy: ~30% conservative (mean lit ~10 points lower than the
-  reference on canopy; the lit^2 term compounds it). Likely cause: occluder-
-  set differences between the web-viewer mesh and the .skp model state used
-  for the reference run (layer visibility unknowable from here).
+- position RANKING: good (wh_day_batt Spearman 0.82, Pearson 0.85).
+- ABSOLUTE energy: ~15% conservative (median wh ratio 0.85), localized:
+  - power chain: near-exact given the reference lit+svf (ratio 0.95,
+    Pearson 0.98; remainder is the shipped arrays' rounded lit ints and the
+    mismatch flip at lit=1.0 -- bit-exact impossible per RERUN note).
+  - raytrace: our occluder mesh (web-viewer Draco extract) over-occludes vs
+    the now-pinned .skp reference state (SOLAR_REF hidden, everything else
+    visible incl SITE_CONTEXT): mean lit -9 pts, svf -9 pts.
 
 Use this tool to COMPARE layouts and rank positions. For bankable Wh, re-run
 the SketchUp pipeline (turnkey on branch solar-visualizer-lights:
 `src/canopy_setup_phase2_corrected.rb` + `solar_access_analysis.rb`).
 
-First result (data/corrected-canopy-score-2026-07-17.json): the corrected
-72-position canopy scores median 7.1 Wh/day into the cell (our conservative
-scale); the 6 relocated ex-stray lights go from Elliot's "6-30 min sun, must
-move" to 1.4-2.4 h full-brightness runtime -- viable but still the weakest
-positions (inner/south fills).
+First result (data/corrected-canopy-score-2026-07-17.json, old 0.50x0.35
+footprint): the corrected 72-position canopy scores median 7.1 Wh/day into the
+cell; the 6 relocated ex-stray lights go from Elliot's "6-30 min sun, must
+move" to 1.4-2.4 h full-brightness runtime. SUPERSEDED by the SketchUp
+reference rerun (RERUN_2026-07-27.md): the fills bank 3.3-8.7 h; with the
+fixed footprint this sim scores them 2.0-7.7 h in the same order (weakest
+CL-I29 NNW).
