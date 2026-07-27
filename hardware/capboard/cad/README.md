@@ -6,6 +6,8 @@ Generated from `../build/capbank.kicad_pcb`. Regenerate with:
 python3 generate_capboard.py
 kicad-cli pcb export step --subst-models --no-dnp -o cad/capbank-v1.0.step build/capbank.kicad_pcb
 kicad-cli pcb export step --board-only -o cad/capbank-v1.0-board-only.step build/capbank.kicad_pcb
+kicad-cli pcb export step --subst-models --no-dnp --include-silkscreen --include-soldermask \
+    -o cad/capbank-v1.0-silkscreen.step build/capbank.kicad_pcb
 kicad-cli pcb export dxf --layers Edge.Cuts --output-units mm -o cad/ build/capbank.kicad_pcb
 kicad-cli pcb export vrml -o cad/capbank-v1.0.wrl build/capbank.kicad_pcb
 ```
@@ -13,9 +15,20 @@ kicad-cli pcb export vrml -o cad/capbank-v1.0.wrl build/capbank.kicad_pcb
 | File | What it is | Use for |
 |---|---|---|
 | `capbank-v1.0.step` | full board + all component solids | clearance, plate fitting, assembly mock-ups |
+| `capbank-v1.0-silkscreen.step` | full board **+ silkscreen + soldermask** as flat faces | pretty renders — shell mark, labels, green mask |
 | `capbank-v1.0-board-only.step` | bare PCB, no components | quick reference / lightweight import |
 | `capbank-Edge_Cuts.dxf` | outline, slots, holes (2D, mm) | plate cutouts, drill patterns, laser |
 | `capbank-v1.0.wrl` | VRML with colors | viewers that prefer VRML over STEP |
+
+## Silkscreen variant
+
+`capbank-v1.0-silkscreen.step` (3.7 MB vs 1.3 MB) carries the artwork as flat
+faces, including the full-back shell mark. It imports with two extra named
+bodies — **`capbank_silkscreen`** and **`capbank_soldermask`** — so in Fusion
+you can select each and set an appearance (white silk, green mask) rather than
+hand-tracing anything. Geometry is identical to `capbank-v1.0.step`; the mask
+faces sit a hair proud of the board face, so for interference checks or
+anything dimensional, prefer the plain export.
 
 ## Key dimensions
 
