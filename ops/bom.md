@@ -15,7 +15,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Battery lead / retention | 1 | XH cabling BOUGHT ~07-12/13 (abundance, multiple lengths) | Keyed, vibration-tolerant; no per-unit crimping (ADR 0009). Final lengths chosen at integration from the on-hand variety. |
 | LED harness | 1 | XH cabling BOUGHT ~07-12/13 (same abundance; incl. 160x 5-pin Y-splitters) | RGBW feed DECIDED rail-fed (ADR 0029 amendment 2026-07-11): one harness + one pinout for both LED roles. |
 | Waterproof USB-C panel-mount rescue port | 1 | Adafruit, 150 bought 07-10 | Extension cable from the PowerFeather USB-C to a gasketed panel-mount port on EVERY hat -- USB rescue/charging without opening the enclosure; solar-free classes charge through it. |
-| Hat enclosure + fasteners | 1 | **BOUGHT 07-13: 172x Polycase enclosures + screws** (111 large + 61 small, incl. 2 transparent-lid demo units) | Large -> downlight hats (<=110); small -> perimeter hats + uplight "boots" (<=60 combined). Steve owns mechanical integration (panel mount, USB-C gasket cutout, ToF windows, bamboo clamp, uplight wing hinge). Chandelier lights get a carpenter-built box (team-side). |
+| Hat enclosure + fasteners | 1 | **BOUGHT 07-13: 172x Polycase enclosures + screws** (111 large + 61 small, incl. 2 transparent-lid demo units) | Large = **Polycase ML-70F\*15** (10x7x4 in) -> downlight hats (<=110); small = **Polycase HN-57-03** (NEMA 4x, 6.7x5x3 in) -> perimeter hats + uplight "boots" (<=60 combined). Panel flush with the lid (raised a few mm for the DC-cable bump); light + ToF flush with the bottom. Steve owns mechanical integration (panel mount, USB-C gasket cutout, ToF windows, bamboo clamp, uplight wing hinge). Chandelier lights get a carpenter-built box (team-side). |
 | Firmware | one image | this repo | Runtime/NVS config only; no per-unit builds (ADR 0009). |
 
 ## Per-class additions
@@ -35,6 +35,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Item | Per fixture | Source / status |
 |---|---|---|
 | SK6812 HEX | 1 | M5Stack, 90 bought (70+20; plus 20 NeoHEX fallback units) |
+| Gobo / patterned filter ("dancing gobo") | 1 | Steve print program -- stepping the single lit HEX pixel around the board shifts the apparent pattern on the ground (corrected 07-27: perimeter DOES carry a gobo) |
 | Grove/HY2.0 breakout (HEX connector adaptation) | 1 | 125 bought: 70x RobotShop 06-18 (at Steve's) + 55x Electromaker 07-10 |
 | Voltaic P126-class 2 W panel + pigtail | 1 + 1 | Voltaic, 50 panels bought |
 | VL53L5CX ToF, facing outward + protective cover | 1 + 1 | Mouser 48 + Gilisymo 60 covers bought |

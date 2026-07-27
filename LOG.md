@@ -12,7 +12,39 @@ Body. What changed, what was decided, what's next.
 
 ---
 
-## 2026-07-26 -- Ben + Codex -- Seven-day solar result normalized; scheduled GPS/RTC timing adopted
+## 2026-07-27 -- Ben + Claude -- Gobo roles corrected; enclosure SKUs pinned; solarsim footprint fix validated against Elliot's rerun
+
+**Gobo role correction (Ben):** perimeter fixtures DO carry gobos -- HEX + gobo,
+the "dancing gobo": stepping the single lit pixel around the HEX board shifts the
+apparent pattern on the ground. No gobo on trunk lights or chandelier (uplights
+already correct). bom.md, SYSTEM.md, and the glossary said bare HEX on perimeter;
+fixed.
+
+**Enclosure figures pinned (Ben):** large = Polycase ML-70F*15 (10x7x4 in, NEMA;
+72 downlights), small = Polycase HN-57-03 (6.7x5x3 in, NEMA 4x; perimeter +
+trunk/uplight boots). Panel sits flush with the lid (raised a few mm for the
+DC-cable bump on the panel back); light + ToF sit flush with the enclosure
+bottom -- so the source hangs 4 in under the panel on downlights, 3 in on
+perimeter, not the 6 in previously assumed from the 07-24 "deep LED drop" note.
+
+**Solarsim panel-footprint fix:** per Elliot's RERUN_2026-07-27 finding, raytrace.py
+sampled the 0.50x0.35 m stand-in rectangle instead of the true 5x3.5 in SOLAR_LIGHT
+panel. Fixed (PANEL_W/H = 0.127/0.089); validated against the regenerated 88-panel
+corrected-canopy reference: median wh ratio 0.69 -> 0.85. Residual localized: power
+chain is near-exact given reference lit+svf (ratio 0.95, r 0.98); remaining ~10 pts
+is the web-viewer Draco occluder mesh over-occluding vs the pinned .skp layer state
+(SOLAR_REF hidden, all else visible incl SITE_CONTEXT). Details in ops/solarsim/README.
+
+**Rotator viewer rebaked + extended** (ops/solarsim/bake_rotator.py, new): 112-panel
+candidate + hinge variants + 36-angle rotation sweep all rebaked at the true
+footprint (fleet median 9.9 Wh/day batt; rotation stays energy-flat). New viz:
+gobo light cones (18.6 deg from 50 mm gobo at 6 in under the source) with overlap
+readout -- 96 overlapping pairs at modeled hangs vs 1 at -1 m; hang-height selector
+with re-raytraced Wh at -0.25/-0.5/-1.0 m (fleet median nearly flat, individual
+lanterns swing 2x; -1 m breaks the 7 ft rule on 24/72); 6 ft scale figure; ToF
+"baby monitor" FoV pyramids (TMF8820 down 60 deg 3x3, VL53L5CX outward 65 deg 8x8).
+Also fixed a header-row hover crash in the panel list (from the Wh/day column
+commit). All uncommitted pending the solar-visualizer-lights branch merge.
 
 Reviewed the completed 604,800-second P105/P126 logger
 `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
