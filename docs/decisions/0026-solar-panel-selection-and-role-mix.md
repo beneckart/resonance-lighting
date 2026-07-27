@@ -2,8 +2,14 @@
 
 **Date:** 2026-07-08 (records the 2026-06-24 purchase and the 2026-06-29 outdoor
 measurements)
-**Status:** Accepted for the solar-equipped classes. One sub-decision remains OPEN:
-whether uplights/chandelier go solar-free (shared with ADR 0025).
+**Status:** Accepted for the solar-equipped classes. ~~One sub-decision remains OPEN:
+whether uplights/chandelier go solar-free (shared with ADR 0025).~~
+Annotation 2026-07-15: RESOLVED -- uplights get a hinged solar "wing" on the boot
+(partial/shaded sun; likely the P105 5 W, which fits the 110-panel buy: ~96 needed
+for 72 downlights + ~24 wings) + the 6 Ah cell at a low-brightness budget tuned at
+the Nevada City prebuild. The 20 Ah solar-free option died on sourcing/timeline
+(ADR 0025 annotation). Chandelier stays likely-solar-free on 6 Ah + USB-C in its
+carpenter-built box.
 **Owners:** Ben
 
 ## Context

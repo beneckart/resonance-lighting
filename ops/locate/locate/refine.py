@@ -34,20 +34,29 @@ D_MIN = 1e-3
 class RefineConfig:
     sigma_link_db: float = 3.0
     sigma_o_db: float = 3.0
+    sigma_p0_db: float = 10.0    # P0 prior width; ~2-3 dB if a known-distance
+                                 # calibration pair was measured, 10+ = uncalibrated
     huber_delta: float = 1.5
+    loss: str = "huber"
     fit_n: bool = False
     sigma_n: float = 0.3
-    max_nfev: int = 300
+    max_nfev: int = 500
 
 
 def refine(X0: np.ndarray, links: List[LinkObs], anchors: List[ZAnchor],
-           pl0: PathLossParams, cfg: RefineConfig = None):
-    """Returns (X, offsets_db, pl_fit, diagnostics)."""
+           pl0: PathLossParams, cfg: RefineConfig = None,
+           offsets0: np.ndarray = None, p0_init: float = None):
+    """Returns (X, offsets_db, pl_fit, diagnostics). offsets0/p0_init allow
+    warm starts (rescue passes)."""
     cfg = cfg or RefineConfig()
     n_dev = len(X0)
     I = np.array([l.i for l in links])
     J = np.array([l.j for l in links])
     rssi = np.array([l.rssi_dbm for l in links])
+    # censored links (aggregated near the receiver floor) carry only "at least
+    # this far" information: one-sided hinge residual, active only when the
+    # model predicts a STRONGER signal than observed (pair placed too close)
+    cen = np.array([bool(l.censored) for l in links])
     a_idx = np.array([a.idx for a in anchors], dtype=int)
     a_z = np.array([a.z_m for a in anchors])
     a_sig = np.array([a.sigma_m for a in anchors])
@@ -71,9 +80,11 @@ def refine(X0: np.ndarray, links: List[LinkObs], anchors: List[ZAnchor],
         diff = X[I] - X[J]
         d = np.maximum(np.linalg.norm(diff, axis=1), D_MIN)
         r_link = (p0 - 10 * n_exp * np.log10(d) + o[I] + o[J] - rssi) / cfg.sigma_link_db
+        r_link = np.where(cen & (r_link < 0), 0.0, r_link)
         r_anchor = (X[a_idx, 2] - a_z) / a_sig if len(a_idx) else np.zeros(0)
         r_off = o / cfg.sigma_o_db
-        parts = [r_link, r_anchor, r_off]
+        parts = [r_link, r_anchor, r_off,
+                 np.array([(p0 - pl0.p0_dbm) / cfg.sigma_p0_db])]
         if cfg.fit_n:
             parts.append(np.array([(n_exp - pl0.n) / cfg.sigma_n]))
         return np.concatenate(parts)
@@ -83,20 +94,23 @@ def refine(X0: np.ndarray, links: List[LinkObs], anchors: List[ZAnchor],
         X, o, p0, n_exp = unpack(p)
         diff = X[I] - X[J]
         d = np.maximum(np.linalg.norm(diff, axis=1), D_MIN)
-        g = -(10 * n_exp / np.log(10.0)) * diff / (d ** 2)[:, None] / cfg.sigma_link_db
+        r_link = (p0 - 10 * n_exp * np.log10(d) + o[I] + o[J] - rssi) / cfg.sigma_link_db
+        act = np.where(cen & (r_link < 0), 0.0, 1.0)   # hinge: inactive rows zeroed
+        g = -(10 * n_exp / np.log(10.0)) * diff / (d ** 2)[:, None] \
+            / cfg.sigma_link_db * act[:, None]
 
         rows, cols, data = [], [], []
         lr = np.arange(n_links)
         for ax in range(3):
             rows.append(lr); cols.append(3 * I + ax); data.append(g[:, ax])
             rows.append(lr); cols.append(3 * J + ax); data.append(-g[:, ax])
-        one = np.full(n_links, 1.0 / cfg.sigma_link_db)
+        one = act / cfg.sigma_link_db
         rows.append(lr); cols.append(off0 + I); data.append(one)
         rows.append(lr); cols.append(off0 + J); data.append(one)
         rows.append(lr); cols.append(np.full(n_links, p0_col)); data.append(one)
         if cfg.fit_n:
             rows.append(lr); cols.append(np.full(n_links, n_col))
-            data.append(-10 * np.log10(d) / cfg.sigma_link_db)
+            data.append(-10 * np.log10(d) / cfg.sigma_link_db * act)
 
         r0 = n_links
         if len(a_idx):
@@ -107,6 +121,9 @@ def refine(X0: np.ndarray, links: List[LinkObs], anchors: List[ZAnchor],
         rows.append(orow); cols.append(off0 + np.arange(n_dev))
         data.append(np.full(n_dev, 1.0 / cfg.sigma_o_db))
         r0 += n_dev
+        rows.append(np.array([r0])); cols.append(np.array([p0_col]))
+        data.append(np.array([1.0 / cfg.sigma_p0_db]))
+        r0 += 1
         if cfg.fit_n:
             rows.append(np.array([r0])); cols.append(np.array([n_col]))
             data.append(np.array([1.0 / cfg.sigma_n]))
@@ -119,13 +136,13 @@ def refine(X0: np.ndarray, links: List[LinkObs], anchors: List[ZAnchor],
 
     p_init = np.concatenate([
         X0.ravel(),
-        np.zeros(n_dev),
-        [pl0.p0_dbm],
+        offsets0 if offsets0 is not None else np.zeros(n_dev),
+        [p0_init if p0_init is not None else pl0.p0_dbm],
         [pl0.n] if cfg.fit_n else [],
     ])
     res = least_squares(
         residuals, p_init, jac=jacobian, method="trf", tr_solver="lsmr",
-        loss="huber", f_scale=cfg.huber_delta, max_nfev=cfg.max_nfev, x_scale="jac",
+        loss=cfg.loss, f_scale=cfg.huber_delta, max_nfev=cfg.max_nfev, x_scale="jac",
     )
 
     X, o, p0, n_exp = unpack(res.x)

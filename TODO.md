@@ -39,8 +39,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   ~2026-07-12/13: 172x COTS enclosures + screws** ($5,306.50; 111 large for
   downlights/perimeter, 61 small for small-panel fit + uplight boots; 22 to TN,
   150 to CA). Record vendor/part details in `ops/PROCUREMENT.md` (TBC) (Ben).
-- [ ] Confirm LARGE enclosure count on receipt -- 111 vs 110-112 needed leaves
-  ~zero spares; decide top-up vs trim-to-38-perimeter (Ben + Steve).
+- [ ] Confirm Polycase counts on receipt (mapping corrected 2026-07-15: LARGE ->
+  downlights only, healthy spares at 72 planned; SMALL -> perimeter + uplight
+  boots, capped at ~60 vs a loose 62-64 sketch -- allocation flexes at
+  installation, Elliot flexible). Set aside the 2 transparent-lid demo units
+  (1 large + 1 small) for show-and-tell (Ben + Steve).
+- [ ] **Design the uplight hinged solar "wing"** (hinge + panel mount on the small
+  Polycase boot; likely carries the P105 5 W): mechanicals + hardware buy; then
+  low-brightness budget experiments at the NC prebuild decide the show level
+  (Steve + Ben).
 - [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
 - [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
 - [x] ~~Buy Grove breakout(s) for the HEX HY2.0 connector adaptation~~ -- **DONE,
@@ -105,11 +112,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Implement and qualify sparse GPS/RTC time anchors plus scheduled shows
   (ADR 0031):** production direction is deterministic site/date UTC start/stop, not
   panel-current consensus. Four SAM-M8Q modules are already bought as GPS soft anchors
-  for absolute UTC; fit battery-backed external RTCs to another TBD subset for
-  holdover. Distribute source/age/uncertainty over ESP-NOW so all 150 fixtures do not
-  need time hardware. Qualify the SAM-M8Qs through the real hat/panel/battery geometry;
-  select the RTC module and final anchor counts; measure acquisition energy, RTC
-  drift/backup current across temperature, and local-clock holdover; define schedule
+  for absolute UTC, and four Adafruit DS3231 STEMMA modules with backup batteries are
+  already bought as initial RTC holdover anchors. Distribute source/age/uncertainty
+  over ESP-NOW so all 150 fixtures do not need time hardware. Qualify the SAM-M8Qs
+  through the real hat/panel/battery geometry and the DS3231s across temperature,
+  reset, and backup-power cases; select final anchor counts; measure acquisition
+  energy, RTC drift/backup current, and local-clock holdover; define schedule
   versioning, safe slew/correction, POR and partition recovery, and the
   invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
   real overnight scheduled cycle before production use. Keep the SAM-M8Q
@@ -249,6 +257,8 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Test remaining production-relevant gobo/filter variants with HEX and 4 W RGBW
   point-source modules; keep older IS31/NeoHEX/FeatherS2/Atom data as historical
   fallback context only (Ben + Steve).
+- [ ] Test-print the 50 mm bamboo-leaf aperture in `enclosure/gobo-templates/`, photograph
+  its projection through the lantern rig, and widen slots if the slicer closes them (Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
 - [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; PCBA-friendly starter PCB exists, schematic remains (Ben).
@@ -455,25 +465,30 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## Noisemaker / audio bench
 
-- [~] **Qualify the now-leading VDC + 10,000 uF daytime-solenoid power path without
-  prematurely locking the exact capacitor:** FIRST CAP TEST PASSED qualitatively
-  2026-07-14. The no-cap P126-panel kick was weak; a 10,000 uF/16 V electrolytic across
+- [~] **Qualify the finalized solarnoid VDC + 22,000 uF daytime-solenoid power
+  path:** the first 10,000 uF cap test passed qualitatively on 2026-07-14 and the
+  22,000 uF follow-up bought headroom for stronger solenoids; ADR 0030 now fixes the
+  production concept at VDC tap + 22,000 uF + solenoid + bulk mallet on large-hat
+  downlights. The no-cap P126-panel kick was weak; a 10,000 uF/16 V electrolytic across
   V+/GND at the female-USB-C-to-XH breakout made it dramatically stronger. The leads
   align directly with the breakout holes, so installation was roughly one minute of
-  soldering; prototype cost was about $1. Exact stack and design reasoning:
+  soldering; prototype cost was about $1. Historical stack and design reasoning:
   `docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md`.
-  Remaining: capture coil/pulse/VDC droop/recharge and physical-strike data; test sun/
+  Remaining: commit and analyze the 22,000 uF/stronger-solenoid bench data; capture
+  coil/pulse/VDC droop/recharge and physical-strike data; test sun/
   cloud/shade, P105/P126, charge/taper, hot-plug inrush, repeated strikes, BQ/reset/fault
   behavior, residual energy at dusk and possible bleeder, ESR/tolerance/temp/lifetime,
   strain relief, polarity/keying, and cold-Voc margin. P126 nominal Voc is about 8.59 V;
   measure worst-case cold Voc/tolerance to document margin for the 16 V part.
   Keep the 815-strike-proven 3V3/XH path as fallback (Ben).
-- [~] Evaluate lantern noisemaker options on the Metro bench: `firmware/clacker_demo/`
-  now exposes a BubbyNet dashboard for A0/A1 relay clicking plus 8002A amp/speaker tones on
-  Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
-  draw, decide whether any relay/speaker noisemaker belongs in production, and record the
-  mechanical mounting/power implications if it stays live (Ben).
-- [~] **Candidate A: STEMMA speaker #3885 percussion synth -- BENCH APP LIVE 2026-07-07**
+- [x] ~~Evaluate lantern noisemaker options on the Metro bench~~ -- **CLOSED
+  2026-07-15 (ADR 0030)**: the shootout ended with the solenoid bamboo-strike;
+  relay/speaker options are not pursued. `clacker_demo` stays as bench history (Ben).
+- [x] **Candidate A: STEMMA speaker #3885 percussion synth -- ABANDONED 2026-07-15
+  (ADR 0030): the solenoids strike the bamboo so well the speaker path is dropped.**
+  The percussion synth + `speaker_demo` survive as bench/preview instruments only;
+  the spare-#3885 buy is cancelled; the listen-test/loudness/RC-filter follow-ups
+  below are moot for production. Original item preserved: BENCH APP LIVE 2026-07-07
   (`firmware/speaker_demo/` at `speakerdemo.local`, LOG same date): organic percussion
   (knock/marimba/chime/drip + ripple/grove scenes) instead of the square waves everyone
   hated. Bench unit's trim pot is broken (LOG item 6): solder-bridge the tweezer-found
@@ -487,12 +502,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
   true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
   per-unit probe (Ben).
-- [~] **Gather wider noisemaker opinions at the first big camp-wide meeting
-  2026-07-09** -- relay clicks and even simple beeps stay technically on the table;
-  the earlier square-wave/click reactions were small-n and possibly a failure to
-  imagine 150 rippling through the tree. (Meeting happened 07-09; outcome not yet
-  logged here) (Ben).
-- [~] **Candidate B: MOSFET-driver + push-pull solenoid mallet** (physically striking
+- [x] ~~Gather wider noisemaker opinions~~ -- **OVERTAKEN 2026-07-15 (ADR 0030)**:
+  the solenoid's physical strikes settled the question on the bench (Ben).
+- [~] **Candidate B -> THE noisemaker (DECIDED 2026-07-15, ADR 0030): MOSFET-driver
+  + push-pull solenoid mallet** (physically striking
   the bamboo -- the authentic knock the synth imitates). **FIRST BENCH DONE
   2026-07-10** (`firmware/solenoid_demo/`, LOG same date): 815 strikes, no resets,
   no failsafes. **FLEET PARTS ORDERED**: 100x MOSFET drivers (Adafruit 07-10, $345;
@@ -507,8 +520,17 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the original `9E5B0C` failed during header rework and was retired. **JULY 14 RESULT:**
   the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
   a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
-  cap now leads; quantify it and complete the qualification list above before the formal
-  candidate/harness verdict. **JULY 16 LOCAL CONTROL:** corrected
+  cap now leads; the candidate verdict itself is DECIDED (ADR 0030) and the
+  **"solarnoid" design was finalized around July 24**, including craft-store bulk
+  mallets (order TBC). Scope is settled: large-enclosure fixtures/downlights only, with
+  surplus drivers expected. **BENCH STATUS 2026-07-16 (Ben-reported; data on the bench
+  laptop, commit pending):** 22,000 uF buys headroom for stronger solenoids; the
+  solenoid bake-off is mid-flight with the 0730B 6 V / 1 A as the primary candidate
+  and the in-transit 3 V / 5 V units potentially returnable. The transient question is
+  closed-benign: strikes read as VDC droops indistinguishable from cloud/shadow and do
+  not confuse the BQ. Remaining: bake-off verdict, possible stronger-solenoid
+  order/return, driver control cabling, mounting, and daytime gating.
+  **JULY 16 LOCAL CONTROL:** corrected
   `net-bench-2026-07-16.2` is OTA-deployed to `9F2690`; one debounced PowerFeather
   USER/GPIO0 press now wakes the peer if needed and requests the same fail-safe 40 ms
   D7 strike, with physical-release re-arm and maintenance suppression. The first `.1`
@@ -520,6 +542,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   button is an optional awake-mode trigger; its separate active-HIGH INT pin could wake
   an RTC GPIO only if the module remains powered, while current field sleep cuts both
   external 3V3 rails. (Ben/Codex).
+- [ ] **Commit the solenoid bake-off experiments from the bench laptop** -- the
+  post-07-11 work (22k uF headroom sweeps, stronger-solenoid bake-off) is not in
+  the repo; only solenoid_demo/led_sol_bench + the 07-11 VDC sweep are (Ben).
+- [ ] **Decide the 3 V/5 V solenoid return** (150 units, $319.12, still in
+  transit) once the 0730B verdict lands -- watch the AliExpress return window
+  (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
@@ -584,8 +612,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   remains a possible future choreography experiment, not a fleet part (Ben).
 - [ ] **Confirm the per-class sensor allocation on hardware** (ADR 0027 marks it
   tentative): TMF8820-mini downward on downlights, VL53L5CX outward on perimeter,
-  none on uplights/chandelier; verify one downlight-height bench run on the exact
-  ordered TMF8820-mini part (bench work used the TMF8821) (Ben).
+  BMP581 temp/pressure on uplights (added 07-16; chandelier still none); verify
+  one downlight-height bench run on the exact ordered TMF8820-mini part (bench
+  work used the TMF8821) (Ben).
+- [ ] Bring up the BMP581 on the STEMMA chain (100 kHz bus rules apply -- ADR
+  0028) and add its temp/pressure fields to the telemetry tail (Ben).
 - [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
   pattern as env/INA) for yard/field tuning -- the desk bench uses its own HTTP
   dashboard instead (Claude + whoever's bench).
@@ -734,16 +765,45 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   packet counts and the on-device censoring-corrected median (reference:
   `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
   already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
-- [ ] **Get a refined fixtures.json export from Elliot/Vishnu** -- concrete punch
-  list from the 0.3.1 export (Ben's top-down inspection 2026-07-13): downlight
-  rings should be 24/24/24 but have 2 middle + 4 inner holes, 6 fixtures stacked at
-  duplicate coordinates, 6 strays at the trunk base (interim fix:
-  `ops/locate/patch_cad_0.3.1.py` moves strays into holes; patched file is the
-  tooling default); vertical layout puts downlights near the crown and the unit
-  claim is wrong (`ops/locate` scales the downlight band to 7-10 ft per fleet spec,
-  Ben's call 2026-07-12); CONFIRM whether the elevated uplights (two rings of 12 at
-  mid-height, aiming up the trunk) are intentional -- Ben suspects yes for this
-  design iteration. A refined export re-runs the study in minutes (Ben -> Elliot).
+- [ ] **Perimeter light count (unpinned; was 38-40)**: blind-spot geometry says
+  N >= 2*pi*(R+x)/(0.83x) for VL53L5CX 45-deg FoV closure at x beyond the ring.
+  Bare minimum ~23-26 (R 6-7 m, closure at the ~3 m reliable night range, zero
+  fault tolerance); 38-40 closes at ~1.5-1.7 m AND survives one dead/yawed
+  sensor (wedge degrades to ~3.8-4.3 m, marginal not blind). Recommend staying
+  in 36-40; extras double as plane-fit z-anchors for localization (Ben).
+- [ ] **GPS soft anchors (4x SAM-M8Q)**: bought for dusk/dawn time; also usable as
+  hands-free gauge anchors -- not slot-level (2-2.5 m CEP vs 0.7-1 m spacing) but
+  4 units spread wide give mirror + rotation to ~8-10 deg (= the 3-hand-beacon
+  coarse gauge, inside the solver's +-20 deg refinement) + true-north/geo-reference
+  of the as-built tree (measures real door-axis azimuth vs sun arc) + mesh time.
+  Needs: soft 3D position priors in ops/locate refine (sibling of z-anchors,
+  sigma ~2 m) + a sim arm vs the 0/3-beacon baselines; antenna needs sky view
+  (NOT under the panel); SBAS on, hours-long static average; ADR 0028 bus rules
+  (Ben/Claude).
+- [ ] **Replacement/swap flow** (validated in sim 2026-07-15, report addendum: 6/6
+  correct even at 8 dB): unconfigured node beacons "whoami" -> bridge roll-call
+  diffs live MACs vs fleet map -> ~1 min neighbor RSSI capture -> pinned solve
+  (existing pipeline, survivors = known) -> write fixture_id/xyz/neighbor-table NVS
+  OTA. Firmware needs: unconfigured-beacon state, NVS config schema + epoch, bridge
+  assign command. Same machinery doubles as a drift watchdog (node compares live
+  neighbor RSSI vs stored expectations, self-reports if moved/fallen) (Ben/Claude).
+- [ ] **Design the light placement layout** -- per Elliot (2026-07-15, via Ben):
+  the build-dashboard STRUCTURAL geometry is correct (6.5 m tree, 10 m canopy,
+  24 limbs, 2.7 m waist) but its lighting sketch (~90 lights) is NOT the plan;
+  light number and placement are Ben + Steve's (+ Claude's) creative call, all
+  ~150 fixtures deployed (extras become camp lights off-tree). Design inputs to
+  reconcile in one layout: (1) gobo non-overlap -- at 7 ft hang with the LED
+  dropped 6", ground-pattern diameter ~0.84 m, so downlight spacing >= ~0.85 m
+  (the 10 m canopy makes this feasible; the 0.3.1 CAD's inner ring at ~0.5 m
+  spacing does not); (2) inner ring moves outward anyway (bamboo criss-cross
+  above it shades the panels; better hang points at the bamboo split
+  criss-crosses, per Ben + Steve); (3) mild rotational ASYMMETRY in the perimeter
+  ring helps the auto-localization registration gauge (even spacing is the worst
+  case, see AUTOLOCATE report); (4) hang points must exist on the real limbs --
+  get the structural export/hang-point map from Elliot. Output: our own
+  fixtures.json (schema resonance.fixtures/0.x) that replaces the 0.3.1 patch as
+  ops/locate ground truth and feeds the Lighting-Controller app (Ben + Steve +
+  Claude).
 - [ ] **Plan THREE surveyed "beacon" fixtures into installation** -- record which
   fixture slot 3 distinctive devices occupy (hand note or bridge identify-blink).
   This pins the registration gauge; without it the rotational alignment rests on a
@@ -759,7 +819,21 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 
 - [ ] **Auto/remote reset is unreliable on the bench USB-JTAG path -- harden the FIELD reset paths so a deployed lantern NEVER needs a physical button press** (that would mean taking it down + disassembling = unacceptable). Observed: after a USB flash, the PowerFeather's "Hard reset via RTS pin" sometimes did NOT start the app (no liveness LED) until a *physical* reset or a serial-open nudge (chip verified healthy via esptool; worst on the heavily-abused board 2). Field paths: (1) **OTA `/update` software reset (`esp_restart`)** -- **VALIDATED 2026-06-08: ~17/17 battery-only OTAs recovered, no button, incl. 3/3 on LFP at the ~3.2 V buck-boost crossover; new image confirmed running, `rr=software` every time.** The JTAG-RTS flakiness is USB-flash-only, not OTA; (2) **watchdog** -- DONE + validated in `net_bench` (port to production); (3) `--autosleep` USB-supply recovery -- validated. **Remaining OTA-robustness (refinements, not blockers -- a failed OTA is safe: stays on / A-B rolls back, never bricks):** (a) OTA over a **marginal/lossy WiFi link** (field maintenance assumes a decent local AP). (b) **A/B rollback -- VALIDATED 2026-06-08:** a self-test-failing image (`extern "C" verifyOta()`->false) auto-reverts to the last-good image, no touch, battery-only. Gotcha: the hook is C-linkage (needs `extern "C"`, else it silently doesn't override and the bad image sticks). Goal met for the happy path: zero field scenarios needing the reset button (Ben).
 - [ ] **Implement the production rollback/health pattern in the real firmware**: `extern "C" bool verifyOta()` self-test (power chip + radio + fuel-gauge reachable); PLUS `verifyRollbackLater()=true` to defer the mark-valid + extended self-test + watchdog so an image that PASSES verifyOta but crashes/hangs LATER still rolls back (otherwise it's marked valid and could brick). power_bench has the gated `RES_OTA_FAIL_SELFTEST` test fixture to verify it (Ben).
-- [ ] **Derive the nightly power budget bottom-up from measured draw** -- the old ~120 mAh/night napkin floor is RETIRED (2026-07-02): it assumed ~5 mA time-avg LEDs, pre-hardware, and crisp-gobo light levels invalidate it; do not anchor on it. Real budget = brightness x LED count x duty cycle from measured HEX/RGBW draw (400-500 mA at full) + a realistic show duty cycle; then size battery (LFP capacity) + panel (W) to it. The COTS tests show PowerFeather has the headroom; this just sets the cell/panel spec (Ben).
+- [ ] **Derive the nightly power budget bottom-up from measured draw** -- the old ~120 mAh/night napkin floor is RETIRED (2026-07-02): it assumed ~5 mA time-avg LEDs, pre-hardware, and crisp-gobo light levels invalidate it; do not anchor on it. Real budget = brightness x LED count x duty cycle from measured HEX/RGBW draw (400-500 mA at full) + a realistic show duty cycle; then size battery (LFP capacity) + panel (W) to it.
+  **Runtime math notes (2026-07-22, Ben + Claude, vs the solarsim harvest numbers):**
+  measured full-RGBW draw 1.364 W battery-side (ADR 0026 INA chain); single-channel
+  warm white ~0.34 W (1/4 of full). Reference show profile: 5 h bright at 50% duty
+  (3.4 Wh) + 4 h dim single-channel at 50% (0.7 Wh) = ~4.1 Wh/night, spanning the
+  ~10 h dark window. Two opposing corrections when reading ops/solarsim figures:
+  plotted runtimes omit the ~0.85 LFP discharge round-trip (the x0.63 chain is
+  charge-side only), but the python sim runs ~0.70x of the SketchUp reference --
+  net usable ~1.21x plotted, i.e. plan against plotted Wh as usable and carry ~20%
+  implicit margin. Fleet check (hinged canopy): worst lantern 4.6 Wh plotted
+  (~5.6 usable) covers the reference show; median 9.2 Wh = ~2x headroom; the
+  one-rule uniform-30 hinge floor (3.1 Wh) does NOT cover it in the north arc --
+  the two-rule hinge is what buys the whole fleet the baseline show. Caveats:
+  0.70 is model-vs-model median (per-light scatter, rank corr 0.87) -- bank the
+  floor only after Elliot's re-raytrace or real panel telemetry. The COTS tests show PowerFeather has the headroom; this just sets the cell/panel spec (Ben).
 - [~] **Buck-boost converter efficiency varies with VBAT -- and LFP's plateau sits on the crossover (real budget + chemistry finding).** **PARTIAL ANSWER 2026-06-10** (`ops/bench/bb_efficiency.py` on the full-discharge JSONL -- no new bench time): at full-RGBW show load the LFP *terminal* voltage sags to ~2.9-3.05 V, so the converter ran in **boost the entire pre-brownout discharge -- the 3.25-3.35 V crossover band was never visited under load**. Overhead (ESP+WiFi+converter, not separable) ~0.48-0.52 W and roughly flat; P_led/P_batt lower bound 0.61-0.64. So the crossover-tax concern does NOT apply at show loads; **the residual open regime is the production light/ambient load (tens of mA), where the plateau terminal V ~3.2-3.3 V DOES sit near the crossover** -- needs a light-load fixed-brightness discharge (or rail-side metering for absolute eta). Caveats: n=1 cell/board/load; apparent fine structure vs VBAT may be time-confounded (WiFi activity). `battery_mA` != LED current (TPS631013 buck-boost sits between them); efficiency dips in the buck<->boost crossover (~VBAT 3.25-3.35 V) where it 4-switch/mode-hunts. **LFP's flat plateau (~3.2-3.3 V) parks right there for most of the discharge** = a standing efficiency tax on everything; **Li-ion lives mostly in clean buck** (better converter efficiency, the counterpoint to LFP's safety/heat/cycle wins). **Test:** hold one fixed brightness, discharge full->empty, log `ima` vs `VBAT` -> maps converter efficiency vs SOC (the real budget input) + confirms the crossover bump; run on LFP and Li-ion to quantify the chemistry tax. NOTE this **confounds the existing PAR/mA efficiency plots** (each LED run was at a different SOC/load -> different converter point), so those slopes are *system* efficiency at as-measured conditions, not a clean LED-intrinsic ranking -- re-rank at a fixed VBAT (bench supply) or correct with this curve (Ben).
 - [ ] **WS2812/SK6812 latch their last frame** -- firmware must send an explicit all-off on shutdown/sleep or the LEDs stay lit (and keep drawing) with no data; matters for low-power/shipping modes (Ben).
 
@@ -776,15 +850,19 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   cell only (Ben).
 - [x] ~~Evaluate 26650 LiFePO4~~ -- **SUPERSEDED**: the open big-cell question is now
   the 20 Ah #6832 for solar-free classes, below (Ben).
-- [~] **Bench-test the 20 Ah LFP samples (batteryspace #6832, 2 on hand) for the
-  solar-free uplight/chandelier option** -- **SAMPLE 1 VERIFIED 2026-07-12: 19,412 mAh
-  (97.1% of label), 19,055 above the 3.0 V floor, 360 mAh knee -- supports 6 h/night x
-  7-night solar-free RGBW duty with margin.** Report:
-  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`. Remaining before the
-  ~40-cell buy: (1) qualify **sample 2** (rig assembled; overnight charge + ~27 h
-  discharge); (2) solve the **end-cap connection** (alligator clips were 0.263 ohm and
-  survive only taped -- Steve fixture or proper clamps); (3) optional uplight-profile
-  drawdown (dim mood lighting, week-long budget) (Ben).
+- [x] **Bench-test the 20 Ah LFP samples -- CLOSED 2026-07-15 (option cancelled).**
+  Sample 1 verified honest 2026-07-12 (19,412 mAh, 97.1% of label; report
+  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`), but batteryspace could
+  not supply ~40 cells in time and the Alibaba counterpart (~$4.50/cell bulk!)
+  needs ocean freight that misses 2026. **Uplights go hinged-solar-wing + 6 Ah
+  instead** (ADR 0025/0026 annotations); sample-2 qualification and the end-cap
+  fixture are moot for 2026 -- the Alibaba route is the 2027 lead (Ben).
+- [ ] **Qualify the 33140 15 Ah** (new large-hat fleet standard, 130 bought 07-24,
+  QUALIFICATION PENDING): full charge->discharge capacity + IR run per the ADR
+  0023 recipe (shootout rig; n>=2), then re-derive the dim/off/sleep voltage map
+  on the new cell -- the current ADR 0023 tiers are 6 Ah-derived. Gauge:
+  DesignCap 15,000 fits under the MAX17260 16,383 cap. Also verify physical fit
+  in the large Polycase with panel + board + LED installed (Ben).
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in
@@ -988,3 +1066,32 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 - [ ] Cataloging schema (per-fixture pattern identity -- useful regardless of source).
 - [ ] Print schedule backward from ~Aug 10 filters-in-hand (Steve's Bambu + possible
   batch service).
+
+## Solar layout levers (solarsim studies, 2026-07-20/21)
+
+- [~] **Hinged downlight panels -- NOT ADOPTED for the 72 large enclosures**
+  (Ben + Steve, 2026-07-24); the trunk lights DO get a hinged "wing" (per-light
+  optimal angles in the rotation-sweep data). Downlight harvest reverts to the
+  FLAT baseline (550 Wh fleet, worst ~3.4 Wh, 6 lights under 3 h full runtime) --
+  re-check the power-budget note's show floor against flat numbers. Study kept
+  for the record: tangential bracket+hinge (pitch-only) measured
+  +15.7% fleet solar (free-azimuth ideal +25.3%); two-family install rule (pitch
+  outward ~40 deg, northern arc inward ~30) needs no per-unit config; a ONE-rule
+  aesthetic variant (uniform outward 30 deg) measured +10.7% (-4.4% vs optimal,
+  cost concentrated in the north arc: -27%, 5 lights back under 3 h). Blockers to
+  resolve: whole-lantern tilt would wreck the gobo projection (wants a panel-only
+  flap -- Steve); no-spin harness freezes RF panel azimuths at KNOWN radial angles
+  -- run the frozen-radial arm in ops/locate before committing (data + figures in
+  ops/solarsim/data). HARNESS CANDIDATE (Ben + Steve, 2026-07-22): V-hang between
+  adjacent attach points, two ropes to the polycase short-edge lips (3 holes each,
+  already there) -- solves anti-spin + keeps rope shade off the panel (the lit^2 x
+  0.75 mismatch penalty makes even a thin center-rope shadow expensive; unmodeled
+  in the sim). Simulated between-limbs positions: solar-NEUTRAL (+0.8% hinged,
+  -1.0% flat; middle ring +7%, inner -3%) -- the roof weave dominates occlusion,
+  not the limbs, so the V-hang is justified mechanically, not by harvest
+  (Ben + Steve).
+- [ ] **Inner ring at 3.26 m** (middle equidistant): +28% inner-ring solar, fixes
+  gobo spacing; door-axis finding: treev4 tunnels sit at az 75.4/255.4 (rotated
+  14.6 deg CCW, near-sunrise-aligned) -- reconcile orientation + door lights with
+  Elliot; rise/set chord can NEVER hit both doors (non-antipodal), belly crossings
+  at ~07:25/~18:25 are the symmetric photo-op (Ben -> Elliot).

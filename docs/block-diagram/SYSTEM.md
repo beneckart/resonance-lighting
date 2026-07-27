@@ -19,24 +19,26 @@ fungible and fully wireless, so placement is free and the split can shift on-sit
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
-| Hanging downlight (7-10 ft) | 72 | 4 W RGBW + gobo | Voltaic P105-class 5 W panel | MSA311 + TMF8820-mini (downward) |
-| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel | VL53L5CX (outward); MSA311 likely |
-| Uplight (simple cylinder, no gobo) | 24 | 4 W RGBW | OPEN: off-light 5 W panel vs solar-free 20 Ah LFP vs budgeted 6 Ah | none |
-| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely solar-free, USB-charged | none |
+| Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward) |
+| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX | Voltaic P126-class 2 W panel + 32700 6 Ah (the only cell that fits the small enclosure) | VL53L5CX (outward); MSA311 likely |
+| Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
+| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
 Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
 to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
 without opening the hat; the solar-free classes also charge through it.
 Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
-and some may stay unpopulated. Spares are thin (~8 boards beyond the 150 buy) -- see
-the ROADMAP risk register and `ops/bom.md` spares math.
+and some may stay unpopulated. Board spares are healthy since the 90-board order
+(158 production + ~8 bench); enclosure pools cap the allocation (large <=110
+downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for
-absolute UTC; another still-TBD subset receives battery-backed external RTCs for
-holdover. These anchors distribute time quality over ESP-NOW; ordinary fixtures learn
-the schedule from peers and use their local clock only for bounded holdover.
+absolute UTC; four purchased Adafruit DS3231 modules are the initial battery-backed
+RTC holdover anchors. These anchors distribute time quality over ESP-NOW; ordinary
+fixtures learn the schedule from peers and use their local clock only for bounded
+holdover.
 
 ## Current Block Diagram
 
@@ -48,12 +50,13 @@ the schedule from peers and use their local clock only for bounded holdover.
                    PowerFeather V2 VDC input
           BQ25628E charger / power path / VINDPM
           - set VBUS_OVP=1 for 6 V-class panels
-          - HIZ-toggle requalification guard needed
+          - HIZ requalification guard (shipped: solar_guard.h)
                               |
                               v
                       LiFePO4 cell
-          production target: one large cell, likely 32700
-          measured: 5726 / 5752 mAh (n=2, 2026-07-06)
+          two-tier (07-24): 33140 15 Ah in large hats
+          (qualification pending); 32700 6 Ah in small
+          hats -- measured 5726/5752 mAh (n=2)
                               |
                               v
          PowerFeather V2 power-management + telemetry stack
@@ -69,17 +72,19 @@ the schedule from peers and use their local clock only for bounded holdover.
         Direct-GPIO LED role          Sensors by class (ADR 0027)
         GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
         - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
-        - 4 W RGBW on 3V3 rail today  VL53L5CX outward (perimeter)
-          (both rail-fed, 0029)       bench-only: thermal/radar/INA
+        - 4 W RGBW on 3V3 rail        VL53L5CX outward (perimeter)
+          (DECIDED by A/B, 0029)      BMP581 temp/pressure (uplights)
+                                      bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
         Sparse time anchors (ADR 0031; final counts OPEN)
         - GPS/GNSS: initial 4x SAM-M8Q -> absolute UTC
-        - battery-backed external RTC -> low-power holdover
+        - RTC: initial 4x Adafruit DS3231 -> low-power holdover
         - ESP-NOW time-quality beacons -> remaining fixtures
 
-        Noisemaker (OPEN): STEMMA speaker synth vs solenoid
-        bamboo-strike -- candidates benched, none selected (LOG 2026-07-07)
+        Noisemaker (DECIDED, ADR 0030): the "solarnoid" -- VDC-tap
+        solar supply + cap + solenoid + mallet strikes the bamboo.
+        Daytime percussion; LARGE-hat fixtures (downlights) only
 ```
 
 The 2026 production path is **COTS PowerFeather V2** (ADR 0024); the
@@ -112,16 +117,20 @@ connectors, and boring USB/pogo recovery.
   BQ25628E's power path (ADR 0028). Convicted by a controlled 400-vs-100 kHz A/B and
   sealed by a 46.2 h continuous battery soak that ended in honest cell exhaustion.
 - **LED electrical drive:** measured per role (ADR 0029) -- the full rail/VBAT/boost
-  matrix exists and TPS63802 boost is shelved. HEX and RGBW feeds are both decided on
-  the switchable 3V3 rail; the July 11 production-cabling A/B closed the earlier RGBW
-  VBAT option.
+  matrix exists (VBAT-direct buys +33 % fringed white, 1,746 lux no wall; clean
+  W-only unchanged; TPS63802 boost = 2.3x clean-white ceiling at ~25-30 % efficacy
+  tax, shelved). Both feeds DECIDED on the 3V3 rail: the 2026-07-11 instrumented
+  A/B through production-realistic cabling inverted the fat-wire result -- rail
+  wins +2.5 % mean, 22/25 comparisons (ADR 0029 amendment).
 - **Low-battery lifecycle:** net_bench field-cycle (charge -> wait-dark -> draw ->
   protect) has run multi-day outdoor solar cycles; low-VBAT OTA proven to ~3.10 V
   loaded battery-only, 2.901 V solar-assisted, 2.496 V USB-assisted.
 - **Time/schedule:** architecture direction is decided (ADR 0031): scheduled site/date
-  show windows from sparse GPS/GNSS and external-RTC anchors. Module choice, counts,
-  enclosure reception, holdover, propagation, and invalid-time behavior are not yet
-  validated. The current panel/lux field-cycle dusk classifier remains bench firmware.
+  show windows from sparse GPS/GNSS and external-RTC anchors. Four SAM-M8Qs and four
+  Adafruit DS3231 modules are bought as the initial experiment set; enclosure
+  reception, acquisition energy, RTC drift/backup behavior, final counts, propagation,
+  and invalid-time behavior are not yet validated. The current panel/lux field-cycle
+  dusk classifier remains bench firmware.
 
 ## LED Architecture
 
@@ -135,11 +144,11 @@ ADR 0022 records the current LED decision: use a **mixed fleet by optical role**
 - **IS31FL3741 13x9 matrix:** ruled out for the PowerFeather V2 battery build. It browns
   out the board on the shared charger/gauge I2C bus under WiFi; use direct-GPIO LEDs.
 
-Electrical feed per role (ADR 0029): the HEX stays on the regulated switchable 3V3
-rail (decided); the 4.2 V boost is shelved with complete numbers (decided); the
-4 W RGBW currently also runs from the 3V3 rail (V+/GND/A0, right-angle JST-XH) --
-the measured-better VBAT-direct option (+33 % fringed white) is OPEN, with its
-conversion plan and fail-safe costs recorded in the ADR.
+Electrical feed per role (ADR 0029 + 2026-07-11 amendment): BOTH roles on the
+regulated switchable 3V3 rail (V+/GND/A0, right-angle JST-XH) -- one harness, one
+pinout, and the rail is the hard LED kill. The VBAT-direct option was measured
+better only through fat bench wire; through production-realistic cabling the rail
+wins on every color. The 4.2 V boost stays shelved with complete numbers.
 
 Firmware implications:
 
@@ -243,19 +252,19 @@ point-source RGBW fixtures, then panel size by role.
 
 - Bottom-up nightly energy budget by LED role and show duty cycle.
 - GPS/GNSS and external-RTC anchor implementation (ADR 0031): qualify the four
-  purchased SAM-M8Qs, select the RTC module and final counts/placement, define the
-  power/backup strategy, time-quality protocol, schedule representation, UTC
-  commissioning/update path, holdover limits, and invalid-time fallback; validate
-  through the real hat without Starlink.
-- Uplight/chandelier power source: off-light panel vs solar-free 20 Ah (bench test on
-  the two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+  purchased SAM-M8Qs and four purchased Adafruit DS3231s, select final
+  counts/placement, define the power/backup strategy, time-quality protocol, schedule
+  representation, UTC commissioning/update path, holdover limits, and invalid-time
+  fallback; validate through the real hat without Starlink.
+- (RESOLVED 2026-07-15) Uplight/chandelier power -> hinged solar wing + 6 Ah for
+  uplights; 6 Ah + USB-C for chandelier. Remaining wing items are in the gate above.
 - Sensor allocation confirmation per class + presence choreography firmware
   (ADR 0027 open items).
-- RGBW production feed: 3V3 rail as wired vs VBAT-direct conversion (+33 % fringed
-  white; harness/firmware/fail-safe costs in ADR 0029). Decide before the harness buy.
-- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth vs relay
-  clicks (all still live, even simple beeps; wider crowd input at the 2026-07-09
-  camp meeting).
+- Uplight wing: mechanical design (hinge + panel mount on the boot), panel choice
+  (likely P105 5 W), and the low-brightness budget (NC prebuild experiments).
+- (RESOLVED, ADR 0030) Noisemaker -> the "solarnoid", design finalized ~07-24,
+  downlights only. Remaining: solenoid part order/return (0730B-class), daytime
+  gating firmware, strike energy numbers.
 - MPPT policy: fixed setpoint, temperature-compensated setpoint, or software P&O.
 - Mock-hat RF with real panel/battery placement.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.

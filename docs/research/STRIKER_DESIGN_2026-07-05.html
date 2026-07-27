@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>External mallet striker — design notes</title>
+<style>
+:root{
+  --ink:#211f1a; --muted:#6d6b62; --paper:#fbfaf6; --rule:#d9d6cc;
+  --accent:#4c7c2a; --rust:#b5502a; --tint:#f2f0e8;
+}
+html{background:var(--paper)}
+body{
+  font-family: Charter, Georgia, 'Times New Roman', serif;
+  color:var(--ink); max-width:46rem; margin:0 auto; padding:3rem 1.25rem 5rem;
+  line-height:1.65; font-size:17px;
+}
+.eyebrow{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 .75rem}
+h1{font-size:2.1rem; line-height:1.15; font-weight:600; margin:0 0 .5rem}
+.subtitle{color:var(--muted); font-size:1.05rem; margin:0 0 .4rem}
+.meta{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; color:var(--muted); border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:.5rem 0; margin:1.5rem 0 2.5rem}
+h2{font-size:1.32rem; font-weight:600; margin:3rem 0 .35rem; line-height:1.25}
+h2::after{content:""; display:block; width:2.4rem; height:2px; background:var(--accent); margin-top:.45rem}
+h3{font-size:1.05rem; font-weight:600; margin:1.8rem 0 .2rem}
+p{margin:.85rem 0}
+figure{margin:1.8rem 0; border:1px solid var(--rule); background:#fff; padding:1.1rem 1.1rem .8rem; border-radius:2px}
+figure svg{display:block; width:100%; height:auto}
+figcaption{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:var(--muted); margin-top:.7rem; line-height:1.5}
+figcaption b{color:var(--ink); font-weight:600}
+.eq{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; background:var(--tint); border-left:3px solid var(--accent); padding:.6rem .9rem; margin:1rem 0; overflow-x:auto; white-space:pre; line-height:1.7; border-radius:0}
+table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:14.5px}
+th{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); text-align:left; font-weight:600}
+th,td{border-bottom:1px solid var(--rule); padding:.5rem .6rem .5rem 0; vertical-align:top}
+td:first-child{white-space:nowrap}
+code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.86em; background:var(--tint); padding:.08em .3em; border-radius:3px}
+.note{background:var(--tint); padding:.8rem 1rem; border-radius:2px; font-size:15.5px; margin:1.2rem 0}
+@media print{
+  body{max-width:none; font-size:11pt; padding:0}
+  figure{break-inside:avoid}
+  h2{break-after:avoid}
+}
+</style>
+</head>
+<body>
+
+<p class="eyebrow">Lantern tree · daytime sound element</p>
+<h1>An external mallet striker for the bamboo lanterns</h1>
+<p class="subtitle">Design notes on the solenoid-driven bell-crank percussion mechanism — geometry, dynamics, materials, and the reasoning behind each choice.</p>
+<div class="meta">Ben → Dad · compiled 15 July 2026 · rev A · companion hardware: JF-0530B/0730B-class solenoid, Adafruit 5648 driver, ESP32-S3 PowerFeather</div>
+
+<h2>1 · What this thing is</h2>
+
+<p>The lantern tree carries roughly 150 nodes. Each node is a small solar panel sitting on top of a COTS enclosure (the &ldquo;hat&rdquo;), which in turn caps a length of bamboo tube about 2.5&Prime; in outside diameter and 6&Prime; long. At night the node is a projector: a 4&nbsp;W RGBW LED shines down the tube through a 2.35&Prime; gobo at the tube&rsquo;s end, casting patterns on the playa. By day the LED show is invisible, so the day-mode identity of the tree is sound: each node becomes a percussion voice in a distributed &ldquo;cricket chorus,&rdquo; coordinated over an ESP-NOW mesh. The mechanism described here is that voice — a solenoid-driven mallet that raps the outside of the bamboo tube.</p>
+
+<p>The electrical context matters because it constrains the mechanics. Each striker runs directly off its solar panel through a bulk charge capacitor — no regulator, no battery in the strike path. We call it the solarnoid circuit. The 2&nbsp;W panels run about 5.8&nbsp;V at max power and float to roughly 7&nbsp;V open-circuit; the 5&nbsp;W panels are a lower-voltage layout, about 4.6&nbsp;V MPP and 5.5–5.8&nbsp;V open-circuit. Because the striker duty cycle is tiny (a few 20&nbsp;ms pulses every several seconds at most), the capacitor spends its life charged near the panel&rsquo;s open-circuit voltage, and each strike is a partial discharge of the cap. A MOSFET breakout (Adafruit 5648: AO3406, 30&nbsp;V, 3&nbsp;A peak, flyback diode on board) switches the coil under ESP32 control. A side effect worth knowing: with no blocking diode, covering the panel back-drains the cap through the cell stack within seconds — so shade is a physical disarm, and the chorus dies naturally with the light.</p>
+
+<p>The actuator is the ubiquitous Chinese open-frame push–pull solenoid, JF-0530B or JF-0730B frame, in the 6&nbsp;V winding: 10&nbsp;mm stroke, roughly 30&thinsp;&times;&thinsp;15–17&nbsp;mm frame, 31–46&nbsp;g, spring-return steel plunger, quoted at &ldquo;5&nbsp;N.&rdquo; Two winding variants circulate under the same model number — a &sim;6&nbsp;&Omega;/1&nbsp;A coil and a &sim;20&nbsp;&Omega;/0.3&nbsp;A coil — wound to the same ampere-turns at rated voltage, so they deliver the same force but very different current draw and cap droop. For the solarnoid the 300&nbsp;mA winding is preferred: same strike, one-third the droop on the existing 10,000&nbsp;&micro;F caps. Vendor spec sheets for these parts are unreliable; the multimeter is the arbiter (&sim;6&nbsp;&Omega; means the 1&nbsp;A coil, &sim;20&nbsp;&Omega; the 0.3&nbsp;A coil).</p>
+
+<h2>2 &middot; The actuator, honestly characterized</h2>
+
+<p>These are reluctance actuators: energizing the coil pulls the ferromagnetic plunger toward the position of maximum inductance. Force scales roughly with current squared times the inductance gradient, F &prop; i&sup2;&middot;dL/dx, and the inductance gradient grows steeply as the magnetic gap closes. The practical consequence is a force curve that starts weak and finishes strong: the honest listings quote it as <em>initial force &asymp; 0.5 N, seated (&ldquo;keep&rdquo;) force &asymp; 5 N</em> for this frame class. Every &ldquo;5 N&rdquo; headline on these parts is the seated number. For a striker this rising curve is actually favorable — the hardest push arrives in the last millimeters, right where we want the mallet accelerating into contact — but any torque calculation done at 5 N will be optimistic by 10&times; at the start of the stroke.</p>
+
+<p>Because the windings target the same ampere-turns at rated voltage, force at off-nominal voltage follows approximately F &asymp; F<sub>rated</sub>&middot;(V/V<sub>rated</sub>)&sup2;. Running the 6 V winding from a 7 V cap is a mild free overdrive; sagging to 5 V mid-strike costs about 30% of force. The electrical time constant &tau; = L/R is, to first order, a property of the frame geometry rather than the winding (L scales with N&sup2;, R roughly likewise for constant slot fill), so both windings build force on the same few-millisecond timescale.</p>
+
+<p>The frame is a through type: a single plunger runs through the coil, and both ends are usable. One end carries the return spring and retracts on energize; the opposite end — the bare finger — extends. Ben&rsquo;s bench tests confirmed what the energy budget predicts: the extending finger hits several times harder than anything the spring can do on the return, because the finger rides the full magnetic power stroke (&int;F dx &asymp; 15–20 mJ over 10 mm) while the return spring is deliberately the weakest part that will still reset the plunger — it stores maybe 2–5 mJ, and the decaying coil field (freewheeling through the driver&rsquo;s flyback diode) drags against it besides. Design rule: <em>the energized stroke is the power stroke; the spring exists only for bookkeeping.</em> All strike energy rides the finger; the spring&rsquo;s only job is bringing the finger home.</p>
+
+<p>Tip hardware varies by vendor and is usable as-is: some fingers end nearly flush, some carry a 1–2 mm nub with an internal thread, and at least one unit in hand wears a rounded screw nut over a small o-ring. The threaded rounded nut turns out to be exactly the right part (Section 6), and the o-ring usefully cushions the plunger&rsquo;s internal end-of-travel, suppressing the metallic secondary clack.</p>
+
+<p>Two ratings to respect. Thermals: these 7–40 g coils dissipate 2–6 W at rated voltage and will cook if held on; at 20–30 ms pulses and chorus duty they never warm up, but firmware must never park the coil energized. Cycle life: listings claim 500k operations. A cricket chirp is a train of 3–4 strikes; at plausible chorus rates a node accumulates 150–250k cycles across bench testing plus a week on playa — inside the rating but not by an order of magnitude, and no-name QC makes the rating optimistic for the worst units of a batch. The solenoid is therefore treated as a semi-consumable: under a dollar each in Alibaba quantity, mechanically swappable, &sim;10% spares in the kit.</p>
+
+<h2>3 &middot; Why an external bell-crank (the architectures we discarded)</h2>
+
+<p>The design walked through four architectures before landing. A plunger friction-fit into the tube wall (&ldquo;bodyslam&rdquo;) makes an impressive thump but mass-loads the resonator it is trying to ring — equivalent to holding a bell while striking it — and a friction fit in bamboo, cycled 10&#8309; times with playa dust as grinding compound, either wallows loose or seizes. A free-flight plunger tap inside the bore rings the tube nicely but requires a tuned 6–8 mm air gap per node, across 150 irregular hand-cut tubes, and pumps dust into the plunger bore. A spring-release striker (energize to cock, spring fires on release) makes placement trivial via preload but throws away the 3–8&times; energy advantage of the power stroke. The mallet-on-a-lever idea fixes the acoustics — a heavier, slightly softer head lengthens contact time and pours the same millijoules into the tube&rsquo;s low resonant modes instead of a thin click — and gravity gives it a free, dead-consistent return.</p>
+
+<p>Moving the mallet <em>outside</em> the tube, hanging from the hat&rsquo;s overhang, then resolved four remaining problems at once. The 2.5&Prime; bore is cramped to build in, while the overhang is generous — the enclosures are sized to their solar panels (112&thinsp;&times;&thinsp;136 mm for the 2 W nodes, 148&thinsp;&times;&thinsp;223 mm for the 5 W), so the hat overhangs the tube by 25–80 mm per side. A visible swinging mallet reads as intrigue rather than a mysterious noise box, and it pairs with the time-of-flight sensor port on the opposite overhang for a pleasing symmetry. An external arm can strike anywhere along the tube&rsquo;s length, so the strike point can chase the acoustic sweet spot mid-internode. And the LED no longer needs to drop into the bore at all — it shines through a port in the enclosure floor, which pins the LED-to-gobo distance at its maximum (&sim;6&Prime;), the sharpest and most compact projection geometry, with pattern size thereafter controlled purely by mount height. Bonus acoustics: bamboo&rsquo;s outer skin is its hardest, most silica-dense layer, so external strikes ring brighter than internal ones.</p>
+
+<p>Finally — and this drives much of the detailing below — the mechanism keeps everything vulnerable indoors. Coil, driver, wiring, and pivot live inside the sealed enclosure; the only penetration is a narrow slot in the enclosure floor through which the arm swings, and that slot faces straight down, the dust-shedding orientation.</p>
+
+<h2>4 &middot; Mechanism layout</h2>
+
+<p>The mechanism is a first-class lever — Ben&rsquo;s &ldquo;seesaw turned vertical.&rdquo; A rigid arm pivots at the enclosure floor. Its short arm points up into the enclosure, where the solenoid, mounted horizontally, pushes it radially outward (away from the tube). The long arm hangs down through the floor slot and therefore swings inward, carrying the mallet head into the tube&rsquo;s outer wall. The solenoid finger and the lever pad stay in contact through the whole cycle, so the drivetrain never collides with itself and never rattles.</p>
+
+<figure>
+<svg viewBox="0 0 640 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cross-section of the node: enclosure with solar panel on top, bamboo tube below, solenoid inside the enclosure driving a lever whose long arm swings a mallet against the tube's outer wall. ToF and LED ports shown on the enclosure floor.">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M1.5 1L8.5 5L1.5 9" fill="none" stroke="#b5502a" stroke-width="1.6" stroke-linecap="round"/></marker></defs>
+<rect x="48" y="16" width="544" height="13" rx="2" fill="#cdd6e2" stroke="#7d8894" stroke-width="1"/>
+<text x="48" y="12" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#6d6b62">solar panel</text>
+<rect x="40" y="29" width="560" height="117" rx="8" fill="#efede6" stroke="#8a887f" stroke-width="1.2"/>
+<text x="56" y="52" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">enclosure (&ldquo;hat&rdquo;) &mdash; overhangs tube 25&ndash;80 mm/side</text>
+<rect x="452" y="141" width="46" height="10" fill="#fbfaf6"/>
+<rect x="210" y="146" width="120" height="324" rx="6" fill="#e9f0da" stroke="#6b8f3c" stroke-width="1.2"/>
+<line x1="222" y1="146" x2="222" y2="470" stroke="#a9c17f" stroke-width="1"/>
+<line x1="318" y1="146" x2="318" y2="470" stroke="#a9c17f" stroke-width="1"/>
+<line x1="210" y1="320" x2="330" y2="320" stroke="#a9c17f" stroke-width="1" stroke-dasharray="4 4"/>
+<text x="336" y="324" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#8a887f">node ring</text>
+<rect x="216" y="452" width="108" height="12" rx="2" fill="#d6d2c4" stroke="#8a887f" stroke-width="1"/>
+<text x="352" y="462" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">gobo (2.35&#8243;)</text>
+<line x1="348" y1="458" x2="328" y2="458" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="256" y="138" width="28" height="12" rx="2" fill="#f6dfae" stroke="#a8761f" stroke-width="1"/>
+<line x1="270" y1="150" x2="224" y2="452" stroke="#d8a83c" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="270" y1="150" x2="316" y2="452" stroke="#d8a83c" stroke-width="1" stroke-dasharray="4 4"/>
+<text x="150" y="172" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">LED port</text>
+<line x1="200" y1="168" x2="258" y2="152" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="110" y="138" width="26" height="12" rx="2" fill="#ddd9f2" stroke="#6a5fc0" stroke-width="1"/>
+<line x1="116" y1="150" x2="86" y2="236" stroke="#8c82d6" stroke-width="1" stroke-dasharray="4 4"/>
+<line x1="130" y1="150" x2="160" y2="236" stroke="#8c82d6" stroke-width="1" stroke-dasharray="4 4"/>
+<text x="62" y="258" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">ToF port</text>
+<line x1="94" y1="252" x2="118" y2="154" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="352" y="66" width="78" height="34" rx="3" fill="#f3e2c0" stroke="#a8761f" stroke-width="1.2"/>
+<text x="352" y="116" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">solenoid</text>
+<line x1="430" y1="83" x2="455" y2="83" stroke="#a8761f" stroke-width="3" stroke-linecap="round"/>
+<circle cx="459" cy="83" r="4" fill="#a8761f"/>
+<line x1="432" y1="56" x2="464" y2="56" stroke="#b5502a" stroke-width="1.8" marker-end="url(#ar)"/>
+<text x="398" y="50" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#b5502a">energize</text>
+<rect x="463" y="72" width="6" height="22" rx="1" fill="#d98c66" stroke="#7c3a1d" stroke-width="0.8"/>
+<line x1="472" y1="146" x2="466" y2="70" stroke="#b5502a" stroke-width="4" stroke-linecap="round"/>
+<circle cx="472" cy="146" r="5" fill="#58564f"/>
+<text x="498" y="122" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">pivot at floor slot</text>
+<line x1="496" y1="126" x2="478" y2="142" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="477" y="152" width="13" height="14" rx="1" fill="#b9b6ac" stroke="#6f6d64" stroke-width="0.8"/>
+<text x="504" y="176" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">hard stop</text>
+<line x1="502" y1="172" x2="492" y2="160" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="472" y1="146" x2="492" y2="378" stroke="#c8a58f" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 5"/>
+<circle cx="496" cy="392" r="14" fill="none" stroke="#c8a58f" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="516" y="308" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">rest</text>
+<line x1="514" y1="304" x2="488" y2="300" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="472" y1="146" x2="360" y2="392" stroke="#b5502a" stroke-width="4" stroke-linecap="round"/>
+<circle cx="348" cy="402" r="15" fill="#d8b07a" stroke="#8a5a26" stroke-width="1.5"/>
+<text x="388" y="376" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">hardwood head</text>
+<line x1="392" y1="380" x2="362" y2="396" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<path d="M482,416 Q424,436 368,420" fill="none" stroke="#b5502a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+<line x1="331" y1="392" x2="322" y2="385" stroke="#c98a2a" stroke-width="1.4"/>
+<line x1="330" y1="402" x2="319" y2="402" stroke="#c98a2a" stroke-width="1.4"/>
+<line x1="331" y1="412" x2="322" y2="419" stroke="#c98a2a" stroke-width="1.4"/>
+<text x="210" y="496" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#55534b">bamboo tube &mdash; strike lands mid-internode, on the outer skin</text>
+</svg>
+<figcaption><b>Fig. 1 &mdash; Node cross-section.</b> Solenoid pushes the short arm outward; the long arm swings the mallet inward through the floor slot. Dashed arm shows the rest position against the hard stop. ToF port and striker occupy opposite overhangs; the LED projects from the enclosure floor through the bore to the gobo.</figcaption>
+</figure>
+
+<p>Working dimensions for the first prototype, chosen so the 10 mm plunger stroke becomes a visible swing without stalling the solenoid:</p>
+
+<table>
+<tr><th>Parameter</th><th>Value</th><th>Reasoning</th></tr>
+<tr><td>Short arm, a</td><td>20&ndash;25 mm</td><td>Pivot to finger-contact point. Sets angular throw: &theta; = 10 mm / a &asymp; 0.4&ndash;0.5 rad.</td></tr>
+<tr><td>Long arm, b</td><td>50&ndash;65 mm</td><td>Pivot to head center. Ratio r = b/a &asymp; 2.5 gives &sim;25 mm of head travel &mdash; legible motion from ten feet away.</td></tr>
+<tr><td>Head mass</td><td>10&ndash;15 g</td><td>Reflected inertia at the plunger grows as r&sup2; (Section 8); heavier heads stall the weak initial force.</td></tr>
+<tr><td>Rest gap at finger</td><td>0&ndash;0.5 mm</td><td>Arm rests on the hard stop, pad a hair off the finger tip (Section 5).</td></tr>
+<tr><td>Head travel to wall</td><td>15&ndash;25 mm</td><td>Set so the head meets bamboo just before the plunger bottoms internally &mdash; one sound, not two.</td></tr>
+<tr><td>Slot</td><td>arm width + 2&ndash;3 mm/side</td><td>Downward-facing; generous clearance beats a tight seal for dust (Section 10).</td></tr>
+<tr><td>Strike height</td><td>mid-internode</td><td>Longer b reaches lower on the tube if resonance testing prefers it; trade per Section 8.</td></tr>
+</table>
+
+<h2>5 &middot; Rest position, gravity bias, and the hard stop</h2>
+
+<p>The detail that makes the mechanism deterministic across 150 hand-assembled units is where the arm lives when nothing is happening. The naive answer &mdash; let it hang plumb &mdash; leaves the rest position undefined within the slop of the pivot and at the mercy of wind. The next idea &mdash; rest the pad against the finger and let the solenoid&rsquo;s internal return spring take the preload &mdash; is also wrong, because that spring is deliberately feeble and pressing on it leaves the rest position mushy and the finger partially retracted.</p>
+
+<p>The right answer is a three-part arrangement. First, bias the arm&rsquo;s center of mass slightly outboard &mdash; a small heel of mass on the far side of the arm, or simply a bend in the arm &mdash; so gravity always torques the mallet <em>away</em> from the tube. Second, let that bias park the arm against a printed hard stop on the housing, not against the finger. Third, position the stop so the pad face sits 0&ndash;0.5 mm from the fully extended finger tip. The result: rest position is set by rigid geometry (adjustable, wind-stiff, spring-independent), the finger engages the pad essentially instantly on energize so there is no flying-gap collision, and the return spring is never asked to hold anything &mdash; only to bring the finger home after the strike, with gravity separately bringing the arm home onto its stop.</p>
+
+<p>How much bias? Enough to beat wind. Playa gusts load the head with roughly q&middot;A where q = &frac12;&rho;v&sup2; &asymp; 200 Pa at 18 m/s (40 mph); a 4 cm&sup2; head sees &sim;0.08 N. The bias torque about the pivot should exceed the worst-case wind torque with margin &mdash; a few grams of heel mass at the arm&rsquo;s radius typically suffices, and a flexure pivot (Section 7) adds its own restoring stiffness for free. If a positively snappy detent is wanted instead, a 3 mm neodymium disc in the housing facing a steel washer on the arm gives a crisp threshold the solenoid punches through &mdash; with the side effect of a slightly sharper launch. The alternative is philosophical: accept that a marginally biased arm will chatter against the tube in dust storms and call it the tree muttering in whiteouts. Either is defensible; it should just be a decision, not an accident.</p>
+
+<h2>6 &middot; The coupling: point contact, never a rigid link</h2>
+
+<p>Some of these solenoid fingers arrive with an M2/M3 tapped hole, which invites bolting the arm straight to the plunger. Resist it. The plunger travels on a line; the arm&rsquo;s contact point travels on an arc. A rigid link binds unless it includes a revolute pair at each end, and the binding load goes straight into the plunger bore as a side force &mdash; the one interface in the system that must stay free-sliding and is also the dust-wear surface. The kinematically clean joint is a point contact: a rounded (spherical-ish) tip on the finger pressing a flat pad face on the arm. The contact point simply migrates a fraction of a millimeter across the pad as the arm swings, transmitting pure normal force, zero side load, zero slop by construction since the preload architecture keeps the pair engaged.</p>
+
+<p>Conveniently, the vendor hardware already supplies this: the unit wearing a rounded screw nut on its threaded tip is wearing the correct part, and because it is threaded, the rest gap is tunable per node with a quarter-turn rather than a reprint &mdash; worth standardizing on. Units with a bare tapped hole get a short dome-head screw (or a printed threaded dome). The little o-ring some units carry stays: it cushions the plunger&rsquo;s internal end-of-travel and kills the metallic secondary clack. The pad face on the arm should be a hard, smooth surface &mdash; a printed boss is fine; a small stainless washer inset into the print is better for 10&#8309; cycles.</p>
+
+<h2>7 &middot; Pivot: pin-and-clevis vs. a spring-steel flexure</h2>
+
+<p>The obvious pivot is a printed clevis with an M3 shoulder bolt or steel pin &mdash; fine, cheap, serviceable, and Fig. 1/2 are drawn that way for clarity. But playa dust is superfine, alkaline, and abrasive, and a pin joint is a dust trap that must run dry (wet lubricant out there becomes grinding paste; dry PTFE at most). The more elegant option eliminates the sliding interface entirely: clamp a short strip of spring steel &mdash; feeler-gauge stock or banding strap &mdash; between printed blocks, one end to the frame, the other to the arm. The strip <em>is</em> the pivot: zero slop, zero wear surface, nothing for dust to invade, and its bending stiffness doubles as the rest-bias spring that holds the arm on its stop.</p>
+
+<p>Sizing is one equation. A strip of thickness t and free length L bent to angle &theta; sees a peak bending stress</p>
+
+<div class="eq">&sigma; = E&middot;t&middot;&theta; / (2L)          E (spring steel) &asymp; 200 GPa</div>
+
+<p>For infinite fatigue life keep &sigma; comfortably under &sim;350&ndash;400 MPa. Our full swing at the pivot is &theta; = 10 mm / a &asymp; 0.45 rad, which is a lot for a short flexure &mdash; thin and long wins. A 0.05 mm (0.002&Prime;) strip with L = 15 mm of free length runs about 150 MPa at full swing: effectively immortal. The same strip&rsquo;s restoring stiffness, k = E&middot;w&middot;t&sup3;/(12L) per radian, is around 1.4&times;10<sup>&minus;3</sup> N&middot;m/rad for a 10 mm width &mdash; call it 0.03 N reflected at the finger, invisible to the solenoid, but a real gram-force of bias at the head. It also fails gracefully: a fatigued strip droops rather than seizing, and a replacement is a scrap of shim stock in two printed clamps. Recommendation: prototype both, but expect the flexure to win the desert.</p>
+
+<figure>
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Detail of the lever near the floor slot: dome nut point contact on the pad, pivot, hard stop, heel bias mass, dimensions a and b, with an inset showing the spring-steel flexure pivot alternative.">
+<rect x="60" y="64" width="168" height="16" fill="#efede6" stroke="#8a887f" stroke-width="1"/>
+<rect x="276" y="64" width="104" height="16" fill="#efede6" stroke="#8a887f" stroke-width="1"/>
+<text x="62" y="58" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#6d6b62">enclosure floor</text>
+<text x="234" y="58" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#8a887f">slot</text>
+<rect x="100" y="18" width="80" height="38" rx="3" fill="#f3e2c0" stroke="#a8761f" stroke-width="1.2"/>
+<line x1="180" y1="37" x2="220" y2="37" stroke="#a8761f" stroke-width="3" stroke-linecap="round"/>
+<circle cx="225" cy="37" r="5" fill="#a8761f"/>
+<rect x="230" y="26" width="7" height="22" rx="1" fill="#d98c66" stroke="#7c3a1d" stroke-width="0.8"/>
+<rect x="237" y="31" width="6" height="12" fill="#d98c66" stroke="#7c3a1d" stroke-width="0.8"/>
+<rect x="236" y="84" width="26" height="12" rx="2" fill="#dcd9cf" stroke="#8a887f" stroke-width="0.8"/>
+<line x1="248" y1="90" x2="240" y2="20" stroke="#b5502a" stroke-width="5" stroke-linecap="round"/>
+<line x1="248" y1="90" x2="264" y2="308" stroke="#c8a58f" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 5"/>
+<circle cx="267" cy="322" r="13" fill="none" stroke="#c8a58f" stroke-width="2" stroke-dasharray="5 4"/>
+<rect x="252" y="146" width="14" height="14" rx="1" fill="#b9b6ac" stroke="#6f6d64" stroke-width="0.8"/>
+<line x1="248" y1="90" x2="210" y2="308" stroke="#b5502a" stroke-width="5" stroke-linecap="round"/>
+<line x1="220" y1="250" x2="226" y2="251" stroke="#8a887f" stroke-width="3"/>
+<circle cx="231" cy="252" r="7" fill="#8a887f"/>
+<circle cx="202" cy="322" r="14" fill="#d8b07a" stroke="#8a5a26" stroke-width="1.5"/>
+<circle cx="248" cy="90" r="5.5" fill="#58564f"/>
+<line x1="254" y1="37" x2="312" y2="37" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="256" y1="90" x2="336" y2="90" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="306" y1="41" x2="306" y2="86" stroke="#6d6b62" stroke-width="1"/>
+<path d="M303,43 L306,38 L309,43 M303,84 L306,89 L309,84" fill="none" stroke="#6d6b62" stroke-width="1"/>
+<text x="313" y="68" font-family="Helvetica,Arial,sans-serif" font-size="12" font-style="italic" fill="#211f1a">a</text>
+<line x1="218" y1="322" x2="336" y2="322" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="330" y1="95" x2="330" y2="317" stroke="#6d6b62" stroke-width="1"/>
+<path d="M327,97 L330,92 L333,97 M327,315 L330,320 L333,315" fill="none" stroke="#6d6b62" stroke-width="1"/>
+<text x="337" y="210" font-family="Helvetica,Arial,sans-serif" font-size="12" font-style="italic" fill="#211f1a">b</text>
+<text x="46" y="116" font-family="Helvetica,Arial,sans-serif" font-size="11.5" fill="#55534b">dome nut on pad &mdash; 0&ndash;0.5 mm gap at rest</text>
+<line x1="150" y1="110" x2="224" y2="44" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="46" y="222" font-family="Helvetica,Arial,sans-serif" font-size="11.5" fill="#55534b">heel bias mass</text>
+<line x1="128" y1="218" x2="220" y2="248" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="408" y="14" width="192" height="196" rx="3" fill="#ffffff" stroke="#d9d6cc" stroke-width="1"/>
+<text x="420" y="34" font-family="Helvetica,Arial,sans-serif" font-size="11.5" fill="#211f1a">alt. pivot: spring-steel flexure</text>
+<rect x="508" y="48" width="44" height="13" rx="2" fill="#dcd9cf" stroke="#8a887f" stroke-width="0.8"/>
+<line x1="530" y1="61" x2="530" y2="112" stroke="#7a8794" stroke-width="2.5"/>
+<rect x="508" y="112" width="44" height="13" rx="2" fill="#dcd9cf" stroke="#8a887f" stroke-width="0.8"/>
+<line x1="530" y1="125" x2="512" y2="186" stroke="#b5502a" stroke-width="5" stroke-linecap="round"/>
+<text x="416" y="56" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#55534b">frame clamp</text>
+<line x1="480" y1="52" x2="506" y2="54" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="416" y="86" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#55534b">0.05&ndash;0.10 mm shim</text>
+<text x="416" y="100" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#55534b">L &asymp; 15 mm free</text>
+<line x1="500" y1="92" x2="527" y2="88" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="416" y="130" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#55534b">arm clamp</text>
+<line x1="470" y1="126" x2="506" y2="119" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="416" y="200" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">strip = pivot + return spring; no slop, no dust path</text>
+</svg>
+<figcaption><b>Fig. 2 &mdash; Joint detail.</b> Solid arm shown at the struck position, dashed at rest against the hard stop. The rounded dome nut presses a flat pad in point contact &mdash; pure normal force, no side load on the plunger bore, gap adjustable by turning the nut. Dimensions a (pivot to contact) and b (pivot to head center) set the ratio r = b/a. Inset: the flexure pivot replaces the pin entirely.</figcaption>
+</figure>
+
+<h2>8 &middot; Dynamics and sizing</h2>
+
+<p>The lever is an energy-conserving transformer. With ratio r = b/a it trades force for travel and, critically for sizing, it multiplies inertia by r&sup2; as seen from the plunger:</p>
+
+<div class="eq">x_head  = r &middot; x_finger              travel amplification
+F_head  = F_finger / r               force reduction
+M_eff   = m_head&middot;r&sup2; + m_arm&middot;r&sup2;/3     inertia reflected to the finger
+                                     (slender arm of mass m_arm, length b)</div>
+
+<p>Worked at the nominal geometry &mdash; a = 22 mm, b = 55 mm, r = 2.5, a 12 g head on an 8 g printed arm &mdash; the finger sees about 75 + 17 &asymp; 92 g of reflected mass. Against the 0.5 N initial force that is a lazy 5&ndash;6 m/s&sup2; launch, which is exactly why the head must stay light and the arm must be a ribbed or I-section print rather than a solid bar: double the head or push r past &sim;3 and the weak early force curve spends most of the stroke going nowhere.</p>
+
+<p>Impact speed falls out of the energy budget. Taking the magnetic work W &asymp; 15&ndash;20 mJ with a mechanism efficiency &eta; &asymp; 0.7:</p>
+
+<div class="eq">v_finger = &radic;(2&eta;W / M_eff)  &asymp;  0.5 m/s
+v_head   = r &middot; v_finger      &asymp;  1.3 m/s        KE at head &asymp; 12 mJ</div>
+
+<p>A counterintuitive and useful corollary: for a light arm, v_head = &radic;(2&eta;W/m_head) &mdash; the ratio r cancels. <em>Impact speed is set by head mass alone; the lever ratio buys travel and swing legibility, not velocity.</em> So if resonance testing wants the strike point lower on the tube, lengthening b costs stall margin (initial acceleration falls as 1/r&sup2;) and stroke time, but not final head speed &mdash; provided the added arm length stays light. Stroke time at these numbers is 20&ndash;30 ms, which conveniently is also the natural drive-pulse width.</p>
+
+<p>Voltage sensitivity follows the winding physics: force scales as (V/V<sub>rated</sub>)&sup2;, so a 7 V cap on a 6 V coil over-delivers slightly and a mid-strike sag to 5 V costs about a third of the force &mdash; audible as a softer tail, not a failure. Cap droop per strike is &Delta;V = I&middot;&Delta;t/C: the 300 mA winding pulls &sim;0.35 A for 25 ms, or about 0.9 V from 10,000 &micro;F &mdash; comfortable. The 1 A winding triples that, which is the quiet argument for the high-resistance coil. Total electrical energy per strike is on the order of 50 mJ (&sim;6.5 V &times; 0.35 A &times; 25 ms), refilled by a 2 W panel in under 50 ms of full sun; even at 10% overcast output a full 4-strike chirp recovers in a couple of seconds, so the chorus thins gracefully with the light rather than browning out.</p>
+
+<figure>
+<svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Left: solenoid force versus stroke rising from 0.5 newtons initial to 5 newtons seated, with shaded work area of 15 to 20 millijoules. Right: timing of one strike showing coil current rise, power cut before impact, coasting impact, and gravity reset.">
+<text x="46" y="24" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#211f1a">a &mdash; force vs stroke (reluctance curve)</text>
+<line x1="70" y1="240" x2="290" y2="240" stroke="#6d6b62" stroke-width="1"/>
+<line x1="70" y1="240" x2="70" y2="50" stroke="#6d6b62" stroke-width="1"/>
+<path d="M70,222 C140,216 220,192 280,68 L280,240 L70,240 Z" fill="#f3e2c0" stroke="none"/>
+<path d="M70,222 C140,216 220,192 280,68" fill="none" stroke="#a8761f" stroke-width="2.2"/>
+<line x1="70" y1="222" x2="290" y2="222" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="70" y1="68" x2="290" y2="68" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="204" y="62" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">seated &asymp; 5 N</text>
+<text x="86" y="214" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">initial &asymp; 0.5 N</text>
+<text x="118" y="182" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#7c5a17">W = &int;F dx &asymp; 15&ndash;20 mJ</text>
+<text x="66" y="256" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">0</text>
+<text x="272" y="256" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">10 mm</text>
+<text x="120" y="274" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#55534b">plunger stroke</text>
+<text x="46" y="44" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#55534b" transform="rotate(-90 46 44)"></text>
+<text x="340" y="24" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#211f1a">b &mdash; one strike (coil current)</text>
+<line x1="350" y1="240" x2="610" y2="240" stroke="#6d6b62" stroke-width="1"/>
+<path d="M350,240 C356,150 360,120 368,118 L442,118 C448,118 450,180 456,236 L460,240 L610,240" fill="none" stroke="#4c7c2a" stroke-width="2.2"/>
+<line x1="442" y1="110" x2="442" y2="240" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="462" y1="110" x2="462" y2="240" stroke="#b5502a" stroke-width="1.2" stroke-dasharray="5 3"/>
+<text x="352" y="106" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#4c7c2a">energize (&tau; = L/R, a few ms)</text>
+<text x="398" y="260" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">power cut</text>
+<line x1="428" y1="252" x2="441" y2="242" stroke="#b0ada2" stroke-width="1" stroke-dasharray="3 3"/>
+<text x="470" y="128" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#b5502a">impact &mdash; head coasting,</text>
+<text x="470" y="142" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#b5502a">coil already dark</text>
+<text x="492" y="260" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">gravity + spring reset onto stop</text>
+<text x="348" y="282" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">0</text>
+<text x="588" y="282" font-family="Helvetica,Arial,sans-serif" font-size="10.5" fill="#6d6b62">~60 ms</text>
+</svg>
+<figcaption><b>Fig. 3 &mdash; The physics of one clean tok.</b> Left: the rising reluctance force curve; the shaded area is the whole energy budget. Right: drive the coil for &sim;20&ndash;25 ms, then cut power 3&ndash;5 ms <em>before</em> contact so the head arrives ballistically. Current freewheels briefly through the driver&rsquo;s flyback diode and dies; the head strikes with nothing pressing it into the tube, rebounds freely, and gravity re-parks the arm on its stop.</figcaption>
+</figure>
+
+<p>That power-cut timing is the single most important firmware parameter for tone. If the coil is still energized at contact, the finger keeps pushing the pad, the head presses into the bamboo, and the note is damped &mdash; sometimes with an ugly buzz as the magnetic force fights the rebound. Cut early and the tube rings free. It is one integer per node, tuned by ear, and it doubles as the volume knob: shorter pulses launch the head slower. Note the flyback diode (a slow 1N4007 on the driver board) only matters after the cut &mdash; it stretches the field&rsquo;s death by a few milliseconds, which slightly softens the reset, and is one more reason all strike energy should ride the power stroke rather than any spring-release scheme.</p>
+
+<h2>9 &middot; Acoustics: making it say <em>tok</em>, not <em>tick</em></h2>
+
+<p>The same 12 mJ can sound like a relay or like a marimba; the difference is contact time. A small hard mass (the bare steel plunger) makes microsecond contact and pumps its energy into high frequencies &mdash; a click. A larger, marginally softer head lengthens contact toward a millisecond and couples the same energy into the tube&rsquo;s low resonant modes &mdash; the woody <em>tok</em> of a slit drum, which is literally the instrument being built here: a bamboo tube struck by a mallet. Hardwood on bamboo is the traditional pairing for a reason, and the pragmatic implementation is a craft-store hardwood bead: pre-rounded, pre-drilled, sold in a dozen diameters for pennies, press-fit or epoxied onto a printed socket at the arm&rsquo;s end. The printed arm carries the engineering; the bead supplies the voice; A/B testing is a bead swap. A TPU or rubber cap gives a darker knock if some nodes want a second timbre, and a deliberately mixed chorus &mdash; a few voicings scattered through the canopy &mdash; will read as alive rather than mechanical.</p>
+
+<p>Strike placement matters as much as the head. Mid-internode is the drum head; on or near a node ring is nearly dead. Bamboo&rsquo;s dense outer skin rewards the external strike with a brighter ring than internal taps get. Because the tubes are irregular natural material, the mount (a printed saddle clamp with strap or zip-tie channels) should slide along the tube so each lantern&rsquo;s sweet spot can be found by ear during install week. Secondary noises to hunt down on the bench: the plunger&rsquo;s internal bottom-out (keep the o-ring, and set the geometry so the head meets bamboo before the plunger seats) and the reset landing on the hard stop (a dab of TPU on the stop face silences it).</p>
+
+<h2>10 &middot; The environment is trying to kill it</h2>
+
+<p>Playa dust is superfine, alkaline, abrasive, and it migrates into everything; there is also usually one rain event that turns it into a concrete-adjacent paste. The architecture already does most of the defense: the open-frame solenoid &mdash; whose plunger-in-bore clearance is the one genuinely dust-sensitive interface &mdash; lives entirely inside the enclosure, and the only opening is the downward-facing arm slot, which settling dust cannot enter and which an internal baffle wall can shield from wind-driven dust with no seal at all. Do not seal it hermetically; a vented-but-baffled box avoids condensation. Never apply wet lubricant anywhere in this mechanism &mdash; oil or grease turns every surface into a lapping compound carrier. Dry PTFE spray at most, and a flexure pivot needs nothing at all.</p>
+
+<p>Materials: everything sun-exposed must not be PLA, which softens near 60 &deg;C &mdash; a temperature dark parts in direct playa sun genuinely reach. PETG, ASA, or PC-blend for arms, housings, stops, and clamps; ASA if UV chalking over multiple burns matters. The bamboo itself is a moving target: tubes cut and shipped from Bali will shrink and possibly check on arrival in single-digit desert humidity, so the rest gap and strike distance set in Tennessee will drift on playa &mdash; one more argument for the adjustable dome nut, the sliding saddle clamp, and a mid-week walk of the tree with a nut driver.</p>
+
+<p>Wind is the remaining input: gusts load the exposed arm and head. The hard-stop bias sized in Section 5 keeps the arm parked; if storm testing shows phantom strikes, the magnetic detent is the escalation. And since the mallet is now on stage, it will also be handled by curious humans &mdash; the arm should survive being flicked by a finger, which the flexure pivot shrugs off and a loose pin clevis may not.</p>
+
+<h2>11 &middot; Serviceability at n = 150</h2>
+
+<p>Every per-node adjustment in this design is deliberately tool-light: rest gap by dome nut, strike position by sliding clamp, tone by bead swap, timing by firmware. The solenoid itself should drop out of its printed cradle with one connector and no soldering, because at under a dollar a unit it is cheaper to swap than to seal perfectly &mdash; carry &sim;10% spares plus a bag of beads, nuts, and shim strips. Post-burn triage is compressed air and a wiggle test; the wheeziest units retire. Randomizing which side of each lantern carries the striker (and the ToF on the other overhang) keeps the tree from having a single privileged approach direction, and costs nothing at assembly time.</p>
+
+<h2>12 &middot; Firmware hooks (Ben&rsquo;s side of the fence)</h2>
+
+<p>The mechanical design hands firmware exactly four numbers per node: pulse width (launch energy / volume), power-cut lead time (tone), inter-strike spacing within a chirp (a real cricket chirp is a train of 3&ndash;4 pulses &sim;25&ndash;30 ms apart), and a minimum cap voltage below which the node stays silent rather than delivering pathetic half-strikes &mdash; either measured via an ADC divider or left to physics, since a sagging cap fails soft and the chorus naturally thins at dusk and under cloud. The one hard firmware rule from the mechanical side: never hold the coil energized beyond a strike pulse; these coils are 20&ndash;30 ms devices with multi-second rests, and they will cook if parked on.</p>
+
+<h2>13 &middot; Bench test plan</h2>
+
+<table>
+<tr><th>Test</th><th>Method</th><th>Decides</th></tr>
+<tr><td>Winding ID</td><td>Meter every solenoid on arrival: &sim;6 &Omega; = 1 A coil, &sim;20 &Omega; = 0.3 A coil</td><td>Which coil the batch actually is; cap sizing</td></tr>
+<tr><td>Spring audit</td><td>Press plunger on a kitchen scale, read grams at full compression</td><td>Confirms spring is reset-only (&sim;30&ndash;100 g expected)</td></tr>
+<tr><td>Voltage proxy</td><td>12 V units on bench supply, swept 12 V &rarr; 7 V; force scales as (V/V<sub>r</sub>)&sup2;</td><td>Emulates 6 V winding across the full cap-droop range before 6 V stock arrives</td></tr>
+<tr><td>Stall margin</td><td>Prototype lever at r = 2, 2.5, 3 with 8/12/16 g heads; strike from 5.0 V worst case</td><td>Final a, b, head mass</td></tr>
+<tr><td>Tone sweep</td><td>Bead diameter/species and TPU cap A/B on real bamboo; slide strike point along internode</td><td>Head spec and clamp position guidance</td></tr>
+<tr><td>Cut timing</td><td>Sweep power-cut lead 0&ndash;8 ms, listen for press-damping and buzz</td><td>Default firmware constant</td></tr>
+<tr><td>Wind</td><td>Box fan at the parked arm, escalating; watch for stop lift-off</td><td>Heel mass / detent decision</td></tr>
+<tr><td>Endurance</td><td>One assembly, 50k cycles overnight with dust dusted into the slot</td><td>Pivot choice validation; wear surfaces</td></tr>
+</table>
+
+<h2>14 &middot; Open decisions</h2>
+
+<p>Four choices are genuinely open and are Dad&rsquo;s to make with the printer and the bamboo in the same room. Pivot: pin clevis versus spring-steel flexure &mdash; the flexure is favored here for dust and slop reasons, but the pin is faster to iterate. Head: hardwood bead diameter and species, versus printed PETG, versus TPU-capped &mdash; ears decide. Arm section and length: how low on the tube the sweet spot actually sits, and whether the arm needs ribs to stay light at that reach. Bias: heel mass sized to the wind test, or the magnetic detent if the stop alone proves marginal. Everything upstream of those four &mdash; power-stroke-only drive, point contact through a dome nut, hard-stop rest with 0&ndash;0.5 mm gap, downward slot, sealed coil, cut-before-impact timing &mdash; is the load-bearing skeleton of the design and should survive contact with the prototype.</p>
+
+<p class="note">One-sentence summary for the workshop wall: <em>a sealed solenoid&rsquo;s power stroke pushes, through a rounded nut in point contact, the short arm of a gravity-parked lever whose long arm swings a light hardwood head ballistically into the bamboo&rsquo;s outer skin &mdash; and the coil is already dark when the head lands.</em></p>
+
+</body>
+</html>

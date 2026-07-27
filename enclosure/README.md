@@ -6,10 +6,12 @@ Solar "hat" enclosure for the Resonance fixtures. Steve's workstream.
 172x COTS sealed enclosures + screws ordered ~07-12/13 ($5,306.50 total; vendor/
 part details TBC in `ops/PROCUREMENT.md`), split 22 to TN / 150 to CA:
 
-- **LARGE (111):** fits the larger solar panel -> hanging downlights + perimeter
-  lights. NOTE: 111 vs 110-112 needed = effectively zero spares on this line.
-- **SMALL (61):** fits the smaller panel, and doubles as the uplight "boot"
-  (uplight power still TBD: off-device panel vs 20 Ah cell).
+- **LARGE (111):** hanging downlight hats only (<=110 deployed; 72 planned --
+  healthy spares under the corrected 2026-07-15 mapping).
+- **SMALL (61):** perimeter-light hats AND uplight "boots" (perimeter + boots
+  <= 60 combined). The uplight boot gains a **hinged solar "wing"** (decided
+  2026-07-15; likely carrying the P105 5 W panel for partial/shaded sun) -- wing
+  hinge + panel mount are new mechanical design items.
 - **Chandelier:** no hat -- a team carpenter builds a box housing the 16 lights
   (coordinate venting, access, and USB-charging reach).
 
@@ -57,14 +59,15 @@ bamboo species (see `BACKGROUND.md`).
 
 ## Uplight "boot" (new fixture class, tentative -- design input for Steve)
 
-The 24 uplights are simple bamboo cylinders (no lower splay, no gobo). Current
-concept (Ben, 2026-07-08): the battery may FILL the bamboo cylinder -- possibly the
-20 Ah LFP cylindrical cell if the solar-free option wins -- with the 4 W RGBW near
-the lit end, and a small enclosure ("boot") at the base carrying the PowerFeather
-and a gasketed panel-mount USB-C charge/flash port. Same internals as every other
-fixture; sleeps during the day. The 16 chandelier lights would likely reuse this
-boot concept in a close-packed variant. All tentative until the uplight power
-decision lands (ADRs 0025/0026).
+The 24 uplights are simple bamboo cylinders (no lower splay, no gobo). Updated
+concept (2026-07-15): the 4 W RGBW sits near the lit end, and the small Polycase
+"boot" at the base carries the PowerFeather, the standard 6 Ah cell, a gasketed
+panel-mount USB-C charge/flash port, and a **hinged solar "wing"** (likely the
+P105 5 W) that folds out to catch partial/shaded sun. Wing hinge + panel mount are
+the new design items; the show runs a low-brightness budget tuned at the NC
+prebuild. Same internals as every other fixture; sleeps during the day. (The
+earlier fill-the-cylinder 20 Ah concept was cancelled on sourcing -- ADR 0025
+annotation.) The 16 chandelier lights use the carpenter-built box instead.
 
 ## Reference
 

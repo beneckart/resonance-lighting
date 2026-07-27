@@ -30,6 +30,8 @@ def distance_matrix(n: int, links: List[LinkObs], pl: PathLossParams, d_cap_m: f
     np.fill_diagonal(D, 0.0)
     observed = np.zeros((n, n), bool)
     for l in links:
+        if l.censored:
+            continue          # survivor-biased: only a lower bound, let FW complete it
         d = float(distance_from_rssi(l.rssi_dbm, pl))
         if d_cap_m is not None:
             d = min(d, d_cap_m)
@@ -95,7 +97,18 @@ def align_to_anchors(X: np.ndarray, anchors: List[ZAnchor], snap_sigma_m: float 
     if nu < 1e-12:
         raise ValueError("anchor z-fit degenerate (no vertical spread?)")
 
-    Q = _rotation_to_ez(u / nu)
+    # fit-quality gate: if the anchors' z barely correlates with any embedding
+    # direction (near-planar scene + noise -- the z axis drowned), ||u|| is
+    # meaningless and would rescale the whole embedding by garbage. The MDS
+    # embedding is already metric by construction, so fall back to scale 1.
+    fit_resid = Xc[idx] @ u - zc
+    ss_tot = float(np.sum(zc ** 2))
+    r2 = 1.0 - float(np.sum(fit_resid ** 2)) / ss_tot if ss_tot > 0 else 0.0
+    degraded = r2 < 0.3
+    if degraded:
+        nu = 1.0
+
+    Q = _rotation_to_ez(u / np.linalg.norm(u))
     Xa = (nu * Xc) @ Q.T
     Xa[:, 2] += za.mean()
 
@@ -106,11 +119,72 @@ def align_to_anchors(X: np.ndarray, anchors: List[ZAnchor], snap_sigma_m: float 
 
     info = {
         "scale_applied": nu,
+        "anchor_fit_r2": r2,
+        "degraded": degraded,
         "anchor_fit_rms_m": float(np.sqrt(np.mean(resid ** 2))),
         "n_anchors": len(anchors),
         "anchor_z_spread_m": float(np.std(za)),
     }
     return Xa, info
+
+
+def anchored_init(
+    n_dev: int,
+    links: List[LinkObs],
+    anchors: List[ZAnchor],
+    pl: PathLossParams,
+    d_cap_m: float = 60.0,
+    min_dxy_m: float = 0.05,
+) -> np.ndarray:
+    """Anchor-aware initialization -- use the z-anchors where they are strong.
+
+    Rationale (learned the hard way, see tests/test_e2e_smoke.py history): the
+    tree scene is nearly planar (z spread ~0.7 m vs xy spread ~8 m), so in plain
+    3D MDS the height axis drowns in RSSI noise, and align_to_anchors' scale
+    estimate collapses with it. Instead: for the anchored subset (>=2/3 of the
+    fleet) z is MEASURED, so subtract it out -- d_xy^2 = d_hat^2 - dz^2 -- and
+    solve a clean 2D MDS for xy, where the signal variance actually is. The
+    unanchored devices (uplights/chandelier) are seeded by inverse-square-
+    weighted centroids of their nearest anchored neighbors; the NLS refinement
+    separates them from there.
+    """
+    idx_a = np.array(sorted({a.idx for a in anchors}))
+    z_meas = np.zeros(n_dev)
+    z_sig = np.full(n_dev, np.inf)
+    for a in anchors:
+        if a.sigma_m < z_sig[a.idx]:
+            z_meas[a.idx] = a.z_m
+            z_sig[a.idx] = a.sigma_m
+
+    D, observed = distance_matrix(n_dev, links, pl, d_cap_m=d_cap_m)
+
+    # 2D MDS over the anchored subset with z removed from the metric
+    DA = D[np.ix_(idx_a, idx_a)]
+    dz = z_meas[idx_a][:, None] - z_meas[idx_a][None, :]
+    Dxy = np.sqrt(np.maximum(DA ** 2 - dz ** 2, min_dxy_m ** 2))
+    np.fill_diagonal(Dxy, 0.0)
+    Dxy[np.isinf(DA)] = np.inf
+    Dxy = complete_distances(Dxy)
+    XY, _ = classical_mds(Dxy, ndim=2)
+
+    X = np.zeros((n_dev, 3))
+    X[idx_a, :2] = XY
+    X[idx_a, 2] = z_meas[idx_a]
+
+    # unanchored: inverse-square-weighted centroid of nearest anchored devices
+    anchored = np.zeros(n_dev, bool)
+    anchored[idx_a] = True
+    for u in range(n_dev):
+        if anchored[u]:
+            continue
+        d_u = D[u, idx_a]
+        order = np.argsort(d_u)[:8]
+        w = 1.0 / np.maximum(d_u[order], 1e-2) ** 2
+        if not np.isfinite(w).any() or w.sum() <= 0:
+            w = np.ones(len(order))
+        w = np.where(np.isfinite(w), w, 0.0)
+        X[u] = (X[idx_a[order]] * w[:, None]).sum(axis=0) / w.sum()
+    return X
 
 
 def smacof(X0: np.ndarray, links: List[LinkObs], pl: PathLossParams,

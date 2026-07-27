@@ -5,9 +5,10 @@ the production-RGBW ceiling profile and active-integrator fix were OTA-deployed 
 and the RGBW was installed before dusk. The original P126 peer was then disassembled
 and retired after a header-rework hardware failure; replacement `9F2690` completed the
 first VDC-capacitor solenoid trial. The paired replacements completed a clean seven-day
-logger run on July 24. VDC plus 10,000 uF remains the leading but not-yet-qualified
-solenoid path. The P105 external INAs are next scheduled for removal for a
-production-harness A/B.
+logger run on July 24. The trial's VDC + 10,000 uF result was subsequently promoted
+to the finalized ADR 0030 solarnoid concept with 22,000 uF and a stronger-solenoid
+bake-off; those later experiments are tracked separately. The P105 external INAs are
+next scheduled for removal for a production-harness A/B.
 
 ## Purpose
 
@@ -94,8 +95,9 @@ bright-sun strike remained the next hardware step at that point.
 July 14 qualitative result: the panel-only/no-storage-capacitor strike was weak. Adding
 a 10,000 uF, 16 V electrolytic directly across the panel adapter's V+/GND made the kick
 dramatically stronger; Ben's assessment was that it was both effective and a design he
-liked. This is not yet a quantified strike-energy result, but it moves VDC + local
-storage from an alternative to the leading production candidate.
+liked. This was not a quantified strike-energy result, but it moved VDC + local
+storage from an alternative to the leading production candidate at the time. ADR 0030
+later finalized the solarnoid around a 22,000 uF store and stronger-solenoid bake-off.
 
 The tested cable/adapter stack was:
 

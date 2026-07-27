@@ -153,10 +153,10 @@ bus (ADR 0028). Kept here only so nobody re-adds it.
 
 ### 4 W RGBW point source (gobo role)
 
-- Currently fed from the switchable 3V3 rail (V+/GND/A0 via right-angle JST-XH);
-  the VBAT-direct option (+33 % fringed white) is OPEN -- taking it means a pin
-  move (A0 -> D13), a fail-safe redesign (rail shutoff no longer kills the LED),
-  and tapping downstream of the gauge shunt (ADR 0029).
+- Fed from the switchable 3V3 rail (V+/GND/A0 via right-angle JST-XH) -- DECIDED
+  by the 2026-07-11 instrumented A/B (rail beats VBAT through production-realistic
+  cabling, +2.5 % mean; ADR 0029 amendment). Same feed, harness, and pinout as the
+  HEX; the rail is the hard LED kill.
 - Single-emitter PWM drive; supports the swept/single-pixel gobo modes.
 
 ## Power / telemetry subsystem

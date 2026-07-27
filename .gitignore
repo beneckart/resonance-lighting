@@ -37,3 +37,17 @@ firmware/*/build/
 
 # LibreOffice lock files
 .~lock.*#
+
+# 3D model fetched on demand (upstream ships no license)
+hardware/capboard/viz/*.step
+
+# Raw multi-hundred-MB INA capture logs (exceed GitHub limits; keep local, commit downsamples)
+ops/bench/data/**/*-ina-*.log
+
+# Raw field-cycle/logger captures (some runs are multi-GB). Keep the originals on the
+# bench and commit explicit summaries or downsamples with distinct filenames.
+ops/bench/data/**/*-field-cycle-*.jsonl
+ops/bench/data/**/*-logger.*.txt
+ops/bench/data/**/*-dashboard.*.txt
+ops/bench/data/**/*-ota-results.jsonl
+ops/bench/data/**/*-local-full.jsonl

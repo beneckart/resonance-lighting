@@ -38,7 +38,9 @@ The main design shift is:
 ADR 0031 accepts a deterministic scheduled dusk/dawn lightshow as the production
 direction. A subset of fixtures will carry onboard-antenna GPS/GNSS receivers for
 absolute UTC and another subset will carry battery-backed external RTCs for holdover.
-They distribute time quality over ESP-NOW; all 150 fixtures do not need their own RTC.
+The initial experiment set is four purchased SAM-M8Q GPS modules plus four purchased
+Adafruit DS3231 RTC modules. They distribute time quality over ESP-NOW; all 150
+fixtures do not need their own RTC.
 
 This supersedes this note's earlier assumption that wall time was unnecessary for the
 daily lifecycle and demotes distributed dusk inference from the production trigger to
@@ -527,7 +529,13 @@ Every production path should preserve the already validated safety shape:
 - battery, rail, fault, and recovery vetoes;
 - telemetry counters for requested, executed, blocked, and failsafe-ended strikes.
 
-## Solenoid power and harness stance -- VDC + 10,000 uF now leads, still not locked
+## Solenoid power and harness history -- the July 14 VDC + 10,000 uF turning point
+
+Decision update: ADR 0030 subsequently selected the solenoid bamboo-strike and the
+July 24 annotation finalized the "solarnoid" as VDC tap + 22,000 uF storage +
+stronger solenoid + bulk mallet on large-hat downlights. The section below preserves
+the July 14 experiment that established the direction; its "open" language is
+historical, while the qualification measurements remain useful.
 
 The July 14 first-capacitor trial materially changed the trade. A 10,000 uF, 16 V
 electrolytic placed directly across the solar V+/GND feed transformed the previously
@@ -718,10 +726,10 @@ The architecture is large enough that it should be validated in narrow slices.
 
 ### Phase 1 -- external time anchors, holdover, and wake-window experiment
 
-- Bench candidate onboard-antenna GPS/GNSS modules through the real hat and near the
+- Bench the four purchased SAM-M8Q GPS modules through the real hat and near the
   production panel/battery geometry; measure acquisition time and energy.
-- Bench candidate battery-backed external RTCs for drift, backup current, reset
-  survival, and hot-day/cold-night holdover.
+- Bench the four purchased Adafruit DS3231 RTC modules for drift, backup current,
+  reset survival, and hot-day/cold-night holdover.
 - Define time-quality messages and verify that non-anchor fixtures acquire UTC from
   multiple peers without Starlink.
 - In parallel, build otherwise identical default-RC and divided-fast-RC images and
@@ -748,8 +756,8 @@ The architecture is large enough that it should be validated in narrow slices.
 - Record command time, GPIO edge, mechanical strike, and audible arrival if practical.
 - Compare chorus versus hop/spatial ripple.
 - Measure rail voltage, reset/fault behavior, and energy per strike/show.
-- Quantify and durability-test the now-leading VDC/10,000 uF path before locking the
-  harness; retain 3V3 as the measured fallback.
+- Quantify and durability-test the finalized VDC/22,000 uF solarnoid path, including
+  the stronger-solenoid bake-off; retain 3V3 as the measured fallback.
 
 ### Phase 5 -- scheduled day/night lifecycle
 
@@ -819,7 +827,7 @@ Avoid locking attractive algorithms or packet fields until the following are mea
 - How is the site map distributed, versioned, and recovered after flash replacement?
 - What is the exact 5-pin XH header order and branch harness pinout?
 - Does the shared 3V3 rail remain stable under the worst LED-plus-solenoid coincidence?
-- Does the VDC/10,000 uF result remain strong across weather, coil samples, panel class,
+- Does the VDC/22,000 uF result remain strong across weather, coil samples, panel class,
   recharge cadence, cold Voc, and production mounting?
 - What local metric best grants a solenoid show: recent solar surplus, corrected coulomb
   budget, voltage margin, or a combination?
@@ -843,9 +851,8 @@ The strongest current candidate is:
   in the same runtime;
 - bridge behavior controlled by expiring leases;
 - local power policy always authoritative;
-- VDC/GND plus a directly breakout-mounted 10,000 uF capacitor as the new leading
-  daytime-solenoid candidate because its strike and one-minute assembly both passed the
-  first qualitative test;
+- the ADR 0030 solarnoid: VDC/GND plus 22,000 uF storage, stronger solenoid, and bulk
+  mallet on large-hat downlights; the July 14 10,000 uF trial established the path;
 - 3V3/GND through a five-pin JST-XH Y-splitter retained as the proven fallback until
   VDC/capacitor voltage, recharge, durability, and production mounting are qualified.
 

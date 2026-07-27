@@ -26,19 +26,27 @@ LOG inference) -- correct them from receipts when convenient.
 | batteries-100 | fullbattery.com | 2026-07-07 | 100x 32700 LiFePO4 6 Ah | $565.20 | placed, in transit |
 | pf-batch-2 | Elecrow | 2026-07-09 | 90x PowerFeather V2 ($30/board + s&h + bank fee + tariff) | $3,494.24 | placed, in transit (CN; grew from the planned 82) |
 | mosfet-drivers | Adafruit | 2026-07-10 | 100x MOSFET driver (solenoid noisemaker, candidate B) | $345.00 | placed, in transit |
-| solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | placed, in transit |
+| solenoids | AliExpress | 2026-07-10 | 75x 3 V + 75x 5 V push-pull solenoids (voltage variants for A/B) | $319.12 | in transit -- **MAY BE RETURNED**: bench trending toward stronger solenoids (0730B 6 V/1 A bake-off leader, 07-16); decide before the return window closes |
 | usbc-rgbw | Adafruit | 2026-07-10 | 150x waterproof USB-C panel-mount extension cables ($540 -- a rescue/charge port on EVERY fixture, wired to the PowerFeather USB-C) + 50x 4 W RGBW top-up ($247.50); remainder ~$73 s&h/tax | $860.34 | placed, in transit |
 | grove-electromaker | Electromaker | 2026-07-10 | 55x Grove/HY2.0 breakouts (125 total with the 06-18 RobotShop 70) | $85.26 | placed, in transit |
 | xh-keszoox | Keszoox (Amazon) | ~2026-07-12/13 | 150x 10 cm red + 150x 10 cm black pre-crimped XH + 60x PH pigtails 10 cm (just-in-case) | $220.26 | placed, in transit |
 | xh-aliexpress | AliExpress | ~2026-07-12/13 | 1,800x double-ended pre-crimped XH: 150 each of yellow/blue/black/red in 30/20/10 cm | $139.22 | placed, in transit -- watch lead time |
 | xh-ysplit-1 | (TBC) | ~2026-07-12/13 | 70x JST XH 5-pin Y-splitter cables | $94.96 | placed, in transit (split TN/CA) |
 | xh-ysplit-2 | (TBC) | ~2026-07-12/13 | 90x JST XH 5-pin Y-splitter cables | $120.81 | placed, in transit (split TN/CA) |
-| enclosures-tn | (vendor TBC) | ~2026-07-12/13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
-| enclosures-ca | (vendor TBC) | ~2026-07-12/13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
+| enclosures-tn | Polycase | 2026-07-13 | 22x enclosures (11 large + 11 small) + screws, shipped to Steve (TN) | $822.67 | placed, in transit |
+| enclosures-ca | Polycase | 2026-07-13 | 150x enclosures (100 large + 50 small) + screws, shipped to CA | $4,483.83 | placed, in transit |
+| strike-caps | AliExpress (2 sellers) | 2026-07-16 | 210x 22,000 uF 16 V capacitors -- solenoid strike storage for the VDC-tap supply; bench shows 22k uF buys the headroom for STRONGER solenoids | $161.39 ($140.89 + $20.50) | placed, in transit -- watch lead time |
+| drivers-bmp | Adafruit | 2026-07-16 | 50x MOSFET drivers ($178 -- 160 total; solenoids may be PROMOTED to a standard feature on all downlights + perimeter lights) + 30x BMP581 temp/barometric sensors ($268.80 -- env data on the uplight STEMMA chain); ~$41 s&h/tax | $488.13 | placed, in transit |
+| gps-timing | SparkFun | 2026-07-20 | 4x SAM-M8Q Qwiic GPS modules -- accurate clock/time for trivial dusk/dawn bring-up + sleep scheduling (bench/experiment qty; also potential position anchors for the auto-localization work) | $132.68 | placed |
+| rtc-timing | Adafruit | 2026-07-20 | 4x DS3231 STEMMA RTC boards (batteries included) -- the cheap clock alternative to GPS for the same dusk/dawn/sleep experiments | $97.09 | placed |
+| batteries-33140-tn | batteryhookup.com | 2026-07-24 | 10x 33140 LiFePO4 15 Ah (to Steve/TN) -- absurdly low price, ~$4.50-5/cell class | $52.76 | placed |
+| batteries-33140-ca | batteryhookup.com | 2026-07-24 | 120x 33140 LiFePO4 15 Ah (to CA) -- **new fleet standard for LARGE-enclosure fixtures (downlights)**; the small enclosures only fit the 32700 6 Ah | $532.84 | placed |
 
-Committed so far: **~$23,709** across the rows above (production boards 158; RGBW
+Committed so far: **~$25,174** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
-deliberate lead-time-hedged abundance). The $440 / $170 / $159 rows are the
+deliberate lead-time-hedged abundance; 210 strike caps; 160 MOSFET drivers; 30
+BMP581 env sensors; batteries now TWO-TIER: 130x 33140 15 Ah for large-enclosure
+fixtures + 175x 32700 6 Ah for the small-enclosure classes). The $440 / $170 / $159 rows are the
 fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 Cabling strategy note (2026-07-13): final harness lengths are unknown until the
@@ -47,10 +55,20 @@ colors from multiple vendors ("they are cheap") betting that a few orders land
 early -- an abundance is the plan, not an accident. Additional small
 receptacle/header orders (Amazon/AliExpress) exist beyond the itemized rows.
 
-Enclosure mapping (2026-07-13): LARGE (111) fits the larger panel -> hanging
-downlights + perimeter lights; SMALL (61) fits the smaller panel and doubles as
-the uplight "boot" (uplight power still TBD: off-device panel vs 20 Ah cell).
-The 16 chandelier lights get a carpenter-built box (team-side, not this ledger).
+Enclosure mapping (corrected 2026-07-15): **LARGE (111) -> hanging downlights
+only** (<=110 deployed); **SMALL (61) -> perimeter lights AND uplight boots**
+(perimeter + boots <= 60 combined). The 16 chandelier lights get a carpenter-built
+box (team-side, not this ledger), so 150 fixtures fit inside the enclosure pools
+with spares back at camp; Elliot is flexible on the final light allocation. Two of
+the enclosures (1 large + 1 small) have TRANSPARENT LIDS -- "show and tell" demo
+models for explaining the piece to visitors at the art piece.
+
+Uplight power RESOLVED 2026-07-15: the 20 Ah cell is OUT -- batteryspace could not
+supply enough in time, and the Alibaba counterpart (a bargain at ~$4.50/cell bulk)
+needs ocean freight that misses 2026 (worth remembering for 2027). Uplights instead
+get a **hinged solar "wing" on the boot** drawing partial sun -- likely wanting the
+5 W P105 panel -- and run mostly at low brightness on the standard 6 Ah cell,
+tuned by experiments at the Nevada City prebuild.
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -70,7 +88,8 @@ The 16 chandelier lights get a carpenter-built box (team-side, not this ledger).
   TCA9548A mux, TOF400C/VL53L1X); Adafruit KB2040; noisemaker candidates (Songle
   relay, SparkFun Qwiic Omron relay + RedBot buzzer, Arduino Modulino Buzzer/Vibro,
   piezo, 8002A amp, Adafruit STEMMA speaker #3885 at $4.76); 10x Adafruit MOSFET
-  drivers ($46, pre-fleet order -- so 110 drivers total with the 07-10 buy).
+  drivers ($46, pre-fleet order -- so 110 drivers total with the 07-10 buy);
+  **solarnoid mallets** (craft store, bulk, very cheap -- order details TBC).
 
 ## To-buy queue
 
@@ -80,10 +99,12 @@ The 16 chandelier lights get a carpenter-built box (team-side, not this ledger).
 | ~~JST-XH cabling + receptacles + headers~~ | ~~fleet-wide~~ | DONE ~2026-07-12/13 across multiple redundant orders (lead-time hedge): 300x 10 cm single-color + 1,800x multi-length/color pre-crimped + 160x 5-pin Y-splitters + 60x PH pigtails + receptacle/header smalls | -- | residual = lead times only; abundance intended |
 | ~~Grove breakout(s)~~ | ~~small~~ -> 125 | DONE: 70x RobotShop 06-18 (at Steve's) + 55x Electromaker 07-10 -- covers every HEX fixture at any chandelier mix | -- | -- |
 | ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
-| 20 Ah LFP cells (batteryspace #6832) | ~40 | solar-free uplights/chandelier | CONDITIONAL: sample 2 qualification (sample 1 verified 07-12 at 19,412 mAh; rig assembled) | decide by ~late July | Medium: lead time unverified |
-| 20 Ah end-cap connection hardware | ~40 | production battery connection (bench used alligator clips "on tape and prayer") | with the 20 Ah buy | with cells | Medium |
-| Noisemaker strike-power + wiring residuals | subset TBD | solenoid strike supply (VDC-tap Y-cables + storage caps vs battery/VS pin), driver control cables, mallet mounting | strike-power decision (VDC-tap sweep in progress); drivers + solenoids ALREADY ORDERED 07-10 | ~late July | Low/Medium |
-| Spare STEMMA speakers #3885 | 2+ | candidate-A crowd test (bench unit's trim pot died) | none | soon | Low |
+| ~~20 Ah LFP cells (batteryspace #6832)~~ | ~~40~~ | ~~solar-free uplights/chandelier~~ | **CANCELLED 2026-07-15**: batteryspace quantity short; Alibaba alternative (~$4.50/cell bulk!) needs ocean freight = misses 2026. Uplights go hinged-solar-wing + 6 Ah instead. Revisit for 2027. | -- | -- |
+| ~~20 Ah end-cap connection hardware~~ | ~~40~~ | -- | CANCELLED with the cells | -- | -- |
+| Uplight wing hardware (hinges, panel mount on the boot) | ~24 | hinged solar wing on the uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
+| Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16; transient question CLOSED -- strikes read as benign VDC droops, cloud-indistinguishable) | mounting design | ~late July | Low |
+| Stronger solenoids (0730B 6 V/1 A class) | up to fleet | replaces the 3 V/5 V units if the bake-off confirms | bake-off verdict (in progress on the bench laptop); pair with the 3 V/5 V return decision | ASAP after verdict | Medium: another CN lead time |
+| ~~Spare STEMMA speakers #3885~~ | -- | -- | CANCELLED 2026-07-15: speaker path ABANDONED (ADR 0030) -- solenoid bamboo-strike wins | -- | -- |
 | ~~RGBW top-up~~ | ~~20+~~ -> 50 | ORDERED 2026-07-10 ($247.50 portion of usbc-rgbw) -- 150 RGBW total, spares healthy at any chandelier mix | -- | -- |
 | ~~JST 2-pin Y-cables (~$0.50 ea)~~ | ~~100~~ | GND tap for the VBAT LED-feed option | DROPPED 2026-07-11: ADR 0029 amended -- RGBW stays rail-fed (A/B lux campaign, rail +2.5 % mean). NOTE: XH 2-pin Y-cables may return as the solenoid VDC strike tap -- see the strike-power row | -- | -- |
 
@@ -100,8 +121,9 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (batteryspace 20 Ah + end-caps; solenoid strike-power parts; spare #3885s --
-  the harness and enclosure buys landed ~07-12/13).
+  (uplight wing hardware; solenoid control cabling -- strike caps ordered 07-16;
+  the harness and enclosure buys landed 07-12/13; the 20 Ah and #3885-spare buys
+  are cancelled).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks
   puts boards ~mid-to-late July; residual risk is transit, not commitment.
 - July-07 domestic orders (sensors, cables, batteries) and the July-10 noisemaker
@@ -142,9 +164,30 @@ corroborated 2026-07-08):
   **20 Ah sample 1 verified** (19,412 mAh = 97.1 % of label) -- sample 2 gates the
   ~40-cell buy.
 - ~2026-07-12/13 -- **harness + enclosure wave**: pre-crimped XH cabling in
-  lead-time-hedged abundance (~$575 across 4+ orders) and **172 COTS enclosures**
-  (111 large + 61 small + screws, $5,306.50, split TN/CA). Chandelier housing =
+  lead-time-hedged abundance (~$575 across 4+ orders) and **172 Polycase
+  enclosures** (111 large + 61 small + screws, $5,306.50, both orders placed
+  07-13, split TN/CA; incl. 2 transparent-lid demo units). Chandelier housing =
   carpenter-built box (team-side).
+- 2026-07-15 -- **uplight power RESOLVED: hinged solar wing + 6 Ah** (20 Ah
+  cancelled on sourcing/timeline; Alibaba ~$4.50/cell noted for 2027). Enclosure
+  mapping corrected: large -> downlights only; small -> perimeter + boots.
+  **Noisemaker DECIDED same day (ADR 0030)**: solenoid bamboo-strike; speaker
+  path abandoned.
+- 2026-07-16 -- **strike caps ordered**: 210x 22,000 uF 16 V ($161.39, two
+  AliExpress sellers) -- fleet-scale storage for the VDC-tap strike supply. Also
+  **50 more MOSFET drivers** (160 total -- solenoid knock trending toward a
+  standard downlight + perimeter feature) and **30x BMP581 temp/barometric
+  sensors** for the uplight STEMMA chain ($488.13, Adafruit).
+- 2026-07-20 -- **timing experiments**: 4x SAM-M8Q Qwiic GPS ($132.68) + 4x
+  DS3231 STEMMA RTC ($97.09) -- accurate clocks make dusk/dawn bring-up and
+  sleep scheduling trivial (need not yet certain; bench qty).
+- 2026-07-24 -- **battery fleet goes TWO-TIER**: 130x 33140 15 Ah found absurdly
+  cheap at batteryhookup.com ($585.60 total, 10 TN + 120 CA) -- fleet standard
+  for large-enclosure fixtures (downlights); 32700 6 Ah stays for the
+  small-enclosure classes. Qualification run pending (ADR 0025 annotation).
+- ~2026-07 (by 07-24) -- **"solarnoid" design FINALIZED, mallet and all** (craft
+  store bulk mallets, order TBC); scope settled: paired with LARGE enclosures
+  only (needs the space) -> downlights; expect surplus MOSFET drivers.
 - ~2026-07-20/31 (TENTATIVE) -- Ben TN trip: ~70-board fleet test at Steve's.
 - 2026-07-31/08-19 -- NC prebuild, Bodhi Hive, Nevada City; **08-01/02 container
   unload (all hands)**; **08-08/09 lights + camp systems team build**.
@@ -163,14 +206,14 @@ corroborated 2026-07-08):
 | Mouser | VL53L5CX | |
 | SparkFun | TMF8820-mini; presence-bench sensor kit | |
 | Gilisymo | ToF protective optical covers | EUR pricing |
-| batteryspace.com | 20 Ah LFP cylindrical (#6832) candidate; 18650 bench LFP | Conditional buy pending bench test |
+| batteryspace.com | 20 Ah LFP cylindrical (#6832) samples; 18650 bench LFP | 20 Ah bulk buy CANCELLED 07-15 (quantity short); Alibaba ~$4.50/cell is the 2027 lead |
+| Polycase | 172x enclosures + screws (111 large + 61 small; 2 transparent-lid demo units) | Both orders 2026-07-13 |
 | Amazon | Palowextra 32700 (REJECTED -- ADR 0025); misc bench | |
 | AliExpress | Push-pull solenoids (75x 3 V + 75x 5 V) | Noisemaker candidate B; watch transit time |
 | DFRobot | SEN0291 wattmeters, DFR0559 | Bench instrumentation |
 | RobotShop | Grove/HY2.0 breakouts (70, at Steve's) | |
 | Electromaker | Grove/HY2.0 breakouts (55) | |
 | Keszoox (Amazon) | Pre-crimped XH cables, PH pigtails | Multiple lengths/colors |
-| (enclosure vendor TBC) | 172x COTS enclosures + screws | Large = downlight/perimeter hats; small = small-panel fit + uplight boots |
 | PCBWay | NeoHEX adapter Rev A assembly quote (~$32.82/5) | Quoted 2026-05-20, never ordered |
 
 Shipping: electronics ship domestic to Ben (CA) and Steve (TN); the staging point is

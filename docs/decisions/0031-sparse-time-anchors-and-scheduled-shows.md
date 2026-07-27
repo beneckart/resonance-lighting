@@ -1,10 +1,11 @@
 # 0031 -- Sparse GPS/RTC time anchors and scheduled dusk/dawn shows
 
 **Date:** 2026-07-26
-**Status:** Accepted direction. Four SAM-M8Q modules are already bought as initial
-GPS soft anchors; reception and time-acquisition behavior in the real installation
-remain unqualified. The RTC module, final anchor counts, schedule offsets, and
-invalid-time fallback remain open and must be qualified before production.
+**Status:** Accepted direction. Four SAM-M8Q GPS modules and four Adafruit DS3231
+STEMMA RTC modules with backup batteries are already bought as the initial experiment
+set. Reception, acquisition energy, RTC drift/backup behavior, final anchor counts,
+schedule offsets, and invalid-time fallback remain open and must be qualified before
+production.
 **Owners:** Ben + Codex
 
 ## Context
@@ -29,6 +30,10 @@ absolute UTC without enclosure penetration when an onboard antenna works through
 hat. A battery-backed external RTC provides inexpensive low-power holdover. Neither
 needs to be fitted to every fixture if time can be distributed over the existing
 ESP-NOW network.
+
+The initial hardware is already on hand: four SparkFun SAM-M8Q Qwiic GPS modules and
+four Adafruit DS3231 STEMMA RTC modules with backup batteries, ordered as bench
+quantities rather than a fully qualified fleet allocation.
 
 This decision concerns the daily show schedule. Tight choreography within an active
 show may still use a separate monotonic/logical phase corrected by peer traffic; it
@@ -95,8 +100,9 @@ does not require GPS-level precision.
 - Qualification of the four purchased SAM-M8Q modules under the real hat, solar panel,
   battery, and installation geometry; decide whether they are the final GPS anchors
   after measuring acquisition time and energy.
-- External RTC module/IC choice; drift across playa temperature, backup current,
-  backup source, oscillator aging, and I2C integration at the ADR 0028 100 kHz ceiling.
+- Qualification of the four purchased Adafruit DS3231 modules: drift across playa
+  temperature, backup current/source behavior, oscillator aging, and I2C integration
+  at the ADR 0028 100 kHz ceiling.
 - Counts and physical distribution of GPS and RTC anchors by fleet class.
 - Whether a single fixture may carry both GPS and RTC or the capabilities remain on
   separate fixtures.
@@ -112,8 +118,8 @@ does not require GPS-level precision.
 1. Acquire GPS time with an onboard antenna through the actual enclosure and nearby
    panel/battery placement; repeat at representative orientations.
 2. Measure GPS acquisition/maintenance energy and choose an anchor duty cycle.
-3. Measure candidate RTC drift and backup current across hot-day/cold-night
-   temperatures and multi-day holdover.
+3. Measure the purchased DS3231 RTCs' drift and backup current across
+   hot-day/cold-night temperatures and multi-day holdover.
 4. Remove Starlink and the host, then prove that the fleet retains or reacquires the
    event schedule autonomously.
 5. Exercise stale, conflicting, missing, and abruptly corrected time messages in native

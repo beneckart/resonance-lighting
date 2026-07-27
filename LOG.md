@@ -33,16 +33,16 @@ evidence that the 2 W panel is inherently undersized.
 
 Ben chose deterministic scheduled dusk/dawn lightshows as the production direction.
 ADR 0031 records a redundant sparse time architecture: four purchased SAM-M8Q modules
-are the initial onboard-antenna GPS/GNSS anchors for absolute UTC, some fixtures
-receive battery-backed external RTCs for holdover, and ESP-NOW distributes
-source/age/uncertainty to ordinary fixtures.
-This does not require RTCs on all 150 nodes and does not make one anchor a permanent
-leader. Starlink may commission/verify time during build week but is not an event
-dependency. Panel/lux inference is demoted to bench telemetry, sanity checking, and a
-still-open bounded degraded mode. Updated the canonical system architecture, solar
-test report, choreography research note, TODO, and agent onboarding notes. SAM-M8Q
-qualification, the RTC module, final counts, schedule offsets, and invalid-time
-behavior remain open; no firmware or hardware was changed in this documentation pass.
+are the initial onboard-antenna GPS/GNSS anchors for absolute UTC, four purchased
+Adafruit DS3231 modules are the initial battery-backed RTC holdover anchors, and
+ESP-NOW distributes source/age/uncertainty to ordinary fixtures. This does not require
+RTCs on all 150 nodes and does not make one anchor a permanent leader. Starlink may
+commission/verify time during build week but is not an event dependency. Panel/lux
+inference is demoted to bench telemetry, sanity checking, and a still-open bounded
+degraded mode. Updated the canonical system architecture, solar test report,
+choreography research note, TODO, and agent onboarding notes. GPS reception/energy,
+RTC drift/backup behavior, final counts, schedule offsets, and invalid-time behavior
+remain open; no firmware or hardware was changed in this documentation pass.
 
 During the origin-integration review, also documented the previously unlogged
 SparkFun PRT-27576 Qwiic Navigation Switch path already present in `net_bench`. With
@@ -61,6 +61,103 @@ used fixed 5.8 V VINDPM, 6 Ah LFP, 1.5 A charge cap, three full-bright spiral RG
 pixels, and `NB_SOLENOID_D7`. The 1,042,832-byte binary SHA-256 is
 `967F420FFCABCFCBB429F8F682502C324FE3870449851E3C8FF9A1E85C664449`. This was a
 build-only validation; it was not OTA-deployed.
+
+The merge inventory also found several raw field-cycle captures from about 45 MB to
+2.89 GB. They remain local and are now ignored by capture type; Git receives summaries
+or explicit downsamples instead. The locally appended 181.6 MB June 30 trace was
+hash-preserved as
+`ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8-v7-bq-local-full.jsonl`
+(SHA-256 `2536B3A30E231B25115A5AFFA4D62386C3CBBA31135EDA63697388542E03C5DD`)
+before restoring the repository's original 8.6 MB tracked capture.
+
+## 2026-07-26 -- Steve + Codex -- Local work products recovered for handoff
+
+Recovered Steve's previously local-only Resonance artifacts onto a dedicated handoff
+branch based on current `origin/main`: the 50 mm bamboo-leaf gobo SVG sources, a local
+snapshot and previews of the Tri Star Print Farm Tracker, and the 2026-07-25 editable
+solenoid comparison workbook with its preview and generator. Added README notes where a
+local workbook is only a snapshot of a later live Google Sheet or where blank bench results
+remain intentional. Dependency trees, inspection dumps, temporary files, and the open
+Excel lock file were excluded. Superseded June battery-document edits remain preserved on
+Steve's local safety branch and were not replayed over the current two-tier battery design.
+
+## 2026-07-24 (cont. 2) -- Ben + Claude -- Gilisymo ToF "goggles" identified; install + integration notes
+
+Research session ahead of attaching the Gilisymo covers to the VL53L5CX units; no
+hardware touched yet.
+
+- **SKU identified (high confidence, unconfirmed against invoice -- Gmail token
+  expired):** the 60x "protective optical covers" are almost certainly Gilisymo
+  **CG-VL53L5-D "dust free"** (supplier ref Hornix IR109C0-IC09-A066) -- the price
+  math fits (EUR 7.50 base / ~6.00 at qty vs ~$384/60) and ADR 0027's stated dust
+  purpose matches. ST community confirms IR109C0 as THE cover for L5CX. Visual
+  check: dust-free = molded black oval, TWO windows with a raised center rib
+  (septum); standard CG-VL53L5 = single continuous window, no rib. Confirm which
+  is in the bag on receipt.
+- **Mechanicals (from Hornix drawings on the product page):** 15.5 x 9.5 mm oval,
+  3.08 mm tall; underside pocket 6.50 x 3.22 x ~1.5 mm deep drops directly over
+  the module; 0.5-0.6 mm septum descends between TX and RX (this is why crosstalk
+  is spec'd 0 kcps vs 0.1-0.3 for the standard). PEI+PC, 0-100 degC, >90 %
+  transmission. Bottom tape, pre-applied.
+- **Orientation:** the two windows are identical plain optical-grade windows (no
+  lensing) -- in-plane 180-degree rotation is functionally equivalent; nothing
+  distinguishes a TX vs RX end. Can't be installed upside-down (pocket + tape
+  down, domed rib up). Minor mold features are not perfectly rotation-symmetric,
+  so dry-fit first; if it rocks, rotate 180.
+- **Install is ONE-WAY:** Gilisymo warns removal can damage the ToF. Therefore:
+  functional-test each sensor BEFORE goggling; apply on a clean bench (dust
+  sealed under the cover is permanent); press on the rim, never the windows.
+- **Enclosure constraint for Steve:** the goggle IS the sealing/window element.
+  The perimeter-hat outward aperture should be an open cutout clearing
+  15.5 x 9.5 x ~3.1 mm -- do NOT put enclosure plastic/glass in front of it
+  (ST AN5856: any extra window with an air gap >0.5-0.7 mm needs a gasket and
+  reintroduces crosstalk).
+- **Firmware/cal (to verify, n>=2 per shootout culture):** with 0 kcps claimed,
+  default ULD xtalk data should be fine (the "calibration-free" selling point).
+  Before locking a no-per-unit-cal fleet policy, bench-compare ranging with vs
+  without the cover on a couple of units, incl. min-range/target-status, and try
+  `vl53l5cx_calibrate_xtalk` (UM2884; target >=600 mm covering full FoV) once to
+  see if it moves anything.
+- 60 covers / 48 sensors = 12 spares; treat covers as consumables given the
+  one-way install.
+
+## 2026-07-24 (cont.) -- Ben + Claude -- "Solarnoid" design FINALIZED (downlights only); GPS/RTC timing experiments ordered
+
+- **The solarnoid has its final form** -- VDC-tap solar supply + 22,000 uF cap +
+  solenoid + craft-store bulk mallet (mallet order details TBC, "very cheap").
+  Scope SETTLED narrower than the 07-16 promotion trend: **paired with the LARGE
+  enclosures only** (needs the extra space) -> downlights, <=110. Perimeter's
+  small hats sit it out; the 160 MOSFET drivers now carry a healthy surplus
+  (+50 at the cap, more at the 72-downlight plan). ADR 0030 annotated; SYSTEM
+  diagram + gates, BOM, glossary ("Solarnoid" entry) updated.
+- **Timing experiments (ordered 2026-07-20, recovered)**: 4x SparkFun SAM-M8Q
+  Qwiic GPS ($132.68) + 4x Adafruit DS3231 STEMMA RTC w/ batteries ($97.09).
+  Purpose: accurate clock/time makes dusk/dawn bring-up and sleep scheduling
+  trivial -- need not yet certain, bench quantities. Side note: the GPS units
+  double as candidate position anchors for the ops/locate auto-localization
+  work. Committed spend ~$25.2k; brief rev 16.
+
+## 2026-07-24 -- Ben + Claude -- BATTERY FLEET GOES TWO-TIER: 130x 33140 15 Ah at an absurd price; 32700 6 Ah stays for small hats
+
+**batteryhookup.com turned up 33140 LiFePO4 15 Ah cells at ~$4.50/cell** -- the
+Alibaba price point that killed the 20 Ah idea, but domestic, no ocean freight.
+Ben bought 130 over two orders on 2026-07-24 ($52.76 for 10 to Steve/TN +
+$532.84 for 120 to CA = $585.60).
+
+- **33140 15 Ah = the new fleet standard paired with the LARGE enclosures**
+  (downlights, <=110 deployed): 2.5x the night budget for the class that spends
+  the most light.
+- **32700 6 Ah stays for the small-enclosure classes** (perimeter + uplight
+  boots -- the small Polycase physically fits nothing bigger) and the
+  chandelier. The 175 x 6 Ah now cover ~78-80 positions with ~+95 margin.
+- **Qualification PENDING, per our own shootout culture**: capacity/IR run on
+  the 33140 (n>=2, shootout rig) + re-derive the ADR 0023 dim/off/sleep map on
+  the new cell (current tiers are 6 Ah-derived); DesignCap 15,000 fits under
+  the MAX17260 16,383 driver cap (unlike the 20 Ah); verify physical fit in the
+  large Polycase with panel + board + LED. TODO added.
+- ADR 0025 annotated; SYSTEM fleet table + block diagram, BOM (two battery
+  rows + spares math), AGENTS, README, glossary (33140 entry), ledger
+  (~$24.9k committed) all updated; brief rev 15.
 
 ## 2026-07-17 -- Ben + Codex -- Outage-safe field logger deployed; P105/P126 capture resumed
 
@@ -217,6 +314,54 @@ back outside late in the day did not visibly reverse the transition. Treat July 
 an intervention day rather than a clean weather-cycle point; retain the event as a
 useful dusk/dawn hysteresis and weak-late-sun test case.
 
+## 2026-07-16 (cont. 2) -- Ben + Claude -- 50 more MOSFET drivers (scope promotion in the air) + 30x BMP581 env sensors for the uplights
+
+Missed order recovered: Adafruit 2026-07-16, $488.13 total.
+
+- **50 more MOSFET drivers ($178) -> 160 total.** "The solenoids are cool enough
+  we may promote them to a feature on all the downlights and perimeter lights"
+  -- ADR 0030's scope sub-decision is trending fleet-wide on those two classes
+  (annotated).
+- **30x BMP581 temp + barometric-pressure sensors ($268.80)** -- a NEW sensor
+  class: they ride the uplight STEMMA chain as generic environmental loggers
+  (playa weather telemetry feeding the 2027 design). Uplights are no longer
+  sensor-less; ADR 0027 annotated, SYSTEM fleet table + BOM + glossary updated,
+  firmware TODO added (100 kHz bus rules apply; add temp/pressure to the
+  telemetry tail).
+
+Committed spend ~$24.4k. Brief rev 14 (sensors tile 330, donut re-flowed --
+sensors now the #3 category, above solar).
+
+## 2026-07-16 (cont.) -- Ben + Claude -- Solenoid bake-off status (Ben-reported; bench data pending commit): stronger solenoids, 0730B 6 V/1 A leads; transients benign
+
+Status capture from Ben's bench work -- **the post-07-11 experiment data is NOT
+yet in the repo** (likely on the bench laptop; only `solenoid_demo`,
+`led_sol_bench`, and the 07-11 VDC sweep are committed -- commit-from-laptop
+TODO added):
+
+- **22,000 uF buys headroom for STRONGER solenoids** -- that is what the 07-16
+  cap buy is really for, not just a better kick from the current parts.
+- **A solenoid part bake-off is mid-flight; primary candidate: 0730B 6 V / 1 A.**
+  The in-transit 3 V/5 V AliExpress units (150x, $319.12) may be RETURNED --
+  return-window decision flagged in TODO + ledger.
+- **Transient correction:** strikes do NOT confuse the BQ charger. They appear
+  as droops on VDC, indistinguishable from a passing cloud / shadow on the
+  panel. The "verify BQ transients" item is closed-benign; wording fixed in
+  ADR 0030 annotation, ledger, BOM, TODO.
+
+Treat the bake-off findings as directional until the data lands in the repo
+(mid-experiment, Ben-reported).
+
+## 2026-07-16 -- Ben + Claude -- Strike caps ordered: 210x 22,000 uF 16 V ($161.39)
+
+Fleet-scale storage for the solenoid VDC-tap strike supply: 210x 22,000 uF 16 V
+capacitors, $140.89 + $20.50 across two AliExpress sellers (lead-time hedge
+habit). 2.2x the 10,000 uF that produced the excellent 07-14 kick -- hardware is
+now committed to the VDC-tap direction; verification remains (confirm the
+22,000 uF kick and that charge/strike transients don't confuse the BQ charger
+input). Committed spend ~$23.9k. Ledger/BOM/TODO/brief updated; the noisemaker
+to-buy residual shrinks to driver control cables + mallet mounting.
+
 ## 2026-07-15 -- Ben + Codex -- Planned Windows restart interrupted host trace; retained counters bound RGBW night
 
 Windows Event Log showed that Windows Update (`MoUsoCoreWorker.exe`, followed by
@@ -256,6 +401,50 @@ schedule.
 Queued two outage-recovery fixes: make the host logger refuse overwrite and support
 explicit append/resume segments, and retain a previous-completed-cycle summary across
 sunrise so a host outage spanning dawn cannot erase the exact night endpoint.
+
+## 2026-07-15 (cont.) -- Ben + Claude -- NOISEMAKER DECIDED: solenoid bamboo-strike; #3885 speaker path abandoned (ADR 0030)
+
+**The solenoids strike the bamboo so well that the speaker path is abandoned.**
+ADR 0030 records the verdict: the MOSFET-driven solenoid mallet physically
+knocking the bamboo IS the fleet noisemaker -- real percussion, the lantern as
+the instrument, daytime solar-surplus by design intent (07-12). The #3885
+percussion synth survives only as a bench/preview tool (`speaker_demo`); the
+spare-speaker buy is cancelled; relay clicks and beeps are not pursued.
+
+Remaining engineering (not candidate questions): 3 V vs 5 V variant A/B, strike
+power source (VDC-tap + 10,000 uF cap leads after the 07-14 result), mallet
+mounting vs O(1)-ops, per-class scope, daytime gating policy, and the strike
+current/loudness numbers. Swept: AGENTS Decided/Open lists, SYSTEM diagram +
+gates, README, BOM, ledger (+#3885 spares cancelled), TODO (candidate A closed,
+opinions item overtaken, candidate B promoted), glossary (Solenoid mallet
+entry), team brief rev 11.
+
+## 2026-07-15 -- Ben + Claude -- Uplight power RESOLVED (hinged solar wing); 20 Ah cancelled; Polycase pinned; enclosure mapping corrected
+
+Ledger + docs reconciliation from Ben's updates:
+
+- **20 Ah is OUT -- and not on the merits.** The cell verified honest (07-12),
+  but batteryspace cannot supply ~40 in time, and the Alibaba counterpart (a
+  bargain at ~$4.50/cell bulk) needs ocean freight that misses 2026. Recorded as
+  a 2027 lead. **Uplights instead get a hinged solar "wing" on the small Polycase
+  boot** -- partial/shaded sun, likely carrying the P105 5 W (fits the panel buy:
+  ~96 of 110 P105s allocated), 6 Ah cell, run mostly at low brightness with the
+  budget tuned by Nevada City prebuild experiments. ADR 0025/0026 annotated;
+  SYSTEM/README/AGENTS/glossary/BOM/ROADMAP/TODO swept. Chandelier stays likely
+  6 Ah + USB-C in its carpenter box.
+- **Enclosure vendor = Polycase; both orders placed 2026-07-13.** Mapping
+  CORRECTED from the 07-13 entry: **large (111) -> downlights ONLY (<=110
+  deployed); small (61) -> perimeter + uplight boots (<=60 combined)**. That
+  retires the "zero large spares" flag (72 downlights planned vs 110 available)
+  and replaces it with a softer one: the small pool caps perimeter + uplights at
+  ~60 vs the loose 62-64 sketch -- allocation flexes at installation, and Elliot
+  is flexible on the split. Two enclosures (1 large + 1 small) have TRANSPARENT
+  LIDS -- show-and-tell demo units for explaining the fixture to visitors.
+- Also propagated the 07-11 rail-fed amendment into the spots that still said
+  "RGBW feed OPEN" (AGENTS Decided list, SYSTEM block diagram + validated list +
+  LED section, firmware/ARCHITECTURE, README, glossary).
+- To-buy queue now: uplight wing hardware, solenoid strike-power residuals,
+  spare #3885s. Team brief updated to rev 10.
 
 ## 2026-07-14 (cont.) -- Ben + Codex -- RGBW dusk turn-on matches the 418 mA ceiling
 
@@ -506,6 +695,41 @@ solar-surplus premise. Qualification of shipment samples (75x 3 V + 75x 5 V in
 transit, different listing than the proven DS-0420S) still gates everything.
 
 ---
+
+## 2026-07-15 (cont.) -- Ben + Claude -- Elliot confirms structure geometry; light placement is OURS to design
+
+From the build dashboard (resonancenetwork.org/camp/build) + Elliot's
+clarification via Ben: STRUCTURAL numbers are correct and supersede
+BACKGROUND's early spec -- 6.5 m tree (was ~7.5), 10 m canopy, 24 limbs
+(was 30), 2.7 m waist, 48x14 m grid shell, 9-day build in 3 shifts, Windelier
+(55 chimes) Day 7. The dashboard's ~90-light sketch is NOT the lighting plan:
+fixture count and placement are Ben + Steve's (+ Claude's) creative call;
+all ~150 fixtures deploy, extras become off-tree "camp lights" (which also
+double as the hot-spares pool for the 30-second swap flow). Consequences:
+(1) the 10 m canopy stretches downlight ground spacing ~1.3x vs the 0.3.1
+CAD, which combined with a deep (6") LED drop makes 7 ft hangs workable for
+gobo non-overlap on the outer rings -- the inner ring still needs to move
+outward, which Ben + Steve already planned for solar-shading reasons (bamboo
+criss-cross overhead); (2) the next fixtures.json is authored by this
+workstream (layout design TODO added: gobo spacing >= ~0.85 m, shading,
+mild perimeter asymmetry for the registration gauge, real hang points from
+the structural export); (3) localization conclusions are scale-invariant to
+the wider canopy (spacing and position error scale together).
+
+## 2026-07-15 -- Ben + Claude -- Auto-localization: sensor complement = class ID; uplight/chandelier ambiguity measured free
+
+Ben's observation that the ToF payloads identify class on I2C (TMF8820 =
+downlight, VL53L5CX = perimeter, neither = uplight/chandelier) is exactly the
+assumption the ops/locate solver builds on (per-class assignment, class-typed
+anchors, per-class registration cost). The one distinction hardware cannot
+give -- uplight vs chandelier, both sensorless -- was tested by merging them
+into a single assignment class: ZERO accuracy cost at the realistic operating
+point across 3 seeds, with 100% class recovery from geometry alone (crown
+clump vs uplight rings are far apart vs ~0.3 m position error). No
+provisioning step needed to distinguish those boards. Report addendum added.
+Also quantified the flag-rule ROC on a representative run (margin-score AUC
+0.83): at the default threshold all silent-wrongs were chandelier -- the
+non-chandelier fleet had 2 wrongs, both flagged.
 
 ## 2026-07-13 -- Ben + Claude -- CAD downlight artifacts patched; uplight elevation is (possibly) intentional
 

@@ -74,39 +74,43 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - FreeRTOS task architecture, not Arduino loop() (ADR 0005; constrained by ADR 0028 -- no power-management I2C from core-0 tasks under WiFi).
 - ~~Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006)~~ -- superseded by ADR 0012; resolved to COTS production by ADR 0024.
 - Electronics in a separable hat on top of the bamboo lantern, not crammed inside (ADR 0007).
-- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; VBAT-direct measured BETTER for the 4 W RGBW's fringed white, but production adoption is still open (ADR 0029).
+- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; the VBAT-direct idea won the fat-wire bench but LOST the production-cabling A/B -- both LED roles ship rail-fed (ADR 0029 + 2026-07-11 amendment).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 - Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
 - **Production locked: COTS PowerFeather V2 at ~150 fixtures in four classes** -- 72 downlights + 38-40 perimeter + 24 uplights + 16 chandelier, tentative until installation; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0024).
-- Production battery: fullbattery.com 32700 6 Ah, qualified n=2 at ~5.75 Ah measured; the Amazon "7.2 Ah" alternative was measured and rejected (ADR 0025, `docs/tests/BATTERY_32700_SHOOTOUT_*`).
+- Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
-- Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device calibration (ADR 0027).
+- Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on
+  downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device
+  calibration (ADR 0027). BMP581 temp/barometric env sensors were added to uplights
+  (30 bought 2026-07-16).
 - **Production show timing uses deterministic site/date schedules from sparse time
-  anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are the
-  initial GPS/GNSS soft anchors for absolute UTC; another TBD subset gets
-  battery-backed external RTCs
-  for holdover; ESP-NOW distributes time quality to the rest of the fleet, so all 150
-  fixtures do not need RTCs (ADR 0031). GPS qualification, the RTC module, final
-  counts, schedule offsets, and invalid-time fallback remain open.
+  anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
+  initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231
+  modules are initial RTC holdover anchors. ESP-NOW distributes time quality to the
+  rest of the fleet, so all 150 fixtures do not need RTCs (ADR 0031). Reception,
+  energy, drift/backup behavior, final counts, schedule offsets, and invalid-time
+  fallback remain open.
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
-- LED electrical drive by role (ADR 0029): HEX and RGBW both use the switchable 3V3
-  rail (decided); boost shelved with complete numbers (decided). The July 11
-  production-cabling A/B closed the earlier RGBW VBAT option as rail-fed.
+- LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
+- Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- Uplight/chandelier power: off-light panel vs solar-free 20 Ah (bench test on the
-  two samples gates the batteryspace #6832 buy) vs budgeted 6 Ah.
+- ~~Uplight/chandelier power~~ -- RESOLVED 2026-07-15: uplights get a hinged solar
+  "wing" on the boot (likely P105 5 W) + 6 Ah at a low-brightness budget (NC
+  prebuild tunes it); chandelier likely 6 Ah + USB-C. The 20 Ah cell verified
+  honest but died on sourcing/timeline (ADR 0025/0026 annotations).
 - Chandelier light electronics scope/ownership (16 shafts, internals fungible with
   the fleet -- ADR 0024) and its HEX/RGBW mix.
-- Noisemaker verdict: solenoid bamboo-strike vs STEMMA speaker synth.
+- ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
 - Bottom-up nightly energy budget by role; MPPT policy.
-- SAM-M8Q GPS-anchor qualification; external-RTC module selection; final anchor
-  counts/placement, power/backup strategy, time-quality protocol, schedule versioning,
-  and invalid-time fallback (ADR 0031).
+- SAM-M8Q GPS and DS3231 RTC anchor qualification; final anchor counts/placement,
+  power/backup strategy, time-quality protocol, schedule versioning, and invalid-time
+  fallback (ADR 0031).
 - Retired 2026-07-08: `INV_2026_00401` cost decomposition (invoice identity unclear
   -- probably the Bamboo Pure lantern invoice; no longer a useful baseline now that
   real procurement is recorded in `ops/PROCUREMENT.md`). The Community Mandala

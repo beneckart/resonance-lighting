@@ -24,25 +24,26 @@ Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs
 - Firmware that supports autonomous ambient lighting, ESP-NOW state exchange, standard OTA maintenance updates, telemetry, and graceful low-power behavior.
 
 The other classes are variants on the same electronics: perimeter lights swap the LED
-role and face the ToF outward; uplights and chandelier lights drop the gobo and may go
-solar-free (big cell + USB-C charging -- open decision). All share one firmware image.
+role and face the ToF outward; uplights drop the gobo and carry a hinged solar "wing"
+on their base boot (decided 2026-07-15); chandelier lights live in a carpenter-built
+box, likely on 6 Ah cells with USB-C top-ups. All share one firmware image.
 
 ## Current architecture direction
 
-**PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002); the production cell is the fullbattery 32700 6 Ah, qualified n=2 (ADR 0025).
+**PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002); batteries are two-tier since 2026-07-24 (ADR 0025): 33140 15 Ah in the large hats (downlights; qualification pending) and the fullbattery 32700 6 Ah, qualified n=2, in the small hats.
 
 **The production path is decided: COTS PowerFeather V2 at ~150 units (ADR 0024).**
-68 boards are bought and 82 more invoice 2026-07-10 (ledger: `ops/PROCUREMENT.md`).
+158 boards are bought (68 received + 90 ordered 2026-07-09; ledger: `ops/PROCUREMENT.md`).
 The custom PowerFeather-derived PCBA (ESP32-S3-WROOM module, BQ25628E-class charger,
 MAX17260-class gauge, buck-boost 3.3 V rail, switchable rails, keyed connectors) is
 the 2027 option, carrying the ADR 0028 bus-integrity rules.
 
 The **LED axis is a mixed fleet by optical role** (ADR 0022): SK6812 "HEX"
 direct-GPIO for close-range animation / ambient glow, and a 4 W RGBW point source for
-long-throw crisp gobo projection. Both are driven **direct-GPIO off a free pin**, currently
-fed from the switchable 3V3 rail; the 4.2 V boost is measured and shelved, and a
-measured-better VBAT-direct option for the RGBW (+33 % fringed white) is open with
-its conversion plan recorded (ADR 0029). The type mix by class is in the
+long-throw crisp gobo projection. Both are driven **direct-GPIO off a free pin**, both
+fed from the switchable 3V3 rail -- decided by instrumented A/B through
+production-realistic cabling (ADR 0029 + 2026-07-11 amendment); the 4.2 V boost is
+measured and shelved. The type mix by class is in the
 SYSTEM.md fleet table (tentative until installation). The earlier Adafruit
 IS31FL3741 13x9 STEMMA-QT matrix was **ruled out** (ADR 0018) -- it browns out the
 board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bake-off
@@ -51,14 +52,17 @@ PowerFeather V2 won.
 
 **Sensors** (ADR 0027): every downlight carries an MSA311 accelerometer + downward
 TMF8820-mini multizone ToF; perimeter lights carry an outward VL53L5CX. Fused IMUs
-were rejected (per-device calibration doesn't scale to 150 units). A **noisemaker**
-axis is in exploration (speaker synth vs solenoid bamboo-strike -- open).
+were rejected (per-device calibration doesn't scale to 150 units). The **noisemaker**
+is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
+solar-surplus percussion; the speaker-synth path was abandoned once the strikes
+proved out.
 
 **Production show timing is scheduled** (ADR 0031): four purchased SAM-M8Q modules
-are the initial GPS/GNSS soft anchors for absolute UTC, and another TBD subset carries
-battery-backed external RTCs for holdover. ESP-NOW distributes time quality to the
-rest of the fleet, so all ~150 fixtures do not need RTCs. Panel/lux dusk inference
-remains useful bench telemetry but is not the production show clock.
+are the initial GPS/GNSS soft anchors for absolute UTC, and four purchased Adafruit
+DS3231 modules are the initial battery-backed RTC holdover anchors. ESP-NOW distributes
+time quality to the rest of the fleet, so all ~150 fixtures do not need RTCs.
+Panel/lux dusk inference remains useful bench telemetry but is not the production show
+clock.
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
@@ -118,19 +122,21 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 ## Status
 
 As of 2026-07-26: **production is locked on COTS PowerFeather V2 at ~150 fixtures in
-four classes (ADR 0024) and the bulk buy has largely happened** -- boards, batteries,
-panels, LEDs, and sensors are ordered or received (~$12.7k committed; ledger in
-`ops/PROCUREMENT.md`). The battery vendor is qualified n=2 with measured dim/off/sleep
-thresholds (ADRs 0025/0023); panels are selected and outdoor-measured (ADR 0026);
-sensors are chosen and allocated by class (ADR 0027); the LED electrical drive
-matrix is measured with the boost shelved and rail feed selected (ADR 0029); sparse
-GPS/GNSS plus external-RTC time anchors and deterministic scheduled shows are the
-production timing direction (ADR 0031); and the two-month reboot mystery closed as a
-bus-integrity rule, sealed by a 46-hour soak (ADR 0028).
+four classes (ADR 0024) and the buy is essentially complete** -- boards, two battery
+tiers, panels, LEDs, sensors, cabling, USB-C rescue ports, solarnoid hardware, and 172
+Polycase enclosures are ordered or received (about $25.2k committed; ledger in
+`ops/PROCUREMENT.md`). The qualified 32700 6 Ah cell remains the small-hat/chandelier
+battery while 130 newly bought 33140 15 Ah cells are pending qualification for large
+hats (ADR 0025). Panels are selected and outdoor-measured (ADR 0026); sensors are
+allocated by class (ADR 0027); both LED roles are on the switchable 3V3 rail after
+instrumented A/B (ADR 0029); the solarnoid is the selected noisemaker for large-hat
+downlights (ADR 0030); and deterministic scheduled shows from sparse GPS/RTC anchors
+are the production timing direction (ADR 0031).
 
-Remaining gates before Grass Valley assembly (~Aug 1): the bottom-up nightly energy
-budget by role, the uplight/chandelier power decision (solar vs 20 Ah vs 6 Ah), hat
-thermal/RF proof, cabling buys, the ADR 0023 state machine into production firmware,
-GPS/RTC module/count/holdover and invalid-time qualification, and the noisemaker
-verdict. Treat LFP SOC as advisory until the gauge learns; use coulomb counting and
+Remaining gates before Nevada City assembly (~Aug 1): the bottom-up nightly energy
+budget by role, 33140 qualification and thresholds, uplight-wing mechanics and
+brightness budget, hat thermal/RF proof on the Polycase boxes, the ADR 0023 state
+machine in production firmware, solarnoid part/mounting details, and qualification of
+the four SAM-M8Q GPS plus four DS3231 RTC timing anchors including invalid-time
+behavior. Treat LFP SOC as advisory until the gauge learns; use coulomb counting and
 voltage/current guardrails. See `LOG.md` and `TODO.md` for the live state.

@@ -31,6 +31,9 @@ class LinkObs:
     n_samples: int                           # total packets behind the aggregate
     asym_db: Optional[float] = None          # |med_ij - med_ji|; None if one-directional
     samples: Optional[list] = None           # optional raw dB retention for bootstrap
+    censored: bool = False                   # aggregated near the receiver floor:
+                                             # survivor-biased, treat as a one-sided
+                                             # "at least this far" constraint
 
 
 @dataclass
