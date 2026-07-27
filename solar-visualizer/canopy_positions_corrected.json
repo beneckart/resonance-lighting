@@ -1,0 +1,802 @@
+{
+ "meta": {
+  "source": "ops/locate/data/fixtures-0.3.1-patched.json (main @ 7c48b28) x 0.0985 m/unit (the solar-visualizer calibrated blend scale)",
+  "why": "the phase2 canopy set inherited the raw 0.3.1 export artifacts: 6 trunk strays (the ground stack inside the tree), 6 stacked-duplicate groups, 6 ring holes (4 inner + 2 middle). This file is the corrected 72-distinct-position canopy: strays moved into the ring holes; duplicates flagged for removal.",
+  "units": "m, tree-centered, Z-up (matches solar_phase2_data.json convention)",
+  "note": "positions are lantern ATTACH points from the blend; hang heights per drop rule"
+ },
+ "canopy": [
+  {
+   "fixture_id": "F000",
+   "pos_m": [
+    -1.032,
+    2.389,
+    3.461
+   ],
+   "ring": "inner",
+   "bearing_deg": 113.4,
+   "moved_from_trunk_stray": true
+  },
+  {
+   "fixture_id": "F001",
+   "pos_m": [
+    1.622,
+    -2.035,
+    3.439
+   ],
+   "ring": "inner",
+   "bearing_deg": 308.6,
+   "moved_from_trunk_stray": true
+  },
+  {
+   "fixture_id": "F002",
+   "pos_m": [
+    4.572,
+    1.935,
+    2.875
+   ],
+   "ring": "outer",
+   "bearing_deg": 22.9
+  },
+  {
+   "fixture_id": "F003",
+   "pos_m": [
+    3.947,
+    3.052,
+    2.843
+   ],
+   "ring": "outer",
+   "bearing_deg": 37.7
+  },
+  {
+   "fixture_id": "F004",
+   "pos_m": [
+    2.981,
+    3.97,
+    2.778
+   ],
+   "ring": "outer",
+   "bearing_deg": 53.1
+  },
+  {
+   "fixture_id": "F005",
+   "pos_m": [
+    4.926,
+    0.691,
+    2.814
+   ],
+   "ring": "outer",
+   "bearing_deg": 8.0
+  },
+  {
+   "fixture_id": "F006",
+   "pos_m": [
+    3.947,
+    3.052,
+    2.843
+   ],
+   "ring": "outer",
+   "bearing_deg": 37.7,
+   "duplicate_of": "F003"
+  },
+  {
+   "fixture_id": "F007",
+   "pos_m": [
+    4.938,
+    -0.595,
+    2.846
+   ],
+   "ring": "outer",
+   "bearing_deg": 353.1
+  },
+  {
+   "fixture_id": "F008",
+   "pos_m": [
+    3.264,
+    2.458,
+    3.843
+   ],
+   "ring": "middle",
+   "bearing_deg": 37.0
+  },
+  {
+   "fixture_id": "F009",
+   "pos_m": [
+    4.082,
+    0.537,
+    3.864
+   ],
+   "ring": "middle",
+   "bearing_deg": 7.5
+  },
+  {
+   "fixture_id": "F010",
+   "pos_m": [
+    2.118,
+    1.646,
+    3.437
+   ],
+   "ring": "inner",
+   "bearing_deg": 37.8
+  },
+  {
+   "fixture_id": "F011",
+   "pos_m": [
+    2.118,
+    1.646,
+    3.437
+   ],
+   "ring": "inner",
+   "bearing_deg": 37.8,
+   "duplicate_of": "F010"
+  },
+  {
+   "fixture_id": "F012",
+   "pos_m": [
+    1.577,
+    2.06,
+    3.388
+   ],
+   "ring": "inner",
+   "bearing_deg": 52.6
+  },
+  {
+   "fixture_id": "F013",
+   "pos_m": [
+    3.808,
+    1.597,
+    3.896
+   ],
+   "ring": "middle",
+   "bearing_deg": 22.8
+  },
+  {
+   "fixture_id": "F014",
+   "pos_m": [
+    2.484,
+    3.265,
+    3.841
+   ],
+   "ring": "middle",
+   "bearing_deg": 52.7
+  },
+  {
+   "fixture_id": "F015",
+   "pos_m": [
+    2.423,
+    1.01,
+    3.43
+   ],
+   "ring": "inner",
+   "bearing_deg": 22.6
+  },
+  {
+   "fixture_id": "F016",
+   "pos_m": [
+    2.611,
+    0.368,
+    3.406
+   ],
+   "ring": "inner",
+   "bearing_deg": 8.0
+  },
+  {
+   "fixture_id": "F017",
+   "pos_m": [
+    -3.906,
+    -3.049,
+    2.924
+   ],
+   "ring": "outer",
+   "bearing_deg": 218.0
+  },
+  {
+   "fixture_id": "F018",
+   "pos_m": [
+    2.624,
+    -0.318,
+    3.4
+   ],
+   "ring": "inner",
+   "bearing_deg": 353.1
+  },
+  {
+   "fixture_id": "F019",
+   "pos_m": [
+    2.624,
+    -0.318,
+    3.4
+   ],
+   "ring": "inner",
+   "bearing_deg": 353.1,
+   "duplicate_of": "F018"
+  },
+  {
+   "fixture_id": "F020",
+   "pos_m": [
+    3.974,
+    -2.988,
+    2.957
+   ],
+   "ring": "outer",
+   "bearing_deg": 323.1
+  },
+  {
+   "fixture_id": "F021",
+   "pos_m": [
+    3.792,
+    -1.602,
+    3.732
+   ],
+   "ring": "middle",
+   "bearing_deg": 337.1
+  },
+  {
+   "fixture_id": "F022",
+   "pos_m": [
+    3.067,
+    -3.915,
+    2.956
+   ],
+   "ring": "outer",
+   "bearing_deg": 308.1
+  },
+  {
+   "fixture_id": "F023",
+   "pos_m": [
+    3.279,
+    -2.506,
+    3.843
+   ],
+   "ring": "middle",
+   "bearing_deg": 322.6
+  },
+  {
+   "fixture_id": "F024",
+   "pos_m": [
+    2.509,
+    -3.243,
+    3.881
+   ],
+   "ring": "middle",
+   "bearing_deg": 307.7
+  },
+  {
+   "fixture_id": "F025",
+   "pos_m": [
+    1.931,
+    -4.597,
+    2.918
+   ],
+   "ring": "outer",
+   "bearing_deg": 292.8
+  },
+  {
+   "fixture_id": "F026",
+   "pos_m": [
+    1.931,
+    -4.597,
+    2.918
+   ],
+   "ring": "outer",
+   "bearing_deg": 292.8,
+   "duplicate_of": "F025"
+  },
+  {
+   "fixture_id": "F027",
+   "pos_m": [
+    1.931,
+    -4.597,
+    2.918
+   ],
+   "ring": "outer",
+   "bearing_deg": 292.8,
+   "duplicate_of": "F025"
+  },
+  {
+   "fixture_id": "F028",
+   "pos_m": [
+    0.702,
+    -4.934,
+    2.814
+   ],
+   "ring": "outer",
+   "bearing_deg": 278.1
+  },
+  {
+   "fixture_id": "F029",
+   "pos_m": [
+    -0.602,
+    -4.917,
+    2.917
+   ],
+   "ring": "outer",
+   "bearing_deg": 263.0
+  },
+  {
+   "fixture_id": "F030",
+   "pos_m": [
+    1.627,
+    -3.772,
+    3.905
+   ],
+   "ring": "middle",
+   "bearing_deg": 293.3
+  },
+  {
+   "fixture_id": "F031",
+   "pos_m": [
+    0.523,
+    -4.065,
+    3.891
+   ],
+   "ring": "middle",
+   "bearing_deg": 277.3
+  },
+  {
+   "fixture_id": "F032",
+   "pos_m": [
+    -1.856,
+    -4.616,
+    2.905
+   ],
+   "ring": "outer",
+   "bearing_deg": 248.1
+  },
+  {
+   "fixture_id": "F033",
+   "pos_m": [
+    0.362,
+    -2.591,
+    3.406
+   ],
+   "ring": "inner",
+   "bearing_deg": 278.0
+  },
+  {
+   "fixture_id": "F034",
+   "pos_m": [
+    -2.985,
+    -3.991,
+    2.948
+   ],
+   "ring": "outer",
+   "bearing_deg": 233.2
+  },
+  {
+   "fixture_id": "F035",
+   "pos_m": [
+    4.603,
+    -1.884,
+    2.911
+   ],
+   "ring": "outer",
+   "bearing_deg": 337.7
+  },
+  {
+   "fixture_id": "F036",
+   "pos_m": [
+    1.842,
+    4.629,
+    2.854
+   ],
+   "ring": "outer",
+   "bearing_deg": 68.3
+  },
+  {
+   "fixture_id": "F037",
+   "pos_m": [
+    -0.961,
+    -2.42,
+    3.421
+   ],
+   "ring": "inner",
+   "bearing_deg": 248.3
+  },
+  {
+   "fixture_id": "F038",
+   "pos_m": [
+    -0.961,
+    -2.42,
+    3.421
+   ],
+   "ring": "inner",
+   "bearing_deg": 248.3,
+   "duplicate_of": "F037"
+  },
+  {
+   "fixture_id": "F039",
+   "pos_m": [
+    -4.631,
+    -1.961,
+    2.92
+   ],
+   "ring": "outer",
+   "bearing_deg": 202.9
+  },
+  {
+   "fixture_id": "F040",
+   "pos_m": [
+    -4.911,
+    -0.712,
+    2.918
+   ],
+   "ring": "outer",
+   "bearing_deg": 188.2
+  },
+  {
+   "fixture_id": "F041",
+   "pos_m": [
+    -4.069,
+    -0.516,
+    3.792
+   ],
+   "ring": "middle",
+   "bearing_deg": 187.2
+  },
+  {
+   "fixture_id": "F042",
+   "pos_m": [
+    -1.593,
+    -3.842,
+    3.969
+   ],
+   "ring": "middle",
+   "bearing_deg": 247.5
+  },
+  {
+   "fixture_id": "F043",
+   "pos_m": [
+    -4.107,
+    0.524,
+    3.913
+   ],
+   "ring": "middle",
+   "bearing_deg": 172.7
+  },
+  {
+   "fixture_id": "F044",
+   "pos_m": [
+    -3.799,
+    -1.596,
+    3.893
+   ],
+   "ring": "middle",
+   "bearing_deg": 202.8
+  },
+  {
+   "fixture_id": "F045",
+   "pos_m": [
+    -3.261,
+    -2.454,
+    3.89
+   ],
+   "ring": "middle",
+   "bearing_deg": 217.0
+  },
+  {
+   "fixture_id": "F046",
+   "pos_m": [
+    -3.793,
+    1.628,
+    3.957
+   ],
+   "ring": "middle",
+   "bearing_deg": 156.8
+  },
+  {
+   "fixture_id": "F047",
+   "pos_m": [
+    -4.602,
+    1.823,
+    2.881
+   ],
+   "ring": "outer",
+   "bearing_deg": 158.4
+  },
+  {
+   "fixture_id": "F048",
+   "pos_m": [
+    -3.97,
+    2.979,
+    2.824
+   ],
+   "ring": "outer",
+   "bearing_deg": 143.1
+  },
+  {
+   "fixture_id": "F049",
+   "pos_m": [
+    -3.268,
+    2.482,
+    3.939
+   ],
+   "ring": "middle",
+   "bearing_deg": 142.8
+  },
+  {
+   "fixture_id": "F050",
+   "pos_m": [
+    -2.426,
+    0.271,
+    3.427
+   ],
+   "ring": "inner",
+   "bearing_deg": 173.6
+  },
+  {
+   "fixture_id": "F051",
+   "pos_m": [
+    -2.49,
+    1.012,
+    3.406
+   ],
+   "ring": "inner",
+   "bearing_deg": 157.9
+  },
+  {
+   "fixture_id": "F052",
+   "pos_m": [
+    0.988,
+    -2.25,
+    3.452
+   ],
+   "ring": "inner",
+   "bearing_deg": 293.7
+  },
+  {
+   "fixture_id": "F053",
+   "pos_m": [
+    -0.294,
+    -2.584,
+    3.466
+   ],
+   "ring": "inner",
+   "bearing_deg": 263.5
+  },
+  {
+   "fixture_id": "F054",
+   "pos_m": [
+    -1.564,
+    -2.078,
+    3.467
+   ],
+   "ring": "inner",
+   "bearing_deg": 233.0
+  },
+  {
+   "fixture_id": "F055",
+   "pos_m": [
+    -3.072,
+    3.928,
+    3.003
+   ],
+   "ring": "outer",
+   "bearing_deg": 128.0
+  },
+  {
+   "fixture_id": "F056",
+   "pos_m": [
+    -2.489,
+    3.29,
+    3.898
+   ],
+   "ring": "middle",
+   "bearing_deg": 127.1
+  },
+  {
+   "fixture_id": "F057",
+   "pos_m": [
+    -2.075,
+    1.534,
+    3.46
+   ],
+   "ring": "inner",
+   "bearing_deg": 143.5
+  },
+  {
+   "fixture_id": "F058",
+   "pos_m": [
+    -1.636,
+    2.08,
+    3.47
+   ],
+   "ring": "inner",
+   "bearing_deg": 128.2
+  },
+  {
+   "fixture_id": "F059",
+   "pos_m": [
+    -2.472,
+    -0.372,
+    3.382
+   ],
+   "ring": "inner",
+   "bearing_deg": 188.6
+  },
+  {
+   "fixture_id": "F060",
+   "pos_m": [
+    -2.375,
+    -0.987,
+    3.463
+   ],
+   "ring": "inner",
+   "bearing_deg": 202.6
+  },
+  {
+   "fixture_id": "F061",
+   "pos_m": [
+    -2.04,
+    -1.613,
+    3.419
+   ],
+   "ring": "inner",
+   "bearing_deg": 218.3
+  },
+  {
+   "fixture_id": "F062",
+   "pos_m": [
+    -4.958,
+    0.594,
+    2.915
+   ],
+   "ring": "outer",
+   "bearing_deg": 173.2
+  },
+  {
+   "fixture_id": "F063",
+   "pos_m": [
+    -1.95,
+    4.598,
+    2.927
+   ],
+   "ring": "outer",
+   "bearing_deg": 113.0
+  },
+  {
+   "fixture_id": "F064",
+   "pos_m": [
+    -0.703,
+    4.941,
+    2.862
+   ],
+   "ring": "outer",
+   "bearing_deg": 98.1
+  },
+  {
+   "fixture_id": "F065",
+   "pos_m": [
+    0.614,
+    4.953,
+    2.929
+   ],
+   "ring": "outer",
+   "bearing_deg": 82.9
+  },
+  {
+   "fixture_id": "F066",
+   "pos_m": [
+    0.528,
+    4.086,
+    3.928
+   ],
+   "ring": "middle",
+   "bearing_deg": 82.6
+  },
+  {
+   "fixture_id": "F067",
+   "pos_m": [
+    1.628,
+    3.779,
+    3.916
+   ],
+   "ring": "middle",
+   "bearing_deg": 66.7
+  },
+  {
+   "fixture_id": "F068",
+   "pos_m": [
+    0.97,
+    2.404,
+    3.401
+   ],
+   "ring": "inner",
+   "bearing_deg": 68.0
+  },
+  {
+   "fixture_id": "F069",
+   "pos_m": [
+    4.073,
+    -0.517,
+    3.888
+   ],
+   "ring": "middle",
+   "bearing_deg": 352.8
+  },
+  {
+   "fixture_id": "F070",
+   "pos_m": [
+    -2.466,
+    -3.258,
+    3.978
+   ],
+   "ring": "middle",
+   "bearing_deg": 232.9
+  },
+  {
+   "fixture_id": "F071",
+   "pos_m": [
+    -0.391,
+    2.61,
+    3.452
+   ],
+   "ring": "inner",
+   "bearing_deg": 98.5
+  },
+  {
+   "fixture_id": "F072",
+   "pos_m": [
+    0.296,
+    2.612,
+    3.464
+   ],
+   "ring": "inner",
+   "bearing_deg": 83.5
+  },
+  {
+   "fixture_id": "F073",
+   "pos_m": [
+    -0.552,
+    4.115,
+    3.99
+   ],
+   "ring": "middle",
+   "bearing_deg": 97.6
+  },
+  {
+   "fixture_id": "F074",
+   "pos_m": [
+    2.09,
+    -1.552,
+    3.426
+   ],
+   "ring": "inner",
+   "bearing_deg": 323.4,
+   "moved_from_trunk_stray": true
+  },
+  {
+   "fixture_id": "F075",
+   "pos_m": [
+    2.417,
+    -0.964,
+    3.413
+   ],
+   "ring": "inner",
+   "bearing_deg": 338.3,
+   "moved_from_trunk_stray": true
+  },
+  {
+   "fixture_id": "F076",
+   "pos_m": [
+    -1.566,
+    3.806,
+    3.944
+   ],
+   "ring": "middle",
+   "bearing_deg": 112.4,
+   "moved_from_trunk_stray": true
+  },
+  {
+   "fixture_id": "F077",
+   "pos_m": [
+    -0.544,
+    -4.079,
+    3.93
+   ],
+   "ring": "middle",
+   "bearing_deg": 262.4,
+   "moved_from_trunk_stray": true
+  }
+ ]
+}

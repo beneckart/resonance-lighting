@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resonance Tree — Solar Panels Live 3D</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0d0f14; color: #e8eaf0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #c { position: fixed; inset: 0; }
+  .hud { position: fixed; z-index: 5; }
+  #top { top: 14px; left: 16px; max-width: 400px; }
+  #top h1 { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+  #top .sub { color: #9aa1b0; font-size: 12px; margin-top: 2px; }
+  details { margin-top: 8px; background: rgba(16,19,26,0.9); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #c6cbd6; }
+  details summary { cursor: pointer; font-weight: 600; color: #e8eaf0; }
+  details li { margin: 3px 0 3px 16px; }
+  #list { top: 14px; right: 16px; width: 228px; background: rgba(16,19,26,0.88); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 10px 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
+  #list h2 { font-size: 12px; color: #9aa1b0; font-weight: 600; margin-bottom: 6px; }
+  .prow { display: grid; grid-template-columns: 84px 1fr 40px; gap: 6px; align-items: center; margin: 3px 0; cursor: pointer; }
+  .prow.sel { outline: 1px solid #e8eaf0; outline-offset: 2px; border-radius: 3px; }
+  .prow .nm { font-size: 11px; color: #c6cbd6; white-space: nowrap; }
+  .prow .tr { display: block; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+  .prow .fill { display: block; height: 100%; border-radius: 4px; }
+  .prow .v { font-size: 11px; text-align: right; color: #e8eaf0; font-variant-numeric: tabular-nums; }
+  #bar { bottom: 18px; left: 50%; transform: translateX(-50%); width: min(720px, 92vw);
+    background: rgba(16,19,26,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 12px 16px; }
+  #row1 { display: flex; align-items: center; gap: 12px; }
+  button { background: #e8eaf0; color: #0d0f14; border: 0; border-radius: 8px; padding: 7px 14px;
+    font: 600 13px system-ui; cursor: pointer; }
+  button.ghost { background: rgba(255,255,255,0.1); color: #e8eaf0; }
+  #time { font-size: 17px; font-weight: 650; min-width: 96px; font-variant-numeric: tabular-nums; }
+  #tw { color: #9aa1b0; font-size: 12px; margin-left: auto; text-align: right; }
+  input[type=range] { flex: 1; accent-color: #f5b03a; }
+  #legend { display: flex; gap: 8px; align-items: center; color: #9aa1b0; font-size: 11px; margin-top: 8px; flex-wrap: wrap; }
+  .lg-ramp { width: 120px; height: 10px; border-radius: 5px;
+    background: linear-gradient(90deg, #3a4150, #b45309, #f59e0b, #ffe08a); }
+  #info { bottom: 18px; right: 16px; width: 228px; background: rgba(16,19,26,0.92); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 10px 12px; font-size: 12px; display: none; }
+  #info b { font-size: 13px; }
+  #info .kv { display: flex; justify-content: space-between; color: #c6cbd6; margin-top: 3px; }
+  @media (max-width: 900px) { #list { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="hud" id="top">
+  <h1>Resonance Tree — solar panels, live</h1>
+  <div class="sub">Black Rock City · Aug 30–Sep 8 2026 average · <b>PHASE 2: 16 ground panels + 78 canopy lanterns · realistic loss model</b> · drag to orbit, click a panel to highlight</div>
+  <details>
+    <summary>Assumptions &amp; method</summary>
+    <ul>
+      <li><b>Panels:</b> 10×7 in (254×178 mm), 5 W nameplate each — the exact spec size in all calculations (drawn 3× size here so you can see them).</li>
+      <li><b>Angles:</b> each panel is tilted to its individually optimized aim (found by searching 5° tilt × 15° azimuth at its position with measured shading) — the base point is the hinge; this shows the range hinges must reach.</li>
+      <li><b>Output = physics-only losses, no generic trim:</b> clear-sky irradiance (Meinel, +1.2% altitude) × conservative shading (lit-fraction² with a further ×0.75 series-mismatch penalty whenever the face is partially shaded) × calculated heat derate (cell temp from ambient 17–35°C + irradiance self-heating, −0.4%/°C) × 0.95 dust. Calibrated on Ben's bench: a '5W' Voltaic P105 measures 3.85W panel-side in full sun; ×0.90 charger, ×0.63 daily chain into the battery (his field-cycle ledger). Rated 5W is never the operating point.</li>
+      <li><b>Nothing is wired together</b> — every light is its own panel+battery+LED island. Click a light for its runtime per night (battery Wh ÷ measured 1.36W full-RGBW draw).</li>
+      <li><b>Shading is measured, not estimated:</b> 15 ray tests across each panel face against the real woven geometry, every 10 minutes, averaged over the 10 event days.</li>
+      <li><b>Not included:</b> wiring/charge-controller losses, battery acceptance, shade sails, parked vehicles.</li>
+      <li><b>Sun:</b> verified against BRC almanac — solar noon 12:57 PDT, altitude ≈56°, noon shadow due north.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="hud" id="list"><h2>PANEL OUTPUT — <span id="lt"></span></h2><div id="rows"></div></div>
+
+<div class="hud" id="bar">
+  <div id="row1">
+    <button id="play">▶ Play</button>
+    <span id="time">06:00</span>
+    <input type="range" id="slider" min="0" max="83" value="42" step="1">
+    <span id="tw">total now<br><b id="tot">0 W</b></span>
+  </div>
+  <div id="legend">
+    <span>panel output:</span><span>0 W</span><span class="lg-ramp"></span><span id="wmax">5 W</span>
+    <span style="margin-left:12px">◉ = sun position</span>
+    <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+      <input type="checkbox" id="canopy" checked> canopy lights
+    </label>
+    <label style="margin-left:auto; display:flex; align-items:center; gap:5px; cursor:pointer">
+      <input type="checkbox" id="spin"> auto-spin
+    </label>
+  </div>
+</div>
+
+<div class="hud" id="info"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.js",
+  "three/addons/": "./vendor/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+
+const DATA = __DATA__;
+let WMAX = 5;
+const GLB_B64 = "__GLB__";
+
+const names = Object.keys(DATA.panels);
+WMAX = Math.max(...names.map(n => Math.max(...DATA.panels[n].w.filter(v => v !== null))));
+setTimeout(() => { const el = document.getElementById("wmax"); if (el) el.textContent = WMAX.toFixed(1) + " W (real)"; }, 0);
+const P = DATA.panels;
+const WIND = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const wind = a => WIND[Math.round(((a % 360) + 360) % 360 / 22.5) % 16];
+
+// SketchUp Z-up meters -> three.js Y-up: (x, y, z) -> (x, z, -y)
+const toV3 = p => new THREE.Vector3(p[0], p[2], -p[1]);
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0f14);
+scene.fog = new THREE.Fog(0x0d0f14, 30, 90);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+camera.position.set(13, 9.5, 16);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3.2, 0);
+controls.autoRotate = false;
+controls.autoRotateSpeed = 1.2;
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI / 2 + 0.35;
+controls.minDistance = 3; controls.maxDistance = 60;
+
+scene.add(new THREE.AmbientLight(0x8899bb, 0.55));
+const sunLight = new THREE.DirectionalLight(0xffe0b0, 1.6);
+scene.add(sunLight);
+
+// ground
+const ground = new THREE.Mesh(new THREE.CircleGeometry(28, 64),
+  new THREE.MeshStandardMaterial({ color: 0x8a7f6a, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// compass sprites
+function textSprite(txt, size = 1.6, col = "#e8eaf0") {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+  const g = cv.getContext("2d");
+  g.font = "600 84px system-ui"; g.fillStyle = col; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(txt, 64, 68);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+  sp.scale.set(size, size, 1);
+  return sp;
+}
+[["N", 0, -9], ["S", 0, 9], ["E", 9, 0], ["W", -9, 0]].forEach(([t, x, z]) => {
+  const s = textSprite(t); s.position.set(x, 0.7, z); scene.add(s);
+});
+
+// sun marker + path
+const sunBall = new THREE.Mesh(new THREE.SphereGeometry(0.7, 24, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffd76a, fog: false }));
+scene.add(sunBall);
+const pathPts = DATA.suns.filter(Boolean).map(s => toV3([s[0] * 10, s[1] * 10, s[2] * 10]));
+scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pathPts),
+  new THREE.LineBasicMaterial({ color: 0x55607a, fog: false })));
+
+// tree GLB (Draco)
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath("./vendor/draco/");
+loader.setDRACOLoader(draco);
+const glbBytes = Uint8Array.from(atob(GLB_B64), ch => ch.charCodeAt(0));
+loader.parse(glbBytes.buffer, "", g => {
+  const tree = g.scene;
+  const box = new THREE.Box3().setFromObject(tree);
+  const s = DATA.tree.height_m / (box.max.y - box.min.y);
+  tree.scale.setScalar(s);
+  tree.position.y = -box.min.y * s;
+  tree.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshStandardMaterial({ color: 0x6b6250, roughness: 0.9 }); } });
+  scene.add(tree);
+});
+
+// panels
+const ramp = [[0.227,0.255,0.314],[0.706,0.325,0.035],[0.961,0.620,0.043],[1,0.878,0.541]];
+function colorFor(w) {
+  const t = Math.max(0, Math.min(1, w / WMAX)) * 3;
+  const i = Math.min(2, Math.floor(t)); const f = t - i;
+  const a = ramp[i], b = ramp[i + 1];
+  return new THREE.Color(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+}
+const meshes = {};
+const EX = 3; // visual exaggeration
+names.forEach(nm => {
+  const p = P[nm];
+  const isL = p.kind === "lantern";
+  const geo = isL ? new THREE.BoxGeometry(0.254 * 2, 0.09 * 2, 0.178 * 2)
+                  : new THREE.BoxGeometry(0.254 * EX, 0.05 * EX, 0.178 * EX);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x333a44, emissive: 0x000000, roughness: 0.4 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(toV3(p.pos));
+  const n = toV3(p.n).normalize();
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+  mesh.position.addScaledVector(n, 0.10);
+  mesh.userData.name = nm;
+  // selection/hover marks: white edge outline + floating name tag (children inherit transform)
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: 0xffffff }));
+  edges.scale.setScalar(1.12); edges.visible = false;
+  mesh.add(edges);
+  const tcv = document.createElement("canvas"); tcv.width = 512; tcv.height = 112;
+  const tg = tcv.getContext("2d");
+  tg.fillStyle = "rgba(10,12,17,0.82)"; tg.beginPath(); tg.roundRect(6, 6, 500, 100, 22); tg.fill();
+  tg.font = "600 56px system-ui"; tg.fillStyle = "#fff"; tg.textAlign = "center"; tg.textBaseline = "middle";
+  tg.fillText(nm, 256, 58);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(tcv), transparent: true, depthTest: false }));
+  tag.scale.set(1.5, 0.33, 1);
+  tag.position.set(0, 0.75, 0); tag.visible = false;
+  mesh.add(tag);
+  mesh.userData.edges = edges; mesh.userData.tag = tag;
+  scene.add(mesh);
+  meshes[nm] = mesh;
+});
+function mark(nm, on) {
+  const m = meshes[nm];
+  m.userData.edges.visible = on;
+  m.userData.tag.visible = on;
+  m.scale.setScalar(on ? 1.25 : 1);
+}
+
+// UI
+const rowsEl = document.getElementById("rows");
+const sorted = names.slice().sort((a, b) => P[b].wh_day - P[a].wh_day);
+rowsEl.innerHTML = sorted.map(nm =>
+  `<div class="prow" data-nm="${nm}"><span class="nm">${nm}</span><span class="tr"><span class="fill"></span></span><span class="v"></span></div>`).join("");
+const rowEls = {};
+rowsEl.querySelectorAll(".prow").forEach(r => {
+  rowEls[r.dataset.nm] = r;
+  r.addEventListener("click", () => select(r.dataset.nm));
+  r.addEventListener("mouseenter", () => mark(r.dataset.nm, true));
+  r.addEventListener("mouseleave", () => { if (selected !== r.dataset.nm) mark(r.dataset.nm, false); });
+});
+
+const slider = document.getElementById("slider");
+const timeEl = document.getElementById("time");
+const totEl = document.getElementById("tot");
+const ltEl = document.getElementById("lt");
+const playBtn = document.getElementById("play");
+const info = document.getElementById("info");
+let selected = null;
+
+function slotLabel(q) {
+  const mn = DATA.slot0_min + q * DATA.slot_step_min;
+  return String(Math.floor(mn / 60)).padStart(2, "0") + ":" + String(mn % 60).padStart(2, "0");
+}
+function select(nm) {
+  if (selected) mark(selected, false);
+  selected = selected === nm ? null : nm;
+  if (selected) mark(selected, true);
+  Object.entries(rowEls).forEach(([k, r]) => r.classList.toggle("sel", k === selected));
+  update(+slider.value);
+}
+function update(q) {
+  const t = slotLabel(q);
+  timeEl.textContent = t; ltEl.textContent = t + " PDT";
+  const sun = DATA.suns[q];
+  const night = !sun;
+  if (sun) {
+    const sv = toV3([sun[0] * 10, sun[1] * 10, sun[2] * 10]);
+    sunBall.position.copy(sv); sunBall.visible = true;
+    sunLight.position.copy(sv); sunLight.intensity = 1.6;
+  } else { sunBall.visible = false; sunLight.intensity = 0.15; }
+  let tot = 0;
+  names.forEach(nm => {
+    const w = night ? 0 : (P[nm].w[q] ?? 0);
+    tot += w;
+    const col = colorFor(w);
+    const m = meshes[nm];
+    m.material.color.copy(col);
+    m.material.emissive.copy(col).multiplyScalar(0.75);
+    const r = rowEls[nm];
+    r.querySelector(".fill").style.cssText = `width:${w / WMAX * 100}%;background:rgb(${col.r * 255 | 0},${col.g * 255 | 0},${col.b * 255 | 0})`;
+    r.querySelector(".v").textContent = w.toFixed(1);
+  });
+  totEl.textContent = tot.toFixed(1) + " W";
+  if (selected) {
+    const p = P[selected];
+    const w = night ? 0 : (p.w[q] ?? 0);
+    const tilt = Math.round(Math.acos(p.n[2]) * 180 / Math.PI);
+    const az = wind(Math.atan2(p.n[0], p.n[1]) * 180 / Math.PI);
+    info.style.display = "block";
+    info.innerHTML = `<b>${selected}</b>
+      <div class="kv"><span>right now (${t})</span><span><b>${w.toFixed(1)} W</b> · ${night ? 0 : (p.lit[q] ?? 0)}% lit</span></div>
+      <div class="kv"><span>panel DC / into battery</span><span>${p.wh_day} / ${p.wh_day_batt ?? "—"} Wh</span></div>
+      <div class="kv"><span>light/night (own battery)</span><span>${p.runtime_full_h ?? "—"}h full · ${p.runtime_dim_h ?? "—"}h dim</span></div>
+      <div class="kv"><span>mounted</span><span>${tilt}° tilt, facing ${az}</span></div>
+      <div class="kv"><span>open sky above</span><span>${Math.round(p.svf * 100)}%</span></div>` +
+      (DATA.lantern_meta && DATA.lantern_meta[selected] ? (m2 => `
+      <div class="kv"><span>ring</span><span>${m2.ring} · ${m2.bearing}° ${m2.cardinal}</span></div>
+      <div class="kv"><span>hangs at / drop</span><span>${m2.height_m}m / ${m2.drop_m ?? "—"}m</span></div>
+      <div class="kv"><span>rec. hang height</span><span>${m2.rec_height_m}m</span></div>`)(DATA.lantern_meta[selected]) : "");
+  } else info.style.display = "none";
+}
+slider.addEventListener("input", () => update(+slider.value));
+
+let playing = false, timer = null;
+playBtn.addEventListener("click", () => {
+  playing = !playing;
+  playBtn.textContent = playing ? "❚❚ Stop" : "▶ Play";
+  if (playing) timer = setInterval(() => {
+    slider.value = (+slider.value + 1) % 84;
+    update(+slider.value);
+  }, 180);
+  else clearInterval(timer);
+});
+document.getElementById("spin").addEventListener("change", e => controls.autoRotate = e.target.checked);
+let canopyOn = true;
+document.getElementById("canopy").addEventListener("change", e => {
+  canopyOn = e.target.checked;
+  names.forEach(nm => {
+    if (P[nm].kind === "lantern") {
+      meshes[nm].visible = canopyOn;
+      rowEls[nm].style.display = canopyOn ? "" : "none";
+    }
+  });
+  if (!canopyOn && selected && P[selected].kind === "lantern") select(selected);
+});
+
+// click-select in 3D
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+canvas.addEventListener("pointerdown", e => {
+  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(Object.values(meshes))[0];
+  if (hit) select(hit.object.userData.name);
+});
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize); resize();
+update(+slider.value);
+(function anim() { requestAnimationFrame(anim); controls.update(); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
