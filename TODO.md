@@ -200,6 +200,8 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Test remaining production-relevant gobo/filter variants with HEX and 4 W RGBW
   point-source modules; keep older IS31/NeoHEX/FeatherS2/Atom data as historical
   fallback context only (Ben + Steve).
+- [ ] Test-print the 50 mm bamboo-leaf aperture in `enclosure/gobo-templates/`, photograph
+  its projection through the lantern rig, and widen slots if the slicer closes them (Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
 - [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; PCBA-friendly starter PCB exists, schematic remains (Ben).

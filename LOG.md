@@ -12,6 +12,17 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-26 -- Steve + Codex -- Local work products recovered for handoff
+
+Recovered Steve's previously local-only Resonance artifacts onto a dedicated handoff
+branch based on current `origin/main`: the 50 mm bamboo-leaf gobo SVG sources, a local
+snapshot and previews of the Tri Star Print Farm Tracker, and the 2026-07-25 editable
+solenoid comparison workbook with its preview and generator. Added README notes where a
+local workbook is only a snapshot of a later live Google Sheet or where blank bench results
+remain intentional. Dependency trees, inspection dumps, temporary files, and the open
+Excel lock file were excluded. Superseded June battery-document edits remain preserved on
+Steve's local safety branch and were not replayed over the current two-tier battery design.
+
 ## 2026-07-24 (cont. 2) -- Ben + Claude -- Gilisymo ToF "goggles" identified; install + integration notes
 
 Research session ahead of attaching the Gilisymo covers to the VL53L5CX units; no
