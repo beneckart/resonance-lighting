@@ -40,3 +40,6 @@ firmware/*/build/
 
 # 3D model fetched on demand (upstream ships no license)
 hardware/capboard/viz/*.step
+
+# Raw multi-hundred-MB INA capture logs (exceed GitHub limits; keep local, commit downsamples)
+ops/bench/data/**/*-ina-*.log
