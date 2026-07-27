@@ -37,3 +37,6 @@ firmware/*/build/
 
 # LibreOffice lock files
 .~lock.*#
+
+# 3D model fetched on demand (upstream ships no license)
+hardware/capboard/viz/*.step
