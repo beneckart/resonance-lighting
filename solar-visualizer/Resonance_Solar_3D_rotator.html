@@ -17,7 +17,7 @@
     border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #c6cbd6; }
   details summary { cursor: pointer; font-weight: 600; color: #e8eaf0; }
   details li { margin: 3px 0 3px 16px; }
-  #list { top: 14px; right: 16px; width: 228px; background: rgba(16,19,26,0.88); border: 1px solid rgba(255,255,255,0.12);
+  #list { top: 14px; right: 16px; width: 292px; background: rgba(16,19,26,0.88); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 12px; padding: 10px 12px; max-height: calc(100vh - 130px); overflow-y: auto; }
   #list h2 { font-size: 12px; color: #9aa1b0; font-weight: 600; margin-bottom: 6px; }
   .prow { display: grid; grid-template-columns: 84px 1fr 40px 44px; gap: 6px; align-items: center; margin: 3px 0; cursor: pointer; }
@@ -103,6 +103,9 @@ window.addEventListener("error", e => {
     </label>
     <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
       <input type="checkbox" id="truesize"> true panel sizes
+    </label>
+    <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+      <input type="checkbox" id="nearsun"> pull sun closer
     </label>
     <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
       <input type="checkbox" id="hinge"> hinged panels (tangential pitch)
@@ -196,20 +199,25 @@ const rotGroup = new THREE.Group(); scene.add(rotGroup);
 const sunBall = new THREE.Mesh(new THREE.SphereGeometry(3.0, 24, 24),
   new THREE.MeshBasicMaterial({ color: 0xffd76a, fog: false }));
 scene.add(sunBall);
-const pathPts = DATA.suns.filter(Boolean).map(s => toV3([s[0] * 45, s[1] * 45, s[2] * 45]));
-// ground projection of the sun arc (rotates with the sun frame)
-const groundPts = DATA.suns.filter(Boolean).map(s => toV3([s[0] * 45, s[1] * 45, 0]));
-const gline = new THREE.Line(new THREE.BufferGeometry().setFromPoints(groundPts),
-  new THREE.LineBasicMaterial({ color: 0x8a93ad, transparent: true, opacity: 0.85, fog: false }));
-gline.position.y = 0.06;
-rotGroup.add(gline);
+let SUNR = 45;
+function sunLines(R) {
+  const pp = DATA.suns.filter(Boolean).map(s => toV3([s[0]*R, s[1]*R, s[2]*R]));
+  const gp = DATA.suns.filter(Boolean).map(s => toV3([s[0]*R, s[1]*R, 0]));
+  const pl = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp),
+    new THREE.LineBasicMaterial({ color: 0x55607a, fog: false }));
+  const gl = new THREE.Line(new THREE.BufferGeometry().setFromPoints(gp),
+    new THREE.LineBasicMaterial({ color: 0x8a93ad, transparent: true, opacity: 0.85, fog: false }));
+  gl.position.y = 0.06;
+  rotGroup.add(pl); rotGroup.add(gl);
+  return [pl, gl];
+}
+const farLines = sunLines(45), nearLines = sunLines(12);
+nearLines.forEach(l => l.visible = false);
 // door axis: MEASURED through the two root-tunnel centroids (az 75.4/255.4,
 // i.e. rotated 14.6 deg CCW from E-W; passes exactly through center)
 scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
   [toV3([-44.5, -11.6, 0]), toV3([44.5, 11.6, 0])]),
   new THREE.LineBasicMaterial({ color: 0xd8b25a, transparent: true, opacity: 0.55, fog: false })));
-rotGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pathPts),
-  new THREE.LineBasicMaterial({ color: 0x55607a, fog: false })));
 
 // tree GLB (Draco)
 const loader = new GLTFLoader();
@@ -325,7 +333,7 @@ function update(q) {
   const night = !sun;
   if (sun) {
     const sr = rotZv(sun, rotDelta);
-    const sv = toV3([sr[0] * 45, sr[1] * 45, sr[2] * 45]);
+    const sv = toV3([sr[0] * SUNR, sr[1] * SUNR, sr[2] * SUNR]);
     sunBall.position.copy(sv); sunBall.visible = true;
     sunLight.position.copy(sv); sunLight.intensity = 1.6;
   } else { sunBall.visible = false; sunLight.intensity = 0.15; }
@@ -487,6 +495,14 @@ function applySizes(trueSize) {
 applySizes(false);
 document.getElementById("truesize").addEventListener("change",
   e => applySizes(e.target.checked));
+document.getElementById("nearsun").addEventListener("change", e => {
+  const near = e.target.checked;
+  SUNR = near ? 12 : 45;
+  farLines.forEach(l => l.visible = !near);
+  nearLines.forEach(l => l.visible = near);
+  sunBall.scale.setScalar(near ? 12/45 : 1);
+  update(+slider.value);
+});
 const rotSlider = document.getElementById("rotslider"), rotVal = document.getElementById("rotval");
 const rotInfo = document.getElementById("rotinfo");
 const timeCtrls = document.getElementById("timeCtrls"), rotCtrls = document.getElementById("rotCtrls");
