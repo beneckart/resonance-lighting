@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-30.3"
+#define STUDIO_VERSION "led-studio-2026-07-30.5"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
@@ -429,18 +429,22 @@ void sensorTriadTick() {}
 #define L5CX_FLOOR_MM 35  // enclosure window near-field return (~20 mm) sits below this
 #define L5CX_CEIL_MM 3500
 #define L5CX_HYST_MM 40
-// Baseline-diff detection (2026-07-30, cluttered-garage lesson): a palm at 3-4 in
-// covers the whole 45-degree FoV and very-close returns often come back with
-// non-valid statuses, so "closest valid target" alone reads a covering hand as
-// CLEAR. Detect deviation from a learned static scene instead, three ways:
-//   near      -- any valid target inside thresh (the original fast path)
-//   approach  -- >=3 zones valid and closer than baseline by max(200 mm, 20%)
-//   occlusion -- >=60% of baseline-valid zones suddenly report no valid target
-// Baseline adapts slowly ONLY while released, so an engaged visitor never gets
-// absorbed; a swaying mount partially tracks via the EMA and is rejected by the
-// multi-zone + multi-frame requirements.
-#define L5CX_APPROACH_ZONES 3
-#define L5CX_APPROACH_MIN_MM 200
+// Depth-driven interaction (2026-07-30 v2, Ben's spec): the piece idles RED and
+// walks the ROYGBIV wheel as a visitor nears -- hue = (max - depth)/(max - min)
+// -- while the gobo stays a near-touch surprise gated by the thresh slider.
+// Visitor depth is measured AGAINST the learned scene (anomaly = zone reads
+// closer than baseline by max(200 mm, 20%)), so static clutter reads as empty
+// and someone is tracked from max range the moment they enter the FoV. Gobo
+// triggers: near (<= thresh) OR occlusion (>=60% of baseline-valid zones lose
+// their target -- a palm covering the window returns non-valid statuses).
+// Baselines: unset zones act as a FAR sentinel (a person in a previously empty
+// zone is anomalous immediately -- v1 seeded their entry point and popped the
+// gobo at 1.6 m); adaptation is asymmetric (revealed-farther adapts fast,
+// closer adapts on a ~1 min tau so a lingering visitor slowly fades back to
+// scene; Re-zero for instant fixes) and pauses entirely during presence.
+#define L5CX_ANOM_MIN_MM 200
+#define L5CX_FAR_SENTINEL_MM 4000.0f
+#define L5CX_COLOR_MAX_MM 2500.0f
 #define L5CX_OCCL_MIN_BASE 6
 SparkFun_VL53L5CX gVl;
 bool gVlPresent = false, gVlRanging = false;
@@ -448,12 +452,14 @@ uint32_t gVlRetryAtMs = 0, gVlLastFrameMs = 0;
 uint32_t gVlReads = 0, gVlErrors = 0;
 int16_t gVlClosestMm = 0;        // closest valid scene target (0 = clear)
 int16_t gVlZoneMm[L5CX_ZONES];   // per-zone closest valid target (-1 = none)
-float gVlBaseMm[L5CX_ZONES];     // learned static scene (-1 = unset)
+float gVlBaseMm[L5CX_ZONES];     // learned static scene (-1 = unset/far)
 uint32_t gVlBaseFastUntilMs = 0; // fast-seed window after (re)zero
-uint16_t gPresenceThreshMm = 95; // near-path threshold; /set?thresh= (40..300)
+uint16_t gPresenceThreshMm = 95; // gobo threshold; /set?thresh= (40..300)
 bool gPresence = false;
-uint8_t gPresenceWhy = 0; // bit0 near, bit1 approach, bit2 occlusion (last hit)
+uint8_t gPresenceWhy = 0; // bit0 near, bit2 occlusion (last hit)
 uint8_t gPresenceHits = 0, gPresenceMisses = 0;
+int16_t gVlVisitorMm = -1; // closest anomalous (closer-than-scene) target
+float gColorT = 0.0f;      // smoothed 0..1 rainbow position (0 = red/idle)
 
 void l5cxZeroScene() {
   for (uint8_t z = 0; z < L5CX_ZONES; z++) {
@@ -475,6 +481,11 @@ bool l5cxApply() {
   gVlRanging = gVl.startRanging();
   if (!gVlRanging) Serial.println("[l5cx] startRanging FAILED");
   gVlLastFrameMs = millis();
+  // Arm the fast-seed window from RANGING START, not init entry: begin()'s
+  // multi-second fw upload otherwise eats the window before the first frame,
+  // and the scene gets learned from the FAR sentinel at the ~1 min tau
+  // (observed on .4 first boot: baseline ~3.7 m over a 1.2 m garage).
+  if (gVlRanging) gVlBaseFastUntilMs = millis() + 3000;
   return gVlRanging;
 }
 
@@ -545,45 +556,69 @@ void l5cxTick() {
   }
   gVlClosestMm = closest;
 
-  // Score the frame against the learned scene.
+  // Visitor depth = closest target that is anomalous vs the learned scene
+  // (unset zones count as FAR, so a person entering an empty sightline is
+  // anomalous immediately, from max range). Static clutter is scene, not visitor.
   uint8_t why = 0;
-  uint8_t nBaseValid = 0, nLost = 0, nApproach = 0;
+  uint8_t nBaseValid = 0, nLost = 0;
+  int16_t visitor = -1;
   for (uint8_t z = 0; z < L5CX_ZONES; z++) {
-    float base = gVlBaseMm[z];
+    float base = gVlBaseMm[z] > 0 ? gVlBaseMm[z] : L5CX_FAR_SENTINEL_MM;
     int16_t cur = gVlZoneMm[z];
-    if (base > 0) {
+    if (gVlBaseMm[z] > 0) {
       nBaseValid++;
-      if (cur < 0) {
-        nLost++;
-      } else {
-        float margin = base * 0.20f;
-        if (margin < L5CX_APPROACH_MIN_MM) margin = L5CX_APPROACH_MIN_MM;
-        if ((float)cur < base - margin) nApproach++;
-      }
+      if (cur < 0) nLost++;
+    }
+    if (cur >= 0) {
+      float margin = base * 0.20f;
+      if (margin < L5CX_ANOM_MIN_MM) margin = L5CX_ANOM_MIN_MM;
+      if ((float)cur < base - margin && (visitor < 0 || cur < visitor))
+        visitor = cur;
     }
   }
+  gVlVisitorMm = visitor;
   if (closest && closest <= (int16_t)(gPresence ? gPresenceThreshMm + L5CX_HYST_MM
                                                 : gPresenceThreshMm))
     why |= 1;
-  if (nApproach >= L5CX_APPROACH_ZONES) why |= 2;
   if (nBaseValid >= L5CX_OCCL_MIN_BASE && nLost * 10 >= nBaseValid * 6) why |= 4;
 
-  // Baseline learns the static scene only while released (an engaged visitor is
-  // never absorbed). Fast-seed after (re)zero, then slow EMA that also tracks
-  // slow mount drift/sway repositioning.
-  if (!gPresence && !why) {
-    float alpha = millis() < gVlBaseFastUntilMs ? 0.5f : 0.02f;
+  // Rainbow position: red (0) when the scene is empty, toward violet as the
+  // visitor closes on the gobo threshold -- t = (max - depth)/(max - min).
+  float target = 0.0f;
+  if (gPresence) {
+    target = 1.0f; // hold the top of the wheel under the gobo
+  } else if (visitor >= 0) {
+    float mind = (float)gPresenceThreshMm;
+    target = (L5CX_COLOR_MAX_MM - (float)visitor) / (L5CX_COLOR_MAX_MM - mind);
+    if (target < 0.0f) target = 0.0f;
+    if (target > 1.0f) target = 1.0f;
+  }
+  // Track toward the target fast, decay back to red gently when they leave.
+  float alpha = target > gColorT ? 0.45f : 0.12f;
+  float prevT = gColorT;
+  gColorT += alpha * (target - gColorT);
+
+  // Scene learning: asymmetric. Revealed-farther adapts fast (an occluder
+  // left); closer adapts on a ~1 min tau (a lingering visitor slowly becomes
+  // scenery and the piece fades back to red); frozen entirely during presence.
+  // Fast-seed window after boot/Re-zero captures the true empty scene.
+  if (!gPresence) {
+    bool fastSeed = millis() < gVlBaseFastUntilMs;
     for (uint8_t z = 0; z < L5CX_ZONES; z++) {
       int16_t cur = gVlZoneMm[z];
       if (cur < 0) continue;
-      if (gVlBaseMm[z] <= 0)
-        gVlBaseMm[z] = cur;
-      else
-        gVlBaseMm[z] += alpha * ((float)cur - gVlBaseMm[z]);
+      if (fastSeed) {
+        gVlBaseMm[z] = gVlBaseMm[z] <= 0 ? (float)cur
+                                         : gVlBaseMm[z] + 0.5f * ((float)cur - gVlBaseMm[z]);
+        continue;
+      }
+      float base = gVlBaseMm[z] > 0 ? gVlBaseMm[z] : L5CX_FAR_SENTINEL_MM;
+      float a = (float)cur > base ? 0.2f : 0.002f;
+      gVlBaseMm[z] = base + a * ((float)cur - base);
     }
   }
 
-  // Enter after 2 consecutive hit-frames (~200 ms at 10 Hz), release after 3
+  // Gobo: enter after 2 consecutive hit-frames (~200 ms), release after 3
   // consecutive clear frames; near path keeps +hyst while held.
   bool prior = gPresence;
   if (!gPresence) {
@@ -600,10 +635,11 @@ void l5cxTick() {
     }
   }
   if (why) gPresenceWhy = why;
-  // Kill the wash<->gobo swap latency: re-render on the transition instead of
-  // waiting out the speed-paced frame timer (Ben 2026-07-30: sensor-to-LED
-  // latency is what makes the piece feel alive).
-  if (gPresence != prior && gMode == MODE_HEX && gAnim == 5 && !gFrozen) {
+  // Latency is the art (Ben 2026-07-30): render at sensor rate on any material
+  // change -- gobo transitions and visible color motion -- instead of waiting
+  // out the speed-paced frame timer.
+  if ((gPresence != prior || fabsf(gColorT - prevT) > 0.01f) &&
+      gMode == MODE_HEX && gAnim == 5 && !gFrozen) {
     lastFrame = millis();
     renderFrame();
   }
@@ -755,7 +791,9 @@ void renderFrameHex() {
       break;
     }
 #if STUDIO_L5CX
-    case 5: { // Presence: ROYGBIV wash on all 37 px <-> single white center "gobo"
+    case 5: { // Presence: depth-driven ROYGBIV on all 37 px <-> center-white gobo.
+      // Idles pure red; gColorT (0..1, from visitor depth vs the learned scene)
+      // walks R->O->Y->G->B->I->V as they close on the gobo threshold.
       if (gPresence) {
         for (uint16_t i = 0; i < NUMPIXELS; i++) strip.setPixelColor(i, 0);
         uint8_t v = gam(gBri); // white pinned to the brightness slider (255 default)
@@ -767,19 +805,19 @@ void renderFrameHex() {
       static const uint8_t RB[7][3] = {{255, 0, 0},  {255, 127, 0}, {255, 255, 0},
                                        {0, 255, 0},  {0, 0, 255},   {75, 0, 130},
                                        {148, 0, 211}};
-      float phase = fmodf((float)hexAnimPos * 0.08f, 7.0f); // ~25 s cycle at speed 30
-      uint8_t k = (uint8_t)phase, kn = (k + 1) % 7;
+      float phase = gColorT * 6.0f;
+      if (phase > 5.999f) phase = 5.999f;
+      uint8_t k = (uint8_t)phase;
       float f = phase - k;
-      uint8_t cr = (uint8_t)(RB[k][0] + (int)((RB[kn][0] - RB[k][0]) * f));
-      uint8_t cg = (uint8_t)(RB[k][1] + (int)((RB[kn][1] - RB[k][1]) * f));
-      uint8_t cb = (uint8_t)(RB[k][2] + (int)((RB[kn][2] - RB[k][2]) * f));
+      uint8_t cr = (uint8_t)(RB[k][0] + (int)((RB[k + 1][0] - RB[k][0]) * f));
+      uint8_t cg = (uint8_t)(RB[k][1] + (int)((RB[k + 1][1] - RB[k][1]) * f));
+      uint8_t cb = (uint8_t)(RB[k][2] + (int)((RB[k + 1][2] - RB[k][2]) * f));
       float s = (float)gBri / 255.0f;
       uint8_t pr = gam((uint8_t)(cr * s)), pg = gam((uint8_t)(cg * s)),
               pb = gam((uint8_t)(cb * s));
       for (uint16_t i = 0; i < NUMPIXELS; i++) strip.setPixelColor(i, pr, pg, pb);
       lastLit = CENTER;
       strip.show();
-      if (!gFrozen) hexAnimPos++;
       break;
     }
 #endif
@@ -1113,7 +1151,8 @@ function refresh(){
    else if(b>0&&v<b-Math.max(200,b*0.2)){bg='#a62';}
    else{bg='#131';}
    c.style.background=bg;c.textContent=v<0?'-':v;}
-  whyl.textContent=(s.presence?'PRESENT':'clear')+' '+((s.why&1)?'[near]':'')+((s.why&2)?'[approach]':'')+((s.why&4)?'[occlusion]':'');}
+  whyl.textContent=(s.presence?'GOBO':'idle')+' '+((s.why&1)?'[near]':'')+((s.why&4)?'[occlusion]':'')+
+   '  visitor='+(s.visitor_mm>=0?s.visitor_mm+'mm':'none')+'  wheel='+s.ct+'%';}
  rb.textContent='mode='+['HEX','RGBW','RGB'][st.mode]+'  anim='+an+
   '\nrgb'+(st.mode==1?'w':'')+'='+s.r+','+s.g+','+s.b+(st.mode==1?','+s.w:'')+'  hex=#'+hx(s.r)+hx(s.g)+hx(s.b)+
   '\nbri='+s.bri+'  gamma='+(s.gamma?'on':'off')+'  speed='+s.speed+
@@ -1282,13 +1321,15 @@ void handleState() {
            "{\"fw\":\"%s\",\"triad\":0,\"l5cx\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
            "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d,"
-           "\"l5cx_ok\":%d,\"closest_mm\":%d,\"presence\":%d,\"why\":%u,\"thresh_mm\":%u,"
+           "\"l5cx_ok\":%d,\"closest_mm\":%d,\"visitor_mm\":%d,\"ct\":%d,"
+           "\"presence\":%d,\"why\":%u,\"thresh_mm\":%u,"
            "\"zmm\":[%s],\"zbase\":[%s],"
            "\"l5cx_reads\":%lu,\"l5cx_errors\":%lu}",
            STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
            gSpeed, gGamma ? 1 : 0, gShape, lastLit, gAnchor, gSplit,
            (long)rssi, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
            sgood ? 1 : 0, (gVlPresent && gVlRanging) ? 1 : 0, (int)gVlClosestMm,
+           (int)gVlVisitorMm, (int)(gColorT * 100.0f + 0.5f),
            gPresence ? 1 : 0, gPresenceWhy, gPresenceThreshMm, zmm, zbase,
            (unsigned long)gVlReads, (unsigned long)gVlErrors);
 #else

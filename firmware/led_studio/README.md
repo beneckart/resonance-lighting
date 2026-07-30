@@ -70,18 +70,23 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 - **L5CX presence HEX mode** (`--l5cx`, perimeter demo enclosure): vendored
   VL53L5CX 4x4 @ 10 Hz on Wire1/100 kHz (fixture's trimmed ULD, loop-idiom like
   sway_demo -- begin() only in setup(), quick re-apply self-heal in loop).
-  Boots into HEX anim 5 "Presence" at bri=255/gamma-off: all 37 px walk
-  ROYGBIV until presence, then a single full-white center pixel -- the
-  "dancing gobo" point -- until release. Presence = any of three tests vs a
-  learned per-zone scene baseline (slow EMA, adapts only while released;
-  "Re-zero scene" button): **near** (valid target <= threshold, default 95 mm,
-  slider 40-300), **approach** (>=3 zones closer than baseline by
-  max(200 mm, 20%) -- triggers from max range on someone walking up),
-  **occlusion** (>=60% of baseline-valid zones lose their target -- a palm
-  covering the whole FoV returns non-valid statuses, so "closest target" alone
-  would read it as clear). 2-frame enter / 3-frame release; presence
-  transitions re-render immediately instead of waiting on the speed-paced
-  frame timer. The UI shows a live 4x4 zone grid (mm + trigger coloring).
+  Boots into HEX anim 5 "Presence" at bri=255/gamma-off. Idle = all 37 px
+  pure RED; a visitor's depth drives the hue continuously --
+  t = (max - depth)/(max - min), red at 2.5 m walking R->O->Y->G->B->I->V as
+  they close on the gobo threshold -- and inside the threshold (default
+  95 mm, slider 40-300) the "surprise" gobo takes over: a single full-white
+  center pixel until release. Visitor depth = closest target anomalous vs a
+  learned per-zone scene baseline (unset zones count as FAR, so someone
+  entering an empty sightline registers from max range; static clutter stays
+  scene). Gobo triggers: **near** (<= thresh) OR **occlusion** (>=60% of
+  baseline-valid zones lose their target -- a palm covering the whole FoV
+  returns non-valid statuses, so "closest target" alone would read it as
+  clear). Baselines adapt asymmetrically (revealed-farther fast, closer on a
+  ~1 min tau so a lingering visitor fades back to scene; frozen during gobo;
+  "Re-zero scene" button reseeds). 2-frame enter / 3-frame release; gobo
+  transitions and visible color motion re-render at sensor rate instead of
+  the speed-paced frame timer. The UI shows a live 4x4 zone grid (mm +
+  anomaly coloring), visitor depth, and wheel position.
 - **Sensor-triad RGBW mode** (`--sensor-triad`): adds live MSA311, TMF8820, and
   BMP581 readback plus three reactive modes. ToF depth brightens the selected
   RGBW color as a target approaches (the known enclosed 20 mm window/fixture
