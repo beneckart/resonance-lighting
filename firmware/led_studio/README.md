@@ -74,11 +74,14 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
   pure RED; a visitor's depth drives the hue continuously --
   t = (max - depth)/(max - min), red at 2.5 m walking R->O->Y->G->B->I->V as
   they close on the gobo threshold -- and inside the threshold (default
-  95 mm, slider 40-300) the "surprise" gobo takes over: a single full-white
-  center pixel until release. Visitor depth = closest target anomalous vs a
-  learned per-zone scene baseline (unset zones count as FAR, so someone
-  entering an empty sightline registers from max range; static clutter stays
-  scene). Gobo triggers: **near** (<= thresh) OR **occlusion** (>=60% of
+  500 mm, slider 40-600: visitors step up without knowing where the sensor
+  is, so arm's-length pops the surprise) the gobo takes over: a single
+  full-white center pixel until release. Visitor depth = closest target
+  anomalous vs a learned per-zone scene baseline (unset zones count as FAR,
+  so someone entering an empty sightline registers from max range; static
+  clutter stays scene and cannot pin the gobo on). The wheel HOLDS during
+  the gobo confirm (sudden appearance snaps to white instead of zipping the
+  rainbow). Gobo triggers: **near** (visitor <= thresh) OR **occlusion** (>=60% of
   baseline-valid zones lose their target -- a palm covering the whole FoV
   returns non-valid statuses, so "closest target" alone would read it as
   clear). Baselines adapt asymmetrically (revealed-farther fast, closer on a

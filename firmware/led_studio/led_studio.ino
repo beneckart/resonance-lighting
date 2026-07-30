@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-30.5"
+#define STUDIO_VERSION "led-studio-2026-07-30.6"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
@@ -454,7 +454,9 @@ int16_t gVlClosestMm = 0;        // closest valid scene target (0 = clear)
 int16_t gVlZoneMm[L5CX_ZONES];   // per-zone closest valid target (-1 = none)
 float gVlBaseMm[L5CX_ZONES];     // learned static scene (-1 = unset/far)
 uint32_t gVlBaseFastUntilMs = 0; // fast-seed window after (re)zero
-uint16_t gPresenceThreshMm = 95; // gobo threshold; /set?thresh= (40..300)
+uint16_t gPresenceThreshMm = 500; // gobo threshold; /set?thresh= (40..600).
+// 500 mm default from dad-testing 2026-07-30: visitors step right up to the
+// piece but don't know where the sensor is, so arm's-length pops the surprise.
 bool gPresence = false;
 uint8_t gPresenceWhy = 0; // bit0 near, bit2 occlusion (last hit)
 uint8_t gPresenceHits = 0, gPresenceMisses = 0;
@@ -577,8 +579,12 @@ void l5cxTick() {
     }
   }
   gVlVisitorMm = visitor;
-  if (closest && closest <= (int16_t)(gPresence ? gPresenceThreshMm + L5CX_HYST_MM
-                                                : gPresenceThreshMm))
+  // Near tests the VISITOR (anomalous-vs-scene), not the raw closest return:
+  // at a 500 mm gobo zone, static clutter inside the threshold must not pin
+  // the gobo on. A partially-covering palm is anomalous and still fires here;
+  // a fully-covering palm fires occlusion below.
+  if (visitor >= 0 && visitor <= (int16_t)(gPresence ? gPresenceThreshMm + L5CX_HYST_MM
+                                                     : gPresenceThreshMm))
     why |= 1;
   if (nBaseValid >= L5CX_OCCL_MIN_BASE && nLost * 10 >= nBaseValid * 6) why |= 4;
 
@@ -594,9 +600,18 @@ void l5cxTick() {
     if (target > 1.0f) target = 1.0f;
   }
   // Track toward the target fast, decay back to red gently when they leave.
-  float alpha = target > gColorT ? 0.45f : 0.12f;
+  // Snap, don't sweep, into the gobo: while a trigger is confirming (why set,
+  // presence not yet latched) the wheel HOLDS -- a hand appearing suddenly
+  // from the blind spot otherwise zips the full rainbow for ~300 ms before
+  // the white snap. Ben 2026-07-30: leaning snap but undecided -- delete the
+  // `!why` guard to bring the zip back.
   float prevT = gColorT;
-  gColorT += alpha * (target - gColorT);
+  if (gPresence) {
+    gColorT = 1.0f; // hold violet under the white; release decays from the top
+  } else if (!why) {
+    float alpha = target > gColorT ? 0.45f : 0.12f;
+    gColorT += alpha * (target - gColorT);
+  }
 
   // Scene learning: asymmetric. Revealed-farther adapts fast (an occluder
   // left); closer adapts on a ~1 min tau (a lingering visitor slowly becomes
@@ -613,6 +628,11 @@ void l5cxTick() {
         continue;
       }
       float base = gVlBaseMm[z] > 0 ? gVlBaseMm[z] : L5CX_FAR_SENTINEL_MM;
+      // Closer-alpha 0.002 = a ~1 min tau: a perfectly still visitor slowly
+      // fades the piece back to red. Ben likes this (2026-07-30) and it keeps
+      // the baseline self-healing; if Nevada City opinions prefer stationary
+      // visitors to hold their color indefinitely, set the closer alpha to 0
+      // (people never absorb; Re-zero then handles real scene changes).
       float a = (float)cur > base ? 0.2f : 0.002f;
       gVlBaseMm[z] = base + a * ((float)cur - base);
     }
@@ -1027,8 +1047,8 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
  <button id=ah4 onclick="anim(4)">Twinkle</button>
  <button id=ah5 onclick="anim(5)" style="display:none">Presence</button>
 </div></div>
-<div class=row id=thRow style="display:none"><label>Presence threshold (mm) <span id=thl>95</span></label>
- <input type=range id=th min=40 max=300 value=95 oninput="ch('thresh',this.value);thl.textContent=this.value"></div>
+<div class=row id=thRow style="display:none"><label>Gobo threshold (mm) <span id=thl>500</span></label>
+ <input type=range id=th min=40 max=600 value=500 oninput="ch('thresh',this.value);thl.textContent=this.value"></div>
 <div class=row id=zoneRow style="display:none"><label>L5CX zones, mm (red=near, orange=closer than scene, dark red=lost vs scene) <span id=whyl></span></label>
  <div id=zgrid style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px"></div>
  <div class=btns style="margin-top:6px"><button onclick="send('zero_scene=1')">Re-zero scene</button></div></div>
@@ -1189,7 +1209,7 @@ void handleSet() {
   if (server.hasArg("ring")) gOrbitRing = server.arg("ring").toInt();
 #if STUDIO_L5CX
   if (server.hasArg("thresh"))
-    gPresenceThreshMm = (uint16_t)constrain(server.arg("thresh").toInt(), 40, 300);
+    gPresenceThreshMm = (uint16_t)constrain(server.arg("thresh").toInt(), 40, 600);
   if (server.hasArg("zero_scene")) l5cxZeroScene();
 #endif
   if (server.hasArg("freeze")) gFrozen = server.arg("freeze").toInt() != 0;
