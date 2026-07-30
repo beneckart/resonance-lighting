@@ -7,6 +7,7 @@
 
 #include "../../core/filters.h"
 #include "../../core/fixture_context.h"
+#include "../../core/tof_grid.h"
 #include "vl53l5cx_uld/SparkFun_VL53L5CX_Library.h"
 
 static SensorSnapshot gSnap;
@@ -219,27 +220,38 @@ static void vlTick(uint32_t now) {
   if (!gVl.isDataReady()) return;
   static VL53L5CX_ResultsData results;
   if (!gVl.getRangingData(&results)) return;
+  // ULD per-target arrays are zone-major (zone * VL53L5CX_NB_TARGET_PER_ZONE
+  // + target, per-zone nb_target_detected gates stale entries); selection
+  // lives in core/tof_grid so the native tests pin that layout.
+  static_assert((size_t)TOF_ZONES * VL53L5CX_NB_TARGET_PER_ZONE <=
+                    sizeof(results.distance_mm) / sizeof(results.distance_mm[0]),
+                "zone scan overruns distance_mm");
+  static_assert((size_t)TOF_ZONES * VL53L5CX_NB_TARGET_PER_ZONE <=
+                    sizeof(results.target_status) / sizeof(results.target_status[0]),
+                "zone scan overruns target_status");
+  static_assert((size_t)TOF_ZONES <= sizeof(results.nb_target_detected) /
+                                         sizeof(results.nb_target_detected[0]),
+                "zone scan overruns nb_target_detected");
+  uint16_t zoneMm[TOF_ZONES];
+  uint16_t closest = 0;
+  uint8_t kept = l5cxSelectGround(results.distance_mm, results.target_status,
+                                  results.nb_target_detected, TOF_ZONES,
+                                  VL53L5CX_NB_TARGET_PER_ZONE, 50, 4000,
+                                  zoneMm, &closest);
   float px[TOF_ZONES], py[TOF_ZONES], pz[TOF_ZONES];
   bool keep[TOF_ZONES];
-  uint16_t closest = 0;
   for (int i = 0; i < TOF_ZONES; i++) {
-    uint8_t status = results.target_status[i];
-    uint16_t mm = results.distance_mm[i];
-    keep[i] = (status == 5 || status == 9) && mm > 50 && mm < 4000;
+    keep[i] = zoneMm[i] != 0;
     if (keep[i]) {
-      px[i] = gVlRayX[i] * mm;
-      py[i] = gVlRayY[i] * mm;
-      pz[i] = gVlRayZ[i] * mm;
-      if (!closest || mm < closest) closest = mm;
+      px[i] = gVlRayX[i] * zoneMm[i];
+      py[i] = gVlRayY[i] * zoneMm[i];
+      pz[i] = gVlRayZ[i] * zoneMm[i];
     } else {
       px[i] = py[i] = pz[i] = 0;
     }
   }
   float a, b, c;
   if (planeFitLS(px, py, pz, keep, TOF_ZONES, TOF_MIN_FIT, &a, &b, &c)) {
-    uint8_t kept = 0;
-    for (int i = 0; i < TOF_ZONES; i++)
-      if (keep[i]) kept++;
     gSnap.vlZones = kept;
     if (!gVlRestSet) {
       gVlRestA = a;
