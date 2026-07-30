@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-30.2"
+#define STUDIO_VERSION "led-studio-2026-07-30.3"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
@@ -425,18 +425,43 @@ void sensorTriadTick() {}
 // sensor calls from loop()). All access single-threaded on Wire1 at 100 kHz.
 #define L5CX_RES 4
 #define L5CX_ZONES (L5CX_RES * L5CX_RES)
-#define L5CX_HZ 6         // ~30% bus duty worst case; 2-frame confirm ~330 ms
+#define L5CX_HZ 10        // sway_demo's proven 4x4 @ 10 Hz operating point
 #define L5CX_FLOOR_MM 35  // enclosure window near-field return (~20 mm) sits below this
 #define L5CX_CEIL_MM 3500
 #define L5CX_HYST_MM 40
+// Baseline-diff detection (2026-07-30, cluttered-garage lesson): a palm at 3-4 in
+// covers the whole 45-degree FoV and very-close returns often come back with
+// non-valid statuses, so "closest valid target" alone reads a covering hand as
+// CLEAR. Detect deviation from a learned static scene instead, three ways:
+//   near      -- any valid target inside thresh (the original fast path)
+//   approach  -- >=3 zones valid and closer than baseline by max(200 mm, 20%)
+//   occlusion -- >=60% of baseline-valid zones suddenly report no valid target
+// Baseline adapts slowly ONLY while released, so an engaged visitor never gets
+// absorbed; a swaying mount partially tracks via the EMA and is rejected by the
+// multi-zone + multi-frame requirements.
+#define L5CX_APPROACH_ZONES 3
+#define L5CX_APPROACH_MIN_MM 200
+#define L5CX_OCCL_MIN_BASE 6
 SparkFun_VL53L5CX gVl;
 bool gVlPresent = false, gVlRanging = false;
 uint32_t gVlRetryAtMs = 0, gVlLastFrameMs = 0;
 uint32_t gVlReads = 0, gVlErrors = 0;
 int16_t gVlClosestMm = 0;        // closest valid scene target (0 = clear)
-uint16_t gPresenceThreshMm = 95; // ~3.7 in; /set?thresh= overrides (40..300)
+int16_t gVlZoneMm[L5CX_ZONES];   // per-zone closest valid target (-1 = none)
+float gVlBaseMm[L5CX_ZONES];     // learned static scene (-1 = unset)
+uint32_t gVlBaseFastUntilMs = 0; // fast-seed window after (re)zero
+uint16_t gPresenceThreshMm = 95; // near-path threshold; /set?thresh= (40..300)
 bool gPresence = false;
+uint8_t gPresenceWhy = 0; // bit0 near, bit1 approach, bit2 occlusion (last hit)
 uint8_t gPresenceHits = 0, gPresenceMisses = 0;
+
+void l5cxZeroScene() {
+  for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+    gVlBaseMm[z] = -1.0f;
+    gVlZoneMm[z] = -1;
+  }
+  gVlBaseFastUntilMs = millis() + 3000;
+}
 
 bool l5cxApply() {
   // Only stop if actually ranging: stop_ranging on a fresh device hangs on an
@@ -456,6 +481,7 @@ bool l5cxApply() {
 void l5cxInit() {
   Wire1.begin();
   Wire1.setClock(100000);
+  l5cxZeroScene();
   uint32_t t0 = millis();
   Serial.println("[l5cx] VL53L5CX begin (fw blob upload over 100 kHz I2C, several s)...");
   if (!gVl.begin(0x29, Wire1)) {
@@ -506,31 +532,80 @@ void l5cxTick() {
   for (uint8_t z = 0; z < L5CX_ZONES; z++) {
     uint8_t nt = results.nb_target_detected[z];
     if (nt > VL53L5CX_NB_TARGET_PER_ZONE) nt = VL53L5CX_NB_TARGET_PER_ZONE;
+    int16_t zoneBest = -1;
     for (uint8_t t = 0; t < nt; t++) {
       uint16_t i = z * VL53L5CX_NB_TARGET_PER_ZONE + t;
       uint8_t st = results.target_status[i];
       int16_t d = results.distance_mm[i];
       if ((st != 5 && st != 9) || d < L5CX_FLOOR_MM || d > L5CX_CEIL_MM) continue;
+      if (zoneBest < 0 || d < zoneBest) zoneBest = d;
       if (!closest || d < closest) closest = d;
     }
+    gVlZoneMm[z] = zoneBest;
   }
   gVlClosestMm = closest;
-  // Enter fast (2 frames inside threshold), release sticky (3 frames clear past
-  // hysteresis) so a held hand doesn't flicker at the boundary.
-  bool inRange = closest && closest <= (int16_t)gPresenceThreshMm;
-  bool outRange = !closest || closest > (int16_t)(gPresenceThreshMm + L5CX_HYST_MM);
+
+  // Score the frame against the learned scene.
+  uint8_t why = 0;
+  uint8_t nBaseValid = 0, nLost = 0, nApproach = 0;
+  for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+    float base = gVlBaseMm[z];
+    int16_t cur = gVlZoneMm[z];
+    if (base > 0) {
+      nBaseValid++;
+      if (cur < 0) {
+        nLost++;
+      } else {
+        float margin = base * 0.20f;
+        if (margin < L5CX_APPROACH_MIN_MM) margin = L5CX_APPROACH_MIN_MM;
+        if ((float)cur < base - margin) nApproach++;
+      }
+    }
+  }
+  if (closest && closest <= (int16_t)(gPresence ? gPresenceThreshMm + L5CX_HYST_MM
+                                                : gPresenceThreshMm))
+    why |= 1;
+  if (nApproach >= L5CX_APPROACH_ZONES) why |= 2;
+  if (nBaseValid >= L5CX_OCCL_MIN_BASE && nLost * 10 >= nBaseValid * 6) why |= 4;
+
+  // Baseline learns the static scene only while released (an engaged visitor is
+  // never absorbed). Fast-seed after (re)zero, then slow EMA that also tracks
+  // slow mount drift/sway repositioning.
+  if (!gPresence && !why) {
+    float alpha = millis() < gVlBaseFastUntilMs ? 0.5f : 0.02f;
+    for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+      int16_t cur = gVlZoneMm[z];
+      if (cur < 0) continue;
+      if (gVlBaseMm[z] <= 0)
+        gVlBaseMm[z] = cur;
+      else
+        gVlBaseMm[z] += alpha * ((float)cur - gVlBaseMm[z]);
+    }
+  }
+
+  // Enter after 2 consecutive hit-frames (~200 ms at 10 Hz), release after 3
+  // consecutive clear frames; near path keeps +hyst while held.
+  bool prior = gPresence;
   if (!gPresence) {
-    gPresenceHits = inRange ? (uint8_t)(gPresenceHits + 1) : 0;
+    gPresenceHits = why ? (uint8_t)(gPresenceHits + 1) : 0;
     if (gPresenceHits >= 2) {
       gPresence = true;
       gPresenceMisses = 0;
     }
   } else {
-    gPresenceMisses = outRange ? (uint8_t)(gPresenceMisses + 1) : 0;
+    gPresenceMisses = why ? 0 : (uint8_t)(gPresenceMisses + 1);
     if (gPresenceMisses >= 3) {
       gPresence = false;
       gPresenceHits = 0;
     }
+  }
+  if (why) gPresenceWhy = why;
+  // Kill the wash<->gobo swap latency: re-render on the transition instead of
+  // waiting out the speed-paced frame timer (Ben 2026-07-30: sensor-to-LED
+  // latency is what makes the piece feel alive).
+  if (gPresence != prior && gMode == MODE_HEX && gAnim == 5 && !gFrozen) {
+    lastFrame = millis();
+    renderFrame();
   }
 }
 #else
@@ -916,6 +991,9 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
 </div></div>
 <div class=row id=thRow style="display:none"><label>Presence threshold (mm) <span id=thl>95</span></label>
  <input type=range id=th min=40 max=300 value=95 oninput="ch('thresh',this.value);thl.textContent=this.value"></div>
+<div class=row id=zoneRow style="display:none"><label>L5CX zones, mm (red=near, orange=closer than scene, dark red=lost vs scene) <span id=whyl></span></label>
+ <div id=zgrid style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px"></div>
+ <div class=btns style="margin-top:6px"><button onclick="send('zero_scene=1')">Re-zero scene</button></div></div>
 <div class=row><label>Split RGB (applies to Static / Spiral / Orbit / Breathe)</label><div class=btns>
  <button id=sp0 onclick="splitMode(0)">Off</button>
  <button id=sp1 onclick="splitMode(1)">Triad</button>
@@ -1025,6 +1103,17 @@ function refresh(){
  hl(st.mode==0?'ah':'ar',st.anim,st.mode==0?6:8);
  let ah5=document.getElementById('ah5');if(ah5)ah5.style.display=s.l5cx?'':'none';
  let thr=document.getElementById('thRow');if(thr)thr.style.display=(s.l5cx&&st.mode==0)?'':'none';
+ let zrow=document.getElementById('zoneRow');if(zrow)zrow.style.display=(s.l5cx&&st.mode==0)?'':'none';
+ if(s.l5cx&&s.zmm){let zg=document.getElementById('zgrid');
+  if(!zg.childElementCount)for(let i=0;i<16;i++){let d=document.createElement('div');
+   d.style.cssText='padding:6px 2px;text-align:center;border-radius:4px;background:#222;font-family:monospace;font-size:12px';zg.appendChild(d);}
+  for(let i=0;i<16;i++){let c=zg.children[i],v=s.zmm[i],b=s.zbase[i],bg='#222';
+   if(v<0){bg=b>0?'#411':'#222';}
+   else if(v<=s.thresh_mm){bg='#a22';}
+   else if(b>0&&v<b-Math.max(200,b*0.2)){bg='#a62';}
+   else{bg='#131';}
+   c.style.background=bg;c.textContent=v<0?'-':v;}
+  whyl.textContent=(s.presence?'PRESENT':'clear')+' '+((s.why&1)?'[near]':'')+((s.why&2)?'[approach]':'')+((s.why&4)?'[occlusion]':'');}
  rb.textContent='mode='+['HEX','RGBW','RGB'][st.mode]+'  anim='+an+
   '\nrgb'+(st.mode==1?'w':'')+'='+s.r+','+s.g+','+s.b+(st.mode==1?','+s.w:'')+'  hex=#'+hx(s.r)+hx(s.g)+hx(s.b)+
   '\nbri='+s.bri+'  gamma='+(s.gamma?'on':'off')+'  speed='+s.speed+
@@ -1062,6 +1151,7 @@ void handleSet() {
 #if STUDIO_L5CX
   if (server.hasArg("thresh"))
     gPresenceThreshMm = (uint16_t)constrain(server.arg("thresh").toInt(), 40, 300);
+  if (server.hasArg("zero_scene")) l5cxZeroScene();
 #endif
   if (server.hasArg("freeze")) gFrozen = server.arg("freeze").toInt() != 0;
   if (server.hasArg("spread")) gSpread = server.arg("spread").toInt() / 10.0f;
@@ -1152,7 +1242,7 @@ void handleState() {
   uint8_t soc = gSoc;
   bool sgood = gSupGood;
   int32_t rssi = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
-  char buf[1100];
+  char buf[1400];
 #if STUDIO_SENSOR_TRIAD
   uint32_t tmfAgeMs =
       gTmfLastReadMs ? millis() - gTmfLastReadMs : UINT32_MAX;
@@ -1179,18 +1269,28 @@ void handleState() {
            (unsigned long)gTmfReads, (unsigned long)gTmfErrors,
            (unsigned long)gTmfRecoveries);
 #elif STUDIO_L5CX
+  char zmm[128], zbase[128];
+  {
+    size_t p = 0, q = 0;
+    for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+      p += snprintf(zmm + p, sizeof(zmm) - p, "%s%d", z ? "," : "", (int)gVlZoneMm[z]);
+      q += snprintf(zbase + q, sizeof(zbase) - q, "%s%d", z ? "," : "",
+                    (int)(gVlBaseMm[z] > 0 ? gVlBaseMm[z] + 0.5f : -1));
+    }
+  }
   snprintf(buf, sizeof(buf),
            "{\"fw\":\"%s\",\"triad\":0,\"l5cx\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
            "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d,"
-           "\"l5cx_ok\":%d,\"closest_mm\":%d,\"presence\":%d,\"thresh_mm\":%u,"
+           "\"l5cx_ok\":%d,\"closest_mm\":%d,\"presence\":%d,\"why\":%u,\"thresh_mm\":%u,"
+           "\"zmm\":[%s],\"zbase\":[%s],"
            "\"l5cx_reads\":%lu,\"l5cx_errors\":%lu}",
            STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
            gSpeed, gGamma ? 1 : 0, gShape, lastLit, gAnchor, gSplit,
            (long)rssi, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
            sgood ? 1 : 0, (gVlPresent && gVlRanging) ? 1 : 0, (int)gVlClosestMm,
-           gPresence ? 1 : 0, gPresenceThreshMm, (unsigned long)gVlReads,
-           (unsigned long)gVlErrors);
+           gPresence ? 1 : 0, gPresenceWhy, gPresenceThreshMm, zmm, zbase,
+           (unsigned long)gVlReads, (unsigned long)gVlErrors);
 #else
   snprintf(buf, sizeof(buf),
            "{\"fw\":\"%s\",\"triad\":0,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"

@@ -68,13 +68,20 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 - **RGB mode**: same single-pixel color animations as RGBW (Hue / Breathe / Candle /
   Fade + Color B), but no W channel or white/warmth controls.
 - **L5CX presence HEX mode** (`--l5cx`, perimeter demo enclosure): vendored
-  VL53L5CX 4x4 @ 6 Hz on Wire1/100 kHz (fixture's trimmed ULD, loop-idiom like
+  VL53L5CX 4x4 @ 10 Hz on Wire1/100 kHz (fixture's trimmed ULD, loop-idiom like
   sway_demo -- begin() only in setup(), quick re-apply self-heal in loop).
   Boots into HEX anim 5 "Presence" at bri=255/gamma-off: all 37 px walk
-  ROYGBIV until a valid target sits inside the threshold (default 95 mm,
-  slider 40-300; enclosure-window returns <35 mm ignored; enter after 2
-  frames, release after 3 frames past +40 mm hysteresis), then a single
-  full-white center pixel -- the "dancing gobo" point -- until they back off.
+  ROYGBIV until presence, then a single full-white center pixel -- the
+  "dancing gobo" point -- until release. Presence = any of three tests vs a
+  learned per-zone scene baseline (slow EMA, adapts only while released;
+  "Re-zero scene" button): **near** (valid target <= threshold, default 95 mm,
+  slider 40-300), **approach** (>=3 zones closer than baseline by
+  max(200 mm, 20%) -- triggers from max range on someone walking up),
+  **occlusion** (>=60% of baseline-valid zones lose their target -- a palm
+  covering the whole FoV returns non-valid statuses, so "closest target" alone
+  would read it as clear). 2-frame enter / 3-frame release; presence
+  transitions re-render immediately instead of waiting on the speed-paced
+  frame timer. The UI shows a live 4x4 zone grid (mm + trigger coloring).
 - **Sensor-triad RGBW mode** (`--sensor-triad`): adds live MSA311, TMF8820, and
   BMP581 readback plus three reactive modes. ToF depth brightens the selected
   RGBW color as a target approaches (the known enclosed 20 mm window/fixture
