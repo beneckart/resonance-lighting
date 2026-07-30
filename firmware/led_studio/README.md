@@ -40,10 +40,13 @@ toggle** to match.
 ./build.sh --port /dev/ttyACM1            # USB flash
 ./build.sh --pin 16 --port /dev/ttyACM1   # if data is on D6/GPIO16
 ./build.sh --sensor-triad --cap 6000 --charge-ma 500 --maintain 4.6
+./build.sh --l5cx --cap 6000 --charge-ma 500 --maintain 4.6   # perimeter HEX demo
 ```
 
-On shared WiFi the board registers mDNS: open `http://ledstudio.local/`
-(since 2026-07-02). Serial monitor (115200) also prints the IP; SoftAP
+On shared WiFi the board registers a **per-device** mDNS name
+`http://ledstudio-<last-3-MAC-bytes>.local/` (e.g. `ledstudio-9e5ae8.local`;
+two boards both claiming plain `ledstudio.local` sent browser control to the
+wrong unit, 2026-07-30). Serial monitor (115200) also prints the IP; SoftAP
 fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 
 ## Controls
@@ -64,6 +67,14 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
   Hue / Breathe / Candle / Fade (with Color B).
 - **RGB mode**: same single-pixel color animations as RGBW (Hue / Breathe / Candle /
   Fade + Color B), but no W channel or white/warmth controls.
+- **L5CX presence HEX mode** (`--l5cx`, perimeter demo enclosure): vendored
+  VL53L5CX 4x4 @ 6 Hz on Wire1/100 kHz (fixture's trimmed ULD, loop-idiom like
+  sway_demo -- begin() only in setup(), quick re-apply self-heal in loop).
+  Boots into HEX anim 5 "Presence" at bri=255/gamma-off: all 37 px walk
+  ROYGBIV until a valid target sits inside the threshold (default 95 mm,
+  slider 40-300; enclosure-window returns <35 mm ignored; enter after 2
+  frames, release after 3 frames past +40 mm hysteresis), then a single
+  full-white center pixel -- the "dancing gobo" point -- until they back off.
 - **Sensor-triad RGBW mode** (`--sensor-triad`): adds live MSA311, TMF8820, and
   BMP581 readback plus three reactive modes. ToF depth brightens the selected
   RGBW color as a target approaches (the known enclosed 20 mm window/fixture
