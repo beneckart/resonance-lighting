@@ -29,7 +29,7 @@ FIELD_LED_SPIRAL_RGB=""; FIELD_LED_RGBW=""; FIELD_LED_FRAME_MS=""
 FIELD_RECOVER_CHARGE_MA=""; FIELD_PROTECT_RETRY_DARK=""
 DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
 FIELD_MPPT=""; FIELD_MPPT_HOLD=""
-SOLENOID_D7=""
+SOLENOID_D7=""; SENSOR_TRIAD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -78,6 +78,7 @@ while [[ $# -gt 0 ]]; do
     --field-mppt) FIELD_MPPT="1"; shift;;
     --field-mppt-hold) FIELD_MPPT_HOLD="1"; shift;;
     --solenoid-d7) SOLENOID_D7="1"; shift;;             # D7/GPIO37 gate; VDC/GND load tap
+    --sensor-triad) SENSOR_TRIAD="1"; shift;;           # MSA311 + TMF8820 + BMP581 diagnostic
     --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
     --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
     --drawdown-r) DRAWDOWN_R="$2"; shift 2;;
@@ -161,6 +162,7 @@ esac
 [[ -n "${FIELD_MPPT}" ]] && FLAGS+=" -DNB_FIELD_MPPT=1"
 [[ -n "${FIELD_MPPT_HOLD}" ]] && FLAGS+=" -DNB_FIELD_MPPT_HOLD_BEST=1"
 [[ -n "${SOLENOID_D7}" ]] && FLAGS+=" -DNB_SOLENOID_D7=1"
+[[ -n "${SENSOR_TRIAD}" ]] && FLAGS+=" -DNB_SENSOR_TRIAD=1"
 [[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
 [[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"
 [[ -n "${DRAWDOWN_R}" ]] && FLAGS+=" -DNB_DRAWDOWN_R=${DRAWDOWN_R}"

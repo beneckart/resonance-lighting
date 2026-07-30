@@ -549,11 +549,13 @@ tr.peer-row.active-row { background: #edf6fc; }
 button, input { font: inherit; border-radius: 7px; border: 1px solid var(--line); background: #fff; color: var(--ink); min-height: 38px; }
 button { cursor: pointer; font-weight: 700; }
 button:hover { border-color: #9aaba1; background: #f9fbfa; }
+button:disabled { cursor: not-allowed; opacity: .45; background: #f3f5f4; }
 button.primary { background: var(--soft-blue); border-color: #b8d5ec; color: var(--blue); }
 button.warn { background: var(--soft-amber); border-color: #f0d198; color: var(--amber); }
 button.danger { background: var(--soft-red); border-color: #efc2bd; color: var(--red); }
 input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
 .maintain { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; margin-top: 8px; }
+.command-status { border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; margin: 0 0 10px; min-height: 38px; font-size: 13px; }
 .history { height: 168px; overflow: auto; background: #111814; color: #dbe8df; border-radius: 7px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.45; }
 .history div { white-space: pre-wrap; overflow-wrap: anywhere; }
 .signal { width: 100%; height: 8px; background: #edf1ef; border-radius: 999px; overflow: hidden; }
@@ -661,6 +663,7 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
 
     <div class="panel span-4">
       <p class="section-title">Controls</p>
+      <div class="command-status" id="commandStatus" aria-live="polite">Select a peer for targeted controls</div>
       <div class="controls">
         <button data-cmd="r">Refresh</button>
         <button class="primary" data-cmd="m46">4.6 V</button>
@@ -673,7 +676,7 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <button data-cmd="i">Identify next</button>
       </div>
       <div class="maintain">
-        <input id="maintainInput" inputmode="decimal" placeholder="MPP volts, e.g. 6.8">
+        <input id="maintainInput" type="number" min="4.6" max="16.8" step="0.1" inputmode="decimal" placeholder="MPP volts, 4.6-16.8">
         <button id="maintainBtn">Set</button>
       </div>
       <div class="maintain">
@@ -702,7 +705,6 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <input id="napInput" inputmode="numeric" placeholder="Nap selected seconds, e.g. 3600">
         <button id="napBtn">Nap</button>
       </div>
-      <div class="metric-foot" id="commandStatus">No command sent</div>
     </div>
 
     <div class="panel span-5">
@@ -859,9 +861,18 @@ function setFocus(peerId) {
   if (state) render(state);
 }
 function commandTargetPeer() {
-  if (!state || focusedPeerId === "all") return null;
+  if (!state) return null;
   const peers = sortedPeers(state);
+  if (focusedPeerId === "all") {
+    const fresh = peers.filter(freshPeer);
+    return fresh.length === 1 ? fresh[0] : null;
+  }
   return peers.find(p => p.id === focusedPeerId) || null;
+}
+function setCommandStatus(text, klass = "") {
+  const el = document.getElementById("commandStatus");
+  el.textContent = text;
+  el.className = `command-status ${klass}`.trim();
 }
 function renderPeerSelector(peers, effectiveFocus) {
   const freshCount = peers.filter(freshPeer).length;
@@ -936,6 +947,14 @@ function render(s) {
   const historyKey = effectiveFocus;
   clearHistoryIfNeeded(historyKey);
   renderPeerSelector(rows, effectiveFocus);
+  const commandPeer = commandTargetPeer();
+  ["peerMaintBtn", "capacityBtn", "chargeBtn", "solenoidBtn", "napBtn"].forEach(id => {
+    const el = document.getElementById(id);
+    el.disabled = !commandPeer;
+    el.title = commandPeer
+      ? `Targets ${commandPeer.id}`
+      : "Select exactly one fresh peer";
+  });
 
   document.getElementById("tempToggle").textContent = tempUnit;
   const serialPill = document.getElementById("serialPill");
@@ -1101,26 +1120,56 @@ function render(s) {
 
   document.getElementById("rawLog").innerHTML = (s.raw || []).slice(-22).map(r => `<div>${esc(r.line)}</div>`).join("");
 }
-function sendCommand(cmd, label) {
-  fetch("/api/cmd", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({cmd, label: label || cmd})
-  }).then(async res => {
+async function sendCommand(cmd, label) {
+  setCommandStatus(`Sending ${cmd}...`, "warn");
+  try {
+    const res = await fetch("/api/cmd", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({cmd, label: label || cmd})
+    });
     const data = await res.json();
-    document.getElementById("commandStatus").textContent =
-      data.ok ? `Sent ${data.cmd}` : `Command failed: ${data.error}`;
-  }).catch(err => {
-    document.getElementById("commandStatus").textContent = `Command failed: ${err}`;
-  });
+    if (!data.ok) throw new Error(data.error || "command rejected");
+    setCommandStatus(`Sent ${data.cmd}`, "ok");
+    return data;
+  } catch (err) {
+    setCommandStatus(`Command failed: ${err}`, "bad");
+    return null;
+  }
+}
+async function sendMaintainCommand(v10, label) {
+  const sent = await sendCommand(`m${v10}`, label);
+  if (!sent) return;
+  setCommandStatus(`Sent m${v10}; awaiting charger telemetry...`, "warn");
+  const expectedMv = v10 * 100;
+  const deadline = Date.now() + 6000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch("/api/state", {cache: "no-store"});
+      const snapshot = await res.json();
+      const peers = sortedPeers(snapshot).filter(freshPeer);
+      if (peers.length && peers.every(p => p.bq_vindpm_mv === expectedMv)) {
+        setCommandStatus(`Verified ${(v10 / 10).toFixed(1)} V on ${peers.length} peer${peers.length === 1 ? "" : "s"}`, "ok");
+        return;
+      }
+    } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 400));
+  }
+  setCommandStatus(`Command sent, but peer telemetry did not verify ${(v10 / 10).toFixed(1)} V`, "bad");
 }
 document.querySelectorAll("button[data-cmd]").forEach(btn => {
-  btn.addEventListener("click", () => sendCommand(btn.dataset.cmd, btn.textContent.trim()));
+  btn.addEventListener("click", () => {
+    const cmd = btn.dataset.cmd;
+    if (/^m\d+$/.test(cmd))
+      sendMaintainCommand(Number(cmd.slice(1)), btn.textContent.trim());
+    else
+      sendCommand(cmd, btn.textContent.trim());
+  });
 });
 document.getElementById("peerMaintBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
   if (!peer) {
-    document.getElementById("commandStatus").textContent = "Select one peer for maintenance";
+    setCommandStatus("Select exactly one fresh peer for maintenance", "bad");
     return;
   }
   sendCommand(`U${peer.id}`, `Target ${peer.id} maintenance`);
@@ -1128,22 +1177,22 @@ document.getElementById("peerMaintBtn").addEventListener("click", () => {
 document.getElementById("maintainBtn").addEventListener("click", () => {
   const raw = document.getElementById("maintainInput").value.trim();
   const v = Number(raw);
-  if (!Number.isFinite(v) || v < 4.0 || v > 16.8) {
-    document.getElementById("commandStatus").textContent = "Enter 4.0 to 16.8 V";
+  if (!Number.isFinite(v) || v < 4.6 || v > 16.8) {
+    setCommandStatus("PowerFeather SDK range is 4.6 to 16.8 V", "bad");
     return;
   }
-  sendCommand(`m${Math.round(v * 10)}`, `Set ${v.toFixed(1)} V`);
+  sendMaintainCommand(Math.round(v * 10), `Set ${v.toFixed(1)} V`);
 });
 document.getElementById("capacityBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
   if (!peer) {
-    document.getElementById("commandStatus").textContent = "Select one peer for capacity";
+    setCommandStatus("Select exactly one fresh peer for capacity", "bad");
     return;
   }
   const raw = document.getElementById("capacityInput").value.trim();
   const mah = Number(raw);
   if (!Number.isInteger(mah) || mah < 100 || mah > 30000) {
-    document.getElementById("commandStatus").textContent = "Enter 100 to 30000 mAh";
+    setCommandStatus("Enter 100 to 30000 mAh", "bad");
     return;
   }
   sendCommand(`C${peer.id}:${mah}`, `Set ${peer.id} capacity ${mah} mAh`);
@@ -1151,13 +1200,13 @@ document.getElementById("capacityBtn").addEventListener("click", () => {
 document.getElementById("chargeBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
   if (!peer) {
-    document.getElementById("commandStatus").textContent = "Select one peer for charge";
+    setCommandStatus("Select exactly one fresh peer for charge", "bad");
     return;
   }
   const raw = document.getElementById("chargeInput").value.trim();
   const ma = Number(raw);
   if (!Number.isInteger(ma) || ma < 40 || ma > 2000) {
-    document.getElementById("commandStatus").textContent = "Enter 40 to 2000 mA";
+    setCommandStatus("Enter 40 to 2000 mA", "bad");
     return;
   }
   sendCommand(`G${peer.id}:${ma}`, `Set ${peer.id} charge ${ma} mA`);
@@ -1165,13 +1214,13 @@ document.getElementById("chargeBtn").addEventListener("click", () => {
 document.getElementById("solenoidBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
   if (!peer) {
-    document.getElementById("commandStatus").textContent = "Select one solenoid peer";
+    setCommandStatus("Select exactly one fresh solenoid peer", "bad");
     return;
   }
   const raw = document.getElementById("solenoidPulseInput").value.trim();
   const ms = Number(raw);
   if (!Number.isInteger(ms) || ms < 5 || ms > 300) {
-    document.getElementById("commandStatus").textContent = "Enter a 5 to 300 ms pulse";
+    setCommandStatus("Enter a 5 to 300 ms pulse", "bad");
     return;
   }
   sendCommand(`K${peer.id}:${ms}`, `Strike ${peer.id} D7 for ${ms} ms`);
@@ -1180,7 +1229,7 @@ document.getElementById("rateBtn").addEventListener("click", () => {
   const raw = document.getElementById("rateInput").value.trim();
   const hz = Number(raw);
   if (!Number.isInteger(hz) || hz < 1 || hz > 100) {
-    document.getElementById("commandStatus").textContent = "Enter 1 to 100 Hz";
+    setCommandStatus("Enter 1 to 100 Hz", "bad");
     return;
   }
   sendCommand(`R${hz}`, `Set radio ${hz} Hz`);
@@ -1188,13 +1237,13 @@ document.getElementById("rateBtn").addEventListener("click", () => {
 document.getElementById("napBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
   if (!peer) {
-    document.getElementById("commandStatus").textContent = "Select one peer to nap";
+    setCommandStatus("Select exactly one fresh peer to nap", "bad");
     return;
   }
   const raw = document.getElementById("napInput").value.trim();
   const seconds = raw ? Number(raw) : 3600;
   if (!Number.isInteger(seconds) || seconds < 1 || seconds > 65535) {
-    document.getElementById("commandStatus").textContent = "Enter 1 to 65535 seconds";
+    setCommandStatus("Enter 1 to 65535 seconds", "bad");
     return;
   }
   sendCommand(`P${peer.id}:${seconds}`, `Nap ${peer.id} ${seconds}s`);
@@ -1237,7 +1286,7 @@ def valid_command(cmd: str) -> bool:
     m = re.fullmatch(r"m(\d{2,3})", cmd)
     if m:
         value = int(m.group(1))
-        return 40 <= value <= 168
+        return 46 <= value <= 168
     m = re.fullmatch(r"C(?:[0-9A-Fa-f]{6}:)?(\d{3,5})", cmd)
     if m:
         value = int(m.group(1))

@@ -54,6 +54,23 @@ Default maintenance OTA requires `wifi_secrets.h`. `build.sh` reuses an existing
 gitignored secrets file from `../power_bench/` or `../led_studio/` when
 `firmware/net_bench/wifi_secrets.h` is absent.
 
+The 2026-07-27 Tennessee packing artifact is
+`build/fleet-tn-wonkyhouse-20260727-r1/`: peer, channel 11, 1 Hz heartbeat,
+Generic_LFP / 6000 mAh / 500 mA / 4.6 V, and guarded D7 solenoid support. All 26
+bench fixtures received `net-bench-2026-07-27.3` with the WonkyHouse maintenance
+profile. USB/serial verification passed; shared-WiFi verification remains pending
+until that AP is reachable in Tennessee.
+
+The opt-in `--sensor-triad` diagnostic adds the production-chain MSA311
+accelerometer, TMF8820 ToF, and BMP581 temperature/pressure sensors on `Wire1`.
+It keeps the shared power-management bus at 100 kHz and adds cached readings to
+maintenance `/telemetry`; it does not yet extend the ESP-NOW heartbeat or live
+dashboard. The first exact enclosure artifact is
+`build/tn-sensor-triad-f2bfa0-20260729-r1/` (`net-bench-2026-07-29.4`, SHA-256
+`C78342161A6B9E1E3ABF049AD0DB3187C3077D34878934947816722DBE95F9CD`).
+This two-second polling profile is for bring-up diagnostics, not yet a qualified
+production energy/timing profile.
+
 `build.sh` uses a unique temporary Arduino `--build-path` per run to avoid the ESP32
 Arduino cache collision seen when compiling multiple variants in parallel. If you call
 `arduino-cli` directly, also provide a unique `--build-path` or build variants
@@ -67,6 +84,7 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--field-cycle`/`--field-charge-s S`/`--field-wait-s S`/`--field-protect-s S`,
 `--field-led-load`/`--field-led-spiral-rgb`/`--field-led-rgbw`/`--field-led-frame-ms MS`,
 `--solenoid-d7` (targeted, fail-safe D7/GPIO37 strike control),
+`--sensor-triad` (MSA311 + TMF8820 + BMP581 maintenance-telemetry diagnostic),
 `--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
@@ -79,7 +97,7 @@ ESP-NOW heartbeat with `mt=2` before attempting maintenance, and the dashboard s
 bound is measured.
 
 The live master command `m<v10>` sets charger maintain/VINDPM in volts x10 across the
-fleet and accepts the PowerFeather SDK range 4.0-16.8 V, e.g. `m46` for 4.6 V or `m71`
+fleet and accepts the PowerFeather SDK range 4.6-16.8 V, e.g. `m46` for 4.6 V or `m71`
 for a 7.1 V panel MPP.
 
 The live master command `S` parks peers in timed deep sleep for 6 hours by default
@@ -120,11 +138,28 @@ Chemistry is still a build-time flag (`--chem lfp|3v7`) because that controls ch
 voltage and is safety-critical. The `--cap` and `--charge-ma` build flags remain useful
 as first-boot defaults; NVS overrides win after a command.
 
+Charging-enabled builds are safe on a bare PowerFeather: firmware leaves charging off
+until the warmed fuel gauge reports a plausible 2.5-4.4 V cell. If no cell appears
+within 60 seconds, charging stays off for that boot; attach the battery while power is
+off, or reset after attaching it. `/telemetry` reports `battery_present` and
+`charging_enabled` so incoming inspection can distinguish a healthy bare board from a
+configured board with a cell. It also reports `flash_bytes`, `psram_bytes`,
+`battery_capacity_mah`, `charge_limit_ma`, and `maintain_v` so commissioning verifies
+the live hardware/profile instead of inferring it from build flags. `psram_bytes` is
+initialized runtime PSRAM and is normally zero with the current FQBN; commissioning
+uses the ROM/eFuse flash-ID probe to verify the board's physical 2 MB PSRAM.
+
 Shared-WiFi maintenance can be fleet-wide or targeted. Bare `U` remains the sustained
 fleet `ENTER_MAINT` wake and is also the migration path for old peers that do not yet
 understand targeted maintenance. `U<id>` sends sustained targeted maintenance to one
 peer, e.g. `U9E5AB8`, so a single OTA does not pull drawdown or solar-cycle peers off
 ESP-NOW. The dashboard's `Peer maint` button sends `U<id>` for the selected peer.
+
+For first-flash commissioning without a bridge, send lowercase `u` over that peer's
+USB serial port. A peer in COMMS enters its own shared-WiFi maintenance mode, prints
+the BubbyNet IP, and serves `/telemetry`, `/update`, and `/resume`. This local command
+does not broadcast to other peers; normal fleet maintenance still comes from the
+serial bridge/master.
 
 ### Optional D7/VDC solenoid strike
 

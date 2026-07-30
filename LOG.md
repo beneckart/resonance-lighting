@@ -12,6 +12,322 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-29 -- Ben + Codex -- LED Studio TMF stalls removed
+
+The sensor-reactive Studio UI was effectively unusable because each TMF8820
+`startMeasuring(results)` call blocked the Arduino loop until a complete report,
+delaying HTTP responses by 0.7-1.8 seconds. The old presence bench did not make
+this call nonblocking: it quarantined blocking sensors in a core-0 FreeRTOS task
+and served cached HTTP frames from core 1. That bench pattern was not reused
+because this production-like chain shares `Wire1` with the charger/gauge and must
+follow ADR 0028's single-threaded 100 kHz rule.
+
+LED Studio now cooperatively executes the TMF driver's start -> process IRQ ->
+stop one-shot sequence across main-loop iterations, caches each result, and
+self-recovers a failed or overdue shot without blocking HTTP. Browser polling
+also refuses overlapping requests. The UI now reports WiFi RSSI, measured request
+latency, TMF frame age, and recovery count.
+
+An intermediate `.2` continuous-mode experiment proved the low-level path but was
+rejected after it restarted once per frame; it is not the fleet registry image.
+The final `led-studio-2026-07-29.3` artifact is 1,067,200 bytes with SHA-256
+`ED2CB3DA07A6F18363D1273B6D2124D0858B4F8FDA7651690215F9A2058424E9`.
+On enclosed `F2BFA0`, 24 state requests measured 41.5 ms minimum, 111.7 ms mean,
+204.1 ms p95, and 207.6 ms maximum; 20 button commands averaged 35.4 ms. RSSI
+stayed -43 to -46 dBm. After 776 TMF frames there were zero errors or recoveries,
+all three sensors remained healthy, and OTA recovery returned HTTP 200. The
+fixture was left in warm-amber ToF-depth mode.
+
+## 2026-07-29 -- Ben + Codex -- Sensor-reactive RGBW LED Studio OTA
+
+Extended the unified RGBW LED Studio with an opt-in sensor-triad profile for the
+enclosed `F2BFA0`. MSA311 tilt, BMP581 pressure-derived relative elevation, and
+TMF8820 depth are sampled from the shared 100 kHz `Wire1` bus in the Arduino main
+loop. The browser UI now has three reactive modes, live sensor readback, and
+manual tilt/elevation zero controls. The ToF mode rejects the repeatable 20-21 mm
+enclosure/window return and uses the nearest confident 80-2500 mm target.
+
+Built once with the 6 Ah LFP / 500 mA / 4.6 V profile and OTA-uploaded that exact
+artifact. `led-studio-2026-07-29.1` is 1,066,256 bytes with SHA-256
+`B6540233C0FC2EDCB1E15B00832F660F444FDB5C18C93B5F7AEA17B68606413A`.
+The live app at `http://10.0.0.200/` reported all three sensors healthy; browser
+tests passed for manual RGBW, warm-amber ToF, tilt/re-zero, and elevation/re-zero.
+The OTA recovery endpoint also returned HTTP 200. The fixture was left in warm
+amber ToF-depth mode. This temporarily replaces its ESP-NOW net-bench image; the
+qualified `.4` binary remains available at
+`firmware/net_bench/build/tn-sensor-triad-f2bfa0-20260729-r1/net_bench.ino.bin`.
+
+## 2026-07-29 -- Ben + Codex -- Dashboard controls and VINDPM floor corrected
+
+The live dashboard made targeted controls look broken while the `All` view was
+selected: the buttons silently refused to act and the error appeared only in a
+small status line below the controls. It now automatically targets the sole fresh
+peer, disables targeted actions when there is not exactly one target, and reports
+command progress/errors prominently. Browser validation against the live COM13
+bridge passed: a dashboard `KF2BFA0:40` reached the peer with no reset, a 4.0 V
+entry was visibly rejected, and 4.6 V / 5.2 V commands were verified from returned
+charger telemetry.
+
+The PowerFeather SDK's actual VINDPM range is 4.6-16.8 V, not the 4.0 V that the
+dashboard and current README had claimed. The SDK explicitly rejects values below
+its 4.6 V reset floor. `net_bench` now uses 4.6 V as its command floor and only
+updates its reported setpoint after `setSupplyMaintainVoltage()` succeeds. The
+validation-only `net-bench-2026-07-29.5` peer build is 1,065,072 bytes with SHA-256
+`FF4FDB54730C611BB60BF81504D32FC4F5B75CB50B83DB047BFE17AB2A5940A5`;
+it compiled cleanly with the F2BFA0 sensor-triad/solenoid/6 Ah profile but was not
+deployed, so the enclosure remains on qualified `.4`.
+
+To test the apparent lamp-lit panel stall without rebooting, the live peer was
+stepped from 4.6 V to 5.2 V and back. The BQ VINDPM register and input voltage
+immediately followed both commands (5,200 mV / 5.216 V, then 4,600 mV /
+4.644-4.648 V), proving the command and charger-setting paths were responsive.
+Input remained 0 mA, the battery continued discharging approximately 0.11-0.16 A,
+`supply_good` remained true, and BQ fault status remained zero. This rules out a
+stale VINDPM setting; `supply_good` only proves acceptable input voltage, not
+usable panel power. Next isolate the 60 W lamp/panel/cable path with a direct
+loaded voltage/current measurement or a cover/uncover/reconnect test.
+
+## 2026-07-29 -- Ben + Codex -- Enclosure sensor triad read over OTA
+
+Added an opt-in `NB_SENSOR_TRIAD` diagnostic to `net_bench` for the production
+MSA311 accelerometer, TMF8820 ToF, and BMP581 temperature/pressure chain. All three
+run on the PowerFeather `Wire1` bus at the ADR 0028 limit of 100 kHz and cache a
+sample every two seconds into maintenance `/telemetry`. The build wrapper exposes
+the profile as `--sensor-triad`; the sensors are not yet carried in the ESP-NOW
+heartbeat or shown on the live dashboard.
+
+Built the peer once in
+`firmware/net_bench/build/tn-sensor-triad-f2bfa0-20260729-r1/` with channel 11,
+WonkyHouse, Generic_LFP / 6000 mAh / 500 mA / 4.6 V, guarded D7, and the sensor
+triad. The 1,065,024-byte `net-bench-2026-07-29.4` binary has SHA-256
+`C78342161A6B9E1E3ABF049AD0DB3187C3077D34878934947816722DBE95F9CD`.
+Targeted shared-WiFi OTA to enclosed fixture `F2BFA0` at its observed
+`10.0.0.200` address passed in 3.47 seconds without opening the enclosure or
+pressing a button.
+
+Live readings passed for all three sensors: MSA311 approximately
+(-0.029, -0.002, 1.025) g; BMP581 28.17 deg C and 978.96 hPa; and TMF8820
+16 results per frame with zero read errors, approximately 2,000 ambient units,
+28 deg C internal temperature, and a closest return of 20 mm at confidence 255.
+The 20 mm zone is likely seeing the enclosure/window or another very near object
+and needs geometric interpretation before using it as a presence result. A final
+`/resume` after the bridge command tail expired returned `.4` to sustained
+ESP-NOW heartbeats at approximately -50 dBm. This proves electrical/software
+bring-up only; production sampling cadence, energy cost, and enclosure ToF
+calibration remain open.
+
+The same live peer then accepted one targeted `KF2BFA0:40` bridge command. Maintenance
+telemetry confirmed one 40 ms strike, zero failsafes, and no reset. The strike briefly
+pulled the weak lamp-lit VDC source from approximately 4.65 V to 4.04 V and toggled
+`supply_good` false before recovery. At steady state the 60 W incandescent-lit panel
+reported 4.64 V but 0 mA input while the 97 percent-reported battery discharged at
+approximately 0.13 A, so charge termination/full battery does not explain the zero
+panel power; the artificial-light source was not sustaining net charge.
+
+Local-control telemetry distinguishes the three paths. USER/GPIO0 was armed, while
+neither a supported DFR0991 nor navigation switch was detected. The probe's
+`0x2A` ACK / PID `0x0000` is also present in bare-board fleet records and therefore
+does not prove that an external button is attached. The dashboard command path itself
+works when `F2BFA0`, rather than `All`, is selected. After the diagnostic maintenance
+read and command-tail expiry, `/resume` returned the fixture to fresh `.4` ESP-NOW
+heartbeats.
+
+## 2026-07-29 -- Ben + Codex -- First Tennessee enclosure peer joined WonkyHouse
+
+At the Tennessee bench, the laptop was associated with WonkyHouse on 5 GHz and the
+network scan confirmed a strong 2.4 GHz BSSID on channel 11, matching the fleet's
+fixed ESP-NOW channel. The one USB-attached official fixture was `F2BED4` on COM13.
+It was temporarily flashed with the previously qualified channel-11 serial-bridge
+artifact (`net-bench-2026-07-13.3`, SHA-256
+`9FEA2C68B72CD5F68AB6D975D83A5FD12CCDEECE6E424924F8D2A0A31BCCB7F4`)
+and left running the dashboard at `http://127.0.0.1:8765/`.
+
+The bridge immediately received the enclosed production peer `F2BFA0` running
+`net-bench-2026-07-27.3`: approximately -61 to -62 dBm ESP-NOW RSSI, 3.33 V battery,
+and good external-supply telemetry. A targeted `UF2BFA0` then moved only that peer
+into shared-WiFi maintenance. It joined WonkyHouse at observed DHCP address
+`10.0.0.200`, served matching `/telemetry`, confirmed Generic_LFP / 6000 mAh /
+500 mA / 4.6 V, battery present, charging enabled, and solenoid support, then accepted
+`/resume` and rejoined ESP-NOW. The first resume occurred before the bridge's
+35-second targeted-command tail expired and the peer was pulled back into maintenance;
+after the tail expired, a final `/resume` produced sustained fresh heartbeats at about
+-55 dBm. No OTA image was uploaded.
+
+This is the first live Tennessee proof of the complete enclosure path: power,
+ESP-NOW discovery, targeted maintenance, the new case-sensitive WiFi credentials,
+host reachability, telemetry, resume, and comms rejoin. The DHCP address is an
+observation, not identity. Registry now marks `F2BFA0` WonkyHouse OTA-capable and
+records `F2BED4` as the active temporary TN serial bridge.
+
+## 2026-07-27 -- Ben + Codex -- Twenty-six peers migrated to WonkyHouse profile
+
+Ben confirmed the two guarded `F4044C` pulses produced physical solenoid kicks, closing
+the one-board VDC/actuator test. He then returned that fixture to USB for the Tennessee
+packing pass. The temporary bridge `F4031C` had already been restored and verified as
+a peer; this run put it and every other connected board on one uniform peer image.
+
+Updated the gitignored `net_bench/wifi_secrets.h` to the case-sensitive WonkyHouse
+credentials and advanced the firmware identity to `net-bench-2026-07-27.3`. The new
+common artifact keeps ESP-NOW channel 11, 1 Hz heartbeats, Generic_LFP / 6000 mAh,
+500 mA charge cap, 4.6 V VINDPM, and guarded D7/GPIO37 solenoid support. The isolated
+build is `firmware/net_bench/build/fleet-tn-wonkyhouse-20260727-r1/`; its
+1,031,328-byte binary SHA-256 is
+`F24A1A930E26490C87A72F5760ED3D1355201A49680A3EAF1EEEA67DEBA316CC`.
+Artifact inspection found the new SSID/password and no BubbyNet string.
+
+All 26 USB-enumerated fixtures passed ESP32-S3/8 MB flash/2 MB PSRAM preflight,
+exact-artifact upload, MAC-derived identity verification, peer role, `.3` version,
+PowerFeather controller initialization, 6 Ah/500 mA/4.6 V configuration, solenoid
+support enabled, and gate-low-at-rest telemetry. The run used the qualified 12-worker
+limit and ended with 26 native-USB devices and zero Windows device errors. Evidence is
+`ops/fleet/bringup/2026-07-27-ca-usb-wonkyhouse-fleet.jsonl`.
+
+WonkyHouse was not visible from the California bench, so this pass could not prove
+association, `/telemetry`, or `/resume`. The registry deliberately marks all 26
+WonkyHouse profiles `ota_verified=false` until the first Tennessee network check.
+`fleet_usb_bringup.py` now retains historical OTA success only when the credential
+profile is unchanged, and has an explicit `--allow-battery-present` opt-in for a
+deliberate mixed installed-battery batch while retaining bare-board safety by default.
+
+## 2026-07-27 -- Ben + Codex -- VDC-only targeted OTA and solenoid strike passed
+
+Used commissioned fixture `F4044C` as the first one-board indoor VDC qualification:
+PowerFeather USB remained disconnected while a switched Sabrent port fed the fixture
+harness into VDC/GND. A temporary channel-11 serial bridge heard the board over
+ESP-NOW, sent only targeted `UF4044C`, and discovered it on BubbyNet at
+`192.168.4.153`. The board accepted the exact 1,031,344-byte solenoid-enabled image
+over shared-WiFi OTA in 4.03 seconds and rejoined ESP-NOW without a button press.
+
+Post-OTA telemetry confirmed Generic_LFP / 6000 mAh / 500 mA / 4.6 V, a present
+3.39 V battery, charging enabled, about 4.80 V and 472-474 mA at VDC, good supply
+status, D7/GPIO37 solenoid support enabled, and the gate low at rest. Two separately
+issued targeted 40 ms commands were ultimately recorded as two guarded strikes; the
+first counter read was too early and still showed zero, so no further strike was
+sent after the later count reached two. The supply remained good and the gate
+returned low. Ben subsequently confirmed that the physical solenoid kicked.
+
+The temporary bridge was official fixture `F4031C` on COM33. It was restored to the
+exact standard fleet artifact and passed ESP32-S3 flash-ID, upload, and serial
+verification afterward. The target registry row now records the distinct
+solenoid-enabled artifact. This validates one fixture on hub-fed VDC for
+power/charging, targeted OTA, and guarded solenoid actuation; multi-fixture VDC
+loading remains open.
+
+For planning a roughly 100-node tree OTA, current approximately 1.02 MB images take
+about 5-6 seconds per node historically (4.03 seconds in this run). At the existing
+five-job default, pure upload time is about two minutes. Budget 10-15 minutes when
+all nodes are awake, and reserve 20-30 minutes for the first full-tree pass because
+maintenance discovery, a possible 300-second sleep cadence, DHCP/client capacity,
+rejoin verification, and retries dominate. A router-backed 100-node rehearsal is
+still required before treating that as a guaranteed field time.
+
+## 2026-07-27 -- Ben + Codex -- Twenty-six-device census and 12-way flash stress passed
+
+Activated the final two Sabrent ports and reached 26 simultaneous native-USB
+PowerFeathers (COM9-COM34), split as expected across 16-port and 10-port downstream
+trees. The final two boards passed the full hardware, exact-artifact, serial, and
+BubbyNet OTA commissioning path. A final census retained all 26 registered devices
+with zero present USB error devices.
+
+Stress-tested flash concurrency above the conservative four-worker starting point.
+An eight-way full run passed 8/8 hardware preflight, upload, and serial verification;
+one board hit a transient Windows `ClearCommError` only during the later simultaneous
+serial-to-WiFi transition, then passed a single-board retry. Two disjoint, hub-balanced
+12-way runs each passed 12/12 preflights, uploads, and post-flash serial checks in
+29 seconds. The production-shaped confirmation then passed 12/12 uploads with WiFi
+verification separately capped at four, completing in 42 seconds. For comparison,
+the earlier 12-board four-wide full commissioning took 84 seconds.
+
+`fleet_usb_bringup.py` now defaults to 12 flash workers and independently limits WiFi
+verification to four. Twelve is the adopted operating point: it makes a 24-fixture
+ring exactly two waves, has two independent clean upload runs plus a clean full-path
+run, and increasing to 16 would still require two waves while reducing margin.
+Historical OTA success is no longer erased by a later transient stress-test failure.
+
+Ben proposed repurposing the powered hubs as an indoor 5 V source into PowerFeather
+`VDC/GND`, using the same female-USB-C-to-XH fixture harness used by the Voltaic
+panels while leaving the PowerFeather USB-C unused. The architecture supports this:
+VDC accepts 5-18 V and is the actual solar/charger power path. Qualification remains
+open and must start at one board with polarity/voltage measurement, the 4.6 V
+maintain setting, and the current 500 mA charge cap before scaling. It is a stiff
+indoor supply simulation, not a solar/MPP/shade/harvest test.
+
+## 2026-07-27 -- Ben + Codex -- Twenty-four-board USB batch qualified
+
+Completed the Sabrent/Anker scale-up after the earlier 12-board pause. Windows
+enumerated 24 unique PowerFeather native-USB serial devices simultaneously (COM9
+through COM32). The 12 newly visible MACs were added to the fleet registry and all
+12 passed the same bounded four-wide commissioning sequence: ESP32-S3 revision 0.2,
+8 MB flash, 2 MB physical PSRAM, exact `.2` artifact upload, PowerFeather controller
+telemetry, live Generic_LFP / 6000 mAh / 500 mA / 4.6 V configuration, bare-board
+charging disabled, BubbyNet `/telemetry`, and `/resume`.
+
+After commissioning, held all 24 powered and repeated the census. All 24 remained
+present and commissioned, with zero present USB devices in a Windows error state.
+This qualifies the current two-hub topology for one 24-fixture bare-board intake
+batch. Keep upload concurrency capped at four even when 24 are connected. This test
+does not yet qualify 26 devices or simultaneous battery charging/LED loads; those are
+not required for the initial bare-board flash workflow.
+
+## 2026-07-27 -- Ben + Codex -- Production USB commissioning began; 12-board stage passed
+
+Identified both powered Sabrent bench hubs behind the laptop's Anker USB-C adapter:
+the HB-PU16 exposes four downstream four-port branches and the HB-BU10 exposes a
+separate cascaded branch, though both ultimately share the laptop's USB 2 host path.
+Staged native-USB enumeration from 2 -> 6 -> 12 bare PowerFeather V2 boards with no
+device loss. The first twelve official boards now have MAC-derived fixture IDs in
+`ops/fleet/registry.csv`; append-only discovery, flash, serial, and WiFi evidence is
+under `ops/fleet/bringup/`. COM ports, USB paths, and maintenance IPs are explicitly
+observations rather than identity or installation assignment.
+
+Added `ops/bench/fleet_usb_bringup.py` for production intake. It recognizes the
+ESP32-S3 native USB VID/PID, refuses an unexpected selected-device count, performs a
+ROM/eFuse flash-ID preflight, uploads only an existing named Arduino build (never
+compiles), limits concurrent uploads to four by default, checks live serial telemetry,
+optionally verifies shared-WiFi `/telemetry` plus `/resume`, exclusive-creates its
+JSONL evidence by default, and atomically updates the CSV registry. All twelve boards
+passed ESP32-S3 revision 0.2, 8 MB flash, 2 MB physical PSRAM, PowerFeather
+controller initialization, bare-board charging disabled, live Generic_LFP / 6000 mAh
+/ 500 mA / 4.6 V configuration, exact-artifact USB upload, BubbyNet maintenance, and
+return to ESP-NOW comms. Four simultaneous USB uploads and WiFi joins passed in each
+full wave.
+
+`net-bench-2026-07-27.2` adds a lowercase local-peer `u` commissioning path for
+shared-WiFi maintenance without a separately flashed bridge, exposes live
+flash/PSRAM/configuration and battery-presence/charging state in `/telemetry`, and
+ports the proven deferred charge-enable guard into `net_bench`. A bare board now
+starts with charging off and enables it only after a warmed, plausible battery
+reading, avoiding the known missing-cell brownout loop. Battery capacity remains an
+NVS runtime setting (`C6000` fleet-wide or `C<id>:6000` targeted); chemistry remains
+build-time.
+
+The final isolated build is
+`firmware/net_bench/build/fleet-commission-20260727-r3/`: peer, channel 11, 1 Hz
+heartbeat, Generic_LFP, 6000 mAh, 500 mA charge cap, and 4.6 V VINDPM. Its
+1,023,488-byte binary SHA-256 is
+`D4390B53400FBD6C187B6A5766ED24B0FF1343620182ABD1C80ED15F0AD5AD81`; compile usage
+was 30 percent flash / 15 percent RAM. A prior `r2` compile stopped on a telemetry
+variable-name typo and was abandoned rather than reused. An initial verification
+mistook zero *initialized* runtime PSRAM for absent hardware; the corrected test
+requires the ROM/eFuse probe to report the physical 2 MB and accepts the current
+FQBN's intentionally uninitialized runtime PSRAM. The corrected six-board rerun and
+the next six-board wave both passed completely.
+
+Qualification is paused at 12 boards pending Ben switching on the next ports; continue
+12 -> 18 -> 24 and hold a final 24-device census before declaring one-ring batches
+qualified. The firmware currently embeds BubbyNet. Tennessee needs an AP cloned to
+those credentials (preferably channel 11), or a final USB/BubbyNet OTA credential
+migration before the known network is unavailable.
+
+## 2026-07-27 -- Codex -- Synced origin/main and completed onboarding pass
+
+Fast-forwarded local `main` from `cb61ec8` to `18e40f0` and reviewed the repository
+orientation, current LOG/TODO state, canonical system architecture, and ADRs 0001-0031.
+The incoming commits add corrected cap-bank CAD exports using the true 35.5 mm capacitor
+height, a silkscreen/soldermask STEP variant for Fusion rendering, and the current
+24-fixture perimeter-ring direction at about 6.5 m radius. No architecture decision or
+new open item was introduced during this onboarding pass.
+
 ## 2026-07-27 -- Ben + Claude -- Gobo roles corrected; enclosure SKUs pinned; solarsim footprint fix validated against Elliot's rerun
 
 **Gobo role correction (Ben):** perimeter fixtures DO carry gobos -- HEX + gobo,
@@ -45,6 +361,8 @@ lanterns swing 2x; -1 m breaks the 7 ft rule on 24/72); 6 ft scale figure; ToF
 "baby monitor" FoV pyramids (TMF8820 down 60 deg 3x3, VL53L5CX outward 65 deg 8x8).
 Also fixed a header-row hover crash in the panel list (from the Wh/day column
 commit). All uncommitted pending the solar-visualizer-lights branch merge.
+
+## 2026-07-26 -- Ben + Codex -- Seven-day solar result normalized; scheduled GPS/RTC timing adopted
 
 Reviewed the completed 604,800-second P105/P126 logger
 `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.

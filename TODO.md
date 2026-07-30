@@ -66,6 +66,43 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
+- [x] **Qualify 24-board production USB commissioning through the two powered
+  Sabrent hubs -- DONE 2026-07-27:** Windows enumerated 24 unique PowerFeathers
+  simultaneously through the Anker USB-C adapter. All 24 are registered and pass
+  ESP32-S3/8 MB flash/2 MB PSRAM preflight, exact-artifact USB upload, PowerFeather
+  controller telemetry, bare-board charging-off safety,
+  live 6 Ah LFP profile, and BubbyNet OTA/resume. A post-commission hold/census kept
+  all 24 present with zero present USB devices in an error state. This qualifies one
+  24-fixture bare-board intake batch. The completeness follow-up also enumerated,
+  registered, and commissioned all 26 hub ports with zero present USB errors.
+  Two independent 12-way upload/serial runs and one 12-way upload plus four-wide WiFi
+  run passed; 12 flash workers / 4 WiFi workers is the qualified production setting.
+  This does not qualify simultaneous battery/LED loading. **TN credential migration
+  DONE 2026-07-27:** all 26 passed USB flash + serial verification on uniform peer
+  `net-bench-2026-07-27.3`, WonkyHouse profile, channel 11, and guarded D7 support.
+  WonkyHouse was not visible from the CA bench, so all 26 initially remained
+  `ota_verified=false`. **FIRST TN NETWORK PASS 2026-07-29:** enclosed peer `F2BFA0`
+  was heard over ESP-NOW, targeted into maintenance, joined WonkyHouse at observed
+  DHCP address `10.0.0.200`, served matching `/telemetry`, accepted `/resume`, and
+  rejoined ESP-NOW. Its registry row is now verified; repeat in sensible batches for
+  the other 25 as they are assembled (Ben/Codex).
+- [~] **Qualify hub-powered indoor VDC operation before enclosure/solar availability:**
+  use a USB-A-to-C cable from a switched Sabrent port into the existing female
+  USB-C-to-XH breakout, with only V+ -> VDC and GND -> GND. With all power off,
+  confirm XH polarity and about 5 V before connecting; install the already-profiled
+  LFP battery only while unpowered. Start with one board at `maintain_v=4.6` and the
+  current 500 mA charge cap, verify `supply_good`, input voltage/current,
+  `battery_present`, and `charging_enabled`, then scale 1 -> 4 -> 12 -> 26 while
+  checking hub/cable temperature and brownouts. Do not use the 1.5 A field charge cap
+  or a high LED load until per-port input current is measured. This validates indoor
+  power/charging and fleet firmware, not panel MPP, shade, dusk, or energy harvest
+  (Ben/Codex). **ONE-BOARD PASS 2026-07-27:** `F4044C` ran with PowerFeather USB
+  disconnected and hub power entering VDC/GND. Telemetry showed a present 3.39 V
+  6 Ah LFP, charging enabled, about 4.80 V / 472-474 mA input, and `supply_good`.
+  Targeted shared-WiFi OTA completed in 4.03 s with no button press, and the guarded
+  D7 solenoid path recorded two 40 ms strikes while the supply remained good. Ben
+  confirmed both produced physical kicks. Remaining: scale 1 -> 4 -> 12 -> 26,
+  inspect temperatures/brownouts, and measure the 10-port hub's per-port margin.
 - [~] **Finish DFR0991 local-solenoid-button validation on P126 `9F2690`:** firmware
   support is OTA-deployed in `net-bench-2026-07-16.3`, but the first post-OTA probe
   reported `present=false`/address 0. Verify the Gravity PH2.0-to-STEMMA adapter has
@@ -84,6 +121,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `0x43DF`. Next measure INT-to-GND at 3.3 V idle/pressed. If INT toggles, wire it to a
   confirmed-free 3.3 V GPIO and use a debounced digital trigger; if not, isolate/test
   or replace the module. Do not apply 5 V to the live ESP32 I2C/INT lines.
+  **TN observation 2026-07-29:** enclosed `F2BFA0` also has the baseline `0x2A` /
+  PID `0x0000` probe result seen in bare-board fleet records, so that result does
+  not prove an external DFR0991 is attached. Remote D7 strike and USER/GPIO0 paths
+  are healthy, but no supported external I2C button was detected. Keep the original
+  `9F2690` module/INT diagnosis separate.
 - [~] **Physically validate the SparkFun PRT-27576 Qwiic Navigation Switch DOWN
   trigger on P126 `9F2690`:** opt-in `--solenoid-d7` firmware probes PCA9554 addresses
   `0x20`-`0x27` read-only, accepts the expected five input/non-inverted switch bits,
@@ -615,11 +657,32 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   BMP581 temp/pressure on uplights (added 07-16; chandelier still none); verify
   one downlight-height bench run on the exact ordered TMF8820-mini part (bench
   work used the TMF8821) (Ben).
-- [ ] Bring up the BMP581 on the STEMMA chain (100 kHz bus rules apply -- ADR
-  0028) and add its temp/pressure fields to the telemetry tail (Ben).
+- [x] ~~Bring up the BMP581 on the STEMMA chain and add temp/pressure to
+  maintenance telemetry~~ -- **DONE 2026-07-29 on enclosed `F2BFA0`:** BMP581,
+  MSA311, and exact ordered TMF8820-mini all initialized and returned live data
+  on the shared 100 kHz bus after targeted OTA. The opt-in diagnostic samples
+  every two seconds; it is not yet production energy/timing qualified (Ben/Codex).
+- [x] ~~Make a sensor-reactive RGBW proof of concept~~ -- **DONE 2026-07-29 on
+  enclosed `F2BFA0`:** LED Studio now offers ToF-depth, relative-tilt, and
+  pressure-derived relative-elevation modes plus live sensor readout and manual
+  re-zero controls. The TMF filter ignored the repeatable 20-21 mm enclosure
+  return and reacted to a usable target around 219 mm (Ben/Codex).
+- [ ] Field-tune the LED Studio mappings: ToF near/far endpoints (currently
+  120/1200 mm), tilt full-scale (35 deg), and elevation span (+-1.5 m) (Ben).
+- [x] ~~Remove LED Studio sensor stalls and expose WiFi health~~ -- **DONE
+  2026-07-29 on `F2BFA0`:** replaced the blocking TMF convenience call with a
+  cooperative start/process/stop state machine on the main 100 kHz loop, prevented
+  overlapping browser polls, and added RSSI/request-latency/TMF-age diagnostics.
+  State requests fell from 0.7-1.8 s to 112 ms mean / 204 ms p95; button commands
+  averaged 35 ms; 776 TMF frames ran with zero errors/recoveries (Ben/Codex).
+- [ ] Guard LED Studio charge enable on confirmed battery presence, matching the
+  safer net_bench/sway pattern, before using a sensor-triad build on a bare board
+  with external VDC but no cell (Ben/Codex).
 - [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
-  pattern as env/INA) for yard/field tuning -- the desk bench uses its own HTTP
-  dashboard instead (Claude + whoever's bench).
+  pattern as env/INA) and dashboard for yard/field tuning. Current triad readings
+  are available only through maintenance `/telemetry`; interpret/calibrate the
+  TMF8820's high-confidence 20 mm near return against the enclosure/window before
+  treating it as presence (Claude + whoever's bench).
 - [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height -- detection vs
   false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
   ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).
@@ -742,6 +805,12 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [x] **Range** T3 -- **PASS 2026-06-08**: link held through house + yard + oak (~100 steps); solar panel is the main ~20 dB attenuator; obstruction mapping captured (Ben).
 - [ ] **Re-run the scale extrapolation at 150 nodes** (it was computed at 100; fleet is now 150-152 per ADR 0024) and restate the projected PDR honestly (Ben/Claude).
 - [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` -- confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
+- [ ] **Rehearse shared-WiFi OTA at tree scale (about 100 awake peers) on the actual
+  portable router:** measure maintenance discovery/DHCP success, safe upload
+  concurrency, aggregate completion time, reboot/rejoin verification, and retry
+  rate. Current approximately 1.02 MB images imply about 2 minutes of pure transfer
+  at five jobs, but operational planning should reserve 20-30 minutes until router
+  client capacity and the full workflow are measured (Ben/Codex).
 - [ ] **Multi-hour battery stability** soak (Li-ion) -- zero unexplained resets, log mAh/h drain (Ben).
 - [ ] **Master WiFi+ESP-NOW coexistence** current/stability run (Ben).
 - [ ] **RE-VERIFY all battery/stability findings on LFP** once Steve's cell holders/connectors exist -- Li-ion is necessary-not-sufficient (LFP plateau = buck-boost crossover) (Ben).

@@ -15,7 +15,7 @@ this one is the merged front-end).
 
 Both modules are SK6812 (same WS2812 protocol + voltage), so a single
 `Adafruit_NeoPixel` object is reconfigured at runtime via `updateType()` /
-`updateLength()` -- **37px NEO_GRB** for HEX, **1px NEO_GRBW** for the RGBW. The strip
+`updateLength()` -- **37px NEO_GRB** for HEX, **1px NEO_RGBW** for the RGBW. The strip
 is blanked on every mode switch.
 
 **Mismatched mode is harmless** (both SK6812): worst case is wrong colors or one LED
@@ -39,6 +39,7 @@ toggle** to match.
 ```
 ./build.sh --port /dev/ttyACM1            # USB flash
 ./build.sh --pin 16 --port /dev/ttyACM1   # if data is on D6/GPIO16
+./build.sh --sensor-triad --cap 6000 --charge-ma 500 --maintain 4.6
 ```
 
 On shared WiFi the board registers mDNS: open `http://ledstudio.local/`
@@ -63,6 +64,15 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
   Hue / Breathe / Candle / Fade (with Color B).
 - **RGB mode**: same single-pixel color animations as RGBW (Hue / Breathe / Candle /
   Fade + Color B), but no W channel or white/warmth controls.
+- **Sensor-triad RGBW mode** (`--sensor-triad`): adds live MSA311, TMF8820, and
+  BMP581 readback plus three reactive modes. ToF depth brightens the selected
+  RGBW color as a target approaches (the known enclosed 20 mm window/fixture
+  return is ignored); Tilt brightens with angle from a re-zeroed rest pose; and
+  Elevation maps -1.5 to +1.5 m around a re-zeroed BMP581 pressure baseline from
+  dim to bright. TMF8820 one-shots use a cooperative start/process/stop state
+  machine instead of the driver's blocking convenience wrapper; all sensor and
+  PowerFeather accesses remain single-threaded at Wire1's mandatory 100 kHz. The
+  UI reports WiFi RSSI, request latency, TMF result age, and automatic recoveries.
 - **Settings readback** for recording good-looking combos.
 
 See `../POWERFEATHER_NOTES.md` for the 3V3-rail / native-USB-reset gotchas.

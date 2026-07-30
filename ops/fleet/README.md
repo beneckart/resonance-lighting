@@ -1,0 +1,79 @@
+# Fleet registry
+
+This directory is the canonical identity record for production PowerFeather
+fixtures.
+
+## Identity model
+
+- `fixture_id` is the final six hexadecimal digits of the ESP32 WiFi MAC, matching
+  the ID used by `net_bench`.
+- `mac` and `fixture_id` identify the electronics. COM ports, USB paths, WiFi IPs,
+  fixture roles, and installation locations can change and are not identity.
+- `registry.csv` is the compact current-state index. Keep one row per MAC.
+- `bringup/*.jsonl` is append-only commissioning evidence. It may contain several
+  observations for the same board.
+
+Do not assign a ring position merely from USB-port order. Physical role and
+installation location remain blank until the fixture is deliberately labeled and
+assigned.
+
+## Commissioning profile
+
+The first production-board profile is:
+
+- PowerFeather V2 / ESP32-S3
+- `Generic_LFP`
+- 6,000 mAh gauge capacity
+- 500 mA charge-current cap
+- shared-WiFi maintenance on the `WonkyHouse` profile
+- firmware `net-bench-2026-07-27.3`
+- guarded D7/GPIO37 solenoid support
+
+All 26 California-bench fixtures received this profile on 2026-07-27. USB and
+serial verification passed, but WonkyHouse was not locally visible, so the registry
+correctly leaves `ota_verified=false` until the first Tennessee association,
+`/telemetry`, and `/resume` check.
+
+Fixture `F2BFA0` is the first Tennessee enclosure exception to the common image:
+it now runs the opt-in `net-bench-2026-07-29.4` sensor-triad diagnostic. Targeted
+OTA, MSA311/TMF8820/BMP581 maintenance telemetry, `/resume`, and sustained
+ESP-NOW rejoin all passed on 2026-07-29. The other 25 fixtures remain on the
+uniform `.3` packing image.
+
+Capacity can be changed without a firmware rebuild. From a `net_bench` master or
+serial bridge, `C6000` broadcasts and persists a 6,000 mAh capacity, while
+`C<fixture_id>:6000` targets one peer. The board reboots so the gauge model can be
+re-applied. The battery chemistry is still selected at build time.
+
+## USB batch tool
+
+`ops/bench/fleet_usb_bringup.py` recognizes the ESP32-S3 native USB VID/PID,
+records MAC-derived identities, performs an `esptool flash-id` preflight, uploads
+an already-built Arduino artifact, and verifies serial telemetry. `--wifi-check`
+also makes each peer join the configured shared WiFi, validates `/telemetry`, and
+requests `/resume`.
+
+The qualified Sabrent/Anker bench default is 12 simultaneous flash/preflight/serial
+workers, which gives two waves per 24-fixture ring. WiFi verification is independently
+capped at four simultaneous transitions; an eight-way WiFi transition stress produced
+one transient Windows COM error even though all eight uploads and serial checks passed.
+
+The tool never compiles. Build one named artifact first, then reuse the exact build
+directory:
+
+```powershell
+python ops/bench/fleet_usb_bringup.py inventory `
+  --out ops/fleet/bringup/2026-07-27-ca-usb-stage.jsonl
+
+python ops/bench/fleet_usb_bringup.py commission `
+  --build-path firmware/net_bench/build/fleet-tn-wonkyhouse-20260727-r1 `
+  --expect-fw net-bench-2026-07-27.3 `
+  --expect-count 12 --pending-only --max-parallel 12 --wifi-check --wifi-parallel 4 `
+  --ota-profile WonkyHouse `
+  --out ops/fleet/bringup/2026-07-27-ca-usb-stage.jsonl --append
+```
+
+The session log exclusive-creates by default. `--append` is required to continue
+the same physical bring-up session. Bare-board charging-off verification remains
+the default; use `--allow-battery-present` only for a deliberate mixed batch with an
+installed battery.

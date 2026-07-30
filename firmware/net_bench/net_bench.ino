@@ -39,8 +39,16 @@
 #include <Adafruit_TSL2591.h>
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
+#ifndef NB_SENSOR_TRIAD
+#define NB_SENSOR_TRIAD 0
+#endif
+#if NB_SENSOR_TRIAD
+#include <Adafruit_MSA301.h>
+#include <Adafruit_BMP5xx.h>
+#include <SparkFun_TMF882X_Library.h>
+#endif
 
-#define NET_BENCH_VERSION "net-bench-2026-07-16.5" // Qwiic navigation DOWN -> guarded solenoid strike
+#define NET_BENCH_VERSION "net-bench-2026-07-29.5" // truthful SDK VINDPM floor/result handling
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -381,7 +389,7 @@ using namespace PowerFeather;
 #define NB_FIELD_MPPT_SETTLE_MS 900
 #endif
 #ifndef NB_MAINTAIN_MIN_V10
-#define NB_MAINTAIN_MIN_V10 40 // PowerFeather SDK supports 4.0 V minimum
+#define NB_MAINTAIN_MIN_V10 46 // PowerFeather SDK intentionally clamps at 4.6 V
 #endif
 #ifndef NB_MAINTAIN_MAX_V10
 #define NB_MAINTAIN_MAX_V10 168 // PowerFeather SDK supports 16.8 V maximum
@@ -578,6 +586,7 @@ uint16_t gBatteryCapacityMah = (uint16_t)RES_PF_BATTERY_CAPACITY_MAH;
 uint16_t gChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
 float gMaintainV = (float)RES_PF_MAINTAIN_V;
 bool gBenchConfigLoaded = false;
+bool gChargingEnabled = false;
 uint16_t gBqVindpmMv = 0xFFFF, gBqIchgMa = 0xFFFF, gBqVregMv = 0xFFFF;
 uint8_t gBqReg16 = 0xFF, gBqReg18 = 0xFF, gBqStat0 = 0xFF, gBqStat1 = 0xFF;
 uint8_t gBqFault0 = 0xFF, gBqFlag0 = 0xFF, gBqFlag1 = 0xFF, gBqFaultFlag0 = 0xFF;
@@ -592,6 +601,23 @@ uint16_t gEnvCh0 = 0, gEnvCh1 = 0;
 int16_t gEnvPtempX10 = INT16_MIN;
 uint8_t gEnvRh = 255;
 int16_t gEnvBtempX10 = INT16_MIN;
+
+#if NB_SENSOR_TRIAD
+// Production downlight sensor-chain diagnostic. This is opt-in until its timing
+// and energy cost are folded into production firmware. All devices share Wire1
+// with the PowerFeather charger/gauge, so ADR 0028's 100 kHz ceiling applies.
+Adafruit_MSA311 gMsa311;
+Adafruit_BMP5xx gBmp581;
+SparkFun_TMF882X gTmf8820;
+struct tmf882x_msg_meas_results gTmfResults = {};
+bool gMsa311Present = false, gBmp581Present = false, gTmf8820Present = false;
+bool gMsa311ReadOk = false, gBmp581ReadOk = false, gTmf8820ReadOk = false;
+float gMsaAxG = NAN, gMsaAyG = NAN, gMsaAzG = NAN;
+float gBmpTempC = NAN, gBmpPressureHpa = NAN;
+uint16_t gTmfClosestMm = 0;
+uint16_t gTmfClosestConfidence = 0;
+uint32_t gTmfReadCount = 0, gTmfReadErrors = 0;
+#endif
 
 // ---- onboard SEN0291/INA219 meters (panel + battery leads, on Wire1) --------
 // Address convention (uses the two UNAMBIGUOUS DIP settings -- no need to know
@@ -1557,11 +1583,14 @@ void setupPowerFeather() {
   rtcFieldMpptActiveV10 = (uint8_t)(gMaintainV * 10.0f + 0.5f);
 #if RES_PF_ENABLE_CHARGING
   Board.setBatteryChargingMaxCurrent((float)gChargeMa);
-  Board.enableBatteryCharging(true);
-#else
-  Board.enableBatteryCharging(false);
 #endif
-  pfSolarGuardInit("net_bench", gMaintainV, RES_PF_ENABLE_CHARGING != 0);
+  // Charging a missing battery can brownout-loop the board on USB. Keep charging
+  // off until the warmed gauge reports a plausible cell; chargingGuardTick()
+  // enables it later. This makes one image safe for bare-board incoming inspection
+  // and for the same board after a production battery is installed.
+  Board.enableBatteryCharging(false);
+  gChargingEnabled = false;
+  pfSolarGuardInit("net_bench", gMaintainV, false);
 }
 
 // ---- onboard INA helpers (placed after the structs; see note at the globals) -
@@ -1692,6 +1721,85 @@ void envTick() {
   }
 }
 
+#if NB_SENSOR_TRIAD
+void sensorTriadInit() {
+  Wire1.setClock(100000);
+  gMsa311Present = gMsa311.begin(MSA311_I2CADDR_DEFAULT, &Wire1);
+  if (gMsa311Present) {
+    gMsa311.setRange(MSA301_RANGE_4_G);
+    gMsa311.setDataRate(MSA301_DATARATE_125_HZ);
+    gMsa311.setBandwidth(MSA301_BANDWIDTH_62_5_HZ);
+    gMsa311.setPowerMode(MSA301_NORMALMODE);
+  }
+
+  Wire1.setClock(100000);
+  gBmp581Present = gBmp581.begin(BMP5XX_ALTERNATIVE_ADDRESS, &Wire1);
+  if (gBmp581Present) {
+    gBmp581.setTemperatureOversampling(BMP5XX_OVERSAMPLING_2X);
+    gBmp581.setPressureOversampling(BMP5XX_OVERSAMPLING_16X);
+    gBmp581.setIIRFilterCoeff(BMP5XX_IIR_FILTER_COEFF_3);
+    gBmp581.setOutputDataRate(BMP5XX_ODR_05_HZ);
+    gBmp581.setPowerMode(BMP5XX_POWERMODE_NORMAL);
+    gBmp581.enablePressure(true);
+  }
+
+  Wire1.setClock(100000);
+  gTmf8820Present = gTmf8820.begin(Wire1);
+  Wire1.setClock(100000);
+  Serial.printf("sensor triad @100kHz: MSA311(0x26)=%d TMF8820(0x41)=%d BMP581(0x47)=%d\n",
+                gMsa311Present, gTmf8820Present, gBmp581Present);
+}
+
+void sensorTriadTick() {
+  static uint32_t nextMs = 0;
+  if (millis() < nextMs) return;
+  nextMs = millis() + 2000;
+  Wire1.setClock(100000);
+
+  gMsa311ReadOk = false;
+  if (gMsa311Present) {
+    gMsa311.read();
+    gMsaAxG = gMsa311.x_g;
+    gMsaAyG = gMsa311.y_g;
+    gMsaAzG = gMsa311.z_g;
+    gMsa311ReadOk = isfinite(gMsaAxG) && isfinite(gMsaAyG) && isfinite(gMsaAzG);
+  }
+
+  gBmp581ReadOk = false;
+  if (gBmp581Present && gBmp581.performReading()) {
+    gBmpTempC = gBmp581.temperature;
+    gBmpPressureHpa = gBmp581.pressure;
+    gBmp581ReadOk = isfinite(gBmpTempC) && isfinite(gBmpPressureHpa);
+  }
+
+  gTmf8820ReadOk = false;
+  gTmfClosestMm = 0;
+  gTmfClosestConfidence = 0;
+  if (gTmf8820Present) {
+    Wire1.setClock(100000);
+    if (gTmf8820.startMeasuring(gTmfResults)) {
+      gTmf8820ReadOk = true;
+      gTmfReadCount++;
+      uint32_t count = min((uint32_t)TMF882X_MAX_MEAS_RESULTS, gTmfResults.num_results);
+      for (uint32_t i = 0; i < count; ++i) {
+        const tmf882x_meas_result &r = gTmfResults.results[i];
+        if (r.confidence == 0 || r.distance_mm == 0 || r.distance_mm > UINT16_MAX) continue;
+        if (gTmfClosestMm == 0 || r.distance_mm < gTmfClosestMm) {
+          gTmfClosestMm = (uint16_t)r.distance_mm;
+          gTmfClosestConfidence = (uint16_t)min((uint32_t)UINT16_MAX, r.confidence);
+        }
+      }
+    } else {
+      gTmfReadErrors++;
+    }
+    Wire1.setClock(100000);
+  }
+}
+#else
+void sensorTriadInit() {}
+void sensorTriadTick() {}
+#endif
+
 // Locate pattern "..-" (dot dot dash + gap), unmistakable vs the battery blinks.
 struct LedStep { uint16_t ms; bool on; };
 const LedStep IDENT_PAT[] = {
@@ -1737,16 +1845,42 @@ void readBatteryCell() {
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
 }
 
+void chargingGuardTick() {
+#if RES_PF_ENABLE_CHARGING
+  static bool done = false;
+  if (done || !pfReady || millis() < 6000) return;
+  if (cbV < 0.1f) {
+    if (millis() > 60000) {
+      done = true;
+      Serial.println("no battery reading after 60 s -> charging stays OFF until reboot");
+    }
+    return;
+  }
+  done = true;
+  if (cbV > 2.5f && cbV < 4.4f) {
+    Board.setBatteryChargingMaxCurrent((float)gChargeMa);
+    Board.enableBatteryCharging(true);
+    gChargingEnabled = true;
+    pfSolarGuardInit("net_bench", gMaintainV, true);
+    Serial.printf("battery %.2fV present -> charging ON (%u mA, %s profile)\n",
+                  cbV, (unsigned)gChargeMa, batteryTypeName());
+  } else {
+    Serial.printf("battery %.2fV implausible -> charging stays OFF\n", cbV);
+  }
+#endif
+}
+
 void readBattery() {
   if (!pfReady) return;
   readBatteryCell();
+  chargingGuardTick();
   float v;
   if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
   if (Board.getSupplyCurrent(v) == Result::Ok) csMa = v;
   bool g;
   if (Board.checkSupplyGood(g) == Result::Ok) csGood = g;
   readChargerStatus();
-  pfSolarGuardTick("net_bench", csV, csMa, csGood, gMaintainV, RES_PF_ENABLE_CHARGING != 0);
+  pfSolarGuardTick("net_bench", csV, csMa, csGood, gMaintainV, gChargingEnabled);
 }
 
 String telemetryJson() {
@@ -1767,9 +1901,15 @@ String telemetryJson() {
   j += ",\"drawdown_budget_mah\":";
   j += String(gDrawdownBudgetMah);
   j += ",\"heap_free\":" + String(ESP.getFreeHeap());
+  j += ",\"flash_bytes\":" + String((unsigned long)ESP.getFlashChipSize());
+  j += ",\"psram_bytes\":" + String((unsigned long)ESP.getPsramSize());
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
   j += ",\"pf_ready\":";
   j += pfReady ? "true" : "false";
+  j += ",\"battery_present\":";
+  j += (cbV > 2.5f && cbV < 4.4f) ? "true" : "false";
+  j += ",\"charging_enabled\":";
+  j += gChargingEnabled ? "true" : "false";
   j += ",\"maint_status\":";
   j += String(gMaintStatus);
   j += ",\"field_phase\":";
@@ -1847,6 +1987,9 @@ String telemetryJson() {
   j += ",\"mppt_p50_w\":";
   j += String((float)rtcFieldMpptP50Wx100 / 100.0f, 2);
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
+  j += ",\"battery_capacity_mah\":" + String(gBatteryCapacityMah);
+  j += ",\"charge_limit_ma\":" + String(gChargeMa);
+  j += ",\"maintain_v\":" + String(gMaintainV, 1);
   if (pfReady) {
     char b[24];
     float v;
@@ -1865,6 +2008,53 @@ String telemetryJson() {
     bool g;
     if (Board.checkSupplyGood(g) == Result::Ok) { j += ",\"supply_good\":"; j += g ? "true" : "false"; }
   }
+#if NB_SENSOR_TRIAD
+  j += ",\"sensor_triad_enabled\":true";
+  j += ",\"msa311_present\":";
+  j += gMsa311Present ? "true" : "false";
+  j += ",\"msa311_read_ok\":";
+  j += gMsa311ReadOk ? "true" : "false";
+  j += ",\"msa_ax_g\":";
+  j += isfinite(gMsaAxG) ? String(gMsaAxG, 4) : "null";
+  j += ",\"msa_ay_g\":";
+  j += isfinite(gMsaAyG) ? String(gMsaAyG, 4) : "null";
+  j += ",\"msa_az_g\":";
+  j += isfinite(gMsaAzG) ? String(gMsaAzG, 4) : "null";
+  j += ",\"bmp581_present\":";
+  j += gBmp581Present ? "true" : "false";
+  j += ",\"bmp581_read_ok\":";
+  j += gBmp581ReadOk ? "true" : "false";
+  j += ",\"bmp_temp_c\":";
+  j += isfinite(gBmpTempC) ? String(gBmpTempC, 2) : "null";
+  j += ",\"bmp_pressure_hpa\":";
+  j += isfinite(gBmpPressureHpa) ? String(gBmpPressureHpa, 2) : "null";
+  j += ",\"tmf8820_present\":";
+  j += gTmf8820Present ? "true" : "false";
+  j += ",\"tmf8820_read_ok\":";
+  j += gTmf8820ReadOk ? "true" : "false";
+  j += ",\"tmf_result_num\":" + String((unsigned long)gTmfResults.result_num);
+  j += ",\"tmf_result_count\":" + String((unsigned long)gTmfResults.num_results);
+  j += ",\"tmf_closest_mm\":" + String(gTmfClosestMm);
+  j += ",\"tmf_closest_confidence\":" + String(gTmfClosestConfidence);
+  j += ",\"tmf_ambient_light\":" + String((unsigned long)gTmfResults.ambient_light);
+  j += ",\"tmf_temperature_c\":" + String((unsigned long)gTmfResults.temperature);
+  j += ",\"tmf_reads\":" + String((unsigned long)gTmfReadCount);
+  j += ",\"tmf_errors\":" + String((unsigned long)gTmfReadErrors);
+  j += ",\"tmf_results\":[";
+  uint32_t tmfJsonCount = min((uint32_t)12, min((uint32_t)TMF882X_MAX_MEAS_RESULTS,
+                                               gTmfResults.num_results));
+  for (uint32_t i = 0; i < tmfJsonCount; ++i) {
+    if (i) j += ",";
+    const tmf882x_meas_result &r = gTmfResults.results[i];
+    j += "{\"channel\":" + String((unsigned long)r.channel);
+    j += ",\"sub_capture\":" + String((unsigned long)r.sub_capture);
+    j += ",\"distance_mm\":" + String((unsigned long)r.distance_mm);
+    j += ",\"confidence\":" + String((unsigned long)r.confidence) + "}";
+  }
+  j += "]";
+#else
+  j += ",\"sensor_triad_enabled\":false";
+#endif
 #if defined(NB_SOLENOID_D7)
   j += ",\"solenoid_enabled\":true";
   j += ",\"solenoid_pin\":" + String(NB_SOLENOID_PIN);
@@ -3556,9 +3746,14 @@ void processRx() {
       // Lets the master sweep the setpoint or hill-climb it (P&O MPPT) with no reflash.
       uint8_t v10 = ((NbCmd *)it.data)->arg;
       if (pfReady && v10 >= NB_MAINTAIN_MIN_V10 && v10 <= NB_MAINTAIN_MAX_V10) {
-        gMaintainV = (float)v10 / 10.0f;
-        Board.setSupplyMaintainVoltage(gMaintainV);
-        Serial.printf("VINDPM/maintain set -> %.1f V\n", gMaintainV);
+        float requestedV = (float)v10 / 10.0f;
+        Result r = Board.setSupplyMaintainVoltage(requestedV);
+        if (r == Result::Ok) {
+          gMaintainV = requestedV;
+          Serial.printf("VINDPM/maintain set -> %.1f V\n", gMaintainV);
+        } else {
+          Serial.printf("VINDPM/maintain %.1f V failed -> %d\n", requestedV, (int)r);
+        }
       }
     } else if (h->type == NB_SET_CAPACITY && it.len >= (int)sizeof(NbSetU16)) {
       // Capacity changes affect the gauge model used by Board.init(), so store and reboot.
@@ -3749,7 +3944,18 @@ void handleSerial() {
   switch (c) {
   case 't': Serial.println(telemetryJson()); break;
   case 'u': // master: announce maintenance window then enter
-    if (IS_MASTER) { Serial.println("broadcast ENTER_MAINT"); sendCmd(NB_ENTER_MAINT, 0); delay(50); enterMaintenance(); }
+    if (IS_MASTER) {
+      Serial.println("broadcast ENTER_MAINT");
+      sendCmd(NB_ENTER_MAINT, 0);
+      delay(50);
+      enterMaintenance();
+    } else if (gMode == MODE_COMMS) {
+      // Commissioning path: a USB-connected peer can prove shared-WiFi OTA without
+      // requiring a separately flashed ESP-NOW bridge. Remote fleet maintenance
+      // still uses the master's sustained U command.
+      Serial.println("local USB ENTER_MAINT");
+      enterMaintenance();
+    }
     break;
   case 'U': // master: SUSTAINED ENTER_MAINT (~35s) to catch a SLEEPING (sleep-cycle) peer's
             // brief wake window -- the fleet wake-for-maintenance primitive. Master stays in
@@ -4184,6 +4390,8 @@ void setup() {
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
 #endif
+  sensorTriadInit();
+  sensorTriadTick();
   solenoidRgbButtonInit();
   solenoidNavInit();
   delay(20);
@@ -4228,6 +4436,7 @@ void loop() {
   uint32_t now = millis();
   if (now - lastBat > 1000) { lastBat = now; readBattery(); }
   envTick();
+  sensorTriadTick();
   drawdownTick();
   updateStatusLed();
 
