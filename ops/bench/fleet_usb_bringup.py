@@ -492,6 +492,11 @@ def parse_args() -> argparse.Namespace:
     )
     add_common_output_args(commission)
     commission.add_argument("--build-path", type=Path, required=True)
+    commission.add_argument(
+        "--sketch-dir",
+        default="net_bench",
+        help="firmware/<dir> sketch whose prebuilt artifact is uploaded (e.g. fixture)",
+    )
     commission.add_argument("--expect-fw", required=True)
     commission.add_argument("--expect-count", type=int, required=True)
     commission.add_argument("--ports", nargs="+")
@@ -519,6 +524,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    global SKETCH_DIR
+    if getattr(args, "sketch_dir", None):
+        SKETCH_DIR = ROOT / "firmware" / args.sketch_dir
+        if not SKETCH_DIR.is_dir():
+            raise SystemExit(f"no such sketch dir: {SKETCH_DIR}")
     registry_path = args.registry.resolve()
     registry = load_registry(registry_path)
     boards = discover()
@@ -551,10 +561,12 @@ def main() -> int:
         raise SystemExit("--wifi-parallel must be 1..8")
 
     build_path = args.build_path.resolve()
-    binary = build_path / "net_bench.ino.bin"
+    binary = build_path / f"{SKETCH_DIR.name}.ino.bin"
     options = build_path / "build.options.json"
     if not binary.is_file() or not options.is_file():
-        raise SystemExit(f"build path lacks net_bench.ino.bin/build.options.json: {build_path}")
+        raise SystemExit(
+            f"build path lacks {SKETCH_DIR.name}.ino.bin/build.options.json: {build_path}"
+        )
     binary_hash = sha256(binary)
     arduino_cli = shutil.which("arduino-cli")
     if not arduino_cli:

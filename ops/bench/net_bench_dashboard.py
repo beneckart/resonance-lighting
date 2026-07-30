@@ -55,7 +55,7 @@ RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
     r"ap_rssi=(-?\d+) ch=(\d+) enc=(\d+) linkrssi=(-?\d+) ssid=(.*)"
 )
-RX_BOOT = re.compile(r"=== Resonance net-bench (\S+) ===")
+RX_BOOT = re.compile(r"=== Resonance (?:net-bench|fixture) (\S+) ===")
 
 
 def now_iso() -> str:

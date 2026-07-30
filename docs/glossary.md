@@ -123,6 +123,14 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 
 ## Firmware / bench terms
 
+- **WonkyHouse** -- the Tennessee bench WiFi SSID (2.4 GHz, channel 11); the
+  maintenance/OTA credential profile the commissioned fleet carries
+  (`ops/fleet/registry.csv` `ota_profile`). Case-sensitive.
+- **BubbyNet** -- the California/home bench AP (channel 11); the original
+  bench OTA profile and the reason the ESP-NOW channel matches the AP channel.
+- **fixture (sketch)** -- `firmware/fixture/`, the production fleet firmware
+  (one image, class probed at boot); `net_bench` remains the desk bridge build.
+
 - **solar guard** -- `firmware/powerfeather_solar_guard.h`: forces wide VBUS_OVP and kicks a HIZ requalification when a bright-sun connect latches the charger input off. Baseline in every charging sketch.
 - **field-cycle** -- net_bench's day/night lifecycle mode: charge -> wait-dark -> draw -> protect, with ADR 0023 low-battery thresholds.
 - **maintenance mode** -- OTA path: an ESP-NOW metadata packet (`U` fleet / `U<id>` targeted) sends a fixture onto shared WiFi where it serves `/update` and `/telemetry`; `ops/bench/net_bench_ota.py` uploads in parallel. The self-hosted `--maint-ap` fallback is deprecated.

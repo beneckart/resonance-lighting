@@ -12,6 +12,42 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-07-30 -- Ben + Claude -- production fixture firmware: milestone 1 code complete
+
+New sketch `firmware/fixture/` -- one image for all four fixture classes,
+extracted from the proven bench donors into the ARCHITECTURE.md layered shape:
+`src/core/` (platform-independent, ~220 native g++ checks in `tests/`) +
+`src/esp32/` glue. Compiles at 1.16 MB / 34% flash. net_bench stays the desk
+bridge build; protocol v1 is kept and extended append-only (new types 18-24:
+choreo state, program-set lease, profile flip, pinned neighbor adjacency;
+20/22/23 reserved for time anchors, locate reports, event fabric). Heartbeat
+discipline: 29 B hb-short at 0.2 Hz (send-side truncation at a tail boundary --
+receivers already length-check) + full heartbeat every 60 s; fast show state
+rides the new 22 B NB_CHOREO_STATE instead (150 nodes of 1 Hz full heartbeats
+would eat ~25% airtime).
+
+Carried forward verbatim: solar guard, maintenance/OTA lifecycle + the exact
+fleet_usb_bringup serial/HTTP contract, solenoid safety pattern, NVS POR
+boot-loop guard (now unconditional, with the Phase-4 reset matrix as a native
+test), cooperative TMF8820 one-shot machine, hex geometry. New: ADR 0023
+LEDS_OFF tier + compound PROTECT release (coulomb-primary inputs, SOC
+structurally excluded); deferred OTA rollback verify (extern "C" hooks + t+20s
+self-test; --ota-fail-selftest drill build); class-by-probe (TMF ID-verified vs
+the bench INA219 at 0x41; sensor-death keeps class_last); Greenberg-Hastings CA
++ bridge-show programs behind a lease-aware runtime (2 s crossfade fallback);
+supply-based day/night lifecycle with bounded night (night_max default 10.5 h)
+and energy-gated wakefulness (surplus = always reachable; dev profile never
+day-sleeps -- the bringup posture, default in this image); minimal raw BMP581
+driver (no new lib dependency); single canonical VL53L5CX ULD copy (from
+sway_demo, all 5 edits).
+
+Ops diffs: fleet_usb_bringup.py grew --sketch-dir (default net_bench,
+back-compatible); dashboard RX_BOOT regex accepts both banners. ADR 0005
+annotated (cooperative loop, constrained by ADR 0028). Everything up to the
+hardware gates is done; the flash-and-verify checklist lives in
+firmware/fixture/README.md. NOT yet run on hardware -- next session flashes a
+board, runs the bringup tool against it, and starts the P0..P5 gates.
+
 ## 2026-07-29 -- Ben + Codex -- LED Studio TMF stalls removed
 
 The sensor-reactive Studio UI was effectively unusable because each TMF8820
