@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-29.3"
+#define STUDIO_VERSION "led-studio-2026-07-30.1"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
