@@ -18,9 +18,11 @@
 // Targets:
 //   PowerFeather V2 (primary): sensors on the STEMMA-QT / VSQT rail = Wire1
 //     (GPIO47/48). The PowerFeather SDK's charger/gauge share that Wire1 object;
-//     we retune it to PB_I2C_HZ (400 kHz -- BQ25628E and MAX17260 are 400 kHz
-//     parts; a deliberate, soak-tested exception to POWERFEATHER_NOTES' 100 kHz
-//     guidance, because the MLX frame + VL53 init blob cannot live at 100 kHz).
+//     it runs at PB_I2C_HZ = 100 kHz, the ADR 0028 hard rule: raising this
+//     shared power-management bus to 400 kHz was the reboot-epidemic ROOT
+//     CAUSE (WiFi-TX-corrupted BQ25628E power-path writes opened the battery
+//     switch; POWERFEATHER_NOTES "Wire1 at >100 kHz"). Degraded sensor rates
+//     are the accepted cost; never raise the clock on battery.
 //     Battery charging is left OFF (bench board, usually no cell -- see the
 //     "charging into a missing battery" gotcha in POWERFEATHER_NOTES).
 //   Metro ESP32-S3 (variant, -DPB_BOARD_METRO=1): plain Wire on the Qwiic port,
