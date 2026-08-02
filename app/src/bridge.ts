@@ -52,7 +52,18 @@ export interface EvtFrame {
   value: number; // new ca_state / fault code / tap strength
 }
 
-export type UpFrame = HbFrame | EvtFrame;
+/** CAMBIUM uplink: solar-charging census (nodes with battMa > 0) — feeds
+ *  store.solarPanelsCharging() so the Solar Ray handoff fires off real data. */
+export interface ChargingFrame { kind: "charging"; count: number; macs: string[] }
+/** CAMBIUM uplink: the daemon's bridge-board health (1 Hz + on change). */
+export interface BridgeStatusFrame {
+  kind: "bridge_status";
+  serial?: boolean; connected?: boolean; port?: string | null;
+  channel?: number; txOk?: number; txFail?: number; fleetHeard?: number;
+}
+export interface ErrFrame { kind: "err"; msg: string }
+
+export type UpFrame = HbFrame | EvtFrame | ChargingFrame | BridgeStatusFrame | ErrFrame;
 
 export interface ShowDown { kind: "show"; phase: number; hue: number; flags: number } // NbShowFrame
 export interface IdentifyDown { kind: "identify"; mac: string | null; seconds: number } // NB_IDENTIFY (null = all)
@@ -60,12 +71,27 @@ export interface SetRateDown { kind: "set_rate"; hbHz: number; frameHz: number }
 /** PROPOSED NB_RULESET — broadcast a compiled rule table (rules.ts bytes,
  *  ≤ 240 B = one frame); nodes store it in flash and run it locally. */
 export interface RulesetDown { kind: "ruleset"; epoch: number; bytes: number[] }
-export type DownFrame = ShowDown | IdentifyDown | SetRateDown | RulesetDown;
+/** CAMBIUM: one rendered twin frame — per-fixture linear RGB floats keyed by
+ *  fixture_id. The daemon clamps, extracts W, batches into NB_DIRECT_FRAME
+ *  packets and paces them to the fleet's 10 Hz render cap. */
+export interface FrameDown {
+  kind: "frame";
+  seq: number;
+  fixtures: { id: string; rgb: [number, number, number] }[];
+}
+/** CAMBIUM: arm/disarm direct streaming (mirrors the net.driveReal toggle). */
+export interface DriveDown { kind: "drive"; on: boolean }
+/** CAMBIUM: force day/night lifecycle (NB_FORCE_LIFECYCLE; the night gate is
+ *  real — fixtures ignore show frames in daytime). mode 0=day 1=night 2=auto. */
+export interface NightDown { kind: "night"; mode: 0 | 1 | 2; mac: string | null }
+
+export type DownFrame =
+  ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown | NightDown;
 
 // ── the seam ──────────────────────────────────────────────────────────────────
 
 export interface BridgeLink {
-  readonly transport: "mock" | "serial";
+  readonly transport: "mock" | "serial" | "ws";
   connect(): Promise<void>;
   disconnect(): void;
   send(frame: DownFrame): void;
@@ -305,5 +331,61 @@ export class SerialBridge implements BridgeLink {
   send(frame: DownFrame): void {
     if (!this.writer) return;
     void this.writer.write(new TextEncoder().encode(JSON.stringify(frame) + "\n"));
+  }
+}
+
+
+// ── WS bridge: the cambium daemon (works on iPad — no Web Serial needed) ─────
+/** JSON per WebSocket text message to the cambium middleware daemon, which
+ *  owns the bridge PowerFeather's serial port and speaks the fleet's packed
+ *  structs for us. Same vocabulary as SerialBridge plus the cambium frames
+ *  above. Default endpoint ws://localhost:8600/ws; override with
+ *  ?cambium=ws://<lan-host>:8600/ws for an iPad on the LAN. */
+export class WsBridge implements BridgeLink {
+  readonly transport = "ws" as const;
+  private ws: WebSocket | null = null;
+  private subs: ((f: UpFrame) => void)[] = [];
+  private live = false;
+
+  constructor(private url: string = "ws://localhost:8600/ws") {}
+
+  static urlFromLocation(): string {
+    const q = new URLSearchParams(window.location.search).get("cambium");
+    return q || "ws://localhost:8600/ws";
+  }
+
+  connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(this.url);
+      ws.onopen = () => { this.live = true; resolve(); };
+      ws.onerror = () => reject(new Error(
+        `cambium daemon unreachable at ${this.url} — start it with ` +
+        `\`cambium serve\` (or \`cambium fakefleet run\`), or point ` +
+        `?cambium= at the right host`));
+      ws.onclose = () => { this.live = false; };
+      ws.onmessage = (ev) => {
+        try {
+          const f = JSON.parse(String(ev.data)) as UpFrame;
+          if (f && typeof f === "object" && "kind" in f) for (const s of this.subs) s(f);
+        } catch { /* skip malformed frame — untrusted wire */ }
+      };
+      this.ws = ws;
+    });
+  }
+
+  disconnect(): void {
+    this.live = false;
+    this.ws?.close();
+    this.ws = null;
+  }
+  connected(): boolean { return this.live; }
+  onUp(cb: (f: UpFrame) => void): () => void {
+    this.subs.push(cb);
+    return () => { this.subs = this.subs.filter((s) => s !== cb); };
+  }
+  send(frame: DownFrame): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(frame));
+    }
   }
 }
