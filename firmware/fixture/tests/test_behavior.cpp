@@ -7,6 +7,7 @@
 #include "../src/core/choreo/program.h"
 #include "../src/core/lifecycle.h"
 #include "../src/core/neighbor_table.h"
+#include "../src/core/packet.h"
 
 // --- tiny 5-node line-graph GH simulation -----------------------------------
 // Node i's neighbors are i-1 and i+1. We run 5 ChoreoRuntime-less GH programs
@@ -246,6 +247,103 @@ int main() {
     sf.flags = 0x01;
     rt.noteShowFrame(sf, 60000);
     CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_BRIDGE_SHOW);
+  }
+
+  // --- PROG_DIRECT: slew convergence, hard-cut, hold+half, stale fallback ---
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7);
+    // Micro-lease grant (flags bit0) pulls in PROG_DIRECT, like ShowFrame's.
+    DirectFrameState df = {};
+    df.rxMs = 1000;
+    df.r = 255; df.g = 128; df.b = 0; df.w = 64;
+    df.flags = 0x01;
+    rt.noteDirectFrame(df, 1000);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_DIRECT);
+    // Stream at 10 Hz past the 2 s crossfade: slew (32/tick, <=0.8 s full
+    // traverse) must converge on the commanded color exactly.
+    ProgramInputs in = {};
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    uint32_t t = 1000;
+    for (int i = 0; i < 40; i++) {
+      df.rxMs = (t += 100);
+      rt.noteDirectFrame(df, t);
+      in.nowMs = t;
+      rt.tick(in, out);
+    }
+    CHECK_EQ(out.frame.px[0][0], 255u);
+    CHECK_EQ(out.frame.px[0][1], 128u);
+    CHECK_EQ(out.frame.px[0][2], 0u);
+    CHECK_EQ(out.frame.px[0][3], 64u);
+    // Hard-cut (bit1): a new frame lands verbatim on the very next tick.
+    df.r = 10; df.g = 20; df.b = 30; df.w = 40;
+    df.flags = 0x03;
+    df.rxMs = (t += 100);
+    rt.noteDirectFrame(df, t);
+    in.nowMs = t;
+    rt.tick(in, out);
+    CHECK_EQ(out.frame.px[0][0], 10u);
+    CHECK_EQ(out.frame.px[0][3], 40u);
+    // Silence 1-3 s: hold+half band -- still PROG_DIRECT, at half the value.
+    in.nowMs = t + 1500;
+    rt.tick(in, out);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_DIRECT);
+    CHECK_EQ(out.frame.px[0][0], 5u);
+    // Silence >3 s: autonomous fallback, same ladder as SHOWFRAME staleness.
+    in.nowMs = t + 3100;
+    rt.tick(in, out);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_GH_CA);
+  }
+  {
+    // PROG_DIRECT on PERIMETER: uniform 37-px wash, W written for wire truth
+    // (the GRB hardware ignores it).
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_PERIMETER, 37, 7);
+    DirectFrameState df = {};
+    df.r = 200; df.g = 100; df.b = 50; df.w = 25;
+    df.flags = 0x01;
+    ProgramInputs in = {};
+    in.fixtureClass = FIXTURE_PERIMETER;
+    in.pixelCount = 37;
+    ProgramOutputs out = {};
+    uint32_t t = 1000;
+    for (int i = 0; i < 40; i++) {
+      df.rxMs = (t += 100);
+      rt.noteDirectFrame(df, t);
+      in.nowMs = t;
+      rt.tick(in, out);
+    }
+    CHECK_EQ(out.frame.count, 37u);
+    bool washOk = true;
+    for (int i = 0; i < 37; i++)
+      if (out.frame.px[i][0] != 200 || out.frame.px[i][1] != 100 ||
+          out.frame.px[i][2] != 50 || out.frame.px[i][3] != 25)
+        washOk = false;
+    CHECK(washOk);
+  }
+
+  // --- NbDirectFrame entry scan: a fixture ignores frames not naming it ------
+  {
+    NbDirectFrame f;
+    memset(&f, 0, sizeof(f));
+    uint8_t me[3] = {0xF2, 0xBF, 0xA0};
+    uint8_t other[3] = {0xF4, 0x03, 0x1C};
+    memcpy(f.entries[0].id, other, 3);
+    memcpy(f.entries[1].id, me, 3);
+    f.entries[1].r = 9;
+    f.count = 2;
+    int len = (int)offsetof(NbDirectFrame, entries) + 2 * (int)sizeof(NbDirectEntry);
+    const NbDirectEntry *e = nbDirectFindEntry(&f, len, me);
+    CHECK(e != nullptr && e->r == 9);
+    // Not named anywhere: nullptr, the fixture ignores the frame entirely.
+    uint8_t nobody[3] = {1, 2, 3};
+    CHECK(nbDirectFindEntry(&f, len, nobody) == nullptr);
+    // A lying `count` past the wire length is clamped: our entry, truncated
+    // away on the air, must not be read out of the stale buffer tail.
+    len = (int)offsetof(NbDirectFrame, entries) + 1 * (int)sizeof(NbDirectEntry);
+    CHECK(nbDirectFindEntry(&f, len, me) == nullptr);
   }
 
   return testReport("test_behavior");

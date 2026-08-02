@@ -185,6 +185,29 @@ static void processPacket(const RxItem &it) {
     gShowFrame.energy = hasTail ? f->energy : 0;
     break;
   }
+  case NB_DIRECT_FRAME: {
+    // Variable length: 15 B preamble + 7 B per entry; a frame with no entries
+    // is not a frame. Per-fixture addressing rides IN the entries (there is no
+    // target_id), so downlink accounting happens whether or not we're named.
+    if (it.len < (int)(offsetof(NbDirectFrame, entries) + sizeof(NbDirectEntry))) return;
+    accountDownlink(h, it.rssi);
+    const NbDirectFrame *df = (const NbDirectFrame *)it.data;
+    const NbDirectEntry *e = nbDirectFindEntry(df, it.len, gMyId);
+    if (!e) break; // frame doesn't name us: not ours, ignore
+    behaviorOnDirectFrame(e->r, e->g, e->b, e->w, df->flags);
+    break;
+  }
+  case NB_FORCE_LIFECYCLE: {
+    if (it.len < (int)sizeof(NbForceLifecycle)) return;
+    const NbForceLifecycle *fl = (const NbForceLifecycle *)it.data;
+    if (!nbTargetMatches(fl->target_id, gMyId)) return;
+    if (fl->mode > 2) return;
+    // Radio twin of serial 'N': RAM-only, a reboot always returns to auto.
+    behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
+    Serial.printf("force_night -> %s (radio)\n",
+                  fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
+    break;
+  }
   case NB_ENTER_MAINT:
     if (maintMode() == MODE_COMMS) enterMaintenance();
     break;

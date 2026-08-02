@@ -3,12 +3,14 @@
 Program *newProgIdle();
 Program *newProgGhCa();
 Program *newProgBridge();
+Program *newProgDirect();
 
 Program *ChoreoRuntime::byId(uint8_t id) {
   switch (id) {
   case PROG_IDLE: return newProgIdle();
   case PROG_GH_CA: return newProgGhCa();
   case PROG_BRIDGE_SHOW: return newProgBridge();
+  case PROG_DIRECT: return newProgDirect();
   default: return nullptr;
   }
 }
@@ -25,6 +27,7 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
   byId(PROG_IDLE)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_GH_CA)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_BRIDGE_SHOW)->reset(mSeed, noParams, mClass, mPixels);
+  byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
 }
 
 bool ChoreoRuntime::applyProgramSet(uint8_t programId, uint16_t leaseS, uint32_t seed,
@@ -73,6 +76,25 @@ void ChoreoRuntime::noteShowFrame(const ShowFrameState &f, uint32_t nowMs) {
   mLease.deadlineMs = nowMs + RES_SHOWFRAME_MICROLEASE_MS;
 }
 
+void ChoreoRuntime::noteDirectFrame(const DirectFrameState &f, uint32_t nowMs) {
+  mDirect = f; // latest command wins; ProgDirect + the staleness check read this
+  // Frames with flags bit0 carry the same implicit micro-lease as extended
+  // ShowFrames, so a cambium bridge that only streams frames keeps driving.
+  if (!(f.flags & 0x01)) return;
+  if (mLease.active && mLease.programId != PROG_DIRECT) return; // explicit lease wins
+  if (mActive != PROG_DIRECT) {
+    static const uint8_t noParams[8] = {};
+    byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
+    mPrev = mActive;
+    mFadeStartMs = nowMs;
+    mFading = true;
+    mActive = PROG_DIRECT;
+  }
+  mLease.active = true;
+  mLease.programId = PROG_DIRECT;
+  mLease.deadlineMs = nowMs + RES_SHOWFRAME_MICROLEASE_MS;
+}
+
 void ChoreoRuntime::selectAutonomous(uint32_t nowMs, bool hardCut) {
   if (mActive == mAutonomous) return;
   static const uint8_t noParams[8] = {};
@@ -105,9 +127,20 @@ void ChoreoRuntime::tick(const ProgramInputs &in, ProgramOutputs &out) {
     mLease = {};
     selectAutonomous(in.nowMs, false);
   }
+  // DirectFrame staleness inside a direct lease: same >3 s ladder.
+  if (mActive == PROG_DIRECT &&
+      (mDirect.rxMs == 0 || in.nowMs - mDirect.rxMs > RES_SHOWFRAME_STALE_MS)) {
+    mLease = {};
+    selectAutonomous(in.nowMs, false);
+  }
+
+  // ProgDirect reads its target from runtime-owned storage (net_peer owns the
+  // ShowFrame): patch the pointer into a local copy of the inputs.
+  ProgramInputs pin = in;
+  pin.directFrame = &mDirect;
 
   Program *active = byId(mActive);
-  active->tick(in, out);
+  active->tick(pin, out);
 
   if (mFading) {
     uint32_t dt = in.nowMs - mFadeStartMs;
@@ -116,7 +149,7 @@ void ChoreoRuntime::tick(const ProgramInputs &in, ProgramOutputs &out) {
     } else {
       // Render the outgoing program too and blend (linear alpha).
       ProgramOutputs prevOut = {};
-      byId(mPrev)->tick(in, prevOut);
+      byId(mPrev)->tick(pin, prevOut);
       uint32_t a = dt * 255 / RES_CHOREO_FADE_MS; // 0 -> new fully in at 255
       for (int i = 0; i < FRAME_MAX_PIXELS; i++)
         for (int ch = 0; ch < 4; ch++)

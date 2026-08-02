@@ -13,7 +13,8 @@
 //   - 1..17  net_bench era (bench masters still send/understand these).
 //   - 18..24 fixture era (production behavior layer).
 //   - 20/22/23 are RESERVED: struct defined, parse-stubbed, NOT sent yet.
-//   - 25+    free.
+//   - 25..26 cambium era (browser-sim serial bridge streaming).
+//   - 27+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -52,6 +53,9 @@ enum NbType : uint8_t {
   NB_NEIGHBOR_REPORT = 22, // RESERVED (M2 locate: censored-median RSSI) -- defined, not sent
   NB_EVENT = 23,         // RESERVED (M2 event fabric) -- defined, not sent
   NB_NEIGHBOR_SET = 24,  // bridge -> target: pinned CA adjacency (<=8 neighbors)
+  // ---- cambium era ----------------------------------------------------------
+  NB_DIRECT_FRAME = 25,    // bridge -> all: per-fixture RGBW (ids ride IN the entries)
+  NB_FORCE_LIFECYCLE = 26, // bridge -> all/target: force day/night/auto (RAM-only)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -297,9 +301,46 @@ struct __attribute__((packed)) NbNeighborSet { // 24: pinned CA adjacency
   uint8_t neighbor_ids[NB_NEIGHBOR_SET_MAX][3];
 };
 
+// ---- cambium-era payloads (browser sim -> serial bridge -> fleet) -----------
+
+#define NB_DIRECT_MAX_ENTRIES 18
+struct __attribute__((packed)) NbDirectEntry { // 7 B: one fixture's color
+  uint8_t id[3];      // node short ID (never 00:00:00 -- there is no "all" entry)
+  uint8_t r, g, b, w; // W ignored by GRB hex pixels, carried for wire truth
+};
+struct __attribute__((packed)) NbDirectFrame { // 25: per-fixture direct color
+  NbHeader h;
+  uint8_t flags; // bit0=10 s micro-lease grant (parallels NbShowFrame bit0)
+                 // bit1=hard-cut (skip slew)
+  uint8_t count; // entries actually present; wire length is 15 + 7*count, and
+                 // receivers trust min(count, (len-15)/7) -- never sizeof
+  NbDirectEntry entries[NB_DIRECT_MAX_ENTRIES]; // 18 caps the frame under the
+                                                // 250 B ESP-NOW payload budget
+};
+
+struct __attribute__((packed)) NbForceLifecycle { // 26: bridge day/night override
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all
+  uint8_t mode;  // 0=force day 1=force night 2=auto (mirrors serial 'N')
+  uint8_t flags; // reserved 0. RAM-only BY DESIGN (no NVS mirror): a rebooting
+                 // field unit must never stay forced.
+};
+
 // ---- helpers (pure; ESP-NOW send lives in esp32/espnow_link) ----------------
 
 inline bool nbTargetMatches(const uint8_t target[3], const uint8_t myId[3]) {
   bool all = (target[0] == 0 && target[1] == 0 && target[2] == 0);
   return all || memcmp(target, myId, 3) == 0;
+}
+
+// Scan a DIRECT_FRAME's entries for `myId`. `len` is the raw rx length; the
+// sender's `count` is clamped to what the wire actually carried, so a truncated
+// or lying frame can never read past the packet. nullptr = frame not for us.
+inline const NbDirectEntry *nbDirectFindEntry(const NbDirectFrame *f, int len,
+                                              const uint8_t myId[3]) {
+  int avail = (len - (int)offsetof(NbDirectFrame, entries)) / (int)sizeof(NbDirectEntry);
+  int count = (int)f->count < avail ? (int)f->count : avail;
+  for (int i = 0; i < count; i++)
+    if (memcmp(f->entries[i].id, myId, 3) == 0) return &f->entries[i];
+  return nullptr;
 }

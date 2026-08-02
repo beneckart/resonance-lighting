@@ -101,6 +101,14 @@ void behaviorOnNeighborSet(const NbNeighborSet &ns) {
   // rig re-pushes after reboots via the host script for now.
 }
 
+void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
+                           uint8_t flags) {
+  // Micro-lease grant + staleness bookkeeping live in the runtime.
+  uint32_t now = millis();
+  DirectFrameState fs = {now, r, g, b, w, flags};
+  gRuntime.noteDirectFrame(fs, now);
+}
+
 void behaviorTick() {
   uint32_t now = millis();
 

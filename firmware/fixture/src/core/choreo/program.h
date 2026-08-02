@@ -6,7 +6,8 @@
 //   0 = PROG_IDLE         class-tinted slow breathe (fallback look, never blank)
 //   1 = PROG_GH_CA        Greenberg-Hastings excitable media (the one real CA)
 //   2 = PROG_BRIDGE_SHOW  NbShowFrame consumer (DJ/bench multicast)
-//   3+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
+//   3 = PROG_DIRECT       NbDirectFrame consumer (cambium browser-sim streaming)
+//   4+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
 #pragma once
 
 #include <stdint.h>
@@ -16,13 +17,22 @@
 #define PROG_IDLE 0
 #define PROG_GH_CA 1
 #define PROG_BRIDGE_SHOW 2
-#define PROG_COUNT 3
+#define PROG_DIRECT 3
+#define PROG_COUNT 4
 
 // Latest bridge show frame, as received (staleness judged by the runtime).
 struct ShowFrameState {
   uint32_t rxMs; // 0 = never
   uint16_t phase;
   uint8_t hue, flags, val, bright, effect, beatPhase, energy;
+};
+
+// Latest direct color naming THIS fixture, as received (staleness judged by
+// the runtime; the entry scan happened in net_peer).
+struct DirectFrameState {
+  uint32_t rxMs; // 0 = never
+  uint8_t r, g, b, w;
+  uint8_t flags; // NbDirectFrame flags: bit0=micro-lease bit1=hard-cut
 };
 
 struct ProgramInputs {
@@ -35,6 +45,8 @@ struct ProgramInputs {
   const ShowFrameState *showFrame;
   uint8_t tier;        // LedTier as byte; programs may adapt artistically
   uint8_t tickDivider; // power throttle (runtime pre-applies; informational)
+  const DirectFrameState *directFrame; // runtime-owned; callers leave it null
+                                       // (ChoreoRuntime::tick patches it in)
 };
 
 struct ProgramOutputs {
@@ -71,6 +83,8 @@ public:
                        uint8_t flags, const uint8_t params[8], uint32_t nowMs);
   // An extended ShowFrame with flags bit0 grants a 10 s micro-lease.
   void noteShowFrame(const ShowFrameState &f, uint32_t nowMs);
+  // A DirectFrame naming us; flags bit0 grants the same 10 s micro-lease.
+  void noteDirectFrame(const DirectFrameState &f, uint32_t nowMs);
   void tick(const ProgramInputs &in, ProgramOutputs &out);
 
   uint8_t activeProgram() const { return mActive; }
@@ -87,6 +101,8 @@ private:
   uint8_t mActive = PROG_IDLE;
   uint8_t mAutonomous = PROG_GH_CA; // class default (all classes: GH at night)
   ChoreoLease mLease = {};
+  DirectFrameState mDirect = {}; // latest direct color (unlike showFrame, the
+                                 // runtime owns this storage, not net_peer)
   // Crossfade: render both for RES_CHOREO_FADE_MS after a soft switch.
   uint8_t mPrev = PROG_IDLE;
   uint32_t mFadeStartMs = 0;

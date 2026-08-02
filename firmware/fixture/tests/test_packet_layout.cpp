@@ -53,6 +53,16 @@ int main() {
   CHECK_EQ(sizeof(NbTimeQuality), 29u);
   CHECK_EQ(sizeof(NbNeighborSet), 13u + 3u + 1u + 1u + 24u);
 
+  // Cambium-era payloads (25/26). The 15 B preamble + 7 B entry stride are
+  // what the bridge's packetizer stands on (118 fixtures / 18 per frame =
+  // 7 pkts per wave); valid wire length is 15 + 7*count.
+  CHECK_EQ(sizeof(NbDirectEntry), 7u);
+  CHECK_EQ(offsetof(NbDirectFrame, flags), 13u);
+  CHECK_EQ(offsetof(NbDirectFrame, count), 14u);
+  CHECK_EQ(offsetof(NbDirectFrame, entries), 15u);
+  CHECK_EQ(sizeof(NbDirectFrame), 141u);
+  CHECK_EQ(sizeof(NbForceLifecycle), 18u);
+
   // Receiver tail gate + truncation round-trip: an hb-short must satisfy the
   // gate for supply_good and fail it for lux_x10.
   CHECK(NB_HAS_HB_FIELD((int)NB_HB_SHORT_LEN, supply_good));
