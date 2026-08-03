@@ -48,7 +48,7 @@ B2XH = "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical"
 PIN_ORDER = {"1": "D7", "2": "VDC", "3": "GND"}   # matches PowerFeather header
 RX_ORDER = ["GND", "P5V", "BTNP", None, None, None, None]   # GND 5V D0 D1 D2 D3 VT
 RX_LABELS = ["G", "5V", "D0", "D1", "D2", "D3", "VT"]
-BOARD_W, BOARD_H = 88, 40
+BOARD_W, BOARD_H = 100, 40
 CAP_CENTERS = [20, 41, 62]
 CAP_Y = 18.3
 CAP_PITCH = 7.5
@@ -154,7 +154,7 @@ for hx, hy in HOLES:
 jy = 34.0          # SM4 right-angle: signal pads -3.25, MP anchors +3.55
 j1 = place("Connector_JST", SM4, "PANEL", 12, jy, value="RAW VDC IN")
 assign(j1, {"1": "D7", "2": "VDCIN", "3": "GND"})
-j2 = place("Connector_JST", SM4, "DRIVER", 76, jy, value="11.4V OUT")
+j2 = place("Connector_JST", SM4, "DRIVER", 92, jy, value="11.4V OUT")
 assign(j2, {"1": "D7", "2": "VBOOST", "3": "GND"})
 j3 = place("Connector_PinSocket_2.54mm",
            "PinSocket_1x07_P2.54mm_Vertical_SMD_Pin1Left",
@@ -232,30 +232,30 @@ r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 26.74, 28, rot=90,
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
 
-c8 = place("Capacitor_SMD", "C_1206_3216Metric", "C8", 75.5, 8, rot=90,
+c8 = place("Capacitor_SMD", "C_1206_3216Metric", "C8", 70, 7, rot=90,
            value="22uF 16V")
 assign(c8, {"1": "VDCIN", "2": "GND"})
-l1 = place("Inductor_SMD", "L_Bourns_SRN6045TA", "L1", 82, 8.6, value="22uH 2.4A")
+l1 = place("Inductor_SMD", "L_Bourns_SRN6045TA", "L1", 78, 7, value="22uH 2.4A")
 assign(l1, {"1": "VDCIN", "2": "SW"})
-u2 = place("Package_TO_SOT_SMD", "SOT-23-6", "U2", 76, 14, value="MT3608")
+u2 = place("Package_TO_SOT_SMD", "SOT-23-6", "U2", 89, 7, value="MT3608")
 assign(u2, {"1": "SW", "2": "GND", "3": "FB", "4": "EN", "5": "VDCIN", "6": "SW"})
-d2 = place("Diode_SMD", "D_SMA", "D2", 83, 14, value="SS34")
+d2 = place("Diode_SMD", "D_SMA", "D2", 96, 7, value="SS34")
 assign(d2, {"1": "VBOOST", "2": "SW"})
-c9 = place("Capacitor_SMD", "C_1206_3216Metric", "C9", 76, 18.4, rot=90,
+c9 = place("Capacitor_SMD", "C_1206_3216Metric", "C9", 96, 13, rot=90,
            value="10uF 25V")
 assign(c9, {"1": "VBOOST", "2": "GND"})
-r9 = place("Resistor_SMD", "R_0805_2012Metric", "R9", 81, 18.4, value="10k")
+r9 = place("Resistor_SMD", "R_0805_2012Metric", "R9", 84, 13, value="6.8k")
 assign(r9, {"1": "GND", "2": "FB"})
-r8 = place("Resistor_SMD", "R_0805_2012Metric", "R8", 85.2, 18.4, value="180k")
+r8 = place("Resistor_SMD", "R_0805_2012Metric", "R8", 89, 13, value="130k")
 assign(r8, {"1": "FB", "2": "VBOOST"})
-r11 = place("Resistor_SMD", "R_0805_2012Metric", "R11", 81, 21.4, value="47k")
+r11 = place("Resistor_SMD", "R_0805_2012Metric", "R11", 84, 17, value="47k")
 assign(r11, {"1": "GND", "2": "EN"})
-r10 = place("Resistor_SMD", "R_0805_2012Metric", "R10", 85.2, 21.4, value="47k")
+r10 = place("Resistor_SMD", "R_0805_2012Metric", "R10", 89, 17, value="47k")
 assign(r10, {"1": "EN", "2": "VDCIN"})
 r12 = place("Capacitor_THT", "C_Disc_D5.0mm_W2.5mm_P5.00mm", "R12",
-            74.5, 23.8, value="DNP TRIM", dnp=True)
+            70, 14, value="DNP TRIM", dnp=True)
 assign(r12, {"1": "FB", "2": "GND"})
-jp1 = place("Resistor_SMD", "R_0805_2012Metric", "JP1", 84, 23.8,
+jp1 = place("Resistor_SMD", "R_0805_2012Metric", "JP1", 94, 17,
             value="BYPASS DNP", dnp=True)
 assign(jp1, {"1": "VDCIN", "2": "VBOOST"})
 
@@ -266,7 +266,7 @@ j1d, j1v, j1g = pxy(j1, "1"), pxy(j1, "2"), pxy(j1, "3")
 j2d, j2v, j2g = pxy(j2, "1"), pxy(j2, "2"), pxy(j2, "3")
 VIA_Y = 32.0
 
-# --- boost switching loop (right region) ---
+# --- boost switching loop (right region, now roomy) ---
 c8v, c8g = pxy(c8, "1"), pxy(c8, "2")
 l1a, l1b = pxy(l1, "1"), pxy(l1, "2")
 u2sw1, u2g, u2fb = pxy(u2, "1"), pxy(u2, "2"), pxy(u2, "3")
@@ -275,75 +275,67 @@ d2k, d2a = pxy(d2, "1"), pxy(d2, "2")
 c9v, c9g = pxy(c9, "1"), pxy(c9, "2")
 
 track(*c8v, *l1a, 0.9, F, "VDCIN")
-track(*l1b, l1b[0], 11.8, 0.9, F, "SW")
-track(l1b[0], 11.8, u2sw6[0], 11.8, 0.9, F, "SW")
-track(u2sw6[0], 11.8, *u2sw6, 0.9, F, "SW")
-track(*u2sw1, u2sw1[0], 11.8, 0.6, F, "SW")
-track(u2sw1[0], 11.8, l1b[0], 11.8, 0.6, F, "SW")
+track(*l1b, l1b[0], 4.9, 0.9, F, "SW")
+track(l1b[0], 4.9, u2sw1[0], 4.9, 0.9, F, "SW")
+track(u2sw1[0], 4.9, *u2sw1, 0.9, F, "SW")
+track(*u2sw6, u2sw6[0], 4.9, 0.9, F, "SW")
 track(*u2sw6, *d2a, 0.9, F, "SW")
-track(*d2k, d2k[0], 16.6, 1.0, F, "VBOOST")
-track(d2k[0], 16.6, c9v[0], 16.6, 1.0, F, "VBOOST")
-track(c9v[0], 16.6, *c9v, 1.0, F, "VBOOST")
-track(*u2vin, u2vin[0], 11.0, 0.5, F, "VDCIN")
-via(u2vin[0], 11.0, "VDCIN")
-track(u2vin[0], 11.0, c8v[0], 11.0, 0.5, B, "VDCIN")
-track(c8v[0], 11.0, c8v[0], 5.6, 0.5, B, "VDCIN")
-via(c8v[0], 5.6, "VDCIN")
-track(c8v[0], 5.6, *c8v, 0.5, F, "VDCIN")
-track(*u2g, 73.0, 14.0, 0.5, F, "GND")
-via(73.0, 14.0, "GND")
-track(*c8g, 73.0, 9.8, 0.5, F, "GND")
-via(73.0, 9.8, "GND")
-track(*c9g, 73.0, 20.2, 0.5, F, "GND")
-via(73.0, 20.2, "GND")
+track(*d2k, d2k[0], 11.0, 1.0, F, "VBOOST")
+track(d2k[0], 11.0, c9v[0], 11.0, 1.0, F, "VBOOST")
+track(c9v[0], 11.0, *c9v, 1.0, F, "VBOOST")
+track(*u2vin, u2vin[0], 9.6, 0.5, F, "VDCIN")
+track(u2vin[0], 9.6, c8v[0], 9.6, 0.5, F, "VDCIN")
+track(c8v[0], 9.6, *c8v, 0.5, F, "VDCIN")
+track(*u2g, 86.4, 7.0, 0.5, F, "GND")
+via(86.4, 7.0, "GND")
+track(*c8g, c8g[0], 4.2, 0.5, F, "GND")
+via(c8g[0], 4.2, "GND")
+track(*c9g, c9g[0], 15.8, 0.5, F, "GND")
+via(c9g[0], 15.8, "GND")
 
-# --- feedback divider + THT trim ---
+# --- feedback divider: R9 6.8k to GND, R8 130k to VBOOST -> 12.07 V ---
 r8f, r8h = pxy(r8, "1"), pxy(r8, "2")
 r9g, r9f = pxy(r9, "1"), pxy(r9, "2")
-track(*u2fb, u2fb[0], 15.8, 0.4, F, "FB")
-track(u2fb[0], 15.8, 83.1, 15.8, 0.4, F, "FB")
-track(83.1, 15.8, 83.1, 18.4, 0.4, F, "FB")
-track(83.1, 18.4, *r9f, 0.4, F, "FB")
+track(*u2fb, u2fb[0], 10.4, 0.4, F, "FB")
+track(u2fb[0], 10.4, 86.5, 10.4, 0.4, F, "FB")
+track(86.5, 10.4, 86.5, 13.0, 0.4, F, "FB")
+track(86.5, 13.0, *r9f, 0.4, F, "FB")
 track(*r9f, *r8f, 0.4, F, "FB")
-track(*r8h, 87.0, 18.4, 0.4, F, "VBOOST")
-track(87.0, 18.4, 87.0, 15.0, 0.4, F, "VBOOST")
-track(87.0, 15.0, d2k[0], 15.0, 0.4, F, "VBOOST")
-track(d2k[0], 15.0, *d2k, 0.4, F, "VBOOST")
-track(*r9g, 78.8, 18.4, 0.4, F, "GND")
-via(78.8, 18.4, "GND")
-track(83.1, 18.4, 83.1, 23.8, 0.4, F, "FB")
-track(83.1, 23.8, 79.5, 23.8, 0.4, F, "FB")
+track(*r8h, 92.0, 13.0, 0.4, F, "VBOOST")
+track(92.0, 13.0, 92.0, 11.0, 0.4, F, "VBOOST")
+track(*r9g, 81.5, 13.0, 0.4, F, "GND")
+via(81.5, 13.0, "GND")
+track(86.5, 13.0, 86.5, 20.5, 0.4, F, "FB")
+track(86.5, 20.5, 75.0, 20.5, 0.4, F, "FB")
+track(75.0, 20.5, 75.0, 14.0, 0.4, F, "FB")
+track(70.0, 14.0, 66.5, 14.0, 0.4, F, "GND")
+via(66.5, 14.0, "GND")
 
 # --- EN divider ---
 r11g, r11e = pxy(r11, "1"), pxy(r11, "2")
 r10e, r10v = pxy(r10, "1"), pxy(r10, "2")
-track(*u2en, u2en[0], 21.4, 0.4, F, "EN")
-via(u2en[0], 21.4, "EN")
-track(u2en[0], 21.4, 79.8, 21.4, 0.4, B, "EN")
-via(79.8, 21.4, "EN")
-track(79.8, 21.4, *r11e, 0.4, F, "EN")
+track(*u2en, u2en[0], 17.0, 0.4, F, "EN")
+track(u2en[0], 17.0, *r11e, 0.4, F, "EN")
 track(*r11e, *r10e, 0.4, F, "EN")
-track(*r11g, 78.8, 21.4, 0.4, F, "GND")
-via(78.8, 21.4, "GND")
-track(*r10v, 87.0, 21.4, 0.4, F, "VDCIN")
-track(87.0, 21.4, 87.0, 23.8, 0.4, F, "VDCIN")
-track(u2en[0], 21.4, 70.0, 25.5, 0.4, B, "EN")
-track(70.0, 25.5, 57.0, 29.5, 0.4, B, "EN")
+track(*r11g, 81.5, 17.0, 0.4, F, "GND")
+via(81.5, 17.0, "GND")
+track(*r10v, 92.5, 17.0, 0.4, F, "VDCIN")
+track(u2en[0], 17.0, u2en[0], 23.5, 0.4, F, "EN")
+via(u2en[0], 23.5, "EN")
+track(u2en[0], 23.5, 57.0, 29.5, 0.4, B, "EN")
 via(57.0, 29.5, "EN")
 j4v_, j4e = pxy(j4, "1"), pxy(j4, "2")
 track(57.0, 29.5, *j4e, 0.4, F, "EN")
 
 # --- JP1 bypass (DNP) ---
 jp1v, jp1b_ = pxy(jp1, "1"), pxy(jp1, "2")
-track(*jp1v, 87.0, 23.8, 0.6, F, "VDCIN")
-track(*jp1b_, 82.0, 23.8, 0.6, F, "VBOOST")
-via(82.0, 23.8, "VBOOST")
+track(*jp1v, 92.5, 17.0, 0.6, F, "VDCIN")
+track(*jp1b_, 97.0, 17.0, 0.6, F, "VBOOST")
+track(97.0, 17.0, 97.0, 22.0, 0.6, F, "VBOOST")
 
 # --- VBOOST spine ---
-track(*c9v, c9v[0], SPINE_Y, 1.6, F, "VBOOST")
-track(82.0, 23.8, 82.0, SPINE_Y, 0.8, B, "VBOOST")
-via(82.0, SPINE_Y, "VBOOST")
-track(RAIL_X + 8, SPINE_Y, 82.0, SPINE_Y, 2.5, F, "VBOOST")
+track(97.0, 22.0, 97.0, SPINE_Y, 1.6, F, "VBOOST")
+track(RAIL_X + 8, SPINE_Y, 97.0, SPINE_Y, 2.5, F, "VBOOST")
 for cx in CAP_CENTERS:
     track(cx - CAP_PITCH / 2, CAP_Y, cx - CAP_PITCH / 2, SPINE_Y, 2.5, F, "VBOOST")
 track(*j2v, j2v[0], SPINE_Y, 1.6, F, "VBOOST")
@@ -499,8 +491,8 @@ def silk_bitmap(path, cx, cy, height_mm, layer, mirror=False, pitch=0.15,
 silk_bitmap("logo_shell.png", 58, 4.7, 7.6, pcbnew.F_SilkS)
 silk_bitmap("logo_shell.png", 44, 20, 37, pcbnew.B_SilkS, mirror=True,
             pitch=0.2, rotate=90, autocrop=True)
-silk("SOLARNOID CAPBANK", 70, 3.2, 1.2)
-silk("v1.0", 74, 5.1, 0.8)
+silk("SOLARNOID CAPBANK", 30, 37.6, 1.2)
+silk("v1.1", 34, 39.3, 0.8)
 silk("TAP=1 KNOCK", 11.9, 8.2, 0.9)
 silk("D7 VDC GND", 13, 31.9, 0.65)
 silk("D7 VDC GND", 74, 31.9, 0.65)
