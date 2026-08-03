@@ -94,94 +94,91 @@ def stitch(ref, netname="GND", d=1.7, w=0.5, force=None):
 
 
 # ---------------------------------------------------------------- one-shot ---
+D7LANE = 11.5
 path([one("SW1", "NETA"), one("R1", "NETA")], 0.6, F, "NETA")
 path([one("R1", "NETB"), one("C1", "NETB")], 0.6, F, "NETB")
-# C1B is THT, so hop to R2 on the back and dodge C1B's own D7 pad
-c1b_b = one("C1B", "NETB")
+c1b_b, c1b_d = one("C1B", "NETB"), one("C1B", "D7")
 path([c1b_b, one("C1", "NETB")], 0.5, F, "NETB")
-path([c1b_b, (one("R2", "NETB")[0], 6.6)], 0.5, B, "NETB")
+path([c1b_b, (one("R2", "NETB")[0], 6.6)], 0.5, B, "NETB")        # under C1B's D7 pad
 via(one("R2", "NETB")[0], 6.6, "NETB")
 path([(one("R2", "NETB")[0], 6.6), one("R2", "NETB")], 0.5, F, "NETB")
-
-D7LANE = 11.4
-path([one("C1", "D7"), (one("C1", "D7")[0], D7LANE)], 0.6, F, "D7")
-path([one("C1B", "D7"), (one("C1B", "D7")[0], 8.2), (35.4, 8.2),
-      (35.4, one("R2", "D7")[1]), one("R2", "D7")], 0.5, F, "D7")
-path([one("R3", "D7"), (one("R3", "D7")[0], 8.2)], 0.5, F, "D7")
-path([one("D1", "D7"), (one("D1", "D7")[0], 8.2)], 0.5, F, "D7")
-path([(one("C1", "D7")[0], D7LANE), (46.0, D7LANE)], 0.6, F, "D7")
-path([(one("R3", "D7")[0], 8.2), (46.0, 8.2), (46.0, D7LANE)], 0.5, F, "D7")
+for ref in ("C1", "C1B", "R2", "R3", "D1"):
+    p = one(ref, "D7")
+    path([p, (p[0], D7LANE)], 0.5, F, "D7")
+path([(one("C1", "D7")[0], D7LANE), (one("D1", "D7")[0], D7LANE)], 0.6, F, "D7")
 
 # ------------------------------------------------------------------ VDCIN ---
-TOPRAIL = 1.1
+TOPRAIL = 1.0
 sw_v = one("SW1", "VDCIN")
-path([one("PANEL", "VDCIN"), (13.5, 27.0), (6.6, 27.0), (6.6, TOPRAIL),
-      (sw_v[0], TOPRAIL), sw_v], 0.8, F, "VDCIN")
-path([(sw_v[0], TOPRAIL), (65.0, TOPRAIL)], 0.8, F, "VDCIN")
-via(65.0, TOPRAIL, "VDCIN")
-path([(65.0, TOPRAIL), (65.0, 21.0), (68.4, 21.0)], 0.8, B, "VDCIN")
-via(68.4, 21.0, "VDCIN")
-c8v = one("C8", "VDCIN")
-path([(68.4, 21.0), (68.4, c8v[1]), c8v], 0.8, F, "VDCIN")
-path([c8v, (71.4, c8v[1]), (71.4, 13.0), (79.6, 13.0), (79.6, 16.45),
-      one("U2", "VDCIN")], 0.6, F, "VDCIN")
-path([(79.6, 13.0), (79.6, 11.0), one("L1", "VDCIN")], 0.8, F, "VDCIN")
-path([one("L1", "VDCIN"), (80.92, 7.0), (88.5, 7.0), (88.5, 23.83),
-      one("R10", "VDCIN")], 0.6, F, "VDCIN")
-path([one("R10", "VDCIN"), (85.6, 23.83), (85.6, 28.6),
-      (one("JP1", "VDCIN")[0], 28.6), one("JP1", "VDCIN")], 0.6, F, "VDCIN")
+path([one("PANEL", "VDCIN"), (13.5, 27.9), (6.0, 27.9), (6.0, TOPRAIL)],
+     0.6, F, "VDCIN")
+path([(6.0, 5.0), sw_v], 0.6, F, "VDCIN")
+path([(6.0, TOPRAIL), (68.0, TOPRAIL), (68.0, 8.15), one("L1", "VDCIN")],
+     0.8, F, "VDCIN")
+path([one("L1", "VDCIN"), (76.0, 8.15), (76.0, 12.0), (88.0, 12.0),
+      (88.0, 18.95), one("U2", "VDCIN")], 0.6, F, "VDCIN")
+path([(88.0, 20.5), (93.5, 20.5), one("JP1", "VDCIN")], 0.6, F, "VDCIN")
+path([(88.0, 18.95), (88.0, 20.5)], 0.6, F, "VDCIN")
+via(88.0, 20.5, "VDCIN")                                          # under the spine
+path([(88.0, 20.5), (88.0, 29.5)], 0.6, B, "VDCIN")
+path([(88.0, 29.5), (one("R10", "VDCIN")[0], 29.5)], 0.6, B, "VDCIN")
+via(one("R10", "VDCIN")[0], 29.5, "VDCIN")
+path([(one("R10", "VDCIN")[0], 29.5), one("R10", "VDCIN")], 0.6, F, "VDCIN")
+path([(88.0, 29.5), (one("C8", "VDCIN")[0], 29.5)], 0.6, B, "VDCIN")
+via(one("C8", "VDCIN")[0], 29.5, "VDCIN")
+path([(one("C8", "VDCIN")[0], 29.5), one("C8", "VDCIN")], 0.6, F, "VDCIN")
 
 # --------------------------------------------------------------------- SW ---
-path([one("L1", "SW"), (85.08, 14.4), (79.4, 14.4), (79.4, 15.5),
-      one("U2", "SW")], 0.9, F, "SW")
-u2sw = pads_on("U2", "SW")
-path([u2sw[0], (u2sw[0][0], 14.4), (79.4, 14.4)], 0.6, F, "SW")
-path([(79.4, 14.4), (79.4, 20.8), (one("D2", "SW")[0], 20.8),
-      one("D2", "SW")], 0.9, F, "SW")
+l1sw, d2sw = one("L1", "SW"), one("D2", "SW")
+u2sw = sorted(pads_on("U2", "SW"))
+path([l1sw, (l1sw[0], 6.0), (d2sw[0], 6.0), d2sw], 0.9, F, "SW")
+via(91.5, 6.0, "SW")
+path([(91.5, 6.0), (91.5, 16.5), (84.14, 16.5)], 0.8, B, "SW")
+via(84.14, 16.5, "SW")
+path([(84.14, 16.5), (u2sw[0][0], 16.5)], 0.7, F, "SW")
+path([(84.14, 16.5), (u2sw[1][0], 16.5)], 0.7, F, "SW")
+for p in u2sw:
+    path([(p[0], 16.5), p], 0.7, F, "SW")
 
 # ----------------------------------------------------------------- VBOOST ---
-SPINE = 25.0
-d2k = one("D2", "VBOOST")
-c9v = one("C9", "VBOOST")
-path([d2k, (70.5, d2k[1]), (70.5, 19.0), (81.0, 19.0), (81.0, c9v[1]), c9v],
-     1.0, F, "VBOOST")
-via(81.0, 19.0, "VBOOST")
-path([(81.0, 19.0), (88.0, 19.0), (88.0, 26.83), one("R8", "VBOOST")],
-     0.6, B, "VBOOST")
-via(one("R8", "VBOOST")[0], 26.83, "VBOOST")
-path([(88.0, 26.83), (88.0, 30.33), one("JP1", "VBOOST")], 0.6, B, "VBOOST")
-via(one("JP1", "VBOOST")[0], 30.33, "VBOOST")
-path([d2k, (70.5, d2k[1]), (70.5, SPINE)], 1.6, F, "VBOOST")
-path([(9.0, SPINE), (74.0, SPINE)], 2.5, F, "VBOOST")
+SPINE = 26.0
+d2k, c9v = one("D2", "VBOOST"), one("C9", "VBOOST")
+path([d2k, (98.0, d2k[1]), (98.0, c9v[1]), c9v], 1.0, F, "VBOOST")
+path([(98.0, one("JP1", "VBOOST")[1]), one("JP1", "VBOOST")], 0.6, F, "VBOOST")
+path([(98.0, c9v[1]), (98.0, 27.5), (76.0, 27.5), (76.0, SPINE)],
+     1.2, F, "VBOOST")
+path([one("DRIVER", "VBOOST"), (one("DRIVER", "VBOOST")[0], 27.5)],
+     1.2, F, "VBOOST")
+path([one("R8", "VBOOST"), (one("R8", "VBOOST")[0], 27.5)], 0.6, F, "VBOOST")
+path([(13.0, SPINE), (76.0, SPINE)], 2.5, F, "VBOOST")
 for ref in ("C2", "C3", "C4"):
     x, y = one(ref, "VBOOST")
     path([(x, y), (x, SPINE)], 2.5, F, "VBOOST")
-dv = one("DRIVER", "VBOOST")
-path([dv, (dv[0], SPINE)], 1.6, F, "VBOOST")
-path([one("U1", "VBOOST"), (52.9, 28.0), (52.9, SPINE)], 0.6, F, "VBOOST")
-path([one("R4", "VBOOST"), (48.47, 32.6), (45.0, 32.6), (45.0, SPINE)],
-     0.5, F, "VBOOST")
+path([one("U1", "VBOOST"), (53.0, SPINE)], 0.6, F, "VBOOST")
+path([one("R4", "VBOOST"), (44.0, 35.5), (44.0, SPINE)], 0.5, F, "VBOOST")
 
 # --------------------------------------------------------------------- FB ---
-fb_u2 = one("U2", "FB")
-path([fb_u2, (71.4, fb_u2[1]), (71.4, 11.6), (one("R9", "FB")[0], 11.6),
-      one("R9", "FB")], 0.4, F, "FB")
-path([one("R9", "FB"), (one("R9", "FB")[0], 5.6), (one("R12", "FB")[0], 5.6),
-      one("R12", "FB")], 0.4, F, "FB")
-path([one("R8", "FB"), (79.6, 26.83), (79.6, 22.0)], 0.4, F, "FB")
-via(79.6, 22.0, "FB")
-path([(79.6, 22.0), (79.6, 11.6), (71.4, 11.6)], 0.4, B, "FB")
-via(71.4, 11.6, "FB")
+fb = one("U2", "FB")
+path([fb, (80.4, fb[1] + 1.2)], 0.4, F, "FB")
+via(80.4, fb[1] + 1.2, "FB")
+path([(80.4, fb[1] + 1.2), (74.5, fb[1]), (74.5, one("R9", "FB")[1])], 0.4, B, "FB")
+via(74.5, one("R9", "FB")[1], "FB")
+path([(74.5, one("R9", "FB")[1]), one("R9", "FB")], 0.4, F, "FB")
+path([(74.5, fb[1]), (74.5, one("R8", "FB")[1])], 0.4, B, "FB")
+via(74.5, one("R8", "FB")[1], "FB")
+path([(74.5, one("R8", "FB")[1]), one("R8", "FB")], 0.4, F, "FB")
+path([(74.5, one("R9", "FB")[1]), (74.5, one("R12", "FB")[1]),
+      (one("R12", "FB")[0], one("R12", "FB")[1])], 0.4, B, "FB")
 
 # --------------------------------------------------------------------- EN ---
-en_u2 = one("U2", "EN")
-path([en_u2, (78.4, en_u2[1]), (78.4, 9.0), one("R11", "EN")], 0.4, F, "EN")
-path([one("R10", "EN"), (80.6, 23.83), (80.6, 21.4), (78.4, 21.4)],
-     0.4, F, "EN")
-via(78.4, 21.4, "EN")
-path([(78.4, 21.4), (66.0, 29.4), (one("TELE", "EN")[0], 29.4)], 0.4, B, "EN")
-via(one("TELE", "EN")[0], 29.4, "EN")
-path([(one("TELE", "EN")[0], 29.4), one("TELE", "EN")], 0.4, F, "EN")
+en = one("U2", "EN")
+path([en, (en[0], 22.2), (79.5, 22.2), one("R11", "EN")], 0.4, F, "EN")
+via(79.5, 22.2, "EN")
+path([(79.5, 22.2), (79.5, 31.0), (one("R10", "EN")[0], 31.0)], 0.4, B, "EN")
+via(one("R10", "EN")[0], 31.0, "EN")
+path([(79.5, 31.0), (one("TELE", "EN")[0], 31.5)], 0.4, B, "EN")
+via(one("TELE", "EN")[0], 31.5, "EN")
+path([(one("TELE", "EN")[0], 31.5), one("TELE", "EN")], 0.4, F, "EN")
 
 # --------------------------------------------------------- D7 pass-through ---
 D7BACK = 33.4
@@ -191,39 +188,39 @@ for ref in ("PANEL", "DRIVER"):
     via(x, D7BACK, "D7")
 path([(one("PANEL", "D7")[0], D7BACK), (one("DRIVER", "D7")[0], D7BACK)],
      0.8, B, "D7")
-via(46.0, D7LANE, "D7")
-path([(46.0, D7LANE), (46.0, 21.0), (57.0, 21.0), (57.0, D7BACK)],
-     0.6, B, "D7")
+via(one("D1", "D7")[0], D7LANE, "D7")
+path([(one("D1", "D7")[0], D7LANE), (49.5, 20.0), (49.5, D7BACK)], 0.6, B, "D7")
 
 # ------------------------------------------------------------- RECVR chain ---
-d0 = one("RECVR", "BTNP")
-path([d0, (d0[0], d0[1] + 1.8), (one("R7", "BTNP")[0], d0[1] + 1.8),
-      one("R7", "BTNP")], 0.5, F, "BTNP")
+d0, r7b = one("RECVR", "BTNP"), one("R7", "BTNP")
+path([d0, (d0[0], 33.9), (r7b[0], 33.9), r7b], 0.4, F, "BTNP")
 na = one("R7", "NETA")
-path([na, (na[0], 27.0)], 0.5, F, "NETA")
-via(na[0], 27.0, "NETA")
-path([(na[0], 27.0), (23.0, 27.0), (23.0, 13.4)], 0.5, B, "NETA")
-via(23.0, 13.4, "NETA")
-path([(23.0, 13.4), (one("SW1", "NETA")[0], 13.4), one("SW1", "NETA")],
+path([na, (28.0, na[1])], 0.5, F, "NETA")
+via(28.0, na[1], "NETA")
+path([(28.0, na[1]), (16.0, 24.0), (16.0, 6.6)], 0.5, B, "NETA")
+via(16.0, 6.6, "NETA")
+path([(16.0, 6.6), (one("SW1", "NETA")[0], 6.6), one("SW1", "NETA")],
      0.5, F, "NETA")
 
 # --------------------------------------------------------------- LDO / 5V ---
-path([one("U1", "P5V"), one("C7", "P5V")], 0.5, F, "P5V")
-p5 = one("RECVR", "P5V")
-path([one("C7", "P5V"), (one("C7", "P5V")[0], 33.8), (p5[0], 33.8), p5],
-     0.5, F, "P5V")
+u1p, c7p, p5 = one("U1", "P5V"), one("C7", "P5V"), one("RECVR", "P5V")
+path([u1p, (47.0, u1p[1])], 0.5, F, "P5V")
+via(47.0, u1p[1], "P5V")
+path([(47.0, u1p[1]), (42.6, c7p[1])], 0.5, B, "P5V")
+via(42.6, c7p[1], "P5V")
+path([(42.6, c7p[1]), c7p], 0.5, F, "P5V")
+path([(42.6, c7p[1]), (42.6, 31.8), (p5[0], 31.8)], 0.5, B, "P5V")
+via(p5[0], 31.8, "P5V")
+path([(p5[0], 31.8), p5], 0.5, F, "P5V")
 
 # ------------------------------------------------------------------- VSNS ---
-r4s = one("R4", "VSNS")
-path([r4s, one("R5", "VSNS")], 0.4, F, "VSNS")
-path([one("R5", "VSNS"), one("C5", "VSNS")], 0.4, F, "VSNS")
-path([r4s, (r4s[0], 38.9), (one("TELE", "VSNS")[0], 38.9),
-      one("TELE", "VSNS")], 0.4, F, "VSNS")
+r4s, r5s, c5s = one("R4", "VSNS"), one("R5", "VSNS"), one("C5", "VSNS")
+path([r4s, (49.7, r4s[1]), (49.7, r5s[1]), r5s], 0.4, F, "VSNS")
+path([r5s, c5s, one("TELE", "VSNS")], 0.4, F, "VSNS")
 
 # ------------------------------------------------------------------- GND ---
-# parts hugging an edge get an explicit inward push so the via never lands on
-# the top VDCIN rail or the bottom VSNS run
-FORCED = {"R3": (0, 1), "D1": (0, 1), "R5": (0, -1), "C5": (0, -1)}
+FORCED = {"R3": (1, 0), "D1": (1, 0), "R5": (0, 1), "C5": (0, 1),
+          "C9": (-1, 0), "R12": (1, 0), "U1": (2, -1), "C5": (1, 0)}
 for ref in ("SW1", "R3", "D1", "C7", "U1", "R5", "C5", "C8", "C9", "R9",
             "R11", "U2", "R12", "PANEL", "DRIVER", "RECVR", "C2", "C3", "C4"):
     if pads_on(ref, "GND"):
