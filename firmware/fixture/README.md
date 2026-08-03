@@ -15,6 +15,15 @@ core-0-pinned tasks under WiFi) plus the 2026-07-29 blocking-driver lesson
 is forbidden on this bus). All Wire1 traffic runs at 100 kHz from loop context.
 Revisit tasks only if render jitter is measured, and never for power-bus I2C.
 
+> 2026-07-30 amendment (ADR 0028 addendum): rule 3 is downgraded -- the sealed
+> A/B + 46 h soak both ran power-bus I2C from a core-0 task at 100 kHz, so the
+> clock, not core placement, is the load-bearing rule. A single-owner sensor
+> task (presence_bench shape, ALL Wire1 in one task) is now permitted pending
+> a pre-playa field soak. Motivation is measured art quality: sensor-to-LED
+> latency drives how alive the demo feels, and loop bursts visibly stutter
+> max-speed orbit/spiral. Peer-to-peer CA impact TBD. The cooperative loop
+> stays the shipping architecture until a task build earns its field hours.
+
 ## Layout
 
 ```

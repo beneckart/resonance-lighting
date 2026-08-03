@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-29.3"
+#define STUDIO_VERSION "led-studio-2026-07-30.6"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
@@ -30,6 +30,15 @@
 #include <Adafruit_MSA301.h>
 #include <Adafruit_BMP5xx.h>
 #include <SparkFun_TMF882X_Library.h>
+#endif
+#ifndef STUDIO_L5CX
+#define STUDIO_L5CX 0 // perimeter-enclosure build: VL53L5CX presence -> HEX gobo demo
+#endif
+#if STUDIO_L5CX
+// Vendored copy of the fixture's trimmed ULD (see src/vl53l5cx_uld/VENDORED.md):
+// NB_TARGET_PER_ZONE=2 (results arrays index zone*2+target), extra outputs
+// disabled to keep the per-frame read short on the shared 100 kHz Wire1.
+#include "src/vl53l5cx_uld/SparkFun_VL53L5CX_Library.h"
 #endif
 #define NUMPIXELS 37 // HEX max; RGBW mode uses length 1
 #define CENTER 18
@@ -77,6 +86,10 @@ bool gPfReady = false; // SDK up -> /state carries battery stats (SOC matters fo
 
 WebServer server(80);
 
+// Per-device hostname/mDNS name: two studio boards on one LAN both claiming
+// "ledstudio.local" made browser control land on the wrong unit (2026-07-30).
+char gHostname[24] = "ledstudio";
+
 // ---- Modes & animations ----------------------------------------------------
 enum Mode { MODE_HEX = 0, MODE_RGBW = 1, MODE_RGB = 2 };
 // HEX anims:      0 static, 1 spiral, 2 orbit, 3 breathe, 4 twinkle  (+ Split modifier)
@@ -93,9 +106,17 @@ uint8_t gAnim = 0; // index within the current mode's animation set
 
 // ---- Shared color state ----------------------------------------------------
 uint8_t gR = 255, gG = 140, gB = 40, gW = 0; // warm amber default; W = RGBW only
+#if STUDIO_L5CX
+// Perimeter HEX demo: hex lumens are low next to the 4 W RGBW point source, so
+// boot pinned to full brightness with the perceptual ramp off (Ben 2026-07-30).
+uint8_t gBri = 255;
+uint8_t gSpeed = 30;
+bool gGamma = false;
+#else
 uint8_t gBri = 40;
 uint8_t gSpeed = 30;
 bool gGamma = true;
+#endif
 
 // ---- HEX state -------------------------------------------------------------
 uint8_t gShape = 1;     // 0 center, 1 +ring1, 2 +ring1+2, 3 all
@@ -393,6 +414,261 @@ void sensorTriadInit() {}
 void sensorTriadTick() {}
 #endif
 
+#if STUDIO_L5CX
+// ---- VL53L5CX presence (perimeter demo) ------------------------------------
+// Loop-idiom port of sway_demo's proven tofInit/tofApply/tofTick (that sketch's
+// loop-context L5CX is the sanctioned pattern; presence_bench's core-0 task
+// quarantine is forbidden on this bus). The only multi-second call is begin()'s
+// firmware upload, which runs in setup() BEFORE the web server exists; a begin()
+// against an absent device NACKs fast. In-session recovery uses only the quick
+// stop/config/start l5cxApply() path (2026-07-29 lesson: never block the UI on
+// sensor calls from loop()). All access single-threaded on Wire1 at 100 kHz.
+#define L5CX_RES 4
+#define L5CX_ZONES (L5CX_RES * L5CX_RES)
+#define L5CX_HZ 10        // sway_demo's proven 4x4 @ 10 Hz operating point
+#define L5CX_FLOOR_MM 35  // enclosure window near-field return (~20 mm) sits below this
+#define L5CX_CEIL_MM 3500
+#define L5CX_HYST_MM 40
+// Depth-driven interaction (2026-07-30 v2, Ben's spec): the piece idles RED and
+// walks the ROYGBIV wheel as a visitor nears -- hue = (max - depth)/(max - min)
+// -- while the gobo stays a near-touch surprise gated by the thresh slider.
+// Visitor depth is measured AGAINST the learned scene (anomaly = zone reads
+// closer than baseline by max(200 mm, 20%)), so static clutter reads as empty
+// and someone is tracked from max range the moment they enter the FoV. Gobo
+// triggers: near (<= thresh) OR occlusion (>=60% of baseline-valid zones lose
+// their target -- a palm covering the window returns non-valid statuses).
+// Baselines: unset zones act as a FAR sentinel (a person in a previously empty
+// zone is anomalous immediately -- v1 seeded their entry point and popped the
+// gobo at 1.6 m); adaptation is asymmetric (revealed-farther adapts fast,
+// closer adapts on a ~1 min tau so a lingering visitor slowly fades back to
+// scene; Re-zero for instant fixes) and pauses entirely during presence.
+#define L5CX_ANOM_MIN_MM 200
+#define L5CX_FAR_SENTINEL_MM 4000.0f
+#define L5CX_COLOR_MAX_MM 2500.0f
+#define L5CX_OCCL_MIN_BASE 6
+SparkFun_VL53L5CX gVl;
+bool gVlPresent = false, gVlRanging = false;
+uint32_t gVlRetryAtMs = 0, gVlLastFrameMs = 0;
+uint32_t gVlReads = 0, gVlErrors = 0;
+int16_t gVlClosestMm = 0;        // closest valid scene target (0 = clear)
+int16_t gVlZoneMm[L5CX_ZONES];   // per-zone closest valid target (-1 = none)
+float gVlBaseMm[L5CX_ZONES];     // learned static scene (-1 = unset/far)
+uint32_t gVlBaseFastUntilMs = 0; // fast-seed window after (re)zero
+uint16_t gPresenceThreshMm = 500; // gobo threshold; /set?thresh= (40..600).
+// 500 mm default from dad-testing 2026-07-30: visitors step right up to the
+// piece but don't know where the sensor is, so arm's-length pops the surprise.
+bool gPresence = false;
+uint8_t gPresenceWhy = 0; // bit0 near, bit2 occlusion (last hit)
+uint8_t gPresenceHits = 0, gPresenceMisses = 0;
+int16_t gVlVisitorMm = -1; // closest anomalous (closer-than-scene) target
+float gColorT = 0.0f;      // smoothed 0..1 rainbow position (0 = red/idle)
+
+void l5cxZeroScene() {
+  for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+    gVlBaseMm[z] = -1.0f;
+    gVlZoneMm[z] = -1;
+  }
+  gVlBaseFastUntilMs = millis() + 3000;
+}
+
+bool l5cxApply() {
+  // Only stop if actually ranging: stop_ranging on a fresh device hangs on an
+  // MCU-stop bit that never asserts (see src/vl53l5cx_uld/VENDORED.md).
+  if (gVlRanging) {
+    gVl.stopRanging();
+    gVlRanging = false;
+  }
+  if (!gVl.setResolution(L5CX_ZONES)) { Serial.println("[l5cx] setResolution FAILED"); return false; }
+  if (!gVl.setRangingFrequency(L5CX_HZ)) { Serial.println("[l5cx] setRangingFrequency FAILED"); return false; }
+  gVlRanging = gVl.startRanging();
+  if (!gVlRanging) Serial.println("[l5cx] startRanging FAILED");
+  gVlLastFrameMs = millis();
+  // Arm the fast-seed window from RANGING START, not init entry: begin()'s
+  // multi-second fw upload otherwise eats the window before the first frame,
+  // and the scene gets learned from the FAR sentinel at the ~1 min tau
+  // (observed on .4 first boot: baseline ~3.7 m over a 1.2 m garage).
+  if (gVlRanging) gVlBaseFastUntilMs = millis() + 3000;
+  return gVlRanging;
+}
+
+void l5cxInit() {
+  Wire1.begin();
+  Wire1.setClock(100000);
+  l5cxZeroScene();
+  uint32_t t0 = millis();
+  Serial.println("[l5cx] VL53L5CX begin (fw blob upload over 100 kHz I2C, several s)...");
+  if (!gVl.begin(0x29, Wire1)) {
+    Serial.println("[l5cx] begin FAILED (absent/unpowered? retry in 30 s)");
+    gVlPresent = false;
+    gVlRetryAtMs = millis() + 30000;
+    return;
+  }
+  gVl.setWireMaxPacketSize(124); // ESP32 Wire buffer is 128
+  gVlPresent = true;
+  bool ok = l5cxApply();
+  Serial.printf("[l5cx] up in %lu ms: %dx%d @ %d Hz, presence <= %u mm (+%u hyst)\n",
+                (unsigned long)(millis() - t0), L5CX_RES, L5CX_RES, L5CX_HZ,
+                gPresenceThreshMm, (unsigned)L5CX_HYST_MM);
+  if (!ok) gVlRetryAtMs = millis() + 30000;
+}
+
+void l5cxTick() {
+  uint32_t now = millis();
+  if (!gVlPresent || !gVlRanging) {
+    if (gVlRetryAtMs && now >= gVlRetryAtMs) {
+      gVlRetryAtMs = 0;
+      l5cxInit(); // absent device NACKs in ms; full upload only on real recovery
+    }
+    return;
+  }
+  static uint32_t nextPollMs = 0;
+  if (now < nextPollMs) return;
+  nextPollMs = now + 1000 / L5CX_HZ / 2; // poll at 2x frame rate for low latency
+  Wire1.setClock(100000);
+  if (now - gVlLastFrameMs > 5000) { // sway_demo-style self-heal: quick re-apply
+    Serial.println("[l5cx] ranging stalled -> re-apply");
+    if (!l5cxApply()) {
+      gVlErrors++;
+      gVlRetryAtMs = now + 30000;
+    }
+    return;
+  }
+  if (!gVl.isDataReady()) return;
+  static VL53L5CX_ResultsData results;
+  if (!gVl.getRangingData(&results)) {
+    gVlErrors++;
+    return;
+  }
+  gVlLastFrameMs = now;
+  gVlReads++;
+  int16_t closest = 0;
+  for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+    uint8_t nt = results.nb_target_detected[z];
+    if (nt > VL53L5CX_NB_TARGET_PER_ZONE) nt = VL53L5CX_NB_TARGET_PER_ZONE;
+    int16_t zoneBest = -1;
+    for (uint8_t t = 0; t < nt; t++) {
+      uint16_t i = z * VL53L5CX_NB_TARGET_PER_ZONE + t;
+      uint8_t st = results.target_status[i];
+      int16_t d = results.distance_mm[i];
+      if ((st != 5 && st != 9) || d < L5CX_FLOOR_MM || d > L5CX_CEIL_MM) continue;
+      if (zoneBest < 0 || d < zoneBest) zoneBest = d;
+      if (!closest || d < closest) closest = d;
+    }
+    gVlZoneMm[z] = zoneBest;
+  }
+  gVlClosestMm = closest;
+
+  // Visitor depth = closest target that is anomalous vs the learned scene
+  // (unset zones count as FAR, so a person entering an empty sightline is
+  // anomalous immediately, from max range). Static clutter is scene, not visitor.
+  uint8_t why = 0;
+  uint8_t nBaseValid = 0, nLost = 0;
+  int16_t visitor = -1;
+  for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+    float base = gVlBaseMm[z] > 0 ? gVlBaseMm[z] : L5CX_FAR_SENTINEL_MM;
+    int16_t cur = gVlZoneMm[z];
+    if (gVlBaseMm[z] > 0) {
+      nBaseValid++;
+      if (cur < 0) nLost++;
+    }
+    if (cur >= 0) {
+      float margin = base * 0.20f;
+      if (margin < L5CX_ANOM_MIN_MM) margin = L5CX_ANOM_MIN_MM;
+      if ((float)cur < base - margin && (visitor < 0 || cur < visitor))
+        visitor = cur;
+    }
+  }
+  gVlVisitorMm = visitor;
+  // Near tests the VISITOR (anomalous-vs-scene), not the raw closest return:
+  // at a 500 mm gobo zone, static clutter inside the threshold must not pin
+  // the gobo on. A partially-covering palm is anomalous and still fires here;
+  // a fully-covering palm fires occlusion below.
+  if (visitor >= 0 && visitor <= (int16_t)(gPresence ? gPresenceThreshMm + L5CX_HYST_MM
+                                                     : gPresenceThreshMm))
+    why |= 1;
+  if (nBaseValid >= L5CX_OCCL_MIN_BASE && nLost * 10 >= nBaseValid * 6) why |= 4;
+
+  // Rainbow position: red (0) when the scene is empty, toward violet as the
+  // visitor closes on the gobo threshold -- t = (max - depth)/(max - min).
+  float target = 0.0f;
+  if (gPresence) {
+    target = 1.0f; // hold the top of the wheel under the gobo
+  } else if (visitor >= 0) {
+    float mind = (float)gPresenceThreshMm;
+    target = (L5CX_COLOR_MAX_MM - (float)visitor) / (L5CX_COLOR_MAX_MM - mind);
+    if (target < 0.0f) target = 0.0f;
+    if (target > 1.0f) target = 1.0f;
+  }
+  // Track toward the target fast, decay back to red gently when they leave.
+  // Snap, don't sweep, into the gobo: while a trigger is confirming (why set,
+  // presence not yet latched) the wheel HOLDS -- a hand appearing suddenly
+  // from the blind spot otherwise zips the full rainbow for ~300 ms before
+  // the white snap. Ben 2026-07-30: leaning snap but undecided -- delete the
+  // `!why` guard to bring the zip back.
+  float prevT = gColorT;
+  if (gPresence) {
+    gColorT = 1.0f; // hold violet under the white; release decays from the top
+  } else if (!why) {
+    float alpha = target > gColorT ? 0.45f : 0.12f;
+    gColorT += alpha * (target - gColorT);
+  }
+
+  // Scene learning: asymmetric. Revealed-farther adapts fast (an occluder
+  // left); closer adapts on a ~1 min tau (a lingering visitor slowly becomes
+  // scenery and the piece fades back to red); frozen entirely during presence.
+  // Fast-seed window after boot/Re-zero captures the true empty scene.
+  if (!gPresence) {
+    bool fastSeed = millis() < gVlBaseFastUntilMs;
+    for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+      int16_t cur = gVlZoneMm[z];
+      if (cur < 0) continue;
+      if (fastSeed) {
+        gVlBaseMm[z] = gVlBaseMm[z] <= 0 ? (float)cur
+                                         : gVlBaseMm[z] + 0.5f * ((float)cur - gVlBaseMm[z]);
+        continue;
+      }
+      float base = gVlBaseMm[z] > 0 ? gVlBaseMm[z] : L5CX_FAR_SENTINEL_MM;
+      // Closer-alpha 0.002 = a ~1 min tau: a perfectly still visitor slowly
+      // fades the piece back to red. Ben likes this (2026-07-30) and it keeps
+      // the baseline self-healing; if Nevada City opinions prefer stationary
+      // visitors to hold their color indefinitely, set the closer alpha to 0
+      // (people never absorb; Re-zero then handles real scene changes).
+      float a = (float)cur > base ? 0.2f : 0.002f;
+      gVlBaseMm[z] = base + a * ((float)cur - base);
+    }
+  }
+
+  // Gobo: enter after 2 consecutive hit-frames (~200 ms), release after 3
+  // consecutive clear frames; near path keeps +hyst while held.
+  bool prior = gPresence;
+  if (!gPresence) {
+    gPresenceHits = why ? (uint8_t)(gPresenceHits + 1) : 0;
+    if (gPresenceHits >= 2) {
+      gPresence = true;
+      gPresenceMisses = 0;
+    }
+  } else {
+    gPresenceMisses = why ? 0 : (uint8_t)(gPresenceMisses + 1);
+    if (gPresenceMisses >= 3) {
+      gPresence = false;
+      gPresenceHits = 0;
+    }
+  }
+  if (why) gPresenceWhy = why;
+  // Latency is the art (Ben 2026-07-30): render at sensor rate on any material
+  // change -- gobo transitions and visible color motion -- instead of waiting
+  // out the speed-paced frame timer.
+  if ((gPresence != prior || fabsf(gColorT - prevT) > 0.01f) &&
+      gMode == MODE_HEX && gAnim == 5 && !gFrozen) {
+    lastFrame = millis();
+    renderFrame();
+  }
+}
+#else
+void l5cxInit() {}
+void l5cxTick() {}
+#endif
+
 // ---- HEX rendering ---------------------------------------------------------
 void setPxHex(uint16_t i, float factor) {
   if (factor < 0) factor = 0;
@@ -534,6 +810,37 @@ void renderFrameHex() {
       strip.show();
       break;
     }
+#if STUDIO_L5CX
+    case 5: { // Presence: depth-driven ROYGBIV on all 37 px <-> center-white gobo.
+      // Idles pure red; gColorT (0..1, from visitor depth vs the learned scene)
+      // walks R->O->Y->G->B->I->V as they close on the gobo threshold.
+      if (gPresence) {
+        for (uint16_t i = 0; i < NUMPIXELS; i++) strip.setPixelColor(i, 0);
+        uint8_t v = gam(gBri); // white pinned to the brightness slider (255 default)
+        strip.setPixelColor(CENTER, v, v, v);
+        lastLit = CENTER;
+        strip.show();
+        break;
+      }
+      static const uint8_t RB[7][3] = {{255, 0, 0},  {255, 127, 0}, {255, 255, 0},
+                                       {0, 255, 0},  {0, 0, 255},   {75, 0, 130},
+                                       {148, 0, 211}};
+      float phase = gColorT * 6.0f;
+      if (phase > 5.999f) phase = 5.999f;
+      uint8_t k = (uint8_t)phase;
+      float f = phase - k;
+      uint8_t cr = (uint8_t)(RB[k][0] + (int)((RB[k + 1][0] - RB[k][0]) * f));
+      uint8_t cg = (uint8_t)(RB[k][1] + (int)((RB[k + 1][1] - RB[k][1]) * f));
+      uint8_t cb = (uint8_t)(RB[k][2] + (int)((RB[k + 1][2] - RB[k][2]) * f));
+      float s = (float)gBri / 255.0f;
+      uint8_t pr = gam((uint8_t)(cr * s)), pg = gam((uint8_t)(cg * s)),
+              pb = gam((uint8_t)(cb * s));
+      for (uint16_t i = 0; i < NUMPIXELS; i++) strip.setPixelColor(i, pr, pg, pb);
+      lastLit = CENTER;
+      strip.show();
+      break;
+    }
+#endif
     default:
       break;
   }
@@ -650,7 +957,12 @@ void applyMode() {
 }
 
 bool isAnimating() {
+#if STUDIO_L5CX
+  // Anim 5 (presence) must keep rendering every frame to track the sensor.
+  if (gMode == MODE_HEX) return gAnim >= 1 && gAnim <= 5 && !gFrozen;
+#else
   if (gMode == MODE_HEX) return gAnim >= 1 && gAnim <= 4 && !gFrozen;
+#endif
 #if STUDIO_SENSOR_TRIAD
   return gAnim >= 1 && gAnim <= 7;
 #else
@@ -733,7 +1045,13 @@ const char PAGE[] PROGMEM = R"HTML(<!doctype html><html><head>
  <button id=ah2 onclick="anim(2)">Orbit</button>
  <button id=ah3 onclick="anim(3)">Breathe</button>
  <button id=ah4 onclick="anim(4)">Twinkle</button>
+ <button id=ah5 onclick="anim(5)" style="display:none">Presence</button>
 </div></div>
+<div class=row id=thRow style="display:none"><label>Gobo threshold (mm) <span id=thl>500</span></label>
+ <input type=range id=th min=40 max=600 value=500 oninput="ch('thresh',this.value);thl.textContent=this.value"></div>
+<div class=row id=zoneRow style="display:none"><label>L5CX zones, mm (red=near, orange=closer than scene, dark red=lost vs scene) <span id=whyl></span></label>
+ <div id=zgrid style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px"></div>
+ <div class=btns style="margin-top:6px"><button onclick="send('zero_scene=1')">Re-zero scene</button></div></div>
 <div class=row><label>Split RGB (applies to Static / Spiral / Orbit / Breathe)</label><div class=btns>
  <button id=sp0 onclick="splitMode(0)">Off</button>
  <button id=sp1 onclick="splitMode(1)">Triad</button>
@@ -811,8 +1129,8 @@ function applyModeUI(m){
  document.getElementById('wrow').style.display=(m==1?'':'none');
  document.getElementById('sensorUI').className=(m==1&&st.triad?'':'hide');
 }
-function mode(m){st.mode=m;st.anim=0;send('mode='+m);applyModeUI(m);hl('ah',0,5);hl('ar',0,8);}
-function anim(n){st.anim=n;send('anim='+n);hl(st.mode==0?'ah':'ar',n,st.mode==0?5:8);}
+function mode(m){st.mode=m;st.anim=0;send('mode='+m);applyModeUI(m);hl('ah',0,6);hl('ar',0,8);}
+function anim(n){st.anim=n;send('anim='+n);hl(st.mode==0?'ah':'ar',n,st.mode==0?6:8);}
 function splitMode(n){st.split=n;send('split='+n);hl('sp',n,3);}
 function shape(n){st.shape=n;send('shape='+n);hl('sh',n,4);}
 function setCol(hex){let r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16);
@@ -838,15 +1156,30 @@ function refresh(){
  refreshing=true;
  let t0=performance.now();
  fetch('/state',{cache:'no-store'}).then(r=>r.json()).then(s=>{Object.assign(st,s);applyModeUI(st.mode);
- let an=st.mode==0?['static','spiral','orbit','breathe','twinkle','split'][s.anim]
+ let an=st.mode==0?['static','spiral','orbit','breathe','twinkle','presence'][s.anim]
                   :['static','hue','breathe','candle','fade','ToF depth','tilt','elevation'][s.anim];
- hl(st.mode==0?'ah':'ar',st.anim,st.mode==0?5:8);
+ hl(st.mode==0?'ah':'ar',st.anim,st.mode==0?6:8);
+ let ah5=document.getElementById('ah5');if(ah5)ah5.style.display=s.l5cx?'':'none';
+ let thr=document.getElementById('thRow');if(thr)thr.style.display=(s.l5cx&&st.mode==0)?'':'none';
+ let zrow=document.getElementById('zoneRow');if(zrow)zrow.style.display=(s.l5cx&&st.mode==0)?'':'none';
+ if(s.l5cx&&s.zmm){let zg=document.getElementById('zgrid');
+  if(!zg.childElementCount)for(let i=0;i<16;i++){let d=document.createElement('div');
+   d.style.cssText='padding:6px 2px;text-align:center;border-radius:4px;background:#222;font-family:monospace;font-size:12px';zg.appendChild(d);}
+  for(let i=0;i<16;i++){let c=zg.children[i],v=s.zmm[i],b=s.zbase[i],bg='#222';
+   if(v<0){bg=b>0?'#411':'#222';}
+   else if(v<=s.thresh_mm){bg='#a22';}
+   else if(b>0&&v<b-Math.max(200,b*0.2)){bg='#a62';}
+   else{bg='#131';}
+   c.style.background=bg;c.textContent=v<0?'-':v;}
+  whyl.textContent=(s.presence?'GOBO':'idle')+' '+((s.why&1)?'[near]':'')+((s.why&4)?'[occlusion]':'')+
+   '  visitor='+(s.visitor_mm>=0?s.visitor_mm+'mm':'none')+'  wheel='+s.ct+'%';}
  rb.textContent='mode='+['HEX','RGBW','RGB'][st.mode]+'  anim='+an+
   '\nrgb'+(st.mode==1?'w':'')+'='+s.r+','+s.g+','+s.b+(st.mode==1?','+s.w:'')+'  hex=#'+hx(s.r)+hx(s.g)+hx(s.b)+
   '\nbri='+s.bri+'  gamma='+(s.gamma?'on':'off')+'  speed='+s.speed+
   (st.mode==0?'\nshape='+['center','+ring1','+ring2','all'][s.shape]+'  lit='+s.lit+
     (s.split?'  split='+['off','triad','rotate'][s.split]+'[anchor='+s.anchor+(s.split==1?' spread='+(st.spread/10).toFixed(1)+' rot='+st.rotate:'')+']':''):
-    '\ncolorB=#'+hx(st.b2r)+hx(st.b2g)+hx(st.b2b));
+    '\ncolorB=#'+hx(st.b2r)+hx(st.b2g)+hx(st.b2b))+
+  (s.l5cx?'\nl5cx '+(s.l5cx_ok?((s.closest_mm?s.closest_mm+' mm':'clear')+'  presence='+s.presence+'  thresh='+s.thresh_mm+' mm'):'DOWN (reads '+s.l5cx_reads+', errs '+s.l5cx_errors+')'):'');
  let bat=document.getElementById('bat');
  if(!s.pf){bat.textContent='no battery data (SDK init failed)';}
  else{let act=s.ma>30?('charging +'+s.ma+'mA'):(s.ma<-30?('discharging '+s.ma+'mA'):'idle ~'+s.ma+'mA');
@@ -860,7 +1193,7 @@ function refresh(){
   '\nTMF async '+(s.tmf_active?'measuring':'between shots')+
    ', age '+(s.tmf_reads?s.tmf_age_ms+' ms':'waiting')+', recoveries '+s.tmf_recoveries;}
  }).catch(e=>{net.textContent='request failed: '+e;}).finally(()=>{refreshing=false;});}
-applyModeUI(0);hl('sh',1,4);hl('ah',0,5);hl('sp',0,3);syncLabels();setInterval(refresh,600);refresh();
+applyModeUI(0);hl('sh',1,4);hl('ah',0,6);hl('sp',0,3);syncLabels();setInterval(refresh,600);refresh();
 </script></body></html>)HTML";
 
 void handleSet() {
@@ -874,6 +1207,11 @@ void handleSet() {
   if (server.hasArg("shape")) gShape = server.arg("shape").toInt();
   if (server.hasArg("trail")) gTrail = server.arg("trail").toInt();
   if (server.hasArg("ring")) gOrbitRing = server.arg("ring").toInt();
+#if STUDIO_L5CX
+  if (server.hasArg("thresh"))
+    gPresenceThreshMm = (uint16_t)constrain(server.arg("thresh").toInt(), 40, 600);
+  if (server.hasArg("zero_scene")) l5cxZeroScene();
+#endif
   if (server.hasArg("freeze")) gFrozen = server.arg("freeze").toInt() != 0;
   if (server.hasArg("spread")) gSpread = server.arg("spread").toInt() / 10.0f;
   if (server.hasArg("rotate")) gFringeAngle = server.arg("rotate").toInt() * 0.0174533f;
@@ -904,6 +1242,8 @@ void handleSet() {
     int requested = server.arg("anim").toInt();
 #if STUDIO_SENSOR_TRIAD
     gAnim = constrain(requested, 0, 7);
+#elif STUDIO_L5CX
+    gAnim = constrain(requested, 0, gMode == MODE_HEX ? 5 : 4);
 #else
     gAnim = constrain(requested, 0, 4);
 #endif
@@ -961,7 +1301,7 @@ void handleState() {
   uint8_t soc = gSoc;
   bool sgood = gSupGood;
   int32_t rssi = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
-  char buf[1100];
+  char buf[1400];
 #if STUDIO_SENSOR_TRIAD
   uint32_t tmfAgeMs =
       gTmfLastReadMs ? millis() - gTmfLastReadMs : UINT32_MAX;
@@ -987,6 +1327,31 @@ void handleState() {
            gTmfActive ? 1 : 0, (unsigned long)tmfAgeMs,
            (unsigned long)gTmfReads, (unsigned long)gTmfErrors,
            (unsigned long)gTmfRecoveries);
+#elif STUDIO_L5CX
+  char zmm[128], zbase[128];
+  {
+    size_t p = 0, q = 0;
+    for (uint8_t z = 0; z < L5CX_ZONES; z++) {
+      p += snprintf(zmm + p, sizeof(zmm) - p, "%s%d", z ? "," : "", (int)gVlZoneMm[z]);
+      q += snprintf(zbase + q, sizeof(zbase) - q, "%s%d", z ? "," : "",
+                    (int)(gVlBaseMm[z] > 0 ? gVlBaseMm[z] + 0.5f : -1));
+    }
+  }
+  snprintf(buf, sizeof(buf),
+           "{\"fw\":\"%s\",\"triad\":0,\"l5cx\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
+           "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
+           "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d,"
+           "\"l5cx_ok\":%d,\"closest_mm\":%d,\"visitor_mm\":%d,\"ct\":%d,"
+           "\"presence\":%d,\"why\":%u,\"thresh_mm\":%u,"
+           "\"zmm\":[%s],\"zbase\":[%s],"
+           "\"l5cx_reads\":%lu,\"l5cx_errors\":%lu}",
+           STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
+           gSpeed, gGamma ? 1 : 0, gShape, lastLit, gAnchor, gSplit,
+           (long)rssi, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
+           sgood ? 1 : 0, (gVlPresent && gVlRanging) ? 1 : 0, (int)gVlClosestMm,
+           (int)gVlVisitorMm, (int)(gColorT * 100.0f + 0.5f),
+           gPresence ? 1 : 0, gPresenceWhy, gPresenceThreshMm, zmm, zbase,
+           (unsigned long)gVlReads, (unsigned long)gVlErrors);
 #else
   snprintf(buf, sizeof(buf),
            "{\"fw\":\"%s\",\"triad\":0,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
@@ -1003,7 +1368,7 @@ void handleState() {
 void setupWifi() {
 #if HAVE_SECRETS
   WiFi.mode(WIFI_AP_STA);
-  WiFi.setHostname("ledstudio");
+  WiFi.setHostname(gHostname);
   WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
   Serial.print("WiFi connecting");
   uint32_t t0 = millis();
@@ -1065,12 +1430,22 @@ void setup() {
   strip.clear();
   strip.show();
   applyMode();
+#if STUDIO_L5CX
+  gAnim = 5; // boot straight into the presence interaction (applyMode zeroed it)
+#endif
   sensorTriadInit();
   sensorTriadTick();
+  l5cxInit();
+  {
+    // "ledstudio-<last 3 MAC bytes>", matching the fleet fixture_id suffix.
+    uint64_t mac = ESP.getEfuseMac();
+    snprintf(gHostname, sizeof(gHostname), "ledstudio-%02x%02x%02x",
+             (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
+  }
   setupWifi();
-  if (MDNS.begin("ledstudio")) { // http://ledstudio.local/ -- works on STA and the AP
+  if (MDNS.begin(gHostname)) { // per-device name -- works on STA and the AP
     MDNS.addService("http", "tcp", 80);
-    Serial.println("mDNS: http://ledstudio.local/");
+    Serial.printf("mDNS: http://%s.local/\n", gHostname);
   } else {
     Serial.println("mDNS start failed (use the IP)");
   }
@@ -1107,15 +1482,16 @@ void setup() {
         }
       });
   server.begin();
-  Serial.printf("%s ready (GPIO%d, sensor-triad=%d). HEX ring sizes %u/%u/%u/%u\n",
-                STUDIO_VERSION, DATA_PIN, STUDIO_SENSOR_TRIAD, ringSize[0],
-                ringSize[1], ringSize[2], ringSize[3]);
+  Serial.printf("%s ready (GPIO%d, sensor-triad=%d, l5cx=%d). HEX ring sizes %u/%u/%u/%u\n",
+                STUDIO_VERSION, DATA_PIN, STUDIO_SENSOR_TRIAD, STUDIO_L5CX,
+                ringSize[0], ringSize[1], ringSize[2], ringSize[3]);
   renderStatic();
 }
 
 void loop() {
   server.handleClient();
   sensorTriadTick();
+  l5cxTick();
   batteryTick();
   solarGuardTick();
   if (isAnimating() && millis() - lastFrame >= (uint32_t)(400 - (gSpeed - 1) * (375.0f / 99.0f))) {

@@ -14,7 +14,7 @@ set -euo pipefail
 
 FQBN="esp32:esp32:esp32s3_powerfeather"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT=""; OTA_IP=""; PIN=""; SENSOR_TRIAD=""; CAP=""; CHARGE_MA=""; MAINTAIN=""
+PORT=""; OTA_IP=""; PIN=""; SENSOR_TRIAD=""; L5CX=""; CAP=""; CHARGE_MA=""; MAINTAIN=""
 BUILD_NAME=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,6 +22,7 @@ while [[ $# -gt 0 ]]; do
     --ota) OTA_IP="$2"; shift 2;;
     --pin)  PIN="$2"; shift 2;;
     --sensor-triad) SENSOR_TRIAD="1"; shift;;
+    --l5cx) L5CX="1"; shift;;
     --cap) CAP="$2"; shift 2;;
     --charge-ma) CHARGE_MA="$2"; shift 2;;
     --maintain) MAINTAIN="$2"; shift 2;;
@@ -39,6 +40,7 @@ fi
 FLAGS="-DPOWERFEATHER_BOARD_V2=1" # SDK targets the V2 gauge/charger (LFP-safe charge profile)
 [[ -n "${PIN}" ]] && FLAGS+=" -DDATA_PIN=${PIN}"
 [[ -n "${SENSOR_TRIAD}" ]] && FLAGS+=" -DSTUDIO_SENSOR_TRIAD=1"
+[[ -n "${L5CX}" ]] && FLAGS+=" -DSTUDIO_L5CX=1"
 [[ -n "${CAP}" ]] && FLAGS+=" -DSTUDIO_BATTERY_MAH=${CAP}"
 [[ -n "${CHARGE_MA}" ]] && FLAGS+=" -DSTUDIO_CHARGE_MA=${CHARGE_MA}"
 [[ -n "${MAINTAIN}" ]] && FLAGS+=" -DSTUDIO_MAINTAIN_V=${MAINTAIN}"

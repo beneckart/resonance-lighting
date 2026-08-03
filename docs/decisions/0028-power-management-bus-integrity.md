@@ -62,6 +62,35 @@ Production rules, firmware and hardware:
   the reference of record; SYSTEM.md and `hardware/README.md` production-design
   rules mirror these four rules.
 
+## Addendum 2026-07-30 -- rule 3 downgraded to "unproven aggravator"; latency is an art driver
+
+Revisited with Ben. The record already shows rule 3 was never evidence-backed:
+Test A (`.29`) and the 46 h soak both ran the FULL core-0 sensor task including
+the SDK battery round-robin -- power-management I2C from a core-0-pinned task
+under active WiFi -- at 100 kHz, and were rock-solid. The clock is the fix
+(rule 1, absolute, unchanged); core placement was a one-day misattribution,
+retracted 2026-07-03, and survives only as un-measured belt-and-suspenders.
+Note the 100 kHz number itself is the PowerFeather SDK's own compiled default
+(`Mainboard.h` `_i2cFreq`), not an official platform document; the BQ25628E and
+MAX17260 are 400 kHz-capable parts -- the limit is signal integrity of this
+shared bus under WiFi TX on battery, empirically established here.
+
+New perceptual evidence (TN perimeter demo, led_studio `--l5cx`): sensor-to-LED
+latency is a primary driver of how "alive" the art feels, and at near-max UI
+speed the occasional loop-burst delay in single-device spiral/orbit patterns is
+plainly visible and detrimental. That is the fixture README's "revisit tasks
+only if render jitter is measured" trigger starting to fire.
+
+**Amended rule 3:** power-management-bus I2C from core-0-pinned tasks under
+WiFi is *permitted at 100 kHz* -- the sanctioned shape is presence_bench's
+single-owner sensor task (ALL Wire1 traffic in ONE task, caches served to the
+other core), which also buys wedge isolation and hides bus-wait latency.
+Gate: adequate field soak on the task build in the pre-playa weeks (next
+couple of weeks from this addendum); the cooperative-loop fixture image
+remains the shipping default until that soak passes. Open question flagged by
+Ben: whether task-architecture latency wins matter for peer-to-peer CA
+choreography, or only for single-device sensor-reactive interactions.
+
 ## References
 
 - LOG 2026-07-03 (CASE CLOSED + housekeeping re-grade), 2026-07-02 cont. 10

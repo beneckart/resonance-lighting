@@ -40,10 +40,13 @@ toggle** to match.
 ./build.sh --port /dev/ttyACM1            # USB flash
 ./build.sh --pin 16 --port /dev/ttyACM1   # if data is on D6/GPIO16
 ./build.sh --sensor-triad --cap 6000 --charge-ma 500 --maintain 4.6
+./build.sh --l5cx --cap 6000 --charge-ma 500 --maintain 4.6   # perimeter HEX demo
 ```
 
-On shared WiFi the board registers mDNS: open `http://ledstudio.local/`
-(since 2026-07-02). Serial monitor (115200) also prints the IP; SoftAP
+On shared WiFi the board registers a **per-device** mDNS name
+`http://ledstudio-<last-3-MAC-bytes>.local/` (e.g. `ledstudio-9e5ae8.local`;
+two boards both claiming plain `ledstudio.local` sent browser control to the
+wrong unit, 2026-07-30). Serial monitor (115200) also prints the IP; SoftAP
 fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 
 ## Controls
@@ -64,6 +67,29 @@ fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
   Hue / Breathe / Candle / Fade (with Color B).
 - **RGB mode**: same single-pixel color animations as RGBW (Hue / Breathe / Candle /
   Fade + Color B), but no W channel or white/warmth controls.
+- **L5CX presence HEX mode** (`--l5cx`, perimeter demo enclosure): vendored
+  VL53L5CX 4x4 @ 10 Hz on Wire1/100 kHz (fixture's trimmed ULD, loop-idiom like
+  sway_demo -- begin() only in setup(), quick re-apply self-heal in loop).
+  Boots into HEX anim 5 "Presence" at bri=255/gamma-off. Idle = all 37 px
+  pure RED; a visitor's depth drives the hue continuously --
+  t = (max - depth)/(max - min), red at 2.5 m walking R->O->Y->G->B->I->V as
+  they close on the gobo threshold -- and inside the threshold (default
+  500 mm, slider 40-600: visitors step up without knowing where the sensor
+  is, so arm's-length pops the surprise) the gobo takes over: a single
+  full-white center pixel until release. Visitor depth = closest target
+  anomalous vs a learned per-zone scene baseline (unset zones count as FAR,
+  so someone entering an empty sightline registers from max range; static
+  clutter stays scene and cannot pin the gobo on). The wheel HOLDS during
+  the gobo confirm (sudden appearance snaps to white instead of zipping the
+  rainbow). Gobo triggers: **near** (visitor <= thresh) OR **occlusion** (>=60% of
+  baseline-valid zones lose their target -- a palm covering the whole FoV
+  returns non-valid statuses, so "closest target" alone would read it as
+  clear). Baselines adapt asymmetrically (revealed-farther fast, closer on a
+  ~1 min tau so a lingering visitor fades back to scene; frozen during gobo;
+  "Re-zero scene" button reseeds). 2-frame enter / 3-frame release; gobo
+  transitions and visible color motion re-render at sensor rate instead of
+  the speed-paced frame timer. The UI shows a live 4x4 zone grid (mm +
+  anomaly coloring), visitor depth, and wheel position.
 - **Sensor-triad RGBW mode** (`--sensor-triad`): adds live MSA311, TMF8820, and
   BMP581 readback plus three reactive modes. ToF depth brightens the selected
   RGBW color as a target approaches (the known enclosed 20 mm window/fixture
