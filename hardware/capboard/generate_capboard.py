@@ -144,10 +144,8 @@ def circle(cx, cy, r, layer, w=0.1):
     s.SetWidth(FromMM(w))
     board.Add(s)
 
-# ---- outline, zip-tie slots, mounting holes ----------------------------------
+# ---- outline + mounting holes (zip-tie slots dropped in v1.1) ----------------------------------
 edge_rect(0, 0, BOARD_W, BOARD_H)
-for sx in [9.7, 30.5, 51.5, 72.3]:
-    edge_rect(sx - 0.9, CAP_Y - 5, sx + 0.9, CAP_Y + 5)
 for hx, hy in HOLES:
     circle(hx, hy, 1.6, pcbnew.Edge_Cuts)          # M3 clearance NPTH
     circle(hx, hy, 2.4, pcbnew.F_SilkS, 0.15)      # marker ring
@@ -229,65 +227,37 @@ c7 = place("Capacitor_SMD", "C_1206_3216Metric", "C7", 42.5, 30.8,
 assign(c7, {"1": "GND", "2": "P5V"})
 
 # ---- boost: MT3608, raw VDCIN -> ~11.4V VBOOST (top strip, linear) ----------
-c8 = place("Capacitor_SMD", "C_1206_3216Metric", "C8", 55.5, 3.6, rot=90, value="22uF 16V")
-assign(c8, {"1": "VDCIN", "2": "GND"})
-l1 = place("Inductor_SMD", "L_Bourns_SRN6045TA", "L1", 62, 3.6, value="22uH 2.4A")
-assign(l1, {"1": "VDCIN", "2": "SW"})
-u2 = place("Package_TO_SOT_SMD", "SOT-23-6", "U2", 69, 4.55, value="MT3608")
-assign(u2, {"1": "SW", "2": "GND", "3": "FB", "4": "EN", "5": "VDCIN", "6": "SW"})
-d2 = place("Diode_SMD", "D_SMA", "D2", 76.5, 3.6, rot=180, value="SS34")
-assign(d2, {"1": "VBOOST", "2": "SW"})     # pad1 = cathode (banded end)
-c9 = place("Capacitor_SMD", "C_1206_3216Metric", "C9", 82, 9, value="10uF 25V")
-assign(c9, {"1": "VBOOST", "2": "GND"})
-r8 = place("Resistor_SMD", "R_0805_2012Metric", "R8", 77, 11, value="180k")
-assign(r8, {"1": "VBOOST", "2": "FB"})
-r9 = place("Resistor_SMD", "R_0805_2012Metric", "R9", 81.5, 11, value="10k")
-assign(r9, {"1": "FB", "2": "GND"})
-r12 = place("Capacitor_THT", "C_Disc_D5.0mm_W2.5mm_P5.00mm", "R12",
-            74, 20, value="DNP TRIM", dnp=True)
-assign(r12, {"1": "FB", "2": "GND"})       # parallel with R9 -> raises Vout
-r10 = place("Resistor_SMD", "R_0805_2012Metric", "R10", 77, 14, value="47k")
-assign(r10, {"1": "VDCIN", "2": "EN"})
-r11 = place("Resistor_SMD", "R_0805_2012Metric", "R11", 81.5, 14, value="47k")
-assign(r11, {"1": "EN", "2": "GND"})
-jp1 = place("Resistor_SMD", "R_0805_2012Metric", "JP1", 82.5, 20, rot=90,
-            value="BYPASS DNP", dnp=True)
-jp1p = sorted(jp1.Pads(), key=lambda q: q.GetPosition().y)
-jp1p[0].SetNet(nets["VDCIN"]); jp1p[1].SetNet(nets["VBOOST"])
-r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 26.74, 28, rot=90, value="1k")
+r7 = place("Resistor_SMD", "R_0805_2012Metric", "R7", 26.74, 28, rot=90,
+           value="1k")
 r7p = sorted(r7.Pads(), key=lambda q: q.GetPosition().y)
 r7p[0].SetNet(nets["NETA"]); r7p[1].SetNet(nets["BTNP"])
 
-# ---- strip stray 'REF**' silk texts some library footprints ship -------------
-for fp in board.GetFootprints():
-    for it in [g for g in fp.GraphicalItems()
-               if hasattr(g, "GetText") and g.GetText().startswith("REF**")
-               and g.GetLayer() in (pcbnew.F_SilkS, pcbnew.B_SilkS)]:
-        fp.Remove(it)
-
-# ---- reference-label placement (Ben's GUI pass, captions only) ---------------
-REF_STYLE = [
-    (sw1, 21.00, 1.44, 0),   (r1, 31.00, 4.85, 0),   (c1, 35.50, 4.65, 0),
-    (c1b, 40.00, 1.30, 0),   (r2, 39.91, 4.75, 0),   (r3, 45.35, 7.09, 90),
-    (d1, 53.40, 7.00, 270),  (r4, 62.00, 33.6, 0),   (r5, 64.00, 33.6, 0),
-    (c5, 66.00, 33.6, 0),    (r7, 24.5, 28.00, 90),
-    (u1, 49.50, 27.9, 180),  (c7, 42.50, 27.9, 0),
-    (c8, 53.00, 3.6, 0),     (l1, 62.00, 8.4, 0),    (u2, 69.00, 1.4, 0),
-    (d2, 76.50, 1.4, 0),     (c9, 82.00, 6.6, 0),    (r8, 77.00, 9.4, 0),
-    (r9, 81.50, 9.4, 0),    (r12, 76.50, 22.6, 0),  (r10, 77.00, 16.0, 0),
-    (r11, 81.50, 16.0, 0),   (jp1, 84.60, 20.0, 90),
-    (j1, 12.00, 28.6, 0),    (j2, 76.00, 28.6, 0),
-    (j3, 32.00, 28.6, 0),    (j4, 56.00, 32.4, 0),
-    (bigcaps[0], 20.00, 8.05, 0), (bigcaps[1], 41.00, 8.05, 0),
-    (bigcaps[2], 62.00, 8.05, 0),
-]
-for fp, rx, ry, rang in REF_STYLE:
-    ref = fp.Reference()
-    ref.SetPosition(VECTOR2I_MM(rx, ry))
-    try:
-        ref.SetTextAngleDegrees(rang)
-    except AttributeError:
-        ref.SetTextAngle(pcbnew.EDA_ANGLE(rang, pcbnew.DEGREES_T))
+c8 = place("Capacitor_SMD", "C_1206_3216Metric", "C8", 75.5, 8, rot=90,
+           value="22uF 16V")
+assign(c8, {"1": "VDCIN", "2": "GND"})
+l1 = place("Inductor_SMD", "L_Bourns_SRN6045TA", "L1", 82, 8.6, value="22uH 2.4A")
+assign(l1, {"1": "VDCIN", "2": "SW"})
+u2 = place("Package_TO_SOT_SMD", "SOT-23-6", "U2", 76, 14, value="MT3608")
+assign(u2, {"1": "SW", "2": "GND", "3": "FB", "4": "EN", "5": "VDCIN", "6": "SW"})
+d2 = place("Diode_SMD", "D_SMA", "D2", 83, 14, value="SS34")
+assign(d2, {"1": "VBOOST", "2": "SW"})
+c9 = place("Capacitor_SMD", "C_1206_3216Metric", "C9", 76, 18.4, rot=90,
+           value="10uF 25V")
+assign(c9, {"1": "VBOOST", "2": "GND"})
+r9 = place("Resistor_SMD", "R_0805_2012Metric", "R9", 81, 18.4, value="10k")
+assign(r9, {"1": "GND", "2": "FB"})
+r8 = place("Resistor_SMD", "R_0805_2012Metric", "R8", 85.2, 18.4, value="180k")
+assign(r8, {"1": "FB", "2": "VBOOST"})
+r11 = place("Resistor_SMD", "R_0805_2012Metric", "R11", 81, 21.4, value="47k")
+assign(r11, {"1": "GND", "2": "EN"})
+r10 = place("Resistor_SMD", "R_0805_2012Metric", "R10", 85.2, 21.4, value="47k")
+assign(r10, {"1": "EN", "2": "VDCIN"})
+r12 = place("Capacitor_THT", "C_Disc_D5.0mm_W2.5mm_P5.00mm", "R12",
+            74.5, 23.8, value="DNP TRIM", dnp=True)
+assign(r12, {"1": "FB", "2": "GND"})
+jp1 = place("Resistor_SMD", "R_0805_2012Metric", "JP1", 84, 23.8,
+            value="BYPASS DNP", dnp=True)
+assign(jp1, {"1": "VDCIN", "2": "VBOOST"})
 
 # ---- routing ----------------------------------------------------------------
 # Layer lanes (front unless noted):  y=26.5 VBOOST spine | back y=28.0 EN |
@@ -296,7 +266,7 @@ j1d, j1v, j1g = pxy(j1, "1"), pxy(j1, "2"), pxy(j1, "3")
 j2d, j2v, j2g = pxy(j2, "1"), pxy(j2, "2"), pxy(j2, "3")
 VIA_Y = 32.0
 
-# --- boost switching loop (front, compact) ---
+# --- boost switching loop (right region) ---
 c8v, c8g = pxy(c8, "1"), pxy(c8, "2")
 l1a, l1b = pxy(l1, "1"), pxy(l1, "2")
 u2sw1, u2g, u2fb = pxy(u2, "1"), pxy(u2, "2"), pxy(u2, "3")
@@ -304,78 +274,76 @@ u2en, u2vin, u2sw6 = pxy(u2, "4"), pxy(u2, "5"), pxy(u2, "6")
 d2k, d2a = pxy(d2, "1"), pxy(d2, "2")
 c9v, c9g = pxy(c9, "1"), pxy(c9, "2")
 
-track(*c8v, c8v[0], 3.6, 0.8, F, "VDCIN")             # Cin pad onto the rail
-track(c8v[0], 3.6, *l1a, 0.8, F, "VDCIN")             # rail runs between C8 pads
-track(*l1b, *u2sw1, 0.6, F, "SW")                     # L1 -> SW (pin1), same y
-track(*u2sw6, u2sw6[0], 1.8, 1.0, F, "SW")            # SW (pin6) up and over
-track(u2sw6[0], 1.8, d2a[0], 1.8, 1.0, F, "SW")
-track(d2a[0], 1.8, *d2a, 1.0, F, "SW")
-track(*d2k, d2k[0], 9.0, 1.2, F, "VBOOST")            # cathode -> Cout
-track(d2k[0], 9.0, *c9v, 1.2, F, "VBOOST")
-track(*u2vin, 73.0, 5.6, 0.5, F, "VDCIN")             # VIN (pin5) out low-right
-via(73.0, 5.6, "VDCIN")
-track(73.0, 5.6, 73.0, 0.9, 0.6, B, "VDCIN")
-track(73.0, 0.9, c8v[0], 0.9, 0.6, B, "VDCIN")
-via(c8v[0], 0.9, "VDCIN")
-track(c8v[0], 0.9, c8v[0], 2.13, 0.6, F, "VDCIN")
-track(*u2g, 66.0, 6.6, 0.5, F, "GND")                 # IC GND (loop return)
-via(66.0, 6.6, "GND")
-for g in (c8g, c9g):
-    track(*g, g[0], g[1] + 2.2, 0.6, F, "GND")
-    via(g[0], g[1] + 2.2, "GND")
+track(*c8v, *l1a, 0.9, F, "VDCIN")
+track(*l1b, l1b[0], 11.8, 0.9, F, "SW")
+track(l1b[0], 11.8, u2sw6[0], 11.8, 0.9, F, "SW")
+track(u2sw6[0], 11.8, *u2sw6, 0.9, F, "SW")
+track(*u2sw1, u2sw1[0], 11.8, 0.6, F, "SW")
+track(u2sw1[0], 11.8, l1b[0], 11.8, 0.6, F, "SW")
+track(*u2sw6, *d2a, 0.9, F, "SW")
+track(*d2k, d2k[0], 16.6, 1.0, F, "VBOOST")
+track(d2k[0], 16.6, c9v[0], 16.6, 1.0, F, "VBOOST")
+track(c9v[0], 16.6, *c9v, 1.0, F, "VBOOST")
+track(*u2vin, u2vin[0], 11.0, 0.5, F, "VDCIN")
+via(u2vin[0], 11.0, "VDCIN")
+track(u2vin[0], 11.0, c8v[0], 11.0, 0.5, B, "VDCIN")
+track(c8v[0], 11.0, c8v[0], 5.6, 0.5, B, "VDCIN")
+via(c8v[0], 5.6, "VDCIN")
+track(c8v[0], 5.6, *c8v, 0.5, F, "VDCIN")
+track(*u2g, 73.0, 14.0, 0.5, F, "GND")
+via(73.0, 14.0, "GND")
+track(*c8g, 73.0, 9.8, 0.5, F, "GND")
+via(73.0, 9.8, "GND")
+track(*c9g, 73.0, 20.2, 0.5, F, "GND")
+via(73.0, 20.2, "GND")
 
-# --- FB + EN: the zip slot is a CUTOUT, so cross it above y=13.3 ---
-r8h, r8f = pxy(r8, "1"), pxy(r8, "2")
-r9f, r9g = pxy(r9, "1"), pxy(r9, "2")
-track(*u2fb, 69.6, 8.2, 0.4, F, "FB")
-via(69.6, 8.2, "FB")
-track(69.6, 8.2, 69.6, 11.0, 0.4, B, "FB")
-track(69.6, 11.0, 75.4, 11.0, 0.4, B, "FB")
-via(75.4, 11.0, "FB")
-track(75.4, 11.0, *r8f, 0.4, F, "FB")
-track(*r8f, *r9f, 0.4, F, "FB")
-track(*r8h, r8h[0], 8.6, 0.4, F, "VBOOST")
-track(r8h[0], 8.6, c9v[0], 8.6, 0.4, F, "VBOOST")
-track(c9v[0], 8.6, *c9v, 0.4, F, "VBOOST")
-track(*r9g, r9g[0], 8.6, 0.4, F, "GND")
-via(r9g[0], 8.6, "GND")
-track(*r9f, 74.0, 20.0, 0.4, F, "FB")                 # -> R12 trim pad 1
-track(79.0, 20.0, 79.0, 23.0, 0.4, F, "GND")
-via(79.0, 23.0, "GND")
+# --- feedback divider + THT trim ---
+r8f, r8h = pxy(r8, "1"), pxy(r8, "2")
+r9g, r9f = pxy(r9, "1"), pxy(r9, "2")
+track(*u2fb, u2fb[0], 15.8, 0.4, F, "FB")
+track(u2fb[0], 15.8, 83.1, 15.8, 0.4, F, "FB")
+track(83.1, 15.8, 83.1, 18.4, 0.4, F, "FB")
+track(83.1, 18.4, *r9f, 0.4, F, "FB")
+track(*r9f, *r8f, 0.4, F, "FB")
+track(*r8h, 87.0, 18.4, 0.4, F, "VBOOST")
+track(87.0, 18.4, 87.0, 15.0, 0.4, F, "VBOOST")
+track(87.0, 15.0, d2k[0], 15.0, 0.4, F, "VBOOST")
+track(d2k[0], 15.0, *d2k, 0.4, F, "VBOOST")
+track(*r9g, 78.8, 18.4, 0.4, F, "GND")
+via(78.8, 18.4, "GND")
+track(83.1, 18.4, 83.1, 23.8, 0.4, F, "FB")
+track(83.1, 23.8, 79.5, 23.8, 0.4, F, "FB")
 
-r10v, r10e = pxy(r10, "1"), pxy(r10, "2")
-r11e, r11g = pxy(r11, "1"), pxy(r11, "2")
-track(*u2en, u2en[0], 9.4, 0.4, F, "EN")
-via(u2en[0], 9.4, "EN")
-track(u2en[0], 9.4, 68.2, 12.2, 0.4, B, "EN")
-track(68.2, 12.2, 76.0, 12.2, 0.4, B, "EN")
-via(76.0, 12.2, "EN")
-track(76.0, 12.2, *r10e, 0.4, F, "EN")
-track(*r10e, *r11e, 0.4, F, "EN")
-track(*r10v, r10v[0], 16.4, 0.4, F, "VDCIN")
-track(*r11g, r11g[0], 16.4, 0.4, F, "GND")
-via(r11g[0], 16.4, "GND")
-track(68.2, 12.2, 68.2, 27.0, 0.4, B, "EN")           # down to TELE, left of slot
-track(68.2, 27.0, 57.0, 27.0, 0.4, B, "EN")
-track(57.0, 27.0, 57.0, 29.5, 0.4, B, "EN")
+# --- EN divider ---
+r11g, r11e = pxy(r11, "1"), pxy(r11, "2")
+r10e, r10v = pxy(r10, "1"), pxy(r10, "2")
+track(*u2en, u2en[0], 21.4, 0.4, F, "EN")
+via(u2en[0], 21.4, "EN")
+track(u2en[0], 21.4, 79.8, 21.4, 0.4, B, "EN")
+via(79.8, 21.4, "EN")
+track(79.8, 21.4, *r11e, 0.4, F, "EN")
+track(*r11e, *r10e, 0.4, F, "EN")
+track(*r11g, 78.8, 21.4, 0.4, F, "GND")
+via(78.8, 21.4, "GND")
+track(*r10v, 87.0, 21.4, 0.4, F, "VDCIN")
+track(87.0, 21.4, 87.0, 23.8, 0.4, F, "VDCIN")
+track(u2en[0], 21.4, 70.0, 25.5, 0.4, B, "EN")
+track(70.0, 25.5, 57.0, 29.5, 0.4, B, "EN")
 via(57.0, 29.5, "EN")
 j4v_, j4e = pxy(j4, "1"), pxy(j4, "2")
 track(57.0, 29.5, *j4e, 0.4, F, "EN")
 
-# --- JP1 bypass (DNP): upper pad VDCIN, lower VBOOST ---
-_u = min(jp1p, key=lambda q: q.GetPosition().y).GetPosition()
-_l = max(jp1p, key=lambda q: q.GetPosition().y).GetPosition()
-jp1u = (_u.x / 1e6, _u.y / 1e6); jp1l = (_l.x / 1e6, _l.y / 1e6)
-track(*jp1u, jp1u[0], 16.4, 0.6, F, "VDCIN")
-track(r10v[0], 16.4, jp1u[0], 16.4, 0.6, F, "VDCIN")
-track(*jp1l, jp1l[0], 23.0, 0.6, F, "VBOOST")
+# --- JP1 bypass (DNP) ---
+jp1v, jp1b_ = pxy(jp1, "1"), pxy(jp1, "2")
+track(*jp1v, 87.0, 23.8, 0.6, F, "VDCIN")
+track(*jp1b_, 82.0, 23.8, 0.6, F, "VBOOST")
+via(82.0, 23.8, "VBOOST")
 
 # --- VBOOST spine ---
-track(*c9v, 86.0, 9.0, 1.6, F, "VBOOST")
-track(86.0, 9.0, 86.0, 23.0, 1.6, F, "VBOOST")
-track(86.0, 23.0, jp1l[0], 23.0, 1.6, F, "VBOOST")
-track(86.0, 23.0, 86.0, SPINE_Y, 2.0, F, "VBOOST")
-track(RAIL_X + 8, SPINE_Y, 86.0, SPINE_Y, 2.5, F, "VBOOST")
+track(*c9v, c9v[0], SPINE_Y, 1.6, F, "VBOOST")
+track(82.0, 23.8, 82.0, SPINE_Y, 0.8, B, "VBOOST")
+via(82.0, SPINE_Y, "VBOOST")
+track(RAIL_X + 8, SPINE_Y, 82.0, SPINE_Y, 2.5, F, "VBOOST")
 for cx in CAP_CENTERS:
     track(cx - CAP_PITCH / 2, CAP_Y, cx - CAP_PITCH / 2, SPINE_Y, 2.5, F, "VBOOST")
 track(*j2v, j2v[0], SPINE_Y, 1.6, F, "VBOOST")
