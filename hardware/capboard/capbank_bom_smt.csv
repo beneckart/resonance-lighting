@@ -17,3 +17,5 @@ HT7550-1,U1,SOT-89,
 MT3608,U2,SOT-23-6,C84817
 22uH 2.4A shielded,L1,SRN6045 6x6mm,
 6x6 SMD tactile 2-pin,SW1,1TS009 6x6mm,C319428
+"JST S3B-XH-SM4-TB (right-angle SMT XH 3p - verify JLC stock)","PANEL,DRIVER",JST_XH_SM4_1x03_RA,
+"1x07 2.54mm SMD female socket (RX dock - verify JLC stock)",RECVR,PinSocket_1x07_SMD,
