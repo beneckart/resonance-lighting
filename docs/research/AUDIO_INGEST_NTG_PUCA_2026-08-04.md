@@ -8,12 +8,14 @@ the setup/bench items so they aren't rediscovered on playa.
 
 Hardware on hand / inbound:
 
-- 2x PÚCA DSP (Tindie, ~$43 ea) -- ESP32-PICO-D4 + WM8978 codec, stereo 3.5 mm
-  line-in with 3 dB-step PGA, dual Knowles MEMS mics (differential, beamformable).
-  NOTE: classic ESP32, not S3 -- a second build target next to the PowerFeather fleet.
-- RØDE VideoMic NTG + WS11 furry windshield + RØDE Tripod 2 -- performer capture.
-  Chosen over cheaper battery shotguns for the continuously variable output (time >
-  money; adjustable gain de-risks the unknown line-in pairing).
+- 2x PÚCA DSP (Crowd Supply, $107.68 the pair) -- ESP32-PICO-D4 + WM8978 codec,
+  stereo 3.5 mm line-in with 3 dB-step PGA, dual Knowles MEMS mics (differential,
+  beamformable). NOTE: classic ESP32, not S3 -- a second build target next to the
+  PowerFeather fleet.
+- RØDE VideoMic NTG + WS11 furry windshield (Amazon, $265.14 + $71.08) + RØDE
+  Tripod 2 (RØDE direct, $66.44) -- performer capture. Chosen over cheaper battery
+  shotguns for the continuously variable output (time > money; adjustable gain
+  de-risks the unknown line-in pairing).
 - UHF wireless lav kit: DEFERRED until a roaming performer materializes. If bought,
   it must be UHF (~550-600 MHz), never a 2.4 GHz system (Rode Wireless GO / DJI Mic
   class) -- 2.4 GHz is the ESP-NOW control-plane band and is saturated at BRC anyway.
