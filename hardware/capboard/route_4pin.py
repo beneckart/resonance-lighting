@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Route the v1.1 cap-bank board on top of Ben's hand placement.
 
-Loads `capbank_placement_ben.kicad_pcb` (footprints + silkscreen, no tracks),
+Loads `capbank_placement_4pin.kicad_pcb` (footprints + silkscreen, no tracks),
 adds copper, pours the back GND plane, and writes `build/capbank.kicad_pcb`.
 
 Placement and silkscreen are Ben's and are never modified here -- this script
@@ -16,8 +16,8 @@ import pcbnew
 from pcbnew import VECTOR2I_MM, FromMM
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "capbank_placement_ben.kicad_pcb")
-OUT = os.path.join(HERE, "build", "capbank.kicad_pcb")
+SRC = os.path.join(HERE, "capbank_placement_4pin.kicad_pcb")
+OUT = os.path.join(HERE, "build", "capbank_4pin.kicad_pcb")
 
 board = pcbnew.LoadBoard(SRC)
 if board is None:
