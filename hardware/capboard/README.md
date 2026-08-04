@@ -1,164 +1,119 @@
-# Solarnoid cap-bank board (v1.0)
+# Solarnoid cap-bank board — v2.0
 
-Inline XH pass-through capacitor bank for the striker drive. Drops into the
-solar power chain between the Y-splitter leg and the Adafruit 5648 MOSFET
-driver, putting the bulk capacitance electrically close to the pulse loop
-(cap -> FET -> coil). Carries **D7 / VDC / GND** straight through (order per
-the PowerFeather 3-pin header — GND on the board-corner pin).
+Strike-drive board for the bamboo-lantern noisemakers. Sits between the solar
+panel and the Adafruit 5648 MOSFET driver: takes raw panel voltage in, **boosts
+it to ~12 V**, buffers it in a 3 × 22,000 µF bank, and hands that to the
+solenoid driver. Force on a reluctance actuator goes as V²/R, so the boost is
+worth roughly **4× the strike energy** of the original 6 V design.
 
-Generated entirely by `generate_capboard.py` (KiCad 10 `pcbnew` scripting; no
-hand layout). Rebuild + verify:
+100 × 40 mm, 2 layer. **Ordered 2026-08-03: 10 panels of 6×2 = 120 boards.**
 
-```bash
-python3 generate_capboard.py
-kicad-cli pcb drc --refill-zones --save-board --severity-error \
-    --exit-code-violations -o build/drc.rpt build/capbank.kicad_pcb
-kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,F.Paste,Edge.Cuts \
-    -o build/gerbers/ build/capbank.kicad_pcb
-kicad-cli pcb export drill --excellon-separate-th -o build/gerbers/ build/capbank.kicad_pcb
-kicad-cli pcb export pos --format csv --units mm -o build/capbank_cpl.csv build/capbank.kicad_pcb
+## Signal chain
+
+```
+panel ──> PANEL ──> MT3608 boost (~12.07 V) ──> 3× 22,000 µF ──> DRIVER ──> 5648 ──> solenoid
+                                                     │
+PowerFeather D7 ────────── (passes straight through) ┘
 ```
 
-`build/capbank_gerbers_v1.0.zip` is the fab upload; `build/capbank_cpl.csv` is
-the placement file for JLC assembly (pair with a BOM csv carrying LCSC part
-numbers). Zip-tie slots flank each can — lash the can bodies, not just the
-leads, before the washboard drive in. Four bare 3.2 mm NPTH mounting holes
-(M3, silk-ringed) take nylon standoffs, one in each corner — the IN + RECVR
-group sits 3 mm right of dead-center to clear the bottom-left standoff.
-v1.0 folds Ben's KiCad GUI pass back into the script (component nudges,
-caption placement, connector references renamed as labels: IN/OUT x2, RECVR,
-TELE-METRY); his hand-edited board is kept at build/capbank_ben_edit.kicad_pcb
-for comparison. The script remains the source of truth — GUI edits to
-build/capbank.kicad_pcb are overwritten on regeneration unless folded in. The Resonance shell mark (from
-`marketing/brand-assets/Logo/Project/Logo7c_shell_black.png`, checked into
-this dir as `logo_shell.png`) is rendered to silkscreen by the generator:
-small badge on the front, large one on the back. Silkscreen art is free at
-any fab — it's just ink on a layer they print regardless.
+- **PANEL** and **DRIVER** are *not* the same net. PANEL carries raw panel
+  volts (4.6–5.9 V); DRIVER carries the boosted rail. Swapping them is not
+  destructive but gives weak knocks.
+- **D7** is the ESP32 gate line; it passes through untouched on the back layer.
 
-## Ports (confusion-proof: each role a different connector family)
+## Ports (bottom edge, left to right)
 
-All along the bottom edge, vertical entry, silkscreen-labeled. The ONLY two
-3-pin XH on the board are the daisy-chain pair — impossible to misplug.
+| Ref | Connector | Pinout |
+|---|---|---|
+| PANEL | JST XH 4p right-angle SMT | D7 · VDC · GND · GND |
+| RECVR | 1×7 0.1" SMD socket | RX480E dock — G·5V·D0·D1·D2·D3·VT (**unpopulated**, see below) |
+| TELE | JST XH 2p vertical THT | VSNS → A4 · BOOST_EN → A5 |
+| DRIVER | JST XH 4p right-angle SMT | D7 · VBOOST · GND · GND |
 
-| Ref | Connector | Role | Pin 1 | Pin 2 | Pin 3 |
-|---|---|---|---|---|---|
-| IN/OUT (J1) | XH 3p | pass-through in | D7 | VDC | GND |
-| IN/OUT (J2) | XH 3p | pass-through out | D7 | VDC | GND |
-| TELE-METRY (J4) | XH 2p | telemetry | VSNS -> A4 | D7S -> A5 | — |
-| RECVR (J3) | 1x7 0.1" female socket | RX receiver dock / button | see below | | |
+Pin 4 on PANEL/DRIVER is a **second ground** — on DRIVER that splits the ~3 A
+strike return across two contacts, which matters since XH is a 3 A series.
 
-- **J4**: 2p-to-2p cable to the PowerFeather A4/A5 header. Plugging it
-  reversed is harmless — both lines are ADC inputs, and firmware can
-  auto-detect which is which (VSNS reads mid-scale analog; D7S reads
-  rail-or-zero). Ground returns via the power harness; because the strike
-  loop never crosses the board↔Feather ground path, 2-wire readings keep
-  droop *shape*, inflection timing, and ΔV-per-strike intact (absolutes carry
-  ~±0.15 V of charger-current offset). For bench-grade absolutes,
-  double-crimp a sense-ground wire into the LED header's GND cavity at the
-  Feather — a free Kelvin tap, no board pins consumed.
-- **J3**: a 7-position female socket the RX480E module plugs straight into —
-  no wiring at all. Socket order (silkscreen-labeled, left to right):
-  **GND · 5V · D0 · D1 · D2 · D3 · VT**. Only GND/5V/D0 are connected;
-  D1–D3/VT land on labeled no-connect positions (jumper-accessible later).
-  5V comes from the on-board AMS1117-5.0: min(5.0 V, VDC − 1.1 V) ≈ 3.5–5.0 V,
-  always inside the module's 3.3–5 V window (raw VDC floats to ~7 V and would
-  cook it). R7 (1k) between D0 and the one-shot protects the receiver's
-  output if SW1 is pressed while it's docked; the one-shot's series cap means
-  a stuck transmitter can't park the coil. The module mounts vertically
-  (right-angle pins); inserted correctly its board overhangs the open space
-  above the caps and U1 — the metal RF can's 1–2 mm bump has ample clearance.
-  Inserted backwards it visibly blankets the J1 connector: obvious at a
-  glance. A dumb 2-wire button
-  still works — dupont its leads into the 5V and D0 positions.
+The 2-pin TELE is physically incompatible with the 4-pin power ports, so the
+two cannot be cross-plugged. Reversing the TELE cable is harmless (both lines
+are ADC-capable; firmware can tell them apart).
 
-## Assembly split (JLCPCB economic PCBA)
+## Subsystems
 
-Small parts are top-side SMD; the connectors (2x XH 3p, 1x XH 2p, 1x pin
-header) are THT — JLC THT assembly or ~11 easy through-hole joints per board
-by hand (Ben's call: hand-solder is fine). Hand-soldering beyond that: **2–3
-electrolytics** (the AliExpress stock isn't in the JLC catalog). C1B is a
-through-hole footprint precisely so field tuning stays iron-friendly.
+- **Boost** — MT3608, 22 µH/2.4 A shielded inductor, SS34. Feedback 130 k/6.8 k
+  → 0.6 × (1 + 130/6.8) ≈ **12.07 V**. R12 (THT, DNP) parallels the lower leg to
+  trim *upward*; watch the 16 V caps if you push far. **JP1** (DNP) bypasses the
+  boost entirely — close it and the board reverts to v1.0 behaviour.
+- **EN** — 47 k/47 k divider off VDCIN holds EN at ~VIN/2, so the boost
+  **self-enables with nothing plugged in**, and a GPIO on TELE pin 2 can pull it
+  low. The GPIO never sees more than ~3.0 V.
+- **One-shot button (SW1)** — VDC→SW1→470R→10 µF→D7, zener-clamped. One ~40 ms
+  pulse per press; the series cap blocks DC, so a stuck button *cannot* park the
+  coil energised (a lit panel would otherwise sustain 2.5–4 W into the coil).
+  C1B (THT, DNP) parallels C1 to lengthen the pulse.
+- **5 V rail (U1)** — HT7550-1, µA-class quiescent. Replaced the AMS1117, whose
+  5–10 mA idle draw was bleeding the cap bank in ~30 s and taxing the harvest.
+- **Telemetry** — VSNS = VBOOST × 6.8/53.8 → A4; 47 k/6.8 k with 1 nF gives
+  ~27 kHz of bandwidth, enough to actually capture the 25 ms droop transient.
 
-## ⚠ Before ordering
+## Fab package (upload these three)
 
-- **Pin order** matches the reported PowerFeather header (1:D7, 2:VDC, 3:GND).
-  Cables are assembled from raw pre-crimped leads into empty housings — press
-  them in **straight (pin1->pin1), never mirrored**: a mirrored cable swaps
-  D7 and GND and puts the cap bank across VDC–D7 (the gate line).
-- **Connector MPNs**: B3B-XH-A (x2), B2B-XH-A (x1), any 1x03 2.54 mm male
-  pin header — all ubiquitous.
-- **RX480E pin order** (GND, +V, D0, D1, D2, D3, VT) verified against product
-  photos; give one physical module a continuity beep on arrival (GND ties to
-  the module's ground pour). If a batch ever differs, edit RX_ORDER/RX_LABELS
-  and re-run.
-- **Why the 480E and not a 4-pin RX470/WL101**: the 470-class part is a raw
-  superheterodyne receiver — its DATA pin outputs the demodulated bitstream,
-  including every burst of 433 MHz noise (TPMS, weather stations, doorbells).
-  Driving the one-shot from it would fire randomly. The 480E's onboard
-  EV1527 decoder (learn/pair, per-button outputs) is exactly the part that
-  makes MCU-less firing possible; the 470 only makes sense feeding an MCU,
-  and our MCU nodes already have ESP-NOW.
-- **RF receiver notes** (RX480E-4 class, EV1527 protocol): D0–D3 are the four
-  per-fob-button outputs (not channel select); VT asserts on any valid code —
-  D0 fires the knock. Buy the *momentary* (M) variant, not latching/interlock.
-  Each receiver has a learn button — pair every receiver to ONE fob (press
-  learn, press fob button A), so 20 receivers need a single transmitter.
-  Solder a ~17 cm wire antenna for range. Idle draw is a few mA from the
-  panel — irrelevant by day, and the bus is dead at night anyway. On washboard
-  roads a socketed module deserves a dab of hot glue.
-- Cap footprint: 18 mm can, oblong drills accept 7.5–8.3 mm lead pitch
-  (AliExpress 22,000 uF @ 8 mm and Rubycon 16,000 uF @ 7.5 mm both fit).
-- **No blocking diode anywhere** — deliberate. Shade-to-disarm depends on the
-  cap back-draining through the panel.
+| File | |
+|---|---|
+| `build/capbank_gerbers_v2.0_4pin.zip` | gerbers + drills |
+| `capbank_cpl_4pin.csv` | 23 SMT parts |
+| `capbank_bom_smt_4pin.csv` | every line carries an LCSC part number |
 
-## Manual-fire one-shot (SW1 / J3)
+Settings: 2-layer FR-4, 100 × 40 mm, green/white, HASL leaded, 1.6 mm, 1 oz,
+tented vias, remove mark, **SMT top side only**.
 
-`VDC -SW- R1 470R - C1 10uF -> D7 line`, R2 330k bleed across C1, R3 10k gate
-pulldown, D1 BZX84C3V3 zener clamping the D7 line to 3.3 V.
+**RECVR is deliberately unpopulated** — no SMD female header has stock anywhere.
+The RX dock is optional per node (production triggering is the ESP-NOW clicker),
+so its pads stay bare and a socket can be hand-fitted on whichever boards ever
+get a 433 MHz receiver.
 
-- Press = single ~40 ms gate pulse (the series cap blocks DC). A stuck or
-  held button **cannot** park the coil energized — without this, a lit panel
-  would sustain ~1 A (2.5–4 W) into a stuck-on coil and cook it. Re-arms
-  ~1.5 s after release.
-- ~40 ms means the coil is still energized at mallet contact — a slightly
-  damped thud vs the firmware's ballistic cut-before-impact strike. Fine for
-  a test/demo button; performance strikes belong to firmware.
-- C1B (THT disc, DNP) parallels C1 — solder one in to lengthen the pulse.
-  Exact width also depends on the 5648's own input pulldown.
-- Button only works with a lit panel — inherits the shade disarm.
+**Hand-soldered in Nevada City — 8 joints/board:** the 3 electrolytics and the
+2-pin TELE. C1B, R12, JP1 are DNP options.
 
-## Telemetry (J4 -> PowerFeather A4/A5)
+Cap voltage ratings are deliberate and annotated in the BOM: C1/C7/C8 never see
+more than ~6 V so 16 V is ample, **C9 is the only part on the 12 V rail and must
+stay 25 V.** Letting the picker default to 50 V parts cost $131 on the first quote.
 
-Populated by default; ignore in firmware until wanted.
+## Workflow — placement is Ben's, routing is scripted
 
-- **VSNS** = VDC x 33k/133k (÷4.03), 100 nF filter: 7 V bus -> 1.74 V.
-  -> **A4 = GPIO2 = ADC1_CH1**.
-- **D7S** = gate line through 1 k (already zener-clamped to 3.3 V).
-  -> **A5 = GPIO1 = ADC1_CH0**.
-- Both ADC1, so they read fine while ESP-NOW/WiFi is active (ADC2 would not).
-- Uses: intra-strike droop curves (5–20 kHz continuous ADC on VSNS), stall vs
-  strike detection from V(t) inflections, counting manual button fires (D7S
-  pulses the MCU didn't command), auto-tuning power-cut lead per node.
+Positions and silkscreen are hand-placed in KiCad and are **authoritative**.
+`route_capboard.py` / `route_4pin.py` load the placement file and add *only*
+tracks, vias and the ground pour, so routing is reproducible after any
+re-arrangement and never fights the layout.
 
-## BOM (per board)
+```bash
+python3 route_4pin.py                                    # 4-pin (production)
+kicad-cli pcb drc --refill-zones --save-board --severity-error \
+    --exit-code-violations -o build/drc.rpt build/capbank_4pin.kicad_pcb
+```
 
-| Ref | Part | Package | Note |
-|---|---|---|---|
-| J1, J2 | JST B3B-XH-A | THT vertical XH 3p | daisy in/out |
-| J4 | JST B2B-XH-A | THT vertical XH 2p | telemetry |
-| J3 | female socket 1x07 2.54 mm | THT vertical | RX receiver dock |
-| U1 | AMS1117-5.0 | SOT-223 | 5V* rail for receiver |
-| C7 | 10 uF X7R 16 V | 1206 | LDO output cap (same MPN as C1) |
-| R7 | 1 k | 0805 | BTN series protection (same MPN as R6) |
-| C2–C4 | 22,000 uF 16 V radial, 18 mm | THT | populate 2 or 3, hand-solder |
-| SW1 | 6x6 SMD tactile (1TS009 style) | SMD | stiff actuation preferred |
-| R1 | 470 R | 0805 | one-shot series |
-| R2 | 330 k | 0805 | C1 bleed / re-arm |
-| R3 | 10 k | 0805 | gate pulldown (also FET-off at boot) |
-| C1 | 10 uF X7R 16 V | 1206 | pulse width (~40 ms) |
-| C1B | DNP | THT disc 5 mm | parallel pulse-width tuning |
-| D1 | BZX84C3V3 | SOT-23 | K to D7 line |
-| R4 | 100 k | 0805 | VSNS divider top |
-| R5 | 33 k | 0805 | VSNS divider bottom |
-| C5 | 100 n | 0805 | VSNS filter |
-| R6 | 1 k | 0805 | D7S series |
+**Edit `capbank_placement_4pin.kicad_pcb`, never `build/capbank_4pin.kicad_pcb`** —
+the latter is regenerated and your changes would be lost. If you do edit the
+build output by accident, its positions can be synced back into the placement
+file (that is how the v2.0 PANEL/TELE nudges were recovered).
+
+| File | Role |
+|---|---|
+| `capbank_placement_4pin.kicad_pcb` | **source of truth** — placement + silkscreen |
+| `route_4pin.py` | adds copper; regenerates `build/capbank_4pin.kicad_pcb` |
+| `capbank_4pin_ben.kicad_pcb` | snapshot of the hand-edited board, for reference |
+| `capbank_placement_ben.kicad_pcb` + `route_capboard.py` | 3-pin variant (S3B is out of stock; kept as fallback) |
+| `generate_capboard_v10.py.bak` | the v1.0 generator, the board that was actually fabbed first |
+
+## CAD for the plate
+
+`cad/` holds v2.0 STEP/DXF/VRML exports — see `cad/README.md`. Mounting holes
+are unchanged from v1.0 at **(3.2, 3.2), (84.8, 3.2), (84.8, 36.8), (3.2, 36.8)**,
+so existing plates fit; the board simply overhangs 15 mm past the right pair.
+3.2 mm holes take M2.5 or M3.
+
+## Before the next order
+
+- Verify the RX480E module pin order against physical parts if RECVR is ever
+  populated (assumed GND · +V · D0 · D1 · D2 · D3 · VT).
+- Cables are crimped from raw leads: press them **straight, never mirrored** —
+  a mirrored cable swaps D7 and GND and puts the bank across the gate line.
