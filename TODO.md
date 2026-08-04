@@ -1216,6 +1216,19 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   transit) once the 0730B verdict lands -- watch the AliExpress return window
   (Ben).
 
+## Audio ingest bench (PÚCA DSP + VideoMic NTG, bought 2026-08-04; setup notes: docs/research/AUDIO_INGEST_NTG_PUCA_2026-08-04.md)
+
+- [ ] **Bench-verify NTG auto-power into the PÚCA's bias-less line-in** -- the NTG
+  auto-powers by sensing camera plug-in power, which the line-in doesn't supply.
+  Confirm it powers on and stays on (manual power is the expected fallback). Plain
+  TRS-TRS cable, not TRRS (Ben).
+- [ ] **Gain-staging sweep on the bench**: NTG output knob hot, WM8978 PGA low; HPF
+  (75/150 Hz) engaged; record clean levels for the DJ-line and mic paths so playa
+  setup is dial-to-numbers (Ben).
+- [ ] **Sketch the feature message format** (band energies, envelope, beat flag,
+  `source` field for multi-publisher blending) before firmware milestone 2 locks
+  the control-plane schema (Ben).
+
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
 - [x] **Stand up the 4-sensor comparison bench -- DONE 2026-07-02** (LOG same date):
