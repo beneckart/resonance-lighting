@@ -30831,7 +30831,7 @@
 			)
 		)
 	)
-	(gr_text "D7 VDC GND"
+	(gr_text "D7 VDC GND GND"
 		(at 13.5 27.5 0)
 		(layer "F.SilkS")
 		(uuid "4b767a3a-4154-4f86-a817-20e85a7ecc71")
@@ -30842,7 +30842,7 @@
 			)
 		)
 	)
-	(gr_text "D7 VDC GND"
+	(gr_text "D7 VDC GND GND"
 		(at 74 27.5 0)
 		(layer "F.SilkS")
 		(uuid "d7a3a0cf-9e8e-4de0-a8e6-5f17749b3ebe")
