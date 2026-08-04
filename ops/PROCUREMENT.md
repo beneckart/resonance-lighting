@@ -41,16 +41,17 @@ LOG inference) -- correct them from receipts when convenient.
 | rtc-timing | Adafruit | 2026-07-20 | 4x DS3231 STEMMA RTC boards (batteries included) -- the cheap clock alternative to GPS for the same dusk/dawn/sleep experiments | $97.09 | placed |
 | batteries-33140-tn | batteryhookup.com | 2026-07-24 | 10x 33140 LiFePO4 15 Ah (to Steve/TN) -- absurdly low price, ~$4.50-5/cell class | $52.76 | placed |
 | batteries-33140-ca | batteryhookup.com | 2026-07-24 | 120x 33140 LiFePO4 15 Ah (to CA) -- **new fleet standard for LARGE-enclosure fixtures (downlights)**; the small enclosures only fit the 32700 6 Ah | $532.84 | placed |
+| capboard-v2 | JLCPCB | 2026-08-03 | 120x capboard v2.0 PCBA (10 panels of 6x2, 100x40 mm) -- 22,000 uF strike-bank board with on-board MT3608 boost to ~12 V for the solenoid overvolt drive (see `hardware/capboard/README.md`) | $732.59 | placed |
 | audio-ingest-puca | Crowd Supply | 2026-08-04 | 2x PÚCA DSP (ESP32 + WM8978 audio dev board) -- audio-ingest / feature-broadcast nodes for audio-reactive show modes; setup notes: `docs/research/AUDIO_INGEST_NTG_PUCA_2026-08-04.md` | $107.68 | placed |
 | audio-mic-ntg | Amazon | 2026-08-04 | RØDE VideoMic NTG ($265.14) + WS11 furry windshield ($71.08) -- wired performer capture (bowls/violin/singing) into the PÚCA line-in | $336.22 | placed |
 | audio-tripod | RØDE (direct) | 2026-08-04 | RØDE Tripod 2 mic stand (camp musicians' stands = backup) | $66.44 | placed |
 
-Committed so far: **~$25,684** across the rows above (production boards 158; RGBW
+Committed so far: **~$26,417** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
 deliberate lead-time-hedged abundance; 210 strike caps; 160 MOSFET drivers; 30
 BMP581 env sensors; batteries now TWO-TIER: 130x 33140 15 Ah for large-enclosure
-fixtures + 175x 32700 6 Ah for the small-enclosure classes; plus the 08-04
-audio-ingest capture chain at $510.34). The $440 / $170 / $159 rows are the
+fixtures + 175x 32700 6 Ah for the small-enclosure classes; 120x capboard v2.0
+PCBA; plus the 08-04 audio-ingest capture chain at $510.34). The $440 / $170 / $159 rows are the
 fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 Cabling strategy note (2026-07-13): final harness lengths are unknown until the
