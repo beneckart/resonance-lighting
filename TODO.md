@@ -819,8 +819,15 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   direct program 3 on all nodes, and >3 s silence fallback to autonomous program 1;
   67/67 bridge sends, zero TX failures/CRC errors/RX drops. Presence-bench firmware
   and channel 6 restored afterward (Ben/Codex).
-- [ ] Merge/review `codex/cambium-direct-frames` and the companion Cambium branch,
-  then repeat direct streaming on a mixed HEX/RGBW fleet before production rollout.
+- [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
+  over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
+  to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).
+- [ ] Publish the companion Cambium integration to `beneckart/cambium` once the
+  GitHub fork exists. Local branch `codex/fleet-130-bench3` is ready at
+  `b071542`, with 340 passed / 1 skipped; license remains pending Justin
+  (Ben/Codex).
+- [ ] Repeat direct streaming on a mixed HEX/RGBW fleet before production
+  rollout (Ben/Codex).
 - [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` -- confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
 - [ ] **Rehearse shared-WiFi OTA at tree scale (about 100 awake peers) on the actual
   portable router:** measure maintenance discovery/DHCP success, safe upload

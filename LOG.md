@@ -12,6 +12,21 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- Cambium firmware landed on main
+
+Fast-forwarded `beneckart/resonance-lighting` `origin/main` from `176cf3b` to
+`d9333ab`, preserving Justin's authored direct-frame commit and the separate
+review/integration history. The exact reviewed branch remains published as
+`codex/cambium-direct-frames` at the same commit.
+
+Prepared the companion Cambium integration locally at `b071542`: nominal
+130-fixture and Nevada City three-perimeter configuration, corrected lifecycle
+reporting and isolated roster tests, firmware-derived type-25/26 golden pins,
+and CoreS3-as-primary bridge documentation. Its complete pytest result is 340
+passed, 1 skipped. Publication is waiting only for the requested
+`beneckart/cambium` GitHub fork to exist; Justin's explicit license remains
+pending and was not guessed or added locally.
+
 ## 2026-08-06 -- Ben + Codex -- Cambium rebased over 2 A policy and smoke-tested
 
 Rebased `codex/cambium-direct-frames` onto `origin/main` at the ADR 0033 2 A
