@@ -13,10 +13,19 @@
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <esp_wifi.h>
+#include <stdarg.h>
+#include <string.h>
 
 #include "../fixture/src/core/packet.h"
+#include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-06.2"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-06.3"
+
+#ifndef CORES3_CAMBIUM_MODE
+#define CORES3_CAMBIUM_MODE 0
+#endif
+
+#define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
 #ifndef NB_CHANNEL
 #define NB_CHANNEL 11
@@ -60,6 +69,7 @@ M5Canvas displayCanvas(&M5.Display);
 bool displayCanvasReady = false;
 
 struct RxItem {
+  uint8_t mac[6];
   int8_t rssi;
   uint8_t len;
   uint8_t data[250];
@@ -70,6 +80,165 @@ static_assert(sizeof(NbHeartbeat) <= sizeof(RxItem::data),
 
 QueueHandle_t rxQueue = nullptr;
 volatile uint32_t rxQueueDrops = 0;
+struct PeerStat;
+
+#if CORES3_CAMBIUM_MODE
+// Cambium serial contract: COBS([frame type][payload][CRC16 LE]) + 0x00.
+// This mode deliberately emits no bare serial text; all diagnostics travel in
+// LOG frames so a dashboard message cannot corrupt the binary stream.
+static const uint8_t FTYPE_RADIO_TX = 0x01;
+static const uint8_t FTYPE_RADIO_RX = 0x02;
+static const uint8_t FTYPE_CTRL = 0x03;
+static const uint8_t FTYPE_STATUS = 0x04;
+static const uint8_t FTYPE_LOG = 0x05;
+static const uint8_t CTRL_STATUS_REQ = 0x01;
+static const uint8_t CTRL_SET_CHANNEL = 0x02;
+static const uint8_t CTRL_REBOOT = 0x03;
+static const size_t ESPNOW_MAX = 250;
+static const size_t RX_PAYLOAD_MAX = 6 + 1 + ESPNOW_MAX;
+static const size_t BODY_MAX = 1 + RX_PAYLOAD_MAX + 2;
+
+static volatile uint32_t cambiumRxPkts = 0;
+static uint16_t cambiumCrcErr = 0;
+static uint8_t cambiumChannel = NB_CHANNEL;
+
+struct __attribute__((packed)) CambiumBridgeStatus {
+  uint8_t proto;
+  uint8_t mac[6];
+  uint8_t channel;
+  uint32_t uptime_ms;
+  uint32_t tx_ok;
+  uint32_t tx_fail;
+  uint32_t rx_pkts;
+  uint32_t rx_drop;
+  uint16_t crc_err;
+  char fw[16];
+};
+static_assert(sizeof(CambiumBridgeStatus) == 46,
+              "Cambium STATUS layout drifted from framing.py");
+
+static void sendCambiumFrame(uint8_t ftype, const uint8_t *payload, size_t len) {
+  uint8_t body[BODY_MAX];
+  uint8_t encoded[COBS_ENCODE_MAX(BODY_MAX)];
+  if (len > BODY_MAX - 3) return;
+  body[0] = ftype;
+  memcpy(body + 1, payload, len);
+  uint16_t crc = crc16_ccitt(body, len + 1);
+  body[len + 1] = (uint8_t)(crc & 0xFF);
+  body[len + 2] = (uint8_t)(crc >> 8);
+  size_t encodedLen = cobs_encode(body, len + 3, encoded);
+  Serial.write(encoded, encodedLen);
+  Serial.write((uint8_t)0x00);
+}
+
+static void cambiumLogf(const char *fmt, ...) {
+  char buffer[200];
+  va_list args;
+  va_start(args, fmt);
+  int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  if (len < 0) return;
+  if (len > (int)sizeof(buffer) - 1) len = sizeof(buffer) - 1;
+  sendCambiumFrame(FTYPE_LOG, (const uint8_t *)buffer, (size_t)len);
+}
+
+static void sendCambiumStatus() {
+  CambiumBridgeStatus status = {};
+  status.proto = 1;
+  memcpy(status.mac, myMac, sizeof(status.mac));
+  status.channel = cambiumChannel;
+  status.uptime_ms = millis();
+  status.tx_ok = sendOk;
+  status.tx_fail = sendFail;
+  status.rx_pkts = cambiumRxPkts;
+  status.rx_drop = rxQueueDrops;
+  status.crc_err = cambiumCrcErr;
+  strncpy(status.fw, CORES3_CAMBIUM_FW, sizeof(status.fw));
+  sendCambiumFrame(FTYPE_STATUS, (const uint8_t *)&status, sizeof(status));
+}
+
+static void handleCambiumFrame(uint8_t ftype, const uint8_t *payload, size_t len) {
+  if (ftype == FTYPE_RADIO_TX) {
+    if (len == 0 || len > ESPNOW_MAX) {
+      cambiumLogf("RADIO_TX len=%u rejected", (unsigned)len);
+      return;
+    }
+    if (esp_now_send(BCAST, payload, len) != ESP_OK) ++sendFail;
+    return;
+  }
+  if (ftype != FTYPE_CTRL || len < 1) {
+    cambiumLogf("unexpected ftype 0x%02x len=%u", ftype, (unsigned)len);
+    return;
+  }
+  switch (payload[0]) {
+  case CTRL_STATUS_REQ:
+    sendCambiumStatus();
+    break;
+  case CTRL_SET_CHANNEL:
+    if (len >= 2 && payload[1] >= 1 && payload[1] <= 14 &&
+        esp_wifi_set_channel(payload[1], WIFI_SECOND_CHAN_NONE) == ESP_OK) {
+      cambiumChannel = payload[1];
+      cambiumLogf("channel -> %u", cambiumChannel);
+    } else {
+      cambiumLogf("SET_CHANNEL rejected");
+    }
+    break;
+  case CTRL_REBOOT:
+    cambiumLogf("rebooting");
+    Serial.flush();
+    ESP.restart();
+    break;
+  default:
+    cambiumLogf("unknown CTRL cmd 0x%02x", payload[0]);
+    break;
+  }
+}
+
+static uint8_t cambiumSerialBuffer[512];
+static size_t cambiumSerialLen = 0;
+
+static void handleCambiumChunk(const uint8_t *chunk, size_t len) {
+  uint8_t body[sizeof(cambiumSerialBuffer)];
+  size_t bodyLen = 0;
+  if (cobs_decode(chunk, len, body, &bodyLen) != 0 || bodyLen < 3) {
+    ++cambiumCrcErr;
+    return;
+  }
+  uint16_t expected = (uint16_t)body[bodyLen - 2] |
+                      ((uint16_t)body[bodyLen - 1] << 8);
+  if (crc16_ccitt(body, bodyLen - 2) != expected) {
+    ++cambiumCrcErr;
+    return;
+  }
+  handleCambiumFrame(body[0], body + 1, bodyLen - 3);
+}
+
+static void pumpCambiumSerial() {
+  while (Serial.available() > 0) {
+    int value = Serial.read();
+    if (value < 0) break;
+    if (value == 0) {
+      if (cambiumSerialLen > 0) {
+        handleCambiumChunk(cambiumSerialBuffer, cambiumSerialLen);
+      }
+      cambiumSerialLen = 0;
+    } else if (cambiumSerialLen < sizeof(cambiumSerialBuffer)) {
+      cambiumSerialBuffer[cambiumSerialLen++] = (uint8_t)value;
+    } else {
+      cambiumSerialLen = 0;
+      ++cambiumCrcErr;
+    }
+  }
+}
+
+static void sendCambiumRadioRx(const RxItem &item) {
+  uint8_t payload[RX_PAYLOAD_MAX];
+  memcpy(payload, item.mac, sizeof(item.mac));
+  payload[6] = (uint8_t)item.rssi;
+  memcpy(payload + 7, item.data, item.len);
+  sendCambiumFrame(FTYPE_RADIO_RX, payload, 7 + (size_t)item.len);
+}
+#endif
 
 struct PeerStat {
   bool used;
@@ -249,16 +418,23 @@ void sendIdentify(const uint8_t target[3], uint8_t seconds) {
 }
 
 void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-  if (!rxQueue || len < (int)sizeof(NbHeader) || len > (int)sizeof(RxItem::data)) return;
+  if (!rxQueue || len <= 0 || len > (int)sizeof(RxItem::data)) return;
+#if !CORES3_CAMBIUM_MODE
+  if (len < (int)sizeof(NbHeader)) return;
   const NbHeader *h = (const NbHeader *)data;
   if (h->ver != NB_PROTO_VER ||
       (h->type != NB_HEARTBEAT && h->type != NB_SCANAP)) return;
+#endif
 
   RxItem item = {};
+  memcpy(item.mac, info->src_addr, sizeof(item.mac));
   item.rssi = info->rx_ctrl ? info->rx_ctrl->rssi : 0;
   item.len = (uint8_t)len;
   memcpy(item.data, data, len);
   if (xQueueSend(rxQueue, &item, 0) != pdTRUE) ++rxQueueDrops;
+#if CORES3_CAMBIUM_MODE
+  else ++cambiumRxPkts;
+#endif
 }
 
 void onEspNowSend(const esp_now_send_info_t *, esp_now_send_status_t status) {
@@ -273,11 +449,19 @@ bool setupEspNow() {
   // stops the radio and makes esp_wifi_set_channel fail on Arduino-ESP32 3.x.
   WiFi.disconnect(false, false);
   if (esp_wifi_set_channel(NB_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+#if CORES3_CAMBIUM_MODE
+    cambiumLogf("esp_wifi_set_channel FAILED");
+#else
     Serial.println("esp_wifi_set_channel FAILED");
+#endif
     return false;
   }
   if (esp_now_init() != ESP_OK) {
+#if CORES3_CAMBIUM_MODE
+    cambiumLogf("esp_now_init FAILED");
+#else
     Serial.println("esp_now_init FAILED");
+#endif
     return false;
   }
   esp_now_register_recv_cb(onEspNowRecv);
@@ -285,15 +469,27 @@ bool setupEspNow() {
 
   esp_now_peer_info_t peer = {};
   memcpy(peer.peer_addr, BCAST, sizeof(BCAST));
+#if CORES3_CAMBIUM_MODE
+  peer.channel = 0;
+#else
   peer.channel = NB_CHANNEL;
+#endif
   peer.ifidx = WIFI_IF_STA;
   peer.encrypt = false;
   esp_err_t result = esp_now_add_peer(&peer);
   if (result != ESP_OK && result != ESP_ERR_ESPNOW_EXIST) {
+#if CORES3_CAMBIUM_MODE
+    cambiumLogf("esp_now_add_peer FAILED: %d", (int)result);
+#else
     Serial.printf("esp_now_add_peer FAILED: %d\n", (int)result);
+#endif
     return false;
   }
+#if CORES3_CAMBIUM_MODE
+  cambiumLogf("esp-now up, ch=%d", NB_CHANNEL);
+#else
   Serial.printf("esp-now up, ch=%d, broadcast peer registered\n", NB_CHANNEL);
+#endif
   return true;
 }
 
@@ -480,10 +676,16 @@ void processRx() {
   if (!rxQueue) return;
   RxItem item;
   while (xQueueReceive(rxQueue, &item, 0) == pdTRUE) {
+#if CORES3_CAMBIUM_MODE
+    sendCambiumRadioRx(item);
+    if (item.len < sizeof(NbHeader)) continue;
+#endif
     const NbHeader *h = (const NbHeader *)item.data;
     if (memcmp(h->src_id, myId, sizeof(myId)) == 0) continue;
     if (h->type == NB_HEARTBEAT) processHeartbeat(item);
+#if !CORES3_CAMBIUM_MODE
     else if (h->type == NB_SCANAP) emitScanAp(item);
+#endif
   }
 }
 
@@ -1040,19 +1242,29 @@ void setup() {
   M5.begin(config);
 
   delay(1200);
+#if !CORES3_CAMBIUM_MODE
   Serial.println();
   Serial.println("=== Resonance net-bench " CORES3_BRIDGE_VERSION " ===");
   Serial.printf("role=master channel=%d frame_hz=0 hb_hz=0\n", NB_CHANNEL);
   Serial.println("mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)");
+#endif
 
   esp_read_mac(myMac, ESP_MAC_WIFI_STA);
   memcpy(myId, myMac + 3, sizeof(myId));
+#if !CORES3_CAMBIUM_MODE
   Serial.printf("node id=%02X%02X%02X mac=%02X:%02X:%02X:%02X:%02X:%02X\n",
                 myId[0], myId[1], myId[2], myMac[0], myMac[1], myMac[2],
                 myMac[3], myMac[4], myMac[5]);
+#endif
 
   rxQueue = xQueueCreate(64, sizeof(RxItem));
-  if (!rxQueue) Serial.println("rx queue allocation FAILED");
+  if (!rxQueue) {
+#if CORES3_CAMBIUM_MODE
+    cambiumLogf("rx queue allocation FAILED");
+#else
+    Serial.println("rx queue allocation FAILED");
+#endif
+  }
   else radioReady = setupEspNow();
   setupWatchdog();
 
@@ -1063,7 +1275,11 @@ void setup() {
   if (displayCanvasReady) {
     drawDisplay();
   } else {
+#if CORES3_CAMBIUM_MODE
+    cambiumLogf("display framebuffer allocation FAILED; bridge continues headless");
+#else
     Serial.println("display framebuffer allocation FAILED; bridge continues headless");
+#endif
     M5.Display.fillScreen(TFT_BLACK);
     M5.Display.setTextColor(TFT_RED, TFT_BLACK);
     M5.Display.setTextSize(2);
@@ -1071,21 +1287,33 @@ void setup() {
     M5.Display.println("DISPLAY BUFFER FAIL");
     M5.Display.println("Bridge still active");
   }
+#if CORES3_CAMBIUM_MODE
+  sendCambiumStatus();
+  cambiumLogf("%s up, ch=%u", CORES3_CAMBIUM_FW, cambiumChannel);
+#endif
 }
 
 void loop() {
   esp_task_wdt_reset();
   M5.update();
   processRx();
+#if CORES3_CAMBIUM_MODE
+  pumpCambiumSerial();
+#else
   handleSerial();
   maintBurstTick();
+#endif
 
   static uint32_t nextBridgeMs = 0;
   static uint32_t nextDisplayMs = 0;
   uint32_t now = millis();
   if ((int32_t)(now - nextBridgeMs) >= 0) {
     nextBridgeMs = now + 1000 / NB_BRIDGE_HZ;
+#if CORES3_CAMBIUM_MODE
+    sendCambiumStatus();
+#else
     emitBridgeStats();
+#endif
   }
   if ((int32_t)(now - nextDisplayMs) >= 0) {
     nextDisplayMs = now + 1000;

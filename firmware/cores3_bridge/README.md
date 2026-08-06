@@ -17,6 +17,12 @@ The bridge:
 - shows bridge health and fresh fixtures on the built-in screen using a
   PSRAM-backed framebuffer so periodic updates do not visibly blink.
 
+It also has a build-time Cambium modem mode. In that mode the same CoreS3
+relays Cambium's COBS/CRC serial contract instead of emitting dashboard text,
+while retaining the on-device health display and heartbeat tracking. Binary
+mode never writes bare diagnostic text to USB; diagnostics are Cambium LOG
+frames so they cannot corrupt the serial stream.
+
 The Thread Border Router kit's ESP32-H2 Gateway module is not used. Leaving the
 Gateway/DIN stack installed is harmless; the Resonance bridge runs only on the
 CoreS3's ESP32-S3 radio.
@@ -39,6 +45,21 @@ Or compile and flash in one invocation:
 bash ./build.sh --channel 11 --port COM40 --build-path build/nc-cores3-bridge-r1
 ```
 
+For Cambium, build a separate artifact with `--cambium` and keep the normal
+dashboard artifact available for restoration:
+
+```sh
+bash ./build.sh --cambium --channel 11 \
+  --build-path build/nc-cores3-cambium-r1
+arduino-cli upload --fqbn esp32:esp32:m5stack_cores3 --port COM40 \
+  --build-path build/nc-cores3-cambium-r1 .
+```
+
+The Cambium status identity is `cores3-cb-0.1`. The mode implements RADIO_TX,
+RADIO_RX (including the full source MAC and RSSI), status, channel selection,
+and reboot. Use it with the serial transport in the Cambium repo; do not run
+the ASCII net-bench dashboard against a binary-mode artifact.
+
 After the boot banner, launch the existing dashboard:
 
 ```sh
@@ -48,7 +69,7 @@ python ../../ops/bench/net_bench_dashboard.py --port COM40
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-06.2 ===
+=== Resonance net-bench cores3-bridge-2026-08-06.3 ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
 ```

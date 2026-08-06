@@ -8,12 +8,14 @@ SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHANNEL=11
 PORT=""
 BUILD_PATH=""
+CAMBIUM_MODE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --channel) CHANNEL="$2"; shift 2;;
     --port) PORT="$2"; shift 2;;
     --build-path) BUILD_PATH="$2"; shift 2;;
+    --cambium) CAMBIUM_MODE=1; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
@@ -24,6 +26,9 @@ fi
 mkdir -p "${BUILD_PATH}"
 
 FLAGS="-DNB_CHANNEL=${CHANNEL}"
+if [[ "${CAMBIUM_MODE}" == "1" ]]; then
+  FLAGS="${FLAGS} -DCORES3_CAMBIUM_MODE=1"
+fi
 echo "FQBN: ${FQBN}"
 echo "FLAGS: ${FLAGS}"
 echo "BUILD_PATH: ${BUILD_PATH}"
