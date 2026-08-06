@@ -12,6 +12,33 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- Cambium rebased over 2 A policy and smoke-tested
+
+Rebased `codex/cambium-direct-frames` onto `origin/main` at the ADR 0033 2 A
+charge-policy commit. The combined fixture keeps both NVS behaviors: known legacy
+charge defaults migrate to 2,000 mA while the persisted ESP-NOW channel and
+`H1..H13` setter remain intact. Justin's direct-frame commit remains separately
+authored in history, and the CoreS3 PSRAM/M5Canvas flicker fix remains the base of
+both normal and binary-modem builds.
+
+Verification passed after the rebase: all 254 native fixture checks and fresh,
+sequential Arduino builds for the fixture plus both CoreS3 modes. Named artifacts:
+
+- fixture, channel 11/dev: 1,166,208 bytes, SHA-256
+  `C7EF277F583BFDD720AC16F9EDEDC854CF992F2F9DCD17CA8053E28C88EC572B`;
+- normal CoreS3: 1,101,392 bytes, SHA-256
+  `40B977E661DE769C0F2EA8BFE97DC0B7170A000EE023E99D4A677C8282A9D536`;
+- Cambium CoreS3: 1,095,440 bytes, SHA-256
+  `3ED4F26AB1931D258743FAE2DA65ED297F0EBE6FD8561668CB83F7C01D177893`.
+
+Ran the scoped post-rebase hardware smoke on authorized perimeter fixture F3FD88
+only. Its old 500 mA setting migrated to 2,000 mA, telemetry reported the expected
+`.4` firmware and perimeter class, and `H11` rebooted onto channel 11 while retaining
+the charge policy. It then acknowledged `H6` and was restored to the exact prior LED
+Studio `.3` artifact (`F451B0C6E9015C1340801FDA5F0732C2197479208BEE437EED742EF9FBCABF50`),
+with every flash segment hash verified. The other perimeter fixtures, CoreS3, and
+active battery-prep device were not touched.
+
 ## 2026-08-06 -- Ben + Codex -- Cambium integration and 130-fixture production update
 
 Pulled `origin/main`, fetched Justin Lange's `cambium-direct-frames` branch, and
