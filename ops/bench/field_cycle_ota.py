@@ -54,7 +54,7 @@ FIELD_DEFAULTS = {
     "field_dusk_confirm_s": 300,
     "field_dusk_no_sensor_confirm_s": 1800,
     "capacity_mah": 6000,
-    "charge_ma": 1500,
+    "charge_ma": 2000,
     # Safe/generic and P105 5 W operating point. The P126 2 W deployment must pass
     # --maintain 5.8 explicitly (qualified by its 2026-07-12 MPP sweep).
     "maintain_v": "4.6",

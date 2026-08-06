@@ -28,7 +28,7 @@ jumpers or solder bridges. Override at build time:
 | `RES_PF_BATTERY_CAPACITY_MAH` | `2000` | Cell capacity in mAh -- **set to your actual cell** |
 | `RES_PF_BATTERY_TYPE` | `Mainboard::BatteryType::Generic_3V7` | `Generic_3V7` Li-ion/LiPo; `Generic_LFP` LiFePO4; `ICR18650_26H` / `UR18650ZY` (capacity ignored, 2600 mAh) |
 | `RES_PF_ENABLE_CHARGING` | `1` | Call `enableBatteryCharging(true)` (SDK leaves charging **off** by default) |
-| `RES_PF_MAX_CHARGE_MA` | `1000.0` | Charge-current cap (mA), 40-2000. Charger self-limits to what the supply gives. <=0.5C for >=2000 mAh cells; lower (`--charge-ma`) for smaller cells |
+| `RES_PF_MAX_CHARGE_MA` | `2000.0` | Battery-side charge-current ceiling (mA), 40-2000. ADR 0033 uses the board maximum for the 6 Ah/15 Ah production cells. The charger self-limits for the source and system load; use `--charge-ma` when a different cell or test requires less |
 | `RES_PF_MAINTAIN_V` | `4.6` | Supply maintain / charger VINDPM (V). Set to panel MPP for solar runs (4.6-16.8 V) |
 
 Switching Li-ion -> LiFePO4 is a one-line change to
@@ -128,5 +128,5 @@ the web server automatically.
   (see above) so the SDK uses the MAX17260; build.sh sets it. With the flag,
   `soc_pct/health_pct/cycles/time_left_min` populate. SOC may read low/rough until
   the gauge learns over a charge/discharge cycle.
-- The default 200 mA charge current dominates and masks small LED-current deltas;
+- The default 2 A charge ceiling can dominate and mask small LED-current deltas;
   build `-DRES_PF_ENABLE_CHARGING=0` for clean LED measurement on battery discharge.

@@ -511,7 +511,7 @@ def parse_args() -> argparse.Namespace:
     )
     commission.add_argument("--battery-chemistry", default="Generic_LFP")
     commission.add_argument("--capacity-mah", type=int, default=6000)
-    commission.add_argument("--charge-ma", type=int, default=500)
+    commission.add_argument("--charge-ma", type=int, default=2000)
     commission.add_argument("--maintain-v", type=float, default=4.6)
     commission.add_argument("--ota-profile", default="BubbyNet")
     commission.add_argument(

@@ -54,7 +54,7 @@
 #include <SparkFun_Qwiic_XM125_Arduino_Library.h>
 #include <SparkFun_VL53L1X.h>
 
-#define PRESENCE_BENCH_VERSION "presence-bench-2026-07-03.31"
+#define PRESENCE_BENCH_VERSION "presence-bench-2026-08-06.1"
 
 // ---- Compile-time knobs (override via build.sh -> compiler.cpp.extra_flags) ----
 #ifndef PB_ENABLE_MLX
@@ -789,9 +789,9 @@ static void chargeTick() {
   }
   done = true;
   if (gBatV > 2.5f && gBatV < 4.4f) {
-    Board.setBatteryChargingMaxCurrent(500);
+    Board.setBatteryChargingMaxCurrent(2000);
     Board.enableBatteryCharging(true);
-    logf("battery %.2fV present -> gentle charging ON (500 mA, 3.65V LFP ceiling)", gBatV);
+    logf("battery %.2fV present -> charging ON (2000 mA ceiling, 3.65V LFP CV)", gBatV);
   } else {
     logf("battery %.2fV implausible -> charging stays OFF", gBatV);
   }

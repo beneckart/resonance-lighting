@@ -121,7 +121,7 @@
 // run a real self-test here and return false if unhealthy.
 extern "C" bool verifyOta() { return false; } // extern "C": the core's weak hook is C-linkage
 #else
-#define POWER_BENCH_VERSION "power-bench-2026-06-29.1" // shared solar charger guard
+#define POWER_BENCH_VERSION "power-bench-2026-08-06.1" // ADR 0033: 2 A charge ceiling
 #endif
 
 // ---------------------------------------------------------------------------
@@ -238,10 +238,11 @@ using namespace PowerFeather;
 #endif
 // Charge-current ceiling (mA). The charger (BQ25628E) accepts 40-2000 mA and
 // self-limits to what the supply can give (input regulation at MAINTAIN_V), so
-// this is a cap, not a guarantee. 1000 mA is <= 0.5C for cells >= 2000 mAh and
-// gentle on reused cells; lower it (--charge-ma) for smaller cells (<= 1C).
+// this is a cap, not a guarantee. ADR 0033 uses the board maximum for the known
+// 6 Ah/15 Ah production cells; lower it (--charge-ma) when the attached cell's
+// datasheet, temperature, wiring, or test protocol requires a smaller limit.
 #ifndef RES_PF_MAX_CHARGE_MA
-#define RES_PF_MAX_CHARGE_MA 1000.0f
+#define RES_PF_MAX_CHARGE_MA 2000.0f
 #endif
 // Supply maintain voltage (charger VINDPM). 4.6 V default; set to panel MPP for
 // solar runs. Valid range 4.6-16.8 V.

@@ -34,7 +34,7 @@
 #include "soc/ledc_struct.h" // direct duty writes from the sample ISR
 #include "driver/rtc_io.h"   // read back the actual EN_3V3 pad level (SDK RTC-holds it)
 
-#define FW_VERSION "speaker-demo-2026-07-07.9"
+#define FW_VERSION "speaker-demo-2026-08-06.1"
 
 // PowerFeather SDK: rails + telemetry + guarded charging (sway_demo pattern --
 // this unit may carry a cell; charging stays OFF until the gauge reports a
@@ -479,11 +479,11 @@ void chargeTick() {
   }
   done = true;
   if (gBatV > 2.5f && gBatV < 4.4f) {
-    Board.setBatteryChargingMaxCurrent(500);
+    Board.setBatteryChargingMaxCurrent(2000);
     Board.enableBatteryCharging(true);
     gChargeOn = true;
     pfSolarGuardInit("speaker_demo", SPK_MAINTAIN_V, true);
-    Serial.printf("battery %.2fV present -> charging ON (500 mA, LFP 3.65 V ceiling)\n", gBatV);
+    Serial.printf("battery %.2fV present -> charging ON (2000 mA ceiling, LFP 3.65 V CV)\n", gBatV);
   } else {
     Serial.printf("battery %.2fV implausible -> charging stays OFF\n", gBatV);
   }

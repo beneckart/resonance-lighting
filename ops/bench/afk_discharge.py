@@ -12,7 +12,7 @@ Pairs with afk_sweep.py / afk_analyze.py (reuse afk_analyze for the gauge-vs-INA
 PRE-REQS (do these in the morning, board present so you can tap reset if the 3V3 rail sulks):
   1. Cell charged ~full overnight on USB (charging is enabled in the flashed firmware).
   2. For a deep run PAST the 2.90 V firmware guard, flash a low floor first (board on USB):
-       firmware/power_bench/build.sh --led rgbw1 --cap 2000 --chem lfp --charge-ma 500 \
+       firmware/power_bench/build.sh --led rgbw1 --cap 2000 --chem lfp --charge-ma 2000 \
          --pixel-pin 10 --batt-floor 2.3 --port /dev/ttyACM1
      Then tap the physical reset (RTS/3V3 gotcha). Without this, the board self-protects at
      2.90 V -> you still get a clean *capacity-to-2.90 V* run, just not the deep tail.

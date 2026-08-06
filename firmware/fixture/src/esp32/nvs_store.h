@@ -33,6 +33,8 @@ extern FixtureConfig gCfg;
 #define RES_CAPACITY_MAX_MAH 30000
 #define RES_CHARGE_MIN_MA 40
 #define RES_CHARGE_MAX_MA 2000
+#define RES_CHARGE_DEFAULT_MA 2000
+#define RES_CHARGE_POLICY_VERSION 1
 #define RES_MAINTAIN_MIN_V10 46  // PowerFeather SDK clamps below 4.6 V
 #define RES_MAINTAIN_MAX_V10 168
 

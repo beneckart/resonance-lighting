@@ -38,7 +38,7 @@
 #include <Adafruit_MSA301.h> // library also provides Adafruit_MSA311 (part id 0x13)
 #include "src/vl53l5cx/SparkFun_VL53L5CX_Library.h" // vendored (see src/vl53l5cx/VENDORED.md)
 
-#define FW_VERSION "sway-demo-2026-07-07.6"
+#define FW_VERSION "sway-demo-2026-08-06.1"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0, direct-GPIO LED data (ADR 0018/0022)
@@ -479,7 +479,7 @@ void batteryTick() {
 
 // One-shot guarded charge-enable (presence_bench pattern): the gauge reads 0.00 V
 // right after Board.init, so the decision waits for a real voltage from the
-// round-robin. Plausible cell -> gentle 500 mA charge under the LFP profile.
+// round-robin. Plausible cell -> ADR 0033's 2 A ceiling under the LFP profile.
 void chargeTick() {
   static bool done = false;
   if (done || !gPfReady || millis() < 6000) return;
@@ -492,11 +492,11 @@ void chargeTick() {
   }
   done = true;
   if (gBatV > 2.5f && gBatV < 4.4f) {
-    Board.setBatteryChargingMaxCurrent(500);
+    Board.setBatteryChargingMaxCurrent(2000);
     Board.enableBatteryCharging(true);
     gChargeOn = true;
     pfSolarGuardInit("sway_demo", SWAY_MAINTAIN_V, true);
-    Serial.printf("battery %.2fV present -> charging ON (500 mA, LFP 3.65 V ceiling)\n", gBatV);
+    Serial.printf("battery %.2fV present -> charging ON (2000 mA ceiling, LFP 3.65 V CV)\n", gBatV);
   } else {
     Serial.printf("battery %.2fV implausible -> charging stays OFF\n", gBatV);
   }

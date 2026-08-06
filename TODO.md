@@ -91,10 +91,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   USB-C-to-XH breakout, with only V+ -> VDC and GND -> GND. With all power off,
   confirm XH polarity and about 5 V before connecting; install the already-profiled
   LFP battery only while unpowered. Start with one board at `maintain_v=4.6` and the
-  current 500 mA charge cap, verify `supply_good`, input voltage/current,
+  ADR 0033 2 A battery-side ceiling, verify `supply_good`, input voltage/current,
   `battery_present`, and `charging_enabled`, then scale 1 -> 4 -> 12 -> 26 while
-  checking hub/cable temperature and brownouts. Do not use the 1.5 A field charge cap
-  or a high LED load until per-port input current is measured. This validates indoor
+  checking hub/cable temperature and brownouts. Do not override source detection or
+  IINDPM beyond the measured per-port capability, and avoid a high LED load until
+  that capability is measured. This validates indoor
   power/charging and fleet firmware, not panel MPP, shade, dusk, or energy harvest
   (Ben/Codex). **ONE-BOARD PASS 2026-07-27:** `F4044C` ran with PowerFeather USB
   disconnected and hub power entering VDC/GND. Telemetry showed a present 3.39 V
@@ -472,7 +473,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   long-throw crisp gobo. Open work moves to type mix, placement, power budget, and
   boost/current-cap characterization (Ben/Codex, 2026-06-17).
 - [x] **Measure LED current vs brightness** -- DONE across NeoHEX/HEX/RGBW/warm-white via `--bright-sweep` + Apogee PAR sensor; full efficiency map in `led-par-vs-draw.png`. (Caveat: confounded by buck-boost efficiency vs SOC -- see Field reliability.) (Ben).
-- [ ] Investigate disabling BQ25628E input source-detection to beat the 500 mA USB charge cap (bench convenience only; solar unaffected) (Ben).
+- [ ] Investigate overriding BQ25628E input source-detection to beat the roughly
+  500 mA USB input cap (bench convenience only; solar unaffected). Do this only
+  for a source with known advertised capability, and never exceed the PowerFeather
+  input/connector 2 A rating; ADR 0033's 2 A ICHG ceiling does not itself authorize
+  more USB input current (Ben).
 - [x] ~~Build a SOLID LFP connection / re-run on solid connection~~ -- **SUPERSEDED**: the brownout turned out IS31-specific (its chip on the shared I2C bus), not the battery connection. The H2-marginal-connection thread is closed (Ben).
 - [x] Test LFP full-SOC vs low-SOC under identical load (boost-mode hypothesis H3) -- evidence AGAINST H3: boards ran stable in **active boost** at 3.18-3.24 V (the harder regime), so low-LFP/boost is not the brownout cause (Ben).
 - [ ] Run ported demo on battery (firmware/powerfeather_demo_port, AP + ~10 Hz) +/- LED; does the reference app reset? (Ben).
@@ -484,7 +489,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
 - [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).
 - [ ] Test panel MPP/VINDPM settings for each panel (Ben).
-- [ ] Test thermistor / battery-temperature path if accessible (Ben).
+- [ ] **Qualify the 103AT battery-thermistor path before relying on unattended 2 A
+  charging in sealed hats:** attach it physically to each test cell, verify
+  telemetry and BQ JEITA suspend/derate behavior at the production temperature
+  bounds, and decide the production sensor/harness plan. Charger-die thermal
+  regulation does not measure cell temperature (ADR 0033) (Ben).
 
 ## Gobo / aesthetic LED testing (led_studio -- `firmware/led_studio/`, merged from hex_studio/rgbw_studio 2026-06-07)
 

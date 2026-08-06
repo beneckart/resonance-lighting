@@ -200,7 +200,7 @@ void setUpUI()
 
   auto chargingControlGroup = batteryChargingEnableSwitcher = ESPUI.addControl(Switcher, "Charging", "0", Dark, Control::noParent, chargingEnableCallback);
   ESPUI.setElementStyle(ESPUI.addControl(Label, "", "Enable", None, chargingControlGroup), clearLabelStyle);
-  batteryChargingMaxCurrentSlider = ESPUI.addControl(Slider, "", "50", Dark, chargingControlGroup, chargingMaxCurrentCallback);
+  batteryChargingMaxCurrentSlider = ESPUI.addControl(Slider, "", "2000", Dark, chargingControlGroup, chargingMaxCurrentCallback);
   ESPUI.addControl(Min, "", "50", None, batteryChargingMaxCurrentSlider);
   ESPUI.addControl(Max, "", "2000", None, batteryChargingMaxCurrentSlider);
   ESPUI.setElementStyle(ESPUI.addControl(Label, "", "Max Charging Current (mA)", None, chargingControlGroup), clearLabelStyle);
@@ -267,7 +267,7 @@ void setup()
 
   Board.init(BATTERY_CAPACITY, DEMO_BATTERY_TYPE);
   Board.enableBatteryCharging(false);
-  Board.setBatteryChargingMaxCurrent(50);
+  Board.setBatteryChargingMaxCurrent(2000);
   Board.setSupplyMaintainVoltage(4.6f); // volts (SDK 2.x); was 4600 mV in the V1 demo
   Board.enableBatteryTempSense(false);
   Board.enableBatteryFuelGauge(true);

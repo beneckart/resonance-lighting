@@ -362,6 +362,22 @@ available). 5/6 GHz client devices roamed fine; the S3 (2.4 GHz only) did not.
   they won't walk away from the AP they associated to -- low field risk, but the
   maintenance AP should still be the **strongest** thing near the tree during an OTA window.
 
+## Charge-current policy: 2 A is a ceiling, not a promise
+
+ADR 0033 sets 2,000 mA as the default battery-side charge-current ceiling in
+active firmware for the known 6 Ah and 15 Ah production LFP cells. The BQ25628E
+still reduces actual battery current for VINDPM/IINDPM, source capability, live
+system load, CV taper, and charger-die thermal regulation. USB input current is a
+separate limit at a different voltage: never override source detection/IINDPM
+beyond the source's advertised capability or the PowerFeather input/connector
+2 A rating. Use an explicit lower firmware override for a smaller or otherwise
+limited cell.
+
+Application reflashing does not erase Preferences/NVS. Charge-policy v1 in both
+`fixture` and `net_bench` therefore replaces a legacy 500/1,000/1,500 mA
+`chg_ma` default once. It preserves a nonstandard pre-existing value as a
+possible explicit cell limit, then preserves later deliberate `G<ma>` overrides.
+
 ## Don't enable the charger's battery temp-sense without a thermistor attached
 
 `Board.enableBatteryTempSense(true)` flips the BQ25628E's **TS input on** -- the charger

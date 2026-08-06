@@ -56,6 +56,24 @@ static void migrateFromNetbench(Preferences &pf) {
   pf.putBool("migrated", true);
 }
 
+static void migrateChargePolicy(Preferences &pf) {
+  uint32_t version = pf.getUInt("chg_policy", 0);
+  if (version >= RES_CHARGE_POLICY_VERSION) return;
+
+  // ADR 0033 raises known historical defaults to the PowerFeather V2 maximum.
+  // Preserve any nonstandard value: it may be an intentional small-cell limit.
+  uint32_t priorMa = pf.getUInt("chg_ma", 0);
+  bool legacyDefault = priorMa == 0 || priorMa == 500 ||
+                       priorMa == 1000 || priorMa == 1500;
+  if (legacyDefault) pf.putUInt("chg_ma", RES_CHARGE_DEFAULT_MA);
+  pf.putUInt("chg_policy", RES_CHARGE_POLICY_VERSION);
+  Serial.printf("nvs: charge policy v%u %s %lu mA%s\n",
+                (unsigned)RES_CHARGE_POLICY_VERSION,
+                legacyDefault ? "migrated" : "preserved",
+                (unsigned long)(legacyDefault ? RES_CHARGE_DEFAULT_MA : priorMa),
+                legacyDefault ? "" : " (explicit override)");
+}
+
 void nvsLoadConfig() {
   if (gLoaded) return;
   gLoaded = true;
@@ -64,9 +82,11 @@ void nvsLoadConfig() {
     Serial.println("nvs: OPEN FAILED -> compiled defaults");
   } else {
     migrateFromNetbench(pf);
+    migrateChargePolicy(pf);
   }
   gCfg.capMah = checkedU16(pf, "cap_mah", 6000, RES_CAPACITY_MIN_MAH, RES_CAPACITY_MAX_MAH);
-  gCfg.chargeMa = checkedU16(pf, "chg_ma", 500, RES_CHARGE_MIN_MA, RES_CHARGE_MAX_MA);
+  gCfg.chargeMa = checkedU16(pf, "chg_ma", RES_CHARGE_DEFAULT_MA,
+                             RES_CHARGE_MIN_MA, RES_CHARGE_MAX_MA);
   gCfg.classOvr = pf.getUChar("class_ovr", FIXTURE_UNKNOWN);
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);

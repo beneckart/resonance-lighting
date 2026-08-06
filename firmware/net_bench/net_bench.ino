@@ -48,7 +48,7 @@
 #include <SparkFun_TMF882X_Library.h>
 #endif
 
-#define NET_BENCH_VERSION "net-bench-2026-07-29.5" // truthful SDK VINDPM floor/result handling
+#define NET_BENCH_VERSION "net-bench-2026-08-06.2" // ADR 0033: 2 A charge ceiling + NVS migration
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -77,7 +77,7 @@ using namespace PowerFeather;
 #define RES_PF_ENABLE_CHARGING 1
 #endif
 #ifndef RES_PF_MAX_CHARGE_MA
-#define RES_PF_MAX_CHARGE_MA 1000.0f
+#define RES_PF_MAX_CHARGE_MA 2000.0f
 #endif
 #ifndef RES_PF_MAINTAIN_V
 #define RES_PF_MAINTAIN_V 4.6f
@@ -420,6 +420,9 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_CHARGE_MAX_MA
 #define NB_CHARGE_MAX_MA 2000
+#endif
+#ifndef NB_CHARGE_POLICY_VERSION
+#define NB_CHARGE_POLICY_VERSION 1
 #endif
 // NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE,
 // NB_MAINT_AP, NB_SLEEP_CYCLE, NB_FIELD_CYCLE are presence-only flags.
@@ -1396,7 +1399,22 @@ void loadBenchConfig() {
   gBenchConfigLoaded = true;
   uint16_t defaultChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
   Preferences pf;
-  pf.begin("netbench", true);
+  pf.begin("netbench", false);
+  uint32_t chargePolicyVersion = pf.getUInt("chg_policy", 0);
+  if (chargePolicyVersion < NB_CHARGE_POLICY_VERSION) {
+    // Replace known historical defaults, but preserve a nonstandard value that
+    // may be an intentional small-cell limit.
+    uint32_t priorMa = pf.getUInt("chg_ma", 0);
+    bool legacyDefault = priorMa == 0 || priorMa == 500 ||
+                         priorMa == 1000 || priorMa == 1500;
+    if (legacyDefault) pf.putUInt("chg_ma", defaultChargeMa);
+    pf.putUInt("chg_policy", NB_CHARGE_POLICY_VERSION);
+    Serial.printf("  charge policy v%u %s %lu mA%s\n",
+                  (unsigned)NB_CHARGE_POLICY_VERSION,
+                  legacyDefault ? "migrated" : "preserved",
+                  (unsigned long)(legacyDefault ? defaultChargeMa : priorMa),
+                  legacyDefault ? "" : " (explicit override)");
+  }
   gBatteryCapacityMah = checkedStoredUInt(pf, "cap_mah", (uint16_t)RES_PF_BATTERY_CAPACITY_MAH,
                                           NB_CAPACITY_MIN_MAH, NB_CAPACITY_MAX_MAH);
   gChargeMa = checkedStoredUInt(pf, "chg_ma", defaultChargeMa, NB_CHARGE_MIN_MA, NB_CHARGE_MAX_MA);

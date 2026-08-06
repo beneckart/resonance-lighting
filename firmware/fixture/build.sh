@@ -55,7 +55,13 @@ fi
 
 # Shared solar-guard header lives one level up (firmware/); the sketch tree is
 # copied into the build path, so it must arrive via the include search path.
-FLAGS="-DPOWERFEATHER_BOARD_V2=1 -I$(cd .. && pwd)"
+# arduino-cli is a Windows executable on this bench even when this wrapper runs
+# under Git Bash, so translate /c/... to C:/... before passing it to the compiler.
+SHARED_INCLUDE="$(cd .. && pwd)"
+if command -v cygpath >/dev/null 2>&1; then
+  SHARED_INCLUDE="$(cygpath -m "$SHARED_INCLUDE")"
+fi
+FLAGS="-DPOWERFEATHER_BOARD_V2=1 -I$SHARED_INCLUDE"
 case "$CHEM" in
   lfp) ;; # production default lives in board_power.cpp
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7" ;;

@@ -39,8 +39,8 @@ toggle** to match.
 ```
 ./build.sh --port /dev/ttyACM1            # USB flash
 ./build.sh --pin 16 --port /dev/ttyACM1   # if data is on D6/GPIO16
-./build.sh --sensor-triad --cap 6000 --charge-ma 500 --maintain 4.6
-./build.sh --l5cx --cap 6000 --charge-ma 500 --maintain 4.6   # perimeter HEX demo
+./build.sh --sensor-triad --cap 6000 --charge-ma 2000 --maintain 4.6
+./build.sh --l5cx --cap 6000 --charge-ma 2000 --maintain 4.6   # perimeter HEX demo
 ```
 
 On shared WiFi the board registers a **per-device** mDNS name

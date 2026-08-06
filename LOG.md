@@ -36,6 +36,46 @@ framebuffer allocation, ESP-NOW on channel 11, and a broadcast completing with
 `sendok=4 sendfail=0`. Ben's visual confirmation of the now-steady LCD is the
 remaining human check.
 
+## 2026-08-06 -- Ben + Codex -- Two-amp charge ceiling replaces conservative firmware defaults
+
+Accepted ADR 0033: the known 6 Ah and 15 Ah production LFP cells now use the
+PowerFeather V2/BQ25628E maximum 2,000 mA battery-side charge-current setting as
+their default ceiling. This is not a promise of 2 A delivered and does not grant
+permission to pull 2 A from an arbitrary USB port: source IINDPM/VINDPM, available
+input power after system load, CV taper, charger thermal regulation, cell
+temperature/specification, and wiring limits still apply. A lower `--charge-ma`
+or `G<ma>` remains available for a different or limited cell. Promoted the 103AT
+battery-thermistor path to an explicit unattended sealed-hat qualification gate.
+
+Scrubbed the active lower defaults from unified `fixture`, `net_bench`,
+`power_bench`, LED Studio, presence/sway/speaker/solenoid/LED-solenoid demos, the
+ported PowerFeather demo, field-cycle OTA tooling, fleet USB commissioning, and
+the deep-discharge setup instructions. Historical logs, named artifacts, and the
+2026-07-27 packing profile retain the currents they actually used. Firmware
+versions advanced to dated 2026-08-06 identities where applicable.
+
+A normal application reflash does not erase Preferences/NVS, so charge-policy v1
+now upgrades only the known unset/500/1,000/1,500 mA historical defaults in both
+`fixture` and `net_bench`. It preserves a nonstandard old value as a possible
+intentional small-cell limit, and all later `G<ma>` overrides remain persistent.
+Also fixed `firmware/fixture/build.sh` to translate Git-Bash `/c/...` include paths
+for the Windows `arduino-cli`; the wrapper had failed to find the shared solar
+guard header during verification.
+
+Verification passed: fixture native suite 233 checks / 0 failures, Python
+`py_compile` for all edited bench tools, shell syntax checks, scoped
+`git diff --check`, and full uncached ESP32-S3 compiles of both affected images.
+The verified production-profile fixture artifact is
+`firmware/fixture/build/charge-policy-20260806-r4/fixture.ino.bin`, 1,164,624
+bytes, SHA-256
+`178D12C281F048C48331EE182A8AF289E62B44E2543C087871CAFAA8829C627A`.
+The LFP/6 Ah peer build at
+`firmware/net_bench/build/charge-policy-20260806-r2/net_bench.ino.bin` is
+1,024,208 bytes, SHA-256
+`6686F344E7750E5A271BFDD1D4A02610B946F703B8B40A2A04F23300C451BF8C`;
+its build flags intentionally omit `RES_PF_MAX_CHARGE_MA`, proving the compiled
+2 A default. No hardware was flashed in this change.
+
 ## 2026-08-06 -- Ben + Codex -- CoreS3 dedicated fleet bridge flashed and verified
 
 Origin was fetched and already matched local `main`; existing uncommitted bench,

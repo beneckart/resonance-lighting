@@ -55,6 +55,11 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.
 
+The default battery-side charge-current ceiling is 2,000 mA (ADR 0033). The
+BQ25628E may deliver less because of input-current/voltage regulation, source
+capability, system load, CV taper, or thermal regulation. `G<ma>` remains an
+explicit lower override for a smaller or otherwise limited cell.
+
 Bringup: `fleet_usb_bringup.py commission --sketch-dir fixture --build-path
 firmware/fixture/build/<r> --expect-fw <version> ...` -- the serial/HTTP
 contract (`t` JSON keys, `u` + "maintenance WiFi up, ip=" banner, /telemetry,
@@ -69,10 +74,13 @@ force day/night/auto | `L<0|1>` bench smoke render | `r` status line
 
 ## NVS (namespace `resfx`)
 
-`cap_mah` `chg_ma` `class_ovr` `class_last` `fc_stage` `boots` `profile`
+`cap_mah` `chg_ma` `chg_policy` `class_ovr` `class_last` `fc_stage` `boots` `profile`
 `batt_tier` `dim_mv/off_mv/slp_mv` `sol_en` `maint_v10` `channel` `night_max`.
 First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
-`fc_led_stage` (production must not un-park a protected unit).
+`fc_led_stage` (production must not un-park a protected unit). Charge-policy v1
+then replaces legacy 500/1,000/1,500 mA NVS values with the 2,000 mA default
+once. A nonstandard pre-existing value is preserved as a possible deliberate
+cell limit; later `G<ma>` overrides remain persistent.
 
 ## Dev vs prod profile
 

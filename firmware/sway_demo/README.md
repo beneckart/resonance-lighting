@@ -65,8 +65,9 @@ spin artifacts -- production should mount the accel near the spin axis.
   from loop(), not a dedicated task (see src/vl53l5cx/VENDORED.md).
 - RGBW data -> **GPIO10 / A0** (override with `./build.sh --pin N`); V+ from the
   switchable 3V3 header rail (GPIO4, enabled by the sketch); GND.
-- **Charging** (since .3): off at boot, then a one-shot guard enables a gentle
-  500 mA LFP-profile charge once the gauge reports a plausible cell voltage
+- **Charging** (since .3): off at boot, then a one-shot guard enables the ADR
+  0033 2,000 mA LFP charge-current ceiling once the gauge reports a plausible
+  cell voltage
   (2.5-4.4 V) -- charging into a missing battery brownout-loops. The solar
   guard (`powerfeather_solar_guard.h`) runs whenever charging is on.
 

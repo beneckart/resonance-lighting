@@ -127,9 +127,10 @@ broadcasts; include a peer id to target one node:
 - `C<mah>` stores battery capacity in all peers' NVS, then peers reboot so the next
   `Board.init()` uses the new gauge capacity. Example: `C6000` for a fleet of 32700
   LFP cells. `C<id>:<mah>` targets one peer, e.g. `C9E5AB8:6000`.
-- `G<mA>` stores and live-applies the charger current cap across the fleet. Example:
-  `G1500` for supervised 6 Ah solar runs. `G<id>:<mA>` targets one peer, e.g.
-  `G9E5AB8:1500`. Valid range is 40-2000 mA.
+- `G<mA>` stores and live-applies the charger current cap across the fleet. The
+  ADR 0033 default is `G2000`; this is a ceiling and the charger still backs off
+  for input DPM, system load, CV taper, and thermal regulation. `G<id>:<mA>`
+  targets one peer, e.g. `G9E5AB8:2000`. Valid range is 40-2000 mA.
 
 The dashboard intentionally sends capacity and charge changes only to the selected peer;
 All view refuses those actions so a row click cannot accidentally become a fleet command.
@@ -285,7 +286,7 @@ Example peer build for the current BubbyNet/channel-11 field rig:
   --field-dim-mv 3000 --field-dim-brightness 64 \
   --field-low-mv 2950 --field-critical-mv 2900 --field-low-confirm-s 60 \
   --field-led-load --drawdown-lit 18 --drawdown-brightness 128 \
-  --chem lfp --cap 6000 --charge-ma 1500 --maintain 4.6
+  --chem lfp --cap 6000 --charge-ma 2000 --maintain 4.6
 ```
 
 For the July 14 P105/RGBW ceiling run, replace the HEX load line with:

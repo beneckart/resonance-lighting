@@ -18,7 +18,7 @@
 #include <Update.h>
 #include <Adafruit_NeoPixel.h>
 
-#define STUDIO_VERSION "led-studio-2026-07-30.6"
+#define STUDIO_VERSION "led-studio-2026-08-06.1"
 
 #ifndef DATA_PIN
 #define DATA_PIN 10 // GPIO10 / A0
@@ -63,7 +63,7 @@ using namespace PowerFeather;
 #define STUDIO_BATTERY_TYPE Mainboard::BatteryType::Generic_LFP
 #endif
 #ifndef STUDIO_CHARGE_MA
-#define STUDIO_CHARGE_MA 500.0f
+#define STUDIO_CHARGE_MA 2000.0f
 #endif
 #ifndef STUDIO_MAINTAIN_V
 #define STUDIO_MAINTAIN_V 4.6f
@@ -1410,7 +1410,9 @@ void setup() {
   if (pf == Result::Ok) {
     gPfReady = true;
     Board.setSupplyMaintainVoltage(STUDIO_MAINTAIN_V);
-    Board.setBatteryChargingMaxCurrent(STUDIO_CHARGE_MA); // gentle USB-friendly charge
+    // ADR 0033 board/cell ceiling; BQ input DPM, CV taper, and thermal
+    // regulation determine the current actually delivered.
+    Board.setBatteryChargingMaxCurrent(STUDIO_CHARGE_MA);
     Board.enableBatteryCharging(true);
     pfSolarGuardInit("led_studio", STUDIO_MAINTAIN_V, true);
     Board.enable3V3(true); // LED rail (SDK path)

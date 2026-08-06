@@ -24,7 +24,7 @@ The first production-board profile is:
 - PowerFeather V2 / ESP32-S3
 - `Generic_LFP`
 - 6,000 mAh gauge capacity
-- 500 mA charge-current cap
+- 500 mA charge-current cap (historical packing artifact; superseded by ADR 0033)
 - shared-WiFi maintenance on the `WonkyHouse` profile
 - firmware `net-bench-2026-07-27.3`
 - guarded D7/GPIO37 solenoid support
@@ -33,6 +33,10 @@ All 26 California-bench fixtures received this profile on 2026-07-27. USB and
 serial verification passed, but WonkyHouse was not locally visible, so the registry
 correctly leaves `ota_verified=false` until the first Tennessee association,
 `/telemetry`, and `/resume` check.
+
+The next fleet reflash uses ADR 0033's 2,000 mA battery-side ceiling. Both
+`fixture` and `net_bench` carry a one-time NVS policy migration, because an
+application reflash alone does not erase the historical `chg_ma=500` value.
 
 Fixture `F2BFA0` is the first Tennessee enclosure exception to the common image:
 it now runs the opt-in `net-bench-2026-07-29.4` sensor-triad diagnostic. Targeted
