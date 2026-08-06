@@ -6,15 +6,15 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 
 - **Resonance Tree** -- The overall art project. ~7.5 m bamboo installation for Burning Man 2026. Reused and expanded in 2027 (conch shell built around the trunk).
 - **Resonance** -- Short for the project. Also the parent art collective.
-- **Resonance Lighting** -- This repo's scope. The ~150-fixture lighting fleet (four classes; canonical counts in `docs/block-diagram/SYSTEM.md`, ADR 0024).
+- **Resonance Lighting** -- This repo's scope. The 130-fixture lighting fleet (four physical roles; canonical counts in `docs/block-diagram/SYSTEM.md`, ADR 0032).
 - **Downlight** -- Hanging lantern fixture inside the tree (72 planned, 7-10 ft). Bamboo lantern + electronics hat + filter + 4 W RGBW + downward ToF.
-- **Perimeter light** -- HEX fixture on a ~5 ft shepherd hook around the piece (38-40 planned), with an outward-facing ToF to catch passers-by.
-- **Uplight** -- Ground-pointing-up fixture on a simple bamboo cylinder (24 planned). RGBW, no gobo; small Polycase "boot" at the base with a hinged solar "wing" (likely P105 5 W; decided 2026-07-15), 6 Ah cell, gasketed USB-C port; runs a low-brightness budget tuned at the NC prebuild.
-- **Chandelier light** -- One of 16 lights in the central chandelier cluster's bamboo shafts. HEX/RGBW mix TBD; likely 6 Ah + USB-C top-ups, housed in a carpenter-built box. Scope/ownership still loose (ADR 0024).
+- **Perimeter light** -- All-HEX fixture on a ~5 ft shepherd hook around the piece (24 planned), with an outward-facing ToF to catch passers-by.
+- **Trunk light / uplight** -- Ground-pointing-up fixture on a simple bamboo cylinder (16 planned, physically "16ish"). Moving toward all RGBW, no gobo; a smaller-die 3 W RGB + lens is still being tested for extra throw. The small Polycase "boot" carries a hinged solar "wing" (likely P105 5 W; decided 2026-07-15), 6 Ah cell, and gasketed USB-C port. `UPLIGHT` remains the stable firmware/wire class name.
+- **Chandelier light** -- One of 18 planned lights in the central chandelier cluster. HEX/RGBW mix TBD; likely 6 Ah + USB-C top-ups, housed in a carpenter-built box (ADR 0032).
 - **Hat** -- The sealed solar/electronics enclosure that mounts on top of each bamboo lantern. Since 2026-07-13 the bodies are bought Polycase boxes (111 large **ML-70F\*15** 10x7x4 in -> downlights; 61 small **HN-57-03** NEMA 4x 6.7x5x3 in -> perimeter + uplight boots; 2 transparent-lid demo units); panel flush with the lid, light + ToF flush with the bottom; Steve owns the mechanical integration. Chandelier lights use a carpenter-built box instead.
 - **Filter** / **gobo** -- Patterned-aperture insert that sits at the bamboo node notch. Casts mandala shadows on the ground. Two physical forms: flat disc (the likely production default -- simpler and less brittle) and projective cone (prototype; may be used for a few designs or none). Pattern program: in-house + generative bamboo-leaf designs (community submissions pulled 2026-07-08). Role assignment (corrected 2026-07-27): downlights AND perimeter carry gobos -- perimeter is the "dancing gobo" (stepping the single lit HEX pixel around the board shifts the apparent pattern on the ground); trunk lights/uplights and chandelier carry none. Both roles use the exact same bamboo housing (only the enclosure size differs), so the source-to-gobo drop is 6 in on both (confirmed 2026-07-27).
 - **Wand** -- A hand-carryable lantern variant (proposed) that participants can take through the piece. Tree fixtures react to its proximity.
-- **Chandelier** -- The larger assembly at the top of the tree, sharing a wind chime cluster with a 0.8 m solar panel. Vishnu's design; structure built and in the shipping container. Its 16 light shafts are tentatively this repo's fleet class (see Chandelier light).
+- **Chandelier** -- The larger assembly at the top of the tree, sharing a wind chime cluster with a 0.8 m solar panel. Vishnu's design; structure built and in the shipping container. The Nevada City plan assigns 18 mixed HEX/RGBW lights (see Chandelier light).
 
 ## People
 

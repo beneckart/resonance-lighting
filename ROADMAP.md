@@ -3,7 +3,7 @@
 Phases of work for the Resonance Lighting workstream, working backwards from Burning Man
 2026.
 
-**Hard deadline:** all ~150 fixtures (four classes -- see the fleet table in
+**Hard deadline:** all 130 planned fixtures (four classes -- see the fleet table in
 `docs/block-diagram/SYSTEM.md`) must be in hand and operational by about Aug 20 --
 **the container loads in Nevada City on Aug 21**.
 
@@ -16,9 +16,10 @@ Valley" for the staging area; the site pins it as Bodhi Hive, Nevada City.)
 
 ## Current Critical Path
 
-The production path is decided: **COTS PowerFeather V2 at ~150 units (ADR 0024)**, with
-procurement largely executed (see `ops/PROCUREMENT.md`). The remaining gates are
-integration and hardening, not architecture:
+The production path is decided: **COTS PowerFeather V2 for a 130-fixture deployment
+(ADRs 0024 and 0032)**, with 158 production boards procured and procurement largely
+executed (see `ops/PROCUREMENT.md`). The remaining gates are integration and
+hardening, not architecture:
 
 1. **Energy sizing:** close role-specific nightly load vs measured harvest-at-MPP
    (panels measured 2026-06-29; budget-by-role still open).
@@ -37,12 +38,12 @@ integration and hardening, not architecture:
    uplight wing hardware and solenoid strike-power residuals (the 20 Ah buy was
    CANCELLED 07-15). Watch the CN-transit lines (90 boards, AliExpress
    cables/solenoids).
-6. **Assembly at 150-unit scale:** smoke-test rig, acceptance checklist, low
+6. **Assembly at 130-fixture deployment scale:** smoke-test rig, acceptance checklist, low
    per-fixture operations (ADR 0009).
 
 ## Phase 0 - Documentation And Decision Correction
 
-**Status:** Done through ADR 0031, with living TODOs for implementation.
+**Status:** Done through ADR 0032, with living TODOs for implementation.
 
 Delivered:
 
@@ -64,6 +65,8 @@ Delivered:
 - Recorded the measured LED electrical drive per role; shelved the boost (ADR 0029).
 - Selected deterministic scheduled shows from sparse GPS/GNSS and battery-backed
   external-RTC time anchors; all fixtures do not need RTCs (ADR 0031).
+- Updated the Nevada City production allocation to 130 fixtures: 72 downlights,
+  24 perimeter, 16 trunk/uplights, and 18 chandelier lights (ADR 0032).
 
 ## Phase 1 - COTS Bench And Sizing Campaign
 
@@ -81,8 +84,8 @@ PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED role
 Validated:
 
 - ESP-NOW heartbeat/state packets with jitter and sequence numbers.
-- 5-node networking/range/rate feasibility, with 100-node projection (150-node
-  extrapolation re-check queued -- ADR 0024).
+- 5-node networking/range/rate feasibility, with 100-node projection (130-node
+  extrapolation re-check queued -- ADR 0032).
 - Battery-only standard OTA and A/B rollback; low-VBAT OTA brackets (~3.10 V
   battery-only / 2.901 V solar-assisted / 2.496 V USB-assisted).
 - Watchdog/autosleep recovery.
@@ -111,8 +114,8 @@ Open deliverables:
   3V3 rail for RGBW too -- ADR 0029. The boosted-build count/current cap is
   moot unless the boost is revived.)
 - [ ] Capture keeper `led_studio` settings and gobo photos for both LED roles.
-- [~] Decide HEX/RGBW type mix and placement. (Fleet plan recorded 2026-07-08 --
-  SYSTEM.md fleet table; counts tentative until installation.)
+- [~] Decide final chandelier HEX/RGBW split and qualify the small-die 3 W RGB
+  lens option for trunk throw. (Current 130-fixture allocation recorded in ADR 0032.)
 - [ ] Validate mock-hat RF with panel and battery installed.
 - [ ] Run sealed-hat thermal test with charger and LEDs operating.
 - [x] Bench-test the 20 Ah solar-free option. (Sample 1 verified honest 2026-07-12:
@@ -142,7 +145,7 @@ physical. Wider crowd input expected at the first big camp-wide meeting 2026-07-
   test is the priority.
 - Relay clicks (and even simple beeps) remain live options: early small-n crowd
   testing disliked square waves and was mixed on clicks, but the sample was small
-  and listeners may not have imagined 150 rippling through the tree. The $18/unit
+  and listeners may not have imagined 130 rippling through the tree. The $18/unit
   Omron relay is out on cost; cheaper relays are not. See LOG 2026-07-07 + TODO.md.
 
 ## Phase 2 - Mechanical Hat Prototype Around Real Electronics
@@ -166,9 +169,10 @@ Deliverables:
 
 ## Phase 3 - Architecture Decision: COTS, Custom, Or Hybrid
 
-**RESOLVED 2026-07-08: COTS PowerFeather V2 at ~150 units (ADR 0024; 68 + 90 board
-Elecrow buy, second batch ordered 2026-07-09).** The criteria below are kept as the
-historical decision framework.
+**RESOLVED 2026-07-08: COTS PowerFeather V2 production (ADR 0024; 68 + 90 board
+Elecrow buy, second batch ordered 2026-07-09). The deployment allocation subsequently
+converged to 130 fixtures (ADR 0032).** The criteria below are kept as the historical
+decision framework.
 
 **Window:** After Phase 1/2 data, before procurement lead time becomes risky.
 **Owner:** Ben + Steve.
@@ -230,14 +234,15 @@ Deliverables:
 
 **Window:** Deadline determined by fab/procurement lead times.
 **Owner:** Ben + Steve.
-**Goal:** Lock the ~150-unit architecture with enough time for procurement, assembly, and
-testing. **Status 2026-07-08: procurement largely executed -- the ledger is
+**Goal:** Lock the 130-fixture deployment architecture with enough time for procurement,
+assembly, and testing. **Status 2026-08-06: procurement largely executed -- the ledger is
 `ops/PROCUREMENT.md`, the per-class BOM is `ops/bom.md`.**
 
 Deliverables:
 
 - [x] Board/module procurement: 68 boards received-class + 90 ordered 2026-07-09
-  ($3,494.24, Elecrow) = 158 total. Spares healthy (+6..+8 production, ~8 bench).
+  ($3,494.24, Elecrow) = 158 production boards. Current deployment margin is 28,
+  with the separate bench boards additional (ADR 0032).
 - [x] Battery procurement: 175x 32700 6 Ah bought (ADR 0025); 20 Ah cancelled 07-15 (wing instead).
 - [x] Solar panel procurement, role-specific: 110x P105 + 50x P126 + 160 pigtails
   (ADR 0026).

@@ -6,13 +6,13 @@ Solar "hat" enclosure for the Resonance fixtures. Steve's workstream.
 172x COTS sealed enclosures + screws ordered ~07-12/13 ($5,306.50 total; vendor/
 part details TBC in `ops/PROCUREMENT.md`), split 22 to TN / 150 to CA:
 
-- **LARGE (111):** hanging downlight hats only (<=110 deployed; 72 planned --
-  healthy spares under the corrected 2026-07-15 mapping).
-- **SMALL (61):** perimeter-light hats AND uplight "boots" (perimeter + boots
-  <= 60 combined). The uplight boot gains a **hinged solar "wing"** (decided
+- **LARGE (111):** 72 hanging downlight hats -- 39 remain beyond the current
+  deployment allocation.
+- **SMALL (61):** 24 perimeter-light hats AND 16 trunk/uplight "boots" -- 21
+  remain beyond the current allocation. The trunk/uplight boot gains a **hinged solar "wing"** (decided
   2026-07-15; likely carrying the P105 5 W panel for partial/shaded sun) -- wing
   hinge + panel mount are new mechanical design items.
-- **Chandelier:** no hat -- a team carpenter builds a box housing the 16 lights
+- **Chandelier:** no hat -- a team carpenter builds a box housing the 18 lights
   (coordinate venting, access, and USB-charging reach).
 
 Steve's workstream shifts from print-the-hat to **integrate-the-hat**: panel
@@ -57,17 +57,18 @@ Pattern program update (2026-07-08): community submissions were pulled for time;
 the plan is in-house designs plus generative-AI-modulated bamboo-leaf patterns per
 bamboo species (see `BACKGROUND.md`).
 
-## Uplight "boot" (new fixture class, tentative -- design input for Steve)
+## Trunk/uplight "boot" (design input for Steve)
 
-The 24 uplights are simple bamboo cylinders (no lower splay, no gobo). Updated
-concept (2026-07-15): the 4 W RGBW sits near the lit end, and the small Polycase
+The 16 trunk/uplights are simple bamboo cylinders (no lower splay, no gobo).
+The production direction is all RGBW; a smaller-die 3 W RGB variant with a lens
+is also under test for extra throw. Updated concept (2026-07-15): the LED sits near the lit end, and the small Polycase
 "boot" at the base carries the PowerFeather, the standard 6 Ah cell, a gasketed
 panel-mount USB-C charge/flash port, and a **hinged solar "wing"** (likely the
 P105 5 W) that folds out to catch partial/shaded sun. Wing hinge + panel mount are
 the new design items; the show runs a low-brightness budget tuned at the NC
 prebuild. Same internals as every other fixture; sleeps during the day. (The
 earlier fill-the-cylinder 20 Ah concept was cancelled on sourcing -- ADR 0025
-annotation.) The 16 chandelier lights use the carpenter-built box instead.
+annotation.) The 18 chandelier lights use the carpenter-built box instead.
 
 ## Reference
 

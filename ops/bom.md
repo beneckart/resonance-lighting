@@ -1,9 +1,9 @@
 # BOM -- Fleet Bill of Materials vs Real Orders
 
-**Status:** Rewritten 2026-07-08 against actual procurement. Fixture counts MIRROR the
+**Status:** Updated 2026-08-06 against actual procurement. Fixture counts MIRROR the
 canonical fleet table in `docs/block-diagram/SYSTEM.md` -- when counts change, update
 SYSTEM.md first, then this file. Order dates, costs, and statuses live in
-`ops/PROCUREMENT.md`. Counts are tentative until installation (ADR 0024).
+`ops/PROCUREMENT.md`. The current 130-fixture Nevada City allocation is in ADR 0032.
 
 ## Shared core (every fixture class)
 
@@ -30,7 +30,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | TMF8820-mini ToF, facing downward | 1 | SparkFun, 100 bought (bench-validated on same-family TMF8821) |
 | MSA311 accel + STEMMA cable | 1 + 1-2 | Adafruit, 150 accels + 250 cables bought |
 
-### Perimeter x38-40 (5 ft shepherd hooks)
+### Perimeter x24 (5 ft shepherd hooks, all HEX)
 
 | Item | Per fixture | Source / status |
 |---|---|---|
@@ -42,47 +42,47 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | MSA311 accel + STEMMA cable (likely) | 1 + 1 | from the 150-accel pool |
 | Shepherd hook | 1 | project-side sourcing, outside this electronics BOM |
 
-### Uplight x24 (simple bamboo cylinder, no gobo)
+### Trunk/uplight x16 (simple bamboo cylinder, no gobo)
 
 | Item | Per fixture | Source / status |
 |---|---|---|
-| 4 W RGBW warm white | 1 | from the 100-RGBW pool |
+| 4 W RGBW warm white | 1 | Current production direction is all RGBW, from the 150-RGBW pool; a smaller-die 3 W RGB variant with a lens is also under test for extra throw. |
 | Power source | 1 | **RESOLVED 2026-07-15: hinged solar "wing" on the boot** (partial/shady sun; likely wants the 5 W P105) + standard 6 Ah cell; run mostly low-brightness, tuned by Nevada City prebuild experiments. (20 Ah CANCELLED on sourcing/timeline -- ADR 0025 annotation.) |
 | Gasketed panel-mount USB-C port | 1 | from the 150-port pool (bought 07-10; now a shared-core item) |
 | Base "boot" enclosure + wing | 1 | small Polycase from the 61-unit pool (bought 07-13) + hinged wing hardware (to-buy; Steve designs) |
 | BMP581 temp + barometric pressure (STEMMA chain) | 1 | Adafruit, 30 bought 07-16 -- generic environmental data (playa weather telemetry) |
 
-### Chandelier x16 (central shafts; scope still loose)
+### Chandelier x18 (central lights; scope still loose)
 
 | Item | Per fixture | Source / status |
 |---|---|---|
 | HEX or RGBW (mix TBD) | 1 | from the HEX/RGBW pools (RGBW spares cover any mix) |
 | Power source | 1 | likely 6 Ah + USB-C top-ups, low-brightness budget (20 Ah option closed 07-15) |
-| Housing | shared | carpenter-built box for the 16-light cluster (team carpenter; not this BOM) |
+| Housing | shared | carpenter-built box for the 18-light cluster (team carpenter; not this BOM) |
 | Sensors | none (tentative) | |
 
-## Fleet totals + spares math (needed at 150-152 vs bought)
+## Fleet totals + spares math (needed at 130 vs bought)
 
 | Part | Needed | Bought | Margin | Flag |
 |---|---|---|---|---|
-| PowerFeather V2 | 150-152 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +6..+8 production | healthy -- spares risk RESOLVED by the 90-board order |
-| 32700 6 Ah | ~78-80 (perimeter + uplights + chandelier) | 175 | ~+95 | huge margin -- downlights moved to the 33140 |
-| 33140 15 Ah | <=110 downlights (72 planned) | 130 | +20..+58 | qualification pending: capacity/IR + ADR 0023 threshold re-map |
-| 4 W RGBW | 96 + chandelier share (up to ~104) | 150 (100 + 50 ordered 07-10) | +46..+54 | healthy -- top-up DONE |
-| SK6812 HEX | 38-40 + chandelier share (~46-48) | 90 (+20 NeoHEX fallback) | ~+42 | healthy |
-| P105 5 W panel | ~96 (72 downlights + ~24 uplight wings, likely) | 110 | +14 | ok -- wing panel choice to confirm |
-| P126 2 W panel | 38-40 | 50 | +10..+12 | ok |
-| DC pigtails | = deployed panels (110-136) | 160 | +24..+50 | ok |
-| MSA311 | ~110-112 | 150 | +38..+40 | healthy |
+| PowerFeather V2 | 130 | 158 (68 + 90 ordered 07-09) (+~8 bench: 5 Ben, 3 Steve) | +28 production | healthy -- deployment allocation leaves a real production spare pool |
+| 32700 6 Ah | 58 (24 perimeter + 16 trunk/uplight + 18 chandelier) | 175 | +117 | huge margin -- downlights moved to the 33140 |
+| 33140 15 Ah | 72 downlights | 130 | +58 | qualification pending: capacity/IR + ADR 0023 threshold re-map |
+| 4 W RGBW | 88 + chandelier share (88-106 total) | 150 (100 + 50 ordered 07-10) | +44..+62 | healthy -- top-up DONE; 3 W RGB lens test is an alternate trunk option |
+| SK6812 HEX | 24 + chandelier share (24-42 total) | 90 (+20 NeoHEX fallback) | +48..+66 | healthy |
+| P105 5 W panel | ~88 (72 downlights + 16 trunk/uplight wings, likely) | 110 | +22 | healthy -- wing panel choice to confirm |
+| P126 2 W panel | 24 | 50 | +26 | healthy |
+| DC pigtails | = deployed panels (~112 if every trunk/uplight gets a wing) | 160 | +48 | healthy |
+| MSA311 | ~96 (72 downlights + 24 perimeter) | 150 | +54 | healthy |
 | TMF8820-mini | 72 | 100 | +28 | healthy |
-| VL53L5CX | 38-40 | 48 | +8..+10 | ok |
-| ToF protective covers | 38-40 | 60 | +20 | ok |
+| VL53L5CX | 24 | 48 | +24 | healthy |
+| ToF protective covers | 24 | 60 | +36 | healthy |
 | STEMMA cables | ~150-250 uses | 250 | ok | |
-| USB-C panel-mount rescue ports | 150-152 (one per fixture) | 150 ordered 07-10 | ~0 | universal rescue/charge port; margin thin but ports are only needed on deployed units |
-| Grove/HY2.0 breakouts | ~46-48 (HEX fixtures incl. chandelier share) | 125 (70 + 55) | +77 | healthy |
+| USB-C panel-mount rescue ports | 130 (one per fixture) | 150 ordered 07-10 | +20 | universal rescue/charge port |
+| Grove/HY2.0 breakouts | 24-42 (HEX fixtures incl. chandelier share) | 125 (70 + 55) | +83..+101 | healthy |
 | Pre-crimped XH cables | ~2-4 per fixture | ~2,100+ pieces + 160 Y-splitters across lengths/colors | abundant | deliberate lead-time hedge; lengths chosen at integration |
-| Enclosure, LARGE | downlights, <=110 deployed (72 planned) | 111 (incl. 1 transparent-lid demo) | +38 at plan | healthy (mapping corrected 07-15: perimeter is SMALL, not large) |
-| Enclosure, SMALL | perimeter + uplight boots, <=60 combined (38-40 + 24 = 62-64 planned!) | 61 (incl. 1 transparent-lid demo) | -3..-1 vs the loose plan | allocation flexes under the <=60 cap (Elliot flexible); watch at installation |
+| Enclosure, LARGE | 72 downlights | 111 (incl. 1 transparent-lid demo) | +39 | healthy (mapping corrected 07-15: perimeter is SMALL, not large) |
+| Enclosure, SMALL | 24 perimeter + 16 trunk/uplight boots = 40 | 61 (incl. 1 transparent-lid demo) | +21 | healthy; the Nevada City allocation resolves the earlier small-enclosure squeeze |
 | ~~20 Ah LFP~~ | 0 | 2 samples (verified honest: 19,412 mAh) | -- | CANCELLED 07-15: sourcing/timeline; uplights go solar-wing + 6 Ah; Alibaba ~$4.50/cell = 2027 lead |
 | MOSFET drivers (solarnoid) | downlights only, <=110 (large hats -- the solarnoid needs the space; scope settled ~07-24) | 160 (110 + 50) | +50 and likely more at 72 planned | surplus acknowledged |
 | Solenoids (push-pull) | downlights only, <=110 | 150 in transit (75x 3 V + 75x 5 V) -- MAY BE RETURNED | -- | bake-off trending STRONGER (0730B 6 V/1 A primary); "solarnoid" design finalized ~07-24, mallet and all |
@@ -91,7 +91,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | Strike caps (22,000 uF 16 V) | 1 per noisemaker fixture | 210 ordered 07-16 | abundant | VDC-tap strike storage; 22k uF = headroom for stronger solenoids; transients benign (VDC droop, reads like a passing cloud) |
 | ~~Other noisemaker parts~~ | -- | 1x #3885 (damaged pot) + bench relays | -- | DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike wins; speaker path abandoned (spares cancelled); relays/beeps not pursued |
 
-| BMP581 env sensor | 24 uplights | 30 ordered 07-16 | +6 | temp + barometric pressure on the uplight STEMMA chain |
+| BMP581 env sensor | 16 trunk/uplights | 30 ordered 07-16 | +14 | temp + barometric pressure on the trunk/uplight STEMMA chain |
 
 Depth-sensor bookkeeping: production orders are 48x VL53L5CX + 100x TMF8820-mini;
 with the bench/sample units already on hand the total is **150 depth sensors** --
@@ -115,8 +115,8 @@ since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150 solenoids
   sourcing/timeline); chandelier likely 6 Ah + USB-C. Remaining: wing mechanical
   design, wing panel choice (likely P105 5 W), and the low-brightness budget
   (Nevada City experiments).
-- Small-enclosure allocation: perimeter + boots capped at <=60 by the 61-unit
-  pool, vs a loose 62-64 plan -- flexes at installation (Elliot flexible).
+- ~~Small-enclosure allocation~~ -- RESOLVED by ADR 0032: 24 perimeter + 16
+  trunk/uplight boots = 40 against the 61-unit pool.
 - Chandelier HEX/RGBW mix (RGBW spares now cover any split).
 - Sensor allocation confirmation per class (ADR 0027 marks it tentative).
 - USB-C port gasket/cutout approach per hat variant (part selected + bought 07-10;
@@ -126,12 +126,12 @@ since 07-08: 90 PowerFeathers (07-09), 100 MOSFET drivers + 150 solenoids
 - Harness/connector part numbers (JST-XH family).
 - Solenoid strike-power source (VDC-tap + storage cap vs battery/VS pin) and
   noisemaker (solenoid, ADR 0030) scope per class -- drives the residual wiring buy.
-- Spares policy per part once deploy counts firm up at installation -- note the
-  LARGE enclosure line has effectively zero spares (111 vs 110-112 needed).
+- Spares policy per part once deploy counts firm up at installation; ADR 0032 leaves
+  useful margins in both enclosure sizes and 28 production PowerFeathers.
 - Enclosure vendor/part details to record in the ledger (TBC); mechanical
   integration design (Steve): panel mount, bamboo clamp, USB-C gasket, ToF windows.
 - Chandelier carpenter box: specs to coordinate (venting, access, USB charging
-  reach for 16 fixtures).
+  reach for 18 fixtures).
 - Shepherd-hook sourcing (project-side).
 
 ## Superseded
@@ -147,5 +147,5 @@ total_cost = parts + shipping + spares + assembly labor + QA/rework allowance
 ops_risk = solder joints + crimps + one-off configs + fragile connectors + field access
 ```
 
-The winning BOM is the one that closes energy and reliability while keeping 150-unit
+The winning BOM is the one that closes energy and reliability while keeping 130-fixture
 assembly boring.

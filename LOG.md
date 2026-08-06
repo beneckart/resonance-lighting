@@ -12,6 +12,56 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- Cambium integration and 130-fixture production update
+
+Pulled `origin/main`, fetched Justin Lange's `cambium-direct-frames` branch, and
+onboarded the separate `justinlange/cambium` daemon in isolated worktrees so Ben's
+dirty main worktree remained untouched. Justin's fixture commit applied cleanly to
+current main and retains his authorship. The protocol addition is small and
+append-only: direct-frame type 25 and lifecycle-force type 26, with a one-second
+hold/fade and autonomous fallback after three seconds of sender silence. Existing
+power and lifecycle gates remain authoritative.
+
+Completed the integration locally instead of waiting on a rebased firmware PR.
+Added a build-time binary Cambium mode to the existing CoreS3 bridge, persisted
+radio-channel reporting/configuration (`H1` through `H13`) to the fixture, and direct
+seen/matched telemetry counters. The CoreS3 path was necessary because Justin's
+earmarked PowerFeather F2BED4 was not present; the active COM4 battery-prep fixture
+was explicitly left untouched. Default human-readable CoreS3 behavior still builds
+unchanged when the Cambium flag is absent.
+
+Adapted Cambium to the current 130-fixture plan (8 packets per direct wave, 64
+packets/s at 8 Hz), added `trunk` as a host-side alias for the wire-stable UPLIGHT
+class, and added a three-perimeter-device roster/config. Review found and fixed a
+real host-side lifecycle mismatch: fixture lifecycle values are boot=0,
+day-charge=1, day-active=2, night=3, while the fake fleet and doctor had treated
+0/1 as day/night. Unknown short-heartbeat lifecycle is now reported as unknown
+instead of falsely diagnosed as day.
+
+Verification passed: 254 native fixture checks; 334 Cambium tests with 1 skipped;
+sequential clean Arduino builds for fixture, default CoreS3, and binary CoreS3. On
+the three Nevada City perimeter devices (F3FD88, F2BE80, F2BFEC), the doctor heard
+3/3 heartbeats, blink/identify worked, and distinct red/green/blue direct frames put
+all three in program 3 at intensity 255. Stopping Cambium returned all three to
+autonomous program 1 at intensity 25 after the lease expired. Acceptance counters:
+67/67 radio sends, zero send failures, CRC errors, or receive drops. The test also
+exposed persisted channel 6 from the presence bench overriding the build channel;
+the new channel command corrected that before the pass.
+
+After acceptance, all three fixtures acknowledged `H6` and were reflashed
+sequentially with the exact prior LED Studio artifact
+`F451B0C6E9015C1340801FDA5F0732C2197479208BEE437EED742EF9FBCABF50`.
+The CoreS3 was restored to its exact prior bridge artifact
+`170F2CABE5E242BFFEAF01E8CEA18E824AB6F73E03041340312CD96A43748347`;
+flash hashes and the live ASCII banner were verified.
+
+Recorded Nevada City production convergence in ADR 0032 and the living docs: 72
+downlights in three rings of 24, 24 all-HEX perimeter lights, 18 mixed HEX/RGBW
+chandelier lights, and 16 trunk/uplights moving toward all RGBW while the smaller
+3 W RGB + lens option is tested for throw. Total deployment target is 130. The 158
+production PowerFeathers now leave 28 boards beyond the deployment target, and the
+small-enclosure allocation is 40 against 61 bought.
+
 ## 2026-08-06 -- Ben + Codex -- CoreS3 display refresh made flicker-free
 
 Ben confirmed that the dedicated bridge image now boots from the CoreS3's own

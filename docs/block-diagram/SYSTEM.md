@@ -1,37 +1,39 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-07-26. This supersedes the old
+**Status:** Current working architecture, 2026-08-06. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0031. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0032. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
 
-Build ~150 autonomous bamboo lighting fixtures for Burning Man 2026/2027. Each fixture is
+Build about 130 autonomous bamboo lighting fixtures for Burning Man 2026/2027. Each fixture is
 fungible: no per-unit pairing, no fixed wiring topology, no infrastructure dependency, and
-no skilled repetitive assembly operation at 150-unit scale.
+no skilled repetitive assembly operation at fleet scale.
 
 ## Fleet Plan (living counts -- canonical)
 
-Counts are TENTATIVE until installation (decision record: ADR 0024). The design is
-fungible and fully wireless, so placement is free and the split can shift on-site.
+Counts reflect the Nevada City production build (decision record: ADR 0032). They may
+decrease only if an unforeseen installation issue forces fewer lights. The design is
+fungible and fully wireless, so individual units remain interchangeable.
 `ops/bom.md` mirrors these counts; update here first.
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
 | Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward) |
-| Perimeter (5 ft shepherd hooks) | 38-40 | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah (the only cell that fits the small enclosure) | VL53L5CX (outward); MSA311 likely |
-| Uplight (simple cylinder, no gobo) | 24 (perimeter + uplights <=60 by small-enclosure pool) | 4 W RGBW | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
-| Chandelier (16 central shafts) | 16 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
+| Perimeter (5 ft shepherd hooks) | 24 | All SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah (the only cell that fits the small enclosure) | VL53L5CX (outward); MSA311 likely |
+| Trunk/uplight (simple cylinder, no gobo) | 16 (current target; physically "16ish") | Moving toward all 4 W RGBW; smaller-die 3 W RGB + lens is still an extra-throw test | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
+| Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
-Total 150-152. All classes share PowerFeather V2 internals, firmware, and day-sleep
+Total 130 (three downlight rings of 24 + 24 perimeter + 18 chandelier + 16 trunk).
+All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
 to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
 without opening the hat; the solar-free classes also charge through it.
-Chandelier scope/ownership is still loose; its 16 shafts are the only locked positions
-and some may stay unpopulated. Board spares are healthy since the 90-board order
-(158 production + ~8 bench); enclosure pools cap the allocation (large <=110
-downlights, small <=60 perimeter + boots) -- see `ops/bom.md` spares math.
+Board spares are healthy since the 90-board order (158 production plus separately
+identified bench stock); enclosure pools cap the allocation (large <=110 downlights,
+small <=60 perimeter + trunk boots) -- see `ops/bom.md` spares math. Keep the existing
+wire/NVS `UPLIGHT` class value for trunk fixtures; `trunk` is a physical-role alias.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for
@@ -270,4 +272,4 @@ point-source RGBW fixtures, then panel size by role.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.
 - ADR 0023 low-battery state machine into production firmware (current bench floors
   strand capacity).
-- Re-check the ESP-NOW scale extrapolation at 150 nodes (computed at 100).
+- Re-check the ESP-NOW scale extrapolation at 130 nodes (computed at 100).

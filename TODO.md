@@ -157,7 +157,7 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   panel-current consensus. Four SAM-M8Q modules are already bought as GPS soft anchors
   for absolute UTC, and four Adafruit DS3231 STEMMA modules with backup batteries are
   already bought as initial RTC holdover anchors. Distribute source/age/uncertainty
-  over ESP-NOW so all 150 fixtures do not need time hardware. Qualify the SAM-M8Qs
+  over ESP-NOW so all 130 fixtures do not need time hardware. Qualify the SAM-M8Qs
   through the real hat/panel/battery geometry and the DS3231s across temperature,
   reset, and backup-power cases; select final anchor counts; measure acquisition
   energy, RTC drift/backup current, and local-clock holdover; define schedule
@@ -503,11 +503,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [x] **Record LED module = BOTH, by role** -- DONE 2026-06-17 via ADR 0022
   (`docs/decisions/0022-mixed-led-fleet-by-role.md`), preserving ADR 0018's IS31
   rejection and direct-GPIO constraint (Ben/Codex).
-- [~] Decide HEX/RGBW **type mix and placement** -- **FLEET PLAN RECORDED 2026-07-08**
-  (ADR 0024 + SYSTEM.md fleet table): RGBW on 72 downlights + 24 uplights, HEX on
-  38-40 perimeter hooks, mixed on the 16 chandelier shafts; panels split by role
-  (ADR 0026). Counts tentative until installation; final placement happens on-site
-  (placement is free -- fungible wireless design) (Ben + Steve + team).
+- [~] Decide HEX/RGBW **type mix and placement** -- **FLEET PLAN UPDATED 2026-08-06**
+  (ADR 0032 + SYSTEM.md fleet table): RGBW on 72 downlights; all HEX on 24
+  perimeter hooks; mixed on 18 chandelier lights; 16 trunk/uplights moving toward
+  all RGBW while the smaller-die 3 W RGB + lens gets an extra-throw A/B. Counts now
+  reflect the Nevada City production build, barring an unforeseen reduction (Ben +
+  Steve + team).
 - [ ] **Capture per-look settings**: when a look is a keeper, record the led_studio sliders + the UI Battery line voltage (brightness is SOC-dependent until the 4.2 V boost lands) (Ben + Steve).
 - [ ] Compare Steve's **3 flat sample filters** through the rig; note which pattern reads best at the install throw (Ben).
 - [ ] Capture ceiling photos per source/filter for the record; fold results into a gobo test write-up (Ben).
@@ -804,7 +805,7 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   kill, and the rail hookup is easy/robust. Side benefit of converting: frees
   3V3/GND/A0 for a clacker/relay payload (Ben).
 
-## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risked the buy -- fleet now ~150, ADR 0024)
+## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risked the buy -- fleet now 130, ADR 0032)
 
 See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_bench/`.
 
@@ -812,7 +813,14 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [~] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0-T7 -- channel MUST match the AP or ESP-NOW silently fails. Partial 2026-06-07/08: master + 3-4 peers ran the matrix (one board never booted); full 5-board pass still open (Ben).
 - [x] Run the **rate sweep** (1/2/5/10/20/50 Hz) -- **PASS 2026-06-07** (LOG): >=97 % PDR to 250 pkt/s aggregate, clean knee; ~100-node projection at 1-2 Hz = 98-99 % PDR (Ben).
 - [x] **Range** T3 -- **PASS 2026-06-08**: link held through house + yard + oak (~100 steps); solar panel is the main ~20 dB attenuator; obstruction mapping captured (Ben).
-- [ ] **Re-run the scale extrapolation at 150 nodes** (it was computed at 100; fleet is now 150-152 per ADR 0024) and restate the projected PDR honestly (Ben/Claude).
+- [ ] **Re-run the scale extrapolation at 130 nodes** (it was computed at 100; fleet is now 130 per ADR 0032) and restate the projected PDR honestly (Ben/Codex).
+- [x] **Cambium three-fixture acceptance** -- DONE 2026-08-06 on the three Nevada
+  City perimeter units: CoreS3 COBS bridge status, 3/3 heartbeat census, roll-call,
+  direct program 3 on all nodes, and >3 s silence fallback to autonomous program 1;
+  67/67 bridge sends, zero TX failures/CRC errors/RX drops. Presence-bench firmware
+  and channel 6 restored afterward (Ben/Codex).
+- [ ] Merge/review `codex/cambium-direct-frames` and the companion Cambium branch,
+  then repeat direct streaming on a mixed HEX/RGBW fleet before production rollout.
 - [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` -- confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
 - [ ] **Rehearse shared-WiFi OTA at tree scale (about 100 awake peers) on the actual
   portable router:** measure maintenance discovery/DHCP success, safe upload
@@ -873,8 +881,9 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 - [ ] **Design the light placement layout** -- per Elliot (2026-07-15, via Ben):
   the build-dashboard STRUCTURAL geometry is correct (6.5 m tree, 10 m canopy,
   24 limbs, 2.7 m waist) but its lighting sketch (~90 lights) is NOT the plan;
-  light number and placement are Ben + Steve's (+ Claude's) creative call, all
-  ~150 fixtures deployed (extras become camp lights off-tree). Design inputs to
+  light number and placement are Ben + Steve's (+ Claude's) creative call. The
+  current deployment plan is 130 fixtures (ADR 0032); remaining boards become
+  spares or camp lights off-tree. Design inputs to
   reconcile in one layout: (1) gobo non-overlap -- at 7 ft hang with the LED
   dropped 6", ground-pattern diameter ~0.84 m, so downlight spacing >= ~0.85 m
   (the 10 m canopy makes this feasible; the 0.3.1 CAD's inner ring at ~0.5 m
@@ -977,7 +986,7 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   bamboo clamp/attachment, internal mounting for PowerFeather + cell + both LED
   roles, USB-C gasket cutout, ToF windows, strain relief; then thermal/RF proof
   on the real boxes (Steve + Ben).
-- [ ] Coordinate the chandelier carpenter box: dimensions for 16 fixtures,
+- [ ] Coordinate the chandelier carpenter box: dimensions for 18 fixtures,
   venting, service access, USB-charging reach (Ben -> Elliot/carpenter).
 - [ ] **Design the uplight "boot" variant** (new class, tentative -- see
   `enclosure/README.md`): battery-in-cylinder retention (possibly the 20 Ah cell),
@@ -1136,9 +1145,9 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   Pure lantern invoice, possibly the early custom-PCBA quote), and with real COTS
   procurement recorded in `ops/PROCUREMENT.md` the comparison baseline is no longer
   useful (Ben).
-- [ ] Clarify chandelier-light scope/ownership with Elliot + Vishnu (16 shafts,
-  internals fungible with the fleet -- ADR 0024) and decide the HEX/RGBW mix, which
-  sizes the planned RGBW top-up buy (Ben).
+- [ ] Clarify chandelier-light scope/ownership with Elliot + Vishnu (18 lights,
+  internals fungible with the fleet -- ADR 0032) and decide the HEX/RGBW mix
+  (Ben).
 - [ ] Decide the TENTATIVE TN trip (~3rd-4th week of July): fleet-scale test of the
   ~70 boards at Steve's -- production-firmware mesh lighting effects + presence
   detection, indoors if enclosures aren't ready; back for the Aug 1-2 container

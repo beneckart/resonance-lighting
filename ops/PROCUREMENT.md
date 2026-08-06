@@ -55,11 +55,11 @@ colors from multiple vendors ("they are cheap") betting that a few orders land
 early -- an abundance is the plan, not an accident. Additional small
 receptacle/header orders (Amazon/AliExpress) exist beyond the itemized rows.
 
-Enclosure mapping (corrected 2026-07-15): **LARGE (111) -> hanging downlights
-only** (<=110 deployed); **SMALL (61) -> perimeter lights AND uplight boots**
-(perimeter + boots <= 60 combined). The 16 chandelier lights get a carpenter-built
-box (team-side, not this ledger), so 150 fixtures fit inside the enclosure pools
-with spares back at camp; Elliot is flexible on the final light allocation. Two of
+Enclosure mapping (corrected 2026-07-15, allocation updated 2026-08-06): **LARGE
+(111) -> 72 hanging downlights**; **SMALL (61) -> 24 perimeter lights AND 16
+trunk/uplight boots**. The 18 chandelier lights get a carpenter-built box
+(team-side, not this ledger), so the 130-fixture Nevada City plan fits inside the
+enclosure pools with useful spares. Two of
 the enclosures (1 large + 1 small) have TRANSPARENT LIDS -- "show and tell" demo
 models for explaining the piece to visitors at the art piece.
 
@@ -101,7 +101,7 @@ tuned by experiments at the Nevada City prebuild.
 | ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
 | ~~20 Ah LFP cells (batteryspace #6832)~~ | ~~40~~ | ~~solar-free uplights/chandelier~~ | **CANCELLED 2026-07-15**: batteryspace quantity short; Alibaba alternative (~$4.50/cell bulk!) needs ocean freight = misses 2026. Uplights go hinged-solar-wing + 6 Ah instead. Revisit for 2027. | -- | -- |
 | ~~20 Ah end-cap connection hardware~~ | ~~40~~ | -- | CANCELLED with the cells | -- | -- |
-| Uplight wing hardware (hinges, panel mount on the boot) | ~24 | hinged solar wing on the uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
+| Trunk/uplight wing hardware (hinges, panel mount on the boot) | ~16 | hinged solar wing on the trunk/uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
 | Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16; transient question CLOSED -- strikes read as benign VDC droops, cloud-indistinguishable) | mounting design | ~late July | Low |
 | Stronger solenoids (0730B 6 V/1 A class) | up to fleet | replaces the 3 V/5 V units if the bake-off confirms | bake-off verdict (in progress on the bench laptop); pair with the 3 V/5 V return decision | ASAP after verdict | Medium: another CN lead time |
 | ~~Spare STEMMA speakers #3885~~ | -- | -- | CANCELLED 2026-07-15: speaker path ABANDONED (ADR 0030) -- solenoid bamboo-strike wins | -- | -- |

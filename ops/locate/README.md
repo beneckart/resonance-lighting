@@ -1,6 +1,6 @@
 # ops/locate -- RSSI + ToF fixture auto-localization
 
-Feasibility tooling for the "autoconfiguring tree": simulate ~150 ESP-NOW
+Feasibility tooling for the "autoconfiguring tree": simulate the 130-fixture ESP-NOW
 devices with playa-realistic RSSI noise, solve the pairwise-RSSI + ToF-anchor
 localization problem into a 3D point cloud, register it onto the CAD fixture
 layout, and measure whether each physical device can learn which fixture slot
@@ -61,10 +61,11 @@ and the ToF-derived height where the class has one:
 
 ## CAD ground truth
 
-`data/fixtures-0.3.1.json` is vendored from `app/public/fixtures.json` on
-`origin/Lighting-Controller` (commit 0558a5d, blob af0892c). 118 fixtures
-(78 downlight / 24 uplight / 16 chandelier); the 38-40 perimeter fixtures are
-absent from the export and synthesized as a parametric ring (5 ft, radius
+`data/fixtures-0.3.1.json` is a historical layout vendored from
+`app/public/fixtures.json` on `origin/Lighting-Controller` (commit 0558a5d, blob
+af0892c). It contains the superseded 118-fixture allocation (78 downlight / 24
+uplight / 16 chandelier); the superseded 38-40 perimeter allocation is absent
+from the export and synthesized as a parametric ring (5 ft, radius
 auto = 1.15x canopy). Units: the export's scale is NOT trusted (`meta.units`
 says m, spans say otherwise); per Ben the fleet spec's "downlights hang at
 7-10 ft" IS ground truth, so the default `--cad-scale auto:downlights` maps
@@ -80,7 +81,9 @@ lands. Remaining quirks handled in code: 6 groups of stacked duplicate
 positions (assignment scores within-group swaps as correct) and 78 downlight
 slots vs 72 production devices (rectangular assignment). Uplights are
 elevated in this export -- possibly intentional (uplighting the upper trunk),
-NOT "corrected".
+NOT "corrected". This dataset is not the ADR 0032 production truth; replace it
+with a 72 downlight / 24 perimeter / 16 trunk/uplight / 18 chandelier layout before
+using localization output for installation.
 
 ## Quickstart
 

@@ -78,18 +78,18 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 - Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
-- **Production locked: COTS PowerFeather V2 at ~150 fixtures in four classes** -- 72 downlights + 38-40 perimeter + 24 uplights + 16 chandelier, tentative until installation; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0024).
+- **Production locked: COTS PowerFeather V2 with a 130-fixture Nevada City plan** -- 72 downlights (three rings of 24) + 24 all-HEX perimeter + 16 trunk/uplights moving toward all RGBW + 18 mixed chandelier; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0032 supersedes the count snapshot in ADR 0024).
 - Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on
   downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device
-  calibration (ADR 0027). BMP581 temp/barometric env sensors were added to uplights
+  calibration (ADR 0027). BMP581 temp/barometric env sensors were added to trunk/uplights
   (30 bought 2026-07-16).
 - **Production show timing uses deterministic site/date schedules from sparse time
   anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
   initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231
   modules are initial RTC holdover anchors. ESP-NOW distributes time quality to the
-  rest of the fleet, so all 150 fixtures do not need RTCs (ADR 0031). Reception,
+  rest of the fleet, so all 130 fixtures do not need RTCs (ADR 0031). Reception,
   energy, drift/backup behavior, final counts, schedule offsets, and invalid-time
   fallback remain open.
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
@@ -100,12 +100,11 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- ~~Uplight/chandelier power~~ -- RESOLVED 2026-07-15: uplights get a hinged solar
+- ~~Trunk/uplight/chandelier power~~ -- RESOLVED 2026-07-15: trunk/uplights get a hinged solar
   "wing" on the boot (likely P105 5 W) + 6 Ah at a low-brightness budget (NC
   prebuild tunes it); chandelier likely 6 Ah + USB-C. The 20 Ah cell verified
   honest but died on sourcing/timeline (ADR 0025/0026 annotations).
-- Chandelier light electronics scope/ownership (16 shafts, internals fungible with
-  the fleet -- ADR 0024) and its HEX/RGBW mix.
+- Chandelier HEX/RGBW mix across the 18-light Nevada City allocation (ADR 0032).
 - ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
 - Bottom-up nightly energy budget by role; MPPT policy.
 - SAM-M8Q GPS and DS3231 RTC anchor qualification; final anchor counts/placement,
@@ -123,7 +122,7 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   the radio reaches well past tree scale (held through a house + yard + oak, ~100 steps). The
   lantern enclosure is RF-transparent; the solar panel is the main ~20 dB attenuator (antenna
   keep-out matters). Note: the extrapolation was computed at 100 nodes; the fleet now plans
-  150-152 -- re-running the projection at 150 is a queued TODO (physics gives margin, but the
+  130 -- re-running the projection at 130 is a queued TODO (physics gives margin, but the
   claim should say 100 until re-run).
 - **Battery-only, no-touch OTA + A/B rollback** (the "never take a lantern off the tree"
   requirement): software-reset OTA recovered ~17/17 incl. worst-case LFP voltage; a
