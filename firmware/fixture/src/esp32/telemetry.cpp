@@ -8,6 +8,7 @@
 #include "board_power.h"
 #include "identity.h"
 #include "maintenance.h"
+#include "net_peer.h"
 #include "nvs_store.h"
 #include "sensors/sensors.h"
 #include "solenoid.h"
@@ -110,6 +111,8 @@ String telemetryJson() {
   j += ",\"life_state\":" + String(gTelemetryLifeState);
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);
+  j += ",\"direct_seen\":" + String((unsigned long)netPeerDirectSeen());
+  j += ",\"direct_matched\":" + String((unsigned long)netPeerDirectMatched());
   j += ",\"guard_stage\":" + String(gTelemetryGuardStage);
   j += ",\"guard_interrupted\":";
   j += gTelemetryGuardInterrupted ? "true" : "false";

@@ -30,6 +30,7 @@ static uint32_t gDlLastSeq = 0;
 static uint32_t gDlRx = 0, gDlGaps = 0;
 static int8_t gDlRssi = 0;
 static bool gDlSeen = false;
+static uint32_t gDirectSeen = 0, gDirectMatched = 0;
 
 static ShowFrameIn gShowFrame = {};
 static uint8_t gIdentColor = 0, gIdentBlink = 0;
@@ -44,6 +45,8 @@ uint16_t netPeerDlPdrX1000() {
   return tot ? (uint16_t)((uint64_t)gDlRx * 1000 / tot) : 0;
 }
 int8_t netPeerDlRssi() { return gDlRssi; }
+uint32_t netPeerDirectSeen() { return gDirectSeen; }
+uint32_t netPeerDirectMatched() { return gDirectMatched; }
 
 void netPeerSetRateHz(uint8_t hz) { gRateHz = hz; }
 
@@ -190,10 +193,12 @@ static void processPacket(const RxItem &it) {
     // is not a frame. Per-fixture addressing rides IN the entries (there is no
     // target_id), so downlink accounting happens whether or not we're named.
     if (it.len < (int)(offsetof(NbDirectFrame, entries) + sizeof(NbDirectEntry))) return;
+    ++gDirectSeen;
     accountDownlink(h, it.rssi);
     const NbDirectFrame *df = (const NbDirectFrame *)it.data;
     const NbDirectEntry *e = nbDirectFindEntry(df, it.len, gMyId);
     if (!e) break; // frame doesn't name us: not ours, ignore
+    ++gDirectMatched;
     behaviorOnDirectFrame(e->r, e->g, e->b, e->w, df->flags);
     break;
   }

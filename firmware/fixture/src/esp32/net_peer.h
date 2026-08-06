@@ -25,6 +25,8 @@ void netPeerSetRateHz(uint8_t hz);
 // Downlink (bridge SHOWFRAME) delivery stats, reported inside the heartbeat.
 uint16_t netPeerDlPdrX1000();
 int8_t netPeerDlRssi();
+uint32_t netPeerDirectSeen();
+uint32_t netPeerDirectMatched();
 
 // Set by later phases; carried in the heartbeat/choreo packets.
 extern uint8_t gNetCaState;     // mirrors GH state (P5)
