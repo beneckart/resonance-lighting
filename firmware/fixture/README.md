@@ -91,6 +91,8 @@ force day/night/auto | `L<0|1>` bench smoke render | `r` status line
 
 `cap_mah` `chg_ma` `chg_policy` `class_ovr` `class_last` `fc_stage` `boots` `profile`
 `batt_tier` `dim_mv/off_mv/slp_mv` `sol_en` `maint_v10` `channel` `night_max`.
+The USB command `H<1..13>` persists a new ESP-NOW channel and reboots so the
+radio is cleanly re-pinned; bare `H` reports the current channel.
 First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
 `fc_led_stage` (production must not un-park a protected unit). Charge-policy v1
 then replaces legacy 500/1,000/1,500 mA NVS values with the 2,000 mA default

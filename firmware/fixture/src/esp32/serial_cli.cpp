@@ -233,6 +233,26 @@ void handleSerial() {
       Serial.printf("profile -> %s\n", p == PROFILE_DEV ? "dev" : "prod");
     break;
   }
+  case 'H': {
+    int channel = readSerialUint(80, 13);
+    if (channel < 0) {
+      Serial.printf("channel=%u\n", gCfg.channel);
+      break;
+    }
+    if (channel < 1 || channel > 13) {
+      Serial.println("channel rejected: use H<1..13>");
+      break;
+    }
+    if (!nvsPersistChannel((uint8_t)channel)) {
+      Serial.println("channel persist FAILED");
+      break;
+    }
+    Serial.printf("channel -> %d; rebooting to re-pin ESP-NOW\n", channel);
+    Serial.flush();
+    delay(50);
+    ESP.restart();
+    break;
+  }
   case 'r':
     Serial.printf("role=peer mode=%d ch=%d cap=%u charge=%umA class=%s profile=%s "
                   "txok=%lu txfail=%lu\n",

@@ -48,6 +48,7 @@ bool nvsPersistClassOvr(uint8_t cls);
 bool nvsPersistClassLast(uint8_t cls);
 bool nvsPersistSolEn(uint8_t en);
 bool nvsPersistMaintV10(uint8_t v10);
+bool nvsPersistChannel(uint8_t channel);
 
 // Boot-guard stage (kept separate from FixtureConfig: it is read before
 // Serial/Board init and written on safety-critical paths).

@@ -159,6 +159,12 @@ bool nvsPersistMaintV10(uint8_t v10) {
   gCfg.maintV10 = v10;
   return true;
 }
+bool nvsPersistChannel(uint8_t channel) {
+  if (channel < 1 || channel > 13) return false;
+  if (!putU8("channel", channel)) return false;
+  gCfg.channel = channel;
+  return true;
+}
 
 bool nvsReadStage(uint8_t &stage) {
   Preferences pf;
