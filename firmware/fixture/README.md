@@ -4,6 +4,21 @@ One image for all four fixture classes (downlight / perimeter / uplight /
 chandelier), extracted from the proven bench sketches. `net_bench` remains the
 desk **bridge** build (master + serial bridge); this sketch is peer-only.
 
+## Cambium direct control
+
+`NB_DIRECT_FRAME` (type 25) carries up to 18 addressed RGBW entries per ESP-NOW
+packet. A fixture renders only the entry matching its three-byte short MAC. Frames
+grant an expiring micro-lease; after one second of silence the last color fades to
+half, and after three seconds the fixture returns to its autonomous program with the
+existing crossfade. `NB_FORCE_LIFECYCLE` (type 26) provides RAM-only day/night/auto
+bench control and never survives reboot. The local power tier and night gate still
+outrank requested colors.
+
+The nominal 130-light fleet requires eight broadcast packets per complete color
+wave. At Cambium's intended 8 Hz rate that is 64 packets/s, below the previously
+exercised ESP-NOW rate range. The Nevada City acceptance bench uses perimeter
+fixtures `F3FD88`, `F2BE80`, and `F2BFEC`.
+
 ## Architecture stance
 
 **Cooperative main loop + ISR-enqueue rx queue + esp_timer one-shots. No
