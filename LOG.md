@@ -12,6 +12,19 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- Cambium fork published
+
+Created the `beneckart/cambium` fork from Justin's unchanged `a39f9f8` `main`,
+then published `codex/fleet-130-bench3` and fast-forwarded the fork's `main` to
+the reviewed `b071542` integration. The fork is zero commits behind and five
+commits ahead of `justinlange/cambium` `main`; no upstream history was
+rewritten. Local remotes use `origin` for Ben's fork and `upstream` for
+Justin's repository.
+
+The published commit is the exact tree that passed 340 pytest checks with one
+skip. No license file is present in either source or fork; Justin's explicit
+license remains pending, and none was inferred locally.
+
 ## 2026-08-06 -- Ben + Codex -- Cambium firmware landed on main
 
 Fast-forwarded `beneckart/resonance-lighting` `origin/main` from `176cf3b` to
