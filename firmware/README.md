@@ -12,6 +12,7 @@ not yet built; `net_bench` is the closest thing to production firmware today
 > that have each cost real bench time. Working sketches: `power_bench/`,
 > `led_studio/` (merged HEX + RGBW + RGB aesthetic tool),
 > `net_bench/` (ESP-NOW networking feasibility bench), `smoke_test/`,
+> `cores3_bridge/` (dedicated M5Stack CoreS3 fleet bridge),
 > `powerfeather_demo_port/`, `presence_bench/` (I2C multi-sensor bench),
 > `sway_demo/` (MSA311 tilt/sway -> RGBW color, with a web verifier),
 > `speaker_demo/` (STEMMA speaker #3885 percussion synth, noisemaker candidate A).

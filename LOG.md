@@ -12,6 +12,61 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- CoreS3 display refresh made flicker-free
+
+Ben confirmed that the dedicated bridge image now boots from the CoreS3's own
+USB-C connection with the ESP32-H2 Gateway module and DIN base removed. This
+closes the standalone-power concern; the earlier no-boot symptom is no longer
+reproducible after the bridge flash.
+
+The first bridge display implementation cleared and redrew the physical LCD at
+1 Hz, which produced a distracting black flash. Replaced that path with a
+320 x 240, 16-bit M5Canvas allocated in PSRAM: each status page is now rendered
+off-screen and pushed to the LCD only after the frame is complete. The bridge
+continues headless with a serial diagnostic if framebuffer allocation ever
+fails.
+
+Built and flashed `cores3-bridge-2026-08-06.2` on COM40. The exact artifact is
+`firmware/cores3_bridge/build/nc-cores3-bridge-20260806-r4/cores3_bridge.ino.bin`,
+1,101,344 bytes (1,101,191 bytes of reported sketch flash usage), SHA-256
+`556D951E91A658F1609E63FE5A2A7AD53750F79AE773DD1926DCA4FFCEC778EC`.
+The audited build options select the CoreS3 FQBN and `NB_CHANNEL=11`; every flash
+segment hash verified. A cold-reset check confirmed the `.2` banner, successful
+framebuffer allocation, ESP-NOW on channel 11, and a broadcast completing with
+`sendok=4 sendfail=0`. Ben's visual confirmation of the now-steady LCD is the
+remaining human check.
+
+## 2026-08-06 -- Ben + Codex -- CoreS3 dedicated fleet bridge flashed and verified
+
+Origin was fetched and already matched local `main`; existing uncommitted bench,
+firmware, registry, LOG, and TODO work was preserved. USB enumeration found four
+PowerFeathers plus the M5Stack CoreS3 Thread BR. The CoreS3 is COM40 with stable
+USB/WiFi MAC `44:1B:F6:E3:9F:1C` and bridge ID `E39F1C`; the fourth PowerFeather
+now enumerates as COM25 / `68:EE:8F:F4:02:F4`.
+
+Added `firmware/cores3_bridge/`: a dedicated CoreS3 target using M5Unified to
+initialize the AXP2101 and LCD, the canonical fixture packet header, pure
+unassociated ESP-NOW on channel 11, a 192-peer table, the existing dashboard
+`nb-*` serial schema and control commands, a nonblocking maintenance burst, and
+an on-device bridge/peer status screen. The purchased Thread BR kit's ESP32-H2
+Gateway module is not used by Resonance; it can remain mechanically installed.
+
+The first live image exposed and fixed an Arduino-ESP32 3.x integration error:
+`WiFi.disconnect(true, false)` powered the STA interface off before channel
+pinning. The final exact artifact is
+`firmware/cores3_bridge/build/nc-cores3-bridge-20260806-r3/cores3_bridge.ino.bin`,
+1,095,760 bytes (1,095,611 bytes of reported sketch flash usage) with SHA-256
+`170F2CABE5E242BFFEAF01E8CEA18E824AB6F73E03041340312CD96A43748347`.
+It was USB-flashed to COM40 with all segment hashes verified. Live checks passed:
+`esp-now up, ch=11`, 4.10 V CoreS3 battery, stable master telemetry, `r`/`t`
+commands, existing dashboard parser recognition, and a four-copy harmless
+RESUME transmit with `sendok=4`, `sendfail=0`. No peer was expected or observed:
+the three perimeter boards are on LED Studio (WiFi, not ESP-NOW), and the fourth
+PowerFeather was not changed in this session. Open: physically retry the CoreS3
+on its own USB-C with the Gateway/DIN stack removed, and exercise bridge RX plus
+one targeted command after a PowerFeather is returned to fixture/net_bench peer
+firmware.
+
 ## 2026-07-30 -- Ben + Claude -- production fixture firmware: milestone 1 code complete
 
 New sketch `firmware/fixture/` -- one image for all four fixture classes,

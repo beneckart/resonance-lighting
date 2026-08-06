@@ -1100,6 +1100,18 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 
 ## Production test / flashing
 
+- [x] NC 4th PowerFeather enumeration -- RESOLVED 2026-08-06: it is now present
+  as COM25 / `68:EE:8F:F4:02:F4`. It was not reflashed; the dedicated CoreS3
+  `E39F1C` on COM40 now owns the desk-bridge role. (Ben/Codex)
+- [x] CoreS3 standalone power check -- RESOLVED 2026-08-06: Ben removed the
+  ESP32-H2 Gateway module and DIN base, and the dedicated CoreS3 bridge booted
+  normally from its own USB-C connection. The earlier no-boot symptom is not
+  reproducible after the bridge flash. (Ben/Codex)
+- [ ] CoreS3 bridge receive/control proof: return one PowerFeather to channel-11
+  `fixture` or `net_bench` peer firmware, confirm its heartbeat appears on the
+  CoreS3 screen/dashboard, then run one harmless targeted identify or maintenance
+  command and verify receipt. TX-only and dashboard parsing passed 2026-08-06;
+  the connected perimeter trio currently runs WiFi-only LED Studio. (Ben/Codex)
 - [ ] Keep USB/pogo flashing as mandatory recovery path even if COTS boards support USB-C (Ben).
 - [ ] Investigate JLCPCB / PCBWay firmware pre-flash only for custom-PCBA path (Ben).
 - [ ] Write smoke-test host script: node ID, firmware version, battery, charge/fault, reset reason, peer count (Ben).
