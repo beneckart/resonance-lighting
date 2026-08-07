@@ -45,11 +45,22 @@ verification passed: all three fixtures were heard at about -18 to -26 dBm,
 heartbeats were initially 100% delivered, direct frames were matched on all three,
 and the bridge reported zero send failures or receive drops. The Module Audio
 controller and codec initialize and every I2S read returns successfully, but the
-samples are exact digital zeros (`rms=0.0`, `readfail=0`). M5Stack requires its
-physical A/B I2S selector to be B for CoreS3; completing the acoustic/LED and
-silence-fallback observation is pending power-down, selector verification, and a
-Rode connection to the TRS jack labeled INPUT LINE/MIC. No `N1` daylight override
-was issued, so all fixtures remain in automatic lifecycle while this is pending.
+samples initially remained exact digital zeros (`rms=0.0`, `readfail=0`). This
+isolated M5Stack's physical A/B I2S selector requirement: it must be B for CoreS3.
+No `N1` daylight override was issued until that hardware configuration was fixed,
+so the fixtures stayed in automatic lifecycle during diagnosis.
+
+Follow-up completed the hardware acceptance. Moving the Module Audio selector to
+B changed the Rode path from exact zeros to a live noise floor around RMS 30;
+speech/claps then peaked at RMS 3,422.6 and a 0.987 normalized envelope. A first
+attempt also proved the touchscreen pause control by accidentally toggling audio
+off; serial `A` restarted it without resetting the bridge. With only the three
+perimeter fixtures forced to night in RAM, all three reported lifecycle 3,
+program 3, and matched every addressed direct frame. Turning audio off stopped
+the stream; after 4.5 seconds all three reported autonomous program 1, proving
+the stale-frame fallback. COM37/38/39 each acknowledged `N2` afterward and
+reported channel 11. The bridge was left audio-off and all fixture overrides were
+returned to automatic lifecycle.
 
 Verification passed: 266 fixture-native checks, 11 audio-native checks, scoped
 `git diff --check`, and final sequential Arduino builds for fixture, normal

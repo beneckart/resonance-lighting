@@ -823,12 +823,13 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   channel-11 flag plus the explicit `H6` restore. Follow-up `.5` fixture firmware
   now migrates that known legacy state to the production channel 11; all three
   perimeter units reported channel 11 on hardware (Ben/Codex).
-- [~] **CoreS3 audio-reactive three-perimeter demo** -- software, Module Audio
-  detection, channel-11 ESP-NOW, and direct-frame matching are live on COM43 plus
-  F3FD88/F2BE80/F2BFEC. The external input currently returns exact digital zeros;
-  power down and verify the Module Audio physical I2S selector is B (CoreS3) and
-  the Rode is in the TRS mic-only jack, then finish the sound/three-second-fallback
-  observation and restore all three fixtures with `N2` (Ben/Codex).
+- [x] **CoreS3 audio-reactive three-perimeter demo** -- DONE 2026-08-06 after
+  moving Module Audio's physical I2S selector to B (CoreS3): Rode input reached
+  RMS 3,423 / 98.7% envelope; F3FD88/F2BE80/F2BFEC all entered direct program 3
+  and matched every addressed frame. Stopping the bridge returned all three to
+  autonomous program 1 after the three-second stale-frame limit. All fixtures
+  acknowledged `N2`, remained on channel 11, and the bridge was left audio-off
+  (Ben/Codex).
 - [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
   over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
   to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).
