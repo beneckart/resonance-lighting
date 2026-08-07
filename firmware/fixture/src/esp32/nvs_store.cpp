@@ -3,9 +3,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
-#ifndef RES_CHANNEL
-#define RES_CHANNEL 6
-#endif
+#include "../core/radio_config.h"
 #ifndef RES_PROFILE_DEFAULT
 #define RES_PROFILE_DEFAULT PROFILE_DEV // M1 bringup posture; ship prod later
 #endif
@@ -74,6 +72,18 @@ static void migrateChargePolicy(Preferences &pf) {
                 legacyDefault ? "" : " (explicit override)");
 }
 
+static void migrateChannelPolicy(Preferences &pf) {
+  uint32_t version = pf.getUInt("channel_policy", 0);
+  uint8_t prior = pf.getUChar("channel", 0);
+  uint8_t resolved = resolveRadioChannel(prior, version);
+  if (radioChannelNeedsPersist(prior, version)) {
+    pf.putUChar("channel", resolved);
+    pf.putUInt("channel_policy", RES_CHANNEL_POLICY_VERSION);
+    Serial.printf("nvs: channel policy v%u %u -> %u\n",
+                  (unsigned)RES_CHANNEL_POLICY_VERSION, prior, resolved);
+  }
+}
+
 void nvsLoadConfig() {
   if (gLoaded) return;
   gLoaded = true;
@@ -83,6 +93,7 @@ void nvsLoadConfig() {
   } else {
     migrateFromNetbench(pf);
     migrateChargePolicy(pf);
+    migrateChannelPolicy(pf);
   }
   gCfg.capMah = checkedU16(pf, "cap_mah", 6000, RES_CAPACITY_MIN_MAH, RES_CAPACITY_MAX_MAH);
   gCfg.chargeMa = checkedU16(pf, "chg_ma", RES_CHARGE_DEFAULT_MA,
@@ -161,7 +172,13 @@ bool nvsPersistMaintV10(uint8_t v10) {
 }
 bool nvsPersistChannel(uint8_t channel) {
   if (channel < 1 || channel > 13) return false;
-  if (!putU8("channel", channel)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putUChar("channel", channel) == sizeof(uint8_t) &&
+            pf.putUInt("channel_policy", RES_CHANNEL_POLICY_VERSION) ==
+                sizeof(uint32_t);
+  pf.end();
+  if (!ok) return false;
   gCfg.channel = channel;
   return true;
 }

@@ -12,6 +12,58 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-06 -- Ben + Codex -- Channel-11 migration and CoreS3 audio-reactive bridge
+
+Corrected the earlier channel-6 diagnosis. The presence bench and LED Studio did
+not require or persist an ESP-NOW channel. The first Cambium fixture artifact had
+omitted `--channel 11`, so the old source fallback compiled as channel 6; the
+later explicit `H6` restore then wrote that value into `resfx` NVS. Production
+channel 11 was already the project standard, so no new ADR was needed.
+
+Fixture `.5` now makes 11 the source default and adds channel-policy v1. An absent
+channel or the known legacy channel-6 value migrates once to the compiled default,
+while any other deliberate lab channel and all later `H1..H13` choices remain
+persistent. Native coverage includes default, legacy, explicit, and corrupt-state
+cases. USB-flashed the exact channel-11/dev artifact to the three authorized
+Nevada City perimeter fixtures only: COM37/F3FD88, COM38/F2BE80, and COM39/F2BFEC.
+All three reported `fixture-2026-08-06.5`, perimeter class, channel 11, 2,000 mA
+charge policy, successful downlink matching, and zero ESP-NOW TX failures. COM4,
+the older CoreS3 on COM40, and unrelated serial devices were not touched.
+
+Added an independent CoreS3 audio-reactive build mode. It samples either the
+CoreS3 dual onboard microphones or M5Stack Module Audio's external TRS mic input,
+calibrates a DC-removed RMS envelope for two seconds, and sends 10 Hz type-25
+direct frames with fast attack/slow release and stable ID-sorted RGB slots. Screen
+tap or serial `A` pauses/resumes. It does not persist lifecycle state, and the
+fixture's existing three-second direct-frame staleness fallback remains
+authoritative. Known non-fixture heartbeat senders are excluded from the audio
+roster; this kept the nearby legacy F3FD7C net-bench node from consuming one of
+the three test colors.
+
+Flashed the Module Audio build to the fresh CoreS3 at COM43/4D5DB0. Live radio
+verification passed: all three fixtures were heard at about -18 to -26 dBm,
+heartbeats were initially 100% delivered, direct frames were matched on all three,
+and the bridge reported zero send failures or receive drops. The Module Audio
+controller and codec initialize and every I2S read returns successfully, but the
+samples are exact digital zeros (`rms=0.0`, `readfail=0`). M5Stack requires its
+physical A/B I2S selector to be B for CoreS3; completing the acoustic/LED and
+silence-fallback observation is pending power-down, selector verification, and a
+Rode connection to the TRS jack labeled INPUT LINE/MIC. No `N1` daylight override
+was issued, so all fixtures remain in automatic lifecycle while this is pending.
+
+Verification passed: 266 fixture-native checks, 11 audio-native checks, scoped
+`git diff --check`, and final sequential Arduino builds for fixture, normal
+CoreS3, Cambium CoreS3, and Module Audio CoreS3. Named artifacts:
+
+- fixture: 1,166,496 bytes, SHA-256
+  `69D4117E61D578E623DA96144D80E764F413A2A4D307855D6C35D603B84A861C`;
+- normal CoreS3: 1,101,376 bytes, SHA-256
+  `13C1B9FA06561B98D6AA91DC95D38F051B7217131A0FE0A408F9B70B036DEBE3`;
+- Cambium CoreS3: 1,095,424 bytes, SHA-256
+  `EE00FA87D6C80DD096A13CA85CA1AA4699F991E669B0032B1BCDCD445C7F6059`;
+- Module Audio CoreS3: 1,156,448 bytes, SHA-256
+  `7EAFB2AD44DF7BFC7C3F96164D5B7584188283431CE38945FD8F5ED4D6CACB5D`.
+
 ## 2026-08-06 -- Ben + Codex -- Cambium fork published
 
 Created the `beneckart/cambium` fork from Justin's unchanged `a39f9f8` `main`,

@@ -90,7 +90,8 @@ force day/night/auto | `L<0|1>` bench smoke render | `r` status line
 ## NVS (namespace `resfx`)
 
 `cap_mah` `chg_ma` `chg_policy` `class_ovr` `class_last` `fc_stage` `boots` `profile`
-`batt_tier` `dim_mv/off_mv/slp_mv` `sol_en` `maint_v10` `channel` `night_max`.
+`batt_tier` `dim_mv/off_mv/slp_mv` `sol_en` `maint_v10` `channel`
+`channel_policy` `night_max`.
 The USB command `H<1..13>` persists a new ESP-NOW channel and reboots so the
 radio is cleanly re-pinned; bare `H` reports the current channel.
 First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
@@ -98,6 +99,11 @@ First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
 then replaces legacy 500/1,000/1,500 mA NVS values with the 2,000 mA default
 once. A nonstandard pre-existing value is preserved as a possible deliberate
 cell limit; later `G<ma>` overrides remain persistent.
+
+Channel 11 is the production default. Channel-policy v1 migrates an absent key
+or the historical channel-6 fallback to the compiled channel (11 for production)
+once, while preserving any other explicit lab channel. Later `H<1..13>` choices
+are marked current and remain persistent.
 
 ## Dev vs prod profile
 

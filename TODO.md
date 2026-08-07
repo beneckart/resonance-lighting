@@ -817,8 +817,18 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [x] **Cambium three-fixture acceptance** -- DONE 2026-08-06 on the three Nevada
   City perimeter units: CoreS3 COBS bridge status, 3/3 heartbeat census, roll-call,
   direct program 3 on all nodes, and >3 s silence fallback to autonomous program 1;
-  67/67 bridge sends, zero TX failures/CRC errors/RX drops. Presence-bench firmware
-  and channel 6 restored afterward (Ben/Codex).
+  67/67 bridge sends, zero TX failures/CRC errors/RX drops. The old LED Studio
+  artifacts and channel 6 were restored afterward, but channel 6 was not a
+  presence-bench requirement: it came from one fixture build that omitted the
+  channel-11 flag plus the explicit `H6` restore. Follow-up `.5` fixture firmware
+  now migrates that known legacy state to the production channel 11; all three
+  perimeter units reported channel 11 on hardware (Ben/Codex).
+- [~] **CoreS3 audio-reactive three-perimeter demo** -- software, Module Audio
+  detection, channel-11 ESP-NOW, and direct-frame matching are live on COM43 plus
+  F3FD88/F2BE80/F2BFEC. The external input currently returns exact digital zeros;
+  power down and verify the Module Audio physical I2S selector is B (CoreS3) and
+  the Rode is in the TRS mic-only jack, then finish the sound/three-second-fallback
+  observation and restore all three fixtures with `N2` (Ben/Codex).
 - [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
   over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
   to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).
