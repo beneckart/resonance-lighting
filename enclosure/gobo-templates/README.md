@@ -4,6 +4,9 @@ Traceable and printable 2D pattern sources for replaceable shadow apertures.
 
 For the source-art brief, mechanical rules, print lessons, and example catalog
 to share with Ben, see [`BEN_GOBO_ART_HANDOFF.md`](BEN_GOBO_ART_HANDOFF.md).
+For Steve's Fusion, Bambu Studio, printer, material, and print-process answers,
+including the downloadable reference models, see
+[`BEN_GOBO_FUSION_PRINT_HANDOFF.md`](BEN_GOBO_FUSION_PRINT_HANDOFF.md).
 
 ## Production geometry
 

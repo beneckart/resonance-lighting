@@ -3,6 +3,10 @@
 This document summarizes what Steve and Codex learned while converting artwork
 into Fusion-ready, FDM-printable gobos for the Resonance Tree downlights.
 
+For Steve's Fusion construction, Bambu Studio, printer, material, orientation,
+and release-process answers, see
+[`BEN_GOBO_FUSION_PRINT_HANDOFF.md`](BEN_GOBO_FUSION_PRINT_HANDOFF.md).
+
 The short version: send bold, high-contrast art with recognizable large shapes.
 Do not worry about drawing the production ring or manually connecting every
 island. The conversion pipeline can crop, reconnect, scale, and boolean-union
