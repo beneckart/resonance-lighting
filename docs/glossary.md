@@ -6,15 +6,16 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 
 - **Resonance Tree** -- The overall art project. ~7.5 m bamboo installation for Burning Man 2026. Reused and expanded in 2027 (conch shell built around the trunk).
 - **Resonance** -- Short for the project. Also the parent art collective.
-- **Resonance Lighting** -- This repo's scope. The 130-fixture lighting fleet (four physical roles; canonical counts in `docs/block-diagram/SYSTEM.md`, ADR 0032).
-- **Downlight** -- Hanging lantern fixture inside the tree (72 planned, 7-10 ft). Bamboo lantern + electronics hat + filter + 4 W RGBW + downward ToF.
-- **Perimeter light** -- All-HEX fixture on a ~5 ft shepherd hook around the piece (24 planned), with an outward-facing ToF to catch passers-by.
-- **Trunk light / uplight** -- Ground-pointing-up fixture on a simple bamboo cylinder (16 planned, physically "16ish"). Moving toward all RGBW, no gobo; a smaller-die 3 W RGB + lens is still being tested for extra throw. The small Polycase "boot" carries a hinged solar "wing" (likely P105 5 W; decided 2026-07-15), 6 Ah cell, and gasketed USB-C port. `UPLIGHT` remains the stable firmware/wire class name.
-- **Chandelier light** -- One of 18 planned lights in the central chandelier cluster. HEX/RGBW mix TBD; likely 6 Ah + USB-C top-ups, housed in a carpenter-built box (ADR 0032).
-- **Hat** -- The sealed solar/electronics enclosure that mounts on top of each bamboo lantern. Since 2026-07-13 the bodies are bought Polycase boxes (111 large **ML-70F\*15** 10x7x4 in -> downlights; 61 small **HN-57-03** NEMA 4x 6.7x5x3 in -> perimeter + uplight boots; 2 transparent-lid demo units); panel flush with the lid, light + ToF flush with the bottom; Steve owns the mechanical integration. Chandelier lights use a carpenter-built box instead.
-- **Filter** / **gobo** -- Patterned-aperture insert that sits at the bamboo node notch. Casts mandala shadows on the ground. Two physical forms: flat disc (the likely production default -- simpler and less brittle) and projective cone (prototype; may be used for a few designs or none). Pattern program: in-house + generative bamboo-leaf designs (community submissions pulled 2026-07-08). Role assignment (corrected 2026-07-27): downlights AND perimeter carry gobos -- perimeter is the "dancing gobo" (stepping the single lit HEX pixel around the board shifts the apparent pattern on the ground); trunk lights/uplights and chandelier carry none. Both roles use the exact same bamboo housing (only the enclosure size differs), so the source-to-gobo drop is 6 in on both (confirmed 2026-07-27).
+- **Resonance Lighting** -- This repo's scope. The nominal 130-fixture lighting fleet (four classes; canonical counts in `docs/block-diagram/SYSTEM.md`, ADR 0032).
+- **Downlight** -- Hanging lantern fixture inside the tree (72 planned in three rings of 24, 7-10 ft). Bamboo lantern + electronics hat + filter + 4 W RGBW + downward ToF.
+- **Perimeter light** -- One of 24 all-HEX fixtures on ~5 ft shepherd hooks around the piece, with an outward-facing ToF to catch passers-by.
+- **Trunk light** -- One of about 16 no-gobo fixtures integrated with the trunk. Production is trending all 4 W RGBW; a smaller lensed 3 W RGB variant is under test for extra throw. Final power, mounting, enclosure, and sensor allocation are open (ADR 0032).
+- **Uplight** -- Legacy planning/firmware name for the class that evolved into the current trunk lights. The former 24-uplight hinged-wing allocation is superseded by ADR 0032.
+- **Chandelier light** -- One of 18 lights in the central chandelier cluster. HEX/RGBW mix TBD; likely 6 Ah + USB-C top-ups, housed in a carpenter-built box. Scope/ownership still loose (ADR 0032).
+- **Hat** -- The sealed solar/electronics enclosure that mounts on top of each bamboo lantern. Since 2026-07-13 the bodies are bought Polycase boxes (111 large **ML-70F\*15** 10x7x4 in -> downlights; 61 small **HN-57-03** NEMA 4x 6.7x5x3 in -> perimeter + candidate trunk-light enclosures; 2 transparent-lid demo units); panel flush with the lid, light + ToF flush with the bottom; Steve owns the mechanical integration. Chandelier lights use a carpenter-built box instead.
+- **Filter** / **gobo** -- Patterned-aperture insert that sits at the bamboo node notch. Casts mandala shadows on the ground. Two physical forms: flat disc (the likely production default -- simpler and less brittle) and projective cone (prototype; may be used for a few designs or none). Pattern program: in-house + generative bamboo-leaf designs (community submissions pulled 2026-07-08). Role assignment (corrected 2026-07-27): downlights AND perimeter carry gobos -- perimeter is the "dancing gobo" (stepping the single lit HEX pixel around the board shifts the apparent pattern on the ground); trunk lights (legacy `uplight` firmware class) and chandelier carry none. Both gobo roles use the exact same bamboo housing (only the enclosure size differs), so the source-to-gobo drop is 6 in on both (confirmed 2026-07-27).
 - **Wand** -- A hand-carryable lantern variant (proposed) that participants can take through the piece. Tree fixtures react to its proximity.
-- **Chandelier** -- The larger assembly at the top of the tree, sharing a wind chime cluster with a 0.8 m solar panel. Vishnu's design; structure built and in the shipping container. The Nevada City plan assigns 18 mixed HEX/RGBW lights (see Chandelier light).
+- **Chandelier** -- The larger assembly at the top of the tree, sharing a wind chime cluster with a 0.8 m solar panel. Vishnu's design; structure built and in the shipping container. Its current layout has 18 lights in this repo's fleet class (see Chandelier light).
 
 ## People
 
@@ -97,13 +98,13 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **BATFET** -- The charger's battery switch. Corrupted power-path registers can open it: instant battery-only `poweron` reset (ADR 0028).
 - **WROOM** -- Espressif's pre-certified ESP32 module family (ESP32-S3-WROOM-1 on the PowerFeather).
 
-## Current hardware stack (2026 production -- ADRs 0024-0029)
+## Current hardware stack (2026 production -- ADRs 0024-0032)
 
-- **PowerFeather V2** -- ESP32-S3 controller board with solar charger, fuel gauge, and switchable rails; the production COTS board (Elecrow, 150 bought/committed).
+- **PowerFeather V2** -- ESP32-S3 controller board with solar charger, fuel gauge, and switchable rails; the production COTS board (Elecrow, 158 production boards bought/committed against a nominal 130-light deployment).
 - **BQ25628E** -- TI solar charger / power-path IC on the PowerFeather. Buck-only: panel hot Vmp must be >= 4.6 V.
 - **MAX17260** -- Fuel gauge IC. Known traits: +8 % current bias (/1.08 correction), no cold-POR off a deeply discharged cell, LFP-plateau-blind SOC.
 - **TPS631013** -- The PowerFeather's 3.3 V buck-boost rail regulator.
-- **32700** -- Cylindrical cell format (32 mm dia x 70 mm). fullbattery.com LiFePO4 6 Ah, qualified n=2 at ~5.75 Ah (ADR 0025); since 07-24 the cell for SMALL-enclosure classes (perimeter + uplight boots -- the only cell that fits) + chandelier.
+- **32700** -- Cylindrical cell format (32 mm dia x 70 mm). fullbattery.com LiFePO4 6 Ah, qualified n=2 at ~5.75 Ah (ADR 0025); since 07-24 the cell for SMALL-enclosure classes (perimeter + candidate trunk-light enclosures -- the only cell that fits) + chandelier.
 - **33140** -- Larger cylindrical cell format (33 mm dia x 140 mm). batteryhookup.com LiFePO4 15 Ah at an absurd ~$4.50/cell (130 bought 2026-07-24); the fleet-standard cell for LARGE-enclosure fixtures (downlights). Qualification pending -- capacity/IR run + ADR 0023 threshold re-map.
 - **fullbattery.com** -- Production battery vendor. The Amazon "Palowextra 7.2 Ah" alternative measured 78 % of label with 2.3x IR and was rejected.
 - **Voltaic P105 / P126** -- ETFE-laminated solar panels, 5 W / 2 W: P105 for downlights, P126 for perimeter fixtures (ADR 0026). ETFE = the tough fluoropolymer front layer.
@@ -111,7 +112,7 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **NeoHEX** -- M5Stack WS2812C-2020 hex board; least-efficient fallback (20 on hand).
 - **4 W RGBW** -- Adafruit warm-white 4 W RGBW point-source emitter; the crisp-gobo long-throw role. Fed from the switchable 3V3 rail, same as the HEX -- decided by instrumented A/B 2026-07-11 (ADR 0029 amendment).
 - **MSA311** -- Adafruit STEMMA 3-axis accelerometer; per-fixture sway/tilt sensing, no per-unit calibration (ADR 0027).
-- **BMP581** -- Bosch temp + barometric pressure sensor (Adafruit STEMMA); rides the uplight STEMMA chain as a generic environmental logger (30 bought 2026-07-16) -- playa weather data for the 2027 design.
+- **BMP581** -- Bosch temp + barometric pressure sensor (Adafruit STEMMA); 30 bought 2026-07-16 as generic environmental loggers for playa weather/2027 design. ADR 0034 assigns 24 to the outermost hanging-downlight ring and keeps 6 as spares.
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821). 940 nm VCSEL, **Class 1 laser** (IEC 60825-1 eye-safe cert + hardware VCSEL-fault shutoff) -- same class as phone face-unlock; BM's laser-registration policy targets display lasers, not Class 1 embedded sensors (one-line disclosure via lasers@burningman.org recommended, 2026-07-27).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo). 940 nm VCSEL, **Class 1 laser** per IEC 60825-1:2014 incl. single-fault conditions -- eye-safe at any viewing distance; keep flat windows only in front of the emitter (no lenses) to preserve the classification.
 - **Solarnoid** -- The fleet noisemaker, design finalized ~2026-07-24 (ADR 0030): a solar-fed striker -- VDC-tap + 22,000 uF storage cap + MOSFET-driven push-pull solenoid + craft-store mallet -- physically knocks the bamboo. Daytime solar-surplus percussion; night belongs to the light show. Paired with LARGE-enclosure fixtures (downlights) only. The #3885 speaker-synth path was abandoned; a stronger-solenoid bake-off picked the part (0730B-class primary).
@@ -119,15 +120,19 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **Grove / HY2.0** -- M5Stack's physical connector family (carries GPIO data for the HEX, not I2C).
 - **JST-XH** -- Keyed wire-to-board connector family planned for battery/LED harnesses (right-angle headers + pre-crimped cables in the to-buy queue).
 - **TCA9548A** -- I2C mux used on the presence bench to host same-address sensors.
-- **#6832** -- batteryspace.com product ID for the 20 Ah LFP cylindrical cell. Verified honest (19,412 mAh, 2026-07-12) but the bulk buy was CANCELLED 2026-07-15 on sourcing/timeline; uplights use a hinged solar wing + 6 Ah instead. The ~$4.50/cell Alibaba equivalent is a 2027 idea.
+- **#6832** -- batteryspace.com product ID for the 20 Ah LFP cylindrical cell. Verified honest (19,412 mAh, 2026-07-12) but the bulk buy was CANCELLED 2026-07-15 on sourcing/timeline. The subsequent 24-uplight hinged-wing plan was itself superseded by the trunk-light allocation in ADR 0032. The ~$4.50/cell Alibaba equivalent is a 2027 idea.
 
 ## Firmware / bench terms
 
-- **WonkyHouse** -- the Tennessee bench WiFi SSID (2.4 GHz, channel 11); the
-  maintenance/OTA credential profile the commissioned fleet carries
-  (`ops/fleet/registry.csv` `ota_profile`). Case-sensitive.
-- **BubbyNet** -- the California/home bench AP (channel 11); the original
-  bench OTA profile and the reason the ESP-NOW channel matches the AP channel.
+- **WonkyHouse** -- retired Tennessee bench WiFi SSID. Historical fleet records keep
+  the profile that was actually flashed, but new builds reject it by default. Dad's
+  personal-computer bench is the only opt-in legacy exception.
+- **BubbyNet** -- a historical California/home bench AP (channel 11) and the
+  original bench OTA profile. It is not a production-peer SSID.
+- **Party In The Woods** -- the current production-peer maintenance SSID in
+  Nevada City. The intended future field setup is one virtual SSID with this
+  exact name across the BM camp and art-site Starlinks; that topology and channel
+  behavior still require validation.
 - **fixture (sketch)** -- `firmware/fixture/`, the production fleet firmware
   (one image, class probed at boot); `net_bench` remains the desk bridge build.
 

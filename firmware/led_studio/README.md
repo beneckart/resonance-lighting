@@ -49,6 +49,15 @@ two boards both claiming plain `ledstudio.local` sent browser control to the
 wrong unit, 2026-07-30). Serial monitor (115200) also prints the IP; SoftAP
 fallback `ResonanceLED` (pw `resonance`) at `http://192.168.4.1`.
 
+Since `led-studio-2026-08-01.3`: `wifi_secrets.h` may define `RES_WIFI_SSID2`
+(bench AP) -- setupWifi scans at boot and prefers it over the primary SSID when
+visible (phone hotspots can isolate clients; a laptop-hosted bench AP cannot).
+Boards pick their network at boot only -- bring the bench AP up, then
+power-cycle. `/set` + `/state` send `Access-Control-Allow-Origin: *` and
+`/state` carries `"host"` (the mdns name), so laptop-side dashboards can drive
+several boards at once: see `ops/bench/perimeter_trio.html` (3-light perimeter
+bench UI with discovery scan, zone grids, and mood presets).
+
 ## Controls
 
 - **Module toggle**: HEX grid * RGBW point * RGB point. Mode-specific controls

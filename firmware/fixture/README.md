@@ -1,8 +1,10 @@
 # fixture -- production fleet firmware
 
-One image for all four fixture classes (downlight / perimeter / uplight /
-chandelier), extracted from the proven bench sketches. `net_bench` remains the
-desk **bridge** build (master + serial bridge); this sketch is peer-only.
+One image for all four fixture classes (downlight / perimeter / trunk /
+chandelier), extracted from the proven bench sketches. The current code/NVS enum
+still calls the trunk role `uplight`; treat that as a compatibility name until the
+manifest/schema rename is coordinated (ADR 0032). `net_bench` remains the desk
+**bridge** build (master + serial bridge); this sketch is peer-only.
 
 ## Cambium direct control
 
@@ -51,7 +53,7 @@ src/core/            platform-independent, natively unit-tested (tests/)
   lifecycle          day/night machine, bounded night, energy-gated wake
   choreo/            program runtime: IDLE, GH_CA, BRIDGE_SHOW + lease
   neighbor_table     RSSI + pinned adjacency modes
-  hex_geometry, gamma, filters, power_integrator
+  hex_geometry, gamma, filters, power_integrator, tmf_recovery
 src/esp32/           glue/drivers (board_power owns the solar guard include)
   sensors/           cooperative machines + the single vendored VL53L5CX ULD
 tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
@@ -65,10 +67,22 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --ota <ip>               # OTA via POST /update
 ./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
 ./build.sh --channel 11 --profile prod
+./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.
+`--solenoid-test` is deliberately not a fleet option: it forces the arm bit and
+relaxes only the daytime solar-surplus gate while retaining the night and FULL-
+tier battery vetoes. Use a named artifact and a specific peer.
+
+Rev-2 solarnoid SW1 shares D7 with the MCU through a hardware one-shot. An armed
+fixture releases D7 to INPUT/high-Z between strikes. After observing a released
+LOW, firmware accepts one external rising edge and extends it to the same bounded
+40 ms pulse as the PowerFeather USER button; another strike requires release and
+a new edge. Boot-high/stuck-high inputs do not fire or retrigger, normal MCU
+requests refuse an already-high external line, and the timer plus loop failsafe
+remain authoritative. External edges are ignored during OTA maintenance.
 
 The default battery-side charge-current ceiling is 2,000 mA (ADR 0033). The
 BQ25628E may deliver less because of input-current/voltage regulation, source
@@ -80,12 +94,38 @@ firmware/fixture/build/<r> --expect-fw <version> ...` -- the serial/HTTP
 contract (`t` JSON keys, `u` + "maintenance WiFi up, ip=" banner, /telemetry,
 /resume, /update) is preserved byte-for-byte from net_bench.
 
+## Sensor-domain recovery
+
+Every non-parked boot gives the separate VSQT/STEMMA rail a verified 100 ms
+off -> on cycle before class probing. This matters on OTA and warm resets because
+PowerFeather otherwise preserves the RTC-held rail state, allowing a stale TMF
+firmware/ranging state to survive the MCU reset. `Board.enableVSQT()` is retried
+and GPIO14 is read back for both transitions; Wire1 remains fixed at 100 kHz.
+
+The normal TMF timeout path still performs the cheap cooperative stop/start.
+Three consecutive failed measurement cycles escalate once per boot to a full
+VSQT cycle and reconstruction of the SparkFun driver, which forces TMF init,
+open, firmware upload, application-mode switch, configuration, and ranging
+start. MSA311 and BMP581 are reinitialized because they share the rail. Further
+failures stay degraded rather than flapping the domain. Telemetry exposes
+`tmf_domain_resets` in addition to reads/errors/recoveries.
+
+Commissioning likewise treats `tmf8820_present=true` plus zero reads as a
+recoverable state: it performs one `S1` timed-sleep/VSQT reset and retests before
+failing. `tmf8820_present=false` does not get that retry and remains the signal
+to inspect the module, first cable, and power contacts.
+
 ## Serial commands (peer)
 
 `t` telemetry JSON | `u` local ENTER_MAINT | `c` resume | `C<mah>` capacity
 (reboots) | `G<ma>` charge cap | `K<id>:<ms>` solenoid (gated) | `S[<s>]`
 deep sleep | `O<0-4>` class override | `F<0|1>` profile dev/prod | `N<0|1|2>`
-force day/night/auto | `L<0|1>` bench smoke render | `r` status line
+force day/night/auto | `L<0|1>` bench smoke render | `X` guarded bare-board
+PROTECT clear | `r` status line
+
+`X` works only with verified good USB/VDC, no plausible battery, charging off,
+and no charger fault. It does not clear PROTECT automatically or over ESP-NOW;
+`fleet_usb_bringup.py` uses it only in the default battery-absent workflow.
 
 ## NVS (namespace `resfx`)
 

@@ -4,10 +4,13 @@
 #include <Wire.h>
 #include <Adafruit_MSA301.h>
 #include <SparkFun_TMF882X_Library.h>
+#include <new>
 
 #include "../../core/filters.h"
 #include "../../core/fixture_context.h"
+#include "../../core/tmf_recovery.h"
 #include "../../core/tof_grid.h"
+#include "../board_power.h"
 #include "vl53l5cx_uld/SparkFun_VL53L5CX_Library.h"
 
 static SensorSnapshot gSnap;
@@ -32,6 +35,25 @@ static void msaInit() {
   }
   accelFilterInit(gAccel);
   gZeroAtMs = millis() + 3000; // auto re-zero once the mount settles post-boot
+}
+
+static void msaReinitAfterRailCycle() {
+  // Adafruit_MSA311::begin() allocates a new bus object every time and provides
+  // no destructor. The existing bus object remains valid across a power cycle,
+  // so verify the address and restore the device registers without leaking.
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(MSA311_I2CADDR_DEFAULT);
+  gSnap.msaPresent = Wire1.endTransmission() == 0;
+  gSnap.msaOk = false;
+  if (gSnap.msaPresent) {
+    gMsa.setRange(MSA301_RANGE_4_G);
+    gMsa.setDataRate(MSA301_DATARATE_125_HZ);
+    gMsa.setBandwidth(MSA301_BANDWIDTH_62_5_HZ);
+    gMsa.setPowerMode(MSA301_NORMALMODE);
+  }
+  gNextMsaMs = 0;
+  accelFilterInit(gAccel);
+  gZeroAtMs = millis() + 3000;
 }
 
 static void msaTick(uint32_t now) {
@@ -60,11 +82,19 @@ static SparkFun_TMF882X gTmf;
 static bool gTmfActive = false;
 static uint32_t gTmfCycleStartMs = 0, gTmfNextStartMs = 0, gNextTmfServiceMs = 0;
 static uint32_t gTmfCycleReadBase = 0;
+static TmfRecoveryPolicy gTmfRecovery;
+static bool gTmfDomainResetPending = false;
+
+static void tmfObserveFailure() {
+  if (tmfRecoveryObserve(gTmfRecovery, false) == TMF_RECOVERY_DOMAIN_RESET)
+    gTmfDomainResetPending = true;
+}
 
 static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
   if (!results) return;
   gSnap.tmfOk = true;
   gSnap.tmfReads++;
+  tmfRecoveryObserve(gTmfRecovery, true);
   uint16_t usableMm = 0, usableConf = 0;
   uint32_t count = min((uint32_t)TMF882X_MAX_MEAS_RESULTS, results->num_results);
   for (uint32_t i = 0; i < count; ++i) {
@@ -92,6 +122,10 @@ static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
 
 static void tmfInit() {
   Wire1.setClock(100000);
+  gTmfActive = false;
+  gTmfCycleStartMs = 0;
+  gTmfNextStartMs = 0;
+  gNextTmfServiceMs = 0;
   gSnap.tmfPresent = gTmf.begin(Wire1);
   if (!gSnap.tmfPresent) return;
   struct tmf882x_mode_app_config cfg;
@@ -106,6 +140,7 @@ static void tmfInit() {
     gTmfCycleReadBase = gSnap.tmfReads;
   } else {
     gSnap.tmfErrors++;
+    tmfObserveFailure();
     gTmfNextStartMs = millis() + 500;
   }
   Wire1.setClock(100000);
@@ -129,6 +164,7 @@ static void tmfTick(uint32_t now) {
       gTmfActive = false;
       gSnap.tmfOk = false;
       gSnap.tmfRecoveries++;
+      tmfObserveFailure();
       gTmfNextStartMs = now + 500;
     }
     Wire1.setClock(100000);
@@ -142,6 +178,7 @@ static void tmfTick(uint32_t now) {
     } else {
       gSnap.tmfErrors++;
       gSnap.tmfRecoveries++;
+      tmfObserveFailure();
       gTmfNextStartMs = now + 500;
     }
     Wire1.setClock(100000);
@@ -333,14 +370,53 @@ static void bmpTick(uint32_t now) {
   else gSnap.pressureHpa += 0.25f * (pressHpa - gSnap.pressureHpa);
 }
 
+static void recoverDownlightSensorDomain() {
+  gTmfDomainResetPending = false;
+  gSnap.tmfDomainResets++;
+  Serial.printf("[tof] %u consecutive failures -> bounded VSQT domain reset %u/1\n",
+                (unsigned)TMF_DOMAIN_RESET_FAILURES,
+                (unsigned)gSnap.tmfDomainResets);
+
+  if (gTmfActive && gSnap.tmfPresent) {
+    Wire1.setClock(100000);
+    tmf882x_stop(&gTmf.getTMF882XContext());
+  }
+  gTmfActive = false;
+  gSnap.msaOk = gSnap.tmfOk = gSnap.bmpOk = false;
+  gBmpConverting = false;
+  gNextBmpMs = gBmpReadyMs = 0;
+
+  bool railOk = railCycleVSQT();
+
+  // The SparkFun wrapper treats begin() as a no-op after its first success.
+  // Reconstruct it so the strong retry performs tmf882x_init/open, firmware
+  // upload, application-mode switch, configuration, and ranging start again.
+  gTmf.~SparkFun_TMF882X();
+  new (&gTmf) SparkFun_TMF882X();
+
+  msaReinitAfterRailCycle();
+  gSnap.tmfPresent = false;
+  tmfInit();
+  bmpInit();
+  Wire1.setClock(100000);
+  Serial.printf("[tof] domain reset: rail=%s msa=%s tmf=%s bmp=%s\n",
+                railOk ? "verified" : "ERR",
+                gSnap.msaPresent ? "present" : "absent",
+                gSnap.tmfPresent ? "present" : "absent",
+                gSnap.bmpPresent ? "present" : "absent");
+}
+
 // ---- dispatch ---------------------------------------------------------------
 void sensorsInit(uint8_t fixtureClass) {
   gClass = fixtureClass;
   memset(&gSnap, 0, sizeof(gSnap));
+  tmfRecoveryInit(gTmfRecovery);
+  gTmfDomainResetPending = false;
   switch (fixtureClass) {
   case FIXTURE_DOWNLIGHT:
     msaInit();
     tmfInit();
+    bmpInit(); // optional environmental logger; present on NC batch 1
     break;
   case FIXTURE_PERIMETER:
     msaInit();
@@ -357,11 +433,14 @@ void sensorsInit(uint8_t fixtureClass) {
 }
 
 void sensorsTick() {
+  if (gClass == FIXTURE_DOWNLIGHT && gTmfDomainResetPending)
+    recoverDownlightSensorDomain();
   uint32_t now = millis();
   switch (gClass) {
   case FIXTURE_DOWNLIGHT:
     msaTick(now);
     tmfTick(now);
+    bmpTick(now);
     break;
   case FIXTURE_PERIMETER:
     msaTick(now);

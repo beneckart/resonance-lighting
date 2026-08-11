@@ -1,7 +1,7 @@
 # net_bench -- ESP-NOW networking feasibility bench
 
-Throwaway-friendly firmware to de-risk basing ~100 fixtures (fleet now plans 130 --
-ADR 0032) on PowerFeather V2 by
+Throwaway-friendly firmware that de-risked basing the nominal 130-fixture fleet
+(ADR 0032) on PowerFeather V2 by
 validating ESP-NOW comms, range, OTA, watchdog, and battery stability on 5 boards.
 Forked from `../power_bench` (reuses telemetry, OTA `/update`, autosleep guard).
 See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` for the full test plan.
@@ -50,9 +50,10 @@ Recover the IP/banner via the pyserial RTS pulse (native USB-CDC; see
 `../POWERFEATHER_NOTES.md`).
 
 ### build.sh flags
-Default maintenance OTA requires `wifi_secrets.h`. `build.sh` reuses an existing
-gitignored secrets file from `../power_bench/` or `../led_studio/` when
-`firmware/net_bench/wifi_secrets.h` is absent.
+Default maintenance OTA requires an explicit, gitignored local `wifi_secrets.h`.
+`build.sh` no longer copies another sketch's profile: that behavior silently put a
+retired Tennessee SSID into a Nevada City bench image. It rejects `WonkyHouse` unless
+Dad's legacy personal bench explicitly sets `RES_ALLOW_LEGACY_WONKYHOUSE=1`.
 
 The 2026-07-27 Tennessee packing artifact is
 `build/fleet-tn-wonkyhouse-20260727-r1/`: peer, channel 11, 1 Hz heartbeat,
@@ -182,6 +183,25 @@ automatic boot strike or repeat mode. `/telemetry` reports `solenoid_enabled`,
 the local-button pin/armed/pressed state. It also reports DFR0991 and Qwiic Navigation
 Switch presence, detected address, stable press state, press count, probe state, and
 read-error diagnostics.
+
+For a v1.0 capbank A/B, add `--capbank-probe` when TELE is wired nominally
+(A4=VSNS, A5=D7S), or `--capbank-probe-swapped` for A4=D7S, A5=VSNS. Lowercase
+`j` is read-only and reports the scaled bank voltage plus idle gate voltage.
+`J<id>:<ms>` performs the same targeted bounded strike as `K`, while sampling both
+ADC1 inputs through the pulse and 250 ms of recovery; it reports pre/min/drop and
+20/100/250 ms recovery voltages, gate peak, sample count, and failsafe count. The
+v1.0 VSNS divider is 100k/33k (4.0303x). This probe remains manual-only and never
+adds a boot strike.
+
+For a full trace, add `--capbank-waveform` to the probe build. In shared-WiFi
+maintenance, `GET /capbank/arm?ms=20` acknowledges and schedules one bounded strike,
+then the peer turns WiFi fully off, records VSNS and D7S with ADC DMA at 80,000 total
+conversions/s (about 40,000 samples/s/channel), rejoins WiFi, and exposes status at
+`/capbank/waveform` plus the eFuse-calibrated trace at `/capbank/waveform.csv`.
+Firmware limits this bench-only path to the already-qualified 5-50 ms range. Use
+`ops/bench/capbank_waveform.py --ip <peer-ip> --widths 8,20,35,50 --yes` for a
+recharge-spaced sweep with exclusive-created CSV/JSON outputs. HTTP/TCP carries only
+the arm acknowledgment and completed data; the radio is not active during sampling.
 
 The onboard USER/BOOT button is `BTN/GPIO0`, active LOW. A debounced press produces one
 normal 40 ms strike and must be released before another press can fire. GPIO0 is also

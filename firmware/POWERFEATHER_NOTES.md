@@ -335,6 +335,15 @@ hook the core calls in `initArduino()` **before `setup()`**: if the freshly-OTA'
 why ordinary OTAs stick. **Validated 2026-06-08:** a `verifyOta()->false` image auto-reverts,
 battery-only, no touch.
 
+**Bench power rule (2026-08-10): an OTA/rollback test needs the fixture battery
+or another proven ride-through supply.** Four downlights accepted the same
+1.17 MB OTA image over shared WiFi, but the bare-USB units recorded brownout or
+power-on resets; one repeatedly lost power inside the 20-second deferred verify
+window and correctly rolled back. Installing its LFP made the next exact-image
+OTA pass immediately with reset reason software and rollback cancelled. USB can
+remain attached for rescue/data, but do not interpret a bare-USB pending-verify
+reset as an image failure. The production field condition includes its LFP.
+
 - **Gotcha:** the hook is **C-linkage** (defined in a `.c` core file). A plain C++
   `bool verifyOta(){...}` is name-mangled, silently does NOT override, and the bad image
   **sticks** (no rollback). Use **`extern "C" bool verifyOta()`**.
@@ -403,7 +412,7 @@ re-ran input qualification; the charger then engaged and pulled the panel down t
 VINDPM, where Voc is never seen again. A connect-order/weather-dependent deadlock:
 06-08's weak-light bring-up never hit it.
 
-- **Field implication (~150 fixtures, playa):** connecting or resetting a fixture in
+- **Field implication (fleet scale, nominally 130 fixtures on playa):** connecting or resetting a fixture in
   full sun can leave it silently not charging. Mitigations: connect panels shaded /
   face-down; spec the production panel so its COLD-morning Voc clears the charger's
   input window; and keep the firmware guard enabled in every solar/charging image.

@@ -64,7 +64,10 @@ void powerGlueTick() {
 
   PowerSample s = {};
   s.now_ms = now;
-  s.batt_valid = pfIsReady() && batteryVolts() > 0.5f;
+  // An empty BAT input can briefly return a nonzero sub-cell voltage. Use the
+  // same plausible-cell window as the deferred charging guard; otherwise a
+  // bare USB commission can falsely persist immediate low-voltage PROTECT.
+  s.batt_valid = pfIsReady() && batteryPresent();
   s.batt_v = batteryVolts();
   s.batt_ma = batteryMa();
   s.supply_valid = pfIsReady();

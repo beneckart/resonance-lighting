@@ -40,6 +40,7 @@ static BqSnapshot gBq;
 
 bool pfIsReady() { return gPfReady; }
 bool chargingEnabled() { return gChargingEnabled; }
+bool batteryPresent() { return gCbV > 2.5f && gCbV < 4.4f; }
 float maintainVolts() { return gMaintainV; }
 float batteryVolts() { return gCbV; }
 float batteryMa() { return gCbMa; }
@@ -142,7 +143,7 @@ static void chargingGuardTick() {
     return;
   }
   done = true;
-  if (gCbV > 2.5f && gCbV < 4.4f) {
+  if (batteryPresent()) {
     Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
     Board.enableBatteryCharging(true);
     gChargingEnabled = true;
@@ -198,8 +199,28 @@ bool railEnable3V3(bool on) {
   return true;
 }
 
-void railEnableVSQT(bool on) {
-  if (gPfReady) Board.enableVSQT(on);
+bool railEnableVSQT(bool on) {
+  if (!gPfReady) return false;
+  const int wanted = on ? 1 : 0;
+  for (int a = 1; a <= 4; a++) {
+    Result r = Board.enableVSQT(on);
+    int observed = rtc_gpio_get_level(GPIO_NUM_14);
+    if (r == Result::Ok && observed == wanted) return true;
+    Serial.printf("VSQT %s attempt %d -> sdk=%d gpio14=%d\n",
+                  on ? "ON" : "OFF", a, (int)r, observed);
+    delay(10);
+  }
+  return false;
+}
+
+bool railCycleVSQT(uint16_t offMs, uint16_t settleMs) {
+  bool offOk = railEnableVSQT(false);
+  delay(offMs);
+  bool onOk = railEnableVSQT(true);
+  delay(settleMs);
+  Serial.printf("VSQT boot/recovery cycle -> off=%s on=%s\n",
+                offOk ? "verified" : "ERR", onOk ? "verified" : "ERR");
+  return offOk && onOk;
 }
 
 bool applyCapacityAndReboot(uint16_t mah) {
@@ -252,7 +273,7 @@ void enterTimedDeepSleep(uint16_t seconds, const char *why) {
   allLoadsOff("deep sleep");
   if (gPfReady) {
     railEnable3V3(false);
-    Board.enableVSQT(false);
+    railEnableVSQT(false);
   }
   Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
   solenoidButtonPrepareSleep();

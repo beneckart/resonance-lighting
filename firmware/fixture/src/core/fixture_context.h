@@ -8,7 +8,7 @@
 // and the class byte in telemetry use them directly. 0 stays "unknown/auto".
 enum FixtureClass : uint8_t {
   FIXTURE_UNKNOWN = 0,
-  FIXTURE_DOWNLIGHT = 1,  // 1 px 4 W RGBW + gobo; MSA311 + TMF8820 (down)
+  FIXTURE_DOWNLIGHT = 1,  // 1 px RGBW + gobo; MSA311 + TMF8820 + optional BMP581
   FIXTURE_PERIMETER = 2,  // 37 px SK6812 HEX "dancing gobo"; VL53L5CX (out)
   FIXTURE_UPLIGHT = 3,    // 1 px 4 W RGBW; BMP581
   FIXTURE_CHANDELIER = 4, // no sensors; LED mix TBD (1 px RGBW safe default)

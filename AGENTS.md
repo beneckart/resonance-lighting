@@ -23,6 +23,12 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   `ops/bench/net_bench_ota.py` parallel uploads. Do **not** build or recommend
   `--maint-ap` unless Ben explicitly asks for the deprecated one-board AP fallback;
   self-hosted AP mode is not scalable and has confused recent OTA debugging.
+- **OTA power ride-through:** install the fixture LFP (or use a separately proven
+  stable supply) before treating an OTA/A-B rollback test as valid. On 2026-08-10,
+  bare-USB fixtures recorded brownouts and one repeatedly lost power during the
+  20-second pending-verify window; rollback safely restored `.1`. The same exact
+  `.2` artifact passed immediately once an LFP was installed. USB is still the
+  rescue/data path, but the production battery is the expected reboot ride-through.
 - **Arduino compile cache:** do **not** run parallel `arduino-cli compile` commands
   against the same sketch/cache. Either build sequentially or pass a unique
   `--build-path` per compile. `firmware/net_bench/build.sh` already does this; direct
@@ -78,18 +84,18 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
 - Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
-- **Production locked: COTS PowerFeather V2 with a 130-fixture Nevada City plan** -- 72 downlights (three rings of 24) + 24 all-HEX perimeter + 16 trunk/uplights moving toward all RGBW + 18 mixed chandelier; canonical counts in `docs/block-diagram/SYSTEM.md` (ADR 0032 supersedes the count snapshot in ADR 0024).
+- **Production locked: COTS PowerFeather V2 with a nominal 130-fixture Nevada City layout in four classes** -- 72 downlights (3 rings x 24) + 24 all-HEX perimeter + about 16 trunk lights trending RGBW + 18 mixed HEX/RGBW chandelier. The team intends the full layout barring an unforeseen issue; canonical counts are in `docs/block-diagram/SYSTEM.md` (ADR 0032 supersedes ADR 0024's allocation only).
 - Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on
   downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device
-  calibration (ADR 0027). BMP581 temp/barometric env sensors were added to trunk/uplights
-  (30 bought 2026-07-16).
+  calibration (ADR 0027). Thirty BMP581 temp/barometric env sensors were bought;
+  their allocation to the current trunk-light class remains open.
 - **Production show timing uses deterministic site/date schedules from sparse time
   anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
   initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231
   modules are initial RTC holdover anchors. ESP-NOW distributes time quality to the
-  rest of the fleet, so all 130 fixtures do not need RTCs (ADR 0031). Reception,
+  rest of the fleet, so all roughly 130 fixtures do not need RTCs (ADR 0031). Reception,
   energy, drift/backup behavior, final counts, schedule offsets, and invalid-time
   fallback remain open.
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
@@ -100,11 +106,11 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 **Open** (see TODO.md and ROADMAP.md):
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- ~~Trunk/uplight/chandelier power~~ -- RESOLVED 2026-07-15: trunk/uplights get a hinged solar
-  "wing" on the boot (likely P105 5 W) + 6 Ah at a low-brightness budget (NC
-  prebuild tunes it); chandelier likely 6 Ah + USB-C. The 20 Ah cell verified
-  honest but died on sourcing/timeline (ADR 0025/0026 annotations).
-- Chandelier HEX/RGBW mix across the 18-light Nevada City allocation (ADR 0032).
+- Trunk-light integration: the production direction is about 16 mostly/all RGBW
+  fixtures, with a smaller lensed 3 W RGB variant under test for extra throw. Final
+  LED choice, power, mounting, enclosure, and sensor allocation remain open (ADR 0032).
+- Chandelier light electronics scope/ownership (18 lights, internals fungible with
+  the fleet -- ADR 0032) and its exact HEX/RGBW mix.
 - ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
 - Bottom-up nightly energy budget by role; MPPT policy.
 - SAM-M8Q GPS and DS3231 RTC anchor qualification; final anchor counts/placement,
@@ -122,8 +128,8 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   the radio reaches well past tree scale (held through a house + yard + oak, ~100 steps). The
   lantern enclosure is RF-transparent; the solar panel is the main ~20 dB attenuator (antenna
   keep-out matters). Note: the extrapolation was computed at 100 nodes; the fleet now plans
-  130 -- re-running the projection at 130 is a queued TODO (physics gives margin, but the
-  claim should say 100 until re-run).
+  about 130 -- re-running the projection at 130 is a queued TODO, with 150 still useful as a
+  conservative stress case (physics gives margin, but the claim should say 100 until re-run).
 - **Battery-only, no-touch OTA + A/B rollback** (the "never take a lantern off the tree"
   requirement): software-reset OTA recovered ~17/17 incl. worst-case LFP voltage; a
   self-test-failing image auto-reverts to last-good. Watchdog + autosleep recovery validated.
@@ -147,8 +153,8 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 
 - Bamboo lantern fabrication (Bamboo Pure / Vishnu, Bali).
 - Tree structural design (Ed Wilkes, Bristol).
-- Wind chime cluster electronics (separate workstream, Vishnu). Note: the 16
-  chandelier *lights* are now tentatively a fleet class in this repo (ADR 0024);
+- Wind chime cluster electronics (separate workstream, Vishnu). Note: the 18
+  chandelier *lights* are now a fleet class in this repo (ADR 0032);
   scope/ownership still being clarified with the team.
 - Project-wide logistics, budget, container shipping (Elliot, Co-Work agent).
 - The Resonance project's grant strategy / fundraising (Elliot).

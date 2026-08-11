@@ -10,6 +10,9 @@
 #ifndef RES_NIGHT_MAX_MIN_DEFAULT
 #define RES_NIGHT_MAX_MIN_DEFAULT 630 // 10.5 h; BRC dusk-to-dawn is 9h53m-10h15m
 #endif
+#ifndef RES_SOLENOID_DEFAULT_ENABLED
+#define RES_SOLENOID_DEFAULT_ENABLED 0
+#endif
 
 FixtureConfig gCfg;
 
@@ -102,7 +105,13 @@ void nvsLoadConfig() {
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
   gCfg.battTier = pf.getUChar("batt_tier", 0);
-  gCfg.solEn = pf.getUChar("sol_en", 0);
+#if defined(RES_SOLENOID_FORCE_ENABLED)
+  // Targeted bring-up image only: ignore any stale/missing NVS arm bit. The
+  // ordinary production build continues to honor NVS and defaults disarmed.
+  gCfg.solEn = 1;
+#else
+  gCfg.solEn = pf.getUChar("sol_en", RES_SOLENOID_DEFAULT_ENABLED);
+#endif
   gCfg.maintV10 = pf.getUChar("maint_v10", 46);
   if (gCfg.maintV10 < RES_MAINTAIN_MIN_V10 || gCfg.maintV10 > RES_MAINTAIN_MAX_V10)
     gCfg.maintV10 = 46;

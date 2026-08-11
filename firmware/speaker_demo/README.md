@@ -22,7 +22,7 @@ The web dashboard has:
 - percussion buttons: Knock, Tock, Tick, Shaker;
 - tonal buttons: Marimba (random pentatonic), Chime, Drip, Beep (square baseline);
 - "Ripple" -- a ~2.4 s cascade of ~20 knocks swelling through, a single-fixture
-  preview of a wave passing through 150 fixtures;
+  preview of a wave passing through the nominal 130-fixture fleet;
 - "Grove" -- free-running sparse random knocks at an adjustable events/min rate;
 - Volume / Pitch (x0.25-x4) / Decay (x0.25-x4) sliders;
 - "Amp power" -- toggles the switchable 3V3 header rail (GPIO4) itself, the same

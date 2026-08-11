@@ -6,12 +6,11 @@ Solar "hat" enclosure for the Resonance fixtures. Steve's workstream.
 172x COTS sealed enclosures + screws ordered ~07-12/13 ($5,306.50 total; vendor/
 part details TBC in `ops/PROCUREMENT.md`), split 22 to TN / 150 to CA:
 
-- **LARGE (111):** 72 hanging downlight hats -- 39 remain beyond the current
-  deployment allocation.
-- **SMALL (61):** 24 perimeter-light hats AND 16 trunk/uplight "boots" -- 21
-  remain beyond the current allocation. The trunk/uplight boot gains a **hinged solar "wing"** (decided
-  2026-07-15; likely carrying the P105 5 W panel for partial/shaded sun) -- wing
-  hinge + panel mount are new mechanical design items.
+- **LARGE (111):** 72 hanging downlight hats, leaving 39 units of gross inventory
+  headroom (including the transparent-lid demo unit).
+- **SMALL (61):** 24 perimeter-light hats plus candidate enclosures for about 16
+  trunk lights. Final trunk mounting and power geometry are being settled during
+  Nevada City integration.
 - **Chandelier:** no hat -- a team carpenter builds a box housing the 18 lights
   (coordinate venting, access, and USB-charging reach).
 
@@ -57,18 +56,16 @@ Pattern program update (2026-07-08): community submissions were pulled for time;
 the plan is in-house designs plus generative-AI-modulated bamboo-leaf patterns per
 bamboo species (see `BACKGROUND.md`).
 
-## Trunk/uplight "boot" (design input for Steve)
+## Trunk-light variant (supersedes the uplight-boot allocation)
 
-The 16 trunk/uplights are simple bamboo cylinders (no lower splay, no gobo).
-The production direction is all RGBW; a smaller-die 3 W RGB variant with a lens
-is also under test for extra throw. Updated concept (2026-07-15): the LED sits near the lit end, and the small Polycase
-"boot" at the base carries the PowerFeather, the standard 6 Ah cell, a gasketed
-panel-mount USB-C charge/flash port, and a **hinged solar "wing"** (likely the
-P105 5 W) that folds out to catch partial/shaded sun. Wing hinge + panel mount are
-the new design items; the show runs a low-brightness budget tuned at the NC
-prebuild. Same internals as every other fixture; sleeps during the day. (The
-earlier fill-the-cylinder 20 Ah concept was cancelled on sourcing -- ADR 0025
-annotation.) The 18 chandelier lights use the carpenter-built box instead.
+The Nevada City layout now targets about 16 trunk lights with no gobo (ADR 0032).
+They are moving toward all 4 W RGBW, while a smaller lensed 3 W RGB module is being
+tested for extra throw. Candidate hardware includes the small Polycase, standard
+6 Ah cell, gasketed panel-mount USB-C charge/flash port, and available P105 panels,
+but the final power arrangement, optic protection, and attachment to the trunk are
+open until the comparison is complete. The previous 24-uplight hinged-solar-wing
+concept is a superseded July plan, not the production baseline. The 18 chandelier
+lights use the carpenter-built box instead.
 
 ## Reference
 
@@ -81,8 +78,8 @@ annotation.) The 18 chandelier lights use the carpenter-built box instead.
 - Rope attachment point (hat / bamboo / hybrid). See `BACKGROUND.md`.
 - Vent gap vs sealed (thermal vs IP rating trade-off).
 - Set screw count and placement (currently planned 3 at 120 deg , may revise based on prototype fit).
-- Uplight boot: battery retention in-cylinder, USB-C port gasketing, LED mount at
-  the lit end.
+- Trunk light: attachment to the tree, battery/panel arrangement, USB-C gasketing,
+  optic protection, and 4 W RGBW vs lensed 3 W RGB mounting.
 - USB-C rescue port is now UNIVERSAL (150 panel-mount extension cables bought
   2026-07-10): every hat variant needs a gasketed panel-mount USB-C cutout wired
   to the PowerFeather -- rescue/charging without opening the enclosure.

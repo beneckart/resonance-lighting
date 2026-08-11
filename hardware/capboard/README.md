@@ -1,5 +1,33 @@
 # Solarnoid cap-bank board — v2.0
 
+> **CRITICAL -- fabricated v2.0 receiver supply is unsafe (2026-08-09).** Do
+> not populate RECVR or plug in another RX480E. U1 is a Holtek HT7550-1, whose
+> SOT-89 pins are 1=GND, 2=VIN, 3=VOUT, but the ordered board assigns pin 2 to
+> P5V and pin 3 to the approximately 12 V VBOOST rail. This reverse-powers the
+> regulator and can expose the nominal receiver `+V` pin to approximately boost
+> voltage; `+V`-to-`G` measured 11.76 V on the first board. Two receivers
+> emitted smoke during first bring-up. Keep RECVR empty
+> until a measured ECO is qualified; the PowerFeather USER button and ESP-NOW
+> command remain the safe trigger paths.
+
+## Deployed rev-1 boards with the external boost cable
+
+The 24 BMP-equipped outer-ring downlights use fabricated **rev-1 capboards**, not
+the unsafe rev-2 receiver circuit described above. Their retrofit cable splices
+an external approximately 12 V boost into the capboard input `VDC`/`GND`, so the
+rev-1 bank, driver feed, and regulator input see the boosted voltage.
+
+Rev 1 uses an AMS1117-5.0 with the correct SOT-223 mapping: pin 1 GND, pin 2/tab
+5 V output, pin 3 boosted input. It is a linear regulator, not a buck converter;
+at the RX480E's small load it drops approximately 12 V to 5 V and dissipates the
+voltage difference as heat. Ben reports the populated rev-1 433 MHz receiver
+paths operating normally on the boosted assemblies. This is consistent with the
+rev-1 circuit and does not clear rev 2: rev 2 changed to an HT7550-1 with a
+different pinout but retained the old net assignment, reverse-powering U1 and
+putting 11.76 V on the nominal receiver rail. Before lid closure, spot-measure a
+representative rev-1 receiver rail near 5 V and confirm U1 stays cool during an
+extended powered test.
+
 Strike-drive board for the bamboo-lantern noisemakers. Sits between the solar
 panel and the Adafruit 5648 MOSFET driver: takes raw panel voltage in, **boosts
 it to ~12 V**, buffers it in a 3 × 22,000 µF bank, and hands that to the
@@ -49,9 +77,14 @@ are ADC-capable; firmware can tell them apart).
 - **One-shot button (SW1)** — VDC→SW1→470R→10 µF→D7, zener-clamped. One ~40 ms
   pulse per press; the series cap blocks DC, so a stuck button *cannot* park the
   coil energised (a lit panel would otherwise sustain 2.5–4 W into the coil).
-  C1B (THT, DNP) parallels C1 to lengthen the pulse.
-- **5 V rail (U1)** — HT7550-1, µA-class quiescent. Replaced the AMS1117, whose
-  5–10 mA idle draw was bleeding the cap bank in ~30 s and taxing the harvest.
+  C1B (THT, DNP) parallels C1 to lengthen the pulse. Fixture firmware
+  `2026-08-09.2` and later detects the released-to-HIGH edge and takes over D7
+  for its independently bounded 40 ms pulse; the hardware one-shot remains the
+  initiator and DC/stuck-input bound.
+- **Receiver rail (U1) -- AS-FAB UNSAFE:** the intended HT7550-1 5 V rail has
+  VIN and VOUT reversed on fabricated v2.0; see the critical warning above.
+  Replacing the AMS1117 was intended to remove its 5-10 mA idle draw, but the
+  pinout changed with the part and was not carried into the footprint nets.
 - **Telemetry** — VSNS = VBOOST × 6.8/53.8 → A4; 47 k/6.8 k with 1 nF gives
   ~27 kHz of bandwidth, enough to actually capture the 25 ms droop transient.
 
@@ -70,6 +103,20 @@ tented vias, remove mark, **SMT top side only**.
 The RX dock is optional per node (production triggering is the ESP-NOW clicker),
 so its pads stay bare and a socket can be hand-fitted on whichever boards ever
 get a 433 MHz receiver.
+
+No verified 12 V receiver has the RX480E 1x7 drop-in footprint. If local RF is
+still wanted on fabricated v2.0, use a compact wide-input 433 MHz receiver with
+an isolated dry-contact output on a short five-wire harness. The leading bench
+candidate is QIACHIP
+[KR1201MINI2-V05B](https://qiachip.com/products/kr1201mini2-v05b-mini-relay-remote-control-dc3v-5v-9v-12v-24v-all-compatible-dry-contact-2a-load-current-rf-433mhz-remote-control-switch)
+(3.7-24 V input, 31 x 14 x 7 mm,
+momentary/toggle/latching modes). Wire receiver power `+` to true VBOOST and `-`
+to GND at DRIVER; wire relay COM to raw VDCIN at PANEL and relay NO to the
+RECVR D0/BTNP pad so the contact exactly imitates SW1 upstream of R7 and the
+one-shot. Leave NC unused. Do not power it from the damaged RECVR `5V` pad,
+despite the 11.76 V unloaded reading, and never route 12 V directly into D0 or
+D7. Qualify current draw, remote compatibility, momentary setup, strike-rail
+droop, and sleep energy before fleet use.
 
 **Hand-soldered in Nevada City — 8 joints/board:** the 3 electrolytics and the
 2-pin TELE. C1B, R12, JP1 are DNP options.
@@ -113,6 +160,9 @@ so existing plates fit; the board simply overhangs 15 mm past the right pair.
 
 ## Before the next order
 
+- Correct U1 to HT7550-1 pins 1=GND, 2=VBOOST/VIN, 3=P5V/VOUT and create a new
+  board revision; do not silently regenerate this as v2.0. Before release,
+  measure the receiver rail unloaded and with a current-limited dummy load.
 - Verify the RX480E module pin order against physical parts if RECVR is ever
   populated (assumed GND · +V · D0 · D1 · D2 · D3 · VT).
 - Cables are crimped from raw leads: press them **straight, never mirrored** —

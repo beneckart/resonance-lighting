@@ -33,8 +33,8 @@ six are marked `duplicate_of` (drop or ignore -- their data double-counts
 their twin).
 
 Everything else (the 16 ground/trunk lights, the power chain, the viewer) is
-untouched and great -- we are in fact adopting your TB-01..12 + RT-* spots as
-the uplight candidate positions for the lighting layout.
+untouched and great. Those TB-01..12 + RT-* spots subsequently became the basis
+for the current about-16 trunk-light class in ADR 0032.
 
 ## Ask
 

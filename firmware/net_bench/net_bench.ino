@@ -31,6 +31,11 @@
 #include "esp_sleep.h"
 #include "esp_timer.h"
 #include "esp_task_wdt.h"
+#include "esp_adc/adc_continuous.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#include "esp32-hal-periman.h"
+#include "esp_heap_caps.h"
 #include "driver/rtc_io.h"
 #include <Preferences.h>
 #include <Wire.h>
@@ -48,7 +53,7 @@
 #include <SparkFun_TMF882X_Library.h>
 #endif
 
-#define NET_BENCH_VERSION "net-bench-2026-08-06.2" // ADR 0033: 2 A charge ceiling + NVS migration
+#define NET_BENCH_VERSION "net-bench-2026-08-06.4" // capbank DMA post-trigger timestamp fix
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -175,6 +180,49 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_SOLENOID_BUTTON_DEBOUNCE_MS
 #define NB_SOLENOID_BUTTON_DEBOUNCE_MS 30
+#endif
+#if defined(NB_CAPBANK_PROBE) && !defined(NB_SOLENOID_D7)
+#error "NB_CAPBANK_PROBE requires NB_SOLENOID_D7"
+#endif
+// v1.0 capbank telemetry. Nominal cable is A4=VSNS, A5=D7S; the bench cable
+// may be reversed because both signals are ADC1-safe and the PCB was designed
+// to tolerate that. Override both pins at build time when reversed.
+#ifndef NB_CAPBANK_VSNS_PIN
+#define NB_CAPBANK_VSNS_PIN A4
+#endif
+#ifndef NB_CAPBANK_D7S_PIN
+#define NB_CAPBANK_D7S_PIN A5
+#endif
+#ifndef NB_CAPBANK_VSNS_TOP_OHM
+#define NB_CAPBANK_VSNS_TOP_OHM 100000.0f
+#endif
+#ifndef NB_CAPBANK_VSNS_BOTTOM_OHM
+#define NB_CAPBANK_VSNS_BOTTOM_OHM 33000.0f
+#endif
+#ifndef NB_CAPBANK_PROBE_RECOVERY_MS
+#define NB_CAPBANK_PROBE_RECOVERY_MS 250
+#endif
+#if defined(NB_CAPBANK_WAVEFORM) && !defined(NB_CAPBANK_PROBE)
+#error "NB_CAPBANK_WAVEFORM requires NB_CAPBANK_PROBE"
+#endif
+// Bench-only waveform recorder. The ESP32-S3 ADC ceiling is 83,333 total
+// conversions/s; two interleaved ADC1 channels at 80 kconv/s give about
+// 40 ksps/channel. HTTP only arms/downloads the capture. WiFi is fully off
+// during the strike so radio current cannot contaminate the waveform.
+#ifndef NB_CAPBANK_WAVEFORM_CONV_HZ
+#define NB_CAPBANK_WAVEFORM_CONV_HZ 80000
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_PRE_MS
+#define NB_CAPBANK_WAVEFORM_PRE_MS 10
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_POST_MS
+#define NB_CAPBANK_WAVEFORM_POST_MS 250
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_MAX_PULSE_MS
+#define NB_CAPBANK_WAVEFORM_MAX_PULSE_MS 50
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_MAX_SAMPLES
+#define NB_CAPBANK_WAVEFORM_MAX_SAMPLES 14000
 #endif
 #ifndef NB_SOLENOID_RGB_BUTTON_POLL_MS
 #define NB_SOLENOID_RGB_BUTTON_POLL_MS 50
@@ -716,6 +764,31 @@ uint32_t gSolenoidNavPresses = 0;
 uint32_t gSolenoidNavErrors = 0;
 #endif
 
+#if defined(NB_CAPBANK_WAVEFORM)
+enum CapbankWaveState : uint8_t {
+  CAPW_IDLE = 0,
+  CAPW_ARMED = 1,
+  CAPW_CAPTURING = 2,
+  CAPW_READY = 3,
+  CAPW_ERROR = 4,
+};
+volatile uint8_t gCapWaveState = CAPW_IDLE;
+uint16_t gCapWavePulseMs = 0;
+uint32_t gCapWaveArmAtMs = 0;
+uint32_t gCapWaveId = 0;
+uint16_t *gCapWaveVsnsMv = nullptr;
+uint16_t *gCapWaveD7sMv = nullptr;
+uint32_t gCapWaveVsnsCount = 0;
+uint32_t gCapWaveD7sCount = 0;
+uint32_t gCapWaveVsnsTriggerIndex = 0;
+uint32_t gCapWaveD7sTriggerIndex = 0;
+uint32_t gCapWaveCaptureUs = 0;
+uint32_t gCapWaveTriggerUs = 0;
+uint32_t gCapWaveRequestedConvHz = NB_CAPBANK_WAVEFORM_CONV_HZ;
+bool gCapWaveOverflow = false;
+String gCapWaveError;
+#endif
+
 // downlink (master SHOW_FRAME) tracking on peers
 uint32_t masterLastSeq = 0;
 uint32_t masterRx = 0, masterGaps = 0;
@@ -1046,6 +1119,450 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
   return true;
 }
 
+#if defined(NB_CAPBANK_PROBE)
+float capbankVoltsFromSenseMv(uint32_t senseMv) {
+  return (senseMv / 1000.0f) *
+         ((NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+          NB_CAPBANK_VSNS_BOTTOM_OHM);
+}
+
+uint32_t capbankAverageMv(uint8_t pin, uint8_t count) {
+  uint32_t total = 0;
+  for (uint8_t i = 0; i < count; ++i) {
+    total += analogReadMilliVolts(pin);
+    delayMicroseconds(150);
+  }
+  return count ? total / count : 0;
+}
+
+void capbankProbeInit() {
+  pinMode(NB_CAPBANK_VSNS_PIN, INPUT);
+  pinMode(NB_CAPBANK_D7S_PIN, INPUT);
+  analogSetPinAttenuation(NB_CAPBANK_VSNS_PIN, ADC_11db);
+  analogSetPinAttenuation(NB_CAPBANK_D7S_PIN, ADC_11db);
+  Serial.printf("capbank probe: VSNS=GPIO%d D7S=GPIO%d divider=%.4fx\n",
+                NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                (NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+                    NB_CAPBANK_VSNS_BOTTOM_OHM);
+}
+
+void capbankReportIdle() {
+  uint32_t senseMv = capbankAverageMv(NB_CAPBANK_VSNS_PIN, 32);
+  uint32_t gateMv = capbankAverageMv(NB_CAPBANK_D7S_PIN, 16);
+  Serial.printf("{\"capbank_idle\":1,\"vsns_pin\":%d,\"d7s_pin\":%d,"
+                "\"sense_mv\":%lu,\"bank_v\":%.3f,\"gate_mv\":%lu,"
+                "\"gate_on\":%s}\n",
+                NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                (unsigned long)senseMv, capbankVoltsFromSenseMv(senseMv),
+                (unsigned long)gateMv, gSolenoidGateOn ? "true" : "false");
+}
+
+bool capbankProbeStrike(uint16_t pulseMs) {
+  uint32_t preSenseMv = capbankAverageMv(NB_CAPBANK_VSNS_PIN, 32);
+  uint32_t gateIdleMv = capbankAverageMv(NB_CAPBANK_D7S_PIN, 16);
+  if (!solenoidStrike(pulseMs, "capbank probe")) {
+    Serial.printf("{\"capbank_probe\":1,\"ok\":false,\"pulse_ms\":%u,"
+                  "\"reason\":\"strike_blocked\",\"bank_v\":%.3f,"
+                  "\"gate_mv\":%lu}\n",
+                  (unsigned)pulseMs, capbankVoltsFromSenseMv(preSenseMv),
+                  (unsigned long)gateIdleMv);
+    return false;
+  }
+
+  uint32_t minSenseMv = preSenseMv;
+  uint32_t gatePeakMv = gateIdleMv;
+  uint32_t post20Mv = 0, post100Mv = 0, post250Mv = 0;
+  bool got20 = false, got100 = false, got250 = false;
+  uint32_t samples = 0;
+  const uint32_t startUs = micros();
+  const uint32_t endUs =
+      (uint32_t)(pulseMs + NB_CAPBANK_PROBE_RECOVERY_MS) * 1000UL;
+  while ((uint32_t)(micros() - startUs) < endUs) {
+    uint32_t senseMv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+    uint32_t gateMv = analogReadMilliVolts(NB_CAPBANK_D7S_PIN);
+    if (senseMv < minSenseMv) minSenseMv = senseMv;
+    if (gateMv > gatePeakMv) gatePeakMv = gateMv;
+    uint32_t elapsedMs = (uint32_t)(micros() - startUs) / 1000UL;
+    if (!got20 && elapsedMs >= (uint32_t)pulseMs + 20U) {
+      post20Mv = senseMv;
+      got20 = true;
+    }
+    if (!got100 && elapsedMs >= (uint32_t)pulseMs + 100U) {
+      post100Mv = senseMv;
+      got100 = true;
+    }
+    if (!got250 &&
+        elapsedMs >= (uint32_t)pulseMs + NB_CAPBANK_PROBE_RECOVERY_MS - 1U) {
+      post250Mv = senseMv;
+      got250 = true;
+    }
+    ++samples;
+    delayMicroseconds(100);
+  }
+  if (!got20) post20Mv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+  if (!got100) post100Mv = post20Mv;
+  if (!got250) post250Mv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+
+  float preV = capbankVoltsFromSenseMv(preSenseMv);
+  float minV = capbankVoltsFromSenseMv(minSenseMv);
+  Serial.printf("{\"capbank_probe\":1,\"ok\":true,\"pulse_ms\":%u,"
+                "\"vsns_pin\":%d,\"d7s_pin\":%d,\"pre_v\":%.3f,"
+                "\"min_v\":%.3f,\"drop_v\":%.3f,\"post20_v\":%.3f,"
+                "\"post100_v\":%.3f,\"post250_v\":%.3f,"
+                "\"gate_idle_mv\":%lu,\"gate_peak_mv\":%lu,"
+                "\"samples\":%lu,\"failsafes\":%lu}\n",
+                (unsigned)pulseMs, NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                preV, minV, preV - minV, capbankVoltsFromSenseMv(post20Mv),
+                capbankVoltsFromSenseMv(post100Mv), capbankVoltsFromSenseMv(post250Mv),
+                (unsigned long)gateIdleMv, (unsigned long)gatePeakMv,
+                (unsigned long)samples, (unsigned long)gSolenoidFailsafes);
+  return true;
+}
+#else
+void capbankProbeInit() {}
+void capbankReportIdle() { Serial.println("capbank probe not compiled"); }
+bool capbankProbeStrike(uint16_t) {
+  Serial.println("capbank probe not compiled");
+  return false;
+}
+#endif
+
+#if defined(NB_CAPBANK_WAVEFORM)
+const char *capbankWaveStateName() {
+  switch (gCapWaveState) {
+    case CAPW_ARMED: return "armed";
+    case CAPW_CAPTURING: return "capturing";
+    case CAPW_READY: return "ready";
+    case CAPW_ERROR: return "error";
+    default: return "idle";
+  }
+}
+
+bool capbankWaveEnsureBuffers() {
+  if (gCapWaveVsnsMv && gCapWaveD7sMv) return true;
+  free(gCapWaveVsnsMv);
+  free(gCapWaveD7sMv);
+  const size_t bytes = (size_t)NB_CAPBANK_WAVEFORM_MAX_SAMPLES * sizeof(uint16_t);
+  gCapWaveVsnsMv = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_8BIT);
+  gCapWaveD7sMv = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_8BIT);
+  if (!gCapWaveVsnsMv || !gCapWaveD7sMv) {
+    free(gCapWaveVsnsMv);
+    free(gCapWaveD7sMv);
+    gCapWaveVsnsMv = nullptr;
+    gCapWaveD7sMv = nullptr;
+    gCapWaveError = "sample buffer allocation failed";
+    return false;
+  }
+  return true;
+}
+
+bool capbankWaveCapture(uint16_t pulseMs) {
+  gCapWaveState = CAPW_CAPTURING;
+  gCapWaveError = "";
+  gCapWaveVsnsCount = 0;
+  gCapWaveD7sCount = 0;
+  gCapWaveVsnsTriggerIndex = 0;
+  gCapWaveD7sTriggerIndex = 0;
+  gCapWaveCaptureUs = 0;
+  gCapWaveTriggerUs = 0;
+  gCapWaveOverflow = false;
+  if (!capbankWaveEnsureBuffers()) {
+    gCapWaveState = CAPW_ERROR;
+    return false;
+  }
+
+  adc_continuous_handle_t adc = nullptr;
+  adc_cali_handle_t cal = nullptr;
+  bool adcStarted = false;
+  bool pinsDetached = false;
+  bool ok = false;
+  do {
+    // capbankProbeInit() attached Arduino's ADC1 one-shot driver. Detaching both
+    // pins releases that handle so the DMA/continuous driver can own ADC1.
+    if (!perimanClearPinBus(NB_CAPBANK_VSNS_PIN) ||
+        !perimanClearPinBus(NB_CAPBANK_D7S_PIN)) {
+      gCapWaveError = "could not release ADC one-shot pins";
+      break;
+    }
+    pinsDetached = true;
+
+    adc_unit_t vsnsUnit = ADC_UNIT_1, d7sUnit = ADC_UNIT_1;
+    adc_channel_t vsnsChannel = ADC_CHANNEL_0, d7sChannel = ADC_CHANNEL_0;
+    esp_err_t err = adc_continuous_io_to_channel(
+        NB_CAPBANK_VSNS_PIN, &vsnsUnit, &vsnsChannel);
+    if (err != ESP_OK || vsnsUnit != ADC_UNIT_1) {
+      gCapWaveError = "VSNS is not on ADC1";
+      break;
+    }
+    err = adc_continuous_io_to_channel(
+        NB_CAPBANK_D7S_PIN, &d7sUnit, &d7sChannel);
+    if (err != ESP_OK || d7sUnit != ADC_UNIT_1) {
+      gCapWaveError = "D7S is not on ADC1";
+      break;
+    }
+
+    adc_continuous_handle_cfg_t handleCfg = {};
+    handleCfg.max_store_buf_size = 32768;
+    handleCfg.conv_frame_size = 256;
+    handleCfg.flags.flush_pool = true;
+    err = adc_continuous_new_handle(&handleCfg, &adc);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC handle: ") + esp_err_to_name(err);
+      break;
+    }
+
+    adc_digi_pattern_config_t pattern[2] = {};
+    pattern[0].atten = ADC_ATTEN_DB_12;
+    pattern[0].channel = vsnsChannel;
+    pattern[0].unit = ADC_UNIT_1;
+    pattern[0].bit_width = ADC_BITWIDTH_12;
+    pattern[1].atten = ADC_ATTEN_DB_12;
+    pattern[1].channel = d7sChannel;
+    pattern[1].unit = ADC_UNIT_1;
+    pattern[1].bit_width = ADC_BITWIDTH_12;
+    adc_continuous_config_t adcCfg = {};
+    adcCfg.pattern_num = 2;
+    adcCfg.adc_pattern = pattern;
+    adcCfg.sample_freq_hz = NB_CAPBANK_WAVEFORM_CONV_HZ;
+    adcCfg.conv_mode = ADC_CONV_SINGLE_UNIT_1;
+    adcCfg.format = ADC_DIGI_OUTPUT_FORMAT_TYPE2;
+    err = adc_continuous_config(adc, &adcCfg);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC config: ") + esp_err_to_name(err);
+      break;
+    }
+
+    adc_cali_curve_fitting_config_t calCfg = {};
+    calCfg.unit_id = ADC_UNIT_1;
+    calCfg.atten = ADC_ATTEN_DB_12;
+    calCfg.bitwidth = ADC_BITWIDTH_12;
+    err = adc_cali_create_scheme_curve_fitting(&calCfg, &cal);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC calibration: ") + esp_err_to_name(err);
+      break;
+    }
+
+    err = adc_continuous_start(adc);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC start: ") + esp_err_to_name(err);
+      break;
+    }
+    adcStarted = true;
+    const uint64_t captureStartUs = esp_timer_get_time();
+    uint64_t triggerAtUs = 0;
+    bool triggered = false;
+    uint8_t dma[512];
+
+    while (true) {
+      esp_task_wdt_reset();
+      uint32_t bytesRead = 0;
+      err = adc_continuous_read(adc, dma, sizeof(dma), &bytesRead, 20);
+      if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
+        gCapWaveError = String("ADC read: ") + esp_err_to_name(err);
+        break;
+      }
+      for (uint32_t offset = 0;
+           offset + SOC_ADC_DIGI_RESULT_BYTES <= bytesRead;
+           offset += SOC_ADC_DIGI_RESULT_BYTES) {
+        const adc_digi_output_data_t *sample =
+            (const adc_digi_output_data_t *)&dma[offset];
+        if (sample->type2.unit != 0) continue;
+        const uint16_t raw = sample->type2.data;
+        if (sample->type2.channel == (uint32_t)vsnsChannel) {
+          if (gCapWaveVsnsCount < NB_CAPBANK_WAVEFORM_MAX_SAMPLES)
+            gCapWaveVsnsMv[gCapWaveVsnsCount++] = raw;
+          else gCapWaveOverflow = true;
+        } else if (sample->type2.channel == (uint32_t)d7sChannel) {
+          if (gCapWaveD7sCount < NB_CAPBANK_WAVEFORM_MAX_SAMPLES)
+            gCapWaveD7sMv[gCapWaveD7sCount++] = raw;
+          else gCapWaveOverflow = true;
+        }
+      }
+
+      const uint64_t nowUs = esp_timer_get_time();
+      if (!triggered && nowUs - captureStartUs >=
+                            (uint64_t)NB_CAPBANK_WAVEFORM_PRE_MS * 1000ULL) {
+        gCapWaveVsnsTriggerIndex = gCapWaveVsnsCount;
+        gCapWaveD7sTriggerIndex = gCapWaveD7sCount;
+        triggerAtUs = esp_timer_get_time();
+        gCapWaveTriggerUs = (uint32_t)(triggerAtUs - captureStartUs);
+        if (!solenoidStrike(pulseMs, "capbank DMA waveform")) {
+          gCapWaveError = "strike blocked";
+          break;
+        }
+        triggered = true;
+        // nowUs was sampled immediately before triggerAtUs. Do not subtract the
+        // newer trigger timestamp from that older unsigned value; collect the
+        // next DMA frame before evaluating the post-trigger deadline.
+        continue;
+      }
+      if (triggered && nowUs - triggerAtUs >=
+                           (uint64_t)(pulseMs + NB_CAPBANK_WAVEFORM_POST_MS) * 1000ULL) {
+        gCapWaveCaptureUs = (uint32_t)(nowUs - captureStartUs);
+        ok = true;
+        break;
+      }
+      if (nowUs - captureStartUs >
+          (uint64_t)(NB_CAPBANK_WAVEFORM_PRE_MS + pulseMs +
+                     NB_CAPBANK_WAVEFORM_POST_MS + 1000U) * 1000ULL) {
+        gCapWaveError = "capture timeout";
+        break;
+      }
+    }
+
+    solenoidStop("waveform complete");
+    if (!ok) break;
+
+    // DMA stores raw codes. Convert after the timing-critical capture so the
+    // eFuse-calibrated millivolt conversion cannot perturb sample cadence.
+    for (uint32_t i = 0; i < gCapWaveVsnsCount; ++i) {
+      int mv = 0;
+      if (adc_cali_raw_to_voltage(cal, gCapWaveVsnsMv[i], &mv) != ESP_OK) {
+        gCapWaveError = "VSNS calibration failed";
+        ok = false;
+        break;
+      }
+      gCapWaveVsnsMv[i] = (uint16_t)constrain(mv, 0, 65535);
+    }
+    if (!ok) break;
+    for (uint32_t i = 0; i < gCapWaveD7sCount; ++i) {
+      int mv = 0;
+      if (adc_cali_raw_to_voltage(cal, gCapWaveD7sMv[i], &mv) != ESP_OK) {
+        gCapWaveError = "D7S calibration failed";
+        ok = false;
+        break;
+      }
+      gCapWaveD7sMv[i] = (uint16_t)constrain(mv, 0, 65535);
+    }
+  } while (false);
+
+  if (adcStarted) adc_continuous_stop(adc);
+  if (adc) adc_continuous_deinit(adc);
+  if (cal) adc_cali_delete_scheme_curve_fitting(cal);
+  if (pinsDetached) capbankProbeInit();
+  if (ok) {
+    ++gCapWaveId;
+    gCapWaveState = CAPW_READY;
+    Serial.printf("capbank waveform #%lu ready: %ums, VSNS=%lu D7S=%lu, %.1f/%.1f sps\n",
+                  (unsigned long)gCapWaveId, (unsigned)pulseMs,
+                  (unsigned long)gCapWaveVsnsCount,
+                  (unsigned long)gCapWaveD7sCount,
+                  gCapWaveCaptureUs ?
+                      (double)gCapWaveVsnsCount * 1000000.0 / gCapWaveCaptureUs : 0.0,
+                  gCapWaveCaptureUs ?
+                      (double)gCapWaveD7sCount * 1000000.0 / gCapWaveCaptureUs : 0.0);
+  } else {
+    solenoidStop("waveform error");
+    gCapWaveState = CAPW_ERROR;
+    Serial.printf("capbank waveform error: %s\n", gCapWaveError.c_str());
+  }
+  return ok;
+}
+
+String capbankWaveStatusJson() {
+  float vsnsHz = gCapWaveCaptureUs ?
+      (float)gCapWaveVsnsCount * 1000000.0f / gCapWaveCaptureUs : 0.0f;
+  float d7sHz = gCapWaveCaptureUs ?
+      (float)gCapWaveD7sCount * 1000000.0f / gCapWaveCaptureUs : 0.0f;
+  String j;
+  j.reserve(520);
+  j = "{\"feature\":\"capbank_waveform\",\"fixture_id\":\"" + shortId + "\"";
+  j += ",\"fw\":\"" NET_BENCH_VERSION "\"";
+  j += ",\"state\":\"" + String(capbankWaveStateName()) + "\"";
+  j += ",\"capture_id\":" + String((unsigned long)gCapWaveId);
+  j += ",\"pulse_ms\":" + String(gCapWavePulseMs);
+  j += ",\"requested_conversion_hz\":" + String(gCapWaveRequestedConvHz);
+  j += ",\"vsns_hz\":" + String(vsnsHz, 2);
+  j += ",\"d7s_hz\":" + String(d7sHz, 2);
+  j += ",\"vsns_count\":" + String((unsigned long)gCapWaveVsnsCount);
+  j += ",\"d7s_count\":" + String((unsigned long)gCapWaveD7sCount);
+  j += ",\"capture_us\":" + String((unsigned long)gCapWaveCaptureUs);
+  j += ",\"trigger_us\":" + String((unsigned long)gCapWaveTriggerUs);
+  j += ",\"pre_ms\":" + String(NB_CAPBANK_WAVEFORM_PRE_MS);
+  j += ",\"post_ms\":" + String(NB_CAPBANK_WAVEFORM_POST_MS);
+  j += ",\"overflow\":" + String(gCapWaveOverflow ? "true" : "false");
+  j += ",\"radio_quiet\":true";
+  j += ",\"error\":\"" + gCapWaveError + "\"}";
+  return j;
+}
+
+void capbankWaveSendCsv() {
+  if (gCapWaveState != CAPW_READY || !gCapWaveVsnsCount || !gCapWaveD7sCount) {
+    server.send(409, "application/json", capbankWaveStatusJson());
+    return;
+  }
+  const uint32_t n = min(gCapWaveVsnsCount, gCapWaveD7sCount);
+  const float vsnsHz = (float)gCapWaveVsnsCount * 1000000.0f / gCapWaveCaptureUs;
+  const float divider =
+      (NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+      NB_CAPBANK_VSNS_BOTTOM_OHM;
+  server.sendHeader("Content-Disposition",
+                    "attachment; filename=capbank-waveform-" +
+                    String((unsigned long)gCapWaveId) + ".csv");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/csv", "");
+  String chunk;
+  chunk.reserve(3072);
+  chunk = "# fixture_id," + shortId + "\n";
+  chunk += "# firmware," NET_BENCH_VERSION "\n";
+  chunk += "# capture_id," + String((unsigned long)gCapWaveId) + "\n";
+  chunk += "# pulse_ms," + String(gCapWavePulseMs) + "\n";
+  chunk += "# requested_conversion_hz," + String(gCapWaveRequestedConvHz) + "\n";
+  chunk += "# vsns_sample_hz," + String(vsnsHz, 3) + "\n";
+  chunk += "# d7s_sample_hz," +
+           String((float)gCapWaveD7sCount * 1000000.0f / gCapWaveCaptureUs, 3) + "\n";
+  chunk += "# radio_quiet,true\n";
+  chunk += "t_ms,bank_v,vsns_mv,d7s_mv,gate_command\n";
+  server.sendContent(chunk);
+  chunk = "";
+  for (uint32_t i = 0; i < n; ++i) {
+    const float tMs = ((int64_t)i - (int64_t)gCapWaveVsnsTriggerIndex) *
+                      1000.0f / vsnsHz;
+    const float bankV = (gCapWaveVsnsMv[i] / 1000.0f) * divider;
+    chunk += String(tMs, 4) + "," + String(bankV, 4) + "," +
+             String(gCapWaveVsnsMv[i]) + "," + String(gCapWaveD7sMv[i]) + "," +
+             String((tMs >= 0.0f && tMs < gCapWavePulseMs) ? 1 : 0) + "\n";
+    if ((i % 48U) == 47U) {
+      esp_task_wdt_reset();
+      server.sendContent(chunk);
+      chunk = "";
+    }
+  }
+  if (chunk.length()) server.sendContent(chunk);
+  server.sendContent("");
+}
+
+void capbankWaveConfigureRoutes() {
+  server.on("/capbank/waveform", HTTP_GET, []() {
+    server.send(200, "application/json", capbankWaveStatusJson());
+  });
+  server.on("/capbank/waveform.csv", HTTP_GET, []() { capbankWaveSendCsv(); });
+  server.on("/capbank/arm", HTTP_GET, []() {
+    if (!server.hasArg("ms")) {
+      server.send(400, "text/plain", "use /capbank/arm?ms=5..50\n");
+      return;
+    }
+    const int pulseMs = server.arg("ms").toInt();
+    if (pulseMs < NB_SOLENOID_MIN_MS ||
+        pulseMs > NB_CAPBANK_WAVEFORM_MAX_PULSE_MS) {
+      server.send(400, "text/plain", "pulse outside bench-qualified 5..50 ms\n");
+      return;
+    }
+    if (gCapWaveState == CAPW_ARMED || gCapWaveState == CAPW_CAPTURING) {
+      server.send(409, "application/json", capbankWaveStatusJson());
+      return;
+    }
+    gCapWavePulseMs = (uint16_t)pulseMs;
+    gCapWaveArmAtMs = millis() + 350;
+    gCapWaveState = CAPW_ARMED;
+    gCapWaveError = "";
+    server.send(202, "application/json", capbankWaveStatusJson());
+  });
+}
+#else
+void capbankWaveConfigureRoutes() {}
+#endif
+
 void solenoidButtonHandleWake() {
   if (!gSolenoidButtonWakePending) return;
   gSolenoidButtonWakePending = false;
@@ -1341,6 +1858,12 @@ void solenoidFailsafeTick() {
 void solenoidInit() {}
 void solenoidStop(const char *) {}
 bool solenoidStrike(uint16_t, const char *) { return false; }
+void capbankProbeInit() {}
+void capbankReportIdle() { Serial.println("capbank probe requires --solenoid-d7"); }
+bool capbankProbeStrike(uint16_t) {
+  Serial.println("capbank probe requires --solenoid-d7");
+  return false;
+}
 void solenoidButtonHandleWake() {}
 void solenoidButtonTick() {}
 void solenoidRgbButtonInit() {}
@@ -2130,6 +2653,7 @@ void configureOtaRoutes() {
   server.on("/", HTTP_GET, []() { server.send(200, "text/plain", "net-bench " NET_BENCH_VERSION "\n"); });
   server.on("/telemetry", HTTP_GET, []() { server.send(200, "application/json", telemetryJson()); });
   server.on("/resume", HTTP_GET, []() { server.send(200, "text/plain", "resuming\n"); gResumePending = true; });
+  capbankWaveConfigureRoutes();
   server.on(
       "/update", HTTP_POST,
       []() {
@@ -2214,6 +2738,26 @@ void stopOtaAndWifi() {
   WiFi.mode(WIFI_OFF);
   otaActive = false;
   otaMode = "off";
+}
+
+void capbankWaveTick() {
+#if defined(NB_CAPBANK_WAVEFORM)
+  if (gCapWaveState != CAPW_ARMED ||
+      (int32_t)(millis() - gCapWaveArmAtMs) < 0) return;
+  // The arming HTTP response has already left. Tear down every WiFi path before
+  // sampling, capture into RAM, then rejoin and expose the completed CSV.
+  stopOtaAndWifi();
+  delay(30);
+  capbankWaveCapture(gCapWavePulseMs);
+  maintEnteredMs = millis();
+  if (!startWifiOta()) {
+    gCapWaveError += gCapWaveError.length() ? "; WiFi rejoin failed" : "WiFi rejoin failed";
+    if (gCapWaveState != CAPW_READY) gCapWaveState = CAPW_ERROR;
+    Serial.println("waveform retained in RAM; retrying shared WiFi in 2 s");
+    delay(2000);
+    startWifiOta();
+  }
+#endif
 }
 
 // ---- watchdog (net-new: closes the field-reliability TODO) -----------------
@@ -4118,6 +4662,29 @@ void handleSerial() {
     }
     break;
   }
+  case 'j': // read-only local v1 capbank voltage/gate report
+    capbankReportIdle();
+    break;
+  case 'J': { // targeted v1 capbank ADC capture + strike: JE39F1C:5
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t pulseMs = NB_SOLENOID_MIN_MS;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0 ||
+        !parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS, &pulseMs) ||
+        !haveTarget) {
+      Serial.printf("CAPBANK_PROBE rejected: use J<id>:<ms> (range %u..%u ms)\n",
+                    (unsigned)NB_SOLENOID_MIN_MS, (unsigned)NB_SOLENOID_MAX_MS);
+      break;
+    }
+    if (IS_MASTER) {
+      Serial.println("CAPBANK_PROBE is local-USB peer only");
+    } else if (targetMatchesMe(target)) {
+      capbankProbeStrike(pulseMs);
+    }
+    break;
+  }
   case 'S': { // timed deep sleep: bare S uses NB_REMOTE_SLEEP_S; S900 sleeps 15 min.
     int seconds = readSerialUint(80, 65535);
     uint16_t sleepS = (uint16_t)(seconds < 0 ? NB_REMOTE_SLEEP_S : seconds);
@@ -4348,6 +4915,7 @@ void setup() {
   Serial.println();
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
   solenoidInit();
+  capbankProbeInit();
   solenoidButtonHandleWake();
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
                 NB_CHANNEL, NB_FRAME_HZ, NB_HB_HZ);
@@ -4464,6 +5032,7 @@ void loop() {
 
   if (gMode == MODE_MAINT) {
     server.handleClient();
+    capbankWaveTick();
     // /resume HTTP hit -> do a real comms transition (re-init ESP-NOW), not just a flag flip
     if (gResumePending) {
       gResumePending = false;

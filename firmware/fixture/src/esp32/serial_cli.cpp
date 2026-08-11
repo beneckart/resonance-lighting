@@ -6,6 +6,7 @@
 #include "../core/packet.h"
 #include "behavior_glue.h"
 #include "board_power.h"
+#include "boot_guard_io.h"
 #include "espnow_link.h"
 #include "identity.h"
 #include "led_driver.h"
@@ -160,6 +161,36 @@ void handleSerial() {
     }
     if (haveTarget && !nbTargetMatches(target, gMyId)) break;
     applyChargeMa(ma);
+    break;
+  }
+  case 'X': {
+    // Explicit USB-only bare-board recovery for the known commissioning edge:
+    // a prior image may have persisted PROTECT while no cell was installed.
+    // Never clear automatically; the host tool issues this only in its default
+    // battery-absent mode after telemetry proves external power and no charging.
+    readBatteryNow();
+    const BqSnapshot &bq = bqSnapshot();
+    if (bootGuardStage() != STAGE_PROTECT) {
+      Serial.println("bare-board PROTECT clear not needed");
+      break;
+    }
+    if (!pfIsReady() || batteryPresent() || chargingEnabled() || !supplyGood() ||
+        supplyVolts() < 4.5f || bq.fault0 != 0) {
+      Serial.printf("bare-board PROTECT clear rejected: pf=%d batt=%d charge=%d "
+                    "supply=%.3f good=%d fault=0x%02X\n",
+                    pfIsReady() ? 1 : 0, batteryPresent() ? 1 : 0,
+                    chargingEnabled() ? 1 : 0, supplyVolts(), supplyGood() ? 1 : 0,
+                    bq.fault0);
+      break;
+    }
+    if (!bootGuardSetStage(STAGE_IDLE)) {
+      Serial.println("bare-board PROTECT clear persist FAILED");
+      break;
+    }
+    Serial.println("bare-board PROTECT cleared; rebooting with rails parked until init");
+    Serial.flush();
+    delay(150);
+    ESP.restart();
     break;
   }
   case 'K': {

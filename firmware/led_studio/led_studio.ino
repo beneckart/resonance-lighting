@@ -1253,6 +1253,8 @@ void handleSet() {
     strip.clear();
   }
   applyAfterSet();
+  // CORS: bench dashboards served off the laptop poll several boards at once.
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "text/plain", "ok");
 }
 
@@ -1306,7 +1308,7 @@ void handleState() {
   uint32_t tmfAgeMs =
       gTmfLastReadMs ? millis() - gTmfLastReadMs : UINT32_MAX;
   snprintf(buf, sizeof(buf),
-           "{\"fw\":\"%s\",\"triad\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
+           "{\"fw\":\"%s\",\"host\":\"%s\",\"triad\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
            "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d,"
            "\"msa_present\":%d,\"msa_ok\":%d,\"ax\":%.4f,\"ay\":%.4f,\"az\":%.4f,\"tilt_deg\":%.2f,"
@@ -1314,7 +1316,7 @@ void handleState() {
            "\"tmf_present\":%d,\"tmf_ok\":%d,\"tof_mm\":%u,\"tof_raw_mm\":%u,\"tof_conf\":%u,"
            "\"tmf_active\":%d,\"tmf_age_ms\":%lu,\"tmf_reads\":%lu,"
            "\"tmf_errors\":%lu,\"tmf_recoveries\":%lu}",
-           STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
+           STUDIO_VERSION, gHostname, gMode, gAnim, gR, gG, gB, gW, gBri,
            gSpeed, gGamma ? 1 : 0, gShape,
            lastLit, gAnchor, gSplit, (long)rssi, gPfReady ? 1 : 0,
            bv, ma, soc, sv, sma,
@@ -1338,14 +1340,14 @@ void handleState() {
     }
   }
   snprintf(buf, sizeof(buf),
-           "{\"fw\":\"%s\",\"triad\":0,\"l5cx\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
+           "{\"fw\":\"%s\",\"host\":\"%s\",\"triad\":0,\"l5cx\":1,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
            "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d,"
            "\"l5cx_ok\":%d,\"closest_mm\":%d,\"visitor_mm\":%d,\"ct\":%d,"
            "\"presence\":%d,\"why\":%u,\"thresh_mm\":%u,"
            "\"zmm\":[%s],\"zbase\":[%s],"
            "\"l5cx_reads\":%lu,\"l5cx_errors\":%lu}",
-           STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
+           STUDIO_VERSION, gHostname, gMode, gAnim, gR, gG, gB, gW, gBri,
            gSpeed, gGamma ? 1 : 0, gShape, lastLit, gAnchor, gSplit,
            (long)rssi, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
            sgood ? 1 : 0, (gVlPresent && gVlRanging) ? 1 : 0, (int)gVlClosestMm,
@@ -1354,14 +1356,15 @@ void handleState() {
            (unsigned long)gVlReads, (unsigned long)gVlErrors);
 #else
   snprintf(buf, sizeof(buf),
-           "{\"fw\":\"%s\",\"triad\":0,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
+           "{\"fw\":\"%s\",\"host\":\"%s\",\"triad\":0,\"mode\":%u,\"anim\":%u,\"r\":%u,\"g\":%u,\"b\":%u,\"w\":%u,\"bri\":%u,"
            "\"speed\":%u,\"gamma\":%u,\"shape\":%u,\"lit\":%u,\"anchor\":%u,\"split\":%u,"
            "\"rssi\":%ld,\"pf\":%d,\"bv\":%.3f,\"ma\":%.0f,\"soc\":%u,\"sv\":%.3f,\"sma\":%.0f,\"sgood\":%d}",
-           STUDIO_VERSION, gMode, gAnim, gR, gG, gB, gW, gBri,
+           STUDIO_VERSION, gHostname, gMode, gAnim, gR, gG, gB, gW, gBri,
            gSpeed, gGamma ? 1 : 0, gShape, lastLit, gAnchor, gSplit,
            (long)rssi, gPfReady ? 1 : 0, bv, ma, soc, sv, sma,
            sgood ? 1 : 0);
 #endif
+  server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", buf);
 }
 
@@ -1369,7 +1372,25 @@ void setupWifi() {
 #if HAVE_SECRETS
   WiFi.mode(WIFI_AP_STA);
   WiFi.setHostname(gHostname);
-  WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
+  const char *ssid = RES_WIFI_SSID;
+  const char *pass = RES_WIFI_PASSWORD;
+#ifdef RES_WIFI_SSID2
+  // Boot-time preference for the bench AP when it is on the air: site/phone
+  // hotspots can isolate WiFi clients from each other (Nevada City 2026-08-01),
+  // which breaks laptop->board HTTP entirely. Boards already joined to the
+  // fallback do NOT migrate until reboot -- bring the bench AP up first.
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    if (WiFi.SSID(i) == RES_WIFI_SSID2) {
+      ssid = RES_WIFI_SSID2;
+      pass = RES_WIFI_PASSWORD2;
+      break;
+    }
+  }
+  WiFi.scanDelete();
+  Serial.printf("WiFi target: %s\n", ssid);
+#endif
+  WiFi.begin(ssid, pass);
   Serial.print("WiFi connecting");
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 12000) {

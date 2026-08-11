@@ -4,18 +4,19 @@ Project context for the Resonance Lighting workstream. Read alongside `README.md
 
 ## What this project is
 
-The **Resonance Tree** is a two-year bamboo art installation for Burning Man 2026 + 2027, fabricated by Bamboo Pure in Bali. The 2026 build is a ~7.5 m bamboo tree with two laminated rings (1.5 m and 1.7 m), 7.5 m doubled bamboo poles, 30 limbs, held together with steel wire and capped with a wind chime cluster. In 2027 the trunk becomes the inside of a multi-level conch shell built around it; the bamboo trunk and the 130 planned lighting fixtures are reused both years.
+The **Resonance Tree** is a two-year bamboo art installation for Burning Man 2026 + 2027, fabricated by Bamboo Pure in Bali. The 2026 build is a ~7.5 m bamboo tree with two laminated rings (1.5 m and 1.7 m), 7.5 m doubled bamboo poles, 30 limbs, held together with steel wire and capped with a wind chime cluster. In 2027 the trunk becomes the inside of a multi-level conch shell built around it; the bamboo trunk and the roughly 130-light production fleet are reused both years.
 
-The lighting fleet (Nevada City production plan, 2026-08-06 -- canonical counts in
-`docs/block-diagram/SYSTEM.md`, decision in ADR 0032): **72 hanging bamboo
-"downlights"** at 7-10 ft in three rings of 24, **24 all-HEX perimeter lights** on
-5 ft shepherd hooks, **16 trunk/uplights** moving toward all RGBW, and **18 mixed
-HEX/RGBW chandelier lights** in the central cluster, plus the wind-chime assembly at
-the top. The smaller-die 3 W RGB + lens remains a trunk-light extra-throw experiment.
+The lighting fleet (Nevada City production layout, 2026-08-06 -- canonical counts
+in `docs/block-diagram/SYSTEM.md`, decision in ADR 0032): **72 hanging bamboo
+"downlights"** in three rings of 24, **24 all-HEX perimeter lights** on 5 ft
+shepherd hooks, **about 16 trunk lights** trending all RGBW, and **18 mixed
+HEX/RGBW chandelier lights** in the central cluster, plus the wind-chime assembly
+at the top. A smaller lensed 3 W RGB trunk-light variant is under test for extra
+throw. The full nominal 130 is the target barring an unforeseen integration issue.
 
 This repo's scope is those fixtures: solar/battery-powered, mesh-networked, autonomous, fungible.
 
-**Two-year framing matters for the electronics spec.** The fixtures are durable infrastructure, not a 2026-only throwaway build. (Historical note: this document originally scoped "100 downlights" with the chandelier as a separate testbed, then a July 150-152-light allocation. Nevada City assembly converged that into the 130-light plan in ADR 0032.)
+**Two-year framing matters for the electronics spec.** The fixtures are durable infrastructure, not a 2026-only throwaway build. (Historical note: this document originally scoped "100 downlights" with the chandelier as a separate testbed, then a tentative 150-152-light four-class allocation. Nevada City integration produced the current nominal 130-light layout in ADR 0032.)
 
 ## 2026 architecture correction -- risk-reduction policy
 
@@ -59,7 +60,7 @@ Per `enclosure/references/DOWN LIGHTS DRAWINGS.pdf`:
 - **Interior diameter (top cylinder):** 5.5 cm minimum -- confirmed by Bamboo Pure.
 - **Quantity:** 100 lanterns in BOQ R6. (2026-07-08 note: bamboo body supply is
   ample -- enough splayed lantern bodies to cover the hanging downlights, simple
-  cylinders for the uplights, and the chandelier structure is finished and already
+  cylinders for the trunk lights, and the chandelier structure is finished and already
   in the shipping container.)
 
 ### Solar "hat" / electronics enclosure (this repo's deliverable)
@@ -102,11 +103,11 @@ Steve has 3D-printed the bamboo lantern body to Vishnu's spec and built a series
 
 A 6-inch bamboo *asper* in the center of the chime cluster becomes a chandelier providing center-tower lighting. The ring holding the chandelier hosts a 0.8 m diameter solar panel (partially shaded by the bamboo skin). Elliot frames this as a testbed for whether bamboo-shaded solar can sustain the larger lighting loads planned for the 2027 conch-shell expansion. The downlight spec is *not* gated on this; downlights are durable infrastructure for both years.
 
-(2026-08-06 update: the chandelier is now planned as **18 lights** in this repo,
-with a mixed HEX/RGBW allocation, probably solar-free with USB-C charging and a
-shared carpenter-built enclosure. Scope/ownership still needs final clarification;
-the chandelier structure itself is built and in the shipping container. ADR 0032
-supersedes the earlier 16-shaft count recorded in ADR 0024.)
+(2026-08-06 update: the Nevada City production layout now calls for **18 chandelier
+lights** as a fleet class in this repo, using a mixed HEX/RGBW population and likely
+6 Ah cells with USB-C charging in a carpenter-built shared box. Scope/ownership is
+still being clarified; the chandelier structure itself is built and in the shipping
+container. See ADR 0032.)
 
 ## Community Mandala Program (PULLED 2026-07-08 -- kept for the record)
 
@@ -144,7 +145,7 @@ Going fully wireless -- no data lines, no fixed wiring topology -- opens creativ
 - **Cellular automata light fields.** Each lantern reads its neighbors' state and updates per a rule. Reaction-diffusion rules (Belousov-Zhabotinsky-style) produce organic, flock-like, forest-fire-like wave dynamics -- much more compelling than randomness or pre-programmed sequences. Other CA candidates: Greenberg-Hastings (excitable medium), Game of Life variants, continuous Lenia (smooth blob dynamics).
 - **Spatial / topological neighbor awareness.** ESP-NOW exposes RSSI per packet. With a one-time install-time calibration (each lantern learns its top-K nearest neighbors by signal strength, or is told its physical position), neighbor lists can be pre-baked. This solves the CA neighbor-identification problem cleanly without GPS or fancy hardware. Stored in flash, doesn't change at runtime.
 - **Hand-carried "wand" lantern.** A battle-hardened lantern variant (or a custom unit) that participants pick up and carry through the piece. The wand broadcasts presence over ESP-NOW; tree fixtures measure RSSI to determine proximity; nearest fixtures react (brighten, color-shift, kick off a CA wave). Mesh hops propagate the disturbance outward -- the network topology becomes visible as a wavefront rolling away from the wand.
-- **Synced "choir" moments.** Loose CA most of the time, with occasional global-sync events where all 130 lights coordinate (NTP-style time sync over mesh) for a unified moment, then break back into local rule.
+- **Synced "choir" moments.** Loose CA most of the time, with occasional global-sync events where the roughly 130 lights coordinate (NTP-style time sync over mesh) for a unified moment, then break back into local rule.
 - **Wind-chime coupling.** If the chime cluster ends up with a microphone or accelerometer, real wind events at the top of the tree could feed into the CA below -- wind literally drives the light waves through the tree.
 - **Time/state programs.** Different rule sets per night (e.g. one CA Monday, another Tuesday), pushed OTA the day before.
 - **Bridge-directed multicast show (added 2026-07-08).** A bridge -- one fleet board
@@ -165,10 +166,10 @@ Going fully wireless -- no data lines, no fixed wiring topology -- opens creativ
 
 > 2026-07-08: this whole section is a dated snapshot from the start of the COTS
 > campaign, kept for context. The bake-off concluded (PowerFeather V2 won -- ADR
-> 0021), production locked COTS with 158 production boards purchased (ADR 0024),
-> and the battery/panel paragraphs below are superseded by ADRs 0025/0026. The
-> deployment allocation later converged to 130 fixtures (ADR 0032). Inline
-> corrections were added earlier where claims aged worst.
+> 0021), production locked COTS at ~150 purchased units (ADR 0024; deployment
+> count later superseded by ADR 0032), and the battery/panel
+> paragraphs below are superseded by ADRs 0025/0026. Inline corrections were added
+> earlier where claims aged worst.
 
 The hardware strategy has shifted from custom-PCBA-first to a **dual COTS/custom track**. This is not a retreat from a custom board; it is a risk-control strategy. The project can now test real boards, real solar input, real batteries, real LED modules, and real hat geometry before deciding whether 2026 production needs a bespoke PCBA.
 

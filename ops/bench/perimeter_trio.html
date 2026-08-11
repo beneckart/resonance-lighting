@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!--
+  perimeter_trio.html - bench dashboard for three led_studio l5cx perimeter lights.
+
+  Open directly in a browser on the bench laptop (file:// works: the boards send
+  Access-Control-Allow-Origin: * on /state and /set since led-studio-2026-08-01.1).
+  Requires boards and laptop on the SAME non-isolated network (laptop-hosted
+  ResonanceBench AP; phone hotspots isolate clients and will NOT work).
+
+  Discovery: tries the three mDNS names first, then "Scan subnet" probes
+  base.1-254 /state and slots boards by their reported host field
+  (led-studio-2026-08-01.3+).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perimeter Trio</title>
+<style>
+  :root {
+    --bg: #101215; --panel: #191d22; --edge: #2a3038; --ink: #d6dbe1;
+    --dim: #8b93a0; --ok: #37c26b; --warn: #e0a13c; --bad: #d05050;
+    --accent: #5aa2e0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 14px; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 10px; font-weight: 600; }
+  h1 small { color: var(--dim); font-weight: 400; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .master { background: var(--panel); border: 1px solid var(--edge);
+            border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .master .row + .row { margin-top: 8px; }
+  .lights { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--edge);
+          border-radius: 10px; padding: 12px; }
+  .card.offline { opacity: 0.55; }
+  .card h2 { font-size: 15px; margin: 0; font-weight: 600; }
+  .hostline { display: flex; gap: 6px; align-items: center; margin: 6px 0 8px; }
+  .hostline input { flex: 1; }
+  .stat { color: var(--dim); font-size: 12.5px; margin: 2px 0; }
+  .stat b { color: var(--ink); font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 9px;
+           font-size: 12px; font-weight: 600; background: #26303a; color: var(--dim); }
+  .badge.on { background: #163823; color: var(--ok); }
+  .badge.gobo { background: #3a3420; color: #ffe9a8; }
+  .badge.dead { background: #3a2020; color: var(--bad); }
+  .zones { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+           margin: 8px 0; }
+  .zone { aspect-ratio: 1.6; border-radius: 4px; background: #22262c;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 10.5px; color: var(--dim); }
+  button { background: #232a32; color: var(--ink); border: 1px solid var(--edge);
+           border-radius: 7px; padding: 5px 11px; cursor: pointer; font-size: 13px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #1d3550; border-color: #2d5580; }
+  input[type=text] { background: #12151a; border: 1px solid var(--edge);
+                     color: var(--ink); border-radius: 6px; padding: 4px 8px;
+                     font-size: 13px; }
+  input[type=range] { width: 110px; accent-color: var(--accent); }
+  input[type=color] { width: 34px; height: 26px; border: none; background: none;
+                      padding: 0; cursor: pointer; }
+  label.ctl { color: var(--dim); font-size: 12px; display: flex; gap: 5px;
+              align-items: center; }
+  a { color: var(--accent); text-decoration: none; font-size: 12.5px; }
+  .foot { color: var(--dim); font-size: 12px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<h1>Perimeter Trio <small>- Nevada City bench - first three built</small></h1>
+
+<div class="master">
+  <div class="row">
+    <b style="font-size:13px">All three:</b>
+    <button class="primary" onclick="preset('anim=5&bri=255&gamma=0')">Presence demo</button>
+    <button onclick="preset('anim=3&r=255&g=90&b=10&bri=180&gamma=1')">Ember breathe</button>
+    <button onclick="preset('anim=1&r=40&g=255&b=120&bri=160&gamma=1&trail=4')">Aurora spiral</button>
+    <button onclick="preset('anim=4&r=255&g=220&b=160&bri=200&gamma=1')">Twinkle</button>
+    <button onclick="preset('off=1')">All off</button>
+    <label class="ctl">bri <input type="range" min="8" max="255" value="255"
+      onchange="preset('bri='+this.value)"></label>
+    <label class="ctl">color <input type="color" value="#ff5a10"
+      onchange="preset(rgbArgs(this.value))"></label>
+    <button onclick="preset('zero_scene=1')">Re-zero all scenes</button>
+  </div>
+  <div class="row">
+    <label class="ctl">gobo thresh mm <input type="range" min="40" max="600" value="500"
+      oninput="this.nextElementSibling.textContent=this.value"
+      onchange="preset('thresh='+this.value)"><span>500</span></label>
+    <span style="flex:1"></span>
+    <label class="ctl">scan base <input type="text" id="scanBase" value="192.168.137"
+      size="11"></label>
+    <button onclick="scanSubnet()" id="scanBtn">Scan subnet</button>
+    <span id="scanMsg" class="stat"></span>
+  </div>
+</div>
+
+<div class="lights" id="lights"></div>
+
+<div class="foot">
+  Boards prefer the ResonanceBench laptop AP at boot, else fall back to BenPhone
+  (isolated: dashboard will show offline). Power-cycle a light after bringing the
+  bench AP up so it migrates. Per-light OTA: "ota" link, POST the
+  led_studio.ino.bin artifact.
+</div>
+
+<script>
+"use strict";
+const SLOTS = [
+  { name: "Light 1", host: "ledstudio-f3fd88.local" },
+  { name: "Light 2", host: "ledstudio-f2be80.local" },
+  { name: "Light 3", host: "ledstudio-f2bfec.local" },
+];
+const ANIMS = ["Static", "Spiral", "Orbit", "Breathe", "Twinkle", "Presence"];
+
+function el(id) { return document.getElementById(id); }
+function rgbArgs(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return "r=" + (n >> 16 & 255) + "&g=" + (n >> 8 & 255) + "&b=" + (n & 255);
+}
+
+function cardHtml(i, s) {
+  const animBtns = ANIMS.map((a, k) =>
+    `<button onclick="send(${i},'anim=${k}${k === 5 ? "&bri=255&gamma=0" : ""}')">${a}</button>`).join("");
+  return `
+  <div class="card offline" id="card${i}">
+    <div class="row" style="justify-content:space-between">
+      <h2>${s.name} <span class="badge" id="pres${i}">offline</span></h2>
+      <span class="stat" id="fw${i}"></span>
+    </div>
+    <div class="hostline">
+      <input type="text" id="host${i}" value="${s.host}">
+      <a href="#" onclick="window.open('http://'+el('host${i}').value+'/');return false">open</a>
+      <a href="#" onclick="window.open('http://'+el('host${i}').value+'/update');return false">ota</a>
+    </div>
+    <div class="stat">visitor <b id="vis${i}">-</b> mm &middot; closest <b id="clo${i}">-</b> mm
+      &middot; wheel <b id="ct${i}">-</b>%</div>
+    <div class="stat">batt <b id="soc${i}">-</b>% <span id="bv${i}"></span>
+      &middot; rssi <b id="rssi${i}">-</b> dBm &middot; sensor <b id="sens${i}">-</b></div>
+    <div class="zones" id="zones${i}">${'<div class="zone">-</div>'.repeat(16)}</div>
+    <div class="row" style="margin-bottom:6px">${animBtns}
+      <button onclick="send(${i},'off=1')">Off</button></div>
+    <div class="row">
+      <label class="ctl">bri <input type="range" min="8" max="255" value="255"
+        onchange="send(${i},'bri='+this.value)"></label>
+      <label class="ctl">speed <input type="range" min="1" max="100" value="50"
+        onchange="send(${i},'speed='+this.value)"></label>
+      <label class="ctl">color <input type="color" value="#ff2000"
+        onchange="send(${i},rgbArgs(this.value))"></label>
+      <button onclick="send(${i},'zero_scene=1')">Re-zero</button>
+    </div>
+  </div>`;
+}
+
+el("lights").innerHTML = SLOTS.map((s, i) => cardHtml(i, s)).join("");
+
+async function fetchTimeout(url, ms) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { signal: ctl.signal, cache: "no-store" }); }
+  finally { clearTimeout(t); }
+}
+
+function send(i, args) {
+  fetchTimeout("http://" + el("host" + i).value + "/set?" + args, 4000).catch(() => {});
+}
+function preset(args) { for (let i = 0; i < SLOTS.length; i++) send(i, args); }
+
+function paintZones(i, zmm, zbase, thresh) {
+  const cells = el("zones" + i).children;
+  for (let z = 0; z < 16; z++) {
+    const c = cells[z];
+    const mm = zmm && z < zmm.length ? zmm[z] : -1;
+    const base = zbase && z < zbase.length ? zbase[z] : -1;
+    if (mm < 0) { c.style.background = "#1a1d21"; c.textContent = "x"; continue; }
+    c.textContent = mm >= 1000 ? (mm / 1000).toFixed(1) + "m" : mm;
+    if (mm <= thresh) c.style.background = "#7a6a2a";               // inside gobo range
+    else if (base > 0 && base - mm > 150) c.style.background = "#5a3d20"; // closer than scene
+    else c.style.background = "#22303c";                            // scene-consistent
+  }
+}
+
+async function poll(i) {
+  try {
+    const r = await fetchTimeout("http://" + el("host" + i).value + "/state", 2500);
+    const j = await r.json();
+    el("card" + i).classList.remove("offline");
+    el("fw" + i).textContent = (j.host || "") + " " + (j.fw || "");
+    const p = el("pres" + i);
+    if (!j.l5cx_ok) { p.textContent = "no sensor"; p.className = "badge dead"; }
+    else if (j.presence && (j.why & 4)) { p.textContent = "GOBO (palm)"; p.className = "badge gobo"; }
+    else if (j.presence) { p.textContent = "GOBO (near)"; p.className = "badge gobo"; }
+    else if (j.visitor_mm > 0) { p.textContent = "visitor"; p.className = "badge on"; }
+    else { p.textContent = "idle"; p.className = "badge"; }
+    el("vis" + i).textContent = j.visitor_mm > 0 ? j.visitor_mm : "-";
+    el("clo" + i).textContent = j.closest_mm > 0 ? j.closest_mm : "-";
+    el("ct" + i).textContent = j.ct != null ? j.ct : "-";
+    el("soc" + i).textContent = j.soc;
+    el("bv" + i).textContent = "(" + (j.bv || 0).toFixed(2) + " V, " + Math.round(j.ma || 0) + " mA)";
+    el("rssi" + i).textContent = j.rssi;
+    el("sens" + i).textContent = j.l5cx_ok ? "ok" : "DOWN";
+    paintZones(i, j.zmm, j.zbase, j.thresh_mm || 500);
+  } catch (e) {
+    el("card" + i).classList.add("offline");
+    el("pres" + i).textContent = "offline";
+    el("pres" + i).className = "badge";
+  }
+}
+
+setInterval(() => { for (let i = 0; i < SLOTS.length; i++) poll(i); }, 1000);
+for (let i = 0; i < SLOTS.length; i++) poll(i);
+
+// ---- discovery ----
+async function probe(host, ms) {
+  try {
+    const r = await fetchTimeout("http://" + host + "/state", ms);
+    const j = await r.json();
+    if (j && j.fw && j.fw.indexOf("led-studio") === 0) return j;
+  } catch (e) {}
+  return null;
+}
+
+async function scanSubnet() {
+  const base = el("scanBase").value.replace(/\.$/, "");
+  const msg = el("scanMsg");
+  el("scanBtn").disabled = true;
+  msg.textContent = "scanning " + base + ".1-254...";
+  const found = [];
+  const ips = []; for (let x = 1; x < 255; x++) ips.push(base + "." + x);
+  const POOL = 24;
+  let idx = 0;
+  async function worker() {
+    while (idx < ips.length) {
+      const ip = ips[idx++];
+      const j = await probe(ip, 1200);
+      if (j) found.push({ ip: ip, host: j.host || "" });
+    }
+  }
+  await Promise.all(Array.from({ length: POOL }, worker));
+  let placed = 0;
+  for (const f of found) {
+    // Slot by mDNS name when the board reports one; else first offline slot.
+    let slot = SLOTS.findIndex((s) =>
+      f.host && s.host.indexOf(f.host) === 0);
+    if (slot < 0) slot = SLOTS.findIndex((s, i) =>
+      el("card" + i).classList.contains("offline"));
+    if (slot >= 0) { el("host" + slot).value = f.ip; placed++; poll(slot); }
+  }
+  msg.textContent = found.length + " board(s) found, " + placed + " slotted";
+  el("scanBtn").disabled = false;
+}
+</script>
+</body>
+</html>

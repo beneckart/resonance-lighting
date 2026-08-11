@@ -60,10 +60,16 @@ void setup() {
   //    charging deferred until the gauge shows a plausible cell.
   boardPowerInit();
 
-  // 7. Rails: sensor rail up for the class probe; LED rail stays parked until
-  //    a deliberate, ramped turn-on. A hard-parked boot gets telemetry only.
-  railEnableVSQT(!bootGuardParked());
-  delay(150);
+  // 7. Rails: force a verified sensor-domain cold start before the class probe.
+  //    PowerFeather deliberately preserves VSQT across warm/OTA resets, which
+  //    otherwise lets a stale TMF firmware/ranging state survive the MCU reset.
+  //    The LED rail stays parked until a deliberate, ramped turn-on.
+  if (!bootGuardParked()) {
+    if (!railCycleVSQT())
+      Serial.println("VSQT cold-start verification FAILED; sensors may degrade");
+  } else if (!railEnableVSQT(false)) {
+    Serial.println("VSQT park FAILED");
+  }
 
   // 8. Class probe -> LED profile (one image, hardware decides; ADR 0009).
   if (!bootGuardParked()) {
@@ -118,6 +124,7 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   solenoidFailsafeTick();
+  solenoidExternalTick();
   solenoidButtonTick();
   handleSerial();
   boardPowerTick();

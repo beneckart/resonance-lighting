@@ -1,6 +1,7 @@
 // Class-dispatched sensor stack, all cooperative on the shared Wire1 bus at
 // 100 kHz from loop context (ADR 0028; the 2026-07-29 blocking-driver lesson).
-//   downlight: MSA311 + TMF8820 (down)   perimeter: MSA311 + VL53L5CX (out)
+//   downlight: MSA311 + TMF8820 (down) + optional BMP581 environmental logger
+//   perimeter: MSA311 + VL53L5CX (out)
 //   uplight:   MSA311 + BMP581           chandelier: none
 #pragma once
 
@@ -17,6 +18,7 @@ struct SensorSnapshot {
   float tofDepthFilteredMm;  // EMA 0.35
   uint16_t tofConfidence;
   uint32_t tmfReads, tmfErrors, tmfRecoveries;
+  uint8_t tmfDomainResets; // bounded full VSQT + driver rebuilds this boot
   // VL53L5CX plane fit (perimeter)
   bool vlPresent, vlOk;
   float vlTiltDeg;   // ground-plane tilt vs boot-captured rest plane
@@ -29,5 +31,7 @@ struct SensorSnapshot {
 };
 
 void sensorsInit(uint8_t fixtureClass);
-void sensorsTick(); // cooperative; never blocks more than one I2C transaction set
+// Cooperative in steady state. Its one bounded domain recovery may synchronously
+// reload TMF firmware after three consecutive failed measurement cycles.
+void sensorsTick();
 const SensorSnapshot &sensors();

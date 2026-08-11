@@ -151,17 +151,17 @@ If a custom board proceeds (2027 option -- ADR 0024):
 
 ## Immediate Hardware Tests
 
-Top priorities (updated 2026-07-08):
+Top priorities (updated 2026-08-06):
 
 - [x] Voltaic P105/P126 harvest tests with the OVP/HIZ guard (2026-06-29, ADR 0026;
   hungrier-cell P105 re-run still queued).
-- [x] HEX 4.2 V boost test -- concluded SKIP; the RGBW rail-vs-VBAT feed is measured
-  but the production decision is open (ADR 0029).
+- [x] HEX 4.2 V boost test -- concluded SKIP; the production-cabling A/B selected
+  the switchable 3V3 rail for RGBW (ADR 0029 amendment).
 - Close bottom-up power budget by LED role.
-- Bench the 20 Ah solar-free option for uplights/chandelier (gates the
-  batteryspace #6832 buy -- ADRs 0025/0026).
+- Compare the 4 W RGBW and lensed 3 W RGB trunk-light variants, then lock the
+  about-16-fixture power, optic, and mounting path (ADR 0032).
 - RF test inside a mock hat with panel/battery/wiring installed.
 - Thermal test sealed hat in sun/heat with charger and LEDs operating.
 - Time-trial a production-like COTS assembly with keyed connectors and strain relief.
-- Select the USB-C panel-mount port + gasket for the solar-free classes; integrate
-  the ToF aperture (downward on downlights, outward window on perimeter hats).
+- Integrate the already-selected USB-C panel-mount port + gasket for every class,
+  plus the ToF aperture (downward on downlights, outward window on perimeter hats).

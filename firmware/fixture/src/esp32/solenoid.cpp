@@ -15,20 +15,34 @@ static uint32_t gLastEndMs = 0;
 static uint32_t gFailsafeMs = 0;
 static uint32_t gStrikes = 0, gBlocked = 0, gFailsafeCount = 0;
 static uint16_t gLastPulseMs = 0;
+static bool gExternalReady = false;
 static bool gButtonWakePending = false;
 static bool gButtonRawReleased = true;
 static bool gButtonStableReleased = true;
 static uint32_t gButtonChangedMs = 0;
 
+// Rev-2 solarnoid has its own 10k D7 pulldown plus hardware-bounded SW1 and
+// RX480E one-shot sources on the same net. An armed fixture must therefore
+// release D7 between MCU pulses; OUTPUT LOW would clamp both manual sources.
+// A disarmed fixture deliberately keeps the old active-LOW clamp.
+static void solenoidIdle() {
+  if (gCfg.solEn) {
+    pinMode(RES_SOLENOID_PIN, INPUT);
+    digitalWrite(RES_SOLENOID_PIN, LOW); // preload the output latch for safety
+  } else {
+    pinMode(RES_SOLENOID_PIN, OUTPUT);
+    digitalWrite(RES_SOLENOID_PIN, LOW);
+  }
+}
+
 static void solenoidPulseEnd(void *) { // esp_timer task context, not an ISR
-  digitalWrite(RES_SOLENOID_PIN, LOW);
+  solenoidIdle();
   gGateOn = false;
   gLastEndMs = millis();
 }
 
 void solenoidInit() {
-  pinMode(RES_SOLENOID_PIN, OUTPUT);
-  digitalWrite(RES_SOLENOID_PIN, LOW);
+  solenoidIdle();
   gLastEndMs = millis() - RES_SOLENOID_REST_MS;
   // EXT0 owns the RTC pad through deep sleep. Return it to normal GPIO before
   // sampling the active-LOW USER button and enabling its internal pull-up.
@@ -63,7 +77,7 @@ void solenoidInit() {
 
 void solenoidStop(const char *why) {
   if (gPulseTimer) esp_timer_stop(gPulseTimer);
-  digitalWrite(RES_SOLENOID_PIN, LOW);
+  solenoidIdle();
   if (gGateOn) {
     gGateOn = false;
     gLastEndMs = millis();
@@ -71,7 +85,8 @@ void solenoidStop(const char *why) {
   }
 }
 
-bool solenoidStrike(uint16_t pulseMs, const char *why) {
+static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
+                              bool takeExternalHigh) {
   if (!gCfg.solEn) {
     gBlocked++;
     return false;
@@ -83,13 +98,22 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
     gBlocked++;
     return false;
   }
+  // Normal MCU requests must not fight a physical one-shot already driving D7.
+  // The external-edge path is the deliberate exception: it takes over that
+  // same HIGH and extends it to the firmware-bounded production pulse width.
+  if (!takeExternalHigh && digitalRead(RES_SOLENOID_PIN) == HIGH) {
+    gBlocked++;
+    return false;
+  }
 
   gFailsafeMs = now + pulseMs + 50;
   gGateOn = true;
+  // Preload HIGH before enabling output so the MCU pulse has no LOW glitch.
   digitalWrite(RES_SOLENOID_PIN, HIGH);
+  pinMode(RES_SOLENOID_PIN, OUTPUT);
   esp_err_t err = esp_timer_start_once(gPulseTimer, (uint64_t)pulseMs * 1000ULL);
   if (err != ESP_OK) {
-    digitalWrite(RES_SOLENOID_PIN, LOW);
+    solenoidIdle();
     gGateOn = false;
     gLastEndMs = millis();
     gFailsafeCount++;
@@ -102,6 +126,32 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
   Serial.printf("solenoid strike #%lu: %ums (%s)\n", (unsigned long)gStrikes,
                 (unsigned)pulseMs, why);
   return true;
+}
+
+bool solenoidStrike(uint16_t pulseMs, const char *why) {
+  return solenoidStrikeImpl(pulseMs, why, false);
+}
+
+void solenoidExternalTick() {
+  if (!gCfg.solEn || gGateOn) return;
+
+  bool high = digitalRead(RES_SOLENOID_PIN) == HIGH;
+  if (!high) {
+    // Require a released LOW after every trigger and after boot. This prevents
+    // a stuck-high input from firing at boot or repeatedly retriggering.
+    gExternalReady = true;
+    return;
+  }
+  if (!gExternalReady) return;
+
+  // Consume this edge even if maintenance/rest-time policy rejects it. A new
+  // strike then requires a physical release followed by another rising edge.
+  gExternalReady = false;
+  if (maintMode() != MODE_COMMS) {
+    Serial.println("solenoid SW1 input ignored during maintenance");
+    return;
+  }
+  solenoidStrikeImpl(RES_SOLENOID_DEFAULT_MS, "capboard SW1", true);
 }
 
 void solenoidButtonHandleWake() {
@@ -153,7 +203,7 @@ void solenoidButtonPrepareSleep() {
 
 void solenoidFailsafeTick() {
   if (gGateOn && (int32_t)(millis() - gFailsafeMs) >= 0) {
-    digitalWrite(RES_SOLENOID_PIN, LOW);
+    solenoidIdle();
     gGateOn = false;
     gLastEndMs = millis();
     gFailsafeCount++;

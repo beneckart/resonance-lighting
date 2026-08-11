@@ -55,20 +55,20 @@ colors from multiple vendors ("they are cheap") betting that a few orders land
 early -- an abundance is the plan, not an accident. Additional small
 receptacle/header orders (Amazon/AliExpress) exist beyond the itemized rows.
 
-Enclosure mapping (corrected 2026-07-15, allocation updated 2026-08-06): **LARGE
-(111) -> 72 hanging downlights**; **SMALL (61) -> 24 perimeter lights AND 16
-trunk/uplight boots**. The 18 chandelier lights get a carpenter-built box
-(team-side, not this ledger), so the 130-fixture Nevada City plan fits inside the
-enclosure pools with useful spares. Two of
+Current enclosure mapping (2026-08-06, ADR 0032): **LARGE (111) -> 72 hanging
+downlights**; **SMALL (61) -> 24 perimeter lights plus candidate enclosures for
+about 16 trunk lights**. The 18 chandelier lights get a carpenter-built box
+(team-side, not this ledger). The nominal 130-fixture layout therefore has meaningful
+build-recovery and field-spare inventory. Two of
 the enclosures (1 large + 1 small) have TRANSPARENT LIDS -- "show and tell" demo
 models for explaining the piece to visitors at the art piece.
 
-Uplight power RESOLVED 2026-07-15: the 20 Ah cell is OUT -- batteryspace could not
-supply enough in time, and the Alibaba counterpart (a bargain at ~$4.50/cell bulk)
-needs ocean freight that misses 2026 (worth remembering for 2027). Uplights instead
-get a **hinged solar "wing" on the boot** drawing partial sun -- likely wanting the
-5 W P105 panel -- and run mostly at low brightness on the standard 6 Ah cell,
-tuned by experiments at the Nevada City prebuild.
+The 2026-07-15 24-uplight hinged-wing plan was superseded by the Nevada City
+allocation. Current work is about 16 trunk lights trending all RGBW, with a smaller
+lensed 3 W RGB variant under test for extra throw. The purchased 32700 cells, small
+enclosures, USB-C ports, and surplus P105 panels leave options for the final trunk
+power and mounting arrangement. The cancelled 20 Ah order remains useful 2027
+sourcing history.
 
 ## Small / sample orders (bench-scale, dollars mostly unrecorded)
 
@@ -101,7 +101,7 @@ tuned by experiments at the Nevada City prebuild.
 | ~~USB cabling + panel-mount USB-C ports~~ | ~~40~~ -> 150 | ORDERED 2026-07-10 ($540 portion of usbc-rgbw): waterproof panel-mount USB-C on EVERY fixture for rescue/charging, not just solar-free classes | -- | -- |
 | ~~20 Ah LFP cells (batteryspace #6832)~~ | ~~40~~ | ~~solar-free uplights/chandelier~~ | **CANCELLED 2026-07-15**: batteryspace quantity short; Alibaba alternative (~$4.50/cell bulk!) needs ocean freight = misses 2026. Uplights go hinged-solar-wing + 6 Ah instead. Revisit for 2027. | -- | -- |
 | ~~20 Ah end-cap connection hardware~~ | ~~40~~ | -- | CANCELLED with the cells | -- | -- |
-| Trunk/uplight wing hardware (hinges, panel mount on the boot) | ~16 | hinged solar wing on the trunk/uplight boot | wing mechanical design (Steve) | ~late July | Low/Medium |
+| Trunk-light optic/power/mount hardware | about 16 | current trunk-light class | 4 W RGBW vs lensed 3 W RGB comparison and physical integration | ASAP during NC build | Medium |
 | Noisemaker wiring residuals | subset TBD | driver control cables + mallet mounting (strike caps ORDERED 07-16; transient question CLOSED -- strikes read as benign VDC droops, cloud-indistinguishable) | mounting design | ~late July | Low |
 | Stronger solenoids (0730B 6 V/1 A class) | up to fleet | replaces the 3 V/5 V units if the bake-off confirms | bake-off verdict (in progress on the bench laptop); pair with the 3 V/5 V return decision | ASAP after verdict | Medium: another CN lead time |
 | ~~Spare STEMMA speakers #3885~~ | -- | -- | CANCELLED 2026-07-15: speaker path ABANDONED (ADR 0030) -- solenoid bamboo-strike wins | -- | -- |
@@ -121,7 +121,7 @@ corroborated 2026-07-08):
   (production-firmware mesh effects + presence), back for the container unload.
 - **Jul 12:** container lands, Port of Oakland.
 - **Mid-late July:** last safe order window for anything with 1-2 week lead
-  (uplight wing hardware; solenoid control cabling -- strike caps ordered 07-16;
+  (trunk-light optic/mount hardware; solenoid control cabling -- strike caps ordered 07-16;
   the harness and enclosure buys landed 07-12/13; the 20 Ah and #3885-spare buys
   are cancelled).
 - **2026-07-09:** 90-board Elecrow batch ORDERED ($3,494.24). CN transit 1-2 weeks

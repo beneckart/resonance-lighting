@@ -105,6 +105,22 @@ int main() {
     CHECK(b.tier == LedTier::DIM); // no advance, no release, no re-brighten
   }
 
+  // --- Externally powered service while PROTECT remains latched ---------------
+  // A persisted PROTECT latch stays electrically parked but must remain awake
+  // for explicit USB/VDC bare-board service when battery data is absent.
+  {
+    PowerState st;
+    powerStateInit(st, LedTier::PROTECT);
+    PowerBudget b = powerPolicyTick(
+        st, sample(1000, 0.0f, 0.0f, true, 0, false, false), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK_EQ(b.brightness_cap, 0u);
+    CHECK(!b.must_sleep);
+    b = powerPolicyTick(st, sample(2000, 0.0f, 0.0f, false, 0, false, false), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(b.must_sleep);
+  }
+
   // --- Compound PROTECT release ----------------------------------------------
   {
     PowerState st;

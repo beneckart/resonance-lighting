@@ -6,6 +6,7 @@
 //   c            resume comms from maintenance
 //   C<mah>       persist gauge capacity, reboot to apply (C alone: report)
 //   G<ma>        persist/apply charge-current cap
+//   X            guarded clear of persisted PROTECT for USB bare-board service
 //   K<id>:<ms>   local solenoid strike when targeted at this unit
 //   S[<secs>]    timed deep sleep (bare = 6 h remote-park default)
 //   r            role/mode/config one-liner

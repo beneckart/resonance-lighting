@@ -87,6 +87,13 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   // failure -> never interpret missing data as healthy/daylight/charged".
   if (!s.batt_valid || s.batt_v < 0.5f) {
     fillBudget(b, st.tier, c);
+    // A USB/VDC-powered service session must remain reachable even when a
+    // previously persisted PROTECT stage has parked the rails. This does not
+    // clear or weaken PROTECT: brightness stays zero and the durable stage is
+    // unchanged. It only suppresses the 900 s sleep while verified external
+    // power is present so an explicit bare-board recovery can be issued.
+    if (st.tier == LedTier::PROTECT && s.supply_valid && s.supply_good)
+      b.must_sleep = false;
     return b;
   }
 

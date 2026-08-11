@@ -51,3 +51,5 @@ ops/bench/data/**/*-logger.*.txt
 ops/bench/data/**/*-dashboard.*.txt
 ops/bench/data/**/*-ota-results.jsonl
 ops/bench/data/**/*-local-full.jsonl
+ops/bench/data/**/*-charge-taper-*.jsonl
+ops/bench/data/**/*-charge-taper-*.done.json

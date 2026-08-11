@@ -17,6 +17,7 @@ void readBatteryNow();     // synchronous refresh (maintenance preflight)
 
 bool pfIsReady();
 bool chargingEnabled();
+bool batteryPresent(); // plausible connected LFP cell, not a floating BAT read
 float maintainVolts();
 const char *batteryTypeName();
 
@@ -39,7 +40,11 @@ const BqSnapshot &bqSnapshot();
 // Rails. enable3V3 verifies the RTC pad actually changed (the SDK setter can
 // silently no-op against a held pad); returns the pad's final state.
 bool railEnable3V3(bool on);
-void railEnableVSQT(bool on);
+// Retry the SDK's try-lock setter and verify the GPIO14 RTC pad level.
+// Return true only when the requested physical state is observed.
+bool railEnableVSQT(bool on);
+// A bounded off/on reset for the full shared STEMMA sensor domain.
+bool railCycleVSQT(uint16_t offMs = 100, uint16_t settleMs = 150);
 
 // Persist + apply runtime config (radio/serial C and G commands).
 bool applyCapacityAndReboot(uint16_t mah);

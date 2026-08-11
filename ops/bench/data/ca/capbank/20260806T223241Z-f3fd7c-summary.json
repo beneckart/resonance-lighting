@@ -1,0 +1,28 @@
+{
+  "fixture_id": "F3FD7C",
+  "ip": "192.168.4.94",
+  "run_utc": "20260806T223241Z",
+  "captures": [
+    {
+      "feature": "capbank_waveform",
+      "fixture_id": "F3FD7C",
+      "fw": "net-bench-2026-08-06.3",
+      "state": "ready",
+      "capture_id": 1,
+      "pulse_ms": 20,
+      "requested_conversion_hz": 80000,
+      "vsns_hz": 40216.55,
+      "d7s_hz": 40216.55,
+      "vsns_count": 416,
+      "d7s_count": 416,
+      "capture_us": 10344,
+      "trigger_us": 10345,
+      "pre_ms": 10,
+      "post_ms": 250,
+      "overflow": false,
+      "radio_quiet": true,
+      "error": "",
+      "path": "C:\\Users\\benec\\Documents\\resonance-tree\\ops\\bench\\data\\ca\\capbank\\20260806T223241Z-f3fd7c-20ms-c1.csv"
+    }
+  ]
+}

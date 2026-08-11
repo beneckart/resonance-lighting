@@ -94,3 +94,23 @@ sound is real percussion, not a recording of one.
   (verdict: speaker abandoned).
 - `firmware/solenoid_demo/`, `firmware/speaker_demo/`, `firmware/clacker_demo/`.
 - ADR 0009 (O(1) ops), 0024 (fleet), `ops/PROCUREMENT.md` (parts).
+
+## 2026-08-06 amendment -- rev-1 boards require the 12 V boost retrofit
+
+The rev-1.0 three-pin capbank was tested with the candidate HS-0730B and 59,000 uF
+using identical 8/12/20/35/50 ms pulses at direct 5.086 V and boosted 12.284 V.
+Both electrical sweeps were stable with a 32700 LFP attached, but Ben judged every
+direct-5-V strike very weak and the boosted strikes hard and useful. At 50 ms, the
+direct bank contributed about 0.083 J and the boosted bank about 1.193 J, a 14.3x
+difference in net capacitor contribution. That is not total coil/mechanical energy,
+but the physical A/B resolves the functional question.
+
+**Decision:** any rev-1 capboard deployed with the HS-0730B must receive the external
+approximately 12 V boost retrofit. Direct 5 V operation is a diagnostic/fallback
+mode, not an acceptable production strike. The ordered v2 board's native boost
+remains the production direction; do not close its bypass jumper for normal use.
+
+The boosted drive remains bounded-pulse service on a nominal 6 V coil. Final fleet
+pulse width, low-SOC/hot-panel qualification, and thermal/endurance limits remain
+open. The separate PowerFeather VUSB+VDC service-input failure investigation is not
+closed by this mechanical verdict.

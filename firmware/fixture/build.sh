@@ -7,7 +7,9 @@
 #   ./build.sh --artifact-dir out/r1    # stable dir for fleet_usb_bringup.py
 #   ./build.sh --profile prod           # default NVS profile when unset
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
+#   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
+#   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --ota-fail-selftest      # P4 rollback drill image
 #   ./build.sh --wdt-hangtest           # arm serial 'x' watchdog hang test
 #
@@ -26,6 +28,7 @@ CHANNEL=""
 PROFILE=""
 CHEM="lfp"
 EXTRA_FLAGS=""
+WIFI_SOURCE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,12 +37,22 @@ while [[ $# -gt 0 ]]; do
     --artifact-dir) ARTIFACT_DIR="$2"; shift 2 ;;
     --channel) CHANNEL="$2"; shift 2 ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
+    --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+# An explicit source replaces stale local credentials before compilation. This
+# is mainly for one-time USB recovery onto the portable-router OTA path.
+if [[ -n "$WIFI_SOURCE" ]]; then
+  [[ -f "$WIFI_SOURCE" ]] || { echo "wifi source not found: $WIFI_SOURCE" >&2; exit 2; }
+  cp "$WIFI_SOURCE" wifi_secrets.h
+  echo "copied wifi_secrets.h from $WIFI_SOURCE"
+fi
 
 # wifi_secrets.h (gitignored): copy from a sibling sketch when missing.
 if [[ ! -f wifi_secrets.h ]]; then

@@ -13,27 +13,27 @@ no skilled repetitive assembly operation at fleet scale.
 
 ## Fleet Plan (living counts -- canonical)
 
-Counts reflect the Nevada City production build (decision record: ADR 0032). They may
-decrease only if an unforeseen installation issue forces fewer lights. The design is
-fungible and fully wireless, so individual units remain interchangeable.
-`ops/bom.md` mirrors these counts; update here first.
+This is the current Nevada City production target (ADR 0032, superseding the count
+allocation in ADR 0024). The team intends to build the full nominal layout; fewer
+fixtures are a contingency for an unforeseen integration or field issue. The trunk
+count and its final LED variant remain approximate. `ops/bom.md` mirrors these counts;
+update here first.
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
-| Hanging downlight (7-10 ft) | 72 (<=110 by large-enclosure pool) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward) |
-| Perimeter (5 ft shepherd hooks) | 24 | All SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah (the only cell that fits the small enclosure) | VL53L5CX (outward); MSA311 likely |
-| Trunk/uplight (simple cylinder, no gobo) | 16 (current target; physically "16ish") | Moving toward all 4 W RGBW; smaller-die 3 W RGB + lens is still an extra-throw test | hinged solar "wing" on the boot (likely P105 5 W) + 6 Ah; low-brightness budget, tuned at the NC prebuild (RESOLVED 07-15; 20 Ah cancelled on sourcing) | BMP581 temp/pressure (env data, added 07-16) |
+| Hanging downlight (7-10 ft) | 72 (3 rings x 24) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward); outermost ring of 24 also gets BMP581 (ADR 0034) |
+| Perimeter (5 ft shepherd hooks) | 24 | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah | VL53L5CX (outward); MSA311 likely |
+| Trunk light (no gobo) | about 16 (target 16) | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | none currently; BMP581s moved to the outer hanging ring (ADR 0034) |
 | Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
 
-Total 130 (three downlight rings of 24 + 24 perimeter + 18 chandelier + 16 trunk).
-All classes share PowerFeather V2 internals, firmware, and day-sleep
+Nominal total 130. All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
 to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
 without opening the hat; the solar-free classes also charge through it.
-Board spares are healthy since the 90-board order (158 production plus separately
-identified bench stock); enclosure pools cap the allocation (large <=110 downlights,
-small <=60 perimeter + trunk boots) -- see `ops/bom.md` spares math. Keep the existing
-wire/NVS `UPLIGHT` class value for trunk fixtures; `trunk` is a physical-role alias.
+Chandelier scope/ownership remains a coordination item, but the Nevada City layout now
+targets 18 lights. Board spares are healthy since the 90-board order (158 production
++ ~8 bench); current enclosure demand is well within the 111-large/61-small pools --
+see `ops/bom.md` spares math.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for
@@ -75,7 +75,7 @@ holdover.
         GPIO10/A0 in bench rigs       MSA311 accel (STEMMA, 100 kHz bus)
         - HEX SK6812 on 3V3 rail      TMF8820-mini downward (downlights)
         - 4 W RGBW on 3V3 rail        VL53L5CX outward (perimeter)
-          (DECIDED by A/B, 0029)      BMP581 temp/pressure (uplights)
+          (DECIDED by A/B, 0029)      BMP581 temp/pressure (outer 24 downlights)
                                       bench-only: thermal/radar/INA
         - LED rail switchable/default-off
 
@@ -179,8 +179,8 @@ Measured/known:
     (charger input ~3.47 W). Possibly still acceptance-limited; hungrier re-run queued.
   - P126 2 W -> perimeter/HEX role: ~1.89 W panel-side at ~m58 -- at rating in real
     heat.
-  - Uplights/chandelier may go solar-free instead (20 Ah or budgeted 6 Ah cell +
-    USB-C charging) -- open decision shared by ADRs 0025/0026.
+  - Trunk-light power/mounting is being settled during Nevada City integration;
+    chandelier remains likely 6 Ah + USB-C charging (ADR 0032).
 
 Bench/sizing rules:
 
@@ -258,12 +258,11 @@ point-source RGBW fixtures, then panel size by role.
   counts/placement, define the power/backup strategy, time-quality protocol, schedule
   representation, UTC commissioning/update path, holdover limits, and invalid-time
   fallback; validate through the real hat without Starlink.
-- (RESOLVED 2026-07-15) Uplight/chandelier power -> hinged solar wing + 6 Ah for
-  uplights; 6 Ah + USB-C for chandelier. Remaining wing items are in the gate above.
+- Trunk-light integration: decide 4 W RGBW vs the lensed 3 W RGB trial, then lock
+  power, mounting, enclosure, brightness, and throw. This supersedes the former
+  24-uplight hinged-wing allocation (ADR 0032).
 - Sensor allocation confirmation per class + presence choreography firmware
   (ADR 0027 open items).
-- Uplight wing: mechanical design (hinge + panel mount on the boot), panel choice
-  (likely P105 5 W), and the low-brightness budget (NC prebuild experiments).
 - (RESOLVED, ADR 0030) Noisemaker -> the "solarnoid", design finalized ~07-24,
   downlights only. Remaining: solenoid part order/return (0730B-class), daytime
   gating firmware, strike energy numbers.
@@ -272,4 +271,5 @@ point-source RGBW fixtures, then panel size by role.
 - Sealed-hat thermal test, especially LFP charge-temperature behavior.
 - ADR 0023 low-battery state machine into production firmware (current bench floors
   strand capacity).
-- Re-check the ESP-NOW scale extrapolation at 130 nodes (computed at 100).
+- Re-check the ESP-NOW scale extrapolation at 130 deployed nodes (computed at 100);
+  optionally retain 150 as a conservative stress case.

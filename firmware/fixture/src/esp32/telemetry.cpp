@@ -61,7 +61,7 @@ String telemetryJson() {
   j += ",\"pf_ready\":";
   j += pfIsReady() ? "true" : "false";
   j += ",\"battery_present\":";
-  j += (batteryVolts() > 2.5f && batteryVolts() < 4.4f) ? "true" : "false";
+  j += batteryPresent() ? "true" : "false";
   j += ",\"charging_enabled\":";
   j += chargingEnabled() ? "true" : "false";
   j += ",\"maint_status\":";
@@ -139,6 +139,7 @@ String telemetryJson() {
     j += ",\"tmf_errors\":" + String((unsigned long)sn.tmfErrors);
     j += ",\"tmf_recoveries\":" + String((unsigned long)sn.tmfRecoveries);
   }
+  j += ",\"tmf_domain_resets\":" + String((unsigned)sn.tmfDomainResets);
   j += ",\"vl53l5cx_present\":";
   j += sn.vlPresent ? "true" : "false";
   if (sn.vlPresent) {

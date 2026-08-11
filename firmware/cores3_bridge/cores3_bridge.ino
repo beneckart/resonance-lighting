@@ -44,7 +44,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-06.4"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-10.1"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -1290,6 +1290,20 @@ void handleSerial() {
     break;
   }
   case 'i': {
+    uint8_t target[3] = {};
+    if (readSerialHexId(target, 120)) {
+      consumeOptionalSeparator();
+      int requested = readSerialUint(80, 255);
+      uint8_t seconds = requested < 0 ? 60 : (uint8_t)requested;
+      if (!seconds) {
+        Serial.println("IDENTIFY rejected: use i<id>[:seconds], seconds 1..255");
+        break;
+      }
+      sendIdentify(target, seconds);
+      Serial.printf("identifying %02X%02X%02X for %us\n",
+                    target[0], target[1], target[2], seconds);
+      break;
+    }
     static size_t nextIndex = 0;
     size_t found = NB_MAX_TRACKED;
     for (size_t offset = 0; offset < NB_MAX_TRACKED; ++offset) {
@@ -1333,7 +1347,7 @@ void handleSerial() {
 #endif
   case 'h':
   case '?':
-    Serial.println("commands: r t U[id] c +/- R<hz> i I m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
+    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
                    " A"
 #endif

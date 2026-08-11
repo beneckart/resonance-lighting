@@ -29,7 +29,7 @@ FIELD_LED_SPIRAL_RGB=""; FIELD_LED_RGBW=""; FIELD_LED_FRAME_MS=""
 FIELD_RECOVER_CHARGE_MA=""; FIELD_PROTECT_RETRY_DARK=""
 DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
 FIELD_MPPT=""; FIELD_MPPT_HOLD=""
-SOLENOID_D7=""; SENSOR_TRIAD=""
+SOLENOID_D7=""; CAPBANK_PROBE=""; CAPBANK_PROBE_SWAPPED=""; CAPBANK_WAVEFORM=""; SENSOR_TRIAD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -78,6 +78,9 @@ while [[ $# -gt 0 ]]; do
     --field-mppt) FIELD_MPPT="1"; shift;;
     --field-mppt-hold) FIELD_MPPT_HOLD="1"; shift;;
     --solenoid-d7) SOLENOID_D7="1"; shift;;             # D7/GPIO37 gate; VDC/GND load tap
+    --capbank-probe) CAPBANK_PROBE="1"; shift;;         # v1 capbank A4=VSNS, A5=D7S ADC capture
+    --capbank-probe-swapped) CAPBANK_PROBE="1"; CAPBANK_PROBE_SWAPPED="1"; shift;; # A4=D7S, A5=VSNS
+    --capbank-waveform) CAPBANK_PROBE="1"; CAPBANK_WAVEFORM="1"; shift;; # radio-quiet ADC DMA + HTTP CSV
     --sensor-triad) SENSOR_TRIAD="1"; shift;;           # MSA311 + TMF8820 + BMP581 diagnostic
     --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
     --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
@@ -99,16 +102,16 @@ done
 if [[ -n "${PORT}" && -n "${OTA_IP}" ]]; then echo "use --port OR --ota, not both" >&2; exit 2; fi
 if [[ -n "${FIELD_CYCLE}" && -n "${SLEEP_CYCLE}" ]]; then echo "use --field-cycle OR --sleep-cycle, not both" >&2; exit 2; fi
 
-# Reuse known local WiFi creds if we don't have our own. This keeps the default
-# maintenance path on shared WiFi, which is the only fleet-scalable OTA mode.
-if [[ ! -f "${SKETCH_DIR}/wifi_secrets.h" ]]; then
-  if [[ -f "${SKETCH_DIR}/../power_bench/wifi_secrets.h" ]]; then
-    cp "${SKETCH_DIR}/../power_bench/wifi_secrets.h" "${SKETCH_DIR}/wifi_secrets.h"
-    echo "copied wifi_secrets.h from ../power_bench"
-  elif [[ -f "${SKETCH_DIR}/../led_studio/wifi_secrets.h" ]]; then
-    cp "${SKETCH_DIR}/../led_studio/wifi_secrets.h" "${SKETCH_DIR}/wifi_secrets.h"
-    echo "copied wifi_secrets.h from ../led_studio"
-  fi
+# Shared-WiFi OTA credentials are deliberately local and explicit. Do not copy
+# another sketch's profile: that silently deployed the retired WonkyHouse SSID
+# to a field peer in Nevada City. Dad's legacy personal bench may opt in locally.
+if [[ -f "${SKETCH_DIR}/wifi_secrets.h" ]] &&
+   grep -Eq '^#[[:space:]]*define[[:space:]]+RES_WIFI_SSID[[:space:]]+"WonkyHouse"' \
+     "${SKETCH_DIR}/wifi_secrets.h" &&
+   [[ "${RES_ALLOW_LEGACY_WONKYHOUSE:-0}" != "1" ]]; then
+  echo "refusing retired WonkyHouse OTA profile; set a current local wifi_secrets.h" >&2
+  echo "Dad's legacy personal bench only: RES_ALLOW_LEGACY_WONKYHOUSE=1" >&2
+  exit 2
 fi
 
 FLAGS="-DPOWERFEATHER_BOARD_V2=1"
@@ -162,6 +165,9 @@ esac
 [[ -n "${FIELD_MPPT}" ]] && FLAGS+=" -DNB_FIELD_MPPT=1"
 [[ -n "${FIELD_MPPT_HOLD}" ]] && FLAGS+=" -DNB_FIELD_MPPT_HOLD_BEST=1"
 [[ -n "${SOLENOID_D7}" ]] && FLAGS+=" -DNB_SOLENOID_D7=1"
+[[ -n "${CAPBANK_PROBE}" ]] && FLAGS+=" -DNB_CAPBANK_PROBE=1 -DNB_SOLENOID_D7=1"
+[[ -n "${CAPBANK_PROBE_SWAPPED}" ]] && FLAGS+=" -DNB_CAPBANK_VSNS_PIN=A5 -DNB_CAPBANK_D7S_PIN=A4"
+[[ -n "${CAPBANK_WAVEFORM}" ]] && FLAGS+=" -DNB_CAPBANK_WAVEFORM=1"
 [[ -n "${SENSOR_TRIAD}" ]] && FLAGS+=" -DNB_SENSOR_TRIAD=1"
 [[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
 [[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"

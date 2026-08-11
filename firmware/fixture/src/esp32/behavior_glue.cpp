@@ -58,8 +58,15 @@ bool behaviorStrikesAllowed() { return gStrikesAllowed; }
 
 bool behaviorStrikePermitted() {
   if (gStrikesAllowed) return true;
+#if defined(RES_SOLENOID_TEST_OVERRIDE)
+  // Targeted bring-up images may exercise a solarnoid indoors or from a
+  // depleted cap bank with no useful panel current. Keep the production night
+  // veto and the FULL-tier battery veto; relax only the solar-surplus gate.
+  return gLife.state != LIFE_NIGHT_SHOW && powerBudget().tier == LedTier::FULL;
+#else
   return gCfg.profile == PROFILE_DEV && gLife.state != LIFE_NIGHT_SHOW &&
          powerBudget().tier == LedTier::FULL;
+#endif
 }
 
 void behaviorOnChoreoState(const uint8_t srcId[3], int8_t rssi, const NbChoreoState &cs) {
