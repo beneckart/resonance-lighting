@@ -174,8 +174,10 @@ mesh.merge_vertices()
 mesh.update_faces(mesh.nondegenerate_faces())
 mesh.fix_normals()
 if not mesh.is_watertight:
+    # near-coincident vertices (<0.01mm) defeat the default weld - coarsen it
+    mesh.merge_vertices(digits_vertex=2)
+    mesh.update_faces(mesh.nondegenerate_faces())
     trimesh.repair.fill_holes(mesh)
-    mesh.merge_vertices()
     mesh.fix_normals()
 stl = os.path.join(A.out, f"{name}.stl")
 mesh.export(stl)

@@ -6,7 +6,7 @@ floods the open field. 50 mm OD, 2 mm ring, 3 mm thick.
 
 ## Inventory — `designs/`
 
-19 verified designs, `chatgpt-01` … `chatgpt-19`. Per design:
+37 verified designs, `chatgpt-01` … `chatgpt-37`. Per design:
 
 | file | use |
 |---|---|
@@ -14,7 +14,7 @@ floods the open field. 50 mm OD, 2 mm ring, 3 mm thick.
 | `*.svg` | vector master (mm units, centred origin, evenodd) — Fusion / laser |
 | `*.png` | preview rendered from the final print vectors |
 
-`chatgpt_contact.png` is the 19-up overview. Source art in `source-art/`.
+`chatgpt_contact.png` is the full-set overview. Source art in `source-art/`.
 
 Every design passed the automated gate before landing here:
 one connected piece · watertight mesh · min printed feature ≥ ~1.4 mm
