@@ -26,6 +26,7 @@ P.add_argument("--diam", type=float, default=50.0)
 P.add_argument("--ring", type=float, default=2.0)
 P.add_argument("--thick", type=float, default=3.0)
 P.add_argument("--minfeat", type=float, default=1.4)
+P.add_argument("--no-stl", action="store_true", help="emit SVG+PNG only (Steve does the 3D in Fusion)")
 A = P.parse_args()
 name = A.name or os.path.splitext(os.path.basename(A.png))[0]
 os.makedirs(A.out, exist_ok=True)
@@ -165,22 +166,28 @@ solid = solid.simplify(0.03).buffer(0)
 solid = solid.buffer(0.06, join_style=1).buffer(-0.06, join_style=1).buffer(0)
 
 # ---------- 6. outputs ----------
-import trimesh
-geoms = list(solid.geoms) if solid.geom_type == "MultiPolygon" else [solid]
-meshes = [trimesh.creation.extrude_polygon(gm, height=A.thick, engine="earcut")
-          for gm in geoms if gm.area > 0.4]
-mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
-mesh.merge_vertices()
-mesh.update_faces(mesh.nondegenerate_faces())
-mesh.fix_normals()
-if not mesh.is_watertight:
-    # near-coincident vertices (<0.01mm) defeat the default weld - coarsen it
-    mesh.merge_vertices(digits_vertex=2)
+if A.no_stl:
+    import math as _m
+    geoms = list(solid.geoms) if solid.geom_type == "MultiPolygon" else [solid]
+    mesh = None
+    stl = None
+else:
+    import trimesh
+if not A.no_stl:
+    geoms = list(solid.geoms) if solid.geom_type == "MultiPolygon" else [solid]
+    meshes = [trimesh.creation.extrude_polygon(gm, height=A.thick, engine="earcut")
+              for gm in geoms if gm.area > 0.4]
+    mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
+    mesh.merge_vertices()
     mesh.update_faces(mesh.nondegenerate_faces())
-    trimesh.repair.fill_holes(mesh)
     mesh.fix_normals()
-stl = os.path.join(A.out, f"{name}.stl")
-mesh.export(stl)
+    if not mesh.is_watertight:
+        mesh.merge_vertices(digits_vertex=2)
+        mesh.update_faces(mesh.nondegenerate_faces())
+        trimesh.repair.fill_holes(mesh)
+        mesh.fix_normals()
+    stl = os.path.join(A.out, f"{name}.stl")
+    mesh.export(stl)
 
 # preview rendered from the FINAL smoothed vectors - what actually prints
 PVX = 1600
@@ -220,4 +227,5 @@ for w in np.arange(0.3, 3.01, 0.1):
         break
 print(dict(name=name, blocked_pct=round(blocked, 1), welds=welds,
            min_feature_mm=(feat if feat else ">3"), one_piece=(n0 == 1),
-           watertight=bool(mesh.is_watertight), tris=int(len(mesh.faces)), stl=stl))
+           watertight=(bool(mesh.is_watertight) if mesh is not None else "n/a (svg only)"),
+           stl=stl))

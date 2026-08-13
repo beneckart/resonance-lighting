@@ -1,20 +1,24 @@
 # Gobos — bamboo-leaf projection discs for the lantern fleet
 
-3D-printed gobo discs (Bambu Lab P1S) that project bamboo-branch shadows.
-Positive design: the ring + branches + leaves are the printed material; light
-floods the open field. 50 mm OD, 2 mm ring, 3 mm thick.
+Gobo discs that project bamboo-branch shadows. Positive design: the ring +
+branches + leaves are the printed material; light floods the open field.
 
-## Inventory — `designs/`
+**STANDARD (Steve, 2026-08-13): 46 mm OD / 2 mm ring / 42 mm ID, single disk.**
+Deliverables are **SVG + PNG preview only** — Steve builds the 3D in Fusion,
+so no STLs are produced for the 46 mm line.
 
-37 verified designs, `chatgpt-01` … `chatgpt-37`. Per design:
+## Inventory — `designs-46mm/` (CANONICAL)
+
+37 verified designs, `chatgpt-01-46mm` … `chatgpt-37-46mm`, each as:
 
 | file | use |
 |---|---|
-| `*.stl` | drag into Bambu Studio and print — watertight, one body |
-| `*.svg` | vector master (mm units, centred origin, evenodd) — Fusion / laser |
-| `*.png` | preview rendered from the final print vectors |
+| `*-46mm.svg` | vector master, true 46 mm (mm units, centred origin, evenodd) — Fusion |
+| `*-46mm.png` | preview rendered from the final vectors |
 
-`chatgpt_contact.png` is the full-set overview. Source art in `source-art/`.
+`contact-46mm.png` is the full-set overview. Source art in `source-art/`.
+`legacy-50mm/` holds the earlier 50 mm cut (incl. STLs) — superseded, kept for
+reference only.
 
 Every design passed the automated gate before landing here:
 one connected piece · watertight mesh · min printed feature ≥ ~1.4 mm
