@@ -108,6 +108,87 @@ for _ in range(6):
     if not moved:
         break
 
+# ---------- 4b. anchor enforcement (Steve 08-13): every art island needs ----------
+# >=2 ties to the ring or to other art. One contact = snaps in handling.
+def _art_comps():
+    art_only = (full & interior).astype(np.uint8)
+    return cv2.connectedComponents(art_only)
+
+def _contacts(comp_mask):
+    """(n_arcs, arc_mm): separate ring-contact arcs + total rim seam length."""
+    dil = cv2.dilate(comp_mask, np.ones((7, 7), np.uint8))
+    band = (dil & ring).astype(np.uint8)
+    n, _ = cv2.connectedComponents(band)
+    px = np.argwhere(band)
+    if len(px) == 0:
+        return 0, 0.0
+    ang = np.degrees(np.arctan2(px[:, 0] - RES/2, px[:, 1] - RES/2)).astype(int)
+    arc_mm = len(np.unique(ang)) * math.pi / 180.0 * R_in
+    return n - 1, arc_mm
+
+def _sound(comp_mask):
+    n, arc = _contacts(comp_mask)
+    # two separate ties OR one broad fused seam (>=4mm of rim) is structural
+    return n >= 2 or arc >= 4.0
+
+anchor_ext = 0
+for _pass in range(30):
+    ncomp, lbl = _art_comps()
+    deficient = []
+    for ci in range(1, ncomp):
+        cm = (lbl == ci).astype(np.uint8)
+        if cm.sum() < (0.8 * MM) ** 2:
+            continue
+        if not _sound(cm):
+            deficient.append((ci, cm))
+    if not deficient:
+        break
+    ci, cm = deficient[0]
+    # try a stem weld to another art island first (Steve's fix for 32)
+    others = ((lbl > 0) & (lbl != ci)).astype(np.uint8)
+    welded = False
+    if others.any():
+        cs = np.argwhere(cm)[::max(1, int(cm.sum()) // 500)]
+        os_ = np.argwhere(others)[::max(1, int(others.sum()) // 800)]
+        dmat = ((cs[:, None, :] - os_[None]) ** 2).sum(-1)
+        ai, bi = np.unravel_index(dmat.argmin(), dmat.shape)
+        if dmat[ai, bi] < (4.0 * MM) ** 2:
+            cv2.line(full, tuple(cs[ai][::-1]), tuple(os_[bi][::-1]), 1, int(1.6 * MM))
+            welded = True
+    if not welded:
+        # extend the leaf tip nearest the ring outward until it touches
+        # (radial direction = the way a rim-side leaf already points);
+        # thin stroke so it reads as the leaf's drawn-out point
+        dil = cv2.dilate(cm, np.ones((7, 7), np.uint8))
+        contact_px = np.argwhere(dil & ring)
+        th0 = None
+        if len(contact_px):
+            cyx = contact_px.mean(0)
+            th0 = np.arctan2(cyx[0] - RES/2, cyx[1] - RES/2)
+        pts = np.argwhere(cm)
+        rad = np.sqrt(((pts - RES/2) ** 2).sum(1)) / MM
+        ang = np.arctan2(pts[:, 0] - RES/2, pts[:, 1] - RES/2)
+        score = rad.copy()
+        if th0 is not None:
+            dth = np.abs(np.angle(np.exp(1j * (ang - th0))))
+            score = rad + dth * 6.0          # prefer far side from the anchor
+        p = pts[int(score.argmax())]
+        v = p - np.array([RES/2, RES/2])
+        v = v / (np.linalg.norm(v) + 1e-9)
+        q = (np.array([RES/2, RES/2]) + v * (R_out - 0.3) * MM).astype(int)
+        cv2.line(full, tuple(p[::-1]), tuple(q[::-1]), 1, int(1.1 * MM))
+    anchor_ext += 1
+
+# final audit: count art islands still under 2 anchors (must be 0)
+_n, _lbl = _art_comps()
+still_deficient = 0
+for _ci in range(1, _n):
+    _cm = (_lbl == _ci).astype(np.uint8)
+    if _cm.sum() < (0.8 * MM) ** 2:
+        continue
+    if not _sound(_cm):
+        still_deficient += 1
+
 # ---------- 5. vectorise gently ----------
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
@@ -225,7 +306,7 @@ for w in np.arange(0.3, 3.01, 0.1):
     if n1 > n0 or er.is_empty:
         feat = round(float(w), 2)
         break
-print(dict(name=name, blocked_pct=round(blocked, 1), welds=welds,
+print(dict(name=name, blocked_pct=round(blocked, 1), welds=welds, anchors_added=anchor_ext, weak_islands_left=still_deficient,
            min_feature_mm=(feat if feat else ">3"), one_piece=(n0 == 1),
            watertight=(bool(mesh.is_watertight) if mesh is not None else "n/a (svg only)"),
            stl=stl))
