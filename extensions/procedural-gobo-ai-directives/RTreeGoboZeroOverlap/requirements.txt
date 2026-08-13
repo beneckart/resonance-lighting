@@ -1,0 +1,4 @@
+shapely>=2.0
+numpy
+cairosvg   # optional, only needed to rasterize SVG -> PNG previews
+Pillow     # optional, only needed alongside cairosvg for preview cropping/inspection
