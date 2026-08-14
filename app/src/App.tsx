@@ -36,6 +36,7 @@ export function App() {
   const dock = useTwin((s) => s.dock);
   const setDock = useTwin((s) => s.setDock);
   const uiMode = useTwin((s) => s.uiMode);
+  const touchOpen = useTwin((s) => s.touchOpen);
   const docked = dock && !cinematic; // clean view always shows the full-width tree
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export function App() {
     <div style={{ position: "fixed", inset: 0 }}>
       {/* DOCK layout (default): tree fills the LEFT half; ONE organized panel right.
           Float mode = the original free-floating widgets. */}
-      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: docked ? "50%" : "100%" }}>
+      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: docked && !touchOpen ? "50%" : "100%" }}>
         <Canvas
           shadows
           // PERF: cap devicePixelRatio (a 2-3x HiDPI panel would otherwise fill
@@ -75,7 +76,7 @@ export function App() {
           <Suspense fallback={null}>{ready && <Scene />}</Suspense>
         </Canvas>
       </div>
-      {docked && <SidePanel />}
+      {docked && !touchOpen && <SidePanel />}
       {!cinematic && !docked && (
         <>
           <Controls />
@@ -95,13 +96,13 @@ export function App() {
       {!cinematic && (
         <>
           {/* DJ decks belong to SOUND mode (always available in float mode) */}
-          {(!docked || uiMode === "sound") && <DjController />}
+          {(!docked || uiMode === "sound") && !touchOpen && <DjController />}
           <TouchConsole />
-          <HealthHud />
+          {!touchOpen && <HealthHud />}
         </>
       )}
       {/* always-on cinematic toggle — hide all panels to see just the tree */}
-      <button
+      {!touchOpen && <button
         onClick={() => setCinematic(!cinematic)}
         title={cinematic ? "show controls" : "hide controls — clean view"}
         style={{
@@ -112,9 +113,9 @@ export function App() {
         }}
       >
         {cinematic ? "🎛 controls" : "✨ clean view"}
-      </button>
+      </button>}
       {/* always-available BEACON safety preempt (reachable even in clean view) */}
-      <button
+      {!touchOpen && <button
         onClick={() => setCtrl({ beaconPreempt: !beacon })}
         title="BEACON — force full-white safety beam over everything"
         style={{
@@ -126,10 +127,10 @@ export function App() {
         }}
       >
         🔦 BEACON{beacon ? " ON" : ""}
-      </button>
+      </button>}
       {/* always-available BLACKOUT — resets ALL modes to off (not a hold): click
           to go dark, then pick a mode to bring the tree back on */}
-      <button
+      {!touchOpen && <button
         onClick={() => (blackout ? setCtrl({ blackout: false }) : resetAllOff())}
         title="BLACKOUT — turn off all modes & reset to dark (pick a mode to bring it back)"
         style={{
@@ -141,9 +142,9 @@ export function App() {
         }}
       >
         🌑 BLACKOUT{blackout ? " ON" : ""}
-      </button>
+      </button>}
       <ShowPlayer />
-      <RecordButton />
+      {!touchOpen && <RecordButton />}
       <PresenceDriver />
       <IgnitionDriver />
       <SolarRayDriver />

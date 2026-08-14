@@ -212,6 +212,7 @@ interface TwinState {
   gol: GolState; // Game-of-Light lifecycle (ignition · nodes · quadrants · Unity)
   announce: AnnounceState; // CA mode-entry ceremony (dark → flourish → blank start)
   uiMode: UiMode; // which operator mode the side panel shows (persisted)
+  touchOpen: boolean; // TouchConsole owns the screen (mobile shell) — desktop chrome hides
   dock: boolean; // split-screen dock layout (tree left · one organized panel right)
   // GROUPS ABOVE MODES (Elliot): each group can run its OWN mode simultaneously —
   // canopy interactive while the chandelier follows sound. "follow" = ride the base.
@@ -260,6 +261,7 @@ interface TwinState {
   setGolAmbient: (b: boolean) => void;
   setUnity: (on: boolean) => void;
   setUiMode: (m: UiMode) => void;
+  setTouchOpen: (v: boolean) => void;
   setDock: (b: boolean) => void;
   setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
   resetAllOff: () => void; // BLACKOUT: stop every mode/show/group and go dark (a reset, not a hold)
@@ -312,6 +314,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   groupActive: {},
   selectedGroup: "ring1",
   activeShow: null,
+  touchOpen: false,
   showStartedAt: 0,
   showSeed: 0,
   showRate: 1,
@@ -722,6 +725,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // switching operator mode reshapes the panel AND nudges the engine into that world:
   // interactive → a CA rule runs (the tree reacts, you set rules); leaving interactive
   // disarms Game of Light so a latched dark phase can't strand the next mode.
+  setTouchOpen: (v) => setState({ touchOpen: v }),
   setUiMode: (m) => {
     recEvent("mode", { to: m });
     try { localStorage.setItem("ui.mode", m); } catch { /* fine */ }
@@ -747,6 +751,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     showControlSnapshot = null; // BLACKOUT is a full reset — never restore pre-show state after it
     return {
       activeShow: null,
+  touchOpen: false,
       layers: [],
       gol: { ...DEFAULT_GOL },
       groupModes: {},
