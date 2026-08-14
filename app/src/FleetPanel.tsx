@@ -252,6 +252,15 @@ export function FleetPanel() {
         {cambiumNote && (
           <div style={{ color: "#ffb454" }}>cambium: {cambiumNote}</div>
         )}
+        {/* NIGHT GATE — the #1 bench trap: fixtures boot DAY and IGNORE frames.
+            One tap replaces remembering the `cambium night on` CLI. */}
+        {connected && transport === "cambium" && (
+          <div style={{ display: "flex", gap: 6 }}>
+            {btn("🌙 night on (fleet renders)", () => bridge.current?.send({ kind: "night", mode: 1, mac: null }))}
+            {btn("☀️ day", () => bridge.current?.send({ kind: "night", mode: 0, mac: null }))}
+            {btn("auto", () => bridge.current?.send({ kind: "night", mode: 2, mac: null }))}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {btn("bench-10 layout", loadBench10)}
           {btn("full tree", loadTree)}

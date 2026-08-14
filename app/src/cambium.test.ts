@@ -164,6 +164,29 @@ describe("CambiumBridge", () => {
     }
   });
 
+  it("startup case B (app before daemon): failed FIRST connect never zombie-redials", async () => {
+    vi.useFakeTimers();
+    try {
+      const { b, sockets } = bridgeWithFake();
+      const p = b.connect();
+      sockets[0].onerror?.(); // daemon not there
+      sockets[0].close();
+      await expect(p).rejects.toThrow(/unreachable/);
+      await vi.advanceTimersByTimeAsync(60000);
+      expect(sockets).toHaveLength(1); // no background retry loop left behind
+      expect(b.connected()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("night gate: NightDown passes through verbatim (the #1 bench trap has a wire path)", async () => {
+    const { b, sockets } = bridgeWithFake();
+    const p = b.connect(); sockets[0].open(); await p;
+    b.send({ kind: "night", mode: 1, mac: null });
+    expect(JSON.parse(sockets[0].sent[0])).toEqual({ kind: "night", mode: 1, mac: null });
+  });
+
   it("disconnect() is final: no redial after user intent to stop", async () => {
     vi.useFakeTimers();
     try {

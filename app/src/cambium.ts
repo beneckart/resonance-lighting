@@ -64,6 +64,12 @@ export class CambiumBridge implements BridgeLink {
   private ws: WsLike | null = null;
   private enabled = false; // user intent: keep (re)connecting while true
   private open = false; // socket truth
+  /** true once THIS enable-cycle has had a successful open. Reconnect fights
+   *  for an ESTABLISHED session only — a failed initial connect fails fast
+   *  and stays failed (startup-order case B: app before daemon), so a caller
+   *  that discards the bridge after a connect() rejection never leaves a
+   *  zombie redial loop behind. */
+  private established = false;
   private subs: ((f: UpFrame) => void)[] = [];
   private metaSubs: ((m: CambiumMeta) => void)[] = [];
   private perMac = new Map<string, PerMac>();
@@ -99,6 +105,7 @@ export class CambiumBridge implements BridgeLink {
       this.ws = ws;
       ws.onopen = () => {
         this.open = true;
+        this.established = true;
         this.backoffMs = 500; // healthy connection resets the ladder
         this.emitMeta({ kind: "open", payload: {} });
         if (!settled) { settled = true; resolve(); }
@@ -111,7 +118,8 @@ export class CambiumBridge implements BridgeLink {
         const was = this.open;
         this.open = false;
         if (was) this.emitMeta({ kind: "close", payload: {} });
-        if (this.enabled) this.scheduleRetry();
+        // retry ONLY a session that was once established this enable-cycle
+        if (this.enabled && this.established) this.scheduleRetry();
         if (!settled) { settled = true; reject(new Error(`cambium closed during connect (${this.url})`)); }
       };
     });
@@ -129,6 +137,7 @@ export class CambiumBridge implements BridgeLink {
 
   disconnect(): void {
     this.enabled = false;
+    this.established = false;
     if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
     this.ws?.close();
     this.ws = null;
