@@ -42,6 +42,11 @@ and must not be enabled together. The Resonance module build selects the TRS
 LINE/MIC jack for the Rode mic. If the module is not detected it falls back to
 the CoreS3 microphones and reports the active source on screen and serial.
 
+For the physical hookup, Rode VideoMic NTG control reference, recommended gain
+and filter settings, display interpretation, daylight bench procedure, and
+troubleshooting, see
+[`docs/howto/CORES3_AUDIO_REACTIVE.md`](../../docs/howto/CORES3_AUDIO_REACTIVE.md).
+
 The Thread Border Router kit's ESP32-H2 Gateway module is not used. Leaving the
 Gateway/DIN stack installed is harmless; the Resonance bridge runs only on the
 CoreS3's ESP32-S3 radio.

@@ -12,6 +12,17 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-14 -- Ben + Codex -- CoreS3 audio-reactive operator guide
+
+Added `docs/howto/CORES3_AUDIO_REACTIVE.md` as the durable operating guide for
+the accepted CoreS3 + Module Audio + Rode VideoMic NTG setup. It records the
+selector-B and LINE/MIC hookup, recommended mic settings, all relevant Rode
+controls, bridge display interpretation, adaptive two-second calibration,
+channel-11 and lifecycle requirements, three-second autonomous fallback, the
+three accepted perimeter fixture IDs, tuning recipes, troubleshooting, and the
+2026-08-06 hardware baseline. Linked the guide from the root and bridge READMEs.
+No firmware, persisted fixture state, or architectural decision changed.
+
 ## 2026-08-11 -- Ben + Codex -- Origin synchronized; printable gobo baseline pending Steve source
 
 Fetched origin and reconciled the eleven incoming Cambium, channel-migration, and

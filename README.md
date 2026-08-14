@@ -104,6 +104,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |-- docs/
 |   |-- block-diagram/     SYSTEM.md -- canonical architecture + fleet table
 |   |-- decisions/         ADRs 0001-0032
+|   |-- howto/             task-oriented bench and operations guides
 |   |-- research/
 |   `-- tests/
 `-- ops/
@@ -122,6 +123,12 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 6. `docs/research/COTS_SURVEY_2026-05-10.md`
 7. `docs/research/POWERFEATHER_V1_V2_SCHEMATIC_NOTES_2026-05-10.md`
 8. `docs/tests/COTS_BENCH_TEST_PLAN_2026-05-10.md`
+
+## How-to guides
+
+- [`docs/howto/CORES3_AUDIO_REACTIVE.md`](docs/howto/CORES3_AUDIO_REACTIVE.md) --
+  connect and tune the Rode VideoMic NTG, read the CoreS3 audio display, run the
+  three-fixture sound-reactive bench, and troubleshoot the safe fallback path.
 
 ## Status
 
