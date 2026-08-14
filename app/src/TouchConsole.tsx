@@ -96,7 +96,6 @@ export function TouchConsole() {
   useEffect(() => { setTouchOpen(open); return () => setTouchOpen(false); }, [open, setTouchOpen]);
   const ctrl = useTwin((s) => s.control);
   const set = useTwin((s) => s.set);
-  const uiMode = useTwin((s) => s.uiMode);
   const setUiMode = useTwin((s) => s.setUiMode);
   const playShow = useTwin((s) => s.playShow);
   const activeShow = useTwin((s) => s.activeShow);
@@ -309,7 +308,7 @@ export function TouchConsole() {
         </div>
 
         {/* ── mode content ── */}
-        {uiMode === "lightshow" && (
+        {tab === "lightshow" && (
           <>
             <Section id="shows" label="Light shows · tap to play, tap again to stop">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 8 }}>
@@ -324,7 +323,7 @@ export function TouchConsole() {
           </>
         )}
 
-        {uiMode === "interactive" && (
+        {tab === "interactive" && (
           <>
             <div style={{ display: "flex", gap: 10 }}>
               <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
@@ -378,7 +377,7 @@ export function TouchConsole() {
           </>
         )}
 
-        {uiMode === "sound" && (
+        {tab === "sound" && (
           <>
             <div style={microLabel}>Audio source</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -396,7 +395,7 @@ export function TouchConsole() {
           </>
         )}
 
-        {uiMode === "calibrate" && (
+        {tab === "calibrate" && (
           <>
             <div style={microLabel}>Solo one light · walk the tree, confirm what you see</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
