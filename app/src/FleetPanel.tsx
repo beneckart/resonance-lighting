@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTwin } from "./store";
 import { Widget } from "./Widget";
 import { MockBridge, SerialBridge, type BridgeLink, type UpFrame } from "./bridge";
-import { CambiumBridge, startFramePump } from "./cambium";
-import { telemetry } from "./telemetry";
+import { CambiumBridge } from "./cambium";
 import {
   applyEvent, applyHeartbeat, exportCsv, loadRegistry,
   onlineCount, saveRegistry, sweepOffline, uplinkPdr, type Registry,
@@ -40,7 +39,6 @@ export function FleetPanel() {
   const bridge = useRef<BridgeLink | null>(null);
   const [connected, setConnected] = useState(false);
   const [transport, setTransport] = useState<"mock" | "serial" | "cambium" | null>(null);
-  const stopPump = useRef<(() => void) | null>(null);
   const [cambiumNote, setCambiumNote] = useState<string | null>(null);
   const [flash, setFlash] = useState<Record<string, number>>({}); // mac → flash-until ts
   const [lastEvtLatency, setLastEvtLatency] = useState<number | null>(null);
@@ -51,6 +49,18 @@ export function FleetPanel() {
   const calMap = loadCalibration(); // fresh each render — SelfMap writes show up live
   const [hbHz, setHbHz] = useState(2);
   const [env, setEnv] = useState({ hour: 21, presence: 0, sound: 0, supply: 0 });
+
+  const driveReal = useTwin((s) => s.net.driveReal);
+
+  /** night gate: direct when this panel holds a cambium bridge, else routed
+   *  to RealDriveDriver's bridge via the window event bus */
+  const sendNight = (mode: 0 | 1 | 2) => {
+    if (bridge.current && transport === "cambium") {
+      bridge.current.send({ kind: "night", mode, mac: null });
+    } else {
+      window.dispatchEvent(new CustomEvent("resonance:cambium-night", { detail: { mode } }));
+    }
+  };
 
   const setEnvVal = (k: keyof typeof env, v: number) => {
     setEnv((e) => ({ ...e, [k]: v }));
@@ -66,8 +76,6 @@ export function FleetPanel() {
   const idxByMac = useMemo(() => new Map(fixtures.map((f, i) => [macFromNum(f.num), i])), [fixtures]);
 
   const disconnect = () => {
-    stopPump.current?.();
-    stopPump.current = null;
     bridge.current?.disconnect();
     bridge.current = null;
     setConnected(false);
@@ -115,13 +123,13 @@ export function FleetPanel() {
     setTransport("serial");
   };
 
-  /** CAMBIUM: Justin's daemon on ws://localhost:8600 → CoreS3 modem → fleet.
-   *  The twin's rendered colors stream as ≤8 Hz `frame` messages (type-25
-   *  direct-frame path); hb/evt telemetry flows back through the same seam
-   *  the mock and USB transports use. */
+  /** CAMBIUM: Justin's daemon → CoreS3 modem → fleet. This connection is for
+   *  TELEMETRY + fleet ops (registry, identify, night gate) only — the frame
+   *  pump has exactly ONE owner, the 📡 drive-real toggle (RealDriveDriver).
+   *  Two pumps on a bench = two interleaved streams and visible flicker. */
   const connectCambium = async () => {
     disconnect();
-    const b = new CambiumBridge();
+    const b = new CambiumBridge({ url: CambiumBridge.urlFromLocation() }); // honors ?cambium= (iPad on LAN)
     wire(b);
     b.onMeta((m) => {
       if (m.kind === "err") setCambiumNote(String(m.payload.msg ?? "protocol error"));
@@ -131,11 +139,6 @@ export function FleetPanel() {
     });
     await b.connect(); // throws if the daemon isn't running — surfaced below
     bridge.current = b;
-    // pump the twin's live per-fixture colors (telemetry.states: {id, rgb})
-    stopPump.current = startFramePump(b, () =>
-      telemetry.states.map((s) => ({ id: s.id, rgb: s.rgb })),
-    );
-    b.send({ kind: "drive", on: true });
     setConnected(true);
     setTransport("cambium");
   };
@@ -253,12 +256,15 @@ export function FleetPanel() {
           <div style={{ color: "#ffb454" }}>cambium: {cambiumNote}</div>
         )}
         {/* NIGHT GATE — the #1 bench trap: fixtures boot DAY and IGNORE frames.
-            One tap replaces remembering the `cambium night on` CLI. */}
-        {connected && transport === "cambium" && (
+            One tap replaces remembering the `cambium night on` CLI. Reachable
+            from BOTH cambium paths: this panel's connection sends directly;
+            with only 📡 drive real armed, the event routes via RealDriveDriver's
+            bridge (same pattern as resonance:flash-rules). */}
+        {(transport === "cambium" || driveReal) && (
           <div style={{ display: "flex", gap: 6 }}>
-            {btn("🌙 night on (fleet renders)", () => bridge.current?.send({ kind: "night", mode: 1, mac: null }))}
-            {btn("☀️ day", () => bridge.current?.send({ kind: "night", mode: 0, mac: null }))}
-            {btn("auto", () => bridge.current?.send({ kind: "night", mode: 2, mac: null }))}
+            {btn("🌙 night on (fleet renders)", () => sendNight(1))}
+            {btn("☀️ day", () => sendNight(0))}
+            {btn("auto", () => sendNight(2))}
           </div>
         )}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>

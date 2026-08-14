@@ -85,8 +85,10 @@ transports: `hb`/`evt` flow to the MAC registry/FleetPanel; meta stays on a side
 2. `cambium serve` (real) — or `cambium fakefleet run --fixtures app/public/fixtures.json --start-night` (rehearsal).
 3. `cambium doctor --daemon http://localhost:8600 --listen 2` → expect `READY`; it names its own fixes.
 4. App: `npm run dev` → open `http://localhost:5173/?cambium=ws://localhost:8600/ws`.
-5. If doctor warned DAY: tap **🌙 night on** (or `cambium night on`).
-6. Toggle **📡 drive real** → the tree follows the twin. Kill anything, in any order: the fleet never blanks.
+5. Toggle **📡 drive real** → the tree follows the twin. Kill anything, in any order: the fleet never blanks.
+6. If doctor warned DAY: the **🌙 night on** row appears in the Fleet panel once drive-real is
+   armed (or after 🌉 connect cambium) — it routes through whichever cambium bridge is live.
+   CLI equivalent: `cambium night on --daemon http://localhost:8600`.
 
 **iPad / phone on the LAN:** `npm run dev -- --host` (http, avoids the https→ws mixed-content
 block), open `http://<laptop-ip>:5173/?cambium=ws://<laptop-ip>:8600/ws`. Same toggle.

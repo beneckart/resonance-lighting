@@ -40,6 +40,15 @@ export function RealDriveDriver() {
     let timer: ReturnType<typeof setInterval> | undefined;
     let cancelled = false;
 
+    // night-gate relay: FleetPanel's 🌙 buttons reach the fleet through THIS
+    // bridge when the panel has no cambium connection of its own (runbook
+    // flow: only the 📡 toggle is armed)
+    const onNight = (e: Event) => {
+      const mode = (e as CustomEvent<{ mode: 0 | 1 | 2 }>).detail.mode;
+      bridge.send({ kind: "night", mode, mac: null });
+    };
+    window.addEventListener("resonance:cambium-night", onNight);
+
     const unsubMeta = bridge.onMeta((m) => {
       if (m.kind === "charging") {
         useTwin.getState().solarPanelsCharging(Number(m.payload.count ?? 0));
@@ -70,6 +79,7 @@ export function RealDriveDriver() {
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      window.removeEventListener("resonance:cambium-night", onNight);
       bridge.send({ kind: "drive", on: false });
       unsubMeta();
       bridge.disconnect();
