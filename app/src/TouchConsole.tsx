@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId, type UiMode } from "./store";
 import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
+import { interpret } from "./llm";
+import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { asset } from "./fixtures";
 
 /** TOUCH CONSOLE v2 — "the tree in your hand" (Elliot 08-14: full mobile
@@ -104,6 +106,35 @@ export function TouchConsole() {
   const deleteCue = useTwin((s) => s.deleteCue);
   const [modeName, setModeName] = useState("");
   const [editModes, setEditModes] = useState(false);
+  const runScript = useTwin((s) => s.runScript);
+  const [voiceState, setVoiceState] = useState<"idle" | "listening" | "typing">("idle");
+  const [voiceText, setVoiceText] = useState("");
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const voiceHandle = { current: null as ListenHandle | null };
+
+  /** transcript (spoken or typed) → interpret → commands → the tree */
+  const speakToTree = (text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    const r = interpret(t);
+    if (r.commands.length) runScript(r.commands.join("\n"));
+    setVoiceNote(r.commands.length ? `✓ ${r.note}` : `didn't catch a light command in “${t}”`);
+    setVoiceText("");
+    setVoiceState("idle");
+    window.setTimeout(() => setVoiceNote(null), 5000);
+  };
+
+  const startVoice = () => {
+    if (!voiceSupported()) { setVoiceState("typing"); return; } // fallback: typed input
+    setVoiceState("listening");
+    setVoiceText("");
+    voiceHandle.current = listenOnce({
+      onPartial: (t) => setVoiceText(t),
+      onFinal: (t) => speakToTree(t),
+      onError: (e) => { setVoiceNote(`🎤 ${e} — type it instead`); setVoiceState("typing"); },
+      onEnd: () => setVoiceState((v) => (v === "listening" ? "idle" : v)),
+    });
+  };
   const [calIdx, setCalIdx] = useState(0);
   const [audioSrc, setAudioSrc] = useState<"off" | "mic" | "track">("off");
   const calId = useMemo(() => fixtures[calIdx]?.id ?? "—", [fixtures, calIdx]);
@@ -314,6 +345,34 @@ export function TouchConsole() {
           </>
         )}
       </div>
+
+      {/* ── voice: mic FAB above the tab bar + live transcript / result chip ── */}
+      {(voiceState !== "idle" || voiceNote) && (
+        <div style={{
+          position: "fixed", left: 12, right: 76, bottom: "calc(72px + env(safe-area-inset-bottom))", zIndex: 215,
+          background: "rgba(10,13,20,0.95)", border: `1px solid ${AMBER}55`, borderRadius: 12,
+          padding: "8px 12px", color: "#e7ecf6", fontSize: 13,
+        }}>
+          {voiceState === "listening" && <span>🎤 {voiceText || "listening…"}</span>}
+          {voiceState === "typing" && (
+            <form onSubmit={(e) => { e.preventDefault(); speakToTree(voiceText); }} style={{ display: "flex", gap: 6 }}>
+              <input autoFocus value={voiceText} onChange={(e) => setVoiceText(e.target.value)}
+                placeholder="tell the tree… e.g. everything red and slow"
+                style={{ flex: 1, minHeight: 38, borderRadius: 10, border: "1px solid #283549", background: "#0d1119", color: "#e7ecf6", padding: "0 10px" }} />
+              <button type="submit" style={{ minHeight: 38, padding: "0 12px", borderRadius: 10, border: `1px solid ${AMBER}`, background: `${AMBER}22`, color: "#fff", cursor: "pointer" }}>go</button>
+            </form>
+          )}
+          {voiceState === "idle" && voiceNote && <span>{voiceNote}</span>}
+        </div>
+      )}
+      <button aria-label="voice command" onClick={() => (voiceState === "listening" ? voiceHandle.current?.stop() : startVoice())} style={{
+        position: "fixed", right: 12, bottom: "calc(72px + env(safe-area-inset-bottom))", zIndex: 215,
+        width: 56, height: 56, borderRadius: 28, cursor: "pointer",
+        border: `1.5px solid ${voiceState === "listening" ? "#ff5b6e" : AMBER}`,
+        background: voiceState === "listening" ? "#ff5b6e22" : `${AMBER}22`,
+        color: "#fff", fontSize: 24,
+        boxShadow: voiceState === "listening" ? "0 0 22px #ff5b6ecc" : `0 0 14px ${AMBER}66`,
+      }}>🎤</button>
 
       {/* ── mode tab bar: four lanterns, active one is LIT ── */}
       <nav style={{
