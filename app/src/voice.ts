@@ -55,8 +55,10 @@ export function listenOnce(cb: {
       text += ev.results[i][0].transcript;
       if (ev.results[i].isFinal) isFinal = true;
     }
-    if (isFinal && !finalSent) { finalSent = true; cb.onFinal(text.trim()); }
-    else cb.onPartial?.(text.trim());
+    if (isFinal) {
+      if (!finalSent) { finalSent = true; cb.onFinal(text.trim()); }
+      // duplicate finals are DROPPED — not replayed as phantom partials
+    } else cb.onPartial?.(text.trim());
   };
   rec.onerror = (ev) => cb.onError?.(ev.error ?? "speech error");
   rec.onend = () => cb.onEnd?.();
