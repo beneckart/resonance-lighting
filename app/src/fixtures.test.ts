@@ -59,8 +59,11 @@ describe("auditFixtures", () => {
 });
 
 describe("units-contract gate (schema 0.4 lesson)", () => {
-  it("fires on the current inflated export AND stays quiet on clean meters — both answers proven", () => {
-    const bad = JSON.parse(readFileSync("public/fixtures.json", "utf8"));
+  it("fires on inflated units, stays quiet on clean meters — both answers proven on SYNTHETIC docs", () => {
+    // Synthetic bad doc frozen from the 0.4 incident (bbox 100 m wide, z 28-40)
+    // — the live file gets fixed, the regression fixture must not.
+    const bad = makeTestGridDoc(3);
+    bad.meta.bbox = { min: [-50.3, -50.1, 28.2], max: [50.1, 50.3, 40.5] };
     const vBad = validateFixturesDoc(bad);
     expect(vBad.ok).toBe(true); // structure fine — rendering must not be blocked
     expect(vBad.warnings.some((w) => w.includes("units contract"))).toBe(true);
@@ -69,5 +72,12 @@ describe("units-contract gate (schema 0.4 lesson)", () => {
     const vGood = validateFixturesDoc(good);
     expect(vGood.ok).toBe(true);
     expect(vGood.warnings).toEqual([]);
+  });
+
+  it("the LIVE export (0.4.1 re-cut) passes the gate clean", () => {
+    const live = JSON.parse(readFileSync("public/fixtures.json", "utf8"));
+    const v = validateFixturesDoc(live);
+    expect(v.ok).toBe(true);
+    expect(v.warnings).toEqual([]);
   });
 });
