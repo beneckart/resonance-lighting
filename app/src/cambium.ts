@@ -79,6 +79,14 @@ export class CambiumBridge implements BridgeLink {
     this.now = opts?.now ?? (() => Date.now());
   }
 
+  /** ?cambium=ws://<lan-host>:8600/ws — an iPad on the LAN points here
+   *  (Justin's quickstart step 6 contract). */
+  static urlFromLocation(): string {
+    if (typeof window === "undefined") return CAMBIUM_DEFAULT_URL;
+    const q = new URLSearchParams(window.location.search).get("cambium");
+    return q || CAMBIUM_DEFAULT_URL;
+  }
+
   async connect(): Promise<void> {
     this.enabled = true;
     await this.dial();

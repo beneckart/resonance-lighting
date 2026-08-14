@@ -52,6 +52,10 @@ export interface EvtFrame {
   value: number; // new ca_state / fault code / tap strength
 }
 
+/** cambium's non-fleet uplink (charging census, bridge-board health, protocol
+ *  errors) does NOT ride this seam — CambiumBridge translates hb/evt into the
+ *  frames above and surfaces the rest through its onMeta side channel, so
+ *  mock/serial consumers never see kinds they can't handle. */
 export type UpFrame = HbFrame | EvtFrame;
 
 export interface ShowDown { kind: "show"; phase: number; hue: number; flags: number } // NbShowFrame
@@ -60,19 +64,25 @@ export interface SetRateDown { kind: "set_rate"; hbHz: number; frameHz: number }
 /** PROPOSED NB_RULESET — broadcast a compiled rule table (rules.ts bytes,
  *  ≤ 240 B = one frame); nodes store it in flash and run it locally. */
 export interface RulesetDown { kind: "ruleset"; epoch: number; bytes: number[] }
-/** Per-fixture color frame — the type-25 direct-frame path (Justin's cambium,
- *  adopted by Ben 08-06). Streamed at ≤8 Hz over the LOCAL link (WS/serial),
- *  never over radio by us — cambium packetizes; the fixture's 3-second
- *  staleness fallback keeps "dies invisibly" true. rgb are linear floats
- *  (may exceed 1.0): cambium never clamps here, normalize clamps, fw gammas. */
+/** CAMBIUM: one rendered twin frame — the type-25 direct-frame path (Justin's
+ *  proposal, adopted by Ben 08-06). Per-fixture linear RGB floats keyed by
+ *  fixture_id, MAY exceed 1.0 (cambium clamps, extracts W, batches into
+ *  NB_DIRECT_FRAME packets and paces to the fleet's 10 Hz render cap).
+ *  Streamed ≤8 Hz over the LOCAL link only — never over radio by us; the
+ *  fixture's 3-second staleness fallback keeps "dies invisibly" true. */
 export interface FrameDown {
   kind: "frame";
   seq: number;
   fixtures: { id: string; rgb: [number, number, number] }[];
 }
-/** cambium drive gate: master on/off for the direct-frame path. */
+/** CAMBIUM: arm/disarm direct streaming (mirrors the net.driveReal toggle). */
 export interface DriveDown { kind: "drive"; on: boolean }
-export type DownFrame = ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown;
+/** CAMBIUM: force day/night lifecycle (NB_FORCE_LIFECYCLE; the night gate is
+ *  real — fixtures ignore show frames in daytime). mode 0=day 1=night 2=auto. */
+export interface NightDown { kind: "night"; mode: 0 | 1 | 2; mac: string | null }
+
+export type DownFrame =
+  ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown | NightDown;
 
 // ── the seam ──────────────────────────────────────────────────────────────────
 
@@ -319,3 +329,8 @@ export class SerialBridge implements BridgeLink {
     void this.writer.write(new TextEncoder().encode(JSON.stringify(frame) + "\n"));
   }
 }
+
+// ── CAMBIUM transport lives in cambium.ts (CambiumBridge): same seam, plus
+//    reconnect/backoff, snake_case→HbFrame translation, and the onMeta side
+//    channel for charging / bridge_status / err. ?cambium=ws://<lan-host>:8600/ws
+//    overrides the endpoint (iPad on the LAN — no Web Serial needed).

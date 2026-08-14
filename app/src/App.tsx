@@ -18,6 +18,7 @@ import { PresenceDriver } from "./PresenceDriver";
 import { IgnitionDriver } from "./IgnitionDriver";
 import { SolarRayDriver } from "./SolarRayDriver";
 import { AudioReactiveDriver } from "./AudioReactiveDriver";
+import { RealDriveDriver } from "./RealDriveDriver";
 import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc, auditFixtures } from "./fixtures";
@@ -38,7 +39,10 @@ export function App() {
   const docked = dock && !cinematic; // clean view always shows the full-width tree
 
   useEffect(() => {
-    loadFixtures()
+    // ?fixtures=<url> loads an alternate layout — e.g. cambium's measured
+    // fixtures.measured.json — without touching app/public/fixtures.json.
+    const alt = new URLSearchParams(window.location.search).get("fixtures");
+    loadFixtures(alt || undefined)
       .then((doc) => {
         const v = validateFixturesDoc(doc);
         if (!v.ok) setErr(`fixtures.json invalid: ${v.errors.slice(0, 3).join("; ")}`);
@@ -141,6 +145,7 @@ export function App() {
       <IgnitionDriver />
       <SolarRayDriver />
       <AudioReactiveDriver />
+      <RealDriveDriver />
       <AutoVj />
       <TimelineDriver />
       {err && (

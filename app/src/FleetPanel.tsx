@@ -81,7 +81,7 @@ export function FleetPanel() {
       const now = Date.now(); // wall clock — ledger timestamps survive reloads
       if (f.kind === "hb") {
         applyHeartbeat(reg.current, f, now);
-      } else {
+      } else if (f.kind === "evt") {
         applyEvent(reg.current, f, now);
         // INSTANT path: an edge event re-renders immediately, no batching
         setFlash((m) => ({ ...m, [f.mac]: now + 900 }));

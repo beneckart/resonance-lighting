@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MockBridge, type UpFrame } from "./bridge";
+import { MockBridge, type EvtFrame, type UpFrame } from "./bridge";
 import {
   applyEvent, applyHeartbeat, emptyRegistry, exportCsv, onlineCount,
   sweepOffline, uplinkPdr,
@@ -41,7 +41,9 @@ describe("MockBridge (the fleet sim behind the real seam)", () => {
     await b.connect();
     const frames = collect(b);
     b.tap("MAC003");
-    const evt = frames.find((f) => f.kind === "evt" && f.event === "tap");
+    const evt = frames.find(
+      (f): f is EvtFrame => f.kind === "evt" && f.event === "tap",
+    );
     expect(evt).toBeTruthy();
     expect(evt!.mac).toBe("MAC003");
   });
@@ -51,7 +53,9 @@ describe("MockBridge (the fleet sim behind the real seam)", () => {
     await b.connect();
     const frames = collect(b);
     b.send({ kind: "identify", mac: "MAC005", seconds: 5 });
-    const acks = frames.filter((f) => f.kind === "evt" && f.event === "identify_ack");
+    const acks = frames.filter(
+      (f): f is EvtFrame => f.kind === "evt" && f.event === "identify_ack",
+    );
     expect(acks).toHaveLength(1);
     expect(acks[0].mac).toBe("MAC005");
     b.send({ kind: "identify", mac: null, seconds: 2 });
@@ -145,7 +149,7 @@ describe("MAC registry (map + log every light)", () => {
     let clock = 0;
     b.onUp((f) => {
       if (f.kind === "hb") applyHeartbeat(reg, f, clock);
-      else applyEvent(reg, f, clock);
+      else if (f.kind === "evt") applyEvent(reg, f, clock);
     });
     for (let t = 0; t < 30; t++) { clock += 100; b.tick(100); }
     expect(onlineCount(reg).total).toBe(10);
