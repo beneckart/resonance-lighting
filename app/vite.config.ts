@@ -18,10 +18,19 @@ export default defineConfig({
         description: "Real-time 3D lighting twin + control system for the Resonance Tree",
         theme_color: "#05070a",
         background_color: "#05070a",
-        display: "standalone",
-        icons: [],
+        display: "standalone", // installed = no browser top bar / bottom nav (Elliot 08-14)
+        orientation: "portrait",
+        icons: [
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
       },
       workbox: {
+        // updates take control on FIRST reopen — Elliot was chronically one
+        // version behind ("close and reopen twice"); never again
+        skipWaiting: true,
+        clientsClaim: true,
         // precache the app shell; runtime-cache the big art assets on first load
         globPatterns: ["**/*.{js,css,html}"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
