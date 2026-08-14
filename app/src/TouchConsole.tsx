@@ -85,6 +85,7 @@ function Pad({ active, label, onClick, accent = "#5b8cff" }: { active: boolean; 
 export function TouchConsole() {
   const [open, setOpen] = useState(isPhoneLike);
   const [tab, setTab] = useState<TabId>("tree"); // land on the tree, per the sketch
+  const peekTimer = { current: null as ReturnType<typeof setInterval> | null };
   const setTouchOpen = useTwin((s) => s.setTouchOpen);
   useEffect(() => { setTouchOpen(open); return () => setTouchOpen(false); }, [open, setTouchOpen]);
   const ctrl = useTwin((s) => s.control);
@@ -165,8 +166,31 @@ export function TouchConsole() {
   const selId = selectedLight !== null ? (fixtures[selectedLight]?.id ?? "?") : null;
   const selOv = selectedLight !== null ? overrides[selectedLight] : undefined;
 
+  // LIVE PEEK — mirrors the WebGL canvas onto a small 2d canvas while a mode
+  // page covers it, so every pad/slider tap shows the tree responding NOW.
+  const peekRef = (el: HTMLCanvasElement | null) => {
+    if (peekTimer.current) { clearInterval(peekTimer.current); peekTimer.current = null; }
+    if (!el) return;
+    const src = document.querySelector("canvas");
+    if (!src) return;
+    const ctx = el.getContext("2d");
+    if (!ctx) return;
+    const draw = () => { try { ctx.drawImage(src as HTMLCanvasElement, 0, 0, el.width, el.height); } catch { /* context loss */ } };
+    draw();
+    peekTimer.current = setInterval(draw, 150); // ~7 fps is plenty for feedback
+  };
+
   return (
     <>
+      {tab !== "tree" && open && (
+        <button aria-label="live tree peek — tap for full view" onClick={() => setTab("tree")} style={{
+          position: "fixed", left: 10, bottom: "calc(72px + env(safe-area-inset-bottom))", zIndex: 216,
+          width: 96, height: 128, padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer",
+          border: `1.5px solid ${AMBER}88`, background: "#000", boxShadow: "0 4px 18px #000c",
+        }}>
+          <canvas ref={peekRef} width={96} height={128} style={{ width: "100%", height: "100%" }} />
+        </button>
+      )}
       {tab === "tree" && (
         <div style={{
           position: "fixed", top: "max(8px, env(safe-area-inset-top))", left: 8, right: 8, zIndex: 205,
@@ -406,7 +430,14 @@ export function TouchConsole() {
         {MODES.map((m) => {
           const active = tab === m.id;
           return (
-            <button key={m.id} onClick={() => { setTab(m.id); if (m.id !== "tree") setUiMode(m.id); }} aria-label={`mode ${m.label}`} style={{
+            <button key={m.id} onClick={() => {
+              setTab(m.id);
+              // sync uiMode for the modes whose desktop semantics are safe;
+              // "interactive" on desktop FORCES pattern→"life" (quiet CA world),
+              // which read as "the tree does not respond" (Elliot, measured
+              // 08-14: luminance 125→123 on tab tap) — on mobile the pads rule.
+              if (m.id === "lightshow" || m.id === "sound" || m.id === "calibrate") setUiMode(m.id);
+            }} aria-label={`mode ${m.label}`} style={{
               flex: "1 0 72px", minHeight: 52, borderRadius: 14, cursor: "pointer",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
               border: "none", background: "transparent",
