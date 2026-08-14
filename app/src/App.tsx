@@ -42,6 +42,13 @@ export function App() {
   useEffect(() => {
     // ?fixtures=<url> loads an alternate layout — e.g. cambium's measured
     // fixtures.measured.json — without touching app/public/fixtures.json.
+    // PUBLIC DEMO LOCK (Elliot 08-14: "demo version public, real version
+    // non-public"): /tree links here with ?demo=1 — guest clamps apply (no
+    // strobe, capped brightness), operator surfaces hide, and there is no
+    // path out of the sandbox. The un-flagged URL stays the full controller.
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      useTwin.getState().armDemoLock();
+    }
     const alt = new URLSearchParams(window.location.search).get("fixtures");
     loadFixtures(alt || undefined)
       .then((doc) => {

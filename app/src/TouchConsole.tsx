@@ -102,6 +102,7 @@ export function TouchConsole() {
   const fixtures = useTwin((s) => s.fixtures);
   const calSolo = useTwin((s) => s.calSolo);
   const pingPresence = useTwin((s) => s.pingPresence);
+  const demoLock = useTwin((s) => s.demoLock);
   const selectedLight = useTwin((s) => s.selectedLight);
   const selectLight = useTwin((s) => s.selectLight);
   const setLightOverride = useTwin((s) => s.setLightOverride);
@@ -219,8 +220,8 @@ export function TouchConsole() {
           position: "fixed", top: "max(8px, env(safe-area-inset-top))", left: 8, right: 8, zIndex: 205,
           display: "flex", gap: 8, alignItems: "center",
         }}>
-          <span style={{ fontWeight: 800, color: "#e7ecf6", textShadow: "0 1px 8px #000", flex: 1 }}>🌳 Resonance</span>
-          <button onClick={() => set({ blackout: !ctrl.blackout })} style={{
+          <span style={{ fontWeight: 800, color: "#e7ecf6", textShadow: "0 1px 8px #000", flex: 1 }}>🌳 Resonance{demoLock ? " · demo" : ""}</span>
+          {!demoLock && <><button onClick={() => set({ blackout: !ctrl.blackout })} style={{
             minHeight: 40, padding: "0 12px", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 12,
             border: ctrl.blackout ? "1.5px solid #ff5b6e" : "1.5px solid #3a2a30",
             background: ctrl.blackout ? "#2a1016" : "rgba(16,22,34,0.85)", color: ctrl.blackout ? "#ffd7dc" : "#cdd6e4",
@@ -233,7 +234,7 @@ export function TouchConsole() {
           <button onClick={() => setOpen(false)} aria-label="full console" style={{
             width: 40, height: 40, borderRadius: 20, border: "1px solid #283549",
             background: "rgba(16,22,34,0.85)", color: "#9fb0c7", fontSize: 16, cursor: "pointer",
-          }}>✕</button>
+          }}>✕</button></>}
         </div>
       )}
       {selectedLight !== null && (
@@ -293,21 +294,21 @@ export function TouchConsole() {
       {tab !== "tree" && <div ref={sheetEl} style={sheet}>
         {/* header: title + safety pair + exit — present in EVERY mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.3, flex: 1 }}>🌳 Resonance</span>
-          <button onClick={() => set({ blackout: !ctrl.blackout })} style={{
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.3, flex: 1 }}>🌳 Resonance{demoLock ? " · demo" : ""}</span>
+          {!demoLock && <button onClick={() => set({ blackout: !ctrl.blackout })} style={{
             minHeight: 40, padding: "0 12px", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 12,
             border: ctrl.blackout ? "1.5px solid #ff5b6e" : "1.5px solid #3a2a30",
             background: ctrl.blackout ? "#ff5b6e22" : "#141a26", color: ctrl.blackout ? "#ffd7dc" : "#9fb0c7",
-          }}>🌑 blackout</button>
-          <button onClick={() => set({ beaconPreempt: !ctrl.beaconPreempt })} style={{
+          }}>🌑 blackout</button>}
+          {!demoLock && <button onClick={() => set({ beaconPreempt: !ctrl.beaconPreempt })} style={{
             minHeight: 40, padding: "0 12px", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 12,
             border: ctrl.beaconPreempt ? "1.5px solid #fff" : "1.5px solid #3a3a2a",
             background: ctrl.beaconPreempt ? "#ffffff22" : "#141a26", color: ctrl.beaconPreempt ? "#fff" : "#9fb0c7",
-          }}>🔦 beacon</button>
-          <button onClick={() => setOpen(false)} aria-label="full console" style={{
+          }}>🔦 beacon</button>}
+          {!demoLock && <button onClick={() => setOpen(false)} aria-label="full console" style={{
             width: 40, height: 40, borderRadius: 20, border: "1px solid #283549",
             background: "#141a26", color: "#9fb0c7", fontSize: 18, cursor: "pointer",
-          }}>✕</button>
+          }}>✕</button>}
         </div>
 
         {/* ── mode content ── */}

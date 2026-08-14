@@ -221,6 +221,7 @@ interface TwinState {
   groupModes: Record<string, UiMode | "follow">;
   selectedScope: string; // which group the panel is dialling in ("all" = whole tree)
   guest: boolean; // guest-DJ scoped mode (C3)
+  demoLock: boolean; // PUBLIC DEMO (?demo=1): guest forced on, operator surfaces hidden, no exit
   sensors: Sensors; // environmental inputs (crowd/motion/temp/wind/daylight)
   solarChargingCount: number; // panels currently harvesting (sim: daylight>0; fleet: nodes with battMa>0)
   cameraPreset: "hero" | "top"; // hero 3/4 vs top-down projection view
@@ -274,6 +275,7 @@ interface TwinState {
    *  the given colour. null = end of sequence, clear every override. */
   calSolo: (test: { idx: number; rgb: [number, number, number] } | null) => void;
   setGuest: (b: boolean) => void;
+  armDemoLock: () => void;
   setSensors: (p: Partial<Sensors>) => void;
   /** Report how many solar panels are currently harvesting. When the count falls
    *  to ZERO (the last panel lost the sun — the solar handoff), Solar Ray fires:
@@ -340,6 +342,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   groupModes: {},
   selectedScope: "all",
   guest: false,
+  demoLock: false,
   sensors: DEFAULT_SENSORS,
   solarChargingCount: 0,
   cameraPreset: "hero",
@@ -796,6 +799,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { overrides: o };
   }),
   setGuest: (b) => setState({ guest: b }),
+  armDemoLock: () => setState({ demoLock: true, guest: true }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   solarPanelsCharging: (n, source = "sim", nowMs) => {
     const s = get();
