@@ -213,6 +213,7 @@ interface TwinState {
   announce: AnnounceState; // CA mode-entry ceremony (dark → flourish → blank start)
   uiMode: UiMode; // which operator mode the side panel shows (persisted)
   touchOpen: boolean; // TouchConsole owns the screen (mobile shell) — desktop chrome hides
+  selectedLight: number | null; // tap-a-light: fixture INDEX picked on the canvas (mobile editor)
   dock: boolean; // split-screen dock layout (tree left · one organized panel right)
   // GROUPS ABOVE MODES (Elliot): each group can run its OWN mode simultaneously —
   // canopy interactive while the chandelier follows sound. "follow" = ride the base.
@@ -262,6 +263,8 @@ interface TwinState {
   setUnity: (on: boolean) => void;
   setUiMode: (m: UiMode) => void;
   setTouchOpen: (v: boolean) => void;
+  selectLight: (idx: number | null) => void;
+  setLightOverride: (idx: number, op: { mode: "color" | "off"; rgb?: [number, number, number] } | null) => void;
   setDock: (b: boolean) => void;
   setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
   resetAllOff: () => void; // BLACKOUT: stop every mode/show/group and go dark (a reset, not a hold)
@@ -315,6 +318,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   selectedGroup: "ring1",
   activeShow: null,
   touchOpen: false,
+  selectedLight: null,
   showStartedAt: 0,
   showSeed: 0,
   showRate: 1,
@@ -726,6 +730,12 @@ export const useTwin = create<TwinState>((setState, get) => ({
   // interactive → a CA rule runs (the tree reacts, you set rules); leaving interactive
   // disarms Game of Light so a latched dark phase can't strand the next mode.
   setTouchOpen: (v) => setState({ touchOpen: v }),
+  selectLight: (idx) => setState({ selectedLight: idx }),
+  setLightOverride: (idx, op) => setState((s) => {
+    const o = { ...s.overrides };
+    if (op === null) delete o[idx]; else o[idx] = op;
+    return { overrides: o };
+  }),
   setUiMode: (m) => {
     recEvent("mode", { to: m });
     try { localStorage.setItem("ui.mode", m); } catch { /* fine */ }
@@ -752,6 +762,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return {
       activeShow: null,
   touchOpen: false,
+  selectedLight: null,
       layers: [],
       gol: { ...DEFAULT_GOL },
       groupModes: {},

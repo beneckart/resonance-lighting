@@ -94,6 +94,10 @@ export function TouchConsole() {
   const fixtures = useTwin((s) => s.fixtures);
   const calSolo = useTwin((s) => s.calSolo);
   const pingPresence = useTwin((s) => s.pingPresence);
+  const selectedLight = useTwin((s) => s.selectedLight);
+  const selectLight = useTwin((s) => s.selectLight);
+  const setLightOverride = useTwin((s) => s.setLightOverride);
+  const overrides = useTwin((s) => s.overrides);
   const [calIdx, setCalIdx] = useState(0);
   const [audioSrc, setAudioSrc] = useState<"off" | "mic" | "track">("off");
   const calId = useMemo(() => fixtures[calIdx]?.id ?? "—", [fixtures, calIdx]);
@@ -114,8 +118,56 @@ export function TouchConsole() {
     calSolo({ idx: i, rgb: [1, 1, 1] });
   };
 
+  const SWATCHES: { name: string; rgb: [number, number, number] }[] = [
+    { name: "red", rgb: [1, 0.05, 0.05] }, { name: "orange", rgb: [1, 0.45, 0.05] },
+    { name: "amber", rgb: [1, 0.71, 0.33] }, { name: "green", rgb: [0.1, 1, 0.3] },
+    { name: "cyan", rgb: [0.1, 0.9, 1] }, { name: "blue", rgb: [0.15, 0.35, 1] },
+    { name: "purple", rgb: [0.6, 0.2, 1] }, { name: "pink", rgb: [1, 0.35, 0.75] },
+    { name: "white", rgb: [1, 1, 1] },
+  ];
+  const selId = selectedLight !== null ? (fixtures[selectedLight]?.id ?? "?") : null;
+  const selOv = selectedLight !== null ? overrides[selectedLight] : undefined;
+
   return (
     <>
+      {selectedLight !== null && (
+        <div style={{
+          position: "fixed", left: 8, right: 8, bottom: "calc(58% + 8px)", zIndex: 205,
+          background: "rgba(10,13,20,0.95)", border: `1px solid ${AMBER}55`, borderRadius: 14,
+          padding: "8px 10px", display: "flex", flexDirection: "column", gap: 8,
+          color: "#e7ecf6", font: "13px -apple-system, ui-sans-serif, system-ui, sans-serif",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: 800, color: AMBER }}>💡 {selId}</span>
+            <span style={{ color: "#7e8ea6", fontSize: 11, flex: 1 }}>
+              {selOv ? (selOv.mode === "off" ? "held OFF" : "held to a color") : "following the show"}
+            </span>
+            <button onClick={() => { setLightOverride(selectedLight, null); }} style={{
+              minHeight: 34, padding: "0 10px", borderRadius: 10, border: "1px solid #2a3a52",
+              background: "#141a26", color: "#9fb0c7", cursor: "pointer", fontSize: 12,
+            }}>↩ release</button>
+            <button onClick={() => selectLight(null)} aria-label="close light editor" style={{
+              width: 34, height: 34, borderRadius: 17, border: "1px solid #283549",
+              background: "#141a26", color: "#9fb0c7", cursor: "pointer",
+            }}>✕</button>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {SWATCHES.map((c) => (
+              <button key={c.name} aria-label={`light color ${c.name}`}
+                onClick={() => setLightOverride(selectedLight, { mode: "color", rgb: c.rgb })}
+                style={{
+                  width: 34, height: 34, borderRadius: 17, cursor: "pointer",
+                  border: "2px solid #0a0d14", outline: "1px solid #2a3a52",
+                  background: `rgb(${c.rgb.map((v) => Math.round(v * 255)).join(",")})`,
+                }} />
+            ))}
+            <button onClick={() => setLightOverride(selectedLight, { mode: "off" })} style={{
+              minHeight: 34, padding: "0 12px", borderRadius: 17, cursor: "pointer",
+              border: "1px solid #3a2a30", background: "#141a26", color: "#ff8fa0", fontWeight: 700, fontSize: 12,
+            }}>off</button>
+          </div>
+        </div>
+      )}
       <div style={sheet}>
         {/* header: title + safety pair + exit — present in EVERY mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -157,6 +209,7 @@ export function TouchConsole() {
               <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
               <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
             </div>
+            <div style={{ color: "#7e8ea6", fontSize: 12 }}>💡 Tap any light on the tree above to take it over — color it or hold it off while the show plays around it.</div>
             <div style={microLabel}>Patterns</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(94px, 1fr))", gap: 8 }}>
               {PADS.map((p) => (

@@ -561,14 +561,19 @@ function TreeTapHandler({ fixtures }: { fixtures: SimFixture[] }) {
       if (performance.now() - d.t > 500) return; // held = not a tap
       if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return; // moved = orbit drag
       const st = useTwin.getState();
-      if (!(CA_RULES as string[]).includes(st.control.pattern)) return;
+      const caLook = (CA_RULES as string[]).includes(st.control.pattern);
+      // Mobile per-light editor (Elliot 08-14: "click on any individual light to
+      // change its state"): with the touch console open and no CA look active,
+      // a tap SELECTS the nearest light instead of firing a sensor.
+      const selecting = !caLook && st.touchOpen;
+      if (!caLook && !selecting) return;
       const rect = el.getBoundingClientRect();
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
       // Sensor-real gating: in Game-of-Light (standby/live) a "sensor firing" means a
       // person under a lantern's downward ToF eye — only DOWNLIGHTS are triggerable
       // (you can't stand inside the crown chandelier). Plain CA play = any fixture.
       const golPhase0 = st.gol.phase;
-      const downOnly = golPhase0 === "standby" || golPhase0 === "live";
+      const downOnly = !selecting && (golPhase0 === "standby" || golPhase0 === "live"); // selection may pick ANY role
       let best = -1, bestD = Infinity;
       for (let i = 0; i < fixtures.length; i++) {
         if (downOnly && fixtures[i].role !== "downlight") continue;
@@ -581,6 +586,7 @@ function TreeTapHandler({ fixtures }: { fixtures: SimFixture[] }) {
       }
       const reach = Math.max(rect.width, rect.height) * 0.18; // tap tolerance
       if (best < 0 || bestD >= reach * reach) return;
+      if (selecting) { st.selectLight(best); return; }
       const p = fixtures[best].pos, origin: [number, number, number] = [p[0], p[1], p[2]];
       const phase = st.gol.phase;
       if (phase === "standby") st.golFirstVisitor(best); // first visitor → ignite
