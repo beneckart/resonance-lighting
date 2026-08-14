@@ -98,6 +98,12 @@ export function TouchConsole() {
   const selectLight = useTwin((s) => s.selectLight);
   const setLightOverride = useTwin((s) => s.setLightOverride);
   const overrides = useTwin((s) => s.overrides);
+  const cues = useTwin((s) => s.cues);
+  const addCue = useTwin((s) => s.addCue);
+  const recallCue = useTwin((s) => s.recallCue);
+  const deleteCue = useTwin((s) => s.deleteCue);
+  const [modeName, setModeName] = useState("");
+  const [editModes, setEditModes] = useState(false);
   const [calIdx, setCalIdx] = useState(0);
   const [audioSrc, setAudioSrc] = useState<"off" | "mic" | "track">("off");
   const calId = useMemo(() => fixtures[calIdx]?.id ?? "—", [fixtures, calIdx]);
@@ -208,6 +214,37 @@ export function TouchConsole() {
             <div style={{ display: "flex", gap: 10 }}>
               <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
               <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
+            </div>
+            <div style={microLabel}>My modes · save the look you just made</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {cues.map((c) => (
+                <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <button onClick={() => recallCue(c.id)} style={{
+                    minHeight: 40, padding: "0 14px", borderRadius: 12, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                    border: `1.5px solid ${AMBER}66`, background: "#1c1610", color: "#ffe2b0",
+                  }}>★ {c.name}</button>
+                  {editModes && (
+                    <button aria-label={`delete mode ${c.name}`} onClick={() => deleteCue(c.id)} style={{
+                      width: 28, height: 28, borderRadius: 14, border: "1px solid #3a2a30",
+                      background: "#141a26", color: "#ff8fa0", cursor: "pointer", fontSize: 12,
+                    }}>✕</button>
+                  )}
+                </span>
+              ))}
+              {cues.length > 0 && (
+                <button onClick={() => setEditModes(!editModes)} style={{
+                  minHeight: 40, padding: "0 10px", borderRadius: 12, cursor: "pointer", fontSize: 12,
+                  border: "1px solid #283549", background: "#141a26", color: "#9fb0c7",
+                }}>{editModes ? "done" : "edit"}</button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={modeName} onChange={(e) => setModeName(e.target.value)} placeholder="name this mode…"
+                style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "1px solid #283549", background: "#0d1119", color: "#e7ecf6", padding: "0 12px", fontSize: 14 }} />
+              <button onClick={() => { addCue(modeName || "my mode"); setModeName(""); }} style={{
+                minHeight: 44, padding: "0 16px", borderRadius: 12, cursor: "pointer", fontWeight: 700,
+                border: `1.5px solid ${AMBER}`, background: `${AMBER}22`, color: "#fff", fontSize: 14,
+              }}>💾 save</button>
             </div>
             <div style={{ color: "#7e8ea6", fontSize: 12 }}>💡 Tap any light on the tree above to take it over — color it or hold it off while the show plays around it.</div>
             <div style={microLabel}>Patterns</div>
