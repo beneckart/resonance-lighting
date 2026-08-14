@@ -162,6 +162,24 @@ export function TouchConsole() {
   );
   const calId = useMemo(() => fixtures[calIdx]?.id ?? "—", [fixtures, calIdx]);
 
+  // ALL hooks live above the early return — the sheet-height effect sat below
+  // it and crashed the component with "fewer hooks than expected" the moment
+  // ✕ closed the console (launch-QA find, console errors 21:53Z).
+  const sheetEl = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = sheetEl.current;
+    if (!open || tab === "tree" || !el) {
+      root.style.setProperty("--sheet-h", "0px");
+      return;
+    }
+    const apply = () => root.style.setProperty("--sheet-h", `${el.getBoundingClientRect().height + 64}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.setProperty("--sheet-h", "0px"); };
+  }, [open, tab, collapsed]);
+
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} style={{
@@ -194,21 +212,6 @@ export function TouchConsole() {
   // at the old height after the sheet unmounted — canvas 257px on the Tree tab,
   // caught by measurement 08-14). v3's live-peek is gone: with the tree
   // visibly above, the canvas IS the feedback.
-  const sheetEl = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const root = document.documentElement;
-    const el = sheetEl.current;
-    if (!open || tab === "tree" || !el) {
-      root.style.setProperty("--sheet-h", "0px");
-      return;
-    }
-    const apply = () => root.style.setProperty("--sheet-h", `${el.getBoundingClientRect().height + 64}px`);
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    return () => { ro.disconnect(); root.style.setProperty("--sheet-h", "0px"); };
-  }, [open, tab, collapsed]);
-
   return (
     <>
       {tab === "tree" && (
