@@ -1,14 +1,28 @@
 import { useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId } from "./store";
+import { SHOWS } from "./shows";
 
 /** iPad-OS style TOUCH console (Elliot ask): a togglable fullscreen overlay with
  *  big touch targets — pattern pads + master/brightness + crossfader + AI/camera/
  *  strobe toggles — for driving the tree from a tablet at the install. Works at
- *  375px (phone) up through tablet/desktop. */
+ *  375px (phone) up through tablet/desktop.
+ *
+ *  MOBILE-FIRST (Elliot 08-14, "way too clunky" on the phone): a phone now
+ *  LANDS in this console instead of the desktop panel stack — open defaults to
+ *  true on coarse-pointer/narrow screens. ✕ drops to the full UI. Also grew
+ *  the two things a phone operator needs most: the Light Shows row and the
+ *  big BLACKOUT/BEACON pair. */
 const PADS = [...PATTERN_IDS, ...ELEMENT_MODES] as PatternId[];
 
+/** phone-detect at mount: coarse pointer OR narrow viewport → land in touch */
+function isPhoneLike(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(max-width: 767px)").matches ||
+    (window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1023px)").matches);
+}
+
 const sheet: React.CSSProperties = {
-  position: "fixed", inset: 0, zIndex: 50,
+  position: "fixed", inset: 0, zIndex: 200, // above every desktop float (clean-view/record/beacon pills)
   background: "linear-gradient(160deg,#0a0d14 0%,#0f1320 100%)",
   color: "#e7ecf6", font: "14px -apple-system, ui-sans-serif, system-ui, sans-serif",
   padding: "max(16px, env(safe-area-inset-top)) 16px 16px", overflowY: "auto",
@@ -39,11 +53,13 @@ function BigSlider({ label, v, min, max, step, on }: { label: string; v: number;
 }
 
 export function TouchConsole() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(isPhoneLike);
   const ctrl = useTwin((s) => s.control);
   const set = useTwin((s) => s.set);
   const cameraPreset = useTwin((s) => s.cameraPreset);
   const setCameraPreset = useTwin((s) => s.setCameraPreset);
+  const playShow = useTwin((s) => s.playShow);
+  const activeShow = useTwin((s) => s.activeShow);
 
   if (!open) {
     return (
@@ -63,6 +79,26 @@ export function TouchConsole() {
           width: 44, height: 44, borderRadius: 22, border: "1px solid #283549",
           background: "#141a26", color: "#9fb0c7", fontSize: 20, cursor: "pointer",
         }}>✕</button>
+      </div>
+
+      <div style={{ color: "#7e8ea6", fontSize: 12 }}>LIGHT SHOWS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 8 }}>
+        {SHOWS.map((s) => {
+          const active = activeShow === s.id;
+          return (
+            <button key={s.id} aria-label={`show ${s.id}`} onClick={() => playShow(active ? null : s.id)} style={{
+              minHeight: 60, borderRadius: 14, cursor: "pointer", fontSize: 13, fontWeight: 600,
+              border: active ? "1.5px solid #ffb454" : "1.5px solid #283549",
+              background: active ? "#3d2c12" : "#141a26", color: active ? "#ffe2b0" : "#9fb0c7",
+              boxShadow: active ? "0 0 16px #ffb45466" : "none", touchAction: "manipulation",
+            }}>{active ? `■ ${s.name}` : s.name}</button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <Toggle on={ctrl.blackout} label="🌑 BLACKOUT" onClick={() => set({ blackout: !ctrl.blackout })} accent="#ff5b6e" />
+        <Toggle on={ctrl.beaconPreempt} label="🔦 BEACON" onClick={() => set({ beaconPreempt: !ctrl.beaconPreempt })} accent="#ffd166" />
       </div>
 
       <div style={{ color: "#7e8ea6", fontSize: 12 }}>PATTERN</div>
