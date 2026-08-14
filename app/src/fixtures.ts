@@ -48,14 +48,18 @@ export async function loadFixtures(url = asset("/fixtures.json")): Promise<Fixtu
 export interface ValidationResult {
   ok: boolean;
   errors: string[];
+  /** contract violations that don't stop RENDERING but break PHYSICS consumers
+   *  (selfmap radio/ToF, constellate scale, cambium mapping) — surface loudly */
+  warnings: string[];
 }
 
 /** Validate a fixtures.json against the resonance.fixtures/0.1 contract (G2). Pure;
  *  used to gate a swapped-in Grasshopper export. */
 export function validateFixturesDoc(doc: unknown): ValidationResult {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const d = doc as Partial<FixturesDoc> | null;
-  if (!d || typeof d !== "object") return { ok: false, errors: ["doc is not an object"] };
+  if (!d || typeof d !== "object") return { ok: false, errors: ["doc is not an object"], warnings };
   if (!d.meta || typeof d.meta !== "object") errors.push("missing meta");
   else {
     if (typeof d.meta.count !== "number") errors.push("meta.count is not a number");
@@ -75,7 +79,22 @@ export function validateFixturesDoc(doc: unknown): ValidationResult {
         errors.push(`fixtures[${i}].aim must be [x,y,z] numbers`); // schema 0.2
     });
   }
-  return { ok: errors.length === 0, errors };
+  // UNITS SANITY (schema 0.4 lesson, 2026-08-13): meta.units="m" must MEAN
+  // meters. The 130-fixture re-export declared meters but spanned ~100 m at a
+  // 28-40 m altitude — the twin renders fine (it normalizes to the mesh) while
+  // everything PHYSICAL (selfmap radio range/ToF, constellate's tape-measure
+  // scale, cambium mapping) silently breaks. Render-green + physics-red is the
+  // signature; catch it at the gate instead.
+  if (errors.length === 0 && d && d.meta?.units === "m" && d.meta.bbox) {
+    const { min, max } = d.meta.bbox as { min: number[]; max: number[] };
+    const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    const zlo = Math.min(min[2], max[2]);
+    if (span < 4 || span > 30)
+      warnings.push(`units contract: meta.units="m" but bbox span is ${span.toFixed(1)} — a ~10 m tree cannot span ${span.toFixed(1)} m (wrong scale factor?)`);
+    if (Math.abs(zlo) > 15)
+      warnings.push(`units contract: lowest fixture z=${zlo.toFixed(1)} m — datum should be at/near ground (|z|≤15), not floating`);
+  }
+  return { ok: errors.length === 0, errors, warnings };
 }
 
 export interface FixtureAudit {

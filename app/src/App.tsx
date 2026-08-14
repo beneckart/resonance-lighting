@@ -46,6 +46,9 @@ export function App() {
       .then((doc) => {
         const v = validateFixturesDoc(doc);
         if (!v.ok) setErr(`fixtures.json invalid: ${v.errors.slice(0, 3).join("; ")}`);
+        // units-contract warnings: rendering is safe (we normalize to the mesh)
+        // but selfmap/constellate/cambium physics are NOT — say so loudly.
+        if (v.warnings.length) console.warn("[fixtures] CONTRACT WARNINGS:", v.warnings);
         // data-quality audit (role/zone counts + aim sanity) — surface anomalies
         const a = auditFixtures(doc);
         console.info(`[fixtures] ${doc.fixtures.length} loaded · roles`, a.byRole, "· zones", a.byZone, `· ${a.withAim} with aim`);

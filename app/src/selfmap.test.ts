@@ -45,12 +45,23 @@ function makeRingFixtures(): SimFixture[] {
   return out;
 }
 
-/** The real Blender export (118 fixtures, ~100 m spread) as sim fixtures. */
-function realFixtures(): SimFixture[] {
+/** The real Blender export normalized to TRUE tree scale (~12 m span, ground
+ *  datum). The raw file's units are inflated (see the units-contract warnings
+ *  in fixtures.ts — handoff filed to the Blender side 08-13); normalizing here
+ *  means this suite tests the SOLVER against the geometry hardware will
+ *  actually present, not an artifact. Lesson learned the hard way: at the old
+ *  mm-inflated scale RF noise was negligible vs spacing and a no-anchor solve
+ *  scored 45% — pure test artifact. At true scale it scores 0.000. */
+function realFixtures(targetSpanM = 12): SimFixture[] {
   const doc = JSON.parse(readFileSync("public/fixtures.json", "utf8"));
-  return doc.fixtures.map((f: { fixture_id: string; role: string; position: [number, number, number] }, i: number) => ({
+  const pts = doc.fixtures.map((f: { position: [number, number, number] }) => blenderToThree(f.position));
+  const xs = pts.map((p: number[]) => p[0]), ys = pts.map((p: number[]) => p[1]), zs = pts.map((p: number[]) => p[2]);
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
+  const k = targetSpanM / span;
+  const y0 = Math.min(...ys);
+  return doc.fixtures.map((f: { fixture_id: string; role: string }, i: number) => ({
     id: f.fixture_id, name: f.fixture_id, role: f.role, zone: "x",
-    pos: blenderToThree(f.position), norm: [0, 0, 0], seqT: 0, seq: i, num: i + 1, heightT: 0,
+    pos: [pts[i][0] * k, (pts[i][1] - y0) * k, pts[i][2] * k], norm: [0, 0, 0], seqT: 0, seq: i, num: i + 1, heightT: 0,
     ring: 0, quadrant: 0, azimuth: 0, radialT: 0, rnd: (i * 0.37) % 1, neighbors: [], beamDeg: 90, lumens: 400,
   } as SimFixture));
 }
@@ -234,16 +245,42 @@ describe("full pipeline (simulated survey → solve)", () => {
   });
 });
 
-describe("real tree (118-fixture Blender export)", () => {
-  it("no anchors + healthy mesh connectivity beats guessing by a wide margin", () => {
+describe("real tree at TRUE scale (ADR-0032 fleet, 12 m span)", () => {
+  it("no-anchor RF solve is DEAD at real spacings — the measured reason constellate exists", () => {
+    // At 1-2 m spacings, RSSI noise ≥ spacing: identity is unrecoverable
+    // without external truth. Justin's constellate doc claims exactly this
+    // ("RSSI too noisy — rejected"); this pins the claim as measured fact so
+    // nobody resurrects no-anchor bootstrap off a passing artifact again.
     const fixtures = realFixtures();
     const slots = slotsFromFixtures(fixtures);
-    // 120 m radio range ≈ fully-connected survey graph (open-air ESP-NOW)
     const sim = simulateSurvey(fixtures, { seed: 7, maxRangeM: 120 });
     const res = solveMapping(sim.nodes, slots, []);
-    const score = scoreAgainstTruth(res, sim.truth);
-    // 118 slots — random same-role guessing would land ~1-2%
-    expect(score.accuracy).toBeGreaterThanOrEqual(0.45);
+    expect(scoreAgainstTruth(res, sim.truth).accuracy).toBeLessThan(0.1);
+  });
+
+  it("ASSISTED role still earns its keep: ≤30 confirms → ≥95% on 130 fixtures", () => {
+    // selfmap's honest job after the reckoning: an assisted commissioning
+    // tool (installer taps lowest-confidence lights; solver re-solves).
+    // Measured 08-13: 10 confirms → 0.908 · 20 confirms → 0.977.
+    const fixtures = realFixtures();
+    const slots = slotsFromFixtures(fixtures);
+    const sim = simulateSurvey(fixtures, { seed: 7, maxRangeM: 120 });
+    const truthById = new Map(sim.truth.map((t) => [t.mac, t.fixtureId]));
+    const anchors: { mac: string; fixtureId: string }[] = [];
+    const anchored = new Set<string>();
+    let acc = 0, confirms = 0;
+    for (let round = 0; round < 6 && acc < 0.95; round++) {
+      const res = solveMapping(sim.nodes, slots, anchors);
+      acc = scoreAgainstTruth(res, sim.truth).accuracy;
+      if (acc >= 0.95) break;
+      const byConf = res.estimates.filter((e) => !anchored.has(e.mac)).sort((a, b) => a.confidence - b.confidence);
+      for (const e of byConf.slice(0, 10)) {
+        anchors.push({ mac: e.mac, fixtureId: truthById.get(e.mac)! });
+        anchored.add(e.mac); confirms += 1;
+      }
+    }
+    expect(acc).toBeGreaterThanOrEqual(0.95);
+    expect(confirms).toBeLessThanOrEqual(30);
   });
 });
 

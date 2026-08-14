@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { validateFixturesDoc, blenderToThree, auditFixtures, type FixturesDoc } from "./fixtures";
+import { readFileSync } from "node:fs";
+import { validateFixturesDoc, blenderToThree, auditFixtures, makeTestGridDoc, type FixturesDoc } from "./fixtures";
 
 const valid = {
   meta: { source: "x", exported: "x", up_axis: "Z", units: "blender", count: 1, bbox: { min: [0, 0, 0], max: [1, 1, 1] }, schema: "resonance.fixtures/0.1" },
@@ -8,7 +9,7 @@ const valid = {
 
 describe("validateFixturesDoc", () => {
   it("accepts a valid doc", () => {
-    expect(validateFixturesDoc(valid)).toEqual({ ok: true, errors: [] });
+    expect(validateFixturesDoc(valid)).toEqual({ ok: true, errors: [], warnings: [] });
   });
   it("rejects non-objects + empties", () => {
     expect(validateFixturesDoc(null).ok).toBe(false);
@@ -54,5 +55,19 @@ describe("auditFixtures", () => {
     expect(a.withAim).toBe(3);
     expect(a.warnings).toHaveLength(1);
     expect(a.warnings[0]).toContain("F2");
+  });
+});
+
+describe("units-contract gate (schema 0.4 lesson)", () => {
+  it("fires on the current inflated export AND stays quiet on clean meters — both answers proven", () => {
+    const bad = JSON.parse(readFileSync("public/fixtures.json", "utf8"));
+    const vBad = validateFixturesDoc(bad);
+    expect(vBad.ok).toBe(true); // structure fine — rendering must not be blocked
+    expect(vBad.warnings.some((w) => w.includes("units contract"))).toBe(true);
+
+    const good = makeTestGridDoc(3); // honest meters, ground datum
+    const vGood = validateFixturesDoc(good);
+    expect(vGood.ok).toBe(true);
+    expect(vGood.warnings).toEqual([]);
   });
 });
