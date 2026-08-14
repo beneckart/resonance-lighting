@@ -283,11 +283,23 @@ for gm in geoms:
 cv2.imwrite(os.path.join(A.out, f"{name}.png"), pv)
 
 U = 96.0/25.4
+def _ring_d(ringc):
+    """True-circle arcs when a ring IS the OD or ID circle (Steve: Fusion
+    drives a feature off the real arc). Polyline otherwise."""
+    pts = np.array(ringc.coords)[:-1]
+    rr2 = np.sqrt((pts ** 2).sum(1))
+    for Rc in (R_out, R_in):
+        if np.abs(rr2 - Rc).max() < 0.10:          # whole ring lies on the circle
+            Ru = Rc * U
+            return (f"M {-Ru:.6f} 0 A {Ru:.6f} {Ru:.6f} 0 1 0 {Ru:.6f} 0 "
+                    f"A {Ru:.6f} {Ru:.6f} 0 1 0 {-Ru:.6f} 0 Z")
+    q = pts * U
+    return "M " + " L ".join(f"{p[0]:.3f} {p[1]:.3f}" for p in q) + " Z"
+
 d = []
 for gm in geoms:
     for ringc in [gm.exterior, *gm.interiors]:
-        pts = np.array(ringc.coords) * U
-        d.append("M " + " L ".join(f"{p[0]:.3f} {p[1]:.3f}" for p in pts[:-1]) + " Z")
+        d.append(_ring_d(ringc))
 half = R_out * U
 open(os.path.join(A.out, f"{name}.svg"), "w").write(
     '<?xml version="1.0" encoding="UTF-8"?>\n'
