@@ -264,7 +264,7 @@ interface TwinState {
   setUiMode: (m: UiMode) => void;
   setTouchOpen: (v: boolean) => void;
   selectLight: (idx: number | null) => void;
-  setLightOverride: (idx: number, op: { mode: "color" | "off"; rgb?: [number, number, number] } | null) => void;
+  setLightOverride: (idx: number, op: import("./command").Override | null) => void;
   setDock: (b: boolean) => void;
   setGroupMode: (group: string, m: UiMode | "follow") => void; // per-group mode routing
   resetAllOff: () => void; // BLACKOUT: stop every mode/show/group and go dark (a reset, not a hold)

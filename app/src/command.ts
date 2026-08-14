@@ -4,6 +4,10 @@ import { PATTERN_IDS, type Control, type PatternId, type SimFixture } from "./st
 export interface Override {
   mode: "color" | "off";
   rgb?: [number, number, number];
+  /** per-light dim level 0..1 (Elliot: "fade") — scales the held color */
+  bri?: number;
+  /** per-light breathing rate in Hz (Elliot: "motion"); 0/absent = steady */
+  pulse?: number;
 }
 
 export interface CmdResult {

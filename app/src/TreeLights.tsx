@@ -387,7 +387,9 @@ export function TreeLights() {
         if (ov.mode === "off") {
           lit.r = lit.g = lit.b = 0;
         } else if (ov.rgb) {
-          const m = ctrl.brightness;
+          // per-light fade (bri) + motion (pulse Hz) ride the held color
+          let m = ctrl.brightness * (ov.bri ?? 1);
+          if (ov.pulse && ov.pulse > 0) m *= 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * ov.pulse * Math.PI * 2));
           lit.r = ov.rgb[0] * m;
           lit.g = ov.rgb[1] * m;
           lit.b = ov.rgb[2] * m;

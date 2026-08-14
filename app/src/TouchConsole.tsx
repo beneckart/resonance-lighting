@@ -172,6 +172,22 @@ export function TouchConsole() {
               border: "1px solid #3a2a30", background: "#141a26", color: "#ff8fa0", fontWeight: 700, fontSize: 12,
             }}>off</button>
           </div>
+          {selOv?.mode === "color" && (
+            <div style={{ display: "flex", gap: 12 }}>
+              <label style={{ flex: 1, color: "#9fb0c7", fontSize: 12 }}>
+                fade · {Math.round(((selOv.bri ?? 1)) * 100)}%
+                <input type="range" min={0.05} max={1} step={0.05} value={selOv.bri ?? 1}
+                  onChange={(e) => setLightOverride(selectedLight, { ...selOv, bri: Number(e.target.value) })}
+                  style={{ width: "100%", height: 30, accentColor: AMBER }} />
+              </label>
+              <label style={{ flex: 1, color: "#9fb0c7", fontSize: 12 }}>
+                motion · {(selOv.pulse ?? 0).toFixed(1)} Hz
+                <input type="range" min={0} max={3} step={0.1} value={selOv.pulse ?? 0}
+                  onChange={(e) => setLightOverride(selectedLight, { ...selOv, pulse: Number(e.target.value) })}
+                  style={{ width: "100%", height: 30, accentColor: AMBER }} />
+              </label>
+            </div>
+          )}
         </div>
       )}
       <div style={sheet}>
