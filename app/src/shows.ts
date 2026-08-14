@@ -200,5 +200,34 @@ const SOLAR_RAY: LightShow = {
   ],
 };
 
-export const SHOWS: LightShow[] = [SOLAR_RAY, PERFORMANCE, BIOLUMINESCENCE, AURORA, AWAKENING, IGNITION, COSMOS];
+// ── 🌍 SCHUMANN — Elliot's first dictated show (Lighting AI room, 08-14 06:09Z),
+//    built sequence-for-sequence from his words, verbatim order:
+//    1 "all the lights move from red to pink to purple, the color change takes
+//       exactly the time of the Schumann frequency" — the fundamental is
+//       7.83 Hz; read as a 7.83-SECOND transition per color (a 7.83 Hz strobe
+//       would read as flicker; say the word and I'll flip it).
+//    2 "all the lights dim and turn off one by one in a random order"
+//    3 "flash green then red very slowly"
+//    4 "randomly sparkle blue and orange"
+//    5 "sweep in the same direction then reverse the opposite direction"
+const S = 7.83; // seconds per Schumann color step
+const SCHUMANN: LightShow = {
+  id: "schumann", name: "🌍 Schumann", vibe: "Elliot's dictated arc · 7.83 s color breaths", durationS: 110,
+  cues: [
+    { at: 0, note: "red — first Schumann breath", base: { pattern: "breathe", hue: 0.0, sat: 0.95, brightness: 0.75, speed: 0.13, colorCycle: "off", order: "linear", reverse: false, strobe: false, master: 1 } },
+    { at: S, note: "pink", base: { pattern: "breathe", hue: 0.92, sat: 0.75, brightness: 0.75, speed: 0.13 } },
+    { at: 2 * S, note: "purple", base: { pattern: "breathe", hue: 0.78, sat: 0.9, brightness: 0.75, speed: 0.13 } },
+    { at: 3 * S, note: "dim… lights drop out one by one, random order", base: { pattern: "sequence", seqMode: "single", order: "random", hue: 0.78, sat: 0.9, brightness: 0.35, speed: 0.5 } },
+    { at: 4 * S + 4, note: "very slow green flash", base: { pattern: "breathe", hue: 0.33, sat: 1, brightness: 0.8, speed: 0.1 } },
+    { at: 5 * S + 8, note: "very slow red flash", base: { pattern: "breathe", hue: 0.0, sat: 1, brightness: 0.8, speed: 0.1 } },
+    { at: 6 * S + 12, note: "blue + orange random sparkle", base: { pattern: "sparkle", hue: 0.58, sat: 0.95, brightness: 0.85, speed: 0.9, colorCycle: "group" }, layers: [
+      { group: "ring2", control: { pattern: "sparkle", hue: 0.07, sat: 1, brightness: 0.85, speed: 0.9 } },
+    ] },
+    { at: 7 * S + 16, note: "sweep around the tree", base: { pattern: "sweep", hue: 0.62, sat: 0.8, brightness: 0.8, speed: 0.6, reverse: false, colorCycle: "off" } },
+    { at: 8 * S + 20, note: "…and back the other way", base: { pattern: "sweep", hue: 0.62, sat: 0.8, brightness: 0.8, speed: 0.6, reverse: true } },
+    { at: 105, note: "settle to the purple breath", base: { pattern: "breathe", hue: 0.78, sat: 0.85, brightness: 0.5, speed: 0.13, reverse: false } },
+  ],
+};
+
+export const SHOWS: LightShow[] = [SOLAR_RAY, SCHUMANN, PERFORMANCE, BIOLUMINESCENCE, AURORA, AWAKENING, IGNITION, COSMOS];
 export const showById = (id: string | null): LightShow | undefined => SHOWS.find((s) => s.id === id);
