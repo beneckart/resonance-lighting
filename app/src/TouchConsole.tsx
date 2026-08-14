@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId, type UiMode } from "./store";
 import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
@@ -6,14 +6,15 @@ import { interpret } from "./llm";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { asset } from "./fixtures";
 
-/** TOUCH CONSOLE v3 — Elliot's sketched layout (08-14 17:29Z, in-room):
- *  "the visualizer is a separate screen and there are tabs for each mode that
- *  scroll." 🌳 Tree is its own full-screen tab (visualizer + safety + mic
- *  only); each MODE tab is a full-screen scrollable control page — controls
- *  get the whole screen instead of a squeezed half-sheet. Tab bar scrolls
- *  horizontally as modes grow. Same four modes as desktop (mental model never
- *  forks); BLACKOUT/BEACON ride every screen; active tab glows lantern-amber.
- *  ✕ drops to the full desktop UI. */
+/** TOUCH CONSOLE v4 — Elliot 08-14 19:14Z: "menu of controls with the tree
+ *  above… automatically set the menu at the bottom based on the size and
+ *  resize the tree to fit… change the menu and customize it."
+ *  🌳 Tree keeps its own full-screen tab. MODE tabs open a bottom sheet that
+ *  sizes itself to its CONTENT (max 62%); a ResizeObserver writes the sheet's
+ *  real height to --sheet-h and the canvas container RESIZES to the space
+ *  above — the tree re-frames, it isn't covered. Customize v1: every section
+ *  collapses on header tap, persisted per device. Tab bar scrolls; safety
+ *  rides every screen; ✕ drops to desktop. */
 
 const AMBER = "#ffb454";
 const PADS = [...PATTERN_IDS, ...ELEMENT_MODES] as PatternId[];
@@ -35,14 +36,20 @@ const MODES: { id: TabId; icon: string; label: string }[] = [
 ];
 
 const sheet: React.CSSProperties = {
-  // FULL-screen control page (Elliot's sketch): the tree has its own tab now,
-  // so a mode's controls own the whole screen and scroll freely
-  position: "fixed", left: 0, right: 0, top: 0, bottom: "calc(64px + env(safe-area-inset-bottom))", zIndex: 200,
-  background: "#0d1119",
+  // content-sized bottom sheet: the tree above RESIZES to fit (not covered)
+  position: "fixed", left: 0, right: 0, bottom: "calc(64px + env(safe-area-inset-bottom))", zIndex: 200,
+  maxHeight: "62%",
+  background: "linear-gradient(180deg, rgba(10,13,20,0.97) 0%, #0f1320 14%)",
+  borderTop: "1px solid #23304a", borderRadius: "18px 18px 0 0",
   color: "#e7ecf6", font: "14px -apple-system, ui-sans-serif, system-ui, sans-serif",
   padding: "10px 14px calc(64px + env(safe-area-inset-bottom))",
   overflowY: "auto", display: "flex", flexDirection: "column", gap: 12,
 };
+
+const COLLAPSE_KEY = "touch.collapsed";
+function loadCollapsed(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) ?? "{}"); } catch { return {}; }
+}
 
 const microLabel: React.CSSProperties = {
   color: "#7e8ea6", fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase",
@@ -85,7 +92,6 @@ function Pad({ active, label, onClick, accent = "#5b8cff" }: { active: boolean; 
 export function TouchConsole() {
   const [open, setOpen] = useState(isPhoneLike);
   const [tab, setTab] = useState<TabId>("tree"); // land on the tree, per the sketch
-  const peekTimer = { current: null as ReturnType<typeof setInterval> | null };
   const setTouchOpen = useTwin((s) => s.setTouchOpen);
   useEffect(() => { setTouchOpen(open); return () => setTouchOpen(false); }, [open, setTouchOpen]);
   const ctrl = useTwin((s) => s.control);
@@ -138,6 +144,23 @@ export function TouchConsole() {
   };
   const [calIdx, setCalIdx] = useState(0);
   const [audioSrc, setAudioSrc] = useState<"off" | "mic" | "track">("off");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
+  const toggleSection = (k: string) => setCollapsed((c) => {
+    const n = { ...c, [k]: !c[k] };
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(n)); } catch { /* fine */ }
+    return n;
+  });
+  /** customize v1 (Elliot: "change the menu and customize it"): every section
+   *  header is a tap-to-collapse toggle, remembered per device */
+  const Section = ({ id, label, children }: { id: string; label: string; children: React.ReactNode }) => (
+    <>
+      <button onClick={() => toggleSection(id)} style={{
+        ...microLabel, background: "none", border: "none", textAlign: "left", padding: 0,
+        cursor: "pointer", display: "flex", justifyContent: "space-between", width: "100%",
+      }}>{label}<span>{collapsed[id] ? "▸" : "▾"}</span></button>
+      {!collapsed[id] && children}
+    </>
+  );
   const calId = useMemo(() => fixtures[calIdx]?.id ?? "—", [fixtures, calIdx]);
 
   if (!open) {
@@ -166,31 +189,29 @@ export function TouchConsole() {
   const selId = selectedLight !== null ? (fixtures[selectedLight]?.id ?? "?") : null;
   const selOv = selectedLight !== null ? overrides[selectedLight] : undefined;
 
-  // LIVE PEEK — mirrors the WebGL canvas onto a small 2d canvas while a mode
-  // page covers it, so every pad/slider tap shows the tree responding NOW.
-  const peekRef = (el: HTMLCanvasElement | null) => {
-    if (peekTimer.current) { clearInterval(peekTimer.current); peekTimer.current = null; }
-    if (!el) return;
-    const src = document.querySelector("canvas");
-    if (!src) return;
-    const ctx = el.getContext("2d");
-    if (!ctx) return;
-    const draw = () => { try { ctx.drawImage(src as HTMLCanvasElement, 0, 0, el.width, el.height); } catch { /* context loss */ } };
-    draw();
-    peekTimer.current = setInterval(draw, 150); // ~7 fps is plenty for feedback
-  };
+  // sheet height → --sheet-h CSS var; the canvas container in App resizes to
+  // the space above (the tree RE-FRAMES to fit — Elliot 19:14Z — not covered).
+  // Effect-managed (a callback-ref ResizeObserver leaked here: --sheet-h stuck
+  // at the old height after the sheet unmounted — canvas 257px on the Tree tab,
+  // caught by measurement 08-14). v3's live-peek is gone: with the tree
+  // visibly above, the canvas IS the feedback.
+  const sheetEl = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = sheetEl.current;
+    if (!open || tab === "tree" || !el) {
+      root.style.setProperty("--sheet-h", "0px");
+      return;
+    }
+    const apply = () => root.style.setProperty("--sheet-h", `${el.getBoundingClientRect().height + 64}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.setProperty("--sheet-h", "0px"); };
+  }, [open, tab, collapsed]);
 
   return (
     <>
-      {tab !== "tree" && open && (
-        <button aria-label="live tree peek — tap for full view" onClick={() => setTab("tree")} style={{
-          position: "fixed", left: 10, bottom: "calc(72px + env(safe-area-inset-bottom))", zIndex: 216,
-          width: 96, height: 128, padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer",
-          border: `1.5px solid ${AMBER}88`, background: "#000", boxShadow: "0 4px 18px #000c",
-        }}>
-          <canvas ref={peekRef} width={96} height={128} style={{ width: "100%", height: "100%" }} />
-        </button>
-      )}
       {tab === "tree" && (
         <div style={{
           position: "fixed", top: "max(8px, env(safe-area-inset-top))", left: 8, right: 8, zIndex: 205,
@@ -267,7 +288,7 @@ export function TouchConsole() {
           )}
         </div>
       )}
-      {tab !== "tree" && <div style={sheet}>
+      {tab !== "tree" && <div ref={sheetEl} style={sheet}>
         {/* header: title + safety pair + exit — present in EVERY mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.3, flex: 1 }}>🌳 Resonance</span>
@@ -290,7 +311,7 @@ export function TouchConsole() {
         {/* ── mode content ── */}
         {uiMode === "lightshow" && (
           <>
-            <div style={microLabel}>Light shows · tap to play, tap again to stop</div>
+            <Section id="shows" label="Light shows · tap to play, tap again to stop">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 8 }}>
               {SHOWS.map((s) => (
                 <Pad key={s.id} active={activeShow === s.id} accent={AMBER}
@@ -298,6 +319,7 @@ export function TouchConsole() {
                   onClick={() => playShow(activeShow === s.id ? null : s.id)} />
               ))}
             </div>
+            </Section>
             <BigSlider label="master" v={ctrl.master} min={0} max={1} step={0.01} on={(v) => set({ master: v })} />
           </>
         )}
@@ -308,7 +330,7 @@ export function TouchConsole() {
               <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
               <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
             </div>
-            <div style={microLabel}>My modes · save the look you just made</div>
+            <Section id="mymodes" label="My modes · save the look you just made">
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {cues.map((c) => (
                 <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -339,16 +361,20 @@ export function TouchConsole() {
                 border: `1.5px solid ${AMBER}`, background: `${AMBER}22`, color: "#fff", fontSize: 14,
               }}>💾 save</button>
             </div>
+            </Section>
             <div style={{ color: "#7e8ea6", fontSize: 12 }}>💡 Tap any light on the tree above to take it over — color it or hold it off while the show plays around it.</div>
-            <div style={microLabel}>Patterns</div>
+            <Section id="patterns" label="Patterns">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(94px, 1fr))", gap: 8 }}>
               {PADS.map((p) => (
                 <Pad key={p} active={ctrl.pattern === p} label={p} onClick={() => set({ pattern: p })} />
               ))}
             </div>
-            <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
-            <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
-            <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
+            </Section>
+            <Section id="dials" label="Dials">
+              <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
+              <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
+              <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
+            </Section>
           </>
         )}
 

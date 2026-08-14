@@ -63,7 +63,15 @@ export function App() {
     <div style={{ position: "fixed", inset: 0 }}>
       {/* DOCK layout (default): tree fills the LEFT half; ONE organized panel right.
           Float mode = the original free-floating widgets. */}
-      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: docked && !touchOpen ? "50%" : "100%" }}>
+      {/* touch mode: the sheet publishes its height as --sheet-h and the tree
+          RESIZES to the space above it (Elliot 08-14: "resize the tree to
+          fit") — R3F re-frames on container resize, nothing gets covered */}
+      <div style={{
+        position: "fixed", top: 0, left: 0,
+        bottom: touchOpen ? "var(--sheet-h, 0px)" : 0,
+        width: docked && !touchOpen ? "50%" : "100%",
+        transition: "bottom 0.25s ease",
+      }}>
         <Canvas
           shadows
           // PERF: cap devicePixelRatio (a 2-3x HiDPI panel would otherwise fill
