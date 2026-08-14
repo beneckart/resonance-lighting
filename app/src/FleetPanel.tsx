@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTwin } from "./store";
 import { Widget } from "./Widget";
 import { MockBridge, SerialBridge, type BridgeLink, type UpFrame } from "./bridge";
+import { CambiumBridge, startFramePump } from "./cambium";
+import { telemetry } from "./telemetry";
 import {
   applyEvent, applyHeartbeat, exportCsv, loadRegistry,
   onlineCount, saveRegistry, sweepOffline, uplinkPdr, type Registry,
@@ -37,7 +39,9 @@ export function FleetPanel() {
   const reg = useRef<Registry>(loadRegistry());
   const bridge = useRef<BridgeLink | null>(null);
   const [connected, setConnected] = useState(false);
-  const [transport, setTransport] = useState<"mock" | "serial" | null>(null);
+  const [transport, setTransport] = useState<"mock" | "serial" | "cambium" | null>(null);
+  const stopPump = useRef<(() => void) | null>(null);
+  const [cambiumNote, setCambiumNote] = useState<string | null>(null);
   const [flash, setFlash] = useState<Record<string, number>>({}); // mac → flash-until ts
   const [lastEvtLatency, setLastEvtLatency] = useState<number | null>(null);
   const tapSentAt = useRef<Record<string, number>>({});
@@ -62,10 +66,13 @@ export function FleetPanel() {
   const idxByMac = useMemo(() => new Map(fixtures.map((f, i) => [macFromNum(f.num), i])), [fixtures]);
 
   const disconnect = () => {
+    stopPump.current?.();
+    stopPump.current = null;
     bridge.current?.disconnect();
     bridge.current = null;
     setConnected(false);
     setTransport(null);
+    setCambiumNote(null);
     saveRegistry(reg.current);
   };
 
@@ -106,6 +113,31 @@ export function FleetPanel() {
     bridge.current = b;
     setConnected(true);
     setTransport("serial");
+  };
+
+  /** CAMBIUM: Justin's daemon on ws://localhost:8600 → CoreS3 modem → fleet.
+   *  The twin's rendered colors stream as ≤8 Hz `frame` messages (type-25
+   *  direct-frame path); hb/evt telemetry flows back through the same seam
+   *  the mock and USB transports use. */
+  const connectCambium = async () => {
+    disconnect();
+    const b = new CambiumBridge();
+    wire(b);
+    b.onMeta((m) => {
+      if (m.kind === "err") setCambiumNote(String(m.payload.msg ?? "protocol error"));
+      else if (m.kind === "charging") setCambiumNote(`☀ ${m.payload.count} charging`);
+      else if (m.kind === "close") setCambiumNote("reconnecting…");
+      else if (m.kind === "open") setCambiumNote(null);
+    });
+    await b.connect(); // throws if the daemon isn't running — surfaced below
+    bridge.current = b;
+    // pump the twin's live per-fixture colors (telemetry.states: {id, rgb})
+    stopPump.current = startFramePump(b, () =>
+      telemetry.states.map((s) => ({ id: s.id, rgb: s.rgb })),
+    );
+    b.send({ kind: "drive", on: true });
+    setConnected(true);
+    setTransport("cambium");
   };
 
   // the Rules panel hands compiled rule bytes to whoever holds the bridge
@@ -213,9 +245,13 @@ export function FleetPanel() {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {!connected && btn("▶ connect (sim fleet)", connectMock, !fixtures.length, true)}
           {!connected && SerialBridge.available() && btn("🔌 connect USB bridge", connectSerial)}
+          {!connected && btn("🌉 connect cambium", () => void connectCambium().catch((e) => setCambiumNote(String(e?.message ?? e))), !fixtures.length)}
           {connected && btn("■ disconnect", disconnect, false, true)}
           {btn("⬇ export log CSV", downloadCsv, !total)}
         </div>
+        {cambiumNote && (
+          <div style={{ color: "#ffb454" }}>cambium: {cambiumNote}</div>
+        )}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {btn("bench-10 layout", loadBench10)}
           {btn("full tree", loadTree)}
@@ -231,7 +267,7 @@ export function FleetPanel() {
         </div>
         {connected && (
           <div style={{ color: "#9fb0c7" }}>
-            {transport === "mock" ? "sim fleet" : "USB bridge"} ·{" "}
+            {transport === "mock" ? "sim fleet" : transport === "cambium" ? "cambium :8600" : "USB bridge"} ·{" "}
             <b style={{ color: online === total ? "#3ddc97" : "#ffb454" }}>{online}/{total}</b> online
             {lastEvtLatency !== null && <> · last tap→twin <b style={{ color: "#3ddc97" }}>{lastEvtLatency.toFixed(0)} ms</b></>}
           </div>

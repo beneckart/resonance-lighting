@@ -60,12 +60,24 @@ export interface SetRateDown { kind: "set_rate"; hbHz: number; frameHz: number }
 /** PROPOSED NB_RULESET — broadcast a compiled rule table (rules.ts bytes,
  *  ≤ 240 B = one frame); nodes store it in flash and run it locally. */
 export interface RulesetDown { kind: "ruleset"; epoch: number; bytes: number[] }
-export type DownFrame = ShowDown | IdentifyDown | SetRateDown | RulesetDown;
+/** Per-fixture color frame — the type-25 direct-frame path (Justin's cambium,
+ *  adopted by Ben 08-06). Streamed at ≤8 Hz over the LOCAL link (WS/serial),
+ *  never over radio by us — cambium packetizes; the fixture's 3-second
+ *  staleness fallback keeps "dies invisibly" true. rgb are linear floats
+ *  (may exceed 1.0): cambium never clamps here, normalize clamps, fw gammas. */
+export interface FrameDown {
+  kind: "frame";
+  seq: number;
+  fixtures: { id: string; rgb: [number, number, number] }[];
+}
+/** cambium drive gate: master on/off for the direct-frame path. */
+export interface DriveDown { kind: "drive"; on: boolean }
+export type DownFrame = ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown;
 
 // ── the seam ──────────────────────────────────────────────────────────────────
 
 export interface BridgeLink {
-  readonly transport: "mock" | "serial";
+  readonly transport: "mock" | "serial" | "cambium";
   connect(): Promise<void>;
   disconnect(): void;
   send(frame: DownFrame): void;
