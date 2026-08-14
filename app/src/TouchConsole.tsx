@@ -6,15 +6,13 @@ import { interpret } from "./llm";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { asset } from "./fixtures";
 
-/** TOUCH CONSOLE v2 — "the tree in your hand" (Elliot 08-14: full mobile
- *  redesign; all four operator modes; intuitive).
- *
- *  A phone LANDS here (isPhoneLike → open by default). The live 3-D tree stays
- *  visible in the top of the screen; controls live in a bottom sheet with the
- *  SAME four modes as the desktop tabs — Interactive · Shows · Sound ·
- *  Calibrate — so the mental model never forks. BLACKOUT/BEACON ride every
- *  mode (safety is never a tab away). Signature: the active mode tab glows
- *  lantern-amber, the tree's own light; everything else stays quiet.
+/** TOUCH CONSOLE v3 — Elliot's sketched layout (08-14 17:29Z, in-room):
+ *  "the visualizer is a separate screen and there are tabs for each mode that
+ *  scroll." 🌳 Tree is its own full-screen tab (visualizer + safety + mic
+ *  only); each MODE tab is a full-screen scrollable control page — controls
+ *  get the whole screen instead of a squeezed half-sheet. Tab bar scrolls
+ *  horizontally as modes grow. Same four modes as desktop (mental model never
+ *  forks); BLACKOUT/BEACON ride every screen; active tab glows lantern-amber.
  *  ✕ drops to the full desktop UI. */
 
 const AMBER = "#ffb454";
@@ -27,7 +25,9 @@ function isPhoneLike(): boolean {
     (window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1023px)").matches);
 }
 
-const MODES: { id: UiMode; icon: string; label: string }[] = [
+type TabId = "tree" | UiMode;
+const MODES: { id: TabId; icon: string; label: string }[] = [
+  { id: "tree", icon: "🌳", label: "Tree" },
   { id: "interactive", icon: "🌱", label: "Interactive" },
   { id: "lightshow", icon: "🎬", label: "Shows" },
   { id: "sound", icon: "🎵", label: "Sound" },
@@ -35,11 +35,10 @@ const MODES: { id: UiMode; icon: string; label: string }[] = [
 ];
 
 const sheet: React.CSSProperties = {
-  // bottom sheet: the tree stays alive above it
-  position: "fixed", left: 0, right: 0, bottom: 0, height: "58%", zIndex: 200,
-  background: "linear-gradient(180deg, rgba(10,13,20,0.92) 0%, #0f1320 18%)",
-  backdropFilter: "blur(10px)", borderTop: "1px solid #23304a",
-  borderRadius: "18px 18px 0 0",
+  // FULL-screen control page (Elliot's sketch): the tree has its own tab now,
+  // so a mode's controls own the whole screen and scroll freely
+  position: "fixed", left: 0, right: 0, top: 0, bottom: "calc(64px + env(safe-area-inset-bottom))", zIndex: 200,
+  background: "#0d1119",
   color: "#e7ecf6", font: "14px -apple-system, ui-sans-serif, system-ui, sans-serif",
   padding: "10px 14px calc(64px + env(safe-area-inset-bottom))",
   overflowY: "auto", display: "flex", flexDirection: "column", gap: 12,
@@ -85,6 +84,7 @@ function Pad({ active, label, onClick, accent = "#5b8cff" }: { active: boolean; 
 
 export function TouchConsole() {
   const [open, setOpen] = useState(isPhoneLike);
+  const [tab, setTab] = useState<TabId>("tree"); // land on the tree, per the sketch
   const setTouchOpen = useTwin((s) => s.setTouchOpen);
   useEffect(() => { setTouchOpen(open); return () => setTouchOpen(false); }, [open, setTouchOpen]);
   const ctrl = useTwin((s) => s.control);
@@ -167,6 +167,28 @@ export function TouchConsole() {
 
   return (
     <>
+      {tab === "tree" && (
+        <div style={{
+          position: "fixed", top: "max(8px, env(safe-area-inset-top))", left: 8, right: 8, zIndex: 205,
+          display: "flex", gap: 8, alignItems: "center",
+        }}>
+          <span style={{ fontWeight: 800, color: "#e7ecf6", textShadow: "0 1px 8px #000", flex: 1 }}>🌳 Resonance</span>
+          <button onClick={() => set({ blackout: !ctrl.blackout })} style={{
+            minHeight: 40, padding: "0 12px", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 12,
+            border: ctrl.blackout ? "1.5px solid #ff5b6e" : "1.5px solid #3a2a30",
+            background: ctrl.blackout ? "#2a1016" : "rgba(16,22,34,0.85)", color: ctrl.blackout ? "#ffd7dc" : "#cdd6e4",
+          }}>🌑</button>
+          <button onClick={() => set({ beaconPreempt: !ctrl.beaconPreempt })} style={{
+            minHeight: 40, padding: "0 12px", borderRadius: 12, cursor: "pointer", fontWeight: 700, fontSize: 12,
+            border: ctrl.beaconPreempt ? "1.5px solid #fff" : "1.5px solid #3a3a2a",
+            background: ctrl.beaconPreempt ? "#333" : "rgba(16,22,34,0.85)", color: "#fff",
+          }}>🔦</button>
+          <button onClick={() => setOpen(false)} aria-label="full console" style={{
+            width: 40, height: 40, borderRadius: 20, border: "1px solid #283549",
+            background: "rgba(16,22,34,0.85)", color: "#9fb0c7", fontSize: 16, cursor: "pointer",
+          }}>✕</button>
+        </div>
+      )}
       {selectedLight !== null && (
         <div style={{
           position: "fixed", left: 8, right: 8, bottom: "calc(58% + 8px)", zIndex: 205,
@@ -221,7 +243,7 @@ export function TouchConsole() {
           )}
         </div>
       )}
-      <div style={sheet}>
+      {tab !== "tree" && <div style={sheet}>
         {/* header: title + safety pair + exit — present in EVERY mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.3, flex: 1 }}>🌳 Resonance</span>
@@ -344,7 +366,7 @@ export function TouchConsole() {
             </div>
           </>
         )}
-      </div>
+      </div>}
 
       {/* ── voice: mic FAB above the tab bar + live transcript / result chip ── */}
       {(voiceState !== "idle" || voiceNote) && (
@@ -379,12 +401,13 @@ export function TouchConsole() {
         position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 210,
         display: "flex", gap: 6, padding: "8px 10px calc(8px + env(safe-area-inset-bottom))",
         background: "rgba(8,10,16,0.96)", borderTop: "1px solid #1c2740",
+        overflowX: "auto", // tabs scroll as modes grow (Elliot's sketch)
       }}>
         {MODES.map((m) => {
-          const active = uiMode === m.id;
+          const active = tab === m.id;
           return (
-            <button key={m.id} onClick={() => setUiMode(m.id)} aria-label={`mode ${m.label}`} style={{
-              flex: 1, minHeight: 52, borderRadius: 14, cursor: "pointer",
+            <button key={m.id} onClick={() => { setTab(m.id); if (m.id !== "tree") setUiMode(m.id); }} aria-label={`mode ${m.label}`} style={{
+              flex: "1 0 72px", minHeight: 52, borderRadius: 14, cursor: "pointer",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
               border: "none", background: "transparent",
               color: active ? AMBER : "#7e8ea6", fontWeight: active ? 700 : 500, fontSize: 11,
