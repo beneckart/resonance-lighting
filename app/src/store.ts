@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { blenderToThree, type FixturesDoc } from "./fixtures";
 import { runCommandStr, parseScript, type Override } from "./command";
 import { makeCue, loadCues, saveCues, type Cue } from "./cues";
+import { inDuskWindow } from "./duskgate";
 import type { Ripple } from "./interaction";
 import { clearLife, seedLife, seedRandomCluster, exciteRipples, exciteOrganism, exciteField, exciteChains, themeMapHue, setFieldTheme, setLifeState, setLifeRules, getLifeRules, type LifeRules } from "./field";
 
@@ -278,7 +279,7 @@ interface TwinState {
    *  to ZERO (the last panel lost the sun — the solar handoff), Solar Ray fires:
    *  the tree takes over as the sun. Sim feeds this from the daylight sensor
    *  (SolarRayDriver); the USB bridge should feed it nodes-with-battMa>0. */
-  solarPanelsCharging: (n: number) => void;
+  solarPanelsCharging: (n: number, source?: "sim" | "fleet", nowMs?: number) => void;
   setCameraPreset: (c: "hero" | "top") => void;
   setCinematic: (b: boolean) => void;
   setTimeOfDay: (t: number) => void;
@@ -796,7 +797,7 @@ export const useTwin = create<TwinState>((setState, get) => ({
   }),
   setGuest: (b) => setState({ guest: b }),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
-  solarPanelsCharging: (n) => {
+  solarPanelsCharging: (n, source = "sim", nowMs) => {
     const s = get();
     if (n === s.solarChargingCount) return; // no edge, no churn
     const fired = solarHandoffFired(s.solarChargingCount, n);
@@ -804,7 +805,12 @@ export const useTwin = create<TwinState>((setState, get) => ({
     // the SOLAR HANDOFF: the last panel just stopped harvesting → play the
     // ☀️ Solar Ray show (the tree takes over as the sun). Guards: never steal
     // from a running show, a guest DJ, or an armed blackout.
-    if (fired && !s.activeShow && !s.guest && !s.control.blackout) {
+    // ADR-0031 DUSK GATE (fleet telemetry only): a real charging edge fires
+    // ONLY inside the site's dusk window — clouds at 2pm read exactly like
+    // sunset to the panels, and the schedule, not the panel, is the clock.
+    // The sim slider stays instant so previews/demos still work anywhere.
+    const duskOk = source !== "fleet" || inDuskWindow(nowMs ?? Date.now());
+    if (fired && duskOk && !s.activeShow && !s.guest && !s.control.blackout) {
       recEvent("solarray", { auto: true });
       get().playShow("solarray-show");
     }

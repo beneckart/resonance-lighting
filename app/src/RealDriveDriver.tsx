@@ -51,7 +51,7 @@ export function RealDriveDriver() {
 
     const unsubMeta = bridge.onMeta((m) => {
       if (m.kind === "charging") {
-        useTwin.getState().solarPanelsCharging(Number(m.payload.count ?? 0));
+        useTwin.getState().solarPanelsCharging(Number(m.payload.count ?? 0), "fleet");
       } else if (m.kind === "err") {
         console.warn("[cambium]", m.payload.msg);
       } else if (m.kind === "open") {
