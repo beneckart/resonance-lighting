@@ -162,10 +162,22 @@ export function TouchConsole() {
     if (r.commands.length) runScript(r.commands.join("\n"));
 
     const badge = r.source === "openrouter" ? "🤖" : "⚙️";
+    // SAY WHY IT FELL BACK. interpretRemote already carries `error` on every
+    // failed remote attempt (bad key / no credit / rate limit / timeout / the
+    // model answered with nothing usable) — it just was not being shown, so a
+    // silent fall back to the offline interpreter looked like the AI being bad
+    // rather than the AI never having run. That is exactly the shape of
+    // Elliot's 08-15 report: "the simple commands worked but the more complex
+    // ones did not" — the deterministic interpreter handles simple phrases on
+    // its own, so only the compositional requests reveal that the remote brain
+    // is missing. The message is already redacted (redact() strips any key).
+    const why = r.source === "offline" && r.error ? ` · remote unavailable: ${r.error}` : "";
     setVoiceNote(
-      r.commands.length ? `${badge} ${r.note}` : `didn't catch a light command in “${t}”`,
+      r.commands.length
+        ? `${badge} ${r.note}${why}`
+        : `didn't catch a light command in “${t}”${why}`,
     );
-    window.setTimeout(() => setVoiceNote(null), 5000);
+    window.setTimeout(() => setVoiceNote(null), 7000);
   };
 
   const startVoice = () => {
@@ -361,7 +373,13 @@ export function TouchConsole() {
         {tab === "settings" && (
           <>
             <div style={microLabel}>Settings · this device</div>
-            <Section id="ai" label={`🤖 AI operator (OpenRouter key lives on THIS device) ${remoteConfigured() ? "· 🤖 Claude connected" : "· offline"}`}>
+            {/* "key saved", NOT "Claude connected". remoteConfigured() is just
+                !!loadKey() — it proves a key EXISTS, never that a call ever
+                succeeded. A bad, expired, or out-of-credit key reported
+                "🤖 Claude connected" while every request silently fell back to
+                the offline interpreter. The per-command 🤖/⚙️ badge is the real
+                connected signal; this label must not out-claim it. */}
+            <Section id="ai" label={`🤖 AI operator (OpenRouter key lives on THIS device) ${remoteConfigured() ? `· key saved · ${aiModel}` : "· offline"}`}>
               <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
                 Talk to the tree in plain language. Without a key it uses the built-in
                 offline interpreter — which keeps working when the network doesn't.

@@ -31,7 +31,13 @@ import { interpret, type Interpretation } from "./llm";
 
 const KEY_STORAGE = "resonance.openrouter.key";
 const MODEL_STORAGE = "resonance.openrouter.model";
-export const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
+/** Elliot 2026-08-15: "I would like it running opus 5".
+ *  Slug verified against OpenRouter's live model list (GET /api/v1/models) —
+ *  `anthropic/claude-opus-5` is present, alongside `-fast` and `:batch` variants.
+ *  Do not guess these: the previous default `anthropic/claude-sonnet-4.5` is a
+ *  real slug too, so a wrong-but-plausible model ID fails as a silent HTTP error
+ *  → offline fallback, which is indistinguishable from "the AI just isn't good". */
+export const DEFAULT_MODEL = "anthropic/claude-opus-5";
 export const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 /** localStorage is absent in tests/SSR — every accessor tolerates that. */
@@ -212,9 +218,33 @@ function stripFences(text: string): string {
     .trim();
 }
 
+/** Strip a leading list marker — `1.` / `2)` / `-` / `*` / `•` / `Step 3:`.
+ *
+ *  MEASURED 2026-08-15, and this is why "the simple commands worked but the more
+ *  complex ones did not" (Elliot): `isCommandLike` tests only the FIRST WORD
+ *  against COMMAND_HEADS, so a single bare line like `all pattern spiral` passes
+ *  while `1. all pattern spiral` and `- all pattern spiral` are both dropped. A
+ *  one-step request gets one bare line and works; a compositional request ("make
+ *  it look like a sunset, then slowly darker") is exactly the kind a model
+ *  answers as a numbered or bulleted list — so EVERY line fails the gate,
+ *  `commands` comes back empty, and the whole thing silently falls back to the
+ *  offline interpreter. The failure scaled with request complexity, which reads
+ *  as "the AI is weak" rather than "the AI's answer was thrown away".
+ *
+ *  This normalizes the line PREFIX only. The vocabulary gate is untouched: the
+ *  head must still be a command we own, so property 1 in this file's charter —
+ *  NO CODE, ONLY VOCABULARY — still holds. Applied on the remote path only;
+ *  what a human types is parsed exactly as before. */
+function stripListMarker(line: string): string {
+  return line.replace(/^\s*(?:[-*•]|\d+[.)]|step\s+\d+\s*[:.]?)\s+/i, "");
+}
+
 /** test seam — the fence stripper is internal, but it is the one piece of
  *  model-output handling worth pinning independently of a fake fetch. */
 export const stripFencesForTest = stripFences;
+/** test seam — see the note on stripListMarker; this is the fix for the
+ *  complexity-correlated silent fallback, so it gets pinned independently. */
+export const stripListMarkerForTest = stripListMarker;
 
 /** Natural language → command lines, via OpenRouter, with the offline
  *  interpreter as the floor. This function does not throw. */
@@ -258,7 +288,7 @@ export async function interpretRemote(nl: string, opts: RemoteOptions = {}): Pro
 
     const text = stripFences(extractText(await res.json()));
     // THE GATE: only lines that are vocabulary we own survive.
-    const commands = parseScript(text).filter(isCommandLike);
+    const commands = parseScript(text).map(stripListMarker).filter(isCommandLike);
 
     if (!commands.length) {
       // The model answered, but with nothing usable (prose, refusal, empty).
