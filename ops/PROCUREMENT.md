@@ -103,11 +103,12 @@ sourcing history.
   (possibly all Gen 4), confirmed 2026-08-15 -- Ethernet is built in and no
   Starlink Ethernet Adapter is needed.**
 - **Handhelds on hand (confirmed 2026-08-15, purchase details unreconciled):**
-  2x LilyGO **T-Deck, LCD variant** (2.8 in ST7789 IPS, BlackBerry keyboard over
-  I2C, trackball -- **not** the e-paper T-Deck Pro; base vs Plus not yet
-  confirmed, Plus adds GPS and a battery) and 1x M5Stack **Cardputer ADV**.
-  Candidate hardware for the Claude mesh bridge handheld (ADR 0037); no firmware
-  written. Dates and costs TBC.
+  2x LilyGO **T-Deck Plus**, LCD variant (ESP32-S3, 8 MB PSRAM / 16 MB flash,
+  2.8 in ST7789 IPS 320x240 + GT911 touch, BlackBerry keyboard on an ESP32-C3
+  over I2C, trackball, SX1262 LoRa, GPS, bundled 2000 mAh battery) and 1x M5Stack
+  **Cardputer ADV**. Hardware for the Claude mesh bridge handheld (ADR 0037); no
+  firmware written. **Not the T-Deck Pro** -- that is a different e-paper device
+  whose drivers do not transfer. Dates and costs TBC.
 
 ## To-buy queue
 

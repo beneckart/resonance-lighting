@@ -2,10 +2,10 @@
 
 **Date:** 2026-08-15
 
-**Status:** Proposed direction. **Hardware on hand** (2x LilyGO T-Deck, LCD
-variant -- **not** T-Deck Pro; 1x M5Stack Cardputer ADV; confirmed 2026-08-15).
-No firmware written, no board bring-up done. Hardware arrival is not firmware
-completion. Post-2026-event work unless Ben explicitly re-prioritizes it.
+**Status:** Proposed direction. **Hardware on hand** (2x LilyGO **T-Deck Plus**,
+LCD variant -- **not** T-Deck Pro; 1x M5Stack Cardputer ADV; confirmed
+2026-08-15). No firmware written, no board bring-up done. Hardware arrival is not
+firmware completion. Post-2026-event work unless Ben explicitly re-prioritizes it.
 
 **Owners:** Ben + Claude
 
@@ -97,20 +97,34 @@ Record the direction, with these constraints binding any implementation.
    TLS-plus-census pinch point. Prove milestones 0-4 on it, then port behind the
    display/input HAL. The HAL structure from the brief is right; building both
    at once is not.
-10. **Confirm the exact variant before writing display or input code.** The units
-    on hand are the **LCD T-Deck** -- the 2.8 in ST7789 IPS 320x240 with
-    capacitive touch, BlackBerry-style keyboard on an auxiliary MCU over I2C
-    (commonly 0x55), and trackball, which is what the brief's table describes.
-    The brief's table is therefore correct for this hardware and can be used as
-    written.
-    Two traps to avoid: the **T-Deck Pro is a different device** (3.1 in
-    e-paper, CST328 touch, TCA8418 keypad controller) and its pin maps and
-    drivers do not transfer; and **base T-Deck vs T-Deck Plus differ** (Plus adds
-    GPS and a battery). Confirm which is in hand before assuming a power path.
-    An IPS panel means streamed text can be rendered per delta with no special
-    handling -- but it also means **direct-sun readability is a real open risk**
-    for the milestone 5 sunglasses criterion. Check it early with the actual
-    panel outdoors rather than at the bench.
+10. **Variant confirmed: T-Deck Plus (LCD).** ESP32-S3FN16R8 with 8 MB PSRAM and
+    16 MB flash, 2.8 in ST7789 IPS 320x240 with GT911 capacitive touch,
+    BlackBerry-style keyboard on an ESP32-C3 auxiliary MCU over I2C (commonly
+    0x55), trackball, SX1262 LoRa as standard, a GPS receiver, a bundled
+    2000 mAh battery, and a case with an antenna break-out. The brief's board
+    table is correct for this hardware and can be used as written.
+    **Do not port from T-Deck Pro documentation** -- the Pro is a different
+    device (3.1 in e-paper, CST328 touch, TCA8418 keypad controller) whose
+    display and input drivers do not transfer. The names are one word apart and
+    this is the easiest available mistake.
+    An IPS panel means streamed text renders per delta with no special handling
+    -- but **direct-sun readability is a real open risk** for the milestone 5
+    sunglasses criterion. Check it early with the actual panel outdoors rather
+    than at the bench.
+11. **Battery life is a design constraint, not a given.** The 2000 mAh cell makes
+    the device untethered, but this repo has already measured that an always-on
+    ESP-NOW peer is radio-RX-dominated at roughly **168 mA / 0.55 W** on an
+    ESP32-S3 (LOG 2026-06-08, the sizing campaign that made deep sleep mandatory
+    for fixtures). A handheld is by design an always-on receiver, plus a backlit
+    IPS panel, plus periodic TLS. Expect well under a full night of continuous
+    operation, and treat runtime as a milestone-0 measurement rather than an
+    assumption.
+    The consequent design decision: **continuous census is the expensive mode.**
+    Duty-cycling the radio to extend runtime trades census completeness for
+    battery, and "how long was I not listening" must then be visible in the
+    census output rather than silently degrading it -- a quiet node and an
+    unobserved node must not look the same. Screen blanking is the cheap win;
+    radio duty-cycling is the one with a correctness cost.
 
 ## Consequences
 
@@ -125,8 +139,20 @@ Record the direction, with these constraints binding any implementation.
 - TLS plus sniffer plus UI on one ESP32-S3 is the memory pinch point. Budget
   roughly 50 KB heap per TLS session, keep exactly one in flight, put
   conversation state and the frame ring buffer in PSRAM, and log heap and PSRAM
-  watermarks at every milestone rather than assuming. The T-Deck's 8 MB PSRAM /
-  16 MB flash is comfortable on paper; measure it anyway.
+  watermarks at every milestone rather than assuming. The T-Deck Plus's 8 MB
+  PSRAM / 16 MB flash is comfortable on paper; measure it anyway.
+- The T-Deck Plus carries a **GPS receiver and a battery-backed power path**.
+  That is a real adjacency to the ADR 0031 sparse-time-anchor work (four SAM-M8Q
+  soft anchors and four DS3231 RTC anchors bought, qualification open): a
+  battery-powered handheld that already knows UTC could act as a walking time
+  anchor, and `NB_TIME_QUALITY` (type 20) is already defined and parse-stubbed
+  in `packet.h` for exactly this kind of source. Recorded as an opportunity to
+  evaluate later and explicitly **not** adopted here. ADR 0031's anchor plan
+  does not depend on this device existing and must not come to -- a show clock
+  that needs someone to be holding a handheld is not a production time source.
+- The **SX1262 LoRa radio is out of scope.** The fleet link is ESP-NOW on
+  channel 11 and nothing here changes that. Noted only so it is not mistaken for
+  a second mesh path.
 - API key, SSID/PSK, model, and mesh channel live in NVS, provisioned over a
   serial CLI. No secret is compiled in or committed; any local config header is
   gitignored, matching the existing `wifi_secrets.h` convention.
@@ -140,7 +166,8 @@ Milestones, each gated on measured heap and PSRAM watermarks:
 
 | M | Scope | Accept when |
 |---|-------|-------------|
-| 0 | T-Deck bring-up: ST7789 display, I2C keyboard, trackball, WiFi STA, SNTP, channel guard | Status bar live; a wrong-channel AP drops WiFi, keeps mesh, and says so |
+| 0 | T-Deck Plus bring-up: ST7789 display, GT911 touch, I2C keyboard, trackball, WiFi STA, SNTP, channel guard | Status bar live; a wrong-channel AP drops WiFi, keeps mesh, and says so |
+| 0b | Measure runtime and direct-sun readability on the real hardware | Hours of continuous census on the 2000 mAh cell, recorded as a number; test pattern legible outdoors through sunglasses |
 | 1 | Claude client: streaming chat, NVS key, trimmed history, offline queue | Sustained chat over the Beryl; survives a two-minute WAN pull |
 | 2 | `packet.h` integration + mesh TX | Bridge triggers a bench fixture's strike and LED mode from a local menu |
 | 3 | Census on the ESP-NOW receive path | Census matches known bench fixtures; RSSI sane; one-hour soak with no heap creep |

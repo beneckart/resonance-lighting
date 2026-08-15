@@ -78,11 +78,37 @@ paragraph-boundary repaints instead of per-delta rendering. Ben confirmed the
 units are the **LCD** T-Deck, so the original brief's board table is correct as
 written and no UI redesign is required. The Pro/LCD distinction is now recorded
 in `AGENTS.md`, the ADR, and the brief so nobody ports from the wrong driver set
-after reading a spec page. Base-vs-Plus (Plus adds GPS and a battery) is still
-unconfirmed. The real display risk on this hardware is not refresh rate but
-direct-sun readability of a 2.8 in IPS through sunglasses, which is now a
-milestone 0 check rather than a milestone 5 acceptance criterion -- it is the
-cheapest available falsification of the whole concept.
+after reading a spec page.
+
+**Variant resolved: the T-Decks are Plus.** Confirmed parts: ESP32-S3FN16R8,
+8 MB PSRAM / 16 MB flash, 2.8 in ST7789 IPS 320x240 with GT911 capacitive touch,
+BlackBerry keyboard on an ESP32-C3 aux MCU over I2C, trackball, SX1262 LoRa as
+standard, a GPS receiver, and a bundled 2000 mAh battery. Two consequences worth
+recording beyond the spec list:
+
+*Runtime is now a real design constraint.* The Plus is untethered, but this repo
+already measured an always-on ESP-NOW peer at roughly 168 mA / 0.55 W on an
+ESP32-S3, radio-RX-dominated (LOG 2026-06-08 -- the finding that made deep sleep
+mandatory for fixtures). A handheld is by design an always-on receiver plus a
+backlit IPS panel plus periodic TLS, so continuous census will not last a night
+on 2000 mAh. Added as a milestone 0 measurement alongside the sun-readability
+check. The design consequence: duty-cycling the radio buys runtime but costs
+census completeness, so the census must distinguish "this node was quiet" from
+"I was not listening" rather than letting the two look identical.
+
+*The GPS is a genuine ADR 0031 adjacency, deliberately not adopted.*
+`NB_TIME_QUALITY` (type 20) is already defined and parse-stubbed in `packet.h`
+with a `source` field that includes `bridge`, so a battery-powered handheld that
+knows UTC could act as a walking time anchor beside the four purchased SAM-M8Q
+and four DS3231 anchors. Recorded as an opportunity to evaluate after the core
+device works, and explicitly excluded from ADR 0031's production path -- a show
+clock that depends on someone carrying a handheld is not a clock. The SX1262
+LoRa is out of scope entirely; the fleet link remains ESP-NOW on channel 11.
+
+The real display risk on this hardware is not refresh rate but direct-sun
+readability of a 2.8 in IPS through sunglasses, now a milestone 0 check rather
+than a milestone 5 acceptance criterion -- the cheapest available falsification
+of the whole concept.
 
 No firmware, hardware, or fleet state changed. `AGENTS.md` gains the channel
 rule and a one-wire-contract gotcha; `TODO.md` gains a camp-network section.

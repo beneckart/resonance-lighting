@@ -75,21 +75,28 @@ One codebase, board-specific code confined to a display/input HAL.
 | Input | 56-key matrix | BlackBerry-style keyboard on an aux MCU over I2C (commonly 0x55), plus trackball |
 | Role | pocket/lanyard, walking-around console | primary chat terminal (about 50x20 chars) |
 
-**Both are on hand** as of 2026-08-15: **2x T-Deck (LCD variant) and 1x Cardputer
-ADV**. The table above is accurate for these units.
+**Both are on hand** as of 2026-08-15: **2x T-Deck Plus (LCD variant) and
+1x Cardputer ADV**. The table above is accurate for these units.
 
-Two variant traps, because LilyGO ships several devices under similar names:
+**T-Deck Plus, confirmed:** ESP32-S3FN16R8, 8 MB PSRAM, 16 MB flash, 2.8 in
+ST7789 IPS 320x240 with GT911 capacitive touch, BlackBerry keyboard on an
+ESP32-C3 auxiliary MCU over I2C, trackball, SX1262 LoRa as standard, a GPS
+receiver, a bundled 2000 mAh battery, and a case with an antenna break-out and
+tripod mount. The Plus is the variant that makes LoRa standard and adds GPS and
+the battery; the base T-Deck is a bring-your-own-cell devkit.
 
-- **T-Deck Pro is a different device** -- 3.1 in *e-paper* 320x240, CST328 touch,
-  TCA8418 keypad controller, plus GPS and LoRa. Its display and input drivers do
-  not transfer, and streamed chat text would need paragraph-boundary repaints
-  instead of per-delta rendering. Not what is in hand; noted so nobody ports to
-  the wrong driver set after reading a spec page.
-- **Base T-Deck vs T-Deck Plus** -- the Plus adds GPS and a battery. Confirm
-  which is in hand before assuming a power path or an untethered runtime.
+**T-Deck Pro is a different device** -- 3.1 in *e-paper* 320x240, CST328 touch,
+TCA8418 keypad controller. Its display and input drivers do not transfer, and
+streamed chat would need paragraph-boundary repaints instead of per-delta
+rendering. Not what is in hand; recorded so nobody ports to the wrong driver set
+after reading a spec page one word off from theirs.
 
 Still verify pin maps and the keyboard controller address against LilyGO's
 documentation for the actual revision rather than trusting this table.
+
+**Two on-board radios that are not the fleet link.** SX1262 LoRa is out of scope
+-- the fleet link is ESP-NOW on channel 11. The GPS is more interesting: see
+section 10.
 
 **Build the T-Deck first.** Two units means the primary target has a spare,
 which matters for a device carried in dust; it also has the larger display and
@@ -352,10 +359,25 @@ Recorded so the reasoning is not lost:
 
 ## 10. Open questions
 
-- Who owns the build. (Board is settled: T-Deck first, Cardputer ADV port after.)
-- Whether the T-Decks are base or Plus (Plus adds GPS and a battery), which
-  determines whether an untethered runtime needs additional hardware.
-- Whether a 2.8 in IPS is readable in direct playa sun through sunglasses.
+- Who owns the build. (Board is settled: T-Deck Plus first, Cardputer ADV port
+  after.)
+- Whether a 2.8 in IPS is readable in direct playa sun through sunglasses. This
+  is the cheapest falsification of the whole concept -- do it in milestone 0.
+- **Runtime on the 2000 mAh cell.** This repo measured an always-on ESP-NOW peer
+  at roughly 168 mA / 0.55 W on an ESP32-S3, radio-RX-dominated (LOG 2026-06-08)
+  -- the finding that made deep sleep mandatory for fixtures. A handheld is an
+  always-on receiver plus a backlit panel plus periodic TLS, so expect well under
+  a night of continuous use. Measure it; do not assume it. The design question
+  that follows: duty-cycling the radio buys runtime but costs census
+  completeness, and the census must then distinguish "this node was quiet" from
+  "I was not listening" rather than letting the two look identical.
+- **GPS as a possible ADR 0031 adjacency.** The Plus has a GPS receiver, and
+  `NB_TIME_QUALITY` (type 20) is already defined and parse-stubbed in `packet.h`
+  with a `source` field that includes `bridge`. A battery-powered handheld that
+  knows UTC could act as a walking time anchor or a locate aid alongside the four
+  purchased SAM-M8Q soft anchors and four DS3231 RTC anchors. Worth evaluating
+  after the core device works -- and explicitly not a production time source: a
+  show clock that depends on someone carrying a handheld is not a clock.
 - Group/class addressing: client-side expansion (start here) vs a wire change.
 - Whether the census should also be exposed over serial so the existing
   `net_bench_dashboard.py` can consume it.

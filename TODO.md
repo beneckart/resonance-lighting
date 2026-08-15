@@ -102,15 +102,18 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Claude mesh bridge handheld -- decide whether to build at all (ADR 0037).**
   Direction and corrected design brief are recorded in
   `docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md`; nothing is committed.
-  **Hardware is on hand (2026-08-15): 2x LilyGO T-Deck LCD variant + 1x M5Stack
-  Cardputer ADV.** Board is settled -- T-Deck first (two units means a spare,
-  plus the larger display and better keyboard), Cardputer ADV port after, behind
-  the display/input HAL. Confirm base vs Plus on the T-Decks (Plus adds GPS and a
-  battery) before assuming an untethered runtime, and do **not** port from
-  T-Deck Pro documentation -- the Pro is a different device (e-paper, CST328
-  touch, TCA8418 keypad) whose drivers do not transfer. Cheapest early
-  falsification: put a test pattern on the actual panel in direct sun with
-  sunglasses, before writing anything else. Remaining decision: how
+  **Hardware is on hand (2026-08-15): 2x LilyGO T-Deck Plus (LCD) + 1x M5Stack
+  Cardputer ADV.** Board is settled -- T-Deck Plus first (two units means a
+  spare, plus the larger display and better keyboard), Cardputer ADV port after,
+  behind the display/input HAL. Do **not** port from T-Deck Pro documentation --
+  the Pro is a different device (e-paper, CST328 touch, TCA8418 keypad) whose
+  drivers do not transfer. Two milestone-0 measurements before any real build,
+  both cheap and both able to kill the concept: put a test pattern on the panel
+  in direct sun with sunglasses, and measure continuous-census runtime on the
+  2000 mAh cell (this repo measured an always-on ESP-NOW peer at about 168 mA
+  radio-RX-dominated, LOG 2026-06-08, so expect well under a night). If runtime
+  forces radio duty-cycling, the census must distinguish "node was quiet" from
+  "I was not listening". Remaining decision: how
   class/spatial targeting works, since no group addressing exists on the wire
   (start with client-side expansion from the census; a class byte or named
   groups would need their own ADR). Non-negotiables if it is built: include

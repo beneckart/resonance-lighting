@@ -131,12 +131,15 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   channel guard is specified but not implemented in any firmware; the one
   virtual SSID across the camp and art-site Starlinks is unresolved (ADR 0036).
 - Claude mesh bridge handheld: direction recorded only. Hardware IS on hand
-  (2x LilyGO T-Deck **LCD** variant + 1x M5Stack Cardputer ADV) but no firmware
-  is written and no bring-up is done. T-Deck is the primary target; do not port
-  from **T-Deck Pro** documentation, which is a different device (e-paper,
-  CST328 touch, TCA8418 keypad) whose drivers do not transfer. Class/spatial
-  addressing still needs its own wire-format decision -- no group addressing
-  exists today. Post-2026-event unless Ben re-prioritizes (ADR 0037).
+  (2x LilyGO **T-Deck Plus**, LCD variant + 1x M5Stack Cardputer ADV) but no
+  firmware is written and no bring-up is done. T-Deck Plus is the primary target;
+  do not port from **T-Deck Pro** documentation, which is a different device
+  (e-paper, CST328 touch, TCA8418 keypad) whose drivers do not transfer.
+  Class/spatial addressing still needs its own wire-format decision -- no group
+  addressing exists today. The Plus's GPS is a noted but unadopted adjacency to
+  the ADR 0031 time anchors; its 2000 mAh cell against a radio-RX-dominated
+  always-on receiver is an open runtime question. Post-2026-event unless Ben
+  re-prioritizes (ADR 0037).
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
 - Trunk-light integration: the production direction is about 16 mostly/all RGBW
