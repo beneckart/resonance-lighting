@@ -88,6 +88,38 @@ export function startFleetLink(url?: string): void {
     if (m.kind === "open" && !state.connected) { state.connected = true; bump(); }
     if (m.kind === "close" && state.connected) { state.connected = false; bump(); }
   });
+  // BOOTSTRAP FROM THE DAEMON'S MEMORY (08-15, Elliot: "why am I only seeing
+  // one light now? We had 10 before"): this registry dies with the page, but
+  // the daemon has been listening for hours — its /fleet roster is the census
+  // a refresh was throwing away. Seed from it once, then live frames take
+  // over. Bootstrapped rows are stamped just inside the 5-minute window and
+  // OUTSIDE the 60-second one: "the daemon knows this lantern" is honest;
+  // "this page heard it seconds ago" would not be.
+  const httpBase = (b as unknown as { url?: string })?.url ?? "";
+  const fleetUrl = httpBase.replace(/^ws/, "http").replace(/\/ws$/, "/fleet");
+  void fetch(fleetUrl)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((roster: Record<string, { fixture_id?: string | null; telemetry?: Record<string, unknown> | null }> | null) => {
+      if (!roster || bridge !== b) return;
+      const now = Date.now();
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      const numOrNull = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+      for (const [mac, row] of Object.entries(roster)) {
+        if (registry.records[mac]) continue; // live data already beat us
+        const t = row.telemetry ?? {};
+        applyHeartbeat(registry, {
+          kind: "hb", mac: mac.toUpperCase(), seq: 0, uptimeMs: 0,
+          battMv: num(t.batt_mv), battMa: num(t.batt_ma), soc: num(t.soc_pct),
+          resetReason: 0, caState: num(t.life_state), mode: num(t.mode),
+          dlPdrX1000: 0, dlRssi: num(t.dl_rssi),
+          lifeState: numOrNull(t.life_state), program: numOrNull(t.program),
+          powerTier: numOrNull(t.power_tier),
+        }, now - 299_000);
+      }
+      bump();
+    })
+    .catch(() => { /* no HTTP roster — live frames alone, as before */ });
+
   const dial = () => {
     if (bridge !== b) return; // stopped meanwhile
     void b.connect().catch(() => {

@@ -9,6 +9,7 @@ import { startMic, startTrack, stopAudio } from "./audio";
 import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL } from "./openrouter";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { ThemePicker } from "./ThemePicker";
+import { loadCalibration, resolveFixtureId } from "./calibration";
 import { asset } from "./fixtures";
 
 /** TOUCH CONSOLE v4 — Elliot 08-14 19:14Z: "menu of controls with the tree
@@ -682,7 +683,7 @@ function LocatePage() {
   const reg = fleetRegistry();
   const now = Date.now();
   const rows = Object.values(reg.records).sort((a, b) => b.lastSeenMs - a.lastSeenMs);
-  const [blinked, setBlinked] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null); // mac → LightSheet
 
   const age = (ms: number) => {
     const s = Math.max(0, Math.round((now - ms) / 1000));
@@ -718,14 +719,15 @@ function LocatePage() {
         {c.belowLedsOff > 0 && <span style={{ color: "#ffb454" }}> · {c.belowLedsOff} at/under the 2950 mV LEDs-off floor</span>}
         {c.gaugeFaults.length > 0 && <span style={{ color: "#ff5b6e" }}> · gauge fault: {c.gaugeFaults.join(", ")}</span>}
       </div>
-      <div style={{ color: "#7e8ea6", fontSize: 11 }}>tap a light to BLINK it on the real tree</div>
+      <div style={{ color: "#7e8ea6", fontSize: 11 }}>tap a light for its control screen</div>
+      {detail && <LightSheet mac={detail} onClose={() => setDetail(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {rows.map((r) => (
-          <button key={r.mac} onClick={() => { fleetIdentify(r.mac, 3); setBlinked(r.mac); window.setTimeout(() => setBlinked((b) => (b === r.mac ? null : b)), 3000); }}
+          <button key={r.mac} onClick={() => setDetail(r.mac)}
             style={{
               display: "flex", gap: 10, alignItems: "baseline", padding: "9px 10px", borderRadius: 10,
-              border: `1px solid ${blinked === r.mac ? "#ffb454" : "#1c2740"}`,
-              background: blinked === r.mac ? "#ffb45422" : "#0d1420", color: "#dbe6f5",
+              border: `1px solid ${detail === r.mac ? "#ffb454" : "#1c2740"}`,
+              background: detail === r.mac ? "#ffb45422" : "#0d1420", color: "#dbe6f5",
               fontFamily: "ui-monospace, monospace", fontSize: 12, cursor: "pointer", touchAction: "manipulation",
             }}>
             <span>{litDot(r)}</span>
@@ -740,5 +742,128 @@ function LocatePage() {
         ))}
       </div>
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 💡 LIGHT SHEET — one lantern's full control + status screen (Elliot 08-15:
+// "when I click on a light in locate I should get a separate screen: what it
+// is doing, what it is running, ring the bell..."). Everything here is HONEST:
+// each field states its source, and what the radio does not report yet is
+// said out loud rather than guessed (the trust rule from the AI manual §5).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LIFE_LABEL: Record<number, string> = {
+  0: "0 · boot/park", 1: "1 · dormant (lights off, conserving)",
+  2: "2 · waking", 3: "3 · ALIVE — running its show",
+};
+const TIER_LABEL: Record<number, string> = {
+  0: "0 · full power", 1: "1 · dimmed (ADR-0023: ~3.00 V floor)",
+  2: "2 · LEDs off, OTA windows (~2.95 V)", 3: "3 · deep conservation (~2.90 V)",
+};
+
+function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
+  useFleet();
+  const fixtures = useTwin((s) => s.fixtures);
+  const r = fleetRegistry().records[mac];
+  const [note, setNote] = useState<string | null>(null);
+  if (!r) return null;
+
+  // MAC↔slot join (Calibrate commissioning owns this; often still unmapped)
+  const slot = resolveFixtureId(loadCalibration(), mac);
+  const fx = slot ? fixtures.find((f) => f.id === slot) : undefined;
+  const age = Math.max(0, Math.round((Date.now() - r.lastSeenMs) / 1000));
+  const lit = litState(r);
+
+  const act = async (label: string, path: string) => {
+    setNote(`${label}…`);
+    try {
+      const res = await fetch(path);
+      setNote(res.ok ? `${label} ✓ sent` : `${label} failed (${res.status})`);
+    } catch {
+      setNote(`${label} failed — no daemon`);
+    }
+    window.setTimeout(() => setNote(null), 4000);
+  };
+  const solid = (rr: number, gg: number, bb: number) =>
+    act("colour", `/cambium/debug/solid?id=${mac}&r=${rr}&g=${gg}&b=${bb}&w=0`);
+
+  const row = (k: string, v: React.ReactNode) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, lineHeight: 1.8 }}>
+      <span style={{ color: "#7e8ea6" }}>{k}</span><span style={{ textAlign: "right" }}>{v}</span>
+    </div>
+  );
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 260, background: "rgba(5,8,14,0.94)",
+      display: "flex", flexDirection: "column", padding: "18px 16px calc(20px + env(safe-area-inset-bottom))",
+      overflowY: "auto", color: "#e7ecf6",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 22 }}>{lit === "lit" ? "🟡" : lit === "dormant" ? "⚫" : "◌"}</span>
+        <b style={{ fontSize: 20, fontFamily: "ui-monospace, monospace" }}>{mac}</b>
+        {slot && <span style={{ color: "#7e8ea6" }}>slot {slot}</span>}
+        <button onClick={onClose} aria-label="close light sheet" style={{
+          marginLeft: "auto", width: 40, height: 40, borderRadius: 20, fontSize: 16,
+          border: "1px solid #2b3a52", background: "#141a26", color: "#dbe6f5", cursor: "pointer",
+        }}>✕</button>
+      </div>
+
+      {note && <div style={{ margin: "8px 0", color: AMBER, fontSize: 13 }}>{note}</div>}
+
+      <div style={{ ...microLabel, marginTop: 14 }}>Live from its heartbeat</div>
+      {row("state", r.lifeState !== null ? (LIFE_LABEL[r.lifeState] ?? String(r.lifeState)) : "not reported")}
+      {row("behavior program", r.program !== null ? (r.program === 0 ? "0 · none (parked)" : `program ${r.program}`) : "not reported")}
+      {row("power protocol", r.powerTier !== null ? (TIER_LABEL[r.powerTier] ?? String(r.powerTier)) : "not reported")}
+      {row("battery", r.battMv > 0 && r.battMv < GAUGE_FAULT_MV ? "⚠ gauge fault" :
+        <>{r.battMv} mV {r.battMa > 0 ? `· charging +${r.battMa} mA ⚡` : r.battMa < 0 ? `· draining ${r.battMa} mA` : ""}</>)}
+      {row("last heard", `${age < 90 ? `${age}s` : `${Math.round(age / 60)}m`} ago · ${r.hbCount} heartbeats · ${r.reboots} reboots`)}
+      {row("radio", r.dlRssi !== 0 ? `${r.dlRssi} dBm at the lantern` : "—")}
+
+      <div style={{ ...microLabel, marginTop: 14 }}>From the model{slot ? "" : " (unmapped — needs commissioning/Constellate)"}</div>
+      {fx ? (
+        <>
+          {row("role", fx.role)}
+          {row("hang height", `${fx.pos[1].toFixed(2)} m above ground (design)`)}
+          {row("zone", `${fx.zone} · light #${fx.num}`)}
+        </>
+      ) : (
+        <div style={{ color: "#7e8ea6", fontSize: 13 }}>
+          No slot mapped for this MAC yet — height/role unknown until the
+          MAC↔slot join (Calibrate → commissioning, or the Constellate sweep).
+        </div>
+      )}
+
+      <div style={{ ...microLabel, marginTop: 14 }}>Not on the radio yet — honest gaps</div>
+      <div style={{ color: "#7e8ea6", fontSize: 13, lineHeight: 1.6 }}>
+        Presence/ToF ("what it does when someone walks under") and neighbor
+        events are reserved-but-unsent in the firmware (NB_EVENT). When Ben
+        ships them, they land here.
+      </div>
+
+      <div style={{ ...microLabel, marginTop: 16 }}>Do things to THIS lantern</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+        <Pad active={false} accent={AMBER} label="✨ blink" onClick={() => { fleetIdentify(mac, 3); setNote("blink sent (3 s)"); window.setTimeout(() => setNote(null), 3000); }} />
+        <Pad active={false} accent="#c8a24a" label="🔔 knock (bell)" onClick={() => act("knock", `/cambium/debug/knock?mac=${mac}&ms=40`)} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginTop: 8 }}>
+        {([["red",255,0,0],["orange",255,120,0],["green",0,255,0],["cyan",0,200,255],["blue",0,0,255],["white",255,255,255]] as const).map(([name, rr, gg, bb]) => (
+          <button key={name} aria-label={`solid ${name}`} onClick={() => solid(rr, gg, bb)} style={{
+            height: 40, borderRadius: 10, border: "1.5px solid #2b3a52", cursor: "pointer",
+            background: `rgb(${rr},${gg},${bb})`, touchAction: "manipulation",
+          }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <Toggle on={false} label="⭘ dark" onClick={() => act("dark", `/cambium/debug/solid?id=${mac}&r=0&g=0&b=0&w=0`)} />
+      </div>
+      <div style={{ color: "#7e8ea6", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+        Colour/dark go straight to the real lantern (daemon direct-frame — no
+        drive toggle needed) and it falls back to its own behavior ~3 s after
+        the last frame. Knock fires only if the lantern's daytime-surplus power
+        gate allows it (ADR-0030) and a solenoid is fitted.
+      </div>
+    </div>
   );
 }

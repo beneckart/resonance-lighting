@@ -333,7 +333,13 @@ export const useTwin = create<TwinState>((setState, get) => ({
   cmdLog: [],
   view: { mock: false, monitor: false, deadCount: 6 },
   monitorStats: { reporting: 0, dead: 0, stale: 0 },
-  net: { channel: 11, driveReal: false },
+  // driveReal defaults ON (Elliot 08-15: "we want it to drive real by
+  // default") — the un-flagged app streams to the physical tree the moment the
+  // daemon answers. ?demo=1 hard-disables it in armDemoLock; with no daemon the
+  // stream reaches nobody and costs nothing. KNOWN CAVEAT, stated not hidden:
+  // two phones both driving = last-writer flicker; daemon-side single-driver
+  // arbitration is the real fix and is on the list with Justin.
+  net: { channel: 11, driveReal: true },
   cues: loadCues(),
   timeline: { playing: false, stepSecs: 8 },
   ripples: [],
@@ -839,7 +845,14 @@ export const useTwin = create<TwinState>((setState, get) => ({
     return { overrides: o };
   }),
   setGuest: (b) => setState({ guest: b }),
-  armDemoLock: () => setState({ demoLock: true, guest: true }),
+  armDemoLock: () =>
+    setState((s) => ({
+      demoLock: true,
+      guest: true,
+      // drive-real now defaults ON; the public sandbox must never stream to
+      // the physical tree — hard-off here, and the demo UI has no re-arm path
+      net: { ...s.net, driveReal: false },
+    })),
   setSensors: (p) => setState((s) => ({ sensors: { ...s.sensors, ...p } })),
   solarPanelsCharging: (n, source = "sim", nowMs) => {
     const s = get();
