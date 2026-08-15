@@ -8,6 +8,7 @@ import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
 import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL } from "./openrouter";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
+import { ThemePicker } from "./ThemePicker";
 import { asset } from "./fixtures";
 
 /** TOUCH CONSOLE v4 — Elliot 08-14 19:14Z: "menu of controls with the tree
@@ -120,6 +121,13 @@ export function TouchConsole() {
   const [modeName, setModeName] = useState("");
   const [editModes, setEditModes] = useState(false);
   const runScript = useTwin((s) => s.runScript);
+  // Game of Light lifecycle (mobile parity with InteractivityPanel, 08-15)
+  const golPhase = useTwin((s) => s.gol.phase);
+  const armGol = useTwin((s) => s.armGol);
+  const golSetPhase = useTwin((s) => s.golSetPhase);
+  const golFirstVisitor = useTwin((s) => s.golFirstVisitor);
+  const caTheme = useTwin((s) => s.caTheme);
+  const setCaTheme = useTwin((s) => s.setCaTheme);
   // AI operator settings. Hooks live here, ABOVE the early return — a sheet
   // effect placed below one crashed this component on 08-14 ("fewer hooks than
   // expected") and there is no reason to relearn that.
@@ -350,7 +358,12 @@ export function TouchConsole() {
               ))}
             </div>
             </Section>
+            {/* full dials here too (Elliot 08-15: "for Light Show mode are there
+                still controls for speed brightness etc") — master alone wasn't it */}
             <BigSlider label="master" v={ctrl.master} min={0} max={1} step={0.01} on={(v) => set({ master: v })} />
+            <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
+            <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
+            <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
           </>
         )}
 
@@ -360,6 +373,30 @@ export function TouchConsole() {
               <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
               <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
             </div>
+
+            {/* GAME OF LIGHT — the ignition lifecycle was desktop-only until
+                08-15 (Elliot: "why doesn't interactive show the game of life").
+                The pads alone set pattern=life with gol.phase stuck at "off" —
+                the bare CA field, not the experience. This arms the real thing. */}
+            <Section id="gol" label={`Game of Light · ${
+              golPhase === "off" ? "not armed" :
+              golPhase === "standby" ? "🌙 standby — waiting for first visitor" :
+              golPhase === "live" ? "🟢 LIVE" : "⚡ igniting…"}`}>
+              <div style={{ display: "flex", gap: 8 }}>
+                {golPhase === "off"
+                  ? <Toggle on={false} accent="#3ddc97" label="▶ Arm (standby)" onClick={() => armGol()} />
+                  : <Toggle on={true} accent="#3ddc97" label="⏹ end" onClick={() => golSetPhase("off")} />}
+                {golPhase === "standby" && (
+                  <Toggle on={false} accent="#5b8cff" label="👤 sim first visitor"
+                    onClick={() => golFirstVisitor(fixtures.length ? (Math.random() * fixtures.length) | 0 : 0)} />
+                )}
+              </div>
+              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
+                Arm it and the tree goes dark, waiting. The first tap ignites it —
+                then every tap seeds life that spreads light to light.
+              </div>
+              <ThemePicker value={caTheme} onPick={setCaTheme} />
+            </Section>
             <Section id="mymodes" label="My modes · save the look you just made">
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {cues.map((c) => (
