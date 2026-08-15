@@ -21,8 +21,9 @@ name2mac() { case "$(echo "$1" | tr A-Z a-z)" in mario) echo F40384;; luigi) ech
 
 fleet_py() { curl -s -m 4 "$D/fleet"; }
 
-target_fw() { # fw string baked in a bin: grep it out of the artifact
-  strings "$1" 2>/dev/null | grep -m1 -o "fixture-20[0-9-]*\.[0-9]*" || echo "unknown"
+target_fw() { # fw string baked in a bin: most common full match wins (a stray
+  # partial elsewhere in the binary must not poison the comparison)
+  strings "$1" 2>/dev/null | grep -o "fixture-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.[0-9][0-9]*" | sort | uniq -c | sort -rn | awk 'NR==1{print $2}' || echo "unknown"
 }
 
 lan_sweep() { # print "IP FIXTURE_ID FW" for every fixture serving /telemetry
@@ -79,6 +80,7 @@ print('bridge: connected',j['connected'],'rx',j.get('rx_pkts'),'crc_err',j.get('
     while [[ $SECONDS -lt $END ]]; do
       curl -s -m 4 "$D/debug/maint?on=1" >/dev/null
       while read -r IP FID FW; do
+        case "$FID" in F40384|F2B7DC) continue;; esac  # bench pair: keeps its armed image, never batch-flashed
         [[ "$FW" == "$TFW" ]] && continue
         case " $DONE " in *" $FID "*) continue;; esac
         echo "[$(date +%T)] $FID at $IP on $FW -> flashing"
