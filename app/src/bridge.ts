@@ -41,6 +41,19 @@ export interface HbFrame {
   mode: number;
   dlPdrX1000: number; // downlink PDR as seen by this peer
   dlRssi: number; // RSSI of bridge frames at this peer (the survey signal!)
+
+  /** Ben's lifecycle triple (ADR-0023 power policy). Optional because the mock
+   *  and serial bridges never send them; NULLABLE because cambium genuinely
+   *  reports null for a fixture that has not yet said — and null is NOT 0.
+   *
+   *  That distinction is the whole point: measured on the live fleet 2026-08-15,
+   *  a fixture running program 1 at intensity 46 reported life_state=null, while
+   *  a genuinely dormant one reported life_state=1/program=0/tier=3. Coercing
+   *  null to 0 (which this seam used to do) files the RUNNING fixture under
+   *  "dormant". Unknown must stay unknown all the way to the screen. */
+  lifeState?: number | null;
+  program?: number | null;
+  powerTier?: number | null;
 }
 
 /** PROPOSED NB_STATE_EVT — instant edge report. */
@@ -50,6 +63,9 @@ export interface EvtFrame {
   seq: number;
   event: "state" | "tap" | "boot" | "fault" | "identify_ack";
   value: number; // new ca_state / fault code / tap strength
+  /** choreo intensity 0..255 where the transport reports it (cambium does).
+   *  The most direct "is this light actually on" signal the fleet emits. */
+  intensity?: number;
 }
 
 /** cambium's non-fleet uplink (charging census, bridge-board health, protocol

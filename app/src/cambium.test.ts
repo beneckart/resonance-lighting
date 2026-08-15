@@ -77,7 +77,9 @@ describe("CambiumBridge", () => {
 
     sockets[0].push({ kind: "evt", mac: "a1b2c3", state: 5, prev_state: 2, program: 1, generation: 7, intensity: 0.4 });
     expect(up).toEqual([
-      { kind: "evt", mac: "A1B2C3", seq: 1, event: "state", value: 5 },
+      // intensity rides through since 2026-08-15 — it is the most direct
+      // "is this light actually on" signal the fleet emits (see census.test.ts)
+      { kind: "evt", mac: "A1B2C3", seq: 1, event: "state", value: 5, intensity: 0.4 },
     ]);
   });
 

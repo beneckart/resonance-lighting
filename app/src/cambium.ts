@@ -234,8 +234,22 @@ export class CambiumBridge implements BridgeLink {
       mode: this.num(m.mode, 0),
       dlPdrX1000: 0, // cambium does not report PDR — 0 means "unknown"
       dlRssi: this.num(m.dl_rssi, this.num(m.rssi, 0)),
+      // Ben's lifecycle triple, preserved WITH its nulls (see HbFrame).
+      // These three were listed in this file's own header comment from day one
+      // and never actually read — the fleet has been sending "am I awake, what
+      // am I running, how starved am I" and the twin was dropping all three.
+      lifeState: this.numOrNull(m.life_state),
+      program: this.numOrNull(m.program),
+      powerTier: this.numOrNull(m.power_tier),
     };
     for (const s of this.subs) s(f);
+  }
+
+  /** null/undefined/non-numeric stay NULL rather than collapsing to 0.
+   *  `num()` is right for a value with a meaningful zero; this is right for a
+   *  value whose absence is itself information. */
+  private numOrNull(v: unknown): number | null {
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
   }
 
   private onEvt(m: Record<string, unknown>): void {
@@ -248,6 +262,7 @@ export class CambiumBridge implements BridgeLink {
       seq: p.seq,
       event: "state", // cambium evt IS a choreo state edge
       value: this.num(m.state, 0),
+      intensity: this.num(m.intensity, 0),
     };
     for (const s of this.subs) s(f);
   }
