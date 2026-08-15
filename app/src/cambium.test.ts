@@ -232,3 +232,46 @@ describe("startFramePump", () => {
     expect(timers).toHaveLength(1);
   });
 });
+
+/** urlFromLocation — the ?cambium= contract. The same-origin form exists because
+ *  the absolute form has two field failure modes we hit for real (2026-08-15):
+ *  the operator must hand-edit the host for every device, and ws:// from an https
+ *  page is blocked as mixed content with no visible error. */
+describe("CambiumBridge.urlFromLocation", () => {
+  const withLocation = <T,>(href: string, fn: () => T): T => {
+    const u = new URL(href);
+    const g = globalThis as { window?: unknown };
+    const prev = g.window;
+    g.window = { location: { search: u.search, protocol: u.protocol, host: u.host } };
+    try { return fn(); } finally { g.window = prev; }
+  };
+
+  it("no ?cambium= → the localhost default", () => {
+    expect(withLocation("http://192.168.1.216:5173/", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://localhost:8600/ws");
+  });
+
+  it("an absolute ws:// URL passes through untouched", () => {
+    expect(withLocation("http://x/?cambium=ws://10.0.0.9:8600/ws", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://10.0.0.9:8600/ws");
+  });
+
+  it("?cambium=1 resolves to THIS page's origin — one link works on every device", () => {
+    expect(withLocation("http://192.168.1.216:5173/?cambium=1", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://192.168.1.216:5173/cambium/ws");
+    expect(withLocation("http://localhost:5173/?cambium=proxy", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://localhost:5173/cambium/ws");
+  });
+
+  it("upgrades to wss:// on an https page — the mixed-content trap, closed", () => {
+    expect(withLocation("https://tree.example.com/?cambium=1", () => CambiumBridge.urlFromLocation()))
+      .toBe("wss://tree.example.com/cambium/ws");
+  });
+
+  it("a bare path is taken as a same-origin path", () => {
+    expect(withLocation("http://h:5173/?cambium=/alt/ws", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://h:5173/alt/ws");
+    expect(withLocation("http://h:5173/?cambium=alt/ws", () => CambiumBridge.urlFromLocation()))
+      .toBe("ws://h:5173/alt/ws");
+  });
+});

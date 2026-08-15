@@ -86,11 +86,23 @@ export class CambiumBridge implements BridgeLink {
   }
 
   /** ?cambium=ws://<lan-host>:8600/ws — an iPad on the LAN points here
-   *  (Justin's quickstart step 6 contract). */
+   *  (Justin's quickstart step 6 contract).
+   *
+   *  ?cambium=1 (or `proxy`, or any /path) resolves against THIS page's origin
+   *  and protocol — the same-origin form, for the vite `/cambium` proxy. Added
+   *  2026-08-15 because the absolute form makes the operator hand-edit the host
+   *  for every device (localhost / 192.168.x / tailnet) and silently dies on an
+   *  https page (ws:// from https = mixed content, blocked). Same-origin is
+   *  immune to both: one link works from every device, and it upgrades itself
+   *  to wss:// wherever the page is https. */
   static urlFromLocation(): string {
     if (typeof window === "undefined") return CAMBIUM_DEFAULT_URL;
     const q = new URLSearchParams(window.location.search).get("cambium");
-    return q || CAMBIUM_DEFAULT_URL;
+    if (!q) return CAMBIUM_DEFAULT_URL;
+    if (/^wss?:\/\//i.test(q)) return q; // explicit absolute — caller knows best
+    const path = q === "1" || q === "proxy" || q === "same" ? "/cambium/ws" : q.startsWith("/") ? q : `/${q}`;
+    const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${scheme}//${window.location.host}${path}`;
   }
 
   async connect(): Promise<void> {

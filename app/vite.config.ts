@@ -6,8 +6,24 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   // LAN access: serve on all interfaces so Ben (or any laptop/iPad on the same
   // network) can open the twin at http://<this-machine's-ip>:5173 — no deploy needed.
-  server: { host: true },
-  preview: { host: true },
+  //
+  // /cambium → the local cambium daemon (:8600), proxied INCLUDING the websocket.
+  // Why a proxy and not just ?cambium=ws://<host>:8600/ws — measured 2026-08-15:
+  // the daemon binds *:8600 correctly, but macOS's application firewall allows
+  // per-BINARY, and cambium runs from its venv python (~/code/cambium/.venv/bin/
+  // python3.14), which is not the allow-listed /usr/bin/python3. So :8600 answers
+  // on localhost and is refused from the LAN, while vite's node binary is already
+  // allowed. Proxying puts the daemon behind the port that already works — one
+  // origin, one URL, no sudo, no firewall edit on Elliot's machine.
+  // Bonus: same-origin ws also sidesteps the ws://-from-https mixed-content block.
+  server: {
+    host: true,
+    proxy: { "/cambium": { target: "http://127.0.0.1:8600", ws: true, rewrite: (p) => p.replace(/^\/cambium/, "") } },
+  },
+  preview: {
+    host: true,
+    proxy: { "/cambium": { target: "http://127.0.0.1:8600", ws: true, rewrite: (p) => p.replace(/^\/cambium/, "") } },
+  },
   plugins: [
     react(),
     VitePWA({
