@@ -689,16 +689,19 @@ function CommandPage() {
 
   return (
     <>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, color: connected ? "#7ee08c" : "#7e8ea6" }}>
-          {connected ? `📡 bridge live · ${c.heardWindow} lights heard (5 min)` : "○ no bridge — sim only"}
+      {/* one slim status row (Elliot 08-15: "more spatially efficient…
+          Driving Real on by default, a little button we turn off only when
+          we need it") — the pill is small BECAUSE it is usually on */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12 }}>
+        <span style={{ color: connected ? "#7ee08c" : "#7e8ea6", flex: 1 }}>
+          {connected ? `📡 ${c.heardWindow} lights (5 min)` : "○ no bridge — sim only"}
         </span>
-        <Toggle on={driveReal} accent="#ff5b6e" label={driveReal ? "📡 DRIVING REAL" : "drive real: off"}
-          onClick={() => setNet({ driveReal: !driveReal })} />
-      </div>
-      <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.45 }}>
-        Buttons drive the twin. Arm <b>drive real</b> and the real tree mirrors it.
-        Blink reaches real lanterns even with drive off.
+        <button onClick={() => setNet({ driveReal: !driveReal })} aria-label="toggle drive real" style={{
+          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: "pointer",
+          border: `1px solid ${driveReal ? "#ff5b6e" : "#2b3a52"}`,
+          background: driveReal ? "#ff5b6e22" : "#141a26",
+          color: driveReal ? "#ff9aa6" : "#7e8ea6", touchAction: "manipulation",
+        }}>{driveReal ? "● REAL" : "○ sim only"}</button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
