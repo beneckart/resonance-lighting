@@ -10,6 +10,7 @@ import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveMod
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { ThemePicker } from "./ThemePicker";
 import { loadCalibration, resolveFixtureId } from "./calibration";
+import { nameFor, setName } from "./names";
 import { asset } from "./fixtures";
 
 /** TOUCH CONSOLE v4 — Elliot 08-14 19:14Z: "menu of controls with the tree
@@ -804,7 +805,7 @@ function LocatePage() {
               fontFamily: "ui-monospace, monospace", fontSize: 12, cursor: "pointer", touchAction: "manipulation",
             }}>
             <span>{litDot(r)}</span>
-            <b style={{ minWidth: 62 }}>{r.mac}</b>
+            <b style={{ minWidth: 62 }}>{nameFor(r.mac) ?? r.mac}</b>
             <span style={{ minWidth: 70 }}>
               {r.battMv > 0 && r.battMv < GAUGE_FAULT_MV ? "gauge⚠" : `${r.battMv} mV`}
               {r.battMa > 0 ? " ⚡" : r.battMa < 0 ? " ▾" : ""}
@@ -882,8 +883,10 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 22 }}>{lit === "lit" ? "🟡" : lit === "dormant" ? "⚫" : "◌"}</span>
-        <b style={{ fontSize: 20, fontFamily: "ui-monospace, monospace" }}>{mac}</b>
-        {slot && <span style={{ color: "#7e8ea6" }}>slot {slot}</span>}
+        <b style={{ fontSize: 20 }}>{nameFor(mac) ?? mac}</b>
+        <span style={{ color: "#7e8ea6", fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+          {nameFor(mac) ? mac : ""}{slot ? ` · slot ${slot}` : ""}
+        </span>
         <button onClick={onClose} aria-label="close light sheet" style={{
           marginLeft: "auto", width: 40, height: 40, borderRadius: 20, fontSize: 16,
           border: "1px solid #2b3a52", background: "#141a26", color: "#dbe6f5", cursor: "pointer",
@@ -912,6 +915,17 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
         // compact: the full explanation lives in Settings → About the data
         row("slot", <span style={{ color: "#7e8ea6" }}>unmapped · ⓘ Settings</span>)
       )}
+
+      <div style={{ ...microLabel, marginTop: 14 }}>Name</div>
+      <input
+        defaultValue={nameFor(mac) ?? ""}
+        placeholder="name this lantern… (e.g. Mario)"
+        onBlur={(e) => { setName(mac, e.target.value); }}
+        style={{
+          width: "100%", padding: "10px", marginTop: 4, borderRadius: 10, fontSize: 16,
+          border: "1px solid #2b3a52", background: "#0d1420", color: "#dbe6f5",
+        }}
+      />
 
       <div style={{ ...microLabel, marginTop: 16 }}>Do things to THIS lantern</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>

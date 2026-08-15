@@ -1,5 +1,6 @@
 import { Color } from "three";
 import { PATTERN_IDS, type Control, type PatternId, type SimFixture } from "./store";
+import { macFor } from "./names";
 
 export interface Override {
   mode: "color" | "off";
@@ -115,8 +116,13 @@ export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
     return { action: { kind: "cueRecall", name: t.slice(1).join(" ") }, msg: `recall "${t.slice(1).join(" ")}"` };
   }
   if (t[0] === "blink") {
-    // real-fleet locate aid: "blink" = whole fleet, "blink f2be20" = one lantern
-    return { action: { kind: "blink", mac: t[1] ? t[1].toUpperCase() : null }, msg: t[1] ? `blink ${t[1]}` : "blink all" };
+    // real-fleet locate aid: "blink" = whole fleet, "blink f2be20" = one
+    // lantern, "blink mario" = by nickname (names.ts — the Mario Brothers
+    // convention started 08-15 with the two OG bench lanterns)
+    if (!t[1]) return { action: { kind: "blink", mac: null }, msg: "blink all" };
+    const byName = macFor(t.slice(1).join(" "));
+    const mac = byName ?? t[1].toUpperCase();
+    return { action: { kind: "blink", mac }, msg: `blink ${byName ? `${t.slice(1).join(" ")} (${mac})` : t[1]}` };
   }
   if (t[0] === "off" && t.length === 1)
     return { setOverrides: { idx: fixtures.map((_, i) => i), op: { mode: "off" } }, msg: "all off" };
