@@ -6,7 +6,13 @@ import { test, expect } from "@playwright/test";
  * frame). Saves a screenshot artifact for the build log each run.
  */
 test("twin renders a non-blank R3F canvas with no console errors", async ({ page }) => {
-  test.setTimeout(60000); // GL-heavy + 22MB bark glb load; headroom over the 30s default
+  // 120s, was 60s. Measured 2026-08-15: this spec passes in ISOLATION at ~49s
+  // but times out when it runs LAST in a long serial suite, after the machine
+  // has been doing GL work for several minutes. It is the only spec that loads
+  // the full 22MB bark glb without ?e2e=1, so its margin was always the
+  // thinnest — 49s against a 60s cap is not headroom, it is a coin flip that
+  // will read as a random CI failure and train everyone to re-run the suite.
+  test.setTimeout(120000);
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
