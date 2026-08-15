@@ -32,7 +32,7 @@ function isPhoneLike(): boolean {
     (window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1023px)").matches);
 }
 
-type TabId = "tree" | UiMode | "command" | "locate";
+type TabId = "tree" | UiMode | "command" | "locate" | "settings";
 const MODES: { id: TabId; icon: string; label: string }[] = [
   { id: "tree", icon: "🌳", label: "Tree" },
   { id: "command", icon: "🎛", label: "Command" },
@@ -41,6 +41,7 @@ const MODES: { id: TabId; icon: string; label: string }[] = [
   { id: "lightshow", icon: "🎬", label: "Shows" },
   { id: "sound", icon: "🎵", label: "Sound" },
   { id: "calibrate", icon: "🔧", label: "Calibrate" },
+  { id: "settings", icon: "⚙️", label: "Settings" },
 ];
 
 const sheet: React.CSSProperties = {
@@ -110,6 +111,7 @@ export function TouchConsole() {
   const fixtures = useTwin((s) => s.fixtures);
   const calSolo = useTwin((s) => s.calSolo);
   const pingPresence = useTwin((s) => s.pingPresence);
+  const triggerAt = useTwin((s) => s.triggerAt);
   const demoLock = useTwin((s) => s.demoLock);
   const selectedLight = useTwin((s) => s.selectedLight);
   const selectLight = useTwin((s) => s.selectLight);
@@ -348,103 +350,10 @@ export function TouchConsole() {
         {/* ── mode content ── */}
         {tab === "command" && <CommandPage />}
         {tab === "locate" && <LocatePage />}
-        {tab === "lightshow" && (
+        {tab === "settings" && (
           <>
-            <Section id="shows" label="Light shows · tap to play, tap again to stop">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 8 }}>
-              {SHOWS.map((s) => (
-                <Pad key={s.id} active={activeShow === s.id} accent={AMBER}
-                  label={activeShow === s.id ? `■ ${s.name}` : s.name}
-                  onClick={() => playShow(activeShow === s.id ? null : s.id)} />
-              ))}
-            </div>
-            </Section>
-            {/* full dials here too (Elliot 08-15: "for Light Show mode are there
-                still controls for speed brightness etc") — master alone wasn't it */}
-            <BigSlider label="master" v={ctrl.master} min={0} max={1} step={0.01} on={(v) => set({ master: v })} />
-            <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
-            <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
-            <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
-          </>
-        )}
-
-        {tab === "interactive" && (
-          <>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
-              <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
-            </div>
-
-            {/* GAME OF LIGHT — the ignition lifecycle was desktop-only until
-                08-15 (Elliot: "why doesn't interactive show the game of life").
-                The pads alone set pattern=life with gol.phase stuck at "off" —
-                the bare CA field, not the experience. This arms the real thing. */}
-            <Section id="gol" label={`Game of Light · ${
-              golPhase === "off" ? "not armed" :
-              golPhase === "standby" ? "🌙 standby — waiting for first visitor" :
-              golPhase === "live" ? "🟢 LIVE" : "⚡ igniting…"}`}>
-              <div style={{ display: "flex", gap: 8 }}>
-                {golPhase === "off"
-                  ? <Toggle on={false} accent="#3ddc97" label="▶ Arm (standby)" onClick={() => armGol()} />
-                  : <Toggle on={true} accent="#3ddc97" label="⏹ end" onClick={() => golSetPhase("off")} />}
-                {golPhase === "standby" && (
-                  <Toggle on={false} accent="#5b8cff" label="👤 sim first visitor"
-                    onClick={() => golFirstVisitor(fixtures.length ? (Math.random() * fixtures.length) | 0 : 0)} />
-                )}
-              </div>
-              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
-                Arm it and the tree goes dark, waiting. The first tap ignites it —
-                then every tap seeds life that spreads light to light.
-              </div>
-              <ThemePicker value={caTheme} onPick={setCaTheme} />
-            </Section>
-            <Section id="mymodes" label="My modes · save the look you just made">
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              {cues.map((c) => (
-                <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <button onClick={() => recallCue(c.id)} style={{
-                    minHeight: 40, padding: "0 14px", borderRadius: 12, cursor: "pointer", fontWeight: 600, fontSize: 13,
-                    border: `1.5px solid ${AMBER}66`, background: "#1c1610", color: "#ffe2b0",
-                  }}>★ {c.name}</button>
-                  {editModes && (
-                    <button aria-label={`delete mode ${c.name}`} onClick={() => deleteCue(c.id)} style={{
-                      width: 28, height: 28, borderRadius: 14, border: "1px solid #3a2a30",
-                      background: "#141a26", color: "#ff8fa0", cursor: "pointer", fontSize: 12,
-                    }}>✕</button>
-                  )}
-                </span>
-              ))}
-              {cues.length > 0 && (
-                <button onClick={() => setEditModes(!editModes)} style={{
-                  minHeight: 40, padding: "0 10px", borderRadius: 12, cursor: "pointer", fontSize: 12,
-                  border: "1px solid #283549", background: "#141a26", color: "#9fb0c7",
-                }}>{editModes ? "done" : "edit"}</button>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input value={modeName} onChange={(e) => setModeName(e.target.value)} placeholder="name this mode…"
-                style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "1px solid #283549", background: "#0d1119", color: "#e7ecf6", padding: "0 12px", fontSize: 14 }} />
-              <button onClick={() => { addCue(modeName || "my mode"); setModeName(""); }} style={{
-                minHeight: 44, padding: "0 16px", borderRadius: 12, cursor: "pointer", fontWeight: 700,
-                border: `1.5px solid ${AMBER}`, background: `${AMBER}22`, color: "#fff", fontSize: 14,
-              }}>💾 save</button>
-            </div>
-            </Section>
-            <div style={{ color: "#7e8ea6", fontSize: 12 }}>💡 Tap any light on the tree above to take it over — color it or hold it off while the show plays around it.</div>
-            <Section id="patterns" label="Patterns">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(94px, 1fr))", gap: 8 }}>
-              {PADS.map((p) => (
-                <Pad key={p} active={ctrl.pattern === p} label={p} onClick={() => set({ pattern: p })} />
-              ))}
-            </div>
-            </Section>
-            <Section id="dials" label="Dials">
-              <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
-              <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
-              <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
-            </Section>
-
-            <Section id="ai" label={`AI operator · ${remoteConfigured() ? "🤖 Claude via OpenRouter" : "⚙️ offline interpreter"}`}>
+            <div style={microLabel}>Settings · this device</div>
+            <Section id="ai" label={`🤖 AI operator (OpenRouter key lives on THIS device) ${remoteConfigured() ? "· 🤖 Claude connected" : "· offline"}`}>
               <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
                 Talk to the tree in plain language. Without a key it uses the built-in
                 offline interpreter — which keeps working when the network doesn't.
@@ -496,6 +405,155 @@ export function TouchConsole() {
                 />
               </div>
             </Section>
+
+            <Section id="set-bridge" label="📡 Bridge & fleet">
+              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.6 }}>
+                Daemon: same-origin <code>/cambium</code> proxy (default) ·
+                <code>?cambium=0</code> in the URL disables · drive-real is ON by
+                default — the tree mirrors this twin when the daemon answers.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Toggle on={useTwin.getState().net.driveReal} accent="#ff5b6e"
+                  label={useTwin.getState().net.driveReal ? "📡 driving real" : "drive real: off"}
+                  onClick={() => useTwin.getState().setNet({ driveReal: !useTwin.getState().net.driveReal })} />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                {[1, 2, 4, 8].map((hz) => (
+                  <Toggle key={hz} on={false} label={`hb ${hz} Hz`}
+                    onClick={() => { void fetch(`/cambium/debug/rate?hz=${hz}`).catch(() => {}); }} />
+                ))}
+              </div>
+              <div style={{ color: "#7e8ea6", fontSize: 11 }}>
+                heartbeat-rate buttons broadcast NB_SET_RATE to awake lanterns
+              </div>
+            </Section>
+            <Section id="set-dev" label="🛠 Heavy-dev mode (use with charged batteries)">
+              <div style={{ display: "flex", gap: 8 }}>
+                <Toggle on={false} accent="#3ddc97" label="stay-awake + OTA on"
+                  onClick={() => { void fetch("/cambium/debug/maint?on=1").catch(() => {}); }} />
+                <Toggle on={false} label="resume normal"
+                  onClick={() => { void fetch("/cambium/debug/maint?on=0").catch(() => {}); }} />
+              </div>
+              <div style={{ color: "#7e8ea6", fontSize: 11, lineHeight: 1.5 }}>
+                Stay-awake joins lanterns to shared WiFi with the OTA endpoint up
+                (Ben's maintenance mode). WiFi costs battery — turn it off when done.
+              </div>
+            </Section>
+          </>
+        )}
+
+        {tab === "lightshow" && (
+          <>
+            <Section id="shows" label="Light shows · tap to play, tap again to stop">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 8 }}>
+              {SHOWS.map((s) => (
+                <Pad key={s.id} active={activeShow === s.id} accent={AMBER}
+                  label={activeShow === s.id ? `■ ${s.name}` : s.name}
+                  onClick={() => playShow(activeShow === s.id ? null : s.id)} />
+              ))}
+            </div>
+            </Section>
+            {/* full dials here too (Elliot 08-15: "for Light Show mode are there
+                still controls for speed brightness etc") — master alone wasn't it */}
+            <BigSlider label="master" v={ctrl.master} min={0} max={1} step={0.01} on={(v) => set({ master: v })} />
+            <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
+            <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
+            <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
+          </>
+        )}
+
+        {tab === "interactive" && (
+          <>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Toggle on={false} label="✨ ping the tree" onClick={() => pingPresence()} accent={AMBER} />
+              <Toggle on={ctrl.aiPilot} label="🤖 AI pilot" onClick={() => set({ aiPilot: !ctrl.aiPilot })} accent="#9b6bff" />
+            </div>
+
+            {/* GAME OF LIGHT — the ignition lifecycle was desktop-only until
+                08-15 (Elliot: "why doesn't interactive show the game of life").
+                The pads alone set pattern=life with gol.phase stuck at "off" —
+                the bare CA field, not the experience. This arms the real thing. */}
+            <Section id="gol" label={`Game of Light · ${
+              golPhase === "off" ? "not armed" :
+              golPhase === "standby" ? "🌙 standby — waiting for first visitor" :
+              golPhase === "live" ? "🟢 LIVE" : "⚡ igniting…"}`}>
+              <div style={{ display: "flex", gap: 8 }}>
+                {golPhase === "off"
+                  ? <Toggle on={false} accent="#3ddc97" label="▶ Arm (standby)" onClick={() => armGol()} />
+                  : <Toggle on={true} accent="#3ddc97" label="⏹ end" onClick={() => golSetPhase("off")} />}
+                {golPhase === "standby" && (
+                  <Toggle on={false} accent="#5b8cff" label="👤 sim first visitor"
+                    onClick={() => golFirstVisitor(fixtures.length ? (Math.random() * fixtures.length) | 0 : 0)} />
+                )}
+              </div>
+              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
+                Arm it and the tree goes dark, waiting. The first tap ignites it —
+                then every tap seeds life that spreads light to light.
+              </div>
+              {/* INSTANT sim (Elliot 08-15: "still not seeing the game of life
+                  simulator" — Arm leads to a dark waiting tree, which reads as
+                  nothing; these start the CA visibly RUNNING right now) */}
+              <div style={{ ...microLabel, marginTop: 4 }}>or run the simulation right now</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(94px, 1fr))", gap: 8 }}>
+                {(["life", "ripples", "organism", "living", "chains"] as PatternId[]).map((rule) => (
+                  <Pad key={rule} active={ctrl.pattern === rule} accent="#3ddc97" label={rule === "life" ? "🧬 life" : rule}
+                    onClick={() => {
+                      set({ pattern: rule, blackout: false });
+                      // seed immediately so it's visibly ALIVE — an empty CA
+                      // field looks identical to a broken one
+                      const n = fixtures.length;
+                      if (n > 0) for (let k = 0; k < 4; k++) triggerAt((Math.random() * n) | 0);
+                    }} />
+                ))}
+              </div>
+              <ThemePicker value={caTheme} onPick={setCaTheme} />
+            </Section>
+            <Section id="mymodes" label="My modes · save the look you just made">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {cues.map((c) => (
+                <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <button onClick={() => recallCue(c.id)} style={{
+                    minHeight: 40, padding: "0 14px", borderRadius: 12, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                    border: `1.5px solid ${AMBER}66`, background: "#1c1610", color: "#ffe2b0",
+                  }}>★ {c.name}</button>
+                  {editModes && (
+                    <button aria-label={`delete mode ${c.name}`} onClick={() => deleteCue(c.id)} style={{
+                      width: 28, height: 28, borderRadius: 14, border: "1px solid #3a2a30",
+                      background: "#141a26", color: "#ff8fa0", cursor: "pointer", fontSize: 12,
+                    }}>✕</button>
+                  )}
+                </span>
+              ))}
+              {cues.length > 0 && (
+                <button onClick={() => setEditModes(!editModes)} style={{
+                  minHeight: 40, padding: "0 10px", borderRadius: 12, cursor: "pointer", fontSize: 12,
+                  border: "1px solid #283549", background: "#141a26", color: "#9fb0c7",
+                }}>{editModes ? "done" : "edit"}</button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={modeName} onChange={(e) => setModeName(e.target.value)} placeholder="name this mode…"
+                style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "1px solid #283549", background: "#0d1119", color: "#e7ecf6", padding: "0 12px", fontSize: 14 }} />
+              <button onClick={() => { addCue(modeName || "my mode"); setModeName(""); }} style={{
+                minHeight: 44, padding: "0 16px", borderRadius: 12, cursor: "pointer", fontWeight: 700,
+                border: `1.5px solid ${AMBER}`, background: `${AMBER}22`, color: "#fff", fontSize: 14,
+              }}>💾 save</button>
+            </div>
+            </Section>
+            <div style={{ color: "#7e8ea6", fontSize: 12 }}>💡 Tap any light on the tree above to take it over — color it or hold it off while the show plays around it.</div>
+            <Section id="patterns" label="Patterns">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(94px, 1fr))", gap: 8 }}>
+              {PADS.map((p) => (
+                <Pad key={p} active={ctrl.pattern === p} label={p} onClick={() => set({ pattern: p })} />
+              ))}
+            </div>
+            </Section>
+            <Section id="dials" label="Dials">
+              <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
+              <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
+              <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
+            </Section>
+
           </>
         )}
 
