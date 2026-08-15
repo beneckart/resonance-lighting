@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId, type UiMode } from "./store";
 import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
-import { interpret } from "./llm";
+import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL } from "./openrouter";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { asset } from "./fixtures";
 
@@ -114,20 +114,39 @@ export function TouchConsole() {
   const [modeName, setModeName] = useState("");
   const [editModes, setEditModes] = useState(false);
   const runScript = useTwin((s) => s.runScript);
+  // AI operator settings. Hooks live here, ABOVE the early return — a sheet
+  // effect placed below one crashed this component on 08-14 ("fewer hooks than
+  // expected") and there is no reason to relearn that.
+  const [aiKey, setAiKey] = useState(() => loadKey() ?? "");
+  const [aiModel, setAiModel] = useState(() => loadModel());
+  const [aiSaved, setAiSaved] = useState(false);
   const [voiceState, setVoiceState] = useState<"idle" | "listening" | "typing">("idle");
   const [voiceText, setVoiceText] = useState("");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const voiceHandle = { current: null as ListenHandle | null };
 
-  /** transcript (spoken or typed) → interpret → commands → the tree */
-  const speakToTree = (text: string) => {
+  /** transcript (spoken or typed) → interpret → commands → the tree.
+   *
+   *  Two interpreters, one seam: with an OpenRouter key present the remote model
+   *  reads the sentence, otherwise — or on ANY failure — the deterministic
+   *  offline interpreter does. interpretRemote never throws and never returns
+   *  empty-handed, so there is deliberately no error branch here. It DOES report
+   *  which brain answered (🤖 remote / ⚙️ offline), because an operator who
+   *  can't tell whether the AI is live is being asked to trust a black box. */
+  const speakToTree = async (text: string) => {
     const t = text.trim();
     if (!t) return;
-    const r = interpret(t);
-    if (r.commands.length) runScript(r.commands.join("\n"));
-    setVoiceNote(r.commands.length ? `✓ ${r.note}` : `didn't catch a light command in “${t}”`);
-    setVoiceText("");
     setVoiceState("idle");
+    setVoiceText("");
+    if (remoteConfigured()) setVoiceNote("🤖 thinking…");
+
+    const r = await interpretRemote(t, { timeoutMs: 12000 });
+    if (r.commands.length) runScript(r.commands.join("\n"));
+
+    const badge = r.source === "openrouter" ? "🤖" : "⚙️";
+    setVoiceNote(
+      r.commands.length ? `${badge} ${r.note}` : `didn't catch a light command in “${t}”`,
+    );
     window.setTimeout(() => setVoiceNote(null), 5000);
   };
 
@@ -377,6 +396,59 @@ export function TouchConsole() {
               <BigSlider label="speed" v={ctrl.speed} min={0} max={3} step={0.01} on={(v) => set({ speed: v })} />
               <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
               <BigSlider label="hue" v={ctrl.hue} min={0} max={1} step={0.01} on={(v) => set({ hue: v })} />
+            </Section>
+
+            <Section id="ai" label={`AI operator · ${remoteConfigured() ? "🤖 Claude via OpenRouter" : "⚙️ offline interpreter"}`}>
+              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.5 }}>
+                Talk to the tree in plain language. Without a key it uses the built-in
+                offline interpreter — which keeps working when the network doesn't.
+                The key is stored on <b>this device only</b>; it is never sent anywhere
+                but OpenRouter, and never leaves with the app.
+              </div>
+              <input
+                type="password"
+                value={aiKey}
+                placeholder="OpenRouter API key (sk-or-…)"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(e) => { setAiKey(e.target.value); setAiSaved(false); }}
+                style={{
+                  width: "100%", padding: "12px 10px", marginTop: 8, borderRadius: 10,
+                  border: "1px solid #2b3a52", background: "#0d1420", color: "#dbe6f5",
+                  fontSize: 16, // 16px stops iOS Safari zooming the whole page on focus
+                }}
+              />
+              <input
+                type="text"
+                value={aiModel}
+                placeholder={DEFAULT_MODEL}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(e) => { setAiModel(e.target.value); setAiSaved(false); }}
+                style={{
+                  width: "100%", padding: "10px", marginTop: 8, borderRadius: 10,
+                  border: "1px solid #2b3a52", background: "#0d1420", color: "#7e8ea6",
+                  fontSize: 16,
+                }}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <Toggle
+                  on={aiSaved}
+                  label={aiSaved ? "✓ saved" : "save"}
+                  accent={AMBER}
+                  onClick={() => {
+                    saveKey(aiKey);
+                    saveModel(aiModel);
+                    setAiSaved(true);
+                    window.setTimeout(() => setAiSaved(false), 2500);
+                  }}
+                />
+                <Toggle
+                  on={false}
+                  label="forget key"
+                  onClick={() => { saveKey(""); setAiKey(""); setAiSaved(false); }}
+                />
+              </div>
             </Section>
           </>
         )}
