@@ -6,7 +6,11 @@ import {
 import { litState, GAUGE_FAULT_MV } from "./macregistry";
 import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
-import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL } from "./openrouter";
+import {
+  interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL,
+  checkRemote, recordAiTurn, aiLogSnapshot, subscribeAiLog, clearAiLog,
+  type RemoteHealth,
+} from "./openrouter";
 import { listenOnce, voiceSupported, type ListenHandle } from "./voice";
 import { ThemePicker } from "./ThemePicker";
 import { loadCalibration, resolveFixtureId } from "./calibration";
@@ -138,6 +142,11 @@ export function TouchConsole() {
   const [aiKey, setAiKey] = useState(() => loadKey() ?? "");
   const [aiModel, setAiModel] = useState(() => loadModel());
   const [aiSaved, setAiSaved] = useState(false);
+  // AI diagnostics. Same rule as the rest of this block — declared ABOVE every
+  // early return, because a hook below one is what crashed this file on 08-14.
+  const [aiHealth, setAiHealth] = useState<RemoteHealth | null>(null);
+  const [aiChecking, setAiChecking] = useState(false);
+  const aiTurns = useSyncExternalStore(subscribeAiLog, aiLogSnapshot, aiLogSnapshot);
   const [voiceState, setVoiceState] = useState<"idle" | "listening" | "typing">("idle");
   const [voiceText, setVoiceText] = useState("");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
@@ -160,6 +169,9 @@ export function TouchConsole() {
 
     const r = await interpretRemote(t, { timeoutMs: 12000 });
     if (r.commands.length) runScript(r.commands.join("\n"));
+    // every turn goes in the log, working or not — this is the record an
+    // operator reads to answer "is the AI actually doing anything?"
+    recordAiTurn({ at: Date.now(), said: t, source: r.source, commands: r.commands, error: r.error });
 
     const badge = r.source === "openrouter" ? "🤖" : "⚙️";
     // SAY WHY IT FELL BACK. interpretRemote already carries `error` on every
@@ -430,6 +442,101 @@ export function TouchConsole() {
                   onClick={() => { saveKey(""); setAiKey(""); setAiSaved(false); }}
                 />
               </div>
+
+              {/* ── PROVE IT WORKS ─────────────────────────────────────────
+                  Elliot 08-15: "enable the AI built into the app to allow
+                  communication so we know if it is working or if there is any
+                  errors." interpretRemote is deliberately silent on failure —
+                  correct at showtime, useless when you are trying to find out
+                  WHY. This runs one real end-to-end interpretation and names
+                  the failure. Save the key first; the probe reads what's saved. */}
+              <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center" }}>
+                <Toggle
+                  on={false}
+                  label={aiChecking ? "testing…" : "🔌 test connection"}
+                  accent="#3ddc97"
+                  onClick={async () => {
+                    if (aiChecking) return;
+                    setAiChecking(true);
+                    setAiHealth(null);
+                    try {
+                      setAiHealth(await checkRemote({ timeoutMs: 15000 }));
+                    } finally {
+                      setAiChecking(false);
+                    }
+                  }}
+                />
+              </div>
+              {aiHealth && (
+                <div style={{
+                  marginTop: 8, padding: "10px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.5,
+                  border: `1px solid ${aiHealth.ok ? "#1e5c43" : "#5c2733"}`,
+                  background: aiHealth.ok ? "#0f2018" : "#1d1014",
+                  color: aiHealth.ok ? "#8ff0c0" : "#ffb4b4",
+                }}>
+                  <b>{aiHealth.ok ? "✓ AI operator is live" : `✕ ${aiHealth.code}`}</b>
+                  <div style={{ marginTop: 3 }}>{aiHealth.detail}</div>
+                  <div style={{ marginTop: 4, color: "#7e8ea6", fontSize: 11.5 }}>
+                    model {aiHealth.model}
+                    {aiHealth.latencyMs !== null && ` · ${aiHealth.latencyMs} ms`}
+                  </div>
+                  {aiHealth.commands.length > 0 && (
+                    <div style={{ marginTop: 4, color: "#9fb0c7", fontSize: 11.5, fontFamily: "ui-monospace, monospace" }}>
+                      it replied: {aiHealth.commands.join(" · ")}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── WHAT IT HAS ACTUALLY BEEN DOING ────────────────────────
+                  The test proves the link works now; this proves it kept
+                  working. Every voice/typed turn is recorded with which brain
+                  answered, so "is the AI doing anything?" is a question the
+                  app can answer rather than a guess. Session-only — never
+                  persisted, because a transcript near a hot mic is not ours
+                  to keep. */}
+              <div style={{ ...microLabel, marginTop: 12 }}>
+                Recent AI activity {aiTurns.length > 0 && `· ${aiTurns.length}`}
+              </div>
+              {aiTurns.length === 0 ? (
+                <div style={{ color: "#7e8ea6", fontSize: 12 }}>
+                  Nothing yet — speak or type a command and it shows up here.
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                    {aiTurns.map((t) => (
+                      <div key={t.at} style={{
+                        padding: "8px 10px", borderRadius: 9, background: "#0d1420",
+                        border: `1px solid ${t.error ? "#4a2630" : "#1c2740"}`, fontSize: 12.5, lineHeight: 1.45,
+                      }}>
+                        <div>
+                          <span title={t.source === "openrouter" ? "answered by the remote model" : "answered by the offline interpreter"}>
+                            {t.source === "openrouter" ? "🤖" : "⚙️"}
+                          </span>{" "}
+                          <span style={{ color: "#dbe6f5" }}>“{t.said}”</span>
+                        </div>
+                        {t.commands.length > 0 && (
+                          <div style={{ color: "#7ee08c", fontFamily: "ui-monospace, monospace", fontSize: 11.5, marginTop: 2 }}>
+                            → {t.commands.join(" · ")}
+                          </div>
+                        )}
+                        {t.error && (
+                          <div style={{ color: "#ffb4b4", fontSize: 11.5, marginTop: 2 }}>
+                            remote unavailable: {t.error}
+                          </div>
+                        )}
+                        {!t.commands.length && !t.error && (
+                          <div style={{ color: "#7e8ea6", fontSize: 11.5, marginTop: 2 }}>
+                            no light command found in that sentence
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Toggle on={false} label="clear log" onClick={() => clearAiLog()} />
+                </>
+              )}
             </Section>
 
             <Section id="set-bridge" label="📡 Bridge & fleet">

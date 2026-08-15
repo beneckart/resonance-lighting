@@ -81,6 +81,182 @@ export function remoteConfigured(): boolean {
   return !!loadKey();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DIAGNOSTICS — the operator must be able to ASK the AI whether it is working.
+//
+// Elliot 2026-08-15: "we need to enable the AI built into the app to allow
+// communication so we know if it is working or if there is any errors."
+//
+// Before this, every remote failure was invisible by design: interpretRemote
+// falls back to the offline interpreter and never throws, which is the right
+// behaviour at showtime (a voice command must not die because the sky did) but
+// leaves the operator unable to tell "the model answered" from "the model was
+// never reached". `remoteConfigured()` made it worse by reporting a live
+// connection when all it knew was that a key existed.
+//
+// So: one honest round-trip, and a named reason when it fails. Every branch
+// below is a failure an operator can actually hit on the playa, and each one
+// carries the fix rather than a status code.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RemoteHealthCode =
+  | "ok"
+  | "no-key"
+  | "bad-key"
+  | "no-credit"
+  | "rate-limited"
+  | "model-missing"
+  | "no-network"
+  | "timeout"
+  | "bad-output";
+
+export interface RemoteHealth {
+  ok: boolean;
+  code: RemoteHealthCode;
+  /** one line an operator can act on, no status codes, never a key */
+  detail: string;
+  model: string;
+  /** round-trip milliseconds when a request actually went out */
+  latencyMs: number | null;
+  /** the commands the probe produced, when it got that far */
+  commands: string[];
+  checkedAt: number;
+}
+
+/** map an HTTP status to the thing the operator should actually do about it */
+function classifyStatus(status: number): { code: RemoteHealthCode; detail: string } {
+  if (status === 401 || status === 403)
+    return { code: "bad-key", detail: "Key rejected — paste the key again (it may have been revoked)." };
+  if (status === 402)
+    return { code: "no-credit", detail: "OpenRouter account is out of credit — top it up." };
+  if (status === 429)
+    return { code: "rate-limited", detail: "Rate limited — wait a moment, then try again." };
+  if (status === 404)
+    return { code: "model-missing", detail: "That model id isn't available on your OpenRouter account." };
+  if (status >= 500)
+    return { code: "no-network", detail: "OpenRouter is having trouble — the offline interpreter is covering." };
+  return { code: "bad-output", detail: `OpenRouter refused the request (${status}).` };
+}
+
+/**
+ * Ask the operator brain to prove it works, end to end.
+ *
+ * Deliberately a REAL interpretation of a fixed phrase rather than a bare ping:
+ * a 200 from the endpoint only proves the key is live, and the failure Elliot
+ * actually hit was the model answering fine while its answer got dropped by the
+ * shape gate. So the probe asserts the whole path — auth, model, grammar, gate —
+ * and `bad-output` is a genuinely different diagnosis from `bad-key`.
+ */
+export async function checkRemote(opts: RemoteOptions = {}): Promise<RemoteHealth> {
+  const model = opts.model ?? loadModel();
+  const base = { model, latencyMs: null as number | null, commands: [] as string[], checkedAt: Date.now() };
+
+  const apiKey = opts.apiKey ?? loadKey();
+  if (!apiKey)
+    return { ...base, ok: false, code: "no-key", detail: "No key saved — paste an OpenRouter key to enable the AI operator." };
+
+  const doFetch = opts.fetchImpl ?? (typeof fetch !== "undefined" ? fetch : null);
+  if (!doFetch)
+    return { ...base, ok: false, code: "no-network", detail: "No network stack available in this browser." };
+
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeoutMs = opts.timeoutMs ?? 15000;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const started = Date.now();
+
+  try {
+    const res = await doFetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://resonanceart.github.io/resonance-lighting/",
+        "X-Title": "Resonance Tree Lighting",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [
+          { role: "system", content: grammarPrompt() },
+          { role: "user", content: "turn the whole tree blue" },
+        ],
+      }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    const latencyMs = Date.now() - started;
+
+    if (!res.ok) {
+      const { code, detail } = classifyStatus(res.status);
+      return { ...base, latencyMs, ok: false, code, detail };
+    }
+
+    const text = stripFences(extractText(await res.json()));
+    const commands = parseScript(text).map(stripListMarker).filter(isCommandLike);
+    if (!commands.length)
+      return {
+        ...base, latencyMs, ok: false, code: "bad-output",
+        detail: "The model replied but not in the light grammar — the offline interpreter is covering.",
+      };
+
+    return {
+      ...base, latencyMs, ok: true, code: "ok", commands,
+      detail: `Working — answered in ${(latencyMs / 1000).toFixed(1)}s with ${commands.length} command${commands.length === 1 ? "" : "s"}.`,
+    };
+  } catch (e) {
+    const latencyMs = Date.now() - started;
+    const msg = e instanceof Error ? e.message : String(e);
+    const aborted = /abort/i.test(msg);
+    return {
+      ...base, latencyMs,
+      ok: false,
+      code: aborted ? "timeout" : "no-network",
+      detail: aborted
+        ? `No answer within ${Math.round(timeoutMs / 1000)}s — the network is slow or down.`
+        : `Couldn't reach OpenRouter — ${redact(msg)}`,
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// ─── rolling activity log: what the AI has actually been doing ───────────────
+// A one-shot test proves the link works NOW. This proves it kept working, and
+// is the surface an operator reads after a show to see what the tree was asked
+// to do and which brain answered each time.
+
+export interface AiLogEntry {
+  at: number;
+  said: string;
+  source: "openrouter" | "offline";
+  commands: string[];
+  error?: string;
+}
+
+const AI_LOG_MAX = 25;
+let aiLog: AiLogEntry[] = [];
+const aiLogSubs = new Set<() => void>();
+
+export function recordAiTurn(entry: AiLogEntry): void {
+  // newest first, bounded — this lives for the session, never persisted (the
+  // transcript can contain whatever was said near a hot mic)
+  aiLog = [{ ...entry, error: entry.error ? redact(entry.error) : undefined }, ...aiLog].slice(0, AI_LOG_MAX);
+  for (const fn of aiLogSubs) fn();
+}
+
+export function aiLogSnapshot(): AiLogEntry[] {
+  return aiLog;
+}
+
+export function subscribeAiLog(fn: () => void): () => void {
+  aiLogSubs.add(fn);
+  return () => { aiLogSubs.delete(fn); };
+}
+
+export function clearAiLog(): void {
+  aiLog = [];
+  for (const fn of aiLogSubs) fn();
+}
+
 /** A key must never reach a log line, a toast, or a thrown message. Any error
  *  text that transits this module goes through here first. */
 export function redact(text: string): string {
