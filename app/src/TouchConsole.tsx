@@ -826,6 +826,10 @@ const TIER_LABEL: Record<number, string> = {
 function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
   useFleet();
   const fixtures = useTwin((s) => s.fixtures);
+  const selectLight = useTwin((s) => s.selectLight);
+  // one per-light surface at a time: the tree's tap-chip editor closes when
+  // this sheet opens (they collided in Elliot's 08-15 screenshot)
+  useEffect(() => { selectLight(null); }, [selectLight]);
   const r = fleetRegistry().records[mac];
   const [note, setNote] = useState<string | null>(null);
   if (!r) return null;
@@ -857,7 +861,10 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 260, background: "rgba(5,8,14,0.94)",
+      // OPAQUE — 08-15 Elliot ("not the aesthetic I want"): the translucent
+      // sheet let the page underneath bleed through and collide with the
+      // tap-chip editor. One surface, one moment.
+      position: "fixed", inset: 0, zIndex: 260, background: "#0b0f17",
       display: "flex", flexDirection: "column", padding: "18px 16px calc(20px + env(safe-area-inset-bottom))",
       overflowY: "auto", color: "#e7ecf6",
     }}>
