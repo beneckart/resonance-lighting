@@ -92,13 +92,20 @@ export interface FrameDown {
   fixtures: { id: string; rgb: [number, number, number] }[];
 }
 /** CAMBIUM: arm/disarm direct streaming (mirrors the net.driveReal toggle). */
-export interface DriveDown { kind: "drive"; on: boolean }
+export interface DriveDown { kind: "drive"; on: boolean; client?: string; force?: boolean }
+/** CAMBIUM: explicit choreo-program lease (NB_PROGRAM). programId 3 = DIRECT —
+ *  required before streamed frames own the LEDs when a prior explicit lease
+ *  (e.g. Interactive/GoL) is parked on a fixture (runtime.cpp:84). */
+export interface ProgramDown {
+  kind: "program"; programId: number; leaseS: number;
+  mac?: string | null; seed?: number; hardCut?: boolean;
+}
 /** CAMBIUM: force day/night lifecycle (NB_FORCE_LIFECYCLE; the night gate is
  *  real — fixtures ignore show frames in daytime). mode 0=day 1=night 2=auto. */
 export interface NightDown { kind: "night"; mode: 0 | 1 | 2; mac: string | null }
 
 export type DownFrame =
-  ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown | NightDown;
+  ShowDown | IdentifyDown | SetRateDown | RulesetDown | FrameDown | DriveDown | NightDown | ProgramDown;
 
 // ── the seam ──────────────────────────────────────────────────────────────────
 

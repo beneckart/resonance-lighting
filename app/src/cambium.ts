@@ -50,7 +50,7 @@ export const CAMBIUM_DEFAULT_URL = "ws://localhost:8600/ws";
  *  health, protocol errors). Additive channel — the BridgeLink seam is
  *  untouched for consumers that only care about hb/evt. */
 export interface CambiumMeta {
-  kind: "charging" | "bridge_status" | "err" | "open" | "close";
+  kind: "charging" | "bridge_status" | "err" | "open" | "close" | "lease";
   payload: Record<string, unknown>;
 }
 
@@ -221,7 +221,7 @@ export class CambiumBridge implements BridgeLink {
     const kind = msg.kind;
     if (kind === "hb") this.onHb(msg);
     else if (kind === "evt") this.onEvt(msg);
-    else if (kind === "charging" || kind === "bridge_status" || kind === "err") {
+    else if (kind === "charging" || kind === "bridge_status" || kind === "err" || kind === "lease") {
       const { kind: k, ...payload } = msg;
       this.emitMeta({ kind: k as CambiumMeta["kind"], payload });
     }

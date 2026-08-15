@@ -29,6 +29,13 @@ import { useTwin } from "./store";
 
 const SEND_MS = 200; // telemetry updates at ~5.5 Hz; the fleet renders at 10 Hz
 
+function clientName(): string {
+  const ua = navigator.userAgent;
+  const dev = /iPhone|iPad/.test(ua) ? "iphone" : /Android/.test(ua) ? "android"
+    : /Windows/.test(ua) ? "windows" : /Mac/.test(ua) ? "mac" : "device";
+  return `twin-${dev}`;
+}
+
 export function RealDriveDriver() {
   const driveReal = useTwin((s) => s.net.driveReal);
   const bridgeRef = useRef<CambiumBridge | null>(null);
@@ -56,7 +63,20 @@ export function RealDriveDriver() {
         console.warn("[cambium]", m.payload.msg);
       } else if (m.kind === "open") {
         // (re)armed — reconnect also lands here, so drive survives daemon restarts
-        bridge.send({ kind: "drive", on: true });
+        bridge.send({ kind: "drive", on: true, client: clientName() });
+        // Explicit DIRECT program lease: streamed frames carry only a
+        // micro-lease, which LOSES to any explicit program lease left on a
+        // fixture (runtime.cpp:84) — an Interactive/GoL session hours ago
+        // silently ate every frame on the bench 2026-08-15. hardCut so the
+        // takeover is visible immediately.
+        bridge.send({ kind: "program", programId: 3, leaseS: 600, hardCut: true });
+      } else if (m.kind === "lease") {
+        // another device holds the pen: frames are dropped server-side.
+        // Surface it — silence here is the "haunted controls" bug.
+        if (m.payload.granted === false) {
+          console.warn("[cambium] drive DENIED — driver:", m.payload.name, "ttl", m.payload.ttl_s);
+          window.dispatchEvent(new CustomEvent("resonance:cambium-lease", { detail: m.payload }));
+        }
       }
     });
 
