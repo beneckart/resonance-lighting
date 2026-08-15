@@ -1,7 +1,7 @@
 # 0017 -- Prefer one larger LiFePO4 cell over multi-14430 packs
 
 **Date:** 2026-05-10
-**Status:** Accepted
+**Status:** Accepted. Annotation 2026-07-08: the one-larger-cell-per-fixture principle stands; the 18650 default is superseded -- the production cell is the fullbattery 32700 6 Ah, qualified n=2 (ADR 0025).
 **Owners:** Ben
 
 ## Context

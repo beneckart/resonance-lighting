@@ -1,0 +1,71 @@
+#include "boot_guard.h"
+
+// Mirrors esp_reset_reason_t values (stable in esp-idf; pinned by native test
+// against the numeric values so the core stays Arduino-free).
+// 1=POWERON 3=SW 4=PANIC 5=INT_WDT 6=TASK_WDT 7=WDT 8=DEEPSLEEP 9=BROWNOUT
+bool bootGuardUnexpectedResetClass(int r) {
+  switch (r) {
+  case 1:  // ESP_RST_POWERON
+  case 4:  // ESP_RST_PANIC
+  case 5:  // ESP_RST_INT_WDT
+  case 6:  // ESP_RST_TASK_WDT
+  case 7:  // ESP_RST_WDT
+  case 9:  // ESP_RST_BROWNOUT
+    return true;
+  default:
+    return false;
+  }
+}
+
+BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedReset) {
+  BootDecision d = {};
+  d.persistStage = BOOT_GUARD_NO_WRITE;
+
+  if (!nvsOk) {
+    // NVS unreadable: on an unexpected reset we cannot rule out a collapse
+    // loop -- fail safe, rail off. (Persisting is pointless: writes will fail
+    // too, and callers treat a failed persist as PROTECT anyway.)
+    if (unexpectedReset) {
+      d.stage = STAGE_PROTECT;
+      d.park = true;
+      d.interrupted = true;
+    } else {
+      d.stage = STAGE_IDLE;
+    }
+    return d;
+  }
+
+  if (storedStage > STAGE_PROTECT) storedStage = STAGE_PROTECT;
+
+  if (storedStage == STAGE_PROTECT) {
+    // PROTECT is a durable charge-release latch, authoritative on EVERY reset
+    // type (RTC state does not survive OTA/software resets, NVS does).
+    d.stage = STAGE_PROTECT;
+    d.park = true;
+    d.interrupted = unexpectedReset;
+    return d;
+  }
+
+  if (unexpectedReset && storedStage != STAGE_IDLE) {
+    d.interrupted = true;
+    if (storedStage == STAGE_FULL) {
+      // Consume the only retry BEFORE any rail can turn on: a reset during the
+      // dim attempt then boots with DIM already persisted and parks below.
+      d.stage = STAGE_DIM;
+      d.persistStage = STAGE_DIM;
+      d.retryConsumed = true;
+    } else {
+      // A reset from DIM or LEDS_OFF means even the reduced load (or the bare
+      // radio) collapsed the cell: durable PROTECT (Phase-4 "POR while DIM").
+      d.stage = STAGE_PROTECT;
+      d.persistStage = STAGE_PROTECT;
+      d.park = true;
+    }
+    return d;
+  }
+
+  // Expected reset (software/OTA/deepsleep) or idle marker: preserve the
+  // stored tier; a deliberate reboot is not a retry failure.
+  d.stage = storedStage;
+  return d;
+}

@@ -4,8 +4,9 @@ Design artifacts and decision records. Read alongside `BACKGROUND.md` at repo ro
 
 ```
 docs/
-|-- block-diagram/    System block diagram + power budget.
+|-- block-diagram/    System block diagram + power budget + canonical fleet table.
 |-- decisions/        ADR-style decision records -- short, dated, one decision per file.
+|-- research/         Dated research/survey notes (COTS surveys, sensing options, SDK notes).
 `-- tests/            Test plans and measured results from bench / field validation.
 ```
 

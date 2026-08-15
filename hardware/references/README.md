@@ -97,7 +97,8 @@ ESP32-S3-WROOM-class modules for RF/headroom margin.
 ## Mechanical Reference
 
 - Bamboo lantern: `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` - Vishnu's shop drawing,
-  2026-04-22.
+  2026-04-22. (Not committed to the repo yet -- lives with Steve/Drive; TODO to commit
+  or re-point.)
 - Hat dimensional constraints: see `BACKGROUND.md` and `enclosure/README.md`.
 
 ## Existing Dev Boards We Lifted Ideas From

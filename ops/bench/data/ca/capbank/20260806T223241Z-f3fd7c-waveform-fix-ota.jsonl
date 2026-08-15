@@ -1,0 +1,1 @@
+{"node": "F3FD7C", "ip": "192.168.4.94", "event": "ota", "ts_utc": "2026-08-06T22:35:47.868906+00:00", "uptime_pre_ms": 254976, "t_ack_s": 6.0, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "Capbank DMA post-trigger timestamp fix; exact r3 BubbyNet artifact"}

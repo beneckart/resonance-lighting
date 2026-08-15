@@ -35,3 +35,17 @@ Use FreeRTOS tasks with priorities and queues.
 - LED rail enable/disable is a first-class firmware responsibility, not an afterthought.
 - OTA maintenance mode is part of housekeeping, but firmware images are never sent through ESP-NOW.
 - The architecture works on single-core and dual-core ESP32 variants. If a dual-core ESP32-S3 is selected, tasks may later be pinned, but that is not required for the initial design.
+
+## Annotation 2026-07-30 -- constrained in practice by ADR 0028
+
+The production firmware (`firmware/fixture/`, milestone 1) runs a **cooperative
+main loop + ISR-enqueue rx queue + esp_timer one-shots** rather than the task
+table above. Two later findings drove this: ADR 0028 rule 3 forbids
+power-management-bus I2C from core-0-pinned tasks while WiFi is active (the
+shared Wire1 carries charger + gauge + every sensor), and the 2026-07-29
+blocking-driver investigation established the cooperative one-shot state
+machine as the sensor pattern for this bus. The cooperative loop is also the
+only architecture with multi-day field soaks behind it (net_bench). The layered
+`core/` (native-tested) + `esp32/` split this ADR prescribed is retained.
+Revisit tasks only if render jitter is measured on hardware, and never for
+power-bus I2C.

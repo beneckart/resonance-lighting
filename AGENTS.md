@@ -23,12 +23,52 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   `ops/bench/net_bench_ota.py` parallel uploads. Do **not** build or recommend
   `--maint-ap` unless Ben explicitly asks for the deprecated one-board AP fallback;
   self-hosted AP mode is not scalable and has confused recent OTA debugging.
+- **OTA power ride-through:** install the fixture LFP (or use a separately proven
+  stable supply) before treating an OTA/A-B rollback test as valid. On 2026-08-10,
+  bare-USB fixtures recorded brownouts and one repeatedly lost power during the
+  20-second pending-verify window; rollback safely restored `.1`. The same exact
+  `.2` artifact passed immediately once an LFP was installed. USB is still the
+  rescue/data path, but the production battery is the expected reboot ride-through.
+- **One mesh wire contract, one file:** `firmware/fixture/src/core/packet.h` is
+  the ESP-NOW protocol for the whole fleet -- fixtures, `cores3_bridge`, and all
+  host tooling parse these exact layouts, and `test_packet_layout.cpp` pins
+  golden `sizeof`/`offsetof` so an accidental reorder fails at build time. Any
+  new bridge, handheld, or publisher **includes** it; do not write a second
+  protocol header (a design brief proposing `mesh_protocol.h` predates this
+  file -- see ADR 0037). The header has no Arduino includes, so it compiles
+  natively and on any ESP32 target. Struct evolution is append-only.
 - **Arduino compile cache:** do **not** run parallel `arduino-cli compile` commands
   against the same sketch/cache. Either build sequentially or pass a unique
   `--build-path` per compile. `firmware/net_bench/build.sh` already does this; direct
   `arduino-cli` calls must do it manually. Parallel builds against the default Arduino
   sketch cache can collide with `unlinkat ... directory is not empty` errors and can
   corrupt mixed build artifacts.
+- **Arduino build timeout and recovery:** an uncached ESP32-S3/PowerFeather build on
+  this Windows bench normally takes about 2-3 minutes. Give the outer command at least
+  300 seconds; if it yields a running cell, keep waiting on that cell instead of
+  starting another build. If a compile is killed or times out, first confirm no
+  `arduino-cli` or Xtensa compiler process remains, then abandon that build directory
+  and retry with a fresh unique suffix (`...-r2`, `...-r3`, etc.). Never resume a
+  killed build directory: a partially written `core/core.a` produces misleading linker
+  floods such as `bad reloc symbol index`, even though the sketch source compiled.
+  A valid build ends with the flash/RAM usage summary and a non-empty
+  `net_bench.ino.bin`; inspect `build.options.json` to verify the exact deployed flags.
+- **Build once, OTA the artifact:** for field-cycle work, use
+  `ops/bench/field_cycle_ota.py ... --build-only` with a named build, verify it, then
+  pass that `.bin` back with `--bin` for OTA. This avoids an accidental second compile
+  or a changed flag set between validation and deployment.
+- **Sleeping-peer OTA timing:** a field-cycle peer may deep-sleep for 300 seconds and
+  listen for only 8 seconds. `field_cycle_ota.py` therefore defaults to a 360-second
+  discovery deadline; do not shorten it below one full sleep cadence for an already
+  sleeping peer, and leave maintenance resends enabled. A discovery timeout means no
+  OTA was attempted; it is not a failed flash.
+- **Field logger output safety:** `ops/bench/net_bench_log.py` exclusive-creates output
+  by default and refuses an existing JSONL path. Use a new path for a new run. Use
+  `--append --out <existing>` only to continue the same logical run after an outage;
+  it preserves the original metadata and writes a numbered segment boundary. Never use
+  `--overwrite` unless Ben explicitly wants the existing trace destroyed. After launch,
+  verify the file is growing and contains each expected peer; process existence alone
+  does not prove that dashboard/UDP forwarding is reaching disk.
 
 ## Who's working in this repo
 
@@ -40,30 +80,92 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 
 ## What's known vs assumed
 
-**Decided** (see ADRs):
-- ESP32-C3-MINI-1 module for production (ADR 0001).
+**Decided** (see ADRs; superseded entries kept for history -- do not build on them):
+- ~~ESP32-C3-MINI-1 module for production (ADR 0001)~~ -- superseded by ADR 0011/0021: ESP32-S3 PowerFeather V2.
 - LiFePO4 battery chemistry (ADR 0002).
-- CN3058 LiFePO4 charger IC (ADR 0003).
-- ESP-NOW mesh, no infrastructure required (ADR 0004).
-- FreeRTOS task architecture, not Arduino loop() (ADR 0005).
-- Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006).
+- ~~CN3058 LiFePO4 charger IC (ADR 0003)~~ -- superseded by ADR 0014; reality is the PowerFeather's BQ25628E.
+- ESP-NOW mesh, no infrastructure required (ADR 0004; the mesh-gossip OTA part alone was superseded by ADR 0010).
+- FreeRTOS task architecture, not Arduino loop() (ADR 0005; constrained by ADR 0028 -- no power-management I2C from core-0 tasks under WiFi).
+- ~~Custom PCB with reflowed module, not dev-board-on-carrier (ADR 0006)~~ -- superseded by ADR 0012; resolved to COTS production by ADR 0024.
 - Electronics in a separable hat on top of the bamboo lantern, not crammed inside (ADR 0007).
-- WS2812B powered direct from Vbat, no level shifter (ADR 0008).
+- ~~WS2812B powered direct from Vbat, no level shifter (ADR 0008)~~ -- superseded by ADR 0013; the VBAT-direct idea won the fat-wire bench but LOST the production-cabling A/B -- both LED roles ship rail-fed (ADR 0029 + 2026-07-11 amendment).
 - Minimize per-fixture operations at scale: no soldering on receipt, no per-unit configuration, jig-automated flashing (ADR 0009).
 - PowerFeather V2 (ESP32-S3) confirmed as the COTS reference after feasibility de-risking -- networking, solar, and battery-only no-touch OTA all validated (ADR 0021).
+- Mixed LED fleet by optical role: SK6812 HEX + 4 W RGBW point source (ADR 0022).
+- **Production locked: COTS PowerFeather V2 with a nominal 130-fixture Nevada City layout in four classes** -- 72 downlights (3 rings x 24) + 24 all-HEX perimeter + about 16 trunk lights trending RGBW + 18 mixed HEX/RGBW chandelier. The team intends the full layout barring an unforeseen issue; canonical counts are in `docs/block-diagram/SYSTEM.md` (ADR 0032 supersedes ADR 0024's allocation only).
+- Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
+- Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
+- Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on
+  downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device
+  calibration (ADR 0027). Thirty BMP581 temp/barometric env sensors were bought;
+  their allocation to the current trunk-light class remains open.
+- **Production show timing uses deterministic site/date schedules from sparse time
+  anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
+  initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231
+  modules are initial RTC holdover anchors. ESP-NOW distributes time quality to the
+  rest of the fleet, so all roughly 130 fixtures do not need RTCs (ADR 0031). Reception,
+  energy, drift/backup behavior, final counts, schedule offsets, and invalid-time
+  fallback remain open.
+- **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
+- LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
+- Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
+- **Performance-audio source: received PUCA DSP Original Edition + Eurorack
+  expansion + RODE VideoMic NTG is the primary optional bridge; CoreS3 + Module
+  Audio remains the independent fallback (ADR 0035). Hardware is on hand but
+  PUCA firmware is NOT implemented or field-validated.** Read
+  `hardware/puca-audio-bridge/README.md`; do not mistake the factory Eurorack
+  oscillator/effect image for Resonance firmware.
+- **Camp network AP is pinned to the mesh channel (11), HT20, WPA2-PSK, on a
+  dedicated 2.4 GHz SSID (ADR 0036).** One radio means WiFi STA and ESP-NOW share
+  a channel and the AP picks it, so an auto-channel AP silently deafens any
+  device that associates while on the mesh. Any Resonance device that associates
+  while using ESP-NOW must read the actual channel after association and, on
+  mismatch, **drop WiFi and keep the mesh** -- never the reverse. This does not
+  apply to fixtures in OTA maintenance mode, which have already left ESP-NOW by
+  design. Router ordered, not configured; runbook in
+  `docs/howto/CAMP_NETWORK_SETUP.md`.
+- **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
+- Camp network bring-up: Beryl AX ordered but not received or configured; the
+  channel guard is specified but not implemented in any firmware; the one
+  virtual SSID across the camp and art-site Starlinks is unresolved (ADR 0036).
+- Claude mesh bridge handheld: direction recorded only. Hardware IS on hand
+  (2x LilyGO **T-Deck Plus**, LCD variant + 1x M5Stack Cardputer ADV) but no
+  firmware is written and no bring-up is done. T-Deck Plus is the primary target;
+  do not port from **T-Deck Pro** documentation, which is a different device
+  (e-paper, CST328 touch, TCA8418 keypad) whose drivers do not transfer.
+  Class/spatial addressing still needs its own wire-format decision -- no group
+  addressing exists today. The Plus's GPS is a noted but unadopted adjacency to
+  the ADR 0031 time anchors; its 2000 mAh cell against a radio-RX-dominated
+  always-on receiver is an open runtime question. Post-2026-event unless Ben
+  re-prioritizes (ADR 0037).
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
-- Cost decomposition of `INV_2026_00401` invoice.
-- Whether the Community Mandala Program goes ahead.
+- Trunk-light integration: the production direction is about 16 mostly/all RGBW
+  fixtures, with a smaller lensed 3 W RGB variant under test for extra throw. Final
+  LED choice, power, mounting, enclosure, and sensor allocation remain open (ADR 0032).
+- Chandelier light electronics scope/ownership (18 lights, internals fungible with
+  the fleet -- ADR 0032) and its exact HEX/RGBW mix.
+- ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
+- Bottom-up nightly energy budget by role; MPPT policy.
+- SAM-M8Q GPS and DS3231 RTC anchor qualification; final anchor counts/placement,
+  power/backup strategy, time-quality protocol, schedule versioning, and invalid-time
+  fallback (ADR 0031).
+- Retired 2026-07-08: `INV_2026_00401` cost decomposition (invoice identity unclear
+  -- probably the Bamboo Pure lantern invoice; no longer a useful baseline now that
+  real procurement is recorded in `ops/PROCUREMENT.md`). The Community Mandala
+  Program was pulled for time; gobos are now in-house + generative bamboo-leaf
+  patterns (see BACKGROUND.md).
 
 **Validated on hardware** (2026-06, PowerFeather V2 COTS bench -- see ADR 0021 +
 `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + LOG 2026-06-07/08):
 - **ESP-NOW networking** scales to ~100 fixtures (5-node bench ~99% PDR, clean rate-knee) and
   the radio reaches well past tree scale (held through a house + yard + oak, ~100 steps). The
   lantern enclosure is RF-transparent; the solar panel is the main ~20 dB attenuator (antenna
-  keep-out matters).
+  keep-out matters). Note: the extrapolation was computed at 100 nodes; the fleet now plans
+  about 130 -- re-running the projection at 130 is a queued TODO, with 150 still useful as a
+  conservative stress case (physics gives margin, but the claim should say 100 until re-run).
 - **Battery-only, no-touch OTA + A/B rollback** (the "never take a lantern off the tree"
   requirement): software-reset OTA recovered ~17/17 incl. worst-case LFP voltage; a
   self-test-failing image auto-reverts to last-good. Watchdog + autosleep recovery validated.
@@ -87,7 +189,9 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 
 - Bamboo lantern fabrication (Bamboo Pure / Vishnu, Bali).
 - Tree structural design (Ed Wilkes, Bristol).
-- Wind chime cluster electronics (separate workstream, Vishnu).
+- Wind chime cluster electronics (separate workstream, Vishnu). Note: the 18
+  chandelier *lights* are now a fleet class in this repo (ADR 0032);
+  scope/ownership still being clarified with the team.
 - Project-wide logistics, budget, container shipping (Elliot, Co-Work agent).
 - The Resonance project's grant strategy / fundraising (Elliot).
 

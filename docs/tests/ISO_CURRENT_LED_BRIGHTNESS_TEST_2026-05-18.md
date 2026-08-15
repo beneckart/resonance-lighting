@@ -1,5 +1,12 @@
 # Iso-Current LED Brightness Test - 2026-05-18
 
+> **Status 2026-07-08: SUPERSEDED, results tables never filled.** Overtaken by the
+> PowerFeather V2 bench: the IS31 was ruled out (ADR 0018), the fleet went mixed
+> HEX + RGBW by role (ADR 0022), and the equal-conditions comparison eventually
+> happened as the 2026-07-02 LED drive matrix (LOG,
+> `docs/tests/BOOST_AB_BENCH_REPORT_2026-07-02.html`, ADR 0029). Kept as a record
+> of the planned protocol.
+
 Purpose: compare LED candidates at equal measured current, then compare gobo
 projection quality at equal exposure/geometry. Current smoke-test modes are
 useful for bring-up, but they are not equal-lumen or equal-current states.

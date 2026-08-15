@@ -1,14 +1,19 @@
 # Ops
 
-Logistics, vendor contacts, BOM management, shipping coordination. Non-engineering operational work.
+Logistics, vendors, BOM management, procurement. Non-engineering operational work.
 
-## Planned contents
+## Contents
 
-- `bom.md` -- current target BOM with vendor SKUs, JLCPCB part IDs, prices at qty 100. Iterates with the schematic.
-- `vendors.md` -- JLCPCB, JLC3DP, Voltaic Systems, Bambu Labs filament suppliers, etc. Account info, payment terms.
-- `shipping.md` -- coordinate with Michelle Satkin / Mainfreight on Bali container vs separate US->BRC ship.
-- `timeline.md` -- dated milestones backwards from Burning Man.
+- `bom.md` -- fleet bill of materials: shared core + per-class tables, fleet totals
+  vs bought, spares math, open BOM inputs. Counts mirror the canonical fleet table
+  in `docs/block-diagram/SYSTEM.md`.
+- `PROCUREMENT.md` -- orders ledger (dates, costs, statuses), small/sample orders,
+  to-buy queue, lead-time risks backward from Aug 20, procurement timeline, vendor
+  directory. Absorbs the previously planned `vendors.md` / `shipping.md` /
+  `timeline.md`.
+- `bench/` -- bench tooling (Python loggers, sweep/analysis scripts, dashboards) and
+  measurement data under `bench/data/` (site-partitioned JSONL; see
+  `bench/data/README.md`).
 
-## Status
-
-Empty. Populate as decisions concretize.
+Container/bamboo shipping (Bali -> US) is Elliot's track with Michelle Satkin /
+Mainfreight -- coordinate through Ben, not from this repo.

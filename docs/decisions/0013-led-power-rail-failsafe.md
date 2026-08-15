@@ -1,7 +1,7 @@
 # 0013 -- LED rail must be switchable and fail-safe; exact voltage rail chosen by test
 
 **Date:** 2026-05-08
-**Status:** Accepted
+**Status:** Accepted. Annotation 2026-07-08: the switchable/fail-safe requirement stands. The "exact voltage rail chosen by test" clause is resolved for the HEX (switchable 3V3 rail) and measured-but-open for the RGBW (rail as wired today vs VBAT-direct; ADR 0029 carries the trade).
 **Owners:** Ben
 **Supersedes:** ADR 0008
 

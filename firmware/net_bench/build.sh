@@ -23,6 +23,13 @@ MAINT_TIMEOUT=""; START_MAINT=""; AUTOSLEEP=""; BUDGET=""; WAKE=""; LOWPOWER=""
 CHEM=""; CAP=""; CHARGE=""; CHARGE_MA=""; MAINTAIN=""; PORT=""; OTA_IP=""
 SERIAL_BRIDGE=""; SCAN_REPORT=""; SCAN_S=""; SCAN_MAX=""; SLEEP_CYCLE=""; SLEEP_S=""; WAKE_LISTEN_MS=""; BATT_NTC=""; MAINT_AP=""
 FIELD_CYCLE=""; FIELD_CHARGE_SLEEP=""; FIELD_WAIT_SLEEP=""; FIELD_PROTECT_SLEEP=""; FIELD_WAKE_LISTEN_MS=""; FIELD_COLD_LISTEN_MS=""
+FIELD_DIM_MV=""; FIELD_DIM_BRIGHTNESS=""; FIELD_DIM_CONFIRM_S=""; FIELD_LOW_MV=""; FIELD_CRITICAL_MV=""; FIELD_LOW_CONFIRM_S=""; FIELD_LED_LOAD=""
+FIELD_DUSK_LUX_X10=""; FIELD_DAWN_LUX_X10=""; FIELD_DUSK_CONFIRM_S=""; FIELD_DUSK_NO_SENSOR_CONFIRM_S=""
+FIELD_LED_SPIRAL_RGB=""; FIELD_LED_RGBW=""; FIELD_LED_FRAME_MS=""
+FIELD_RECOVER_CHARGE_MA=""; FIELD_PROTECT_RETRY_DARK=""
+DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
+FIELD_MPPT=""; FIELD_MPPT_HOLD=""
+SOLENOID_D7=""; CAPBANK_PROBE=""; CAPBANK_PROBE_SWAPPED=""; CAPBANK_WAVEFORM=""; SENSOR_TRIAD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -52,6 +59,34 @@ while [[ $# -gt 0 ]]; do
     --field-protect-s) FIELD_PROTECT_SLEEP="$2"; shift 2;;
     --field-wake-ms) FIELD_WAKE_LISTEN_MS="$2"; shift 2;;
     --field-cold-ms) FIELD_COLD_LISTEN_MS="$2"; shift 2;;
+    --field-dim-mv) FIELD_DIM_MV="$2"; shift 2;;
+    --field-dim-brightness) FIELD_DIM_BRIGHTNESS="$2"; shift 2;;
+    --field-dim-confirm-s) FIELD_DIM_CONFIRM_S="$2"; shift 2;;
+    --field-low-mv) FIELD_LOW_MV="$2"; shift 2;;
+    --field-critical-mv) FIELD_CRITICAL_MV="$2"; shift 2;;
+    --field-low-confirm-s) FIELD_LOW_CONFIRM_S="$2"; shift 2;;
+    --field-led-load) FIELD_LED_LOAD="1"; shift;;
+    --field-led-spiral-rgb) FIELD_LED_SPIRAL_RGB="1"; shift;;
+    --field-led-rgbw) FIELD_LED_RGBW="1"; shift;;
+    --field-led-frame-ms) FIELD_LED_FRAME_MS="$2"; shift 2;;
+    --field-recover-charge-ma) FIELD_RECOVER_CHARGE_MA="$2"; shift 2;;
+    --field-dusk-lux-x10) FIELD_DUSK_LUX_X10="$2"; shift 2;;
+    --field-dawn-lux-x10) FIELD_DAWN_LUX_X10="$2"; shift 2;;
+    --field-dusk-confirm-s) FIELD_DUSK_CONFIRM_S="$2"; shift 2;;
+    --field-dusk-no-sensor-confirm-s) FIELD_DUSK_NO_SENSOR_CONFIRM_S="$2"; shift 2;;
+    --field-protect-retry-dark) FIELD_PROTECT_RETRY_DARK="1"; shift;;
+    --field-mppt) FIELD_MPPT="1"; shift;;
+    --field-mppt-hold) FIELD_MPPT_HOLD="1"; shift;;
+    --solenoid-d7) SOLENOID_D7="1"; shift;;             # D7/GPIO37 gate; VDC/GND load tap
+    --capbank-probe) CAPBANK_PROBE="1"; shift;;         # v1 capbank A4=VSNS, A5=D7S ADC capture
+    --capbank-probe-swapped) CAPBANK_PROBE="1"; CAPBANK_PROBE_SWAPPED="1"; shift;; # A4=D7S, A5=VSNS
+    --capbank-waveform) CAPBANK_PROBE="1"; CAPBANK_WAVEFORM="1"; shift;; # radio-quiet ADC DMA + HTTP CSV
+    --sensor-triad) SENSOR_TRIAD="1"; shift;;           # MSA311 + TMF8820 + BMP581 diagnostic
+    --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
+    --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
+    --drawdown-r) DRAWDOWN_R="$2"; shift 2;;
+    --drawdown-g) DRAWDOWN_G="$2"; shift 2;;
+    --drawdown-b) DRAWDOWN_B="$2"; shift 2;;
     --batt-ntc) BATT_NTC="1"; shift;;               # battery thermistor on charger TS -- ONLY with the NTC physically attached
 
     --chem) CHEM="$2"; shift 2;;
@@ -67,16 +102,16 @@ done
 if [[ -n "${PORT}" && -n "${OTA_IP}" ]]; then echo "use --port OR --ota, not both" >&2; exit 2; fi
 if [[ -n "${FIELD_CYCLE}" && -n "${SLEEP_CYCLE}" ]]; then echo "use --field-cycle OR --sleep-cycle, not both" >&2; exit 2; fi
 
-# Reuse known local WiFi creds if we don't have our own. This keeps the default
-# maintenance path on shared WiFi, which is the only fleet-scalable OTA mode.
-if [[ ! -f "${SKETCH_DIR}/wifi_secrets.h" ]]; then
-  if [[ -f "${SKETCH_DIR}/../power_bench/wifi_secrets.h" ]]; then
-    cp "${SKETCH_DIR}/../power_bench/wifi_secrets.h" "${SKETCH_DIR}/wifi_secrets.h"
-    echo "copied wifi_secrets.h from ../power_bench"
-  elif [[ -f "${SKETCH_DIR}/../led_studio/wifi_secrets.h" ]]; then
-    cp "${SKETCH_DIR}/../led_studio/wifi_secrets.h" "${SKETCH_DIR}/wifi_secrets.h"
-    echo "copied wifi_secrets.h from ../led_studio"
-  fi
+# Shared-WiFi OTA credentials are deliberately local and explicit. Do not copy
+# another sketch's profile: that silently deployed the retired WonkyHouse SSID
+# to a field peer in Nevada City. Dad's legacy personal bench may opt in locally.
+if [[ -f "${SKETCH_DIR}/wifi_secrets.h" ]] &&
+   grep -Eq '^#[[:space:]]*define[[:space:]]+RES_WIFI_SSID[[:space:]]+"WonkyHouse"' \
+     "${SKETCH_DIR}/wifi_secrets.h" &&
+   [[ "${RES_ALLOW_LEGACY_WONKYHOUSE:-0}" != "1" ]]; then
+  echo "refusing retired WonkyHouse OTA profile; set a current local wifi_secrets.h" >&2
+  echo "Dad's legacy personal bench only: RES_ALLOW_LEGACY_WONKYHOUSE=1" >&2
+  exit 2
 fi
 
 FLAGS="-DPOWERFEATHER_BOARD_V2=1"
@@ -111,6 +146,34 @@ esac
 [[ -n "${FIELD_PROTECT_SLEEP}" ]] && FLAGS+=" -DNB_FIELD_PROTECT_SLEEP_S=${FIELD_PROTECT_SLEEP}"
 [[ -n "${FIELD_WAKE_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_WAKE_LISTEN_MS=${FIELD_WAKE_LISTEN_MS}"
 [[ -n "${FIELD_COLD_LISTEN_MS}" ]] && FLAGS+=" -DNB_FIELD_COLD_LISTEN_MS=${FIELD_COLD_LISTEN_MS}"
+[[ -n "${FIELD_DIM_MV}" ]] && FLAGS+=" -DNB_FIELD_DIM_MV=${FIELD_DIM_MV}"
+[[ -n "${FIELD_DIM_BRIGHTNESS}" ]] && FLAGS+=" -DNB_FIELD_LED_DIM_BRIGHTNESS=${FIELD_DIM_BRIGHTNESS}"
+[[ -n "${FIELD_DIM_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DIM_CONFIRM_S=${FIELD_DIM_CONFIRM_S}"
+[[ -n "${FIELD_LOW_MV}" ]] && FLAGS+=" -DNB_FIELD_LOW_MV=${FIELD_LOW_MV}"
+[[ -n "${FIELD_CRITICAL_MV}" ]] && FLAGS+=" -DNB_FIELD_CRITICAL_MV=${FIELD_CRITICAL_MV}"
+[[ -n "${FIELD_LOW_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_LOW_CONFIRM_S=${FIELD_LOW_CONFIRM_S}"
+[[ -n "${FIELD_LED_LOAD}" ]] && FLAGS+=" -DNB_FIELD_LED_LOAD=1"
+[[ -n "${FIELD_LED_SPIRAL_RGB}" ]] && FLAGS+=" -DNB_FIELD_LED_SPIRAL_RGB=1"
+[[ -n "${FIELD_LED_RGBW}" ]] && FLAGS+=" -DNB_FIELD_LED_RGBW=1 -DNB_DRAWDOWN_PIXEL_COUNT=1"
+[[ -n "${FIELD_LED_FRAME_MS}" ]] && FLAGS+=" -DNB_FIELD_LED_FRAME_MS=${FIELD_LED_FRAME_MS}"
+[[ -n "${FIELD_RECOVER_CHARGE_MA}" ]] && FLAGS+=" -DNB_FIELD_RECOVER_CHARGE_MA=${FIELD_RECOVER_CHARGE_MA}"
+[[ -n "${FIELD_DUSK_LUX_X10}" ]] && FLAGS+=" -DNB_FIELD_DUSK_LUX_X10=${FIELD_DUSK_LUX_X10}"
+[[ -n "${FIELD_DAWN_LUX_X10}" ]] && FLAGS+=" -DNB_FIELD_DAWN_LUX_X10=${FIELD_DAWN_LUX_X10}"
+[[ -n "${FIELD_DUSK_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DUSK_CONFIRM_S=${FIELD_DUSK_CONFIRM_S}"
+[[ -n "${FIELD_DUSK_NO_SENSOR_CONFIRM_S}" ]] && FLAGS+=" -DNB_FIELD_DUSK_NO_SENSOR_CONFIRM_S=${FIELD_DUSK_NO_SENSOR_CONFIRM_S}"
+[[ -n "${FIELD_PROTECT_RETRY_DARK}" ]] && FLAGS+=" -DNB_FIELD_PROTECT_RETRY_DARK=1"
+[[ -n "${FIELD_MPPT}" ]] && FLAGS+=" -DNB_FIELD_MPPT=1"
+[[ -n "${FIELD_MPPT_HOLD}" ]] && FLAGS+=" -DNB_FIELD_MPPT_HOLD_BEST=1"
+[[ -n "${SOLENOID_D7}" ]] && FLAGS+=" -DNB_SOLENOID_D7=1"
+[[ -n "${CAPBANK_PROBE}" ]] && FLAGS+=" -DNB_CAPBANK_PROBE=1 -DNB_SOLENOID_D7=1"
+[[ -n "${CAPBANK_PROBE_SWAPPED}" ]] && FLAGS+=" -DNB_CAPBANK_VSNS_PIN=A5 -DNB_CAPBANK_D7S_PIN=A4"
+[[ -n "${CAPBANK_WAVEFORM}" ]] && FLAGS+=" -DNB_CAPBANK_WAVEFORM=1"
+[[ -n "${SENSOR_TRIAD}" ]] && FLAGS+=" -DNB_SENSOR_TRIAD=1"
+[[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
+[[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"
+[[ -n "${DRAWDOWN_R}" ]] && FLAGS+=" -DNB_DRAWDOWN_R=${DRAWDOWN_R}"
+[[ -n "${DRAWDOWN_G}" ]] && FLAGS+=" -DNB_DRAWDOWN_G=${DRAWDOWN_G}"
+[[ -n "${DRAWDOWN_B}" ]] && FLAGS+=" -DNB_DRAWDOWN_B=${DRAWDOWN_B}"
 [[ -n "${BATT_NTC}" ]]      && FLAGS+=" -DNB_BATT_NTC=1"
 [[ -n "${CAP}" ]]           && FLAGS+=" -DRES_PF_BATTERY_CAPACITY_MAH=${CAP}"
 case "${CHEM}" in

@@ -29,7 +29,14 @@
 #include "esp_system.h"
 #include "esp_ota_ops.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"
 #include "esp_task_wdt.h"
+#include "esp_adc/adc_continuous.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#include "esp32-hal-periman.h"
+#include "esp_heap_caps.h"
+#include "driver/rtc_io.h"
 #include <Preferences.h>
 #include <Wire.h>
 // Env sensors (MPP sweep): auto-probed on the STEMMA bus (Wire1) at boot --
@@ -37,8 +44,16 @@
 #include <Adafruit_TSL2591.h>
 #include <Adafruit_SHT31.h>
 #include <Adafruit_NeoPixel.h>
+#ifndef NB_SENSOR_TRIAD
+#define NB_SENSOR_TRIAD 0
+#endif
+#if NB_SENSOR_TRIAD
+#include <Adafruit_MSA301.h>
+#include <Adafruit_BMP5xx.h>
+#include <SparkFun_TMF882X_Library.h>
+#endif
 
-#define NET_BENCH_VERSION "net-bench-2026-06-30.7" // charger-status telemetry
+#define NET_BENCH_VERSION "net-bench-2026-08-06.4" // capbank DMA post-trigger timestamp fix
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -67,10 +82,13 @@ using namespace PowerFeather;
 #define RES_PF_ENABLE_CHARGING 1
 #endif
 #ifndef RES_PF_MAX_CHARGE_MA
-#define RES_PF_MAX_CHARGE_MA 1000.0f
+#define RES_PF_MAX_CHARGE_MA 2000.0f
 #endif
 #ifndef RES_PF_MAINTAIN_V
 #define RES_PF_MAINTAIN_V 4.6f
+#endif
+#ifndef NB_GAUGE_CURRENT_DIVISOR
+#define NB_GAUGE_CURRENT_DIVISOR 1.08f // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions
 #endif
 
 // ---- net-bench config (override with -D at build time) ---------------------
@@ -139,11 +157,111 @@ using namespace PowerFeather;
 #ifndef NB_TARGET_SLEEP_DEFAULT_S
 #define NB_TARGET_SLEEP_DEFAULT_S 3600 // selected-peer "solar nap" default
 #endif
+// Optional P126 VDC-tap solenoid. The Adafruit MOSFET driver's flyback diode and
+// gate pulldown are mandatory because VDC is always live; unlike a 3V3-fed coil,
+// the firmware cannot kill coil power with EN_3V3. Enable only on the wired peer.
+#ifndef NB_SOLENOID_PIN
+#define NB_SOLENOID_PIN D7 // PowerFeather D7 is GPIO37 (not GPIO7)
+#endif
+#ifndef NB_SOLENOID_DEFAULT_MS
+#define NB_SOLENOID_DEFAULT_MS 40
+#endif
+#ifndef NB_SOLENOID_MIN_MS
+#define NB_SOLENOID_MIN_MS 5
+#endif
+#ifndef NB_SOLENOID_MAX_MS
+#define NB_SOLENOID_MAX_MS 300
+#endif
+#ifndef NB_SOLENOID_REST_MS
+#define NB_SOLENOID_REST_MS 80
+#endif
+#ifndef NB_SOLENOID_BUTTON_PIN
+#define NB_SOLENOID_BUTTON_PIN BTN // PowerFeather USER/BOOT button, GPIO0, active LOW
+#endif
+#ifndef NB_SOLENOID_BUTTON_DEBOUNCE_MS
+#define NB_SOLENOID_BUTTON_DEBOUNCE_MS 30
+#endif
+#if defined(NB_CAPBANK_PROBE) && !defined(NB_SOLENOID_D7)
+#error "NB_CAPBANK_PROBE requires NB_SOLENOID_D7"
+#endif
+// v1.0 capbank telemetry. Nominal cable is A4=VSNS, A5=D7S; the bench cable
+// may be reversed because both signals are ADC1-safe and the PCB was designed
+// to tolerate that. Override both pins at build time when reversed.
+#ifndef NB_CAPBANK_VSNS_PIN
+#define NB_CAPBANK_VSNS_PIN A4
+#endif
+#ifndef NB_CAPBANK_D7S_PIN
+#define NB_CAPBANK_D7S_PIN A5
+#endif
+#ifndef NB_CAPBANK_VSNS_TOP_OHM
+#define NB_CAPBANK_VSNS_TOP_OHM 100000.0f
+#endif
+#ifndef NB_CAPBANK_VSNS_BOTTOM_OHM
+#define NB_CAPBANK_VSNS_BOTTOM_OHM 33000.0f
+#endif
+#ifndef NB_CAPBANK_PROBE_RECOVERY_MS
+#define NB_CAPBANK_PROBE_RECOVERY_MS 250
+#endif
+#if defined(NB_CAPBANK_WAVEFORM) && !defined(NB_CAPBANK_PROBE)
+#error "NB_CAPBANK_WAVEFORM requires NB_CAPBANK_PROBE"
+#endif
+// Bench-only waveform recorder. The ESP32-S3 ADC ceiling is 83,333 total
+// conversions/s; two interleaved ADC1 channels at 80 kconv/s give about
+// 40 ksps/channel. HTTP only arms/downloads the capture. WiFi is fully off
+// during the strike so radio current cannot contaminate the waveform.
+#ifndef NB_CAPBANK_WAVEFORM_CONV_HZ
+#define NB_CAPBANK_WAVEFORM_CONV_HZ 80000
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_PRE_MS
+#define NB_CAPBANK_WAVEFORM_PRE_MS 10
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_POST_MS
+#define NB_CAPBANK_WAVEFORM_POST_MS 250
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_MAX_PULSE_MS
+#define NB_CAPBANK_WAVEFORM_MAX_PULSE_MS 50
+#endif
+#ifndef NB_CAPBANK_WAVEFORM_MAX_SAMPLES
+#define NB_CAPBANK_WAVEFORM_MAX_SAMPLES 14000
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_POLL_MS
+#define NB_SOLENOID_RGB_BUTTON_POLL_MS 50
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS
+#define NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS 50
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_MAX_ERRORS
+#define NB_SOLENOID_RGB_BUTTON_MAX_ERRORS 3
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_PROBE_MS
+#define NB_SOLENOID_RGB_BUTTON_PROBE_MS 250
+#endif
+#ifndef NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS
+#define NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS 8
+#endif
+#ifndef NB_SOLENOID_NAV_POLL_MS
+#define NB_SOLENOID_NAV_POLL_MS 50
+#endif
+#ifndef NB_SOLENOID_NAV_DEBOUNCE_MS
+#define NB_SOLENOID_NAV_DEBOUNCE_MS 50
+#endif
+#ifndef NB_SOLENOID_NAV_PROBE_MS
+#define NB_SOLENOID_NAV_PROBE_MS 250
+#endif
+#ifndef NB_SOLENOID_NAV_PROBE_ATTEMPTS
+#define NB_SOLENOID_NAV_PROBE_ATTEMPTS 8
+#endif
+#ifndef NB_SOLENOID_NAV_MAX_ERRORS
+#define NB_SOLENOID_NAV_MAX_ERRORS 3
+#endif
 #ifndef NB_DRAWDOWN_PIXEL_PIN
 #define NB_DRAWDOWN_PIXEL_PIN 10 // GPIO10 / A0: direct-GPIO HEX bench harness
 #endif
 #ifndef NB_DRAWDOWN_PIXEL_COUNT
 #define NB_DRAWDOWN_PIXEL_COUNT 37
+#endif
+#ifndef NB_DRAWDOWN_LIT_COUNT
+#define NB_DRAWDOWN_LIT_COUNT NB_DRAWDOWN_PIXEL_COUNT
 #endif
 #ifndef NB_DRAWDOWN_BRIGHTNESS
 #define NB_DRAWDOWN_BRIGHTNESS 128 // measured about 0.75 A battery-side on the current HEX rig
@@ -193,19 +311,73 @@ using namespace PowerFeather;
 #define NB_FIELD_COLD_LISTEN_MS 30000 // cold boot catch window before first sleep
 #endif
 #ifndef NB_FIELD_FULL_MV
-#define NB_FIELD_FULL_MV 3550 // LFP top knee / effectively full candidate
+#define NB_FIELD_FULL_MV 3600 // PowerFeather LFP CV target / effectively full candidate
 #endif
 #ifndef NB_FIELD_FULL_TAPER_MA
 #define NB_FIELD_FULL_TAPER_MA 120 // net battery charge current at/under this near top = full-ish
 #endif
+#ifndef NB_FIELD_DIM_MV
+#define NB_FIELD_DIM_MV 3000 // ADR 0023 standard tier: dim load at 3.00 V loaded
+#endif
+#ifndef NB_FIELD_DIM_CLEAR_MV
+#define NB_FIELD_DIM_CLEAR_MV (NB_FIELD_DIM_MV + 150) // hysteresis; bench dim latch normally clears on charge cycle
+#endif
+#ifndef NB_FIELD_DIM_CONFIRM_S
+#define NB_FIELD_DIM_CONFIRM_S 10 // dim before a marginal source can reset for the full 60 s low debounce
+#endif
 #ifndef NB_FIELD_LOW_MV
-#define NB_FIELD_LOW_MV NB_DRAWDOWN_SOFT_FLOOR_MV
+#define NB_FIELD_LOW_MV 2950 // ADR 0023 standard tier: LED-off/protect threshold under load
 #endif
 #ifndef NB_FIELD_CRITICAL_MV
-#define NB_FIELD_CRITICAL_MV NB_DRAWDOWN_HARD_FLOOR_MV
+#define NB_FIELD_CRITICAL_MV 2900 // ADR 0023 standard tier: sparse sleep / hard backstop under load
+#endif
+#ifndef NB_FIELD_LOW_CONFIRM_S
+#define NB_FIELD_LOW_CONFIRM_S 60 // ADR 0023: avoid one-sample load-sag false transitions
+#endif
+#ifndef NB_FIELD_PROTECT_RETRY_MV
+#define NB_FIELD_PROTECT_RETRY_MV (NB_FIELD_LOW_MV + 150) // only used when dark retry is explicitly enabled
+#endif
+#ifndef NB_FIELD_PROTECT_RETRY_DARK
+#define NB_FIELD_PROTECT_RETRY_DARK 0 // default: latch protect until clear solar/USB charge recovery
 #endif
 #ifndef NB_FIELD_DRAWDOWN_MIN_S
 #define NB_FIELD_DRAWDOWN_MIN_S NB_DRAWDOWN_MIN_RUN_S
+#endif
+#ifndef NB_FIELD_LED_LOAD
+#define NB_FIELD_LED_LOAD 0 // opt-in: use the configured addressable-LED load during field-cycle draw
+#endif
+#ifndef NB_FIELD_LED_RGBW
+#define NB_FIELD_LED_RGBW 0 // production 4 W single pixel: RGBW wire order, RGB full and W off
+#endif
+#ifndef NB_FIELD_LED_SPIRAL_RGB
+#define NB_FIELD_LED_SPIRAL_RGB 0 // LED Studio spiral + 120-degree symmetric pure-R/G/B triplet
+#endif
+#ifndef NB_FIELD_LED_FRAME_MS
+#define NB_FIELD_LED_FRAME_MS 290 // LED Studio default speed=30; ~21 s center-edge-center cycle
+#endif
+#ifndef NB_FIELD_LED_DIM_BRIGHTNESS
+#define NB_FIELD_LED_DIM_BRIGHTNESS ((NB_DRAWDOWN_BRIGHTNESS > 1) ? (NB_DRAWDOWN_BRIGHTNESS / 2) : 1)
+#endif
+#ifndef NB_FIELD_LED_START_DELAY_MS
+#define NB_FIELD_LED_START_DELAY_MS 1000 // let power + ESP-NOW settle before applying the field load
+#endif
+#ifndef NB_FIELD_LED_RETRY_DELAY_MS
+#define NB_FIELD_LED_RETRY_DELAY_MS 10000 // let a tripped cell/protection path recover before the one dim retry
+#endif
+#ifndef NB_FIELD_LED_RAMP_MS
+#define NB_FIELD_LED_RAMP_MS 3200 // four 800 ms steps expose delayed harness/cell sag before full load
+#endif
+#ifndef NB_FIELD_LED_RAMP_STEPS
+#define NB_FIELD_LED_RAMP_STEPS 4
+#endif
+#if NB_FIELD_LED_SPIRAL_RGB && NB_DRAWDOWN_PIXEL_COUNT != 37
+#error "NB_FIELD_LED_SPIRAL_RGB requires the 37-pixel M5Stack HEX geometry"
+#endif
+#if NB_FIELD_LED_SPIRAL_RGB && NB_FIELD_LED_RGBW
+#error "NB_FIELD_LED_SPIRAL_RGB and NB_FIELD_LED_RGBW are mutually exclusive"
+#endif
+#if NB_FIELD_LED_RGBW && NB_DRAWDOWN_PIXEL_COUNT != 1
+#error "NB_FIELD_LED_RGBW requires NB_DRAWDOWN_PIXEL_COUNT=1"
 #endif
 #ifndef NB_FIELD_SUN_SUPPLY_MV
 #define NB_FIELD_SUN_SUPPLY_MV 4000 // supply/panel voltage that counts as present
@@ -213,11 +385,59 @@ using namespace PowerFeather;
 #ifndef NB_FIELD_SUN_CHARGE_MA
 #define NB_FIELD_SUN_CHARGE_MA 20 // input current into board that counts as useful sun/supply
 #endif
+#ifndef NB_FIELD_RECOVER_CHARGE_MA
+#define NB_FIELD_RECOVER_CHARGE_MA 20 // battery charge current needed to release protect latch
+#endif
+#ifndef NB_FIELD_DUSK_LUX_X10
+#define NB_FIELD_DUSK_LUX_X10 2000 // 200 lux: July field trace reaches this near visual sunset
+#endif
+#ifndef NB_FIELD_DAWN_LUX_X10
+#define NB_FIELD_DAWN_LUX_X10 5000 // 500 lux: separate dawn hysteresis avoids LED/light chatter
+#endif
+#ifndef NB_FIELD_DUSK_CONFIRM_S
+#define NB_FIELD_DUSK_CONFIRM_S 300 // sensored peer: require 5 min below the lux threshold
+#endif
+#ifndef NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S
+#define NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S 1800 // bare peer fallback: 30 min without useful input
+#endif
 #ifndef NB_FIELD_DRAWDOWN_HZ
 #define NB_FIELD_DRAWDOWN_HZ 1 // production-ish always-awake radio draw cadence
 #endif
+#ifndef NB_FIELD_MPPT
+#define NB_FIELD_MPPT 0 // opt-in: daylight-only 4.6/4.8/5.0 V VINDPM perturb
+#endif
+#ifndef NB_FIELD_MPPT_HOLD_BEST
+#define NB_FIELD_MPPT_HOLD_BEST 0 // default bench mode clamps back to 4.6 V before sleep
+#endif
+#ifndef NB_FIELD_MPPT_DEFAULT_V10
+#define NB_FIELD_MPPT_DEFAULT_V10 46 // 4.6 V: USB/power-bank rescue-safe default
+#endif
+#ifndef NB_FIELD_MPPT_MID_V10
+#define NB_FIELD_MPPT_MID_V10 48
+#endif
+#ifndef NB_FIELD_MPPT_HIGH_V10
+#define NB_FIELD_MPPT_HIGH_V10 50
+#endif
+#ifndef NB_FIELD_MPPT_MIN_BATT_MV
+#define NB_FIELD_MPPT_MIN_BATT_MV NB_FIELD_DIM_CLEAR_MV
+#endif
+#ifndef NB_FIELD_MPPT_TAPER_MV
+#define NB_FIELD_MPPT_TAPER_MV NB_FIELD_FULL_MV
+#endif
+#ifndef NB_FIELD_MPPT_TAPER_MA
+#define NB_FIELD_MPPT_TAPER_MA 220 // skip if near top and not accepting much current
+#endif
+#ifndef NB_FIELD_MPPT_MIN_SUPPLY_MA
+#define NB_FIELD_MPPT_MIN_SUPPLY_MA 200 // avoid noisy weak-sun comparisons
+#endif
+#ifndef NB_FIELD_MPPT_MIN_PANEL_W_X100
+#define NB_FIELD_MPPT_MIN_PANEL_W_X100 100 // 1.00 W minimum baseline panel power
+#endif
+#ifndef NB_FIELD_MPPT_SETTLE_MS
+#define NB_FIELD_MPPT_SETTLE_MS 900
+#endif
 #ifndef NB_MAINTAIN_MIN_V10
-#define NB_MAINTAIN_MIN_V10 40 // PowerFeather SDK supports 4.0 V minimum
+#define NB_MAINTAIN_MIN_V10 46 // PowerFeather SDK intentionally clamps at 4.6 V
 #endif
 #ifndef NB_MAINTAIN_MAX_V10
 #define NB_MAINTAIN_MAX_V10 168 // PowerFeather SDK supports 16.8 V maximum
@@ -248,6 +468,9 @@ using namespace PowerFeather;
 #endif
 #ifndef NB_CHARGE_MAX_MA
 #define NB_CHARGE_MAX_MA 2000
+#endif
+#ifndef NB_CHARGE_POLICY_VERSION
+#define NB_CHARGE_POLICY_VERSION 1
 #endif
 // NB_START_MAINT, NB_WDT_HANGTEST, NB_AUTOSLEEP, NB_SCAN_REPORT, NB_SERIAL_BRIDGE,
 // NB_MAINT_AP, NB_SLEEP_CYCLE, NB_FIELD_CYCLE are presence-only flags.
@@ -314,6 +537,33 @@ enum FieldReason : uint8_t {
   FC_REASON_LOW = 5,
   FC_REASON_CRITICAL = 6,
   FC_REASON_SUNRISE = 7,
+  FC_REASON_INTERRUPTED = 8,
+};
+enum FieldSessionStage : uint8_t {
+  FIELD_SESSION_IDLE = 0,
+  FIELD_SESSION_FULL = 1,
+  FIELD_SESSION_DIM = 2,
+  FIELD_SESSION_PROTECT = 3,
+};
+enum FieldMpptStatus : uint8_t {
+  MPPT_STATUS_DISABLED = 0,
+  MPPT_STATUS_SKIPPED = 1,
+  MPPT_STATUS_RAN = 2,
+  MPPT_STATUS_CLAMPED = 3,
+  MPPT_STATUS_HELD_BEST = 4,
+};
+enum FieldMpptReason : uint8_t {
+  MPPT_REASON_NONE = 0,
+  MPPT_REASON_DISABLED = 1,
+  MPPT_REASON_PHASE = 2,
+  MPPT_REASON_WAKE_WINDOW = 3,
+  MPPT_REASON_LOW_BATT = 4,
+  MPPT_REASON_WEAK_SUN = 5,
+  MPPT_REASON_TAPER = 6,
+  MPPT_REASON_BQ_FAULT = 7,
+  MPPT_REASON_MEASURED = 8,
+  MPPT_REASON_CLAMP = 9,
+  MPPT_REASON_MAINT = 10,
 };
 volatile NetMode gMode = MODE_COMMS;
 volatile bool gResumePending = false; // /resume sets this; loop() does the real enterComms()
@@ -332,7 +582,45 @@ RTC_DATA_ATTR uint32_t rtcFieldChargeMas = 0;
 RTC_DATA_ATTR uint32_t rtcFieldDischargeMas = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMinMv = 0;
 RTC_DATA_ATTR uint16_t rtcFieldMaxMv = 0;
+RTC_DATA_ATTR uint32_t rtcFieldChargeMws = 0;
+RTC_DATA_ATTR uint32_t rtcFieldDischargeMws = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakPanelWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakChargeWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldPeakDrawWx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldLowS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDimS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldChargeS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldWaitS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDrawS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldProtectS = 0;
+RTC_DATA_ATTR uint16_t rtcFieldDuskS = 0;
+RTC_DATA_ATTR uint8_t rtcFieldLoadDimmed = 0;
+RTC_DATA_ATTR uint8_t rtcFieldProtectLatched = 0;
+RTC_DATA_ATTR uint8_t rtcFieldMpptStatus = MPPT_STATUS_DISABLED;
+RTC_DATA_ATTR uint8_t rtcFieldMpptReason = MPPT_REASON_DISABLED;
+RTC_DATA_ATTR uint8_t rtcFieldMpptRuns = 0;
+RTC_DATA_ATTR uint8_t rtcFieldMpptActiveV10 = NB_FIELD_MPPT_DEFAULT_V10;
+RTC_DATA_ATTR uint8_t rtcFieldMpptBestV10 = NB_FIELD_MPPT_DEFAULT_V10;
+RTC_DATA_ATTR uint8_t rtcFieldMpptLastV10 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP46Wx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP48Wx100 = 0;
+RTC_DATA_ATTR uint16_t rtcFieldMpptP50Wx100 = 0;
+// Capability, not sample validity: once this peer has produced a real TSL2591
+// sample, keep using the qualified 5-minute dusk policy across deep-sleep wakes.
+// A transient sensor read failure must not expand an already-qualified night to
+// the 30-minute no-sensor fallback.
+RTC_DATA_ATTR uint8_t rtcFieldLuxSensorSeen = 0;
 uint32_t fieldLastIntegrateMs = 0;
+uint32_t fieldLowSinceMs = 0;
+uint32_t fieldDimSinceMs = 0;
+uint32_t fieldDuskLastMs = 0;
+bool gFieldSessionMarker = false;
+bool gFieldInterruptedBoot = false;
+bool gFieldInterruptedRetry = false;
+bool gFieldInterruptedPark = false;
+bool gFieldSessionStateLoaded = false;
+uint8_t gFieldSessionStage = FIELD_SESSION_IDLE;
+uint32_t gFieldLedEarliestOnMs = 0;
 
 uint32_t txSeq = 0;        // our outgoing sequence number (monotonic)
 uint32_t sendOk = 0, sendFail = 0; // ESP-NOW send-callback tallies
@@ -341,7 +629,7 @@ uint8_t gRateHz = IS_MASTER ? NB_FRAME_HZ : NB_HB_HZ; // runtime-settable (maste
 // cached battery + supply (panel) telemetry (refreshed ~1 Hz; the ESP-NOW callback
 // must not touch the SDK). Supply = the solar/USB input side, the missing half for
 // battery/panel sizing -- supply_v x supply_ma = panel harvest; battery_ma = net.
-float cbV = 0, cbMa = 0;
+float cbV = 0, cbMa = 0, cbMaRaw = 0;
 int cbSoc = -1;
 float csV = 0, csMa = 0; // supply (panel) voltage / current
 bool csGood = false;     // charger considers the supply valid (checkSupplyGood)
@@ -349,6 +637,7 @@ uint16_t gBatteryCapacityMah = (uint16_t)RES_PF_BATTERY_CAPACITY_MAH;
 uint16_t gChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
 float gMaintainV = (float)RES_PF_MAINTAIN_V;
 bool gBenchConfigLoaded = false;
+bool gChargingEnabled = false;
 uint16_t gBqVindpmMv = 0xFFFF, gBqIchgMa = 0xFFFF, gBqVregMv = 0xFFFF;
 uint8_t gBqReg16 = 0xFF, gBqReg18 = 0xFF, gBqStat0 = 0xFF, gBqStat1 = 0xFF;
 uint8_t gBqFault0 = 0xFF, gBqFlag0 = 0xFF, gBqFlag1 = 0xFF, gBqFaultFlag0 = 0xFF;
@@ -363,6 +652,23 @@ uint16_t gEnvCh0 = 0, gEnvCh1 = 0;
 int16_t gEnvPtempX10 = INT16_MIN;
 uint8_t gEnvRh = 255;
 int16_t gEnvBtempX10 = INT16_MIN;
+
+#if NB_SENSOR_TRIAD
+// Production downlight sensor-chain diagnostic. This is opt-in until its timing
+// and energy cost are folded into production firmware. All devices share Wire1
+// with the PowerFeather charger/gauge, so ADR 0028's 100 kHz ceiling applies.
+Adafruit_MSA311 gMsa311;
+Adafruit_BMP5xx gBmp581;
+SparkFun_TMF882X gTmf8820;
+struct tmf882x_msg_meas_results gTmfResults = {};
+bool gMsa311Present = false, gBmp581Present = false, gTmf8820Present = false;
+bool gMsa311ReadOk = false, gBmp581ReadOk = false, gTmf8820ReadOk = false;
+float gMsaAxG = NAN, gMsaAyG = NAN, gMsaAzG = NAN;
+float gBmpTempC = NAN, gBmpPressureHpa = NAN;
+uint16_t gTmfClosestMm = 0;
+uint16_t gTmfClosestConfidence = 0;
+uint32_t gTmfReadCount = 0, gTmfReadErrors = 0;
+#endif
 
 // ---- onboard SEN0291/INA219 meters (panel + battery leads, on Wire1) --------
 // Address convention (uses the two UNAMBIGUOUS DIP settings -- no need to know
@@ -383,10 +689,22 @@ int16_t gInaPvMv = INT16_MIN, gInaPaMa = INT16_MIN, gInaBvMv = INT16_MIN, gInaBa
 // function this early moves the Arduino auto-prototype insertion point above
 // the structs and breaks every later type reference)
 
-Adafruit_NeoPixel drawdownPixels(NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
-                                 NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel drawdownPixels(
+    NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_PIXEL_PIN,
+#if NB_FIELD_LED_RGBW
+    NEO_RGBW + NEO_KHZ800);
+#else
+    NEO_GRB + NEO_KHZ800);
+#endif
 bool gDrawdownPixelsBegun = false;
 bool gDrawdownActive = false;
+bool gFieldLedLoadOn = false;
+bool gFieldLedLoadDimmedApplied = false;
+bool gFieldSpiralGeometryReady = false;
+uint8_t gFieldSpiralOrder[NB_DRAWDOWN_PIXEL_COUNT];
+float gFieldPixelX[NB_DRAWDOWN_PIXEL_COUNT], gFieldPixelY[NB_DRAWDOWN_PIXEL_COUNT];
+uint16_t gFieldSpiralPosition = 0;
+uint32_t gFieldSpiralLastFrameMs = 0;
 uint16_t gDrawdownBudgetMah = NB_DRAWDOWN_DEFAULT_MAH;
 float gDrawdownMah = 0.0f;
 uint32_t gDrawdownStartMs = 0;
@@ -400,6 +718,76 @@ uint32_t identifyUntil = 0; // millis deadline: blink the locate pattern instead
 bool gScanRunning = false;
 uint8_t gScanId = 0;
 uint32_t gNextScanMs = 0;
+
+// D7/VDC solenoid state is deliberately outside the LED rail state machine. VDC
+// remains live in every phase, so the gate gets an esp_timer one-shot, an
+// independent loop deadline, and explicit LOW calls before init/OTA/sleep.
+#if defined(NB_SOLENOID_D7)
+volatile bool gSolenoidGateOn = false;
+volatile uint32_t gSolenoidLastEndMs = 0;
+uint32_t gSolenoidFailsafeMs = 0;
+uint32_t gSolenoidStrikes = 0;
+uint32_t gSolenoidBlocked = 0;
+uint32_t gSolenoidFailsafes = 0;
+uint16_t gSolenoidLastPulseMs = 0;
+esp_timer_handle_t gSolenoidPulseTimer = nullptr;
+bool gSolenoidButtonRawReleased = true;
+bool gSolenoidButtonStableReleased = true;
+bool gSolenoidButtonWakePending = false;
+uint32_t gSolenoidButtonChangedMs = 0;
+bool gSolenoidRgbButtonPresent = false;
+uint8_t gSolenoidRgbButtonAddr = 0;
+bool gSolenoidRgbButtonRawPressed = false;
+bool gSolenoidRgbButtonStablePressed = false;
+uint8_t gSolenoidRgbButtonConsecutiveErrors = 0;
+uint32_t gSolenoidRgbButtonChangedMs = 0;
+uint32_t gSolenoidRgbButtonNextPollMs = 0;
+uint32_t gSolenoidRgbButtonPresses = 0;
+uint32_t gSolenoidRgbButtonErrors = 0;
+uint8_t gSolenoidRgbButtonProbeAttempts = 0;
+uint8_t gSolenoidRgbButtonAckMask = 0;
+uint8_t gSolenoidRgbButtonPidAddr = 0;
+uint16_t gSolenoidRgbButtonPid = 0;
+bool gSolenoidNavPresent = false;
+uint8_t gSolenoidNavAddr = 0;
+bool gSolenoidNavRawReleased = true;
+bool gSolenoidNavStableReleased = true;
+uint8_t gSolenoidNavProbeAttempts = 0;
+uint8_t gSolenoidNavAckMask = 0;
+uint8_t gSolenoidNavLastInput = 0xFF;
+uint8_t gSolenoidNavLastConfig = 0xFF;
+uint8_t gSolenoidNavLastPolarity = 0xFF;
+uint8_t gSolenoidNavConsecutiveErrors = 0;
+uint32_t gSolenoidNavChangedMs = 0;
+uint32_t gSolenoidNavNextPollMs = 0;
+uint32_t gSolenoidNavPresses = 0;
+uint32_t gSolenoidNavErrors = 0;
+#endif
+
+#if defined(NB_CAPBANK_WAVEFORM)
+enum CapbankWaveState : uint8_t {
+  CAPW_IDLE = 0,
+  CAPW_ARMED = 1,
+  CAPW_CAPTURING = 2,
+  CAPW_READY = 3,
+  CAPW_ERROR = 4,
+};
+volatile uint8_t gCapWaveState = CAPW_IDLE;
+uint16_t gCapWavePulseMs = 0;
+uint32_t gCapWaveArmAtMs = 0;
+uint32_t gCapWaveId = 0;
+uint16_t *gCapWaveVsnsMv = nullptr;
+uint16_t *gCapWaveD7sMv = nullptr;
+uint32_t gCapWaveVsnsCount = 0;
+uint32_t gCapWaveD7sCount = 0;
+uint32_t gCapWaveVsnsTriggerIndex = 0;
+uint32_t gCapWaveD7sTriggerIndex = 0;
+uint32_t gCapWaveCaptureUs = 0;
+uint32_t gCapWaveTriggerUs = 0;
+uint32_t gCapWaveRequestedConvHz = NB_CAPBANK_WAVEFORM_CONV_HZ;
+bool gCapWaveOverflow = false;
+String gCapWaveError;
+#endif
 
 // downlink (master SHOW_FRAME) tracking on peers
 uint32_t masterLastSeq = 0;
@@ -426,6 +814,7 @@ enum NbType : uint8_t {
   NB_TARGET_CAPACITY = 14,  // master -> target: persist capacity (mAh), reboot to apply
   NB_TARGET_CHARGE_MA = 15, // master -> target: persist/apply charger current cap (mA)
   NB_TARGET_ENTER_MAINT = 16, // master -> target: enter shared-WiFi maintenance/OTA
+  NB_TARGET_SOLENOID = 17, // master -> target: one bounded D7 gate pulse (milliseconds)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -514,6 +903,33 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t bq_flag1;      // Charger_Flag_1
   uint8_t bq_fault_flag0;// FAULT_Flag_0
   uint8_t bq_part;       // Part_Information
+  // --- APPEND-ONLY tail 10 (field-cycle v2 summary). Keep the heartbeat <=128B:
+  // Wh x10, W x100, soft-low debounce seconds, and time in phase minutes.
+  uint16_t field_charge_wh_x10;
+  uint16_t field_discharge_wh_x10;
+  uint16_t field_peak_panel_w_x100;
+  uint16_t field_peak_charge_w_x100;
+  uint16_t field_peak_draw_w_x100;
+  uint8_t field_low_s;
+  uint8_t field_charge_min;
+  uint8_t field_wait_min;
+  uint8_t field_draw_min;
+  uint8_t field_protect_min;
+  // --- APPEND-ONLY tail 11 (field-cycle safe VINDPM perturb). This intentionally
+  // extends the heartbeat past 128 B; deploy the matching serial bridge before
+  // deploying an MPPT peer. Powers are W x100 at fixed P105 candidate setpoints.
+  uint8_t mppt_status;
+  uint8_t mppt_reason;
+  uint8_t mppt_runs;
+  uint8_t mppt_active_v10;
+  uint8_t mppt_best_v10;
+  uint8_t mppt_last_v10;
+  uint16_t mppt_p46_w_x100;
+  uint16_t mppt_p48_w_x100;
+  uint16_t mppt_p50_w_x100;
+  // --- APPEND-ONLY tail 12 (field-cycle low-voltage latches).
+  uint8_t field_load_dimmed;
+  uint8_t field_protect_latched;
 };
 struct __attribute__((packed)) NbCmd { // ENTER_MAINT / RESUME / SET_RATE
   NbHeader h;
@@ -593,15 +1009,877 @@ struct NbPeerStat {
   uint16_t bq_vindpm_mv, bq_ichg_ma, bq_vreg_mv;
   uint8_t bq_reg16, bq_reg18, bq_stat0, bq_stat1, bq_fault0, bq_flag0, bq_flag1;
   uint8_t bq_fault_flag0, bq_part;
+  bool has_field_summary;
+  uint16_t field_charge_wh_x10, field_discharge_wh_x10;
+  uint16_t field_peak_panel_w_x100, field_peak_charge_w_x100, field_peak_draw_w_x100;
+  uint8_t field_low_s, field_charge_min, field_wait_min, field_draw_min, field_protect_min;
+  bool has_mppt;
+  uint8_t mppt_status, mppt_reason, mppt_runs, mppt_active_v10, mppt_best_v10, mppt_last_v10;
+  uint16_t mppt_p46_w_x100, mppt_p48_w_x100, mppt_p50_w_x100;
+  bool has_field_latches;
+  uint8_t field_load_dimmed, field_protect_latched;
 };
 NbPeerStat peers[NB_MAX_TRACKED];
+
+// ---- optional D7/VDC solenoid ---------------------------------------------
+// Only a targeted command or a deliberate PowerFeather USER-button press can
+// energize the gate. Every exit path returns it LOW. The button is also an
+// active-LOW deep-sleep wake source so the local control remains useful during
+// five-minute field-cycle sleeps. Physical release before re-sleep is the only
+// re-arm condition; no retained debounce state can get stuck across boots.
+void solenoidPreInit() {
+#if defined(NB_SOLENOID_D7)
+  pinMode(NB_SOLENOID_PIN, OUTPUT);
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+#endif
+}
+
+#if defined(NB_SOLENOID_D7)
+void solenoidPulseEnd(void *) { // esp_timer task context, not an ISR
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+  gSolenoidGateOn = false;
+  gSolenoidLastEndMs = millis();
+}
+
+void solenoidInit() {
+  solenoidPreInit();
+  gSolenoidLastEndMs = millis() - NB_SOLENOID_REST_MS;
+  // EXT0 owns the RTC pad through deep sleep. Return it to normal GPIO before
+  // sampling the active-LOW USER button and enabling its internal pull-up.
+  rtc_gpio_deinit((gpio_num_t)NB_SOLENOID_BUTTON_PIN);
+  pinMode(NB_SOLENOID_BUTTON_PIN, INPUT_PULLUP);
+  delay(1);
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  gSolenoidButtonWakePending =
+      esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0;
+  // EXT0 itself proves a deliberate LOW. Start latched as pressed even if the
+  // user released before setup sampled GPIO0, so contact bounce cannot create a
+  // second active-mode falling edge during the same press.
+  gSolenoidButtonRawReleased = gSolenoidButtonWakePending ? false : released;
+  gSolenoidButtonStableReleased = gSolenoidButtonWakePending ? false : released;
+  gSolenoidButtonChangedMs = millis();
+
+  const esp_timer_create_args_t timerArgs = {
+      .callback = &solenoidPulseEnd,
+      .arg = nullptr,
+      .dispatch_method = ESP_TIMER_TASK,
+      .name = "nb_solenoid",
+      .skip_unhandled_events = true,
+  };
+  esp_err_t err = esp_timer_create(&timerArgs, &gSolenoidPulseTimer);
+  if (err != ESP_OK) {
+    gSolenoidPulseTimer = nullptr;
+    Serial.printf("solenoid timer init failed: %s\n", esp_err_to_name(err));
+  } else {
+    Serial.printf("solenoid armed: PowerFeather D7/GPIO%d, VDC tap, pulse %u..%u ms\n",
+                  NB_SOLENOID_PIN, NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS);
+    Serial.printf("solenoid local trigger: USER/GPIO%d, %ums debounce, deep-sleep wake\n",
+                  NB_SOLENOID_BUTTON_PIN, NB_SOLENOID_BUTTON_DEBOUNCE_MS);
+  }
+}
+
+void solenoidStop(const char *why) {
+  if (gSolenoidPulseTimer) esp_timer_stop(gSolenoidPulseTimer);
+  digitalWrite(NB_SOLENOID_PIN, LOW);
+  if (gSolenoidGateOn) {
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    Serial.printf("solenoid forced LOW (%s)\n", why);
+  }
+}
+
+bool solenoidStrike(uint16_t pulseMs, const char *why) {
+  pulseMs = constrain(pulseMs, (uint16_t)NB_SOLENOID_MIN_MS,
+                      (uint16_t)NB_SOLENOID_MAX_MS);
+  uint32_t now = millis();
+  if (!gSolenoidPulseTimer || gSolenoidGateOn ||
+      now - gSolenoidLastEndMs < NB_SOLENOID_REST_MS) {
+    gSolenoidBlocked++;
+    return false;
+  }
+
+  gSolenoidFailsafeMs = now + pulseMs + 50;
+  gSolenoidGateOn = true;
+  digitalWrite(NB_SOLENOID_PIN, HIGH);
+  esp_err_t err = esp_timer_start_once(gSolenoidPulseTimer,
+                                       (uint64_t)pulseMs * 1000ULL);
+  if (err != ESP_OK) {
+    digitalWrite(NB_SOLENOID_PIN, LOW);
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    gSolenoidFailsafes++;
+    Serial.printf("solenoid timer start failed: %s\n", esp_err_to_name(err));
+    return false;
+  }
+
+  gSolenoidStrikes++;
+  gSolenoidLastPulseMs = pulseMs;
+  Serial.printf("solenoid strike #%lu: %ums (%s)\n",
+                (unsigned long)gSolenoidStrikes, (unsigned)pulseMs, why);
+  return true;
+}
+
+#if defined(NB_CAPBANK_PROBE)
+float capbankVoltsFromSenseMv(uint32_t senseMv) {
+  return (senseMv / 1000.0f) *
+         ((NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+          NB_CAPBANK_VSNS_BOTTOM_OHM);
+}
+
+uint32_t capbankAverageMv(uint8_t pin, uint8_t count) {
+  uint32_t total = 0;
+  for (uint8_t i = 0; i < count; ++i) {
+    total += analogReadMilliVolts(pin);
+    delayMicroseconds(150);
+  }
+  return count ? total / count : 0;
+}
+
+void capbankProbeInit() {
+  pinMode(NB_CAPBANK_VSNS_PIN, INPUT);
+  pinMode(NB_CAPBANK_D7S_PIN, INPUT);
+  analogSetPinAttenuation(NB_CAPBANK_VSNS_PIN, ADC_11db);
+  analogSetPinAttenuation(NB_CAPBANK_D7S_PIN, ADC_11db);
+  Serial.printf("capbank probe: VSNS=GPIO%d D7S=GPIO%d divider=%.4fx\n",
+                NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                (NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+                    NB_CAPBANK_VSNS_BOTTOM_OHM);
+}
+
+void capbankReportIdle() {
+  uint32_t senseMv = capbankAverageMv(NB_CAPBANK_VSNS_PIN, 32);
+  uint32_t gateMv = capbankAverageMv(NB_CAPBANK_D7S_PIN, 16);
+  Serial.printf("{\"capbank_idle\":1,\"vsns_pin\":%d,\"d7s_pin\":%d,"
+                "\"sense_mv\":%lu,\"bank_v\":%.3f,\"gate_mv\":%lu,"
+                "\"gate_on\":%s}\n",
+                NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                (unsigned long)senseMv, capbankVoltsFromSenseMv(senseMv),
+                (unsigned long)gateMv, gSolenoidGateOn ? "true" : "false");
+}
+
+bool capbankProbeStrike(uint16_t pulseMs) {
+  uint32_t preSenseMv = capbankAverageMv(NB_CAPBANK_VSNS_PIN, 32);
+  uint32_t gateIdleMv = capbankAverageMv(NB_CAPBANK_D7S_PIN, 16);
+  if (!solenoidStrike(pulseMs, "capbank probe")) {
+    Serial.printf("{\"capbank_probe\":1,\"ok\":false,\"pulse_ms\":%u,"
+                  "\"reason\":\"strike_blocked\",\"bank_v\":%.3f,"
+                  "\"gate_mv\":%lu}\n",
+                  (unsigned)pulseMs, capbankVoltsFromSenseMv(preSenseMv),
+                  (unsigned long)gateIdleMv);
+    return false;
+  }
+
+  uint32_t minSenseMv = preSenseMv;
+  uint32_t gatePeakMv = gateIdleMv;
+  uint32_t post20Mv = 0, post100Mv = 0, post250Mv = 0;
+  bool got20 = false, got100 = false, got250 = false;
+  uint32_t samples = 0;
+  const uint32_t startUs = micros();
+  const uint32_t endUs =
+      (uint32_t)(pulseMs + NB_CAPBANK_PROBE_RECOVERY_MS) * 1000UL;
+  while ((uint32_t)(micros() - startUs) < endUs) {
+    uint32_t senseMv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+    uint32_t gateMv = analogReadMilliVolts(NB_CAPBANK_D7S_PIN);
+    if (senseMv < minSenseMv) minSenseMv = senseMv;
+    if (gateMv > gatePeakMv) gatePeakMv = gateMv;
+    uint32_t elapsedMs = (uint32_t)(micros() - startUs) / 1000UL;
+    if (!got20 && elapsedMs >= (uint32_t)pulseMs + 20U) {
+      post20Mv = senseMv;
+      got20 = true;
+    }
+    if (!got100 && elapsedMs >= (uint32_t)pulseMs + 100U) {
+      post100Mv = senseMv;
+      got100 = true;
+    }
+    if (!got250 &&
+        elapsedMs >= (uint32_t)pulseMs + NB_CAPBANK_PROBE_RECOVERY_MS - 1U) {
+      post250Mv = senseMv;
+      got250 = true;
+    }
+    ++samples;
+    delayMicroseconds(100);
+  }
+  if (!got20) post20Mv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+  if (!got100) post100Mv = post20Mv;
+  if (!got250) post250Mv = analogReadMilliVolts(NB_CAPBANK_VSNS_PIN);
+
+  float preV = capbankVoltsFromSenseMv(preSenseMv);
+  float minV = capbankVoltsFromSenseMv(minSenseMv);
+  Serial.printf("{\"capbank_probe\":1,\"ok\":true,\"pulse_ms\":%u,"
+                "\"vsns_pin\":%d,\"d7s_pin\":%d,\"pre_v\":%.3f,"
+                "\"min_v\":%.3f,\"drop_v\":%.3f,\"post20_v\":%.3f,"
+                "\"post100_v\":%.3f,\"post250_v\":%.3f,"
+                "\"gate_idle_mv\":%lu,\"gate_peak_mv\":%lu,"
+                "\"samples\":%lu,\"failsafes\":%lu}\n",
+                (unsigned)pulseMs, NB_CAPBANK_VSNS_PIN, NB_CAPBANK_D7S_PIN,
+                preV, minV, preV - minV, capbankVoltsFromSenseMv(post20Mv),
+                capbankVoltsFromSenseMv(post100Mv), capbankVoltsFromSenseMv(post250Mv),
+                (unsigned long)gateIdleMv, (unsigned long)gatePeakMv,
+                (unsigned long)samples, (unsigned long)gSolenoidFailsafes);
+  return true;
+}
+#else
+void capbankProbeInit() {}
+void capbankReportIdle() { Serial.println("capbank probe not compiled"); }
+bool capbankProbeStrike(uint16_t) {
+  Serial.println("capbank probe not compiled");
+  return false;
+}
+#endif
+
+#if defined(NB_CAPBANK_WAVEFORM)
+const char *capbankWaveStateName() {
+  switch (gCapWaveState) {
+    case CAPW_ARMED: return "armed";
+    case CAPW_CAPTURING: return "capturing";
+    case CAPW_READY: return "ready";
+    case CAPW_ERROR: return "error";
+    default: return "idle";
+  }
+}
+
+bool capbankWaveEnsureBuffers() {
+  if (gCapWaveVsnsMv && gCapWaveD7sMv) return true;
+  free(gCapWaveVsnsMv);
+  free(gCapWaveD7sMv);
+  const size_t bytes = (size_t)NB_CAPBANK_WAVEFORM_MAX_SAMPLES * sizeof(uint16_t);
+  gCapWaveVsnsMv = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_8BIT);
+  gCapWaveD7sMv = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_8BIT);
+  if (!gCapWaveVsnsMv || !gCapWaveD7sMv) {
+    free(gCapWaveVsnsMv);
+    free(gCapWaveD7sMv);
+    gCapWaveVsnsMv = nullptr;
+    gCapWaveD7sMv = nullptr;
+    gCapWaveError = "sample buffer allocation failed";
+    return false;
+  }
+  return true;
+}
+
+bool capbankWaveCapture(uint16_t pulseMs) {
+  gCapWaveState = CAPW_CAPTURING;
+  gCapWaveError = "";
+  gCapWaveVsnsCount = 0;
+  gCapWaveD7sCount = 0;
+  gCapWaveVsnsTriggerIndex = 0;
+  gCapWaveD7sTriggerIndex = 0;
+  gCapWaveCaptureUs = 0;
+  gCapWaveTriggerUs = 0;
+  gCapWaveOverflow = false;
+  if (!capbankWaveEnsureBuffers()) {
+    gCapWaveState = CAPW_ERROR;
+    return false;
+  }
+
+  adc_continuous_handle_t adc = nullptr;
+  adc_cali_handle_t cal = nullptr;
+  bool adcStarted = false;
+  bool pinsDetached = false;
+  bool ok = false;
+  do {
+    // capbankProbeInit() attached Arduino's ADC1 one-shot driver. Detaching both
+    // pins releases that handle so the DMA/continuous driver can own ADC1.
+    if (!perimanClearPinBus(NB_CAPBANK_VSNS_PIN) ||
+        !perimanClearPinBus(NB_CAPBANK_D7S_PIN)) {
+      gCapWaveError = "could not release ADC one-shot pins";
+      break;
+    }
+    pinsDetached = true;
+
+    adc_unit_t vsnsUnit = ADC_UNIT_1, d7sUnit = ADC_UNIT_1;
+    adc_channel_t vsnsChannel = ADC_CHANNEL_0, d7sChannel = ADC_CHANNEL_0;
+    esp_err_t err = adc_continuous_io_to_channel(
+        NB_CAPBANK_VSNS_PIN, &vsnsUnit, &vsnsChannel);
+    if (err != ESP_OK || vsnsUnit != ADC_UNIT_1) {
+      gCapWaveError = "VSNS is not on ADC1";
+      break;
+    }
+    err = adc_continuous_io_to_channel(
+        NB_CAPBANK_D7S_PIN, &d7sUnit, &d7sChannel);
+    if (err != ESP_OK || d7sUnit != ADC_UNIT_1) {
+      gCapWaveError = "D7S is not on ADC1";
+      break;
+    }
+
+    adc_continuous_handle_cfg_t handleCfg = {};
+    handleCfg.max_store_buf_size = 32768;
+    handleCfg.conv_frame_size = 256;
+    handleCfg.flags.flush_pool = true;
+    err = adc_continuous_new_handle(&handleCfg, &adc);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC handle: ") + esp_err_to_name(err);
+      break;
+    }
+
+    adc_digi_pattern_config_t pattern[2] = {};
+    pattern[0].atten = ADC_ATTEN_DB_12;
+    pattern[0].channel = vsnsChannel;
+    pattern[0].unit = ADC_UNIT_1;
+    pattern[0].bit_width = ADC_BITWIDTH_12;
+    pattern[1].atten = ADC_ATTEN_DB_12;
+    pattern[1].channel = d7sChannel;
+    pattern[1].unit = ADC_UNIT_1;
+    pattern[1].bit_width = ADC_BITWIDTH_12;
+    adc_continuous_config_t adcCfg = {};
+    adcCfg.pattern_num = 2;
+    adcCfg.adc_pattern = pattern;
+    adcCfg.sample_freq_hz = NB_CAPBANK_WAVEFORM_CONV_HZ;
+    adcCfg.conv_mode = ADC_CONV_SINGLE_UNIT_1;
+    adcCfg.format = ADC_DIGI_OUTPUT_FORMAT_TYPE2;
+    err = adc_continuous_config(adc, &adcCfg);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC config: ") + esp_err_to_name(err);
+      break;
+    }
+
+    adc_cali_curve_fitting_config_t calCfg = {};
+    calCfg.unit_id = ADC_UNIT_1;
+    calCfg.atten = ADC_ATTEN_DB_12;
+    calCfg.bitwidth = ADC_BITWIDTH_12;
+    err = adc_cali_create_scheme_curve_fitting(&calCfg, &cal);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC calibration: ") + esp_err_to_name(err);
+      break;
+    }
+
+    err = adc_continuous_start(adc);
+    if (err != ESP_OK) {
+      gCapWaveError = String("ADC start: ") + esp_err_to_name(err);
+      break;
+    }
+    adcStarted = true;
+    const uint64_t captureStartUs = esp_timer_get_time();
+    uint64_t triggerAtUs = 0;
+    bool triggered = false;
+    uint8_t dma[512];
+
+    while (true) {
+      esp_task_wdt_reset();
+      uint32_t bytesRead = 0;
+      err = adc_continuous_read(adc, dma, sizeof(dma), &bytesRead, 20);
+      if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
+        gCapWaveError = String("ADC read: ") + esp_err_to_name(err);
+        break;
+      }
+      for (uint32_t offset = 0;
+           offset + SOC_ADC_DIGI_RESULT_BYTES <= bytesRead;
+           offset += SOC_ADC_DIGI_RESULT_BYTES) {
+        const adc_digi_output_data_t *sample =
+            (const adc_digi_output_data_t *)&dma[offset];
+        if (sample->type2.unit != 0) continue;
+        const uint16_t raw = sample->type2.data;
+        if (sample->type2.channel == (uint32_t)vsnsChannel) {
+          if (gCapWaveVsnsCount < NB_CAPBANK_WAVEFORM_MAX_SAMPLES)
+            gCapWaveVsnsMv[gCapWaveVsnsCount++] = raw;
+          else gCapWaveOverflow = true;
+        } else if (sample->type2.channel == (uint32_t)d7sChannel) {
+          if (gCapWaveD7sCount < NB_CAPBANK_WAVEFORM_MAX_SAMPLES)
+            gCapWaveD7sMv[gCapWaveD7sCount++] = raw;
+          else gCapWaveOverflow = true;
+        }
+      }
+
+      const uint64_t nowUs = esp_timer_get_time();
+      if (!triggered && nowUs - captureStartUs >=
+                            (uint64_t)NB_CAPBANK_WAVEFORM_PRE_MS * 1000ULL) {
+        gCapWaveVsnsTriggerIndex = gCapWaveVsnsCount;
+        gCapWaveD7sTriggerIndex = gCapWaveD7sCount;
+        triggerAtUs = esp_timer_get_time();
+        gCapWaveTriggerUs = (uint32_t)(triggerAtUs - captureStartUs);
+        if (!solenoidStrike(pulseMs, "capbank DMA waveform")) {
+          gCapWaveError = "strike blocked";
+          break;
+        }
+        triggered = true;
+        // nowUs was sampled immediately before triggerAtUs. Do not subtract the
+        // newer trigger timestamp from that older unsigned value; collect the
+        // next DMA frame before evaluating the post-trigger deadline.
+        continue;
+      }
+      if (triggered && nowUs - triggerAtUs >=
+                           (uint64_t)(pulseMs + NB_CAPBANK_WAVEFORM_POST_MS) * 1000ULL) {
+        gCapWaveCaptureUs = (uint32_t)(nowUs - captureStartUs);
+        ok = true;
+        break;
+      }
+      if (nowUs - captureStartUs >
+          (uint64_t)(NB_CAPBANK_WAVEFORM_PRE_MS + pulseMs +
+                     NB_CAPBANK_WAVEFORM_POST_MS + 1000U) * 1000ULL) {
+        gCapWaveError = "capture timeout";
+        break;
+      }
+    }
+
+    solenoidStop("waveform complete");
+    if (!ok) break;
+
+    // DMA stores raw codes. Convert after the timing-critical capture so the
+    // eFuse-calibrated millivolt conversion cannot perturb sample cadence.
+    for (uint32_t i = 0; i < gCapWaveVsnsCount; ++i) {
+      int mv = 0;
+      if (adc_cali_raw_to_voltage(cal, gCapWaveVsnsMv[i], &mv) != ESP_OK) {
+        gCapWaveError = "VSNS calibration failed";
+        ok = false;
+        break;
+      }
+      gCapWaveVsnsMv[i] = (uint16_t)constrain(mv, 0, 65535);
+    }
+    if (!ok) break;
+    for (uint32_t i = 0; i < gCapWaveD7sCount; ++i) {
+      int mv = 0;
+      if (adc_cali_raw_to_voltage(cal, gCapWaveD7sMv[i], &mv) != ESP_OK) {
+        gCapWaveError = "D7S calibration failed";
+        ok = false;
+        break;
+      }
+      gCapWaveD7sMv[i] = (uint16_t)constrain(mv, 0, 65535);
+    }
+  } while (false);
+
+  if (adcStarted) adc_continuous_stop(adc);
+  if (adc) adc_continuous_deinit(adc);
+  if (cal) adc_cali_delete_scheme_curve_fitting(cal);
+  if (pinsDetached) capbankProbeInit();
+  if (ok) {
+    ++gCapWaveId;
+    gCapWaveState = CAPW_READY;
+    Serial.printf("capbank waveform #%lu ready: %ums, VSNS=%lu D7S=%lu, %.1f/%.1f sps\n",
+                  (unsigned long)gCapWaveId, (unsigned)pulseMs,
+                  (unsigned long)gCapWaveVsnsCount,
+                  (unsigned long)gCapWaveD7sCount,
+                  gCapWaveCaptureUs ?
+                      (double)gCapWaveVsnsCount * 1000000.0 / gCapWaveCaptureUs : 0.0,
+                  gCapWaveCaptureUs ?
+                      (double)gCapWaveD7sCount * 1000000.0 / gCapWaveCaptureUs : 0.0);
+  } else {
+    solenoidStop("waveform error");
+    gCapWaveState = CAPW_ERROR;
+    Serial.printf("capbank waveform error: %s\n", gCapWaveError.c_str());
+  }
+  return ok;
+}
+
+String capbankWaveStatusJson() {
+  float vsnsHz = gCapWaveCaptureUs ?
+      (float)gCapWaveVsnsCount * 1000000.0f / gCapWaveCaptureUs : 0.0f;
+  float d7sHz = gCapWaveCaptureUs ?
+      (float)gCapWaveD7sCount * 1000000.0f / gCapWaveCaptureUs : 0.0f;
+  String j;
+  j.reserve(520);
+  j = "{\"feature\":\"capbank_waveform\",\"fixture_id\":\"" + shortId + "\"";
+  j += ",\"fw\":\"" NET_BENCH_VERSION "\"";
+  j += ",\"state\":\"" + String(capbankWaveStateName()) + "\"";
+  j += ",\"capture_id\":" + String((unsigned long)gCapWaveId);
+  j += ",\"pulse_ms\":" + String(gCapWavePulseMs);
+  j += ",\"requested_conversion_hz\":" + String(gCapWaveRequestedConvHz);
+  j += ",\"vsns_hz\":" + String(vsnsHz, 2);
+  j += ",\"d7s_hz\":" + String(d7sHz, 2);
+  j += ",\"vsns_count\":" + String((unsigned long)gCapWaveVsnsCount);
+  j += ",\"d7s_count\":" + String((unsigned long)gCapWaveD7sCount);
+  j += ",\"capture_us\":" + String((unsigned long)gCapWaveCaptureUs);
+  j += ",\"trigger_us\":" + String((unsigned long)gCapWaveTriggerUs);
+  j += ",\"pre_ms\":" + String(NB_CAPBANK_WAVEFORM_PRE_MS);
+  j += ",\"post_ms\":" + String(NB_CAPBANK_WAVEFORM_POST_MS);
+  j += ",\"overflow\":" + String(gCapWaveOverflow ? "true" : "false");
+  j += ",\"radio_quiet\":true";
+  j += ",\"error\":\"" + gCapWaveError + "\"}";
+  return j;
+}
+
+void capbankWaveSendCsv() {
+  if (gCapWaveState != CAPW_READY || !gCapWaveVsnsCount || !gCapWaveD7sCount) {
+    server.send(409, "application/json", capbankWaveStatusJson());
+    return;
+  }
+  const uint32_t n = min(gCapWaveVsnsCount, gCapWaveD7sCount);
+  const float vsnsHz = (float)gCapWaveVsnsCount * 1000000.0f / gCapWaveCaptureUs;
+  const float divider =
+      (NB_CAPBANK_VSNS_TOP_OHM + NB_CAPBANK_VSNS_BOTTOM_OHM) /
+      NB_CAPBANK_VSNS_BOTTOM_OHM;
+  server.sendHeader("Content-Disposition",
+                    "attachment; filename=capbank-waveform-" +
+                    String((unsigned long)gCapWaveId) + ".csv");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/csv", "");
+  String chunk;
+  chunk.reserve(3072);
+  chunk = "# fixture_id," + shortId + "\n";
+  chunk += "# firmware," NET_BENCH_VERSION "\n";
+  chunk += "# capture_id," + String((unsigned long)gCapWaveId) + "\n";
+  chunk += "# pulse_ms," + String(gCapWavePulseMs) + "\n";
+  chunk += "# requested_conversion_hz," + String(gCapWaveRequestedConvHz) + "\n";
+  chunk += "# vsns_sample_hz," + String(vsnsHz, 3) + "\n";
+  chunk += "# d7s_sample_hz," +
+           String((float)gCapWaveD7sCount * 1000000.0f / gCapWaveCaptureUs, 3) + "\n";
+  chunk += "# radio_quiet,true\n";
+  chunk += "t_ms,bank_v,vsns_mv,d7s_mv,gate_command\n";
+  server.sendContent(chunk);
+  chunk = "";
+  for (uint32_t i = 0; i < n; ++i) {
+    const float tMs = ((int64_t)i - (int64_t)gCapWaveVsnsTriggerIndex) *
+                      1000.0f / vsnsHz;
+    const float bankV = (gCapWaveVsnsMv[i] / 1000.0f) * divider;
+    chunk += String(tMs, 4) + "," + String(bankV, 4) + "," +
+             String(gCapWaveVsnsMv[i]) + "," + String(gCapWaveD7sMv[i]) + "," +
+             String((tMs >= 0.0f && tMs < gCapWavePulseMs) ? 1 : 0) + "\n";
+    if ((i % 48U) == 47U) {
+      esp_task_wdt_reset();
+      server.sendContent(chunk);
+      chunk = "";
+    }
+  }
+  if (chunk.length()) server.sendContent(chunk);
+  server.sendContent("");
+}
+
+void capbankWaveConfigureRoutes() {
+  server.on("/capbank/waveform", HTTP_GET, []() {
+    server.send(200, "application/json", capbankWaveStatusJson());
+  });
+  server.on("/capbank/waveform.csv", HTTP_GET, []() { capbankWaveSendCsv(); });
+  server.on("/capbank/arm", HTTP_GET, []() {
+    if (!server.hasArg("ms")) {
+      server.send(400, "text/plain", "use /capbank/arm?ms=5..50\n");
+      return;
+    }
+    const int pulseMs = server.arg("ms").toInt();
+    if (pulseMs < NB_SOLENOID_MIN_MS ||
+        pulseMs > NB_CAPBANK_WAVEFORM_MAX_PULSE_MS) {
+      server.send(400, "text/plain", "pulse outside bench-qualified 5..50 ms\n");
+      return;
+    }
+    if (gCapWaveState == CAPW_ARMED || gCapWaveState == CAPW_CAPTURING) {
+      server.send(409, "application/json", capbankWaveStatusJson());
+      return;
+    }
+    gCapWavePulseMs = (uint16_t)pulseMs;
+    gCapWaveArmAtMs = millis() + 350;
+    gCapWaveState = CAPW_ARMED;
+    gCapWaveError = "";
+    server.send(202, "application/json", capbankWaveStatusJson());
+  });
+}
+#else
+void capbankWaveConfigureRoutes() {}
+#endif
+
+void solenoidButtonHandleWake() {
+  if (!gSolenoidButtonWakePending) return;
+  gSolenoidButtonWakePending = false;
+  solenoidStrike(NB_SOLENOID_DEFAULT_MS, "user button wake");
+}
+
+void solenoidButtonTick() {
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  uint32_t now = millis();
+  if (released != gSolenoidButtonRawReleased) {
+    gSolenoidButtonRawReleased = released;
+    gSolenoidButtonChangedMs = now;
+  }
+  if (released == gSolenoidButtonStableReleased ||
+      now - gSolenoidButtonChangedMs < NB_SOLENOID_BUTTON_DEBOUNCE_MS) return;
+
+  gSolenoidButtonStableReleased = released;
+  if (!released) {
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "user button");
+    else
+      Serial.println("solenoid USER button ignored during maintenance");
+  }
+}
+
+// DFR0991 Gravity I2C RGB Button. Its eight DIP-selectable addresses are
+// 0x23..0x2A (default 0x2A); PID 0x43DF prevents an unrelated device at one of
+// those addresses from becoming a solenoid trigger. This is intentionally an
+// awake-only trigger: the four-wire I2C lead does not expose a wake/interrupt
+// signal, and the field-cycle code cuts VSQT before deep sleep.
+bool solenoidRgbButtonRead(uint8_t addr, uint8_t reg, uint8_t *data, size_t len) {
+  // ADR 0028: never raise a bus shared with the PowerFeather charger/gauge over
+  // 100 kHz. Reassert it here in case another peripheral changed the clock.
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  if (Wire1.endTransmission() != 0) return false;
+  if (Wire1.requestFrom((int)addr, (int)len) != len) return false;
+  for (size_t i = 0; i < len; ++i) data[i] = Wire1.read();
+  return true;
+}
+
+bool solenoidRgbButtonPing(uint8_t addr) {
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  return Wire1.endTransmission() == 0;
+}
+
+bool solenoidRgbButtonProbe() {
+  constexpr uint8_t kAddrMin = 0x23;
+  constexpr uint8_t kAddrMax = 0x2A;
+  constexpr uint16_t kPid = 0x43DF;
+  constexpr uint8_t kPidMsbReg = 0x09;
+  constexpr uint8_t kButtonReg = 0x04;
+
+  gSolenoidRgbButtonProbeAttempts++;
+  gSolenoidRgbButtonPresent = false;
+  gSolenoidRgbButtonAddr = 0;
+  gSolenoidRgbButtonConsecutiveErrors = 0;
+  gSolenoidRgbButtonAckMask = 0;
+  gSolenoidRgbButtonPidAddr = 0;
+  gSolenoidRgbButtonPid = 0;
+  for (uint8_t addr = kAddrMin; addr <= kAddrMax; ++addr) {
+    if (!solenoidRgbButtonPing(addr)) continue;
+    gSolenoidRgbButtonAckMask |= (uint8_t)(1U << (addr - kAddrMin));
+
+    uint8_t pidBytes[2];
+    if (!solenoidRgbButtonRead(addr, kPidMsbReg, pidBytes, sizeof(pidBytes))) continue;
+    uint16_t pid = ((uint16_t)pidBytes[0] << 8) | pidBytes[1];
+    gSolenoidRgbButtonPidAddr = addr;
+    gSolenoidRgbButtonPid = pid;
+    if (pid != kPid) continue;
+
+    uint8_t state = 0;
+    if (!solenoidRgbButtonRead(addr, kButtonReg, &state, 1)) continue;
+    gSolenoidRgbButtonPresent = true;
+    gSolenoidRgbButtonAddr = addr;
+    gSolenoidRgbButtonRawPressed = state != 0;
+    gSolenoidRgbButtonStablePressed = state != 0;
+    gSolenoidRgbButtonChangedMs = millis();
+    gSolenoidRgbButtonNextPollMs = millis() + NB_SOLENOID_RGB_BUTTON_POLL_MS;
+    Serial.printf("solenoid local trigger: DFR0991 at 0x%02X, %ums poll/debounce\n",
+                  addr, NB_SOLENOID_RGB_BUTTON_POLL_MS);
+    return true;
+  }
+  return false;
+}
+
+void solenoidRgbButtonInit() {
+  gSolenoidRgbButtonProbeAttempts = 0;
+  if (solenoidRgbButtonProbe()) return;
+  gSolenoidRgbButtonNextPollMs = millis() + NB_SOLENOID_RGB_BUTTON_PROBE_MS;
+}
+
+void solenoidRgbButtonTick() {
+  constexpr uint8_t kButtonReg = 0x04;
+  uint32_t now = millis();
+  if (!gSolenoidRgbButtonPresent) {
+    if (gSolenoidRgbButtonProbeAttempts >= NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS ||
+        (int32_t)(now - gSolenoidRgbButtonNextPollMs) < 0) return;
+    if (!solenoidRgbButtonProbe()) {
+      gSolenoidRgbButtonNextPollMs = now + NB_SOLENOID_RGB_BUTTON_PROBE_MS;
+      if (gSolenoidRgbButtonProbeAttempts == NB_SOLENOID_RGB_BUTTON_PROBE_ATTEMPTS) {
+        Serial.printf("solenoid DFR0991 absent after %u probes: ack_mask=0x%02X pid_addr=0x%02X pid=0x%04X\n",
+                      gSolenoidRgbButtonProbeAttempts, gSolenoidRgbButtonAckMask,
+                      gSolenoidRgbButtonPidAddr, gSolenoidRgbButtonPid);
+      }
+    }
+    return;
+  }
+
+  if ((int32_t)(now - gSolenoidRgbButtonNextPollMs) < 0) return;
+  gSolenoidRgbButtonNextPollMs = now + NB_SOLENOID_RGB_BUTTON_POLL_MS;
+
+  uint8_t state = 0;
+  if (!solenoidRgbButtonRead(gSolenoidRgbButtonAddr, kButtonReg, &state, 1)) {
+    gSolenoidRgbButtonErrors++;
+    if (++gSolenoidRgbButtonConsecutiveErrors >= NB_SOLENOID_RGB_BUTTON_MAX_ERRORS) {
+      gSolenoidRgbButtonPresent = false;
+      Serial.printf("solenoid DFR0991 at 0x%02X disabled after %u read errors\n",
+                    gSolenoidRgbButtonAddr, NB_SOLENOID_RGB_BUTTON_MAX_ERRORS);
+    }
+    return;
+  }
+  gSolenoidRgbButtonConsecutiveErrors = 0;
+
+  bool pressed = state != 0;
+  if (pressed != gSolenoidRgbButtonRawPressed) {
+    gSolenoidRgbButtonRawPressed = pressed;
+    gSolenoidRgbButtonChangedMs = now;
+  }
+  if (pressed == gSolenoidRgbButtonStablePressed ||
+      now - gSolenoidRgbButtonChangedMs < NB_SOLENOID_RGB_BUTTON_DEBOUNCE_MS) return;
+
+  gSolenoidRgbButtonStablePressed = pressed;
+  if (pressed) {
+    gSolenoidRgbButtonPresses++;
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "DFR0991 button");
+    else
+      Serial.println("solenoid DFR0991 button ignored during maintenance");
+  }
+}
+
+// SparkFun Qwiic Navigation Switch PRT-27576. The board is a PCA9554 with
+// UP/DOWN/RIGHT/LEFT/CENTER on active-LOW GPIO0..4. We only consume DOWN/GPIO1
+// and leave the RGB outputs plus optional INT pin untouched. A PCA9554 has no
+// product-ID register, so probe conservatively: address 0x20..0x27 must ACK and
+// the five switch GPIOs must retain their power-on input/non-inverted config.
+bool solenoidNavRead(uint8_t addr, uint8_t reg, uint8_t &value) {
+  Wire1.setClock(100000); // ADR 0028 shared-bus ceiling
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  if (Wire1.endTransmission() != 0) return false;
+  if (Wire1.requestFrom((int)addr, 1) != 1) return false;
+  value = Wire1.read();
+  return true;
+}
+
+bool solenoidNavPing(uint8_t addr) {
+  Wire1.setClock(100000);
+  Wire1.beginTransmission(addr);
+  return Wire1.endTransmission() == 0;
+}
+
+bool solenoidNavProbe() {
+  constexpr uint8_t kAddrMin = 0x20;
+  constexpr uint8_t kAddrMax = 0x27;
+  constexpr uint8_t kInputReg = 0x00;
+  constexpr uint8_t kPolarityReg = 0x02;
+  constexpr uint8_t kConfigReg = 0x03;
+
+  gSolenoidNavProbeAttempts++;
+  gSolenoidNavPresent = false;
+  gSolenoidNavAddr = 0;
+  gSolenoidNavAckMask = 0;
+  for (uint8_t addr = kAddrMin; addr <= kAddrMax; ++addr) {
+    if (!solenoidNavPing(addr)) continue;
+    gSolenoidNavAckMask |= (uint8_t)(1U << (addr - kAddrMin));
+
+    uint8_t input = 0, polarity = 0, config = 0;
+    if (!solenoidNavRead(addr, kInputReg, input) ||
+        !solenoidNavRead(addr, kPolarityReg, polarity) ||
+        !solenoidNavRead(addr, kConfigReg, config)) continue;
+    gSolenoidNavLastInput = input;
+    gSolenoidNavLastPolarity = polarity;
+    gSolenoidNavLastConfig = config;
+    if ((config & 0x1F) != 0x1F || (polarity & 0x1F) != 0x00) continue;
+
+    gSolenoidNavPresent = true;
+    gSolenoidNavAddr = addr;
+    gSolenoidNavRawReleased = (input & (1U << 1)) != 0;
+    gSolenoidNavStableReleased = gSolenoidNavRawReleased;
+    gSolenoidNavChangedMs = millis();
+    gSolenoidNavNextPollMs = millis() + NB_SOLENOID_NAV_POLL_MS;
+    gSolenoidNavConsecutiveErrors = 0;
+    Serial.printf("solenoid local trigger: Qwiic Navigation Switch at 0x%02X, DOWN/GPIO1\n",
+                  addr);
+    return true;
+  }
+  return false;
+}
+
+void solenoidNavInit() {
+  gSolenoidNavProbeAttempts = 0;
+  if (solenoidNavProbe()) return;
+  gSolenoidNavNextPollMs = millis() + NB_SOLENOID_NAV_PROBE_MS;
+}
+
+void solenoidNavTick() {
+  constexpr uint8_t kInputReg = 0x00;
+  uint32_t now = millis();
+  if (!gSolenoidNavPresent) {
+    if (gSolenoidNavProbeAttempts >= NB_SOLENOID_NAV_PROBE_ATTEMPTS ||
+        (int32_t)(now - gSolenoidNavNextPollMs) < 0) return;
+    if (!solenoidNavProbe()) {
+      gSolenoidNavNextPollMs = now + NB_SOLENOID_NAV_PROBE_MS;
+      if (gSolenoidNavProbeAttempts == NB_SOLENOID_NAV_PROBE_ATTEMPTS) {
+        Serial.printf("solenoid Qwiic nav absent after %u probes: ack_mask=0x%02X config=0x%02X polarity=0x%02X\n",
+                      gSolenoidNavProbeAttempts, gSolenoidNavAckMask,
+                      gSolenoidNavLastConfig, gSolenoidNavLastPolarity);
+      }
+    }
+    return;
+  }
+
+  if ((int32_t)(now - gSolenoidNavNextPollMs) < 0) return;
+  gSolenoidNavNextPollMs = now + NB_SOLENOID_NAV_POLL_MS;
+
+  uint8_t input = 0;
+  if (!solenoidNavRead(gSolenoidNavAddr, kInputReg, input)) {
+    gSolenoidNavErrors++;
+    if (++gSolenoidNavConsecutiveErrors >= NB_SOLENOID_NAV_MAX_ERRORS) {
+      gSolenoidNavPresent = false;
+      Serial.printf("solenoid Qwiic nav at 0x%02X disabled after %u read errors\n",
+                    gSolenoidNavAddr, NB_SOLENOID_NAV_MAX_ERRORS);
+    }
+    return;
+  }
+  gSolenoidNavConsecutiveErrors = 0;
+  gSolenoidNavLastInput = input;
+
+  bool released = (input & (1U << 1)) != 0;
+  if (released != gSolenoidNavRawReleased) {
+    gSolenoidNavRawReleased = released;
+    gSolenoidNavChangedMs = now;
+  }
+  if (released == gSolenoidNavStableReleased ||
+      now - gSolenoidNavChangedMs < NB_SOLENOID_NAV_DEBOUNCE_MS) return;
+
+  gSolenoidNavStableReleased = released;
+  if (!released) {
+    gSolenoidNavPresses++;
+    if (gMode == MODE_COMMS)
+      solenoidStrike(NB_SOLENOID_DEFAULT_MS, "Qwiic nav DOWN");
+    else
+      Serial.println("solenoid Qwiic nav DOWN ignored during maintenance");
+  }
+}
+
+void solenoidButtonPrepareSleep() {
+  bool released = digitalRead(NB_SOLENOID_BUTTON_PIN) == HIGH;
+  // Reset any wake configuration inherited within this boot, then re-enable it
+  // only from a physically released level. A held LOW therefore gets the timer
+  // wake only and cannot form an immediate EXT0 reboot/strike loop.
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_EXT0);
+  if (!released) {
+    Serial.println("solenoid USER button held: button wake disabled for this sleep");
+    return;
+  }
+
+  gpio_num_t pin = (gpio_num_t)NB_SOLENOID_BUTTON_PIN;
+  esp_err_t err = rtc_gpio_init(pin);
+  if (err == ESP_OK) err = rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY);
+  if (err == ESP_OK) err = rtc_gpio_pullup_en(pin);
+  if (err == ESP_OK) err = rtc_gpio_pulldown_dis(pin);
+  if (err == ESP_OK) err = esp_sleep_enable_ext0_wakeup(pin, 0);
+  if (err != ESP_OK)
+    Serial.printf("solenoid USER button wake setup failed: %s\n", esp_err_to_name(err));
+}
+
+void solenoidFailsafeTick() {
+  if (gSolenoidGateOn &&
+      (int32_t)(millis() - gSolenoidFailsafeMs) >= 0) {
+    digitalWrite(NB_SOLENOID_PIN, LOW);
+    gSolenoidGateOn = false;
+    gSolenoidLastEndMs = millis();
+    gSolenoidFailsafes++;
+    Serial.println("solenoid FAILSAFE: gate forced LOW");
+  }
+}
+#else
+void solenoidInit() {}
+void solenoidStop(const char *) {}
+bool solenoidStrike(uint16_t, const char *) { return false; }
+void capbankProbeInit() {}
+void capbankReportIdle() { Serial.println("capbank probe requires --solenoid-d7"); }
+bool capbankProbeStrike(uint16_t) {
+  Serial.println("capbank probe requires --solenoid-d7");
+  return false;
+}
+void solenoidButtonHandleWake() {}
+void solenoidButtonTick() {}
+void solenoidRgbButtonInit() {}
+void solenoidRgbButtonTick() {}
+void solenoidNavInit() {}
+void solenoidNavTick() {}
+void solenoidButtonPrepareSleep() {}
+void solenoidFailsafeTick() {}
+#endif
 
 // ESP-NOW rx -> loop queue (callback enqueues only; loop processes)
 struct RxItem {
   uint8_t mac[6];
   int8_t rssi;
   uint8_t len;
-  uint8_t data[128];
+  uint8_t data[160];
 };
 QueueHandle_t rxQueue;
 static_assert(sizeof(NbHeartbeat) <= sizeof(RxItem::data),
@@ -644,7 +1922,22 @@ void loadBenchConfig() {
   gBenchConfigLoaded = true;
   uint16_t defaultChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
   Preferences pf;
-  pf.begin("netbench", true);
+  pf.begin("netbench", false);
+  uint32_t chargePolicyVersion = pf.getUInt("chg_policy", 0);
+  if (chargePolicyVersion < NB_CHARGE_POLICY_VERSION) {
+    // Replace known historical defaults, but preserve a nonstandard value that
+    // may be an intentional small-cell limit.
+    uint32_t priorMa = pf.getUInt("chg_ma", 0);
+    bool legacyDefault = priorMa == 0 || priorMa == 500 ||
+                         priorMa == 1000 || priorMa == 1500;
+    if (legacyDefault) pf.putUInt("chg_ma", defaultChargeMa);
+    pf.putUInt("chg_policy", NB_CHARGE_POLICY_VERSION);
+    Serial.printf("  charge policy v%u %s %lu mA%s\n",
+                  (unsigned)NB_CHARGE_POLICY_VERSION,
+                  legacyDefault ? "migrated" : "preserved",
+                  (unsigned long)(legacyDefault ? defaultChargeMa : priorMa),
+                  legacyDefault ? "" : " (explicit override)");
+  }
   gBatteryCapacityMah = checkedStoredUInt(pf, "cap_mah", (uint16_t)RES_PF_BATTERY_CAPACITY_MAH,
                                           NB_CAPACITY_MIN_MAH, NB_CAPACITY_MAX_MAH);
   gChargeMa = checkedStoredUInt(pf, "chg_ma", defaultChargeMa, NB_CHARGE_MIN_MA, NB_CHARGE_MAX_MA);
@@ -653,6 +1946,119 @@ void loadBenchConfig() {
                 gBatteryCapacityMah, gChargeMa,
                 (gBatteryCapacityMah == (uint16_t)RES_PF_BATTERY_CAPACITY_MAH &&
                  gChargeMa == defaultChargeMa) ? " (build defaults)" : " (NVS override)");
+}
+
+bool fieldSessionUnexpectedReset(esp_reset_reason_t reason) {
+  switch (reason) {
+  case ESP_RST_POWERON:
+  case ESP_RST_PANIC:
+  case ESP_RST_INT_WDT:
+  case ESP_RST_TASK_WDT:
+  case ESP_RST_WDT:
+  case ESP_RST_BROWNOUT:
+    return true;
+  default:
+    return false;
+  }
+}
+
+void fieldSessionRawRailOff() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
+  digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
+  rtc_gpio_hold_dis(GPIO_NUM_4);
+  rtc_gpio_init(GPIO_NUM_4);
+  rtc_gpio_set_direction(GPIO_NUM_4, RTC_GPIO_MODE_INPUT_OUTPUT);
+  rtc_gpio_set_level(GPIO_NUM_4, 0);
+  rtc_gpio_hold_en(GPIO_NUM_4);
+#endif
+}
+
+void fieldSessionGuardPreInit() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  // Fail-safe from the first instructions: keep pixel data and the switchable header
+  // rail low until the power stack, reset guard, and ESP-NOW are initialized. Board.init()
+  // will briefly reconfigure EN_3V3, so setupPowerFeather() parks it again immediately.
+  fieldSessionRawRailOff();
+
+  Preferences pf;
+  if (pf.begin("netbench", false)) {
+    if (pf.isKey("fc_led_stage")) {
+      gFieldSessionStage = min((uint8_t)FIELD_SESSION_PROTECT,
+                               pf.getUChar("fc_led_stage", FIELD_SESSION_IDLE));
+    } else if (pf.getBool("fc_led_active", false)) {
+      // Migration from the compiled-but-not-normally-deployed boolean guard. Treat an
+      // armed legacy marker as a full-load attempt so it receives one safe dim retry.
+      gFieldSessionStage = FIELD_SESSION_FULL;
+      pf.putUChar("fc_led_stage", gFieldSessionStage);
+    }
+    gFieldSessionStateLoaded = true;
+
+    if (gFieldSessionStage == FIELD_SESSION_PROTECT) {
+      // PROTECT is a durable charge-release latch, not merely a reset diagnosis.
+      // RTC phase data can be lost across an OTA/software reset, so NVS must remain
+      // authoritative on every boot type until verified charge clears the stage.
+      gFieldInterruptedPark = true;
+      gFieldInterruptedBoot = fieldSessionUnexpectedReset(esp_reset_reason());
+    } else if (gFieldSessionStage != FIELD_SESSION_IDLE &&
+               fieldSessionUnexpectedReset(esp_reset_reason())) {
+      gFieldInterruptedBoot = true;
+      if (gFieldSessionStage == FIELD_SESSION_FULL) {
+        // Consume the only retry BEFORE any rail can turn on. A reset during the dim
+        // attempt therefore boots with DIM already persisted and hard-parks below.
+        if (pf.putUChar("fc_led_stage", FIELD_SESSION_DIM) == sizeof(uint8_t)) {
+          gFieldSessionStage = FIELD_SESSION_DIM;
+          gFieldInterruptedRetry = true;
+        } else {
+          gFieldSessionStage = FIELD_SESSION_PROTECT;
+          gFieldInterruptedPark = true;
+        }
+      } else {
+        gFieldInterruptedPark = true;
+      }
+    } else if (gFieldSessionStage == FIELD_SESSION_DIM) {
+      // A deliberate software reset/OTA is not a retry failure. Preserve the
+      // already-selected dim tier if RTC state was reinitialized by the new image.
+      rtcFieldLoadDimmed = 1;
+    }
+    pf.end();
+  }
+  if (!gFieldSessionStateLoaded && fieldSessionUnexpectedReset(esp_reset_reason())) {
+    // If NVS itself cannot be read, fail safe rather than applying a blind full load.
+    gFieldInterruptedBoot = true;
+    gFieldInterruptedPark = true;
+    gFieldSessionStage = FIELD_SESSION_PROTECT;
+  }
+  gFieldSessionMarker = gFieldSessionStage != FIELD_SESSION_IDLE;
+#endif
+}
+
+bool fieldSessionSetStage(uint8_t stage) {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  stage = min((uint8_t)FIELD_SESSION_PROTECT, stage);
+  if (gFieldSessionStateLoaded && gFieldSessionStage == stage) return true;
+  Preferences pf;
+  if (!pf.begin("netbench", false)) return false;
+  size_t written = pf.putUChar("fc_led_stage", stage);
+  pf.end();
+  if (written != sizeof(uint8_t)) return false;
+  gFieldSessionStage = stage;
+  gFieldSessionMarker = stage != FIELD_SESSION_IDLE;
+  gFieldSessionStateLoaded = true;
+#else
+  (void)stage;
+#endif
+  return true;
+}
+
+void fieldSessionReportBootState() {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  Serial.printf("field-session guard: stage=%u marker=%d interrupted=%d retry=%d park=%d reset=%s nvs=%d\n",
+                gFieldSessionStage, gFieldSessionMarker ? 1 : 0,
+                gFieldInterruptedBoot ? 1 : 0, gFieldInterruptedRetry ? 1 : 0,
+                gFieldInterruptedPark ? 1 : 0,
+                resetReasonName(esp_reset_reason()), gFieldSessionStateLoaded ? 1 : 0);
+#endif
 }
 
 bool persistCapacity(uint16_t mah) {
@@ -695,6 +2101,9 @@ void setupPowerFeather() {
   Result r = Result::Failure;
   for (int a = 1; a <= 4; a++) {
     r = Board.init(gBatteryCapacityMah, RES_PF_BATTERY_TYPE);
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+    fieldSessionRawRailOff();
+#endif
     if (r == Result::Ok) break;
     Serial.printf("  Board.init attempt %d -> %d, retrying\n", a, (int)r);
     delay(250);
@@ -703,15 +2112,26 @@ void setupPowerFeather() {
   Serial.printf("  Board.init(cap=%u, %s) -> %s\n", (unsigned)gBatteryCapacityMah,
                 batteryTypeName(), pfReady ? "Ok" : "ERR");
   if (!pfReady) return;
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  // The SDK intentionally enables this rail on cold init. Field-cycle owns the LED
+  // rail, so park it before any charger policy writes or network startup can overlap
+  // an old/unknown pixel frame. Only fieldCycleLedLoadOn() may re-enable it.
+  if (Board.enable3V3(false) != Result::Ok)
+    Serial.println("field-session guard: WARN failed to park 3V3 after Board.init");
+#endif
   gMaintainV = (float)RES_PF_MAINTAIN_V;
   Board.setSupplyMaintainVoltage(gMaintainV);
+  rtcFieldMpptActiveV10 = (uint8_t)(gMaintainV * 10.0f + 0.5f);
 #if RES_PF_ENABLE_CHARGING
   Board.setBatteryChargingMaxCurrent((float)gChargeMa);
-  Board.enableBatteryCharging(true);
-#else
-  Board.enableBatteryCharging(false);
 #endif
-  pfSolarGuardInit("net_bench", gMaintainV, RES_PF_ENABLE_CHARGING != 0);
+  // Charging a missing battery can brownout-loop the board on USB. Keep charging
+  // off until the warmed gauge reports a plausible cell; chargingGuardTick()
+  // enables it later. This makes one image safe for bare-board incoming inspection
+  // and for the same board after a production battery is installed.
+  Board.enableBatteryCharging(false);
+  gChargingEnabled = false;
+  pfSolarGuardInit("net_bench", gMaintainV, false);
 }
 
 // ---- onboard INA helpers (placed after the structs; see note at the globals) -
@@ -842,6 +2262,85 @@ void envTick() {
   }
 }
 
+#if NB_SENSOR_TRIAD
+void sensorTriadInit() {
+  Wire1.setClock(100000);
+  gMsa311Present = gMsa311.begin(MSA311_I2CADDR_DEFAULT, &Wire1);
+  if (gMsa311Present) {
+    gMsa311.setRange(MSA301_RANGE_4_G);
+    gMsa311.setDataRate(MSA301_DATARATE_125_HZ);
+    gMsa311.setBandwidth(MSA301_BANDWIDTH_62_5_HZ);
+    gMsa311.setPowerMode(MSA301_NORMALMODE);
+  }
+
+  Wire1.setClock(100000);
+  gBmp581Present = gBmp581.begin(BMP5XX_ALTERNATIVE_ADDRESS, &Wire1);
+  if (gBmp581Present) {
+    gBmp581.setTemperatureOversampling(BMP5XX_OVERSAMPLING_2X);
+    gBmp581.setPressureOversampling(BMP5XX_OVERSAMPLING_16X);
+    gBmp581.setIIRFilterCoeff(BMP5XX_IIR_FILTER_COEFF_3);
+    gBmp581.setOutputDataRate(BMP5XX_ODR_05_HZ);
+    gBmp581.setPowerMode(BMP5XX_POWERMODE_NORMAL);
+    gBmp581.enablePressure(true);
+  }
+
+  Wire1.setClock(100000);
+  gTmf8820Present = gTmf8820.begin(Wire1);
+  Wire1.setClock(100000);
+  Serial.printf("sensor triad @100kHz: MSA311(0x26)=%d TMF8820(0x41)=%d BMP581(0x47)=%d\n",
+                gMsa311Present, gTmf8820Present, gBmp581Present);
+}
+
+void sensorTriadTick() {
+  static uint32_t nextMs = 0;
+  if (millis() < nextMs) return;
+  nextMs = millis() + 2000;
+  Wire1.setClock(100000);
+
+  gMsa311ReadOk = false;
+  if (gMsa311Present) {
+    gMsa311.read();
+    gMsaAxG = gMsa311.x_g;
+    gMsaAyG = gMsa311.y_g;
+    gMsaAzG = gMsa311.z_g;
+    gMsa311ReadOk = isfinite(gMsaAxG) && isfinite(gMsaAyG) && isfinite(gMsaAzG);
+  }
+
+  gBmp581ReadOk = false;
+  if (gBmp581Present && gBmp581.performReading()) {
+    gBmpTempC = gBmp581.temperature;
+    gBmpPressureHpa = gBmp581.pressure;
+    gBmp581ReadOk = isfinite(gBmpTempC) && isfinite(gBmpPressureHpa);
+  }
+
+  gTmf8820ReadOk = false;
+  gTmfClosestMm = 0;
+  gTmfClosestConfidence = 0;
+  if (gTmf8820Present) {
+    Wire1.setClock(100000);
+    if (gTmf8820.startMeasuring(gTmfResults)) {
+      gTmf8820ReadOk = true;
+      gTmfReadCount++;
+      uint32_t count = min((uint32_t)TMF882X_MAX_MEAS_RESULTS, gTmfResults.num_results);
+      for (uint32_t i = 0; i < count; ++i) {
+        const tmf882x_meas_result &r = gTmfResults.results[i];
+        if (r.confidence == 0 || r.distance_mm == 0 || r.distance_mm > UINT16_MAX) continue;
+        if (gTmfClosestMm == 0 || r.distance_mm < gTmfClosestMm) {
+          gTmfClosestMm = (uint16_t)r.distance_mm;
+          gTmfClosestConfidence = (uint16_t)min((uint32_t)UINT16_MAX, r.confidence);
+        }
+      }
+    } else {
+      gTmfReadErrors++;
+    }
+    Wire1.setClock(100000);
+  }
+}
+#else
+void sensorTriadInit() {}
+void sensorTriadTick() {}
+#endif
+
 // Locate pattern "..-" (dot dot dash + gap), unmistakable vs the battery blinks.
 struct LedStep { uint16_t ms; bool on; };
 const LedStep IDENT_PAT[] = {
@@ -875,19 +2374,54 @@ void updateStatusLed() {
   if (now - last >= interval) { last = now; on = !on; digitalWrite(NB_LED_PIN, on ? HIGH : LOW); }
 }
 
-void readBattery() {
+void readBatteryCell() {
   if (!pfReady) return;
   float v;
   if (Board.getBatteryVoltage(v) == Result::Ok) cbV = v;
-  if (Board.getBatteryCurrent(v) == Result::Ok) cbMa = v;
+  if (Board.getBatteryCurrent(v) == Result::Ok) {
+    cbMaRaw = v;
+    cbMa = v / NB_GAUGE_CURRENT_DIVISOR;
+  }
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) cbSoc = s;
+}
+
+void chargingGuardTick() {
+#if RES_PF_ENABLE_CHARGING
+  static bool done = false;
+  if (done || !pfReady || millis() < 6000) return;
+  if (cbV < 0.1f) {
+    if (millis() > 60000) {
+      done = true;
+      Serial.println("no battery reading after 60 s -> charging stays OFF until reboot");
+    }
+    return;
+  }
+  done = true;
+  if (cbV > 2.5f && cbV < 4.4f) {
+    Board.setBatteryChargingMaxCurrent((float)gChargeMa);
+    Board.enableBatteryCharging(true);
+    gChargingEnabled = true;
+    pfSolarGuardInit("net_bench", gMaintainV, true);
+    Serial.printf("battery %.2fV present -> charging ON (%u mA, %s profile)\n",
+                  cbV, (unsigned)gChargeMa, batteryTypeName());
+  } else {
+    Serial.printf("battery %.2fV implausible -> charging stays OFF\n", cbV);
+  }
+#endif
+}
+
+void readBattery() {
+  if (!pfReady) return;
+  readBatteryCell();
+  chargingGuardTick();
+  float v;
   if (Board.getSupplyVoltage(v) == Result::Ok) csV = v;
   if (Board.getSupplyCurrent(v) == Result::Ok) csMa = v;
   bool g;
   if (Board.checkSupplyGood(g) == Result::Ok) csGood = g;
   readChargerStatus();
-  pfSolarGuardTick("net_bench", csV, csMa, csGood, gMaintainV, RES_PF_ENABLE_CHARGING != 0);
+  pfSolarGuardTick("net_bench", csV, csMa, csGood, gMaintainV, gChargingEnabled);
 }
 
 String telemetryJson() {
@@ -908,9 +2442,15 @@ String telemetryJson() {
   j += ",\"drawdown_budget_mah\":";
   j += String(gDrawdownBudgetMah);
   j += ",\"heap_free\":" + String(ESP.getFreeHeap());
+  j += ",\"flash_bytes\":" + String((unsigned long)ESP.getFlashChipSize());
+  j += ",\"psram_bytes\":" + String((unsigned long)ESP.getPsramSize());
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
   j += ",\"pf_ready\":";
   j += pfReady ? "true" : "false";
+  j += ",\"battery_present\":";
+  j += (cbV > 2.5f && cbV < 4.4f) ? "true" : "false";
+  j += ",\"charging_enabled\":";
+  j += gChargingEnabled ? "true" : "false";
   j += ",\"maint_status\":";
   j += String(gMaintStatus);
   j += ",\"field_phase\":";
@@ -929,12 +2469,79 @@ String telemetryJson() {
   j += String(rtcFieldMinMv);
   j += ",\"field_max_mv\":";
   j += String(rtcFieldMaxMv);
+  j += ",\"field_charge_wh\":";
+  j += String((float)rtcFieldChargeMws / 3600000.0f, 2);
+  j += ",\"field_discharge_wh\":";
+  j += String((float)rtcFieldDischargeMws / 3600000.0f, 2);
+  j += ",\"field_peak_panel_w\":";
+  j += String((float)rtcFieldPeakPanelWx100 / 100.0f, 2);
+  j += ",\"field_peak_charge_w\":";
+  j += String((float)rtcFieldPeakChargeWx100 / 100.0f, 2);
+  j += ",\"field_peak_draw_w\":";
+  j += String((float)rtcFieldPeakDrawWx100 / 100.0f, 2);
+  j += ",\"field_low_s\":";
+  j += String(rtcFieldLowS);
+  j += ",\"field_charge_s\":";
+  j += String(rtcFieldChargeS);
+  j += ",\"field_wait_s\":";
+  j += String(rtcFieldWaitS);
+  j += ",\"field_draw_s\":";
+  j += String(rtcFieldDrawS);
+  j += ",\"field_protect_s\":";
+  j += String(rtcFieldProtectS);
+  j += ",\"field_dim_s\":";
+  j += String(rtcFieldDimS);
+  j += ",\"field_load_dimmed\":";
+  j += rtcFieldLoadDimmed ? "true" : "false";
+  j += ",\"field_protect_latched\":";
+  j += rtcFieldProtectLatched ? "true" : "false";
+  j += ",\"field_session_marker\":";
+  j += gFieldSessionMarker ? "true" : "false";
+  j += ",\"field_session_stage\":";
+  j += String(gFieldSessionStage);
+  j += ",\"field_interrupted_boot\":";
+  j += gFieldInterruptedBoot ? "true" : "false";
+  j += ",\"field_interrupted_retry\":";
+  j += gFieldInterruptedRetry ? "true" : "false";
+  j += ",\"field_interrupted_park\":";
+  j += gFieldInterruptedPark ? "true" : "false";
+  j += ",\"field_dusk_s\":";
+  j += String(rtcFieldDuskS);
+  j += ",\"field_lux_sensor_seen\":";
+  j += rtcFieldLuxSensorSeen ? "true" : "false";
+  j += ",\"mppt_status\":";
+  j += String(rtcFieldMpptStatus);
+  j += ",\"mppt_reason\":";
+  j += String(rtcFieldMpptReason);
+  j += ",\"mppt_runs\":";
+  j += String(rtcFieldMpptRuns);
+  j += ",\"mppt_active_v10\":";
+  j += String(rtcFieldMpptActiveV10);
+  j += ",\"mppt_best_v10\":";
+  j += String(rtcFieldMpptBestV10);
+  j += ",\"mppt_last_v10\":";
+  j += String(rtcFieldMpptLastV10);
+  j += ",\"mppt_p46_w\":";
+  j += String((float)rtcFieldMpptP46Wx100 / 100.0f, 2);
+  j += ",\"mppt_p48_w\":";
+  j += String((float)rtcFieldMpptP48Wx100 / 100.0f, 2);
+  j += ",\"mppt_p50_w\":";
+  j += String((float)rtcFieldMpptP50Wx100 / 100.0f, 2);
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
+  j += ",\"battery_capacity_mah\":" + String(gBatteryCapacityMah);
+  j += ",\"charge_limit_ma\":" + String(gChargeMa);
+  j += ",\"maintain_v\":" + String(gMaintainV, 1);
   if (pfReady) {
     char b[24];
     float v;
     if (Board.getBatteryVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"battery_v\":" + String(b); }
-    if (Board.getBatteryCurrent(v) == Result::Ok) { snprintf(b, sizeof(b), "%.1f", v); j += ",\"battery_ma\":" + String(b); }
+    if (Board.getBatteryCurrent(v) == Result::Ok) {
+      snprintf(b, sizeof(b), "%.1f", v / NB_GAUGE_CURRENT_DIVISOR);
+      j += ",\"battery_ma\":" + String(b);
+      snprintf(b, sizeof(b), "%.1f", v);
+      j += ",\"battery_ma_raw\":" + String(b);
+      j += ",\"battery_current_divisor\":" + String(NB_GAUGE_CURRENT_DIVISOR, 2);
+    }
     uint8_t s;
     if (Board.getBatteryCharge(s) == Result::Ok) j += ",\"soc_pct\":" + String(s);
     if (Board.getSupplyVoltage(v) == Result::Ok) { snprintf(b, sizeof(b), "%.3f", v); j += ",\"supply_v\":" + String(b); }
@@ -942,6 +2549,99 @@ String telemetryJson() {
     bool g;
     if (Board.checkSupplyGood(g) == Result::Ok) { j += ",\"supply_good\":"; j += g ? "true" : "false"; }
   }
+#if NB_SENSOR_TRIAD
+  j += ",\"sensor_triad_enabled\":true";
+  j += ",\"msa311_present\":";
+  j += gMsa311Present ? "true" : "false";
+  j += ",\"msa311_read_ok\":";
+  j += gMsa311ReadOk ? "true" : "false";
+  j += ",\"msa_ax_g\":";
+  j += isfinite(gMsaAxG) ? String(gMsaAxG, 4) : "null";
+  j += ",\"msa_ay_g\":";
+  j += isfinite(gMsaAyG) ? String(gMsaAyG, 4) : "null";
+  j += ",\"msa_az_g\":";
+  j += isfinite(gMsaAzG) ? String(gMsaAzG, 4) : "null";
+  j += ",\"bmp581_present\":";
+  j += gBmp581Present ? "true" : "false";
+  j += ",\"bmp581_read_ok\":";
+  j += gBmp581ReadOk ? "true" : "false";
+  j += ",\"bmp_temp_c\":";
+  j += isfinite(gBmpTempC) ? String(gBmpTempC, 2) : "null";
+  j += ",\"bmp_pressure_hpa\":";
+  j += isfinite(gBmpPressureHpa) ? String(gBmpPressureHpa, 2) : "null";
+  j += ",\"tmf8820_present\":";
+  j += gTmf8820Present ? "true" : "false";
+  j += ",\"tmf8820_read_ok\":";
+  j += gTmf8820ReadOk ? "true" : "false";
+  j += ",\"tmf_result_num\":" + String((unsigned long)gTmfResults.result_num);
+  j += ",\"tmf_result_count\":" + String((unsigned long)gTmfResults.num_results);
+  j += ",\"tmf_closest_mm\":" + String(gTmfClosestMm);
+  j += ",\"tmf_closest_confidence\":" + String(gTmfClosestConfidence);
+  j += ",\"tmf_ambient_light\":" + String((unsigned long)gTmfResults.ambient_light);
+  j += ",\"tmf_temperature_c\":" + String((unsigned long)gTmfResults.temperature);
+  j += ",\"tmf_reads\":" + String((unsigned long)gTmfReadCount);
+  j += ",\"tmf_errors\":" + String((unsigned long)gTmfReadErrors);
+  j += ",\"tmf_results\":[";
+  uint32_t tmfJsonCount = min((uint32_t)12, min((uint32_t)TMF882X_MAX_MEAS_RESULTS,
+                                               gTmfResults.num_results));
+  for (uint32_t i = 0; i < tmfJsonCount; ++i) {
+    if (i) j += ",";
+    const tmf882x_meas_result &r = gTmfResults.results[i];
+    j += "{\"channel\":" + String((unsigned long)r.channel);
+    j += ",\"sub_capture\":" + String((unsigned long)r.sub_capture);
+    j += ",\"distance_mm\":" + String((unsigned long)r.distance_mm);
+    j += ",\"confidence\":" + String((unsigned long)r.confidence) + "}";
+  }
+  j += "]";
+#else
+  j += ",\"sensor_triad_enabled\":false";
+#endif
+#if defined(NB_SOLENOID_D7)
+  j += ",\"solenoid_enabled\":true";
+  j += ",\"solenoid_pin\":" + String(NB_SOLENOID_PIN);
+  j += ",\"solenoid_gate_on\":";
+  j += gSolenoidGateOn ? "true" : "false";
+  j += ",\"solenoid_strikes\":" + String((unsigned long)gSolenoidStrikes);
+  j += ",\"solenoid_blocked\":" + String((unsigned long)gSolenoidBlocked);
+  j += ",\"solenoid_failsafes\":" + String((unsigned long)gSolenoidFailsafes);
+  j += ",\"solenoid_last_ms\":" + String(gSolenoidLastPulseMs);
+  j += ",\"solenoid_button_pin\":" + String(NB_SOLENOID_BUTTON_PIN);
+  j += ",\"solenoid_button_armed\":";
+  j += gSolenoidButtonStableReleased ? "true" : "false";
+  j += ",\"solenoid_button_pressed\":";
+  j += digitalRead(NB_SOLENOID_BUTTON_PIN) == LOW ? "true" : "false";
+  j += ",\"solenoid_rgb_button_present\":";
+  j += gSolenoidRgbButtonPresent ? "true" : "false";
+  j += ",\"solenoid_rgb_button_addr\":" + String(gSolenoidRgbButtonAddr);
+  j += ",\"solenoid_rgb_button_pressed\":";
+  j += gSolenoidRgbButtonStablePressed ? "true" : "false";
+  j += ",\"solenoid_rgb_button_presses\":" +
+       String((unsigned long)gSolenoidRgbButtonPresses);
+  j += ",\"solenoid_rgb_button_errors\":" +
+       String((unsigned long)gSolenoidRgbButtonErrors);
+  j += ",\"solenoid_rgb_button_probe_attempts\":" +
+       String(gSolenoidRgbButtonProbeAttempts);
+  j += ",\"solenoid_rgb_button_ack_mask\":" +
+       String(gSolenoidRgbButtonAckMask);
+  j += ",\"solenoid_rgb_button_pid_addr\":" +
+       String(gSolenoidRgbButtonPidAddr);
+  j += ",\"solenoid_rgb_button_pid\":" +
+       String(gSolenoidRgbButtonPid);
+  j += ",\"solenoid_nav_present\":";
+  j += gSolenoidNavPresent ? "true" : "false";
+  j += ",\"solenoid_nav_addr\":" + String(gSolenoidNavAddr);
+  j += ",\"solenoid_nav_down_pressed\":";
+  j += gSolenoidNavStableReleased ? "false" : "true";
+  j += ",\"solenoid_nav_presses\":" + String((unsigned long)gSolenoidNavPresses);
+  j += ",\"solenoid_nav_errors\":" + String((unsigned long)gSolenoidNavErrors);
+  j += ",\"solenoid_nav_probe_attempts\":" + String(gSolenoidNavProbeAttempts);
+  j += ",\"solenoid_nav_ack_mask\":" + String(gSolenoidNavAckMask);
+  j += ",\"solenoid_nav_input\":" + String(gSolenoidNavLastInput);
+  j += ",\"solenoid_nav_config\":" + String(gSolenoidNavLastConfig);
+  j += ",\"solenoid_nav_polarity\":" + String(gSolenoidNavLastPolarity);
+#else
+  j += ",\"solenoid_enabled\":false";
+#endif
   j += "}";
   return j;
 }
@@ -953,6 +2653,7 @@ void configureOtaRoutes() {
   server.on("/", HTTP_GET, []() { server.send(200, "text/plain", "net-bench " NET_BENCH_VERSION "\n"); });
   server.on("/telemetry", HTTP_GET, []() { server.send(200, "application/json", telemetryJson()); });
   server.on("/resume", HTTP_GET, []() { server.send(200, "text/plain", "resuming\n"); gResumePending = true; });
+  capbankWaveConfigureRoutes();
   server.on(
       "/update", HTTP_POST,
       []() {
@@ -966,6 +2667,7 @@ void configureOtaRoutes() {
         esp_task_wdt_reset();
         HTTPUpload &up = server.upload();
         if (up.status == UPLOAD_FILE_START) {
+          solenoidStop("OTA");
           if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
         } else if (up.status == UPLOAD_FILE_WRITE) {
           if (Update.write(up.buf, up.currentSize) != up.currentSize) Update.printError(Serial);
@@ -1036,6 +2738,26 @@ void stopOtaAndWifi() {
   WiFi.mode(WIFI_OFF);
   otaActive = false;
   otaMode = "off";
+}
+
+void capbankWaveTick() {
+#if defined(NB_CAPBANK_WAVEFORM)
+  if (gCapWaveState != CAPW_ARMED ||
+      (int32_t)(millis() - gCapWaveArmAtMs) < 0) return;
+  // The arming HTTP response has already left. Tear down every WiFi path before
+  // sampling, capture into RAM, then rejoin and expose the completed CSV.
+  stopOtaAndWifi();
+  delay(30);
+  capbankWaveCapture(gCapWavePulseMs);
+  maintEnteredMs = millis();
+  if (!startWifiOta()) {
+    gCapWaveError += gCapWaveError.length() ? "; WiFi rejoin failed" : "WiFi rejoin failed";
+    if (gCapWaveState != CAPW_READY) gCapWaveState = CAPW_ERROR;
+    Serial.println("waveform retained in RAM; retrying shared WiFi in 2 s");
+    delay(2000);
+    startWifiOta();
+  }
+#endif
 }
 
 // ---- watchdog (net-new: closes the field-reliability TODO) -----------------
@@ -1188,6 +2910,27 @@ void sendHeartbeat(uint8_t caState) {
   hb.bq_flag1 = gBqFlag1;
   hb.bq_fault_flag0 = gBqFaultFlag0;
   hb.bq_part = gBqPart;
+  hb.field_charge_wh_x10 = (uint16_t)min(65535UL, rtcFieldChargeMws / 360000UL);
+  hb.field_discharge_wh_x10 = (uint16_t)min(65535UL, rtcFieldDischargeMws / 360000UL);
+  hb.field_peak_panel_w_x100 = rtcFieldPeakPanelWx100;
+  hb.field_peak_charge_w_x100 = rtcFieldPeakChargeWx100;
+  hb.field_peak_draw_w_x100 = rtcFieldPeakDrawWx100;
+  hb.field_low_s = (uint8_t)min(255UL, (unsigned long)rtcFieldLowS);
+  hb.field_charge_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldChargeS + 30) / 60));
+  hb.field_wait_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldWaitS + 30) / 60));
+  hb.field_draw_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldDrawS + 30) / 60));
+  hb.field_protect_min = (uint8_t)min(255UL, (unsigned long)((rtcFieldProtectS + 30) / 60));
+  hb.mppt_status = rtcFieldMpptStatus;
+  hb.mppt_reason = rtcFieldMpptReason;
+  hb.mppt_runs = rtcFieldMpptRuns;
+  hb.mppt_active_v10 = rtcFieldMpptActiveV10;
+  hb.mppt_best_v10 = rtcFieldMpptBestV10;
+  hb.mppt_last_v10 = rtcFieldMpptLastV10;
+  hb.mppt_p46_w_x100 = rtcFieldMpptP46Wx100;
+  hb.mppt_p48_w_x100 = rtcFieldMpptP48Wx100;
+  hb.mppt_p50_w_x100 = rtcFieldMpptP50Wx100;
+  hb.field_load_dimmed = rtcFieldLoadDimmed;
+  hb.field_protect_latched = rtcFieldProtectLatched;
   esp_now_send(BCAST, (uint8_t *)&hb, sizeof(hb));
 }
 void sendCmd(uint8_t type, uint8_t arg) {
@@ -1254,12 +2997,14 @@ bool maintenancePowerOk() {
 }
 void enterTimedDeepSleep(uint16_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
+  solenoidStop("deep sleep");
   digitalWrite(NB_LED_PIN, LOW);
   if (pfReady) {
     Board.enable3V3(false);
     Board.enableVSQT(false);
   }
   Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
@@ -1280,14 +3025,140 @@ void drawdownPixelsOff() {
   pinMode(NB_DRAWDOWN_PIXEL_PIN, OUTPUT);
   digitalWrite(NB_DRAWDOWN_PIXEL_PIN, LOW);
 }
-void drawdownPixelsLoadOn() {
-  if (pfReady) Board.enable3V3(true);
+
+bool drawdownPixelsRailOnCleared() {
+  // Pre-init fail-safe holds EN_3V3 low in the RTC domain. Release that hold only here,
+  // after the session tier is durable and the caller has deliberately requested load.
+  // The SDK setter assumes an already-valid RTC pad and ignores rtc_gpio_set_level()
+  // errors. Re-initialize and verify the physical pad after the SDK call so Result::Ok
+  // cannot leave EN_3V3 low (observed on the first .2 P105 deployment).
+  if (!pfReady) return false;
+  rtc_gpio_hold_dis(GPIO_NUM_4);
+  if (Board.enable3V3(true) != Result::Ok) return false;
+  if (rtc_gpio_hold_dis(GPIO_NUM_4) != ESP_OK ||
+      rtc_gpio_init(GPIO_NUM_4) != ESP_OK ||
+      rtc_gpio_set_direction(GPIO_NUM_4, RTC_GPIO_MODE_INPUT_OUTPUT) != ESP_OK ||
+      rtc_gpio_set_level(GPIO_NUM_4, 1) != ESP_OK ||
+      rtc_gpio_get_level(GPIO_NUM_4) != 1 ||
+      rtc_gpio_hold_en(GPIO_NUM_4) != ESP_OK) return false;
   delay(20);
   drawdownPixelsBegin();
-  drawdownPixels.setBrightness(NB_DRAWDOWN_BRIGHTNESS);
-  uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
-  for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) drawdownPixels.setPixelColor(i, c);
+  // Make rail-on deterministic before applying a load. This also clears any frame
+  // retained across a warm reset before the session marker is considered healthy.
+  drawdownPixels.setBrightness(255);
+  drawdownPixels.clear();
   drawdownPixels.show();
+  delay(5);
+  return true;
+}
+
+void drawdownPixelsRenderLoad(uint8_t brightness) {
+  drawdownPixels.setBrightness(brightness);
+#if NB_FIELD_LED_RGBW
+  uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B, 0);
+#else
+  uint32_t c = drawdownPixels.Color(NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B);
+#endif
+  uint16_t lit = min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT);
+  for (uint16_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
+    drawdownPixels.setPixelColor(i, i < lit ? c : 0);
+  drawdownPixels.show();
+}
+
+void drawdownPixelsLoadOn(uint8_t brightness = NB_DRAWDOWN_BRIGHTNESS) {
+  if (!drawdownPixelsRailOnCleared()) return;
+  drawdownPixelsRenderLoad(brightness);
+}
+
+// Exact geometry/path model used by led_studio's Spiral + Rotate split. The
+// moving anchor walks the center-to-outer ring order and ping-pongs back inward;
+// its green and blue partners are the nearest pixels at +120/+240 degrees.
+void fieldSpiralBuildGeometry() {
+  if (gFieldSpiralGeometryReady) return;
+  static const uint8_t rowCount[7] = {4, 5, 6, 7, 6, 5, 4};
+  uint8_t ringOf[NB_DRAWDOWN_PIXEL_COUNT];
+  float angle[NB_DRAWDOWN_PIXEL_COUNT];
+  uint8_t idx = 0;
+  for (uint8_t row = 0; row < 7; row++) {
+    uint8_t count = rowCount[row];
+    float y = (3.0f - (float)row) * 0.8660254f;
+    for (uint8_t col = 0; col < count; col++) {
+      float x = (float)col - (float)(count - 1) / 2.0f;
+      gFieldPixelX[idx] = x;
+      gFieldPixelY[idx] = y;
+      ringOf[idx] = (uint8_t)min(3L, lroundf(sqrtf(x * x + y * y)));
+      angle[idx] = atan2f(y, x);
+      gFieldSpiralOrder[idx] = idx;
+      idx++;
+    }
+  }
+  for (uint8_t i = 1; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    uint8_t key = gFieldSpiralOrder[i];
+    int8_t k = i - 1;
+    while (k >= 0) {
+      uint8_t a = gFieldSpiralOrder[k];
+      bool greater = (ringOf[a] > ringOf[key]) ||
+                     (ringOf[a] == ringOf[key] && angle[a] > angle[key]);
+      if (!greater) break;
+      gFieldSpiralOrder[k + 1] = gFieldSpiralOrder[k];
+      k--;
+    }
+    gFieldSpiralOrder[k + 1] = key;
+  }
+  gFieldSpiralGeometryReady = true;
+}
+
+uint8_t fieldSpiralNearestPixel(float x, float y) {
+  uint8_t best = 0;
+  float bestDistance = 1e9f;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++) {
+    float dx = gFieldPixelX[i] - x, dy = gFieldPixelY[i] - y;
+    float distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+uint8_t fieldSpiralPathIndex(uint16_t step) {
+  const uint16_t n = NB_DRAWDOWN_PIXEL_COUNT;
+  const uint16_t period = 2 * (n - 1);
+  uint16_t m = step % period;
+  return (uint8_t)(m < n ? m : period - m);
+}
+
+void fieldSpiralRender(uint8_t brightness) {
+  fieldSpiralBuildGeometry();
+  drawdownPixelsBegin();
+  drawdownPixels.setBrightness(brightness);
+  drawdownPixels.clear();
+  uint8_t anchor = gFieldSpiralOrder[fieldSpiralPathIndex(gFieldSpiralPosition)];
+  float x = gFieldPixelX[anchor], y = gFieldPixelY[anchor];
+  float radius = sqrtf(x * x + y * y), theta = atan2f(y, x);
+  const float thirdTurn = 2.0943951f;
+  uint8_t pixels[3] = {
+      anchor,
+      fieldSpiralNearestPixel(radius * cosf(theta + thirdTurn),
+                              radius * sinf(theta + thirdTurn)),
+      fieldSpiralNearestPixel(radius * cosf(theta + 2 * thirdTurn),
+                              radius * sinf(theta + 2 * thirdTurn))};
+  uint8_t red[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t green[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  uint8_t blue[NB_DRAWDOWN_PIXEL_COUNT] = {0};
+  red[pixels[0]] = 255;
+  green[pixels[1]] = 255;
+  blue[pixels[2]] = 255;
+  for (uint8_t i = 0; i < NB_DRAWDOWN_PIXEL_COUNT; i++)
+    drawdownPixels.setPixelColor(i, red[i], green[i], blue[i]);
+  drawdownPixels.show();
+}
+
+void fieldSpiralLoadOn(uint8_t brightness) {
+  if (!drawdownPixelsRailOnCleared()) return;
+  fieldSpiralRender(brightness);
+  gFieldSpiralLastFrameMs = millis();
 }
 void drawdownCancel(const char *why) {
   if (!gDrawdownActive) return;
@@ -1326,9 +3197,9 @@ void drawdownStart(uint16_t budgetMah) {
   gDrawdownLastLogMs = 0;
   gDrawdownActive = true;
   drawdownPixelsLoadOn();
-  Serial.printf("drawdown start: budget=%u mAh load=HEX %upx rgb=(%u,%u,%u) bri=%u soft=%.3f hard=%.3f\n",
-                gDrawdownBudgetMah, NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R,
-                NB_DRAWDOWN_G, NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS,
+  Serial.printf("drawdown start: budget=%u mAh load=HEX %u/%upx rgb=(%u,%u,%u) bri=%u soft=%.3f hard=%.3f\n",
+                gDrawdownBudgetMah, (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
+                NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G, NB_DRAWDOWN_B, NB_DRAWDOWN_BRIGHTNESS,
                 NB_DRAWDOWN_SOFT_FLOOR_MV / 1000.0f, NB_DRAWDOWN_HARD_FLOOR_MV / 1000.0f);
 }
 void drawdownTick() {
@@ -1359,6 +3230,291 @@ void drawdownTick() {
 }
 
 #ifdef NB_FIELD_CYCLE
+uint16_t fieldCycleWx100(float w) {
+  if (isnan(w) || w <= 0.0f) return 0;
+  return (uint16_t)min(65535UL, (unsigned long)(w * 100.0f + 0.5f));
+}
+void fieldCycleAddMws(uint32_t *accum, float watts, uint32_t seconds) {
+  if (watts <= 0.0f || seconds == 0) return;
+  uint64_t add = (uint64_t)(watts * 1000.0f + 0.5f) * seconds;
+  uint64_t next = (uint64_t)(*accum) + add;
+  *accum = (uint32_t)min(next, (uint64_t)0xFFFFFFFFUL);
+}
+void fieldCycleAddPhaseSeconds(uint32_t seconds) {
+  switch (rtcFieldPhase) {
+  case FC_CHARGE:
+    rtcFieldChargeS = (uint16_t)min(65535UL, (unsigned long)rtcFieldChargeS + seconds);
+    break;
+  case FC_WAIT_DARK:
+    rtcFieldWaitS = (uint16_t)min(65535UL, (unsigned long)rtcFieldWaitS + seconds);
+    break;
+  case FC_DRAWDOWN:
+    rtcFieldDrawS = (uint16_t)min(65535UL, (unsigned long)rtcFieldDrawS + seconds);
+    break;
+  case FC_PROTECT:
+    rtcFieldProtectS = (uint16_t)min(65535UL, (unsigned long)rtcFieldProtectS + seconds);
+    break;
+  default: break;
+  }
+}
+float fieldCyclePanelW() {
+  if (gInaPanel && gInaPvMv != INT16_MIN && gInaPaMa != INT16_MIN) {
+    return fabsf((float)gInaPvMv * (float)gInaPaMa / 1000000.0f);
+  }
+  return (csMa > 0.0f) ? (csV * csMa / 1000.0f) : 0.0f;
+}
+uint8_t maintainV10() {
+  return (uint8_t)min(255UL, (unsigned long)(gMaintainV * 10.0f + 0.5f));
+}
+void fieldMpptRecord(uint8_t status, uint8_t reason) {
+  rtcFieldMpptStatus = status;
+  rtcFieldMpptReason = reason;
+  rtcFieldMpptActiveV10 = maintainV10();
+}
+void fieldMpptSetV10(uint8_t v10) {
+  if (!pfReady) return;
+  gMaintainV = (float)v10 / 10.0f;
+  Board.setSupplyMaintainVoltage(gMaintainV);
+  rtcFieldMpptActiveV10 = v10;
+}
+void fieldMpptClampDefault(uint8_t reason) {
+  if (!pfReady) {
+    fieldMpptRecord(MPPT_STATUS_SKIPPED, reason);
+    return;
+  }
+  if (maintainV10() != NB_FIELD_MPPT_DEFAULT_V10) {
+    fieldMpptSetV10(NB_FIELD_MPPT_DEFAULT_V10);
+    Serial.printf("field-MPPT clamp -> %.1f V reason=%u\n", gMaintainV, reason);
+  }
+  fieldMpptRecord(MPPT_STATUS_CLAMPED, reason);
+}
+bool fieldMpptBqFaulted() {
+  if (gBqFault0 != 0xFF && gBqFault0 != 0) return true;
+  if (gBqFaultFlag0 != 0xFF && gBqFaultFlag0 != 0) return true;
+  return false;
+}
+bool fieldMpptTapered() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_MPPT_TAPER_MV &&
+         cbMa >= 0.0f && cbMa <= (float)NB_FIELD_MPPT_TAPER_MA;
+}
+uint16_t fieldMpptSampleV10(uint8_t v10) {
+  fieldMpptSetV10(v10);
+  rtcFieldMpptLastV10 = v10;
+  delay(NB_FIELD_MPPT_SETTLE_MS);
+  esp_task_wdt_reset();
+  readBattery();
+  envTick();
+  delay(120);
+  esp_task_wdt_reset();
+  readBattery();
+  envTick();
+  return fieldCycleWx100(fieldCyclePanelW());
+}
+void fieldMpptMaybeRun() {
+#if NB_FIELD_MPPT
+  if (rtcFieldPhase != FC_CHARGE) {
+    fieldMpptClampDefault(MPPT_REASON_PHASE);
+    return;
+  }
+  if (fieldCycleInWakeWindow()) {
+    fieldMpptRecord(MPPT_STATUS_SKIPPED, MPPT_REASON_WAKE_WINDOW);
+    return;
+  }
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  if (cbV > 0.5f && mv < NB_FIELD_MPPT_MIN_BATT_MV) {
+    fieldMpptClampDefault(MPPT_REASON_LOW_BATT);
+    return;
+  }
+  if (fieldMpptBqFaulted()) {
+    fieldMpptClampDefault(MPPT_REASON_BQ_FAULT);
+    return;
+  }
+  if (fieldMpptTapered()) {
+    fieldMpptClampDefault(MPPT_REASON_TAPER);
+    return;
+  }
+
+  uint16_t p46 = fieldMpptSampleV10(NB_FIELD_MPPT_DEFAULT_V10);
+  if (csMa < (float)NB_FIELD_MPPT_MIN_SUPPLY_MA || p46 < NB_FIELD_MPPT_MIN_PANEL_W_X100) {
+    rtcFieldMpptP46Wx100 = p46;
+    rtcFieldMpptP48Wx100 = 0;
+    rtcFieldMpptP50Wx100 = 0;
+    fieldMpptClampDefault(MPPT_REASON_WEAK_SUN);
+    return;
+  }
+
+  uint16_t p48 = fieldMpptSampleV10(NB_FIELD_MPPT_MID_V10);
+  uint16_t p50 = fieldMpptSampleV10(NB_FIELD_MPPT_HIGH_V10);
+  rtcFieldMpptP46Wx100 = p46;
+  rtcFieldMpptP48Wx100 = p48;
+  rtcFieldMpptP50Wx100 = p50;
+
+  uint8_t best = NB_FIELD_MPPT_DEFAULT_V10;
+  uint16_t bestW = p46;
+  if (p48 > bestW) { bestW = p48; best = NB_FIELD_MPPT_MID_V10; }
+  if (p50 > bestW) { bestW = p50; best = NB_FIELD_MPPT_HIGH_V10; }
+  rtcFieldMpptBestV10 = best;
+  if (rtcFieldMpptRuns < 255) rtcFieldMpptRuns++;
+
+#if NB_FIELD_MPPT_HOLD_BEST
+  fieldMpptSetV10(best);
+  fieldMpptRecord(MPPT_STATUS_HELD_BEST, MPPT_REASON_MEASURED);
+#else
+  fieldMpptClampDefault(MPPT_REASON_CLAMP);
+  rtcFieldMpptStatus = MPPT_STATUS_RAN;
+  rtcFieldMpptReason = MPPT_REASON_MEASURED;
+#endif
+  Serial.printf("field-MPPT p46=%u p48=%u p50=%u best=%u hold=%d active=%u\n",
+                p46, p48, p50, best, NB_FIELD_MPPT_HOLD_BEST, rtcFieldMpptActiveV10);
+#else
+  fieldMpptRecord(MPPT_STATUS_DISABLED, MPPT_REASON_DISABLED);
+#endif
+}
+void fieldCycleUpdatePowerStats(uint32_t seconds) {
+  float panelW = fieldCyclePanelW();
+  uint16_t panelWx100 = fieldCycleWx100(panelW);
+  if (panelWx100 > rtcFieldPeakPanelWx100) rtcFieldPeakPanelWx100 = panelWx100;
+
+  float battW = cbV * cbMa / 1000.0f;
+  if (battW > 0.0f) {
+    fieldCycleAddMws(&rtcFieldChargeMws, battW, seconds);
+    uint16_t wx100 = fieldCycleWx100(battW);
+    if (wx100 > rtcFieldPeakChargeWx100) rtcFieldPeakChargeWx100 = wx100;
+  } else if (battW < 0.0f) {
+    fieldCycleAddMws(&rtcFieldDischargeMws, -battW, seconds);
+    uint16_t wx100 = fieldCycleWx100(-battW);
+    if (wx100 > rtcFieldPeakDrawWx100) rtcFieldPeakDrawWx100 = wx100;
+  }
+}
+uint8_t fieldCycleLoadBrightness() {
+  unsigned long brightness = rtcFieldLoadDimmed ? NB_FIELD_LED_DIM_BRIGHTNESS : NB_DRAWDOWN_BRIGHTNESS;
+  return (uint8_t)min(255UL, brightness);
+}
+void fieldCycleParkInterrupted(const char *why);
+void fieldCycleRenderLoad(uint8_t brightness) {
+#if NB_FIELD_LED_SPIRAL_RGB
+  fieldSpiralRender(brightness);
+#else
+  drawdownPixelsRenderLoad(brightness);
+#endif
+}
+void fieldCycleLedLoadOn() {
+#if NB_FIELD_LED_LOAD
+  if ((int32_t)(millis() - gFieldLedEarliestOnMs) < 0) return;
+  bool dimmed = rtcFieldLoadDimmed != 0;
+  if (gFieldLedLoadOn && gFieldLedLoadDimmedApplied == dimmed) return;
+
+  // Persist the intended load tier before rail-on. FULL receives exactly one DIM retry
+  // after an unexpected reset; a reset from DIM is terminal until verified charge.
+  uint8_t sessionStage = rtcFieldLoadDimmed ? FIELD_SESSION_DIM : FIELD_SESSION_FULL;
+  if (!fieldSessionSetStage(sessionStage)) {
+    fieldCycleParkInterrupted("NVS arm failed");
+    return;
+  }
+  if (!drawdownPixelsRailOnCleared()) {
+    fieldCycleParkInterrupted("3V3 rail enable failed");
+    return;
+  }
+
+  uint8_t target = fieldCycleLoadBrightness();
+  const uint8_t steps = max((uint8_t)1, (uint8_t)NB_FIELD_LED_RAMP_STEPS);
+  for (uint8_t step = 1; step <= steps; step++) {
+    uint8_t brightness = (uint8_t)max(1UL, ((unsigned long)target * step + steps - 1) / steps);
+    fieldCycleRenderLoad(brightness);
+    delay(NB_FIELD_LED_RAMP_MS / steps);
+    esp_task_wdt_reset();
+    readBatteryCell();
+    int mv = (int)(cbV * 1000.0f + 0.5f);
+    if (cbV > 0.5f && mv <= NB_FIELD_LOW_MV) {
+      fieldCycleParkInterrupted("startup ramp low VBAT");
+      return;
+    }
+    if (cbV > 0.5f && mv <= NB_FIELD_DIM_MV && !rtcFieldLoadDimmed) {
+      rtcFieldLoadDimmed = 1;
+      target = fieldCycleLoadBrightness();
+      dimmed = true;
+    }
+  }
+  fieldCycleRenderLoad(target);
+#if NB_FIELD_LED_SPIRAL_RGB
+  gFieldSpiralLastFrameMs = millis();
+#endif
+  gFieldLedLoadOn = true;
+  gFieldLedLoadDimmedApplied = dimmed;
+  Serial.printf("field-cycle LED load ON (%u/%upx rgb=(%u,%u,%u) w=0 bri=%u dim=%d rgbw=%d spiral_rgb=%d)\n",
+                (unsigned)min((uint16_t)NB_DRAWDOWN_LIT_COUNT, (uint16_t)NB_DRAWDOWN_PIXEL_COUNT),
+                NB_DRAWDOWN_PIXEL_COUNT, NB_DRAWDOWN_R, NB_DRAWDOWN_G,
+                NB_DRAWDOWN_B, target, dimmed ? 1 : 0, NB_FIELD_LED_RGBW,
+                NB_FIELD_LED_SPIRAL_RGB);
+#endif
+}
+void fieldCycleLedLoadTick() {
+#if NB_FIELD_LED_LOAD && NB_FIELD_LED_SPIRAL_RGB
+  if (!gFieldLedLoadOn || millis() - gFieldSpiralLastFrameMs < NB_FIELD_LED_FRAME_MS) return;
+  gFieldSpiralPosition++;
+  fieldSpiralRender(fieldCycleLoadBrightness());
+  gFieldSpiralLastFrameMs = millis();
+#endif
+}
+void fieldCycleLedLoadOff() {
+#if NB_FIELD_LED_LOAD
+  if (!gFieldLedLoadOn) return;
+  drawdownPixelsOff();
+  if (pfReady) Board.enable3V3(false);
+  gFieldLedLoadOn = false;
+  gFieldLedLoadDimmedApplied = false;
+  gFieldSpiralPosition = 0;
+  gFieldSpiralLastFrameMs = 0;
+  Serial.println("field-cycle LED load OFF");
+#endif
+}
+void fieldCycleParkInterrupted(const char *why) {
+#if NB_FIELD_LED_LOAD
+  drawdownPixelsOff();
+  if (pfReady) Board.enable3V3(false);
+  gFieldLedLoadOn = false;
+  gFieldLedLoadDimmedApplied = false;
+  gFieldSpiralPosition = 0;
+  gFieldSpiralLastFrameMs = 0;
+#endif
+  gFieldInterruptedBoot = true;
+  gFieldInterruptedRetry = false;
+  gFieldInterruptedPark = true;
+  fieldSessionSetStage(FIELD_SESSION_PROTECT);
+  rtcFieldPhase = FC_PROTECT;
+  rtcFieldReason = FC_REASON_INTERRUPTED;
+  rtcFieldProtectLatched = 1;
+  rtcFieldPhaseElapsedS = 0;
+  fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
+  rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
+  fieldLastIntegrateMs = millis();
+  Serial.printf("field-session guard: PARK (%s), marker=%d bv=%.3f ima=%.0f\n",
+                why, gFieldSessionMarker ? 1 : 0, cbV, cbMa);
+}
+bool fieldCycleThresholdConfirmed(bool active, uint32_t *sinceMs, uint16_t *elapsedS,
+                                  uint16_t confirmS) {
+  if (!active || rtcFieldPhase != FC_DRAWDOWN ||
+      rtcFieldPhaseElapsedS < NB_FIELD_DRAWDOWN_MIN_S) {
+    *sinceMs = 0;
+    *elapsedS = 0;
+    return false;
+  }
+  uint32_t now = millis();
+  if (*sinceMs == 0) *sinceMs = now;
+  *elapsedS = (uint16_t)min(65535UL, (unsigned long)((now - *sinceMs) / 1000UL));
+  return *elapsedS >= confirmS;
+}
+bool fieldCycleDimConfirmed(bool dim) {
+  return fieldCycleThresholdConfirmed(dim, &fieldDimSinceMs, &rtcFieldDimS,
+                                      NB_FIELD_DIM_CONFIRM_S);
+}
+bool fieldCycleSoftLowConfirmed(bool low) {
+  return fieldCycleThresholdConfirmed(low, &fieldLowSinceMs, &rtcFieldLowS,
+                                      NB_FIELD_LOW_CONFIRM_S);
+}
 void fieldCycleMarkSample() {
   if (cbV < 0.5f) return;
   uint16_t mv = (uint16_t)min(65535UL, (unsigned long)(cbV * 1000.0f + 0.5f));
@@ -1368,6 +3524,8 @@ void fieldCycleMarkSample() {
 void fieldCycleIntegrateSeconds(uint32_t seconds) {
   if (seconds == 0) return;
   fieldCycleMarkSample();
+  fieldCycleAddPhaseSeconds(seconds);
+  fieldCycleUpdatePowerStats(seconds);
   rtcFieldPhaseElapsedS = min(65535UL, rtcFieldPhaseElapsedS + seconds);
   float ma = cbMa;
   if (ma > 0.5f) {
@@ -1389,8 +3547,11 @@ void fieldCycleIntegrateActive() {
   }
   uint32_t dt = now - fieldLastIntegrateMs;
   if (dt < 1000) return;
-  fieldLastIntegrateMs = now;
-  fieldCycleIntegrateSeconds(dt / 1000);
+  uint32_t wholeSeconds = dt / 1000;
+  // Advance only by the integrated whole seconds. Assigning `now` here discarded
+  // the sub-second remainder on every pass and biased retained Ah/Wh counters low.
+  fieldLastIntegrateMs += wholeSeconds * 1000;
+  fieldCycleIntegrateSeconds(wholeSeconds);
 }
 void fieldCycleResetCounters() {
   rtcFieldPhaseElapsedS = 0;
@@ -1398,6 +3559,32 @@ void fieldCycleResetCounters() {
   rtcFieldDischargeMas = 0;
   rtcFieldMinMv = 0;
   rtcFieldMaxMv = 0;
+  rtcFieldChargeMws = 0;
+  rtcFieldDischargeMws = 0;
+  rtcFieldPeakPanelWx100 = 0;
+  rtcFieldPeakChargeWx100 = 0;
+  rtcFieldPeakDrawWx100 = 0;
+  rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
+  rtcFieldChargeS = 0;
+  rtcFieldWaitS = 0;
+  rtcFieldDrawS = 0;
+  rtcFieldProtectS = 0;
+  rtcFieldDuskS = 0;
+  rtcFieldLoadDimmed = 0;
+  rtcFieldProtectLatched = 0;
+  rtcFieldMpptStatus = NB_FIELD_MPPT ? MPPT_STATUS_SKIPPED : MPPT_STATUS_DISABLED;
+  rtcFieldMpptReason = NB_FIELD_MPPT ? MPPT_REASON_NONE : MPPT_REASON_DISABLED;
+  rtcFieldMpptRuns = 0;
+  rtcFieldMpptActiveV10 = maintainV10();
+  rtcFieldMpptBestV10 = NB_FIELD_MPPT_DEFAULT_V10;
+  rtcFieldMpptLastV10 = 0;
+  rtcFieldMpptP46Wx100 = 0;
+  rtcFieldMpptP48Wx100 = 0;
+  rtcFieldMpptP50Wx100 = 0;
+  fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
+  fieldDuskLastMs = 0;
   fieldCycleMarkSample();
 }
 void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
@@ -1405,10 +3592,26 @@ void fieldCycleSetPhase(uint8_t phase, uint8_t reason) {
     rtcFieldReason = reason;
     return;
   }
+  if (rtcFieldPhase == FC_DRAWDOWN && phase != FC_DRAWDOWN) fieldCycleLedLoadOff();
   rtcFieldPhase = phase;
   rtcFieldReason = reason;
   rtcFieldPhaseElapsedS = 0;
+  fieldLowSinceMs = 0;
+  fieldDimSinceMs = 0;
+  rtcFieldLowS = 0;
+  rtcFieldDimS = 0;
   fieldLastIntegrateMs = millis();
+  if (phase == FC_PROTECT) {
+    rtcFieldProtectLatched = 1;
+    if (!fieldSessionSetStage(FIELD_SESSION_PROTECT))
+      Serial.println("field-session guard: WARN failed to persist protect stage");
+  }
+#if NB_FIELD_MPPT
+  if (phase != FC_CHARGE) fieldMpptClampDefault(MPPT_REASON_PHASE);
+#endif
+  if (rtcFieldPhase == FC_DRAWDOWN)
+    gFieldLedEarliestOnMs = millis() + (gFieldInterruptedRetry ?
+                            NB_FIELD_LED_RETRY_DELAY_MS : NB_FIELD_LED_START_DELAY_MS);
   Serial.printf("field-cycle phase -> %u reason=%u cycle=%u bv=%.3f ima=%.0f sv=%.3f sma=%.0f sgood=%d\n",
                 rtcFieldPhase, rtcFieldReason, rtcFieldCycle, cbV, cbMa, csV, csMa,
                 csGood ? 1 : 0);
@@ -1417,15 +3620,91 @@ void fieldCycleStartNewCycle(uint8_t reason) {
   if (rtcFieldCycle < 65535) rtcFieldCycle++;
   fieldCycleResetCounters();
   fieldCycleSetPhase(FC_CHARGE, reason);
+  gFieldInterruptedBoot = false;
+  gFieldInterruptedRetry = false;
+  gFieldInterruptedPark = false;
+  if (!fieldSessionSetStage(FIELD_SESSION_IDLE))
+    Serial.println("field-session guard: WARN failed to clear stage on recovery");
+  else
+    Serial.println("field-session guard: recovery verified, stage cleared");
 }
 bool fieldCycleSupplyPresent() {
-  return csGood || csMa >= (float)NB_FIELD_SUN_CHARGE_MA ||
-         csV >= (float)NB_FIELD_SUN_SUPPLY_MV / 1000.0f;
+  bool voltagePresent = csV > 0.5f && (int)(csV * 1000.0f + 0.5f) >= NB_FIELD_SUN_SUPPLY_MV;
+  bool usefulInput = csMa >= (float)NB_FIELD_SUN_CHARGE_MA || cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
+  return voltagePresent && usefulInput;
+}
+bool fieldCycleLuxAvailable() {
+  bool available = gEnvTsl && gEnvLuxX10 != 0xFFFFFFFF;
+  if (available) rtcFieldLuxSensorSeen = 1;
+  return available;
+}
+bool fieldCycleLuxSaysDay() {
+  if (!fieldCycleLuxAvailable()) return false;
+  if (gEnvLuxX10 == 0xFFFFFFFE) return true; // saturated is unambiguously daylight
+  return gEnvLuxX10 >= NB_FIELD_DAWN_LUX_X10;
+}
+uint16_t fieldCycleDuskConfirmS() {
+  // Refresh the capability latch when this wake has a valid sample. Do not make
+  // the threshold depend on each individual read: TSL2591 availability can be
+  // intermittent while VSQT is power-cycled between charge-phase wakes.
+  fieldCycleLuxAvailable();
+  return rtcFieldLuxSensorSeen ? NB_FIELD_DUSK_CONFIRM_S :
+                                 NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S;
+}
+bool fieldCycleDuskCandidate() {
+  if (fieldCycleSupplyPresent()) return false;
+  if (fieldCycleLuxAvailable()) {
+    if (gEnvLuxX10 == 0xFFFFFFFE) return false;
+    return gEnvLuxX10 <= NB_FIELD_DUSK_LUX_X10;
+  }
+  return true;
+}
+void fieldCycleDuskAccumulate(uint32_t seconds) {
+  if (!fieldCycleDuskCandidate()) {
+    rtcFieldDuskS = 0;
+    return;
+  }
+  rtcFieldDuskS = (uint16_t)min(65535UL, (unsigned long)rtcFieldDuskS + seconds);
+}
+void fieldCycleDuskTick() {
+  uint32_t now = millis();
+  if (fieldDuskLastMs == 0) {
+    fieldDuskLastMs = now;
+    if (!fieldCycleDuskCandidate()) rtcFieldDuskS = 0;
+    return;
+  }
+  uint32_t dt = now - fieldDuskLastMs;
+  if (dt < 1000) return;
+  fieldDuskLastMs = now;
+  if (rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK)
+    fieldCycleDuskAccumulate(dt / 1000);
+  else if (!fieldCycleDuskCandidate())
+    rtcFieldDuskS = 0;
+}
+bool fieldCycleDayPresent() {
+  if (fieldCycleSupplyPresent() || fieldCycleLuxSaysDay()) return true;
+  // Entering DRAWDOWN is the durable darkness latch. Missing lux after that point
+  // is unknown, not daylight; only affirmative supply/lux dawn evidence may end
+  // the nightly load. PROTECT follows the same rule so it cannot churn cycles in
+  // darkness while waiting for verified charging current.
+  if (rtcFieldPhase == FC_DRAWDOWN || rtcFieldPhase == FC_PROTECT) return false;
+  return rtcFieldDuskS < fieldCycleDuskConfirmS();
+}
+bool fieldCycleRecoverySupplyPresent() {
+  return fieldCycleSupplyPresent() && cbMa >= (float)NB_FIELD_RECOVER_CHARGE_MA;
 }
 bool fieldCycleFullEnough() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
   return fieldCycleSupplyPresent() && mv >= NB_FIELD_FULL_MV &&
          cbMa >= 0.0f && cbMa <= (float)NB_FIELD_FULL_TAPER_MA;
+}
+bool fieldCycleDim() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv <= NB_FIELD_DIM_MV;
+}
+bool fieldCycleDimClear() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_DIM_CLEAR_MV;
 }
 bool fieldCycleLow() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
@@ -1435,13 +3714,27 @@ bool fieldCycleCritical() {
   int mv = (int)(cbV * 1000.0f + 0.5f);
   return cbV > 0.5f && mv <= NB_FIELD_CRITICAL_MV;
 }
+bool fieldCycleRecoveredForRetry() {
+  int mv = (int)(cbV * 1000.0f + 0.5f);
+  return cbV > 0.5f && mv >= NB_FIELD_PROTECT_RETRY_MV;
+}
 bool fieldCycleInWakeWindow() {
-  uint32_t window = (esp_reset_reason() == ESP_RST_POWERON) ? NB_FIELD_COLD_LISTEN_MS : NB_FIELD_WAKE_LISTEN_MS;
+  uint32_t window = (esp_reset_reason() == ESP_RST_POWERON || gFieldInterruptedBoot) ?
+                    NB_FIELD_COLD_LISTEN_MS : NB_FIELD_WAKE_LISTEN_MS;
   return millis() < window;
 }
 void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool integrateSleepCurrent) {
   rtcFieldReason = reason;
+  if (rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK)
+    fieldCycleDuskAccumulate(seconds);
   if (integrateSleepCurrent) fieldCycleIntegrateSeconds(seconds);
+  else {
+    fieldCycleAddPhaseSeconds(seconds);
+    rtcFieldPhaseElapsedS = min(65535UL, rtcFieldPhaseElapsedS + seconds);
+  }
+#if NB_FIELD_MPPT && !NB_FIELD_MPPT_HOLD_BEST
+  if (maintainV10() != NB_FIELD_MPPT_DEFAULT_V10) fieldMpptClampDefault(MPPT_REASON_CLAMP);
+#endif
   drawdownPixelsOff();
   for (int i = 0; i < 3; i++) {
     sendHeartbeat(0);
@@ -1452,6 +3745,7 @@ void fieldCycleSleep(uint16_t seconds, const char *why, uint8_t reason, bool int
 }
 void fieldCycleInit() {
   if (IS_MASTER) return;
+  if (rtcFieldLuxSensorSeen > 1) rtcFieldLuxSensorSeen = 0;
   if (rtcFieldMagic != NB_FIELD_RTC_MAGIC || rtcFieldCycle == 0) {
     rtcFieldMagic = NB_FIELD_RTC_MAGIC;
     rtcFieldPhase = FC_BOOT;
@@ -1459,38 +3753,80 @@ void fieldCycleInit() {
     rtcFieldCycle = 1;
     fieldCycleResetCounters();
   }
-  bool supply = fieldCycleSupplyPresent();
-  if (supply) {
-    if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_PROTECT)
+  fieldCycleDuskTick();
+  bool realDayEvidence = fieldCycleSupplyPresent() || fieldCycleLuxSaysDay();
+  bool daylight = fieldCycleDayPresent();
+  bool recoverySupply = fieldCycleRecoverySupplyPresent();
+  if (gFieldInterruptedPark) {
+    if (recoverySupply) fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+    else fieldCycleParkInterrupted("unclean reset during LED session");
+    return;
+  }
+  if (gFieldInterruptedRetry) {
+    if (recoverySupply) {
+      fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+    } else if (realDayEvidence) {
+      fieldCycleStartNewCycle(FC_REASON_SUNRISE);
+    } else if (fieldCycleLow()) {
+      fieldCycleParkInterrupted("interrupted boot low VBAT");
+      return;
+    } else {
+      rtcFieldDuskS = fieldCycleDuskConfirmS(); // persisted active session proves this was night
+      rtcFieldLoadDimmed = 1;
+      rtcFieldProtectLatched = 0;
+      fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_INTERRUPTED);
+      Serial.println("field-session guard: one-time DIM retry armed");
+      fieldCycleLedLoadOn();
+      return;
+    }
+  }
+  if (rtcFieldPhase == FC_PROTECT) {
+    if (!fieldSessionSetStage(FIELD_SESSION_PROTECT))
+      Serial.println("field-session guard: WARN failed to restore protect stage");
+    if (recoverySupply) fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+#if NB_FIELD_PROTECT_RETRY_DARK
+    else if (fieldCycleRecoveredForRetry()) fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
+#endif
+  } else if (daylight) {
+    if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)
       fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
   } else if (fieldCycleLow()) {
     fieldCycleSetPhase(FC_PROTECT, fieldCycleCritical() ? FC_REASON_CRITICAL : FC_REASON_LOW);
   } else if (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT || rtcFieldPhase == FC_CHARGE || rtcFieldPhase == FC_WAIT_DARK) {
     fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
   }
+  if (rtcFieldPhase == FC_DRAWDOWN) fieldCycleLedLoadOn();
+  else fieldCycleLedLoadOff();
 }
 void fieldCycleTick() {
   if (IS_MASTER || !pfReady || gMode != MODE_COMMS) return;
 
   readBattery();
   fieldCycleIntegrateActive();
-  bool supply = fieldCycleSupplyPresent();
+  fieldCycleDuskTick();
+  bool daylight = fieldCycleDayPresent();
+  bool recoverySupply = fieldCycleRecoverySupplyPresent();
+  bool dim = fieldCycleDim();
   bool critical = fieldCycleCritical();
   bool low = fieldCycleLow();
+  bool dimConfirmed = fieldCycleDimConfirmed(dim);
+  bool lowConfirmed = fieldCycleSoftLowConfirmed(low);
 
-  if (supply && (rtcFieldPhase == FC_PROTECT || rtcFieldPhase == FC_DRAWDOWN)) {
+  if (rtcFieldPhase == FC_PROTECT && recoverySupply) {
+    fieldCycleStartNewCycle(FC_REASON_SUPPLY);
+  } else if (daylight && rtcFieldPhase == FC_DRAWDOWN) {
     fieldCycleStartNewCycle(FC_REASON_SUNRISE);
-  } else if (supply && (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)) {
+  } else if (daylight && (rtcFieldPhase == FC_OFF || rtcFieldPhase == FC_BOOT)) {
     fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
   }
 
-  if (!supply && critical) {
+  if (!daylight && critical) {
     fieldCycleSetPhase(FC_PROTECT, FC_REASON_CRITICAL);
   }
 
   switch (rtcFieldPhase) {
   case FC_CHARGE:
-    if (!supply) {
+    if (!daylight) {
       if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
@@ -1499,12 +3835,14 @@ void fieldCycleTick() {
       fieldCycleSetPhase(FC_WAIT_DARK, FC_REASON_FULL);
       break;
     }
-    if (!fieldCycleInWakeWindow())
+    if (!fieldCycleInWakeWindow()) {
+      fieldMpptMaybeRun();
       fieldCycleSleep(NB_FIELD_CHARGE_SLEEP_S, "field-charge", FC_REASON_SUPPLY, true);
+    }
     break;
 
   case FC_WAIT_DARK:
-    if (!supply) {
+    if (!daylight) {
       if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
       break;
@@ -1514,27 +3852,41 @@ void fieldCycleTick() {
     break;
 
   case FC_DRAWDOWN:
-    if (supply) {
+    fieldCycleLedLoadOn();
+    fieldCycleLedLoadTick();
+    if (daylight) {
       fieldCycleStartNewCycle(FC_REASON_SUNRISE);
       break;
     }
-    if (critical || (low && rtcFieldPhaseElapsedS >= NB_FIELD_DRAWDOWN_MIN_S)) {
+    if (critical || lowConfirmed) {
       fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
       fieldCycleSleep(NB_FIELD_PROTECT_SLEEP_S, "field-protect", rtcFieldReason, false);
+    } else if (dimConfirmed && !rtcFieldLoadDimmed) {
+      rtcFieldLoadDimmed = 1;
+      fieldCycleLedLoadOn();
+      Serial.printf("field-cycle dim latch: bv=%.3f <= %.3f for %us, brightness=%u\n",
+                    cbV, NB_FIELD_DIM_MV / 1000.0f, (unsigned)rtcFieldDimS,
+                    (unsigned)fieldCycleLoadBrightness());
     }
     break;
 
   case FC_PROTECT:
-    if (supply) {
+    if (recoverySupply) {
       fieldCycleStartNewCycle(FC_REASON_SUPPLY);
       break;
     }
+#if NB_FIELD_PROTECT_RETRY_DARK
+    if (fieldCycleRecoveredForRetry()) {
+      fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
+      break;
+    }
+#endif
     if (!fieldCycleInWakeWindow())
       fieldCycleSleep(NB_FIELD_PROTECT_SLEEP_S, "field-protect", rtcFieldReason, false);
     break;
 
   default:
-    if (supply) fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
+    if (daylight) fieldCycleSetPhase(FC_CHARGE, FC_REASON_SUPPLY);
     else if (low) fieldCycleSetPhase(FC_PROTECT, critical ? FC_REASON_CRITICAL : FC_REASON_LOW);
     else fieldCycleSetPhase(FC_DRAWDOWN, FC_REASON_DARK);
     break;
@@ -1569,9 +3921,23 @@ void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
 
 // ---- mode transitions ------------------------------------------------------
 void enterComms();
+void benchLoadsOffForMaintenance() {
+  solenoidStop("maintenance");
+  if (gDrawdownActive) drawdownCancel("maintenance");
+#ifdef NB_FIELD_CYCLE
+#if NB_FIELD_MPPT
+  fieldMpptClampDefault(MPPT_REASON_MAINT);
+#endif
+  if (gFieldLedLoadOn) fieldCycleLedLoadOff();
+  else drawdownPixelsOff();
+#else
+  drawdownPixelsOff();
+#endif
+}
 bool enterMaintenance() {
   if (!maintenancePowerOk()) return false;
   Serial.println("-> MAINTENANCE (WiFi OTA)");
+  benchLoadsOffForMaintenance();
   espNowDeinit();
   gMode = MODE_MAINT;
   maintEnteredMs = millis();
@@ -1645,7 +4011,7 @@ void emitBridge(const char *line, int n) {
 
 void bridgeStats() {
   if (!IS_MASTER) return;
-  char line[512]; // base peer line + optional env/INA/config/drawdown/fw tails
+  char line[768]; // base peer line + optional env/INA/config/drawdown/fw/field/BQ tails
   // self line (report the LOCKED channel; WiFi.channel() reads 0 when unassociated)
   int n = snprintf(line, sizeof(line),
                    "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu up=%lu bv=%.3f fw=%s\n",
@@ -1713,6 +4079,26 @@ void bridgeStats() {
                     p->bq_vindpm_mv, p->bq_ichg_ma, p->bq_vreg_mv,
                     p->bq_reg16, p->bq_reg18, p->bq_stat0, p->bq_stat1, p->bq_fault0,
                     p->bq_flag0, p->bq_flag1, p->bq_fault_flag0, p->bq_part);
+    }
+    if (p->has_field_summary && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " fcwhc=%u fcwhd=%u fcpw=%u fcbw=%u fcdw=%u fclow=%u fcmchg=%u fcmwait=%u fcmdraw=%u fcmprot=%u",
+                    p->field_charge_wh_x10, p->field_discharge_wh_x10,
+                    p->field_peak_panel_w_x100, p->field_peak_charge_w_x100,
+                    p->field_peak_draw_w_x100, p->field_low_s,
+                    p->field_charge_min, p->field_wait_min, p->field_draw_min,
+                    p->field_protect_min);
+    }
+    if (p->has_mppt && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " mppts=%u mpptr=%u mpptn=%u mpptv=%u mpptbest=%u mpptlast=%u mppt46=%u mppt48=%u mppt50=%u",
+                    p->mppt_status, p->mppt_reason, p->mppt_runs,
+                    p->mppt_active_v10, p->mppt_best_v10, p->mppt_last_v10,
+                    p->mppt_p46_w_x100, p->mppt_p48_w_x100, p->mppt_p50_w_x100);
+    }
+    if (p->has_field_latches && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n, " fcdim=%u fclat=%u",
+                    p->field_load_dimmed, p->field_protect_latched);
     }
     if (n < (int)sizeof(line) - 1) { line[n++] = '\n'; line[n] = '\0'; }
     emitBridge(line, n);
@@ -1870,6 +4256,42 @@ void processRx() {
         } else {
           p->has_bq = false;
         }
+        if (NB_HAS_HB_FIELD(it.len, field_protect_min)) { // field-cycle v2 summary tail 10
+          p->has_field_summary = true;
+          p->field_charge_wh_x10 = hb->field_charge_wh_x10;
+          p->field_discharge_wh_x10 = hb->field_discharge_wh_x10;
+          p->field_peak_panel_w_x100 = hb->field_peak_panel_w_x100;
+          p->field_peak_charge_w_x100 = hb->field_peak_charge_w_x100;
+          p->field_peak_draw_w_x100 = hb->field_peak_draw_w_x100;
+          p->field_low_s = hb->field_low_s;
+          p->field_charge_min = hb->field_charge_min;
+          p->field_wait_min = hb->field_wait_min;
+          p->field_draw_min = hb->field_draw_min;
+          p->field_protect_min = hb->field_protect_min;
+        } else {
+          p->has_field_summary = false;
+        }
+        if (NB_HAS_HB_FIELD(it.len, mppt_p50_w_x100)) { // field-cycle MPPT perturb tail 11
+          p->has_mppt = true;
+          p->mppt_status = hb->mppt_status;
+          p->mppt_reason = hb->mppt_reason;
+          p->mppt_runs = hb->mppt_runs;
+          p->mppt_active_v10 = hb->mppt_active_v10;
+          p->mppt_best_v10 = hb->mppt_best_v10;
+          p->mppt_last_v10 = hb->mppt_last_v10;
+          p->mppt_p46_w_x100 = hb->mppt_p46_w_x100;
+          p->mppt_p48_w_x100 = hb->mppt_p48_w_x100;
+          p->mppt_p50_w_x100 = hb->mppt_p50_w_x100;
+        } else {
+          p->has_mppt = false;
+        }
+        if (NB_HAS_HB_FIELD(it.len, field_protect_latched)) { // field-cycle latch tail 12
+          p->has_field_latches = true;
+          p->field_load_dimmed = hb->field_load_dimmed;
+          p->field_protect_latched = hb->field_protect_latched;
+        } else {
+          p->has_field_latches = false;
+        }
       }
     } else if (h->type == NB_ENTER_MAINT) {
       if (gMode == MODE_COMMS) enterMaintenance();
@@ -1886,9 +4308,14 @@ void processRx() {
       // Lets the master sweep the setpoint or hill-climb it (P&O MPPT) with no reflash.
       uint8_t v10 = ((NbCmd *)it.data)->arg;
       if (pfReady && v10 >= NB_MAINTAIN_MIN_V10 && v10 <= NB_MAINTAIN_MAX_V10) {
-        gMaintainV = (float)v10 / 10.0f;
-        Board.setSupplyMaintainVoltage(gMaintainV);
-        Serial.printf("VINDPM/maintain set -> %.1f V\n", gMaintainV);
+        float requestedV = (float)v10 / 10.0f;
+        Result r = Board.setSupplyMaintainVoltage(requestedV);
+        if (r == Result::Ok) {
+          gMaintainV = requestedV;
+          Serial.printf("VINDPM/maintain set -> %.1f V\n", gMaintainV);
+        } else {
+          Serial.printf("VINDPM/maintain %.1f V failed -> %d\n", requestedV, (int)r);
+        }
       }
     } else if (h->type == NB_SET_CAPACITY && it.len >= (int)sizeof(NbSetU16)) {
       // Capacity changes affect the gauge model used by Board.init(), so store and reboot.
@@ -1910,6 +4337,15 @@ void processRx() {
     } else if (h->type == NB_TARGET_CHARGE_MA && it.len >= (int)sizeof(NbTargetU16)) {
       NbTargetU16 *m = (NbTargetU16 *)it.data;
       if (targetMatchesMe(m->target_id)) persistAndApplyChargeMa(m->value);
+    } else if (h->type == NB_TARGET_SOLENOID && it.len >= (int)sizeof(NbTargetU16)) {
+      NbTargetU16 *m = (NbTargetU16 *)it.data;
+      if (targetMatchesMe(m->target_id)) {
+#if defined(NB_SOLENOID_D7)
+        solenoidStrike(m->value, "ESP-NOW");
+#else
+        Serial.println("solenoid strike ignored: this peer was not built with --solenoid-d7");
+#endif
+      }
     } else if (h->type == NB_IDENTIFY && it.len >= (int)sizeof(NbIdentify)) {
       NbIdentify *m = (NbIdentify *)it.data;
       if (targetMatchesMe(m->target_id)) {
@@ -2070,7 +4506,18 @@ void handleSerial() {
   switch (c) {
   case 't': Serial.println(telemetryJson()); break;
   case 'u': // master: announce maintenance window then enter
-    if (IS_MASTER) { Serial.println("broadcast ENTER_MAINT"); sendCmd(NB_ENTER_MAINT, 0); delay(50); enterMaintenance(); }
+    if (IS_MASTER) {
+      Serial.println("broadcast ENTER_MAINT");
+      sendCmd(NB_ENTER_MAINT, 0);
+      delay(50);
+      enterMaintenance();
+    } else if (gMode == MODE_COMMS) {
+      // Commissioning path: a USB-connected peer can prove shared-WiFi OTA without
+      // requiring a separately flashed ESP-NOW bridge. Remote fleet maintenance
+      // still uses the master's sustained U command.
+      Serial.println("local USB ENTER_MAINT");
+      enterMaintenance();
+    }
     break;
   case 'U': // master: SUSTAINED ENTER_MAINT (~35s) to catch a SLEEPING (sleep-cycle) peer's
             // brief wake window -- the fleet wake-for-maintenance primitive. Master stays in
@@ -2190,6 +4637,51 @@ void handleSerial() {
     } else {
       if (haveTarget && !targetMatchesMe(target)) break;
       persistAndApplyChargeMa(ma);
+    }
+    break;
+  }
+  case 'K': { // one targeted D7/VDC solenoid strike: K9E5B0C:40
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t pulseMs = NB_SOLENOID_DEFAULT_MS;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0 ||
+        !parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS, &pulseMs) ||
+        !haveTarget) {
+      Serial.printf("SOLENOID rejected: use K<id>:<ms> (range %u..%u ms)\n",
+                    (unsigned)NB_SOLENOID_MIN_MS, (unsigned)NB_SOLENOID_MAX_MS);
+      break;
+    }
+    if (IS_MASTER) {
+      sendTargetU16(NB_TARGET_SOLENOID, target, pulseMs);
+      Serial.printf("target SOLENOID %02X%02X%02X pulse=%ums\n",
+                    target[0], target[1], target[2], (unsigned)pulseMs);
+    } else if (targetMatchesMe(target)) {
+      solenoidStrike(pulseMs, "serial");
+    }
+    break;
+  }
+  case 'j': // read-only local v1 capbank voltage/gate report
+    capbankReportIdle();
+    break;
+  case 'J': { // targeted v1 capbank ADC capture + strike: JE39F1C:5
+    char arg[24];
+    uint8_t target[3] = {0, 0, 0};
+    bool haveTarget = false;
+    uint16_t pulseMs = NB_SOLENOID_MIN_MS;
+    if (readSerialArg(arg, sizeof(arg), 100) == 0 ||
+        !parseTargetU16Arg(arg, target, &haveTarget,
+                           NB_SOLENOID_MIN_MS, NB_SOLENOID_MAX_MS, &pulseMs) ||
+        !haveTarget) {
+      Serial.printf("CAPBANK_PROBE rejected: use J<id>:<ms> (range %u..%u ms)\n",
+                    (unsigned)NB_SOLENOID_MIN_MS, (unsigned)NB_SOLENOID_MAX_MS);
+      break;
+    }
+    if (IS_MASTER) {
+      Serial.println("CAPBANK_PROBE is local-USB peer only");
+    } else if (targetMatchesMe(target)) {
+      capbankProbeStrike(pulseMs);
     }
     break;
   }
@@ -2339,7 +4831,9 @@ bool nbSupplyPresent() {
   return false;
 }
 void nbDeepSleep(const char *why) {
+  solenoidStop("autosleep");
   Serial.printf("deep sleep (%s), timer wake %ds\n", why, NB_WAKE_S);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_WAKE_S * 1000000ULL);
   esp_deep_sleep_start();
@@ -2398,7 +4892,9 @@ void sleepCycleStep() {
   // the gauge/charger stay alive with VSQT off, so telemetry resumes on the next wake (when
   // Board.init re-enables them). This is the rails-OFF arm of the idle-current A/B test.
   if (pfReady) { Board.enable3V3(false); Board.enableVSQT(false); }
+  solenoidStop("sleep-cycle");
   Serial.printf("sleep-cycle: rails cut (3V3+VSQT off), deep sleep %ds\n", NB_SLEEP_S);
+  solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)NB_SLEEP_S * 1000000ULL);
   esp_deep_sleep_start(); // wakes into a fresh boot -> setup() again
@@ -2407,6 +4903,10 @@ void sleepCycleStep() {
 
 // ---- setup / loop ----------------------------------------------------------
 void setup() {
+  solenoidPreInit(); // VDC is always live: force the MOSFET gate LOW before SDK/init work
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  fieldSessionGuardPreInit();
+#endif
   Serial.begin(115200);
   // Native USB-CDC settle so the cold-boot banner isn't lost. SKIP it on a deep-sleep
   // wake (sleep-cycle): it dominates the wake's active time and the field board has no
@@ -2414,6 +4914,9 @@ void setup() {
   if (esp_reset_reason() != ESP_RST_DEEPSLEEP) delay(1500);
   Serial.println();
   Serial.println("=== Resonance net-bench " NET_BENCH_VERSION " ===");
+  solenoidInit();
+  capbankProbeInit();
+  solenoidButtonHandleWake();
   Serial.printf("role=%s channel=%d frame_hz=%d hb_hz=%d\n", IS_MASTER ? "master" : "peer",
                 NB_CHANNEL, NB_FRAME_HZ, NB_HB_HZ);
   if (SERIAL_BRIDGE) Serial.println("mode: SERIAL BRIDGE (no WiFi; relaying nb-* to USB serial)");
@@ -2426,9 +4929,18 @@ void setup() {
                 NB_SLEEP_S, NB_WAKE_LISTEN_MS);
 #endif
 #ifdef NB_FIELD_CYCLE
-  Serial.printf("mode: FIELD-CYCLE (charge sleep %ds, wait sleep %ds, protect sleep %ds, low/hard %.3f/%.3fV)\n",
+  Serial.printf("mode: FIELD-CYCLE (charge/wait/protect %d/%d/%ds, dim %.3fV/%ds, low %.3fV/%ds, hard %.3fV, dusk/dawn %u/%ulux-x10 confirm=%ds fallback=%ds)\n",
                 NB_FIELD_CHARGE_SLEEP_S, NB_FIELD_WAIT_SLEEP_S, NB_FIELD_PROTECT_SLEEP_S,
-                NB_FIELD_LOW_MV / 1000.0f, NB_FIELD_CRITICAL_MV / 1000.0f);
+                NB_FIELD_DIM_MV / 1000.0f, NB_FIELD_DIM_CONFIRM_S,
+                NB_FIELD_LOW_MV / 1000.0f, NB_FIELD_LOW_CONFIRM_S,
+                NB_FIELD_CRITICAL_MV / 1000.0f, (unsigned)NB_FIELD_DUSK_LUX_X10,
+                (unsigned)NB_FIELD_DAWN_LUX_X10, NB_FIELD_DUSK_CONFIRM_S,
+                NB_FIELD_DUSK_NO_SENSOR_CONFIRM_S);
+#if NB_FIELD_MPPT
+  Serial.printf("mode: FIELD-MPPT perturb %u/%u/%u x0.1V, default=%u x0.1V, hold_best=%d\n",
+                NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_MID_V10, NB_FIELD_MPPT_HIGH_V10,
+                NB_FIELD_MPPT_DEFAULT_V10, NB_FIELD_MPPT_HOLD_BEST);
+#endif
 #endif
 #ifdef NB_MAINT_AP
   Serial.println("mode: MAINT-AP (maintenance starts a temporary self AP for /update)");
@@ -2440,15 +4952,34 @@ void setup() {
   shortId = String(idb);
   Serial.printf("node id=%s mac=%02X:%02X:%02X:%02X:%02X:%02X\n", idb, myMac[0], myMac[1],
                 myMac[2], myMac[3], myMac[4], myMac[5]);
+  fieldSessionReportBootState();
 
   setupPowerFeather();
   if (pfReady) {
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+    Board.enable3V3(false); // deliberate field-load startup happens after ESP-NOW init
+    Board.enableVSQT(!gFieldInterruptedPark); // a hard-park needs only onboard power telemetry
+#else
     Board.enable3V3(true);  // clear any latched SK6812 frame from a previous image
     Board.enableVSQT(true); // restore STEMMA/INA rail after a rails-off deep sleep
+#endif
     delay(150);             // give external sensors time to power up before probing
   }
+#if defined(NB_FIELD_CYCLE) && NB_FIELD_LED_LOAD
+  if (!gFieldInterruptedPark) {
+    envInit();
+    envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
+  }
+  gFieldLedEarliestOnMs = millis() + (gFieldInterruptedRetry ?
+                          NB_FIELD_LED_RETRY_DELAY_MS : NB_FIELD_LED_START_DELAY_MS);
+#else
   envInit();
   envTick(); // prime the cache so even a sleep-cycle wake's heartbeat carries env data
+#endif
+  sensorTriadInit();
+  sensorTriadTick();
+  solenoidRgbButtonInit();
+  solenoidNavInit();
   delay(20);
   drawdownPixelsBegin();
 #ifdef NB_FIELD_CYCLE
@@ -2481,12 +5012,17 @@ void setup() {
 
 void loop() {
   esp_task_wdt_reset();
+  solenoidFailsafeTick();
+  solenoidButtonTick();
+  solenoidRgbButtonTick();
+  solenoidNavTick();
   handleSerial();
 
   static uint32_t lastBat = 0;
   uint32_t now = millis();
   if (now - lastBat > 1000) { lastBat = now; readBattery(); }
   envTick();
+  sensorTriadTick();
   drawdownTick();
   updateStatusLed();
 
@@ -2496,6 +5032,7 @@ void loop() {
 
   if (gMode == MODE_MAINT) {
     server.handleClient();
+    capbankWaveTick();
     // /resume HTTP hit -> do a real comms transition (re-init ESP-NOW), not just a flag flip
     if (gResumePending) {
       gResumePending = false;

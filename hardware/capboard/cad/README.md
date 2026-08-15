@@ -1,0 +1,64 @@
+# Cap-bank v2.0 — CAD exports (for plate / enclosure fitting)
+
+Generated from `../build/capbank_4pin.kicad_pcb`. Regenerate with:
+
+```bash
+python3 route_4pin.py
+kicad-cli pcb export step --subst-models --no-dnp -o cad/capbank-v2.0.step build/capbank_4pin.kicad_pcb
+kicad-cli pcb export step --board-only -o cad/capbank-v2.0-board-only.step build/capbank_4pin.kicad_pcb
+kicad-cli pcb export step --subst-models --no-dnp --include-silkscreen --include-soldermask \
+    -o cad/capbank-v2.0-silkscreen.step build/capbank_4pin.kicad_pcb
+kicad-cli pcb export dxf --layers Edge.Cuts --output-units mm -o cad/ build/capbank_4pin.kicad_pcb
+kicad-cli pcb export vrml -o cad/capbank-v2.0.wrl build/capbank_4pin.kicad_pcb
+```
+
+| File | What it is | Use for |
+|---|---|---|
+| `capbank-v2.0.step` | full board + all component solids | clearance, plate fitting, assembly mock-ups |
+| `capbank-v2.0-silkscreen.step` | full board **+ silkscreen + soldermask** as flat faces | pretty renders — shell mark, labels, green mask |
+| `capbank-v2.0-board-only.step` | bare PCB, no components | quick reference / lightweight import |
+| `capbank_4pin-Edge_Cuts.dxf` | outline, slots, holes (2D, mm) | plate cutouts, drill patterns, laser |
+| `capbank-v2.0.wrl` | VRML with colors | viewers that prefer VRML over STEP |
+
+## Silkscreen variant
+
+`capbank-v2.0-silkscreen.step` (3.7 MB vs 1.3 MB) carries the artwork as flat
+faces, including the full-back shell mark. It imports with two extra named
+bodies — **`capbank_silkscreen`** and **`capbank_soldermask`** — so in Fusion
+you can select each and set an appearance (white silk, green mask) rather than
+hand-tracing anything. Geometry is identical to `capbank-v2.0.step`; the mask
+faces sit a hair proud of the board face, so for interference checks or
+anything dimensional, prefer the plain export.
+
+## Key dimensions
+
+Origin is the board's **top-left corner** in KiCad convention: +X right, +Y
+**down**. Most CAD packages flip Y on import — check which corner your origin
+landed on before trusting hole positions.
+
+- **Board**: 100.0 × 40.0 mm, 1.6 mm FR-4, 2 layer. (v1.0 was 88 mm; the
+  board grew rightward and the mounting holes did NOT move.)
+- **Mounting holes**: 4 × Ø3.2 mm (M3 clearance), non-plated, at
+  **(3.2, 3.2), (84.8, 3.2), (84.8, 36.8), (3.2, 36.8)** — one per corner,
+  3.2 mm in from each edge. Intended for nylon standoffs.
+- **Tallest components**: the three 22,000 µF cans, Ø18 × 35.5 mm, standing on
+  the top face → **≈37.1 mm total stack height** (1.6 mm board + 35.5 mm can).
+  Can centers sit at y = 18.3 mm, x = 16.25 / 37.25 / 58.25 mm (the footprint
+  origin is the + lead; can bodies are centered ≈3.75 mm right of that).
+- **Zip-tie slots**: 4 × 1.8 × 10 mm through-slots at x = 9.7, 30.5, 51.5,
+  72.3 mm, centered on y = 18.3 mm — they flank the cans so the can *bodies*
+  can be lashed down, which they need on washboard roads.
+- **Connectors**: all along the bottom edge, centered on y = 35.5 mm, **vertical
+  entry** — allow ~20 mm of clearance *above* them for the mating housings and
+  wire bend radius, in addition to the 37 mm cap height.
+- **RX480E receiver** (optional, docks in the RECVR socket): tops out ≈20 mm
+  above the board and stays entirely **within** the board footprint, so it does
+  not grow the envelope in X or Y. Not included in these exports — see
+  `../viz/` for a board with the receiver modeled in place.
+
+## ⚠ Re-pull if you have older files
+
+- Anything pulled before 2026-07-27 used KiCad's default **20 mm** can model,
+  15 mm shorter than reality. Fixed; these use the true 35.5 mm model.
+- Anything pulled before 2026-08-03 is the **88 mm v1.0 outline**. The board is
+  now 100 mm and the component layout is completely different.

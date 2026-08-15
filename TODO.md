@@ -16,15 +16,331 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## COTS purchasing / arrival
 
+**2026-07-08: the live procurement record is `ops/PROCUREMENT.md`** (orders ledger,
+to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
+
 - [x] Buy R&D candidate set: PowerFeather, FeatherS2 Neo, Atom Matrix, NeoHEX, Adafruit IS31FL3741 matrix, DFR0559, panels, battery samples (Ben).
 - [x] Contact PowerFeather creator re: V2 availability and KiCad files (Ben).
 - [ ] Follow up on PowerFeather forum thread if no reply within a few days (Ben).
-- [ ] Confirm whether Elecrow boards are V2 or V1 on arrival (Ben).
+- [x] Confirm whether Elecrow boards are V2 or V1 on arrival -- **DONE 2026-06-02**: V2.R2 confirmed on the bench (Ben).
 - [ ] Confirm whether PowerFeather V2 KiCad/Gerbers can be shared or licensed (Ben).
-- [ ] Call/email BatterySpace if order confirmation is missing; verify 18650 LiFePO4 availability (Ben).
-- [ ] Buy alternate LiFePO4 18650/26650 sources if BatterySpace order fails (Ben).
+- [x] ~~Call/email BatterySpace re: 18650 LiFePO4~~ -- **SUPERSEDED 2026-07-08**: production cell is the fullbattery 32700 6 Ah (ADR 0025). BatterySpace returns only as the 20 Ah #6832 candidate below (Ben).
+- [x] ~~Buy alternate LiFePO4 18650/26650 sources~~ -- **SUPERSEDED** by ADR 0025 (175x 32700 bought) (Ben).
+- [x] ~~Confirm Elecrow batch-2 invoices AND ships 2026-07-10~~ -- **ORDERED
+  2026-07-09 as 90 boards** ($3,494.24 incl. s&h/bank fee/tariff); spares risk
+  resolved (158 production boards total) (Ben).
+- [ ] Track pf-batch-2 (90 boards) CN transit; chase the rep if no tracking by
+  ~07-16 -- must land before the ~Jul 20-31 TN trip / Aug 1 parts-on-hand line (Ben).
+- [x] ~~Place the JST-XH harness order~~ -- **DONE ~2026-07-12/13, in deliberate
+  abundance across multiple vendors** (lead-time hedge): 300x 10 cm red/black
+  (Keszoox) + 1,800x multi-length/color (AliExpress) + 160x 5-pin Y-splitters +
+  60x PH pigtails + receptacle/header smalls, ~$575 total (Ben).
+- [x] ~~Buy hat enclosures~~ (was implicit in the hat plan) -- **BOUGHT
+  ~2026-07-12/13: 172x COTS enclosures + screws** ($5,306.50; 111 large for
+  downlights, 61 small for perimeter/candidate trunk-light use; 22 to TN,
+  150 to CA). Record vendor/part details in `ops/PROCUREMENT.md` (TBC) (Ben).
+- [ ] Confirm Polycase counts on receipt (current mapping, ADR 0032: LARGE ->
+  72 downlights; SMALL -> 24 perimeter + up to about 16 trunk lights, leaving
+  healthy inventory headroom). Set aside the 2 transparent-lid demo units
+  (1 large + 1 small) for show-and-tell (Ben + Steve).
+- [ ] **Lock the trunk-light build** for about 16 fixtures: compare 4 W RGBW with
+  the smaller lensed 3 W RGB module for throw, appearance, draw, heat, and mounting;
+  then select the power, enclosure, optic protection, and attachment hardware
+  (Steve + Ben).
+- [ ] Receive + count the 2026-07-07 orders (MSA311/STEMMA, VL53L5CX, ToF covers, TMF8820-mini, 100x 6 Ah) as they land; update `ops/PROCUREMENT.md` statuses (Ben).
+- [ ] Buy JST-XH right-angle headers + pre-crimped harness set (LED/battery wiring, ADR 0029 fat conductors) once counts firm (Ben).
+- [x] ~~Buy Grove breakout(s) for the HEX HY2.0 connector adaptation~~ -- **DONE,
+  twice over: 70x RobotShop 2026-06-18 (shipped to Steve, order recovered from
+  memory 07-12) + 55x Electromaker 2026-07-10** ($64.86 + $85.26; 125 total) (Ben).
+- [x] ~~Buy USB cabling + panel-mount USB-C ports~~ -- **ORDERED 2026-07-10, and
+  bigger than planned: 150x waterproof panel-mount USB-C extension cables** ($540
+  portion of an $860.34 Adafruit order) -- the rescue/charge port goes on EVERY
+  fixture, not just solar-free classes (Ben).
+- [x] ~~Order the RGBW top-up~~ -- **DONE 2026-07-10: 50 more** ($247.50, same
+  order) -- 150 RGBW total, spares healthy at any chandelier mix (Ben).
+- [ ] Hat design: gasketed USB-C port cutout on ALL four hat variants (part on
+  hand once the 07-10 order lands) (Steve).
+- [ ] Source ~100 JST 2-pin Y-cables (~$0.50 each found; verify quantity availability) -- CONDITIONAL on the RGBW VBAT-feed decision (Ben).
+- [ ] Commit `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` to the repo, or re-point the three references to its actual home (Ben/Steve).
+
+## Camp network and field infrastructure
+
+- [ ] **Configure the Beryl AX on arrival and verify channel 11 over the air
+  (ADR 0036).** 2.4 GHz fixed to channel 11, 20 MHz width (HT20), WPA2-PSK, on a
+  dedicated SSID separate from 5 GHz. Do not accept the config page as proof --
+  confirm with a scan (phone analyzer or the bridge `NB_SCANAP` path) that the
+  SSID reports `ch=11`. Push laptops and phones to the 5 GHz SSID. Full runbook
+  in `docs/howto/CAMP_NETWORK_SETUP.md` (Ben).
+- [ ] **Rehearse Starlink bypass mode at home before the event (ADR 0036).**
+  Leaving bypass mode requires a factory reset, so the undo must be known rather
+  than discovered in the field. **Dish generation resolved 2026-08-15: Gen 3 +
+  Gen 4 on hand (possibly all Gen 4), Ethernet built in, no Starlink Ethernet
+  Adapter needed.** Remaining: confirm the port physically on the unit that
+  travels and that bypass mode is present in its app settings (Ben).
+- [ ] **Prove simultaneous WiFi-plus-mesh coexistence on the pinned AP.**
+  Associate one device to the channel-11 SSID while a fixture beacons and
+  confirm ESP-NOW RX continues both directions for at least an hour. Then
+  deliberately set the AP to channel 1 and confirm the guard behavior: WiFi
+  dropped, mesh retained, mismatch surfaced (Ben/Claude).
+- [ ] **Implement the ADR 0036 channel guard in any firmware that associates
+  while using ESP-NOW.** After STA association, read the actual operating
+  channel; on mismatch with the compiled mesh channel, drop the association and
+  keep the mesh, then surface it on display or serial. Does **not** apply to
+  fixtures in OTA maintenance mode, which have already left ESP-NOW by design.
+  No current firmware needs this yet -- it lands with the first
+  mesh-plus-internet device (Ben/Claude).
+- [ ] **Run one parallel shared-WiFi OTA over the Beryl**, not just a house
+  network, using the normal targeted `U<id>` + `field_cycle_ota.py` path. Do not
+  build or use the deprecated per-board maintenance-AP fallback (Ben/Claude).
+- [ ] **Measure the Beryl's actual draw** powered the way it will actually be
+  powered (USB-C off the camp battery, not a wall wart) and record it against the
+  camp energy budget. Nominal is about 5 W; confirm rather than assume (Ben).
+- [ ] **Resolve one virtual SSID across the camp and art-site Starlinks.** Both
+  APs must be on channel 11; if both are to serve OTA they must also share SSID
+  and PSK. Previously queued against the production credential work; now also
+  gated by ADR 0036 (Ben).
+- [ ] **Claude mesh bridge handheld -- decide whether to build at all (ADR 0037).**
+  Direction and corrected design brief are recorded in
+  `docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md`; nothing is committed.
+  **Hardware is on hand (2026-08-15): 2x LilyGO T-Deck Plus (LCD) + 1x M5Stack
+  Cardputer ADV.** Board is settled -- T-Deck Plus first (two units means a
+  spare, plus the larger display and better keyboard), Cardputer ADV port after,
+  behind the display/input HAL. Do **not** port from T-Deck Pro documentation --
+  the Pro is a different device (e-paper, CST328 touch, TCA8418 keypad) whose
+  drivers do not transfer. Two milestone-0 measurements before any real build,
+  both cheap and both able to kill the concept: put a test pattern on the panel
+  in direct sun with sunglasses, and measure continuous-census runtime on the
+  2000 mAh cell (this repo measured an always-on ESP-NOW peer at about 168 mA
+  radio-RX-dominated, LOG 2026-06-08, so expect well under a night). If runtime
+  forces radio duty-cycling, the census must distinguish "node was quiet" from
+  "I was not listening". Remaining decision: how
+  class/spatial targeting works, since no group addressing exists on the wire
+  (start with client-side expansion from the census; a class byte or named
+  groups would need their own ADR). Non-negotiables if it is built: include
+  `firmware/fixture/src/core/packet.h` rather than defining a second protocol
+  header, build the census on the ordinary ESP-NOW receive callback rather than
+  promiscuous mode, keep OTA/reboot/profile opcodes off the tool surface, and
+  clamp actuator parameters in firmware. Post-2026-event unless re-prioritized
+  (Ben).
 
 ## COTS bench testing
+
+- [~] **Productionize reduced-access Atom Matrix campmate clickers for 2026.**
+  Direction: distribute simple Atom Matrix + Atomic Battery Base mini-bridges
+  instead of prioritizing 433 MHz receivers this year; keep the wide-input
+  dry-contact receiver retrofit as an open fallback. First proof
+  `atom-clicker-2026-08-09.1` is USB-flashed on Atom `54AD9C` (COM42), fixed to
+  channel 11, target `9E5B8C`, and a 40 ms type-17 strike. Its only runtime
+  control is the pressable 5x5 face; it requires release, debounces, rate-limits,
+  and exposes no WiFi/OTA/serial/fleet configuration commands. Remaining:
+  physically confirm one press -> one strong strike; inventory/source Atom
+  Matrix units and 200 mAh Atomic Battery Bases; measure runtime and implement
+  button-wake/deep-sleep; define target provisioning, labels, charging, and
+  lost-device revocation; add authenticated/authorized strike commands because
+  the current ESP-NOW packet is unauthenticated; add honest actuator ACK/feedback;
+  and test multi-clicker coexistence, coverage, cooldown, and abuse behavior
+  against the production fleet (Ben/Codex).
+- [ ] **P0: quarantine the RX480E dock on all fabricated solarnoid v2.0 boards.**
+  First bring-up on 2026-08-09 smoked two receivers. The ordered PCB assigns
+  HT7550-1 pin 2 to P5V and pin 3 to VBOOST, but Holtek specifies SOT-89
+  1=GND, 2=VIN, 3=VOUT. Do not install another receiver. With RECVR empty,
+  `+V`-to-`G` measured **11.76 V**, confirming boost-rail overvoltage. Choose and
+  qualify an ECO: leave/depopulate U1 for receiver-free production, cross-wire
+  VIN/VOUT, or use a separately powered wide-input dry-contact receiver harness
+  (KR1201MINI2-V05B is the leading 31 x 14 x 7 mm candidate). Do not use the
+  damaged P5V pad as an improvised 12 V source. A new board revision
+  must correct the nets and pass loaded 5 V measurement before release. Treat
+  the two smoked receivers as quarantined/e-waste, not retest candidates
+  (Ben/Codex).
+- [ ] **Spot-check the receiver rail on the 24 boosted rev-1 outer-ring
+  downlights before lid closure.** These are rev-1 capboards with the external
+  approximately 12 V boost spliced into capboard VDC/GND. Rev 1 correctly routes
+  its AMS1117-5.0 (unlike the fabricated rev-2 HT7550 fault), and Ben reports the
+  populated 433 MHz receiver paths working. On representative units, verify P5V
+  remains near 5 V under receiver load and confirm U1 stays acceptably cool in
+  an extended powered test; record the receiver current and test duration
+  (Ben).
+- [x] **P0 before closing the 24 outer-ring downlights: USB-reflash the production
+  maintenance credential.** Binary inspection on 2026-08-09 found that the exact
+  Aug-8 `fixture-2026-08-08.1` artifact embeds retired `WonkyHouse`, not the
+  `BubbyNet` profile previously recorded. Production peers must use the exact
+  case-sensitive `Party In The Woods` SSID and will never use WonkyHouse or
+  BubbyNet. Rebuild one locked fleet artifact, inspect its strings/flags, then use
+  each fixture's already-required final USB pass to flash and verify all 24 before
+  lid closure. **DONE 2026-08-10: 24/24 complete** on locked
+  `fixture-2026-08-10.1`; all five batches include live Party maintenance
+  verification. `9E5B8C` also passed a deliberate rescue-USB reflash with its
+  production LFP installed, replacing its temporary solenoid-test image. Future:
+  validate one virtual SSID across the BM camp
+  and art-site Starlinks when that network exists (Ben/Codex).
+- [x] **Harden TMF8820 boot and runtime recovery before lid closure -- DONE
+  2026-08-10 in `fixture-2026-08-10.2`.** On
+  2026-08-10, `F40268` passed TMF ID detection and driver `begin()` but produced
+  zero measurements with 22 timeout/recovery cycles while downstream MSA311 and
+  BMP581 stayed healthy; a PowerFeather reset alone restored 223 clean reads with
+  no cable movement. At boot, perform a verified VSQT off/on cycle before class
+  probe/sensor initialization so USB/OTA resets cannot inherit stale sensor state.
+  After a small bounded number of consecutive ranging failures, escalate beyond
+  stop/start to one full TMF or VSQT reinitialization, then report degraded rather
+  than flapping the shared rail. Update commissioning to retry one reset when
+  `tmf8820_present=true` but reads remain zero; reserve cable intervention for an
+  absent ID or failure after the reset retry. Keep Wire1 at 100 kHz (Ben/Codex).
+  Firmware now verifies a 100 ms VSQT off/on cycle before every non-parked class
+  probe, escalates three consecutive TMF failures to one full shared-domain and
+  driver rebuild per boot, and reports `tmf_domain_resets`. Native recovery
+  policy coverage passes; commissioning gives the present/zero-read signature
+  one `S1` rail-reset retry but never retries an absent ID. Hardware proof:
+  `F2B7DC` entered OTA on `.1` with TMF present, zero reads, and rising errors;
+  the `.2` boot produced 298 clean reads, zero errors, and healthy MSA/BMP. The
+  exact artifact OTA-passed all four connected downlights after an LFP was added
+  to `F2B7DC` for ride-through; its repeated bare-USB power losses correctly
+  triggered A/B rollback rather than leaving a partial image.
+- [x] **USB-commission all 24 BMP-equipped outer-ring downlights -- DONE
+  2026-08-08:** final units `F2BEA4`, `F40384`, `F2BDB0`, and `9F0E54` pass the
+  locked image/configuration and complete sensor gate. `F40384` required a local
+  TMF STEMMA connection repair and cold boot, then held zero TMF errors. Registry
+  count is 24/24 commissioned outer-ring units; six BMP581s remain spares and
+  quarantined `F2BE74` is excluded (Ben/Codex).
+- [x] **USB-commission production downlight batch 4 -- DONE 2026-08-08:**
+  `F40268`, `F2BF54`, `9E668C`, `F2BE8C`, and replacement `F2BF5C` pass the
+  locked image/configuration and three-sensor gate. Original fifth PowerFeather
+  `F2BE74` is quarantined after two TMFs/cables reproduced its loaded sensor-rail
+  fault; do not install a battery in it. The BMP-equipped outer hanging ring is
+  now 20/24 commissioned (Ben/Codex).
+- [x] **USB-commission production downlight batch 3 -- DONE 2026-08-08:**
+  `F2BEE4`, `9F26AC`, `F2BE0C`, `9F26E4`, and `F3FC90` passed the locked
+  image/configuration and three-sensor gate on the first attempt. The
+  BMP-equipped outer hanging ring is now 15/24 commissioned (Ben/Codex).
+- [x] **USB-commission production downlight batch 2 -- DONE 2026-08-08:**
+  `9F26BC`, `9E5A84`, `9E5B8C`, `F2BE20`, and `F2BF8C` pass the same locked
+  image/configuration and three-sensor gate as batch 1. A replacement STEMMA
+  cable restored `9E5A84`'s initially failing TMF8820 without reflashing. The
+  BMP-equipped outer hanging ring is now 10/24 commissioned (Ben/Codex).
+- [x] **USB-commission the first five production downlights -- DONE
+  2026-08-08:** `F40364`, `F2B7DC`, `9E5A94`, `9F275C`, and `F2BE48` all pass
+  exact-artifact upload and sustained serial acceptance on
+  `fixture-2026-08-08.1`, production/channel 11, Generic_LFP 15,000 mAh,
+  2,000 mA charge limit, and 4.6 V VINDPM. Each auto-classified as a
+  downlight and returned healthy MSA311, TMF8820, and BMP581 samples with zero
+  TMF errors. The artifact credential was later proven to be `WonkyHouse`, not
+  the `BubbyNet` label recorded at commissioning; correction is queued above.
+  Evidence and artifact hash are recorded in `LOG.md` (Ben/Codex).
+- [x] **Qualify 24-board production USB commissioning through the two powered
+  Sabrent hubs -- DONE 2026-07-27:** Windows enumerated 24 unique PowerFeathers
+  simultaneously through the Anker USB-C adapter. All 24 are registered and pass
+  ESP32-S3/8 MB flash/2 MB PSRAM preflight, exact-artifact USB upload, PowerFeather
+  controller telemetry, bare-board charging-off safety,
+  live 6 Ah LFP profile, and BubbyNet OTA/resume. A post-commission hold/census kept
+  all 24 present with zero present USB devices in an error state. This qualifies one
+  24-fixture bare-board intake batch. The completeness follow-up also enumerated,
+  registered, and commissioned all 26 hub ports with zero present USB errors.
+  Two independent 12-way upload/serial runs and one 12-way upload plus four-wide WiFi
+  run passed; 12 flash workers / 4 WiFi workers is the qualified production setting.
+  This does not qualify simultaneous battery/LED loading. **TN credential migration
+  DONE 2026-07-27:** all 26 passed USB flash + serial verification on uniform peer
+  `net-bench-2026-07-27.3`, WonkyHouse profile, channel 11, and guarded D7 support.
+  WonkyHouse was not visible from the CA bench, so all 26 initially remained
+  `ota_verified=false`. **FIRST TN NETWORK PASS 2026-07-29:** enclosed peer `F2BFA0`
+  was heard over ESP-NOW, targeted into maintenance, joined WonkyHouse at observed
+  DHCP address `10.0.0.200`, served matching `/telemetry`, accepted `/resume`, and
+  rejoined ESP-NOW. Its registry row is now verified; repeat in sensible batches for
+  the other 25 as they are assembled (Ben/Codex).
+- [~] **Qualify hub-powered indoor VDC operation before enclosure/solar availability:**
+  use a USB-A-to-C cable from a switched Sabrent port into the existing female
+  USB-C-to-XH breakout, with only V+ -> VDC and GND -> GND. With all power off,
+  confirm XH polarity and about 5 V before connecting; install the already-profiled
+  LFP battery only while unpowered. Start with one board at `maintain_v=4.6` and the
+  ADR 0033 2 A battery-side ceiling, verify `supply_good`, input voltage/current,
+  `battery_present`, and `charging_enabled`, then scale 1 -> 4 -> 12 -> 26 while
+  checking hub/cable temperature and brownouts. Do not override source detection or
+  IINDPM beyond the measured per-port capability, and avoid a high LED load until
+  that capability is measured. This validates indoor
+  power/charging and fleet firmware, not panel MPP, shade, dusk, or energy harvest
+  (Ben/Codex). **ONE-BOARD PASS 2026-07-27:** `F4044C` ran with PowerFeather USB
+  disconnected and hub power entering VDC/GND. Telemetry showed a present 3.39 V
+  6 Ah LFP, charging enabled, about 4.80 V / 472-474 mA input, and `supply_good`.
+  Targeted shared-WiFi OTA completed in 4.03 s with no button press, and the guarded
+  D7 solenoid path recorded two 40 ms strikes while the supply remained good. Ben
+  confirmed both produced physical kicks. Remaining: scale 1 -> 4 -> 12 -> 26,
+  inspect temperatures/brownouts, and measure the 10-port hub's per-port margin.
+- [~] **Finish DFR0991 local-solenoid-button validation on P126 `9F2690`:** firmware
+  support is OTA-deployed in `net-bench-2026-07-16.3`, but the first post-OTA probe
+  reported `present=false`/address 0. Verify the Gravity PH2.0-to-STEMMA adapter has
+  3V3/GND/SDA/SCL in the correct order and is seated on the PowerFeather STEMMA/Wire1
+  connector. Yellow -> SCL and blue -> SDA are confirmed; next measure red/black at
+  the button while VSQT is awake and inspect the female Dupont contacts. **Power is
+  now confirmed at 3.3 V on the button board.** One 3.33 V `brownout` occurred during
+  the post-reseat maintenance catch but likely came from accidentally bridging 3V3/GND
+  with meter probes. Next, with power removed, continuity-check yellow -> C/SCL and
+  blue -> D/SDA and verify neither data line is shorted. Then wake/reset the peer,
+  confirm telemetry detects `0x23`-`0x2A`, and
+  physically validate one 40 ms D7 strike per press/release. Do not claim the I2C
+  trigger proven until that press test passes (Ben/Codex).
+  **2026-07-16 `.4` diagnostic:** power and continuity pass; the module ACKs at `0x2A`
+  (`ack_mask=0x80`) but returns PID `0x0000` after seven delayed probes instead of
+  `0x43DF`. Next measure INT-to-GND at 3.3 V idle/pressed. If INT toggles, wire it to a
+  confirmed-free 3.3 V GPIO and use a debounced digital trigger; if not, isolate/test
+  or replace the module. Do not apply 5 V to the live ESP32 I2C/INT lines.
+  **TN observation 2026-07-29:** enclosed `F2BFA0` also has the baseline `0x2A` /
+  PID `0x0000` probe result seen in bare-board fleet records, so that result does
+  not prove an external DFR0991 is attached. Remote D7 strike and USER/GPIO0 paths
+  are healthy, but no supported external I2C button was detected. Keep the original
+  `9F2690` module/INT diagnosis separate.
+- [~] **Physically validate the SparkFun PRT-27576 Qwiic Navigation Switch DOWN
+  trigger on P126 `9F2690`:** opt-in `--solenoid-d7` firmware probes PCA9554 addresses
+  `0x20`-`0x27` read-only, accepts the expected five input/non-inverted switch bits,
+  and maps debounced active-LOW DOWN/GPIO1 to the normal guarded 40 ms strike. Confirm
+  telemetry presence/address, one strike per DOWN press/release, no repeats while
+  held, maintenance suppression, and normal field-cycle sleep/rejoin. INT is
+  deliberately unused, so this is an awake-only trigger; USER remains the wake path.
+  (Ben/Codex).
+
+- [x] **Make field logging outage-safe -- DONE 2026-07-17:** `net_bench_log.py` now
+  exclusive-creates by default and refuses an existing output before binding/listening.
+  `--append` validates the first/last JSON rows, inherits the original run identity, and
+  writes a numbered resume boundary; `--overwrite` is the only destructive mode. Every
+  new data row carries its segment index/start timestamp. Five focused tests cover
+  create/refuse/resume/malformed-tail/overwrite behavior. A fresh seven-day P105/P126
+  segment is live at `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-
+  weather-range-r2.jsonl`; dashboard and logger restart commands are documented in the
+  net-bench README. The July 15 Windows Update reboot exposed the old failure (Ben/Codex).
+- [ ] **Retain the previous completed field-cycle summary across sunrise:** current
+  firmware resets cycle Ah/Wh/min/max at `fieldCycleStartNewCycle()`. If the host is
+  absent across dawn, the exact completed-night endpoint is gone by reconnection even
+  though RTC counters survived the outage. Snapshot the previous cycle number, phase
+  durations, charge/discharge Ah/Wh, min/max VBAT, peak powers, DIM/PROTECT/reset
+  outcome, and completion reason before reset; expose it in heartbeat/telemetry with a
+  validity marker. Avoid per-second NVS writes (Ben/Codex).
+- [ ] **Implement and qualify sparse GPS/RTC time anchors plus scheduled shows
+  (ADR 0031):** production direction is deterministic site/date UTC start/stop, not
+  panel-current consensus. Four SAM-M8Q modules are already bought as GPS soft anchors
+  for absolute UTC, and four Adafruit DS3231 STEMMA modules with backup batteries are
+  already bought as initial RTC holdover anchors. Distribute source/age/uncertainty
+  over ESP-NOW so all roughly 130 fixtures do not need time hardware. Qualify the SAM-M8Qs
+  through the real hat/panel/battery geometry and the DS3231s across temperature,
+  reset, and backup-power cases; select final anchor counts; measure acquisition
+  energy, RTC drift/backup current, and local-clock holdover; define schedule
+  versioning, safe slew/correction, POR and partition recovery, and the
+  invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
+  real overnight scheduled cycle before production use. Keep the SAM-M8Q
+  autolocation/true-north benefits in the same anchor plan rather than treating the
+  four receivers as separate inventory. (Ben/Codex).
+- [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
+  panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
+  load, and thresholds unchanged for the first complete dusk/show/recovery cycle.
+  Compare ramp and steady-state sag against the July 13 roughly 500 mA / 2.93 V FULL
+  and 300 mA / 3.07-3.09 V DIM points. Confirm at most one DIM retry, durable rail-off
+  park after any second reset, and no false sunrise from a missing TSL2591 sample. If a
+  reset persists on production wiring, investigate BQ/BATFET disconnect evidence before
+  moving thresholds. P105 remains 4.6 V VINDPM; P126 remains 5.8 V (Ben/Codex).
+
+- [ ] **Production low-battery policy hardening and qualification:** execute the plan
+  in `docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`: replace the one-sample +20 mA
+  PROTECT release with sustained charger/current/voltage recovery, fix and validate the
+  coulomb integrator, derive loaded compensation per production electrical class and
+  cold boundary, run the deterministic POR/OTA/I2C/transient matrix, and complete a
+  multi-day field acceptance cycle. Preserve default-off rail sequencing, durable
+  FULL/DIM/PROTECT stages, and the one bounded DIM retry (Ben/Codex).
 
 - [x] Build interim Track A0: Adafruit Feather ESP32-C6 + Adafruit IS31FL3741 13x9 matrix via STEMMA-QT until PowerFeather boards arrive (Ben).
 - [x] Build interim Atom + Atomic Battery Base + M5Stack Unit NeoHEX stack over Grove (Ben).
@@ -60,6 +376,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the earlier 2.95-3.03 V failures were wrong-path/pre-upload failures with stale WiFi
   secrets, AP-contaminated firmware, and/or pre-`.5` watchdog behavior; they do **not**
   prove low VBAT was the root cause (Ben/Codex).
+- [ ] Bracket the true low-VBAT OTA boundary on the current shared-WiFi path with
+  historical confounders removed. Use known-good WiFi secrets, no deprecated
+  `NB_MAINT_AP` images, targeted `U<id>` / `field_cycle_ota.py` maintenance discovery,
+  and explicit pre/post voltage plus supply state. Record separate brackets for:
+  battery-only/no-supply, solar/VDC-assisted, and USB-assisted. Current clean
+  successes: about 3.10 V loaded battery-only, 2.901 V solar-assisted, and 2.496 V
+  USB-assisted. Current lower-voltage "failures" around 2.57 V, 2.95 V, and
+  3.02-3.03 V are pre-upload/wrong-path/stale-secret/AP-contaminated data, not clean
+  OTA voltage cutoffs (Ben/Codex).
 - [x] Add a targeted shared-WiFi maintenance command (`U<id>` or dashboard peer action)
   so a single-peer OTA does not pull every awake peer off ESP-NOW. **DONE 2026-06-30
   in `net-bench-2026-06-30.6`:** the bridge accepts `U9E5AB8`-style sustained targeted
@@ -67,6 +392,28 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   button sends `U<selected-id>`. Bare `U` remains available for deliberate fleet wake
   and for first-hop migration of older peers that cannot parse the targeted packet
   yet (Ben/Codex).
+- [x] Harden the targeted `U<id>` OTA workflow so a fresh image cannot be immediately
+  recaptured by the still-sustained maintenance command after reboot. Candidate fixes:
+  host-side OTA helper waits for the 35 s `U` window to expire before upload, or firmware
+  adds a one-shot targeted-maintenance guard after a software OTA reset. Gotcha observed
+  2026-07-03 on `9F26F8`: OTA succeeded, first heartbeat appeared, then the peer was
+  caught back into maintenance by the command tail. **DONE 2026-07-05 for the recommended
+  scripted path:** `ops/bench/field_cycle_ota.py` waits out the 35 s targeted-maintenance
+  tail before invoking `net_bench_ota.py --reboot comms`; direct manual dashboard OTAs
+  should use the helper or wait out the tail by hand (Ben/Codex).
+- [x] Add a host-side maintenance discovery helper for targeted sleeping-peer OTA:
+  after sending `U<id>` through the bridge, scan the shared-WiFi subnet for `/telemetry`
+  with the matching `fixture_id`. Once a peer leaves ESP-NOW for WiFi maintenance, the
+  dashboard cannot learn or display its IP through the serial bridge; this added manual
+  scan step was needed for the 2026-07-05 `9F26F8` v5 OTA. **DONE 2026-07-05:**
+  `ops/bench/field_cycle_ota.py` scans auto-discovered local /24s plus `192.168.4.0/24`
+  and matches `/telemetry` by `fixture_id` before upload (Ben/Codex).
+- [ ] After a few more bench/field passes, extract the reusable OTA workflow primitives
+  from `ops/bench/field_cycle_ota.py` into a small shared module for future firmware and
+  deployment tooling: targeted maintenance command retry, fixture-ID `/telemetry`
+  discovery, command-tail wait, OTA upload invocation, and post-reboot rejoin
+  verification. Keep `field_cycle_ota.py` field-cycle-specific until production
+  software needs the shared path (Ben/Codex).
 - [x] ~~Build Track A: PowerFeather V2 + LiFePO4 + solar panel + Adafruit IS31FL3741 matrix~~ -- **SUPERSEDED: IS31 ruled out** (shared-bus brownout, 2026-06-04). LED axis -> SK6812 HEX direct-GPIO (Ben).
 - [~] Build Track B: PowerFeather V2 + LiFePO4 + solar panel + direct-GPIO LED --
   **the leading path**. LED brownout-safety validated; ADR 0022 selects a mixed
@@ -112,6 +459,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Test remaining production-relevant gobo/filter variants with HEX and 4 W RGBW
   point-source modules; keep older IS31/NeoHEX/FeatherS2/Atom data as historical
   fallback context only (Ben + Steve).
+- [ ] Test-print the 50 mm bamboo-leaf aperture in `enclosure/gobo-templates/`, photograph
+  its projection through the lantern rig, and widen slots if the slicer closes them (Steve).
 - [ ] RF test each candidate inside a mock hat with panel/battery/wiring installed (Ben + Steve).
 - [ ] Time-trial COTS stack assembly into mock hat (Ben + Steve).
 - [~] Capture NeoHEX passive adapter Rev A in KiCad from `hardware/led-adapter/neohex-passive-rev-a/` design packet; PCBA-friendly starter PCB exists, schematic remains (Ben).
@@ -149,15 +498,84 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
     - [x] **External ammeter -- BUILT: 4-channel INA219 monitor** (`firmware/ina_monitor/`, Adafruit Metro S3 + 4x SEN0291 @ 0x40/41/44/45, separate-monitor topology; since 2026-07-02 also runs on the KB2040 with optional VEML7700/TSL2591 lux). Reads a board-under-test's current through deep sleep, gauge-independent. **Next:** (a) **fast-sample capture** (raise rate) to nail per-wake energy -- 10 Hz may miss a <100 ms radio-init spike; (b) **calibrate R_shunt** (0.1 ohm provisional; raw shunt_mV logged so recoverable); (c) wire **panel-lead + LED-rail** channels for the full power-flow map; (d) sharpen sleep resolution (drop PGA range); (e) **I2C robustness (2026-07-02): clear a channel's present flag after N consecutive ERRs, and attempt bus recovery (9 SCL pulses + Wire re-init) when the whole bus errors** -- unplugging the INA harness mid-session wedged the bus (SDA held low) and blinded the still-attached VEML until a reboot (LOG 2026-07-02 audit entry) (Ben).
     - [~] **Clean full-sun MPP sweep -- HOT SESSION DONE 2026-06-11** (LOG 06-11 cont. 2; data `2026-06-11-mpp-sweep-hot-pm-*.jsonl` + knee re-sweep): hot panel (~60 deg C back / 68 deg C front IR) optimum **4.6-4.7 V -> 1.73 W BQ-side / 1.91 W panel-INA ground truth = 3.2x the 5.5 V default (0.59 W)**; instability/knee immediately below 4.6 (one real collapse at 4.4 when stepped to from near-idle); **BQ supply telemetry under-reports harvest ~10 % vs the panel-lead INA** (sizing must use panel-side). Fully wireless: TSL2591 (saturated in full sun -> ir-ch1 normalization fallback, works well; diffuser optional), SHT31 panel-back temp, onboard SEN0291s (0x40 panel / 0x45 battery) all in the heartbeat (fw 2026-06-11.2). **Remaining: the cool-AM session** for Vmp(T) -> the fixed-vs-temp-comp-vs-P&O decision. Lessons baked in: anchor at 4.9 not 5.5 (5.5 is load-noise-dominated); run on a hungry battery (<~50 % SOC -- late-session demand-limiting flattens the curve); approach setpoints from above; beware the bright-sun input-latch on connect (see Firmware guard TODO) (Ben).
     - [x] **Voltaic ETFE P105/P126 outdoor MPP comparison** (2026-06-29, Oakland late sun, both panels about 15 deg tilted): P105 5 W best observed around `m46`/`m48`, panel-side INA about 3.8-3.9 W and charger input about 3.47 W; P126 smaller ETFE best around `m58`, panel-side INA about 1.89 W and charger input about 1.66-1.68 W. P126 is proportionally close to nominal/nameplate; P105 is plausible vs datasheet expected Vmp but may be demand-limited by LFP charge acceptance/taper. See LOG 2026-06-29. (Ben/Codex)
+    - [~] **P126 production-cabling perimeter/HEX field cycle** -- deployed 2026-07-10 on former speaker board `9E5B0C`: 2 W panel at fixed 5.8 V VINDPM, 6 Ah production LFP, no INAs/Dupont, and three full-bright R/G/B pixels spiraling in/out at symmetric 120-degree offsets. MAX17260 current and onboard mAh/Wh totals are corrected `/1.08` in firmware. Logger: `ops/bench/data/ca/2026-07-10-ca-field-cycle-9E5B0C-p126-production-cabling.jsonl`; consolidated analysis: `docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`. That original peer was disassembled and retired after a July 13 header-rework hardware failure. Replacement `9F2690` was USB-flashed and safety-verified on `.3` with the same P126 profile; its next phase is the VDC solenoid trial. Treat BQ supply power as end-to-end onboard telemetry, not panel-side ground truth. (Ben/Codex)
+      - [x] Quick onboard MPP re-check 2026-07-10: broad optimum at 5.8-6.0 V; 6.0 V showed +3.8% BQ-input W but no battery-current gain, 6.2 V rolled over, and two 5.8 V anchors agreed within 0.4%. Keep the external-INA-qualified 5.8 V fixed setpoint. (Codex)
+      - [~] **Fix the nightly show window and active-time integration before sizing:**
+        Ben confirmed that the measured roughly 158 mA draw from the three-pixel spiral
+        is intentionally representative of a deployed HEX show; do not raise the load
+        merely to force a one-night empty. The clean July 11-12 session actually ran
+        18:07:33-08:53:54 PDT (14 h 46 min) and logger-time integration gives 2.33 Ah.
+        The peer reported only 13.02 h / 2.08 Ah because `fieldCycleIntegrateActive()`
+        discards the fractional part of every `dt / 1000` step. Carry milliseconds
+        across integrations. **Integrator carry fixed and OTA-deployed to P105
+        `9F26F8` in `net-bench-2026-07-14.1`; first live validation passed at RGBW
+        turn-on: 178 mAh over 1,535 DRAW seconds = 417.5 mA average versus about
+        414-420 mA direct telemetry.** Counters are cycle-total, so subtract the DRAW
+        boundary; `field_elapsed_s` alone is phase-local. Separately, the no-lux
+        solar-current fallback turns the
+        show on well before visual sunset and leaves it on until useful morning input.
+        Use a provisional 9-10 h production HEX show window for the next emulation:
+        during the Aug 30-Sep 7 event, civil dusk to civil dawn is about 9 h 53 min to
+        10 h 15 min at Black Rock Desert. **SEVEN-DAY FOLLOW-UP 2026-07-17 through
+        07-24:** the artificial 13-15 h P126 policy consumed about 48.6 Wh while about
+        35.0 Wh reached the battery. Normalizing the same week to a scheduled 9-10 h
+        show gives roughly 32-36 Wh of load, so the 2 W role was approximately
+        break-even, not proven undersized. Future plots must show both as-run and
+        schedule-normalized load. **PRODUCTION TRIGGER DECIDED 2026-07-26:** use sparse
+        GPS/GNSS plus battery-backed RTC anchors and explicit UTC show windows per
+        ADR 0031; implementation/qualification remains open. (Ben/Codex)
+      - [ ] Repeat the clean overnight capture after host-power reliability is fixed: the first production-cabling run has a 13 h 04 min laptop-suspend gap (2026-07-10 18:20 -> 2026-07-11 07:25 PDT). Device-retained counters preserve the total, but the overnight time series is missing. (Ben/Codex)
+      - [x] **Observe the P126 daily harvest range until this peer is needed elsewhere:**
+        leave `net-bench-2026-07-10.1` and fixed 5.8 V in place rather than OTA solely
+        to shorten the artificial night. For every additional day, record BQ-input Ah
+        and Wh, positive corrected battery Ah/Wh, weather, coverage, and any reset.
+        Current complete/provisional weather points are about 1.55 Ah / 9.02 Wh BQ input
+        on July 11 and 1.12 Ah / 6.51 Wh through about 18:00 on the overcast July 12.
+        The observation ended when Ben disassembled the peer for the next bench on July
+        13. The old-board record remains under fixture `9E5B0C`; do not splice replacement
+        `9F2690` samples into that fixture history without an explicit run boundary.
+        (Ben/Codex)
+      - [x] **Paired P105/P126 seven-day weather-range capture -- complete
+        2026-07-17 10:18 -> 2026-07-24 10:18 PDT:** the clean 604800 s logger run is
+        `ops/bench/data/ca/2026-07-17-ca-field-cycle-9F26F8-9F2690-weather-range-r2.jsonl`.
+        Approximate corrected totals were 113 Wh panel input, 94 Wh positive battery
+        charge, 102 Wh load, and -8 Wh battery net for P105; P126 measured 52 Wh panel
+        input, 35 Wh positive battery charge, 49 Wh load, and -14 Wh battery net.
+        Neither peer reported an active BQ fault. The P126 result is an intentionally
+        severe 13-15 h show, not a production-sizing result: at its observed load,
+        scheduled 9-10 h nights normalize to about 32-36 Wh/week versus about 35 Wh
+        charged. Preserve both as-run and schedule-normalized views in future analysis.
+        (Ben/Codex)
+      - [x] **Literal P105 + production RGBW ceiling run -- complete:** OTA-deployed
+        `net-bench-2026-07-14.1` to `9F26F8` on July 14 with fixed 4.6 V P105 policy,
+        one rail-fed `NEO_RGBW` pixel on A0/GPIO10, `R=G=B=255`, `W=0`, brightness
+        255, and all dusk/dawn/load-protection settings otherwise unchanged. The RGBW
+        was installed before dusk and drew about 1.35-1.4 W, or roughly 14-16 Wh on
+        the long bench nights. Across the seven-day follow-up, P105 supplied about
+        94 Wh of positive battery charge against about 102 Wh of load and reached
+        protect after the cloudier deficit. Full RGB all night is therefore a useful
+        ceiling test, not yet the production show budget; duty cycle and brightness
+        still need to be set bottom-up by fixture role. (Ben/Codex)
     - [ ] **Re-run P105 5 W with a hungry larger LFP**: use the 6-7.2 Ah cell intentionally discharged to roughly the mid-SOC voltage region (about 3.25-3.40 V resting, not 3.55+ V while charging), hold around `m46`/`m48`, and confirm whether panel-side power can climb beyond the 3.8-3.9 W seen with the 2 Ah cell. Goal: separate panel capability from cell IR/CV-taper demand limiting. (Ben)
     - [ ] **Analyze 7200 mAh HEX drawdown run before the next P105 test**: data path
       `ops/bench/data/ca/2026-06-29-ca-lfp-7200-hex-drawdown-9E5AF0.jsonl`; record stop
       condition, delivered mAh, final loaded/resting voltage, and whether the 12 h sleep
       preserved the desired hungry-but-not-precharge state. (Ben/Codex)
-    - [ ] **Prototype simple production MPPT / hill-climb policy**: full sweep on first good-sun boot, then periodic 3-point perturb around the last best VINDPM (`best - 0.2`, `best`, `best + 0.2 V`) during daylight; skip or de-prioritize when battery voltage/current indicate CV/taper or near-full acceptance. Validate energy gained vs wake/sweep cost on P105 and P126. (Ben/Codex)
+    - [~] **Prototype simple production MPPT / hill-climb policy**: full sweep on first good-sun boot, then periodic 3-point perturb around the last best VINDPM (`best - 0.2`, `best`, `best + 0.2 V`) during daylight; skip or de-prioritize when battery voltage/current indicate CV/taper or near-full acceptance. **BUILT 2026-07-06 for field-cycle bench v6, not deployed yet:** `--field-mppt` samples fixed P105 candidates 4.6/4.8/5.0 V during charge wakes after the OTA listen window, logs candidate W and skip/run reasons, and clamps back to 4.6 V before sleep/maintenance unless a future `--field-mppt-hold` build is explicitly chosen. Next: flash matching serial bridge first, then OTA peer, then validate candidate powers/wake cost on a sunny day. (Ben/Codex)
     - [ ] **MPPT decision** -- green-lit to *measure*, not yet to commit. After the clean sweep, choose: better fixed setpoint (~4.8-5.0) / temp-compensated Vmp(T) / software P&O (use `SET_MAINTAIN` to hill-climb `supply_W`). Optimum ~ 4.85 V hot vs 5.5 V cool -> a single fixed point can't be optimal across temp (Ben).
     - [ ] Full **0-100 % capacity** drawdown (USB top-up to full first) + buck-boost efficiency vs VBAT on LFP (needs rail-side metering for the latter -- SEN0291) (Ben).
     - [ ] Combine harvest-at-MPP (Wh/day) + load budget + a chosen LED-show profile -> the cell + panel spec; pair with the bottom-up nightly-budget re-derivation (Field reliability TODO) (Ben).
+    - [ ] **Analyze field-cycle v2 multi-day run**:
+      `ops/bench/data/ca/2026-07-01-ca-field-cycle-9E5AB8-v2.jsonl`. Check whether
+      the 18/37px brightness-128 draw load reaches protect nightly, whether the 3.15 V
+      soft floor + 30 s debounce avoids one-sample false cutoffs, and whether measured
+      panel Wh/day covers the configured night load. Tune thresholds/load after 2-3
+      full cycles. (Ben/Codex)
+    - [ ] **Capture one clean 24 h solar-cycle dataset before treating field-cycle data
+      as sizing-grade**: corrected JSONL logger, laptop disk headroom, stable panel
+      placement, lux sensor aimed consistently, and no manual device moves. Goal is an
+      uninterrupted sunrise-to-sunrise file with charge peak, taper/full decision,
+      night drawdown, and protect/dim behavior all in one comparable run. (Ben/Codex)
 - [ ] **Firmware guard: don't enable charging if no battery detected** -- enabling charging into a missing battery (with `maintain` > supply V) browns out / crash-loops on USB. Also: `maintain` must be <= the supply you're powering from (Ben).
 - [ ] **Firmware guard: make charger VINDPM/maintain USB-recovery-safe by construction**:
   keep boot default at ~4.6 V, treat higher panel-MPP setpoints as live/test state unless
@@ -170,20 +588,44 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] Add live telemetry readout to `ops/bench/cots-mode-dashboard.html` (Ben).
 - [x] Configure LiFePO4 profile on V2 -- DONE: `--chem lfp` (`RES_PF_BATTERY_TYPE=Generic_LFP`) used throughout; LFP favored for safety/heat/cycles (counterpoint = buck-boost crossover tax, see Field reliability) (Ben).
 
-## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md -- LARGELY RESOLVED 2026-06-04: cause = IS31FL3741 chip on the V2's shared charger/gauge I2C bus + WiFi; fix = don't put LEDs on that bus -> direct-GPIO WS2812/SK6812. Remaining items are follow-ups, not blockers.)
+## Battery-brownout investigation (see docs/tests/BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md -- RESOLVED + UNIFIED 2026-07-03: mechanism class = power-management-bus signal integrity -> BQ25628E power-path register upsets (BATFET/HIZ) -> instant battery-path loss. June's disturbance source = the IS31 chip on the bus; July's = our 400 kHz bus clock. Rules in POWERFEATHER_NOTES; retro-analysis atop the investigation doc re-grades all hypotheses (H2 connectors retired, H3/H4/H5 dead). Remaining open items below are follow-ups.)
 
 - [x] Characterize exact conditions for VSYS power-on reset on battery -- ~~load-stacking~~ ~~not-reproducible~~ **UPDATED 2026-06-04: brownout CAME BACK** -- board 1 did a 794-reboot loop overnight on battery (poweron, healthy bv 3.24-3.46, all SOC, lightest load, dying at WiFi association). Real + intermittent on board 1 => H2 (marginal connection) strengthened. See doc Status (Ben).
 - [x] Repeat brownout characterization on a second board + known-good cell -- DONE (n=3 all stable in short runs); **NOW extending: pristine board 2 multi-hour with fixed guard to see if it loops like board 1 overnight (board-specificity)** (Ben).
 - [x] Fix the overnight auto-sleep guard -- RAM coulomb/timer state reset every reboot, so a brownout loop defeated it. Added **NVS-persisted reboot-loop breaker** (`--autosleep`, >=25 sub-survival boots => deep sleep before WiFi); fw power-bench-2026-06-04.1 (Ben).
-- [ ] **Inspect/reflow board 1's battery + VDC solder joints** under magnification (cold joint / flux / hairline bridge); re-run overnight to confirm the loop is gone -- the direct H2 test now that it reproduces (Ben).
+- [x] ~~Inspect/reflow board 1's battery + VDC solder joints~~ -- **RETIRED
+  2026-07-03**: H2 (connection impedance) demoted from leading explanation by the
+  July root-cause (power-bus signal integrity -> BQ register upsets; identical
+  signature reproduced with soldered welded-tab leads on two boards). Board 1's
+  identity was also never durably tracked. See the retro-analysis atop
+  BATTERY_BROWNOUT_INVESTIGATION_2026-06-03.md (Ben/Claude).
 - [x] **Verify the reboot-loop breaker actually fires** -- DONE: board 2 looped and the breaker deep-slept it (validated in the wild) (Ben).
 - [x] **FIX loop-breaker brick-risk** -- DONE (fw 2026-06-04.2): (1) **never deep-sleep while external supply is present** (USB/VDC -> stay flashable/recoverable -- the root cause of the stranding); (2) sleep with a **15-min timer wake** (not indefinite); (3) on a timer wake still on battery -> re-sleep, on supply -> run/charge. So plugging USB self-recovers within one wake interval; never bricks. **VALIDATED LIVE 2026-06-04** (3 mAh budget / 60 s wake test): ran on USB w/o sleeping -> coulomb-budget sleep on battery -> 124 s of timer-wake/re-sleep -> recovered (charging, fresh boot) on USB plug, no BOOT+RESET needed. Tuning flags added: `--budget-mah`, `--wake-s` (Ben/Claude).
-- [ ] Keep a **VSYS bulk cap as cheap insurance** and bench-characterize it opportunistically -- demoted from "key fix" to "nice to have" now that 3 boards are stable without it (Ben).
-- [ ] Watch for brownout **recurrence in the field**; if it returns, capture which connection/board and whether re-seating clears it (Ben).
+- [x] ~~Keep a VSYS bulk cap as cheap insurance and bench-characterize it~~ --
+  **RETIRED 2026-07-03**: capacitance answers a sag mechanism; the confirmed kill
+  class is a power-path switch OPENING (BQ register upset), which no cap prevents.
+  Bulk capacitance remains ordinary good design, not a brownout fix (Ben/Claude).
+- [ ] Watch for poweron-reset **recurrence in the field** -- through the July lens:
+  battery-only `rr=poweron` at healthy voltage = suspect the power-management bus
+  first (what shares it, what clocks it), not connectors/cells. Production
+  firmware should carry the boot-counter + reset-reason + pre-death-breadcrumb
+  telemetry idiom from presence_bench (Ben).
 - [x] Distinguish IS31-specific vs any-I2C-device: **NeoDriver (5766, SeeSaw I2C) on the same bus = STABLE** (371 s+, through heavy WiFi) where the IS31 loops in ~1 min => **brownout is IS31-SPECIFIC**, not the bus. NeoDriver+WS2812 is a viable no-solder LED path (Ben).
-- [ ] **Confirm NeoDriver robustness with an hours/overnight run** (the IS31 was intermittent -- stable for minutes then failed; n=1/6min not enough). Do AFTER the wake-source fix (Ben).
+- [x] ~~Confirm NeoDriver robustness with an hours/overnight run~~ -- **RETIRED
+  2026-07-03**: moot; the LED axis went direct-GPIO (ADR 0022) and the standing
+  rule is now "nothing optional on the power-management bus" regardless of how
+  benign a given device tested (Ben/Claude).
 - [x] **Direct-GPIO WS2812/SK6812 validated** (board 2, HEX on A0/GPIO10, off the I2C bus) -- works, brownout-safe by construction, and ~10% MORE efficient than via NeoDriver (no passthrough drop). **Strong candidate for the area/glow role -- but NOT a settled BOM front-runner**: it's roughly tied in viability with the 4 W RGBW point-source, which serves the crisp-gobo role HEX can't, and the efficiency edge is muddied by varying-SOC testbeds. Decide after gobo testing. 3-way plot `led-eff-3way.png` (Ben).
 - [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner -> cap brightness / healthy pack. **Now quantified (2026-06-11 hex_ramp):** ~350-400 mA LED draw pulls the bench cell to its ~3.0 V brownout edge even at 98% SOC -> production firmware needs a hard current cap = f(brightness x lit-count), scaled to the production cell's IR (the 32700 ~6 Ah cell lifts the ceiling substantially) (Ben).
+- [ ] **Qualify the seven-RGB chandelier chain with instruments, not rail
+  saturation.** `chandelier-chain-2026-08-11.5` corrects the lensed-RGB model to
+  the measured 257 mA/module and defaults to an 800 mA LED budget (seven-pixel
+  white cap 113/255; 900 mA supervised maximum). With the production battery,
+  log input and rail current, PowerFeather 3V3 voltage, last-pixel voltage/color,
+  radio activity, resets, and regulator/connector temperature through an
+  extended pattern run. Keep the software current cap: the 1 A rating is shared
+  by the board, 3V3 header, and VSQT rail, and saturation is not a safe limiter
+  (Ben/Codex).
 - [ ] **Decide pixel-power architecture (NeoDriver only level-shifts the DATA signal, does NOT boost pixel power -- corrected; "3-5V vin/vlogic" = accepted *input* range):** pixels run at whatever Vin is. Options + a key power-mgmt axis (software-cuttability):
   - **(a) 3V3 header** -> dim (3.3 V under-volt) but **software-cuttable via `enable3V3(false)`** (free LED kill-switch; can't accidentally drain the pack), zero extra parts. Strong budget default (Ben's pick-direction).
   - **(b) VBAT** -> brighter (<=4.2 V Li-ion) but **always live** -> needs a load-switch/MOSFET + GPIO to be safe.
@@ -199,18 +641,29 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   long-throw crisp gobo. Open work moves to type mix, placement, power budget, and
   boost/current-cap characterization (Ben/Codex, 2026-06-17).
 - [x] **Measure LED current vs brightness** -- DONE across NeoHEX/HEX/RGBW/warm-white via `--bright-sweep` + Apogee PAR sensor; full efficiency map in `led-par-vs-draw.png`. (Caveat: confounded by buck-boost efficiency vs SOC -- see Field reliability.) (Ben).
-- [ ] Investigate disabling BQ25628E input source-detection to beat the 500 mA USB charge cap (bench convenience only; solar unaffected) (Ben).
+- [ ] Investigate overriding BQ25628E input source-detection to beat the roughly
+  500 mA USB input cap (bench convenience only; solar unaffected). Do this only
+  for a source with known advertised capability, and never exceed the PowerFeather
+  input/connector 2 A rating; ADR 0033's 2 A ICHG ceiling does not itself authorize
+  more USB input current (Ben).
 - [x] ~~Build a SOLID LFP connection / re-run on solid connection~~ -- **SUPERSEDED**: the brownout turned out IS31-specific (its chip on the shared I2C bus), not the battery connection. The H2-marginal-connection thread is closed (Ben).
 - [x] Test LFP full-SOC vs low-SOC under identical load (boost-mode hypothesis H3) -- evidence AGAINST H3: boards ran stable in **active boost** at 3.18-3.24 V (the harder regime), so low-LFP/boost is not the brownout cause (Ben).
 - [ ] Run ported demo on battery (firmware/powerfeather_demo_port, AP + ~10 Hz) +/- LED; does the reference app reset? (Ben).
-- [ ] If resets reproduce on a good connection, add a VSYS bulk cap and re-test (hypothesis H4) (Ben).
+- [x] ~~If resets reproduce on a good connection, add a VSYS bulk cap and re-test
+  (H4)~~ -- **RETIRED 2026-07-03**: resets DID reproduce on gold-plated
+  connections (July) and the mechanism (switch-opening, not sag) is one a cap
+  cannot fix. H4 closed (Ben/Claude).
 - [ ] Exercise ported demo web UI: connect phone to PowerFeather_Demo AP -> 192.168.1.1 (Ben).
 - [ ] Test `VSQT` off-state leakage with IS31FL3741 attached (Ben).
 - [ ] Test `VSQT` sleep/wake/reinitialize cycle (Ben).
 - [ ] Test panel MPP/VINDPM settings for each panel (Ben).
-- [ ] Test thermistor / battery-temperature path if accessible (Ben).
+- [ ] **Qualify the 103AT battery-thermistor path before relying on unattended 2 A
+  charging in sealed hats:** attach it physically to each test cell, verify
+  telemetry and BQ JEITA suspend/derate behavior at the production temperature
+  bounds, and decide the production sensor/harness plan. Charger-die thermal
+  regulation does not measure cell temperature (ADR 0033) (Ben).
 
-## Gobo / aesthetic LED testing (HEX Studio app -- `firmware/hex_studio/`, 2026-06-04)
+## Gobo / aesthetic LED testing (led_studio -- `firmware/led_studio/`, merged from hex_studio/rgbw_studio 2026-06-07)
 
 - [x] Build interactive web app to dial in HEX looks (brightness/RGB sliders, shape rings, spiral/orbit/breathe/twinkle, Split-RGB fringing, Freeze+Step, settings readback) -- DONE, validated on hardware (PowerFeather ACM1, HEX pin 10); served at the IP from the boot banner (Ben/Claude).
 - [x] Build interactive web app for the **4 W RGBW point source** (`firmware/rgbw_studio/`): R/G/B/W sliders, white/warmth presets + crossfade, hue/breathe/candle/fade animations, settings readback -- DONE, validated on hardware (ACM1, pin 10) (Ben/Claude).
@@ -218,8 +671,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [x] **Record LED module = BOTH, by role** -- DONE 2026-06-17 via ADR 0022
   (`docs/decisions/0022-mixed-led-fleet-by-role.md`), preserving ADR 0018's IS31
   rejection and direct-GPIO constraint (Ben/Codex).
-- [ ] Decide HEX/RGBW **type mix and placement**: which tree heights/positions get each
-  module type, and whether panel size also splits by role (Ben + Steve + team).
+- [~] Decide HEX/RGBW **type mix and placement** -- **PRODUCTION ALLOCATION UPDATED
+  2026-08-06** (ADR 0032 + SYSTEM.md fleet table): RGBW on 72 downlights in three
+  rings of 24, HEX on all 24 perimeter hooks, mixed on 18 chandelier lights, and
+  about 16 trunk lights trending all RGBW. The full nominal 130 is the target barring
+  an unforeseen issue. Remaining LED decision: qualify the smaller lensed 3 W RGB
+  trunk variant against 4 W RGBW (Ben + Steve + team).
+- [ ] Rename or explicitly map the legacy firmware/manifest `uplight` class to the
+  physical trunk-light role without creating a second fixture image (Ben/Codex).
 - [ ] **Capture per-look settings**: when a look is a keeper, record the led_studio sliders + the UI Battery line voltage (brightness is SOC-dependent until the 4.2 V boost lands) (Ben + Steve).
 - [ ] Compare Steve's **3 flat sample filters** through the rig; note which pattern reads best at the install throw (Ben).
 - [ ] Capture ceiling photos per source/filter for the record; fold results into a gobo test write-up (Ben).
@@ -228,19 +687,260 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Noisemaker / audio bench
 
-- [~] Evaluate lantern noisemaker options on the Metro bench: `firmware/clacker_demo/`
-  now exposes a BubbyNet dashboard for A0/A1 relay clicking plus 8002A amp/speaker tones on
-  Metro `D5`/GPIO5. Remaining: listen through the lantern/gobo/hat geometry, measure current
-  draw, decide whether any relay/speaker noisemaker belongs in production, and record the
-  mechanical mounting/power implications if it stays live (Ben).
+- [~] **Qualify the finalized solarnoid VDC + 22,000 uF daytime-solenoid power
+  path:** the first 10,000 uF cap test passed qualitatively on 2026-07-14 and the
+  22,000 uF follow-up bought headroom for stronger solenoids; ADR 0030 now fixes the
+  production concept at VDC tap + 22,000 uF + solenoid + bulk mallet on large-hat
+  downlights. The no-cap P126-panel kick was weak; a 10,000 uF/16 V electrolytic across
+  V+/GND at the female-USB-C-to-XH breakout made it dramatically stronger. The leads
+  align directly with the breakout holes, so installation was roughly one minute of
+  soldering; prototype cost was about $1. Historical stack and design reasoning:
+  `docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md`.
+  Remaining: commit and analyze the 22,000 uF/stronger-solenoid bench data; capture
+  coil/pulse/VDC droop/recharge and physical-strike data; test sun/
+  cloud/shade, P105/P126, charge/taper, hot-plug inrush, repeated strikes, BQ/reset/fault
+  behavior, residual energy at dusk and possible bleeder, ESR/tolerance/temp/lifetime,
+  strain relief, polarity/keying, and cold-Voc margin. P126 nominal Voc is about 8.59 V;
+  measure worst-case cold Voc/tolerance to document margin for the 16 V part.
+  Keep the 815-strike-proven 3V3/XH path as fallback (Ben).
+- [~] **Finish root-causing and qualify the rev-1 3P boosted-capbank PowerFeather
+  reset:** the corrected 2026-08-06 test used no USB and held
+  4.914 V at the PowerFeather plus 12.17 V at the bank before the command, but a
+  targeted 5 ms D7 pulse immediately restarted `F3FD7C` while visibly moving the
+  HS-0730B. **BATTERY A/B STRONGLY NARROWS IT TO SOURCE-PATH TRANSIENT HEADROOM:**
+  with the 3.33 V 32700 attached and A4/A5 unchanged, the same 5 ms pulse did not
+  reset (uptime 182.3 -> 184.7 s; sequence 179 -> 181) and Ben judged the strike
+  stronger. The loaded source already sat at its 4.66 V VINDPM floor. Scope the
+  PowerFeather-facing VDC, local 3V3, GND, and D7 during the
+  edge; A/B the shared 5 V source branch, control/telemetry harness, boost input
+  decoupling, and isolation/ORing. Static checks (D7S 0 V, VSNS 3.00 V, D7 0 V)
+  plus the successful battery run with A4/A5 attached make telemetry injection
+  unlikely as the primary cause, but do not rule out ground bounce or switching
+  noise. **BATTERY-INSTALLED BENCH ENVELOPE PASSED:** single 5-50 ms pulses,
+  10x 20 ms at 15 s intervals, and radio-quiet 8/12/20/35/50 ms DMA captures all
+  completed without reset/failsafe/overflow or warmth. D7S timing was within
+  0.014 ms and robust 2 ms-median bank drop grew to about 1.77 V at 50 ms.
+  **PAIRED DIRECT-5-V REFERENCE PASSED:** after discharging and removing the
+  boost, the identical five-width sweep again completed cleanly. At 50 ms the
+  direct bank fell 5.086 -> 4.800 V (5.63 percent; about 0.083 J net capacitor
+  contribution), versus 12.284 -> 10.511 V boosted (14.44 percent; about
+  1.193 J), a 14.3x boosted/direct bank-energy ratio. Keep this explicitly
+  labeled net capacitor contribution, not total coil or mechanical energy,
+  because VDC supplies current concurrently. Raw paired traces live under
+  `ops/bench/data/ca/capbank/`.
+  **2026-08-09 PHYSICAL RESULT:** the PowerFeather USER button produces a strong
+  bounded 40 ms strike, proving the firmware-controlled D7/driver/cap-bank path.
+  SW1 originally produced only a tiny strike with RECVR empty and none with the damaged
+  receiver installed. Keep receivers out because the separate reversed-U1 fault
+  above overvolts them. Firmware edge-detect plus bounded 40 ms takeover is now
+  deployed for physical validation; scope SW1 D7 before deciding whether C1B or
+  other component tuning is also useful.
+  Remaining before production: scope PowerFeather VDC/3V3/GND/D7, test low-SOC
+  and hot/solar cases, explicitly deduplicate strike event IDs, and isolate the
+  separate USB+VDC/flash-failure mechanism. **HIGH-Z/SW1-TAKEOVER FIRMWARE CANDIDATE OTA-DEPLOYED
+  2026-08-09, PARTIALLY VALIDATED:** an armed fixture now releases D7 to
+  INPUT/high-Z at idle and after every MCU cutoff so rev-2 SW1 and optional
+  RX480E D0 can drive the board's hardware one-shot through its own 10k pulldown;
+  disarmed fixtures still clamp D7 LOW. The `Party In The Woods` targeted
+  `fixture-2026-08-09.2` image is OTA-flashed on `9E5B8C`; firmware/sensor/bridge
+  telemetry and the strong USER strike pass. SW1 requires a released LOW after
+  boot, accepts one rising edge, and extends it to the independently bounded
+  40 ms MCU pulse; boot-high/stuck-high cannot fire or retrigger. Next physically
+  verify the SW1 extension, MCU/external collision
+  refusal, timer/failsafe behavior, no reset,
+  and return to high-Z. Do not close or choose this over a hardware diode OR until
+  those checks pass. Quarantined
+  flash-failed boards: `F402F4`, `F402B4`; surviving
+  probe board: `F3FD7C` (Ben/Codex).
+- [ ] **P0: root-cause PowerFeather V2 VUSB+VDC hot-plug/flash failures before
+  deployed USB service is trusted:** two boards (`F402F4`, `F402B4`) developed
+  invalid-header loops and invalid/unreadable JEDEC responses when the repeated
+  condition of concern was VDC from one powered-hub branch plus native VUSB/data
+  from the same hub. Neither had energized 12 V boost exposure. PowerFeather's
+  official design explicitly Schottky-ORs VUSB and VDC and permits simultaneous
+  use, so do not close this as a generic ground loop without transient evidence.
+  Execute
+  `docs/tests/POWERFEATHER_V2_DUAL_INPUT_USB_SERVICE_PLAN_2026-08.md`: preserve and
+  compare the quarantined boards; probe VUSB/VDC/VS/internal `+3.3VP`/EN/reset and
+  both input currents; reproduce first without capboard hardware under current
+  limits; then add the Y harness, large bank, boost, telemetry, and strike one at a
+  time. **Interim field rule:** use verified data-only/VBUS-blocked USB whenever
+  VDC/panel is live; if USB must provide power, disconnect or shade VDC first. A
+  switchable service adapter should default to DATA ONLY. Pass requires valid flash
+  ID/hash and no rail/reset/thermal fault through >=50 actual hot-panel USB-service
+  cycles. **2026-08-06 partial pass:** `F3FD7C` passed 5.0/5.8 V, both insertion
+  orders, same-hub inputs, full Y/boost/charged-bank/D7/A4/A5 wiring, and 20/20
+  consecutive native-USB reset/flash-ID cycles (`20:4017`, 8 MB) with no physical
+  anomaly. Boost+capboard alone was only 0.17 W; the observed approximately 3 W
+  was measured PowerFeather battery charging. Cambium has no fixture OTA uploader
+  and the concurrent integration flashed only `F3FD88`, so an unlogged fleet OTA
+  is not supported by current evidence. Still required: preserve/no-stub-test and
+  dump both dead boards, scope rails/EN, use an actual panel, and complete 50
+  physical service-cable cycles (Ben/Codex).
+- [x] ~~Evaluate lantern noisemaker options on the Metro bench~~ -- **CLOSED
+  2026-07-15 (ADR 0030)**: the shootout ended with the solenoid bamboo-strike;
+  relay/speaker options are not pursued. `clacker_demo` stays as bench history (Ben).
+- [x] **Candidate A: STEMMA speaker #3885 percussion synth -- ABANDONED 2026-07-15
+  (ADR 0030): the solenoids strike the bamboo so well the speaker path is dropped.**
+  The percussion synth + `speaker_demo` survive as bench/preview instruments only;
+  the spare-#3885 buy is cancelled; the listen-test/loudness/RC-filter follow-ups
+  below are moot for production. Original item preserved: BENCH APP LIVE 2026-07-07
+  (`firmware/speaker_demo/` at `speakerdemo.local`, LOG same date): organic percussion
+  (knock/marimba/chime/drip + ripple/grove scenes) instead of the square waves everyone
+  hated. Bench unit's trim pot is broken (LOG item 6): solder-bridge the tweezer-found
+  pad pair + order 1-2 spare #3885s before any crowd test. Remaining: controlled
+  re-listen for residual whine on fw .8 (FIXED speaker mounting -- placement confounded
+  tonight's spectra), Ben's listen test, crowd re-test, idle + playing current draw
+  (amp quiescent on the 3V3 rail matters for the night budget), speaker-coupled-into-
+  lantern acoustics (mounting coupling is first-order; the bamboo tube is a resonator),
+  and volume ceiling outdoors. Amp-oscillator beats confirmed on this unit (LOG item 7):
+  the PAM8302's free-running oscillator varies per chip, so for the fleet either add an
+  inline RC low-pass (~1k + 10 nF) on SIG or evaluate the MAX98357A I2S amp (no pot,
+  true DAC path, ~same price, 3 data wires); the dashboard carrier A/B button is the
+  per-unit probe (Ben).
+- [x] ~~Gather wider noisemaker opinions~~ -- **OVERTAKEN 2026-07-15 (ADR 0030)**:
+  the solenoid's physical strikes settled the question on the bench (Ben).
+- [~] **Candidate B -> THE noisemaker (DECIDED 2026-07-15, ADR 0030): MOSFET-driver
+  + push-pull solenoid mallet** (physically striking
+  the bamboo -- the authentic knock the synth imitates). **FIRST BENCH DONE
+  2026-07-10** (`firmware/solenoid_demo/`, LOG same date): 815 strikes, no resets,
+  no failsafes. **FLEET PARTS ORDERED**: 100x MOSFET drivers (Adafruit 07-10, $345;
+  110 total with the 10 prior) + 150x solenoids (75x 3 V + 75x 5 V, AliExpress
+  07-10, $319.12). Remaining: strike-power source decision (VDC-tap sweep tooling
+  landed 07-11: Y-cable + storage cap vs battery/VS pin -- check strike transients
+  don't confuse the BQ input), 3 V vs 5 V voltage A/B, driver control cabling
+  (JST PH 3-pin), mallet/mounting design vs the O(1)-ops constraint (ADR 0009),
+  and the formal candidate verdict vs the speaker synth. **P126 bright-sun trial
+  staged 2026-07-13:** D7/GPIO37 targeted, timer-bounded manual strike firmware and
+  dashboard control are USB-flashed and safety-verified on replacement peer `9F2690`;
+  the original `9E5B0C` failed during header rework and was retired. **JULY 14 RESULT:**
+  the no-cap panel strike was weak; adding 10,000 uF/16 V at the panel adapter produced
+  a qualitatively excellent kick with an unexpectedly easy mechanical/solder fit. VDC +
+  cap now leads; the candidate verdict itself is DECIDED (ADR 0030) and the
+  **"solarnoid" design was finalized around July 24**, including craft-store bulk
+  mallets (order TBC). Scope is settled: large-enclosure fixtures/downlights only, with
+  surplus drivers expected. **BENCH STATUS 2026-07-16 (Ben-reported; data on the bench
+  laptop, commit pending):** 22,000 uF buys headroom for stronger solenoids; the
+  solenoid bake-off is mid-flight with the 0730B 6 V / 1 A as the primary candidate
+  and the in-transit 3 V / 5 V units potentially returnable. **TRANSIENT QUESTION
+  REOPENED 2026-08-06:** the external-boost rev-1 3P configuration power-cycled a
+  PowerFeather on a 5 ms strike even with USB absent; the earlier direct-VDC/cap
+  result remains valid for that topology but does not clear the boosted Y-cable
+  variant. Remaining: boosted-path scope/isolation, bake-off verdict, possible stronger-solenoid
+  order/return, driver control cabling, mounting, and daytime gating.
+  **JULY 16 LOCAL CONTROL:** corrected
+  `net-bench-2026-07-16.2` is OTA-deployed to `9F2690`; one debounced PowerFeather
+  USER/GPIO0 press now wakes the peer if needed and requests the same fail-safe 40 ms
+  D7 strike, with physical-release re-arm and maintenance suppression. The first `.1`
+  implementation woke once but its RTC-retained re-arm state could remain disarmed after
+  re-sleep; `.2` removes that state, treats EXT0 wake itself as the one-shot event, and
+  re-enables EXT0 before every sleep only when GPIO0 is actually HIGH. Physical repeat
+  validation remains: sleep -> press/strike -> re-sleep -> press/strike, plus no held-
+  button loop, normal ESP-NOW rejoin, and no BQ/reset fault. The DFR0991 illuminated I2C
+  button is an optional awake-mode trigger; its separate active-HIGH INT pin could wake
+  an RTC GPIO only if the module remains powered, while current field sleep cuts both
+  external 3V3 rails. (Ben/Codex).
+- [ ] **Commit the solenoid bake-off experiments from the bench laptop** -- the
+  post-07-11 work (22k uF headroom sweeps, stronger-solenoid bake-off) is not in
+  the repo; only solenoid_demo/led_sol_bench + the 07-11 VDC sweep are (Ben).
+- [ ] **Decide the 3 V/5 V solenoid return** (150 units, $319.12, still in
+  transit) once the 0730B verdict lands -- watch the AliExpress return window
+  (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
-- [ ] Order the sensor bench kit (~$10): **VL53L1X ToF** (I2C, primary), **LD2420/LD2410
-  mmWave** (UART, through-enclosure candidate), **LIS3DH/MPU6050 IMU** (sway-veto +
-  wind-response + structure-touch) (Ben or Steve).
-- [ ] Add the sensors to the net_bench heartbeat (append-only tail, same pattern as
-  env/INA) so detection tuning happens wirelessly from the desk (Claude + whoever's bench).
+- [x] **Stand up the 4-sensor comparison bench -- DONE 2026-07-02** (LOG same date):
+  `firmware/presence_bench/` on the repurposed spare PowerFeather V2, wireless
+  dashboard at `presencebench.local` (live thermal heatmap, tap-a-zone multizone ToF
+  grids, radar depth strip, browser-side baseline/delta/occlusion-mask/PRESENT
+  tiles), `ops/bench/presence_logger.py` JSONL logging with Enter-key ground-truth
+  marks. Sensors: MLX90640 (0x33), VL53L5CX 8x8 w/ vendored 2-target driver (0x29),
+  TMF8821 (0x41), XM125 (0x52, ships with the Acconeer DISTANCE app). Multi-target
+  per zone VERIFIED on hardware (10 desk zones with near+far pairs). Supersedes the
+  original "$10 kit" plan for the imaging axis; LD2420 mmWave + IMU remain open
+  below (Ben/Claude).
+- [ ] **Dashboard eyeball pass + first walk-under session** (Ben): capture a
+  baseline, walk under the rig, check the four PRESENT tiles + event-log ordering;
+  log a run with presence_logger.py.
+- [ ] **Rig session on the actual lantern** (Ben + Steve): hang under the solar
+  overhang pointing down, capture baseline -> occlusion hatching over the bamboo
+  splay, record **"usable zones X/64 (VL53), Y/9 (TMF)"** -- the self-occlusion
+  deliverable -- and check whether occluded zones still range the floor via T1.
+- [x] Add the TOF400C/VL53L1X (the ~$3 original primary candidate) as a 5th bench
+  sensor -- **DONE 2026-07-02** (`.13` + TCA9548A mux): both 0x29 ToFs behind
+  their own mux ports, all five sensors verified streaming (L1X 1612 mm status-0,
+  agreeing with the VL53's far targets). Software VL53L5CX address relocation was
+  ABANDONED after a reproducible zombie-until-power-cycle (known ST issue; LOG
+  cont. 2); the mux is the architecture. XSHUT jumper on A0 retained as the
+  no-mux fallback gate (Ben/Claude).
+- [ ] Investigate XM125 distance-app decode against the Acconeer A121 register
+  spec: peak strengths return a 0xEEEEEE00 sentinel, and peaks 2+ read beyond the
+  configured 0.2-5 m window (10.4 m / 31.6 m) -- treat as one bug. Also consider
+  reflashing the module with the PRESENCE app (motion-tuned intra/inter scores;
+  the distance app reports all static reflectors, which made desk testing
+  uncorrelatable with motion) (Ben/Claude).
+- [x] **Presence-bench battery-only reboots -- SOLVED 2026-07-03 (LOG 07-02
+  cont. 5-10 + 07-03): root cause was OUR 400 kHz Wire1 clock on the shared
+  power-management bus** (the "measured exception" to POWERFEATHER_NOTES).
+  Controlled A/B: identical firmware at 400 kHz died in seconds on battery; at
+  100 kHz the full 5-sensor bench runs indefinitely (7.3 h + 900 s formal
+  soaks). Mechanism: corrupted charger (BQ25628E) transactions under WiFi TX
+  open the power path (BATFET/HIZ class) -> instant poweron reset; USB immune.
+  100 kHz now the compiled default; rules added to POWERFEATHER_NOTES. The
+  elimination ladder also formally exonerated: sensors, A0 jumper, 26650
+  holder, both cells, both boards, SoftAP beaconing, the TPS631013 crossover
+  band (stable at 3.33 V under heavy TX), NVS writes, charge-enable (Ben/Claude).
+- [ ] Reboot-hunt residuals: reflash led_studio onto the desk board (r10 still
+  queued); sharpie-label both boards (spare = ex-9F2690 master, desk =
+  led_studio home); OPTIONAL Test B (400 kHz round-robin from core 1) if the
+  core-aggravator question ever matters; custom-PCBA design rule captured in
+  POWERFEATHER_NOTES: dedicated I2C bus for charger/gauge (Ben/Claude).
+- [ ] **Fleet hygiene: chemistry profile must match the attached cell.** The old
+  net_bench master image (Li-ion profile) was found actively overcharging the
+  4 Ah LFP toward 4.2 V on USB (real terminal reading 4.19 V; relaxed to plateau
+  once charging was disabled). Audit any board that gets a cell: image `--chem`
+  vs physical chemistry (Ben).
+- [ ] Confirm which cell is attached to the presence-bench PowerFeather; its gauge
+  telemetry is inconsistent (bv 4.12 vs 3.68, ma -290 vs 0) and this sketch
+  deliberately leaves charging OFF (Ben).
+- [x] ~~Order the remaining kit (LD2420/LD2410 mmWave, LD2450, LIS3DH/MPU6050 IMU)~~
+  -- **SUPERSEDED 2026-07-08 by the production sensor buy (ADR 0027)**: MSA311 +
+  TMF8820-mini + VL53L5CX ordered at fleet scale on 2026-07-07; mmWave dropped
+  (continuous-power appetite); fused/other IMUs rejected (per-device cal). LD2450
+  remains a possible future choreography experiment, not a fleet part (Ben).
+- [ ] **Finish per-class sensor validation** (ADR 0027 + ADR 0034): TMF8820-mini
+  downward on all downlights, VL53L5CX outward on perimeter, and BMP581 on the
+  complete 24-light outer hanging ring with 6 spares. The first five outer-ring
+  downlights passed live MSA311/TMF8820/BMP581 production-firmware sampling on
+  2026-08-08. Remaining: physically count the received BMP581 inventory and run
+  one downlight-height test on the exact ordered TMF8820-mini part (earlier height
+  work used the TMF8821) (Ben).
+- [x] ~~Bring up the BMP581 on the STEMMA chain and add temp/pressure to
+  maintenance telemetry~~ -- **DONE 2026-07-29 on enclosed `F2BFA0`:** BMP581,
+  MSA311, and exact ordered TMF8820-mini all initialized and returned live data
+  on the shared 100 kHz bus after targeted OTA. The opt-in diagnostic samples
+  every two seconds; it is not yet production energy/timing qualified (Ben/Codex).
+- [x] ~~Make a sensor-reactive RGBW proof of concept~~ -- **DONE 2026-07-29 on
+  enclosed `F2BFA0`:** LED Studio now offers ToF-depth, relative-tilt, and
+  pressure-derived relative-elevation modes plus live sensor readout and manual
+  re-zero controls. The TMF filter ignored the repeatable 20-21 mm enclosure
+  return and reacted to a usable target around 219 mm (Ben/Codex).
+- [ ] Field-tune the LED Studio mappings: ToF near/far endpoints (currently
+  120/1200 mm), tilt full-scale (35 deg), and elevation span (+-1.5 m) (Ben).
+- [x] ~~Remove LED Studio sensor stalls and expose WiFi health~~ -- **DONE
+  2026-07-29 on `F2BFA0`:** replaced the blocking TMF convenience call with a
+  cooperative start/process/stop state machine on the main 100 kHz loop, prevented
+  overlapping browser polls, and added RSSI/request-latency/TMF-age diagnostics.
+  State requests fell from 0.7-1.8 s to 112 ms mean / 204 ms p95; button commands
+  averaged 35 ms; 776 TMF frames ran with zero errors/recoveries (Ben/Codex).
+- [ ] Guard LED Studio charge enable on confirmed battery presence, matching the
+  safer net_bench/sway pattern, before using a sensor-triad build on a bare board
+  with external VDC but no cell (Ben/Codex).
+- [ ] Add the winning sensor(s) to the net_bench heartbeat (append-only tail, same
+  pattern as env/INA) and dashboard for yard/field tuning. Current triad readings
+  are available only through maintenance `/telemetry`; interpret/calibrate the
+  TMF8820's high-confidence 20 mm near return against the enclosure/window before
+  treating it as presence (Claude + whoever's bench).
 - [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height -- detection vs
   false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
   ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).
@@ -276,9 +976,9 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   single-pixel flicker appears) (Steve).
 - [ ] Wire: PowerFeather switchable 3V3 header -> module IN; module OUT 4.2 V -> HEX V+;
   common GND; HEX data direct to GPIO10 as usual. led_studio drives it unchanged (Steve).
-- [~] **Measure (the decision data): lumens-per-system-watt rail-direct vs boosted
-  4.2 V** -- **MEASURED 2026-07-02 at healthy SOC (LOG same date): boost NOT worth it
-  for the HEX gobo regime.** VEML7700 photopic harness + boost_ab_log.py/
+- [x] **Measure (the decision data): lumens-per-system-watt rail-direct vs boosted
+  4.2 V** -- **MEASURED 2026-07-02, decision recorded in ADR 0029 (HEX stays on the
+  3V3 rail; boost NOT worth it for the HEX gobo regime).** VEML7700 photopic harness + boost_ab_log.py/
   boost_ab_suite.sh, 4-swap A/B/A/B series, seating error bounded <=2 %. Single white
   px full: +1.6 % light for +60 % LED-branch power (lumens/W ~40 % WORSE); blue single
   +5.1 %, ring1 7 px bri128 +6.9 % -- gain grows with load per dropout physics, but
@@ -289,7 +989,10 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   3V3 rail, so bare is SOC-invariant by construction until deep discharge): low-SOC
   spot-check = watch for rail droop under load at low VIN only, 10 min on a drained
   cell, unlikely to flip; 4 W RGBW point source is a separate question (Ben/Steve).
-- [~] **Redo the boost A/B for the 4 W RGBW point source** -- **rail-fed variant
+- [x] **Redo the boost A/B for the 4 W RGBW point source** -- **CAMPAIGN COMPLETE
+  2026-07-02, matrix recorded in ADR 0029 (boost shelved with complete numbers;
+  the rail-vs-VBAT production feed decision is OPEN there). r10 residual + the
+  feed-decision item carved out below.** Detail: rail-fed variant
   MEASURED 2026-07-02 (gold standard r6, LOG same date): boost = 2.2x clean white
   (1044 vs 470 lux W-full) at ~37 % efficacy tax; rgbwhite rail-walls at bri=128
   (3x replicated); bare rgbwhite-full ~1310 lux is the free bright option and Ben's
@@ -307,12 +1010,7 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   on the adapter PCB, EN->GPIO + pull-down for software kill (bench module EN is tied
   to VIN = always-live V+; SK6812 latches -- blank before unplugging), and
   connector/trace quality specced (worth ~25 % of top-end light).
-  **REMAINING MEASUREMENT (r10): battery-plane watts for the two uninstrumented
-  configs** -- bare-VBAT-fat and boosted-VBAT-fat (the 3044 lux point has NO measured
-  power; current estimate ~3.0-4.5 W, ~700-1000 lux/W, estimate-on-estimate). Method
-  that avoids re-poisoning the loop: SEN0291 IN+/IN- are SCREW TERMINALS -- clamp the
-  fat wire directly, no duponts; shunt adds only 10 mOhm. One ladder per config,
-  update the report's fig 4. Also note for any "boost for top-end only" revival: the
+  (r10 detail moved to its own item below.) Also note for any "boost for top-end only" revival: the
   efficacy tax is per-lumen and duty-independent (dies at 4.2 V whenever lit), so
   selective-boost needs a bypass path around the TPS63802 (EN-low disconnects the
   output entirely) -- a real adapter-PCB circuit decision (Ben).
@@ -329,26 +1027,84 @@ OTA; afk/PAR harness in ops/bench; site code for Steve's data = `tn`).
   this module (unlike the RGB-only NeoHEX) -- include W-only and W-vs-RGB-white looks.
   Harness/tooling reuse as-is: boost_ab_log.py + a boost_ab_suite variant with
   RGBW-appropriate looks (Ben).
-- [ ] **Firmware count-cap for boosted builds**: all-37 full white at a regulated 4.2 V
-  wants ~2 A out (~8 W in) = instant brownout -- cap n (or estimated total current) in
-  led_studio when V+ is boosted. Trivial guard; needed before anyone slides "all" to max
-  on a boosted rig (Steve or Ben).
-- [ ] If validated: spec the **production variant on the NeoHEX adapter PCB rev** --
-  boost fed from VBAT with EN routed to a GPIO + pull-down (single conversion ~92 % vs
-  ~83 % two-stage, keeps software kill, frees the 3V3 rail for the ESP). The Amazon
-  module proves the concept; the adapter PCB ships it. **STATUS 2026-07-02: current
-  data says SKIP the boost for the HEX gobo role (see LOG verdict); revisit only if
-  the low-SOC repeat flips it or for the 4 W RGBW module** (Ben).
+- [ ] **r10: battery-plane watts for the two uninstrumented configs** -- bare-VBAT-fat
+  and boosted-VBAT-fat (the 3044 lux point has NO measured power; current estimate
+  ~3.0-4.5 W, ~700-1000 lux/W, estimate-on-estimate). Method that avoids re-poisoning
+  the loop: SEN0291 IN+/IN- are SCREW TERMINALS -- clamp the fat wire directly, no
+  duponts; shunt adds only 10 mOhm. One ladder per config, update the report's fig 4.
+  Requires reflashing led_studio onto the desk board first (Ben).
+- [ ] **Firmware count-cap for boosted builds** -- **moot unless the boost is revived
+  (ADR 0029 shelved it)**: all-37 full white at a regulated 4.2 V wants ~2 A out
+  (~8 W in) = instant brownout -- cap n (or estimated total current) in led_studio
+  when V+ is boosted (Steve or Ben).
+- [x] ~~Spec the production boost variant on the NeoHEX adapter PCB rev~~ -- **CLOSED
+  2026-07-08 as SKIP per ADR 0029** (no boost for either role). The revival spec
+  (VBAT-fed single conversion, EN->GPIO + pull-down, fat wiring) is preserved in
+  ADR 0029 if a future look needs the ceiling (Ben).
+- [ ] **DECIDE the RGBW production feed: 3V3 rail (as wired today) vs VBAT-direct
+  (+33 % fringed white, free)** -- before the harness buy, since it forks connector
+  set and firmware pinout (ADR 0029 has the full trade). Ben's sketched conversion:
+  solder a 4-pin header along {VBAT | EN | VS | D13} pulling VBAT -> V+ and
+  D13 -> signal, GND via a cheap JST 2-pin Y-cable (~$0.50) off the GND pin next to
+  VDC/solar+ -- needs ~100 Y-cables sourced at quantity, firmware A0 -> D13, and a
+  fail-safe redesign (no 3V3-rail shutoff means a stuck-on frame can kill the
+  battery -- verify all-off + a default-off switch element per ADR 0013). Reasons
+  to stay on the rail: clean W-only is unchanged, the rail cut is a robust hard
+  kill, and the rail hookup is easy/robust. Side benefit of converting: frees
+  3V3/GND/A0 for a clacker/relay payload (Ben).
 
-## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risk the 100-buy)
+## Networking feasibility -- 5x PowerFeather V2 (net_bench, 2026-06-07; de-risked the buy -- fleet now nominally 130, ADR 0032)
 
 See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_bench/`.
 
 - [x] Build the first ESP-NOW firmware + 5-node host harness (broadcast comms, master/peer roles, maintenance-mode WiFi OTA, watchdog, per-source PDR, scale-extrapolation summarizer). Bench-validated on 1 board (Ben/Claude).
-- [ ] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0-T7 -- channel MUST match the AP or ESP-NOW silently fails (Ben).
-- [ ] Run the **rate sweep** (1/2/5/10/20/50 Hz) on master-multicast + peer-mesh -> find the PDR loss knee -> set the production heartbeat rate below it; extrapolate to 100 (Ben).
-- [ ] **Range** sweep (open-field cliff) + **through-obstruction** (body/bamboo/foil/battery-behind-antenna) RSSI+PDR (Ben).
+- [~] **Flash all 5 boards with `--channel <AP channel>`** (home AP "BubbyNet" = ch 11) and run T0-T7 -- channel MUST match the AP or ESP-NOW silently fails. Partial 2026-06-07/08: master + 3-4 peers ran the matrix (one board never booted); full 5-board pass still open (Ben).
+- [x] Run the **rate sweep** (1/2/5/10/20/50 Hz) -- **PASS 2026-06-07** (LOG): >=97 % PDR to 250 pkt/s aggregate, clean knee; ~100-node projection at 1-2 Hz = 98-99 % PDR (Ben).
+- [x] **Range** T3 -- **PASS 2026-06-08**: link held through house + yard + oak (~100 steps); solar panel is the main ~20 dB attenuator; obstruction mapping captured (Ben).
+- [ ] **Re-run the scale extrapolation at 130 deployed nodes** (it was computed at
+  100); optionally include 150 as a conservative inventory-backed stress case, and
+  restate the projected PDR honestly (Ben/Claude).
+- [x] **Cambium three-fixture acceptance** -- DONE 2026-08-06 on the three Nevada
+  City perimeter units: CoreS3 COBS bridge status, 3/3 heartbeat census, roll-call,
+  direct program 3 on all nodes, and >3 s silence fallback to autonomous program 1;
+  67/67 bridge sends, zero TX failures/CRC errors/RX drops. The old LED Studio
+  artifacts and channel 6 were restored afterward, but channel 6 was not a
+  presence-bench requirement: it came from one fixture build that omitted the
+  channel-11 flag plus the explicit `H6` restore. Follow-up `.5` fixture firmware
+  now migrates that known legacy state to the production channel 11; all three
+  perimeter units reported channel 11 on hardware (Ben/Codex).
+- [x] **CoreS3 audio-reactive three-perimeter demo** -- DONE 2026-08-06 after
+  moving Module Audio's physical I2S selector to B (CoreS3): Rode input reached
+  RMS 3,423 / 98.7% envelope; F3FD88/F2BE80/F2BFEC all entered direct program 3
+  and matched every addressed frame. Stopping the bridge returned all three to
+  autonomous program 1 after the three-second stale-frame limit. All fixtures
+  acknowledged `N2`, remained on channel 11, and the bridge was left audio-off
+  (Ben/Codex).
+- [ ] **Bring up the received PUCA performance-audio bridge (ADR 0035):** verify
+  Original Edition identity, Eurorack ribbon orientation, both knobs, paw, exact
+  RODE audio-input route, codec gain, and unclipped levels; then create
+  `firmware/puca_bridge/` by reusing the CoreS3 platform-independent audio logic
+  and canonical packet definitions. First milestone is existing 10 Hz
+  `NB_DIRECT_FRAME` on channel 11 with the three-second fixture stale fallback,
+  not raw-audio transport or a new feature-packet protocol. Finish with mixed
+  HEX/RGBW, closed-Pod20 RF/PDR, overrun, reset, and multi-hour stability tests.
+  Full checklist: `hardware/puca-audio-bridge/README.md` (Ben/Codex).
+- [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
+  over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
+  to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).
+- [x] Publish the companion Cambium integration -- DONE 2026-08-06: forked
+  `justinlange/cambium`, published `codex/fleet-130-bench3`, and
+  fast-forwarded `beneckart/cambium` `main` to `b071542` (340 passed / 1
+  skipped). License remains pending Justin (Ben/Codex).
+- [ ] Repeat direct streaming on a mixed HEX/RGBW fleet before production
+  rollout (Ben/Codex).
 - [ ] **Parallel OTA cycle** on 5 nodes via `net_bench_ota.py` -- confirm 5/5 auto-recover with NO physical button (the field-reset requirement) (Ben).
+- [ ] **Rehearse shared-WiFi OTA at tree scale (about 100 awake peers) on the actual
+  portable router:** measure maintenance discovery/DHCP success, safe upload
+  concurrency, aggregate completion time, reboot/rejoin verification, and retry
+  rate. Current approximately 1.02 MB images imply about 2 minutes of pure transfer
+  at five jobs, but operational planning should reserve 20-30 minutes until router
+  client capacity and the full workflow are measured (Ben/Codex).
 - [ ] **Multi-hour battery stability** soak (Li-ion) -- zero unexplained resets, log mAh/h drain (Ben).
 - [ ] **Master WiFi+ESP-NOW coexistence** current/stability run (Ben).
 - [ ] **RE-VERIFY all battery/stability findings on LFP** once Steve's cell holders/connectors exist -- Li-ion is necessary-not-sufficient (LFP plateau = buck-boost crossover) (Ben).
@@ -359,30 +1115,152 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] **Validate fuel-gauge SOC over a real charge/discharge cycle** + confirm the field (sleep + low-load solar charge) anchors the gauge cleanly, unlike the always-pinging bench (the false-low was likely a bench artifact). Production low-battery logic must cross-check voltage (done for the LED) (Ben).
 - [x] Promote results into **ADR 0021** -- DONE 2026-06-08: `docs/decisions/0021-powerfeather-v2-feasibility-validated.md` (go; networking + solar + field-OTA validated, open follow-ups listed) (Ben).
 
+## Fixture auto-localization (RSSI + ToF -> CAD registration; sim study 2026-07-12)
+
+See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
+
+- [ ] **Small-N real pairwise capture (the calibration gate)**: 10-20 boards in the
+  backyard, full pairwise RSSI for ~1 min, solve with `locate_run.py --pairwise`.
+  Measures the real sigma_link (playa-band estimate is 2-6 dB, unverified) -- the
+  sim verdict is conditional on this number (Ben).
+- [ ] **Firmware pairwise neighbor-RSSI dump** emitting the `ops/locate` JSONL
+  contract: every device reports per-neighbor median RSSI per window, WITH expected
+  packet counts and the on-device censoring-corrected median (reference:
+  `locate/rssi.py:_directional_median`; the neighbor table in firmware/ARCHITECTURE.md
+  already holds per-neighbor RSSI; bridge collects) (Ben/Claude).
+- [ ] **Perimeter ring: 24 lights at R ~6.5 m (DIRECTION, Ben 2026-07-27)** --
+  redundancy waived (bridge health visits every few days + swap flow); geometry:
+  N >= 2*pi*(R+x)/(0.83x) for VL53L5CX 45-deg FoV -> N=24 closes blind spots at
+  exactly x=3 m (the reliable night range) when R <= 6.5 m; spacing 1.70 m;
+  closure distance scales as 0.46*R if the ring moves. ZERO-margin geometry:
+  a ~10-deg yawed hook opens a seam -- do an aim-audit pass at install (the
+  8x8 ground-plane fit doubles as an automatic aim check via the bridge).
+  Bonuses: ring sits outside canopy shade (P126 panels in clean sky); wider
+  ring = longer rotation-gauge lever arm for localization (96 vs 112 anchors,
+  minor cost per the anchors sweep). Re-run the ops/locate sim with
+  perimeter_n=24, radius 6.5 m when the layout firms up (Ben/Claude).
+- [ ] **GPS soft anchors (4x SAM-M8Q)**: bought for dusk/dawn time; also usable as
+  hands-free gauge anchors -- not slot-level (2-2.5 m CEP vs 0.7-1 m spacing) but
+  4 units spread wide give mirror + rotation to ~8-10 deg (= the 3-hand-beacon
+  coarse gauge, inside the solver's +-20 deg refinement) + true-north/geo-reference
+  of the as-built tree (measures real door-axis azimuth vs sun arc) + mesh time.
+  Needs: soft 3D position priors in ops/locate refine (sibling of z-anchors,
+  sigma ~2 m) + a sim arm vs the 0/3-beacon baselines; antenna needs sky view
+  (NOT under the panel); SBAS on, hours-long static average; ADR 0028 bus rules
+  (Ben/Claude).
+- [ ] **Replacement/swap flow** (validated in sim 2026-07-15, report addendum: 6/6
+  correct even at 8 dB): unconfigured node beacons "whoami" -> bridge roll-call
+  diffs live MACs vs fleet map -> ~1 min neighbor RSSI capture -> pinned solve
+  (existing pipeline, survivors = known) -> write fixture_id/xyz/neighbor-table NVS
+  OTA. Firmware needs: unconfigured-beacon state, NVS config schema + epoch, bridge
+  assign command. Same machinery doubles as a drift watchdog (node compares live
+  neighbor RSSI vs stored expectations, self-reports if moved/fallen) (Ben/Claude).
+- [~] **Design the light placement layout** -- Nevada City production layout
+  converged 2026-08-06 (ADR 0032): 72 downlights in three rings of 24, 24 all-HEX
+  perimeter, 18 mixed chandelier, and about 16 trunk lights trending RGBW. Per
+  Elliot (2026-07-15, via Ben),
+  the build-dashboard STRUCTURAL geometry is correct (6.5 m tree, 10 m canopy,
+  24 limbs, 2.7 m waist) but its lighting sketch (~90 lights) is NOT the plan.
+  Remaining design inputs to
+  reconcile in one layout: (1) gobo non-overlap -- at 7 ft hang with the LED
+  dropped 6", ground-pattern diameter ~0.84 m, so downlight spacing >= ~0.85 m
+  (the 10 m canopy makes this feasible; the 0.3.1 CAD's inner ring at ~0.5 m
+  spacing does not); (2) inner ring moves outward anyway (bamboo criss-cross
+  above it shades the panels; better hang points at the bamboo split
+  criss-crosses, per Ben + Steve); (3) mild rotational ASYMMETRY in the perimeter
+  ring helps the auto-localization registration gauge (even spacing is the worst
+  case, see AUTOLOCATE report); (4) hang points must exist on the real limbs --
+  get the structural export/hang-point map from Elliot. Output: our own
+  fixtures.json (schema resonance.fixtures/0.x) that replaces the 0.3.1 patch as
+  ops/locate ground truth and feeds the Lighting-Controller app (Ben + Steve +
+  Claude).
+- [ ] **Plan THREE surveyed "beacon" fixtures into installation** -- record which
+  fixture slot 3 distinctive devices occupy (hand note or bridge identify-blink).
+  This pins the registration gauge; without it the rotational alignment rests on a
+  ~1-2 % cost margin, and 2 beacons cannot pin the mirror (measured + regression-
+  tested, see report) (Ben).
+- [ ] Confirm perimeter VL53L5CX **mount downtilt** with Steve: at 5 ft with ~4 m
+  range, ground zones need ~15 deg downtilt for the plane-fit height anchor the
+  study assumes (Steve).
+- [ ] **Write an ADR after Ben reviews the verdict**: fixture auto-location =
+  RSSI+ToF (+beacons) / photogrammetry / manual -- decision + consequences. (Ben).
+
 ## Field reliability concerns (surfaced 2026-06-04 -- important for the deployed lantern)
 
 - [ ] **Auto/remote reset is unreliable on the bench USB-JTAG path -- harden the FIELD reset paths so a deployed lantern NEVER needs a physical button press** (that would mean taking it down + disassembling = unacceptable). Observed: after a USB flash, the PowerFeather's "Hard reset via RTS pin" sometimes did NOT start the app (no liveness LED) until a *physical* reset or a serial-open nudge (chip verified healthy via esptool; worst on the heavily-abused board 2). Field paths: (1) **OTA `/update` software reset (`esp_restart`)** -- **VALIDATED 2026-06-08: ~17/17 battery-only OTAs recovered, no button, incl. 3/3 on LFP at the ~3.2 V buck-boost crossover; new image confirmed running, `rr=software` every time.** The JTAG-RTS flakiness is USB-flash-only, not OTA; (2) **watchdog** -- DONE + validated in `net_bench` (port to production); (3) `--autosleep` USB-supply recovery -- validated. **Remaining OTA-robustness (refinements, not blockers -- a failed OTA is safe: stays on / A-B rolls back, never bricks):** (a) OTA over a **marginal/lossy WiFi link** (field maintenance assumes a decent local AP). (b) **A/B rollback -- VALIDATED 2026-06-08:** a self-test-failing image (`extern "C" verifyOta()`->false) auto-reverts to the last-good image, no touch, battery-only. Gotcha: the hook is C-linkage (needs `extern "C"`, else it silently doesn't override and the bad image sticks). Goal met for the happy path: zero field scenarios needing the reset button (Ben).
 - [ ] **Implement the production rollback/health pattern in the real firmware**: `extern "C" bool verifyOta()` self-test (power chip + radio + fuel-gauge reachable); PLUS `verifyRollbackLater()=true` to defer the mark-valid + extended self-test + watchdog so an image that PASSES verifyOta but crashes/hangs LATER still rolls back (otherwise it's marked valid and could brick). power_bench has the gated `RES_OTA_FAIL_SELFTEST` test fixture to verify it (Ben).
-- [ ] **Derive the nightly power budget bottom-up from measured draw** -- the old ~120 mAh/night napkin floor is RETIRED (2026-07-02): it assumed ~5 mA time-avg LEDs, pre-hardware, and crisp-gobo light levels invalidate it; do not anchor on it. Real budget = brightness x LED count x duty cycle from measured HEX/RGBW draw (400-500 mA at full) + a realistic show duty cycle; then size battery (LFP capacity) + panel (W) to it. The COTS tests show PowerFeather has the headroom; this just sets the cell/panel spec (Ben).
+- [ ] **Derive the nightly power budget bottom-up from measured draw** -- the old ~120 mAh/night napkin floor is RETIRED (2026-07-02): it assumed ~5 mA time-avg LEDs, pre-hardware, and crisp-gobo light levels invalidate it; do not anchor on it. Real budget = brightness x LED count x duty cycle from measured HEX/RGBW draw (400-500 mA at full) + a realistic show duty cycle; then size battery (LFP capacity) + panel (W) to it.
+  **Runtime math notes (2026-07-22, Ben + Claude, vs the solarsim harvest numbers):**
+  measured full-RGBW draw 1.364 W battery-side (ADR 0026 INA chain); single-channel
+  warm white ~0.34 W (1/4 of full). Reference show profile: 5 h bright at 50% duty
+  (3.4 Wh) + 4 h dim single-channel at 50% (0.7 Wh) = ~4.1 Wh/night, spanning the
+  ~10 h dark window. Two opposing corrections when reading ops/solarsim figures:
+  plotted runtimes omit the ~0.85 LFP discharge round-trip (the x0.63 chain is
+  charge-side only), but the python sim runs ~0.70x of the SketchUp reference --
+  net usable ~1.21x plotted, i.e. plan against plotted Wh as usable and carry ~20%
+  implicit margin. Fleet check (hinged canopy): worst lantern 4.6 Wh plotted
+  (~5.6 usable) covers the reference show; median 9.2 Wh = ~2x headroom; the
+  one-rule uniform-30 hinge floor (3.1 Wh) does NOT cover it in the north arc --
+  the two-rule hinge is what buys the whole fleet the baseline show. Caveats:
+  0.70 is model-vs-model median (per-light scatter, rank corr 0.87) -- bank the
+  floor only after Elliot's re-raytrace or real panel telemetry. The COTS tests show PowerFeather has the headroom; this just sets the cell/panel spec (Ben).
 - [~] **Buck-boost converter efficiency varies with VBAT -- and LFP's plateau sits on the crossover (real budget + chemistry finding).** **PARTIAL ANSWER 2026-06-10** (`ops/bench/bb_efficiency.py` on the full-discharge JSONL -- no new bench time): at full-RGBW show load the LFP *terminal* voltage sags to ~2.9-3.05 V, so the converter ran in **boost the entire pre-brownout discharge -- the 3.25-3.35 V crossover band was never visited under load**. Overhead (ESP+WiFi+converter, not separable) ~0.48-0.52 W and roughly flat; P_led/P_batt lower bound 0.61-0.64. So the crossover-tax concern does NOT apply at show loads; **the residual open regime is the production light/ambient load (tens of mA), where the plateau terminal V ~3.2-3.3 V DOES sit near the crossover** -- needs a light-load fixed-brightness discharge (or rail-side metering for absolute eta). Caveats: n=1 cell/board/load; apparent fine structure vs VBAT may be time-confounded (WiFi activity). `battery_mA` != LED current (TPS631013 buck-boost sits between them); efficiency dips in the buck<->boost crossover (~VBAT 3.25-3.35 V) where it 4-switch/mode-hunts. **LFP's flat plateau (~3.2-3.3 V) parks right there for most of the discharge** = a standing efficiency tax on everything; **Li-ion lives mostly in clean buck** (better converter efficiency, the counterpoint to LFP's safety/heat/cycle wins). **Test:** hold one fixed brightness, discharge full->empty, log `ima` vs `VBAT` -> maps converter efficiency vs SOC (the real budget input) + confirms the crossover bump; run on LFP and Li-ion to quantify the chemistry tax. NOTE this **confounds the existing PAR/mA efficiency plots** (each LED run was at a different SOC/load -> different converter point), so those slopes are *system* efficiency at as-measured conditions, not a clean LED-intrinsic ranking -- re-rank at a fixed VBAT (bench supply) or correct with this curve (Ben).
 - [ ] **WS2812/SK6812 latch their last frame** -- firmware must send an explicit all-off on shutdown/sleep or the LEDs stay lit (and keep drawing) with no data; matters for low-power/shipping modes (Ben).
 
 ## Battery / solar sourcing
 
-- [ ] Compare 18650 LiFePO4 sample capacity against rated capacity (Ben).
-- [ ] Evaluate 26650 LiFePO4 only if 18650 sourcing or autonomy becomes a problem (Ben).
+- [x] Qualify a second 32700 sample before committing to the bulk buy -- **DONE
+  2026-07-06**: second fullbattery cell delivered 5,752 mAh (+0.5 % vs June's 5,726),
+  n=2, 75-unit purchase validated (100 more bought 2026-07-07 -- ADR 0025). The Amazon
+  Palowextra "7.2 Ah" alternative measured 5,643 mAh (78 % of label) with 2.3x IR and
+  was REJECTED -- see LOG 2026-07-06/07 and
+  `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html` (Ben/Claude).
+- [x] ~~Compare 18650 LiFePO4 sample capacity against rated capacity~~ -- **SUPERSEDED
+  2026-07-08**: production format is the 32700 (ADR 0025); the 18650 remains a bench
+  cell only (Ben).
+- [x] ~~Evaluate 26650 LiFePO4~~ -- **SUPERSEDED**: the open big-cell question is now
+  the 20 Ah #6832 for solar-free classes, below (Ben).
+- [x] **Bench-test the 20 Ah LFP samples -- CLOSED 2026-07-15 (option cancelled).**
+  Sample 1 verified honest 2026-07-12 (19,412 mAh, 97.1% of label; report
+  `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`), but batteryspace could
+  not supply ~40 cells in time and the Alibaba counterpart (~$4.50/cell bulk!)
+  needs ocean freight that misses 2026. The immediate replacement plan was
+  hinged-solar-wing + 6 Ah uplights, later superseded by the about-16 trunk-light
+  allocation in ADR 0032; sample-2 qualification and the end-cap fixture are moot
+  for 2026 -- the Alibaba route is the 2027 lead (Ben).
+- [ ] **Qualify the 33140 15 Ah** (new large-hat fleet standard, 130 bought 07-24,
+  QUALIFICATION PENDING): full charge->discharge capacity + IR run per the ADR
+  0023 recipe (shootout rig; n>=2), then re-derive the dim/off/sleep voltage map
+  on the new cell -- the current ADR 0023 tiers are 6 Ah-derived. Gauge:
+  DesignCap 15,000 fits under the MAX17260 16,383 cap. Also verify physical fit
+  in the large Polycase with panel + board + LED installed (Ben).
+  **2026-08-07 sample-1 run:** ET5406A+ moved to COM44 in Nevada City and the
+  1.000 A CC / 2.500 V discharge is running under the guarded JSONL logger;
+  tooling and test plan are in
+  `ops/bench/et5406_discharge.py` and
+  `docs/tests/BATTERY_33140_GOTION_ET5406_PLAN_2026-08.md`. After corrected LFP
+  charging and an overnight disconnected rest, sample 1 measured 3.362 V by DMM
+  / 3.365 V by ET at about 25.6 deg C. Live data:
+  `ops/bench/data/ca/2026-08-08-et5406-discharge-041818Z-gotion-33140-15ah-sample-1.jsonl`.
+  Finish and analyze sample 1, then repeat sample 2 and derive the threshold map.
+  (Ben/Codex)
 - [ ] Avoid multi-14430 production pack unless mechanical constraints force it (Ben + Steve).
 - [~] Record panel dimensions, weight, output, connector type, and shipping lead time (Ben).
   P105/P126 Voltaic ETFE specs captured 2026-06-15 in
-  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`; still record shipping/lead-time
-  once procurement is active.
-- [ ] Search for round/circular panels for production aesthetics, but do not block R&D on them (Ben).
-- [ ] Design hat top so R&D rectangular panels and production round panels can both be accommodated if needed (Steve).
+  `docs/tests/VOLTAIC_ETFE_PANEL_TEST_PREP_2026-06-15.md`; order/lead-time record now
+  lives in `ops/PROCUREMENT.md` (panels bought 2026-06-24).
+- [x] ~~Search for round/circular panels~~ -- **CLOSED 2026-07-08**: production panels
+  are the rectangular Voltaic ETFE (ADR 0026); round panels dropped for 2026 (Ben).
+- [ ] Design hat top so the rectangular production panels mount cleanly with backup
+  retention (round-panel accommodation no longer needed) (Steve).
 
 ## Custom hardware track
 
-- [ ] Decide whether custom board is needed after COTS tests (Ben + Steve).
-- [ ] If custom board proceeds, use PowerFeather V2 as reference architecture (Ben).
+- [x] Decide whether custom board is needed after COTS tests -- **DECIDED 2026-07-08
+  (ADR 0024): 2026 production is COTS PowerFeather V2; custom PCBA is the 2027
+  option.** Items below apply only if/when that option activates (Ben + Steve).
+- [ ] If custom board proceeds, use PowerFeather V2 as reference architecture, with a
+  dedicated power-management I2C bus (ADR 0028) and the ADR 0029 LED wiring rules (Ben).
 - [ ] Select charger/fuel-gauge/regulator architecture: BQ25628E + MAX17260 + buck-boost is current leading reference (Ben).
 - [ ] Keep LED module/daughterboard separate until optics are frozen (Ben + Steve).
 - [ ] Add keyed solar connector/pigtail plan; do not rely on direct panel wires to board pads for production (Ben + Steve).
@@ -392,8 +1270,18 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Enclosure track
 
-- [ ] Design hat v1 around COTS stack envelope as well as possible custom board envelope (Steve).
-- [ ] Add mounting/standoff options for PowerFeather, FeatherS2 Neo, Atom Matrix, DFR0559, and LED modules (Steve).
+- [ ] **Integrate the bought COTS enclosures** (strategy update 2026-07-13 --
+  hats are purchased boxes now, see `enclosure/README.md`): panel mounting,
+  bamboo clamp/attachment, internal mounting for PowerFeather + cell + both LED
+  roles, USB-C gasket cutout, ToF windows, strain relief; then thermal/RF proof
+  on the real boxes (Steve + Ben).
+- [ ] Coordinate the chandelier carpenter box: dimensions for 18 fixtures,
+  venting, service access, USB-charging reach (Ben -> Elliot/carpenter).
+- [ ] **Design the trunk-light variant** (see `enclosure/README.md`): tree
+  attachment, battery/panel arrangement, 4 W RGBW vs lensed 3 W RGB mount and
+  protection, and gasketed panel-mount USB-C charge/flash access (Steve + Ben).
+- [ ] **ToF apertures**: downward eye port beside the gobo (downlights), outward
+  window with protective cover (perimeter hats) (Steve).
 - [ ] Add strain-relief plan for panel pigtail / VDC connector (Steve + Ben).
 - [ ] Keep antenna region away from solar panel, battery, screws, and metal (Steve + Ben).
 - [ ] Decide rope attachment point with team; hybrid primary-hat + secondary-bamboo safety tie remains current recommendation (Ben + Steve).
@@ -403,9 +1291,30 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 
 ## Firmware track
 
-- [ ] Create board definitions for PowerFeather V2, FeatherS2 Neo, Atom Matrix, and custom target (Ben).
+- [ ] **A/B the ESP32-S3 alternative internal RTC sleep source:** compare the current
+  default low-frequency RC against `CONFIG_RTC_CLK_SRC_INT_8MD256` on several
+  PowerFeathers for actual deep-sleep current, 300/900 s timer error, temperature drift,
+  build-toolchain impact, and unchanged radio/power behavior. The documented +5 uA is
+  only 0.12 mAh/day, but adopt it only if the measured holdover improvement is real and
+  integration stays boring. It may improve rendezvous efficiency; never make POR
+  recovery or autonomous correctness depend on it. See the July 13 distributed
+  choreography concept note (Ben/Codex).
+- [ ] **Prototype rootless fleet phase + future event fabric in `firmware/core/`:** native
+  tests first for phase convergence, boot/session IDs, event dedupe/expiry, future
+  scheduling, raw-observation freshness, packet loss, duplicates, partitions, stale
+  state, random wake phase, and POR reacquisition; then a five-node sleep/rendezvous
+  bench. No permanent coordinator. Validate aligned wake collision behavior and measure
+  residual event skew before selecting an algorithm (Ben/Codex).
+- [ ] **Build the production behavior layer as a generic distributed choreography
+  runtime, not a CA-only engine:** exercise at least one CA, one deterministic scheduled
+  timeline, one spatial solenoid/light ripple, and one distributed presence-triggered
+  easter egg through the same program/event interface. Bridge control is an expiring
+  overlay for DJ shows/diagnostics/registration; bridge loss returns to autonomous
+  operation; local power policy always wins. Design space and phased validation:
+  `docs/research/AUTONOMOUS_DISTRIBUTED_CHOREOGRAPHY_CONCEPT_2026-07-13.md` (Ben/Codex).
+- [ ] Create board definitions for `powerfeather_v2` and the possible `resonance_custom` target (bake-off boards retired -- ADR 0016 annotation) (Ben).
 - [ ] Implement telemetry abstraction for charger/fuel gauge / battery monitor (Ben).
-- [ ] Implement LED driver abstraction: IS31FL3741 I2C matrix, WS2812/NeoPixelBus, integrated board LEDs (Ben).
+- [ ] Implement LED driver abstraction per ADR 0029 roles: SK6812/WS2812 via NeoPixelBus (3V3 rail) + 4 W RGBW point source (VBAT-direct); no I2C LED controllers (Ben).
 - [ ] Implement LED rail power abstraction (`VSQT`, onboard LED LDO, external rail enable) (Ben).
 - [ ] Implement standard OTA maintenance mode; no ESP-NOW firmware chunks (Ben).
 - [~] Add an autonomous low-VBAT park/cutoff policy for ordinary net_bench/production
@@ -415,7 +1324,64 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   timer-sleep at the LFP floor. Deployed to `9E5AB8` and logging to
   `ops/bench/data/ca/2026-06-30-ca-field-cycle-9E5AB8.jsonl`. Remaining: analyze the
   first full cycle, tune full/taper and cutoff thresholds, then port the proven policy
-  into production firmware (Ben/Codex).
+  into production firmware (Ben/Codex). **THRESHOLDS NOW MEASURED (2026-07-07): use
+  ADR 0023's tiers (standard: dim 3.00 / off 2.95 / sleep 2.90 under full load) -- the
+  current field-cycle floors (3.10/3.00) strand capacity; hysteresis + coulomb-primary
+  hybrid requirements are in the ADR.**
+- [ ] Implement the ADR 0023 low-battery state machine in field-cycle/production
+  firmware: latched dim/off/sleep transitions with 60 s confirm + >=150 mV re-entry
+  hysteresis, load-compensated voltage (`bv + 0.15 x I_A`), coulomb-remaining primary
+  (DesignCap ~5750, gauge current /1.08), voltage tiers as backstop, watchdogged
+  sleep (Ben/Claude).
+  - [ ] Add the missing LED-off state. Current field-cycle treats confirmed 2.95 V as
+    `FC_PROTECT` and immediately timer-sleeps; ADR 0023 calls for LEDs off with
+    duty-cycled OTA reachability until the separate 2.90 V sparse-sleep threshold.
+    This did not cause P105's July 11 early POR failure at about 3.04 V, but it leaves
+    the 2.95-to-2.90 V reserve unused in a clean run. (Codex)
+  - [~] Make low-VBAT protection survive rail-collapse/POR loops. P105 `9F26F8`
+    produced 31 `poweron` resets in about 19 minutes on 2026-07-11 while the HEX load
+    held VBAT near 3.0 V; every hard reset erased the RTC cycle state and in-RAM 60 s
+    debounce, then boot re-enabled the load. **P105 FIX DEPLOYED 2026-07-12:**
+    `net-bench-2026-07-12.1` persists idle/full/dim/protect session stages before
+    rail-on. A POR from full consumes one staged retry at dim brightness; a POR from
+    dim or protect hard-parks until verified charge. The exact P105 artifact is
+    `build/field-cycle-peer-20260712-p105-dusk-dim-retry-r3/net_bench.ino.bin` with
+    dim 3.10 V / 10 s, low 2.95 V / 60 s, and critical 2.90 V immediate. OTA ack,
+    explicit `/resume`, ESP-NOW rejoin, and one natural five-minute charge-sleep wake
+    are verified. Remaining: validate tonight's real dim/POR behavior; optionally
+    induce one full-stage reset and a second dim-stage reset under supervision. The
+    The original P126 peer remained on `.1`; replacement `9F2690` received `.3` by USB
+    on July 13 and now carries the same durable reset/protect logic. Hardware fault
+    injection during its lighter three-pixel load remains unvalidated. (Ben/Codex)
+  - [x] **Keep externally powered, battery-absent fixtures serviceable even when
+    PROTECT was persisted -- DONE 2026-08-08:** a persisted PROTECT stage now keeps
+    rails parked but does not timer-sleep while a good external supply is present
+    and no plausible battery voltage exists. A guarded serial `X` clear additionally
+    requires PowerFeather readiness, charging off, >=4.5 V good supply, no BQ fault,
+    and no plausible attached battery. Removing external power restores the normal
+    sleep decision. Native regression coverage and production-board `9E5A94` both
+    pass; the latter recovered over USB with its BAT and VDC ports empty (Ben/Codex).
+- [~] Replace the field-cycle dusk/dawn shortcut with the ADR 0031 scheduled production
+  gate. Current net_bench enters draw from local panel/lux classification:
+  `fieldCycleSupplyPresent()` requires `csV >= 4.0 V` plus useful input/charge current
+  >=20 mA; TSL2591 peers use five minutes at <=200 lux and >=500 lux for dawn; bare
+  peers use 30 minutes without useful input. These remain useful bench classifiers, but
+  clouds, shade, panel angle, charge taper, or moving a fixture can still start early,
+  and bare peers have produced 13-15 h shows. Production should wake before a versioned
+  UTC transition, reacquire time from sparse GPS/RTC anchors, start/stop on schedule,
+  and expose source/age/uncertainty. Panel/lux telemetry becomes a sanity check and
+  optional explicitly bounded degraded-mode input. Exact invalid-time fallback remains
+  open; it must not silently recreate the artificial long show. (Ben/Codex).
+  - [x] **Confirmed failure mode 2026-07-11/12:** charge termination drives both
+    `supply_ma` and `battery_ma` below 20 mA while panel voltage remains high, so the
+    peer declares false dark, pulses the LED load, then declares sunrise when current
+    returns. This produced dozens of false P105 cycles and repeatedly reset coulomb
+    counters. Addressed for P105 by the qualified 200/500 lux gate above; the bare-peer
+    fallback uses a 30-minute confirm rather than panel voltage, which remains high at
+    zero current. (Codex)
+- [ ] Optional backlog: one cold-night discharge at a representative dim load to
+  sharpen ADR 0023's tiers for winter (they're currently 79.9 deg F, n=2 data;
+  conservative tier is the hedge until then) (Ben).
 - [ ] Analyze first `--field-cycle` run for `9E5AB8`: confirm 5-minute charge wakes,
   charge recovery from ~2.67 V on USB/solar, full-ish detection, transition to dark
   drawdown, protect cutoff reason/voltage, and mAh/Wh accounting quality. Data:
@@ -442,10 +1408,36 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [x] Implement watchdog/reset-reason/brownout logging -- DONE in `firmware/net_bench/` (esp_task_wdt + `--wdt-hangtest`); **validated 2026-06-07**: induced hang -> auto-reset -> `reset_reason=task_watchdog`, no human. Port to production firmware (Ben).
 - [ ] Implement field telemetry logging schema for BM 2026 -> 2027 design data (Ben).
 - [ ] Port `TalismanPatterns.cpp` into `firmware/core/pattern/` (Ben).
-- [ ] Implement minimum-viable CA tick + render loop on bench (Ben).
+- [ ] Implement minimum-viable CA tick + render loop on bench as the first program
+  family within the generic choreography runtime; compare generation-based and
+  intentionally asynchronous updates rather than assuming one model (Ben).
 
 ## Production test / flashing
 
+- [x] NC 4th PowerFeather enumeration -- RESOLVED 2026-08-06: it is now present
+  as COM25 / `68:EE:8F:F4:02:F4`. It was not reflashed; the dedicated CoreS3
+  `E39F1C` on COM40 now owns the desk-bridge role. (Ben/Codex)
+- [x] CoreS3 standalone power check -- RESOLVED 2026-08-06: Ben removed the
+  ESP32-H2 Gateway module and DIN base, and the dedicated CoreS3 bridge booted
+  normally from its own USB-C connection. The earlier no-boot symptom is not
+  reproducible after the bridge flash. (Ben/Codex)
+- [ ] CoreS3 bridge receive/control proof: return one PowerFeather to channel-11
+  `fixture` or `net_bench` peer firmware, confirm its heartbeat appears on the
+  CoreS3 screen/dashboard, then run one harmless targeted identify or maintenance
+  command and verify receipt. TX-only and dashboard parsing passed 2026-08-06;
+  the connected perimeter trio currently runs WiFi-only LED Studio. (Ben/Codex)
+- [ ] Trio OTA: endpoint GET verified on all 3 NC perimeter lights
+  (led-studio-2026-08-01.3); run one full artifact POST /update cycle to
+  exercise the real path before the boards go battery-only (Ben).
+- [~] Fleet-wide: retire WonkyHouse and BubbyNet from production images and use
+  the exact case-sensitive `Party In The Woods` SSID. Port the dual-SSID pattern
+  from led_studio only if it remains useful; neither legacy bench SSID belongs on
+  a production peer. `net_bench/build.sh` already rejects WonkyHouse unless Dad's
+  legacy personal bench explicitly opts in, but `fixture` inherited stale local
+  credentials into the Aug-8 artifact and the 24-unit correction is now P0 above.
+  Still open: validate the planned virtual `Party In The Woods` SSID across both
+  camp and art-site Starlinks, including channel behavior, before field reliance
+  (Ben + Codex).
 - [ ] Keep USB/pogo flashing as mandatory recovery path even if COTS boards support USB-C (Ben).
 - [ ] Investigate JLCPCB / PCBWay firmware pre-flash only for custom-PCBA path (Ben).
 - [ ] Write smoke-test host script: node ID, firmware version, battery, charge/fault, reset reason, peer count (Ben).
@@ -456,16 +1448,67 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 - [ ] Confirm timing for Bamboo Pure air-ship of prototype lanterns to Steve in TN (Ben -> Elliot / Dipta).
 - [ ] Align with Elliot on rope-attachment decision (Ben).
 - [ ] Confirm hat OD / height / bamboo-overlap to Vishnu so he can finalize renders (Ben).
-- [ ] Pull `INV_2026_00401`, decompose cost, compare to COTS/custom BOMs (Ben).
+- [x] ~~Pull `INV_2026_00401`, decompose cost, compare to COTS/custom BOMs~~ --
+  **RETIRED 2026-07-08**: the invoice's identity is unclear (probably the Bamboo
+  Pure lantern invoice, possibly the early custom-PCBA quote), and with real COTS
+  procurement recorded in `ops/PROCUREMENT.md` the comparison baseline is no longer
+  useful (Ben).
+- [ ] Clarify chandelier-light scope/ownership with Elliot + Vishnu (18 lights,
+  internals fungible with the fleet -- ADR 0032) and decide the exact HEX/RGBW mix
+  (Ben).
+- [ ] Decide the TENTATIVE TN trip (~3rd-4th week of July): fleet-scale test of the
+  ~70 boards at Steve's -- production-firmware mesh lighting effects + presence
+  detection, indoors if enclosures aren't ready; back for the Aug 1-2 container
+  unload (Ben + Steve).
 - [ ] Get Steve on project's official core build team wiki (Ben -> Elliot).
 - [ ] Get shared access to Co-Work's wiki folder once cloud-hosted (Ben -> Elliot).
-- [ ] Drop lighting workstream digest into WhatsApp after COTS bench results (Ben).
+- [ ] Drop lighting workstream digest into WhatsApp -- the 2026-07-08 team write-up
+  (`docs/`) is the candidate artifact (Ben).
 
-## Community Mandala Program (parked until Elliot signs off)
+## Gobo pattern program (community submissions PULLED 2026-07-08)
 
-- [ ] Validate concept with Elliot + Vishnu (Ben).
-- [ ] Pipeline: photo -> vectorize -> constraint check -> cone projection -> STL.
+The community Mandala submission program was pulled for time. Current plan: in-house
+designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the tree
+(BACKGROUND.md has the full record). Surviving work items:
+
+- [ ] Generate/curate the in-house + bamboo-leaf pattern set (Ben + Steve + Vishnu).
+- [ ] When Steve's printable "Resonance Tree" gobo source lands, measure the
+  thinnest connected solid web and the smallest surviving aperture from its native
+  geometry; record the nozzle, material, slicer profile, and print orientation; then
+  use those proven dimensions as the generative validator baseline (Ben + Steve +
+  Codex).
+- [ ] Pipeline: pattern -> vectorize -> constraint check -> cone projection -> STL
+  (unchanged from the original program design).
 - [ ] Brightness normalization in firmware or per-filter metadata.
-- [ ] Cataloging schema.
-- [ ] Contributor brief / submission form.
-- [ ] Submission window opens/closes early enough for printing and reprints.
+- [ ] Cataloging schema (per-fixture pattern identity -- useful regardless of source).
+- [ ] Print schedule backward from ~Aug 10 filters-in-hand (Steve's Bambu + possible
+  batch service).
+
+## Solar layout levers (solarsim studies, 2026-07-20/21)
+
+- [~] **Hinged downlight panels -- NOT ADOPTED for the 72 large enclosures**
+  (Ben + Steve, 2026-07-24); the trunk lights DO get a hinged "wing" (per-light
+  optimal angles in the rotation-sweep data). Downlight harvest reverts to the
+  FLAT baseline (550 Wh fleet, worst ~3.4 Wh, 6 lights under 3 h full runtime) --
+  re-check the power-budget note's show floor against flat numbers. Study kept
+  for the record: tangential bracket+hinge (pitch-only) measured
+  +15.7% fleet solar (free-azimuth ideal +25.3%); two-family install rule (pitch
+  outward ~40 deg, northern arc inward ~30) needs no per-unit config; a ONE-rule
+  aesthetic variant (uniform outward 30 deg) measured +10.7% (-4.4% vs optimal,
+  cost concentrated in the north arc: -27%, 5 lights back under 3 h). Blockers to
+  resolve: whole-lantern tilt would wreck the gobo projection (wants a panel-only
+  flap -- Steve); no-spin harness freezes RF panel azimuths at KNOWN radial angles
+  -- run the frozen-radial arm in ops/locate before committing (data + figures in
+  ops/solarsim/data). HARNESS CANDIDATE (Ben + Steve, 2026-07-22): V-hang between
+  adjacent attach points, two ropes to the polycase short-edge lips (3 holes each,
+  already there) -- solves anti-spin + keeps rope shade off the panel (the lit^2 x
+  0.75 mismatch penalty makes even a thin center-rope shadow expensive; unmodeled
+  in the sim). Simulated between-limbs positions: solar-NEUTRAL (+0.8% hinged,
+  -1.0% flat; middle ring +7%, inner -3%) -- the roof weave dominates occlusion,
+  not the limbs, so the V-hang is justified mechanically, not by harvest
+  (Ben + Steve).
+- [ ] **Inner ring at 3.26 m** (middle equidistant): +28% inner-ring solar, fixes
+  gobo spacing; door-axis finding: treev4 tunnels sit at az 75.4/255.4 (rotated
+  14.6 deg CCW, near-sunrise-aligned) -- reconcile orientation + door lights with
+  Elliot; rise/set chord can NEVER hit both doors (non-antipodal), belly crossings
+  at ~07:25/~18:25 are the symmetric photo-op (Ben -> Elliot).

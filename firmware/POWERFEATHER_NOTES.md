@@ -24,7 +24,29 @@ Two ways to enable it:
   ```
 
 GPIO4 is an RTC GPIO, so the SDK toggles it through the RTC domain (state can
-survive deep sleep). For a simple active-mode app a plain `digitalWrite` is fine.
+survive deep sleep). For a simple active-mode app a plain `digitalWrite` is fine
+-- but ONLY if the SDK is not running; see the next section.
+
+## With the SDK up, EN_3V3/VSQT are RTC-HELD pads -- raw digitalWrite is IGNORED
+
+Verified in SDK 2.1.0 source (speaker_demo bring-up, 2026-07-07): `Board.init()`
+configures EN_3V3 (GPIO4) as an RTC pin and every write goes through
+`Mainboard::_setRTCPin` = `rtc_gpio_hold_dis` -> set level -> `rtc_gpio_hold_en`
+(Mainboard.cpp ~737). The pad is left HELD, so:
+
+- After a successful `Board.init()`, `pinMode(4, OUTPUT)` + `digitalWrite(4, ...)`
+  do NOTHING (the hold freezes the pad, and pinMode remuxes the pad away from the
+  SDK's RTC config besides). Use `Board.enable3V3()` / `Board.enableVSQT()` only.
+  Raw GPIO4 writes are correct ONLY in the no-SDK / init-failed fallback path.
+- `Board.enable3V3()` TRY-LOCKS the SDK mutex and can return non-Ok without doing
+  anything. Check the `Result` and retry; don't fire-and-forget.
+- To read the actual pad state for diagnostics: `rtc_gpio_get_level(GPIO_NUM_4)`
+  (`driver/rtc_io.h`) -- the SDK inits the pad INPUT_OUTPUT so it reads back.
+  speaker_demo exposes this as `en3v3` in `/state`, which is how a
+  software-vs-electrical rail fault gets split remotely.
+- Also on init: the SDK PRESERVES the pre-existing pad level on a warm boot
+  (`_isFirst() ? true : rtc_gpio_get_level(...)`) -- a rail state left by a prior
+  image can carry over; set it explicitly if you care.
 
 **Bonus:** because the LEDs sit on this *switchable* rail, `digitalWrite(4, LOW)` is
 a **free, zero-extra-parts LED kill-switch** -- exactly the "software-cuttable 3V3"
@@ -33,6 +55,39 @@ pixel-power option in TODO. Can't accidentally drain the pack with LEDs.
 > Note: **VSQT** (the STEMMA-QT connector's 3V3) is a *separate* switch
 > (`Board.enableVSQT()` in the SDK). Enabling the 3V3 header (GPIO4) is not the same
 > as enabling VSQT. Know which rail your device is actually on.
+
+## A POR can erase low-voltage protection and recreate its own boot loop
+
+The July 2026 P105 field cycle exposed a general failure pattern. A heavy LED load
+pulled loaded VBAT into a marginal region before the dim/off debounce completed. The
+board took a true `poweron` reset; load release raised VBAT; RTC phase, latches, and
+confirmation timers were gone; boot interpreted the rebound as healthy and reapplied
+the full load. Resets happened faster than the protection timeout, so the safety logic
+could be defeated forever.
+
+This applies to any cause that removes VSYS, not only ordinary cell sag. A high-ohm
+power path can move the loaded knee upward, and an I2C upset that opens the BQ25628E
+battery switch produces the same `poweron` signature at healthy voltage. The boot-loop
+guard must therefore be cause-independent:
+
+- Keep pixel data and every switchable load-enable **off from the first boot
+  instructions**, before `Board.init()`. Cold SDK init enables 3V3, so park it again
+  immediately afterward.
+- Persist the intended load tier in NVS **before** rail-on. RAM and RTC slow memory do
+  not survive POR.
+- Treat resting/rebound voltage as insufficient recovery evidence. Require verified
+  positive charge or a persisted, strictly bounded retry budget.
+- If one recovery attempt is allowed, atomically consume it before energizing the rail.
+  The P105 policy retries `full` exactly once at `dim`; a reset from `dim` or `protect`
+  parks with LEDs off until verified charge.
+- Clear stale pixel state and ramp the load while sampling VBAT. Do not stack rail-on,
+  old LED data, and WiFi startup into one uncontrolled transient.
+- Put an immediate critical check below the debounced thresholds. A reset can erase a
+  confirmation timer; it cannot erase the current sample.
+
+`net-bench-2026-07-12.1` implements this pattern with NVS stages `idle`, `full`, `dim`,
+and `protect`. Full reconstruction and telemetry signatures are in
+`docs/tests/SOLAR_FIELD_CYCLE_P105_P126_2026-07.md`.
 
 ## Those two 3V3 rails dominate deep-sleep current -- cut BOTH before sleeping
 
@@ -77,6 +132,35 @@ has the **MAX17260**) you'll get `InvalidState` for SOC/health/cycles. `power_be
 has an `#error` guard + sets this in its `build.sh`. The V2 charger/gauge/STEMMA live
 on **Wire1 (GPIO47/48)** at 100 kHz -- keep the SDK's bus speed.
 
+## Wire1 at >100 kHz can OPEN YOUR BATTERY SWITCH (2026-07-02/03, hard-won)
+
+The line above ("keep the SDK's bus speed") is not a style preference -- it is
+**load-bearing**. Raising Wire1 to 400 kHz (a "measured exception" for sensor
+throughput on the presence bench) caused an epidemic of instantaneous
+`reset_reason=poweron` collapses on battery: ~60+ across TWO boards and TWO cells,
+radio-correlated, USB-immune. Root-caused by controlled A/B (identical firmware,
+only the clock changed): 400 kHz died in seconds-to-minutes, 100 kHz ran
+indefinitely under a heavier bus load. Best-supported mechanism: Wire1 also
+carries the **BQ25628E -- the chip the battery current flows THROUGH** -- and
+corrupted transactions under WiFi TX noise can flip power-path register bits
+(BATFET / ship / EN_HIZ class), opening the battery path outright. No sag, no
+brownout detector, straight to poweron; USB survives because VBUS bypasses the
+BATFET. A stray EN_HIZ corruption (board discharging at -290 mA WITH USB
+attached) was observed in the same sessions. Full story: LOG 2026-07-02 cont.
+5-10, 2026-07-03 cont. 11.
+
+Rules:
+- **Never raise the clock on any bus shared with the charger/gauge.** If sensors
+  need fast I2C, give them a separate controller on free GPIOs.
+- Treat unexplained `poweron` resets on battery (but not USB) as possible
+  power-path register upsets, not just "brownout" -- check what shares the bus
+  and what clocks it runs at, before probing connectors and cells (we executed
+  five hardware suspects first; the bus clock was the killer).
+- Related history: the June IS31 brownout was also a shared-power-bus disturbance
+  (ADR 0018). The pattern is general: anything that degrades signal integrity on
+  the power-management bus can kill VSYS. The custom-PCBA track should give the
+  charger/gauge a DEDICATED bus.
+
 ## Native USB-CDC: the boot banner (and WiFi IP) only prints on reset
 
 The S3 uses its **built-in USB** as the serial port. Consequences:
@@ -116,6 +200,28 @@ where the IS31 wasn't, but direct-GPIO is the preferred path.
 - **GPIO46** -- onboard user LED.
 - **GPIO47 / GPIO48** -- Wire1 (charger / gauge / STEMMA-QT), SDK-owned.
 - **GPIO10 / A0** -- free IO; used as direct-GPIO LED data in the studios.
+- **The D13 header position is GPIO11, NOT GPIO13** (variant pins_arduino.h and
+  SDK `Mainboard.h:97` agree; same trap for D5..D11 = 15/16/37/6/17/18/45; only
+  D12 = GPIO12 coincides). Cost a debug hour on 2026-07-11.
+- **GPIO13 is EN0** -- the FeatherWings enable/disable line, SDK-owned and driven
+  HIGH (`Mainboard.h:123`). Never wire user signals to it. It also reads solid
+  HIGH on an input-pulldown probe, which mimics a fault signature.
+
+## Firmware-only ground-fault probe for VBAT-fed NeoPixels (2026-07-11)
+
+Symptom: ghost/wrong colors (some dies bright, some missing) at near-zero
+measured supply draw. Cause: open/floating module GND -- the pixel's return
+current can only exit via the DATA line into the GPIO. Confirm without touching
+hardware: tri-state the data pin as `INPUT_PULLDOWN` and sample. Healthy module
+DIN is high-Z -> reads ~0 % high; ground-faulted module holds it near 100 %
+high. Validate the method against a known-empty pin (should read 0 %). A solid
+0 % does NOT exonerate the harness -- an open V+ also reads 0 % (module fully
+dead). Implemented as `/gndprobe` in `firmware/led_sol_bench/`. Root cause that
+day: fine-strand silicone wire not seated under a WAGO 221 lever; ferrules are
+the fleet-scale fix. Park the data pin OUTPUT-LOW afterward -- it sinks the
+stray return current at 0 V. Related: the VBAT header tap is upstream of the
+gauge shunt, so gauge current/SOC are blind to VBAT-fed loads; with USB
+attached, supply current is the working ammeter.
 
 ## 8-bit LED dimming + gamma: the low-end dead-zone
 
@@ -150,6 +256,17 @@ Also: changing battery **chemistry** (Li-ion <-> LFP) means flashing the matchin
 sets the charger termination voltage (LFP ~3.6 V vs Li-ion 4.2 V); charging an LFP under a
 Li-ion profile overcharges it.
 
+## MAX17260 won't cold-POR from a deeply discharged cell — it self-recovers on charge
+
+Observed 2026-07-06 (32700 shootout): after a deep discharge to ~2.45 V and an OTA
+reboot with the cell at ~2.78 V, the gauge went mute — battery_ma/soc/health/cycles all
+error (the same signature as no-cell-attached), while battery_v (charger-side) still
+read. The gauge had operated fine down to 2.49 V when *continuously powered*; a cold
+boot at ~2.8 V is below its wake threshold. No intervention needed: once the charger's
+precharge lifted the cell to ~2.81 V the gauge came back on its own (sibling board woke
+at ~2.93 V). If one stays mute after the cell is charged, a 10 s cell re-seat hard-PORs
+it. Don't debug "broken gauge telemetry" on a board that just came off a deep drawdown.
+
 ## Treat LFP SOC as advisory, not control truth
 
 The MAX17260 current telemetry is useful after calibration, but its percentage SOC is not a
@@ -167,6 +284,18 @@ and production power logic:
 - Use panel-side INA only as a bench/sentinel truth source for panel capability and faults.
 - Avoid SOC-only decisions; require voltage/current cross-checks for low-battery and
   "hungry enough for MPP test" decisions.
+
+Quantified on the production 6 Ah 32700s (cycle 0, shootout data
+`ops/bench/data/ca/2026-07-06-discharge-{F,P}-cycle1.jsonl`, re-read 2026-07-11):
+RepSOC is ~2x pessimistic through the whole midrange (reads 34-37 % with ~74 %
+really left) and **parks at 1 % from ~59-61 % delivered onward** -- i.e. it reads
+"empty" with ~40 % of the cell still in the tank. The exception is the 1 % -> 0 %
+step, which lands at 98-99 % delivered (bv 2.5-2.8 V): a genuine "dying now" edge
+signal. Fleet-ops corollary: a fixture reporting 1 % SOC all night is normal, not
+an emergency. Whether learn cycles improve RepSOC is unanswered (candidate
+dataset: the long-running outdoor solar-cycle log). The smaller 2 Ah bench cell
+behaved far better at the tail (0 % at ~95 % delivered, LOG 2026-06-10) -- cell
+size/load ratio matters; don't generalize from the bench cell.
 
 ## Panel-specific MPP and battery-acceptance artifacts
 
@@ -206,6 +335,15 @@ hook the core calls in `initArduino()` **before `setup()`**: if the freshly-OTA'
 why ordinary OTAs stick. **Validated 2026-06-08:** a `verifyOta()->false` image auto-reverts,
 battery-only, no touch.
 
+**Bench power rule (2026-08-10): an OTA/rollback test needs the fixture battery
+or another proven ride-through supply.** Four downlights accepted the same
+1.17 MB OTA image over shared WiFi, but the bare-USB units recorded brownout or
+power-on resets; one repeatedly lost power inside the 20-second deferred verify
+window and correctly rolled back. Installing its LFP made the next exact-image
+OTA pass immediately with reset reason software and rollback cancelled. USB can
+remain attached for rescue/data, but do not interpret a bare-USB pending-verify
+reset as an image failure. The production field condition includes its LFP.
+
 - **Gotcha:** the hook is **C-linkage** (defined in a `.c` core file). A plain C++
   `bool verifyOta(){...}` is name-mangled, silently does NOT override, and the bad image
   **sticks** (no rollback). Use **`extern "C" bool verifyOta()`**.
@@ -233,6 +371,22 @@ available). 5/6 GHz client devices roamed fine; the S3 (2.4 GHz only) did not.
   they won't walk away from the AP they associated to -- low field risk, but the
   maintenance AP should still be the **strongest** thing near the tree during an OTA window.
 
+## Charge-current policy: 2 A is a ceiling, not a promise
+
+ADR 0033 sets 2,000 mA as the default battery-side charge-current ceiling in
+active firmware for the known 6 Ah and 15 Ah production LFP cells. The BQ25628E
+still reduces actual battery current for VINDPM/IINDPM, source capability, live
+system load, CV taper, and charger-die thermal regulation. USB input current is a
+separate limit at a different voltage: never override source detection/IINDPM
+beyond the source's advertised capability or the PowerFeather input/connector
+2 A rating. Use an explicit lower firmware override for a smaller or otherwise
+limited cell.
+
+Application reflashing does not erase Preferences/NVS. Charge-policy v1 in both
+`fixture` and `net_bench` therefore replaces a legacy 500/1,000/1,500 mA
+`chg_ma` default once. It preserves a nonstandard pre-existing value as a
+possible explicit cell limit, then preserves later deliberate `G<ma>` overrides.
+
 ## Don't enable the charger's battery temp-sense without a thermistor attached
 
 `Board.enableBatteryTempSense(true)` flips the BQ25628E's **TS input on** -- the charger
@@ -258,7 +412,7 @@ re-ran input qualification; the charger then engaged and pulled the panel down t
 VINDPM, where Voc is never seen again. A connect-order/weather-dependent deadlock:
 06-08's weak-light bring-up never hit it.
 
-- **Field implication (100 fixtures, playa):** connecting or resetting a fixture in
+- **Field implication (fleet scale, nominally 130 fixtures on playa):** connecting or resetting a fixture in
   full sun can leave it silently not charging. Mitigations: connect panels shaded /
   face-down; spec the production panel so its COLD-morning Voc clears the charger's
   input window; and keep the firmware guard enabled in every solar/charging image.

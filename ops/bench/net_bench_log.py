@@ -14,17 +14,68 @@ types every ~1 s, bridging the fully-wireless ESP-NOW peer fleet to one tether:
 
 Writes site-partitioned JSONL to ops/bench/data/<site>/<run-id>.jsonl, schema-
 compatible with the rest of the bench. Reboots flagged inline (uptime drop).
-Stdlib only.
+New outputs are exclusive-create by default: an existing trace is never truncated
+unless --overwrite is explicit. Use --append to continue an existing run with a
+machine-readable segment boundary after a host/logger outage. Stdlib only.
 
 Examples:
   ./net_bench_log.py --site ca --operator ben --battery liion-4400 \\
       --topology master-multicast --tx-rate 10 --notes "tree-scale 1-6m" --duration 7200
   ./net_bench_log.py --site ca --master-ip 192.168.4.50   # filter one master
 """
-import argparse, json, os, re, socket, time
+import argparse, json, os, re, socket, sys, time
 from datetime import datetime, timezone
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+UDP_RECV_BYTES = 65535
+RUN_IDENTITY_FIELDS = (
+    "run_id", "site", "operator", "battery", "topology", "tx_rate_hz", "notes"
+)
+
+
+def first_jsonl_row(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        for line_number, line in enumerate(fh, 1):
+            if not line.strip():
+                continue
+            try:
+                return json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"first non-empty line {line_number} is not valid JSON: {exc}"
+                ) from exc
+    raise ValueError("file is empty")
+
+
+def last_jsonl_row(path):
+    """Read the last non-empty JSONL row without scanning a potentially huge trace."""
+    with open(path, "rb") as fh:
+        end = fh.seek(0, os.SEEK_END)
+        pos = end
+        partial = b""
+        while pos:
+            size = min(8192, pos)
+            pos -= size
+            fh.seek(pos)
+            block = fh.read(size) + partial
+            lines = block.splitlines()
+            if pos and lines:
+                partial = lines.pop(0)
+            else:
+                partial = b""
+            for raw in reversed(lines):
+                if not raw.strip():
+                    continue
+                try:
+                    return json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise ValueError(f"last non-empty line is not valid JSON: {exc}") from exc
+        if partial.strip():
+            try:
+                return json.loads(partial.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError(f"last non-empty line is not valid JSON: {exc}") from exc
+    raise ValueError("file is empty")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--site", default="ca")
@@ -38,6 +89,16 @@ ap.add_argument("--master-ip", default=None, help="only log packets from this ma
 ap.add_argument("--port", type=int, default=54321)
 ap.add_argument("--duration", type=float, default=3600)
 ap.add_argument("--out", default=None, help="explicit output path (overrides site/run-id)")
+output_mode = ap.add_mutually_exclusive_group()
+output_mode.add_argument(
+    "--append", action="store_true",
+    help="continue an existing non-empty JSONL run; preserve its identity and add a segment boundary")
+output_mode.add_argument(
+    "--overwrite", action="store_true",
+    help="deliberately replace an existing output (destructive)")
+ap.add_argument(
+    "--segment-notes", default="",
+    help="outage/restart context recorded on the start/resume segment boundary")
 a = ap.parse_args()
 
 now0 = datetime.now(timezone.utc)
@@ -45,7 +106,53 @@ run_id = a.run_id or "-".join(
     [now0.strftime("%Y-%m-%d"), a.site, a.battery, "net", a.topology,
      (f"{a.tx_rate}hz" if a.tx_rate else "rNA"), now0.strftime("%H%M")])
 out = a.out or os.path.join(DATA_DIR, a.site, run_id + ".jsonl")
+out = os.path.abspath(out)
 os.makedirs(os.path.dirname(out), exist_ok=True)
+
+requested_meta = dict(run_id=run_id, site=a.site, operator=a.operator,
+                      battery=a.battery, topology=a.topology,
+                      tx_rate_hz=a.tx_rate, notes=a.notes)
+segment_started_utc = datetime.now(timezone.utc).isoformat()
+previous_ts_utc = None
+needs_leading_newline = False
+
+if a.append:
+    identity_args = ("--site", "--operator", "--battery", "--topology", "--tx-rate",
+                     "--notes", "--run-id")
+    used_identity_args = [flag for flag in identity_args if flag in sys.argv[1:]]
+    if used_identity_args:
+        ap.error("--append preserves metadata from the existing run; omit " +
+                 ", ".join(used_identity_args))
+    if not os.path.isfile(out):
+        ap.error(f"--append requires an existing regular file: {out}")
+    try:
+        first_row = first_jsonl_row(out)
+        last_row = last_jsonl_row(out)
+    except ValueError as exc:
+        ap.error(f"cannot append safely to {out}: {exc}")
+    missing = [field for field in RUN_IDENTITY_FIELDS if field not in first_row]
+    if missing:
+        ap.error(f"cannot append safely to {out}: first row lacks run identity fields " +
+                 ", ".join(missing))
+    meta = {field: first_row[field] for field in RUN_IDENTITY_FIELDS}
+    segment_index = int(last_row.get("segment_index", 1)) + 1
+    previous_ts_utc = last_row.get("ts_utc")
+    file_mode = "a"
+    segment_event = "resume"
+    with open(out, "rb") as existing:
+        existing.seek(-1, os.SEEK_END)
+        needs_leading_newline = existing.read(1) not in (b"\n", b"\r")
+else:
+    if os.path.exists(out) and not a.overwrite:
+        ap.error(f"output already exists: {out}; use --append to resume it, choose a new "
+                 "--out/--run-id, or use destructive --overwrite")
+    meta = requested_meta
+    segment_index = 1
+    file_mode = "w" if a.overwrite else "x"
+    segment_event = "overwrite" if a.overwrite and os.path.exists(out) else "start"
+
+meta = dict(meta, segment_index=segment_index,
+            segment_started_utc=segment_started_utc)
 
 rx_master = re.compile(
     r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)")
@@ -62,7 +169,12 @@ rx_peer = re.compile(
     r"(?: fc=(\d+) fcr=(\d+) fcc=(\d+) fce=(\d+) fcchg=(\d+) fcdis=(\d+) fcmin=(\d+) fcmax=(\d+))?"
     r"(?: bqv=(\d+) bqichg=(\d+) bqvreg=(\d+) bq16=([0-9A-Fa-f]{2}) bq18=([0-9A-Fa-f]{2})"
     r" bq1d=([0-9A-Fa-f]{2}) bq1e=([0-9A-Fa-f]{2}) bq1f=([0-9A-Fa-f]{2})"
-    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?")
+    r" bq20=([0-9A-Fa-f]{2}) bq21=([0-9A-Fa-f]{2}) bq22=([0-9A-Fa-f]{2}) bq38=([0-9A-Fa-f]{2}))?"
+    r"(?: fcwhc=(\d+) fcwhd=(\d+) fcpw=(\d+) fcbw=(\d+) fcdw=(\d+) fclow=(\d+)"
+    r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
+    r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
+    r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?"
+    r"(?: fcdim=(\d+) fclat=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -75,13 +187,21 @@ s.bind(("", a.port)); s.settimeout(1.0)
 
 t0 = time.time(); n = 0; reb = 0
 last_up = {}  # peer id -> last uptime, for reboot detection
-meta = dict(run_id=run_id, site=a.site, operator=a.operator, battery=a.battery,
-            topology=a.topology, tx_rate_hz=a.tx_rate, notes=a.notes)
-print(f"net_bench_log -> {out}  ({a.topology}, {a.duration:.0f}s). reboots flagged inline.", flush=True)
-with open(out, "w") as fh:
+print(f"net_bench_log -> {out}  ({meta['topology']}, {a.duration:.0f}s, "
+      f"segment {segment_index} {segment_event}). reboots flagged inline.", flush=True)
+with open(out, file_mode, encoding="utf-8") as fh:
+    if needs_leading_newline:
+        fh.write("\n")
+    boundary = dict(meta, ts_utc=segment_started_utc, elapsed_s=0.0,
+                    src="segment", segment_event=segment_event,
+                    segment_notes=a.segment_notes)
+    if previous_ts_utc is not None:
+        boundary["previous_ts_utc"] = previous_ts_utc
+    fh.write(json.dumps(boundary) + "\n")
+    fh.flush()
     while time.time() - t0 < a.duration:
         try:
-            d, addr = s.recvfrom(1024)
+            d, addr = s.recvfrom(UDP_RECV_BYTES)
         except socket.timeout:
             continue
         if a.master_ip and addr[0] != a.master_ip:
@@ -97,7 +217,11 @@ with open(out, "w") as fh:
              cap, chg, dd, ddb, dda, fw, mt,
              fc, fcr, fcc, fce, fcchg, fcdis, fcmin, fcmax,
              bqv, bqichg, bqvreg, bq16, bq18, bq1d, bq1e, bq1f,
-             bq20, bq21, bq22, bq38) = m.groups()
+             bq20, bq21, bq22, bq38,
+             fcwhc, fcwhd, fcpw, fcbw, fcdw, fclow, fcmchg, fcmwait,
+             fcmdraw, fcmprot,
+             mppts, mpptr, mpptn, mpptv, mpptbest, mpptlast, mppt46, mppt48,
+             mppt50, fcdim, fclat) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -172,6 +296,30 @@ with open(out, "w") as fh:
                            bq_batfet_ctrl=r18 & 0x03,
                            bq_vbus_stat=s1 & 0x07,
                            bq_chg_stat=(s1 >> 3) & 0x03)
+            if fcwhc is not None:
+                row.update(field_charge_wh=round(int(fcwhc) / 10.0, 1),
+                           field_discharge_wh=round(int(fcwhd) / 10.0, 1),
+                           field_peak_panel_w=round(int(fcpw) / 100.0, 2),
+                           field_peak_charge_w=round(int(fcbw) / 100.0, 2),
+                           field_peak_draw_w=round(int(fcdw) / 100.0, 2),
+                           field_low_s=int(fclow),
+                           field_charge_min=int(fcmchg),
+                           field_wait_min=int(fcmwait),
+                           field_draw_min=int(fcmdraw),
+                           field_protect_min=int(fcmprot))
+            if mppts is not None:
+                row.update(mppt_status=int(mppts),
+                           mppt_reason=int(mpptr),
+                           mppt_runs=int(mpptn),
+                           mppt_active_v=round(int(mpptv) / 10.0, 1),
+                           mppt_best_v=round(int(mpptbest) / 10.0, 1),
+                           mppt_last_v=round(int(mpptlast) / 10.0, 1),
+                           mppt_p46_w=round(int(mppt46) / 100.0, 2),
+                           mppt_p48_w=round(int(mppt48) / 100.0, 2),
+                           mppt_p50_w=round(int(mppt50) / 100.0, 2))
+            if fcdim is not None:
+                row.update(field_load_dimmed=bool(int(fcdim)),
+                           field_protect_latched=bool(int(fclat)))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "
