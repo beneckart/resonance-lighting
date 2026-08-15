@@ -80,3 +80,7 @@ ops/bench/data/**/*-ota-results.jsonl
 ops/bench/data/**/*-local-full.jsonl
 ops/bench/data/**/*-charge-taper-*.jsonl
 ops/bench/data/**/*-charge-taper-*.done.json
+
+# QA/audit test-output artifacts (network-tester runs)
+app/audit-shards/
+app/*-audit.json

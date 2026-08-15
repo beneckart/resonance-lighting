@@ -359,7 +359,9 @@ export function TouchConsole() {
           )}
         </div>
       )}
-      {tab !== "tree" && <div ref={sheetEl} style={sheet}>
+      {tab !== "tree" && <div ref={sheetEl} style={tab === "calibrate"
+        ? { ...sheet, maxHeight: undefined, gap: 8, padding: "8px 12px calc(64px + env(safe-area-inset-bottom))" } // compact strip: the TREE is the calibrate readout (Elliot 08-15: "we need to see more lights")
+        : sheet}>
         {/* header: title + safety pair + exit — present in EVERY mode */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.3, flex: 1 }}>🌳 Resonance{demoLock ? " · demo" : ""}</span>
@@ -721,24 +723,17 @@ export function TouchConsole() {
         )}
 
         {tab === "calibrate" && (
-          <>
-            <div style={microLabel}>Solo one light · walk the tree, confirm what you see</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => solo(calIdx - 1)} style={{ minWidth: 64, minHeight: 64, fontSize: 24, borderRadius: 16, border: "1.5px solid #283549", background: "#141a26", color: "#cdd6e4", cursor: "pointer" }}>◀</button>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: AMBER }}>{calId}</div>
-                <div style={{ color: "#7e8ea6", fontSize: 12 }}>{fixtures.length ? `${calIdx + 1} / ${fixtures.length} · only this light is on` : "no fixtures loaded"}</div>
-              </div>
-              <button onClick={() => solo(calIdx + 1)} style={{ minWidth: 64, minHeight: 64, fontSize: 24, borderRadius: 16, border: "1.5px solid #283549", background: "#141a26", color: "#cdd6e4", cursor: "pointer" }}>▶</button>
+          // ONE slim row — the tree above is the real readout: the soloed light
+          // glows up there, so the sheet stays out of the way (44px+ targets kept)
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => solo(calIdx - 1)} aria-label="previous light" style={{ minWidth: 48, minHeight: 48, fontSize: 20, borderRadius: 14, border: "1.5px solid #283549", background: "#141a26", color: "#cdd6e4", cursor: "pointer" }}>◀</button>
+            <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: AMBER }}>{calId}</span>
+              <span style={{ color: "#7e8ea6", fontSize: 11, display: "block" }}>{fixtures.length ? `${calIdx + 1} / ${fixtures.length} · solo — watch the tree` : "no fixtures loaded"}</span>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Toggle on={false} label="⏹ all lights back on" onClick={() => calSolo(null)} accent="#3ddc97" />
-            </div>
-            <div style={{ color: "#7e8ea6", fontSize: 12 }}>
-              With the real fleet connected this same stepper drives the physical
-              identify-blink — what you solo here blinks on the tree.
-            </div>
-          </>
+            <button onClick={() => solo(calIdx + 1)} aria-label="next light" style={{ minWidth: 48, minHeight: 48, fontSize: 20, borderRadius: 14, border: "1.5px solid #283549", background: "#141a26", color: "#cdd6e4", cursor: "pointer" }}>▶</button>
+            <button onClick={() => calSolo(null)} aria-label="all lights back on" style={{ minWidth: 48, minHeight: 48, fontSize: 18, borderRadius: 14, border: "1.5px solid #1f4634", background: "#0f2a1e", color: "#3ddc97", cursor: "pointer" }}>⏹</button>
+          </div>
         )}
       </div>}
 
@@ -775,7 +770,7 @@ export function TouchConsole() {
         position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 210,
         display: "flex", gap: 6, padding: "8px 10px calc(8px + env(safe-area-inset-bottom))",
         background: "rgba(8,10,16,0.96)", borderTop: "1px solid #1c2740",
-        overflowX: "auto", // tabs scroll as modes grow (Elliot's sketch)
+        overflowX: "auto", // safety net; tabs shrink-to-fit first (Elliot 08-15: "the full lower menu needs to resize to the screen size")
       }}>
         {MODES.map((m) => {
           const active = tab === m.id;
@@ -788,10 +783,11 @@ export function TouchConsole() {
               // 08-14: luminance 125→123 on tab tap) — on mobile the pads rule.
               if (m.id === "lightshow" || m.id === "sound" || m.id === "calibrate") setUiMode(m.id);
             }} aria-label={`mode ${m.label}`} style={{
-              flex: "1 0 72px", minHeight: 52, borderRadius: 14, cursor: "pointer",
+              flex: "1 1 0", minWidth: 0, minHeight: 52, borderRadius: 14, cursor: "pointer",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
               border: "none", background: "transparent",
-              color: active ? AMBER : "#7e8ea6", fontWeight: active ? 700 : 500, fontSize: 11,
+              color: active ? AMBER : "#7e8ea6", fontWeight: active ? 700 : 500,
+              fontSize: "clamp(8.5px, 2.4vw, 11px)", whiteSpace: "nowrap", overflow: "hidden",
               textShadow: active ? `0 0 18px ${AMBER}` : "none", touchAction: "manipulation",
             }}>
               <span style={{ fontSize: 22, filter: active ? `drop-shadow(0 0 10px ${AMBER})` : "grayscale(0.4)" }}>{m.icon}</span>
