@@ -9,11 +9,12 @@
 const KEY = "resonance.macnames.v1";
 
 /** THE MARIO BROTHERS — the OG connections: the first two lanterns ever
- *  hard-plugged for bench work (Elliot, 2026-08-15). Seeded so the names
+ *  hard-plugged for bench work (Luigi corrected F2BDB0→F2B7DC 08-15: USB serial
+ *  68:EE:8F:F2:B7:DC is the board Elliot plugged; F2BDB0 was a radio misguess) (Elliot, 2026-08-15). Seeded so the names
  *  exist on every device without retyping; editable/overridable. */
 const SEED: Record<string, string> = {
   F40384: "Mario",
-  F2BDB0: "Luigi",
+  F2B7DC: "Luigi",
 };
 
 function store(): Storage | null {
