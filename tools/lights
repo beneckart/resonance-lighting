@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""lights — the simple bridge command. Drive the real tree in one word.
+
+    ./tools/lights on            full RGB, every lantern
+    ./tools/lights blue          a named colour (see COLOURS)
+    ./tools/lights 255 40 0      raw r g b, 0-255
+    ./tools/lights dim blue      any colour at 25%
+    ./tools/lights off           release — lanterns return to their own show
+    ./tools/lights status        is the bridge alive, and is anything driving
+
+WHY IT RUNS IN THE BACKGROUND
+A lantern holds a commanded colour for about 3 seconds and then falls back to
+its autonomous show. That is Ben's doctrine — the tree is never blank and never
+stuck, even if the laptop closes. So "on" cannot be one packet: this holds the
+colour by streaming at 8 Hz until you run `off` (or run another colour, which
+replaces it). One streamer at a time; starting a new one stops the old.
+
+Talks to the cambium daemon, which owns the serial link to the CoreS3 bridge.
+Start that first:  cambium serve --transport serial --port /dev/cu.usbmodemXXX
+"""
+import asyncio
+import json
+import os
+import signal
+import sys
+import urllib.request
+
+DAEMON_HTTP = os.environ.get("CAMBIUM_HTTP", "http://localhost:8600")
+DAEMON_WS = os.environ.get("CAMBIUM_WS", "ws://localhost:8600/ws")
+PIDFILE = os.path.expanduser("~/.cache/resonance-lights.pid")
+# argv tag: how `off` finds the streamer. NO leading dashes — `pgrep -f --foo`
+# dies with "illegal option", so a dashed marker makes `off` silently find
+# nothing and report success while the tree keeps streaming.
+MARKER = "resonance-lights-streamer"
+STREAMLOG = os.path.expanduser("~/.cache/resonance-lights.log")
+HZ = 8.0
+# The bench roster (config/roster-onsite.csv). Sending ids that do not exist
+# makes the daemon warn on EVERY frame, which buries real errors in noise.
+FIXTURE_COUNT = int(os.environ.get("LIGHTS_FIXTURES", "18"))
+
+COLOURS = {
+    "on": (255, 255, 255), "white": (255, 255, 255), "full": (255, 255, 255),
+    "red": (255, 0, 0), "green": (0, 255, 0), "blue": (0, 0, 255),
+    "amber": (255, 120, 0), "orange": (255, 90, 0), "yellow": (255, 220, 0),
+    "cyan": (0, 255, 255), "magenta": (255, 0, 255), "purple": (150, 0, 255),
+    "pink": (255, 40, 140), "warm": (255, 160, 80), "cool": (150, 200, 255),
+}
+
+
+def _python_with_websockets():
+    """Find an interpreter that can actually import websockets.
+
+    The shebang resolves to whatever python3 is first on PATH — here that is
+    Homebrew's 3.14, which has no websockets, while /usr/bin/python3 does. The
+    first version just used sys.executable, so the streamer died on import and
+    (with stderr at /dev/null) the tool cheerfully reported success while the
+    tree did nothing. Prefer cambium's own venv: it is the environment the
+    daemon itself runs in, so if the daemon works, this works.
+    """
+    import subprocess
+    candidates = [
+        os.path.expanduser("~/code/cambium/.venv/bin/python3"),
+        sys.executable,
+        "/usr/bin/python3",
+    ]
+    for py in candidates:
+        if not py or not os.path.exists(py):
+            continue
+        try:
+            r = subprocess.run([py, "-c", "import websockets"],
+                               capture_output=True, timeout=15)
+            if r.returncode == 0:
+                return py
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
+
+
+def _get(path):
+    with urllib.request.urlopen(DAEMON_HTTP + path, timeout=5) as r:
+        return json.load(r)
+
+
+def _stop_existing():
+    """Kill every running streamer. Returns how many were stopped.
+
+    Matches on MARKER in the child's argv rather than a pidfile. The first
+    version forked and tracked one pid; when that bookkeeping drifted, `off`
+    printed "nothing was driving" while a streamer kept going — a stop command
+    that lies is worse than no stop command. Killing by argv marker cannot
+    drift: whatever is streaming is, by construction, what gets stopped, and it
+    cleans up any orphans an earlier crash left behind.
+    """
+    import subprocess
+    try:
+        out = subprocess.run(["pgrep", "-f", MARKER], capture_output=True, text=True)
+        pids = [int(p) for p in out.stdout.split()]
+    except (OSError, ValueError):
+        return 0
+    me = os.getpid()
+    stopped = 0
+    for pid in pids:
+        if pid == me:
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+            stopped += 1
+        except (ProcessLookupError, PermissionError):
+            pass
+    try:
+        os.remove(PIDFILE)
+    except OSError:
+        pass
+    return stopped
+
+
+def cmd_status():
+    try:
+        b = _get("/bridge")
+    except Exception as e:
+        print(f"✗ daemon unreachable at {DAEMON_HTTP} ({type(e).__name__})")
+        print("  start it:  cambium serve --transport serial --port /dev/cu.usbmodemXXX")
+        return 1
+    # Poll twice: a dead serial link leaves the counters FROZEN at their last
+    # values, which reads exactly like health in a single sample.
+    import time
+    first = b["rx_pkts"], b["tx_ok"]
+    time.sleep(2.0)
+    b = _get("/bridge")
+    moving = (b["rx_pkts"], b["tx_ok"]) != first
+
+    print(f"bridge   {b['bridge_mac']}  fw={b['fw']}  channel {b['channel']}")
+    print(f"link     connected={b['connected']}  counters {'MOVING' if moving else 'FROZEN'}")
+    print(f"traffic  rx={b['rx_pkts']}  tx_ok={b['tx_ok']}  tx_fail={b['tx_fail']}  crc={b['crc_errors']}")
+    if b["connected"] and not moving:
+        print("⚠ connected=true but nothing is moving — the serial link is dead;")
+        print("  replug the CoreS3 and restart the daemon.")
+    try:
+        fleet = _get("/fleet")
+        print(f"fleet    {len(fleet)} lantern(s) known")
+    except Exception:
+        pass
+    driving = os.path.exists(PIDFILE)
+    print(f"driving  {'yes — ' + open(PIDFILE).read().strip() if driving else 'no (lanterns on their own show)'}")
+    return 0
+
+
+async def _stream(r, g, b):
+    import websockets
+    ids = [f"F{n:03d}" for n in range(FIXTURE_COUNT)]
+    rgb = [r / 255.0, g / 255.0, b / 255.0]
+    seq = 0
+    async with websockets.connect(DAEMON_WS, open_timeout=8) as ws:
+        # ARM FIRST. The daemon accepts `frame` messages whether or not drive
+        # is on, and silently forwards nothing when it is off — rx keeps
+        # climbing, tx_ok stays frozen, and the tool looks like it works. This
+        # is what the app's 📡 toggle sends; without it we were only ever
+        # driving because a browser happened to be armed at the same time.
+        await ws.send(json.dumps({"kind": "drive", "on": True}))
+        await asyncio.sleep(0.2)
+        while True:
+            seq += 1
+            await ws.send(json.dumps({
+                "kind": "frame", "seq": seq,
+                "fixtures": [{"id": i, "rgb": rgb} for i in ids],
+            }))
+            await asyncio.sleep(1.0 / HZ)
+
+
+def cmd_colour(r, g, b, name):
+    import subprocess
+    _stop_existing()
+    py = _python_with_websockets()
+    if not py:
+        print("✗ no python with the 'websockets' module found.")
+        print("  fix:  ~/code/cambium/.venv/bin/pip install websockets")
+        return 1
+    # Re-exec ourselves in streaming mode, carrying MARKER in argv so `off`
+    # can always find us. start_new_session detaches it from this terminal.
+    # errors go to a LOG, never /dev/null: a streamer that dies on start is
+    # indistinguishable from one that works if nobody can read why.
+    os.makedirs(os.path.dirname(STREAMLOG), exist_ok=True)
+    log = open(STREAMLOG, "a")
+    child = subprocess.Popen(
+        [py, os.path.abspath(__file__), MARKER, str(r), str(g), str(b)],
+        stdout=log, stderr=log, start_new_session=True,
+    )
+    os.makedirs(os.path.dirname(PIDFILE), exist_ok=True)
+    with open(PIDFILE, "w") as f:
+        f.write(f"{child.pid} rgb({r},{g},{b}) {name}")
+    print(f"✓ {name}: rgb({r},{g},{b}) held on {FIXTURE_COUNT} lanterns at {HZ:.0f} Hz")
+    print("  ./tools/lights off   to release")
+    return 0
+
+
+def main(argv):
+    # streaming mode: re-exec'd by cmd_colour, never typed by a human
+    if len(argv) > 1 and argv[1] == MARKER:
+        r, g, b = (int(v) for v in argv[2:5])
+        try:
+            asyncio.run(_stream(r, g, b))
+        except KeyboardInterrupt:
+            pass
+        return 0
+
+    args = [a.lower() for a in argv[1:]]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return 0
+    if args[0] == "status":
+        return cmd_status()
+    if args[0] == "off":
+        n = _stop_existing()
+        print(f"✓ released {n} streamer(s) — lanterns return to their own show in ~3s"
+              if n else "nothing was driving")
+        return 0
+
+    scale = 1.0
+    if args[0] in ("dim", "low"):
+        scale, args = 0.25, args[1:]
+    elif args[0] == "half":
+        scale, args = 0.5, args[1:]
+
+    if len(args) == 3 and all(a.isdigit() for a in args):
+        r, g, b = (min(255, int(a)) for a in args)
+        name = "custom"
+    elif args and args[0] in COLOURS:
+        r, g, b = COLOURS[args[0]]
+        name = args[0]
+    else:
+        print(f"unknown colour {args[0] if args else ''!r}")
+        print("try: " + ", ".join(sorted(COLOURS)))
+        return 2
+
+    r, g, b = (int(v * scale) for v in (r, g, b))
+    return cmd_colour(r, g, b, name)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
