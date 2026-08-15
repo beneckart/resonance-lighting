@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runCommandStr, parseScript } from "./command";
+import { runCommandStr, parseScript, isCommandLike } from "./command";
 import type { SimFixture } from "./store";
 
 const mk = (id: string, seq: number, zone: string): SimFixture => ({
@@ -32,5 +32,28 @@ describe("parseScript", () => {
   it("splits, trims, drops blanks + comments", () => {
     const script = "all pattern ripple\n\n# a comment\n  hue 0.3  \nzone high off\n";
     expect(parseScript(script)).toEqual(["all pattern ripple", "hue 0.3", "zone high off"]);
+  });
+});
+
+describe("action verbs (08-15 — the AI's full operator surface)", () => {
+  const F: never[] = [];
+  it("show / show stop", () => {
+    expect(runCommandStr("show solarray", F).action).toEqual({ kind: "show", id: "solarray" });
+    expect(runCommandStr("show stop", F).action).toEqual({ kind: "show", id: null });
+  });
+  it("theme / gol / blink", () => {
+    expect(runCommandStr("theme ember", F).action).toEqual({ kind: "theme", id: "ember" });
+    expect(runCommandStr("gol arm", F).action).toEqual({ kind: "gol", arm: true });
+    expect(runCommandStr("gol end", F).action).toEqual({ kind: "gol", arm: false });
+    expect(runCommandStr("blink", F).action).toEqual({ kind: "blink", mac: null });
+    expect(runCommandStr("blink f2be20", F).action).toEqual({ kind: "blink", mac: "F2BE20" });
+  });
+  it("cue save keeps multi-word names; bare cue recalls", () => {
+    expect(runCommandStr("cue save sunset vibes", F).action).toEqual({ kind: "cueSave", name: "sunset vibes" });
+    expect(runCommandStr("cue sunset vibes", F).action).toEqual({ kind: "cueRecall", name: "sunset vibes" });
+  });
+  it("every new verb passes the AI shape gate — including wait", () => {
+    for (const l of ["show solarray", "theme ocean", "gol arm", "cue save x", "blink", "wait 5"])
+      expect(isCommandLike(l)).toBe(true);
   });
 });

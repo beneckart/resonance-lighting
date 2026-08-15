@@ -1,4 +1,6 @@
-import { PATTERN_IDS, ELEMENT_MODES } from "./store";
+import { PATTERN_IDS, ELEMENT_MODES, useTwin } from "./store";
+import { SHOWS } from "./shows";
+import { THEMES } from "./themes";
 import { isCommandLike, parseScript } from "./command";
 import { interpret, type Interpretation } from "./llm";
 
@@ -84,34 +86,82 @@ export function redact(text: string): string {
  *  pattern the operator can ask for on the same commit. */
 export function grammarPrompt(): string {
   const patterns = [...PATTERN_IDS, ...ELEMENT_MODES].join(", ");
+  const shows = SHOWS.map((s) => `${s.id} (${s.vibe})`).join(" · ");
+  const themes = THEMES.map((t) => t.id).join(", ");
+  // the operator's saved custom modes, live from the store — the AI can recall
+  // a mode Elliot saved five minutes ago without any code or prompt change
+  let cueNames = "";
+  try {
+    cueNames = useTwin.getState().cues.map((c) => c.name).join(", ");
+  } catch { /* store not initialised (tests) — fine, section stays empty */ }
   return [
-    "You are the lighting operator for the Resonance Tree, a bamboo art installation",
-    "of ~130 solar LED fixtures at Burning Man.",
+    "You are the lighting operator AI for the Resonance Tree — a 10 m bamboo art",
+    "installation of 130 solar LED lanterns at Burning Man (72 hanging downlights in",
+    "3 rings, 24 perimeter, 18 chandelier crown, 16 uplights). You are talking to the",
+    "digital twin; when real-drive is armed the physical tree mirrors it exactly.",
     "",
     "Translate the operator's request into lines of this command grammar. Output ONLY",
     "command lines, one per line. No prose, no explanation, no markdown, no code fences.",
     "",
-    "GLOBAL (affect the whole show):",
+    "LOOK & FEEL (globals):",
     "  pattern <id>      speed <0..3>      bri <0..1>      sat <0..1>      hue <0..1>",
+    `  pattern ids: ${patterns}`,
+    `  theme <id>   — colour mood for the living patterns; ids: ${themes}`,
     "",
-    "TARGETED (affect specific lights):",
+    "TARGETED (specific lights):",
     "  <target> off | on | color <name|#hex>",
     "  target = all | zone <low|mid|high> | range <a-b> | every <n>",
     "         | fixture <id> | light <n | n,n,n | a-b>",
     "",
-    "STANDALONE:  clear   (release all overrides)    off   (blackout)    on",
+    "SHOWS (5-min authored arcs):",
+    `  show <id> | show stop   — ids: ${shows}`,
     "",
-    `PATTERN IDS (use EXACTLY one of these): ${patterns}`,
+    "GAME OF LIGHT (the interactive presence experience):",
+    "  gol arm   — tree goes dark in standby; first visitor tap ignites it",
+    "  gol end",
+    "",
+    "CUSTOM MODES (no code required — compose a look, then save it):",
+    "  cue save <name>   — saves the CURRENT look as a named mode",
+    "  cue <name>        — recalls it",
+    cueNames ? `  saved modes right now: ${cueNames}` : "  (no saved modes yet)",
+    "",
+    "FLEET OPS (the real lanterns):",
+    "  blink             — every real lantern blinks (roll call)",
+    "  blink <mac>       — one lantern blinks, e.g. blink F2BE20 (locate a light)",
+    "",
+    "STANDALONE:  clear (release overrides)    off (blackout)    on",
+    "",
+    "SEQUENCING:",
+    "  wait <seconds>    — pause a script; later lines run on a timer. A new",
+    "                      request from the operator cancels any pending script",
+    "                      instantly, so iterate freely.",
     "",
     "EXAMPLES",
-    "  'make it feel like a slow sunrise'  ->  pattern rising",
-    "                                          speed 0.5",
-    "                                          all color orange",
-    "  'top of the tree deep blue'         ->  zone high color #0033aa",
-    "  'kill everything'                   ->  off",
-    "  'lights 1 7 and 17 red'             ->  light 1,7,17 color red",
+    "  'all red, slowly become purple, then dark, then start the ripple game'",
+    "    ->  all color red",
+    "        wait 6",
+    "        all color purple",
+    "        wait 6",
+    "        off",
+    "        wait 2",
+    "        clear",
+    "        theme random",
+    "        pattern ripples",
+    "  'make it feel like a slow sunrise'   ->  pattern rising",
+    "                                           speed 0.5",
+    "                                           all color orange",
+    "  'campfire mood but save it for later'->  pattern ember",
+    "                                           theme ember",
+    "                                           cue save campfire",
+    "  'play the sun show'                  ->  show solarray",
+    "  'which light is F2BE20?'             ->  blink F2BE20",
+    "  'do a roll call'                     ->  blink",
+    "  'set up the tap game'                ->  gol arm",
+    "  'kill everything'                    ->  off",
     "",
-    "If the request implies no lighting change, output nothing at all.",
+    "Compose freely: a described look usually wants a pattern + theme/colour +",
+    "speed + brightness together. If the request implies no lighting action at",
+    "all, output nothing.",
   ].join("\n");
 }
 

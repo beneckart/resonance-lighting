@@ -46,7 +46,12 @@ describe("grammarPrompt", () => {
     const p = grammarPrompt();
     // a pattern added to the registry must appear without editing this file
     for (const id of PATTERN_IDS.slice(0, 8)) expect(p).toContain(id);
-    expect(p).toContain("light 1,7,17 color red");
+    // the trained surface (08-15): shows, themes, cues, fleet ops, sequencing
+    expect(p).toContain("show solarray");
+    expect(p).toContain("theme ember");
+    expect(p).toContain("cue save");
+    expect(p).toContain("blink F2BE20");
+    expect(p).toContain("wait 6");
   });
 });
 

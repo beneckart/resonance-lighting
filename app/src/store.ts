@@ -307,6 +307,10 @@ let lastTriggerBri = -1;
 // show must RESTORE these or the tree stays wherever the show last faded it.
 let showControlSnapshot: Partial<Control> | null = null;
 
+// pending runScript sequencer timer — module scope so a new script always
+// preempts the old one (see runScript)
+const scriptTimer: { current: ReturnType<typeof setTimeout> | null } = { current: null };
+
 export const useTwin = create<TwinState>((setState, get) => ({
   fixtures: [],
   source: "",
@@ -503,6 +507,23 @@ export const useTwin = create<TwinState>((setState, get) => ({
   })),
   runCommand: (cmd) => {
     const r = runCommandStr(cmd, get().fixtures);
+    // action verbs (08-15): the grammar reaches shows/themes/GoL/cues/blink —
+    // dispatched here so typed, voice, and AI paths all get the full operator
+    // surface. Unknown ids fall through harmlessly (playShow(null)/no-op).
+    if (r.action) {
+      const a = r.action;
+      if (a.kind === "show") get().playShow(a.id);
+      else if (a.kind === "theme") get().setCaTheme(a.id);
+      else if (a.kind === "gol") { if (a.arm) get().armGol(); else get().golSetPhase("off"); }
+      else if (a.kind === "cueSave") get().addCue(a.name);
+      else if (a.kind === "cueRecall") {
+        const c = get().cues.find((x) => x.name.toLowerCase() === a.name.toLowerCase());
+        if (c) get().recallCue(c.id);
+      } else if (a.kind === "blink") {
+        // lazy import avoided: fleetlink is a leaf module with no store dep
+        void import("./fleetlink").then((m) => m.fleetIdentify(a.mac, 3));
+      }
+    }
     setState((s) => {
       const next: Partial<TwinState> = {};
       if (r.control) next.control = { ...s.control, ...r.control };
@@ -517,7 +538,26 @@ export const useTwin = create<TwinState>((setState, get) => ({
     });
   },
   runScript: (text) => {
-    for (const cmd of parseScript(text)) get().runCommand(cmd);
+    // SEQUENCER (08-15, Elliot's walk-under brief: "all red -> slowly to purple
+    // -> all off -> ... then the game of life"): scripts may contain `wait <s>`
+    // lines; execution pauses there and resumes on a timer. A NEW script
+    // preempts any pending one ("it needs to adjust really quickly") — the
+    // operator's latest word always wins, immediately.
+    const prev = scriptTimer.current;
+    if (prev !== null) { clearTimeout(prev); scriptTimer.current = null; }
+    const lines = parseScript(text);
+    const step = (i: number) => {
+      for (; i < lines.length; i++) {
+        const m = lines[i].match(/^wait\s+([\d.]+)\s*$/i);
+        if (m) {
+          const secs = Math.min(600, Math.max(0, parseFloat(m[1]))); // cap 10 min
+          scriptTimer.current = setTimeout(() => { scriptTimer.current = null; step(i + 1); }, secs * 1000);
+          return;
+        }
+        get().runCommand(lines[i]);
+      }
+    };
+    step(0);
   },
   setView: (p) => setState((s) => ({ view: { ...s.view, ...p } })),
   setMonitorStats: (s) => setState({ monitorStats: s }),

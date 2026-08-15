@@ -14,6 +14,18 @@ export interface CmdResult {
   control?: Partial<Control>;
   setOverrides?: { idx: number[]; op: Override };
   clear?: boolean;
+  /** store-action verbs beyond Control mutation (shows, themes, Game of Light,
+   *  cues, fleet blink) — runCommand dispatches these to the matching store
+   *  action. Added 08-15 so the AI operator reaches EVERYTHING an operator
+   *  can do, not just the slider state (Elliot: "so it understands all the
+   *  commands it has access to"). */
+  action?:
+    | { kind: "show"; id: string | null } // null = stop
+    | { kind: "theme"; id: string }
+    | { kind: "gol"; arm: boolean }
+    | { kind: "cueSave"; name: string }
+    | { kind: "cueRecall"; name: string }
+    | { kind: "blink"; mac: string | null };
   msg: string;
 }
 
@@ -46,6 +58,11 @@ export const COMMAND_HEADS: readonly string[] = [
   "clear", "on", "off",
   ...Object.keys(GLOBALS),
   "all", "zone", "range", "every", "fixture", "light", "lights", "num",
+  // action verbs (08-15): shows, themes, Game of Light, cues, fleet blink
+  "show", "theme", "gol", "cue", "blink",
+  // sequencing (08-15): `wait <s>` is consumed by runScript's timer chain, but
+  // it MUST be vocabulary here or the AI shape-gate strips it out of scripts
+  "wait",
 ];
 
 /** SHAPE GATE for text produced OUTSIDE this app (an LLM, a voice transcript,
@@ -79,6 +96,28 @@ export function runCommandStr(cmd: string, fixtures: SimFixture[]): CmdResult {
   if (!t.length) return { msg: "" };
 
   if (t[0] === "clear") return { clear: true, msg: "overrides cleared" };
+
+  // ── action verbs (08-15): reach the store actions, not just Control ──
+  if (t[0] === "show") {
+    if (!t[1]) return { msg: "? show <id> | show stop" };
+    if (t[1] === "stop" || t[1] === "off") return { action: { kind: "show", id: null }, msg: "show stopped" };
+    return { action: { kind: "show", id: t[1] }, msg: `show ${t[1]}` };
+  }
+  if (t[0] === "theme" && t[1]) return { action: { kind: "theme", id: t[1] }, msg: `theme ${t[1]}` };
+  if (t[0] === "gol" && t[1]) {
+    if (t[1] === "arm") return { action: { kind: "gol", arm: true }, msg: "game of light armed (standby)" };
+    if (t[1] === "end" || t[1] === "off") return { action: { kind: "gol", arm: false }, msg: "game of light ended" };
+    return { msg: "? gol arm | gol end" };
+  }
+  if (t[0] === "cue" && t[1]) {
+    // "cue save sunset vibes" saves the CURRENT look; "cue sunset vibes" recalls
+    if (t[1] === "save" && t[2]) return { action: { kind: "cueSave", name: t.slice(2).join(" ") }, msg: `saved mode "${t.slice(2).join(" ")}"` };
+    return { action: { kind: "cueRecall", name: t.slice(1).join(" ") }, msg: `recall "${t.slice(1).join(" ")}"` };
+  }
+  if (t[0] === "blink") {
+    // real-fleet locate aid: "blink" = whole fleet, "blink f2be20" = one lantern
+    return { action: { kind: "blink", mac: t[1] ? t[1].toUpperCase() : null }, msg: t[1] ? `blink ${t[1]}` : "blink all" };
+  }
   if (t[0] === "off" && t.length === 1)
     return { setOverrides: { idx: fixtures.map((_, i) => i), op: { mode: "off" } }, msg: "all off" };
   if (t[0] === "on" && t.length === 1) return { clear: true, msg: "all on (overrides cleared)" };
