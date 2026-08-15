@@ -6,6 +6,7 @@ import { AdditiveBlending, Box3, BufferAttribute, Color, ConeGeometry, DoubleSid
 import { useTwin, CA_RULES, type SimFixture } from "./store";
 import { litFor, applyThemeToLit, tameWhite, type Lit } from "./patterns";
 import { telemetry, type LightState } from "./telemetry";
+import { staleUnitsScale } from "./units";
 import { updateField, fieldOut, updateRipples, rippleOut, updateOrganism, organismOut, updateLife, lifeOut, updateChains, chainsOut, lorenzFoci, themeMapHue } from "./field";
 import { updatePiano, keyBri, keyHue, keySat, fixtureMidi } from "./piano";
 import { updateAudio, setEqGains } from "./audio";
@@ -61,7 +62,11 @@ export function TreeLights() {
   // surface the gobo floor uses — so the projected orbs sit ON the ground, not below
   const { scene: treeScene } = useGLTF(asset("/tree-context.glb"));
   const groundY = useMemo(() => {
-    const minY = new Box3().setFromObject(treeScene).min.y;
+    // the glb may still be in the old 10× units (see units.ts) — same
+    // correction the Scene applies, or the floor cookies sink 6 m underground
+    const b = new Box3().setFromObject(treeScene);
+    const span = Number.isFinite(b.max.x) ? Math.max(b.max.x - b.min.x, b.max.z - b.min.z) : 0;
+    const minY = b.min.y * staleUnitsScale(span, treeSize);
     return Number.isFinite(minY) ? minY : center[1] - treeSize * 0.5;
   }, [treeScene, center, treeSize]);
   const gobo = useTexture(asset("/gobo.png"));

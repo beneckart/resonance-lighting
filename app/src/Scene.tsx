@@ -10,6 +10,15 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { groundTint } from "./groundtint";
 import { parseIES } from "./ies";
 import { asset } from "./fixtures";
+import { staleUnitsScale } from "./units";
+
+/** Largest horizontal span of a glb — the number the stale-units guard compares
+ *  against the fixture cloud. Horizontal only: height ratios are confounded by
+ *  the workspace floor/rig geometry blender leaves in the export. */
+function glbSpan(scene: Object3D): number {
+  const b = new Box3().setFromObject(scene);
+  return Number.isFinite(b.max.x) ? Math.max(b.max.x - b.min.x, b.max.z - b.min.z) : 0;
+}
 
 /** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
 function GoboFloor() {
@@ -25,7 +34,8 @@ function GoboFloor() {
   // floor floating ~25u below the trunk and beams shooting past it. Fall back to
   // the fixtures bbox if the glb has no geometry.
   const groundY = useMemo(() => {
-    const minY = new Box3().setFromObject(treeScene).min.y;
+    const k = staleUnitsScale(glbSpan(treeScene), size); // glb may be in old 10× units
+    const minY = new Box3().setFromObject(treeScene).min.y * k;
     return Number.isFinite(minY) ? minY : center[1] - size * 0.5;
   }, [treeScene, center, size]);
   // cone geometry from the real baked IES photometric profile
@@ -99,6 +109,8 @@ function GoboFloor() {
  *  lighter + more translucent. */
 function TreeContext() {
   const { scene } = useGLTF(asset("/tree-context.glb"));
+  const size = useTwin((s) => s.size);
+  const k = useMemo(() => staleUnitsScale(glbSpan(scene), size), [scene, size]);
   const styled = useMemo(() => {
     const s = scene.clone(true);
     const bamboo = new MeshStandardMaterial({
@@ -115,7 +127,7 @@ function TreeContext() {
     });
     return s;
   }, [scene]);
-  return <primitive object={styled} />;
+  return <primitive object={styled} scale={k} />;
 }
 
 /** The central chandelier (ring + wind-chimes) hung at the crown — blender-
@@ -123,6 +135,21 @@ function TreeContext() {
 function Chandelier() {
   const { scene } = useGLTF(asset("/chandelier.glb"));
   const fixtures = useTwin((s) => s.fixtures);
+  // measured 08-15: chandelier.glb is 15 m wide — also in the old 10× units.
+  // Its reference is its OWN fixture cluster's span, NOT the tree span: against
+  // the 10 m tree the ratio is 1.49 and the guard never fires (the unit test
+  // for exactly that case is what caught this call site using `size`).
+  const clusterSpan = useMemo(() => {
+    const ch = fixtures.filter((f) => f.role === "chandelier");
+    if (ch.length < 2) return 0;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const f of ch) {
+      minX = Math.min(minX, f.pos[0]); maxX = Math.max(maxX, f.pos[0]);
+      minZ = Math.min(minZ, f.pos[2]); maxZ = Math.max(maxZ, f.pos[2]);
+    }
+    return Math.max(maxX - minX, maxZ - minZ);
+  }, [fixtures]);
+  const k = useMemo(() => staleUnitsScale(glbSpan(scene), clusterSpan), [scene, clusterSpan]);
   const styled = useMemo(() => {
     const s = scene.clone(true);
     const mat = new MeshStandardMaterial({ color: "#c08a3e", roughness: 0.65, metalness: 0.35, transparent: true, opacity: 0.9 });
@@ -138,7 +165,7 @@ function Chandelier() {
     const sum = ch.reduce((a, f) => [a[0] + f.pos[0], a[1] + f.pos[1], a[2] + f.pos[2]] as [number, number, number], [0, 0, 0] as [number, number, number]);
     return [sum[0] / ch.length, sum[1] / ch.length, sum[2] / ch.length];
   }, [fixtures]);
-  return <primitive object={styled} position={at} />;
+  return <primitive object={styled} position={at} scale={k} />;
 }
 
 /** PERF: the gobo spotlight's shadow map covers the STATIC scene (tree + ground
@@ -166,25 +193,43 @@ function ShadowFreeze() {
   return null;
 }
 
-/** Frame the whole tree at a hero 3/4 angle. */
+/** Frame the whole tree at a hero 3/4 angle.
+ *
+ *  ASPECT-AWARE, and that is the fix that made mobile first-open sane: the base
+ *  distance (size·0.92) frames a ~10 m tree through a LANDSCAPE frustum. On a
+ *  390×844 portrait phone the horizontal FOV is less than half the vertical
+ *  one, so the same distance puts the camera INSIDE the canopy — the first
+ *  thing a phone user saw was a wall of bark, not a tree (perception-verified
+ *  at 390×844, 2026-08-15). The horizontal half-FOV shrinks as atan(tan(v/2)·a),
+ *  so for aspect < 1 we widen the orbit by ~1/aspect to keep the span in frame. */
 function CameraRig() {
   const center = useTwin((s) => s.center);
   const size = useTwin((s) => s.size);
   const preset = useTwin((s) => s.cameraPreset);
   const camera = useThree((s) => s.camera);
+  const viewport = useThree((s) => s.size); // CSS px; changes on rotate/resize
   const controls = useThree((s) => s.controls) as
     | { target?: { set: (x: number, y: number, z: number) => void }; update?: () => void }
     | null;
 
   useEffect(() => {
-    const d = size * 0.92;
+    const aspect = viewport.height > 0 ? viewport.width / viewport.height : 1;
+    const portrait = aspect < 0.9;
+    // Portrait strategy is UP, not OUT: backing straight out runs the camera
+    // into the structural bamboo — the context glb (guys/anchors) extends far
+    // beyond the 10 m fixture cloud, so there is no clean orbit at the distance
+    // a narrow frustum would need. A higher, slightly farther 3/4 aerial keeps
+    // the camera in the clear air above the canopy and the tree in frame.
+    const fit = portrait ? 1.35 : 1;
+    const elev = portrait ? 0.55 : 0.3;
+    const d = size * 0.92 * fit;
     camera.near = Math.max(0.1, size * 0.01);
     camera.far = size * 30;
     if (preset === "top") {
       // straight-down projection view — see the petal gobo pattern on the floor
       camera.position.set(center[0], center[1] + d * 1.5, center[2] + 0.001);
     } else {
-      camera.position.set(center[0] + d * 0.75, center[1] + d * 0.3, center[2] + d);
+      camera.position.set(center[0] + d * 0.75, center[1] + d * elev, center[2] + d);
     }
     camera.updateProjectionMatrix();
     camera.lookAt(center[0], center[1], center[2]);
@@ -192,7 +237,7 @@ function CameraRig() {
       controls.target.set(center[0], center[1], center[2]);
       controls.update?.();
     }
-  }, [center, size, camera, controls, preset]);
+  }, [center, size, camera, controls, preset, viewport.width, viewport.height]);
   return null;
 }
 
