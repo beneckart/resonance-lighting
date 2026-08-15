@@ -63,11 +63,23 @@ export function subscribeFleet(fn: () => void): () => void {
 }
 
 /** blink one lantern (or all, mac=null) — the locate aid. Rides the telemetry
- *  link because identify is bounded and targeted, unlike a frame stream. */
-export function fleetIdentify(mac: string | null, seconds = 3): void {
+ *  link because identify is bounded and targeted, unlike a frame stream.
+ *
+ *  RETURNS WHETHER IT ACTUALLY WENT OUT. This used to return void, and the
+ *  packet could evaporate at two separate layers without a word:
+ *    1. `bridge?.send` — optional chain, so no bridge meant a silent no-op;
+ *    2. cambium.ts send() early-returns unless the socket is OPEN.
+ *  Meanwhile the Locate sheet said "blink sent (3 s)" unconditionally and the
+ *  Command pad said nothing at all, so an operator could not tell "the lantern
+ *  ignored it" from "it never left the browser" (Elliot 08-15: "why does the
+ *  Blink still not work?"). Honest failure is cheap; a lie during a locate walk
+ *  costs you a trip up the tree. */
+export function fleetIdentify(mac: string | null, seconds = 3): boolean {
   // seam contract (bridge.ts IdentifyDown): {kind, mac: string|null, seconds} —
   // CambiumBridge translates null-mac to the omitted-field wire form itself
-  bridge?.send({ kind: "identify", mac, seconds });
+  if (!bridge || !bridge.connected()) return false;
+  bridge.send({ kind: "identify", mac, seconds });
+  return true;
 }
 
 /** Dial the daemon and start feeding the registry. Idempotent. */

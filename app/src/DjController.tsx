@@ -368,11 +368,20 @@ export function DjController() {
           {toggle(control.strobe, "⚡ STROBE", () => set({ strobe: !control.strobe }), "#ff5b6e")}
           {toggle(control.autoVj, "🤖 AUTO", () => set({ autoVj: !control.autoVj }), "#9b6bff")}
           {toggle(control.audioSpeed, "🎵 RX-SPD", () => set({ audioSpeed: !control.audioSpeed }), "#3ddc97")}
+          {/* Both audio starts are GUARDED. Unhandled, these reject as an uncaught
+              pageerror — and the user-facing trigger is not an exotic edge case, it
+              is simply DENYING the microphone permission prompt, or having no input
+              device attached. Measured 2026-08-15: "🎤 MIC" threw
+              `NotFoundError: Requested device not found` straight past React.
+              The two sibling call sites (Controls.tsx, TouchConsole.tsx) already
+              catch; these were the outliers. */}
           {toggle(audioOn, audioOn ? "■ STOP" : "▶ TRACK", () => {
             if (audioOn) { stopAudio(); setAudioOn(false); }
-            else { startTrack(asset("/audio/test-beat-124bpm.wav")); setAudioOn(true); }
+            else { startTrack(asset("/audio/test-beat-124bpm.wav")).then(() => setAudioOn(true)).catch(console.error); }
           }, "#3ddc97")}
-          {toggle(false, "🎤 MIC", () => { startMic(deviceId || undefined); setAudioOn(true); })}
+          {toggle(false, "🎤 MIC", () => {
+            startMic(deviceId || undefined).then(() => setAudioOn(true)).catch(console.error);
+          })}
         </div>
 
         {/* audio source / input device picker (#5) */}

@@ -45,7 +45,7 @@ export interface CaParams {
   ffCouple: number;  // Firefly: sync strength K (0 = no sync, chaotic; high = tree-wide pulse)
   ffRate: number;    // Firefly: base flash rate
 }
-let caParams: CaParams = { neighbourK: 6, ghKappa: 10, ghSeed: 0.0025, rdFeed: 0.025, rdKill: 0.06, ffCouple: 0.25, ffRate: 0.10 };
+let caParams: CaParams = { neighbourK: 6, ghKappa: 10, ghSeed: 0.0025, rdFeed: 0.046, rdKill: 0.058, ffCouple: 0.25, ffRate: 0.10 };
 // first K nearest neighbours (list is distance-sorted) — the geometry-native neighbourhood
 function nK(nb: number[]): number { return Math.min(caParams.neighbourK, nb.length); }
 export function setCaParams(p: Partial<CaParams>) { caParams = { ...caParams, ...p }; }
@@ -562,8 +562,22 @@ export function updateOrganism(fixtures: SimFixture[], dt: number, speed: number
   if (vsum < 0.05) for (let sd = 0; sd < 8; sd++) { const i = Math.floor(Math.random() * n); gv[i] = 0.5; gu[i] = 0.25; }
   for (let i = 0; i < n; i++) {
     const v = gv[i];
-    const gate = interactiveRest ? Math.max(0.04, excite[i] || 0) : 1; // quiet at rest, blob blooms where touched
-    organismOut.bri[i] = Math.min(1, v * 2.6 * gate);
+    // INTERACTIVE REST, but with a VISIBLE floor.
+    //
+    // Was: `Math.min(1, v * 2.6 * gate)` with gate flooring at 0.04 — the gate
+    // multiplied EVERYTHING, so at rest the whole reaction rendered at 4% and
+    // picking "organism" looked like nothing happened (Elliot 08-15: "when I
+    // click organism it doesn't fully work"). Measured: peak luminance 6.8
+    // against a blackout reference of 3.6, 1.8% of the coverage `solid` lights,
+    // and zero frame-to-frame movement. The reaction was running fine — it was
+    // being rendered invisibly.
+    //
+    // `living` never had this problem because its gate multiplies only one term
+    // and an ungated `+ 0.55 * aBoost` survives at rest (field.ts:162). This
+    // mirrors that shape: the blobs are always visible, and a touch still blooms
+    // them to full — the interactive intent is preserved, not removed.
+    const gate = interactiveRest ? Math.max(0.04, excite[i] || 0) : 1;
+    organismOut.bri[i] = Math.min(1, v * 2.6 * (0.30 + 0.70 * gate));
     organismOut.hue[i] = themeMapHue((0.62 - Math.min(1, v / (gu[i] + v + 1e-3)) * 0.42 + 1) % 1); // ratio → blue→green, pulled into the theme
   }
 }

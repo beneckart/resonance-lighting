@@ -221,7 +221,14 @@ export function TouchConsole() {
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} style={{
-        position: "fixed", bottom: 14, right: 14, zIndex: 16, padding: "10px 14px", borderRadius: 12,
+        // zIndex 60, NOT 16. SidePanel is zIndex 40 and fills the right half in
+        // dock mode, so at right:14 this rendered UNDERNEATH it and was
+        // unclickable on every dock surface — measured 2026-08-15, blocked by a
+        // DIFFERENT element on each one ("🕯 Intimate", a description div, a span
+        // reading "0.02"), which is the signature of stacking order rather than
+        // one bad overlap. 60 is what every sibling floater already uses
+        // (🗂 dock, 🔦 BEACON, 🌑 BLACKOUT, ✨ clean view).
+        position: "fixed", bottom: 14, right: 14, zIndex: 60, padding: "10px 14px", borderRadius: 12,
         border: "1px solid #2a3a52", background: "rgba(16,22,34,0.9)", color: "#cdd6e4",
         font: "13px ui-monospace, monospace", cursor: "pointer", backdropFilter: "blur(6px)",
       }}>📱 touch</button>
@@ -697,6 +704,10 @@ function CommandPage() {
   const set = useTwin((s) => s.set);
   const driveReal = useTwin((s) => s.net.driveReal);
   const setNet = useTwin((s) => s.setNet);
+  // BLINK acknowledgement. Declared with the other hooks, ABOVE every early
+  // return — a sheet effect placed below one crashed this file on 08-14
+  // ("fewer hooks than expected") and there is no reason to relearn that.
+  const [cmdNote, setCmdNote] = useState<string | null>(null);
   const c = fleetCensusNow();
   const connected = fleetConnected();
 
@@ -720,8 +731,22 @@ function CommandPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <Pad active={false} accent="#7ee08c" label="⚡ ON" onClick={() => runScript("on")} />
         <Pad active={false} accent="#ff5b6e" label="⭘ OFF" onClick={() => runScript("off")} />
-        <Pad active={false} accent="#ffb454" label="✨ BLINK" onClick={() => fleetIdentify(null, 3)} />
+        {/* BLINK is the one pad on this page with NO sim path: ON/OFF/colours all
+            route through runScript() and drive the twin unconditionally, while
+            this emits a wire-only identify packet. With no daemon socket it was a
+            total no-op AND said nothing — measured 2026-08-15: render movement
+            exactly 0 across 8 samples, zero feedback, zero errors, while the OFF
+            pad beside it moved luminance 109.8 → 3.1. That reads as "Blink is
+            broken" when the truth is "there is nothing to blink". Say so. */}
+        <Pad active={false} accent="#ffb454" label="✨ BLINK" onClick={() => {
+          const sent = fleetIdentify(null, 3);
+          setCmdNote(sent ? `blink sent to ${c.heardWindow || "the"} lantern(s) · 3 s` : "no bridge — nothing to blink");
+          window.setTimeout(() => setCmdNote(null), 3000);
+        }} />
       </div>
+      {cmdNote && (
+        <div style={{ fontSize: 12, color: cmdNote.startsWith("no bridge") ? "#ffb4b4" : "#7ee08c" }}>{cmdNote}</div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 6 }}>
         {CMD_COLORS.map((col) => (
@@ -877,9 +902,20 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
       // OPAQUE — 08-15 Elliot ("not the aesthetic I want"): the translucent
       // sheet let the page underneath bleed through and collide with the
       // tap-chip editor. One surface, one moment.
-      position: "fixed", inset: 0, zIndex: 260, background: "#0b0f17",
-      display: "flex", flexDirection: "column", padding: "18px 16px calc(20px + env(safe-area-inset-bottom))",
-      overflowY: "auto", color: "#e7ecf6",
+      //
+      // HALF-HEIGHT — 08-15 Elliot ("I would prefer it only take half the
+      // screen and we can scroll down to see the data below"). Was inset:0,
+      // i.e. full-screen, which hid the tree you are trying to locate. Now it
+      // follows the same bottom-sheet geometry as the main mode sheet above:
+      // anchored over the tab bar so the tabs stay reachable, rounded top so it
+      // reads as a sheet rather than a page, and the overflow lives INSIDE it —
+      // that is what makes the data below scrollable instead of clipped.
+      position: "fixed", left: 0, right: 0, bottom: "calc(64px + env(safe-area-inset-bottom))",
+      height: "50vh", zIndex: 260, background: "#0b0f17",
+      borderTop: "1px solid #23304a", borderRadius: "18px 18px 0 0",
+      display: "flex", flexDirection: "column", padding: "14px 16px 20px",
+      overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+      color: "#e7ecf6",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 22 }}>{lit === "lit" ? "🟡" : lit === "dormant" ? "⚫" : "◌"}</span>
@@ -929,7 +965,14 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
 
       <div style={{ ...microLabel, marginTop: 16 }}>Do things to THIS lantern</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
-        <Pad active={false} accent={AMBER} label="✨ blink" onClick={() => { fleetIdentify(mac, 3); setNote("blink sent (3 s)"); window.setTimeout(() => setNote(null), 3000); }} />
+        {/* report what ACTUALLY happened — this said "blink sent (3 s)" even when
+            no packet left the browser, which is the worst possible answer during
+            a locate walk. */}
+        <Pad active={false} accent={AMBER} label="✨ blink" onClick={() => {
+          const sent = fleetIdentify(mac, 3);
+          setNote(sent ? "blink sent (3 s)" : "no bridge — blink NOT sent");
+          window.setTimeout(() => setNote(null), 3000);
+        }} />
         <Pad active={false} accent="#c8a24a" label="🔔 knock (bell)" onClick={() => act("knock", `/cambium/debug/knock?mac=${mac}&ms=40`)} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginTop: 8 }}>
