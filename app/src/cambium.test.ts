@@ -248,9 +248,19 @@ describe("CambiumBridge.urlFromLocation", () => {
     try { return fn(); } finally { g.window = prev; }
   };
 
-  it("no ?cambium= → the localhost default", () => {
+  it("no ?cambium= → the SAME-ORIGIN proxy (real lights by default, Elliot 08-15)", () => {
+    // was ws://localhost:8600/ws — changed deliberately: the un-flagged URL now
+    // dials the fleet through the vite /cambium proxy, the one URL that works
+    // from phones (per-binary macOS firewall). ?cambium=0 is the opt-out.
     expect(withLocation("http://192.168.1.216:5173/", () => CambiumBridge.urlFromLocation()))
-      .toBe("ws://localhost:8600/ws");
+      .toBe("ws://192.168.1.216:5173/cambium/ws");
+  });
+
+  it("?cambium=0 disables the link entirely", () => {
+    expect(withLocation("http://192.168.1.216:5173/?cambium=0", () => CambiumBridge.disabledByLocation()))
+      .toBe(true);
+    expect(withLocation("http://192.168.1.216:5173/", () => CambiumBridge.disabledByLocation()))
+      .toBe(false);
   });
 
   it("an absolute ws:// URL passes through untouched", () => {

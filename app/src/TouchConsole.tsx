@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { PATTERN_IDS, ELEMENT_MODES, useTwin, type PatternId, type UiMode } from "./store";
+import {
+  fleetCensusNow, fleetConnected, fleetIdentify, fleetRegistry, fleetVersion, subscribeFleet,
+} from "./fleetlink";
+import { litState, GAUGE_FAULT_MV } from "./macregistry";
 import { SHOWS } from "./shows";
 import { startMic, startTrack, stopAudio } from "./audio";
 import { interpretRemote, remoteConfigured, loadKey, saveKey, loadModel, saveModel, DEFAULT_MODEL } from "./openrouter";
@@ -26,9 +30,11 @@ function isPhoneLike(): boolean {
     (window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1023px)").matches);
 }
 
-type TabId = "tree" | UiMode;
+type TabId = "tree" | UiMode | "command" | "locate";
 const MODES: { id: TabId; icon: string; label: string }[] = [
   { id: "tree", icon: "🌳", label: "Tree" },
+  { id: "command", icon: "🎛", label: "Command" },
+  { id: "locate", icon: "🔎", label: "Locate" },
   { id: "interactive", icon: "🌱", label: "Interactive" },
   { id: "lightshow", icon: "🎬", label: "Shows" },
   { id: "sound", icon: "🎵", label: "Sound" },
@@ -331,6 +337,8 @@ export function TouchConsole() {
         </div>
 
         {/* ── mode content ── */}
+        {tab === "command" && <CommandPage />}
+        {tab === "locate" && <LocatePage />}
         {tab === "lightshow" && (
           <>
             <Section id="shows" label="Light shows · tap to play, tap again to stop">
@@ -551,6 +559,149 @@ export function TouchConsole() {
           );
         })}
       </nav>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🎛 COMMAND — the simple test surface (Elliot 08-15: "a simple command mode
+// for testing. On off, color, brightness, blink").
+//
+// Every button routes through runScript's grammar — the same path typing,
+// voice, and the AI operator use — so commands hit the SIM unconditionally,
+// and hit the REAL fleet exactly when 📡 drive is armed. One frame-pump owner,
+// always. BLINK is the exception by design: identify is a bounded targeted
+// packet, not a frame stream, so it reaches the real lanterns even with drive
+// off — that's what makes it the locate aid.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CMD_COLORS = ["red", "orange", "gold", "green", "cyan", "blue", "purple", "magenta", "white"] as const;
+
+function useFleet(): number {
+  return useSyncExternalStore(subscribeFleet, fleetVersion, fleetVersion);
+}
+
+function CommandPage() {
+  useFleet(); // re-render on fleet traffic (connection chip + heard count)
+  const runScript = useTwin((s) => s.runScript);
+  const ctrl = useTwin((s) => s.control);
+  const set = useTwin((s) => s.set);
+  const driveReal = useTwin((s) => s.net.driveReal);
+  const setNet = useTwin((s) => s.setNet);
+  const c = fleetCensusNow();
+  const connected = fleetConnected();
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, color: connected ? "#7ee08c" : "#7e8ea6" }}>
+          {connected ? `📡 bridge live · ${c.heardWindow} lights heard (5 min)` : "○ no bridge — sim only"}
+        </span>
+        <Toggle on={driveReal} accent="#ff5b6e" label={driveReal ? "📡 DRIVING REAL" : "drive real: off"}
+          onClick={() => setNet({ driveReal: !driveReal })} />
+      </div>
+      <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.45 }}>
+        Buttons drive the twin. Arm <b>drive real</b> and the real tree mirrors it.
+        Blink reaches real lanterns even with drive off.
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        <Pad active={false} accent="#7ee08c" label="⚡ ON" onClick={() => runScript("on")} />
+        <Pad active={false} accent="#ff5b6e" label="⭘ OFF" onClick={() => runScript("off")} />
+        <Pad active={false} accent="#ffb454" label="✨ BLINK" onClick={() => fleetIdentify(null, 3)} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 6 }}>
+        {CMD_COLORS.map((col) => (
+          <button key={col} aria-label={`all ${col}`} onClick={() => runScript(`all color ${col}`)}
+            style={{
+              height: 44, borderRadius: 10, cursor: "pointer", border: "1.5px solid #2b3a52",
+              background: col, touchAction: "manipulation",
+            }} />
+        ))}
+      </div>
+
+      <BigSlider label="brightness" v={ctrl.brightness} min={0} max={1} step={0.01} on={(v) => set({ brightness: v })} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <Toggle on={false} label="clear overrides" onClick={() => runScript("clear")} />
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔎 LOCATE — fleet status, told honestly (Elliot 08-15: "how many are on
+// right now, what their battery level is" + "reads the status of all the
+// lights"). Numbers come with their listening window because the count is a
+// FUNCTION OF LISTEN TIME (measured: 14@25s → 23@20min on the same fleet);
+// battery leads with millivolts because soc_pct reported 1% and 100% at
+// near-identical voltage on the live fleet. Tap a row → that lantern blinks.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function LocatePage() {
+  useFleet();
+  const c = fleetCensusNow();
+  const connected = fleetConnected();
+  const reg = fleetRegistry();
+  const now = Date.now();
+  const rows = Object.values(reg.records).sort((a, b) => b.lastSeenMs - a.lastSeenMs);
+  const [blinked, setBlinked] = useState<string | null>(null);
+
+  const age = (ms: number) => {
+    const s = Math.max(0, Math.round((now - ms) / 1000));
+    return s < 90 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`;
+  };
+  const litDot = (r: (typeof rows)[number]) => {
+    const s = litState(r);
+    return s === "lit" ? "🟡" : s === "dormant" ? "⚫" : "◌";
+  };
+
+  if (!connected && rows.length === 0) {
+    return (
+      <div style={{ color: "#7e8ea6", fontSize: 13, lineHeight: 1.6 }}>
+        ○ No bridge connection — nothing heard yet.<br />
+        The app dials the cambium daemon automatically (same-origin <code>/cambium</code>).
+        If the CoreS3 bridge is unplugged there is no radio and this page stays empty:
+        that is the truth, not a bug.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: "#dbe6f5", lineHeight: 1.7 }}>
+        <b>{c.heardRecent}</b> heard in the last minute · <b>{c.heardWindow}</b> in 5 min ·{" "}
+        <b>{c.total}</b> total this session
+        {c.listeningMs > 0 && <span style={{ color: "#7e8ea6" }}> (listening {Math.round(c.listeningMs / 60000)} min — the count grows with listen time)</span>}
+        <br />
+        🟡 <b>{c.lit}</b> lit · ⚫ <b>{c.dormant}</b> dormant · ◌ <b>{c.unknown}</b> unknown ·
+        ⚡ <b>{c.charging}</b> charging
+        <br />
+        battery {c.medianMv !== null ? <>median <b>{c.medianMv} mV</b> ({c.minMv}–{c.maxMv})</> : "—"}
+        {c.belowLedsOff > 0 && <span style={{ color: "#ffb454" }}> · {c.belowLedsOff} at/under the 2950 mV LEDs-off floor</span>}
+        {c.gaugeFaults.length > 0 && <span style={{ color: "#ff5b6e" }}> · gauge fault: {c.gaugeFaults.join(", ")}</span>}
+      </div>
+      <div style={{ color: "#7e8ea6", fontSize: 11 }}>tap a light to BLINK it on the real tree</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {rows.map((r) => (
+          <button key={r.mac} onClick={() => { fleetIdentify(r.mac, 3); setBlinked(r.mac); window.setTimeout(() => setBlinked((b) => (b === r.mac ? null : b)), 3000); }}
+            style={{
+              display: "flex", gap: 10, alignItems: "baseline", padding: "9px 10px", borderRadius: 10,
+              border: `1px solid ${blinked === r.mac ? "#ffb454" : "#1c2740"}`,
+              background: blinked === r.mac ? "#ffb45422" : "#0d1420", color: "#dbe6f5",
+              fontFamily: "ui-monospace, monospace", fontSize: 12, cursor: "pointer", touchAction: "manipulation",
+            }}>
+            <span>{litDot(r)}</span>
+            <b style={{ minWidth: 62 }}>{r.mac}</b>
+            <span style={{ minWidth: 70 }}>
+              {r.battMv > 0 && r.battMv < GAUGE_FAULT_MV ? "gauge⚠" : `${r.battMv} mV`}
+              {r.battMa > 0 ? " ⚡" : r.battMa < 0 ? " ▾" : ""}
+            </span>
+            <span style={{ color: "#7e8ea6" }}>tier {r.powerTier ?? "?"} · prog {r.program ?? "?"}</span>
+            <span style={{ marginLeft: "auto", color: "#7e8ea6" }}>{age(r.lastSeenMs)}</span>
+          </button>
+        ))}
+      </div>
     </>
   );
 }

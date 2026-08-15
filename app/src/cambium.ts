@@ -98,11 +98,26 @@ export class CambiumBridge implements BridgeLink {
   static urlFromLocation(): string {
     if (typeof window === "undefined") return CAMBIUM_DEFAULT_URL;
     const q = new URLSearchParams(window.location.search).get("cambium");
-    if (!q) return CAMBIUM_DEFAULT_URL;
+    // REAL BY DEFAULT (Elliot 2026-08-15: "the simulator now uses the real
+    // lights by default"): no param means the same-origin /cambium proxy —
+    // the URL that actually works from phones (the firewall allow-lists vite's
+    // node binary, not cambium's venv python). ?cambium=<url> still overrides;
+    // ?cambium=0 opts out entirely (checked by the driver, not here).
+    if (!q || q === "1" || q === "proxy" || q === "same") {
+      const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${scheme}//${window.location.host}/cambium/ws`;
+    }
     if (/^wss?:\/\//i.test(q)) return q; // explicit absolute — caller knows best
-    const path = q === "1" || q === "proxy" || q === "same" ? "/cambium/ws" : q.startsWith("/") ? q : `/${q}`;
+    const path = q.startsWith("/") ? q : `/${q}`;
     const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${scheme}//${window.location.host}${path}`;
+  }
+
+  /** the operator explicitly said no bridge: ?cambium=0 / off / none */
+  static disabledByLocation(): boolean {
+    if (typeof window === "undefined") return true; // tests/SSR: never auto-dial
+    const q = new URLSearchParams(window.location.search).get("cambium");
+    return q === "0" || q === "off" || q === "none";
   }
 
   async connect(): Promise<void> {

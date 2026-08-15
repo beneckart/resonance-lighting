@@ -23,6 +23,7 @@ import { AutoVj } from "./AutoVjDriver";
 import { TimelineDriver } from "./TimelineDriver";
 import { loadFixtures, validateFixturesDoc, auditFixtures } from "./fixtures";
 import { useTwin } from "./store";
+import { startFleetLink } from "./fleetlink";
 
 export function App() {
   const [err, setErr] = useState<string | null>(null);
@@ -48,6 +49,12 @@ export function App() {
     // path out of the sandbox. The un-flagged URL stays the full controller.
     if (new URLSearchParams(window.location.search).get("demo") === "1") {
       useTwin.getState().armDemoLock();
+    } else {
+      // REAL BY DEFAULT (Elliot 08-15): dial the fleet's telemetry link at
+      // boot — read-only, the 📡 toggle stays the only frame sender. The demo
+      // sandbox NEVER dials: a public guest page has no business holding even
+      // a read connection to the physical tree's daemon.
+      startFleetLink();
     }
     const alt = new URLSearchParams(window.location.search).get("fixtures");
     loadFixtures(alt || undefined)

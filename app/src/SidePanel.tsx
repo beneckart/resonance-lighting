@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode } from "react";
 import { useTwin, UI_MODES, type UiMode } from "./store";
 import { DockCtx } from "./Widget";
 import { Controls } from "./Controls";
-import { GroupPanel } from "./GroupPanel";
 import { ShowsPanel } from "./ShowsPanel";
 import { PianoPanel } from "./PianoPanel";
 import { InteractivityPanel } from "./InteractivityPanel";
@@ -35,7 +34,10 @@ const SECTIONS: Record<UiMode, { key: string; el: ReactNode }[]> = {
   ],
   lightshow: [
     { key: "shows", el: <ShowsPanel /> }, // pre-designed shows FIRST (Elliot: "bring the shows up to the top")
-    { key: "scope", el: <GroupPanel /> }, // whole tree · custom groups · single lights
+    // GroupPanel removed 08-15 (Elliot: "we have the groups at the top so we
+    // don't need the groups inside the light show mode") — the group-chip strip
+    // above the mode tabs is the ONE scope selector; saved dock orders holding
+    // "scope" self-filter in loadOrder.
     { key: "controls", el: <Controls /> }, // sliders: colour · themes · brightness · speed · patterns
   ],
   sound: [
