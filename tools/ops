@@ -40,16 +40,19 @@ post_update() { # ip bin -> 0 on "Update complete"
 
 case "${1:-}" in
   status)
-    fleet_py | python3 -c '
+    fleet_py | python3 -c "
 import json,sys
-NAMES={"F40384":"Mario","F2B7DC":"Luigi"}
+NAMES={'F40384':'Mario','F2B7DC':'Luigi'}
 f=json.load(sys.stdin)
-print(f"{len(f)} fixtures known")
+print(len(f),'fixtures known')
 for mac,d in sorted(f.items()):
-    t=d.get("telemetry") or {}
-    s=d.get("stale_age_s"); s=f"{s:.0f}s" if s is not None else "?"
-    print(f"{'LIVE ' if d['online'] else 'stale'} {mac:7}{NAMES.get(mac,''):6} slot={d.get('fixture_id')} fw={t.get('fw_rev')} tier={t.get('power_tier')} stale={s}")'
-    curl -s -m 3 "$D/bridge" | python3 -c 'import json,sys;j=json.load(sys.stdin);print(f"bridge: connected={j[\"connected\"]} rx={j.get(\"rx_pkts\")} crc_err={j.get(\"bridge_crc_err\")} driver_held={j[\"driver\"][\"held\"]}")'
+    t=d.get('telemetry') or {}
+    s=d.get('stale_age_s'); s=('%.0fs'%s) if s is not None else '?'
+    state='LIVE ' if d['online'] else 'stale'
+    print(state,mac,NAMES.get(mac,''),'slot',d.get('fixture_id'),'fw',t.get('fw_rev'),'tier',t.get('power_tier'),'stale',s)"
+    curl -s -m 3 "$D/bridge" | python3 -c "
+import json,sys;j=json.load(sys.stdin)
+print('bridge: connected',j['connected'],'rx',j.get('rx_pkts'),'crc_err',j.get('bridge_crc_err'),'driver_held',j['driver']['held'])"
     ;;
   flash)
     MAC=$(name2mac "$2"); BIN="$3"; [[ -f "$BIN" ]] || { echo "no such bin: $BIN"; exit 1; }
