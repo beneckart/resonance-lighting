@@ -12,6 +12,81 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-15 -- Ben + Claude -- Camp network pinned to channel 11; Claude mesh bridge recorded as direction only
+
+Codified a chat-drafted design brief for a Claude-backed handheld mesh bridge
+after reconciling it against the actual firmware. The brief's central insight
+holds and was worth capturing: the ESP32-S3 has one 2.4 GHz radio, so WiFi STA
+and ESP-NOW must share a channel, and in STA mode the access point picks it.
+Every bridge built so far dodges this by never associating -- `cores3_bridge`
+stays unassociated by design, and fixtures in OTA maintenance have already left
+ESP-NOW. Any device that wants the mesh and the internet at once cannot dodge it,
+and an auto-channel AP would silently deafen it with no error and no log line.
+
+**ADR 0036 (accepted, router ordered but not received):** the camp AP is pinned
+to channel 11, HT20, WPA2-PSK, on a dedicated 2.4 GHz SSID, fed by Starlink in
+bypass mode through a GL.iNet Beryl AX. Any Resonance device that associates
+while using ESP-NOW must read the actual channel after association and, on
+mismatch, **drop WiFi and keep the mesh**. The original brief had this inverted
+(refuse to start mesh TX/RX); the mesh is the primary function and Claude is the
+enhancement, so the priority is the other way around. Maintenance-mode fixtures
+are explicitly exempt. Added `docs/howto/CAMP_NETWORK_SETUP.md` with the home
+rehearsal, field checklist, and troubleshooting table -- the Starlink bypass
+switch needs a factory reset to undo, so it is rehearsed at home, not improvised
+in dust.
+
+**ADR 0037 (proposed only):** the handheld itself. No hardware procured, no
+firmware written, no board chosen; post-2026-event unless Ben re-prioritizes.
+Six corrections to the brief are recorded in
+`docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md` section 9 so the
+reasoning is not lost. The two that matter most: the brief's "task one" of
+extracting a shared `mesh_protocol.h` is **already done** -- `packet.h` is the
+platform-independent contract with golden layout pins that 24 commissioned
+fixtures and all host tooling parse, so a second header would fork the fleet
+contract; and the proposed promiscuous-mode sniffer is largely redundant, since
+all fleet traffic is broadcast (targeting is a 3-byte `target_id` inside the
+payload) and `esp_now_recv_info_t.rx_ctrl->rssi` already gives per-packet RSSI
+on the ordinary receive callback that `cores3_bridge` already uses for 192
+peers. Also corrected: no group addressing exists on the wire (the brief's
+`north/south/east/west/canopy` is invented -- real addressing is a 3-byte short
+ID with `00:00:00` for all, plus four self-detected classes), the fleet is about
+130 fixtures not 150, the solenoid clamp is 5-300 ms with a 40 ms default and
+80 ms coil rest rather than "20-30 ms", pure ESP-IDF would fork the arduino-cli
+toolchain for one device, and `claude-sonnet-4-6` is still valid but
+previous-generation. Two embedded API gotchas were added that the brief missed:
+thinking is on by default on current models and `max_tokens` caps thinking plus
+response text together, so a 1024-token budget can truncate mid-answer.
+
+The unauthenticated-ESP-NOW problem is recorded as inherited, not new -- it is
+the same open item already tracked against the Atom clicker work, and a lanyard
+device that can command the fleet widens that surface rather than creating a
+second one.
+
+**Hardware facts corrected same session, from Ben.** Starlink is Gen 3 + Gen 4
+(possibly all Gen 4), so Ethernet is built in and no Starlink Ethernet Adapter is
+needed -- that was the only lead-time-sensitive item in ADR 0036 and it is now
+closed. The GL-MT3000 is ordered. Handheld hardware is **already on hand**:
+2x LilyGO T-Deck and 1x M5Stack Cardputer ADV, so ADR 0037's "no hardware
+procured" framing was wrong and is corrected; board choice is settled as T-Deck
+first (two units means a spare, plus the larger display and better keyboard),
+Cardputer ADV port after, behind the display/input HAL.
+
+One verification worth recording because it cuts both ways: LilyGO's **T-Deck
+Pro** is a genuinely different device -- 3.1 in e-paper, CST328 touch, TCA8418
+keypad controller -- and had the units been Pros, streamed chat would have needed
+paragraph-boundary repaints instead of per-delta rendering. Ben confirmed the
+units are the **LCD** T-Deck, so the original brief's board table is correct as
+written and no UI redesign is required. The Pro/LCD distinction is now recorded
+in `AGENTS.md`, the ADR, and the brief so nobody ports from the wrong driver set
+after reading a spec page. Base-vs-Plus (Plus adds GPS and a battery) is still
+unconfirmed. The real display risk on this hardware is not refresh rate but
+direct-sun readability of a 2.8 in IPS through sunglasses, which is now a
+milestone 0 check rather than a milestone 5 acceptance criterion -- it is the
+cheapest available falsification of the whole concept.
+
+No firmware, hardware, or fleet state changed. `AGENTS.md` gains the channel
+rule and a one-wire-contract gotcha; `TODO.md` gains a camp-network section.
+
 ## 2026-08-14 -- Ben + Codex -- CoreS3 audio-reactive operator guide
 
 Added `docs/howto/CORES3_AUDIO_REACTIVE.md` as the durable operating guide for
@@ -22,6 +97,26 @@ channel-11 and lifecycle requirements, three-second autonomous fallback, the
 three accepted perimeter fixture IDs, tuning recipes, troubleshooting, and the
 2026-08-06 hardware baseline. Linked the guide from the root and bridge READMEs.
 No firmware, persisted fixture state, or architectural decision changed.
+
+## 2026-08-13 -- Ben + Codex -- PUCA performance-audio bridge documented on arrival
+
+Recorded the newly arrived performance-audio setup so `PUCA` is no longer
+conversation-only context. The primary source bridge is an Ohmic PUCA DSP
+Original Edition on its 6 HP Eurorack expansion, installed in a powered 4ms
+Pod20 and paired with the RODE VideoMic NTG + WS11. The already-owned CoreS3 +
+Module Audio stacks remain the independent fallback and the only currently
+implemented audio-reactive bridge.
+
+Added ADR 0035, glossary/agent/top-level pointers, the procurement note, and the
+detailed hardware/bring-up record at
+`hardware/puca-audio-bridge/README.md`. The record separates received hardware
+from unfinished firmware: the factory oscillator/effect image is not Resonance
+firmware. First light should reuse the proven 10 Hz `NB_DIRECT_FRAME` path on
+channel 11 plus the fixture's three-second stale fallback; raw-audio transport
+and a new feature-packet contract are explicitly out of the initial milestone.
+Open work now includes Original-edition/ribbon/control checks, exact RODE input
+and gain calibration, a PUCA-specific firmware target, mixed-fleet proof, and
+closed-Pod20 RF/PDR and soak validation.
 
 ## 2026-08-11 -- Ben + Codex -- Origin synchronized; printable gobo baseline pending Steve source
 

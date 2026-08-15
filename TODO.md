@@ -63,6 +63,63 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] Source ~100 JST 2-pin Y-cables (~$0.50 each found; verify quantity availability) -- CONDITIONAL on the RGBW VBAT-feed decision (Ben).
 - [ ] Commit `enclosure/references/DOWN LIGHTS DRAWINGS.pdf` to the repo, or re-point the three references to its actual home (Ben/Steve).
 
+## Camp network and field infrastructure
+
+- [ ] **Configure the Beryl AX on arrival and verify channel 11 over the air
+  (ADR 0036).** 2.4 GHz fixed to channel 11, 20 MHz width (HT20), WPA2-PSK, on a
+  dedicated SSID separate from 5 GHz. Do not accept the config page as proof --
+  confirm with a scan (phone analyzer or the bridge `NB_SCANAP` path) that the
+  SSID reports `ch=11`. Push laptops and phones to the 5 GHz SSID. Full runbook
+  in `docs/howto/CAMP_NETWORK_SETUP.md` (Ben).
+- [ ] **Rehearse Starlink bypass mode at home before the event (ADR 0036).**
+  Leaving bypass mode requires a factory reset, so the undo must be known rather
+  than discovered in the field. **Dish generation resolved 2026-08-15: Gen 3 +
+  Gen 4 on hand (possibly all Gen 4), Ethernet built in, no Starlink Ethernet
+  Adapter needed.** Remaining: confirm the port physically on the unit that
+  travels and that bypass mode is present in its app settings (Ben).
+- [ ] **Prove simultaneous WiFi-plus-mesh coexistence on the pinned AP.**
+  Associate one device to the channel-11 SSID while a fixture beacons and
+  confirm ESP-NOW RX continues both directions for at least an hour. Then
+  deliberately set the AP to channel 1 and confirm the guard behavior: WiFi
+  dropped, mesh retained, mismatch surfaced (Ben/Claude).
+- [ ] **Implement the ADR 0036 channel guard in any firmware that associates
+  while using ESP-NOW.** After STA association, read the actual operating
+  channel; on mismatch with the compiled mesh channel, drop the association and
+  keep the mesh, then surface it on display or serial. Does **not** apply to
+  fixtures in OTA maintenance mode, which have already left ESP-NOW by design.
+  No current firmware needs this yet -- it lands with the first
+  mesh-plus-internet device (Ben/Claude).
+- [ ] **Run one parallel shared-WiFi OTA over the Beryl**, not just a house
+  network, using the normal targeted `U<id>` + `field_cycle_ota.py` path. Do not
+  build or use the deprecated per-board maintenance-AP fallback (Ben/Claude).
+- [ ] **Measure the Beryl's actual draw** powered the way it will actually be
+  powered (USB-C off the camp battery, not a wall wart) and record it against the
+  camp energy budget. Nominal is about 5 W; confirm rather than assume (Ben).
+- [ ] **Resolve one virtual SSID across the camp and art-site Starlinks.** Both
+  APs must be on channel 11; if both are to serve OTA they must also share SSID
+  and PSK. Previously queued against the production credential work; now also
+  gated by ADR 0036 (Ben).
+- [ ] **Claude mesh bridge handheld -- decide whether to build at all (ADR 0037).**
+  Direction and corrected design brief are recorded in
+  `docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md`; nothing is committed.
+  **Hardware is on hand (2026-08-15): 2x LilyGO T-Deck LCD variant + 1x M5Stack
+  Cardputer ADV.** Board is settled -- T-Deck first (two units means a spare,
+  plus the larger display and better keyboard), Cardputer ADV port after, behind
+  the display/input HAL. Confirm base vs Plus on the T-Decks (Plus adds GPS and a
+  battery) before assuming an untethered runtime, and do **not** port from
+  T-Deck Pro documentation -- the Pro is a different device (e-paper, CST328
+  touch, TCA8418 keypad) whose drivers do not transfer. Cheapest early
+  falsification: put a test pattern on the actual panel in direct sun with
+  sunglasses, before writing anything else. Remaining decision: how
+  class/spatial targeting works, since no group addressing exists on the wire
+  (start with client-side expansion from the census; a class byte or named
+  groups would need their own ADR). Non-negotiables if it is built: include
+  `firmware/fixture/src/core/packet.h` rather than defining a second protocol
+  header, build the census on the ordinary ESP-NOW receive callback rather than
+  promiscuous mode, keep OTA/reboot/profile opcodes off the tool surface, and
+  clamp actuator parameters in firmware. Post-2026-event unless re-prioritized
+  (Ben).
+
 ## COTS bench testing
 
 - [~] **Productionize reduced-access Atom Matrix campmate clickers for 2026.**
@@ -1020,6 +1077,15 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   autonomous program 1 after the three-second stale-frame limit. All fixtures
   acknowledged `N2`, remained on channel 11, and the bridge was left audio-off
   (Ben/Codex).
+- [ ] **Bring up the received PUCA performance-audio bridge (ADR 0035):** verify
+  Original Edition identity, Eurorack ribbon orientation, both knobs, paw, exact
+  RODE audio-input route, codec gain, and unclipped levels; then create
+  `firmware/puca_bridge/` by reusing the CoreS3 platform-independent audio logic
+  and canonical packet definitions. First milestone is existing 10 Hz
+  `NB_DIRECT_FRAME` on channel 11 with the three-second fixture stale fallback,
+  not raw-audio transport or a new feature-packet protocol. Finish with mixed
+  HEX/RGBW, closed-Pod20 RF/PDR, overrun, reset, and multi-hour stability tests.
+  Full checklist: `hardware/puca-audio-bridge/README.md` (Ben/Codex).
 - [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
   over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
   to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).

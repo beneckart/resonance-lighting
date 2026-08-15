@@ -68,6 +68,24 @@ time quality to the rest of the fleet, so all roughly 130 fixtures do not need R
 Panel/lux dusk inference remains useful bench telemetry but is not the production show
 clock.
 
+**Performance audio has a dedicated optional publisher** (ADR 0035): a received
+PUCA DSP Original Edition in its Eurorack expansion, paired with a RODE VideoMic
+NTG, will analyze one clean audio source and publish directed show frames over
+ESP-NOW. The already-proven CoreS3 + Module Audio path remains the independent
+fallback. PUCA hardware is on hand, but custom firmware and field validation are
+still pending; see `hardware/puca-audio-bridge/README.md`.
+
+**The camp network is pinned to the mesh channel** (ADR 0036). The ESP32-S3 has
+one 2.4 GHz radio, so WiFi STA and ESP-NOW must share a channel, and in STA mode
+the access point picks it. Every bridge so far dodges this by staying
+unassociated; any device that wants the mesh and the internet at once cannot.
+The camp AP (Starlink in bypass mode -> GL.iNet Beryl AX) therefore serves a
+dedicated 2.4 GHz SSID fixed to channel 11, and any device that associates while
+using ESP-NOW must verify the channel and drop WiFi rather than lose the mesh.
+Router ordered, not yet configured; runbook in `docs/howto/CAMP_NETWORK_SETUP.md`.
+The first intended consumer is a Claude-backed mesh bridge handheld -- a proposed
+post-event direction only, with no hardware bought (ADR 0037).
+
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
 ## Goals
@@ -93,6 +111,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |-- hardware/
 |   |-- atopile/
 |   |-- led-adapter/       NeoHEX passive adapter Rev A (KiCad + PCBWay packet)
+|   |-- puca-audio-bridge/ Received performance-audio source + bring-up record
 |   `-- references/
 |-- enclosure/             README only so far; CAD lives with Steve
 |-- firmware/
@@ -103,7 +122,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |   `-- <app>/             bench sketches (net_bench, power_bench, led_studio, ...)
 |-- docs/
 |   |-- block-diagram/     SYSTEM.md -- canonical architecture + fleet table
-|   |-- decisions/         ADRs 0001-0032
+|   |-- decisions/         ADRs 0001-0037
 |   |-- howto/             task-oriented bench and operations guides
 |   |-- research/
 |   `-- tests/
@@ -129,6 +148,10 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 - [`docs/howto/CORES3_AUDIO_REACTIVE.md`](docs/howto/CORES3_AUDIO_REACTIVE.md) --
   connect and tune the Rode VideoMic NTG, read the CoreS3 audio display, run the
   three-fixture sound-reactive bench, and troubleshoot the safe fallback path.
+- [`docs/howto/CAMP_NETWORK_SETUP.md`](docs/howto/CAMP_NETWORK_SETUP.md) --
+  stand up Starlink + the Beryl AX travel router with the 2.4 GHz radio pinned to
+  channel 11 so infrastructure WiFi and the ESP-NOW fleet can coexist on one
+  radio. Home rehearsal, field checklist, and troubleshooting (ADR 0036).
 
 ## Status
 

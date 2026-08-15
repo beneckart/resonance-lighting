@@ -29,6 +29,14 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   20-second pending-verify window; rollback safely restored `.1`. The same exact
   `.2` artifact passed immediately once an LFP was installed. USB is still the
   rescue/data path, but the production battery is the expected reboot ride-through.
+- **One mesh wire contract, one file:** `firmware/fixture/src/core/packet.h` is
+  the ESP-NOW protocol for the whole fleet -- fixtures, `cores3_bridge`, and all
+  host tooling parse these exact layouts, and `test_packet_layout.cpp` pins
+  golden `sizeof`/`offsetof` so an accidental reorder fails at build time. Any
+  new bridge, handheld, or publisher **includes** it; do not write a second
+  protocol header (a design brief proposing `mesh_protocol.h` predates this
+  file -- see ADR 0037). The header has no Arduino includes, so it compiles
+  natively and on any ESP32 target. Struct evolution is append-only.
 - **Arduino compile cache:** do **not** run parallel `arduino-cli compile` commands
   against the same sketch/cache. Either build sequentially or pass a unique
   `--build-path` per compile. `firmware/net_bench/build.sh` already does this; direct
@@ -101,9 +109,34 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
 - LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
 - Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
+- **Performance-audio source: received PUCA DSP Original Edition + Eurorack
+  expansion + RODE VideoMic NTG is the primary optional bridge; CoreS3 + Module
+  Audio remains the independent fallback (ADR 0035). Hardware is on hand but
+  PUCA firmware is NOT implemented or field-validated.** Read
+  `hardware/puca-audio-bridge/README.md`; do not mistake the factory Eurorack
+  oscillator/effect image for Resonance firmware.
+- **Camp network AP is pinned to the mesh channel (11), HT20, WPA2-PSK, on a
+  dedicated 2.4 GHz SSID (ADR 0036).** One radio means WiFi STA and ESP-NOW share
+  a channel and the AP picks it, so an auto-channel AP silently deafens any
+  device that associates while on the mesh. Any Resonance device that associates
+  while using ESP-NOW must read the actual channel after association and, on
+  mismatch, **drop WiFi and keep the mesh** -- never the reverse. This does not
+  apply to fixtures in OTA maintenance mode, which have already left ESP-NOW by
+  design. Router ordered, not configured; runbook in
+  `docs/howto/CAMP_NETWORK_SETUP.md`.
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
+- Camp network bring-up: Beryl AX ordered but not received or configured; the
+  channel guard is specified but not implemented in any firmware; the one
+  virtual SSID across the camp and art-site Starlinks is unresolved (ADR 0036).
+- Claude mesh bridge handheld: direction recorded only. Hardware IS on hand
+  (2x LilyGO T-Deck **LCD** variant + 1x M5Stack Cardputer ADV) but no firmware
+  is written and no bring-up is done. T-Deck is the primary target; do not port
+  from **T-Deck Pro** documentation, which is a different device (e-paper,
+  CST328 touch, TCA8418 keypad) whose drivers do not transfer. Class/spatial
+  addressing still needs its own wire-format decision -- no group addressing
+  exists today. Post-2026-event unless Ben re-prioritizes (ADR 0037).
 - Rope attachment point: hat / bamboo / hybrid. Pending team input.
 - Hat dimensions: placeholder, awaiting Vishnu input.
 - Trunk-light integration: the production direction is about 16 mostly/all RGBW

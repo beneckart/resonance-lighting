@@ -52,6 +52,13 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **Marauder's Map** -- Ben's 2018 Burning Man piece. 3 ft x 3 ft solar-powered laser-etched map of BRC backlit by 450 LEDs at road junctions.
 - **future-robotics** -- The github.com/beneckart/future-robotics repo containing prior project code.
 - **Mystery white-enclosure board** -- Initially unknown, identified as **TTGO T-Ice** (LilyGO, discontinued ESP32+WS2812B-driver board with white snap-on case).
+- **Beryl AX** -- GL.iNet GL-MT3000 travel router. The camp/art-site access point, fed by Starlink in bypass mode over Ethernet, USB-C powered at about 5 W. Its 2.4 GHz radio is pinned to channel 11 to match the mesh (ADR 0036). Ordered, not yet received.
+- **Bypass mode** -- Starlink setting that disables the Starlink router's own WiFi and DHCP so a downstream router (the Beryl) is the only router on the link. Leaving bypass mode requires a Starlink factory reset, so the switch is rehearsed at home rather than improvised in the field.
+- **Channel guard** -- Required firmware check on any Resonance device that associates to an AP while also using ESP-NOW: after STA association, read the actual operating channel and, if it does not match the compiled mesh channel, drop the WiFi association and keep the mesh. The mesh is the primary function; internet is the enhancement. Specified in ADR 0036; not yet implemented in any firmware.
+- **Cricket console** -- Working name for the proposed Claude mesh bridge handheld (ADR 0037): a pocket device that is simultaneously a Claude chat client over WiFi/TLS, an ESP-NOW command transmitter, and a passive mesh observer. Direction only -- hardware is on hand but no firmware is written.
+- **T-Deck** -- LilyGO ESP32-S3 handheld: 2.8 in ST7789 IPS 320x240 with capacitive touch, BlackBerry-style keyboard on an auxiliary MCU over I2C (commonly 0x55), trackball, 8 MB PSRAM / 16 MB flash. Two on hand (LCD variant); the primary target for the cricket console. **T-Deck Plus** adds GPS and a battery -- which variant is in hand is unconfirmed.
+- **T-Deck Pro** -- A *different* LilyGO device, not what this project owns: 3.1 in e-paper 320x240, CST328 touch, TCA8418 keypad controller, plus GPS and LoRa. Its display and input drivers do not transfer to the LCD T-Deck. Recorded only so nobody ports from the wrong spec page.
+- **Cardputer ADV** -- M5Stack ESP32-S3 handheld with a 1.14 in ST7789 240x135 display and a 56-key matrix keyboard. One on hand; the secondary/pocket target for the cricket console, and the fallback if the T-Deck's IPS panel proves unreadable in direct sun.
 
 ## Physical / temporal
 
@@ -116,6 +123,20 @@ Terms and proper nouns used throughout this repo, in case an agent or human is d
 - **TMF8820-mini** -- AMS 3x3 multizone ToF (SparkFun mini breakout); downward presence sensor on downlights (bench-validated on the same-family TMF8821). 940 nm VCSEL, **Class 1 laser** (IEC 60825-1 eye-safe cert + hardware VCSEL-fault shutoff) -- same class as phone face-unlock; BM's laser-registration policy targets display lasers, not Class 1 embedded sensors (one-line disclosure via lasers@burningman.org recommended, 2026-07-27).
 - **VL53L5CX** -- ST multizone ToF (up to 8x8); outward presence sensor on perimeter fixtures; 60 protective optical covers bought (Gilisymo). 940 nm VCSEL, **Class 1 laser** per IEC 60825-1:2014 incl. single-fault conditions -- eye-safe at any viewing distance; keep flat windows only in front of the emitter (no lenses) to preserve the classification.
 - **Solarnoid** -- The fleet noisemaker, design finalized ~2026-07-24 (ADR 0030): a solar-fed striker -- VDC-tap + 22,000 uF storage cap + MOSFET-driven push-pull solenoid + craft-store mallet -- physically knocks the bamboo. Daytime solar-surplus percussion; night belongs to the light show. Paired with LARGE-enclosure fixtures (downlights) only. The #3885 speaker-synth path was abandoned; a stronger-solenoid bake-off picked the part (0730B-class primary).
+- **PUCA / PUCA DSP** -- Ohmic Limited's original-ESP32 + WM8978 audio/DSP
+  board. Resonance owns an Original Edition in the 6 HP Eurorack expansion as the
+  primary optional performance-audio publisher (ADR 0035). It ingests the RODE
+  mic, a DJ line output, or its onboard microphones and will publish directed
+  show data over ESP-NOW. Hardware is received; custom firmware is pending. The
+  manufacturer's spelling uses an accented `u`; this repo uses ASCII `PUCA`.
+- **RODE VideoMic NTG** -- Directional, battery-powered microphone bought for the
+  PUCA/CoreS3 performance bridge. Its active variable 3.5 mm output simplifies
+  gain staging for bowls, violin, singing, and ambient performance capture; the
+  WS11 furry windshield is the outdoor configuration.
+- **CoreS3 desk bridge** -- M5Stack ESP32-S3 screen-equipped fleet bridge in
+  `firmware/cores3_bridge/`. It has already validated direct audio-reactive
+  frames through Module Audio and remains the independent fallback/reference for
+  the not-yet-written PUCA bridge.
 - **STEMMA-QT / Qwiic** -- JST-SH 4-pin I2C connector standard used by the sensor boards.
 - **Grove / HY2.0** -- M5Stack's physical connector family (carries GPIO data for the HEX, not I2C).
 - **JST-XH** -- Keyed wire-to-board connector family planned for battery/LED harnesses (right-angle headers + pre-crimped cables in the to-buy queue).

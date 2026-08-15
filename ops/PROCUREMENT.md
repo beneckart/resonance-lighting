@@ -90,6 +90,24 @@ sourcing history.
   piezo, 8002A amp, Adafruit STEMMA speaker #3885 at $4.76); 10x Adafruit MOSFET
   drivers ($46, pre-fleet order -- so 110 drivers total with the 07-10 buy);
   **solarnoid mallets** (craft store, bulk, very cheap -- order details TBC).
+- 2026-08-13 -- Performance-audio hardware received: at least one PUCA DSP
+  Original Edition in the Ohmic 6 HP Eurorack expansion; 4ms Pod20 Powered case,
+  45 W brick, mains lead, and 10 HP + 4 HP blank panels; RODE VideoMic NTG +
+  WS11; multiple CoreS3 + M5Stack Module Audio fallback stacks. Quantities/costs
+  beyond the received primary setup are not reconciled here (ADR 0035;
+  `hardware/puca-audio-bridge/README.md`).
+- ~2026-08 -- **Camp network router: GL.iNet Beryl AX (GL-MT3000)**, ordered,
+  not yet received. Vendor, date, and cost TBC -- fill in from the receipt. Its
+  2.4 GHz radio must be pinned to channel 11 to coexist with the mesh (ADR 0036;
+  `docs/howto/CAMP_NETWORK_SETUP.md`). **Starlink: Gen 3 + Gen 4 on hand
+  (possibly all Gen 4), confirmed 2026-08-15 -- Ethernet is built in and no
+  Starlink Ethernet Adapter is needed.**
+- **Handhelds on hand (confirmed 2026-08-15, purchase details unreconciled):**
+  2x LilyGO **T-Deck, LCD variant** (2.8 in ST7789 IPS, BlackBerry keyboard over
+  I2C, trackball -- **not** the e-paper T-Deck Pro; base vs Plus not yet
+  confirmed, Plus adds GPS and a battery) and 1x M5Stack **Cardputer ADV**.
+  Candidate hardware for the Claude mesh bridge handheld (ADR 0037); no firmware
+  written. Dates and costs TBC.
 
 ## To-buy queue
 
