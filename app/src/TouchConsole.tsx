@@ -427,6 +427,18 @@ export function TouchConsole() {
                 heartbeat-rate buttons broadcast NB_SET_RATE to awake lanterns
               </div>
             </Section>
+            <Section id="set-about" label="ⓘ About the light data">
+              <div style={{ color: "#7e8ea6", fontSize: 12, lineHeight: 1.7 }}>
+                <b>unmapped</b> — that lantern's MAC has no slot in the model yet,
+                so height/role are unknown until the MAC↔slot join (Calibrate →
+                commissioning, or Justin's Constellate camera sweep).<br />
+                <b>presence & neighbor events</b> — reserved-but-unsent in Ben's
+                firmware (NB_EVENT); "what it does when someone walks under"
+                cannot be shown until that ships.<br />
+                <b>knock</b> — needs the striker fitted AND the lantern awake in
+                dev profile; the 433 remote bypasses all of this in hardware.
+              </div>
+            </Section>
             <Section id="set-dev" label="🛠 Heavy-dev mode (use with charged batteries)">
               <div style={{ display: "flex", gap: 8 }}>
                 <Toggle on={false} accent="#3ddc97" label="stay-awake + OTA on"
@@ -889,26 +901,17 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
       {row("last heard", `${age < 90 ? `${age}s` : `${Math.round(age / 60)}m`} ago · ${r.hbCount} heartbeats · ${r.reboots} reboots`)}
       {row("radio", r.dlRssi !== 0 ? `${r.dlRssi} dBm at the lantern` : "—")}
 
-      <div style={{ ...microLabel, marginTop: 14 }}>From the model{slot ? "" : " (unmapped — needs commissioning/Constellate)"}</div>
       {fx ? (
         <>
+          <div style={{ ...microLabel, marginTop: 14 }}>From the model</div>
           {row("role", fx.role)}
           {row("hang height", `${fx.pos[1].toFixed(2)} m above ground (design)`)}
           {row("zone", `${fx.zone} · light #${fx.num}`)}
         </>
       ) : (
-        <div style={{ color: "#7e8ea6", fontSize: 13 }}>
-          No slot mapped for this MAC yet — height/role unknown until the
-          MAC↔slot join (Calibrate → commissioning, or the Constellate sweep).
-        </div>
+        // compact: the full explanation lives in Settings → About the data
+        row("slot", <span style={{ color: "#7e8ea6" }}>unmapped · ⓘ Settings</span>)
       )}
-
-      <div style={{ ...microLabel, marginTop: 14 }}>Not on the radio yet — honest gaps</div>
-      <div style={{ color: "#7e8ea6", fontSize: 13, lineHeight: 1.6 }}>
-        Presence/ToF ("what it does when someone walks under") and neighbor
-        events are reserved-but-unsent in the firmware (NB_EVENT). When Ben
-        ships them, they land here.
-      </div>
 
       <div style={{ ...microLabel, marginTop: 16 }}>Do things to THIS lantern</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
