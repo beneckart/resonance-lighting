@@ -40,6 +40,29 @@ const GLOBALS: Record<string, (v: string) => Partial<Control> | null> = {
   speed: (v) => ({ speed: clampNum(v, 0, 3) }),
 };
 
+/** Every word that may legally START a command line. Derived from GLOBALS +
+ *  the target/verb vocabulary below, so it can never drift from the parser. */
+export const COMMAND_HEADS: readonly string[] = [
+  "clear", "on", "off",
+  ...Object.keys(GLOBALS),
+  "all", "zone", "range", "every", "fixture", "light", "lights", "num",
+];
+
+/** SHAPE GATE for text produced OUTSIDE this app (an LLM, a voice transcript,
+ *  a pasted script). Answers only "does this line start with grammar we own?"
+ *
+ *  This is deliberately a vocabulary check, NOT a semantic one — `runCommandStr`
+ *  remains the authority and is already fail-safe (an unparseable line mutates
+ *  nothing and returns "? unrecognized"). The gate exists so a remote model can
+ *  never get a line of prose, an apology, or a code fence as far as the parser,
+ *  and so anything it *does* emit is vocabulary this controller already had.
+ *  Two layers, because a model that ignores its instructions is a normal event,
+ *  not an exceptional one. */
+export function isCommandLike(line: string): boolean {
+  const head = line.trim().toLowerCase().split(/\s+/)[0];
+  return head !== undefined && COMMAND_HEADS.includes(head);
+}
+
 /**
  * Parse a free-form lighting command into a state mutation. Grammar:
  *   clear | on | off
