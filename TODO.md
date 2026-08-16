@@ -138,7 +138,35 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
-- [~] **P0: canary the basic supervised listener before any fleet OTA.** Candidate
+- [~] **P0: finish the basic-listener OTA on the seven outstanding fixtures.**
+  The 2026-08-16 rollout put `fx-260816-otafix1-b` on 25 of the 32 eligible
+  previously seen fixture IDs. `F2BE0C` and `9E5A84` were subsequently
+  overwritten by an active external OTA writer with Elliot's
+  `fixture-2026-08-15.7`; `9F275C`, `F3FD88`, `F2BE20`, `F2BE48`, and
+  `F2BEE4` remain on older images. Do not reopen fleet maintenance until the
+  other Cambium/OTA daemon is stopped or isolated. Then reacquire the seven
+  through the normal shared-WiFi path and require the target revision plus OTA
+  state `valid`. Classify newly seen, unrostered `.7` peer `9F26D8` before
+  deciding whether it belongs in the light-fleet scope. Converted solarnoid
+  `9E5B8C` remains excluded from this light-only image (Ben/Codex/Elliot).
+- [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
+  from deliberately leaseless lighting control. On 2026-08-16 another host
+  replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's
+  maintenance hail exposed them on the LAN. Immediate runbook: one active OTA
+  daemon/operator at a time. Follow-up: choose an authenticated/allowlisted OTA
+  owner or another mechanism that prevents a second host from POSTing an image
+  to a maintenance fixture; document recovery and takeover semantics before
+  the next unattended fleet update (Ben + Elliot + Justin).
+- [ ] **Reproduce the fleet bulk-direct color test.** The accepted `F40364`
+  canary obeyed targeted direct colors, and the 2026-08-16 fleet obeyed a
+  60-second broadcast-identify blue blink, proving radio RX and LED rendering.
+  However, a rapid host loop of per-fixture direct blue/off commands was not
+  visually observed across the fleet even though the bridge reported every
+  transmit successful. Re-test with one sustained canonical multi-entry frame,
+  inspect `direct_seen`/`direct_matched` on a maintenance canary, and separate
+  host pacing/addressing from interference by the second controller (Ben/Codex).
+- [x] **Canary the basic supervised listener before any fleet OTA -- DONE
+  2026-08-16.** Candidate
   `fx-260816-f2bb4cd-b`, channel 11, default commission, SHA-256
   `c792d8c28e8a9c57a0e19455394a5b19c161030cdcf016d741001b672797f965`.
   With no bridge lease it must hold steady red at linear level 128. Commands use
@@ -154,9 +182,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   PowerFeather/battery/charging, channel-11 ESP-NOW, LED rail, three sensors, and
   no pending OTA verify all passed. Steady red after USB removal passed, and a
   handshake-gated targeted Cambium command changed only `F40364` to solid blue
-  with bridge TX success. Remaining first gates: black/other primaries, stale
-  fallback to red, and the explicit rail cycle.** No fleet flash yet
-  (Ben/Codex).
+  with bridge TX success. Black, green, blue, dedicated white, stale fallback
+  to red, true rail off/on with post-cycle breathing, reset directly to red,
+  good-image acceptance, and forced-failure rollback all subsequently passed.
+  The accepted fleet artifact is `fx-260816-otafix1-b`; see LOG (Ben/Codex).
 - [x] **Fix Cambium one-shot serial command readiness -- DONE 2026-08-15.** The older local CLI
   starts its asynchronous COM connection and can call `send_identify()` before
   the transport is connected. The transport correctly drops stale/not-connected

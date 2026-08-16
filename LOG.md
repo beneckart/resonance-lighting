@@ -12,6 +12,56 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Basic-listener fleet OTA reached 25/32; paused on competing OTA writer
+
+Published the hardened supervised-listener firmware as commit `545b459` on
+`origin/codex/basic-listener`. The deployed artifact is
+`firmware/fixture/build/fx-260816-otafix1-b/fixture.ino.bin` (1,169,328 bytes),
+SHA-256 `2e9946e6cabff669d48385f487c0a004b1713b05f006e51c0669f6cc25359f36`.
+The rollout scope was 32 previously seen fixture IDs; converted solarnoid
+`9E5B8C` was deliberately excluded from the light-only image. Never-seen roster
+entry `9F26BC` was not counted.
+
+Parallel shared-WiFi OTA plus a continuous maintenance hail caught awake and
+PROTECT-cycling fixtures. Twenty-five IDs now report `fx-260816-otafix1-b`:
+`9E5A5C`, `9E5A88`, `9E5A94`, `9E5B18`, `9E5B44`, `9E668C`, `9F0E54`,
+`9F2664`, `9F2680`, `9F26AC`, `9F26C4`, `9F26E4`, `9F26E8`, `9F2720`,
+`F2B7DC`, `F2BDB0`, `F2BE08`, `F2BEA4`, `F2BF54`, `F2BF5C`, `F2BF8C`,
+`F3FC90`, `F40268`, `F40364`, and `F40384`. The append-only result record is
+`ops/bench/data/ca/2026-08-15-otafix1-batch-live.jsonl`: 24 unique upload
+ACKs, all recovered without a button. `F40364` was already the accepted canary;
+`F2BF54` was updated by the same artifact through the wake catcher before its
+per-upload row was written. Direct HTTP and/or subsequent Cambium heartbeats
+confirmed the target revision; sampled maintenance boots reported OTA state
+`valid`.
+
+The fleet-wide visual proof passed. A 60-second broadcast-identify command made
+the updated fixtures blink blue and expiry returned them to the steady red
+listener beacon. A preceding rapid sequence of per-fixture direct frames was
+not visually observed across the fleet even though bridge TX counters advanced
+without failures. The single-fixture direct path had already passed on `F40364`;
+bulk direct-frame timing/addressing remains a separate follow-up and was not
+treated as proof.
+
+The rollout was stopped after proving a competing OTA writer on the shared LAN.
+`F2BE0C` first reported the accepted `fx-260816-otafix1-b`, then changed to
+Elliot's `fixture-2026-08-15.7`. This cannot be A/B rollback because its
+pre-update image was `.4`, not `.7`. During the final maintenance hail,
+`9E5A84` likewise changed directly from old `.2` to `.7`. Newly observed,
+unrostered `9F26D8` also reports `.7` and must be classified before inclusion.
+The maintenance endpoints have no writer authentication, so exposing fixtures
+on `Party In The Woods` lets another laptop with a pending OTA job overwrite
+them. All local catcher processes were stopped, every responding fixture was
+sent `/resume`, and repeated radio resume commands returned the fleet to COMMS.
+No local OTA job remains active.
+
+Seven of the original 32 remain off the target image: `.7` now runs on
+`F2BE0C` and `9E5A84`; old images remain on `9F275C`, `F3FD88`, `F2BE20`,
+`F2BE48`, and `F2BEE4`. Resume only after the other Cambium/OTA daemon is
+stopped or otherwise isolated. This is an OTA-writer coordination problem,
+not a reason to add control-frame leasing; ordinary lighting remains
+deliberately leaseless.
+
 ## 2026-08-15 -- Ben + Codex -- Mode-aware OTA verification passed good-image and forced-rollback canary gates
 
 Fixed the maintenance-mode rollback found immediately below. The deferred OTA
