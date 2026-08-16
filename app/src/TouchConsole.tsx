@@ -1095,6 +1095,23 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
           window.setTimeout(() => setNote(null), 3000);
         }} />
         <Pad active={false} accent="#c8a24a" label="🔔 knock (bell)" onClick={() => act("knock", `/cambium/debug/knock?mac=${mac}&ms=40`)} />
+        <Pad active={false} accent="#5aa2e0" label="⬆️ flash firmware" onClick={() => {
+          // one tap = the whole radio OTA loop (daemon /ota/flash job:
+          // maint broadcast → LAN sweep → POST /update → mesh-rejoin verify).
+          // Latest built image by default; ~60–120 s, light goes dark then
+          // returns as the beacon. Fire-and-poll, never blocks the sheet.
+          if (!window.confirm(`Flash the latest firmware to ${mac}? It will go dark ~1 min.`)) return;
+          void act("flash", `/cambium/ota/flash?mac=${mac}`);
+          const poll = window.setInterval(async () => {
+            try {
+              const r = await fetch("/cambium/ota/status");
+              const j = await r.json();
+              const st = j?.job?.mac === mac ? j.state : null;
+              if (st) setNote(`flash ${mac}: ${st}`);
+              if (!st || ["done", "failed", "flashed-no-rejoin", "idle"].includes(j.state)) window.clearInterval(poll);
+            } catch { window.clearInterval(poll); }
+          }, 4000);
+        }} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginTop: 8 }}>
         {([["red",255,0,0],["orange",255,120,0],["green",0,255,0],["cyan",0,200,255],["blue",0,0,255],["white",255,255,255]] as const).map(([name, rr, gg, bb]) => (
