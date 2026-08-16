@@ -93,7 +93,6 @@ if [[ -n "$FW_REV" ]]; then
     echo "bad --fw-rev: $FW_REV (expected fx-YYMMDD-recipe7-class)" >&2
     exit 2
   }
-  FLAGS+=" -DRES_FIXTURE_VERSION=\\\"$FW_REV\\\""
 fi
 case "$PROFILE" in
   "") ;;
@@ -111,6 +110,20 @@ if [[ -n "$ARTIFACT_DIR" ]]; then
 else
   BUILD_PATH="$(mktemp -d /tmp/fixture-build.XXXXXX)"
   trap 'rm -rf "$BUILD_PATH"' EXIT
+fi
+
+# Arduino CLI's Windows command-line reconstruction does not reliably preserve
+# an escaped C string passed through compiler.cpp.extra_flags. Generate the
+# derived revision macro inside the unique build directory and force-include it
+# instead; this also leaves the exact reported identity beside build.options.
+if [[ -n "$FW_REV" ]]; then
+  IDENTITY_HEADER="$BUILD_PATH/fixture_build_identity.h"
+  printf '#pragma once\n#define RES_FIXTURE_VERSION "%s"\n' "$FW_REV" > "$IDENTITY_HEADER"
+  IDENTITY_INCLUDE="$(cd "$(dirname "$IDENTITY_HEADER")" && pwd)/$(basename "$IDENTITY_HEADER")"
+  if command -v cygpath >/dev/null 2>&1; then
+    IDENTITY_INCLUDE="$(cygpath -m "$IDENTITY_INCLUDE")"
+  fi
+  FLAGS+=" -include$IDENTITY_INCLUDE"
 fi
 
 echo "compiling (flags:$FLAGS)"
