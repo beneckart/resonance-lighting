@@ -116,6 +116,32 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
   gRuntime.noteDirectFrame(fs, now);
 }
 
+
+#ifdef RES_QUIET_AUTONOMY
+// Idle look for the quiet posture: low-red listening beacon, and every 5 s a
+// 400 ms flash of THIS light's signature color (palette index from its MAC —
+// unique, stable, doubles as visual identification; Elliot 2026-08-15:
+// "every 5 seconds it will flash the light's unique color").
+static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
+  f.count = (uint8_t)pixels;
+  frameClear(f);
+  static const uint8_t PAL[12][3] = {
+      {255, 0, 0},   {255, 96, 0},  {255, 200, 0}, {128, 255, 0},
+      {0, 255, 0},   {0, 255, 128}, {0, 255, 255}, {0, 128, 255},
+      {0, 0, 255},   {128, 0, 255}, {255, 0, 255}, {255, 0, 128}};
+  if (now % 5000 < 400) {
+    uint8_t h = (uint8_t)((gMyId[0] * 7 + gMyId[1] * 13 + gMyId[2] * 31) % 12);
+    for (uint16_t i = 0; i < f.count; i++) {
+      f.px[i][0] = PAL[h][0];
+      f.px[i][1] = PAL[h][1];
+      f.px[i][2] = PAL[h][2];
+    }
+  } else {
+    for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 24;
+  }
+}
+#endif
+
 void behaviorTick() {
   uint32_t now = millis();
 
@@ -183,11 +209,7 @@ void behaviorTick() {
     // shows that it is ready for command") instead of the default programs.
     // Radio, sensors, telemetry, and every commanded path (DIRECT stream,
     // bridge show, identify) stay fully live.
-    if (!gRuntime.leaseActive()) {
-      frameClear(gFrame);
-      for (uint16_t i = 0; i < gFrame.count; i++)
-        gFrame.px[i][0] = 24; // ~10% red: alive-and-listening, ~mW-scale draw
-    }
+    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
 #endif
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
@@ -233,11 +255,7 @@ void behaviorTick() {
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
-    if (!gRuntime.leaseActive()) {
-      gFrame.count = (uint8_t)gPixels;
-      frameClear(gFrame);
-      for (uint16_t i = 0; i < gFrame.count; i++) gFrame.px[i][0] = 24;
-    }
+    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
     gNetCaState = 0;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;

@@ -15,6 +15,16 @@ const KEY = "resonance.macnames.v1";
 const SEED: Record<string, string> = {
   F40384: "Mario",
   F2B7DC: "Luigi",
+  // Superhero bench cohort (Elliot 2026-08-15): every light gets a hero name;
+  // its v7 idle flashes a MAC-derived signature color every 5 s.
+  "9F26C4": "Hulk",
+  "9E5A88": "Flash",
+  "9F2720": "Thor",
+  "9E5B18": "Phoenix",
+  "9F2664": "Nova",
+  "9F26E8": "Blade",
+  "9E5A94": "Storm",
+  "9F26AC": "Vision",
 };
 
 function store(): Storage | null {
