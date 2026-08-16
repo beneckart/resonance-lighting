@@ -12,6 +12,28 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Fifth ten-board canopy/extra batch OTA-bootstrapped
+
+Ten more battery-absent/VDC-absent PowerFeathers were prepared as tentative
+canopy/downlight fixtures or extras: seven new boards (`9E5A58`, `9F2780`,
+`9E5B04`, `9F0E7C`, `9E5B10`, `9E5AE0`, and `9E5B00`) and three reused July
+fixtures (`F401A8`, `F40350`, and `F40254`). `F40350` appeared briefly and then
+slept before initial batch selection, leaving seven factory-fresh units to pass
+the first normal parallel path.
+
+The bridge's `..-` onboard-status identify pattern isolated all three silent
+boards. They were rescue-uploaded together in ROM download mode, then Ben reset
+all ten because the three physical positions were no longer certain. The seven
+completed units simply rebooted unchanged; telemetry confirmed the three targets
+were running the exact image in battery-absent durable PROTECT. Their recorded
+three-board retry safely cleared all latches through guarded `X`. Final result:
+10/10 unique boards passed exact `fx-260816-prtrel1-b`, 8 MB flash / 2 MB
+physical PSRAM, 6 Ah / 2 A provisional configuration,
+`battery_present=false`, `class_ovr=0`, channel-11 ESP-NOW, and
+`Party In The Woods` OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-canopy-candidates-batch5.jsonl`; all roles remain
+unassigned pending final canopy/extra allocation.
+
 ## 2026-08-16 -- Ben + Codex -- Fourth ten-board canopy/extra batch OTA-bootstrapped
 
 Ten more battery-absent/VDC-absent PowerFeathers were prepared as tentative
