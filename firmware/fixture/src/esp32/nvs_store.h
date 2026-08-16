@@ -8,7 +8,8 @@
 // commissioned units carry per-unit calibration there) and carries a parked
 // fc_led_stage: an OTA'd production image must not un-park a protected unit.
 // It also migrates the historical absent/channel-6 radio state to the compiled
-// fleet default (channel 11 in production).
+// fleet default (channel 11 in production), and migrates the historical
+// disarmed solenoid posture to the universal enabled capability once.
 #pragma once
 
 #include <stdint.h>

@@ -70,15 +70,23 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --channel 11 --profile commission
 ./build.sh --channel 11 --profile commission --basic-listener
 ./build.sh --precharge-ma 300            # low-VBAT recovery current
-./build.sh --wifi-source <gitignored-header> --canopy-solenoid  # canopy D7 armed
+./build.sh --wifi-source <gitignored-header>  # solenoid capability is universal
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.
-`--canopy-solenoid` arms D7/GPIO37 while retaining the normal lifecycle and
-power-tier gates. It is scoped operationally by an explicit canopy target roster;
-the receiver-compatible INPUT/high-Z idle behavior remains authoritative.
+Solenoid capability is enabled by default on every PowerFeather image. The
+one-time NVS policy migration enables devices that retained the historical
+disarmed value; a later explicit runtime disarm remains persistent. D7/GPIO37
+stays INPUT/high-Z while armed and idle, so rev-1 receiver/manual sources remain
+usable and a Feather without a capboard has no connected load. A strike still
+requires an addressed command or local input and retains the normal lifecycle,
+power-tier, pulse-width, rest-time, maintenance, and failsafe gates.
+
+`--canopy-solenoid` remains accepted as a deprecated no-op so older build recipes
+do not fail; it is no longer required and must not be used to infer artifact
+capability.
 
 `--solenoid-test` is deliberately not a fleet option: it forces the arm bit and
 relaxes only the daytime solar-surplus gate while retaining the night and FULL-
