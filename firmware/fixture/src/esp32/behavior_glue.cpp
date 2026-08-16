@@ -142,7 +142,7 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   // instantly (supply drops) and the light becomes the deployed red-idle.
   // The 15-min cap keeps a solar-powered field reboot from running the
   // carousel all morning.
-  if (supplyGood() && now < 900000UL) {
+  if (supplyGood() && now < 3600000UL) { // full bench hour (Elliot: "red green blue until we unplug it, continuously")
     uint8_t c = (uint8_t)((since / 900) % 3);
     for (uint16_t i = 0; i < f.count; i++) f.px[i][c] = 255;
     return;
