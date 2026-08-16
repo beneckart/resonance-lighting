@@ -12,6 +12,23 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Final four unassigned bare boards OTA-bootstrapped
+
+The final four known unassigned bare PowerFeathers (`9F2678`, `9E5AC8`,
+`9F26B4`, and `9F2708`) passed the normal battery-absent/VDC-absent path without
+rescue steps. All four passed exact `fx-260816-prtrel1-b`, 8 MB flash / 2 MB
+physical PSRAM, 6 Ah / 2 A provisional configuration,
+`battery_present=false`, `class_ovr=0`, channel-11 ESP-NOW, and
+`Party In The Woods` OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-unassigned-bare-final4.jsonl`.
+
+This closes Ben's current loose/unassigned bare-board pile at 54 OTA-ready
+canopy/downlight-or-extra candidates across five ten-board batches plus this
+final four. Their roles remain deliberately blank and 6 Ah is provisional; set
+15 Ah before battery-backed validation for any unit assigned to a large
+downlight enclosure. Possible forgotten boards already inside enclosures remain
+a separate installed-battery rescue/census task and must not use bare-board `X`.
+
 ## 2026-08-16 -- Ben + Codex -- Fifth ten-board canopy/extra batch OTA-bootstrapped
 
 Ten more battery-absent/VDC-absent PowerFeathers were prepared as tentative

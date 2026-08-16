@@ -172,7 +172,7 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
   fleet with registry role `uplight`; runtime probing remains automatic
   (Ben/Codex).
-- [ ] **Finalize the fifty-board canopy/extra-candidate allocation.** Batch 1:
+- [ ] **Finalize the fifty-four-board canopy/extra-candidate allocation.** Batch 1:
   `9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`,
   `F2BDC0`, `F402D0`, and `F4044C`. Batch 2: `9E5AD4`, `F2BE70`, `F40174`,
   `F40358`, `F4042C`, `F2BE60`, `F2BE38`, `F40424`, `F2BDB4`, and `F4031C`.
@@ -180,12 +180,19 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `9E5B98`, `9E5AE4`, `9F2714`, and `F40330`. Batch 4: `F402C4`, `F403F0`,
   `9F26D0`, `9E5B14`, `9F26A4`, `9F26D4`, `9E5B68`, `9E5AF4`, `9F0E30`, and
   `F2BE94`. Batch 5: `9E5A58`, `9F2780`, `9E5B04`, `9F0E7C`, `9E5B10`,
-  `9E5AE0`, `9E5B00`, `F401A8`, `F40350`, and `F40254`. All are OTA-ready with
-  blank roles, AUTO class override, and a provisional 6 Ah profile. If assigned to
+  `9E5AE0`, `9E5B00`, `F401A8`, `F40350`, and `F40254`. Final four: `9F2678`,
+  `9E5AC8`, `9F26B4`, and `9F2708`. All are OTA-ready with blank roles, AUTO
+  class override, and a provisional 6 Ah profile. If assigned to
   large-enclosure inner-ring
   downlights, change them to 15 Ah before battery-backed validation; do not
   mistake the sensorless probe's `chandelier` fallback for an assignment
   (Ben/Codex).
+- [~] **Census and USB-rescue any forgotten boards already inside enclosures.**
+  Elliot is flashing some concurrently. Treat these as installed fixtures, use
+  the `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` installed-battery path, separate
+  batches by 6 Ah/15 Ah capacity and physical class, never use bare-board `X`,
+  and record every MAC/result so the registry can prove the fleet is complete
+  (Ben/Elliot/Codex).
 - [ ] **Retire `F2BED4` from Cambium's fallback-bridge references.** The physical
   board has been reflashed as an unassigned canopy candidate and its lighting
   registry bridge role is cleared. Update the Cambium roster/docs so an operator
