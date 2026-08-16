@@ -5,7 +5,7 @@
 
 #include "../core/radio_config.h"
 #ifndef RES_PROFILE_DEFAULT
-#define RES_PROFILE_DEFAULT PROFILE_DEV // M1 bringup posture; ship prod later
+#define RES_PROFILE_DEFAULT PROFILE_DEV // M1 bringup posture; promote to field later
 #endif
 #ifndef RES_NIGHT_MAX_MIN_DEFAULT
 #define RES_NIGHT_MAX_MIN_DEFAULT 630 // 10.5 h; BRC dusk-to-dawn is 9h53m-10h15m
@@ -125,7 +125,7 @@ void nvsLoadConfig() {
   Serial.printf("  config: cap=%u mAh charge=%u mA class_ovr=%u profile=%s "
                 "sol_en=%u maintain=%.1fV ch=%u night_max=%umin\n",
                 gCfg.capMah, gCfg.chargeMa, gCfg.classOvr,
-                gCfg.profile == PROFILE_DEV ? "dev" : "prod", gCfg.solEn,
+                gCfg.profile == PROFILE_DEV ? "commission" : "field", gCfg.solEn,
                 gCfg.maintV10 / 10.0f, gCfg.channel, gCfg.nightMaxMin);
 }
 

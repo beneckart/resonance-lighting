@@ -257,11 +257,13 @@ void handleSerial() {
   case 'F': {
     int p = readSerialUint(80, 1);
     if (p < 0) {
-      Serial.printf("profile=%s\n", gCfg.profile == PROFILE_DEV ? "dev" : "prod");
+      Serial.printf("profile=%s\n",
+                    gCfg.profile == PROFILE_DEV ? "commission" : "field");
       break;
     }
     if (nvsPersistProfile((uint8_t)p))
-      Serial.printf("profile -> %s\n", p == PROFILE_DEV ? "dev" : "prod");
+      Serial.printf("profile -> %s\n",
+                    p == PROFILE_DEV ? "commission" : "field");
     break;
   }
   case 'H': {
@@ -289,7 +291,7 @@ void handleSerial() {
                   "txok=%lu txfail=%lu\n",
                   (int)maintMode(), gCfg.channel, gCfg.capMah, gCfg.chargeMa,
                   fixtureClassName(gCfg.classOvr ? gCfg.classOvr : gCfg.classLast),
-                  gCfg.profile == PROFILE_DEV ? "dev" : "prod",
+                  gCfg.profile == PROFILE_DEV ? "commission" : "field",
                   (unsigned long)espNowSendOk(), (unsigned long)espNowSendFail());
     break;
   default:

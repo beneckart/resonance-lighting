@@ -18,6 +18,7 @@
 // command window.
 #define RES_PROTECT_BOOT_GRACE_MS 30000
 #define RES_PROTECT_WAKE_GRACE_MS 8000
+#define RES_COMMISSION_PROTECT_SLEEP_S 60
 
 static PowerState gState;
 static PowerBudget gBudget;
@@ -78,6 +79,15 @@ void powerGlueTick() {
   s.charger_fault = (bq.fault0 != 0x00 && bq.fault0 != 0xFF);
 
   PowerBudget b = powerPolicyTick(gState, s, gConfig);
+
+  // Commissioning keeps a parked fixture serviceable whenever a verified
+  // external source is present. This does not energize a load or clear the
+  // durable latch. If genuinely battery-only and critical, it still sleeps,
+  // but retries every minute instead of disappearing for fifteen.
+  if (gCfg.profile == PROFILE_DEV && b.tier == LedTier::PROTECT) {
+    b.sleep_s = RES_COMMISSION_PROTECT_SLEEP_S;
+    if (s.supply_valid && s.supply_good) b.must_sleep = false;
+  }
 
   if (s.batt_valid)
     integratorTick(gIntegrator, now, s.batt_ma, (uint16_t)(s.batt_v * 1000.0f));

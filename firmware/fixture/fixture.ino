@@ -100,7 +100,7 @@ void setup() {
   Serial.printf("boot: id=%s class=%s profile=%s reset=%s bv=%.3fV soc=%d ch=%u\n",
                 gShortId.c_str(),
                 fixtureClassName(gCfg.classOvr ? gCfg.classOvr : gCfg.classLast),
-                gCfg.profile == PROFILE_DEV ? "dev" : "prod",
+                gCfg.profile == PROFILE_DEV ? "commission" : "field",
                 resetReasonName(esp_reset_reason()), batteryVolts(),
                 batterySocPct(), gCfg.channel);
   netPeerInit();
@@ -131,6 +131,7 @@ void loop() {
   statusLedTick();
   otaVerifyTick();
   sensorsTick();
+  commsRecoveryTick();
 
   if (maintMode() == MODE_MAINT) {
     maintenanceTick();

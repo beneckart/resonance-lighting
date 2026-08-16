@@ -38,7 +38,8 @@ static uint8_t gLastProfile = 0xFF;
 void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gClass = fixtureClass;
   gPixels = pixelCount;
-  gRuntime.init(fixtureClass, pixelCount, seed);
+  gRuntime.init(fixtureClass, pixelCount, seed,
+                gCfg.profile == PROFILE_DEV ? PROG_COMMISSION_DARK : PROG_GH_CA);
   neighborTableInit(gNeighbors);
   lifeInit(gLife);
   gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
@@ -153,6 +154,9 @@ void behaviorTick() {
     gLastProfile = gCfg.profile;
     gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
     gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
+    gRuntime.setAutonomousProgram(
+        gCfg.profile == PROFILE_DEV ? PROG_COMMISSION_DARK : PROG_GH_CA,
+        now, true);
   }
 
   const PowerBudget &pb = powerBudget();
@@ -219,7 +223,7 @@ void behaviorTick() {
     gTelemetryProgram = gNetProgram;
 
     // Choreo tx: 1 Hz keepalive + edge-triggered bursts, power-vetoed.
-    if (pb.may_tx_show &&
+    if (gCfg.profile == PROFILE_PROD && pb.may_tx_show &&
         (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
@@ -299,6 +303,10 @@ bool behaviorFrame(FrameBuffer &f) {
   return true;
 #else
   if (!gShowActive) return false;
+  // In commissioning, loss/expiry of bridge authority means electrically
+  // dark, not a locally invented pattern. Returning false lets renderTick cut
+  // the LED rail instead of powering it merely to render a zero frame.
+  if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive()) return false;
   f = gFrame;
   return true;
 #endif

@@ -11,14 +11,17 @@ LifeConfig lifeConfigDefaults(bool devProfile) {
   c.nightMaxMin = 630;
   c.daySleepS = 300;
   if (devProfile) {
-    // Bench iteration: fast dusk/dawn for demos, never duty-cycle the radio.
+    // Commissioning: lifecycle does not infer intent from panel current. The
+    // bridge owns output leases and command loss returns to the dark program.
     c.duskConfirmS = 60;
     c.dawnConfirmS = 60;
     c.devNoSleep = true;
+    c.commissioning = true;
   } else {
     c.duskConfirmS = 1800; // bare-peer fallback (donor: 30 min without input)
     c.dawnConfirmS = 300;
     c.devNoSleep = false;
+    c.commissioning = false;
   }
   return c;
 }
@@ -42,6 +45,21 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   LifeOutputs out = {};
   if (!st.initialized) lifeInit(st);
   uint8_t prev = st.state;
+
+  // COMMISSION is deliberately boring: keep the command runtime available,
+  // never infer night/show intent from solar current, and never day-sleep.
+  // Power tiers still veto rendering in the ordinary output fields below.
+  if (c.commissioning) {
+    st.state = LIFE_COMMISSION;
+    out.state = st.state;
+    out.stateChanged = (st.state != prev);
+    out.showActive = in.tier <= 1;
+    out.strikesAllowed = false;
+    out.wantSleep = false;
+    out.sleepS = c.daySleepS;
+    out.nightMin = 0;
+    return out;
+  }
 
   bool dayEvidence = in.supplyGood && in.supplyMa >= (float)c.usefulSupplyMa;
   bool surplus = (in.supplyGood && in.supplyMa >= (float)c.surplusMa) ||

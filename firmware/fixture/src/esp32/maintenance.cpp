@@ -27,9 +27,16 @@ static bool gOtaRoutesConfigured = false;
 static volatile bool gResumePending = false;
 static uint32_t gMaintEnteredMs = 0;
 static uint32_t gLastMaintRefuseMs = 0;
+static uint32_t gNextCommsRetryMs = 0;
+static uint32_t gCommsInitAttempts = 0;
+static uint32_t gCommsInitFailures = 0;
+
+#define RES_COMMS_RETRY_MS 1000
 
 NetMode maintMode() { return gMode; }
 uint8_t maintStatus() { return gMaintStatus; }
+uint32_t commsInitAttempts() { return gCommsInitAttempts; }
+uint32_t commsInitFailures() { return gCommsInitFailures; }
 
 static void configureOtaRoutes() {
   if (gOtaRoutesConfigured) return;
@@ -155,14 +162,36 @@ bool enterMaintenance() {
   return true;
 }
 
+static bool startEspNowComms() {
+  ++gCommsInitAttempts;
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.disconnect(); // STA up but unassociated -> sit on the channel, pure ESP-NOW
+  if (espNowInit()) {
+    gNextCommsRetryMs = 0;
+    return true;
+  }
+  ++gCommsInitFailures;
+  gNextCommsRetryMs = millis() + RES_COMMS_RETRY_MS;
+  Serial.printf("ESP-NOW comms unavailable; retry %lu in %u ms\n",
+                (unsigned long)(gCommsInitFailures + 1),
+                (unsigned)RES_COMMS_RETRY_MS);
+  return false;
+}
+
 void enterComms() {
   Serial.println("-> COMMS (ESP-NOW)");
   if (gOtaActive) stopOtaAndWifi();
   gMode = MODE_COMMS;
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.disconnect(); // STA up but unassociated -> sit on the channel, pure ESP-NOW
-  espNowInit();
+  startEspNowComms();
+}
+
+void commsRecoveryTick() {
+  if (gMode != MODE_COMMS || espNowUp()) return;
+  uint32_t now = millis();
+  if (gNextCommsRetryMs && (int32_t)(now - gNextCommsRetryMs) < 0) return;
+  Serial.println("retrying ESP-NOW comms");
+  startEspNowComms();
 }
 
 void maintenanceTick() {

@@ -12,6 +12,87 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-15 -- Ben + Codex -- NeoPixel RMT rail-cycle bug isolated and fixed; `.4` canary reverted before acceptance
+
+The new fixture image repeatedly reported a healthy LED rail and active smoke
+render while two known-good 4 W RGBW modules remained dark. Physical elimination
+was conclusive on fixture `9E5A94`: the PowerFeather locator identified the exact
+unit, the RGBW connector measured 3.3 V from V+ to GND under load, and swapping the
+module did not change the symptom. A temporary USB diagnostic then powered the
+rail and held A0/GPIO10 statically HIGH; the external module lit red and shut off
+when the probe pulled data LOW and cut the rail. Power, ground, module, connector,
+signal conductor, and GPIO10 were therefore all functional.
+
+Root cause was the rail-off fail-safe sequence interacting with Arduino-ESP32 3.x
+and Adafruit_NeoPixel. After `show()` first claims GPIO10 through RMT, fixture
+`ledRailOff()` called `pinMode(GPIO10, OUTPUT)` to park data LOW. Arduino-ESP32
+3.x's peripheral manager clears the previous pin bus in `pinMode()`, detaching RMT.
+Adafruit_NeoPixel retains a private static `rmtPin == 10`, so the next `show()` on
+the same pin skips `rmtInit()` and sends into a detached peripheral. Static GPIO
+HIGH still works, exactly matching the red-probe result. This can affect any of
+Elliot's or Ben's sketches that mix NeoPixel `show()` with later `pinMode()` calls
+on the same data pin, especially around switchable LED-rail cycling.
+
+Fixed `fixture` by leaving RMT attached after its first `show()`. The all-off frame
+is sent before rail cut and RMT's end-of-transmission level remains LOW; plain
+GPIO parking is used only before RMT has ever claimed the pin. The temporary
+static-HIGH diagnostic was removed from the production image. The exact fix is in
+`led_driver.cpp`, and the general rule is now prominent in
+`firmware/POWERFEATHER_NOTES.md`.
+
+All 368 native checks pass. Named channel-11 commission artifact
+`firmware/fixture/build/commission-rmt-railfix-20260815-r1/fixture.ino.bin`
+(`fixture-2026-08-15.4`) is 1,170,320 bytes, SHA-256
+`e4b0efaff0dcd93b3c36ab6e12dd5a1c21b45be1ad4e5269c381eb600c78de2a`.
+USB flashing to `9E5A94` verified every segment hash and the board initially
+reported `.4`, but before the two-cycle visual test could be accepted it booted
+the older `fixture-2026-08-10.2` A/B slot and resumed matched red direct frames.
+Therefore the source-level RMT diagnosis is strong and the fix is published for
+review, but the hardware regression remains open: hold `.4` past pending-verify,
+then prove `L1` breathe -> `L0` rail cut -> `L1` breathe again.
+
+## 2026-08-15 -- Ben + Codex -- Bridge-authoritative commissioning firmware built; canary pending
+
+After deployment began exposing the cost of long sleeps, autonomous fallback,
+and a PROTECT state that could require manual intervention, split the fixture's
+existing runtime profile into two operator-legible postures without changing its
+wire/NVS values. `PROFILE_DEV` (0) is now **commission**: bridge-authoritative,
+continuously reachable during ordinary operation, no inferred dusk/dawn or
+autonomous choreography, and hard dark with the LED rail off when the bridge
+lease/direct frames expire. `PROFILE_PROD` (1) is now **field** and retains the
+autonomous solar/energy behavior. Local battery/thermal/actuator safety remains
+authoritative in both modes. The architectural contract and rollout gates are
+recorded in ADR 0038.
+
+Fixed the immediate PROTECT release deadlock: the core policy now remains awake
+while the compound recovery condition accumulates its required 60 seconds.
+Commission mode also stays awake on a verified good external supply; a truly
+critical battery-only peer uses a 60-second retry rather than the field
+15-minute cadence. This makes PROTECT recoverable without pretending software
+can revive a board with no usable power. A powered PROTECT fixture should still
+timer-wake and announce at roughly 15-minute intervals under the old field
+image, so a peer absent after a full roughly 16-minute census is more consistent
+with BMS cutoff/no power/range than with PROTECT alone.
+
+Added `PROG_COMMISSION_DARK`, live profile-fallback switching, hard-cut direct
+frame semantics, stale-frame dark fallback, and suppression of peer autonomous
+choreography TX in commission mode. Added persistent normal-CoreS3 controls:
+`F0`/`F1` for broadcast commission/field and `F<id>:0|1` for a targeted peer.
+User-facing serial/config/telemetry labels now say commission/field while the
+stable numeric values remain 0/1.
+
+Verification is software-complete but hardware deployment is deliberately not:
+368 native fixture checks pass. Named channel-11 commission artifact
+`commission-rescue-20260815-r2/fixture.ino.bin` built at 1,169,040 bytes, 34%
+flash / 18% RAM, SHA-256
+`a0dc8334a3f8025acee125782c18fdd7af700014163d5c2f39eda0e749527fd1`.
+The matching normal bridge artifact `commission-controls-20260815-r1` also
+builds (35% flash / 25% RAM). At this checkpoint neither artifact had been
+flashed; the later `.2` through `.4` USB canary work is recorded immediately
+above. The attached CoreS3 remains in Cambium binary mode. Next action is one
+battery-backed canary, then four/five, then the 24-unit fleet only after the ADR
+0038 gates pass.
+
 ## 2026-08-15 -- Ben + Claude -- Camp network pinned to channel 11; Claude mesh bridge recorded as direction only
 
 Codified a chat-drafted design brief for a Claude-backed handheld mesh bridge

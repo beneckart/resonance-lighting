@@ -56,6 +56,33 @@ pixel-power option in TODO. Can't accidentally drain the pack with LEDs.
 > (`Board.enableVSQT()` in the SDK). Enabling the 3V3 header (GPIO4) is not the same
 > as enabling VSQT. Know which rail your device is actually on.
 
+## Do not call pinMode on a NeoPixel pin after RMT claims it (Arduino-ESP32 3.x)
+
+Hard-won on fixture `9E5A94` on 2026-08-15: two known-good RGBW modules had 3.3 V
+at their connectors and responded to a static GPIO10 HIGH, but every encoded
+NeoPixel frame after an LED rail cycle was dark.
+
+The failure is a library/Arduino-core ownership mismatch. Adafruit_NeoPixel's
+ESP32 backend attaches the data pin to RMT on the first `show()` and privately
+caches that pin number. On Arduino-ESP32 3.x, a later `pinMode(dataPin, OUTPUT)`
+uses the peripheral manager to clear the previous pin bus, silently detaching
+RMT. A later `show()` on the same numerical pin sees the cached match, skips
+`rmtInit()`, and transmits into a detached peripheral.
+
+Rules for every addressable-LED sketch:
+
+- Before the first `show()`, parking the data pin OUTPUT LOW is correct.
+- After the first `show()`, do not call `pinMode()` on that pin during ordinary
+  blank/rail-off/rail-on sequencing.
+- Blank with `clear(); show();` before cutting pixel power. RMT's default
+  end-of-transmission level is LOW, so it already supplies the required park.
+- If a diagnostic must temporarily reclaim the pin as GPIO/input, treat RMT
+  teardown and reconstruction as an explicit driver lifecycle and prove the
+  next encoded frame on hardware. Do not assume another `show()` repairs it.
+
+The production fixture implementation is `src/esp32/led_driver.cpp`; its
+two-turn-on regression is `L1` breathe -> `L0` rail cut -> `L1` breathe again.
+
 ## A POR can erase low-voltage protection and recreate its own boot loop
 
 The July 2026 P105 field cycle exposed a general failure pattern. A heavy LED load

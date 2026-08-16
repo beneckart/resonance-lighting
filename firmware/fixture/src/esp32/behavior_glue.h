@@ -29,7 +29,7 @@ int8_t behaviorForcedNight();
 uint8_t behaviorLifeState();
 bool behaviorStrikesAllowed();
 
-// The radio-strike gate: production = DAY_ACTIVE + solar surplus + FULL tier;
-// dev profile relaxes the surplus requirement (bench boards on USB idle) but
+// The radio-strike gate: field = DAY_ACTIVE + solar surplus + FULL tier;
+// commission relaxes the surplus requirement (bench boards on USB idle) but
 // never the night gate or the power veto.
 bool behaviorStrikePermitted();

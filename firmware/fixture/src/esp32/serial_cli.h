@@ -12,7 +12,7 @@
 //   r            role/mode/config one-liner
 // New:
 //   O<0..4>      class override (0 = auto probe)   [persists]
-//   F<0|1>       profile dev/prod                  [persists]
+//   F<0|1>       profile commission/field          [persists]
 #pragma once
 
 void handleSerial();

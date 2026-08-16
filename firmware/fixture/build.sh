@@ -5,7 +5,7 @@
 #   ./build.sh --port /dev/ttyACM0      # compile + USB flash
 #   ./build.sh --ota 10.0.0.200         # compile + OTA via POST /update
 #   ./build.sh --artifact-dir out/r1    # stable dir for fleet_usb_bringup.py
-#   ./build.sh --profile prod           # default NVS profile when unset
+#   ./build.sh --profile commission     # default NVS profile when unset
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
@@ -84,9 +84,9 @@ esac
 [[ -n "$CHANNEL" ]] && FLAGS+=" -DRES_CHANNEL=$CHANNEL"
 case "$PROFILE" in
   "") ;;
-  dev)  FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_DEV" ;;
-  prod) FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_PROD" ;;
-  *) echo "unknown --profile: $PROFILE (dev|prod)" >&2; exit 2 ;;
+  dev|commission)  FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_DEV" ;;
+  prod|field) FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_PROD" ;;
+  *) echo "unknown --profile: $PROFILE (commission|field; dev|prod aliases)" >&2; exit 2 ;;
 esac
 FLAGS+="$EXTRA_FLAGS"
 

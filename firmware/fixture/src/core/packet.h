@@ -49,7 +49,7 @@ enum NbType : uint8_t {
   NB_CHOREO_STATE = 18,  // peer -> all: compact fast show/CA state (NIGHT only)
   NB_PROGRAM_SET = 19,   // bridge -> all/target: program override lease
   NB_TIME_QUALITY = 20,  // RESERVED (ADR 0031 time anchors) -- defined, not sent
-  NB_PROFILE = 21,       // bridge -> all/target: dev/prod profile flip
+  NB_PROFILE = 21,       // bridge -> all/target: commission/field profile flip
   NB_NEIGHBOR_REPORT = 22, // RESERVED (M2 locate: censored-median RSSI) -- defined, not sent
   NB_EVENT = 23,         // RESERVED (M2 event fabric) -- defined, not sent
   NB_NEIGHBOR_SET = 24,  // bridge -> target: pinned CA adjacency (<=8 neighbors)
@@ -235,7 +235,7 @@ struct __attribute__((packed)) NbChoreoState { // 18: fast show/CA state, NIGHT 
   uint8_t state;       // bits 0-3: program state (GH: 0=quiescent 1=excited 2+=refractory); 4-7 program-defined
   uint8_t intensity;   // current render energy 0-255 (neighbor/bridge viz)
   uint16_t phase_ms;   // ms into current program cycle (mod 65536)
-  uint8_t flags;       // bit0=power-limited(abstaining) bit1=lease-active bit2=dev-profile
+  uint8_t flags;       // bit0=power-limited bit1=lease-active bit2=commission profile
   uint8_t reserved;
 };
 
@@ -262,7 +262,7 @@ struct __attribute__((packed)) NbTimeQuality { // 20: RESERVED (ADR 0031 seam)
   uint8_t reserved;
 };
 
-struct __attribute__((packed)) NbProfile { // 21: dev/prod flip
+struct __attribute__((packed)) NbProfile { // 21: commission/field flip
   NbHeader h;
   uint8_t target_id[3]; // 00:00:00 = all
   uint8_t profile;      // FixtureProfile

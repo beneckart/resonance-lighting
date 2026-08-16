@@ -40,11 +40,12 @@
 #include <M5Module_Audio.h>
 #endif
 
+#include "../fixture/src/core/fixture_context.h"
 #include "../fixture/src/core/packet.h"
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-10.1"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-15.1"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -447,6 +448,15 @@ void sendIdentify(const uint8_t target[3], uint8_t seconds) {
   cmd.secs = seconds;
   cmd.color = 0;
   cmd.blink = 0;
+  sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
+}
+
+void sendProfile(const uint8_t target[3], uint8_t profile, bool persist) {
+  NbProfile cmd = {};
+  fillHeader(&cmd.h, NB_PROFILE);
+  memcpy(cmd.target_id, target, 3);
+  cmd.profile = profile;
+  cmd.flags = persist ? 0x01 : 0x00;
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
@@ -1329,6 +1339,28 @@ void handleSerial() {
     Serial.println("identify ALL peers 8s");
     break;
   }
+  case 'F': {
+    char arg[24];
+    uint8_t target[3] = {};
+    bool haveTarget = false;
+    uint16_t profile = 0;
+    if (!readSerialArg(arg, sizeof(arg)) ||
+        !parseTargetU16Arg(arg, target, &haveTarget, PROFILE_DEV, PROFILE_PROD,
+                           &profile)) {
+      Serial.println("PROFILE rejected: use F<0|1> or F<id>:<0|1>");
+      break;
+    }
+    sendProfile(target, (uint8_t)profile, true);
+    if (haveTarget) {
+      Serial.printf("target PROFILE %02X%02X%02X -> %s (persisted)\n",
+                    target[0], target[1], target[2],
+                    profile == PROFILE_DEV ? "commission" : "field");
+    } else {
+      Serial.printf("broadcast PROFILE -> %s (persisted)\n",
+                    profile == PROFILE_DEV ? "commission" : "field");
+    }
+    break;
+  }
   case 't':
     Serial.printf("{\"bridge\":\"%02X%02X%02X\",\"channel\":%d,\"peers\":%d,\"live\":%d,\"queue_drops\":%lu}\n",
                   myId[0], myId[1], myId[2], NB_CHANNEL, peerCount(false),
@@ -1347,7 +1379,7 @@ void handleSerial() {
 #endif
   case 'h':
   case '?':
-    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
+    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
                    " A"
 #endif

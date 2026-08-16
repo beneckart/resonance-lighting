@@ -15,6 +15,10 @@ static uint32_t gTxSeq = 0;
 static volatile uint32_t gSendOk = 0, gSendFail = 0;
 static volatile uint32_t gLastRxMs = 0;
 
+static void resetRxQueue() {
+  if (gRxQueue) xQueueReset(gRxQueue);
+}
+
 static void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len < (int)sizeof(NbHeader) || len > (int)sizeof(RxItem::data)) return;
   gLastRxMs = millis();
@@ -33,30 +37,69 @@ static void onEspNowSend(const esp_now_send_info_t *info, esp_now_send_status_t 
 }
 
 bool espNowInit() {
+  if (gUp) return true;
   if (!gRxQueue) gRxQueue = xQueueCreate(32, sizeof(RxItem));
-  esp_wifi_set_channel(gCfg.channel, WIFI_SECOND_CHAN_NONE);
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("esp_now_init FAILED");
+  if (!gRxQueue) {
+    Serial.println("esp-now rx queue allocation FAILED");
     return false;
   }
-  esp_now_register_recv_cb(onEspNowRecv);
-  esp_now_register_send_cb(onEspNowSend);
+
+  // Maintenance tears ESP-NOW down while its loop-owned queue remains
+  // allocated. Never replay packets received before that boundary: a stale
+  // ENTER_MAINT would immediately pull a resumed fixture back out of comms.
+  resetRxQueue();
+  gLastRxMs = 0;
+
+  esp_err_t err = esp_wifi_set_channel(gCfg.channel, WIFI_SECOND_CHAN_NONE);
+  if (err != ESP_OK) {
+    Serial.printf("esp-now channel %u FAILED: %d\n", gCfg.channel, (int)err);
+    return false;
+  }
+  err = esp_now_init();
+  if (err != ESP_OK) {
+    Serial.printf("esp_now_init FAILED: %d\n", (int)err);
+    return false;
+  }
+  err = esp_now_register_recv_cb(onEspNowRecv);
+  if (err != ESP_OK) {
+    Serial.printf("esp-now recv callback FAILED: %d\n", (int)err);
+    esp_now_deinit();
+    return false;
+  }
+  err = esp_now_register_send_cb(onEspNowSend);
+  if (err != ESP_OK) {
+    Serial.printf("esp-now send callback FAILED: %d\n", (int)err);
+    esp_now_unregister_recv_cb();
+    esp_now_deinit();
+    return false;
+  }
   esp_now_peer_info_t peer = {};
   memcpy(peer.peer_addr, BCAST, 6);
   peer.channel = gCfg.channel;
   peer.ifidx = WIFI_IF_STA;
   peer.encrypt = false;
-  esp_now_add_peer(&peer);
+  err = esp_now_add_peer(&peer);
+  if (err != ESP_OK && err != ESP_ERR_ESPNOW_EXIST) {
+    Serial.printf("esp-now broadcast peer FAILED: %d\n", (int)err);
+    esp_now_unregister_recv_cb();
+    esp_now_unregister_send_cb();
+    esp_now_deinit();
+    return false;
+  }
   gUp = true;
   Serial.printf("esp-now up, ch=%d, broadcast peer registered\n", gCfg.channel);
   return true;
 }
 
 void espNowDeinit() {
-  if (!gUp) return;
-  esp_now_unregister_recv_cb();
-  esp_now_deinit();
+  if (gUp) {
+    esp_now_unregister_recv_cb();
+    esp_now_unregister_send_cb();
+    esp_now_deinit();
+  }
   gUp = false;
+  gLastRxMs = 0;
+  resetRxQueue();
 }
 
 bool espNowUp() { return gUp; }

@@ -6,7 +6,9 @@
 #include "../core/fixture_context.h"
 #include "../core/version.h"
 #include "board_power.h"
+#include "espnow_link.h"
 #include "identity.h"
+#include "led_driver.h"
 #include "maintenance.h"
 #include "net_peer.h"
 #include "nvs_store.h"
@@ -105,9 +107,17 @@ String telemetryJson() {
   j += ",\"class_mismatch\":";
   j += gTelemetryClassMismatch ? "true" : "false";
   j += ",\"profile\":\"";
-  j += (gCfg.profile == PROFILE_DEV) ? "dev" : "prod";
+  j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";
   j += ",\"channel\":" + String(gCfg.channel);
+  j += ",\"espnow_up\":";
+  j += espNowUp() ? "true" : "false";
+  j += ",\"comms_init_attempts\":" + String((unsigned long)commsInitAttempts());
+  j += ",\"comms_init_failures\":" + String((unsigned long)commsInitFailures());
+  j += ",\"led_rail_on\":";
+  j += ledRailIsOn() ? "true" : "false";
+  j += ",\"smoke_render\":";
+  j += gSmokeRender ? "true" : "false";
   j += ",\"life_state\":" + String(gTelemetryLifeState);
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);
