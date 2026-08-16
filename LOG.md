@@ -12,6 +12,56 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Canopy solenoid image built and rolled to 21 fixtures
+
+Built the immutable `fx-260816-cef34a4-b` fixture artifact from clean source
+commit `55c2302a401ef291bbb64a07999b413b60edb045`. The binary is 1,169,408 bytes,
+SHA-256
+`80b6086b7b6496a318d644b22c5ef9c42f9491b190e295036a546b873186ae38`;
+its manifest is under `firmware/fixture/build/fx-260816-cef34a4-b/`. The image
+uses the basic-listener commissioning posture and arms D7/GPIO37 solenoid
+strikes under the normal lifecycle, power, rest-time, and OTA safety gates. It
+does not enable the solenoid test override. Idle D7 remains input/high-Z, which
+preserves the rev1 RX480E receiver and SW1 path; the local USER-button bounded
+strike remains available. No strike was requested during rollout, and direct
+canary telemetry showed the gate off and zero strikes.
+
+One declared Ben/Codex writer targeted the exact 27 installed downlights over
+shared `Party In The Woods` WiFi. Twenty-one fixtures have fresh exact-revision
+heartbeats after the 20-second A/B verification window: `F2BEE4`, `F3FC90`,
+`9F26B0`, `F2BE0C`, `F40384`, `9F0E54`, `9E668C`, `F2BEA4`, `F40364`,
+`9F275C`, `F2BF54`, `F2BF5C`, `9E5B8C`, `F40268`, `9F26E4`, `9F26AC`,
+`F2BE48`, `9F26BC`, `F2B7DC`, `9F266C`, and `F2BE20`. The sleeper/low-VBAT
+updates were done sequentially with installed LFP ride-through; `F2B7DC` was
+the low-voltage canary and remained stable after OTA. Registry rows now carry
+the exact artifact identity. Upload evidence is append-only in
+`ops/bench/data/ca/2026-08-16-canopy-solenoid-ota-batch1.jsonl` and
+`ops/bench/data/ca/2026-08-16-ota-results.jsonl`.
+
+`F2BE20` accepted this image twice, reported `app1`, `valid`, pending false,
+and solenoid enabled, but after the first later power-state reboot direct
+telemetry showed the old `app0` image again. The second OTA remained the exact
+image through an 11-minute soak; an attempted five-second sleep command was not
+received, so the deep-sleep boot case remains open even though current state is
+counted. The remaining non-updated targets are `9E5A84` (healthy uplink but no downlink
+command acceptance), `9F2724` (2.72 V, no usable panel source), and four units
+not seen during the multi-hour bridge session: `9E5A94`, `F2BDB0`, `F2BE8C`,
+and `F2BF8C`.
+
+The live charging split was also characterized. Six low fixtures at
+2.73-2.89 V showed valid roughly 6 V panel input but a tightly clustered
+31-36 mA net battery charge and 0.42-0.52 W input, matching the previously
+observed BQ25628E low-VBAT/precharge regime. Healthy roughly 3.3 V fixtures
+accepted about 2.7-3.3 W and 500-750 mA. This is charger regulation, not the
+LFP cell refusing current. By contrast, `9F2724`, `9F266C`, and `F2B7DC`
+reported zero panel power; that is a separate source/shade/connection condition.
+Direct `9F26B0` telemetry confirmed 2.751 V, +33.9 mA, 6.015 V / 78 mA input,
+2 A ICHG configured, charge enabled, and no BQ fault. The BQ25628E IPRECHG
+register POR is 30 mA and is programmable from 10-310 mA; the current
+PowerFeather SDK does not expose it. Candidate mitigation is a direct-I2C,
+readback-verified 250 mA precharge canary while preserving the fixed trickle,
+input-DPM, thermal, and roughly 3.0 V fast-charge transition protections.
+
 ## 2026-08-16 -- Ben + Codex -- Final four unassigned bare boards OTA-bootstrapped
 
 The final four known unassigned bare PowerFeathers (`9F2678`, `9E5AC8`,

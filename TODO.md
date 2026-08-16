@@ -4,6 +4,30 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Finish the exact 27-fixture canopy-solenoid rollout.** Twenty-one fixtures
+  are durably verified on `fx-260816-cef34a4-b`. Resolve `F2BE20`'s later app-slot
+  fallback/deep-sleep audit; recover `9E5A84`'s one-way radio; charge `9F2724`
+  before OTA; and power/locate never-seen `9E5A94`, `F2BDB0`, `F2BE8C`, and
+  `F2BF8C`. Reuse the exact artifact and SHA in LOG; do not rebuild (Ben/Codex).
+- [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
+  reported the new `app1` as `valid` with pending false, but after the first
+  later power-state reboot ran old undefined `app0`. Capture the next
+  deep-sleep wake, check OTA-data/boot selection, and make every return-code
+  from `esp_ota_mark_app_valid_cancel_rollback()` visible before changing policy
+  (Ben/Codex).
+- [ ] **Decide the deeply depleted solar-recovery posture.** Live 2.73-2.89 V
+  fixtures cluster near 31-36 mA net charge / 0.42-0.52 W input in the BQ25628E
+  precharge regime while healthy cells take roughly 3 W. The charger defaults
+  IPRECHG to 30 mA but permits 10-310 mA; the SDK does not expose it. Add a
+  direct-I2C, readback-verified 250 mA canary and telemetry, quantify the roughly
+  3.0 V exit and recovery time, then decide whether commissioning-with-solar
+  should remain continuously reachable or use longer sleeps so system load
+  cannot consume most of the precharge harvest (Ben/Codex).
+- [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
+  update age/uptime but retain the last full-heartbeat firmware string, which
+  briefly made a successful `F40384` update look rolled back. Show field age or
+  distinguish cached firmware identity from current-packet data (Ben/Codex).
+
 - [x] **Fix fixture OTA self-test for maintenance-mode verification -- DONE
   2026-08-15.** A healthy
   `fx-260816-railoff-b` OTA on `F40364` entered maintenance with ESP-NOW
