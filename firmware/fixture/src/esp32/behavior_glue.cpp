@@ -135,8 +135,20 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   static uint32_t sSaluteStartMs = 0;
   if (sSaluteStartMs == 0) sSaluteStartMs = now ? now : 1;
   uint32_t since = now - sSaluteStartMs;
+  // READY-FOR-DISCONNECT CAROUSEL (Elliot 2026-08-15: "boards that are ready
+  // to be disconnected flash RGB"): while external power is present in the
+  // first 15 min after boot, cycle R->G->B continuously — the standing
+  // "flashed and waiting for you to unplug me" state. Unplugging ends it
+  // instantly (supply drops) and the light becomes the deployed red-idle.
+  // The 15-min cap keeps a solar-powered field reboot from running the
+  // carousel all morning.
+  if (supplyGood() && now < 900000UL) {
+    uint8_t c = (uint8_t)((since / 900) % 3);
+    for (uint16_t i = 0; i < f.count; i++) f.px[i][c] = 255;
+    return;
+  }
   if (since < 4500) {
-    uint8_t c = (uint8_t)(since / 1500); // 0=R 1=G 2=B
+    uint8_t c = (uint8_t)(since / 1500); // 0=R 1=G 2=B (battery power-up salute)
     for (uint16_t i = 0; i < f.count; i++) f.px[i][c > 2 ? 2 : c] = 255;
     return;
   }
