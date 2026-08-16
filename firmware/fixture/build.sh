@@ -42,6 +42,7 @@ while [[ $# -gt 0 ]]; do
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;
+    --quiet-autonomy) EXTRA_FLAGS+=" -DRES_QUIET_AUTONOMY=1"; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done

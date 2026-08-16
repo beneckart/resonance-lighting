@@ -177,6 +177,14 @@ void behaviorTick() {
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
+#ifdef RES_QUIET_AUTONOMY
+    // Slave/bench posture (Elliot 2026-08-15: "just listening and waiting for
+    // commands rather than running a default show"): with no explicit lease,
+    // the self-directed programs render BLACK. Radio, sensors, telemetry, and
+    // every commanded path (DIRECT stream, bridge show, identify) stay fully
+    // live — only unrequested autonomy is muted.
+    if (!gRuntime.leaseActive()) frameClear(gFrame);
+#endif
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
