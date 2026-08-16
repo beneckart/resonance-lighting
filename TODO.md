@@ -4,6 +4,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [x] **Fix fixture OTA self-test for maintenance-mode verification -- DONE
+  2026-08-15.** A healthy
+  `fx-260816-railoff-b` OTA on `F40364` entered maintenance with ESP-NOW
+  deliberately down, then failed the unconditional `espNowUp/sendOk` predicate
+  at t+20 s and rolled back. `otafix1-b` now uses the radio posture appropriate
+  to the active mode (ESP-NOW in COMMS; associated maintenance WiFi/HTTP readiness
+  in MAINT). Good-image acceptance and distinct `otafail-b` forced rollback both
+  passed on battery-backed `F40364`; see LOG (Ben/Codex).
+- [x] **Expose OTA partition identity in fixture telemetry -- DONE 2026-08-15.**
+  Added running partition label/address and string image state. The canary trace
+  explicitly showed accepted `app1`, failing `app0`, then rollback to `app1`.
+  Distinct artifact version strings supplied the build identity (Ben/Codex).
+
 - [x] Add `LOG_APPEND_2026-05-10.md` entry to `LOG.md` -- **DONE 2026-06-08**: merged 05-10 + 05-11 entries into `LOG.md`; staging files (`LOG_APPEND_*`, `DROP_IN_INSTRUCTIONS.md`) removed (Ben/Claude).
 - [x] Add ADR 0015 -- PowerFeather V2 as COTS/reference architecture -- **DONE** (`docs/decisions/0015-powerfeather-v2-cots-reference.md`) (Ben).
 - [x] Add ADR 0016 -- COTS prototype shortlist -- **DONE** (`docs/decisions/0016-...`) (Ben).
@@ -125,19 +138,48 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
-- [~] **P0: canary the bridge-authoritative commission image before fleet OTA
-  (ADR 0038).** Current source/artifact is `fixture-2026-08-15.4`, channel 11,
-  default commission, SHA-256
-  `e4b0efaff0dcd93b3c36ab6e12dd5a1c21b45be1ad4e5269c381eb600c78de2a`;
-  matching normal bridge `cores3-bridge-2026-08-15.1`. USB canary `9E5A94`
-  initially reported `.4` but returned to its older `fixture-2026-08-10.2` A/B
-  slot before acceptance. Diagnose/capture that verify/rollback path, keep `.4`
-  running past the pending-verify window, then explicitly prove the RMT rail-cycle
-  regression: `L1` breathe -> `L0` physical rail cut -> `L1` breathe again.
-  Continue with a 20-minute census, immediate dark/rail-off on command loss, no
-  ordinary lifecycle sleep, and 60-second qualified PROTECT release. Expand to
-  four/five, then 24 only after the canary passes. The currently attached CoreS3
-  is Cambium binary mode and has not been overwritten (Ben/Codex).
+- [~] **P0: canary the basic supervised listener before any fleet OTA.** Candidate
+  `fx-260816-f2bb4cd-b`, channel 11, default commission, SHA-256
+  `c792d8c28e8a9c57a0e19455394a5b19c161030cdcf016d741001b672797f965`.
+  With no bridge lease it must hold steady red at linear level 128. Commands use
+  direct linear 0..255 values; stale direct control returns to red within three
+  seconds. Gamma, boot salute, supply carousel, identity pop, and local ToF color
+  are absent. Hard battery/rail/OTA rollback protection remains. First prove on
+  one USB canary: red persists with every bridge/controller stopped; black and
+  primary-color commands obey; stopping frames restores red; RMT survives an
+  explicit rail off/on cycle. Then OTA one battery-backed canary, wait beyond the
+  20-second pending-verify window, verify the exact revision and fresh heartbeat,
+  and only then expand to five supervised fixtures. **2026-08-15 USB canary is
+  now on the positively identified COM46 / `F40364`: exact revision, healthy
+  PowerFeather/battery/charging, channel-11 ESP-NOW, LED rail, three sensors, and
+  no pending OTA verify all passed. Steady red after USB removal passed, and a
+  handshake-gated targeted Cambium command changed only `F40364` to solid blue
+  with bridge TX success. Remaining first gates: black/other primaries, stale
+  fallback to red, and the explicit rail cycle.** No fleet flash yet
+  (Ben/Codex).
+- [x] **Fix Cambium one-shot serial command readiness -- DONE 2026-08-15.** The older local CLI
+  starts its asynchronous COM connection and can call `send_identify()` before
+  the transport is connected. The transport correctly drops stale/not-connected
+  frames, but the CLI prints `identify ...` as if it succeeded. Require a bridge
+  STATUS handshake before one-shot mutations and surface not-ready/drop as a
+  failure. A persistent handshake-gated retry advanced COM43 TX success and
+  made the same targeted blue command work. Fixed from Elliot's latest branch in
+  Cambium branch `origin/codex/serial-ready-gate`, complete at `078071c`: require
+  fresh STATUS, stamp the real bridge ID, wait for the USB write, then hold the
+  port until STATUS reports `tx_ok`/`tx_fail`. The committed CLI passed the live
+  targeted-blue proof on `F40364`; 349 tests pass, 1 skipped (Ben/Codex; ready
+  for Justin/Elliot review).
+- [ ] **Make USB target identity a pre-flash interlock.** The first basic-listener
+  attempt selected COM43 from Windows arrival time and temporarily overwrote the
+  CoreS3 Cambium bridge instead of COM46 / `F40364`; the bridge was rebuilt,
+  restored, and verified. Require a matching live board/firmware identity or a
+  physical-reset uptime correlation before upload. Never use COM arrival time as
+  sufficient identity when more than one USB device is attached (Ben/Codex).
+- [ ] **Throttle or latch repeated LED rail-on failures.** When PowerFeather
+  initialization is unavailable, the basic listener currently asks for its red
+  frame each loop and `renderTick()` retries the impossible rail enable at loop
+  speed, flooding serial. Keep the rail parked but retry at a bounded service
+  cadence and expose a counter/last result in telemetry (Ben/Codex).
 - [ ] **Run and save a full-cadence census before classifying the missing deployed
   lanterns.** Old field firmware uses 300-second ordinary day sleeps and
   900-second PROTECT sleeps. Listen at least 16 minutes without resetting/opening

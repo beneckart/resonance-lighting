@@ -150,6 +150,10 @@ void loop() {
 // hard-parked boot never lights.
 void renderTick() {
   if (bootGuardParked()) return;
+  if (gBenchRailForcedOff) {
+    if (ledRailIsOn()) ledRailOff();
+    return;
+  }
   uint8_t cap = powerBudget().brightness_cap; // the power veto: no path around it
   uint32_t now = millis();
   bool ident = netPeerIdentifyActive() && netPeerIdentifyColor() > 0;

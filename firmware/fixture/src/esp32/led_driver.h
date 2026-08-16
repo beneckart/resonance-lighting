@@ -23,7 +23,7 @@ bool ledRailOn();  // cleared rail-on; false = pad verify failed (stays parked)
 void ledRailOff(); // blank -> data low -> rail cut (safe to call anytime)
 bool ledRailIsOn();
 
-// Render a frame (applies gamma + the global brightness cap).
+// Render a frame (applies the global brightness cap).
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap);
 
 // Guarded turn-on: rail on + 4-step ramp of `f` sampling VBAT between steps.
@@ -31,9 +31,12 @@ void ledRender(const FrameBuffer &f, uint8_t brightnessCap);
 // dim on a marginal one.
 bool ledRailOnWithRamp(const FrameBuffer &f, uint8_t targetBrightness);
 
-// Bench smoke-render toggle (serial 'L1'/'L0'); consumed by the loop's render
-// tick until the P5 program runtime replaces it.
+// Bench LED override. L0 forces the rail off until L1 or reset; L1 clears the
+// forced-off state and renders the class smoke pattern. Keeping the off state
+// separate from gSmokeRender prevents an autonomous/basic fallback from
+// immediately powering the rail again.
 extern bool gSmokeRender;
+extern bool gBenchRailForcedOff;
 
 // Class-appropriate smoke/identify frames.
 void ledSmokeFrame(FrameBuffer &f, uint32_t nowMs);

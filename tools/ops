@@ -22,8 +22,9 @@ name2mac() { case "$(echo "$1" | tr A-Z a-z)" in mario) echo F40384;; luigi) ech
 fleet_py() { curl -s -m 4 "$D/fleet"; }
 
 target_fw() { # fw string baked in a bin: most common full match wins (a stray
-  # partial elsewhere in the binary must not poison the comparison)
-  strings "$1" 2>/dev/null | grep -o "fixture-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.[0-9][0-9]*" | sort | uniq -c | sort -rn | awk 'NR==1{print $2}' || echo "unknown"
+  # partial elsewhere in the binary must not poison the comparison). Accept
+  # both the legacy manual counter and collision-resistant fx recipe formats.
+  strings "$1" 2>/dev/null | grep -Eo "fixture-20[0-9]{2}-[0-9]{2}-[0-9]{2}\.[0-9]+|fx-[0-9]{6}-[0-9a-z]{7}-[pbt]" | sort | uniq -c | sort -rn | awk 'NR==1{print $2}' || echo "unknown"
 }
 
 lan_sweep() { # print "IP FIXTURE_ID FW" for every fixture serving /telemetry

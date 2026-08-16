@@ -12,6 +12,141 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-15 -- Ben + Codex -- Mode-aware OTA verification passed good-image and forced-rollback canary gates
+
+Fixed the maintenance-mode rollback found immediately below. The deferred OTA
+self-test now validates the network path owned by the active mode: COMMS requires
+ESP-NOW up plus at least one completed send; MAINT requires an associated WiFi
+station plus the active OTA HTTP server. The predicate lives in platform-neutral
+`ota_verify_policy` and has a six-case native transition test. Telemetry now
+reports `ota_partition`, `ota_address`, and string `ota_state` in addition to the
+legacy pending boolean, so an identical-version rollback cannot hide behind the
+firmware string. The full native suite passes 368 checks with zero failures.
+
+Built channel-11 commission/basic-listener good artifact
+`firmware/fixture/build/fx-260816-otafix1-b/fixture.ino.bin` (1,169,328 bytes),
+SHA-256 `2e9946e6cabff669d48385f487c0a004b1713b05f006e51c0669f6cc25359f36`.
+OTA from the last-good `railoff-b` image to canary `F40364` proved the complete
+acceptance transition on `app1`: `pending_verify` at 17.7, 18.8, and 19.8 seconds,
+then `valid` at 20.9 seconds with no reboot through 30.2 seconds. This occurred
+in MAINT with ESP-NOW intentionally down, proving the new mode-aware predicate.
+The LED rail stayed on and the installed LFP held about 3.34 V; USB/VBUS remained
+present at about 4.65 V for maintenance access.
+
+Then built distinct forced-failure artifact
+`firmware/fixture/build/fx-260816-otafail-b/fixture.ino.bin` (1,168,816 bytes),
+SHA-256 `b4c0f42e1fe7b42c5040894854f9b1bb1398e78d7ac5cb28bac7fa722735ac1f`,
+with `RES_OTA_FAIL_SELFTEST=1`. It ran on `app0` as `pending_verify` at 19.85
+seconds, deliberately rejected itself, and rebooted. Direct telemetry then
+proved recovery to the accepted `fx-260816-otafix1-b` on `app1`, state `valid`,
+with ESP-NOW up, rail on, healthy battery/power/sensors, and no pending verify.
+Cambium independently showed `F40364` online in COMMS with the accepted revision.
+The source version was restored to `otafix1-b` after building the deliberately
+bad artifact. This closes the four-gate canary sequence; a battery-only/no-VBUS
+field-path OTA remains a separate useful rehearsal, not a prerequisite for this
+maintenance-mode bug fix.
+
+## 2026-08-15 -- Ben + Codex -- Basic-listener canary passed control and rail gates; good OTA rolled back in maintenance
+
+Canary `F40364` passed the supervised basic-listener checks. Targeted Cambium
+direct frames produced black, green, blue, and dedicated-white output, and the
+fixture returned to steady red after the three-second stale-command window.
+Bridge delivery reported 77 successes and zero failures. A diagnostic hole was
+found before the rail-cycle gate: `L0` only disabled the smoke render, so the
+basic listener's red fallback immediately kept the rail powered. `L0` now sets a
+RAM-only forced-off override and cuts the rail; `L1` clears it and resumes the
+smoke render. Hardware telemetry and Ben's visual checks proved rail off, then
+rail on with white breathing still working after the cycle. A reset cleared the
+override and returned directly to steady red with no boot salute.
+
+All 362 native checks pass. The exact channel-11 commission/basic-listener
+artifact is `firmware/fixture/build/fx-260816-railoff-b/fixture.ino.bin`
+(1,168,672 bytes), SHA-256
+`81841e4839c0342b9af7b444005075070cb76600675977d8430452559e54bca2`.
+USB flashing to the positively identified COM46 / `F40364` verified every
+segment. Post-flash telemetry showed the expected revision, healthy battery and
+USB supply, all three downlight sensors healthy, ESP-NOW up on channel 11, and
+the LED rail on.
+
+The good-image OTA gate exposed a deterministic verifier bug. With USB present,
+the OTA reboot correctly entered maintenance mode on `Party In The Woods` at
+`192.168.1.148`; maintenance disables ESP-NOW. Telemetry showed the new slot
+`PENDING_VERIFY` at uptimes 17.7, 18.8, and 19.8 seconds. At the 20-second
+self-test the fixture software-reset, then returned with pending false. This was
+a rollback: `ota_verify.cpp::selfTest()` unconditionally requires
+`espNowUp() && espNowSendOk() > 0`, an impossible condition while the valid
+maintenance-mode boot deliberately has ESP-NOW down. The battery remained about
+3.33 V and USB about 4.65 V, so this was not a ride-through failure. Because the
+test intentionally OTA'd the identical binary, the version string stayed the
+same across both slots and would have hidden the rollback without the pending
+state, uptime, and reset-reason trace. Make OTA verification mode-aware and add
+running-partition identity to telemetry before declaring the A/B gate passed.
+
+## 2026-08-15 -- Ben + Codex -- Basic linear listener artifact built; hardware canary pending
+
+After full-bright boot salutes were followed by apparently dark fixtures on the
+rig, inspection found that the intended red listener level 24 was gamma-mapped to
+wire value 1. Ben called for a supervised return to basics. The optional listener
+posture now has exactly one autonomous visual state: steady red at level 128. A
+bridge lease overrides it and stale direct control returns to red within three
+seconds. Removed gamma correction from the physical LED output and removed the
+boot salute, supply-dependent RGB carousel, identity pop, and local ToF color
+reaction. Channel values are now linear 0..255; 128 is the dim reference and 255
+is the 8-bit bright endpoint. Hard battery, rail, solenoid, and OTA rollback
+protection remains unchanged.
+
+Renamed the opt-in build posture to `--basic-listener`; the old
+`--quiet-autonomy` spelling is a compatibility alias for the same minimal code.
+The `tools/ops` artifact parser now recognizes both legacy manual revisions and
+the new `fx-YYMMDD-<recipe7>-<class>` form. Native firmware validation passes 362
+checks with zero failures. Built channel-11 commission artifact
+`firmware/fixture/build/fx-260816-f2bb4cd-b/fixture.ino.bin` (1,168,528 bytes),
+SHA-256 `c792d8c28e8a9c57a0e19455394a5b19c161030cdcf016d741001b672797f965`.
+
+The first USB attempt exposed a target-identification failure. Windows arrival
+time was incorrectly treated as device identity and COM43 / `4D5DB0` was flashed
+with the fixture artifact. Its repeated `Board.init()` and rail-pad failures were
+correct safety behavior because COM43 is the CoreS3 desk bridge, not a
+PowerFeather. The unchanged `RESONANCE BRIDGE` screen was a stale framebuffer:
+the fixture image never initialized or cleared the CoreS3 display. Historical
+logs showed that this hardware had once been the Module Audio bridge, but the
+current-session record and display posture established that it had since been
+repurposed as the Cambium binary bridge. Rebuilt and restored the current
+channel-11 Cambium artifact; USB hash verification passed and `cambium doctor`
+then proved `cores3-cb-0.1`, MAC `80:45:6B:4D:5D:B0`, channel 11, plus 14 live
+fixture heartbeats.
+
+The actual lantern was identified by a physical-reset/uptime correlation and
+live telemetry as COM46 / `F40364`, then USB-flashed with the basic listener.
+Every flash segment verified. Fresh serial telemetry proved the exact revision,
+PowerFeather ready, battery present and charging, ESP-NOW up on channel 11, LED
+rail on, all MSA311/TMF8820/BMP581 sensors healthy, and
+`ota_pending_verify=false`. Human confirmation of the steady linear-red idle
+state passed after USB was unplugged. A targeted Cambium color-identify then
+proved bridge control: after waiting for COM43's status handshake, the bridge
+radio-success counter advanced from 0 to 1 with zero failures and only `F40364`
+changed from red to solid blue. Future multi-device USB work must identify
+targets by live firmware/hardware identity or a physical-reset uptime
+correlation, never COM arrival time alone.
+
+The first targeted-blue attempt also exposed a separate host-side Cambium bug.
+The older one-shot ops CLI starts its asynchronous serial connection and sends
+immediately; `SerialCobsTransport` deliberately drops while disconnected, but
+the CLI still prints a success-looking line. Holding one connection open until
+the bridge STATUS handshake made the same targeted command work. Fix the CLI to
+gate one-shot mutations on bridge readiness and report a dropped/not-ready send
+instead of claiming success. Fixed this against Elliot's latest
+`lighting/dev-mode-endpoints` branch and published as
+`origin/codex/serial-ready-gate`. The first fix (`f1cb699`) correctly required a
+fresh STATUS, adopted the real bridge ID before building the packet, and waited
+for the USB writer to drain, but hardware proved writer-drain alone was not
+enough: closing COM43 could still interrupt/reset the CoreS3 before its ESP-NOW
+callback. The complete fix (`078071c`) holds the port until STATUS reports an
+incremented `tx_ok` or `tx_fail`, fails loudly on a missing/failed radio outcome,
+and only then prints success or closes. The full current Cambium suite passes
+349 tests with 1 skipped. Live proof passed: the committed one-shot CLI reported
+radio success and Ben confirmed only `F40364` changed from red to solid blue.
+
 ## 2026-08-15 -- Ben + Codex -- NeoPixel RMT rail-cycle bug isolated and fixed; `.4` canary reverted before acceptance
 
 The new fixture image repeatedly reported a healthy LED rail and active smoke

@@ -4,8 +4,10 @@
 #include <Preferences.h>
 #include "esp_ota_ops.h"
 
+#include "../core/ota_verify_policy.h"
 #include "board_power.h"
 #include "espnow_link.h"
+#include "maintenance.h"
 #include "watchdog.h"
 
 // C linkage is the whole trick (see header). Do not "clean this up" into C++.
@@ -41,9 +43,18 @@ static bool selfTest() {
   // 2. Gauge sanity: voltage in a physical range. A bare board on USB reads
   //    ~0 V -- that is a PASS (bringup flashes batteryless boards).
   if (batteryVolts() > 4.4f) return false;
-  // 3. Radio: ESP-NOW came up and at least one send completed (the boot
-  //    announce guarantees attempts; broadcast completion needs no receiver).
-  if (!espNowUp() || espNowSendOk() == 0) return false;
+  // 3. Network path appropriate to the active mode. COMMS owns ESP-NOW and
+  //    the boot announce guarantees send attempts. MAINT deliberately tears
+  //    ESP-NOW down, so require associated WiFi plus the active OTA server.
+  bool inMaintenance = maintMode() == MODE_MAINT;
+  bool maintReady = maintenanceReady();
+  bool netOk = otaNetworkSelfTestPass(inMaintenance, maintReady,
+                                      espNowUp(), espNowSendOk());
+  Serial.printf("ota-verify: network mode=%s maint_ready=%d espnow=%d send_ok=%lu -> %s\n",
+                inMaintenance ? "maint" : "comms", maintReady ? 1 : 0,
+                espNowUp() ? 1 : 0, (unsigned long)espNowSendOk(),
+                netOk ? "PASS" : "FAIL");
+  if (!netOk) return false;
   // 4. NVS writable.
   {
     Preferences pf;

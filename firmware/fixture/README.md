@@ -53,7 +53,7 @@ src/core/            platform-independent, natively unit-tested (tests/)
   lifecycle          day/night machine, bounded night, energy-gated wake
   choreo/            program runtime: IDLE, GH_CA, BRIDGE_SHOW + lease
   neighbor_table     RSSI + pinned adjacency modes
-  hex_geometry, gamma, filters, power_integrator, tmf_recovery
+  hex_geometry, filters, power_integrator, tmf_recovery
 src/esp32/           glue/drivers (board_power owns the solar guard include)
   sensors/           cooperative machines + the single vendored VL53L5CX ULD
 tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
@@ -67,6 +67,7 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --ota <ip>               # OTA via POST /update
 ./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
 ./build.sh --channel 11 --profile commission
+./build.sh --channel 11 --profile commission --basic-listener
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
@@ -120,7 +121,8 @@ to inspect the module, first cable, and power contacts.
 `t` telemetry JSON | `u` local ENTER_MAINT | `c` resume | `C<mah>` capacity
 (reboots) | `G<ma>` charge cap | `K<id>:<ms>` solenoid (gated) | `S[<s>]`
 deep sleep | `O<0-4>` class override | `F<0|1>` profile dev/prod | `N<0|1|2>`
-force day/night/auto | `L<0|1>` bench smoke render | `X` guarded bare-board
+force day/night/auto | `L0` force LED rail off until `L1` or reset | `L1` clear
+the override and run the bench smoke render | `X` guarded bare-board
 PROTECT clear | `r` status line
 
 `X` works only with verified good USB/VDC, no plausible battery, charging off,
@@ -164,6 +166,15 @@ safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
 `F1` field). New build flags accept `--profile commission|field`; `dev|prod` remain
 compatibility aliases.
 
+The supervised `--basic-listener` posture is deliberately minimal. With no
+active bridge lease, every fixture holds steady red at linear level 128. A
+bridge command overrides it, and stale-command fallback returns to red within
+three seconds. LED channel values are sent linearly: 0 is off, 128 is dim, and
+255 is the 8-bit bright endpoint. There is no gamma correction, boot salute,
+external-supply carousel, identity pop, or local sensor-created color. The old
+`--quiet-autonomy` option remains only as a build-script alias for existing
+commands and selects this same basic posture.
+
 Maintenance exit clears the ESP-NOW receive queue before reinitialization, so a
 queued maintenance command cannot replay after `/resume`. If radio initialization
 fails during the WiFi-to-ESP-NOW transition, the fixture remains in COMMS posture
@@ -176,10 +187,15 @@ power veto, and physical LED output.
 
 `verifyRollbackLater()`/`verifyOta()` are `extern "C"` -- the weak hooks live
 in a C file; a mangled C++ override silently never runs. Deferred self-test at
-t+20 s (power chip, gauge sanity, radio, NVS, watchdog) marks the image valid
-or reboots into rollback. Drill: flash a `--ota-fail-selftest` build over OTA
+t+20 s (power chip, gauge sanity, mode-appropriate network path, NVS, watchdog)
+marks the image valid or reboots into rollback. COMMS requires ESP-NOW plus a
+completed send; MAINT requires associated WiFi plus the active OTA HTTP server
+because ESP-NOW is deliberately down there. Drill: flash a
+`--ota-fail-selftest` build over OTA
 and watch it revert unattended. Rollback support requires one full USB flash
 to install the current bootloader config (the M1 fleet reflash provides it).
+Telemetry exposes `ota_partition`, `ota_address`, `ota_state`, and the legacy
+`ota_pending_verify` boolean so same-family A/B transitions remain observable.
 
 ## Hardware-gate checklist (owed before fleet flash; see plan)
 

@@ -4,7 +4,6 @@
 #include <Adafruit_NeoPixel.h>
 
 #include "../core/fixture_context.h"
-#include "../core/gamma.h"
 #include "../core/hex_geometry.h"
 #include "board_power.h"
 #include "boot_park.h"
@@ -12,6 +11,7 @@
 // Runtime re-profiling via updateType/updateLength (the led_studio hot-swap
 // pattern): one static strip object serves every class.
 bool gSmokeRender = false;
+bool gBenchRailForcedOff = false;
 
 static Adafruit_NeoPixel gStrip(1, RES_LED_DATA_PIN, NEO_RGBW + NEO_KHZ800);
 static bool gBegun = false;
@@ -98,18 +98,19 @@ void ledRailOff() {
 
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap) {
   if (!gRailOn) return;
-  float s = (float)brightnessCap / 255.0f;
   uint16_t n = min((uint16_t)f.count, gCount);
   for (uint16_t i = 0; i < gCount; i++) {
     if (i >= n) {
       gStrip.setPixelColor(i, 0);
       continue;
     }
-    uint8_t r = resGamma8((uint8_t)(f.px[i][0] * s));
-    uint8_t g = resGamma8((uint8_t)(f.px[i][1] * s));
-    uint8_t b = resGamma8((uint8_t)(f.px[i][2] * s));
+    // Supervised commissioning uses direct linear 8-bit levels: 0 is off,
+    // 128 is dim, and 255 is bright. Keep only the hard power-policy cap.
+    uint8_t r = (uint8_t)(((uint16_t)f.px[i][0] * brightnessCap + 127) / 255);
+    uint8_t g = (uint8_t)(((uint16_t)f.px[i][1] * brightnessCap + 127) / 255);
+    uint8_t b = (uint8_t)(((uint16_t)f.px[i][2] * brightnessCap + 127) / 255);
     if (gIsRgbw) {
-      uint8_t w = resGamma8((uint8_t)(f.px[i][3] * s));
+      uint8_t w = (uint8_t)(((uint16_t)f.px[i][3] * brightnessCap + 127) / 255);
       gStrip.setPixelColor(i, gStrip.Color(r, g, b, w));
     } else {
       gStrip.setPixelColor(i, gStrip.Color(r, g, b));

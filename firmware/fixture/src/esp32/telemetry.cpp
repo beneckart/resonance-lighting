@@ -33,6 +33,17 @@ bool gTelemetryGuardInterrupted = false;
 uint8_t gTelemetryFixtureClass = FIXTURE_UNKNOWN; // probe+override decision
 bool gTelemetryClassMismatch = false;
 
+static const char *otaStateName(esp_ota_img_states_t state) {
+  switch (state) {
+  case ESP_OTA_IMG_NEW: return "new";
+  case ESP_OTA_IMG_PENDING_VERIFY: return "pending_verify";
+  case ESP_OTA_IMG_VALID: return "valid";
+  case ESP_OTA_IMG_INVALID: return "invalid";
+  case ESP_OTA_IMG_ABORTED: return "aborted";
+  default: return "undefined";
+  }
+}
+
 static uint8_t effectiveClass() {
   if (gTelemetryFixtureClass != FIXTURE_UNKNOWN) return gTelemetryFixtureClass;
   if (gCfg.classOvr != FIXTURE_UNKNOWN) return gCfg.classOvr;
@@ -60,6 +71,12 @@ String telemetryJson() {
   j += ",\"flash_bytes\":" + String((unsigned long)ESP.getFlashChipSize());
   j += ",\"psram_bytes\":" + String((unsigned long)ESP.getPsramSize());
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
+  j += ",\"ota_partition\":\"";
+  j += running ? running->label : "unknown";
+  j += "\"";
+  j += ",\"ota_address\":";
+  j += running ? String((unsigned long)running->address) : "0";
+  j += ",\"ota_state\":\"" + String(otaStateName(otaState)) + "\"";
   j += ",\"pf_ready\":";
   j += pfIsReady() ? "true" : "false";
   j += ",\"battery_present\":";
@@ -118,6 +135,8 @@ String telemetryJson() {
   j += ledRailIsOn() ? "true" : "false";
   j += ",\"smoke_render\":";
   j += gSmokeRender ? "true" : "false";
+  j += ",\"bench_rail_forced_off\":";
+  j += gBenchRailForcedOff ? "true" : "false";
   j += ",\"life_state\":" + String(gTelemetryLifeState);
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);

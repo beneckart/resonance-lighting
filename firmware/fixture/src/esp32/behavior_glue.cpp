@@ -12,7 +12,6 @@
 #include "nvs_store.h"
 #include "ota_verify.h"
 #include "power_glue.h"
-#include "sensors/sensors.h"
 #include "telemetry.h"
 
 #define RES_RX_HOLD_MS 600000UL      // heard-anything hold (10 min)
@@ -119,72 +118,14 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
 }
 
 
-#ifdef RES_QUIET_AUTONOMY
-// Idle look for the quiet posture: low-red listening beacon, and every 5 s a
-// 400 ms flash of THIS light's signature color (palette index from its MAC —
-// unique, stable, doubles as visual identification; Elliot 2026-08-15:
-// "every 5 seconds it will flash the light's unique color").
-static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
+#ifdef RES_BASIC_LISTENER
+// Basic supervised posture. A steady half-scale red means the fixture is
+// awake and listening. Bridge leases override it; expiry returns directly to
+// it. There are no boot, supply, identity, or sensor-created animations.
+static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
   f.count = (uint8_t)pixels;
   frameClear(f);
-  // BOOT SALUTE (Elliot 2026-08-15: "when flashed... blink red green then
-  // blue"). Keyed to the FIRST RENDER, not millis()==0: setup (sensors,
-  // radio, PowerFeather) can eat >4.5 s before the LED rail rises, which
-  // made v1 of this salute finish invisibly ("none of the plugged lights
-  // are doing the flashing RGB").
-  static uint32_t sSaluteStartMs = 0;
-  if (sSaluteStartMs == 0) sSaluteStartMs = now ? now : 1;
-  uint32_t since = now - sSaluteStartMs;
-  // READY-FOR-DISCONNECT CAROUSEL (Elliot 2026-08-15: "boards that are ready
-  // to be disconnected flash RGB"): while external power is present in the
-  // first 15 min after boot, cycle R->G->B continuously — the standing
-  // "flashed and waiting for you to unplug me" state. Unplugging ends it
-  // instantly (supply drops) and the light becomes the deployed red-idle.
-  // The 15-min cap keeps a solar-powered field reboot from running the
-  // carousel all morning.
-  if (supplyGood() && now < 3600000UL) { // full bench hour (Elliot: "red green blue until we unplug it, continuously")
-    uint8_t c = (uint8_t)((since / 900) % 3);
-    for (uint16_t i = 0; i < f.count; i++) f.px[i][c] = 255;
-    return;
-  }
-  if (since < 4500) {
-    uint8_t c = (uint8_t)(since / 1500); // 0=R 1=G 2=B (battery power-up salute)
-    for (uint16_t i = 0; i < f.count; i++) f.px[i][c > 2 ? 2 : c] = 255;
-    return;
-  }
-  static const uint8_t PAL[12][3] = {
-      {255, 0, 0},   {255, 96, 0},  {255, 200, 0}, {128, 255, 0},
-      {0, 255, 0},   {0, 255, 128}, {0, 255, 255}, {0, 128, 255},
-      {0, 0, 255},   {128, 0, 255}, {255, 0, 255}, {255, 0, 128}};
-  // 10 s period, 300 ms, half intensity: ten UNSYNCED lights at 5 s/full
-  // blast read as one continuous strobe across the bench (Elliot 19:30:
-  // "everything is flashing super fast") — calmer cadence, same identity.
-  // PRESENCE REACT (Elliot 2026-08-15: "light changes color whenever it
-  // senses movement"): a confident ToF target within 1.2 m makes the light
-  // glow its signature color while the visitor is there. Purely local —
-  // works unplugged and out of WiFi range; any commanded lease overrides.
-  const SensorSnapshot &sn = sensors();
-  bool present = (sn.tmfOk && sn.tofDepthMm > 0 && sn.tofDepthMm < 1200) ||
-                 (sn.vlOk && sn.vlClosestMm > 0 && sn.vlClosestMm < 1200);
-  if (present) {
-    uint8_t h = (uint8_t)((gMyId[0] * 7 + gMyId[1] * 13 + gMyId[2] * 31) % 12);
-    for (uint16_t i = 0; i < f.count; i++) {
-      f.px[i][0] = PAL[h][0];
-      f.px[i][1] = PAL[h][1];
-      f.px[i][2] = PAL[h][2];
-    }
-    return;
-  }
-  if (now % 10000 < 300) {
-    uint8_t h = (uint8_t)((gMyId[0] * 7 + gMyId[1] * 13 + gMyId[2] * 31) % 12);
-    for (uint16_t i = 0; i < f.count; i++) {
-      f.px[i][0] = PAL[h][0];
-      f.px[i][1] = PAL[h][1];
-      f.px[i][2] = PAL[h][2]; // full-bright: the signature must be identifiable across the room
-    }
-  } else {
-    for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 24;
-  }
+  for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 128;
 }
 #endif
 
@@ -252,7 +193,7 @@ void behaviorTick() {
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
-#ifdef RES_QUIET_AUTONOMY
+#ifdef RES_BASIC_LISTENER
     // Slave/bench posture (Elliot 2026-08-15): no autonomous show — with no
     // explicit lease, render a LOW-RED idle beacon ("power efficient and
     // shows that it is ready for command") instead of the default programs.
@@ -283,7 +224,7 @@ void behaviorTick() {
       gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS - 300 + jit; // +/-30%
     }
   } else {
-#ifdef RES_QUIET_AUTONOMY
+#ifdef RES_BASIC_LISTENER
     // Full-control posture: the program engine runs in DAY/BOOT states too,
     // so commanded frames (DIRECT stream / programs) render around the clock
     // and telemetry reports the true active program. First beacon build only
@@ -338,7 +279,7 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
-#ifdef RES_QUIET_AUTONOMY
+#ifdef RES_BASIC_LISTENER
   // Quiet posture always has a frame: the low-red listening beacon (or a
   // leased/commanded frame). Keeps the LED rail up whenever the chip is awake.
   f = gFrame;

@@ -10,6 +10,7 @@
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
+#   ./build.sh --basic-listener          # steady red 128 when no bridge command
 #   ./build.sh --ota-fail-selftest      # P4 rollback drill image
 #   ./build.sh --wdt-hangtest           # arm serial 'x' watchdog hang test
 #
@@ -42,7 +43,7 @@ while [[ $# -gt 0 ]]; do
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;
-    --quiet-autonomy) EXTRA_FLAGS+=" -DRES_QUIET_AUTONOMY=1"; shift ;;
+    --basic-listener|--quiet-autonomy) EXTRA_FLAGS+=" -DRES_BASIC_LISTENER=1"; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done

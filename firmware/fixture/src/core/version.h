@@ -1,9 +1,8 @@
 // Production fixture firmware version string.
 //
-// fleet_usb_bringup.py --expect-fw matches this exactly; bump the date/counter
-// on every artifact that gets flashed to a board (same convention as net_bench:
-// <sketch>-<yyyy-mm-dd>.<n>).
+// fleet_usb_bringup.py --expect-fw matches this exactly. New artifacts use
+// fx-YYMMDD-<recipe7>-<class>; class b is a supervised bench/canary build.
 #pragma once
 
-#define RES_FIXTURE_VERSION "fixture-2026-08-15.4"
+#define RES_FIXTURE_VERSION "fx-260816-otafix1-b"
 #define RES_BOARD_NAME "powerfeather_v2"
