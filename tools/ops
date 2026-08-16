@@ -127,6 +127,29 @@ asyncio.run(main())
 print(f"held {ids} at rgb({r:.2f},{g:.2f},{b:.2f}) for {secs}s")
 PYEOF
     ;;
+  certify)
+    # ops certify <who|all> — the READY-TO-UNPLUG ritual (Elliot 2026-08-15):
+    # online + target firmware -> 6s GREEN BLINK = "certified, unplug freely".
+    # Not blinking green = not ready.
+    python3 - "${2:-all}" "fixture-2026-08-15.4" "$D" <<'PYEOF'
+import json, sys, time, urllib.request
+who, tfw, D = sys.argv[1].upper(), sys.argv[2], sys.argv[3]
+f = json.load(urllib.request.urlopen(D + "/fleet", timeout=5))
+NAMES = {"F40384":"Mario","F2B7DC":"Luigi","9F26C4":"Hulk","9E5A88":"Flash",
+         "9F2720":"Thor","9E5B18":"Phoenix","9F2664":"Nova","9F26E8":"Blade","9E5A94":"Storm"}
+for mac, d in sorted(f.items()):
+    label = NAMES.get(mac, d.get("fixture_id") or mac)
+    if who != "ALL" and who not in (mac, (d.get("fixture_id") or ""), NAMES.get(mac, "").upper()):
+        continue
+    t = d.get("telemetry") or {}
+    if d.get("online") and t.get("fw_rev") == tfw:
+        urllib.request.urlopen(f"{D}/debug/identify?mac={mac}&secs=6&color=2&blink=1", timeout=4)
+        print(f"✅ {label:8} CERTIFIED — green-blinking (unplug freely)")
+        time.sleep(2.5)
+    else:
+        print(f"❌ {label:8} NOT READY (online={d.get('online')}, fw={t.get('fw_rev')})")
+PYEOF
+    ;;
   off)   curl -s -m 4 "$D/constellate/off"; echo ;;
   night) curl -s -m 4 "$D/debug/night?mode=$2"; echo ;;
   maint) [[ "$2" == "on" ]] && V=1 || V=0; curl -s -m 4 "$D/debug/maint?on=$V"; echo ;;
