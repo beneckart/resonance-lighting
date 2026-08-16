@@ -45,6 +45,18 @@ export function RealDriveDriver() {
     const bridge = new CambiumBridge({ url: CambiumBridge.urlFromLocation() });
     bridgeRef.current = bridge;
     let timer: ReturnType<typeof setInterval> | undefined;
+    // INTENT GATE (Elliot 2026-08-15: "stop the simulator sending commands
+    // unless I click something directly"): stream only within 2 min of an
+    // explicit operator action (control change, per-light override, show
+    // start). The twin's self-animating layers (auto-VJ, dusk brightness,
+    // ambient scene) no longer reach the fleet on their own — that runaway
+    // was the moving brightness slider commanding the hung lights dark.
+    const INTENT_MS = 120_000;
+    let lastIntent = 0; // page load is NOT intent
+    const unsubIntent = useTwin.subscribe((st, prev) => {
+      if (st.control !== prev.control || st.overrides !== prev.overrides ||
+          st.activeShow !== prev.activeShow) lastIntent = Date.now();
+    });
     let retryTimer: number | undefined;
     let cancelled = false;
 
@@ -88,6 +100,7 @@ export function RealDriveDriver() {
         timer = setInterval(() => {
           const states = telemetry.states;
           if (!states.length || !bridge.connected()) return;
+          if (Date.now() - lastIntent > INTENT_MS) return; // no fresh intent: fleet autonomous
           // Omit near-black lights from the frame: per the wire contract,
           // absence means "no opinion — stay autonomous", so idle lights hold
           // their red listening beacon instead of being commanded dark
@@ -111,6 +124,7 @@ export function RealDriveDriver() {
             timer = setInterval(() => {
               const states = telemetry.states;
               if (!states.length || !bridge.connected()) return;
+              if (Date.now() - lastIntent > INTENT_MS) return; // no fresh intent: fleet autonomous
               const blackout = useTwin.getState().control.blackout;
               const fx = states
                 .map((s) => ({ id: s.id, rgb: s.rgb }))
@@ -125,6 +139,7 @@ export function RealDriveDriver() {
       cancelled = true;
       if (timer) clearInterval(timer);
       if (retryTimer) clearTimeout(retryTimer);
+      unsubIntent();
       window.removeEventListener("resonance:cambium-night", onNight);
       bridge.send({ kind: "drive", on: false });
       unsubMeta();
