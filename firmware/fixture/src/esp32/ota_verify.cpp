@@ -43,7 +43,7 @@ static bool selfTest() {
   // The low-VBAT recovery current is an explicit artifact property. Never
   // accept an OTA image whose BQ register write did not survive readback.
   if (!prechargeConfigured()) {
-    Serial.printf("ota-verify: precharge target=%umA readback=%umA reg10=0x%02X -> FAIL\n",
+    Serial.printf("ota-verify: precharge target=%umA readback=%umA reg10=0x%04X -> FAIL\n",
                   (unsigned)prechargeTargetMa(),
                   (unsigned)bqSnapshot().precharge_ma, bqSnapshot().reg10);
     return false;

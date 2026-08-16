@@ -100,7 +100,8 @@ explicit lower override for a smaller or otherwise limited cell.
 The BQ25628E precharge limit defaults to 300 mA (`--precharge-ma 300`). This
 replaces the charger's 30 mA POR value, which left deeply discharged production
 LFPs near 2.8 V treading water despite valid solar input. Firmware performs a
-reserved-bit-preserving REG0x10 read/modify/write and verifies the readback;
+two-byte, little-endian, reserved-bit-preserving REG0x10 read/modify/write and
+verifies the readback;
 pending OTA images roll back if it does not match. Trickle charge below 2.25 V,
 input DPM, thermal protection, and the hardware transition to fast charge near
 3.0 V remain unchanged. Maintenance telemetry exposes `precharge_target_ma`,

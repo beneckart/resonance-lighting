@@ -47,8 +47,8 @@ uint16_t prechargeTargetMa();
 
 // BQ25628E snapshot (0xFFFF/0xFF = unknown).
 struct BqSnapshot {
-  uint16_t vindpm_mv, ichg_ma, vreg_mv, precharge_ma;
-  uint8_t reg10, reg16, reg18, stat0, stat1, fault0, flag0, flag1, fault_flag0, part;
+  uint16_t vindpm_mv, ichg_ma, vreg_mv, precharge_ma, reg10;
+  uint8_t reg16, reg18, stat0, stat1, fault0, flag0, flag1, fault_flag0, part;
 };
 const BqSnapshot &bqSnapshot();
 

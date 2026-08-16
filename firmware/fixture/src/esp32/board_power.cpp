@@ -52,7 +52,7 @@ float supplyVolts() { return gCsV; }
 float supplyMa() { return gCsMa; }
 bool supplyGood() { return gCsGood; }
 bool prechargeConfigured() {
-  return gPrechargeWriteOk && gBq.reg10 != 0xFF &&
+  return gPrechargeWriteOk && gBq.reg10 != 0xFFFF &&
          gBq.precharge_ma == RES_PF_PRECHARGE_MA;
 }
 uint16_t prechargeTargetMa() { return RES_PF_PRECHARGE_MA; }
@@ -77,27 +77,28 @@ static uint16_t bqMaOrUnknown(bool ok, float ma) {
 
 static bool configurePrecharge() {
   const uint16_t targetMa = RES_PF_PRECHARGE_MA;
-  uint8_t before = 0;
-  if (!pfSolarGuardRead8(0x10, before)) {
+  uint16_t before = 0;
+  if (!pfSolarGuardRead16(0x10, before)) {
     Serial.println("fixture precharge: read REG0x10 failed");
     gPrechargeWriteOk = false;
     return false;
   }
-  uint8_t wanted = bq25628ePrechargeReg10(before, targetMa);
-  bool wrote = (wanted == before) || pfSolarGuardWrite8(0x10, wanted);
-  uint8_t after = 0;
-  bool readback = pfSolarGuardRead8(0x10, after);
+  uint16_t wanted = bq25628ePrechargeReg10(before, targetMa);
+  bool wrote = (wanted == before) || pfSolarGuardWrite16(0x10, wanted);
+  uint16_t after = 0;
+  bool readback = pfSolarGuardRead16(0x10, after);
   uint16_t actualMa = readback ? bq25628ePrechargeMa(after) : 0;
   gPrechargeWriteOk = wrote && readback && actualMa == targetMa;
-  Serial.printf("fixture precharge: REG0x10 0x%02X -> 0x%02X target=%umA readback=%umA %s\n",
-                before, readback ? after : 0xFF, (unsigned)targetMa,
+  Serial.printf("fixture precharge: REG0x10 0x%04X -> 0x%04X target=%umA readback=%umA %s\n",
+                before, readback ? after : 0xFFFF, (unsigned)targetMa,
                 (unsigned)actualMa, gPrechargeWriteOk ? "OK" : "ERR");
   return gPrechargeWriteOk;
 }
 
 static void readChargerStatus() {
   gBq.vindpm_mv = gBq.ichg_ma = gBq.vreg_mv = gBq.precharge_ma = 0xFFFF;
-  gBq.reg10 = gBq.reg16 = gBq.reg18 = gBq.stat0 = gBq.stat1 = 0xFF;
+  gBq.reg10 = 0xFFFF;
+  gBq.reg16 = gBq.reg18 = gBq.stat0 = gBq.stat1 = 0xFF;
   gBq.fault0 = gBq.flag0 = gBq.flag1 = gBq.fault_flag0 = gBq.part = 0xFF;
   if (!gPfReady) return;
 
@@ -106,11 +107,12 @@ static void readChargerStatus() {
   gBq.ichg_ma = bqMaOrUnknown(Board.getCharger().getChargeCurrentLimit(v), v);
   gBq.vreg_mv = bqMvOrUnknown(Board.getCharger().getChargeVoltageLimit(v), v);
 
-  uint8_t b = 0;
-  if (pfSolarGuardRead8(0x10, b)) {
-    gBq.reg10 = b;
-    gBq.precharge_ma = bq25628ePrechargeMa(b);
+  uint16_t w = 0;
+  if (pfSolarGuardRead16(0x10, w)) {
+    gBq.reg10 = w;
+    gBq.precharge_ma = bq25628ePrechargeMa(w);
   }
+  uint8_t b = 0;
   if (pfSolarGuardRead8(PF_SOLAR_GUARD_REG_CHG_CTRL0, b)) gBq.reg16 = b;
   if (pfSolarGuardRead8(0x18, b)) gBq.reg18 = b;
   if (pfSolarGuardRead8(0x1D, b)) gBq.stat0 = b;

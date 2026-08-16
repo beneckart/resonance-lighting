@@ -9,7 +9,7 @@
 #define BQ25628E_PRECHARGE_MIN_MA 10
 #define BQ25628E_PRECHARGE_MAX_MA 310
 #define BQ25628E_PRECHARGE_STEP_MA 10
-#define BQ25628E_PRECHARGE_MASK 0xF8u
+#define BQ25628E_PRECHARGE_MASK 0x00F8u
 
 static inline bool bq25628ePrechargeMaValid(uint16_t ma) {
   return ma >= BQ25628E_PRECHARGE_MIN_MA &&
@@ -17,13 +17,13 @@ static inline bool bq25628ePrechargeMaValid(uint16_t ma) {
          (ma % BQ25628E_PRECHARGE_STEP_MA) == 0;
 }
 
-static inline uint8_t bq25628ePrechargeReg10(uint8_t current, uint16_t ma) {
+static inline uint16_t bq25628ePrechargeReg10(uint16_t current, uint16_t ma) {
   uint8_t code = (uint8_t)(ma / BQ25628E_PRECHARGE_STEP_MA);
-  return (uint8_t)((current & ~BQ25628E_PRECHARGE_MASK) |
-                   ((code << 3) & BQ25628E_PRECHARGE_MASK));
+  return (uint16_t)((current & ~BQ25628E_PRECHARGE_MASK) |
+                    (((uint16_t)code << 3) & BQ25628E_PRECHARGE_MASK));
 }
 
-static inline uint16_t bq25628ePrechargeMa(uint8_t reg10) {
+static inline uint16_t bq25628ePrechargeMa(uint16_t reg10) {
   uint8_t code = (uint8_t)((reg10 & BQ25628E_PRECHARGE_MASK) >> 3);
   return (uint16_t)code * BQ25628E_PRECHARGE_STEP_MA;
 }
