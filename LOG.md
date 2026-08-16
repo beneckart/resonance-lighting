@@ -12,6 +12,25 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Second ten-board canopy-candidate batch OTA-bootstrapped
+
+Ten more battery-absent/VDC-absent PowerFeathers intended as likely inner-ring
+canopy/downlight candidates received the exact `fx-260816-prtrel1-b` artifact:
+`9E5AD4`, `F2BE70`, `F40174`, `F40358`, `F4042C`, `F2BE60`, `F2BE38`,
+`F40424`, `F2BDB4`, and `F4031C`. Only the new `9E5AD4` remained continuously
+visible; the other nine carried sleeping July fixture images. A reset-synchronized
+USB watcher ignored the CoreS3 bridge and the already-complete new board, then
+rescue-uploaded the exact artifact to all nine transient ports on first sight.
+
+The normal recorded commissioning path subsequently passed all 10/10: 8 MB flash
+/ 2 MB PSRAM preflight, exact upload, guarded bare-board PROTECT clear,
+`battery_present=false`, 6 Ah / 2 A provisional configuration, channel-11
+ESP-NOW, and `Party In The Woods` OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-canopy-candidates-batch2.jsonl`. All remain
+unassigned with `class_ovr=0`; the sensorless `chandelier` fallback is not a
+fixture allocation. Set 15 Ah before battery-backed validation if any enter a
+large downlight enclosure.
+
 ## 2026-08-16 -- Ben + Codex -- Ten unassigned canopy candidates OTA-bootstrapped
 
 Ten battery-absent/VDC-absent PowerFeathers intended as likely inner-ring canopy
