@@ -598,7 +598,11 @@ def update_commissioned_registry(
                     prior_ota_verified or bool(result.get("wifi_verify_ok"))
                 ).lower(),
                 "last_verified_utc": result["timestamp_complete_utc"],
-                "notes": "Bare-board USB commissioning passed"
+                "notes": (
+                    "Battery-installed USB commissioning passed"
+                    if args.allow_battery_present
+                    else "Bare-board USB commissioning passed"
+                )
                 + ("; shared-WiFi OTA endpoint verified" if result.get("wifi_verify_ok") else ""),
             }
         )
@@ -675,9 +679,9 @@ def main() -> int:
     registry = load_registry(registry_path)
     boards = discover()
     timestamp = utc_now()
-    inventory_rows(boards, registry, timestamp)
 
     if args.command == "inventory":
+        inventory_rows(boards, registry, timestamp)
         events = [
             {"event": "inventory", "timestamp_utc": timestamp, **asdict(board)}
             for board in boards
@@ -693,6 +697,11 @@ def main() -> int:
         return 0
 
     selected = select_boards(boards, registry, args.ports, args.pending_only)
+    # CoreS3 and PowerFeather use the same Espressif native-USB VID/PID. When
+    # commission is explicitly scoped to ports, do not let another attached
+    # ESP32-S3 (most importantly the desk bridge) leak into the fixture
+    # registry merely because it was present during discovery.
+    inventory_rows(selected, registry, timestamp)
     if len(selected) != args.expect_count:
         raise SystemExit(
             f"refusing batch: selected {len(selected)} board(s), expected {args.expect_count}"

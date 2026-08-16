@@ -12,6 +12,57 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Factory-fresh rev-2 fixtures commissioned; physical-reset rescue corrected
+
+Three physically dark rev-2-capboard downlights were initially suspected of a
+VDC/D7 boot interaction. Read-only ROM checks instead showed healthy ESP32-S3
+silicon on `9F266C` and healthy 8 MB JEDEC flash on `9F26B0`. Ben then recalled
+that these builds had never received their mandatory initial USB application
+flash. This fully explained why physical RESET produced no fixture light or
+application serial output: there was no fixture application to run.
+
+Factory-fresh `9F26B0` received the exact prebuilt
+`fx-260816-prtrel1-b` artifact through native USB with no physical RESET/BOOT.
+The full bootloader, partition table, boot app, and fixture application writes
+all passed hash verification. Its 15 Ah profile, good USB supply, charging,
+channel-11 ESP-NOW, downlight class, TMF8820, MSA311, LED rail, and Ben-observed
+steady red all passed; its shared-WiFi endpoint was not checked before it was
+disconnected. `9F266C` and `9F2724` then passed the repeatable two-board
+`fleet_usb_bringup.py` path: physical flash/PSRAM preflight, parallel exact
+artifact upload, 15 Ah configuration, TMF/MSA downlight checks, and serialized
+`Party In The Woods` maintenance endpoint checks. Both resumed to COMMS with
+ESP-NOW and LED rail on; Ben visually confirmed all three fixtures steady red.
+The evidence is in
+`ops/bench/data/usb/2026-08-16-rev2-darkwads-*.jsonl`; the fleet registry now
+contains all three. This proves normal first flash through the enclosure rescue
+USB can keep the lid closed; physical buttons are contingency-only.
+
+The batch tool also no longer inventories every attached Espressif native-USB
+device during a port-scoped commission run. CoreS3 and PowerFeather share that
+VID/PID, so the old ordering could add the attached `4D5DB0` CoreS3 desk bridge
+as a PowerFeather even though only `COM75 COM76` were selected. Commissioning
+now adds only the selected ports; the bridge registry row is correctly labeled
+CoreS3 / `serial_bridge` and remains explicitly excluded from fixture flashing.
+
+A fourth connected fixture, `F2BF5C`, exposed the separate old-image recovery
+bug with unusually clear telemetry. It ran `fx-260816-otafix1-b` with good
+4.609 V supply, no charger fault, approximately +340 mA battery charge, and
+ESP-NOW up. Without any connector movement it climbed PROTECT -> LEDS_OFF ->
+DIM -> FULL, persisting stages 3 -> 2 -> 1, while `led_rail_on=false` and all
+sensors remained uninitialized because that boot's in-RAM `park` flag never
+cleared. A deliberate software reboot at recovered FULL returned with
+`reset_reason=software`, `guard_interrupted=false`, LED rail on, and all three
+outer-ring sensors initialized; Ben confirmed steady red.
+
+This corrects the old rescue advice. Physical RESET is not a reliable
+`otafix1-b` release: from persisted LEDS_OFF or DIM it is intentionally treated
+as an unexpected reset and can return to PROTECT. Disconnecting/reconnecting
+the rev-2 three-pin branch was incidentally changing reset/power sequencing,
+not proving that low VDC overrode USB. Prefer USB-installing `prtrel1-b`, whose
+automatic clean software reboot occurs immediately after qualified PROTECT
+release. A true stage-4 hardware canary of that automatic path is still owed
+before fleet OTA.
+
 ## 2026-08-16 -- Ben + Codex -- Fleet OTA reached 32/33; USB PROTECT recovery isolated and automated
 
 After Elliot stopped the competing OTA writer, shared-WiFi maintenance completed

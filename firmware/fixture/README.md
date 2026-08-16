@@ -137,12 +137,17 @@ observe telemetry over normal USB CDC. A valid battery, good external supply,
 no charger fault, at least +20 mA charge current, and at least 3.10 V must all
 hold continuously for 60 seconds before the durable PROTECT latch releases.
 
-On `fx-260816-otafix1-b`, wait for `power: tier -> 2 ... [protect released]`,
-then press ordinary RESET once. The next boot must report a stage below 4 with
-`park=0`, initialize the class sensors, rejoin ESP-NOW, and eventually show the
-steady-red basic listener as the power ladder rises. Candidate
-`fx-260816-prtrel1-b` replaces that manual RESET with an automatic clean reboot
-after persisting the release. The reboot is required because a parked boot
+On `fx-260816-otafix1-b`, do not rely on the physical RESET button. A RESET
+asserts a power-on-class reset; if the durable stage is still LEDS_OFF or DIM,
+the cause-independent boot guard can correctly return to PROTECT. The observed
+`F2BF5C` recovery held good USB and +340 mA charge long enough to climb
+PROTECT -> LEDS_OFF -> DIM -> FULL, but the parked boot still left its LED rail
+and sensors off. A deliberate software reboot at FULL then booted unparked,
+initialized all three sensors, rejoined ESP-NOW, and returned to steady red.
+
+The preferred rescue is to USB-install `fx-260816-prtrel1-b`; it replaces that
+operator-timed software reboot with an automatic clean reboot immediately after
+persisting the qualified release. The reboot is required because a parked boot
 deliberately skipped rail cycling, class probe, sensor initialization, and LED
 profiling. Use BOOT/download mode only if normal CDC never enumerates or the
 ordinary USB flash tool cannot connect. Never erase NVS as a routine recovery;

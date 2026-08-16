@@ -151,13 +151,16 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Canary automatic recovery from durable PROTECT before fleet OTA.**
   `fx-260816-prtrel1-b` persists the same compound 60-second charge release,
   then software-reboots so the previously parked boot can perform the skipped
-  sensor-domain, class, sensor, and LED initialization. First prove ordinary
-  boot on a USB fixture, then use a genuinely stage-4 silent fixture to prove
+  sensor-domain, class, sensor, and LED initialization. Ordinary battery-backed
+  USB boot is now proven on factory-fresh `9F26B0`, `9F266C`, and `9F2724`;
+  the latter two also passed TMF/MSA downlight and shared-WiFi endpoint gates.
+  Next use a genuinely stage-4 silent fixture to prove
   `PROTECT -> LEDS_OFF -> automatic clean reboot -> red listener` without BOOT,
-  erase, or a manual second reset. Current `otafix1-b` fallback procedure is:
-  battery installed, USB connected, wait at least 60 seconds for qualified
-  charging, then one ordinary RESET. Enter download mode only when normal USB
-  CDC/flashing is unavailable (Ben/Codex).
+  erase, or an operator-timed reboot. Do not use physical RESET as the
+  `otafix1-b` fallback: `F2BF5C` proved that an unexpected reset from LEDS_OFF
+  or DIM can correctly re-enter PROTECT, while a deliberate software reset at
+  recovered FULL boots unparked. Prefer USB-installing `prtrel1-b`; enter
+  download mode only when normal USB CDC/flashing is unavailable (Ben/Codex).
 - [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
   from deliberately leaseless lighting control. On 2026-08-16 another host
   replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's
