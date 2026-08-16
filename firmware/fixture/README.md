@@ -66,6 +66,7 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --port /dev/ttyACM0      # USB flash
 ./build.sh --ota <ip>               # OTA via POST /update
 ./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
+./build.sh --fw-rev fx-YYMMDD-xxxxxxx-b  # override reported artifact identity
 ./build.sh --channel 11 --profile commission
 ./build.sh --channel 11 --profile commission --basic-listener
 ./build.sh --wifi-source <gitignored-header> --canopy-solenoid  # canopy D7 armed
