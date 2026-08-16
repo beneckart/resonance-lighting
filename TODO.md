@@ -168,6 +168,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   large-enclosure/downlight assignment or retain 6 Ah for a small enclosure;
   connect battery before panel/VDC. Do not call the USB-only endpoint check an
   OTA ride-through test (Ben/Codex).
+- [ ] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights.**
+  `F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
+  `F2BCE0`, `F401CC`, and reused board `9F2694` are configured for the expected
+  6 Ah cells and marked as trunk-light candidates, but their registry roles stay
+  blank until enclosure/sensor assignment is real. Connect battery before
+  panel/VDC and use a battery-backed test for actual OTA ride-through (Ben/Codex).
 - [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
   from deliberately leaseless lighting control. On 2026-08-16 another host
   replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's

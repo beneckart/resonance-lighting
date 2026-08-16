@@ -12,6 +12,26 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Second ten-board OTA bootstrap batch; trunk candidates
+
+A second nominal ten-board, battery-absent/VDC-absent batch received the exact
+`fx-260816-prtrel1-b` basic-listener artifact. Nine factory-fresh boards
+(`F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
+`F2BCE0`, and `F401CC`) enumerated normally and passed in parallel. The apparent
+tenth factory-fresh board blinked red at 1 Hz but presented no USB device to
+Windows. BOOT/download mode identified it as previously commissioned `9F2694`,
+not a new board; the first bootloader window vanished before preflight and wrote
+nothing, while the repeated window completed the exact upload successfully.
+
+All ten unique boards ultimately passed flash/PSRAM preflight, exact upload,
+guarded bare-board PROTECT clear where needed, `battery_present=false`, 6 Ah LFP
+configuration, channel-11 ESP-NOW, and `Party In The Woods` shared-WiFi OTA
+endpoint verification. The append-only evidence intentionally retains both the
+no-write `9F2694` preflight failure and its later PASS in
+`ops/bench/data/usb/2026-08-16-factory-trunk-candidates-batch2.jsonl`. Ben expects
+these boards will probably become 6 Ah trunk lights; registry roles remain blank
+until enclosure/sensor assignment is final.
+
 ## 2026-08-16 -- Ben + Codex -- Ten factory-fresh boards receive basic-listener OTA bootstrap
 
 Ten new PowerFeather V2 boards (`F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`,
