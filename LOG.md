@@ -12,6 +12,27 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Ten factory-fresh boards receive basic-listener OTA bootstrap
+
+Ten new PowerFeather V2 boards (`F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`,
+`F40310`, `F2BD00`, `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C`) were
+USB-commissioned as a single battery-absent/VDC-absent batch. The explicitly
+selected `COM77` through `COM86` ports excluded the attached CoreS3 bridge on
+`COM43`. Every board passed 8 MB flash / 2 MB PSRAM preflight, exact upload of
+`fx-260816-prtrel1-b` (SHA-256
+`6305E9713CE1DD3FDDD37C66FEF4FAB84FB1D6782AEBD8723BB12E989243297E`),
+guarded bare-board PROTECT clear, serial verification with
+`battery_present=false`, channel-11 ESP-NOW bring-up, and serialized
+`Party In The Woods` shared-WiFi OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-factory10-basic-listener.jsonl`.
+
+These are OTA-bootstrap boards rather than assigned fixtures: role is blank and
+the 6 Ah LFP capacity is a conservative provisional default. At assembly, set
+15 Ah for a large-enclosure/downlight board or retain 6 Ah for a small-enclosure
+board, then connect battery before panel/VDC. This USB-only endpoint check does
+not qualify OTA reboot ride-through; perform actual OTA/A-B tests only with the
+production battery installed or another separately proven stable supply.
+
 ## 2026-08-16 -- Ben + Codex -- Factory-fresh rev-2 fixtures commissioned; physical-reset rescue corrected
 
 Three physically dark rev-2-capboard downlights were initially suspected of a
