@@ -9,6 +9,7 @@
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
+#   ./build.sh --canopy-solenoid         # arm D7; retain normal lifecycle gates
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # steady red 128 when no bridge command
 #   ./build.sh --ota-fail-selftest      # P4 rollback drill image
@@ -40,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --profile) PROFILE="$2"; shift 2 ;;
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
+    --canopy-solenoid) EXTRA_FLAGS+=" -DRES_SOLENOID_CANOPY_ENABLED=1"; shift ;;
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;

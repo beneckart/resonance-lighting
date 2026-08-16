@@ -105,7 +105,13 @@ void nvsLoadConfig() {
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
   gCfg.battTier = pf.getUChar("batt_tier", 0);
-#if defined(RES_SOLENOID_FORCE_ENABLED)
+#if defined(RES_SOLENOID_CANOPY_ENABLED)
+  // Explicit canopy/downlight build: arm D7 while retaining every normal
+  // lifecycle, power-tier, pulse-width, rest, and failsafe gate. This differs
+  // from RES_SOLENOID_FORCE_ENABLED only in intent: it is not a bring-up bypass
+  // and never enables RES_SOLENOID_TEST_OVERRIDE.
+  gCfg.solEn = 1;
+#elif defined(RES_SOLENOID_FORCE_ENABLED)
   // Targeted bring-up image only: ignore any stale/missing NVS arm bit. The
   // ordinary production build continues to honor NVS and defaults disarmed.
   gCfg.solEn = 1;

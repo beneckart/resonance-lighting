@@ -68,11 +68,16 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
 ./build.sh --channel 11 --profile commission
 ./build.sh --channel 11 --profile commission --basic-listener
+./build.sh --wifi-source <gitignored-header> --canopy-solenoid  # canopy D7 armed
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.
+`--canopy-solenoid` arms D7/GPIO37 while retaining the normal lifecycle and
+power-tier gates. It is scoped operationally by an explicit canopy target roster;
+the receiver-compatible INPUT/high-Z idle behavior remains authoritative.
+
 `--solenoid-test` is deliberately not a fleet option: it forces the arm bit and
 relaxes only the daytime solar-surplus gate while retaining the night and FULL-
 tier battery vetoes. Use a named artifact and a specific peer.

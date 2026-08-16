@@ -4,5 +4,7 @@
 // fx-YYMMDD-<recipe7>-<class>; class b is a supervised bench/canary build.
 #pragma once
 
+#ifndef RES_FIXTURE_VERSION
 #define RES_FIXTURE_VERSION "fx-260816-prtrel1-b"
+#endif
 #define RES_BOARD_NAME "powerfeather_v2"
