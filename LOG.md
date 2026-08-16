@@ -12,6 +12,58 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Universal recovery and solenoid artifact deployed to 32 visible fixtures
+
+Ben made the 300 mA BQ25628E precharge configuration and solenoid capability
+universal defaults for every PowerFeather fixture image. ADR 0041 records the
+decision. Solenoid policy v1 deliberately migrates the historical absent/off NVS
+state to enabled once, then preserves any later explicit runtime disarm. Armed
+idle remains D7/GPIO37 INPUT/high-Z, preserving the rev-1 433 MHz receiver/manual
+path; a Feather without a capboard has no connected load. Strikes remain
+addressed or deliberate local actions under all existing lifecycle,
+solar-surplus, battery, pulse, rest, maintenance, and failsafe gates. The USER
+button path remains available. `--canopy-solenoid` is now a deprecated no-op,
+while `--solenoid-test` remains bench-only. All 392 native checks pass.
+
+The immutable fleet artifact is `fx-260816-19c6bbb-b`, built from clean source
+commit `bab1ea3f56f584fdde5f416a2087320e5b7a3357`. Its 1,170,736-byte binary has
+SHA-256
+`a018550e90f27f1d08a08e998294fb73ba97dc5367152c2c048b5f6adeb2f395`;
+the recipe SHA-256 is
+`19c6bbbc2e8c328846d6357308f117d51a8842373e790fbb752019f8ae9bd769`.
+The manifest under `firmware/fixture/build/fx-260816-19c6bbb-b/` records channel
+11, commission/basic-listener, 300 mA precharge, universal solenoid policy v1,
+and no solenoid test override. Canary `F40384` directly reported the exact image,
+`app1`, OTA `valid`, pending false, REG0x10 `0x00F0` / 300 mA, no BQ fault,
+solenoid enabled, gate off, and zero strikes/failsafes after the A/B window.
+
+One declared Ben/Codex writer then deployed that exact binary to 31 more devices.
+All 32 accepted targets produced fresh exact-revision heartbeats after the
+20-second pending-verify window: `F40384`, `9E5A74`, `9E5AB0`, `9E5B8C`,
+`9E668C`, `9F0E54`, `9F0E5C`, `9F2638`, `9F2664`, `9F26AC`, `9F26BC`,
+`9F26E4`, `9F275C`, `F2BE0C`, `F2BE1C`, `F2BE3C`, `F2BE48`, `F2BEE4`,
+`F2BEF4`, `F3FD50`, `F40268`, `F40310`, `F40364`, `F2BF90`, `F2BF5C`,
+`F3FC90`, `F2BF54`, `9E5A88`, `9F26C4`, `9E5B34`, `9F2718`, and
+`9F2738`. The last five became eligible only after fresh telemetry showed safe
+ride-through voltage or strong positive charging. No solenoid strike was sent.
+The registry now carries the exact artifact for all 32; nine previously missing
+live IDs were added with role/capacity deliberately unreconciled rather than
+guessed.
+
+The rollout did not bypass safety or identity gates. `9E5A84` and `9F26D8`
+continued to send healthy uplinks but did not enter maintenance during separate
+90-second sustained targeted discoveries, so no upload was attempted. `F2BE6C`
+returned HTTP 500 on a sequential retry and remained safely on
+`fx-260816-prtrel1-b`. Known-anomalous `F2BE20` timed out during its sequential
+upload, task-watchdog reset, and remained safely on `fx-260816-8ea551a-b`.
+Low or inadequately supplied fixtures `9E5A5C`, `9E5B18`, `9F26B0`, `9F26E8`,
+`9F2724`, `F2B7DC`, `F2BDB0`, `F2BEA4`, and intermittently visible `9F266C`
+were not updated; they still need proven USB/solar recovery before reusing this
+exact artifact. Elliot's Mac mini connections remained power-only under the
+declared single-writer rule. Evidence is append-only in
+`ops/bench/data/ca/2026-08-16-universal-default-wave1.jsonl` and
+`ops/bench/data/ca/2026-08-16-ota-results.jsonl`.
+
 ## 2026-08-16 -- Ben + Codex -- 300 mA precharge recovery validated and deployed
 
 Ben selected 300 mA as the production BQ25628E precharge limit after the live

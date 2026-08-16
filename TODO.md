@@ -4,18 +4,27 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Finish the exact 27-fixture canopy rollout.** Solenoid enablement remains
-  21/27; the corrected 300 mA precharge artifact `fx-260816-8ea551a-b` is 19/27.
-  Supply proven solar or USB before updating zero-input `9F266C`, `F2B7DC`, and
-  `9F2724`; recover `9E5A84`'s one-way radio; and power/locate `9E5A94`,
-  `F2BDB0`, `F2BE8C`, and `F2BF8C`. Reuse the exact artifact and SHA in LOG;
-  do not rebuild (Ben/Codex).
+- [~] **Finish the universal-default visible-fleet rollout.** The immutable
+  `fx-260816-19c6bbb-b` artifact is exact and A/B-accepted on 32 observed
+  fixtures. Reuse its exact SHA from LOG; do not rebuild. Recover the uplink-only
+  maintenance downlink on `9E5A84` and `9F26D8`; diagnose `F2BE6C`'s HTTP 500
+  and `F2BE20`'s upload timeout/task-watchdog path; and supply proven USB/solar
+  ride-through before updating `9E5A5C`, `9E5B18`, `9F26B0`, `9F26E8`,
+  `9F2724`, `F2B7DC`, `F2BDB0`, `F2BEA4`, and `9F266C`. Also power/locate
+  unseen canopy IDs `9E5A94`, `F2BE8C`, and `F2BF8C` (Ben/Codex + field team).
 - [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
   reported the new `app1` as `valid` with pending false, but after the first
-  later power-state reboot ran old undefined `app0`. Capture the next
-  deep-sleep wake, check OTA-data/boot selection, and make every return-code
-  from `esp_ota_mark_app_valid_cancel_rollback()` visible before changing policy
-  (Ben/Codex).
+  later power-state reboot ran old undefined `app0`. The 2026-08-16 universal
+  artifact attempt additionally timed out, ended in a task-watchdog reset, and
+  retained the prior valid image. Capture the next deep-sleep wake, check
+  OTA-data/boot selection, surface every OTA update error and return code from
+  `esp_ota_mark_app_valid_cancel_rollback()`, and do not count an upload ACK as
+  acceptance (Ben/Codex).
+- [ ] **Diagnose `F2BE6C` fixture OTA HTTP 500.** The universal-artifact parallel
+  attempt lost its response; a later identity-verified sequential attempt
+  explicitly returned HTTP 500 and the fixture resumed its old valid image.
+  Preserve it on that image until the update error body/serial reason and
+  partition state are captured; do not loop retries (Ben/Codex).
 - [x] **Raise and verify the deeply depleted solar-recovery current -- DONE
   2026-08-16.** Ben selected 300 mA. Corrected firmware uses a full 16-bit
   REG0x10 transaction, exposes target/readback/raw telemetry, and makes matching
@@ -24,12 +33,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   1.5 W when available and battery current held near 300 mA. Keep input DPM,
   thermal/trickle protections, and the hardware fast-charge transition unchanged
   (Ben/Codex).
-- [ ] **Recover depleted fixtures that cannot yet accept OTA.** `9F266C`,
-  `F2B7DC`, and `9F2724` have zero panel input and are discharging at
-  2.69-2.80 V; repair/supply solar or connect proven USB before flashing the
-  exact 300 mA artifact. Non-roster `9E5A5C` is about 2.49 V, below the
-  firmware's plausible-cell charge-enable threshold, and needs supervised
-  external recovery above 2.5 V first (Ben + field team).
+- [ ] **Recover depleted fixtures that cannot yet accept OTA.** Current guarded
+  universal-rollout holdbacks are `9E5A5C`, `9E5B18`, `9F26B0`, `9F26E8`,
+  `9F2724`, `F2B7DC`, `F2BDB0`, `F2BEA4`, and `9F266C`; several have
+  weak/fluctuating or zero input despite a visible supply voltage. Use supervised
+  USB/solar recovery and require fresh voltage/current ride-through evidence
+  before flashing the exact artifact. `F2BDB0` remains below 2.5 V and needs
+  external recovery above the firmware's plausible-cell threshold first
+  (Ben + field team).
 - [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
   update age/uptime but retain the last full-heartbeat firmware string, which
   briefly made a successful `F40384` update look rolled back. Show field age or
