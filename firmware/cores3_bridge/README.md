@@ -129,11 +129,21 @@ python ../../ops/bench/net_bench_dashboard.py --port COM40
 
 The primary view is a dense fleet-health grid. Each light is one composite glyph:
 the center battery fill uses ADR 0023's load-compensated thresholds, the top sun or
-plug shows a live charger input, the bottom glow is the fixture's reported rendered
-color, and the whole tile fades when its expected heartbeat is late or silent. IDs
-use the last two MAC digits; only collisions expand to `DC-1`, `DC-2`, and so on.
-Select a tile for exact values. The older solar metrics, controls, table, and raw
-serial console remain available under `Detailed diagnostics`.
+plug shows a live charger input, the thin top bar is the fixture's reported rendered
+color, and the whole tile fades when its expected heartbeat is late or silent. The
+reported fixture class (normally from the Stemma probe, with an override available)
+sets the center shape: circle for canopy/downlight, hexagon for perimeter, triangle
+for trunk/uplight, diamond for chandelier, and a
+rounded square when class telemetry is unknown. IDs use the last two MAC digits;
+only collisions expand to `DC-1`, `DC-2`, and so on. Select a tile for exact values.
+The older solar metrics, controls, table, and raw serial console remain available
+under `Detailed diagnostics`.
+
+With `All` selected, the solenoid control becomes `Strike all (N)`. After an explicit
+confirmation, the dashboard queues one `K<id>:<ms>` command for every fresh fixture.
+This deliberately remains a series of addressed commands rather than adding a wire
+broadcast strike. Boards with `sol_en=0` ignore the request, and the fixture's local
+lifecycle, power, pulse-width, rest-time, and mechanism gates remain authoritative.
 
 The BQ telemetry proves whether a charger input is present but does not universally
 distinguish a panel from USB. The glyph therefore uses fixture class: panel-bearing

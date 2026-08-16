@@ -173,10 +173,16 @@ python ops/bench/net_bench_dashboard.py --port COM40
 
 The landing view is a compact grid of every ESP-NOW light. Battery fill and color,
 charger-input source, panel-suspect state, adaptive heartbeat freshness, and the
-actual reported light output are readable without opening a table. IDs use two MAC
+actual reported light output are readable without opening a table. The top bar is
+the rendered LED color, independent from battery status. Reported fixture class
+(normally from the Stemma probe, with an override available) sets the battery
+glyph shape: circle for canopy/downlight, hexagon for
+perimeter, triangle for trunk/uplight, and diamond for chandelier. IDs use two MAC
 digits unless a collision needs `-1`, `-2`, and so on. Select any light for exact
 values; bench controls and the full historical telemetry console are preserved in
-the collapsed `Detailed diagnostics` section. See
+the collapsed `Detailed diagnostics` section. With `All` selected, `Strike all`
+queues one addressed D7 pulse per fresh fixture after confirmation; disarmed boards
+ignore it and the fixture's local power/mechanism gates remain authoritative. See
 [`firmware/cores3_bridge/README.md`](firmware/cores3_bridge/README.md) for the
 glyph contract and source-classification caveat.
 

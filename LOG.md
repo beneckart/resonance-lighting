@@ -12,6 +12,32 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Fleet strike, class glyphs, and independent LED color bar
+
+Enhanced `ops/bench/net_bench_dashboard.py` without changing the mesh wire format or
+rebuilding firmware. With `All` selected, the D7 control now queues one individually
+addressed `K<id>:<ms>` command for every fresh fixture after an explicit confirmation.
+The server rechecks freshness, rejects broadcast-like targets and out-of-range pulses,
+deduplicates IDs, caps the batch at 192, and serializes writes with an 80 ms gap. This
+preserves the targeted-strike contract; fixtures with `sol_en=0` ignore the request and
+the local lifecycle, power, pulse, rest-time, and mechanism gates still decide whether
+an enabled solarnoid fires.
+
+The fleet glyph now uses the already-reported fixture class (normally from the Stemma
+probe, with an override available): circle for canopy/downlight, hexagon for
+perimeter, triangle for trunk/uplight, diamond for
+chandelier, and rounded square for unknown/legacy telemetry. Replaced the ambiguous
+battery-colored nub/bottom glow with a dedicated top LED-output bar. The bar uses the
+reported post-cap/post-gamma RGBW output, shows dark for a reported-off light, and uses
+a hatch when render telemetry is unavailable; battery health remains confined to the
+center fill and outline.
+
+Five Python regression checks and Python bytecode compilation pass. Browser QA against
+synthetic peers verified all shapes, independent red/blue/orange/purple LED bars,
+enabled all- and single-target strike controls, and zero console errors. The strike
+endpoint was exercised only against a visual fixture server with no serial handle; no
+real bridge or fixture received a strike.
+
 ## 2026-08-16 -- Ben + Codex -- Two CoreS3 dashboard bridges cloned and Elliot handoff packaged
 
 Ben declared his existing CoreS3 `4D5DB0` as the source and authorized USB

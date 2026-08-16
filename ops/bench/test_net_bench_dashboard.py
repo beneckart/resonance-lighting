@@ -50,7 +50,43 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIn("compactPeerIds", dashboard.HTML)
         self.assertIn("batteryVisual", dashboard.HTML)
         self.assertIn("displayedLight", dashboard.HTML)
+        self.assertIn("class-perimeter", dashboard.HTML)
+        self.assertIn("class-uplight", dashboard.HTML)
+        self.assertIn("top bar: rendered light color", dashboard.HTML)
+        self.assertIn('fetch("/api/strike"', dashboard.HTML)
         self.assertIn('<details class="diagnostics">', dashboard.HTML)
+
+    def test_fleet_strike_stays_addressed_and_skips_stale_peers(self):
+        commands, skipped = dashboard.prepare_strike_batch(
+            {"targets": ["f2b7dc", "E39F1C", "F2B7DC", "E39A34"], "pulse_ms": 40},
+            {
+                "F2B7DC": {"age_ms": 800},
+                "E39F1C": {"age_ms": 5100},
+                "E39A34": {"age_ms": 1200},
+            },
+        )
+        self.assertEqual(
+            commands,
+            [
+                ("KF2B7DC:40", "Strike F2B7DC D7 for 40 ms"),
+                ("KE39A34:40", "Strike E39A34 D7 for 40 ms"),
+            ],
+        )
+        self.assertEqual(skipped, 1)
+        self.assertTrue(all(dashboard.valid_command(cmd) for cmd, _ in commands))
+
+    def test_fleet_strike_rejects_broadcast_or_bad_pulse(self):
+        peers = {"F2B7DC": {"age_ms": 800}}
+        with self.assertRaisesRegex(ValueError, "6-digit short MAC"):
+            dashboard.prepare_strike_batch(
+                {"targets": ["all"], "pulse_ms": 40},
+                peers,
+            )
+        with self.assertRaisesRegex(ValueError, "5 to 300"):
+            dashboard.prepare_strike_batch(
+                {"targets": ["F2B7DC"], "pulse_ms": 500},
+                peers,
+            )
 
 
 if __name__ == "__main__":

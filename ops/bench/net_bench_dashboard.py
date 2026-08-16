@@ -156,6 +156,7 @@ class SerialWorker(threading.Thread):
         self.udp_host = udp_host
         self.udp_port = udp_port
         self.stop_event = threading.Event()
+        self.write_lock = threading.Lock()
         self.udp_sock: socket.socket | None = None
         if udp_host:
             self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -476,13 +477,25 @@ class SerialWorker(threading.Thread):
             self.state.add_event("scanap", row)
 
     def send_command(self, cmd: str, label: str) -> None:
-        handle = self.state.serial_handle
-        if handle is None or not handle.is_open:
-            raise RuntimeError("serial port is not open")
-        handle.write(cmd.encode("ascii"))
-        handle.flush()
-        self.state.remember_command(cmd, label)
-        self.state.add_event("command", {"cmd": cmd, "label": label})
+        self.send_commands([(cmd, label)])
+
+    def send_commands(
+        self,
+        commands: list[tuple[str, str]],
+        gap_seconds: float = 0.08,
+    ) -> None:
+        """Serialize a command batch so addressed fixture actions cannot interleave."""
+        with self.write_lock:
+            for index, (cmd, label) in enumerate(commands):
+                handle = self.state.serial_handle
+                if handle is None or not handle.is_open:
+                    raise RuntimeError("serial port is not open")
+                handle.write(cmd.encode("ascii"))
+                handle.flush()
+                self.state.remember_command(cmd, label)
+                self.state.add_event("command", {"cmd": cmd, "label": label})
+                if index + 1 < len(commands):
+                    time.sleep(gap_seconds)
 
 
 HTML = r"""<!doctype html>
@@ -537,14 +550,21 @@ h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .fixture-tile.silent { opacity: .28; filter: grayscale(.75); }
 .fixture-tile.panel-suspect::after { content: ""; position: absolute; inset: 0; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--red); pointer-events: none; }
 .fixture-glyph { position: relative; width: 44px; height: 55px; display: flex; justify-content: center; align-items: center; }
-.battery-orb { width: 36px; height: 36px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--battery-color) 78%, var(--ink)); background: linear-gradient(to top, var(--battery-color) 0 var(--battery-fill), var(--cell-empty) var(--battery-fill) 100%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.18); }
-.battery-orb::after { content: ""; position: absolute; width: 10px; height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--battery-color) 72%, var(--ink)); left: 17px; top: 6px; }
+.battery-shape { position: relative; width: 36px; height: 36px; border-radius: 50%; background: color-mix(in srgb, var(--battery-color) 78%, var(--ink)); filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
+.battery-shape::before { content: ""; position: absolute; inset: 2px; border-radius: inherit; clip-path: inherit; background: linear-gradient(to top, var(--battery-color) 0 var(--battery-fill), var(--cell-empty) var(--battery-fill) 100%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.18); }
+.fixture-glyph.class-perimeter .battery-shape { width: 39px; clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); border-radius: 0; }
+.fixture-glyph.class-uplight .battery-shape { width: 40px; height: 38px; clip-path: polygon(50% 2%, 98% 96%, 2% 96%); border-radius: 0; }
+.fixture-glyph.class-chandelier .battery-shape { width: 34px; height: 34px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
+.fixture-glyph.class-unknown .battery-shape { border-radius: 8px; }
 .power-source { position: absolute; right: -1px; top: 0; width: 18px; height: 18px; display: grid; place-items: center; z-index: 2; }
 .power-source svg { width: 16px; height: 16px; stroke-width: 2; fill: none; stroke: currentColor; }
 .power-source.solar { color: #ffd56e; filter: drop-shadow(0 0 4px rgba(255,213,110,.38)); }
 .power-source.usb { color: var(--blue); }
 .power-source.panel-missing { color: var(--red); }
-.light-foot { position: absolute; left: 6px; right: 6px; bottom: 0; height: 7px; border-radius: 50% 50% 5px 5px; background: var(--light-color); box-shadow: 0 -3px 12px var(--light-color); opacity: var(--light-on); }
+.light-output { position: absolute; left: 7px; right: 7px; top: 1px; height: 5px; border: 1px solid #40534a; border-radius: 999px; z-index: 1; }
+.light-output.on { border-color: var(--rendered-color); background: var(--rendered-color); box-shadow: 0 0 9px var(--rendered-color); }
+.light-output.off { background: var(--cell-empty); }
+.light-output.unknown { background: repeating-linear-gradient(135deg, #26362f 0 3px, #17231e 3px 6px); opacity: .72; }
 .fixture-id { font: 720 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .04em; }
 .fleet-empty { color: var(--muted); padding: 34px 0; grid-column: 1 / -1; text-align: center; }
 .selected-summary { margin-top: 10px; min-height: 42px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -558,6 +578,11 @@ h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .legend-battery.critical { color: var(--red); background: linear-gradient(to top, var(--red) 0 25%, var(--cell-empty) 25%); }
 .legend-source { width: 13px; height: 13px; border-radius: 50%; display: inline-block; background: #ffd56e; box-shadow: 0 0 5px rgba(255,213,110,.35); }
 .legend-light { width: 16px; height: 5px; border-radius: 5px; display: inline-block; background: linear-gradient(90deg, #e25757, #6cc98c, #6ba9e7); box-shadow: 0 0 5px #6ba9e7; }
+.legend-shape { width: 13px; height: 13px; display: inline-block; background: var(--muted); }
+.legend-shape.circle { border-radius: 50%; }
+.legend-shape.hex { clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
+.legend-shape.triangle { clip-path: polygon(50% 2%, 98% 96%, 2% 96%); }
+.legend-shape.diamond { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .legend-fade { width: 16px; height: 13px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); opacity: .4; }
 .diagnostics { border-top: 1px solid var(--line); padding-top: 4px; }
 .diagnostics > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; padding: 12px 2px; list-style-position: outside; }
@@ -678,7 +703,11 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
       <span class="legend-item"><i class="legend-battery watch"></i> battery watch</span>
       <span class="legend-item"><i class="legend-battery critical"></i> battery critical</span>
       <span class="legend-item"><i class="legend-source"></i> charging input</span>
-      <span class="legend-item"><i class="legend-light"></i> rendered light color</span>
+      <span class="legend-item"><i class="legend-light"></i> top bar: rendered light color</span>
+      <span class="legend-item"><i class="legend-shape circle"></i> canopy</span>
+      <span class="legend-item"><i class="legend-shape hex"></i> perimeter</span>
+      <span class="legend-item"><i class="legend-shape triangle"></i> trunk / uplight</span>
+      <span class="legend-item"><i class="legend-shape diamond"></i> chandelier</span>
       <span class="legend-item"><i class="legend-fade"></i> late heartbeat</span>
     </div>
   </section>
@@ -830,6 +859,7 @@ let state = null;
 let tempUnit = localStorage.getItem("netBenchTempUnit") || "F";
 let focusedPeerId = localStorage.getItem("netBenchPeerFocus") || "all";
 let activeHistoryKey = "";
+let strikeInFlight = false;
 
 function fmt(v, digits = 2) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
@@ -856,7 +886,8 @@ function msAge(ms) {
 function freshPeer(peer) {
   return peer && Number(peer.age_ms) < 5000;
 }
-const FIXTURE_CLASS = {0: "unknown", 1: "downlight", 2: "perimeter", 3: "trunk", 4: "chandelier"};
+const FIXTURE_CLASS = {0: "unknown", 1: "canopy / downlight", 2: "perimeter", 3: "trunk / uplight", 4: "chandelier"};
+const FIXTURE_CLASS_KEY = {0: "unknown", 1: "downlight", 2: "perimeter", 3: "uplight", 4: "chandelier"};
 const LIFE_STATE = {0: "boot", 1: "day charge", 2: "day active", 3: "night show", 4: "commission"};
 const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
 const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback"};
@@ -922,10 +953,17 @@ function daylightConsensus(peers) {
 }
 
 function displayedLight(peer) {
-  if (peer.led_rail_on !== true || !finite(peer.led_lit_pixels) || Number(peer.led_lit_pixels) < 1)
-    return {on: false, r: 0, g: 0, b: 0};
+  if (peer.led_rail_on === false)
+    return {known: true, on: false, r: 0, g: 0, b: 0};
+  if (peer.led_rail_on !== true || !finite(peer.led_lit_pixels))
+    return {known: false, on: false, r: 0, g: 0, b: 0};
+  if (Number(peer.led_lit_pixels) < 1)
+    return {known: true, on: false, r: 0, g: 0, b: 0};
+  if (![peer.led_r, peer.led_g, peer.led_b].every(finite))
+    return {known: false, on: false, r: 0, g: 0, b: 0};
   const w = finite(peer.led_w) ? Number(peer.led_w) : 0;
   return {
+    known: true,
     on: true,
     r: Math.min(255, Number(peer.led_r || 0) + w),
     g: Math.min(255, Number(peer.led_g || 0) + w),
@@ -981,6 +1019,9 @@ function renderFleet(peers, selectedId) {
   document.getElementById("fleetGrid").innerHTML = peers.length ? peers.map(peer => {
     const h = health.get(peer.id);
     const light = displayedLight(peer);
+    const fixtureClass = Number(peer.fixture_class);
+    const fixtureClassLabel = FIXTURE_CLASS[fixtureClass] || "unknown";
+    const fixtureClassKey = FIXTURE_CLASS_KEY[fixtureClass] || "unknown";
     const classes = ["fixture-tile"];
     if (peer.id === selectedId) classes.push("selected");
     if (h.critical) classes.push("critical");
@@ -988,16 +1029,20 @@ function renderFleet(peers, selectedId) {
     if (h.heartbeat === "late") classes.push("late");
     if (h.heartbeat === "silent") classes.push("silent");
     if (h.source.suspect) classes.push("panel-suspect");
-    const lightColor = light.on ? `rgb(${light.r},${light.g},${light.b})` : "transparent";
+    const lightColor = light.on ? `rgb(${light.r},${light.g},${light.b})` : "#26362f";
+    const lightState = light.on ? "on" : (light.known ? "off" : "unknown");
+    const lightLabel = light.on
+      ? `light ${light.r} ${light.g} ${light.b}`
+      : (light.known ? "light reported off" : "light telemetry unknown");
     const ageText = msAge(peer.age_ms);
     const voltageText = finite(peer.battery_v) ? `${fmt(peer.battery_v, 3)} V` : "battery unknown";
-    const label = `${peer.id}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ${h.source.label}, ` +
-      `${light.on ? `light ${light.r} ${light.g} ${light.b}` : "light off"}`;
+    const label = `${peer.id}, ${fixtureClassLabel}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ` +
+      `${h.source.label}, ${lightLabel}`;
     const sourceMarkup = h.source.icon
       ? `<span class="power-source ${h.source.kind}">${h.source.icon}</span>` : "";
     return `<button type="button" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
-      `<span class="fixture-glyph" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--light-color:${lightColor};--light-on:${light.on ? 1 : 0}">` +
-      `${sourceMarkup}<span class="battery-orb"></span><span class="light-foot"></span></span>` +
+      `<span class="fixture-glyph class-${fixtureClassKey}" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--rendered-color:${lightColor}">` +
+      `${sourceMarkup}<span class="light-output ${lightState}" title="${esc(lightLabel)}"></span><span class="battery-shape"></span></span>` +
       `<span class="fixture-id">${esc(labels.get(peer.id))}</span></button>`;
   }).join("") : `<div class="fleet-empty">Listening for ESP-NOW heartbeats...</div>`;
   document.querySelectorAll("[data-fleet-id]").forEach(tile => {
@@ -1025,7 +1070,7 @@ function renderFleet(peers, selectedId) {
     `<span>${fmt(selected.battery_v, 3)} V${finite(comp) ? ` (${fmt(comp, 3)} V load-comp)` : ""}</span>` +
     `<span>${selected.battery_ma ?? "--"} mA</span><span>${esc(h.source.label)}</span>` +
     `<span>heard ${msAge(selected.age_ms)} ago</span><span>${esc(life)} / ${esc(tier)} / ${esc(program)}</span>` +
-    `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : "light off"}</span>`;
+    `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : (light.known ? "light off" : "light telemetry unknown")}</span>`;
 }
 function sortedPeers(s) {
   return Object.values(s.peers || {}).sort((a, b) => a.id.localeCompare(b.id));
@@ -1139,7 +1184,15 @@ function commandTargetPeer() {
     const fresh = peers.filter(freshPeer);
     return fresh.length === 1 ? fresh[0] : null;
   }
-  return peers.find(p => p.id === focusedPeerId) || null;
+  const selected = peers.find(p => p.id === focusedPeerId) || null;
+  return freshPeer(selected) ? selected : null;
+}
+function strikeTargetPeers() {
+  if (!state) return [];
+  const peers = sortedPeers(state);
+  if (focusedPeerId === "all") return peers.filter(freshPeer);
+  const selected = peers.find(p => p.id === focusedPeerId) || null;
+  return freshPeer(selected) ? [selected] : [];
 }
 function setCommandStatus(text, klass = "") {
   const el = document.getElementById("commandStatus");
@@ -1221,13 +1274,22 @@ function render(s) {
   renderPeerSelector(rows, effectiveFocus);
   renderFleet(rows, selected ? selected.id : null);
   const commandPeer = commandTargetPeer();
-  ["peerMaintBtn", "capacityBtn", "chargeBtn", "solenoidBtn", "napBtn"].forEach(id => {
+  ["peerMaintBtn", "capacityBtn", "chargeBtn", "napBtn"].forEach(id => {
     const el = document.getElementById(id);
     el.disabled = !commandPeer;
     el.title = commandPeer
       ? `Targets ${commandPeer.id}`
       : "Select exactly one fresh peer";
   });
+  const strikePeers = strikeTargetPeers();
+  const solenoidBtn = document.getElementById("solenoidBtn");
+  solenoidBtn.disabled = strikeInFlight || strikePeers.length === 0;
+  solenoidBtn.textContent = effectiveFocus === "all" ? `Strike all (${strikePeers.length})` : "Strike D7";
+  solenoidBtn.title = strikePeers.length
+    ? (effectiveFocus === "all"
+      ? `Queues an addressed D7 pulse for ${strikePeers.length} fresh fixtures; boards without an enabled solenoid ignore it`
+      : `Targets ${strikePeers[0].id}`)
+    : "No fresh fixture targets";
 
   document.getElementById("tempToggle").textContent = tempUnit;
   const serialPill = document.getElementById("serialPill");
@@ -1409,6 +1471,31 @@ async function sendCommand(cmd, label) {
     return null;
   }
 }
+async function sendStrikeBatch(peers, pulseMs) {
+  const ids = peers.map(peer => peer.id);
+  strikeInFlight = true;
+  if (state) render(state);
+  setCommandStatus(`Queuing ${ids.length} addressed D7 pulse${ids.length === 1 ? "" : "s"}...`, "warn");
+  try {
+    const res = await fetch("/api/strike", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({targets: ids, pulse_ms: pulseMs})
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "strike request rejected");
+    const skipped = Number(data.skipped || 0);
+    const suffix = skipped ? `; skipped ${skipped} no-longer-fresh target${skipped === 1 ? "" : "s"}` : "";
+    setCommandStatus(`Issued ${data.count} addressed D7 pulse${data.count === 1 ? "" : "s"} at ${pulseMs} ms${suffix}`, "ok");
+    return data;
+  } catch (err) {
+    setCommandStatus(`Strike failed: ${err}`, "bad");
+    return null;
+  } finally {
+    strikeInFlight = false;
+    if (state) render(state);
+  }
+}
 async function sendMaintainCommand(v10, label) {
   const sent = await sendCommand(`m${v10}`, label);
   if (!sent) return;
@@ -1484,9 +1571,9 @@ document.getElementById("chargeBtn").addEventListener("click", () => {
   sendCommand(`G${peer.id}:${ma}`, `Set ${peer.id} charge ${ma} mA`);
 });
 document.getElementById("solenoidBtn").addEventListener("click", () => {
-  const peer = commandTargetPeer();
-  if (!peer) {
-    setCommandStatus("Select exactly one fresh solenoid peer", "bad");
+  const peers = strikeTargetPeers();
+  if (!peers.length) {
+    setCommandStatus("No fresh fixtures are available for a D7 pulse", "bad");
     return;
   }
   const raw = document.getElementById("solenoidPulseInput").value.trim();
@@ -1495,7 +1582,14 @@ document.getElementById("solenoidBtn").addEventListener("click", () => {
     setCommandStatus("Enter a 5 to 300 ms pulse", "bad");
     return;
   }
-  sendCommand(`K${peer.id}:${ms}`, `Strike ${peer.id} D7 for ${ms} ms`);
+  if (focusedPeerId === "all" && peers.length > 1) {
+    const confirmed = window.confirm(
+      `Issue a ${ms} ms addressed D7 pulse to ${peers.length} fresh fixtures? ` +
+      "Boards without an enabled solenoid will ignore it."
+    );
+    if (!confirmed) return;
+  }
+  sendStrikeBatch(peers, ms);
 });
 document.getElementById("rateBtn").addEventListener("click", () => {
   const raw = document.getElementById("rateInput").value.trim();
@@ -1598,6 +1692,52 @@ def valid_command(cmd: str) -> bool:
     return False
 
 
+def prepare_strike_batch(
+    body: dict[str, Any],
+    peers: dict[str, dict[str, Any]],
+) -> tuple[list[tuple[str, str]], int]:
+    """Build addressed strikes for requested peers that are still fresh."""
+    pulse_ms = body.get("pulse_ms")
+    if type(pulse_ms) is not int or not 5 <= pulse_ms <= 300:
+        raise ValueError("pulse_ms must be an integer from 5 to 300")
+
+    raw_targets = body.get("targets")
+    if not isinstance(raw_targets, list) or not raw_targets:
+        raise ValueError("targets must be a non-empty list")
+    if len(raw_targets) > 192:
+        raise ValueError("strike batch exceeds the 192-fixture safety limit")
+
+    requested: list[str] = []
+    seen: set[str] = set()
+    for raw_target in raw_targets:
+        if not isinstance(raw_target, str) or not re.fullmatch(r"[0-9A-Fa-f]{6}", raw_target):
+            raise ValueError("every strike target must be a 6-digit short MAC")
+        target = raw_target.upper()
+        if target not in seen:
+            requested.append(target)
+            seen.add(target)
+
+    fresh: set[str] = set()
+    for peer_id, peer in peers.items():
+        try:
+            age_ms = int(peer.get("age_ms"))
+        except (TypeError, ValueError):
+            continue
+        if age_ms < 5000:
+            fresh.add(peer_id.upper())
+
+    targets = [target for target in requested if target in fresh]
+    skipped = len(requested) - len(targets)
+    if not targets:
+        raise ValueError("none of the requested fixtures are currently fresh")
+
+    commands = [
+        (f"K{target}:{pulse_ms}", f"Strike {target} D7 for {pulse_ms} ms")
+        for target in targets
+    ]
+    return commands, skipped
+
+
 def make_handler(state: DashboardState, worker: SerialWorker):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetBenchDashboard/1.0"
@@ -1646,11 +1786,25 @@ def make_handler(state: DashboardState, worker: SerialWorker):
 
         def do_POST(self) -> None:
             path = urllib.parse.urlparse(self.path).path
-            if path != "/api/cmd":
+            if path not in {"/api/cmd", "/api/strike"}:
                 self.send_error(404)
                 return
             try:
                 body = parse_body(self)
+                if path == "/api/strike":
+                    peers = state.snapshot()["peers"]
+                    commands, skipped = prepare_strike_batch(body, peers)
+                    worker.send_commands(commands)
+                    self.send_json(
+                        200,
+                        {
+                            "ok": True,
+                            "count": len(commands),
+                            "targets": [cmd[0][1:7] for cmd in commands],
+                            "skipped": skipped,
+                        },
+                    )
+                    return
                 cmd = str(body.get("cmd", ""))
                 label = str(body.get("label", cmd))
                 if not valid_command(cmd):
@@ -1658,6 +1812,8 @@ def make_handler(state: DashboardState, worker: SerialWorker):
                     return
                 worker.send_command(cmd, label)
                 self.send_json(200, {"ok": True, "cmd": cmd})
+            except ValueError as exc:
+                self.send_json(400, {"ok": False, "error": str(exc)})
             except Exception as exc:
                 self.send_json(500, {"ok": False, "error": str(exc)})
 
