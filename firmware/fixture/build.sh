@@ -10,6 +10,7 @@
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
+#   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
 #   ./build.sh --canopy-solenoid         # arm D7; retain normal lifecycle gates
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # steady red 128 when no bridge command
@@ -33,6 +34,7 @@ CHEM="lfp"
 EXTRA_FLAGS=""
 WIFI_SOURCE=""
 FW_REV=""
+PRECHARGE_MA="300"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     --profile) PROFILE="$2"; shift 2 ;;
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
+    --precharge-ma) PRECHARGE_MA="$2"; shift 2 ;;
     --canopy-solenoid) EXTRA_FLAGS+=" -DRES_SOLENOID_CANOPY_ENABLED=1"; shift ;;
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
@@ -52,6 +55,15 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+[[ "$PRECHARGE_MA" =~ ^[0-9]+$ ]] || {
+  echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
+  exit 2
+}
+(( PRECHARGE_MA >= 10 && PRECHARGE_MA <= 310 && PRECHARGE_MA % 10 == 0 )) || {
+  echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
+  exit 2
+}
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -82,6 +94,7 @@ if command -v cygpath >/dev/null 2>&1; then
   SHARED_INCLUDE="$(cygpath -m "$SHARED_INCLUDE")"
 fi
 FLAGS="-DPOWERFEATHER_BOARD_V2=1 -I$SHARED_INCLUDE"
+FLAGS+=" -DRES_PF_PRECHARGE_MA=$PRECHARGE_MA"
 case "$CHEM" in
   lfp) ;; # production default lives in board_power.cpp
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7" ;;

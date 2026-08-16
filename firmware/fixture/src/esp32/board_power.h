@@ -11,6 +11,19 @@
 // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions.
 #define RES_GAUGE_CURRENT_DIVISOR 1.08f
 
+// BQ25628E precharge limit. The 30 mA POR value stranded deeply discharged
+// production LFPs near 2.8 V despite valid solar input. Ben selected 300 mA
+// for the supervised recovery rollout on 2026-08-16. Trickle charge below
+// 2.25 V, input DPM, thermal protection, and the hardware transition to fast
+// charge remain charger-owned and unchanged.
+#ifndef RES_PF_PRECHARGE_MA
+#define RES_PF_PRECHARGE_MA 300
+#endif
+#if RES_PF_PRECHARGE_MA < 10 || RES_PF_PRECHARGE_MA > 310 || \
+    (RES_PF_PRECHARGE_MA % 10) != 0
+#error "RES_PF_PRECHARGE_MA must be 10..310 mA in 10 mA steps"
+#endif
+
 void boardPowerInit();     // load NVS config + Board.init retries + charger policy
 void boardPowerTick();     // call from loop; internally rate-limited to 1 Hz
 void readBatteryNow();     // synchronous refresh (maintenance preflight)
@@ -29,11 +42,13 @@ int batterySocPct();   // -1 = no reading; ADVISORY ONLY, never a control gate
 float supplyVolts();
 float supplyMa();
 bool supplyGood();
+bool prechargeConfigured(); // target register value read back successfully
+uint16_t prechargeTargetMa();
 
 // BQ25628E snapshot (0xFFFF/0xFF = unknown).
 struct BqSnapshot {
-  uint16_t vindpm_mv, ichg_ma, vreg_mv;
-  uint8_t reg16, reg18, stat0, stat1, fault0, flag0, flag1, fault_flag0, part;
+  uint16_t vindpm_mv, ichg_ma, vreg_mv, precharge_ma;
+  uint8_t reg10, reg16, reg18, stat0, stat1, fault0, flag0, flag1, fault_flag0, part;
 };
 const BqSnapshot &bqSnapshot();
 

@@ -88,6 +88,9 @@ String telemetryJson() {
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
   j += ",\"battery_capacity_mah\":" + String(gCfg.capMah);
   j += ",\"charge_limit_ma\":" + String(gCfg.chargeMa);
+  j += ",\"precharge_target_ma\":" + String(prechargeTargetMa());
+  j += ",\"precharge_configured\":";
+  j += prechargeConfigured() ? "true" : "false";
   j += ",\"maintain_v\":" + String(maintainVolts(), 1);
   if (pfIsReady()) {
     char b[24];
@@ -109,6 +112,8 @@ String telemetryJson() {
     j += ",\"bq_vindpm_mv\":" + String(bq.vindpm_mv);
     j += ",\"bq_ichg_ma\":" + String(bq.ichg_ma);
     j += ",\"bq_vreg_mv\":" + String(bq.vreg_mv);
+    j += ",\"bq_precharge_ma\":" + String(bq.precharge_ma);
+    j += ",\"bq_reg10\":" + String(bq.reg10);
     j += ",\"bq_reg16\":" + String(bq.reg16);
     j += ",\"bq_reg18\":" + String(bq.reg18);
     j += ",\"bq_stat0\":" + String(bq.stat0);

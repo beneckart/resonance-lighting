@@ -40,6 +40,14 @@ static bool selfTest() {
   // 1. Power chip alive: SDK init succeeded and the BQ part id byte read back.
   if (!pfIsReady()) return false;
   if (bqSnapshot().part == 0xFF) return false;
+  // The low-VBAT recovery current is an explicit artifact property. Never
+  // accept an OTA image whose BQ register write did not survive readback.
+  if (!prechargeConfigured()) {
+    Serial.printf("ota-verify: precharge target=%umA readback=%umA reg10=0x%02X -> FAIL\n",
+                  (unsigned)prechargeTargetMa(),
+                  (unsigned)bqSnapshot().precharge_ma, bqSnapshot().reg10);
+    return false;
+  }
   // 2. Gauge sanity: voltage in a physical range. A bare board on USB reads
   //    ~0 V -- that is a PASS (bringup flashes batteryless boards).
   if (batteryVolts() > 4.4f) return false;

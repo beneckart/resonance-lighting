@@ -10,6 +10,7 @@
 // the build dir, so a relative ../../../ escape cannot reach the shared header).
 #include "powerfeather_solar_guard.h"
 
+#include "../core/bq25628e_precharge.h"
 #include "boot_park.h"
 #include "loads.h"
 #include "nvs_store.h"
@@ -36,6 +37,7 @@ static float gCbV = 0.0f, gCbMa = 0.0f, gCbMaRaw = 0.0f;
 static int gCbSoc = -1;
 static float gCsV = 0.0f, gCsMa = 0.0f;
 static bool gCsGood = false;
+static bool gPrechargeWriteOk = false;
 static BqSnapshot gBq;
 
 bool pfIsReady() { return gPfReady; }
@@ -49,6 +51,11 @@ int batterySocPct() { return gCbSoc; }
 float supplyVolts() { return gCsV; }
 float supplyMa() { return gCsMa; }
 bool supplyGood() { return gCsGood; }
+bool prechargeConfigured() {
+  return gPrechargeWriteOk && gBq.reg10 != 0xFF &&
+         gBq.precharge_ma == RES_PF_PRECHARGE_MA;
+}
+uint16_t prechargeTargetMa() { return RES_PF_PRECHARGE_MA; }
 const BqSnapshot &bqSnapshot() { return gBq; }
 
 const char *batteryTypeName() {
@@ -68,9 +75,29 @@ static uint16_t bqMaOrUnknown(bool ok, float ma) {
   return (uint16_t)min(65535UL, (unsigned long)(ma + 0.5f));
 }
 
+static bool configurePrecharge() {
+  const uint16_t targetMa = RES_PF_PRECHARGE_MA;
+  uint8_t before = 0;
+  if (!pfSolarGuardRead8(0x10, before)) {
+    Serial.println("fixture precharge: read REG0x10 failed");
+    gPrechargeWriteOk = false;
+    return false;
+  }
+  uint8_t wanted = bq25628ePrechargeReg10(before, targetMa);
+  bool wrote = (wanted == before) || pfSolarGuardWrite8(0x10, wanted);
+  uint8_t after = 0;
+  bool readback = pfSolarGuardRead8(0x10, after);
+  uint16_t actualMa = readback ? bq25628ePrechargeMa(after) : 0;
+  gPrechargeWriteOk = wrote && readback && actualMa == targetMa;
+  Serial.printf("fixture precharge: REG0x10 0x%02X -> 0x%02X target=%umA readback=%umA %s\n",
+                before, readback ? after : 0xFF, (unsigned)targetMa,
+                (unsigned)actualMa, gPrechargeWriteOk ? "OK" : "ERR");
+  return gPrechargeWriteOk;
+}
+
 static void readChargerStatus() {
-  gBq.vindpm_mv = gBq.ichg_ma = gBq.vreg_mv = 0xFFFF;
-  gBq.reg16 = gBq.reg18 = gBq.stat0 = gBq.stat1 = 0xFF;
+  gBq.vindpm_mv = gBq.ichg_ma = gBq.vreg_mv = gBq.precharge_ma = 0xFFFF;
+  gBq.reg10 = gBq.reg16 = gBq.reg18 = gBq.stat0 = gBq.stat1 = 0xFF;
   gBq.fault0 = gBq.flag0 = gBq.flag1 = gBq.fault_flag0 = gBq.part = 0xFF;
   if (!gPfReady) return;
 
@@ -80,6 +107,10 @@ static void readChargerStatus() {
   gBq.vreg_mv = bqMvOrUnknown(Board.getCharger().getChargeVoltageLimit(v), v);
 
   uint8_t b = 0;
+  if (pfSolarGuardRead8(0x10, b)) {
+    gBq.reg10 = b;
+    gBq.precharge_ma = bq25628ePrechargeMa(b);
+  }
   if (pfSolarGuardRead8(PF_SOLAR_GUARD_REG_CHG_CTRL0, b)) gBq.reg16 = b;
   if (pfSolarGuardRead8(0x18, b)) gBq.reg18 = b;
   if (pfSolarGuardRead8(0x1D, b)) gBq.stat0 = b;
@@ -119,6 +150,7 @@ void boardPowerInit() {
   Board.enableBatteryCharging(false);
   gChargingEnabled = false;
   pfSolarGuardInit(kTag, gMaintainV, false);
+  configurePrecharge();
 }
 
 static void readBatteryCell() {
@@ -145,6 +177,7 @@ static void chargingGuardTick() {
   done = true;
   if (batteryPresent()) {
     Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
+    configurePrecharge();
     Board.enableBatteryCharging(true);
     gChargingEnabled = true;
     pfSolarGuardInit(kTag, gMaintainV, true);

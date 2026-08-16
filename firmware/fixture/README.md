@@ -69,6 +69,7 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --fw-rev fx-YYMMDD-xxxxxxx-b  # override reported artifact identity
 ./build.sh --channel 11 --profile commission
 ./build.sh --channel 11 --profile commission --basic-listener
+./build.sh --precharge-ma 300            # low-VBAT recovery current
 ./build.sh --wifi-source <gitignored-header> --canopy-solenoid  # canopy D7 armed
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
@@ -95,6 +96,15 @@ The default battery-side charge-current ceiling is 2,000 mA (ADR 0033). The
 BQ25628E may deliver less because of input-current/voltage regulation, source
 capability, system load, CV taper, or thermal regulation. `G<ma>` remains an
 explicit lower override for a smaller or otherwise limited cell.
+
+The BQ25628E precharge limit defaults to 300 mA (`--precharge-ma 300`). This
+replaces the charger's 30 mA POR value, which left deeply discharged production
+LFPs near 2.8 V treading water despite valid solar input. Firmware performs a
+reserved-bit-preserving REG0x10 read/modify/write and verifies the readback;
+pending OTA images roll back if it does not match. Trickle charge below 2.25 V,
+input DPM, thermal protection, and the hardware transition to fast charge near
+3.0 V remain unchanged. Maintenance telemetry exposes `precharge_target_ma`,
+`precharge_configured`, `bq_precharge_ma`, and raw `bq_reg10`.
 
 Bringup: `fleet_usb_bringup.py commission --sketch-dir fixture --build-path
 firmware/fixture/build/<r> --expect-fw <version> ...` -- the serial/HTTP
