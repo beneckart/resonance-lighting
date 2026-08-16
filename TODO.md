@@ -161,19 +161,17 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   or DIM can correctly re-enter PROTECT, while a deliberate software reset at
   recovered FULL boots unparked. Prefer USB-installing `prtrel1-b`; enter
   download mode only when normal USB CDC/flashing is unavailable (Ben/Codex).
-- [ ] **Assign the 2026-08-16 ten-board OTA-bootstrap batch before enclosure
-  installation.** `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`,
-  `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C` are commissioned but deliberately
-  have blank roles and the provisional 6 Ah capacity. Set 15 Ah for each
-  large-enclosure/downlight assignment or retain 6 Ah for a small enclosure;
-  connect battery before panel/VDC. Do not call the USB-only endpoint check an
-  OTA ride-through test (Ben/Codex).
-- [ ] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights.**
+- [x] **Assign the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE as
+  trunk lights.** `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`,
+  `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C` are allocated to the 6 Ah trunk
+  fleet. Registry role is the current compatibility spelling `uplight`; runtime
+  class probing remains automatic for the assembled sensor stack (Ben/Codex).
+- [x] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights --
+  DONE.**
   `F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
-  `F2BCE0`, `F401CC`, and reused board `9F2694` are configured for the expected
-  6 Ah cells and marked as trunk-light candidates, but their registry roles stay
-  blank until enclosure/sensor assignment is real. Connect battery before
-  panel/VDC and use a battery-backed test for actual OTA ride-through (Ben/Codex).
+  `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
+  fleet with registry role `uplight`; runtime probing remains automatic
+  (Ben/Codex).
 - [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
   from deliberately leaseless lighting control. On 2026-08-16 another host
   replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's

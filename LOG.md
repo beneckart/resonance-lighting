@@ -12,6 +12,23 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Twenty-four 6 Ah trunk-light Feathers allocated and OTA-bootstrapped
+
+The final four bare boards (`9F0E4C`, `9E5B5C`, `9F2648`, and `9E5AB0`) passed
+the same battery-absent/VDC-absent commissioning gate as the preceding 10 + 10:
+8 MB flash / 2 MB PSRAM, exact `fx-260816-prtrel1-b` upload, guarded bare-board
+release, `battery_present=false`, 6 Ah / 2 A LFP configuration, channel-11
+ESP-NOW, and `Party In The Woods` OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-trunk-allocation-batch3.jsonl`.
+
+Ben allocated all three batches -- 10 + 10 + 4 = 24 PowerFeathers -- to the
+assembly team's trunk-light pool. All 24 registry rows now use `uplight`, the
+firmware/schema compatibility spelling for trunk light, with 6 Ah capacity and
+installation position TBD. The NVS class override remains AUTO because these
+were sensorless bare-board flashes; the assembled sensor stack can still drive
+normal class probing. This is an electronics handoff allocation and does not by
+itself change the still-open final installed trunk-light count/layout.
+
 ## 2026-08-16 -- Ben + Codex -- Second ten-board OTA bootstrap batch; trunk candidates
 
 A second nominal ten-board, battery-absent/VDC-absent batch received the exact
