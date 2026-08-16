@@ -172,12 +172,14 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
   fleet with registry role `uplight`; runtime probing remains automatic
   (Ben/Codex).
-- [ ] **Finalize the twenty-board canopy-candidate allocation.** Batch 1:
+- [ ] **Finalize the thirty-board canopy/extra-candidate allocation.** Batch 1:
   `9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`,
   `F2BDC0`, `F402D0`, and `F4044C`. Batch 2: `9E5AD4`, `F2BE70`, `F40174`,
   `F40358`, `F4042C`, `F2BE60`, `F2BE38`, `F40424`, `F2BDB4`, and `F4031C`.
-  All are OTA-ready with blank roles, AUTO class override, and a provisional
-  6 Ah profile. If assigned to large-enclosure inner-ring
+  Batch 3: `9E5A9C`, `9E5954`, `F3FD60`, `9E5B48`, `9F26C0`, `9E5AA0`,
+  `9E5B98`, `9E5AE4`, `9F2714`, and `F40330`. All are OTA-ready with blank
+  roles, AUTO class override, and a provisional 6 Ah profile. If assigned to
+  large-enclosure inner-ring
   downlights, change them to 15 Ah before battery-backed validation; do not
   mistake the sensorless probe's `chandelier` fallback for an assignment
   (Ben/Codex).

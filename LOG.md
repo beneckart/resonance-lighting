@@ -12,6 +12,27 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Third ten-board canopy/extra batch OTA-bootstrapped
+
+Ten more battery-absent/VDC-absent PowerFeathers were prepared as tentative
+canopy/downlight fixtures or extras: nine new boards (`9E5A9C`, `9E5954`,
+`F3FD60`, `9E5B48`, `9F26C0`, `9E5AA0`, `9E5B98`, `9E5AE4`, and `9F2714`)
+plus reused July fixture `F40330`. The nine new boards passed the normal parallel
+path. `F40330` never appeared under ordinary reset; the bridge's onboard-status
+`..-` identify pattern separated the nine completed boards from the silent unit,
+which then enumerated in ROM download mode.
+
+The first `F40330` rescue upload succeeded but the application remained in ROM
+mode, so the append-only evidence retains the resulting no-telemetry attempt. A
+normal RESET booted the uploaded image, exposed its battery-absent durable
+PROTECT state, and the recorded retry safely cleared it through the guarded `X`
+path. The final unique-board result is 10/10 for exact
+`fx-260816-prtrel1-b`, 8 MB flash / 2 MB physical PSRAM, 6 Ah / 2 A provisional
+configuration, `battery_present=false`, `class_ovr=0`, channel-11 ESP-NOW, and
+`Party In The Woods` OTA endpoint verification. Evidence is in
+`ops/bench/data/usb/2026-08-16-canopy-candidates-batch3.jsonl`; all roles remain
+unassigned pending final canopy/extra allocation.
+
 ## 2026-08-16 -- Ben + Codex -- Published USB rescue handoff for Elliot's bench
 
 Added `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` as a self-contained agent
