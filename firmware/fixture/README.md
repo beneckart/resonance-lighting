@@ -70,6 +70,12 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
+For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
+retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed
+source, generated `fx-YYMMDD-<recipe7>-<variant>`, immutable manifest, exact
+binary SHA-256, and explicit target MACs. Build/manifest automation is pending;
+until it lands, do not publish a new shared artifact under a legacy reused name.
+
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.
 `--solenoid-test` is deliberately not a fleet option: it forces the arm bit and
@@ -147,6 +153,14 @@ are marked current and remain persistent.
 
 ## Commission vs field profile
 
+**Source-status note (2026-08-15):** this branch's current implementation is the
+strict ADR 0038 commission-dark posture described below. ADR 0039 accepts
+Elliot's later commission-listener extension (low red plus fresh/confident ToF
+signature response) as the next default after integration and a newly identified
+artifact. The two materially different builds both used
+`fixture-2026-08-15.4`; that label cannot distinguish them and must not be reused.
+Strict commission-dark remains required as an explicit rail-cycle diagnostic.
+
 `PROFILE_DEV=0` retains its wire/NVS value for compatibility but is now the
 operator-facing **commission** profile. It is the pre-build/build-week posture:
 the ESP-NOW control plane stays awake, heartbeats run at 1 Hz, solar current does
@@ -163,6 +177,14 @@ in both profiles; commission changes reachability and fallback behavior, not loa
 safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
 `F1` field). New build flags accept `--profile commission|field`; `dev|prod` remain
 compatibility aliases.
+
+The 1 Hz commission heartbeat remains the compact 29-byte `hb-short`. A length-
+gated full heartbeat follows every 5 s in commission and every 60 s in field. Its
+append-only output tail reports fixture class, LED-rail state, the post-cap/post-
+gamma RGBW average actually written to lit pixels, and the lit-pixel count. The
+fleet dashboard uses that measured render state rather than trying to infer color
+from the requested program. Older bridges remain compatible because every tail is
+length-gated against the one canonical `src/core/packet.h` layout.
 
 Maintenance exit clears the ESP-NOW receive queue before reinitialization, so a
 queued maintenance command cannot replay after `/resume`. If radio initialization

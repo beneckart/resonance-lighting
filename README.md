@@ -10,6 +10,9 @@ Sister tracks (not in this repo): bamboo structure (Bamboo Pure, Bali), structur
 - **Steve Eckart** -- enclosure design, 3D printing, mechanical fit. Owns `/enclosure/`.
 
 Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs.
+Firmware builders additionally use
+[`docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`](docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md)
+so separate benches do not reuse revisions or silently flash each other's targets.
 
 ## What is the deliverable
 
@@ -122,7 +125,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |   `-- <app>/             bench sketches (net_bench, power_bench, led_studio, ...)
 |-- docs/
 |   |-- block-diagram/     SYSTEM.md -- canonical architecture + fleet table
-|   |-- decisions/         ADRs 0001-0037
+|   |-- decisions/         ADRs 0001-0040
 |   |-- howto/             task-oriented bench and operations guides
 |   |-- research/
 |   `-- tests/
@@ -145,6 +148,9 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## How-to guides
 
+- [`docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`](docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md) --
+  collision-proof firmware revision/manifest rules, explicit target handoff,
+  fresh-evidence OTA completion, and USB boot-salute semantics for shared benches.
 - [`docs/howto/CORES3_AUDIO_REACTIVE.md`](docs/howto/CORES3_AUDIO_REACTIVE.md) --
   connect and tune the Rode VideoMic NTG, read the CoreS3 audio display, run the
   three-fixture sound-reactive bench, and troubleshoot the safe fallback path.
@@ -152,6 +158,27 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
   stand up Starlink + the Beryl AX travel router with the 2.4 GHz radio pinned to
   channel 11 so infrastructure WiFi and the ESP-NOW fleet can coexist on one
   radio. Home rehearsal, field checklist, and troubleshooting (ADR 0036).
+
+## Fleet dashboard
+
+With the CoreS3 serial bridge attached, launch the local dashboard from the repo
+root. The only Python dependency is `pyserial`; list the attached ports, then
+replace `COM40` with the observed bridge port:
+
+```sh
+python -m pip install pyserial
+python -m serial.tools.list_ports
+python ops/bench/net_bench_dashboard.py --port COM40
+```
+
+The landing view is a compact grid of every ESP-NOW light. Battery fill and color,
+charger-input source, panel-suspect state, adaptive heartbeat freshness, and the
+actual reported light output are readable without opening a table. IDs use two MAC
+digits unless a collision needs `-1`, `-2`, and so on. Select any light for exact
+values; bench controls and the full historical telemetry console are preserved in
+the collapsed `Detailed diagnostics` section. See
+[`firmware/cores3_bridge/README.md`](firmware/cores3_bridge/README.md) for the
+glyph contract and source-classification caveat.
 
 ## Status
 

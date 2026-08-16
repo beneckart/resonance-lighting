@@ -12,6 +12,134 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Two CoreS3 dashboard bridges cloned and Elliot handoff packaged
+
+Ben declared his existing CoreS3 `4D5DB0` as the source and authorized USB
+flashing the other two attached bridges to the same normal dashboard firmware.
+Read immutable chip MACs before writing: COM40 was
+`44:1B:F6:E3:9F:1C` / `E39F1C` and was running Cambium binary mode; COM133 was
+`44:1B:F6:E3:9A:34` / `E39A34` and emitted no dashboard text. Reused the exact
+already-built `dashboard-tail-20260816-r1` artifact installed on `4D5DB0` rather
+than rebuilding: 1,102,288 bytes, SHA-256
+`b912a88281300038aa81ba9991c931bba2e9eec214582500b902db1d928e706d`,
+FQBN `esp32:esp32:m5stack_cores3`, flags `-DNB_CHANNEL=11`.
+
+Sequential uploads to only `E39F1C` and `E39A34` verified every written region.
+Fresh post-reset serial evidence from both reported
+`cores3-bridge-2026-08-15.1`, their expected bridge IDs, channel 11, and live
+`nb-peer` fleet rows. A separate dashboard smoke on COM40 served the state API,
+identified bridge `E39F1C`, and parsed the live fleet; it was then stopped. No
+fixture, fixture NVS/profile, or OTA state was changed. The existing COM43
+dashboard process remains waiting for `4D5DB0`; COM43 physically disappeared
+from Windows after the bridge work and will reconnect automatically when the
+device is present again.
+
+Packaged an Elliot-ready dashboard handoff at
+`firmware/cores3_bridge/build/elliot-fleet-dashboard-20260816-clean.zip`. It
+contains the single-file Python dashboard, parser regression test, pyserial
+requirement, platform-neutral start instructions, exact matching bridge binary,
+build options, and binary checksum. The clean ZIP SHA-256 is
+`00897a65f84880a69070133a975665cd9469a2c4b2c5732a513898aee2e4f456`;
+all three parser checks pass. Per the project coordination rule, no external
+message was sent to Elliot; Ben can relay this package and the prepared launch
+note.
+
+Ben then selected Git as the durable Elliot handoff. Committed the dashboard and
+matching wire/fixture/CoreS3 telemetry implementation as `15a318c` on
+`codex/commissioning-mode`; the operator docs and session record follow in the
+next commit on the same branch. Generated bridge binaries remain ignored rather
+than being added to source history. Elliot's agent can build the normal bridge
+with `firmware/cores3_bridge/build.sh --channel 11` and a unique named build path.
+
+## 2026-08-16 -- Ben + Codex -- CoreS3 restored to serial bridge and fleet dashboard launched
+
+Ben authorized replacing the only attached ESP32's Cambium binary image with the
+normal channel-11 CoreS3 serial bridge so the new fleet dashboard could run. The
+explicit target was COM43 / USB serial and chip MAC `80:45:6B:4D:5D:B0`. Uploaded
+the already-compiled `dashboard-tail-20260816-r1` artifact without rebuilding:
+1,102,288 bytes, SHA-256
+`b912a88281300038aa81ba9991c931bba2e9eec214582500b902db1d928e706d`,
+FQBN `esp32:esp32:m5stack_cores3`, flags `-DNB_CHANNEL=11`. Esptool verified every
+written region and hard-reset the bridge on COM43.
+
+Post-flash fresh evidence showed `cores3-bridge-2026-08-15.1`, bridge ID `4D5DB0`,
+channel 11, and live ASCII `nb-peer` rows. Launched
+`ops/bench/net_bench_dashboard.py` against COM43 on localhost port 8765 and opened
+it in the Codex browser. The first API check saw 20 fixtures; the opened grid had
+grown to 26 fixtures (12 healthy, 9 attention, 5 silent, 17 with input) as sleeping
+peers woke. No fixture was flashed and no fixture/NVS/profile state was mutated.
+
+## 2026-08-16 -- Ben + Codex -- Fleet-at-a-glance ESP-NOW dashboard
+
+Reworked `ops/bench/net_bench_dashboard.py` from a solar-bench-first console into
+a fleet-health landing view while preserving the existing controls, plots, table,
+and raw serial console under collapsed detailed diagnostics. Each fixture is now a
+compact composite glyph: an ADR 0023 load-compensated battery fill, live input icon,
+actual rendered light-color foot, adaptive heartbeat fade, and a two-digit MAC
+suffix. Colliding suffixes become deterministic compact labels such as `DC-1` and
+`DC-2`. Selection reveals the full ID and exact voltage/current/link/output state.
+
+The freshness model follows the declared firmware posture rather than applying one
+timeout to every fixture: commission expects the 1 Hz heartbeat; normal field peers
+expect 5 s; sleeping day-charge and PROTECT peers receive their known 315 s and
+900 s windows. Panel-loss highlighting requires daylight consensus from comparable
+panel-bearing peers, so night is not painted as fleet failure. Charger telemetry
+does not yet prove USB vs panel universally; the UI labels the input honestly and
+uses fixture class only to choose a sun or external-power glyph. A TODO records the
+remaining explicit source-discrimination qualification.
+
+Extended the canonical append-only `NbHeartbeat` tail with fixture class, LED-rail
+state, actual post-cap/post-gamma rendered RGBW average, and lit-pixel count. Fixture
+commission builds send this full truth every 5 s without bloating the 1 Hz short
+heartbeat; field builds retain the 60 s full cadence. The CoreS3 bridge length-gates
+and publishes both the existing lifecycle tail and the new render tail. No second
+packet definition was introduced.
+
+Parser compatibility tests, embedded JavaScript syntax checks, 371 fixture native
+checks, and 11 CoreS3 audio checks pass. Fresh sequential Arduino builds also pass
+for the channel-11 commission fixture (35 percent flash, 18 percent RAM) and CoreS3
+bridge (35 percent flash, 25 percent RAM). Desktop and 360 px browser QA passed; the
+grid stayed readable with 60 simulated fixtures, late/silent/critical/input states,
+colored output, and suffix collisions. No fixture was flashed and no shared firmware
+artifact was published in this source/build-only session.
+
+## 2026-08-15 -- Ben + Codex -- Listener posture accepted; artifact identity and shared-bench handoff defined
+
+Peer review of Elliot's pushed `Lighting-Controller` branch established that
+`b047986` contains Ben's full `d4b1405` commissioning hardening and the exact
+NeoPixel/RMT rail-cycle fix. Only the fixture build wrapper and behavior glue
+differ afterward. Elliot's additions intentionally change the assembly posture:
+no-command fallback is low red, a subdued MAC-derived pulse aids identity, and
+a fresh/confident close ToF target shows the fixture's signature color. Ben
+accepts the low-red and basic ToF behavior as the normal commission-listener
+experience. ADR 0039 supersedes only ADR 0038's no-command-dark default; strict
+commission-dark remains an explicit rail-cycle diagnostic, and no-command still
+means no autonomous show.
+
+Corrected the apparent `.4` rollback. Read-only partition inspection had shown
+two valid OTA slots and later user coordination confirmed that Elliot's separate
+bridge accidentally OTA'd Ben's attached `9E5A94`. It was not evidence that
+Ben's `.4` failed A/B verification. The incident exposed a separate release
+problem: Ben's strict image and Elliot's listener/presence image both advertised
+`fixture-2026-08-15.4` despite different source, flags, toolchains, and binary
+hashes. That legacy counter is retired for new shared builds.
+
+ADR 0040 and `docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md` now define generated
+`fx-YYMMDD-<recipe7>-<variant>` revisions, immutable manifests, exact binary
+SHA-256, explicit target-MAC callouts, and single-operator ownership for OTA/NVS
+mutations while allowing intentionally leaseless live color control. They also
+record that Cambium's current OTA completion can accept a cached 30-second
+`online` state before any fresh rejoin or the fixture's 20-second A/B decision;
+fresh expected-version evidence is required before calling an update complete.
+
+Elliot currently owns the boot-salute firmware change, so this session did not
+edit fixture source. The docs distinguish an automatic USB-only liveness salute
+from a host-triggered final completion salute after artifact, identity,
+profile/channel, power, class/sensor, and pending-verify checks. Firmware core
+tests passed 368 checks; Elliot's controller passed 367 tests with 4 skipped;
+Cambium passed 343 with 1 skipped, but the quiet ESP32 glue and OTA job runner
+still lack direct coverage.
+
 ## 2026-08-15 -- Ben + Codex -- NeoPixel RMT rail-cycle bug isolated and fixed; `.4` canary reverted before acceptance
 
 The new fixture image repeatedly reported a healthy LED rail and active smoke

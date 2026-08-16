@@ -19,6 +19,14 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
 
 ## High-priority bench gotchas
 
+- **Artifact identity and shared-bench writes:** follow
+  `docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md` (ADR 0040). New shared fixture
+  revisions are generated as `fx-YYMMDD-<recipe7>-<variant>` and travel with an
+  immutable manifest plus exact binary SHA-256. Never reuse a revision, select
+  an image by newest mtime/`latest`, or treat a branch name as an artifact.
+  Live color control may remain intentionally leaseless, but OTA, USB flash,
+  profile/channel persistence, reboot, and NVS mutation have one declared
+  operator across all bridges/laptops. Name explicit target short MACs.
 - **OTA fleet path:** default to shared-WiFi / portable-router maintenance mode plus
   `ops/bench/net_bench_ota.py` parallel uploads. Do **not** build or recommend
   `--maint-ap` unless Ben explicitly asks for the deprecated one-board AP fallback;
@@ -57,6 +65,12 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   `ops/bench/field_cycle_ota.py ... --build-only` with a named build, verify it, then
   pass that `.bin` back with `--bin` for OTA. This avoids an accidental second compile
   or a changed flag set between validation and deployment.
+- **OTA completion is fresh evidence, not upload ACK:** success requires a
+  heartbeat newer than the job start, the expected reported revision, and
+  survival through the fixture's 20-second pending-verify window. A cached
+  `online=true` entry can remain true for 30 seconds and does not prove rejoin.
+  An automatic USB boot salute likewise proves only a stable boot; only the
+  host-side commissioning gate may declare a fixture ready to unplug/install.
 - **Sleeping-peer OTA timing:** a field-cycle peer may deep-sleep for 300 seconds and
   listen for only 8 seconds. `field_cycle_ota.py` therefore defaults to a 360-second
   discovery deadline; do not shorten it below one full sleep cadence for an already
@@ -107,6 +121,12 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   energy, drift/backup behavior, final counts, schedule offsets, and invalid-time
   fallback remain open.
 - **Power-management bus integrity: 100 kHz on any bus shared with the charger/gauge, never raised; dedicated bus on any custom PCBA (ADR 0028).** This closed the two-month reboot epidemic.
+- **Build-week commission defaults to the listener posture (ADR 0039):** low-red
+  ready beacon plus fresh/confident local ToF signature-color response, with
+  bridge/direct commands overriding it. This supersedes ADR 0038's no-command
+  rail-off default only; no-command still means no autonomous show, and all
+  power/boot/OTA safety vetoes remain. Strict rail-off commission stays available
+  for explicit rail-cycle diagnostics.
 - LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
 - Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
 - **Performance-audio source: received PUCA DSP Original Edition + Eurorack
