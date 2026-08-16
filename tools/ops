@@ -100,6 +100,31 @@ print('bridge: connected',j['connected'],'rx',j.get('rx_pkts'),'crc_err',j.get('
     MAC=$(name2mac "$2"); MS="${3:-40}"; N="${4:-3}"
     for i in $(seq 1 "$N"); do curl -s -m 3 "$D/debug/knock?mac=$MAC&ms=$MS" >/dev/null; sleep 1; done
     echo "sent $N knock(s) to $MAC (${MS}ms) — armed image + power gate decide if they fire" ;;
+  stream)
+    # ops stream <who|both> <r> <g> <b> [seconds]  — hold a color via ws frames
+    # (slave images are dark without a stream; this IS the persistent-color verb)
+    WHO="$2"; SR="${3:-255}"; SG="${4:-255}"; SB="${5:-255}"; SECS="${6:-30}"
+    ~/code/cambium/.venv/bin/python3 - "$WHO" "$SR" "$SG" "$SB" "$SECS" <<'PYEOF'
+import asyncio, json, sys, urllib.request
+who, r, g, b, secs = sys.argv[1], *[int(x)/255 for x in sys.argv[2:5]], int(sys.argv[5])
+ids = {"mario":["F000"],"luigi":["F006"],"both":["F000","F006"]}.get(who.lower(), [who.upper()])
+try:
+    import aiohttp
+except ImportError:
+    sys.exit("needs aiohttp: run via ~/code/cambium/.venv/bin/python3")
+async def main():
+    async with aiohttp.ClientSession() as s:
+        async with s.ws_connect("http://localhost:8600/ws") as ws:
+            await ws.send_str(json.dumps({"kind":"drive","on":True,"force":True,"client":"ops-stream"}))
+            await ws.send_str(json.dumps({"kind":"night","mode":1}))
+            for seq in range(secs*8):
+                await ws.send_str(json.dumps({"kind":"frame","seq":seq,
+                    "fixtures":[{"id":i,"rgb":[r,g,b]} for i in ids]}))
+                await asyncio.sleep(0.125)
+asyncio.run(main())
+print(f"held {ids} at rgb({r:.2f},{g:.2f},{b:.2f}) for {secs}s")
+PYEOF
+    ;;
   off)   curl -s -m 4 "$D/constellate/off"; echo ;;
   night) curl -s -m 4 "$D/debug/night?mode=$2"; echo ;;
   maint) [[ "$2" == "on" ]] && V=1 || V=0; curl -s -m 4 "$D/debug/maint?on=$V"; echo ;;
