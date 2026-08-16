@@ -12,6 +12,68 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- 300 mA precharge recovery validated and deployed
+
+Ben selected 300 mA as the production BQ25628E precharge limit after the live
+fleet showed the charger's 30 mA POR setting leaving 2.73-2.89 V LFP fixtures
+near energy-neutral despite valid solar. Firmware now performs a two-byte
+little-endian, reserved-bit-preserving read/modify/write of REG0x10, exposes the
+target, decoded readback, raw register, and match result in maintenance
+telemetry, and refuses to mark a pending OTA image valid unless the requested
+value reads back. Trickle charge below 2.25 V, input DPM, thermal protection,
+the roughly 3.0 V fast-charge transition, and the 2 A normal charge ceiling are
+unchanged. All 381 native checks pass.
+
+The first canary artifact, `fx-260816-2cdf1ab-b` (SHA-256
+`1d16390f95e979c1cdced5bdf6aa9602ec3700c55220d9c19a09ac8295140ded`),
+was safely rejected by the t+20 s self-test and automatically rolled back on
+`9F26B0`. That retired image used an 8-bit transaction against TI's 16-bit
+REG0x10 and was not reused. The corrected immutable artifact is
+`fx-260816-8ea551a-b`, built from clean commit
+`45c568db15c161c190f2088f9886e87b68b1c9c2`; its 1,170,528-byte binary has
+SHA-256
+`6e836c22634b597d052ff6dd40159c3282d107455fa416ac446dbf78bc2ddf92`.
+The manifest is under `firmware/fixture/build/fx-260816-8ea551a-b/` and records
+the exact 300 mA, channel-11, commission/basic-listener, canopy-solenoid recipe.
+
+Corrected canary `9F26B0` directly reported REG0x10 `0x00F0`, decoded 300 mA,
+OTA `valid`, no BQ fault, and solenoid gate off with zero strikes. Its measured
+battery charge increased from 31-34 mA to 302-306 mA, panel input from about
+0.47 W to about 1.5 W, and VBAT from 2.795 V to 2.803 V during the observed
+window. Second low-voltage canary `F2BEA4` held 299-302 mA and about 1.54-1.58 W
+after the A/B window, with VBAT moving from 2.895 V to about 2.935 V.
+
+One Ben/Codex OTA writer then deployed the same binary to 17 more reachable
+canopy targets: `F2BEE4`, `F3FC90`, `F2BE0C`, `F40384`, `9F0E54`, `9E668C`,
+`F40364`, `9F275C`, `F2BF54`, `F2BF5C`, `9E5B8C`, `F40268`, `9F26E4`,
+`9F26AC`, `F2BE48`, `9F26BC`, and `F2BE20`. All survived the verification
+window; direct telemetry resolved `F2BF54`'s cached dashboard identity and
+showed exact/valid plus 300 mA readback. `F2BE20`, handled separately because
+of its prior slot anomaly, remained exact for 129 seconds and directly reported
+`app0`, `valid`, REG0x10 `0x00F0`, no fault, and zero strikes. This makes the
+300 mA artifact 19/27 across the exact canopy roster while preserving the
+earlier 21/27 solenoid enablement.
+
+Four additional installed, solar-fed critical fixtures from the earlier fleet
+rollout were included because they showed the same precharge bottleneck:
+`9E5A88`, `9E5B18`, `9F26C4`, and `9F26E8`. All four survived A/B verification.
+The first three held about 299-307 mA and roughly 1.5 W input; `9F26E8` reached
+308 mA when its panel was available but continued to track rapidly fluctuating
+sun/input power. Its direct telemetry showed the exact valid image, 300 mA
+readback, and no BQ fault.
+
+No OTA was attempted on canopy fixtures `9F266C` (2.770 V), `F2B7DC`
+(2.801 V), or `9F2724` (2.693 V) because all had zero panel input and were
+discharging. `9E5A84` remained healthy on uplink but failed two targeted
+maintenance bursts and a bounded 60-second discovery, so no upload occurred.
+`9E5A94`, `F2BDB0`, `F2BE8C`, and `F2BF8C` remained offline. Non-roster
+critical fixture `9E5A5C` was about 2.49 V and was deliberately excluded: the
+firmware does not enable charging until the gauge reports a plausible cell
+above 2.5 V, so it needs supervised external recovery first. Upload evidence is
+in `ops/bench/data/ca/2026-08-16-ota-results.jsonl`,
+`2026-08-16-precharge300-batch1.jsonl`, and
+`2026-08-16-precharge300-critical-batch.jsonl`.
+
 ## 2026-08-16 -- Ben + Codex -- Canopy solenoid image built and rolled to 21 fixtures
 
 Built the immutable `fx-260816-cef34a4-b` fixture artifact from clean source

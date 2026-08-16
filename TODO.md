@@ -4,25 +4,32 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Finish the exact 27-fixture canopy-solenoid rollout.** Twenty-one fixtures
-  are durably verified on `fx-260816-cef34a4-b`. Resolve `F2BE20`'s later app-slot
-  fallback/deep-sleep audit; recover `9E5A84`'s one-way radio; charge `9F2724`
-  before OTA; and power/locate never-seen `9E5A94`, `F2BDB0`, `F2BE8C`, and
-  `F2BF8C`. Reuse the exact artifact and SHA in LOG; do not rebuild (Ben/Codex).
+- [~] **Finish the exact 27-fixture canopy rollout.** Solenoid enablement remains
+  21/27; the corrected 300 mA precharge artifact `fx-260816-8ea551a-b` is 19/27.
+  Supply proven solar or USB before updating zero-input `9F266C`, `F2B7DC`, and
+  `9F2724`; recover `9E5A84`'s one-way radio; and power/locate `9E5A94`,
+  `F2BDB0`, `F2BE8C`, and `F2BF8C`. Reuse the exact artifact and SHA in LOG;
+  do not rebuild (Ben/Codex).
 - [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
   reported the new `app1` as `valid` with pending false, but after the first
   later power-state reboot ran old undefined `app0`. Capture the next
   deep-sleep wake, check OTA-data/boot selection, and make every return-code
   from `esp_ota_mark_app_valid_cancel_rollback()` visible before changing policy
   (Ben/Codex).
-- [ ] **Decide the deeply depleted solar-recovery posture.** Live 2.73-2.89 V
-  fixtures cluster near 31-36 mA net charge / 0.42-0.52 W input in the BQ25628E
-  precharge regime while healthy cells take roughly 3 W. The charger defaults
-  IPRECHG to 30 mA but permits 10-310 mA; the SDK does not expose it. Add a
-  direct-I2C, readback-verified 250 mA canary and telemetry, quantify the roughly
-  3.0 V exit and recovery time, then decide whether commissioning-with-solar
-  should remain continuously reachable or use longer sleeps so system load
-  cannot consume most of the precharge harvest (Ben/Codex).
+- [x] **Raise and verify the deeply depleted solar-recovery current -- DONE
+  2026-08-16.** Ben selected 300 mA. Corrected firmware uses a full 16-bit
+  REG0x10 transaction, exposes target/readback/raw telemetry, and makes matching
+  readback an OTA-validity condition. Two low-VBAT canaries and four additional
+  critical fixtures passed; solar input rose from roughly 0.45-0.52 W to about
+  1.5 W when available and battery current held near 300 mA. Keep input DPM,
+  thermal/trickle protections, and the hardware fast-charge transition unchanged
+  (Ben/Codex).
+- [ ] **Recover depleted fixtures that cannot yet accept OTA.** `9F266C`,
+  `F2B7DC`, and `9F2724` have zero panel input and are discharging at
+  2.69-2.80 V; repair/supply solar or connect proven USB before flashing the
+  exact 300 mA artifact. Non-roster `9E5A5C` is about 2.49 V, below the
+  firmware's plausible-cell charge-enable threshold, and needs supervised
+  external recovery above 2.5 V first (Ben + field team).
 - [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
   update age/uptime but retain the last full-heartbeat firmware string, which
   briefly made a successful `F40384` update look rolled back. Show field age or
