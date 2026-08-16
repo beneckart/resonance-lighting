@@ -58,8 +58,10 @@ print('bridge: connected',j['connected'],'rx',j.get('rx_pkts'),'crc_err',j.get('
   flash)
     MAC=$(name2mac "$2"); BIN="$3"; [[ -f "$BIN" ]] || { echo "no such bin: $BIN"; exit 1; }
     echo "maint broadcast; waiting for $MAC on LAN..."
-    curl -s -m 4 "$D/debug/maint?on=1" >/dev/null
     IP=""; for i in $(seq 1 30); do
+      # rebroadcast every loop: NB_ENTER_MAINT is un-acked and a single shot
+      # can be lost or arrive mid-stream (measured 2026-08-15)
+      curl -s -m 4 "$D/debug/maint?on=1" >/dev/null
       IP=$(lan_sweep | awk -v m="$MAC" '$2==m{print $1; exit}'); [[ -n "$IP" ]] && break; sleep 4
     done
     [[ -n "$IP" ]] || { echo "$MAC never joined the LAN (asleep? out of range?)"; exit 1; }
