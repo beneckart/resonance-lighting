@@ -96,7 +96,7 @@ export function RealDriveDriver() {
           const blackout = useTwin.getState().control.blackout;
           const fx = states
             .map((s) => ({ id: s.id, rgb: s.rgb }))
-            .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.02);
+            .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.15);
           if (fx.length) bridge.sendFrame(fx);
         }, SEND_MS);
         console.info("[cambium] drive real: streaming to", bridge.transport);
@@ -114,7 +114,7 @@ export function RealDriveDriver() {
               const blackout = useTwin.getState().control.blackout;
               const fx = states
                 .map((s) => ({ id: s.id, rgb: s.rgb }))
-                .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.02);
+                .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.15);
               if (fx.length) bridge.sendFrame(fx);
             }, SEND_MS);
           }).catch(() => { /* next effect re-run or manual pill toggle retries */ });
