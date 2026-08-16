@@ -24,7 +24,7 @@ const SEED: Record<string, string> = {
   "9F2664": "Nova",
   "9F26E8": "Blade",
   "9E5A94": "Storm",
-  "9F26AC": "Vision",
+  "F2BE0C": "Vision",
 };
 
 function store(): Storage | null {
