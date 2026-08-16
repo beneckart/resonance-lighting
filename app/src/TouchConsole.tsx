@@ -37,6 +37,14 @@ function isPhoneLike(): boolean {
     (window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1023px)").matches);
 }
 
+/** Firmware choreo program ids → operator words (4 = Ben's commission-dark,
+ *  2026-08-15: shipped as a NUMBER and read as "a bug in the Locate"). */
+const PROG_NAMES: Record<number, string> = {
+  0: "idle", 1: "life", 2: "show", 3: "DRIVEN", 4: "listening",
+};
+const progName = (p: number | null | undefined) =>
+  p == null ? "?" : (PROG_NAMES[p] ?? `?${p}`);
+
 type TabId = "tree" | UiMode | "command" | "locate" | "settings";
 const MODES: { id: TabId; icon: string; label: string }[] = [
   { id: "tree", icon: "🌳", label: "Tree" },
@@ -956,7 +964,7 @@ function LocatePage() {
               {r.battMv > 0 && r.battMv < GAUGE_FAULT_MV ? "gauge⚠" : `${r.battMv} mV`}
               {r.battMa > 0 ? " ⚡" : r.battMa < 0 ? " ▾" : ""}
             </span>
-            <span style={{ color: "#7e8ea6" }}>tier {r.powerTier ?? "?"} · prog {r.program ?? "?"}</span>
+            <span style={{ color: "#7e8ea6" }}>tier {r.powerTier ?? "?"} · {progName(r.program)}</span>
             <span style={{ marginLeft: "auto", color: "#7e8ea6" }}>{age(r.lastSeenMs)}</span>
           </button>
         ))}
@@ -1054,7 +1062,7 @@ function LightSheet({ mac, onClose }: { mac: string; onClose: () => void }) {
 
       <div style={{ ...microLabel, marginTop: 14 }}>Live from its heartbeat</div>
       {row("state", r.lifeState !== null ? (LIFE_LABEL[r.lifeState] ?? String(r.lifeState)) : "not reported")}
-      {row("behavior program", r.program !== null ? (r.program === 0 ? "0 · none (parked)" : `program ${r.program}`) : "not reported")}
+      {row("behavior program", r.program !== null ? `${r.program} · ${progName(r.program)}` : "not reported")}
       {row("power protocol", r.powerTier !== null ? (TIER_LABEL[r.powerTier] ?? String(r.powerTier)) : "not reported")}
       {row("battery", r.battMv > 0 && r.battMv < GAUGE_FAULT_MV ? "⚠ gauge fault" :
         <>{r.battMv} mV {r.battMa > 0 ? `· charging +${r.battMa} mA ⚡` : r.battMa < 0 ? `· draining ${r.battMa} mA` : ""}</>)}
