@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Published USB rescue handoff for Elliot's bench
+
+Added `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` as a self-contained agent
+runbook for Elliot's parallel USB flashing. It pins the basic-listener branch,
+version, channel/profile/feature flags, local `Party In The Woods` credentials,
+build-once workflow, explicit-port batch commands, role/capacity separation,
+and the per-fixture evidence gate. The failure ladder distinguishes factory-fresh
+boards, transient sleeping USB ports, ROM download mode, bare-board `X`, and the
+installed-battery durable-PROTECT path. It explicitly requires a 90-second powered
+post-flash hold and proof of qualified release/automatic clean reboot rather than
+treating upload or OTA-endpoint success alone as proof that PROTECT cleared.
+
 ## 2026-08-16 -- Ben + Codex -- Second ten-board canopy-candidate batch OTA-bootstrapped
 
 Ten more battery-absent/VDC-absent PowerFeathers intended as likely inner-ring
