@@ -12,6 +12,31 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Five dark critical fixtures recovered on supervised USB
+
+Ben connected five non-red critical-battery lanterns to USB power on Elliot's
+Mac mini while the Mac remained power-only and Ben/Codex retained sole OTA
+writer ownership. The exact five recovered IDs were `9F26B0`, `9F26E8`,
+`F2B7DC`, `9F266C`, and `9F2724`. Each received the existing immutable
+`fx-260816-19c6bbb-b` binary (SHA-256
+`a018550e90f27f1d08a08e998294fb73ba97dc5367152c2c048b5f6adeb2f395`)
+through an identity-verified, sequential shared-WiFi upload. All five produced
+fresh exact-revision heartbeats after the 20-second A/B pending-verify window;
+no solenoid strike was sent.
+
+`9F26B0` and `9F26E8` first reached roughly 3.05 V with strong positive input.
+The deeper trio entered maintenance at 2.796 V (`F2B7DC`), 2.782 V (`9F266C`),
+and 2.728 V (`9F2724`) while a stable roughly 4.8 V USB source supported the
+installed LFP. `F2B7DC`'s first post-discovery HTTP connection missed before an
+upload began; direct telemetry proved the old valid image and stable power, and
+one identity-verified retry succeeded. After the universal image landed, the
+trio's observed battery current rose from roughly 28-34 mA to +240 mA, +240 mA,
+and +295 mA respectively, confirming that the 300 mA precharge policy was active
+under the available USB budget. They should remain connected until voltage has
+recovered comfortably above the critical range. This raises the universal
+artifact's accepted observed fleet count from 32 to 37. Evidence is appended to
+`ops/bench/data/ca/2026-08-16-ota-results.jsonl`.
+
 ## 2026-08-16 -- Ben + Codex -- Universal recovery and solenoid artifact deployed to 32 visible fixtures
 
 Ben made the 300 mA BQ25628E precharge configuration and solenoid capability

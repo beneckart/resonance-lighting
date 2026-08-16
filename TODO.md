@@ -5,12 +5,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 ## Immediate documentation / repo hygiene
 
 - [~] **Finish the universal-default visible-fleet rollout.** The immutable
-  `fx-260816-19c6bbb-b` artifact is exact and A/B-accepted on 32 observed
+  `fx-260816-19c6bbb-b` artifact is exact and A/B-accepted on 37 observed
   fixtures. Reuse its exact SHA from LOG; do not rebuild. Recover the uplink-only
   maintenance downlink on `9E5A84` and `9F26D8`; diagnose `F2BE6C`'s HTTP 500
   and `F2BE20`'s upload timeout/task-watchdog path; and supply proven USB/solar
-  ride-through before updating `9E5A5C`, `9E5B18`, `9F26B0`, `9F26E8`,
-  `9F2724`, `F2B7DC`, `F2BDB0`, `F2BEA4`, and `9F266C`. Also power/locate
+  ride-through before updating `9E5A5C`, `9E5B18`, `F2BDB0`, and `F2BEA4`.
+  Also power/locate
   unseen canopy IDs `9E5A94`, `F2BE8C`, and `F2BF8C` (Ben/Codex + field team).
 - [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
   reported the new `app1` as `valid` with pending false, but after the first
@@ -34,8 +34,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   thermal/trickle protections, and the hardware fast-charge transition unchanged
   (Ben/Codex).
 - [ ] **Recover depleted fixtures that cannot yet accept OTA.** Current guarded
-  universal-rollout holdbacks are `9E5A5C`, `9E5B18`, `9F26B0`, `9F26E8`,
-  `9F2724`, `F2B7DC`, `F2BDB0`, `F2BEA4`, and `9F266C`; several have
+  universal-rollout holdbacks are `9E5A5C`, `9E5B18`, `F2BDB0`, and
+  `F2BEA4`; several have
   weak/fluctuating or zero input despite a visible supply voltage. Use supervised
   USB/solar recovery and require fresh voltage/current ride-through evidence
   before flashing the exact artifact. `F2BDB0` remains below 2.5 V and needs
