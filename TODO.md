@@ -138,17 +138,26 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
-- [~] **P0: finish the basic-listener OTA on the seven outstanding fixtures.**
-  The 2026-08-16 rollout put `fx-260816-otafix1-b` on 25 of the 32 eligible
-  previously seen fixture IDs. `F2BE0C` and `9E5A84` were subsequently
-  overwritten by an active external OTA writer with Elliot's
-  `fixture-2026-08-15.7`; `9F275C`, `F3FD88`, `F2BE20`, `F2BE48`, and
-  `F2BEE4` remain on older images. Do not reopen fleet maintenance until the
-  other Cambium/OTA daemon is stopped or isolated. Then reacquire the seven
-  through the normal shared-WiFi path and require the target revision plus OTA
-  state `valid`. Classify newly seen, unrostered `.7` peer `9F26D8` before
-  deciding whether it belongs in the light-fleet scope. Converted solarnoid
-  `9E5B8C` remains excluded from this light-only image (Ben/Codex/Elliot).
+- [~] **P0: USB-rescue the one known fixture left off the basic-listener image.**
+  After the competing OTA writer stopped, `fx-260816-otafix1-b` reached 31 of
+  the original 32 eligible fixtures plus newly classified lighting peer
+  `9F26D8` (32 of 33 total). Only `F3FD88` remains: its old
+  `fixture-2026-08-06.5` image hears maintenance commands but reports
+  maintenance-start failure and does not join `Party In The Woods`, consistent
+  with credentials baked before the SSID migration. Positively identify it over
+  USB, flash the inspected artifact, and require target revision, OTA state
+  `valid`, healthy sensors/power, and steady-red listener behavior. Converted
+  solarnoid `9E5B8C` remains excluded from the light-only image (Ben/Codex).
+- [ ] **Canary automatic recovery from durable PROTECT before fleet OTA.**
+  `fx-260816-prtrel1-b` persists the same compound 60-second charge release,
+  then software-reboots so the previously parked boot can perform the skipped
+  sensor-domain, class, sensor, and LED initialization. First prove ordinary
+  boot on a USB fixture, then use a genuinely stage-4 silent fixture to prove
+  `PROTECT -> LEDS_OFF -> automatic clean reboot -> red listener` without BOOT,
+  erase, or a manual second reset. Current `otafix1-b` fallback procedure is:
+  battery installed, USB connected, wait at least 60 seconds for qualified
+  charging, then one ordinary RESET. Enter download mode only when normal USB
+  CDC/flashing is unavailable (Ben/Codex).
 - [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
   from deliberately leaseless lighting control. On 2026-08-16 another host
   replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's

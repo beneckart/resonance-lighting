@@ -104,6 +104,22 @@ void powerGlueTick() {
     }
     Serial.printf("power: tier -> %u (bv=%.3f ma=%.0f)%s\n", (unsigned)b.tier,
                   s.batt_v, s.batt_ma, b.protect_released ? " [protect released]" : "");
+
+    if (b.protect_released) {
+      // A parked boot deliberately skipped the sensor-domain cold start,
+      // class probe, sensor init, and LED profile. The qualified 60-second
+      // charge release above has now durably replaced PROTECT with LEDS_OFF;
+      // reboot cleanly instead of merely clearing the in-RAM park flag and
+      // trying to run partially initialized hardware. This makes recovery
+      // automatic while preserving the rule that no reset alone clears the
+      // durable PROTECT latch.
+      Serial.println("power: PROTECT release persisted -> clean reboot");
+      Serial.flush();
+      delay(100);
+      ESP.restart();
+      return;
+    }
+
     if (b.brightness_cap == 0 && ledRailIsOn()) {
       gSmokeRender = false;
       ledRailOff();

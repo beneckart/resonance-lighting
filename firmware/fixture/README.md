@@ -129,6 +129,26 @@ PROTECT clear | `r` status line
 and no charger fault. It does not clear PROTECT automatically or over ESP-NOW;
 `fleet_usb_bringup.py` uses it only in the default battery-absent workflow.
 
+### Installed-battery PROTECT rescue
+
+Do not start with `RESET-BOOT-RESET`, erase NVS, or use `X`. Leave the fixture's
+LFP installed, connect the enclosure rescue USB port to a proven supply, and
+observe telemetry over normal USB CDC. A valid battery, good external supply,
+no charger fault, at least +20 mA charge current, and at least 3.10 V must all
+hold continuously for 60 seconds before the durable PROTECT latch releases.
+
+On `fx-260816-otafix1-b`, wait for `power: tier -> 2 ... [protect released]`,
+then press ordinary RESET once. The next boot must report a stage below 4 with
+`park=0`, initialize the class sensors, rejoin ESP-NOW, and eventually show the
+steady-red basic listener as the power ladder rises. Candidate
+`fx-260816-prtrel1-b` replaces that manual RESET with an automatic clean reboot
+after persisting the release. The reboot is required because a parked boot
+deliberately skipped rail cycling, class probe, sensor initialization, and LED
+profiling. Use BOOT/download mode only if normal CDC never enumerates or the
+ordinary USB flash tool cannot connect. Never erase NVS as a routine recovery;
+it also destroys per-fixture configuration and bypasses the intended safety
+qualification.
+
 ## NVS (namespace `resfx`)
 
 `cap_mah` `chg_ma` `chg_policy` `class_ovr` `class_last` `fc_stage` `boots` `profile`

@@ -12,6 +12,47 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Fleet OTA reached 32/33; USB PROTECT recovery isolated and automated
+
+After Elliot stopped the competing OTA writer, shared-WiFi maintenance completed
+on `F2BE0C`, `9E5A84`, `9F275C`, `F2BE20`, `F2BE48`, `F2BEE4`, and the newly
+classified lighting peer `9F26D8`. The accepted `fx-260816-otafix1-b` image now
+runs on 31 of the original 32 eligible fixtures, or 32 of 33 when `9F26D8` is
+included. Converted solarnoid `9E5B8C` remains deliberately excluded. The sole
+known exception is `F3FD88`, still on `fixture-2026-08-06.5`: it hears the
+maintenance hail and returns to ESP-NOW, but reports maintenance-start failure
+and never joins `Party In The Woods`. That pre-SSID-migration image likely has
+obsolete WiFi credentials and requires USB rescue. The append-only OTA record
+now contains 31 successful upload ACKs. All local maintenance/OTA processes
+were explicitly stopped afterward; PowerShell wrappers must be checked for
+surviving child Python processes, because terminating only the visible wrapper
+can leave maintenance hails running.
+
+A USB investigation of a physically dark fixture identified COM67 as `F2BEA4`,
+not a never-seen board. It already ran the accepted image and had healthy USB,
+battery, charger, ESP-NOW, and sensors, but booted from durable stage 4 with
+`park=1`. With its LFP installed and USB supply good, 60 seconds of sustained
+qualified charging correctly persisted the release to `STAGE_LEDS_OFF`. The
+old image nevertheless retained the in-RAM park flag for that boot. One ordinary
+RESET then booted unparked, initialized the three downlight sensors and LED
+profile, climbed the power ladder, and returned to the steady red listener.
+`RESET-BOOT-RESET` was neither required nor appropriate.
+
+The current-image rescue runbook is therefore: keep the battery installed,
+connect USB, allow at least 60 seconds of healthy positive charging, then press
+ordinary RESET once. Use BOOT/download mode only when normal USB CDC or the flash
+tool cannot connect. To remove the extra manual reset, candidate
+`fx-260816-prtrel1-b` now performs an automatic clean software reboot immediately
+after the qualified release is durably persisted. A clean reboot is intentional:
+the parked boot skipped the sensor-domain cold start, class probe, sensor init,
+and LED profile, so merely clearing `park` in RAM would run partially initialized
+hardware. All 368 native checks pass. The channel-11 commission/basic-listener
+artifact is `firmware/fixture/build/fx-260816-prtrel1-b/fixture.ino.bin`
+(1,169,424 bytes), SHA-256
+`6305e9713ce1dd3fddd37c66fef4fab84fb1d6782aebd8723bb12e989243297e`.
+Hardware canary and a real persisted-PROTECT release remain required before
+fleet OTA of this follow-up.
+
 ## 2026-08-16 -- Ben + Codex -- Basic-listener fleet OTA reached 25/32; paused on competing OTA writer
 
 Published the hardened supervised-listener firmware as commit `545b459` on
