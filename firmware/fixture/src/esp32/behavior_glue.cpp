@@ -127,6 +127,14 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
 static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   f.count = (uint8_t)pixels;
   frameClear(f);
+  // BOOT SALUTE (Elliot 2026-08-15: "when flashed... blink red green then
+  // blue"): the first 4.5 s after power-up walk R -> G -> B, proving the
+  // whole LED path before settling into the listening glow.
+  if (now < 4500) {
+    uint8_t c = (uint8_t)(now / 1500); // 0=R 1=G 2=B
+    for (uint16_t i = 0; i < f.count; i++) f.px[i][c > 2 ? 2 : c] = 255;
+    return;
+  }
   static const uint8_t PAL[12][3] = {
       {255, 0, 0},   {255, 96, 0},  {255, 200, 0}, {128, 255, 0},
       {0, 255, 0},   {0, 255, 128}, {0, 255, 255}, {0, 128, 255},
@@ -153,9 +161,9 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   if (now % 10000 < 300) {
     uint8_t h = (uint8_t)((gMyId[0] * 7 + gMyId[1] * 13 + gMyId[2] * 31) % 12);
     for (uint16_t i = 0; i < f.count; i++) {
-      f.px[i][0] = PAL[h][0] >> 1;
-      f.px[i][1] = PAL[h][1] >> 1;
-      f.px[i][2] = PAL[h][2] >> 1;
+      f.px[i][0] = PAL[h][0];
+      f.px[i][1] = PAL[h][1];
+      f.px[i][2] = PAL[h][2]; // full-bright: the signature must be identifiable across the room
     }
   } else {
     for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 24;
