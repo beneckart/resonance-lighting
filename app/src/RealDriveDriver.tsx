@@ -45,6 +45,7 @@ export function RealDriveDriver() {
     const bridge = new CambiumBridge({ url: CambiumBridge.urlFromLocation() });
     bridgeRef.current = bridge;
     let timer: ReturnType<typeof setInterval> | undefined;
+    let retryTimer: number | undefined;
     let cancelled = false;
 
     // night-gate relay: FleetPanel's 🌙 buttons reach the fleet through THIS
@@ -101,13 +102,29 @@ export function RealDriveDriver() {
         console.info("[cambium] drive real: streaming to", bridge.transport);
       })
       .catch((e) => {
-        console.warn("[cambium]", String(e));
-        useTwin.getState().setNet({ driveReal: false }); // disarm: nothing listening
+        console.warn("[cambium] connect failed, retrying in 5s:", String(e));
+        // DO NOT disarm: tonight's bench proved the daemon restarts under
+        // live tabs, and a persisted OFF turns every later page-load mute
+        // ("no commands work" for an hour, 2026-08-15). Retry until it lands.
+        if (!cancelled) retryTimer = window.setTimeout(() => {
+          if (!cancelled) bridge.connect().then(() => {
+            timer = setInterval(() => {
+              const states = telemetry.states;
+              if (!states.length || !bridge.connected()) return;
+              const blackout = useTwin.getState().control.blackout;
+              const fx = states
+                .map((s) => ({ id: s.id, rgb: s.rgb }))
+                .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.02);
+              if (fx.length) bridge.sendFrame(fx);
+            }, SEND_MS);
+          }).catch(() => { /* next effect re-run or manual pill toggle retries */ });
+        }, 5000);
       });
 
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      if (retryTimer) clearTimeout(retryTimer);
       window.removeEventListener("resonance:cambium-night", onNight);
       bridge.send({ kind: "drive", on: false });
       unsubMeta();
