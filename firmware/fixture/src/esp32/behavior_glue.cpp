@@ -128,10 +128,15 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   f.count = (uint8_t)pixels;
   frameClear(f);
   // BOOT SALUTE (Elliot 2026-08-15: "when flashed... blink red green then
-  // blue"): the first 4.5 s after power-up walk R -> G -> B, proving the
-  // whole LED path before settling into the listening glow.
-  if (now < 4500) {
-    uint8_t c = (uint8_t)(now / 1500); // 0=R 1=G 2=B
+  // blue"). Keyed to the FIRST RENDER, not millis()==0: setup (sensors,
+  // radio, PowerFeather) can eat >4.5 s before the LED rail rises, which
+  // made v1 of this salute finish invisibly ("none of the plugged lights
+  // are doing the flashing RGB").
+  static uint32_t sSaluteStartMs = 0;
+  if (sSaluteStartMs == 0) sSaluteStartMs = now ? now : 1;
+  uint32_t since = now - sSaluteStartMs;
+  if (since < 4500) {
+    uint8_t c = (uint8_t)(since / 1500); // 0=R 1=G 2=B
     for (uint16_t i = 0; i < f.count; i++) f.px[i][c > 2 ? 2 : c] = 255;
     return;
   }
