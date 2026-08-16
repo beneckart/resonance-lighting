@@ -212,9 +212,56 @@ void behaviorTick() {
       gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS - 300 + jit; // +/-30%
     }
   } else {
+#ifdef RES_QUIET_AUTONOMY
+    // Full-control posture: the program engine runs in DAY/BOOT states too,
+    // so commanded frames (DIRECT stream / programs) render around the clock
+    // and telemetry reports the true active program. First beacon build only
+    // rendered at night AND painted the beacon over live commands (measured:
+    // T2 green-on-command FAIL, prog stuck 0, 2026-08-15 evening).
+    ShowFrameState fs = {sf.rx_ms, sf.phase, sf.hue, sf.flags, sf.val,
+                         sf.bright, sf.effect, sf.beat_phase, sf.energy};
+    ProgramInputs pin = {};
+    pin.nowMs = now;
+    pin.dtMs = 0;
+    pin.fixtureClass = gClass;
+    pin.pixelCount = gPixels;
+    pin.neighbors = nullptr;
+    pin.neighborCount = 0;
+    pin.showFrame = &fs;
+    pin.tier = (uint8_t)pb.tier;
+    pin.tickDivider = pb.tick_divider;
+    ProgramOutputs pout = {};
+    gRuntime.tick(pin, pout);
+    gFrame = pout.frame;
+    if (!gRuntime.leaseActive()) {
+      gFrame.count = (uint8_t)gPixels;
+      frameClear(gFrame);
+      for (uint16_t i = 0; i < gFrame.count; i++) gFrame.px[i][0] = 24;
+    }
+    gNetCaState = 0;
+    gNetProgram = gRuntime.activeProgram();
+    gTelemetryProgram = gNetProgram;
+    // 1 Hz choreo-state keepalive in day states too: the operator's "always
+    // know their state" contract — without this, program truth reaches the
+    // daemon only on sparse full heartbeats (~60 s lag, measured).
+    // state tx deliberately NOT power-vetoed here: on the bench a low cell
+    // must still report truthfully (Luigi at 21%% went state-silent, measured)
+    if ((int32_t)(now - gNextChoreoTxMs) >= 0) {
+      NbChoreoState cs;
+      memset(&cs, 0, sizeof(cs));
+      fillHeader(&cs.h, NB_CHOREO_STATE);
+      cs.program_id = gRuntime.activeProgram();
+      cs.flags = (uint8_t)((pb.brightness_cap == 0 ? 0x01 : 0) |
+                           (gRuntime.leaseActive() ? 0x02 : 0) |
+                           (gCfg.profile == PROFILE_DEV ? 0x04 : 0));
+      espNowSendRaw(&cs, sizeof(cs));
+      gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS;
+    }
+#else
     gNetCaState = 0;
     gNetProgram = 0;
     gTelemetryProgram = 0;
+#endif
   }
 
   // Prod day-charge duty cycle. Blocked by pending OTA verify and maintenance
@@ -224,7 +271,14 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+#ifdef RES_QUIET_AUTONOMY
+  // Quiet posture always has a frame: the low-red listening beacon (or a
+  // leased/commanded frame). Keeps the LED rail up whenever the chip is awake.
+  f = gFrame;
+  return true;
+#else
   if (!gShowActive) return false;
   f = gFrame;
   return true;
+#endif
 }
