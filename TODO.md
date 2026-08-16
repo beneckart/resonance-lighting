@@ -172,6 +172,17 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
   fleet with registry role `uplight`; runtime probing remains automatic
   (Ben/Codex).
+- [ ] **Finalize the first ten-board canopy-candidate allocation.** `9F2684`,
+  `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`, `F2BDC0`,
+  `F402D0`, and `F4044C` are OTA-ready with blank roles, AUTO class override,
+  and a provisional 6 Ah profile. If assigned to large-enclosure inner-ring
+  downlights, change them to 15 Ah before battery-backed validation; do not
+  mistake the sensorless probe's `chandelier` fallback for an assignment
+  (Ben/Codex).
+- [ ] **Retire `F2BED4` from Cambium's fallback-bridge references.** The physical
+  board has been reflashed as an unassigned canopy candidate and its lighting
+  registry bridge role is cleared. Update the Cambium roster/docs so an operator
+  does not later expect this board to be available as a serial bridge (Ben/Elliot/Justin).
 - [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
   from deliberately leaseless lighting control. On 2026-08-16 another host
   replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's

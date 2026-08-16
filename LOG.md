@@ -12,6 +12,29 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Ten unassigned canopy candidates OTA-bootstrapped
+
+Ten battery-absent/VDC-absent PowerFeathers intended as likely inner-ring canopy
+lights received the exact `fx-260816-prtrel1-b` basic-listener artifact. Five
+were new (`9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, and `9D7884`) and five carried
+the July field image (`F40380`, former fallback bridge `F2BED4`, `F2BDC0`,
+`F402D0`, and initially invisible `F4044C`). The old image slept too quickly for
+normal batch selection, so a MAC-targeted watcher ignored the five completed
+boards and rescue-uploaded only the five old targets as Ben reset all ten. The
+normal recorded commissioning path then reran on all five. Each old board's
+durable bare-board PROTECT state cleared through the guarded `X` path.
+
+All ten unique boards passed 8 MB flash / 2 MB PSRAM preflight, exact upload,
+`battery_present=false`, 6 Ah / 2 A provisional configuration, channel-11
+ESP-NOW, and `Party In The Woods` OTA endpoint verification. `9E5A70` had one
+empty HTTP response after a good USB flash/serial check; its immediate isolated
+retry passed and both events remain in the append-only evidence at
+`ops/bench/data/usb/2026-08-16-canopy-candidates-batch1.jsonl`. All report
+`class_ovr=0`; the sensorless bare-board probe currently falls back to
+`chandelier`, which is not an allocation. Registry roles remain blank and note
+the likely canopy/downlight use plus the required 15 Ah change if these become
+large-enclosure fixtures. `F2BED4` is no longer reserved as a serial bridge.
+
 ## 2026-08-16 -- Ben + Codex -- Twenty-four 6 Ah trunk-light Feathers allocated and OTA-bootstrapped
 
 The final four bare boards (`9F0E4C`, `9E5B5C`, `9F2648`, and `9E5AB0`) passed
