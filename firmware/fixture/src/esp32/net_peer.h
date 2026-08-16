@@ -10,7 +10,8 @@
 // Heartbeat cadence. The full heartbeat (~150 B) is telemetry-only and slow;
 // anything fast rides NB_CHOREO_STATE instead (airtime: 150 nodes of 1 Hz full
 // heartbeats would eat ~25% of the channel).
-#define RES_HB_FULL_PERIOD_MS 60000
+#define RES_HB_FULL_PERIOD_PROD_MS 60000
+#define RES_HB_FULL_PERIOD_DEV_MS 5000 // class/output dashboard truth in commission
 #define RES_HB_SHORT_PERIOD_PROD_MS 5000 // 0.2 Hz
 #define RES_HB_SHORT_PERIOD_DEV_MS 1000  // bench-parity dashboards
 #define RES_JITTER_PCT 30

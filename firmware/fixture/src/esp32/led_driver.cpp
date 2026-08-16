@@ -18,6 +18,9 @@ static bool gBegun = false;
 static bool gRailOn = false;
 static uint16_t gCount = 1;
 static bool gIsRgbw = true;
+static LedOutputSnapshot gOutput = {};
+
+LedOutputSnapshot ledOutputSnapshot() { return gOutput; }
 
 void ledProfileForClass(uint8_t fixtureClass) {
   // Production 4 W point source decodes RGBW, NOT GRBW (led_sol_bench /raw
@@ -74,6 +77,8 @@ bool ledRailOn() {
   gStrip.show();
   delay(5);
   gRailOn = true;
+  gOutput = {};
+  gOutput.railOn = 1;
   return true;
 }
 
@@ -89,12 +94,15 @@ void ledRailOff() {
   }
   railEnable3V3(false);
   gRailOn = false;
+  gOutput = {};
 }
 
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap) {
   if (!gRailOn) return;
   float s = (float)brightnessCap / 255.0f;
   uint16_t n = min((uint16_t)f.count, gCount);
+  uint32_t sumR = 0, sumG = 0, sumB = 0, sumW = 0;
+  uint8_t lit = 0;
   for (uint16_t i = 0; i < gCount; i++) {
     if (i >= n) {
       gStrip.setPixelColor(i, 0);
@@ -103,14 +111,28 @@ void ledRender(const FrameBuffer &f, uint8_t brightnessCap) {
     uint8_t r = resGamma8((uint8_t)(f.px[i][0] * s));
     uint8_t g = resGamma8((uint8_t)(f.px[i][1] * s));
     uint8_t b = resGamma8((uint8_t)(f.px[i][2] * s));
+    uint8_t w = 0;
     if (gIsRgbw) {
-      uint8_t w = resGamma8((uint8_t)(f.px[i][3] * s));
+      w = resGamma8((uint8_t)(f.px[i][3] * s));
       gStrip.setPixelColor(i, gStrip.Color(r, g, b, w));
     } else {
       gStrip.setPixelColor(i, gStrip.Color(r, g, b));
     }
+    if (r || g || b || w) {
+      sumR += r;
+      sumG += g;
+      sumB += b;
+      sumW += w;
+      ++lit;
+    }
   }
   gStrip.show();
+  gOutput.railOn = 1;
+  gOutput.r = lit ? (uint8_t)(sumR / lit) : 0;
+  gOutput.g = lit ? (uint8_t)(sumG / lit) : 0;
+  gOutput.b = lit ? (uint8_t)(sumB / lit) : 0;
+  gOutput.w = lit ? (uint8_t)(sumW / lit) : 0;
+  gOutput.litPixels = lit;
 }
 
 bool ledRailOnWithRamp(const FrameBuffer &f, uint8_t targetBrightness) {

@@ -50,6 +50,8 @@ RX_PEER = re.compile(
     r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
     r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?"
     r"(?: fcdim=(\d+) fclat=(\d+))?"
+    r"(?: prof=(\d+) life=(\d+) ptier=(\d+) prog=(\d+) nmin=(\d+))?"
+    r"(?: cls=(\d+) ledrail=(\d+) ledr=(\d+) ledg=(\d+) ledb=(\d+) ledw=(\d+) ledn=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -309,6 +311,18 @@ class SerialWorker(threading.Thread):
                 mppt50,
                 fcdim,
                 fclat,
+                profile,
+                life,
+                power_tier,
+                active_program,
+                night_min,
+                fixture_class,
+                led_rail_on,
+                led_r,
+                led_g,
+                led_b,
+                led_w,
+                led_lit_pixels,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -367,6 +381,18 @@ class SerialWorker(threading.Thread):
                 "field_discharge_mah": int(fcdis) if fcdis is not None else None,
                 "field_min_mv": int(fcmin) if fcmin is not None else None,
                 "field_max_mv": int(fcmax) if fcmax is not None else None,
+                "profile": int(profile) if profile is not None else None,
+                "life_state": int(life) if life is not None else None,
+                "power_tier": int(power_tier) if power_tier is not None else None,
+                "active_program": int(active_program) if active_program is not None else None,
+                "night_min": int(night_min) if night_min is not None else None,
+                "fixture_class": int(fixture_class) if fixture_class is not None else None,
+                "led_rail_on": bool(int(led_rail_on)) if led_rail_on is not None else None,
+                "led_r": int(led_r) if led_r is not None else None,
+                "led_g": int(led_g) if led_g is not None else None,
+                "led_b": int(led_b) if led_b is not None else None,
+                "led_w": int(led_w) if led_w is not None else None,
+                "led_lit_pixels": int(led_lit_pixels) if led_lit_pixels is not None else None,
                 "ts_utc": ts,
             }
             if bq16 is not None:
@@ -467,33 +493,75 @@ HTML = r"""<!doctype html>
 <title>net_bench dashboard</title>
 <style>
 :root {
-  color-scheme: light;
-  --bg: #f5f7f6;
-  --panel: #ffffff;
-  --ink: #17201c;
-  --muted: #65716b;
-  --line: #d7ded9;
-  --green: #14853f;
-  --red: #bd3030;
-  --amber: #b46b00;
-  --blue: #1769aa;
-  --soft-green: #e8f5ec;
-  --soft-red: #fae9e8;
-  --soft-amber: #fff3dc;
-  --soft-blue: #e8f1fa;
+  color-scheme: dark;
+  --bg: #0c1311;
+  --panel: #14201c;
+  --panel-raised: #192822;
+  --ink: #eef5f1;
+  --muted: #91a49b;
+  --line: #2c4037;
+  --green: #61d492;
+  --red: #ff6b68;
+  --amber: #f0bd62;
+  --blue: #70b7f0;
+  --soft-green: #183b2a;
+  --soft-red: #422321;
+  --soft-amber: #3b301d;
+  --soft-blue: #1b3446;
+  --cell-empty: #26362f;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); }
-main { max-width: 1320px; margin: 0 auto; padding: 18px; }
-header { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
-h1 { font-size: 22px; margin: 0; font-weight: 720; letter-spacing: 0; }
+main { max-width: 1440px; margin: 0 auto; padding: 22px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
 .status { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
 .pill { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 7px 10px; font-size: 13px; line-height: 1; }
-.ok { color: var(--green); background: var(--soft-green); border-color: #bbe2c6; }
-.bad { color: var(--red); background: var(--soft-red); border-color: #efc2bd; }
-.warn { color: var(--amber); background: var(--soft-amber); border-color: #f0d198; }
+.ok { color: var(--green); background: var(--soft-green); border-color: #35684b; }
+.bad { color: var(--red); background: var(--soft-red); border-color: #70403c; }
+.warn { color: var(--amber); background: var(--soft-amber); border-color: #69552e; }
+.fleet-overview { margin-bottom: 18px; }
+.fleet-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.fleet-title { margin: 0; font-size: 14px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.fleet-counts { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.fleet-counts strong { color: var(--ink); font-weight: 720; }
+.fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 8px; }
+.fixture-tile { position: relative; min-width: 0; height: 82px; padding: 7px 5px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; transition: border-color .14s ease, background .14s ease, opacity .14s ease, transform .14s ease; }
+.fixture-tile:hover { background: var(--panel-raised); border-color: #4d6c5e; transform: translateY(-1px); }
+.fixture-tile.selected { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.fixture-tile.attention { border-color: #85672f; }
+.fixture-tile.critical { border-color: #99504a; background: #251918; }
+.fixture-tile.late { opacity: .54; }
+.fixture-tile.silent { opacity: .28; filter: grayscale(.75); }
+.fixture-tile.panel-suspect::after { content: ""; position: absolute; inset: 0; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--red); pointer-events: none; }
+.fixture-glyph { position: relative; width: 44px; height: 55px; display: flex; justify-content: center; align-items: center; }
+.battery-orb { width: 36px; height: 36px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--battery-color) 78%, var(--ink)); background: linear-gradient(to top, var(--battery-color) 0 var(--battery-fill), var(--cell-empty) var(--battery-fill) 100%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.18); }
+.battery-orb::after { content: ""; position: absolute; width: 10px; height: 3px; border-radius: 3px; background: color-mix(in srgb, var(--battery-color) 72%, var(--ink)); left: 17px; top: 6px; }
+.power-source { position: absolute; right: -1px; top: 0; width: 18px; height: 18px; display: grid; place-items: center; z-index: 2; }
+.power-source svg { width: 16px; height: 16px; stroke-width: 2; fill: none; stroke: currentColor; }
+.power-source.solar { color: #ffd56e; filter: drop-shadow(0 0 4px rgba(255,213,110,.38)); }
+.power-source.usb { color: var(--blue); }
+.power-source.panel-missing { color: var(--red); }
+.light-foot { position: absolute; left: 6px; right: 6px; bottom: 0; height: 7px; border-radius: 50% 50% 5px 5px; background: var(--light-color); box-shadow: 0 -3px 12px var(--light-color); opacity: var(--light-on); }
+.fixture-id { font: 720 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .04em; }
+.fleet-empty { color: var(--muted); padding: 34px 0; grid-column: 1 / -1; text-align: center; }
+.selected-summary { margin-top: 10px; min-height: 42px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.selected-summary strong { color: var(--ink); }
+.selected-summary .summary-light { width: 12px; height: 12px; border-radius: 50%; background: var(--summary-light, var(--cell-empty)); box-shadow: 0 0 9px var(--summary-light, transparent); }
+.fleet-legend { display: flex; gap: 13px; flex-wrap: wrap; align-items: center; margin-top: 11px; color: var(--muted); font-size: 12px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend-battery { width: 13px; height: 13px; border-radius: 50%; display: inline-block; border: 1px solid currentColor; }
+.legend-battery.good { color: var(--green); background: var(--green); }
+.legend-battery.watch { color: var(--amber); background: linear-gradient(to top, var(--amber) 0 55%, var(--cell-empty) 55%); }
+.legend-battery.critical { color: var(--red); background: linear-gradient(to top, var(--red) 0 25%, var(--cell-empty) 25%); }
+.legend-source { width: 13px; height: 13px; border-radius: 50%; display: inline-block; background: #ffd56e; box-shadow: 0 0 5px rgba(255,213,110,.35); }
+.legend-light { width: 16px; height: 5px; border-radius: 5px; display: inline-block; background: linear-gradient(90deg, #e25757, #6cc98c, #6ba9e7); box-shadow: 0 0 5px #6ba9e7; }
+.legend-fade { width: 16px; height: 13px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); opacity: .4; }
+.diagnostics { border-top: 1px solid var(--line); padding-top: 4px; }
+.diagnostics > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; padding: 12px 2px; list-style-position: outside; }
+.diagnostics[open] > summary { color: var(--ink); }
 .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
 .span-3 { grid-column: span 3; }
@@ -520,8 +588,8 @@ h1 { font-size: 22px; margin: 0; font-weight: 720; letter-spacing: 0; }
 .section-title { font-size: 14px; color: var(--muted); margin: 0 0 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .peer-selector { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; }
 .peer-chip { min-height: 34px; padding: 0 11px; border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
-.peer-chip.active { background: var(--soft-blue); border-color: #9cc7e8; color: var(--blue); }
-.peer-chip.bad { background: var(--soft-red); border-color: #efc2bd; color: var(--red); }
+.peer-chip.active { background: var(--soft-blue); border-color: #477596; color: var(--blue); }
+.peer-chip.bad { background: var(--soft-red); border-color: #70403c; color: var(--red); }
 .peer-chip .chip-sub { color: var(--muted); font-weight: 600; }
 .env-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .env-cell { border: 1px solid var(--line); border-radius: 7px; padding: 10px; min-height: 78px; }
@@ -536,29 +604,29 @@ th, td { padding: 8px 7px; border-bottom: 1px solid var(--line); text-align: rig
 th:first-child, td:first-child { text-align: left; }
 th { color: var(--muted); font-weight: 700; font-size: 12px; }
 tr.peer-row { cursor: pointer; }
-tr.peer-row:hover { background: #f7faf8; }
-tr.peer-row.active-row { background: #edf6fc; }
+tr.peer-row:hover { background: var(--panel-raised); }
+tr.peer-row.active-row { background: var(--soft-blue); }
 .row-main { font-weight: 760; }
 .row-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
 .state-list { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 .state-tag { border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; font-size: 12px; color: var(--muted); }
-.state-tag.good { color: var(--green); border-color: #bbe2c6; background: var(--soft-green); }
-.state-tag.bad { color: var(--red); border-color: #efc2bd; background: var(--soft-red); }
-.state-tag.warn { color: var(--amber); border-color: #f0d198; background: var(--soft-amber); }
+.state-tag.good { color: var(--green); border-color: #35684b; background: var(--soft-green); }
+.state-tag.bad { color: var(--red); border-color: #70403c; background: var(--soft-red); }
+.state-tag.warn { color: var(--amber); border-color: #69552e; background: var(--soft-amber); }
 .controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-button, input { font: inherit; border-radius: 7px; border: 1px solid var(--line); background: #fff; color: var(--ink); min-height: 38px; }
+button, input { font: inherit; border-radius: 7px; border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink); min-height: 38px; }
 button { cursor: pointer; font-weight: 700; }
-button:hover { border-color: #9aaba1; background: #f9fbfa; }
-button:disabled { cursor: not-allowed; opacity: .45; background: #f3f5f4; }
-button.primary { background: var(--soft-blue); border-color: #b8d5ec; color: var(--blue); }
-button.warn { background: var(--soft-amber); border-color: #f0d198; color: var(--amber); }
-button.danger { background: var(--soft-red); border-color: #efc2bd; color: var(--red); }
+button:hover { border-color: #4d6c5e; background: #203129; }
+button:disabled { cursor: not-allowed; opacity: .45; background: #111a17; }
+button.primary { background: var(--soft-blue); border-color: #477596; color: var(--blue); }
+button.warn { background: var(--soft-amber); border-color: #69552e; color: var(--amber); }
+button.danger { background: var(--soft-red); border-color: #70403c; color: var(--red); }
 input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
 .maintain { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; margin-top: 8px; }
 .command-status { border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; margin: 0 0 10px; min-height: 38px; font-size: 13px; }
-.history { height: 168px; overflow: auto; background: #111814; color: #dbe8df; border-radius: 7px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+.history { height: 168px; overflow: auto; background: #08100d; color: #dbe8df; border-radius: 7px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.45; }
 .history div { white-space: pre-wrap; overflow-wrap: anywhere; }
-.signal { width: 100%; height: 8px; background: #edf1ef; border-radius: 999px; overflow: hidden; }
+.signal { width: 100%; height: 8px; background: var(--cell-empty); border-radius: 999px; overflow: hidden; }
 .signal > span { display: block; height: 100%; background: linear-gradient(90deg, #bd3030, #b46b00, #14853f); }
 .spark { height: 76px; width: 100%; display: block; }
 .empty { color: var(--muted); padding: 18px 0; }
@@ -569,14 +637,21 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
   .span-3, .span-4, .span-5, .span-7, .span-8 { grid-column: span 12; }
   .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media (max-width: 520px) {
+  .fleet-head { align-items: start; flex-direction: column; gap: 6px; }
+  .fleet-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 6px; }
+  .fixture-tile { height: 78px; }
+  .fleet-counts { gap: 9px; }
+  .selected-summary { gap: 8px 12px; }
+}
 </style>
 </head>
 <body>
 <main>
   <header>
     <div>
-      <h1>net_bench solar bridge</h1>
-      <div class="sub" id="subtitle">Waiting for telemetry</div>
+      <h1>Resonance fleet</h1>
+      <div class="sub" id="subtitle">Waiting for the first fixture</div>
     </div>
     <div class="status">
       <span class="pill" id="serialPill">serial</span>
@@ -585,6 +660,31 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
     </div>
   </header>
 
+  <section class="fleet-overview" aria-labelledby="fleetHeading">
+    <div class="fleet-head">
+      <h2 class="fleet-title" id="fleetHeading">Light health</h2>
+      <div class="fleet-counts" id="fleetCounts" aria-live="polite">
+        <span><strong>0</strong> seen</span>
+      </div>
+    </div>
+    <div class="fleet-grid" id="fleetGrid">
+      <div class="fleet-empty">Listening for ESP-NOW heartbeats...</div>
+    </div>
+    <div class="selected-summary" id="selectedSummary">
+      Select a light to see its exact voltage, link age, power source, and rendered color.
+    </div>
+    <div class="fleet-legend" aria-label="Fleet glyph legend">
+      <span class="legend-item"><i class="legend-battery good"></i> battery healthy</span>
+      <span class="legend-item"><i class="legend-battery watch"></i> battery watch</span>
+      <span class="legend-item"><i class="legend-battery critical"></i> battery critical</span>
+      <span class="legend-item"><i class="legend-source"></i> charging input</span>
+      <span class="legend-item"><i class="legend-light"></i> rendered light color</span>
+      <span class="legend-item"><i class="legend-fade"></i> late heartbeat</span>
+    </div>
+  </section>
+
+  <details class="diagnostics">
+  <summary>Bench details and controls</summary>
   <nav class="peer-selector" id="peerSelector" aria-label="Peer focus"></nav>
 
   <section class="grid">
@@ -719,6 +819,7 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
       <div class="history" id="rawLog"></div>
     </div>
   </section>
+  </details>
 </main>
 
 <script>
@@ -754,6 +855,177 @@ function msAge(ms) {
 }
 function freshPeer(peer) {
   return peer && Number(peer.age_ms) < 5000;
+}
+const FIXTURE_CLASS = {0: "unknown", 1: "downlight", 2: "perimeter", 3: "trunk", 4: "chandelier"};
+const LIFE_STATE = {0: "boot", 1: "day charge", 2: "day active", 3: "night show", 4: "commission"};
+const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
+const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback"};
+
+function compactPeerIds(peers) {
+  const groups = new Map();
+  peers.forEach(p => {
+    const suffix = p.id.slice(-2);
+    if (!groups.has(suffix)) groups.set(suffix, []);
+    groups.get(suffix).push(p.id);
+  });
+  const labels = new Map();
+  groups.forEach((ids, suffix) => {
+    ids.sort().forEach((id, index) => {
+      labels.set(id, ids.length === 1 ? suffix : `${suffix}-${index + 1}`);
+    });
+  });
+  return labels;
+}
+
+function compensatedBatteryV(peer) {
+  if (!peer || !finite(peer.battery_v)) return null;
+  const drawA = finite(peer.battery_ma) ? Math.max(0, -Number(peer.battery_ma) / 1000) : 0;
+  return Number(peer.battery_v) + 0.15 * drawA;
+}
+
+function batteryVisual(peer) {
+  const v = compensatedBatteryV(peer);
+  if (!finite(v) || Number(v) < 0.5) return {name: "unknown", color: "#66786f", fill: 12, v: null};
+  if (v >= 3.10) return {name: "healthy", color: "#61d492", fill: 100, v};
+  if (v >= 3.00) return {name: "watch", color: "#f0bd62", fill: 55 + (v - 3.00) * 450, v};
+  if (v >= 2.95) return {name: "low", color: "#ed8d55", fill: 30 + (v - 2.95) * 500, v};
+  return {name: "critical", color: "#ff6b68", fill: Math.max(8, Math.min(30, (v - 2.70) * 88)), v};
+}
+
+function expectedHeartbeatMs(peer) {
+  if (Number(peer.profile) === 0) return 1000;
+  if (Number(peer.profile) === 1) {
+    if (Number(peer.power_tier) === 3) return 900000;
+    if (Number(peer.life_state) === 1) return 315000;
+    return 5000;
+  }
+  return 1000;
+}
+
+function heartbeatState(peer) {
+  const ageMs = Number(peer.age_ms || 0);
+  const expected = expectedHeartbeatMs(peer);
+  if (ageMs <= Math.max(2500, expected * 2.4)) return "live";
+  if (ageMs <= Math.max(9000, expected * 3.1)) return "late";
+  return "silent";
+}
+
+function panelExpected(peer) {
+  return [1, 2, 3].includes(Number(peer.fixture_class));
+}
+
+function daylightConsensus(peers) {
+  const solar = peers.filter(p => panelExpected(p) && heartbeatState(p) !== "silent" && finite(p.supply_v));
+  if (!solar.length) return false;
+  const powered = solar.filter(p => p.supply_good === true && Number(p.supply_v) >= 4.0).length;
+  return powered >= Math.max(1, Math.ceil(solar.length * .35));
+}
+
+function displayedLight(peer) {
+  if (peer.led_rail_on !== true || !finite(peer.led_lit_pixels) || Number(peer.led_lit_pixels) < 1)
+    return {on: false, r: 0, g: 0, b: 0};
+  const w = finite(peer.led_w) ? Number(peer.led_w) : 0;
+  return {
+    on: true,
+    r: Math.min(255, Number(peer.led_r || 0) + w),
+    g: Math.min(255, Number(peer.led_g || 0) + w),
+    b: Math.min(255, Number(peer.led_b || 0) + w)
+  };
+}
+
+function sunIcon(missing = false) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"></path>${missing ? '<path d="M4 4l16 16"></path>' : ''}</svg>`;
+}
+
+function plugIcon() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v6M16 3v6M6 9h12v2a6 6 0 0 1-6 6v4M9 21h6"></path></svg>`;
+}
+
+function powerSource(peer, daylight) {
+  const panelMissing = daylight && panelExpected(peer) && peer.supply_good !== true;
+  if (panelMissing) return {kind: "panel-missing", label: "panel input missing", icon: sunIcon(true), suspect: true};
+  if (peer.supply_good !== true || !finite(peer.supply_v) || Number(peer.supply_v) < 4.0)
+    return {kind: "none", label: "no active input", icon: "", suspect: false};
+  if (panelExpected(peer)) return {kind: "solar", label: "panel-class input active", icon: sunIcon(false), suspect: false};
+  return {kind: "usb", label: "external / USB input active", icon: plugIcon(), suspect: false};
+}
+
+function fleetHealth(peer, daylight) {
+  const battery = batteryVisual(peer);
+  const heartbeat = heartbeatState(peer);
+  const source = powerSource(peer, daylight);
+  const critical = battery.name === "critical" || Number(peer.power_tier) >= 2 ||
+    Number(peer.maint_status) === 3 || Number(peer.bq_fault0 || 0) !== 0;
+  const attention = critical || battery.name === "low" || battery.name === "watch" ||
+    source.suspect || Number(peer.maint_status) === 2;
+  return {battery, heartbeat, source, critical, attention};
+}
+
+function renderFleet(peers, selectedId) {
+  const labels = compactPeerIds(peers);
+  const daylight = daylightConsensus(peers);
+  const health = new Map(peers.map(p => [p.id, fleetHealth(p, daylight)]));
+  let healthy = 0, attention = 0, silent = 0, powered = 0;
+  peers.forEach(p => {
+    const h = health.get(p.id);
+    if (h.heartbeat === "silent") silent++;
+    else if (h.attention) attention++;
+    else healthy++;
+    if (p.supply_good === true) powered++;
+  });
+  document.getElementById("fleetCounts").innerHTML = peers.length
+    ? `<span><strong>${peers.length}</strong> seen</span><span><strong>${healthy}</strong> healthy</span>` +
+      `<span><strong>${attention}</strong> attention</span><span><strong>${silent}</strong> silent</span>` +
+      `<span><strong>${powered}</strong> powered</span>`
+    : `<span><strong>0</strong> seen</span>`;
+  document.getElementById("fleetGrid").innerHTML = peers.length ? peers.map(peer => {
+    const h = health.get(peer.id);
+    const light = displayedLight(peer);
+    const classes = ["fixture-tile"];
+    if (peer.id === selectedId) classes.push("selected");
+    if (h.critical) classes.push("critical");
+    else if (h.attention) classes.push("attention");
+    if (h.heartbeat === "late") classes.push("late");
+    if (h.heartbeat === "silent") classes.push("silent");
+    if (h.source.suspect) classes.push("panel-suspect");
+    const lightColor = light.on ? `rgb(${light.r},${light.g},${light.b})` : "transparent";
+    const ageText = msAge(peer.age_ms);
+    const voltageText = finite(peer.battery_v) ? `${fmt(peer.battery_v, 3)} V` : "battery unknown";
+    const label = `${peer.id}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ${h.source.label}, ` +
+      `${light.on ? `light ${light.r} ${light.g} ${light.b}` : "light off"}`;
+    const sourceMarkup = h.source.icon
+      ? `<span class="power-source ${h.source.kind}">${h.source.icon}</span>` : "";
+    return `<button type="button" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
+      `<span class="fixture-glyph" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--light-color:${lightColor};--light-on:${light.on ? 1 : 0}">` +
+      `${sourceMarkup}<span class="battery-orb"></span><span class="light-foot"></span></span>` +
+      `<span class="fixture-id">${esc(labels.get(peer.id))}</span></button>`;
+  }).join("") : `<div class="fleet-empty">Listening for ESP-NOW heartbeats...</div>`;
+  document.querySelectorAll("[data-fleet-id]").forEach(tile => {
+    tile.addEventListener("click", () => setFocus(tile.dataset.fleetId));
+  });
+
+  const selected = peers.find(p => p.id === selectedId);
+  if (!selected) {
+    document.getElementById("selectedSummary").innerHTML = peers.length
+      ? `Select a light for exact voltage, link age, source, and output. Colliding two-digit MAC suffixes gain -1, -2, and so on.`
+      : `Select a light to see its exact voltage, link age, power source, and rendered color.`;
+    return;
+  }
+  const h = health.get(selected.id);
+  const light = displayedLight(selected);
+  const lightColor = light.on ? `rgb(${light.r},${light.g},${light.b})` : "#26362f";
+  const comp = compensatedBatteryV(selected);
+  const cls = FIXTURE_CLASS[selected.fixture_class] || "unknown";
+  const life = LIFE_STATE[selected.life_state] || "unknown state";
+  const tier = POWER_TIER[selected.power_tier] || "unknown tier";
+  const program = PROGRAM[selected.active_program] || "unknown program";
+  document.getElementById("selectedSummary").innerHTML =
+    `<span class="summary-light" style="--summary-light:${lightColor}"></span>` +
+    `<strong>${esc(selected.id)}</strong><span>${esc(cls)}</span>` +
+    `<span>${fmt(selected.battery_v, 3)} V${finite(comp) ? ` (${fmt(comp, 3)} V load-comp)` : ""}</span>` +
+    `<span>${selected.battery_ma ?? "--"} mA</span><span>${esc(h.source.label)}</span>` +
+    `<span>heard ${msAge(selected.age_ms)} ago</span><span>${esc(life)} / ${esc(tier)} / ${esc(program)}</span>` +
+    `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : "light off"}</span>`;
 }
 function sortedPeers(s) {
   return Object.values(s.peers || {}).sort((a, b) => a.id.localeCompare(b.id));
@@ -947,6 +1219,7 @@ function render(s) {
   const historyKey = effectiveFocus;
   clearHistoryIfNeeded(historyKey);
   renderPeerSelector(rows, effectiveFocus);
+  renderFleet(rows, selected ? selected.id : null);
   const commandPeer = commandTargetPeer();
   ["peerMaintBtn", "capacityBtn", "chargeBtn", "solenoidBtn", "napBtn"].forEach(id => {
     const el = document.getElementById(id);
@@ -964,13 +1237,12 @@ function render(s) {
   if (rows.length) {
     const panelCount = rows.filter(hasPanel).length;
     const supplyGood = rows.filter(p => freshPeer(p) && p.supply_good).length;
-    document.getElementById("subtitle").textContent = selected
-      ? `Peer ${selected.id} data age ${msAge(selected.age_ms)}, ${s.serial.lines} serial lines`
-      : `${rows.length} peers, ${rows.filter(freshPeer).length} fresh, ${panelCount} panel source, ${s.serial.lines} serial lines`;
-    document.getElementById("peerPill").textContent = selected
-      ? (freshPeer(selected) ? `peer ${selected.id}` : `stale ${msAge(selected.age_ms)}`)
-      : `${freshVisible.length}/${visiblePeers.length} peers fresh`;
-    document.getElementById("peerPill").className = (selected ? freshPeer(selected) : freshVisible.length > 0) ? "pill ok" : "pill bad";
+    const liveCount = rows.filter(p => heartbeatState(p) === "live").length;
+    const silentCount = rows.filter(p => heartbeatState(p) === "silent").length;
+    document.getElementById("subtitle").textContent =
+      `${rows.length} lights seen on channel ${s.master?.channel ?? "--"}; ${s.serial.lines} bridge lines`;
+    document.getElementById("peerPill").textContent = `${liveCount}/${rows.length} on time`;
+    document.getElementById("peerPill").className = silentCount ? "pill bad" : (liveCount === rows.length ? "pill ok" : "pill warn");
     document.getElementById("chargePill").textContent = supplyGood ? `${supplyGood} charger good` : "no charger good";
     document.getElementById("chargePill").className = supplyGood ? "pill ok" : "pill warn";
   } else {

@@ -44,7 +44,8 @@ int main() {
   // The net_bench-era struct ended here: a fixture hb-full truncated at
   // `profile` is byte-identical to a maxed-out bench heartbeat.
   CHECK_EQ(offsetof(NbHeartbeat, profile), 142u); // tail 13 (fixture era)
-  CHECK_EQ(sizeof(NbHeartbeat), 148u);
+  CHECK_EQ(offsetof(NbHeartbeat, fixture_class), 148u); // tail 14 (dashboard)
+  CHECK_EQ(sizeof(NbHeartbeat), 155u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
@@ -68,8 +69,11 @@ int main() {
   CHECK(NB_HAS_HB_FIELD((int)NB_HB_SHORT_LEN, supply_good));
   CHECK(!NB_HAS_HB_FIELD((int)NB_HB_SHORT_LEN, lux_x10));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), night_min));
+  CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), led_lit_pixels));
   // A legacy 142 B bench heartbeat fails the tail-13 gate.
   CHECK(!NB_HAS_HB_FIELD(142, profile));
+  // A pre-dashboard 148 B fixture heartbeat fails the new tail-14 gate.
+  CHECK(!NB_HAS_HB_FIELD(148, fixture_class));
 
   // Targeting convention.
   uint8_t me[3] = {0xF2, 0xBF, 0xA0};
