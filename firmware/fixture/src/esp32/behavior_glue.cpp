@@ -129,12 +129,15 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
       {255, 0, 0},   {255, 96, 0},  {255, 200, 0}, {128, 255, 0},
       {0, 255, 0},   {0, 255, 128}, {0, 255, 255}, {0, 128, 255},
       {0, 0, 255},   {128, 0, 255}, {255, 0, 255}, {255, 0, 128}};
-  if (now % 5000 < 400) {
+  // 10 s period, 300 ms, half intensity: ten UNSYNCED lights at 5 s/full
+  // blast read as one continuous strobe across the bench (Elliot 19:30:
+  // "everything is flashing super fast") — calmer cadence, same identity.
+  if (now % 10000 < 300) {
     uint8_t h = (uint8_t)((gMyId[0] * 7 + gMyId[1] * 13 + gMyId[2] * 31) % 12);
     for (uint16_t i = 0; i < f.count; i++) {
-      f.px[i][0] = PAL[h][0];
-      f.px[i][1] = PAL[h][1];
-      f.px[i][2] = PAL[h][2];
+      f.px[i][0] = PAL[h][0] >> 1;
+      f.px[i][1] = PAL[h][1] >> 1;
+      f.px[i][2] = PAL[h][2] >> 1;
     }
   } else {
     for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 24;
