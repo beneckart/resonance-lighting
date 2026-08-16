@@ -66,7 +66,7 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --port /dev/ttyACM0      # USB flash
 ./build.sh --ota <ip>               # OTA via POST /update
 ./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
-./build.sh --channel 11 --profile prod
+./build.sh --channel 11 --profile commission
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
@@ -145,14 +145,32 @@ or the historical channel-6 fallback to the compiled channel (11 for production)
 once, while preserving any other explicit lab channel. Later `H<1..13>` choices
 are marked current and remain persistent.
 
-## Dev vs prod profile
+## Commission vs field profile
 
-Dev (default in this image, `RES_PROFILE_DEFAULT`): no daytime deep sleep,
-1 Hz heartbeats, 60 s dusk/dawn confirms, solenoid surplus-gate relaxed.
-Prod: 300 s/15 s day-charge duty cycle (energy-gated: any solar/USB surplus
-keeps the radio fully awake), 0.2 Hz hb-short, 30 min dusk confirm.
-PROTECT behavior is identical in both -- dev cannot weaken battery protection.
-Flip fleet-wide via `NB_PROFILE` (type 21) or per-unit serial `F`.
+`PROFILE_DEV=0` retains its wire/NVS value for compatibility but is now the
+operator-facing **commission** profile. It is the pre-build/build-week posture:
+the ESP-NOW control plane stays awake, heartbeats run at 1 Hz, solar current does
+not trigger a lifecycle transition, and bridge command leases are the only
+artistic authority. No command (or a stale/expired command) means electrically
+dark with the LED rail off -- never an automatic CA fallback. A genuinely
+critical battery still parks all loads; its commission-mode retry is 60 s, and a
+verified external source keeps the parked control plane awake for service.
+
+`PROFILE_PROD=1` is the operator-facing **field** profile: 300 s/15 s day-charge
+duty cycle (energy-gated), 0.2 Hz hb-short, scheduled/autonomous behavior, and the
+normal 900 s PROTECT sleep. Local power and solenoid safety vetoes are identical
+in both profiles; commission changes reachability and fallback behavior, not load
+safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
+`F1` field). New build flags accept `--profile commission|field`; `dev|prod` remain
+compatibility aliases.
+
+Maintenance exit clears the ESP-NOW receive queue before reinitialization, so a
+queued maintenance command cannot replay after `/resume`. If radio initialization
+fails during the WiFi-to-ESP-NOW transition, the fixture remains in COMMS posture
+and retries once per second until `espnow_up=true`. Telemetry exposes
+`espnow_up`, `comms_init_attempts`, `comms_init_failures`, `led_rail_on`, and
+`smoke_render` so an operator can distinguish radio recovery, command receipt,
+power veto, and physical LED output.
 
 ## OTA rollback
 
@@ -172,7 +190,7 @@ to install the current bootloader config (the M1 fleet reflash provides it).
       PROTECT survives POR/WDT/SW reset; compound release only; retry once
 - [ ] OTA good-image valid + fail-selftest auto-revert on battery
 - [ ] GH wave on the 2x10 rig via pinned adjacency (RSSI-mode A/B for the record)
-- [ ] bridge lease grant/expiry fallback <= 5 s, no blank frames
-- [ ] dev time-to-maintenance <= 10 s; prod worst case one sleep period
+- [ ] commission bridge lease grant plus command-loss hard dark/rail-off <= 5 s
+- [ ] commission time-to-maintenance <= 10 s; field worst case one sleep period
 - [ ] 24 h outdoor prod soak: dusk, bounded night (set night_max low to prove
       it fires), dawn, maintenance reachable in every state, night strike refused

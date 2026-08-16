@@ -3,11 +3,12 @@
 // smooth fallback, power veto applied by the caller. Pure/native.
 //
 // Registry:
-//   0 = PROG_IDLE         class-tinted slow breathe (fallback look, never blank)
+//   0 = PROG_IDLE         class-tinted slow breathe (field-selectable look)
 //   1 = PROG_GH_CA        Greenberg-Hastings excitable media (the one real CA)
 //   2 = PROG_BRIDGE_SHOW  NbShowFrame consumer (DJ/bench multicast)
 //   3 = PROG_DIRECT       NbDirectFrame consumer (cambium browser-sim streaming)
-//   4+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
+//   4 = PROG_COMMISSION_DARK safe dark/listening commissioning fallback
+//   5+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
 #pragma once
 
 #include <stdint.h>
@@ -18,7 +19,8 @@
 #define PROG_GH_CA 1
 #define PROG_BRIDGE_SHOW 2
 #define PROG_DIRECT 3
-#define PROG_COUNT 4
+#define PROG_COMMISSION_DARK 4
+#define PROG_COUNT 5
 
 // Latest bridge show frame, as received (staleness judged by the runtime).
 struct ShowFrameState {
@@ -77,7 +79,8 @@ struct ChoreoLease {
 
 class ChoreoRuntime {
 public:
-  void init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed);
+  void init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed,
+            uint8_t autonomousProgram = PROG_GH_CA);
   // Bridge NB_PROGRAM_SET: returns false on unknown program (fails closed).
   bool applyProgramSet(uint8_t programId, uint16_t leaseS, uint32_t seed,
                        uint8_t flags, const uint8_t params[8], uint32_t nowMs);
@@ -86,6 +89,9 @@ public:
   // A DirectFrame naming us; flags bit0 grants the same 10 s micro-lease.
   void noteDirectFrame(const DirectFrameState &f, uint32_t nowMs);
   void tick(const ProgramInputs &in, ProgramOutputs &out);
+  // Profile flips change only the fallback. An active bridge lease remains
+  // authoritative until release/expiry; otherwise switch immediately.
+  bool setAutonomousProgram(uint8_t programId, uint32_t nowMs, bool hardCut);
 
   uint8_t activeProgram() const { return mActive; }
   bool leaseActive() const { return mLease.active; }

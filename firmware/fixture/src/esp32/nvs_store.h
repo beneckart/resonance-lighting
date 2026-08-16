@@ -19,7 +19,7 @@ struct FixtureConfig {
   uint16_t chargeMa;    // charger current cap (G command)
   uint8_t classOvr;     // FixtureClass; 0 = auto (probe)
   uint8_t classLast;    // last accepted probe result (downgrade fallback)
-  uint8_t profile;      // FixtureProfile (dev/prod)
+  uint8_t profile;      // FixtureProfile (commission/field; values stay 0/1)
   uint8_t battTier;     // 0 = 32700 6Ah thresholds, 1 = 33140 15Ah (pending qual)
   uint8_t solEn;        // solenoid armed (replaces -DNB_SOLENOID_D7)
   uint8_t maintV10;     // VINDPM/maintain voltage x10 (46 = 4.6 V)

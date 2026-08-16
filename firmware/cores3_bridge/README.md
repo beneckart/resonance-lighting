@@ -21,6 +21,8 @@ The bridge:
   identify, rate, charger settings, sleep/park, drawdown, and solenoid strike;
 - accepts `i<fixture-id>:<seconds>` for an exact 1-255 second fixture locator
   (`iF40268:60`), while bare `i` retains next-peer cycling;
+- accepts `F0` / `F1` to persistently place all reachable fixtures in
+  commission / field profile, or `F<fixture-id>:0|1` for one fixture;
 - shows bridge health and fresh fixtures on the built-in screen using a
   PSRAM-backed framebuffer so periodic updates do not visibly blink.
 
@@ -126,7 +128,7 @@ python ../../ops/bench/net_bench_dashboard.py --port COM40
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-10.1 ===
+=== Resonance net-bench cores3-bridge-2026-08-15.1 ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
 ```

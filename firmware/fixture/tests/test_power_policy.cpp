@@ -140,6 +140,9 @@ int main() {
     bool released = false;
     for (int i = 0; i < 61; i++) {
       b = powerPolicyTick(st, sample(t += 1000, 3.15f, 150, true, 300), c);
+      // The release needs 60 s, so qualified recovery must suppress the normal
+      // PROTECT sleep throughout the streak or it can never finish.
+      if (!b.protect_released) CHECK(!b.must_sleep);
       if (b.protect_released) {
         CHECK(!released); // exactly once
         released = true;

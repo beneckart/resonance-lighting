@@ -319,7 +319,7 @@ static void processPacket(const RxItem &it) {
       gCfg.profile = p->profile; // RAM-only until reboot
     }
     Serial.printf("profile -> %s (%s)\n",
-                  p->profile == PROFILE_DEV ? "dev" : "prod",
+                  p->profile == PROFILE_DEV ? "commission" : "field",
                   (p->flags & 0x01) ? "persisted" : "until reboot");
     break;
   }

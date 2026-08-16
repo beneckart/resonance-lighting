@@ -25,9 +25,10 @@ inline const char *fixtureClassName(uint8_t c) {
 }
 
 // Runtime profile (NVS `profile`, flipped live by NB_PROFILE / serial 'F').
-// Dev favors reachability and flash turnaround on the bringup bench; prod
-// favors energy. PROTECT behavior is identical in both -- dev must not be able
-// to weaken battery protection.
+// PROFILE_DEV is wire/NVS-stable but is the operator-facing COMMISSION mode:
+// bridge-commanded, continuously reachable, and dark when command leases end.
+// PROFILE_PROD is the autonomous, energy-managed field posture. Neither profile
+// can bypass the local LED/solenoid power veto.
 enum FixtureProfile : uint8_t {
   PROFILE_DEV = 0,
   PROFILE_PROD = 1,

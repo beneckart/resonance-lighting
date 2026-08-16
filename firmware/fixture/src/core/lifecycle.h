@@ -1,8 +1,8 @@
 // Day/night lifecycle (milestone 1): pure transitions, supply-based dusk/dawn
 // (production classes carry no lux sensor -- TSL2591 was bench-only), bounded
-// night (the 13-15 h no-lux artifact fix), and the dev-friendly energy-gated
+// night (the 13-15 h no-lux artifact fix), and field energy-gated
 // wakefulness: a fixture with solar/USB surplus is always instantly reachable;
-// duty-cycling only happens on true battery deficit in the prod profile.
+// duty-cycling only happens on true battery deficit in the field profile.
 // ADR 0031's scheduled-UTC gate replaces the dusk heuristic in M2 via the same
 // inputs (the TimePhase seam feeds `forceNight`).
 #pragma once
@@ -14,6 +14,7 @@ enum LifeState : uint8_t {
   LIFE_DAY_CHARGE = 1, // day, no surplus: prod duty-cycles the radio
   LIFE_DAY_ACTIVE = 2, // day, surplus: fully awake, strikes permitted
   LIFE_NIGHT_SHOW = 3, // program runtime drives the LEDs (power veto applies)
+  LIFE_COMMISSION = 4, // bridge-commanded runtime; no solar/autonomous transition
 };
 
 struct LifeConfig {
@@ -27,7 +28,8 @@ struct LifeConfig {
   float deficitBattV;         // and must be below this to leave ACTIVE (3.30)
   uint16_t nightMaxMin;       // bounded night force-exit (630)
   uint16_t daySleepS;         // prod DAY_CHARGE sleep period (300)
-  bool devNoSleep;            // dev profile: never day-sleep
+  bool devNoSleep;            // commissioning: never take lifecycle day-sleep
+  bool commissioning;         // command-only; no dusk/dawn/autonomous lifecycle
 };
 
 LifeConfig lifeConfigDefaults(bool devProfile);

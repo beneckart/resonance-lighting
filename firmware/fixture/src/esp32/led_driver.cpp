@@ -52,8 +52,15 @@ static void stripBegin() {
 }
 
 bool ledRailOn() {
-  pinMode(RES_LED_DATA_PIN, OUTPUT);
-  digitalWrite(RES_LED_DATA_PIN, LOW);
+  // Before the first show(), GPIO owns the pin and boot parking keeps it LOW.
+  // After the first show(), Adafruit_NeoPixel's ESP32 backend owns GPIO10 via
+  // RMT and leaves its EOT level LOW. Do NOT call pinMode() again: Arduino-ESP32
+  // 3.x's peripheral manager would detach RMT, while Adafruit_NeoPixel caches
+  // the same rmtPin and would not reinitialize it on the next show().
+  if (!gBegun) {
+    pinMode(RES_LED_DATA_PIN, OUTPUT);
+    digitalWrite(RES_LED_DATA_PIN, LOW);
+  }
   if (!railEnable3V3(true)) {
     railEnable3V3(false);
     return false;
@@ -74,10 +81,12 @@ void ledRailOff() {
   if (gBegun) {
     gStrip.setBrightness(255);
     gStrip.clear();
-    gStrip.show(); // pixels latch: explicit all-off BEFORE the rail cut
+    gStrip.show(); // latches all-off and leaves RMT EOT LOW before rail cut
+  } else {
+    // RMT has never claimed the pin, so a plain GPIO park is safe here.
+    pinMode(RES_LED_DATA_PIN, OUTPUT);
+    digitalWrite(RES_LED_DATA_PIN, LOW);
   }
-  pinMode(RES_LED_DATA_PIN, OUTPUT);
-  digitalWrite(RES_LED_DATA_PIN, LOW);
   railEnable3V3(false);
   gRailOn = false;
 }

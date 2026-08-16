@@ -4,6 +4,7 @@ Program *newProgIdle();
 Program *newProgGhCa();
 Program *newProgBridge();
 Program *newProgDirect();
+Program *newProgCommissionDark();
 
 Program *ChoreoRuntime::byId(uint8_t id) {
   switch (id) {
@@ -11,15 +12,17 @@ Program *ChoreoRuntime::byId(uint8_t id) {
   case PROG_GH_CA: return newProgGhCa();
   case PROG_BRIDGE_SHOW: return newProgBridge();
   case PROG_DIRECT: return newProgDirect();
+  case PROG_COMMISSION_DARK: return newProgCommissionDark();
   default: return nullptr;
   }
 }
 
-void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
+void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed,
+                         uint8_t autonomousProgram) {
   mClass = fixtureClass;
   mPixels = pixelCount;
   mSeed = seed ? seed : 1;
-  mAutonomous = PROG_GH_CA; // class default (M1: every class runs GH at night)
+  mAutonomous = byId(autonomousProgram) ? autonomousProgram : PROG_GH_CA;
   mActive = mAutonomous;
   mLease = {};
   mFading = false;
@@ -28,6 +31,15 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
   byId(PROG_GH_CA)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_BRIDGE_SHOW)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
+  byId(PROG_COMMISSION_DARK)->reset(mSeed, noParams, mClass, mPixels);
+}
+
+bool ChoreoRuntime::setAutonomousProgram(uint8_t programId, uint32_t nowMs,
+                                         bool hardCut) {
+  if (!byId(programId)) return false;
+  mAutonomous = programId;
+  if (!mLease.active) selectAutonomous(nowMs, hardCut);
+  return true;
 }
 
 bool ChoreoRuntime::applyProgramSet(uint8_t programId, uint16_t leaseS, uint32_t seed,
@@ -85,9 +97,13 @@ void ChoreoRuntime::noteDirectFrame(const DirectFrameState &f, uint32_t nowMs) {
   if (mActive != PROG_DIRECT) {
     static const uint8_t noParams[8] = {};
     byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
-    mPrev = mActive;
-    mFadeStartMs = nowMs;
-    mFading = true;
+    if (f.flags & 0x02) {
+      mFading = false;
+    } else {
+      mPrev = mActive;
+      mFadeStartMs = nowMs;
+      mFading = true;
+    }
     mActive = PROG_DIRECT;
   }
   mLease.active = true;
@@ -117,7 +133,7 @@ void ChoreoRuntime::tick(const ProgramInputs &in, ProgramOutputs &out) {
   // Lease expiry -> smooth return to autonomy (never freeze, never blank).
   if (mLease.active && (int32_t)(in.nowMs - mLease.deadlineMs) >= 0) {
     mLease = {};
-    selectAutonomous(in.nowMs, false);
+    selectAutonomous(in.nowMs, mAutonomous == PROG_COMMISSION_DARK);
   }
   // ShowFrame staleness inside a bridge lease: >3 s silent -> autonomous even
   // though the lease clock is still running.
@@ -125,13 +141,13 @@ void ChoreoRuntime::tick(const ProgramInputs &in, ProgramOutputs &out) {
       (in.showFrame->rxMs == 0 ||
        in.nowMs - in.showFrame->rxMs > RES_SHOWFRAME_STALE_MS)) {
     mLease = {};
-    selectAutonomous(in.nowMs, false);
+    selectAutonomous(in.nowMs, mAutonomous == PROG_COMMISSION_DARK);
   }
   // DirectFrame staleness inside a direct lease: same >3 s ladder.
   if (mActive == PROG_DIRECT &&
       (mDirect.rxMs == 0 || in.nowMs - mDirect.rxMs > RES_SHOWFRAME_STALE_MS)) {
     mLease = {};
-    selectAutonomous(in.nowMs, false);
+    selectAutonomous(in.nowMs, mAutonomous == PROG_COMMISSION_DARK);
   }
 
   // ProgDirect reads its target from runtime-owned storage (net_peer owns the

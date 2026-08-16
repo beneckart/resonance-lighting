@@ -32,6 +32,9 @@ uint8_t maintStatus();
 
 bool enterMaintenance(); // loads off -> ESP-NOW down -> WiFi join -> serve OTA
 void enterComms();       // WiFi down -> STA unassociated on channel -> ESP-NOW up
+void commsRecoveryTick(); // retry a failed ESP-NOW init without losing USB service
+uint32_t commsInitAttempts();
+uint32_t commsInitFailures();
 bool maintenancePowerOk();
 
 // Loop tick while in MODE_MAINT: serves HTTP, honors /resume, auto-resumes

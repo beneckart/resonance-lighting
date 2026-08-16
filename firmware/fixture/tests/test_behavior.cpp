@@ -118,7 +118,7 @@ int main() {
     CHECK(neighborUpsert(t, strongNew, 1002, -50) != nullptr); // >6 dB: evicts
   }
 
-  // --- lifecycle: dusk/dawn, bounded night, energy gating, dev posture ------
+  // --- lifecycle: dusk/dawn, bounded night, energy gating, commissioning ----
   {
     LifeConfig prod = lifeConfigDefaults(false);
     LifeState_t st;
@@ -182,7 +182,8 @@ int main() {
     CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
   }
   {
-    // Dev profile: fast dusk (60 s) and never wants sleep.
+    // Dev's wire-stable value is COMMISSION: no inferred dusk/autonomy and no
+    // sleep. The command runtime is available, with power tiers still vetoing.
     LifeConfig dev = lifeConfigDefaults(true);
     LifeState_t st;
     lifeInit(st);
@@ -196,14 +197,21 @@ int main() {
     uint32_t t = 1000;
     LifeOutputs o = {};
     for (int i = 0; i < 61; i++) { in.nowMs = (t += 1000); o = lifeTick(st, in, dev); }
-    CHECK_EQ(o.state, (uint8_t)LIFE_NIGHT_SHOW); // 60 s dev dusk
+    CHECK_EQ(o.state, (uint8_t)LIFE_COMMISSION);
+    CHECK(o.showActive);
+    CHECK(!o.strikesAllowed);
     CHECK(!o.wantSleep);
-    // Force-day override wins immediately.
+    // Solar/force-night controls cannot silently turn commissioning into an
+    // autonomous lifecycle; bridge leases are the only artistic authority.
     in.forceNight = 0;
     in.nowMs = (t += 1000);
     o = lifeTick(st, in, dev);
-    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
-    CHECK(!o.wantSleep); // dev never sleeps
+    CHECK_EQ(o.state, (uint8_t)LIFE_COMMISSION);
+    CHECK(!o.wantSleep);
+    in.tier = 2;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, dev);
+    CHECK(!o.showActive); // OFF/PROTECT power veto still wins
   }
 
   // --- runtime: lease grant/expiry -> smooth autonomous fallback -------------
@@ -247,6 +255,42 @@ int main() {
     sf.flags = 0x01;
     rt.noteShowFrame(sf, 60000);
     CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_BRIDGE_SHOW);
+  }
+
+  // --- commissioning runtime: bridge lease -> electrically dark fallback ----
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7, PROG_COMMISSION_DARK);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_COMMISSION_DARK);
+    ProgramInputs in = {};
+    in.nowMs = 1000;
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    rt.tick(in, out);
+    CHECK_EQ(out.frame.px[0][0], 0u);
+    CHECK_EQ(out.frame.px[0][3], 0u);
+
+    DirectFrameState df = {};
+    df.rxMs = 2000;
+    df.r = 100;
+    df.flags = 0x03; // micro-lease + hard cut
+    rt.noteDirectFrame(df, 2000);
+    in.nowMs = 2000;
+    rt.tick(in, out);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_DIRECT);
+    CHECK_EQ(out.frame.px[0][0], 100u);
+
+    // Command silence never selects GH/CA in commissioning.
+    in.nowMs = 5101;
+    rt.tick(in, out);
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_COMMISSION_DARK);
+    CHECK(!rt.leaseActive());
+    CHECK_EQ(out.frame.px[0][0], 0u);
+
+    // A live profile flip changes the fallback but does not invent a lease.
+    CHECK(rt.setAutonomousProgram(PROG_GH_CA, 6000, true));
+    CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_GH_CA);
   }
 
   // --- PROG_DIRECT: slew convergence, hard-cut, hold+half, stale fallback ---

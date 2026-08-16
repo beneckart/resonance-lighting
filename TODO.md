@@ -125,6 +125,35 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
+- [~] **P0: canary the bridge-authoritative commission image before fleet OTA
+  (ADR 0038).** Current source/artifact is `fixture-2026-08-15.4`, channel 11,
+  default commission, SHA-256
+  `e4b0efaff0dcd93b3c36ab6e12dd5a1c21b45be1ad4e5269c381eb600c78de2a`;
+  matching normal bridge `cores3-bridge-2026-08-15.1`. USB canary `9E5A94`
+  initially reported `.4` but returned to its older `fixture-2026-08-10.2` A/B
+  slot before acceptance. Diagnose/capture that verify/rollback path, keep `.4`
+  running past the pending-verify window, then explicitly prove the RMT rail-cycle
+  regression: `L1` breathe -> `L0` physical rail cut -> `L1` breathe again.
+  Continue with a 20-minute census, immediate dark/rail-off on command loss, no
+  ordinary lifecycle sleep, and 60-second qualified PROTECT release. Expand to
+  four/five, then 24 only after the canary passes. The currently attached CoreS3
+  is Cambium binary mode and has not been overwritten (Ben/Codex).
+- [ ] **Run and save a full-cadence census before classifying the missing deployed
+  lanterns.** Old field firmware uses 300-second ordinary day sleeps and
+  900-second PROTECT sleeps. Listen at least 16 minutes without resetting/opening
+  the bridge midway. A powered PROTECT peer should still timer-wake and send setup
+  heartbeats; a peer still absent is more likely unpowered, in BMS cutoff, or out
+  of range. Record every seen ID and last battery/supply/reset fields, then use the
+  panel-mount rescue USB only for the residual set (Ben/Codex).
+- [ ] **Qualify a load-armed boot marker before relaxing conservative reset
+  escalation.** Commission liveness fixes the impossible 60-second PROTECT
+  release and makes false escalation serviceable, but the durable boot-stage guard
+  can still treat certain clean POWERON resets as repeated load failures. Design a
+  wear-safe marker that distinguishes "reset while LED/solenoid load was actually
+  armed" from panel-first/no-battery/bench power ordering, then run the full
+  battery/panel/USB ordering matrix before changing the field safety ladder
+  (Ben/Codex).
+
 - [~] **Productionize reduced-access Atom Matrix campmate clickers for 2026.**
   Direction: distribute simple Atom Matrix + Atomic Battery Base mini-bridges
   instead of prioritizing 433 MHz receivers this year; keep the wide-input

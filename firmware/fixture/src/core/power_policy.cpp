@@ -122,6 +122,10 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
       return b;
     }
     fillBudget(b, st.tier, c);
+    // A qualified release streak must be allowed to finish. Sleeping after the
+    // 8/30 s boot grace made the 60 s release mathematically impossible.
+    // Loads remain hard-off throughout; only the control/recovery plane stays up.
+    if (qualified) b.must_sleep = false;
     return b;
   }
 
