@@ -35,7 +35,12 @@ void ledProfileForClass(uint8_t fixtureClass) {
     break;
   }
   gStrip.updateLength(gCount);
-  gStrip.setPin(RES_LED_DATA_PIN);
+  // setPin AFTER begin() detaches the RMT peripheral via the library's own
+  // pinMode calls (Adafruit_NeoPixel::setPin does pinMode(INPUT)+pinMode(OUTPUT)
+  // when begun) — the same ghost the 08-15 rail fix guards against, one layer
+  // deeper. The data pin never changes, so skipping the call when the strip
+  // is live is lossless. (Bench: "one red and four dark", 2026-08-15 night.)
+  if (!gBegun) gStrip.setPin(RES_LED_DATA_PIN);
   gStrip.setBrightness(255); // brightness composes in float math, not here
 }
 
