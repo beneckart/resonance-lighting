@@ -87,7 +87,16 @@ export function RealDriveDriver() {
         timer = setInterval(() => {
           const states = telemetry.states;
           if (!states.length || !bridge.connected()) return;
-          bridge.sendFrame(states.map((s) => ({ id: s.id, rgb: s.rgb })));
+          // Omit near-black lights from the frame: per the wire contract,
+          // absence means "no opinion — stay autonomous", so idle lights hold
+          // their red listening beacon instead of being commanded dark
+          // (Elliot 2026-08-15: "they were not staying in the default red
+          // state"). An explicit blackout still sends black to everyone.
+          const blackout = useTwin.getState().control.blackout;
+          const fx = states
+            .map((s) => ({ id: s.id, rgb: s.rgb }))
+            .filter((s) => blackout || (s.rgb[0] + s.rgb[1] + s.rgb[2]) > 0.02);
+          if (fx.length) bridge.sendFrame(fx);
         }, SEND_MS);
         console.info("[cambium] drive real: streaming to", bridge.transport);
       })
