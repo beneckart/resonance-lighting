@@ -12,6 +12,33 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- STEMMA class identity corrected and dashboard tail retained
+
+Ben clarified the physical fleet signatures: TMF8820/TMF8821-family means
+canopy/downlight; otherwise VL53L5CX means perimeter; otherwise MSA311 means
+trunk/uplight; otherwise no STEMMA sensors means chandelier. Chandelier power is
+currently absent, so no live chandelier classification is expected. Recorded the
+contract in ADR 0041 and updated the canonical system table and onboarding docs.
+BMP581 is explicitly environmental-only and no longer classifies an uplight; ADR
+0034 already assigns it to the outer 24 downlights.
+
+Corrected the fixture decision table and its sensor-death guard. A remembered
+downlight/perimeter that loses its ToF but still sees MSA311 now keeps its prior
+class and raises `class_mismatch`, and any remembered sensored fixture that loses
+all class sensors behaves the same way. New MSA311-only fixtures learn uplight;
+new no-sensor fixtures learn chandelier. A lone BMP581 runs the safe chandelier
+profile for that boot but is flagged and not persisted. Explicit overrides still
+win while reporting disagreement.
+
+Also fixed the dashboard parser so a short heartbeat cannot erase class and LED
+render fields from the latest rich heartbeat. All 382 native fixture checks and
+six dashboard tests pass, as does Python bytecode compilation. Restarted the live
+COM43 dashboard with the parser fix; it saw 47 cached / 43 fresh peers at the
+post-restart check, but zero published a class. Their rounded-square glyphs are
+therefore accurate unknown/legacy state until a named fixture artifact carrying
+the class tail is separately built, validated, and intentionally deployed under
+ADR 0040. No fixture firmware was built, flashed, or OTA'd in this change.
+
 ## 2026-08-16 -- Ben + Codex -- Fleet strike, class glyphs, and independent LED color bar
 
 Enhanced `ops/bench/net_bench_dashboard.py` without changing the mesh wire format or

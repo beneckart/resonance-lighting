@@ -452,6 +452,21 @@ class SerialWorker(threading.Thread):
             if row["supply_w"] is not None and row["battery_w"] is not None:
                 row["load_w"] = round(row["supply_w"] - row["battery_w"], 4)
             with self.state.lock:
+                previous = self.state.peers.get(pid)
+                if row["fixture_class"] is None and previous is not None:
+                    # Short heartbeats omit the class/render tail. Preserve the
+                    # most recent rich report instead of reverting the glyph and
+                    # LED bar to unknown until another rich heartbeat arrives.
+                    for key in (
+                        "fixture_class",
+                        "led_rail_on",
+                        "led_r",
+                        "led_g",
+                        "led_b",
+                        "led_w",
+                        "led_lit_pixels",
+                    ):
+                        row[key] = previous.get(key)
                 self.state.peers[pid] = row
             self.state.add_event("peer", row)
             return

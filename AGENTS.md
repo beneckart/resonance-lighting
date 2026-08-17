@@ -109,10 +109,13 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - **Production locked: COTS PowerFeather V2 with a nominal 130-fixture Nevada City layout in four classes** -- 72 downlights (3 rings x 24) + 24 all-HEX perimeter + about 16 trunk lights trending RGBW + 18 mixed HEX/RGBW chandelier. The team intends the full layout barring an unforeseen issue; canonical counts are in `docs/block-diagram/SYSTEM.md` (ADR 0032 supersedes ADR 0024's allocation only).
 - Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
-- Sensors: MSA311 accel + multizone ToF by class (TMF8820-mini downward on
-  downlights; VL53L5CX outward on perimeter); fused IMUs rejected -- per-device
-  calibration (ADR 0027). Thirty BMP581 temp/barometric env sensors were bought;
-  their allocation to the current trunk-light class remains open.
+- Sensors and automatic class identity: ID-verified TMF8820/TMF8821-family sensor
+  -> canopy/downlight; else VL53L5CX -> perimeter; else MSA311 -> trunk/uplight;
+  else no STEMMA sensors -> chandelier. Preserve `class_last` and flag a mismatch
+  when a known ToF-bearing class falls back to MSA-only, or any sensored class
+  falls to no sensors (ADR 0041). BMP581 never determines class; the 30 bought
+  units are allocated as 24 outer-ring downlights + 6 spares (ADR 0034). Fused
+  IMUs were rejected -- per-device calibration (ADR 0027).
 - **Production show timing uses deterministic site/date schedules from sparse time
   anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
   initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231

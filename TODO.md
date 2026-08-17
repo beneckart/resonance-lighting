@@ -1000,6 +1000,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   are available only through maintenance `/telemetry`; interpret/calibrate the
   TMF8820's high-confidence 20 mm near return against the enclosure/window before
   treating it as presence (Claude + whoever's bench).
+- [ ] Build, validate, and intentionally deploy a named fleet artifact that
+  publishes the ADR 0041 class/render telemetry tail. The 2026-08-16 live fleet
+  artifacts omit that tail, so the dashboard correctly leaves their glyphs
+  unknown. Follow ADR 0040: build once, record manifest/SHA-256, name explicit
+  target short MACs, and require fresh post-OTA revision plus 20-second
+  pending-verify survival. This source change alone does not authorize OTA
+  (Ben + current firmware operator).
 - [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height -- detection vs
   false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
   ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).

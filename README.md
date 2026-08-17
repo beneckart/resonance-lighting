@@ -57,9 +57,13 @@ board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bak
 candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose;
 PowerFeather V2 won.
 
-**Sensors** (ADR 0027): every downlight carries an MSA311 accelerometer + downward
-TMF8820-mini multizone ToF; perimeter lights carry an outward VL53L5CX. Fused IMUs
-were rejected (per-device calibration does not scale to the fleet). The **noisemaker**
+**Sensors and class identity** (ADRs 0027, 0034, 0041): every downlight carries an
+MSA311 accelerometer + downward TMF8820-mini multizone ToF; perimeter lights carry
+an outward VL53L5CX; trunk/uplights carry only MSA311; chandelier lights carry no
+STEMMA sensors. Auto-classification follows that same ordered signature and retains
+the remembered class when a distinguishing ToF disappears. BMP581 is non-classifying
+environmental telemetry on the outer 24 downlights. Fused IMUs were rejected
+(per-device calibration does not scale to the fleet). The **noisemaker**
 is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
 solar-surplus percussion; the speaker-synth path was abandoned once the strikes
 proved out.

@@ -45,6 +45,25 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIsNone(row["fixture_class"])
         self.assertIsNone(row["led_rail_on"])
 
+    def test_short_heartbeat_preserves_rich_class_and_render_tail(self):
+        state = dashboard.DashboardState()
+        worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
+        worker.handle_line(
+            BASE
+            + " prof=0 life=4 ptier=0 prog=3 nmin=0"
+            + " cls=2 ledrail=1 ledr=5 ledg=40 ledb=90 ledw=0 ledn=12"
+        )
+        worker.handle_line(BASE.replace("seq=42", "seq=43"))
+        row = state.snapshot()["peers"]["F2B7DC"]
+        self.assertEqual(row["seq"], 43)
+        self.assertEqual(row["fixture_class"], 2)
+        self.assertTrue(row["led_rail_on"])
+        self.assertEqual(
+            (row["led_r"], row["led_g"], row["led_b"], row["led_w"]),
+            (5, 40, 90, 0),
+        )
+        self.assertEqual(row["led_lit_pixels"], 12)
+
     def test_fleet_view_is_the_primary_page(self):
         self.assertIn('id="fleetGrid"', dashboard.HTML)
         self.assertIn("compactPeerIds", dashboard.HTML)
