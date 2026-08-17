@@ -22,6 +22,7 @@ struct NeighborEntry {
   uint8_t programId;
   uint16_t generation;
   uint8_t tier;
+  uint8_t flags;      // latest NbChoreoState capability/status flags
   uint32_t lastSeq;
 };
 
@@ -49,6 +50,7 @@ struct NeighborView {
   uint8_t state;
   uint8_t programId;
   uint16_t generation;
+  uint8_t flags;
   uint32_t ageMs;
   int8_t rssi;
 };

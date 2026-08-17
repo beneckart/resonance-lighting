@@ -834,7 +834,6 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <button class="primary" data-cmd="m52">5.2 V</button>
         <button class="primary" data-cmd="m71">7.1 V</button>
         <button class="warn" id="peerMaintBtn">Peer maint</button>
-        <button class="warn" data-cmd="S">Sleep 6h</button>
         <button data-cmd="c">Resume</button>
         <button data-cmd="I">Identify all</button>
         <button data-cmd="i">Identify next</button>
@@ -869,6 +868,10 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <input id="napInput" inputmode="numeric" placeholder="Nap selected seconds, e.g. 3600">
         <button id="napBtn">Nap</button>
       </div>
+      <div class="maintain">
+        <input id="sleepHoursInput" type="number" min="0.1" max="18" step="0.5" value="8" aria-label="Fleet sleep hours">
+        <button class="warn" id="sleepBtn">Sleep all</button>
+      </div>
     </div>
 
     <div class="panel span-5">
@@ -895,6 +898,7 @@ let tempUnit = localStorage.getItem("netBenchTempUnit") || "F";
 let focusedPeerId = localStorage.getItem("netBenchPeerFocus") || "all";
 let activeHistoryKey = "";
 let strikeInFlight = false;
+let sleepInFlight = false;
 let taggedPeerIds = new Set();
 try {
   const savedTags = JSON.parse(localStorage.getItem("resonanceTaggedLanterns") || "[]");
@@ -1375,6 +1379,12 @@ function render(s) {
       ? `Queues an addressed D7 pulse for ${strikePeers.length} fresh fixtures; boards without an enabled solenoid ignore it`
       : `Targets ${strikePeers[0].id}`)
     : "No fresh fixture targets";
+  const sleepBtn = document.getElementById("sleepBtn");
+  sleepBtn.disabled = sleepInFlight || strikePeers.length === 0;
+  sleepBtn.textContent = effectiveFocus === "all" ? `Sleep all (${strikePeers.length})` : "Sleep selected";
+  sleepBtn.title = strikePeers.length
+    ? "Uses individual addressed sleep commands; charging remains autonomous"
+    : "No fresh fixture targets";
 
   document.getElementById("tempToggle").textContent = tempUnit;
   const serialPill = document.getElementById("serialPill");
@@ -1602,6 +1612,31 @@ async function sendStrikeBatch(peers, pulseMs) {
     if (state) render(state);
   }
 }
+async function sendSleepBatch(peers, seconds) {
+  const ids = peers.map(peer => peer.id);
+  sleepInFlight = true;
+  if (state) render(state);
+  setCommandStatus(`Queuing ${ids.length} addressed sleep command${ids.length === 1 ? "" : "s"}...`, "warn");
+  try {
+    const res = await fetch("/api/sleep", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({targets: ids, seconds})
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "sleep request rejected");
+    const skipped = Number(data.skipped || 0);
+    const suffix = skipped ? `; skipped ${skipped} no-longer-fresh target${skipped === 1 ? "" : "s"}` : "";
+    setCommandStatus(`Put ${data.count} fixture${data.count === 1 ? "" : "s"} to bed for ${(seconds / 3600).toFixed(1)} h${suffix}. Charging stays enabled.`, "ok");
+    return data;
+  } catch (err) {
+    setCommandStatus(`Sleep failed: ${err}`, "bad");
+    return null;
+  } finally {
+    sleepInFlight = false;
+    if (state) render(state);
+  }
+}
 async function sendMaintainCommand(v10, label) {
   const sent = await sendCommand(`m${v10}`, label);
   if (!sent) return;
@@ -1719,6 +1754,26 @@ document.getElementById("napBtn").addEventListener("click", () => {
     return;
   }
   sendCommand(`P${peer.id}:${seconds}`, `Nap ${peer.id} ${seconds}s`);
+});
+document.getElementById("sleepBtn").addEventListener("click", () => {
+  const peers = strikeTargetPeers();
+  if (!peers.length) {
+    setCommandStatus("No fresh fixtures are available to sleep", "bad");
+    return;
+  }
+  const hours = Number(document.getElementById("sleepHoursInput").value.trim());
+  const seconds = Math.round(hours * 3600);
+  if (!Number.isFinite(hours) || hours < 0.1 || hours > 18 || seconds < 1 || seconds > 65535) {
+    setCommandStatus("Enter 0.1 to 18 hours", "bad");
+    return;
+  }
+  const scope = focusedPeerId === "all" ? `${peers.length} fresh fixtures` : peers[0].id;
+  const confirmed = window.confirm(
+    `Put ${scope} to bed for ${hours.toFixed(1)} hours? ` +
+    "Lights and radios will turn off; USB and solar charging remain enabled."
+  );
+  if (!confirmed) return;
+  sendSleepBatch(peers, seconds);
 });
 document.getElementById("tempToggle").addEventListener("click", () => {
   tempUnit = tempUnit === "F" ? "C" : "F";
@@ -1853,6 +1908,51 @@ def prepare_strike_batch(
     return commands, skipped
 
 
+def prepare_sleep_batch(
+    body: dict[str, Any],
+    peers: dict[str, dict[str, Any]],
+) -> tuple[list[tuple[str, str]], int]:
+    """Build addressed sleep commands for requested peers that are still fresh."""
+    seconds = body.get("seconds")
+    if type(seconds) is not int or not 1 <= seconds <= 65535:
+        raise ValueError("seconds must be an integer from 1 to 65535")
+
+    raw_targets = body.get("targets")
+    if not isinstance(raw_targets, list) or not raw_targets:
+        raise ValueError("targets must be a non-empty list")
+    if len(raw_targets) > 192:
+        raise ValueError("sleep batch exceeds the 192-fixture safety limit")
+
+    requested: list[str] = []
+    seen: set[str] = set()
+    for raw_target in raw_targets:
+        if not isinstance(raw_target, str) or not re.fullmatch(r"[0-9A-Fa-f]{6}", raw_target):
+            raise ValueError("every sleep target must be a 6-digit short MAC")
+        target = raw_target.upper()
+        if target not in seen:
+            requested.append(target)
+            seen.add(target)
+
+    fresh: set[str] = set()
+    for peer_id, peer in peers.items():
+        try:
+            age_ms = int(peer.get("age_ms"))
+        except (TypeError, ValueError):
+            continue
+        if age_ms < 5000:
+            fresh.add(peer_id.upper())
+
+    targets = [target for target in requested if target in fresh]
+    skipped = len(requested) - len(targets)
+    if not targets:
+        raise ValueError("none of the requested fixtures are currently fresh")
+    commands = [
+        (f"P{target}:{seconds}", f"Sleep {target} for {seconds} s")
+        for target in targets
+    ]
+    return commands, skipped
+
+
 def make_handler(state: DashboardState, worker: SerialWorker):
     class Handler(BaseHTTPRequestHandler):
         server_version = "NetBenchDashboard/1.0"
@@ -1901,7 +2001,7 @@ def make_handler(state: DashboardState, worker: SerialWorker):
 
         def do_POST(self) -> None:
             path = urllib.parse.urlparse(self.path).path
-            if path not in {"/api/cmd", "/api/strike"}:
+            if path not in {"/api/cmd", "/api/strike", "/api/sleep"}:
                 self.send_error(404)
                 return
             try:
@@ -1916,6 +2016,21 @@ def make_handler(state: DashboardState, worker: SerialWorker):
                             "ok": True,
                             "count": len(commands),
                             "targets": [cmd[0][1:7] for cmd in commands],
+                            "skipped": skipped,
+                        },
+                    )
+                    return
+                if path == "/api/sleep":
+                    peers = state.snapshot()["peers"]
+                    commands, skipped = prepare_sleep_batch(body, peers)
+                    worker.send_commands(commands)
+                    self.send_json(
+                        200,
+                        {
+                            "ok": True,
+                            "count": len(commands),
+                            "targets": [cmd[0][1:7] for cmd in commands],
+                            "seconds": int(body["seconds"]),
                             "skipped": skipped,
                         },
                     )

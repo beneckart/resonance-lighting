@@ -54,6 +54,7 @@ int main() {
   CHECK_EQ(sizeof(NbProgramSet), 32u);
   CHECK_EQ(sizeof(NbProfile), 18u);
   CHECK_EQ(sizeof(NbTimeQuality), 29u);
+  CHECK_EQ(sizeof(NbEvent), 39u);
   CHECK_EQ(sizeof(NbNeighborSet), 13u + 3u + 1u + 1u + 24u);
 
   // Cambium-era payloads (25/26). The 15 B preamble + 7 B entry stride are

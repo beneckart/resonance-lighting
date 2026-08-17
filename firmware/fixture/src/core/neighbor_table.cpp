@@ -78,6 +78,7 @@ static void fillView(NeighborView &v, const NeighborEntry &e, uint32_t nowMs) {
   v.state = e.choreoState;
   v.programId = e.programId;
   v.generation = e.generation;
+  v.flags = e.flags;
   v.ageMs = nowMs - e.lastHeardMs;
   v.rssi = e.rssiEwma;
 }

@@ -17,6 +17,8 @@ struct SensorSnapshot {
   uint16_t tofDepthMm;       // closest confident scene target (80..2500 mm)
   float tofDepthFilteredMm;  // EMA 0.35
   uint16_t tofConfidence;
+  uint16_t tofZoneMm[9];         // closest confident return per 3x3 channel
+  uint16_t tofZoneConfidence[9];
   uint32_t tmfReads, tmfErrors, tmfRecoveries;
   uint8_t tmfDomainResets; // bounded full VSQT + driver rebuilds this boot
   // VL53L5CX plane fit (perimeter)

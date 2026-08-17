@@ -88,6 +88,9 @@ int main() {
     CHECK_EQ(n, 2u);
     CHECK_EQ(v[0].state, 2u); // -50 strongest
     CHECK_EQ(v[1].state, 3u); // -60 second
+    neighborUpsert(t, b, 1500, -50)->flags = 0x08;
+    n = neighborSnapshot(t, 1501, 3000, v, 2);
+    CHECK_EQ(v[0].flags, 0x08u);
     // Stale entries drop out.
     n = neighborSnapshot(t, 10000, 3000, v, 8);
     CHECK_EQ(n, 0u);

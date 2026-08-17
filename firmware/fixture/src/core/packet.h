@@ -12,7 +12,8 @@
 //     send-side truncation at any tail boundary valid (see hb-short).
 //   - 1..17  net_bench era (bench masters still send/understand these).
 //   - 18..24 fixture era (production behavior layer).
-//   - 20/22/23 are RESERVED: struct defined, parse-stubbed, NOT sent yet.
+//   - 20/22 are RESERVED: struct defined, parse-stubbed, NOT sent yet.
+//   - 23 is the bounded presence-wave event used by the 2026-08 field demo.
 //   - 25..26 cambium era (browser-sim serial bridge streaming).
 //   - 27+    free.
 // =============================================================================
@@ -51,7 +52,7 @@ enum NbType : uint8_t {
   NB_TIME_QUALITY = 20,  // RESERVED (ADR 0031 time anchors) -- defined, not sent
   NB_PROFILE = 21,       // bridge -> all/target: commission/field profile flip
   NB_NEIGHBOR_REPORT = 22, // RESERVED (M2 locate: censored-median RSSI) -- defined, not sent
-  NB_EVENT = 23,         // RESERVED (M2 event fabric) -- defined, not sent
+  NB_EVENT = 23,         // targeted event over broadcast RF (presence wave)
   NB_NEIGHBOR_SET = 24,  // bridge -> target: pinned CA adjacency (<=8 neighbors)
   // ---- cambium era ----------------------------------------------------------
   NB_DIRECT_FRAME = 25,    // bridge -> all: per-fixture RGBW (ids ride IN the entries)
@@ -252,6 +253,7 @@ struct __attribute__((packed)) NbChoreoState { // 18: fast show/CA state, NIGHT 
   uint8_t intensity;   // current render energy 0-255 (neighbor/bridge viz)
   uint16_t phase_ms;   // ms into current program cycle (mod 65536)
   uint8_t flags;       // bit0=power-limited bit1=lease-active bit2=commission profile
+                       // bit3=understands NB_EVENT presence-wave forwarding
   uint8_t reserved;
 };
 
@@ -299,7 +301,22 @@ struct __attribute__((packed)) NbNeighborReport { // 22: RESERVED (M2 locate)
   NbNeighborEntry entries[NB_NEIGHBOR_REPORT_MAX];
 };
 
-struct __attribute__((packed)) NbEvent { // 23: RESERVED (M2 event fabric)
+enum NbEventKind : uint8_t {
+  NB_EVENT_PRESENCE_WAVE = 1,
+};
+
+// Presence-wave params (kind 1):
+//   [0..2] intended target short ID; packet is broadcast so every updated
+//          fixture can add that target to its event-local visited set
+//   [3]    HSV hue (0..255)
+//   [4]    requested point-source value (local class/power caps still win)
+//   [5]    propagation depth (observability only)
+#define NB_EVENT_TARGET_OFFSET 0
+#define NB_EVENT_HUE_OFFSET 3
+#define NB_EVENT_VALUE_OFFSET 4
+#define NB_EVENT_DEPTH_OFFSET 5
+
+struct __attribute__((packed)) NbEvent { // 23: bounded event fabric
   NbHeader h;
   uint32_t event_id; // dedupe key
   uint32_t fire_in_ms;

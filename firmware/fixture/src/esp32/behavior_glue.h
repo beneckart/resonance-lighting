@@ -19,6 +19,7 @@ void behaviorOnPeerHeartbeat(const uint8_t srcId[3], int8_t rssi, uint8_t caStat
                              uint8_t seenLen);
 void behaviorOnProgramSet(const NbProgramSet &ps);
 void behaviorOnNeighborSet(const NbNeighborSet &ns);
+void behaviorOnEvent(const NbEvent &event);
 // NB_DIRECT_FRAME entry naming us (net_peer already scanned for our id).
 void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
                            uint8_t flags);

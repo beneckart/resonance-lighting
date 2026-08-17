@@ -84,6 +84,8 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIn('class="tag-toggle"', dashboard.HTML)
         self.assertIn("resonanceTaggedLanterns", dashboard.HTML)
         self.assertIn('fetch("/api/strike"', dashboard.HTML)
+        self.assertIn('fetch("/api/sleep"', dashboard.HTML)
+        self.assertNotIn('data-cmd="S"', dashboard.HTML)
         self.assertIn('<details class="diagnostics">', dashboard.HTML)
 
     def test_fleet_strike_stays_addressed_and_skips_stale_peers(self):
@@ -119,6 +121,36 @@ class DashboardParserTests(unittest.TestCase):
             dashboard.prepare_strike_batch(
                 {"targets": ["F2B7DC"], "pulse_ms": 500},
                 peers,
+            )
+
+    def test_fleet_sleep_stays_addressed_and_preserves_charging(self):
+        commands, skipped = dashboard.prepare_sleep_batch(
+            {"targets": ["f2b7dc", "E39F1C", "F2B7DC", "E39A34"], "seconds": 28800},
+            {
+                "F2B7DC": {"age_ms": 800},
+                "E39F1C": {"age_ms": 5100},
+                "E39A34": {"age_ms": 1200},
+            },
+        )
+        self.assertEqual(
+            commands,
+            [
+                ("PF2B7DC:28800", "Sleep F2B7DC for 28800 s"),
+                ("PE39A34:28800", "Sleep E39A34 for 28800 s"),
+            ],
+        )
+        self.assertEqual(skipped, 1)
+        self.assertTrue(all(dashboard.valid_command(cmd) for cmd, _ in commands))
+
+    def test_fleet_sleep_rejects_broadcast_or_bad_duration(self):
+        peers = {"F2B7DC": {"age_ms": 800}}
+        with self.assertRaisesRegex(ValueError, "6-digit short MAC"):
+            dashboard.prepare_sleep_batch(
+                {"targets": ["all"], "seconds": 28800}, peers
+            )
+        with self.assertRaisesRegex(ValueError, "1 to 65535"):
+            dashboard.prepare_sleep_batch(
+                {"targets": ["F2B7DC"], "seconds": 70000}, peers
             )
 
 

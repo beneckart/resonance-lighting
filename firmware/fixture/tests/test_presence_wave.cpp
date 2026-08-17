@@ -1,0 +1,72 @@
+#include "test_util.h"
+
+#include <cstring>
+#include "../src/core/presence_wave.h"
+
+static bool observe2(TmfPresenceGate &gate, uint32_t seq,
+                     uint16_t zone0Mm, uint16_t zone0Confidence,
+                     uint16_t zone1Mm, uint16_t zone1Confidence) {
+  uint16_t mm[PRESENCE_ZONE_COUNT] = {};
+  uint16_t confidence[PRESENCE_ZONE_COUNT] = {};
+  mm[0] = zone0Mm;
+  confidence[0] = zone0Confidence;
+  mm[1] = zone1Mm;
+  confidence[1] = zone1Confidence;
+  return tmfPresenceObserve(gate, seq, mm, confidence);
+}
+
+int main() {
+  // A stable close rig return in zone 0 warms up without firing. Movement in
+  // another zone is compared with that zone's own background, so the rig does
+  // not either auto-fire the detector or hide the person behind a scalar min.
+  TmfPresenceGate gate;
+  tmfPresenceInit(gate);
+  uint32_t seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 300, 50, 1800, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1400, 50));
+  CHECK(observe2(gate, ++seq, 300, 50, 1390, 50));
+  CHECK(!observe2(gate, seq, 300, 50, 1390, 50)); // same report ignored
+  CHECK(!observe2(gate, ++seq, 300, 50, 1380, 50));
+  for (int i = 0; i < PRESENCE_CLEAR_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 300, 50, 1800, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1300, 50));
+  CHECK(observe2(gate, ++seq, 300, 50, 1290, 50));
+
+  // An empty scene can warm up with no baseline. A confident return inside
+  // the absolute demo range is then presence; confidence-zero never is.
+  tmfPresenceInit(gate);
+  seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
+  CHECK(!observe2(gate, ++seq, 900, 0, 0, 0));
+  CHECK(!observe2(gate, ++seq, 900, 50, 0, 0));
+  CHECK(observe2(gate, ++seq, 910, 50, 0, 0));
+
+  // Two unrelated one-frame glitches in different zones do not combine into
+  // presence; the same changed zone must persist for the second report.
+  tmfPresenceInit(gate);
+  seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
+  CHECK(!observe2(gate, ++seq, 900, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 0, 0, 900, 50));
+  CHECK(observe2(gate, ++seq, 0, 0, 910, 50));
+
+  uint8_t visited[4][3] = {{1, 2, 3}, {4, 5, 6}};
+  uint8_t yes[3] = {4, 5, 6};
+  uint8_t no[3] = {7, 8, 9};
+  CHECK(waveIdSeen(visited, 2, yes));
+  CHECK(!waveIdSeen(visited, 2, no));
+
+  uint8_t r, g, b;
+  waveHueToRgb(0, 96, r, g, b);
+  CHECK_EQ(r, 96u);
+  CHECK_EQ(g, 0u);
+  CHECK_EQ(b, 0u);
+  waveHueToRgb(86, 96, r, g, b);
+  CHECK_EQ(r, 0u);
+  CHECK_EQ(g, 96u);
+
+  return testReport("test_presence_wave");
+}

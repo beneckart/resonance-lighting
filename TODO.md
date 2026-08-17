@@ -4,6 +4,29 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Morning field repair: inspect every flagged false chandelier.** Ben
+  flagged all 11 zero-sensor fixtures in the dashboard. Visual inspection says
+  nine are trunk lights and only two remain otherwise unidentified, strongly
+  suggesting the trunk assembler omitted the STEMMA cable rather than a class
+  algorithm error. Open/reseat one trunk canary, use `P<id>:10` for a cold
+  VSQT re-probe, then repair the remainder. Preserve the dashboard flags until
+  the physical mapping is written down (Ben + Elliot/field team).
+- [ ] **Close the remaining visibly red/non-OTA fixtures after the overnight
+  test.** A couple of lanterns still show the prior red posture because they did
+  not accept the current OTA. The exact 12-ID observed holdback census remains
+  below; do not spend tonight looping retries. Diagnose from fresh power and
+  image evidence in the morning (Ben/Codex + field team).
+- [ ] **Field-validate ADR 0044's TMF presence wipe.** Confirm that the hanging
+  rig is learned as a stable per-zone background, a person produces two
+  consecutive >=300 mm closer returns in one unobstructed channel, and the new
+  hue reaches the updated fleet through two-neighbor RSSI forwarding. Record
+  any nonvisited islands rather than tuning until the proof passes (Ben/Codex).
+- [ ] **Verify one overnight sleeper resumes autonomous charging after sunrise.**
+  Addressed deep sleep cuts the LED/sensor rails while the BQ25628E charger
+  remains autonomous. Confirm a sleeping, solar-connected fixture shows fresh
+  positive charge after its timed wake. Treat old-firmware `9E5B44` at roughly
+  2.34 V/0 mA as a separate battery-swap or bench-recovery case (Ben).
+
 - [x] **Promote the BQ-qualified recovery/self-identifying listener artifact --
   DONE 2026-08-16.** Immutable `fx-260817-29ac840-b` (binary SHA-256 in LOG)
   passed healthy `F40364`, low-USB `9F268C`, the remaining qualified recovery

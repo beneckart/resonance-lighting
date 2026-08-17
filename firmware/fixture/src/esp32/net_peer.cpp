@@ -191,6 +191,11 @@ static void processPacket(const RxItem &it) {
     behaviorOnNeighborSet(*(const NbNeighborSet *)it.data);
     break;
   }
+  case NB_EVENT: {
+    if (it.len < (int)sizeof(NbEvent)) return;
+    behaviorOnEvent(*(const NbEvent *)it.data);
+    break;
+  }
   case NB_SHOWFRAME: {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
     accountDownlink(h, it.rssi);
