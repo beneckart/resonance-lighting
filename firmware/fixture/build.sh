@@ -11,6 +11,7 @@
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
 #   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
+#   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # steady red 128 when no bridge command
@@ -35,6 +36,7 @@ EXTRA_FLAGS=""
 WIFI_SOURCE=""
 FW_REV=""
 PRECHARGE_MA="300"
+DEEP_RECOVERY_TARGET=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
     --precharge-ma) PRECHARGE_MA="$2"; shift 2 ;;
+    --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --canopy-solenoid)
       echo "NOTICE: --canopy-solenoid is deprecated; solenoid capability is now the fleet default"
       shift
@@ -67,6 +70,12 @@ done
   echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
   exit 2
 }
+if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
+  [[ "$DEEP_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
+    echo "bad --deep-recovery-target: $DEEP_RECOVERY_TARGET (expected six hex digits)" >&2
+    exit 2
+  }
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -109,6 +118,14 @@ if [[ -n "$FW_REV" ]]; then
     echo "bad --fw-rev: $FW_REV (expected fx-YYMMDD-recipe7-class)" >&2
     exit 2
   }
+fi
+if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
+  [[ -n "$FW_REV" && "$FW_REV" == *-t ]] || {
+    echo "--deep-recovery-target requires an explicit test-class (-t) --fw-rev" >&2
+    exit 2
+  }
+  FLAGS+=" -DRES_DEEP_RECOVERY_TARGET=0x${DEEP_RECOVERY_TARGET}UL"
+  FLAGS+=" -DRES_DEEP_RECOVERY_MAX_CHARGE_MA=100"
 fi
 case "$PROFILE" in
   "") ;;

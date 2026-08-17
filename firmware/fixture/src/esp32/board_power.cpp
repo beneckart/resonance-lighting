@@ -11,7 +11,9 @@
 #include "powerfeather_solar_guard.h"
 
 #include "../core/bq25628e_precharge.h"
+#include "../core/deep_recovery.h"
 #include "boot_park.h"
+#include "identity.h"
 #include "loads.h"
 #include "nvs_store.h"
 #include "solenoid.h"
@@ -38,6 +40,7 @@ static int gCbSoc = -1;
 static float gCsV = 0.0f, gCsMa = 0.0f;
 static bool gCsGood = false;
 static bool gPrechargeWriteOk = false;
+static bool gDeepRecoveryChargeActive = false;
 static BqSnapshot gBq;
 
 bool pfIsReady() { return gPfReady; }
@@ -56,6 +59,13 @@ bool prechargeConfigured() {
          gBq.precharge_ma == RES_PF_PRECHARGE_MA;
 }
 uint16_t prechargeTargetMa() { return RES_PF_PRECHARGE_MA; }
+bool deepRecoveryBuild() { return RES_DEEP_RECOVERY_TARGET != 0UL; }
+bool deepRecoveryTargetMatches() {
+  uint32_t id = ((uint32_t)gMyId[0] << 16) |
+                ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  return deepRecoveryBuild() && id == (uint32_t)RES_DEEP_RECOVERY_TARGET;
+}
+bool deepRecoveryChargeActive() { return gDeepRecoveryChargeActive; }
 const BqSnapshot &bqSnapshot() { return gBq; }
 
 const char *batteryTypeName() {
@@ -177,7 +187,43 @@ static void chargingGuardTick() {
     return;
   }
   done = true;
-  if (batteryPresent()) {
+  if (deepRecoveryBuild()) {
+    // This is deliberately narrower than batteryPresent(): one immutable test
+    // image, one MAC, external power proven, a real low LFP voltage, clean BQ,
+    // and the requested precharge register verified. A non-target that somehow
+    // receives the image remains dark with charging disabled.
+    DeepRecoverySample sample = {
+        .build_enabled = deepRecoveryBuild(),
+        .target_matches = deepRecoveryTargetMatches(),
+        .supply_good = gCsGood,
+        .precharge_configured = prechargeConfigured(),
+        .battery_v = gCbV,
+        .battery_ma = gCbMa,
+        .supply_v = gCsV,
+        .supply_ma = gCsMa,
+        .charger_fault = gBq.fault0,
+    };
+    if (!deepRecoveryMayEnable(sample)) {
+      Serial.printf("DEEP RECOVERY REFUSED target=%d bv=%.3f input=%.3f/%.0f/%d "
+                    "fault=0x%02X batt_ma=%.0f precharge=%d\n",
+                    sample.target_matches ? 1 : 0, gCbV, gCsV, gCsMa, gCsGood ? 1 : 0,
+                    gBq.fault0, gCbMa, prechargeConfigured() ? 1 : 0);
+      return;
+    }
+    allLoadsOff("deep recovery");
+    railEnableVSQT(false);
+    Board.setBatteryChargingMaxCurrent((float)RES_DEEP_RECOVERY_MAX_CHARGE_MA);
+    configurePrecharge();
+    Board.enableBatteryCharging(true);
+    gChargingEnabled = true;
+    gDeepRecoveryChargeActive = true;
+    pfSolarGuardInit(kTag, gMaintainV, true);
+    Serial.printf("DEEP RECOVERY ACTIVE target=%06lX bv=%.3fV precharge=%umA "
+                  "charge_ceiling=%umA\n",
+                  (unsigned long)RES_DEEP_RECOVERY_TARGET, gCbV,
+                  (unsigned)RES_PF_PRECHARGE_MA,
+                  (unsigned)RES_DEEP_RECOVERY_MAX_CHARGE_MA);
+  } else if (batteryPresent()) {
     Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
     configurePrecharge();
     Board.enableBatteryCharging(true);
@@ -193,13 +239,15 @@ static void chargingGuardTick() {
 void readBatteryNow() {
   if (!gPfReady) return;
   readBatteryCell();
-  chargingGuardTick();
   float v;
   if (Board.getSupplyVoltage(v) == Result::Ok) gCsV = v;
   if (Board.getSupplyCurrent(v) == Result::Ok) gCsMa = v;
   bool g;
   if (Board.checkSupplyGood(g) == Result::Ok) gCsGood = g;
   readChargerStatus();
+  chargingGuardTick();
+  // Refresh the enable bit/current/fault snapshot after the one-shot guard.
+  if (gChargingEnabled) readChargerStatus();
   pfSolarGuardTick(kTag, gCsV, gCsMa, gCsGood, gMaintainV, gChargingEnabled);
 }
 

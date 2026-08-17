@@ -19,6 +19,19 @@
 #ifndef RES_PF_PRECHARGE_MA
 #define RES_PF_PRECHARGE_MA 300
 #endif
+
+// A test-class artifact may authorize one exact short MAC to recover a real,
+// physically supervised LFP below the normal 2.5 V presence threshold. The
+// normal fleet build leaves this zero and cannot take the bypass.
+#ifndef RES_DEEP_RECOVERY_TARGET
+#define RES_DEEP_RECOVERY_TARGET 0UL
+#endif
+#ifndef RES_DEEP_RECOVERY_MAX_CHARGE_MA
+#define RES_DEEP_RECOVERY_MAX_CHARGE_MA 100
+#endif
+#if RES_DEEP_RECOVERY_MAX_CHARGE_MA < 40 || RES_DEEP_RECOVERY_MAX_CHARGE_MA > 300
+#error "RES_DEEP_RECOVERY_MAX_CHARGE_MA must be 40..300 mA"
+#endif
 #if RES_PF_PRECHARGE_MA < 10 || RES_PF_PRECHARGE_MA > 310 || \
     (RES_PF_PRECHARGE_MA % 10) != 0
 #error "RES_PF_PRECHARGE_MA must be 10..310 mA in 10 mA steps"
@@ -44,6 +57,9 @@ float supplyMa();
 bool supplyGood();
 bool prechargeConfigured(); // target register value read back successfully
 uint16_t prechargeTargetMa();
+bool deepRecoveryBuild();
+bool deepRecoveryTargetMatches();
+bool deepRecoveryChargeActive();
 
 // BQ25628E snapshot (0xFFFF/0xFF = unknown).
 struct BqSnapshot {

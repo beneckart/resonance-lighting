@@ -91,6 +91,12 @@ String telemetryJson() {
   j += ",\"precharge_target_ma\":" + String(prechargeTargetMa());
   j += ",\"precharge_configured\":";
   j += prechargeConfigured() ? "true" : "false";
+  j += ",\"deep_recovery_build\":";
+  j += deepRecoveryBuild() ? "true" : "false";
+  j += ",\"deep_recovery_target_match\":";
+  j += deepRecoveryTargetMatches() ? "true" : "false";
+  j += ",\"deep_recovery_charge_active\":";
+  j += deepRecoveryChargeActive() ? "true" : "false";
   j += ",\"maintain_v\":" + String(maintainVolts(), 1);
   if (pfIsReady()) {
     char b[24];

@@ -48,6 +48,20 @@ static bool selfTest() {
                   (unsigned)bqSnapshot().precharge_ma, bqSnapshot().reg10);
     return false;
   }
+  if (deepRecoveryBuild()) {
+    bool recoveryOk = deepRecoveryTargetMatches() &&
+                      deepRecoveryChargeActive() && chargingEnabled() &&
+                      supplyGood() && supplyVolts() >= 4.6f &&
+                      bqSnapshot().fault0 == 0x00;
+    Serial.printf("ota-verify: deep recovery target=%d active=%d charge=%d "
+                  "supply=%.3f/%d fault=0x%02X -> %s\n",
+                  deepRecoveryTargetMatches() ? 1 : 0,
+                  deepRecoveryChargeActive() ? 1 : 0,
+                  chargingEnabled() ? 1 : 0, supplyVolts(),
+                  supplyGood() ? 1 : 0, bqSnapshot().fault0,
+                  recoveryOk ? "PASS" : "FAIL");
+    if (!recoveryOk) return false;
+  }
   // 2. Gauge sanity: voltage in a physical range. A bare board on USB reads
   //    ~0 V -- that is a PASS (bringup flashes batteryless boards).
   if (batteryVolts() > 4.4f) return false;
