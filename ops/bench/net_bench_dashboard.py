@@ -860,6 +860,10 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
         <button data-cmd="R5">5 Hz</button>
         <button data-cmd="R10">10 Hz</button>
       </div>
+      <div class="controls">
+        <button class="danger" data-cmd="B3600">Lights off 1 h</button>
+        <button data-cmd="b">Release lights-off</button>
+      </div>
       <div class="maintain">
         <input id="rateInput" inputmode="numeric" placeholder="Heartbeat Hz, e.g. 1">
         <button id="rateBtn">Hz</button>
@@ -1809,7 +1813,7 @@ def parse_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def valid_command(cmd: str) -> bool:
-    if cmd in {"r", "U", "S", "c", "I", "i", "+", "-"}:
+    if cmd in {"r", "U", "S", "c", "I", "i", "+", "-", "b"}:
         return True
     m = re.fullmatch(r"i[0-9A-Fa-f]{6}(?::(\d{1,3}))?", cmd)
     if m:
@@ -1845,6 +1849,10 @@ def valid_command(cmd: str) -> bool:
     if m:
         value = int(m.group(1))
         return 1 <= value <= 100
+    m = re.fullmatch(r"B(\d{1,5})", cmd)
+    if m:
+        value = int(m.group(1))
+        return 1 <= value <= 65535
     m = re.fullmatch(r"P([0-9A-Fa-f]{6})(?::(\d{1,5}))?", cmd)
     if m:
         if m.group(2) is None:

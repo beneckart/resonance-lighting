@@ -4,6 +4,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Choose the daytime recovery posture after the dark-awake baseline.**
+  `B3600` proved that removing the LED load swings the updated awake fleet from
+  aggregate discharge to aggregate charge, but battery-only fixtures still draw
+  roughly 126-144 mA because ESP-NOW RX stays awake. Decide whether diagnostic
+  reachability justifies that floor or whether to use the existing field-profile
+  300 s sleep / 15 s listen duty cycle for solar recovery. Do not call `F1` an
+  isolated 0.2 Hz test: it also changes lifecycle and sleep behavior (Ben).
+
 - [ ] **Morning field repair: inspect every flagged false chandelier.** Ben
   flagged all 11 zero-sensor fixtures in the dashboard. Visual inspection says
   nine are trunk lights and only two remain otherwise unidentified, strongly
@@ -30,11 +38,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   activate. Log one walk with zone deltas and confidence, then adjust delta or
   consecutive count while retaining per-zone learning and clear-to-rearm
   hysteresis (Ben/Codex).
-- [ ] **Verify one overnight sleeper resumes autonomous charging after sunrise.**
-  Addressed deep sleep cuts the LED/sensor rails while the BQ25628E charger
-  remains autonomous. Confirm a sleeping, solar-connected fixture shows fresh
-  positive charge after its timed wake. Treat old-firmware `9E5B44` at roughly
-  2.34 V/0 mA as a separate battery-swap or bench-recovery case (Ben).
+- [x] **Verify one overnight sleeper resumes autonomous charging after sunrise
+  -- DONE 2026-08-17.** Multiple non-USB-roster fixtures reported positive
+  battery current after the timed wake, including `9E5A74`, `F3FD60`, `9E5B34`,
+  `9E5AE0`, `9F0E5C`, and `F2BE48`. The later dark-awake test moved 27 additional
+  stable-input fixtures into net charge. Old-firmware `9E5B44` remains a separate
+  swap/bench case at about 2.40 V and 0 mA despite input (Ben/Codex).
 
 - [x] **Promote the BQ-qualified recovery/self-identifying listener artifact --
   DONE 2026-08-16.** Immutable `fx-260817-29ac840-b` (binary SHA-256 in LOG)

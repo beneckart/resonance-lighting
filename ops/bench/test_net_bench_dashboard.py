@@ -85,8 +85,19 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIn("resonanceTaggedLanterns", dashboard.HTML)
         self.assertIn('fetch("/api/strike"', dashboard.HTML)
         self.assertIn('fetch("/api/sleep"', dashboard.HTML)
+        self.assertIn('data-cmd="B3600"', dashboard.HTML)
+        self.assertIn('data-cmd="b"', dashboard.HTML)
         self.assertNotIn('data-cmd="S"', dashboard.HTML)
         self.assertIn('<details class="diagnostics">', dashboard.HTML)
+
+    def test_dark_lease_command_validation(self):
+        self.assertTrue(dashboard.valid_command("B1"))
+        self.assertTrue(dashboard.valid_command("B3600"))
+        self.assertTrue(dashboard.valid_command("B65535"))
+        self.assertTrue(dashboard.valid_command("b"))
+        self.assertFalse(dashboard.valid_command("B0"))
+        self.assertFalse(dashboard.valid_command("B65536"))
+        self.assertFalse(dashboard.valid_command("B1.5"))
 
     def test_fleet_strike_stays_addressed_and_skips_stale_peers(self):
         commands, skipped = dashboard.prepare_strike_batch(

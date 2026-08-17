@@ -45,7 +45,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-16.1"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-17.1"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -77,6 +77,8 @@
 #define NB_REMOTE_SLEEP_S 21600
 #define NB_TARGET_SLEEP_DEFAULT_S 3600
 #define NB_DRAWDOWN_DEFAULT_MAH 3500
+#define NB_DARK_LEASE_DEFAULT_S 3600
+#define NB_PROGRAM_COMMISSION_DARK 4
 
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -482,6 +484,17 @@ void sendProfile(const uint8_t target[3], uint8_t profile, bool persist) {
   memcpy(cmd.target_id, target, 3);
   cmd.profile = profile;
   cmd.flags = persist ? 0x01 : 0x00;
+  sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
+}
+
+void sendFleetProgramLease(uint8_t programId, uint16_t leaseS) {
+  NbProgramSet cmd = {};
+  fillHeader(&cmd.h, NB_PROGRAM_SET);
+  // target_id stays 00:00:00: every receiver applies the same bounded lease.
+  cmd.program_id = programId;
+  cmd.lease_s = leaseS;
+  cmd.seed = esp_random();
+  cmd.flags = 0x01; // hard cut; do not spend power crossfading to or from dark
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
@@ -1453,6 +1466,21 @@ void handleSerial() {
     }
     break;
   }
+  case 'B': {
+    int seconds = readSerialUint(80, 65535);
+    uint16_t leaseS = seconds < 0 ? NB_DARK_LEASE_DEFAULT_S : (uint16_t)seconds;
+    if (!leaseS) {
+      Serial.println("DARK rejected: use B[seconds], seconds 1..65535");
+      break;
+    }
+    sendFleetProgramLease(NB_PROGRAM_COMMISSION_DARK, leaseS);
+    Serial.printf("broadcast DARK lease %us (RAM-only; profile unchanged)\n", leaseS);
+    break;
+  }
+  case 'b':
+    sendFleetProgramLease(0, 0);
+    Serial.println("broadcast DARK release");
+    break;
   case 't':
     Serial.printf("{\"bridge\":\"%02X%02X%02X\",\"channel\":%d,\"peers\":%d,\"live\":%d,\"queue_drops\":%lu}\n",
                   myId[0], myId[1], myId[2], NB_CHANNEL, peerCount(false),
@@ -1471,7 +1499,7 @@ void handleSerial() {
 #endif
   case 'h':
   case '?':
-    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
+    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
                    " A"
 #endif

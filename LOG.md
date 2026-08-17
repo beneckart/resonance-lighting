@@ -12,6 +12,47 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Dark-awake fleet test exposed the radio floor
+
+Added a RAM-only fleet-dark lease to the normal CoreS3 bridge. `B<seconds>`
+broadcasts `NB_PROGRAM_SET` for `PROG_COMMISSION_DARK` with a hard cut and a
+bounded 1-65,535 second TTL; lowercase `b` releases the lease. The command does
+not change fixture profile, lifecycle, sleep state, or NVS. The dashboard exposes
+one-hour dark and explicit release buttons and validates the same serial grammar.
+This uses program support already present in the fixture image, so no fixture OTA
+was needed.
+
+Built and USB-flashed only bridge `4D5DB0` with normal channel-11 revision
+`cores3-bridge-2026-08-17.1`. The exact 1,103,040-byte binary at
+`firmware/cores3_bridge/build/cores3-bridge-20260817-darklease-r1/` has SHA-256
+`f4b76098d031a4166620e5319ebd754ebd7932abdf38df7f4343ef3529b80613`.
+Upload verification passed and the restarted dashboard required the new revision
+before any fleet command was sent.
+
+A one-hour `B3600` lease took every updated fixture with returned LED telemetry
+to zero lit pixels while leaving its radio and existing commission profile awake.
+The three fresh old-firmware peers (`9E5A84`, `9E5B44`, and `9F26D8`) do not
+report LED output and cannot prove or consume this fixture-era program lease.
+
+The matched daylight comparison used per-fixture median battery current. Among
+59 updated fixtures that were definitely lit in the 15-second baseline and
+definitely dark in the 20-second post-command window, the median improvement was
+72 mA per fixture. Their summed medians moved from -2,154 mA to +1,742 mA, a
+3,896 mA fleet swing (roughly 12.5 W at 3.2 V). For the 42 fixtures with stable
+external input in both windows, summed battery current moved from -811 mA to
++2,097 mA; 27 additional fixtures crossed into net charging. Sun variation is a
+remaining caveat, but the paired windows were under three minutes apart and the
+stable-input subset showed the same result.
+
+With LEDs dark, the three continuously awake battery-only fixtures still drew
+about 126-144 mA. That directly confirms the earlier roughly 168 mA always-on
+ESP-NOW floor: radio receive dominates after the light load is removed. Merely
+changing heartbeat transmit cadence from 1 Hz to 0.2 Hz should therefore save
+little while the receiver and the separate 1 Hz choreography keepalive remain
+awake. The existing command-only 0.2 Hz field profile also enables five-minute
+day-charge deep sleep and autonomous lifecycle, so it is not an isolated cadence
+test. The dark lease remains active for one hour unless explicitly released.
+
 ## 2026-08-16 -- Ben + Codex -- Presence wipe field demo and overnight fleet sleep
 
 Built the first presence-wave image as immutable revision

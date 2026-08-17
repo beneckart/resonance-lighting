@@ -28,6 +28,9 @@ The bridge:
   linear level 128 and `T<fixture-id>:0` to release it immediately;
 - accepts `F0` / `F1` to persistently place all reachable fixtures in
   commission / field profile, or `F<fixture-id>:0|1` for one fixture;
+- accepts `B<seconds>` for a RAM-only, hard-cut fleet-dark program lease and
+  lowercase `b` to release that lease immediately; neither command changes the
+  fixture profile, lifecycle, or persisted configuration;
 - shows bridge health and fresh fixtures on the built-in screen using a
   PSRAM-backed framebuffer so periodic updates do not visibly blink.
 
@@ -160,7 +163,7 @@ lead, not a standalone electrical verdict.
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-16.1 ===
+=== Resonance net-bench cores3-bridge-2026-08-17.1 ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
 ```
