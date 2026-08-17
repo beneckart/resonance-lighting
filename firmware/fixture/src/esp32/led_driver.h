@@ -23,7 +23,21 @@ bool ledRailOn();  // cleared rail-on; false = pad verify failed (stays parked)
 void ledRailOff(); // blank -> data low -> rail cut (safe to call anytime)
 bool ledRailIsOn();
 
-// Render a frame (applies the global brightness cap).
+// Compact, dashboard-oriented truth about the frame actually handed to the
+// pixels after the brightness cap. Multi-pixel fixtures report the mean
+// color of nonzero pixels plus their count; this describes the visible look
+// without pretending all 37 HEX pixels share one value.
+struct LedOutputSnapshot {
+  uint8_t railOn;
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t w;
+  uint8_t litPixels;
+};
+LedOutputSnapshot ledOutputSnapshot();
+
+// Render a frame with direct linear 8-bit levels and the global brightness cap.
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap);
 
 // Guarded turn-on: rail on + 4-step ramp of `f` sampling VBAT between steps.

@@ -1,8 +1,8 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-08-06. This supersedes the old
+**Status:** Current working architecture, 2026-08-16. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0032. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0041. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
@@ -23,8 +23,8 @@ update here first.
 |---|---|---|---|---|
 | Hanging downlight (7-10 ft) | 72 (3 rings x 24) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward); outermost ring of 24 also gets BMP581 (ADR 0034) |
 | Perimeter (5 ft shepherd hooks) | 24 | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah | VL53L5CX (outward); MSA311 likely |
-| Trunk light (no gobo) | about 16 (target 16) | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | none currently; BMP581s moved to the outer hanging ring (ADR 0034) |
-| Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none |
+| Trunk light / uplight (no gobo) | about 16 (target 16) | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | MSA311 only; BMP581s moved to the outer hanging ring (ADR 0034) |
+| Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none; chandelier is currently unpowered |
 
 Nominal total 130. All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
@@ -34,6 +34,12 @@ Chandelier scope/ownership remains a coordination item, but the Nevada City layo
 targets 18 lights. Board spares are healthy since the 90-board order (158 production
 + ~8 bench); current enclosure demand is well within the 111-large/61-small pools --
 see `ops/bom.md` spares math.
+
+Automatic class identity follows the STEMMA signature in ADR 0041: TMF8820/8821
+means canopy/downlight; otherwise VL53L5CX means perimeter; otherwise MSA311 means
+trunk/uplight; otherwise no sensors means chandelier. `class_last` prevents a lost
+ToF sensor from silently reclassifying an assembled downlight or perimeter device.
+BMP581 is environmental and never determines class.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for

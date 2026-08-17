@@ -10,6 +10,9 @@ Sister tracks (not in this repo): bamboo structure (Bamboo Pure, Bali), structur
 - **Steve Eckart** -- enclosure design, 3D printing, mechanical fit. Owns `/enclosure/`.
 
 Both work with AI pair-programmers. Coordinate via `LOG.md`, `TODO.md`, and ADRs.
+Firmware builders additionally use
+[`docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`](docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md)
+so separate benches do not reuse revisions or silently flash each other's targets.
 
 ## What is the deliverable
 
@@ -54,9 +57,13 @@ board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bak
 candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose;
 PowerFeather V2 won.
 
-**Sensors** (ADR 0027): every downlight carries an MSA311 accelerometer + downward
-TMF8820-mini multizone ToF; perimeter lights carry an outward VL53L5CX. Fused IMUs
-were rejected (per-device calibration does not scale to the fleet). The **noisemaker**
+**Sensors and class identity** (ADRs 0027, 0034, 0041): every downlight carries an
+MSA311 accelerometer + downward TMF8820-mini multizone ToF; perimeter lights carry
+an outward VL53L5CX; trunk/uplights carry only MSA311; chandelier lights carry no
+STEMMA sensors. Auto-classification follows that same ordered signature and retains
+the remembered class when a distinguishing ToF disappears. BMP581 is non-classifying
+environmental telemetry on the outer 24 downlights. Fused IMUs were rejected
+(per-device calibration does not scale to the fleet). The **noisemaker**
 is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
 solar-surplus percussion; the speaker-synth path was abandoned once the strikes
 proved out.
@@ -122,7 +129,7 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 |   `-- <app>/             bench sketches (net_bench, power_bench, led_studio, ...)
 |-- docs/
 |   |-- block-diagram/     SYSTEM.md -- canonical architecture + fleet table
-|   |-- decisions/         ADRs 0001-0037
+|   |-- decisions/         ADRs 0001-0040
 |   |-- howto/             task-oriented bench and operations guides
 |   |-- research/
 |   `-- tests/
@@ -145,6 +152,9 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## How-to guides
 
+- [`docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`](docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md) --
+  collision-proof firmware revision/manifest rules, explicit target handoff,
+  fresh-evidence OTA completion, and USB boot-salute semantics for shared benches.
 - [`docs/howto/CORES3_AUDIO_REACTIVE.md`](docs/howto/CORES3_AUDIO_REACTIVE.md) --
   connect and tune the Rode VideoMic NTG, read the CoreS3 audio display, run the
   three-fixture sound-reactive bench, and troubleshoot the safe fallback path.
@@ -152,6 +162,33 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
   stand up Starlink + the Beryl AX travel router with the 2.4 GHz radio pinned to
   channel 11 so infrastructure WiFi and the ESP-NOW fleet can coexist on one
   radio. Home rehearsal, field checklist, and troubleshooting (ADR 0036).
+
+## Fleet dashboard
+
+With the CoreS3 serial bridge attached, launch the local dashboard from the repo
+root. The only Python dependency is `pyserial`; list the attached ports, then
+replace `COM40` with the observed bridge port:
+
+```sh
+python -m pip install pyserial
+python -m serial.tools.list_ports
+python ops/bench/net_bench_dashboard.py --port COM40
+```
+
+The landing view is a compact grid of every ESP-NOW light. Battery fill and color,
+charger-input source, panel-suspect state, adaptive heartbeat freshness, and the
+actual reported light output are readable without opening a table. The top bar is
+the rendered LED color, independent from battery status. Reported fixture class
+(normally from the Stemma probe, with an override available) sets the battery
+glyph shape: circle for canopy/downlight, hexagon for
+perimeter, triangle for trunk/uplight, and diamond for chandelier. IDs use two MAC
+digits unless a collision needs `-1`, `-2`, and so on. Select any light for exact
+values; bench controls and the full historical telemetry console are preserved in
+the collapsed `Detailed diagnostics` section. With `All` selected, `Strike all`
+queues one addressed D7 pulse per fresh fixture after confirmation; disarmed boards
+ignore it and the fixture's local power/mechanism gates remain authoritative. See
+[`firmware/cores3_bridge/README.md`](firmware/cores3_bridge/README.md) for the
+glyph contract and source-classification caveat.
 
 ## Status
 

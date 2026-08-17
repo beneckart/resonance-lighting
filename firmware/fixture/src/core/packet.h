@@ -176,6 +176,14 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t power_tier;     // LedTier
   uint8_t active_program; // choreo program id
   uint16_t night_min;     // minutes into NIGHT_SHOW (bounded-night observability)
+  // tail 14 (fleet dashboard output truth -- appears only in hb-full)
+  uint8_t fixture_class;  // FixtureClass; 0 = unknown
+  uint8_t led_rail_on;    // physical switchable 3V3 rail state (0/1)
+  uint8_t led_r;          // mean post-gamma output across currently lit pixels
+  uint8_t led_g;
+  uint8_t led_b;
+  uint8_t led_w;          // 0 on GRB HEX fixtures
+  uint8_t led_lit_pixels; // number of nonzero pixels after cap/gamma
 };
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?

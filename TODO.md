@@ -303,6 +303,49 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   frame each loop and `renderTick()` retries the impossible rail enable at loop
   speed, flooding serial. Keep the rail parked but retry at a bounded service
   cadence and expose a counter/last result in telemetry (Ben/Codex).
+- [~] **P0: reconcile and qualify the accepted commission-listener image before
+  broader fleet OTA (ADRs 0039/0040).** Elliot's `Lighting-Controller` at
+  `b047986` contains Ben's complete `d4b1405` hardening/RMT fix plus low-red
+  listener, identity pulse, and local ToF response. The observed change from
+  `.4` to `.2` on `9E5A94` was not A/B rollback: Elliot's separate bridge OTA'd
+  the attached fixture. Both materially different builds reported
+  `fixture-2026-08-15.4`, so that string is retired and cannot prove source.
+  Integrate Elliot's boot-salute work without parallel edits to the same fixture
+  files, then build one newly identified listener artifact. Prove command
+  override/fallback, fresh ToF enter/leave, OFF/PROTECT rail cut, non-target
+  maintenance enter/resume rail cycling, 20-minute census, and the unexplained
+  task-watchdog reset before broader promotion (Ben + Elliot + Codex).
+- [ ] **Move listener selection from `RES_QUIET_AUTONOMY` into runtime
+  configuration before calling the merged image fleetable.** The normal `p`
+  artifact must retain the one-image doctrine: listener is the commission
+  default, strict dark is available for rail diagnostics, and field remains the
+  deliberate promoted posture without rebuilding (Ben + Elliot).
+- [ ] **P0: implement ADR 0040 artifact automation.** Generate
+  `fx-YYMMDD-<recipe7>-<variant>` from clean source/config/toolchain inputs,
+  write immutable `manifest.json` + SHA-256 beside the binary, refuse revision
+  overwrite/dirty fleet builds, and teach USB/OTA tooling to require an explicit
+  manifest rather than newest `fixture.ino.bin` (Ben/Codex).
+- [ ] **P0: harden and test Cambium OTA completion.** Reject unknown/invalid MACs
+  before maintenance broadcast; capture pre-job state; require a fresh post-job
+  heartbeat, expected revision, and survival beyond the 20-second A/B verify
+  window. Add direct `OtaJobs` tests. The current 30-second cached-online window
+  can falsely report success four seconds after upload (Justin/Elliot/Ben).
+- [~] **Qualify the optional USB boot salute without making it false authority.**
+  Elliot owns the current firmware implementation. Automatic USB-specific salute
+  may mean stable boot only; the final "unplug and install" salute should be
+  requested by host tooling after artifact/MAC/profile/channel/power/class/sensor
+  checks and `ota_pending_verify=false`. Keep it visually distinct from low-red
+  listener, identity pulse, and errors (Elliot + Ben).
+- [ ] **Give TMF listener presence freshness/debounce semantics.** A successful
+  report with no usable target must clear or age out the prior close distance;
+  prove a visitor departure returns to low red instead of latching a stale ToF
+  sample (Elliot/Ben).
+- [ ] **Make leaseless multi-bridge control observable without blocking it.**
+  Preserve last-writer-wins artistic control, but give each bridge a stable
+  source identity and surface the fixture's latest direct-frame source/age (and
+  rapid source changes) in Cambium/the controller. Contention should read as
+  "Ben and Elliot are both driving," not as a mysterious LED or firmware fault
+  (Justin/Elliot/Ben).
 - [ ] **Run and save a full-cadence census before classifying the missing deployed
   lanterns.** Old field firmware uses 300-second ordinary day sleeps and
   900-second PROTECT sleeps. Listen at least 16 minutes without resetting/opening
@@ -1135,6 +1178,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   are available only through maintenance `/telemetry`; interpret/calibrate the
   TMF8820's high-confidence 20 mm near return against the enclosure/window before
   treating it as presence (Claude + whoever's bench).
+- [ ] Build, validate, and intentionally deploy a named fleet artifact that
+  publishes the ADR 0041 class/render telemetry tail. The 2026-08-16 live fleet
+  artifacts omit that tail, so the dashboard correctly leaves their glyphs
+  unknown. Follow ADR 0040: build once, record manifest/SHA-256, name explicit
+  target short MACs, and require fresh post-OTA revision plus 20-second
+  pending-verify survival. This source change alone does not authorize OTA
+  (Ben + current firmware operator).
 - [ ] **ToF eye test**: downward VL53L1X at 2.5-3.5 m hang height -- detection vs
   false-positive rate with person under/standing/leaving vs sway (fan/manual swing);
   ground-baseline temporal filter; dirty-cover-glass crosstalk calibration check (Steve-runnable).
@@ -1594,6 +1644,12 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   `bqv=4800`, `bqichg=1480`, `bqvreg=3600`, `CHG_EN=1`, `HIZ=0`, BATFET normal,
   VBUS adapter, charge-state CC bucket, `fault0=0`. Remaining: port to production
   telemetry and decide whether to add automatic USB-rescue VINDPM behavior.
+- [ ] Qualify an explicit USB-vs-panel input discriminator before making the fleet
+  dashboard source glyph authoritative. Current production telemetry proves a good
+  charger input but cannot universally identify what is feeding it, so the dashboard
+  honestly uses fixture class (panel-bearing class -> sun; chandelier -> plug) and
+  labels panel-loss from daylight fleet consensus as suspect rather than certain
+  (Ben/Codex).
 - [ ] **WiFi re-associate guard (cheap roaming):** the ESP32 latches one Eero BSSID and won't auto-roam (no 802.11k/v/r -- LOG cont. 9, POWERFEATHER_NOTES). On link-loss / low-RSSI in maintenance mode, do `WiFi.disconnect()` + `WiFi.begin()` to re-pick the strongest beacon. Low field priority (deployed fixtures are stationary; the maintenance-OTA path already does a fresh `WiFi.begin`) -- but a belt-and-suspenders guard for OTA windows (Ben).
 - [~] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers -- done in `firmware/net_bench/` (feasibility); port the validated packet/PDR design into production `core/packet` after the matrix run (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).

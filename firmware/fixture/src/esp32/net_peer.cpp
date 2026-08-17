@@ -9,10 +9,12 @@
 #include "behavior_glue.h"
 #include "board_power.h"
 #include "identity.h"
+#include "led_driver.h"
 #include "maintenance.h"
 #include "nvs_store.h"
 #include "solenoid.h"
 #include "status_led.h"
+#include "telemetry.h"
 
 uint8_t gNetCaState = 0;
 uint8_t gNetLifeState = 0;
@@ -59,6 +61,11 @@ static uint32_t shortPeriodMs() {
   if (gRateHz > 0) return 1000UL / gRateHz;
   return gCfg.profile == PROFILE_DEV ? RES_HB_SHORT_PERIOD_DEV_MS
                                      : RES_HB_SHORT_PERIOD_PROD_MS;
+}
+
+static uint32_t fullPeriodMs() {
+  return gCfg.profile == PROFILE_DEV ? RES_HB_FULL_PERIOD_DEV_MS
+                                     : RES_HB_FULL_PERIOD_PROD_MS;
 }
 
 void netPeerSendHeartbeat(bool full) {
@@ -118,6 +125,14 @@ void netPeerSendHeartbeat(bool full) {
   hb.power_tier = gNetPowerTier;
   hb.active_program = gNetProgram;
   hb.night_min = gNetNightMin;
+  hb.fixture_class = gTelemetryFixtureClass;
+  LedOutputSnapshot led = ledOutputSnapshot();
+  hb.led_rail_on = led.railOn;
+  hb.led_r = led.r;
+  hb.led_g = led.g;
+  hb.led_b = led.b;
+  hb.led_w = led.w;
+  hb.led_lit_pixels = led.litPixels;
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -332,7 +347,7 @@ static void processPacket(const RxItem &it) {
 void netPeerInit() {
   uint32_t now = millis();
   gNextShortMs = now + jittered(shortPeriodMs());
-  gNextFullMs = now + jittered(RES_HB_FULL_PERIOD_MS);
+  gNextFullMs = now + jittered(fullPeriodMs());
 }
 
 void netPeerTick() {
@@ -351,6 +366,6 @@ void netPeerTick() {
   }
   if ((int32_t)(now - gNextFullMs) >= 0) {
     netPeerSendHeartbeat(true);
-    gNextFullMs = now + jittered(RES_HB_FULL_PERIOD_MS);
+    gNextFullMs = now + jittered(fullPeriodMs());
   }
 }

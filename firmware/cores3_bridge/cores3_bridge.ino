@@ -363,6 +363,22 @@ struct PeerStat {
   bool hasFieldLatches;
   uint8_t fieldLoadDimmed;
   uint8_t fieldProtectLatched;
+
+  bool hasFixtureState;
+  uint8_t profile;
+  uint8_t lifeState;
+  uint8_t powerTier;
+  uint8_t activeProgram;
+  uint16_t nightMin;
+
+  bool hasLedOutput;
+  uint8_t fixtureClass;
+  uint8_t ledRailOn;
+  uint8_t ledR;
+  uint8_t ledG;
+  uint8_t ledB;
+  uint8_t ledW;
+  uint8_t ledLitPixels;
 };
 
 PeerStat peers[NB_MAX_TRACKED] = {};
@@ -822,6 +838,26 @@ void processHeartbeat(const RxItem &item) {
     peer->fieldLoadDimmed = hb->field_load_dimmed;
     peer->fieldProtectLatched = hb->field_protect_latched;
   }
+
+  peer->hasFixtureState = NB_HAS_HB_FIELD(item.len, night_min);
+  if (peer->hasFixtureState) {
+    peer->profile = hb->profile;
+    peer->lifeState = hb->life_state;
+    peer->powerTier = hb->power_tier;
+    peer->activeProgram = hb->active_program;
+    peer->nightMin = hb->night_min;
+  }
+
+  peer->hasLedOutput = NB_HAS_HB_FIELD(item.len, led_lit_pixels);
+  if (peer->hasLedOutput) {
+    peer->fixtureClass = hb->fixture_class;
+    peer->ledRailOn = hb->led_rail_on;
+    peer->ledR = hb->led_r;
+    peer->ledG = hb->led_g;
+    peer->ledB = hb->led_b;
+    peer->ledW = hb->led_w;
+    peer->ledLitPixels = hb->led_lit_pixels;
+  }
 }
 
 void emitScanAp(const RxItem &item) {
@@ -976,6 +1012,18 @@ void emitBridgeStats() {
     if (p->hasFieldLatches && n < (int)sizeof(line)) {
       n += snprintf(line + n, sizeof(line) - n, " fcdim=%u fclat=%u",
                     p->fieldLoadDimmed, p->fieldProtectLatched);
+    }
+    if (p->hasFixtureState && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " prof=%u life=%u ptier=%u prog=%u nmin=%u",
+                    p->profile, p->lifeState, p->powerTier,
+                    p->activeProgram, p->nightMin);
+    }
+    if (p->hasLedOutput && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " cls=%u ledrail=%u ledr=%u ledg=%u ledb=%u ledw=%u ledn=%u",
+                    p->fixtureClass, p->ledRailOn, p->ledR, p->ledG,
+                    p->ledB, p->ledW, p->ledLitPixels);
     }
     if (n < 0) continue;
     // snprintf returns the length it wanted to write. Clamp before appending a
