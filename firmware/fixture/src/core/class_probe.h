@@ -19,6 +19,9 @@ struct ClassDecision {
   bool mismatch;     // probe disagreed with override/last -> telemetry flag
 };
 
+// Stable wire mask for ProbeBits (NbHeartbeat::sensor_bits).
+uint8_t probeBitsMask(const ProbeBits &bits);
+
 // Rules:
 //  - class_ovr wins outright (mismatch flagged if the probe disagrees).
 //  - TMF8820 -> downlight (TMF+VL53 conflict -> downlight + mismatch).

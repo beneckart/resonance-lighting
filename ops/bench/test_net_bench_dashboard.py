@@ -25,6 +25,7 @@ class DashboardParserTests(unittest.TestCase):
             BASE
             + " prof=0 life=4 ptier=0 prog=3 nmin=0"
             + " cls=1 ledrail=1 ledr=24 ledg=6 ledb=180 ledw=10 ledn=1"
+            + " sens=9 cmis=0 rec=2 recmv=2421"
         )
         self.assertEqual(row["profile"], 0)
         self.assertEqual(row["life_state"], 4)
@@ -37,6 +38,10 @@ class DashboardParserTests(unittest.TestCase):
             (24, 6, 180, 10),
         )
         self.assertEqual(row["led_lit_pixels"], 1)
+        self.assertEqual(row["sensor_bits"], 9)
+        self.assertFalse(row["class_mismatch"])
+        self.assertEqual(row["recovery_state"], 2)
+        self.assertEqual(row["recovery_detect_mv"], 2421)
 
     def test_legacy_line_remains_valid(self):
         row = self.parse(BASE)
@@ -52,6 +57,7 @@ class DashboardParserTests(unittest.TestCase):
             BASE
             + " prof=0 life=4 ptier=0 prog=3 nmin=0"
             + " cls=2 ledrail=1 ledr=5 ledg=40 ledb=90 ledw=0 ledn=12"
+            + " sens=10 cmis=1 rec=0 recmv=65535"
         )
         worker.handle_line(BASE.replace("seq=42", "seq=43"))
         row = state.snapshot()["peers"]["F2B7DC"]
@@ -63,6 +69,9 @@ class DashboardParserTests(unittest.TestCase):
             (5, 40, 90, 0),
         )
         self.assertEqual(row["led_lit_pixels"], 12)
+        self.assertEqual(row["sensor_bits"], 10)
+        self.assertTrue(row["class_mismatch"])
+        self.assertIsNone(row["recovery_detect_mv"])
 
     def test_fleet_view_is_the_primary_page(self):
         self.assertIn('id="fleetGrid"', dashboard.HTML)
@@ -72,6 +81,8 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIn("class-perimeter", dashboard.HTML)
         self.assertIn("class-uplight", dashboard.HTML)
         self.assertIn("top bar: rendered light color", dashboard.HTML)
+        self.assertIn('class="tag-toggle"', dashboard.HTML)
+        self.assertIn("resonanceTaggedLanterns", dashboard.HTML)
         self.assertIn('fetch("/api/strike"', dashboard.HTML)
         self.assertIn('<details class="diagnostics">', dashboard.HTML)
 
@@ -93,6 +104,9 @@ class DashboardParserTests(unittest.TestCase):
         )
         self.assertEqual(skipped, 1)
         self.assertTrue(all(dashboard.valid_command(cmd) for cmd, _ in commands))
+        self.assertTrue(dashboard.valid_command("TF2B7DC:1"))
+        self.assertTrue(dashboard.valid_command("Tf2b7dc:0"))
+        self.assertFalse(dashboard.valid_command("TF2B7DC:2"))
 
     def test_fleet_strike_rejects_broadcast_or_bad_pulse(self):
         peers = {"F2B7DC": {"age_ms": 800}}

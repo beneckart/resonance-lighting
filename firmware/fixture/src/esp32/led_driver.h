@@ -55,4 +55,5 @@ extern bool gBenchRailForcedOff;
 // Class-appropriate smoke/identify frames.
 void ledSmokeFrame(FrameBuffer &f, uint32_t nowMs);
 // Rig color-identify: color 1=R 2=G 3=B 4=Y 5=W; blink toggles at 1 Hz.
-void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink, uint32_t nowMs);
+void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink,
+                      uint8_t value, uint32_t nowMs);

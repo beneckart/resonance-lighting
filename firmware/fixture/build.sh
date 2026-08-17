@@ -14,7 +14,7 @@
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
-#   ./build.sh --basic-listener          # steady red 128 when no bridge command
+#   ./build.sh --basic-listener          # class-aware listener when no command
 #   ./build.sh --ota-fail-selftest      # P4 rollback drill image
 #   ./build.sh --wdt-hangtest           # arm serial 'x' watchdog hang test
 #

@@ -3,6 +3,10 @@
 #include "../src/core/class_probe.h"
 
 int main() {
+  {
+    ProbeBits b = {true, false, true, true};
+    CHECK_EQ(probeBitsMask(b), 0x0Du);
+  }
   // Clean decision table on first boot (no last, no override).
   {
     ProbeBits b = {true, false, false, true};

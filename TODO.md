@@ -4,6 +4,16 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Promote the BQ-qualified recovery/self-identifying listener artifact.**
+  Build once from the clean commit with channel 11, commission/basic-listener,
+  and an immutable `b` identity. First restore `F2BFE0` from its exact-target
+  `t` image and prove a healthy canary, then prove one fresh USB-powered
+  2.2-2.5 V fixture reports `recovery_state=active`, a plausible BQ presence ADC,
+  no fault, and survives A/B verification. Expand only to explicit fresh MACs
+  with qualified power; record every result and the exact SHA-256. Flash the
+  CoreS3 dashboard bridge before relying on tag/sensor/recovery serial fields
+  (Ben/Codex + field observers).
+
 - [~] **Finish the universal-default visible-fleet rollout.** The immutable
   `fx-260816-19c6bbb-b` artifact is exact and A/B-accepted on 37 observed
   fixtures. Reuse its exact SHA from LOG; do not rebuild. Recover the uplink-only

@@ -52,6 +52,7 @@ RX_PEER = re.compile(
     r"(?: fcdim=(\d+) fclat=(\d+))?"
     r"(?: prof=(\d+) life=(\d+) ptier=(\d+) prog=(\d+) nmin=(\d+))?"
     r"(?: cls=(\d+) ledrail=(\d+) ledr=(\d+) ledg=(\d+) ledb=(\d+) ledw=(\d+) ledn=(\d+))?"
+    r"(?: sens=(\d+) cmis=(\d+) rec=(\d+) recmv=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -324,6 +325,10 @@ class SerialWorker(threading.Thread):
                 led_b,
                 led_w,
                 led_lit_pixels,
+                sensor_bits,
+                class_mismatch,
+                recovery_state,
+                recovery_detect_mv,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -394,6 +399,10 @@ class SerialWorker(threading.Thread):
                 "led_b": int(led_b) if led_b is not None else None,
                 "led_w": int(led_w) if led_w is not None else None,
                 "led_lit_pixels": int(led_lit_pixels) if led_lit_pixels is not None else None,
+                "sensor_bits": int(sensor_bits) if sensor_bits is not None else None,
+                "class_mismatch": bool(int(class_mismatch)) if class_mismatch is not None else None,
+                "recovery_state": int(recovery_state) if recovery_state is not None else None,
+                "recovery_detect_mv": maybe_u16(recovery_detect_mv),
                 "ts_utc": ts,
             }
             if bq16 is not None:
@@ -465,6 +474,10 @@ class SerialWorker(threading.Thread):
                         "led_b",
                         "led_w",
                         "led_lit_pixels",
+                        "sensor_bits",
+                        "class_mismatch",
+                        "recovery_state",
+                        "recovery_detect_mv",
                     ):
                         row[key] = previous.get(key)
                 self.state.peers[pid] = row
@@ -559,11 +572,16 @@ h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .fixture-tile { position: relative; min-width: 0; height: 82px; padding: 7px 5px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; transition: border-color .14s ease, background .14s ease, opacity .14s ease, transform .14s ease; }
 .fixture-tile:hover { background: var(--panel-raised); border-color: #4d6c5e; transform: translateY(-1px); }
 .fixture-tile.selected { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.fixture-tile.tagged { border-color: #49b979; box-shadow: inset 0 0 13px rgba(73,185,121,.18); }
 .fixture-tile.attention { border-color: #85672f; }
 .fixture-tile.critical { border-color: #99504a; background: #251918; }
 .fixture-tile.late { opacity: .54; }
 .fixture-tile.silent { opacity: .28; filter: grayscale(.75); }
 .fixture-tile.panel-suspect::after { content: ""; position: absolute; inset: 0; border-radius: 9px; box-shadow: inset 0 0 0 1px var(--red); pointer-events: none; }
+.tag-toggle { position: absolute; left: 4px; top: 4px; width: 17px; height: 17px; min-height: 17px; padding: 0; z-index: 4; border: 1px solid #51665d; border-radius: 4px; background: #17231e; color: transparent; display: grid; place-items: center; font: 800 12px/1 system-ui, sans-serif; }
+.tag-toggle:hover { border-color: var(--green); }
+.tag-toggle[aria-pressed="true"] { color: #07130d; background: var(--green); border-color: var(--green); }
+.tag-toggle[aria-pressed="true"]::before { content: "\2713"; }
 .fixture-glyph { position: relative; width: 44px; height: 55px; display: flex; justify-content: center; align-items: center; }
 .battery-shape { position: relative; width: 36px; height: 36px; border-radius: 50%; background: color-mix(in srgb, var(--battery-color) 78%, var(--ink)); filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
 .battery-shape::before { content: ""; position: absolute; inset: 2px; border-radius: inherit; clip-path: inherit; background: linear-gradient(to top, var(--battery-color) 0 var(--battery-fill), var(--cell-empty) var(--battery-fill) 100%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.18); }
@@ -599,6 +617,7 @@ h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .legend-shape.triangle { clip-path: polygon(50% 2%, 98% 96%, 2% 96%); }
 .legend-shape.diamond { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .legend-fade { width: 16px; height: 13px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); opacity: .4; }
+.legend-tag { width: 13px; height: 13px; border: 1px solid var(--green); border-radius: 3px; display: inline-block; background: var(--green); }
 .diagnostics { border-top: 1px solid var(--line); padding-top: 4px; }
 .diagnostics > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; padding: 12px 2px; list-style-position: outside; }
 .diagnostics[open] > summary { color: var(--ink); }
@@ -723,6 +742,7 @@ input { padding: 0 10px; width: 100%; font-variant-numeric: tabular-nums; }
       <span class="legend-item"><i class="legend-shape hex"></i> perimeter</span>
       <span class="legend-item"><i class="legend-shape triangle"></i> trunk / uplight</span>
       <span class="legend-item"><i class="legend-shape diamond"></i> chandelier</span>
+      <span class="legend-item"><i class="legend-tag"></i> tagged green at half brightness</span>
       <span class="legend-item"><i class="legend-fade"></i> late heartbeat</span>
     </div>
   </section>
@@ -875,6 +895,14 @@ let tempUnit = localStorage.getItem("netBenchTempUnit") || "F";
 let focusedPeerId = localStorage.getItem("netBenchPeerFocus") || "all";
 let activeHistoryKey = "";
 let strikeInFlight = false;
+let taggedPeerIds = new Set();
+try {
+  const savedTags = JSON.parse(localStorage.getItem("resonanceTaggedLanterns") || "[]");
+  if (Array.isArray(savedTags)) {
+    taggedPeerIds = new Set(savedTags.filter(id => /^[0-9A-F]{6}$/.test(String(id))));
+  }
+} catch (_) {}
+let tagLeasesPrimed = false;
 
 function fmt(v, digits = 2) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return "--";
@@ -906,6 +934,22 @@ const FIXTURE_CLASS_KEY = {0: "unknown", 1: "downlight", 2: "perimeter", 3: "upl
 const LIFE_STATE = {0: "boot", 1: "day charge", 2: "day active", 3: "night show", 4: "commission"};
 const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
 const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback"};
+const RECOVERY_STATE = {0: "normal", 1: "recovery waiting", 2: "recovering", 3: "recovery refused", 4: "recovered", 5: "recovery I/O error"};
+
+function sensorSignature(peer) {
+  if (!finite(peer.sensor_bits)) return "sensor signature unknown";
+  const bits = Number(peer.sensor_bits);
+  const names = [];
+  if (bits & 1) names.push("TMF8820");
+  if (bits & 2) names.push("VL53L5CX");
+  if (bits & 4) names.push("BMP581");
+  if (bits & 8) names.push("MSA311");
+  return names.length ? names.join(" + ") : "no STEMMA sensors";
+}
+
+function saveTaggedPeers() {
+  localStorage.setItem("resonanceTaggedLanterns", JSON.stringify([...taggedPeerIds].sort()));
+}
 
 function compactPeerIds(peers) {
   const groups = new Map();
@@ -1038,6 +1082,8 @@ function renderFleet(peers, selectedId) {
     const fixtureClassLabel = FIXTURE_CLASS[fixtureClass] || "unknown";
     const fixtureClassKey = FIXTURE_CLASS_KEY[fixtureClass] || "unknown";
     const classes = ["fixture-tile"];
+    const tagged = taggedPeerIds.has(peer.id);
+    if (tagged) classes.push("tagged");
     if (peer.id === selectedId) classes.push("selected");
     if (h.critical) classes.push("critical");
     else if (h.attention) classes.push("attention");
@@ -1051,17 +1097,38 @@ function renderFleet(peers, selectedId) {
       : (light.known ? "light reported off" : "light telemetry unknown");
     const ageText = msAge(peer.age_ms);
     const voltageText = finite(peer.battery_v) ? `${fmt(peer.battery_v, 3)} V` : "battery unknown";
-    const label = `${peer.id}, ${fixtureClassLabel}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ` +
-      `${h.source.label}, ${lightLabel}`;
+    const signature = sensorSignature(peer);
+    const label = `${peer.id}, ${fixtureClassLabel}, ${signature}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ` +
+      `${h.source.label}, ${lightLabel}${tagged ? ", tagged green" : ""}`;
     const sourceMarkup = h.source.icon
       ? `<span class="power-source ${h.source.kind}">${h.source.icon}</span>` : "";
-    return `<button type="button" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
+    return `<div role="button" tabindex="0" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
+      `<button type="button" class="tag-toggle" data-tag-id="${esc(peer.id)}" aria-pressed="${tagged}" aria-label="${tagged ? "Clear" : "Set"} green location tag for ${esc(peer.id)}" title="${tagged ? "Clear" : "Set"} green half-brightness tag"></button>` +
       `<span class="fixture-glyph class-${fixtureClassKey}" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--rendered-color:${lightColor}">` +
       `${sourceMarkup}<span class="light-output ${lightState}" title="${esc(lightLabel)}"></span><span class="battery-shape"></span></span>` +
-      `<span class="fixture-id">${esc(labels.get(peer.id))}</span></button>`;
+      `<span class="fixture-id">${esc(labels.get(peer.id))}</span></div>`;
   }).join("") : `<div class="fleet-empty">Listening for ESP-NOW heartbeats...</div>`;
   document.querySelectorAll("[data-fleet-id]").forEach(tile => {
     tile.addEventListener("click", () => setFocus(tile.dataset.fleetId));
+    tile.addEventListener("keydown", ev => {
+      if (ev.target !== tile) return;
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        setFocus(tile.dataset.fleetId);
+      }
+    });
+  });
+  document.querySelectorAll("[data-tag-id]").forEach(toggle => {
+    toggle.addEventListener("click", async ev => {
+      ev.stopPropagation();
+      const id = toggle.dataset.tagId;
+      const enabled = !taggedPeerIds.has(id);
+      if (await sendTagCommand(id, enabled)) {
+        if (enabled) taggedPeerIds.add(id); else taggedPeerIds.delete(id);
+        saveTaggedPeers();
+        if (state) render(state);
+      }
+    });
   });
 
   const selected = peers.find(p => p.id === selectedId);
@@ -1079,11 +1146,14 @@ function renderFleet(peers, selectedId) {
   const life = LIFE_STATE[selected.life_state] || "unknown state";
   const tier = POWER_TIER[selected.power_tier] || "unknown tier";
   const program = PROGRAM[selected.active_program] || "unknown program";
+  const recovery = RECOVERY_STATE[selected.recovery_state] || "recovery unknown";
   document.getElementById("selectedSummary").innerHTML =
     `<span class="summary-light" style="--summary-light:${lightColor}"></span>` +
     `<strong>${esc(selected.id)}</strong><span>${esc(cls)}</span>` +
     `<span>${fmt(selected.battery_v, 3)} V${finite(comp) ? ` (${fmt(comp, 3)} V load-comp)` : ""}</span>` +
     `<span>${selected.battery_ma ?? "--"} mA</span><span>${esc(h.source.label)}</span>` +
+    `<span>${esc(sensorSignature(selected))}${selected.class_mismatch ? " / class mismatch" : ""}</span>` +
+    `<span>${esc(recovery)}${finite(selected.recovery_detect_mv) ? ` (${selected.recovery_detect_mv} mV detect)` : ""}</span>` +
     `<span>heard ${msAge(selected.age_ms)} ago</span><span>${esc(life)} / ${esc(tier)} / ${esc(program)}</span>` +
     `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : (light.known ? "light off" : "light telemetry unknown")}</span>`;
 }
@@ -1486,6 +1556,27 @@ async function sendCommand(cmd, label) {
     return null;
   }
 }
+async function sendTagCommand(id, enabled, quiet = false) {
+  if (!quiet) setCommandStatus(`${enabled ? "Tagging" : "Clearing"} ${id}...`, "warn");
+  try {
+    const cmd = `T${id}:${enabled ? 1 : 0}`;
+    const res = await fetch("/api/cmd", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({cmd, label: `${enabled ? "Tag" : "Clear tag"} ${id}`})
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "tag command rejected");
+    if (!quiet) setCommandStatus(`${id} ${enabled ? "tagged green" : "tag cleared"}`, "ok");
+    return true;
+  } catch (err) {
+    if (!quiet) setCommandStatus(`Tag failed: ${err}`, "bad");
+    return false;
+  }
+}
+async function refreshTagLeases() {
+  for (const id of taggedPeerIds) await sendTagCommand(id, true, true);
+}
 async function sendStrikeBatch(peers, pulseMs) {
   const ids = peers.map(peer => peer.id);
   strikeInFlight = true;
@@ -1635,12 +1726,19 @@ document.getElementById("tempToggle").addEventListener("click", () => {
   if (state) render(state);
 });
 const es = new EventSource("/events");
-es.addEventListener("snapshot", ev => render(JSON.parse(ev.data)));
+es.addEventListener("snapshot", ev => {
+  render(JSON.parse(ev.data));
+  if (!tagLeasesPrimed && taggedPeerIds.size) {
+    tagLeasesPrimed = true;
+    setTimeout(refreshTagLeases, 1000);
+  }
+});
 es.onerror = () => {
   document.getElementById("serialPill").textContent = "dashboard reconnecting";
   document.getElementById("serialPill").className = "pill warn";
 };
 fetch("/api/state").then(r => r.json()).then(render);
+setInterval(refreshTagLeases, 120000);
 </script>
 </body>
 </html>
@@ -1665,6 +1763,8 @@ def valid_command(cmd: str) -> bool:
         value = int(m.group(1))
         return 1 <= value <= 255
     if re.fullmatch(r"U[0-9A-Fa-f]{6}", cmd):
+        return True
+    if re.fullmatch(r"T[0-9A-Fa-f]{6}:[01]", cmd):
         return True
     m = re.fullmatch(r"S(\d{1,5})", cmd)
     if m:

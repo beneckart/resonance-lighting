@@ -18,3 +18,19 @@ struct DeepRecoverySample {
 };
 
 bool deepRecoveryMayEnable(const DeepRecoverySample &s);
+
+// Production one-image preflight before invoking the BQ25628E's documented
+// 30 mA BAT-pin discharge presence test. Passing this gate does not prove a
+// battery exists; the charger ADC result is evaluated separately.
+struct FleetRecoverySample {
+  bool supply_good;
+  bool precharge_configured;
+  float battery_v;
+  float battery_ma;
+  float supply_v;
+  float supply_ma;
+  uint8_t charger_fault;
+};
+
+bool fleetRecoveryMayTest(const FleetRecoverySample &s);
+bool fleetRecoveryBatteryDetected(uint16_t bqBatteryMv);

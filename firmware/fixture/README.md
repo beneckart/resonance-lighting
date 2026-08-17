@@ -230,22 +230,32 @@ safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
 `F1` field). New build flags accept `--profile commission|field`; `dev|prod` remain
 compatibility aliases.
 
-The supervised `--basic-listener` posture is deliberately minimal. With no
-active bridge lease, every fixture holds steady red at linear level 128. A
-bridge command overrides it, and stale-command fallback returns to red within
-three seconds. LED channel values are sent linearly: 0 is off, 128 is dim, and
-255 is the 8-bit bright endpoint. There is no gamma correction, boot salute,
+The supervised `--basic-listener` posture is deliberately minimal and class
+aware. With no active bridge lease, canopy/downlights hold their dedicated warm
+white channel at linear 128, 37-pixel perimeter HEX modules hold red at linear
+16, and single-pixel RGB trunk/uplights hold red at linear 128. A bridge command
+or dashboard tag overrides it, and stale-command fallback returns directly to
+the class default within three seconds. LED channel values are linear: 0 is off
+and 255 is the 8-bit bright endpoint. There is no gamma correction, boot salute,
 external-supply carousel, identity pop, or local sensor-created color. The old
-`--quiet-autonomy` option remains only as a build-script alias for existing
-commands and selects this same basic posture.
+`--quiet-autonomy` option remains only as a build-script alias.
 
 The 1 Hz commission heartbeat remains the compact 29-byte `hb-short`. A length-
 gated full heartbeat follows every 5 s in commission and every 60 s in field. Its
-append-only output tail reports fixture class, LED-rail state, the post-cap/post-
-processing RGBW average actually written to lit pixels, and the lit-pixel count. The
-fleet dashboard uses that measured render state rather than trying to infer color
-from the requested program. Older bridges remain compatible because every tail is
+append-only output tails report fixture class, raw sensor-signature bits, class
+mismatch, LED-rail state, the post-cap RGBW average actually written to lit
+pixels, lit-pixel count, and low-VBAT recovery state/BQ presence-test voltage.
+The fleet dashboard uses measured render state rather than inferring color from
+the requested program. Older bridges remain compatible because every tail is
 length-gated against the one canonical `src/core/packet.h` layout.
+
+An installed LFP in the 2.2-2.5 V window is no longer confused with a missing
+battery solely by voltage. On a qualified external source the fixture runs the
+BQ25628E's documented 30 mA BAT-discharge presence test with charging disabled.
+Only a surviving battery ADC reading at or above 2.2 V permits a 100 mA recovery
+ceiling; LED and sensor rails remain parked. A fault stops recovery, and one
+continuous minute at or above 2.55 V restores the persisted normal charge cap.
+See ADR 0042. Cells below 2.2 V remain a bench-recovery case.
 
 Maintenance exit clears the ESP-NOW receive queue before reinitialization, so a
 queued maintenance command cannot replay after `/resume`. If radio initialization

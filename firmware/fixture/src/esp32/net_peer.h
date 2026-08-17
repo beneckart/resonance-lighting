@@ -47,4 +47,5 @@ const ShowFrameIn &netPeerLastShowFrame();
 // Rig color-identify (NbIdentify tail): 0 = none/blink-only.
 uint8_t netPeerIdentifyColor();
 uint8_t netPeerIdentifyBlink();
+uint8_t netPeerIdentifyValue();
 bool netPeerIdentifyActive();

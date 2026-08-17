@@ -31,5 +31,22 @@ int main() {
   s = good(); s.charger_fault = 1; CHECK(!deepRecoveryMayEnable(s));
   s = good(); s.precharge_configured = false; CHECK(!deepRecoveryMayEnable(s));
 
+  FleetRecoverySample f = {};
+  f.supply_good = true;
+  f.precharge_configured = true;
+  f.battery_v = 2.42f;
+  f.battery_ma = 0.0f;
+  f.supply_v = 4.85f;
+  f.supply_ma = 120.0f;
+  f.charger_fault = 0;
+  CHECK(fleetRecoveryMayTest(f));
+  f.battery_v = 2.19f; CHECK(!fleetRecoveryMayTest(f));
+  f.battery_v = 2.42f; f.supply_good = false; CHECK(!fleetRecoveryMayTest(f));
+  f.supply_good = true; f.charger_fault = 1; CHECK(!fleetRecoveryMayTest(f));
+  CHECK(!fleetRecoveryBatteryDetected(2199));
+  CHECK(fleetRecoveryBatteryDetected(2200));
+  CHECK(fleetRecoveryBatteryDetected(2450));
+  CHECK(!fleetRecoveryBatteryDetected(4400));
+
   return testReport("test_deep_recovery");
 }

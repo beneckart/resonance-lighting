@@ -45,7 +45,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-15.1"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-16.1"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -379,6 +379,12 @@ struct PeerStat {
   uint8_t ledB;
   uint8_t ledW;
   uint8_t ledLitPixels;
+
+  bool hasIdentityRecovery;
+  uint8_t sensorBits;
+  uint8_t classMismatch;
+  uint8_t recoveryState;
+  uint16_t recoveryDetectMv;
 };
 
 PeerStat peers[NB_MAX_TRACKED] = {};
@@ -457,13 +463,16 @@ void sendTargetU16(uint8_t type, const uint8_t target[3], uint16_t value) {
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
-void sendIdentify(const uint8_t target[3], uint8_t seconds) {
+void sendIdentify(const uint8_t target[3], uint8_t seconds,
+                  uint8_t color = 0, uint8_t blink = 0,
+                  uint8_t value = 255) {
   NbIdentify cmd = {};
   fillHeader(&cmd.h, NB_IDENTIFY);
   memcpy(cmd.target_id, target, 3);
   cmd.secs = seconds;
-  cmd.color = 0;
-  cmd.blink = 0;
+  cmd.color = color;
+  cmd.blink = blink;
+  cmd.value = value;
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
@@ -858,6 +867,14 @@ void processHeartbeat(const RxItem &item) {
     peer->ledW = hb->led_w;
     peer->ledLitPixels = hb->led_lit_pixels;
   }
+
+  peer->hasIdentityRecovery = NB_HAS_HB_FIELD(item.len, recovery_detect_mv);
+  if (peer->hasIdentityRecovery) {
+    peer->sensorBits = hb->sensor_bits;
+    peer->classMismatch = hb->class_mismatch;
+    peer->recoveryState = hb->recovery_state;
+    peer->recoveryDetectMv = hb->recovery_detect_mv;
+  }
 }
 
 void emitScanAp(const RxItem &item) {
@@ -1024,6 +1041,12 @@ void emitBridgeStats() {
                     " cls=%u ledrail=%u ledr=%u ledg=%u ledb=%u ledw=%u ledn=%u",
                     p->fixtureClass, p->ledRailOn, p->ledR, p->ledG,
                     p->ledB, p->ledW, p->ledLitPixels);
+    }
+    if (p->hasIdentityRecovery && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " sens=%u cmis=%u rec=%u recmv=%u",
+                    p->sensorBits, p->classMismatch, p->recoveryState,
+                    p->recoveryDetectMv);
     }
     if (n < 0) continue;
     // snprintf returns the length it wanted to write. Clamp before appending a
@@ -1385,6 +1408,27 @@ void handleSerial() {
     uint8_t all[3] = {};
     sendIdentify(all, 8);
     Serial.println("identify ALL peers 8s");
+    break;
+  }
+  case 'T': {
+    uint8_t target[3] = {};
+    if (!readSerialHexId(target, 120)) {
+      Serial.println("TAG rejected: use T<id>:<0|1>");
+      break;
+    }
+    consumeOptionalSeparator();
+    int enabled = readSerialUint(80, 1);
+    if (enabled < 0 || enabled > 1) {
+      Serial.println("TAG rejected: use T<id>:<0|1>");
+      break;
+    }
+    if (enabled) {
+      sendIdentify(target, 255, 2, 0, 128); // steady green, half brightness
+    } else {
+      sendIdentify(target, 0, 0, 0, 255); // immediate release
+    }
+    Serial.printf("target TAG %02X%02X%02X -> %s\n",
+                  target[0], target[1], target[2], enabled ? "ON" : "OFF");
     break;
   }
   case 'F': {

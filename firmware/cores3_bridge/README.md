@@ -18,11 +18,14 @@ The bridge:
 - emits the same `nb-master`, `nb-peer`, and `nb-scanap` serial lines consumed by
   `ops/bench/net_bench_dashboard.py` and the JSONL logger;
 - length-gates the fixture heartbeat tails and exposes profile, lifecycle, power
-  tier, class, LED-rail state, actual rendered RGBW average, and lit-pixel count;
+  tier, sensor-derived class/signature, class mismatch, LED-rail state, actual
+  rendered RGBW average, lit-pixel count, and low-VBAT recovery state;
 - accepts the existing dashboard serial controls for maintenance, resume,
   identify, rate, charger settings, sleep/park, drawdown, and solenoid strike;
 - accepts `i<fixture-id>:<seconds>` for an exact 1-255 second fixture locator
   (`iF40268:60`), while bare `i` retains next-peer cycling;
+- accepts `T<fixture-id>:1` for a renewable 255-second steady-green tag at
+  linear level 128 and `T<fixture-id>:0` to release it immediately;
 - accepts `F0` / `F1` to persistently place all reachable fixtures in
   commission / field profile, or `F<fixture-id>:0|1` for one fixture;
 - shows bridge health and fresh fixtures on the built-in screen using a
@@ -134,7 +137,9 @@ color, and the whole tile fades when its expected heartbeat is late or silent. T
 reported fixture class (normally from the Stemma probe, with an override available)
 sets the center shape: circle for canopy/downlight, hexagon for perimeter, triangle
 for trunk/uplight, diamond for chandelier, and a
-rounded square when class telemetry is unknown. IDs use the last two MAC digits;
+rounded square when class telemetry is unknown. Each tile also has a small
+checkbox that persists a green half-brightness location tag in the browser and
+renews its bounded fixture lease every two minutes. IDs use the last two MAC digits;
 only collisions expand to `DC-1`, `DC-2`, and so on. Select a tile for exact values.
 The older solar metrics, controls, table, and raw serial console remain available
 under `Detailed diagnostics`.
@@ -155,7 +160,7 @@ lead, not a standalone electrical verdict.
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-15.1 ===
+=== Resonance net-bench cores3-bridge-2026-08-16.1 ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
 ```

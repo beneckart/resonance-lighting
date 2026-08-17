@@ -29,8 +29,17 @@
 #ifndef RES_DEEP_RECOVERY_MAX_CHARGE_MA
 #define RES_DEEP_RECOVERY_MAX_CHARGE_MA 100
 #endif
+#ifndef RES_LOW_VBAT_RECOVERY
+#define RES_LOW_VBAT_RECOVERY 1
+#endif
+#ifndef RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA
+#define RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA 100
+#endif
 #if RES_DEEP_RECOVERY_MAX_CHARGE_MA < 40 || RES_DEEP_RECOVERY_MAX_CHARGE_MA > 300
 #error "RES_DEEP_RECOVERY_MAX_CHARGE_MA must be 40..300 mA"
+#endif
+#if RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA < 40 || RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA > 300
+#error "RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA must be 40..300 mA"
 #endif
 #if RES_PF_PRECHARGE_MA < 10 || RES_PF_PRECHARGE_MA > 310 || \
     (RES_PF_PRECHARGE_MA % 10) != 0
@@ -60,6 +69,17 @@ uint16_t prechargeTargetMa();
 bool deepRecoveryBuild();
 bool deepRecoveryTargetMatches();
 bool deepRecoveryChargeActive();
+
+enum LowVbatRecoveryState : uint8_t {
+  LOW_VBAT_RECOVERY_NONE = 0,
+  LOW_VBAT_RECOVERY_WAITING = 1,
+  LOW_VBAT_RECOVERY_ACTIVE = 2,
+  LOW_VBAT_RECOVERY_REFUSED = 3,
+  LOW_VBAT_RECOVERY_GRADUATED = 4,
+  LOW_VBAT_RECOVERY_IO_ERROR = 5,
+};
+uint8_t lowVbatRecoveryState();
+uint16_t lowVbatRecoveryDetectMv();
 
 // BQ25628E snapshot (0xFFFF/0xFF = unknown).
 struct BqSnapshot {

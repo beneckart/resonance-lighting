@@ -32,6 +32,7 @@ uint8_t gTelemetryGuardStage = 0;  // boot-guard stage
 bool gTelemetryGuardInterrupted = false;
 uint8_t gTelemetryFixtureClass = FIXTURE_UNKNOWN; // probe+override decision
 bool gTelemetryClassMismatch = false;
+uint8_t gTelemetrySensorBits = 0;
 
 static const char *otaStateName(esp_ota_img_states_t state) {
   switch (state) {
@@ -97,6 +98,8 @@ String telemetryJson() {
   j += deepRecoveryTargetMatches() ? "true" : "false";
   j += ",\"deep_recovery_charge_active\":";
   j += deepRecoveryChargeActive() ? "true" : "false";
+  j += ",\"low_vbat_recovery_state\":" + String(lowVbatRecoveryState());
+  j += ",\"low_vbat_recovery_detect_mv\":" + String(lowVbatRecoveryDetectMv());
   j += ",\"maintain_v\":" + String(maintainVolts(), 1);
   if (pfIsReady()) {
     char b[24];
@@ -134,6 +137,7 @@ String telemetryJson() {
   j += ",\"class_ovr\":" + String(gCfg.classOvr);
   j += ",\"class_mismatch\":";
   j += gTelemetryClassMismatch ? "true" : "false";
+  j += ",\"sensor_bits\":" + String(gTelemetrySensorBits);
   j += ",\"profile\":\"";
   j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";

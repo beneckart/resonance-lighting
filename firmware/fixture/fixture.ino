@@ -78,6 +78,7 @@ void setup() {
   // 8. Class probe -> LED profile (one image, hardware decides; ADR 0009).
   if (!deepRecoveryBuild() && !bootGuardParked()) {
     ProbeBits bits = sensorBusProbe();
+    gTelemetrySensorBits = probeBitsMask(bits);
     ClassDecision cd = classDecide(bits, gCfg.classOvr, gCfg.classLast);
     if (cd.persistLast) nvsPersistClassLast(cd.persistLast);
     gTelemetryFixtureClass = cd.cls;
@@ -168,7 +169,8 @@ void renderTick() {
   FrameBuffer f;
   bool have = false;
   if (ident) {
-    ledIdentifyFrame(f, netPeerIdentifyColor(), netPeerIdentifyBlink(), now);
+    ledIdentifyFrame(f, netPeerIdentifyColor(), netPeerIdentifyBlink(),
+                     netPeerIdentifyValue(), now);
     have = true;
   } else if (gSmokeRender) {
     ledSmokeFrame(f, now);

@@ -119,13 +119,19 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
 
 
 #ifdef RES_BASIC_LISTENER
-// Basic supervised posture. A steady half-scale red means the fixture is
-// awake and listening. Bridge leases override it; expiry returns directly to
-// it. There are no boot, supply, identity, or sensor-created animations.
+// Basic supervised posture. Canopy/downlight fixtures use their efficient,
+// pleasant dedicated warm-white die. The 37-pixel perimeter wash is only
+// 16/255 linear red to avoid multiplying the listener load by every HEX die;
+// single-pixel RGB classes retain half-scale red. Tags/leases override it.
 static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
   f.count = (uint8_t)pixels;
   frameClear(f);
-  for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = 128;
+  if (gClass == FIXTURE_DOWNLIGHT) {
+    f.px[0][3] = 128;
+  } else {
+    uint8_t red = gClass == FIXTURE_PERIMETER ? 16 : 128;
+    for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = red;
+  }
 }
 #endif
 
@@ -280,8 +286,8 @@ void behaviorTick() {
 
 bool behaviorFrame(FrameBuffer &f) {
 #ifdef RES_BASIC_LISTENER
-  // Quiet posture always has a frame: the low-red listening beacon (or a
-  // leased/commanded frame). Keeps the LED rail up whenever the chip is awake.
+  // Quiet posture always has a class-appropriate listener frame (or a leased
+  // commanded frame). Keeps the LED rail up whenever the chip is awake.
   f = gFrame;
   return true;
 #else

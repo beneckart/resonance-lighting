@@ -35,12 +35,13 @@ static bool gDlSeen = false;
 static uint32_t gDirectSeen = 0, gDirectMatched = 0;
 
 static ShowFrameIn gShowFrame = {};
-static uint8_t gIdentColor = 0, gIdentBlink = 0;
+static uint8_t gIdentColor = 0, gIdentBlink = 0, gIdentValue = 255;
 static uint32_t gIdentUntil = 0;
 
 const ShowFrameIn &netPeerLastShowFrame() { return gShowFrame; }
 uint8_t netPeerIdentifyColor() { return gIdentColor; }
 uint8_t netPeerIdentifyBlink() { return gIdentBlink; }
+uint8_t netPeerIdentifyValue() { return gIdentValue; }
 bool netPeerIdentifyActive() { return millis() < gIdentUntil; }
 uint16_t netPeerDlPdrX1000() {
   uint32_t tot = gDlRx + gDlGaps;
@@ -133,6 +134,10 @@ void netPeerSendHeartbeat(bool full) {
   hb.led_b = led.b;
   hb.led_w = led.w;
   hb.led_lit_pixels = led.litPixels;
+  hb.sensor_bits = gTelemetrySensorBits;
+  hb.class_mismatch = gTelemetryClassMismatch ? 1 : 0;
+  hb.recovery_state = lowVbatRecoveryState();
+  hb.recovery_detect_mv = lowVbatRecoveryDetectMv();
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -254,9 +259,11 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
     const NbIdentify *id = (const NbIdentify *)it.data;
     if (!nbTargetMatches(id->target_id, gMyId)) return;
-    bool hasColor = it.len >= (int)sizeof(NbIdentify);
+    bool hasColor = it.len >= (int)(offsetof(NbIdentify, blink) + sizeof(id->blink));
+    bool hasValue = it.len >= (int)sizeof(NbIdentify);
     gIdentColor = hasColor ? id->color : 0;
     gIdentBlink = hasColor ? id->blink : 0;
+    gIdentValue = hasValue && id->value ? id->value : 255;
     gIdentUntil = millis() + (uint32_t)id->secs * 1000UL;
     statusLedIdentify(id->secs);
     break;

@@ -183,7 +183,12 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t led_g;
   uint8_t led_b;
   uint8_t led_w;          // 0 on GRB HEX fixtures
-  uint8_t led_lit_pixels; // number of nonzero pixels after cap/gamma
+  uint8_t led_lit_pixels; // number of nonzero pixels after brightness cap
+  // tail 15 (fleet identity + low-VBAT recovery diagnostics; hb-full only)
+  uint8_t sensor_bits;    // bit0 TMF8820, bit1 VL53L5CX, bit2 BMP581, bit3 MSA311
+  uint8_t class_mismatch; // probe conflict/fault fallback retained prior class
+  uint8_t recovery_state; // LowVbatRecoveryState
+  uint16_t recovery_detect_mv; // BQ ADC after the 30 mA presence test
 };
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?
@@ -221,6 +226,9 @@ struct __attribute__((packed)) NbIdentify { // locate a board (target 00:00:00 =
   // assigned color so ~10 units/row can be physically ordered by eye (2x10 rig).
   uint8_t color; // 0=none(blink pattern) 1=R 2=G 3=B 4=Y 5=W
   uint8_t blink; // 0=solid 1=blinking (doubles the distinguishable identities)
+  // --- APPEND-ONLY tail 2: output level for persistent dashboard tags.
+  // Old 19 B senders default to full intensity at the receiver.
+  uint8_t value; // 1..255; 0 is interpreted as 255 for compatibility
 };
 struct __attribute__((packed)) NbScanAp { // bench-era; fixture parses (ignores), never sends
   NbHeader h;

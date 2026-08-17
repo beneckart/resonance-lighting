@@ -186,17 +186,19 @@ void ledSmokeFrame(FrameBuffer &f, uint32_t nowMs) {
   }
 }
 
-void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink, uint32_t nowMs) {
+void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink,
+                      uint8_t value, uint32_t nowMs) {
   f.count = (uint8_t)gCount;
   frameClear(f);
   if (blink && ((nowMs / 500) & 1)) return; // off half-cycle
   uint8_t r = 0, g = 0, b = 0, w = 0;
+  if (value == 0) value = 255;
   switch (color) {
-  case 1: r = 255; break;
-  case 2: g = 255; break;
-  case 3: b = 255; break;
-  case 4: r = 255; g = 180; break; // yellow
-  case 5: w = 255; r = g = b = 255; break;
+  case 1: r = value; break;
+  case 2: g = value; break;
+  case 3: b = value; break;
+  case 4: r = value; g = (uint8_t)((uint16_t)value * 180 / 255); break;
+  case 5: w = value; r = g = b = value; break;
   default: return;
   }
   for (uint16_t i = 0; i < gCount; i++) {

@@ -12,6 +12,35 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Fleet recovery, self-identifying dashboard, and class-aware listener implemented
+
+Merged the deep-recovery and self-identifying dashboard branches onto the
+current listener baseline, then implemented the fleet candidate Ben requested.
+The common fixture image now uses the BQ25628E's documented 30 mA BAT-discharge
+presence test before enabling any 2.2-2.5 V recovery. It requires strong USB,
+clean faults/current, and verified precharge configuration; a proven cell is
+capped at 100 mA with loads parked until it holds at least 2.55 V for 60 seconds,
+then the normal persisted charge cap is restored. Recovery state and the BQ ADC
+test voltage are append-only heartbeat telemetry.
+
+The same heartbeat now reports the raw STEMMA signature plus the already
+implemented sensor-derived class and mismatch guard. CoreS3 and the dashboard
+carry the fields end to end. Dashboard glyphs use circle/hex/triangle/diamond
+for canopy/perimeter/trunk/chandelier, their thin bar uses the fixture's actual
+post-cap RGBW output, and each tile has a persistent checkbox that issues a
+renewable, addressed, steady-green tag at linear 128. Tags remain bounded leases
+and local power vetoes still win.
+
+Ben refined the listener defaults before rollout: canopy/downlight uses its
+dedicated warm-white die at linear 128; 37-pixel perimeter HEX uses red at
+linear 16; RGB trunk/uplight remains red at linear 128. Native fixture tests
+pass all 430 checks, dashboard tests pass 6/6, and both the PowerFeather fixture
+and normal CoreS3 bridge compile successfully. The dashboard was restarted from
+this worktree and visually checked in the in-app browser; a first CSS pass found
+and fixed the global button minimum-height overriding the small tag checkbox.
+No fleet OTA is claimed by this entry; immutable artifact creation and canary
+promotion follow from the clean commit.
+
 ## 2026-08-16 -- Ben + Codex -- Target-locked deep-LFP recovery canary passed OTA and controlled charge
 
 Ben authorized one supervised OTA experiment to recover an installed LFP that
