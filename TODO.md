@@ -4,24 +4,35 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Promote the BQ-qualified recovery/self-identifying listener artifact.**
-  Build once from the clean commit with channel 11, commission/basic-listener,
-  and an immutable `b` identity. First restore `F2BFE0` from its exact-target
-  `t` image and prove a healthy canary, then prove one fresh USB-powered
-  2.2-2.5 V fixture reports `recovery_state=active`, a plausible BQ presence ADC,
-  no fault, and survives A/B verification. Expand only to explicit fresh MACs
-  with qualified power; record every result and the exact SHA-256. Flash the
-  CoreS3 dashboard bridge before relying on tag/sensor/recovery serial fields
-  (Ben/Codex + field observers).
+- [x] **Promote the BQ-qualified recovery/self-identifying listener artifact --
+  DONE 2026-08-16.** Immutable `fx-260817-29ac840-b` (binary SHA-256 in LOG)
+  passed healthy `F40364`, low-USB `9F268C`, the remaining qualified recovery
+  cohort, and explicit awake/sleeper batches. Both CoreS3 bridges were updated;
+  the final observed census was 74 exact-revision fixtures of 86 seen. Tag and
+  returned LED-state telemetry passed end to end. Twelve named holdbacks remain
+  below; the artifact promotion itself is complete (Ben/Codex + field observers).
 
-- [~] **Finish the universal-default visible-fleet rollout.** The immutable
-  `fx-260816-19c6bbb-b` artifact is exact and A/B-accepted on 37 observed
-  fixtures. Reuse its exact SHA from LOG; do not rebuild. Recover the uplink-only
-  maintenance downlink on `9E5A84` and `9F26D8`; diagnose `F2BE6C`'s HTTP 500
-  and `F2BE20`'s upload timeout/task-watchdog path; and supply proven USB/solar
-  ride-through before updating `9E5A5C`, `9E5B18`, `F2BDB0`, and `F2BEA4`.
-  Also power/locate
-  unseen canopy IDs `9E5A94`, `F2BE8C`, and `F2BF8C` (Ben/Codex + field team).
+- [x] **Retire the previous universal-default rollout -- SUPERSEDED
+  2026-08-16.** The 37-fixture `fx-260816-19c6bbb-b` wave was replaced by the
+  accepted self-identifying/recovery artifact above. Previously problematic
+  `F2BE6C`, `F2BE20`, and the named powered recovery cohort now hold the new
+  exact revision. Use the current holdback item below, not the old artifact
+  roster (Ben/Codex + field team).
+- [ ] **Close the 12 observed holdbacks from the self-identifying rollout.** Do
+  not loop OTA retries. Bench-diagnose self-test rollbacks `9E5B44` and
+  `F40424`; recover maintenance entry on `9E5A84`, `9F26D8`, `F2BCF4`, and
+  legacy `F3FD88`; provide supervised external power before attempting
+  `F2BE08`, `F3FD28`, `F401DC`, `F40308`, `F40314`, or `F4035C`. Re-census for
+  production fixtures not among the 86 IDs seen in this session (Ben/Codex +
+  field team).
+- [ ] **Reseat the 11 false-chandelier STEMMA chains.** No chandelier fixture is
+  powered, so sensor bits 0 on `9E5AB0`, `9F0E30`, `9F26B4`, `F2BE1C`,
+  `F2BE3C`, `F2BE6C`, `F2BEF4`, `F2BF90`, `F3FD50`, `F402A8`, and `F40310`
+  means the full chain was dark at boot. `9E5AB0` stayed at zero after both a
+  1-second and a 10-second addressed VSQT-off/deep-sleep re-probe. Physically
+  reseat/inspect one canary, then issue `P<id>:10`; a recovered downlight should
+  report TMF/MSA sensor bits, change from diamond to circle, and use warm white
+  (Ben + field team).
 - [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
   reported the new `app1` as `valid` with pending false, but after the first
   later power-state reboot ran old undefined `app0`. The 2026-08-16 universal
@@ -43,18 +54,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   1.5 W when available and battery current held near 300 mA. Keep input DPM,
   thermal/trickle protections, and the hardware fast-charge transition unchanged
   (Ben/Codex).
-- [ ] **Recover depleted fixtures that cannot yet accept OTA.** Current guarded
-  universal-rollout holdbacks are `9E5A5C`, `9E5B18`, `F2BDB0`, and
-  `F2BEA4`; several have
-  weak/fluctuating or zero input despite a visible supply voltage. Use supervised
-  USB/solar recovery and require fresh voltage/current ride-through evidence
-  before flashing the exact artifact. The target-locked deep-recovery canary
-  passed on `F2BFE0` at 2.410 V with a 50 mA precharge target and 100 mA absolute
-  ceiling; it rose to 2.446 V at 52-55 mA through the observed two-minute soak.
-  Confirm the physical cell remains cool/normal, continue the canary beyond
-  2.5 V, and review the trace before authorizing any additional exact-target
-  recovery artifacts. Never treat `fx-260816-625fab1-t` as fleetable or upload
-  it to a different MAC (Ben + field team).
+- [ ] **Recover depleted fixtures that could not accept the fleet OTA.** The
+  current no-external-power holdbacks are `F2BE08`, `F3FD28`, `F401DC`,
+  `F40308`, `F40314`, and `F4035C`. Use supervised USB power and require fresh
+  voltage/current ride-through before flashing the exact fleet artifact. The
+  target-only `fx-260816-625fab1-t` served its canary purpose and must never be
+  uploaded to another MAC; `F2BFE0` is back on the fleet image (Ben + field
+  team).
 - [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
   update age/uptime but retain the last full-heartbeat firmware string, which
   briefly made a successful `F40384` update look rolled back. Show field age or
@@ -1658,8 +1664,9 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   dashboard source glyph authoritative. Current production telemetry proves a good
   charger input but cannot universally identify what is feeding it, so the dashboard
   honestly uses fixture class (panel-bearing class -> sun; chandelier -> plug) and
-  labels panel-loss from daylight fleet consensus as suspect rather than certain
-  (Ben/Codex).
+  labels panel-loss from daylight fleet consensus as suspect rather than certain.
+  Ben elected to keep the icons as a useful visual convention; do not silently
+  relabel the inference as measured source identity (Ben/Codex).
 - [ ] **WiFi re-associate guard (cheap roaming):** the ESP32 latches one Eero BSSID and won't auto-roam (no 802.11k/v/r -- LOG cont. 9, POWERFEATHER_NOTES). On link-loss / low-RSSI in maintenance mode, do `WiFi.disconnect()` + `WiFi.begin()` to re-pick the strongest beacon. Low field priority (deployed fixtures are stationary; the maintenance-OTA path already does a fresh `WiFi.begin`) -- but a belt-and-suspenders guard for OTA windows (Ben).
 - [~] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers -- done in `firmware/net_bench/` (feasibility); port the validated packet/PDR design into production `core/packet` after the matrix run (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).

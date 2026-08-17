@@ -12,6 +12,75 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Self-identifying recovery image accepted on 74 observed fixtures
+
+Built one immutable fleet artifact from clean commit
+`35d1a1e152e7e2570a2f66c619248d2a9ad227ee`: revision
+`fx-260817-29ac840-b`, 1,173,632 bytes, binary SHA-256
+`be48bdd8961e0277d2830ca54e8775c19834129ad8e522586cd292826f314fb8`,
+and recipe SHA-256
+`29ac84054b4f6eeff156433918b95f297256f5570dbefc2a03e981c8063547dd`.
+The manifest is under the ignored local artifact directory
+`firmware/fixture/build/fx-260817-29ac840-b/`; the binary is not committed
+because the local WiFi credentials are compiled into it. Both attached CoreS3
+bridges, `4D5DB0` on COM43 and `E39F1C` on COM40, were flashed with the same
+clean bridge build and verified as `cores3-bridge-2026-08-16.1` on channel 11.
+
+Healthy canary `F40364` survived pending verification, self-identified as canopy
+from sensor bits 5, and reported one warm-white pixel at 128. Low-VBAT USB
+canary `9F268C` entered recovery state 2 after a 2,388 mV BQ presence result,
+kept its LED rail off, and charged from a qualified roughly 4.9 V input. The
+remaining qualified low-USB cohort `9E5A5C`, `F2BDB0`, `F2BF8C`, and `F402A4`
+also accepted the image; the prior exact-target canary `F2BFE0` returned to the
+fleet image. `9E5B44` twice booted the new image but safely rolled back at the
+20-second self-test, so retries stopped. A healthy-fixture tag check then changed
+only `F40364` from its reported warm-white default to green 128 and back again,
+proving the dashboard checkbox, addressed lease, fixture override, and returned
+LED-state bar end to end. No strike was requested during rollout.
+
+The first live class census exposed 11 powered fixtures as no-sensor/class 4,
+even though no chandelier fixture is currently powered: `9E5AB0`, `9F0E30`,
+`9F26B4`, `F2BE1C`, `F2BE3C`, `F2BE6C`, `F2BEF4`, `F2BF90`, `F3FD50`,
+`F402A8`, and `F40310`. An addressed 1-second deep-sleep reboot on `9E5AB0`
+held VSQT off through sleep and ran the verified boot rail cycle/re-probe, but
+still returned sensor bits 0/class 4. A second addressed 10-second off interval
+also returned zero. Further fleet resets stopped; these fixtures need physical
+STEMMA reseating/inspection, followed by the same addressed re-probe. The
+dashboard's sun/plug icons remain as a useful class convention, not an
+authoritative electrical USB-vs-panel measurement; Ben prefers to retain them.
+
+The exact accepted set at the final 86-ID dashboard census was 74 fixtures:
+`9E5A58`, `9E5A5C`, `9E5A74`, `9E5A88`, `9E5AB0`, `9E5AC8`, `9E5AD4`,
+`9E5AE0`, `9E5AE4`, `9E5B04`, `9E5B10`, `9E5B14`, `9E5B18`, `9E5B34`,
+`9E5B48`, `9E5B68`, `9E5B8C`, `9E668C`, `9F0E30`, `9F0E54`, `9F0E5C`,
+`9F0E7C`, `9F2638`, `9F2664`, `9F266C`, `9F268C`, `9F26AC`, `9F26B0`,
+`9F26B4`, `9F26BC`, `9F26C0`, `9F26C4`, `9F26D4`, `9F26E4`, `9F26E8`,
+`9F2714`, `9F2718`, `9F2724`, `9F2738`, `9F275C`, `F2B7DC`, `F2BDB0`,
+`F2BDB4`, `F2BE0C`, `F2BE1C`, `F2BE20`, `F2BE3C`, `F2BE48`, `F2BE60`,
+`F2BE6C`, `F2BE94`, `F2BEA4`, `F2BEE4`, `F2BEF4`, `F2BF54`, `F2BF5C`,
+`F2BF8C`, `F2BF90`, `F2BFE0`, `F3FC90`, `F3FD50`, `F3FD60`, `F401A8`,
+`F40254`, `F40268`, `F402A4`, `F402A8`, `F402C4`, `F40310`, `F40350`,
+`F40364`, `F40384`, `F403F0`, and `F4042C`. The last eight sleeping peers
+proved acceptance by subsequently booting the exact revision with reset reason
+`deepsleep`; pending images are explicitly forbidden to sleep.
+
+Twelve observed IDs remain deliberately old. Rollback exceptions `9E5B44` and
+`F40424` need bench diagnosis. `9E5A84`, `9F26D8`, `F2BCF4`, and old
+`F3FD88` never exposed an identity-matching maintenance endpoint through their
+bounded attempts, so no upload was made. Low/no-external-power fixtures
+`F2BE08`, `F3FD28`, `F401DC`, `F40308`, `F40314`, and `F4035C` were refused
+before OTA. This is 74 of 86 fixtures seen by this bridge, not a claim about
+unseen members of the planned roughly 130-fixture production fleet.
+
+Added `ops/bench/fleet_dashboard_ota.py` for future explicit batches. It hashes
+the named image, validates every short MAC and power sample, performs one shared
+maintenance discovery scan, verifies each HTTP identity before parallel upload,
+and requires fresh exact-revision evidence beyond the pending-verify gate. Its
+full-cadence mode can collect named sleepers while deferring, rather than
+guessing, any target not discovered. Two direct-batch acknowledgement records
+are committed under `ops/bench/data/ca/`; the remaining generated uploader logs
+stay bench-local under the existing raw-OTA ignore rule.
+
 ## 2026-08-16 -- Ben + Codex -- Fleet recovery, self-identifying dashboard, and class-aware listener implemented
 
 Merged the deep-recovery and self-identifying dashboard branches onto the
