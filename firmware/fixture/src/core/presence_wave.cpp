@@ -7,9 +7,10 @@ void tmfPresenceInit(TmfPresenceGate &gate) {
 }
 
 static void learnBaseline(uint16_t &baselineMm, uint16_t depthMm) {
-  if (!baselineMm) baselineMm = depthMm;
-  else baselineMm =
-      (uint16_t)(((uint32_t)baselineMm * 7U + depthMm) / 8U);
+  // Keep the closest learned background. This deliberately sacrifices a zone
+  // if a very close rig member owns it, while preventing that intermittently
+  // visible member from firing whenever the return switches near/far.
+  if (!baselineMm || depthMm < baselineMm) baselineMm = depthMm;
 }
 
 bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
@@ -45,22 +46,28 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
       gate.latched = false;
       gate.clearReads = 0;
     }
-    gate.priorCloseMask = closeMask;
     return false;
   }
 
-  // Slowly follow unchanged background zones after warm-up, without letting a
-  // close candidate teach itself into the scene. A single noisy frame is not
-  // enough: the same spatial zone must be closer on two consecutive reports.
+  // Follow only closer, non-triggering background returns after warm-up. A
+  // single noisy frame is not enough: the same spatial zone must be closer on
+  // three consecutive reports.
+  bool rising = false;
   for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
+    bool close = (closeMask & (uint16_t)(1U << zone)) != 0;
+    if (close) {
+      if (gate.closeStreak[zone] < UINT8_MAX) ++gate.closeStreak[zone];
+      if (gate.closeStreak[zone] >= PRESENCE_HIT_READS) rising = true;
+    } else {
+      gate.closeStreak[zone] = 0;
+    }
     bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
                  zoneMm[zone] >= 80 && zoneMm[zone] <= 2500;
-    if (valid && !(closeMask & (uint16_t)(1U << zone)))
+    if (valid && !close)
       learnBaseline(gate.baselineMm[zone], zoneMm[zone]);
   }
-  bool rising = (closeMask & gate.priorCloseMask) != 0;
-  gate.priorCloseMask = closeMask;
   if (!rising) return false;
+  memset(gate.closeStreak, 0, sizeof(gate.closeStreak));
   gate.latched = true;
   gate.clearReads = 0;
   return true;

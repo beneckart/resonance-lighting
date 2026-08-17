@@ -23,15 +23,20 @@ int main() {
   tmfPresenceInit(gate);
   uint32_t seq = 0;
   for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
-    CHECK(!observe2(gate, ++seq, 300, 50, 1800, 50));
+    CHECK(!observe2(gate, ++seq, (i % 5) ? 300 : 1800, 50, 1800, 50));
+  // Intermittently losing and reacquiring the close rig return is not a hit.
+  CHECK(!observe2(gate, ++seq, 1800, 50, 1800, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1800, 50));
   CHECK(!observe2(gate, ++seq, 300, 50, 1400, 50));
-  CHECK(observe2(gate, ++seq, 300, 50, 1390, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1390, 50));
+  CHECK(observe2(gate, ++seq, 300, 50, 1380, 50));
   CHECK(!observe2(gate, seq, 300, 50, 1390, 50)); // same report ignored
-  CHECK(!observe2(gate, ++seq, 300, 50, 1380, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1370, 50));
   for (int i = 0; i < PRESENCE_CLEAR_READS; ++i)
     CHECK(!observe2(gate, ++seq, 300, 50, 1800, 50));
   CHECK(!observe2(gate, ++seq, 300, 50, 1300, 50));
-  CHECK(observe2(gate, ++seq, 300, 50, 1290, 50));
+  CHECK(!observe2(gate, ++seq, 300, 50, 1290, 50));
+  CHECK(observe2(gate, ++seq, 300, 50, 1280, 50));
 
   // An empty scene can warm up with no baseline. A confident return inside
   // the absolute demo range is then presence; confidence-zero never is.
@@ -41,7 +46,8 @@ int main() {
     CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
   CHECK(!observe2(gate, ++seq, 900, 0, 0, 0));
   CHECK(!observe2(gate, ++seq, 900, 50, 0, 0));
-  CHECK(observe2(gate, ++seq, 910, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 910, 50, 0, 0));
+  CHECK(observe2(gate, ++seq, 920, 50, 0, 0));
 
   // Two unrelated one-frame glitches in different zones do not combine into
   // presence; the same changed zone must persist for the second report.
@@ -51,7 +57,8 @@ int main() {
     CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
   CHECK(!observe2(gate, ++seq, 900, 50, 0, 0));
   CHECK(!observe2(gate, ++seq, 0, 0, 900, 50));
-  CHECK(observe2(gate, ++seq, 0, 0, 910, 50));
+  CHECK(!observe2(gate, ++seq, 0, 0, 910, 50));
+  CHECK(observe2(gate, ++seq, 0, 0, 920, 50));
 
   uint8_t visited[4][3] = {{1, 2, 3}, {4, 5, 6}};
   uint8_t yes[3] = {4, 5, 6};

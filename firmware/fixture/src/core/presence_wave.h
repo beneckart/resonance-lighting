@@ -4,10 +4,11 @@
 
 #include <stdint.h>
 
-#define PRESENCE_WARMUP_READS 12
+#define PRESENCE_WARMUP_READS 90
 #define PRESENCE_MIN_CONFIDENCE 20
 #define PRESENCE_MAX_MM 2200
 #define PRESENCE_DELTA_MM 300
+#define PRESENCE_HIT_READS 3
 #define PRESENCE_CLEAR_READS 4
 #define PRESENCE_ZONE_COUNT 9
 
@@ -16,7 +17,7 @@ struct TmfPresenceGate {
   uint16_t baselineMm[PRESENCE_ZONE_COUNT];
   uint8_t warmupReads;
   uint8_t clearReads;
-  uint16_t priorCloseMask;
+  uint8_t closeStreak[PRESENCE_ZONE_COUNT];
   bool latched;
 };
 

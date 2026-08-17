@@ -24,13 +24,16 @@ Use the existing append-only `NB_EVENT` packet (type 23) for a bounded presence
 wave:
 
 - only sensor-verified canopy/downlight fixtures may originate a wave;
-- each canopy learns a per-channel 3x3 TMF8820 background over 12 reports;
+- each canopy learns the closest per-channel 3x3 TMF8820 background over 90
+  reports (roughly the first 25-30 seconds after sensor start);
 - presence requires the same channel to be at least 300 mm closer than its
-  learned background on two consecutive confident reports;
+  learned background on three consecutive confident reports;
 - a stable close rig return is therefore background, not presence, and one
   occluded channel does not hide changes in another channel;
 - the trigger latches until four clear reports and has a two-second origin
   cooldown;
+- adjacent canopies that see the same person wait a randomized 120-620 ms;
+  hearing the first origin cancels the other pending origins, yielding one hue;
 - a new origin selects a substantially different random hue;
 - every newly activated fixture forwards the event to its two strongest fresh
   RSSI neighbors that advertise wave capability and have not already appeared
@@ -61,4 +64,3 @@ the production direction if spatial wave behavior matters.
   demo and must not be hidden as a production guarantee.
 - A fully occluded sensor cannot detect a person; the per-zone differential
   prevents false firing but cannot recover missing optical information.
-

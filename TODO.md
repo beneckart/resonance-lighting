@@ -17,7 +17,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   below; do not spend tonight looping retries. Diagnose from fresh power and
   image evidence in the morning (Ben/Codex + field team).
 - [ ] **Field-validate ADR 0044's TMF presence wipe.** Confirm that the hanging
-  rig is learned as a stable per-zone background, a person produces two
+  rig is learned as a stable per-zone background, a person produces three
   consecutive >=300 mm closer returns in one unobstructed channel, and the new
   hue reaches the updated fleet through two-neighbor RSSI forwarding. Record
   any nonvisited islands rather than tuning until the proof passes (Ben/Codex).

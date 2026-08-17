@@ -60,6 +60,9 @@ static bool gWaveDisplayActive = false;
 static uint8_t gWaveDisplayHue = 0;
 static uint8_t gWaveDisplayValue = 96;
 static uint32_t gLastPresenceOriginMs = 0;
+static uint32_t gLastWaveActivityMs = 0;
+static bool gPresencePending = false;
+static uint32_t gPresenceFireAtMs = 0;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
 
@@ -128,10 +131,13 @@ static void waveOrigin() {
   // Announce the root as an already-visited target. Our own broadcast echo is
   // ignored locally, while every peer initializes the same event ledger.
   waveSendTarget(gMyId, 0, RES_WAVE_HOPS);
+  gLastWaveActivityMs = millis();
 }
 
 void behaviorOnEvent(const NbEvent &event) {
   if (event.kind != NB_EVENT_PRESENCE_WAVE || !event.event_id) return;
+  gLastWaveActivityMs = millis();
+  gPresencePending = false; // earliest nearby origin wins the random backoff
   const uint8_t *target = &event.params[NB_EVENT_TARGET_OFFSET];
   if (event.event_id != gWave.eventId) {
     if (waveIsRetired(event.event_id)) return;
@@ -150,8 +156,18 @@ static void waveTick(uint32_t now) {
                          snapshot.tofZoneConfidence) &&
       now - gLastPresenceOriginMs >= RES_WAVE_ORIGIN_COOLDOWN_MS &&
       powerBudget().brightness_cap > 0) {
-    gLastPresenceOriginMs = now;
-    waveOrigin();
+    // A person can be visible to adjacent canopies. Randomize the origin by a
+    // few hundred ms; the first event heard cancels every other pending origin
+    // so one physical approach yields one hue instead of a boot-time palette.
+    gPresencePending = true;
+    gPresenceFireAtMs = now + 120 + (esp_random() % 500);
+  }
+  if (gPresencePending && (int32_t)(now - gPresenceFireAtMs) >= 0) {
+    gPresencePending = false;
+    if (!gLastWaveActivityMs || now - gLastWaveActivityMs >= 1000) {
+      gLastPresenceOriginMs = now;
+      waveOrigin();
+    }
   }
 
   if (!gWave.activated || gWave.hopsRemaining == 0 ||
