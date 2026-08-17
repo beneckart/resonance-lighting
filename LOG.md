@@ -12,6 +12,63 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Presence wipe field demo and overnight fleet sleep
+
+Built the first presence-wave image as immutable revision
+`fx-260817-9ef4324-b` from commit
+`cc28553751dfb2b8585ed69fd2bfc148c61c3cdd`; its 1,175,440-byte binary had
+SHA-256
+`233465aee349d019787fe77f5ceea51a477df59edfba472d8acd189c27139076`.
+It proved the event transport but was deliberately superseded after the hanging
+rig's occlusion made a fixed-distance TMF trigger produce overlapping origins.
+The superseding artifact is `fx-260817-ec7f28d-b`, built once from commit
+`e70cb86774dee3d298d5c964499a2e034e66cb1f` with recipe SHA-256
+`ec7f28d9ae77e292c763f39b2586e6d15b3a4cde04dc50cb75fd7ceaf294549b`.
+Its 1,175,648-byte binary SHA-256 is
+`1598f5506e4541e4f5c6efdd8693a3959510c9ed1f3467db4bc8bf874b40f2b7`.
+The credential-bearing binary and manifest remain in the ignored local artifact
+directory `firmware/fixture/build/fx-260817-ec7f28d-b/`.
+
+The hardened TMF detector keeps a closest-background value for each of nine
+channels, learns the installed scene for 90 confident reports, and requires one
+channel to move at least 300 mm closer for three consecutive confident reports.
+Four clear reports re-arm it. This makes a stationary close rig member part of
+the per-zone background instead of a permanent presence. A randomized short
+origin delay lets a fixture cancel its local origin when it hears another wave,
+reducing simultaneous starts.
+
+Each accepted presence event chooses a new color, persists it locally, and
+forwards the addressed event to the two strongest recent wave-capable neighbors
+that are not already in the event ledger. The 150-hop budget and event ledger
+stop loops. Bridge identify/tag leases and local power protection still override
+the demonstration. Ben and the field team confirmed that triggering was a little
+difficult but the propagation across the tightly hung grid was visually clean;
+telemetry separately observed 60 of 63 and 57 of 63 fresh hardened fixtures
+change during two short windows. The team captured video of the successful
+demonstration.
+
+`F40364` accepted the hardened image as canary and survived the pending-verify
+window. The explicit 73-peer remainder batch discovered 71, returned 70 upload
+ACKs, and produced fresh exact-revision acceptance evidence for all 70 after
+the verification gate. Together with the canary, 71 fixtures accepted the
+hardened artifact. Three members of the prior 74-fixture accepted cohort remain
+on earlier images: `9E5AE0` timed out on OTA and was parked for one hour on
+`fx-260817-9ef4324-b`; low/intermittent `9E5B34` was not discovered and also
+holds that eager image; low/intermittent `9F2638` was not discovered and remains
+on `fx-260817-29ac840-b`. Retries stopped. These are in addition to the earlier
+12 observed holdbacks already documented below.
+
+The dashboard now issues bedtime as individual addressed commands rather than
+the old ambiguous broadcast. At 23:16 PDT it accepted an eight-hour sleep batch
+for all 65 fixtures then fresh on the bridge: 62 hardened fixtures and three old
+`fx-260816-otafix1-b` fixtures. All 18 fresh fixtures reporting external input
+were included. The live lit count fell to zero; subsequent fresh packets were
+rail-off/deep-sleep heartbeats. Low/intermittent peers not awake for the batch
+were already in their protective sleep cadence, and `9E5AE0` was already parked.
+The BQ25628E charger remains autonomous while the controller, radio, sensor rail,
+and LED rail sleep, so USB charging continues and solar charging can resume in
+daylight. The addressed cohort is scheduled to wake at about 07:16 PDT.
+
 ## 2026-08-16 -- Ben + Codex -- Self-identifying recovery image accepted on 74 observed fixtures
 
 Built one immutable fleet artifact from clean commit

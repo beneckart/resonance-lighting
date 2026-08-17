@@ -16,11 +16,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   not accept the current OTA. The exact 12-ID observed holdback census remains
   below; do not spend tonight looping retries. Diagnose from fresh power and
   image evidence in the morning (Ben/Codex + field team).
-- [ ] **Field-validate ADR 0044's TMF presence wipe.** Confirm that the hanging
-  rig is learned as a stable per-zone background, a person produces three
-  consecutive >=300 mm closer returns in one unobstructed channel, and the new
-  hue reaches the updated fleet through two-neighbor RSSI forwarding. Record
-  any nonvisited islands rather than tuning until the proof passes (Ben/Codex).
+- [x] **Field-validate ADR 0044's TMF presence wipe -- DONE 2026-08-16.** The
+  per-zone learned background prevented the occluding rig from acting as a fixed
+  threshold trigger, and the field team repeatedly triggered complete-looking
+  color wipes. Ben reported that activation was a little difficult but RSSI
+  propagation itself was remarkably clean; the team captured video. Telemetry
+  observed 60/63 and 57/63 fresh hardened peers change in short windows
+  (Ben/Codex + field team).
+- [ ] **Tune canopy presence sensitivity from field traces, without restoring a
+  fixed-distance trigger.** The initial robust setting requires one confident
+  zone to move >=300 mm closer than its learned background for three consecutive
+  reports. It passed the rig-occlusion proof but was a little difficult to
+  activate. Log one walk with zone deltas and confidence, then adjust delta or
+  consecutive count while retaining per-zone learning and clear-to-rearm
+  hysteresis (Ben/Codex).
 - [ ] **Verify one overnight sleeper resumes autonomous charging after sunrise.**
   Addressed deep sleep cuts the LED/sensor rails while the BQ25628E charger
   remains autonomous. Confirm a sleeping, solar-connected fixture shows fresh
@@ -47,6 +56,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   legacy `F3FD88`; provide supervised external power before attempting
   `F2BE08`, `F3FD28`, `F401DC`, `F40308`, `F40314`, or `F4035C`. Re-census for
   production fixtures not among the 86 IDs seen in this session (Ben/Codex +
+  field team).
+- [ ] **Close the three hardened-presence holdbacks.** Do not loop OTA retries.
+  `9E5AE0` timed out while updating from the eager presence image and was parked
+  for one hour; `9E5B34` was not discovered and remains on the eager image;
+  `9F2638` was not discovered and remains on `fx-260817-29ac840-b`. The latter
+  two were about 2.85/2.89 V and naturally sleeping. Recover on supervised power
+  in the morning and upload the exact `fx-260817-ec7f28d-b` binary (Ben/Codex +
   field team).
 - [ ] **Reseat the 11 false-chandelier STEMMA chains.** No chandelier fixture is
   powered, so sensor bits 0 on `9E5AB0`, `9F0E30`, `9F26B4`, `F2BE1C`,
