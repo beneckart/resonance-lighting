@@ -12,6 +12,38 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-16 -- Ben + Codex -- Target-locked deep-LFP recovery canary passed OTA and controlled charge
+
+Ben authorized one supervised OTA experiment to recover an installed LFP that
+the older fixture image would not charge below its 2.5 V plausible-cell guard.
+Firmware now has a test-only, exact-short-MAC recovery posture: it requires a
+fresh qualified supply, a 2.25-4.4 V cell reading, near-zero pre-enable battery
+current, no BQ fault, and an exact 16-bit precharge-register readback before
+enabling charge or accepting a pending OTA image. The posture holds precharge at
+50 mA, imposes a 100 mA absolute charge ceiling, disables LED and sensor rails,
+clamps D7/GPIO37 low, and refuses strikes. Native tests pass all 404 checks.
+
+The first immutable test artifact, `fx-260816-e5ca3a0-t`, was locked to
+`F401DC`, but no maintenance command or upload was sent: a guarded preflight
+found that fixture's telemetry stale and `supply_good=false`. The field team
+later identified an accidental cable swap. Ben authorized continuing with an
+already powered replacement canary rather than changing course again.
+
+The successful immutable artifact is `fx-260816-625fab1-t`, built from clean
+source commit `dc0234a580a2d83bb03025b1e884a571cdf1a173` and authorized only
+for `F2BFE0`. Its 1,171,296-byte binary has SHA-256
+`a22aa230ebc310924b2b9ce0e14e2b0784d422b7a6ba24761a39525ace52e178`;
+the recipe SHA-256 is
+`625fab1445bbfd0b569b8d646c8ebd67a221db813c02f6081852603a459787e3`.
+Immediately before OTA, `F2BFE0` reported a fresh 2.410 V cell, 0 mA battery
+current, and qualified 4.918 V / 132 mA USB input. One declared Ben/Codex writer
+uploaded only to that exact MAC. The fixture rejoined on the exact revision with
+a software-reset reason, survived the full 20-second A/B pending-verify window,
+and remained stable through more than two minutes of fresh heartbeats. Observed
+charge held at 52-55 mA while VBAT rose from 2.411 V to 2.446 V and USB remained
+4.918-4.922 V. No rollback, reboot, LED activity, or solenoid strike was seen.
+Physical supervision remains required, and this `t` artifact is not fleetable.
+
 ## 2026-08-16 -- Ben + Codex -- Five dark critical fixtures recovered on supervised USB
 
 Ben connected five non-red critical-battery lanterns to USB power on Elliot's

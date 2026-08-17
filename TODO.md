@@ -38,9 +38,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `F2BEA4`; several have
   weak/fluctuating or zero input despite a visible supply voltage. Use supervised
   USB/solar recovery and require fresh voltage/current ride-through evidence
-  before flashing the exact artifact. `F2BDB0` remains below 2.5 V and needs
-  external recovery above the firmware's plausible-cell threshold first
-  (Ben + field team).
+  before flashing the exact artifact. The target-locked deep-recovery canary
+  passed on `F2BFE0` at 2.410 V with a 50 mA precharge target and 100 mA absolute
+  ceiling; it rose to 2.446 V at 52-55 mA through the observed two-minute soak.
+  Confirm the physical cell remains cool/normal, continue the canary beyond
+  2.5 V, and review the trace before authorizing any additional exact-target
+  recovery artifacts. Never treat `fx-260816-625fab1-t` as fleetable or upload
+  it to a different MAC (Ben + field team).
 - [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
   update age/uptime but retain the last full-heartbeat firmware string, which
   briefly made a successful `F40384` update look rolled back. Show field age or
