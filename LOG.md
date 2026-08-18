@@ -12,6 +12,47 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Three standalone chandelier testers flashed
+
+Inspected the clean `codex/deep-recovery-canary` worktree through its Aug 17
+transport-sleep, fleet-recovery, and RSSI-capture activity before starting this
+bench change. Windows USB identities and an esptool flash-ID preflight separated
+the three requested PowerFeathers from the attached CoreS3: COM12 / `F40380`,
+COM31 / `F40358`, and COM103 / `9E5A70` were ESP32-S3 rev 0.2 boards with 8 MB
+flash and 2 MB PSRAM; COM43 / bridge `4D5DB0` was excluded from every flash
+command.
+
+Extended `chandelier_chain_bench` with a standalone demo mode for Jimmy's
+chandelier mockup: nine homogeneous RGB pixels on GPIO10/A0 and the switchable
+3V3 rail render a slow rainbow glow with a moving wipe. A debounced press of the
+PowerFeather USER/BOOT button toggles an explicit all-off frame plus the physical
+LED rail, then restores the rail and animation on the next press. Removed the
+sketch's post-`show()` `pinMode(GPIO10)` calls so Arduino-ESP32 3.x does not
+detach NeoPixel RMT during an off/on cycle. The older 34-second RGB/RGBW
+diagnostic ladder remains available as the default build mode.
+
+Built once from source commit `c322562` plus targeted-test patch SHA-256
+`50a99d8176e8c58398941302fe3de8991e7bb6872e701c19ebc61cefb627e530`.
+The immutable non-fleetable revision is `fx-260818-926d4c2-t`: 361,792 bytes,
+binary SHA-256
+`cf048f95e036488abbc6cf64d9b77e1224796cc79d74c76513b6cdcf1ea615ee`.
+Its ignored artifact directory contains the binary, exact build options,
+manifest, identity header, and checksum. Recipe: RGB, nine pixels, 88/255
+requested and applied brightness, conservative 800 mA LED budget, 6,000 mAh LFP
+profile, no WiFi or mesh.
+
+Sequential USB uploads to only `F40380`, `F40358`, and `9E5A70` verified every
+written region. Fresh JSON from each reported the exact revision, its expected
+MAC-derived ID, `pixel_type=RGB`, `pixels=9`, `demo_mode=true`,
+`pattern=rainbow-glow-wipe`, `pf_ready=true`, and the 3V3 rail on. All three were
+battery-absent on USB, so charging correctly remained off. Serial `o`/`p` cycles
+then proved rail-off and rail-on recovery on all three without a reset; this is
+the same power path called by the physical button. No LED strand was attached
+during this flash session, so Jimmy's first nine-module hookup remains the
+visual/button check and production current/voltage/thermal qualification remains
+open. Append-only evidence is
+`ops/bench/data/usb/20260818-0457-jimmy-chandelier-testers.jsonl`.
+
 ## 2026-08-17 -- Ben + Codex -- Pack-out transport sleep, RSSI matrix, and red-fixture recovery
 
 Built immutable fixture revision `fx-260818-f80f315-b` once from clean commit

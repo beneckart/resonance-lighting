@@ -982,15 +982,18 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   benign a given device tested (Ben/Claude).
 - [x] **Direct-GPIO WS2812/SK6812 validated** (board 2, HEX on A0/GPIO10, off the I2C bus) -- works, brownout-safe by construction, and ~10% MORE efficient than via NeoDriver (no passthrough drop). **Strong candidate for the area/glow role -- but NOT a settled BOM front-runner**: it's roughly tied in viability with the 4 W RGBW point-source, which serves the crisp-gobo role HEX can't, and the efficiency edge is muddied by varying-SOC testbeds. Decide after gobo testing. 3-way plot `led-eff-3way.png` (Ben).
 - [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner -> cap brightness / healthy pack. **Now quantified (2026-06-11 hex_ramp):** ~350-400 mA LED draw pulls the bench cell to its ~3.0 V brownout edge even at 98% SOC -> production firmware needs a hard current cap = f(brightness x lit-count), scaled to the production cell's IR (the 32700 ~6 Ah cell lifts the ceiling substantially) (Ben).
-- [ ] **Qualify the seven-RGB chandelier chain with instruments, not rail
-  saturation.** `chandelier-chain-2026-08-11.5` corrects the lensed-RGB model to
-  the measured 257 mA/module and defaults to an 800 mA LED budget (seven-pixel
-  white cap 113/255; 900 mA supervised maximum). With the production battery,
+- [ ] **Qualify the nine-RGB chandelier chain with instruments, not rail
+  saturation.** Jimmy's three-controller handoff uses nine RGB modules per
+  PowerFeather. Targeted tester `fx-260818-926d4c2-t` keeps the measured
+  257 mA/module model and an 800 mA LED budget (nine-pixel full-RGB cap 88/255;
+  900 mA remains the supervised diagnostic maximum). With the production battery,
   log input and rail current, PowerFeather 3V3 voltage, last-pixel voltage/color,
   radio activity, resets, and regulator/connector temperature through an
   extended pattern run. Keep the software current cap: the 1 A rating is shared
   by the board, 3V3 header, and VSQT rail, and saturation is not a safe limiter
-  (Ben/Codex).
+  (Ben/Codex). The three bare-USB controllers passed exact-artifact boot and
+  serial rail off/on recovery; a real nine-module strand and physical USER-button
+  press remain the first visual handoff check.
 - [ ] **Decide pixel-power architecture (NeoDriver only level-shifts the DATA signal, does NOT boost pixel power -- corrected; "3-5V vin/vlogic" = accepted *input* range):** pixels run at whatever Vin is. Options + a key power-mgmt axis (software-cuttability):
   - **(a) 3V3 header** -> dim (3.3 V under-volt) but **software-cuttable via `enable3V3(false)`** (free LED kill-switch; can't accidentally drain the pack), zero extra parts. Strong budget default (Ben's pick-direction).
   - **(b) VBAT** -> brighter (<=4.2 V Li-ion) but **always live** -> needs a load-switch/MOSFET + GPIO to be safe.
