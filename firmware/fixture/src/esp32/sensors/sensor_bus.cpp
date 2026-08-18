@@ -45,7 +45,15 @@ ProbeBits sensorBusProbe() {
     bits.msa311 = readReg8(0x26, 0x01, id) && id == 0x13;
   }
 
-  Serial.printf("class probe: tmf8820=%d vl53l5cx=%d bmp581=%d msa311=%d\n",
-                bits.tmf8820, bits.vl53l5cx, bits.bmp581, bits.msa311);
+  // Sparse time anchors do not determine fixture class. Their production
+  // addresses are unique on the current STEMMA complement, so a read-only ACK
+  // is sufficient for inventory. Time/fix validity is a later qualification.
+  bits.samM8q = ack(0x42);
+  bits.ds3231 = ack(0x68);
+
+  Serial.printf("class probe: tmf8820=%d vl53l5cx=%d bmp581=%d msa311=%d "
+                "sam_m8q=%d ds3231=%d\n",
+                bits.tmf8820, bits.vl53l5cx, bits.bmp581, bits.msa311,
+                bits.samM8q, bits.ds3231);
   return bits;
 }

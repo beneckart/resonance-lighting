@@ -296,6 +296,27 @@ int main() {
     CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_GH_CA);
   }
 
+  // A bridge dark lease is distinguishable from the unleased commissioning
+  // fallback so platform glue can cut the rail only for explicit blackout.
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7, PROG_COMMISSION_DARK);
+    CHECK(!rt.darkLeaseActive());
+    uint8_t params[8] = {};
+    CHECK(rt.applyProgramSet(PROG_COMMISSION_DARK, 30, 1,
+                             1 /* hard cut */, params, 1000));
+    CHECK(rt.leaseActive());
+    CHECK(rt.darkLeaseActive());
+    ProgramInputs in = {};
+    in.nowMs = 31001;
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    rt.tick(in, out);
+    CHECK(!rt.leaseActive());
+    CHECK(!rt.darkLeaseActive());
+  }
+
   // --- PROG_DIRECT: slew convergence, hard-cut, hold+half, stale fallback ---
   {
     ChoreoRuntime rt;

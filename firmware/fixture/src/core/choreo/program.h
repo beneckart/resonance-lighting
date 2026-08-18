@@ -95,6 +95,9 @@ public:
 
   uint8_t activeProgram() const { return mActive; }
   bool leaseActive() const { return mLease.active; }
+  bool darkLeaseActive() const {
+    return mLease.active && mActive == PROG_COMMISSION_DARK;
+  }
   uint16_t leaseRemainingS(uint32_t nowMs) const;
 
 private:

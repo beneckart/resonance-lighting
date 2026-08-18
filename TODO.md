@@ -4,6 +4,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Promote the 2026-08-17 small-fixes fixture candidate.** Native and
+  dashboard tests pass. The candidate makes an explicit dark lease cut the LED
+  rail, clears/suppresses a latched presence wave under bridge/direct authority,
+  and reports SAM-M8Q/DS3231 presence in unused heartbeat sensor bits without a
+  packet-layout change. Build once from a clean commit, canary on a battery-backed
+  fixture, then OTA only freshly power-qualified named targets; do not include
+  dusk-critical fixtures merely because they are visible (Ben/Codex).
+- [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
+  visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter, of which
+  one perimeter is intentionally batteryless; roughly 20 additional trunk
+  lights are boxed and batteryless. Give every rig slot a durable label, use
+  addressed identify to record its short MAC, and explicitly record empty,
+  batteryless, bootloader, and silent slots. Reconcile the expected 105 powered
+  fixtures against dashboard identities instead of inferring missing units from
+  aggregate counts (Ben + Elliot/field team).
+
 - [ ] **Choose the daytime recovery posture after the dark-awake baseline.**
   `B3600` proved that removing the LED load swings the updated awake fleet from
   aggregate discharge to aggregate charge, but battery-only fixtures still draw
@@ -109,10 +125,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   target-only `fx-260816-625fab1-t` served its canary purpose and must never be
   uploaded to another MAC; `F2BFE0` is back on the fleet image (Ben + field
   team).
-- [ ] **Fix dashboard firmware-revision freshness semantics.** Short heartbeats
+- [x] **Fix dashboard firmware-revision freshness semantics -- DONE
+  2026-08-17.** Short heartbeats
   update age/uptime but retain the last full-heartbeat firmware string, which
-  briefly made a successful `F40384` update look rolled back. Show field age or
-  distinguish cached firmware identity from current-packet data (Ben/Codex).
+  briefly made a successful `F40384` update look rolled back. The dashboard now
+  preserves the rich identity separately and displays its independently aging
+  evidence timestamp rather than presenting cached firmware as current-packet
+  truth (Ben/Codex).
 
 - [x] **Fix fixture OTA self-test for maintenance-mode verification -- DONE
   2026-08-15.** A healthy
@@ -625,7 +644,10 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
   real overnight scheduled cycle before production use. Keep the SAM-M8Q
   autolocation/true-north benefits in the same anchor plan rather than treating the
-  four receivers as separate inventory. (Ben/Codex).
+  four receivers as separate inventory. Hardware-presence inventory is implemented
+  in the 2026-08-17 OTA candidate using sensor bits 4/5 and dashboard G/R badges;
+  actual time reads, validity, distribution, and qualification remain open
+  (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
   load, and thresholds unchanged for the first complete dusk/show/recovery cycle.

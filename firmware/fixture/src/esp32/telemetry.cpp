@@ -138,6 +138,10 @@ String telemetryJson() {
   j += ",\"class_mismatch\":";
   j += gTelemetryClassMismatch ? "true" : "false";
   j += ",\"sensor_bits\":" + String(gTelemetrySensorBits);
+  j += ",\"sam_m8q_present\":";
+  j += (gTelemetrySensorBits & 0x10) ? "true" : "false";
+  j += ",\"ds3231_present\":";
+  j += (gTelemetrySensorBits & 0x20) ? "true" : "false";
   j += ",\"profile\":\"";
   j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";

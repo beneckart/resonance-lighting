@@ -4,7 +4,9 @@ uint8_t probeBitsMask(const ProbeBits &bits) {
   return (bits.tmf8820 ? 0x01 : 0) |
          (bits.vl53l5cx ? 0x02 : 0) |
          (bits.bmp581 ? 0x04 : 0) |
-         (bits.msa311 ? 0x08 : 0);
+         (bits.msa311 ? 0x08 : 0) |
+         (bits.samM8q ? 0x10 : 0) |
+         (bits.ds3231 ? 0x20 : 0);
 }
 
 static uint8_t probedClass(const ProbeBits &bits) {

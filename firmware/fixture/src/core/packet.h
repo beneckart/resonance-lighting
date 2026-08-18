@@ -186,7 +186,7 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t led_w;          // 0 on GRB HEX fixtures
   uint8_t led_lit_pixels; // number of nonzero pixels after brightness cap
   // tail 15 (fleet identity + low-VBAT recovery diagnostics; hb-full only)
-  uint8_t sensor_bits;    // bit0 TMF8820, bit1 VL53L5CX, bit2 BMP581, bit3 MSA311
+  uint8_t sensor_bits;    // b0 TMF, b1 VL53, b2 BMP, b3 MSA, b4 SAM-M8Q, b5 DS3231
   uint8_t class_mismatch; // probe conflict/fault fallback retained prior class
   uint8_t recovery_state; // LowVbatRecoveryState
   uint16_t recovery_detect_mv; // BQ ADC after the 30 mA presence test

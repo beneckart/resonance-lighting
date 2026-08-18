@@ -122,11 +122,22 @@ class DashboardState:
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
+            now_mono = time.monotonic()
+            peers: dict[str, dict[str, Any]] = {}
+            for pid, peer in self.peers.items():
+                public = dict(peer)
+                fw_seen = public.pop("_firmware_seen_monotonic", None)
+                public["firmware_rev_age_ms"] = (
+                    max(0, round((now_mono - fw_seen) * 1000))
+                    if fw_seen is not None
+                    else None
+                )
+                peers[pid] = public
             return {
                 "ts_utc": now_iso(),
                 "serial": dict(self.serial_status),
                 "master": dict(self.master) if self.master else None,
-                "peers": {pid: dict(peer) for pid, peer in self.peers.items()},
+                "peers": peers,
                 "scans": list(self.scans),
                 "raw": list(self.raw),
                 "last_command": dict(self.last_command) if self.last_command else None,
@@ -378,6 +389,7 @@ class SerialWorker(threading.Thread):
                 "drawdown_budget_mah": int(ddb) if ddb is not None else None,
                 "drawdown_active": bool(int(dda)) if dda is not None else None,
                 "firmware_rev": fw,
+                "_firmware_seen_monotonic": time.monotonic() if fw is not None else None,
                 "maint_status": int(mt) if mt is not None else None,
                 "field_phase": int(fc) if fc is not None else None,
                 "field_reason": int(fcr) if fcr is not None else None,
@@ -462,6 +474,11 @@ class SerialWorker(threading.Thread):
                 row["load_w"] = round(row["supply_w"] - row["battery_w"], 4)
             with self.state.lock:
                 previous = self.state.peers.get(pid)
+                if row["firmware_rev"] is None and previous is not None:
+                    row["firmware_rev"] = previous.get("firmware_rev")
+                    row["_firmware_seen_monotonic"] = previous.get(
+                        "_firmware_seen_monotonic"
+                    )
                 if row["fixture_class"] is None and previous is not None:
                     # Short heartbeats omit the class/render tail. Preserve the
                     # most recent rich report instead of reverting the glyph and
@@ -582,6 +599,10 @@ h1 { font-size: 24px; margin: 0; font-weight: 720; letter-spacing: -.02em; }
 .tag-toggle:hover { border-color: var(--green); }
 .tag-toggle[aria-pressed="true"] { color: #07130d; background: var(--green); border-color: var(--green); }
 .tag-toggle[aria-pressed="true"]::before { content: "\2713"; }
+.anchor-badges { position: absolute; right: 3px; bottom: 3px; z-index: 4; display: flex; gap: 2px; }
+.anchor-badge { min-width: 14px; height: 14px; padding: 0 2px; border: 1px solid currentColor; border-radius: 4px; display: grid; place-items: center; background: #15231d; font: 800 8px/1 system-ui, sans-serif; }
+.anchor-badge.gps { color: #6ba9e7; }
+.anchor-badge.rtc { color: #ffd56e; }
 .fixture-glyph { position: relative; width: 44px; height: 55px; display: flex; justify-content: center; align-items: center; }
 .battery-shape { position: relative; width: 36px; height: 36px; border-radius: 50%; background: color-mix(in srgb, var(--battery-color) 78%, var(--ink)); filter: drop-shadow(0 1px 2px rgba(0,0,0,.32)); }
 .battery-shape::before { content: ""; position: absolute; inset: 2px; border-radius: inherit; clip-path: inherit; background: linear-gradient(to top, var(--battery-color) 0 var(--battery-fill), var(--cell-empty) var(--battery-fill) 100%); box-shadow: inset 0 0 0 3px rgba(0,0,0,.18); }
@@ -952,7 +973,18 @@ function sensorSignature(peer) {
   if (bits & 2) names.push("VL53L5CX");
   if (bits & 4) names.push("BMP581");
   if (bits & 8) names.push("MSA311");
+  if (bits & 16) names.push("SAM-M8Q GPS");
+  if (bits & 32) names.push("DS3231 RTC");
   return names.length ? names.join(" + ") : "no STEMMA sensors";
+}
+
+function anchorBadges(peer) {
+  if (!finite(peer.sensor_bits)) return "";
+  const bits = Number(peer.sensor_bits);
+  const badges = [];
+  if (bits & 16) badges.push('<span class="anchor-badge gps" title="SAM-M8Q GPS detected">G</span>');
+  if (bits & 32) badges.push('<span class="anchor-badge rtc" title="DS3231 RTC detected">R</span>');
+  return badges.length ? `<span class="anchor-badges">${badges.join("")}</span>` : "";
 }
 
 function saveTaggedPeers() {
@@ -1110,11 +1142,12 @@ function renderFleet(peers, selectedId) {
       `${h.source.label}, ${lightLabel}${tagged ? ", tagged green" : ""}`;
     const sourceMarkup = h.source.icon
       ? `<span class="power-source ${h.source.kind}">${h.source.icon}</span>` : "";
+    const anchorMarkup = anchorBadges(peer);
     return `<div role="button" tabindex="0" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
       `<button type="button" class="tag-toggle" data-tag-id="${esc(peer.id)}" aria-pressed="${tagged}" aria-label="${tagged ? "Clear" : "Set"} green location tag for ${esc(peer.id)}" title="${tagged ? "Clear" : "Set"} green half-brightness tag"></button>` +
       `<span class="fixture-glyph class-${fixtureClassKey}" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--rendered-color:${lightColor}">` +
       `${sourceMarkup}<span class="light-output ${lightState}" title="${esc(lightLabel)}"></span><span class="battery-shape"></span></span>` +
-      `<span class="fixture-id">${esc(labels.get(peer.id))}</span></div>`;
+      `${anchorMarkup}<span class="fixture-id">${esc(labels.get(peer.id))}</span></div>`;
   }).join("") : `<div class="fleet-empty">Listening for ESP-NOW heartbeats...</div>`;
   document.querySelectorAll("[data-fleet-id]").forEach(tile => {
     tile.addEventListener("click", () => setFocus(tile.dataset.fleetId));
@@ -1505,7 +1538,7 @@ function render(s) {
       ? `<div class="row-sub">${p.config_capacity_mah} mAh / ${p.config_charge_ma} mA</div>`
       : "";
     const fwLine = p.firmware_rev
-      ? `<div class="row-sub">fw ${esc(p.firmware_rev)}</div>`
+      ? `<div class="row-sub">fw ${esc(p.firmware_rev)}${finite(p.firmware_rev_age_ms) ? ` (identity ${msAge(p.firmware_rev_age_ms)} old)` : ""}</div>`
       : `<div class="row-sub">fw ?</div>`;
     const ddCell = p.drawdown_mah !== null && p.drawdown_mah !== undefined
       ? `<div class="row-sub">dd ${fmt(p.drawdown_mah, 1)}/${p.drawdown_budget_mah ?? "--"} mAh</div>`

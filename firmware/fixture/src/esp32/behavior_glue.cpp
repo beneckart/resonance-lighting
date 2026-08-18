@@ -66,6 +66,16 @@ static uint32_t gPresenceFireAtMs = 0;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
 
+static void waveClear() {
+  if (gWave.eventId)
+    gRetiredWaveIds[gRetiredWavePos++ & 0x03] = gWave.eventId;
+  memset(&gWave, 0, sizeof(gWave));
+  gWaveDisplayActive = false;
+  gPresencePending = false;
+  gWaveDisplayHue = 0;
+  gWaveDisplayValue = 96;
+}
+
 static bool waveIsRetired(uint32_t eventId) {
   for (uint8_t i = 0; i < 4; ++i)
     if (gRetiredWaveIds[i] == eventId) return true;
@@ -136,6 +146,9 @@ static void waveOrigin() {
 
 void behaviorOnEvent(const NbEvent &event) {
   if (event.kind != NB_EVENT_PRESENCE_WAVE || !event.event_id) return;
+  // Bridge/direct authority suppresses autonomous presence propagation. A
+  // blackout must not collect a hidden wave that reappears when its lease ends.
+  if (gRuntime.leaseActive()) return;
   gLastWaveActivityMs = millis();
   gPresencePending = false; // earliest nearby origin wins the random backoff
   const uint8_t *target = &event.params[NB_EVENT_TARGET_OFFSET];
@@ -150,6 +163,10 @@ void behaviorOnEvent(const NbEvent &event) {
 }
 
 static void waveTick(uint32_t now) {
+  if (gRuntime.leaseActive()) {
+    gPresencePending = false;
+    return;
+  }
   const SensorSnapshot &snapshot = sensors();
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
       tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
@@ -256,6 +273,7 @@ void behaviorOnProgramSet(const NbProgramSet &ps) {
   if (!nbTargetMatches(ps.target_id, gMyId)) return;
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
+  if (ok && ps.lease_s) waveClear();
   Serial.printf("program-set: prog=%u lease=%us -> %s\n", ps.program_id,
                 ps.lease_s, ok ? "applied" : "REJECTED (unknown program)");
 }
@@ -280,6 +298,7 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
   uint32_t now = millis();
   DirectFrameState fs = {now, r, g, b, w, flags};
   gRuntime.noteDirectFrame(fs, now);
+  if (flags & 0x01) waveClear();
 }
 
 
@@ -474,6 +493,9 @@ void behaviorTick() {
 
 bool behaviorFrame(FrameBuffer &f) {
 #ifdef RES_BASIC_LISTENER
+  // A bridge DARK lease is electrically dark, not merely an all-zero frame.
+  // Returning false lets renderTick blank data and cut the LED rail.
+  if (gRuntime.darkLeaseActive()) return false;
   // Quiet posture always has a class-appropriate listener frame (or a leased
   // commanded frame). Keeps the LED rail up whenever the chip is awake.
   f = gFrame;

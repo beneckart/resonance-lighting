@@ -12,6 +12,51 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Dusk triage and small-fixes OTA candidate
+
+Implemented the queued fixture fixes without changing the ESP-NOW packet size.
+An active `PROG_COMMISSION_DARK` lease is now distinguishable from the unleased
+commission fallback, so the basic-listener build returns no render frame and
+actually cuts the LED rail. Accepted bridge program leases and direct-frame
+microleases retire the latched presence-wave display, and autonomous presence
+events are suppressed while explicit authority is active. This prevents a prior
+wave from reappearing after a blackout lease expires.
+
+Extended the existing sensor-signature byte append-only: bit 4 is a read-only
+ACK inventory probe for the SparkFun SAM-M8Q at `0x42`, and bit 5 is the Adafruit
+DS3231 at `0x68`. Neither bit changes physical class inference. The dashboard
+spells out both devices and adds compact G/R anchor badges to fixture tiles. It
+also tracks the age of the last rich firmware-identity report independently of
+ordinary short-heartbeat age, closing the misleading cached-revision display.
+All fixture-native tests and all nine dashboard tests pass. This entry records
+source readiness only; the immutable artifact and hardware rollout are recorded
+separately after build and verification.
+
+The field visual census is now 74 canopy fixtures, 8 installed trunk fixtures,
+and 24 perimeter fixtures, including one intentionally batteryless perimeter;
+roughly 20 additional trunk fixtures are boxed without batteries. At one
+reconciliation point the dashboard had 99 identities, 93 heard within five
+minutes, against 105 fixtures expected powered, leaving roughly 12 installed
+units not participating. Known silent/dead identities included batteryless
+`F2BCF4`, critical old-image `9E5B44` and `F2BDFC`, effectively batteryless
+`F403F0`, and noncritical silent `F4031C` and `F40414`; an exact physical slot
+map remains the required way to find the rest.
+
+At cloudy dusk, addressed 255-second locate commands were sent to the onboard
+PowerFeather status LED only for 15 low-battery identities. The lantern LED path
+correctly remained power-vetoed. The first physical USB-charge queue was
+`9F0E5C`, `9E5B34`, `F2BF7C`, `F3FCAC`, `9F2714`, `F3FD28`, `F40424`, and
+`9E5A94`; more deeply depleted but already silent fixtures must be found from
+the physical census. No low-voltage fixture was authorized for this OTA.
+
+Committed the day's generated USB inventory/commission evidence and reconciled
+the registry for repaired `F2BE70`, `F2BF74`, `F3FD88`, `F40424`, `F4043C`, and
+`F403DC`. `F2BCF4` remains firmware-commissioned but intentionally batteryless
+after its cell collapsed below 1 V. `F40414` remains a failed Board.init case.
+The cell involved in the `F2BE70` wrapper-scrape spark/smoke incident is recorded
+as never reusable; its replacement MCU/power path later passed batteryless USB
+checks with no BQ fault and a healthy reversed sensor daisy chain.
+
 ## 2026-08-17 -- Ben + Codex -- Dark-awake fleet test exposed the radio floor
 
 Added a RAM-only fleet-dark lease to the normal CoreS3 bridge. `B<seconds>`

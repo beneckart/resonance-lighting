@@ -39,6 +39,8 @@ class DashboardParserTests(unittest.TestCase):
         )
         self.assertEqual(row["led_lit_pixels"], 1)
         self.assertEqual(row["sensor_bits"], 9)
+        self.assertIsNone(row["firmware_rev"])
+        self.assertIsNone(row["firmware_rev_age_ms"])
         self.assertFalse(row["class_mismatch"])
         self.assertEqual(row["recovery_state"], 2)
         self.assertEqual(row["recovery_detect_mv"], 2421)
@@ -55,6 +57,7 @@ class DashboardParserTests(unittest.TestCase):
         worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
         worker.handle_line(
             BASE
+            + " fw=fx-260817-example-b"
             + " prof=0 life=4 ptier=0 prog=3 nmin=0"
             + " cls=2 ledrail=1 ledr=5 ledg=40 ledb=90 ledw=0 ledn=12"
             + " sens=10 cmis=1 rec=0 recmv=65535"
@@ -72,6 +75,8 @@ class DashboardParserTests(unittest.TestCase):
         self.assertEqual(row["sensor_bits"], 10)
         self.assertTrue(row["class_mismatch"])
         self.assertIsNone(row["recovery_detect_mv"])
+        self.assertEqual(row["firmware_rev"], "fx-260817-example-b")
+        self.assertIsNotNone(row["firmware_rev_age_ms"])
 
     def test_fleet_view_is_the_primary_page(self):
         self.assertIn('id="fleetGrid"', dashboard.HTML)
@@ -83,6 +88,10 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIn("top bar: rendered light color", dashboard.HTML)
         self.assertIn('class="tag-toggle"', dashboard.HTML)
         self.assertIn("resonanceTaggedLanterns", dashboard.HTML)
+        self.assertIn("SAM-M8Q GPS", dashboard.HTML)
+        self.assertIn("DS3231 RTC", dashboard.HTML)
+        self.assertIn('class="anchor-badge gps"', dashboard.HTML)
+        self.assertIn('class="anchor-badge rtc"', dashboard.HTML)
         self.assertIn('fetch("/api/strike"', dashboard.HTML)
         self.assertIn('fetch("/api/sleep"', dashboard.HTML)
         self.assertIn('data-cmd="B3600"', dashboard.HTML)
