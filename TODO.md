@@ -4,13 +4,23 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Promote the 2026-08-17 small-fixes fixture candidate.** Native and
-  dashboard tests pass. The candidate makes an explicit dark lease cut the LED
-  rail, clears/suppresses a latched presence wave under bridge/direct authority,
-  and reports SAM-M8Q/DS3231 presence in unused heartbeat sensor bits without a
-  packet-layout change. Build once from a clean commit, canary on a battery-backed
-  fixture, then OTA only freshly power-qualified named targets; do not include
-  dusk-critical fixtures merely because they are visible (Ben/Codex).
+- [x] **Promote the 2026-08-17 small-fixes fixture candidate -- DONE
+  2026-08-17.** Built immutable `fx-260818-05ed4b3-b` once from clean commit
+  `e09f46f`; binary SHA-256 is
+  `2986a0294827ef6be970d2ffe50066c885f3107f139f8601d5054d797467e1db`.
+  Battery-backed canary `F40174`, the 56-target main wave, and the three-target
+  safe tail all returned fresh exact-revision heartbeats and survived the
+  20-second pending-verify gate: 60/60 attempted and verified. All 60 later
+  reported LED rail off and zero lit pixels under the dark lease. No low-voltage,
+  recovery, downlink-anomalous, or slot-anomalous fixture was flashed; bridge
+  `4D5DB0` was untouched (Ben/Codex).
+- [ ] **Finish the small-rig perimeter USB rescue.** The inverse-light pass is
+  complete on the 74-fixture large rig, with nine low fixtures positively
+  charging. The small rig ran out of USB cables, so some dark perimeter fixtures
+  have not had a powered recovery opportunity. Do not classify their silence as
+  a dead cell. As cables free up, power each remaining dark slot, wait for a fresh
+  source/current report, then separate positive-current recovery from the
+  near-zero-current battery/charge-path bench queue (Ben + field team).
 - [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
   visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter, of which
   one perimeter is intentionally batteryless; roughly 20 additional trunk
@@ -644,9 +654,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
   real overnight scheduled cycle before production use. Keep the SAM-M8Q
   autolocation/true-north benefits in the same anchor plan rather than treating the
-  four receivers as separate inventory. Hardware-presence inventory is implemented
-  in the 2026-08-17 OTA candidate using sensor bits 4/5 and dashboard G/R badges;
-  actual time reads, validity, distribution, and qualification remain open
+  four receivers as separate inventory. Hardware-presence inventory is deployed
+  on 60 fixtures using sensor bits 4/5 and dashboard G/R badges. It found GPS
+  anchor `F2BDB4` and RTC anchors `9F0E7C` and `9F26C0`; the other five
+  purchased boards remain to be found in the held-back or silent population.
+  Actual time reads, validity, distribution, and qualification remain open
   (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,

@@ -12,6 +12,45 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Small-fixes OTA rollout and dusk USB rescue
+
+Built immutable fixture revision `fx-260818-05ed4b3-b` once from clean source
+commit `e09f46fd052be1eac18d357ba4f2664d1b9168b8`. The exact variant-b recipe
+SHA-256 is
+`05ed4b3fcc7f448672f0b72afaa81ac097bafe0f6c10fd0bfce315798540132f`.
+The 1,176,000-byte binary SHA-256 is
+`2986a0294827ef6be970d2ffe50066c885f3107f139f8601d5054d797467e1db`;
+the credential-bearing binary, manifest, and checksum remain in the ignored
+local directory `firmware/fixture/build/fx-260818-05ed4b3-b/`.
+
+Battery-backed canary `F40174` accepted the artifact, produced a fresh exact
+revision heartbeat after its software reboot, and remained alive beyond the
+20-second pending-verify gate. A live blackout test then confirmed the new
+explicit dark-lease path cuts the physical LED rail. The 56-target main wave
+and three-target safe tail each passed the same exact-revision and pending-gate
+checks. In total, 60 of 60 attempted named fixtures verified; no low-voltage,
+active-recovery, downlink-anomalous, or slot-anomalous fixture was included.
+Post-rollout telemetry showed all 60 on the exact revision with the LED rail off
+and zero lit pixels under `B3600`. Bridge `4D5DB0` was not flashed. Immutable OTA
+evidence is in `ops/bench/data/ca/20260818-010236-fleet-ota-results.jsonl`,
+`20260818-011015-fleet-ota-results.jsonl`, and
+`20260818-011454-fleet-ota-results.jsonl`.
+
+The new read-only anchor inventory found SAM-M8Q GPS on `F2BDB4` and DS3231 RTC
+on `9F0E7C` and `9F26C0`. This discovers three of the eight purchased anchor
+boards; it is not evidence that the other five are absent because the OTA
+deliberately held back the low, anomalous, and silent population.
+
+For dusk battery triage, Ben used inverse visual search on the 74-fixture large
+rig and attached charge-only USB to every fixture that remained dark. Nine low
+fixtures then reported positive battery current: `F402A4`, `F401DC`, `9F0E5C`,
+`F2BDD4`, `9E5B34`, `F2BF7C`, `F3FD28`, `9F2714`, and `9E5A94`. Four very-low
+fixtures saw external USB but accepted at most 1 mA: `F2BDFC`, `F2B900`,
+`F40314`, and known holdback `9E5B44`; treat these as battery/charge-path bench
+candidates. The small rig ran out of USB cables, so some dark perimeter
+fixtures remain unrescued. Their silence must not yet be called a dead battery
+or a failed charge attempt.
+
 ## 2026-08-17 -- Ben + Codex -- Dusk triage and small-fixes OTA candidate
 
 Implemented the queued fixture fixes without changing the ESP-NOW packet size.
