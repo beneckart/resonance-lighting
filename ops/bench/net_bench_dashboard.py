@@ -1016,10 +1016,11 @@ function compensatedBatteryV(peer) {
 function batteryVisual(peer) {
   const v = compensatedBatteryV(peer);
   if (!finite(v) || Number(v) < 0.5) return {name: "unknown", color: "#66786f", fill: 12, v: null};
-  if (v >= 3.10) return {name: "healthy", color: "#61d492", fill: 100, v};
-  if (v >= 3.00) return {name: "watch", color: "#f0bd62", fill: 55 + (v - 3.00) * 450, v};
-  if (v >= 2.95) return {name: "low", color: "#ed8d55", fill: 30 + (v - 2.95) * 500, v};
-  return {name: "critical", color: "#ff6b68", fill: Math.max(8, Math.min(30, (v - 2.70) * 88)), v};
+  // Bands mirror the ADR 0046 charge-knee ladder (dim 3.15 / off 3.10 / protect 3.05).
+  if (v >= 3.25) return {name: "healthy", color: "#61d492", fill: 100, v};
+  if (v >= 3.15) return {name: "watch", color: "#f0bd62", fill: 55 + (v - 3.15) * 450, v};
+  if (v >= 3.10) return {name: "low", color: "#ed8d55", fill: 30 + (v - 3.10) * 500, v};
+  return {name: "critical", color: "#ff6b68", fill: Math.max(8, Math.min(30, (v - 2.85) * 88)), v};
 }
 
 function expectedHeartbeatMs(peer) {

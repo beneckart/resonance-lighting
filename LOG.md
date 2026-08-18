@@ -12,6 +12,38 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-18 -- Ben + Claude -- Branch convergence and ADR 0046 charge-knee ladder
+
+Git housekeeping first. `codex/deep-recovery-canary` (with the Jimmy chandelier
+tester commit) fast-forwarded into `main` and pushed: the 300 mA IPRECHG write,
+the ADR 0042 low-VBAT recovery lane, transport sleep, the basic-listener
+posture, and artifact-identity injection are now trunk. `codex/basic-listener`,
+`codex/puca-performance-audio-bridge`, and `codex/pre-origin-sync-20260811`
+deleted locally (all content-contained in main; local tags `backup/*` and
+`archive/*` preserve every prior tip). The Lighting-Controller worktree
+fast-forwarded 202 commits; its tip fixes the same Arduino-ESP32 3.x RMT-detach
+family one layer deeper (`setPin` after `begin`). `codex/commissioning-mode`
+turned out to be content-superseded by main -- its dashboard, class-probe, and
+heartbeat-tail work all evolved further on the canary line, and its ADR
+0039-0041 files are byte-identical -- so the planned rebase was dropped. The
+one genuine salvage was `resGamma8`, the dim-floor gamma table, now in
+`firmware/fixture/src/core/gamma.h` unwired (commissioning renders stay direct
+linear). The branch itself stays alive only as codex's active RSSI worktree;
+retire it once that work lands on main. Known wart carried forward: two ADRs
+share number 0041 (STEMMA classification and universal recovery/solenoid
+defaults), matching the existing 0032 duplicate.
+
+Then ADR 0046 on `codex/charge-knee-thresholds`: the default ladder rises to
+dim 3.15 / off 3.10 / protect 3.05 V load-compensated (release floor 3.25 V),
+LED ramp guards and dashboard battery bands in lockstep. Rationale: park above
+the BQ25628E VBAT_LOWV precharge knee (believed ~3.00 V, unmeasured) so every
+morning starts in fast charge -- the ~4% of pack below the old floor takes ~2 h
+to re-earn at 300 mA precharge and ~19 h at the 30 mA POR default, which is the
+death-spiral arithmetic we lived through. All 15 native suites pass (748
+checks); the power-policy test voltages shifted +150 mV with every relative
+assertion intact. Open: bench-measure VBAT_LOWV in Oakland (TODO has the
+procedure), then revisit the exact values per the ADR's REVISIT clause.
+
 ## 2026-08-17 -- Ben + Codex -- Three standalone chandelier testers flashed
 
 Inspected the clean `codex/deep-recovery-canary` worktree through its Aug 17

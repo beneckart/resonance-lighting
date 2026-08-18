@@ -9,12 +9,13 @@
 #include <stdint.h>
 #include "../core/fixture_context.h"
 
-// Ramp abort thresholds (ADR 0023 standard tier; the power policy proper owns
-// the running thresholds from P3 -- these only guard the turn-on transient).
+// Ramp abort thresholds (ADR 0046 charge-knee ladder; the power policy proper
+// owns the running thresholds from P3 -- these only guard the turn-on
+// transient and track power_policy.cpp protect_mv/off_mv in lockstep).
 #define RES_LED_RAMP_STEPS 4
 #define RES_LED_RAMP_STEP_MS 800
-#define RES_LED_RAMP_PARK_MV 2900
-#define RES_LED_RAMP_DIM_MV 2950
+#define RES_LED_RAMP_PARK_MV 3050
+#define RES_LED_RAMP_DIM_MV 3100
 
 void ledProfileForClass(uint8_t fixtureClass); // (re)construct the strip object
 uint16_t ledPixelCount();

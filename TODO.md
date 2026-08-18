@@ -841,6 +841,7 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## PowerFeather power-bench (2026-06-02, board 9E5AB8 -- see docs/tests/POWER_BENCH_HARNESS_2026-06-02.md)
 
+- [ ] **Bench-measure BQ25628E VBAT_LOWV (the precharge->fast-charge knee) and close ADR 0046's REVISIT clause.** Oakland-runnable with a spare PowerFeather, a bench supply, and no cell: feed the BAT pins from the bench supply through a ~1 ohm series resistor (the supply mimics the cell; the resistor keeps the charger's current step visible and bounded), power VBUS from USB, and watch `bq` charge state plus battery current on the serial CLI while stepping the "cell" 2.80 -> 3.20 V in 25 mV holds of ~30 s. The knee is the step where charge current jumps from the 300 mA precharge plateau toward ICHG; sweep down as well to catch the comparator's hysteresis. Record both edges in LOG, then re-derive the ADR 0046 ladder: protect stays ~50 mV above the falling edge; relax toward the knee if it measures below 3.00 V, raise if above (Ben).
 - [x] Stand up Arduino power-bench firmware `firmware/power_bench/` with SDK 2.1.0 telemetry + `/telemetry` JSON (Ben).
 - [x] Confirm V2 hardware via Wire1 scan: MAX17260 (0x36), BQ25628E (0x6A), IS31 (0x30) (Ben).
 - [x] `Board.init(4400, Generic_3V7)` Ok; battery/supply voltage + current read correctly over WiFi (Ben).

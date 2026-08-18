@@ -27,9 +27,9 @@ struct PowerSample {
 };
 
 struct PowerConfig {
-  uint16_t dim_mv;          // default 3000
-  uint16_t off_mv;          // default 2950
-  uint16_t protect_mv;      // default 2900 (immediate)
+  uint16_t dim_mv;          // default 3150 (ADR 0046: above the charger knee)
+  uint16_t off_mv;          // default 3100
+  uint16_t protect_mv;      // default 3050 (immediate)
   uint16_t clear_delta_mv;  // default 150 (re-brighten hysteresis)
   uint16_t dim_confirm_s;   // default 10
   uint16_t low_confirm_s;   // default 60 (off tier + re-brighten confirms)
@@ -37,7 +37,7 @@ struct PowerConfig {
   // Compound PROTECT release (ALL required, sustained):
   uint16_t release_ma;      // default 20: corrected charge current floor
   uint16_t release_s;       // default 60: sustained duration
-  uint16_t release_floor_mv;// default 3100: recovered voltage floor
+  uint16_t release_floor_mv;// default 3250: recovered voltage floor
   uint16_t protect_sleep_s; // default 900
 };
 

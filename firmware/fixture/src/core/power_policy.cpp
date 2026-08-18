@@ -2,16 +2,19 @@
 
 PowerConfig powerConfigDefaults() {
   PowerConfig c;
-  c.dim_mv = 3000;
-  c.off_mv = 2950;
-  c.protect_mv = 2900;
+  // ADR 0046: ladder sits above the BQ25628E precharge->fast-charge knee
+  // (VBAT_LOWV, believed ~3.00 V; bench verification pending) so a fixture
+  // that parks overnight starts the morning in fast charge, never precharge.
+  c.dim_mv = 3150;
+  c.off_mv = 3100;
+  c.protect_mv = 3050;
   c.clear_delta_mv = 150;
   c.dim_confirm_s = 10;
   c.low_confirm_s = 60;
   c.load_comp_ohm = 0.15f;
   c.release_ma = 20;
   c.release_s = 60;
-  c.release_floor_mv = 3100;
+  c.release_floor_mv = 3250;
   c.protect_sleep_s = 900;
   return c;
 }
