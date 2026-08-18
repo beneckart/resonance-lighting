@@ -12,6 +12,54 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Pack-out transport sleep, RSSI matrix, and red-fixture recovery
+
+Built immutable fixture revision `fx-260818-f80f315-b` once from clean commit
+`29ebe2b5949bc52b03690986ea8ecbdcbecf4a65`. The 1,177,264-byte binary
+SHA-256 is
+`0f1119c6ba80f2280db2c04f478a59b6be0c407edf6c95c62248f89af90ad638`;
+the credential-bearing binary, manifest, and checksum remain in the ignored
+local artifact directory `firmware/fixture/build/fx-260818-f80f315-b/`.
+Battery-backed canary `F2BE70` and the explicitly qualified fleet waves produced
+fresh exact-revision evidence through the pending-verify gate. Eighty-four of
+97 observed identities ultimately held the exact image. The remaining 13 were
+old, intermittent, low, or unable to enter maintenance and were not subjected
+to looping retries.
+
+CoreS3 bridge `4D5DB0` alone was updated to
+`cores3-bridge-2026-08-17.2`. Its exact 1,103,968-byte binary SHA-256 is
+`e3747cbf0844418cb890ec85957e13d78e7b169ae0a817c0a9c3dd62b237b1aa`;
+the bridge artifact also remains ignored locally. A 140-second Nevada City rig
+survey recorded 25,154 pair observations from 48 reporters hearing 96
+transmitters, covering 4,558 unique directed pairs. The append-only raw capture
+is `ops/locate/data/field/20260818-0300-nevada-city-rig-rssi.jsonl`. Rows are
+ranked neighbor-table EWMA observations with `n=1`, not censoring-corrected
+window medians; offline planar/grid recovery remains a separate analysis task.
+
+At about 20:11 PDT, all 84 exact-revision fixtures accepted `Q99` and vanished
+from fresh telemetry. Their target timer wake is about 23:11 PDT Friday, shortly
+before the hoped-for Saturday playa unload; timed wake retains the LED-dark
+latch until a valid program command such as bridge `b`. Ten then-reachable old
+fixtures received the legacy `S65535` fallback, which lasts only about 18.2
+hours. Old or radio-silent fixtures that missed that short broadcast remain
+holdbacks. The transport command was already in flight when Ben's pause message
+arrived; subsequent state changes were held for explicit authorization, and a
+single physical RESET was confirmed as the no-flash wake path. Charge-only USB
+does not reset a sleeping ESP32, while the autonomous BQ25628E solar/USB charger
+continues to charge during transport sleep.
+
+The field team physically woke a small test cohort. Five exact-revision fixtures
+reported blue output: `9E5954`, `9F0E30`, `9F0E5C`, `9F26E4`, and `F40174`.
+A visually red sixth fixture proved over direct USB to be previously unobserved
+`9F2720` on `fx-260816-otafix1-b`, not the low dashboard identity first inferred.
+Exact-artifact USB commissioning passed on `COM150`; it now reports the current
+revision, healthy TMF8820/MSA311 canopy sensors, about 3.4 V battery, qualified
+4.6 V USB input, no charger fault, and the canopy warm-white default. Its
+persisted capacity remains 6,000 mAh despite downlight classification, so the
+physical cell must be checked before changing that setting. All six awake test
+fixtures were finally verified on valid USB input; five were net charging and
+`9F26E4` was approximately energy-neutral with USB carrying its live load.
+
 ## 2026-08-17 -- Ben + Codex -- Transport sleep and full-roster RSSI capture
 
 Implemented ADR 0045 for the Nevada City pack-out. New append-only protocol

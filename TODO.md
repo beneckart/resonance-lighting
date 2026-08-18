@@ -4,17 +4,35 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Capture the Nevada City rig RSSI matrix before pack-out.** ADR 0045 and
-  the bounded full-roster reporter are implemented and compile-tested. Flash
-  CoreS3 bridge `4D5DB0`, OTA the immutable fixture artifact to the explicitly
-  qualified cohort, run the exclusive-create logger before `L120`, and preserve
-  the resulting JSONL plus reporter/pair coverage summary (Ben/Codex).
-- [~] **Arm a multi-day transport sleep without creating a lid-open wake task.**
-  Promote the same immutable artifact, choose `Q<hours>` so timer wake occurs
-  shortly before expected Saturday unload, verify the updated exact-revision
-  cohort disappears from fresh telemetry, and record every old/holdback fixture
-  that cannot understand type 27. After unload, a bridge `b` program release
-  clears the retained dark latch (Ben/Codex + field team).
+- [x] **Capture the Nevada City rig RSSI matrix before pack-out -- DONE
+  2026-08-17.** Bridge `4D5DB0` and 84 qualified fixtures received the immutable
+  transport/RSSI image. The 140-second `L` survey preserved 25,154 observations
+  from 48 reporters hearing 96 transmitters, with 4,558 unique directed pairs,
+  in `ops/locate/data/field/20260818-0300-nevada-city-rig-rssi.jsonl`
+  (Ben/Codex).
+- [x] **Arm a multi-day transport sleep without creating a lid-open wake task --
+  DONE 2026-08-17.** All 84 exact-revision fixtures accepted `Q99` at about
+  20:11 PDT and disappeared from fresh telemetry. Timer wake is expected about
+  23:11 PDT Friday; RESET wake was field-confirmed without flashing. Ten
+  then-reachable old fixtures received only the `S65535` 18.2-hour fallback.
+  After unload, bridge `b` clears the retained LED-dark latch (Ben/Codex + field
+  team).
+- [ ] **Recover a planar/grid embedding from the Nevada City RSSI matrix.** Start
+  with the raw 48-reporter/96-transmitter directed capture, symmetrize with
+  explicit missing-edge handling, compare rank-only and calibrated-RSSI distance
+  models, and score the result against only the known 6x12, 2x12, and 1x8 rig
+  shapes. The captured rows are one-sample neighbor-table EWMAs, not independent
+  window medians, so uncertainty and censoring must remain explicit (Ben/Codex).
+- [ ] **Close the awake test cohort before final pack-out.** Elliot may use
+  `9E5954`, `9F0E30`, `9F0E5C`, `9F26E4`, `F40174`, and `9F2720` while Ben is in
+  Oakland. All six had qualified USB input when left. On Ben's Thursday/Friday
+  return, verify power, then transport-sleep this awake subset for the remaining
+  transit interval. Do not disturb the 84-device long-sleep cohort whose Friday
+  night timer already aligns with unload (Ben + Elliot).
+- [ ] **Reconcile `9F2720` battery capacity.** USB commissioning proved healthy
+  canopy/downlight sensors and current firmware, but the persisted/registry
+  capacity is still 6,000 mAh. Physically identify the installed cell before
+  changing it to the 15,000 mAh large-enclosure setting (Ben).
 
 - [x] **Promote the 2026-08-17 small-fixes fixture candidate -- DONE
   2026-08-17.** Built immutable `fx-260818-05ed4b3-b` once from clean commit
