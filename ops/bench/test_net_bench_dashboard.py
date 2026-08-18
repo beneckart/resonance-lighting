@@ -108,6 +108,18 @@ class DashboardParserTests(unittest.TestCase):
         self.assertFalse(dashboard.valid_command("B65536"))
         self.assertFalse(dashboard.valid_command("B1.5"))
 
+    def test_transport_sleep_and_locate_command_validation(self):
+        self.assertTrue(dashboard.valid_command("Q1"))
+        self.assertTrue(dashboard.valid_command("Q96"))
+        self.assertTrue(dashboard.valid_command("Q168"))
+        self.assertFalse(dashboard.valid_command("Q0"))
+        self.assertFalse(dashboard.valid_command("Q169"))
+        self.assertTrue(dashboard.valid_command("L"))
+        self.assertTrue(dashboard.valid_command("L0"))
+        self.assertTrue(dashboard.valid_command("L120"))
+        self.assertTrue(dashboard.valid_command("L900"))
+        self.assertFalse(dashboard.valid_command("L901"))
+
     def test_fleet_strike_stays_addressed_and_skips_stale_peers(self):
         commands, skipped = dashboard.prepare_strike_batch(
             {"targets": ["f2b7dc", "E39F1C", "F2B7DC", "E39A34"], "pulse_ms": 40},

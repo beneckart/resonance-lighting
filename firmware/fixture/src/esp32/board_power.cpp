@@ -31,8 +31,11 @@ using namespace PowerFeather;
 #endif
 
 static const char *kTag = "fixture";
+static const uint32_t kTransportWakeMagic = 0x54525054UL; // "TRPT"
+RTC_DATA_ATTR static uint32_t gTransportWakeMagic = 0;
 
 static bool gPfReady = false;
+static bool gTransportWakeDark = false;
 static bool gChargingEnabled = false;
 static float gMaintainV = 4.6f;
 static float gCbV = 0.0f, gCbMa = 0.0f, gCbMaRaw = 0.0f;
@@ -178,6 +181,12 @@ static bool bqBatteryPresenceTest(uint16_t &batteryMv) {
 }
 
 void boardPowerInit() {
+  // RTC slow memory survives deep sleep (and software/watchdog resets) but is
+  // initialized on a true power cycle. Once armed, stay dark across any
+  // incidental restart until an explicit bridge program command releases it.
+  gTransportWakeDark = gTransportWakeMagic == kTransportWakeMagic;
+  if (gTransportWakeDark)
+    Serial.println("transport wake: radio live, LED output latched dark");
   Serial.println("PowerFeather SDK init:");
   nvsLoadConfig();
   Result r = Result::Failure;
@@ -480,16 +489,37 @@ bool applyMaintainV10(uint8_t v10) {
   return true;
 }
 
-void enterTimedDeepSleep(uint16_t seconds, const char *why) {
+bool transportWakeDarkActive() { return gTransportWakeDark; }
+
+void transportWakeDarkRelease() {
+  if (!gTransportWakeDark && gTransportWakeMagic != kTransportWakeMagic) return;
+  gTransportWakeDark = false;
+  gTransportWakeMagic = 0;
+  Serial.println("transport wake: dark latch released by bridge program command");
+}
+
+void enterTimedDeepSleep(uint32_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
   allLoadsOff("deep sleep");
   if (gPfReady) {
     railEnable3V3(false);
     railEnableVSQT(false);
   }
-  Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
+  Serial.printf("deep sleep (%s), timer wake %lus\n", why,
+                (unsigned long)seconds);
   solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
+}
+
+void enterTransportSleep(uint32_t seconds, const char *why) {
+  if (seconds == 0 || seconds > 7UL * 24UL * 3600UL) {
+    Serial.printf("transport sleep refused: %lus outside 1..604800s\n",
+                  (unsigned long)seconds);
+    return;
+  }
+  gTransportWakeMagic = kTransportWakeMagic;
+  gTransportWakeDark = true;
+  enterTimedDeepSleep(seconds, why);
 }

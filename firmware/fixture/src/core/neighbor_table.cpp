@@ -114,3 +114,22 @@ uint8_t neighborSnapshot(const NeighborTable &t, uint32_t nowMs, uint32_t freshM
   }
   return n;
 }
+
+uint8_t neighborSurveySnapshot(const NeighborTable &t, uint32_t nowMs,
+                               uint32_t freshMs, NeighborView *out,
+                               uint8_t maxOut) {
+  uint8_t n = 0;
+  bool taken[NEIGHBOR_TABLE_SIZE] = {};
+  while (n < maxOut) {
+    int best = -1;
+    for (int i = 0; i < NEIGHBOR_TABLE_SIZE; ++i) {
+      const NeighborEntry &e = t.entries[i];
+      if (!e.used || taken[i] || nowMs - e.lastHeardMs >= freshMs) continue;
+      if (best < 0 || e.rssiEwma > t.entries[best].rssiEwma) best = i;
+    }
+    if (best < 0) break;
+    taken[best] = true;
+    fillView(out[n++], t.entries[best], nowMs);
+  }
+  return n;
+}

@@ -12,6 +12,30 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-17 -- Ben + Codex -- Transport sleep and full-roster RSSI capture
+
+Implemented ADR 0045 for the Nevada City pack-out. New append-only protocol
+types provide a 32-bit, rails-off transport timer and a bounded RSSI survey.
+Transport wake is automatic and restores radio/telemetry while an RTC-retained
+latch keeps LED output electrically dark; a valid program command, including
+the bridge's bare `b` release, clears the latch without opening a fixture.
+
+The survey expands the neighbor cache from 24 strongest peers to the complete
+160-device design envelope. During an explicit `L[seconds]` window only, each
+updated fixture reports its full fresh heard roster in 16-entry fragments about
+every 20 seconds. The bridge emits directed `nb-rssi` rows and the new
+exclusive-create `ops/locate/rssi_capture.py` logger records canonical-shaped
+JSONL for offline grid-recovery experiments. These first observations are RSSI
+EWMA samples, not censoring-corrected window medians, and must be analyzed as
+feasibility data rather than production coordinates.
+
+All fixture native tests (including golden packet layouts and a survey/pinned
+map separation check), dashboard command-validation tests, Python compilation,
+and throwaway fixture/CoreS3 builds pass. The enlarged roster adds about 5.9 KB
+of fixture global memory; the final compile still leaves 259,580 bytes of dynamic
+memory and uses 35 percent of flash. Immutable build, bridge flash, OTA rollout,
+live capture, and the final transport command remain to be recorded separately.
+
 ## 2026-08-17 -- Ben + Codex -- Small-fixes OTA rollout and dusk USB rescue
 
 Built immutable fixture revision `fx-260818-05ed4b3-b` once from clean source

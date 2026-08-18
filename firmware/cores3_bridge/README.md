@@ -31,6 +31,11 @@ The bridge:
 - accepts `B<seconds>` for a RAM-only, hard-cut fleet-dark program lease and
   lowercase `b` to release that lease immediately; neither command changes the
   fixture profile, lifecycle, or persisted configuration;
+- accepts `Q<hours>` (1-168) for multi-day rails-off transport sleep; timer wake
+  returns radio/telemetry but fixtures remain electrically dark until a program
+  command such as bare `b` releases the retained latch;
+- accepts `L[seconds]` (default 120, maximum 900, `L0` stop) for a bounded full
+  heard-roster RSSI survey and emits one `nb-rssi` line per directed observation;
 - shows bridge health and fresh fixtures on the built-in screen using a
   PSRAM-backed framebuffer so periodic updates do not visibly blink.
 

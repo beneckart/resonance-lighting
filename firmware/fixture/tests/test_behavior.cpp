@@ -102,6 +102,11 @@ int main() {
     n = neighborSnapshot(t, 20100, 3000, v, 8);
     CHECK_EQ(n, 1u);
     CHECK_EQ(v[0].id[0], 1u);
+    // A locate survey deliberately ignores the CA pin and sees the full heard
+    // roster, still ordered strongest-first.
+    n = neighborSurveySnapshot(t, 20100, 3000, v, 8);
+    CHECK_EQ(n, 2u);
+    CHECK_EQ(v[0].id[0], 2u);
     neighborClearPinned(t);
     n = neighborSnapshot(t, 20100, 3000, v, 8);
     CHECK_EQ(n, 2u); // back to RSSI mode
@@ -115,9 +120,9 @@ int main() {
       uint8_t id[3] = {(uint8_t)(i + 1), 0, 0};
       neighborUpsert(t, id, 1000, -60);
     }
-    uint8_t weakNew[3] = {99, 0, 0};
+    uint8_t weakNew[3] = {0xFE, 1, 0};
     CHECK(neighborUpsert(t, weakNew, 1001, -58) == nullptr); // <6 dB stronger: rejected
-    uint8_t strongNew[3] = {98, 0, 0};
+    uint8_t strongNew[3] = {0xFE, 2, 0};
     CHECK(neighborUpsert(t, strongNew, 1002, -50) != nullptr); // >6 dB: evicts
   }
 

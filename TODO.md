@@ -4,6 +4,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Capture the Nevada City rig RSSI matrix before pack-out.** ADR 0045 and
+  the bounded full-roster reporter are implemented and compile-tested. Flash
+  CoreS3 bridge `4D5DB0`, OTA the immutable fixture artifact to the explicitly
+  qualified cohort, run the exclusive-create logger before `L120`, and preserve
+  the resulting JSONL plus reporter/pair coverage summary (Ben/Codex).
+- [~] **Arm a multi-day transport sleep without creating a lid-open wake task.**
+  Promote the same immutable artifact, choose `Q<hours>` so timer wake occurs
+  shortly before expected Saturday unload, verify the updated exact-revision
+  cohort disappears from fresh telemetry, and record every old/holdback fixture
+  that cannot understand type 27. After unload, a bridge `b` program release
+  clears the retained dark latch (Ben/Codex + field team).
+
 - [x] **Promote the 2026-08-17 small-fixes fixture candidate -- DONE
   2026-08-17.** Built immutable `fx-260818-05ed4b3-b` once from clean commit
   `e09f46f`; binary SHA-256 is

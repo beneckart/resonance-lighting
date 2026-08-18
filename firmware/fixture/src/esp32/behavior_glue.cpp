@@ -191,9 +191,9 @@ static void waveTick(uint32_t now) {
       gWave.fanoutSent >= 2 || (int32_t)(now - gWave.nextFanoutMs) < 0)
     return;
 
-  NeighborView views[NEIGHBOR_TABLE_SIZE];
+  NeighborView views[NB_NEIGHBOR_REPORT_MAX];
   uint8_t count = neighborSnapshot(gNeighbors, now, RES_NEIGHBOR_FRESH_MS,
-                                   views, NEIGHBOR_TABLE_SIZE);
+                                   views, NB_NEIGHBOR_REPORT_MAX);
   const NeighborView *chosen = nullptr;
   for (uint8_t i = 0; i < count; ++i) {
     if (!(views[i].flags & RES_WAVE_CAPABLE_FLAG)) continue;
@@ -273,6 +273,7 @@ void behaviorOnProgramSet(const NbProgramSet &ps) {
   if (!nbTargetMatches(ps.target_id, gMyId)) return;
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
+  if (ok) transportWakeDarkRelease();
   if (ok && ps.lease_s) waveClear();
   Serial.printf("program-set: prog=%u lease=%us -> %s\n", ps.program_id,
                 ps.lease_s, ok ? "applied" : "REJECTED (unknown program)");
@@ -298,7 +299,14 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
   uint32_t now = millis();
   DirectFrameState fs = {now, r, g, b, w, flags};
   gRuntime.noteDirectFrame(fs, now);
+  transportWakeDarkRelease();
   if (flags & 0x01) waveClear();
+}
+
+uint8_t behaviorNeighborSnapshot(NeighborView *out, uint8_t maxOut) {
+  // A 15 s window covers the production 0.2 Hz heartbeat cadence with margin;
+  // unlike CA behavior, the survey must not be constrained by a pinned map.
+  return neighborSurveySnapshot(gNeighbors, millis(), 15000UL, out, maxOut);
 }
 
 
@@ -492,6 +500,10 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+  // Timer wake from a shipping sleep must never invent a light show inside
+  // the container. Radio and telemetry are live; an explicit bridge program
+  // command releases this latch after unpacking.
+  if (transportWakeDarkActive()) return false;
 #ifdef RES_BASIC_LISTENER
   // A bridge DARK lease is electrically dark, not merely an all-zero frame.
   // Returning false lets renderTick blank data and cut the LED rail.

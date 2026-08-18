@@ -26,6 +26,11 @@ static uint8_t gRateHz = 0; // 0 = profile default cadence
 static uint32_t gHbSeq = 0;
 static uint32_t gNextShortMs = 0;
 static uint32_t gNextFullMs = 0;
+static bool gLocateActive = false;
+static uint32_t gLocateUntilMs = 0;
+static uint32_t gNextLocateMs = 0;
+static uint16_t gLocatePeriodMs = 2000;
+static NeighborView gLocateViews[NEIGHBOR_TABLE_SIZE];
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -162,6 +167,34 @@ static void accountDownlink(const NbHeader *h, int8_t rssi) {
   }
 }
 
+static void sendNeighborReports() {
+  uint8_t total = behaviorNeighborSnapshot(gLocateViews, NEIGHBOR_TABLE_SIZE);
+  // Fragment a full heard-roster snapshot into existing 16-entry packets.
+  // At the 20 s default, even a 100-neighbor reporter averages <0.4 pkt/s.
+  for (uint8_t offset = 0; offset < total; offset += NB_NEIGHBOR_REPORT_MAX) {
+    uint8_t count = min((uint8_t)NB_NEIGHBOR_REPORT_MAX,
+                        (uint8_t)(total - offset));
+    NbNeighborReport report;
+    memset(&report, 0, sizeof(report));
+    fillHeader(&report.h, NB_NEIGHBOR_REPORT);
+    report.count = count;
+    // Each row is one ranked EWMA snapshot. The host aggregates repeated rows;
+    // n=1/expected=1 avoids pretending this is an on-device median.
+    report.n_expected = 1;
+    for (uint8_t i = 0; i < count; ++i) {
+      const NeighborView &view = gLocateViews[offset + i];
+      memcpy(report.entries[i].id, view.id, 3);
+      report.entries[i].med_dbm = view.rssi;
+      report.entries[i].n = 1;
+      report.entries[i].flags = 0;
+    }
+    size_t wireLen = offsetof(NbNeighborReport, entries) +
+                     (size_t)count * sizeof(NbNeighborEntry);
+    espNowSendRaw(&report, wireLen);
+    delay(3);
+  }
+}
+
 static void processPacket(const RxItem &it) {
   const NbHeader *h = (const NbHeader *)it.data;
   if (h->ver != NB_PROTO_VER) return;
@@ -236,6 +269,32 @@ static void processPacket(const RxItem &it) {
     behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
     Serial.printf("force_night -> %s (radio)\n",
                   fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
+    break;
+  }
+  case NB_TRANSPORT_SLEEP: {
+    if (it.len < (int)sizeof(NbTransportSleep)) return;
+    const NbTransportSleep *ts = (const NbTransportSleep *)it.data;
+    if (!nbTargetMatches(ts->target_id, gMyId)) return;
+    if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
+    enterTransportSleep(ts->seconds, "radio-transport");
+    break;
+  }
+  case NB_LOCATE_CONTROL: {
+    if (it.len < (int)sizeof(NbLocateControl)) return;
+    const NbLocateControl *lc = (const NbLocateControl *)it.data;
+    if (!nbTargetMatches(lc->target_id, gMyId)) return;
+    if (lc->duration_s == 0) {
+      gLocateActive = false;
+      Serial.println("locate survey: stopped");
+      break;
+    }
+    if (lc->duration_s > 900 || lc->period_ds < 10 || lc->period_ds > 250) return;
+    gLocatePeriodMs = (uint16_t)lc->period_ds * 100U;
+    gLocateUntilMs = millis() + (uint32_t)lc->duration_s * 1000UL;
+    gNextLocateMs = millis() + 100 + (esp_random() % gLocatePeriodMs);
+    gLocateActive = true;
+    Serial.printf("locate survey: %us every %ums\n", lc->duration_s,
+                  gLocatePeriodMs);
     break;
   }
   case NB_ENTER_MAINT:
@@ -379,5 +438,16 @@ void netPeerTick() {
   if ((int32_t)(now - gNextFullMs) >= 0) {
     netPeerSendHeartbeat(true);
     gNextFullMs = now + jittered(fullPeriodMs());
+  }
+  if (gLocateActive) {
+    if ((int32_t)(now - gLocateUntilMs) >= 0) {
+      gLocateActive = false;
+    } else if ((int32_t)(now - gNextLocateMs) >= 0) {
+      sendNeighborReports();
+      // Independent jitter prevents a 60-node survey from phase-locking.
+      uint32_t spread = gLocatePeriodMs / 4U;
+      gNextLocateMs = now + gLocatePeriodMs - spread / 2U +
+                      (spread ? esp_random() % spread : 0);
+    }
   }
 }

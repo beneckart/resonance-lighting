@@ -54,6 +54,9 @@ int main() {
   CHECK_EQ(sizeof(NbProgramSet), 32u);
   CHECK_EQ(sizeof(NbProfile), 18u);
   CHECK_EQ(sizeof(NbTimeQuality), 29u);
+  CHECK_EQ(sizeof(NbNeighborEntry), 6u);
+  CHECK_EQ(offsetof(NbNeighborReport, entries), 16u);
+  CHECK_EQ(sizeof(NbNeighborReport), 112u);
   CHECK_EQ(sizeof(NbEvent), 39u);
   CHECK_EQ(sizeof(NbNeighborSet), 13u + 3u + 1u + 1u + 24u);
 
@@ -66,6 +69,11 @@ int main() {
   CHECK_EQ(offsetof(NbDirectFrame, entries), 15u);
   CHECK_EQ(sizeof(NbDirectFrame), 141u);
   CHECK_EQ(sizeof(NbForceLifecycle), 18u);
+
+  // Field-pack payloads (27/28): multi-day seconds are intentionally u32.
+  CHECK_EQ(sizeof(NbTransportSleep), 20u);
+  CHECK_EQ(offsetof(NbTransportSleep, seconds), 16u);
+  CHECK_EQ(sizeof(NbLocateControl), 19u);
 
   // Receiver tail gate + truncation round-trip: an hb-short must satisfy the
   // gate for supply_good and fail it for lux_x10.

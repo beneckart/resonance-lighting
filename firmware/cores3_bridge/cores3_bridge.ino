@@ -45,7 +45,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-17.1"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-17.2"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -79,6 +79,9 @@
 #define NB_DRAWDOWN_DEFAULT_MAH 3500
 #define NB_DARK_LEASE_DEFAULT_S 3600
 #define NB_PROGRAM_COMMISSION_DARK 4
+#define NB_TRANSPORT_MAX_HOURS 168
+#define NB_LOCATE_MAX_S 900
+#define NB_LOCATE_PERIOD_DS 200
 
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -498,6 +501,23 @@ void sendFleetProgramLease(uint8_t programId, uint16_t leaseS) {
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
+void sendTransportSleep(uint16_t hours) {
+  NbTransportSleep cmd = {};
+  fillHeader(&cmd.h, NB_TRANSPORT_SLEEP);
+  // target_id remains 00:00:00: field packing is one fleet-wide operation.
+  cmd.seconds = (uint32_t)hours * 3600UL;
+  sendPacketRepeated(&cmd, sizeof(cmd), 8, 12);
+}
+
+void sendLocateControl(uint16_t durationS) {
+  NbLocateControl cmd = {};
+  fillHeader(&cmd.h, NB_LOCATE_CONTROL);
+  // target_id remains 00:00:00. Duration zero is the explicit stop command.
+  cmd.duration_s = durationS;
+  cmd.period_ds = NB_LOCATE_PERIOD_DS;
+  sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
+}
+
 #if CORES3_AUDIO_REACTIVE_MODE
 const char *audioSourceName() {
   if (!audioInputReady) return "FAILED";
@@ -629,7 +649,8 @@ void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
   if (len < (int)sizeof(NbHeader)) return;
   const NbHeader *h = (const NbHeader *)data;
   if (h->ver != NB_PROTO_VER ||
-      (h->type != NB_HEARTBEAT && h->type != NB_SCANAP)) return;
+      (h->type != NB_HEARTBEAT && h->type != NB_SCANAP &&
+       h->type != NB_NEIGHBOR_REPORT)) return;
 #endif
 
   RxItem item = {};
@@ -904,6 +925,26 @@ void emitScanAp(const RxItem &item) {
                 scan->enc, item.rssi, ssid);
 }
 
+void emitNeighborReport(const RxItem &item) {
+  if (item.len < (int)offsetof(NbNeighborReport, entries)) return;
+  const NbNeighborReport *report = (const NbNeighborReport *)item.data;
+  uint8_t available = (uint8_t)((item.len - offsetof(NbNeighborReport, entries)) /
+                                sizeof(NbNeighborEntry));
+  uint8_t count = min((uint8_t)NB_NEIGHBOR_REPORT_MAX,
+                      min(report->count, available));
+  for (uint8_t i = 0; i < count; ++i) {
+    const NbNeighborEntry &entry = report->entries[i];
+    Serial.printf("nb-rssi report=%lu rx=%02X%02X%02X tx=%02X%02X%02X "
+                  "rssi=%d n=%u expected=%u censored=%u idx=%u count=%u "
+                  "linkrssi=%d\n",
+                  (unsigned long)report->h.seq,
+                  report->h.src_id[0], report->h.src_id[1], report->h.src_id[2],
+                  entry.id[0], entry.id[1], entry.id[2], entry.med_dbm,
+                  entry.n, report->n_expected, entry.flags & 0x01, i, count,
+                  item.rssi);
+  }
+}
+
 void processRx() {
   if (!rxQueue) return;
   RxItem item;
@@ -917,6 +958,7 @@ void processRx() {
     if (h->type == NB_HEARTBEAT) processHeartbeat(item);
 #if !CORES3_CAMBIUM_MODE
     else if (h->type == NB_SCANAP) emitScanAp(item);
+    else if (h->type == NB_NEIGHBOR_REPORT) emitNeighborReport(item);
 #endif
   }
 }
@@ -1423,6 +1465,32 @@ void handleSerial() {
     Serial.println("identify ALL peers 8s");
     break;
   }
+  case 'Q': {
+    int hours = readSerialUint(100, NB_TRANSPORT_MAX_HOURS);
+    if (hours < 1 || hours > NB_TRANSPORT_MAX_HOURS) {
+      Serial.printf("TRANSPORT_SLEEP rejected: use Q<hours>, 1..%d\n",
+                    NB_TRANSPORT_MAX_HOURS);
+      break;
+    }
+    sendTransportSleep((uint16_t)hours);
+    Serial.printf("broadcast TRANSPORT_SLEEP %dh (%lus); timer wake stays dark "
+                  "until bridge program release\n",
+                  hours, (unsigned long)hours * 3600UL);
+    break;
+  }
+  case 'L': {
+    int seconds = readSerialUint(100, NB_LOCATE_MAX_S);
+    if (seconds < 0) seconds = 120;
+    if (seconds > NB_LOCATE_MAX_S) {
+      Serial.printf("LOCATE rejected: use L[seconds], 0..%d\n", NB_LOCATE_MAX_S);
+      break;
+    }
+    sendLocateControl((uint16_t)seconds);
+    Serial.printf("broadcast LOCATE %s, %d s, reports every %.1f s\n",
+                  seconds ? "start" : "stop", seconds,
+                  NB_LOCATE_PERIOD_DS / 10.0f);
+    break;
+  }
   case 'T': {
     uint8_t target[3] = {};
     if (!readSerialHexId(target, 120)) {
@@ -1499,7 +1567,7 @@ void handleSerial() {
 #endif
   case 'h':
   case '?':
-    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
+    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] Q<hours> L[seconds] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
                    " A"
 #endif

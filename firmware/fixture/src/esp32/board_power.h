@@ -102,5 +102,11 @@ bool applyCapacityAndReboot(uint16_t mah);
 bool applyChargeMa(uint16_t ma);
 bool applyMaintainV10(uint8_t v10);
 
-// Rails-off timed deep sleep (~0.5%/h vs ~1.7%/h with rails left on).
-void enterTimedDeepSleep(uint16_t seconds, const char *why);
+// Rails-off timer sleep. Transport sleep additionally leaves an RTC-retained
+// dark latch behind: after automatic timer wake the radio/telemetry return,
+// but the fixture stays electrically dark until a valid program command (the
+// bridge's bare 'b' release is sufficient). No lid-open reset is required.
+void enterTimedDeepSleep(uint32_t seconds, const char *why);
+void enterTransportSleep(uint32_t seconds, const char *why);
+bool transportWakeDarkActive();
+void transportWakeDarkRelease();

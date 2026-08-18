@@ -21,6 +21,20 @@ wave. At Cambium's intended 8 Hz rate that is 64 packets/s, below the previously
 exercised ESP-NOW rate range. The Nevada City acceptance bench uses perimeter
 fixtures `F3FD88`, `F2BE80`, and `F2BFEC`.
 
+## Transport sleep and rig RSSI capture
+
+`NB_TRANSPORT_SLEEP` provides a 32-bit multi-day timer sleep. The bridge's
+`Q<hours>` command (1-168) cuts fixture loads/rails and wakes automatically. The
+timer wake restores radio/telemetry but retains an RTC-backed electrically-dark
+output latch until a valid program command; bare bridge `b` is the intended
+post-unload release. This is not physical ship mode and requires no lid access.
+
+`NB_LOCATE_CONTROL` makes RSSI capture explicitly temporary. During bridge
+`L[seconds]` only, a fixture retains up to 160 heard peers and sends its fresh
+heard roster in 16-entry report fragments about every 20 seconds. Outside the
+bounded window it emits no report traffic. See `ops/locate/rssi_capture.py` and
+ADR 0045.
+
 ## Architecture stance
 
 **Cooperative main loop + ISR-enqueue rx queue + esp_timer one-shots. No

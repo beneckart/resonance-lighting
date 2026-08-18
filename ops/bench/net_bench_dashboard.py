@@ -1846,7 +1846,7 @@ def parse_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def valid_command(cmd: str) -> bool:
-    if cmd in {"r", "U", "S", "c", "I", "i", "+", "-", "b"}:
+    if cmd in {"r", "U", "S", "c", "I", "i", "+", "-", "b", "L"}:
         return True
     m = re.fullmatch(r"i[0-9A-Fa-f]{6}(?::(\d{1,3}))?", cmd)
     if m:
@@ -1886,6 +1886,14 @@ def valid_command(cmd: str) -> bool:
     if m:
         value = int(m.group(1))
         return 1 <= value <= 65535
+    m = re.fullmatch(r"Q(\d{1,3})", cmd)
+    if m:
+        value = int(m.group(1))
+        return 1 <= value <= 168
+    m = re.fullmatch(r"L(\d{1,3})", cmd)
+    if m:
+        value = int(m.group(1))
+        return 0 <= value <= 900
     m = re.fullmatch(r"P([0-9A-Fa-f]{6})(?::(\d{1,5}))?", cmd)
     if m:
         if m.group(2) is None:
