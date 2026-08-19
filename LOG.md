@@ -12,6 +12,18 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-18 -- Ben + Claude -- Gamma scrubbed from the codebase
+
+Ben's call: gamma correction introduces too many problems and the render
+doctrine is linear anyway (led_driver's "direct linear 8-bit levels" comment is
+now the whole story). The `resGamma8` dim-floor table salvaged this morning is
+deleted along with its tests -- the 1..23 -> 0 dead zone it existed to fix is a
+gamma artifact, so with gamma gone there is no floor-to-zero problem to solve.
+Stale "pre-gamma"/"post-gamma" comments in `fixture_context.h` and `packet.h`
+now say linear/post-cap. TODO's ambient-dimming item is closed with the
+decision recorded: if sub-24 granularity is ever needed, use temporal
+dithering, not gamma. Recovery path if ever wanted: commit 9260ae3.
+
 ## 2026-08-18 -- Ben + Claude -- Branch convergence and ADR 0046 charge-knee ladder
 
 Git housekeeping first. `codex/deep-recovery-canary` (with the Jimmy chandelier

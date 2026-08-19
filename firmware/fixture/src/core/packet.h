@@ -184,7 +184,7 @@ struct __attribute__((packed)) NbHeartbeat {
   // tail 14 (fleet dashboard output truth -- appears only in hb-full)
   uint8_t fixture_class;  // FixtureClass; 0 = unknown
   uint8_t led_rail_on;    // physical switchable 3V3 rail state (0/1)
-  uint8_t led_r;          // mean post-gamma output across currently lit pixels
+  uint8_t led_r;          // mean post-cap output across currently lit pixels
   uint8_t led_g;
   uint8_t led_b;
   uint8_t led_w;          // 0 on GRB HEX fixtures
