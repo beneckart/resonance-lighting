@@ -8,6 +8,7 @@
 #include "boot_guard_io.h"
 #include "led_driver.h"
 #include "loads.h"
+#include "solenoid.h"
 #include "net_peer.h"
 #include "nvs_store.h"
 #include "ota_verify.h"
@@ -25,6 +26,8 @@ static PowerBudget gBudget;
 static PowerConfig gConfig;
 static PowerIntegrator gIntegrator;
 static uint32_t gGraceUntilMs = 0;
+static bool gProtectPersistDeferred = false; // ADR 0051 RAM-only PROTECT
+static uint32_t gLoadsQuietSinceMs = 0;      // rail+solenoid quiet streak
 
 const PowerBudget &powerBudget() { return gBudget; }
 
@@ -71,7 +74,13 @@ void powerGlueTick() {
   // An empty BAT input can briefly return a nonzero sub-cell voltage. Use the
   // same plausible-cell window as the deferred charging guard; otherwise a
   // bare USB commission can falsely persist immediate low-voltage PROTECT.
-  s.batt_valid = pfIsReady() && batteryPresent();
+  // ADR 0051: an active low-VBAT recovery lane also freezes the ladder --
+  // batteryPresent() goes true at ~2.3 V for the charger's benefit, but a
+  // rescue in progress must not walk the tier ladder or persist PROTECT
+  // (the freeze keeps the fixture awake on verified external power, which
+  // the recovery gate guarantees is present).
+  s.batt_valid = pfIsReady() && batteryPresent() && !lowVbatRecoveryActive();
+  s.batt_corroborated = batteryCorroborated();
   s.batt_v = batteryVolts();
   s.batt_ma = batteryMa();
   s.supply_valid = pfIsReady();
@@ -98,7 +107,15 @@ void powerGlueTick() {
   if (b.tier_changed) {
     // Persist the stage BEFORE any load change becomes visible: a reset
     // mid-transition must boot into the safer stage, never the brighter one.
-    if (!bootGuardSetStage(powerTierToStage(b.tier)) && b.tier < LedTier::PROTECT) {
+    // ADR 0051 exception: an uncorroborated PROTECT stays RAM-only (posture
+    // applies -- rails off, park -- but the durable latch waits for battery
+    // corroboration; a rate-limited BQ presence check is requested below).
+    if (b.tier == LedTier::PROTECT && b.defer_protect_persist) {
+      gProtectPersistDeferred = true;
+      batteryRequestPresenceCheck();
+      Serial.println("power: PROTECT held RAM-only (battery uncorroborated)");
+    } else if (!bootGuardSetStage(powerTierToStage(b.tier)) &&
+               b.tier < LedTier::PROTECT) {
       Serial.println("power: stage persist FAILED -> parking");
       b.tier = LedTier::PROTECT;
       b.brightness_cap = 0;
@@ -127,6 +144,34 @@ void powerGlueTick() {
       gSmokeRender = false;
       ledRailOff();
     }
+  }
+
+  // Resolve a deferred PROTECT persist: corroboration arriving while the tier
+  // still holds writes the durable latch; leaving PROTECT (release path, which
+  // requires charge current and therefore corroboration) abandons it.
+  if (gProtectPersistDeferred) {
+    if (b.tier != LedTier::PROTECT) {
+      gProtectPersistDeferred = false;
+    } else if (!b.defer_protect_persist) {
+      gProtectPersistDeferred = false;
+      if (bootGuardSetStage(powerTierToStage(LedTier::PROTECT)))
+        Serial.println("power: PROTECT persisted after corroboration");
+      else
+        Serial.println("power: deferred PROTECT persist FAILED (tier already parked)");
+    } else {
+      batteryRequestPresenceCheck(); // nudge the rate-limited check
+    }
+  }
+
+  // ADR 0051 debounced disarm: clear the load-armed marker once both loads
+  // have been provably quiet for a minute (collapses lease-flap NVS churn to
+  // at most one write pair per quiet period; strike series stay armed).
+  if (ledRailIsOn() || !solenoidQuietFor(60000UL)) {
+    gLoadsQuietSinceMs = 0;
+  } else {
+    if (!gLoadsQuietSinceMs) gLoadsQuietSinceMs = now ? now : 1;
+    if (now - gLoadsQuietSinceMs >= 60000UL)
+      bootGuardLoadDisarm("loads quiet 60s");
   }
 
   gBudget = b;

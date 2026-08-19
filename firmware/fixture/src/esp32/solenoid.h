@@ -30,6 +30,7 @@ void solenoidFailsafeTick();
 
 // Telemetry accessors.
 bool solenoidGateOn();
+bool solenoidQuietFor(uint32_t ms); // no gate drive now or within the last ms
 uint32_t solenoidStrikes();
 uint32_t solenoidBlocked();
 uint32_t solenoidFailsafes();

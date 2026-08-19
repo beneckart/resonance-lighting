@@ -6,6 +6,7 @@
 #include "../core/fixture_context.h"
 #include "../core/hex_geometry.h"
 #include "board_power.h"
+#include "boot_guard_io.h"
 #include "boot_park.h"
 
 // Runtime re-profiling via updateType/updateLength (the led_studio hot-swap
@@ -68,6 +69,12 @@ bool ledRailOn() {
   if (!gBegun) {
     pinMode(RES_LED_DATA_PIN, OUTPUT);
     digitalWrite(RES_LED_DATA_PIN, LOW);
+  }
+  // ADR 0051: persist the load-armed marker BEFORE the rail can energize; an
+  // unpersistable marker refuses the rail (stage-persist doctrine).
+  if (!bootGuardLoadArm()) {
+    Serial.println("led: load-arm persist FAILED -> rail stays off");
+    return false;
   }
   if (!railEnable3V3(true)) {
     railEnable3V3(false);

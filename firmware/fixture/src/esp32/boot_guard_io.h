@@ -15,3 +15,10 @@ bool bootGuardInterrupted();
 // Stage transitions during operation (power policy from P3): persists FIRST,
 // then updates RAM; a failed persist reports false and the caller parks.
 bool bootGuardSetStage(uint8_t stage);
+
+// ADR 0051 load-armed marker: arm BEFORE energizing the LED rail or solenoid
+// gate (false = the durable write failed; the caller must refuse the load).
+// Disarm from allLoadsOff and the debounced rail-quiet path; write-on-change.
+bool bootGuardLoadArm();
+void bootGuardLoadDisarm(const char *why);
+bool bootGuardLoadArmed();

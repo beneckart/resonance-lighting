@@ -24,6 +24,12 @@ struct BootDecision {
 
 // nvsOk=false means the stage could not be READ (unwritten counts as ok/IDLE).
 // unexpectedReset covers poweron/panic/all-watchdogs/brownout.
-BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedReset);
+// loadArmed is the ADR 0051 durable marker: true when the LED rail or solenoid
+// gate was armed (or armed within the disarm debounce) when the reset hit.
+// Escalation requires it; stored PROTECT and the NVS-unreadable fail-safe are
+// authoritative regardless (an unreadable NVS cannot vouch for the marker
+// either -- callers pass loadArmed=true when the marker itself is unreadable).
+BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedReset,
+                             bool loadArmed);
 
 bool bootGuardUnexpectedResetClass(int espResetReason); // esp_reset_reason_t

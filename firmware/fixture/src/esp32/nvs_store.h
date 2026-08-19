@@ -57,6 +57,11 @@ bool nvsPersistChannel(uint8_t channel);
 // Serial/Board init and written on safety-critical paths).
 bool nvsReadStage(uint8_t &stage);  // false = NVS unreadable (caller fails safe)
 bool nvsWriteStage(uint8_t stage);
+// ADR 0051 load-armed marker: true only while a real load (LED rail, solenoid
+// gate) is or was recently energized. Distinguishes load-induced resets from
+// panel/battery/USB power-ordering resets in the boot guard.
+bool nvsReadLoadArmed(bool &armed); // false = NVS unreadable
+bool nvsWriteLoadArmed(bool armed);
 
 // Reboot-loop breaker counter (ADR 0028 rule 4).
 uint32_t nvsBumpBootCount();
