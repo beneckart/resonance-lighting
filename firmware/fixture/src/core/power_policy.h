@@ -1,10 +1,11 @@
 // ADR 0023 LFP power policy as a pure state machine: injected samples in,
 // tier + budget out. No Arduino, no SDK, no NVS -- natively tested against the
-// threshold ladder, hysteresis, and the compound PROTECT release.
+// threshold ladder, hysteresis, and the compound PROTECT release. Threshold
+// values amended by ADR 0046 (charge-knee ladder).
 //
 // The ladder (standard tier, voltages UNDER LOAD, per-unit NVS-overridable):
-//   FULL --(<3.00 V, 10 s confirm)--> DIM --(<2.95 V, 60 s confirm)--> OFF
-//   any --(<2.90 V, IMMEDIATE)--> PROTECT (durable; compound release only)
+//   FULL --(<3.15 V, 10 s confirm)--> DIM --(<3.10 V, 60 s confirm)--> OFF
+//   any --(<3.05 V, IMMEDIATE)--> PROTECT (durable; compound release only)
 // Re-brighten requires +150 mV over the threshold sustained 60 s. Voltage is
 // load-compensated (~150 mOhm source path). Gauge SOC is NOT an input: RepSOC
 // parks at 1% from ~60% delivered (ADR 0023 addendum) and is forbidden as a
@@ -42,6 +43,13 @@ struct PowerConfig {
 };
 
 PowerConfig powerConfigDefaults();
+
+// Enforce dim > off > protect after per-unit NVS overrides. A partial
+// old-ladder override interleaved with the ADR 0046 defaults can otherwise
+// invert the ladder (e.g. stored off_mv=2950 under default protect 3050
+// deletes the OFF/OTA tier). On violation all three revert to defaults;
+// returns false when a repair happened.
+bool powerConfigSanitize(PowerConfig &c);
 
 struct PowerState {
   LedTier tier;

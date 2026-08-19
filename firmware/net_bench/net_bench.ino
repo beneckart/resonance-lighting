@@ -317,7 +317,7 @@ using namespace PowerFeather;
 #define NB_FIELD_FULL_TAPER_MA 120 // net battery charge current at/under this near top = full-ish
 #endif
 #ifndef NB_FIELD_DIM_MV
-#define NB_FIELD_DIM_MV 3000 // ADR 0023 standard tier: dim load at 3.00 V loaded
+#define NB_FIELD_DIM_MV 3150 // ADR 0046 charge-knee ladder: dim load at 3.15 V loaded
 #endif
 #ifndef NB_FIELD_DIM_CLEAR_MV
 #define NB_FIELD_DIM_CLEAR_MV (NB_FIELD_DIM_MV + 150) // hysteresis; bench dim latch normally clears on charge cycle
@@ -326,10 +326,10 @@ using namespace PowerFeather;
 #define NB_FIELD_DIM_CONFIRM_S 10 // dim before a marginal source can reset for the full 60 s low debounce
 #endif
 #ifndef NB_FIELD_LOW_MV
-#define NB_FIELD_LOW_MV 2950 // ADR 0023 standard tier: LED-off/protect threshold under load
+#define NB_FIELD_LOW_MV 3100 // ADR 0046 charge-knee ladder: LED-off/protect threshold under load
 #endif
 #ifndef NB_FIELD_CRITICAL_MV
-#define NB_FIELD_CRITICAL_MV 2900 // ADR 0023 standard tier: sparse sleep / hard backstop under load
+#define NB_FIELD_CRITICAL_MV 3050 // ADR 0046 charge-knee ladder: sparse sleep / hard backstop under load
 #endif
 #ifndef NB_FIELD_LOW_CONFIRM_S
 #define NB_FIELD_LOW_CONFIRM_S 60 // ADR 0023: avoid one-sample load-sag false transitions

@@ -162,7 +162,7 @@ For an assembled fixture with a battery installed:
 2. Connect the enclosure rescue USB port to a proven supply.
 3. Flash `fx-260816-prtrel1-b` over normal USB if the port is available.
 4. Keep USB connected for at least 90 seconds after the upload.
-5. Require a valid battery at or above 3.10 V, good external supply, no charger
+5. Require a valid battery at or above 3.25 V (ADR 0046), good external supply, no charger
    fault, and at least +20 mA charge current continuously for 60 seconds.
 6. The firmware persists the qualified release and performs an automatic clean
    reboot. The clean reboot is necessary because the parked boot skipped sensor,

@@ -44,6 +44,9 @@ void powerGlueInit() {
   if (gCfg.dimMv) gConfig.dim_mv = gCfg.dimMv;
   if (gCfg.offMv) gConfig.off_mv = gCfg.offMv;
   if (gCfg.slpMv) gConfig.protect_mv = gCfg.slpMv;
+  if (!powerConfigSanitize(gConfig)) {
+    Serial.println("power: NVS threshold overrides invert the ladder -> defaults");
+  }
   powerStateInit(gState, stageToTier(bootGuardStage()));
   // Publish an initial budget so consumers never see zeros (an invalid sample
   // freezes the ladder but still fills the budget for the current tier).

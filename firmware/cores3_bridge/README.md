@@ -139,7 +139,7 @@ python ../../ops/bench/net_bench_dashboard.py --port COM40
 ```
 
 The primary view is a dense fleet-health grid. Each light is one composite glyph:
-the center battery fill uses ADR 0023's load-compensated thresholds, the top sun or
+the center battery fill uses ADR 0046's load-compensated thresholds, the top sun or
 plug shows a live charger input, the thin top bar is the fixture's reported rendered
 color, and the whole tile fades when its expected heartbeat is late or silent. The
 reported fixture class (normally from the Stemma probe, with an override available)

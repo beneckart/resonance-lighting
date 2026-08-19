@@ -179,6 +179,30 @@ int main() {
     CHECK(b.tier == LedTier::DIM); // 3.27 >= 3.10+0.15 sustained
   }
 
+  // --- Override sanitizer: inverted ladders revert to defaults ----------------
+  {
+    PowerConfig d = powerConfigDefaults();
+    // Ordered configs pass through untouched, including a deliberate
+    // full-trio retune below the defaults.
+    PowerConfig ok = d;
+    ok.dim_mv = 3000; ok.off_mv = 2950; ok.protect_mv = 2900;
+    CHECK(powerConfigSanitize(ok));
+    CHECK_EQ(ok.dim_mv, 3000u);
+    // A stale partial override interleaving with the raised defaults
+    // (stored off_mv=2950, default protect 3050) reverts the trio.
+    PowerConfig bad = d;
+    bad.off_mv = 2950;
+    CHECK(!powerConfigSanitize(bad));
+    CHECK_EQ(bad.dim_mv, d.dim_mv);
+    CHECK_EQ(bad.off_mv, d.off_mv);
+    CHECK_EQ(bad.protect_mv, d.protect_mv);
+    // Equal rungs are also an inversion (confirm windows would be unreachable).
+    PowerConfig eq = d;
+    eq.dim_mv = eq.off_mv;
+    CHECK(!powerConfigSanitize(eq));
+    CHECK_EQ(eq.dim_mv, d.dim_mv);
+  }
+
   // --- Tier -> stage mapping --------------------------------------------------
   CHECK_EQ(powerTierToStage(LedTier::FULL), (uint8_t)STAGE_FULL);
   CHECK_EQ(powerTierToStage(LedTier::DIM), (uint8_t)STAGE_DIM);

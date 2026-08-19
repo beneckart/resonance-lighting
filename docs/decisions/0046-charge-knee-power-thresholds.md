@@ -65,3 +65,19 @@ observation of charge-current steps. It has not been bench-measured.
 - Native tests shift all sample voltages +150 mV; every relative assertion
   (confirm windows, IR-sag anti-oscillation, compensation crossings, compound
   release) is preserved unchanged.
+- Per-unit NVS overrides stored under the OLD ladder can interleave with the
+  raised defaults and invert the tier ordering (e.g. a stored `off_mv=2950`
+  under default protect 3050 silently deletes the OFF/OTA tier).
+  `powerConfigSanitize()` therefore enforces dim > off > protect at boot and
+  reverts the trio to defaults on violation, with a serial notice. A deliberate
+  full-trio retune (all three keys, ordered) still passes. Note there is no
+  NVS override for the release floor: a trio retuned far below the defaults
+  keeps the 3.25 V release.
+- The maintenance OTA advisory floor (`RES_MAINT_MIN_LFP_MV` 3200) now sits
+  BELOW the PROTECT release floor (3250) instead of above it. Advisory-only
+  today (`RES_MAINT_POWER_ENFORCE 0`); decide at the REVISIT pass whether it is
+  an absolute LFP energy floor (leave) or ladder-relative (raise to ~3300).
+- The net_bench field-cycle emulation (`NB_FIELD_*`), its OTA config pusher,
+  and the shared dashboard bands move in lockstep so bench rigs keep predicting
+  field morning-recovery behavior. Field-cycle data recorded before 2026-08-18
+  used the old ladder; compare across that boundary with care.

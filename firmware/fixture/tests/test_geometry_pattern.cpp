@@ -1,6 +1,7 @@
 #include "test_util.h"
 
 #include <cmath>
+#include "../src/core/gamma.h"
 #include "../src/core/hex_geometry.h"
 
 int main() {
@@ -46,6 +47,25 @@ int main() {
       if (hexNearestPixel(g.x[i], g.y[i]) != i) ok = false;
     CHECK(ok);
   }
+
+  // Gamma dim floor (resGamma8 is salvaged and unwired; these tests pin its
+  // contract until it is wired behind a show-mode flag): no nonzero input maps
+  // to zero; endpoints preserved; curve monotonic (non-decreasing).
+  CHECK_EQ(resGamma8(0), 0u);
+  CHECK_EQ(resGamma8(255), 255u);
+  {
+    bool floorOk = true, mono = true;
+    for (int v = 1; v < 256; v++) {
+      if (resGamma8((uint8_t)v) == 0) floorOk = false;
+      if (resGamma8((uint8_t)v) < resGamma8((uint8_t)(v - 1))) mono = false;
+    }
+    CHECK(floorOk);
+    CHECK(mono);
+  }
+  // The Adafruit table's dead zone (1..23 -> 0) is exactly what the floor fixes:
+  // 23 must map to 1, and mid-scale values keep the 2.6 curve (128 -> ~42).
+  CHECK_EQ(resGamma8(23), 1u);
+  CHECK((resGamma8(128) >= 40) && (resGamma8(128) <= 44));
 
   return testReport("test_geometry_pattern");
 }

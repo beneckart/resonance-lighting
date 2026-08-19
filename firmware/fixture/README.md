@@ -61,7 +61,7 @@ Revisit tasks only if render jitter is measured, and never for power-bus I2C.
 fixture.ino          setup()/loop() ordering only
 src/core/            platform-independent, natively unit-tested (tests/)
   packet.h           wire protocol v1 + type registry (THE fleet contract)
-  power_policy       ADR 0023 tier ladder + compound PROTECT release
+  power_policy       ADR 0023/0046 tier ladder + compound PROTECT release
   boot_guard         POR/reboot-loop stage ladder (Phase-4 matrix)
   class_probe        sensors -> class decision table
   lifecycle          day/night machine, bounded night, energy-gated wake
@@ -179,7 +179,7 @@ and no charger fault. It does not clear PROTECT automatically or over ESP-NOW;
 Do not start with `RESET-BOOT-RESET`, erase NVS, or use `X`. Leave the fixture's
 LFP installed, connect the enclosure rescue USB port to a proven supply, and
 observe telemetry over normal USB CDC. A valid battery, good external supply,
-no charger fault, at least +20 mA charge current, and at least 3.10 V must all
+no charger fault, at least +20 mA charge current, and at least 3.25 V must all
 hold continuously for 60 seconds before the durable PROTECT latch releases.
 
 On `fx-260816-otafix1-b`, do not rely on the physical RESET button. A RESET
@@ -298,7 +298,7 @@ Telemetry exposes `ota_partition`, `ota_address`, `ota_state`, and the legacy
 - [ ] `fleet_usb_bringup.py --sketch-dir fixture` full commission incl. --wifi-check
 - [ ] appears on an UNMODIFIED net_bench serial-bridge master + dashboard
 - [ ] per-class render smoke from one binary (probe log + `O` override + RGBW order)
-- [ ] bench-supply power matrix: 3.00 dim / 2.95 off+OTA window / 2.90 sleep;
+- [ ] bench-supply power matrix (ADR 0046): 3.15 dim / 3.10 off+OTA window / 3.05 sleep;
       PROTECT survives POR/WDT/SW reset; compound release only; retry once
 - [ ] OTA good-image valid + fail-selftest auto-revert on battery
 - [ ] GH wave on the 2x10 rig via pinned adjacency (RSSI-mode A/B for the record)

@@ -19,6 +19,15 @@ PowerConfig powerConfigDefaults() {
   return c;
 }
 
+bool powerConfigSanitize(PowerConfig &c) {
+  if (c.dim_mv > c.off_mv && c.off_mv > c.protect_mv) return true;
+  PowerConfig d = powerConfigDefaults();
+  c.dim_mv = d.dim_mv;
+  c.off_mv = d.off_mv;
+  c.protect_mv = d.protect_mv;
+  return false;
+}
+
 void powerStateInit(PowerState &st, LedTier startTier) {
   st = PowerState{};
   st.tier = startTier;

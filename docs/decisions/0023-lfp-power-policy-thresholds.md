@@ -1,8 +1,10 @@
 # 0023 - LFP power-policy thresholds (LED dim / LED off / sleep) from measured discharge
 
 **Date:** 2026-07-07
-**Status:** Proposed (standard tier recommended as the production default; adopt on
-first production firmware that implements the low-battery state machine). Derived
+**Status:** Adopted; threshold VALUES amended by ADR 0046 (2026-08-18: dim 3.15 /
+off 3.10 / protect 3.05 V loaded, release floor 3.25 V, tuned to the BQ25628E
+precharge knee). The ladder structure, hysteresis, load compensation, and
+coulomb-primary intent of this ADR all stand. Derived
 floors supersede the ad-hoc bench floors in net_bench drawdown (3.18/3.05 V) and
 field-cycle (3.10/3.00 V), which were set conservatively before capacity data existed.
 **Owners:** Ben + Claude
@@ -140,8 +142,9 @@ PROTECT across POR/watchdog/software reset. These are cause-independent safeguar
 not voltage-calibration workarounds.
 
 The exact startup-ramp duration and raw voltage points remain calibration. In
-particular, the P105 field profile's 3.10 V dim threshold is a temporary bench override,
-not a change to this ADR's 3.00 / 2.95 / 2.90 V standard tier. Re-derive loaded sag and
+particular, the P105 field profile's 3.10 V dim threshold was a temporary bench override,
+not a change to this ADR's original 3.00 / 2.95 / 2.90 V standard tier (both now
+superseded by ADR 0046's 3.15 / 3.10 / 3.05 V). Re-derive loaded sag and
 load compensation on each production electrical class after removing instrumentation.
 
 One production requirement is strengthened: rebound voltage or a single positive-

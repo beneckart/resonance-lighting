@@ -44,6 +44,24 @@ checks); the power-policy test voltages shifted +150 mV with every relative
 assertion intact. Open: bench-measure VBAT_LOWV in Oakland (TODO has the
 procedure), then revisit the exact values per the ADR's REVISIT clause.
 
+Adversarial audit round (three independent reviewers over the threshold diff,
+the supersession claim, and the repo topology; topology came back clean) caught
+five lockstep misses, all fixed in the follow-up commit: the live PROTECT-rescue
+procedures (USB rescue handoff, fixture README) still promised release at
+3.10 V; the power_policy.h ladder diagram still drew 3.00/2.95/2.90; the status
+LED's 3.00 V floor rung understated severity across the new bottom of the
+ladder (now 3.15); stale per-unit NVS overrides could interleave with the
+raised defaults and silently invert the ladder -- `powerConfigSanitize()` now
+enforces dim > off > protect at boot with native tests; and the net_bench
+field-cycle emulation plus its OTA config pusher still ran the old ladder while
+the shared dashboard had already moved (bench rigs would have kept parking
+below the knee -- exactly the behavior fixtures no longer exhibit). The audit
+also recovered the resGamma8 dim-floor unit tests the gamma.h salvage had
+dropped (back in test_geometry_pattern.cpp), and left two deliberate notes:
+`RES_MAINT_MIN_LFP_MV` 3200 now sits below the 3250 release floor (advisory
+only; absolute-vs-ladder-relative decision deferred to the REVISIT pass), and
+ADR 0023 is back-annotated as amended.
+
 ## 2026-08-17 -- Ben + Codex -- Three standalone chandelier testers flashed
 
 Inspected the clean `codex/deep-recovery-canary` worktree through its Aug 17
