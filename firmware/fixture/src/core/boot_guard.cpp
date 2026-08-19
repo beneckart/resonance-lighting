@@ -62,8 +62,12 @@ BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedRes
       d.persistStage = STAGE_DIM;
       d.retryConsumed = true;
     } else {
-      // A reset from DIM or LEDS_OFF means even the reduced load (or the bare
-      // radio) collapsed the cell: durable PROTECT (Phase-4 "POR while DIM").
+      // A reset from DIM or LEDS_OFF with the marker armed means even the
+      // reduced load collapsed the cell: durable PROTECT (Phase-4 "POR while
+      // DIM"). The loads-OFF collapse class (bare radio, sensor bring-up)
+      // reaches this same escalation through the glue consecutive
+      // unexpected-reset streak (ADR 0028 rule 4), which passes
+      // loadArmed=true at the threshold.
       d.stage = STAGE_PROTECT;
       d.persistStage = STAGE_PROTECT;
       d.park = true;

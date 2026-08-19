@@ -18,5 +18,9 @@ bool fleetRecoveryMayTest(const FleetRecoverySample &s) {
 bool fleetRecoveryBatteryDetected(uint16_t bqBatteryMv) {
   // The default VBAT_UVLO falling threshold is nominally 2.2 V. A missing
   // BAT node is discharged toward zero; an attached low LFP remains above it.
-  return bqBatteryMv >= 2200 && bqBatteryMv < 4400;
+  // 2000, not the lane 2.20 V gauge floor (audit fix): the BQ ADC measures a
+  // different chain than the gauge and now samples UNDER the 30 mA discharge;
+  // zero margin at 2200 refused real cells at the lane own lower bound. A
+  // floating node collapses far below 2.0 V under the sink.
+  return bqBatteryMv >= 2000 && bqBatteryMv < 4400;
 }

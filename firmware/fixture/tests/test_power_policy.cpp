@@ -203,10 +203,18 @@ int main() {
     CHECK(!b.must_sleep);
     // Without external supply the normal PROTECT sleep stands (a real
     // battery-only low cell must still park; floating nodes cannot occur
-    // battery-only, and glue corroborates battery-only operation anyway).
+    // battery-only, and battery-only operation shows discharge current that
+    // corroborates within a second).
     b = powerPolicyTick(st, sample(t += 1000, 2.75f, 0, false, 0, false, true, false), c);
     CHECK(b.defer_protect_persist);
     CHECK(b.must_sleep);
+    // AUDIT FIX (the EMPTY-verdict brick): a freeze tick (batt_valid false --
+    // exactly what the EMPTY veto produces) must KEEP deferring, never read
+    // as corroboration.
+    b = powerPolicyTick(st, sample(t += 1000, 2.75f, 0, true, 100, false, false, false), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(b.defer_protect_persist);
+    CHECK(!b.must_sleep); // frozen PROTECT on good supply stays serviceable
     // Corroboration arriving while PROTECT holds clears the deferral so glue
     // can write the durable latch.
     b = powerPolicyTick(st, sample(t += 1000, 2.75f, -40, false, 0, false, true, true), c);

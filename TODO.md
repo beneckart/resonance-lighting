@@ -488,8 +488,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   freezes the ladder during an active low-VBAT recovery lane. STILL OPEN
   before this counts as qualified: run the full battery/panel/USB ordering
   matrix on the bench (panel-first, battery-first, USB-mid-show, bare-board
-  X-clear) and one deliberate load-collapse loop to confirm escalation still
-  fires with the marker armed (Ben/Codex).
+  X-clear) and two deliberate collapse loops: one with the marker armed
+  (ladder escalation) and one loads-off (the ADR 0028 rule-4 streak path,
+  escalates at 3 consecutive unexpected resets). Also from the audit
+  residuals: verify BQ25628E ADC_EN self-clears after a one-shot; observe the
+  coulomb-integrator anchor gap across an EMPTY-veto/recovery freeze; confirm
+  a rev-1 433 MHz hardware strike (marker disarmed) behaves sanely through a
+  brownout (Ben/Codex).
 
 - [~] **Productionize reduced-access Atom Matrix campmate clickers for 2026.**
   Direction: distribute simple Atom Matrix + Atomic Battery Base mini-bridges

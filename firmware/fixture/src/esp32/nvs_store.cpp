@@ -250,5 +250,10 @@ uint32_t nvsBumpBootCount() {
 }
 
 void nvsClearBootCount() {
-  putU32("boots", 0);
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return;
+  // Read-before-write: this is called on every expected reset and after each
+  // healthy minute, and the streak is almost always already zero.
+  if (pf.getUInt("boots", 0) != 0) pf.putUInt("boots", 0);
+  pf.end();
 }

@@ -92,15 +92,6 @@ void powerGlueTick() {
 
   PowerBudget b = powerPolicyTick(gState, s, gConfig);
 
-  // Commissioning keeps a parked fixture serviceable whenever a verified
-  // external source is present. This does not energize a load or clear the
-  // durable latch. If genuinely battery-only and critical, it still sleeps,
-  // but retries every minute instead of disappearing for fifteen.
-  if (gCfg.profile == PROFILE_DEV && b.tier == LedTier::PROTECT) {
-    b.sleep_s = RES_COMMISSION_PROTECT_SLEEP_S;
-    if (s.supply_valid && s.supply_good) b.must_sleep = false;
-  }
-
   if (s.batt_valid)
     integratorTick(gIntegrator, now, s.batt_ma, (uint16_t)(s.batt_v * 1000.0f));
 
@@ -120,6 +111,7 @@ void powerGlueTick() {
       b.tier = LedTier::PROTECT;
       b.brightness_cap = 0;
       b.must_sleep = true;
+      b.protect_released = false; // release did NOT persist: no clean reboot
       powerStateInit(gState, LedTier::PROTECT);
     }
     Serial.printf("power: tier -> %u (bv=%.3f ma=%.0f)%s\n", (unsigned)b.tier,
@@ -152,7 +144,10 @@ void powerGlueTick() {
   if (gProtectPersistDeferred) {
     if (b.tier != LedTier::PROTECT) {
       gProtectPersistDeferred = false;
-    } else if (!b.defer_protect_persist) {
+    } else if (!b.defer_protect_persist && s.batt_valid && s.batt_corroborated) {
+      // POSITIVE corroboration only (audit fix): the absence of the defer
+      // flag alone also occurs on freeze ticks (EMPTY veto, recovery lane,
+      // gauge dropout) and must never be misread as corroboration.
       gProtectPersistDeferred = false;
       if (bootGuardSetStage(powerTierToStage(LedTier::PROTECT)))
         Serial.println("power: PROTECT persisted after corroboration");
@@ -161,6 +156,26 @@ void powerGlueTick() {
     } else {
       batteryRequestPresenceCheck(); // nudge the rate-limited check
     }
+  }
+
+  // Commissioning keeps a parked fixture serviceable whenever a verified
+  // external source is present. This does not energize a load or clear the
+  // durable latch. If genuinely battery-only and critical, it still sleeps,
+  // but retries every minute instead of disappearing for fifteen. Applied
+  // AFTER every tier mutation (audit fix: the stage-persist-failure fallback
+  // above can park a commission unit, and the override must cover that too).
+  if (gCfg.profile == PROFILE_DEV && b.tier == LedTier::PROTECT) {
+    b.sleep_s = RES_COMMISSION_PROTECT_SLEEP_S;
+    if (s.supply_valid && s.supply_good) b.must_sleep = false;
+  }
+
+  // ADR 0028 rule 4: one healthy minute of uptime clears the consecutive
+  // unexpected-reset streak that backs disarmed-loop escalation (audit fix;
+  // read-before-write keeps this wear-free on ordinary wakes).
+  static bool gStreakCleared = false;
+  if (!gStreakCleared && now >= 60000UL) {
+    gStreakCleared = true;
+    nvsClearBootCount();
   }
 
   // ADR 0047 debounced disarm: clear the load-armed marker once both loads

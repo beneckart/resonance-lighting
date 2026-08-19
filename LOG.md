@@ -56,6 +56,28 @@ a corroboration matrix on the policy (uncorroborated entry/hold/resolve,
 corroborated entry). The bench battery/panel/USB ordering matrix is still
 owed before the marker counts as qualified -- TODO updated.
 
+Second adversarial audit round (four lenses, thirty agents, two refuters per
+finding, none refuted) then broke the first implementation properly: the
+deferred persist resolved on the ABSENCE of the defer flag, which a freeze
+tick also produces -- so the EMPTY presence verdict itself would have durably
+latched PROTECT on a proven-empty node seconds after boot, the exact brick
+the ADR forbids. Also caught: the load-armed gate had silently dropped
+escalation for loads-off collapse loops (bare radio / sensor bring-up), so
+the never-wired ADR 0028 rule-4 loop breaker is now real (streak of 3
+unexpected resets escalates even disarmed; healthy minute clears); the
+presence test could read a stale ADC conversion and call a floating node
+REAL (now measures under the asserted 30 mA discharge and polls the one-shot
+up to 150 ms); zero margin at the 2.20 V lane floor refused real cells
+(detection floor now 2000 mV); chargingGuardTick could charge a proven-empty
+node (now honors the veto) while a REAL verdict now enables charging
+outright; the battery-only corroboration clause certified floating nodes
+during dusk/dawn supply flicker (removed -- discharge current covers true
+battery-only); the release clean-reboot is gated on the persist succeeding;
+the commission override survives the persist-failure fallback; verdict
+windows self-expire. All fixes native-tested (16 suites, 792 checks) and the
+full image recompiled. ADR 0047's Amendment section has the complete list
+including accepted residuals for the bench matrix.
+
 Ben's call: gamma correction introduces too many problems and the render
 doctrine is linear anyway (led_driver's "direct linear 8-bit levels" comment is
 now the whole story). The `resGamma8` dim-floor table salvaged this morning is
