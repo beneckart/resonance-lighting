@@ -12,6 +12,30 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-19 -- Steve + Codex -- NeoHex-Magic-Wand playa handoff
+
+Completed Steve's one-off truncated-icosahedron wand: 20 M5Stack NeoHex boards,
+740 WS2812 pixels, four separately fused 5.1 V injection zones at Hex 1/6/11/16,
+and one continuous GPIO10 data/GND chain with +5 V isolated at each five-board
+boundary. The protected Gotion 33140 15 Ah LFP feeds both the PowerFeather V2
+and Pololu U3V70F5. MSA311 and BMP581 share Wire1 at the required 100 kHz.
+
+Battery-only validation passed full RGB fills, a white chase through all 20
+boards and all three isolated-power boundaries, automatic default-pattern boot,
+and thermal checks. The commissioned low-light pattern moves a red five-board
+row bottom-to-top every 0.4 seconds over orange/yellow/green/blue backgrounds.
+
+Added the standalone commissioning sketch and a `net_bench --magic-wand` peer
+role with 740-pixel RMT rendering, maintenance blanking, telemetry, fixed LFP
+defaults, and sensor diagnostics. The deployed `.1` binary on fixture `F40344`
+is SHA-256
+`2617A33C47FE526AC01840149F091812DCDE37723D52C7281F07B7B273FFAB0B`.
+The shared-WiFi upload/reboot path worked and returned post-reboot telemetry;
+because that session predated the current artifact/pending-verify contract, it
+is recorded as transport/reboot validation rather than full fleet OTA
+promotion. Organized the complete Ben handoff under
+`docs/projects/NeoHex-Magic-Wand/` and ported `.2` source to current `main`.
+
 ## 2026-08-18 -- Ben + Claude -- Gamma scrubbed from the codebase
 
 Ben's call: gamma correction introduces too many problems and the render
