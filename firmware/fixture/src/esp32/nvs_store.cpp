@@ -229,6 +229,17 @@ bool nvsWriteStage(uint8_t stage) {
   return putU8("fc_stage", stage);
 }
 
+bool nvsReadLoadArmed(bool &armed) {
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  // Not-yet-written is a valid "never armed", distinct from "NVS unreadable".
+  armed = pf.isKey("load_arm") ? pf.getUChar("load_arm", 0) != 0 : false;
+  pf.end();
+  return true;
+}
+
+bool nvsWriteLoadArmed(bool armed) { return putU8("load_arm", armed ? 1 : 0); }
+
 uint32_t nvsBumpBootCount() {
   Preferences pf;
   if (!pf.begin(kNs, false)) return 0;

@@ -4,10 +4,12 @@
 
 static PowerSample sample(uint32_t nowMs, float bv, float ma,
                           bool supplyGood = false, float supplyMa = 0.0f,
-                          bool fault = false, bool battValid = true) {
+                          bool fault = false, bool battValid = true,
+                          bool battCorroborated = true) {
   PowerSample s = {};
   s.now_ms = nowMs;
   s.batt_valid = battValid;
+  s.batt_corroborated = battCorroborated;
   s.batt_v = bv;
   s.batt_ma = ma;
   s.supply_valid = true;
@@ -177,6 +179,49 @@ int main() {
     PowerBudget b = {};
     for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.27f, 100), c);
     CHECK(b.tier == LedTier::DIM); // 3.27 >= 3.10+0.15 sustained
+  }
+
+  // --- ADR 0047: uncorroborated PROTECT defers the durable persist ------------
+  {
+    PowerState st;
+    powerStateInit(st, LedTier::FULL);
+    uint32_t t = 1000;
+    // A floating BAT node reads 2.75 V at ~0 mA on a powered charger:
+    // immediate PROTECT posture, but the persist is deferred and the fixture
+    // stays awake on the (necessarily present) external supply.
+    PowerBudget b = powerPolicyTick(
+        st, sample(t += 1000, 2.75f, 0, true, 100, false, true, false), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(b.tier_changed);
+    CHECK(b.defer_protect_persist);
+    CHECK(!b.must_sleep);
+    CHECK_EQ(b.brightness_cap, 0u); // posture is not weakened
+    // Holding uncorroborated keeps deferring (re-evaluated every tick).
+    b = powerPolicyTick(st, sample(t += 1000, 2.75f, 0, true, 100, false, true, false), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(b.defer_protect_persist);
+    CHECK(!b.must_sleep);
+    // Without external supply the normal PROTECT sleep stands (a real
+    // battery-only low cell must still park; floating nodes cannot occur
+    // battery-only, and glue corroborates battery-only operation anyway).
+    b = powerPolicyTick(st, sample(t += 1000, 2.75f, 0, false, 0, false, true, false), c);
+    CHECK(b.defer_protect_persist);
+    CHECK(b.must_sleep);
+    // Corroboration arriving while PROTECT holds clears the deferral so glue
+    // can write the durable latch.
+    b = powerPolicyTick(st, sample(t += 1000, 2.75f, -40, false, 0, false, true, true), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(!b.defer_protect_persist);
+  }
+  // Corroborated entry persists immediately (the pre-0047 behavior).
+  {
+    PowerState st;
+    powerStateInit(st, LedTier::FULL);
+    PowerBudget b = powerPolicyTick(st, sample(1000, 2.90f, -200), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    CHECK(b.tier_changed);
+    CHECK(!b.defer_protect_persist);
+    CHECK(b.must_sleep);
   }
 
   // --- Override sanitizer: inverted ladders revert to defaults ----------------

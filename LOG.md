@@ -12,7 +12,49 @@ Body. What changed, what was decided, what's next.
 
 ---
 
-## 2026-08-18 -- Ben + Claude -- Gamma scrubbed from the codebase
+## 2026-08-18 -- Ben + Claude -- ADR 0047: no more false PROTECT latches
+
+Closed the three remaining paths by which a fixture could acquire a durable
+PROTECT latch without a genuinely collapsing battery (the "panel before
+battery" family from the risk register).
+
+One: the floating-BAT window. A cell-less BAT node held up by a powered
+charger can float anywhere in 2.5-3.05 V and used to trip the immediate
+protect floor with a durable NVS write. Now the PROTECT *posture* (rails off,
+park) still applies instantly, but the durable write waits for battery
+corroboration: recent >=30 mA charge/discharge current, an on-demand
+rate-limited SLUAB31A BQ presence test (charging-enable state restored on a
+REAL verdict, never on EMPTY), a recovery-lane detection, or battery-only
+operation. An uncorroborated park stays awake on verified external power --
+the false positive requires a powered charger by construction -- and a fresh
+EMPTY verdict vetoes batteryPresent() for 60 s, cleared instantly by real
+current so installing a cell mid-session is never locked out.
+
+Two: power-ordering escalation. POWERON is an unexpected reset class, so two
+benign power interruptions from a stored FULL stage used to walk FULL -> DIM
+-> PROTECT with no load ever energized (9F26F8's 31 poweron resets). A new
+durable `load_arm` NVS marker is written before the LED rail or solenoid gate
+can energize (an unpersistable marker refuses the load, mirroring the
+stage-persist doctrine) and cleared by allLoadsOff, a 60 s all-loads-quiet
+debounce, and every boot; bootGuardDecide escalates only when it was set.
+Collapse loops under load still escalate identically because the marker
+persists through the resets they cause. Write-on-change keeps NVS wear at a
+handful of writes per day.
+
+Three: the recovery-lane self-latch. An active ADR 0042 low-VBAT lane made
+batteryPresent() true at ~2.3 V, so the ladder persisted PROTECT during the
+rescue; worse, a field-profile wake (8 s grace) could sleep 900 s with
+charging disabled if the guard's 5 s retry cadence missed the window. The
+lane now freezes the ladder outright (batt_valid excludes an active
+recovery), and the freeze-plus-supply-good rule keeps the fixture awake for
+the rescue's duration in any profile.
+
+ADR 0047 records the decisions; the rescue handoff notes that post-0047
+images cannot false-latch from bare boards (X remains for pre-0047 latches).
+Native coverage: the boot-guard Phase-4 matrix re-run armed and disarmed, and
+a corroboration matrix on the policy (uncorroborated entry/hold/resolve,
+corroborated entry). The bench battery/panel/USB ordering matrix is still
+owed before the marker counts as qualified -- TODO updated.
 
 Ben's call: gamma correction introduces too many problems and the render
 doctrine is linear anyway (led_driver's "direct linear 8-bit levels" comment is

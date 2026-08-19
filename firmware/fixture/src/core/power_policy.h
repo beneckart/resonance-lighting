@@ -18,6 +18,12 @@
 struct PowerSample {
   uint32_t now_ms;
   bool batt_valid;   // a read actually succeeded this tick
+  // ADR 0047: a floating BAT node held up by a powered charger can read a
+  // plausible LFP voltage with ~0 mA. Corroboration = recent charge/discharge
+  // current, a passed BQ presence test, a recovery-lane detection, or running
+  // battery-only (the cell is then the proven source). Uncorroborated samples
+  // may still drive the PROTECT tier but must not persist the durable latch.
+  bool batt_corroborated;
   float batt_v;
   float batt_ma;     // corrected (/1.08); + = charging, - = discharging
   bool supply_valid;
@@ -73,6 +79,10 @@ struct PowerBudget {
   uint16_t sleep_s;
   bool tier_changed;      // this tick
   bool protect_released;  // compound release fired this tick (exactly once)
+  // ADR 0047: PROTECT is held in RAM only (glue must NOT write the durable
+  // stage) until the battery is corroborated. Re-evaluated every tick; glue
+  // persists on the first corroborated PROTECT tick.
+  bool defer_protect_persist;
 };
 
 void powerStateInit(PowerState &st, LedTier startTier);

@@ -5,6 +5,7 @@
 #include "esp_sleep.h"
 #include "esp_timer.h"
 
+#include "boot_guard_io.h"
 #include "boot_park.h"
 #include "maintenance.h"
 #include "nvs_store.h"
@@ -118,6 +119,12 @@ static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
     return false;
   }
 
+  // ADR 0047: persist the load-armed marker BEFORE the gate drives; an
+  // unpersistable marker refuses the strike.
+  if (!bootGuardLoadArm()) {
+    gBlocked++;
+    return false;
+  }
   gFailsafeMs = now + pulseMs + 50;
   gGateOn = true;
   // Preload HIGH before enabling output so the MCU pulse has no LOW glitch.
@@ -142,6 +149,11 @@ static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
 
 bool solenoidStrike(uint16_t pulseMs, const char *why) {
   return solenoidStrikeImpl(pulseMs, why, false);
+}
+
+bool solenoidQuietFor(uint32_t ms) {
+  if (gGateOn) return false;
+  return millis() - gLastEndMs >= ms; // gLastEndMs==0: quiet since boot
 }
 
 void solenoidExternalTick() {

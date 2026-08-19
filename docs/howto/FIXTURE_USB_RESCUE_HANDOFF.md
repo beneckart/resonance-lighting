@@ -175,6 +175,13 @@ guarded bare-board-only clear. Do not erase NVS; that destroys fixture settings
 and bypasses the intended safety qualification. A physical RESET alone does not
 clear durable PROTECT.
 
+Images built after ADR 0047 (2026-08-18) cannot acquire a durable PROTECT
+latch from a bare board or floating BAT node in the first place: the durable
+write waits for a corroborated battery (charge/discharge current, a BQ
+presence test, or a recovery-lane detection), and an uncorroborated park stays
+awake on any verified external supply. Latches encountered on pre-0047 images
+still follow the full rescue rule above.
+
 The commissioning tool can verify the upload and OTA endpoint before the full
 60-second release has completed. Therefore, a tool `PASS` is not by itself proof
 that an installed-battery PROTECT latch released. Keep the unit powered and

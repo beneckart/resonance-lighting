@@ -138,6 +138,14 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
     // 8/30 s boot grace made the 60 s release mathematically impossible.
     // Loads remain hard-off throughout; only the control/recovery plane stays up.
     if (qualified) b.must_sleep = false;
+    // ADR 0047: an uncorroborated hold keeps deferring the durable persist,
+    // and stays awake on verified external power (the floating-BAT false
+    // positive requires a powered charger by construction, so the fixture is
+    // externally powered and burning nothing by remaining serviceable).
+    if (!s.batt_corroborated) {
+      b.defer_protect_persist = true;
+      if (s.supply_valid && s.supply_good) b.must_sleep = false;
+    }
     return b;
   }
 
@@ -148,6 +156,13 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
     st.releaseHeldSinceMs = 0;
     fillBudget(b, st.tier, c);
     b.tier_changed = true;
+    // ADR 0047: the PROTECT posture (rails off, park) applies immediately and
+    // unconditionally, but the durable NVS latch waits for a corroborated
+    // battery so a phantom BAT reading cannot brick a bare board.
+    if (!s.batt_corroborated) {
+      b.defer_protect_persist = true;
+      if (s.supply_valid && s.supply_good) b.must_sleep = false;
+    }
     return b;
   }
 

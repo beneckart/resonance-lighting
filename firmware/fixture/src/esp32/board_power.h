@@ -53,6 +53,10 @@ void readBatteryNow();     // synchronous refresh (maintenance preflight)
 bool pfIsReady();
 bool chargingEnabled();
 bool batteryPresent(); // plausible connected LFP cell, not a floating BAT read
+// ADR 0047 corroboration plane: voltage alone is not proof of a cell.
+bool batteryCorroborated();          // current / presence-test / recovery / battery-only
+void batteryRequestPresenceCheck();  // rate-limited SLUAB31A check, serviced in readBatteryNow
+bool lowVbatRecoveryActive();        // 2.20-2.50 V guarded charge lane engaged
 float maintainVolts();
 const char *batteryTypeName();
 

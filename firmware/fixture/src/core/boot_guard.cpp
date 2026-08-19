@@ -17,7 +17,8 @@ bool bootGuardUnexpectedResetClass(int r) {
   }
 }
 
-BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedReset) {
+BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedReset,
+                             bool loadArmed) {
   BootDecision d = {};
   d.persistStage = BOOT_GUARD_NO_WRITE;
 
@@ -46,7 +47,13 @@ BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedRes
     return d;
   }
 
-  if (unexpectedReset && storedStage != STAGE_IDLE) {
+  // ADR 0047: escalation costs ladder progress only when a real load (LED
+  // rail or solenoid gate) was actually armed when the reset hit. Panel-first,
+  // battery-last, and bench USB power-ordering resets arrive with loads off
+  // and must not walk FULL -> DIM -> PROTECT (the 2026-08 "31 poweron resets
+  // in 19 minutes" class of false latch). A collapse loop under load still
+  // escalates exactly as before because the armed marker persists through it.
+  if (unexpectedReset && storedStage != STAGE_IDLE && loadArmed) {
     d.interrupted = true;
     if (storedStage == STAGE_FULL) {
       // Consume the only retry BEFORE any rail can turn on: a reset during the
@@ -64,8 +71,10 @@ BootDecision bootGuardDecide(bool nvsOk, uint8_t storedStage, bool unexpectedRes
     return d;
   }
 
-  // Expected reset (software/OTA/deepsleep) or idle marker: preserve the
-  // stored tier; a deliberate reboot is not a retry failure.
+  // Expected reset (software/OTA/deepsleep), idle marker, or an unexpected
+  // reset with all loads disarmed (power-ordering, not collapse): preserve the
+  // stored tier; the voltage ladder re-derives the truth within one tick.
   d.stage = storedStage;
+  d.interrupted = unexpectedReset && storedStage != STAGE_IDLE;
   return d;
 }

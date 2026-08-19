@@ -476,14 +476,20 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   heartbeats; a peer still absent is more likely unpowered, in BMS cutoff, or out
   of range. Record every seen ID and last battery/supply/reset fields, then use the
   panel-mount rescue USB only for the residual set (Ben/Codex).
-- [ ] **Qualify a load-armed boot marker before relaxing conservative reset
-  escalation.** Commission liveness fixes the impossible 60-second PROTECT
-  release and makes false escalation serviceable, but the durable boot-stage guard
-  can still treat certain clean POWERON resets as repeated load failures. Design a
-  wear-safe marker that distinguishes "reset while LED/solenoid load was actually
-  armed" from panel-first/no-battery/bench power ordering, then run the full
-  battery/panel/USB ordering matrix before changing the field safety ladder
-  (Ben/Codex).
+- [~] **Qualify a load-armed boot marker before relaxing conservative reset
+  escalation.** IMPLEMENTED 2026-08-18 (ADR 0047): durable `load_arm` NVS
+  marker written before any LED-rail or solenoid energize, cleared by
+  `allLoadsOff` and a 60 s quiet debounce; `bootGuardDecide` now escalates only
+  when the marker was set, so panel-first/no-battery/bench power-ordering
+  resets preserve the stored stage (native matrix in test_boot_guard). Same
+  commit also defers the durable PROTECT persist until the battery is
+  corroborated (current / BQ presence test / recovery detection /
+  battery-only), closing the floating-BAT 2.5-3.05 V false-latch window, and
+  freezes the ladder during an active low-VBAT recovery lane. STILL OPEN
+  before this counts as qualified: run the full battery/panel/USB ordering
+  matrix on the bench (panel-first, battery-first, USB-mid-show, bare-board
+  X-clear) and one deliberate load-collapse loop to confirm escalation still
+  fires with the marker armed (Ben/Codex).
 
 - [~] **Productionize reduced-access Atom Matrix campmate clickers for 2026.**
   Direction: distribute simple Atom Matrix + Atomic Battery Base mini-bridges

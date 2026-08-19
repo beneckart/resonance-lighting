@@ -49,10 +49,46 @@ static uint8_t gLowVbatRecoveryState = LOW_VBAT_RECOVERY_NONE;
 static uint16_t gLowVbatRecoveryDetectMv = 0xFFFF;
 static BqSnapshot gBq;
 
+// ADR 0047 battery-corroboration state: a plausible voltage alone is not
+// proof of a cell (a floating BAT node held up by the powered charger can
+// read 2.5-3.05 V). Evidence sources, any one sufficient: recent >=30 mA
+// charge/discharge current, a passed SLUAB31A presence test, a recovery-lane
+// BQ detection, or battery-only operation.
+static uint32_t gCurrentEvidenceMs = 0;    // 0 = never observed
+static uint32_t gPresenceRealUntilMs = 0;  // BQ test said REAL, fresh window
+static uint32_t gPresenceEmptyUntilMs = 0; // BQ test said EMPTY, veto window
+static bool gRecoveryEverDetected = false;
+static bool gPresenceCheckWanted = false;
+static uint32_t gLastPresenceCheckMs = 0;
+#define RES_BATT_CURRENT_EVIDENCE_MA 30.0f
+#define RES_BATT_EVIDENCE_FRESH_MS 60000UL
+#define RES_BATT_PRESENCE_REAL_MS 600000UL
+#define RES_BATT_PRESENCE_EMPTY_MS 60000UL
+
 bool pfIsReady() { return gPfReady; }
 bool chargingEnabled() { return gChargingEnabled; }
 bool batteryPresent() {
+  // A fresh EMPTY verdict vetoes the plausible-voltage window; real current
+  // (a cell installed mid-session) clears it early and it expires on its own,
+  // so an installed cell is never locked out.
+  if (gPresenceEmptyUntilMs && (int32_t)(gPresenceEmptyUntilMs - millis()) > 0)
+    return false;
   return (gCbV > 2.5f && gCbV < 4.4f) || gLowVbatRecoveryChargeActive;
+}
+bool lowVbatRecoveryActive() { return gLowVbatRecoveryChargeActive; }
+void batteryRequestPresenceCheck() { gPresenceCheckWanted = true; }
+bool batteryCorroborated() {
+  uint32_t now = millis();
+  if (gCurrentEvidenceMs && now - gCurrentEvidenceMs < RES_BATT_EVIDENCE_FRESH_MS)
+    return true;
+  if (gPresenceRealUntilMs && (int32_t)(gPresenceRealUntilMs - now) > 0)
+    return true;
+  if (gRecoveryEverDetected) return true;
+  // Battery-only operation: with no good external supply the running system
+  // is itself the proof of a real cell (a floating node cannot power anything,
+  // let alone hold 2.5+ V unassisted).
+  if (gPfReady && !gCsGood && gCbV > 2.5f && gCbV < 4.4f) return true;
+  return false;
 }
 float maintainVolts() { return gMaintainV; }
 float batteryVolts() { return gCbV; }
@@ -223,6 +259,13 @@ static void readBatteryCell() {
   if (Board.getBatteryCurrent(v) == Result::Ok) {
     gCbMaRaw = v;
     gCbMa = v / RES_GAUGE_CURRENT_DIVISOR;
+    // Real charge/discharge current is battery corroboration (ADR 0047): a
+    // floating BAT node cannot source or sink tens of milliamps.
+    if (fabsf(gCbMa) >= RES_BATT_CURRENT_EVIDENCE_MA) {
+      uint32_t now = millis();
+      gCurrentEvidenceMs = now ? now : 1;
+      gPresenceEmptyUntilMs = 0; // a cell was installed mid-session
+    }
   }
   uint8_t s;
   if (Board.getBatteryCharge(s) == Result::Ok) gCbSoc = s;
@@ -302,6 +345,7 @@ static void chargingGuardTick() {
     gChargingEnabled = true;
     gDeepRecoveryChargeActive = true;
     gLowVbatRecoveryChargeActive = true;
+    gRecoveryEverDetected = true; // ADR 0047: BQ-qualified = corroborated
     gLowVbatRecoveryState = LOW_VBAT_RECOVERY_ACTIVE;
     gLowVbatRecoveryDetectMv = (uint16_t)(gCbV * 1000.0f);
     pfSolarGuardInit(kTag, gMaintainV, true);
@@ -360,6 +404,7 @@ static void chargingGuardTick() {
     Board.enableBatteryCharging(true);
     gChargingEnabled = true;
     gLowVbatRecoveryChargeActive = true;
+    gRecoveryEverDetected = true; // ADR 0047: presence test passed above
     gLowVbatRecoveryState = LOW_VBAT_RECOVERY_ACTIVE;
     pfSolarGuardInit(kTag, gMaintainV, true);
     done = true;
@@ -387,6 +432,42 @@ void readBatteryNow() {
   // Refresh the enable bit/current/fault snapshot after the one-shot guard.
   if (gChargingEnabled) readChargerStatus();
   pfSolarGuardTick(kTag, gCsV, gCsMa, gCsGood, gMaintainV, gChargingEnabled);
+
+  // ADR 0047 on-demand presence check: requested by the power policy when it
+  // wants to persist PROTECT without corroboration. Only with proven external
+  // power (the floating scenario requires it, and the ~55 ms test briefly
+  // gates a 30 mA BAT discharge), never during a recovery lane, and at most
+  // once per minute. The test clears the charging enable; restore it for a
+  // REAL verdict -- never for EMPTY (charging a phantom node is the
+  // brownout-loop hazard the deferred guard exists to prevent).
+  if (gPresenceCheckWanted && gCsGood && !gLowVbatRecoveryChargeActive &&
+      (!gLastPresenceCheckMs ||
+       millis() - gLastPresenceCheckMs >= 60000UL)) {
+    gPresenceCheckWanted = false;
+    uint32_t now = millis();
+    gLastPresenceCheckMs = now ? now : 1;
+    bool wasCharging = gChargingEnabled;
+    uint16_t mv = 0xFFFF;
+    if (!bqBatteryPresenceTest(mv)) {
+      gPresenceCheckWanted = true; // I2C hiccup: retry after the rate limit
+      if (wasCharging) {
+        Board.enableBatteryCharging(true);
+        gChargingEnabled = true;
+      }
+      Serial.println("battery presence test I2C error; will retry");
+    } else if (mv >= 2200 && mv < 4400) {
+      gPresenceRealUntilMs = millis() + RES_BATT_PRESENCE_REAL_MS;
+      if (wasCharging) {
+        Board.enableBatteryCharging(true);
+        gChargingEnabled = true;
+      }
+      Serial.printf("battery presence VERIFIED: BQ ADC=%umV\n", (unsigned)mv);
+    } else {
+      gPresenceEmptyUntilMs = millis() + RES_BATT_PRESENCE_EMPTY_MS;
+      Serial.printf("battery presence EMPTY: BQ ADC=%umV -> BAT treated absent\n",
+                    (unsigned)mv);
+    }
+  }
 }
 
 void boardPowerTick() {
