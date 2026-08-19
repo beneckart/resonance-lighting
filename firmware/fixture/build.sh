@@ -5,6 +5,7 @@
 #   ./build.sh --port /dev/ttyACM0      # compile + USB flash
 #   ./build.sh --ota 10.0.0.200         # compile + OTA via POST /update
 #   ./build.sh --artifact-dir out/r1    # stable dir for fleet_usb_bringup.py
+#   ./build.sh --fw-rev fx-YYMMDD-rrrrrrr-b  # inject immutable artifact ID
 #   ./build.sh --profile commission     # default NVS profile when unset
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
@@ -29,6 +30,7 @@ PROFILE=""
 CHEM="lfp"
 EXTRA_FLAGS=""
 WIFI_SOURCE=""
+FW_REV=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -38,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --channel) CHANNEL="$2"; shift 2 ;;
     --profile) PROFILE="$2"; shift 2 ;;
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
+    --fw-rev) FW_REV="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
@@ -81,6 +84,13 @@ case "$CHEM" in
   *) echo "unknown --chem: $CHEM (lfp|3v7)" >&2; exit 2 ;;
 esac
 [[ -n "$CHANNEL" ]] && FLAGS+=" -DRES_CHANNEL=$CHANNEL"
+if [[ -n "$FW_REV" ]]; then
+  [[ "$FW_REV" =~ ^fx-[0-9]{6}-[0-9a-f]{7}-[pbt]$ ]] || {
+    echo "invalid --fw-rev: $FW_REV" >&2
+    exit 2
+  }
+  FLAGS+=" -DRES_FIXTURE_VERSION_TOKEN=$FW_REV"
+fi
 case "$PROFILE" in
   "") ;;
   dev|commission)  FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_DEV" ;;
