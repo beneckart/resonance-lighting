@@ -8,6 +8,8 @@
 #include "nvs_store.h"
 #include "telemetry.h"
 
+#define RES_BOOT_LOOP_ESCALATE_STREAK 3
+
 static BootDecision gDecision;
 static bool gNvsOk = false;
 static uint8_t gStoredStage = STAGE_IDLE;
@@ -20,7 +22,16 @@ void bootGuardPreInit() {
   // marker -> assume armed (conservative: escalation stays possible).
   bool prevArmed = true;
   if (!nvsReadLoadArmed(prevArmed)) prevArmed = true;
-  gDecision = bootGuardDecide(gNvsOk, gStoredStage, unexpected, prevArmed);
+  // Audit fix (ADR 0028 rule 4, finally wired): a collapse loop with loads
+  // OFF (bare radio, VSQT sensor bring-up) has no marker to arm, but it must
+  // not grind the cell down unbounded. Count consecutive unexpected resets;
+  // an expected reset or 60 s of healthy uptime (power glue) clears the
+  // streak; at the threshold, escalate exactly as if the load were armed.
+  uint32_t streak = 0;
+  if (unexpected) streak = nvsBumpBootCount();
+  else nvsClearBootCount();
+  bool escalate = prevArmed || streak >= RES_BOOT_LOOP_ESCALATE_STREAK;
+  gDecision = bootGuardDecide(gNvsOk, gStoredStage, unexpected, escalate);
   if (gDecision.persistStage != BOOT_GUARD_NO_WRITE) {
     if (!nvsWriteStage(gDecision.persistStage)) {
       // Retry-consumption could not be made durable: fail safe to PROTECT

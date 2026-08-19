@@ -67,12 +67,18 @@ static uint32_t gLastPresenceCheckMs = 0;
 
 bool pfIsReady() { return gPfReady; }
 bool chargingEnabled() { return gChargingEnabled; }
+static bool presenceEmptyFresh() {
+  if (!gPresenceEmptyUntilMs) return false;
+  if ((int32_t)(gPresenceEmptyUntilMs - millis()) > 0) return true;
+  gPresenceEmptyUntilMs = 0; // expired: zero it so it can never go stale-fresh
+  return false;
+}
+
 bool batteryPresent() {
   // A fresh EMPTY verdict vetoes the plausible-voltage window; real current
   // (a cell installed mid-session) clears it early and it expires on its own,
   // so an installed cell is never locked out.
-  if (gPresenceEmptyUntilMs && (int32_t)(gPresenceEmptyUntilMs - millis()) > 0)
-    return false;
+  if (presenceEmptyFresh()) return false;
   return (gCbV > 2.5f && gCbV < 4.4f) || gLowVbatRecoveryChargeActive;
 }
 bool lowVbatRecoveryActive() { return gLowVbatRecoveryChargeActive; }
@@ -81,13 +87,15 @@ bool batteryCorroborated() {
   uint32_t now = millis();
   if (gCurrentEvidenceMs && now - gCurrentEvidenceMs < RES_BATT_EVIDENCE_FRESH_MS)
     return true;
-  if (gPresenceRealUntilMs && (int32_t)(gPresenceRealUntilMs - now) > 0)
-    return true;
+  if (gPresenceRealUntilMs) {
+    if ((int32_t)(gPresenceRealUntilMs - now) > 0) return true;
+    gPresenceRealUntilMs = 0; // expired: zero it (stale-fresh after ~25 d wrap)
+  }
   if (gRecoveryEverDetected) return true;
-  // Battery-only operation: with no good external supply the running system
-  // is itself the proof of a real cell (a floating node cannot power anything,
-  // let alone hold 2.5+ V unassisted).
-  if (gPfReady && !gCsGood && gCbV > 2.5f && gCbV < 4.4f) return true;
+  // Audit fix: there is deliberately NO battery-only voltage clause. True
+  // battery-only operation always shows >=80 mA discharge and corroborates
+  // via current evidence within a second; a voltage-only clause certified a
+  // floating node whenever the supply-good flag flickered at dusk/dawn.
   return false;
 }
 float maintainVolts() { return gMaintainV; }
@@ -193,25 +201,30 @@ static bool bqBatteryPresenceTest(uint16_t &batteryMv) {
   gChargingEnabled = false;
   bool ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 5, false);
   ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, true) && ok;
-  if (ok) delay(5);
-  ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, false) && ok;
-  if (!ok) {
-    (void)pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, false);
-    (void)pfSolarGuardWrite8(0x26, adcBefore);
-    return false;
-  }
-
-  // Keep the existing sample-speed/averaging fields and select one-shot+on.
+  if (ok) delay(5); // node bleeds / cell settles under the 30 mA sink
+  // Audit fix (SLUAB31A): measure WHILE the discharge is asserted -- a
+  // floating node refloats within milliseconds of release, and the old
+  // sequence (release, then fixed 50 ms wait) could also return the STALE
+  // pre-test conversion: the one-shot 10-bit full sequence needs ~80 ms
+  // (SDK waits 100 ms and polls done). Trigger the one-shot, poll ADC_EN
+  // self-clear as an early exit, and in the worst case wait the full 150 ms
+  // before reading -- past every documented conversion time either way.
   uint8_t oneShot = (uint8_t)(adcBefore | (1u << 7) | (1u << 6));
-  if (!pfSolarGuardWrite8(0x26, oneShot)) {
-    (void)pfSolarGuardWrite8(0x26, adcBefore);
-    return false;
+  ok = ok && pfSolarGuardWrite8(0x26, oneShot);
+  if (ok) {
+    for (int i = 0; i < 30; i++) { // <= 150 ms
+      delay(5);
+      uint8_t ctl = 0;
+      if (!pfSolarGuardRead8(0x26, ctl)) break;
+      if (!(ctl & (1u << 7))) break; // one-shot completed
+    }
   }
-  delay(50); // greater than all-channel conversion time at POR 9-bit speed
   uint16_t raw = 0;
-  bool readOk = pfSolarGuardRead16(0x30, raw);
+  bool readOk = ok && pfSolarGuardRead16(0x30, raw);
+  // Release the discharge and restore ADC config regardless of outcome.
+  bool releaseOk = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, false);
   bool restoreOk = pfSolarGuardWrite8(0x26, adcBefore);
-  if (!readOk || !restoreOk) return false;
+  if (!ok || !readOk || !releaseOk || !restoreOk) return false;
   batteryMv = (uint16_t)(((uint32_t)(raw >> 1) * 199u + 50u) / 100u);
   return true;
 }
@@ -354,6 +367,14 @@ static void chargingGuardTick() {
                   (unsigned long)RES_DEEP_RECOVERY_TARGET, gCbV,
                   (unsigned)RES_PF_PRECHARGE_MA,
                   (unsigned)RES_DEEP_RECOVERY_MAX_CHARGE_MA);
+  } else if (presenceEmptyFresh()) {
+    // Audit fix: the SLUAB31A test just proved the BAT node is empty; the
+    // plausible floating voltage must not enable charging (brownout-loop
+    // hazard). One-shot consumed with charging off; a cell installed later
+    // is picked up by the on-demand presence check, whose REAL verdict
+    // enables charging itself.
+    done = true;
+    Serial.println("BAT node proven empty -> charging stays OFF");
   } else if (gCbV > 2.5f && gCbV < 4.4f) {
     done = true;
     Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
@@ -455,15 +476,25 @@ void readBatteryNow() {
         gChargingEnabled = true;
       }
       Serial.println("battery presence test I2C error; will retry");
-    } else if (mv >= 2200 && mv < 4400) {
+    } else if (mv >= 2000 && mv < 4400) {
+      // 2000, not 2200 (audit fix): the measurement now runs UNDER the 30 mA
+      // discharge, and a real 2.2 V high-IR cell sags tens of mV while a
+      // floating node collapses toward zero -- keep discrimination with
+      // margin on the real-cell side.
       gPresenceRealUntilMs = millis() + RES_BATT_PRESENCE_REAL_MS;
-      if (wasCharging) {
-        Board.enableBatteryCharging(true);
-        gChargingEnabled = true;
-      }
-      Serial.printf("battery presence VERIFIED: BQ ADC=%umV\n", (unsigned)mv);
+      // REAL = a physical cell in plausible range: (re)enable charging
+      // outright, not just when it was on before -- an earlier EMPTY-era
+      // decision may have left it off for a cell installed mid-session.
+      Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
+      configurePrecharge();
+      Board.enableBatteryCharging(true);
+      gChargingEnabled = true;
+      Serial.printf("battery presence VERIFIED: BQ ADC=%umV -> charging ON\n",
+                    (unsigned)mv);
     } else {
       gPresenceEmptyUntilMs = millis() + RES_BATT_PRESENCE_EMPTY_MS;
+      Board.enableBatteryCharging(false); // test left it off; make it explicit
+      gChargingEnabled = false;
       Serial.printf("battery presence EMPTY: BQ ADC=%umV -> BAT treated absent\n",
                     (unsigned)mv);
     }

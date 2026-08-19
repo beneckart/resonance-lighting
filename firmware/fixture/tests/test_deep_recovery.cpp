@@ -43,8 +43,10 @@ int main() {
   f.battery_v = 2.19f; CHECK(!fleetRecoveryMayTest(f));
   f.battery_v = 2.42f; f.supply_good = false; CHECK(!fleetRecoveryMayTest(f));
   f.supply_good = true; f.charger_fault = 1; CHECK(!fleetRecoveryMayTest(f));
-  CHECK(!fleetRecoveryBatteryDetected(2199));
+  CHECK(fleetRecoveryBatteryDetected(2199)); // real cell sagging under 30 mA
   CHECK(fleetRecoveryBatteryDetected(2200));
+  CHECK(fleetRecoveryBatteryDetected(2000));  // floor: real sagged 2.2 V cell
+  CHECK(!fleetRecoveryBatteryDetected(1999)); // collapsed floating node
   CHECK(fleetRecoveryBatteryDetected(2450));
   CHECK(!fleetRecoveryBatteryDetected(4400));
 

@@ -106,6 +106,11 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
     // power is present so an explicit bare-board recovery can be issued.
     if (st.tier == LedTier::PROTECT && s.supply_valid && s.supply_good)
       b.must_sleep = false;
+    // ADR 0051 audit fix: an invalid sample can never authorize the durable
+    // persist. Without this, the EMPTY presence verdict (which vetoes
+    // batteryPresent and lands the ladder here) would read as "no longer
+    // deferring" and the glue would latch PROTECT on a proven-empty BAT node.
+    if (st.tier == LedTier::PROTECT) b.defer_protect_persist = true;
     return b;
   }
 

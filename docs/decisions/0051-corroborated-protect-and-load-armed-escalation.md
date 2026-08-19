@@ -81,11 +81,70 @@ without a genuinely collapsing battery, each costing a bench visit:
   resets, so the dashboard keeps seeing power-ordering events without the
   fleet paying ladder progress for them.
 
+## Amendment — same-day adversarial audit (2026-08-18)
+
+A four-lens audit (power-ordering, NVS atomicity, corroboration soundness,
+out-of-diff regressions; every finding attacked by two independent refuters,
+none refuted) found the first implementation of this ADR broken in ways that
+inverted its own guarantees. All corrected the same day:
+
+1. **The deferred persist resolved on the ABSENCE of the defer flag** — but a
+   freeze tick (EMPTY veto, active recovery lane, gauge dropout) also returns
+   the flag unset, so the EMPTY verdict itself durably latched PROTECT on a
+   proven-empty node ~3 s after boot. Fixed twice over: the policy's freeze
+   branch now asserts `defer_protect_persist` whenever the held tier is
+   PROTECT, and the glue persists only on POSITIVE corroboration
+   (`batt_valid && batt_corroborated`).
+2. **The load-armed gate silently dropped escalation for loads-OFF collapse
+   loops** (bare radio, VSQT sensor bring-up) that the old boot guard caught,
+   leaving an unbounded POR loop with charging disabled. The ADR 0028 rule-4
+   loop breaker is now actually wired: consecutive unexpected resets are
+   counted in NVS; an expected reset or 60 s of healthy uptime clears the
+   streak; at 3 the boot guard escalates as if the load were armed.
+3. **The presence test could return a stale ADC conversion** (fixed 50 ms
+   wait vs ~80 ms one-shot sequence; discharge released before measuring, so
+   a floating node refloats) — a nondeterministic false REAL on the exact
+   hardware state the test exists to detect. It now measures WHILE the 30 mA
+   discharge is asserted and polls the one-shot completion up to 150 ms.
+4. **Zero margin at the 2.20 V lane floor**: the BQ detection floor (2200 mV,
+   a different measurement chain, now sampled under load) refused real cells
+   at the lane's own lower bound and stranded charging off. Floor lowered to
+   2000 mV (a collapsed floating node reads far below it under the sink).
+5. **chargingGuardTick ignored a fresh EMPTY verdict** and could enable
+   charging into the proven-empty node at t=6 s; it now consumes the one-shot
+   with charging off. Symmetrically, a REAL verdict now enables charging
+   outright (a cell installed after an EMPTY-era decision must not stay
+   uncharged until reboot).
+6. **The battery-only corroboration clause was unsound** during supply-good
+   flicker (dusk/dawn panels) — it certified a floating node on voltage
+   alone. Removed: true battery-only operation corroborates via its own
+   discharge current within a second.
+7. Smaller: the PROTECT-release clean reboot is now gated on the stage persist
+   actually succeeding (a transient NVS failure caused a ~70 s restart loop
+   that falsely printed "release persisted"); the commission-profile PROTECT
+   override is applied after every tier mutation (a persist-failure park on a
+   bench unit slept 900 s on good supply); presence-verdict windows zero
+   themselves on expiry (stale-fresh after a ~25-day millis wrap);
+   `nvsClearBootCount` is read-before-write so routine wakes stay wear-free.
+
+Accepted residuals (documented, not fixed): a reset inside the
+arm-before-energize or rail-off-before-disarm micro-windows misclassifies
+one boot conservatively; hardware-driven D7 pulses (rev-1 433 MHz receiver)
+cannot arm the marker and rely on the loop breaker; `guard_interrupted`
+telemetry now includes disarmed power-ordering resets (comparability note for
+pre-0051 logs); the coulomb integrator loses its anchor across veto/recovery
+freezes and the heartbeat power tier stays at the pre-rescue tier during a
+recovery lane — both listed for the bench matrix.
+
 ## REVISIT
 
 - Run the full battery/panel/USB ordering matrix (TODO) plus one deliberate
-  load-collapse loop before calling the marker qualified.
-- The EMPTY-verdict veto window (60 s) and current-evidence freshness (60 s)
-  are first guesses; tune against bench observations of gauge settling.
+  load-collapse loop (loads armed AND loads off — the streak path) before
+  calling the marker qualified.
+- The EMPTY-verdict veto window (60 s), current-evidence freshness (60 s),
+  presence floors (2000 mV under 30 mA), and the escalation streak (3) are
+  first guesses; tune against bench observations.
+- Verify on the bench that BQ25628E ADC_EN self-clears after a one-shot
+  sequence (the poll early-exits either way; the 150 ms cap is the guarantee).
 - If the fleet ever runs loads on VSQT beyond the solenoid, those enable
   paths must also arm the marker.
