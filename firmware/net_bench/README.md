@@ -41,6 +41,9 @@ or set a dedicated bench AP/router to a fixed channel.
 # OTA (node must be in maintenance mode first):
 ./build.sh --role peer   --channel 11 --ota 192.168.4.61
 
+# NeoHex-Magic-Wand: 20 boards / 740 WS2812 pixels, MSA311 + BMP581
+./build.sh --role peer --channel 11 --magic-wand
+
 # deprecated/emergency single-board fallback only:
 # peer starts its own temporary AP in maintenance mode instead of joining bench WiFi
 ./build.sh --role peer   --channel 11 --maint-ap --port /dev/ttyACM1
@@ -72,6 +75,15 @@ dashboard. The first exact enclosure artifact is
 This two-second polling profile is for bring-up diagnostics, not yet a qualified
 production energy/timing profile.
 
+The opt-in `--magic-wand` peer role drives Steve's 20-board M5Stack NeoHex
+wand on A0/GPIO10 using the ESP32-S3 RMT peripheral. It automatically selects
+the sensor diagnostic, Generic_LFP chemistry, 15,000 mAh capacity, 500 mA
+charge limit, and 4.6 V supply-maintain setting. Its low-light default is four
+five-board rows with a red row moving bottom-to-top every 0.4 seconds. It blanks
+all 740 pixels before shared-WiFi maintenance and restores the pattern on return
+to ESP-NOW. See `docs/projects/NeoHex-Magic-Wand/README.md` for the exact wiring,
+deployed artifact identity, and field handoff.
+
 `build.sh` uses a unique temporary Arduino `--build-path` per run to avoid the ESP32
 Arduino cache collision seen when compiling multiple variants in parallel. If you call
 `arduino-cli` directly, also provide a unique `--build-path` or build variants
@@ -86,6 +98,7 @@ pure bridge), `--hb-hz N` (peer rate), `--jitter-pct N`, `--wdt-s N`, `--wdt-han
 `--field-led-load`/`--field-led-spiral-rgb`/`--field-led-rgbw`/`--field-led-frame-ms MS`,
 `--solenoid-d7` (targeted, fail-safe D7/GPIO37 strike control),
 `--sensor-triad` (MSA311 + TMF8820 + BMP581 maintenance-telemetry diagnostic),
+`--magic-wand` (20 NeoHex / 740-pixel peer; implies sensor triad and fixed LFP defaults),
 `--batt-ntc` (battery
 thermistor on charger TS -- ONLY with the NTC physically taped to the cell, see
 POWERFEATHER_NOTES), `--port`/`--ota`.
