@@ -4780,11 +4780,10 @@ void handleSerial() {
     break;
   }
   case 'm': { // master: VINDPM/maintain setpoint (panel MPP sweep over the fleet).
-              // Bare 'm' cycles the preset list; 'm<v10>' (e.g. m48 -> 4.8 V) sets an
-              // explicit point so a host script can sweep with anchors/repeats.
+              // Require 'm<v10>' (e.g. m48 -> 4.8 V). A bare 'm' used to cycle
+              // presets starting at 5.5 V; a stray serial byte could therefore
+              // collapse USB-powered peers and persist the bad value in NVS.
     if (!IS_MASTER) break;
-    static const uint8_t mv10[] = {55, 52, 50, 48, 46, 44}; // 5.5..4.4 V
-    static uint8_t mi = 0;
     int explicitV10 = -1;
     uint32_t digitDeadline = millis() + 50; // digits (if any) arrive with the 'm'
     while ((int32_t)(digitDeadline - millis()) > 0) {
@@ -4795,22 +4794,19 @@ void handleSerial() {
       explicitV10 = (explicitV10 < 0 ? 0 : explicitV10 * 10) + (p - '0');
       if (explicitV10 > NB_MAINTAIN_MAX_V10) break;
     }
-    uint8_t v10;
-    if (explicitV10 >= 0) {
-      if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
-        Serial.printf("SET_MAINTAIN %d rejected (range %d..%d = %.1f..%.1f V)\n",
-                      explicitV10, NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10,
-                      (float)NB_MAINTAIN_MIN_V10 / 10.0f,
-                      (float)NB_MAINTAIN_MAX_V10 / 10.0f);
-        break;
-      }
-      v10 = (uint8_t)explicitV10;
-    } else {
-      v10 = mv10[mi];
-      mi = (mi + 1) % (uint8_t)(sizeof(mv10));
+    if (explicitV10 < 0) {
+      Serial.println("m requires an explicit value, e.g. m46 (4.6 V USB/solar standard); 55 collapses USB-powered boards");
+      break;
     }
-    sendCmd(NB_SET_MAINTAIN, v10);
-    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", (float)v10 / 10.0f);
+    if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
+      Serial.printf("SET_MAINTAIN %d rejected (range %d..%d = %.1f..%.1f V)\n",
+                    explicitV10, NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10,
+                    (float)NB_MAINTAIN_MIN_V10 / 10.0f,
+                    (float)NB_MAINTAIN_MAX_V10 / 10.0f);
+      break;
+    }
+    sendCmd(NB_SET_MAINTAIN, (uint8_t)explicitV10);
+    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", (float)explicitV10 / 10.0f);
     break;
   }
   case 'r':
