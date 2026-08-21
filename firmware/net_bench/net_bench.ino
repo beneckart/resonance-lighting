@@ -1870,6 +1870,7 @@ void solenoidRgbButtonInit() {}
 void solenoidRgbButtonTick() {}
 void solenoidNavInit() {}
 void solenoidNavTick() {}
+void capbankWaveConfigureRoutes() {}
 void solenoidButtonPrepareSleep() {}
 void solenoidFailsafeTick() {}
 #endif
