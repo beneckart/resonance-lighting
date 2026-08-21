@@ -401,6 +401,19 @@ bool audioInputReady = false;
 bool audioUsingModule = false;
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
+
+enum AudioVisualMode : uint8_t {
+  AUDIO_MODE_CLASSIC = 0, // per-slot R/G/B envelope (original behavior)
+  AUDIO_MODE_EMBER,       // all fixtures warm amber/white on the envelope
+  AUDIO_MODE_HUECYCLE,    // envelope brightness on a slow shared hue rotation
+  AUDIO_MODE_PULSE,       // beat transients: full-bright flash over a dim floor
+  AUDIO_MODE_COUNT,
+};
+AudioVisualMode audioMode = AUDIO_MODE_CLASSIC;
+float audioFastEnv = 0.0f;      // PULSE: fast follower of the companded level
+float audioSlowEnv = 0.0f;      // PULSE: slow reference a transient must beat
+bool audioPulseActive = false;  // PULSE: a triggered flash is still decaying
+uint32_t audioPulseStartMs = 0; // PULSE: trigger time of the current flash
 #if CORES3_AUDIO_MODULE
 M5ModuleAudio audioModule;
 #endif
@@ -524,6 +537,80 @@ const char *audioSourceName() {
   return audioUsingModule ? "MODULE TRS" : "BUILTIN DUAL MIC";
 }
 
+const char *audioModeName(AudioVisualMode mode) {
+  switch (mode) {
+  case AUDIO_MODE_CLASSIC: return "CLASSIC";
+  case AUDIO_MODE_EMBER: return "EMBER";
+  case AUDIO_MODE_HUECYCLE: return "HUECYCLE";
+  case AUDIO_MODE_PULSE: return "PULSE";
+  default: return "UNKNOWN";
+  }
+}
+
+void nextAudioMode() {
+  audioMode = (AudioVisualMode)((audioMode + 1) % AUDIO_MODE_COUNT);
+  Serial.printf("audio mode=%s\n", audioModeName(audioMode));
+}
+
+// Local HSV -> RGB for HUECYCLE. hue/sat/val are 0..1 and hue wraps. The wire
+// contract (packet.h) stays untouched; this is bridge-side color math only.
+void audioHsvToRgb(float hue, float sat, float val,
+                   uint8_t *r, uint8_t *g, uint8_t *b) {
+  hue -= floorf(hue);
+  float hf = hue * 6.0f;
+  int sector = ((int)hf) % 6;
+  float f = hf - (float)sector;
+  float p = val * (1.0f - sat);
+  float q = val * (1.0f - sat * f);
+  float t = val * (1.0f - sat * (1.0f - f));
+  float rf, gf, bf;
+  switch (sector) {
+  case 0: rf = val; gf = t; bf = p; break;
+  case 1: rf = q; gf = val; bf = p; break;
+  case 2: rf = p; gf = val; bf = t; break;
+  case 3: rf = p; gf = q; bf = val; break;
+  case 4: rf = t; gf = p; bf = val; break;
+  default: rf = val; gf = p; bf = q; break;
+  }
+  *r = (uint8_t)(rf * 255.0f + 0.5f);
+  *g = (uint8_t)(gf * 255.0f + 0.5f);
+  *b = (uint8_t)(bf * 255.0f + 0.5f);
+}
+
+// Shared (same color for every fixture) modes; CLASSIC keeps per-slot colors.
+AudioColor audioSharedColor(float level, uint32_t nowMs) {
+  if (level < 0.0f) level = 0.0f;
+  if (level > 1.0f) level = 1.0f;
+  switch (audioMode) {
+  case AUDIO_MODE_EMBER:
+    return {(uint8_t)(level * 255.0f + 0.5f),
+            (uint8_t)(level * 0.55f * 255.0f + 0.5f),
+            (uint8_t)(level * 0.10f * 255.0f + 0.5f),
+            (uint8_t)(level * 0.60f * 255.0f + 0.5f)};
+  case AUDIO_MODE_HUECYCLE: {
+    // Slow shared rotation: one full hue revolution every 20 s.
+    float hue = (float)(nowMs % 20000UL) / 20000.0f;
+    uint8_t r, g, b;
+    audioHsvToRgb(hue, 1.0f, level, &r, &g, &b);
+    return {r, g, b, 0};
+  }
+  case AUDIO_MODE_PULSE: {
+    float value = level * 0.2f; // dim floor between transients
+    if (audioPulseActive) {
+      uint32_t elapsed = nowMs - audioPulseStartMs;
+      if (elapsed < 400) {
+        float pulse = 1.0f - (float)elapsed / 400.0f;
+        if (pulse > value) value = pulse;
+      }
+    }
+    uint8_t v = (uint8_t)(value * 255.0f + 0.5f);
+    return {v, v, v, v};
+  }
+  default:
+    return {0, 0, 0, 0};
+  }
+}
+
 bool setupAudioInput() {
 #if CORES3_AUDIO_MODULE
   if (audioModule.begin(M5.In_I2C)) {
@@ -602,9 +689,14 @@ void sendAudioLevel(float level) {
   fillHeader(&frame.h, NB_DIRECT_FRAME);
   frame.flags = 0x03; // 10 s micro-lease + hard-cut; envelope owns smoothing
   frame.count = count;
+  AudioColor shared = {};
+  if (audioMode != AUDIO_MODE_CLASSIC)
+    shared = audioSharedColor(level, millis());
   for (uint8_t i = 0; i < count; ++i) {
     memcpy(frame.entries[i].id, ids[i], 3);
-    AudioColor color = audioColorForSlot(i, level);
+    AudioColor color = audioMode == AUDIO_MODE_CLASSIC
+                           ? audioColorForSlot(i, level)
+                           : shared;
     frame.entries[i].r = color.r;
     frame.entries[i].g = color.g;
     frame.entries[i].b = color.b;
@@ -620,6 +712,9 @@ void sendAudioLevel(float level) {
 
 void setAudioActive(bool active) {
   if (active == audioActive) return;
+  audioPulseActive = false;
+  audioFastEnv = 0.0f;
+  audioSlowEnv = 0.0f;
   if (!active) sendAudioLevel(0.0f);
   audioActive = active;
   if (active) audioEnvelope = AudioEnvelope{};
@@ -639,6 +734,16 @@ void audioReactiveTick() {
   }
   float level = audioEnvelope.update(samples,
                                      sizeof(samples) / sizeof(samples[0]));
+  // PULSE transient tracking runs in every mode so switching in is seamless.
+  audioFastEnv += (level - audioFastEnv) * 0.60f;
+  audioSlowEnv += (level - audioSlowEnv) * 0.06f;
+  if (audioPulseActive && now - audioPulseStartMs >= 400)
+    audioPulseActive = false;
+  if (!audioPulseActive && audioEnvelope.calibrated() &&
+      audioFastEnv > audioSlowEnv * 1.4f && audioFastEnv > 0.08f) {
+    audioPulseActive = true;
+    audioPulseStartMs = now;
+  }
   if (audioEnvelope.calibrated()) sendAudioLevel(level);
 }
 #endif
@@ -986,11 +1091,11 @@ void emitBridgeStats() {
                 (unsigned long)sendFail, (unsigned long)millis(),
                 bridgeBatteryMv() / 1000.0f, CORES3_BRIDGE_VERSION);
 #if CORES3_AUDIO_REACTIVE_MODE
-  Serial.printf("audio source=%s ready=%d active=%d calibrated=%d rms=%.1f "
-                "noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
+  Serial.printf("audio source=%s ready=%d active=%d mode=%s calibrated=%d "
+                "rms=%.1f noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
                 audioSourceName(), audioInputReady, audioActive,
-                audioEnvelope.calibrated(), audioEnvelope.rms,
-                audioEnvelope.noise, audioEnvelope.level,
+                audioModeName(audioMode), audioEnvelope.calibrated(),
+                audioEnvelope.rms, audioEnvelope.noise, audioEnvelope.level,
                 (unsigned long)audioFrames,
                 (unsigned long)audioReadFailures);
 #endif
@@ -1317,23 +1422,24 @@ void handleSerial() {
     break;
   }
   case 'm': {
-    static const uint8_t presets[] = {55, 52, 50, 48, 46};
-    static uint8_t presetIndex = 0;
+    // 2026-08-20 incident fix: a bare 'm' used to cycle presets STARTING AT
+    // 5.5 V — one stray byte on this port (e.g. a ModemManager probe of the
+    // freshly re-enumerated tty) broadcast a VINDPM that collapses USB-powered
+    // fixtures' input and PERSISTS in their NVS. Explicit digits are now
+    // required; there is no bare-'m' action.
     int explicitV10 = readSerialUint(50, NB_MAINTAIN_MAX_V10);
-    uint8_t v10;
-    if (explicitV10 >= 0) {
-      if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
-        Serial.printf("SET_MAINTAIN %d rejected (range %d..%d)\n", explicitV10,
-                      NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10);
-        break;
-      }
-      v10 = (uint8_t)explicitV10;
-    } else {
-      v10 = presets[presetIndex++];
-      presetIndex %= sizeof(presets);
+    if (explicitV10 < 0) {
+      Serial.println("m requires an explicit value, e.g. m46 (4.6 V solar "
+                     "std) / m50 / m52; 55 collapses USB-powered boards");
+      break;
     }
-    sendCmd(NB_SET_MAINTAIN, v10);
-    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", v10 / 10.0f);
+    if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
+      Serial.printf("SET_MAINTAIN %d rejected (range %d..%d)\n", explicitV10,
+                    NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10);
+      break;
+    }
+    sendCmd(NB_SET_MAINTAIN, (uint8_t)explicitV10);
+    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", explicitV10 / 10.0f);
     break;
   }
   case 'C':
@@ -1564,12 +1670,15 @@ void handleSerial() {
   case 'A':
     setAudioActive(!audioActive);
     break;
+  case 'M':
+    nextAudioMode();
+    break;
 #endif
   case 'h':
   case '?':
     Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] Q<hours> L[seconds] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
-                   " A"
+                   " A M"
 #endif
     );
     break;
@@ -1615,6 +1724,8 @@ void drawDisplay() {
   displayCanvas.setTextColor(audioInputReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
   displayCanvas.printf("audio %-16s %s\n", audioSourceName(),
                        audioActive ? "ON" : "OFF");
+  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
+  displayCanvas.printf("mode %s (tap=next)\n", audioModeName(audioMode));
   displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
   displayCanvas.printf("rms %.0f floor %.0f level %3d%%\n",
                        audioEnvelope.rms, audioEnvelope.noise,
@@ -1740,8 +1851,9 @@ void loop() {
   esp_task_wdt_reset();
   M5.update();
 #if CORES3_AUDIO_REACTIVE_MODE
+  // Tap cycles the visual mode; serial 'A' remains the audio on/off toggle.
   if (M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked())
-    setAudioActive(!audioActive);
+    nextAudioMode();
 #endif
   processRx();
 #if CORES3_CAMBIUM_MODE

@@ -49,7 +49,10 @@ An independent audio-reactive build mode turns a live microphone envelope into
 10 Hz `NB_DIRECT_FRAME` colors for every fixture heard in the last five
 seconds. Each fixture gets a stable red, green, or blue slot based on sorted
 fixture ID. The bridge performs a two-second ambient-noise calibration, then
-uses fast attack and slow release. Tap the screen or send `A` over USB serial
+uses fast attack and slow release. Four visual modes (2026-08-20): CLASSIC
+per-slot R/G/B, EMBER warm-white envelope, HUECYCLE (20 s shared hue rotation),
+PULSE (beat-transient flashes over a dim floor). Tap the screen or send `M`
+over USB serial to cycle modes; send `A` over USB serial
 to pause/resume. Direct-frame staleness still returns each fixture to its
 autonomous program after three seconds; this mode does not persist a lifecycle
 override on any fixture. Peers whose full heartbeat identifies non-fixture
