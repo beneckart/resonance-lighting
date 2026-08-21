@@ -35,6 +35,10 @@ static uint32_t gCommsInitFailures = 0;
 
 NetMode maintMode() { return gMode; }
 uint8_t maintStatus() { return gMaintStatus; }
+bool maintenanceReady() {
+  return gMode == MODE_MAINT && gMaintStatus == MAINT_STATUS_ACTIVE &&
+         gOtaActive && WiFi.status() == WL_CONNECTED;
+}
 uint32_t commsInitAttempts() { return gCommsInitAttempts; }
 uint32_t commsInitFailures() { return gCommsInitFailures; }
 

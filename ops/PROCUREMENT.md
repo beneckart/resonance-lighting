@@ -39,14 +39,20 @@ LOG inference) -- correct them from receipts when convenient.
 | drivers-bmp | Adafruit | 2026-07-16 | 50x MOSFET drivers ($178 -- 160 total; solenoids may be PROMOTED to a standard feature on all downlights + perimeter lights) + 30x BMP581 temp/barometric sensors ($268.80 -- env data on the uplight STEMMA chain); ~$41 s&h/tax | $488.13 | placed, in transit |
 | gps-timing | SparkFun | 2026-07-20 | 4x SAM-M8Q Qwiic GPS modules -- accurate clock/time for trivial dusk/dawn bring-up + sleep scheduling (bench/experiment qty; also potential position anchors for the auto-localization work) | $132.68 | placed |
 | rtc-timing | Adafruit | 2026-07-20 | 4x DS3231 STEMMA RTC boards (batteries included) -- the cheap clock alternative to GPS for the same dusk/dawn/sleep experiments | $97.09 | placed |
-| batteries-33140-tn | batteryhookup.com | 2026-07-24 | 10x 33140 LiFePO4 15 Ah (to Steve/TN) -- absurdly low price, ~$4.50-5/cell class | $52.76 | placed |
-| batteries-33140-ca | batteryhookup.com | 2026-07-24 | 120x 33140 LiFePO4 15 Ah (to CA) -- **new fleet standard for LARGE-enclosure fixtures (downlights)**; the small enclosures only fit the 32700 6 Ah | $532.84 | placed |
+| batteries-33140-tn | batteryhookup.com | 2026-07-24 | 10x 33140 LiFePO4 15 Ah (Gotion, to Steve/TN) -- absurdly low price, ~$4.50-5/cell class | $52.76 | placed |
+| batteries-33140-ca | batteryhookup.com | 2026-07-24 | 120x 33140 LiFePO4 15 Ah (Gotion, to CA) -- **new fleet standard for LARGE-enclosure fixtures (downlights)**; the small enclosures only fit the 32700 6 Ah | $532.84 | placed |
+| capboard-v1 | JLCPCB | 2026-07-27 | capboard v1.0 PCBA run (qty TBC) -- first-fab 22,000 uF strike-bank board, no boost stage; superseded by the 08-03 v2.0 (MT3608 ~12 V) run | $411.45 | placed |
+| capboard-v2 | JLCPCB | 2026-08-03 | 120x capboard v2.0 PCBA (10 panels of 6x2, 100x40 mm) -- 22,000 uF strike-bank board with on-board MT3608 boost to ~12 V for the solenoid overvolt drive (see `hardware/capboard/README.md`) | $732.59 | placed |
+| audio-ingest-puca | Crowd Supply | 2026-08-04 | 2x PÚCA DSP (ESP32 + WM8978 audio dev board) -- audio-ingest / feature-broadcast nodes for audio-reactive show modes; setup notes: `docs/research/AUDIO_INGEST_NTG_PUCA_2026-08-04.md` | $107.68 | placed |
+| audio-mic-ntg | Amazon | 2026-08-04 | RØDE VideoMic NTG ($265.14) + WS11 furry windshield ($71.08) -- wired performer capture (bowls/violin/singing) into the PÚCA line-in | $336.22 | placed |
+| audio-tripod | RØDE (direct) | 2026-08-04 | RØDE Tripod 2 mic stand (camp musicians' stands = backup) | $66.44 | placed |
 
-Committed so far: **~$25,174** across the rows above (production boards 158; RGBW
+Committed so far: **~$26,828** across the rows above (production boards 158; RGBW
 150; Grove breakouts 125; enclosures 172 = 111 large + 61 small; XH cabling in
 deliberate lead-time-hedged abundance; 210 strike caps; 160 MOSFET drivers; 30
 BMP581 env sensors; batteries now TWO-TIER: 130x 33140 15 Ah for large-enclosure
-fixtures + 175x 32700 6 Ah for the small-enclosure classes). The $440 / $170 / $159 rows are the
+fixtures + 175x 32700 6 Ah for the small-enclosure classes; capboard PCBA runs
+v1.0 + 120x v2.0; plus the 08-04 audio-ingest capture chain at $510.34). The $440 / $170 / $159 rows are the
 fixture-relevant portions of larger orders; the remainders are not itemized here.
 
 Cabling strategy note (2026-07-13): final harness lengths are unknown until the
@@ -109,6 +115,23 @@ sourcing history.
   **Cardputer ADV**. Hardware for the Claude mesh bridge handheld (ADR 0037); no
   firmware written. **Not the T-Deck Pro** -- that is a different e-paper device
   whose drivers do not transfer. Dates and costs TBC.
+
+## Crew / camp provisioning (NOT fixture procurement; tracked as reimbursement candidates)
+
+Out-of-pocket project provisioning, kept out of the placed-orders table and the
+committed total so fleet budgeting stays clean. Per the 2026-08-04 reimbursement
+review: crew meals during build workdays are program-expense reimbursement
+candidates via 18th Street (submit as "crew meals, N workers, site, date");
+Ben's/family personal travel+meals stay out of pocket by policy.
+
+- 2026-07-27 -- People's Choice beef jerky, camp provisioning for the burn --
+  $413.36 (reimbursability less clear-cut than build-day crew meals; ask 18th
+  Street how they classify event provisioning).
+- 2026-08-02 -- DoorDash (Fudenjuice), crew meal, Nevada City build weekend --
+  $395.04.
+- 2026-08-03 -- DoorDash (pizza), crew meal, Nevada City build weekend -- $259.58.
+
+Subtotal: $1,067.98 (of which build-day crew meals $654.62).
 
 ## To-buy queue
 

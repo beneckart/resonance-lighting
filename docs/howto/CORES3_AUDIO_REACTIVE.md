@@ -59,7 +59,8 @@ built-in-mic firmware artifact or if a module build cannot find the module.
 8. Aim the mic at the intended source. Keep its rear and sides toward unwanted
    generator, wind, handling, or bamboo-impact noise where practical.
 
-The audio stream starts enabled. Tap the CoreS3 screen, or send uppercase `A`
+The audio stream starts enabled in CLASSIC mode. Tap the CoreS3 screen (or
+send `M`) to cycle CLASSIC -> EMBER -> HUECYCLE -> PULSE; send uppercase `A`
 over USB serial, to pause or resume it. Resuming starts a fresh two-second
 calibration. After a large change to the Rode gain or filter, toggle audio off
 and on once so the bridge relearns promptly.
@@ -232,7 +233,7 @@ for wind/handling rumble, not as a substitute for correcting overload.
 - Confirm the fixtures are running firmware with direct-frame support.
 - In daylight, use the temporary `N1` bench override on only the authorized
   fixtures, then restore each one with `N2`.
-- If audio was accidentally paused by a screen tap, tap again or send `A`.
+- A screen tap now cycles visual modes (2026-08-20); pause/resume is `A` over serial only.
 
 ### The bridge reports `BUILTIN DUAL MIC`
 

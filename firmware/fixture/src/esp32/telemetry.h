@@ -15,3 +15,4 @@ extern uint8_t gTelemetryGuardStage;
 extern bool gTelemetryGuardInterrupted;
 extern uint8_t gTelemetryFixtureClass;
 extern bool gTelemetryClassMismatch;
+extern uint8_t gTelemetrySensorBits;

@@ -95,6 +95,13 @@ static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
   gSnap.tmfOk = true;
   gSnap.tmfReads++;
   tmfRecoveryObserve(gTmfRecovery, true);
+  // Every completed report describes a new scene. Clear the previous return
+  // before scanning so an empty report cannot masquerade as a person who is
+  // still present (the dashboard and presence gate both consume this truth).
+  gSnap.tofDepthMm = 0;
+  gSnap.tofConfidence = 0;
+  memset(gSnap.tofZoneMm, 0, sizeof(gSnap.tofZoneMm));
+  memset(gSnap.tofZoneConfidence, 0, sizeof(gSnap.tofZoneConfidence));
   uint16_t usableMm = 0, usableConf = 0;
   uint32_t count = min((uint32_t)TMF882X_MAX_MEAS_RESULTS, results->num_results);
   for (uint32_t i = 0; i < count; ++i) {
@@ -105,6 +112,14 @@ static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
     // The enclosed sensor has a known ~20 mm fixture/window return. Ignore the
     // near field and use the closest confident scene target.
     if (mm < 80 || mm > 2500 || r.confidence < 20) continue;
+    if (r.channel >= 1 && r.channel <= 9) {
+      uint8_t zone = (uint8_t)(r.channel - 1);
+      if (!gSnap.tofZoneMm[zone] || mm < gSnap.tofZoneMm[zone]) {
+        gSnap.tofZoneMm[zone] = mm;
+        gSnap.tofZoneConfidence[zone] =
+            (uint16_t)min((uint32_t)UINT16_MAX, r.confidence);
+      }
+    }
     if (usableMm == 0 || mm < usableMm) {
       usableMm = mm;
       usableConf = (uint16_t)min((uint32_t)UINT16_MAX, r.confidence);

@@ -21,6 +21,7 @@ tests/     plain-assert test modules (pytest-compatible), run by locate_selftest
 CLIs: `locate_run.py` (one run: sim or real, figures + HTML viewer),
 `locate_sweep.py` (parameter sweeps -> breakage curves),
 `locate_ingest.py` (capture logs -> contract JSONL),
+`rssi_capture.py` (bounded live neighbor-report capture),
 `locate_rssi_cloud.py` (RSSI-only relative/ordinal point cloud with no roster,
 CAD, ToF, known position, or path-loss calibration),
 `locate_selftest.py` (test runner).
@@ -52,6 +53,22 @@ is the (n_expected/2)-th largest received sample; when that rank was lost,
 (one-sided constraint). Firmware should aggregate on-device the same way
 (`locate/rssi.py:_directional_median` is the reference; `io_jsonl.py`
 `rows_from_directed()` / `rows_to_links()` are the codec).
+
+The 2026-08 field-pack artifact implements a deliberately simpler feasibility
+capture first: updated fixtures retain up to 160 heard peers and, only during a
+bridge `L[seconds]` window, report repeated ranked RSSI EWMA observations. Start
+the exclusive-create logger before the bridge command:
+
+```
+python ops/locate/rssi_capture.py --duration 135 \
+  --out ops/locate/data/field/<unique-name>.jsonl
+# then issue L120 through the dashboard
+```
+
+Those rows already have `tx`, `rx`, and `rssi_dbm`, but `n=1` means they are raw
+observations rather than the censoring-corrected aggregation described above.
+Use them to evaluate graph/grid recovery and missing-link structure; do not
+present the first solve as production coordinates.
 
 Roster JSON -- device identity, role (known from the hardware complement),
 and the ToF-derived height where the class has one:

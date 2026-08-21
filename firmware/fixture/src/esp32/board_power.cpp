@@ -10,7 +10,10 @@
 // the build dir, so a relative ../../../ escape cannot reach the shared header).
 #include "powerfeather_solar_guard.h"
 
+#include "../core/bq25628e_precharge.h"
+#include "../core/deep_recovery.h"
 #include "boot_park.h"
+#include "identity.h"
 #include "loads.h"
 #include "nvs_store.h"
 #include "solenoid.h"
@@ -28,19 +31,29 @@ using namespace PowerFeather;
 #endif
 
 static const char *kTag = "fixture";
+static const uint32_t kTransportWakeMagic = 0x54525054UL; // "TRPT"
+RTC_DATA_ATTR static uint32_t gTransportWakeMagic = 0;
 
 static bool gPfReady = false;
+static bool gTransportWakeDark = false;
 static bool gChargingEnabled = false;
 static float gMaintainV = 4.6f;
 static float gCbV = 0.0f, gCbMa = 0.0f, gCbMaRaw = 0.0f;
 static int gCbSoc = -1;
 static float gCsV = 0.0f, gCsMa = 0.0f;
 static bool gCsGood = false;
+static bool gPrechargeWriteOk = false;
+static bool gDeepRecoveryChargeActive = false;
+static bool gLowVbatRecoveryChargeActive = false;
+static uint8_t gLowVbatRecoveryState = LOW_VBAT_RECOVERY_NONE;
+static uint16_t gLowVbatRecoveryDetectMv = 0xFFFF;
 static BqSnapshot gBq;
 
 bool pfIsReady() { return gPfReady; }
 bool chargingEnabled() { return gChargingEnabled; }
-bool batteryPresent() { return gCbV > 2.5f && gCbV < 4.4f; }
+bool batteryPresent() {
+  return (gCbV > 2.5f && gCbV < 4.4f) || gLowVbatRecoveryChargeActive;
+}
 float maintainVolts() { return gMaintainV; }
 float batteryVolts() { return gCbV; }
 float batteryMa() { return gCbMa; }
@@ -49,6 +62,20 @@ int batterySocPct() { return gCbSoc; }
 float supplyVolts() { return gCsV; }
 float supplyMa() { return gCsMa; }
 bool supplyGood() { return gCsGood; }
+bool prechargeConfigured() {
+  return gPrechargeWriteOk && gBq.reg10 != 0xFFFF &&
+         gBq.precharge_ma == RES_PF_PRECHARGE_MA;
+}
+uint16_t prechargeTargetMa() { return RES_PF_PRECHARGE_MA; }
+bool deepRecoveryBuild() { return RES_DEEP_RECOVERY_TARGET != 0UL; }
+bool deepRecoveryTargetMatches() {
+  uint32_t id = ((uint32_t)gMyId[0] << 16) |
+                ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  return deepRecoveryBuild() && id == (uint32_t)RES_DEEP_RECOVERY_TARGET;
+}
+bool deepRecoveryChargeActive() { return gDeepRecoveryChargeActive; }
+uint8_t lowVbatRecoveryState() { return gLowVbatRecoveryState; }
+uint16_t lowVbatRecoveryDetectMv() { return gLowVbatRecoveryDetectMv; }
 const BqSnapshot &bqSnapshot() { return gBq; }
 
 const char *batteryTypeName() {
@@ -68,8 +95,29 @@ static uint16_t bqMaOrUnknown(bool ok, float ma) {
   return (uint16_t)min(65535UL, (unsigned long)(ma + 0.5f));
 }
 
+static bool configurePrecharge() {
+  const uint16_t targetMa = RES_PF_PRECHARGE_MA;
+  uint16_t before = 0;
+  if (!pfSolarGuardRead16(0x10, before)) {
+    Serial.println("fixture precharge: read REG0x10 failed");
+    gPrechargeWriteOk = false;
+    return false;
+  }
+  uint16_t wanted = bq25628ePrechargeReg10(before, targetMa);
+  bool wrote = (wanted == before) || pfSolarGuardWrite16(0x10, wanted);
+  uint16_t after = 0;
+  bool readback = pfSolarGuardRead16(0x10, after);
+  uint16_t actualMa = readback ? bq25628ePrechargeMa(after) : 0;
+  gPrechargeWriteOk = wrote && readback && actualMa == targetMa;
+  Serial.printf("fixture precharge: REG0x10 0x%04X -> 0x%04X target=%umA readback=%umA %s\n",
+                before, readback ? after : 0xFFFF, (unsigned)targetMa,
+                (unsigned)actualMa, gPrechargeWriteOk ? "OK" : "ERR");
+  return gPrechargeWriteOk;
+}
+
 static void readChargerStatus() {
-  gBq.vindpm_mv = gBq.ichg_ma = gBq.vreg_mv = 0xFFFF;
+  gBq.vindpm_mv = gBq.ichg_ma = gBq.vreg_mv = gBq.precharge_ma = 0xFFFF;
+  gBq.reg10 = 0xFFFF;
   gBq.reg16 = gBq.reg18 = gBq.stat0 = gBq.stat1 = 0xFF;
   gBq.fault0 = gBq.flag0 = gBq.flag1 = gBq.fault_flag0 = gBq.part = 0xFF;
   if (!gPfReady) return;
@@ -79,6 +127,11 @@ static void readChargerStatus() {
   gBq.ichg_ma = bqMaOrUnknown(Board.getCharger().getChargeCurrentLimit(v), v);
   gBq.vreg_mv = bqMvOrUnknown(Board.getCharger().getChargeVoltageLimit(v), v);
 
+  uint16_t w = 0;
+  if (pfSolarGuardRead16(0x10, w)) {
+    gBq.reg10 = w;
+    gBq.precharge_ma = bq25628ePrechargeMa(w);
+  }
   uint8_t b = 0;
   if (pfSolarGuardRead8(PF_SOLAR_GUARD_REG_CHG_CTRL0, b)) gBq.reg16 = b;
   if (pfSolarGuardRead8(0x18, b)) gBq.reg18 = b;
@@ -91,7 +144,49 @@ static void readChargerStatus() {
   if (pfSolarGuardRead8(0x38, b)) gBq.part = b;
 }
 
+// TI SLUAB31A battery-removal sequence for BQ2562x: charging off, apply the
+// charger's ~30 mA BAT discharge for 5 ms, then one-shot its VBAT ADC. A real
+// attached cell remains above VBAT_UVLO while an empty BAT node collapses.
+// All touched ADC/discharge state is restored before returning.
+static bool bqBatteryPresenceTest(uint16_t &batteryMv) {
+  batteryMv = 0xFFFF;
+  uint8_t adcBefore = 0;
+  if (!pfSolarGuardRead8(0x26, adcBefore)) return false;
+
+  Board.enableBatteryCharging(false);
+  gChargingEnabled = false;
+  bool ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 5, false);
+  ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, true) && ok;
+  if (ok) delay(5);
+  ok = pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, false) && ok;
+  if (!ok) {
+    (void)pfSolarGuardUpdate8(PF_SOLAR_GUARD_REG_CHG_CTRL0, 1u << 6, false);
+    (void)pfSolarGuardWrite8(0x26, adcBefore);
+    return false;
+  }
+
+  // Keep the existing sample-speed/averaging fields and select one-shot+on.
+  uint8_t oneShot = (uint8_t)(adcBefore | (1u << 7) | (1u << 6));
+  if (!pfSolarGuardWrite8(0x26, oneShot)) {
+    (void)pfSolarGuardWrite8(0x26, adcBefore);
+    return false;
+  }
+  delay(50); // greater than all-channel conversion time at POR 9-bit speed
+  uint16_t raw = 0;
+  bool readOk = pfSolarGuardRead16(0x30, raw);
+  bool restoreOk = pfSolarGuardWrite8(0x26, adcBefore);
+  if (!readOk || !restoreOk) return false;
+  batteryMv = (uint16_t)(((uint32_t)(raw >> 1) * 199u + 50u) / 100u);
+  return true;
+}
+
 void boardPowerInit() {
+  // RTC slow memory survives deep sleep (and software/watchdog resets) but is
+  // initialized on a true power cycle. Once armed, stay dark across any
+  // incidental restart until an explicit bridge program command releases it.
+  gTransportWakeDark = gTransportWakeMagic == kTransportWakeMagic;
+  if (gTransportWakeDark)
+    Serial.println("transport wake: radio live, LED output latched dark");
   Serial.println("PowerFeather SDK init:");
   nvsLoadConfig();
   Result r = Result::Failure;
@@ -119,6 +214,7 @@ void boardPowerInit() {
   Board.enableBatteryCharging(false);
   gChargingEnabled = false;
   pfSolarGuardInit(kTag, gMaintainV, false);
+  configurePrecharge();
 }
 
 static void readBatteryCell() {
@@ -134,6 +230,37 @@ static void readBatteryCell() {
 
 static void chargingGuardTick() {
   static bool done = false;
+  static uint32_t lastRecoveryAttemptMs = 0;
+  static uint32_t recoveryAboveSinceMs = 0;
+
+  if (gLowVbatRecoveryChargeActive) {
+    if (gBq.fault0 != 0x00 && gBq.fault0 != 0xFF) {
+      Board.enableBatteryCharging(false);
+      gChargingEnabled = false;
+      gLowVbatRecoveryChargeActive = false;
+      gLowVbatRecoveryState = LOW_VBAT_RECOVERY_REFUSED;
+      Serial.printf("LOW-VBAT RECOVERY STOPPED fault=0x%02X\n", gBq.fault0);
+      return;
+    }
+    // Exact-target test images deliberately stay at their immutable 100 mA
+    // ceiling. Production images graduate after one stable minute above the
+    // old presence boundary with 50 mV hysteresis.
+    if (deepRecoveryBuild()) return;
+    if (gCbV >= 2.55f) {
+      if (!recoveryAboveSinceMs) recoveryAboveSinceMs = millis();
+      if (millis() - recoveryAboveSinceMs >= 60000UL) {
+        Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
+        gLowVbatRecoveryChargeActive = false;
+        gLowVbatRecoveryState = LOW_VBAT_RECOVERY_GRADUATED;
+        Serial.printf("LOW-VBAT RECOVERY GRADUATED bv=%.3fV -> normal cap %umA\n",
+                      gCbV, (unsigned)gCfg.chargeMa);
+      }
+    } else {
+      recoveryAboveSinceMs = 0;
+    }
+    return;
+  }
+
   if (done || !gPfReady || millis() < 6000) return;
   if (gCbV < 0.1f) {
     if (millis() > 60000) {
@@ -142,15 +269,107 @@ static void chargingGuardTick() {
     }
     return;
   }
-  done = true;
-  if (batteryPresent()) {
+  if (deepRecoveryBuild()) {
+    done = true;
+    // This is deliberately narrower than batteryPresent(): one immutable test
+    // image, one MAC, external power proven, a real low LFP voltage, clean BQ,
+    // and the requested precharge register verified. A non-target that somehow
+    // receives the image remains dark with charging disabled.
+    DeepRecoverySample sample = {
+        .build_enabled = deepRecoveryBuild(),
+        .target_matches = deepRecoveryTargetMatches(),
+        .supply_good = gCsGood,
+        .precharge_configured = prechargeConfigured(),
+        .battery_v = gCbV,
+        .battery_ma = gCbMa,
+        .supply_v = gCsV,
+        .supply_ma = gCsMa,
+        .charger_fault = gBq.fault0,
+    };
+    if (!deepRecoveryMayEnable(sample)) {
+      gLowVbatRecoveryState = LOW_VBAT_RECOVERY_REFUSED;
+      Serial.printf("DEEP RECOVERY REFUSED target=%d bv=%.3f input=%.3f/%.0f/%d "
+                    "fault=0x%02X batt_ma=%.0f precharge=%d\n",
+                    sample.target_matches ? 1 : 0, gCbV, gCsV, gCsMa, gCsGood ? 1 : 0,
+                    gBq.fault0, gCbMa, prechargeConfigured() ? 1 : 0);
+      return;
+    }
+    allLoadsOff("deep recovery");
+    railEnableVSQT(false);
+    Board.setBatteryChargingMaxCurrent((float)RES_DEEP_RECOVERY_MAX_CHARGE_MA);
+    configurePrecharge();
+    Board.enableBatteryCharging(true);
+    gChargingEnabled = true;
+    gDeepRecoveryChargeActive = true;
+    gLowVbatRecoveryChargeActive = true;
+    gLowVbatRecoveryState = LOW_VBAT_RECOVERY_ACTIVE;
+    gLowVbatRecoveryDetectMv = (uint16_t)(gCbV * 1000.0f);
+    pfSolarGuardInit(kTag, gMaintainV, true);
+    Serial.printf("DEEP RECOVERY ACTIVE target=%06lX bv=%.3fV precharge=%umA "
+                  "charge_ceiling=%umA\n",
+                  (unsigned long)RES_DEEP_RECOVERY_TARGET, gCbV,
+                  (unsigned)RES_PF_PRECHARGE_MA,
+                  (unsigned)RES_DEEP_RECOVERY_MAX_CHARGE_MA);
+  } else if (gCbV > 2.5f && gCbV < 4.4f) {
+    done = true;
     Board.setBatteryChargingMaxCurrent((float)gCfg.chargeMa);
+    configurePrecharge();
     Board.enableBatteryCharging(true);
     gChargingEnabled = true;
     pfSolarGuardInit(kTag, gMaintainV, true);
     Serial.printf("battery %.2fV present -> charging ON (%u mA, %s profile)\n",
                   gCbV, (unsigned)gCfg.chargeMa, batteryTypeName());
+  } else if (RES_LOW_VBAT_RECOVERY && gCbV >= 2.20f && gCbV <= 2.50f) {
+    if (lastRecoveryAttemptMs && millis() - lastRecoveryAttemptMs < 5000UL) return;
+    lastRecoveryAttemptMs = millis();
+    FleetRecoverySample sample = {
+        .supply_good = gCsGood,
+        .precharge_configured = prechargeConfigured(),
+        .battery_v = gCbV,
+        .battery_ma = gCbMa,
+        .supply_v = gCsV,
+        .supply_ma = gCsMa,
+        .charger_fault = gBq.fault0,
+    };
+    if (!fleetRecoveryMayTest(sample)) {
+      gLowVbatRecoveryState = LOW_VBAT_RECOVERY_WAITING;
+      Serial.printf("low-VBAT recovery waiting bv=%.3f input=%.3f/%.0f/%d "
+                    "fault=0x%02X batt_ma=%.0f precharge=%d\n",
+                    gCbV, gCsV, gCsMa, gCsGood ? 1 : 0, gBq.fault0, gCbMa,
+                    prechargeConfigured() ? 1 : 0);
+      return;
+    }
+    uint16_t detectedMv = 0xFFFF;
+    if (!bqBatteryPresenceTest(detectedMv)) {
+      gLowVbatRecoveryState = LOW_VBAT_RECOVERY_IO_ERROR;
+      Serial.println("low-VBAT recovery: BQ presence test I2C error; retrying");
+      return;
+    }
+    gLowVbatRecoveryDetectMv = detectedMv;
+    if (!fleetRecoveryBatteryDetected(detectedMv)) {
+      done = true;
+      gLowVbatRecoveryState = LOW_VBAT_RECOVERY_REFUSED;
+      Serial.printf("LOW-VBAT RECOVERY REFUSED: BQ presence ADC=%umV\n",
+                    (unsigned)detectedMv);
+      return;
+    }
+    allLoadsOff("low-VBAT recovery");
+    railEnableVSQT(false);
+    Board.setBatteryChargingMaxCurrent((float)RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA);
+    configurePrecharge();
+    Board.enableBatteryCharging(true);
+    gChargingEnabled = true;
+    gLowVbatRecoveryChargeActive = true;
+    gLowVbatRecoveryState = LOW_VBAT_RECOVERY_ACTIVE;
+    pfSolarGuardInit(kTag, gMaintainV, true);
+    done = true;
+    Serial.printf("LOW-VBAT RECOVERY ACTIVE gauge=%.3fV BQ=%umV "
+                  "charge_ceiling=%umA\n",
+                  gCbV, (unsigned)detectedMv,
+                  (unsigned)RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA);
   } else {
+    done = true;
+    gLowVbatRecoveryState = LOW_VBAT_RECOVERY_REFUSED;
     Serial.printf("battery %.2fV implausible -> charging stays OFF\n", gCbV);
   }
 }
@@ -158,13 +377,15 @@ static void chargingGuardTick() {
 void readBatteryNow() {
   if (!gPfReady) return;
   readBatteryCell();
-  chargingGuardTick();
   float v;
   if (Board.getSupplyVoltage(v) == Result::Ok) gCsV = v;
   if (Board.getSupplyCurrent(v) == Result::Ok) gCsMa = v;
   bool g;
   if (Board.checkSupplyGood(g) == Result::Ok) gCsGood = g;
   readChargerStatus();
+  chargingGuardTick();
+  // Refresh the enable bit/current/fault snapshot after the one-shot guard.
+  if (gChargingEnabled) readChargerStatus();
   pfSolarGuardTick(kTag, gCsV, gCsMa, gCsGood, gMaintainV, gChargingEnabled);
 }
 
@@ -268,16 +489,37 @@ bool applyMaintainV10(uint8_t v10) {
   return true;
 }
 
-void enterTimedDeepSleep(uint16_t seconds, const char *why) {
+bool transportWakeDarkActive() { return gTransportWakeDark; }
+
+void transportWakeDarkRelease() {
+  if (!gTransportWakeDark && gTransportWakeMagic != kTransportWakeMagic) return;
+  gTransportWakeDark = false;
+  gTransportWakeMagic = 0;
+  Serial.println("transport wake: dark latch released by bridge program command");
+}
+
+void enterTimedDeepSleep(uint32_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
   allLoadsOff("deep sleep");
   if (gPfReady) {
     railEnable3V3(false);
     railEnableVSQT(false);
   }
-  Serial.printf("deep sleep (%s), timer wake %us\n", why, (unsigned)seconds);
+  Serial.printf("deep sleep (%s), timer wake %lus\n", why,
+                (unsigned long)seconds);
   solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
+}
+
+void enterTransportSleep(uint32_t seconds, const char *why) {
+  if (seconds == 0 || seconds > 7UL * 24UL * 3600UL) {
+    Serial.printf("transport sleep refused: %lus outside 1..604800s\n",
+                  (unsigned long)seconds);
+    return;
+  }
+  gTransportWakeMagic = kTransportWakeMagic;
+  gTransportWakeDark = true;
+  enterTimedDeepSleep(seconds, why);
 }

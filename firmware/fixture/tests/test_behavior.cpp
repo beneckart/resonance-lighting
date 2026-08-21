@@ -88,6 +88,9 @@ int main() {
     CHECK_EQ(n, 2u);
     CHECK_EQ(v[0].state, 2u); // -50 strongest
     CHECK_EQ(v[1].state, 3u); // -60 second
+    neighborUpsert(t, b, 1500, -50)->flags = 0x08;
+    n = neighborSnapshot(t, 1501, 3000, v, 2);
+    CHECK_EQ(v[0].flags, 0x08u);
     // Stale entries drop out.
     n = neighborSnapshot(t, 10000, 3000, v, 8);
     CHECK_EQ(n, 0u);
@@ -99,6 +102,11 @@ int main() {
     n = neighborSnapshot(t, 20100, 3000, v, 8);
     CHECK_EQ(n, 1u);
     CHECK_EQ(v[0].id[0], 1u);
+    // A locate survey deliberately ignores the CA pin and sees the full heard
+    // roster, still ordered strongest-first.
+    n = neighborSurveySnapshot(t, 20100, 3000, v, 8);
+    CHECK_EQ(n, 2u);
+    CHECK_EQ(v[0].id[0], 2u);
     neighborClearPinned(t);
     n = neighborSnapshot(t, 20100, 3000, v, 8);
     CHECK_EQ(n, 2u); // back to RSSI mode
@@ -112,9 +120,9 @@ int main() {
       uint8_t id[3] = {(uint8_t)(i + 1), 0, 0};
       neighborUpsert(t, id, 1000, -60);
     }
-    uint8_t weakNew[3] = {99, 0, 0};
+    uint8_t weakNew[3] = {0xFE, 1, 0};
     CHECK(neighborUpsert(t, weakNew, 1001, -58) == nullptr); // <6 dB stronger: rejected
-    uint8_t strongNew[3] = {98, 0, 0};
+    uint8_t strongNew[3] = {0xFE, 2, 0};
     CHECK(neighborUpsert(t, strongNew, 1002, -50) != nullptr); // >6 dB: evicts
   }
 
@@ -291,6 +299,27 @@ int main() {
     // A live profile flip changes the fallback but does not invent a lease.
     CHECK(rt.setAutonomousProgram(PROG_GH_CA, 6000, true));
     CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_GH_CA);
+  }
+
+  // A bridge dark lease is distinguishable from the unleased commissioning
+  // fallback so platform glue can cut the rail only for explicit blackout.
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7, PROG_COMMISSION_DARK);
+    CHECK(!rt.darkLeaseActive());
+    uint8_t params[8] = {};
+    CHECK(rt.applyProgramSet(PROG_COMMISSION_DARK, 30, 1,
+                             1 /* hard cut */, params, 1000));
+    CHECK(rt.leaseActive());
+    CHECK(rt.darkLeaseActive());
+    ProgramInputs in = {};
+    in.nowMs = 31001;
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    rt.tick(in, out);
+    CHECK(!rt.leaseActive());
+    CHECK(!rt.darkLeaseActive());
   }
 
   // --- PROG_DIRECT: slew convergence, hard-cut, hold+half, stale fallback ---

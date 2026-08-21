@@ -35,6 +35,33 @@ Thumbs.db
 *.zip
 firmware/*/build/
 
+# Agent/harness tooling (machine-local, not project source)
+.claude/
+.claude-flow/
+.gstack/
+.swarm/
+.playwright-mcp/
+app/.claude/
+app/.gstack/
+app/.swarm/
+
+# Test/build artifacts (regenerable)
+app/coverage/
+
+# Generated demo capture (regenerate via app/scripts/record-demo.mjs)
+demo-videos/
+
+# Scratch base64 image dumps at repo root (not app source)
+/gol-nodes.txt
+/group-modes.txt
+/life-frame.txt
+/life-taps.txt
+/life-v2.txt
+/random-pop.txt
+/random-pop2.txt
+/theme-love.txt
+/unity.txt
+
 # LibreOffice lock files
 .~lock.*#
 
@@ -53,3 +80,7 @@ ops/bench/data/**/*-ota-results.jsonl
 ops/bench/data/**/*-local-full.jsonl
 ops/bench/data/**/*-charge-taper-*.jsonl
 ops/bench/data/**/*-charge-taper-*.done.json
+
+# QA/audit test-output artifacts (network-tester runs)
+app/audit-shards/
+app/*-audit.json

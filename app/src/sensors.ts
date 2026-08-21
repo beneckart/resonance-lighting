@@ -1,0 +1,79 @@
+import type { Control } from "./store";
+
+/** Environmental sensors (on-playa inputs). Real hardware (Ben's PRESENCE_SENSING
+ *  doc): per-lantern downward ToF lidar eyes (VL53L1X, primary; PIR ruled out) +
+ *  mesh-RSSI attenuation (aggregate crowd) + optional mmWave, an IMU (sway/touch),
+ *  a temp probe, and an anemometer (wind); here they're simulated via the sensor
+ *  panel so the show can be tuned to them. */
+export interface Sensors {
+  crowd: number; // 0..1 estimated crowd density around the tree (mesh-RSSI aggregate / ToF count)
+  motion: number; // 0..1 instantaneous motion energy (someone moving past)
+  tempC: number; // ambient temperature °C
+  windKph: number; // wind speed km/h (anemometer)
+  ambient: number; // 0..1 ambient daylight (0 = night, 1 = full sun)
+}
+
+// NEUTRAL at rest (Elliot: the controller must be TRUTHFUL — a slider set to
+// 90% shows 90%). The environmental sim is opt-in: raise these to preview how
+// wind/crowd/temp/daylight would reshape the show. Defaults = no environment.
+export const DEFAULT_SENSORS: Sensors = {
+  crowd: 0,
+  motion: 0,
+  tempC: 20, // neutral (no colour shift)
+  windKph: 0,
+  ambient: 0,
+};
+
+const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+const frac = (x: number) => x - Math.floor(x);
+
+/** Auto-balance gain (Elliot: "sense the lighting from the piece and adapt the
+ *  levels to balance automatically"). Daylight washes the look out perceptually
+ *  (dayWash = 1 − 0.5·ambient); this gain is its INVERSE, so driving master by
+ *  it compensates → the tree reads the same at noon as at night. Night
+ *  (ambient 0) → 1.0 (unchanged); full sun (ambient 1) → 2.0. Capped. Pure. */
+export function autoBalanceGain(ambient: number): number {
+  const a = clamp(ambient, 0, 1);
+  return clamp(1 / (1 - 0.5 * a), 1, 2.2);
+}
+
+/** Fold the live sensors into the commanded control: temperature biases hue
+ *  warm/cool, wind speeds up motion, crowd raises energy, daylight washes the
+ *  look down — and (when autoBalance is on) auto-boosts master to compensate
+ *  for that wash so the tree stays readable. Pure — returns a new Control. */
+export function applyEnv(c: Control, s: Sensors): Control {
+  // temperature → COLOUR: hotter pulls the hue toward red/orange (an absolute warm
+  // target) and saturates it; colder pulls toward blue. Neutral around 20°C.
+  const heat = clamp((s.tempC - 20) / 25, -1, 1); // -1 cold … 0 neutral … +1 hot
+  const hueDelta = (from: number, to: number) => { let d = to - from; if (d > 0.5) d -= 1; else if (d < -0.5) d += 1; return d; };
+  let hue = c.hue;
+  let sat = c.sat;
+  if (heat > 0) {
+    hue = frac(c.hue + hueDelta(c.hue, 0.04) * heat * 0.9); // toward red/orange
+    sat = clamp(c.sat + heat * 0.2, 0, 1); // hotter → richer warmth
+  } else if (heat < 0) {
+    hue = frac(c.hue + hueDelta(c.hue, 0.6) * -heat * 0.7); // toward blue
+  }
+  // wind → faster animation (gusts liven the sway), capped
+  const speed = c.speed * clamp(1 + s.windKph / 45, 1, 2.2);
+  // crowd → more energy; daylight → washed out (perceptually dimmer)
+  const crowdGain = 1 + 0.45 * clamp(s.crowd, 0, 1); // 1.0 at rest → 1.45 packed; crowd ADDS energy, never dims
+  const dayWash = 1 - 0.5 * clamp(s.ambient, 0, 1);
+  const brightness = clamp(c.brightness * crowdGain * dayWash, 0, 1);
+  // AUTO-BALANCE: drive master harder as ambient rises to punch through daylight
+  const master = clamp(c.master * (c.autoBalance ? autoBalanceGain(s.ambient) : 1), 0, 2.2);
+  return { ...c, hue, sat, speed, brightness, master };
+}
+
+/** SOLAR HANDOFF edge (Ben's Solar Ray trigger): true exactly when the count of
+ *  panels still harvesting falls from >0 to 0 — the last panel just lost the
+ *  sun, and the tree takes over as the sun. Pure; callers own the prev state. */
+export function solarHandoffFired(prev: number, now: number): boolean {
+  return prev > 0 && now <= 0;
+}
+
+/** Wind-driven extra sway amount (0..~1) layered on top of pattern motion. */
+export function windSway(s: Sensors, t: number, phase: number): number {
+  const amp = clamp(s.windKph / 60, 0, 1);
+  return amp * (0.5 + 0.5 * Math.sin(t * (0.6 + amp) + phase * 6.283));
+}

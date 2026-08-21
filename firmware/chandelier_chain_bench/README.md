@@ -7,7 +7,7 @@ RGBW pixels consume 32 data bits and RGB pixels consume 24. Do not mix the two
 types in one chain with this standard NeoPixel driver; downstream framing and
 colors will be wrong. Build separately for `--type rgbw` or `--type rgb`.
 
-The automatic 34-second sequence repeats:
+The diagnostic mode's automatic 34-second sequence repeats:
 
 1. Spatial moving rainbow -- confirms every address and data continuity.
 2. Pure red, green, blue, and white fills -- exposes channel order and color
@@ -29,8 +29,15 @@ The reboot default is deliberately only 64/255: raise it after observing a full
 stable cycle so any brownout returns to a safe baseline instead of looping back
 into the stress level.
 
+For a simple stand-alone handoff, `--mode demo` replaces the diagnostic ladder
+with a continuous slow rainbow glow and moving wipe. The onboard USER/BOOT
+button toggles the pixels and the physical 3V3 LED rail off/on. The animation
+resumes after the next press; no host, WiFi, mesh, or configuration is required.
+Separate controllers free-run from their own boot time and are not synchronized.
+
 ```sh
 ./build.sh --type rgbw --pixels 4 --brightness 64 --budget-ma 800 --cap 6000 --port COM71
+./build.sh --mode demo --type rgb --pixels 9 --brightness 88 --budget-ma 800 --cap 6000
 ```
 
 Serial at 115200 prints JSON power/pattern telemetry. Commands:
@@ -45,6 +52,10 @@ m<0..7>  manual: rainbow R G B W bars chase stress
 o        all-off frame then switch the 3V3 LED rail off before chain changes
 p        switch the LED rail on and resume after chain changes
 ```
+
+The firmware avoids reconfiguring GPIO10 after NeoPixel RMT has claimed it.
+Calling `pinMode()` on that pin after the first `show()` detaches Arduino-ESP32
+3.x RMT and can make a later rail-on cycle remain dark.
 
 For seven lensed RGB modules at static RGB white, the 800 mA default applies
 brightness 113/255 (`7 * 257 * 113 / 255` is about 797 mA). The earlier

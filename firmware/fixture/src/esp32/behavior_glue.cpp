@@ -5,6 +5,7 @@
 #include "../core/choreo/program.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
+#include "../core/presence_wave.h"
 #include "board_power.h"
 #include "espnow_link.h"
 #include "identity.h"
@@ -12,6 +13,7 @@
 #include "nvs_store.h"
 #include "ota_verify.h"
 #include "power_glue.h"
+#include "sensors/sensors.h"
 #include "telemetry.h"
 
 #define RES_RX_HOLD_MS 600000UL      // heard-anything hold (10 min)
@@ -19,6 +21,10 @@
 #define RES_WAKE_LISTEN_MS 15000UL   // deep-sleep wake listen window
 #define RES_CHOREO_KEEPALIVE_MS 1000
 #define RES_NEIGHBOR_FRESH_MS 3000
+#define RES_WAVE_CAPABLE_FLAG 0x08
+#define RES_WAVE_VISITED_MAX 160
+#define RES_WAVE_HOPS 150
+#define RES_WAVE_ORIGIN_COOLDOWN_MS 2000
 
 static ChoreoRuntime gRuntime;
 static NeighborTable gNeighbors;
@@ -35,6 +41,179 @@ static uint32_t gNextChoreoTxMs = 0;
 static uint32_t gLastShowFrameRxMs = 0;
 static uint8_t gLastProfile = 0xFF;
 
+struct PresenceWaveState {
+  uint32_t eventId;
+  uint8_t hue;
+  uint8_t pointValue;
+  uint8_t depth;
+  uint8_t hopsRemaining;
+  bool activated;
+  uint8_t fanoutSent;
+  uint32_t nextFanoutMs;
+  uint8_t visited[RES_WAVE_VISITED_MAX][3];
+  uint8_t visitedCount;
+};
+
+static PresenceWaveState gWave;
+static TmfPresenceGate gPresence;
+static bool gWaveDisplayActive = false;
+static uint8_t gWaveDisplayHue = 0;
+static uint8_t gWaveDisplayValue = 96;
+static uint32_t gLastPresenceOriginMs = 0;
+static uint32_t gLastWaveActivityMs = 0;
+static bool gPresencePending = false;
+static uint32_t gPresenceFireAtMs = 0;
+static uint32_t gRetiredWaveIds[4] = {};
+static uint8_t gRetiredWavePos = 0;
+
+static void waveClear() {
+  if (gWave.eventId)
+    gRetiredWaveIds[gRetiredWavePos++ & 0x03] = gWave.eventId;
+  memset(&gWave, 0, sizeof(gWave));
+  gWaveDisplayActive = false;
+  gPresencePending = false;
+  gWaveDisplayHue = 0;
+  gWaveDisplayValue = 96;
+}
+
+static bool waveIsRetired(uint32_t eventId) {
+  for (uint8_t i = 0; i < 4; ++i)
+    if (gRetiredWaveIds[i] == eventId) return true;
+  return false;
+}
+
+static void waveRememberVisited(const uint8_t id[3]) {
+  if (waveIdSeen(gWave.visited, gWave.visitedCount, id)) return;
+  if (gWave.visitedCount < RES_WAVE_VISITED_MAX)
+    memcpy(gWave.visited[gWave.visitedCount++], id, 3);
+}
+
+static void waveBegin(uint32_t eventId, uint8_t hue, uint8_t value) {
+  if (gWave.eventId && gWave.eventId != eventId) {
+    gRetiredWaveIds[gRetiredWavePos++ & 0x03] = gWave.eventId;
+  }
+  memset(&gWave, 0, sizeof(gWave));
+  gWave.eventId = eventId;
+  gWave.hue = hue;
+  gWave.pointValue = value ? value : 96;
+}
+
+static void waveActivate(uint8_t depth, uint8_t hopsRemaining) {
+  if (gWave.activated) return;
+  gWave.activated = true;
+  gWave.depth = depth;
+  gWave.hopsRemaining = hopsRemaining;
+  gWave.fanoutSent = 0;
+  gWave.nextFanoutMs = millis() + 140 + (esp_random() % 240);
+  gWaveDisplayActive = true;
+  gWaveDisplayHue = gWave.hue;
+  gWaveDisplayValue = gWave.pointValue;
+  Serial.printf("presence-wave: event=%08lx hue=%u depth=%u visited=%u\n",
+                (unsigned long)gWave.eventId, gWave.hue, depth,
+                gWave.visitedCount);
+}
+
+static void waveSendTarget(const uint8_t target[3], uint8_t depth,
+                           uint8_t hopsRemaining) {
+  NbEvent event;
+  memset(&event, 0, sizeof(event));
+  fillHeader(&event.h, NB_EVENT);
+  event.event_id = gWave.eventId;
+  event.kind = NB_EVENT_PRESENCE_WAVE;
+  event.hop_limit = hopsRemaining;
+  memcpy(&event.params[NB_EVENT_TARGET_OFFSET], target, 3);
+  event.params[NB_EVENT_HUE_OFFSET] = gWave.hue;
+  event.params[NB_EVENT_VALUE_OFFSET] = gWave.pointValue;
+  event.params[NB_EVENT_DEPTH_OFFSET] = depth;
+  espNowSendRaw(&event, sizeof(event));
+}
+
+static void waveOrigin() {
+  uint32_t eventId = esp_random();
+  if (!eventId) eventId = 1;
+  uint8_t hue = (uint8_t)esp_random();
+  uint8_t delta = hue > gWaveDisplayHue ? hue - gWaveDisplayHue
+                                        : gWaveDisplayHue - hue;
+  if (gWaveDisplayActive && (delta < 32 || delta > 224)) hue += 85;
+  waveBegin(eventId, hue, 96);
+  waveRememberVisited(gMyId);
+  waveActivate(0, RES_WAVE_HOPS);
+  // Announce the root as an already-visited target. Our own broadcast echo is
+  // ignored locally, while every peer initializes the same event ledger.
+  waveSendTarget(gMyId, 0, RES_WAVE_HOPS);
+  gLastWaveActivityMs = millis();
+}
+
+void behaviorOnEvent(const NbEvent &event) {
+  if (event.kind != NB_EVENT_PRESENCE_WAVE || !event.event_id) return;
+  // Bridge/direct authority suppresses autonomous presence propagation. A
+  // blackout must not collect a hidden wave that reappears when its lease ends.
+  if (gRuntime.leaseActive()) return;
+  gLastWaveActivityMs = millis();
+  gPresencePending = false; // earliest nearby origin wins the random backoff
+  const uint8_t *target = &event.params[NB_EVENT_TARGET_OFFSET];
+  if (event.event_id != gWave.eventId) {
+    if (waveIsRetired(event.event_id)) return;
+    waveBegin(event.event_id, event.params[NB_EVENT_HUE_OFFSET],
+              event.params[NB_EVENT_VALUE_OFFSET]);
+  }
+  waveRememberVisited(target);
+  if (memcmp(target, gMyId, 3) == 0)
+    waveActivate(event.params[NB_EVENT_DEPTH_OFFSET], event.hop_limit);
+}
+
+static void waveTick(uint32_t now) {
+  if (gRuntime.leaseActive()) {
+    gPresencePending = false;
+    return;
+  }
+  const SensorSnapshot &snapshot = sensors();
+  if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
+      tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
+                         snapshot.tofZoneConfidence) &&
+      now - gLastPresenceOriginMs >= RES_WAVE_ORIGIN_COOLDOWN_MS &&
+      powerBudget().brightness_cap > 0) {
+    // A person can be visible to adjacent canopies. Randomize the origin by a
+    // few hundred ms; the first event heard cancels every other pending origin
+    // so one physical approach yields one hue instead of a boot-time palette.
+    gPresencePending = true;
+    gPresenceFireAtMs = now + 120 + (esp_random() % 500);
+  }
+  if (gPresencePending && (int32_t)(now - gPresenceFireAtMs) >= 0) {
+    gPresencePending = false;
+    if (!gLastWaveActivityMs || now - gLastWaveActivityMs >= 1000) {
+      gLastPresenceOriginMs = now;
+      waveOrigin();
+    }
+  }
+
+  if (!gWave.activated || gWave.hopsRemaining == 0 ||
+      gWave.fanoutSent >= 2 || (int32_t)(now - gWave.nextFanoutMs) < 0)
+    return;
+
+  NeighborView views[NB_NEIGHBOR_REPORT_MAX];
+  uint8_t count = neighborSnapshot(gNeighbors, now, RES_NEIGHBOR_FRESH_MS,
+                                   views, NB_NEIGHBOR_REPORT_MAX);
+  const NeighborView *chosen = nullptr;
+  for (uint8_t i = 0; i < count; ++i) {
+    if (!(views[i].flags & RES_WAVE_CAPABLE_FLAG)) continue;
+    if (memcmp(views[i].id, gMyId, 3) == 0) continue;
+    if (waveIdSeen(gWave.visited, gWave.visitedCount, views[i].id)) continue;
+    chosen = &views[i];
+    break;
+  }
+  if (!chosen) {
+    gWave.fanoutSent = 2;
+    return;
+  }
+
+  waveRememberVisited(chosen->id);
+  waveSendTarget(chosen->id, (uint8_t)(gWave.depth + 1),
+                 (uint8_t)(gWave.hopsRemaining - 1));
+  ++gWave.fanoutSent;
+  gWave.nextFanoutMs = now + 80 + (esp_random() % 100);
+}
+
 void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gClass = fixtureClass;
   gPixels = pixelCount;
@@ -50,6 +229,8 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
                                        : RES_BOOT_AWAKE_MS);
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
+  tmfPresenceInit(gPresence);
+  memset(&gWave, 0, sizeof(gWave));
 }
 
 void behaviorForceNight(int8_t force) { gForceNight = force; }
@@ -76,6 +257,7 @@ void behaviorOnChoreoState(const uint8_t srcId[3], int8_t rssi, const NbChoreoSt
   e->choreoState = cs.state;
   e->programId = cs.program_id;
   e->generation = cs.generation;
+  e->flags = cs.flags;
 }
 
 void behaviorOnPeerHeartbeat(const uint8_t srcId[3], int8_t rssi, uint8_t caState,
@@ -91,6 +273,8 @@ void behaviorOnProgramSet(const NbProgramSet &ps) {
   if (!nbTargetMatches(ps.target_id, gMyId)) return;
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
+  if (ok) transportWakeDarkRelease();
+  if (ok && ps.lease_s) waveClear();
   Serial.printf("program-set: prog=%u lease=%us -> %s\n", ps.program_id,
                 ps.lease_s, ok ? "applied" : "REJECTED (unknown program)");
 }
@@ -115,10 +299,51 @@ void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
   uint32_t now = millis();
   DirectFrameState fs = {now, r, g, b, w, flags};
   gRuntime.noteDirectFrame(fs, now);
+  transportWakeDarkRelease();
+  if (flags & 0x01) waveClear();
 }
+
+uint8_t behaviorNeighborSnapshot(NeighborView *out, uint8_t maxOut) {
+  // A 15 s window covers the production 0.2 Hz heartbeat cadence with margin;
+  // unlike CA behavior, the survey must not be constrained by a pinned map.
+  return neighborSurveySnapshot(gNeighbors, millis(), 15000UL, out, maxOut);
+}
+
+
+#ifdef RES_BASIC_LISTENER
+// Basic supervised posture. Canopy/downlight fixtures use their efficient,
+// pleasant dedicated warm-white die. The 37-pixel perimeter wash is only
+// 16/255 linear red to avoid multiplying the listener load by every HEX die;
+// single-pixel RGB classes retain half-scale red. Tags/leases override it.
+static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
+  f.count = (uint8_t)pixels;
+  frameClear(f);
+  if (gWaveDisplayActive) {
+    uint8_t value = gClass == FIXTURE_PERIMETER
+                        ? (gWaveDisplayValue > 14 ? 14 : gWaveDisplayValue)
+                        : gWaveDisplayValue;
+    uint8_t r, g, b;
+    waveHueToRgb(gWaveDisplayHue, value, r, g, b);
+    for (uint16_t i = 0; i < f.count; ++i) {
+      f.px[i][0] = r;
+      f.px[i][1] = g;
+      f.px[i][2] = b;
+    }
+    return;
+  }
+  if (gClass == FIXTURE_DOWNLIGHT) {
+    f.px[0][3] = 128;
+  } else {
+    uint8_t red = gClass == FIXTURE_PERIMETER ? 16 : 128;
+    for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = red;
+  }
+}
+#endif
 
 void behaviorTick() {
   uint32_t now = millis();
+
+  waveTick(now);
 
   // Profile flips (NB_PROFILE / serial F) re-derive the lifecycle config live.
   if (gCfg.profile != gLastProfile) {
@@ -181,12 +406,26 @@ void behaviorTick() {
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
+#ifdef RES_BASIC_LISTENER
+    // Slave/bench posture (Elliot 2026-08-15): no autonomous show — with no
+    // explicit lease, render a LOW-RED idle beacon ("power efficient and
+    // shows that it is ready for command") instead of the default programs.
+    // Radio, sensors, telemetry, and every commanded path (DIRECT stream,
+    // bridge show, identify) stay fully live.
+    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
+#endif
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
 
-    // Choreo tx: 1 Hz keepalive + edge-triggered bursts, power-vetoed.
-    if (gCfg.profile == PROFILE_PROD && pb.may_tx_show &&
+    // Choreo tx: 1 Hz keepalive + edge-triggered bursts. Production remains
+    // power-vetoed; the supervised basic-listener image also advertises its
+    // wave capability in commission mode so the demo graph can form.
+    bool allowChoreoTx = gCfg.profile == PROFILE_PROD && pb.may_tx_show;
+#ifdef RES_BASIC_LISTENER
+    allowChoreoTx = allowChoreoTx || gCfg.profile == PROFILE_DEV;
+#endif
+    if (allowChoreoTx &&
         (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
@@ -198,15 +437,60 @@ void behaviorTick() {
       cs.phase_ms = pout.phaseMs;
       cs.flags = (uint8_t)((pb.brightness_cap == 0 ? 0x01 : 0) |
                            (gRuntime.leaseActive() ? 0x02 : 0) |
-                           (gCfg.profile == PROFILE_DEV ? 0x04 : 0));
+                           (gCfg.profile == PROFILE_DEV ? 0x04 : 0) |
+                           RES_WAVE_CAPABLE_FLAG);
       espNowSendRaw(&cs, sizeof(cs));
       uint32_t jit = esp_random() % 600;
       gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS - 300 + jit; // +/-30%
     }
   } else {
+#ifdef RES_BASIC_LISTENER
+    // Full-control posture: the program engine runs in DAY/BOOT states too,
+    // so commanded frames (DIRECT stream / programs) render around the clock
+    // and telemetry reports the true active program. First beacon build only
+    // rendered at night AND painted the beacon over live commands (measured:
+    // T2 green-on-command FAIL, prog stuck 0, 2026-08-15 evening).
+    ShowFrameState fs = {sf.rx_ms, sf.phase, sf.hue, sf.flags, sf.val,
+                         sf.bright, sf.effect, sf.beat_phase, sf.energy};
+    ProgramInputs pin = {};
+    pin.nowMs = now;
+    pin.dtMs = 0;
+    pin.fixtureClass = gClass;
+    pin.pixelCount = gPixels;
+    pin.neighbors = nullptr;
+    pin.neighborCount = 0;
+    pin.showFrame = &fs;
+    pin.tier = (uint8_t)pb.tier;
+    pin.tickDivider = pb.tick_divider;
+    ProgramOutputs pout = {};
+    gRuntime.tick(pin, pout);
+    gFrame = pout.frame;
+    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
+    gNetCaState = 0;
+    gNetProgram = gRuntime.activeProgram();
+    gTelemetryProgram = gNetProgram;
+    // 1 Hz choreo-state keepalive in day states too: the operator's "always
+    // know their state" contract — without this, program truth reaches the
+    // daemon only on sparse full heartbeats (~60 s lag, measured).
+    // state tx deliberately NOT power-vetoed here: on the bench a low cell
+    // must still report truthfully (Luigi at 21%% went state-silent, measured)
+    if ((int32_t)(now - gNextChoreoTxMs) >= 0) {
+      NbChoreoState cs;
+      memset(&cs, 0, sizeof(cs));
+      fillHeader(&cs.h, NB_CHOREO_STATE);
+      cs.program_id = gRuntime.activeProgram();
+      cs.flags = (uint8_t)((pb.brightness_cap == 0 ? 0x01 : 0) |
+                           (gRuntime.leaseActive() ? 0x02 : 0) |
+                           (gCfg.profile == PROFILE_DEV ? 0x04 : 0) |
+                           RES_WAVE_CAPABLE_FLAG);
+      espNowSendRaw(&cs, sizeof(cs));
+      gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS;
+    }
+#else
     gNetCaState = 0;
     gNetProgram = 0;
     gTelemetryProgram = 0;
+#endif
   }
 
   // Prod day-charge duty cycle. Blocked by pending OTA verify and maintenance
@@ -216,6 +500,19 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+  // Timer wake from a shipping sleep must never invent a light show inside
+  // the container. Radio and telemetry are live; an explicit bridge program
+  // command releases this latch after unpacking.
+  if (transportWakeDarkActive()) return false;
+#ifdef RES_BASIC_LISTENER
+  // A bridge DARK lease is electrically dark, not merely an all-zero frame.
+  // Returning false lets renderTick blank data and cut the LED rail.
+  if (gRuntime.darkLeaseActive()) return false;
+  // Quiet posture always has a class-appropriate listener frame (or a leased
+  // commanded frame). Keeps the LED rail up whenever the chip is awake.
+  f = gFrame;
+  return true;
+#else
   if (!gShowActive) return false;
   // In commissioning, loss/expiry of bridge authority means electrically
   // dark, not a locally invented pattern. Returning false lets renderTick cut
@@ -223,4 +520,5 @@ bool behaviorFrame(FrameBuffer &f) {
   if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive()) return false;
   f = gFrame;
   return true;
+#endif
 }

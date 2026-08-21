@@ -33,7 +33,7 @@ void statusLedIdentify(uint8_t secs) {
 static int lfpVoltageFloor(float v) {
   if (v >= 3.35f) return 60; // charged/plateau: never blink scary
   if (v >= 3.20f) return 30; // plateau: at least "mid"
-  if (v >= 3.00f) return 12; // knee approaching: at least "low", not critical
+  if (v >= 3.15f) return 12; // ADR 0046 dim: at least "low", not critical
   return 0;                  // below dim threshold: trust the panic blinks
 }
 

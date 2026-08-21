@@ -64,7 +64,11 @@ void setup() {
   //    PowerFeather deliberately preserves VSQT across warm/OTA resets, which
   //    otherwise lets a stale TMF firmware/ranging state survive the MCU reset.
   //    The LED rail stays parked until a deliberate, ramped turn-on.
-  if (!bootGuardParked()) {
+  if (deepRecoveryBuild()) {
+    // Test-class recovery images never power sensors or LEDs. The charger and
+    // radio are the only active subsystems needed for the supervised canary.
+    railEnableVSQT(false);
+  } else if (!bootGuardParked()) {
     if (!railCycleVSQT())
       Serial.println("VSQT cold-start verification FAILED; sensors may degrade");
   } else if (!railEnableVSQT(false)) {
@@ -72,8 +76,9 @@ void setup() {
   }
 
   // 8. Class probe -> LED profile (one image, hardware decides; ADR 0009).
-  if (!bootGuardParked()) {
+  if (!deepRecoveryBuild() && !bootGuardParked()) {
     ProbeBits bits = sensorBusProbe();
+    gTelemetrySensorBits = probeBitsMask(bits);
     ClassDecision cd = classDecide(bits, gCfg.classOvr, gCfg.classLast);
     if (cd.persistLast) nvsPersistClassLast(cd.persistLast);
     gTelemetryFixtureClass = cd.cls;
@@ -85,7 +90,7 @@ void setup() {
   }
   // 9. Class sensors (cooperative machines; perimeter's VL53L5CX firmware
   //    upload takes several seconds, once).
-  if (!bootGuardParked()) sensorsInit(gTelemetryFixtureClass);
+  if (!deepRecoveryBuild() && !bootGuardParked()) sensorsInit(gTelemetryFixtureClass);
 
   // 11. Watchdog before network bring-up.
   watchdogInit();
@@ -149,14 +154,23 @@ void loop() {
 // the program runtime's night show. The power veto caps everything; a
 // hard-parked boot never lights.
 void renderTick() {
+  if (deepRecoveryBuild()) {
+    if (ledRailIsOn()) ledRailOff();
+    return;
+  }
   if (bootGuardParked()) return;
+  if (gBenchRailForcedOff) {
+    if (ledRailIsOn()) ledRailOff();
+    return;
+  }
   uint8_t cap = powerBudget().brightness_cap; // the power veto: no path around it
   uint32_t now = millis();
   bool ident = netPeerIdentifyActive() && netPeerIdentifyColor() > 0;
   FrameBuffer f;
   bool have = false;
   if (ident) {
-    ledIdentifyFrame(f, netPeerIdentifyColor(), netPeerIdentifyBlink(), now);
+    ledIdentifyFrame(f, netPeerIdentifyColor(), netPeerIdentifyBlink(),
+                     netPeerIdentifyValue(), now);
     have = true;
   } else if (gSmokeRender) {
     ledSmokeFrame(f, now);

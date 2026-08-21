@@ -1,0 +1,486 @@
+import { PATTERN_IDS, ELEMENT_MODES, useTwin } from "./store";
+import { SHOWS } from "./shows";
+import { THEMES } from "./themes";
+import { isCommandLike, parseScript } from "./command";
+import { interpret, type Interpretation } from "./llm";
+
+/** OPENROUTER OPERATOR — the optional remote brain behind the SAME seam the
+ *  offline interpreter already occupies (Elliot 2026-08-15: "an AI Claude
+ *  through OpenRouter ... run the controller through voice without a code
+ *  change").
+ *
+ *  The charter line in llm.ts always anticipated this: "the command console IS
+ *  the LLM's tool surface — an external LLM would emit these same grammar
+ *  strings." So this file adds a second interpreter, not a second control path.
+ *  Natural language in, `command.ts` grammar lines out, `runScript` runs them.
+ *  Nothing downstream knows or cares which interpreter produced the lines.
+ *
+ *  THREE PROPERTIES THIS FILE MUST NEVER GIVE UP:
+ *
+ *  1. NO CODE, ONLY VOCABULARY. The model returns command-grammar lines, which
+ *     are shape-gated by `isCommandLike` and then parsed by the same
+ *     fail-safe `runCommandStr` a human's typing goes through. The model cannot
+ *     reach the tree with anything the controller could not already say.
+ *  2. THE KEY NEVER ENTERS THE REPO. It lives in localStorage on the operator's
+ *     own device, pasted into the app. It is never committed, never logged, and
+ *     never put in an error message (see `redact`).
+ *  3. OFFLINE ALWAYS WINS OVER BROKEN. Playa network is Starlink and it drops.
+ *     Every failure — no key, no network, rate limit, junk output, zero usable
+ *     lines — falls back to the deterministic `interpret()` rather than
+ *     surfacing an error. A voice command must never die because the sky did. */
+
+const KEY_STORAGE = "resonance.openrouter.key";
+const MODEL_STORAGE = "resonance.openrouter.model";
+/** Elliot 2026-08-15: "I would like it running opus 5".
+ *  Slug verified against OpenRouter's live model list (GET /api/v1/models) —
+ *  `anthropic/claude-opus-5` is present, alongside `-fast` and `:batch` variants.
+ *  Do not guess these: the previous default `anthropic/claude-sonnet-4.5` is a
+ *  real slug too, so a wrong-but-plausible model ID fails as a silent HTTP error
+ *  → offline fallback, which is indistinguishable from "the AI just isn't good". */
+export const DEFAULT_MODEL = "anthropic/claude-opus-5";
+export const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+
+/** localStorage is absent in tests/SSR — every accessor tolerates that. */
+function store(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null; // Safari private mode throws on access
+  }
+}
+
+export function loadKey(): string | null {
+  return store()?.getItem(KEY_STORAGE) ?? null;
+}
+
+export function saveKey(key: string): void {
+  const s = store();
+  if (!s) return;
+  const t = key.trim();
+  if (t) s.setItem(KEY_STORAGE, t);
+  else s.removeItem(KEY_STORAGE);
+}
+
+export function clearKey(): void {
+  store()?.removeItem(KEY_STORAGE);
+}
+
+export function loadModel(): string {
+  return store()?.getItem(MODEL_STORAGE) || DEFAULT_MODEL;
+}
+
+export function saveModel(model: string): void {
+  const s = store();
+  if (!s) return;
+  const t = model.trim();
+  if (t) s.setItem(MODEL_STORAGE, t);
+  else s.removeItem(MODEL_STORAGE);
+}
+
+export function remoteConfigured(): boolean {
+  return !!loadKey();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DIAGNOSTICS — the operator must be able to ASK the AI whether it is working.
+//
+// Elliot 2026-08-15: "we need to enable the AI built into the app to allow
+// communication so we know if it is working or if there is any errors."
+//
+// Before this, every remote failure was invisible by design: interpretRemote
+// falls back to the offline interpreter and never throws, which is the right
+// behaviour at showtime (a voice command must not die because the sky did) but
+// leaves the operator unable to tell "the model answered" from "the model was
+// never reached". `remoteConfigured()` made it worse by reporting a live
+// connection when all it knew was that a key existed.
+//
+// So: one honest round-trip, and a named reason when it fails. Every branch
+// below is a failure an operator can actually hit on the playa, and each one
+// carries the fix rather than a status code.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RemoteHealthCode =
+  | "ok"
+  | "no-key"
+  | "bad-key"
+  | "no-credit"
+  | "rate-limited"
+  | "model-missing"
+  | "no-network"
+  | "timeout"
+  | "bad-output";
+
+export interface RemoteHealth {
+  ok: boolean;
+  code: RemoteHealthCode;
+  /** one line an operator can act on, no status codes, never a key */
+  detail: string;
+  model: string;
+  /** round-trip milliseconds when a request actually went out */
+  latencyMs: number | null;
+  /** the commands the probe produced, when it got that far */
+  commands: string[];
+  checkedAt: number;
+}
+
+/** map an HTTP status to the thing the operator should actually do about it */
+function classifyStatus(status: number): { code: RemoteHealthCode; detail: string } {
+  if (status === 401 || status === 403)
+    return { code: "bad-key", detail: "Key rejected — paste the key again (it may have been revoked)." };
+  if (status === 402)
+    return { code: "no-credit", detail: "OpenRouter account is out of credit — top it up." };
+  if (status === 429)
+    return { code: "rate-limited", detail: "Rate limited — wait a moment, then try again." };
+  if (status === 404)
+    return { code: "model-missing", detail: "That model id isn't available on your OpenRouter account." };
+  if (status >= 500)
+    return { code: "no-network", detail: "OpenRouter is having trouble — the offline interpreter is covering." };
+  return { code: "bad-output", detail: `OpenRouter refused the request (${status}).` };
+}
+
+/**
+ * Ask the operator brain to prove it works, end to end.
+ *
+ * Deliberately a REAL interpretation of a fixed phrase rather than a bare ping:
+ * a 200 from the endpoint only proves the key is live, and the failure Elliot
+ * actually hit was the model answering fine while its answer got dropped by the
+ * shape gate. So the probe asserts the whole path — auth, model, grammar, gate —
+ * and `bad-output` is a genuinely different diagnosis from `bad-key`.
+ */
+export async function checkRemote(opts: RemoteOptions = {}): Promise<RemoteHealth> {
+  const model = opts.model ?? loadModel();
+  const base = { model, latencyMs: null as number | null, commands: [] as string[], checkedAt: Date.now() };
+
+  const apiKey = opts.apiKey ?? loadKey();
+  if (!apiKey)
+    return { ...base, ok: false, code: "no-key", detail: "No key saved — paste an OpenRouter key to enable the AI operator." };
+
+  const doFetch = opts.fetchImpl ?? (typeof fetch !== "undefined" ? fetch : null);
+  if (!doFetch)
+    return { ...base, ok: false, code: "no-network", detail: "No network stack available in this browser." };
+
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeoutMs = opts.timeoutMs ?? 15000;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const started = Date.now();
+
+  try {
+    const res = await doFetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://resonanceart.github.io/resonance-lighting/",
+        "X-Title": "Resonance Tree Lighting",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [
+          { role: "system", content: grammarPrompt() },
+          { role: "user", content: "turn the whole tree blue" },
+        ],
+      }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    const latencyMs = Date.now() - started;
+
+    if (!res.ok) {
+      const { code, detail } = classifyStatus(res.status);
+      return { ...base, latencyMs, ok: false, code, detail };
+    }
+
+    const text = stripFences(extractText(await res.json()));
+    const commands = parseScript(text).map(stripListMarker).filter(isCommandLike);
+    if (!commands.length)
+      return {
+        ...base, latencyMs, ok: false, code: "bad-output",
+        detail: "The model replied but not in the light grammar — the offline interpreter is covering.",
+      };
+
+    return {
+      ...base, latencyMs, ok: true, code: "ok", commands,
+      detail: `Working — answered in ${(latencyMs / 1000).toFixed(1)}s with ${commands.length} command${commands.length === 1 ? "" : "s"}.`,
+    };
+  } catch (e) {
+    const latencyMs = Date.now() - started;
+    const msg = e instanceof Error ? e.message : String(e);
+    const aborted = /abort/i.test(msg);
+    return {
+      ...base, latencyMs,
+      ok: false,
+      code: aborted ? "timeout" : "no-network",
+      detail: aborted
+        ? `No answer within ${Math.round(timeoutMs / 1000)}s — the network is slow or down.`
+        : `Couldn't reach OpenRouter — ${redact(msg)}`,
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// ─── rolling activity log: what the AI has actually been doing ───────────────
+// A one-shot test proves the link works NOW. This proves it kept working, and
+// is the surface an operator reads after a show to see what the tree was asked
+// to do and which brain answered each time.
+
+export interface AiLogEntry {
+  at: number;
+  said: string;
+  source: "openrouter" | "offline";
+  commands: string[];
+  error?: string;
+}
+
+const AI_LOG_MAX = 25;
+let aiLog: AiLogEntry[] = [];
+const aiLogSubs = new Set<() => void>();
+
+export function recordAiTurn(entry: AiLogEntry): void {
+  // newest first, bounded — this lives for the session, never persisted (the
+  // transcript can contain whatever was said near a hot mic)
+  aiLog = [{ ...entry, error: entry.error ? redact(entry.error) : undefined }, ...aiLog].slice(0, AI_LOG_MAX);
+  for (const fn of aiLogSubs) fn();
+}
+
+export function aiLogSnapshot(): AiLogEntry[] {
+  return aiLog;
+}
+
+export function subscribeAiLog(fn: () => void): () => void {
+  aiLogSubs.add(fn);
+  return () => { aiLogSubs.delete(fn); };
+}
+
+export function clearAiLog(): void {
+  aiLog = [];
+  for (const fn of aiLogSubs) fn();
+}
+
+/** A key must never reach a log line, a toast, or a thrown message. Any error
+ *  text that transits this module goes through here first. */
+export function redact(text: string): string {
+  return text.replace(/sk-or-[A-Za-z0-9_\-]+/g, "sk-or-***");
+}
+
+/** The grammar, stated once, for the model. Pattern ids are injected from the
+ *  live registries rather than retyped, so a pattern added to the app is a
+ *  pattern the operator can ask for on the same commit. */
+export function grammarPrompt(): string {
+  const patterns = [...PATTERN_IDS, ...ELEMENT_MODES].join(", ");
+  const shows = SHOWS.map((s) => `${s.id} (${s.vibe})`).join(" · ");
+  const themes = THEMES.map((t) => t.id).join(", ");
+  // the operator's saved custom modes, live from the store — the AI can recall
+  // a mode Elliot saved five minutes ago without any code or prompt change
+  let cueNames = "";
+  try {
+    cueNames = useTwin.getState().cues.map((c) => c.name).join(", ");
+  } catch { /* store not initialised (tests) — fine, section stays empty */ }
+  return [
+    "You are the lighting operator AI for the Resonance Tree — a 10 m bamboo art",
+    "installation of 130 solar LED lanterns at Burning Man (72 hanging downlights in",
+    "3 rings, 24 perimeter, 18 chandelier crown, 16 uplights). You are talking to the",
+    "digital twin; when real-drive is armed the physical tree mirrors it exactly.",
+    "",
+    "Translate the operator's request into lines of this command grammar. Output ONLY",
+    "command lines, one per line. No prose, no explanation, no markdown, no code fences.",
+    "",
+    "LOOK & FEEL (globals):",
+    "  pattern <id>      speed <0..3>      bri <0..1>      sat <0..1>      hue <0..1>",
+    `  pattern ids: ${patterns}`,
+    `  theme <id>   — colour mood for the living patterns; ids: ${themes}`,
+    "",
+    "TARGETED (specific lights):",
+    "  <target> off | on | color <name|#hex>",
+    "  target = all | zone <low|mid|high> | range <a-b> | every <n>",
+    "         | fixture <id> | light <n | n,n,n | a-b>",
+    "",
+    "SHOWS (5-min authored arcs):",
+    `  show <id> | show stop   — ids: ${shows}`,
+    "",
+    "GAME OF LIGHT (the interactive presence experience):",
+    "  gol arm   — tree goes dark in standby; first visitor tap ignites it",
+    "  gol end",
+    "",
+    "CUSTOM MODES (no code required — compose a look, then save it):",
+    "  cue save <name>   — saves the CURRENT look as a named mode",
+    "  cue <name>        — recalls it",
+    cueNames ? `  saved modes right now: ${cueNames}` : "  (no saved modes yet)",
+    "",
+    "FLEET OPS (the real lanterns):",
+    "  blink             — every real lantern blinks (roll call)",
+    "  blink <mac>       — one lantern blinks, e.g. blink F2BE20 (locate a light)",
+    "",
+    "STANDALONE:  clear (release overrides)    off (blackout)    on",
+    "",
+    "SEQUENCING:",
+    "  wait <seconds>    — pause a script; later lines run on a timer. A new",
+    "                      request from the operator cancels any pending script",
+    "                      instantly, so iterate freely.",
+    "",
+    "EXAMPLES",
+    "  'all red, slowly become purple, then dark, then start the ripple game'",
+    "    ->  all color red",
+    "        wait 6",
+    "        all color purple",
+    "        wait 6",
+    "        off",
+    "        wait 2",
+    "        clear",
+    "        theme random",
+    "        pattern ripples",
+    "  'make it feel like a slow sunrise'   ->  pattern rising",
+    "                                           speed 0.5",
+    "                                           all color orange",
+    "  'campfire mood but save it for later'->  pattern ember",
+    "                                           theme ember",
+    "                                           cue save campfire",
+    "  'play the sun show'                  ->  show solarray",
+    "  'which light is F2BE20?'             ->  blink F2BE20",
+    "  'do a roll call'                     ->  blink",
+    "  'set up the tap game'                ->  gol arm",
+    "  'kill everything'                    ->  off",
+    "",
+    "Compose freely: a described look usually wants a pattern + theme/colour +",
+    "speed + brightness together. If the request implies no lighting action at",
+    "all, output nothing.",
+  ].join("\n");
+}
+
+export interface RemoteOptions {
+  apiKey?: string;
+  model?: string;
+  /** injectable for tests — defaults to global fetch */
+  fetchImpl?: typeof fetch;
+  /** abort the call after this many ms; the offline interpreter takes over */
+  timeoutMs?: number;
+}
+
+export interface RemoteResult extends Interpretation {
+  /** which interpreter actually produced `commands` — surfaced in the UI so the
+   *  operator always knows whether the tree is being driven by the remote model
+   *  or the offline fallback. Never guess this from configuration state. */
+  source: "openrouter" | "offline";
+  /** populated when the remote path was attempted and failed */
+  error?: string;
+}
+
+function offline(nl: string, error?: string): RemoteResult {
+  const local = interpret(nl);
+  return { ...local, source: "offline", ...(error ? { error: redact(error) } : {}) };
+}
+
+/** Pull the assistant text out of an OpenRouter chat completion, tolerating the
+ *  shape drift between providers rather than assuming one. */
+function extractText(payload: unknown): string {
+  const p = payload as { choices?: Array<{ message?: { content?: unknown } }> };
+  const c = p?.choices?.[0]?.message?.content;
+  if (typeof c === "string") return c;
+  // some providers return content as an array of parts
+  if (Array.isArray(c)) {
+    return c
+      .map((part) => (typeof part === "string" ? part : (part as { text?: string })?.text ?? ""))
+      .join("");
+  }
+  return "";
+}
+
+/** Strip the markdown fence a model adds despite being told not to. Cheap, and
+ *  it rescues an otherwise perfectly good answer. */
+function stripFences(text: string): string {
+  return text
+    .replace(/^\s*```[a-zA-Z]*\s*/, "")
+    .replace(/```\s*$/, "")
+    .trim();
+}
+
+/** Strip a leading list marker — `1.` / `2)` / `-` / `*` / `•` / `Step 3:`.
+ *
+ *  MEASURED 2026-08-15, and this is why "the simple commands worked but the more
+ *  complex ones did not" (Elliot): `isCommandLike` tests only the FIRST WORD
+ *  against COMMAND_HEADS, so a single bare line like `all pattern spiral` passes
+ *  while `1. all pattern spiral` and `- all pattern spiral` are both dropped. A
+ *  one-step request gets one bare line and works; a compositional request ("make
+ *  it look like a sunset, then slowly darker") is exactly the kind a model
+ *  answers as a numbered or bulleted list — so EVERY line fails the gate,
+ *  `commands` comes back empty, and the whole thing silently falls back to the
+ *  offline interpreter. The failure scaled with request complexity, which reads
+ *  as "the AI is weak" rather than "the AI's answer was thrown away".
+ *
+ *  This normalizes the line PREFIX only. The vocabulary gate is untouched: the
+ *  head must still be a command we own, so property 1 in this file's charter —
+ *  NO CODE, ONLY VOCABULARY — still holds. Applied on the remote path only;
+ *  what a human types is parsed exactly as before. */
+function stripListMarker(line: string): string {
+  return line.replace(/^\s*(?:[-*•]|\d+[.)]|step\s+\d+\s*[:.]?)\s+/i, "");
+}
+
+/** test seam — the fence stripper is internal, but it is the one piece of
+ *  model-output handling worth pinning independently of a fake fetch. */
+export const stripFencesForTest = stripFences;
+/** test seam — see the note on stripListMarker; this is the fix for the
+ *  complexity-correlated silent fallback, so it gets pinned independently. */
+export const stripListMarkerForTest = stripListMarker;
+
+/** Natural language → command lines, via OpenRouter, with the offline
+ *  interpreter as the floor. This function does not throw. */
+export async function interpretRemote(nl: string, opts: RemoteOptions = {}): Promise<RemoteResult> {
+  const apiKey = opts.apiKey ?? loadKey();
+  if (!apiKey) return offline(nl);
+
+  const doFetch = opts.fetchImpl ?? (typeof fetch !== "undefined" ? fetch : null);
+  if (!doFetch) return offline(nl, "no fetch available");
+
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer =
+    controller && opts.timeoutMs
+      ? setTimeout(() => controller.abort(), opts.timeoutMs)
+      : null;
+
+  try {
+    const res = await doFetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://resonanceart.github.io/resonance-lighting/",
+        "X-Title": "Resonance Tree Lighting",
+      },
+      body: JSON.stringify({
+        model: opts.model ?? loadModel(),
+        temperature: 0,
+        messages: [
+          { role: "system", content: grammarPrompt() },
+          { role: "user", content: nl },
+        ],
+      }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+
+    if (!res.ok) {
+      // 401 bad key · 402 out of credit · 429 rate limit — all fall back
+      return offline(nl, `openrouter http ${res.status}`);
+    }
+
+    const text = stripFences(extractText(await res.json()));
+    // THE GATE: only lines that are vocabulary we own survive.
+    const commands = parseScript(text).map(stripListMarker).filter(isCommandLike);
+
+    if (!commands.length) {
+      // The model answered, but with nothing usable (prose, refusal, empty).
+      // The offline interpreter may still find intent in the same sentence.
+      return offline(nl, "model returned no usable commands");
+    }
+
+    return {
+      commands,
+      note: `openrouter → ${commands.join(" · ")}`,
+      source: "openrouter",
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return offline(nl, msg);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}

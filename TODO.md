@@ -4,6 +4,188 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [x] **Capture the Nevada City rig RSSI matrix before pack-out -- DONE
+  2026-08-17.** Bridge `4D5DB0` and 84 qualified fixtures received the immutable
+  transport/RSSI image. The 140-second `L` survey preserved 25,154 observations
+  from 48 reporters hearing 96 transmitters, with 4,558 unique directed pairs,
+  in `ops/locate/data/field/20260818-0300-nevada-city-rig-rssi.jsonl`
+  (Ben/Codex).
+- [x] **Arm a multi-day transport sleep without creating a lid-open wake task --
+  DONE 2026-08-17.** All 84 exact-revision fixtures accepted `Q99` at about
+  20:11 PDT and disappeared from fresh telemetry. Timer wake is expected about
+  23:11 PDT Friday; RESET wake was field-confirmed without flashing. Ten
+  then-reachable old fixtures received only the `S65535` 18.2-hour fallback.
+  After unload, bridge `b` clears the retained LED-dark latch (Ben/Codex + field
+  team).
+- [ ] **Recover a planar/grid embedding from the Nevada City RSSI matrix.** Start
+  with the raw 48-reporter/96-transmitter directed capture, symmetrize with
+  explicit missing-edge handling, compare rank-only and calibrated-RSSI distance
+  models, and score the result against only the known 6x12, 2x12, and 1x8 rig
+  shapes. The captured rows are one-sample neighbor-table EWMAs, not independent
+  window medians, so uncertainty and censoring must remain explicit (Ben/Codex).
+- [ ] **Close the awake test cohort before final pack-out.** Elliot may use
+  `9E5954`, `9F0E30`, `9F0E5C`, `9F26E4`, `F40174`, and `9F2720` while Ben is in
+  Oakland. All six had qualified USB input when left. On Ben's Thursday/Friday
+  return, verify power, then transport-sleep this awake subset for the remaining
+  transit interval. Do not disturb the 84-device long-sleep cohort whose Friday
+  night timer already aligns with unload (Ben + Elliot).
+- [ ] **Reconcile `9F2720` battery capacity.** USB commissioning proved healthy
+  canopy/downlight sensors and current firmware, but the persisted/registry
+  capacity is still 6,000 mAh. Physically identify the installed cell before
+  changing it to the 15,000 mAh large-enclosure setting (Ben).
+
+- [x] **Promote the 2026-08-17 small-fixes fixture candidate -- DONE
+  2026-08-17.** Built immutable `fx-260818-05ed4b3-b` once from clean commit
+  `e09f46f`; binary SHA-256 is
+  `2986a0294827ef6be970d2ffe50066c885f3107f139f8601d5054d797467e1db`.
+  Battery-backed canary `F40174`, the 56-target main wave, and the three-target
+  safe tail all returned fresh exact-revision heartbeats and survived the
+  20-second pending-verify gate: 60/60 attempted and verified. All 60 later
+  reported LED rail off and zero lit pixels under the dark lease. No low-voltage,
+  recovery, downlink-anomalous, or slot-anomalous fixture was flashed; bridge
+  `4D5DB0` was untouched (Ben/Codex).
+- [ ] **Finish the small-rig perimeter USB rescue.** The inverse-light pass is
+  complete on the 74-fixture large rig, with nine low fixtures positively
+  charging. The small rig ran out of USB cables, so some dark perimeter fixtures
+  have not had a powered recovery opportunity. Do not classify their silence as
+  a dead cell. As cables free up, power each remaining dark slot, wait for a fresh
+  source/current report, then separate positive-current recovery from the
+  near-zero-current battery/charge-path bench queue (Ben + field team).
+- [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
+  visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter, of which
+  one perimeter is intentionally batteryless; roughly 20 additional trunk
+  lights are boxed and batteryless. Give every rig slot a durable label, use
+  addressed identify to record its short MAC, and explicitly record empty,
+  batteryless, bootloader, and silent slots. Reconcile the expected 105 powered
+  fixtures against dashboard identities instead of inferring missing units from
+  aggregate counts (Ben + Elliot/field team).
+
+- [ ] **Choose the daytime recovery posture after the dark-awake baseline.**
+  `B3600` proved that removing the LED load swings the updated awake fleet from
+  aggregate discharge to aggregate charge, but battery-only fixtures still draw
+  roughly 126-144 mA because ESP-NOW RX stays awake. Decide whether diagnostic
+  reachability justifies that floor or whether to use the existing field-profile
+  300 s sleep / 15 s listen duty cycle for solar recovery. Do not call `F1` an
+  isolated 0.2 Hz test: it also changes lifecycle and sleep behavior (Ben).
+
+- [ ] **Morning field repair: inspect every flagged false chandelier.** Ben
+  flagged all 11 zero-sensor fixtures in the dashboard. Visual inspection says
+  nine are trunk lights and only two remain otherwise unidentified, strongly
+  suggesting the trunk assembler omitted the STEMMA cable rather than a class
+  algorithm error. Open/reseat one trunk canary, use `P<id>:10` for a cold
+  VSQT re-probe, then repair the remainder. Preserve the dashboard flags until
+  the physical mapping is written down (Ben + Elliot/field team).
+- [ ] **Close the remaining visibly red/non-OTA fixtures after the overnight
+  test.** A couple of lanterns still show the prior red posture because they did
+  not accept the current OTA. The exact 12-ID observed holdback census remains
+  below; do not spend tonight looping retries. Diagnose from fresh power and
+  image evidence in the morning (Ben/Codex + field team).
+- [x] **Field-validate ADR 0044's TMF presence wipe -- DONE 2026-08-16.** The
+  per-zone learned background prevented the occluding rig from acting as a fixed
+  threshold trigger, and the field team repeatedly triggered complete-looking
+  color wipes. Ben reported that activation was a little difficult but RSSI
+  propagation itself was remarkably clean; the team captured video. Telemetry
+  observed 60/63 and 57/63 fresh hardened peers change in short windows
+  (Ben/Codex + field team).
+- [ ] **Tune canopy presence sensitivity from field traces, without restoring a
+  fixed-distance trigger.** The initial robust setting requires one confident
+  zone to move >=300 mm closer than its learned background for three consecutive
+  reports. It passed the rig-occlusion proof but was a little difficult to
+  activate. Log one walk with zone deltas and confidence, then adjust delta or
+  consecutive count while retaining per-zone learning and clear-to-rearm
+  hysteresis (Ben/Codex).
+- [x] **Verify one overnight sleeper resumes autonomous charging after sunrise
+  -- DONE 2026-08-17.** Multiple non-USB-roster fixtures reported positive
+  battery current after the timed wake, including `9E5A74`, `F3FD60`, `9E5B34`,
+  `9E5AE0`, `9F0E5C`, and `F2BE48`. The later dark-awake test moved 27 additional
+  stable-input fixtures into net charge. Old-firmware `9E5B44` remains a separate
+  swap/bench case at about 2.40 V and 0 mA despite input (Ben/Codex).
+
+- [x] **Promote the BQ-qualified recovery/self-identifying listener artifact --
+  DONE 2026-08-16.** Immutable `fx-260817-29ac840-b` (binary SHA-256 in LOG)
+  passed healthy `F40364`, low-USB `9F268C`, the remaining qualified recovery
+  cohort, and explicit awake/sleeper batches. Both CoreS3 bridges were updated;
+  the final observed census was 74 exact-revision fixtures of 86 seen. Tag and
+  returned LED-state telemetry passed end to end. Twelve named holdbacks remain
+  below; the artifact promotion itself is complete (Ben/Codex + field observers).
+
+- [x] **Retire the previous universal-default rollout -- SUPERSEDED
+  2026-08-16.** The 37-fixture `fx-260816-19c6bbb-b` wave was replaced by the
+  accepted self-identifying/recovery artifact above. Previously problematic
+  `F2BE6C`, `F2BE20`, and the named powered recovery cohort now hold the new
+  exact revision. Use the current holdback item below, not the old artifact
+  roster (Ben/Codex + field team).
+- [ ] **Close the 12 observed holdbacks from the self-identifying rollout.** Do
+  not loop OTA retries. Bench-diagnose self-test rollbacks `9E5B44` and
+  `F40424`; recover maintenance entry on `9E5A84`, `9F26D8`, `F2BCF4`, and
+  legacy `F3FD88`; provide supervised external power before attempting
+  `F2BE08`, `F3FD28`, `F401DC`, `F40308`, `F40314`, or `F4035C`. Re-census for
+  production fixtures not among the 86 IDs seen in this session (Ben/Codex +
+  field team).
+- [ ] **Close the three hardened-presence holdbacks.** Do not loop OTA retries.
+  `9E5AE0` timed out while updating from the eager presence image and was parked
+  for one hour; `9E5B34` was not discovered and remains on the eager image;
+  `9F2638` was not discovered and remains on `fx-260817-29ac840-b`. The latter
+  two were about 2.85/2.89 V and naturally sleeping. Recover on supervised power
+  in the morning and upload the exact `fx-260817-ec7f28d-b` binary (Ben/Codex +
+  field team).
+- [ ] **Reseat the 11 false-chandelier STEMMA chains.** No chandelier fixture is
+  powered, so sensor bits 0 on `9E5AB0`, `9F0E30`, `9F26B4`, `F2BE1C`,
+  `F2BE3C`, `F2BE6C`, `F2BEF4`, `F2BF90`, `F3FD50`, `F402A8`, and `F40310`
+  means the full chain was dark at boot. `9E5AB0` stayed at zero after both a
+  1-second and a 10-second addressed VSQT-off/deep-sleep re-probe. Physically
+  reseat/inspect one canary, then issue `P<id>:10`; a recovered downlight should
+  report TMF/MSA sensor bits, change from diamond to circle, and use warm white
+  (Ben + field team).
+- [ ] **Explain and harden `F2BE20`'s post-valid app-slot fallback.** It twice
+  reported the new `app1` as `valid` with pending false, but after the first
+  later power-state reboot ran old undefined `app0`. The 2026-08-16 universal
+  artifact attempt additionally timed out, ended in a task-watchdog reset, and
+  retained the prior valid image. Capture the next deep-sleep wake, check
+  OTA-data/boot selection, surface every OTA update error and return code from
+  `esp_ota_mark_app_valid_cancel_rollback()`, and do not count an upload ACK as
+  acceptance (Ben/Codex).
+- [ ] **Diagnose `F2BE6C` fixture OTA HTTP 500.** The universal-artifact parallel
+  attempt lost its response; a later identity-verified sequential attempt
+  explicitly returned HTTP 500 and the fixture resumed its old valid image.
+  Preserve it on that image until the update error body/serial reason and
+  partition state are captured; do not loop retries (Ben/Codex).
+- [x] **Raise and verify the deeply depleted solar-recovery current -- DONE
+  2026-08-16.** Ben selected 300 mA. Corrected firmware uses a full 16-bit
+  REG0x10 transaction, exposes target/readback/raw telemetry, and makes matching
+  readback an OTA-validity condition. Two low-VBAT canaries and four additional
+  critical fixtures passed; solar input rose from roughly 0.45-0.52 W to about
+  1.5 W when available and battery current held near 300 mA. Keep input DPM,
+  thermal/trickle protections, and the hardware fast-charge transition unchanged
+  (Ben/Codex).
+- [ ] **Recover depleted fixtures that could not accept the fleet OTA.** The
+  current no-external-power holdbacks are `F2BE08`, `F3FD28`, `F401DC`,
+  `F40308`, `F40314`, and `F4035C`. Use supervised USB power and require fresh
+  voltage/current ride-through before flashing the exact fleet artifact. The
+  target-only `fx-260816-625fab1-t` served its canary purpose and must never be
+  uploaded to another MAC; `F2BFE0` is back on the fleet image (Ben + field
+  team).
+- [x] **Fix dashboard firmware-revision freshness semantics -- DONE
+  2026-08-17.** Short heartbeats
+  update age/uptime but retain the last full-heartbeat firmware string, which
+  briefly made a successful `F40384` update look rolled back. The dashboard now
+  preserves the rich identity separately and displays its independently aging
+  evidence timestamp rather than presenting cached firmware as current-packet
+  truth (Ben/Codex).
+
+- [x] **Fix fixture OTA self-test for maintenance-mode verification -- DONE
+  2026-08-15.** A healthy
+  `fx-260816-railoff-b` OTA on `F40364` entered maintenance with ESP-NOW
+  deliberately down, then failed the unconditional `espNowUp/sendOk` predicate
+  at t+20 s and rolled back. `otafix1-b` now uses the radio posture appropriate
+  to the active mode (ESP-NOW in COMMS; associated maintenance WiFi/HTTP readiness
+  in MAINT). Good-image acceptance and distinct `otafail-b` forced rollback both
+  passed on battery-backed `F40364`; see LOG (Ben/Codex).
+- [x] **Expose OTA partition identity in fixture telemetry -- DONE 2026-08-15.**
+  Added running partition label/address and string image state. The canary trace
+  explicitly showed accepted `app1`, failing `app0`, then rollback to `app1`.
+  Distinct artifact version strings supplied the build identity (Ben/Codex).
+
 - [x] Add `LOG_APPEND_2026-05-10.md` entry to `LOG.md` -- **DONE 2026-06-08**: merged 05-10 + 05-11 entries into `LOG.md`; staging files (`LOG_APPEND_*`, `DROP_IN_INSTRUCTIONS.md`) removed (Ben/Claude).
 - [x] Add ADR 0015 -- PowerFeather V2 as COTS/reference architecture -- **DONE** (`docs/decisions/0015-powerfeather-v2-cots-reference.md`) (Ben).
 - [x] Add ADR 0016 -- COTS prototype shortlist -- **DONE** (`docs/decisions/0016-...`) (Ben).
@@ -125,6 +307,125 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## COTS bench testing
 
+- [~] **P0: USB-rescue the one known fixture left off the basic-listener image.**
+  After the competing OTA writer stopped, `fx-260816-otafix1-b` reached 31 of
+  the original 32 eligible fixtures plus newly classified lighting peer
+  `9F26D8` (32 of 33 total). Only `F3FD88` remains: its old
+  `fixture-2026-08-06.5` image hears maintenance commands but reports
+  maintenance-start failure and does not join `Party In The Woods`, consistent
+  with credentials baked before the SSID migration. Positively identify it over
+  USB, flash the inspected artifact, and require target revision, OTA state
+  `valid`, healthy sensors/power, and steady-red listener behavior. Converted
+  solarnoid `9E5B8C` remains excluded from the light-only image (Ben/Codex).
+- [ ] **Canary automatic recovery from durable PROTECT before fleet OTA.**
+  `fx-260816-prtrel1-b` persists the same compound 60-second charge release,
+  then software-reboots so the previously parked boot can perform the skipped
+  sensor-domain, class, sensor, and LED initialization. Ordinary battery-backed
+  USB boot is now proven on factory-fresh `9F26B0`, `9F266C`, and `9F2724`;
+  the latter two also passed TMF/MSA downlight and shared-WiFi endpoint gates.
+  Next use a genuinely stage-4 silent fixture to prove
+  `PROTECT -> LEDS_OFF -> automatic clean reboot -> red listener` without BOOT,
+  erase, or an operator-timed reboot. Do not use physical RESET as the
+  `otafix1-b` fallback: `F2BF5C` proved that an unexpected reset from LEDS_OFF
+  or DIM can correctly re-enter PROTECT, while a deliberate software reset at
+  recovered FULL boots unparked. Prefer USB-installing `prtrel1-b`; enter
+  download mode only when normal USB CDC/flashing is unavailable (Ben/Codex).
+- [x] **Assign the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE as
+  trunk lights.** `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`,
+  `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C` are allocated to the 6 Ah trunk
+  fleet. Registry role is the current compatibility spelling `uplight`; runtime
+  class probing remains automatic for the assembled sensor stack (Ben/Codex).
+- [x] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights --
+  DONE.**
+  `F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
+  `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
+  fleet with registry role `uplight`; runtime probing remains automatic
+  (Ben/Codex).
+- [ ] **Finalize the fifty-four-board canopy/extra-candidate allocation.** Batch 1:
+  `9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`,
+  `F2BDC0`, `F402D0`, and `F4044C`. Batch 2: `9E5AD4`, `F2BE70`, `F40174`,
+  `F40358`, `F4042C`, `F2BE60`, `F2BE38`, `F40424`, `F2BDB4`, and `F4031C`.
+  Batch 3: `9E5A9C`, `9E5954`, `F3FD60`, `9E5B48`, `9F26C0`, `9E5AA0`,
+  `9E5B98`, `9E5AE4`, `9F2714`, and `F40330`. Batch 4: `F402C4`, `F403F0`,
+  `9F26D0`, `9E5B14`, `9F26A4`, `9F26D4`, `9E5B68`, `9E5AF4`, `9F0E30`, and
+  `F2BE94`. Batch 5: `9E5A58`, `9F2780`, `9E5B04`, `9F0E7C`, `9E5B10`,
+  `9E5AE0`, `9E5B00`, `F401A8`, `F40350`, and `F40254`. Final four: `9F2678`,
+  `9E5AC8`, `9F26B4`, and `9F2708`. All are OTA-ready with blank roles, AUTO
+  class override, and a provisional 6 Ah profile. If assigned to
+  large-enclosure inner-ring
+  downlights, change them to 15 Ah before battery-backed validation; do not
+  mistake the sensorless probe's `chandelier` fallback for an assignment
+  (Ben/Codex).
+- [~] **Census and USB-rescue any forgotten boards already inside enclosures.**
+  Elliot is flashing some concurrently. Treat these as installed fixtures, use
+  the `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` installed-battery path, separate
+  batches by 6 Ah/15 Ah capacity and physical class, never use bare-board `X`,
+  and record every MAC/result so the registry can prove the fleet is complete
+  (Ben/Elliot/Codex).
+- [ ] **Retire `F2BED4` from Cambium's fallback-bridge references.** The physical
+  board has been reflashed as an unassigned canopy candidate and its lighting
+  registry bridge role is cleared. Update the Cambium roster/docs so an operator
+  does not later expect this board to be available as a serial bridge (Ben/Elliot/Justin).
+- [ ] **Add a single-writer interlock for shared-WiFi OTA.** This is distinct
+  from deliberately leaseless lighting control. On 2026-08-16 another host
+  replaced accepted firmware on `F2BE0C` and captured `9E5A84` while Ben's
+  maintenance hail exposed them on the LAN. Immediate runbook: one active OTA
+  daemon/operator at a time. Follow-up: choose an authenticated/allowlisted OTA
+  owner or another mechanism that prevents a second host from POSTing an image
+  to a maintenance fixture; document recovery and takeover semantics before
+  the next unattended fleet update (Ben + Elliot + Justin).
+- [ ] **Reproduce the fleet bulk-direct color test.** The accepted `F40364`
+  canary obeyed targeted direct colors, and the 2026-08-16 fleet obeyed a
+  60-second broadcast-identify blue blink, proving radio RX and LED rendering.
+  However, a rapid host loop of per-fixture direct blue/off commands was not
+  visually observed across the fleet even though the bridge reported every
+  transmit successful. Re-test with one sustained canonical multi-entry frame,
+  inspect `direct_seen`/`direct_matched` on a maintenance canary, and separate
+  host pacing/addressing from interference by the second controller (Ben/Codex).
+- [x] **Canary the basic supervised listener before any fleet OTA -- DONE
+  2026-08-16.** Candidate
+  `fx-260816-f2bb4cd-b`, channel 11, default commission, SHA-256
+  `c792d8c28e8a9c57a0e19455394a5b19c161030cdcf016d741001b672797f965`.
+  With no bridge lease it must hold steady red at linear level 128. Commands use
+  direct linear 0..255 values; stale direct control returns to red within three
+  seconds. Gamma, boot salute, supply carousel, identity pop, and local ToF color
+  are absent. Hard battery/rail/OTA rollback protection remains. First prove on
+  one USB canary: red persists with every bridge/controller stopped; black and
+  primary-color commands obey; stopping frames restores red; RMT survives an
+  explicit rail off/on cycle. Then OTA one battery-backed canary, wait beyond the
+  20-second pending-verify window, verify the exact revision and fresh heartbeat,
+  and only then expand to five supervised fixtures. **2026-08-15 USB canary is
+  now on the positively identified COM46 / `F40364`: exact revision, healthy
+  PowerFeather/battery/charging, channel-11 ESP-NOW, LED rail, three sensors, and
+  no pending OTA verify all passed. Steady red after USB removal passed, and a
+  handshake-gated targeted Cambium command changed only `F40364` to solid blue
+  with bridge TX success. Black, green, blue, dedicated white, stale fallback
+  to red, true rail off/on with post-cycle breathing, reset directly to red,
+  good-image acceptance, and forced-failure rollback all subsequently passed.
+  The accepted fleet artifact is `fx-260816-otafix1-b`; see LOG (Ben/Codex).
+- [x] **Fix Cambium one-shot serial command readiness -- DONE 2026-08-15.** The older local CLI
+  starts its asynchronous COM connection and can call `send_identify()` before
+  the transport is connected. The transport correctly drops stale/not-connected
+  frames, but the CLI prints `identify ...` as if it succeeded. Require a bridge
+  STATUS handshake before one-shot mutations and surface not-ready/drop as a
+  failure. A persistent handshake-gated retry advanced COM43 TX success and
+  made the same targeted blue command work. Fixed from Elliot's latest branch in
+  Cambium branch `origin/codex/serial-ready-gate`, complete at `078071c`: require
+  fresh STATUS, stamp the real bridge ID, wait for the USB write, then hold the
+  port until STATUS reports `tx_ok`/`tx_fail`. The committed CLI passed the live
+  targeted-blue proof on `F40364`; 349 tests pass, 1 skipped (Ben/Codex; ready
+  for Justin/Elliot review).
+- [ ] **Make USB target identity a pre-flash interlock.** The first basic-listener
+  attempt selected COM43 from Windows arrival time and temporarily overwrote the
+  CoreS3 Cambium bridge instead of COM46 / `F40364`; the bridge was rebuilt,
+  restored, and verified. Require a matching live board/firmware identity or a
+  physical-reset uptime correlation before upload. Never use COM arrival time as
+  sufficient identity when more than one USB device is attached (Ben/Codex).
+- [ ] **Throttle or latch repeated LED rail-on failures.** When PowerFeather
+  initialization is unavailable, the basic listener currently asks for its red
+  frame each loop and `renderTick()` retries the impossible rail enable at loop
+  speed, flooding serial. Keep the rail parked but retry at a bounded service
+  cadence and expose a counter/last result in telemetry (Ben/Codex).
 - [~] **P0: reconcile and qualify the accepted commission-listener image before
   broader fleet OTA (ADRs 0039/0040).** Elliot's `Lighting-Controller` at
   `b047986` contains Ben's complete `d4b1405` hardening/RMT fix plus low-red
@@ -390,7 +691,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   invalid/stale-time fallback. Remove Starlink/host and pass one compressed plus one
   real overnight scheduled cycle before production use. Keep the SAM-M8Q
   autolocation/true-north benefits in the same anchor plan rather than treating the
-  four receivers as separate inventory. (Ben/Codex).
+  four receivers as separate inventory. Hardware-presence inventory is deployed
+  on 60 fixtures using sensor bits 4/5 and dashboard G/R badges. It found GPS
+  anchor `F2BDB4` and RTC anchors `9F0E7C` and `9F26C0`; the other five
+  purchased boards remain to be found in the held-back or silent population.
+  Actual time reads, validity, distribution, and qualification remain open
+  (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
   load, and thresholds unchanged for the first complete dusk/show/recovery cycle.
@@ -542,6 +848,7 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 
 ## PowerFeather power-bench (2026-06-02, board 9E5AB8 -- see docs/tests/POWER_BENCH_HARNESS_2026-06-02.md)
 
+- [ ] **Bench-measure BQ25628E VBAT_LOWV (the precharge->fast-charge knee) and close ADR 0046's REVISIT clause.** Oakland-runnable with a spare PowerFeather, a bench supply, and no cell: feed the BAT pins from the bench supply through a ~1 ohm series resistor (the supply mimics the cell; the resistor keeps the charger's current step visible and bounded), power VBUS from USB, and watch `bq` charge state plus battery current on the serial CLI while stepping the "cell" 2.80 -> 3.20 V in 25 mV holds of ~30 s. The knee is the step where charge current jumps from the 300 mA precharge plateau toward ICHG; sweep down as well to catch the comparator's hysteresis. Record both edges in LOG, then re-derive the ADR 0046 ladder: protect stays ~50 mV above the falling edge; relax toward the knee if it measures below 3.00 V, raise if above (Ben).
 - [x] Stand up Arduino power-bench firmware `firmware/power_bench/` with SDK 2.1.0 telemetry + `/telemetry` JSON (Ben).
 - [x] Confirm V2 hardware via Wire1 scan: MAX17260 (0x36), BQ25628E (0x6A), IS31 (0x30) (Ben).
 - [x] `Board.init(4400, Generic_3V7)` Ok; battery/supply voltage + current read correctly over WiFi (Ben).
@@ -683,15 +990,18 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   benign a given device tested (Ben/Claude).
 - [x] **Direct-GPIO WS2812/SK6812 validated** (board 2, HEX on A0/GPIO10, off the I2C bus) -- works, brownout-safe by construction, and ~10% MORE efficient than via NeoDriver (no passthrough drop). **Strong candidate for the area/glow role -- but NOT a settled BOM front-runner**: it's roughly tied in viability with the 4 W RGBW point-source, which serves the crisp-gobo role HEX can't, and the efficiency edge is muddied by varying-SOC testbeds. Decide after gobo testing. 3-way plot `led-eff-3way.png` (Ben).
 - [ ] **LED bring-up sequencing for production:** WS2812 latch last frame (send explicit all-off to blank); avoid full-white inrush on hot-connect (ramp gently); direct-GPIO's full VCC browns a marginal cell sooner -> cap brightness / healthy pack. **Now quantified (2026-06-11 hex_ramp):** ~350-400 mA LED draw pulls the bench cell to its ~3.0 V brownout edge even at 98% SOC -> production firmware needs a hard current cap = f(brightness x lit-count), scaled to the production cell's IR (the 32700 ~6 Ah cell lifts the ceiling substantially) (Ben).
-- [ ] **Qualify the seven-RGB chandelier chain with instruments, not rail
-  saturation.** `chandelier-chain-2026-08-11.5` corrects the lensed-RGB model to
-  the measured 257 mA/module and defaults to an 800 mA LED budget (seven-pixel
-  white cap 113/255; 900 mA supervised maximum). With the production battery,
+- [ ] **Qualify the nine-RGB chandelier chain with instruments, not rail
+  saturation.** Jimmy's three-controller handoff uses nine RGB modules per
+  PowerFeather. Targeted tester `fx-260818-926d4c2-t` keeps the measured
+  257 mA/module model and an 800 mA LED budget (nine-pixel full-RGB cap 88/255;
+  900 mA remains the supervised diagnostic maximum). With the production battery,
   log input and rail current, PowerFeather 3V3 voltage, last-pixel voltage/color,
   radio activity, resets, and regulator/connector temperature through an
   extended pattern run. Keep the software current cap: the 1 A rating is shared
   by the board, 3V3 header, and VSQT rail, and saturation is not a safe limiter
-  (Ben/Codex).
+  (Ben/Codex). The three bare-USB controllers passed exact-artifact boot and
+  serial rail off/on recovery; a real nine-module strand and physical USER-button
+  press remain the first visual handoff check.
 - [ ] **Decide pixel-power architecture (NeoDriver only level-shifts the DATA signal, does NOT boost pixel power -- corrected; "3-5V vin/vlogic" = accepted *input* range):** pixels run at whatever Vin is. Options + a key power-mgmt axis (software-cuttability):
   - **(a) 3V3 header** -> dim (3.3 V under-volt) but **software-cuttable via `enable3V3(false)`** (free LED kill-switch; can't accidentally drain the pack), zero extra parts. Strong budget default (Ben's pick-direction).
   - **(b) VBAT** -> brighter (<=4.2 V Li-ion) but **always live** -> needs a load-switch/MOSFET + GPIO to be safe.
@@ -912,6 +1222,19 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Decide the 3 V/5 V solenoid return** (150 units, $319.12, still in
   transit) once the 0730B verdict lands -- watch the AliExpress return window
   (Ben).
+
+## Audio ingest bench (PÚCA DSP + VideoMic NTG, bought 2026-08-04; setup notes: docs/research/AUDIO_INGEST_NTG_PUCA_2026-08-04.md)
+
+- [ ] **Bench-verify NTG auto-power into the PÚCA's bias-less line-in** -- the NTG
+  auto-powers by sensing camera plug-in power, which the line-in doesn't supply.
+  Confirm it powers on and stays on (manual power is the expected fallback). Plain
+  TRS-TRS cable, not TRRS (Ben).
+- [ ] **Gain-staging sweep on the bench**: NTG output knob hot, WM8978 PGA low; HPF
+  (75/150 Hz) engaged; record clean levels for the DJ-line and mic paths so playa
+  setup is dial-to-numbers (Ben).
+- [ ] **Sketch the feature message format** (band energies, envelope, beat flag,
+  `source` field for multi-publisher blending) before firmware milestone 2 locks
+  the control-plane schema (Ben).
 
 ## Presence sensing / interactivity bench (research note: docs/research/PRESENCE_SENSING_INTERACTIVITY_2026-06-12.md) -- Elliot ask, 2026-06-12
 
@@ -1377,6 +1700,55 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 
 ## Firmware track
 
+### Fixture-side gaps surfaced by Bridge OS (2026-08-19; Bridge OS sends the full
+### intended contract now — these make the fixture honor it. Plan of record:
+### `firmware/tdeck_bridge/README.md` + the Bridge OS ADR.)
+
+- [ ] **NB_SET_MAINTAIN must apply-then-confirm, never persist-then-apply**
+  (2026-08-19 incident: a 5.5 V VINDPM broadcast persisted to NVS killed
+  USB-powered, battery-less peers at every boot — bootloader-level recovery).
+  `applyMaintainV10` (`board_power.cpp:479`) writes NVS BEFORE applying. Mirror
+  the OTA pending-verify pattern: apply in RAM, persist only after the supply
+  survives a confirmation window; revert on brownout/reboot. Consider also
+  refusing maintain > measured supply voltage. Related hardening: the CoreS3
+  bare-`m` preset landmine (first preset was 55!) is already defused
+  2026-08-20 — explicit digits now required (Ben/Claude).
+- [ ] **Blacklist ModemManager for bench USB-serial devices** (suspected
+  incident trigger: MM probes freshly enumerated ports and its bytes land in
+  bridge serial parsers). Add
+  `/etc/udev/rules.d/99-mm-bench-blacklist.rules` with
+  `ATTRS{idVendor}=="303a", ENV{ID_MM_DEVICE_IGNORE}="1"` and
+  `ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ENV{ID_MM_DEVICE_IGNORE}="1"`,
+  then `sudo udevadm control --reload` — needs sudo, on both the Ubuntu PC and
+  any bench laptop running a desktop Linux (Ben).
+- [ ] **Re-apply seed/params when the same program is re-leased** (or implement
+  the declared-but-unbuilt `NbProgramSet.flags bit1` params-are-delta,
+  `packet.h:270`). `ChoreoRuntime::applyProgramSet` skips `reset()` when
+  `mActive == programId` (`firmware/fixture/src/core/choreo/runtime.cpp:56`),
+  so a live CA-knob change is a silent no-op today. Until this lands the Bridge
+  OS CA studio works around it with release-then-re-lease (one visible blip).
+  Native-test the re-lease path before OTA (Ben/Claude).
+- [ ] **Make `ProgBridge` honor `NbShowFrame.bright` / `beat_phase` / `energy`.**
+  The fields are plumbed end-to-end into `ShowFrameState` but no program reads
+  them (grep-verified) — they are the cheapest fleet-wide dim + audio-reactivity
+  path (one broadcast packet). Bridge OS populates them as of M5 (Ben/Claude).
+- [ ] **`NB_SENSOR_REPORT` (next free type, 29): bounded-window fixture→bridge
+  sensor snapshot** mirroring `NB_NEIGHBOR_REPORT`'s pattern, gated like
+  `NB_LOCATE_CONTROL`. Today only `sensor_bits`/`class_mismatch` ride hb-full;
+  tilt/ToF depth/error counters need maintenance-mode HTTP — a radio sensor
+  app needs this opcode (Ben/Claude).
+- [ ] **Honor `NbEvent.fire_in_ms` + add a strike event kind.** The presence-wave
+  handler ignores `fire_in_ms` and fires immediately
+  (`behavior_glue.cpp:148`); a synchronized ring-wide knock schedule (ADR 0031
+  adjacency) needs scheduled fire plus an `NB_EVENT_STRIKE` kind routed through
+  `behaviorStrikePermitted()` (Ben/Claude).
+- [ ] **CA→strike seam:** add a clamped strike request to `ProgramOutputs` so
+  choreography programs can knock (GH-CA excitation → mallet), gated by the
+  same lifecycle/power permission as radio strikes (Ben/Claude).
+- [ ] **Implement `NB_NEIGHBOR_SET` flags bit0 NVS persistence** (declared "M2
+  item" at `behavior_glue.cpp:292`); the Bridge OS CA studio is about to become
+  the first real sender of type 24 (Ben/Claude).
+
 - [ ] **A/B the ESP32-S3 alternative internal RTC sleep source:** compare the current
   default low-frequency RC against `CONFIG_RTC_CLK_SRC_INT_8MD256` on several
   PowerFeathers for actual deep-sleep current, 300/900 s timer error, temperature drift,
@@ -1490,12 +1862,13 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   dashboard source glyph authoritative. Current production telemetry proves a good
   charger input but cannot universally identify what is feeding it, so the dashboard
   honestly uses fixture class (panel-bearing class -> sun; chandelier -> plug) and
-  labels panel-loss from daylight fleet consensus as suspect rather than certain
-  (Ben/Codex).
+  labels panel-loss from daylight fleet consensus as suspect rather than certain.
+  Ben elected to keep the icons as a useful visual convention; do not silently
+  relabel the inference as measured source identity (Ben/Codex).
 - [ ] **WiFi re-associate guard (cheap roaming):** the ESP32 latches one Eero BSSID and won't auto-roam (no 802.11k/v/r -- LOG cont. 9, POWERFEATHER_NOTES). On link-loss / low-RSSI in maintenance mode, do `WiFi.disconnect()` + `WiFi.begin()` to re-pick the strongest beacon. Low field priority (deployed fixtures are stationary; the maintenance-OTA path already does a fresh `WiFi.begin`) -- but a belt-and-suspenders guard for OTA windows (Ben).
 - [~] Implement ESP-NOW heartbeat/state packets with jitter and sequence numbers -- done in `firmware/net_bench/` (feasibility); port the validated packet/PDR design into production `core/packet` after the matrix run (Ben).
 - [ ] Implement low-battery modes: dim, LED hard-off, shipping mode (Ben).
-- [ ] **Revisit 8-bit LED low-end dimming for the ambient look** (deferred 2026-06-07): WS2812/SK6812 are 8-bit/channel, so gamma-on dims to OFF below ~brightness 24 (the ambient "~10%" spec sits in this dead-zone); gamma-off gives ultra-dim but non-linear steps. Options: dim-floor `max(1,gamma8(x))`, gentler gamma, gamma-on-color-only, or temporal dithering. See LOG 2026-06-07 + `firmware/POWERFEATHER_NOTES.md` (Ben).
+- [x] **8-bit LED low-end dimming: gamma REJECTED, render stays linear** (decided 2026-08-18, deferred from 2026-06-07): gamma correction is scrubbed from the codebase -- the 1..23 -> 0 dead zone that plagued the ambient look was a gamma artifact, and linear 8-bit render has no floor-to-zero problem at all. The salvaged dim-floor table (`resGamma8`) was deleted the same day it was salvaged; recover it from git history (commit 9260ae3) if ever needed. If the ambient look later needs finer sub-24 granularity, reach for temporal dithering, NOT gamma (Ben).
 - [ ] **Use the switchable 3V3 rail (GPIO4) as the LED kill-switch** in production firmware (`digitalWrite(4,LOW)` = LEDs off, can't drain the pack) -- folds into the pixel-power-architecture decision (option a). See `firmware/POWERFEATHER_NOTES.md` (Ben).
 - [x] Implement watchdog/reset-reason/brownout logging -- DONE in `firmware/net_bench/` (esp_task_wdt + `--wdt-hangtest`); **validated 2026-06-07**: induced hang -> auto-reset -> `reset_reason=task_watchdog`, no human. Port to production firmware (Ben).
 - [ ] Implement field telemetry logging schema for BM 2026 -> 2027 design data (Ben).

@@ -1,0 +1,101 @@
+#!/bin/bash
+# BROS — guaranteed comms with Mario & Luigi (the led_studio bench pair).
+# Elliot 08-15: "establish a simple protocol to Mario and Luigi that you can
+# guarantee communication."
+#
+# The guarantee is structural, not hopeful:
+#   · led_studio never sleeps → the target is ALWAYS listening while powered
+#   · every command is verified by /state READBACK, not by HTTP 200
+#   · if a brother's IP moved (DHCP), we re-discover by scanning the /24 for
+#     /state hosts and matching the ledstudio-<mac> name — identity by the
+#     board's own self-report, never by cached address (Luigi taught us that)
+#
+# Usage:
+#   bros status                    both brothers: alive? volts? solar? rssi?
+#   bros mario red|green|blue|white|off
+#   bros luigi bri 40              any /set arg pair passes through
+#   bros mario set r=255 g=80 b=0 w=0
+#   bros mario flash build/led_studio.ino.bin    ← OTA over WiFi, verified
+#
+# NOTE knocks: led_studio has NO solenoid path — /set /state /update is the
+# whole API. Knocking is fixture-firmware territory (see 22-BENCH-FLASH-LOG).
+set -u
+# NOTE: macOS ships bash 3.2 — no associative arrays; plain functions instead
+CACHE_DIR="$HOME/.cache/bros"; mkdir -p "$CACHE_DIR"
+name_of()   { case "$1" in mario) echo ledstudio-f40384;; luigi) echo ledstudio-f2b7dc;; esac; }
+lastip_of() { cat "$CACHE_DIR/$1" 2>/dev/null || case "$1" in mario) echo 192.168.1.112;; luigi) echo 192.168.1.73;; esac; }
+remember()  { :; } # per-bro files written inline
+
+subnet_base() { ipconfig getifaddr en0 2>/dev/null | sed 's/\.[0-9]*$//'; }
+
+probe() { # probe <ip> -> echoes host name if a led_studio answers
+  curl -s -m 2 "http://$1/state" 2>/dev/null | /usr/bin/python3 -c "
+import sys,json
+try: print(json.load(sys.stdin).get('host',''))
+except Exception: pass" 2>/dev/null
+}
+
+find_bro() { # find_bro mario -> echoes live IP or empty; re-discovers if moved
+  local who="$1" want; want=$(name_of "$who"); local ip; ip=$(lastip_of "$who")
+  if [ "$(probe "$ip")" = "$want" ]; then echo "$ip"; return; fi
+  # mDNS next — the board advertises its own name
+  local m; m=$(ping -c1 -t1 "$want.local" 2>/dev/null | sed -n 's/.*(\([0-9.]*\)).*/\1/p' | head -1)
+  if [ -n "$m" ] && [ "$(probe "$m")" = "$want" ]; then echo "$m"; return; fi
+  # last resort: sweep the /24 (parallel, ~5 s)
+  local base; base=$(subnet_base); [ -z "$base" ] && return
+  for i in $(seq 2 254); do
+    ( [ "$(probe "$base.$i")" = "$want" ] && echo "$base.$i" > "/tmp/bros-found-$who" ) &
+  done; wait
+  [ -f "/tmp/bros-found-$who" ] && cat "/tmp/bros-found-$who" && rm -f "/tmp/bros-found-$who"
+}
+
+state_line() { # state_line <ip>
+  curl -s -m 3 "http://$1/state" | /usr/bin/python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+chg='☀ solar %.2fV@%dmA'%(d.get('sv',0),d.get('sma',0)) if d.get('sma',0)>0 else 'no solar input'
+print(f\"{d.get('host')} @ ip · batt {d.get('bv')}V ({d.get('ma')}mA) · {chg} · wifi {d.get('rssi')}dBm · anim {d.get('anim')} bri {d.get('bri')}\")" 2>/dev/null
+}
+
+do_set() { # do_set <who> <ip> <query> — send then VERIFY by readback
+  local who="$1" ip="$2" q="$3"
+  curl -s -m 3 "http://$ip/set?$q" >/dev/null 2>&1
+  sleep 0.4
+  local st; st=$(curl -s -m 3 "http://$ip/state" 2>/dev/null)
+  if [ -n "$st" ]; then echo "✓ $who ← $q   (verified alive; state: $(echo "$st" | /usr/bin/python3 -c "import sys,json;d=json.load(sys.stdin);print('r%s g%s b%s w%s bri%s'%(d.get('r'),d.get('g'),d.get('b'),d.get('w'),d.get('bri')))" 2>/dev/null))"
+  else echo "✗ $who took the command but readback FAILED — treat as unconfirmed"; fi
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  status)
+    for who in mario luigi; do
+      ip=$(find_bro "$who")
+      if [ -n "$ip" ]; then echo "$ip" > "$CACHE_DIR/$who"; echo "🟢 $who ($ip): $(state_line "$ip" | sed "s/@ ip/@ $ip/")"
+      else echo "🔴 $who: NOT REACHABLE (powered? on WiFi? — led_studio only exists while powered)"; fi
+    done ;;
+  mario|luigi)
+    who="$cmd"; shift
+    ip=$(find_bro "$who"); [ -z "$ip" ] && { echo "🔴 $who not reachable"; exit 1; }
+    echo "$ip" > "$CACHE_DIR/$who"
+    case "${1:-}" in
+      red)   do_set "$who" "$ip" "r=255&g=0&b=0&w=0" ;;
+      green) do_set "$who" "$ip" "r=0&g=255&b=0&w=0" ;;
+      blue)  do_set "$who" "$ip" "r=0&g=0&b=255&w=0" ;;
+      white) do_set "$who" "$ip" "r=0&g=0&b=0&w=255" ;;
+      off)   do_set "$who" "$ip" "r=0&g=0&b=0&w=0&bri=0" ;;
+      bri)   do_set "$who" "$ip" "bri=${2:-128}" ;;
+      set)   shift; do_set "$who" "$ip" "$(echo "$@" | tr ' ' '&')" ;;
+      flash) # OTA over WiFi: bros mario flash <path/to/led_studio.ino.bin>
+             # led_studio serves POST /update (same handler Ben uses); the
+             # board reboots into the new image and bros re-verifies /state
+             bin="${2:-}"; [ -f "$bin" ] || { echo "✗ no such bin: $bin"; exit 1; }
+             echo "→ OTA $who ($ip) ← $bin"
+             curl -s -m 120 -F "firmware=@$bin" "http://$ip/update" >/dev/null && echo "upload done — rebooting"
+             sleep 8
+             nip=$(find_bro "$who")
+             if [ -n "$nip" ]; then echo "✓ $who back online: $(state_line "$nip")"; else echo "✗ $who not back yet — give it 30s and run: bros status"; fi ;;
+      *)     echo "usage: bros $who red|green|blue|white|off|bri N|set k=v ..." ;;
+    esac ;;
+  *) echo "usage: bros status | bros mario|luigi <red|green|blue|white|off|bri N|set k=v...>" ;;
+esac

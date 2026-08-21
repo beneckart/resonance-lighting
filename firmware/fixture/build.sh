@@ -5,12 +5,16 @@
 #   ./build.sh --port /dev/ttyACM0      # compile + USB flash
 #   ./build.sh --ota 10.0.0.200         # compile + OTA via POST /update
 #   ./build.sh --artifact-dir out/r1    # stable dir for fleet_usb_bringup.py
-#   ./build.sh --fw-rev fx-YYMMDD-rrrrrrr-b  # inject immutable artifact ID
+#   ./build.sh --fw-rev fx-YYMMDD-xxxxxxx-b  # reported artifact identity
 #   ./build.sh --profile commission     # default NVS profile when unset
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
+#   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
+#   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
+#   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
+#   ./build.sh --basic-listener          # class-aware listener when no command
 #   ./build.sh --ota-fail-selftest      # P4 rollback drill image
 #   ./build.sh --wdt-hangtest           # arm serial 'x' watchdog hang test
 #
@@ -31,23 +35,47 @@ CHEM="lfp"
 EXTRA_FLAGS=""
 WIFI_SOURCE=""
 FW_REV=""
+PRECHARGE_MA="300"
+DEEP_RECOVERY_TARGET=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
     --ota) OTA_IP="$2"; shift 2 ;;
     --artifact-dir) ARTIFACT_DIR="$2"; shift 2 ;;
+    --fw-rev) FW_REV="$2"; shift 2 ;;
     --channel) CHANNEL="$2"; shift 2 ;;
     --profile) PROFILE="$2"; shift 2 ;;
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
-    --fw-rev) FW_REV="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
+    --precharge-ma) PRECHARGE_MA="$2"; shift 2 ;;
+    --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --canopy-solenoid)
+      echo "NOTICE: --canopy-solenoid is deprecated; solenoid capability is now the fleet default"
+      shift
+      ;;
     --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;
+    --basic-listener|--quiet-autonomy) EXTRA_FLAGS+=" -DRES_BASIC_LISTENER=1"; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+[[ "$PRECHARGE_MA" =~ ^[0-9]+$ ]] || {
+  echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
+  exit 2
+}
+(( PRECHARGE_MA >= 10 && PRECHARGE_MA <= 310 && PRECHARGE_MA % 10 == 0 )) || {
+  echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
+  exit 2
+}
+if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
+  [[ "$DEEP_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
+    echo "bad --deep-recovery-target: $DEEP_RECOVERY_TARGET (expected six hex digits)" >&2
+    exit 2
+  }
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -78,6 +106,7 @@ if command -v cygpath >/dev/null 2>&1; then
   SHARED_INCLUDE="$(cygpath -m "$SHARED_INCLUDE")"
 fi
 FLAGS="-DPOWERFEATHER_BOARD_V2=1 -I$SHARED_INCLUDE"
+FLAGS+=" -DRES_PF_PRECHARGE_MA=$PRECHARGE_MA"
 case "$CHEM" in
   lfp) ;; # production default lives in board_power.cpp
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7" ;;
@@ -86,10 +115,17 @@ esac
 [[ -n "$CHANNEL" ]] && FLAGS+=" -DRES_CHANNEL=$CHANNEL"
 if [[ -n "$FW_REV" ]]; then
   [[ "$FW_REV" =~ ^fx-[0-9]{6}-[0-9a-f]{7}-[pbt]$ ]] || {
-    echo "invalid --fw-rev: $FW_REV" >&2
+    echo "bad --fw-rev: $FW_REV (expected fx-YYMMDD-recipe7-class)" >&2
     exit 2
   }
-  FLAGS+=" -DRES_FIXTURE_VERSION_TOKEN=$FW_REV"
+fi
+if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
+  [[ -n "$FW_REV" && "$FW_REV" == *-t ]] || {
+    echo "--deep-recovery-target requires an explicit test-class (-t) --fw-rev" >&2
+    exit 2
+  }
+  FLAGS+=" -DRES_DEEP_RECOVERY_TARGET=0x${DEEP_RECOVERY_TARGET}UL"
+  FLAGS+=" -DRES_DEEP_RECOVERY_MAX_CHARGE_MA=100"
 fi
 case "$PROFILE" in
   "") ;;
@@ -107,6 +143,20 @@ if [[ -n "$ARTIFACT_DIR" ]]; then
 else
   BUILD_PATH="$(mktemp -d /tmp/fixture-build.XXXXXX)"
   trap 'rm -rf "$BUILD_PATH"' EXIT
+fi
+
+# Arduino CLI's Windows command-line reconstruction does not reliably preserve
+# an escaped C string passed through compiler.cpp.extra_flags. Generate the
+# derived revision macro inside the unique build directory and force-include it
+# instead; this also leaves the exact reported identity beside build.options.
+if [[ -n "$FW_REV" ]]; then
+  IDENTITY_HEADER="$BUILD_PATH/fixture_build_identity.h"
+  printf '#pragma once\n#define RES_FIXTURE_VERSION "%s"\n' "$FW_REV" > "$IDENTITY_HEADER"
+  IDENTITY_INCLUDE="$(cd "$(dirname "$IDENTITY_HEADER")" && pwd)/$(basename "$IDENTITY_HEADER")"
+  if command -v cygpath >/dev/null 2>&1; then
+    IDENTITY_INCLUDE="$(cygpath -m "$IDENTITY_INCLUDE")"
+  fi
+  FLAGS+=" -include$IDENTITY_INCLUDE"
 fi
 
 echo "compiling (flags:$FLAGS)"

@@ -303,8 +303,8 @@ Example peer build for the current BubbyNet/channel-11 field rig:
 ./build.sh --role peer --channel 11 --field-cycle \
   --field-charge-s 300 --field-wait-s 300 --field-protect-s 900 \
   --field-wake-ms 8000 --field-cold-ms 30000 \
-  --field-dim-mv 3000 --field-dim-brightness 64 \
-  --field-low-mv 2950 --field-critical-mv 2900 --field-low-confirm-s 60 \
+  --field-dim-mv 3150 --field-dim-brightness 64 \
+  --field-low-mv 3100 --field-critical-mv 3050 --field-low-confirm-s 60 \
   --field-led-load --drawdown-lit 18 --drawdown-brightness 128 \
   --chem lfp --cap 6000 --charge-ma 2000 --maintain 4.6
 ```
@@ -335,10 +335,10 @@ the counters at the DRAW boundary; do not divide an absolute cycle counter by `f
 `net-bench-2026-07-08.1` aligns the field-cycle low-voltage behavior with ADR 0023's
 measured 32700 LFP curve for the current HEX-load bench:
 
-- `NB_FIELD_DIM_MV` defaults to 3000 mV loaded and halves the field-cycle HEX load by
+- `NB_FIELD_DIM_MV` defaults to 3150 mV loaded (ADR 0046) and halves the field-cycle HEX load by
   default (`--field-dim-brightness` can override).
-- `NB_FIELD_LOW_MV` defaults to 2950 mV loaded and is confirmed for 60 s before protect.
-- `NB_FIELD_CRITICAL_MV` defaults to 2900 mV loaded and enters protect immediately.
+- `NB_FIELD_LOW_MV` defaults to 3100 mV loaded and is confirmed for 60 s before protect.
+- `NB_FIELD_CRITICAL_MV` defaults to 3050 mV loaded and enters protect immediately.
 - Protect is latched until `NB_FIELD_RECOVER_CHARGE_MA` of battery charge current is
   seen on a timer wake. `--field-protect-retry-dark` restores the older stress-test
   behavior where resting-voltage rebound can restart drawdown in the dark.
@@ -359,10 +359,10 @@ This guard is automatic for `--field-cycle --field-led-load` builds:
 - Boot drives the pixel data and EN_3V3 low before PowerFeather initialization, parks
   the SDK's cold-init rail enable immediately, and initializes ESP-NOW before the field
   load. A deliberate start waits 1 s, clears the newly enabled rail, and ramps brightness
-  in four steps over 400 ms. A <=2.95 V sample during that ramp parks immediately; a
-  sample below the configured dim threshold selects the dim target. The P105 deployment
-  uses 3.10 V with a 10 s steady-state confirmation; protect remains 2.95 V / 60 s and
-  critical remains 2.90 V immediate.
+  in four steps over 400 ms. A <=3.10 V sample during that ramp parks immediately; a
+  sample below the configured dim threshold selects the dim target. The ADR 0046 ladder
+  (dim 3.15 V / 10 s confirm) subsumes the old P105 3.10 V dim override; protect is
+  3.10 V / 60 s and critical is 3.05 V immediate.
 - `/telemetry` adds `field_session_stage`, `field_session_marker`,
   `field_interrupted_boot`, `field_interrupted_retry`, and `field_interrupted_park`.
   Existing bridge logs identify the parked state through `field_phase=5`,
@@ -404,8 +404,9 @@ the one-time dim retry held about 300 mA / 3.07 V for roughly 9 s before a secon
 then correctly hard-parked. `net-bench-2026-07-13.1` stretches the four-step ramp to
 3.2 s so delayed harness/cell sag is visible before full brightness, and waits 10 s
 after an interrupted full-load boot before applying the one allowed dim retry. The P105
-profile should continue to deploy with `--field-dim-mv 3100 --maintain 4.6`; the
-generic/bare-peer dim default remains 3000 mV. The P126 2 W profile uses
+profile now inherits the ADR 0046 default dim (3150 mV; the old `--field-dim-mv 3100`
+override is subsumed) and keeps `--maintain 4.6`; the
+generic/bare-peer dim default is 3150 mV. The P126 2 W profile uses
 `--maintain 5.8`.
 
 `net-bench-2026-07-13.2` also makes the NVS `protect` stage authoritative after every

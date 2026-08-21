@@ -11,6 +11,8 @@ struct ProbeBits {
   bool vl53l5cx; // 0x29 (plain ACK: TSL2591 is not used in production)
   bool bmp581;   // 0x47, CHIP_ID-verified; environmental, not classifying
   bool msa311;   // 0x26; uplight discriminator only when neither ToF answers
+  bool samM8q;   // 0x42; SparkFun SAM-M8Q Qwiic GPS time anchor
+  bool ds3231;   // 0x68; Adafruit DS3231 STEMMA RTC holdover anchor
 };
 
 struct ClassDecision {
@@ -18,6 +20,9 @@ struct ClassDecision {
   uint8_t persistLast; // value to store as class_last (0 = leave unchanged)
   bool mismatch;     // probe disagreed with override/last -> telemetry flag
 };
+
+// Stable wire mask for ProbeBits (NbHeartbeat::sensor_bits).
+uint8_t probeBitsMask(const ProbeBits &bits);
 
 // Rules:
 //  - class_ovr wins outright (mismatch flagged if the probe disagrees).

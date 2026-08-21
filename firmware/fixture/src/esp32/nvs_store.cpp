@@ -4,16 +4,13 @@
 #include <Preferences.h>
 
 #include "../core/radio_config.h"
+#include "../core/solenoid_config.h"
 #ifndef RES_PROFILE_DEFAULT
 #define RES_PROFILE_DEFAULT PROFILE_DEV // M1 bringup posture; promote to field later
 #endif
 #ifndef RES_NIGHT_MAX_MIN_DEFAULT
 #define RES_NIGHT_MAX_MIN_DEFAULT 630 // 10.5 h; BRC dusk-to-dawn is 9h53m-10h15m
 #endif
-#ifndef RES_SOLENOID_DEFAULT_ENABLED
-#define RES_SOLENOID_DEFAULT_ENABLED 0
-#endif
-
 FixtureConfig gCfg;
 
 static const char *kNs = "resfx";
@@ -87,16 +84,34 @@ static void migrateChannelPolicy(Preferences &pf) {
   }
 }
 
+static uint8_t migrateSolenoidPolicy(Preferences &pf) {
+  uint32_t version = pf.getUInt("sol_policy", 0);
+  uint8_t prior = pf.getUChar("sol_en", 0);
+  uint8_t resolved = resolveSolenoidEnabled(prior, version);
+  if (solenoidPolicyNeedsPersist(prior, version)) {
+    bool valueOk = pf.putUChar("sol_en", resolved) == sizeof(uint8_t);
+    bool versionOk = valueOk &&
+                     pf.putUInt("sol_policy", RES_SOLENOID_POLICY_VERSION) ==
+                         sizeof(uint32_t);
+    Serial.printf("nvs: solenoid policy v%u %u -> %u%s\n",
+                  (unsigned)RES_SOLENOID_POLICY_VERSION, prior, resolved,
+                  versionOk ? "" : " (persist FAILED; retry next boot)");
+  }
+  return resolved;
+}
+
 void nvsLoadConfig() {
   if (gLoaded) return;
   gLoaded = true;
   Preferences pf;
+  uint8_t solenoidEnabled = RES_SOLENOID_DEFAULT_ENABLED;
   if (!pf.begin(kNs, false)) {
     Serial.println("nvs: OPEN FAILED -> compiled defaults");
   } else {
     migrateFromNetbench(pf);
     migrateChargePolicy(pf);
     migrateChannelPolicy(pf);
+    solenoidEnabled = migrateSolenoidPolicy(pf);
   }
   gCfg.capMah = checkedU16(pf, "cap_mah", 6000, RES_CAPACITY_MIN_MAH, RES_CAPACITY_MAX_MAH);
   gCfg.chargeMa = checkedU16(pf, "chg_ma", RES_CHARGE_DEFAULT_MA,
@@ -107,10 +122,10 @@ void nvsLoadConfig() {
   gCfg.battTier = pf.getUChar("batt_tier", 0);
 #if defined(RES_SOLENOID_FORCE_ENABLED)
   // Targeted bring-up image only: ignore any stale/missing NVS arm bit. The
-  // ordinary production build continues to honor NVS and defaults disarmed.
+  // ordinary production build continues to honor the migrated runtime value.
   gCfg.solEn = 1;
 #else
-  gCfg.solEn = pf.getUChar("sol_en", RES_SOLENOID_DEFAULT_ENABLED);
+  gCfg.solEn = solenoidEnabled;
 #endif
   gCfg.maintV10 = pf.getUChar("maint_v10", 46);
   if (gCfg.maintV10 < RES_MAINTAIN_MIN_V10 || gCfg.maintV10 > RES_MAINTAIN_MAX_V10)
@@ -170,7 +185,14 @@ bool nvsPersistClassLast(uint8_t cls) {
   return true;
 }
 bool nvsPersistSolEn(uint8_t en) {
-  if (!putU8("sol_en", en)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  en = en ? 1 : 0;
+  bool ok = pf.putUChar("sol_en", en) == sizeof(uint8_t) &&
+            pf.putUInt("sol_policy", RES_SOLENOID_POLICY_VERSION) ==
+                sizeof(uint32_t);
+  pf.end();
+  if (!ok) return false;
   gCfg.solEn = en;
   return true;
 }

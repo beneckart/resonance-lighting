@@ -29,20 +29,20 @@ int main() {
     // Light load so compensation is negligible (-20 mA -> +3 mV).
     // 9 s below dim: not yet confirmed (10 s required).
     PowerBudget b = {};
-    for (int i = 0; i < 10; i++) b = powerPolicyTick(st, sample(t += 1000, 2.99f, -20), c);
+    for (int i = 0; i < 10; i++) b = powerPolicyTick(st, sample(t += 1000, 3.14f, -20), c);
     CHECK(b.tier == LedTier::FULL);
     // 1 more second confirms.
-    b = powerPolicyTick(st, sample(t += 1000, 2.99f, -20), c);
+    b = powerPolicyTick(st, sample(t += 1000, 3.14f, -20), c);
     CHECK(b.tier == LedTier::DIM);
     CHECK(b.tier_changed);
     CHECK_EQ(b.brightness_cap, 128u);
     // 60 s below off -> OFF.
-    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 2.94f, -20), c);
+    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.09f, -20), c);
     CHECK(b.tier == LedTier::OFF);
     CHECK_EQ(b.brightness_cap, 0u);
     CHECK(!b.may_tx_show);
-    // Below 2.90 -> PROTECT immediately, no confirm.
-    b = powerPolicyTick(st, sample(t += 1000, 2.85f, -20), c);
+    // Below 3.05 -> PROTECT immediately, no confirm.
+    b = powerPolicyTick(st, sample(t += 1000, 3.00f, -20), c);
     CHECK(b.tier == LedTier::PROTECT);
     CHECK(b.must_sleep);
     CHECK_EQ(b.sleep_s, 900u);
@@ -54,9 +54,9 @@ int main() {
     powerStateInit(st, LedTier::FULL);
     uint32_t t = 1000;
     PowerBudget b = {};
-    for (int i = 0; i < 5; i++) b = powerPolicyTick(st, sample(t += 1000, 2.99f, -20), c);
-    b = powerPolicyTick(st, sample(t += 1000, 3.05f, -20), c); // recovers
-    for (int i = 0; i < 9; i++) b = powerPolicyTick(st, sample(t += 1000, 2.99f, -20), c);
+    for (int i = 0; i < 5; i++) b = powerPolicyTick(st, sample(t += 1000, 3.14f, -20), c);
+    b = powerPolicyTick(st, sample(t += 1000, 3.20f, -20), c); // recovers
+    for (int i = 0; i < 9; i++) b = powerPolicyTick(st, sample(t += 1000, 3.14f, -20), c);
     CHECK(b.tier == LedTier::FULL); // streak restarted; 9 s < 10 s
   }
 
@@ -66,17 +66,17 @@ int main() {
     powerStateInit(st, LedTier::FULL);
     uint32_t t = 1000;
     PowerBudget b = {};
-    // Full HEX load (860 mA) sags the terminal to 2.87 V -> compensated
-    // 2.999 V, below dim -> DIM after the 10 s confirm.
-    for (int i = 0; i < 11; i++) b = powerPolicyTick(st, sample(t += 1000, 2.87f, -860), c);
+    // Full HEX load (860 mA) sags the terminal to 3.02 V -> compensated
+    // 3.149 V, below dim -> DIM after the 10 s confirm.
+    for (int i = 0; i < 11; i++) b = powerPolicyTick(st, sample(t += 1000, 3.02f, -860), c);
     CHECK(b.tier == LedTier::DIM);
-    // Dimming halves the load; the terminal rebounds ~200 mV to 3.08 V, but
-    // compensated (3.08 + 0.065 = 3.145) it sits just under dim+150 = 3.15:
+    // Dimming halves the load; the terminal rebounds ~200 mV to 3.23 V, but
+    // compensated (3.23 + 0.065 = 3.295) it sits just under dim+150 = 3.30:
     // the rebound alone must not re-brighten, ever.
-    for (int i = 0; i < 120; i++) b = powerPolicyTick(st, sample(t += 1000, 3.08f, -430), c);
+    for (int i = 0; i < 120; i++) b = powerPolicyTick(st, sample(t += 1000, 3.23f, -430), c);
     CHECK(b.tier == LedTier::DIM); // held: rebound alone can't clear hysteresis
     // A real recovery (charging, voltage up) does clear it after 60 s.
-    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.25f, 200), c);
+    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.40f, 200), c);
     CHECK(b.tier == LedTier::FULL);
   }
 
@@ -86,11 +86,11 @@ int main() {
     powerStateInit(st, LedTier::FULL);
     uint32_t t = 1000;
     PowerBudget b = {};
-    // 2.95 V at -860 mA: compensated = 2.95 + 0.129 = 3.079 -> NOT below dim.
-    for (int i = 0; i < 30; i++) b = powerPolicyTick(st, sample(t += 1000, 2.95f, -860), c);
+    // 3.10 V at -860 mA: compensated = 3.10 + 0.129 = 3.229 -> NOT below dim.
+    for (int i = 0; i < 30; i++) b = powerPolicyTick(st, sample(t += 1000, 3.10f, -860), c);
     CHECK(b.tier == LedTier::FULL);
     // Same terminal voltage nearly unloaded: below dim -> dims.
-    for (int i = 0; i < 11; i++) b = powerPolicyTick(st, sample(t += 1000, 2.95f, -20), c);
+    for (int i = 0; i < 11; i++) b = powerPolicyTick(st, sample(t += 1000, 3.10f, -20), c);
     CHECK(b.tier == LedTier::DIM);
   }
 
@@ -129,17 +129,17 @@ int main() {
     PowerBudget b = {};
     // A single positive-current blip: stays latched (the +24 mA morning-blip
     // lesson -- rebound evidence is not release evidence).
-    b = powerPolicyTick(st, sample(t += 1000, 3.15f, 25, true, 100), c);
-    for (int i = 0; i < 30; i++) b = powerPolicyTick(st, sample(t += 1000, 3.05f, -5, false), c);
+    b = powerPolicyTick(st, sample(t += 1000, 3.30f, 25, true, 100), c);
+    for (int i = 0; i < 30; i++) b = powerPolicyTick(st, sample(t += 1000, 3.20f, -5, false), c);
     CHECK(b.tier == LedTier::PROTECT);
     // Rebound voltage alone (no charge current): stays latched for hours.
-    for (int i = 0; i < 3600; i++) b = powerPolicyTick(st, sample(t += 1000, 3.20f, -2, false), c);
+    for (int i = 0; i < 3600; i++) b = powerPolicyTick(st, sample(t += 1000, 3.35f, -2, false), c);
     CHECK(b.tier == LedTier::PROTECT);
     // Qualified sustained charging: releases exactly once, to OFF (not FULL --
     // "clear stage once and do NOT immediately start the show").
     bool released = false;
     for (int i = 0; i < 61; i++) {
-      b = powerPolicyTick(st, sample(t += 1000, 3.15f, 150, true, 300), c);
+      b = powerPolicyTick(st, sample(t += 1000, 3.30f, 150, true, 300), c);
       // The release needs 60 s, so qualified recovery must suppress the normal
       // PROTECT sleep throughout the streak or it can never finish.
       if (!b.protect_released) CHECK(!b.must_sleep);
@@ -156,16 +156,16 @@ int main() {
     uint32_t t2 = 1000;
     PowerBudget b2 = {};
     for (int i = 0; i < 300; i++)
-      b2 = powerPolicyTick(st2, sample(t2 += 1000, 3.15f, 150, true, 300, true), c);
+      b2 = powerPolicyTick(st2, sample(t2 += 1000, 3.30f, 150, true, 300, true), c);
     CHECK(b2.tier == LedTier::PROTECT);
     // An interrupted streak restarts the sustain window.
     PowerState st3;
     powerStateInit(st3, LedTier::PROTECT);
     uint32_t t3 = 1000;
     PowerBudget b3 = {};
-    for (int i = 0; i < 40; i++) b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.15f, 150, true, 300), c);
-    b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.15f, 5, true, 300), c); // dip
-    for (int i = 0; i < 40; i++) b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.15f, 150, true, 300), c);
+    for (int i = 0; i < 40; i++) b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.30f, 150, true, 300), c);
+    b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.30f, 5, true, 300), c); // dip
+    for (int i = 0; i < 40; i++) b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.30f, 150, true, 300), c);
     CHECK(b3.tier == LedTier::PROTECT); // 40 s < 60 s after restart
   }
 
@@ -175,8 +175,32 @@ int main() {
     powerStateInit(st, LedTier::OFF);
     uint32_t t = 1000;
     PowerBudget b = {};
-    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.12f, 100), c);
-    CHECK(b.tier == LedTier::DIM); // 3.12 >= 2.95+0.15 sustained
+    for (int i = 0; i < 61; i++) b = powerPolicyTick(st, sample(t += 1000, 3.27f, 100), c);
+    CHECK(b.tier == LedTier::DIM); // 3.27 >= 3.10+0.15 sustained
+  }
+
+  // --- Override sanitizer: inverted ladders revert to defaults ----------------
+  {
+    PowerConfig d = powerConfigDefaults();
+    // Ordered configs pass through untouched, including a deliberate
+    // full-trio retune below the defaults.
+    PowerConfig ok = d;
+    ok.dim_mv = 3000; ok.off_mv = 2950; ok.protect_mv = 2900;
+    CHECK(powerConfigSanitize(ok));
+    CHECK_EQ(ok.dim_mv, 3000u);
+    // A stale partial override interleaving with the raised defaults
+    // (stored off_mv=2950, default protect 3050) reverts the trio.
+    PowerConfig bad = d;
+    bad.off_mv = 2950;
+    CHECK(!powerConfigSanitize(bad));
+    CHECK_EQ(bad.dim_mv, d.dim_mv);
+    CHECK_EQ(bad.off_mv, d.off_mv);
+    CHECK_EQ(bad.protect_mv, d.protect_mv);
+    // Equal rungs are also an inversion (confirm windows would be unreachable).
+    PowerConfig eq = d;
+    eq.dim_mv = eq.off_mv;
+    CHECK(!powerConfigSanitize(eq));
+    CHECK_EQ(eq.dim_mv, d.dim_mv);
   }
 
   // --- Tier -> stage mapping --------------------------------------------------

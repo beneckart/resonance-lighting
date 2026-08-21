@@ -12,9 +12,11 @@
 //     send-side truncation at any tail boundary valid (see hb-short).
 //   - 1..17  net_bench era (bench masters still send/understand these).
 //   - 18..24 fixture era (production behavior layer).
-//   - 20/22/23 are RESERVED: struct defined, parse-stubbed, NOT sent yet.
+//   - 20 is RESERVED: struct defined, parse-stubbed, NOT sent yet.
+//   - 23 is the bounded presence-wave event used by the 2026-08 field demo.
 //   - 25..26 cambium era (browser-sim serial bridge streaming).
-//   - 27+    free.
+//   - 27..28 field-pack era (transport sleep + bounded locate survey).
+//   - 29+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -50,12 +52,15 @@ enum NbType : uint8_t {
   NB_PROGRAM_SET = 19,   // bridge -> all/target: program override lease
   NB_TIME_QUALITY = 20,  // RESERVED (ADR 0031 time anchors) -- defined, not sent
   NB_PROFILE = 21,       // bridge -> all/target: commission/field profile flip
-  NB_NEIGHBOR_REPORT = 22, // RESERVED (M2 locate: censored-median RSSI) -- defined, not sent
-  NB_EVENT = 23,         // RESERVED (M2 event fabric) -- defined, not sent
+  NB_NEIGHBOR_REPORT = 22, // fixture -> bridge: bounded strongest-neighbor RSSI report
+  NB_EVENT = 23,         // targeted event over broadcast RF (presence wave)
   NB_NEIGHBOR_SET = 24,  // bridge -> target: pinned CA adjacency (<=8 neighbors)
   // ---- cambium era ----------------------------------------------------------
   NB_DIRECT_FRAME = 25,    // bridge -> all: per-fixture RGBW (ids ride IN the entries)
   NB_FORCE_LIFECYCLE = 26, // bridge -> all/target: force day/night/auto (RAM-only)
+  // ---- field-pack era -------------------------------------------------------
+  NB_TRANSPORT_SLEEP = 27, // bridge -> all/target: multi-day timer sleep
+  NB_LOCATE_CONTROL = 28,  // bridge -> all/target: bounded RSSI survey window
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -179,11 +184,16 @@ struct __attribute__((packed)) NbHeartbeat {
   // tail 14 (fleet dashboard output truth -- appears only in hb-full)
   uint8_t fixture_class;  // FixtureClass; 0 = unknown
   uint8_t led_rail_on;    // physical switchable 3V3 rail state (0/1)
-  uint8_t led_r;          // mean post-gamma output across currently lit pixels
+  uint8_t led_r;          // mean post-cap output across currently lit pixels
   uint8_t led_g;
   uint8_t led_b;
   uint8_t led_w;          // 0 on GRB HEX fixtures
-  uint8_t led_lit_pixels; // number of nonzero pixels after cap/gamma
+  uint8_t led_lit_pixels; // number of nonzero pixels after brightness cap
+  // tail 15 (fleet identity + low-VBAT recovery diagnostics; hb-full only)
+  uint8_t sensor_bits;    // b0 TMF, b1 VL53, b2 BMP, b3 MSA, b4 SAM-M8Q, b5 DS3231
+  uint8_t class_mismatch; // probe conflict/fault fallback retained prior class
+  uint8_t recovery_state; // LowVbatRecoveryState
+  uint16_t recovery_detect_mv; // BQ ADC after the 30 mA presence test
 };
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?
@@ -221,6 +231,9 @@ struct __attribute__((packed)) NbIdentify { // locate a board (target 00:00:00 =
   // assigned color so ~10 units/row can be physically ordered by eye (2x10 rig).
   uint8_t color; // 0=none(blink pattern) 1=R 2=G 3=B 4=Y 5=W
   uint8_t blink; // 0=solid 1=blinking (doubles the distinguishable identities)
+  // --- APPEND-ONLY tail 2: output level for persistent dashboard tags.
+  // Old 19 B senders default to full intensity at the receiver.
+  uint8_t value; // 1..255; 0 is interpreted as 255 for compatibility
 };
 struct __attribute__((packed)) NbScanAp { // bench-era; fixture parses (ignores), never sends
   NbHeader h;
@@ -244,6 +257,7 @@ struct __attribute__((packed)) NbChoreoState { // 18: fast show/CA state, NIGHT 
   uint8_t intensity;   // current render energy 0-255 (neighbor/bridge viz)
   uint16_t phase_ms;   // ms into current program cycle (mod 65536)
   uint8_t flags;       // bit0=power-limited bit1=lease-active bit2=commission profile
+                       // bit3=understands NB_EVENT presence-wave forwarding
   uint8_t reserved;
 };
 
@@ -284,14 +298,29 @@ struct __attribute__((packed)) NbNeighborEntry {
   uint8_t n;     // samples received in the window
   uint8_t flags; // bit0=censored (median rank lost; treat as "at least this far")
 };
-struct __attribute__((packed)) NbNeighborReport { // 22: RESERVED (M2 locate)
+struct __attribute__((packed)) NbNeighborReport { // 22: bounded locate survey
   NbHeader h;
   uint8_t count;
   uint16_t n_expected; // beacons sent per window at the known fixed rate
   NbNeighborEntry entries[NB_NEIGHBOR_REPORT_MAX];
 };
 
-struct __attribute__((packed)) NbEvent { // 23: RESERVED (M2 event fabric)
+enum NbEventKind : uint8_t {
+  NB_EVENT_PRESENCE_WAVE = 1,
+};
+
+// Presence-wave params (kind 1):
+//   [0..2] intended target short ID; packet is broadcast so every updated
+//          fixture can add that target to its event-local visited set
+//   [3]    HSV hue (0..255)
+//   [4]    requested point-source value (local class/power caps still win)
+//   [5]    propagation depth (observability only)
+#define NB_EVENT_TARGET_OFFSET 0
+#define NB_EVENT_HUE_OFFSET 3
+#define NB_EVENT_VALUE_OFFSET 4
+#define NB_EVENT_DEPTH_OFFSET 5
+
+struct __attribute__((packed)) NbEvent { // 23: bounded event fabric
   NbHeader h;
   uint32_t event_id; // dedupe key
   uint32_t fire_in_ms;
@@ -332,6 +361,21 @@ struct __attribute__((packed)) NbForceLifecycle { // 26: bridge day/night overri
   uint8_t mode;  // 0=force day 1=force night 2=auto (mirrors serial 'N')
   uint8_t flags; // reserved 0. RAM-only BY DESIGN (no NVS mirror): a rebooting
                  // field unit must never stay forced.
+};
+
+// ---- field-pack payloads ----------------------------------------------------
+
+struct __attribute__((packed)) NbTransportSleep { // 27: multi-day timer sleep
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all
+  uint32_t seconds;     // 1..7 days accepted by the current bridge
+};
+
+struct __attribute__((packed)) NbLocateControl { // 28: temporary RSSI reports
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all
+  uint16_t duration_s;  // 0 stops; bridge bounds starts to <=15 min
+  uint8_t period_ds;    // report period in deciseconds (10..250 accepted)
 };
 
 // ---- helpers (pure; ESP-NOW send lives in esp32/espnow_link) ----------------

@@ -11,6 +11,41 @@
 // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions.
 #define RES_GAUGE_CURRENT_DIVISOR 1.08f
 
+// BQ25628E precharge limit. The 30 mA POR value stranded deeply discharged
+// production LFPs near 2.8 V despite valid solar input. Ben selected 300 mA
+// for the supervised recovery rollout on 2026-08-16. Trickle charge below
+// 2.25 V, input DPM, thermal protection, and the hardware transition to fast
+// charge remain charger-owned and unchanged.
+#ifndef RES_PF_PRECHARGE_MA
+#define RES_PF_PRECHARGE_MA 300
+#endif
+
+// A test-class artifact may authorize one exact short MAC to recover a real,
+// physically supervised LFP below the normal 2.5 V presence threshold. The
+// normal fleet build leaves this zero and cannot take the bypass.
+#ifndef RES_DEEP_RECOVERY_TARGET
+#define RES_DEEP_RECOVERY_TARGET 0UL
+#endif
+#ifndef RES_DEEP_RECOVERY_MAX_CHARGE_MA
+#define RES_DEEP_RECOVERY_MAX_CHARGE_MA 100
+#endif
+#ifndef RES_LOW_VBAT_RECOVERY
+#define RES_LOW_VBAT_RECOVERY 1
+#endif
+#ifndef RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA
+#define RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA 100
+#endif
+#if RES_DEEP_RECOVERY_MAX_CHARGE_MA < 40 || RES_DEEP_RECOVERY_MAX_CHARGE_MA > 300
+#error "RES_DEEP_RECOVERY_MAX_CHARGE_MA must be 40..300 mA"
+#endif
+#if RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA < 40 || RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA > 300
+#error "RES_LOW_VBAT_RECOVERY_MAX_CHARGE_MA must be 40..300 mA"
+#endif
+#if RES_PF_PRECHARGE_MA < 10 || RES_PF_PRECHARGE_MA > 310 || \
+    (RES_PF_PRECHARGE_MA % 10) != 0
+#error "RES_PF_PRECHARGE_MA must be 10..310 mA in 10 mA steps"
+#endif
+
 void boardPowerInit();     // load NVS config + Board.init retries + charger policy
 void boardPowerTick();     // call from loop; internally rate-limited to 1 Hz
 void readBatteryNow();     // synchronous refresh (maintenance preflight)
@@ -29,10 +64,26 @@ int batterySocPct();   // -1 = no reading; ADVISORY ONLY, never a control gate
 float supplyVolts();
 float supplyMa();
 bool supplyGood();
+bool prechargeConfigured(); // target register value read back successfully
+uint16_t prechargeTargetMa();
+bool deepRecoveryBuild();
+bool deepRecoveryTargetMatches();
+bool deepRecoveryChargeActive();
+
+enum LowVbatRecoveryState : uint8_t {
+  LOW_VBAT_RECOVERY_NONE = 0,
+  LOW_VBAT_RECOVERY_WAITING = 1,
+  LOW_VBAT_RECOVERY_ACTIVE = 2,
+  LOW_VBAT_RECOVERY_REFUSED = 3,
+  LOW_VBAT_RECOVERY_GRADUATED = 4,
+  LOW_VBAT_RECOVERY_IO_ERROR = 5,
+};
+uint8_t lowVbatRecoveryState();
+uint16_t lowVbatRecoveryDetectMv();
 
 // BQ25628E snapshot (0xFFFF/0xFF = unknown).
 struct BqSnapshot {
-  uint16_t vindpm_mv, ichg_ma, vreg_mv;
+  uint16_t vindpm_mv, ichg_ma, vreg_mv, precharge_ma, reg10;
   uint8_t reg16, reg18, stat0, stat1, fault0, flag0, flag1, fault_flag0, part;
 };
 const BqSnapshot &bqSnapshot();
@@ -51,5 +102,11 @@ bool applyCapacityAndReboot(uint16_t mah);
 bool applyChargeMa(uint16_t ma);
 bool applyMaintainV10(uint8_t v10);
 
-// Rails-off timed deep sleep (~0.5%/h vs ~1.7%/h with rails left on).
-void enterTimedDeepSleep(uint16_t seconds, const char *why);
+// Rails-off timer sleep. Transport sleep additionally leaves an RTC-retained
+// dark latch behind: after automatic timer wake the radio/telemetry return,
+// but the fixture stays electrically dark until a valid program command (the
+// bridge's bare 'b' release is sufficient). No lid-open reset is required.
+void enterTimedDeepSleep(uint32_t seconds, const char *why);
+void enterTransportSleep(uint32_t seconds, const char *why);
+bool transportWakeDarkActive();
+void transportWakeDarkRelease();

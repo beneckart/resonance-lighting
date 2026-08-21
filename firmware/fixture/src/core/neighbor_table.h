@@ -1,5 +1,7 @@
-// Neighbor tracking for a 150-node broadcast domain where only the RF-nearest
-// ~16 matter. Two adjacency sources for the CA (Ben, 2026-07-30):
+// Neighbor tracking for the whole 150-node broadcast domain. Only the
+// RF-nearest ~16 matter to live behavior, but retaining the full heard roster
+// permits a short, operator-requested pairwise RSSI survey before field pack.
+// Two adjacency sources for the CA (Ben, 2026-07-30):
 //   RSSI mode (default): strongest fresh entries -- expected to be marginal
 //     indoors (8-17 dB placement variance) but free to try;
 //   pinned mode: host-pushed explicit adjacency (NB_NEIGHBOR_SET) from the
@@ -10,7 +12,7 @@
 
 #include <stdint.h>
 
-#define NEIGHBOR_TABLE_SIZE 24
+#define NEIGHBOR_TABLE_SIZE 160
 #define NEIGHBOR_PINNED_MAX 8
 
 struct NeighborEntry {
@@ -22,6 +24,7 @@ struct NeighborEntry {
   uint8_t programId;
   uint16_t generation;
   uint8_t tier;
+  uint8_t flags;      // latest NbChoreoState capability/status flags
   uint32_t lastSeq;
 };
 
@@ -49,8 +52,15 @@ struct NeighborView {
   uint8_t state;
   uint8_t programId;
   uint16_t generation;
+  uint8_t flags;
   uint32_t ageMs;
   int8_t rssi;
 };
 uint8_t neighborSnapshot(const NeighborTable &t, uint32_t nowMs, uint32_t freshMs,
                          NeighborView *out, uint8_t maxOut);
+
+// Locate-facing view: ignores a pinned CA map and returns every fresh heard
+// peer strongest-first. It is used only during an explicit bounded survey.
+uint8_t neighborSurveySnapshot(const NeighborTable &t, uint32_t nowMs,
+                               uint32_t freshMs, NeighborView *out,
+                               uint8_t maxOut);

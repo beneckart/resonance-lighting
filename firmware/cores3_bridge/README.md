@@ -18,13 +18,24 @@ The bridge:
 - emits the same `nb-master`, `nb-peer`, and `nb-scanap` serial lines consumed by
   `ops/bench/net_bench_dashboard.py` and the JSONL logger;
 - length-gates the fixture heartbeat tails and exposes profile, lifecycle, power
-  tier, class, LED-rail state, actual rendered RGBW average, and lit-pixel count;
+  tier, sensor-derived class/signature, class mismatch, LED-rail state, actual
+  rendered RGBW average, lit-pixel count, and low-VBAT recovery state;
 - accepts the existing dashboard serial controls for maintenance, resume,
   identify, rate, charger settings, sleep/park, drawdown, and solenoid strike;
 - accepts `i<fixture-id>:<seconds>` for an exact 1-255 second fixture locator
   (`iF40268:60`), while bare `i` retains next-peer cycling;
+- accepts `T<fixture-id>:1` for a renewable 255-second steady-green tag at
+  linear level 128 and `T<fixture-id>:0` to release it immediately;
 - accepts `F0` / `F1` to persistently place all reachable fixtures in
   commission / field profile, or `F<fixture-id>:0|1` for one fixture;
+- accepts `B<seconds>` for a RAM-only, hard-cut fleet-dark program lease and
+  lowercase `b` to release that lease immediately; neither command changes the
+  fixture profile, lifecycle, or persisted configuration;
+- accepts `Q<hours>` (1-168) for multi-day rails-off transport sleep; timer wake
+  returns radio/telemetry but fixtures remain electrically dark until a program
+  command such as bare `b` releases the retained latch;
+- accepts `L[seconds]` (default 120, maximum 900, `L0` stop) for a bounded full
+  heard-roster RSSI survey and emits one `nb-rssi` line per directed observation;
 - shows bridge health and fresh fixtures on the built-in screen using a
   PSRAM-backed framebuffer so periodic updates do not visibly blink.
 
@@ -38,7 +49,10 @@ An independent audio-reactive build mode turns a live microphone envelope into
 10 Hz `NB_DIRECT_FRAME` colors for every fixture heard in the last five
 seconds. Each fixture gets a stable red, green, or blue slot based on sorted
 fixture ID. The bridge performs a two-second ambient-noise calibration, then
-uses fast attack and slow release. Tap the screen or send `A` over USB serial
+uses fast attack and slow release. Four visual modes (2026-08-20): CLASSIC
+per-slot R/G/B, EMBER warm-white envelope, HUECYCLE (20 s shared hue rotation),
+PULSE (beat-transient flashes over a dim floor). Tap the screen or send `M`
+over USB serial to cycle modes; send `A` over USB serial
 to pause/resume. Direct-frame staleness still returns each fixture to its
 autonomous program after three seconds; this mode does not persist a lifecycle
 override on any fixture. Peers whose full heartbeat identifies non-fixture
@@ -128,13 +142,15 @@ python ../../ops/bench/net_bench_dashboard.py --port COM40
 ```
 
 The primary view is a dense fleet-health grid. Each light is one composite glyph:
-the center battery fill uses ADR 0023's load-compensated thresholds, the top sun or
+the center battery fill uses ADR 0046's load-compensated thresholds, the top sun or
 plug shows a live charger input, the thin top bar is the fixture's reported rendered
 color, and the whole tile fades when its expected heartbeat is late or silent. The
 reported fixture class (normally from the Stemma probe, with an override available)
 sets the center shape: circle for canopy/downlight, hexagon for perimeter, triangle
 for trunk/uplight, diamond for chandelier, and a
-rounded square when class telemetry is unknown. IDs use the last two MAC digits;
+rounded square when class telemetry is unknown. Each tile also has a small
+checkbox that persists a green half-brightness location tag in the browser and
+renews its bounded fixture lease every two minutes. IDs use the last two MAC digits;
 only collisions expand to `DC-1`, `DC-2`, and so on. Select a tile for exact values.
 The older solar metrics, controls, table, and raw serial console remain available
 under `Detailed diagnostics`.
@@ -155,7 +171,7 @@ lead, not a standalone electrical verdict.
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-15.1 ===
+=== Resonance net-bench cores3-bridge-2026-08-17.1 ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
 ```

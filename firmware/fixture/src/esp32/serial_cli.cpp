@@ -243,15 +243,18 @@ void handleSerial() {
     Serial.printf("force_night -> %s\n", v == 2 ? "auto" : (v ? "night" : "day"));
     break;
   }
-  case 'L': { // bench smoke render: L1 on, L0 off, bare L reports
+  case 'L': { // bench LED override: L1 smoke/rail on, L0 forced rail off
     int on = readSerialUint(80, 1);
     if (on < 0) {
-      Serial.printf("smoke=%d rail=%d pixels=%u\n", gSmokeRender ? 1 : 0,
+      Serial.printf("smoke=%d forced_off=%d rail=%d pixels=%u\n",
+                    gSmokeRender ? 1 : 0, gBenchRailForcedOff ? 1 : 0,
                     ledRailIsOn() ? 1 : 0, (unsigned)ledPixelCount());
       break;
     }
     gSmokeRender = (on == 1);
-    Serial.printf("smoke render -> %d\n", on);
+    gBenchRailForcedOff = (on == 0);
+    if (gBenchRailForcedOff) ledRailOff();
+    Serial.printf("bench LED -> %s\n", on ? "smoke/rail-on" : "forced rail-off");
     break;
   }
   case 'F': {

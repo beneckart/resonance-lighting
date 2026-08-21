@@ -26,6 +26,11 @@ static uint8_t gRateHz = 0; // 0 = profile default cadence
 static uint32_t gHbSeq = 0;
 static uint32_t gNextShortMs = 0;
 static uint32_t gNextFullMs = 0;
+static bool gLocateActive = false;
+static uint32_t gLocateUntilMs = 0;
+static uint32_t gNextLocateMs = 0;
+static uint16_t gLocatePeriodMs = 2000;
+static NeighborView gLocateViews[NEIGHBOR_TABLE_SIZE];
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -35,12 +40,13 @@ static bool gDlSeen = false;
 static uint32_t gDirectSeen = 0, gDirectMatched = 0;
 
 static ShowFrameIn gShowFrame = {};
-static uint8_t gIdentColor = 0, gIdentBlink = 0;
+static uint8_t gIdentColor = 0, gIdentBlink = 0, gIdentValue = 255;
 static uint32_t gIdentUntil = 0;
 
 const ShowFrameIn &netPeerLastShowFrame() { return gShowFrame; }
 uint8_t netPeerIdentifyColor() { return gIdentColor; }
 uint8_t netPeerIdentifyBlink() { return gIdentBlink; }
+uint8_t netPeerIdentifyValue() { return gIdentValue; }
 bool netPeerIdentifyActive() { return millis() < gIdentUntil; }
 uint16_t netPeerDlPdrX1000() {
   uint32_t tot = gDlRx + gDlGaps;
@@ -133,6 +139,10 @@ void netPeerSendHeartbeat(bool full) {
   hb.led_b = led.b;
   hb.led_w = led.w;
   hb.led_lit_pixels = led.litPixels;
+  hb.sensor_bits = gTelemetrySensorBits;
+  hb.class_mismatch = gTelemetryClassMismatch ? 1 : 0;
+  hb.recovery_state = lowVbatRecoveryState();
+  hb.recovery_detect_mv = lowVbatRecoveryDetectMv();
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -154,6 +164,34 @@ static void accountDownlink(const NbHeader *h, int8_t rssi) {
     gDlGaps = 0;
   } else {
     gDlRx++;
+  }
+}
+
+static void sendNeighborReports() {
+  uint8_t total = behaviorNeighborSnapshot(gLocateViews, NEIGHBOR_TABLE_SIZE);
+  // Fragment a full heard-roster snapshot into existing 16-entry packets.
+  // At the 20 s default, even a 100-neighbor reporter averages <0.4 pkt/s.
+  for (uint8_t offset = 0; offset < total; offset += NB_NEIGHBOR_REPORT_MAX) {
+    uint8_t count = min((uint8_t)NB_NEIGHBOR_REPORT_MAX,
+                        (uint8_t)(total - offset));
+    NbNeighborReport report;
+    memset(&report, 0, sizeof(report));
+    fillHeader(&report.h, NB_NEIGHBOR_REPORT);
+    report.count = count;
+    // Each row is one ranked EWMA snapshot. The host aggregates repeated rows;
+    // n=1/expected=1 avoids pretending this is an on-device median.
+    report.n_expected = 1;
+    for (uint8_t i = 0; i < count; ++i) {
+      const NeighborView &view = gLocateViews[offset + i];
+      memcpy(report.entries[i].id, view.id, 3);
+      report.entries[i].med_dbm = view.rssi;
+      report.entries[i].n = 1;
+      report.entries[i].flags = 0;
+    }
+    size_t wireLen = offsetof(NbNeighborReport, entries) +
+                     (size_t)count * sizeof(NbNeighborEntry);
+    espNowSendRaw(&report, wireLen);
+    delay(3);
   }
 }
 
@@ -184,6 +222,11 @@ static void processPacket(const RxItem &it) {
   case NB_NEIGHBOR_SET: {
     if (it.len < (int)sizeof(NbNeighborSet)) return;
     behaviorOnNeighborSet(*(const NbNeighborSet *)it.data);
+    break;
+  }
+  case NB_EVENT: {
+    if (it.len < (int)sizeof(NbEvent)) return;
+    behaviorOnEvent(*(const NbEvent *)it.data);
     break;
   }
   case NB_SHOWFRAME: {
@@ -228,6 +271,32 @@ static void processPacket(const RxItem &it) {
                   fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
     break;
   }
+  case NB_TRANSPORT_SLEEP: {
+    if (it.len < (int)sizeof(NbTransportSleep)) return;
+    const NbTransportSleep *ts = (const NbTransportSleep *)it.data;
+    if (!nbTargetMatches(ts->target_id, gMyId)) return;
+    if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
+    enterTransportSleep(ts->seconds, "radio-transport");
+    break;
+  }
+  case NB_LOCATE_CONTROL: {
+    if (it.len < (int)sizeof(NbLocateControl)) return;
+    const NbLocateControl *lc = (const NbLocateControl *)it.data;
+    if (!nbTargetMatches(lc->target_id, gMyId)) return;
+    if (lc->duration_s == 0) {
+      gLocateActive = false;
+      Serial.println("locate survey: stopped");
+      break;
+    }
+    if (lc->duration_s > 900 || lc->period_ds < 10 || lc->period_ds > 250) return;
+    gLocatePeriodMs = (uint16_t)lc->period_ds * 100U;
+    gLocateUntilMs = millis() + (uint32_t)lc->duration_s * 1000UL;
+    gNextLocateMs = millis() + 100 + (esp_random() % gLocatePeriodMs);
+    gLocateActive = true;
+    Serial.printf("locate survey: %us every %ums\n", lc->duration_s,
+                  gLocatePeriodMs);
+    break;
+  }
   case NB_ENTER_MAINT:
     if (maintMode() == MODE_COMMS) enterMaintenance();
     break;
@@ -254,9 +323,11 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
     const NbIdentify *id = (const NbIdentify *)it.data;
     if (!nbTargetMatches(id->target_id, gMyId)) return;
-    bool hasColor = it.len >= (int)sizeof(NbIdentify);
+    bool hasColor = it.len >= (int)(offsetof(NbIdentify, blink) + sizeof(id->blink));
+    bool hasValue = it.len >= (int)sizeof(NbIdentify);
     gIdentColor = hasColor ? id->color : 0;
     gIdentBlink = hasColor ? id->blink : 0;
+    gIdentValue = hasValue && id->value ? id->value : 255;
     gIdentUntil = millis() + (uint32_t)id->secs * 1000UL;
     statusLedIdentify(id->secs);
     break;
@@ -367,5 +438,16 @@ void netPeerTick() {
   if ((int32_t)(now - gNextFullMs) >= 0) {
     netPeerSendHeartbeat(true);
     gNextFullMs = now + jittered(fullPeriodMs());
+  }
+  if (gLocateActive) {
+    if ((int32_t)(now - gLocateUntilMs) >= 0) {
+      gLocateActive = false;
+    } else if ((int32_t)(now - gNextLocateMs) >= 0) {
+      sendNeighborReports();
+      // Independent jitter prevents a 60-node survey from phase-locking.
+      uint32_t spread = gLocatePeriodMs / 4U;
+      gNextLocateMs = now + gLocatePeriodMs - spread / 2U +
+                      (spread ? esp_random() % spread : 0);
+    }
   }
 }

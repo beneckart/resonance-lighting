@@ -22,9 +22,10 @@ int main() {
   CHECK_EQ(offsetof(NbShowFrame, val), 17u);
   CHECK_EQ(sizeof(NbShowFrame), 22u);
 
-  // Identify: legacy 17 B + color tail -> 19 B.
+  // Identify: legacy 17 B + color tail + intensity tail -> 20 B.
   CHECK_EQ(offsetof(NbIdentify, color), 17u);
-  CHECK_EQ(sizeof(NbIdentify), 19u);
+  CHECK_EQ(offsetof(NbIdentify, value), 19u);
+  CHECK_EQ(sizeof(NbIdentify), 20u);
 
   // Heartbeat tails. Every offset here is load-bearing for the append-only
   // contract AND for send-side truncation (hb-short).
@@ -45,13 +46,18 @@ int main() {
   // `profile` is byte-identical to a maxed-out bench heartbeat.
   CHECK_EQ(offsetof(NbHeartbeat, profile), 142u); // tail 13 (fixture era)
   CHECK_EQ(offsetof(NbHeartbeat, fixture_class), 148u); // tail 14 (dashboard)
-  CHECK_EQ(sizeof(NbHeartbeat), 155u);
+  CHECK_EQ(offsetof(NbHeartbeat, sensor_bits), 155u); // tail 15 (identity/recovery)
+  CHECK_EQ(sizeof(NbHeartbeat), 160u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
   CHECK_EQ(sizeof(NbProgramSet), 32u);
   CHECK_EQ(sizeof(NbProfile), 18u);
   CHECK_EQ(sizeof(NbTimeQuality), 29u);
+  CHECK_EQ(sizeof(NbNeighborEntry), 6u);
+  CHECK_EQ(offsetof(NbNeighborReport, entries), 16u);
+  CHECK_EQ(sizeof(NbNeighborReport), 112u);
+  CHECK_EQ(sizeof(NbEvent), 39u);
   CHECK_EQ(sizeof(NbNeighborSet), 13u + 3u + 1u + 1u + 24u);
 
   // Cambium-era payloads (25/26). The 15 B preamble + 7 B entry stride are
@@ -64,12 +70,18 @@ int main() {
   CHECK_EQ(sizeof(NbDirectFrame), 141u);
   CHECK_EQ(sizeof(NbForceLifecycle), 18u);
 
+  // Field-pack payloads (27/28): multi-day seconds are intentionally u32.
+  CHECK_EQ(sizeof(NbTransportSleep), 20u);
+  CHECK_EQ(offsetof(NbTransportSleep, seconds), 16u);
+  CHECK_EQ(sizeof(NbLocateControl), 19u);
+
   // Receiver tail gate + truncation round-trip: an hb-short must satisfy the
   // gate for supply_good and fail it for lux_x10.
   CHECK(NB_HAS_HB_FIELD((int)NB_HB_SHORT_LEN, supply_good));
   CHECK(!NB_HAS_HB_FIELD((int)NB_HB_SHORT_LEN, lux_x10));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), night_min));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), led_lit_pixels));
+  CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), recovery_detect_mv));
   // A legacy 142 B bench heartbeat fails the tail-13 gate.
   CHECK(!NB_HAS_HB_FIELD(142, profile));
   // A pre-dashboard 148 B fixture heartbeat fails the new tail-14 gate.

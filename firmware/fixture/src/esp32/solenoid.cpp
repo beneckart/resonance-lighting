@@ -26,6 +26,11 @@ static uint32_t gButtonChangedMs = 0;
 // release D7 between MCU pulses; OUTPUT LOW would clamp both manual sources.
 // A disarmed fixture deliberately keeps the old active-LOW clamp.
 static void solenoidIdle() {
+#if RES_DEEP_RECOVERY_TARGET != 0UL
+  pinMode(RES_SOLENOID_PIN, OUTPUT);
+  digitalWrite(RES_SOLENOID_PIN, LOW);
+  return;
+#endif
   if (gCfg.solEn) {
     pinMode(RES_SOLENOID_PIN, INPUT);
     digitalWrite(RES_SOLENOID_PIN, LOW); // preload the output latch for safety
@@ -87,6 +92,13 @@ void solenoidStop(const char *why) {
 
 static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
                               bool takeExternalHigh) {
+#if RES_DEEP_RECOVERY_TARGET != 0UL
+  (void)pulseMs;
+  (void)why;
+  (void)takeExternalHigh;
+  gBlocked++;
+  return false;
+#endif
   if (!gCfg.solEn) {
     gBlocked++;
     return false;

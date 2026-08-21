@@ -59,7 +59,7 @@ enum BootStage : uint8_t {
 #define FRAME_MAX_PIXELS 37
 struct FrameBuffer {
   uint8_t count; // live pixel count for the current class profile
-  uint8_t px[FRAME_MAX_PIXELS][4]; // R,G,B,W (0-255, pre-gamma)
+  uint8_t px[FRAME_MAX_PIXELS][4]; // R,G,B,W (0-255, linear; no gamma anywhere)
 };
 
 inline void frameClear(FrameBuffer &f) {

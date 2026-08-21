@@ -9,12 +9,13 @@
 #include <stdint.h>
 #include "../core/fixture_context.h"
 
-// Ramp abort thresholds (ADR 0023 standard tier; the power policy proper owns
-// the running thresholds from P3 -- these only guard the turn-on transient).
+// Ramp abort thresholds (ADR 0046 charge-knee ladder; the power policy proper
+// owns the running thresholds from P3 -- these only guard the turn-on
+// transient and track power_policy.cpp protect_mv/off_mv in lockstep).
 #define RES_LED_RAMP_STEPS 4
 #define RES_LED_RAMP_STEP_MS 800
-#define RES_LED_RAMP_PARK_MV 2900
-#define RES_LED_RAMP_DIM_MV 2950
+#define RES_LED_RAMP_PARK_MV 3050
+#define RES_LED_RAMP_DIM_MV 3100
 
 void ledProfileForClass(uint8_t fixtureClass); // (re)construct the strip object
 uint16_t ledPixelCount();
@@ -24,7 +25,7 @@ void ledRailOff(); // blank -> data low -> rail cut (safe to call anytime)
 bool ledRailIsOn();
 
 // Compact, dashboard-oriented truth about the frame actually handed to the
-// pixels after brightness cap and gamma. Multi-pixel fixtures report the mean
+// pixels after the brightness cap. Multi-pixel fixtures report the mean
 // color of nonzero pixels plus their count; this describes the visible look
 // without pretending all 37 HEX pixels share one value.
 struct LedOutputSnapshot {
@@ -37,7 +38,7 @@ struct LedOutputSnapshot {
 };
 LedOutputSnapshot ledOutputSnapshot();
 
-// Render a frame (applies gamma + the global brightness cap).
+// Render a frame with direct linear 8-bit levels and the global brightness cap.
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap);
 
 // Guarded turn-on: rail on + 4-step ramp of `f` sampling VBAT between steps.
@@ -45,11 +46,15 @@ void ledRender(const FrameBuffer &f, uint8_t brightnessCap);
 // dim on a marginal one.
 bool ledRailOnWithRamp(const FrameBuffer &f, uint8_t targetBrightness);
 
-// Bench smoke-render toggle (serial 'L1'/'L0'); consumed by the loop's render
-// tick until the P5 program runtime replaces it.
+// Bench LED override. L0 forces the rail off until L1 or reset; L1 clears the
+// forced-off state and renders the class smoke pattern. Keeping the off state
+// separate from gSmokeRender prevents an autonomous/basic fallback from
+// immediately powering the rail again.
 extern bool gSmokeRender;
+extern bool gBenchRailForcedOff;
 
 // Class-appropriate smoke/identify frames.
 void ledSmokeFrame(FrameBuffer &f, uint32_t nowMs);
 // Rig color-identify: color 1=R 2=G 3=B 4=Y 5=W; blink toggles at 1 Hz.
-void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink, uint32_t nowMs);
+void ledIdentifyFrame(FrameBuffer &f, uint8_t color, uint8_t blink,
+                      uint8_t value, uint32_t nowMs);

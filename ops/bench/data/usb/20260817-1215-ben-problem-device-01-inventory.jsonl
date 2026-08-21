@@ -1,0 +1,2 @@
+{"event":"inventory","timestamp_utc":"2026-08-17T19:15:02Z","port":"COM29","mac":"68:EE:8F:F4:02:54","fixture_id":"F40254","description":"USB Serial Device (COM29)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F4:02:54"}
+{"event":"inventory","timestamp_utc":"2026-08-17T19:15:02Z","port":"COM43","mac":"80:45:6B:4D:5D:B0","fixture_id":"4D5DB0","description":"USB Serial Device (COM43)","hwid":"USB VID:PID=303A:1001 SER=80:45:6B:4D:5D:B0 LOCATION=1-5.1:x.0"}

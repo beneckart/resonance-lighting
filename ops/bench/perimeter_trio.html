@@ -68,7 +68,7 @@
 </style>
 </head>
 <body>
-<h1>Perimeter Trio <small>- Nevada City bench - first three built</small></h1>
+<h1>Perimeter Trio <small>- Elliot's bench - Party In The Woods LAN</small></h1>
 
 <div class="master">
   <div class="row">
@@ -89,7 +89,7 @@
       oninput="this.nextElementSibling.textContent=this.value"
       onchange="preset('thresh='+this.value)"><span>500</span></label>
     <span style="flex:1"></span>
-    <label class="ctl">scan base <input type="text" id="scanBase" value="192.168.137"
+    <label class="ctl">scan base <input type="text" id="scanBase" value="192.168.1"
       size="11"></label>
     <button onclick="scanSubnet()" id="scanBtn">Scan subnet</button>
     <span id="scanMsg" class="stat"></span>
@@ -108,9 +108,9 @@
 <script>
 "use strict";
 const SLOTS = [
-  { name: "Light 1", host: "ledstudio-f3fd88.local" },
-  { name: "Light 2", host: "ledstudio-f2be80.local" },
-  { name: "Light 3", host: "ledstudio-f2bfec.local" },
+  { name: "Light 1", host: "192.168.1.112" },      // ledstudio-f40384
+  { name: "Light 2", host: "192.168.1.73" },       // ledstudio-f2b7dc
+  { name: "Light 3", host: "ledstudio-e39f1c.local" }, // pending reflash (bad USB link)
 ];
 const ANIMS = ["Static", "Spiral", "Orbit", "Breathe", "Twinkle", "Presence"];
 

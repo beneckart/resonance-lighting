@@ -176,7 +176,7 @@ python ops/bench/net_bench_dashboard.py --port COM40
 ```
 
 The landing view is a compact grid of every ESP-NOW light. Battery fill and color,
-charger-input source, panel-suspect state, adaptive heartbeat freshness, and the
+charger-input activity, class-inferred source glyph, panel-suspect state, adaptive heartbeat freshness, and the
 actual reported light output are readable without opening a table. The top bar is
 the rendered LED color, independent from battery status. Reported fixture class
 (normally from the Stemma probe, with an override available) sets the battery
@@ -189,6 +189,14 @@ queues one addressed D7 pulse per fresh fixture after confirmation; disarmed boa
 ignore it and the fixture's local power/mechanism gates remain authoritative. See
 [`firmware/cores3_bridge/README.md`](firmware/cores3_bridge/README.md) for the
 glyph contract and source-classification caveat.
+
+For an explicit multi-fixture OTA, `ops/bench/fleet_dashboard_ota.py` accepts a
+comma-separated short-MAC target list plus one already-built immutable binary.
+It refuses unsafe power evidence, discovers and identity-checks every maintenance
+endpoint, uploads in bounded parallel jobs, and requires fresh exact-revision
+evidence beyond the A/B pending-verify gate. `--allow-stale-preflight` and
+`--allow-partial-discovery` are for a named, full-cadence sleeper pass; they do
+not permit unnamed discovery results or unsafe low-VBAT targets.
 
 ## Status
 

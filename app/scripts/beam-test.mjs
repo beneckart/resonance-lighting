@@ -1,0 +1,12 @@
+import { chromium } from "@playwright/test";
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+const errs = [];
+p.on("pageerror", (e) => errs.push(String(e)));
+await p.goto("http://localhost:5173", { waitUntil: "networkidle" });
+await p.waitForSelector("canvas");
+await p.getByText("solid", { exact: true }).click();
+await p.waitForTimeout(1200);
+await p.screenshot({ path: "screenshots/cycle10-beams.png" });
+await b.close();
+console.log(errs.length ? "ERRORS:\n" + errs.join("\n") : "beams render, no errors");

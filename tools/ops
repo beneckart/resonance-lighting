@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# ops — quick flash + instant comms/control for the fixture fleet, through the
+# cambium daemon (:8600) + maintenance-WiFi OTA. The "flash then keep talking"
+# tool Elliot asked for (2026-08-15).
+#
+#   ops status                     fleet table (names, fw, tier, staleness)
+#   ops flash <who> <bin>          who = mac | mario | luigi ; radio maint → LAN → POST /update → verify rejoin
+#   ops flash-old <bin> [min]      batch: broadcast maint + LAN-sweep for [min] minutes (default 20),
+#                                  flash every fixture NOT on the target fw (catches sleepers as they wake)
+#   ops color <who> r g b [w]      force-night + solid color (visible proof of control)
+#   ops knock <who> [ms] [n]       n solenoid strike commands (needs solenoid-armed image + power gate)
+#   ops off                        broadcast all-off (resume auto lifecycle: ops night 2)
+#   ops night 0|1|2                force day | force night | auto
+#   ops maint on|off               broadcast maintenance WiFi up/down
+#   ops watch [min]                no-sleep monitor: online/staleness every 15s
+set -euo pipefail
+D="http://localhost:8600"
+SUBNET="192.168.1"
+
+name2mac() { case "$(echo "$1" | tr A-Z a-z)" in mario) echo F40384;; luigi) echo F2B7DC;; *) echo "$1" | tr a-z A-Z;; esac; }
+
+fleet_py() { curl -s -m 4 "$D/fleet"; }
+
+target_fw() { # fw string baked in a bin: most common full match wins (a stray
+  # partial elsewhere in the binary must not poison the comparison). Accept
+  # both the legacy manual counter and collision-resistant fx recipe formats.
+  strings "$1" 2>/dev/null | grep -Eo "fixture-20[0-9]{2}-[0-9]{2}-[0-9]{2}\.[0-9]+|fx-[0-9]{6}-[0-9a-z]{7}-[pbt]" | sort | uniq -c | sort -rn | awk 'NR==1{print $2}' || echo "unknown"
+}
+
+lan_sweep() { # print "IP FIXTURE_ID FW" for every fixture serving /telemetry
+  seq 1 254 | xargs -P 48 -I{} sh -c '
+    r=$(curl -s -m 2 "http://'"$SUBNET"'.{}/telemetry" 2>/dev/null)
+    case "$r" in *fixture_id*)
+      echo "'"$SUBNET"'.{} $(printf %s "$r" | python3 -c "import json,sys;j=json.load(sys.stdin);print(j[\"fixture_id\"],j[\"fw\"])" 2>/dev/null)";;
+    esac' 2>/dev/null | awk 'NF>=3'
+}
+
+post_update() { # ip bin -> 0 on "Update complete"
+  local out; out=$(curl -s -m 180 -H 'Expect:' -F "firmware=@$2" "http://$1/update" || true)
+  echo "$out"; [[ "$out" == *"Update complete"* ]]
+}
+
+case "${1:-}" in
+  status)
+    fleet_py | python3 -c "
+import json,sys
+NAMES={'F40384':'Mario','F2B7DC':'Luigi'}
+f=json.load(sys.stdin)
+print(len(f),'fixtures known')
+for mac,d in sorted(f.items()):
+    t=d.get('telemetry') or {}
+    s=d.get('stale_age_s'); s=('%.0fs'%s) if s is not None else '?'
+    state='LIVE ' if d['online'] else 'stale'
+    print(state,mac,NAMES.get(mac,''),'slot',d.get('fixture_id'),'fw',t.get('fw_rev'),'tier',t.get('power_tier'),'stale',s)"
+    curl -s -m 3 "$D/bridge" | python3 -c "
+import json,sys;j=json.load(sys.stdin)
+print('bridge: connected',j['connected'],'rx',j.get('rx_pkts'),'crc_err',j.get('bridge_crc_err'),'driver_held',j['driver']['held'])"
+    ;;
+  flash)
+    MAC=$(name2mac "$2"); BIN="$3"; [[ -f "$BIN" ]] || { echo "no such bin: $BIN"; exit 1; }
+    echo "maint broadcast; waiting for $MAC on LAN..."
+    IP=""; for i in $(seq 1 30); do
+      # rebroadcast every loop: NB_ENTER_MAINT is un-acked and a single shot
+      # can be lost or arrive mid-stream (measured 2026-08-15)
+      curl -s -m 4 "$D/debug/maint?on=1" >/dev/null || true
+      IP=$(lan_sweep | awk -v m="$MAC" '$2==m{print $1; exit}' || true); [[ -n "$IP" ]] && break; sleep 4
+    done
+    [[ -n "$IP" ]] || { echo "$MAC never joined the LAN (asleep? out of range?)"; exit 1; }
+    echo "$MAC at $IP — flashing $(basename "$BIN") ($(target_fw "$BIN"))"
+    post_update "$IP" "$BIN" || { echo "OTA FAILED"; exit 1; }
+    echo "rebooting; waiting for mesh rejoin..."
+    for i in $(seq 1 30); do
+      ONL=$(fleet_py | python3 -c "import json,sys;f=json.load(sys.stdin);d=f.get(\"$MAC\",{});print(1 if d.get(\"online\") else 0)" 2>/dev/null || echo 0)
+      [[ "$ONL" == "1" ]] && { echo "REJOINED ✓"; exit 0; }; sleep 4
+    done
+    echo "no rejoin seen in 120s — check ops status"; exit 1
+    ;;
+  flash-old)
+    BIN="$2"; MIN="${3:-20}"; [[ -f "$BIN" ]] || { echo "no such bin: $BIN"; exit 1; }
+    TFW=$(target_fw "$BIN"); echo "batch: flash everything NOT on $TFW for ${MIN}min (sleepers caught as they wake)"
+    DONE=""
+    END=$((SECONDS + MIN*60))
+    while [[ $SECONDS -lt $END ]]; do
+      curl -s -m 4 "$D/debug/maint?on=1" >/dev/null
+      while read -r IP FID FW; do
+        case "$FID" in F40384|F2B7DC) continue;; esac  # bench pair: keeps its armed image, never batch-flashed
+        [[ "$FW" == "$TFW" ]] && continue
+        case " $DONE " in *" $FID "*) continue;; esac
+        echo "[$(date +%T)] $FID at $IP on $FW -> flashing"
+        if post_update "$IP" "$BIN"; then DONE="$DONE $FID"; echo "[$(date +%T)] $FID FLASHED ✓ (total: $(echo $DONE | wc -w | tr -d ' '))"
+        else echo "[$(date +%T)] $FID OTA failed — will retry when seen again"; fi
+      done < <(lan_sweep)
+      sleep 45
+    done
+    echo "batch window over. flashed:${DONE:- none}. Verify with: ops status"
+    ;;
+  color)
+    MAC=$(name2mac "$2")
+    curl -s -m 4 "$D/debug/night?mode=1&mac=$MAC" >/dev/null
+    curl -s -m 4 "$D/debug/solid?id=$MAC&r=${3:-255}&g=${4:-0}&b=${5:-0}&w=${6:-0}"
+    echo ;;
+  knock)
+    MAC=$(name2mac "$2"); MS="${3:-40}"; N="${4:-3}"
+    for i in $(seq 1 "$N"); do curl -s -m 3 "$D/debug/knock?mac=$MAC&ms=$MS" >/dev/null; sleep 1; done
+    echo "sent $N knock(s) to $MAC (${MS}ms) — armed image + power gate decide if they fire" ;;
+  stream)
+    # ops stream <who|both> <r> <g> <b> [seconds]  — hold a color via ws frames
+    # (slave images are dark without a stream; this IS the persistent-color verb)
+    WHO="$2"; SR="${3:-255}"; SG="${4:-255}"; SB="${5:-255}"; SECS="${6:-30}"
+    ~/code/cambium/.venv/bin/python3 - "$WHO" "$SR" "$SG" "$SB" "$SECS" <<'PYEOF'
+import asyncio, json, sys, urllib.request
+who, r, g, b, secs = sys.argv[1], *[int(x)/255 for x in sys.argv[2:5]], int(sys.argv[5])
+ids = {"mario":["F000"],"luigi":["F006"],"both":["F000","F006"]}.get(who.lower(), [who.upper()])
+try:
+    import aiohttp
+except ImportError:
+    sys.exit("needs aiohttp: run via ~/code/cambium/.venv/bin/python3")
+async def main():
+    async with aiohttp.ClientSession() as s:
+        async with s.ws_connect("http://localhost:8600/ws") as ws:
+            await ws.send_str(json.dumps({"kind":"drive","on":True,"force":True,"client":"ops-stream"}))
+            await ws.send_str(json.dumps({"kind":"night","mode":1}))
+            for seq in range(secs*8):
+                await ws.send_str(json.dumps({"kind":"frame","seq":seq,
+                    "fixtures":[{"id":i,"rgb":[r,g,b]} for i in ids]}))
+                await asyncio.sleep(0.125)
+asyncio.run(main())
+print(f"held {ids} at rgb({r:.2f},{g:.2f},{b:.2f}) for {secs}s")
+PYEOF
+    ;;
+  certify)
+    # ops certify <who|all> — the READY-TO-UNPLUG ritual (Elliot 2026-08-15):
+    # online + target firmware -> 6s GREEN BLINK = "certified, unplug freely".
+    # Not blinking green = not ready.
+    python3 - "${2:-all}" "fixture-2026-08-15.4" "$D" <<'PYEOF'
+import json, sys, time, urllib.request
+who, tfw, D = sys.argv[1].upper(), sys.argv[2], sys.argv[3]
+f = json.load(urllib.request.urlopen(D + "/fleet", timeout=5))
+NAMES = {"F40384":"Mario","F2B7DC":"Luigi","9F26C4":"Hulk","9E5A88":"Flash",
+         "9F2720":"Thor","9E5B18":"Phoenix","9F2664":"Nova","9F26E8":"Blade","9E5A94":"Storm"}
+for mac, d in sorted(f.items()):
+    label = NAMES.get(mac, d.get("fixture_id") or mac)
+    if who != "ALL" and who not in (mac, (d.get("fixture_id") or ""), NAMES.get(mac, "").upper()):
+        continue
+    t = d.get("telemetry") or {}
+    if d.get("online") and t.get("fw_rev") == tfw:
+        urllib.request.urlopen(f"{D}/debug/identify?mac={mac}&secs=6&color=2&blink=1", timeout=4)
+        print(f"✅ {label:8} CERTIFIED — green-blinking (unplug freely)")
+        time.sleep(2.5)
+    else:
+        print(f"❌ {label:8} NOT READY (online={d.get('online')}, fw={t.get('fw_rev')})")
+PYEOF
+    ;;
+  off)   curl -s -m 4 "$D/constellate/off"; echo ;;
+  night) curl -s -m 4 "$D/debug/night?mode=$2"; echo ;;
+  maint) [[ "$2" == "on" ]] && V=1 || V=0; curl -s -m 4 "$D/debug/maint?on=$V"; echo ;;
+  watch)
+    MIN="${2:-5}"
+    for i in $(seq 1 $((MIN*4))); do
+      fleet_py | python3 -c '
+import json,sys,datetime
+f=json.load(sys.stdin)
+out=[]
+for mac in ("F40384","F2B7DC"):
+    d=f.get(mac) or {}
+    s=d.get("stale_age_s"); s=f"{s:.0f}s" if s is not None else "?"
+    out.append(f"{mac}:{'"'"'on'"'"' if d.get('"'"'online'"'"') else '"'"'OFF'"'"'}/{s}")
+print(datetime.datetime.now().strftime("%H:%M:%S"), " ".join(out))'
+      sleep 15
+    done ;;
+  *) grep "^#   ops" "$0" | sed 's/^# *//' ;;
+esac

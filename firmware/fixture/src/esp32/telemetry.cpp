@@ -32,6 +32,18 @@ uint8_t gTelemetryGuardStage = 0;  // boot-guard stage
 bool gTelemetryGuardInterrupted = false;
 uint8_t gTelemetryFixtureClass = FIXTURE_UNKNOWN; // probe+override decision
 bool gTelemetryClassMismatch = false;
+uint8_t gTelemetrySensorBits = 0;
+
+static const char *otaStateName(esp_ota_img_states_t state) {
+  switch (state) {
+  case ESP_OTA_IMG_NEW: return "new";
+  case ESP_OTA_IMG_PENDING_VERIFY: return "pending_verify";
+  case ESP_OTA_IMG_VALID: return "valid";
+  case ESP_OTA_IMG_INVALID: return "invalid";
+  case ESP_OTA_IMG_ABORTED: return "aborted";
+  default: return "undefined";
+  }
+}
 
 static uint8_t effectiveClass() {
   if (gTelemetryFixtureClass != FIXTURE_UNKNOWN) return gTelemetryFixtureClass;
@@ -60,6 +72,12 @@ String telemetryJson() {
   j += ",\"flash_bytes\":" + String((unsigned long)ESP.getFlashChipSize());
   j += ",\"psram_bytes\":" + String((unsigned long)ESP.getPsramSize());
   j += ",\"reset_reason\":\"" + String(resetReasonName(esp_reset_reason())) + "\"";
+  j += ",\"ota_partition\":\"";
+  j += running ? running->label : "unknown";
+  j += "\"";
+  j += ",\"ota_address\":";
+  j += running ? String((unsigned long)running->address) : "0";
+  j += ",\"ota_state\":\"" + String(otaStateName(otaState)) + "\"";
   j += ",\"pf_ready\":";
   j += pfIsReady() ? "true" : "false";
   j += ",\"battery_present\":";
@@ -71,6 +89,17 @@ String telemetryJson() {
   j += ",\"battery_type\":\"" + String(batteryTypeName()) + "\"";
   j += ",\"battery_capacity_mah\":" + String(gCfg.capMah);
   j += ",\"charge_limit_ma\":" + String(gCfg.chargeMa);
+  j += ",\"precharge_target_ma\":" + String(prechargeTargetMa());
+  j += ",\"precharge_configured\":";
+  j += prechargeConfigured() ? "true" : "false";
+  j += ",\"deep_recovery_build\":";
+  j += deepRecoveryBuild() ? "true" : "false";
+  j += ",\"deep_recovery_target_match\":";
+  j += deepRecoveryTargetMatches() ? "true" : "false";
+  j += ",\"deep_recovery_charge_active\":";
+  j += deepRecoveryChargeActive() ? "true" : "false";
+  j += ",\"low_vbat_recovery_state\":" + String(lowVbatRecoveryState());
+  j += ",\"low_vbat_recovery_detect_mv\":" + String(lowVbatRecoveryDetectMv());
   j += ",\"maintain_v\":" + String(maintainVolts(), 1);
   if (pfIsReady()) {
     char b[24];
@@ -92,6 +121,8 @@ String telemetryJson() {
     j += ",\"bq_vindpm_mv\":" + String(bq.vindpm_mv);
     j += ",\"bq_ichg_ma\":" + String(bq.ichg_ma);
     j += ",\"bq_vreg_mv\":" + String(bq.vreg_mv);
+    j += ",\"bq_precharge_ma\":" + String(bq.precharge_ma);
+    j += ",\"bq_reg10\":" + String(bq.reg10);
     j += ",\"bq_reg16\":" + String(bq.reg16);
     j += ",\"bq_reg18\":" + String(bq.reg18);
     j += ",\"bq_stat0\":" + String(bq.stat0);
@@ -106,6 +137,11 @@ String telemetryJson() {
   j += ",\"class_ovr\":" + String(gCfg.classOvr);
   j += ",\"class_mismatch\":";
   j += gTelemetryClassMismatch ? "true" : "false";
+  j += ",\"sensor_bits\":" + String(gTelemetrySensorBits);
+  j += ",\"sam_m8q_present\":";
+  j += (gTelemetrySensorBits & 0x10) ? "true" : "false";
+  j += ",\"ds3231_present\":";
+  j += (gTelemetrySensorBits & 0x20) ? "true" : "false";
   j += ",\"profile\":\"";
   j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";
@@ -118,6 +154,8 @@ String telemetryJson() {
   j += ledRailIsOn() ? "true" : "false";
   j += ",\"smoke_render\":";
   j += gSmokeRender ? "true" : "false";
+  j += ",\"bench_rail_forced_off\":";
+  j += gBenchRailForcedOff ? "true" : "false";
   j += ",\"life_state\":" + String(gTelemetryLifeState);
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);

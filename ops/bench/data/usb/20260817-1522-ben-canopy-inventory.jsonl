@@ -1,0 +1,7 @@
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM22","mac":"68:EE:8F:F2:BE:38","fixture_id":"F2BE38","description":"USB Serial Device (COM22)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F2:BE:38"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM43","mac":"80:45:6B:4D:5D:B0","fixture_id":"4D5DB0","description":"USB Serial Device (COM43)","hwid":"USB VID:PID=303A:1001 SER=80:45:6B:4D:5D:B0 LOCATION=1-5.1:x.0"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM140","mac":"68:EE:8F:F2:BF:74","fixture_id":"F2BF74","description":"USB Serial Device (COM140)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F2:BF:74"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM141","mac":"68:EE:8F:F2:BF:7C","fixture_id":"F2BF7C","description":"USB Serial Device (COM141)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F2:BF:7C"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM142","mac":"68:EE:8F:F2:BD:C4","fixture_id":"F2BDC4","description":"USB Serial Device (COM142)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F2:BD:C4"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM143","mac":"68:EE:8F:F3:FC:AC","fixture_id":"F3FCAC","description":"USB Serial Device (COM143)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F3:FC:AC"}
+{"event":"inventory","timestamp_utc":"2026-08-17T22:31:50Z","port":"COM144","mac":"68:EE:8F:F2:BC:F0","fixture_id":"F2BCF0","description":"USB Serial Device (COM144)","hwid":"USB VID:PID=303A:1001 SER=68:EE:8F:F2:BC:F0"}

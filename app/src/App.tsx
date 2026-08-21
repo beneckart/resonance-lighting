@@ -1,0 +1,184 @@
+import { Suspense, useEffect, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Scene } from "./Scene";
+import { Controls } from "./Controls";
+import { DjController } from "./DjController";
+import { AiPilot } from "./AiPilot";
+import { TouchConsole } from "./TouchConsole";
+import { CommissioningPanel } from "./CommissioningPanel";
+import { GroupPanel } from "./GroupPanel";
+import { DataLog } from "./DataLog";
+import { ShowsPanel } from "./ShowsPanel";
+import { InteractivityPanel } from "./InteractivityPanel";
+import { SidePanel } from "./SidePanel";
+import { ShowPlayer } from "./ShowPlayer";
+import { RecordButton } from "./RecordButton";
+import { HealthHud } from "./HealthHud";
+import { PresenceDriver } from "./PresenceDriver";
+import { IgnitionDriver } from "./IgnitionDriver";
+import { SolarRayDriver } from "./SolarRayDriver";
+import { AudioReactiveDriver } from "./AudioReactiveDriver";
+import { RealDriveDriver } from "./RealDriveDriver";
+import { AutoVj } from "./AutoVjDriver";
+import { TimelineDriver } from "./TimelineDriver";
+import { loadFixtures, validateFixturesDoc, auditFixtures } from "./fixtures";
+import { useTwin } from "./store";
+import { startFleetLink } from "./fleetlink";
+
+export function App() {
+  const [err, setErr] = useState<string | null>(null);
+  const ready = useTwin((s) => s.fixtures.length > 0);
+  const cinematic = useTwin((s) => s.cinematic);
+  const setCinematic = useTwin((s) => s.setCinematic);
+  const beacon = useTwin((s) => s.control.beaconPreempt);
+  const blackout = useTwin((s) => s.control.blackout);
+  const setCtrl = useTwin((s) => s.set);
+  const resetAllOff = useTwin((s) => s.resetAllOff);
+  const dock = useTwin((s) => s.dock);
+  const setDock = useTwin((s) => s.setDock);
+  const uiMode = useTwin((s) => s.uiMode);
+  const touchOpen = useTwin((s) => s.touchOpen);
+  const docked = dock && !cinematic; // clean view always shows the full-width tree
+
+  useEffect(() => {
+    // ?fixtures=<url> loads an alternate layout — e.g. cambium's measured
+    // fixtures.measured.json — without touching app/public/fixtures.json.
+    // PUBLIC DEMO LOCK (Elliot 08-14: "demo version public, real version
+    // non-public"): /tree links here with ?demo=1 — guest clamps apply (no
+    // strobe, capped brightness), operator surfaces hide, and there is no
+    // path out of the sandbox. The un-flagged URL stays the full controller.
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      useTwin.getState().armDemoLock();
+    } else {
+      // REAL BY DEFAULT (Elliot 08-15): dial the fleet's telemetry link at
+      // boot — read-only, the 📡 toggle stays the only frame sender. The demo
+      // sandbox NEVER dials: a public guest page has no business holding even
+      // a read connection to the physical tree's daemon.
+      startFleetLink();
+    }
+    const alt = new URLSearchParams(window.location.search).get("fixtures");
+    loadFixtures(alt || undefined)
+      .then((doc) => {
+        const v = validateFixturesDoc(doc);
+        if (!v.ok) setErr(`fixtures.json invalid: ${v.errors.slice(0, 3).join("; ")}`);
+        // units-contract warnings: rendering is safe (we normalize to the mesh)
+        // but selfmap/constellate/cambium physics are NOT — say so loudly.
+        if (v.warnings.length) console.warn("[fixtures] CONTRACT WARNINGS:", v.warnings);
+        // data-quality audit (role/zone counts + aim sanity) — surface anomalies
+        const a = auditFixtures(doc);
+        console.info(`[fixtures] ${doc.fixtures.length} loaded · roles`, a.byRole, "· zones", a.byZone, `· ${a.withAim} with aim`);
+        if (a.warnings.length) console.warn(`[fixtures] ${a.warnings.length} aim anomalies:`, a.warnings.slice(0, 8));
+        useTwin.getState().init(doc);
+      })
+      .catch((e) => setErr(String(e)));
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0 }}>
+      {/* DOCK layout (default): tree fills the LEFT half; ONE organized panel right.
+          Float mode = the original free-floating widgets. */}
+      {/* touch mode: the sheet publishes its height as --sheet-h and the tree
+          RESIZES to the space above it (Elliot 08-14: "resize the tree to
+          fit") — R3F re-frames on container resize, nothing gets covered */}
+      <div style={{
+        position: "fixed", top: 0, left: 0,
+        bottom: touchOpen ? "var(--sheet-h, 0px)" : 0,
+        width: docked && !touchOpen ? "50%" : "100%",
+        transition: "bottom 0.25s ease",
+      }}>
+        <Canvas
+          shadows
+          // PERF: cap devicePixelRatio (a 2-3x HiDPI panel would otherwise fill
+          // 4-9x the pixels) + antialias off — Bloom hides the edges, and the
+          // pixel-fill saving dwarfs the AA cost on this fragment-heavy scene.
+          dpr={[1, 1.5]}
+          camera={{ position: [40, 30, 60], fov: 45, near: 0.1, far: 5000 }}
+          gl={{ antialias: false, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+        >
+          <Suspense fallback={null}>{ready && <Scene />}</Suspense>
+        </Canvas>
+      </div>
+      {docked && !touchOpen && <SidePanel />}
+      {!cinematic && !docked && (
+        <>
+          <Controls />
+          <GroupPanel />
+          <ShowsPanel />
+          <InteractivityPanel />
+          <DataLog />
+          <AiPilot />
+          <CommissioningPanel />
+          {/* return to the organized dock */}
+          <button onClick={() => setDock(true)} title="split-screen dock — one organized panel"
+            style={{ position: "fixed", bottom: 14, right: 14, zIndex: 60, padding: "8px 12px", borderRadius: 10, cursor: "pointer", border: "1px solid #2a3a52", background: "rgba(12,16,24,0.85)", color: "#cdd6e4", font: "12px ui-monospace, monospace", backdropFilter: "blur(6px)" }}>
+            🗂 dock
+          </button>
+        </>
+      )}
+      {!cinematic && (
+        <>
+          {/* DJ decks belong to SOUND mode (always available in float mode) */}
+          {(!docked || uiMode === "sound") && !touchOpen && <DjController />}
+          <TouchConsole />
+          {!touchOpen && <HealthHud />}
+        </>
+      )}
+      {/* always-on cinematic toggle — hide all panels to see just the tree */}
+      {!touchOpen && <button
+        onClick={() => setCinematic(!cinematic)}
+        title={cinematic ? "show controls" : "hide controls — clean view"}
+        style={{
+          position: "fixed", top: 12, left: cinematic ? 12 : "auto", right: cinematic ? "auto" : docked ? "calc(50% + 12px)" : 280,
+          zIndex: 60, padding: "7px 11px", borderRadius: 10, cursor: "pointer",
+          border: "1px solid #2a3a52", background: "rgba(12,16,24,0.85)", color: "#cdd6e4",
+          font: "12px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        {cinematic ? "🎛 controls" : "✨ clean view"}
+      </button>}
+      {/* always-available BEACON safety preempt (reachable even in clean view) */}
+      {!touchOpen && <button
+        onClick={() => setCtrl({ beaconPreempt: !beacon })}
+        title="BEACON — force full-white safety beam over everything"
+        style={{
+          position: "fixed", bottom: 14, left: docked ? "25%" : "50%", transform: "translateX(-50%)", zIndex: 60,
+          padding: "8px 16px", borderRadius: 12, cursor: "pointer", fontWeight: 700, letterSpacing: 0.5,
+          border: beacon ? "1.5px solid #fff" : "1.5px solid #5a3a3a",
+          background: beacon ? "#ffffff" : "rgba(40,16,16,0.85)", color: beacon ? "#111" : "#ffb4b4",
+          boxShadow: beacon ? "0 0 22px #ffffffcc" : "none", font: "13px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        🔦 BEACON{beacon ? " ON" : ""}
+      </button>}
+      {/* always-available BLACKOUT — resets ALL modes to off (not a hold): click
+          to go dark, then pick a mode to bring the tree back on */}
+      {!touchOpen && <button
+        onClick={() => (blackout ? setCtrl({ blackout: false }) : resetAllOff())}
+        title="BLACKOUT — turn off all modes & reset to dark (pick a mode to bring it back)"
+        style={{
+          position: "fixed", bottom: 14, left: docked ? "calc(25% + 110px)" : "calc(50% + 110px)", zIndex: 60,
+          padding: "8px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700, letterSpacing: 0.5,
+          border: blackout ? "1.5px solid #ff5b6e" : "1.5px solid #3a3a4a",
+          background: blackout ? "#1a1020" : "rgba(16,16,24,0.85)", color: blackout ? "#ff8fa0" : "#8a8aa0",
+          boxShadow: blackout ? "0 0 18px #ff5b6e88" : "none", font: "13px ui-monospace, monospace", backdropFilter: "blur(6px)",
+        }}
+      >
+        🌑 BLACKOUT{blackout ? " ON" : ""}
+      </button>}
+      <ShowPlayer />
+      {!touchOpen && <RecordButton />}
+      <PresenceDriver />
+      <IgnitionDriver />
+      <SolarRayDriver />
+      <AudioReactiveDriver />
+      <RealDriveDriver />
+      <AutoVj />
+      <TimelineDriver />
+      {err && (
+        <div style={{ position: "fixed", bottom: 12, left: 12, color: "#ff6b6b", font: "12px monospace" }}>
+          ERROR: {err}
+        </div>
+      )}
+    </div>
+  );
+}

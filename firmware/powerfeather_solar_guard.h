@@ -61,6 +61,28 @@ static bool pfSolarGuardWrite8(uint8_t reg, uint8_t val) {
   return Wire1.endTransmission() == 0;
 }
 
+// BQ25628E configuration registers at 0x02..0x14 are 16-bit little-endian.
+// Keep these separate from the 8-bit status/control helpers above so callers
+// cannot accidentally issue a one-byte write to a two-byte register.
+static bool pfSolarGuardRead16(uint8_t reg, uint16_t &val) {
+  Wire1.beginTransmission(PF_SOLAR_GUARD_BQ_ADDR);
+  Wire1.write(reg);
+  if (Wire1.endTransmission(false) != 0) return false;
+  if (Wire1.requestFrom((int)PF_SOLAR_GUARD_BQ_ADDR, 2) != 2) return false;
+  uint8_t lo = (uint8_t)Wire1.read();
+  uint8_t hi = (uint8_t)Wire1.read();
+  val = (uint16_t)lo | ((uint16_t)hi << 8);
+  return true;
+}
+
+static bool pfSolarGuardWrite16(uint8_t reg, uint16_t val) {
+  Wire1.beginTransmission(PF_SOLAR_GUARD_BQ_ADDR);
+  Wire1.write(reg);
+  Wire1.write((uint8_t)(val & 0xFF));
+  Wire1.write((uint8_t)(val >> 8));
+  return Wire1.endTransmission() == 0;
+}
+
 static bool pfSolarGuardUpdate8(uint8_t reg, uint8_t mask, bool set) {
   uint8_t val = 0;
   if (!pfSolarGuardRead8(reg, val)) return false;

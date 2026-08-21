@@ -29,6 +29,9 @@ enum MaintStatus : uint8_t {
 
 NetMode maintMode();
 uint8_t maintStatus();
+// True only after STA association and the maintenance HTTP server are active.
+// Used by deferred OTA verification when ESP-NOW is deliberately down.
+bool maintenanceReady();
 
 bool enterMaintenance(); // loads off -> ESP-NOW down -> WiFi join -> serve OTA
 void enterComms();       // WiFi down -> STA unassociated on channel -> ESP-NOW up

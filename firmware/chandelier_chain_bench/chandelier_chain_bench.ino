@@ -17,7 +17,9 @@ using namespace PowerFeather;
 #error "Build with -DPOWERFEATHER_BOARD_V2=1 (build.sh does this)."
 #endif
 
+#ifndef CHAIN_VERSION
 #define CHAIN_VERSION "chandelier-chain-2026-08-11.5"
+#endif
 #define DATA_PIN 10
 #define USER_BUTTON_PIN 0
 #define EN_3V3_PIN GPIO_NUM_4
@@ -39,6 +41,9 @@ using namespace PowerFeather;
 #endif
 #ifndef CHAIN_BATTERY_MAH
 #define CHAIN_BATTERY_MAH 6000
+#endif
+#ifndef CHAIN_DEMO_MODE
+#define CHAIN_DEMO_MODE 0
 #endif
 
 #if CHAIN_PIXEL_RGBW
@@ -62,6 +67,7 @@ using namespace PowerFeather;
 static Adafruit_NeoPixel gStrip(CHAIN_MAX_PIXELS, DATA_PIN, CHAIN_NEO_TYPE);
 static bool gPfReady = false;
 static bool gRailReady = false;
+static bool gLightsOn = false;
 static bool gCharging = false;
 static bool gChargeDecisionDone = false;
 static uint8_t gPixels = CHAIN_START_PIXELS;
@@ -86,6 +92,7 @@ enum Pattern : uint8_t {
   PATTERN_BARS = 5,
   PATTERN_CHASE = 6,
   PATTERN_STRESS = 7,
+  PATTERN_DEMO = 8,
 };
 
 static const char *patternName(uint8_t p) {
@@ -102,7 +109,13 @@ static const char *patternName(uint8_t p) {
 #endif
   case PATTERN_BARS: return "indexed-rgbw-bars";
   case PATTERN_CHASE: return "white-chase";
-  case PATTERN_STRESS: return "full-rgbw-stress";
+  case PATTERN_STRESS:
+#if CHAIN_PIXEL_RGBW
+    return "full-rgbw-stress";
+#else
+    return "full-rgb-stress";
+#endif
+  case PATTERN_DEMO: return "rainbow-glow-wipe";
   default: return "unknown";
   }
 }
@@ -149,20 +162,21 @@ static bool enableLedRail() {
 static void disableLedRail() {
   gStrip.clear();
   gStrip.show(); // latch all-off before removing pixel power
-  pinMode(DATA_PIN, OUTPUT);
-  digitalWrite(DATA_PIN, LOW);
+  // Do not call pinMode() after show() has claimed DATA_PIN through RMT.
+  // Arduino-ESP32 3.x would detach RMT while Adafruit_NeoPixel still believes
+  // it owns the pin, leaving every later show() dark after a rail cycle.
   if (gPfReady) Board.enable3V3(false);
   gRailReady = false;
+  gLightsOn = false;
   Serial.println("LED rail OFF: safe to change the chain");
 }
 
 static void restoreLedRail() {
-  pinMode(DATA_PIN, OUTPUT);
-  digitalWrite(DATA_PIN, LOW);
   gRailReady = enableLedRail();
   delay(25);
   gStrip.clear();
   gStrip.show();
+  gLightsOn = gRailReady;
   Serial.printf("LED rail %s\n", gRailReady ? "ON" : "FAILED");
 }
 
@@ -190,6 +204,10 @@ static void refreshPower() {
 }
 
 static uint8_t autoPattern(uint32_t now) {
+#if CHAIN_DEMO_MODE
+  (void)now;
+  return PATTERN_DEMO;
+#else
   // 34-second visual ladder: motion/data, each channel, ordering, chase, then
   // the maximum modeled aggregate load.
   uint32_t s = (now / 1000UL) % 34UL;
@@ -201,6 +219,7 @@ static uint8_t autoPattern(uint32_t now) {
   if (s < 27) return PATTERN_BARS;
   if (s < 31) return PATTERN_CHASE;
   return PATTERN_STRESS;
+#endif
 }
 
 static void setPixel(uint16_t i, uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
@@ -266,6 +285,30 @@ static void renderPattern(uint8_t pattern, uint32_t now) {
     for (uint8_t i = 0; i < gPixels; i++)
       setPixel(i, v, v, v, v);
     break;
+  case PATTERN_DEMO: {
+    // A slow spatial rainbow under a soft moving brightness crest. Every pixel
+    // keeps a low background glow, so a single broken data link is still easy
+    // to spot without turning Jimmy's handoff into a diagnostic test ladder.
+    uint8_t head = (uint8_t)((now / 35UL) & 0xFFU);
+    uint8_t breathPhase = (uint8_t)((now / 24UL) & 0xFFU);
+    uint8_t breath = breathPhase < 128 ? (uint8_t)(breathPhase * 2U)
+                                      : (uint8_t)((255U - breathPhase) * 2U);
+    for (uint8_t i = 0; i < gPixels; i++) {
+      uint8_t position = (uint8_t)((uint16_t)i * 256U / gPixels);
+      uint8_t clockwise = (uint8_t)(position - head);
+      uint8_t counterclockwise = (uint8_t)(head - position);
+      uint8_t distance = min(clockwise, counterclockwise);
+      uint8_t crest = distance < 64U ? (uint8_t)(255U - distance * 4U) : 0U;
+      uint16_t envelope = 64U + (uint16_t)crest * 151U / 255U +
+                          (uint16_t)breath * 40U / 255U;
+      uint8_t level = (uint8_t)((uint16_t)v * min((uint16_t)255U, envelope) /
+                                255U);
+      uint16_t hue = (uint16_t)(now * 4UL +
+                                (uint32_t)i * 65536UL / gPixels);
+      gStrip.setPixelColor(i, gStrip.ColorHSV(hue, 235, level));
+    }
+    break;
+  }
   }
   gStrip.show();
 }
@@ -275,6 +318,7 @@ static void printTelemetry() {
   Serial.printf(
       "{\"fw\":\"%s\",\"fixture_id\":\"%s\",\"pixel_type\":\"%s\","
       "\"pixels\":%u,\"pattern\":\"%s\",\"auto\":%s,"
+      "\"demo_mode\":%s,\"lights_on\":%s,"
       "\"brightness_requested\":%u,\"brightness_cap\":%u,"
       "\"brightness_applied\":%u,\"estimated_worst_ma\":%u,"
       "\"budget_ma\":%u,\"rail_ok\":%s,\"pf_ready\":%s,"
@@ -283,7 +327,8 @@ static void printTelemetry() {
       "\"supply_v\":%.3f,\"supply_ma\":%.1f,\"supply_good\":%s,"
       "\"reset_reason\":%d,\"uptime_ms\":%lu}\n",
       CHAIN_VERSION, gId, CHAIN_TYPE_NAME, (unsigned)gPixels, patternName(p),
-      gAuto ? "true" : "false", (unsigned)gRequestedBrightness,
+      gAuto ? "true" : "false", CHAIN_DEMO_MODE ? "true" : "false",
+      gLightsOn ? "true" : "false", (unsigned)gRequestedBrightness,
       (unsigned)brightnessCap(p), (unsigned)appliedBrightness(p),
       (unsigned)estimatedWorstMa(p), (unsigned)CHAIN_BUDGET_MA,
       gRailReady ? "true" : "false", gPfReady ? "true" : "false",
@@ -294,6 +339,7 @@ static void printTelemetry() {
 }
 
 static void printHelp() {
+  Serial.println("USER button: toggle lights and the physical 3V3 LED rail");
   Serial.println("commands: t telemetry | n<N> pixels | b<0..255> brightness");
   Serial.println("          a toggle auto | m<0..7> manual pattern | + / - brightness");
   Serial.println("          o rail OFF for chain changes | p rail ON after chain changes");
@@ -330,6 +376,25 @@ static void handleCommand(const char *cmd) {
     gRequestedBrightness = (uint8_t)max(0, (int)gRequestedBrightness - 16);
   }
   printTelemetry();
+}
+
+static void buttonTick(uint32_t now) {
+  static bool rawPressed = false;
+  static bool stablePressed = false;
+  static uint32_t rawChangedMs = 0;
+  bool pressed = digitalRead(USER_BUTTON_PIN) == LOW;
+  if (pressed != rawPressed) {
+    rawPressed = pressed;
+    rawChangedMs = now;
+  }
+  if (pressed != stablePressed && now - rawChangedMs >= 35U) {
+    stablePressed = pressed;
+    if (stablePressed) {
+      if (gLightsOn) disableLedRail();
+      else restoreLedRail();
+      printTelemetry();
+    }
+  }
 }
 
 static void serialTick() {
@@ -382,6 +447,7 @@ void setup() {
   delay(25);
   gStrip.clear();
   gStrip.show();
+  gLightsOn = gRailReady;
 
   pinMode(USER_BUTTON_PIN, INPUT_PULLUP);
   refreshPower();
@@ -392,6 +458,7 @@ void setup() {
 void loop() {
   serialTick();
   uint32_t now = millis();
+  buttonTick(now);
   static uint32_t nextPowerMs = 0;
   static uint32_t nextTelemetryMs = 0;
   if (now >= nextPowerMs) {

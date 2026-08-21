@@ -1,0 +1,300 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useThree, useFrame } from "@react-three/fiber";
+import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
+import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
+import { Box3, Mesh, MeshStandardMaterial, Object3D, SRGBColorSpace, type SpotLight as ThreeSpotLight } from "three";
+import { useTwin } from "./store";
+import { TreeLights } from "./TreeLights";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { groundTint } from "./groundtint";
+import { parseIES } from "./ies";
+import { asset } from "./fixtures";
+import { staleUnitsScale } from "./units";
+
+/** Largest horizontal span of a glb — the number the stale-units guard compares
+ *  against the fixture cloud. Horizontal only: height ratios are confounded by
+ *  the workspace floor/rig geometry blender leaves in the export. */
+function glbSpan(scene: Object3D): number {
+  const b = new Box3().setFromObject(scene);
+  return Number.isFinite(b.max.x) ? Math.max(b.max.x - b.min.x, b.max.z - b.min.z) : 0;
+}
+
+/** Ground plane + a downward spotlight projecting the mandala gobo onto it (A5). */
+function GoboFloor() {
+  const center = useTwin((s) => s.center);
+  const size = useTwin((s) => s.size);
+  const gobo = useTexture(asset("/gobo.png")); // real skirt-petal projection (blender-architect bake)
+  gobo.colorSpace = SRGBColorSpace;
+  const { scene: treeScene } = useGLTF(asset("/tree-context.glb"));
+  const light = useRef<ThreeSpotLight>(null);
+  const target = useMemo(() => new Object3D(), []);
+  // Anchor the ground to the VISIBLE TREE's base (the glb's bbox bottom), NOT the
+  // fixtures bbox — the two live in different coordinate systems, which left the
+  // floor floating ~25u below the trunk and beams shooting past it. Fall back to
+  // the fixtures bbox if the glb has no geometry.
+  const groundY = useMemo(() => {
+    const k = staleUnitsScale(glbSpan(treeScene), size); // glb may be in old 10× units
+    const minY = new Box3().setFromObject(treeScene).min.y * k;
+    return Number.isFinite(minY) ? minY : center[1] - size * 0.5;
+  }, [treeScene, center, size]);
+  // cone geometry from the real baked IES photometric profile
+  const [cone, setCone] = useState({ angle: 0.62, penumbra: 0.5 });
+
+  useEffect(() => {
+    let alive = true;
+    fetch(asset("/downlight.ies"))
+      .then((r) => r.text())
+      .then((t) => {
+        const p = parseIES(t);
+        const DEG = Math.PI / 180;
+        const fieldHalf = (p.fieldDeg / 2) * DEG;
+        const beamHalf = (p.beamDeg / 2) * DEG;
+        // crisp cookie so the ~15 petal shapes resolve (penumbra down)
+        const penumbra = Math.min(0.4, Math.max(0.04, ((fieldHalf - beamHalf) / Math.max(fieldHalf, 1e-3)) * 0.5));
+        if (alive) setCone({ angle: Math.min(Math.PI / 2 - 0.01, fieldHalf), penumbra });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    target.position.set(center[0], groundY, center[2]);
+    target.updateMatrixWorld();
+    if (light.current) light.current.target = target;
+  }, [center, size, groundY, target]);
+
+  // tint + brighten the floor projection from the tree's live aggregate colour
+  useFrame(() => {
+    const l = light.current;
+    if (!l) return;
+    l.color.setRGB(groundTint.r, groundTint.g, groundTint.b);
+    // The GLOBAL mandala projector lit the whole circle off the tree's AVERAGE, so a
+    // few lit lights still drew a full circle. Gate it HARD (only fills when the tree
+    // is broadly lit); sparse modes (piano, sparkle) then show ONLY the per-fixture
+    // floor cookies under the lights that are actually on. (TreeLights groundRef.)
+    l.intensity = Math.max(0, groundTint.level - 0.32) * 7.0;
+  });
+
+  return (
+    <>
+      <mesh rotation-x={-Math.PI / 2} position={[center[0], groundY, center[2]]} receiveShadow>
+        <planeGeometry args={[size * 2.8, size * 2.8]} />
+        {/* visible ground surface at the tree base — was near-black (#0b0e14) and
+            blended into the night background; lift it to a dark slate so it reads
+            as a floor and catches the gobo projection. */}
+        <meshStandardMaterial color="#222a39" roughness={0.95} />
+      </mesh>
+      <primitive object={target} />
+      <spotLight
+        ref={light}
+        position={[center[0], groundY + size * 1.15, center[2]]}
+        angle={cone.angle}
+        penumbra={cone.penumbra}
+        intensity={1.7}
+        decay={0}
+        distance={0}
+        castShadow
+        map={gobo}
+        color="#ffe1b0"
+        shadow-mapSize={[1024, 1024]}
+      />
+    </>
+  );
+}
+
+/** Visible structural bamboo + Plu Plu bark so the lights read as the Resonance
+ *  Tree. The bark ("treev4 Plupu") is the light-shaping SHELL — render it darker
+ *  and near-opaque so the lantern glow leaks through it; the bamboo structure is
+ *  lighter + more translucent. */
+function TreeContext() {
+  const { scene } = useGLTF(asset("/tree-context.glb"));
+  const size = useTwin((s) => s.size);
+  const k = useMemo(() => staleUnitsScale(glbSpan(scene), size), [scene, size]);
+  const styled = useMemo(() => {
+    const s = scene.clone(true);
+    const bamboo = new MeshStandardMaterial({
+      color: "#9c7a44", roughness: 0.82, metalness: 0, transparent: true, opacity: 0.7,
+    });
+    const bark = new MeshStandardMaterial({
+      color: "#6b5230", roughness: 0.95, metalness: 0, transparent: true, opacity: 0.96,
+    });
+    s.traverse((o) => {
+      const m = o as Mesh;
+      if (!m.isMesh) return;
+      const nm = (m.name || m.parent?.name || "").toLowerCase();
+      m.material = nm.includes("plupu") ? bark : bamboo;
+    });
+    return s;
+  }, [scene]);
+  return <primitive object={styled} scale={k} />;
+}
+
+/** The central chandelier (ring + wind-chimes) hung at the crown — blender-
+ *  architect's chandelier.glb, world-space so it lands at the crown fixtures. */
+function Chandelier() {
+  const { scene } = useGLTF(asset("/chandelier.glb"));
+  const fixtures = useTwin((s) => s.fixtures);
+  // measured 08-15: chandelier.glb is 15 m wide — also in the old 10× units.
+  // Its reference is its OWN fixture cluster's span, NOT the tree span: against
+  // the 10 m tree the ratio is 1.49 and the guard never fires (the unit test
+  // for exactly that case is what caught this call site using `size`).
+  const clusterSpan = useMemo(() => {
+    const ch = fixtures.filter((f) => f.role === "chandelier");
+    if (ch.length < 2) return 0;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const f of ch) {
+      minX = Math.min(minX, f.pos[0]); maxX = Math.max(maxX, f.pos[0]);
+      minZ = Math.min(minZ, f.pos[2]); maxZ = Math.max(maxZ, f.pos[2]);
+    }
+    return Math.max(maxX - minX, maxZ - minZ);
+  }, [fixtures]);
+  const k = useMemo(() => staleUnitsScale(glbSpan(scene), clusterSpan), [scene, clusterSpan]);
+  const styled = useMemo(() => {
+    const s = scene.clone(true);
+    const mat = new MeshStandardMaterial({ color: "#c08a3e", roughness: 0.65, metalness: 0.35, transparent: true, opacity: 0.9 });
+    s.traverse((o) => { if ((o as Mesh).isMesh) (o as Mesh).material = mat; });
+    return s;
+  }, [scene]);
+  // The glb is authored centred at its own origin; anchor it on the chandelier
+  // fixtures' centroid (three-space) so the mesh lands on the crown lights —
+  // robust to the real Blender export swapping in different crown coords.
+  const at = useMemo<[number, number, number]>(() => {
+    const ch = fixtures.filter((f) => f.role === "chandelier");
+    if (ch.length === 0) return [0, 0, 0];
+    const sum = ch.reduce((a, f) => [a[0] + f.pos[0], a[1] + f.pos[1], a[2] + f.pos[2]] as [number, number, number], [0, 0, 0] as [number, number, number]);
+    return [sum[0] / ch.length, sum[1] / ch.length, sum[2] / ch.length];
+  }, [fixtures]);
+  return <primitive object={styled} position={at} scale={k} />;
+}
+
+/** PERF: the gobo spotlight's shadow map covers the STATIC scene (tree + ground
+ *  never move; the instanced lanterns aren't shadow-casters and their colour
+ *  changes don't affect shadows). So render the shadow for the first ~45 frames
+ *  (let the async glb + gobo finish loading), then FREEZE it — autoUpdate=false
+ *  drops a full re-draw of the 2364-mesh bark scene every single frame. */
+function ShadowFreeze() {
+  const gl = useThree((s) => s.gl);
+  const frame = useRef(0);
+  useFrame(() => {
+    frame.current += 1;
+    if (frame.current === 45) {
+      gl.shadowMap.needsUpdate = true; // capture one final, fully-loaded shadow
+      gl.shadowMap.autoUpdate = false; // then stop re-rendering it every frame
+    }
+    // publish a lightweight render-stats snapshot for the HUD + perf verification
+    (window as unknown as { __perf?: object }).__perf = {
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      shadowAutoUpdate: gl.shadowMap.autoUpdate,
+      frame: frame.current,
+    };
+  });
+  return null;
+}
+
+/** Frame the whole tree at a hero 3/4 angle.
+ *
+ *  ASPECT-AWARE, and that is the fix that made mobile first-open sane: the base
+ *  distance (size·0.92) frames a ~10 m tree through a LANDSCAPE frustum. On a
+ *  390×844 portrait phone the horizontal FOV is less than half the vertical
+ *  one, so the same distance puts the camera INSIDE the canopy — the first
+ *  thing a phone user saw was a wall of bark, not a tree (perception-verified
+ *  at 390×844, 2026-08-15). The horizontal half-FOV shrinks as atan(tan(v/2)·a),
+ *  so for aspect < 1 we widen the orbit by ~1/aspect to keep the span in frame. */
+function CameraRig() {
+  const center = useTwin((s) => s.center);
+  const size = useTwin((s) => s.size);
+  const preset = useTwin((s) => s.cameraPreset);
+  const camera = useThree((s) => s.camera);
+  const viewport = useThree((s) => s.size); // CSS px; changes on rotate/resize
+  const controls = useThree((s) => s.controls) as
+    | { target?: { set: (x: number, y: number, z: number) => void }; update?: () => void }
+    | null;
+
+  useEffect(() => {
+    const aspect = viewport.height > 0 ? viewport.width / viewport.height : 1;
+    const portrait = aspect < 0.9;
+    // Portrait strategy is UP, not OUT: backing straight out runs the camera
+    // into the structural bamboo — the context glb (guys/anchors) extends far
+    // beyond the 10 m fixture cloud, so there is no clean orbit at the distance
+    // a narrow frustum would need. A higher, slightly farther 3/4 aerial keeps
+    // the camera in the clear air above the canopy and the tree in frame.
+    const fit = portrait ? 1.35 : 1;
+    const elev = portrait ? 0.55 : 0.3;
+    const d = size * 0.92 * fit;
+    camera.near = Math.max(0.1, size * 0.01);
+    camera.far = size * 30;
+    if (preset === "top") {
+      // straight-down projection view — see the petal gobo pattern on the floor
+      camera.position.set(center[0], center[1] + d * 1.5, center[2] + 0.001);
+    } else {
+      camera.position.set(center[0] + d * 0.75, center[1] + d * elev, center[2] + d);
+    }
+    camera.updateProjectionMatrix();
+    camera.lookAt(center[0], center[1], center[2]);
+    if (controls?.target) {
+      controls.target.set(center[0], center[1], center[2]);
+      controls.update?.();
+    }
+  }, [center, size, camera, controls, preset, viewport.width, viewport.height]);
+  return null;
+}
+
+/** e2e/perf flag: ?e2e skips the heavy 22MB bark context glb so the
+ *  interaction tests run on a light scene (headless GL can't hold the full mesh
+ *  under intensive clicking). The real app always renders the full tree. */
+const LIGHT_SCENE = typeof location !== "undefined" && new URLSearchParams(location.search).has("e2e");
+
+export function Scene() {
+  const TEST_RIG = useTwin((s) => s.source) === "testgrid"; // grid bench mode: no sculpture
+  const tod = useTwin((s) => s.timeOfDay); // 0 night → 1 day
+  // background + ambient ramp with time-of-day so we can preview the install
+  // at night (lights pop), dusk, and day (washed — real daytime visibility)
+  const bg = ["#04060a", "#0f1422", "#243044", "#5a6e88"][Math.min(3, Math.floor(tod * 3.001))];
+  const ambient = 0.16 + tod * 1.0;
+  return (
+    <>
+      <color attach="background" args={[bg]} />
+      {/* Darker stage = each fixture's ray reads distinctly, less cross-bleed
+          (light pollution); ambient ramps up toward day. */}
+      <ambientLight intensity={ambient} />
+      <directionalLight position={[1, 1.6, 1]} intensity={0.85 + tod * 1.2} color="#fff1d8" />
+      <directionalLight position={[-1.2, 0.4, -1]} intensity={0.32 + tod * 0.4} color="#4a63b0" />
+      <CameraRig />
+      <ShadowFreeze />
+      <ErrorBoundary>
+        <GoboFloor />
+      </ErrorBoundary>
+      {/* the test-grid rig replaces the sculpture — hide the tree + chandelier
+          so the 49 hung lights read cleanly (the tree is the PIECE; this is a bench).
+          The bench gets LAB FURNITURE: a graduated 1 m floor grid + an XYZ axis
+          marker, so "where does each light think it is" reads against a scale. */}
+      {TEST_RIG && (
+        <group>
+          <gridHelper args={[24, 24, "#3a5a7a", "#1d2f42"]} position={[0, 0.02, 0]} />
+          <axesHelper args={[5]} position={[-12, 0.02, -12]} />
+        </group>
+      )}
+      {!LIGHT_SCENE && !TEST_RIG && (
+        <ErrorBoundary>
+          <TreeContext />
+        </ErrorBoundary>
+      )}
+      {!LIGHT_SCENE && !TEST_RIG && (
+        <ErrorBoundary>
+          <Chandelier />
+        </ErrorBoundary>
+      )}
+      {/* lantern bodies now render inside TreeLights (the lit fixture itself) */}
+      <TreeLights />
+      <OrbitControls makeDefault enableDamping />
+      <EffectComposer>
+        <Bloom intensity={0.85} luminanceThreshold={0.42} luminanceSmoothing={0.5} mipmapBlur radius={0.8} />
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      </EffectComposer>
+    </>
+  );
+}
+
+useGLTF.preload(asset("/tree-context.glb"));

@@ -45,7 +45,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-15.1"
+#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-17.2"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -77,6 +77,11 @@
 #define NB_REMOTE_SLEEP_S 21600
 #define NB_TARGET_SLEEP_DEFAULT_S 3600
 #define NB_DRAWDOWN_DEFAULT_MAH 3500
+#define NB_DARK_LEASE_DEFAULT_S 3600
+#define NB_PROGRAM_COMMISSION_DARK 4
+#define NB_TRANSPORT_MAX_HOURS 168
+#define NB_LOCATE_MAX_S 900
+#define NB_LOCATE_PERIOD_DS 200
 
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -379,6 +384,12 @@ struct PeerStat {
   uint8_t ledB;
   uint8_t ledW;
   uint8_t ledLitPixels;
+
+  bool hasIdentityRecovery;
+  uint8_t sensorBits;
+  uint8_t classMismatch;
+  uint8_t recoveryState;
+  uint16_t recoveryDetectMv;
 };
 
 PeerStat peers[NB_MAX_TRACKED] = {};
@@ -390,6 +401,19 @@ bool audioInputReady = false;
 bool audioUsingModule = false;
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
+
+enum AudioVisualMode : uint8_t {
+  AUDIO_MODE_CLASSIC = 0, // per-slot R/G/B envelope (original behavior)
+  AUDIO_MODE_EMBER,       // all fixtures warm amber/white on the envelope
+  AUDIO_MODE_HUECYCLE,    // envelope brightness on a slow shared hue rotation
+  AUDIO_MODE_PULSE,       // beat transients: full-bright flash over a dim floor
+  AUDIO_MODE_COUNT,
+};
+AudioVisualMode audioMode = AUDIO_MODE_CLASSIC;
+float audioFastEnv = 0.0f;      // PULSE: fast follower of the companded level
+float audioSlowEnv = 0.0f;      // PULSE: slow reference a transient must beat
+bool audioPulseActive = false;  // PULSE: a triggered flash is still decaying
+uint32_t audioPulseStartMs = 0; // PULSE: trigger time of the current flash
 #if CORES3_AUDIO_MODULE
 M5ModuleAudio audioModule;
 #endif
@@ -457,13 +481,16 @@ void sendTargetU16(uint8_t type, const uint8_t target[3], uint16_t value) {
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
-void sendIdentify(const uint8_t target[3], uint8_t seconds) {
+void sendIdentify(const uint8_t target[3], uint8_t seconds,
+                  uint8_t color = 0, uint8_t blink = 0,
+                  uint8_t value = 255) {
   NbIdentify cmd = {};
   fillHeader(&cmd.h, NB_IDENTIFY);
   memcpy(cmd.target_id, target, 3);
   cmd.secs = seconds;
-  cmd.color = 0;
-  cmd.blink = 0;
+  cmd.color = color;
+  cmd.blink = blink;
+  cmd.value = value;
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
@@ -476,10 +503,112 @@ void sendProfile(const uint8_t target[3], uint8_t profile, bool persist) {
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
+void sendFleetProgramLease(uint8_t programId, uint16_t leaseS) {
+  NbProgramSet cmd = {};
+  fillHeader(&cmd.h, NB_PROGRAM_SET);
+  // target_id stays 00:00:00: every receiver applies the same bounded lease.
+  cmd.program_id = programId;
+  cmd.lease_s = leaseS;
+  cmd.seed = esp_random();
+  cmd.flags = 0x01; // hard cut; do not spend power crossfading to or from dark
+  sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
+}
+
+void sendTransportSleep(uint16_t hours) {
+  NbTransportSleep cmd = {};
+  fillHeader(&cmd.h, NB_TRANSPORT_SLEEP);
+  // target_id remains 00:00:00: field packing is one fleet-wide operation.
+  cmd.seconds = (uint32_t)hours * 3600UL;
+  sendPacketRepeated(&cmd, sizeof(cmd), 8, 12);
+}
+
+void sendLocateControl(uint16_t durationS) {
+  NbLocateControl cmd = {};
+  fillHeader(&cmd.h, NB_LOCATE_CONTROL);
+  // target_id remains 00:00:00. Duration zero is the explicit stop command.
+  cmd.duration_s = durationS;
+  cmd.period_ds = NB_LOCATE_PERIOD_DS;
+  sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
+}
+
 #if CORES3_AUDIO_REACTIVE_MODE
 const char *audioSourceName() {
   if (!audioInputReady) return "FAILED";
   return audioUsingModule ? "MODULE TRS" : "BUILTIN DUAL MIC";
+}
+
+const char *audioModeName(AudioVisualMode mode) {
+  switch (mode) {
+  case AUDIO_MODE_CLASSIC: return "CLASSIC";
+  case AUDIO_MODE_EMBER: return "EMBER";
+  case AUDIO_MODE_HUECYCLE: return "HUECYCLE";
+  case AUDIO_MODE_PULSE: return "PULSE";
+  default: return "UNKNOWN";
+  }
+}
+
+void nextAudioMode() {
+  audioMode = (AudioVisualMode)((audioMode + 1) % AUDIO_MODE_COUNT);
+  Serial.printf("audio mode=%s\n", audioModeName(audioMode));
+}
+
+// Local HSV -> RGB for HUECYCLE. hue/sat/val are 0..1 and hue wraps. The wire
+// contract (packet.h) stays untouched; this is bridge-side color math only.
+void audioHsvToRgb(float hue, float sat, float val,
+                   uint8_t *r, uint8_t *g, uint8_t *b) {
+  hue -= floorf(hue);
+  float hf = hue * 6.0f;
+  int sector = ((int)hf) % 6;
+  float f = hf - (float)sector;
+  float p = val * (1.0f - sat);
+  float q = val * (1.0f - sat * f);
+  float t = val * (1.0f - sat * (1.0f - f));
+  float rf, gf, bf;
+  switch (sector) {
+  case 0: rf = val; gf = t; bf = p; break;
+  case 1: rf = q; gf = val; bf = p; break;
+  case 2: rf = p; gf = val; bf = t; break;
+  case 3: rf = p; gf = q; bf = val; break;
+  case 4: rf = t; gf = p; bf = val; break;
+  default: rf = val; gf = p; bf = q; break;
+  }
+  *r = (uint8_t)(rf * 255.0f + 0.5f);
+  *g = (uint8_t)(gf * 255.0f + 0.5f);
+  *b = (uint8_t)(bf * 255.0f + 0.5f);
+}
+
+// Shared (same color for every fixture) modes; CLASSIC keeps per-slot colors.
+AudioColor audioSharedColor(float level, uint32_t nowMs) {
+  if (level < 0.0f) level = 0.0f;
+  if (level > 1.0f) level = 1.0f;
+  switch (audioMode) {
+  case AUDIO_MODE_EMBER:
+    return {(uint8_t)(level * 255.0f + 0.5f),
+            (uint8_t)(level * 0.55f * 255.0f + 0.5f),
+            (uint8_t)(level * 0.10f * 255.0f + 0.5f),
+            (uint8_t)(level * 0.60f * 255.0f + 0.5f)};
+  case AUDIO_MODE_HUECYCLE: {
+    // Slow shared rotation: one full hue revolution every 20 s.
+    float hue = (float)(nowMs % 20000UL) / 20000.0f;
+    uint8_t r, g, b;
+    audioHsvToRgb(hue, 1.0f, level, &r, &g, &b);
+    return {r, g, b, 0};
+  }
+  case AUDIO_MODE_PULSE: {
+    float value = level * 0.2f; // dim floor between transients
+    if (audioPulseActive) {
+      uint32_t elapsed = nowMs - audioPulseStartMs;
+      if (elapsed < 400) {
+        float pulse = 1.0f - (float)elapsed / 400.0f;
+        if (pulse > value) value = pulse;
+      }
+    }
+    uint8_t v = (uint8_t)(value * 255.0f + 0.5f);
+    return {v, v, v, v};
+  }
+  default:
+    return {0, 0, 0, 0};
+  }
 }
 
 bool setupAudioInput() {
@@ -560,9 +689,14 @@ void sendAudioLevel(float level) {
   fillHeader(&frame.h, NB_DIRECT_FRAME);
   frame.flags = 0x03; // 10 s micro-lease + hard-cut; envelope owns smoothing
   frame.count = count;
+  AudioColor shared = {};
+  if (audioMode != AUDIO_MODE_CLASSIC)
+    shared = audioSharedColor(level, millis());
   for (uint8_t i = 0; i < count; ++i) {
     memcpy(frame.entries[i].id, ids[i], 3);
-    AudioColor color = audioColorForSlot(i, level);
+    AudioColor color = audioMode == AUDIO_MODE_CLASSIC
+                           ? audioColorForSlot(i, level)
+                           : shared;
     frame.entries[i].r = color.r;
     frame.entries[i].g = color.g;
     frame.entries[i].b = color.b;
@@ -578,6 +712,9 @@ void sendAudioLevel(float level) {
 
 void setAudioActive(bool active) {
   if (active == audioActive) return;
+  audioPulseActive = false;
+  audioFastEnv = 0.0f;
+  audioSlowEnv = 0.0f;
   if (!active) sendAudioLevel(0.0f);
   audioActive = active;
   if (active) audioEnvelope = AudioEnvelope{};
@@ -597,6 +734,16 @@ void audioReactiveTick() {
   }
   float level = audioEnvelope.update(samples,
                                      sizeof(samples) / sizeof(samples[0]));
+  // PULSE transient tracking runs in every mode so switching in is seamless.
+  audioFastEnv += (level - audioFastEnv) * 0.60f;
+  audioSlowEnv += (level - audioSlowEnv) * 0.06f;
+  if (audioPulseActive && now - audioPulseStartMs >= 400)
+    audioPulseActive = false;
+  if (!audioPulseActive && audioEnvelope.calibrated() &&
+      audioFastEnv > audioSlowEnv * 1.4f && audioFastEnv > 0.08f) {
+    audioPulseActive = true;
+    audioPulseStartMs = now;
+  }
   if (audioEnvelope.calibrated()) sendAudioLevel(level);
 }
 #endif
@@ -607,7 +754,8 @@ void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
   if (len < (int)sizeof(NbHeader)) return;
   const NbHeader *h = (const NbHeader *)data;
   if (h->ver != NB_PROTO_VER ||
-      (h->type != NB_HEARTBEAT && h->type != NB_SCANAP)) return;
+      (h->type != NB_HEARTBEAT && h->type != NB_SCANAP &&
+       h->type != NB_NEIGHBOR_REPORT)) return;
 #endif
 
   RxItem item = {};
@@ -858,6 +1006,14 @@ void processHeartbeat(const RxItem &item) {
     peer->ledW = hb->led_w;
     peer->ledLitPixels = hb->led_lit_pixels;
   }
+
+  peer->hasIdentityRecovery = NB_HAS_HB_FIELD(item.len, recovery_detect_mv);
+  if (peer->hasIdentityRecovery) {
+    peer->sensorBits = hb->sensor_bits;
+    peer->classMismatch = hb->class_mismatch;
+    peer->recoveryState = hb->recovery_state;
+    peer->recoveryDetectMv = hb->recovery_detect_mv;
+  }
 }
 
 void emitScanAp(const RxItem &item) {
@@ -874,6 +1030,26 @@ void emitScanAp(const RxItem &item) {
                 scan->enc, item.rssi, ssid);
 }
 
+void emitNeighborReport(const RxItem &item) {
+  if (item.len < (int)offsetof(NbNeighborReport, entries)) return;
+  const NbNeighborReport *report = (const NbNeighborReport *)item.data;
+  uint8_t available = (uint8_t)((item.len - offsetof(NbNeighborReport, entries)) /
+                                sizeof(NbNeighborEntry));
+  uint8_t count = min((uint8_t)NB_NEIGHBOR_REPORT_MAX,
+                      min(report->count, available));
+  for (uint8_t i = 0; i < count; ++i) {
+    const NbNeighborEntry &entry = report->entries[i];
+    Serial.printf("nb-rssi report=%lu rx=%02X%02X%02X tx=%02X%02X%02X "
+                  "rssi=%d n=%u expected=%u censored=%u idx=%u count=%u "
+                  "linkrssi=%d\n",
+                  (unsigned long)report->h.seq,
+                  report->h.src_id[0], report->h.src_id[1], report->h.src_id[2],
+                  entry.id[0], entry.id[1], entry.id[2], entry.med_dbm,
+                  entry.n, report->n_expected, entry.flags & 0x01, i, count,
+                  item.rssi);
+  }
+}
+
 void processRx() {
   if (!rxQueue) return;
   RxItem item;
@@ -887,6 +1063,7 @@ void processRx() {
     if (h->type == NB_HEARTBEAT) processHeartbeat(item);
 #if !CORES3_CAMBIUM_MODE
     else if (h->type == NB_SCANAP) emitScanAp(item);
+    else if (h->type == NB_NEIGHBOR_REPORT) emitNeighborReport(item);
 #endif
   }
 }
@@ -914,11 +1091,11 @@ void emitBridgeStats() {
                 (unsigned long)sendFail, (unsigned long)millis(),
                 bridgeBatteryMv() / 1000.0f, CORES3_BRIDGE_VERSION);
 #if CORES3_AUDIO_REACTIVE_MODE
-  Serial.printf("audio source=%s ready=%d active=%d calibrated=%d rms=%.1f "
-                "noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
+  Serial.printf("audio source=%s ready=%d active=%d mode=%s calibrated=%d "
+                "rms=%.1f noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
                 audioSourceName(), audioInputReady, audioActive,
-                audioEnvelope.calibrated(), audioEnvelope.rms,
-                audioEnvelope.noise, audioEnvelope.level,
+                audioModeName(audioMode), audioEnvelope.calibrated(),
+                audioEnvelope.rms, audioEnvelope.noise, audioEnvelope.level,
                 (unsigned long)audioFrames,
                 (unsigned long)audioReadFailures);
 #endif
@@ -1024,6 +1201,12 @@ void emitBridgeStats() {
                     " cls=%u ledrail=%u ledr=%u ledg=%u ledb=%u ledw=%u ledn=%u",
                     p->fixtureClass, p->ledRailOn, p->ledR, p->ledG,
                     p->ledB, p->ledW, p->ledLitPixels);
+    }
+    if (p->hasIdentityRecovery && n < (int)sizeof(line)) {
+      n += snprintf(line + n, sizeof(line) - n,
+                    " sens=%u cmis=%u rec=%u recmv=%u",
+                    p->sensorBits, p->classMismatch, p->recoveryState,
+                    p->recoveryDetectMv);
     }
     if (n < 0) continue;
     // snprintf returns the length it wanted to write. Clamp before appending a
@@ -1239,23 +1422,24 @@ void handleSerial() {
     break;
   }
   case 'm': {
-    static const uint8_t presets[] = {55, 52, 50, 48, 46};
-    static uint8_t presetIndex = 0;
+    // 2026-08-20 incident fix: a bare 'm' used to cycle presets STARTING AT
+    // 5.5 V — one stray byte on this port (e.g. a ModemManager probe of the
+    // freshly re-enumerated tty) broadcast a VINDPM that collapses USB-powered
+    // fixtures' input and PERSISTS in their NVS. Explicit digits are now
+    // required; there is no bare-'m' action.
     int explicitV10 = readSerialUint(50, NB_MAINTAIN_MAX_V10);
-    uint8_t v10;
-    if (explicitV10 >= 0) {
-      if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
-        Serial.printf("SET_MAINTAIN %d rejected (range %d..%d)\n", explicitV10,
-                      NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10);
-        break;
-      }
-      v10 = (uint8_t)explicitV10;
-    } else {
-      v10 = presets[presetIndex++];
-      presetIndex %= sizeof(presets);
+    if (explicitV10 < 0) {
+      Serial.println("m requires an explicit value, e.g. m46 (4.6 V solar "
+                     "std) / m50 / m52; 55 collapses USB-powered boards");
+      break;
     }
-    sendCmd(NB_SET_MAINTAIN, v10);
-    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", v10 / 10.0f);
+    if (explicitV10 < NB_MAINTAIN_MIN_V10 || explicitV10 > NB_MAINTAIN_MAX_V10) {
+      Serial.printf("SET_MAINTAIN %d rejected (range %d..%d)\n", explicitV10,
+                    NB_MAINTAIN_MIN_V10, NB_MAINTAIN_MAX_V10);
+      break;
+    }
+    sendCmd(NB_SET_MAINTAIN, (uint8_t)explicitV10);
+    Serial.printf("broadcast SET_MAINTAIN %.1f V\n", explicitV10 / 10.0f);
     break;
   }
   case 'C':
@@ -1387,6 +1571,53 @@ void handleSerial() {
     Serial.println("identify ALL peers 8s");
     break;
   }
+  case 'Q': {
+    int hours = readSerialUint(100, NB_TRANSPORT_MAX_HOURS);
+    if (hours < 1 || hours > NB_TRANSPORT_MAX_HOURS) {
+      Serial.printf("TRANSPORT_SLEEP rejected: use Q<hours>, 1..%d\n",
+                    NB_TRANSPORT_MAX_HOURS);
+      break;
+    }
+    sendTransportSleep((uint16_t)hours);
+    Serial.printf("broadcast TRANSPORT_SLEEP %dh (%lus); timer wake stays dark "
+                  "until bridge program release\n",
+                  hours, (unsigned long)hours * 3600UL);
+    break;
+  }
+  case 'L': {
+    int seconds = readSerialUint(100, NB_LOCATE_MAX_S);
+    if (seconds < 0) seconds = 120;
+    if (seconds > NB_LOCATE_MAX_S) {
+      Serial.printf("LOCATE rejected: use L[seconds], 0..%d\n", NB_LOCATE_MAX_S);
+      break;
+    }
+    sendLocateControl((uint16_t)seconds);
+    Serial.printf("broadcast LOCATE %s, %d s, reports every %.1f s\n",
+                  seconds ? "start" : "stop", seconds,
+                  NB_LOCATE_PERIOD_DS / 10.0f);
+    break;
+  }
+  case 'T': {
+    uint8_t target[3] = {};
+    if (!readSerialHexId(target, 120)) {
+      Serial.println("TAG rejected: use T<id>:<0|1>");
+      break;
+    }
+    consumeOptionalSeparator();
+    int enabled = readSerialUint(80, 1);
+    if (enabled < 0 || enabled > 1) {
+      Serial.println("TAG rejected: use T<id>:<0|1>");
+      break;
+    }
+    if (enabled) {
+      sendIdentify(target, 255, 2, 0, 128); // steady green, half brightness
+    } else {
+      sendIdentify(target, 0, 0, 0, 255); // immediate release
+    }
+    Serial.printf("target TAG %02X%02X%02X -> %s\n",
+                  target[0], target[1], target[2], enabled ? "ON" : "OFF");
+    break;
+  }
   case 'F': {
     char arg[24];
     uint8_t target[3] = {};
@@ -1409,6 +1640,21 @@ void handleSerial() {
     }
     break;
   }
+  case 'B': {
+    int seconds = readSerialUint(80, 65535);
+    uint16_t leaseS = seconds < 0 ? NB_DARK_LEASE_DEFAULT_S : (uint16_t)seconds;
+    if (!leaseS) {
+      Serial.println("DARK rejected: use B[seconds], seconds 1..65535");
+      break;
+    }
+    sendFleetProgramLease(NB_PROGRAM_COMMISSION_DARK, leaseS);
+    Serial.printf("broadcast DARK lease %us (RAM-only; profile unchanged)\n", leaseS);
+    break;
+  }
+  case 'b':
+    sendFleetProgramLease(0, 0);
+    Serial.println("broadcast DARK release");
+    break;
   case 't':
     Serial.printf("{\"bridge\":\"%02X%02X%02X\",\"channel\":%d,\"peers\":%d,\"live\":%d,\"queue_drops\":%lu}\n",
                   myId[0], myId[1], myId[2], NB_CHANNEL, peerCount(false),
@@ -1424,12 +1670,15 @@ void handleSerial() {
   case 'A':
     setAudioActive(!audioActive);
     break;
+  case 'M':
+    nextAudioMode();
+    break;
 #endif
   case 'h':
   case '?':
-    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] P<id>[:s] D[<id>][:mAh]"
+    Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] Q<hours> L[seconds] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
-                   " A"
+                   " A M"
 #endif
     );
     break;
@@ -1475,6 +1724,8 @@ void drawDisplay() {
   displayCanvas.setTextColor(audioInputReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
   displayCanvas.printf("audio %-16s %s\n", audioSourceName(),
                        audioActive ? "ON" : "OFF");
+  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
+  displayCanvas.printf("mode %s (tap=next)\n", audioModeName(audioMode));
   displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
   displayCanvas.printf("rms %.0f floor %.0f level %3d%%\n",
                        audioEnvelope.rms, audioEnvelope.noise,
@@ -1600,8 +1851,9 @@ void loop() {
   esp_task_wdt_reset();
   M5.update();
 #if CORES3_AUDIO_REACTIVE_MODE
+  // Tap cycles the visual mode; serial 'A' remains the audio on/off toggle.
   if (M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked())
-    setAudioActive(!audioActive);
+    nextAudioMode();
 #endif
   processRx();
 #if CORES3_CAMBIUM_MODE

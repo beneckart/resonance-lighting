@@ -44,6 +44,9 @@ void powerGlueInit() {
   if (gCfg.dimMv) gConfig.dim_mv = gCfg.dimMv;
   if (gCfg.offMv) gConfig.off_mv = gCfg.offMv;
   if (gCfg.slpMv) gConfig.protect_mv = gCfg.slpMv;
+  if (!powerConfigSanitize(gConfig)) {
+    Serial.println("power: NVS threshold overrides invert the ladder -> defaults");
+  }
   powerStateInit(gState, stageToTier(bootGuardStage()));
   // Publish an initial budget so consumers never see zeros (an invalid sample
   // freezes the ladder but still fills the budget for the current tier).
@@ -104,6 +107,22 @@ void powerGlueTick() {
     }
     Serial.printf("power: tier -> %u (bv=%.3f ma=%.0f)%s\n", (unsigned)b.tier,
                   s.batt_v, s.batt_ma, b.protect_released ? " [protect released]" : "");
+
+    if (b.protect_released) {
+      // A parked boot deliberately skipped the sensor-domain cold start,
+      // class probe, sensor init, and LED profile. The qualified 60-second
+      // charge release above has now durably replaced PROTECT with LEDS_OFF;
+      // reboot cleanly instead of merely clearing the in-RAM park flag and
+      // trying to run partially initialized hardware. This makes recovery
+      // automatic while preserving the rule that no reset alone clears the
+      // durable PROTECT latch.
+      Serial.println("power: PROTECT release persisted -> clean reboot");
+      Serial.flush();
+      delay(100);
+      ESP.restart();
+      return;
+    }
+
     if (b.brightness_cap == 0 && ledRailIsOn()) {
       gSmokeRender = false;
       ledRailOff();
