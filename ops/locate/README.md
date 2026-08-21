@@ -21,6 +21,8 @@ tests/     plain-assert test modules (pytest-compatible), run by locate_selftest
 CLIs: `locate_run.py` (one run: sim or real, figures + HTML viewer),
 `locate_sweep.py` (parameter sweeps -> breakage curves),
 `locate_ingest.py` (capture logs -> contract JSONL),
+`locate_rssi_cloud.py` (RSSI-only relative/ordinal point cloud with no roster,
+CAD, ToF, known position, or path-loss calibration),
 `locate_selftest.py` (test runner).
 
 ## Dependency policy
@@ -58,6 +60,26 @@ and the ToF-derived height where the class has one:
 {"devices": [{"dev_id": "9F2690", "role": "downlight",
               "z_tof_m": 2.41, "z_sigma_m": 0.01}, ...]}
 ```
+
+## RSSI-only exploratory cloud
+
+Use the unanchored solver when the question is what the RSSI observations alone
+contain, before introducing the roster, ToF, CAD, rig dimensions, beacons, or a
+path-loss prior:
+
+```
+python ops/locate/locate_rssi_cloud.py <capture.jsonl> \
+  --out <unique-cloud-report.json>
+```
+
+It median-aggregates repeated directed observations, turns each reporter's RSSI
+ordering into ordinal near/far constraints, learns a regularized transmitter
+bias, and emits a dimensionless 3D embedding. A link-holdout sweep from 1D through
+5D tests whether 3D is actually selected by the data. The output cannot have
+absolute meters, north, vertical, handedness, or origin: those gauges require at
+least one external fact. Treat it as a topology/latent-space diagnostic unless
+the dimension sweep and an independent ground-truth check support physical
+Euclidean coordinates.
 
 ## CAD ground truth
 

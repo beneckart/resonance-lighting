@@ -12,6 +12,182 @@ Body. What changed, what was decided, what's next.
 
 ---
 
+## 2026-08-21 -- Ben + Codex -- Hardened worksite bridge and Friday-midnight fleet pack
+
+Fetched `origin/main` and traced the Aug 20 USB shutdown incident to a stray bare
+`m` accepted by the CoreS3 bridge as 5.5 V. Ported the explicit-digits-only guard
+to `firmware/net_bench`, committed it as
+`d082968b43ba8783759b0f45b39f9f09a8671658`, and built the immutable worksite
+PowerFeather bridge artifact under
+`firmware/net_bench/build/worksite-pf-bridge-20260821-r4/`. Its binary is
+1,022,048 bytes with SHA-256
+`777658ea0031c5117ec31a47e420992a0484622f048e8f97d6e11ff819f402f1`.
+Flashed only bridge `9F2684` (`D8:85:AC:9F:26:84`) and verified the exact flash
+hash plus a stable cold boot on channel 11. A second bare PowerFeather, `F40380`,
+was read only and left unflashed. Preserved NVS reads from both boards found no
+persisted `maint_v10`, so neither was one of the 5.5 V incident victims.
+
+With Ben's explicit approval, broadcast `m46`; the hardened bridge reported
+`broadcast SET_MAINTAIN 4.6 V`, four successful sends, and no send failures. A
+fresh 14-peer census split into seven healthy/charging fixtures and seven
+low-battery fixtures. The battery-swap cohort for playa unpack is `9E5A84`,
+`F2BCF0`, `F2BF60`, `F3FCAC`, `F402A8`, `F403DC`, and `F4043C`; observed VBAT
+was about 2.30-3.06 V, with `F403DC` radio-silent at 2.296 V by pack time.
+
+Targeted OTA used the already accepted immutable pack-out artifact
+`fx-260818-f80f315-b` (1,177,264 bytes, SHA-256
+`0f1119c6ba80f2280db2c04f478a59b6be0c407edf6c95c62248f89af90ad638`).
+Six healthy legacy fixtures completed exact-revision rejoin and the >=25-second
+pending-verify gate: `9E5AC8`, `9E5AD4`, `9E5AE0`, `9F0E54`, `F40424`, and
+`F4042C`. Healthy `9F26D8` repeatedly ignored its targeted maintenance command;
+no upload was attempted, so it remains on known-good `fx-260816-otafix1-b`.
+All seven low-battery fixtures were deliberately excluded from OTA.
+
+Ben then explicitly approved sleeping the fleet to Saturday 2026-08-22 00:00
+PDT (Friday midnight). A broadcast followed by fresh-peer addressed passes put
+all 13 radio-reachable fixtures on recomputed timers for that same wall-clock
+target. The final quiet check found no heartbeat newer than 36 seconds; the six
+continuously awake fixtures had been quiet for about 16 minutes. `F403DC` could
+not receive a command because it was already radio-silent/critically low and is
+effectively off. The USB bridge remains awake for observation; it was not
+included in the fixture sleep commands.
+
+## 2026-08-19 -- Ben + Codex -- Prototype peers flashed for T-Deck channel-11 testing
+
+Promoted early-header prototypes `9E5AF0` (`D8:85:AC:9E:5A:F0`, COM151)
+and `9E5AB8` (`D8:85:AC:9E:5A:B8`, COM4) to the same immutable modern fixture
+image for local T-Deck discovery work. Added a guarded `--fw-rev` build option
+and compile-time version-token stringification, committed as
+`50243afe30610ffffffd18fac5686761c59dd6c6`, so new ADR 0040 identities can be
+injected without reusing the ambiguous legacy `.4` name. All 382 native fixture
+checks passed.
+
+Built bench artifact `fx-260819-7afe0a6-b` from a clean detached worktree with
+commission profile, ESP-NOW channel 11, strict-dark commission idle behavior,
+and the `party-in-the-woods-v1` credential set. The accepted binary is 1,170,736
+bytes with SHA-256
+`95e8d74727089c9bc309ae66109c2f26c1cb7cb7888d84c8fe90158f8bc9fcbc`;
+its manifest and build options are preserved under
+`firmware/fixture/build/fx-260819-7afe0a6-b/`. An earlier compile failed before
+producing a binary because the Windows Arduino command line preserved string
+escape backslashes; that failed directory was retained separately and was never
+flashed or reused.
+
+Flashed `9E5AF0` first while `9E5AB8` still ran its historical channel-11 serial
+bridge. Over 18 seconds B8 printed 18 reports for F0 at about -19 to -20 dBm,
+zero packet gaps, and PDR 1.0000, proving real ESP-NOW transmission and reception.
+Then flashed B8 from the exact same binary. Both final serial gates pass with the
+expected revision, `profile=commission`, `channel=11`, `espnow_up=true`, inferred
+no-sensor class `chandelier`, `pf_ready=true`, good USB supply, no battery,
+charging disabled, 6,000 mAh capacity, 2,000 mA charge ceiling, and
+`ota_pending_verify=false`. Evidence is in
+`ops/fleet/bringup/2026-08-19-ca-usb-prototype-{f0,b8}.jsonl`.
+
+The registry marks both `bench_only` because their soldered headers are wrong;
+they are local prototype peers, not fleet installation candidates. The fixtures
+need no infrastructure WiFi for this test. Next bring up the Beryl's dedicated
+2.4 GHz SSID at fixed channel 11 / HT20 / WPA2, verify the actual channel over
+the air, then associate the T-Deck and confirm it continues to see both short
+MACs while internet access is active.
+
+## 2026-08-19 -- Ben + Codex -- Early-header prototypes pass bench-board preflight
+
+Identified the two USB-connected early prototypes as `9E5AB8`
+(`D8:85:AC:9E:5A:B8`, COM4) and `9E5AF0` (`D8:85:AC:9E:5A:F0`, COM151).
+These are heavily exercised historical bench boards, not members of either recent
+quarantine cohort. Ben reports that they carry the wrong soldered headers for
+production fixtures, so they remain local bench hardware.
+
+Both passed a fresh read-only `esptool flash-id` preflight: ESP32-S3 QFN56 rev
+0.2, embedded 2 MB PSRAM, valid `20:4017` external-flash JEDEC identity, and 8 MB
+detected flash. Both hard-reset back into their existing applications and returned
+PowerFeather telemetry with `pf_ready=true` and good USB supply. `9E5AB8` runs
+`net-bench-2026-07-08.1` as a channel-11 serial-bridge master; with charging off
+and no battery, its battery-side gauge is unpowered while the regulator and charger
+still respond. `9E5AF0` runs `power-bench-2026-06-29.1`; its charger, fuel gauge,
+and regulator all respond with no telemetry errors.
+
+Both are good candidates for modern local test firmware, but neither was flashed
+in this pass. The local tree has no immutable manifest for the observed
+`fx-260816-prtrel1-b` image, and the worktree is dirty with unrelated work. Follow
+ADR 0040 for any replacement: select or build one clean named bench artifact,
+record its exact SHA-256, and target only `9E5AB8` and `9E5AF0`. Until then, do not
+attach a battery to `9E5AF0`: its legacy power-bench image automatically enables
+charging at 2,000 mA. No firmware, NVS, or persisted board setting was changed.
+
+## 2026-08-19 -- Ben + Codex -- Shed boards matched prior flash-failure quarantine
+
+The two suspicious PowerFeathers brought from Ben's shed identified as `F402B4`
+(`68:EE:8F:F4:02:B4`, COM20) and `F402F4` (`68:EE:8F:F4:02:F4`, COM25).
+These are the same two boards quarantined on 2026-08-06, not additional members
+of the uncertain worksite reverse-polarity cohort. A fresh USB-only serial capture
+reconfirmed that both remain in ROM boot loops repeatedly reporting
+`invalid header: 0xffffff07`; neither starts application firmware. This matches
+the preserved invalid/unreadable external-flash diagnosis. Keep both quarantined
+and retire/e-waste them. No battery was attached and no firmware was built,
+flashed, erased, or changed.
+
+## 2026-08-19 -- Ben + Codex -- Entire uncertain reverse-polarity cohort quarantined
+
+Ben clarified that the exact members of the four-board batch exposed to the
+reverse-polarity assembly error are not known. Quarantine therefore applies to
+the whole physical cohort, not only to boards that fail a USB boot. The third
+identified board is `9E5AA0` (`D8:85:AC:9E:5A:A0`, COM111). It still enumerated,
+booted `fx-260816-prtrel1-b`, initialized the PowerFeather SDK, and reported no
+battery, charging disabled, 4.859 V / 68 mA USB supply, a responsive BQ25628E,
+and no current charger fault bits. Those are USB-only liveness observations and
+do not clear an uncertain reverse-battery exposure.
+
+The fourth physical board did not enumerate as an Espressif USB device, so its
+MAC could not be read; a cable or connection fault remains possible. Physically
+label it with the same `NO BATTERY - REVERSE-POLARITY COHORT` quarantine and do
+not reconnect a cell merely to identify or test it. Known quarantined identities
+are now `F40330`, `9E5B24`, and `9E5AA0`, plus that one unidentified physical
+unit. No firmware was built, flashed, or changed.
+
+## 2026-08-19 -- Ben + Codex -- Reverse-battery PowerFeathers retired from fleet
+
+Identified the two USB-connected suspect PowerFeather V2 boards as `F40330`
+(`68:EE:8F:F4:03:30`, COM18) and `9E5B24` (`D8:85:AC:9E:5B:24`, COM71).
+Both still enumerate as ESP32-S3 USB JTAG/serial devices and boot their existing
+firmware. USB-only telemetry showed successful PowerFeather SDK initialization,
+no battery present, charging disabled, and normal-looking USB supply telemetry;
+`F40330` also reported a responsive BQ25628E with no current fault bits.
+
+This does not qualify either board for reuse. They were exposed to a reversed LFP
+connection with observed smoke. The V2 schematic connects the battery path to the
+BQ25628E and MAX17260 without a reverse-polarity isolation stage, while both ICs
+limit battery-pin negative voltage to -0.3 V absolute maximum. Retire both boards
+from the production fleet and do not reconnect a battery. They may be kept only as
+clearly marked USB-only forensic/dev specimens; otherwise send them to electronics
+recycling rather than ordinary trash. No firmware was built, flashed, or changed.
+
+## 2026-08-18 -- Ben + Codex -- RSSI-only point-cloud extraction tested on Nevada City rigs
+
+Analyzed the `basic-listener` field capture at commit `c322562` without using
+its rig note, a roster, fixture classes, ToF, CAD, known positions, or path-loss
+calibration. Added `ops/locate/locate_rssi_cloud.py`, which median-aggregates the
+directed EWMA observations, fits reporter-local ordinal near/far constraints with
+a learned transmitter bias, and link-holdout-tests 1D through 5D before emitting
+a dimensionless 3D cloud. Added three native tests and the full result record in
+`docs/tests/RSSI_ONLY_POINT_CLOUD_2026-08-18.md`.
+
+The 25,154 rows reduce to 4,558 directed pairs across 96 devices and 48
+reporters. RSSI contains real topology: held-out RMSE improves from 9.99 dB for
+radio biases alone to 7.30 dB in 2D and 6.77 dB in 3D. It does not identify a
+physical 3D point cloud. The reporter-local rank score barely changes from 2D
+to 3D (0.642 -> 0.650), then improves further in 4D/5D (0.691/0.718), and the
+3D cloud does not expose the rectangular rigs. Early/late stability is high but
+comes from repeated, nearly unchanged on-device EWMAs rather than independent
+surveys. The derived JSON remains useful for topology visualization, outlier
+detection, and initialization; it has no defensible meters, vertical, north,
+handedness, or origin.
+
+Queued the stronger RSSI-only capture: all devices report, true window medians
+and expected counts, orientation churn, and an independent repeat. Physical
+coordinates still require an external scale/gauge fact and should continue
+through the existing CAD/ToF/beacon pipeline.
+
 ## 2026-08-16 -- Ben + Codex -- STEMMA class identity corrected and dashboard tail retained
 
 Ben clarified the physical fleet signatures: TMF8820/TMF8821-family means

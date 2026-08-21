@@ -175,6 +175,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   heartbeats; a peer still absent is more likely unpowered, in BMS cutoff, or out
   of range. Record every seen ID and last battery/supply/reset fields, then use the
   panel-mount rescue USB only for the residual set (Ben/Codex).
+- [ ] **At playa unpack, flag and replace the seven struggling batteries before
+  fixture testing:** `9E5A84`, `F2BCF0`, `F2BF60`, `F3FCAC`, `F402A8`,
+  `F403DC`, and `F4043C`. The 2026-08-21 worksite pack census observed about
+  2.30-3.06 V; `F403DC` was already radio-silent at 2.296 V. After replacement,
+  inspect polarity/connectors, confirm 4.6 V VINDPM, and run a fresh battery and
+  mesh census before any OTA or lighting load. Keep `9F26D8` on its known-good old
+  image until its targeted-maintenance downlink is understood (Ben/Codex).
 - [ ] **Qualify a load-armed boot marker before relaxing conservative reset
   escalation.** Commission liveness fixes the impossible 60-second PROTECT
   release and makes false escalation serviceable, but the durable boot-stage guard
@@ -1184,6 +1191,19 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
 ## Fixture auto-localization (RSSI + ToF -> CAD registration; sim study 2026-07-12)
 
 See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
+
+- [x] **Try an RSSI-only 3D cloud on the Nevada City rig capture -- DONE
+  2026-08-18.** The no-roster/no-ToF/no-CAD ordinal solver recovers a stable
+  relative latent cloud and improves hidden-link RMSE from 9.99 dB (radio biases
+  only) to 6.77 dB in 3D. It does not recover a defensible physical point cloud:
+  4D/5D continue improving, the 2D -> 3D rank gain is only 0.008, and no grid is
+  visible. Keep the result as topology/initialization evidence, not coordinates.
+  Report: `docs/tests/RSSI_ONLY_POINT_CLOUD_2026-08-18.md` (Ben/Codex).
+- [ ] **Repeat the RSSI-only survey with all fixtures reporting true window
+  aggregates.** Record per-packet/window medians with expected counts and an
+  independent second survey after orientation churn. Re-run the dimension sweep;
+  require a 3D validation elbow and cross-survey distance stability before
+  promoting the cloud beyond topology/initialization use (Ben/Codex).
 
 - [ ] **Small-N real pairwise capture (the calibration gate)**: 10-20 boards in the
   backyard, full pairwise RSSI for ~1 min, solve with `locate_run.py --pairwise`.
