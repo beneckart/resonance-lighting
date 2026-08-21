@@ -1680,6 +1680,55 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
 
 ## Firmware track
 
+### Fixture-side gaps surfaced by Bridge OS (2026-08-19; Bridge OS sends the full
+### intended contract now — these make the fixture honor it. Plan of record:
+### `firmware/tdeck_bridge/README.md` + the Bridge OS ADR.)
+
+- [ ] **NB_SET_MAINTAIN must apply-then-confirm, never persist-then-apply**
+  (2026-08-19 incident: a 5.5 V VINDPM broadcast persisted to NVS killed
+  USB-powered, battery-less peers at every boot — bootloader-level recovery).
+  `applyMaintainV10` (`board_power.cpp:479`) writes NVS BEFORE applying. Mirror
+  the OTA pending-verify pattern: apply in RAM, persist only after the supply
+  survives a confirmation window; revert on brownout/reboot. Consider also
+  refusing maintain > measured supply voltage. Related hardening: the CoreS3
+  bare-`m` preset landmine (first preset was 55!) is already defused
+  2026-08-20 — explicit digits now required (Ben/Claude).
+- [ ] **Blacklist ModemManager for bench USB-serial devices** (suspected
+  incident trigger: MM probes freshly enumerated ports and its bytes land in
+  bridge serial parsers). Add
+  `/etc/udev/rules.d/99-mm-bench-blacklist.rules` with
+  `ATTRS{idVendor}=="303a", ENV{ID_MM_DEVICE_IGNORE}="1"` and
+  `ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ENV{ID_MM_DEVICE_IGNORE}="1"`,
+  then `sudo udevadm control --reload` — needs sudo, on both the Ubuntu PC and
+  any bench laptop running a desktop Linux (Ben).
+- [ ] **Re-apply seed/params when the same program is re-leased** (or implement
+  the declared-but-unbuilt `NbProgramSet.flags bit1` params-are-delta,
+  `packet.h:270`). `ChoreoRuntime::applyProgramSet` skips `reset()` when
+  `mActive == programId` (`firmware/fixture/src/core/choreo/runtime.cpp:56`),
+  so a live CA-knob change is a silent no-op today. Until this lands the Bridge
+  OS CA studio works around it with release-then-re-lease (one visible blip).
+  Native-test the re-lease path before OTA (Ben/Claude).
+- [ ] **Make `ProgBridge` honor `NbShowFrame.bright` / `beat_phase` / `energy`.**
+  The fields are plumbed end-to-end into `ShowFrameState` but no program reads
+  them (grep-verified) — they are the cheapest fleet-wide dim + audio-reactivity
+  path (one broadcast packet). Bridge OS populates them as of M5 (Ben/Claude).
+- [ ] **`NB_SENSOR_REPORT` (next free type, 29): bounded-window fixture→bridge
+  sensor snapshot** mirroring `NB_NEIGHBOR_REPORT`'s pattern, gated like
+  `NB_LOCATE_CONTROL`. Today only `sensor_bits`/`class_mismatch` ride hb-full;
+  tilt/ToF depth/error counters need maintenance-mode HTTP — a radio sensor
+  app needs this opcode (Ben/Claude).
+- [ ] **Honor `NbEvent.fire_in_ms` + add a strike event kind.** The presence-wave
+  handler ignores `fire_in_ms` and fires immediately
+  (`behavior_glue.cpp:148`); a synchronized ring-wide knock schedule (ADR 0031
+  adjacency) needs scheduled fire plus an `NB_EVENT_STRIKE` kind routed through
+  `behaviorStrikePermitted()` (Ben/Claude).
+- [ ] **CA→strike seam:** add a clamped strike request to `ProgramOutputs` so
+  choreography programs can knock (GH-CA excitation → mallet), gated by the
+  same lifecycle/power permission as radio strikes (Ben/Claude).
+- [ ] **Implement `NB_NEIGHBOR_SET` flags bit0 NVS persistence** (declared "M2
+  item" at `behavior_glue.cpp:292`); the Bridge OS CA studio is about to become
+  the first real sender of type 24 (Ben/Claude).
+
 - [ ] **A/B the ESP32-S3 alternative internal RTC sleep source:** compare the current
   default low-frequency RC against `CONFIG_RTC_CLK_SRC_INT_8MD256` on several
   PowerFeathers for actual deep-sleep current, 300/900 s timer error, temperature drift,

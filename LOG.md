@@ -10,6 +10,206 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-20 -- Ben + Claude -- INCIDENT: fleet-wide SET_MAINTAIN 5.5 V at 22:24:22 PDT; two USB peers down; root cause + fixes
+
+Two battery-less USB bench peers went quiet at 22:24:22 PDT (05:24:22Z) and
+were found with VINDPM persisted at 5.5 V — above USB's 5 V, so the charge
+input collapses at every boot (bootloader-level recovery needed). Forensics:
+
+- **The packet did not come from the T-Deck** — Bridge OS has no
+  NB_SET_MAINTAIN sender anywhere (tool surface and CLI exclude
+  maintain/capacity/sleep by design), and its transcripted TX that night was
+  identify-only (the one fleet-wide lease attempt timed out UNSENT).
+- **The landmine:** the CoreS3 bridge's serial `m` command with NO digits
+  cycled presets starting at **55 (5.5 V)** — one stray byte = fleet-wide
+  5.5 V broadcast. Solar-bench heritage (5.5 V is sane for panel VINDPM,
+  lethal on USB).
+- **The trigger window:** the timestamp is seconds after the CoreS3
+  re-enumerated from the overnight audio-build flash (artifact 05:23:49Z).
+  The flashing agent's serial bytes were reconstructed from its transcript:
+  exactly `t`, `I`, `M`x2, `A`x4 — no `m` (case-sensitive switch). Leading
+  suspect: **ModemManager** (active on the Ubuntu PC) probing the freshly
+  enumerated port; its probe bytes land in the bridge's terminator-less
+  parser. Unconfirmed from the user journal; check with
+  `sudo journalctl -u ModemManager --since "2026-08-19 22:23"`.
+- **Fixture-side aggravator:** `applyMaintainV10` persists to NVS BEFORE
+  applying, so the bad value survives reboot.
+
+Fixes: CoreS3 bare-`m` DEFUSED (explicit digits required; built, flash
+pending reconnection); corrective `m46` broadcast queued for when the CoreS3
+returns (battery-backed fixtures that heard the 5.5 V are running with a
+collapsed charge input and draining); TODO entries added for the fixture
+apply-then-confirm pattern and the ModemManager udev blacklist. Recovery for
+the two dead peers: boot them from an attached battery or a >5.5 V bench
+supply, then `m46` by radio or serial — gentler than an NVS erase. This
+incident is also a concrete argument for the tracked authenticated-command
+work: any byte on any serial port currently commands the fleet.
+
+## 2026-08-20 -- Ben + Claude (overnight) -- Bridge OS M2-M4: LVGL shell, Fleet app, streaming Claude client, agent tool loop — all hardware-verified
+
+Overnight autonomous session (Ben asleep; questions queued in the morning
+report). ADR 0047 written — Bridge OS is now the platform of record.
+
+**M2 (LVGL shell + apps).** LVGL 9.5 on hand-configured LovyanGFX; launcher
+grid (12 tiles), status bar, confirm rail. Fleet app: live census table
+(reported-LED color chip per row — ADR 0043 "reported color is truth" — plus
+class letter, age, EWMA, PDR, SoC, named program), tap/trackball row → node
+detail with targeted identify, fleet dark/release behind the confirm modal
+(origin-tagged, focus lands on cancel). Settings app (backlight/channel;
+secrets stay on the serial CLI). Trackball became a context-aware keypad:
+left/right focus-step, up/down row-jump on the grid / row-scroll in tables,
+edit-mode pulses = arrow keys (slider tuning). Fixed en route: launcher-screen
+deletion crash (status timer wrote a freed widget → panic-reboot), table
+tap-select cleared before CLICKED, cell padding wrapping 3-char headers.
+Touch verdict (Ben): touch-first UI; trackball stays first-class for
+gloves/dust.
+
+**M3 (Claude client).** Raw TLS with embedded GTS trust anchors
+(`anthropic_root_ca.h`, chain inspected same day), manual chunked-transfer
+decode into a pure native-tested SSE parser, 12-turn PSRAM chat log,
+`thinking: disabled` + effort low, SNTP-before-TLS gate, offline queue with
+capped backoff (verified: submit while `wifi off` → amber "queued" → delivered
+on rejoin). First live response 2.8 s round-trip; TLS heap transient ~55-65 KB
+(single-flight); census PDR unaffected during streaming. Chat app: streaming
+scrollback, QWERTY input line, thinking/queued/mesh-silent states.
+
+**M4 (agent tool loop).** Six tools exactly (ADR 0037 §6) via `tool_schema.h`;
+tool turns stored as raw content-array turns; iteration cap 8; every mesh
+effect through `mesh_tx`; fleet-wide `set_program` blocks on the cross-task
+confirm rail. All three acceptance tests green on hardware:
+- "Which fixtures are quiet?" → mesh_census → "No quiet fixtures — all 3
+  observed nodes reported within 60 s (3 of ~130, not the full fleet)".
+- "Make fixture 9E5AF0 blink green" → identify → physical fixture blinked.
+- "Lease dark to the whole fleet" with nobody at the device → 30 s confirm
+  timeout → "Denied — not sent. No fixtures were changed."
+Two live-fire bugs the model itself helped diagnose: jsonFindString rejected
+model-authored `"id": "..."` (space after colon) and truncated 6-hex ids
+(unescape headroom vs 8-byte buffer); census tool JSON had a leading comma.
+All fixed with pinned native regression tests (5/5 suites green).
+
+Fleet-side observations during the night: census organically grew to 4 devices
+(9E5A** fixture-firmware feathers + 9F26F8/9F2690 net-bench-era peers whose
+full 15-tail heartbeats round-tripped the emitters perfectly, BQ registers,
+lux and MPPT fields included).
+
+**M5 (partial, same night).** Zones (class-targeted solid colors via a
+single-writer 8 Hz NB_DIRECT_FRAME streamer — `stream_svc`; client-side dim;
+stream survives app-switch, stop is explicit), Knocker (single strike +
+knock-all as a 300 ms-spaced timer queue behind the confirm rail; synced
+schedules stubbed pending ADR 0031), CA Studio (program leases + GH-CA
+params[0..4] sliders; apply = release-then-re-lease workaround for the
+fixture params gap). All flashed, boot-stable, heap steady. Patterns + the
+ES7210 mic HAL deferred (riskiest unverified hardware path — not an
+unattended-overnight job).
+
+**Extra credit (same night, via subagents).** CoreS3 (4D5DB0, /dev/ttyACM1)
+audio-reactive build upgraded to four visual modes — CLASSIC per-slot R/G/B,
+EMBER warm-white, HUECYCLE (20 s shared hue), PULSE (beat-transient flash
+over a dim floor) — tap or `M` cycles, `A` toggles; flashed + serial-verified,
+left ON in CLASSIC; fixture-side look unverified (no fixture-firmware peers
+were live during the check). Docs updated. PUCA PoC written UNVERIFIED at
+`firmware/puca_bridge/` (compiles clean on pico32, 73% flash): WM8978 +
+16 kHz I2S → shared cores3 envelope → 10 Hz NB_DIRECT_FRAME on ch 11;
+KNOB1 = log sensitivity, KNOB2 = brightness ceiling / hue, paw touch = mode
+cycle; pin table with provenance from github.com/ohmic-net/puca_dsp. The PUCA
+did NOT enumerate on USB (cable/power question queued for Ben); nothing
+flashed.
+
+Next: Patterns + mic (M5 tail), whisperd voice + Sensors/Locate/RF Survey
+(M6), fixture-side TODO items to unblock live CA knobs without the blip.
+
+## 2026-08-19 -- Ben + Claude -- Bridge OS begins: T-Deck M0 bring-up complete, M1 mesh core live
+
+ADR 0037 re-prioritized into active development, expanded to **"Resonance Bridge
+OS"** — an app-launcher handheld on the T-Deck Plus (Claude terminal, fleet
+health, Hue-style zones, knocker, pattern generator + audio reactivity, CA
+studio, plus stubs for locate/cambium/sync-knock). Plan approved (LVGL 9 on
+LovyanGFX; voice = laptop whisperd behind a swappable STT interface, cloud
+later; fixture gaps documented as TODOs rather than limiting the handheld;
+all four headline apps are v1 targets). New target: `firmware/tdeck_bridge/`.
+
+**M0 (bring-up) — done except the passive battery-runtime number:**
+
+- Dev bench is the Ubuntu PC (`/dev/ttyACM0`, 303a:1001), arduino-cli + esp32
+  3.3.7 + LovyanGFX 1.2.24. FQBN pinned: generic `esp32s3`,
+  `FlashMode=qio,FlashSize=16M,PSRAM=opi` (FN16R8), `app3M_fat9M_16MB`.
+- Probes all green on first boot: 8 MB OPI PSRAM, keyboard (0x55), GT911,
+  **ES7210 mic at 0x40** (audio reactivity unblocked), **GPS NMEA @ 38400**.
+- **Coexistence proven:** ONLINE on BubbyNet (2.4 GHz is already channel 11)
+  while mesh frames flow — the one-radio premise of the whole device.
+- **Channel guard demoed live** (mesh ch temporarily 6 vs AP ch 11): Wi-Fi
+  dropped, mesh kept, mismatch displayed, restored cleanly. Guard never
+  auto-retries a wrong-channel AP.
+- Direct-sun verdict (after removing the shipped screen film — a glare
+  confound): usable in full sun tilted off-normal; **UI minimum text size 2**
+  (M2 constraint). Trackball map a=UP b=RIGHT c=DOWN d=LEFT.
+- Provisioning is NVS-only over a serial CLI (`set wifi/key/model/channel`);
+  no secret compiled or committed.
+
+**M1 (mesh core) — functional, soak in progress:**
+
+- Census ported from cores3_bridge (all 15 `NB_HAS_HB_FIELD` tails,
+  reboot/seq-restart accounting) into pure `src/core/census.cpp` with native
+  tests, plus: RSSI EWMA (α=1/8), windowed PDR, eviction with 6 dB hysteresis
+  (cores3 wedged silently at 192), class latching across hb-short, and an
+  observation ledger so duty-cycled listening reads "unobserved", never
+  "quiet" (ADR 0037 §11).
+- `nb-master`/`nb-peer`/`nb-scanap`/`nb-rssi` emitters are byte-compatible:
+  30/30 + 60/60 captured lines parse against `net_bench_dashboard.py`'s own
+  regexes. `packet.h` included from the fixture tree (never forked), golden
+  sizes pinned in native tests.
+- TX path live via `mesh_tx` (burst 4x/5 ms broadcast, 6x/8 ms targeted):
+  WAN-down quick commands `i/I/K/B/b/t` on the CLI. Identify-all was received
+  by the bench feathers (their hb now reports our downlink at `dlrssi=-19`,
+  `dlpdr=1.000`). Strikes require a real target id — broadcast strike is
+  refused in both the handheld and the fixture.
+- Fixed en route: send-callback registration was lost on every ESP-NOW
+  re-init (sendok stayed 0); accounting moved into `espnow_link`.
+- Fixture-side gaps Bridge OS exposes are now six explicit items under
+  `TODO.md` → Firmware track (params re-lease no-op at `runtime.cpp:56`,
+  inert `NbShowFrame.bright/beat_phase/energy`, `NB_SENSOR_REPORT`,
+  `fire_in_ms` + strike event kind, CA→strike seam, `NB_NEIGHBOR_SET`
+  persistence).
+
+Next: 1 h heap soak completes M1 → M2 (LVGL shell, launcher, confirm rail,
+TxService, Fleet + Settings apps) → M3 Claude client. Bridge OS ADR to be
+written with M2. Battery runtime: `bat_mv` rides the 10 s `nb-mem` line; run
+the T-Deck unplugged for an evening and read the log.
+
+## 2026-08-04 -- Ben + Claude -- ~20 ohm coil "target" retired: provenance traced to the 07-05 design doc, premise doesn't hold
+
+Ben questioned where the "~20 ohm preferred winding" figure came from (it had been
+carried forward as an open want in session memory). Provenance traced:
+`docs/research/STRIKER_DESIGN_2026-07-05.html` section 1, which claimed the
+~6 ohm/1 A and ~20 ohm/0.3 A winding variants are "wound to the same ampere-turns
+at rated voltage, so they deliver the same force but very different current draw
+and cap droop," and preferred the 300 mA winding for one-third the droop on the
+then-current single 10,000 uF cap.
+
+Two problems, so the target is RETIRED (errata note added to the design doc):
+
+1. **The equal-force premise was wrong at a fixed rail.** Same frame = fixed
+   winding window, so R grows as turns squared and force at a given drive voltage
+   tracks dissipated power (F prop (NI)^2 prop V^2/R). A 20 ohm winding on this
+   frame at the 6 V VDC-tap of the July-5 design would have delivered ~30% of the
+   6 ohm winding's force -- likely unable to move the paddle at all, given the
+   later rig finding that even the ~6 W-class units barely move without o-ring
+   pre-plunge. "Same ampere-turns" is only true at each winding's own rated
+   voltage (20 ohm is effectively the 12 V winding: 12^2/20 ~= 6^2/6 ~= 6 W).
+2. **The droop rationale is obsolete.** It was never about refill time or
+   rapid-fire; it was droop-per-strike (force retention through the 25 ms pulse
+   and knocks-per-charge within a 3-4 strike chirp) against a single 10,000 uF
+   cap. The bank is now 2-3x 22,000 uF and capboard v2.0 boosts the rail to
+   ~12 V: the measured ~3.8 ohm 0730B draws ~3.2 A there and droops only ~1.2 V
+   per 25 ms strike from 66 mF. Comfortable.
+
+Under the overvolt strategy (whack prop V^2/R at the fixed 12 V rail), LOWER
+resistance is now strictly better for strike energy; the only reasons to derate
+are XH pin current (VBOOST is a single pin at ~3.2 A pulsed vs the 3 A continuous
+series rating -- fine at 25 ms duty) and bank droop, both comfortable. What
+survives from the design doc: meter every unit on arrival; trust measured ohms
+over the badge (the "6 V 1 A" 0730B fleet leader measures ~3.8 ohm).
+
 ---
 
 ## 2026-08-18 -- Ben + Claude -- Gamma scrubbed from the codebase
