@@ -31,7 +31,16 @@ mkdir -p "${BUILD_PATH}"
 # (C files — hence compiler.c.extra_flags too) find our lv_conf.h.
 # Version lives in the sketch #define; quoted -D strings through extra_flags
 # are the known Windows-mangling trap the fixture build already hit.
-FLAGS="-I${FIRMWARE_ROOT} -I${SKETCH_DIR} -DLV_CONF_INCLUDE_SIMPLE"
+# Windows flash bench: arduino-cli is a Windows executable even under Git
+# Bash, so translate /c/... to C:/... for compiler flags (fixture/build.sh
+# precedent). Deps there: arduino-cli lib install lvgl@9.5.0 LovyanGFX@1.2.24
+INC_ROOT="${FIRMWARE_ROOT}"
+INC_SKETCH="${SKETCH_DIR}"
+if command -v cygpath >/dev/null 2>&1; then
+  INC_ROOT="$(cygpath -m "${FIRMWARE_ROOT}")"
+  INC_SKETCH="$(cygpath -m "${SKETCH_DIR}")"
+fi
+FLAGS="-I${INC_ROOT} -I${INC_SKETCH} -DLV_CONF_INCLUDE_SIMPLE"
 
 echo "FQBN: ${FQBN}"
 echo "FLAGS: ${FLAGS}"
