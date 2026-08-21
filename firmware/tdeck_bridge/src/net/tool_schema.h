@@ -1,0 +1,37 @@
+#pragma once
+
+// The six-tool surface from ADR 0037 §6 — nothing else. No OTA, reboot,
+// profile, lifecycle, sleep, or capacity opcode is representable here.
+static const char kToolsJson[] =
+    "["
+    "{\"name\":\"mesh_census\",\"description\":\"Summarize mesh liveness from "
+    "the passive census: per-fixture id, seconds since last frame, RSSI EWMA, "
+    "packet delivery ratio, battery, class, program. Optionally only fixtures "
+    "silent longer than quiet_s seconds.\",\"input_schema\":{\"type\":"
+    "\"object\",\"properties\":{\"quiet_s\":{\"type\":\"integer\"}}}},"
+    "{\"name\":\"node_status\",\"description\":\"Full census entry for one "
+    "fixture by 6-hex short id, e.g. 9E5AB8.\",\"input_schema\":{\"type\":"
+    "\"object\",\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":"
+    "[\"id\"]}},"
+    "{\"name\":\"identify\",\"description\":\"Blink or color-identify one "
+    "fixture (or all with id 000000) so a human can find it. color: none red "
+    "green blue yellow white.\",\"input_schema\":{\"type\":\"object\","
+    "\"properties\":{\"id\":{\"type\":\"string\"},\"secs\":{\"type\":"
+    "\"integer\"},\"color\":{\"type\":\"string\"}},\"required\":[\"id\"]}},"
+    "{\"name\":\"strike\",\"description\":\"One bounded solenoid mallet pulse "
+    "on ONE fixture (never broadcast). pulse_ms clamped 5-300 in firmware; "
+    "fixtures refuse at night or on low power.\",\"input_schema\":{\"type\":"
+    "\"object\",\"properties\":{\"id\":{\"type\":\"string\"},\"pulse_ms\":"
+    "{\"type\":\"integer\"}},\"required\":[\"id\"]}},"
+    "{\"name\":\"set_program\",\"description\":\"Lease a choreography program "
+    "to one fixture or the fleet (target 'all'). Programs: 0 idle, 1 ca "
+    "(cellular automaton), 2 bridge-show, 3 direct, 4 dark. The lease expires "
+    "by itself after lease_s. Fleet-wide leases require the operator to "
+    "confirm on the device.\",\"input_schema\":{\"type\":\"object\","
+    "\"properties\":{\"target\":{\"type\":\"string\"},\"program_id\":"
+    "{\"type\":\"integer\"},\"lease_s\":{\"type\":\"integer\"}},\"required\":"
+    "[\"target\",\"program_id\"]}},"
+    "{\"name\":\"sniffer_tail\",\"description\":\"Last n observed mesh frames "
+    "(id, packet type, RSSI, age) for debugging.\",\"input_schema\":{\"type\":"
+    "\"object\",\"properties\":{\"n\":{\"type\":\"integer\"}}}}"
+    "]";
