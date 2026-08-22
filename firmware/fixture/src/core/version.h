@@ -5,6 +5,11 @@
 #pragma once
 
 #ifndef RES_FIXTURE_VERSION
-#define RES_FIXTURE_VERSION "fx-260816-prtrel1-b"
+  #ifdef RES_DEV_BUILD
+    // Mutable bytes may share this name. Never promote a dev-cache image.
+    #define RES_FIXTURE_VERSION "dev-local"
+  #else
+    #define RES_FIXTURE_VERSION "fx-260816-prtrel1-b"
+  #endif
 #endif
 #define RES_BOARD_NAME "powerfeather_v2"
