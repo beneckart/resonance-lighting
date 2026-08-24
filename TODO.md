@@ -4,6 +4,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Recover the exact `fx-260819-7afe0a6-b` bench artifact from a deployed
+  prototype if needed.** A mistaken ignored-build cleanup removed the last found
+  filesystem copy. Do not rebuild or reuse the revision. Read exactly the
+  1,170,736 app bytes from `9E5AF0` or `9E5AB8` only when one is explicitly on
+  USB, then accept the recovery only if SHA-256 equals
+  `95e8d74727089c9bc309ae66109c2f26c1cb7cb7888d84c8fe90158f8bc9fcbc`
+  (Ben + Codex).
+- [ ] **Finish optional fixture build job-count/hardware follow-ups.** During one
+  stable awake session, repeat controlled cold `--jobs 1/4/0` trials; the Aug
+  22-24 suspended/aborted trials are invalid. If useful, flash `dev-local` to one
+  explicitly named sacrificial USB fixture and verify fresh telemetry. Cache
+  reuse itself is already host-adopted and does not depend on this tuning (Ben +
+  Codex).
 - [x] **Capture the Nevada City rig RSSI matrix before pack-out -- DONE
   2026-08-17.** Bridge `4D5DB0` and 84 qualified fixtures received the immutable
   transport/RSSI image. The 140-second `L` survey preserved 25,154 observations

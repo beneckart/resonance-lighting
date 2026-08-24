@@ -10,6 +10,45 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Locked fixture dev cache adopted; cleanup incident recovered
+
+Executed the gated build-acceleration handoff on branch
+`codex/build-acceleration-plan`. The unmodified wrapper measured 187.2 and
+217.7 seconds for fresh builds, 11.4-13.1 seconds for retained no-ops, and 12.5
+seconds for a real harmless leaf-source edit. Implemented opt-in
+`./build.sh --dev-cache`: one atomic owner lock, bounded waiter, deterministic
+recipe fingerprint, `dev-local` identity, build-in-progress marker, explicit
+healthy clean and interrupted-cache quarantine, validated `--jobs`, and hard
+rejection with OTA, immutable revisions, or artifact directories. Normal fresh
+build behavior remains the default and passed again in 177.3 seconds.
+
+Host-only safety evidence passed: all native tests; five same-recipe contention
+pairs; commission/field serialization plus recipe invalidation; hard-kill
+refusal/quarantine and clean cold recovery; dead-PID lock refusal; normal
+compiler-error lock/marker cleanup and corrected warm reuse; dev identity in
+build options/binary; fresh-path independence; and no known Arduino cache
+corruption signature. Protected warm builds were about 14-18 seconds versus the
+187.2-second fresh median. No hardware was flashed and no OTA was attempted.
+Full evidence is
+`docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
+
+The laptop suspended during an explicit `jobs=1` cold trial, leaving an orphaned
+Arduino process and `/tmp/fixture-build.Ptr2aR`; exact PIDs were stopped and the
+temporary directory was abandoned. Ben later aborted a `jobs=0` trial; its live
+marker/lock were preserved and the entire cache was quarantined. Neither timing
+is counted, and job-count tuning remains open.
+
+Cleanup then exposed an operator error: despite a dry run saying it would remove
+`firmware/fixture/build/`, `git clean -fdX -- .../cache-proof` was executed and
+deleted the whole ignored fixture-build directory. Tracked source was untouched.
+Twelve immutable artifacts had exact copies in the untouched `basic-listener`
+worktree; their contract files were restored and every binary re-hashed against
+its manifest, including `fx-260818-f80f315-b`, `fx-260818-05ed4b3-b`, and
+`fx-260817-ec7f28d-b`. The filesystem copy of bench-only
+`fx-260819-7afe0a6-b` was not found; its recorded exact bytes may be recoverable
+later from prototypes `9E5AF0`/`9E5AB8`, but the revision must never be rebuilt
+or reused.
+
 ## 2026-08-21 -- Ben + Codex -- Hardened worksite bridge and Friday-midnight fleet pack
 
 Fetched `origin/main` and traced the Aug 20 USB shutdown incident to a stray bare

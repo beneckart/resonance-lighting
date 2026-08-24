@@ -88,6 +88,30 @@ tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ```
 
+For ordinary edit/compile iteration, use the persistent development cache:
+
+```bash
+./build.sh --dev-cache --profile commission --channel 11
+```
+
+This path is serialized by an atomic lock and invalidated when the FQBN, flags,
+toolchain, SDK, or firmware libraries change. Its mutable binary always reports
+`dev-local`; it is suitable only for local iteration and, after host checks, one
+explicit USB target. It is rejected with `--ota`, `--artifact-dir`, or
+`--fw-rev`. Do not pass its binary to fleet tools.
+
+If a cached build is killed, times out, or loses its wrapper, first confirm that
+no `arduino-cli`, Xtensa compiler/linker, or `esptool` process remains, then run:
+
+```bash
+./build.sh --recover-dev-cache  # quarantine; next build is cold
+```
+
+Use `./build.sh --clean-dev-cache` only for a healthy, unlocked cache. Fresh
+compile behavior remains the default when `--dev-cache` is omitted. Evidence and
+raw gates are in
+`../../docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
+
 For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
 retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed
 source, generated `fx-YYMMDD-<recipe7>-<variant>`, immutable manifest, exact

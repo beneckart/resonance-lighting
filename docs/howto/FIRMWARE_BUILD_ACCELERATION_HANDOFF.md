@@ -1,6 +1,8 @@
 # Firmware Build Acceleration — 80/20 Codex Handoff
 
-**Status:** Proposal and gated experiment; no build behavior has changed yet  
+**Status:** Implemented and host-adopted as an opt-in local path; job-count and
+one-device hardware follow-ups deferred. See
+`docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
 **Date:** 2026-08-22  
 **Repository:** `beneckart/resonance-lighting`  
 **Working branch:** `codex/build-acceleration-plan`  

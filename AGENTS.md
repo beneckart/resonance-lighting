@@ -45,12 +45,17 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   protocol header (a design brief proposing `mesh_protocol.h` predates this
   file -- see ADR 0037). The header has no Arduino includes, so it compiles
   natively and on any ESP32 target. Struct evolution is append-only.
-- **Arduino compile cache:** do **not** run parallel `arduino-cli compile` commands
-  against the same sketch/cache. Either build sequentially or pass a unique
-  `--build-path` per compile. `firmware/net_bench/build.sh` already does this; direct
-  `arduino-cli` calls must do it manually. Parallel builds against the default Arduino
-  sketch cache can collide with `unlinkat ... directory is not empty` errors and can
-  corrupt mixed build artifacts.
+- **Arduino compile cache:** for iterative fixture work, use
+  `firmware/fixture/build.sh --dev-cache ...`; its atomic lock guarantees one
+  writer, its recipe fingerprint resets incompatible objects, and its binary
+  reports `dev-local`. A killed/interrupted cache is untrusted: do not remove its
+  marker or lock by hand, and run `./build.sh --recover-dev-cache` only after
+  confirming no Arduino/Xtensa process remains. Do **not** run direct parallel
+  `arduino-cli compile` commands against the same sketch/cache. Other wrappers
+  still require sequential builds or unique `--build-path` values. Parallel
+  builds against one Arduino path can collide with `unlinkat ... directory is
+  not empty` and corrupt mixed artifacts. Shared/fleet artifacts never use the
+  dev cache; they remain fresh, immutable named builds under ADR 0040.
 - **Arduino build timeout and recovery:** an uncached ESP32-S3/PowerFeather build on
   this Windows bench normally takes about 2-3 minutes. Give the outer command at least
   300 seconds; if it yields a running cell, keep waiting on that cell instead of
@@ -61,6 +66,9 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   floods such as `bad reloc symbol index`, even though the sketch source compiled.
   A valid build ends with the flash/RAM usage summary and a non-empty
   `net_bench.ino.bin`; inspect `build.options.json` to verify the exact deployed flags.
+  For `fixture --dev-cache`, the wrapper's surviving `.build-in-progress` marker
+  is the authority: stop lingering exact compiler PIDs, then quarantine with
+  `--recover-dev-cache`; never resume or manually unlock it.
 - **Build once, OTA the artifact:** for field-cycle work, use
   `ops/bench/field_cycle_ota.py ... --build-only` with a named build, verify it, then
   pass that `.bin` back with `--bin` for OTA. This avoids an accidental second compile
