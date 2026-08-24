@@ -161,6 +161,16 @@ Healthy cache cleanup:
 Shared/fleet artifacts remain fresh, named, immutable builds. Never copy or
 promote `build/dev-cache/fixture.ino.bin`.
 
+## Routine-agent adoption follow-up -- 2026-08-24
+
+The accepted contract is now discoverable with compile-free
+`./build.sh --help`. A fast `tests/test_build_wrapper_contract.sh` regression
+pins the recommended local command, `dev-local` identity, immutable fleet
+boundary, and rejection of OTA/artifact/revision combinations.
+`tests/run_tests.sh` invokes that contract check before its native C++ suite,
+so the safety split is tested by the normal pre-flash host command. The combined
+routine entry point passed with all native fixture tests at zero failures.
+
 ## Deferred
 
 - Repeat controlled `--jobs 1`, `--jobs 4`, and `--jobs 0` cold trials during a

@@ -9,6 +9,10 @@ FLAGS="-std=gnu++17 -Wall -Wextra -Werror -I../src/core"
 OUT="$(mktemp -d /tmp/fixture-tests.XXXXXX)"
 trap 'rm -rf "$OUT"' EXIT
 
+# Keep the local fast-build path and immutable fleet path from drifting while
+# remaining compile-free until the native C++ suite starts below.
+"$PWD/test_build_wrapper_contract.sh"
+
 # core .cpp files (headers-only modules need nothing here).
 CORE_SRCS=$(ls ../src/core/*.cpp ../src/core/choreo/*.cpp 2>/dev/null || true)
 

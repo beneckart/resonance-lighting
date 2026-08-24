@@ -1,7 +1,7 @@
 # Firmware Build Acceleration — 80/20 Codex Handoff
 
-**Status:** Implemented and host-adopted as an opt-in local path; job-count and
-one-device hardware follow-ups deferred. See
+**Status:** Adoption complete on `codex/build-acceleration-plan` as an opt-in
+local path; job-count and one-device hardware follow-ups are deferred. See
 `docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
 **Date:** 2026-08-22  
 **Repository:** `beneckart/resonance-lighting`  
@@ -809,21 +809,21 @@ Code rollback removes the `--dev-cache`/lock/recovery plumbing and the `RES_DEV_
 
 # Codex execution checklist
 
-- [ ] Rebase or fast-forward `codex/build-acceleration-plan` onto the latest intended `main` before implementation.
-- [ ] Read `AGENTS.md`, ADR 0040, and `docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`.
-- [ ] Run Phase 0 with the unmodified wrapper and record raw results.
-- [ ] Stop if the Phase 0 performance gate fails.
-- [ ] Implement only the narrow Phase 1 surface.
-- [ ] Add the host-only smoke script.
-- [ ] Run static and native tests.
-- [ ] Run five same-recipe concurrency pairs.
-- [ ] Run different-recipe, hard-interruption, stale-lock, and ordinary-error tests.
-- [ ] Verify development identity and fleet boundaries.
-- [ ] Flash only one explicitly named USB bench fixture after host gates pass.
-- [ ] Run the Phase 3 before/after comparison.
-- [ ] Write `docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
-- [ ] Update build rules and documentation only if adoption gates pass.
-- [ ] Do not merge implementation without evidence and rollback.
+- [x] Base `codex/build-acceleration-plan` on the latest intended `main` before implementation.
+- [x] Read `AGENTS.md`, ADR 0040, and `docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`.
+- [x] Run Phase 0 with the unmodified wrapper and record raw results.
+- [x] Confirm the Phase 0 performance gate passes before continuing.
+- [x] Implement only the narrow Phase 1 surface.
+- [x] Add the host-only smoke script.
+- [x] Run static and native tests.
+- [x] Run five same-recipe concurrency pairs.
+- [x] Run different-recipe, hard-interruption, stale-lock, and ordinary-error tests.
+- [x] Verify development identity and fleet boundaries.
+- [ ] Flash only one explicitly named USB bench fixture (optional follow-up; not required for host adoption).
+- [x] Run the Phase 3 before/after comparison.
+- [x] Write `docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
+- [x] Update build rules and documentation after adoption gates passed.
+- [x] Keep implementation, evidence, and rollback together on this branch; merge remains a review action.
 
 # Deferred follow-up
 

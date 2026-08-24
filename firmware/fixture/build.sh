@@ -20,6 +20,7 @@
 #   ./build.sh --dev-cache --jobs 0      # fast, locked local iteration
 #   ./build.sh --clean-dev-cache         # remove a healthy local cache
 #   ./build.sh --recover-dev-cache       # quarantine an interrupted cache
+#   ./build.sh --help                    # local-vs-fleet build contract
 #
 # Nearly everything that was a net_bench build flag is runtime NVS now
 # (capacity C, charge cap G, class O, profile F, solenoid arm, channel);
@@ -57,6 +58,40 @@ TEMP_BUILD_PATH=""
 fail() {
   echo "$*" >&2
   exit 2
+}
+
+usage() {
+  cat <<'EOF'
+Usage: ./build.sh [options]
+
+Recommended local iteration (compile only):
+  ./build.sh --dev-cache --profile commission --channel 11
+
+One explicitly named USB development target may add:
+  --port PORT
+
+Shared/fleet artifacts must omit --dev-cache and follow ADR 0040 with a fresh
+--artifact-dir and immutable --fw-rev. The development cache always reports
+dev-local and is rejected with --ota, --artifact-dir, or --fw-rev.
+
+Development-cache options:
+  --dev-cache                 use the persistent single-writer local cache
+  --jobs N                    Arduino job count (default unchanged if omitted)
+  --clean-dev-cache           remove a healthy unlocked cache; use alone
+  --recover-dev-cache         quarantine interrupted/stale state; use alone
+
+Common build options:
+  --port PORT                 compile and upload over USB
+  --ota IP                    fresh compile and HTTP OTA upload
+  --artifact-dir PATH         retain fresh build output at PATH
+  --fw-rev REV                embed immutable fx-YYMMDD-recipe7-class identity
+  --profile commission|field  default profile when NVS is unset
+  --channel N                 ESP-NOW/AP channel build default
+  --wifi-source PATH          install a local gitignored credentials header
+  --chem lfp|3v7              battery chemistry (production default: lfp)
+  --precharge-ma N            BQ precharge limit, 10..310 in 10 mA steps
+  -h, --help                  show this contract without compiling
+EOF
 }
 
 safe_generated_path() {
@@ -220,6 +255,7 @@ while [[ $# -gt 0 ]]; do
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
     --recover-dev-cache) RECOVER_DEV_CACHE=1; shift ;;
+    -h|--help) usage; exit 0 ;;
     --canopy-solenoid)
       echo "NOTICE: --canopy-solenoid is deprecated; solenoid capability is now the fleet default"
       shift

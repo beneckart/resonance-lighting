@@ -70,7 +70,7 @@ src/core/            platform-independent, natively unit-tested (tests/)
   hex_geometry, filters, power_integrator, tmf_recovery
 src/esp32/           glue/drivers (board_power owns the solar guard include)
   sensors/           cooperative machines + the single vendored VL53L5CX ULD
-tests/run_tests.sh   native g++ suite (~200 checks) -- run before every flash
+tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ```
 
 ## Build / flash
@@ -111,6 +111,9 @@ Use `./build.sh --clean-dev-cache` only for a healthy, unlocked cache. Fresh
 compile behavior remains the default when `--dev-cache` is omitted. Evidence and
 raw gates are in
 `../../docs/tests/FIRMWARE_BUILD_ACCELERATION_SMOKE_2026-08-22.md`.
+Run `./build.sh --help` for the short local-versus-fleet command contract.
+`tests/run_tests.sh` includes a fast, compile-free regression check for that
+boundary before it starts the native C++ suite.
 
 For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
 retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed
