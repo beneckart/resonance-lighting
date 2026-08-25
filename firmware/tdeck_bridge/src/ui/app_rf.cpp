@@ -28,6 +28,10 @@ static bool gTailPage = false;
 static CensusView gCensusRows[CENSUS_MAX_TRACKED];
 static RfPeerObservation gPeerRows[CENSUS_MAX_TRACKED];
 
+static void setTextColor(lv_obj_t *label, uint32_t rgb) {
+  lv_obj_set_style_text_color(label, lv_color_hex(rgb), 0);
+}
+
 static void appendText(char *out, size_t cap, const char *format, ...) {
   size_t used = strlen(out);
   if (used >= cap - 1) return;
@@ -265,26 +269,31 @@ void appRfOpen() {
 
   lv_obj_t *title = lv_label_create(gScreen);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+  setTextColor(title, 0xFFFFFF);
   lv_label_set_text(title, "RF Diagnostics");
   lv_obj_set_pos(title, 5, 3);
 
   gSummary = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gSummary, &lv_font_montserrat_14, 0);
+  setTextColor(gSummary, 0xF4F7FA);
   lv_obj_set_width(gSummary, 310);
   lv_obj_set_pos(gSummary, 5, 27);
 
   gStrong = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gStrong, &lv_font_montserrat_14, 0);
+  setTextColor(gStrong, 0xC8F7D4);
   lv_obj_set_width(gStrong, 153);
   lv_obj_set_pos(gStrong, 5, 128);
 
   gWeak = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gWeak, &lv_font_montserrat_14, 0);
+  setTextColor(gWeak, 0xFFE0A3);
   lv_obj_set_width(gWeak, 153);
   lv_obj_set_pos(gWeak, 162, 128);
 
   gTail = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gTail, &lv_font_montserrat_14, 0);
+  setTextColor(gTail, 0xF4F7FA);
   lv_obj_set_width(gTail, 310);
   lv_obj_set_pos(gTail, 5, 66);
 
@@ -292,6 +301,7 @@ void appRfOpen() {
   lv_obj_set_size(page, 98, 29);
   lv_obj_set_pos(page, 5, 207);
   gPageButtonLabel = lv_label_create(page);
+  setTextColor(gPageButtonLabel, 0xFFFFFF);
   lv_obj_center(gPageButtonLabel);
   lv_obj_add_event_cb(page, pageCb, LV_EVENT_CLICKED, nullptr);
 
@@ -299,6 +309,7 @@ void appRfOpen() {
   lv_obj_set_size(back, 98, 29);
   lv_obj_set_pos(back, 217, 207);
   lv_obj_t *backLabel = lv_label_create(back);
+  setTextColor(backLabel, 0xFFFFFF);
   lv_label_set_text(backLabel, LV_SYMBOL_LEFT " back");
   lv_obj_center(backLabel);
   lv_obj_add_event_cb(back, backCb, LV_EVENT_CLICKED, nullptr);

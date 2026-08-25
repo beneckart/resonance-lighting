@@ -17,7 +17,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 
 | App | State | Important remaining work |
 |---|---|---|
-| Claude | Working, hardware-verified | Census responses are bounded to 64 peers and 24 returned rows; command authentication remains open. |
+| Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
 | Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
 | Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 141 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |

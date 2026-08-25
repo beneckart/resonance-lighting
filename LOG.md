@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- RF contrast and complete Claude census paging
+
+Made RF Diagnostics independent of the inherited LVGL theme: the screen now
+uses explicit white primary text, pale-green strongest-link text, amber
+weakest-link text, and white button labels against its dark background.
+
+Removed Claude's stale 64-row census prefilter. The tool now examines all 192
+tracked census slots while retaining the intentional 24-row result budget for
+the 4 KB tool-result buffer. Responses report matched/returned counts and
+provide `next_offset` for explicit pagination. Updated the tool schema, app
+roadmap, and field manual to match. The complete T-Deck native suite and an
+embedded development build pass; the binary is 1,552,448 bytes with SHA-256
+`1005934c0338e4b4ad74aac76670b8fd5fd46935b64c98f5f8cfe89a1acc8952`.
+No device was flashed because this combined T-Deck image also exposes the new
+Knocker multicast/scheduled controls before matching fixture support has been
+canary-deployed.
+
 ## 2026-08-24 -- Ben + Codex -- Selectable multicast and synchronized Knocker
 
 Extended the existing Knocker picker without replacing its deterministic

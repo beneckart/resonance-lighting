@@ -388,9 +388,10 @@ capacity, or other persistent maintenance operations. A fleet-wide program
 lease opens the same physical confirmation rail used by local apps. If it times
 out or is denied, the command is not sent.
 
-Claude's census response is intentionally bounded: it examines up to 64 rows and
-returns up to 24, marked truncated when appropriate. Use Health or the host
-dashboard for exhaustive fleet accounting.
+Claude's census examines all 192 tracked slots and returns explicit 24-row
+pages. A partial response includes `truncated: true` and `next_offset`; Claude
+can pass that value back as `offset` to continue. Use Health or the host
+dashboard when one-screen fleet accounting is preferable.
 
 ## Settings, SunTest, and Locate
 

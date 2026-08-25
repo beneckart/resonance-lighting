@@ -73,6 +73,8 @@ static const char *callsignForId(const uint8_t id[3]) {
   return entry ? entry->callsign : "";
 }
 
+static constexpr size_t kCensusPageSize = 24;
+
 static int appendRow(char *out, size_t cap, int o, bool first,
                      const CensusView &v) {
   const char *callsign = callsignForId(v.id);
@@ -94,21 +96,42 @@ bool agentExecuteTool(const char *name, const char *inputJson, size_t inputLen,
 
   if (strcmp(name, "mesh_census") == 0) {
     long quietS = jsonFindInt(inputJson, inputLen, "quiet_s", 0);
-    static CensusView rows[64];
+    long requestedOffset = jsonFindInt(inputJson, inputLen, "offset", 0);
+    if (requestedOffset < 0) requestedOffset = 0;
+    static CensusView rows[CENSUS_MAX_TRACKED];
     size_t n = quietS > 0
-                   ? censusQuietListSafe((uint32_t)quietS, rows, 64, now)
-                   : censusSnapshotSafe(rows, 64, now);
+                   ? censusQuietListSafe((uint32_t)quietS, rows,
+                                         CENSUS_MAX_TRACKED, now)
+                   : censusSnapshotSafe(rows, CENSUS_MAX_TRACKED, now);
+    size_t offset = (size_t)requestedOffset;
+    if (offset > n) offset = n;
+    size_t end = offset + kCensusPageSize;
+    if (end > n) end = n;
+    size_t returned = end - offset;
     int live = 0, seen = 0;
     censusCountsSafe(&live, &seen, now);
     int o = snprintf(result, resultCap,
                      "{\"live\":%d,\"seen\":%d,\"observed_pct\":%u,"
-                     "\"fixtures\":[",
-                     live, seen, censusObservedPermilleSafe() / 10);
-    for (size_t i = 0; i < n && i < 24 && o > 0; ++i)
-      o = appendRow(result, resultCap, o, i == 0, rows[i]);
+                     "\"matched\":%u,\"offset\":%u,\"fixtures\":[",
+                     live, seen, censusObservedPermilleSafe() / 10,
+                     (unsigned)n, (unsigned)offset);
+    for (size_t i = offset; i < end && o > 0; ++i)
+      o = appendRow(result, resultCap, o, i == offset, rows[i]);
     if (o < 0) return false;
-    snprintf(result + o, resultCap - o, "]%s}",
-             n > 24 ? ",\"truncated\":true" : "");
+    int tail = snprintf(result + o, resultCap - o,
+                        "],\"returned\":%u,\"truncated\":%s",
+                        (unsigned)returned, end < n ? "true" : "false");
+    if (tail < 0 || (size_t)(o + tail) >= resultCap) return false;
+    o += tail;
+    if (end < n) {
+      tail = snprintf(result + o, resultCap - o,
+                      ",\"next_offset\":%u", (unsigned)end);
+      if (tail < 0 || (size_t)(o + tail) >= resultCap) return false;
+      o += tail;
+    }
+    if ((size_t)o + 2 >= resultCap) return false;
+    result[o++] = '}';
+    result[o] = '\0';
     return true;
   }
 
