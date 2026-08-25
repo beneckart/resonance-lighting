@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-25 -- Ben + Codex -- Bridge OS flashed; schedule posture clarified
+
+Built and USB-flashed the integrated Bridge OS development image to T-Deck
+`8EB508` on `COM152`. The 1,552,672-byte binary has SHA-256
+`26200e59595b32d85d5edd2935e6da37dba2913b96f5433f5fcf0402a33d41dc`;
+esptool verified every written segment. Post-reset serial evidence showed the
+bridge back on channel 11, receiving fleet traffic, and publishing a valid
+direct-GPS `NB_TIME_QUALITY` observation.
+
+Live full heartbeats still report `profile=0`, `life=4`, `program=4`: the fleet
+is in commission/listener posture. Visible low-level light is therefore the
+commission ready beacon, not autonomous dusk-to-dawn behavior. Schedule
+Auto/Day Dark/Night Show only selects the field lifecycle baseline; it does not
+promote commission fixtures to the persistent field profile. No fixture
+profile or other fixture NVS value was changed in this session.
+
 ## 2026-08-24 -- Codex -- All-work integration verification
 
 Consolidated the laptop's remaining useful local branches for the requested
