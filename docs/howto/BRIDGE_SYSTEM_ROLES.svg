@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">Resonance bridge roles</title>
+  <desc id="desc">T-Deck Bridge OS, CoreS3, and future PUCA connect to the autonomous fixture fleet in different ways.</desc>
+  <defs>
+    <style>
+      .bg { fill: #101418; }
+      .panel { fill: #202830; stroke: #53616d; stroke-width: 2; }
+      .ready { fill: #183d32; stroke: #55d6a0; stroke-width: 3; }
+      .future { fill: #352f1e; stroke: #f0bd5e; stroke-width: 3; stroke-dasharray: 10 7; }
+      .fleet { fill: #263453; stroke: #7aa2f7; stroke-width: 3; }
+      .title { fill: #f3f6f8; font: 700 28px Arial, sans-serif; }
+      .name { fill: #ffffff; font: 700 25px Arial, sans-serif; }
+      .body { fill: #d1d8de; font: 18px Arial, sans-serif; }
+      .small { fill: #aeb9c2; font: 16px Arial, sans-serif; }
+      .label { fill: #f3f6f8; font: 700 17px Arial, sans-serif; }
+      .mesh { stroke: #7aa2f7; stroke-width: 5; fill: none; marker-end: url(#arrowBlue); }
+      .data { stroke: #55d6a0; stroke-width: 4; fill: none; marker-end: url(#arrowGreen); }
+      .pending { stroke: #f0bd5e; stroke-width: 4; stroke-dasharray: 10 7; fill: none; marker-end: url(#arrowAmber); }
+    </style>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#7aa2f7"/></marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#55d6a0"/></marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#f0bd5e"/></marker>
+  </defs>
+
+  <rect class="bg" width="1200" height="650" rx="22"/>
+  <text class="title" x="42" y="48">Three bridge tools, one channel-11 fixture fleet</text>
+
+  <rect class="panel" x="45" y="88" width="240" height="110" rx="16"/>
+  <text class="name" x="165" y="125" text-anchor="middle">Camp network</text>
+  <text class="body" x="165" y="155" text-anchor="middle">Starlink + Beryl AX</text>
+  <text class="small" x="165" y="181" text-anchor="middle">2.4 GHz fixed ch 11</text>
+
+  <rect class="panel" x="45" y="245" width="240" height="110" rx="16"/>
+  <text class="name" x="165" y="282" text-anchor="middle">Laptop</text>
+  <text class="body" x="165" y="312" text-anchor="middle">dashboard, logger, OTA</text>
+  <text class="small" x="165" y="338" text-anchor="middle">USB serial to CoreS3</text>
+
+  <rect class="ready" x="390" y="75" width="300" height="145" rx="18"/>
+  <text class="name" x="540" y="115" text-anchor="middle">T-Deck Bridge OS</text>
+  <text class="body" x="540" y="148" text-anchor="middle">handheld fleet view + control</text>
+  <text class="body" x="540" y="176" text-anchor="middle">Claude when internet is online</text>
+  <text class="small" x="540" y="203" text-anchor="middle">mesh continues if WAN fails</text>
+
+  <rect class="ready" x="390" y="255" width="300" height="145" rx="18"/>
+  <text class="name" x="540" y="295" text-anchor="middle">CoreS3</text>
+  <text class="body" x="540" y="328" text-anchor="middle">USB dashboard bridge</text>
+  <text class="body" x="540" y="356" text-anchor="middle">or proven audio publisher</text>
+  <text class="small" x="540" y="383" text-anchor="middle">separate firmware modes</text>
+
+  <rect class="future" x="390" y="435" width="300" height="145" rx="18"/>
+  <text class="name" x="540" y="475" text-anchor="middle">PUCA</text>
+  <text class="body" x="540" y="508" text-anchor="middle">future dedicated audio bridge</text>
+  <text class="body" x="540" y="536" text-anchor="middle">hardware received</text>
+  <text class="small" x="540" y="563" text-anchor="middle">Resonance firmware not written</text>
+
+  <rect class="fleet" x="825" y="190" width="325" height="260" rx="24"/>
+  <text class="name" x="987" y="235" text-anchor="middle">Autonomous fixture fleet</text>
+  <text class="body" x="987" y="275" text-anchor="middle">about 130 lights</text>
+  <text class="body" x="987" y="310" text-anchor="middle">ESP-NOW channel 11</text>
+  <text class="body" x="987" y="345" text-anchor="middle">local power and safety gates</text>
+  <text class="body" x="987" y="380" text-anchor="middle">3 s directed-frame fallback</text>
+  <text class="small" x="987" y="420" text-anchor="middle">No bridge is required for normal shows</text>
+
+  <path class="data" d="M285 143 C330 143 340 143 390 143"/>
+  <text class="label" x="337" y="128" text-anchor="middle">WiFi</text>
+  <path class="data" d="M285 300 C330 300 340 323 390 323"/>
+  <text class="label" x="337" y="290" text-anchor="middle">USB</text>
+
+  <path class="mesh" d="M690 148 C760 148 775 245 825 265"/>
+  <path class="mesh" d="M690 327 C750 327 770 320 825 320"/>
+  <path class="pending" d="M690 507 C760 507 775 405 825 390"/>
+  <text class="label" x="755" y="187" text-anchor="middle">mesh</text>
+  <text class="label" x="758" y="307" text-anchor="middle">mesh</text>
+  <text class="label" x="760" y="476" text-anchor="middle">planned mesh</text>
+
+  <text class="small" x="45" y="625">Operational rule: run one artistic frame publisher at a time; state-changing maintenance has one declared operator.</text>
+</svg>

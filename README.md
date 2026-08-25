@@ -162,6 +162,9 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## How-to guides
 
+- [`docs/howto/BRIDGE_OS_FIELD_MANUAL.md`](docs/howto/BRIDGE_OS_FIELD_MANUAL.md) --
+  friendly illustrated field/IT manual for T-Deck Bridge OS, the CoreS3
+  dashboard and audio modes, and the still-pending PUCA performance bridge.
 - [`docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`](docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md) --
   collision-proof firmware revision/manifest rules, explicit target handoff,
   fresh-evidence OTA completion, and USB boot-salute semantics for shared benches.

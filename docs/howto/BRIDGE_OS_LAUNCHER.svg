@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720" role="img" aria-labelledby="title desc">
+  <title id="title">Resonance Bridge OS launcher screen map</title>
+  <desc id="desc">A source-derived three-times scale view of the 320 by 240 T-Deck Bridge OS launcher.</desc>
+  <defs>
+    <style>
+      .screen { fill: #101418; stroke: #59636c; stroke-width: 8; }
+      .tile { fill: #202830; stroke: #3b4650; stroke-width: 3; }
+      .focus { fill: #3a6ea5; stroke: #8ab4f8; stroke-width: 5; }
+      .status { fill: #c8d0d8; font: 34px Arial, sans-serif; }
+      .symbol { fill: #8ab4f8; font: 700 31px Arial, sans-serif; }
+      .text { fill: #f3f6f8; font: 700 29px Arial, sans-serif; }
+      .muted { fill: #aeb9c2; font: 24px Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <rect class="screen" x="4" y="4" width="952" height="712" rx="25"/>
+  <text class="status" x="22" y="55">ONLINE  -57 dBm  ch11   MESH 74/86   BAT 83%</text>
+
+  <g transform="translate(17,78)">
+    <g transform="translate(0,0)"><rect class="focus" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">KEYS</text><text class="text" x="111" y="100" text-anchor="middle">Claude</text></g>
+    <g transform="translate(234,0)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">LIST</text><text class="text" x="111" y="100" text-anchor="middle">Fleet</text></g>
+    <g transform="translate(468,0)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">BAT</text><text class="text" x="111" y="100" text-anchor="middle">Health</text></g>
+    <g transform="translate(702,0)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">COLOR</text><text class="text" x="111" y="100" text-anchor="middle">LEDs</text></g>
+
+    <g transform="translate(0,150)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">BELL</text><text class="text" x="111" y="100" text-anchor="middle">Knock</text></g>
+    <g transform="translate(234,150)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">PLAY</text><text class="text" x="111" y="100" text-anchor="middle">Patterns</text></g>
+    <g transform="translate(468,150)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">LOOP</text><text class="text" x="111" y="100" text-anchor="middle">CA</text></g>
+    <g transform="translate(702,150)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">GPS</text><text class="text" x="111" y="100" text-anchor="middle">Schedule</text></g>
+
+    <g transform="translate(0,300)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">EYE</text><text class="text" x="111" y="100" text-anchor="middle">Locate</text></g>
+    <g transform="translate(234,300)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">RADIO</text><text class="text" x="111" y="100" text-anchor="middle">RF</text></g>
+    <g transform="translate(468,300)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">POWER</text><text class="text" x="111" y="100" text-anchor="middle">Sleep</text></g>
+    <g transform="translate(702,300)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">IMAGE</text><text class="text" x="111" y="100" text-anchor="middle">SunTest</text></g>
+
+    <g transform="translate(0,450)"><rect class="tile" width="222" height="138" rx="14"/><text class="symbol" x="111" y="50" text-anchor="middle">GEAR</text><text class="text" x="111" y="100" text-anchor="middle">Settings</text></g>
+    <text class="muted" x="250" y="520">Empty launcher cells are intentional.</text>
+    <text class="muted" x="250" y="555">Trackball: left/right = tile, up/down = row, click = open.</text>
+  </g>
+</svg>

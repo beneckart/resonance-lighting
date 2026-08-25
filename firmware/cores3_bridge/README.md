@@ -4,6 +4,11 @@ Dedicated M5Stack CoreS3 USB bridge for the Resonance ESP-NOW fleet. It replaces
 the temporary PowerFeather `net_bench --serial-bridge` board without touching the
 PowerFeather charger/gauge path.
 
+For a device-comparison, field workflow, and first-line troubleshooting guide,
+start with the illustrated
+[`Bridge field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md). This file
+retains the detailed CoreS3 build and protocol record.
+
 This is also the implemented fallback/reference for the received PUCA
 performance-audio hardware selected in ADR 0035. PUCA is a separate original-
 ESP32 + WM8978 target and does not run this CoreS3 binary; its hardware and

@@ -114,6 +114,26 @@ current dashboard heartbeat view does not expose `NB_TIME_QUALITY` observations
 or the fixture's selected UTC source. Hold the second RTC canary until that
 wire-level/time-selection evidence or the compressed schedule test is captured.
 
+## 2026-08-24 -- Codex -- Bridge field manual PDF export
+
+Exported the illustrated Markdown manual to the print-ready, 20-page US Letter
+PDF `output/pdf/Resonance_Bridge_Field_Manual.pdf`. The PDF has a designed
+cover, embedded role and launcher visuals, two-page linked contents, PDF outline
+bookmarks, repeating headers/footers, page numbers, styled callouts, compact
+tables, code blocks, and a two-column source index. After the seven-fixture
+registry reconciliation landed, refreshed both the manual and PDF to the
+141-entry roster and current T-Deck artifact identity. Final size is 351,519 bytes;
+SHA-256 is
+`826fa0e75c22430bad7a8e0861d4b220be0dd863e501289e80a89402e8b4e065`.
+
+Reopened the final file with independent PDF parsers, confirmed all 20 pages and
+all major sections, rendered every page through Poppler, and visually inspected
+the complete contact sheets plus full-size samples. The first draft's sparse
+chapter-transition pages were removed before final export. Temporary builders,
+rasterized figures, and page renders were deleted after QA; the PDF and the
+Markdown/SVG sources remain. No firmware, hardware, bridge, fixture state, or
+network configuration changed.
+
 ## 2026-08-24 -- Ben + Codex -- Seven live fixtures reconciled and named
 
 A passive T-Deck census found seven fresh field fixture IDs that appeared as raw
@@ -139,6 +159,27 @@ Esptool verified every region. Post-flash probes passed PSRAM, keyboard, touch,
 ES7210, and GPS; the bridge rejoined channel 11 with zero send failures and saw
 fresh heartbeats from all seven reconciled IDs. No fixture command, maintenance
 request, fixture OTA, or Magic Wand OTA was sent.
+
+## 2026-08-24 -- Codex -- Illustrated bridge field manual
+
+Added `docs/howto/BRIDGE_OS_FIELD_MANUAL.md` as the friendly living operator and
+IT guide for the T-Deck Bridge OS, CoreS3 dashboard/audio modes, and the pending
+PUCA performance-audio bridge. It is grounded in the current launcher and app
+source, acceptance records, ADRs 0035-0037 and 0047-0050, and the existing camp
+network, CoreS3 audio, and artifact-handoff runbooks. It separates working,
+canary, and planned capabilities; explains control precedence, live-versus-seen,
+Dark versus Sleep, stream ownership, callsign/MAC identity, channel guard,
+provisioning, app-by-app operation, symptom-driven troubleshooting, field
+recipes, and shift handoff cards.
+
+Added two diffable SVG guide figures: a source-derived 320 x 240 launcher map and
+a three-device role diagram. Linked the manual from the root, T-Deck, CoreS3,
+and PUCA READMEs. Queued real device-photo capture during existing named-canary
+acceptance work. Documentation review also exposed that T-Deck's one-token
+serial WiFi parser cannot enter the spaced `Party In The Woods` SSID; the manual
+warns against the unsafe command shape and `TODO.md` now tracks a quoted/escaped
+provisioning fix. No firmware, hardware, bridge, fixture state, or network
+configuration changed.
 
 ## 2026-08-24 -- Ben + Codex -- Callsign Bridge OS flashed to T-Deck
 

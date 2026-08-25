@@ -4,6 +4,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Capture real Bridge OS/CoreS3/PUCA manual photographs.** The new
+  `docs/howto/BRIDGE_OS_FIELD_MANUAL.md` includes diffable source-derived role
+  and launcher visuals. Add clean field photos of the launcher, Health, Fleet
+  detail, LED Studio, Sleep confirmation, Schedule, both RF pages, CoreS3
+  normal/audio screens, and labeled PUCA ribbon/front-panel audio connections
+  as those states are deliberately staged. Do not send a control merely to make
+  a documentation photo; use the named-canary acceptance passes already queued
+  below (Ben/Codex).
+- [ ] **Support spaced WiFi credentials in T-Deck serial provisioning.** The
+  current `set wifi <ssid> <psk>` tokenizer requires both values to be one token
+  and cannot safely enter the exact production maintenance SSID
+  `Party In The Woods`. Add quoted/escaped fields or another bounded secret
+  provisioning path, native-test it, and keep `show` from exposing more of the
+  API key than operators need. Until then, use only an approved one-token
+  bridge SSID; do not pretend quoting works (Ben/Codex).
 - [~] **Hardware-validate fixture callsigns on the T-Deck.** The canonical table,
   17 host policy/dashboard tests, the complete native Bridge suite, and the
   final Magic-Wand-aware embedded build pass. The reconciled 141-fixture image

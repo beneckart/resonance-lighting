@@ -9,6 +9,12 @@ agent handoffs remain reliable.
 validated.** The factory Eurorack oscillator/effect firmware is not the tree
 bridge.
 
+The illustrated
+[`Bridge field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md) explains
+when to use the proven CoreS3 fallback, how PUCA fits beside Bridge OS, and the
+operator-facing bring-up boundary. This file remains the detailed hardware
+record and qualification checklist.
+
 ## What "PUCA" means in this project
 
 PUCA means the Ohmic Limited **PUCA DSP Original Edition** mounted on its 6 HP

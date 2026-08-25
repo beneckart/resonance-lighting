@@ -4,6 +4,10 @@ App-launcher handheld per ADR 0047 (platform of record; constraints from ADR
 0037): simultaneously an ESP-NOW mesh citizen on the fleet channel (census +
 command TX) and a Wi-Fi STA (Claude API over TLS, laptop services).
 
+Field operators and IT support should start with the illustrated
+[`Bridge OS field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md). This
+README remains the implementation, build, and acceptance record.
+
 **Status 2026-08-24:** M0-M4 complete and hardware-verified. Working apps:
 **Claude** (streaming chat + 6-tool agent loop with the confirm rail),
 **Fleet** (live census, reported-color chips, node detail + identify,
