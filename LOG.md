@@ -10,6 +10,34 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Selectable multicast and synchronized Knocker
+
+Extended the existing Knocker picker without replacing its deterministic
+targeted roll. It now offers `ALL: broadcast now` for asynchronous one-to-many
+fire and `ALL: sync +1.0s` for a short-future shared deadline. Both actions
+retain the confirmation rail; single-device addressed strikes remain available.
+
+Reused the canonical packed `NbEvent` rather than adding another protocol
+header or changing layout. New kind `NB_EVENT_SOLENOID_STRIKE` carries a 32-bit
+dedupe ID, bounded pulse, and existing `fire_in_ms`. The T-Deck repeats one
+logical event six times for RF reliability and decrements the remaining delay
+on later copies so all copies point at the original bridge deadline. Fixtures
+timestamp receipt in the ESP-NOW callback, remember recent IDs, arm at most one
+pending event, clamp 5-300 ms, cap initial scheduling at five seconds, and
+refuse a strike more than 250 ms late. Lifecycle, power, arm, rest, maintenance,
+and solenoid mechanism gates are evaluated at actual fire time. Older firmware
+ignores the new event kind.
+
+The complete fixture and T-Deck native suites pass, including new pure event
+builder/scheduler tests. Sequential development builds also pass: fixture
+1,193,376 bytes, SHA-256
+`aa1d639046b2e7d9431b1eae94f33d90a77995e85581f34010b53addda942ebd`;
+T-Deck 1,552,000 bytes, SHA-256
+`2b6e968009341e73a62cd23ccdb651682d276b3019debb0c4f7b4509a19725c2`.
+No device was flashed and no strike, mesh command, maintenance request, or OTA
+was sent. Matching fixture support must be isolated and validated before this
+T-Deck UI is exposed on the live bench.
+
 ## 2026-08-24 -- Ben + Codex -- Two RTC anchors commissioned against live GPS
 
 Added read-only Bridge time-quality diagnostics plus an exact-target RTC

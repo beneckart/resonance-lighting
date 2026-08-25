@@ -22,7 +22,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 141 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
-| Knocker | Working; P0 revision built, pending hardware recheck | Single strike worked in field use. The full-fleet revision replaces the 32-entry, heartbeat-order roll with a deterministic targeted roll over the 192-entry census. It remains intentionally non-synchronized. |
+| Knocker | Three fleet modes built; pending fixture/T-Deck hardware validation | Retains the deterministic 192-entry targeted roll and adds immediate multicast plus a shared +1.0 s multicast deadline. Every fixture rechecks its local strike gates at fire time. |
 | CA Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed. Same-program parameter changes still use a visible release/re-lease workaround. |
 | Settings | Working | Secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
@@ -78,7 +78,18 @@ The exercise exposed that the old `knock all` implementation selected at most
 300 ms. The current P0 source instead plans all fresh IDs (up to 192), sorts by
 short ID, dispatches at an explicit 80 ms cadence, and labels the action a
 targeted roll. Hardware revalidation of that revision remains open. True
-synchronized fire remains P3 work behind the RTC/GPS and fixture event seams.
+synchronized fire was initially held for P3 behind the RTC/GPS and fixture
+event seams.
+
+Knocker update, 2026-08-24: those event seams are now implemented without a
+wire-layout change. The picker offers the existing deterministic targeted roll,
+one immediate fleet multicast, and one shared +1.0 s fleet deadline. Both new
+modes use a repeated `NB_EVENT_SOLENOID_STRIKE` with a 32-bit dedupe ID. Later
+copies decrement `fire_in_ms` toward the same bridge deadline, and fixtures use
+radio-callback receipt time, arm only one pending event, ignore duplicates, and
+drop a strike more than 250 ms late. All lifecycle, power, solenoid arm/rest,
+and failsafe gates are re-evaluated when firing. Native suites and both embedded
+development builds pass; isolated hardware timing remains open.
 
 Integration update, 2026-08-24: items 2-5 and 8 are implemented in the common
 baseline. The launcher now registers callbacks instead of comparing tile names.
@@ -168,9 +179,10 @@ remains open; microphone capture remains v2.
 
 - **Full Sensors:** requires a new append-only `NB_SENSOR_REPORT` contract plus a
   fixture producer and rate/window policy.
-- **Synchronized Knocker:** wait for the RTC/GPS time service and fixture support
-  for `fire_in_ms` plus a strike event kind. Do not build a second time model in
-  Bridge OS.
+- **Synchronized Knocker hardware acceptance:** source now uses the canonical
+  `NbEvent.fire_in_ms` seam rather than a second time model. Measure immediate
+  multicast spread and +1.0 s deadline skew on an isolated, explicitly armed
+  cohort before any fleet promotion.
 - **CA-to-strike choreography:** requires a clamped fixture `ProgramOutputs`
   request routed through the normal power/lifecycle strike permission.
 - **Voice:** typed Claude already works. Laptop `whisperd` requires an explicit

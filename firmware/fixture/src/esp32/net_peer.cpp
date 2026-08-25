@@ -5,6 +5,7 @@
 #include "esp_system.h"
 
 #include "../core/fixture_context.h"
+#include "../core/strike_event.h"
 #include "../core/version.h"
 #include "behavior_glue.h"
 #include "board_power.h"
@@ -42,6 +43,7 @@ static uint32_t gDirectSeen = 0, gDirectMatched = 0;
 static ShowFrameIn gShowFrame = {};
 static uint8_t gIdentColor = 0, gIdentBlink = 0, gIdentValue = 255;
 static uint32_t gIdentUntil = 0;
+static StrikeEventState gStrikeEvent;
 
 const ShowFrameIn &netPeerLastShowFrame() { return gShowFrame; }
 uint8_t netPeerIdentifyColor() { return gIdentColor; }
@@ -232,7 +234,19 @@ static void processPacket(const RxItem &it) {
   }
   case NB_EVENT: {
     if (it.len < (int)sizeof(NbEvent)) return;
-    behaviorOnEvent(*(const NbEvent *)it.data);
+    const NbEvent &event = *(const NbEvent *)it.data;
+    if (event.kind == NB_EVENT_SOLENOID_STRIKE) {
+      StrikeEventAccept accepted = strikeEventAccept(gStrikeEvent, event, it.rx_ms);
+      if (accepted == STRIKE_EVENT_ARMED_IMMEDIATE ||
+          accepted == STRIKE_EVENT_ARMED_FUTURE) {
+        espNowNoteControlRx();
+        Serial.printf("solenoid event %08lx armed in %lums\n",
+                      (unsigned long)event.event_id,
+                      (unsigned long)event.fire_in_ms);
+      }
+      break;
+    }
+    behaviorOnEvent(event);
     break;
   }
   case NB_SHOWFRAME: {
@@ -452,6 +466,7 @@ static void processPacket(const RxItem &it) {
 
 void netPeerInit() {
   uint32_t now = millis();
+  strikeEventInit(gStrikeEvent);
   gNextShortMs = now + jittered(shortPeriodMs());
   gNextFullMs = now + jittered(fullPeriodMs());
 }
@@ -466,6 +481,17 @@ void netPeerTick() {
   }
 
   uint32_t now = millis();
+  uint16_t strikePulseMs = 0;
+  StrikeEventTick strikeTick = strikeEventTick(gStrikeEvent, now, strikePulseMs);
+  if (strikeTick == STRIKE_EVENT_FIRE) {
+    if (!behaviorStrikePermitted()) {
+      Serial.println("solenoid: event strike refused (lifecycle/power gate)");
+    } else if (!solenoidStrike(strikePulseMs, "radio event")) {
+      Serial.println("solenoid: event strike blocked (arm/rest/mechanism gate)");
+    }
+  } else if (strikeTick == STRIKE_EVENT_EXPIRED) {
+    Serial.println("solenoid: scheduled event expired; refusing late strike");
+  }
   if ((int32_t)(now - gNextShortMs) >= 0) {
     netPeerSendHeartbeat(false);
     gNextShortMs = now + jittered(shortPeriodMs());

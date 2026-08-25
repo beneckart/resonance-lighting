@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "espnow_link.h"
+#include "../core/knock_event.h"
 #include "fixture/src/core/packet.h"
 
 static uint8_t gMyId[3] = {};
@@ -147,6 +148,30 @@ bool meshStrike(const uint8_t id[3], uint16_t pulseMs) {
   if (!txTake()) return false;
   fillHeader(&cmd.h, NB_TARGET_SOLENOID);
   sendPacketRepeatedLocked(&cmd, sizeof(cmd), 6, 8);
+  txGive();
+  return true;
+}
+
+bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs) {
+  NbEvent event = {};
+  uint32_t eventId = esp_random();
+  if (!eventId) eventId = 1;
+  if (!knockBuildBroadcastEvent(event, eventId, pulseMs, fireInMs)) return false;
+  if (!txTake()) return false;
+  fillHeader(&event.h, NB_EVENT);
+  // One logical multicast event repeated for RF reliability. Later copies
+  // carry less remaining delay, so a fixture that misses copy one still arms
+  // for the original bridge deadline. Fixtures deduplicate by event_id.
+  uint32_t fireAtMs = millis() + fireInMs;
+  for (uint8_t i = 0; i < 6; ++i) {
+    if (fireInMs) {
+      int32_t remaining = (int32_t)(fireAtMs - millis());
+      if (remaining <= 0) break; // never turn a missed deadline into a late strike
+      event.fire_in_ms = (uint32_t)remaining;
+    }
+    esp_now_send(kBcast, (const uint8_t *)&event, sizeof(event));
+    if (i + 1 < 6) delay(8);
+  }
   txGive();
   return true;
 }

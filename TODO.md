@@ -56,16 +56,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   blink, stop fallback, 10-minute dark expiry, and a short rails-off timer
   sleep/rejoin. Before any overnight fleet sleep, compare live/seen counts and
   account for radio-silent fixtures separately (Ben).
-- [~] **Revalidate the revised full-fleet Knocker roll.** Field use exposed that
+- [~] **Hardware-validate the revised Knocker fleet modes.** Field use exposed that
   the old `knock all` selected at most 32 fresh fixtures in heartbeat order and
   paced targeted sends every 300 ms. Current source plans the complete
   192-entry census in deterministic short-ID order, dispatches every 80 ms, and
-  labels the action as a targeted roll rather than synchronized fire. Native
-  130-fixture coverage and the complete T-Deck firmware build pass. Recheck from
-  the T-Deck against an explicit awake/day-active cohort; fixture lifecycle and
-  power gates may still refuse individual requests by design. True synchronized
-  fire remains separate work behind RTC/GPS plus a fixture strike-event seam
-  (Ben + Codex).
+  labels that action as a targeted roll. It now also offers immediate fleet
+  multicast and a shared +1.0 s multicast deadline through the existing
+  `NbEvent.fire_in_ms` field. Fixtures deduplicate the event, timestamp radio
+  receipt, arm only one pending strike, and drop it if more than 250 ms late;
+  every local safety gate is rechecked at fire time. Native coverage and both
+  embedded development builds pass. Before flashing the new T-Deck UI, deploy
+  the matching fixture image only to an isolated, explicitly armed cohort.
+  Confirm one strike per event despite six RF copies, old-firmware ignore,
+  immediate multicast spread, +1.0 s deadline skew, local gate refusal, and no
+  late fire after a blocked loop/maintenance interval. Do not exercise either
+  multicast mode around an unaccounted strike-permitted fleet (Ben + Codex).
 - [x] **Seed and validate the locked T-Deck development cache -- DONE
   2026-08-24.** The fixture cache's lock, recipe fingerprint, interruption
   marker, quarantine recovery, `tdeck-dev-local` identity, and fresh-artifact

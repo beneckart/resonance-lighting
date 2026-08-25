@@ -152,8 +152,19 @@ one-time NVS policy migration enables devices that retained the historical
 disarmed value; a later explicit runtime disarm remains persistent. D7/GPIO37
 stays INPUT/high-Z while armed and idle, so rev-1 receiver/manual sources remain
 usable and a Feather without a capboard has no connected load. A strike still
-requires an addressed command or local input and retains the normal lifecycle,
-power-tier, pulse-width, rest-time, maintenance, and failsafe gates.
+requires an addressed command, a deduplicated fleet strike event, or local input
+and retains the normal lifecycle, power-tier, pulse-width, rest-time,
+maintenance, and failsafe gates.
+
+`NB_EVENT_SOLENOID_STRIKE` adds immediate and short-future fleet strikes without
+changing the packet layout. One logical event is repeated for RF reliability;
+fixtures deduplicate its 32-bit event ID, arm at most one pending event, clamp
+the pulse to 5-300 ms, and refuse a scheduled strike more than 250 ms late.
+`fire_in_ms` is capped at five seconds. The bridge decrements it on later RF
+copies so every received copy refers to the same deadline, while the fixture
+uses callback receipt time rather than later queue-drain time. Lifecycle, power,
+solenoid arm/rest, and mechanism safety are rechecked at the actual fire time.
+Older fixture firmware ignores this new event kind.
 
 `--canopy-solenoid` remains accepted as a deprecated no-op so older build recipes
 do not fail; it is no longer required and must not be used to infer artifact

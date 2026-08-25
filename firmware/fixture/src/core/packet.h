@@ -320,6 +320,7 @@ struct __attribute__((packed)) NbNeighborReport { // 22: bounded locate survey
 
 enum NbEventKind : uint8_t {
   NB_EVENT_PRESENCE_WAVE = 1,
+  NB_EVENT_SOLENOID_STRIKE = 2,
 };
 
 // Presence-wave params (kind 1):
@@ -332,6 +333,18 @@ enum NbEventKind : uint8_t {
 #define NB_EVENT_HUE_OFFSET 3
 #define NB_EVENT_VALUE_OFFSET 4
 #define NB_EVENT_DEPTH_OFFSET 5
+
+// Solenoid-strike params (kind 2):
+//   [0..1] pulse width in milliseconds, little-endian
+// `fire_in_ms` is relative to receipt. A sender may decrement it on repeated
+// copies so every copy refers to one shared deadline. One event_id makes every
+// receiver arm once and duplicate RF copies safe.
+#define NB_EVENT_STRIKE_PULSE_LO_OFFSET 0
+#define NB_EVENT_STRIKE_PULSE_HI_OFFSET 1
+#define NB_EVENT_STRIKE_MIN_MS 5
+#define NB_EVENT_STRIKE_MAX_MS 300
+#define NB_EVENT_STRIKE_MIN_FUTURE_MS 250UL
+#define NB_EVENT_STRIKE_MAX_DELAY_MS 5000UL
 
 struct __attribute__((packed)) NbEvent { // 23: bounded event fabric
   NbHeader h;

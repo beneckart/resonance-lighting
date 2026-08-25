@@ -11,8 +11,8 @@ Sleep/Dark entry point), **Health** (single-screen voltage health grid for the
 production registry plus live node detail), **LED Studio** (class-targeted solid colors and 1 Hz
 cohort blink via sustained 8 Hz direct-frame streaming, client-side dim),
 **Sleep / Dark** (confirmed 10 min / 1 h / 4 h / 8 h / 12 h dark leases or
-rails-off timer sleep), **Knocker** (single strike plus a confirmed,
-deterministic targeted roll across the full fresh census; not synchronized),
+rails-off timer sleep), **Knocker** (single strike plus selectable targeted
+roll, immediate fleet multicast, and shared +1.0 s deadline multicast),
 **Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),
 **CA Studio** (program leases + GH-CA knob params via the release-re-lease
 workaround), **Patterns** (manual deterministic RGBW streaming),
@@ -45,10 +45,14 @@ night of 2026-08-23/24; all behaved as designed. That run exposed the old
 Knocker `knock all` behavior: it selected at most 32 fresh fixtures in
 heartbeat order and then dispatched a per-ID targeted request every 300 ms.
 Current P0 source replaces it with an honestly labelled, deterministic 80 ms
-targeted roll over the full 192-entry census. It still obeys every fixture's
-daytime/power strike gates and is not synchronized. The current source passes
-the full native suite and a complete T-Deck firmware build; only the hardware
-recheck remains.
+targeted roll over the full 192-entry census. The picker also offers one
+immediate fleet multicast and one shared +1.0 s multicast deadline using the
+existing `NbEvent.fire_in_ms` wire field. Updated fixtures deduplicate repeated
+copies, timestamp radio receipt, arm only one pending strike, and refuse a
+strike more than 250 ms late. Every mode still obeys fixture-local daytime,
+power, arm, pulse, rest, maintenance, and failsafe gates at fire time. The full
+native suites and both embedded development builds pass; isolated hardware
+timing and mixed-firmware checks remain before flashing this UI.
 
 **Board: T-Deck Plus, LCD variant — NOT the T-Deck Pro** (e-paper; different
 touch/keyboard drivers; the names are one word apart and that is the easiest
@@ -192,6 +196,20 @@ field sleep cadence. LED Studio and program leases can override the baseline;
 dark remains higher authority. Knock stays one-shot and locally safety-gated,
 so it is not promised as a wake command for a sleeping fixture.
 
+Knocker's three fleet choices are deliberately distinct:
+
+- **Targeted roll** sends one addressed command per fresh fixture at 80 ms
+  intervals. It is deterministic but intentionally staggered.
+- **Broadcast now** sends one logical multicast event to all updated, awake
+  fixtures. Each receiver fires on its first copy, so arrival is asynchronous.
+- **Sync +1.0 s** repeats that same logical event while decrementing
+  `fire_in_ms` toward one bridge deadline. Each fixture schedules from its radio
+  callback timestamp and duplicate event IDs cannot retrigger it.
+
+The multicast modes require the corresponding fixture firmware; older images
+ignore the new event kind. The UI confirmation does not bypass local safety or
+wake a sleeping fixture.
+
 ## Patterns v1
 
 Open **Patterns** for microphone-independent, deterministic artistic control.
@@ -263,7 +281,9 @@ Press **`s`** on the keyboard to toggle the **direct-sun test pattern**
   `net_bench_dashboard.py`'s own regexes (full optional tails).
 - TX proven end-to-end: identify-all was received by bench fixtures (their
   heartbeats report our downlink at `dlpdr=1.000`); strike path clamps 5-300 ms
-  and refuses broadcast. Quick commands `i/I/K/U/B/b/t` are WAN-down safe;
+  and the legacy addressed packet refuses an all-zero target. The Knocker UI's
+  newer multicast modes use a deduplicated `NB_EVENT`, not that legacy packet.
+  Quick commands `i/I/K/U/B/b/t` are WAN-down safe;
   `U<6-hex-ID>` sustains exact-target OTA maintenance for 35 seconds and has no
   broadcast form.
 - **1-hour soak: heap_min bit-identical (257,608 B) across 3,643 s** with STA

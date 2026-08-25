@@ -22,11 +22,13 @@ static void resetRxQueue() {
 
 static void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len < (int)sizeof(NbHeader) || len > (int)sizeof(RxItem::data)) return;
-  gLastRxMs = millis();
-  RxItem it;
+  uint32_t now = millis();
+  gLastRxMs = now;
+  RxItem it = {};
   memcpy(it.mac, info->src_addr, 6);
   it.rssi = info->rx_ctrl ? info->rx_ctrl->rssi : 0;
   it.len = (uint8_t)len;
+  it.rx_ms = now;
   memcpy(it.data, data, len);
   BaseType_t hpw = pdFALSE;
   xQueueSendFromISR(gRxQueue, &it, &hpw); // recv cb is WiFi-task ctx; ISR-safe send is fine

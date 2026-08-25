@@ -18,10 +18,15 @@ static lv_obj_t *gInfo = nullptr;
 static uint8_t gTargets[CENSUS_MAX_TRACKED][3];
 static size_t gTargetCount = 0;
 
-// A roll remains targeted because fixtures reject broadcast strikes. It is not
-// synchronized: one request is dispatched every 80 ms in deterministic ID
-// order. True synchronized fire needs the separately tracked scheduled-event
-// fixture seam.
+static constexpr uint32_t KNOCK_SYNC_DELAY_MS = 1000;
+static constexpr uint32_t KNOCK_MODE_ROLL = 0;
+static constexpr uint32_t KNOCK_MODE_BROADCAST = 1;
+static constexpr uint32_t KNOCK_MODE_SYNC = 2;
+static constexpr uint32_t KNOCK_FIRST_TARGET = 3;
+
+// The legacy roll remains targeted and intentionally staggered: one request is
+// dispatched every 80 ms in deterministic ID order. The two new fleet modes
+// use a separately deduplicated broadcast event.
 static constexpr uint32_t KNOCK_ROLL_STEP_MS = 80;
 static uint8_t gQueue[CENSUS_MAX_TRACKED][3];
 static size_t gQueueLen = 0, gQueueNext = 0;
@@ -70,9 +75,25 @@ static void knockAllYes(void *) {
   gQueueTimer = lv_timer_create(queueTick, KNOCK_ROLL_STEP_MS, nullptr);
 }
 
+static void knockBroadcastYes(void *) {
+  if (meshStrikeBroadcast(pulseMs(), 0)) {
+    if (gInfo) lv_label_set_text(gInfo, "immediate multicast sent");
+  } else if (gInfo) {
+    lv_label_set_text(gInfo, "multicast send refused");
+  }
+}
+
+static void knockSyncYes(void *) {
+  if (meshStrikeBroadcast(pulseMs(), KNOCK_SYNC_DELAY_MS)) {
+    if (gInfo) lv_label_set_text(gInfo, "sync event armed: fire in 1.0 s");
+  } else if (gInfo) {
+    lv_label_set_text(gInfo, "sync event send refused");
+  }
+}
+
 static void knockCb(lv_event_t *) {
   uint32_t sel = lv_dropdown_get_selected(gTargetDd);
-  if (sel == 0) {  // targeted roll over all fresh fixtures
+  if (sel == KNOCK_MODE_ROLL) {
     if (gQueueTimer) {
       if (gInfo) lv_label_set_text(gInfo, "roll already in progress");
       return;
@@ -90,12 +111,29 @@ static void knockCb(lv_event_t *) {
     uiConfirm(summary, "Knocker", knockAllYes, nullptr);
     return;
   }
-  if (sel - 1 < gTargetCount) {
-    meshStrike(gTargets[sel - 1], pulseMs());
+  if (sel == KNOCK_MODE_BROADCAST) {
+    char summary[128];
+    snprintf(summary, sizeof(summary),
+             "Immediate multicast to all updated awake fixtures, %u ms. "
+             "Reception is asynchronous; safety gates still apply.", pulseMs());
+    uiConfirm(summary, "Knocker", knockBroadcastYes, nullptr);
+    return;
+  }
+  if (sel == KNOCK_MODE_SYNC) {
+    char summary[128];
+    snprintf(summary, sizeof(summary),
+             "Multicast to all updated awake fixtures, %u ms, firing at one "
+             "shared +1.0 s deadline. Safety gates still apply.", pulseMs());
+    uiConfirm(summary, "Knocker", knockSyncYes, nullptr);
+    return;
+  }
+  if (sel >= KNOCK_FIRST_TARGET && sel - KNOCK_FIRST_TARGET < gTargetCount) {
+    size_t target = sel - KNOCK_FIRST_TARGET;
+    meshStrike(gTargets[target], pulseMs());
     if (gInfo)
       lv_label_set_text_fmt(gInfo, "struck %02X%02X%02X (%u ms)",
-                            gTargets[sel - 1][0], gTargets[sel - 1][1],
-                            gTargets[sel - 1][2], pulseMs());
+                            gTargets[target][0], gTargets[target][1],
+                            gTargets[target][2], pulseMs());
   }
 }
 
@@ -126,16 +164,18 @@ void appKnockerOpen() {
   lv_label_set_text(title, "Knocker");
   lv_obj_set_pos(title, 8, 6);
 
-  // Target list: explicit targeted roll + every fresh census entry.
+  // Fleet modes followed by every fresh census entry for one-device strikes.
   gTargetCount = snapshotFresh(gTargets, CENSUS_MAX_TRACKED, millis());
   static char opts[1600];
-  int o = snprintf(opts, sizeof(opts), "ROLL ALL (targeted)");
+  int o = snprintf(opts, sizeof(opts),
+                   "ALL: targeted roll\nALL: broadcast now\nALL: sync +1.0s");
   for (size_t i = 0; i < gTargetCount && o > 0 && (size_t)o < sizeof(opts); ++i)
     o += snprintf(opts + o, sizeof(opts) - (size_t)o, "\n%02X%02X%02X",
                   gTargets[i][0], gTargets[i][1], gTargets[i][2]);
   gTargetDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gTargetDd, opts);
-  lv_dropdown_set_selected(gTargetDd, gTargetCount ? 1 : 0);
+  lv_dropdown_set_selected(gTargetDd, gTargetCount ? KNOCK_FIRST_TARGET
+                                                   : KNOCK_MODE_ROLL);
   lv_obj_set_pos(gTargetDd, 8, 44);
   lv_obj_set_width(gTargetDd, 150);
 
@@ -153,8 +193,8 @@ void appKnockerOpen() {
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
   lv_obj_set_pos(gInfo, 8, 144);
   lv_label_set_text(gInfo,
-                    "fixtures refuse at night / low power\n"
-                    "all = targeted 80 ms roll, not synchronized");
+                    "gates still apply at actual fire time\n"
+                    "all: roll | broadcast | sync +1s");
 
   lv_obj_t *knock = lv_button_create(scr);
   lv_obj_set_size(knock, 140, 34);

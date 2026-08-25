@@ -20,6 +20,7 @@ uint32_t meshTxSendFail();
 void meshIdentify(const uint8_t target[3], uint8_t secs, uint8_t color = 0,
                   uint8_t blink = 0, uint8_t value = 255);
 bool meshStrike(const uint8_t id[3], uint16_t pulseMs);  // false: id==00:00:00
+bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs);
 void meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags, const uint8_t params[8]);
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s

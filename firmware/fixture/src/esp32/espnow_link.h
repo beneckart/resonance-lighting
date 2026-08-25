@@ -11,6 +11,7 @@ struct RxItem {
   uint8_t mac[6];
   int8_t rssi;
   uint8_t len;
+  uint32_t rx_ms; // callback receipt time; scheduled events do not use drain time
   uint8_t data[192]; // headroom over the full heartbeat + fixture-era packets
 };
 static_assert(sizeof(NbHeartbeat) <= sizeof(((RxItem *)0)->data),
