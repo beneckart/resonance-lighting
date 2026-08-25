@@ -10,6 +10,28 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Bridge OS callsigns joined with Magic Wand
+
+Committed the completed callsign work, then merged current `main` so Bridge OS
+and the host dashboard share Steve's accepted Magic Wand record. The generated
+T-Deck registry now identifies `Thor [F40344]` as the protected 15 Ah
+`magic_wand` role while retaining short MAC as the only wire, flash, and OTA
+identity. The merge commit is `be15acd`.
+
+All 17 dashboard/callsign/wand-OTA policy tests, the complete T-Deck native
+suite, and the complete fixture native suite pass. The final combined T-Deck
+build is 1,549,728 bytes with SHA-256
+`b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`.
+It is compile-only because T-Deck `8EB508` was no longer attached over USB.
+
+The dedicated Magic Wand `.2` source also compiles with the exact peer/channel
+11/740-pixel/sensor/15 Ah LFP/500 mA/4.6 V recipe: 1,057,913 bytes sketch flash
+and 136,564 bytes static RAM. No wand OTA is required for callsigns or protected
+role integration. Per ADR 0050, the working installed `.1` remains in place
+until the playa WiFi profile and one immutable dedicated artifact are ready for
+an explicit sole-target `F40344` promotion with fresh post-pending-verify proof.
+No USB flash, OTA, maintenance request, or fixture-control command was sent.
+
 ## 2026-08-24 -- Ben + Codex -- Fixture callsigns mapped and integrated
 
 Added the canonical `ops/fleet/callsigns.csv` table with 134 permanent

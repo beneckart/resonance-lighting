@@ -29,6 +29,12 @@ rejoined channel 11 with live fleet receive and zero observed TX failures. Ben
 reports the preceding Health/Schedule physical smoke check looked good; the
 explicit acceptance matrices remain in `TODO.md`.
 
+The next source checkpoint adds permanent operator callsigns and recognizes
+`Thor [F40344]` as the protected one-off `magic_wand` role. Its combined build
+passes at 1,549,728 bytes, SHA-256
+`b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`.
+It is not yet flashed because `8EB508` was not attached during that build.
+
 Ben field-smoke-tested LED Studio, Sleep / Dark, Knocker, and CA Studio on the
 night of 2026-08-23/24; all behaved as designed. That run exposed the old
 Knocker `knock all` behavior: it selected at most 32 fresh fixtures in

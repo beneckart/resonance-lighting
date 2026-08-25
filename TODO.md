@@ -5,8 +5,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 ## Immediate documentation / repo hygiene
 
 - [ ] **Hardware-validate fixture callsigns on the T-Deck.** The canonical table,
-  host dashboard tests, complete native Bridge suite, and compile-only embedded
-  build pass. Flash a callsign-enabled image to exact T-Deck `8EB508`, then check
+  17 host policy/dashboard tests, the complete native Bridge suite, and the
+  final Magic-Wand-aware embedded build pass. The 1,549,728-byte binary SHA-256
+  is `b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`.
+  It remains compile-only because the bridge was unplugged. Flash it to exact
+  T-Deck `8EB508`, then check
   Fleet rows/details, Health selection/details, and Claude lookup/identify on one
   explicitly named canary. Confirm every action surface shows both callsign and
   short MAC, compact grids remain readable, unknown peers fall back to MAC, and
