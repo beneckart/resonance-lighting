@@ -62,6 +62,23 @@ class DashboardParserTests(unittest.TestCase):
         self.assertIsNone(row["fixture_class"])
         self.assertIsNone(row["led_rail_on"])
 
+    def test_time_quality_retains_latest_source_and_gps_difference(self):
+        state = dashboard.DashboardState()
+        worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
+        worker.handle_line(
+            "nb-time from=9F0E7C utc=1787630700 sub=0 src=2 hops=0 "
+            "age=0 uncert=2000 boot=4660 flags=03 linkrssi=-52 gps=1 "
+            "gpsutc=1787630700 gpssub=650 gpsage=120 delta=-770"
+        )
+        row = state.snapshot()["time_sources"]["9F0E7C"]
+        self.assertEqual(row["callsign"], "Navi")
+        self.assertEqual(row["source"], 2)
+        self.assertTrue(row["valid"])
+        self.assertTrue(row["date_valid"])
+        self.assertTrue(row["gps_valid"])
+        self.assertEqual(row["gps_delta_ms"], -770)
+        self.assertLess(row["observation_age_ms"], 100)
+
     def test_short_heartbeat_preserves_rich_class_and_render_tail(self):
         state = dashboard.DashboardState()
         worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)

@@ -14,3 +14,6 @@ void nbEmitEnable(bool on);
 bool nbEmitEnabled();
 void nbEmitScanAp(const RxItem &item);
 void nbEmitNeighborReport(const RxItem &item);
+void nbEmitTimeQuality(const RxItem &item);
+void nbEmitLocalGps(const uint8_t sourceId[3], uint32_t utcS, uint16_t subMs,
+                    uint32_t ageMs, uint16_t uncertaintyMs, uint16_t bootId);

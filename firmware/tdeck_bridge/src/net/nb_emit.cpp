@@ -181,3 +181,43 @@ void nbEmitNeighborReport(const RxItem &item) {
         count, item.rssi);
   }
 }
+
+void nbEmitTimeQuality(const RxItem &item) {
+  if (item.len < sizeof(NbTimeQuality)) return;
+  const NbTimeQuality *quality = (const NbTimeQuality *)item.data;
+
+  GpsUtcObservation gps = halGpsUtc();
+  uint32_t gpsAgeMs = gps.valid ? millis() - gps.receivedMs : 0;
+  bool gpsFresh = gps.valid && gpsAgeMs <= 10000UL;
+  int64_t deltaMs = 0;
+  if (gpsFresh) {
+    uint64_t reportedMs = (uint64_t)quality->utc_s * 1000ULL +
+                          quality->sub_ms +
+                          (uint64_t)quality->age_s * 1000ULL;
+    uint64_t gpsNowMs = (uint64_t)gps.utcS * 1000ULL + gps.subMs + gpsAgeMs;
+    deltaMs = (int64_t)reportedMs - (int64_t)gpsNowMs;
+  }
+
+  Serial.printf(
+      "nb-time from=%02X%02X%02X utc=%lu sub=%u src=%u hops=%u age=%u "
+      "uncert=%u boot=%u flags=%02X linkrssi=%d gps=%u gpsutc=%lu "
+      "gpssub=%u gpsage=%lu delta=%lld\n",
+      quality->h.src_id[0], quality->h.src_id[1], quality->h.src_id[2],
+      (unsigned long)quality->utc_s, quality->sub_ms, quality->source,
+      quality->hops, quality->age_s, quality->uncert_ms, quality->boot_id,
+      quality->flags, item.rssi, gpsFresh ? 1U : 0U,
+      (unsigned long)(gpsFresh ? gps.utcS : 0U), gpsFresh ? gps.subMs : 0U,
+      (unsigned long)(gpsFresh ? gpsAgeMs : 0U), (long long)deltaMs);
+}
+
+void nbEmitLocalGps(const uint8_t sourceId[3], uint32_t utcS, uint16_t subMs,
+                    uint32_t ageMs, uint16_t uncertaintyMs, uint16_t bootId) {
+  Serial.printf(
+      "nb-time from=%02X%02X%02X utc=%lu sub=%u src=%u hops=0 age=%u "
+      "uncert=%u boot=%u flags=%02X linkrssi=0 gps=1 gpsutc=%lu "
+      "gpssub=%u gpsage=%lu delta=0\n",
+      sourceId[0], sourceId[1], sourceId[2], (unsigned long)utcS, subMs,
+      (unsigned)NB_TIME_GPS, (unsigned)(ageMs / 1000U), uncertaintyMs, bootId,
+      (unsigned)(NB_TIME_FLAG_VALID | NB_TIME_FLAG_DATE_VALID),
+      (unsigned long)utcS, subMs, (unsigned long)ageMs);
+}

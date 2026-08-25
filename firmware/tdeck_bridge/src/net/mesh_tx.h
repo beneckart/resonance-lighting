@@ -25,7 +25,7 @@ void meshProgramLease(const uint8_t target[3], uint8_t programId,
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
 void meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
 bool meshEnterMaintenance(const uint8_t target[3]);
-void meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
+bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId);
 
 // Streaming frame (single send, no burst; streams re-send at 8 Hz).

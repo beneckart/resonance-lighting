@@ -60,6 +60,12 @@ RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
     r"ap_rssi=(-?\d+) ch=(\d+) enc=(\d+) linkrssi=(-?\d+) ssid=(.*)"
 )
+RX_TIME = re.compile(
+    r"nb-time from=([0-9A-Fa-f]{6}) utc=(\d+) sub=(\d+) src=(\d+) hops=(\d+) "
+    r"age=(\d+) uncert=(\d+) boot=(\d+) flags=([0-9A-Fa-f]{2}) "
+    r"linkrssi=(-?\d+) gps=(\d+) gpsutc=(\d+) gpssub=(\d+) gpsage=(\d+) "
+    r"delta=(-?\d+)"
+)
 RX_BOOT = re.compile(r"=== Resonance (?:net-bench|fixture) (\S+) ===")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -136,6 +142,7 @@ class DashboardState:
         self.master: dict[str, Any] | None = None
         self.peers: dict[str, dict[str, Any]] = {}
         self.scans: deque[dict[str, Any]] = deque(maxlen=80)
+        self.time_sources: dict[str, dict[str, Any]] = {}
         self.raw: deque[dict[str, Any]] = deque(maxlen=160)
         self.events: deque[dict[str, Any]] = deque(maxlen=400)
         self.serial_status: dict[str, Any] = {
@@ -168,11 +175,20 @@ class DashboardState:
                     else None
                 )
                 peers[pid] = public
+            time_sources: dict[str, dict[str, Any]] = {}
+            for pid, source in self.time_sources.items():
+                public = dict(source)
+                received = public.pop("_received_monotonic")
+                public["observation_age_ms"] = max(
+                    0, round((now_mono - received) * 1000)
+                )
+                time_sources[pid] = public
             return {
                 "ts_utc": now_iso(),
                 "serial": dict(self.serial_status),
                 "master": dict(self.master) if self.master else None,
                 "peers": peers,
+                "time_sources": time_sources,
                 "scans": list(self.scans),
                 "raw": list(self.raw),
                 "last_command": dict(self.last_command) if self.last_command else None,
@@ -277,6 +293,55 @@ class SerialWorker(threading.Thread):
                 if self.state.master:
                     self.state.master["firmware_rev"] = fw
             self.state.add_event("status", {"message": f"bridge firmware {fw}"})
+            return
+
+        m = RX_TIME.search(line)
+        if m:
+            (
+                source_id,
+                utc_s,
+                sub_ms,
+                source,
+                hops,
+                age_s,
+                uncertainty_ms,
+                boot_id,
+                flags,
+                link_rssi,
+                gps_valid,
+                gps_utc_s,
+                gps_sub_ms,
+                gps_age_ms,
+                delta_ms,
+            ) = m.groups()
+            source_id = source_id.upper()
+            flag_bits = int(flags, 16)
+            has_gps = bool(int(gps_valid))
+            row = {
+                "id": source_id,
+                "callsign": CALLSIGN_BY_ID.get(source_id),
+                "utc_s": int(utc_s),
+                "sub_ms": int(sub_ms),
+                "source": int(source),
+                "hops": int(hops),
+                "age_s": int(age_s),
+                "uncertainty_ms": int(uncertainty_ms),
+                "boot_id": int(boot_id),
+                "flags": flag_bits,
+                "valid": bool(flag_bits & 0x01),
+                "date_valid": bool(flag_bits & 0x02),
+                "link_rssi_dbm": int(link_rssi),
+                "gps_valid": has_gps,
+                "gps_utc_s": int(gps_utc_s) if has_gps else None,
+                "gps_sub_ms": int(gps_sub_ms) if has_gps else None,
+                "gps_age_ms": int(gps_age_ms) if has_gps else None,
+                "gps_delta_ms": int(delta_ms) if has_gps else None,
+                "ts_utc": ts,
+                "_received_monotonic": time.monotonic(),
+            }
+            with self.state.lock:
+                self.state.time_sources[source_id] = row
+            self.state.add_event("time", row)
             return
 
         m = RX_PEER.search(line)

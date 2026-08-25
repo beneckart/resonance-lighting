@@ -5,6 +5,7 @@
 
 #include "../hal/hal_board.h"
 #include "mesh_tx.h"
+#include "nb_emit.h"
 
 static uint16_t gBootId = 0;
 static uint32_t gNextPublishMs = 0;
@@ -25,6 +26,8 @@ void timeSvcTick() {
   if (ageMs > 10000) return;
   uint32_t uncertainty = 250U + ageMs;
   if (uncertainty > 65535U) uncertainty = 65535U;
-  meshTimeQuality(obs.utcS, obs.subMs, (uint16_t)(ageMs / 1000U),
-                  (uint16_t)uncertainty, gBootId);
+  if (meshTimeQuality(obs.utcS, obs.subMs, (uint16_t)(ageMs / 1000U),
+                      (uint16_t)uncertainty, gBootId))
+    nbEmitLocalGps(meshMyId(), obs.utcS, obs.subMs, ageMs,
+                   (uint16_t)uncertainty, gBootId);
 }

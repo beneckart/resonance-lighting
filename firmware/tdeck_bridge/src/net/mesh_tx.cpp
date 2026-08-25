@@ -237,7 +237,7 @@ bool meshEnterMaintenance(const uint8_t target[3]) {
   return true;
 }
 
-void meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
+bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId) {
   NbTimeQuality q = {};
   q.utc_s = utcS;
@@ -248,8 +248,9 @@ void meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
   q.uncert_ms = uncertaintyMs;
   q.boot_id = bootId;
   q.flags = NB_TIME_FLAG_VALID | NB_TIME_FLAG_DATE_VALID;
-  if (!txTake()) return;
+  if (!txTake()) return false;
   fillHeader(&q.h, NB_TIME_QUALITY);
-  esp_now_send(kBcast, (const uint8_t *)&q, sizeof(q));
+  bool queued = esp_now_send(kBcast, (const uint8_t *)&q, sizeof(q)) == ESP_OK;
   txGive();
+  return queued;
 }

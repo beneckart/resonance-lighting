@@ -67,6 +67,7 @@ void censusSvcTick(uint32_t nowMs) {
     taskENTER_CRITICAL(&gCensusLock);
     bool consumed = gCensus.ingest(item, nowMs);
     taskEXIT_CRITICAL(&gCensusLock);
+    if (h->type == NB_TIME_QUALITY) nbEmitTimeQuality(item);
     if (consumed) continue;
     if (h->type == NB_SCANAP) nbEmitScanAp(item);
     else if (h->type == NB_NEIGHBOR_REPORT) nbEmitNeighborReport(item);
