@@ -10,6 +10,241 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Integrated Bridge OS health/time image and OTA bridge
+
+Reviewed the concurrently added T-Deck Health app and RTC/GPS schedule path as
+one shared source tree. Both native suites pass. The review found one fixture
+lifecycle interaction before deployment: a valid scheduled/forced day correctly
+suppressed dusk, but also bypassed the normal solar-surplus transition from
+`DAY_CHARGE` to `DAY_ACTIVE`, which would have disabled daytime Knocker use.
+The non-night path now preserves charge/surplus transitions while suppressing
+only dusk entry. A regression covers scheduled day, surplus activation, strike
+permission, forced night, and return to scheduled day; the fixture suite now
+passes 89 lifecycle checks plus all packet, time, schedule, and subsystem tests.
+
+Built and USB-flashed the final merged Bridge OS image to explicit T-Deck Plus
+`8EB508` (`44:1B:F6:8E:B5:08`) on `COM152`. The image is 1,511,504 bytes with
+SHA-256 `e208ad2be85681e4149de9f8c6890017f57c4b4342d76a3589e31be8c037e893`.
+Esptool verified every region. The board rejoined as mesh master `8EB508` on
+channel 11, transmitted successfully, and populated live production-registry
+health data. Health and Schedule are now available for Ben's physical UI test.
+
+Added the minimum bridge seam needed for safe OTA from the T-Deck: serial
+`U<6-hex-ID>` sustains `NB_TARGET_ENTER_MAINT` for 35 seconds without blocking
+the UI or census. It has no broadcast form, rejects malformed and all-zero
+targets, and serializes sends through the existing single-writer mutex. The live
+CLI advertised the command and refused `U000000`. No fixture maintenance or OTA
+command was sent during these checks. Next is a clean source checkpoint,
+immutable bench/canary fixture artifact, and one explicit battery-backed canary
+OTA with fresh post-pending-verify evidence.
+
+## 2026-08-24 -- Codex -- T-Deck fleet Health app
+
+Added a separate read-only Health app to Resonance Bridge OS without changing
+fixture firmware, the packet contract, mesh TX, stream ownership, or the
+concurrent Schedule work. The app embeds a generated, test-pinned snapshot of
+the 134 production-health PowerFeathers in `ops/fleet/registry.csv` (126
+commissioned plus 8 commission-failed), excluding quarantined, bench-only,
+merely enumerated/demo, and bridge hardware. Registry tiles stay in stable
+short-ID order; unexpected fresh census IDs append with a cyan border.
+
+All normal entries fit on one non-scrolling 320x240 grid. Raw reported VBAT,
+not flaky learned SOC, drives the requested bands: green above 3.20 V, yellow
+above 3.10 V through 3.20 V, and red at or below 3.10 V. Grey means the
+registry fixture is not currently fresh/on-air. A separate blue state prevents
+a live but invalid battery sample from masquerading as either low or offline.
+Touch or trackball selection opens read-only voltage/current, age, RF/PDR,
+supply, advisory SOC, class/lifecycle/program, sensor signature, firmware, and
+registry details.
+
+The pure merge/band model, threshold edges, stable roster ordering, live-foreign
+append, stale-foreign omission, stale-detail retention, and generated-registry
+freshness all pass the complete T-Deck native suite. During embedded validation,
+Arduino's global `LOW` macro was found to collide with the initial enum name;
+the shared source now consistently uses `LOW_BATTERY`. LVGL float formatting is
+disabled, so voltage labels were also changed to integer millivolt formatting.
+
+The deliberately interrupted development-cache compile was stopped at its
+exact Arduino/Xtensa processes and quarantined through the wrapper as
+`dev-cache.quarantine.20260825T010409Z-220`; it was not resumed. The final exact
+source then passed a fresh, unique-path compile at
+`firmware/tdeck_bridge/build/health-compile-20260824-r2/`: 1,510,767 bytes of
+sketch flash (48 percent), 91,512 bytes static RAM (27 percent), and a
+1,510,912-byte binary with SHA-256
+`e11b0b76cd06dfa092bbbe43c9200fb517692179cf4808bce255ee55df560fe8`.
+This was compile-only: no T-Deck was flashed and no fleet command was sent.
+Physical grid/touch/trackball/detail and repeated-navigation memory validation
+on named T-Deck `8EB508` remain open in TODO.
+
+## 2026-08-24 -- Ben + Codex -- UTC civil-twilight schedule and field overrides
+
+Activated the existing `NB_TIME_QUALITY` wire seam rather than creating a
+second protocol. The T-Deck now checksum-validates active GPS RMC date/time and
+publishes a quality-tagged UTC anchor every two seconds. Fixtures with DS3231
+anchors read UTC at 100 kHz without writing the clock, refuse oscillator-stop
+or malformed calendar state, and publish ten-second holdover observations.
+Fixture SAM-M8Q I2C acquisition remains a qualification item; the already
+hardware-verified T-Deck GPS is the initial absolute source.
+
+Added a bounded, native-tested eight-source UTC selector. Direct GPS, bridge,
+or RTC time can stand alone; peer time requires two agreeing reports. Selection
+prefers vote count then GPS/bridge/RTC/peer quality, never moves accepted time
+backward, rejects a source more than five minutes from accepted time, and
+expires 30 minutes after the last accepted observation. Fixtures calculate
+solar elevation locally for Black Rock City and use civil twilight (`-6 deg`)
+as the deterministic field-profile day/night gate. The existing panel-current
+heuristic regains authority when UTC is unavailable.
+
+Added the T-Deck Time / Schedule app with confirmed Auto, Day Dark, and Night
+Show field baselines. Overrides remain RAM-only and repeat for six minutes so a
+300-second field sleeper gets a complete opportunity to hear them. Artistic
+direct/program leases can light the tree during scheduled day; dark and timer
+sleep can suppress scheduled night; local battery/boot/solenoid vetoes remain
+authoritative. Commission profile deliberately retains ADR 0039's always-awake
+listener behavior.
+
+Corrected the daytime reachability gate: only a valid operator command now
+starts the ten-minute awake hold. Peer heartbeats, choreography, events, and
+time quality no longer keep an otherwise sleeping fleet awake forever. ADR
+0049 keeps 300 s sleep / 15 s listen as the production default and records a
+future selectable 60/8 build-week posture. From measured 126-144 mA dark-awake
+and sub-mA rails-off endpoints, estimated averages are about 15-18 mA for 60/8
+and 6-8 mA for 300/15; external-INA measurements including boot overhead remain
+open.
+
+The complete fixture native suite passed, including 19 new time/schedule
+checks. A coherent field/basic-listener development build completed at
+1,190,208 bytes with SHA-256
+`af336b08f212d736bec863bd4d60b03f3fbb8c0e351cb30d3aa678424960bf99`.
+The T-Deck native suite also passed. During final shared-source compilation, a
+concurrently added Health app exposed Arduino's `LOW` macro collision; the
+shared fix renames that enum member to `LOW_BATTERY`. Its owning task completed
+a clean unique-path build of the final quiet shared source: 1,510,896-byte
+binary, SHA-256
+`bb812c2db2e440e476e537b566892a1435ba616ec083c58395718b45c77472eb`.
+No T-Deck or fixture was flashed and no mesh command was sent in this work.
+
+## 2026-08-24 -- Ben + Codex -- Bridge OS P0 fleet-scale hardening
+
+Ben field-smoke-tested LED Studio, Sleep / Dark, Knocker, and CA Studio on the
+night of 2026-08-23/24 and reported that all behaved as designed. The pass also
+exposed misleading Knocker `knock all` behavior: it selected only the first 32
+fresh census rows, whose heartbeat arrival order varied, then issued one per-ID
+targeted request every 300 ms. Fixture-side daytime, surplus, and power-tier
+gates can independently refuse a request, so the UI must not equate a sent
+request with a physical strike.
+
+Hardened the shared Bridge OS baseline. Knocker now plans the complete fresh
+192-entry census in deterministic short-ID order, uses an explicit 80 ms
+targeted rollout, reports request progress rather than claiming strikes, and
+labels the action as non-synchronized. Added pure/native Knocker coverage with a
+130-fixture case. True simultaneous fire remains separate work behind the
+RTC/GPS service and a fixture scheduled-strike event seam.
+
+Serialized all packet emission across UI, Claude, streaming, lifecycle resend,
+and time-service callers with one mutex-backed TX boundary, including entire
+repeated bursts. Added locked census accessors for the cross-task Claude and
+stream paths. Extracted direct-frame planning into a pure module with full
+192-peer selection, freshness/class filtering, deterministic ordering, dim and
+blink behavior, and 18-entry chunk tests.
+
+The complete T-Deck native suite passed: build-wrapper contract, battery,
+census, chat log, direct-frame planner, Knocker planner, NMEA time, shared
+packet include/layout, and SSE parser. A fresh wrapper-owned `--dev-cache`
+firmware build also passed: 1,504,355 bytes sketch flash (47 percent), 79,960
+bytes static RAM (24 percent), 1,504,496-byte binary, SHA-256
+`c793487d25d4c7a93553d78126b9bb2f49a88ae8b58a7edffcc09cdb51ceeb80`.
+No wire type changed. No USB flash or fleet command was issued; revised Knocker
+hardware validation remains open.
+
+## 2026-08-24 -- Codex -- Bridge OS app triage and parallel roadmap
+
+Onboarded from the repository and reconciled the older handheld proposal against
+the implemented Bridge OS. Added `firmware/tdeck_bridge/APP_ROADMAP.md` as the
+working app priority order. P0 is validation and shared-platform hardening:
+named-canary LED/Sleep checks, removal of misleading fleet-size caps (especially
+the 32-node knock-all queue), serialized mesh TX, locked census reads, native
+stream-planner coverage, measured handheld runtime, and authenticated commands
+before trusted event use.
+
+The first parallel app batch is RF Diagnostics, Sensors Health from existing
+heartbeat data, and deterministic/manual Patterns. Active RSSI Locate and ES7210
+audio follow; full sensor snapshots, synchronized knocks, CA-to-strike, and voice
+remain dependency-bound. The roadmap gives separate feature-file ownership and
+reserves launcher/shared-service integration, artifact identity, and flashing to
+one integration lane. It explicitly leaves the separate RTC/GPS dusk-to-dawn
+workstream authoritative and untouched.
+
+Corrected the root README's obsolete claim that the bridge was unbuilt and no
+hardware was on hand, and pointed the T-Deck README at the new roadmap. No
+firmware, hardware, fleet command, build, or flash changed in this triage.
+
+## 2026-08-24 -- Ben + Codex -- Locked T-Deck development cache ported
+
+Reviewed the accepted fixture `--dev-cache` implementation and applied the
+same bounded mechanism to `firmware/tdeck_bridge/build.sh` without changing the
+fresh-build default. The T-Deck cache has an atomic single-writer directory
+lock, a recipe fingerprint covering the full FQBN, flags, Arduino CLI, ESP32
+platform, LVGL, and LovyanGFX, an in-progress marker, fail-closed stale-state
+handling, and explicit quarantine recovery. Cached images report
+`tdeck-dev-local`; `--dev-cache` is rejected with `--build-path`, and retained
+paths must be new or empty. A compile-free build-wrapper contract now runs with
+the native suite; all tests passed.
+
+A deliberate pre-compiler interruption exercise left the expected marker and
+lock. Its pause expired during harness cleanup and briefly spawned one Arduino
+process; the exact wrapper, Arduino process, and Xtensa child were stopped, no
+build process remained, and the wrapper quarantined the partial cache as
+designed. The earlier interrupted `tdeck-ledsleep-20260824-field2` directory
+also remains untrusted and was not reused.
+
+The first real cache seed then completed cleanly in about 55 minutes under
+heavy host load. A warm no-op cache hit completed in about 76 seconds with an
+identical 1,500,176-byte binary and SHA-256
+`90fd45e257a92d61c94ae1cd87e23fa7383ee2cd009916f673dc219ac57cbae5`.
+Later host scheduling made the pre-flash warm check slower, so the speedup is
+real but T-Deck timing is not yet stable. No cache-corruption signature
+appeared; lock and marker both cleared after success.
+
+With Ben's T-Deck explicitly on USB, the same cached binary was flashed only
+to `8EB508` (`44:1B:F6:8E:B5:08`) on `COM152`. Esptool verified every region.
+The controlled reboot reported `tdeck-bridge dev-local` and
+`fw=tdeck-dev-local`; PSRAM, keyboard, touch, ES7210, GPS, LVGL, memory, and
+live fleet receive all passed (1,447 peer lines in 16 seconds), with no panic.
+No lighting, dark, or sleep command was sent.
+
+## 2026-08-24 -- Ben + Codex -- T-Deck LED Studio and night-rest controls
+
+Onboarded to the Burning Man field state and completed the existing T-Deck
+Zones direction as a field-facing LED Studio. It now offers labelled colors,
+client-side dim, class filters, and a 1 Hz solid/blink toggle. Direct-frame
+waves use the full 192-entry census instead of silently limiting control to 64
+fixtures; blink edges use the existing hard-cut flag. No wire type changed.
+
+Added a local Sleep / Dark app with 10-minute, 1-hour, 4-hour, 8-hour, and
+12-hour choices. Dark is an expiring hard-cut program lease with the radio
+awake. Low-power sleep reuses `NB_SLEEP_FOR`, cuts both rails and the radio,
+cannot be cancelled while sleeping, and resumes normally at timer wake. Both
+actions stop any suspended LED stream and require the on-device confirmation
+rail showing live/seen counts. Sleep remains absent from the Claude tools and
+serial CLI. ADR 0048 records the narrow exception to ADR 0037/0047.
+
+The T-Deck native suite and the complete fixture native suite passed. The final
+fresh build reports `tdeck-0.2.0-field1`: sketch use 1,500,023 bytes (47
+percent), static RAM 71,984 bytes (21 percent), binary 1,500,176 bytes, SHA-256
+`ffc274ebdb936e487e8c81551f27ccd69a8667bcf84b82760781ef022706c1bd`.
+That exact image was then USB-flashed to T-Deck `8EB508` on `COM152`; esptool
+verified every written region. The board clean-booted as `0.2.0-field1` with
+8 MB PSRAM, keyboard, touch, GPS, LVGL, stable memory, and live fleet receive
+(1,072 peer lines observed in 12 seconds). No mesh command was sent.
+
+Validation exposed one identity defect: `nb_emit.cpp` independently defaulted
+its machine line to `tdeck-0.1.0` even while the authoritative boot banner
+correctly said `0.2.0-field1`. Current source centralizes both surfaces in
+`src/core/version.h` and bumps the next retained identity to
+`0.2.0-field2`. Its attempted fresh build was interrupted and is untrusted; it
+was not flashed. Physical UI and canary action validation remain in TODO.
+
 ## 2026-08-24 -- Ben + Codex -- Locked fixture dev cache adopted; cleanup incident recovered
 
 Executed the gated build-acceleration handoff on branch

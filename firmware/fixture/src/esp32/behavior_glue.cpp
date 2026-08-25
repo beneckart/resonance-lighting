@@ -6,6 +6,8 @@
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
 #include "../core/presence_wave.h"
+#include "../core/show_schedule.h"
+#include "../core/time_consensus.h"
 #include "board_power.h"
 #include "espnow_link.h"
 #include "identity.h"
@@ -16,7 +18,7 @@
 #include "sensors/sensors.h"
 #include "telemetry.h"
 
-#define RES_RX_HOLD_MS 600000UL      // heard-anything hold (10 min)
+#define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
 #define RES_BOOT_AWAKE_MS 600000UL   // cold-boot listen window (10 min)
 #define RES_WAKE_LISTEN_MS 15000UL   // deep-sleep wake listen window
 #define RES_CHOREO_KEEPALIVE_MS 1000
@@ -40,6 +42,9 @@ static uint32_t gAwakeGraceUntilMs = 0;
 static uint32_t gNextChoreoTxMs = 0;
 static uint32_t gLastShowFrameRxMs = 0;
 static uint8_t gLastProfile = 0xFF;
+static TimeConsensus gTimeConsensus;
+static bool gScheduleValid = false;
+static bool gScheduleNight = false;
 
 struct PresenceWaveState {
   uint32_t eventId;
@@ -162,6 +167,10 @@ void behaviorOnEvent(const NbEvent &event) {
     waveActivate(event.params[NB_EVENT_DEPTH_OFFSET], event.hop_limit);
 }
 
+void behaviorOnTimeQuality(const NbTimeQuality &time, const uint8_t srcId[3]) {
+  timeConsensusObserve(gTimeConsensus, time, srcId, millis());
+}
+
 static void waveTick(uint32_t now) {
   if (gRuntime.leaseActive()) {
     gPresencePending = false;
@@ -231,6 +240,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
   memset(&gWave, 0, sizeof(gWave));
+  timeConsensusInit(gTimeConsensus);
 }
 
 void behaviorForceNight(int8_t force) { gForceNight = force; }
@@ -362,10 +372,27 @@ void behaviorTick() {
   li.supplyMa = supplyMa();
   li.battV = batteryVolts();
   li.tier = (uint8_t)pb.tier;
-  li.lastRxMs = espNowLastRxMs();
+  li.lastRxMs = espNowLastControlRxMs();
   li.awakeGraceUntilMs = gAwakeGraceUntilMs;
   li.rxHoldMs = RES_RX_HOLD_MS;
-  li.forceNight = gForceNight;
+  TimeEstimate wall = timeConsensusEstimate(gTimeConsensus, now);
+  if (wall.valid) {
+    bool wasValid = gScheduleValid;
+    bool wasNight = gScheduleNight;
+    ShowScheduleResult scheduled = showScheduleAt(wall.utcS);
+    gScheduleValid = true;
+    gScheduleNight = scheduled.night;
+    if (!wasValid || wasNight != gScheduleNight)
+      Serial.printf("schedule: utc=%lu solar=%.1f -> %s (src=%u votes=%u)\n",
+                    (unsigned long)wall.utcS, scheduled.solarElevationDeg,
+                    gScheduleNight ? "night" : "day", wall.source, wall.votes);
+  } else {
+    gScheduleValid = false;
+  }
+  // Explicit bridge/serial override wins. With AUTO selected, trustworthy UTC
+  // supersedes the panel-current dusk heuristic through the existing seam.
+  li.forceNight = gForceNight >= 0 ? gForceNight
+                                   : (gScheduleValid ? (gScheduleNight ? 1 : 0) : -1);
   LifeOutputs lo = lifeTick(gLife, li, gLifeCfg);
 
   if (lo.stateChanged)
@@ -412,7 +439,8 @@ void behaviorTick() {
     // shows that it is ready for command") instead of the default programs.
     // Radio, sensors, telemetry, and every commanded path (DIRECT stream,
     // bridge show, identify) stay fully live.
-    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
+    if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive())
+      quietIdleFrame(gFrame, gPixels, now);
 #endif
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
@@ -465,7 +493,8 @@ void behaviorTick() {
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
-    if (!gRuntime.leaseActive()) quietIdleFrame(gFrame, gPixels, now);
+    if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive())
+      quietIdleFrame(gFrame, gPixels, now);
     gNetCaState = 0;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -508,8 +537,11 @@ bool behaviorFrame(FrameBuffer &f) {
   // A bridge DARK lease is electrically dark, not merely an all-zero frame.
   // Returning false lets renderTick blank data and cut the LED rail.
   if (gRuntime.darkLeaseActive()) return false;
-  // Quiet posture always has a class-appropriate listener frame (or a leased
-  // commanded frame). Keeps the LED rail up whenever the chip is awake.
+  // Field posture is autonomous only at scheduled night. During scheduled day
+  // it is electrically dark unless a direct/program lease deliberately
+  // overrides the baseline. Commission retains ADR 0039's ready beacon.
+  if (gCfg.profile == PROFILE_PROD && !gShowActive && !gRuntime.leaseActive())
+    return false;
   f = gFrame;
   return true;
 #else

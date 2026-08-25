@@ -90,8 +90,12 @@ The camp AP (Starlink in bypass mode -> GL.iNet Beryl AX) therefore serves a
 dedicated 2.4 GHz SSID fixed to channel 11, and any device that associates while
 using ESP-NOW must verify the channel and drop WiFi rather than lose the mesh.
 Router ordered, not yet configured; runbook in `docs/howto/CAMP_NETWORK_SETUP.md`.
-The first intended consumer is a Claude-backed mesh bridge handheld -- a proposed
-post-event direction only, with no hardware bought (ADR 0037).
+The first simultaneous mesh-plus-internet consumer is now **Resonance Bridge OS**
+on the LilyGO T-Deck Plus. Hardware is on hand and M0-M4 plus the first M5 apps
+are implemented and hardware-verified (ADRs 0047 and 0048). The channel guard
+and WiFi/mesh coexistence passed on the house channel-11 network; Beryl field
+configuration and validation remain open. The current app order is in
+`firmware/tdeck_bridge/APP_ROADMAP.md`.
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 

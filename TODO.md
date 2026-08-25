@@ -4,6 +4,48 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Hardware-validate the T-Deck Health app.** Source, native tests, and the
+  merged image now flashed to T-Deck `8EB508` cover the 134-entry production registry,
+  stable no-scroll tile ordering,
+  fresh/off-air merge, unexpected live IDs, and exact raw-VBAT bands: green
+  >3.20 V, yellow >3.10 V, red <=3.10 V. On T-Deck `8EB508`, verify all tiles
+  fit at once, red/yellow/green/grey/blue rendering, touch and trackball detail
+  entry, a known off-air fixture, a known low canary, and heap/PSRAM watermarks
+  after repeated open/detail/back cycles. This app is read-only; do not send a
+  fleet command during validation. Final merged flashed binary: 1,511,504 bytes,
+  SHA-256 `e208ad2be85681e4149de9f8c6890017f57c4b4342d76a3589e31be8c037e893`
+  (Ben/Codex).
+- [~] **Field-validate the T-Deck LED Studio / Sleep app on explicit canaries.**
+  T-Deck `8EB508` on `COM152` now runs `tdeck-dev-local` and passed exact flash
+  verification, clean boot, peripherals, memory, correct machine identity, and
+  live fleet receive. Ben exercised LED Studio, Sleep / Dark, Knocker, and CA
+  Studio on the night of 2026-08-23/24 and reports that all behaved as designed.
+  This is a broad functional field pass, not yet the full canary matrix. Retained
+  `field2` source fixes `field1`'s stale telemetry-only version label. Name one
+  HEX plus one point-source fixture, then verify RGB, class filtering, 1 Hz
+  blink, stop fallback, 10-minute dark expiry, and a short rails-off timer
+  sleep/rejoin. Before any overnight fleet sleep, compare live/seen counts and
+  account for radio-silent fixtures separately (Ben).
+- [~] **Revalidate the revised full-fleet Knocker roll.** Field use exposed that
+  the old `knock all` selected at most 32 fresh fixtures in heartbeat order and
+  paced targeted sends every 300 ms. Current source plans the complete
+  192-entry census in deterministic short-ID order, dispatches every 80 ms, and
+  labels the action as a targeted roll rather than synchronized fire. Native
+  130-fixture coverage and the complete T-Deck firmware build pass. Recheck from
+  the T-Deck against an explicit awake/day-active cohort; fixture lifecycle and
+  power gates may still refuse individual requests by design. True synchronized
+  fire remains separate work behind RTC/GPS plus a fixture strike-event seam
+  (Ben + Codex).
+- [x] **Seed and validate the locked T-Deck development cache -- DONE
+  2026-08-24.** The fixture cache's lock, recipe fingerprint, interruption
+  marker, quarantine recovery, `tdeck-dev-local` identity, and fresh-artifact
+  boundary are ported. Compile-free wrapper checks, native tests, interrupted
+  recovery, cold seed, identical-SHA warm reuse, exact USB flash, and clean
+  boot/mesh verification passed on `8EB508`. The heavy-load cold seed took
+  about 55 minutes and the first warm no-op about 76 seconds; later timing was
+  variable. The old interrupted `tdeck-ledsleep-20260824-field2` directory was
+  not reused (Ben + Codex).
+
 - [ ] **Recover the exact `fx-260819-7afe0a6-b` bench artifact from a deployed
   prototype if needed.** A mistaken ignored-build cleanup removed the last found
   filesystem copy. Do not rebuild or reuse the revision. Read exactly the
@@ -73,13 +115,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixtures against dashboard identities instead of inferring missing units from
   aggregate counts (Ben + Elliot/field team).
 
-- [ ] **Choose the daytime recovery posture after the dark-awake baseline.**
+- [~] **Choose the daytime recovery posture after the dark-awake baseline.**
   `B3600` proved that removing the LED load swings the updated awake fleet from
   aggregate discharge to aggregate charge, but battery-only fixtures still draw
   roughly 126-144 mA because ESP-NOW RX stays awake. Decide whether diagnostic
   reachability justifies that floor or whether to use the existing field-profile
-  300 s sleep / 15 s listen duty cycle for solar recovery. Do not call `F1` an
-  isolated 0.2 Hz test: it also changes lifecycle and sleep behavior (Ben).
+  300 s sleep / 15 s listen duty cycle for solar recovery. ADR 0049 keeps
+  300/15 as the production default and fixes the RX hold so peer heartbeat,
+  choreography, and time traffic cannot defeat it; only accepted operator
+  controls hold a fixture awake for ten minutes. A selectable 60 s sleep / 8 s
+  listen build-week posture remains open, as do external-INA averages including
+  boot overhead for both cadences. Do not call `F1` an isolated 0.2 Hz test: it
+  also changes lifecycle and sleep behavior (Ben/Codex).
 
 - [ ] **Morning field repair: inspect every flagged false chandelier.** Ben
   flagged all 11 zero-sensor fixtures in the dashboard. Visual inspection says
@@ -691,8 +738,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   durations, charge/discharge Ah/Wh, min/max VBAT, peak powers, DIM/PROTECT/reset
   outcome, and completion reason before reset; expose it in heartbeat/telemetry with a
   validity marker. Avoid per-second NVS writes (Ben/Codex).
-- [ ] **Implement and qualify sparse GPS/RTC time anchors plus scheduled shows
-  (ADR 0031):** production direction is deterministic site/date UTC start/stop, not
+- [~] **Implement and qualify sparse GPS/RTC time anchors plus scheduled shows
+  (ADR 0031/0049):** source implementation landed 2026-08-24: T-Deck active-RMC
+  GPS publication, read-only DS3231 UTC with OSF refusal, bounded monotonic
+  eight-source selection, Black Rock City civil twilight, 30-minute stale
+  fallback, and RAM-only T-Deck Auto / Day Dark / Night Show campaigns. Native
+  time/parser/schedule tests pass. Production direction is deterministic
+  site/date UTC start/stop, not
   panel-current consensus. Four SAM-M8Q modules are already bought as GPS soft anchors
   for absolute UTC, and four Adafruit DS3231 STEMMA modules with backup batteries are
   already bought as initial RTC holdover anchors. Distribute source/age/uncertainty
@@ -708,8 +760,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   on 60 fixtures using sensor bits 4/5 and dashboard G/R badges. It found GPS
   anchor `F2BDB4` and RTC anchors `9F0E7C` and `9F26C0`; the other five
   purchased boards remain to be found in the held-back or silent population.
-  Actual time reads, validity, distribution, and qualification remain open
-  (Ben/Codex).
+  Hardware validation remains open: flash named canaries, confirm GPS packets
+  and RTC validity/disagreement handling, run compressed dusk/dawn plus a real
+  overnight, measure holdover/drift/acquisition energy, and qualify SAM-M8Q I2C
+  acquisition through the actual hat. Fixture GPS reading, peer relay, schedule
+  versioning, and final anchor counts also remain open (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
   load, and thresholds unchanged for the first complete dusk/show/recovery cycle.

@@ -10,6 +10,14 @@ FIRMWARE_ROOT="$(cd "${SKETCH_DIR}/.." && pwd)"
 BUILD_DIR="$(mktemp -d /tmp/tdeck-tests.XXXXXX)"
 trap 'rm -rf "${BUILD_DIR}"' EXIT
 
+bash "${TESTS_DIR}/test_build_wrapper_contract.sh"
+
+python "${SKETCH_DIR}/tools/generate_health_registry.py" \
+  "${FIRMWARE_ROOT}/../ops/fleet/registry.csv" \
+  > "${BUILD_DIR}/fleet_registry_generated.h"
+diff -u "${SKETCH_DIR}/src/core/fleet_registry_generated.h" \
+  "${BUILD_DIR}/fleet_registry_generated.h"
+
 CORE_SRCS=$(find "${SKETCH_DIR}/src/core" -name '*.cpp' 2>/dev/null | sort || true)
 
 fail=0

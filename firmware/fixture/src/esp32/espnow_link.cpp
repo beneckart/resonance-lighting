@@ -14,6 +14,7 @@ static bool gUp = false;
 static uint32_t gTxSeq = 0;
 static volatile uint32_t gSendOk = 0, gSendFail = 0;
 static volatile uint32_t gLastRxMs = 0;
+static uint32_t gLastControlRxMs = 0;
 
 static void resetRxQueue() {
   if (gRxQueue) xQueueReset(gRxQueue);
@@ -49,6 +50,7 @@ bool espNowInit() {
   // ENTER_MAINT would immediately pull a resumed fixture back out of comms.
   resetRxQueue();
   gLastRxMs = 0;
+  gLastControlRxMs = 0;
 
   esp_err_t err = esp_wifi_set_channel(gCfg.channel, WIFI_SECOND_CHAN_NONE);
   if (err != ESP_OK) {
@@ -99,6 +101,7 @@ void espNowDeinit() {
   }
   gUp = false;
   gLastRxMs = 0;
+  gLastControlRxMs = 0;
   resetRxQueue();
 }
 
@@ -127,3 +130,5 @@ bool espNowSendRaw(const void *data, size_t len) {
 uint32_t espNowSendOk() { return gSendOk; }
 uint32_t espNowSendFail() { return gSendFail; }
 uint32_t espNowLastRxMs() { return gLastRxMs; }
+uint32_t espNowLastControlRxMs() { return gLastControlRxMs; }
+void espNowNoteControlRx() { gLastControlRxMs = millis(); }

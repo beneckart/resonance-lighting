@@ -216,12 +216,18 @@ static void processPacket(const RxItem &it) {
   }
   case NB_PROGRAM_SET: {
     if (it.len < (int)sizeof(NbProgramSet)) return;
-    behaviorOnProgramSet(*(const NbProgramSet *)it.data);
+    const NbProgramSet *ps = (const NbProgramSet *)it.data;
+    if (!nbTargetMatches(ps->target_id, gMyId)) return;
+    espNowNoteControlRx();
+    behaviorOnProgramSet(*ps);
     break;
   }
   case NB_NEIGHBOR_SET: {
     if (it.len < (int)sizeof(NbNeighborSet)) return;
-    behaviorOnNeighborSet(*(const NbNeighborSet *)it.data);
+    const NbNeighborSet *ns = (const NbNeighborSet *)it.data;
+    if (!nbTargetMatches(ns->target_id, gMyId)) return;
+    espNowNoteControlRx();
+    behaviorOnNeighborSet(*ns);
     break;
   }
   case NB_EVENT: {
@@ -231,6 +237,7 @@ static void processPacket(const RxItem &it) {
   }
   case NB_SHOWFRAME: {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
+    espNowNoteControlRx();
     accountDownlink(h, it.rssi);
     const NbShowFrame *f = (const NbShowFrame *)it.data;
     gShowFrame.rx_ms = millis();
@@ -257,6 +264,7 @@ static void processPacket(const RxItem &it) {
     const NbDirectEntry *e = nbDirectFindEntry(df, it.len, gMyId);
     if (!e) break; // frame doesn't name us: not ours, ignore
     ++gDirectMatched;
+    espNowNoteControlRx();
     behaviorOnDirectFrame(e->r, e->g, e->b, e->w, df->flags);
     break;
   }
@@ -265,6 +273,7 @@ static void processPacket(const RxItem &it) {
     const NbForceLifecycle *fl = (const NbForceLifecycle *)it.data;
     if (!nbTargetMatches(fl->target_id, gMyId)) return;
     if (fl->mode > 2) return;
+    espNowNoteControlRx();
     // Radio twin of serial 'N': RAM-only, a reboot always returns to auto.
     behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
     Serial.printf("force_night -> %s (radio)\n",
@@ -276,6 +285,7 @@ static void processPacket(const RxItem &it) {
     const NbTransportSleep *ts = (const NbTransportSleep *)it.data;
     if (!nbTargetMatches(ts->target_id, gMyId)) return;
     if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
+    espNowNoteControlRx();
     enterTransportSleep(ts->seconds, "radio-transport");
     break;
   }
@@ -283,6 +293,7 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)sizeof(NbLocateControl)) return;
     const NbLocateControl *lc = (const NbLocateControl *)it.data;
     if (!nbTargetMatches(lc->target_id, gMyId)) return;
+    espNowNoteControlRx();
     if (lc->duration_s == 0) {
       gLocateActive = false;
       Serial.println("locate survey: stopped");
@@ -298,22 +309,31 @@ static void processPacket(const RxItem &it) {
     break;
   }
   case NB_ENTER_MAINT:
-    if (maintMode() == MODE_COMMS) enterMaintenance();
+    if (maintMode() == MODE_COMMS) {
+      espNowNoteControlRx();
+      enterMaintenance();
+    }
     break;
   case NB_TARGET_ENTER_MAINT: {
     if (it.len < (int)sizeof(NbTargetCmd)) return;
     const NbTargetCmd *c = (const NbTargetCmd *)it.data;
-    if (nbTargetMatches(c->target_id, gMyId) && maintMode() == MODE_COMMS)
+    if (nbTargetMatches(c->target_id, gMyId) && maintMode() == MODE_COMMS) {
+      espNowNoteControlRx();
       enterMaintenance();
+    }
     break;
   }
   case NB_RESUME:
-    if (maintMode() == MODE_MAINT) enterComms();
+    if (maintMode() == MODE_MAINT) {
+      espNowNoteControlRx();
+      enterComms();
+    }
     break;
   case NB_SET_RATE: {
     if (it.len < (int)sizeof(NbCmd)) return;
     const NbCmd *c = (const NbCmd *)it.data;
     if (c->arg >= 1 && c->arg <= 100) {
+      espNowNoteControlRx();
       netPeerSetRateHz(c->arg);
       Serial.printf("rate set -> %u Hz\n", c->arg);
     }
@@ -323,6 +343,7 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
     const NbIdentify *id = (const NbIdentify *)it.data;
     if (!nbTargetMatches(id->target_id, gMyId)) return;
+    espNowNoteControlRx();
     bool hasColor = it.len >= (int)(offsetof(NbIdentify, blink) + sizeof(id->blink));
     bool hasValue = it.len >= (int)sizeof(NbIdentify);
     gIdentColor = hasColor ? id->color : 0;
@@ -335,6 +356,7 @@ static void processPacket(const RxItem &it) {
   case NB_SET_MAINTAIN: {
     if (it.len < (int)sizeof(NbCmd)) return;
     const NbCmd *c = (const NbCmd *)it.data;
+    espNowNoteControlRx();
     applyMaintainV10(c->arg);
     break;
   }
@@ -350,6 +372,7 @@ static void processPacket(const RxItem &it) {
       if (!nbTargetMatches(c->target_id, gMyId)) return;
       mah = c->value;
     }
+    espNowNoteControlRx();
     applyCapacityAndReboot(mah);
     break;
   }
@@ -365,20 +388,27 @@ static void processPacket(const RxItem &it) {
       if (!nbTargetMatches(c->target_id, gMyId)) return;
       ma = c->value;
     }
+    espNowNoteControlRx();
     applyChargeMa(ma);
     break;
   }
   case NB_SLEEP_FOR: {
     if (it.len < (int)sizeof(NbSetU16)) return;
     const NbSetU16 *c = (const NbSetU16 *)it.data;
-    if (c->value > 0) enterTimedDeepSleep(c->value, "radio");
+    if (c->value > 0) {
+      espNowNoteControlRx();
+      enterTimedDeepSleep(c->value, "radio");
+    }
     break;
   }
   case NB_TARGET_SLEEP_FOR: {
     if (it.len < (int)sizeof(NbTargetU16)) return;
     const NbTargetU16 *c = (const NbTargetU16 *)it.data;
     if (memcmp(c->target_id, gMyId, 3) != 0) return; // never all-sleep by 00:00:00 here
-    if (c->value > 0) enterTimedDeepSleep(c->value, "radio-target");
+    if (c->value > 0) {
+      espNowNoteControlRx();
+      enterTimedDeepSleep(c->value, "radio-target");
+    }
     break;
   }
   case NB_TARGET_SOLENOID: {
@@ -391,6 +421,7 @@ static void processPacket(const RxItem &it) {
       Serial.println("solenoid: radio strike refused (lifecycle/power gate)");
       break;
     }
+    espNowNoteControlRx();
     solenoidStrike(c->value, "radio");
     break;
   }
@@ -399,6 +430,7 @@ static void processPacket(const RxItem &it) {
     const NbProfile *p = (const NbProfile *)it.data;
     if (!nbTargetMatches(p->target_id, gMyId)) return;
     if (p->profile > PROFILE_PROD) return;
+    espNowNoteControlRx();
     if (p->flags & 0x01) {
       nvsPersistProfile(p->profile);
     } else {
@@ -409,7 +441,10 @@ static void processPacket(const RxItem &it) {
                   (p->flags & 0x01) ? "persisted" : "until reboot");
     break;
   }
-  case NB_TIME_QUALITY: // reserved: defined, ignored until ADR 0031 lands
+  case NB_TIME_QUALITY:
+    if (it.len < (int)sizeof(NbTimeQuality)) return;
+    behaviorOnTimeQuality(*(const NbTimeQuality *)it.data, h->src_id);
+    break;
   default:
     break;
   }

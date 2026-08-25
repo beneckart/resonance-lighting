@@ -6,3 +6,7 @@
 
 // Probe after VSQT is up and settled (~150 ms). Cheap, read-only.
 ProbeBits sensorBusProbe();
+
+// Read-only DS3231 UTC observation. Refuses oscillator-stop (OSF), malformed
+// BCD, or dates outside the deployed firmware's accepted time horizon.
+bool sensorBusReadRtcUtc(uint32_t &utcS);

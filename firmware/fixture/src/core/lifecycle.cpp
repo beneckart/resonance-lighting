@@ -73,36 +73,50 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
       st.state = LIFE_NIGHT_SHOW;
       st.nightStartMs = in.nowMs;
     }
-  } else if (in.forceNight == 0) {
-    if (st.state == LIFE_NIGHT_SHOW) st.state = LIFE_DAY_CHARGE;
-  } else if (st.state == LIFE_NIGHT_SHOW) {
-    // Bounded night: the hard stop that no missing sensor can defeat.
-    uint32_t nightMin = (in.nowMs - st.nightStartMs) / 60000UL;
-    if (nightMin >= c.nightMaxMin) {
-      st.state = LIFE_DAY_CHARGE;
-      st.nightDone = true;
-    } else if (heldFor(dayEvidence, in.nowMs, st.dawnHeldSinceMs, c.dawnConfirmS)) {
-      st.state = LIFE_DAY_CHARGE; // affirmative dawn: end the show exactly once
-      st.dawnHeldSinceMs = 0;
-    }
   } else {
-    // Day states: dusk gate (supply absent, sustained). The nightDone latch
-    // blocks an immediate re-night after a bounded-night exit.
-    if (!st.nightDone &&
-        heldFor(!dayEvidence, in.nowMs, st.duskHeldSinceMs, c.duskConfirmS)) {
-      st.state = LIFE_NIGHT_SHOW;
-      st.nightStartMs = in.nowMs;
-      st.duskHeldSinceMs = 0;
-    } else if (st.state == LIFE_DAY_CHARGE || st.state == LIFE_BOOT) {
-      if (heldFor(surplus, in.nowMs, st.surplusHeldSinceMs, c.surplusConfirmS)) {
-        st.state = LIFE_DAY_ACTIVE;
-        st.surplusHeldSinceMs = 0;
-      }
-    } else if (st.state == LIFE_DAY_ACTIVE) {
-      bool fade = !surplus && in.battV < c.deficitBattV && in.battV > 0.5f;
-      if (heldFor(fade, in.nowMs, st.noSurplusHeldSinceMs, c.noSurplusConfirmS)) {
+    bool forceDay = in.forceNight == 0;
+    if (!forceDay && st.state == LIFE_NIGHT_SHOW) {
+      // Bounded night: the hard stop that no missing sensor can defeat.
+      uint32_t nightMin = (in.nowMs - st.nightStartMs) / 60000UL;
+      if (nightMin >= c.nightMaxMin) {
         st.state = LIFE_DAY_CHARGE;
-        st.noSurplusHeldSinceMs = 0;
+        st.nightDone = true;
+      } else if (heldFor(dayEvidence, in.nowMs, st.dawnHeldSinceMs,
+                         c.dawnConfirmS)) {
+        st.state = LIFE_DAY_CHARGE; // affirmative dawn: end the show exactly once
+        st.dawnHeldSinceMs = 0;
+      }
+    } else {
+      // Scheduled/explicit day suppresses dusk but still runs the normal
+      // charge <-> surplus-active policy. Daytime strikes therefore remain
+      // possible only after the ordinary surplus confirmation and power veto.
+      if (forceDay) {
+        st.duskHeldSinceMs = 0;
+        if (st.state == LIFE_NIGHT_SHOW) st.state = LIFE_DAY_CHARGE;
+      }
+
+      // Day states: dusk gate (supply absent, sustained). The nightDone latch
+      // blocks an immediate re-night after a bounded-night exit.
+      if (!forceDay && !st.nightDone &&
+          heldFor(!dayEvidence, in.nowMs, st.duskHeldSinceMs,
+                  c.duskConfirmS)) {
+        st.state = LIFE_NIGHT_SHOW;
+        st.nightStartMs = in.nowMs;
+        st.duskHeldSinceMs = 0;
+      } else if (st.state == LIFE_DAY_CHARGE || st.state == LIFE_BOOT) {
+        if (heldFor(surplus, in.nowMs, st.surplusHeldSinceMs,
+                    c.surplusConfirmS)) {
+          st.state = LIFE_DAY_ACTIVE;
+          st.surplusHeldSinceMs = 0;
+        }
+      } else if (st.state == LIFE_DAY_ACTIVE) {
+        bool fade =
+            !surplus && in.battV < c.deficitBattV && in.battV > 0.5f;
+        if (heldFor(fade, in.nowMs, st.noSurplusHeldSinceMs,
+                    c.noSurplusConfirmS)) {
+          st.state = LIFE_DAY_CHARGE;
+          st.noSurplusHeldSinceMs = 0;
+        }
       }
     }
   }
@@ -117,7 +131,8 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
                      ? (uint16_t)((in.nowMs - st.nightStartMs) / 60000UL)
                      : 0;
   // Day-charge duty cycle (prod only): sleep unless recently booted/woken or
-  // anything was heard on the radio (bridge-hold keeps a poked fleet awake).
+  // an actual operator command was accepted (ordinary fleet heartbeats and
+  // time beacons must never keep every fixture awake indefinitely).
   bool rxHold = in.lastRxMs && (in.nowMs - in.lastRxMs) < in.rxHoldMs;
   out.wantSleep = (st.state == LIFE_DAY_CHARGE) && !c.devNoSleep && !rxHold &&
                   (int32_t)(in.nowMs - in.awakeGraceUntilMs) >= 0;

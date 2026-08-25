@@ -189,6 +189,47 @@ int main() {
     o = lifeTick(st, in, prod);
     CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
   }
+
+  {
+    // Scheduled/explicit day suppresses dusk but must not freeze a field
+    // fixture in DAY_CHARGE. Ordinary surplus confirmation still earns
+    // DAY_ACTIVE and the existing strike gate.
+    LifeConfig prod = lifeConfigDefaults(false);
+    LifeState_t st;
+    lifeInit(st);
+    LifeInputs in = {};
+    in.forceNight = 0;
+    in.supplyGood = true;
+    in.supplyMa = 300;
+    in.battV = 3.35f;
+    in.tier = 0;
+    in.rxHoldMs = 600000;
+    uint32_t t = 1000;
+    LifeOutputs o = {};
+    for (int i = 0; i < 61; ++i) {
+      in.nowMs = (t += 1000);
+      o = lifeTick(st, in, prod);
+    }
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(o.strikesAllowed);
+
+    in.forceNight = 1;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_NIGHT_SHOW);
+
+    in.forceNight = 0;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    for (int i = 0; i < 61; ++i) {
+      in.nowMs = (t += 1000);
+      o = lifeTick(st, in, prod);
+    }
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(o.strikesAllowed);
+  }
+
   {
     // Dev's wire-stable value is COMMISSION: no inferred dusk/autonomy and no
     // sleep. The command runtime is available, with power tiers still vetoing.

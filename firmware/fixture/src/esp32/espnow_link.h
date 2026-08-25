@@ -28,4 +28,6 @@ bool espNowSendRaw(const void *data, size_t len);
 
 uint32_t espNowSendOk();
 uint32_t espNowSendFail();
-uint32_t espNowLastRxMs(); // 0 = nothing heard since boot (bridge-hold input)
+uint32_t espNowLastRxMs(); // 0 = nothing heard since boot (diagnostics only)
+uint32_t espNowLastControlRxMs(); // accepted operator command, not peer traffic
+void espNowNoteControlRx();       // loop context after target/validity checks

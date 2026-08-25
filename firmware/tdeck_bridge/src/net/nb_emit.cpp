@@ -4,15 +4,12 @@
 #include <esp_system.h>
 
 #include "../core/census.h"
+#include "../core/version.h"
 #include "../hal/hal_board.h"
 #include "../store/store.h"
 #include "census_svc.h"
 #include "fixture/src/core/packet.h"
 #include "mesh_tx.h"
-
-#ifndef TDECK_FW_VERSION
-#define TDECK_FW_VERSION "0.1.0"
-#endif
 
 static bool gEnabled = true;
 

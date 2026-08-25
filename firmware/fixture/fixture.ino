@@ -28,12 +28,14 @@
 #include "src/esp32/solenoid.h"
 #include "src/esp32/status_led.h"
 #include "src/esp32/telemetry.h"
+#include "src/esp32/time_anchor.h"
 #include "src/esp32/watchdog.h"
 
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 
 void setup() {
+  bool haveRtcAnchor = false;
   // 1. Fail-safe parks before ANY other work: solenoid gate (VDC is always
   //    live), pixel data, EN_3V3 rail (RTC-held low until deliberately raised).
   bootParkAll();
@@ -78,6 +80,7 @@ void setup() {
   // 8. Class probe -> LED profile (one image, hardware decides; ADR 0009).
   if (!deepRecoveryBuild() && !bootGuardParked()) {
     ProbeBits bits = sensorBusProbe();
+    haveRtcAnchor = bits.ds3231;
     gTelemetrySensorBits = probeBitsMask(bits);
     ClassDecision cd = classDecide(bits, gCfg.classOvr, gCfg.classLast);
     if (cd.persistLast) nvsPersistClassLast(cd.persistLast);
@@ -124,6 +127,7 @@ void setup() {
   powerGlueInit();
   behaviorInit(gTelemetryFixtureClass, ledPixelCount(),
                ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2]);
+  timeAnchorInit(haveRtcAnchor);
 }
 
 void loop() {
@@ -145,6 +149,7 @@ void loop() {
 
   // COMMS mode.
   netPeerTick();
+  timeAnchorTick();
   powerGlueTick();
   behaviorTick();
   renderTick();

@@ -12,14 +12,12 @@
 #include "src/net/mesh_tx.h"
 #include "src/net/net_mgr.h"
 #include "src/net/stream_svc.h"
+#include "src/net/time_svc.h"
+#include "src/core/version.h"
 #include "src/store/serial_cli.h"
 #include "src/store/store.h"
 #include "src/ui/status_page.h"
 #include "src/ui/ui_task.h"
-
-#ifndef TDECK_FW_VERSION
-#define TDECK_FW_VERSION "0.1.0-m0"
-#endif
 
 static bool gSunTest = false;
 
@@ -46,6 +44,7 @@ void setup() {
   censusSvcBegin(millis());
   netMgrBegin();
   meshTxBegin();
+  timeSvcBegin();
   claudeBegin();
 
   // LVGL shell (M2); the raw status page remains the plan-B fallback.
@@ -66,6 +65,8 @@ void loop() {
   censusSvcTick(millis());
   streamSvcTick(millis());
   halGpsTick();
+  timeSvcTick();
+  meshTxTick();
 
   if (!uiActive()) {
     // Plan-B raw status page: keyboard polled here (LVGL owns it otherwise).

@@ -6,8 +6,8 @@
 #include "../net/census_svc.h"
 #include "../net/mesh_tx.h"
 #include "app_fleet.h"
+#include "app_power.h"
 #include "lvgl_glue.h"
-#include "ui_confirm.h"
 #include "ui_task.h"
 
 static lv_obj_t *gTable = nullptr;
@@ -264,14 +264,9 @@ static void tableClicked(lv_event_t *) {
 
 // ------------------------------------------------------------- fleet-wide --
 
-static void darkYes(void *) {
-  static const uint8_t kAll[3] = {0, 0, 0};
-  meshProgramLease(kAll, 4 /*COMMISSION_DARK*/, 600, 0x01 /*hard cut*/, nullptr);
-}
-
-static void darkCb(lv_event_t *) {
-  uiConfirm("PROGRAM_SET all -> DARK, 600 s lease (self-expires)", "Fleet app",
-            darkYes, nullptr);
+static void powerCb(lv_event_t *) {
+  stopTimer();
+  appPowerOpen();
 }
 
 static void releaseCb(lv_event_t *) {
@@ -305,7 +300,7 @@ void appFleetOpen() {
   lv_obj_set_pos(gHeader, 8, 6);
   lv_label_set_text(gHeader, "Fleet");
 
-  lv_obj_t *dark = makeBarButton(scr, 0, "dark", darkCb);
+  lv_obj_t *dark = makeBarButton(scr, 0, "sleep/dark", powerCb);
   lv_obj_t *rel = makeBarButton(scr, 1, "release", releaseCb);
   lv_obj_t *back = makeBarButton(scr, 2, LV_SYMBOL_LEFT " back", backFromFleet);
 

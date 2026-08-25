@@ -26,3 +26,11 @@ const ProbeReport &halProbeLast();
 // GGA/RMC report one).
 const char *halGpsSummary();
 void halGpsTick();
+
+struct GpsUtcObservation {
+  bool valid;
+  uint32_t utcS;       // UTC at the RMC observation
+  uint16_t subMs;
+  uint32_t receivedMs; // local millis() when that RMC line completed
+};
+GpsUtcObservation halGpsUtc();

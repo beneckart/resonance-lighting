@@ -21,19 +21,35 @@ static const Swatch kSwatches[8] = {
 static lv_obj_t *gClassDd = nullptr;
 static lv_obj_t *gDimSlider = nullptr;
 static lv_obj_t *gInfo = nullptr;
+static lv_obj_t *gModeLabel = nullptr;
+static lv_timer_t *gInfoTimer = nullptr;
 static int gSwatch = 0;
+static bool gBlink = false;
 
 static uint8_t classFilter() {
   return gClassDd ? (uint8_t)lv_dropdown_get_selected(gClassDd) : 0;
 }
 
+static void refreshInfo(lv_timer_t *) {
+  if (!gInfo) return;
+  if (streamMode() == StreamMode::OFF) {
+    lv_label_set_text(gInfo, "stopped; fixtures revert in about 3 s");
+    return;
+  }
+  const Swatch &s = kSwatches[gSwatch];
+  lv_label_set_text_fmt(gInfo, "%s %s -> %d fresh fixtures",
+                        streamMode() == StreamMode::BLINK ? "blink" : "solid",
+                        s.name, streamTargetCount());
+}
+
 static void applyStream() {
   const Swatch &s = kSwatches[gSwatch];
   uint8_t dim = gDimSlider ? (uint8_t)lv_slider_get_value(gDimSlider) : 255;
-  streamSolid(classFilter(), s.r, s.g, s.b, s.w, dim);
-  if (gInfo)
-    lv_label_set_text_fmt(gInfo, "streaming %s to %d fixtures @8Hz", s.name,
-                          streamTargetCount());
+  if (gBlink)
+    streamBlink(classFilter(), s.r, s.g, s.b, s.w, dim);
+  else
+    streamSolid(classFilter(), s.r, s.g, s.b, s.w, dim);
+  refreshInfo(nullptr);
 }
 
 static void swatchCb(lv_event_t *e) {
@@ -45,18 +61,33 @@ static void dimChanged(lv_event_t *) {
   if (streamMode() != StreamMode::OFF) applyStream();
 }
 
+static void classChanged(lv_event_t *) {
+  if (streamMode() != StreamMode::OFF) applyStream();
+}
+
+static void modeCb(lv_event_t *) {
+  gBlink = !gBlink;
+  if (gModeLabel)
+    lv_label_set_text(gModeLabel, gBlink ? "blink 1Hz" : "solid");
+  applyStream();
+}
+
 static void stopCb(lv_event_t *) {
   streamStop();
-  if (gInfo)
-    lv_label_set_text(gInfo, "stopped; fixtures revert in ~3 s (staleness)");
+  refreshInfo(nullptr);
 }
 
 static void backCb(lv_event_t *) {
-  // Deliberately KEEPS an active stream (suspended-owner semantics): the
-  // color survives app-switch; stop is explicit.
+  // Deliberately KEEPS an active stream: the color/blink survives app-switch;
+  // stop is explicit. Sleep / Dark always stops it before a rest action.
+  if (gInfoTimer) {
+    lv_timer_delete(gInfoTimer);
+    gInfoTimer = nullptr;
+  }
   gClassDd = nullptr;
   gDimSlider = nullptr;
   gInfo = nullptr;
+  gModeLabel = nullptr;
   uiGoHome();
 }
 
@@ -67,7 +98,7 @@ void appZonesOpen() {
 
   lv_obj_t *title = lv_label_create(scr);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Zones");
+  lv_label_set_text(title, "LED Studio");
   lv_obj_set_pos(title, 8, 4);
 
   gClassDd = lv_dropdown_create(scr);
@@ -75,11 +106,12 @@ void appZonesOpen() {
                           "all\ndownlights\nperimeter\nuplights\nchandelier");
   lv_obj_set_pos(gClassDd, 130, 2);
   lv_obj_set_width(gClassDd, 182);
+  lv_obj_add_event_cb(gClassDd, classChanged, LV_EVENT_VALUE_CHANGED, nullptr);
 
   lv_group_remove_all_objs(lvglGroup());
   lv_group_add_obj(lvglGroup(), gClassDd);
 
-  // Swatch grid, 4x2, thumb-sized.
+  // Swatch grid, 4x2, thumb-sized and text-labelled for field use.
   for (int i = 0; i < 8; ++i) {
     lv_obj_t *btn = lv_button_create(scr);
     lv_obj_set_size(btn, 72, 44);
@@ -93,6 +125,14 @@ void appZonesOpen() {
                       (uint8_t)LV_MIN(255, s.b + wboost)),
         0);
     lv_obj_add_event_cb(btn, swatchCb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+    lv_obj_t *name = lv_label_create(btn);
+    lv_label_set_text(name, s.name);
+    lv_obj_set_style_text_color(name,
+                                (i == 1 || i == 2 || i == 3 || i == 6)
+                                    ? lv_color_black()
+                                    : lv_color_white(),
+                                0);
+    lv_obj_center(name);
     lv_group_add_obj(lvglGroup(), btn);
   }
 
@@ -111,17 +151,23 @@ void appZonesOpen() {
   gInfo = lv_label_create(scr);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
   lv_obj_set_pos(gInfo, 8, 176);
-  if (streamMode() == StreamMode::OFF)
-    lv_label_set_text(gInfo, "pick a color; class map needs ~60 s of census");
-  else
-    lv_label_set_text_fmt(gInfo, "stream active (%d fixtures)",
-                          streamTargetCount());
+  if (streamMode() == StreamMode::BLINK) gBlink = true;
+  refreshInfo(nullptr);
+
+  lv_obj_t *mode = lv_button_create(scr);
+  lv_obj_set_size(mode, 100, 34);
+  lv_obj_set_pos(mode, 8, 200);
+  gModeLabel = lv_label_create(mode);
+  lv_label_set_text(gModeLabel, gBlink ? "blink 1Hz" : "solid");
+  lv_obj_center(gModeLabel);
+  lv_obj_add_event_cb(mode, modeCb, LV_EVENT_CLICKED, nullptr);
+  lv_group_add_obj(lvglGroup(), mode);
 
   lv_obj_t *stop = lv_button_create(scr);
-  lv_obj_set_size(stop, 140, 34);
-  lv_obj_set_pos(stop, 8, 200);
+  lv_obj_set_size(stop, 100, 34);
+  lv_obj_set_pos(stop, 114, 200);
   lv_obj_t *sl = lv_label_create(stop);
-  lv_label_set_text(sl, LV_SYMBOL_STOP " stop stream");
+  lv_label_set_text(sl, LV_SYMBOL_STOP " stop");
   lv_obj_center(sl);
   lv_obj_add_event_cb(stop, stopCb, LV_EVENT_CLICKED, nullptr);
   lv_group_add_obj(lvglGroup(), stop);
@@ -134,6 +180,8 @@ void appZonesOpen() {
   lv_obj_center(bl);
   lv_obj_add_event_cb(back, backCb, LV_EVENT_CLICKED, nullptr);
   lv_group_add_obj(lvglGroup(), back);
+
+  gInfoTimer = lv_timer_create(refreshInfo, 500, nullptr);
 
   lv_obj_t *old = lv_screen_active();
   lv_screen_load(scr);

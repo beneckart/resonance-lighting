@@ -62,14 +62,14 @@ bool agentExecuteTool(const char *name, const char *inputJson, size_t inputLen,
     long quietS = jsonFindInt(inputJson, inputLen, "quiet_s", 0);
     static CensusView rows[64];
     size_t n = quietS > 0
-                   ? census().quietList((uint32_t)quietS, rows, 64, now)
+                   ? censusQuietListSafe((uint32_t)quietS, rows, 64, now)
                    : censusSnapshotSafe(rows, 64, now);
     int live = 0, seen = 0;
     censusCountsSafe(&live, &seen, now);
     int o = snprintf(result, resultCap,
                      "{\"live\":%d,\"seen\":%d,\"observed_pct\":%u,"
                      "\"fixtures\":[",
-                     live, seen, census().observedPermille() / 10);
+                     live, seen, censusObservedPermilleSafe() / 10);
     for (size_t i = 0; i < n && i < 24 && o > 0; ++i)
       o = appendRow(result, resultCap, o, i == 0, rows[i]);
     if (o < 0) return false;

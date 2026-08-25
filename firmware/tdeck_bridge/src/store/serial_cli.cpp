@@ -31,6 +31,7 @@ static void printHelp() {
       "  i<ID>[:secs]             identify one fixture (blink), e.g. i9E5AB8:10\n"
       "  I                        identify ALL for 8 s\n"
       "  K<ID>:<ms>               solenoid strike, 5-300 ms (never broadcast)\n"
+      "  U<ID>                    exact-target OTA maintenance for 35 s\n"
       "  B[secs]                  fleet dark lease (default 600 s)\n"
       "  b                        release fleet lease (back to autonomous)\n"
       "  t                        one-line JSON telemetry\n"
@@ -80,6 +81,19 @@ static bool handleQuickCommand(const char *tok) {
                     tok + 1, ms);
     else
       Serial.println("strike refused: needs a real target id");
+    return true;
+  }
+  if (tok[0] == 'U') {
+    uint8_t id[3];
+    if (strlen(tok) != 7 || !parseHexId(tok + 1, id)) {
+      Serial.println("U<6-hex-ID> (exact target required)");
+      return true;
+    }
+    if (meshEnterMaintenance(id))
+      Serial.printf("sustained TARGET_ENTER_MAINT %.6s 35s (nonblocking)\n",
+                    tok + 1);
+    else
+      Serial.println("maintenance refused: needs a real target id");
     return true;
   }
   if (tok[0] == 'B') {

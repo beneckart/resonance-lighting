@@ -12,7 +12,7 @@
 //     send-side truncation at any tail boundary valid (see hb-short).
 //   - 1..17  net_bench era (bench masters still send/understand these).
 //   - 18..24 fixture era (production behavior layer).
-//   - 20 is RESERVED: struct defined, parse-stubbed, NOT sent yet.
+//   - 20 is the sparse GPS/RTC/bridge UTC-quality packet (ADR 0031/0049).
 //   - 23 is the bounded presence-wave event used by the 2026-08 field demo.
 //   - 25..26 cambium era (browser-sim serial bridge streaming).
 //   - 27..28 field-pack era (transport sleep + bounded locate survey).
@@ -50,7 +50,7 @@ enum NbType : uint8_t {
   // ---- fixture era ----------------------------------------------------------
   NB_CHOREO_STATE = 18,  // peer -> all: compact fast show/CA state (NIGHT only)
   NB_PROGRAM_SET = 19,   // bridge -> all/target: program override lease
-  NB_TIME_QUALITY = 20,  // RESERVED (ADR 0031 time anchors) -- defined, not sent
+  NB_TIME_QUALITY = 20,  // GPS/RTC/bridge -> fleet: UTC estimate + quality
   NB_PROFILE = 21,       // bridge -> all/target: commission/field profile flip
   NB_NEIGHBOR_REPORT = 22, // fixture -> bridge: bounded strongest-neighbor RSSI report
   NB_EVENT = 23,         // targeted event over broadcast RF (presence wave)
@@ -271,11 +271,24 @@ struct __attribute__((packed)) NbProgramSet { // 19: bridge lease
   uint8_t params[8]; // program-defined
 };
 
-struct __attribute__((packed)) NbTimeQuality { // 20: RESERVED (ADR 0031 seam)
+enum NbTimeSource : uint8_t {
+  NB_TIME_NONE = 0,
+  NB_TIME_GPS = 1,
+  NB_TIME_RTC = 2,
+  NB_TIME_PEER = 3,
+  NB_TIME_BRIDGE = 4,
+};
+
+enum NbTimeFlags : uint8_t {
+  NB_TIME_FLAG_VALID = 0x01,
+  NB_TIME_FLAG_DATE_VALID = 0x02,
+};
+
+struct __attribute__((packed)) NbTimeQuality { // 20: sparse UTC anchor
   NbHeader h;
   uint32_t utc_s;
   uint16_t sub_ms;
-  uint8_t source; // 0=none 1=gps 2=rtc 3=peer 4=bridge
+  uint8_t source; // NbTimeSource
   uint8_t hops;
   uint16_t age_s;
   uint16_t uncert_ms;

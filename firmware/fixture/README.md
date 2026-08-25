@@ -21,6 +21,22 @@ wave. At Cambium's intended 8 Hz rate that is 64 packets/s, below the previously
 exercised ESP-NOW rate range. The Nevada City acceptance bench uses perimeter
 fixtures `F3FD88`, `F2BE80`, and `F2BFEC`.
 
+## UTC schedule and build-week override
+
+`NB_TIME_QUALITY` now carries the ADR 0031/0049 sparse UTC anchor. The T-Deck
+GPS publishes active, checksum-valid RMC time; DS3231 fixtures add read-only
+holdover when OSF is clear. Fixtures select bounded monotonic time and calculate
+Black Rock City civil twilight (`-6 deg`) locally. If accepted time is absent
+for 30 minutes, the existing panel-current dusk/dawn heuristic regains control.
+
+In field profile, scheduled day is electrically dark and scheduled night runs
+the autonomous program. Direct/program leases can override the baseline during
+day; a dark lease can suppress night. `NB_FORCE_LIFECYCLE` provides RAM-only
+Day Dark / Night Show / Auto and clears on reboot. Commission profile remains
+always awake with the ADR 0039 listener beacon. Only accepted operator commands
+hold field fixtures awake for ten minutes; peer heartbeats and time packets do
+not defeat the 300-second sleep / 15-second listen cadence.
+
 ## Transport sleep and rig RSSI capture
 
 `NB_TRANSPORT_SLEEP` provides a 32-bit multi-day timer sleep. The bridge's

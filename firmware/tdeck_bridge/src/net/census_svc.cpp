@@ -8,7 +8,6 @@
 #include "mesh_tx.h"
 #include "nb_emit.h"
 
-#define CENSUS_MAX_TRACKED 192   // cores3 precedent; eviction added on top
 #define CENSUS_FRESH_MS 5000
 #define CENSUS_WINDOW_MS 60000
 #define CENSUS_RING_CAP 256      // power of two; ~70 KB PSRAM
@@ -102,4 +101,26 @@ bool censusPeerSafe(const uint8_t id[3], PeerStat *out) {
   if (p) *out = *p;
   taskEXIT_CRITICAL(&gCensusLock);
   return p != nullptr;
+}
+
+size_t censusQuietListSafe(uint32_t quietS, CensusView *out, size_t maxOut,
+                           uint32_t nowMs) {
+  taskENTER_CRITICAL(&gCensusLock);
+  size_t n = gCensus.quietList(quietS, out, maxOut, nowMs);
+  taskEXIT_CRITICAL(&gCensusLock);
+  return n;
+}
+
+uint16_t censusObservedPermilleSafe() {
+  taskENTER_CRITICAL(&gCensusLock);
+  uint16_t observed = gCensus.observedPermille();
+  taskEXIT_CRITICAL(&gCensusLock);
+  return observed;
+}
+
+uint32_t censusFreshMsSafe() {
+  taskENTER_CRITICAL(&gCensusLock);
+  uint32_t freshMs = gCensus.freshMs();
+  taskEXIT_CRITICAL(&gCensusLock);
+  return freshMs;
 }

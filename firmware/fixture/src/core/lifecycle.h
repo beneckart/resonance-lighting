@@ -40,9 +40,9 @@ struct LifeInputs {
   float supplyMa;
   float battV;
   uint8_t tier;        // LedTier byte; PROTECT/OFF suppress the show
-  uint32_t lastRxMs;   // last ESP-NOW packet heard (bridge-hold + reachability)
+  uint32_t lastRxMs;   // last accepted operator command (not peer/time traffic)
   uint32_t awakeGraceUntilMs; // no day-sleep before this (boot/wake windows)
-  uint32_t rxHoldMs;   // stay awake this long after hearing anything (600000)
+  uint32_t rxHoldMs;   // stay awake this long after a control command (600000)
   int8_t forceNight;   // -1 auto, 0 force day, 1 force night (serial/bridge)
 };
 

@@ -2,7 +2,9 @@
 // and that this build path sees the same golden layout the fixture tests pin.
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 
+#include "core/version.h"
 #include "fixture/src/core/packet.h"
 
 int main() {
@@ -10,7 +12,11 @@ int main() {
   static_assert(sizeof(NbProgramSet) == 32, "NbProgramSet drifted");
   static_assert(sizeof(NbIdentify) == 20, "NbIdentify drifted");
   static_assert(sizeof(NbTargetU16) == 18, "NbTargetU16 drifted");
+  static_assert(sizeof(NbSetU16) == 15, "NbSetU16 drifted");
+  static_assert(sizeof(NbTransportSleep) == 20,
+                "NbTransportSleep drifted");
   static_assert(NB_DIRECT_MAX_ENTRIES == 18, "direct-frame capacity drifted");
+  assert(strcmp(TDECK_FW_VERSION, "0.2.0-field2") == 0);
 
   // Targeting semantics: 00:00:00 is "all" for nbTargetMatches consumers.
   const uint8_t all[3] = {0, 0, 0};
