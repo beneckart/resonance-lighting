@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Callsign Bridge OS flashed to T-Deck
+
+USB-flashed the final callsign- and Magic-Wand-aware Bridge OS image to exact
+T-Deck `8EB508` (`44:1B:F6:8E:B5:08`) on `COM152`. The immutable observed binary
+is 1,549,728 bytes with SHA-256
+`b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`.
+Esptool verified every written region and reset the board.
+
+Live post-flash checks found 8 MB PSRAM, keyboard, touch, ES7210 audio codec,
+and GPS at 38,400 baud. The bridge rejoined ESP-NOW channel 11 as master
+`8EB508`; frame and successful-send counters advanced with zero send failures.
+No fixture-control command, maintenance request, or fixture OTA was sent. The
+Magic Wand remains on its known-good `.1` image because callsign display and
+protected-role recognition do not require fixture firmware changes. Physical
+callsign UI and named-command acceptance remain open in `TODO.md`.
+
 ## 2026-08-24 -- Ben + Codex -- Bridge OS callsigns joined with Magic Wand
 
 Committed the completed callsign work, then merged current `main` so Bridge OS
