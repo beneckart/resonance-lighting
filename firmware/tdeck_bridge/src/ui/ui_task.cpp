@@ -30,17 +30,31 @@ static lv_obj_t *gStatusLabel = nullptr;
 struct Tile {
   const char *symbol;
   const char *name;
+  void (*open)();
 };
-// App registry proper (App base class + per-app screens) lands with Fleet;
-// this table is the navigable skeleton every app slots into.
+
+static void openSunTest();
+static void openPatternsPlaceholder();
+static void openLocatePlaceholder();
+static void openRfPlaceholder();
+
+// The launcher owns registration only. Each app owns its screen lifecycle and
+// returns through uiGoHome(); adding an app does not extend a string dispatch
+// chain or require a shared base class.
 static const Tile kTiles[] = {
-    {LV_SYMBOL_KEYBOARD, "Claude"},  {LV_SYMBOL_LIST, "Fleet"},
-    {LV_SYMBOL_BATTERY_FULL, "Health"},
-    {LV_SYMBOL_TINT, "LEDs"},        {LV_SYMBOL_BELL, "Knock"},
-    {LV_SYMBOL_PLAY, "Patterns"},    {LV_SYMBOL_LOOP, "CA"},
-    {LV_SYMBOL_GPS, "Schedule"},     {LV_SYMBOL_EYE_OPEN, "Locate"},
-    {LV_SYMBOL_WIFI, "RF"},          {LV_SYMBOL_POWER, "Sleep"},
-    {LV_SYMBOL_IMAGE, "SunTest"},    {LV_SYMBOL_SETTINGS, "Settings"},
+    {LV_SYMBOL_KEYBOARD, "Claude", appChatOpen},
+    {LV_SYMBOL_LIST, "Fleet", appFleetOpen},
+    {LV_SYMBOL_BATTERY_FULL, "Health", appHealthOpen},
+    {LV_SYMBOL_TINT, "LEDs", appZonesOpen},
+    {LV_SYMBOL_BELL, "Knock", appKnockerOpen},
+    {LV_SYMBOL_PLAY, "Patterns", openPatternsPlaceholder},
+    {LV_SYMBOL_LOOP, "CA", appCaOpen},
+    {LV_SYMBOL_GPS, "Schedule", appScheduleOpen},
+    {LV_SYMBOL_EYE_OPEN, "Locate", openLocatePlaceholder},
+    {LV_SYMBOL_WIFI, "RF", openRfPlaceholder},
+    {LV_SYMBOL_POWER, "Sleep", appPowerOpen},
+    {LV_SYMBOL_IMAGE, "SunTest", openSunTest},
+    {LV_SYMBOL_SETTINGS, "Settings", appSettingsOpen},
 };
 
 static void buildLauncher();
@@ -157,19 +171,13 @@ static void openPlaceholder(const char *name) {
   if (old && old != gLauncher) lv_obj_delete(old);
 }
 
+static void openPatternsPlaceholder() { openPlaceholder("Patterns"); }
+static void openLocatePlaceholder() { openPlaceholder("Locate"); }
+static void openRfPlaceholder() { openPlaceholder("RF"); }
+
 static void tileClicked(lv_event_t *e) {
   const Tile *tile = (const Tile *)lv_event_get_user_data(e);
-  if (strcmp(tile->name, "SunTest") == 0) openSunTest();
-  else if (strcmp(tile->name, "Fleet") == 0) appFleetOpen();
-  else if (strcmp(tile->name, "Health") == 0) appHealthOpen();
-  else if (strcmp(tile->name, "Settings") == 0) appSettingsOpen();
-  else if (strcmp(tile->name, "Claude") == 0) appChatOpen();
-  else if (strcmp(tile->name, "Knock") == 0) appKnockerOpen();
-  else if (strcmp(tile->name, "CA") == 0) appCaOpen();
-  else if (strcmp(tile->name, "LEDs") == 0) appZonesOpen();
-  else if (strcmp(tile->name, "Sleep") == 0) appPowerOpen();
-  else if (strcmp(tile->name, "Schedule") == 0) appScheduleOpen();
-  else openPlaceholder(tile->name);
+  if (tile && tile->open) tile->open();
 }
 
 static void statusTimer(lv_timer_t *) {
