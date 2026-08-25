@@ -16,6 +16,7 @@
 #include "app_knocker.h"
 #include "app_power.h"
 #include "app_patterns.h"
+#include "app_rf.h"
 #include "app_schedule.h"
 #include "app_settings.h"
 #include "app_zones.h"
@@ -38,7 +39,6 @@ struct Tile {
 static void openSunTest();
 static void openPatterns();
 static void openLocatePlaceholder();
-static void openRfPlaceholder();
 
 // The launcher owns registration only. Each app owns its screen lifecycle and
 // returns through uiGoHome(); adding an app does not extend a string dispatch
@@ -53,7 +53,7 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_LOOP, "CA", appCaOpen},
     {LV_SYMBOL_GPS, "Schedule", appScheduleOpen},
     {LV_SYMBOL_EYE_OPEN, "Locate", openLocatePlaceholder},
-    {LV_SYMBOL_WIFI, "RF", openRfPlaceholder},
+    {LV_SYMBOL_WIFI, "RF", appRfOpen},
     {LV_SYMBOL_POWER, "Sleep", appPowerOpen},
     {LV_SYMBOL_IMAGE, "SunTest", openSunTest},
     {LV_SYMBOL_SETTINGS, "Settings", appSettingsOpen},
@@ -187,7 +187,6 @@ static void openPatterns() {
 }
 
 static void openLocatePlaceholder() { openPlaceholder("Locate"); }
-static void openRfPlaceholder() { openPlaceholder("RF"); }
 
 static void tileClicked(lv_event_t *e) {
   const Tile *tile = (const Tile *)lv_event_get_user_data(e);
