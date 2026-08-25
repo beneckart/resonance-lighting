@@ -19,7 +19,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 |---|---|---|
 | Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
 | Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
-| Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 141 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
+| Health | Flashed on `8EB508`; broad physical smoke passed | Source roster covers 144 production fixtures. The last flash embeds 141 and treats the three restored IDs as foreign until rebuilt; complete that refresh plus the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
 | Knocker | Three fleet modes built; pending fixture/T-Deck hardware validation | Retains the deterministic 192-entry targeted roll and adds immediate multicast plus a shared +1.0 s multicast deadline. Every fixture rechecks its local strike gates at fire time. |

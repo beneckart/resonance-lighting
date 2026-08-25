@@ -155,7 +155,7 @@ Open **LEDs** from the launcher (or **Sleep / Dark** from Fleet):
 ## Fleet Health
 
 Open **Health** for the read-only, no-scroll fleet triage view. The normal
-141-device production-health roster fits as fixed squares on one 320x240 screen;
+144-device production-health roster fits as fixed squares on one 320x240 screen;
 the grid automatically compacts if unexpected live IDs expand it toward the
 192-entry census limit. Registry positions stay stable in short-MAC order.
 

@@ -4,6 +4,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Physically confirm the inferred full MACs for the three restored fleet
+  identities.** The retained 2026-08-18 OTA/RSSI evidence proves short IDs
+  `F2BDFC`, `F402A4`, and `F40348`; their `68:EE:8F` OUIs were reconstructed
+  from the surrounding PowerFeather batch so the canonical registry and
+  generated Health roster can remain internally consistent. Confirm each full
+  MAC from a live identity surface or device label before treating that prefix
+  as hardware evidence. Short-ID mesh targeting and the bridge-side Magmar,
+  Magneto, and Marill callsigns do not depend on this check (Ben/Codex).
 - [ ] **Capture real Bridge OS/CoreS3/PUCA manual photographs.** The new
   `docs/howto/BRIDGE_OS_FIELD_MANUAL.md` includes diffable source-derived role
   and launcher visuals. Add clean field photos of the launcher, Health, Fleet
@@ -24,6 +32,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   final Magic-Wand-aware embedded build pass. The reconciled 141-fixture image
   is 1,550,224 bytes with SHA-256
   `3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
+  Source now carries 144 identities; the next named build/flash must add
+  `Magmar [F2BDFC]`, `Magneto [F402A4]`, and `Marill [F40348]` before their
+  callsign acceptance checks.
   It is USB-flashed to exact T-Deck `8EB508`; upload verification, hardware
   probes, channel 11 rejoin, zero-failure mesh transmission, and fresh receive
   from all seven newly registered IDs passed. Check

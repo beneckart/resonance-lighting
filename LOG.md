@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Codex -- Recovered retained fleet-wave evidence
+
+Audited every local worktree before the all-work push and found the unmerged
+2026-08-18 `fx-260818-f80f315-b` OTA reconciliation on commit `04481c8`.
+Merged its 84 verified wave rows into the current registry field-by-field,
+without overwriting the later 2026-08-25 observations. This restores exact
+revision, SHA-256, OTA status, and verification times for 76 existing rows and
+adds three real fixtures that had fallen out of the canonical CSV despite
+appearing throughout the saved RSSI evidence: `F2BDFC`, `F402A4`, and `F40348`.
+
+The three restored fixtures use the `68:EE:8F` batch OUI inferred from their
+neighboring PowerFeather IDs plus their observed six-digit short IDs; physical
+confirmation remains queued. Assigned the next reserved callsigns
+`Magmar [F2BDFC]`, `Magneto [F402A4]`, and `Marill [F40348]`. The generated
+Bridge Health source roster now contains 144 fixtures; the last documented
+field flash still embeds 141 and will treat these three as foreign-live until
+the next named T-Deck build/flash. No fixture, bridge, or network state changed.
+
 ## 2026-08-24 -- Ben + Codex -- RF contrast and complete Claude census paging
 
 Made RF Diagnostics independent of the inherited LVGL theme: the screen now
