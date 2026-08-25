@@ -29,6 +29,14 @@ holdover when OSF is clear. Fixtures select bounded monotonic time and calculate
 Black Rock City civil twilight (`-6 deg`) locally. If accepted time is absent
 for 30 minutes, the existing panel-current dusk/dawn heuristic regains control.
 
+RTC commissioning remains an explicit maintenance operation, never an automatic
+show-time write. `ops/bench/rtc_commission.py` requires one exact fixture ID,
+its identity-matched maintenance IP, the exact expected firmware revision, safe
+power, DS3231 presence, and a fresh valid T-Deck GPS observation. The guarded
+`POST /rtc` route repeats the fixture ID check, requires `SET_RTC_UTC`, writes
+UTC once, clears OSF, and verifies readback. Maintenance telemetry exposes
+`rtc_valid` and `rtc_utc_s` for the same proof.
+
 In field profile, scheduled day is electrically dark and scheduled night runs
 the autonomous program. Direct/program leases can override the baseline during
 day; a dark lease can suppress night. `NB_FORCE_LIFECYCLE` provides RAM-only
@@ -181,7 +189,8 @@ input DPM, thermal protection, and the hardware transition to fast charge near
 Bringup: `fleet_usb_bringup.py commission --sketch-dir fixture --build-path
 firmware/fixture/build/<r> --expect-fw <version> ...` -- the serial/HTTP
 contract (`t` JSON keys, `u` + "maintenance WiFi up, ip=" banner, /telemetry,
-/resume, /update) is preserved byte-for-byte from net_bench.
+/resume, /update) is preserved byte-for-byte from net_bench; the guarded `/rtc`
+route is fixture-only.
 
 ## Sensor-domain recovery
 

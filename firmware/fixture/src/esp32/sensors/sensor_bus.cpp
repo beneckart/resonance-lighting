@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "../../core/rtc_calendar.h"
+
 static bool ack(uint8_t addr) {
   Wire1.beginTransmission(addr);
   return Wire1.endTransmission() == 0;
@@ -15,6 +17,13 @@ static bool readReg8(uint8_t addr, uint8_t reg, uint8_t &val) {
   if (Wire1.requestFrom((int)addr, 1) != 1) return false;
   val = (uint8_t)Wire1.read();
   return true;
+}
+
+static bool writeReg8(uint8_t addr, uint8_t reg, uint8_t val) {
+  Wire1.beginTransmission(addr);
+  Wire1.write(reg);
+  Wire1.write(val);
+  return Wire1.endTransmission() == 0;
 }
 
 ProbeBits sensorBusProbe() {
@@ -64,24 +73,6 @@ static int bcd(uint8_t value) {
   return lo <= 9 && hi <= 9 ? hi * 10 + lo : -1;
 }
 
-static int64_t daysFromCivil(int year, unsigned month, unsigned day) {
-  year -= month <= 2;
-  const int era = (year >= 0 ? year : year - 399) / 400;
-  const unsigned yoe = (unsigned)(year - era * 400);
-  const unsigned doy = (153 * (month + (month > 2 ? (unsigned)-3 : 9)) + 2) / 5 +
-                       day - 1;
-  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-  return (int64_t)era * 146097 + (int64_t)doe - 719468;
-}
-
-static int daysInMonth(int year, int month) {
-  static const uint8_t kDays[] = {31, 28, 31, 30, 31, 30,
-                                  31, 31, 30, 31, 30, 31};
-  if (month == 2 && (year % 4 == 0) && (year % 100 != 0 || year % 400 == 0))
-    return 29;
-  return month >= 1 && month <= 12 ? kDays[month - 1] : 0;
-}
-
 bool sensorBusReadRtcUtc(uint32_t &utcS) {
   Wire1.setClock(100000); // ADR 0028: reassert, never raise
   uint8_t status = 0;
@@ -107,15 +98,36 @@ bool sensorBusReadRtcUtc(uint32_t &utcS) {
   int day = bcd(reg[4] & 0x3F);
   int month = bcd(reg[5] & 0x1F);
   int yearPart = bcd(reg[6]);
-  if (second < 0 || second > 59 || minute < 0 || minute > 59 || hour < 0 ||
-      hour > 23 || month < 1 || month > 12 || yearPart < 0)
+  if (second < 0 || minute < 0 || hour < 0 || day < 0 || month < 0 ||
+      yearPart < 0)
     return false;
   int year = 2000 + yearPart + ((reg[5] & 0x80) ? 100 : 0);
-  if (year < 2025 || year >= 2036 || day < 1 || day > daysInMonth(year, month))
-    return false;
-  int64_t utc = daysFromCivil(year, (unsigned)month, (unsigned)day) * 86400LL +
-                hour * 3600 + minute * 60 + second;
-  if (utc < 0 || utc > UINT32_MAX) return false;
-  utcS = (uint32_t)utc;
-  return true;
+  RtcCalendar calendar = {(uint16_t)year, (uint8_t)month, (uint8_t)day,
+                          (uint8_t)hour, (uint8_t)minute, (uint8_t)second, 0};
+  return rtcUtcFromCalendar(calendar, utcS);
+}
+
+static uint8_t toBcd(uint8_t value) {
+  return (uint8_t)(((value / 10U) << 4) | (value % 10U));
+}
+
+bool sensorBusWriteRtcUtc(uint32_t utcS) {
+  Wire1.setClock(100000); // ADR 0028: reassert, never raise
+  RtcCalendar calendar = {};
+  if (!rtcCalendarFromUtc(utcS, calendar)) return false;
+
+  Wire1.beginTransmission(0x68);
+  Wire1.write((uint8_t)0x00);
+  Wire1.write(toBcd(calendar.second));
+  Wire1.write(toBcd(calendar.minute));
+  Wire1.write(toBcd(calendar.hour)); // explicit 24-hour mode
+  Wire1.write(toBcd(calendar.weekday));
+  Wire1.write(toBcd(calendar.day));
+  Wire1.write(toBcd(calendar.month)); // 20xx, century bit clear
+  Wire1.write(toBcd((uint8_t)(calendar.year - 2000U)));
+  if (Wire1.endTransmission() != 0) return false;
+
+  uint8_t status = 0;
+  if (!readReg8(0x68, 0x0F, status)) return false;
+  return writeReg8(0x68, 0x0F, (uint8_t)(status & ~0x80U));
 }

@@ -12,6 +12,7 @@
 #include "maintenance.h"
 #include "net_peer.h"
 #include "nvs_store.h"
+#include "sensors/sensor_bus.h"
 #include "sensors/sensors.h"
 #include "solenoid.h"
 
@@ -142,6 +143,13 @@ String telemetryJson() {
   j += (gTelemetrySensorBits & 0x10) ? "true" : "false";
   j += ",\"ds3231_present\":";
   j += (gTelemetrySensorBits & 0x20) ? "true" : "false";
+  uint32_t rtcUtcS = 0;
+  bool rtcValid = (gTelemetrySensorBits & 0x20) &&
+                  sensorBusReadRtcUtc(rtcUtcS);
+  j += ",\"rtc_valid\":";
+  j += rtcValid ? "true" : "false";
+  if (rtcValid)
+    j += ",\"rtc_utc_s\":" + String((unsigned long)rtcUtcS);
   j += ",\"profile\":\"";
   j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";

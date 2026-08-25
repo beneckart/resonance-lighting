@@ -8,7 +8,9 @@
 
 #include "board_power.h"
 #include "espnow_link.h"
+#include "identity.h"
 #include "loads.h"
+#include "sensors/sensor_bus.h"
 #include "telemetry.h"
 
 // WiFi secrets (gitignored; copied from ../net_bench by build.sh).
@@ -33,6 +35,55 @@ static uint32_t gCommsInitFailures = 0;
 
 #define RES_COMMS_RETRY_MS 1000
 
+static bool parseRtcUtc(const String &text, uint32_t &utcS) {
+  if (text.length() != 10) return false;
+  uint64_t value = 0;
+  for (size_t i = 0; i < text.length(); ++i) {
+    char ch = text[i];
+    if (ch < '0' || ch > '9') return false;
+    value = value * 10U + (uint8_t)(ch - '0');
+  }
+  if (value < 1735689600ULL || value >= 2082758400ULL) return false;
+  utcS = (uint32_t)value;
+  return true;
+}
+
+static void handleRtcCommission() {
+  if (!gServer.hasArg("fixture_id") || !gServer.hasArg("utc_s") ||
+      !gServer.hasArg("confirm")) {
+    gServer.send(400, "application/json", "{\"ok\":false,\"error\":\"missing fields\"}\n");
+    return;
+  }
+  if (!gServer.arg("fixture_id").equalsIgnoreCase(gShortId)) {
+    gServer.send(409, "application/json", "{\"ok\":false,\"error\":\"fixture identity mismatch\"}\n");
+    return;
+  }
+  if (gServer.arg("confirm") != "SET_RTC_UTC") {
+    gServer.send(400, "application/json", "{\"ok\":false,\"error\":\"confirmation refused\"}\n");
+    return;
+  }
+  uint32_t requestedUtcS = 0;
+  if (!parseRtcUtc(gServer.arg("utc_s"), requestedUtcS)) {
+    gServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid UTC\"}\n");
+    return;
+  }
+  if (!sensorBusWriteRtcUtc(requestedUtcS)) {
+    gServer.send(500, "application/json", "{\"ok\":false,\"error\":\"RTC write failed\"}\n");
+    return;
+  }
+  uint32_t readbackUtcS = 0;
+  if (!sensorBusReadRtcUtc(readbackUtcS) ||
+      (readbackUtcS > requestedUtcS ? readbackUtcS - requestedUtcS
+                                   : requestedUtcS - readbackUtcS) > 2U) {
+    gServer.send(500, "application/json", "{\"ok\":false,\"error\":\"RTC readback failed\"}\n");
+    return;
+  }
+  String body = "{\"ok\":true,\"fixture_id\":\"" + gShortId +
+                "\",\"rtc_utc_s\":" + String((unsigned long)readbackUtcS) +
+                "}\n";
+  gServer.send(200, "application/json", body);
+}
+
 NetMode maintMode() { return gMode; }
 uint8_t maintStatus() { return gMaintStatus; }
 bool maintenanceReady() {
@@ -46,6 +97,7 @@ static void configureOtaRoutes() {
   if (gOtaRoutesConfigured) return;
   gServer.on("/", HTTP_GET, []() { gServer.send(200, "text/plain", telemetryBanner()); });
   gServer.on("/telemetry", HTTP_GET, []() { gServer.send(200, "application/json", telemetryJson()); });
+  gServer.on("/rtc", HTTP_POST, handleRtcCommission);
   gServer.on("/resume", HTTP_GET, []() {
     gServer.send(200, "text/plain", "resuming\n");
     gResumePending = true;
