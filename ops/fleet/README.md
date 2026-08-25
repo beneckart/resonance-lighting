@@ -24,7 +24,7 @@ the ESP-NOW wire contract or the MAC-derived identity model.
 
 - Callsigns are unique case-insensitively, ASCII-only, one word, and 3-7
   characters.
-- `assignment=assigned` rows map the 134 commissioned or commission-failed
+- `assignment=assigned` rows map the 141 commissioned or commission-failed
   production-health PowerFeathers. `assignment=spare` rows reserve the remaining
   names for future fixtures.
 - A callsign stays bound to its short MAC and is never silently reassigned or

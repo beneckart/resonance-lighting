@@ -70,7 +70,7 @@ int main() {
 
   // The generated production roster is stable, sorted, and intentionally
   // excludes quarantined, bench-only, merely enumerated, and bridge hardware.
-  assert(kHealthRegistryCount == 134);
+  assert(kHealthRegistryCount == 141);
   for (size_t i = 1; i < kHealthRegistryCount; ++i) {
     assert(std::memcmp(kHealthRegistry[i - 1].id, kHealthRegistry[i].id, 3) < 0);
   }
@@ -87,6 +87,14 @@ int main() {
   const HealthRegistryEntry *ponyta =
       healthRegistryFind(kHealthRegistry, kHealthRegistryCount, ponytaId);
   assert(ponyta && std::strcmp(ponyta->callsign, "Ponyta") == 0);
+  const uint8_t astroId[3] = {0x9E, 0x5B, 0x44};
+  const HealthRegistryEntry *astro =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, astroId);
+  assert(astro && std::strcmp(astro->callsign, "Astro") == 0);
+  const uint8_t bidoofId[3] = {0x9F, 0x26, 0xD8};
+  const HealthRegistryEntry *bidoof =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, bidoofId);
+  assert(bidoof && std::strcmp(bidoof->callsign, "Bidoof") == 0);
 
   std::printf("health_model ok (%zu registry fixtures)\n", kHealthRegistryCount);
   return 0;

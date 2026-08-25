@@ -48,10 +48,12 @@ class DashboardParserTests(unittest.TestCase):
 
     def test_callsign_table_covers_the_production_health_roster(self):
         aliases = dashboard.CALLSIGN_BY_ID
-        self.assertEqual(len(aliases), 134)
-        self.assertEqual(len({name.casefold() for name in aliases.values()}), 134)
+        self.assertEqual(len(aliases), 141)
+        self.assertEqual(len({name.casefold() for name in aliases.values()}), 141)
         self.assertTrue(all(3 <= len(name) <= 7 for name in aliases.values()))
         self.assertEqual(aliases["F2B7DC"], "Ponyta")
+        self.assertEqual(aliases["9E5B44"], "Astro")
+        self.assertEqual(aliases["9F26D8"], "Bidoof")
 
     def test_legacy_line_remains_valid(self):
         row = self.parse(BASE)
