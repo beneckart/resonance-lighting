@@ -19,7 +19,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 |---|---|---|
 | Claude | Working, hardware-verified | Census responses are bounded to 64 peers and 24 returned rows; command authentication remains open. |
 | Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
-| Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 134 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
+| Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 141 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
 | Knocker | Working; P0 revision built, pending hardware recheck | Single strike worked in field use. The full-fleet revision replaces the 32-entry, heartbeat-order roll with a deterministic targeted roll over the 192-entry census. It remains intentionally non-synchronized. |
@@ -125,7 +125,7 @@ Detailed tilt, ToF depth/zones, and sensor error counters remain a later phase
 behind `NB_SENSOR_REPORT`.
 
 Field-source update, 2026-08-24: the first slice now has a dedicated **Health**
-tile. It keeps 134 commissioned/commission-failed production registry entries
+tile. It keeps 141 commissioned/commission-failed production registry entries
 in stable short-ID order, colors fresh nodes from raw VBAT at 3.20/3.10 V, greys
 off-air nodes, and appends unexpected live IDs. The pure merge/band model and
 registry-generation contract pass native tests. The final merged image is now

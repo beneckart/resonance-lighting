@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Seven live fixtures reconciled and named
+
+A passive T-Deck census found seven fresh field fixture IDs that appeared as raw
+hex because they had never been entered in `ops/fleet/registry.csv`: `9E5B44`,
+`9F26D8`, `F2B900`, `F2BFE0`, `F40308`, `F40314`, and `F4035C`. Historical logs
+already knew each ID, so this was a canonical-data omission rather than stale
+Bridge firmware. Four report the current field image, two the prior recovery
+image, and only `9F26D8` the deliberately retained older image. Callsigns are
+bridge-side aliases, so no fixture OTA was needed.
+
+Added all seven as commissioned identities while leaving unobserved role,
+capacity, and placement fields unresolved. Assigned seven previously reserved
+permanent callsigns: `Astro [9E5B44]`, `Bidoof [9F26D8]`, `Cammy [F2B900]`,
+`Coco [F2BFE0]`, `Daisy [F40308]`, `Dixie [F40314]`, and
+`Dratini [F4035C]`. The production-health roster is now 141 identities with 19
+reserved names remaining. The complete Bridge native suite and all 17 host
+dashboard/OTA-policy tests pass at commit `fca9e73`.
+
+Built and USB-flashed only exact T-Deck `8EB508` (`44:1B:F6:8E:B5:08`) on
+`COM152`. The 1,550,224-byte binary SHA-256 is
+`3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
+Esptool verified every region. Post-flash probes passed PSRAM, keyboard, touch,
+ES7210, and GPS; the bridge rejoined channel 11 with zero send failures and saw
+fresh heartbeats from all seven reconciled IDs. No fixture command, maintenance
+request, fixture OTA, or Magic Wand OTA was sent.
+
 ## 2026-08-24 -- Ben + Codex -- Callsign Bridge OS flashed to T-Deck
 
 USB-flashed the final callsign- and Magic-Wand-aware Bridge OS image to exact

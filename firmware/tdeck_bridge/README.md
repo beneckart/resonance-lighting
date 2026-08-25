@@ -29,14 +29,16 @@ rejoined channel 11 with live fleet receive and zero observed TX failures. Ben
 reports the preceding Health/Schedule physical smoke check looked good; the
 explicit acceptance matrices remain in `TODO.md`.
 
-The current source checkpoint adds permanent operator callsigns and recognizes
-`Thor [F40344]` as the protected one-off `magic_wand` role. Its 1,549,728-byte
+The current source checkpoint adds permanent operator callsigns, recognizes
+`Thor [F40344]` as the protected one-off `magic_wand` role, and reconciles seven
+live field fixtures that were missing from the canonical registry. The resulting
+141-fixture roster is USB-flashed to exact T-Deck `8EB508` in a 1,550,224-byte
 binary, SHA-256
-`b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`,
-is USB-flashed to exact T-Deck `8EB508`. The upload verified, all onboard
-peripheral probes passed, and the bridge rejoined the channel 11 mesh with zero
-send failures. Callsign UI and named-command hardware acceptance remain open in
-`TODO.md`.
+`3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
+The upload verified, all onboard peripheral probes passed, all seven reconciled
+IDs returned fresh heartbeats, and the bridge rejoined the channel 11 mesh with
+zero send failures. On-screen callsign and named-command hardware acceptance
+remain open in `TODO.md`.
 
 Ben field-smoke-tested LED Studio, Sleep / Dark, Knocker, and CA Studio on the
 night of 2026-08-23/24; all behaved as designed. That run exposed the old
@@ -145,7 +147,7 @@ Open **LEDs** from the launcher (or **Sleep / Dark** from Fleet):
 ## Fleet Health
 
 Open **Health** for the read-only, no-scroll fleet triage view. The normal
-134-device production-health roster fits as fixed squares on one 320x240 screen;
+141-device production-health roster fits as fixed squares on one 320x240 screen;
 the grid automatically compacts if unexpected live IDs expand it toward the
 192-entry census limit. Registry positions stay stable in short-MAC order.
 
@@ -168,8 +170,8 @@ ID outside that roster is appended with a cyan border. The native test wrapper
 regenerates the header and fails if the checked-in snapshot is stale.
 
 Source plus native tests and the merged embedded build pass. Health is flashed
-on `8EB508` in the 1,542,448-byte image documented above. Physical layout,
-input, detail, and memory-watermark checks remain open in `TODO.md`.
+on `8EB508` in the current 1,550,224-byte image documented above. Physical
+layout, input, detail, and memory-watermark checks remain open in `TODO.md`.
 
 ## UTC and schedule controls (ADR 0049)
 

@@ -6,10 +6,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 - [~] **Hardware-validate fixture callsigns on the T-Deck.** The canonical table,
   17 host policy/dashboard tests, the complete native Bridge suite, and the
-  final Magic-Wand-aware embedded build pass. The 1,549,728-byte binary SHA-256
-  is `b416c9642ceb1808dce66e84c21224cfce32d1d5685044fe81487eb35047a6eb`.
+  final Magic-Wand-aware embedded build pass. The reconciled 141-fixture image
+  is 1,550,224 bytes with SHA-256
+  `3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
   It is USB-flashed to exact T-Deck `8EB508`; upload verification, hardware
-  probes, channel 11 rejoin, and zero-failure mesh transmission passed. Check
+  probes, channel 11 rejoin, zero-failure mesh transmission, and fresh receive
+  from all seven newly registered IDs passed. Check
   Fleet rows/details, Health selection/details, and Claude lookup/identify on one
   explicitly named canary. Confirm every action surface shows both callsign and
   short MAC, compact grids remain readable, unknown peers fall back to MAC, and
