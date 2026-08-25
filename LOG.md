@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Navi RTC-anchor schedule canary OTA
+
+Declared one OTA operator and selected only RTC anchor Navi `9F0E7C`. Reused
+the immutable `fx-260825-d374034-b` fixture artifact from clean source commit
+`c544bf6bdfee15e7b1fcf25db350e8bee6b1bde7`; its 1,190,240-byte binary again
+matched manifest SHA-256
+`b0722b5fe965f16c0b0d95f7fe3b8b905799702343fd0ad2c5f9fcbeaadf5009`.
+The guarded preflight saw a fresh Navi heartbeat on
+`fx-260818-f80f315-b`, 3.307 V battery, and no external supply. The installed
+LFP satisfied the OTA ride-through policy.
+
+The shared-WiFi maintenance path identity-matched only Navi at
+`192.168.1.128`, uploaded the exact retained binary, and received its reboot
+acknowledgement in 10.54 seconds. Navi rejoined on the exact expected revision
+and remained fresh beyond the 25-second pending-verify gate: the acceptance
+sample had 27.796 seconds uptime, software reset, recovery state 0, and no
+button intervention. A later fresh heartbeat at 135.683 seconds still reported
+the new revision, 3.308 V battery, and sensor bits 33, so its DS3231 remained
+detected. Zorua `9F26C0` and every other fixture were left untouched.
+
+This closes the image/OTA/rejoin and RTC-hardware-presence portion of the first
+anchor canary. It does not yet prove RTC validity or disagreement handling: the
+current dashboard heartbeat view does not expose `NB_TIME_QUALITY` observations
+or the fixture's selected UTC source. Hold the second RTC canary until that
+wire-level/time-selection evidence or the compressed schedule test is captured.
+
 ## 2026-08-24 -- Ben + Codex -- Seven live fixtures reconciled and named
 
 A passive T-Deck census found seven fresh field fixture IDs that appeared as raw
