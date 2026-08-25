@@ -4,6 +4,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **NeoHex-Magic-Wand playa follow-up.** The installed `.1` image is working
+  on battery and its OTA transport/reboot bench test passed. Before replacing
+  it, build the current `.2` source as one immutable artifact, target only
+  `F40344` / `68:EE:8F:F4:03:44`, use the installed LFP for ride-through, and
+  complete the fresh-heartbeat/pending-verify acceptance. Then map MSA311
+  movement and BMP581 relative elevation into reviewed pattern behavior. Replace
+  the Tennessee maintenance WiFi profile with the agreed playa router profile
+  first. Registry role `magic_wand` and the batch-OTA sole-target interlock are
+  complete (ADR 0050; Ben + Steve).
 - [x] **Capture the Nevada City rig RSSI matrix before pack-out -- DONE
   2026-08-17.** Bridge `4D5DB0` and 84 qualified fixtures received the immutable
   transport/RSSI image. The 140-second `L` survey preserved 25,154 observations

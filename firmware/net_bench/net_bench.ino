@@ -47,13 +47,17 @@
 #ifndef NB_SENSOR_TRIAD
 #define NB_SENSOR_TRIAD 0
 #endif
+#ifndef NB_MAGIC_WAND
+#define NB_MAGIC_WAND 0
+#endif
 #if NB_SENSOR_TRIAD
 #include <Adafruit_MSA301.h>
 #include <Adafruit_BMP5xx.h>
 #include <SparkFun_TMF882X_Library.h>
 #endif
+#include "magic_wand_mode.h"
 
-#define NET_BENCH_VERSION "net-bench-2026-08-06.4" // capbank DMA post-trigger timestamp fix
+#define NET_BENCH_VERSION "net-bench-2026-08-19.2" // NeoHex Magic Wand fleet role
 #define RES_BOARD_NAME "powerfeather_v2"
 #define NB_LED_PIN 46 // PowerFeather onboard user LED (battery-level indicator)
 
@@ -1864,13 +1868,13 @@ bool capbankProbeStrike(uint16_t) {
   Serial.println("capbank probe requires --solenoid-d7");
   return false;
 }
+void capbankWaveConfigureRoutes() {}
 void solenoidButtonHandleWake() {}
 void solenoidButtonTick() {}
 void solenoidRgbButtonInit() {}
 void solenoidRgbButtonTick() {}
 void solenoidNavInit() {}
 void solenoidNavTick() {}
-void capbankWaveConfigureRoutes() {}
 void solenoidButtonPrepareSleep() {}
 void solenoidFailsafeTick() {}
 #endif
@@ -1922,6 +1926,16 @@ void loadBenchConfig() {
   if (gBenchConfigLoaded) return;
   gBenchConfigLoaded = true;
   uint16_t defaultChargeMa = (uint16_t)(RES_PF_MAX_CHARGE_MA + 0.5f);
+#if NB_MAGIC_WAND
+  // This one-off fixture has a known 15 Ah LFP cell and a conservative 500 mA
+  // charge limit. Do not inherit stale capacity/charge overrides from a board's
+  // earlier bench role.
+  gBatteryCapacityMah = (uint16_t)RES_PF_BATTERY_CAPACITY_MAH;
+  gChargeMa = defaultChargeMa;
+  Serial.printf("  magic wand config: cap=%u mAh charge=%u mA (build locked)\n",
+                gBatteryCapacityMah, gChargeMa);
+  return;
+#endif
   Preferences pf;
   pf.begin("netbench", false);
   uint32_t chargePolicyVersion = pf.getUInt("chg_policy", 0);
@@ -2643,6 +2657,11 @@ String telemetryJson() {
 #else
   j += ",\"solenoid_enabled\":false";
 #endif
+#if NB_MAGIC_WAND
+  MagicWandMode::appendTelemetry(j);
+#else
+  j += ",\"magic_wand\":false";
+#endif
   j += "}";
   return j;
 }
@@ -2999,6 +3018,10 @@ bool maintenancePowerOk() {
 void enterTimedDeepSleep(uint16_t seconds, const char *why) {
   if (seconds == 0) seconds = 1;
   solenoidStop("deep sleep");
+#if NB_MAGIC_WAND
+  // The external Pololu is not on either PowerFeather switchable rail.
+  MagicWandMode::pauseForMaintenance();
+#endif
   digitalWrite(NB_LED_PIN, LOW);
   if (pfReady) {
     Board.enable3V3(false);
@@ -3180,6 +3203,13 @@ void drawdownStopAndSleep(const char *why) {
   enterTimedDeepSleep((uint16_t)min((unsigned long)NB_DRAWDOWN_SLEEP_S, 65535UL), why);
 }
 void drawdownStart(uint16_t budgetMah) {
+#if NB_MAGIC_WAND
+  // GPIO10 belongs to the 740-pixel wand renderer in this build. The ordinary
+  // drawdown renderer assumes a single 37-pixel HEX and must never take it.
+  (void)budgetMah;
+  Serial.println("drawdown ignored: Magic Wand owns GPIO10");
+  return;
+#endif
   if (budgetMah == 0) {
     drawdownCancel("remote-zero");
     return;
@@ -3924,6 +3954,9 @@ void sendScanAp(uint8_t scanId, uint8_t rank, uint8_t count, int scanIdx) {
 void enterComms();
 void benchLoadsOffForMaintenance() {
   solenoidStop("maintenance");
+#if NB_MAGIC_WAND
+  MagicWandMode::pauseForMaintenance();
+#endif
   if (gDrawdownActive) drawdownCancel("maintenance");
 #ifdef NB_FIELD_CYCLE
 #if NB_FIELD_MPPT
@@ -3994,6 +4027,9 @@ void enterComms() {
     WiFi.disconnect(); // STA up but unassociated -> sit on NB_CHANNEL, pure ESP-NOW
   }
   espNowInit();
+#if NB_MAGIC_WAND
+  MagicWandMode::resumeComms();
+#endif
 }
 
 // ---- master -> host bridge (UDP and/or USB serial) -------------------------
@@ -4978,7 +5014,11 @@ void setup() {
   solenoidRgbButtonInit();
   solenoidNavInit();
   delay(20);
+#if NB_MAGIC_WAND
+  MagicWandMode::begin();
+#else
   drawdownPixelsBegin();
+#endif
 #ifdef NB_FIELD_CYCLE
   if (!IS_MASTER) {
     gRateHz = NB_FIELD_DRAWDOWN_HZ;
@@ -5021,6 +5061,9 @@ void loop() {
   envTick();
   sensorTriadTick();
   drawdownTick();
+#if NB_MAGIC_WAND
+  MagicWandMode::tick();
+#endif
   updateStatusLed();
 
 #ifdef NB_AUTOSLEEP

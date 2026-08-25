@@ -1,0 +1,1 @@
+{"node": "MagicWand-F40344", "ip": "10.0.0.250", "event": "ota", "ts_utc": "2026-08-19T16:39:58.180620+00:00", "uptime_pre_ms": 123371, "t_ack_s": 14.8, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "Magic Wand 20x NeoHex pre-closeout OTA verification"}

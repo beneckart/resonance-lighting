@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Integrated Steve's NeoHex Magic Wand
+
+Fetched and merged Steve's two-commit `codex/NeoHex-Magic-Wand` branch onto the
+current `main` in an isolated worktree, leaving Ben's dirty build-acceleration
+checkout untouched. Preserved `main`'s newer registry safety history and
+resolved the only textual conflict by changing only `F40344` to its dedicated
+15 Ah `magic_wand` record. The handoff now includes exact wiring, installed
+artifact evidence, the 740-pixel renderer, standalone commissioning sketch,
+and explicitly provisional pattern-control notes.
+
+ADR 0050 makes `F40344` / `68:EE:8F:F4:03:44` the permanent one-off identity.
+The fleet batch OTA helper reads the registry and refuses this protected role
+unless the operator repeats `--allow-special-target F40344`; even then it must
+be the sole target. Removed one duplicate no-solenoid stub introduced only by
+the semantic merge of two independently added fixes.
+
+Four host policy tests, Python syntax checks, registry CSV validation, and an
+uncached `net_bench --role peer --channel 11 --magic-wand` compile passed. The
+compile used the intended 15 Ah LFP / 500 mA / 4.6 V recipe and finished at
+1,051,397 bytes flash (31 percent) and 136,564 bytes static RAM (41 percent).
+This was compile-only: no USB flash, OTA, or live fleet command was issued. The
+working `.1` wand image remains installed pending a dedicated immutable build
+and current post-pending-verify acceptance.
+
 ## 2026-08-21 -- Ben + Codex -- Hardened worksite bridge and Friday-midnight fleet pack
 
 Fetched `origin/main` and traced the Aug 20 USB shutdown incident to a stray bare
@@ -361,6 +385,30 @@ survives from the design doc: meter every unit on arrival; trust measured ohms
 over the badge (the "6 V 1 A" 0730B fleet leader measures ~3.8 ohm).
 
 ---
+
+## 2026-08-19 -- Steve + Codex -- NeoHex-Magic-Wand playa handoff
+
+Completed Steve's one-off truncated-icosahedron wand: 20 M5Stack NeoHex boards,
+740 WS2812 pixels, four separately fused 5.1 V injection zones at Hex 1/6/11/16,
+and one continuous GPIO10 data/GND chain with +5 V isolated at each five-board
+boundary. The protected Gotion 33140 15 Ah LFP feeds both the PowerFeather V2
+and Pololu U3V70F5. MSA311 and BMP581 share Wire1 at the required 100 kHz.
+
+Battery-only validation passed full RGB fills, a white chase through all 20
+boards and all three isolated-power boundaries, automatic default-pattern boot,
+and thermal checks. The commissioned low-light pattern moves a red five-board
+row bottom-to-top every 0.4 seconds over orange/yellow/green/blue backgrounds.
+
+Added the standalone commissioning sketch and a `net_bench --magic-wand` peer
+role with 740-pixel RMT rendering, maintenance blanking, telemetry, fixed LFP
+defaults, and sensor diagnostics. The deployed `.1` binary on fixture `F40344`
+is SHA-256
+`2617A33C47FE526AC01840149F091812DCDE37723D52C7281F07B7B273FFAB0B`.
+The shared-WiFi upload/reboot path worked and returned post-reboot telemetry;
+because that session predated the current artifact/pending-verify contract, it
+is recorded as transport/reboot validation rather than full fleet OTA
+promotion. Organized the complete Ben handoff under
+`docs/projects/NeoHex-Magic-Wand/` and ported `.2` source to current `main`.
 
 ## 2026-08-18 -- Ben + Claude -- Gamma scrubbed from the codebase
 

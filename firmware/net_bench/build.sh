@@ -7,6 +7,7 @@
 #   ./build.sh --role master --channel 6 --port /dev/ttyACM0     # USB flash a master
 #   ./build.sh --role peer   --channel 6 --port /dev/ttyACM1     # USB flash a peer
 #   ./build.sh --role peer   --channel 6 --ota 192.168.4.61      # OTA flash (maintenance mode)
+#   ./build.sh --role peer   --channel 11 --magic-wand            # 20-NeoHex Magic Wand
 #   ./build.sh --role peer   --channel 6 --maint-ap              # emergency single-board AP OTA only
 #   ./build.sh                                                    # compile only
 #
@@ -29,7 +30,7 @@ FIELD_LED_SPIRAL_RGB=""; FIELD_LED_RGBW=""; FIELD_LED_FRAME_MS=""
 FIELD_RECOVER_CHARGE_MA=""; FIELD_PROTECT_RETRY_DARK=""
 DRAWDOWN_LIT=""; DRAWDOWN_BRIGHTNESS=""; DRAWDOWN_R=""; DRAWDOWN_G=""; DRAWDOWN_B=""
 FIELD_MPPT=""; FIELD_MPPT_HOLD=""
-SOLENOID_D7=""; CAPBANK_PROBE=""; CAPBANK_PROBE_SWAPPED=""; CAPBANK_WAVEFORM=""; SENSOR_TRIAD=""
+SOLENOID_D7=""; CAPBANK_PROBE=""; CAPBANK_PROBE_SWAPPED=""; CAPBANK_WAVEFORM=""; SENSOR_TRIAD=""; MAGIC_WAND=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --role) ROLE="$2"; shift 2;;
@@ -82,6 +83,7 @@ while [[ $# -gt 0 ]]; do
     --capbank-probe-swapped) CAPBANK_PROBE="1"; CAPBANK_PROBE_SWAPPED="1"; shift;; # A4=D7S, A5=VSNS
     --capbank-waveform) CAPBANK_PROBE="1"; CAPBANK_WAVEFORM="1"; shift;; # radio-quiet ADC DMA + HTTP CSV
     --sensor-triad) SENSOR_TRIAD="1"; shift;;           # MSA311 + TMF8820 + BMP581 diagnostic
+    --magic-wand) MAGIC_WAND="1"; SENSOR_TRIAD="1"; shift;; # GPIO10, 20 NeoHex / 740 pixels
     --drawdown-lit) DRAWDOWN_LIT="$2"; shift 2;;
     --drawdown-brightness) DRAWDOWN_BRIGHTNESS="$2"; shift 2;;
     --drawdown-r) DRAWDOWN_R="$2"; shift 2;;
@@ -101,6 +103,13 @@ while [[ $# -gt 0 ]]; do
 done
 if [[ -n "${PORT}" && -n "${OTA_IP}" ]]; then echo "use --port OR --ota, not both" >&2; exit 2; fi
 if [[ -n "${FIELD_CYCLE}" && -n "${SLEEP_CYCLE}" ]]; then echo "use --field-cycle OR --sleep-cycle, not both" >&2; exit 2; fi
+if [[ -n "${MAGIC_WAND}" && "${ROLE:-peer}" != "peer" ]]; then echo "--magic-wand is a peer role" >&2; exit 2; fi
+if [[ -n "${MAGIC_WAND}" ]]; then
+  CHEM="${CHEM:-lfp}"
+  CAP="${CAP:-15000}"
+  CHARGE_MA="${CHARGE_MA:-500}"
+  MAINTAIN="${MAINTAIN:-4.6}"
+fi
 
 # Shared-WiFi OTA credentials are deliberately local and explicit. Do not copy
 # another sketch's profile: that silently deployed the retired WonkyHouse SSID
@@ -169,6 +178,7 @@ esac
 [[ -n "${CAPBANK_PROBE_SWAPPED}" ]] && FLAGS+=" -DNB_CAPBANK_VSNS_PIN=A5 -DNB_CAPBANK_D7S_PIN=A4"
 [[ -n "${CAPBANK_WAVEFORM}" ]] && FLAGS+=" -DNB_CAPBANK_WAVEFORM=1"
 [[ -n "${SENSOR_TRIAD}" ]] && FLAGS+=" -DNB_SENSOR_TRIAD=1"
+[[ -n "${MAGIC_WAND}" ]] && FLAGS+=" -DNB_MAGIC_WAND=1"
 [[ -n "${DRAWDOWN_LIT}" ]] && FLAGS+=" -DNB_DRAWDOWN_LIT_COUNT=${DRAWDOWN_LIT}"
 [[ -n "${DRAWDOWN_BRIGHTNESS}" ]] && FLAGS+=" -DNB_DRAWDOWN_BRIGHTNESS=${DRAWDOWN_BRIGHTNESS}"
 [[ -n "${DRAWDOWN_R}" ]] && FLAGS+=" -DNB_DRAWDOWN_R=${DRAWDOWN_R}"
