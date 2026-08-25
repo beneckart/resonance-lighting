@@ -14,6 +14,7 @@ never invents targets from discovery: every fixture MAC must be named.
 from __future__ import annotations
 
 import argparse
+import csv
 import concurrent.futures
 import hashlib
 import ipaddress
@@ -30,7 +31,9 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 OTA_TOOL = Path(__file__).resolve().with_name("net_bench_ota.py")
+REGISTRY = ROOT / "ops" / "fleet" / "registry.csv"
 MAC_RE = re.compile(r"^[0-9A-F]{6}$")
+SPECIAL_OTA_ROLES = {"magic_wand"}
 
 
 def log(message: str) -> None:
@@ -44,6 +47,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--targets", required=True, help="comma-separated short MACs")
     parser.add_argument("--bin", required=True, help="immutable fixture .bin")
     parser.add_argument("--expect-fw", required=True, help="exact post-OTA firmware_rev")
+    parser.add_argument(
+        "--allow-special-target",
+        action="append",
+        default=[],
+        metavar="SHORT_MAC",
+        help=(
+            "explicitly acknowledge one protected one-off target; protected targets "
+            "must be flashed alone"
+        ),
+    )
     parser.add_argument("--dashboard-url", default="http://127.0.0.1:8765")
     parser.add_argument("--subnet", action="append", default=[])
     parser.add_argument("--discovery-timeout", type=float, default=150.0)
@@ -69,6 +82,57 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--notes", default="")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
+
+
+def protected_ota_targets(registry: Path = REGISTRY) -> dict[str, str]:
+    """Return registry IDs whose dedicated hardware must not take a fleet image."""
+    try:
+        with registry.open(newline="", encoding="utf-8-sig") as handle:
+            rows = list(csv.DictReader(handle))
+    except OSError as exc:
+        raise SystemExit(f"cannot read fleet registry {registry}: {exc}") from exc
+
+    protected: dict[str, str] = {}
+    for row in rows:
+        fixture_id = (row.get("fixture_id") or "").strip().upper()
+        role = (row.get("role") or "").strip()
+        if role in SPECIAL_OTA_ROLES:
+            if not MAC_RE.fullmatch(fixture_id):
+                raise SystemExit(
+                    f"bad protected fixture id {fixture_id!r} in {registry}"
+                )
+            protected[fixture_id] = role
+    return protected
+
+
+def validate_special_targets(
+    targets: list[str], allowed: list[str], registry: Path = REGISTRY
+) -> None:
+    acknowledgements = {
+        item.strip().upper() for item in allowed if item and item.strip()
+    }
+    if any(not MAC_RE.fullmatch(item) for item in acknowledgements):
+        raise SystemExit("--allow-special-target must be a six-digit short MAC")
+    unrelated = acknowledgements - set(targets)
+    if unrelated:
+        raise SystemExit(
+            "--allow-special-target names a non-target: " + ",".join(sorted(unrelated))
+        )
+
+    protected = protected_ota_targets(registry)
+    selected = {target: protected[target] for target in targets if target in protected}
+    unacknowledged = set(selected) - acknowledgements
+    if unacknowledged:
+        target = sorted(unacknowledged)[0]
+        raise SystemExit(
+            f"{target} is protected as role={selected[target]}; flash its dedicated "
+            f"artifact alone and repeat --allow-special-target {target}"
+        )
+    if selected and len(targets) != 1:
+        details = ",".join(f"{target}:{role}" for target, role in sorted(selected.items()))
+        raise SystemExit(
+            f"protected one-off target must be the only OTA target ({details})"
+        )
 
 
 def fetch_json(url: str, timeout: float = 4.0) -> dict | None:
@@ -353,6 +417,7 @@ def main() -> None:
     )
     if not targets or any(not MAC_RE.fullmatch(target) for target in targets):
         raise SystemExit("--targets must contain comma-separated six-digit short MACs")
+    validate_special_targets(targets, args.allow_special_target)
     binary = Path(args.bin).resolve()
     preflight(args, targets, binary)
     if args.dry_run:

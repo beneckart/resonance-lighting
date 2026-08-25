@@ -45,6 +45,16 @@ Do not assign a ring position merely from USB-port order. Physical role and
 installation location remain blank until the fixture is deliberately labeled and
 assigned.
 
+## One-off fixture protection
+
+Fixture `F40344` / `68:EE:8F:F4:03:44` is the one-of-a-kind NeoHex Magic Wand.
+Its registry role is `magic_wand`, which keeps it visible as a fleet peer while
+marking it as dedicated hardware. `ops/bench/fleet_dashboard_ota.py` refuses a
+protected role in an ordinary fleet batch. Updating the wand requires the exact
+short MAC again via `--allow-special-target F40344`, and the wand must be the
+only target. That acknowledgement does not relax artifact identity, battery
+ride-through, or post-pending-verify evidence requirements.
+
 ## Commissioning profile
 
 The first production-board profile is:

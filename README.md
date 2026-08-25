@@ -34,6 +34,12 @@ a smaller lensed 3 W RGB module is tested for extra throw; chandelier lights liv
 a carpenter-built box, likely on 6 Ah cells with USB-C top-ups. All share one firmware
 image.
 
+Steve's NeoHex Magic Wand is a separate one-off fleet peer, not a fifth
+production class. Its PowerFeather identity is permanently `F40344` /
+`68:EE:8F:F4:03:44`, its registry role is `magic_wand`, and batch OTA tooling
+requires a dedicated single-target acknowledgement before it will touch that
+MAC (ADR 0050). See `docs/projects/NeoHex-Magic-Wand/README.md`.
+
 ## Current architecture direction
 
 **PowerFeather V2 (ESP32-S3) is the confirmed reference** for the controller / solar-and-battery manager / telemetry, after 5-board feasibility testing (ADR 0021): ESP-NOW mesh at scale, battery-only no-touch OTA + A/B rollback, and the solar charge path are all validated on hardware. Chemistry is **LiFePO4** (ADR 0002); batteries are two-tier since 2026-07-24 (ADR 0025): 33140 15 Ah in the large hats (downlights; qualification pending) and the fullbattery 32700 6 Ah, qualified n=2, in the small hats.
