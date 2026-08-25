@@ -15,18 +15,19 @@ rails-off timer sleep), **Knocker** (single strike plus a confirmed,
 deterministic targeted roll across the full fresh census; not synchronized),
 **Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),
 **CA Studio** (program leases + GH-CA knob params via the release-re-lease
-workaround), **Settings**, **SunTest**. Remaining: Patterns + ES7210 mic
-(basic ambient audio mode), voice (whisperd), Sensors/Locate/RF Survey,
-polish (M5 tail + M6).
+workaround), **Patterns** (manual deterministic RGBW streaming),
+**RF Diagnostics** (read-only mesh survey), **Settings**, **SunTest**.
+Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
+voice (whisperd), and polish (M5 tail + M6).
 
-The 2026-08-24 LED Studio and Sleep / Dark additions are USB-flashed to T-Deck
-`8EB508` as `tdeck-dev-local` (binary SHA-256
-`90fd45e257a92d61c94ae1cd87e23fa7383ee2cd009916f673dc219ac57cbae5`).
-Boot, peripherals, memory, identity, and live-mesh receive passed. No lighting
-or sleep command was sent during validation, so physical UI and canary action
-checks remain. Retained source identity is `tdeck-0.2.0-field2`; it centralizes
-the boot-banner and machine-telemetry version after `field1` exposed a stale
-telemetry-only `0.1.0` label.
+The combined Health, UTC/Schedule, Patterns v1, and RF Diagnostics image is
+USB-flashed to exact T-Deck `8EB508` as `tdeck-dev-local`: 1,542,448 bytes,
+binary SHA-256
+`705119167e51ae8dff399a6c46cfd442b1610d14d0acb5d8a470c63461242b46`.
+The upload verified, all onboard peripheral probes passed, and the bridge
+rejoined channel 11 with live fleet receive and zero observed TX failures. Ben
+reports the preceding Health/Schedule physical smoke check looked good; the
+explicit acceptance matrices remain in `TODO.md`.
 
 Ben field-smoke-tested LED Studio, Sleep / Dark, Knocker, and CA Studio on the
 night of 2026-08-23/24; all behaved as designed. That run exposed the old
@@ -157,11 +158,9 @@ quarantined, bench-only, merely enumerated/demo, and bridge hardware. Any live
 ID outside that roster is appended with a cyan border. The native test wrapper
 regenerates the header and fails if the checked-in snapshot is stale.
 
-Source plus native tests and a fresh compile-only embedded build pass. The final
-1,510,912-byte binary SHA-256 is
-`e11b0b76cd06dfa092bbbe43c9200fb517692179cf4808bce255ee55df560fe8`;
-it was not flashed. Physical layout, input, detail, and memory-watermark checks
-remain open in `TODO.md`.
+Source plus native tests and the merged embedded build pass. Health is flashed
+on `8EB508` in the 1,542,448-byte image documented above. Physical layout,
+input, detail, and memory-watermark checks remain open in `TODO.md`.
 
 ## UTC and schedule controls (ADR 0049)
 
@@ -181,6 +180,32 @@ All three are RAM-only and repeat for six minutes to span the full 300-second
 field sleep cadence. LED Studio and program leases can override the baseline;
 dark remains higher authority. Knock stays one-shot and locally safety-gated,
 so it is not promised as a wake command for a sleeping fixture.
+
+## Patterns v1
+
+Open **Patterns** for microphone-independent, deterministic artistic control.
+The first version offers Wash, Chase, Wave, and Twinkle with Ember, Forest,
+Ocean, Aurora, and Moon palettes. Speed, intensity, fixture class, and stable
+short-ID cohort A-D are adjustable from the handheld.
+
+Patterns computes final per-fixture RGBW values and sends them through the same
+bounded 8 Hz direct-frame stream used by LED Studio. Only one stream owner is
+active: starting Patterns replaces LED Studio, and starting LED Studio replaces
+Patterns. Leaving the app does not stop the selected look; use Stop explicitly.
+If frames stop arriving, fixtures retain the normal three-second stale fallback.
+Audio reactivity remains a separate v2 feature behind ES7210/I2S qualification.
+
+## RF Diagnostics
+
+Open **RF** for a read-only installation and mesh-health view. The summary page
+shows live, seen, stale, production-roster unobserved, and foreign-live counts;
+observation coverage; strongest and weakest fresh peers; receive drops; TX
+success/failure counters; and mesh/WiFi/AP/channel-guard state. PDR is labelled
+unknown until enough observations exist rather than being invented from RSSI.
+
+The second page shows the existing newest-first valid-frame tail. Ranking is
+deterministic by RSSI, then known PDR, age, and short ID. The app sends no mesh
+packet and changes no fixture state or wire format.
 
 Join timeouts / lost links fall back to mesh-only and retry with backoff. The
 mesh is the primary function; Claude is the enhancement.

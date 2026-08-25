@@ -10,27 +10,27 @@ but does not change or duplicate it.
 ## Current baseline
 
 Bridge OS is no longer a proposed handheld. M0-M4 are hardware-verified and the
-launcher has thirteen tiles. The concurrent RTC/GPS workstream is currently
-adding the Schedule app in the former Sensors tile. Patterns, Locate, and RF are
-the remaining literal placeholders; Sensors Health remains planned but does not
-currently have its own launcher tile.
+launcher has thirteen tiles. Health and Schedule are integrated and flashed;
+Patterns v1 and RF Diagnostics are integrated and flashed on `8EB508`. Locate
+is the only remaining literal placeholder. Detailed Sensors work follows Health
+when the packet contract can report measurements that heartbeats do not contain.
 
 | App | State | Important remaining work |
 |---|---|---|
 | Claude | Working, hardware-verified | Census responses are bounded to 64 peers and 24 returned rows; command authentication remains open. |
 | Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
-| Health | Flashed on `8EB508`; hardware UI check pending | One-screen raw-VBAT grid covers 134 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. |
+| Health | Flashed on `8EB508`; broad physical smoke passed | One-screen raw-VBAT grid covers 134 production-registry fixtures, greys off-air entries, appends live foreign IDs, and opens read-only details. Complete the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
 | Knocker | Working; P0 revision built, pending hardware recheck | Single strike worked in field use. The full-fleet revision replaces the 32-entry, heartbeat-order roll with a deterministic targeted roll over the 192-entry census. It remains intentionally non-synchronized. |
 | CA Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed. Same-program parameter changes still use a visible release/re-lease workaround. |
 | Settings | Working | Secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
-| Schedule | Flashed on `8EB508`; field validation pending | GPS publishes UTC quality; fixtures select bounded consensus time and apply Black Rock City civil twilight in field profile. |
-| Patterns | Placeholder | No pattern model, app, or audio capture exists yet. |
+| Schedule | Flashed on `8EB508`; broad physical smoke passed | GPS publishes UTC quality; fixtures select bounded consensus time and apply Black Rock City civil twilight in field profile. Complete the explicit override/canary matrix. |
+| Patterns | Flashed on `8EB508`; hardware check pending | Hardware-check the four modes, five palettes, class/cohort filters, owner handoff, and stop behavior on named canaries. ES7210 audio is v2. |
 | Sensors Health | First slice implemented as Health | Battery/on-air triage plus existing heartbeat detail is implemented; detailed sensor samples still need `NB_SENSOR_REPORT`. |
 | Locate | Placeholder | Survey packets exist, but the T-Deck does not retain/model neighbor reports for a UI. |
-| RF | Placeholder | Passive census, RSSI/PDR, raw-tail, channel-guard, and observation data already exist. |
+| RF | Flashed on `8EB508`; hardware check pending | Hardware-check both pages, counts, selection, ranking, frame tail, and channel-guard labels. |
 
 ## Priority rules
 
@@ -80,6 +80,11 @@ short ID, dispatches at an explicit 80 ms cadence, and labels the action a
 targeted roll. Hardware revalidation of that revision remains open. True
 synchronized fire remains P3 work behind the RTC/GPS and fixture event seams.
 
+Integration update, 2026-08-24: items 2-5 and 8 are implemented in the common
+baseline. The launcher now registers callbacks instead of comparing tile names.
+Runtime measurement, named-canary validation, and authenticated commands remain
+open P0 work.
+
 ## P1 - first parallel app batch
 
 These are the best independent development silos after the P0 platform seam is
@@ -98,6 +103,13 @@ Initial scope:
 - recent frame type/source/RSSI tail;
 - WiFi/AP channel and channel-guard state; and
 - serial export compatible with the existing host dashboard/log tools.
+
+Implementation update, 2026-08-24: the read-only app and pure RF model are
+integrated. It reports the production-roster and foreign-peer distinction,
+labels unavailable/partial observation coverage, ranks fresh peers
+deterministically, surfaces the existing counters and guard state, and exposes
+the safe valid-frame tail on a second page. Native tests and the combined
+embedded build pass; physical UI validation remains open.
 
 ### B. Sensors Health
 
@@ -130,6 +142,13 @@ Use fields that fixtures honor today, or emit final RGBW direct frames. Do not
 base v1 on `NbShowFrame.bright`, `beat_phase`, or `energy` until `ProgBridge`
 actually consumes them. Preserve the single active stream owner and the normal
 three-second stale fallback.
+
+Implementation update, 2026-08-24: v1 is integrated with Wash, Chase, Wave,
+and Twinkle; five palettes; speed and intensity; class and stable short-ID
+cohort filters; and final per-fixture RGBW planning. Patterns and LED Studio
+replace one another through the shared stream owner. The pure model passes 190
+checks and the combined embedded build passes. Named-canary hardware validation
+remains open; microphone capture remains v2.
 
 ## P2 - active survey, audio, and existing-app completion
 
@@ -174,7 +193,8 @@ ownership boundaries:
   `app_sensors.*` work behind the existing heartbeat/snapshot boundary.
 - Patterns lane: new `app_patterns.*`, pure pattern core, and explicitly owned
   changes to the stream service.
-- Integration lane only: launcher registration, `tdeck_bridge.ino`, shared
+- Integration lane only: callback-based launcher registration,
+  `tdeck_bridge.ino`, shared
   service wiring, version identity, README/ADR/LOG/TODO, retained builds, and
   USB flashing.
 
