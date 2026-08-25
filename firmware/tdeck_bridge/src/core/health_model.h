@@ -26,6 +26,7 @@ struct HealthRegistryEntry {
   uint8_t id[3];
   HealthRegistryStatus status;
   uint16_t capacityMah;
+  const char *callsign;
   const char *role;
 };
 
@@ -68,3 +69,7 @@ HealthSummary healthSummarize(const HealthTile *tiles, size_t count);
 const HealthRegistryEntry *healthRegistryFind(
     const HealthRegistryEntry *registry, size_t registryCount,
     const uint8_t id[3]);
+
+const HealthRegistryEntry *healthRegistryFindCallsign(
+    const HealthRegistryEntry *registry, size_t registryCount,
+    const char *callsign);

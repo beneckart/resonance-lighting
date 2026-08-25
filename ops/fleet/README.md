@@ -10,8 +10,36 @@ fixtures.
 - `mac` and `fixture_id` identify the electronics. COM ports, USB paths, WiFi IPs,
   fixture roles, and installation locations can change and are not identity.
 - `registry.csv` is the compact current-state index. Keep one row per MAC.
+- `callsigns.csv` is the operator-friendly alias table. It assigns one permanent
+  callsign to every production-health fixture and retains unassigned spare names.
+  The short MAC remains the device identity for logs, OTA, flashing, persistence,
+  and every other safety-sensitive operation.
 - `bringup/*.jsonl` is append-only commissioning evidence. It may contain several
   observations for the same board.
+
+## Fixture callsigns
+
+Callsigns make field conversation readable (`Luigi is green`) without changing
+the ESP-NOW wire contract or the MAC-derived identity model.
+
+- Callsigns are unique case-insensitively, ASCII-only, one word, and 3-7
+  characters.
+- `assignment=assigned` rows map the 134 commissioned or commission-failed
+  production-health PowerFeathers. `assignment=spare` rows reserve the remaining
+  names for future fixtures.
+- A callsign stays bound to its short MAC and is never silently reassigned or
+  reused after retirement. Unknown and non-production devices continue to display
+  their short MAC.
+- Operator displays may lead with the callsign, but detail and confirmation
+  surfaces show both, for example `Luigi [F98CEF]`.
+- Firmware artifacts and state-changing maintenance jobs continue to name explicit
+  short MAC targets as required by ADR 0040.
+
+The initial allocation was a deterministic shuffle of the reviewed 160-name pool
+using the seed `resonance-tree-callsigns-v1`, followed by assignment to the
+numerically sorted production-health roster. That explains the initial mapping;
+it is not a regeneration rule. The checked-in table is authoritative from this
+point forward.
 
 Do not assign a ring position merely from USB-port order. Physical role and
 installation location remain blank until the fixture is deliberately labeled and

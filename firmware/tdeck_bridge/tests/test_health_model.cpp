@@ -35,6 +35,8 @@ int main() {
   assert(batteryHealthBand(true, 0) == BatteryHealthBand::UNKNOWN);
 
   HealthRegistryEntry registry[] = {entry(0x100001), entry(0x100002)};
+  registry[0].callsign = "Luigi";
+  registry[1].callsign = "Ponyta";
   HealthObservation observations[] = {
       observation(0x100001, 100, 3201),
       observation(0x100002, 5000, 3050),  // exactly stale
@@ -62,6 +64,9 @@ int main() {
   assert(summary.offAir == 1);
   assert(summary.unknown == 0);
   assert(summary.unregisteredLive == 2);
+  assert(healthRegistryFindCallsign(registry, 2, "luigi") == &registry[0]);
+  assert(healthRegistryFindCallsign(registry, 2, "PONYTA") == &registry[1]);
+  assert(healthRegistryFindCallsign(registry, 2, "missing") == nullptr);
 
   // The generated production roster is stable, sorted, and intentionally
   // excludes quarantined, bench-only, merely enumerated, and bridge hardware.
@@ -69,7 +74,19 @@ int main() {
   for (size_t i = 1; i < kHealthRegistryCount; ++i) {
     assert(std::memcmp(kHealthRegistry[i - 1].id, kHealthRegistry[i].id, 3) < 0);
   }
+  for (size_t i = 0; i < kHealthRegistryCount; ++i) {
+    size_t len = std::strlen(kHealthRegistry[i].callsign);
+    assert(len >= 3 && len <= 7);
+    for (size_t j = i + 1; j < kHealthRegistryCount; ++j)
+      assert(std::strcmp(kHealthRegistry[i].callsign,
+                         kHealthRegistry[j].callsign) != 0);
+  }
   assert(std::strlen(kHealthRegistryCsvSha256) == 64);
+  assert(std::strlen(kCallsignsCsvSha256) == 64);
+  const uint8_t ponytaId[3] = {0xF2, 0xB7, 0xDC};
+  const HealthRegistryEntry *ponyta =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, ponytaId);
+  assert(ponyta && std::strcmp(ponyta->callsign, "Ponyta") == 0);
 
   std::printf("health_model ok (%zu registry fixtures)\n", kHealthRegistryCount);
   return 0;

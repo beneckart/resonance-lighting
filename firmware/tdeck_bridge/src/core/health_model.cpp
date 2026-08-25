@@ -30,6 +30,27 @@ const HealthRegistryEntry *healthRegistryFind(
   return nullptr;
 }
 
+static char asciiLower(char c) {
+  return c >= 'A' && c <= 'Z' ? (char)(c + ('a' - 'A')) : c;
+}
+
+static bool callsignEquals(const char *a, const char *b) {
+  if (!a || !b) return false;
+  while (*a && *b) {
+    if (asciiLower(*a++) != asciiLower(*b++)) return false;
+  }
+  return *a == 0 && *b == 0;
+}
+
+const HealthRegistryEntry *healthRegistryFindCallsign(
+    const HealthRegistryEntry *registry, size_t registryCount,
+    const char *callsign) {
+  for (size_t i = 0; i < registryCount; ++i) {
+    if (callsignEquals(registry[i].callsign, callsign)) return &registry[i];
+  }
+  return nullptr;
+}
+
 static const HealthObservation *findObservation(
     const HealthObservation *observations, size_t count, const uint8_t id[3]) {
   for (size_t i = 0; i < count; ++i) {

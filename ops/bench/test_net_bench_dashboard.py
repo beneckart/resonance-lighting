@@ -44,6 +44,14 @@ class DashboardParserTests(unittest.TestCase):
         self.assertFalse(row["class_mismatch"])
         self.assertEqual(row["recovery_state"], 2)
         self.assertEqual(row["recovery_detect_mv"], 2421)
+        self.assertEqual(row["callsign"], "Ponyta")
+
+    def test_callsign_table_covers_the_production_health_roster(self):
+        aliases = dashboard.CALLSIGN_BY_ID
+        self.assertEqual(len(aliases), 134)
+        self.assertEqual(len({name.casefold() for name in aliases.values()}), 134)
+        self.assertTrue(all(3 <= len(name) <= 7 for name in aliases.values()))
+        self.assertEqual(aliases["F2B7DC"], "Ponyta")
 
     def test_legacy_line_remains_valid(self):
         row = self.parse(BASE)
@@ -81,6 +89,7 @@ class DashboardParserTests(unittest.TestCase):
     def test_fleet_view_is_the_primary_page(self):
         self.assertIn('id="fleetGrid"', dashboard.HTML)
         self.assertIn("compactPeerIds", dashboard.HTML)
+        self.assertIn("peerCallsign", dashboard.HTML)
         self.assertIn("batteryVisual", dashboard.HTML)
         self.assertIn("displayedLight", dashboard.HTML)
         self.assertIn("class-perimeter", dashboard.HTML)
@@ -161,6 +170,17 @@ class DashboardParserTests(unittest.TestCase):
         self.assertTrue(dashboard.valid_command("TF2B7DC:1"))
         self.assertTrue(dashboard.valid_command("Tf2b7dc:0"))
         self.assertFalse(dashboard.valid_command("TF2B7DC:2"))
+
+    def test_action_labels_show_callsign_and_mac_without_changing_command(self):
+        commands, skipped = dashboard.prepare_strike_batch(
+            {"targets": ["F2B7DC"], "pulse_ms": 40},
+            {"F2B7DC": {"age_ms": 800, "callsign": "Ponyta"}},
+        )
+        self.assertEqual(skipped, 0)
+        self.assertEqual(
+            commands,
+            [("KF2B7DC:40", "Strike Ponyta [F2B7DC] D7 for 40 ms")],
+        )
 
     def test_fleet_strike_rejects_broadcast_or_bad_pulse(self):
         peers = {"F2B7DC": {"age_ms": 800}}

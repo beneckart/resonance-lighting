@@ -4,6 +4,30 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Hardware-validate fixture callsigns on the T-Deck.** The canonical table,
+  host dashboard tests, complete native Bridge suite, and compile-only embedded
+  build pass. Flash a callsign-enabled image to exact T-Deck `8EB508`, then check
+  Fleet rows/details, Health selection/details, and Claude lookup/identify on one
+  explicitly named canary. Confirm every action surface shows both callsign and
+  short MAC, compact grids remain readable, unknown peers fall back to MAC, and
+  the wire target is unchanged. Do not send a fixture command without naming and
+  accounting for the exact canary first (Ben/Codex).
+- [~] **Hardware-validate Bridge OS Patterns v1 on named canaries.** The pure
+  deterministic model passes 190 checks and the combined embedded image builds.
+  The combined image is USB-flashed on exact T-Deck `8EB508`: 1,542,448 bytes,
+  SHA-256 `705119167e51ae8dff399a6c46cfd442b1610d14d0acb5d8a470c63461242b46`.
+  On one awake HEX plus one point-source fixture, exercise Wash, Chase, Wave,
+  and Twinkle; all five palettes; speed/intensity edges; class and stable cohort
+  filters; explicit Stop; three-second stale fallback; and owner replacement in
+  both directions with LED Studio. This is live direct-frame artistic control,
+  so name and account for the canaries before starting a pattern (Ben/Codex).
+- [~] **Hardware-validate the read-only T-Deck RF Diagnostics app.** Check the
+  summary and frame-tail pages, touch/trackball navigation, live/seen/stale and
+  roster-unobserved counts, foreign-live labelling, strongest/weakest ordering,
+  unavailable/partial observation labels, RX/TX counters, and WiFi/AP/channel
+  guard state. The app must send no mesh command and alter no fixture state
+  during validation. It is flashed in the combined `8EB508` image identified
+  above (Ben/Codex).
 - [~] **Hardware-validate the T-Deck Health app.** Source, native tests, and the
   merged image now flashed to T-Deck `8EB508` cover the 134-entry production registry,
   stable no-scroll tile ordering,
@@ -12,9 +36,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fit at once, red/yellow/green/grey/blue rendering, touch and trackball detail
   entry, a known off-air fixture, a known low canary, and heap/PSRAM watermarks
   after repeated open/detail/back cycles. This app is read-only; do not send a
-  fleet command during validation. Final merged flashed binary: 1,511,504 bytes,
-  SHA-256 `e208ad2be85681e4149de9f8c6890017f57c4b4342d76a3589e31be8c037e893`
-  (Ben/Codex).
+  fleet command during validation. Health remains present in the combined
+  1,542,448-byte image identified above. Ben reports the first physical
+  Health/Schedule smoke check looks good on 2026-08-24; retain the explicit
+  color/off-air and memory matrix before closing this item (Ben/Codex).
 - [~] **Field-validate the T-Deck LED Studio / Sleep app on explicit canaries.**
   T-Deck `8EB508` on `COM152` now runs `tdeck-dev-local` and passed exact flash
   verification, clean boot, peripherals, memory, correct machine identity, and

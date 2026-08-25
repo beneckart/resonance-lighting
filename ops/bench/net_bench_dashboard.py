@@ -13,6 +13,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import re
 import socket
@@ -22,6 +23,7 @@ import urllib.parse
 from collections import deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
 import serial  # pyserial
@@ -59,6 +61,39 @@ RX_SCANAP = re.compile(
     r"ap_rssi=(-?\d+) ch=(\d+) enc=(\d+) linkrssi=(-?\d+) ssid=(.*)"
 )
 RX_BOOT = re.compile(r"=== Resonance (?:net-bench|fixture) (\S+) ===")
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CALLSIGNS = REPO_ROOT / "ops" / "fleet" / "callsigns.csv"
+
+
+def load_callsigns(path: Path = DEFAULT_CALLSIGNS) -> dict[str, str]:
+    """Load permanent operator aliases without changing MAC identity."""
+    aliases: dict[str, str] = {}
+    seen_names: set[str] = set()
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        for row in csv.DictReader(handle):
+            callsign = row.get("callsign", "").strip()
+            folded = callsign.casefold()
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]{2,6}", callsign):
+                raise ValueError(f"invalid fixture callsign {callsign!r}")
+            if folded in seen_names:
+                raise ValueError(f"duplicate fixture callsign {callsign!r}")
+            seen_names.add(folded)
+            assignment = row.get("assignment", "").strip()
+            fixture_id = row.get("fixture_id", "").strip().upper()
+            if assignment == "spare":
+                if fixture_id:
+                    raise ValueError(f"spare callsign {callsign!r} has a fixture id")
+                continue
+            if assignment != "assigned" or not re.fullmatch(r"[0-9A-F]{6}", fixture_id):
+                raise ValueError(f"bad callsign assignment for {callsign!r}")
+            if fixture_id in aliases:
+                raise ValueError(f"duplicate callsign fixture id {fixture_id}")
+            aliases[fixture_id] = callsign
+    return aliases
+
+
+CALLSIGN_BY_ID = load_callsigns()
 
 
 def now_iso() -> str:
@@ -349,6 +384,7 @@ class SerialWorker(threading.Thread):
             ina_panel_ma = maybe_ina(ipa)
             row = {
                 "id": pid,
+                "callsign": CALLSIGN_BY_ID.get(pid),
                 "seq": int(seq),
                 "rx": int(rx),
                 "gaps": int(gaps),
@@ -1010,6 +1046,12 @@ function compactPeerIds(peers) {
   return labels;
 }
 
+function peerCallsign(peer, includeId = false) {
+  if (!peer) return "none";
+  if (!peer.callsign) return peer.id;
+  return includeId ? `${peer.callsign} [${peer.id}]` : peer.callsign;
+}
+
 function compensatedBatteryV(peer) {
   if (!peer || !finite(peer.battery_v)) return null;
   const drawA = finite(peer.battery_ma) ? Math.max(0, -Number(peer.battery_ma) / 1000) : 0;
@@ -1142,13 +1184,13 @@ function renderFleet(peers, selectedId) {
     const ageText = msAge(peer.age_ms);
     const voltageText = finite(peer.battery_v) ? `${fmt(peer.battery_v, 3)} V` : "battery unknown";
     const signature = sensorSignature(peer);
-    const label = `${peer.id}, ${fixtureClassLabel}, ${signature}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ` +
+    const label = `${peerCallsign(peer, true)}, ${fixtureClassLabel}, ${signature}, ${voltageText}, ${h.battery.name}, ${h.heartbeat}, ` +
       `${h.source.label}, ${lightLabel}${tagged ? ", tagged green" : ""}`;
     const sourceMarkup = h.source.icon
       ? `<span class="power-source ${h.source.kind}">${h.source.icon}</span>` : "";
     const anchorMarkup = anchorBadges(peer);
     return `<div role="button" tabindex="0" class="${classes.join(" ")}" data-fleet-id="${esc(peer.id)}" aria-label="${esc(label)}" title="${esc(label)}; last heard ${ageText}">` +
-      `<button type="button" class="tag-toggle" data-tag-id="${esc(peer.id)}" aria-pressed="${tagged}" aria-label="${tagged ? "Clear" : "Set"} green location tag for ${esc(peer.id)}" title="${tagged ? "Clear" : "Set"} green half-brightness tag"></button>` +
+      `<button type="button" class="tag-toggle" data-tag-id="${esc(peer.id)}" aria-pressed="${tagged}" aria-label="${tagged ? "Clear" : "Set"} green location tag for ${esc(peerCallsign(peer, true))}" title="${tagged ? "Clear" : "Set"} green half-brightness tag"></button>` +
       `<span class="fixture-glyph class-${fixtureClassKey}" style="--battery-color:${h.battery.color};--battery-fill:${h.battery.fill}%;--rendered-color:${lightColor}">` +
       `${sourceMarkup}<span class="light-output ${lightState}" title="${esc(lightLabel)}"></span><span class="battery-shape"></span></span>` +
       `${anchorMarkup}<span class="fixture-id">${esc(labels.get(peer.id))}</span></div>`;
@@ -1194,7 +1236,8 @@ function renderFleet(peers, selectedId) {
   const recovery = RECOVERY_STATE[selected.recovery_state] || "recovery unknown";
   document.getElementById("selectedSummary").innerHTML =
     `<span class="summary-light" style="--summary-light:${lightColor}"></span>` +
-    `<strong>${esc(selected.id)}</strong><span>${esc(cls)}</span>` +
+    `<strong>${esc(peerCallsign(selected))}</strong>` +
+    `${selected.callsign ? `<span>${esc(selected.id)}</span>` : ""}<span>${esc(cls)}</span>` +
     `<span>${fmt(selected.battery_v, 3)} V${finite(comp) ? ` (${fmt(comp, 3)} V load-comp)` : ""}</span>` +
     `<span>${selected.battery_ma ?? "--"} mA</span><span>${esc(h.source.label)}</span>` +
     `<span>${esc(sensorSignature(selected))}${selected.class_mismatch ? " / class mismatch" : ""}</span>` +
@@ -1339,7 +1382,7 @@ function renderPeerSelector(peers, effectiveFocus) {
     const active = effectiveFocus === peer.id ? " active" : "";
     const stale = freshPeer(peer) ? "" : " bad";
     const suffix = fieldPhase(peer) || (peer.drawdown_active ? "draw" : (hasPanel(peer) ? "panel" : "node"));
-    buttons.push(`<button class="peer-chip${active}${stale}" type="button" data-peer-focus="${esc(peer.id)}">${esc(peer.id)} <span class="chip-sub">${suffix}</span></button>`);
+    buttons.push(`<button class="peer-chip${active}${stale}" type="button" data-peer-focus="${esc(peer.id)}" title="${esc(peerCallsign(peer, true))}">${esc(peerCallsign(peer))} <span class="chip-sub">${suffix}</span></button>`);
   });
   document.getElementById("peerSelector").innerHTML = buttons.join("");
   document.querySelectorAll("[data-peer-focus]").forEach(btn => {
@@ -1347,7 +1390,7 @@ function renderPeerSelector(peers, effectiveFocus) {
   });
 }
 function peerSource(peer) {
-  return peer ? peer.id : "none";
+  return peerCallsign(peer);
 }
 function metricClassForPower(value) {
   if (!finite(value)) return "muted";
@@ -1408,7 +1451,7 @@ function render(s) {
     const el = document.getElementById(id);
     el.disabled = !commandPeer;
     el.title = commandPeer
-      ? `Targets ${commandPeer.id}`
+      ? `Targets ${peerCallsign(commandPeer, true)}`
       : "Select exactly one fresh peer";
   });
   const strikePeers = strikeTargetPeers();
@@ -1418,7 +1461,7 @@ function render(s) {
   solenoidBtn.title = strikePeers.length
     ? (effectiveFocus === "all"
       ? `Queues an addressed D7 pulse for ${strikePeers.length} fresh fixtures; boards without an enabled solenoid ignore it`
-      : `Targets ${strikePeers[0].id}`)
+      : `Targets ${peerCallsign(strikePeers[0], true)}`)
     : "No fresh fixture targets";
   const sleepBtn = document.getElementById("sleepBtn");
   sleepBtn.disabled = sleepInFlight || strikePeers.length === 0;
@@ -1481,7 +1524,7 @@ function render(s) {
     const batteryW = finite(selected.battery_w) ? Number(selected.battery_w) : null;
     pushHist("battery", batteryW);
     setText("batteryLabel", "Battery");
-    setSource("batterySource", selected.id, freshPeer(selected) ? "" : "warn");
+    setSource("batterySource", peerSource(selected), freshPeer(selected) ? "" : "warn");
     setMetric("batteryW", fmt(batteryW, 3), "W", metricClassForPower(batteryW));
     document.getElementById("batteryFoot").textContent =
       `${fmt(selected.battery_v, 3)} V, ${selected.battery_ma} mA, SOC ${selected.soc_pct}%`;
@@ -1713,7 +1756,7 @@ document.getElementById("peerMaintBtn").addEventListener("click", () => {
     setCommandStatus("Select exactly one fresh peer for maintenance", "bad");
     return;
   }
-  sendCommand(`U${peer.id}`, `Target ${peer.id} maintenance`);
+  sendCommand(`U${peer.id}`, `Target ${peerCallsign(peer, true)} maintenance`);
 });
 document.getElementById("maintainBtn").addEventListener("click", () => {
   const raw = document.getElementById("maintainInput").value.trim();
@@ -1736,7 +1779,7 @@ document.getElementById("capacityBtn").addEventListener("click", () => {
     setCommandStatus("Enter 100 to 30000 mAh", "bad");
     return;
   }
-  sendCommand(`C${peer.id}:${mah}`, `Set ${peer.id} capacity ${mah} mAh`);
+  sendCommand(`C${peer.id}:${mah}`, `Set ${peerCallsign(peer, true)} capacity ${mah} mAh`);
 });
 document.getElementById("chargeBtn").addEventListener("click", () => {
   const peer = commandTargetPeer();
@@ -1750,7 +1793,7 @@ document.getElementById("chargeBtn").addEventListener("click", () => {
     setCommandStatus("Enter 40 to 2000 mA", "bad");
     return;
   }
-  sendCommand(`G${peer.id}:${ma}`, `Set ${peer.id} charge ${ma} mA`);
+  sendCommand(`G${peer.id}:${ma}`, `Set ${peerCallsign(peer, true)} charge ${ma} mA`);
 });
 document.getElementById("solenoidBtn").addEventListener("click", () => {
   const peers = strikeTargetPeers();
@@ -1794,7 +1837,7 @@ document.getElementById("napBtn").addEventListener("click", () => {
     setCommandStatus("Enter 1 to 65535 seconds", "bad");
     return;
   }
-  sendCommand(`P${peer.id}:${seconds}`, `Nap ${peer.id} ${seconds}s`);
+  sendCommand(`P${peer.id}:${seconds}`, `Nap ${peerCallsign(peer, true)} ${seconds}s`);
 });
 document.getElementById("sleepBtn").addEventListener("click", () => {
   const peers = strikeTargetPeers();
@@ -1808,7 +1851,9 @@ document.getElementById("sleepBtn").addEventListener("click", () => {
     setCommandStatus("Enter 0.1 to 18 hours", "bad");
     return;
   }
-  const scope = focusedPeerId === "all" ? `${peers.length} fresh fixtures` : peers[0].id;
+  const scope = focusedPeerId === "all"
+    ? `${peers.length} fresh fixtures`
+    : peerCallsign(peers[0], true);
   const confirmed = window.confirm(
     `Put ${scope} to bed for ${hours.toFixed(1)} hours? ` +
     "Lights and radios will turn off; USB and solar charging remain enabled."
@@ -1915,6 +1960,12 @@ def valid_command(cmd: str) -> bool:
     return False
 
 
+def action_target_label(target: str, peers: dict[str, dict[str, Any]]) -> str:
+    peer = peers.get(target) or peers.get(target.upper()) or {}
+    callsign = peer.get("callsign")
+    return f"{callsign} [{target}]" if callsign else target
+
+
 def prepare_strike_batch(
     body: dict[str, Any],
     peers: dict[str, dict[str, Any]],
@@ -1955,7 +2006,10 @@ def prepare_strike_batch(
         raise ValueError("none of the requested fixtures are currently fresh")
 
     commands = [
-        (f"K{target}:{pulse_ms}", f"Strike {target} D7 for {pulse_ms} ms")
+        (
+            f"K{target}:{pulse_ms}",
+            f"Strike {action_target_label(target, peers)} D7 for {pulse_ms} ms",
+        )
         for target in targets
     ]
     return commands, skipped
@@ -2000,7 +2054,10 @@ def prepare_sleep_batch(
     if not targets:
         raise ValueError("none of the requested fixtures are currently fresh")
     commands = [
-        (f"P{target}:{seconds}", f"Sleep {target} for {seconds} s")
+        (
+            f"P{target}:{seconds}",
+            f"Sleep {action_target_label(target, peers)} for {seconds} s",
+        )
         for target in targets
     ]
     return commands, skipped

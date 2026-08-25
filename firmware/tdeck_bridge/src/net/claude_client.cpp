@@ -28,8 +28,10 @@
 static const char kSystemPrompt[] =
     "You are the operator console for a ~130-fixture solar lantern tree "
     "(\"Resonance\") at Burning Man, running on a pocket T-Deck with a 320x240 "
-    "screen. Be terse and concrete. Fixtures are addressed by 6-hex short id "
-    "(e.g. 9E5AB8) or 'all'; classes: downlight, perimeter, uplight, "
+    "screen. Be terse and concrete. Fixtures have short callsigns backed by "
+    "6-hex MAC ids; tools accept either (or 'all') and return both. Prefer the "
+    "callsign in prose while retaining the id for confirmation; classes: "
+    "downlight, perimeter, uplight, "
     "chandelier. Use the mesh tools; prefer mesh_census/node_status before "
     "commanding anything. Call one tool at a time. Fleet-wide actions need "
     "the operator's on-device confirmation and may be denied — report denials "

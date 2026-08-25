@@ -95,21 +95,24 @@ static void updateCaption(int index) {
     return;
   }
   const HealthTile &tile = gTiles[index];
+  char identity[24];
+  if (tile.registry)
+    snprintf(identity, sizeof(identity), "%s [%02X%02X%02X]",
+             tile.registry->callsign, tile.id[0], tile.id[1], tile.id[2]);
+  else
+    snprintf(identity, sizeof(identity), "%02X%02X%02X", tile.id[0],
+             tile.id[1], tile.id[2]);
   if (tile.band == BatteryHealthBand::OFF_AIR) {
     if (tile.ageMs == UINT32_MAX) {
-      lv_label_set_text_fmt(gCaption, "%02X%02X%02X  OFF AIR  not seen",
-                            tile.id[0], tile.id[1], tile.id[2]);
+      lv_label_set_text_fmt(gCaption, "%s  OFF AIR  not seen", identity);
     } else {
-      lv_label_set_text_fmt(gCaption, "%02X%02X%02X  OFF AIR  last %lus",
-                            tile.id[0], tile.id[1], tile.id[2],
+      lv_label_set_text_fmt(gCaption, "%s  OFF AIR  last %lus", identity,
                             (unsigned long)(tile.ageMs / 1000));
     }
   } else if (tile.band == BatteryHealthBand::UNKNOWN) {
-    lv_label_set_text_fmt(gCaption, "%02X%02X%02X  live  no valid VBAT",
-                          tile.id[0], tile.id[1], tile.id[2]);
+    lv_label_set_text_fmt(gCaption, "%s  live  no valid VBAT", identity);
   } else {
-    lv_label_set_text_fmt(gCaption, "%02X%02X%02X  %d.%03d V  %s",
-                          tile.id[0], tile.id[1], tile.id[2],
+    lv_label_set_text_fmt(gCaption, "%s  %d.%03d V  %s", identity,
                           tile.battMv / 1000, tile.battMv % 1000,
                           bandName(tile.band));
   }
@@ -282,7 +285,11 @@ static void openDetail(const uint8_t id[3]) {
 
   lv_obj_t *title = lv_label_create(screen);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
+  if (registry)
+    lv_label_set_text_fmt(title, "%s  %02X%02X%02X", registry->callsign,
+                          id[0], id[1], id[2]);
+  else
+    lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
   lv_obj_set_pos(title, 8, 5);
 
   lv_obj_t *body = lv_label_create(screen);

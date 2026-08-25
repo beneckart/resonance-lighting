@@ -10,6 +10,73 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Fixture callsigns mapped and integrated
+
+Added the canonical `ops/fleet/callsigns.csv` table with 134 permanent
+production-health fixture assignments and 26 unassigned spares. The curated
+pool contains 160 unique, case-insensitive ASCII names, each 3-7 characters,
+biased toward games and Pokemon with short, familiar film, animation, and hero
+names mixed in. The checked-in table is now authoritative; its deterministic
+shuffle seed is retained only as provenance, not as a runtime assignment rule.
+
+Short MAC remains the immutable machine identity for ESP-NOW, OTA, USB flash,
+artifact manifests, persistence, and all other safety-critical operations.
+Callsigns are display and command-entry aliases. Operator-facing confirmations
+show both forms, for example `Ponyta [F2B7DC]`, and unknown or non-production
+peers continue to fall back to their short MAC.
+
+Integrated callsigns into the host network dashboard, the T-Deck Fleet and
+Health detail surfaces, and Claude's Bridge tools. Claude tools now accept an
+exact callsign or short MAC while resolving and transmitting the same three-byte
+fixture ID. Dense fleet/health overviews retain compact cells to avoid crowding.
+The generated Bridge registry now embeds and validates the callsign table and
+pins both source digests.
+
+The host dashboard's 13 tests and the complete T-Deck native suite pass. A
+compile-only ESP32-S3 dev-cache build succeeded at 1,549,587 bytes of sketch
+flash and 102,992 bytes of static RAM; the 1,549,728-byte binary SHA-256 is
+`0acd54ef3a2f6356ca43b50029f70833524d86a86a9109c792a42a95b3eb8e8a`.
+This work did not flash a device or send any fleet command. Deliberate T-Deck
+display and named-command canary validation remains open in TODO.
+
+## 2026-08-24 -- Ben + Codex -- Patterns v1 and RF Diagnostics integrated
+
+Completed the first parallel Bridge OS app batch from isolated feature lanes.
+Patterns v1 adds deterministic Wash, Chase, Wave, and Twinkle modes; five
+palettes; speed/intensity controls; class and stable short-ID cohort filters;
+and final per-fixture RGBW planning. It shares the existing bounded 8 Hz
+direct-frame service with LED Studio under one replaceable stream owner. The
+pure pattern model passes 190 native checks. Microphone/audio reactivity remains
+a separate v2 feature.
+
+RF Diagnostics adds a read-only summary and valid-frame-tail view. It separates
+production-roster unobserved fixtures from foreign live IDs, labels observation
+coverage honestly, deterministically ranks fresh strongest/weakest peers, and
+surfaces RX drops, TX counters, WiFi/AP/mesh/channel-guard state, and recent
+frames. It adds no wire type and sends no mesh packet. Its pure RF model and UI
+integration pass the complete native suite.
+
+Replaced launcher string dispatch with direct app callbacks, then integrated
+both apps through the shared lane. The full T-Deck native suite passes, including
+Health, NMEA time, direct-frame, Patterns, and RF coverage. The combined
+ESP32-S3 build uses 1,542,295 bytes of sketch flash and 102,992 bytes of static
+RAM. USB-flashed its 1,542,448-byte binary to exact T-Deck `8EB508`
+(`44:1B:F6:8E:B5:08`) on `COM152`; SHA-256 is
+`705119167e51ae8dff399a6c46cfd442b1610d14d0acb5d8a470c63461242b46`.
+Esptool verified the upload. Live probes found PSRAM, keyboard, touch, ES7210,
+and GPS; the bridge rejoined mesh channel 11 with advancing frames and 94/94 TX
+success. No lighting, sleep, knock, maintenance, OTA, or other fixture-control
+command was sent. Ben reports the preceding Health/Schedule physical smoke test
+looked good; explicit Patterns/RF acceptance checks remain in TODO.
+
+A concurrent callsign workstream modified the Health aggregate shape before its
+generated roster was refreshed. The first local rebuild therefore misassigned
+the old role string to the new callsign field. The freshness test caught the
+partial integration after flash. Rebuilt from clean checkpoint `3e7ed36` in an
+isolated release worktree that excluded every uncommitted callsign file,
+reflashed the corrected image above, and repeated the live verification. The
+temporary image was not used to send fixture controls and is no longer running.
+
 ## 2026-08-24 -- Ben + Codex -- First UTC/schedule fixture canary OTA
 
 Checkpointed the integrated Bridge OS and fixture source at clean commit

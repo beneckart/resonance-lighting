@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <string.h>
 
+#include "../core/fleet_registry_generated.h"
+#include "../core/health_model.h"
 #include "../net/census_svc.h"
 #include "../net/mesh_tx.h"
 #include "app_fleet.h"
@@ -19,6 +21,12 @@ static uint32_t gSelRow = 1;
 
 static void openDetail(const uint8_t id[3]);
 static lv_color_t ledChipColor(const CensusView &v);
+
+static const char *callsignForId(const uint8_t id[3]) {
+  const HealthRegistryEntry *entry =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, id);
+  return entry ? entry->callsign : nullptr;
+}
 
 // Trackball on the fleet screen: up/down moves the row selection (and keeps
 // it in view); click opens the selected node's detail.
@@ -136,8 +144,13 @@ static void refreshTable(lv_timer_t *) {
     const CensusView &v = gRows[i];
     uint32_t r = (uint32_t)i + 1;
     lv_table_set_cell_value(gTable, r, 0, "");  // chip column (draw hook)
-    snprintf(buf, sizeof(buf), "%02X%02X%02X %c", v.id[0], v.id[1], v.id[2],
-             classLetter(v.fixtureClass));
+    const char *callsign = callsignForId(v.id);
+    if (callsign)
+      snprintf(buf, sizeof(buf), "%s %c", callsign,
+               classLetter(v.fixtureClass));
+    else
+      snprintf(buf, sizeof(buf), "%02X%02X%02X %c", v.id[0], v.id[1], v.id[2],
+               classLetter(v.fixtureClass));
     lv_table_set_cell_value(gTable, r, 1, buf);
     uint32_t ageS = v.ageMs / 1000;
     if (ageS < 100) snprintf(buf, sizeof(buf), "%lus", (unsigned long)ageS);
@@ -188,7 +201,12 @@ static void openDetail(const uint8_t id[3]) {
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_t *title = lv_label_create(scr);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
+  const char *callsign = callsignForId(id);
+  if (callsign)
+    lv_label_set_text_fmt(title, "%s  %02X%02X%02X", callsign, id[0], id[1],
+                          id[2]);
+  else
+    lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
   lv_obj_set_pos(title, 8, 6);
 
   lv_obj_t *body = lv_label_create(scr);
