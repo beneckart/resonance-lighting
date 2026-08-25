@@ -17,7 +17,7 @@ commissioning path. T-Deck `8EB508` now reports received GPS/RTC quality,
 validity, age, uncertainty, and live GPS disagreement to the host dashboard.
 The final diagnostic development binary is 1,551,088 bytes with SHA-256
 `326023943434559bba5abf4de9a4aabb5ad269c2966d9a6d9d46065b20455711`.
-The complete T-Deck native suite and 21 host dashboard/OTA/RTC policy tests
+The complete T-Deck native suite and 22 host dashboard/OTA/RTC policy tests
 pass. Commit `055a58c` contains the diagnostics.
 
 Fixture commit `7963816` adds native-tested DS3231 calendar conversion, a
@@ -53,9 +53,12 @@ connection/session in maintenance; this initially looked like missing RTC
 traffic. Reissuing `/resume` with an explicit connection close restored mesh
 service, after which all repeat checks passed. Treat closed-session resume plus
 fresh heartbeat as the operator acceptance, not the HTTP response alone. No
-other fixture was flashed or commissioned. Thor/Magic Wand `F40344` was never
-targeted. Remaining qualification is compressed dusk/dawn, a real overnight,
-RTC holdover/drift/backup energy, and the unresolved anchor inventory.
+other fixture was flashed or commissioned. The commissioning tool now forces
+that connection close and requires three new exact-revision, valid/date-valid,
+GPS-aligned RTC mesh observations before it reports completion. Thor/Magic Wand
+`F40344` was never targeted. Remaining qualification is compressed dusk/dawn,
+a real overnight, RTC holdover/drift/backup energy, and the unresolved anchor
+inventory.
 
 ## 2026-08-24 -- Ben + Codex -- Navi RTC-anchor schedule canary OTA
 

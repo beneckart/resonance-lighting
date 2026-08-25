@@ -56,6 +56,36 @@ class RtcCommissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no fresh"):
             rtc.gps_now_ms(state)
 
+    def test_rtc_mesh_sample_requires_fresh_exact_gps_aligned_rtc(self):
+        state = {
+            "peers": {
+                "9F0E7C": {
+                    "firmware_rev": "fx-test-b",
+                    "age_ms": 1200,
+                }
+            },
+            "time_sources": {
+                "9F0E7C": {
+                    "source": 2,
+                    "valid": True,
+                    "date_valid": True,
+                    "gps_valid": True,
+                    "gps_delta_ms": 650,
+                    "observation_age_ms": 900,
+                    "ts_utc": "2026-08-25T04:40:19+00:00",
+                }
+            },
+        }
+        self.assertEqual(
+            rtc.rtc_mesh_sample(state, "9F0E7C", "fx-test-b"),
+            ("2026-08-25T04:40:19+00:00", 650),
+        )
+        state["peers"]["9F0E7C"]["firmware_rev"] = "wrong"
+        self.assertIsNone(rtc.rtc_mesh_sample(state, "9F0E7C", "fx-test-b"))
+        state["peers"]["9F0E7C"]["firmware_rev"] = "fx-test-b"
+        state["time_sources"]["9F0E7C"]["gps_delta_ms"] = 3001
+        self.assertIsNone(rtc.rtc_mesh_sample(state, "9F0E7C", "fx-test-b"))
+
 
 if __name__ == "__main__":
     unittest.main()

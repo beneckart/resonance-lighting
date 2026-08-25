@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import re
+import time
 import urllib.parse
 import urllib.request
 
@@ -97,6 +98,80 @@ def post_rtc(ip: str, target: str, utc_s: int) -> dict:
     return value
 
 
+def request_resume(ip: str) -> None:
+    # The ESP32 switches modes immediately after serving this response. Force
+    # the HTTP client to close so an idle keep-alive cannot leave the server in
+    # maintenance even though the operator saw a successful status code.
+    request = urllib.request.Request(
+        f"http://{ip}/resume",
+        method="GET",
+        headers={"Connection": "close"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5.0) as response:
+            response.read()
+    except OSError:
+        # Closing WiFi as the response drains can look like a client error.
+        # Only the fresh mesh evidence below is authoritative.
+        pass
+
+
+def rtc_mesh_sample(state: dict, target: str, expected_fw: str) -> tuple[str, int] | None:
+    peers = state.get("peers") or {}
+    peer = peers.get(target)
+    if not isinstance(peer, dict):
+        return None
+    if peer.get("firmware_rev") != expected_fw:
+        return None
+    if int(peer.get("age_ms", 10**9)) > 5000:
+        return None
+
+    sources = state.get("time_sources") or {}
+    row = sources.get(target)
+    if not isinstance(row, dict):
+        return None
+    if (
+        row.get("source") != 2
+        or row.get("valid") is not True
+        or row.get("date_valid") is not True
+        or row.get("gps_valid") is not True
+        or int(row.get("observation_age_ms", 10**9)) > 5000
+    ):
+        return None
+    observed = str(row.get("ts_utc") or "")
+    if not observed:
+        return None
+    delta_ms = int(row.get("gps_delta_ms", 10**9))
+    if abs(delta_ms) > 3000:
+        return None
+    return observed, delta_ms
+
+
+def wait_for_rtc_mesh(
+    dashboard_url: str,
+    target: str,
+    expected_fw: str,
+    previous_observation: str,
+    required: int = 3,
+    timeout_s: float = 45.0,
+) -> list[int]:
+    seen = {previous_observation} if previous_observation else set()
+    deltas: list[int] = []
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        state = fetch_json(dashboard_url.rstrip("/") + "/api/state")
+        sample = rtc_mesh_sample(state, target, expected_fw)
+        if sample and sample[0] not in seen:
+            seen.add(sample[0])
+            deltas.append(sample[1])
+            if len(deltas) >= required:
+                return deltas
+        time.sleep(1.0)
+    raise ValueError(
+        f"only {len(deltas)}/{required} fresh RTC mesh observations after resume"
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Commission one exact-target DS3231 from fresh Bridge GPS."
@@ -120,6 +195,9 @@ def main() -> None:
         preflight_fixture(telemetry, target, args.expect_fw)
         state = fetch_json(args.dashboard_url.rstrip("/") + "/api/state")
         requested = commission_utc_s(state)
+        previous = str(
+            ((state.get("time_sources") or {}).get(target) or {}).get("ts_utc") or ""
+        )
     except ValueError as exc:
         raise SystemExit(f"preflight refused: {exc}") from exc
     print(
@@ -132,8 +210,10 @@ def main() -> None:
         print("dry-run: exact target and GPS reference passed; RTC was not written")
         return
 
+    rtc_written = False
     try:
         response = post_rtc(args.ip, target, requested)
+        rtc_written = True
         post = fetch_json(fixture_url)
         preflight_fixture(post, target, args.expect_fw)
         if post.get("rtc_valid") is not True:
@@ -146,10 +226,22 @@ def main() -> None:
                 f"RTC/GPS verification failed: rtc={readback}, gps={gps_s}"
             )
     except (OSError, ValueError) as exc:
+        if rtc_written:
+            request_resume(args.ip)
         raise SystemExit(f"commission failed: {exc}") from exc
+    request_resume(args.ip)
+    try:
+        deltas = wait_for_rtc_mesh(
+            args.dashboard_url, target, args.expect_fw, previous
+        )
+    except (OSError, ValueError) as exc:
+        raise SystemExit(
+            f"RTC was written, but mesh resume verification failed: {exc}"
+        ) from exc
     print(
         f"commissioned {target}: rtc={response['rtc_utc_s']} "
-        f"readback={readback} gps={gps_s} delta={readback - gps_s}s",
+        f"readback={readback} gps={gps_s} delta={readback - gps_s}s "
+        f"mesh_deltas_ms={','.join(str(value) for value in deltas)}",
         flush=True,
     )
 
