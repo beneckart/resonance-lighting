@@ -14,7 +14,7 @@ README remains the implementation, build, and acceptance record.
 Sleep/Dark entry point), **Health** (single-screen voltage health grid for the
 production registry plus live node detail), **LED Studio** (class-targeted solid colors and 1 Hz
 cohort blink via sustained 8 Hz direct-frame streaming, client-side dim),
-**Sleep / Dark** (confirmed 10 min / 1 h / 4 h / 8 h / 12 h dark leases or
+**Sleep / Dark** (confirmed 10 min or 1-12 h in one-hour steps; dark leases or
 rails-off timer sleep), **Knocker** (single strike plus selectable targeted
 roll, immediate fleet multicast, and shared +1.0 s deadline multicast),
 **Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),

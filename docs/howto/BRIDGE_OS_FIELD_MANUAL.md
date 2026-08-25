@@ -259,7 +259,7 @@ Patterns yet.
 
 ## Sleep / Dark: know the difference
 
-The screen defaults to **low-power sleep** for **8 hours**. Read the selection
+The screen defaults to **low-power sleep** for **1 hour**. Read the selection
 before applying it.
 
 | Action | LEDs | Radio | Can cancel remotely? | Best use |
@@ -267,7 +267,7 @@ before applying it.
 | Dark | rail off | awake | Yes, with Release Dark or lease expiry | Short reversible blackout and diagnostics |
 | Low-power sleep | rails off | off | No; timer wake or physical reset/power cycle | Overnight energy saving |
 
-Available durations are 10 minutes, 1 hour, 4 hours, 8 hours, and 12 hours.
+Available durations are 10 minutes and every whole hour from 1 through 12.
 Both actions show live/seen counts and require an on-device confirmation with
 cancel focused by default.
 

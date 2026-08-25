@@ -12,9 +12,18 @@
 
 enum class RestAction : uint8_t { DARK = 0, SLEEP = 1 };
 
-static const uint16_t kDurationsS[] = {600, 3600, 14400, 28800, 43200};
-static const char *kDurationNames[] = {"10 min", "1 hour", "4 hours",
-                                       "8 hours", "12 hours"};
+static const uint16_t kDurationsS[] = {
+    600,   3600,  7200,  10800, 14400, 18000, 21600,
+    25200, 28800, 32400, 36000, 39600, 43200,
+};
+static const char *kDurationNames[] = {
+    "10 min",   "1 hour",   "2 hours",  "3 hours",   "4 hours",
+    "5 hours",  "6 hours",  "7 hours", "8 hours",   "9 hours",
+    "10 hours", "11 hours", "12 hours",
+};
+static_assert(sizeof(kDurationsS) / sizeof(kDurationsS[0]) ==
+                  sizeof(kDurationNames) / sizeof(kDurationNames[0]),
+              "duration labels must match duration values");
 
 static lv_obj_t *gActionDd = nullptr;
 static lv_obj_t *gDurationDd = nullptr;
@@ -124,8 +133,10 @@ void appPowerOpen() {
   lv_obj_set_pos(durationLabel, 8, 92);
   gDurationDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gDurationDd,
-                          "10 min\n1 hour\n4 hours\n8 hours\n12 hours");
-  lv_dropdown_set_selected(gDurationDd, 3);
+                          "10 min\n1 hour\n2 hours\n3 hours\n4 hours\n"
+                          "5 hours\n6 hours\n7 hours\n8 hours\n9 hours\n"
+                          "10 hours\n11 hours\n12 hours");
+  lv_dropdown_set_selected(gDurationDd, 1);
   lv_obj_set_pos(gDurationDd, 92, 83);
   lv_obj_set_width(gDurationDd, 140);
 
