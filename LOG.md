@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Codex -- All-work integration verification
+
+Consolidated the laptop's remaining useful local branches for the requested
+`origin/main` push. Patterns and RF branches were already patch-equivalent to
+the integrated Bridge OS. Recovered the false-PROTECT safety work as ADR 0051,
+including its adversarial-audit fixes; restored the retained fleet OTA evidence
+and 144-entry Health roster; preserved the superseded fleet-sleep field record
+without reopening its retired serial commands; and included the concurrent RF
+contrast / Claude census paging commit.
+
+The complete fixture native suite passes. A sequential compile-only fixture
+development build also passes at 1,194,896 bytes, SHA-256
+`2c076b0de0d9783bf4d734a5324aecd0010968dfe40f40e219004885e0a35c3c`.
+The complete T-Deck native suite passes with 144 registry fixtures, and its
+sequential compile-only development build passes at 1,552,672 bytes, SHA-256
+`26200e59595b32d85d5edd2935e6da37dba2913b96f5433f5fcf0402a33d41dc`.
+No binary was flashed; no fixture command, OTA, maintenance request, strike,
+sleep request, or network mutation was sent.
+
 ## 2026-08-24 -- Codex -- Preserved superseded fleet-sleep field record
 
 The all-work audit also found local branch `codex/tdeck-transport-sleep`
