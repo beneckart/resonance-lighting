@@ -120,6 +120,26 @@ class DashboardParserTests(unittest.TestCase):
         self.assertTrue(dashboard.valid_command("L900"))
         self.assertFalse(dashboard.valid_command("L901"))
 
+    def test_serial_commands_are_line_terminated_for_bridge_os(self):
+        class FakeSerial:
+            is_open = True
+
+            def __init__(self):
+                self.writes = []
+
+            def write(self, data):
+                self.writes.append(data)
+
+            def flush(self):
+                pass
+
+        state = dashboard.DashboardState()
+        handle = FakeSerial()
+        state.serial_handle = handle
+        worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
+        worker.send_commands([("UF2BE08", "maint"), ("b", "release")], 0)
+        self.assertEqual(handle.writes, [b"UF2BE08\n", b"b\n"])
+
     def test_fleet_strike_stays_addressed_and_skips_stale_peers(self):
         commands, skipped = dashboard.prepare_strike_batch(
             {"targets": ["f2b7dc", "E39F1C", "F2B7DC", "E39A34"], "pulse_ms": 40},

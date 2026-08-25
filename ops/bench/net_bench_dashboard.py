@@ -535,7 +535,10 @@ class SerialWorker(threading.Thread):
                 handle = self.state.serial_handle
                 if handle is None or not handle.is_open:
                     raise RuntimeError("serial port is not open")
-                handle.write(cmd.encode("ascii"))
+                # A newline is harmless to the legacy one-character bridge
+                # parser and is required by line-oriented Bridge OS. Keep one
+                # command per line so adjacent API requests cannot concatenate.
+                handle.write((cmd + "\n").encode("ascii"))
                 handle.flush()
                 self.state.remember_command(cmd, label)
                 self.state.add_event("command", {"cmd": cmd, "label": label})

@@ -10,6 +10,40 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- First UTC/schedule fixture canary OTA
+
+Checkpointed the integrated Bridge OS and fixture source at clean commit
+`c544bf6bdfee15e7b1fcf25db350e8bee6b1bde7`. From that exact source, built the
+immutable bench/canary artifact `fx-260825-d374034-b` (UTC commit date, recipe
+SHA-256 `d37403418522644bbbe7163cb21108fd3612f88ad1021d64c1e4615199cb41f8`).
+The fresh field-default, channel-11, basic-listener image is 1,190,240 bytes;
+binary SHA-256 is
+`b0722b5fe965f16c0b0d95f7fe3b8b905799702343fd0ad2c5f9fcbeaadf5009`.
+Its new artifact directory contains the exact binary, build options, identity
+header, canonical recipe, manifest, and independently checked hash file.
+
+The first two maintenance discovery attempts correctly stopped before upload.
+They exposed a host compatibility seam: the dashboard wrote raw commands with
+no terminator because the legacy bridge consumes a byte-oriented alphabet,
+while Bridge OS consumes complete lines. An interrupted dashboard wrapper had
+also left its old Python child owning `COM152`, so the apparent restart still
+used the old behavior. Stopped only the two verified COM152 dashboard children,
+changed dashboard writes to one newline-terminated command each, and added a
+regression proving batched `U...`/release writes cannot concatenate. All 11
+dashboard tests pass. Legacy bridge parsers ignore the harmless newline.
+
+Direct serial then proved Bridge OS acknowledged exact-target
+`UF2BE08`. A single fresh dashboard process found fixture `F2BE08` at
+`192.168.1.224`; pre-upload telemetry matched the target and reported the old
+`fx-260818-f80f315-b` revision with 3.351 V battery. OTA uploaded only the exact
+immutable binary and rebooted to comms. The fixture returned a fresh heartbeat
+on `fx-260825-d374034-b`; at 42 seconds uptime, beyond the 20-second
+pending-verify window, another fresh heartbeat still reported that revision,
+software reset, 3.351 V battery, and 4.664 V good supply. No other fixture was
+uploaded. Existing NVS remains authoritative; this canary was commission
+profile before OTA, so the artifact's field compile default did not silently
+change its runtime profile.
+
 ## 2026-08-24 -- Ben + Codex -- Integrated Bridge OS health/time image and OTA bridge
 
 Reviewed the concurrently added T-Deck Health app and RTC/GPS schedule path as

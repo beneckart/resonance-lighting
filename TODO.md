@@ -760,7 +760,11 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   on 60 fixtures using sensor bits 4/5 and dashboard G/R badges. It found GPS
   anchor `F2BDB4` and RTC anchors `9F0E7C` and `9F26C0`; the other five
   purchased boards remain to be found in the held-back or silent population.
-  Hardware validation remains open: flash named canaries, confirm GPS packets
+  First non-anchor fixture canary `F2BE08` received immutable
+  `fx-260825-d374034-b` and remained fresh on that revision past pending verify.
+  It retained its existing commission profile, so this proves the integrated
+  image/OTA/rejoin path but not autonomous field scheduling. Hardware validation
+  remains open: flash named GPS/RTC anchor canaries, confirm GPS packets
   and RTC validity/disagreement handling, run compressed dusk/dawn plus a real
   overnight, measure holdover/drift/acquisition energy, and qualify SAM-M8Q I2C
   acquisition through the actual hat. Fixture GPS reading, peer relay, schedule
