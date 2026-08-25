@@ -10,6 +10,53 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Ben + Codex -- Two RTC anchors commissioned against live GPS
+
+Added read-only Bridge time-quality diagnostics plus an exact-target RTC
+commissioning path. T-Deck `8EB508` now reports received GPS/RTC quality,
+validity, age, uncertainty, and live GPS disagreement to the host dashboard.
+The final diagnostic development binary is 1,551,088 bytes with SHA-256
+`326023943434559bba5abf4de9a4aabb5ad269c2966d9a6d9d46065b20455711`.
+The complete T-Deck native suite and 21 host dashboard/OTA/RTC policy tests
+pass. Commit `055a58c` contains the diagnostics.
+
+Fixture commit `7963816` adds native-tested DS3231 calendar conversion, a
+guarded maintenance-only `/rtc` endpoint, explicit UTC write/readback, RTC
+validity telemetry, and `ops/bench/rtc_commission.py`. The endpoint requires
+the exact six-digit fixture ID, a bounded 10-digit UTC value, and the literal
+`SET_RTC_UTC`; the host tool additionally requires active maintenance, exact
+firmware, DS3231 presence, safe power, and a fresh valid T-Deck GPS source.
+The fixture native suite passes, including 32 RTC calendar checks.
+
+Built immutable field/listener canary `fx-260825-9ef9d64-b` once from clean
+commit `7963816bf8576f193a4be15bb62f9fb51aa8c219`. Its canonical recipe SHA-256
+is `9ef9d64e50d3e3b006ad3ab5f677534860a3e25c62f072cf5a2c441ff77532c2`;
+the 1,192,832-byte binary SHA-256 is
+`2fc29583a526a995e8bf35c4d4f2b5db3e32c45052a094aa44611baa1f27f9b9`.
+The manifest records channel 11, field profile, basic-listener posture, LFP,
+and 300 mA precharge.
+
+With one declared operator, OTA-updated only Navi `9F0E7C`, then only Zorua
+`9F26C0`. Both used their installed LFPs, identity-matched at
+`192.168.1.128` and `192.168.1.78`, rejoined on the exact expected revision,
+and survived the 25-second pending-verify gate with software-reset evidence,
+downlight class, and recovery state 0. Both DS3231s were present but correctly
+reported invalid/OSF before commissioning. Exact-target writes read back valid
+within 2 seconds of GPS for Navi and 1 second for Zorua. After returning to
+mesh service, three independent 10-second RTC broadcasts from each were valid
+and date-valid: Navi differed from live GPS by 659/639/624 ms, and Zorua by
+662/669/656 ms. A final simultaneous snapshot remained fresh at 655 ms and
+644 ms disagreement respectively.
+
+Zorua's first PowerShell `/resume` request returned HTTP 200 but kept the
+connection/session in maintenance; this initially looked like missing RTC
+traffic. Reissuing `/resume` with an explicit connection close restored mesh
+service, after which all repeat checks passed. Treat closed-session resume plus
+fresh heartbeat as the operator acceptance, not the HTTP response alone. No
+other fixture was flashed or commissioned. Thor/Magic Wand `F40344` was never
+targeted. Remaining qualification is compressed dusk/dawn, a real overnight,
+RTC holdover/drift/backup energy, and the unresolved anchor inventory.
+
 ## 2026-08-24 -- Ben + Codex -- Navi RTC-anchor schedule canary OTA
 
 Declared one OTA operator and selected only RTC anchor Navi `9F0E7C`. Reused

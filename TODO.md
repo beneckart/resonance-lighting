@@ -805,15 +805,22 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   image/OTA/rejoin path but not autonomous field scheduling. First RTC anchor
   canary Navi `9F0E7C` then received the same exact artifact as the sole OTA
   target and remained fresh beyond pending verify; its new-revision heartbeat
-  still reports DS3231 presence. This proves anchor-safe OTA and hardware
-  detection, but the dashboard does not expose `NB_TIME_QUALITY` or the
-  fixture's selected UTC source, so RTC validity/disagreement is not yet proven.
-  Hold second RTC anchor Zorua `9F26C0` until that evidence or a compressed
-  schedule test is captured. Remaining hardware validation: confirm GPS packets
-  and RTC validity/disagreement handling, run compressed dusk/dawn plus a real
-  overnight, measure holdover/drift/acquisition energy, and qualify SAM-M8Q I2C
-  acquisition through the actual hat. Fixture GPS reading, peer relay, schedule
-  versioning, and final anchor counts also remain open (Ben/Codex).
+  still reports DS3231 presence. Bridge time-quality diagnostics and guarded
+  exact-target DS3231 commissioning then landed in commits `055a58c` and
+  `7963816`. Immutable `fx-260825-9ef9d64-b` (binary SHA-256
+  `2fc29583a526a995e8bf35c4d4f2b5db3e32c45052a094aa44611baa1f27f9b9`)
+  was sole-target OTA-validated on Navi and Zorua `9F26C0`; both survived the
+  pending-verify gate, reported present-but-invalid RTCs before the guarded
+  write, read back within 2 seconds of fresh T-Deck GPS, and then emitted three
+  independent valid/date-valid RTC mesh observations each. Measured live GPS
+  disagreement was 624-669 ms. This closes GPS publication, two-anchor RTC
+  validity, OSF refusal, guarded initialization, mesh publication, and live
+  disagreement visibility. Remaining hardware validation: run compressed
+  dusk/dawn plus a real overnight; measure holdover, drift, backup current, and
+  acquisition energy; find the other purchased anchor boards; and qualify
+  SAM-M8Q acquisition through the actual hat. Fixture GPS reading, peer relay,
+  schedule versioning, safe slew/correction, recovery cases, and final anchor
+  counts also remain open (Ben/Codex).
 - [~] **P105 production-harness A/B of `net-bench-2026-07-13.2`:** remove the external
   panel/battery INAs and instrumented interconnects, but leave firmware, cell, panel,
   load, and thresholds unchanged for the first complete dusk/show/recovery cycle.
