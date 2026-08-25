@@ -7,6 +7,7 @@
 #include "../hal/hal_display.h"
 #include "../net/census_svc.h"
 #include "../net/net_mgr.h"
+#include "../net/stream_svc.h"
 #include "../store/store.h"
 #include "app_ca.h"
 #include "app_chat.h"
@@ -14,6 +15,7 @@
 #include "app_health.h"
 #include "app_knocker.h"
 #include "app_power.h"
+#include "app_patterns.h"
 #include "app_schedule.h"
 #include "app_settings.h"
 #include "app_zones.h"
@@ -34,7 +36,7 @@ struct Tile {
 };
 
 static void openSunTest();
-static void openPatternsPlaceholder();
+static void openPatterns();
 static void openLocatePlaceholder();
 static void openRfPlaceholder();
 
@@ -47,7 +49,7 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_BATTERY_FULL, "Health", appHealthOpen},
     {LV_SYMBOL_TINT, "LEDs", appZonesOpen},
     {LV_SYMBOL_BELL, "Knock", appKnockerOpen},
-    {LV_SYMBOL_PLAY, "Patterns", openPatternsPlaceholder},
+    {LV_SYMBOL_PLAY, "Patterns", openPatterns},
     {LV_SYMBOL_LOOP, "CA", appCaOpen},
     {LV_SYMBOL_GPS, "Schedule", appScheduleOpen},
     {LV_SYMBOL_EYE_OPEN, "Locate", openLocatePlaceholder},
@@ -171,7 +173,19 @@ static void openPlaceholder(const char *name) {
   if (old && old != gLauncher) lv_obj_delete(old);
 }
 
-static void openPatternsPlaceholder() { openPlaceholder("Patterns"); }
+static bool startPatternStream(const PatternSettings &settings,
+                               uint32_t startedMs) {
+  return streamPattern(settings, startedMs);
+}
+
+static void openPatterns() {
+  static const PatternStreamHooks hooks = {
+      startPatternStream, streamPatternStop, streamPatternActive,
+      streamTargetCount};
+  appPatternsSetStreamHooks(&hooks);
+  appPatternsOpen();
+}
+
 static void openLocatePlaceholder() { openPlaceholder("Locate"); }
 static void openRfPlaceholder() { openPlaceholder("RF"); }
 
