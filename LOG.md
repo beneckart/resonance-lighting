@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-24 -- Codex -- Preserved superseded fleet-sleep field record
+
+The all-work audit also found local branch `codex/tdeck-transport-sleep`
+(`97d839e`, documentation `937164a`). On 2026-08-22 it built and flashed
+T-Deck `8EB508` artifact `tdeck-260822-97d839e-sleep`, 1,498,752 bytes,
+SHA-256
+`f808acdeeabc1ca1ab4f5955df6f0a196a524cbcc1b81085ed918f1ad565282b`.
+The bridge confirmed an eight-copy 20-hour `NB_TRANSPORT_SLEEP` broadcast and
+then a 65,535-second legacy fallback for older fixtures. The host suspended
+during the planned census check, so transmission is bridge-confirmed but final
+fleet silence was not observed from the host.
+
+Did not transplant that branch's `Q<hours>` / `S<seconds>` serial commands into
+current source: ADR 0048 deliberately superseded that control surface with the
+on-device confirmation rail and keeps fleet sleep out of the serial CLI and
+Claude tools. Current source also already uses the shared `core/version.h`, so
+the old branch's split-version TODO is resolved. This entry preserves its field
+evidence without reopening a retired, less-guarded operator path.
+
 ## 2026-08-24 -- Codex -- Recovered retained fleet-wave evidence
 
 Audited every local worktree before the all-work push and found the unmerged
