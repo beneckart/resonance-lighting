@@ -459,6 +459,104 @@ int main() {
   }
 
   {
+    // A 15 s deep-sleep wake must not cut off the 60 s solar confirmation.
+    // Measured strong input holds only this probe awake, then earns ACTIVE.
+    LifeConfig prod = lifeConfigDefaults(false);
+    LifeState_t st;
+    lifeInit(st);
+    LifeInputs in = {};
+    in.forceNight = 0;
+    in.supplyGood = true;
+    in.supplyMa = 300;
+    in.battV = 3.20f;
+    in.tier = 0;
+    in.rxHoldMs = 600000;
+    in.awakeGraceUntilMs = 15000;
+
+    in.nowMs = 1000;
+    LifeOutputs o = lifeTick(st, in, prod);
+    CHECK(o.solarProbeActive);
+    CHECK(!o.wantSleep);
+    in.nowMs = 16000; // ordinary wake grace has expired
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(o.solarProbeActive);
+    CHECK(!o.wantSleep);
+    in.nowMs = 60000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(o.solarProbeActive);
+    in.nowMs = 61000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(!o.solarProbeActive);
+    CHECK(o.strikesAllowed);
+
+    // Entry and strike permission use 150 mA, while 100 mA hysteresis keeps
+    // an already-active fixture awake through modest solar variation.
+    in.supplyMa = 120;
+    in.nowMs = 62000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(!o.strikesAllowed);
+    in.supplyMa = 99;
+    in.nowMs = 63000;
+    o = lifeTick(st, in, prod);
+    in.nowMs = 362999;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    in.nowMs = 363000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(o.wantSleep);
+  }
+
+  {
+    // A transient input spike extends only while it remains credible. A high
+    // resting battery with weak/no input is not renewable-surplus evidence.
+    LifeConfig prod = lifeConfigDefaults(false);
+    LifeState_t st;
+    lifeInit(st);
+    LifeInputs in = {};
+    in.forceNight = 0;
+    in.supplyGood = true;
+    in.supplyMa = 300;
+    in.battV = 3.55f;
+    in.tier = 0;
+    in.rxHoldMs = 600000;
+    in.awakeGraceUntilMs = 15000;
+    in.nowMs = 1000;
+    LifeOutputs o = lifeTick(st, in, prod);
+    CHECK(o.solarProbeActive);
+    in.supplyMa = 149;
+    in.nowMs = 16000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(!o.solarProbeActive);
+    CHECK(o.wantSleep);
+
+    lifeInit(st);
+    in.supplyGood = true;
+    in.supplyMa = 300;
+    in.tier = 1;
+    in.nowMs = 16000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(!o.solarProbeActive);
+    CHECK(o.wantSleep);
+
+    lifeInit(st);
+    in.supplyGood = false;
+    in.supplyMa = 0;
+    in.tier = 0;
+    in.nowMs = 16000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
+    CHECK(!o.solarProbeActive);
+    CHECK(o.wantSleep);
+  }
+
+  {
     // Dev's wire-stable value is COMMISSION: no inferred dusk/autonomy and no
     // sleep. The command runtime is available, with power tiers still vetoing.
     LifeConfig dev = lifeConfigDefaults(true);

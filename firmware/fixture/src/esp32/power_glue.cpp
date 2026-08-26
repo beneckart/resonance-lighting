@@ -13,6 +13,7 @@
 #include "nvs_store.h"
 #include "ota_verify.h"
 #include "telemetry.h"
+#include "sleep_audit_io.h"
 
 // Cold-boot grace: serve telemetry/maintenance before the first PROTECT sleep
 // can fire (donor cold-listen pattern), and give a deep-sleep wake a short
@@ -28,6 +29,7 @@ static PowerIntegrator gIntegrator;
 static uint32_t gGraceUntilMs = 0;
 static bool gProtectPersistDeferred = false; // ADR 0051 RAM-only PROTECT
 static uint32_t gLoadsQuietSinceMs = 0;      // rail+solenoid quiet streak
+static bool gProtectAuditAttempted = false;  // at most one NVS try per entry
 
 const PowerBudget &powerBudget() { return gBudget; }
 
@@ -95,6 +97,7 @@ void powerGlueTick() {
   if (s.batt_valid)
     integratorTick(gIntegrator, now, s.batt_ma, (uint16_t)(s.batt_v * 1000.0f));
 
+  bool enteredProtect = false;
   if (b.tier_changed) {
     // Persist the stage BEFORE any load change becomes visible: a reset
     // mid-transition must boot into the safer stage, never the brighter one.
@@ -136,6 +139,7 @@ void powerGlueTick() {
       gSmokeRender = false;
       ledRailOff();
     }
+    enteredProtect = b.tier == LedTier::PROTECT;
   }
 
   // Resolve a deferred PROTECT persist: corroboration arriving while the tier
@@ -193,11 +197,21 @@ void powerGlueTick() {
   gTelemetryPowerTier = (uint8_t)b.tier;
   gNetPowerTier = (uint8_t)b.tier;
 
+  // Transition-only NVS checkpoint. Existing units first upgraded while
+  // already parked get one backfill; recurring 900 s timer sleeps stay RTC-only.
+  if (b.tier != LedTier::PROTECT) gProtectAuditAttempted = false;
+  if (!gProtectAuditAttempted &&
+      (enteredProtect ||
+       (b.tier == LedTier::PROTECT && !sleepAuditHasProtectRecord()))) {
+    gProtectAuditAttempted = true;
+    sleepAuditRecordProtectEntry(b.sleep_s);
+  }
+
   // Never deep-sleep with an unverified image: the pending-verify window must
   // resolve to valid-or-rollback first.
   if (b.must_sleep && !otaVerifyPending() && (int32_t)(now - gGraceUntilMs) >= 0) {
     netPeerSendHeartbeat(true); // last full status before parking
     delay(50);
-    enterTimedDeepSleep(b.sleep_s, "protect");
+    enterTimedDeepSleep(b.sleep_s, SLEEP_CAUSE_POWER_PROTECT);
   }
 }

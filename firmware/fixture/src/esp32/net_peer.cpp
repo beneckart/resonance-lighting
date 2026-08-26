@@ -14,6 +14,7 @@
 #include "maintenance.h"
 #include "nvs_store.h"
 #include "solenoid.h"
+#include "sleep_audit_io.h"
 #include "status_led.h"
 #include "telemetry.h"
 
@@ -153,6 +154,31 @@ void netPeerSendHeartbeat(bool full) {
   hb.class_mismatch = gTelemetryClassMismatch ? 1 : 0;
   hb.recovery_state = lowVbatRecoveryState();
   hb.recovery_detect_mv = lowVbatRecoveryDetectMv();
+  SleepAuditRecord audit;
+  if (sleepAuditWakeRecord(audit)) {
+    hb.sleep_audit_flags |= 0x01;
+    hb.last_sleep_cause = audit.cause;
+    hb.last_sleep_s = audit.duration_s;
+    hb.last_sleep_batt_mv = audit.batt_mv;
+    hb.last_sleep_profile = audit.profile;
+    hb.last_sleep_life_state = audit.life_state;
+    hb.last_sleep_power_tier = audit.power_tier;
+    memcpy(hb.last_sleep_source_id, audit.source_id,
+           sizeof(hb.last_sleep_source_id));
+    hb.last_sleep_source_seq = audit.source_seq;
+  }
+  if (sleepAuditCommandRecord(audit)) {
+    hb.sleep_audit_flags |= 0x02;
+    hb.last_command_sleep_cause = audit.cause;
+    hb.last_command_sleep_s = audit.duration_s;
+    memcpy(hb.last_command_sleep_source_id, audit.source_id,
+           sizeof(hb.last_command_sleep_source_id));
+    hb.last_command_sleep_source_seq = audit.source_seq;
+  }
+  if (sleepAuditProtectRecord(audit)) {
+    hb.sleep_audit_flags |= 0x04;
+    hb.last_protect_batt_mv = audit.batt_mv;
+  }
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -316,7 +342,7 @@ static void processPacket(const RxItem &it) {
     if (!nbTargetMatches(ts->target_id, gMyId)) return;
     if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
     espNowNoteControlRx();
-    enterTransportSleep(ts->seconds, "radio-transport");
+    enterTransportSleep(ts->seconds, SLEEP_CAUSE_TRANSPORT, &ts->h);
     break;
   }
   case NB_LOCATE_CONTROL: {
@@ -427,7 +453,7 @@ static void processPacket(const RxItem &it) {
     const NbSetU16 *c = (const NbSetU16 *)it.data;
     if (c->value > 0) {
       espNowNoteControlRx();
-      enterTimedDeepSleep(c->value, "radio");
+      enterTimedDeepSleep(c->value, SLEEP_CAUSE_RADIO_ALL, &c->h);
     }
     break;
   }
@@ -437,7 +463,7 @@ static void processPacket(const RxItem &it) {
     if (memcmp(c->target_id, gMyId, 3) != 0) return; // never all-sleep by 00:00:00 here
     if (c->value > 0) {
       espNowNoteControlRx();
-      enterTimedDeepSleep(c->value, "radio-target");
+      enterTimedDeepSleep(c->value, SLEEP_CAUSE_RADIO_TARGET, &c->h);
     }
     break;
   }

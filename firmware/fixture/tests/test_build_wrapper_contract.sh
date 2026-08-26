@@ -31,6 +31,8 @@ grep -Fq -- '--dev-cache --profile commission --channel 11' <<< "$help" ||
 grep -Fq -- 'Shared/fleet artifacts must omit --dev-cache' <<< "$help" ||
   fail "help omits the immutable fleet boundary"
 grep -Fq -- 'dev-local' <<< "$help" || fail "help omits development identity"
+grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
+grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -39,6 +41,10 @@ expect_rejected '--dev-cache cannot be combined with --artifact-dir' \
 expect_rejected '--dev-cache cannot be combined with --fw-rev' \
   --dev-cache --fw-rev fx-260824-0000000-t
 expect_rejected 'bad --jobs/ARDUINO_JOBS' --dev-cache --jobs invalid
+expect_rejected 'bad --day-sleep-s' --day-sleep-s 29
+expect_rejected 'bad --day-sleep-s' --day-sleep-s invalid
+expect_rejected 'bad --wake-listen-ms' --wake-listen-ms 999
+expect_rejected 'bad --wake-listen-ms' --wake-listen-ms invalid
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"

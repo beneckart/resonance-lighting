@@ -17,6 +17,7 @@
 #include "loads.h"
 #include "nvs_store.h"
 #include "solenoid.h"
+#include "sleep_audit_io.h"
 
 using namespace PowerFeather;
 
@@ -610,28 +611,38 @@ void transportWakeDarkRelease() {
   Serial.println("transport wake: dark latch released by bridge program command");
 }
 
-void enterTimedDeepSleep(uint32_t seconds, const char *why) {
+static void enterDeepSleep(uint32_t seconds, uint8_t cause,
+                           const NbHeader *source, bool transport) {
   if (seconds == 0) seconds = 1;
+  if (!sleepAuditBeforeSleep(cause, seconds, source)) return;
+  if (transport) {
+    gTransportWakeMagic = kTransportWakeMagic;
+    gTransportWakeDark = true;
+  }
   allLoadsOff("deep sleep");
   if (gPfReady) {
     railEnable3V3(false);
     railEnableVSQT(false);
   }
-  Serial.printf("deep sleep (%s), timer wake %lus\n", why,
-                (unsigned long)seconds);
+  Serial.printf("deep sleep (%s), timer wake %lus\n", sleepCauseName(cause),
+                 (unsigned long)seconds);
   solenoidButtonPrepareSleep();
   Serial.flush();
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
 }
 
-void enterTransportSleep(uint32_t seconds, const char *why) {
+void enterTimedDeepSleep(uint32_t seconds, uint8_t cause,
+                         const NbHeader *source) {
+  enterDeepSleep(seconds, cause, source, false);
+}
+
+void enterTransportSleep(uint32_t seconds, uint8_t cause,
+                         const NbHeader *source) {
   if (seconds == 0 || seconds > 7UL * 24UL * 3600UL) {
     Serial.printf("transport sleep refused: %lus outside 1..604800s\n",
                   (unsigned long)seconds);
     return;
   }
-  gTransportWakeMagic = kTransportWakeMagic;
-  gTransportWakeDark = true;
-  enterTimedDeepSleep(seconds, why);
+  enterDeepSleep(seconds, cause, source, true);
 }

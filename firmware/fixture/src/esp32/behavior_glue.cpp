@@ -21,7 +21,12 @@
 
 #define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
 #define RES_BOOT_AWAKE_MS 600000UL   // cold-boot listen window (10 min)
+#ifndef RES_WAKE_LISTEN_MS
 #define RES_WAKE_LISTEN_MS 15000UL   // deep-sleep wake listen window
+#endif
+#ifndef RES_DAY_SLEEP_S
+#define RES_DAY_SLEEP_S 300U         // DAY_CHARGE timer sleep
+#endif
 #define RES_CHOREO_KEEPALIVE_MS 1000
 #define RES_NEIGHBOR_FRESH_MS 3000
 #define RES_WAVE_CAPABLE_FLAG 0x08
@@ -41,6 +46,7 @@ static bool gStrikesAllowed = false;
 static bool gProgramSuppressesLight = false;
 static FrameBuffer gFrame;
 static uint32_t gAwakeGraceUntilMs = 0;
+static bool gSolarProbeActive = false;
 static uint32_t gNextChoreoTxMs = 0;
 static uint32_t gLastShowFrameRxMs = 0;
 static uint8_t gLastProfile = 0xFF;
@@ -274,12 +280,14 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   neighborTableInit(gNeighbors);
   lifeInit(gLife);
   gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
+  gLifeCfg.daySleepS = RES_DAY_SLEEP_S;
   gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
   gLastProfile = gCfg.profile;
   gLastCommissionDefault = gCfg.commissionDefault;
   gAwakeGraceUntilMs = millis() + (esp_reset_reason() == ESP_RST_DEEPSLEEP
                                        ? RES_WAKE_LISTEN_MS
                                        : RES_BOOT_AWAKE_MS);
+  gSolarProbeActive = false;
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
@@ -292,6 +300,8 @@ void behaviorForceNight(int8_t force) { gForceNight = force; }
 int8_t behaviorForcedNight() { return gForceNight; }
 uint8_t behaviorLifeState() { return gLife.state; }
 bool behaviorStrikesAllowed() { return gStrikesAllowed; }
+uint16_t behaviorDaySleepS() { return gLifeCfg.daySleepS; }
+uint32_t behaviorWakeListenMs() { return RES_WAKE_LISTEN_MS; }
 
 bool behaviorStrikePermitted() {
   if (gStrikesAllowed) return true;
@@ -413,12 +423,19 @@ void behaviorTick() {
 
   // Profile/default flips re-derive the lifecycle and fallback live. An active
   // lease remains authoritative; the selected fallback takes over on release.
-  if (gCfg.profile != gLastProfile ||
-      gCfg.commissionDefault != gLastCommissionDefault) {
+  bool profileChanged = gCfg.profile != gLastProfile;
+  if (profileChanged || gCfg.commissionDefault != gLastCommissionDefault) {
     gLastProfile = gCfg.profile;
     gLastCommissionDefault = gCfg.commissionDefault;
     gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
     gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
+    // COMMISSION is a real lifecycle state. Reinitialize on a live profile
+    // change so commission -> field cannot remain stranded in that state until
+    // reboot; the new field posture starts conservatively in DAY_CHARGE.
+    if (profileChanged) {
+      lifeInit(gLife);
+      gSolarProbeActive = false;
+    }
     gRuntime.setAutonomousProgram(configuredAutonomousProgram(), now, true);
     if (!commissionListenerFallback()) waveClear();
   }
@@ -452,6 +469,19 @@ void behaviorTick() {
   li.forceNight = gForceNight >= 0 ? gForceNight
                                    : (gScheduleValid ? (gScheduleNight ? 1 : 0) : -1);
   LifeOutputs lo = lifeTick(gLife, li, gLifeCfg);
+
+  if (lo.solarProbeActive != gSolarProbeActive) {
+    if (lo.solarProbeActive) {
+      Serial.printf("lifecycle: solar probe start (supply=%.0fmA)\n", li.supplyMa);
+    } else if (lo.state == LIFE_DAY_ACTIVE) {
+      Serial.printf("lifecycle: solar probe confirmed (supply=%.0fmA)\n",
+                    li.supplyMa);
+    } else {
+      Serial.printf("lifecycle: solar probe ended (supply=%d/%.0fmA)\n",
+                    li.supplyGood ? 1 : 0, li.supplyMa);
+    }
+    gSolarProbeActive = lo.solarProbeActive;
+  }
 
   if (lo.stateChanged)
     Serial.printf("lifecycle: -> %u (supply=%d/%.0fmA bv=%.3f)\n", lo.state,
@@ -597,7 +627,7 @@ void behaviorTick() {
   // Prod day-charge duty cycle. Blocked by pending OTA verify and maintenance
   // handled elsewhere; the wake listen window re-arms via behaviorInit's grace.
   if (lo.wantSleep && !otaVerifyPending())
-    enterTimedDeepSleep(lo.sleepS, "day-charge");
+    enterTimedDeepSleep(lo.sleepS, SLEEP_CAUSE_DAY_CHARGE);
 }
 
 bool behaviorFrame(FrameBuffer &f) {

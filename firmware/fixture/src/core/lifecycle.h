@@ -1,8 +1,9 @@
 // Day/night lifecycle (milestone 1): pure transitions, supply-based dusk/dawn
 // (production classes carry no lux sensor -- TSL2591 was bench-only), bounded
 // night (the 13-15 h no-lux artifact fix), and field energy-gated
-// wakefulness: a fixture with solar/USB surplus is always instantly reachable;
-// duty-cycling only happens on true battery deficit in the field profile.
+// wakefulness. A timer wake normally listens for 15 s, but measured input
+// surplus holds a bounded solar probe awake long enough to earn DAY_ACTIVE;
+// battery voltage alone is not evidence of renewable surplus.
 // ADR 0031's scheduled-UTC gate replaces the dusk heuristic in M2 via the same
 // inputs (the TimePhase seam feeds `forceNight`).
 #pragma once
@@ -21,11 +22,10 @@ struct LifeConfig {
   uint16_t duskConfirmS;      // supply absent this long -> night (prod 1800)
   uint16_t dawnConfirmS;      // supply useful this long -> day (prod 300)
   uint16_t usefulSupplyMa;    // input current that counts as "day evidence" (20)
-  uint16_t surplusMa;         // surplus threshold for DAY_ACTIVE (150)
+  uint16_t surplusMa;         // enter/strike threshold for DAY_ACTIVE (150)
+  uint16_t surplusExitMa;     // remain-active hysteresis threshold (100)
   uint16_t surplusConfirmS;   // 60
   uint16_t noSurplusConfirmS; // 300 (fall back to DAY_CHARGE)
-  float surplusBattV;         // bv >= this also counts as surplus (3.40)
-  float deficitBattV;         // and must be below this to leave ACTIVE (3.30)
   uint16_t nightMaxMin;       // bounded night force-exit (630)
   uint16_t daySleepS;         // prod DAY_CHARGE sleep period (300)
   bool devNoSleep;            // commissioning: never take lifecycle day-sleep
@@ -62,6 +62,7 @@ struct LifeOutputs {
   bool stateChanged;
   bool showActive;     // run the program runtime + choreo tx
   bool strikesAllowed; // daytime-surplus gate (ANDed with power.may_strike)
+  bool solarProbeActive; // measured surplus is extending a DAY_CHARGE wake
   bool wantSleep;      // prod DAY_CHARGE duty cycle
   uint16_t sleepS;
   uint16_t nightMin;   // minutes into the current night (heartbeat tail 13)

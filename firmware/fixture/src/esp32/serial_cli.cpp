@@ -4,6 +4,7 @@
 
 #include "../core/fixture_context.h"
 #include "../core/packet.h"
+#include "../core/serial_mutation.h"
 #include "behavior_glue.h"
 #include "board_power.h"
 #include "boot_guard_io.h"
@@ -15,7 +16,7 @@
 #include "solenoid.h"
 #include "telemetry.h"
 
-#define RES_REMOTE_SLEEP_S 21600 // 6 h: wait for sun without losing recoverability
+static SerialMutationParser gSerialMutationParser;
 
 static int hexNibble(int c) {
   if (c >= '0' && c <= '9') return c - '0';
@@ -109,6 +110,24 @@ static bool parseTargetU16Arg(const char *arg, uint8_t target[3], bool *haveTarg
 void handleSerial() {
   if (!Serial.available()) return;
   char c = Serial.read();
+
+  // Mutations are fail-closed and line-framed. Feed every byte so a sentinel
+  // embedded in otherwise arbitrary host input is still bounded by one line.
+  // Legacy report/commission commands continue below only when the mutation
+  // parser explicitly passes the byte through.
+  SerialMutationCommand mutation{};
+  SerialMutationFeedResult mutationResult =
+      gSerialMutationParser.feed((uint8_t)c, gMyId, mutation);
+  if (mutationResult != SERIAL_MUTATION_PASS) {
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_SLEEP) {
+      Serial.printf("SLEEP accepted: target=%s seconds=%u\n", gShortId.c_str(),
+                    (unsigned)mutation.value);
+      enterTimedDeepSleep(mutation.value, SLEEP_CAUSE_SERIAL);
+    }
+    return;
+  }
+
   switch (c) {
   case 't':
     Serial.println(telemetryJson());
@@ -210,13 +229,10 @@ void handleSerial() {
     break;
   }
   case 'S': {
-    int seconds = readSerialUint(80, 65535);
-    uint16_t sleepS = (uint16_t)(seconds < 0 ? RES_REMOTE_SLEEP_S : seconds);
-    if (sleepS == 0) {
-      Serial.println("SLEEP rejected (seconds must be 1..65535)");
-      break;
-    }
-    enterTimedDeepSleep(sleepS, "serial");
+    // Never infer a sleep from one byte. This compatibility diagnostic is
+    // deliberately non-actionable even when decimal bytes follow.
+    Serial.printf("SLEEP rejected: use !S%s:<seconds> followed by newline\n",
+                  gShortId.c_str());
     break;
   }
   case 'O': {

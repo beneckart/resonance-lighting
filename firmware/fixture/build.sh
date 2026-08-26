@@ -43,6 +43,8 @@ EXTRA_FLAGS=""
 WIFI_SOURCE=""
 FW_REV=""
 PRECHARGE_MA="300"
+DAY_SLEEP_S="300"
+WAKE_LISTEN_MS="15000"
 DEEP_RECOVERY_TARGET=""
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
@@ -90,6 +92,8 @@ Common build options:
   --wifi-source PATH          install a local gitignored credentials header
   --chem lfp|3v7              battery chemistry (production default: lfp)
   --precharge-ma N            BQ precharge limit, 10..310 in 10 mA steps
+  --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
+  --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -250,6 +254,8 @@ while [[ $# -gt 0 ]]; do
     --wifi-source) WIFI_SOURCE="$2"; shift 2 ;;
     --chem) CHEM="$2"; shift 2 ;;
     --precharge-ma) PRECHARGE_MA="$2"; shift 2 ;;
+    --day-sleep-s) DAY_SLEEP_S="$2"; shift 2 ;;
+    --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2 ;;
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
@@ -292,6 +298,10 @@ fi
   echo "bad --precharge-ma: $PRECHARGE_MA (expected 10..310 in 10 mA steps)" >&2
   exit 2
 }
+[[ "$DAY_SLEEP_S" =~ ^[0-9]+$ ]] || fail "bad --day-sleep-s: $DAY_SLEEP_S (expected 30..3600)"
+(( DAY_SLEEP_S >= 30 && DAY_SLEEP_S <= 3600 )) || fail "bad --day-sleep-s: $DAY_SLEEP_S (expected 30..3600)"
+[[ "$WAKE_LISTEN_MS" =~ ^[0-9]+$ ]] || fail "bad --wake-listen-ms: $WAKE_LISTEN_MS (expected 1000..60000)"
+(( WAKE_LISTEN_MS >= 1000 && WAKE_LISTEN_MS <= 60000 )) || fail "bad --wake-listen-ms: $WAKE_LISTEN_MS (expected 1000..60000)"
 if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
   [[ "$DEEP_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
     echo "bad --deep-recovery-target: $DEEP_RECOVERY_TARGET (expected six hex digits)" >&2
@@ -329,6 +339,7 @@ if command -v cygpath >/dev/null 2>&1; then
 fi
 FLAGS="-DPOWERFEATHER_BOARD_V2=1 -I$SHARED_INCLUDE"
 FLAGS+=" -DRES_PF_PRECHARGE_MA=$PRECHARGE_MA"
+FLAGS+=" -DRES_DAY_SLEEP_S=$DAY_SLEEP_S -DRES_WAKE_LISTEN_MS=$WAKE_LISTEN_MS"
 case "$CHEM" in
   lfp) ;; # production default lives in board_power.cpp
   3v7) FLAGS+=" -DRES_PF_BATTERY_TYPE=Mainboard::BatteryType::Generic_3V7" ;;

@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include "../core/fixture_context.h"
+#include "../core/sleep_audit.h"
 
 struct FixtureConfig {
   uint16_t capMah;      // gauge DesignCap (C command)
@@ -68,3 +69,12 @@ bool nvsWriteLoadArmed(bool armed);
 // Reboot-loop breaker counter (ADR 0028 rule 4).
 uint32_t nvsBumpBootCount();
 void nvsClearBootCount();
+
+// Sleep provenance. The command record is written only when a validated
+// operator command is about to put the fixture to sleep. The protect record is
+// written once on entry into PROTECT, never on each recurring timer sleep.
+// A missing key is a successful read of an invalid/zero record.
+bool nvsReadSleepCommand(SleepAuditRecord &record);
+bool nvsWriteSleepCommand(const SleepAuditRecord &record);
+bool nvsReadProtectEntry(SleepAuditRecord &record);
+bool nvsWriteProtectEntry(const SleepAuditRecord &record);

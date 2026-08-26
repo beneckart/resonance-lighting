@@ -5,6 +5,7 @@
 
 #include "../core/fixture_context.h"
 #include "../core/version.h"
+#include "behavior_glue.h"
 #include "board_power.h"
 #include "espnow_link.h"
 #include "identity.h"
@@ -15,6 +16,7 @@
 #include "sensors/sensor_bus.h"
 #include "sensors/sensors.h"
 #include "solenoid.h"
+#include "sleep_audit_io.h"
 
 // Deliberately TRIMMED vs net_bench (Ben, 2026-07-30: brevity over compat).
 // Dropped: INA219 channels (instrument out of circuit), drawdown_* and mppt_*
@@ -168,6 +170,9 @@ String telemetryJson() {
   j += ",\"bench_rail_forced_off\":";
   j += gBenchRailForcedOff ? "true" : "false";
   j += ",\"life_state\":" + String(gTelemetryLifeState);
+  j += ",\"day_sleep_s\":" + String(behaviorDaySleepS());
+  j += ",\"wake_listen_ms\":" +
+       String((unsigned long)behaviorWakeListenMs());
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);
   j += ",\"direct_seen\":" + String((unsigned long)netPeerDirectSeen());
@@ -175,6 +180,49 @@ String telemetryJson() {
   j += ",\"guard_stage\":" + String(gTelemetryGuardStage);
   j += ",\"guard_interrupted\":";
   j += gTelemetryGuardInterrupted ? "true" : "false";
+  SleepAuditRecord sleepRecord;
+  bool hasSleepRecord = sleepAuditWakeRecord(sleepRecord);
+  j += ",\"last_sleep_valid\":";
+  j += hasSleepRecord ? "true" : "false";
+  if (hasSleepRecord) {
+    char source[7];
+    snprintf(source, sizeof(source), "%02X%02X%02X", sleepRecord.source_id[0],
+             sleepRecord.source_id[1], sleepRecord.source_id[2]);
+    j += ",\"last_sleep_reason\":\"" + String(sleepCauseName(sleepRecord.cause)) + "\"";
+    j += ",\"last_sleep_s\":" + String((unsigned long)sleepRecord.duration_s);
+    j += ",\"last_sleep_batt_mv\":" + String(sleepRecord.batt_mv);
+    j += ",\"last_sleep_profile\":" + String(sleepRecord.profile);
+    j += ",\"last_sleep_life_state\":" + String(sleepRecord.life_state);
+    j += ",\"last_sleep_power_tier\":" + String(sleepRecord.power_tier);
+    j += ",\"last_sleep_source\":\"" + String(source) + "\"";
+    j += ",\"last_sleep_source_seq\":" +
+         String((unsigned long)sleepRecord.source_seq);
+  }
+  bool hasCommandRecord = sleepAuditCommandRecord(sleepRecord);
+  j += ",\"last_operator_sleep_valid\":";
+  j += hasCommandRecord ? "true" : "false";
+  if (hasCommandRecord) {
+    char source[7];
+    snprintf(source, sizeof(source), "%02X%02X%02X", sleepRecord.source_id[0],
+             sleepRecord.source_id[1], sleepRecord.source_id[2]);
+    j += ",\"last_operator_sleep_reason\":\"" +
+         String(sleepCauseName(sleepRecord.cause)) + "\"";
+    j += ",\"last_operator_sleep_s\":" +
+         String((unsigned long)sleepRecord.duration_s);
+    j += ",\"last_operator_sleep_source\":\"" + String(source) + "\"";
+    j += ",\"last_operator_sleep_source_seq\":" +
+         String((unsigned long)sleepRecord.source_seq);
+  }
+  bool hasProtectRecord = sleepAuditProtectRecord(sleepRecord);
+  j += ",\"last_protect_entry_valid\":";
+  j += hasProtectRecord ? "true" : "false";
+  if (hasProtectRecord) {
+    j += ",\"last_protect_entry_batt_mv\":" + String(sleepRecord.batt_mv);
+    j += ",\"last_protect_entry_profile\":" + String(sleepRecord.profile);
+    j += ",\"last_protect_entry_life_state\":" + String(sleepRecord.life_state);
+    j += ",\"last_protect_entry_fixture_uptime_ms\":" +
+         String((unsigned long)sleepRecord.fixture_uptime_ms);
+  }
   j += ",\"ota_pending_verify\":";
   j += (otaState == ESP_OTA_IMG_PENDING_VERIFY) ? "true" : "false";
   const SensorSnapshot &sn = sensors();

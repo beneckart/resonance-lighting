@@ -110,6 +110,7 @@ tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ./build.sh --precharge-ma 300            # low-VBAT recovery current
 ./build.sh --wifi-source <gitignored-header>  # solenoid capability is universal
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
+./build.sh --profile field --day-sleep-s 120 --wake-listen-ms 3000  # named canary only
 ```
 
 For ordinary edit/compile iteration, use the persistent development cache:
@@ -138,6 +139,13 @@ raw gates are in
 Run `./build.sh --help` for the short local-versus-fleet command contract.
 `tests/run_tests.sh` includes a fast, compile-free regression check for that
 boundary before it starts the native C++ suite.
+
+Production defaults remain a 300-second DAY_CHARGE timer sleep and a 15,000 ms
+post-wake listen grace. `--day-sleep-s` and `--wake-listen-ms` exist for named
+canary energy/maintenance-catch experiments; record both values with the
+artifact and do not infer equal energy from listen duty alone because every
+wake also pays fixed boot, sensor, and radio startup cost. USB telemetry exposes
+the compiled `day_sleep_s` and `wake_listen_ms` values.
 
 For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
 retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed
@@ -220,15 +228,17 @@ failures stay degraded rather than flapping the domain. Telemetry exposes
 `tmf_domain_resets` in addition to reads/errors/recoveries.
 
 Commissioning likewise treats `tmf8820_present=true` plus zero reads as a
-recoverable state: it performs one `S1` timed-sleep/VSQT reset and retests before
+recoverable state: it performs one explicitly targeted
+`!S<short-mac>:1` timed-sleep/VSQT reset and retests before
 failing. `tmf8820_present=false` does not get that retry and remains the signal
 to inspect the module, first cable, and power contacts.
 
 ## Serial commands (peer)
 
 `t` telemetry JSON | `u` local ENTER_MAINT | `c` resume | `C<mah>` capacity
-(reboots) | `G<ma>` charge cap | `K<id>:<ms>` solenoid (gated) | `S[<s>]`
-deep sleep | `O<0-4>` class override | `F<0|1>` profile dev/prod | `N<0|1|2>`
+(reboots) | `G<ma>` charge cap | `K<id>:<ms>` solenoid (gated) |
+`!S<id>:<s>` newline-framed targeted deep sleep | `O<0-4>` class override |
+`F<0|1>` profile dev/prod | `N<0|1|2>`
 force day/night/auto | `L0` force LED rail off until `L1` or reset | `L1` clear
 the override and run the bench smoke render | `X` guarded bare-board
 PROTECT clear | `r` status line
@@ -266,7 +276,7 @@ qualification.
 
 `cap_mah` `chg_ma` `chg_policy` `class_ovr` `class_last` `fc_stage` `boots` `profile`
 `batt_tier` `dim_mv/off_mv/slp_mv` `sol_en` `maint_v10` `channel`
-`channel_policy` `night_max`.
+`channel_policy` `night_max` `slp_cmd` `slp_prot`.
 The USB command `H<1..13>` persists a new ESP-NOW channel and reboots so the
 radio is cleanly re-pinned; bare `H` reports the current channel.
 First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
@@ -274,6 +284,13 @@ First boot migrates `netbench:{cap_mah,chg_ma}` and carries a parked
 then replaces legacy 500/1,000/1,500 mA NVS values with the 2,000 mA default
 once. A nonstandard pre-existing value is preserved as a possible deliberate
 cell limit; later `G<ma>` overrides remain persistent.
+
+`slp_cmd` is the last validated operator sleep receipt; it records cause,
+duration, source short ID/sequence/uptime, local uptime, VBAT, profile,
+lifecycle, and power tier before the rails go down. `slp_prot` records the same
+local context once on entry into PROTECT. Recurring day-charge and PROTECT timer
+sleeps do not write NVS: their immediate cause uses RTC slow memory instead.
+An operator-caused sleep is refused if `slp_cmd` cannot be persisted.
 
 Channel 11 is the production default. Channel-policy v1 migrates an absent key
 or the historical channel-6 fallback to the compiled channel (11 for production)
@@ -304,6 +321,14 @@ safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
 compatibility aliases. The commission-default setting is ignored in field
 profile, so it cannot replace the scheduled night CA or daytime sleep policy.
 
+A timer wake with FULL power tier and measured good input at or above 150 mA
+holds a RAM-only solar probe awake beyond the ordinary 15-second window. Sixty
+continuous seconds earns `DAY_ACTIVE`; a transient clears immediately and
+returns to the normal cadence. Once active, 100 mA is the remain-awake threshold
+with a 300-second dropout confirmation, while strikes still require at least
+150 mA and every normal safety gate. Battery voltage alone is not surplus
+evidence. See ADR 0060.
+
 The supervised `--basic-listener` posture is deliberately minimal and class
 aware. With no active bridge lease, canopy/downlights hold their dedicated warm
 white channel at linear 128, 37-pixel perimeter HEX modules hold red at linear
@@ -328,6 +353,9 @@ gated full heartbeat follows every 5 s in commission and every 60 s in field. It
 append-only output tails report fixture class, raw sensor-signature bits, class
 mismatch, LED-rail state, the post-cap RGBW average actually written to lit
 pixels, lit-pixel count, and low-VBAT recovery state/BQ presence-test voltage.
+Tail 16 adds immediate sleep cause plus compact durable operator-sleep and
+PROTECT-entry evidence. The full heartbeat is now 192 bytes; automatic
+day/protection repetitions remain flash-wear-free.
 The fleet dashboard uses measured render state rather than inferring color from
 the requested program. Older bridges remain compatible because every tail is
 length-gated against the one canonical `src/core/packet.h` layout.

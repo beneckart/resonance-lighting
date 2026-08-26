@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+#include "../core/packet.h"
+#include "../core/sleep_audit.h"
+
 // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions.
 #define RES_GAUGE_CURRENT_DIVISOR 1.08f
 
@@ -110,7 +113,9 @@ bool applyMaintainV10(uint8_t v10);
 // dark latch behind: after automatic timer wake the radio/telemetry return,
 // but the fixture stays electrically dark until a valid program command (the
 // bridge's bare 'b' release is sufficient). No lid-open reset is required.
-void enterTimedDeepSleep(uint32_t seconds, const char *why);
-void enterTransportSleep(uint32_t seconds, const char *why);
+void enterTimedDeepSleep(uint32_t seconds, uint8_t cause,
+                         const NbHeader *source = nullptr);
+void enterTransportSleep(uint32_t seconds, uint8_t cause,
+                         const NbHeader *source = nullptr);
 bool transportWakeDarkActive();
 void transportWakeDarkRelease();

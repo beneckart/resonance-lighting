@@ -198,6 +198,24 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t class_mismatch; // probe conflict/fault fallback retained prior class
   uint8_t recovery_state; // LowVbatRecoveryState
   uint16_t recovery_detect_mv; // BQ ADC after the 30 mA presence test
+  // tail 16 (sleep provenance; hb-full only). `sleep_audit_flags`: bit0 has
+  // immediate prior sleep, bit1 has durable operator sleep, bit2 has durable
+  // PROTECT entry. Cause values are SleepCause. The compact 32 B tail brings
+  // the full heartbeat to exactly the fixture RX buffer's existing 192 B.
+  uint8_t sleep_audit_flags;
+  uint8_t last_sleep_cause;
+  uint32_t last_sleep_s;
+  int16_t last_sleep_batt_mv;
+  uint8_t last_sleep_profile;
+  uint8_t last_sleep_life_state;
+  uint8_t last_sleep_power_tier;
+  uint8_t last_sleep_source_id[3];
+  uint32_t last_sleep_source_seq;
+  uint8_t last_command_sleep_cause;
+  uint32_t last_command_sleep_s;
+  uint8_t last_command_sleep_source_id[3];
+  uint32_t last_command_sleep_source_seq;
+  int16_t last_protect_batt_mv;
 };
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?

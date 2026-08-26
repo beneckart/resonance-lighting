@@ -25,6 +25,7 @@
 #include "src/esp32/sensors/sensor_bus.h"
 #include "src/esp32/sensors/sensors.h"
 #include "src/esp32/serial_cli.h"
+#include "src/esp32/sleep_audit_io.h"
 #include "src/esp32/solenoid.h"
 #include "src/esp32/status_led.h"
 #include "src/esp32/telemetry.h"
@@ -54,6 +55,7 @@ void setup() {
 
   // 4-5. Solenoid pulse machinery + MAC-derived identity.
   nvsLoadConfig();
+  sleepAuditInit();
   solenoidInit();
   identityInit();
 

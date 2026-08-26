@@ -34,6 +34,8 @@ void behaviorForceNight(int8_t force);
 int8_t behaviorForcedNight();
 uint8_t behaviorLifeState();
 bool behaviorStrikesAllowed();
+uint16_t behaviorDaySleepS();
+uint32_t behaviorWakeListenMs();
 
 // The radio-strike gate: field = DAY_ACTIVE + solar surplus + FULL tier;
 // commission relaxes the surplus requirement (bench boards on USB idle) but

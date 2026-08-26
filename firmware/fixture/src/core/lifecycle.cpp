@@ -4,10 +4,9 @@ LifeConfig lifeConfigDefaults(bool devProfile) {
   LifeConfig c;
   c.usefulSupplyMa = 20;
   c.surplusMa = 150;
+  c.surplusExitMa = 100;
   c.surplusConfirmS = 60;
   c.noSurplusConfirmS = 300;
-  c.surplusBattV = 3.40f;
-  c.deficitBattV = 3.30f;
   c.nightMaxMin = 630;
   c.daySleepS = 300;
   if (devProfile) {
@@ -62,8 +61,14 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   }
 
   bool dayEvidence = in.supplyGood && in.supplyMa >= (float)c.usefulSupplyMa;
-  bool surplus = (in.supplyGood && in.supplyMa >= (float)c.surplusMa) ||
-                 in.battV >= c.surplusBattV;
+  // DAY_ACTIVE means measured renewable/input surplus, not merely a charged
+  // battery. Requiring FULL tier before entry prevents the radio/actuator
+  // posture from competing with battery recovery. A lower current threshold
+  // holds an already-active fixture through ordinary solar variation.
+  bool solarEnter = in.supplyGood && in.supplyMa >= (float)c.surplusMa &&
+                    in.tier == 0;
+  bool solarStay = in.supplyGood &&
+                   in.supplyMa >= (float)c.surplusExitMa;
 
   // Day evidence clears the bounded-night latch.
   if (dayEvidence) st.nightDone = false;
@@ -72,6 +77,8 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
     if (st.state != LIFE_NIGHT_SHOW) {
       st.state = LIFE_NIGHT_SHOW;
       st.nightStartMs = in.nowMs;
+      st.surplusHeldSinceMs = 0;
+      st.noSurplusHeldSinceMs = 0;
     }
   } else {
     bool forceDay = in.forceNight == 0;
@@ -81,10 +88,14 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
       if (nightMin >= c.nightMaxMin) {
         st.state = LIFE_DAY_CHARGE;
         st.nightDone = true;
+        st.surplusHeldSinceMs = 0;
+        st.noSurplusHeldSinceMs = 0;
       } else if (heldFor(dayEvidence, in.nowMs, st.dawnHeldSinceMs,
                          c.dawnConfirmS)) {
         st.state = LIFE_DAY_CHARGE; // affirmative dawn: end the show exactly once
         st.dawnHeldSinceMs = 0;
+        st.surplusHeldSinceMs = 0;
+        st.noSurplusHeldSinceMs = 0;
       }
     } else {
       // Scheduled/explicit day suppresses dusk but still runs the normal
@@ -92,7 +103,11 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
       // possible only after the ordinary surplus confirmation and power veto.
       if (forceDay) {
         st.duskHeldSinceMs = 0;
-        if (st.state == LIFE_NIGHT_SHOW) st.state = LIFE_DAY_CHARGE;
+        if (st.state == LIFE_NIGHT_SHOW) {
+          st.state = LIFE_DAY_CHARGE;
+          st.surplusHeldSinceMs = 0;
+          st.noSurplusHeldSinceMs = 0;
+        }
       }
 
       // Day states: dusk gate (supply absent, sustained). The nightDone latch
@@ -103,16 +118,17 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
         st.state = LIFE_NIGHT_SHOW;
         st.nightStartMs = in.nowMs;
         st.duskHeldSinceMs = 0;
+        st.surplusHeldSinceMs = 0;
+        st.noSurplusHeldSinceMs = 0;
       } else if (st.state == LIFE_DAY_CHARGE || st.state == LIFE_BOOT) {
-        if (heldFor(surplus, in.nowMs, st.surplusHeldSinceMs,
+        if (heldFor(solarEnter, in.nowMs, st.surplusHeldSinceMs,
                     c.surplusConfirmS)) {
           st.state = LIFE_DAY_ACTIVE;
           st.surplusHeldSinceMs = 0;
+          st.noSurplusHeldSinceMs = 0;
         }
       } else if (st.state == LIFE_DAY_ACTIVE) {
-        bool fade =
-            !surplus && in.battV < c.deficitBattV && in.battV > 0.5f;
-        if (heldFor(fade, in.nowMs, st.noSurplusHeldSinceMs,
+        if (heldFor(!solarStay, in.nowMs, st.noSurplusHeldSinceMs,
                     c.noSurplusConfirmS)) {
           st.state = LIFE_DAY_CHARGE;
           st.noSurplusHeldSinceMs = 0;
@@ -130,11 +146,17 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   out.nightMin = (st.state == LIFE_NIGHT_SHOW)
                      ? (uint16_t)((in.nowMs - st.nightStartMs) / 60000UL)
                      : 0;
+  // The ordinary deep-sleep wake grace is only 15 s. Once genuine solar
+  // surplus starts the 60 s confirmation timer, suppress sleep until that
+  // continuous probe either confirms DAY_ACTIVE or the current falls away.
+  out.solarProbeActive = st.state == LIFE_DAY_CHARGE && solarEnter &&
+                         st.surplusHeldSinceMs != 0;
   // Day-charge duty cycle (prod only): sleep unless recently booted/woken or
   // an actual operator command was accepted (ordinary fleet heartbeats and
   // time beacons must never keep every fixture awake indefinitely).
   bool rxHold = in.lastRxMs && (in.nowMs - in.lastRxMs) < in.rxHoldMs;
   out.wantSleep = (st.state == LIFE_DAY_CHARGE) && !c.devNoSleep && !rxHold &&
+                  !out.solarProbeActive &&
                   (int32_t)(in.nowMs - in.awakeGraceUntilMs) >= 0;
   out.sleepS = c.daySleepS;
   return out;

@@ -180,6 +180,29 @@ bool nvsPersistProfile(uint8_t profile) {
   gCfg.profile = profile;
   return true;
 }
+
+static bool readSleepRecord(const char *key, SleepAuditRecord &record) {
+  memset(&record, 0, sizeof(record));
+  Preferences pf;
+  if (!pf.begin(kNs, true)) return false;
+  size_t len = pf.getBytesLength(key);
+  bool ok = len == 0;
+  if (len == sizeof(record))
+    ok = pf.getBytes(key, &record, sizeof(record)) == sizeof(record);
+  pf.end();
+  if (!ok) memset(&record, 0, sizeof(record));
+  return ok;
+}
+
+static bool writeSleepRecord(const char *key,
+                             const SleepAuditRecord &record) {
+  if (!sleepAuditValid(record)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putBytes(key, &record, sizeof(record)) == sizeof(record);
+  pf.end();
+  return ok;
+}
 bool nvsPersistCommissionDefault(uint8_t mode) {
   if (mode > COMMISSION_DEFAULT_DARK || !putU8("comm_def", mode)) return false;
   gCfg.commissionDefault = mode;
@@ -267,4 +290,20 @@ void nvsClearBootCount() {
   // healthy minute, and the streak is almost always already zero.
   if (pf.getUInt("boots", 0) != 0) pf.putUInt("boots", 0);
   pf.end();
+}
+
+bool nvsReadSleepCommand(SleepAuditRecord &record) {
+  return readSleepRecord("slp_cmd", record);
+}
+
+bool nvsWriteSleepCommand(const SleepAuditRecord &record) {
+  return writeSleepRecord("slp_cmd", record);
+}
+
+bool nvsReadProtectEntry(SleepAuditRecord &record) {
+  return readSleepRecord("slp_prot", record);
+}
+
+bool nvsWriteProtectEntry(const SleepAuditRecord &record) {
+  return writeSleepRecord("slp_prot", record);
 }

@@ -47,7 +47,11 @@ int main() {
   CHECK_EQ(offsetof(NbHeartbeat, profile), 142u); // tail 13 (fixture era)
   CHECK_EQ(offsetof(NbHeartbeat, fixture_class), 148u); // tail 14 (dashboard)
   CHECK_EQ(offsetof(NbHeartbeat, sensor_bits), 155u); // tail 15 (identity/recovery)
-  CHECK_EQ(sizeof(NbHeartbeat), 160u);
+  CHECK_EQ(offsetof(NbHeartbeat, sleep_audit_flags), 160u); // tail 16 (sleep audit)
+  CHECK_EQ(offsetof(NbHeartbeat, last_sleep_source_seq), 174u);
+  CHECK_EQ(offsetof(NbHeartbeat, last_command_sleep_cause), 178u);
+  CHECK_EQ(offsetof(NbHeartbeat, last_protect_batt_mv), 190u);
+  CHECK_EQ(sizeof(NbHeartbeat), 192u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
@@ -83,10 +87,13 @@ int main() {
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), night_min));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), led_lit_pixels));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), recovery_detect_mv));
+  CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), last_protect_batt_mv));
   // A legacy 142 B bench heartbeat fails the tail-13 gate.
   CHECK(!NB_HAS_HB_FIELD(142, profile));
   // A pre-dashboard 148 B fixture heartbeat fails the new tail-14 gate.
   CHECK(!NB_HAS_HB_FIELD(148, fixture_class));
+  // A pre-audit 160 B fixture heartbeat fails the new tail-16 gate.
+  CHECK(!NB_HAS_HB_FIELD(160, sleep_audit_flags));
 
   // Targeting convention.
   uint8_t me[3] = {0xF2, 0xBF, 0xA0};

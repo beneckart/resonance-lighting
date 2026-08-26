@@ -8,7 +8,7 @@
 //   G<ma>        persist/apply charge-current cap
 //   X            guarded clear of persisted PROTECT for USB bare-board service
 //   K<id>:<ms>   local solenoid strike when targeted at this unit
-//   S[<secs>]    timed deep sleep (bare = 6 h remote-park default)
+//   !S<id>:<s>   fail-closed targeted timed sleep; full line is mandatory
 //   r            role/mode/config one-liner
 // New:
 //   O<0..4>      class override (0 = auto probe)   [persists]
