@@ -2,7 +2,7 @@
 
 ## Bridge OS, CoreS3, and PUCA without the archaeology
 
-**Living document:** 2026-08-24
+**Living document:** 2026-08-25
 
 **Audience:** field operators, lighting crew, IT support, and developers on call
 **Scope:** the LilyGO T-Deck Plus Bridge OS, the M5Stack CoreS3 bridge, and the
@@ -58,7 +58,8 @@ mutation, use one declared operator across all bridges and laptops. Follow
 | Need | Use | Why |
 |---|---|---|
 | Walk the site, check health, identify a light, or set a temporary look | **T-Deck Bridge OS** | Handheld, mesh-native, works without a laptop; Claude is optional |
-| See the complete host dashboard or record serial telemetry | **CoreS3 normal bridge + laptop** | Proven USB bridge for the dashboard and logger |
+| Check nearby fleet health without a laptop | **CoreS3 Listener** | Touch-first, paged wireless health view with fixture detail |
+| See the complete host dashboard or record serial telemetry | **CoreS3 Bridge OS + laptop** | The same image retains the proven USB dashboard and logger protocol |
 | Run audio-reactive lights today | **CoreS3 + Module Audio + RODE** | The only audio path already hardware-validated on fixtures |
 | Use Cambium's binary serial transport | **CoreS3 Cambium build** | Separate firmware mode; not compatible with the text dashboard |
 | Run the future dedicated performance audio box | **PUCA, after bring-up** | Better final audio/control hardware, but Resonance firmware is not written yet |
@@ -535,28 +536,41 @@ Do not infer that `online=true` from an old dashboard entry proves a fresh rejoi
 
 ## What it is
 
-The CoreS3 is the proven desk/laptop bridge and the current audio-reactive
-fallback. It stays unassociated from infrastructure WiFi, pins ESP-NOW to channel
-11, tracks up to 192 peers, and sends the serial lines understood by the host
-dashboard and JSONL logger.
+The CoreS3 is a standalone two-app bridge and the current audio-reactive
+fallback. It stays unassociated from infrastructure WiFi, pins ESP-NOW to
+channel 11, tracks up to 192 peers, and keeps sending the serial lines understood
+by the host dashboard and JSONL logger when USB is attached.
 
-One CoreS3 hardware stack can run different, mutually exclusive images:
+The ordinary image boots to a launcher:
 
-| Image | Purpose | Host behavior |
+| App | Purpose | Laptop required? |
 |---|---|---|
-| Normal bridge | fleet census, dashboard controls, logging | text `nb-*` serial protocol |
-| Cambium | Cambium radio modem | binary COBS/CRC protocol; never run the text dashboard against it |
-| Audio, built-in microphones | simple audio-reactive publisher | no external audio module required |
-| Audio, Module Audio | RODE/external analog source | proven preferred CoreS3 audio path |
+| Listener | 24-fixture-per-page health grid plus exact fixture detail | No |
+| Audio | built-in mic or Module Audio/RODE publisher | No |
 
-Do not mentally merge the artifacts. Confirm the boot banner and on-screen mode
-before using the USB port.
+Cambium remains a separate binary COBS/CRC artifact; never run the text dashboard
+against it. Module Audio is a hardware build variant of the ordinary two-app
+image, not a separate operator mode.
 
-## Normal dashboard quick start
+## Listener quick start
+
+1. Power the CoreS3 from its battery or USB-C.
+2. Confirm the launcher says `WIRELESS ch11 radio UP`.
+3. Tap **Listener**. The grid is sorted by short MAC and shows 24 observed
+   fixtures per page.
+4. Read the shape as fixture class, the body color as raw-VBAT health, the thin
+   top bar as reported rendered color, and a grey body as off-air.
+5. Tap a tile for exact age, RSSI/PDR, battery/input, class/profile/program,
+   sensor/recovery, LED-output, and firmware values.
+
+The local Listener is read-only. USB remains optional unless the complete host
+dashboard, logging, or serial controls are needed.
+
+## Complete host dashboard quick start
 
 1. Connect the CoreS3 by its own USB-C port.
-2. Confirm the screen says `RESONANCE BRIDGE`, not `RESONANCE AUDIO`.
-3. Confirm the boot identity reports channel 11 and serial bridge mode.
+2. Confirm the screen shows the Bridge OS launcher, not the Cambium screen.
+3. Confirm the boot identity reports channel 11 and Bridge OS mode.
 4. On the laptop, identify the actual port; never assume yesterday's COM number.
 5. Launch:
 
@@ -564,9 +578,10 @@ before using the USB port.
 python ops/bench/net_bench_dashboard.py --port COM40
 ```
 
-Replace `COM40` with the observed port. The known Nevada City CoreS3 is full MAC
-`44:1B:F6:E3:9F:1C`, short ID `E39F1C`; that identity is more authoritative
-than its port number.
+Replace `COM40` with the observed port. The hardware-validated Bridge OS CoreS3
+is full MAC `80:45:6B:4D:5D:B0`, short ID `4D5DB0`. The second historical
+Nevada City CoreS3 is full MAC `44:1B:F6:E3:9F:1C`, short ID `E39F1C`. Those
+identities are more authoritative than their port numbers.
 
 The dashboard's overview glyph combines:
 
@@ -591,12 +606,16 @@ and tuning. The short version is:
 3. Connect the RODE analog cable to **LINE/MIC**, not the TRRS headset jack.
 4. Start the RODE around gain 10, 75 Hz high-pass, boost off, pad off, safety
    channel off.
-5. Power on and confirm `audio MODULE TRS ON`.
-6. Leave two seconds of ordinary ambient sound for calibration.
+5. Power on, tap **Audio**, and confirm `AUX INPUT PUBLISHING`. Tap **Input** if
+   the app is currently using `AMBIENT MIC`. Starting Audio releases any active
+   fleet program lease in RAM, so an earlier CA or Contagion session cannot
+   block the direct stream. This does not flash fixtures or change saved state.
+6. Leave two seconds of ordinary ambient sound after entering Audio for calibration.
 7. Confirm intended fixtures appear live, then play the source.
-8. Tap the CoreS3 screen to cycle Classic, Ember, Huecycle, and Pulse. Use serial
-   `A` to pause/resume; serial `M` also changes mode.
-9. Stop or pause this publisher before starting T-Deck LEDs or Patterns.
+8. Use **Look** to cycle Classic, Ember, Huecycle, and Pulse. Use **Input** to
+   cycle Ambient Mic <-> Aux Input and **Pause/Start** to control the stream;
+   USB `M`, `N`, and `A` remain optional aliases.
+9. Pause or leave Audio before starting T-Deck LEDs or Patterns.
 
 The bridge sends about 10 direct frames per second. If the bridge pauses,
 unplugs, or fails, fixtures return to autonomous output after about three seconds.
@@ -607,13 +626,14 @@ three perimeter fixtures, and zero send failures or receive drops.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Dashboard prints garbage or cannot parse | Cambium binary image is installed | Stop the text dashboard and flash/use the normal bridge artifact |
-| CoreS3 says `RESONANCE AUDIO` when a dashboard bridge was expected | Audio artifact is installed | Use the intended named normal artifact; do not guess from COM number |
+| Dashboard prints garbage or cannot parse | Cambium binary image is installed | Stop the text dashboard and flash/use the ordinary Bridge OS artifact |
+| CoreS3 lacks the Listener/Audio launcher | old normal/audio artifact is installed | Install one inspected Bridge OS artifact; do not guess from COM number |
 | Display says `MODULE TRS`, but RMS is exactly 0 | Module Audio selector is A | Power the stack fully off, move the selector to B, restart |
-| Display says `BUILTIN DUAL MIC` | Module not found or built-in artifact installed | Reseat the stack, confirm selector B, and confirm the Module Audio artifact |
+| Display says `AMBIENT MIC` when Aux is wanted | Ambient is selected or Module Audio was late at boot | Tap Input once; if Aux remains unavailable, fully power-cycle, reseat the stack, confirm selector B, and confirm the Module Audio artifact |
 | RMS moves, level is weak | low mic output, wrong jack, distance, pad | Charge/power RODE, use LINE/MIC, raise gain gradually, aim and move closer |
 | Level stays near 100% or RODE peak LED is red | analog overload | Lower gain, move back, then use the -20 dB pad if required |
-| Bridge reacts, fixtures do not | fixtures not live, channel mismatch, lifecycle, old firmware | Check live IDs, channel 11, direct-frame support, and authorized daylight override |
+| Bridge reacts, fixtures stay in CA | old CoreS3 image did not release the explicit lease or omitted current `fx-*` fixture identities from Audio frames | In CA Studio tap Release, then restart Audio; install `cores3-os-0.1.2-dev` or later on the CoreS3 for automatic takeover and current-fleet selection |
+| Bridge reacts, fixtures do not | fixtures not live, channel mismatch, lifecycle, old fixture firmware | Check live IDs, channel 11, direct-frame support, and authorized daylight override |
 | Unwanted rumble drives the lights | wind, handling, generator, solarnoid | Use directionality and windshield first; then 75 Hz or 150 Hz filtering |
 | CoreS3 screen flickers or stays black | wrong/old image or display initialization issue | Confirm the current PSRAM-framebuffer artifact and boot serial; preserve logs before reflash |
 
@@ -794,7 +814,7 @@ proof. Never select an artifact by newest timestamp or `latest`.
 ## Audio handoff
 
 - [ ] active audio bridge: CoreS3 / PUCA test bench
-- [ ] exact firmware mode confirmed from screen/boot banner
+- [ ] Bridge OS image and active Audio app confirmed from screen/boot banner
 - [ ] RODE charged, gain/filter/pad recorded
 - [ ] Module Audio selector B confirmed with power off
 - [ ] input says `MODULE TRS ON`; RMS and level are sane
@@ -833,7 +853,7 @@ The two SVG figures are intentionally repo-native, diffable screen/role maps.
 Replace or supplement the launcher map with real device photographs when a clean
 camera capture is available. A useful photo set is: launcher, Health with mixed
 bands, Fleet detail with callsign/ID, LED Studio, Sleep confirmation, Schedule
-GPS status, RF links, RF frames, CoreS3 normal screen, CoreS3 audio screen, and
+GPS status, RF links, RF frames, CoreS3 launcher, Listener, Audio, and
 the labeled PUCA front/ribbon/audio connections.
 
 ## Sources of truth

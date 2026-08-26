@@ -32,5 +32,10 @@ int main() {
   CHECK_EQ(blue.b, 255);
   CHECK_EQ(red.w, 0);
 
+  CHECK_EQ(audioDirectFrameCount(0), 0u);
+  CHECK_EQ(audioDirectFrameCount(18), 1u);
+  CHECK_EQ(audioDirectFrameCount(19), 2u);
+  CHECK_EQ(audioDirectFrameCount(192), 11u);
+
   return testReport("audio_reactive");
 }

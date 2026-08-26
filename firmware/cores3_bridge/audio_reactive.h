@@ -8,6 +8,15 @@ struct AudioColor {
   uint8_t r, g, b, w;
 };
 
+static constexpr size_t AUDIO_DIRECT_ENTRIES_PER_FRAME = 18;
+
+inline size_t audioDirectFrameCount(size_t fixtureCount) {
+  return fixtureCount
+             ? (fixtureCount + AUDIO_DIRECT_ENTRIES_PER_FRAME - 1) /
+                   AUDIO_DIRECT_ENTRIES_PER_FRAME
+             : 0;
+}
+
 struct AudioEnvelope {
   float rms = 0.0f;
   float noise = 0.0f;

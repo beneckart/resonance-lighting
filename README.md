@@ -178,9 +178,11 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
 
 ## Fleet dashboard
 
-With the CoreS3 serial bridge attached, launch the local dashboard from the repo
-root. The only Python dependency is `pyserial`; list the attached ports, then
-replace `COM40` with the observed bridge port:
+CoreS3 Bridge OS now has a standalone touch Listener with a paged fleet-health
+grid and fixture detail, so basic observation no longer needs a laptop. For the
+complete host dashboard and telemetry logger, attach the same CoreS3 over USB.
+The only Python dependency is `pyserial`; list the attached ports, then replace
+`COM40` with the observed bridge port:
 
 ```sh
 python -m pip install pyserial

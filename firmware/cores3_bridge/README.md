@@ -1,8 +1,16 @@
-# CoreS3 desk bridge
+# CoreS3 Bridge OS
 
-Dedicated M5Stack CoreS3 USB bridge for the Resonance ESP-NOW fleet. It replaces
-the temporary PowerFeather `net_bench --serial-bridge` board without touching the
-PowerFeather charger/gauge path.
+Standalone M5Stack CoreS3 bridge for the Resonance ESP-NOW fleet. The ordinary
+image is now a small, touch-first Bridge OS with two switchable apps:
+
+- **Listener:** a read-only, paged fleet-health grid and fixture detail view;
+- **Audio:** the proven microphone envelope publisher with on-screen start/stop
+  and look controls.
+
+It runs from the CoreS3 battery with no laptop or infrastructure WiFi. USB is
+still available for the full host dashboard, telemetry logging, and the legacy
+serial controls, but it is optional for both on-device apps. Cambium remains a
+separate binary artifact.
 
 For a device-comparison, field workflow, and first-line troubleshooting guide,
 start with the illustrated
@@ -20,6 +28,10 @@ The bridge:
 - stays unassociated from infrastructure WiFi and pins ESP-NOW to channel 11;
 - tracks up to 192 fixture heartbeats using the canonical packet contract in
   `firmware/fixture/src/core/packet.h`;
+- boots to an on-device launcher instead of requiring a mode-specific reflash;
+- adapts the bench dashboard's class, raw-VBAT health, freshness, and reported-
+  output cues to a 24-fixture-per-page touch grid, with a detail page for exact
+  values;
 - emits the same `nb-master`, `nb-peer`, and `nb-scanap` serial lines consumed by
   `ops/bench/net_bench_dashboard.py` and the JSONL logger;
 - length-gates the fixture heartbeat tails and exposes profile, lifecycle, power
@@ -34,8 +46,8 @@ The bridge:
 - accepts `F0` / `F1` to persistently place all reachable fixtures in
   commission / field profile, or `F<fixture-id>:0|1` for one fixture;
 - accepts `B<seconds>` for a RAM-only, hard-cut fleet-dark program lease and
-  lowercase `b` to release that lease immediately; neither command changes the
-  fixture profile, lifecycle, or persisted configuration;
+  lowercase `b` to release any active program lease immediately; neither
+  command changes the fixture profile, lifecycle, or persisted configuration;
 - accepts `Q<hours>` (1-168) for multi-day rails-off transport sleep; timer wake
   returns radio/telemetry but fixtures remain electrically dark until a program
   command such as bare `b` releases the retained latch;
@@ -50,25 +62,43 @@ while retaining the on-device health display and heartbeat tracking. Binary
 mode never writes bare diagnostic text to USB; diagnostics are Cambium LOG
 frames so they cannot corrupt the serial stream.
 
-An independent audio-reactive build mode turns a live microphone envelope into
-10 Hz `NB_DIRECT_FRAME` colors for every fixture heard in the last five
-seconds. Each fixture gets a stable red, green, or blue slot based on sorted
-fixture ID. The bridge performs a two-second ambient-noise calibration, then
-uses fast attack and slow release. Four visual modes (2026-08-20): CLASSIC
-per-slot R/G/B, EMBER warm-white envelope, HUECYCLE (20 s shared hue rotation),
-PULSE (beat-transient flashes over a dim floor). Tap the screen or send `M`
-over USB serial to cycle modes; send `A` over USB serial
-to pause/resume. Direct-frame staleness still returns each fixture to its
-autonomous program after three seconds; this mode does not persist a lifecycle
-override on any fixture. Peers whose full heartbeat identifies non-fixture
-firmware are omitted so an old bench node cannot consume a color slot.
+The Audio app turns a live microphone envelope into 10 Hz `NB_DIRECT_FRAME`
+colors for every fixture heard in the last five seconds. Its fixture selector
+recognizes the ADR 0040 `fx-*` artifact identity, the older `fixture-*` identity,
+and fixture `dev-local`, while excluding identified legacy net-bench/bridge
+peers that cannot consume direct frames. Starting Audio first
+sends a one-shot, RAM-only fleet program release so an earlier CA, Contagion,
+or Dark lease cannot block the direct stream. It does not change the autonomous
+default, profile, lifecycle, or NVS. Each fixture gets a
+stable red, green, or blue slot based on sorted fixture ID. The bridge performs
+a two-second ambient-noise calibration, then uses fast attack and slow release.
+Four visual modes are available: CLASSIC per-slot R/G/B, EMBER warm-white,
+HUECYCLE (20 s shared hue rotation), and PULSE (beat-transient flashes over a
+dim floor). The Audio footer has **Start/Pause**, **Input**, and **Look**. Input
+cycles between the CoreS3's ambient microphones and Module Audio's Aux input;
+USB `A`, `N`, and `M` remain optional compatibility controls for those same
+actions. Leaving Audio sends a zero frame and stops publishing, so a hidden app
+cannot fight another artistic publisher.
+Direct-frame staleness still returns each fixture to its autonomous program
+after three seconds; the app does not persist a lifecycle override. Peers whose
+full heartbeat identifies non-fixture firmware are omitted so an old bench node
+cannot consume a color slot.
 
 The CoreS3 itself has two built-in microphones. The M5Stack Module Audio has no
 microphone of its own: it provides external analog inputs through a TRS
-LINE/MIC jack and a TRRS headset jack. The two mic routes share one codec input
-and must not be enabled together. The Resonance module build selects the TRS
-LINE/MIC jack for the Rode mic. If the module is not detected it falls back to
-the CoreS3 microphones and reports the active source on screen and serial.
+LINE/MIC jack and a TRRS headset jack. The two module routes share one codec
+input and must not be enabled together. The Resonance module build uses the TRS
+LINE/MIC jack for Aux and can switch at runtime to the CoreS3 microphones. It
+prefers Aux at boot, falls back to Ambient if the module is not ready, and lets
+the operator retry Aux later with **Input**. A source handoff pauses publishing,
+sends zero, resets the two-second noise-floor calibration, and restores the
+prior publishing state only after the new input starts. The built-in-only image
+shows Ambient and has no Aux input.
+
+M5Unified configures the built-in pins/callback in both hardware variants but
+does not start capture during boot; `setupAudioInput()` gives Module Audio first
+choice and starts only the selected source. Module Audio's LEDs are green for
+Aux and dark blue for Ambient.
 
 For the physical hookup, Rode VideoMic NTG control reference, recommended gain
 and filter settings, display interpretation, daylight bench procedure, and
@@ -82,7 +112,8 @@ CoreS3's ESP32-S3 radio.
 ## Build and flash
 
 Install `M5Unified` (Arduino CLI also installs its M5GFX dependency), then build
-once into a named path and flash that exact build:
+the unified Listener + built-in-mic Audio image once into a named path and flash
+that exact build:
 
 ```sh
 arduino-cli lib install M5Unified
@@ -97,8 +128,8 @@ Or compile and flash in one invocation:
 bash ./build.sh --channel 11 --port COM40 --build-path build/nc-cores3-bridge-r1
 ```
 
-For Cambium, build a separate artifact with `--cambium` and keep the normal
-dashboard artifact available for restoration:
+For Cambium, build a separate artifact with `--cambium` and keep the ordinary
+Bridge OS artifact available for restoration:
 
 ```sh
 bash ./build.sh --cambium --channel 11 \
@@ -112,18 +143,12 @@ RADIO_RX (including the full source MAC and RSSI), status, channel selection,
 and reboot. Use it with the serial transport in the Cambium repo; do not run
 the ASCII net-bench dashboard against a binary-mode artifact.
 
-For a built-in-microphone audio artifact:
-
-```sh
-bash ./build.sh --audio --channel 11 \
-  --build-path build/nc-cores3-audio-builtin-r1
-```
-
 For Module Audio, first power the stack off and set the module's physical A/B
 I2S selector to configuration B; A is for Basic/Core2 and conflicts with the
 CoreS3's onboard audio path. Then install M5Stack's `M5Module-Audio` library and
-build the separate module artifact. The library selects the matching CoreS3
-software pin map, but it cannot change that physical selector. This repo was
+build the same two-app firmware with the module hardware layer. The library
+selects the matching CoreS3 software pin map, but it cannot change that physical
+selector. This repo was
 validated against upstream commit
 `d8649a4863fea4a47d690781eb330f7c28a434b3`:
 
@@ -146,7 +171,9 @@ After the boot banner, launch the existing dashboard:
 python ../../ops/bench/net_bench_dashboard.py --port COM40
 ```
 
-The primary view is a dense fleet-health grid. Each light is one composite glyph:
+Listener carries a compact on-device form of the primary fleet-health view. For
+the complete host dashboard, connect USB and launch the command above. Each
+dashboard light is one composite glyph:
 the center battery fill uses ADR 0046's load-compensated thresholds, the top sun or
 plug shows a live charger input, the thin top bar is the fixture's reported rendered
 color, and the whole tile fades when its expected heartbeat is late or silent. The
@@ -176,11 +203,12 @@ lead, not a standalone electrical verdict.
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-bridge-2026-08-17.1 ===
+=== Resonance net-bench cores3-os-0.1.2-dev ===
 role=master channel=11 frame_hz=0 hb_hz=0
-mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)
+mode: BRIDGE OS (CoreS3; wireless Listener + Audio apps; USB optional)
 ```
 
-The USB port number is an observation, not identity. On the first Nevada City
-unit the stable USB parent serial/MAC is `44:1B:F6:E3:9F:1C` and the derived
-bridge ID is `E39F1C`.
+The USB port number is an observation, not identity. The hardware-validated
+Bridge OS unit is full MAC `80:45:6B:4D:5D:B0`, short ID `4D5DB0`. The second
+historical Nevada City CoreS3 identity is full MAC `44:1B:F6:E3:9F:1C`, short
+ID `E39F1C`.

@@ -22,8 +22,10 @@ floor for two seconds, and applies a fast attack with a slower release. Live
 fixtures receive stable ID-sorted red, green, or blue brightness slots.
 
 The Module Audio has no microphone of its own. It is the external analog input
-for the Rode. The CoreS3's two built-in microphones are a fallback when using a
-built-in-mic firmware artifact or if a module build cannot find the module.
+for the Rode. A Module Audio build exposes both choices in one app: **Aux Input**
+uses the RODE through LINE/MIC, and **Ambient Mic** uses the CoreS3's two
+built-in microphones. Aux is preferred at boot when ready; Ambient is the safe
+fallback.
 
 ## Quick start
 
@@ -42,9 +44,13 @@ built-in-mic firmware artifact or if a module build cannot find the module.
    - -20 dB pad: **off**
    - safety channel: **off**
 
-5. Power the CoreS3. Confirm its display says `audio MODULE TRS ON`, not
-   `BUILTIN DUAL MIC` or `FAILED`.
-6. During the first two seconds, leave the space at its ordinary ambient level
+5. Power the CoreS3, tap **Audio** in the launcher, and confirm the app says
+   `AUX INPUT PUBLISHING`. If it says `AMBIENT MIC`, tap **Input** once to retry
+   or select Aux.
+   Starting the publisher first releases any active CA, Contagion, Dark, or
+   other program lease in fixture RAM so Audio can take ownership. It does not
+   flash fixtures or change their saved configuration.
+6. During the first two seconds after Audio starts, leave the space at its ordinary ambient level
    without clapping, speaking into the mic, or playing intentional program
    audio. This becomes the initial noise floor.
 7. Play the intended source and adjust the Rode gain dial. A useful target is:
@@ -59,11 +65,13 @@ built-in-mic firmware artifact or if a module build cannot find the module.
 8. Aim the mic at the intended source. Keep its rear and sides toward unwanted
    generator, wind, handling, or bamboo-impact noise where practical.
 
-The audio stream starts enabled in CLASSIC mode. Tap the CoreS3 screen (or
-send `M`) to cycle CLASSIC -> EMBER -> HUECYCLE -> PULSE; send uppercase `A`
-over USB serial, to pause or resume it. Resuming starts a fresh two-second
-calibration. After a large change to the Rode gain or filter, toggle audio off
-and on once so the bridge relearns promptly.
+Opening Audio starts the stream in CLASSIC mode. Use **Look** (or USB `M`) to
+cycle CLASSIC -> EMBER -> HUECYCLE -> PULSE, **Input** (or USB `N`) to cycle
+Ambient Mic <-> Aux Input, and **Pause/Start** (or USB `A`) to control the
+stream. An input change sends zero, pauses the publisher during the hardware
+handoff, and starts a fresh two-second calibration before continuing. Leaving
+Audio for the launcher also stops the publisher. After a large change to the
+RODE gain or filter, pause and start once so the bridge relearns promptly.
 
 ## Rode VideoMic NTG controls
 
@@ -137,17 +145,17 @@ the 3.5 mm analog cable is the audio connection, not its charger.
 
 ## Reading the CoreS3 display
 
-The audio line identifies the input and state:
+The Audio app identifies the input and state:
 
 ```text
-audio MODULE TRS       ON
+AUX INPUT  PUBLISHING
 rms 343 floor 31 level  67%
 ```
 
-- `MODULE TRS` means the external Module Audio path initialized.
-- `BUILTIN DUAL MIC` means the CoreS3 microphones are active instead.
-- `FAILED` means no audio input initialized.
-- `ON` or `OFF` is the audio-reactive stream state.
+- `AUX INPUT` means the external Module Audio LINE/MIC path is selected.
+- `AMBIENT MIC` means the CoreS3 microphones are selected instead.
+- `INPUT FAILED` means no audio input initialized.
+- `PUBLISHING` or `PAUSED` is the audio-reactive stream state.
 - `rms` is the current raw DC-removed sample magnitude. It is useful for comparing
   relative signal levels but is not calibrated sound-pressure level or dBFS.
 - `floor` is the bridge's learned ambient-noise estimate.
@@ -205,6 +213,17 @@ numbers can change.
 
 ## Troubleshooting
 
+### RMS/level moves, but fixtures remain in CA
+
+An older CoreS3 Bridge OS can transmit direct frames while an explicit CA or
+Contagion program lease still wins fixture arbitration. It can also show current
+`fx-*` fixtures as live while an obsolete firmware-name filter omits them from
+the Audio frame. On the T-Deck, open CA Studio and tap **Release**, then restart
+Audio. Bridge OS `cores3-os-0.1.2-dev` and later both perform the one-shot,
+RAM-only release automatically and recognize current immutable fixture artifact
+names. If the fixtures return to CA while Audio is still publishing, stop the
+other bridge/app that is sending a new program lease.
+
 ### Display says `MODULE TRS`, but RMS stays exactly 0
 
 Power the entire stack off, move the Module Audio selector to B, and restart.
@@ -233,13 +252,14 @@ for wind/handling rumble, not as a substitute for correcting overload.
 - Confirm the fixtures are running firmware with direct-frame support.
 - In daylight, use the temporary `N1` bench override on only the authorized
   fixtures, then restore each one with `N2`.
-- A screen tap now cycles visual modes (2026-08-20); pause/resume is `A` over serial only.
+- Use the Audio app's on-screen **Look**, **Input**, and **Pause/Start** controls.
 
-### The bridge reports `BUILTIN DUAL MIC`
+### The app reports `AMBIENT MIC` when Aux is wanted
 
-The module firmware did not find Module Audio and fell back to the CoreS3 mics.
-Power down, reseat the stack, confirm selector B, and restart. Also confirm the
-bridge was flashed with the `--audio-module` artifact rather than `--audio`.
+Tap **Input** once: the Module build can retry a controller that was late at
+boot. If the app stays on Ambient, fully power down, reseat the stack, confirm
+selector B, and restart. Also confirm the Bridge OS image was built with
+`--audio-module`.
 
 ### Unwanted sounds dominate the lights
 
@@ -250,18 +270,18 @@ energy is more important than bass response.
 
 ## Build and flash reference
 
-The complete commands, dependency pin, and separate normal/Cambium/audio artifact
-rules live in [`firmware/cores3_bridge/README.md`](../../firmware/cores3_bridge/README.md).
-Use the Module Audio form:
+The complete commands, dependency pin, and ordinary-vs-Cambium artifact rules
+live in [`firmware/cores3_bridge/README.md`](../../firmware/cores3_bridge/README.md).
+Use the unified Bridge OS Module Audio form:
 
 ```sh
 bash ./build.sh --audio-module --channel 11 \
   --build-path build/nc-cores3-audio-module-r1
 ```
 
-Do not overwrite the normal dashboard or Cambium artifact mentally: these are
-separate build modes. Build once into a named directory and flash that exact
-artifact.
+The resulting ordinary image contains both Listener and Audio; only Cambium
+remains a separate build mode. Build once into a named directory and flash that
+exact artifact.
 
 ## Validated baseline
 
@@ -271,6 +291,30 @@ normalized level. All three perimeter fixtures entered direct program 3, matched
 their addressed frames, and returned to autonomous program 1 after the stream was
 stopped. The bridge reported no ESP-NOW send failures or receive drops during the
 acceptance run.
+
+On 2026-08-25, the unified Bridge OS Module Audio artifact was USB-flashed to
+exact CoreS3 `4D5DB0` (`80:45:6B:4D:5D:B0`). A fresh boot selected
+`MODULE TRS`, reported the input ready, received channel-11 mesh traffic, and
+remained paused with zero direct frames and zero queue drops. That pass validates
+hardware detection and the safe launcher posture; the four looks and fixture
+fallback behavior still rely on the 2026-08-06 acceptance until they are rerun
+deliberately against named canaries.
+
+The runtime-selector revision was then hardware-tested on the same CoreS3. With
+Audio paused, the shared Input action completed Aux -> Ambient -> Aux. Every
+state reported ready, the Module remained available, and `frames=0` plus
+`readfail=0` held throughout. A USB-reset run also exposed a delayed-module boot
+case; the accepted behavior keeps Ambient working and permits a later bounded
+Aux retry instead of permanently disabling the Input control.
+
+The final `cores3-os-0.1.2-dev` acceptance fixed both hidden blockers found in
+the first standalone run: Audio now releases an explicit prior program lease on
+start and recognizes ADR 0040 `fx-*` fixtures. Builtin Dual Mic calibrated and
+published four fleet chunks per tick with zero send/read failures; a separate
+T-Deck observed fresh fixtures enter program 3 Direct, and Ben confirmed the
+spoken `test test test` response worked really well. The exact 1,168,352-byte
+binary SHA-256 is
+`FDDAC35CA9778D1698763F77FAABA88A5FBB56A8167C1D24EE6E0701F1742C65`.
 
 ## References
 
