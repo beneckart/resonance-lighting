@@ -21,7 +21,13 @@
 #endif
 
 #ifndef CORES3_AUDIO_REACTIVE_MODE
+#if CORES3_CAMBIUM_MODE
 #define CORES3_AUDIO_REACTIVE_MODE 0
+#else
+// The ordinary CoreS3 image is now a two-app, untethered Bridge OS. Audio is
+// compiled in beside Listener instead of requiring a separate reflash.
+#define CORES3_AUDIO_REACTIVE_MODE 1
+#endif
 #endif
 
 #ifndef CORES3_AUDIO_MODULE
@@ -42,10 +48,11 @@
 
 #include "../fixture/src/core/fixture_context.h"
 #include "../fixture/src/core/packet.h"
+#include "app_model.h"
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-bridge-2026-08-17.2"
+#define CORES3_BRIDGE_VERSION "cores3-os-0.1.2-dev"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -94,6 +101,13 @@ uint8_t gRateHz = 10;
 bool radioReady = false;
 M5Canvas displayCanvas(&M5.Display);
 bool displayCanvasReady = false;
+void drawDisplay();
+#if !CORES3_CAMBIUM_MODE
+CoreS3App currentApp = CORES3_APP_HOME;
+size_t listenerPage = 0;
+int listenerDetailPeer = -1;
+void openCoreS3App(CoreS3App app);
+#endif
 
 struct RxItem {
   uint8_t mac[6];
@@ -396,9 +410,11 @@ PeerStat peers[NB_MAX_TRACKED] = {};
 
 #if CORES3_AUDIO_REACTIVE_MODE
 AudioEnvelope audioEnvelope;
-bool audioActive = true;
+bool audioActive = false;
 bool audioInputReady = false;
 bool audioUsingModule = false;
+bool audioModuleReady = false;
+bool audioModuleInitAttempted = false;
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
 
@@ -510,7 +526,7 @@ void sendFleetProgramLease(uint8_t programId, uint16_t leaseS) {
   cmd.program_id = programId;
   cmd.lease_s = leaseS;
   cmd.seed = esp_random();
-  cmd.flags = 0x01; // hard cut; do not spend power crossfading to or from dark
+  cmd.flags = 0x01; // hard cut when starting a program; ignored for release
   sendPacketRepeated(&cmd, sizeof(cmd), 6, 8);
 }
 
@@ -535,6 +551,27 @@ void sendLocateControl(uint16_t durationS) {
 const char *audioSourceName() {
   if (!audioInputReady) return "FAILED";
   return audioUsingModule ? "MODULE TRS" : "BUILTIN DUAL MIC";
+}
+
+const char *audioInputLabel() {
+  if (!audioInputReady) return "INPUT FAILED";
+  return audioUsingModule ? "AUX INPUT" : "AMBIENT MIC";
+}
+
+bool audioCanCycleInput() {
+#if CORES3_AUDIO_MODULE
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool audioAuxReady() {
+#if CORES3_AUDIO_MODULE
+  return audioModuleReady;
+#else
+  return false;
+#endif
 }
 
 const char *audioModeName(AudioVisualMode mode) {
@@ -611,8 +648,22 @@ AudioColor audioSharedColor(float level, uint32_t nowMs) {
   }
 }
 
-bool setupAudioInput() {
+bool initializeModuleAudio() {
 #if CORES3_AUDIO_MODULE
+  if (audioModuleReady) return true;
+  // A USB reset does not remove power from the stacked module. Its controller
+  // can therefore appear later than the CoreS3. A missing I2C response is safe
+  // to retry from the INPUT control; an I2S/codec failure after detection is
+  // not retried repeatedly because this library does not expose an end().
+  if (!M5.In_I2C.isEnabled() || !M5.In_I2C.scanID(I2C_ADDR, 400000)) {
+    Serial.println("audio: Module Audio controller not ready; Aux can retry later");
+    return false;
+  }
+  if (audioModuleInitAttempted) {
+    Serial.println("audio: Module Audio initialization already failed; power-cycle to retry");
+    return false;
+  }
+  audioModuleInitAttempted = true;
   if (audioModule.begin(M5.In_I2C)) {
     // The LINE/MIC TRS jack is input 1. Keep the TRRS headset-mic path closed
     // because both routes share LIN1 on the module.
@@ -625,11 +676,23 @@ bool setupAudioInput() {
     audioModule.setSampleRate(SAMPLE_RATE_44K);
     audioModule.setRGBBrightness(20);
     audioModule.setAllRGBLED(0x003000);
-    audioUsingModule = true;
+    audioModuleReady = true;
     Serial.println("audio: Module Audio LINE/MIC input ready (TRS, 24 dB)");
     return true;
   }
-  Serial.println("audio: Module Audio not found; falling back to CoreS3 microphones");
+  audioModuleReady = false;
+  Serial.println("audio: Module Audio I2S/codec init failed");
+#endif
+  return false;
+}
+
+bool setupAudioInput() {
+#if CORES3_AUDIO_MODULE
+  if (initializeModuleAudio()) {
+    audioUsingModule = true;
+    return true;
+  }
+  Serial.println("audio: Aux unavailable at boot; falling back to CoreS3 microphones");
 #endif
 
   M5.Speaker.end();
@@ -652,24 +715,23 @@ bool readAudioSamples(int16_t *samples, size_t count) {
   return M5.Mic.record(samples, count, 16000);
 }
 
-uint8_t collectLiveAudioIds(uint8_t ids[18][3]) {
-  uint8_t count = 0;
+size_t collectLiveAudioIds(uint8_t ids[NB_MAX_TRACKED][3]) {
+  size_t count = 0;
   uint32_t now = millis();
-  for (size_t i = 0; i < NB_MAX_TRACKED && count < 18; ++i) {
+  for (size_t i = 0; i < NB_MAX_TRACKED && count < NB_MAX_TRACKED; ++i) {
     if (!peers[i].used || now - peers[i].lastHeardMs > 5000) continue;
     // A nearby legacy net-bench peer still heartbeats on channel 11 but cannot
     // consume type-25 frames. Once its full heartbeat identifies that firmware,
-    // keep it from stealing a stable color slot from a fixture.
-    if (peers[i].hasFw &&
-        strncmp(peers[i].fwRev, "fixture-", strlen("fixture-")) != 0)
-      continue;
+    // keep it from stealing a stable color slot from a fixture. ADR 0040 fleet
+    // fixtures report immutable fx-* revisions, not the older fixture-* prefix.
+    if (!cores3AudioPeerEligible(peers[i].hasFw, peers[i].fwRev)) continue;
     memcpy(ids[count++], peers[i].id, 3);
   }
   // Stable colors independent of heartbeat arrival order.
-  for (uint8_t i = 1; i < count; ++i) {
+  for (size_t i = 1; i < count; ++i) {
     uint8_t key[3];
     memcpy(key, ids[i], 3);
-    int j = i - 1;
+    int j = (int)i - 1;
     while (j >= 0 && memcmp(ids[j], key, 3) > 0) {
       memcpy(ids[j + 1], ids[j], 3);
       --j;
@@ -681,33 +743,42 @@ uint8_t collectLiveAudioIds(uint8_t ids[18][3]) {
 
 void sendAudioLevel(float level) {
   if (!radioReady) return;
-  uint8_t ids[18][3];
-  uint8_t count = collectLiveAudioIds(ids);
-  if (!count) return;
+  uint8_t ids[NB_MAX_TRACKED][3];
+  size_t total = collectLiveAudioIds(ids);
+  if (!total) return;
 
-  NbDirectFrame frame = {};
-  fillHeader(&frame.h, NB_DIRECT_FRAME);
-  frame.flags = 0x03; // 10 s micro-lease + hard-cut; envelope owns smoothing
-  frame.count = count;
   AudioColor shared = {};
   if (audioMode != AUDIO_MODE_CLASSIC)
     shared = audioSharedColor(level, millis());
-  for (uint8_t i = 0; i < count; ++i) {
-    memcpy(frame.entries[i].id, ids[i], 3);
-    AudioColor color = audioMode == AUDIO_MODE_CLASSIC
-                           ? audioColorForSlot(i, level)
-                           : shared;
-    frame.entries[i].r = color.r;
-    frame.entries[i].g = color.g;
-    frame.entries[i].b = color.b;
-    frame.entries[i].w = color.w;
+
+  // NbDirectFrame holds 18 entries. Chunk the complete sorted live census so
+  // an audio publisher scales beyond one packet while preserving stable slot
+  // colors across every chunk.
+  for (size_t offset = 0; offset < total;
+       offset += AUDIO_DIRECT_ENTRIES_PER_FRAME) {
+    NbDirectFrame frame = {};
+    fillHeader(&frame.h, NB_DIRECT_FRAME);
+    frame.flags = 0x03; // 10 s micro-lease + hard-cut; envelope owns smoothing
+    size_t chunk = min((size_t)AUDIO_DIRECT_ENTRIES_PER_FRAME, total - offset);
+    frame.count = (uint8_t)chunk;
+    for (size_t i = 0; i < chunk; ++i) {
+      size_t slot = offset + i;
+      memcpy(frame.entries[i].id, ids[slot], 3);
+      AudioColor color = audioMode == AUDIO_MODE_CLASSIC
+                             ? audioColorForSlot((uint8_t)slot, level)
+                             : shared;
+      frame.entries[i].r = color.r;
+      frame.entries[i].g = color.g;
+      frame.entries[i].b = color.b;
+      frame.entries[i].w = color.w;
+    }
+    size_t wireLen = offsetof(NbDirectFrame, entries) +
+                     chunk * sizeof(NbDirectEntry);
+    if (esp_now_send(BCAST, (const uint8_t *)&frame, wireLen) != ESP_OK)
+      ++sendFail;
+    else
+      ++audioFrames;
   }
-  size_t wireLen = offsetof(NbDirectFrame, entries) +
-                   count * sizeof(NbDirectEntry);
-  if (esp_now_send(BCAST, (const uint8_t *)&frame, wireLen) != ESP_OK)
-    ++sendFail;
-  else
-    ++audioFrames;
 }
 
 void setAudioActive(bool active) {
@@ -717,8 +788,98 @@ void setAudioActive(bool active) {
   audioSlowEnv = 0.0f;
   if (!active) sendAudioLevel(0.0f);
   audioActive = active;
-  if (active) audioEnvelope = AudioEnvelope{};
-  Serial.printf("audio reactive -> %s\n", active ? "ON" : "OFF");
+  if (active) {
+    // Explicit program leases (CA Studio, Contagion, Dark, and similar) win
+    // over direct-frame micro-leases in fixture arbitration. Entering Audio is
+    // an operator ownership handoff, so release any prior fleet program lease
+    // in RAM before publishing the first direct frame. This changes no profile,
+    // lifecycle setting, NVS, or autonomous default.
+    sendFleetProgramLease(0, 0);
+    audioEnvelope = AudioEnvelope{};
+    Serial.println("audio reactive -> ON (fleet program lease released)");
+  } else {
+    Serial.println("audio reactive -> OFF");
+  }
+}
+
+bool selectAudioInput(CoreS3AudioInput target) {
+  CoreS3AudioInput current = audioUsingModule ? CORES3_AUDIO_INPUT_AUX
+                                               : CORES3_AUDIO_INPUT_AMBIENT;
+  if (target == current && audioInputReady) return true;
+
+#if !CORES3_AUDIO_MODULE
+  if (target == CORES3_AUDIO_INPUT_AUX) {
+    Serial.println("audio input: AUX unavailable in built-in hardware image");
+    return false;
+  }
+#endif
+
+  // A source handoff is an ownership boundary. Send an explicit zero frame and
+  // suspend sampling before touching either I2S path, then restore the prior
+  // publishing state with a fresh two-second calibration on the new source.
+  bool wasActive = audioActive;
+  if (wasActive) setAudioActive(false);
+
+  bool switched = false;
+  if (target == CORES3_AUDIO_INPUT_AMBIENT) {
+    M5.Speaker.end();
+    if (M5.Mic.begin()) {
+#if CORES3_AUDIO_MODULE
+      if (audioModuleReady) {
+        audioModule.setMICStatus(AUDIO_MIC_CLOSE);
+        audioModule.setAllRGBLED(0x000030);
+      }
+#endif
+      audioUsingModule = false;
+      audioInputReady = true;
+      switched = true;
+    } else {
+      Serial.println("audio input: CoreS3 ambient microphones failed to start");
+    }
+  } else {
+#if CORES3_AUDIO_MODULE
+    if (initializeModuleAudio()) {
+      M5.Mic.end();
+      audioModule.setHPMICStatus(AUDIO_MIC_CLOSE);
+      audioModule.setMICStatus(AUDIO_MIC_OPEN);
+      audioModule.setAllRGBLED(0x003000);
+      audioUsingModule = true;
+      audioInputReady = true;
+      switched = true;
+    } else {
+      Serial.println("audio input: Aux is not ready; staying on Ambient");
+    }
+#endif
+  }
+
+  if (!switched) {
+#if CORES3_AUDIO_MODULE
+    // The old Aux path was kept open until Ambient successfully started, so a
+    // failed handoff can return to the prior working input without a reboot.
+    if (current == CORES3_AUDIO_INPUT_AUX && audioModuleReady) {
+      audioModule.setMICStatus(AUDIO_MIC_OPEN);
+      audioModule.setAllRGBLED(0x003000);
+      audioUsingModule = true;
+      audioInputReady = true;
+    }
+#endif
+    if (wasActive && audioInputReady) setAudioActive(true);
+    return false;
+  }
+
+  audioEnvelope = AudioEnvelope{};
+  audioPulseActive = false;
+  audioFastEnv = 0.0f;
+  audioSlowEnv = 0.0f;
+  Serial.printf("audio input -> %s\n", audioInputLabel());
+  if (wasActive) setAudioActive(true);
+  return true;
+}
+
+void nextAudioInput() {
+  CoreS3AudioInput current = audioUsingModule ? CORES3_AUDIO_INPUT_AUX
+                                               : CORES3_AUDIO_INPUT_AMBIENT;
+  selectAudioInput(cores3NextAudioInput(current, audioCanCycleInput()));
 }
 
 void audioReactiveTick() {
@@ -1091,9 +1252,9 @@ void emitBridgeStats() {
                 (unsigned long)sendFail, (unsigned long)millis(),
                 bridgeBatteryMv() / 1000.0f, CORES3_BRIDGE_VERSION);
 #if CORES3_AUDIO_REACTIVE_MODE
-  Serial.printf("audio source=%s ready=%d active=%d mode=%s calibrated=%d "
+  Serial.printf("audio source=%s ready=%d auxready=%d active=%d mode=%s calibrated=%d "
                 "rms=%.1f noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
-                audioSourceName(), audioInputReady, audioActive,
+                audioSourceName(), audioInputReady, audioAuxReady(), audioActive,
                 audioModeName(audioMode), audioEnvelope.calibrated(),
                 audioEnvelope.rms, audioEnvelope.noise, audioEnvelope.level,
                 (unsigned long)audioFrames,
@@ -1653,7 +1814,7 @@ void handleSerial() {
   }
   case 'b':
     sendFleetProgramLease(0, 0);
-    Serial.println("broadcast DARK release");
+    Serial.println("broadcast program lease release");
     break;
   case 't':
     Serial.printf("{\"bridge\":\"%02X%02X%02X\",\"channel\":%d,\"peers\":%d,\"live\":%d,\"queue_drops\":%lu}\n",
@@ -1668,17 +1829,23 @@ void handleSerial() {
     break;
 #if CORES3_AUDIO_REACTIVE_MODE
   case 'A':
-    setAudioActive(!audioActive);
+    if (currentApp != CORES3_APP_AUDIO)
+      openCoreS3App(CORES3_APP_AUDIO);
+    else
+      setAudioActive(!audioActive);
     break;
   case 'M':
     nextAudioMode();
+    break;
+  case 'N':
+    nextAudioInput();
     break;
 #endif
   case 'h':
   case '?':
     Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] Q<hours> L[seconds] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
-                   " A M"
+                   " A M N"
 #endif
     );
     break;
@@ -1687,77 +1854,422 @@ void handleSerial() {
   }
 }
 
-void drawDisplay() {
-  if (!displayCanvasReady) return;
-  // Render the whole status page off-screen, then transfer the completed frame.
-  // Clearing the physical LCD before each 1 Hz redraw caused a visible black
-  // flash; clearing this PSRAM-backed canvas is invisible to the viewer.
-  displayCanvas.fillSprite(TFT_BLACK);
-  displayCanvas.setTextFont(1);
+#if !CORES3_CAMBIUM_MODE
+uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
+  return (uint16_t)(((uint16_t)(r & 0xF8) << 8) |
+                    ((uint16_t)(g & 0xFC) << 3) | (b >> 3));
+}
+
+void drawTextButton(int16_t x, int16_t y, int16_t w, int16_t h,
+                    uint16_t color, const char *label) {
+  displayCanvas.fillRoundRect(x, y, w, h, 7, color);
+  displayCanvas.drawRoundRect(x, y, w, h, 7, TFT_WHITE);
+  displayCanvas.setTextColor(TFT_WHITE, color);
   displayCanvas.setTextSize(2);
-  displayCanvas.setCursor(8, 6);
-  displayCanvas.setTextColor(TFT_CYAN, TFT_BLACK);
-#if CORES3_AUDIO_REACTIVE_MODE
-  displayCanvas.println("RESONANCE AUDIO");
-#else
-  displayCanvas.println("RESONANCE BRIDGE");
-#endif
+  int16_t labelWidth = (int16_t)strlen(label) * 12;
+  displayCanvas.setCursor(x + max(5, (w - labelWidth) / 2), y + (h - 16) / 2);
+  displayCanvas.print(label);
+}
 
-  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  displayCanvas.printf("%02X%02X%02X  ESP-NOW ch %d\n", myId[0], myId[1], myId[2], NB_CHANNEL);
-  displayCanvas.printf("radio %-4s  USB ready\n", radioReady ? "UP" : "FAIL");
-  displayCanvas.printf("peers %d live / %d seen\n", peerCount(true), peerCount(false));
-
-  int16_t batteryMv = bridgeBatteryMv();
-  int batteryPct = M5.Power.getBatteryLevel();
-  if (batteryMv > 0) {
-    displayCanvas.printf("bridge %.3fV  %d%% %s\n", batteryMv / 1000.0f,
-                         batteryPct, M5.Power.isCharging() ? "charging" : "");
-  } else {
-    displayCanvas.println("bridge battery: n/a");
+void drawAppHeader(const char *title, bool showApps = true) {
+  displayCanvas.fillRect(0, 0, 320, 32, rgb565(9, 25, 36));
+  if (showApps) {
+    displayCanvas.fillRoundRect(4, 4, 56, 24, 5, rgb565(24, 73, 91));
+    displayCanvas.setTextColor(TFT_WHITE, rgb565(24, 73, 91));
+    displayCanvas.setTextSize(1);
+    displayCanvas.setCursor(15, 12);
+    displayCanvas.print("APPS");
   }
-  displayCanvas.printf("tx ok/fail %lu/%lu drop %lu\n",
+  displayCanvas.setTextSize(2);
+  displayCanvas.setTextColor(TFT_CYAN, rgb565(9, 25, 36));
+  displayCanvas.setCursor(showApps ? 70 : 8, 8);
+  displayCanvas.print(title);
+
+  int pct = M5.Power.getBatteryLevel();
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(M5.Power.isCharging() ? TFT_GREEN : TFT_WHITE,
+                             rgb565(9, 25, 36));
+  displayCanvas.setCursor(276, 12);
+  if (pct >= 0)
+    displayCanvas.printf("%d%%", pct);
+  else
+    displayCanvas.print("--%");
+}
+
+size_t sortedPeerIndexes(uint16_t out[NB_MAX_TRACKED]) {
+  size_t count = 0;
+  for (size_t i = 0; i < NB_MAX_TRACKED; ++i) {
+    if (!peers[i].used) continue;
+    size_t at = count;
+    while (at > 0 && memcmp(peers[out[at - 1]].id, peers[i].id, 3) > 0) {
+      out[at] = out[at - 1];
+      --at;
+    }
+    out[at] = (uint16_t)i;
+    ++count;
+  }
+  return count;
+}
+
+uint16_t batteryBandColor(CoreS3BatteryBand band) {
+  switch (band) {
+  case CORES3_BATTERY_GOOD: return rgb565(27, 138, 58);
+  case CORES3_BATTERY_NEAR_LOW: return rgb565(217, 165, 0);
+  case CORES3_BATTERY_LOW: return rgb565(213, 43, 43);
+  case CORES3_BATTERY_UNKNOWN: return rgb565(47, 128, 201);
+  default: return rgb565(52, 58, 64);
+  }
+}
+
+uint16_t peerLedColor(const PeerStat &peer) {
+  if (!peer.hasLedOutput || !peer.ledRailOn || !peer.ledLitPixels)
+    return rgb565(35, 39, 43);
+  uint16_t white = peer.ledW / 2;
+  return rgb565((uint8_t)min(255, (int)peer.ledR + white),
+                (uint8_t)min(255, (int)peer.ledG + white),
+                (uint8_t)min(255, (int)peer.ledB + white));
+}
+
+void drawFixtureShape(int16_t x, int16_t y, uint8_t fixtureClass,
+                      uint16_t color) {
+  switch (fixtureClass) {
+  case FIXTURE_DOWNLIGHT:
+    displayCanvas.fillCircle(x, y, 8, color);
+    break;
+  case FIXTURE_PERIMETER:
+    displayCanvas.fillRect(x - 4, y - 8, 8, 16, color);
+    displayCanvas.fillTriangle(x - 9, y, x - 4, y - 8, x - 4, y + 8,
+                               color);
+    displayCanvas.fillTriangle(x + 9, y, x + 4, y - 8, x + 4, y + 8,
+                               color);
+    break;
+  case FIXTURE_UPLIGHT:
+    displayCanvas.fillTriangle(x, y - 9, x - 9, y + 8, x + 9, y + 8,
+                               color);
+    break;
+  case FIXTURE_CHANDELIER:
+    displayCanvas.fillTriangle(x, y - 10, x - 9, y, x + 9, y, color);
+    displayCanvas.fillTriangle(x, y + 10, x - 9, y, x + 9, y, color);
+    break;
+  default:
+    displayCanvas.fillRoundRect(x - 8, y - 8, 16, 16, 4, color);
+    break;
+  }
+}
+
+void drawLauncher() {
+  drawAppHeader("BRIDGE OS", false);
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(radioReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
+  displayCanvas.setCursor(10, 41);
+  displayCanvas.printf("WIRELESS  ch%d  radio %s", NB_CHANNEL,
+                       radioReady ? "UP" : "FAIL");
+  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  displayCanvas.setCursor(198, 41);
+  displayCanvas.printf("%d live / %d seen", peerCount(true), peerCount(false));
+
+  displayCanvas.fillRoundRect(10, 65, 145, 154, 10, rgb565(14, 55, 70));
+  displayCanvas.drawRoundRect(10, 65, 145, 154, 10, TFT_CYAN);
+  displayCanvas.setTextColor(TFT_CYAN, rgb565(14, 55, 70));
+  displayCanvas.setTextSize(2);
+  displayCanvas.setCursor(30, 84);
+  displayCanvas.print("LISTENER");
+  displayCanvas.setTextColor(TFT_WHITE, rgb565(14, 55, 70));
+  displayCanvas.setTextSize(1);
+  displayCanvas.setCursor(23, 119);
+  displayCanvas.println("Fleet health grid");
+  displayCanvas.setCursor(23, 137);
+  displayCanvas.println("Tap any fixture");
+  displayCanvas.setCursor(23, 155);
+  displayCanvas.println("USB is optional");
+  displayCanvas.setTextSize(3);
+  displayCanvas.setCursor(59, 181);
+  displayCanvas.print("24");
+
+  uint16_t audioCard = audioInputReady ? rgb565(74, 25, 75) : rgb565(58, 45, 58);
+  displayCanvas.fillRoundRect(165, 65, 145, 154, 10, audioCard);
+  displayCanvas.drawRoundRect(165, 65, 145, 154, 10,
+                              audioInputReady ? TFT_MAGENTA : TFT_RED);
+  displayCanvas.setTextColor(audioInputReady ? TFT_MAGENTA : TFT_RED,
+                             audioCard);
+  displayCanvas.setTextSize(2);
+  displayCanvas.setCursor(191, 84);
+  displayCanvas.print("AUDIO");
+  displayCanvas.setTextColor(TFT_WHITE, audioCard);
+  displayCanvas.setTextSize(1);
+  displayCanvas.setCursor(180, 119);
+  displayCanvas.println(audioSourceName());
+  displayCanvas.setCursor(180, 137);
+  displayCanvas.println("10 Hz direct frames");
+  displayCanvas.setCursor(180, 155);
+  displayCanvas.println("Touch controls");
+  displayCanvas.setTextSize(3);
+  displayCanvas.setCursor(214, 181);
+  displayCanvas.print("~");
+}
+
+void drawListenerGrid() {
+  drawAppHeader("LISTENER");
+  uint16_t order[NB_MAX_TRACKED];
+  size_t count = sortedPeerIndexes(order);
+  listenerPage = cores3ClampPage(listenerPage, count);
+  size_t pageCount = cores3PageCount(count);
+  size_t start = cores3PageStart(listenerPage, count);
+  size_t end = min(count, start + CORES3_LISTENER_PAGE_SIZE);
+  uint32_t now = millis();
+
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  displayCanvas.setCursor(7, 39);
+  displayCanvas.printf("%d live / %d seen", peerCount(true), peerCount(false));
+  displayCanvas.setCursor(247, 39);
+  displayCanvas.printf("page %u/%u", (unsigned)listenerPage + 1,
+                       (unsigned)pageCount);
+
+  for (size_t position = start; position < end; ++position) {
+    size_t cell = position - start;
+    int16_t col = cell % 6;
+    int16_t row = cell / 6;
+    int16_t x = 4 + col * 52;
+    int16_t y = 53 + row * 37;
+    PeerStat &peer = peers[order[position]];
+    bool live = now - peer.lastHeardMs <= 5000;
+    CoreS3BatteryBand band = cores3BatteryBand(live, peer.battMv);
+    uint16_t bg = rgb565(18, 22, 26);
+    displayCanvas.fillRoundRect(x, y, 48, 34, 4, bg);
+    displayCanvas.drawRoundRect(x, y, 48, 34, 4,
+                                live ? TFT_WHITE : TFT_DARKGREY);
+    displayCanvas.fillRect(x + 3, y + 2, 42, 3, peerLedColor(peer));
+    drawFixtureShape(x + 24, y + 15,
+                     peer.hasLedOutput ? peer.fixtureClass : FIXTURE_UNKNOWN,
+                     batteryBandColor(band));
+    displayCanvas.setTextSize(1);
+    displayCanvas.setTextColor(TFT_WHITE, bg);
+    displayCanvas.setCursor(x + 17, y + 24);
+    displayCanvas.printf("%02X", peer.id[2]);
+  }
+
+  if (!count) {
+    displayCanvas.setTextSize(2);
+    displayCanvas.setTextColor(TFT_YELLOW, TFT_BLACK);
+    displayCanvas.setCursor(35, 105);
+    displayCanvas.print("Waiting for heartbeats");
+  }
+
+  drawTextButton(4, 205, 72, 31, rgb565(37, 62, 73), "PREV");
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  displayCanvas.setCursor(88, 216);
+  displayCanvas.print("tap tile for detail");
+  drawTextButton(244, 205, 72, 31, rgb565(37, 62, 73), "NEXT");
+}
+
+void drawListenerDetail() {
+  drawAppHeader("FIXTURE");
+  if (listenerDetailPeer < 0 || listenerDetailPeer >= NB_MAX_TRACKED ||
+      !peers[listenerDetailPeer].used) {
+    displayCanvas.setTextSize(2);
+    displayCanvas.setTextColor(TFT_RED, TFT_BLACK);
+    displayCanvas.setCursor(20, 90);
+    displayCanvas.print("Fixture unavailable");
+    drawTextButton(88, 197, 144, 35, rgb565(37, 62, 73), "BACK");
+    return;
+  }
+
+  const PeerStat &p = peers[listenerDetailPeer];
+  uint32_t ageS = (millis() - p.lastHeardMs) / 1000;
+  displayCanvas.setTextSize(2);
+  displayCanvas.setTextColor(TFT_CYAN, TFT_BLACK);
+  displayCanvas.setCursor(8, 38);
+  displayCanvas.printf("%02X%02X%02X  %s", p.id[0], p.id[1], p.id[2],
+                       p.hasLedOutput ? fixtureClassName(p.fixtureClass)
+                                      : "class pending");
+
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  int y = 62;
+  displayCanvas.setCursor(8, y);
+  displayCanvas.printf("last %lus  RSSI %d dBm  PDR %.1f%%", (unsigned long)ageS,
+                       p.rssi, p.recv ? 100.0f * p.recv / (p.recv + p.gaps) : 0);
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  displayCanvas.printf("battery %.3f V  %+d mA", p.battMv / 1000.0f,
+                       p.battMa);
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  if (p.soc != 255) displayCanvas.printf("SOC %u%%  ", p.soc);
+  displayCanvas.printf("input %.3f V  %+d mA  %s", p.supplyMv / 1000.0f,
+                       p.supplyMa, p.supplyGood ? "GOOD" : "not good");
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  if (p.hasFixtureState)
+    displayCanvas.printf("profile %u  life %u  power %u  program %u", p.profile,
+                         p.lifeState, p.powerTier, p.activeProgram);
+  else
+    displayCanvas.print("fixture state unavailable");
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  if (p.hasIdentityRecovery)
+    displayCanvas.printf("sensors 0x%02X  mismatch %u  recovery %u",
+                         p.sensorBits, p.classMismatch, p.recoveryState);
+  else
+    displayCanvas.print("sensor/recovery detail unavailable");
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  if (p.hasLedOutput)
+    displayCanvas.printf("LED rail %s  lit %u  RGBW %u/%u/%u/%u",
+                         p.ledRailOn ? "ON" : "OFF", p.ledLitPixels, p.ledR,
+                         p.ledG, p.ledB, p.ledW);
+  else
+    displayCanvas.print("reported LED output unavailable");
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  displayCanvas.printf("firmware %s", p.hasFw ? p.fwRev : "unknown");
+  y += 15;
+  displayCanvas.setCursor(8, y);
+  displayCanvas.printf("bridge TX ok/fail %lu/%lu  RX drops %lu",
                        (unsigned long)sendOk, (unsigned long)sendFail,
                        (unsigned long)rxQueueDrops);
 
-#if CORES3_AUDIO_REACTIVE_MODE
+  drawTextButton(88, 201, 144, 34, rgb565(37, 62, 73), "BACK");
+}
+
+void drawAudioApp() {
+  drawAppHeader("AUDIO");
+  displayCanvas.setTextSize(1);
   displayCanvas.setTextColor(audioInputReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
-  displayCanvas.printf("audio %-16s %s\n", audioSourceName(),
-                       audioActive ? "ON" : "OFF");
-  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
-  displayCanvas.printf("mode %s (tap=next)\n", audioModeName(audioMode));
+  displayCanvas.setCursor(8, 40);
+  displayCanvas.printf("%s  %s", audioInputLabel(),
+                       audioActive ? "PUBLISHING" : "PAUSED");
   displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  displayCanvas.printf("rms %.0f floor %.0f level %3d%%\n",
-                       audioEnvelope.rms, audioEnvelope.noise,
+  displayCanvas.setCursor(230, 40);
+  displayCanvas.printf("%d live", peerCount(true));
+
+  displayCanvas.setTextSize(2);
+  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
+  displayCanvas.setCursor(8, 62);
+  displayCanvas.printf("LOOK: %s", audioModeName(audioMode));
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  displayCanvas.setCursor(8, 88);
+  displayCanvas.printf("rms %.0f   floor %.0f   level %d%%", audioEnvelope.rms,
+                       audioEnvelope.noise,
                        (int)(audioEnvelope.level * 100.0f + 0.5f));
+
+  displayCanvas.drawRoundRect(8, 105, 304, 22, 5, TFT_DARKGREY);
   int barWidth = (int)(audioEnvelope.level * 300.0f);
-  displayCanvas.drawRect(8, displayCanvas.getCursorY(), 304, 12, TFT_DARKGREY);
   if (barWidth > 0)
-    displayCanvas.fillRect(10, displayCanvas.getCursorY() + 2,
-                           barWidth, 8, TFT_MAGENTA);
-  displayCanvas.setCursor(8, displayCanvas.getCursorY() + 16);
+    displayCanvas.fillRoundRect(10, 107, barWidth, 18, 4, TFT_MAGENTA);
+
+  displayCanvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  displayCanvas.setCursor(8, 136);
+  displayCanvas.printf("frames %lu  read fail %lu  TX fail %lu",
+                       (unsigned long)audioFrames,
+                       (unsigned long)audioReadFailures,
+                       (unsigned long)sendFail);
+  displayCanvas.setCursor(8, 151);
+  displayCanvas.print("Leaving Audio stops frames; fixtures fall back in ~3 s.");
+
+  drawTextButton(8, 177, 96, 48,
+                 audioActive ? rgb565(145, 38, 45) : rgb565(27, 120, 65),
+                 audioActive ? "PAUSE" : "START");
+  drawTextButton(112, 177, 96, 48,
+                 audioAuxReady() ? rgb565(24, 91, 125)
+                                 : audioCanCycleInput() ? rgb565(145, 92, 20)
+                                                        : rgb565(55, 59, 63),
+                 "INPUT");
+  drawTextButton(216, 177, 96, 48, rgb565(91, 35, 100), "LOOK");
+}
+
+void openCoreS3App(CoreS3App app) {
+  if (currentApp == CORES3_APP_AUDIO && app != CORES3_APP_AUDIO && audioActive)
+    setAudioActive(false);
+  currentApp = app;
+  if (currentApp == CORES3_APP_AUDIO && audioInputReady && !audioActive)
+    setAudioActive(true);
+  if (displayCanvasReady) drawDisplay();
+}
+
+void handleAppTouch(int16_t x, int16_t y) {
+  if (currentApp != CORES3_APP_HOME && y < 34 && x < 66) {
+    openCoreS3App(CORES3_APP_HOME);
+    return;
+  }
+  if (currentApp == CORES3_APP_HOME) {
+    if (y >= 65 && y <= 225 && x < 160)
+      openCoreS3App(CORES3_APP_LISTENER);
+    else if (y >= 65 && y <= 225 && x >= 160 && audioInputReady)
+      openCoreS3App(CORES3_APP_AUDIO);
+    return;
+  }
+  if (currentApp == CORES3_APP_LISTENER) {
+    uint16_t order[NB_MAX_TRACKED];
+    size_t count = sortedPeerIndexes(order);
+    if (y >= 205) {
+      if (x < 80 && listenerPage > 0) --listenerPage;
+      if (x > 240 && listenerPage + 1 < cores3PageCount(count)) ++listenerPage;
+      drawDisplay();
+      return;
+    }
+    if (y >= 53 && y < 201) {
+      int col = (x - 4) / 52;
+      int row = (y - 53) / 37;
+      if (x >= 4 && col >= 0 && col < 6 && row >= 0 && row < 4 &&
+          (x - 4) % 52 < 48 && (y - 53) % 37 < 34) {
+        size_t position = cores3PageStart(listenerPage, count) + row * 6 + col;
+        if (position < count) {
+          listenerDetailPeer = order[position];
+          currentApp = CORES3_APP_LISTENER_DETAIL;
+          drawDisplay();
+        }
+      }
+    }
+    return;
+  }
+  if (currentApp == CORES3_APP_LISTENER_DETAIL) {
+    if (y >= 190) openCoreS3App(CORES3_APP_LISTENER);
+    return;
+  }
+  if (currentApp == CORES3_APP_AUDIO && y >= 170) {
+    if (x < 108)
+      setAudioActive(!audioActive);
+    else if (x < 212)
+      nextAudioInput();
+    else
+      nextAudioMode();
+    drawDisplay();
+  }
+}
 #endif
 
-  displayCanvas.setTextColor(TFT_YELLOW, TFT_BLACK);
-  displayCanvas.println("live fixtures:");
+void drawDisplay() {
+  if (!displayCanvasReady) return;
+  // Render the whole app off-screen, then transfer the completed frame. This
+  // avoids the black flash caused by clearing the physical LCD before redraw.
+  displayCanvas.fillSprite(TFT_BLACK);
+  displayCanvas.setTextFont(1);
+#if CORES3_CAMBIUM_MODE
+  displayCanvas.setTextSize(2);
+  displayCanvas.setCursor(8, 6);
+  displayCanvas.setTextColor(TFT_CYAN, TFT_BLACK);
+  displayCanvas.println("RESONANCE CAMBIUM");
   displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  uint32_t now = millis();
-  int rows = 0;
-  const int rowLimit =
-#if CORES3_AUDIO_REACTIVE_MODE
-      3;
+  displayCanvas.printf("%02X%02X%02X  ESP-NOW ch %d\n", myId[0], myId[1],
+                       myId[2], cambiumChannel);
+  displayCanvas.printf("radio %-4s  binary USB\n", radioReady ? "UP" : "FAIL");
+  displayCanvas.printf("peers %d live / %d seen\n", peerCount(true),
+                       peerCount(false));
+  displayCanvas.printf("tx ok/fail %lu/%lu drop %lu\n",
+                       (unsigned long)sendOk, (unsigned long)sendFail,
+                       (unsigned long)rxQueueDrops);
 #else
-      6;
-#endif
-  for (size_t i = 0; i < NB_MAX_TRACKED && rows < rowLimit; ++i) {
-    const PeerStat &p = peers[i];
-    if (!p.used || now - p.lastHeardMs > 5000) continue;
-    displayCanvas.printf("%02X%02X%02X %4ddBm %1.2fV %3d%%\n",
-                         p.id[0], p.id[1], p.id[2], p.rssi,
-                         p.battMv / 1000.0f, p.soc == 255 ? -1 : p.soc);
-    ++rows;
+  switch (currentApp) {
+  case CORES3_APP_LISTENER: drawListenerGrid(); break;
+  case CORES3_APP_AUDIO: drawAudioApp(); break;
+  case CORES3_APP_LISTENER_DETAIL: drawListenerDetail(); break;
+  default: drawLauncher(); break;
   }
-  if (!rows) displayCanvas.println("(waiting for heartbeat)");
+#endif
   displayCanvas.pushSprite(0, 0);
 }
 
@@ -1781,7 +2293,11 @@ void setup() {
   config.output_power = true;
   config.internal_imu = false;
   config.internal_rtc = false;
-  config.internal_mic = CORES3_AUDIO_REACTIVE_MODE && !CORES3_AUDIO_MODULE;
+  // Let M5Unified configure the CoreS3 mic pins/callback even in a Module
+  // Audio build. It does not start the mic here; the external module still
+  // gets first choice in setupAudioInput(), while a missing module can now
+  // fall back to M5.Mic.begin() instead of reporting a false FAILED state.
+  config.internal_mic = CORES3_AUDIO_REACTIVE_MODE;
   config.internal_spk = false;
   config.led_brightness = 24;
   M5.begin(config);
@@ -1791,11 +2307,7 @@ void setup() {
   Serial.println();
   Serial.println("=== Resonance net-bench " CORES3_BRIDGE_VERSION " ===");
   Serial.printf("role=master channel=%d frame_hz=0 hb_hz=0\n", NB_CHANNEL);
-#if CORES3_AUDIO_REACTIVE_MODE
-  Serial.println("mode: AUDIO REACTIVE (CoreS3; 10 Hz direct frames)");
-#else
-  Serial.println("mode: SERIAL BRIDGE (CoreS3; no WiFi; relaying nb-* to USB serial)");
-#endif
+  Serial.println("mode: BRIDGE OS (CoreS3; wireless Listener + Audio apps; USB optional)");
 #endif
 
   esp_read_mac(myMac, ESP_MAC_WIFI_STA);
@@ -1850,10 +2362,11 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   M5.update();
-#if CORES3_AUDIO_REACTIVE_MODE
-  // Tap cycles the visual mode; serial 'A' remains the audio on/off toggle.
-  if (M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked())
-    nextAudioMode();
+#if !CORES3_CAMBIUM_MODE
+  if (M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked()) {
+    auto touch = M5.Touch.getDetail(0);
+    handleAppTouch(touch.x, touch.y);
+  }
 #endif
   processRx();
 #if CORES3_CAMBIUM_MODE

@@ -4,6 +4,36 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Hardware-validate CoreS3 wireless two-app Bridge OS (ADR 0054).** The
+  ordinary image now boots to a touch launcher with read-only Listener and
+  Audio apps; USB remains optional, Module Audio is a hardware build variant,
+  and exiting Audio stops its direct-frame publisher. The Module build now has
+  a runtime Ambient/Aux Input selector with a zero-frame handoff and delayed-
+  module retry (ADR 0057). Native tests pass 42 checks and the exact CoreS3
+  `4D5DB0` (`80:45:6B:4D:5D:B0`) now runs the inspected
+  `cores3-os-0.1.2-dev` Module Audio artifact: 1,168,352 bytes, SHA-256
+  `FDDAC35CA9778D1698763F77FAABA88A5FBB56A8167C1D24EE6E0701F1742C65`.
+  USB flash/hash verification, current boot identity, channel-11 passive mesh
+  receive, Aux readiness, USB `nb-*` queries, paused/no-frame startup, and zero
+  queue drops passed. The common Input action completed Aux -> Ambient -> Aux
+  on hardware while paused with zero direct frames/read failures. The first
+  standalone test exposed two blockers now fixed by ADR 0058: Audio Start
+  automatically releases an explicit CA/Contagion/Dark lease in RAM, and the
+  target selector recognizes current ADR 0040 `fx-*` firmware identities. The
+  exact app-region readback matched the artifact SHA. A live Ambient run selected
+  Builtin Dual Mic, calibrated, published four fleet chunks per tick with zero
+  failures, and an independent T-Deck observed fresh fixtures enter program 3
+  Direct instead of CA. Remaining:
+  physically verify all three touch targets, battery-only operation,
+  more-than-24-peer Listener paging, named-fixture health/detail parity with the
+  host dashboard, fresh built-in-only/Cambium compile smoke checks, all four
+  RODE looks, active-stream Input handoff, pause/start, app-exit zero frame,
+  mixed HEX/RGBW stale fallback, and unplugged Listener/publishing runtime. Use
+  explicit canaries; do not start Audio while T-Deck LED Studio/Patterns or
+  another publisher owns the look. Ben confirmed the standalone `AMBIENT MIC`
+  speech response works really well across the awake cohort. Pause/leave Audio
+  and observe the roughly three-second fallback; active source handoff and a full
+  300-second sleeper-cadence run remain open (Ben/Codex).
 - [ ] **Physically confirm the inferred full MACs for the three restored fleet
   identities.** The retained 2026-08-18 OTA/RSSI evidence proves short IDs
   `F2BDFC`, `F402A4`, and `F40348`; their `68:EE:8F` OUIs were reconstructed

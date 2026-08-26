@@ -9,7 +9,7 @@ CHANNEL=11
 PORT=""
 BUILD_PATH=""
 CAMBIUM_MODE=0
-AUDIO_MODE=0
+AUDIO_ALIAS=0
 AUDIO_MODULE=0
 
 while [[ $# -gt 0 ]]; do
@@ -18,13 +18,16 @@ while [[ $# -gt 0 ]]; do
     --port) PORT="$2"; shift 2;;
     --build-path) BUILD_PATH="$2"; shift 2;;
     --cambium) CAMBIUM_MODE=1; shift;;
-    --audio) AUDIO_MODE=1; shift;;
-    --audio-module) AUDIO_MODE=1; AUDIO_MODULE=1; shift;;
+    # Compatibility alias. The normal image now always contains both the
+    # Listener and built-in-mic Audio apps.
+    --audio) AUDIO_ALIAS=1; shift;;
+    --audio-module) AUDIO_MODULE=1; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
 
-if [[ "${CAMBIUM_MODE}" == "1" && "${AUDIO_MODE}" == "1" ]]; then
+if [[ "${CAMBIUM_MODE}" == "1" &&
+      ( "${AUDIO_ALIAS}" == "1" || "${AUDIO_MODULE}" == "1" ) ]]; then
   echo "--cambium and --audio/--audio-module are separate artifacts" >&2
   exit 2
 fi
@@ -37,9 +40,6 @@ mkdir -p "${BUILD_PATH}"
 FLAGS="-DNB_CHANNEL=${CHANNEL}"
 if [[ "${CAMBIUM_MODE}" == "1" ]]; then
   FLAGS="${FLAGS} -DCORES3_CAMBIUM_MODE=1"
-fi
-if [[ "${AUDIO_MODE}" == "1" ]]; then
-  FLAGS="${FLAGS} -DCORES3_AUDIO_REACTIVE_MODE=1"
 fi
 if [[ "${AUDIO_MODULE}" == "1" ]]; then
   FLAGS="${FLAGS} -DCORES3_AUDIO_MODULE=1"

@@ -10,6 +10,163 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-25 -- Ben + Codex -- CoreS3 Audio CA takeover and fx-fleet fix
+
+The first unplugged all-awake Audio test showed `PUBLISHING` on CoreS3 while the
+fixtures remained in CA. Two independent causes were proven. Fixture arbitration
+correctly gives an explicit CA/Contagion/Dark program lease precedence over
+direct-frame micro-leases, and CoreS3 Audio did not release that hidden prior
+lease. Its full-heartbeat target filter also accepted only obsolete `fixture-*`
+firmware names, so it counted the current ADR 0040 `fx-*` fleet as live on screen
+while silently omitting those peers from direct frames.
+
+Audio Start now sends the existing fleet `NB_PROGRAM_SET` release before its
+first direct frame. This is RAM-only and changes no fixture firmware, NVS,
+profile, lifecycle, or autonomous default. The Audio selector now native-tests
+current `fx-*`, older `fixture-*`, and fixture-cache `dev-local` identities while
+still excluding identified legacy net-bench/bridge peers. ADR 0058 records the
+ownership and selection behavior. The native Audio/app suite passes 42 checks.
+
+Built and USB-flashed exact CoreS3 `4D5DB0` (`80:45:6B:4D:5D:B0`) with the
+channel-11 Module Audio `cores3-os-0.1.2-dev` artifact: 1,168,352 bytes, SHA-256
+`FDDAC35CA9778D1698763F77FAABA88A5FBB56A8167C1D24EE6E0701F1742C65`.
+Esptool independently reconfirmed the hardware MAC and the app-region readback
+matched that SHA byte-for-byte. Hardware then selected Builtin Dual Mic,
+completed calibration, and published four fleet chunks per 10 Hz tick with zero
+send/read failures. The separate T-Deck `8EB508` dashboard observed fresh
+fixtures transition from CA/autonomous programs to program 3 Direct, including
+five simultaneous fresh full-heartbeat confirmations. The Ambient publisher was
+left running for Ben's spoken visual test, which he immediately confirmed works
+really well. Pause/app-exit fallback remains to be observed.
+
+## 2026-08-25 -- Ben + Codex -- CoreS3 USB loss identified as intentional standalone use
+
+Ben clarified that the CoreS3 USB disappearance during the all-fixture Audio run
+was intentional: he unplugged it to operate the new app from the CoreS3 battery
+and touchscreen. This is the designed no-laptop workflow, not evidence of a
+cable, host, or CoreS3 power fault. The earlier 444-frame/zero-failure evidence
+remains valid only for the USB-observed Aux portion; unplugging ended host
+visibility, not necessarily the on-device publisher.
+
+For spoken local testing, select `AMBIENT MIC`, leave two seconds of ordinary
+quiet for calibration, then speak. Every fixture fresh in the five-second live
+window is addressed; Ben currently reports 14 live, while sleeping fixtures are
+expected to remain absent until they wake. Pause or leave Audio to release the
+publisher when finished.
+
+## 2026-08-25 -- Ben + Codex -- All-fixture audio run interrupted by CoreS3 USB loss
+
+Started the installed CoreS3 Audio publisher without OTA, fixture flashing, or
+persistent fleet mutation. The exact `4D5DB0` Bridge OS entered Aux publishing,
+completed calibration, and reached 444 accepted direct-frame packets in about
+60 seconds with zero send failures and zero audio read failures. Two unique
+duty-cycled fixtures became fresh during that short window; the intended run
+was scheduled for 390 seconds so it would span the full 300-second sleeper
+cadence. Aux had RMS 0 throughout, so it was successfully publishing a dark
+level but had no connected/live analog signal.
+
+At about 60 seconds the serial operation was canceled and CoreS3 disappeared
+from USB/PnP entirely. The test harness attempted its Pause cleanup, but the
+device was already unreachable, so paused state could not be confirmed. The
+USB identity remained absent through another 60-second watch. If the CoreS3
+lost power, fixture direct mode expired through the normal roughly three-second
+stale fallback. If it remained alive on its internal battery, the screen is the
+authority and an operator must tap Pause or power it off before reconnecting.
+The active Ambient handoff and full-cadence fleet coverage were not reached and
+must be rerun after the USB/power interruption is understood.
+
+## 2026-08-25 -- Ben + Codex -- CoreS3 Ambient/Aux runtime input selector
+
+Added a third Audio-app control so one Module Audio Bridge OS artifact can cycle
+between `AMBIENT MIC` (the CoreS3 dual microphones) and `AUX INPUT` (Module
+Audio LINE/MIC) without reflashing. The footer is now Start/Pause, Input, and
+Look; optional USB `N` invokes the same Input action for headless diagnostics.
+A handoff sends an explicit zero frame when publishing, pauses sampling, starts
+the requested hardware path, resets envelope/noise calibration, and resumes
+only if the stream was previously active. Failure preserves the prior working
+input. Module LEDs are green for Aux and dark blue for Ambient.
+
+Hardware exposed a useful reset edge case: one intermediate build saw Module
+Audio late after a USB reset and correctly fell back to the built-in mics, but
+had treated Aux as permanently unavailable. Separated build capability from
+current readiness. A missing module controller may now be retried later from
+Input; a detected I2S/codec initialization failure is not repeatedly retried
+because the upstream library exposes no teardown and instead requires a full
+power cycle. ADR 0057 records this lifecycle.
+
+Built and USB-flashed exact CoreS3 `4D5DB0` (`80:45:6B:4D:5D:B0`) with the
+channel-11 Module Audio r6 binary: 1,168,208 bytes, SHA-256
+`01F99A5167C5DE01C6FC75BD5781F4F8AB337D2095B3870122858909B206EE12`.
+The flasher independently confirmed the full MAC and verified every region.
+Fresh boot reported Aux ready with Audio paused. The common Input action then
+passed Aux -> Ambient -> Aux on real hardware; every state remained ready with
+`active=0`, `frames=0`, and `readfail=0`. No direct frame or fixture-control
+command was sent. Native audio/app tests pass 31 checks. Physical touch and
+active-publisher behavior remain for named-canary acceptance.
+
+## 2026-08-25 -- Ben + Codex -- CoreS3 Bridge OS flashed and passively verified
+
+Identified the USB-attached CoreS3 by its own serial status as short ID
+`4D5DB0`, then independently confirmed full MAC `80:45:6B:4D:5D:B0` during
+flash. Declared that exact device on observed `COM43` as the sole flash target;
+the COM number remains incidental. The old image was an active EMBER audio
+publisher, so the first Bridge OS flash also returned the unit to the new safe
+launcher posture with Audio paused.
+
+The first Module Audio build booted safely with `active=0` and `frames=0`, but
+reported its input as `FAILED`. A temporary built-in-mic flash restored a ready
+input while the failure was diagnosed. M5Unified only installs the CoreS3
+internal-mic pin/callback configuration when `internal_mic` is enabled; the
+Module Audio build had disabled it, which also made the documented missing-
+module fallback impossible. Changed the ordinary Bridge OS initialization to
+configure, but not start, the internal microphones. Module Audio still gets
+first choice in `setupAudioInput()` and the built-in input remains a real
+fallback.
+
+Rebuilt and installed the corrected Module Audio image. The exact binary is
+1,167,184 bytes with SHA-256
+`280407DC5EEA741FCD2B7528BF32A4C71776CE6CF70428184E99F16B0C1EB464`.
+The flasher verified every written region, and a fresh boot reported
+`fw=cores3-os-0.1.0-dev`, channel 11, `MODULE TRS ready=1`, `active=0`,
+`frames=0`, no send failures, and no receive-queue drops. Passive ESP-NOW peer
+traffic and read-only USB `nb-*` status queries also passed. No direct frame or
+fixture-control command was sent. Physical launcher/touch checks and deliberate
+RODE/canary-fixture publishing remain open so an unattended live fleet is not
+changed merely to prove the UI.
+
+## 2026-08-25 -- Ben + Codex -- CoreS3 wireless two-app Bridge OS
+
+Onboarded from the repository and replaced the ordinary CoreS3 normal-vs-audio
+artifact split with one touch-first, battery-capable Bridge OS image (ADR 0054).
+It boots to a launcher with two explicit apps. Listener is a read-only mobile
+adaptation of the bench dashboard: 24 stable short-ID-sorted fixtures per page,
+class-shaped/raw-VBAT/freshness/reported-color glyphs, and touch-through radio,
+power, class/program, sensor/recovery, LED-output, and firmware detail. Audio
+retains the proven Module Audio/RODE and built-in-mic inputs but now has local
+start/pause and look controls. Entering it starts a fresh calibration; pausing or
+leaving it sends zero and stops the publisher so an invisible background stream
+cannot fight another artistic controller. USB `nb-*` dashboard/logger output and
+the existing serial grammar remain available but are not app dependencies.
+
+Removed the old 18-fixture audio ceiling without changing the wire contract.
+Each 10 Hz wave now walks the complete sorted fresh fixture census in canonical
+18-entry `NB_DIRECT_FRAME` chunks, preserving stable CLASSIC color slots across
+chunks. Cambium remains a separate binary-only artifact and has no launcher.
+The old `--audio` switch is a compatibility alias; `--audio-module` now selects
+only the external hardware layer for the same two-app image.
+
+The expanded CoreS3 native suite passes 28 checks. Fresh compile checks pass for
+all three supported targets: built-in Bridge OS is 1,133,168 binary bytes,
+SHA-256 `e1a59af9fd992ed1459dfc6c639bdf9dc47047296585a6f0cf4c4970ab95cfd4`;
+Module Audio Bridge OS is 1,167,184 bytes, SHA-256
+`299698e46c3691915ae69759e11383b85adc20d818d72d7ca99e52769cb623f5`;
+Cambium is 1,087,888 bytes, SHA-256
+`ddabcd9e39cec1f027259ccc4fb09a0317b4ebd6b8affe172a52c38a76170d10`.
+These are compile-check outputs, not flashed deployment artifacts. No device was
+flashed, no mesh command or direct frame was sent, and no fixture state changed.
+Exact CoreS3 `E39F1C` launcher/listener/audio, mixed-fleet, USB compatibility,
+and unplugged-runtime validation remains open in `TODO.md`.
+
 ## 2026-08-24 -- Codex -- All-work integration verification
 
 Consolidated the laptop's remaining useful local branches for the requested
