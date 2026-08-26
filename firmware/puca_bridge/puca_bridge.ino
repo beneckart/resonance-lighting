@@ -493,11 +493,14 @@ void knobsTick() {
 }
 
 // Paw: HIGH assumed = touched (see UNCONFIRMED header note). 30 ms debounce,
-// mode advances on the rising edge only.
+// mode advances on the rising edge only. Touches in the first 2.5 s are
+// ignored: the 2026-08-20 bench bring-up booted into EMBER instead of
+// CLASSIC, consistent with one spurious touch while the pin settled.
 void touchTick(uint32_t now) {
   static bool lastRaw = false;
   static bool pressed = false;
   static uint32_t lastChangeMs = 0;
+  if (now < 2500) return;  // boot settle guard
   bool raw = digitalRead(PIN_TOUCH) == HIGH;
   if (raw != lastRaw) {
     lastRaw = raw;
@@ -513,15 +516,17 @@ void touchTick(uint32_t now) {
 void audioTick() {
   if (!audioInputReady) return;
 
-  // 1600 samples = exactly 100 ms of 16 kHz mono, so draining the DMA both
-  // keeps the envelope current and naturally paces this loop at ~10 Hz (the
-  // ESP32 masters every clock, so the read cannot hang on a dead codec -- it
-  // would just deliver silence).
-  static int16_t samples[1600];
+  // 3200 interleaved L/R samples = exactly 100 ms of 16 kHz stereo, so
+  // draining the DMA both keeps the envelope current and naturally paces this
+  // loop at ~10 Hz (the ESP32 masters every clock, so the read cannot hang on
+  // a dead codec -- it would just deliver silence). L and R are AVERAGED into
+  // mono before the envelope: a single plugged jack therefore reads ~half
+  // level (silent other channel), which KNOB1's 0.25x-4x range absorbs.
+  static int16_t samples[3200];
   size_t got = i2sIn.readBytes((char *)samples, sizeof(samples));
   if (got < sizeof(samples)) {
     ++audioReadFailures;
-    if (got < sizeof(int16_t)) {
+    if (got < 2 * sizeof(int16_t)) {
       delay(5);
       return;
     }
@@ -530,7 +535,11 @@ void audioTick() {
   knobsTick();
   if (!audioActive) return;
 
-  float level = audioEnvelope.update(samples, got / sizeof(int16_t));
+  size_t stereoPairs = got / (2 * sizeof(int16_t));
+  for (size_t i = 0; i < stereoPairs; ++i)
+    samples[i] = (int16_t)(((int32_t)samples[2 * i] + samples[2 * i + 1]) / 2);
+
+  float level = audioEnvelope.update(samples, stereoPairs);
   float shown = level * knobGain;
   if (shown > 1.0f) shown = 1.0f;
   lastShownLevel = shown;
@@ -605,11 +614,14 @@ void setupWatchdog() {
 
 bool setupI2S() {
   // ESP32 is I2S master; ESP_I2S std mode defaults MCLK to 256 x fs, matching
-  // the upstream I2S_MCLK_MULTIPLE_256 [IDF]. Mono RX takes the LEFT slot
-  // (which physical channel that is on this board is UNCONFIRMED).
+  // the upstream I2S_MCLK_MULTIPLE_256 [IDF]. STEREO capture (2026-08-25):
+  // audioTick averages L+R into the envelope, so either faceplate "in" jack —
+  // or both, or the PCB stereo jack — behaves identically. The earlier
+  // LEFT-slot-only mono capture was the "which channel is live?" trap the
+  // DJ-deck hookup would have hit with a single-jack cable.
   i2sIn.setPins(PIN_I2S_BCLK, PIN_I2S_WS, PIN_I2S_DOUT, PIN_I2S_DIN, PIN_I2S_MCLK);
   return i2sIn.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_16BIT,
-                     I2S_SLOT_MODE_MONO, I2S_STD_SLOT_LEFT);
+                     I2S_SLOT_MODE_STEREO);
 }
 
 void setup() {

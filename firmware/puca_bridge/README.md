@@ -144,3 +144,66 @@ ttyACM.
 - ESP-NOW TX from inside the metal Pod20 case (ADR 0035 requires a range test).
 - The `esp32:esp32:pico32` profile against the real 4 MB/PSRAM module (PSRAM
   deliberately untouched here).
+
+## Bench + schematic findings (2026-08-20/21, recovered to repo 2026-08-25)
+
+These were established live on hardware and from the vendor schematics during
+the pre-playa bench sessions but only existed in conversation until now.
+
+### Verified on hardware (first boot, 2026-08-20)
+
+- **Codec + MEMS mics are LIVE**: `codec=1 i2cerr=0`, envelope tracked room
+  sound on the first boot (write-only WM8978 init sequence is correct).
+- **Boot-into-EMBER glitch observed once** — consistent with one spurious paw
+  touch at startup; firmware now ignores touches for the first 2.5 s. True paw
+  polarity remains unconfirmed.
+- **Knobs read zero on USB-only power — NOT a firmware bug.** The eurorack
+  back-PCB schematic (`puca-eurorack/schematics/eurorack_v0.5_schematic.pdf`)
+  shows the pots' reference rail and their TL072 buffer op-amps are powered
+  from the EURORACK power header rails. USB alone powers only the ESP32 +
+  codec + MEMS mics. **Knobs, faceplate audio ins, CV/V-OCT, and the
+  amplified outs all require eurorack power.**
+
+### Eurorack v0.5 faceplate wiring (from the schematic, 2026-08-20)
+
+| Jack | Net | Notes |
+|---|---|---|
+| J1 | V/OCT -> GPIO32 | clamp diodes, dedicated pitch CV |
+| J2 | CV + top pot -> GPIO33 (KNOB1) | jack and pot are **SUMMED** via op-amp mixer — a patched CV adds to the knob; knobs never go dead |
+| J3 | CV + bottom pot -> GPIO34 (KNOB2) | same summing topology |
+| J4 / J7 | triggers -> GPIO13 / GPIO14 | unused by this firmware |
+| J5 / J6 | audio in L / R | **~4:1 op-amp attenuators (100k/24k, about -12 dB)** onto the LINE_IN_L/R nets — the same WM8978 line path as the PCB stereo jack, scaled for hot modular signals. DJ/consumer line arrives ~12 dB quieter here than via the PCB jack; the PGA + KNOB1 absorb it. |
+| J8 / J9 | audio out L / R | ~18x gain back up to modular level |
+| AUX pair | GPIO-header pass-through | goes to a further expansion header, wired to **no faceplate jack**; the WM8978 AUX bus can also be routed as a zero-latency analog pass-through to the outputs (unconfigured here) |
+
+### Power / battery (datasheet v1.1 + main schematic, 2026-08-20)
+
+- Charger is an **MCP73831**: solder the JST and a LiPo behaves as a UPS —
+  runs from USB/ext 5 V while charging, seamless takeover on power loss,
+  recharges on return. Charge rate is program-resistor-fixed (size the cell
+  for hours of ride-through); charge termination is imprecise under load
+  (known MCP73831 trait, harmless here).
+- The battery-voltage sense **solder jumper shares GPIO14 with TRIG2** —
+  closing it costs that trigger input (acceptable; triggers unused).
+
+### DJ deck / RØDE NTG hookup doctrine (with `docs/research/AUDIO_INGEST_NTG_PUCA_2026-08-04.md`)
+
+- Tap the mixer's **record out** (fixed level, master-independent) first,
+  booth out second; avoid balanced XLR master outs (+4 dBu clips the codec).
+- Cable: dual RCA -> dual 3.5 mm **TS mono** into the faceplate ins (Eurorack
+  vocabulary: "Hosa CMR" class), or 3.5 mm TRS -> 2x RCA into the PCB stereo
+  jack if the case exposes it. Never TRS into the mono faceplate jacks (ring
+  shorts to sleeve), never TRRS to the NTG (flips it to smartphone mode).
+- Pack a cheap RCA/3.5 mm **ground-loop isolator** (PUCA on USB power + DJ rig
+  on generator = classic hum).
+- NTG: gain at the mic (run its dial hot, keep the codec PGA low), powered
+  from its internal battery; bench-verify it stays on into the bias-less
+  line-in. Its USB-C is a computer audio interface — the PUCA/CoreS3 USB
+  ports are device ports and cannot host, power, or control it.
+
+### Firmware deltas landed 2026-08-25 (compile-verified only — NOT yet run on hardware)
+
+- I2S capture switched MONO/LEFT-slot -> **STEREO with L+R averaged** into
+  the envelope: either faceplate jack, both, or the PCB jack now behave
+  identically (single-jack reads ~half level; KNOB1 absorbs it).
+- Paw touches ignored for the first 2.5 s of boot (boot-EMBER guard).
