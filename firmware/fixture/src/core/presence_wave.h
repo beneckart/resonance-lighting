@@ -24,7 +24,7 @@ struct TmfPresenceGate {
 void tmfPresenceInit(TmfPresenceGate &gate);
 
 // Call for every loop; a sample is consumed only when readSeq changes. Returns
-// true once on the rising edge after two consecutive close/confident returns.
+// true once on the rising edge after three consecutive close/confident returns.
 bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
                         const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
                         const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]);

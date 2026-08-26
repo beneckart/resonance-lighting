@@ -153,6 +153,9 @@ String telemetryJson() {
   j += ",\"profile\":\"";
   j += (gCfg.profile == PROFILE_DEV) ? "commission" : "field";
   j += "\"";
+  j += ",\"commission_default\":\"";
+  j += commissionDefaultName(gCfg.commissionDefault);
+  j += "\"";
   j += ",\"channel\":" + String(gCfg.channel);
   j += ",\"espnow_up\":";
   j += espNowUp() ? "true" : "false";

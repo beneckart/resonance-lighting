@@ -8,7 +8,7 @@ Field operators and IT support should start with the illustrated
 [`Bridge OS field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md). This
 README remains the implementation, build, and acceptance record.
 
-**Status 2026-08-24:** M0-M4 complete and hardware-verified. Working apps:
+**Status 2026-08-25:** M0-M4 complete and hardware-verified. Working apps:
 **Claude** (streaming chat + 6-tool agent loop with the confirm rail),
 **Fleet** (live census, reported-color chips, node detail + identify,
 Sleep/Dark entry point), **Health** (single-screen voltage health grid for the
@@ -18,11 +18,24 @@ cohort blink via sustained 8 Hz direct-frame streaming, client-side dim),
 rails-off timer sleep), **Knocker** (single strike plus selectable targeted
 roll, immediate fleet multicast, and shared +1.0 s deadline multicast),
 **Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),
-**CA Studio** (program leases + GH-CA knob params via the release-re-lease
-workaround), **Patterns** (manual deterministic RGBW streaming),
+**CA Studio** (Greenberg-Hastings wildfire with light or daytime knock output),
+**Default** (exact-target commission fallback: ready beacon, light CA, or dark),
+**Patterns** (manual deterministic RGBW streaming),
 **RF Diagnostics** (read-only mesh survey), **Settings**, **SunTest**.
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
+
+The Default app is source-built but not yet flashed or hardware-validated. It
+never broadcasts a persistent mutation: `ALL: targeted fresh` walks the fresh
+census by deterministic short ID. `until reboot` changes RAM only; `persist
+after reboot` writes fixture NVS after confirmation. The setting affects only
+commission profile and never changes field scheduling. Active LED/program
+leases still override it until release or expiry.
+
+LED Studio white is semantic rather than a raw fourth-channel command.
+Downlights retain dedicated-W white; perimeter, uplight, and chandelier classes
+receive full `R=G=B` with `W=0`, so deployed three-channel RGB modules illuminate
+correctly. This source fix is also pending mixed-hardware validation.
 
 The combined Health, UTC/Schedule, Patterns v1, and RF Diagnostics image is
 USB-flashed to exact T-Deck `8EB508` as `tdeck-dev-local`: 1,542,448 bytes,
@@ -210,9 +223,45 @@ Knocker's three fleet choices are deliberately distinct:
   `fire_in_ms` toward one bridge deadline. Each fixture schedules from its radio
   callback timestamp and duplicate event IDs cannot retrigger it.
 
+The single-fixture picker leads with the permanent registry callsign and keeps
+the authoritative short MAC beside it, for example `Luigi [F98CEF]`. A fresh
+fixture absent from the production registry falls back to its short MAC.
+
 The multicast modes require the corresponding fixture firmware; older images
 ignore the new event kind. The UI confirmation does not bypass local safety or
 wake a sleeping fixture.
+
+## Wildfire CA
+
+Open **CA** for the distributed Greenberg-Hastings wildfire. The operator now
+chooses an actual CA output, **lights** or **knocks**, rather than internal
+fixture program slots. Both modes use the same neighbor threshold, spontaneous
+spark probability, refractory length, tick-period controls, and optional
+**ToF seed**. Set `spark /256` to zero for a presence/neighbor-only run.
+
+Knock mode makes each fixture's CA frame electrically dark and requests one
+40 ms mallet pulse only when that fixture changes from quiescent to excited.
+The request is not actuator authority: fixture-local daytime, solar-surplus,
+battery tier, solenoid arm, rest, maintenance, load-marker, timer, and failsafe
+gates still decide whether a physical strike occurs. Fixtures without a
+solarnoid still participate in the CA graph and relay state but cannot knock.
+
+With **ToF seed** off (the default), ignition comes only from spontaneous CA
+sparks and fresh excited neighbors. With it on, a sensor-verified downlight can
+also inject one local excitation from the hardened TMF rising-edge gate; every
+other fixture can still relay the resulting CA state. The gate learns 90
+reports of per-zone background, requires one confident zone to move at least
+300 mm closer for three reports, and requires four clear reports before another
+edge. The separate ToF color-wipe gossip stays suppressed while a CA lease is
+active, so one physical approach starts the CA rather than two competing
+propagation systems. ToF never bypasses the local knock or power gates.
+
+The removed `idle`, `bridge`, `direct`, and `dark` choices were internal fixture
+program roles, not CA algorithms: local fallback breathe, shared show-frame
+consumer, per-fixture RGBW stream consumer, and electrical-dark program. Their
+operator controls remain in the apps that own those jobs. Same-program CA knob
+updates now reapply directly, with no release/re-lease light blip. Releasing or
+expiring a knock lease restores the normal autonomous light CA defaults.
 
 ## Patterns v1
 

@@ -73,6 +73,63 @@ int main() {
     for (int i = 1; i < idx; i++)
       if (seen[i] == 1 && seen[i - 1] >= 2) refractoryJump = true;
     CHECK(!refractoryJump);
+
+    // Opt-in ToF is a local one-shot CA seed. It is latched until the next CA
+    // step, works with spontaneous sparks explicitly disabled, and is ignored
+    // when the program parameter is off.
+    params[1] = 0;
+    params[5] = 0;
+    params[6] = 1;
+    gh->reset(42, params, FIXTURE_DOWNLIGHT, 1);
+    in.neighbors = nullptr;
+    in.neighborCount = 0;
+    in.tofPresenceRising = true;
+    in.nowMs = 20000;
+    out = ProgramOutputs{};
+    gh->tick(in, out); // edge waits for the first 100 ms CA step
+    CHECK(!out.sendNow);
+    in.tofPresenceRising = false;
+    in.nowMs += 100;
+    gh->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK_EQ(out.txState, 1u);
+
+    params[6] = 0;
+    gh->reset(42, params, FIXTURE_DOWNLIGHT, 1);
+    in.tofPresenceRising = true;
+    in.nowMs = 30000;
+    out = ProgramOutputs{};
+    gh->tick(in, out);
+    in.tofPresenceRising = false;
+    in.nowMs += 100;
+    gh->tick(in, out);
+    CHECK(!out.sendNow);
+    CHECK_EQ(out.txState, 0u);
+
+    // The same GH rule can drive sound instead of light. One excitation edge
+    // requests one bounded knock and keeps every LED channel dark; the next
+    // refractory step cannot request a second strike.
+    params[5] = 1;
+    params[6] = 1;
+    gh->reset(42, params, FIXTURE_DOWNLIGHT, 1);
+    in.neighbors = nullptr;
+    in.neighborCount = 0;
+    in.tofPresenceRising = true;
+    in.nowMs = 40000;
+    out = ProgramOutputs{};
+    gh->tick(in, out); // establishes the first step deadline
+    in.tofPresenceRising = false;
+    in.nowMs += 100;
+    gh->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK(out.strikeRequested);
+    CHECK_EQ(out.strikePulseMs, 40u);
+    CHECK(out.suppressLight);
+    CHECK_EQ(out.frame.px[0][0], 0u);
+    CHECK_EQ(out.frame.px[0][3], 0u);
+    in.nowMs += 100;
+    gh->tick(in, out);
+    CHECK(!out.strikeRequested);
   }
 
   // --- neighbor table: RSSI mode picks strongest fresh; pinned overrides ----
@@ -340,6 +397,29 @@ int main() {
     // A live profile flip changes the fallback but does not invent a lease.
     CHECK(rt.setAutonomousProgram(PROG_GH_CA, 6000, true));
     CHECK_EQ(rt.activeProgram(), (uint8_t)PROG_GH_CA);
+  }
+
+  // Re-leasing the active GH program must apply new params without a release
+  // blip, and release must restore default light-mode autonomy even though the
+  // leased and autonomous program IDs are both PROG_GH_CA.
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7);
+    uint8_t knockParams[8] = {1, 1, 3, 1, 100, 1, 0, 0};
+    CHECK(rt.applyProgramSet(PROG_GH_CA, 30, 9, 1, knockParams, 1000));
+    ProgramInputs in = {};
+    in.nowMs = 1000;
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    rt.tick(in, out);
+    CHECK(out.suppressLight);
+    CHECK(rt.applyProgramSet(0, 0, 0, 1, nullptr, 1100));
+    in.nowMs = 1100;
+    out = ProgramOutputs{};
+    rt.tick(in, out);
+    CHECK(!out.suppressLight);
+    CHECK(!rt.leaseActive());
   }
 
   // A bridge dark lease is distinguishable from the unleased commissioning

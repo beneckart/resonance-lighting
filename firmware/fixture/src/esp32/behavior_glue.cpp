@@ -16,6 +16,7 @@
 #include "ota_verify.h"
 #include "power_glue.h"
 #include "sensors/sensors.h"
+#include "solenoid.h"
 #include "telemetry.h"
 
 #define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
@@ -37,11 +38,13 @@ static uint16_t gPixels = 1;
 static int8_t gForceNight = -1;
 static bool gShowActive = false;
 static bool gStrikesAllowed = false;
+static bool gProgramSuppressesLight = false;
 static FrameBuffer gFrame;
 static uint32_t gAwakeGraceUntilMs = 0;
 static uint32_t gNextChoreoTxMs = 0;
 static uint32_t gLastShowFrameRxMs = 0;
 static uint8_t gLastProfile = 0xFF;
+static uint8_t gLastCommissionDefault = 0xFF;
 static TimeConsensus gTimeConsensus;
 static bool gScheduleValid = false;
 static bool gScheduleNight = false;
@@ -68,8 +71,26 @@ static uint32_t gLastPresenceOriginMs = 0;
 static uint32_t gLastWaveActivityMs = 0;
 static bool gPresencePending = false;
 static uint32_t gPresenceFireAtMs = 0;
+static bool gTofPresenceRising = false;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
+
+static uint8_t configuredAutonomousProgram() {
+  if (gCfg.profile == PROFILE_PROD) return PROG_GH_CA;
+  return gCfg.commissionDefault == COMMISSION_DEFAULT_CA
+             ? PROG_GH_CA
+             : PROG_COMMISSION_DARK;
+}
+
+static bool commissionListenerFallback() {
+  return gCfg.profile == PROFILE_DEV &&
+         gCfg.commissionDefault == COMMISSION_DEFAULT_LISTENER;
+}
+
+static bool commissionDarkFallback() {
+  return gCfg.profile == PROFILE_DEV &&
+         gCfg.commissionDefault == COMMISSION_DEFAULT_DARK;
+}
 
 static void waveClear() {
   if (gWave.eventId)
@@ -172,14 +193,29 @@ void behaviorOnTimeQuality(const NbTimeQuality &time, const uint8_t srcId[3]) {
 }
 
 static void waveTick(uint32_t now) {
+  // Consume each TMF report exactly once even while another program owns the
+  // renderer. The resulting one-loop pulse can seed an explicitly opted-in CA
+  // lease; the listener path below may instead turn it into the older color
+  // wipe. A latched/stale distance is never presented as a continuing trigger.
+  gTofPresenceRising = false;
+  const SensorSnapshot &snapshot = sensors();
+  if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk)
+    gTofPresenceRising =
+        tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
+                           snapshot.tofZoneConfidence);
+
   if (gRuntime.leaseActive()) {
     gPresencePending = false;
     return;
   }
-  const SensorSnapshot &snapshot = sensors();
-  if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
-      tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
-                         snapshot.tofZoneConfidence) &&
+  // The ready-beacon fallback owns the local ToF presence interaction. A
+  // selected commission CA fallback is a different autonomous program, so do
+  // not create hidden presence-wave traffic underneath it.
+  if (gCfg.profile == PROFILE_DEV && !commissionListenerFallback()) {
+    gPresencePending = false;
+    return;
+  }
+  if (gTofPresenceRising &&
       now - gLastPresenceOriginMs >= RES_WAVE_ORIGIN_COOLDOWN_MS &&
       powerBudget().brightness_cap > 0) {
     // A person can be visible to adjacent canopies. Randomize the origin by a
@@ -226,13 +262,13 @@ static void waveTick(uint32_t now) {
 void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gClass = fixtureClass;
   gPixels = pixelCount;
-  gRuntime.init(fixtureClass, pixelCount, seed,
-                gCfg.profile == PROFILE_DEV ? PROG_COMMISSION_DARK : PROG_GH_CA);
+  gRuntime.init(fixtureClass, pixelCount, seed, configuredAutonomousProgram());
   neighborTableInit(gNeighbors);
   lifeInit(gLife);
   gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
   gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
   gLastProfile = gCfg.profile;
+  gLastCommissionDefault = gCfg.commissionDefault;
   gAwakeGraceUntilMs = millis() + (esp_reset_reason() == ESP_RST_DEEPSLEEP
                                        ? RES_WAKE_LISTEN_MS
                                        : RES_BOOT_AWAKE_MS);
@@ -259,6 +295,17 @@ bool behaviorStrikePermitted() {
   return gCfg.profile == PROFILE_DEV && gLife.state != LIFE_NIGHT_SHOW &&
          powerBudget().tier == LedTier::FULL;
 #endif
+}
+
+static void handleProgramStrike(const ProgramOutputs &out) {
+  if (!out.strikeRequested) return;
+  if (!behaviorStrikePermitted()) {
+    Serial.println("solenoid: CA knock refused (lifecycle/power gate)");
+    return;
+  }
+  uint16_t pulseMs = out.strikePulseMs ? out.strikePulseMs : 40;
+  if (!solenoidStrike(pulseMs, "CA wildfire"))
+    Serial.println("solenoid: CA knock blocked (arm/rest/mechanism gate)");
 }
 
 void behaviorOnChoreoState(const uint8_t srcId[3], int8_t rssi, const NbChoreoState &cs) {
@@ -355,14 +402,16 @@ void behaviorTick() {
 
   waveTick(now);
 
-  // Profile flips (NB_PROFILE / serial F) re-derive the lifecycle config live.
-  if (gCfg.profile != gLastProfile) {
+  // Profile/default flips re-derive the lifecycle and fallback live. An active
+  // lease remains authoritative; the selected fallback takes over on release.
+  if (gCfg.profile != gLastProfile ||
+      gCfg.commissionDefault != gLastCommissionDefault) {
     gLastProfile = gCfg.profile;
+    gLastCommissionDefault = gCfg.commissionDefault;
     gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
     gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
-    gRuntime.setAutonomousProgram(
-        gCfg.profile == PROFILE_DEV ? PROG_COMMISSION_DARK : PROG_GH_CA,
-        now, true);
+    gRuntime.setAutonomousProgram(configuredAutonomousProgram(), now, true);
+    if (!commissionListenerFallback()) waveClear();
   }
 
   const PowerBudget &pb = powerBudget();
@@ -430,16 +479,19 @@ void behaviorTick() {
     pin.showFrame = &fs;
     pin.tier = (uint8_t)pb.tier;
     pin.tickDivider = pb.tick_divider;
+    pin.tofPresenceRising = gTofPresenceRising;
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
+    gProgramSuppressesLight = pout.suppressLight;
+    handleProgramStrike(pout);
 #ifdef RES_BASIC_LISTENER
     // Slave/bench posture (Elliot 2026-08-15): no autonomous show — with no
     // explicit lease, render a LOW-RED idle beacon ("power efficient and
     // shows that it is ready for command") instead of the default programs.
     // Radio, sensors, telemetry, and every commanded path (DIRECT stream,
     // bridge show, identify) stay fully live.
-    if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive())
+    if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
 #endif
     gNetCaState = pout.txState;
@@ -478,6 +530,9 @@ void behaviorTick() {
     // and telemetry reports the true active program. First beacon build only
     // rendered at night AND painted the beacon over live commands (measured:
     // T2 green-on-command FAIL, prog stuck 0, 2026-08-15 evening).
+    NeighborView views[NEIGHBOR_PINNED_MAX];
+    uint8_t nviews = neighborSnapshot(gNeighbors, now, RES_NEIGHBOR_FRESH_MS,
+                                      views, NEIGHBOR_PINNED_MAX);
     ShowFrameState fs = {sf.rx_ms, sf.phase, sf.hue, sf.flags, sf.val,
                          sf.bright, sf.effect, sf.beat_phase, sf.energy};
     ProgramInputs pin = {};
@@ -485,17 +540,20 @@ void behaviorTick() {
     pin.dtMs = 0;
     pin.fixtureClass = gClass;
     pin.pixelCount = gPixels;
-    pin.neighbors = nullptr;
-    pin.neighborCount = 0;
+    pin.neighbors = views;
+    pin.neighborCount = nviews;
     pin.showFrame = &fs;
     pin.tier = (uint8_t)pb.tier;
     pin.tickDivider = pb.tick_divider;
+    pin.tofPresenceRising = gTofPresenceRising;
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
     gFrame = pout.frame;
-    if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive())
+    gProgramSuppressesLight = pout.suppressLight;
+    handleProgramStrike(pout);
+    if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
-    gNetCaState = 0;
+    gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
     // 1 Hz choreo-state keepalive in day states too: the operator's "always
@@ -503,17 +561,22 @@ void behaviorTick() {
     // daemon only on sparse full heartbeats (~60 s lag, measured).
     // state tx deliberately NOT power-vetoed here: on the bench a low cell
     // must still report truthfully (Luigi at 21%% went state-silent, measured)
-    if ((int32_t)(now - gNextChoreoTxMs) >= 0) {
+    if (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
       fillHeader(&cs.h, NB_CHOREO_STATE);
       cs.program_id = gRuntime.activeProgram();
+      cs.generation = pout.generation;
+      cs.state = pout.txState;
+      cs.intensity = pout.txIntensity;
+      cs.phase_ms = pout.phaseMs;
       cs.flags = (uint8_t)((pb.brightness_cap == 0 ? 0x01 : 0) |
                            (gRuntime.leaseActive() ? 0x02 : 0) |
                            (gCfg.profile == PROFILE_DEV ? 0x04 : 0) |
                            RES_WAVE_CAPABLE_FLAG);
       espNowSendRaw(&cs, sizeof(cs));
-      gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS;
+      uint32_t jit = esp_random() % 600;
+      gNextChoreoTxMs = now + RES_CHOREO_KEEPALIVE_MS - 300 + jit;
     }
 #else
     gNetCaState = 0;
@@ -533,10 +596,13 @@ bool behaviorFrame(FrameBuffer &f) {
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.
   if (transportWakeDarkActive()) return false;
+  if (gProgramSuppressesLight) return false;
 #ifdef RES_BASIC_LISTENER
   // A bridge DARK lease is electrically dark, not merely an all-zero frame.
   // Returning false lets renderTick blank data and cut the LED rail.
   if (gRuntime.darkLeaseActive()) return false;
+  // Strict commission dark is a selectable no-command diagnostic posture.
+  if (commissionDarkFallback() && !gRuntime.leaseActive()) return false;
   // Field posture is autonomous only at scheduled night. During scheduled day
   // it is electrically dark unless a direct/program lease deliberately
   // overrides the baseline. Commission retains ADR 0039's ready beacon.
@@ -549,7 +615,9 @@ bool behaviorFrame(FrameBuffer &f) {
   // In commissioning, loss/expiry of bridge authority means electrically
   // dark, not a locally invented pattern. Returning false lets renderTick cut
   // the LED rail instead of powering it merely to render a zero frame.
-  if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive()) return false;
+  if (gCfg.profile == PROFILE_DEV && !gRuntime.leaseActive() &&
+      gCfg.commissionDefault != COMMISSION_DEFAULT_CA)
+    return false;
   f = gFrame;
   return true;
 #endif

@@ -57,6 +57,20 @@ int main() {
   for (size_t i = 0; i < dark; ++i)
     CHECK((plan[i].r | plan[i].g | plan[i].b | plan[i].w) == 0);
 
+  CensusView whiteRows[4];
+  setRow(whiteRows[0], 0x010001, 10, 1); // downlight: dedicated W
+  setRow(whiteRows[1], 0x010002, 10, 2); // perimeter: RGB white
+  setRow(whiteRows[2], 0x010003, 10, 3); // uplight: RGB white
+  setRow(whiteRows[3], 0x010004, 10, 4); // chandelier: RGB white
+  size_t white = directFramePlan(whiteRows, 4, 5000, 0, 0, 0, 0, 255,
+                                 128, true, plan, 192);
+  CHECK(white == 4);
+  CHECK(plan[0].r == 0 && plan[0].g == 0 && plan[0].b == 0 &&
+        plan[0].w == 128);
+  for (size_t i = 1; i < white; ++i)
+    CHECK(plan[i].r == 128 && plan[i].g == 128 && plan[i].b == 128 &&
+          plan[i].w == 0);
+
   CHECK(directFrameBlinkVisible(0));
   CHECK(directFrameBlinkVisible(499));
   CHECK(!directFrameBlinkVisible(500));

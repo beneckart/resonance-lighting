@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <string.h>
 
+#include "../core/fleet_registry_generated.h"
+#include "../core/health_model.h"
 #include "../core/knock_plan.h"
 #include "../net/census_svc.h"
 #include "../net/mesh_tx.h"
@@ -35,6 +37,12 @@ static lv_timer_t *gQueueTimer = nullptr;
 
 static uint16_t pulseMs() {
   return gPulseSlider ? (uint16_t)lv_slider_get_value(gPulseSlider) : 40;
+}
+
+static const char *callsignForId(const uint8_t id[3]) {
+  const HealthRegistryEntry *entry =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, id);
+  return entry ? entry->callsign : nullptr;
 }
 
 static void queueTick(lv_timer_t *t) {
@@ -166,18 +174,26 @@ void appKnockerOpen() {
 
   // Fleet modes followed by every fresh census entry for one-device strikes.
   gTargetCount = snapshotFresh(gTargets, CENSUS_MAX_TRACKED, millis());
-  static char opts[1600];
+  // 192 entries x (7-char callsign + " [ABCDEF]" + newline), plus fleet modes.
+  static char opts[4096];
   int o = snprintf(opts, sizeof(opts),
                    "ALL: targeted roll\nALL: broadcast now\nALL: sync +1.0s");
-  for (size_t i = 0; i < gTargetCount && o > 0 && (size_t)o < sizeof(opts); ++i)
-    o += snprintf(opts + o, sizeof(opts) - (size_t)o, "\n%02X%02X%02X",
-                  gTargets[i][0], gTargets[i][1], gTargets[i][2]);
+  for (size_t i = 0; i < gTargetCount && o > 0 && (size_t)o < sizeof(opts); ++i) {
+    const char *callsign = callsignForId(gTargets[i]);
+    if (callsign)
+      o += snprintf(opts + o, sizeof(opts) - (size_t)o,
+                    "\n%s [%02X%02X%02X]", callsign, gTargets[i][0],
+                    gTargets[i][1], gTargets[i][2]);
+    else
+      o += snprintf(opts + o, sizeof(opts) - (size_t)o, "\n%02X%02X%02X",
+                    gTargets[i][0], gTargets[i][1], gTargets[i][2]);
+  }
   gTargetDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gTargetDd, opts);
   lv_dropdown_set_selected(gTargetDd, gTargetCount ? KNOCK_FIRST_TARGET
                                                    : KNOCK_MODE_ROLL);
   lv_obj_set_pos(gTargetDd, 8, 44);
-  lv_obj_set_width(gTargetDd, 150);
+  lv_obj_set_width(gTargetDd, 200);
 
   gPulseLabel = lv_label_create(scr);
   lv_obj_set_pos(gPulseLabel, 8, 92);

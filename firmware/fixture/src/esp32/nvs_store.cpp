@@ -119,6 +119,10 @@ void nvsLoadConfig() {
   gCfg.classOvr = pf.getUChar("class_ovr", FIXTURE_UNKNOWN);
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
+  gCfg.commissionDefault =
+      pf.getUChar("comm_def", COMMISSION_DEFAULT_LISTENER);
+  if (gCfg.commissionDefault > COMMISSION_DEFAULT_DARK)
+    gCfg.commissionDefault = COMMISSION_DEFAULT_LISTENER;
   gCfg.battTier = pf.getUChar("batt_tier", 0);
 #if defined(RES_SOLENOID_FORCE_ENABLED)
   // Targeted bring-up image only: ignore any stale/missing NVS arm bit. The
@@ -138,9 +142,11 @@ void nvsLoadConfig() {
   gCfg.slpMv = checkedU16(pf, "slp_mv", 0, 0, 4000);
   pf.end();
   Serial.printf("  config: cap=%u mAh charge=%u mA class_ovr=%u profile=%s "
-                "sol_en=%u maintain=%.1fV ch=%u night_max=%umin\n",
+                "commission_default=%s sol_en=%u maintain=%.1fV ch=%u "
+                "night_max=%umin\n",
                 gCfg.capMah, gCfg.chargeMa, gCfg.classOvr,
-                gCfg.profile == PROFILE_DEV ? "commission" : "field", gCfg.solEn,
+                gCfg.profile == PROFILE_DEV ? "commission" : "field",
+                commissionDefaultName(gCfg.commissionDefault), gCfg.solEn,
                 gCfg.maintV10 / 10.0f, gCfg.channel, gCfg.nightMaxMin);
 }
 
@@ -172,6 +178,11 @@ bool nvsPersistChargeMa(uint16_t ma) {
 bool nvsPersistProfile(uint8_t profile) {
   if (!putU8("profile", profile)) return false;
   gCfg.profile = profile;
+  return true;
+}
+bool nvsPersistCommissionDefault(uint8_t mode) {
+  if (mode > COMMISSION_DEFAULT_DARK || !putU8("comm_def", mode)) return false;
+  gCfg.commissionDefault = mode;
   return true;
 }
 bool nvsPersistClassOvr(uint8_t cls) {

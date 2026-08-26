@@ -1,5 +1,5 @@
 #pragma once
-// CA Studio: program leases + live GH-CA knob tuning (NbProgramSet.params).
-// Until the fixture-side params-re-apply fix lands (TODO.md → Firmware track),
-// "apply" uses the release-then-re-lease workaround: one visible blip.
+// CA Studio: Greenberg-Hastings wildfire tuning with light or knock output and
+// an optional hardened local ToF rising-edge seed. Physical strikes remain
+// fixture-gated.
 void appCaOpen();

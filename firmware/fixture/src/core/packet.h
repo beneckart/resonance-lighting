@@ -16,7 +16,9 @@
 //   - 23 is the bounded presence-wave event used by the 2026-08 field demo.
 //   - 25..26 cambium era (browser-sim serial bridge streaming).
 //   - 27..28 field-pack era (transport sleep + bounded locate survey).
-//   - 29+    free.
+//   - 29     reserved for the queued bounded sensor-report packet.
+//   - 30     commission-default selector (Bridge OS -> fixture).
+//   - 31+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -61,6 +63,8 @@ enum NbType : uint8_t {
   // ---- field-pack era -------------------------------------------------------
   NB_TRANSPORT_SLEEP = 27, // bridge -> all/target: multi-day timer sleep
   NB_LOCATE_CONTROL = 28,  // bridge -> all/target: bounded RSSI survey window
+  // 29 remains reserved for NB_SENSOR_REPORT (not yet implemented).
+  NB_COMMISSION_DEFAULT = 30, // bridge -> target: commission no-command fallback
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -402,6 +406,13 @@ struct __attribute__((packed)) NbLocateControl { // 28: temporary RSSI reports
   uint8_t target_id[3]; // 00:00:00 = all
   uint16_t duration_s;  // 0 stops; bridge bounds starts to <=15 min
   uint8_t period_ds;    // report period in deciseconds (10..250 accepted)
+};
+
+struct __attribute__((packed)) NbCommissionDefault { // 30: commission fallback
+  NbHeader h;
+  uint8_t target_id[3]; // Bridge OS deliberately sends exact fixture IDs only
+  uint8_t mode;         // CommissionDefaultMode
+  uint8_t flags;        // bit0=persist to NVS (else RAM-only until reboot)
 };
 
 // ---- helpers (pure; ESP-NOW send lives in esp32/espnow_link) ----------------

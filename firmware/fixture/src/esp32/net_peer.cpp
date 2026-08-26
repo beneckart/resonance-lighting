@@ -32,6 +32,10 @@ static uint32_t gLocateUntilMs = 0;
 static uint32_t gNextLocateMs = 0;
 static uint16_t gLocatePeriodMs = 2000;
 static NeighborView gLocateViews[NEIGHBOR_TABLE_SIZE];
+static bool gCommissionDefaultSeen = false;
+static uint8_t gCommissionDefaultSrc[3] = {};
+static uint32_t gCommissionDefaultSeq = 0;
+static uint32_t gCommissionDefaultSenderUptime = 0;
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -453,6 +457,38 @@ static void processPacket(const RxItem &it) {
     Serial.printf("profile -> %s (%s)\n",
                   p->profile == PROFILE_DEV ? "commission" : "field",
                   (p->flags & 0x01) ? "persisted" : "until reboot");
+    break;
+  }
+  case NB_COMMISSION_DEFAULT: {
+    if (it.len < (int)sizeof(NbCommissionDefault)) return;
+    const NbCommissionDefault *p = (const NbCommissionDefault *)it.data;
+    // Default changes may persist NVS, so Bridge OS uses explicit addressed
+    // commands only. Refuse 00:00:00 even though other control packets use it.
+    if ((p->target_id[0] == 0 && p->target_id[1] == 0 &&
+         p->target_id[2] == 0) ||
+        memcmp(p->target_id, gMyId, 3) != 0)
+      return;
+    if (p->mode > COMMISSION_DEFAULT_DARK) return;
+    if (gCommissionDefaultSeen && h->seq == gCommissionDefaultSeq &&
+        h->uptime_ms == gCommissionDefaultSenderUptime &&
+        memcmp(h->src_id, gCommissionDefaultSrc, 3) == 0)
+      return; // repeated RF copy; never multiply one requested NVS write
+    espNowNoteControlRx();
+    bool ok = true;
+    if (p->flags & 0x01)
+      ok = nvsPersistCommissionDefault(p->mode);
+    else
+      gCfg.commissionDefault = p->mode;
+    if (ok) {
+      gCommissionDefaultSeen = true;
+      memcpy(gCommissionDefaultSrc, h->src_id, 3);
+      gCommissionDefaultSeq = h->seq;
+      gCommissionDefaultSenderUptime = h->uptime_ms;
+    }
+    Serial.printf("commission-default -> %s (%s%s)\n",
+                  commissionDefaultName(p->mode),
+                  (p->flags & 0x01) ? "persisted" : "until reboot",
+                  ok ? "" : " FAILED");
     break;
   }
   case NB_TIME_QUALITY:

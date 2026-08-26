@@ -291,10 +291,12 @@ void handleSerial() {
   }
   case 'r':
     Serial.printf("role=peer mode=%d ch=%d cap=%u charge=%umA class=%s profile=%s "
+                  "commission_default=%s "
                   "txok=%lu txfail=%lu\n",
                   (int)maintMode(), gCfg.channel, gCfg.capMah, gCfg.chargeMa,
                   fixtureClassName(gCfg.classOvr ? gCfg.classOvr : gCfg.classLast),
                   gCfg.profile == PROFILE_DEV ? "commission" : "field",
+                  commissionDefaultName(gCfg.commissionDefault),
                   (unsigned long)espNowSendOk(), (unsigned long)espNowSendFail());
     break;
   default:

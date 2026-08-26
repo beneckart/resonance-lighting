@@ -34,6 +34,23 @@ enum FixtureProfile : uint8_t {
   PROFILE_PROD = 1,
 };
 
+// No-command behavior while PROFILE_DEV/commission is active. These values
+// are wire/NVS-stable: Bridge OS can change them live or persist them without
+// changing the field profile's autonomous schedule.
+enum CommissionDefaultMode : uint8_t {
+  COMMISSION_DEFAULT_LISTENER = 0, // class-aware ready beacon
+  COMMISSION_DEFAULT_CA = 1,       // autonomous light-only GH wildfire
+  COMMISSION_DEFAULT_DARK = 2,     // strict rails-off diagnostic posture
+};
+
+inline const char *commissionDefaultName(uint8_t mode) {
+  switch (mode) {
+  case COMMISSION_DEFAULT_CA: return "ca";
+  case COMMISSION_DEFAULT_DARK: return "dark";
+  default: return "listener";
+  }
+}
+
 // ADR 0023 LED tiers, ordered by severity. OFF is the tier net_bench lacked:
 // LEDs verifiably off with a duty-cycled OTA window, between DIM and PROTECT.
 enum class LedTier : uint8_t {

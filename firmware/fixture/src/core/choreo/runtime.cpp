@@ -28,7 +28,9 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
   mFading = false;
   static const uint8_t noParams[8] = {};
   byId(PROG_IDLE)->reset(mSeed, noParams, mClass, mPixels);
-  byId(PROG_GH_CA)->reset(mSeed, noParams, mClass, mPixels);
+  // nullptr means GH defaults. A real program packet with params[1] == 0
+  // deliberately disables spontaneous sparks (needed for presence-only CA).
+  byId(PROG_GH_CA)->reset(mSeed, nullptr, mClass, mPixels);
   byId(PROG_BRIDGE_SHOW)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_COMMISSION_DARK)->reset(mSeed, noParams, mClass, mPixels);
@@ -63,6 +65,14 @@ bool ChoreoRuntime::applyProgramSet(uint8_t programId, uint16_t leaseS, uint32_t
       mFading = false;
     }
     mActive = programId;
+  } else {
+    // A same-program lease is still a real parameter/seed update. This also
+    // lets CA Studio switch light <-> knock output without a release blip.
+    // Repeated RF copies may reset the program more than once within the
+    // command burst; the final copy is deterministic and no tick edge can
+    // occur inside that sub-50 ms burst at the supported CA periods.
+    p->reset(seed ? seed : mSeed, params, mClass, mPixels);
+    if (hardCut) mFading = false;
   }
   mLease.active = true;
   mLease.programId = programId;
@@ -112,9 +122,18 @@ void ChoreoRuntime::noteDirectFrame(const DirectFrameState &f, uint32_t nowMs) {
 }
 
 void ChoreoRuntime::selectAutonomous(uint32_t nowMs, bool hardCut) {
-  if (mActive == mAutonomous) return;
   static const uint8_t noParams[8] = {};
-  byId(mAutonomous)->reset(mSeed, noParams, mClass, mPixels);
+  byId(mAutonomous)->reset(mSeed,
+                           mAutonomous == PROG_GH_CA ? nullptr : noParams,
+                           mClass, mPixels);
+  // A leased program may be the same numeric program as the autonomous
+  // fallback but carry different params (notably GH knock mode). Release and
+  // expiry must restore the default autonomous configuration, not preserve
+  // the leased behavior indefinitely.
+  if (mActive == mAutonomous) {
+    mFading = false;
+    return;
+  }
   if (!hardCut) {
     mPrev = mActive;
     mFadeStartMs = nowMs;

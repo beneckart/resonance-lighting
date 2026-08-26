@@ -1,6 +1,6 @@
 # Bridge OS app roadmap
 
-**Date:** 2026-08-24
+**Date:** 2026-08-25
 
 **Status:** Working priority order for the T-Deck Plus app platform. This
 supplements ADR 0047 and ADR 0048. The RTC/GPS dusk-to-dawn work is a separate
@@ -10,7 +10,7 @@ but does not change or duplicate it.
 ## Current baseline
 
 Bridge OS is no longer a proposed handheld. M0-M4 are hardware-verified and the
-launcher has thirteen tiles. Health and Schedule are integrated and flashed;
+launcher has fourteen tiles. Health and Schedule are integrated and flashed;
 Patterns v1 and RF Diagnostics are integrated and flashed on `8EB508`. Locate
 is the only remaining literal placeholder. Detailed Sensors work follows Health
 when the packet contract can report measurements that heartbeats do not contain.
@@ -20,10 +20,11 @@ when the packet contract can report measurements that heartbeats do not contain.
 | Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
 | Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
 | Health | Flashed on `8EB508`; broad physical smoke passed | Source roster covers 144 production fixtures. The last flash embeds 141 and treats the three restored IDs as foreign until rebuilt; complete that refresh plus the explicit color/off-air and memory matrix. |
-| LED Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed on 2026-08-23/24. The named HEX/RGBW color, class, blink, stop, and fleet-airtime matrix remains open. |
+| LED Studio | Working; field-smoke-tested; RGB-white fix source-built | White now maps to dedicated W on downlights and full RGB on perimeter/uplight/chandelier classes. Recheck on a named RGB uplight plus RGBW downlight. The broader color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
 | Knocker | Three fleet modes built; pending fixture/T-Deck hardware validation | Retains the deterministic 192-entry targeted roll and adds immediate multicast plus a shared +1.0 s multicast deadline. Every fixture rechecks its local strike gates at fire time. |
-| CA Studio | Working; field-smoke-tested | Ben reports the controls behaved as designed. Same-program parameter changes still use a visible release/re-lease workaround. |
+| CA Studio | Light mode field-smoke-tested; knock wildfire source-built | The operator picker now contains only light and knock CA outputs. Hardware-validate sound-only daytime propagation on a named solarnoid cohort. |
+| Default | Source-built; hardware validation pending | Exact-target commission fallback selector: ready beacon, light CA, or strict dark; RAM-only or persisted. Verify named canaries and NVS survival before fleet use. |
 | Settings | Working | Secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
 | Schedule | Flashed on `8EB508`; broad physical smoke passed | GPS publishes UTC quality; fixtures select bounded consensus time and apply Black Rock City civil twilight in field profile. Complete the explicit override/canary matrix. |
@@ -172,8 +173,9 @@ remains open; microphone capture remains v2.
    when a PUCA or CoreS3 performance-audio publisher is already active.
 3. **Fleet completion:** paging/filtering/search, explicit truncation labels,
    and faster access to identify and health views.
-4. **CA Studio completion:** remove the release/re-lease blip after the fixture
-   runtime correctly reapplies parameters to the active program.
+4. **CA Studio hardware completion:** validate light/knock selection, live knob
+   reapply without a visible blip, sound-only output, and one gated mallet
+   request per excitation edge on a named daylight solarnoid cohort.
 
 ## P3 - dependency-bound features
 
@@ -183,8 +185,6 @@ remains open; microphone capture remains v2.
   `NbEvent.fire_in_ms` seam rather than a second time model. Measure immediate
   multicast spread and +1.0 s deadline skew on an isolated, explicitly armed
   cohort before any fleet promotion.
-- **CA-to-strike choreography:** requires a clamped fixture `ProgramOutputs`
-  request routed through the normal power/lifecycle strike permission.
 - **Voice:** typed Claude already works. Laptop `whisperd` requires an explicit
   STT transport and failure contract; cloud STT should sit behind the same seam.
 

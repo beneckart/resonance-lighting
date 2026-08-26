@@ -47,6 +47,9 @@ struct ProgramInputs {
   const ShowFrameState *showFrame;
   uint8_t tier;        // LedTier as byte; programs may adapt artistically
   uint8_t tickDivider; // power throttle (runtime pre-applies; informational)
+  // One fresh, debounced local ToF presence edge. Programs must explicitly
+  // opt in; it is never a continuing level or actuator permission.
+  bool tofPresenceRising;
   const DirectFrameState *directFrame; // runtime-owned; callers leave it null
                                        // (ChoreoRuntime::tick patches it in)
 };
@@ -58,6 +61,13 @@ struct ProgramOutputs {
   uint16_t generation;
   uint16_t phaseMs;
   bool sendNow;        // edge-triggered choreo send (quiescent->excited)
+  // A choreography program may request one physical knock, but it never owns
+  // the mechanism. Platform glue routes the request through the same local
+  // lifecycle, power, arm, rest, maintenance, and failsafe gates as radio
+  // strikes. `suppressLight` keeps a sound-only program electrically dark.
+  bool strikeRequested;
+  uint16_t strikePulseMs;
+  bool suppressLight;
 };
 
 class Program {

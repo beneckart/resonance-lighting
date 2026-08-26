@@ -11,7 +11,8 @@
 
 // GH-CA params[8] semantics (fixture prog_gh_ca.cpp:9-33):
 // [0] K excitation threshold, [1] spontaneous activation x/256,
-// [2] refractory ticks, [3] tick period in deciseconds, [4] hue 0-255.
+// [2] refractory ticks, [3] tick period in deciseconds, [4] hue 0-255,
+// [5] output mode (0=light, 1=knock), [6] hardened ToF edge seed.
 struct Knob {
   const char *name;
   int min, max, dflt;
@@ -21,46 +22,61 @@ static const Knob kKnobs[5] = {
     {"spark /256", 0, 64, 2},
     {"refractory", 1, 10, 3},
     {"tick (ds)", 1, 50, 10},
-    {"hue", 0, 255, 160},
+    {"light hue", 0, 255, 160},
 };
 static lv_obj_t *gSliders[5] = {};
 static lv_obj_t *gValLabels[5] = {};
 static lv_obj_t *gProgDd = nullptr;
 static lv_obj_t *gLeaseDd = nullptr;
+static lv_obj_t *gTofBtn = nullptr;
+static lv_obj_t *gTofLabel = nullptr;
 static lv_obj_t *gInfo = nullptr;
 
-static const uint8_t kProgIds[5] = {1, 0, 2, 3, 4};  // dropdown order
 static const uint16_t kLeases[4] = {120, 300, 600, 3600};
+
+static bool knockMode() {
+  return gProgDd && lv_dropdown_get_selected(gProgDd) == 1;
+}
+
+static bool tofSeedEnabled() {
+  return gTofBtn && lv_obj_has_state(gTofBtn, LV_STATE_CHECKED);
+}
+
+static void tofChanged(lv_event_t *) {
+  if (gTofLabel)
+    lv_label_set_text(gTofLabel, tofSeedEnabled() ? "ToF seed: ON"
+                                                  : "ToF seed: off");
+}
 
 static void applyYes(void *) {
   static const uint8_t kAll[3] = {0, 0, 0};
-  uint8_t prog = kProgIds[lv_dropdown_get_selected(gProgDd)];
   uint16_t leaseS = kLeases[lv_dropdown_get_selected(gLeaseDd)];
   uint8_t params[8] = {};
   for (int i = 0; i < 5; ++i)
     params[i] = (uint8_t)lv_slider_get_value(gSliders[i]);
-  // Workaround for the fixture params-re-apply gap: release first so the
-  // re-lease always lands as a program CHANGE (reset() runs, params apply).
-  meshProgramLease(kAll, prog, 0, 0x01, nullptr);
-  delay(150);
-  meshProgramLease(kAll, prog, leaseS, 0x01, params);
-  if (gInfo)
-    lv_label_set_text_fmt(gInfo, "leased prog %u for %us (one blip = workaround)",
-                          prog, leaseS);
+  params[5] = knockMode() ? 1 : 0;
+  params[6] = tofSeedEnabled() ? 1 : 0;
+  meshProgramLease(kAll, 1 /* PROG_GH_CA */, leaseS, 0x01, params);
+  if (gInfo) {
+    lv_label_set_text_fmt(gInfo, "%s%s, %us", knockMode() ? "knocks" : "lights",
+                          tofSeedEnabled() ? " + ToF" : "", leaseS);
+  }
 }
 
 static void applyCb(lv_event_t *) {
-  char summary[96];
-  uint8_t prog = kProgIds[lv_dropdown_get_selected(gProgDd)];
+  char summary[160];
   uint16_t leaseS = kLeases[lv_dropdown_get_selected(gLeaseDd)];
-  snprintf(summary, sizeof(summary),
-           "PROGRAM_SET all -> prog %u with CA knobs, %u s lease", prog, leaseS);
+  snprintf(summary, sizeof(summary), "%s wildfire on all awake fixtures for "
+           "%u s. ToF seed %s; %s", knockMode() ? "Knock" : "Light", leaseS,
+           tofSeedEnabled() ? "ON (sensor downlights originate)" : "off",
+           knockMode() ? "Local daytime and power gates still decide each knock."
+                       : "Local light power gates still apply.");
   uiConfirm(summary, "CA Studio", applyYes, nullptr);
 }
 
 static void releaseCb(lv_event_t *) {
   static const uint8_t kAll[3] = {0, 0, 0};
-  meshProgramLease(kAll, 4, 0, 0x01, nullptr);
+  meshProgramLease(kAll, 0 /* release */, 0, 0x01, nullptr);
   if (gInfo) lv_label_set_text(gInfo, "released -> autonomous");
 }
 
@@ -74,6 +90,8 @@ static void sliderChanged(lv_event_t *e) {
 static void backCb(lv_event_t *) {
   gProgDd = nullptr;
   gLeaseDd = nullptr;
+  gTofBtn = nullptr;
+  gTofLabel = nullptr;
   gInfo = nullptr;
   memset(gSliders, 0, sizeof(gSliders));
   uiGoHome();
@@ -86,11 +104,11 @@ void appCaOpen() {
 
   lv_obj_t *title = lv_label_create(scr);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "CA Studio");
+  lv_label_set_text(title, "Wildfire CA");
   lv_obj_set_pos(title, 8, 4);
 
   gProgDd = lv_dropdown_create(scr);
-  lv_dropdown_set_options(gProgDd, "ca\nidle\nbridge\ndirect\ndark");
+  lv_dropdown_set_options(gProgDd, "lights\nknocks");
   lv_obj_set_pos(gProgDd, 150, 2);
   lv_obj_set_width(gProgDd, 88);
   gLeaseDd = lv_dropdown_create(scr);
@@ -121,10 +139,21 @@ void appCaOpen() {
     lv_group_add_obj(lvglGroup(), gSliders[i]);
   }
 
+  gTofBtn = lv_button_create(scr);
+  lv_obj_add_flag(gTofBtn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_set_size(gTofBtn, 108, 25);
+  lv_obj_set_pos(gTofBtn, 8, 170);
+  gTofLabel = lv_label_create(gTofBtn);
+  lv_label_set_text(gTofLabel, "ToF seed: off");
+  lv_obj_center(gTofLabel);
+  lv_obj_add_event_cb(gTofBtn, tofChanged, LV_EVENT_VALUE_CHANGED, nullptr);
+  lv_group_add_obj(lvglGroup(), gTofBtn);
+
   gInfo = lv_label_create(scr);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gInfo, 8, 174);
-  lv_label_set_text(gInfo, "knobs apply on lease (fixture re-apply fix pending)");
+  lv_obj_set_pos(gInfo, 124, 174);
+  lv_obj_set_width(gInfo, 188);
+  lv_label_set_text(gInfo, "hardened rising edge");
 
   lv_obj_t *apply = lv_button_create(scr);
   lv_obj_set_size(apply, 100, 34);

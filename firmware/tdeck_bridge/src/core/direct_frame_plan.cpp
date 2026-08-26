@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "fixture/src/core/fixture_context.h"
+
 static bool realId(const uint8_t id[3]) {
   return id[0] != 0 || id[1] != 0 || id[2] != 0;
 }
@@ -20,10 +22,21 @@ size_t directFramePlan(const CensusView *rows, size_t rowCount,
     if (rows[i].ageMs >= freshMs || !realId(rows[i].id)) continue;
     if (classFilter && rows[i].fixtureClass != classFilter) continue;
     memcpy(out[n].id, rows[i].id, 3);
-    out[n].r = visible ? scale(r, dim) : 0;
-    out[n].g = visible ? scale(g, dim) : 0;
-    out[n].b = visible ? scale(b, dim) : 0;
-    out[n].w = visible ? scale(w, dim) : 0;
+    uint8_t mappedR = r, mappedG = g, mappedB = b, mappedW = w;
+    if (r == 0 && g == 0 && b == 0 && w > 0 &&
+        rows[i].fixtureClass != FIXTURE_DOWNLIGHT) {
+      // LED Studio's white swatch means visible white, not "address the fourth
+      // byte." Downlights are known RGBW point sources and retain their clean
+      // dedicated white. Perimeter HEX, RGB uplights, and RGB chandeliers need
+      // full RGB; RGBW variants in those classes deliberately receive RGB
+      // white too so a mixed class behaves consistently.
+      mappedR = mappedG = mappedB = w;
+      mappedW = 0;
+    }
+    out[n].r = visible ? scale(mappedR, dim) : 0;
+    out[n].g = visible ? scale(mappedG, dim) : 0;
+    out[n].b = visible ? scale(mappedB, dim) : 0;
+    out[n].w = visible ? scale(mappedW, dim) : 0;
     ++n;
   }
 
@@ -56,4 +69,3 @@ size_t directFrameChunkSize(size_t entryCount, size_t chunkIndex,
 bool directFrameBlinkVisible(uint32_t elapsedMs) {
   return ((elapsedMs / 500U) & 1U) == 0;
 }
-

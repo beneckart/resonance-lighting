@@ -282,22 +282,18 @@ are marked current and remain persistent.
 
 ## Commission vs field profile
 
-**Source-status note (2026-08-15):** this branch's current implementation is the
-strict ADR 0038 commission-dark posture described below. ADR 0039 accepts
-Elliot's later commission-listener extension (low red plus fresh/confident ToF
-signature response) as the next default after integration and a newly identified
-artifact. The two materially different builds both used
-`fixture-2026-08-15.4`; that label cannot distinguish them and must not be reused.
-Strict commission-dark remains required as an explicit rail-cycle diagnostic.
-
 `PROFILE_DEV=0` retains its wire/NVS value for compatibility but is now the
 operator-facing **commission** profile. It is the pre-build/build-week posture:
 the ESP-NOW control plane stays awake, heartbeats run at 1 Hz, solar current does
-not trigger a lifecycle transition, and bridge command leases are the only
-artistic authority. No command (or a stale/expired command) means electrically
-dark with the LED rail off -- never an automatic CA fallback. A genuinely
-critical battery still parks all loads; its commission-mode retry is 60 s, and a
-verified external source keeps the parked control plane awake for service.
+not trigger a lifecycle transition, and bridge command leases override the
+selected no-command fallback. `commission_default` is `listener` (the normal
+class-aware ready beacon), `ca` (autonomous light-only GH wildfire), or `dark`
+(strict LED-rail-off diagnostics). Missing/invalid NVS stays `listener`. The
+Bridge OS Default app changes one exact target or walks every fresh short ID;
+its setting can be RAM-only until reboot or explicitly persisted with
+`NB_COMMISSION_DEFAULT` type 30. A genuinely critical battery still parks all
+loads; its commission-mode retry is 60 s, and a verified external source keeps
+the parked control plane awake for service.
 
 `PROFILE_PROD=1` is the operator-facing **field** profile: 300 s/15 s day-charge
 duty cycle (energy-gated), 0.2 Hz hb-short, scheduled/autonomous behavior, and the
@@ -305,17 +301,27 @@ normal 900 s PROTECT sleep. Local power and solenoid safety vetoes are identical
 in both profiles; commission changes reachability and fallback behavior, not load
 safety. Flip via `NB_PROFILE` (type 21) or per-unit serial `F` (`F0` commission,
 `F1` field). New build flags accept `--profile commission|field`; `dev|prod` remain
-compatibility aliases.
+compatibility aliases. The commission-default setting is ignored in field
+profile, so it cannot replace the scheduled night CA or daytime sleep policy.
 
 The supervised `--basic-listener` posture is deliberately minimal and class
 aware. With no active bridge lease, canopy/downlights hold their dedicated warm
 white channel at linear 128, 37-pixel perimeter HEX modules hold red at linear
-16, and single-pixel RGB trunk/uplights hold red at linear 128. A bridge command
-or dashboard tag overrides it, and stale-command fallback returns directly to
-the class default within three seconds. LED channel values are linear: 0 is off
-and 255 is the 8-bit bright endpoint. There is no gamma correction, boot salute,
-external-supply carousel, identity pop, or local sensor-created color. The old
+16, and single-pixel trunk/uplights hold red at linear 128. A bridge command or
+dashboard tag overrides it, and stale-command fallback returns directly to the
+selected commission default within three seconds. LED channel values are
+linear: 0 is off and 255 is the 8-bit bright endpoint. The old
 `--quiet-autonomy` option remains only as a build-script alias.
+
+An `NB_PROGRAM_SET` GH-CA lease uses params byte 6 as an opt-in local ToF seed.
+The sensor path is sampled once through the same ADR 0044 gate used by the
+listener color wipe: 90-report per-zone learning, a confident 300 mm closer
+delta for three reports, and four clear reports to re-arm. A rising edge is
+held until the next CA step and excites only that downlight; ordinary CA state
+gossip carries the result onward. Non-sensor fixtures remain graph participants.
+Byte 6 defaults off, and params byte 1 now honors zero as zero spontaneous
+sparks, so an operator can run a presence/neighbor-only CA lease. The separate
+presence color-wipe gossip remains suppressed during every program lease.
 
 The 1 Hz commission heartbeat remains the compact 29-byte `hb-short`. A length-
 gated full heartbeat follows every 5 s in commission and every 60 s in field. Its

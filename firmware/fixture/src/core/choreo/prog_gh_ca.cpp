@@ -11,6 +11,8 @@
 //            [2] refractory length in ticks (default 3)
 //            [3] tick period in deciseconds (default 10 = 1 s)
 //            [4] hue 0-255 on a warm->cool wheel (default class-picked)
+//            [5] output mode: 0 = light wildfire, 1 = daytime knock wildfire
+//            [6] local seed: 0 = neighbors/sparks only, 1 = ToF rising edge
 #include "program.h"
 
 #include "../hex_geometry.h"
@@ -26,11 +28,13 @@ public:
     mRng = seed ? seed : 0xA5A5A5A5u;
     mK = params && params[0] ? params[0] : 1;
     mPx256 = params ? params[1] : 2;
-    if (!params || !params[1]) mPx256 = 2;
     mRefractory = params && params[2] ? params[2] : 3;
     mTickMs = (params && params[3]) ? (uint32_t)params[3] * 100 : 1000;
     mHue = (params && params[4]) ? params[4]
            : (fixtureClass == FIXTURE_PERIMETER ? 30 : 160);
+    mKnockMode = params && params[5] == 1;
+    mTofSeed = params && params[6] == 1;
+    mTofSeedPending = false;
     mState = 0;
     mGeneration = 0;
     mLastStepMs = 0;
@@ -39,14 +43,27 @@ public:
 
   void tick(const ProgramInputs &in, ProgramOutputs &out) override {
     out.sendNow = false;
+    out.strikeRequested = false;
+    out.strikePulseMs = 0;
+    out.suppressLight = mKnockMode;
+    if (mTofSeed && in.tofPresenceRising) mTofSeedPending = true;
     if (mLastStepMs == 0) mLastStepMs = in.nowMs;
     uint32_t effTick = mTickMs * (in.tickDivider ? in.tickDivider : 1);
     if (in.nowMs - mLastStepMs >= effTick) {
       mLastStepMs = in.nowMs;
       step(in);
-      if (mState == 1) out.sendNow = true; // edge: excitation announces itself
+      if (mState == 1) {
+        out.sendNow = true; // edge: excitation announces itself
+        if (mKnockMode) {
+          // One request per quiescent->excited transition. The ESP32 glue is
+          // still the authority that decides whether a real strike is safe.
+          out.strikeRequested = true;
+          out.strikePulseMs = 40;
+        }
+      }
     }
     render(in, out);
+    if (mKnockMode) frameClear(out.frame); // sound instead of light
     out.txState = mState & 0x0F;
     out.generation = mGeneration;
     out.phaseMs = (uint16_t)((in.nowMs - mLastStepMs) & 0xFFFF);
@@ -63,15 +80,17 @@ private:
   void step(const ProgramInputs &in) {
     mGeneration++;
     if (mState == 0) {
-      // Excite on K fresh excited neighbors, or spontaneously ("lightning" --
-      // the forest-fire seed that keeps a quiet graph alive).
+      // Excite on K fresh excited neighbors, spontaneously ("lightning"), or
+      // one explicitly enabled, debounced local ToF rising edge. A ToF edge
+      // that arrives during refractory is held until this node is quiescent.
       uint8_t excited = 0;
       for (uint8_t i = 0; i < in.neighborCount; i++)
         if ((in.neighbors[i].state & 0x0F) == 1) excited++;
       bool spark = (rnd() & 0xFF) < mPx256;
-      if (excited >= mK || spark) {
+      if (excited >= mK || spark || mTofSeedPending) {
         mState = 1;
         mExcitedAtMs = in.nowMs;
+        mTofSeedPending = false;
       }
     } else if (mState >= 1 + mRefractory) {
       mState = 0;
@@ -156,6 +175,7 @@ private:
   uint16_t mPixels = 1;
   uint32_t mRng = 1;
   uint8_t mK = 1, mPx256 = 2, mRefractory = 3, mHue = 160;
+  bool mKnockMode = false, mTofSeed = false, mTofSeedPending = false;
   uint32_t mTickMs = 1000;
   uint8_t mState = 0;
   uint16_t mGeneration = 0;

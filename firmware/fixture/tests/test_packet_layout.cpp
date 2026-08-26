@@ -74,6 +74,7 @@ int main() {
   CHECK_EQ(sizeof(NbTransportSleep), 20u);
   CHECK_EQ(offsetof(NbTransportSleep, seconds), 16u);
   CHECK_EQ(sizeof(NbLocateControl), 19u);
+  CHECK_EQ(sizeof(NbCommissionDefault), 18u);
 
   // Receiver tail gate + truncation round-trip: an hb-short must satisfy the
   // gate for supply_good and fail it for lux_x10.

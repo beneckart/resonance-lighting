@@ -26,6 +26,9 @@ void meshProgramLease(const uint8_t target[3], uint8_t programId,
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
 void meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
 bool meshEnterMaintenance(const uint8_t target[3]);
+// Exact-target only. Commission-default persistence is an NVS mutation, so
+// Bridge OS never emits this command with the all-zero broadcast target.
+bool meshCommissionDefault(const uint8_t target[3], uint8_t mode, bool persist);
 bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId);
 

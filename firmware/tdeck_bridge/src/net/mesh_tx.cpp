@@ -9,6 +9,7 @@
 
 #include "espnow_link.h"
 #include "../core/knock_event.h"
+#include "fixture/src/core/fixture_context.h"
 #include "fixture/src/core/packet.h"
 
 static uint8_t gMyId[3] = {};
@@ -259,6 +260,23 @@ bool meshEnterMaintenance(const uint8_t target[3]) {
   gMaintCampaignNextMs = now;
   gMaintCampaignUntilMs = now + 35000UL;
   portEXIT_CRITICAL(&gMaintCampaignMux);
+  return true;
+}
+
+bool meshCommissionDefault(const uint8_t target[3], uint8_t mode,
+                           bool persist) {
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!target || memcmp(target, kAll, sizeof(kAll)) == 0 ||
+      mode > COMMISSION_DEFAULT_DARK)
+    return false;
+  NbCommissionDefault packet = {};
+  memcpy(packet.target_id, target, sizeof(packet.target_id));
+  packet.mode = mode;
+  packet.flags = persist ? 0x01 : 0;
+  if (!txTake()) return false;
+  fillHeader(&packet.h, NB_COMMISSION_DEFAULT);
+  sendPacketRepeatedLocked(&packet, sizeof(packet), 6, 8);
+  txGive();
   return true;
 }
 

@@ -6,8 +6,8 @@ static bool realId(const uint8_t id[3]) {
   return id[0] != 0 || id[1] != 0 || id[2] != 0;
 }
 
-size_t knockPlanFresh(const CensusView *rows, size_t rowCount,
-                      uint32_t freshMs, uint8_t out[][3], size_t outCap) {
+size_t targetPlanFresh(const CensusView *rows, size_t rowCount,
+                       uint32_t freshMs, uint8_t out[][3], size_t outCap) {
   if (!rows || !out || outCap == 0) return 0;
   size_t n = 0;
   for (size_t i = 0; i < rowCount && n < outCap; ++i) {
@@ -30,3 +30,7 @@ size_t knockPlanFresh(const CensusView *rows, size_t rowCount,
   return n;
 }
 
+size_t knockPlanFresh(const CensusView *rows, size_t rowCount,
+                      uint32_t freshMs, uint8_t out[][3], size_t outCap) {
+  return targetPlanFresh(rows, rowCount, freshMs, out, outCap);
+}

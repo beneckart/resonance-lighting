@@ -35,8 +35,8 @@ int main() {
 
   uint8_t capped[32][3] = {};
   CHECK(knockPlanFresh(rows, 132, 5000, capped, 32) == 32);
+  CHECK(targetPlanFresh(rows, 132, 5000, capped, 32) == 32);
 
   printf("knock_plan ok\n");
   return 0;
 }
-
