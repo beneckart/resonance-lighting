@@ -1,0 +1,12 @@
+OWNER: Ben/Codex through T-Deck 8EB508 on COM152
+SOURCE: c46e21f35073aea6ee2724a306d95dc603139afd
+ARTIFACT: fx-260826-024e508-p c5bc1eb08ebff3df5cd2edd1c4932f3f4096678056caa0287876b4db2c289168
+TARGETS: 9E5954,9E5A58,9E5A5C,9E5A74,9E5A84,9E5A88,9E5A94,9E5AB0,9E5AC8,9E5AD4,9E5AE0,9E5AE4,9E5B04,9E5B10,9E5B14,9E5B18,9E5B34,9E5B44,9E5B48,9E5B5C,9E5B68,9E5B8C,9E668C,9F0E30,9F0E4C,9F0E54,9F0E5C,9F0E7C,9F2638,9F2648,9F2664,9F266C,9F2680,9F2694,9F26AC,9F26B0,9F26B4,9F26BC,9F26C0,9F26C4,9F26D4,9F26D8,9F26E4,9F26E8,9F2714,9F2718,9F2720,9F2724,9F2738,9F275C,F2B7DC,F2BCF4,F2BD00,F2BDB0,F2BDB4,F2BDD4,F2BDFC,F2BE08,F2BE0C,F2BE1C,F2BE20,F2BE38,F2BE3C,F2BE48,F2BE60,F2BE6C,F2BE70,F2BE94,F2BEA4,F2BEB4,F2BEE4,F2BEF4,F2BF54,F2BF5C,F2BF7C,F2BF8C,F2BF90,F3FC8C,F3FC90,F3FC9C,F3FD28,F3FD50,F3FD60,F40174,F4019C,F401A8,F401CC,F401DC,F40254,F40268,F402A8,F402B8,F402C4,F40310,F40314,F40350,F40364,F40384,F403F0,F40424,F4042C
+EXCLUDED: F40344 (Thor/Magic Wand; protected dedicated-firmware role)
+OPERATION: shared-WiFi fleet OTA, reboot to ESP-NOW comms, exact-revision post-pending-verify check
+RESULT: 99/101 eligible observed fixtures uploaded and verified on fx-260826-024e508-p; no rollback observed
+DEFERRED: 9E5AD4 (fx-260818-f80f315-b, about 3.02 V, PROTECT sleeper) and 9F26D8 (fx-260816-otafix1-b, known targeted-maintenance downlink exception); neither exposed an identity-matching maintenance endpoint and neither was flashed
+DELAYED_VERIFY: 9F266C,9F2714,9F2724,F2BCF4,F2BDD4 later supplied fresh exact-revision heartbeats after deep-sleep wake; their first verifier window was shorter than the 900 s PROTECT cadence
+RETRY: F2B7DC uploaded separately after its next maintenance wake and passed a fresh exact-revision heartbeat at 25.939 s uptime
+EVIDENCE: ops/bench/data/ca/20260826-034605-fleet-ota-results.jsonl and ops/bench/data/burning-man-2026/20260826-040312-fleet-ota-results.jsonl
+FINAL_CENSUS: 99 fx-260826-024e508-p, 1 fx-260818-f80f315-b (9E5AD4), 1 fx-260816-otafix1-b (9F26D8), plus protected F40344 on net-bench-2026-08-19.1
