@@ -5,6 +5,7 @@ Program *newProgGhCa();
 Program *newProgBridge();
 Program *newProgDirect();
 Program *newProgCommissionDark();
+Program *newProgContagion();
 
 Program *ChoreoRuntime::byId(uint8_t id) {
   switch (id) {
@@ -13,6 +14,7 @@ Program *ChoreoRuntime::byId(uint8_t id) {
   case PROG_BRIDGE_SHOW: return newProgBridge();
   case PROG_DIRECT: return newProgDirect();
   case PROG_COMMISSION_DARK: return newProgCommissionDark();
+  case PROG_CONTAGION: return newProgContagion();
   default: return nullptr;
   }
 }
@@ -34,6 +36,7 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
   byId(PROG_BRIDGE_SHOW)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_DIRECT)->reset(mSeed, noParams, mClass, mPixels);
   byId(PROG_COMMISSION_DARK)->reset(mSeed, noParams, mClass, mPixels);
+  byId(PROG_CONTAGION)->reset(mSeed, noParams, mClass, mPixels);
 }
 
 bool ChoreoRuntime::setAutonomousProgram(uint8_t programId, uint32_t nowMs,
@@ -68,9 +71,9 @@ bool ChoreoRuntime::applyProgramSet(uint8_t programId, uint16_t leaseS, uint32_t
   } else {
     // A same-program lease is still a real parameter/seed update. This also
     // lets CA Studio switch light <-> knock output without a release blip.
-    // Repeated RF copies may reset the program more than once within the
-    // command burst; the final copy is deterministic and no tick edge can
-    // occur inside that sub-50 ms burst at the supported CA periods.
+    // RF burst copies are de-duplicated in net_peer before this layer. A new
+    // command with new params is still a real reset, including an exact-target
+    // Contagion seed.
     p->reset(seed ? seed : mSeed, params, mClass, mPixels);
     if (hardCut) mFading = false;
   }

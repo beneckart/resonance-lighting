@@ -36,6 +36,10 @@ static bool gCommissionDefaultSeen = false;
 static uint8_t gCommissionDefaultSrc[3] = {};
 static uint32_t gCommissionDefaultSeq = 0;
 static uint32_t gCommissionDefaultSenderUptime = 0;
+static bool gProgramSetSeen = false;
+static uint8_t gProgramSetSrc[3] = {};
+static uint32_t gProgramSetSeq = 0;
+static uint32_t gProgramSetSenderUptime = 0;
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -224,6 +228,14 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)sizeof(NbProgramSet)) return;
     const NbProgramSet *ps = (const NbProgramSet *)it.data;
     if (!nbTargetMatches(ps->target_id, gMyId)) return;
+    if (gProgramSetSeen && h->seq == gProgramSetSeq &&
+        h->uptime_ms == gProgramSetSenderUptime &&
+        memcmp(h->src_id, gProgramSetSrc, 3) == 0)
+      return; // repeated RF copy; one manual Contagion seed is one edge
+    gProgramSetSeen = true;
+    memcpy(gProgramSetSrc, h->src_id, 3);
+    gProgramSetSeq = h->seq;
+    gProgramSetSenderUptime = h->uptime_ms;
     espNowNoteControlRx();
     behaviorOnProgramSet(*ps);
     break;

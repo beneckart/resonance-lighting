@@ -8,7 +8,8 @@
 //   2 = PROG_BRIDGE_SHOW  NbShowFrame consumer (DJ/bench multicast)
 //   3 = PROG_DIRECT       NbDirectFrame consumer (cambium browser-sim streaming)
 //   4 = PROG_COMMISSION_DARK safe dark/listening commissioning fallback
-//   5+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
+//   5 = PROG_CONTAGION    Color Virus / Epidemic infection family
+//   6+ reserved (timeline, ripple, Lenia, easter eggs -- M2).
 #pragma once
 
 #include <stdint.h>
@@ -20,7 +21,8 @@
 #define PROG_BRIDGE_SHOW 2
 #define PROG_DIRECT 3
 #define PROG_COMMISSION_DARK 4
-#define PROG_COUNT 5
+#define PROG_CONTAGION 5
+#define PROG_COUNT 6
 
 // Latest bridge show frame, as received (staleness judged by the runtime).
 struct ShowFrameState {

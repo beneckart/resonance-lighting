@@ -19,6 +19,8 @@ rails-off timer sleep), **Knocker** (single strike plus selectable targeted
 roll, immediate fleet multicast, and shared +1.0 s deadline multicast),
 **Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),
 **CA Studio** (Greenberg-Hastings wildfire with light or daytime knock output),
+**Contagion** (Color Virus or Epidemic with light, knock, or both output and an
+exact manual seed),
 **Default** (exact-target commission fallback: ready beacon, light CA, or dark),
 **Patterns** (manual deterministic RGBW streaming),
 **RF Diagnostics** (read-only mesh survey), **Settings**, **SunTest**.
@@ -262,6 +264,46 @@ consumer, per-fixture RGBW stream consumer, and electrical-dark program. Their
 operator controls remain in the apps that own those jobs. Same-program CA knob
 updates now reapply directly, with no release/re-lease light blip. Releasing or
 expiring a knock lease restores the normal autonomous light CA defaults.
+
+## Contagion
+
+Open **Contagion** for the infection family kept separate from CA Studio. Start
+leases program 5 to all awake updated fixtures for 10 minutes in a susceptible
+state. The source list sorts alphabetically by callsign; the one-line keyboard
+field filters its synced dropdown by callsign substring or short ID. Then choose
+one fresh named fixture and press **Seed**.
+
+- **Color Virus** adopts the seed hue across fresh Contagion neighbors and
+  remains infected until stop, restart, or lease expiry.
+- **Epidemic** moves infected -> immune -> susceptible and can be reinfected.
+- Output can be lights, sound-only knocks, or lights + knocks. A perimeter
+  infection is a silent relay; each infected downlight can request one 40 ms
+  pulse, but all fixture-local actuator gates retain final authority.
+- **Legacy fleet roll** is an explicit compatibility output for deployed
+  fixtures that do not understand program 5. Select one fresh source such as
+  Magmar; its infection edge starts one deterministic 40 ms addressed roll over
+  fresh downlights only. Duplicate state frames stay quiet, and Stop/10-minute
+  expiry disables the adapter. Do not use this mode once the participating
+  mallet fleet runs native Contagion, or the two paths would duplicate intent.
+- Color can be a fixed palette hue or random per local/manual seed. The hue is
+  part of the transmitted state and is adopted across the graph.
+
+A Color Virus fixture remains infected, but another clear/re-armed local ToF
+gesture introduces a newer strain across the infected graph. Random mode
+guarantees a different transmitted hue at the source; a fixed palette choice
+deliberately stays fixed. Serial strain ordering plus a deterministic hue
+tie-break makes simultaneous strains converge rather than overwrite each other
+forever. If the source is the only updated fixture among old-image neighbors,
+its local color proves the seed but there is no compatible graph across which
+that color can spread.
+
+The optional **ToF** control uses the learned downlight approach detector plus
+a deliberate perimeter palm gesture. On the first named perimeter canary, clear
+space held at 0/16 near zones while a palm hovered 5-10 cm above the sensor held
+15-16/16; touching it can be too close to range. The gate requires two broad
+near reports and four clear reports to re-arm. Direct sun and final geometry
+still need qualification. Old fixture firmware rejects program 5 and will not
+join the infection graph.
 
 ## Patterns v1
 

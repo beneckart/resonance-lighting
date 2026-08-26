@@ -12,6 +12,7 @@
 #include "app_ca.h"
 #include "app_chat.h"
 #include "app_commission.h"
+#include "app_contagion.h"
 #include "app_fleet.h"
 #include "app_health.h"
 #include "app_knocker.h"
@@ -52,6 +53,7 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_BELL, "Knock", appKnockerOpen},
     {LV_SYMBOL_PLAY, "Patterns", openPatterns},
     {LV_SYMBOL_LOOP, "CA", appCaOpen},
+    {LV_SYMBOL_SHUFFLE, "Contagion", appContagionOpen},
     {LV_SYMBOL_HOME, "Default", appCommissionOpen},
     {LV_SYMBOL_GPS, "Schedule", appScheduleOpen},
     {LV_SYMBOL_EYE_OPEN, "Locate", openLocatePlaceholder},

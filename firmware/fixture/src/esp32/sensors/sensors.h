@@ -26,6 +26,11 @@ struct SensorSnapshot {
   float vlTiltDeg;   // ground-plane tilt vs boot-captured rest plane
   uint8_t vlZones;   // zones kept in the last fit
   uint16_t vlClosestMm; // closest valid return (presence proxy)
+  uint32_t vlReads;  // successful fresh ranging frames this boot
+  uint8_t vlNearZones; // zones with a valid 30..350 mm return this frame
+  uint8_t vlTargetZones; // zones reporting any raw target this frame
+  uint8_t vlValidZones; // zones with a valid 30..4000 mm return this frame
+  uint16_t vlZoneNearestMm[16]; // nearest valid return per 4x4 zone
   // BMP581 env (uplight)
   bool bmpPresent, bmpOk;
   float tempC;

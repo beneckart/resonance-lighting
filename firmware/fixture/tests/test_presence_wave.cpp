@@ -60,6 +60,25 @@ int main() {
   CHECK(!observe2(gate, ++seq, 0, 0, 910, 50));
   CHECK(observe2(gate, ++seq, 0, 0, 920, 50));
 
+  // Perimeter cover gesture: one close zone or one-frame spatial noise is not
+  // enough. Two fresh frames with >=4 close zones fire once, a held hand does
+  // not repeat, and four clear frames re-arm. Duplicate reports are ignored.
+  Vl53CoverGate cover;
+  vl53CoverInit(cover);
+  CHECK(!vl53CoverObserve(cover, 1, 1));
+  CHECK(!vl53CoverObserve(cover, 2, 4));
+  CHECK(!vl53CoverObserve(cover, 3, 2));
+  CHECK(!vl53CoverObserve(cover, 4, 5));
+  CHECK(vl53CoverObserve(cover, 5, 6));
+  CHECK(!vl53CoverObserve(cover, 5, 0)); // duplicate sequence
+  CHECK(!vl53CoverObserve(cover, 6, 8));
+  CHECK(!vl53CoverObserve(cover, 7, 0));
+  CHECK(!vl53CoverObserve(cover, 8, 0));
+  CHECK(!vl53CoverObserve(cover, 9, 0));
+  CHECK(!vl53CoverObserve(cover, 10, 0));
+  CHECK(!vl53CoverObserve(cover, 11, 4));
+  CHECK(vl53CoverObserve(cover, 12, 4));
+
   uint8_t visited[4][3] = {{1, 2, 3}, {4, 5, 6}};
   uint8_t yes[3] = {4, 5, 6};
   uint8_t no[3] = {7, 8, 9};

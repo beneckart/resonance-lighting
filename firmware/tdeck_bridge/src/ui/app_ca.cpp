@@ -68,7 +68,7 @@ static void applyCb(lv_event_t *) {
   uint16_t leaseS = kLeases[lv_dropdown_get_selected(gLeaseDd)];
   snprintf(summary, sizeof(summary), "%s wildfire on all awake fixtures for "
            "%u s. ToF seed %s; %s", knockMode() ? "Knock" : "Light", leaseS,
-           tofSeedEnabled() ? "ON (sensor downlights originate)" : "off",
+           tofSeedEnabled() ? "ON (downlight approach / perimeter palm)" : "off",
            knockMode() ? "Local daytime and power gates still decide each knock."
                        : "Local light power gates still apply.");
   uiConfirm(summary, "CA Studio", applyYes, nullptr);

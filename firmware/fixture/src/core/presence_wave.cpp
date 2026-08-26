@@ -73,6 +73,38 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
   return true;
 }
 
+void vl53CoverInit(Vl53CoverGate &gate) {
+  memset(&gate, 0, sizeof(gate));
+}
+
+bool vl53CoverObserve(Vl53CoverGate &gate, uint32_t readSeq,
+                      uint8_t nearZones) {
+  if (!readSeq || readSeq == gate.lastReadSeq) return false;
+  gate.lastReadSeq = readSeq;
+  bool covered = nearZones >= VL53_COVER_MIN_ZONES;
+
+  if (gate.latched) {
+    if (covered) {
+      gate.clearReads = 0;
+    } else if (++gate.clearReads >= VL53_COVER_CLEAR_READS) {
+      gate.latched = false;
+      gate.clearReads = 0;
+    }
+    return false;
+  }
+
+  if (!covered) {
+    gate.hitReads = 0;
+    return false;
+  }
+  if (gate.hitReads < UINT8_MAX) ++gate.hitReads;
+  if (gate.hitReads < VL53_COVER_HIT_READS) return false;
+  gate.hitReads = 0;
+  gate.latched = true;
+  gate.clearReads = 0;
+  return true;
+}
+
 void waveHueToRgb(uint8_t hue, uint8_t value,
                   uint8_t &r, uint8_t &g, uint8_t &b) {
   uint8_t segment = hue / 43;

@@ -13,6 +13,7 @@
 // Node i's neighbors are i-1 and i+1. We run 5 ChoreoRuntime-less GH programs
 // directly through the Program interface, exchanging txState via views.
 Program *newProgGhCa();
+Program *newProgContagion();
 
 struct SimNode {
   ProgramOutputs out;
@@ -130,6 +131,176 @@ int main() {
     in.nowMs += 100;
     gh->tick(in, out);
     CHECK(!out.strikeRequested);
+  }
+
+  // Contagion is a distinct infection family, not another CA picker. Color
+  // Virus persists and adopts the infecting neighbor's hue. Epidemic recovers
+  // through a bounded immune state, while every infection edge can request a
+  // knock without granting actuator authority.
+  {
+    Program *contagion = newProgContagion();
+    ProgramInputs in = {};
+    in.fixtureClass = FIXTURE_PERIMETER;
+    in.pixelCount = 37;
+    ProgramOutputs out = {};
+
+    // Manual Color Virus seed: immediate colored infection, persistent, one
+    // edge announcement, no knock in light mode.
+    uint8_t virus[8] = {0, 0, 3, 5, 1, 64, 0, 0x01};
+    contagion->reset(11, virus, FIXTURE_PERIMETER, 37);
+    in.nowMs = 1000;
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)1);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)64);
+    CHECK(!out.strikeRequested);
+    CHECK(!out.suppressLight);
+    for (int i = 0; i < 12; ++i) {
+      in.nowMs += 100;
+      out = ProgramOutputs{};
+      contagion->tick(in, out);
+    }
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)1);
+    CHECK(!out.sendNow);
+
+    // A re-armed local edge on persistent Color Virus creates a strictly newer
+    // strain. Random mode guarantees a visibly different transmitted hue;
+    // held state without another rising edge remains quiet.
+    uint8_t repeatVirus[8] = {0, 0, 3, 5, 1, 64, 1, 0x03};
+    contagion->reset(0x12345678, repeatVirus, FIXTURE_PERIMETER, 37);
+    in.neighbors = nullptr;
+    in.neighborCount = 0;
+    in.tofPresenceRising = false;
+    in.nowMs = 3000;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    uint8_t oldHue = (uint8_t)(out.txState & 0xFC);
+    uint16_t oldStrain = out.generation;
+    CHECK(out.sendNow);
+    in.tofPresenceRising = true;
+    ++in.nowMs;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK_EQ(out.generation, (uint16_t)(oldStrain + 1));
+    CHECK((out.txState & 0xFC) != oldHue);
+    uint8_t newHue = (uint8_t)(out.txState & 0xFC);
+    in.tofPresenceRising = false;
+    ++in.nowMs;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(!out.sendNow);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), newHue);
+
+    // An already-infected neighbor adopts a newer strain exactly once. An
+    // older strain cannot recolor it back, preventing two-color ping-pong.
+    NeighborView strainNeighbor = {};
+    strainNeighbor.programId = PROG_CONTAGION;
+    strainNeighbor.state = (uint8_t)(200 | 1);
+    strainNeighbor.generation = (uint16_t)(oldStrain + 2);
+    in.neighbors = &strainNeighbor;
+    in.neighborCount = 1;
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK_EQ(out.generation, strainNeighbor.generation);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)200);
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(!out.sendNow);
+    strainNeighbor.generation = oldStrain;
+    strainNeighbor.state = (uint8_t)(240 | 1);
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(!out.sendNow);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)200);
+
+    // Simultaneous equal-sequence strains converge on one deterministic hue.
+    strainNeighbor.generation = out.generation;
+    strainNeighbor.state = (uint8_t)(220 | 1);
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)220);
+    strainNeighbor.state = (uint8_t)(180 | 1);
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(!out.sendNow);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)220);
+
+    // An infected Contagion neighbor seeds light+knock and transfers its hue.
+    // A GH neighbor using the same low state bits is ignored. This receiver is
+    // a mallet-bearing downlight, so its infection edge requests one strike.
+    uint8_t both[8] = {0, 2, 3, 5, 1, 8, 0, 0};
+    contagion->reset(12, both, FIXTURE_DOWNLIGHT, 37);
+    NeighborView neighbor = {};
+    neighbor.programId = PROG_GH_CA;
+    neighbor.state = 1;
+    in.neighbors = &neighbor;
+    in.neighborCount = 1;
+    in.tofPresenceRising = false;
+    in.nowMs = 5000;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    in.nowMs += 100;
+    contagion->tick(in, out);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)0);
+    neighbor.programId = PROG_CONTAGION;
+    neighbor.state = (uint8_t)(132 | 1);
+    in.nowMs += 100;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK(out.strikeRequested);
+    CHECK(!out.suppressLight);
+    CHECK_EQ((uint8_t)(out.txState & 0xFC), (uint8_t)132);
+
+    // A perimeter palm seed is relay-only: it announces the infection and
+    // stays dark, but does not pulse the unused solenoid output.
+    uint8_t epidemic[8] = {1, 1, 2, 2, 1, 200, 1, 0x01};
+    contagion->reset(13, epidemic, FIXTURE_PERIMETER, 37);
+    in.neighbors = nullptr;
+    in.neighborCount = 0;
+    in.nowMs = 10000;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK(!out.strikeRequested);
+    CHECK(out.suppressLight);
+    CHECK_EQ(out.frame.px[0][0], 0u);
+
+    // Epidemic on a downlight: two infected ticks, two immune ticks, then
+    // susceptible. A local ToF edge reinfects immediately and requests one
+    // knock while knock-only stays dark.
+    contagion->reset(14, epidemic, FIXTURE_DOWNLIGHT, 37);
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.strikeRequested);
+    CHECK(out.suppressLight);
+    in.nowMs += 100;
+    contagion->tick(in, out);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)1);
+    in.nowMs += 100;
+    contagion->tick(in, out);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)2);
+    in.nowMs += 100;
+    contagion->tick(in, out);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)2);
+    in.nowMs += 100;
+    contagion->tick(in, out);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)0);
+    in.tofPresenceRising = true;
+    in.nowMs += 1;
+    out = ProgramOutputs{};
+    contagion->tick(in, out);
+    CHECK(out.sendNow);
+    CHECK(out.strikeRequested);
+    CHECK_EQ((uint8_t)(out.txState & 0x03), (uint8_t)1);
   }
 
   // --- neighbor table: RSSI mode picks strongest fresh; pinned overrides ----

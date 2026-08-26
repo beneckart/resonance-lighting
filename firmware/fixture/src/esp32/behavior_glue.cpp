@@ -64,6 +64,7 @@ struct PresenceWaveState {
 
 static PresenceWaveState gWave;
 static TmfPresenceGate gPresence;
+static Vl53CoverGate gVl53Cover;
 static bool gWaveDisplayActive = false;
 static uint8_t gWaveDisplayHue = 0;
 static uint8_t gWaveDisplayValue = 96;
@@ -193,18 +194,25 @@ void behaviorOnTimeQuality(const NbTimeQuality &time, const uint8_t srcId[3]) {
 }
 
 static void waveTick(uint32_t now) {
-  // Consume each TMF report exactly once even while another program owns the
-  // renderer. The resulting one-loop pulse can seed an explicitly opted-in CA
-  // lease; the listener path below may instead turn it into the older color
-  // wipe. A latched/stale distance is never presented as a continuing trigger.
+  // Consume each sensor report exactly once even while another program owns
+  // the renderer. Downlights use the learned TMF approach edge; reachable
+  // perimeter fixtures use a deliberate broad VL53L5CX palm-cover edge.
   gTofPresenceRising = false;
   const SensorSnapshot &snapshot = sensors();
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk)
     gTofPresenceRising =
         tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
                            snapshot.tofZoneConfidence);
+  else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent && snapshot.vlOk)
+    gTofPresenceRising =
+        vl53CoverObserve(gVl53Cover, snapshot.vlReads, snapshot.vlNearZones);
 
   if (gRuntime.leaseActive()) {
+    gPresencePending = false;
+    return;
+  }
+  // The legacy listener color wipe remains a canopy/downlight interaction.
+  if (gClass != FIXTURE_DOWNLIGHT) {
     gPresencePending = false;
     return;
   }
@@ -275,6 +283,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
+  vl53CoverInit(gVl53Cover);
   memset(&gWave, 0, sizeof(gWave));
   timeConsensusInit(gTimeConsensus);
 }
@@ -300,12 +309,12 @@ bool behaviorStrikePermitted() {
 static void handleProgramStrike(const ProgramOutputs &out) {
   if (!out.strikeRequested) return;
   if (!behaviorStrikePermitted()) {
-    Serial.println("solenoid: CA knock refused (lifecycle/power gate)");
+    Serial.println("solenoid: choreography knock refused (lifecycle/power gate)");
     return;
   }
   uint16_t pulseMs = out.strikePulseMs ? out.strikePulseMs : 40;
-  if (!solenoidStrike(pulseMs, "CA wildfire"))
-    Serial.println("solenoid: CA knock blocked (arm/rest/mechanism gate)");
+  if (!solenoidStrike(pulseMs, "choreography"))
+    Serial.println("solenoid: choreography knock blocked (arm/rest/mechanism gate)");
 }
 
 void behaviorOnChoreoState(const uint8_t srcId[3], int8_t rssi, const NbChoreoState &cs) {

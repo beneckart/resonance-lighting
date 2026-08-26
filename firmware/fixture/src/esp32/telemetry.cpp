@@ -207,6 +207,16 @@ String telemetryJson() {
     j += ",\"vl_tilt_deg\":" + String(sn.vlTiltDeg, 2);
     j += ",\"vl_zones\":" + String(sn.vlZones);
     j += ",\"vl_closest_mm\":" + String(sn.vlClosestMm);
+    j += ",\"vl_reads\":" + String((unsigned long)sn.vlReads);
+    j += ",\"vl_near_zones\":" + String(sn.vlNearZones);
+    j += ",\"vl_target_zones\":" + String(sn.vlTargetZones);
+    j += ",\"vl_valid_zones\":" + String(sn.vlValidZones);
+    j += ",\"vl_zone_nearest_mm\":[";
+    for (uint8_t zone = 0; zone < 16; ++zone) {
+      if (zone) j += ',';
+      j += String(sn.vlZoneNearestMm[zone]);
+    }
+    j += ']';
   }
   j += ",\"bmp581_present\":";
   j += sn.bmpPresent ? "true" : "false";

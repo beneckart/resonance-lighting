@@ -72,6 +72,7 @@ static const char *programName(uint8_t program) {
     case 2: return "bridge";
     case 3: return "direct";
     case 4: return "dark";
+    case 5: return "contagion";
     default: return "?";
   }
 }

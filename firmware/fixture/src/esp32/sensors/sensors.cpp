@@ -272,6 +272,7 @@ static void vlTick(uint32_t now) {
   if (!gVl.isDataReady()) return;
   static VL53L5CX_ResultsData results;
   if (!gVl.getRangingData(&results)) return;
+  ++gSnap.vlReads;
   // ULD per-target arrays are zone-major (zone * VL53L5CX_NB_TARGET_PER_ZONE
   // + target, per-zone nb_target_detected gates stale entries); selection
   // lives in core/tof_grid so the native tests pin that layout.
@@ -290,6 +291,16 @@ static void vlTick(uint32_t now) {
                                   results.nb_target_detected, TOF_ZONES,
                                   VL53L5CX_NB_TARGET_PER_ZONE, 50, 4000,
                                   zoneMm, &closest);
+  gSnap.vlNearZones = l5cxCountNearZones(
+      results.distance_mm, results.target_status, results.nb_target_detected,
+      TOF_ZONES, VL53L5CX_NB_TARGET_PER_ZONE, 30, 350);
+  gSnap.vlTargetZones = 0;
+  for (int zone = 0; zone < TOF_ZONES; ++zone)
+    if (results.nb_target_detected[zone]) ++gSnap.vlTargetZones;
+  gSnap.vlValidZones = l5cxSelectNearest(
+      results.distance_mm, results.target_status, results.nb_target_detected,
+      TOF_ZONES, VL53L5CX_NB_TARGET_PER_ZONE, 30, 4000,
+      gSnap.vlZoneNearestMm);
   float px[TOF_ZONES], py[TOF_ZONES], pz[TOF_ZONES];
   bool keep[TOF_ZONES];
   for (int i = 0; i < TOF_ZONES; i++) {
@@ -303,8 +314,8 @@ static void vlTick(uint32_t now) {
     }
   }
   float a, b, c;
+  gSnap.vlZones = kept;
   if (planeFitLS(px, py, pz, keep, TOF_ZONES, TOF_MIN_FIT, &a, &b, &c)) {
-    gSnap.vlZones = kept;
     if (!gVlRestSet) {
       gVlRestA = a;
       gVlRestB = b;

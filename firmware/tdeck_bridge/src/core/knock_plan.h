@@ -14,3 +14,9 @@ size_t targetPlanFresh(const CensusView *rows, size_t rowCount,
 // Compatibility name retained for the original knocker consumer.
 size_t knockPlanFresh(const CensusView *rows, size_t rowCount,
                       uint32_t freshMs, uint8_t out[][3], size_t outCap);
+
+// Compatibility fanout targets only the production mallet class. Perimeter
+// fixtures remain sensor/relay nodes and never receive legacy strike requests.
+size_t knockPlanFreshClass(const CensusView *rows, size_t rowCount,
+                           uint32_t freshMs, uint8_t fixtureClass,
+                           uint8_t out[][3], size_t outCap);

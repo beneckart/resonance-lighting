@@ -7,6 +7,7 @@
 #include "src/hal/hal_input.h"
 #include "src/hal/pins_tdeck.h"
 #include "src/net/census_svc.h"
+#include "src/net/contagion_fanout.h"
 #include "src/net/claude_client.h"
 #include "src/net/espnow_link.h"
 #include "src/net/mesh_tx.h"
@@ -63,6 +64,7 @@ void loop() {
   netMgrTick();
   espnowEnsureUp();
   censusSvcTick(millis());
+  contagionFanoutTick(millis());
   streamSvcTick(millis());
   halGpsTick();
   timeSvcTick();

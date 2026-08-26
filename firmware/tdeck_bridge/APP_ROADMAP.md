@@ -10,7 +10,7 @@ but does not change or duplicate it.
 ## Current baseline
 
 Bridge OS is no longer a proposed handheld. M0-M4 are hardware-verified and the
-launcher has fourteen tiles. Health and Schedule are integrated and flashed;
+launcher has fifteen tiles. Health and Schedule are integrated and flashed;
 Patterns v1 and RF Diagnostics are integrated and flashed on `8EB508`. Locate
 is the only remaining literal placeholder. Detailed Sensors work follows Health
 when the packet contract can report measurements that heartbeats do not contain.
@@ -24,6 +24,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
 | Knocker | Three fleet modes built; pending fixture/T-Deck hardware validation | Retains the deterministic 192-entry targeted roll and adds immediate multicast plus a shared +1.0 s multicast deadline. Every fixture rechecks its local strike gates at fire time. |
 | CA Studio | Light mode field-smoke-tested; knock wildfire source-built | The operator picker now contains only light and knock CA outputs. Hardware-validate sound-only daytime propagation on a named solarnoid cohort. |
+| Contagion | Flashed; fleet fixture promotion pending | Separate Color Virus/Epidemic family with light, native knock, both, or explicit old-fleet targeted-roll output. Re-armed Color Virus gestures now launch ordered new-color strains without hue ping-pong. The target picker is callsign-sorted and keyboard-filterable. F2BDFC's perimeter palm produced one live blue seed; repeat-strain spread remains to be observed after fleet OTA. |
 | Default | Source-built; hardware validation pending | Exact-target commission fallback selector: ready beacon, light CA, or strict dark; RAM-only or persisted. Verify named canaries and NVS survival before fleet use. |
 | Settings | Working | Secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
@@ -176,6 +177,11 @@ remains open; microphone capture remains v2.
 4. **CA Studio hardware completion:** validate light/knock selection, live knob
    reapply without a visible blip, sound-only output, and one gated mallet
    request per excitation edge on a named daylight solarnoid cohort.
+5. **Contagion hardware completion:** validate Color Virus hue propagation,
+   ordered repeat-strain recoloring, Epidemic recovery/reinfection, exact-target
+   seed, and stop/expiry before enabling any knock output. Prove one perimeter
+   palm seed/re-arm cycle on F2BDFC, including exactly one native downlight edge
+   per new strain, then repeat the optical check in direct sun and final geometry.
 
 ## P3 - dependency-bound features
 

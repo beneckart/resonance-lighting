@@ -12,6 +12,13 @@
 #define PRESENCE_CLEAR_READS 4
 #define PRESENCE_ZONE_COUNT 9
 
+// Deliberate perimeter easter egg. A palm held 5-10 cm over F2BDFC produced
+// 15-16 near zones against a stable clear baseline of zero. Debounce the broad
+// multi-zone signature so a fleeting return cannot originate a program seed.
+#define VL53_COVER_MIN_ZONES 4
+#define VL53_COVER_HIT_READS 2
+#define VL53_COVER_CLEAR_READS 4
+
 struct TmfPresenceGate {
   uint32_t lastReadSeq;
   uint16_t baselineMm[PRESENCE_ZONE_COUNT];
@@ -28,6 +35,20 @@ void tmfPresenceInit(TmfPresenceGate &gate);
 bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
                         const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
                         const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]);
+
+struct Vl53CoverGate {
+  uint32_t lastReadSeq;
+  uint8_t hitReads;
+  uint8_t clearReads;
+  bool latched;
+};
+
+void vl53CoverInit(Vl53CoverGate &gate);
+
+// Consume each read sequence once. Returns one rising edge after a deliberate
+// multi-zone cover, then requires four clear frames before another edge.
+bool vl53CoverObserve(Vl53CoverGate &gate, uint32_t readSeq,
+                      uint8_t nearZones);
 
 void waveHueToRgb(uint8_t hue, uint8_t value,
                   uint8_t &r, uint8_t &g, uint8_t &b);

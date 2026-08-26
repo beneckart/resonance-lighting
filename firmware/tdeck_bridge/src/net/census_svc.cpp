@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "espnow_link.h"
+#include "contagion_fanout.h"
 #include "fixture/src/core/packet.h"
 #include "mesh_tx.h"
 #include "nb_emit.h"
@@ -64,6 +65,7 @@ void censusSvcTick(uint32_t nowMs) {
     const NbHeader *h = (const NbHeader *)item.data;
     if (memcmp(h->src_id, meshMyId(), 3) == 0) continue;  // our own bursts
     noteTailFrame(item, h);
+    contagionFanoutObserve(item);
     taskENTER_CRITICAL(&gCensusLock);
     bool consumed = gCensus.ingest(item, nowMs);
     taskEXIT_CRITICAL(&gCensusLock);

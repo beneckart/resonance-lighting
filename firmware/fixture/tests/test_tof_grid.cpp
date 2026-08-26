@@ -132,5 +132,29 @@ int main() {
     CHECK_EQ(c1, 51u);
   }
 
+  // Near-cover count is spatial: multiple close targets in one zone count
+  // once, invalid/no-return cells do not count, and stale target slots remain
+  // gated by nb_target_detected.
+  clearFrame();
+  setTarget(0, 0, 100, 5);
+  setTarget(0, 1, 80, 9);   // same zone, still one
+  setTarget(3, 0, 200, 9);
+  setTarget(7, 0, 349, 5);
+  setTarget(8, 0, 350, 5);  // strict upper edge: out
+  setTarget(9, 0, 90, 6);   // invalid status
+  gDist[10 * TPZ] = 70;     // valid-looking stale slot, nb=0
+  gStat[10 * TPZ] = 5;
+  CHECK_EQ(l5cxCountNearZones(gDist, gStat, gNb, Z, TPZ, 30, 350), 3u);
+
+  uint16_t nearest[Z];
+  CHECK_EQ(l5cxSelectNearest(gDist, gStat, gNb, Z, TPZ, 30, 4000,
+                            nearest), 4u);
+  CHECK_EQ(nearest[0], 80u);
+  CHECK_EQ(nearest[3], 200u);
+  CHECK_EQ(nearest[7], 349u);
+  CHECK_EQ(nearest[8], 350u);
+  CHECK_EQ(nearest[9], 0u);
+  CHECK_EQ(nearest[10], 0u);
+
   return testReport("tof_grid");
 }

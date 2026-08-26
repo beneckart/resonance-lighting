@@ -29,6 +29,7 @@ static const char *programName(uint8_t p) {
     case 2: return "bridge-show";
     case 3: return "direct";
     case 4: return "dark";
+    case 5: return "contagion";
     default: return "?";
   }
 }

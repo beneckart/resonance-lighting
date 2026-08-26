@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "core/contagion_fanout_model.h"
 #include "core/knock_plan.h"
 
 #define CHECK(x)                                                               \
@@ -36,6 +37,28 @@ int main() {
   uint8_t capped[32][3] = {};
   CHECK(knockPlanFresh(rows, 132, 5000, capped, 32) == 32);
   CHECK(targetPlanFresh(rows, 132, 5000, capped, 32) == 32);
+
+  rows[0].fixtureClass = 2;
+  rows[1].fixtureClass = 1;
+  rows[2].fixtureClass = 1;
+  uint8_t downlights[4][3] = {};
+  CHECK(knockPlanFreshClass(rows, 132, 5000, 1, downlights, 4) == 2);
+  CHECK(memcmp(downlights[0], rows[2].id, 3) == 0);
+  CHECK(memcmp(downlights[1], rows[1].id, 3) == 0);
+
+  ContagionFanoutGate gate;
+  contagionFanoutGateInit(gate);
+  uint8_t magmar[3] = {0xF2, 0xBD, 0xFC};
+  uint8_t other[3] = {0xF2, 0xBE, 0x00};
+  contagionFanoutGateConfigure(gate, magmar, true);
+  CHECK(!contagionFanoutGateObserve(gate, other, 5, 1));
+  CHECK(!contagionFanoutGateObserve(gate, magmar, 5, 0));
+  CHECK(contagionFanoutGateObserve(gate, magmar, 5, 1));
+  CHECK(!contagionFanoutGateObserve(gate, magmar, 5, 1));
+  CHECK(!contagionFanoutGateObserve(gate, magmar, 5, 2));
+  CHECK(contagionFanoutGateObserve(gate, magmar, 5, 1));
+  contagionFanoutGateConfigure(gate, magmar, false);
+  CHECK(!contagionFanoutGateObserve(gate, magmar, 5, 1));
 
   printf("knock_plan ok\n");
   return 0;

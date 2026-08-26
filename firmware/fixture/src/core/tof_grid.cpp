@@ -24,3 +24,54 @@ uint8_t l5cxSelectGround(const int16_t *distanceMm, const uint8_t *targetStatus,
   *closestMm = closest;
   return kept;
 }
+
+uint8_t l5cxCountNearZones(const int16_t *distanceMm,
+                           const uint8_t *targetStatus,
+                           const uint8_t *nbTargetDetected, uint8_t zones,
+                           uint8_t targetsPerZone, int16_t minMm,
+                           int16_t maxMm) {
+  uint8_t nearZones = 0;
+  for (uint8_t zone = 0; zone < zones; ++zone) {
+    uint8_t targets = nbTargetDetected[zone];
+    if (targets > targetsPerZone) targets = targetsPerZone;
+    bool near = false;
+    for (uint8_t target = 0; target < targets; ++target) {
+      uint16_t index = (uint16_t)(zone * targetsPerZone + target);
+      uint8_t status = targetStatus[index];
+      int16_t distance = distanceMm[index];
+      if ((status == 5 || status == 9) && distance > minMm &&
+          distance < maxMm) {
+        near = true;
+        break;
+      }
+    }
+    if (near) ++nearZones;
+  }
+  return nearZones;
+}
+
+uint8_t l5cxSelectNearest(const int16_t *distanceMm,
+                          const uint8_t *targetStatus,
+                          const uint8_t *nbTargetDetected, uint8_t zones,
+                          uint8_t targetsPerZone, int16_t minMm,
+                          int16_t maxMm, uint16_t *zoneNearestMm) {
+  uint8_t validZones = 0;
+  for (uint8_t zone = 0; zone < zones; ++zone) {
+    uint8_t targets = nbTargetDetected[zone];
+    if (targets > targetsPerZone) targets = targetsPerZone;
+    uint16_t nearest = 0;
+    for (uint8_t target = 0; target < targets; ++target) {
+      uint16_t index = (uint16_t)(zone * targetsPerZone + target);
+      uint8_t status = targetStatus[index];
+      int16_t distance = distanceMm[index];
+      if ((status != 5 && status != 9) || distance <= minMm ||
+          distance >= maxMm)
+        continue;
+      if (!nearest || (uint16_t)distance < nearest)
+        nearest = (uint16_t)distance;
+    }
+    zoneNearestMm[zone] = nearest;
+    if (nearest) ++validZones;
+  }
+  return validZones;
+}

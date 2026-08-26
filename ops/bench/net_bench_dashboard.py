@@ -1066,7 +1066,7 @@ const FIXTURE_CLASS = {0: "unknown", 1: "canopy / downlight", 2: "perimeter", 3:
 const FIXTURE_CLASS_KEY = {0: "unknown", 1: "downlight", 2: "perimeter", 3: "uplight", 4: "chandelier"};
 const LIFE_STATE = {0: "boot", 1: "day charge", 2: "day active", 3: "night show", 4: "commission"};
 const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
-const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback"};
+const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback", 5: "contagion"};
 const RECOVERY_STATE = {0: "normal", 1: "recovery waiting", 2: "recovering", 3: "recovery refused", 4: "recovered", 5: "recovery I/O error"};
 
 function sensorSignature(peer) {

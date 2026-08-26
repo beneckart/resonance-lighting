@@ -100,6 +100,7 @@ static const char *programName(uint8_t prog) {
     case 2: return "brdg";
     case 3: return "dir";
     case 4: return "dark";
+    case 5: return "virus";
     default: return "?";
   }
 }
