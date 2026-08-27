@@ -12,8 +12,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   sends a corrected full heartbeat on the validity transition, and blocks
   ordinary day sleep until that sample or a bounded 15 s gauge-fault fail-open.
   Native fixture/T-Deck/host tests and both embedded builds pass; exact T-Deck
-  `8EB508` is flashed with the new UI. Build one clean immutable credentialed
-  fixture artifact, OTA one named battery-backed field canary, and prove early
+  `8EB508` is flashed with the new UI. Clean immutable credentialed candidate
+  `fx-260827-db0cb73-p` is retained from source `8c0e577`, 1,207,408 bytes,
+  SHA-256 `e30c42802f34966ca5c959539d20bf9c737786c935dc81c3934a3ff638386b5c`.
+  OTA one named battery-backed field canary and prove early
   IBAT unverified -> charge enable -> validated positive sun current at about
   12 s -> 120 s sleep. Remove input and prove negative current on a later wake;
   also check a terminating/full battery, Health VBAT/CHG colors and detail, the

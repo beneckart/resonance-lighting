@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- ADR 0064 immutable fixture candidate retained
+
+Committed the complete short-wake power-truth change as clean source
+`8c0e577ed05b32453aeeefa239819920551e7a6d`, then generated the canonical
+production recipe with field profile, channel 11, LFP, 300 mA precharge,
+120-second day sleep, 12,000 ms listen grace, ADR 0039 basic-listener
+capability, and the local `party-in-the-woods-v1` credential set. Recipe
+SHA-256 is
+`db0cb732abe988e6c0e8e691d5c11ccabc92cf127d99691db95fe10542838463`.
+
+The fresh retained build completed normally with the actual production
+conditional paths. Candidate `fx-260827-db0cb73-p` uses 1,207,113 bytes (36
+percent) of flash and 68,692 bytes (20 percent) of RAM. Its 1,207,408-byte
+`fixture.ino.bin` has SHA-256
+`e30c42802f34966ca5c959539d20bf9c737786c935dc81c3934a3ff638386b5c`.
+`build.options.json`, embedded identity, binary digest, immutable manifest, and
+the locally installed PowerFeather SDK source-tree digest all agree. The
+manifest marks this `p` artifact `candidate_canary_pending`.
+
+No fixture was commanded, rebooted, profile-mutated, or OTA-flashed. ADR 0064
+requires one explicit battery-backed field canary before widening, and ADR 0040
+still requires Ben to name the exact short-MAC target roster and sole writer.
+
 ## 2026-08-27 -- Ben + Codex -- Short-wake charge truth and Health charge view built
 
 Investigated why most idle daytime fixtures reported battery current around
