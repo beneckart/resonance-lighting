@@ -495,7 +495,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixture image while both new multicast choices are silent, exactly matching
   the documented old-firmware ignore path; this is not evidence that the new
   receiver failed. The isolated matching-image canary remains required
-  (Ben + Codex).
+  (Ben + Codex). **2026-08-27 field diagnosis:** a reported 92-live roll was
+  audibly sparse. A later read-only snapshot had 83 peers under the five-second
+  fresh threshold but only four with affirmative FIELD + DAY_ACTIVE + FULL +
+  >=150 mA input evidence; 18 known rows were DAY_CHARGE and 60 fresh serial
+  rows lacked usable full-state tails. The current roll includes every fresh
+  class and takes about 7.36 s for 92 targets, while local lifecycle/power/
+  mechanism gates still refuse most requests. Change the modal from one
+  misleading `fresh fixtures` count to separate fresh, known mallet-class, and
+  strike-ready counts; offer a ready-only targeted roll and keep all-fresh as
+  an explicitly diagnostic option. Then compare it with broadcast-now and
+  sync-+1.0 s on the matching-image cohort (Ben + Codex).
 - [x] **Seed and validate the locked T-Deck development cache -- DONE
   2026-08-24.** The fixture cache's lock, recipe fingerprint, interruption
   marker, quarantine recovery, `tdeck-dev-local` identity, and fresh-artifact

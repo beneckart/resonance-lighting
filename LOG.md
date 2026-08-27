@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Sparse Knocker roll is not the live count
+
+Ben observed 92 live fixtures but only sparse audible results from a Knocker
+targeted roll. A subsequent read-only 22-second T-Deck serial census captured
+106 unique peers, 83 of them under the app's 5-second freshness threshold. Of
+the fresh rows whose full lifecycle fields were available, 18 reported
+DAY_CHARGE, four reported DAY_ACTIVE, and one reported COMMISSION. Only four
+had affirmative FIELD + DAY_ACTIVE + FULL + good input >=150 mA evidence:
+`9E5B44`, `9F2664`, `9F266C`, and `F401CC`. Sixty fresh serial rows lacked the
+full lifecycle/firmware tail, so they could not be counted as strike-ready.
+No fixture command was sent during this diagnosis.
+
+Knocker currently equates `fresh` with rollout membership. It snapshots every
+real ID heard within five seconds, regardless of class, full-state evidence,
+DAY_ACTIVE, tier, solar input, or physical mallet presence. A 92-target roll at
+80 ms per target takes about 7.36 seconds, so an ordinary short-wake peer may
+already be asleep when its sorted turn arrives even though it was `live` when
+the modal opened. Every receiver then independently refuses a field strike
+unless it is DAY_ACTIVE with >=150 mA input and FULL tier; a fixture without
+physical mallet hardware is silent regardless. The displayed live count is
+therefore send fanout, not expected audible knocks. Add explicit fresh,
+mallet-class, state-known, and strike-ready counts/filtering; retain the
+multicast modes for the updated fleet when simultaneous awake-peer delivery is
+desired.
+
 ## 2026-08-27 -- Ben + Codex -- Hawkeye passed ADR 0064 OTA canary
 
 Declared exact T-Deck `8EB508` as the sole writer and exact fixture `9F2664`
