@@ -22,9 +22,12 @@ use `powerfeather_solar_guard.h` to force the BQ25628E wide input-OVP bit and to
 input re-qualification if the panel is present but the charger is latched not-good.
 
 Performance-audio note: the received PUCA DSP/Eurorack hardware is documented in
-`../hardware/puca-audio-bridge/README.md` and selected by ADR 0035. There is no
-`puca_bridge/` firmware yet. The proven CoreS3 audio-reactive implementation is
-the reference, not a PUCA-compatible binary.
+`../hardware/puca-audio-bridge/README.md` and selected by ADR 0035.
+`puca_bridge/` now contains a native-tested development target whose powered-
+Pod20 codec/stereo/control/radio/full-census baseline has run on the received
+hardware. Exact waveform/light fidelity, receiver fallback, and field geometry
+remain acceptance-gated. The proven CoreS3 audio-reactive implementation is
+still the field fallback, not a PUCA-compatible binary.
 
 ## Planned production structure (NOT yet built -- see ARCHITECTURE.md)
 

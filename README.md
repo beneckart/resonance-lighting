@@ -85,8 +85,11 @@ clock.
 PUCA DSP Original Edition in its Eurorack expansion, paired with a RODE VideoMic
 NTG, will analyze one clean audio source and publish directed show frames over
 ESP-NOW. The already-proven CoreS3 + Module Audio path remains the independent
-fallback. PUCA hardware is on hand, but custom firmware and field validation are
-still pending; see `hardware/puca-audio-bridge/README.md`.
+fallback. PUCA hardware is on hand; its development firmware now passes the
+powered-Pod20 codec/stereo/control/radio/full-census baseline with locked
+standalone HEARTBEAT startup. The performer's exact waveform, visible fixture
+fidelity/fallback, and field validation remain pending. See
+`hardware/puca-audio-bridge/README.md`.
 
 **The camp network is pinned to the mesh channel** (ADR 0036). The ESP32-S3 has
 one 2.4 GHz radio, so WiFi STA and ESP-NOW must share a channel, and in STA mode

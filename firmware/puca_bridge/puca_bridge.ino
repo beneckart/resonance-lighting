@@ -1,11 +1,11 @@
 // Resonance PUCA performance-audio bridge (ADR 0035) -- PROOF OF CONCEPT.
 //
-// *** STATUS: UNVERIFIED. NEVER RUN ON HARDWARE. ***
-// Written 2026-08-19 while the PUCA was not USB-enumerated; it compiles but has
-// never touched the board. Every pin and register value below is sourced from
-// the vendor repo (github.com/ohmic-net/puca_dsp) and marked with provenance.
-// Treat the bring-up checklist in README.md as mandatory before trusting any
-// of it.
+// *** STATUS: PARTIAL BENCH PROOF, NOT FIELD-VALIDATED. ***
+// The original codec/MEMS path booted on PUCA hardware on 2026-08-20. The
+// current stereo, touch, and fleet-scale deltas remain compile/native-test only.
+// Every pin and register value below is sourced from the vendor repo
+// (github.com/ohmic-net/puca_dsp) and marked with provenance. Treat the bring-up
+// checklist in README.md as mandatory before trusting the bridge in a show.
 //
 // Target: PUCA DSP **Original Edition** (ESP32-PICO-D4 + WM8978 codec, 8 MB
 // PSRAM) on the Ohmic 6 HP Eurorack expansion. This is a classic dual-core
@@ -73,8 +73,9 @@
 // Shared envelope tracker + per-slot color, exactly the cores3 bridge's file
 // (relative include, not a copy -- one tracker, one tuning).
 #include "../cores3_bridge/audio_reactive.h"
+#include "puca_core.h"
 
-#define PUCA_BRIDGE_VERSION "0.1.0-poc"
+#define PUCA_BRIDGE_VERSION "0.4.1-dev"
 
 #ifndef NB_CHANNEL
 #define NB_CHANNEL 11
@@ -201,27 +202,36 @@ bool radioReady = false;
 bool codecReady = false;
 bool audioInputReady = false;
 bool audioActive = true;
-bool inputLineIn = false;  // boot on the zero-cable MEMS mics; 'I' flips to line
+bool inputLineIn = true;   // standalone profile: external line input by default
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
+uint32_t audioClippedBlocks = 0;
+uint32_t audioClippedSamples = 0;
+uint16_t audioPeak = 0;
 
 I2SClass i2sIn;
 AudioEnvelope audioEnvelope;
+PucaPeakFollower heartbeatFollower;
 
 enum BridgeMode : uint8_t {
   MODE_CLASSIC = 0, // per-slot R/G/B envelope (cores3 CLASSIC); KNOB2 = ceiling
+  MODE_HEARTBEAT,   // deterministic line waveform -> shared deep-red pulse
   MODE_EMBER,       // shared warm white envelope; KNOB2 = ceiling
   MODE_HUE,         // KNOB2 picks the hue, envelope drives the value
   MODE_OFF,         // stop sending; fleet reverts via 3 s staleness + lease
   MODE_COUNT,
 };
-BridgeMode mode = MODE_CLASSIC;
+BridgeMode mode = MODE_HEARTBEAT;
 
 float knob1Filt = 0.0f;   // smoothed 0..1
 float knob2Filt = 0.0f;   // smoothed 0..1
 bool knobsPrimed = false;
 float knobGain = 1.0f;    // 0.25x..4x sensitivity multiplier from KNOB1
 float lastShownLevel = 0.0f;
+PucaTouchGesture touchGesture;
+PucaSetupWindow setupWindow;
+PucaLedPattern statusLed;
+bool bootSetupRequested = false;
 
 PeerLite peers[NB_MAX_TRACKED] = {};
 
@@ -233,6 +243,7 @@ volatile uint32_t rxQueueDrops = 0;
 const char *modeName(uint8_t m) {
   switch (m) {
   case MODE_CLASSIC: return "CLASSIC";
+  case MODE_HEARTBEAT: return "HEARTBEAT";
   case MODE_EMBER: return "EMBER";
   case MODE_HUE: return "HUE";
   case MODE_OFF: return "OFF";
@@ -351,20 +362,18 @@ int livePeerCount() {
 // Identical filter to cores3 collectLiveAudioIds: fixtures heard in the last
 // 5 s, minus peers whose full heartbeat identifies non-fixture firmware, sorted
 // by id so slot colors are stable regardless of heartbeat arrival order.
-uint8_t collectLiveFixtureIds(uint8_t ids[NB_DIRECT_MAX_ENTRIES][3]) {
-  uint8_t count = 0;
+size_t collectLiveFixtureIds(uint8_t ids[NB_MAX_TRACKED][3]) {
+  size_t count = 0;
   uint32_t now = millis();
-  for (size_t i = 0; i < NB_MAX_TRACKED && count < NB_DIRECT_MAX_ENTRIES; ++i) {
+  for (size_t i = 0; i < NB_MAX_TRACKED && count < NB_MAX_TRACKED; ++i) {
     if (!peers[i].used || now - peers[i].lastHeardMs > 5000) continue;
-    if (peers[i].hasFw &&
-        strncmp(peers[i].fwRev, "fixture-", strlen("fixture-")) != 0)
-      continue;
+    if (!pucaAudioPeerEligible(peers[i].hasFw, peers[i].fwRev)) continue;
     memcpy(ids[count++], peers[i].id, 3);
   }
-  for (uint8_t i = 1; i < count; ++i) {
+  for (size_t i = 1; i < count; ++i) {
     uint8_t key[3];
     memcpy(key, ids[i], 3);
-    int j = i - 1;
+    int j = (int)i - 1;
     while (j >= 0 && memcmp(ids[j], key, 3) > 0) {
       memcpy(ids[j + 1], ids[j], 3);
       --j;
@@ -372,6 +381,11 @@ uint8_t collectLiveFixtureIds(uint8_t ids[NB_DIRECT_MAX_ENTRIES][3]) {
     memcpy(ids[j + 1], key, 3);
   }
   return count;
+}
+
+int liveFixtureCount() {
+  uint8_t ids[NB_MAX_TRACKED][3];
+  return (int)collectLiveFixtureIds(ids);
 }
 
 // ---- bridge-side color math (ported from cores3_bridge.ino) ------------------
@@ -406,6 +420,10 @@ AudioColor colorForMode(uint8_t slot, float shown) {
     // KNOB2 is the brightness ceiling; scale the level before the per-slot
     // color so the R/G/B ratios stay put.
     return audioColorForSlot(slot, shown * knob2Filt);
+  case MODE_HEARTBEAT: {
+    PucaRgbw heart = pucaHeartbeatColor(shown, knob2Filt);
+    return {heart.r, heart.g, heart.b, heart.w};
+  }
   case MODE_EMBER: {
     // Same warm-white ratios as cores3 AUDIO_MODE_EMBER; KNOB2 = ceiling.
     float v = shown * knob2Filt;
@@ -428,41 +446,87 @@ AudioColor colorForMode(uint8_t slot, float shown) {
 
 void sendDirectFrame(float shown) {
   if (!radioReady) return;
-  uint8_t ids[NB_DIRECT_MAX_ENTRIES][3];
-  uint8_t count = collectLiveFixtureIds(ids);
-  if (!count) return;
+  uint8_t ids[NB_MAX_TRACKED][3];
+  size_t total = collectLiveFixtureIds(ids);
+  if (!total) return;
 
-  NbDirectFrame frame = {};
-  fillHeader(&frame.h, NB_DIRECT_FRAME);
-  frame.flags = 0x03; // 10 s micro-lease + hard-cut; the envelope owns smoothing
-  frame.count = count;
-  for (uint8_t i = 0; i < count; ++i) {
-    memcpy(frame.entries[i].id, ids[i], 3);
-    AudioColor color = colorForMode(i, shown);
-    frame.entries[i].r = color.r;
-    frame.entries[i].g = color.g;
-    frame.entries[i].b = color.b;
-    frame.entries[i].w = color.w;
+  // One direct frame holds 18 fixtures. Send the complete sorted census in
+  // chunks, preserving global slot colors across chunk boundaries.
+  for (size_t offset = 0; offset < total; offset += NB_DIRECT_MAX_ENTRIES) {
+    NbDirectFrame frame = {};
+    fillHeader(&frame.h, NB_DIRECT_FRAME);
+    frame.flags = 0x03; // 10 s micro-lease + hard-cut; envelope owns smoothing
+    size_t chunk = pucaChunkSize(total, offset, NB_DIRECT_MAX_ENTRIES);
+    frame.count = (uint8_t)chunk;
+    for (size_t i = 0; i < chunk; ++i) {
+      size_t slot = offset + i;
+      memcpy(frame.entries[i].id, ids[slot], 3);
+      AudioColor color = colorForMode((uint8_t)slot, shown);
+      frame.entries[i].r = color.r;
+      frame.entries[i].g = color.g;
+      frame.entries[i].b = color.b;
+      frame.entries[i].w = color.w;
+    }
+    size_t wireLen = offsetof(NbDirectFrame, entries) +
+                     chunk * sizeof(NbDirectEntry);
+    if (esp_now_send(BCAST, (const uint8_t *)&frame, wireLen) == ESP_OK)
+      ++audioFrames;
+    else
+      ++sendFail;
   }
-  size_t wireLen = offsetof(NbDirectFrame, entries) + count * sizeof(NbDirectEntry);
-  if (esp_now_send(BCAST, (const uint8_t *)&frame, wireLen) == ESP_OK)
-    ++audioFrames;
 }
 
 // ---- controls -----------------------------------------------------------------
-void nextMode() {
-  mode = (BridgeMode)((mode + 1) % MODE_COUNT);
+uint8_t nextLiveMode(uint8_t current) {
+  switch (current) {
+  case MODE_HEARTBEAT: return MODE_CLASSIC;
+  case MODE_CLASSIC: return MODE_EMBER;
+  case MODE_EMBER: return MODE_HUE;
+  default: return MODE_HEARTBEAT;
+  }
+}
+
+uint8_t modeStatusCode(uint8_t current) {
+  switch (current) {
+  case MODE_HEARTBEAT: return 1;
+  case MODE_CLASSIC: return 2;
+  case MODE_EMBER: return 3;
+  case MODE_HUE: return 4;
+  default: return 5; // OFF/service state
+  }
+}
+
+void showStatus(uint32_t now) {
+  statusLed.startStatus(now, inputLineIn, modeStatusCode(mode));
+}
+
+void setMode(uint8_t next) {
+  mode = (BridgeMode)next;
+  if (mode == MODE_HEARTBEAT) heartbeatFollower.reset();
   if (mode == MODE_OFF) sendDirectFrame(0.0f); // black now; staleness + lease
                                                // expiry return autonomy
   digitalWrite(PIN_LED_TOP, (mode != MODE_OFF && audioActive) ? HIGH : LOW);
   Serial.printf("mode=%s\n", modeName(mode));
 }
 
+void nextMode() {
+  // The live cycle deliberately excludes OFF. Runtime silence/stop remains a
+  // deliberate serial command or a power-down, never "one more paw tap".
+  setMode(nextLiveMode(mode));
+}
+
 void setAudioActive(bool active) {
   if (active == audioActive) return;
+  if (active && (!codecReady || !audioInputReady)) {
+    Serial.println("audio ON refused: codec/I2S not ready");
+    return;
+  }
   if (!active) sendDirectFrame(0.0f);
   audioActive = active;
-  if (active) audioEnvelope = AudioEnvelope{}; // re-run noise calibration
+  if (active) {
+    audioEnvelope = AudioEnvelope{}; // re-run room-audio noise calibration
+    heartbeatFollower.reset();
+  }
   digitalWrite(PIN_LED_TOP, (mode != MODE_OFF && audioActive) ? HIGH : LOW);
   Serial.printf("audio -> %s\n", active ? "ON" : "OFF");
 }
@@ -470,13 +534,28 @@ void setAudioActive(bool active) {
 void setInputLineIn(bool lineIn) {
   inputLineIn = lineIn;
   bool ok = wm8978SetInput(lineIn);
+  if (!ok) {
+    codecReady = false;
+    setAudioActive(false);
+  }
   audioEnvelope = AudioEnvelope{}; // different noise floor -> recalibrate
+  heartbeatFollower.reset();
   Serial.printf("input -> %s (%s)\n", lineIn ? "line" : "mic",
                 ok ? "codec ack" : "I2C WRITE FAILED");
 }
 
+void selectHeartbeatMode() {
+  if (!inputLineIn) setInputLineIn(true);
+  if (!codecReady) {
+    Serial.println("HEARTBEAT refused: line input unavailable");
+    return;
+  }
+  setMode(MODE_HEARTBEAT);
+  Serial.println("mode=HEARTBEAT input=line");
+}
+
 // KNOB1: sensitivity multiplier, log-mapped 0.25x (CCW) .. 4x (CW), 1x center.
-// KNOB2: CLASSIC/EMBER brightness ceiling 0..1; HUE hue 0..1 turn.
+// KNOB2: CLASSIC/HEARTBEAT/EMBER brightness ceiling 0..1; HUE hue 0..1 turn.
 // Both ADC1 channels, so readings survive WiFi being up. 10 Hz + light EMA.
 void knobsTick() {
   float k1 = (float)analogRead(PIN_KNOB1) / 4095.0f;
@@ -492,36 +571,67 @@ void knobsTick() {
   knobGain = 0.25f * powf(16.0f, knob1Filt);
 }
 
-// Paw: HIGH assumed = touched (see UNCONFIRMED header note). 30 ms debounce,
-// mode advances on the rising edge only.
+// Paw: HIGH assumed = touched (see UNCONFIRMED header note). Normal operation
+// is locked: any gesture only replays status. A continuous boot hold opens a
+// 20 s setup window; short touches then cycle live modes and a long hold locks
+// immediately. OFF is never in the paw cycle.
 void touchTick(uint32_t now) {
-  static bool lastRaw = false;
-  static bool pressed = false;
-  static uint32_t lastChangeMs = 0;
   bool raw = digitalRead(PIN_TOUCH) == HIGH;
-  if (raw != lastRaw) {
-    lastRaw = raw;
-    lastChangeMs = now;
+  if (setupWindow.update(now)) {
+    Serial.println("controls=LOCKED (setup timeout)");
+    showStatus(now);
   }
-  if (now - lastChangeMs >= 30 && raw != pressed) {
-    pressed = raw;
-    if (pressed) nextMode();
+
+  PucaTouchEvent event = touchGesture.update(now, raw);
+  if (event == PUCA_TOUCH_NONE) return;
+
+  if (!setupWindow.unlocked) {
+    Serial.println("paw=status only (controls LOCKED)");
+    showStatus(now);
+    return;
   }
+
+  if (event == PUCA_TOUCH_LONG) {
+    setupWindow.lock();
+    Serial.println("controls=LOCKED (confirmed)");
+    showStatus(now);
+    return;
+  }
+
+  nextMode();
+  setupWindow.activity(now);
+  Serial.println("controls=SETUP (short touch cycles; long hold locks)");
+  showStatus(now);
+}
+
+void statusLedTick(uint32_t now) {
+  bool on = statusLed.level(now, setupWindow.unlocked);
+  digitalWrite(PIN_LED_BTM, on ? HIGH : LOW);
+}
+
+bool detectBootSetupHold() {
+  PucaBootHoldDetector detector;
+  uint32_t startedMs = millis();
+  while (millis() - startedMs < 1800) {
+    if (detector.update(millis(), digitalRead(PIN_TOUCH) == HIGH)) return true;
+    delay(10);
+  }
+  return false;
 }
 
 // ---- audio: 100 ms blocking reads pace the ~10 Hz send loop -------------------
 void audioTick() {
   if (!audioInputReady) return;
 
-  // 1600 samples = exactly 100 ms of 16 kHz mono, so draining the DMA both
-  // keeps the envelope current and naturally paces this loop at ~10 Hz (the
-  // ESP32 masters every clock, so the read cannot hang on a dead codec -- it
-  // would just deliver silence).
-  static int16_t samples[1600];
+  // 3200 interleaved L/R samples = exactly 100 ms of 16 kHz stereo. The block
+  // is analyzed for clipping, then averaged to mono for the shared envelope.
+  // A single plugged jack reads about half level because the other channel is
+  // silent; KNOB1's 0.25x-4x range absorbs that expected loss.
+  static int16_t samples[3200];
   size_t got = i2sIn.readBytes((char *)samples, sizeof(samples));
   if (got < sizeof(samples)) {
     ++audioReadFailures;
-    if (got < sizeof(int16_t)) {
+    if (got < 2 * sizeof(int16_t)) {
       delay(5);
       return;
     }
@@ -530,12 +640,22 @@ void audioTick() {
   knobsTick();
   if (!audioActive) return;
 
-  float level = audioEnvelope.update(samples, got / sizeof(int16_t));
-  float shown = level * knobGain;
+  size_t sampleCount = got / sizeof(int16_t);
+  PucaPcmStats pcm = pucaPcmStats(samples, sampleCount);
+  audioPeak = pcm.peak;
+  audioClippedSamples += pcm.clipped;
+  if (pcm.clipped) ++audioClippedBlocks;
+  size_t stereoPairs = pucaStereoToMono(samples, sampleCount);
+
+  float level = audioEnvelope.update(samples, stereoPairs);
+  float shown = mode == MODE_HEARTBEAT
+                    ? heartbeatFollower.update(audioPeak, knobGain)
+                    : level * knobGain;
   if (shown > 1.0f) shown = 1.0f;
   lastShownLevel = shown;
 
-  if (mode == MODE_OFF || !audioEnvelope.calibrated()) return;
+  bool inputReady = mode == MODE_HEARTBEAT || audioEnvelope.calibrated();
+  if (mode == MODE_OFF || !inputReady) return;
 
   // The blocking read is the metronome; this floor only stops a burst if the
   // DMA had a backlog and reads briefly return instantly.
@@ -548,14 +668,19 @@ void audioTick() {
 
 // ---- serial CLI + status -------------------------------------------------------
 void printStatusJson() {
-  Serial.printf("{\"mode\":\"%s\",\"level\":%.3f,\"gain\":%.2f,\"hue\":%d,"
-                "\"peers\":%d,\"sendok\":%lu,\"active\":%d,\"input\":\"%s\","
-                "\"ceil\":%.2f,\"sendfail\":%lu,\"codec\":%d}\n",
-                modeName(mode), lastShownLevel, knobGain,
-                (int)(knob2Filt * 360.0f), livePeerCount(),
+  Serial.printf("{\"mode\":\"%s\",\"level\":%.3f,\"wave\":%.3f,\"rms\":%.0f,\"peak\":%u,"
+                "\"clipblocks\":%lu,\"gain\":%.2f,\"hue\":%d,"
+                "\"peers\":%d,\"fixtures\":%d,\"sendok\":%lu,\"active\":%d,\"input\":\"%s\","
+                "\"ceil\":%.2f,\"sendfail\":%lu,\"codec\":%d,"
+                "\"controls\":\"%s\"}\n",
+                modeName(mode), lastShownLevel, heartbeatFollower.level,
+                audioEnvelope.rms, audioPeak,
+                (unsigned long)audioClippedBlocks, knobGain,
+                (int)(knob2Filt * 360.0f), livePeerCount(), liveFixtureCount(),
                 (unsigned long)sendOk, audioActive ? 1 : 0,
                 inputLineIn ? "line" : "mic", knob2Filt,
-                (unsigned long)sendFail, codecReady ? 1 : 0);
+                (unsigned long)sendFail, codecReady ? 1 : 0,
+                setupWindow.unlocked ? "SETUP" : "LOCKED");
 }
 
 void handleSerial() {
@@ -563,12 +688,13 @@ void handleSerial() {
     int c = Serial.read();
     switch (c) {
     case 't': printStatusJson(); break;
-    case 'M': nextMode(); break;
+    case 'M': nextMode(); showStatus(millis()); break;
     case 'A': setAudioActive(!audioActive); break;
-    case 'I': setInputLineIn(!inputLineIn); break;
+    case 'I': setInputLineIn(!inputLineIn); showStatus(millis()); break;
+    case 'H': selectHeartbeatMode(); showStatus(millis()); break;
     case '\r': case '\n': case ' ': break;
     default:
-      Serial.println("keys: t=status-json M=next-mode A=audio-toggle I=mic/line");
+      Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line");
       break;
     }
   }
@@ -578,18 +704,26 @@ void statusTick(uint32_t now) {
   static uint32_t nextStatusMs = 0;
   if ((int32_t)(now - nextStatusMs) < 0) return;
   nextStatusMs = now + 1000;
-  Serial.printf("puca mode=%s active=%d input=%s calibrated=%d level=%.3f "
-                "gain=%.2f ceil=%.2f hue=%d peers=%d sendok=%lu sendfail=%lu "
-                "frames=%lu readfail=%lu rxdrop=%lu i2cerr=%lu codec=%d up=%lu "
+  Serial.printf("puca mode=%s active=%d input=%s calibrated=%d level=%.3f wave=%.3f "
+                "gain=%.2f ceil=%.2f hue=%d peers=%d fixtures=%d sendok=%lu sendfail=%lu "
+                "rms=%.0f peak=%u clipblk=%lu clips=%lu frames=%lu readfail=%lu "
+                "rxdrop=%lu i2cerr=%lu codec=%d controls=%s up=%lu "
                 "fw=puca-bridge-" PUCA_BRIDGE_VERSION "\n",
                 modeName(mode), audioActive ? 1 : 0,
                 inputLineIn ? "line" : "mic",
-                audioEnvelope.calibrated() ? 1 : 0, lastShownLevel, knobGain,
+                audioEnvelope.calibrated() ? 1 : 0, lastShownLevel,
+                heartbeatFollower.level, knobGain,
                 knob2Filt, (int)(knob2Filt * 360.0f), livePeerCount(),
+                liveFixtureCount(),
                 (unsigned long)sendOk, (unsigned long)sendFail,
+                audioEnvelope.rms, audioPeak,
+                (unsigned long)audioClippedBlocks,
+                (unsigned long)audioClippedSamples,
                 (unsigned long)audioFrames, (unsigned long)audioReadFailures,
                 (unsigned long)rxQueueDrops, (unsigned long)wm8978WriteErrors,
-                codecReady ? 1 : 0, (unsigned long)millis());
+                codecReady ? 1 : 0,
+                setupWindow.unlocked ? "SETUP" : "LOCKED",
+                (unsigned long)millis());
 }
 
 // ---- setup / loop ----------------------------------------------------------------
@@ -605,11 +739,11 @@ void setupWatchdog() {
 
 bool setupI2S() {
   // ESP32 is I2S master; ESP_I2S std mode defaults MCLK to 256 x fs, matching
-  // the upstream I2S_MCLK_MULTIPLE_256 [IDF]. Mono RX takes the LEFT slot
-  // (which physical channel that is on this board is UNCONFIRMED).
+  // the upstream I2S_MCLK_MULTIPLE_256 [IDF]. Capture both slots; audioTick
+  // averages L+R so either faceplate input or the PCB stereo jack works.
   i2sIn.setPins(PIN_I2S_BCLK, PIN_I2S_WS, PIN_I2S_DOUT, PIN_I2S_DIN, PIN_I2S_MCLK);
   return i2sIn.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_16BIT,
-                     I2S_SLOT_MODE_MONO, I2S_STD_SLOT_LEFT);
+                     I2S_SLOT_MODE_STEREO);
 }
 
 void setup() {
@@ -618,7 +752,7 @@ void setup() {
   while (!Serial && millis() - t0 < 3000) delay(10);
   Serial.println();
   Serial.println("=== Resonance puca-bridge " PUCA_BRIDGE_VERSION " ===");
-  Serial.println("*** UNVERIFIED PoC: this build has never run on hardware ***");
+  Serial.println("*** DEVELOPMENT: codec/MEMS proven; current deltas need hardware validation ***");
   Serial.printf("role=audio-bridge channel=%d target=PUCA DSP Original Edition\n",
                 NB_CHANNEL);
 
@@ -629,6 +763,9 @@ void setup() {
   digitalWrite(PIN_LED_BOARD, LOW);
   digitalWrite(PIN_LED_TOP, LOW);
   digitalWrite(PIN_LED_BTM, LOW);
+
+  Serial.println("hold paw now for setup; otherwise controls boot locked");
+  bootSetupRequested = detectBootSetupHold();
 
   analogReadResolution(12);
   analogSetPinAttenuation(PIN_KNOB1, ADC_11db);
@@ -646,10 +783,10 @@ void setup() {
                 codecReady ? "init ok" : "INIT FAILED", inputLineIn ? "line" : "mic");
 
   audioInputReady = setupI2S();
-  Serial.printf("i2s: 16 kHz mono RX %s (mclk=%d bclk=%d ws=%d din=%d)\n",
+  Serial.printf("i2s: 16 kHz stereo RX %s (mclk=%d bclk=%d ws=%d din=%d)\n",
                 audioInputReady ? "ready" : "INIT FAILED",
                 PIN_I2S_MCLK, PIN_I2S_BCLK, PIN_I2S_WS, PIN_I2S_DIN);
-  if (!audioInputReady) audioActive = false;
+  if (!codecReady || !audioInputReady) audioActive = false;
 
   rxQueue = xQueueCreate(32, sizeof(RxItem));
   if (!rxQueue) Serial.println("rx queue allocation FAILED");
@@ -658,9 +795,18 @@ void setup() {
 
   digitalWrite(PIN_LED_BOARD, radioReady ? HIGH : LOW);
   digitalWrite(PIN_LED_TOP, (mode != MODE_OFF && audioActive) ? HIGH : LOW);
+  if (bootSetupRequested) {
+    setupWindow.enter(millis());
+    Serial.println("controls=SETUP for 20 s (short touch cycles; long hold locks)");
+  } else {
+    Serial.println("controls=LOCKED (paw reports status only)");
+  }
+  showStatus(millis());
+  statusLedTick(millis());
   Serial.printf("mode=%s gain-knob=GPIO%d mode-knob=GPIO%d paw=GPIO%d\n",
                 modeName(mode), PIN_KNOB1, PIN_KNOB2, PIN_TOUCH);
-  Serial.println("keys: t=status-json M=next-mode A=audio-toggle I=mic/line");
+  Serial.println("status LED: LINE=1 long, MIC=2 long; HEARTBEAT=1 short, CLASSIC=2, EMBER=3, HUE=4");
+  Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line");
 }
 
 void loop() {
@@ -669,7 +815,10 @@ void loop() {
   processRx();
   handleSerial();
   touchTick(now);
+  statusLedTick(now);
   audioTick(); // blocks ~100 ms while audio is up; that is the loop cadence
-  statusTick(millis());
+  now = millis();
+  statusLedTick(now);
+  statusTick(now);
   if (!audioInputReady) delay(10); // no I2S pacing -> do not spin the core
 }

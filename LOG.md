@@ -10,6 +10,51 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-26 -- Ben + Codex -- PUCA standalone heartbeat baseline flashed and fleet-soaked
+
+Installed the official Silicon Labs CP2102N Windows driver and positively
+identified the received PUCA on `COM154` as ESP32-PICO-D4 revision 1.0 with
+4 MB embedded flash, MAC `4C:75:25:A4:EB:10`, and USB identity
+`USB\\VID_10C4&PID_EA60\\0EC45B486617EC1183509E9D47486EB0`. The S3 bench
+device on `COM152` was explicitly excluded. Before the first Resonance flash,
+captured an exact 4,194,304-byte full-flash recovery image with SHA-256
+`c4f67d01dc1c001e1e6342f7b3b604f77b5f6f701ee4962b3bb94dd5e3d0bfcf`.
+
+Changed the no-laptop runtime to boot in HEARTBEAT + line input with controls
+LOCKED. A normal capacitive-paw touch now displays status only, so a DJ or
+performer cannot accidentally stop or change the show. A continuous 1.2 s paw
+hold at boot opens a 20 s setup window; short touches cycle HEARTBEAT, CLASSIC,
+EMBER, and HUE, while a long hold confirms and locks. OFF is deliberately absent
+from the paw cycle. The bottom LED encodes input with long pulses and mode with
+short pulses. Native coverage for gestures, setup timing, LED timing, waveform
+following, full-census chunking, and peer identity reached 85 passing checks.
+
+The first flashed candidate exposed a stale `fixture-*`-only filter: transmit
+counters stopped once current ADR 0040 `fx-*` heartbeats had identified every
+peer. Aligned PUCA with the already-tested CoreS3 eligibility rule (`fx-*`,
+legacy `fixture-*`, and `dev-local`) and added an eligible-fixture count to
+status. Built and flashed the corrected `0.4.1-dev` candidate from the unique
+`puca-bridge-20260826-standalone-heartbeat-v041-c2` directory. Its binary is
+964,752 bytes, SHA-256
+`e8ec74680564f96f10c2f6e87b37eb807b9d9ba3b355ccf41c72f8301c4984b6`;
+all flash write/read-back hashes verified.
+
+The powered Pod20 booted with steady rails, codec and stereo I2S ready, line
+input, HEARTBEAT, channel 11, and LOCKED controls. Ben's normal paw test printed
+status only and did not change mode. During a 207 s full-census soak the bridge
+grew to 70+ eligible fixtures and 8,318 successful send callbacks with zero send
+failures, audio read failures, receive drops, codec I2C errors, or clipped
+blocks. This proves the local publisher and more-than-18-fixture packet path;
+the performer's exact DG1022Z waveform, visible receiver response/stale fallback,
+full knob sweeps, boot-hold setup feel, intended-placement RF/PDR, mixed-output
+fidelity, and multi-hour soak remain open.
+
+Left the powered bridge in a deliberate non-publishing service state so silent
+HEARTBEAT frames do not own the fleet while no generator is connected. USB key
+`A` sent one final eight-chunk black census, status changed to `active=0`, and
+the transmit counters remained fixed. This state is intentionally not persisted;
+the next power cycle restores active HEARTBEAT + line input + LOCKED controls.
+
 ## 2026-08-25 -- Ben + Codex -- CoreS3 Audio CA takeover and fx-fleet fix
 
 The first unplugged all-awake Audio test showed `PUBLISHING` on CoreS3 while the

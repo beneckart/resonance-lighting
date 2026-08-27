@@ -21,8 +21,9 @@ The most important idea is simple:
 
 ![T-Deck, CoreS3, and PUCA roles](BRIDGE_SYSTEM_ROLES.svg)
 
-*Figure 1. The three bridge roles. PUCA's dashed path is planned, not working
-Resonance firmware. Run one artistic frame publisher at a time.*
+*Figure 1. The three bridge roles. PUCA's powered-Pod20 development baseline
+passes, but show acceptance remains open. Run one artistic frame publisher at
+a time.*
 
 ## Read this first
 
@@ -42,7 +43,7 @@ These six rules prevent most field mistakes:
    button. A lost direct stream falls back to autonomous output in about three
    seconds.
 6. **Use one live artistic publisher at a time.** T-Deck LEDs, T-Deck Patterns,
-   CoreS3 audio, and future PUCA audio all use directed frames. Two publishers
+   CoreS3 audio, and PUCA audio all use directed frames. Two publishers
    can visibly fight because artistic control is intentionally last-writer-wins.
 
 > **Security note:** fleet commands are not yet authenticated on the radio. Keep
@@ -62,7 +63,7 @@ mutation, use one declared operator across all bridges and laptops. Follow
 | See the complete host dashboard or record serial telemetry | **CoreS3 Bridge OS + laptop** | The same image retains the proven USB dashboard and logger protocol |
 | Run audio-reactive lights today | **CoreS3 + Module Audio + RODE** | The only audio path already hardware-validated on fixtures |
 | Use Cambium's binary serial transport | **CoreS3 Cambium build** | Separate firmware mode; not compatible with the text dashboard |
-| Run the future dedicated performance audio box | **PUCA, after bring-up** | Better final audio/control hardware, but Resonance firmware is not written yet |
+| Run the dedicated performance audio box | **PUCA, after acceptance** | Powered-Pod20 standalone/radio baseline passes; exact waveform, visible fixture response/fallback, and field geometry remain open |
 | Run the ordinary autonomous show | **No bridge required** | The fixture fleet is designed to keep working without infrastructure |
 | Update fixture firmware | **Laptop + shared-WiFi OTA tools** | A bridge can request exact-target maintenance, but it is not the OTA uploader |
 
@@ -84,7 +85,7 @@ The words below are deliberately conservative:
 | T-Deck Locate, detailed sensor samples, microphone Patterns, voice | Planned | Locate is a visible placeholder; the others have no finished operator path |
 | CoreS3 normal dashboard bridge | Working | Channel-11 mesh and dashboard integration proven |
 | CoreS3 Module Audio bridge | Working | RODE path and three-fixture stale fallback proven |
-| PUCA Resonance bridge | Planned | Hardware received; factory firmware is not Resonance firmware |
+| PUCA Resonance bridge | Powered-Pod20 baseline passed | Locked standalone startup, codec/stereo capture, radio census, and full-census sender are proven; waveform/light and field gates remain open |
 
 The current T-Deck unit is short ID `8EB508`, full MAC
 `44:1B:F6:8E:B5:08`. The callsign-aware binary recorded on 2026-08-24 is
@@ -646,10 +647,13 @@ shortcut.
 
 ## Honest status
 
-PUCA is the intended primary performance-audio instrument, but it is not a
-working Resonance bridge yet. The received factory Eurorack oscillator/effect
-image is not tree firmware. Do not plug it in expecting the lights to react, and
-do not copy a CoreS3 binary onto it.
+PUCA is the intended primary performance-audio instrument. Resonance development
+firmware now boots standalone in HEARTBEAT + line input with controls locked;
+its powered-Pod20 codec/stereo/radio/full-census baseline passes on the received
+board. The performer's waveform, visible fixture response/fallback, final field
+geometry, and multi-hour run remain acceptance gates. The factory Eurorack
+oscillator/effect image is not tree firmware, and a CoreS3 binary is not
+PUCA-compatible.
 
 The hardware on hand is:
 
@@ -693,7 +697,8 @@ of digital headroom. Do not run two independent automatic gain loops.
 - ribbon, knobs, paw, CV, and trigger hardware checked;
 - exact RODE jack and codec route identified;
 - unclipped levels recorded for bowls, violin, singing, and onboard microphones;
-- a reproducible `firmware/puca_bridge/` artifact created;
+- [x] a native-tested, SHA-reporting `firmware/puca_bridge/` development build
+  created (promotion still requires the remaining acceptance evidence);
 - one-fixture direct-frame and three-second fallback proof;
 - mixed HEX/RGBW proof;
 - packet rate, PDR, CPU load, audio overrun, reset, and multi-hour soak evidence;
@@ -704,7 +709,8 @@ Until those boxes close, use the CoreS3 audio path.
 
 ## Future PUCA troubleshooting map
 
-This is a bring-up map, not a claim that firmware exists:
+This is a bring-up map for the development firmware, not a claim of field
+acceptance:
 
 | Symptom | Check first |
 |---|---|

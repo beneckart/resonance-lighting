@@ -1672,15 +1672,19 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   autonomous program 1 after the three-second stale-frame limit. All fixtures
   acknowledged `N2`, remained on channel 11, and the bridge was left audio-off
   (Ben/Codex).
-- [ ] **Bring up the received PUCA performance-audio bridge (ADR 0035):** verify
-  Original Edition identity, Eurorack ribbon orientation, both knobs, paw, exact
-  RODE audio-input route, codec gain, and unclipped levels; then create
-  `firmware/puca_bridge/` by reusing the CoreS3 platform-independent audio logic
-  and canonical packet definitions. First milestone is existing 10 Hz
-  `NB_DIRECT_FRAME` on channel 11 with the three-second fixture stale fallback,
-  not raw-audio transport or a new feature-packet protocol. Finish with mixed
-  HEX/RGBW, closed-Pod20 RF/PDR, overrun, reset, and multi-hour stability tests.
-  Full checklist: `hardware/puca-audio-bridge/README.md` (Ben/Codex).
+- [~] **Bring up the received PUCA performance-audio bridge (ADR 0035):** the
+  `firmware/puca_bridge/` target now reuses the shared envelope and canonical
+  packet definitions, captures/averages stereo, reports peak/clipping, and
+  chunks the full sorted census into 18-entry `NB_DIRECT_FRAME` packets at about
+  10 Hz. The 2026-08-26 powered-Pod20 pass verified exact USB/MAC/4 MB identity,
+  codec + stereo capture, powered knob readings, normal-paw status-only lock,
+  channel-11 census, and more-than-18-fixture sender chunking. The accepted
+  207 s run reached 70+ eligible fixtures and 8,318/0 successful/failed send
+  callbacks with zero audio/I2C/radio queue errors. Next: full knob sweeps,
+  boot-hold setup gesture, exact RODE/DG faceplate route and gain, visible named-
+  fixture response plus three-second fallback, mixed HEX/RGBW fidelity, intended-
+  placement RF/PDR, overrun/reset, and multi-hour stability. Full checklist:
+  `hardware/puca-audio-bridge/README.md` (Ben/Codex).
 - [x] Merge/review `codex/cambium-direct-frames` -- DONE 2026-08-06: rebased
   over the 2 A policy, native/build/hardware-smoke verified, and fast-forwarded
   to `beneckart/resonance-lighting` `origin/main` at `d9333ab` (Ben/Codex).

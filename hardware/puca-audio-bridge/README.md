@@ -5,15 +5,24 @@ source for Resonance Tree. The manufacturer's name is styled with an accented
 `u`; this repo uses the ASCII spelling **PUCA** so Windows shells, searches, and
 agent handoffs remain reliable.
 
-**Status (2026-08-13): hardware received; Resonance firmware not yet written or
-validated.** The factory Eurorack oscillator/effect firmware is not the tree
-bridge.
+**Status (2026-08-26): the standalone powered-Pod20 baseline passes on the
+received PUCA.** Development firmware `0.4.1-dev` boots into HEARTBEAT + line
+input with controls locked, the codec/stereo I2S/radio paths are healthy, the
+faceplate paw cannot accidentally change the running mode, and a 207 s
+full-census run crossed the 18-fixture packet boundary with zero reported
+errors. Exact waveform/light fidelity, full knob sweeps, stale fallback,
+multi-hour stability, and intended-placement RF/PDR remain open. The factory
+Eurorack oscillator/effect image is not the tree bridge.
 
 The illustrated
 [`Bridge field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md) explains
 when to use the proven CoreS3 fallback, how PUCA fits beside Bridge OS, and the
 operator-facing bring-up boundary. This file remains the detailed hardware
 record and qualification checklist.
+
+The DG1022Z ceremony-waveform path has its own no-human bench procedure and
+explicit isolation boundary in
+[`DG1022Z -> PUCA heartbeat input`](../../docs/howto/DG1022Z_PUCA_HEARTBEAT.md).
 
 ## What "PUCA" means in this project
 
@@ -52,16 +61,19 @@ Official references:
 
 The Eurorack carrier's controls are useful rather than decorative:
 
-| Control | Hardware mapping | Intended Resonance use (not locked) |
+| Control | Hardware mapping | Current Resonance use |
 |---|---|---|
-| Top knob | CV2 / GPIO33 ADC | sensitivity or noise threshold |
-| Bottom knob | CV3 / GPIO34 ADC | effect energy, speed, or band mix |
-| Paw | capacitive TOUCH input | pause/resume or next scene |
+| Top knob | CV2 / GPIO33 ADC | input sensitivity, 0.25x-4x |
+| Bottom knob | CV3 / GPIO34 ADC | brightness ceiling; hue only in HUE mode |
+| Paw, normal boot | capacitive TOUCH input | status display only; cannot change or stop the performance |
+| Paw, boot-held setup | capacitive TOUCH input | short touch cycles four live modes; long hold confirms/locks |
 | CV1-3 | protected control-voltage inputs | future performer/controller input |
 | TRIG1-2 | protected trigger inputs | future footswitch or beat trigger |
 
-The exact control assignments belong in firmware and must be shown at boot or
-recorded here after they are chosen.
+Normal no-laptop startup is line input + HEARTBEAT + LOCKED. The bottom carrier
+LED reports one/two long pulses for line/mic followed by one to four short
+pulses for HEARTBEAT/CLASSIC/EMBER/HUE. OFF is deliberately absent from the paw
+cycle.
 
 ## Intended signal and control path
 
@@ -132,6 +144,9 @@ they are visible at night.
   I2S, control-panel, and board initialization in a PUCA-specific layer.
 - Reuse the canonical fleet packet definitions from
   `firmware/fixture/src/core/packet.h`; do not fork a lookalike packet struct.
+- Chunk `NB_DIRECT_FRAME` output across the full sorted live census. One packet
+  carries only 18 fixtures; silently limiting a publisher to that first packet
+  is not a fleet implementation.
 - Treat the metal Pod case and its orientation as part of the RF system. The
   first field test must include range/PDR with the module installed in the case.
 - Preserve a no-audio or no-radio safe state. Silence, clipping, cable removal,
@@ -141,14 +156,20 @@ they are visible at night.
 
 - [ ] Photograph and record the installed ribbon orientation before first power;
   the red stripe belongs at `-12 V` on the Eurorack bus.
-- [ ] Confirm the board label/flash size identifies the received unit as Original
-  Edition and record its USB identity and WiFi/ESP-NOW MAC.
+- [x] Confirm the board label/flash size identifies the received unit as Original
+  Edition and record its USB identity and WiFi/ESP-NOW MAC. DONE 2026-08-26;
+  details are below.
 - [ ] Run the upstream trigger/CV hardware tests and verify both knobs and the paw.
 - [ ] Identify and label the exact front-panel AUDIO input/cable used by the RODE;
   record whether it reaches WM8978 LINE or AUX and the required gain.
 - [ ] Log unclipped RODE input levels for bowls, violin, and singing, plus the
   onboard-microphone fallback.
-- [ ] Create `firmware/puca_bridge/` with a named, reproducible build profile.
+- [x] Create `firmware/puca_bridge/` with a named build profile and native
+  audio/control tests. The development build reports binary SHA-256; promotion
+  under ADR 0040 remains gated on hardware acceptance.
+- [x] Prove powered-Pod20 stereo capture, locked-paw behavior, channel-11
+  census, and more-than-18-fixture sender chunking without reported errors.
+  DONE 2026-08-26 with `0.4.1-dev`; receiver-side light proof remains separate.
 - [ ] Prove one fixture receives direct frames on channel 11 and returns to
   autonomous output within three seconds after PUCA transmission stops.
 - [ ] Repeat on a mixed HEX/RGBW group, then measure packet rate, PDR, CPU load,
@@ -157,6 +178,38 @@ they are visible at night.
   placement and orientation.
 - [ ] Record the final RODE gain, codec gain, knob functions, startup sequence,
   and known-good firmware artifact in this file.
+
+## Powered-Pod20 acceptance (2026-08-26)
+
+- Power: the PUCA ribbon red stripe was aligned to the PCB `-12 V` marking;
+  Pod20 `+12 V`, `-12 V`, and `+5 V` LEDs were steady. USB and Eurorack power
+  were present together for programming/telemetry and faceplate-rail operation.
+- Target identity: Silicon Labs CP2102N
+  `USB\\VID_10C4&PID_EA60\\0EC45B486617EC1183509E9D47486EB0`; ESP32-PICO-D4
+  revision 1.0, 4 MB embedded flash, MAC `4C:75:25:A4:EB:10`, short ID `A4EB10`.
+  Do not confuse it with the ESP32-S3 currently enumerating separately as
+  `COM152`.
+- Recovery image before the first Resonance flash:
+  `firmware/puca_bridge/build/puca-bridge-20260826-standalone-heartbeat-v040-c1/preflash-backup/puca-com154-pre-v040-full-4mb.bin`,
+  exactly 4,194,304 bytes, SHA-256
+  `c4f67d01dc1c001e1e6342f7b3b604f77b5f6f701ee4962b3bb94dd5e3d0bfcf`.
+- Installed development candidate:
+  `firmware/puca_bridge/build/puca-bridge-20260826-standalone-heartbeat-v041-c2/puca_bridge.ino.bin`,
+  964,752 bytes, SHA-256
+  `e8ec74680564f96f10c2f6e87b37eb807b9d9ba3b355ccf41c72f8301c4984b6`.
+  Flash writes and read-back hashes verified. This is a known recovery identity,
+  not a promoted show artifact.
+- Runtime: booted HEARTBEAT, line input, controls LOCKED, codec and I2S ready,
+  ESP-NOW channel 11. A normal paw touch printed `paw=status only` and left the
+  mode unchanged. The powered knobs produced stable nonzero readings.
+- Radio soak: over 207 s the live census grew to 70+ eligible fixtures and the
+  sender reached 8,318 successful callbacks with `sendfail=0`, `readfail=0`,
+  `rxdrop=0`, `i2cerr=0`, and zero clipped blocks. This proves local full-census
+  packet production; visible receiver application and field-distance PDR are
+  still separate acceptance gates.
+- Cleanup: USB service key `A` sent the final eight black chunks, changed status
+  to `active=0`, and left the send counters stable. The bridge is paused for the
+  bench handoff; the next power cycle restores active HEARTBEAT + line input.
 
 ## What PUCA is not
 
