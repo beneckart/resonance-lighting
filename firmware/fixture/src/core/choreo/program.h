@@ -64,9 +64,10 @@ struct ProgramOutputs {
   uint16_t phaseMs;
   bool sendNow;        // edge-triggered choreo send (quiescent->excited)
   // A choreography program may request one physical knock, but it never owns
-  // the mechanism. Platform glue routes the request through the same local
-  // lifecycle, power, arm, rest, maintenance, and failsafe gates as radio
-  // strikes. `suppressLight` keeps a sound-only program electrically dark.
+  // the mechanism. Platform glue applies the autonomous lifecycle/power gate
+  // plus the hard arm/rest/maintenance/failsafe mechanism gates. Deliberate
+  // operator radio knocks have a separate best-effort policy. `suppressLight`
+  // keeps a sound-only program electrically dark.
   bool strikeRequested;
   uint16_t strikePulseMs;
   bool suppressLight;

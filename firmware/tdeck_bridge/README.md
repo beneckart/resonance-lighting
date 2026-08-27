@@ -70,8 +70,9 @@ targeted roll over the full 192-entry census. The picker also offers one
 immediate fleet multicast and one shared +1.0 s multicast deadline using the
 existing `NbEvent.fire_in_ms` wire field. Updated fixtures deduplicate repeated
 copies, timestamp radio receipt, arm only one pending strike, and refuse a
-strike more than 250 ms late. Every mode still obeys fixture-local daytime,
-power, arm, pulse, rest, maintenance, and failsafe gates at fire time. The full
+strike more than 250 ms late. Under ADR 0065 every deliberate Knocker mode
+bypasses lifecycle/solar/tier qualification while retaining fixture-local arm,
+pulse, rest, maintenance, durable load-marker, and failsafe gates. The full
 native suites and both embedded development builds pass; isolated hardware
 timing and mixed-firmware checks remain before flashing this UI.
 
@@ -327,8 +328,9 @@ Open **Wake** for GPS/UTC status and three fleet baselines:
 
 All three are RAM-only. The campaign repetition spans a full fixture sleep
 cadence. LED Studio and program leases can override the baseline; Blackout
-remains higher authority. Knock stays one-shot and locally safety-gated, so it
-is not promised as a wake command for a sleeping fixture.
+remains higher authority. Knock stays one-shot and hard-mechanism-gated, so it
+is not promised as a wake command for a sleeping fixture or as guaranteed
+physical motion.
 
 Knocker's three fleet choices are deliberately distinct:
 
@@ -345,8 +347,8 @@ the authoritative short MAC beside it, for example `Luigi [F98CEF]`. A fresh
 fixture absent from the production registry falls back to its short MAC.
 
 The multicast modes require the corresponding fixture firmware; older images
-ignore the new event kind. The UI confirmation does not bypass local safety or
-wake a sleeping fixture.
+ignore the new event kind. Operator knocks bypass energy qualification, not the
+hard mechanism gates, and cannot wake a sleeping fixture.
 
 ## Wildfire CA
 

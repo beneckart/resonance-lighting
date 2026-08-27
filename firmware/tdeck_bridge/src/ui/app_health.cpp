@@ -345,8 +345,8 @@ static void updateModeChrome() {
     lv_label_set_text(
         gLegend,
         gColorMode == HealthColorMode::VBAT
-            ? "G>3.20  Y>3.10  R<=3.10  gray=off"
-            : "CC=green CV=cyan TOP=purple N=amber !=fault");
+            ? "VBAT G>3.20 Y>3.10 R<=3.10 -=off"
+            : "CHG CC CV TOP N !=fault ?=unk -=off");
   }
 }
 
@@ -552,12 +552,19 @@ void appHealthOpen() {
 
   gCaption = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gCaption, &lv_font_montserrat_14, 0);
+  lv_obj_set_size(gCaption, 310, 17);
+  lv_label_set_long_mode(gCaption, LV_LABEL_LONG_CLIP);
   lv_obj_set_pos(gCaption, 5, 199);
   lv_label_set_text(gCaption, "Loading registry...");
 
   gLegend = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gLegend, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(gLegend, uiMutedTextColor(), 0);
+  // Fix the key to one clipped line wholly inside the 320x240 viewport. An
+  // auto-sized legend could extend the screen's content box and appear below
+  // the physical bottom after focus/navigation changes.
+  lv_obj_set_size(gLegend, 310, 17);
+  lv_label_set_long_mode(gLegend, LV_LABEL_LONG_CLIP);
   lv_obj_set_pos(gLegend, 5, 219);
   updateModeChrome();
 

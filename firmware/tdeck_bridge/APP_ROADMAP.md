@@ -89,9 +89,11 @@ one immediate fleet multicast, and one shared +1.0 s fleet deadline. Both new
 modes use a repeated `NB_EVENT_SOLENOID_STRIKE` with a 32-bit dedupe ID. Later
 copies decrement `fire_in_ms` toward the same bridge deadline, and fixtures use
 radio-callback receipt time, arm only one pending event, ignore duplicates, and
-drop a strike more than 250 ms late. All lifecycle, power, solenoid arm/rest,
-and failsafe gates are re-evaluated when firing. Native suites and both embedded
-development builds pass; isolated hardware timing remains open.
+drop a strike more than 250 ms late. ADR 0065 makes deliberate Knocker events
+best-effort attempts without lifecycle/solar/tier qualification; solenoid arm,
+rest, maintenance, load-marker, deadline, and failsafe gates remain. Native
+suites and both embedded development builds pass; isolated hardware timing
+remains open.
 
 Integration update, 2026-08-24: items 2-5 and 8 are implemented in the common
 baseline. The launcher now registers callbacks instead of comparing tile names.

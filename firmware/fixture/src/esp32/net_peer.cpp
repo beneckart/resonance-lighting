@@ -6,6 +6,7 @@
 
 #include "../core/fixture_context.h"
 #include "../core/strike_event.h"
+#include "../core/strike_policy.h"
 #include "../core/version.h"
 #include "behavior_glue.h"
 #include "board_power.h"
@@ -477,14 +478,15 @@ static void processPacket(const RxItem &it) {
     if (it.len < (int)sizeof(NbTargetU16)) return;
     const NbTargetU16 *c = (const NbTargetU16 *)it.data;
     if (memcmp(c->target_id, gMyId, 3) != 0) return; // strikes are never broadcast
-    // Lifecycle gate: daytime-surplus only (ADR 0030; dev relaxes surplus, not
-    // night). Mechanism safety (clamp, rest, failsafe, arm) is in solenoidStrike.
-    if (!behaviorStrikePermitted()) {
-      Serial.println("solenoid: radio strike refused (lifecycle/power gate)");
+    // A deliberate operator knock is always attempted when received. A weak
+    // or empty capacitor may yield no useful motion; the hard arm/rest/pulse/
+    // load-marker/failsafe gates remain inside solenoidStrike().
+    if (!strikePolicyMayAttempt(StrikeOrigin::OPERATOR_CONTROL,
+                                behaviorStrikePermitted()))
       break;
-    }
     espNowNoteControlRx();
-    solenoidStrike(c->value, "radio");
+    if (!solenoidStrike(c->value, "radio"))
+      Serial.println("solenoid: radio strike blocked (hard mechanism gate)");
     break;
   }
   case NB_PROFILE: {
@@ -590,9 +592,9 @@ void netPeerTick() {
   uint16_t strikePulseMs = 0;
   StrikeEventTick strikeTick = strikeEventTick(gStrikeEvent, now, strikePulseMs);
   if (strikeTick == STRIKE_EVENT_FIRE) {
-    if (!behaviorStrikePermitted()) {
-      Serial.println("solenoid: event strike refused (lifecycle/power gate)");
-    } else if (!solenoidStrike(strikePulseMs, "radio event")) {
+    if (strikePolicyMayAttempt(StrikeOrigin::OPERATOR_CONTROL,
+                               behaviorStrikePermitted()) &&
+        !solenoidStrike(strikePulseMs, "radio event")) {
       Serial.println("solenoid: event strike blocked (arm/rest/mechanism gate)");
     }
   } else if (strikeTick == STRIKE_EVENT_EXPIRED) {

@@ -111,10 +111,10 @@ static void knockCb(lv_event_t *) {
     unsigned seconds = (unsigned)(((uint32_t)(live > 0 ? live : 0) *
                                    KNOCK_ROLL_STEP_MS + 999) /
                                   1000);
-    char summary[112];
+    char summary[144];
     snprintf(summary, sizeof(summary),
              "Targeted roll over %d fresh fixtures, %u ms each, about %u s. "
-             "Not synchronized.",
+             "Every received command attempts the mechanism.",
              live, pulseMs(), seconds);
     uiConfirm(summary, "Knocker", knockAllYes, nullptr);
     return;
@@ -123,7 +123,7 @@ static void knockCb(lv_event_t *) {
     char summary[128];
     snprintf(summary, sizeof(summary),
              "Immediate multicast to all updated awake fixtures, %u ms. "
-             "Reception is asynchronous; safety gates still apply.", pulseMs());
+             "Reception is asynchronous; hard mechanism gates remain.", pulseMs());
     uiConfirm(summary, "Knocker", knockBroadcastYes, nullptr);
     return;
   }
@@ -131,7 +131,7 @@ static void knockCb(lv_event_t *) {
     char summary[128];
     snprintf(summary, sizeof(summary),
              "Multicast to all updated awake fixtures, %u ms, firing at one "
-             "shared +1.0 s deadline. Safety gates still apply.", pulseMs());
+             "shared +1.0 s deadline. Hard mechanism gates remain.", pulseMs());
     uiConfirm(summary, "Knocker", knockSyncYes, nullptr);
     return;
   }
@@ -209,7 +209,7 @@ void appKnockerOpen() {
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
   lv_obj_set_pos(gInfo, 8, 144);
   lv_label_set_text(gInfo,
-                    "gates still apply at actual fire time\n"
+                    "operator knock ignores solar/tier/lifecycle\n"
                     "all: roll | broadcast | sync +1s");
 
   lv_obj_t *knock = lv_button_create(scr);

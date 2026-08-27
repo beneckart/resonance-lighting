@@ -37,7 +37,8 @@ bool behaviorStrikesAllowed();
 uint16_t behaviorDaySleepS();
 uint32_t behaviorWakeListenMs();
 
-// The radio-strike gate: field = DAY_ACTIVE + solar surplus + FULL tier;
-// commission relaxes the surplus requirement (bench boards on USB idle) but
-// never the night gate or the power veto.
+// The autonomous-program strike gate: field = DAY_ACTIVE + solar surplus +
+// FULL tier; commission relaxes the surplus requirement but never the night
+// gate or power veto. Deliberate radio/operator knocks use StrikeOrigin::
+// OPERATOR_CONTROL and go directly to the hard solenoid mechanism gates.
 bool behaviorStrikePermitted();

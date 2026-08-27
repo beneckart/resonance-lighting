@@ -167,9 +167,12 @@ one-time NVS policy migration enables devices that retained the historical
 disarmed value; a later explicit runtime disarm remains persistent. D7/GPIO37
 stays INPUT/high-Z while armed and idle, so rev-1 receiver/manual sources remain
 usable and a Feather without a capboard has no connected load. A strike still
-requires an addressed command, a deduplicated fleet strike event, or local input
-and retains the normal lifecycle, power-tier, pulse-width, rest-time,
-maintenance, and failsafe gates.
+requires an addressed command, a deduplicated fleet strike event, autonomous
+program output, or local input. Deliberate operator radio commands and events
+are best-effort mechanism attempts under ADR 0065: they bypass lifecycle,
+solar, and power-tier qualification but retain arm, pulse-width, rest-time,
+maintenance, durable load-marker, and failsafe gates. Autonomous program
+knocks retain the lifecycle/renewable/power-tier policy.
 
 `NB_EVENT_SOLENOID_STRIKE` adds immediate and short-future fleet strikes without
 changing the packet layout. One logical event is repeated for RF reliability;
@@ -177,17 +180,19 @@ fixtures deduplicate its 32-bit event ID, arm at most one pending event, clamp
 the pulse to 5-300 ms, and refuse a scheduled strike more than 250 ms late.
 `fire_in_ms` is capped at five seconds. The bridge decrements it on later RF
 copies so every received copy refers to the same deadline, while the fixture
-uses callback receipt time rather than later queue-drain time. Lifecycle, power,
-solenoid arm/rest, and mechanism safety are rechecked at the actual fire time.
-Older fixture firmware ignores this new event kind.
+uses callback receipt time rather than later queue-drain time. At fire time an
+operator event reaches the hard solenoid arm/rest/load-marker/timer/failsafe
+boundary without lifecycle or power qualification. Older fixture firmware
+ignores this new event kind.
 
 `--canopy-solenoid` remains accepted as a deprecated no-op so older build recipes
 do not fail; it is no longer required and must not be used to infer artifact
 capability.
 
 `--solenoid-test` is deliberately not a fleet option: it forces the arm bit and
-relaxes only the daytime solar-surplus gate while retaining the night and FULL-
-tier battery vetoes. Use a named artifact and a specific peer.
+relaxes the autonomous-program solar-surplus gate while retaining that path's
+night and FULL-tier battery vetoes. Deliberate operator radio knocks no longer
+need this override. Use a named artifact and a specific peer.
 
 Rev-2 solarnoid SW1 shares D7 with the MCU through a hardware one-shot. An armed
 fixture releases D7 to INPUT/high-Z between strikes. After observing a released
@@ -332,8 +337,9 @@ A timer wake with FULL power tier and measured good input at or above 150 mA
 holds a RAM-only solar probe awake beyond the ordinary 15-second window. Sixty
 continuous seconds earns `DAY_ACTIVE`; a transient clears immediately and
 returns to the normal cadence. Once active, 100 mA is the remain-awake threshold
-with a 300-second dropout confirmation, while strikes still require at least
-150 mA and every normal safety gate. Battery voltage alone is not surplus
+with a 300-second dropout confirmation. Autonomous program strikes still
+require at least 150 mA and the normal energy gate; deliberate operator knocks
+are best-effort attempts under ADR 0065. Battery voltage alone is not surplus
 evidence. See ADR 0060.
 
 The supervised `--basic-listener` posture is deliberately minimal and class
@@ -409,4 +415,5 @@ Telemetry exposes `ota_partition`, `ota_address`, `ota_state`, and the legacy
 - [ ] commission bridge lease grant plus command-loss hard dark/rail-off <= 5 s
 - [ ] commission time-to-maintenance <= 10 s; field worst case one sleep period
 - [ ] 24 h outdoor prod soak: dusk, bounded night (set night_max low to prove
-      it fires), dawn, maintenance reachable in every state, night strike refused
+      it fires), dawn, maintenance reachable in every state, autonomous night
+      strike refused, deliberate operator night strike bounded by mechanism gates

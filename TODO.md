@@ -483,12 +483,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   labels that action as a targeted roll. It now also offers immediate fleet
   multicast and a shared +1.0 s multicast deadline through the existing
   `NbEvent.fire_in_ms` field. Fixtures deduplicate the event, timestamp radio
-  receipt, arm only one pending strike, and drop it if more than 250 ms late;
-  every local safety gate is rechecked at fire time. Native coverage and both
-  embedded development builds pass. Before flashing the new T-Deck UI, deploy
-  the matching fixture image only to an isolated, explicitly armed cohort.
+  receipt, arm only one pending strike, and drop it if more than 250 ms late.
+  ADR 0065 now makes deliberate Knocker traffic a best-effort mechanism attempt:
+  it bypasses lifecycle/solar/tier qualification while retaining arm, rest,
+  maintenance, pulse, load-marker, deadline, and failsafe gates. Native
+  coverage and both embedded development builds pass. Before flashing the new
+  T-Deck UI, deploy the matching fixture image only to an isolated, explicitly
+  armed cohort.
   Confirm one strike per event despite six RF copies, old-firmware ignore,
-  immediate multicast spread, +1.0 s deadline skew, local gate refusal, and no
+  immediate multicast spread, +1.0 s deadline skew, hard-gate refusal, and no
   late fire after a blocked loop/maintenance interval. Do not exercise either
   multicast mode around an unaccounted strike-permitted fleet. **Compatibility
   observation 2026-08-25:** targeted roll still strikes the deployed pre-event
@@ -499,13 +502,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   audibly sparse. A later read-only snapshot had 83 peers under the five-second
   fresh threshold but only four with affirmative FIELD + DAY_ACTIVE + FULL +
   >=150 mA input evidence; 18 known rows were DAY_CHARGE and 60 fresh serial
-  rows lacked usable full-state tails. The current roll includes every fresh
-  class and takes about 7.36 s for 92 targets, while local lifecycle/power/
-  mechanism gates still refuse most requests. Change the modal from one
-  misleading `fresh fixtures` count to separate fresh, known mallet-class, and
-  strike-ready counts; offer a ready-only targeted roll and keep all-fresh as
-  an explicitly diagnostic option. Then compare it with broadcast-now and
-  sync-+1.0 s on the matching-image cohort (Ben + Codex).
+  rows lacked usable full-state tails. Ben rejected using those advisory fields
+  as an operator-knock filter: an empty capacitor simply produces weak/no
+  motion. Current source therefore continues to roll every fresh ID and removes
+  the receiver energy refusal for targeted/multicast operator traffic. It still
+  takes about 7.36 s for 92 targets, so compare targeted roll with broadcast-now
+  and sync-+1.0 s on the matching-image cohort. Hardware-prove deliberate
+  DAY_CHARGE/night/non-FULL attempts plus every retained hard gate before fleet
+  promotion (Ben + Codex).
 - [x] **Seed and validate the locked T-Deck development cache -- DONE
   2026-08-24.** The fixture cache's lock, recipe fingerprint, interruption
   marker, quarantine recovery, `tdeck-dev-local` identity, and fresh-artifact

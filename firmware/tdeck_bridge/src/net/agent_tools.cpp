@@ -232,7 +232,7 @@ bool agentExecuteTool(const char *name, const char *inputJson, size_t inputLen,
     snprintf(result, resultCap,
              "{\"ok\":true,\"id\":\"%s\",\"name\":\"%s\","
              "\"pulse_ms\":%ld,\"note\":"
-             "\"fixture may refuse at night / low power\"}",
+             "\"operator knock attempted; hard mechanism gates remain\"}",
              idHex, entry ? entry->callsign : "", ms);
     return true;
   }

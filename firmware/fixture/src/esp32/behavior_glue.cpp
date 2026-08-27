@@ -7,6 +7,7 @@
 #include "../core/neighbor_table.h"
 #include "../core/presence_wave.h"
 #include "../core/show_schedule.h"
+#include "../core/strike_policy.h"
 #include "../core/time_consensus.h"
 #include "board_power.h"
 #include "espnow_link.h"
@@ -318,7 +319,8 @@ bool behaviorStrikePermitted() {
 
 static void handleProgramStrike(const ProgramOutputs &out) {
   if (!out.strikeRequested) return;
-  if (!behaviorStrikePermitted()) {
+  if (!strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM,
+                              behaviorStrikePermitted())) {
     Serial.println("solenoid: choreography knock refused (lifecycle/power gate)");
     return;
   }

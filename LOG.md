@@ -10,6 +10,38 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Operator knocks bypass energy qualification
+
+Ben clarified the sparse Knocker result: the control plane should request a
+knock from every receiver that hears it. An empty capacitor yielding weak or no
+motion is acceptable; DAY_ACTIVE, >=150 mA solar input, and FULL tier must not
+pre-filter a deliberate operator request. ADR 0065 supersedes the operator-
+strike portions of ADR 0030/0038/0041/0060 while retaining their energy policy for
+autonomous program-generated knocks.
+
+Added a pure strike-origin policy and routed exact-target and deduplicated fleet
+radio events through the operator path. Received operator traffic now reaches
+`solenoidStrike()` regardless of lifecycle, solar, supply-good, or tier. The
+persisted arm, rest interval, pulse clamp, D7 collision check, durable load-
+armed marker, timer/failsafe, maintenance exclusion, event dedupe, one-pending
+bound, and late-drop remain. Native CA/choreography still calls the autonomous
+path and retains the renewable/power gate. T-Deck and agent wording now says
+attempt/mechanism gate rather than promising a physical impact.
+
+Also fixed the Health page key reported below the physical display: caption and
+legend are explicit 310 x 17 pixel clipped rows inside the 320 x 240 viewport,
+and both VBAT/CHG legends are shortened to one line.
+
+The complete fixture and T-Deck native suites pass, including the new four-case
+strike-origin regression. A production-conditional field fixture development
+build passed at 1,207,049 bytes (36 percent) flash and 68,692 bytes (20 percent)
+RAM; its 1,207,344-byte `dev-local` binary has SHA-256
+`d81285ed81931f5ca3feed4ba36a5038d1e6a1b240abf4d0dcd874886f384f1a`.
+The T-Deck development build passed at 1,583,307 bytes (50 percent) flash and
+194,856 bytes (59 percent) RAM; its 1,583,456-byte binary has SHA-256
+`d22712f7f383968645cb4c381b7ad6abb17257a4c34d16bf9519a1578b8e2b06`.
+Neither development image was flashed or OTA-deployed.
+
 ## 2026-08-27 -- Ben + Codex -- Sparse Knocker roll is not the live count
 
 Ben observed 92 live fixtures but only sparse audible results from a Knocker

@@ -222,7 +222,7 @@ static void startCb(lv_event_t *) {
     snprintf(summary, sizeof(summary),
              "Arm %s as the Contagion source for 10 minutes. Its infection "
              "starts one proven 40 ms targeted roll over fresh downlights. "
-             "Fixture safety gates still decide each strike.", source);
+             "Hard mechanism gates still decide each strike.", source);
   } else {
     snprintf(summary, sizeof(summary),
              "Start %s on all awake updated fixtures for 10 minutes: %s%s. "
@@ -230,7 +230,7 @@ static void startCb(lv_event_t *) {
              modelName(), outputName(), tofEnabled() ? ", ToF seeds ON" : "",
              outputMode() == 0
                  ? "The fleet stays susceptible until a manual or ToF seed."
-                 : "Each downlight infection may request one 40 ms knock; fixture safety gates still decide.");
+                 : "Each downlight infection may request one 40 ms knock; autonomous energy and mechanism gates still decide.");
   }
   uiConfirm(summary, "Contagion", startYes, nullptr);
 }
@@ -273,7 +273,7 @@ static void seedCb(lv_event_t *) {
                ? "This is one exact-target infection."
                : legacyFanout()
                      ? "If this is the armed source, it starts one targeted downlight roll."
-                     : "Each downlight infection may request one 40 ms knock; local safety gates still decide.");
+                     : "Each downlight infection may request one 40 ms knock; autonomous gates still decide.");
   uiConfirm(summary, "Contagion", seedYes, nullptr);
 }
 

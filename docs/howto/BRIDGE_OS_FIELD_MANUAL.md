@@ -173,8 +173,10 @@ This explains several apparently surprising results:
 - **Night Show** cannot defeat low-battery shutdown.
 - **LED Studio** can deliberately light a healthy fixture during scheduled day.
 - **Blackout** can suppress a scheduled night show.
-- A strike request can be sent successfully while the fixture refuses to move
-  because its time, power, arming, or mechanism gate says no.
+- A deliberate operator strike request is attempted without time, solar, or
+  battery-tier qualification, but can still produce no motion when the fixture
+  is asleep, disarmed, in maintenance, inside rest time, lacks hardware, or the
+  hard mechanism gate refuses it.
 
 ## Health: start here
 
@@ -399,10 +401,13 @@ starting point.
 - Roll All is **not synchronized**. The display reports sent requests, not
   guaranteed mechanical impacts.
 
-Fixtures refuse broadcast strikes. They may also refuse an addressed request at
-night, on low power, when disarmed, or when the mechanism gate says no. The
-current full-fleet roll fixes an older 32-fixture limit but still awaits its
-explicit hardware recheck. Use a named single fixture before using the roll.
+Updated fixtures accept the Knocker broadcast event; older images ignore it.
+Under ADR 0065, received Knocker targeted and multicast requests bypass night,
+solar, and battery-tier qualification. Arm, rest, maintenance, pulse, durable
+load-marker, deadline, and mechanism gates remain, so the UI reports attempts
+rather than guaranteed impacts. The current full-fleet roll fixes an older
+32-fixture limit but still awaits its explicit hardware recheck. Use a named
+single fixture before using the roll.
 
 ## CA: cellular-automaton studio
 
@@ -697,7 +702,7 @@ post-OTA profile audit and under the same single-writer declaration as OTA.
 | Look stops when another app starts | stream ownership | LEDs and Patterns replace one another by design; start the desired one again |
 | Look continues after Back | app semantics | Return to LEDs/Patterns and press Stop |
 | Sleeping fixtures ignore End Blackout | radio is off | Wait for timer wake or physically reset/power-cycle an explicitly identified fixture |
-| Knock request produces no sound | local strike gates | Check day/surplus, power tier, solenoid arming, mechanism, and exact target |
+| Knock request produces no sound | asleep/missed packet, empty cap, absent hardware, or hard mechanism gate | Check freshness, exact target, solenoid arm, maintenance/rest state, capboard, and mechanism; operator knocks do not prefilter day/surplus/tier |
 | Touch is unreliable | dust, gloves, glare | Use the trackball; remove protective film and tilt the display |
 | Wrong mesh channel was saved | Settings or serial configuration | Restore 11 and reboot cleanly; coordinate before touching any lab channel |
 | UI behaves strangely after long use | memory/peripheral state | Record `mem` and `probe`, then reboot the T-Deck; do not mutate fixtures during diagnosis |

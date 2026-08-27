@@ -74,7 +74,7 @@ struct PowerBudget {
   uint8_t brightness_cap; // 0-255 multiplier for every rendered frame
   uint8_t tick_divider;   // program ticks every Nth frame
   bool may_tx_show;       // choreo-state sends allowed
-  bool may_strike;        // solar-surplus daytime gate ANDs with this
+  bool may_strike;        // autonomous strike energy gate ANDs with this
   bool must_sleep;        // PROTECT: park now
   uint16_t sleep_s;
   bool tier_changed;      // this tick
