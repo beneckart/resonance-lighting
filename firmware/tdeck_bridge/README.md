@@ -28,7 +28,8 @@ exact manual seed),
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
 
-The Default app is source-built but not yet flashed or hardware-validated. It
+The Default app is present in the current combined `8EB508` image but is not yet
+hardware-validated. It
 never broadcasts a persistent mutation: `ALL: targeted fresh` walks the fresh
 census by deterministic short ID. `until reboot` changes RAM only; `persist
 after reboot` writes fixture NVS after confirmation. The setting affects only
@@ -188,9 +189,16 @@ Open **Fleet** for the detailed scrollable list. Its default view is the full
 production registry plus any unexpected live peer, sorted alphabetically by
 callsign. Registry fixtures keep their row while off air, so a two-second
 telemetry refresh updates values without moving the operator's place. Grey
-rows are retained/off-air; `never` means the current bridge has not observed
+rows are retained/off-air; `inf` means the current bridge has not observed
 that registry identity. The selected identity and scroll context also survive
 refresh and a round trip through node detail.
+
+The compact row keeps the operational values that matter most at a glance:
+raw VBAT, signed battery current (`+` charging, `-` discharging), age, and active
+program. RSSI/PDR and advisory gauge SOC remain on detail. A literal `idle`
+requires an observed full-heartbeat state; `?` means the program is unknown.
+Full-heartbeat state is retained across intervening short heartbeats, but is
+cleared on sender reboot until the new boot reports it.
 
 Press **View** to choose independently:
 
@@ -198,8 +206,15 @@ Press **View** to choose independently:
 - class: all, downlight, perimeter, uplight, chandelier, or unknown;
 - raw-VBAT band: all, good (>3.20 V), near low (>3.10 V and <=3.20 V), low
   (<=3.10 V), off air, or live with no plausible battery voltage; and
+- program: all, IDLE, CA, BRIDGE, DIRECT, DARK, VIRUS, or unknown;
+- firmware: all, known, unknown, exact selected reference, or everything that
+  does not match that reference (including unknown revision evidence); and
 - sort: stable callsign, stable short ID, voltage low/high first, most recent,
   or strongest signal.
+
+Detail spells out profile, lifecycle, program, network mode, and power tier as
+names such as `FIELD`, `DAY_CHARGE`, `DIRECT`, `COMMS`, and `PROTECT` instead of
+showing only numeric status codes.
 
 Voltage, age, and signal sorts are explicit operator choices; the default does
 not reorder on heartbeat arrival. A live class report is authoritative. While
@@ -232,6 +247,16 @@ application-region readback matched the SHA-256 above. Post-reset channel 11,
 mesh traffic, peripheral probes, and memory telemetry passed. Physical dropdown
 layout, day/night sunlight readability, stable scrolling, input, 192-row
 memory-watermark, and filtered named-canary identify checks remain open in
+`TODO.md`.
+
+The current combined source is now flashed on exact T-Deck `8EB508` as a
+1,581,168-byte `tdeck-dev-local` binary, SHA-256
+`c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`.
+It includes the DAY/NIGHT display work, Fleet VBAT/signed-IBAT and rollout
+filters, Default app, and current semantic-white planner. Upload plus an
+independent whole-application `verify-flash` digest comparison passed. After
+reset the bridge reported channel 11, DAY mode, healthy peripherals, live mesh
+receive, and zero send failures. Physical feature acceptance remains in
 `TODO.md`.
 
 ## Fleet Health

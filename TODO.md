@@ -4,6 +4,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Close LED Studio semantic-white behavior during class-census gaps.**
+  The planner correctly sends dedicated W to a known downlight, but maps class
+  `unknown` to RGB white and currently consumes only the raw T-Deck census. It
+  does not use the embedded registry-role fallback already used by Fleet, so a
+  known registered downlight can briefly receive RGB white when its full
+  class-bearing heartbeat was missed but a short heartbeat made it fresh.
+  Choose and test a fail-safe rule: use the registry role for class 0, or refuse
+  semantic white until class telemetry is known. Validate on named downlight
+  and RGB-uplight canaries without weakening live sensor class authority
+  (Ben/Codex). **2026-08-27 hardware evidence:** Leia `F40384`, which had shown
+  RGB white in LED Studio the prior night, now directly reports class downlight,
+  no mismatch, sensor bits 5, and healthy MSA/TMF/BMP; TMF has 85,330 reads with
+  zero errors/recoveries. This rules out a current fixture sensor failure and
+  makes the raw-census unknown window the supported failure mechanism.
 - [~] **Hardware-validate the stable/filterable T-Deck Fleet view.** Source,
   the complete native Bridge suite, and the local embedded build pass. The new
   default is the complete callsign-stable registry plus unexpected live peers;
@@ -24,7 +38,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   this exact image is flashed on `8EB508`. Esptool write verification, a full
   application-region readback with the same SHA-256, and post-reset channel-11
   mesh/peripheral/memory checks passed. The physical UI and named-canary checks
-  above remain (Ben/Codex).
+  above remain. **2026-08-27 source follow-up:** Fleet now keeps VBAT and signed
+  battery current on the compact row, moves RSSI/PDR and advisory SOC to detail,
+  renders never-seen age as `inf`, and distinguishes a reported IDLE from unknown
+  full-heartbeat state. Detail spells out profile, lifecycle, tier, program, and
+  network-mode names. View adds program plus exact-reference/non-reference
+  firmware rollout filters. The complete native suite passes. The combined
+  local binary now flashed on exact `8EB508` is 1,581,168 bytes, SHA-256
+  `c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`;
+  the linker reports 50 percent flash and 50 percent global RAM. Upload and an
+  independent whole-application `verify-flash` digest comparison passed;
+  post-reset identity, channel 11, mesh RX/TX, peripheral probes, and memory
+  checks passed. Add physical checks for no row/header wrapping,
+  signed-current legibility, IDLE versus `?`, detail-line/button clearance,
+  scrolling through all seven filter rows, and mixed-revision match/non-match
+  cohorts (Ben/Codex).
 - [x] **Repair the T-Deck development-cache metadata boundary and prove warm
   incremental builds. DONE 2026-08-27:** cache schema 2 treats
   `build/dev-cache` as Arduino-owned and stores recipe plus interruption state
@@ -257,12 +285,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   HEX/RGBW canaries, and a separately authorized gated OTA. This work does not
   authorize any fixture flash or OTA (Ben/Codex).
 - [~] **Hardware-validate DG1022Z -> PUCA HEARTBEAT mode.** The standalone
-  hardware/radio baseline now passes on the exact PUCA with `0.4.1-dev`:
+  hardware/radio baseline passes on the exact PUCA with `0.4.1-dev`:
   HEARTBEAT + line input + LOCKED boot, powered paw/knob inputs, codec/stereo
   capture, 70+ eligible fixture census, and 8,318 successful send callbacks
-  over 207 s with all reported error/clipping counters zero. The 85 native
-  checks pass; installed binary is 964,752 bytes with SHA-256
+  over 207 s with all reported error/clipping counters zero. The current 103
+  native checks pass; installed `0.4.1-dev` binary is 964,752 bytes with SHA-256
   `e8ec74680564f96f10c2f6e87b37eb807b9d9ba3b355ccf41c72f8301c4984b6`.
+  ADR 0063 `0.5.0-dev` is now credentialed and installed. The 2026-08-27 bench
+  pass proved no-hold SAFE-IDLE with zero direct frames, `A4EB10` Bridge OS
+  identity, exact-target shared-WiFi maintenance, retained-binary OTA, dark
+  software-reset rejoin, and 25 s pending-verify survival. Still prove the
+  physical paw-held DJ-first/setup gestures, `/resume`, maintenance timeout,
+  fleet-wide-maintenance rejection without disturbing the live fleet, no PUCA
+  softAP, and forced-self-test rollback.
   On the no-human bench, prove `peak`/`wave`/deep-red output from the performer's
   exact arbitrary waveform with zero clip blocks. Compare the analog waveform
   to one fixture by photodiode/scope and record whether the 100 ms peak window
@@ -301,9 +336,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   final Magic-Wand-aware embedded build pass. The reconciled 141-fixture image
   is 1,550,224 bytes with SHA-256
   `3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
-  Source now carries 144 identities; the next named build/flash must add
-  `Magmar [F2BDFC]`, `Magneto [F402A4]`, and `Marill [F40348]` before their
-  callsign acceptance checks.
+  The current combined image now flashed on exact `8EB508` carries all 144
+  identities, including `Magmar [F2BDFC]`, `Magneto [F402A4]`, and
+  `Marill [F40348]`.
   It is USB-flashed to exact T-Deck `8EB508`; upload verification, hardware
   probes, channel 11 rejoin, zero-failure mesh transmission, and fresh receive
   from all seven newly registered IDs passed. Check
@@ -323,7 +358,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   so name and account for the canaries before starting a pattern (Ben/Codex).
 - [ ] **Hardware-validate Bridge OS commission defaults on named canaries.**
   Source and both native/embedded builds pass for the exact-target Default app
-  and fixture type-30 receiver. On one downlight, perimeter, and RGB uplight,
+  and fixture type-30 receiver; the current combined image is flashed on exact
+  T-Deck `8EB508`. On one downlight, perimeter, and RGB uplight,
   exercise ready beacon, light-only wildfire CA, and strict rails-off dark;
   active-lease override and release/expiry; until-reboot reset; one persisted
   CA reboot followed by a persisted restore to listener; field-profile
@@ -2078,8 +2114,12 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   codec + stereo capture, powered knob readings, normal-paw status-only lock,
   channel-11 census, and more-than-18-fixture sender chunking. The accepted
   207 s run reached 70+ eligible fixtures and 8,318/0 successful/failed send
-  callbacks with zero audio/I2C/radio queue errors. Next: full knob sweeps,
-  boot-hold setup gesture, exact RODE/DG faceplate route and gain, visible named-
+  callbacks with zero audio/I2C/radio queue errors. The 2026-08-27 `0.5.0-dev`
+  pass then proved USB bootstrap, no-hold SAFE-IDLE/zero direct frames, Bridge
+  OS identity, exact-target shared-WiFi OTA, dark rejoin, and pending-verify
+  survival. Next: physical DJ-first boot hold/setup gestures, rollback,
+  `/resume`/timeout/broadcast-rejection/no-softAP checks, full knob sweeps,
+  exact RODE/DG faceplate route and gain, visible named-
   fixture response plus three-second fallback, mixed HEX/RGBW fidelity, intended-
   placement RF/PDR, overrun/reset, and multi-hour stability. Full checklist:
   `hardware/puca-audio-bridge/README.md` (Ben/Codex).
@@ -2441,6 +2481,15 @@ See `docs/tests/AUTOLOCATE_RSSI_SIM_FEASIBILITY_2026-07-12.md` + `ops/locate/`.
   and expose source/age/uncertainty. Panel/lux telemetry becomes a sanity check and
   optional explicitly bounded degraded-mode input. Exact invalid-time fallback remains
   open; it must not silently recreate the artificial long show. (Ben/Codex).
+  - [ ] **Bench false-dusk observation 2026-08-27:** a battery-powered fixture
+    separated from GPS/RTC/bridge time in bench shade can lose the RAM-only
+    consensus estimate (30-minute maximum hold) and then satisfy the bare-peer
+    30-minute no-input dusk gate. Its autonomous CA appears as random daytime
+    light. Decide a fail-dark or tightly bounded degraded behavior before field
+    release; shade/no-anchor must not silently authorize a normal-length show.
+    USB input >=20 mA should end an existing false night after the five-minute
+    dawn confirm, which also provides a bench discriminator from commission
+    mode. (Ben/Codex)
   - [x] **Confirmed failure mode 2026-07-11/12:** charge termination drives both
     `supply_ma` and `battery_ma` below 20 mA while panel voltage remains high, so the
     peer declares false dark, pulses the LED load, then declares sunrise when current

@@ -2,7 +2,7 @@
 
 ## Bridge OS, CoreS3, and PUCA without the archaeology
 
-**Living document:** 2026-08-25
+**Living document:** 2026-08-27
 
 **Audience:** field operators, lighting crew, IT support, and developers on call
 **Scope:** the LilyGO T-Deck Plus Bridge OS, the M5Stack CoreS3 bridge, and the
@@ -63,7 +63,7 @@ mutation, use one declared operator across all bridges and laptops. Follow
 | See the complete host dashboard or record serial telemetry | **CoreS3 Bridge OS + laptop** | The same image retains the proven USB dashboard and logger protocol |
 | Run audio-reactive lights today | **CoreS3 + Module Audio + RODE** | Broadband response is hardware-validated; FFT/band modes are the current experiment |
 | Use Cambium's binary serial transport | **CoreS3 Cambium build** | Separate firmware mode; not compatible with the text dashboard |
-| Run the dedicated performance audio box | **PUCA, after acceptance** | Powered-Pod20 standalone/radio baseline passes; exact waveform, visible fixture response/fallback, and field geometry remain open |
+| Run the dedicated performance audio box | **PUCA, after show acceptance** | `0.5` safe boot/exact-target OTA passes; exact waveform, visible fixture response/fallback, rollback, and field geometry remain open |
 | Run the ordinary autonomous show | **No bridge required** | The fixture fleet is designed to keep working without infrastructure |
 | Update fixture firmware | **Laptop + shared-WiFi OTA tools** | A bridge can request exact-target maintenance, but it is not the OTA uploader |
 
@@ -76,7 +76,7 @@ The words below are deliberately conservative:
   acceptance matrix is still open.
 - **Planned** means do not expect a working feature.
 
-| Device or feature | Status on 2026-08-26 | Practical meaning |
+| Device or feature | Status on 2026-08-27 | Practical meaning |
 |---|---|---|
 | T-Deck mesh, launcher, touch, trackball, keyboard, GPS, channel guard | Working | Hardware-probed on T-Deck `8EB508` |
 | T-Deck Claude, Fleet, LED Studio, Sleep / Dark, single Knock, CA Studio | Working with limits | Broad hardware or field smoke tests passed; read the app notes below |
@@ -86,7 +86,7 @@ The words below are deliberately conservative:
 | T-Deck Default selector and RGB white mapping | Source-built | Native and embedded builds pass; not flashed or hardware-validated |
 | T-Deck Locate, detailed sensor samples, microphone Patterns, voice | Planned | Locate is a visible placeholder; the others have no finished operator path |
 | CoreS3 Listener + Audio Bridge OS | Working baseline; spectral canary | Standalone speech/envelope response is fleet-proven; 25 Hz spectrogram and band modes need hardware acceptance |
-| PUCA Resonance bridge | Powered-Pod20 baseline passed | Locked standalone startup, codec/stereo capture, radio census, and full-census sender are proven; waveform/light and field gates remain open |
+| PUCA Resonance bridge | `0.5` safe boot/OTA passed; show acceptance pending | Codec/stereo capture, radio census, no-hold safe boot, Bridge identity, and exact-target OTA are proven; armed controls, waveform/light, rollback, and field gates remain open |
 
 The current T-Deck unit is short ID `8EB508`, full MAC
 `44:1B:F6:8E:B5:08`. The callsign-aware binary recorded on 2026-08-24 is
@@ -209,7 +209,15 @@ evidence.
 - a chip of the fixture's reported rendered color;
 - callsign when known, otherwise short ID;
 - class letter: `D` downlight, `P` perimeter, `U` uplight, `C` chandelier;
-- age, RSSI, PDR, raw battery voltage, and active program.
+- age, raw battery voltage, signed battery current (`+` charge, `-` draw), and
+  active program.
+
+`inf` means this bridge has never observed the registry fixture. `idle` is a
+real reported program; `?` means program state has not been observed. Sparse
+full-heartbeat program state is retained across short heartbeats and discarded
+on peer reboot until the new boot supplies fresh full-heartbeat state. Detail
+keeps RSSI/PDR and advisory SOC, and spells out state names such as
+`DAY_CHARGE`, `DIRECT`, and `PROTECT` instead of showing only numeric codes.
 
 Open a row for details and **Identify**, which requests a ten-second green blink.
 The default view includes the complete production registry plus unexpected live
@@ -221,7 +229,10 @@ Press **View** to combine:
 
 - `roster + live`, `seen since boot`, or `live now` rows;
 - all light types, downlights, perimeter, uplights, chandelier, or unknown;
-- all battery states, good, near low, low, off air, or no valid VBAT; and
+- all battery states, good, near low, low, off air, or no valid VBAT;
+- all programs or one of IDLE, CA, BRIDGE, DIRECT, DARK, VIRUS, and unknown;
+- all/known/unknown firmware, an exact observed reference revision, or the
+  complementary non-match/unknown cohort for OTA rollout audits; and
 - stable callsign, stable short ID, voltage low/high, most recent, or strongest
   signal sorting.
 
@@ -244,6 +255,14 @@ These Fleet view controls are flashed on primary T-Deck `8EB508` as of
 readback, and post-reset channel-11 mesh/peripheral checks passed. Physical
 screen layout, dropdown, stable-scroll, detail/back, 192-row memory, and named
 filtered-identify canary acceptance remain open in `TODO.md`.
+
+The compact signed-current row, IDLE-versus-unknown fix, readable detail states,
+and program/firmware rollout filters documented above are now in the combined
+image flashed on exact `8EB508`. Its 1,581,168-byte `tdeck-dev-local` binary has
+SHA-256
+`c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`.
+Upload and an independent whole-application `verify-flash` digest comparison
+passed; physical layout/filter acceptance remains open in `TODO.md`.
 
 Callsigns are display and command-entry aliases. Short MAC remains authoritative
 for flashing, OTA, manifests, persistence, and incident records. Unknown peers
@@ -469,7 +488,7 @@ The setting is ignored in field profile. Active LED Studio, Patterns, Dark, or
 CA leases still win; changing the default during a lease changes where the
 fixture returns after release or expiry. Wildfire here is always light-only --
 daytime knock CA remains an explicit bounded CA Studio lease. This feature is
-source-built as of 2026-08-25 but has not yet been flashed or hardware-validated.
+in the current combined `8EB508` image but has not yet been hardware-validated.
 
 ## RF: read-only radio diagnostics
 
@@ -796,13 +815,16 @@ shortcut.
 
 ## Honest status
 
-PUCA is the intended primary performance-audio instrument. Resonance development
-firmware now boots standalone in HEARTBEAT + line input with controls locked;
-its powered-Pod20 codec/stereo/radio/full-census baseline passes on the received
-board. The performer's waveform, visible fixture response/fallback, final field
-geometry, and multi-hour run remain acceptance gates. The factory Eurorack
-oscillator/effect image is not tree firmware, and a CoreS3 binary is not
-PUCA-compatible.
+PUCA is the intended primary performance-audio instrument. Its powered-Pod20
+codec/stereo/radio/full-census baseline passes on the received board. Installed
+`0.5.0-dev` boots SAFE-IDLE: it advertises identity and can hear maintenance,
+but emits no lighting frames unless the paw is held for 1.2 s during boot. A
+no-hold USB boot, exact `A4EB10` Bridge OS heartbeat, exact-target shared-WiFi
+OTA, post-OTA dark rejoin, and pending-verify survival passed on 2026-08-27. The
+paw-held DJ-first gesture, forced rollback, performer's waveform, visible
+fixture response/fallback, final field geometry, and multi-hour run remain
+acceptance gates. The factory Eurorack oscillator/effect image is not tree
+firmware, and a CoreS3 binary is not PUCA-compatible.
 
 The hardware on hand is:
 
@@ -822,6 +844,36 @@ RODE or mixer -> PUCA audio input -> WM8978 -> local envelope/FFT/onset
 ```
 
 PUCA will be an optional publisher, not a required coordinator.
+
+## PUCA startup and OTA
+
+- Ordinary power or an OTA/software reboot -> SAFE-IDLE. This must not seize or
+  darken the tree.
+- To perform: hold the paw continuously while powering/rebooting until the
+  1.2 s arm gesture completes. The first mode is DJ; short setup touches then
+  cycle DJ, HEARTBEAT, EMBER, and HUE.
+- For maintenance: select live peer `A4EB10` in Health and request exact-target
+  maintenance, or send serial `UA4EB10`. PUCA ignores all-zero/fleet-wide
+  maintenance commands.
+- Bridge OS requests maintenance; the laptop still discovers the identity-
+  matching shared-WiFi endpoint and uploads the PUCA Original Edition image.
+  Use the `firmware/puca_bridge/README.md` command so the 35 s command tail is
+  gone before reboot and the 25 s pending-verify gate is observed.
+- Maintenance and `/resume` always return to dark COMMS. A later deliberate
+  paw-held boot is required to publish. USB remains emergency recovery.
+
+The installed module normally needs Pod20 power for its complete Eurorack panel
+audio/CV/trigger path. USB-C or an optional main-board LiPo can keep the PUCA
+PCB, codec/onboard audio, radio, and recovery path alive, but neither replaces
+the rack rails or powers the tree. There is currently no operational reason to
+add the optional JST battery header unless PUCA-only telemetry/OTA ride-through
+becomes a measured requirement.
+
+The received unit has no exposed BOOT button; the visible onboard button is
+GPIO36. If automatic USB flashing fails with normal boot mode `0x13`, follow the
+exact RST/DTR rescue procedure in `firmware/puca_bridge/README.md`. Use a normal
+jumper between `RST` and `GND`, never a meter in ammeter mode, and never short
+`VIN` or `VDD`. This should be emergency access only; ordinary updates use OTA.
 
 ## Safe hardware handling now
 
@@ -848,6 +900,8 @@ of digital headroom. Do not run two independent automatic gain loops.
 - unclipped levels recorded for bowls, violin, singing, and onboard microphones;
 - [x] a native-tested, SHA-reporting `firmware/puca_bridge/` development build
   created (promotion still requires the remaining acceptance evidence);
+- [x] no-hold SAFE-IDLE, exact Bridge identity/maintenance, retained-binary OTA,
+  post-OTA dark rejoin, and pending-verify survival on `A4EB10`;
 - one-fixture direct-frame and three-second fallback proof;
 - mixed HEX/RGBW proof;
 - packet rate, PDR, CPU load, audio overrun, reset, and multi-hour soak evidence;
@@ -865,6 +919,9 @@ acceptance:
 |---|---|
 | Unit does not power in Pod20 | ribbon orientation, `-12 V` stripe, case power |
 | Factory WiFi AP appears | still running upstream firmware; Resonance runtime must remove the AP |
+| `A4EB10` never appears in Health | PUCA `0.5.0-dev` not installed, channel mismatch, or heartbeat/radio failure |
+| Exact-target maintenance refuses | USB bootstrap lacked gitignored shared-WiFi credentials; rebuild once with `--wifi-source` |
+| OTA reboot is dark | expected SAFE-IDLE; validate the new revision, then paw-hold a later deliberate boot to perform |
 | Knobs/paw do nothing | upstream hardware tests and the final documented firmware assignments |
 | RODE is silent | manual mic power, battery, exact AUDIO input, cable, codec LINE/AUX route |
 | Audio clips | RODE output, codec gain, input attenuation, 3.3 Vpp limit |

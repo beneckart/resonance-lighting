@@ -106,6 +106,29 @@ bool censusPeerSafe(const uint8_t id[3], PeerStat *out) {
   return p != nullptr;
 }
 
+size_t censusFirmwareRevisionsSafe(char (*out)[24], size_t maxOut) {
+  if (!out || maxOut == 0) return 0;
+  taskENTER_CRITICAL(&gCensusLock);
+  size_t count = 0;
+  for (size_t i = 0; i < gCensus.capacity() && count < maxOut; ++i) {
+    const PeerStat *p = gCensus.at(i);
+    if (!p || !p->used || !p->hasFw || !p->fwRev[0]) continue;
+    bool duplicate = false;
+    for (size_t j = 0; j < count; ++j) {
+      if (strncmp(out[j], p->fwRev, 24) == 0) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (duplicate) continue;
+    memcpy(out[count], p->fwRev, 24);
+    out[count][23] = '\0';
+    ++count;
+  }
+  taskEXIT_CRITICAL(&gCensusLock);
+  return count;
+}
+
 size_t censusQuietListSafe(uint32_t quietS, CensusView *out, size_t maxOut,
                            uint32_t nowMs) {
   taskENTER_CRITICAL(&gCensusLock);

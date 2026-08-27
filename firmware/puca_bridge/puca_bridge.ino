@@ -24,7 +24,8 @@
 //     silence/reboot/cable-pull just stops frames and the fleet goes back to
 //     autonomous behavior;
 //   - no WiFi AP (the factory image's "PUCA DSP" softAP must not exist here);
-//     STA stays unassociated, channel pinned to 11 and printed at boot;
+//     ordinary comms stays unassociated on channel 11. Exact-target service
+//     requests may deliberately leave ESP-NOW and join shared WiFi for OTA;
 //   - no raw audio on the air, ever.
 //
 // ---------------------------------------------------------------------------
@@ -57,10 +58,14 @@
 // ---------------------------------------------------------------------------
 
 #include <ESP_I2S.h>
+#include <Preferences.h>
+#include <Update.h>
+#include <WebServer.h>
 #include <WiFi.h>
 #include <Wire.h>
 #include <esp_mac.h>
 #include <esp_now.h>
+#include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <esp_wifi.h>
@@ -75,7 +80,16 @@
 #include "../cores3_bridge/audio_reactive.h"
 #include "puca_core.h"
 
-#define PUCA_BRIDGE_VERSION "0.4.1-dev"
+#define PUCA_BRIDGE_VERSION "0.5.0-dev"
+
+// Shared maintenance WiFi credentials. This file is gitignored and populated
+// by build.sh from an explicit --wifi-source or an existing sibling sketch.
+#if __has_include("wifi_secrets.h")
+#include "wifi_secrets.h"
+#define PUCA_HAS_WIFI_SECRETS 1
+#else
+#define PUCA_HAS_WIFI_SECRETS 0
+#endif
 
 #ifndef NB_CHANNEL
 #define NB_CHANNEL 11
@@ -201,7 +215,9 @@ uint32_t txSeq = 0;
 bool radioReady = false;
 bool codecReady = false;
 bool audioInputReady = false;
-bool audioActive = true;
+// Fail-safe boot: the publisher remains silent unless the paw was held through
+// the deliberate boot gesture (or USB service explicitly enables it later).
+bool audioActive = false;
 bool inputLineIn = true;   // standalone profile: external line input by default
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
@@ -213,15 +229,36 @@ I2SClass i2sIn;
 AudioEnvelope audioEnvelope;
 PucaPeakFollower heartbeatFollower;
 
-enum BridgeMode : uint8_t {
-  MODE_CLASSIC = 0, // per-slot R/G/B envelope (cores3 CLASSIC); KNOB2 = ceiling
-  MODE_HEARTBEAT,   // deterministic line waveform -> shared deep-red pulse
-  MODE_EMBER,       // shared warm white envelope; KNOB2 = ceiling
-  MODE_HUE,         // KNOB2 picks the hue, envelope drives the value
-  MODE_OFF,         // stop sending; fleet reverts via 3 s staleness + lease
-  MODE_COUNT,
+BridgeMode mode = MODE_CLASSIC;
+
+enum PucaNetMode : uint8_t {
+  PUCA_MODE_COMMS = 0,
+  PUCA_MODE_MAINT = 1,
 };
-BridgeMode mode = MODE_HEARTBEAT;
+enum PucaMaintStatus : uint8_t {
+  PUCA_MAINT_IDLE = 0,
+  PUCA_MAINT_ACTIVE = 1,
+  PUCA_MAINT_START_FAILED = 3,
+  PUCA_MAINT_TIMEOUT = 4,
+  PUCA_MAINT_RESUMED = 5,
+};
+
+static const uint32_t PUCA_MAINT_TIMEOUT_MS = 10UL * 60UL * 1000UL;
+static const uint32_t PUCA_OTA_VERIFY_AT_MS = 20000;
+WebServer otaServer(80);
+PucaNetMode netMode = PUCA_MODE_COMMS;
+uint8_t pucaMaintStatus = PUCA_MAINT_IDLE;
+bool otaServerActive = false;
+bool otaRoutesConfigured = false;
+bool otaResumePending = false;
+bool otaUploadActive = false;
+bool otaUploadComplete = false;
+uint32_t maintEnteredMs = 0;
+uint32_t heartbeatSeq = 0;
+uint32_t heartbeatSendOk = 0;
+uint32_t heartbeatSendFail = 0;
+bool otaVerifyChecked = false;
+bool otaPendingCache = true;
 
 float knob1Filt = 0.0f;   // smoothed 0..1
 float knob2Filt = 0.0f;   // smoothed 0..1
@@ -231,18 +268,21 @@ float lastShownLevel = 0.0f;
 PucaTouchGesture touchGesture;
 PucaSetupWindow setupWindow;
 PucaLedPattern statusLed;
-bool bootSetupRequested = false;
+bool bootArmRequested = false;
 
 PeerLite peers[NB_MAX_TRACKED] = {};
 
 QueueHandle_t rxQueue = nullptr;
 volatile uint32_t rxQueueDrops = 0;
 
+bool enterMaintenance();
+void enterComms();
+
 // uint8_t (not BridgeMode) so the Arduino-generated prototype -- which is
 // injected above the enum definition -- stays a valid declaration.
 const char *modeName(uint8_t m) {
   switch (m) {
-  case MODE_CLASSIC: return "CLASSIC";
+  case MODE_CLASSIC: return "DJ";
   case MODE_HEARTBEAT: return "HEARTBEAT";
   case MODE_EMBER: return "EMBER";
   case MODE_HUE: return "HUE";
@@ -265,7 +305,10 @@ void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
   if (!rxQueue || len < (int)sizeof(NbHeader) || len > (int)sizeof(RxItem::data))
     return;
   const NbHeader *h = (const NbHeader *)data;
-  if (h->ver != NB_PROTO_VER || h->type != NB_HEARTBEAT) return;
+  if (h->ver != NB_PROTO_VER) return;
+  bool wanted = h->type == NB_HEARTBEAT ||
+                h->type == NB_TARGET_ENTER_MAINT;
+  if (!wanted) return;
 
   RxItem item = {};
   item.len = (uint8_t)len;
@@ -311,6 +354,11 @@ bool setupEspNow() {
   return true;
 }
 
+void stopEspNow() {
+  if (radioReady) esp_now_deinit();
+  radioReady = false;
+}
+
 // ---- heartbeat listener (minimal port of the cores3 peer tracker) ------------
 PeerLite *findPeer(const uint8_t id[3], bool create) {
   for (size_t i = 0; i < NB_MAX_TRACKED; ++i) {
@@ -346,7 +394,21 @@ void processRx() {
   while (xQueueReceive(rxQueue, &item, 0) == pdTRUE) {
     const NbHeader *h = (const NbHeader *)item.data;
     if (memcmp(h->src_id, myId, sizeof(myId)) == 0) continue;
-    processHeartbeat(item);
+    if (h->type == NB_HEARTBEAT &&
+        item.len >= (int)offsetof(NbHeartbeat, supply_mv)) {
+      processHeartbeat(item);
+      continue;
+    }
+    if (h->type == NB_TARGET_ENTER_MAINT &&
+        item.len >= (int)sizeof(NbTargetCmd)) {
+      const NbTargetCmd *cmd = (const NbTargetCmd *)item.data;
+      if (pucaMaintenanceTargetMatches(cmd->target_id, myId) &&
+          netMode == PUCA_MODE_COMMS) {
+        Serial.printf("exact-target maintenance request from %02X%02X%02X\n",
+                      h->src_id[0], h->src_id[1], h->src_id[2]);
+        enterMaintenance();
+      }
+    }
   }
 }
 
@@ -386,6 +448,317 @@ size_t collectLiveFixtureIds(uint8_t ids[NB_MAX_TRACKED][3]) {
 int liveFixtureCount() {
   uint8_t ids[NB_MAX_TRACKED][3];
   return (int)collectLiveFixtureIds(ids);
+}
+
+// ---- PUCA identity heartbeat + shared-WiFi maintenance OTA ------------------
+// PUCA emits a tail-7 heartbeat so Bridge OS can census it, display the exact
+// puca-bridge revision, and send NB_TARGET_ENTER_MAINT to A4EB10. It is not a
+// fixture: the non-fixture firmware prefix keeps audio publishers out of the
+// light-target census.
+void sendPucaHeartbeat() {
+  if (!radioReady || netMode != PUCA_MODE_COMMS) return;
+  NbHeartbeat hb = {};
+  hb.h.ver = NB_PROTO_VER;
+  hb.h.type = NB_HEARTBEAT;
+  memcpy(hb.h.src_id, myId, sizeof(myId));
+  hb.h.seq = heartbeatSeq++;
+  hb.h.uptime_ms = millis();
+  hb.soc_pct = 255;             // no battery telemetry on the installed PUCA
+  hb.reset_reason = (uint8_t)esp_reset_reason();
+  hb.ca_state = audioActive ? 1 : 0;
+  hb.mode = (uint8_t)mode;
+  hb.dl_pdr_x1000 = 0xFFFF;
+  hb.dl_rssi = -127;
+  hb.lux_x10 = UINT32_MAX;
+  hb.ptemp_cx10 = INT16_MIN;
+  hb.prh_pct = 255;
+  hb.btemp_cx10 = INT16_MIN;
+  hb.ina_pv_mv = INT16_MIN;
+  hb.ina_pa_ma = INT16_MIN;
+  hb.ina_bv_mv = INT16_MIN;
+  hb.ina_ba_ma = INT16_MIN;
+  snprintf(hb.fw_rev, sizeof(hb.fw_rev), "puca-bridge-%s",
+           PUCA_BRIDGE_VERSION);
+  hb.maint_status = pucaMaintStatus;
+  size_t wireLen = offsetof(NbHeartbeat, maint_status) +
+                   sizeof(hb.maint_status);
+  if (esp_now_send(BCAST, (const uint8_t *)&hb, wireLen) == ESP_OK)
+    ++heartbeatSendOk;
+  else
+    ++heartbeatSendFail;
+}
+
+void heartbeatTick(uint32_t now) {
+  static uint32_t nextHeartbeatMs = 0;
+  if ((int32_t)(now - nextHeartbeatMs) < 0) return;
+  nextHeartbeatMs = now + 1000;
+  sendPucaHeartbeat();
+}
+
+const char *otaStateName(esp_ota_img_states_t state) {
+  switch (state) {
+  case ESP_OTA_IMG_NEW: return "new";
+  case ESP_OTA_IMG_PENDING_VERIFY: return "pending_verify";
+  case ESP_OTA_IMG_VALID: return "valid";
+  case ESP_OTA_IMG_INVALID: return "invalid";
+  case ESP_OTA_IMG_ABORTED: return "aborted";
+  default: return "undefined";
+  }
+}
+
+String pucaTelemetryJson() {
+  const esp_partition_t *running = esp_ota_get_running_partition();
+  esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
+  if (running) esp_ota_get_state_partition(running, &state);
+  char shortId[7];
+  snprintf(shortId, sizeof(shortId), "%02X%02X%02X",
+           myId[0], myId[1], myId[2]);
+  String json = "{\"board\":\"puca_dsp_original\",\"fw\":\"puca-bridge-";
+  json += PUCA_BRIDGE_VERSION;
+  json += "\",\"firmware_rev\":\"puca-bridge-";
+  json += PUCA_BRIDGE_VERSION;
+  json += "\",\"fixture_id\":\"";
+  json += shortId; // compatibility key used by the existing discovery tools
+  json += "\",\"node_id\":\"";
+  json += shortId;
+  json += "\",\"role\":\"puca_audio_bridge\",\"mode\":";
+  json += String((unsigned)netMode);
+  json += ",\"audio_mode\":\"";
+  json += modeName(mode);
+  json += "\",\"publisher_armed\":";
+  json += audioActive ? "true" : "false";
+  json += ",\"boot_armed\":";
+  json += bootArmRequested ? "true" : "false";
+  json += ",\"uptime_ms\":";
+  json += String((unsigned long)millis());
+  json += ",\"reset_reason\":";
+  json += String((unsigned)esp_reset_reason());
+  json += ",\"maint_status\":";
+  json += String((unsigned)pucaMaintStatus);
+  json += ",\"maintenance_ready\":";
+  json += (netMode == PUCA_MODE_MAINT && otaServerActive &&
+           WiFi.status() == WL_CONNECTED) ? "true" : "false";
+  json += ",\"wifi_ip\":\"";
+  json += WiFi.localIP().toString();
+  json += "\",\"wifi_rssi\":";
+  json += String(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
+  json += ",\"codec\":";
+  json += codecReady ? "true" : "false";
+  json += ",\"i2s\":";
+  json += audioInputReady ? "true" : "false";
+  json += ",\"ota_state\":\"";
+  json += otaStateName(state);
+  json += "\",\"ota_pending_verify\":";
+  json += state == ESP_OTA_IMG_PENDING_VERIFY ? "true" : "false";
+  json += ",\"heap_free\":";
+  json += String((unsigned long)ESP.getFreeHeap());
+  json += "}\n";
+  return json;
+}
+
+bool maintenanceReady() {
+  return netMode == PUCA_MODE_MAINT &&
+         pucaMaintStatus == PUCA_MAINT_ACTIVE && otaServerActive &&
+         WiFi.status() == WL_CONNECTED;
+}
+
+void configureOtaRoutes() {
+  if (otaRoutesConfigured) return;
+  otaServer.on("/", HTTP_GET, []() {
+    otaServer.send(200, "text/plain",
+                   "Resonance PUCA maintenance OTA; exact target only.\n");
+  });
+  otaServer.on("/telemetry", HTTP_GET, []() {
+    otaServer.send(200, "application/json", pucaTelemetryJson());
+  });
+  otaServer.on("/resume", HTTP_GET, []() {
+    otaServer.send(200, "text/plain", "resuming dark comms\n");
+    otaResumePending = true;
+  });
+  otaServer.on(
+      "/update", HTTP_POST,
+      []() {
+        esp_task_wdt_reset();
+        bool ok = otaUploadComplete && !Update.hasError();
+        otaServer.send(ok ? 200 : 500, "text/plain",
+                       ok ? "Update complete. Rebooting.\n"
+                          : "Update failed.\n");
+        if (ok) {
+          delay(500);
+          ESP.restart();
+        }
+      },
+      []() {
+        esp_task_wdt_reset();
+        HTTPUpload &upload = otaServer.upload();
+        if (upload.status == UPLOAD_FILE_START) {
+          otaUploadActive = true;
+          otaUploadComplete = false;
+          Serial.printf("OTA start: %s\n", upload.filename.c_str());
+          if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+          if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+            Update.printError(Serial);
+        } else if (upload.status == UPLOAD_FILE_END) {
+          otaUploadComplete = Update.end(true);
+          otaUploadActive = false;
+          if (otaUploadComplete)
+            Serial.printf("OTA done: %u bytes\n", upload.totalSize);
+          else
+            Update.printError(Serial);
+        } else if (upload.status == UPLOAD_FILE_ABORTED) {
+          Update.abort();
+          otaUploadActive = false;
+          otaUploadComplete = false;
+          Serial.println("OTA aborted");
+        }
+      });
+  otaRoutesConfigured = true;
+}
+
+bool startWifiOta() {
+#if PUCA_HAS_WIFI_SECRETS
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
+  uint32_t startedMs = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startedMs < 20000) {
+    esp_task_wdt_reset();
+    delay(250);
+    Serial.print('.');
+  }
+  Serial.println();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi join failed");
+    return false;
+  }
+  configureOtaRoutes();
+  otaServer.begin();
+  otaServerActive = true;
+  Serial.print("maintenance WiFi up, ip=");
+  Serial.print(WiFi.localIP());
+  Serial.printf(" ch=%d id=%02X%02X%02X role=puca_audio_bridge\n",
+                WiFi.channel(), myId[0], myId[1], myId[2]);
+  return true;
+#else
+  Serial.println("no wifi_secrets.h -> cannot OTA");
+  return false;
+#endif
+}
+
+void stopOtaAndWifi() {
+  if (otaServerActive) otaServer.stop();
+  WiFi.softAPdisconnect(true); // defensive: this firmware never starts an AP
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  otaServerActive = false;
+  otaUploadActive = false;
+  otaUploadComplete = false;
+}
+
+bool enterMaintenance() {
+  if (netMode == PUCA_MODE_MAINT) return true;
+#if !PUCA_HAS_WIFI_SECRETS
+  pucaMaintStatus = PUCA_MAINT_START_FAILED;
+  Serial.println("maintenance refused: build has no shared-WiFi credentials");
+  return false;
+#endif
+  // Do not transmit a black frame: simply release ownership and let the
+  // receiver's stale-frame lease return every fixture to autonomous behavior.
+  audioActive = false;
+  digitalWrite(PIN_LED_TOP, LOW);
+  Serial.println("publisher=SAFE-IDLE -> MAINTENANCE (shared-WiFi OTA)");
+  stopEspNow();
+  if (rxQueue) xQueueReset(rxQueue);
+  netMode = PUCA_MODE_MAINT;
+  maintEnteredMs = millis();
+  if (!startWifiOta()) {
+    pucaMaintStatus = PUCA_MAINT_START_FAILED;
+    Serial.println("maintenance startup failed -> dark comms");
+    enterComms();
+    return false;
+  }
+  pucaMaintStatus = PUCA_MAINT_ACTIVE;
+  return true;
+}
+
+void enterComms() {
+  if (otaServerActive || WiFi.status() == WL_CONNECTED) stopOtaAndWifi();
+  netMode = PUCA_MODE_COMMS;
+  if (rxQueue) xQueueReset(rxQueue);
+  radioReady = setupEspNow();
+  digitalWrite(PIN_LED_BOARD, radioReady ? HIGH : LOW);
+  digitalWrite(PIN_LED_TOP, LOW); // maintenance/resume never rearms publishing
+  Serial.printf("-> COMMS dark, esp-now=%s\n", radioReady ? "ready" : "FAILED");
+}
+
+void maintenanceTick() {
+  if (netMode != PUCA_MODE_MAINT) return;
+  otaServer.handleClient();
+  if (otaResumePending) {
+    otaResumePending = false;
+    pucaMaintStatus = PUCA_MAINT_RESUMED;
+    Serial.println("/resume -> dark comms");
+    enterComms();
+    return;
+  }
+  if (!otaUploadActive && millis() - maintEnteredMs > PUCA_MAINT_TIMEOUT_MS) {
+    pucaMaintStatus = PUCA_MAINT_TIMEOUT;
+    Serial.println("maintenance timeout -> dark comms");
+    enterComms();
+  }
+}
+
+extern "C" bool verifyRollbackLater() { return true; }
+extern "C" bool verifyOta() { return true; }
+
+bool otaVerifyPending() {
+  if (otaVerifyChecked || !otaPendingCache) return false;
+  const esp_partition_t *running = esp_ota_get_running_partition();
+  esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
+  if (!running || esp_ota_get_state_partition(running, &state) != ESP_OK) {
+    otaPendingCache = false;
+    return false;
+  }
+  otaPendingCache = state == ESP_OTA_IMG_PENDING_VERIFY;
+  return otaPendingCache;
+}
+
+bool otaSelfTest() {
+#ifdef PUCA_OTA_FAIL_SELFTEST
+  Serial.println("ota-verify: PUCA_OTA_FAIL_SELFTEST forcing failure");
+  return false;
+#endif
+  bool networkOk = netMode == PUCA_MODE_MAINT
+                       ? maintenanceReady()
+                       : radioReady && heartbeatSendOk > 0;
+  if (!codecReady || !audioInputReady || !networkOk) return false;
+  Preferences prefs;
+  if (!prefs.begin("respuca", false)) return false;
+  uint32_t probe = millis() | 1U;
+  bool nvsOk = prefs.putUInt("otaprobe", probe) == sizeof(uint32_t) &&
+               prefs.getUInt("otaprobe", 0) == probe;
+  prefs.end();
+  return nvsOk;
+}
+
+void otaVerifyTick() {
+  if (otaVerifyChecked || millis() < PUCA_OTA_VERIFY_AT_MS) return;
+  if (!otaVerifyPending()) {
+    otaVerifyChecked = true;
+    return;
+  }
+  otaVerifyChecked = true;
+  otaPendingCache = false;
+  if (otaSelfTest()) {
+    esp_ota_mark_app_valid_cancel_rollback();
+    Serial.println("ota-verify: VALID (codec + I2S + network + NVS)");
+  } else {
+    Serial.println("ota-verify: SELF-TEST FAILED -> rollback");
+    Serial.flush();
+    delay(100);
+    esp_ota_mark_app_invalid_rollback_and_reboot();
+  }
 }
 
 // ---- bridge-side color math (ported from cores3_bridge.ino) ------------------
@@ -478,22 +851,11 @@ void sendDirectFrame(float shown) {
 
 // ---- controls -----------------------------------------------------------------
 uint8_t nextLiveMode(uint8_t current) {
-  switch (current) {
-  case MODE_HEARTBEAT: return MODE_CLASSIC;
-  case MODE_CLASSIC: return MODE_EMBER;
-  case MODE_EMBER: return MODE_HUE;
-  default: return MODE_HEARTBEAT;
-  }
+  return (uint8_t)pucaNextLiveMode((BridgeMode)current);
 }
 
 uint8_t modeStatusCode(uint8_t current) {
-  switch (current) {
-  case MODE_HEARTBEAT: return 1;
-  case MODE_CLASSIC: return 2;
-  case MODE_EMBER: return 3;
-  case MODE_HUE: return 4;
-  default: return 5; // OFF/service state
-  }
+  return pucaModeStatusCode((BridgeMode)current);
 }
 
 void showStatus(uint32_t now) {
@@ -517,6 +879,10 @@ void nextMode() {
 
 void setAudioActive(bool active) {
   if (active == audioActive) return;
+  if (active && netMode != PUCA_MODE_COMMS) {
+    Serial.println("audio ON refused: maintenance owns the radio");
+    return;
+  }
   if (active && (!codecReady || !audioInputReady)) {
     Serial.println("audio ON refused: codec/I2S not ready");
     return;
@@ -571,10 +937,11 @@ void knobsTick() {
   knobGain = 0.25f * powf(16.0f, knob1Filt);
 }
 
-// Paw: HIGH assumed = touched (see UNCONFIRMED header note). Normal operation
-// is locked: any gesture only replays status. A continuous boot hold opens a
-// 20 s setup window; short touches then cycle live modes and a long hold locks
-// immediately. OFF is never in the paw cycle.
+// Paw: HIGH assumed = touched (see UNCONFIRMED header note). A continuous boot
+// hold is the physical arming interlock: without it PUCA joins the mesh only to
+// report identity/accept maintenance and never emits a lighting frame. The same
+// hold opens a 20 s setup window; short touches cycle DJ/HEARTBEAT/EMBER/HUE and
+// a long hold locks immediately. OFF is never in the paw cycle.
 void touchTick(uint32_t now) {
   bool raw = digitalRead(PIN_TOUCH) == HIGH;
   if (setupWindow.update(now)) {
@@ -672,7 +1039,8 @@ void printStatusJson() {
                 "\"clipblocks\":%lu,\"gain\":%.2f,\"hue\":%d,"
                 "\"peers\":%d,\"fixtures\":%d,\"sendok\":%lu,\"active\":%d,\"input\":\"%s\","
                 "\"ceil\":%.2f,\"sendfail\":%lu,\"codec\":%d,"
-                "\"controls\":\"%s\"}\n",
+                "\"controls\":\"%s\",\"net\":\"%s\",\"maint_status\":%u,"
+                "\"boot_armed\":%d}\n",
                 modeName(mode), lastShownLevel, heartbeatFollower.level,
                 audioEnvelope.rms, audioPeak,
                 (unsigned long)audioClippedBlocks, knobGain,
@@ -680,7 +1048,9 @@ void printStatusJson() {
                 (unsigned long)sendOk, audioActive ? 1 : 0,
                 inputLineIn ? "line" : "mic", knob2Filt,
                 (unsigned long)sendFail, codecReady ? 1 : 0,
-                setupWindow.unlocked ? "SETUP" : "LOCKED");
+                setupWindow.unlocked ? "SETUP" : "LOCKED",
+                netMode == PUCA_MODE_MAINT ? "MAINT" : "COMMS",
+                (unsigned)pucaMaintStatus, bootArmRequested ? 1 : 0);
 }
 
 void handleSerial() {
@@ -704,12 +1074,15 @@ void statusTick(uint32_t now) {
   static uint32_t nextStatusMs = 0;
   if ((int32_t)(now - nextStatusMs) < 0) return;
   nextStatusMs = now + 1000;
-  Serial.printf("puca mode=%s active=%d input=%s calibrated=%d level=%.3f wave=%.3f "
+  Serial.printf("puca mode=%s active=%d bootarmed=%d net=%s maint=%u input=%s calibrated=%d level=%.3f wave=%.3f "
                 "gain=%.2f ceil=%.2f hue=%d peers=%d fixtures=%d sendok=%lu sendfail=%lu "
                 "rms=%.0f peak=%u clipblk=%lu clips=%lu frames=%lu readfail=%lu "
                 "rxdrop=%lu i2cerr=%lu codec=%d controls=%s up=%lu "
                 "fw=puca-bridge-" PUCA_BRIDGE_VERSION "\n",
                 modeName(mode), audioActive ? 1 : 0,
+                bootArmRequested ? 1 : 0,
+                netMode == PUCA_MODE_MAINT ? "MAINT" : "COMMS",
+                (unsigned)pucaMaintStatus,
                 inputLineIn ? "line" : "mic",
                 audioEnvelope.calibrated() ? 1 : 0, lastShownLevel,
                 heartbeatFollower.level, knobGain,
@@ -764,8 +1137,8 @@ void setup() {
   digitalWrite(PIN_LED_TOP, LOW);
   digitalWrite(PIN_LED_BTM, LOW);
 
-  Serial.println("hold paw now for setup; otherwise controls boot locked");
-  bootSetupRequested = detectBootSetupHold();
+  Serial.println("hold paw 1.2 s now to ARM DJ; no hold = SAFE-IDLE");
+  bootArmRequested = detectBootSetupHold();
 
   analogReadResolution(12);
   analogSetPinAttenuation(PIN_KNOB1, ADC_11db);
@@ -786,7 +1159,8 @@ void setup() {
   Serial.printf("i2s: 16 kHz stereo RX %s (mclk=%d bclk=%d ws=%d din=%d)\n",
                 audioInputReady ? "ready" : "INIT FAILED",
                 PIN_I2S_MCLK, PIN_I2S_BCLK, PIN_I2S_WS, PIN_I2S_DIN);
-  if (!codecReady || !audioInputReady) audioActive = false;
+  audioActive = pucaPublisherShouldArmAtBoot(bootArmRequested, codecReady,
+                                             audioInputReady);
 
   rxQueue = xQueueCreate(32, sizeof(RxItem));
   if (!rxQueue) Serial.println("rx queue allocation FAILED");
@@ -795,30 +1169,42 @@ void setup() {
 
   digitalWrite(PIN_LED_BOARD, radioReady ? HIGH : LOW);
   digitalWrite(PIN_LED_TOP, (mode != MODE_OFF && audioActive) ? HIGH : LOW);
-  if (bootSetupRequested) {
+  if (bootArmRequested && audioActive) {
     setupWindow.enter(millis());
-    Serial.println("controls=SETUP for 20 s (short touch cycles; long hold locks)");
+    Serial.println("publisher=ARMED mode=DJ; controls=SETUP for 20 s");
+    Serial.println("short touch cycles DJ/HEARTBEAT/EMBER/HUE; long hold locks");
   } else {
-    Serial.println("controls=LOCKED (paw reports status only)");
+    Serial.println("publisher=SAFE-IDLE (no lighting frames); controls=LOCKED");
   }
   showStatus(millis());
   statusLedTick(millis());
   Serial.printf("mode=%s gain-knob=GPIO%d mode-knob=GPIO%d paw=GPIO%d\n",
                 modeName(mode), PIN_KNOB1, PIN_KNOB2, PIN_TOUCH);
-  Serial.println("status LED: LINE=1 long, MIC=2 long; HEARTBEAT=1 short, CLASSIC=2, EMBER=3, HUE=4");
+  Serial.println("status LED: LINE=1 long, MIC=2 long; DJ=1 short, HEARTBEAT=2, EMBER=3, HUE=4");
   Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line");
 }
 
 void loop() {
   esp_task_wdt_reset();
   uint32_t now = millis();
-  processRx();
   handleSerial();
+  if (netMode == PUCA_MODE_MAINT) {
+    maintenanceTick();
+    statusLedTick(now);
+    statusTick(now);
+    otaVerifyTick();
+    delay(2);
+    return;
+  }
+  processRx();
+  if (netMode == PUCA_MODE_MAINT) return; // command switched radio ownership
+  heartbeatTick(now);
   touchTick(now);
   statusLedTick(now);
   audioTick(); // blocks ~100 ms while audio is up; that is the loop cadence
   now = millis();
   statusLedTick(now);
   statusTick(now);
+  otaVerifyTick();
   if (!audioInputReady) delay(10); // no I2S pacing -> do not spin the core
 }

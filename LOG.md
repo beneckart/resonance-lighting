@@ -10,6 +10,76 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Combined current Bridge OS flashed on 8EB508
+
+Ben requested the new Fleet build on the primary T-Deck and asked whether it
+also contained the other recent Bridge upgrades. The previously retained Fleet
+binary was older than the current source tree, so it was not reused. Recorded
+source digest
+`f8b93cb792aee9edd7b7271f7748243f662aca4027038e2e1b2d1a00adc4adbd`
+before the build and matched it afterward. The combined source includes the
+persistent high-contrast DAY/NIGHT presentation and Fleet quick toggle, the
+compact Fleet VBAT/signed-IBAT row, IDLE-versus-unknown state fix, readable
+detail names, program/firmware rollout filters, the exact-target Default app,
+and the current semantic-white planner.
+
+The complete native T-Deck suite passed. Built and USB-flashed only exact
+T-Deck `8EB508` (`44:1B:F6:8E:B5:08`) on COM7; COM6 remained the separately
+identified PUCA CP2102N and was never opened. The application uses 1,581,023
+bytes (50 percent) of flash and 164,888 bytes (50 percent) of global RAM. The
+1,581,168-byte `tdeck-dev-local` binary has SHA-256
+`c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`.
+Upload verified every written region. Three raw `read-flash` attempts stopped
+after 4-44 KB with USB serial corruption at 921600, 460800, and 115200 baud;
+the independent `verify-flash` operation then compared all 1,581,168
+application bytes in place and passed with a matching digest.
+
+After the verification reset, `8EB508` reported `tdeck-dev-local`, channel 11,
+`display=day`, saved night backlight 59, mesh up with live receive, 14/14 sends
+and zero failures, healthy 8 MB PSRAM/keyboard/touch/ES7210/GPS probes, about
+68.7 KB free heap, and about 7.72 MB free PSRAM. Only local read-only
+`show`/`probe`/`mem` and emitter on/off diagnostics were used; no fixture
+command, profile change, reboot request, OTA request, or NVS mutation was sent.
+Physical checks of the new Fleet layout/filter scrolling and Default/semantic-
+white behavior remain in TODO.
+
+## 2026-08-27 -- Ben + Codex -- PUCA safe bootstrap and exact-target OTA accepted
+
+Onboarded from and fast-forwarded to `origin/main` at `ec5e6c6`, preserving the
+existing uncommitted Bridge and PUCA work through a named safety stash. Reviewed
+the incoming T-Deck cache-schema-2 optimization: Arduino owns only
+`build/dev-cache`, wrapper recipe/interruption state now lives in sibling
+`dev-cache.state`, and the compile-free build-wrapper contract passed locally.
+No T-Deck rebuild or flash was required for this acceptance run.
+
+Built the credentialed PUCA Original Edition `puca-bridge-0.5.0-dev` bootstrap
+with the explicit 4 MB default dual-app partition layout. The retained
+application is 1,024,128 bytes, SHA-256
+`1e90f6f1731a622b11274fa91abbc6eeebb17c35abe90bd86337c915cb99e8da`.
+The received CP2102N automatic-reset circuit repeatedly booted normally instead
+of entering the ROM downloader. The visible onboard button proved to be GPIO36,
+not BOOT. With stable Pod20/USB power, holding the accessible `RST` header pin to
+`GND`, asserting DTR/download, releasing `RST`, and using esptool
+`--before no_reset` entered ROM download; all four flash regions completed hash
+verification. A normal jumper was used -- never an ammeter-mode meter or a
+short to `VIN`/`VDD`.
+
+Fourteen consecutive post-bootstrap samples reported DJ selected but
+`active=0`, `bootarmed=0`, controls locked, healthy codec, and `frames=0`; only
+the intended PUCA heartbeat counter advanced. Primary Bridge OS `8EB508` saw
+fresh channel-11 `A4EB10` heartbeats with exact revision
+`puca-bridge-0.5.0-dev`.
+
+The host then sent only exact command `UA4EB10`. PUCA joined shared maintenance
+WiFi, exposed identity-matching telemetry, accepted the exact retained
+1,024,128-byte image, rebooted with software reset, rejoined the Bridge with
+reset uptime/sequence, and survived the 25 s pending-verify gate. A later
+ordinary USB-induced reset again reported SAFE-IDLE, locked controls, codec
+ready, and zero direct frames. The OTA result is in
+`ops/bench/data/ca/2026-08-27-ota-results.jsonl`. Routine enclosed OTA is now
+accepted; paw-held DJ/setup controls, `/resume`/timeout, broadcast rejection,
+softAP absence, forced rollback, and visible audio/light acceptance remain open.
+
 ## 2026-08-27 -- Ben + Codex -- T-Deck warm-build cache boundary repaired and proven
 
 Before changing the wrapper, fetched GitHub and confirmed the clean local HEAD
@@ -133,6 +203,186 @@ exactly. After the readback reset, the Bridge rejoined mesh channel 11, received
 fresh fixture traffic, reported `sendfail=0`, and passed peripheral and memory
 probes. No fixture command or mutation was sent. Physical contrast confirmation
 and the remaining Fleet acceptance checks stay open in `TODO.md`.
+## 2026-08-27 -- Ben + Codex -- Fleet truth labels, battery current, and rollout filters
+
+Onboarded from the repo and traced the T-Deck Fleet report in which only a few
+fixtures showed `dir` while most showed `idle`. The fixture runtime does not
+persist DIRECT through a protection lockout: the lease expires after direct
+frames stop, and a reboot/deep-sleep reconstructs runtime state. The actual UI
+bug was that each sparse short heartbeat cleared `hasFixtureState`, after which
+Fleet rendered the default numeric program value 0 as `idle`. Full-heartbeat
+program/profile/lifecycle/tier state is now latched across short heartbeats with
+its own evidence timestamp. A sender reboot or sequence restart clears cached
+program and firmware evidence until that new boot emits a full heartbeat, so
+old state cannot masquerade as current.
+
+Reworked the compact Fleet row around the field-useful values: callsign/class,
+`inf`/age, raw VBAT, signed IBAT (`+` charge, `-` discharge), and program. RSSI,
+PDR, and advisory gauge SOC remain in detail. An explicit `idle` now means a
+reported program 0; `?` means no program evidence. Detail uses human-readable
+class, profile, lifecycle, tier, program, and network-mode names such as
+`perimeter`, `FIELD`, `DAY_CHARGE`, `PROTECT`, `DIRECT`, and `COMMS`, and also
+shows state age, battery/input current, and input-good state.
+
+Extended the scrollable View screen with program filters plus firmware known,
+unknown, exact-reference, and not-reference/unknown filters. The firmware
+reference picker is populated from up to 16 exact revisions retained by the
+census; a compact 32-bit equality fingerprint rides cached census rows so the
+many 192-row consumers do not duplicate 24-byte strings. The non-match cohort
+deliberately includes missing revision evidence for rollout triage; host-side
+fresh-revision and pending-verify gates remain the authority for OTA success.
+
+The complete native T-Deck suite passes, including regressions for IDLE versus
+unknown, full-state retention across short heartbeats, reboot invalidation, and
+firmware rollout filters. The unflashed `tdeck-dev-local` build uses 1,578,783
+bytes (50 percent) of flash and 164,880 bytes (50 percent) of global RAM. Its
+1,578,928-byte binary has SHA-256
+`d7e544c435b9bc9bbfc26488f985ea06666224cc9cc354f6fa2a4aa2af25c599`.
+No hardware was flashed; primary T-Deck `8EB508` still carries the prior
+verified image documented below.
+
+## 2026-08-27 -- Ben + Codex -- PUCA safe boot and exact-target shared-WiFi OTA source
+
+Implemented ADR 0063 for the one-off Original Edition PUCA `A4EB10`. The
+`0.5.0-dev` source now boots SAFE-IDLE after every reset and emits no
+`NB_DIRECT_FRAME` unless the capacitive paw is held continuously for 1.2 seconds
+during boot. A successful hold arms line input + DJ (the prior CLASSIC per-slot
+look) and opens the existing 20-second setup window; the live cycle is now DJ,
+HEARTBEAT, EMBER, HUE. Locked touches still report status only. An OTA/software
+reboot deliberately returns dark and requires a later physical paw-held boot to
+publish.
+
+Added a PUCA tail-7 heartbeat carrying `puca-bridge-0.5.0-dev`, so Bridge OS can
+census and target the publisher without any audio bridge mistaking it for a
+fixture. PUCA accepts only an exact `NB_TARGET_ENTER_MAINT` for its own short ID;
+the all-zero fleet target is test-covered and ignored. Maintenance stops
+publishing without a blackout frame, leaves channel-11 ESP-NOW, joins the shared
+maintenance WiFi, and exposes the fixture-compatible `/telemetry`, `/update`,
+and `/resume` endpoints. It never creates a softAP. Resume, startup failure, and
+the 10-minute timeout return to dark COMMS. The default 4 MB dual-app partition
+layout and deferred 20-second codec/I2S/network/NVS self-test provide A/B
+rollback; a forced-failure build flag supports the rollback drill.
+
+Extended the build wrapper with explicit default OTA partitions, `--ota`,
+`--wifi-source`, and `--ota-fail-selftest`. Updated PUCA hardware/firmware docs,
+the Bridge OS field manual, TODO, and added the ADR. The documented end-to-end
+path reuses `field_cycle_ota.py`: Bridge OS sends `UA4EB10`, host discovery
+identity-matches the PUCA endpoint, waits out the 35-second command tail,
+uploads the PUCA binary, then requires fresh exact-revision rejoin evidence and
+25-second pending-verify survival.
+
+All 103 native PUCA checks pass. A clean ESP32-PICO-D4 build on explicit
+`PartitionScheme=default` uses 1,013,704 bytes (77 percent) of the 1,310,720-byte
+app slot and 62,504 bytes of RAM; binary is 1,013,856 bytes, SHA-256
+`1ff4f5aa9baf168fe8d6866d92f841b21406a0ad29cc8281901e8f595c674e58`.
+This is deliberately only a compile-check: the checkout has no local
+`wifi_secrets.h`, so that image would refuse OTA. No hardware was flashed.
+Windows also exposed only COM3 / PowerFeather `F2BE20` (`VID_303A`), not the
+PUCA CP2102N (`VID_10C4`, previously COM154), so the wrong ESP32 was explicitly
+excluded. Next is to re-enumerate the PUCA, provide the shared-WiFi header via
+`--wifi-source`, build/USB-flash that credentialed bootstrap, then execute ADR
+0063's safe-boot, exact-target OTA, pending-verify, and rollback hardware gates.
+
+## 2026-08-27 -- Ben + Codex -- One plugged canopy class probe verified; second identity still unknown
+
+Onboarded from the repo and investigated Ben's report that two USB-powered
+physical canopy lights appeared as uplights while a separate PUCA bench was
+active. Preserved the in-progress PUCA source and did not touch PUCA hardware.
+Windows exposed only one Espressif USB data device: COM3 / Sonic `F2BE20`
+(`68:EE:8F:F2:BE:20`), a registered outer-ring downlight. The other powered
+canopy was not data-enumerated on this host, so its exact identity remains
+unknown from host evidence.
+
+Opening COM3 with DTR and RTS disabled nevertheless caused the ESP32-S3 native
+USB path to report `USB_UART_CHIP_RESET`; no other fixture port was opened after
+that. Sonic rebooted cleanly on valid production artifact
+`fx-260826-51d1fe1-p`, retained commission/listener, 15 Ah, 2 A, channel 11,
+and reported no class mismatch. Its cold boot ID probe found TMF8820 + BMP581
+(`sensor_bits=5`) and selected `downlight`; the later MSA driver probe reported
+the MSA present, although the early telemetry sample preceded its first healthy
+read. This proves the visible listener light is not itself a sensor-health gate
+and rules out a missing-TMF/uplight classification for Sonic on this boot.
+
+Ben clarified that the suspected misclassification came from T-Deck LED
+Studio's white swatch rendering equal RGB rather than the dedicated W die. The
+current planner does use dedicated W for a census class of downlight, but it
+also deliberately maps class `unknown` to RGB white. LED Studio consumes the
+raw census class and does not use the embedded registry-role fallback that the
+new Fleet view uses. Therefore RGB white proves only that the T-Deck did not
+have `downlight` latched for that target at planning time; it does not by itself
+prove the fixture probed as uplight. Sonic's exact boot evidence is the stronger
+current result. Fixtures send a full class-bearing heartbeat at boot and every
+5 seconds in commission, but a missed initial full frame can leave a briefly
+fresh/unknown target after its short heartbeat arrives.
+
+Ben then ruled out both PUCA and LED Studio as sources for the three illuminated
+bench fixtures at about 09:00. The lifecycle trace identifies two remaining
+paths. Sonic is explicitly in persisted commission/listener, which never
+day-sleeps and deliberately shows a ready beacon regardless of time. A field-
+profile fixture without valid scheduled UTC instead falls back to the bare-peer
+heuristic: 30 continuous minutes without a good >=20 mA input becomes dusk and
+starts autonomous `NIGHT_SHOW`; five minutes of useful input ends that show.
+Distributed UTC is RAM-only, expires 30 minutes after the last accepted source,
+and is lost immediately on reboot, so a battery-only fixture stranded from the
+fleet in bench shade can enter a false night. The autonomous Greenberg-Hastings
+CA can look like random light activity. USB normally supplies affirmative day
+evidence (Sonic reported about 70 mA), so the USB-powered fixtures remaining lit
+for more than five minutes point to commission/listener rather than false dusk;
+the unpowered-by-USB fixture could be either. Fleet detail exposes the decisive
+state directly: lifecycle 3 is `NIGHT_SHOW`, while 4 is `COMMISSION`.
+
+The initial diagnosis performed no flash, OTA, profile/channel persistence, NVS
+mutation, fixture command, or PUCA operation. A follow-up host recheck after more
+than five minutes still exposed only COM3/Sonic; no T-Deck and neither other
+fixture enumerated as a data device. Elapsed time in shade does not satisfy the
+five-minute dawn gate: it specifically requires continuous good input at >=20
+mA.
+
+Ben then explicitly authorized the exact `F2BE20` profile repair and the known
+USB-open reset risk. With this laptop declared the sole configuration writer,
+the guarded transaction identity-checked COM3's USB serial as
+`68:EE:8F:F2:BE:20`, sent local `F1`, received `profile -> field`, and verified
+with a bare `F` query returning `profile=field`. The live lifecycle immediately
+started its daytime solar probe on 358 mA input. No image, channel, or other
+fixture was changed.
+
+The same short serial window captured six successive 40 ms `capboard SW1`
+strikes, numbered 27 through 32; the host sent no strike command. Ben then
+confirmed that the 433 MHz handheld transmitter had been used intermittently
+that morning. The receiver and physical SW1 intentionally share the external
+D7 path and therefore the same log label, so this is expected transmitter
+activity rather than a profile-write side effect or capboard fault. Field
+profile deliberately does not suppress that physical/receiver authority path.
+The serial port was closed after verification.
+
+Ben next connected the other prior RGB-white canary. USB enumeration identified
+Bidoof `9F26D8` on COM4 and, six seconds later, registered outer-ring downlight
+Leia `F40384` on COM5. With Ben authorizing the possible USB-open reset, a
+read-only COM5 telemetry query proved Leia is running `fx-260826-51d1fe1-p`,
+classifies `downlight` with `class_ovr=0` and no mismatch, and has healthy
+MSA311, TMF8820, and BMP581. The TMF reported 85,330 successful reads with zero
+errors or recoveries. This rules out a current STEMMA/class-probe failure as the
+cause of Leia's prior LED Studio RGB-white result and supports the already
+traced T-Deck raw-census `unknown` -> RGB semantic-white gap.
+
+The same telemetry exposed two independent current-state facts. Leia remained
+in persisted commission/listener (`life_state=4`), so it showed its daytime
+ready beacon after commands stopped. It was also actively receiving direct
+frames: over the observation interval `direct_seen` rose from 110 to 1,702 and
+`direct_matched` from 110 to 716 while program remained 3 (`DIRECT`). Ben then
+clarified that PUCA was connected and believed to be publishing. Fixture
+telemetry does not retain the direct sender ID, so this observation is attributed
+to the declared PUCA bench context and is not evidence of a lingering T-Deck
+LED Studio stream. The existing Bridge OS Back-versus-Stop semantics remain
+documented separately.
+
+Ben explicitly authorized Leia's exact profile repair. With this laptop the
+sole fixture configuration writer, COM5 identity was rechecked as `F40384`,
+local `F1` received `profile -> field`, a bare `F` query returned
+`profile=field`, and complete telemetry independently confirmed field profile,
+`life_state=1` (`DAY_CHARGE`), 328 mA good input, and LED rail off. The live
+class remained downlight with healthy TMF. PUCA and Bidoof/COM4 were untouched;
+no fixture image or other NVS field changed.
 
 ## 2026-08-27 -- Ben + Codex -- Filterable Fleet Bridge OS flashed and read back on 8EB508
 
@@ -883,6 +1133,43 @@ T-Deck 1,570,560 bytes, SHA-256
 No hardware was flashed and no fixture command was sent. Isolated hardware
 validation of reboot survival, sequence correlation, automatic sleep causes,
 and NVS-failure refusal remains open.
+
+## 2026-08-26 -- Ben + Codex -- Burning Man Windows build laptop bootstrap
+
+Bootstrapped the new Windows build laptop from `main` at `20c26c6` without
+flashing any hardware. Installed user-scoped Scoop plus Git 2.55.0, Arduino CLI
+1.5.1, GCC 15.2.0, Make 4.4.1, Python 3.12.10, Node 22.23.2/npm 10.9.8,
+GitHub CLI 2.98.0, ripgrep, jq, and Playwright Chromium. Persisted the tool
+paths for fresh terminals and configured Git for LF worktrees so registry hash
+generation remains deterministic on Windows.
+
+Installed the recorded firmware baseline: ESP32 Arduino core 3.3.7,
+PowerFeather SDK 2.1.0, Adafruit BusIO 1.17.4, MSA301 1.1.4, NeoPixel 1.15.5,
+Unified Sensor 1.1.15, SparkFun Qwiic TMF882X 1.0.2, LVGL 9.5.0, LovyanGFX
+1.2.24, M5Unified 0.2.21, and M5GFX 0.2.28. The optional M5Module Audio
+library is pinned at `d8649a4863fea4a47d690781eb330f7c28a434b3`.
+
+All fixture, TDeck, and CoreS3 native suites pass. A channel-11 commission
+fixture cold cache seed produced 1,185,792 bytes / SHA-256
+`534256be106000ca0826ff683c4054cab19b2f8236834a7d7f79ea039a233377`;
+its warm rebuild was 18 seconds with an explicit cache hit. The TDeck cold seed
+was 12m34s and produced 1,552,672 bytes / SHA-256
+`73c249bd206b6d51b2f30193764b3a0a18262be59b0b9a8150748e1aa7a89f27`;
+its warm rebuild was 48 seconds. The standalone channel-11 CoreS3 build took
+5m38s and produced 1,150,128 bytes / SHA-256
+`d6f3ab999b19fae43eefd02a16c5407cc03c0eb6adfd6e8ffd3bd97e9c8a0de2`.
+
+The app production build and all 44 unit-test files pass (367 passed, 4
+intentionally skipped). Playwright Chromium passed the unplugged BLINK scenario
+and a 121-control audit; the complete 43-case serial visual acceptance campaign
+was intentionally stopped after those smoke cases because several cases carry
+9-15 minute budgets. Python scientific/serial imports pass and the locator suite
+passes 34/34. Bench tests pass 26/27; the one repository-level failure is a
+stale assertion expecting 141 callsigns while the current generated production
+health roster correctly contains 144. GitHub CLI still needs `gh auth login`,
+field Wi-Fi secrets remain intentionally absent, and no USB boards were present.
+`npm ci` also reports 10 dependency advisories (3 moderate, 5 high, 2 critical);
+no lockfile-changing automatic audit fix was applied.
 
 ## 2026-08-25 -- Ben + Codex -- CoreS3 Audio CA takeover and fx-fleet fix
 

@@ -12,26 +12,63 @@ set -euo pipefail
 
 # PUCA DSP Original Edition is an ESP32-PICO-D4 (4 MB flash). The stock pico32
 # profile matches; the 8 MB PSRAM is unused by this development build.
-FQBN="esp32:esp32:pico32"
+# Keep the default dual-app partition table explicit: this is the 4 MB
+# ESP32-PICO-D4 OTA/A-B layout, not the tempting no_ota large-app profile.
+FQBN="esp32:esp32:pico32:PartitionScheme=default"
 SKETCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIRMWARE_ROOT="$(cd "${SKETCH_DIR}/.." && pwd)"
 PORT=""
+OTA_IP=""
+WIFI_SOURCE=""
 BUILD_PATH=""
 RUN_TESTS=1
+EXTRA_FLAGS=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port) PORT="$2"; shift 2;;
+    --ota) OTA_IP="$2"; shift 2;;
+    --wifi-source) WIFI_SOURCE="$2"; shift 2;;
+    --ota-fail-selftest) EXTRA_FLAGS+=" -DPUCA_OTA_FAIL_SELFTEST=1"; shift;;
     --build-path) BUILD_PATH="$2"; shift 2;;
     --skip-tests) RUN_TESTS=0; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
 
+[[ -z "${PORT}" || -z "${OTA_IP}" ]] || {
+  echo "choose one write path: --port or --ota" >&2
+  exit 2
+}
+
 if [[ -z "${BUILD_PATH}" ]]; then
   BUILD_PATH="${SKETCH_DIR}/build/puca-bridge-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 fi
 mkdir -p "${BUILD_PATH}"
+
+# wifi_secrets.h is gitignored. An explicit source replaces stale local
+# credentials; otherwise reuse the same local source as fixture maintenance.
+if [[ -n "${WIFI_SOURCE}" ]]; then
+  [[ -f "${WIFI_SOURCE}" ]] || {
+    echo "wifi source not found: ${WIFI_SOURCE}" >&2
+    exit 2
+  }
+  cp "${WIFI_SOURCE}" "${SKETCH_DIR}/wifi_secrets.h"
+  echo "copied wifi_secrets.h from ${WIFI_SOURCE}"
+fi
+if [[ ! -f "${SKETCH_DIR}/wifi_secrets.h" ]]; then
+  for src in "${FIRMWARE_ROOT}/fixture/wifi_secrets.h" \
+             "${FIRMWARE_ROOT}/net_bench/wifi_secrets.h" \
+             "${FIRMWARE_ROOT}/power_bench/wifi_secrets.h"; do
+    if [[ -f "${src}" ]]; then
+      cp "${src}" "${SKETCH_DIR}/wifi_secrets.h"
+      echo "copied wifi_secrets.h from ${src}"
+      break
+    fi
+  done
+fi
+[[ -f "${SKETCH_DIR}/wifi_secrets.h" ]] || \
+  echo "WARNING: no wifi_secrets.h -- this build will refuse maintenance OTA"
 
 if [[ "${RUN_TESTS}" == "1" ]]; then
   bash "${SKETCH_DIR}/tests/run_tests.sh"
@@ -41,7 +78,7 @@ fi
 # "fixture/src/core/packet.h" (one contract, one file -- never forked). The
 # shared envelope tracker rides a relative include of
 # ../cores3_bridge/audio_reactive.h from the sketch itself.
-FLAGS="-I${FIRMWARE_ROOT}"
+FLAGS="-I${FIRMWARE_ROOT}${EXTRA_FLAGS}"
 
 echo "FQBN: ${FQBN}"
 echo "FLAGS: ${FLAGS}"
@@ -61,6 +98,9 @@ if [[ -n "${PORT}" ]]; then
   arduino-cli upload --fqbn "${FQBN}" --port "${PORT}" \
     --build-path "${BUILD_PATH}" "${SKETCH_DIR}"
   echo "flashed ${PORT}; open at 115200 baud (keys: t M A I H)"
+elif [[ -n "${OTA_IP}" ]]; then
+  echo "OTA -> http://${OTA_IP}/update (PUCA must already be in exact-target maintenance)"
+  curl --fail-with-body -sS -F "firmware=@${BIN}" "http://${OTA_IP}/update"
 fi
 
 echo "compile-check binary: ${BIN}"

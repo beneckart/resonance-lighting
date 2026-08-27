@@ -33,6 +33,25 @@ enum class FleetBatteryFilter : uint8_t {
   UNKNOWN,
 };
 
+enum class FleetProgramFilter : uint8_t {
+  ALL = 0,
+  IDLE,
+  CA,
+  BRIDGE,
+  DIRECT,
+  DARK,
+  VIRUS,
+  UNKNOWN,
+};
+
+enum class FleetFirmwareFilter : uint8_t {
+  ALL = 0,
+  KNOWN,
+  UNKNOWN,
+  MATCH_REFERENCE,
+  NOT_REFERENCE,
+};
+
 enum class FleetSortMode : uint8_t {
   CALLSIGN_STABLE = 0,
   SHORT_ID_STABLE,
@@ -46,6 +65,9 @@ struct FleetViewSettings {
   FleetRowScope scope;
   FleetClassFilter classFilter;
   FleetBatteryFilter batteryFilter;
+  FleetProgramFilter programFilter;
+  FleetFirmwareFilter firmwareFilter;
+  char firmwareReference[24];
   FleetSortMode sort;
 };
 

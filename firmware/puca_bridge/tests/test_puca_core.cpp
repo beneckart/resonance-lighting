@@ -15,6 +15,30 @@ int main() {
   CHECK_EQ(pucaAudioPeerEligible(true, "fx-260826-024e508-p"), true);
   CHECK_EQ(pucaAudioPeerEligible(true, "net-bench-2026-08-19.1"), false);
 
+  const uint8_t pucaId[3] = {0xA4, 0xEB, 0x10};
+  const uint8_t exactTarget[3] = {0xA4, 0xEB, 0x10};
+  const uint8_t otherTarget[3] = {0xA4, 0xEB, 0x11};
+  const uint8_t fleetTarget[3] = {0, 0, 0};
+  CHECK(pucaMaintenanceTargetMatches(exactTarget, pucaId));
+  CHECK(!pucaMaintenanceTargetMatches(otherTarget, pucaId));
+  CHECK(!pucaMaintenanceTargetMatches(fleetTarget, pucaId));
+  CHECK(!pucaMaintenanceTargetMatches(nullptr, pucaId));
+
+  CHECK_EQ(pucaNextLiveMode(MODE_CLASSIC), MODE_HEARTBEAT);
+  CHECK_EQ(pucaNextLiveMode(MODE_HEARTBEAT), MODE_EMBER);
+  CHECK_EQ(pucaNextLiveMode(MODE_EMBER), MODE_HUE);
+  CHECK_EQ(pucaNextLiveMode(MODE_HUE), MODE_CLASSIC);
+  CHECK_EQ(pucaNextLiveMode(MODE_OFF), MODE_CLASSIC);
+  CHECK_EQ(pucaModeStatusCode(MODE_CLASSIC), 1);
+  CHECK_EQ(pucaModeStatusCode(MODE_HEARTBEAT), 2);
+  CHECK_EQ(pucaModeStatusCode(MODE_EMBER), 3);
+  CHECK_EQ(pucaModeStatusCode(MODE_HUE), 4);
+  CHECK_EQ(pucaModeStatusCode(MODE_OFF), 5);
+  CHECK(pucaPublisherShouldArmAtBoot(true, true, true));
+  CHECK(!pucaPublisherShouldArmAtBoot(false, true, true));
+  CHECK(!pucaPublisherShouldArmAtBoot(true, false, true));
+  CHECK(!pucaPublisherShouldArmAtBoot(true, true, false));
+
   CHECK_EQ(pucaChunkCount(0, 18), 0u);
   CHECK_EQ(pucaChunkCount(18, 18), 1u);
   CHECK_EQ(pucaChunkCount(19, 18), 2u);

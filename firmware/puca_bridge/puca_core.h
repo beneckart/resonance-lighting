@@ -16,6 +16,39 @@ struct PucaRgbw {
   uint8_t w = 0;
 };
 
+enum BridgeMode : uint8_t {
+  MODE_CLASSIC = 0, // user-facing DJ: per-slot R/G/B envelope
+  MODE_HEARTBEAT,
+  MODE_EMBER,
+  MODE_HUE,
+  MODE_OFF,
+  MODE_COUNT,
+};
+
+inline BridgeMode pucaNextLiveMode(BridgeMode current) {
+  switch (current) {
+  case MODE_CLASSIC: return MODE_HEARTBEAT;
+  case MODE_HEARTBEAT: return MODE_EMBER;
+  case MODE_EMBER: return MODE_HUE;
+  default: return MODE_CLASSIC;
+  }
+}
+
+inline uint8_t pucaModeStatusCode(BridgeMode current) {
+  switch (current) {
+  case MODE_CLASSIC: return 1;
+  case MODE_HEARTBEAT: return 2;
+  case MODE_EMBER: return 3;
+  case MODE_HUE: return 4;
+  default: return 5;
+  }
+}
+
+inline bool pucaPublisherShouldArmAtBoot(bool pawHeld, bool codecReady,
+                                         bool audioInputReady) {
+  return pawHeld && codecReady && audioInputReady;
+}
+
 inline bool pucaIsFixtureFirmware(const char *revision) {
   if (!revision || !revision[0]) return false;
   // ADR 0040 immutable fleet artifacts use fx-*. Retain the older fixture-*
@@ -31,6 +64,14 @@ inline bool pucaAudioPeerEligible(bool hasFirmwareIdentity,
   // Before the infrequent full heartbeat arrives, optimistically include the
   // radio peer. Once identified, only fixture firmware may consume a slot.
   return !hasFirmwareIdentity || pucaIsFixtureFirmware(revision);
+}
+
+// PUCA is a one-off publisher, not a fleet fixture. It must never leave the
+// mesh because somebody issued the legacy all-zero/fleet-wide maintenance
+// command. Only an exact short-ID match may open its WiFi OTA endpoint.
+inline bool pucaMaintenanceTargetMatches(const uint8_t target[3],
+                                         const uint8_t myId[3]) {
+  return target && myId && memcmp(target, myId, 3) == 0;
 }
 
 inline size_t pucaChunkCount(size_t total, size_t capacity) {

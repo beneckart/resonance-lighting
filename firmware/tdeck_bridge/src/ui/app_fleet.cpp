@@ -109,7 +109,7 @@ static void tableDrawEvent(lv_event_t *e) {
     fill->color = day ? lv_color_hex(0x8BC3FF)
                       : lv_color_hex(0x3A6EA5);  // selected row
     fill->opa = LV_OPA_COVER;
-  } else if (row >= 1 && row - 1 < gRowCount && col == 5) {
+  } else if (row >= 1 && row - 1 < gRowCount && col == 3) {
     switch (gRows[row - 1].batteryBand) {
       case BatteryHealthBand::GOOD:
         fill->color = lv_color_hex(day ? 0xC9F3D4 : 0x194F2B); break;
@@ -165,6 +165,69 @@ static const char *programName(uint8_t prog) {
     case 4: return "dark";
     case 5: return "virus";
     default: return "?";
+  }
+}
+
+static const char *programDetailName(bool known, uint8_t prog) {
+  if (!known) return "UNKNOWN";
+  switch (prog) {
+    case 0: return "IDLE";
+    case 1: return "CA";
+    case 2: return "BRIDGE";
+    case 3: return "DIRECT";
+    case 4: return "DARK";
+    case 5: return "VIRUS";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *className(uint8_t cls) {
+  switch (cls) {
+    case 1: return "downlight";
+    case 2: return "perimeter";
+    case 3: return "uplight";
+    case 4: return "chandelier";
+    default: return "unknown";
+  }
+}
+
+static const char *profileName(bool known, uint8_t profile) {
+  if (!known) return "UNKNOWN";
+  switch (profile) {
+    case 0: return "COMMISSION";
+    case 1: return "FIELD";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *lifeName(bool known, uint8_t life) {
+  if (!known) return "UNKNOWN";
+  switch (life) {
+    case 0: return "BOOT";
+    case 1: return "DAY_CHARGE";
+    case 2: return "DAY_ACTIVE";
+    case 3: return "NIGHT_SHOW";
+    case 4: return "COMMISSION";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *tierName(bool known, uint8_t tier) {
+  if (!known) return "UNKNOWN";
+  switch (tier) {
+    case 0: return "FULL";
+    case 1: return "DIM";
+    case 2: return "LEDS_OFF";
+    case 3: return "PROTECT";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *netModeName(uint8_t mode) {
+  switch (mode) {
+    case 0: return "COMMS";
+    case 1: return "MAINT";
+    default: return "UNKNOWN";
   }
 }
 
@@ -232,7 +295,7 @@ static void refreshTable(lv_timer_t *) {
     lv_table_set_cell_value(gTable, r, 1, buf);
     uint32_t ageS = v.ageMs / 1000;
     if (!row.observed)
-      snprintf(buf, sizeof(buf), "never");
+      snprintf(buf, sizeof(buf), "inf");
     else if (row.fresh && ageS < 100)
       snprintf(buf, sizeof(buf), "%lus", (unsigned long)ageS);
     else if (ageS < 6000)
@@ -240,20 +303,26 @@ static void refreshTable(lv_timer_t *) {
     else
       snprintf(buf, sizeof(buf), "%luh", (unsigned long)(ageS / 3600));
     lv_table_set_cell_value(gTable, r, 2, buf);
-    if (row.observed) snprintf(buf, sizeof(buf), "%d", v.rssiEwma);
-    else snprintf(buf, sizeof(buf), "-");
-    lv_table_set_cell_value(gTable, r, 3, buf);
-    if (row.observed) snprintf(buf, sizeof(buf), "%u%%", v.pdrX1000 / 10);
-    else snprintf(buf, sizeof(buf), "-");
-    lv_table_set_cell_value(gTable, r, 4, buf);
     if (row.observed && v.battMv > 0)
       snprintf(buf, sizeof(buf), "%d.%02d", v.battMv / 1000,
                (v.battMv % 1000) / 10);
     else
       snprintf(buf, sizeof(buf), "-");
-    lv_table_set_cell_value(gTable, r, 5, buf);
-    lv_table_set_cell_value(gTable, r, 6,
-                            row.observed ? programName(v.activeProgram) : "-");
+    lv_table_set_cell_value(gTable, r, 3, buf);
+    if (row.observed) {
+      if (v.battMa > 0)
+        snprintf(buf, sizeof(buf), "+%d", v.battMa);
+      else
+        snprintf(buf, sizeof(buf), "%d", v.battMa);
+    } else {
+      snprintf(buf, sizeof(buf), "-");
+    }
+    lv_table_set_cell_value(gTable, r, 4, buf);
+    lv_table_set_cell_value(
+        gTable, r, 5,
+        row.observed
+            ? (v.hasFixtureState ? programName(v.activeProgram) : "?")
+            : "-");
   }
 
   int32_t targetY = scrollY;
@@ -320,24 +389,48 @@ static void openDetail(const uint8_t id[3]) {
     uint32_t now = millis();
     uint32_t total = p.recv + p.gaps;
     char win[16];
+    char soc[16];
+    char led[72];
+    char stateAge[16];
     if (p.winPdrX1000 == 0xFFFF) snprintf(win, sizeof(win), "-");
     else snprintf(win, sizeof(win), "%u.%u%%", p.winPdrX1000 / 10, p.winPdrX1000 % 10);
+    if (p.soc == 255)
+      snprintf(soc, sizeof(soc), "unknown");
+    else
+      snprintf(soc, sizeof(soc), "%u%%", p.soc);
+    if (p.hasLedOutput)
+      snprintf(led, sizeof(led), "%s r%u g%u b%u w%u (%u px)",
+               p.ledRailOn && p.ledLitPixels > 0 ? "ON" : "OFF", p.ledR,
+               p.ledG, p.ledB, p.ledW, p.ledLitPixels);
+    else
+      snprintf(led, sizeof(led), "UNKNOWN");
+    if (p.hasFixtureState)
+      snprintf(stateAge, sizeof(stateAge), "%lus",
+               (unsigned long)((now - p.fixtureStateHeardMs) / 1000));
+    else
+      snprintf(stateAge, sizeof(stateAge), "unknown");
     lv_label_set_text_fmt(
         body,
-        "age %lus   rssi %d (ewma %d)\n"
-        "pdr %lu/%lu   win %s\n"
-        "batt %dmV  soc %d%%  supply %dmV\n"
-        "class %c  prog %s  life %u  tier %u\n"
-        "led %s r%u g%u b%u w%u (%u px)\n"
+        "age %lus  signal %d dBm (avg %d)\n"
+        "PDR %lu/%lu  window %s\n"
+        "VBAT %d.%03dV  IBAT %+dmA  SOC %s\n"
+        "input %d.%03dV  %dmA  %s\n"
+        "class %s  profile %s\n"
+        "life %s  tier %s\n"
+        "program %s  state %s  net %s\n"
+        "LED %s\n"
         "fw %s",
         (unsigned long)((now - p.lastHeardMs) / 1000), p.rssi, p.rssiEwma,
-        (unsigned long)p.recv, (unsigned long)total, win, p.battMv,
-        p.soc == 255 ? -1 : p.soc, p.supplyMv, classLetter(p.classLatched),
-        programName(p.hasFixtureState ? p.activeProgram : 0),
-        p.hasFixtureState ? p.lifeState : 0,
-        p.hasFixtureState ? p.powerTier : 0,
-        p.ledRailOn ? "on" : "off", p.ledR, p.ledG, p.ledB, p.ledW,
-        p.ledLitPixels, p.hasFw ? p.fwRev : "(unknown)");
+        (unsigned long)p.recv, (unsigned long)total, win, p.battMv / 1000,
+        p.battMv >= 0 ? p.battMv % 1000 : -(p.battMv % 1000), p.battMa, soc,
+        p.supplyMv / 1000,
+        p.supplyMv >= 0 ? p.supplyMv % 1000 : -(p.supplyMv % 1000),
+        p.supplyMa, p.supplyGood ? "GOOD" : "NOT GOOD",
+        className(p.classLatched), profileName(p.hasFixtureState, p.profile),
+        lifeName(p.hasFixtureState, p.lifeState),
+        tierName(p.hasFixtureState, p.powerTier),
+        programDetailName(p.hasFixtureState, p.activeProgram), stateAge,
+        netModeName(p.mode), led, p.hasFw ? p.fwRev : "unknown");
   } else {
     lv_label_set_text(body, "(no longer in census)");
   }
@@ -453,7 +546,63 @@ static void identifyFilteredCb(lv_event_t *) {
 static lv_obj_t *gScopeDd = nullptr;
 static lv_obj_t *gClassDd = nullptr;
 static lv_obj_t *gBatteryDd = nullptr;
+static lv_obj_t *gProgramDd = nullptr;
+static lv_obj_t *gFirmwareDd = nullptr;
+static lv_obj_t *gFirmwareRefDd = nullptr;
 static lv_obj_t *gSortDd = nullptr;
+
+static constexpr size_t kMaxFirmwareRefs = 16;
+static char gFirmwareRefs[kMaxFirmwareRefs][24];
+static size_t gFirmwareRefCount = 0;
+static uint16_t gFirmwareRefSelected = 0;
+static char gFirmwareOptions[kMaxFirmwareRefs * 25];
+
+static void addFirmwareRef(const char *revision) {
+  if (!revision || !revision[0] || gFirmwareRefCount >= kMaxFirmwareRefs) return;
+  for (size_t i = 0; i < gFirmwareRefCount; ++i)
+    if (strcmp(gFirmwareRefs[i], revision) == 0) return;
+  strncpy(gFirmwareRefs[gFirmwareRefCount], revision,
+          sizeof(gFirmwareRefs[gFirmwareRefCount]) - 1);
+  gFirmwareRefs[gFirmwareRefCount][sizeof(gFirmwareRefs[0]) - 1] = '\0';
+  ++gFirmwareRefCount;
+}
+
+static void buildFirmwareOptions() {
+  gFirmwareRefCount = 0;
+  addFirmwareRef(gViewSettings.firmwareReference);
+  char observed[kMaxFirmwareRefs][24];
+  size_t count = censusFirmwareRevisionsSafe(observed, kMaxFirmwareRefs);
+  for (size_t i = 0; i < count; ++i) addFirmwareRef(observed[i]);
+
+  // Exact revisions are easiest to scan newest-looking first. The currently
+  // selected reference remains selectable even after its last peer goes away.
+  for (size_t i = 1; i < gFirmwareRefCount; ++i) {
+    char moving[24];
+    memcpy(moving, gFirmwareRefs[i], sizeof(moving));
+    size_t at = i;
+    while (at > 0 && strcmp(moving, gFirmwareRefs[at - 1]) > 0) {
+      memcpy(gFirmwareRefs[at], gFirmwareRefs[at - 1],
+             sizeof(gFirmwareRefs[at]));
+      --at;
+    }
+    memcpy(gFirmwareRefs[at], moving, sizeof(gFirmwareRefs[at]));
+  }
+
+  gFirmwareRefSelected = 0;
+  gFirmwareOptions[0] = '\0';
+  size_t used = 0;
+  for (size_t i = 0; i < gFirmwareRefCount; ++i) {
+    if (strcmp(gFirmwareRefs[i], gViewSettings.firmwareReference) == 0)
+      gFirmwareRefSelected = (uint16_t)i;
+    int wrote = snprintf(gFirmwareOptions + used,
+                         sizeof(gFirmwareOptions) - used, "%s%s",
+                         i ? "\n" : "", gFirmwareRefs[i]);
+    if (wrote < 0 || (size_t)wrote >= sizeof(gFirmwareOptions) - used) break;
+    used += (size_t)wrote;
+  }
+  if (gFirmwareRefCount == 0)
+    snprintf(gFirmwareOptions, sizeof(gFirmwareOptions), "(none observed)");
+}
 
 static void readViewSettings() {
   if (gScopeDd)
@@ -464,6 +613,21 @@ static void readViewSettings() {
   if (gBatteryDd)
     gViewSettings.batteryFilter =
         (FleetBatteryFilter)lv_dropdown_get_selected(gBatteryDd);
+  if (gProgramDd)
+    gViewSettings.programFilter =
+        (FleetProgramFilter)lv_dropdown_get_selected(gProgramDd);
+  if (gFirmwareDd)
+    gViewSettings.firmwareFilter =
+        (FleetFirmwareFilter)lv_dropdown_get_selected(gFirmwareDd);
+  if (gFirmwareRefDd && gFirmwareRefCount) {
+    uint16_t selected = lv_dropdown_get_selected(gFirmwareRefDd);
+    if (selected < gFirmwareRefCount) {
+      strncpy(gViewSettings.firmwareReference, gFirmwareRefs[selected],
+              sizeof(gViewSettings.firmwareReference) - 1);
+      gViewSettings.firmwareReference[
+          sizeof(gViewSettings.firmwareReference) - 1] = '\0';
+    }
+  }
   if (gSortDd)
     gViewSettings.sort = (FleetSortMode)lv_dropdown_get_selected(gSortDd);
 }
@@ -472,6 +636,9 @@ static void closeViewSettings() {
   gScopeDd = nullptr;
   gClassDd = nullptr;
   gBatteryDd = nullptr;
+  gProgramDd = nullptr;
+  gFirmwareDd = nullptr;
+  gFirmwareRefDd = nullptr;
   gSortDd = nullptr;
   gRestoreSelectionScroll = true;
   appFleetOpen();
@@ -487,6 +654,9 @@ static void viewDefaultsCb(lv_event_t *) {
   if (gScopeDd) lv_dropdown_set_selected(gScopeDd, 0);
   if (gClassDd) lv_dropdown_set_selected(gClassDd, 0);
   if (gBatteryDd) lv_dropdown_set_selected(gBatteryDd, 0);
+  if (gProgramDd) lv_dropdown_set_selected(gProgramDd, 0);
+  if (gFirmwareDd) lv_dropdown_set_selected(gFirmwareDd, 0);
+  if (gFirmwareRefDd) lv_dropdown_set_selected(gFirmwareRefDd, 0);
   if (gSortDd) lv_dropdown_set_selected(gSortDd, 0);
 }
 
@@ -513,7 +683,9 @@ static void viewCb(lv_event_t *) {
   stopTimer();
   lvglSetNavHooks(nullptr);
   lv_obj_t *screen = lv_obj_create(nullptr);
-  lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scroll_dir(screen, LV_DIR_VER);
+  lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_AUTO);
+  buildFirmwareOptions();
 
   lv_obj_t *title = lv_label_create(screen);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
@@ -525,25 +697,38 @@ static void viewCb(lv_event_t *) {
   gScopeDd = viewDropdown(screen,
                           "roster + live\nseen since boot\nlive now", 32,
                           (uint16_t)gViewSettings.scope);
-  viewLabel(screen, "class", 80);
+  viewLabel(screen, "class", 79);
   gClassDd = viewDropdown(
       screen,
       "all light types\ndownlights\nperimeter\nuplights\nchandelier\nunknown",
-      69, (uint16_t)gViewSettings.classFilter);
-  viewLabel(screen, "battery", 117);
+      68, (uint16_t)gViewSettings.classFilter);
+  viewLabel(screen, "battery", 115);
   gBatteryDd = viewDropdown(
       screen,
       "all battery\ngood >3.20 V\nnear low 3.10-3.20\nlow <=3.10 V\noff air\nno valid VBAT",
-      106, (uint16_t)gViewSettings.batteryFilter);
-  viewLabel(screen, "sort", 154);
+      104, (uint16_t)gViewSettings.batteryFilter);
+  viewLabel(screen, "program", 151);
+  gProgramDd = viewDropdown(
+      screen,
+      "all programs\nIDLE\nCA\nBRIDGE\nDIRECT\nDARK\nVIRUS\nunknown",
+      140, (uint16_t)gViewSettings.programFilter);
+  viewLabel(screen, "fw rule", 187);
+  gFirmwareDd = viewDropdown(
+      screen,
+      "all firmware\nrevision known\nrevision unknown\nmatches reference\nnot ref / unknown",
+      176, (uint16_t)gViewSettings.firmwareFilter);
+  viewLabel(screen, "fw ref", 223);
+  gFirmwareRefDd = viewDropdown(screen, gFirmwareOptions, 212,
+                                gFirmwareRefSelected);
+  viewLabel(screen, "sort", 259);
   gSortDd = viewDropdown(
       screen,
       "callsign (stable)\nshort ID (stable)\nvoltage low first\nvoltage high first\nmost recent\nstrongest signal",
-      143, (uint16_t)gViewSettings.sort);
+      248, (uint16_t)gViewSettings.sort);
 
   lv_obj_t *defaults = lv_button_create(screen);
   lv_obj_set_size(defaults, 100, 34);
-  lv_obj_set_pos(defaults, 4, 201);
+  lv_obj_set_pos(defaults, 4, 286);
   lv_obj_t *defaultsLabel = lv_label_create(defaults);
   lv_label_set_text(defaultsLabel, "defaults");
   lv_obj_center(defaultsLabel);
@@ -552,7 +737,7 @@ static void viewCb(lv_event_t *) {
 
   lv_obj_t *done = lv_button_create(screen);
   lv_obj_set_size(done, 204, 34);
-  lv_obj_set_pos(done, 112, 201);
+  lv_obj_set_pos(done, 112, 286);
   lv_obj_t *doneLabel = lv_label_create(done);
   lv_label_set_text(doneLabel, LV_SYMBOL_OK " apply to Fleet");
   lv_obj_center(doneLabel);
@@ -623,21 +808,19 @@ void appFleetOpen() {
   // Default cell padding wraps 3-char headers ("age" -> "ag/e"); tighten it.
   lv_obj_set_style_pad_hor(gTable, 4, LV_PART_ITEMS);
   lv_obj_set_style_pad_ver(gTable, 4, LV_PART_ITEMS);
-  lv_table_set_column_count(gTable, 7);
+  lv_table_set_column_count(gTable, 6);
   lv_table_set_column_width(gTable, 0, 16);  // reported-color chip
-  lv_table_set_column_width(gTable, 1, 80);
-  lv_table_set_column_width(gTable, 2, 40);
-  lv_table_set_column_width(gTable, 3, 38);
-  lv_table_set_column_width(gTable, 4, 38);
-  lv_table_set_column_width(gTable, 5, 48);
-  lv_table_set_column_width(gTable, 6, 60);
+  lv_table_set_column_width(gTable, 1, 96);
+  lv_table_set_column_width(gTable, 2, 39);
+  lv_table_set_column_width(gTable, 3, 50);
+  lv_table_set_column_width(gTable, 4, 49);
+  lv_table_set_column_width(gTable, 5, 70);
   lv_table_set_cell_value(gTable, 0, 0, "");
   lv_table_set_cell_value(gTable, 0, 1, "id cls");
   lv_table_set_cell_value(gTable, 0, 2, "age");
-  lv_table_set_cell_value(gTable, 0, 3, "dBm");
-  lv_table_set_cell_value(gTable, 0, 4, "pdr");
-  lv_table_set_cell_value(gTable, 0, 5, "vbat");
-  lv_table_set_cell_value(gTable, 0, 6, "prog");
+  lv_table_set_cell_value(gTable, 0, 3, "vbat");
+  lv_table_set_cell_value(gTable, 0, 4, "ibat");
+  lv_table_set_cell_value(gTable, 0, 5, "prog");
   lv_obj_add_event_cb(gTable, tableSelChanged, LV_EVENT_VALUE_CHANGED, nullptr);
   lv_obj_add_event_cb(gTable, tableClicked, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_flag(gTable, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);

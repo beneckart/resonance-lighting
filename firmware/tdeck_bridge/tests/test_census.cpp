@@ -16,6 +16,7 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
   hb.h.seq = seq;
   hb.h.uptime_ms = uptimeMs;
   hb.batt_mv = 3300;
+  hb.batt_ma = -125;
   hb.soc_pct = 77;
   hb.profile = 1;
   hb.life_state = 3;
@@ -74,6 +75,7 @@ int main() {
   // --- hb-full latches class; later hb-short keeps it ---
   assert(c.ingest(makeHb(1, 2, 2000, (int)NB_HB_FULL_LEN, -50, 2), 2000));
   assert(p1->hasLedOutput && p1->classLatched == 2 && p1->hasFw);
+  assert(p1->hasFixtureState && p1->fixtureStateHeardMs == 2000);
   assert(p1->hasSleepAudit && p1->sleepAuditFlags == 0x07);
   assert(p1->lastSleepCause == 3 && p1->lastSleepS == 3600);
   assert(p1->lastSleepBattMv == 3175 && p1->lastSleepSourceSeq == 42);
@@ -81,10 +83,15 @@ int main() {
   assert(strncmp(p1->fwRev, "fx-260819", 9) == 0);
   assert(c.ingest(makeHb(1, 3, 3000, NB_HB_SHORT_LEN, -50), 3000));
   assert(!p1->hasLedOutput && p1->classLatched == 2);  // latched across short
+  assert(p1->hasFixtureState && p1->activeProgram == 1);
   assert(p1->hasSleepAudit); // provenance remains visible across hb-short
   CensusView v[8];
   size_t n = c.snapshot(v, 8, 3000);
   assert(n == 1 && v[0].fixtureClass == 2);
+  assert(v[0].hasFixtureState);
+  assert(v[0].activeProgram == 1 && v[0].battMa == -125);
+  assert(v[0].fwFingerprint ==
+         censusFirmwareFingerprint("fx-260819-abcdef0-p"));
 
   // --- seq gaps + cumulative PDR ---
   assert(c.ingest(makeHb(1, 6, 4000, NB_HB_SHORT_LEN, -50), 4000));  // 4,5 lost
@@ -99,6 +106,7 @@ int main() {
   // --- reboot detection resets accounting ---
   assert(c.ingest(makeHb(1, 1, 500, NB_HB_SHORT_LEN, -50), 6000));
   assert(p1->recv == 1 && p1->gaps == 0);
+  assert(!p1->hasFixtureState && !p1->hasFw);
 
   // --- seq restart (counter reset without uptime reset) ---
   assert(c.ingest(makeHb(1, 500, 7000, NB_HB_SHORT_LEN, -50), 7000));

@@ -4,6 +4,16 @@
 
 #include "fixture/src/core/packet.h"
 
+uint32_t censusFirmwareFingerprint(const char *revision) {
+  if (!revision || !revision[0]) return 0;
+  uint32_t hash = 2166136261UL;
+  while (*revision) {
+    hash ^= (uint8_t)*revision++;
+    hash *= 16777619UL;
+  }
+  return hash ? hash : 1;
+}
+
 void Census::init(PeerStat *storage, size_t cap, uint32_t freshMs,
                   uint32_t windowMs, uint32_t nowMs) {
   mPeers = storage;
@@ -89,6 +99,18 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
   PeerStat *peer = findPeer(hb->h.src_id, true, item.rssi, nowMs);
   if (!peer) return false;
 
+  bool senderRebooted = peer->recv && hb->h.uptime_ms + 1000 < peer->uptimeMs;
+  bool seqRestarted =
+      peer->recv && hb->h.seq < peer->lastSeq && peer->lastSeq - hb->h.seq > 100;
+  if (senderRebooted || seqRestarted) {
+    // A pre-reboot program or firmware revision is not evidence about the new
+    // boot. Wait for its first full heartbeat instead of showing stale rollout
+    // state during the short-heartbeat interval.
+    peer->hasFixtureState = false;
+    peer->fixtureStateHeardMs = 0;
+    peer->hasFw = false;
+    peer->fwRev[0] = '\0';
+  }
   accountHeartbeat(peer, hb->h.seq, hb->h.uptime_ms);
   peer->rssi = item.rssi;
   peer->rssiEwma = peer->lastHeardMs == 0
@@ -217,8 +239,9 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->fieldProtectLatched = hb->field_protect_latched;
   }
 
-  peer->hasFixtureState = NB_HAS_HB_FIELD(len, night_min);
-  if (peer->hasFixtureState) {
+  if (NB_HAS_HB_FIELD(len, night_min)) {
+    peer->hasFixtureState = true;
+    peer->fixtureStateHeardMs = nowMs;
     peer->profile = hb->profile;
     peer->lifeState = hb->life_state;
     peer->powerTier = hb->power_tier;
@@ -299,11 +322,14 @@ void Census::fillView(CensusView &v, const PeerStat &p, uint32_t nowMs) const {
   v.pdrX1000 = total ? (uint16_t)((uint64_t)p.recv * 1000 / total) : 0;
   v.winPdrX1000 = p.winPdrX1000;
   v.battMv = p.battMv;
+  v.battMa = p.battMa;
   v.soc = p.soc;
   v.fixtureClass = p.classLatched;
+  v.hasFixtureState = p.hasFixtureState;
   v.lifeState = p.hasFixtureState ? p.lifeState : 0;
   v.activeProgram = p.hasFixtureState ? p.activeProgram : 0;
   v.powerTier = p.hasFixtureState ? p.powerTier : 0;
+  v.fwFingerprint = p.hasFw ? censusFirmwareFingerprint(p.fwRev) : 0;
   v.ledKnown = p.hasLedOutput;
   v.ledOn = p.ledRailOn && p.ledLitPixels > 0;
   v.ledR = p.ledR;

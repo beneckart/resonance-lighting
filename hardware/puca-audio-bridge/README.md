@@ -5,14 +5,15 @@ source for Resonance Tree. The manufacturer's name is styled with an accented
 `u`; this repo uses the ASCII spelling **PUCA** so Windows shells, searches, and
 agent handoffs remain reliable.
 
-**Status (2026-08-26): the standalone powered-Pod20 baseline passes on the
-received PUCA.** Development firmware `0.4.1-dev` boots into HEARTBEAT + line
-input with controls locked, the codec/stereo I2S/radio paths are healthy, the
-faceplate paw cannot accidentally change the running mode, and a 207 s
-full-census run crossed the 18-fixture packet boundary with zero reported
-errors. Exact waveform/light fidelity, full knob sweeps, stale fallback,
-multi-hour stability, and intended-placement RF/PDR remain open. The factory
-Eurorack oscillator/effect image is not the tree bridge.
+**Status (2026-08-27): the standalone powered-Pod20 `0.4.1-dev` baseline and
+credentialed `0.5.0-dev` USB bootstrap/no-hold safe boot/exact-target OTA path
+pass on the received PUCA.** The installed behavior boots SAFE-IDLE and emits no
+lighting frames unless the capacitive paw is held for 1.2 s during boot; an
+armed boot starts in DJ mode + line input. PUCA advertises its exact `A4EB10`
+identity to Bridge OS and accepts only exact-target shared-WiFi maintenance,
+never a fleet-wide request or factory-style softAP. Exact waveform/light
+fidelity, the paw-held DJ boot, full knob sweeps, stale fallback, rollback,
+multi-hour stability, and intended-placement RF/PDR remain open.
 
 The illustrated
 [`Bridge field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md) explains
@@ -65,15 +66,32 @@ The Eurorack carrier's controls are useful rather than decorative:
 |---|---|---|
 | Top knob | CV2 / GPIO33 ADC | input sensitivity, 0.25x-4x |
 | Bottom knob | CV3 / GPIO34 ADC | brightness ceiling; hue only in HUE mode |
-| Paw, normal boot | capacitive TOUCH input | status display only; cannot change or stop the performance |
-| Paw, boot-held setup | capacitive TOUCH input | short touch cycles four live modes; long hold confirms/locks |
+| No paw hold at boot | capacitive TOUCH input | SAFE-IDLE: identity/maintenance only, no lighting frames |
+| Paw held 1.2 s at boot | capacitive TOUCH input | arms DJ + line and opens setup; short touch cycles four live modes, long hold locks |
+| Paw after locked boot | capacitive TOUCH input | status display only; cannot arm/change/stop the performance |
 | CV1-3 | protected control-voltage inputs | future performer/controller input |
 | TRIG1-2 | protected trigger inputs | future footswitch or beat trigger |
 
-Normal no-laptop startup is line input + HEARTBEAT + LOCKED. The bottom carrier
+Normal no-laptop startup is SAFE-IDLE + line input + LOCKED. Hold the paw during
+boot to arm line input + DJ and open setup. The bottom carrier
 LED reports one/two long pulses for line/mic followed by one to four short
-pulses for HEARTBEAT/CLASSIC/EMBER/HUE. OFF is deliberately absent from the paw
+pulses for DJ/HEARTBEAT/EMBER/HUE. OFF is deliberately absent from the paw
 cycle.
+
+## Power-source boundary
+
+USB-C or a LiPo can keep the PUCA main PCB's ESP32, codec/onboard-audio path,
+radio, and recovery interface alive. It does not replace the Pod20's Eurorack
+rails for the installed carrier's complete analog audio, CV, trigger, and panel
+path. The Pod20 is therefore the normal operational supply; USB is the rescue
+and serial path.
+
+The optional main-board LiPo could provide a brief PUCA-only control-plane ride-
+through, but it cannot keep the externally powered tree or full Eurorack signal
+chain operating after their power is lost. The current installation therefore
+does not require soldering the optional JST battery header. Revisit only if a
+measured requirement emerges for PUCA telemetry/OTA ride-through independent of
+the Pod20.
 
 ## Intended signal and control path
 
@@ -136,9 +154,9 @@ they are visible at night.
 - Original Edition and Strawberry Edition binaries are not interchangeable.
   This received Eurorack unit is the Original/PSRAM edition.
 - The factory Eurorack image creates a `PUCA DSP` WiFi access point for firmware
-  upload. Resonance runtime firmware must not leave that AP running. Keep the
-  radio unassociated, pin ESP-NOW to channel 11, and expose the active channel at
-  boot, matching the CoreS3 bridge discipline.
+  upload. Resonance runtime never creates that AP. COMMS remains unassociated on
+  channel 11; only exact-target `A4EB10` maintenance may stop publishing, leave
+  ESP-NOW, and join the shared maintenance WiFi for standard A/B OTA.
 - Reuse platform-independent feature extraction from
   `firmware/cores3_bridge/audio_reactive.h` where practical, but keep codec,
   I2S, control-panel, and board initialization in a PUCA-specific layer.
@@ -170,6 +188,13 @@ they are visible at night.
 - [x] Prove powered-Pod20 stereo capture, locked-paw behavior, channel-11
   census, and more-than-18-fixture sender chunking without reported errors.
   DONE 2026-08-26 with `0.4.1-dev`; receiver-side light proof remains separate.
+- [x] USB-bootstrap credentialed `0.5.0-dev` and prove no-hold SAFE-IDLE,
+  `A4EB10` heartbeat in Bridge OS, exact-target maintenance, shared-WiFi OTA,
+  post-OTA dark reboot, and pending-verify survival. DONE 2026-08-27; exact
+  evidence is below.
+- [ ] Prove the remaining ADR 0063 gates: paw-held DJ-first arming and setup
+  gestures, `/resume`/10-minute timeout, fleet-wide-maintenance rejection on
+  hardware, no softAP, and forced-self-test A/B rollback.
 - [ ] Prove one fixture receives direct frames on channel 11 and returns to
   autonomous output within three seconds after PUCA transmission stops.
 - [ ] Repeat on a mixed HEX/RGBW group, then measure packet rate, PDR, CPU load,
@@ -210,6 +235,36 @@ they are visible at night.
 - Cleanup: USB service key `A` sent the final eight black chunks, changed status
   to `active=0`, and left the send counters stable. The bridge is paused for the
   bench handoff; the next power cycle restores active HEARTBEAT + line input.
+
+## Safe-boot and OTA acceptance (2026-08-27)
+
+- Built credentialed `0.5.0-dev` with the explicit ESP32-PICO-D4 default dual-
+  app partition layout. Application identity:
+  `firmware/puca_bridge/build/puca-bridge-20260827-ota-safe-v050-bootstrap-r3/puca_bridge.ino.bin`,
+  1,024,128 bytes, SHA-256
+  `1e90f6f1731a622b11274fa91abbc6eeebb17c35abe90bd86337c915cb99e8da`.
+- The received CP2102N automatic reset did not enter the ROM downloader. There
+  is no exposed BOOT button: the visible onboard button is GPIO36. With stable
+  Pod20 and USB power, the proven rescue was a normal jumper from `RST` to `GND`,
+  DTR/download asserted, release `RST`, then esptool `--before no_reset`. All
+  four flash regions completed esptool hash verification. Never use a meter in
+  ammeter mode as the jumper and never short `VIN` or `VDD`.
+- Fourteen consecutive no-hold status samples reported DJ selected but
+  `active=0`, `bootarmed=0`, controls locked, codec ready, and `frames=0`.
+  Heartbeat callbacks alone increased, as intended.
+- Primary Bridge OS `8EB508` received fresh channel-11 heartbeats for publisher
+  `A4EB10`, revision `puca-bridge-0.5.0-dev`.
+- The host sent only `UA4EB10`. PUCA joined shared WiFi, exposed identity-
+  matching `/telemetry`, and accepted the retained 1,024,128-byte application.
+  The upload was recorded in
+  `ops/bench/data/ca/2026-08-27-ota-results.jsonl`.
+- After OTA, the dashboard observed a fresh expected-revision heartbeat with a
+  software reset and reset uptime/sequence after the 25 s survival gate. A
+  separate USB status request caused another ordinary reset and again reported
+  SAFE-IDLE, locked controls, healthy codec, and zero direct frames.
+
+This accepts the routine enclosed-update path. The internal USB connector can
+remain behind the faceplate, but must remain physically accessible for rescue.
 
 ## What PUCA is not
 

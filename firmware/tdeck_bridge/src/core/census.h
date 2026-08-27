@@ -127,6 +127,10 @@ struct PeerStat {
   uint8_t fieldProtectLatched;
 
   bool hasFixtureState;
+  // Full-heartbeat fixture state is sparse (~60 s in production). Keep the
+  // last explicit sample across hb-short frames and expose its own age so a
+  // consumer never has to turn "not present in this packet" into IDLE.
+  uint32_t fixtureStateHeardMs;
   uint8_t profile;
   uint8_t lifeState;
   uint8_t powerTier;
@@ -179,17 +183,24 @@ struct CensusView {
   uint16_t pdrX1000;     // cumulative since (re)sync
   uint16_t winPdrX1000;  // last closed window; 0xFFFF = no data
   int16_t battMv;
+  int16_t battMa;        // + charging, - discharging
   uint8_t soc;
   uint8_t fixtureClass;  // latched
+  bool hasFixtureState;
   uint8_t lifeState;
   uint8_t activeProgram;
   uint8_t powerTier;
+  uint32_t fwFingerprint;  // 0 = no revision evidence
   // Reported LED output (hb-full tail 14; ADR 0043: reported color, not the
   // requested default, is the dashboard's source of truth).
   bool ledKnown;
   uint8_t ledOn;  // rail on AND >0 lit pixels
   uint8_t ledR, ledG, ledB, ledW;
 };
+
+// Compact equality key for firmware filtering. Full revision strings remain
+// in PeerStat (one PSRAM record per peer), not in every consumer's cached row.
+uint32_t censusFirmwareFingerprint(const char *revision);
 
 class Census {
  public:

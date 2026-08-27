@@ -44,6 +44,18 @@ int main() {
       observation(0x200001, 200, 3000, -50, 4),   // fresh foreign
       observation(0x200002, 7000, 3400, -30, 1),  // stale foreign
   };
+  seen[0].hasFixtureState = true;
+  seen[0].activeProgram = 0;
+  seen[0].fwFingerprint = censusFirmwareFingerprint("fx-260826-new-p");
+  seen[1].hasFixtureState = true;
+  seen[1].activeProgram = 3;
+  seen[1].fwFingerprint = censusFirmwareFingerprint("fx-260819-old-p");
+  seen[2].hasFixtureState = true;
+  seen[2].activeProgram = 1;
+  seen[2].fwFingerprint = censusFirmwareFingerprint("fx-260826-new-p");
+  seen[4].hasFixtureState = true;
+  seen[4].activeProgram = 4;
+  seen[4].fwFingerprint = censusFirmwareFingerprint("fx-260819-old-p");
   FleetViewRow rows[12] = {};
   FleetViewSettings settings = fleetViewDefaults();
 
@@ -77,6 +89,30 @@ int main() {
   settings.batteryFilter = FleetBatteryFilter::OFF_AIR;
   n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
   assert(n == 2 && !rows[0].fresh && !rows[1].fresh);
+
+  // Program zero is explicitly IDLE only when a full-heartbeat sample exists;
+  // absent full state belongs to the distinct unknown cohort.
+  settings = fleetViewDefaults();
+  settings.programFilter = FleetProgramFilter::IDLE;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].view.id[2] == 0x01);
+  settings.programFilter = FleetProgramFilter::DIRECT;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].view.id[2] == 0x02);
+  settings.programFilter = FleetProgramFilter::UNKNOWN;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 2);  // absent Epona plus the fresh foreign peer
+
+  // OTA audit filters compare the exact selected artifact. Unknown revision
+  // evidence is intentionally included in the not-reference cohort.
+  settings = fleetViewDefaults();
+  settings.firmwareFilter = FleetFirmwareFilter::MATCH_REFERENCE;
+  std::strcpy(settings.firmwareReference, "fx-260826-new-p");
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 2);
+  settings.firmwareFilter = FleetFirmwareFilter::NOT_REFERENCE;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 3);  // old Abra, absent Epona, unknown fresh foreign peer
 
   // Seen/live scopes do not synthesize absent rows. The stale foreign peer is
   // retained only in Seen; it is omitted by Roster and Live.

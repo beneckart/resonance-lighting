@@ -79,8 +79,40 @@ static bool rowMatches(const FleetViewRow &row,
     if (row.fixtureClass != wanted) return false;
   }
 
-  return settings.batteryFilter == FleetBatteryFilter::ALL ||
-         settings.batteryFilter == filterForBand(row.batteryBand);
+  if (settings.batteryFilter != FleetBatteryFilter::ALL &&
+      settings.batteryFilter != filterForBand(row.batteryBand))
+    return false;
+
+  if (settings.programFilter != FleetProgramFilter::ALL) {
+    if (settings.programFilter == FleetProgramFilter::UNKNOWN) {
+      if (row.view.hasFixtureState && row.view.activeProgram <= 5) return false;
+    } else {
+      uint8_t wanted = (uint8_t)settings.programFilter - 1;
+      if (!row.view.hasFixtureState || row.view.activeProgram != wanted)
+        return false;
+    }
+  }
+
+  switch (settings.firmwareFilter) {
+    case FleetFirmwareFilter::ALL:
+      return true;
+    case FleetFirmwareFilter::KNOWN:
+      return row.view.fwFingerprint != 0;
+    case FleetFirmwareFilter::UNKNOWN:
+      return row.view.fwFingerprint == 0;
+    case FleetFirmwareFilter::MATCH_REFERENCE:
+      return row.view.fwFingerprint && settings.firmwareReference[0] &&
+             row.view.fwFingerprint ==
+                 censusFirmwareFingerprint(settings.firmwareReference);
+    case FleetFirmwareFilter::NOT_REFERENCE:
+      // For rollout auditing, no revision evidence belongs in the needs-
+      // attention cohort alongside an explicit non-match.
+      return settings.firmwareReference[0] &&
+             (!row.view.fwFingerprint ||
+              row.view.fwFingerprint !=
+                  censusFirmwareFingerprint(settings.firmwareReference));
+  }
+  return false;
 }
 
 static int stableIdentityCompare(const FleetViewRow &a,
@@ -171,8 +203,14 @@ static void insertSorted(FleetViewRow *rows, size_t count,
 }  // namespace
 
 FleetViewSettings fleetViewDefaults() {
-  return {FleetRowScope::ROSTER_AND_LIVE, FleetClassFilter::ALL,
-          FleetBatteryFilter::ALL, FleetSortMode::CALLSIGN_STABLE};
+  FleetViewSettings settings = {};
+  settings.scope = FleetRowScope::ROSTER_AND_LIVE;
+  settings.classFilter = FleetClassFilter::ALL;
+  settings.batteryFilter = FleetBatteryFilter::ALL;
+  settings.programFilter = FleetProgramFilter::ALL;
+  settings.firmwareFilter = FleetFirmwareFilter::ALL;
+  settings.sort = FleetSortMode::CALLSIGN_STABLE;
+  return settings;
 }
 
 uint8_t fleetClassFromRole(const char *role) {

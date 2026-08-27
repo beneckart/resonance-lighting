@@ -21,6 +21,9 @@ uint32_t censusRingDrops();
 size_t censusSnapshotSafe(CensusView *out, size_t maxOut, uint32_t nowMs);
 void censusCountsSafe(int *live, int *seen, uint32_t nowMs);
 bool censusPeerSafe(const uint8_t id[3], PeerStat *out);  // full copy for detail views
+// Distinct exact firmware revisions currently retained by the census. Each
+// output slot is 24 bytes, matching PeerStat::fwRev.
+size_t censusFirmwareRevisionsSafe(char (*out)[24], size_t maxOut);
 size_t censusQuietListSafe(uint32_t quietS, CensusView *out, size_t maxOut,
                            uint32_t nowMs);
 uint16_t censusObservedPermilleSafe();
