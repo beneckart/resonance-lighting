@@ -10,6 +10,36 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- T-Deck warm-build cache boundary repaired and proven
+
+Before changing the wrapper, fetched GitHub and confirmed the clean local HEAD
+matched current `origin/main` at `d60d1ca`; the second laptop still needed its
+own fetch, which Ben acknowledged before work continued.
+
+Fixed the cache failure exposed by the day-mode upload. Cache schema 2 now
+treats `firmware/tdeck_bridge/build/dev-cache` as exclusively Arduino-owned.
+The wrapper's recipe hash/detail and interruption marker live in sibling
+`dev-cache.state`, where Arduino's source-graph cleanup cannot delete them.
+Clean removes both cache and state; recovery quarantines both plus any lock;
+the existing atomic single-writer and fail-closed interruption behavior remain.
+Schema 2 also recognizes a legacy schema-1 `.build-in-progress` marker and
+requires quarantine instead of silently reseeding an interrupted old cache.
+
+Added a compile-free wrapper regression with a fake Arduino CLI. Its first
+compile deletes every entry, including dotfiles, from the Arduino build path;
+the second invocation must retain the external recipe, report `DEV_CACHE_HIT`,
+reuse the simulated LVGL object, and leave no lock or in-progress marker. The
+clean path must then remove both directories. The complete native Bridge suite
+passes with this regression.
+
+Real-toolchain acceptance used one uninterrupted schema-2 seed followed by two
+unchanged builds. The seed took 3,051 s (50m51s); the warm runs took 143 s and
+145 s (2m23s and 2m25s), about 21x faster. No `.o` or `.a` timestamp changed
+during the warm runs. All produced the same 1,579,040-byte application with SHA-256
+`d4eb675e4c0423310325d9c35d8613c985d75edaea29833cfc71cb9c3b67f3db`,
+50% flash use, and 44% global RAM use. The build was not flashed. Independent
+cold-build byte nondeterminism remains a separate explicit TODO.
+
 ## 2026-08-27 -- Ben + Codex -- Rotated-power cohort updated; cadence holdbacks closed
 
 After Ben rotated the USB power cables onto dark lanterns, a read-only 379 s

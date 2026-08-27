@@ -25,8 +25,9 @@ CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
 JOBS="${ARDUINO_JOBS:-}"
 DEV_CACHE_WAIT_SECONDS="${RES_DEV_CACHE_WAIT_SECONDS:-600}"
-DEV_CACHE_SCHEMA=1
+DEV_CACHE_SCHEMA=2
 DEV_CACHE_PATH="$SKETCH_DIR/build/dev-cache"
+DEV_CACHE_STATE_PATH="$SKETCH_DIR/build/dev-cache.state"
 DEV_LOCK_PATH="$SKETCH_DIR/build/dev-cache.lock.d"
 DEV_LOCK_OWNED=0
 
@@ -62,7 +63,7 @@ EOF
 
 safe_generated_path() {
   case "$1" in
-    "$DEV_CACHE_PATH"|"$DEV_LOCK_PATH"|"$SKETCH_DIR"/build/dev-cache.quarantine.*) return 0 ;;
+    "$DEV_CACHE_PATH"|"$DEV_CACHE_STATE_PATH"|"$DEV_LOCK_PATH"|"$SKETCH_DIR"/build/dev-cache.quarantine.*) return 0 ;;
     *) fail "refusing unsafe generated path: $1" ;;
   esac
 }
@@ -129,7 +130,7 @@ ensure_no_build_tools() {
 }
 
 acquire_dev_lock() {
-  local start=$SECONDS waited=0 pid host
+  local start=$SECONDS waited=0 pid host marker
   mkdir -p "$SKETCH_DIR/build"
   while ! mkdir "$DEV_LOCK_PATH" 2>/dev/null; do
     [[ -d "$DEV_LOCK_PATH" ]] || continue
@@ -158,26 +159,38 @@ acquire_dev_lock() {
   printf '\n' >> "$DEV_LOCK_PATH/command.txt"
   echo "DEV_CACHE_ACQUIRED pid=$$"
 
-  if [[ -f "$DEV_CACHE_PATH/.build-in-progress" ]]; then
-    echo "DEV_CACHE_INTERRUPTED marker=$DEV_CACHE_PATH/.build-in-progress" >&2
-    fail "run ./build.sh --recover-dev-cache; interrupted caches are never resumed"
-  fi
+  for marker in \
+    "$DEV_CACHE_STATE_PATH/build-in-progress" \
+    "$DEV_CACHE_PATH/.build-in-progress"; do
+    if [[ -f "$marker" ]]; then
+      echo "DEV_CACHE_INTERRUPTED marker=$marker" >&2
+      fail "run ./build.sh --recover-dev-cache; interrupted caches are never resumed"
+    fi
+  done
 }
 
 clean_dev_cache() {
+  local marker
   if [[ -d "$DEV_LOCK_PATH" ]]; then
     if lock_owner_alive; then
       fail "dev cache is active under pid $(lock_pid); not cleaning"
     fi
     fail "dev cache has a stale/untrusted lock; use --recover-dev-cache"
   fi
-  if [[ -f "$DEV_CACHE_PATH/.build-in-progress" ]]; then
-    fail "DEV_CACHE_INTERRUPTED marker present; use --recover-dev-cache"
-  fi
+  for marker in \
+    "$DEV_CACHE_STATE_PATH/build-in-progress" \
+    "$DEV_CACHE_PATH/.build-in-progress"; do
+    [[ ! -f "$marker" ]] ||
+      fail "DEV_CACHE_INTERRUPTED marker=$marker; use --recover-dev-cache"
+  done
   ensure_no_build_tools
   if [[ -d "$DEV_CACHE_PATH" ]]; then
     safe_generated_path "$DEV_CACHE_PATH"
     rm -rf -- "$DEV_CACHE_PATH"
+  fi
+  if [[ -d "$DEV_CACHE_STATE_PATH" ]]; then
+    safe_generated_path "$DEV_CACHE_STATE_PATH"
+    rm -rf -- "$DEV_CACHE_STATE_PATH"
   fi
   echo "DEV_CACHE_RESET reason=clean"
 }
@@ -188,7 +201,7 @@ recover_dev_cache() {
     fail "dev cache is active under pid $(lock_pid); not recovering"
   fi
   ensure_no_build_tools
-  if [[ ! -e "$DEV_CACHE_PATH" && ! -e "$DEV_LOCK_PATH" ]]; then
+  if [[ ! -e "$DEV_CACHE_PATH" && ! -e "$DEV_CACHE_STATE_PATH" && ! -e "$DEV_LOCK_PATH" ]]; then
     echo "DEV_CACHE_QUARANTINED none"
     return
   fi
@@ -197,6 +210,7 @@ recover_dev_cache() {
   safe_generated_path "$quarantine"
   mkdir -p "$quarantine"
   [[ ! -e "$DEV_CACHE_PATH" ]] || mv -- "$DEV_CACHE_PATH" "$quarantine/cache"
+  [[ ! -e "$DEV_CACHE_STATE_PATH" ]] || mv -- "$DEV_CACHE_STATE_PATH" "$quarantine/state"
   [[ ! -e "$DEV_LOCK_PATH" ]] || mv -- "$DEV_LOCK_PATH" "$quarantine/lock"
   {
     echo "recovered_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -288,8 +302,8 @@ prepare_dev_cache() {
   recipe_content="$(dev_recipe_content)"
   recipe_sha="$(printf '%s\n' "$recipe_content" | sha256sum | awk '{print $1}')"
   old_sha=""
-  [[ ! -f "$DEV_CACHE_PATH/.dev-cache-recipe.sha256" ]] ||
-    old_sha="$(tr -d '\r\n' < "$DEV_CACHE_PATH/.dev-cache-recipe.sha256")"
+  [[ ! -f "$DEV_CACHE_STATE_PATH/recipe.sha256" ]] ||
+    old_sha="$(tr -d '\r\n' < "$DEV_CACHE_STATE_PATH/recipe.sha256")"
 
   if [[ -d "$DEV_CACHE_PATH" && "$old_sha" == "$recipe_sha" ]]; then
     echo "DEV_CACHE_HIT recipe=$recipe_sha"
@@ -300,9 +314,16 @@ prepare_dev_cache() {
       safe_generated_path "$DEV_CACHE_PATH"
       rm -rf -- "$DEV_CACHE_PATH"
     fi
+    if [[ -d "$DEV_CACHE_STATE_PATH" ]]; then
+      safe_generated_path "$DEV_CACHE_STATE_PATH"
+      rm -rf -- "$DEV_CACHE_STATE_PATH"
+    fi
     mkdir -p "$DEV_CACHE_PATH"
-    printf '%s\n' "$recipe_content" > "$DEV_CACHE_PATH/.dev-cache-recipe.txt"
-    printf '%s\n' "$recipe_sha" > "$DEV_CACHE_PATH/.dev-cache-recipe.sha256"
+    mkdir -p "$DEV_CACHE_STATE_PATH"
+    printf '%s\n' "$recipe_content" > "$DEV_CACHE_STATE_PATH/recipe.txt.tmp.$$"
+    printf '%s\n' "$recipe_sha" > "$DEV_CACHE_STATE_PATH/recipe.sha256.tmp.$$"
+    mv -- "$DEV_CACHE_STATE_PATH/recipe.txt.tmp.$$" "$DEV_CACHE_STATE_PATH/recipe.txt"
+    mv -- "$DEV_CACHE_STATE_PATH/recipe.sha256.tmp.$$" "$DEV_CACHE_STATE_PATH/recipe.sha256"
     echo "DEV_CACHE_RESET reason=$reason new=$recipe_sha"
   fi
   BUILD_PATH="$DEV_CACHE_PATH"
@@ -337,12 +358,13 @@ COMPILE_ARGS=(
 [[ -z "$JOBS" ]] || COMPILE_ARGS+=(--jobs "$JOBS")
 
 if (( DEV_CACHE )); then
+  mkdir -p "$DEV_CACHE_STATE_PATH"
   {
     echo "pid=$$"
     echo "hostname=$(hostname)"
     echo "started_epoch=$(date +%s)"
     echo "recipe=$RECIPE_SHA"
-  } > "$DEV_CACHE_PATH/.build-in-progress"
+  } > "$DEV_CACHE_STATE_PATH/build-in-progress"
   if [[ -n "${RES_BUILD_TEST_PAUSE_AFTER_MARKER:-}" ]]; then
     [[ "$RES_BUILD_TEST_PAUSE_AFTER_MARKER" =~ ^[0-9]+$ ]] ||
       fail "RES_BUILD_TEST_PAUSE_AFTER_MARKER must be whole seconds"
@@ -361,7 +383,7 @@ if (( DEV_CACHE )); then
   else
     # Normal compiler errors keep completed objects usable; signals and lost
     # wrappers leave this marker behind and require quarantine.
-    rm -f -- "$DEV_CACHE_PATH/.build-in-progress"
+    rm -f -- "$DEV_CACHE_STATE_PATH/build-in-progress"
   fi
 fi
 (( COMPILE_RC == 0 )) || exit "$COMPILE_RC"
@@ -370,7 +392,7 @@ BIN="$BUILD_PATH/tdeck_bridge.ino.bin"
 if [[ ! -s "$BIN" || ! -s "$BUILD_PATH/build.options.json" ]]; then
   if (( DEV_CACHE )); then
     echo "DEV_CACHE_INTERRUPTED invalid-build-output" >&2
-    printf 'invalid build output after successful compiler return\n' > "$DEV_CACHE_PATH/.build-in-progress"
+    printf 'invalid build output after successful compiler return\n' > "$DEV_CACHE_STATE_PATH/build-in-progress"
   fi
   exit 1
 fi

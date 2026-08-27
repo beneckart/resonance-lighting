@@ -25,21 +25,29 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   application-region readback with the same SHA-256, and post-reset channel-11
   mesh/peripheral/memory checks passed. The physical UI and named-canary checks
   above remain (Ben/Codex).
-- [ ] **Repair the T-Deck development-cache metadata boundary and prove warm
-  incremental builds.** The 2026-08-27 day-mode compile entered with
-  `DEV_CACHE_HIT`, but Arduino's dependency rebuild cleaned `build/dev-cache`
-  and deleted the wrapper's `.dev-cache-recipe.sha256` and
-  `.dev-cache-recipe.txt` stored inside it. The immediate upload then reported
-  `DEV_CACHE_RESET reason=missing` and rebuilt more than 670 Bridge, LVGL, and
-  LovyanGFX objects a second time. Move wrapper recipe/health metadata outside
-  Arduino's disposable build path (or restore it atomically after a successful
-  compile), retain the single-writer/interruption fail-closed behavior, and add
-  a regression that simulates Arduino deleting internal dotfiles and proves a
-  no-source-change second invocation avoids the library rebuild. Also explain
-  or remove same-source dev-build nondeterminism: two 1,579,040-byte builds had
-  SHA-256 `2cabfda91dd2f28e0fbb4bfc9092834201b046197421087ac5100ad7156683b9`
-  and `473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`
-  (Ben/Codex).
+- [x] **Repair the T-Deck development-cache metadata boundary and prove warm
+  incremental builds. DONE 2026-08-27:** cache schema 2 treats
+  `build/dev-cache` as Arduino-owned and stores recipe plus interruption state
+  in sibling `build/dev-cache.state`. Clean and recovery cover both paths while
+  preserving the atomic single-writer lock and fail-closed interrupted-build
+  behavior. A compile-free regression deletes every entry, including dotfiles,
+  from the simulated Arduino build path and proves the next invocation retains
+  its recipe, reports `DEV_CACHE_HIT`, and reuses the library object. The real
+  ESP32-S3 seed took 3,051 s; two no-source-change builds took 143 s and 145 s
+  (about 21x faster), left all `.o`/`.a` timestamps untouched, and reproduced
+  the same 1,579,040-byte SHA-256
+  `d4eb675e4c0423310325d9c35d8613c985d75edaea29833cfc71cb9c3b67f3db`.
+  The complete native Bridge suite passes (Ben/Codex).
+- [ ] **Make independent cold T-Deck builds byte-reproducible, or document the
+  exact volatile input.** Three same-source, same-size 1,579,040-byte cold
+  applications have produced SHA-256
+  `2cabfda91dd2f28e0fbb4bfc9092834201b046197421087ac5100ad7156683b9`,
+  `473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`,
+  and `d4eb675e4c0423310325d9c35d8613c985d75edaea29833cfc71cb9c3b67f3db`;
+  the new warm-cache rebuild correctly reproduced the last hash exactly.
+  Identify whether ESP-IDF/Arduino embeds compile time, ordering, or another
+  host input. Do not confuse this with immutable shared-artifact identity: the
+  exact flashed/read-back day-mode image remains the second hash (Ben/Codex).
 - [ ] **Close the two unsafe USB recovery exceptions and Dratini graduation.**
   The 2026-08-27 supervised recovery put 23/25 observed USB-powered fixtures on
   `fx-260826-51d1fe1-p`; Thor `F40344` intentionally retained the protected

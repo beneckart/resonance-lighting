@@ -104,19 +104,26 @@ firmware/tdeck_bridge/tests/run_tests.sh             # wrapper + native tests
   boot-loops), `PartitionScheme=app3M_fat9M_16MB`, USB CDC on boot.
 - Fresh builds get a unique `--build-path`; an explicit retained path must be
   new or empty. Never resume a killed build directory.
-  Uncached ESP32-S3 builds take 2-3 minutes -- wait, don't restart.
+  T-Deck cold builds vary sharply with host load and have taken about 51-55
+  minutes on this laptop -- wait, don't restart.
 - `--dev-cache` is the opt-in local iteration path ported from the accepted
   fixture cache. It is single-writer, recipe-pinned to the FQBN, flags,
   Arduino/ESP32 versions, LVGL, and LovyanGFX, and always reports
-  `tdeck-dev-local`. The first seed is still a cold build; subsequent no-op and
-  leaf builds reuse completed objects. On the 2026-08-24 field laptop run, the
-  cold seed took about 55 minutes under heavy host load and the first warm
-  no-op took about 76 seconds with an identical SHA. Warm reuse is proven, but
-  timings varied significantly during the later pre-flash check.
+  `tdeck-dev-local`. Arduino owns `build/dev-cache`; wrapper recipe and
+  interruption state live separately in `build/dev-cache.state`, so an Arduino
+  source-graph cleanup cannot erase the cache identity or safety marker. The
+  first schema-2 seed is still a cold build; subsequent no-op and leaf builds
+  reuse completed objects. On 2026-08-27, a 3,051-second seed followed by an
+  unchanged 143-second build and a final 145-second confirmation (about 21x
+  faster); the warm runs changed no object timestamps and reproduced the exact
+  binary SHA. A regression simulates Arduino deleting all internal build-path
+  entries and proves this boundary, and a legacy schema-1 interruption marker
+  still fails closed into the recovery path.
 - If a cached build is interrupted, first confirm no Arduino, Xtensa, or
   esptool process remains, then run `build.sh --recover-dev-cache`. Recovery
-  quarantines the cache and lock; it never resumes partial objects. Use
-  `build.sh --clean-dev-cache` only for a healthy unlocked cache.
+  quarantines the Arduino cache, wrapper state, and lock; it never resumes
+  partial objects. Use `build.sh --clean-dev-cache` only for a healthy unlocked
+  cache; it removes both the cache and sibling state.
 - The wire contract is included as `fixture/src/core/packet.h` via `-I` to the
   firmware root. One contract, one file; `tests/test_packet_include.cpp` pins
   the golden sizes on the native side.
