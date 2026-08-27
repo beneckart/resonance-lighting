@@ -32,6 +32,12 @@ manifest marks this `p` artifact `candidate_canary_pending`.
 No fixture was commanded, rebooted, profile-mutated, or OTA-flashed. ADR 0064
 requires one explicit battery-backed field canary before widening, and ADR 0040
 still requires Ben to name the exact short-MAC target roster and sole writer.
+A subsequent 18-second read-only T-Deck snapshot captured 230 peer lines / 115
+unique peers: 113 field, one persisted commission (`F2BF60` Clank), and one
+profile-unknown (`F40424` Tidus). No correction was sent. These are the two
+already-known unsafe battery exceptions (about 0.86 V and near-zero/missing,
+respectively), so they remain outside ordinary OTA/profile mutation until their
+battery paths are repaired or separately proven stable.
 
 ## 2026-08-27 -- Ben + Codex -- Short-wake charge truth and Health charge view built
 

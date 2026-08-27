@@ -101,8 +101,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `fx-260826-51d1fe1-p`; Thor `F40344` intentionally retained the protected
   net-bench image. Clank `F2BF60` remains on old firmware at 0.86 V, below ADR
   0042's 2.20 V fleet recovery floor: isolate and replace/bench-diagnose the
-  cell, do not lower the floor. Tidus `F40424` already has current firmware but
-  reports about 0.01 V/recovery refused: inspect its battery connector/cell.
+  cell, do not lower the floor. A 2026-08-27 read-only T-Deck profile audit also
+  found Clank as the sole observed `prof=0` commission fixture; correct it to
+  field only during that powered exact-target repair, not as an ordinary fleet
+  write. Tidus `F40424` already has current firmware but reports about 0.01 V/
+  recovery refused and its same audit profile was unknown: inspect its battery
+  connector/cell.
   Dratini `F4035C` rose from 2.342 V to about 2.46 V in active recovery; keep it
   on USB until a fresh sample proves recovery state 4 above the 2.55 V/60 s
   graduation gate. See
