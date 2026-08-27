@@ -10,6 +10,58 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Bridge day mode flashed; dev-cache defect isolated
+
+Ben found the dark Bridge OS presentation too dim in early-morning sun. The
+T-Deck now has a persistent Bridge-wide display mode that defaults to day for
+existing and new settings. Day mode uses the full 255 backlight and explicit
+high-contrast light palettes in the launcher, Fleet, Health, and RF Diagnostics;
+night mode restores the saved night-backlight level (59 on primary T-Deck
+`8EB508`). Fleet has a quick `DAY`/`NITE` toggle, and Settings exposes the same
+mode plus a night-backlight slider. SunTest returns to the active display mode.
+The serial console reports the mode and accepts `set display day|night`; `set bl`
+now changes the stored night level.
+
+The complete native Bridge suite passed. The ESP32-S3 application is 1,579,040
+bytes, using 50% flash and 44% global RAM. It was flashed through the guarded
+wrapper to exact T-Deck `8EB508` (`44:1B:F6:8E:B5:08`, COM152); every write
+region verified, and a complete application-region readback matched SHA-256
+`473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`.
+After reset it reported `display=day night_bl=59`, rejoined mesh channel 11,
+received fresh traffic, reported `sendfail=0`, and passed peripheral and memory
+probes. No fixture command or mutation was sent.
+
+This build also exposed a defect in the T-Deck development cache. The first
+compile entered as a cache hit, but Arduino rebuilt its dependency graph and
+cleaned the build directory, deleting `.dev-cache-recipe.*` metadata that the
+wrapper incorrectly stores inside that disposable directory. The immediate
+upload invocation therefore failed closed with `DEV_CACHE_RESET reason=missing`
+and performed a second full build. Two same-source, same-size full builds also
+had different application hashes (`2cabfda9...` then the flashed/read-back
+`473510ba...`), so dev builds are not currently byte-reproducible. Repair and
+regression coverage are recorded in `TODO.md`; current cache safety behavior is
+preserved until that work is done.
+
+## 2026-08-27 -- Ben + Codex -- Fleet table contrast hotfix flashed on 8EB508
+
+Ben's first physical Fleet check found black table text on the dark cell
+backgrounds for most live fixtures. The custom Fleet draw hook was styling the
+cell-fill task, then returning before LVGL's separate label task; the label
+therefore inherited the default black table text. Fleet now sets label contrast
+explicitly for every table cell: near-white for headers and live rows, and a
+muted light grey for retained off-air rows.
+
+The complete native Bridge suite passed. The corrected `tdeck-dev-local`
+application is 1,576,768 bytes with SHA-256
+`43cfda9c42e2c73126d232584c4a72717d4b118331dcbe96bf3ab108153f65e2`,
+using 50% flash and 44% global RAM. It was flashed through the guarded wrapper
+to the exact primary T-Deck `8EB508` (`44:1B:F6:8E:B5:08`, COM152); every write
+region verified, and a complete application-region readback matched that hash
+exactly. After the readback reset, the Bridge rejoined mesh channel 11, received
+fresh fixture traffic, reported `sendfail=0`, and passed peripheral and memory
+probes. No fixture command or mutation was sent. Physical contrast confirmation
+and the remaining Fleet acceptance checks stay open in `TODO.md`.
+
 ## 2026-08-27 -- Ben + Codex -- Filterable Fleet Bridge OS flashed and read back on 8EB508
 
 Declared the primary T-Deck `8EB508` (`44:1B:F6:8E:B5:08`, COM152) the sole

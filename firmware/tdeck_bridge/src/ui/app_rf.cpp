@@ -14,6 +14,7 @@
 #include "../store/store.h"
 #include "app_rf.h"
 #include "lvgl_glue.h"
+#include "ui_theme.h"
 #include "ui_task.h"
 
 static lv_obj_t *gScreen = nullptr;
@@ -265,35 +266,35 @@ void appRfOpen() {
   lvglSetNavHooks(nullptr);
   gScreen = lv_obj_create(nullptr);
   lv_obj_clear_flag(gScreen, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_bg_color(gScreen, lv_color_hex(0x101418), 0);
+  lv_obj_set_style_bg_color(gScreen, uiScreenColor(), 0);
 
   lv_obj_t *title = lv_label_create(gScreen);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-  setTextColor(title, 0xFFFFFF);
+  setTextColor(title, uiDayMode() ? 0x111827 : 0xFFFFFF);
   lv_label_set_text(title, "RF Diagnostics");
   lv_obj_set_pos(title, 5, 3);
 
   gSummary = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gSummary, &lv_font_montserrat_14, 0);
-  setTextColor(gSummary, 0xF4F7FA);
+  setTextColor(gSummary, uiDayMode() ? 0x111827 : 0xF4F7FA);
   lv_obj_set_width(gSummary, 310);
   lv_obj_set_pos(gSummary, 5, 27);
 
   gStrong = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gStrong, &lv_font_montserrat_14, 0);
-  setTextColor(gStrong, 0xC8F7D4);
+  setTextColor(gStrong, uiDayMode() ? 0x166534 : 0xC8F7D4);
   lv_obj_set_width(gStrong, 153);
   lv_obj_set_pos(gStrong, 5, 128);
 
   gWeak = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gWeak, &lv_font_montserrat_14, 0);
-  setTextColor(gWeak, 0xFFE0A3);
+  setTextColor(gWeak, uiDayMode() ? 0x8A4B00 : 0xFFE0A3);
   lv_obj_set_width(gWeak, 153);
   lv_obj_set_pos(gWeak, 162, 128);
 
   gTail = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gTail, &lv_font_montserrat_14, 0);
-  setTextColor(gTail, 0xF4F7FA);
+  setTextColor(gTail, uiDayMode() ? 0x111827 : 0xF4F7FA);
   lv_obj_set_width(gTail, 310);
   lv_obj_set_pos(gTail, 5, 66);
 

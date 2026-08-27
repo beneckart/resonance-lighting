@@ -24,6 +24,7 @@
 #include "app_zones.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_theme.h"
 #include "ui_task.h"
 
 static bool gActive = false;
@@ -144,7 +145,7 @@ static void openSunTest() {
   lv_obj_t *bl = lv_label_create(back);
   lv_label_set_text(bl, "back");
   lv_obj_add_event_cb(back, [](lv_event_t *) {
-    halDisplaySetBacklight(settings().backlight);
+    uiApplyDisplayMode();
     backToLauncher(nullptr);
   }, LV_EVENT_CLICKED, nullptr);
 
@@ -218,8 +219,34 @@ static void statusTimer(lv_timer_t *) {
   lv_label_set_text(gStatusLabel, buf);
 }
 
+static void styleLauncher() {
+  if (!gLauncher) return;
+  bool day = uiDayMode();
+  lv_obj_set_style_bg_color(gLauncher, uiScreenColor(), 0);
+  if (gStatusLabel)
+    lv_obj_set_style_text_color(gStatusLabel, uiMutedTextColor(), 0);
+  uint32_t count = lv_obj_get_child_count(gLauncher);
+  for (uint32_t i = 0; i < count; ++i) {
+    lv_obj_t *child = lv_obj_get_child(gLauncher, (int32_t)i);
+    if (!lv_obj_check_type(child, &lv_button_class)) continue;
+    lv_obj_set_style_bg_color(
+        child, day ? lv_color_hex(0xE5EDF4) : lv_color_hex(0x202830), 0);
+    lv_obj_set_style_bg_color(
+        child, day ? lv_color_hex(0xFFD54F) : lv_color_hex(0x3A6EA5),
+        LV_STATE_FOCUS_KEY | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(
+        child, day ? lv_color_hex(0x9AA7B2) : lv_color_hex(0x3A4652), 0);
+    lv_obj_set_style_border_color(
+        child, day ? lv_color_hex(0x0B57D0) : lv_color_hex(0x9CC7FF),
+        LV_STATE_FOCUS_KEY | LV_STATE_FOCUSED);
+    lv_obj_t *label = lv_obj_get_child(child, 0);
+    if (label) lv_obj_set_style_text_color(label, uiTextColor(), 0);
+  }
+}
+
 static void buildLauncher() {
   if (gLauncher) {
+    styleLauncher();
     // Rebuild focus into the existing launcher's tiles.
     lv_group_remove_all_objs(lvglGroup());
     uint32_t n = lv_obj_get_child_count(gLauncher);
@@ -231,10 +258,8 @@ static void buildLauncher() {
     return;
   }
   gLauncher = lv_obj_create(nullptr);
-  lv_obj_set_style_bg_color(gLauncher, lv_color_hex(0x101418), 0);
 
   gStatusLabel = lv_label_create(gLauncher);
-  lv_obj_set_style_text_color(gStatusLabel, lv_color_hex(0xC8D0D8), 0);
   lv_obj_set_style_text_font(gStatusLabel, &lv_font_montserrat_14, 0);
   lv_obj_set_pos(gStatusLabel, 6, 4);
   lv_label_set_text(gStatusLabel, "starting...");
@@ -246,9 +271,6 @@ static void buildLauncher() {
     lv_obj_t *btn = lv_button_create(grid);
     lv_obj_set_size(btn, cellW - 4, cellH - 4);
     lv_obj_set_pos(btn, x0 + (int)(i % cols) * cellW, y0 + (int)(i / cols) * cellH);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x202830), 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x3A6EA5),
-                              LV_STATE_FOCUS_KEY | LV_STATE_FOCUSED);
     lv_obj_t *lbl = lv_label_create(btn);
     char txt[32];
     snprintf(txt, sizeof(txt), "%s\n%s", kTiles[i].symbol, kTiles[i].name);
@@ -259,6 +281,8 @@ static void buildLauncher() {
     lv_obj_add_event_cb(btn, tileClicked, LV_EVENT_CLICKED, (void *)&kTiles[i]);
     lv_group_add_obj(lvglGroup(), btn);
   }
+
+  styleLauncher();
 
   lv_timer_create(statusTimer, 1000, nullptr);
   statusTimer(nullptr);
@@ -278,6 +302,7 @@ static void uiTask(void *) {
 
 bool uiStart() {
   if (!lvglGlueInit()) return false;
+  uiApplyDisplayMode();
   buildLauncher();
   lvglSetNavHooks(&kLauncherHooks);
   lv_screen_load(gLauncher);

@@ -12,7 +12,8 @@ struct Settings {
   char apiKey[128];
   char model[48];
   uint8_t channel;    // mesh channel; 11 is the commissioned fleet value
-  uint8_t backlight;  // 0..255
+  uint8_t backlight;  // 0..255 night-mode level; day mode always uses 255
+  bool dayMode;       // high-contrast light theme + full backlight
 };
 
 void storeBegin();

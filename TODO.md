@@ -15,13 +15,31 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   touch and trackball navigation, a long-list scroll through several refreshes,
   detail/back context, the 192-row heap/PSRAM watermark, and an explicitly
   named 2-3-fixture filtered canary cohort. Confirm the modal count, hidden and
-  off-air exclusions, and no list shuffle in the default sort. The verified
-  local binary is 1,576,688 bytes, SHA-256
-  `703b71a038530029dbd12b0cd072bc589b2d06dc83b12d9c3d4e6ca7073ea622`;
-  this exact image is now flashed on `8EB508`. Esptool write verification, a
-  full application-region readback with the same SHA-256, and post-reset
-  channel-11 mesh/peripheral/memory checks passed. The physical UI and named-
-  canary checks above remain (Ben/Codex).
+  off-air exclusions, and no list shuffle in the default sort. Also confirm that
+  default `DAY` is readable in direct morning sun at full backlight, the Fleet
+  `DAY`/`NITE` quick toggle and Settings switch agree, night restores the saved
+  level of 59, and live/header/selected/battery/off-air cells remain legible in
+  both modes. The verified day-mode binary is 1,579,040 bytes, SHA-256
+  `473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`;
+  this exact image is flashed on `8EB508`. Esptool write verification, a full
+  application-region readback with the same SHA-256, and post-reset channel-11
+  mesh/peripheral/memory checks passed. The physical UI and named-canary checks
+  above remain (Ben/Codex).
+- [ ] **Repair the T-Deck development-cache metadata boundary and prove warm
+  incremental builds.** The 2026-08-27 day-mode compile entered with
+  `DEV_CACHE_HIT`, but Arduino's dependency rebuild cleaned `build/dev-cache`
+  and deleted the wrapper's `.dev-cache-recipe.sha256` and
+  `.dev-cache-recipe.txt` stored inside it. The immediate upload then reported
+  `DEV_CACHE_RESET reason=missing` and rebuilt more than 670 Bridge, LVGL, and
+  LovyanGFX objects a second time. Move wrapper recipe/health metadata outside
+  Arduino's disposable build path (or restore it atomically after a successful
+  compile), retain the single-writer/interruption fail-closed behavior, and add
+  a regression that simulates Arduino deleting internal dotfiles and proves a
+  no-source-change second invocation avoids the library rebuild. Also explain
+  or remove same-source dev-build nondeterminism: two 1,579,040-byte builds had
+  SHA-256 `2cabfda91dd2f28e0fbb4bfc9092834201b046197421087ac5100ad7156683b9`
+  and `473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`
+  (Ben/Codex).
 - [ ] **Close the two unsafe USB recovery exceptions and Dratini graduation.**
   The 2026-08-27 supervised recovery put 23/25 observed USB-powered fixtures on
   `fx-260826-51d1fe1-p`; Thor `F40344` intentionally retained the protected

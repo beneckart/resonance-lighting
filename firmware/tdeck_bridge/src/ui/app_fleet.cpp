@@ -13,6 +13,7 @@
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
 #include "ui_task.h"
+#include "ui_theme.h"
 
 static lv_obj_t *gTable = nullptr;
 static lv_obj_t *gHeader = nullptr;
@@ -80,20 +81,19 @@ static void tableDrawEvent(lv_event_t *e) {
   uint32_t row = base->id1;
   uint32_t col = base->id2;
 
-  // LVGL emits separate draw tasks for a cell's fill and label. The Bridge
-  // screen uses a dark palette, so never inherit the default black table text.
-  // Keep retained/off-air rows visibly subdued without sacrificing contrast.
+  // LVGL emits separate draw tasks for a cell's fill and label. Never inherit
+  // a theme-dependent table color; both display modes stay deterministic.
   lv_draw_label_dsc_t *label = lv_draw_task_get_label_dsc(task);
   if (label) {
     bool offAir = row >= 1 && row - 1 < gRowCount &&
                   !gRows[row - 1].fresh;
-    label->color = offAir ? lv_color_hex(0xB8C0C8)
-                          : lv_color_hex(0xF2F5F7);
+    label->color = offAir ? uiMutedTextColor() : uiTextColor();
     return;
   }
 
   lv_draw_fill_dsc_t *fill = lv_draw_task_get_fill_dsc(task);
   if (!fill) return;
+  bool day = uiDayMode();
   if (col == 0 && row >= 1) {  // reported-color chip column
     if (row - 1 < gRowCount) {
       fill->color = ledChipColor(gRows[row - 1].view);
@@ -102,23 +102,35 @@ static void tableDrawEvent(lv_event_t *e) {
     return;
   }
   if (row == 0) {
-    fill->color = lv_color_hex(0x2A3540);  // header band
+    fill->color = day ? lv_color_hex(0xDCE6F0)
+                      : lv_color_hex(0x2A3540);  // header band
     fill->opa = LV_OPA_COVER;
   } else if (row == gSelRow) {
-    fill->color = lv_color_hex(0x3A6EA5);  // selected row
+    fill->color = day ? lv_color_hex(0x8BC3FF)
+                      : lv_color_hex(0x3A6EA5);  // selected row
     fill->opa = LV_OPA_COVER;
   } else if (row >= 1 && row - 1 < gRowCount && col == 5) {
     switch (gRows[row - 1].batteryBand) {
-      case BatteryHealthBand::GOOD: fill->color = lv_color_hex(0x194F2B); break;
-      case BatteryHealthBand::NEAR_LOW: fill->color = lv_color_hex(0x66510A); break;
-      case BatteryHealthBand::LOW_BATTERY: fill->color = lv_color_hex(0x6A2020); break;
-      case BatteryHealthBand::UNKNOWN: fill->color = lv_color_hex(0x214B6A); break;
-      case BatteryHealthBand::OFF_AIR: fill->color = lv_color_hex(0x30343A); break;
+      case BatteryHealthBand::GOOD:
+        fill->color = lv_color_hex(day ? 0xC9F3D4 : 0x194F2B); break;
+      case BatteryHealthBand::NEAR_LOW:
+        fill->color = lv_color_hex(day ? 0xFFE69C : 0x66510A); break;
+      case BatteryHealthBand::LOW_BATTERY:
+        fill->color = lv_color_hex(day ? 0xFFD0D0 : 0x6A2020); break;
+      case BatteryHealthBand::UNKNOWN:
+        fill->color = lv_color_hex(day ? 0xCCE8FF : 0x214B6A); break;
+      case BatteryHealthBand::OFF_AIR:
+        fill->color = lv_color_hex(day ? 0xE1E5E9 : 0x30343A); break;
     }
     fill->opa = LV_OPA_COVER;
   } else if (row >= 1 && row - 1 < gRowCount &&
              !gRows[row - 1].fresh) {
-    fill->color = lv_color_hex(0x20242A);  // retained blank/off-air row
+    fill->color = day ? lv_color_hex(0xEDF0F2)
+                      : lv_color_hex(0x20242A);  // retained off-air row
+    fill->opa = LV_OPA_COVER;
+  } else if (row >= 1) {
+    // The large live-cell surface is white in sunlight mode and dark at night.
+    fill->color = day ? lv_color_white() : lv_color_hex(0x101418);
     fill->opa = LV_OPA_COVER;
   }
 }
@@ -380,6 +392,12 @@ static void powerCb(lv_event_t *) {
   appPowerOpen();
 }
 
+static void displayModeCb(lv_event_t *) {
+  rememberSelectedRow();
+  uiSetDayMode(!uiDayMode());
+  appFleetOpen();
+}
+
 static void identifyRollTick(lv_timer_t *) {
   if (gIdentifyTargetIndex >= gIdentifyTargetCount) {
     size_t sent = gIdentifyTargetCount;
@@ -567,10 +585,23 @@ void appFleetOpen() {
   stopTimer();
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(scr, uiScreenColor(), 0);
 
   gHeader = lv_label_create(scr);
+  lv_obj_set_style_text_font(gHeader, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(gHeader, uiTextColor(), 0);
+  lv_obj_set_width(gHeader, 254);
   lv_obj_set_pos(gHeader, 8, 6);
   lv_label_set_text(gHeader, "Fleet");
+
+  lv_obj_t *displayMode = lv_button_create(scr);
+  lv_obj_set_size(displayMode, 56, 26);
+  lv_obj_set_pos(displayMode, 262, 2);
+  lv_obj_t *displayModeLabel = lv_label_create(displayMode);
+  lv_obj_set_style_text_font(displayModeLabel, &lv_font_montserrat_14, 0);
+  lv_label_set_text(displayModeLabel, uiDayMode() ? "DAY" : "NITE");
+  lv_obj_center(displayModeLabel);
+  lv_obj_add_event_cb(displayMode, displayModeCb, LV_EVENT_CLICKED, nullptr);
 
   lv_obj_t *view = makeBarButton(scr, 0, "view", viewCb);
   lv_obj_t *identify =
@@ -582,6 +613,13 @@ void appFleetOpen() {
   lv_obj_set_pos(gTable, 0, 30);
   lv_obj_set_size(gTable, 320, 174);
   lv_obj_set_style_text_font(gTable, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(gTable, uiTextColor(), LV_PART_ITEMS);
+  lv_obj_set_style_bg_color(
+      gTable, uiDayMode() ? lv_color_white() : lv_color_hex(0x101418),
+      LV_PART_ITEMS);
+  lv_obj_set_style_border_color(
+      gTable, uiDayMode() ? lv_color_hex(0x9AA7B2) : lv_color_hex(0x3A4652),
+      LV_PART_ITEMS);
   // Default cell padding wraps 3-char headers ("age" -> "ag/e"); tighten it.
   lv_obj_set_style_pad_hor(gTable, 4, LV_PART_ITEMS);
   lv_obj_set_style_pad_ver(gTable, 4, LV_PART_ITEMS);
@@ -612,6 +650,7 @@ void appFleetOpen() {
   lv_group_add_obj(lvglGroup(), identify);
   lv_group_add_obj(lvglGroup(), power);
   lv_group_add_obj(lvglGroup(), back);
+  lv_group_add_obj(lvglGroup(), displayMode);
   if (!gHasSelectedId) gSelRow = 1;
   lvglSetNavHooks(&kFleetHooks);
 

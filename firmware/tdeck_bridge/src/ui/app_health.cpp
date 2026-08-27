@@ -8,6 +8,7 @@
 #include "../net/census_svc.h"
 #include "app_health.h"
 #include "lvgl_glue.h"
+#include "ui_theme.h"
 #include "ui_task.h"
 
 static lv_obj_t *gScreen = nullptr;
@@ -215,7 +216,9 @@ static void rebuildTileObjects() {
     lv_obj_set_style_pad_all(tile, 0, 0);
     lv_obj_set_style_shadow_width(tile, 0, 0);
     lv_obj_set_style_border_width(tile, 0, 0);
-    lv_obj_set_style_border_color(tile, lv_color_white(), LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(
+        tile, uiDayMode() ? lv_color_black() : lv_color_white(),
+        LV_STATE_FOCUSED);
     lv_obj_set_style_border_width(tile, 2, LV_STATE_FOCUSED);
     lv_obj_set_user_data(tile, gTiles[i].id);
     lv_obj_add_event_cb(tile, tileFocused, LV_EVENT_FOCUSED, nullptr);
@@ -372,7 +375,7 @@ void appHealthOpen() {
   stopHealthTimer();
   gScreen = lv_obj_create(nullptr);
   lv_obj_clear_flag(gScreen, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_bg_color(gScreen, lv_color_hex(0x101418), 0);
+  lv_obj_set_style_bg_color(gScreen, uiScreenColor(), 0);
 
   gHeader = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gHeader, &lv_font_montserrat_14, 0);
@@ -394,7 +397,7 @@ void appHealthOpen() {
 
   lv_obj_t *legend = lv_label_create(gScreen);
   lv_obj_set_style_text_font(legend, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(legend, lv_color_hex(0xB8C0C8), 0);
+  lv_obj_set_style_text_color(legend, uiMutedTextColor(), 0);
   lv_obj_set_pos(legend, 5, 219);
   lv_label_set_text(legend, "G>3.20  Y>3.10  R<=3.10  gray=off");
 

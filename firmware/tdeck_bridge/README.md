@@ -130,7 +130,8 @@ set wifi <ssid> <psk>     # ssid/psk must each be one token
 set key <anthropic-key>
 set model claude-sonnet-5
 set channel 11            # mesh channel; 11 = commissioned fleet
-set bl 200                # backlight 0-255
+set display day|night     # reboot applies the complete theme
+set bl 200                # saved night backlight, 0-255; day stays at 255
 wifi retry | wifi off
 show                      # api key redacted
 probe | mem | reboot | help
@@ -198,6 +199,12 @@ not reorder on heartbeat arrival. A live class report is authoritative. While
 a fixture is absent or awaiting a full heartbeat, a known registry role can
 supply its class for filtering.
 
+Bridge OS defaults to a full-brightness day mode with light, high-contrast Fleet
+cells and dark text. Press the top-right `DAY`/`NITE` button for a quick toggle,
+or use Settings. Night mode restores the saved night-backlight level and uses
+explicit dark-table colors; table label contrast is deterministic in both modes
+rather than inherited from the LVGL theme.
+
 Press **Blink** to snapshot only the fresh rows currently passing every filter.
 The confirmation modal names the exact count and focuses cancel. On confirm,
 Bridge OS sends a paced exact-target green 30-second identify to that cohort;
@@ -210,14 +217,15 @@ identify path. It adds no packet type and performs no OTA, reboot, profile,
 lifecycle, or fixture-NVS mutation.
 
 The complete native Bridge suite and a local ESP32-S3 build pass. The
-`tdeck-dev-local` binary is 1,576,688 bytes with SHA-256
-`703b71a038530029dbd12b0cd072bc589b2d06dc83b12d9c3d4e6ca7073ea622`;
+`tdeck-dev-local` binary is 1,579,040 bytes with SHA-256
+`473510ba76ec5ee9ce47e76575556ac0a7783c78445d913548473e0b3d4b819a`;
 the linker reports 50% flash and 44% global RAM use. This exact image is flashed
 on primary T-Deck `8EB508`; esptool verified each written region and a complete
 application-region readback matched the SHA-256 above. Post-reset channel 11,
 mesh traffic, peripheral probes, and memory telemetry passed. Physical dropdown
-layout, stable scrolling, input, 192-row memory-watermark, and filtered named-
-canary identify checks remain open in `TODO.md`.
+layout, day/night sunlight readability, stable scrolling, input, 192-row
+memory-watermark, and filtered named-canary identify checks remain open in
+`TODO.md`.
 
 ## Fleet Health
 

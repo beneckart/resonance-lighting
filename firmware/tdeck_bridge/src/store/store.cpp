@@ -24,6 +24,9 @@ void storeBegin() {
   gSettings.channel = (uint8_t)gPrefs.getUChar("ch", 11);
   if (gSettings.channel < 1 || gSettings.channel > 13) gSettings.channel = 11;
   gSettings.backlight = (uint8_t)gPrefs.getUChar("bl", 200);
+  // Outdoor field use is the primary posture. Existing NVS has no `day` key,
+  // so the first build with this setting intentionally comes up sun-readable.
+  gSettings.dayMode = gPrefs.getBool("day", true);
 
   bool loaded = gPrefs.getBytesLength(kActionAuditKey) == sizeof(gActionAudit) &&
                 gPrefs.getBytes(kActionAuditKey, &gActionAudit,
@@ -50,6 +53,7 @@ void storeSave() {
   gPrefs.putString("model", gSettings.model);
   gPrefs.putUChar("ch", gSettings.channel);
   gPrefs.putUChar("bl", gSettings.backlight);
+  gPrefs.putBool("day", gSettings.dayMode);
 }
 
 bool storeHasWifi() { return gSettings.ssid[0] != 0; }

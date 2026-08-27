@@ -18,7 +18,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | App | State | Important remaining work |
 |---|---|---|
 | Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
-| Fleet | Working, hardware-verified | The visible table is capped at 64 peers; add paging/filtering before calling it a complete fleet view. |
+| Fleet | Filterable stable roster flashed on `8EB508`; physical acceptance open | Full registry plus unexpected peers, stable default order, class/VBAT filters, voltage and dynamic sorts, filtered identify, and day/night palettes are implemented. Complete the sunlight, long-scroll, memory, and named-canary matrix in `TODO.md`. |
 | Health | Flashed on `8EB508`; broad physical smoke passed | Source roster covers 144 production fixtures. The last flash embeds 141 and treats the three restored IDs as foreign until rebuilt; complete that refresh plus the explicit color/off-air and memory matrix. |
 | LED Studio | Working; field-smoke-tested; RGB-white fix source-built | White now maps to dedicated W on downlights and full RGB on perimeter/uplight/chandelier classes. Recheck on a named RGB uplight plus RGBW downlight. The broader color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Sleep / Dark | Working; field-smoke-tested | Ben reports both controls behaved as designed. Dark expiry and rails-off sleep/rejoin still need named-canary validation. |
@@ -26,7 +26,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | CA Studio | Light mode field-smoke-tested; knock wildfire source-built | The operator picker now contains only light and knock CA outputs. Hardware-validate sound-only daytime propagation on a named solarnoid cohort. |
 | Contagion | Flashed; fleet fixture promotion pending | Separate Color Virus/Epidemic family with light, native knock, both, or explicit old-fleet targeted-roll output. Re-armed Color Virus gestures now launch ordered new-color strains without hue ping-pong. The target picker is callsign-sorted and keyboard-filterable. F2BDFC's perimeter palm produced one live blue seed; repeat-strain spread remains to be observed after fleet OTA. |
 | Default | Source-built; hardware validation pending | Exact-target commission fallback selector: ready beacon, light CA, or strict dark; RAM-only or persisted. Verify named canaries and NVS survival before fleet use. |
-| Settings | Working | Secrets remain serial-only by design. |
+| Settings | Working; day/night flashed on `8EB508` | Persistent display mode and saved night backlight are implemented; secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
 | Schedule | Flashed on `8EB508`; broad physical smoke passed | GPS publishes UTC quality; fixtures select bounded consensus time and apply Black Rock City civil twilight in field profile. Complete the explicit override/canary matrix. |
 | Patterns | Flashed on `8EB508`; hardware check pending | Hardware-check the four modes, five palettes, class/cohort filters, owner handoff, and stop behavior on named canaries. ES7210 audio is v2. |

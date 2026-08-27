@@ -24,7 +24,8 @@ static void printHelp() {
       "  set key <api-key>        store Anthropic API key\n"
       "  set model <model-id>     default claude-sonnet-5\n"
       "  set channel <1-13>       mesh channel (fleet = 11)\n"
-      "  set bl <0-255>           backlight level\n"
+      "  set display day|night    display mode (reboot applies theme)\n"
+      "  set bl <0-255>           night-mode backlight level\n"
       "  wifi retry|off           re-attempt association / mesh-only\n"
       "  peers                    census table\n"
       "  emit on|off              1 Hz nb-master/nb-peer dashboard lines\n"
@@ -212,9 +213,10 @@ static void printShow() {
   const Settings &s = settings();
   char keyMask[20] = "(unset)";
   if (s.apiKey[0]) snprintf(keyMask, sizeof(keyMask), "%.10s...", s.apiKey);
-  Serial.printf("ssid=%s psk=%s key=%s model=%s ch=%u bl=%u\n",
+  Serial.printf("ssid=%s psk=%s key=%s model=%s ch=%u display=%s night_bl=%u\n",
                 s.ssid[0] ? s.ssid : "(unset)", s.psk[0] ? "(set)" : "(unset)",
-                keyMask, s.model, s.channel, s.backlight);
+                keyMask, s.model, s.channel, s.dayMode ? "day" : "night",
+                s.backlight);
   Serial.printf("net=%s ip=%s ap_ch=%u sntp=%d mesh_up=%d mesh_frames=%lu\n",
                 netStateName(), netIp(), netApChannel(), netSntpSynced() ? 1 : 0,
                 espnowUp() ? 1 : 0, (unsigned long)espnowStats().frames);
@@ -307,14 +309,23 @@ static void handleLine(char *line) {
       s.channel = (uint8_t)ch;
       storeSave();
       Serial.printf("mesh channel=%d (reboot to apply cleanly)\n", ch);
+    } else if (strcmp(argv[1], "display") == 0) {
+      if (strcmp(argv[2], "day") == 0) s.dayMode = true;
+      else if (strcmp(argv[2], "night") == 0) s.dayMode = false;
+      else { Serial.println("display must be day or night"); return; }
+      storeSave();
+      halDisplaySetBacklight(s.dayMode ? 255 : s.backlight);
+      Serial.printf("display=%s (reboot applies theme)\n",
+                    s.dayMode ? "day" : "night");
     } else if (strcmp(argv[1], "bl") == 0) {
       int v = atoi(argv[2]);
       if (v < 0) v = 0;
       if (v > 255) v = 255;
       s.backlight = (uint8_t)v;
       storeSave();
-      halDisplaySetBacklight(s.backlight);
-      Serial.printf("backlight=%d\n", v);
+      if (!s.dayMode) halDisplaySetBacklight(s.backlight);
+      Serial.printf("night backlight=%d%s\n", v,
+                    s.dayMode ? " (day stays at 255)" : "");
     } else {
       printHelp();
     }

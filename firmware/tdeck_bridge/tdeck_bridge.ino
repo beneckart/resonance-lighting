@@ -18,6 +18,7 @@
 #include "src/store/serial_cli.h"
 #include "src/store/store.h"
 #include "src/ui/status_page.h"
+#include "src/ui/ui_theme.h"
 #include "src/ui/ui_task.h"
 
 static bool gSunTest = false;
@@ -55,7 +56,7 @@ void setup() {
     Serial.println("LVGL init FAILED -> raw status page fallback");
     statusPageTick();
   }
-  halDisplaySetBacklight(settings().backlight);
+  halDisplaySetBacklight(uiDisplayBacklight());
   Serial.println("Bridge OS up; type `help` for the CLI");
 }
 
@@ -79,7 +80,7 @@ void loop() {
       if (key == 's') {
         gSunTest = !gSunTest;
         statusPageSunTest(gSunTest);
-        if (!gSunTest) halDisplaySetBacklight(settings().backlight);
+        if (!gSunTest) halDisplaySetBacklight(uiDisplayBacklight());
       }
     }
     statusPageTick();

@@ -228,6 +228,10 @@ Press **View** to combine:
 The raw-voltage bands match Health: good is above 3.20 V, near low is above
 3.10 V through 3.20 V, and low is at or below 3.10 V. `off air` is separate
 from `no valid VBAT`; silence is not displayed as a zero-voltage battery.
+Bridge OS defaults to full-brightness `DAY` mode for sunlight. Fleet uses light
+cells with dark text in that mode. Press the top-right `DAY`/`NITE` button to
+switch immediately; night mode restores the saved lower backlight and explicit
+dark-table colors. The same persistent switch is available in Settings.
 
 Press **Blink** to identify every **fresh** fixture in the current filtered view.
 The device first confirms the exact count with cancel focused, then walks that
@@ -522,9 +526,11 @@ dashboard when one-screen fleet accounting is preferable.
 
 ### Settings
 
-Settings changes T-Deck backlight and stored mesh channel. Production is channel
-11. A channel change persists, and reboot applies it cleanly. Do not change it in
-the field without an explicit migration or lab plan.
+Settings selects persistent day or night display mode, changes the saved night
+backlight, and changes the stored mesh channel. Day mode always runs the
+backlight at 255 for sunlight; night mode restores the saved level. Production
+is channel 11. A channel change persists, and reboot applies it cleanly. Do not
+change it in the field without an explicit migration or lab plan.
 
 WiFi credentials, API key, and model are displayed only as provisioning status;
 secrets are entered over USB serial. The current `show` command prints an API-key
@@ -534,7 +540,8 @@ prefix, so do not run it on a projected or public terminal.
 
 SunTest forces full backlight and displays contrast bars, text, and color patches.
 Use it to check readability, stuck display areas, or a questionable backlight.
-Back returns to the stored backlight level.
+Back returns to the active display mode: full brightness for day or the saved
+night level for night.
 
 ### Locate
 
@@ -577,7 +584,8 @@ set wifi <ssid> <psk>
 set key <anthropic-key>
 set model claude-sonnet-5
 set channel 11
-set bl 200
+set display day
+set bl 200                 # saves the night level; day remains at 255
 wifi retry
 show
 ```
