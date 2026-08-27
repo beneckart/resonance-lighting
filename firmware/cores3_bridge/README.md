@@ -4,8 +4,8 @@ Standalone M5Stack CoreS3 bridge for the Resonance ESP-NOW fleet. The ordinary
 image is now a small, touch-first Bridge OS with two switchable apps:
 
 - **Listener:** a read-only, paged fleet-health grid and fixture detail view;
-- **Audio:** the proven microphone envelope publisher with on-screen start/stop
-  and look controls.
+- **Audio:** one microphone publisher with envelope and short-window FFT looks,
+  a fast scrolling spectrogram, and on-screen start/stop/input/mode controls.
 
 It runs from the CoreS3 battery with no laptop or infrastructure WiFi. USB is
 still available for the full host dashboard, telemetry logging, and the legacy
@@ -62,8 +62,11 @@ while retaining the on-device health display and heartbeat tracking. Binary
 mode never writes bare diagnostic text to USB; diagnostics are Cambium LOG
 frames so they cannot corrupt the serial stream.
 
-The Audio app turns a live microphone envelope into 10 Hz `NB_DIRECT_FRAME`
-colors for every fixture heard in the last five seconds. Its fixture selector
+The Audio app analyzes a live microphone at 25 Hz and turns the result into
+10 Hz `NB_DIRECT_FRAME` colors for every fixture heard in the last five seconds.
+The faster local path drives a 24-row log-frequency spectrogram with about three
+seconds of history plus live bass, mid, and high meters; it does not increase
+fleet airtime. Its fixture selector
 recognizes the ADR 0040 `fx-*` artifact identity, the older `fixture-*` identity,
 and fixture `dev-local`, while excluding identified legacy net-bench/bridge
 peers that cannot consume direct frames. Starting Audio first
@@ -71,10 +74,14 @@ sends a one-shot, RAM-only fleet program release so an earlier CA, Contagion,
 or Dark lease cannot block the direct stream. It does not change the autonomous
 default, profile, lifecycle, or NVS. Each fixture gets a
 stable red, green, or blue slot based on sorted fixture ID. The bridge performs
-a two-second ambient-noise calibration, then uses fast attack and slow release.
-Four visual modes are available: CLASSIC per-slot R/G/B, EMBER warm-white,
-HUECYCLE (20 s shared hue rotation), and PULSE (beat-transient flashes over a
-dim floor). The Audio footer has **Start/Pause**, **Input**, and **Look**. Input
+a two-second ambient-noise calibration, then maintains a broadband envelope and
+independently normalized 60-250 Hz bass, 250-2000 Hz mid, and 2000-8000 Hz high
+bands from a 512-sample Hann-windowed FFT. Seven modes are available: CLASSIC
+per-slot R/G/B, EMBER warm-white, HUECYCLE (20 s shared hue rotation), PULSE
+(broadband transient flashes over a dim floor), BANDS RGB (shared bass/red,
+mid/green, treble/blue), BANDS SPLIT (stable fixture thirds each follow one
+band), and TIMBRE HUE (spectral centroid selects color while energy selects
+brightness). The Audio footer has **Start/Pause**, **Input**, and **Mode**. Input
 cycles between the CoreS3's ambient microphones and Module Audio's Aux input;
 USB `A`, `N`, and `M` remain optional compatibility controls for those same
 actions. Leaving Audio sends a zero frame and stops publishing, so a hidden app
@@ -104,6 +111,9 @@ For the physical hookup, Rode VideoMic NTG control reference, recommended gain
 and filter settings, display interpretation, daylight bench procedure, and
 troubleshooting, see
 [`docs/howto/CORES3_AUDIO_REACTIVE.md`](../../docs/howto/CORES3_AUDIO_REACTIVE.md).
+The staged sound-to-photon latency work, including the no-fixture-flash path and
+the gated future feature-packet fixture path, is specified in
+[`docs/projects/LOW_LATENCY_AUDIO_REACTIVITY_DEV_PLAN.md`](../../docs/projects/LOW_LATENCY_AUDIO_REACTIVITY_DEV_PLAN.md).
 
 The Thread Border Router kit's ESP32-H2 Gateway module is not used. Leaving the
 Gateway/DIN stack installed is harmless; the Resonance bridge runs only on the
@@ -203,7 +213,7 @@ lead, not a standalone electrical verdict.
 Expected boot identity:
 
 ```text
-=== Resonance net-bench cores3-os-0.1.2-dev ===
+=== Resonance net-bench cores3-os-0.2.0-dev ===
 role=master channel=11 frame_hz=0 hb_hz=0
 mode: BRIDGE OS (CoreS3; wireless Listener + Audio apps; USB optional)
 ```

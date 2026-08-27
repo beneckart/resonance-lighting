@@ -6,7 +6,6 @@
 // is treated as ready.
 
 #include <Arduino.h>
-#include <M5Unified.h>
 #include <WiFi.h>
 #include <esp_mac.h>
 #include <esp_now.h>
@@ -43,7 +42,12 @@
 #endif
 
 #if CORES3_AUDIO_MODULE
+// Module Audio already includes M5Unified. Do not include the same M5GFX graph
+// first through a differently spelled Windows path: GCC can then miss
+// `#pragma once` identity and report hundreds of duplicate graphics types.
 #include <M5Module_Audio.h>
+#else
+#include <M5Unified.h>
 #endif
 
 #include "../fixture/src/core/fixture_context.h"
@@ -52,7 +56,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-os-0.1.2-dev"
+#define CORES3_BRIDGE_VERSION "cores3-os-0.2.0-dev"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -410,6 +414,9 @@ PeerStat peers[NB_MAX_TRACKED] = {};
 
 #if CORES3_AUDIO_REACTIVE_MODE
 AudioEnvelope audioEnvelope;
+AudioSpectrum audioSpectrum;
+AudioCalibrationClock audioCalibration;
+AudioRuntimeTiming audioTiming;
 bool audioActive = false;
 bool audioInputReady = false;
 bool audioUsingModule = false;
@@ -417,19 +424,15 @@ bool audioModuleReady = false;
 bool audioModuleInitAttempted = false;
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
-
-enum AudioVisualMode : uint8_t {
-  AUDIO_MODE_CLASSIC = 0, // per-slot R/G/B envelope (original behavior)
-  AUDIO_MODE_EMBER,       // all fixtures warm amber/white on the envelope
-  AUDIO_MODE_HUECYCLE,    // envelope brightness on a slow shared hue rotation
-  AUDIO_MODE_PULSE,       // beat transients: full-bright flash over a dim floor
-  AUDIO_MODE_COUNT,
-};
 AudioVisualMode audioMode = AUDIO_MODE_CLASSIC;
 float audioFastEnv = 0.0f;      // PULSE: fast follower of the companded level
 float audioSlowEnv = 0.0f;      // PULSE: slow reference a transient must beat
 bool audioPulseActive = false;  // PULSE: a triggered flash is still decaying
 uint32_t audioPulseStartMs = 0; // PULSE: trigger time of the current flash
+bool audioStaleBlackSent = false;
+static constexpr size_t AUDIO_SPECTROGRAM_COLUMNS = 76;
+uint8_t audioSpectrogram[AUDIO_SPECTROGRAM_COLUMNS][AUDIO_SPECTRUM_ROWS] = {};
+size_t audioSpectrogramHead = 0; // next column to write; also the oldest column
 #if CORES3_AUDIO_MODULE
 M5ModuleAudio audioModule;
 #endif
@@ -558,6 +561,10 @@ const char *audioInputLabel() {
   return audioUsingModule ? "AUX INPUT" : "AMBIENT MIC";
 }
 
+uint32_t audioSampleRate() {
+  return audioUsingModule ? 44100UL : 16000UL;
+}
+
 bool audioCanCycleInput() {
 #if CORES3_AUDIO_MODULE
   return true;
@@ -580,6 +587,9 @@ const char *audioModeName(AudioVisualMode mode) {
   case AUDIO_MODE_EMBER: return "EMBER";
   case AUDIO_MODE_HUECYCLE: return "HUECYCLE";
   case AUDIO_MODE_PULSE: return "PULSE";
+  case AUDIO_MODE_BAND_RGB: return "BANDS RGB";
+  case AUDIO_MODE_BAND_SPLIT: return "BANDS SPLIT";
+  case AUDIO_MODE_TIMBRE_HUE: return "TIMBRE HUE";
   default: return "UNKNOWN";
   }
 }
@@ -587,6 +597,31 @@ const char *audioModeName(AudioVisualMode mode) {
 void nextAudioMode() {
   audioMode = (AudioVisualMode)((audioMode + 1) % AUDIO_MODE_COUNT);
   Serial.printf("audio mode=%s\n", audioModeName(audioMode));
+}
+
+void resetAudioAnalysis() {
+  audioEnvelope = AudioEnvelope{};
+  audioSpectrum.reset();
+  audioCalibration.reset();
+  audioTiming.reset(millis());
+  memset(audioSpectrogram, 0, sizeof(audioSpectrogram));
+  audioSpectrogramHead = 0;
+  audioPulseActive = false;
+  audioStaleBlackSent = false;
+  audioFastEnv = 0.0f;
+  audioSlowEnv = 0.0f;
+}
+
+bool audioAnalysisReady() {
+  return audioCalibration.calibrated() && audioEnvelope.calibrated() &&
+         audioSpectrum.calibrated() && audioCalibration.captureFresh(millis());
+}
+
+void appendAudioSpectrogram() {
+  memcpy(audioSpectrogram[audioSpectrogramHead], audioSpectrum.rows,
+         AUDIO_SPECTRUM_ROWS);
+  audioSpectrogramHead =
+      (audioSpectrogramHead + 1) % AUDIO_SPECTROGRAM_COLUMNS;
 }
 
 // Local HSV -> RGB for HUECYCLE. hue/sat/val are 0..1 and hue wraps. The wire
@@ -642,6 +677,20 @@ AudioColor audioSharedColor(float level, uint32_t nowMs) {
     }
     uint8_t v = (uint8_t)(value * 255.0f + 0.5f);
     return {v, v, v, v};
+  }
+  case AUDIO_MODE_BAND_RGB:
+    return audioBandRgbColor(audioSpectrum.bass.level,
+                             audioSpectrum.mid.level,
+                             audioSpectrum.treble.level);
+  case AUDIO_MODE_TIMBRE_HUE: {
+    float value = max(level, max(audioSpectrum.bass.level,
+                                 max(audioSpectrum.mid.level,
+                                     audioSpectrum.treble.level)));
+    // Low frequencies are warm amber; high frequencies travel toward violet.
+    float hue = 0.03f + audioSpectrum.centroid * 0.72f;
+    uint8_t r, g, b;
+    audioHsvToRgb(hue, 1.0f, value, &r, &g, &b);
+    return {r, g, b, 0};
   }
   default:
     return {0, 0, 0, 0};
@@ -708,9 +757,18 @@ bool setupAudioInput() {
 bool readAudioSamples(int16_t *samples, size_t count) {
   if (!audioInputReady || !samples || !count) return false;
 #if CORES3_AUDIO_MODULE
-  if (audioUsingModule)
-    return audioModule.record((uint8_t *)samples,
-                              (int)(count * sizeof(int16_t)));
+  if (audioUsingModule) {
+    // Module Audio records interleaved stereo. Collapse complete L/R frames
+    // before envelope/FFT analysis; treating the interleave as a mono stream
+    // manufactures a false near-Nyquist component when the channels differ.
+    static int16_t stereo[AUDIO_FFT_SIZE * 2];
+    if (count > AUDIO_FFT_SIZE ||
+        !audioModule.record((uint8_t *)stereo,
+                            (int)(count * 2 * sizeof(int16_t))))
+      return false;
+    audioStereoToMono(stereo, samples, count);
+    return true;
+  }
 #endif
   return M5.Mic.record(samples, count, 16000);
 }
@@ -741,14 +799,16 @@ size_t collectLiveAudioIds(uint8_t ids[NB_MAX_TRACKED][3]) {
   return count;
 }
 
-void sendAudioLevel(float level) {
+void sendAudioLevel(float level, bool forceBlack = false) {
   if (!radioReady) return;
   uint8_t ids[NB_MAX_TRACKED][3];
   size_t total = collectLiveAudioIds(ids);
   if (!total) return;
 
   AudioColor shared = {};
-  if (audioMode != AUDIO_MODE_CLASSIC)
+  bool perSlot = audioMode == AUDIO_MODE_CLASSIC ||
+                 audioMode == AUDIO_MODE_BAND_SPLIT;
+  if (!forceBlack && !perSlot)
     shared = audioSharedColor(level, millis());
 
   // NbDirectFrame holds 18 entries. Chunk the complete sorted live census so
@@ -764,9 +824,17 @@ void sendAudioLevel(float level) {
     for (size_t i = 0; i < chunk; ++i) {
       size_t slot = offset + i;
       memcpy(frame.entries[i].id, ids[slot], 3);
-      AudioColor color = audioMode == AUDIO_MODE_CLASSIC
-                             ? audioColorForSlot((uint8_t)slot, level)
-                             : shared;
+      AudioColor color = shared;
+      if (forceBlack) {
+        color = {0, 0, 0, 0};
+      } else if (audioMode == AUDIO_MODE_CLASSIC) {
+        color = audioColorForSlot((uint8_t)slot, level);
+      } else if (audioMode == AUDIO_MODE_BAND_SPLIT) {
+        color = audioBandSplitColor((uint8_t)slot,
+                                    audioSpectrum.bass.level,
+                                    audioSpectrum.mid.level,
+                                    audioSpectrum.treble.level);
+      }
       frame.entries[i].r = color.r;
       frame.entries[i].g = color.g;
       frame.entries[i].b = color.b;
@@ -786,7 +854,7 @@ void setAudioActive(bool active) {
   audioPulseActive = false;
   audioFastEnv = 0.0f;
   audioSlowEnv = 0.0f;
-  if (!active) sendAudioLevel(0.0f);
+  if (!active) sendAudioLevel(0.0f, true);
   audioActive = active;
   if (active) {
     // Explicit program leases (CA Studio, Contagion, Dark, and similar) win
@@ -795,7 +863,7 @@ void setAudioActive(bool active) {
     // in RAM before publishing the first direct frame. This changes no profile,
     // lifecycle setting, NVS, or autonomous default.
     sendFleetProgramLease(0, 0);
-    audioEnvelope = AudioEnvelope{};
+    resetAudioAnalysis();
     Serial.println("audio reactive -> ON (fleet program lease released)");
   } else {
     Serial.println("audio reactive -> OFF");
@@ -867,10 +935,7 @@ bool selectAudioInput(CoreS3AudioInput target) {
     return false;
   }
 
-  audioEnvelope = AudioEnvelope{};
-  audioPulseActive = false;
-  audioFastEnv = 0.0f;
-  audioSlowEnv = 0.0f;
+  resetAudioAnalysis();
   Serial.printf("audio input -> %s\n", audioInputLabel());
   if (wasActive) setAudioActive(true);
   return true;
@@ -883,29 +948,79 @@ void nextAudioInput() {
 }
 
 void audioReactiveTick() {
-  static uint32_t nextAudioMs = 0;
-  uint32_t now = millis();
-  if (!audioActive || (int32_t)(now - nextAudioMs) < 0) return;
-  nextAudioMs = now + 100; // fixture render cap is 10 Hz
+  if (!audioActive) return;
 
-  static int16_t samples[512];
+  // Publishing is independently phase-locked. Check it before the blocking
+  // capture so a 32 ms microphone read cannot turn the 100 ms deadline into a
+  // permanent 120 ms cadence. It sends the newest complete feature snapshot.
+  uint32_t now = millis();
+  if (audioTiming.publishDeadline.take(now, AUDIO_FIXTURE_PERIOD_MS) &&
+      audioAnalysisReady()) {
+    audioTiming.publish.note(now);
+    uint32_t startedUs = micros();
+    sendAudioLevel(audioEnvelope.level);
+    AudioRuntimeTiming::noteMax(micros() - startedUs,
+                                &audioTiming.publishMaxUs);
+  }
+
+  now = millis();
+  if (!audioTiming.analysisDeadline.take(now, AUDIO_ANALYSIS_PERIOD_MS)) return;
+  uint32_t analysisStartedUs = micros();
+
+  static int16_t samples[AUDIO_FFT_SIZE];
+  uint32_t captureStartedUs = micros();
   if (!readAudioSamples(samples, sizeof(samples) / sizeof(samples[0]))) {
     ++audioReadFailures;
+    AudioRuntimeTiming::noteMax(micros() - captureStartedUs,
+                                &audioTiming.captureMaxUs);
+    AudioRuntimeTiming::noteMax(micros() - analysisStartedUs,
+                                &audioTiming.analysisMaxUs);
+    // Decoupled publishing must not keep replaying the last bright feature if
+    // an I2S source fails. Stop within the same freshness bound used to restart
+    // calibration; the fixture's ordinary three-second fallback remains intact.
+    if (!audioStaleBlackSent && audioCalibration.observations &&
+        !audioCalibration.captureFresh(millis())) {
+      sendAudioLevel(0.0f, true);
+      audioStaleBlackSent = true;
+    }
     return;
   }
+  AudioRuntimeTiming::noteMax(micros() - captureStartedUs,
+                              &audioTiming.captureMaxUs);
+  uint32_t capturedMs = millis();
+  audioStaleBlackSent = false;
+  audioTiming.capture.note(capturedMs);
+  audioCalibration.noteCapture(capturedMs);
+  bool calibrating = audioCalibration.calibratingCurrentCapture();
+  uint16_t calibrationObservation = audioCalibration.observationCount16();
+
   float level = audioEnvelope.update(samples,
-                                     sizeof(samples) / sizeof(samples[0]));
+                                     sizeof(samples) / sizeof(samples[0]),
+                                     calibrating, calibrationObservation);
+  if (!audioSpectrum.update(samples, sizeof(samples) / sizeof(samples[0]),
+                            audioSampleRate(), calibrating,
+                            calibrationObservation)) {
+    ++audioReadFailures;
+    AudioRuntimeTiming::noteMax(micros() - analysisStartedUs,
+                                &audioTiming.analysisMaxUs);
+    return;
+  }
+  appendAudioSpectrogram();
+  uint32_t analyzedMs = millis();
+  audioTiming.analysis.note(analyzedMs);
+  AudioRuntimeTiming::noteMax(micros() - analysisStartedUs,
+                              &audioTiming.analysisMaxUs);
+
   // PULSE transient tracking runs in every mode so switching in is seamless.
-  audioFastEnv += (level - audioFastEnv) * 0.60f;
-  audioSlowEnv += (level - audioSlowEnv) * 0.06f;
-  if (audioPulseActive && now - audioPulseStartMs >= 400)
+  audioFastEnv += (level - audioFastEnv) * 0.33f;
+  audioSlowEnv += (level - audioSlowEnv) * 0.025f;
+  if (audioPulseActive && analyzedMs - audioPulseStartMs >= 400)
     audioPulseActive = false;
-  if (!audioPulseActive && audioEnvelope.calibrated() &&
+  if (!audioPulseActive && audioAnalysisReady() &&
       audioFastEnv > audioSlowEnv * 1.4f && audioFastEnv > 0.08f) {
     audioPulseActive = true;
-    audioPulseStartMs = now;
+    audioPulseStartMs = analyzedMs;
   }
-  if (audioEnvelope.calibrated()) sendAudioLevel(level);
 }
 #endif
 
@@ -1253,12 +1368,47 @@ void emitBridgeStats() {
                 bridgeBatteryMv() / 1000.0f, CORES3_BRIDGE_VERSION);
 #if CORES3_AUDIO_REACTIVE_MODE
   Serial.printf("audio source=%s ready=%d auxready=%d active=%d mode=%s calibrated=%d "
-                "rms=%.1f noise=%.1f level=%.3f frames=%lu readfail=%lu\n",
+                "rms=%.1f noise=%.1f level=%.3f bass=%.3f mid=%.3f treble=%.3f "
+                "centroid=%.3f analysis=%lu frames=%lu readfail=%lu\n",
                 audioSourceName(), audioInputReady, audioAuxReady(), audioActive,
-                audioModeName(audioMode), audioEnvelope.calibrated(),
+                audioModeName(audioMode),
+                audioAnalysisReady(),
                 audioEnvelope.rms, audioEnvelope.noise, audioEnvelope.level,
+                audioSpectrum.bass.level, audioSpectrum.mid.level,
+                audioSpectrum.treble.level, audioSpectrum.centroid,
+                (unsigned long)audioSpectrum.analysisFrames,
                 (unsigned long)audioFrames,
                 (unsigned long)audioReadFailures);
+  Serial.printf(
+      "audio-timing cal_ms=%lu cal_obs=%lu capture_hz_x1000=%lu "
+      "analysis_hz_x1000=%lu analysis_ms=%lu/%lu "
+      "tx_hz_x1000=%lu tx_ms=%lu/%lu display_hz_x1000=%lu "
+      "skip=%lu/%lu/%lu late_max_ms=%lu/%lu/%lu "
+      "sendfail=%lu rxdrops=%lu "
+      "max_us_capture_analysis_tx_display_loop=%lu/%lu/%lu/%lu/%lu\n",
+      (unsigned long)audioCalibration.elapsedMs(),
+      (unsigned long)audioCalibration.observations,
+      (unsigned long)audioTiming.capture.rateMilliHz(),
+      (unsigned long)audioTiming.analysis.rateMilliHz(),
+      (unsigned long)audioTiming.analysis.intervalMinMs(),
+      (unsigned long)audioTiming.analysis.intervalMaxMs(),
+      (unsigned long)audioTiming.publish.rateMilliHz(),
+      (unsigned long)audioTiming.publish.intervalMinMs(),
+      (unsigned long)audioTiming.publish.intervalMaxMs(),
+      (unsigned long)audioTiming.display.rateMilliHz(),
+      (unsigned long)audioTiming.analysisDeadline.skippedPeriods,
+      (unsigned long)audioTiming.publishDeadline.skippedPeriods,
+      (unsigned long)audioTiming.displayDeadline.skippedPeriods,
+      (unsigned long)audioTiming.analysisDeadline.maxLatenessMs,
+      (unsigned long)audioTiming.publishDeadline.maxLatenessMs,
+      (unsigned long)audioTiming.displayDeadline.maxLatenessMs,
+      (unsigned long)sendFail,
+      (unsigned long)rxQueueDrops,
+      (unsigned long)audioTiming.captureMaxUs,
+      (unsigned long)audioTiming.analysisMaxUs,
+      (unsigned long)audioTiming.publishMaxUs,
+      (unsigned long)audioTiming.displayMaxUs,
+      (unsigned long)audioTiming.loopMaxUs);
 #endif
 
   char line[1024];
@@ -2134,51 +2284,103 @@ void drawListenerDetail() {
   drawTextButton(88, 201, 144, 34, rgb565(37, 62, 73), "BACK");
 }
 
+uint16_t audioSpectrogramColor(uint8_t value) {
+  if (value < 12) return TFT_BLACK;
+  if (value < 96) {
+    return rgb565(0, (uint8_t)(value / 3), value);
+  }
+  if (value < 176) {
+    uint8_t ramp = value - 96;
+    return rgb565(0, (uint8_t)(64 + ramp * 2),
+                  (uint8_t)(255 - ramp));
+  }
+  uint8_t ramp = value - 176;
+  return rgb565((uint8_t)min(255, (int)ramp * 3), 255,
+                (uint8_t)min(255, (int)ramp * 2));
+}
+
+void drawAudioBandMeter(int16_t x, const char *label, float level,
+                        uint16_t color) {
+  displayCanvas.setTextSize(1);
+  displayCanvas.setTextColor(color, TFT_BLACK);
+  displayCanvas.setCursor(x, 165);
+  displayCanvas.printf("%s %2d", label,
+                       (int)(audioClampUnit(level) * 99.0f + 0.5f));
+  displayCanvas.drawRoundRect(x, 176, 96, 9, 3, TFT_DARKGREY);
+  int width = (int)(audioClampUnit(level) * 92.0f + 0.5f);
+  if (width > 0) displayCanvas.fillRect(x + 2, 178, width, 5, color);
+}
+
 void drawAudioApp() {
   drawAppHeader("AUDIO");
   displayCanvas.setTextSize(1);
   displayCanvas.setTextColor(audioInputReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
-  displayCanvas.setCursor(8, 40);
+  displayCanvas.setCursor(8, 38);
   displayCanvas.printf("%s  %s", audioInputLabel(),
                        audioActive ? "PUBLISHING" : "PAUSED");
   displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  displayCanvas.setCursor(230, 40);
+  displayCanvas.setCursor(230, 38);
   displayCanvas.printf("%d live", peerCount(true));
 
-  displayCanvas.setTextSize(2);
-  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
-  displayCanvas.setCursor(8, 62);
-  displayCanvas.printf("LOOK: %s", audioModeName(audioMode));
   displayCanvas.setTextSize(1);
-  displayCanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-  displayCanvas.setCursor(8, 88);
-  displayCanvas.printf("rms %.0f   floor %.0f   level %d%%", audioEnvelope.rms,
-                       audioEnvelope.noise,
-                       (int)(audioEnvelope.level * 100.0f + 0.5f));
+  displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
+  displayCanvas.setCursor(8, 51);
+  displayCanvas.printf("%s", audioModeName(audioMode));
+  displayCanvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  displayCanvas.setCursor(174, 51);
+  uint32_t analysisRate = audioTiming.analysis.rateMilliHz();
+  uint32_t publishRate = audioTiming.publish.rateMilliHz();
+  displayCanvas.printf("FFT %lu.%lu TX %lu.%lu",
+                       (unsigned long)(analysisRate / 1000),
+                       (unsigned long)((analysisRate % 1000) / 100),
+                       (unsigned long)(publishRate / 1000),
+                       (unsigned long)((publishRate % 1000) / 100));
 
-  displayCanvas.drawRoundRect(8, 105, 304, 22, 5, TFT_DARKGREY);
-  int barWidth = (int)(audioEnvelope.level * 300.0f);
-  if (barWidth > 0)
-    displayCanvas.fillRoundRect(10, 107, barWidth, 18, 4, TFT_MAGENTA);
+  // Three seconds of log-frequency history at 25 columns/s. Low frequencies
+  // are at the bottom; the newest spectrum is the rightmost column.
+  for (size_t column = 0; column < AUDIO_SPECTROGRAM_COLUMNS; ++column) {
+    size_t source = (audioSpectrogramHead + column) %
+                    AUDIO_SPECTROGRAM_COLUMNS;
+    for (size_t row = 0; row < AUDIO_SPECTRUM_ROWS; ++row) {
+      uint8_t value = audioSpectrogram[source][row];
+      displayCanvas.fillRect(8 + (int16_t)column * 4,
+                             65 + (int16_t)(AUDIO_SPECTRUM_ROWS - row - 1) * 4,
+                             4, 4, audioSpectrogramColor(value));
+    }
+  }
+  displayCanvas.drawRect(7, 64, 306, 98, TFT_DARKGREY);
+  if (audioActive && !audioAnalysisReady()) {
+    displayCanvas.fillRoundRect(92, 98, 136, 28, 5, rgb565(24, 20, 29));
+    displayCanvas.drawRoundRect(92, 98, 136, 28, 5, TFT_MAGENTA);
+    displayCanvas.setTextColor(TFT_WHITE, rgb565(24, 20, 29));
+    displayCanvas.setTextSize(1);
+    displayCanvas.setCursor(119, 108);
+    displayCanvas.print("CALIBRATING...");
+  }
+
+  drawAudioBandMeter(8, "BASS", audioSpectrum.bass.level, TFT_RED);
+  drawAudioBandMeter(112, "MID", audioSpectrum.mid.level, TFT_GREEN);
+  drawAudioBandMeter(216, "HIGH", audioSpectrum.treble.level, TFT_CYAN);
 
   displayCanvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  displayCanvas.setCursor(8, 136);
-  displayCanvas.printf("frames %lu  read fail %lu  TX fail %lu",
+  displayCanvas.setTextSize(1);
+  displayCanvas.setCursor(8, 188);
+  displayCanvas.printf("level %d  centroid %d  frames %lu  fail %lu/%lu",
+                       (int)(audioEnvelope.level * 99.0f + 0.5f),
+                       (int)(audioSpectrum.centroid * 99.0f + 0.5f),
                        (unsigned long)audioFrames,
                        (unsigned long)audioReadFailures,
                        (unsigned long)sendFail);
-  displayCanvas.setCursor(8, 151);
-  displayCanvas.print("Leaving Audio stops frames; fixtures fall back in ~3 s.");
 
-  drawTextButton(8, 177, 96, 48,
+  drawTextButton(8, 199, 96, 36,
                  audioActive ? rgb565(145, 38, 45) : rgb565(27, 120, 65),
                  audioActive ? "PAUSE" : "START");
-  drawTextButton(112, 177, 96, 48,
+  drawTextButton(112, 199, 96, 36,
                  audioAuxReady() ? rgb565(24, 91, 125)
                                  : audioCanCycleInput() ? rgb565(145, 92, 20)
                                                         : rgb565(55, 59, 63),
                  "INPUT");
-  drawTextButton(216, 177, 96, 48, rgb565(91, 35, 100), "LOOK");
+  drawTextButton(216, 199, 96, 36, rgb565(91, 35, 100), "MODE");
 }
 
 void openCoreS3App(CoreS3App app) {
@@ -2230,7 +2432,7 @@ void handleAppTouch(int16_t x, int16_t y) {
     if (y >= 190) openCoreS3App(CORES3_APP_LISTENER);
     return;
   }
-  if (currentApp == CORES3_APP_AUDIO && y >= 170) {
+  if (currentApp == CORES3_APP_AUDIO && y >= 195) {
     if (x < 108)
       setAudioActive(!audioActive);
     else if (x < 212)
@@ -2360,6 +2562,9 @@ void setup() {
 }
 
 void loop() {
+#if CORES3_AUDIO_REACTIVE_MODE
+  uint32_t loopStartedUs = micros();
+#endif
   esp_task_wdt_reset();
   M5.update();
 #if !CORES3_CAMBIUM_MODE
@@ -2379,20 +2584,41 @@ void loop() {
 #endif
 #endif
 
-  static uint32_t nextBridgeMs = 0;
-  static uint32_t nextDisplayMs = 0;
+  static AudioPeriodicDeadline bridgeStatusDeadline;
+  static AudioPeriodicDeadline normalDisplayDeadline;
   uint32_t now = millis();
-  if ((int32_t)(now - nextBridgeMs) >= 0) {
-    nextBridgeMs = now + 1000 / NB_BRIDGE_HZ;
+  if (bridgeStatusDeadline.take(now, 1000 / NB_BRIDGE_HZ)) {
 #if CORES3_CAMBIUM_MODE
     sendCambiumStatus();
 #else
     emitBridgeStats();
 #endif
   }
-  if ((int32_t)(now - nextDisplayMs) >= 0) {
-    nextDisplayMs = now + 1000;
+  bool displayDue = false;
+#if CORES3_AUDIO_REACTIVE_MODE && !CORES3_CAMBIUM_MODE
+  bool timedAudioDisplay = currentApp == CORES3_APP_AUDIO && audioActive;
+  if (timedAudioDisplay)
+    displayDue = audioTiming.displayDeadline.take(now,
+                                                   AUDIO_ANALYSIS_PERIOD_MS);
+  else
+#endif
+    displayDue = normalDisplayDeadline.take(now, 1000);
+  if (displayDue) {
+#if CORES3_AUDIO_REACTIVE_MODE && !CORES3_CAMBIUM_MODE
+    uint32_t displayStartedUs = micros();
+    if (timedAudioDisplay) audioTiming.display.note(now);
+#endif
     drawDisplay();
+#if CORES3_AUDIO_REACTIVE_MODE && !CORES3_CAMBIUM_MODE
+    if (timedAudioDisplay)
+      AudioRuntimeTiming::noteMax(micros() - displayStartedUs,
+                                  &audioTiming.displayMaxUs);
+#endif
   }
+#if CORES3_AUDIO_REACTIVE_MODE
+  if (audioActive)
+    AudioRuntimeTiming::noteMax(micros() - loopStartedUs,
+                                &audioTiming.loopMaxUs);
+#endif
   delay(2);
 }

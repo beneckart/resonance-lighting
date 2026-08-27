@@ -149,22 +149,48 @@ The Audio app identifies the input and state:
 
 ```text
 AUX INPUT  PUBLISHING
-rms 343 floor 31 level  67%
+BANDS RGB                 FFT 24.9 TX 10.0
+[scrolling spectrogram: high frequencies at top, bass at bottom]
+BASS 72       MID 41        HIGH 18
 ```
 
 - `AUX INPUT` means the external Module Audio LINE/MIC path is selected.
 - `AMBIENT MIC` means the CoreS3 microphones are selected instead.
 - `INPUT FAILED` means no audio input initialized.
 - `PUBLISHING` or `PAUSED` is the audio-reactive stream state.
-- `rms` is the current raw DC-removed sample magnitude. It is useful for comparing
-  relative signal levels but is not calibrated sound-pressure level or dBFS.
-- `floor` is the bridge's learned ambient-noise estimate.
-- `level` is the adaptive 0-100% value sent as fixture brightness. It changes its
-  ceiling over time, so 100% does not by itself mean the analog path is clipping.
+- The scrolling plot is about three seconds of 512-sample FFT history. Its 24
+  rows are log-spaced from roughly 60 Hz at the bottom to 8 kHz at the top; the
+  newest column is at the right.
+- `BASS`, `MID`, and `HIGH` are independently normalized 0-99 meters for
+  60-250 Hz, 250-2000 Hz, and 2000-8000 Hz. They are artistic controls, not
+  calibrated dB measurements.
+- `level` remains the broadband, DC-removed adaptive envelope. The hidden raw
+  RMS and learned floor remain available in the one-second USB `audio` status
+  line for gain troubleshooting.
+- `centroid` runs from low/dark energy toward high/bright energy and selects the
+  color in TIMBRE HUE.
+- `FFT` and `TX` show achieved analysis and publishing rates, not labels copied
+  from the requested settings. Their targets are 25.0 and 10.0 Hz. USB status
+  adds min/max intervals, skipped deadlines, maximum lateness, and capture/FFT/
+  publish/display/loop blocking times plus send-failure and receive-queue-drop
+  counters for latency and mesh-health diagnosis.
 
-The `live fixtures` rows show peers heard during the last five seconds. A unit
-that is absent there cannot receive an addressed audio color. The screen shows
-only three rows in the audio layout even if more fixtures are live.
+The top-right `live` count covers peers heard during the last five seconds. A
+unit absent from that live census cannot receive an addressed audio color.
+
+### Audio modes
+
+Tap **Mode** to cycle without interrupting capture or recalibrating:
+
+| Mode | Response |
+| --- | --- |
+| CLASSIC | Broadband level; stable fixture thirds are red, green, or blue |
+| EMBER | Broadband level; every fixture shares warm RGBW |
+| HUECYCLE | Broadband level; one shared hue rotates every 20 seconds |
+| PULSE | Broadband transient flash over a dim floor |
+| BANDS RGB | Bass -> red, mid -> green, high -> blue on every fixture |
+| BANDS SPLIT | Stable fixture thirds separately follow bass, mid, or high |
+| TIMBRE HUE | Spectral centroid selects hue; strongest energy selects brightness |
 
 ## Tuning recipes
 
@@ -252,7 +278,15 @@ for wind/handling rumble, not as a substitute for correcting overload.
 - Confirm the fixtures are running firmware with direct-frame support.
 - In daylight, use the temporary `N1` bench override on only the authorized
   fixtures, then restore each one with `N2`.
-- Use the Audio app's on-screen **Look**, **Input**, and **Pause/Start** controls.
+- Use the Audio app's on-screen **Mode**, **Input**, and **Pause/Start** controls.
+
+### Spectrogram shows a permanent bright top rail
+
+Bridge OS `cores3-os-0.2.0-dev` collapses Module Audio's interleaved stereo
+frames to mono before FFT analysis. An older or experimental image that treats
+left/right samples as one time series can manufacture a false near-Nyquist
+component whenever the channels differ. Install 0.2.0 or later before changing
+mic gain to chase this symptom.
 
 ### The app reports `AMBIENT MIC` when Aux is wanted
 
@@ -315,6 +349,13 @@ T-Deck observed fresh fixtures enter program 3 Direct, and Ben confirmed the
 spoken `test test test` response worked really well. The exact 1,168,352-byte
 binary SHA-256 is
 `FDDAC35CA9778D1698763F77FAABA88A5FBB56A8167C1D24EE6E0701F1742C65`.
+
+The `cores3-os-0.2.0-dev` spectral experiment keeps that accepted ownership and
+fallback behavior but adds a 25 Hz, 512-sample FFT/spectrogram path and three
+band-driven modes inside Audio. Native tone tests cover bass/mid/high separation,
+centroid ordering, stereo-to-mono conversion, and band color planning. Ambient,
+Aux, achieved screen cadence, mixed-mode fixture response, and pause/exit
+fallback still require a named hardware run before this revision is promoted.
 
 ## References
 

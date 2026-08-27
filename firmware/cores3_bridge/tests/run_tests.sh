@@ -10,6 +10,10 @@ trap 'rm -rf "$OUT"' EXIT
   -o "$OUT/test_audio_reactive"
 "$OUT/test_audio_reactive"
 
+"$CXX" -std=gnu++17 -Wall -Wextra -Werror test_audio_timing.cpp \
+  -o "$OUT/test_audio_timing"
+"$OUT/test_audio_timing"
+
 "$CXX" -std=gnu++17 -Wall -Wextra -Werror test_app_model.cpp \
   -o "$OUT/test_app_model"
 "$OUT/test_app_model"
