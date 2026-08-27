@@ -1,0 +1,127 @@
+{"artifact": "C:\\Users\\benec\\OneDrive\\Documents\\ChatGPT\\resonance-lighting\\firmware\\fixture\\build\\fx-260827-1254f04-p\\fixture.ino.bin", "artifact_sha256": "2f9a93344e172b023ee8df473b7c747b26f38dc0ec5353f6efd00d50ec45f4af", "campaign_duration_s": 190, "discovery_timeout_s": 150.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260827-1254f04-p", "gather_cadence": "ordinary", "job_id": "39329088", "phase": "PLAN", "target_count": 49, "targets": ["9E5A58", "9E5A5C", "9E5A74", "9E5A84", "9E5A88", "9E5AD4", "9E5B04", "9E5B48", "9E5B5C", "9E5B8C", "9F0E54", "9F0E5C", "9F2648", "9F2680", "9F2694", "9F26B4", "9F2718", "9F2720", "9F2724", "9F2738", "F2B900", "F2BCF0", "F2BD00", "F2BDB0", "F2BDC4", "F2BE08", "F2BE0C", "F2BE1C", "F2BE20", "F2BE38", "F2BE3C", "F2BEB4", "F2BEE4", "F2BEF4", "F2BF74", "F2BF90", "F3FC8C", "F3FC9C", "F3FCAC", "F3FD28", "F3FD60", "F3FD88", "F4019C", "F401A8", "F401CC", "F402B8", "F40314", "F40348", "F40384"], "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "39329088", "phase": "PREFLIGHT", "target_count": 49, "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.047, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5A58", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.063, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5A5C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.094, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5A74", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.109, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5A84", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5A88", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5AD4", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.156, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5B04", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.172, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5B48", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.188, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5B5C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.203, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9E5B8C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.219, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F0E54", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.234, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F0E5C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.25, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2648", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.266, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2680", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.281, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2694", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.297, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F26B4", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.313, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2718", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.344, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2720", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.344, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2724", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.359, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "9F2738", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.391, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2B900", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.406, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BCF0", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.406, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BD00", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.438, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BDB0", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.453, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BDC4", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.469, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE08", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.484, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE0C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.5, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE1C", "ts_utc": "2026-08-27T22:28:05Z"}
+{"elapsed_s": 0.516, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE20", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.531, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE38", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.547, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BE3C", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.563, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BEB4", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.578, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BEE4", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.594, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BEF4", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.609, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BF74", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.625, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F2BF90", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.641, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FC8C", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.656, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FC9C", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.672, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FCAC", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.672, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FD28", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.688, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FD60", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.703, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F3FD88", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.719, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F4019C", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.734, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F401A8", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.75, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F401CC", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.766, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F402B8", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.781, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F40314", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.813, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F40348", "ts_utc": "2026-08-27T22:28:06Z"}
+{"elapsed_s": 0.828, "event": "target_added", "job_id": "39329088", "phase": "GATHER", "target": "F40384", "ts_utc": "2026-08-27T22:28:06Z"}
+{"campaign": {"active": true, "cycle_ms": 490, "dispatch_count": 73, "job_id": "39329088", "phase": 1, "remaining_ms": 189195, "status_age_ms": 15, "target_count": 49, "ts_utc": "2026-08-27T22:28:06.319762+00:00"}, "elapsed_s": 0.859, "event": "bridge_acknowledged", "job_id": "39329088", "phase": "GATHER", "ts_utc": "2026-08-27T22:28:06Z"}
+{"battery_v": 3.596, "elapsed_s": 1.516, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.133", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BD00", "ts_utc": "2026-08-27T22:28:06Z"}
+{"battery_v": 3.334, "elapsed_s": 6.938, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.157", "job_id": "39329088", "phase": "DISCOVER", "target": "F401A8", "ts_utc": "2026-08-27T22:28:12Z"}
+{"battery_v": 3.324, "elapsed_s": 7.234, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.108", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE0C", "ts_utc": "2026-08-27T22:28:12Z"}
+{"battery_v": 3.306, "elapsed_s": 38.797, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.42", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BDC4", "ts_utc": "2026-08-27T22:28:44Z"}
+{"battery_v": 3.296, "elapsed_s": 39.234, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.187", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FD88", "ts_utc": "2026-08-27T22:28:44Z"}
+{"battery_v": 3.285, "elapsed_s": 39.281, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.172", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FCAC", "ts_utc": "2026-08-27T22:28:44Z"}
+{"battery_v": 3.584, "elapsed_s": 39.328, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.147", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BEB4", "ts_utc": "2026-08-27T22:28:44Z"}
+{"battery_v": 3.157, "elapsed_s": 65.453, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.91", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2724", "ts_utc": "2026-08-27T22:29:10Z"}
+{"battery_v": 3.591, "elapsed_s": 71.656, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.102", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE3C", "ts_utc": "2026-08-27T22:29:17Z"}
+{"battery_v": 3.33, "elapsed_s": 77.266, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.202", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BDB0", "ts_utc": "2026-08-27T22:29:22Z"}
+{"battery_v": 3.335, "elapsed_s": 77.672, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.208", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2718", "ts_utc": "2026-08-27T22:29:23Z"}
+{"battery_v": 3.205, "elapsed_s": 82.047, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.120", "job_id": "39329088", "phase": "DISCOVER", "target": "9F0E54", "ts_utc": "2026-08-27T22:29:27Z"}
+{"battery_v": 3.337, "elapsed_s": 87.969, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.103", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2680", "ts_utc": "2026-08-27T22:29:33Z"}
+{"battery_v": 3.316, "elapsed_s": 103.703, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.129", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2648", "ts_utc": "2026-08-27T22:29:49Z"}
+{"battery_v": 3.254, "elapsed_s": 103.922, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.146", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5B5C", "ts_utc": "2026-08-27T22:29:49Z"}
+{"battery_v": 3.583, "elapsed_s": 114.406, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.121", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BF90", "ts_utc": "2026-08-27T22:29:59Z"}
+{"battery_v": 3.566, "elapsed_s": 125.094, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.161", "job_id": "39329088", "phase": "DISCOVER", "target": "F402B8", "ts_utc": "2026-08-27T22:30:10Z"}
+{"battery_v": 3.298, "elapsed_s": 130.781, "event": "endpoint_found", "firmware_rev": "fx-260826-51d1fe1-p", "ip": "192.168.1.116", "job_id": "39329088", "phase": "DISCOVER", "target": "9F0E5C", "ts_utc": "2026-08-27T22:30:16Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5A58", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5A5C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5A74", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5A84", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5A88", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5AD4", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5B04", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5B48", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9E5B8C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2694", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9F26B4", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2720", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "9F2738", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2B900", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BCF0", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE08", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE1C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE20", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BE38", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BEE4", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BEF4", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F2BF74", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FC8C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FC9C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FD28", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F3FD60", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F4019C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F401CC", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F40314", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F40348", "ts_utc": "2026-08-27T22:30:36Z"}
+{"elapsed_s": 151.281, "event": "deferred_not_discovered", "job_id": "39329088", "phase": "DISCOVER", "target": "F40384", "ts_utc": "2026-08-27T22:30:36Z"}
+{"campaign": {"active": false, "cycle_ms": 490, "dispatch_count": 13860, "job_id": "39329088", "phase": 2, "remaining_ms": 0, "status_age_ms": 16, "target_count": 49, "ts_utc": "2026-08-27T22:30:36.781309+00:00"}, "elapsed_s": 151.328, "event": "bridge_acknowledged", "job_id": "39329088", "phase": "FREEZE", "ts_utc": "2026-08-27T22:30:36Z"}
+{"battery_v": 3.255, "elapsed_s": 151.359, "event": "fresh_maintenance_power", "ip": "192.168.1.146", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": false, "supply_ma": 54, "supply_v": 5.959, "target": "9E5B5C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"battery_v": 3.206, "elapsed_s": 151.422, "event": "fresh_maintenance_power", "ip": "192.168.1.120", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 80, "supply_v": 4.629, "target": "9F0E54", "ts_utc": "2026-08-27T22:30:36Z"}
+{"battery_v": 3.304, "elapsed_s": 151.516, "event": "fresh_maintenance_power", "ip": "192.168.1.116", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 128, "supply_v": 4.597, "target": "9F0E5C", "ts_utc": "2026-08-27T22:30:36Z"}
+{"battery_v": 3.314, "elapsed_s": 151.641, "event": "fresh_maintenance_power", "ip": "192.168.1.129", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": false, "supply_ma": 60, "supply_v": 5.832, "target": "9F2648", "ts_utc": "2026-08-27T22:30:37Z"}
+{"battery_v": 3.327, "elapsed_s": 151.891, "event": "fresh_maintenance_power", "ip": "192.168.1.103", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 0, "supply_v": 6.15, "target": "9F2680", "ts_utc": "2026-08-27T22:30:37Z"}
+{"battery_v": 3.341, "elapsed_s": 151.938, "event": "fresh_maintenance_power", "ip": "192.168.1.208", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 140, "supply_v": 4.601, "target": "9F2718", "ts_utc": "2026-08-27T22:30:37Z"}
+{"battery_v": 3.134, "elapsed_s": 152.016, "event": "fresh_maintenance_power", "ip": "192.168.1.91", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": false, "supply_ma": 0, "supply_v": 0.163, "target": "9F2724", "ts_utc": "2026-08-27T22:30:37Z"}
+{"battery_v": 3.327, "elapsed_s": 154.063, "event": "fresh_maintenance_power", "ip": "192.168.1.202", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 0, "supply_v": 6.074, "target": "F2BDB0", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.303, "elapsed_s": 154.109, "event": "fresh_maintenance_power", "ip": "192.168.1.42", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 20, "supply_v": 4.617, "target": "F2BDC4", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.322, "elapsed_s": 154.172, "event": "fresh_maintenance_power", "ip": "192.168.1.108", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": false, "supply_ma": 0, "supply_v": 0.278, "target": "F2BE0C", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.595, "elapsed_s": 154.266, "event": "fresh_maintenance_power", "ip": "192.168.1.102", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 62, "supply_v": 5.959, "target": "F2BE3C", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.6, "elapsed_s": 154.328, "event": "fresh_maintenance_power", "ip": "192.168.1.147", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 60, "supply_v": 5.907, "target": "F2BEB4", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.585, "elapsed_s": 154.391, "event": "fresh_maintenance_power", "ip": "192.168.1.121", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 52, "supply_v": 5.888, "target": "F2BF90", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.291, "elapsed_s": 154.469, "event": "fresh_maintenance_power", "ip": "192.168.1.172", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 24, "supply_v": 4.657, "target": "F3FCAC", "ts_utc": "2026-08-27T22:30:39Z"}
+{"battery_v": 3.291, "elapsed_s": 154.578, "event": "fresh_maintenance_power", "ip": "192.168.1.187", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 24, "supply_v": 4.637, "target": "F3FD88", "ts_utc": "2026-08-27T22:30:40Z"}
+{"battery_v": 3.335, "elapsed_s": 154.688, "event": "fresh_maintenance_power", "ip": "192.168.1.157", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 118, "supply_v": 4.661, "target": "F401A8", "ts_utc": "2026-08-27T22:30:40Z"}
+{"battery_v": 3.561, "elapsed_s": 154.703, "event": "fresh_maintenance_power", "ip": "192.168.1.161", "job_id": "39329088", "maint_status": 1, "phase": "PREFLIGHT", "supply_good": true, "supply_ma": 0, "supply_v": 6.209, "target": "F402B8", "ts_utc": "2026-08-27T22:30:40Z"}
+{"elapsed_s": 154.703, "error": "fresh maintenance preflight refused:\n  F2BD00: maintenance endpoint no longer identity-ready at 192.168.1.133", "event": "job_error", "job_id": "39329088", "phase": "CLEANUP", "ts_utc": "2026-08-27T22:30:40Z"}
+{"elapsed_s": 157.828, "event": "final_resume_requested", "ip": "192.168.1.187", "job_id": "39329088", "phase": "CLEANUP", "target": "F3FD88", "ts_utc": "2026-08-27T22:30:43Z"}
+{"elapsed_s": 158.766, "event": "final_resume_requested", "ip": "192.168.1.147", "job_id": "39329088", "phase": "CLEANUP", "target": "F2BEB4", "ts_utc": "2026-08-27T22:30:44Z"}
+{"elapsed_s": 161.297, "event": "final_resume_requested", "ip": "192.168.1.208", "job_id": "39329088", "phase": "CLEANUP", "target": "9F2718", "ts_utc": "2026-08-27T22:30:46Z"}
+{"elapsed_s": 162.172, "event": "final_resume_requested", "ip": "192.168.1.103", "job_id": "39329088", "phase": "CLEANUP", "target": "9F2680", "ts_utc": "2026-08-27T22:30:47Z"}
+{"elapsed_s": 162.25, "event": "final_resume_requested", "ip": "192.168.1.129", "job_id": "39329088", "phase": "CLEANUP", "target": "9F2648", "ts_utc": "2026-08-27T22:30:47Z"}
+{"elapsed_s": 163.859, "event": "final_resume_requested", "ip": "192.168.1.161", "job_id": "39329088", "phase": "CLEANUP", "target": "F402B8", "ts_utc": "2026-08-27T22:30:49Z"}
+{"elapsed_s": 163.953, "event": "final_resume_requested", "ip": "192.168.1.116", "job_id": "39329088", "phase": "CLEANUP", "target": "9F0E5C", "ts_utc": "2026-08-27T22:30:49Z"}

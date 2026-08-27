@@ -29,6 +29,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Blackout lease. Include a deliberately persisted commission canary with
   `--fix-commission-profile` and preserve exact-target detection, NVS correction,
   and fresh field-profile confirmation in its OTA ledger (Ben/Codex).
+  **2026-08-27 fleet promotion:** the prior candidate was superseded by current
+  clean source `d6c9234`, including ADR 0065, in immutable production artifact
+  `fx-260827-1254f04-p` (1,207,376 bytes; SHA-256
+  `2f9a93344e172b023ee8df473b7c747b26f38dc0ec5353f6efd00d50ec45f4af`).
+  Hawkeye passed the exact canary and all 109 post-canary targets accepted that
+  same binary. The roster reports all 110 intended targets on the exact revision
+  and FIELD profile; 107 have full fresh pending-verify proof. Record later fresh
+  exact-revision wakes for `F2BCF4`, `F2BEE4`, and `F2B7DC`, which report the new
+  image but missed the host freshness/verification deadline. The deployed fleet
+  can now supply broad signed-IBAT solar-health evidence, but the explicit
+  no-gauge fail-open and terminating/full-battery checks remain open (Ben/Codex).
 - [ ] **Close LED Studio semantic-white behavior during class-census gaps.**
   The planner correctly sends dedicated W to a known downlight, but maps class
   `unknown` to RGB white and currently consumes only the raw T-Deck census. It
@@ -132,6 +143,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the acknowledged FREEZE behavior, add a regression for required-target
   timeout after partial discovery, and prove every known endpoint receives
   final cleanup (Ben/Codex).
+  **2026-08-27 full-rollout case:** an allow-partial 49-target job found 18
+  endpoints, then one (`F2BD00`) disappeared before the fresh maintenance-power
+  preflight. The whole selected cohort correctly received no upload, but the
+  other 17 had to be rediscovered in a later job. Under allow-partial semantics,
+  demote a vanished found endpoint back to deferred, retain the other exact
+  identity-ready endpoints, and continue only after a fresh acknowledged FREEZE.
 - [ ] **USB-data rescue Bidoof `9F26D8`.** It remains on known-good
   `fx-260816-otafix1-b` and is continuously mesh-fresh on channel 11 with about
   3.40 V VBAT and strong USB input, but it is the previously documented
@@ -168,6 +185,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   treat the installed cadence as accepted solar behavior. The replacement
   source enforces a trustworthy approximately 12 s power window with a 15 s
   fail-open; complete the named-canary and immutable fleet promotion above.
+  **2026-08-27 replacement rollout:** `fx-260827-1254f04-p` is now reported by
+  all 110 intended targets and every one reports FIELD profile. The strict host
+  ledger pending-verify-proved 107; retain the item in progress until fresh wakes
+  close `F2BCF4`, `F2BEE4`, and `F2B7DC` and the remaining ADR 0064 fault-path
+  checks are exercised.
 - [~] **Hardware-validate the first-class multi-target OTA state machine.**
   Source implementation is complete under ADR 0062: the T-Deck has a native-
   tested 160-target, 10 ms round-robin job roster plus explicit begin/add/freeze/
@@ -191,6 +213,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `--fix-commission-profile` performs only exact-target persisted FIELD writes
   with fresh expected-revision confirmation; hardware-validate that path with
   the ADR 0064 canary (Ben/Codex).
+  **Full-fleet timing 2026-08-27:** Hawkeye canary passed in 53.844 s. The first
+  103-target ordinary job took 589.5 s, essentially the ten-minute target, but
+  discovered only 54 and verified 53. All 109 post-canary uploads eventually
+  ACKed across six waves; upload windows totaled 310.75 s and individual ACKs
+  were 10.43-29.22 s (median 14.41 s), beating the predicted 7-9-minute upload
+  component. End-to-end rollout was 45 minutes 9 seconds because sparse WiFi
+  association forced repeated gathers, one found endpoint vanished before fresh
+  preflight and aborted a cohort, and three sleeping targets exhausted strict
+  verification deadlines. Scheduler/FREEZE/cleanup and job ledgers held. Still
+  promote an immutable T-Deck artifact and run the explicit injected-interrupt
+  regression; fix discovery and verification timing before calling the full
+  roughly ten-minute goal hardware-validated.
 - [ ] **Expose positive awake/gather evidence.** Add compiled day-sleep,
   wake-listen, PROTECT-sleep, and PROTECT-grace values plus last-accepted-control
   age to fixture/bridge telemetry. Preserve separate evidence ages for short
@@ -717,6 +751,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   rollback. Derive the deadline from reported lifecycle/power tier or make the
   safe default cover one full PROTECT cycle; continue requiring fresh evidence
   rather than accepting cached online state (Ben/Codex).
+  **2026-08-27 repeat:** F2B7DC accepted the new artifact and later reported its
+  exact revision at 32.096 s uptime, but the host never saw that row within its
+  5 s freshness threshold before the fixture resumed 900 s PROTECT sleep. The
+  T-Deck intentionally emits a full fleet serial snapshot only every 10 s, so a
+  one-heartbeat peer can be invisible to a 5 s verifier even while polling is
+  healthy. F2BCF4 and low-voltage F2BEE4 similarly report exact-revision
+  `deepsleep` state after their job deadlines. Preserve the fresh-heartbeat rule,
+  but forward proof immediately or make the evidence window/cadence coherent and
+  keep the verifier alive through one full reported sleep cycle.
 - [~] **Validate Magmar-to-old-fleet legacy Contagion fanout.** Source, native
   edge/dedup/class-filter tests, embedded build, and exact flashes pass on
   `Magmar [F2BDFC]` plus T-Deck `8EB508`. The explicit legacy output observes

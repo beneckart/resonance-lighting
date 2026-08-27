@@ -10,6 +10,65 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Current-source fleet OTA promotion and timing
+
+Codex was the sole writer through exact T-Deck `8EB508` on COM7. Source commit
+`d6c923427b6dc0b27ed3d054b457856c084dc0c1` was clean. The T-Deck native suite
+passed and its warm-cache `tdeck-dev-local` image was flashed and boot-checked;
+the 1,583,456-byte binary has SHA-256
+`d22712f7f383968645cb4c381b7ad6abb17257a4c34d16bf9519a1578b8e2b06`.
+This folds in the Fleet VBAT/signed-current row, human-readable detail states,
+firmware/program filters, DAY/NITE UI, Health VBAT/charge swatch toggle and
+clipped legend, charge-state detail, and ADR 0065 best-effort operator knocks.
+
+Built one fresh immutable production fixture artifact from that same commit:
+`fx-260827-1254f04-p`, 1,207,376 bytes, SHA-256
+`2f9a93344e172b023ee8df473b7c747b26f38dc0ec5353f6efd00d50ec45f4af`.
+The full native fixture suite, release build, embedded revision, canonical
+recipe, manifest, build options, credential semantics, and clean-source checks
+passed. Hawkeye `9F2664` then passed exact-target canary job `F774B62C`: upload
+ACK, fresh software-reset mesh rejoin, exact revision beyond the 25-second
+pending-verify gate, and FIELD profile, in 53.844 seconds.
+
+The promoted rollout named 103 ordinary-cadence fixtures and a separate six-ID
+PROTECT cohort. All 109 post-canary targets accepted the exact binary without an
+automatic retry; together with Hawkeye, the final dashboard roster reports all
+110 intended fixtures on `fx-260827-1254f04-p` and all 110 in FIELD profile.
+The only observed commission fixture is Clank `F2BF60`, which was deliberately
+excluded at 0.94 V. Also excluded were protected development canary Akuma
+`9E668C`, targeted-maintenance exception Bidoof `9F26D8`, unsafe Tidus `F40424`,
+uncommissioned `F402A8`, and off-air protected Magic Wand `F40344`.
+
+The strict ADR 0040 completion ledger accepted 107/110 targets. Gambit
+`F2BCF4`, Kabuto `F2BEE4`, and Zubat `F2B7DC` now report the exact new revision,
+but their upload jobs did not observe a sufficiently fresh post-upload heartbeat
+through the pending-verify contract. No accepted upload was retried. F2BEE4
+entered at 3.063 V and returned to PROTECT; F2B7DC entered at 3.227 V with weak
+input and later exposed exact-revision 32.096-second uptime, but the cached row
+was already outside the verifier's freshness window. Treat these three as
+installed-but-unproven until a later fresh exact-revision wake is recorded.
+
+Measured from the first 103-target ordinary job at 22:16:47Z through PROTECT
+cleanup at 23:01:56Z, the field rollout took 45 minutes 9 seconds rather than
+the predicted roughly 10 minutes. The first ordinary job itself took 9 minutes
+49.5 seconds, but sparse maintenance association found only 54/103 endpoints
+and verified 53. Across the six post-canary upload waves, all 109 HTTP uploads
+ACKed; their upload windows totaled 5 minutes 11 seconds, with per-fixture ACKs
+10.43-29.22 seconds (median 14.41 seconds). The new six-way uploader was thus
+faster than the runbook's predicted 7-9-minute upload component. Repeated
+150-second discovery windows, one fail-closed cohort where a found endpoint
+vanished before fresh maintenance preflight, and full verifier timeouts on
+sleeping holdouts consumed the speedup.
+
+The state machine's safety behavior held: explicit rosters, complete 1.3-second
+maintenance cycles, acknowledged FREEZE before uploads, safe deferral of missing
+targets, no duplicate write after upload ACK, exact-revision/pending-window
+checks, automatic endpoint resume, and exclusive job ledgers. Follow up by
+making partial discovery survive a later endpoint loss, aligning the 5-second
+verification freshness threshold with the T-Deck's 10-second full-census serial
+cadence (or forwarding proof immediately), and carrying verification across a
+full PROTECT wake without weakening ADR 0040.
+
 ## 2026-08-27 -- Ben + Codex -- Operator knocks bypass energy qualification
 
 Ben clarified the sparse Knocker result: the control plane should request a
