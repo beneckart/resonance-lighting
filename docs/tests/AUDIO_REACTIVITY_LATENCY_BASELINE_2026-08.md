@@ -3,7 +3,8 @@
 **Started:** 2026-08-26
 
 **Status:** measurement method and firmware instrumentation implemented;
-physical measurements pending an attached CoreS3 and latency sensor
+60-second Aux and Ambient cadence checks complete on the attached CoreS3;
+physical sound-to-photon measurements still require a latency sensor
 
 **Primary CoreS3:** `4D5DB0` (`80:45:6B:4D:5D:B0`)
 
@@ -24,8 +25,10 @@ Report these separately:
 
 ## Current analytical baseline, not physical evidence
 
-The installed `cores3-os-0.1.2-dev` intensity path uses a 512-sample, 16 kHz
-capture every 100 ms and current fixtures latch LEDs every 100 ms.
+The former `cores3-os-0.1.2-dev` intensity path used a 512-sample, 16 kHz
+capture every 100 ms. Milestone A now captures and analyzes at a requested
+25 Hz while preserving the installed fixtures' 10 Hz direct-frame contract;
+current fixtures still latch LEDs every 100 ms.
 
 | Stage | Expected contribution |
 | --- | ---: |
@@ -65,6 +68,12 @@ Interpretation:
   completions; a capture gap longer than 200 ms restarts its observation clock.
 - if capture remains stale for more than 200 ms, publishing stops and one black
   direct frame is sent so the decoupled publisher cannot replay a bright sample.
+
+The live display transfers only its 304 x 96 scrolling spectrogram at 25 Hz;
+the surrounding meters update at 5 Hz. A full 320 x 240 redraw remains available
+for app transitions. Compact master/audio timing status stays at 1 Hz. The full
+USB peer table stays at 1 Hz in Listener but is limited to once per 5 seconds
+while Audio is active so formatting a large awake fleet cannot starve capture.
 
 ## Authoritative Aux measurement
 
@@ -155,15 +164,28 @@ The later feature-capable fixture gates live in
 ## Evidence status on 2026-08-26
 
 - Native CoreS3 tests: 167 checks, zero failures.
-- CoreS3 Module Audio embedded build: fresh exclusive `r4` pass at 1,187,435
-  sketch bytes (37 percent) and 100,320 bytes dynamic memory (30 percent).
-  The 1,187,584-byte binary SHA-256 is
-  `8FE579C3B83B8481776D0028635C133031D94EDD5B3A3C9E1077F8FBA65724FF`;
+- CoreS3 Module Audio embedded build: fresh exclusive `r6` pass at 1,188,923
+  sketch bytes (37 percent) and 100,688 bytes dynamic memory (30 percent).
+  The 1,189,072-byte binary SHA-256 is
+  `4AB7DB1D7F09526CD82A6E6FE7B22C5455F5DAA951C3956AED8ABB10A6F2E6C2`;
   `build.options.json` confirms `esp32:esp32:m5stack_cores3`, channel 11, and
   `CORES3_AUDIO_MODULE=1`.
 - Attached USB hardware: exact CoreS3 `4D5DB0` was identified on `COM43` as
-  full MAC `80:45:6B:4D:5D:B0`; its pre-flash boot reported
-  `cores3-os-0.1.2-dev`, channel 11, and Module Audio ready. T-Deck `8EB508`
-  remained on `COM152` and was not opened.
+  full MAC `80:45:6B:4D:5D:B0`; upload verification passed for every flashed
+  region. T-Deck `8EB508` remained on `COM152`, its API showed an idle artistic
+  stream before each run, and its serial port was not opened.
+- The first full-screen Audio implementation achieved only about 15 Hz and
+  measured up to about 60 ms per display transfer. The partial spectrogram
+  transfer raised the 70-second Module TRS run to 24.020 Hz analysis, 24.006 Hz
+  display, and 10.000 Hz publish with zero reads and RX queue drops. One radio
+  send failure means the 30-minute zero-failure soak remains open.
+- Before peer-table throttling, the 65-second Ambient run reached 23.863 Hz
+  analysis and 23.798 Hz display, narrowly below the gate, while publish held
+  10.003 Hz with zero read, send, and RX queue failures.
+- The final 65-second Ambient run with the `r6` image reached 24.802 Hz analysis,
+  24.799 Hz display, and 9.999 Hz publish. It recorded zero audio read failures,
+  radio send failures, and RX queue drops. Maximum measured work was 6,418 us
+  capture, 8,370 us analysis, 1,159 us publish, 44,183 us display, and 96,900 us
+  total loop time. Audio was explicitly paused and black was sent after the run.
 - Fixture firmware, flash, OTA, NVS, profile, lifecycle, and mesh output: not
   changed.

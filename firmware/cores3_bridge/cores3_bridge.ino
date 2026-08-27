@@ -105,6 +105,10 @@ uint8_t gRateHz = 10;
 bool radioReady = false;
 M5Canvas displayCanvas(&M5.Display);
 bool displayCanvasReady = false;
+#if CORES3_AUDIO_REACTIVE_MODE
+M5Canvas audioPlotCanvas(&M5.Display);
+bool audioPlotCanvasReady = false;
+#endif
 void drawDisplay();
 #if !CORES3_CAMBIUM_MODE
 CoreS3App currentApp = CORES3_APP_HOME;
@@ -1411,6 +1415,19 @@ void emitBridgeStats() {
       (unsigned long)audioTiming.loopMaxUs);
 #endif
 
+#if CORES3_AUDIO_REACTIVE_MODE
+  // Keep the compact master/audio timing lines at 1 Hz, but avoid making the
+  // real-time loop format and flush every live peer once per second. The full
+  // peer table remains at 1 Hz in Listener and at 0.2 Hz while Audio is active.
+  static AudioPeriodicDeadline audioPeerStatsDeadline;
+  uint32_t statsNow = millis();
+  if (audioActive) {
+    if (!audioPeerStatsDeadline.take(statsNow, 5000)) return;
+  } else {
+    audioPeerStatsDeadline.reset(statsNow);
+  }
+#endif
+
   char line[1024];
   for (size_t i = 0; i < NB_MAX_TRACKED; ++i) {
     PeerStat *p = &peers[i];
@@ -2383,6 +2400,97 @@ void drawAudioApp() {
   drawTextButton(216, 199, 96, 36, rgb565(91, 35, 100), "MODE");
 }
 
+// The full 320x240 PSRAM sprite takes about 60 ms to transfer on CoreS3. That
+// caps the entire loop near 15 Hz if used for every spectral column. Keep the
+// ordinary full redraw for app transitions, then transfer only the 304x96 plot
+// while Audio is running. Small text/meters are updated directly at 5 Hz.
+void drawAudioRealtime() {
+  if (!audioPlotCanvasReady) {
+    drawDisplay();
+    return;
+  }
+
+  audioPlotCanvas.fillSprite(TFT_BLACK);
+  for (size_t column = 0; column < AUDIO_SPECTROGRAM_COLUMNS; ++column) {
+    size_t source = (audioSpectrogramHead + column) %
+                    AUDIO_SPECTROGRAM_COLUMNS;
+    for (size_t row = 0; row < AUDIO_SPECTRUM_ROWS; ++row) {
+      audioPlotCanvas.fillRect(
+          (int16_t)column * 4,
+          (int16_t)(AUDIO_SPECTRUM_ROWS - row - 1) * 4,
+          4, 4, audioSpectrogramColor(audioSpectrogram[source][row]));
+    }
+  }
+  audioPlotCanvas.pushSprite(8, 65);
+
+  static uint8_t slowUiDivider = 0;
+  bool slowUiDue = (++slowUiDivider >= 5);
+  if (slowUiDue) slowUiDivider = 0;
+
+  M5.Display.startWrite();
+  if (audioActive && !audioAnalysisReady()) {
+    M5.Display.fillRoundRect(92, 98, 136, 28, 5, rgb565(24, 20, 29));
+    M5.Display.drawRoundRect(92, 98, 136, 28, 5, TFT_MAGENTA);
+    M5.Display.setTextFont(1);
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(TFT_WHITE, rgb565(24, 20, 29));
+    M5.Display.setCursor(119, 108);
+    M5.Display.print("CALIBRATING...");
+  }
+
+  if (slowUiDue) {
+    M5.Display.setTextFont(1);
+    M5.Display.setTextSize(1);
+    M5.Display.fillRect(8, 38, 304, 23, TFT_BLACK);
+    M5.Display.setTextColor(audioInputReady ? TFT_GREEN : TFT_RED, TFT_BLACK);
+    M5.Display.setCursor(8, 38);
+    M5.Display.printf("%s  %s", audioInputLabel(),
+                      audioActive ? "PUBLISHING" : "PAUSED");
+    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Display.setCursor(230, 38);
+    M5.Display.printf("%d live", peerCount(true));
+    M5.Display.setTextColor(TFT_MAGENTA, TFT_BLACK);
+    M5.Display.setCursor(8, 51);
+    M5.Display.printf("%s", audioModeName(audioMode));
+    M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    M5.Display.setCursor(174, 51);
+    uint32_t analysisRate = audioTiming.analysis.rateMilliHz();
+    uint32_t publishRate = audioTiming.publish.rateMilliHz();
+    M5.Display.printf("FFT %lu.%lu TX %lu.%lu",
+                      (unsigned long)(analysisRate / 1000),
+                      (unsigned long)((analysisRate % 1000) / 100),
+                      (unsigned long)(publishRate / 1000),
+                      (unsigned long)((publishRate % 1000) / 100));
+
+    M5.Display.fillRect(8, 165, 304, 34, TFT_BLACK);
+    const char *labels[3] = {"BASS", "MID", "HIGH"};
+    const float levels[3] = {audioSpectrum.bass.level,
+                             audioSpectrum.mid.level,
+                             audioSpectrum.treble.level};
+    const uint16_t colors[3] = {TFT_RED, TFT_GREEN, TFT_CYAN};
+    const int16_t xs[3] = {8, 112, 216};
+    for (size_t i = 0; i < 3; ++i) {
+      M5.Display.setTextColor(colors[i], TFT_BLACK);
+      M5.Display.setCursor(xs[i], 165);
+      M5.Display.printf("%s %2d", labels[i],
+                        (int)(audioClampUnit(levels[i]) * 99.0f + 0.5f));
+      M5.Display.drawRoundRect(xs[i], 176, 96, 9, 3, TFT_DARKGREY);
+      int width = (int)(audioClampUnit(levels[i]) * 92.0f + 0.5f);
+      if (width > 0)
+        M5.Display.fillRect(xs[i] + 2, 178, width, 5, colors[i]);
+    }
+    M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    M5.Display.setCursor(8, 188);
+    M5.Display.printf("level %d  centroid %d  frames %lu  fail %lu/%lu",
+                      (int)(audioEnvelope.level * 99.0f + 0.5f),
+                      (int)(audioSpectrum.centroid * 99.0f + 0.5f),
+                      (unsigned long)audioFrames,
+                      (unsigned long)audioReadFailures,
+                      (unsigned long)sendFail);
+  }
+  M5.Display.endWrite();
+}
+
 void openCoreS3App(CoreS3App app) {
   if (currentApp == CORES3_APP_AUDIO && app != CORES3_APP_AUDIO && audioActive)
     setAudioActive(false);
@@ -2540,6 +2648,11 @@ void setup() {
   displayCanvas.setPsram(true);
   displayCanvas.setColorDepth(16);
   displayCanvasReady = displayCanvas.createSprite(M5.Display.width(), M5.Display.height()) != nullptr;
+#if CORES3_AUDIO_REACTIVE_MODE
+  audioPlotCanvas.setPsram(true);
+  audioPlotCanvas.setColorDepth(16);
+  audioPlotCanvasReady = audioPlotCanvas.createSprite(304, 96) != nullptr;
+#endif
   if (displayCanvasReady) {
     drawDisplay();
   } else {
@@ -2608,7 +2721,12 @@ void loop() {
     uint32_t displayStartedUs = micros();
     if (timedAudioDisplay) audioTiming.display.note(now);
 #endif
-    drawDisplay();
+#if CORES3_AUDIO_REACTIVE_MODE && !CORES3_CAMBIUM_MODE
+    if (timedAudioDisplay)
+      drawAudioRealtime();
+    else
+#endif
+      drawDisplay();
 #if CORES3_AUDIO_REACTIVE_MODE && !CORES3_CAMBIUM_MODE
     if (timedAudioDisplay)
       AudioRuntimeTiming::noteMax(micros() - displayStartedUs,

@@ -34,6 +34,39 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   speech response works really well across the awake cohort. Pause/leave Audio
   and observe the roughly three-second fallback; active source handoff and a full
   300-second sleeper-cadence run remain open (Ben/Codex).
+- [~] **Hardware-validate CoreS3 spectral Audio (ADR 0061).** Source and native
+  tone tests cover the 512-sample FFT, bass/mid/high separation, centroid order,
+  stereo-to-mono Aux handling, and BANDS RGB/BANDS SPLIT color planning. Exact
+  CoreS3 `4D5DB0` now passes firmware cadence: Ambient held 24.802 Hz analysis,
+  24.799 Hz display, and 9.999 Hz fleet TX for 65 seconds with no read, send, or
+  RX queue failures; Aux held 24.020/24.006/10.000 Hz for 70 seconds but had one
+  send failure. Remaining: verify the scrolling plot has no false high-frequency
+  rail, exercise touch/UI through a 30-minute zero-failure soak, and use an
+  explicitly owned awake cohort for bass-, mid-, and treble-dominant material in
+  BANDS RGB, BANDS SPLIT, and TIMBRE HUE. Finish with app-exit/autonomous-fallback
+  observations and confirm again that no fixture NVS or OTA changed (Ben/Codex).
+- [~] **Execute the low-latency audio-reactivity development plan.** Sound-to-
+  photon latency and cross-fixture skew are now first-class artistic gates; the
+  staged plan is
+  `docs/projects/LOW_LATENCY_AUDIO_REACTIVITY_DEV_PLAN.md`. Milestone A source is
+  implemented on CoreS3: independent phase-locked 25 Hz analysis, 10 Hz publish,
+  and 25 Hz display deadlines remove the permanent 120 ms / 8.3 Hz quantization;
+  achieved-rate, interval, skip, lateness, and maximum blocking telemetry expose
+  real cadence; calibration now spans two seconds of contiguous successful
+  captures; and input older than 200 ms stops publishing plus sends one black
+  frame instead of replaying stale brightness. The native CoreS3 suite passes
+  167 checks. Exact CoreS3 `4D5DB0` is running the fresh exclusive Module Audio/
+  channel-11 `r6` build: 1,189,072 bytes, SHA-256
+  `4AB7DB1D7F09526CD82A6E6FE7B22C5455F5DAA951C3956AED8ABB10A6F2E6C2`.
+  Both Ambient and Aux pass the 60-second analysis/display/publish rate gates;
+  the zero-failure 30-minute soak and physical Aux photodiode/scope plus Ambient
+  video median/p95/max and cohort-skew measurements remain open. Milestone B
+  adds 8 ms transient blocks
+  beside the rolling 512-sample FFT and measures the safe legacy direct-frame
+  rate. Only measured failure of the current fixture ceiling advances to the
+  proposed type-31 compact feature packet, local 50 Hz audio render, USB
+  HEX/RGBW canaries, and a separately authorized gated OTA. This work does not
+  authorize any fixture flash or OTA (Ben/Codex).
 - [ ] **Physically confirm the inferred full MACs for the three restored fleet
   identities.** The retained 2026-08-18 OTA/RSSI evidence proves short IDs
   `F2BDFC`, `F402A4`, and `F40348`; their `68:EE:8F` OUIs were reconstructed

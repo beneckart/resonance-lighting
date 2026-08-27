@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-26 -- Ben + Codex -- CoreS3 Milestone A cadence passed on hardware
+
+Flashed only exact CoreS3 `4D5DB0` / `80:45:6B:4D:5D:B0` with the fresh
+Module Audio/channel-11 `r6` build. The 1,189,072-byte binary SHA-256 is
+`4AB7DB1D7F09526CD82A6E6FE7B22C5455F5DAA951C3956AED8ABB10A6F2E6C2`;
+all upload region hashes verified. The full Audio screen transfer initially
+limited cadence to about 15 Hz, so active Audio now transfers only its 304 x 96
+spectrogram at 25 Hz, updates small meters at 5 Hz, and limits the full USB peer
+table to once per 5 seconds while retaining 1 Hz compact timing telemetry.
+
+On the awake fleet, a 65-second Ambient run achieved 24.802 Hz analysis,
+24.799 Hz display, and 9.999 Hz direct-frame publishing with zero audio read
+failures, radio send failures, or RX queue drops. A preceding 70-second Module
+TRS run achieved
+24.020/24.006/10.000 Hz; its one radio send failure leaves the 30-minute
+zero-failure soak open. Both source handoffs performed an explicit black frame,
+and Audio was paused/black at the end. No fixture firmware, OTA, flash, NVS,
+profile, or lifecycle state changed. Physical Aux photodiode and Ambient video
+sound-to-photon measurements remain open.
+
 ## 2026-08-26 -- Ben + Codex -- PUCA standalone heartbeat baseline flashed and fleet-soaked
 
 Installed the official Silicon Labs CP2102N Windows driver and positively
