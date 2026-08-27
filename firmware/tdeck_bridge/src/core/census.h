@@ -99,6 +99,11 @@ struct PeerStat {
   uint8_t bqFaultFlag0;
   uint8_t bqPart;
 
+  // Tail-17 proof that cached power values are usable. This is deliberately
+  // absent/false for old firmware rather than inferring validity from a number.
+  bool hasPowerSampleFlags;
+  uint8_t powerSampleFlags;
+
   bool hasFieldSummary;
   uint16_t fieldChargeWhX10;
   uint16_t fieldDischargeWhX10;
@@ -184,7 +189,15 @@ struct CensusView {
   uint16_t winPdrX1000;  // last closed window; 0xFFFF = no data
   int16_t battMv;
   int16_t battMa;        // + charging, - discharging
+  bool battMaValid;
   uint8_t soc;
+  int16_t supplyMv;
+  int16_t supplyMa;
+  bool supplyGood;
+  bool hasBq;
+  uint8_t bqReg16;
+  uint8_t bqStat1;
+  uint8_t bqFault0;
   uint8_t fixtureClass;  // latched
   bool hasFixtureState;
   uint8_t lifeState;

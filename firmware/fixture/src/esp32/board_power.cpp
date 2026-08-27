@@ -41,6 +41,7 @@ static bool gChargingEnabled = false;
 static float gMaintainV = 4.6f;
 static float gCbV = 0.0f, gCbMa = 0.0f, gCbMaRaw = 0.0f;
 static int gCbSoc = -1;
+static bool gCbVValid = false, gCbMaValid = false, gCbSocValid = false;
 static float gCsV = 0.0f, gCsMa = 0.0f;
 static bool gCsGood = false;
 static bool gPrechargeWriteOk = false;
@@ -104,6 +105,21 @@ float batteryVolts() { return gCbV; }
 float batteryMa() { return gCbMa; }
 float batteryMaRaw() { return gCbMaRaw; }
 int batterySocPct() { return gCbSoc; }
+bool batteryCurrentValid() { return gCbMaValid; }
+bool powerWakeSampleWindowComplete() {
+  // Prefer sleeping immediately after the corrected full heartbeat. Fail open
+  // after 15 s so an absent/faulted gauge cannot strand a field fixture awake.
+  return gCbMaValid || millis() >= RES_POWER_WAKE_FAILOPEN_MS;
+}
+uint8_t powerSampleFlags() {
+  uint8_t flags = 0;
+  if (gCbMaValid) flags |= NB_POWER_SAMPLE_IBAT_VALID;
+  if (gCbVValid) flags |= NB_POWER_SAMPLE_VBAT_VALID;
+  if (gCbSocValid) flags |= NB_POWER_SAMPLE_SOC_VALID;
+  if (gBq.reg16 != 0xFF && gBq.stat1 != 0xFF && gBq.fault0 != 0xFF)
+    flags |= NB_POWER_SAMPLE_CHARGER_VALID;
+  return flags;
+}
 float supplyVolts() { return gCsV; }
 float supplyMa() { return gCsMa; }
 bool supplyGood() { return gCsGood; }
@@ -269,10 +285,16 @@ void boardPowerInit() {
 
 static void readBatteryCell() {
   float v;
-  if (Board.getBatteryVoltage(v) == Result::Ok) gCbV = v;
+  gCbVValid = Board.getBatteryVoltage(v) == Result::Ok;
+  if (gCbVValid) gCbV = v;
   if (Board.getBatteryCurrent(v) == Result::Ok) {
     gCbMaRaw = v;
     gCbMa = v / RES_GAUGE_CURRENT_DIVISOR;
+    // MAX17260 hibernate conversions can be 5.625 s apart. Charging is
+    // intentionally held off until the 6 s battery-presence guard. A read at
+    // 12 s is therefore beyond one worst-case post-enable gauge conversion;
+    // earlier successful I2C reads can still be cached boot-era zeroes.
+    gCbMaValid = millis() >= RES_IBAT_VALID_AFTER_BOOT_MS;
     // Real charge/discharge current is battery corroboration (ADR 0051): a
     // floating BAT node cannot source or sink tens of milliamps.
     if (fabsf(gCbMa) >= RES_BATT_CURRENT_EVIDENCE_MA) {
@@ -280,9 +302,12 @@ static void readBatteryCell() {
       gCurrentEvidenceMs = now ? now : 1;
       gPresenceEmptyUntilMs = 0; // a cell was installed mid-session
     }
+  } else {
+    gCbMaValid = false;
   }
   uint8_t s;
-  if (Board.getBatteryCharge(s) == Result::Ok) gCbSoc = s;
+  gCbSocValid = Board.getBatteryCharge(s) == Result::Ok;
+  if (gCbSocValid) gCbSoc = s;
 }
 
 static void chargingGuardTick() {

@@ -49,7 +49,7 @@ static void refreshExplanation(lv_event_t *) {
   if (selectedAction() == RestAction::SLEEP) {
     explanation = "Lowest draw: rails + radio off. Cannot cancel.";
   } else {
-    explanation = "LED rail off; radio reachable and releasable.";
+    explanation = "Blackout now: LEDs off; radio awake and releasable.";
   }
   ActionAuditRecord last;
   char text[220];
@@ -89,7 +89,7 @@ static void applyYes(void *) {
                                  0x01 /*hard cut*/, nullptr);
     if (gInfo) {
       if (sent)
-        lv_label_set_text_fmt(gInfo, "dark lease sent: %lu min\nAudit saved",
+        lv_label_set_text_fmt(gInfo, "blackout sent: %lu min\nRadio stays awake; audit saved",
                               (unsigned long)gPendingSeconds / 60UL);
       else
         lv_label_set_text(gInfo, "DARK NOT SENT\nAudit storage or radio unavailable");
@@ -110,17 +110,17 @@ static void applyCb(lv_event_t *) {
              live, seen, kDurationNames[i]);
   } else {
     snprintf(summary, sizeof(summary),
-             "DARK %d live (%d seen) for %s. Radio stays awake.", live, seen,
+             "BLACKOUT %d live (%d seen) for %s. LEDs off; radio stays awake.", live, seen,
              kDurationNames[i]);
   }
-  uiConfirm(summary, "Sleep / Dark", applyYes, nullptr);
+  uiConfirm(summary, "Blackout / Sleep", applyYes, nullptr);
 }
 
 static void releaseCb(lv_event_t *) {
   static const uint8_t kAll[3] = {0, 0, 0};
   streamStop();
   bool sent = meshProgramLease(kAll, 4, 0, 0x01, nullptr);
-  if (gInfo) lv_label_set_text(gInfo, "dark lease released -> autonomous");
+  if (gInfo) lv_label_set_text(gInfo, "blackout ended -> autonomous");
   if (!sent && gInfo) lv_label_set_text(gInfo, "release not sent: radio unavailable");
 }
 
@@ -138,14 +138,15 @@ void appPowerOpen() {
 
   lv_obj_t *title = lv_label_create(scr);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Sleep / Dark");
+  lv_label_set_text(title, "Blackout / Sleep");
   lv_obj_set_pos(title, 8, 5);
 
   lv_obj_t *actionLabel = lv_label_create(scr);
   lv_label_set_text(actionLabel, "action");
   lv_obj_set_pos(actionLabel, 8, 48);
   gActionDd = lv_dropdown_create(scr);
-  lv_dropdown_set_options(gActionDd, "dark (radio awake)\nlow-power sleep");
+  lv_dropdown_set_options(gActionDd,
+                          "blackout (LED off, radio on)\ndeep sleep (radio off)");
   lv_dropdown_set_selected(gActionDd, 0);
   lv_obj_set_pos(gActionDd, 92, 39);
   lv_obj_set_width(gActionDd, 220);
@@ -180,7 +181,7 @@ void appPowerOpen() {
   lv_obj_set_size(release, 100, 36);
   lv_obj_set_pos(release, 114, 198);
   lv_obj_t *rl = lv_label_create(release);
-  lv_label_set_text(rl, "release dark");
+  lv_label_set_text(rl, "end blackout");
   lv_obj_center(rl);
   lv_obj_add_event_cb(release, releaseCb, LV_EVENT_CLICKED, nullptr);
 

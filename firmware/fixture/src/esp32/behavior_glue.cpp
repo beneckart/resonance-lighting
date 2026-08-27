@@ -626,7 +626,12 @@ void behaviorTick() {
 
   // Prod day-charge duty cycle. Blocked by pending OTA verify and maintenance
   // handled elsewhere; the wake listen window re-arms via behaviorInit's grace.
-  if (lo.wantSleep && !otaVerifyPending())
+  // An operator-selected program lease promises that the receiver remains
+  // reachable for its full duration. In particular, a long DARK/blackout lease
+  // must not hit the generic 10-minute control hold, deep-sleep, and lose its
+  // RAM lease on reboot. Once the lease expires, normal day sleep resumes.
+  if (lo.wantSleep && powerWakeSampleWindowComplete() &&
+      !gRuntime.leaseActive() && !otaVerifyPending())
     enterTimedDeepSleep(lo.sleepS, SLEEP_CAUSE_DAY_CHARGE);
 }
 

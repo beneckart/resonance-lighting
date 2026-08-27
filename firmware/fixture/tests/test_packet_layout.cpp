@@ -51,7 +51,8 @@ int main() {
   CHECK_EQ(offsetof(NbHeartbeat, last_sleep_source_seq), 174u);
   CHECK_EQ(offsetof(NbHeartbeat, last_command_sleep_cause), 178u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_batt_mv), 190u);
-  CHECK_EQ(sizeof(NbHeartbeat), 192u);
+  CHECK_EQ(offsetof(NbHeartbeat, power_sample_flags), 192u);
+  CHECK_EQ(sizeof(NbHeartbeat), 193u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
@@ -88,12 +89,15 @@ int main() {
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), led_lit_pixels));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), recovery_detect_mv));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), last_protect_batt_mv));
+  CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), power_sample_flags));
   // A legacy 142 B bench heartbeat fails the tail-13 gate.
   CHECK(!NB_HAS_HB_FIELD(142, profile));
   // A pre-dashboard 148 B fixture heartbeat fails the new tail-14 gate.
   CHECK(!NB_HAS_HB_FIELD(148, fixture_class));
   // A pre-audit 160 B fixture heartbeat fails the new tail-16 gate.
   CHECK(!NB_HAS_HB_FIELD(160, sleep_audit_flags));
+  // A tail-16 fixture remains wire-compatible but has no sample-validity proof.
+  CHECK(!NB_HAS_HB_FIELD(192, power_sample_flags));
 
   // Targeting convention.
   uint8_t me[3] = {0xF2, 0xBF, 0xA0};

@@ -10,6 +10,60 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Short-wake charge truth and Health charge view built
+
+Investigated why most idle daytime fixtures reported battery current around
+zero while fixtures held awake by a dark command showed strong charge. The
+initial full heartbeat is a boot announcement before lifecycle initialization;
+fixture power initialization disables charging until the 6-second battery
+guard. The installed 120-second sleep / 3-second listen recipe could therefore
+return to deep sleep before charging was re-enabled. Independently, the
+MAX17260 Current register can remain a hibernate-era sample for 5.625 seconds,
+so a successful early I2C read did not prove a fresh zero. This reopens the
+3-second cadence as unsafe for solar-health visibility and charge continuity.
+
+ADR 0064 appends `power_sample_flags` as heartbeat tail 17. Old firmware current
+is now explicitly unverified. New firmware trusts IBAT only after 12 seconds,
+immediately sends a corrected full heartbeat on that transition, and blocks
+ordinary day sleep until the sample is valid or a bounded 15-second gauge-fault
+fail-open expires. A live program lease also blocks day sleep for its duration,
+so a long Blackout lease cannot be lost through a timer reboot. The full wire
+packet is now 193 bytes; the fixture RX buffer was raised to the ESP-NOW
+250-byte limit and canonical layout tests pin the append-only offset.
+
+Bridge OS now latches BQ state across short heartbeats, displays signed IBAT
+only with the new validity proof, derives human charge phases
+`CHARGING_CC`/`CHARGING_CV`/`TOP_OFF`/`NOT_CHARGING/DONE` plus disabled/fault/
+unknown/off-air, and lets Health toggle its stable swatches between VBAT and
+CHG. Fleet and Health detail use readable class/lifecycle/tier/program/charge
+names. The launcher and apps now separate Wake Fleet, Blackout, and Deep sleep.
+Wake Fleet is the former repeated dark day-baseline campaign; Blackout is the
+releasable LED-off/radio-awake lease.
+
+The OTA host now audits verified runtime profiles. With explicit
+`--fix-commission-profile`, it sends persisted FIELD only to exact verified
+commission targets and requires a fresh expected-revision field confirmation;
+unknown evidence fails closed. Repeated RF profile copies are deduplicated in
+fixture firmware so one command cannot multiply NVS writes.
+
+Fixture native tests, the complete T-Deck native suite, and 12 OTA host tests
+pass. The field-recipe fixture development build uses 1,197,161 bytes (35
+percent flash) and 68,692 bytes (20 percent RAM); its 1,197,456-byte binary has
+SHA-256
+`129fe62ad4c831b6e7a42ec9aa30eae9a69e769bf1cf98e6a90ec6cd485d472c`.
+It is `dev-local`, lacks maintenance WiFi credentials, and was not flashed to
+any fixture.
+
+The T-Deck build uses 1,583,199 bytes (50 percent flash) and 194,856 bytes (59
+percent RAM). Its 1,583,344-byte binary has SHA-256
+`3bc13ca8a8bfeb60aaa31d349721b3760522dc1600f3913dd145400fe1ef905c`.
+Preflight read exact COM7 identity `44:1B:F6:8E:B5:08`; only T-Deck `8EB508` was
+USB-flashed, esptool verified every written region, and post-reset serial showed
+live `8EB508` channel-11 time traffic. No fixture command, OTA, profile write,
+or reboot request was sent. Next is one clean immutable credentialed fixture
+artifact and a named battery-backed short-wake canary before any exact-roster
+fleet OTA.
+
 ## 2026-08-27 -- Ben + Codex -- Combined current Bridge OS flashed on 8EB508
 
 Ben requested the new Fleet build on the primary T-Deck and asked whether it

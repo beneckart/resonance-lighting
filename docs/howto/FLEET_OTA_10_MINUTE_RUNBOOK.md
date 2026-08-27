@@ -25,7 +25,8 @@ python ops/bench/fleet_dashboard_ota.py `
   --bin C:\absolute\path\to\fixture.ino.bin `
   --expect-fw fx-YYMMDD-RECIPE-p `
   --gather-cadence ordinary `
-  --allow-partial-discovery
+  --allow-partial-discovery `
+  --fix-commission-profile
 ```
 
 The default gather is 150 seconds: one 120-second sleep interval plus 30 seconds
@@ -45,7 +46,8 @@ python ops/bench/fleet_dashboard_ota.py `
   --targets ID1,ID2 `
   --bin C:\absolute\path\to\fixture.ino.bin `
   --expect-fw fx-YYMMDD-RECIPE-p `
-  --gather-cadence protect
+  --gather-cadence protect `
+  --fix-commission-profile
 ```
 
 The default gather is 930 seconds. The tool refuses a deadline shorter than the
@@ -66,10 +68,14 @@ verified fixture.
 The tool prints the exclusive-created job-ledger path at startup. Preserve that
 JSONL file with the immutable artifact manifest and raw uploader result file.
 
-After upload, audit the reported runtime profile. The artifact's field default
-does not overwrite an existing NVS profile. If an old fixture remains in
-commission mode, use exact-target `F<ID>:1:1` under the same declared writer,
-then re-read the target. Never use a broadcast profile correction.
+After every selected target passes pending verify, the tool audits its reported
+runtime profile. The artifact's field default does not overwrite an existing
+NVS profile. `--fix-commission-profile` makes the same declared writer send
+exact-target `F<ID>:1:1` only to verified fixtures that still report commission,
+then requires a fresh expected-revision `profile=field` confirmation. Unknown
+profile evidence fails the correction pass. Without the flag, the audit and
+ledger still identify lingering commission targets but do not mutate them.
+Never use a broadcast profile correction.
 
 ## USB low-voltage recovery
 

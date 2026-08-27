@@ -15,7 +15,7 @@ static lv_timer_t *gTimer = nullptr;
 static uint8_t gPendingMode = 2;
 
 static const char *modeName(uint8_t mode) {
-  return mode == 0 ? "DAY DARK" : (mode == 1 ? "NIGHT SHOW" : "AUTO");
+  return mode == 0 ? "WAKE FLEET" : (mode == 1 ? "NIGHT SHOW" : "AUTO");
 }
 
 static void refresh(lv_timer_t *) {
@@ -24,11 +24,11 @@ static void refresh(lv_timer_t *) {
   uint32_t ageS = utc.valid ? (millis() - utc.receivedMs) / 1000UL : 0;
   if (utc.valid)
     lv_label_set_text_fmt(gStatus, "%s\nUTC source: GPS, %lus old\n"
-                                   "Field override repeats 6 min for sleepers.",
+                                   "Wake campaign catches a full sleep cycle.",
                           halGpsSummary(), (unsigned long)ageS);
   else
     lv_label_set_text_fmt(gStatus, "%s\nUTC source: waiting\n"
-                                   "Field override repeats 6 min for sleepers.",
+                                   "Wake campaign catches a full sleep cycle.",
                           halGpsSummary());
 }
 
@@ -36,9 +36,14 @@ static void applyYes(void *) {
   bool sent = meshForceLifecycle(gPendingMode);
   if (gStatus) {
     if (sent)
-      lv_label_set_text_fmt(gStatus, "%s field baseline sent fleet-wide.\n"
-                                    "RAM-only; reboot returns a fixture to AUTO.",
-                            modeName(gPendingMode));
+      if (gPendingMode == 0)
+        lv_label_set_text(gStatus,
+                          "WAKE FLEET campaign started.\n"
+                          "Catches timer wakes for 6 min; then radios stay up 10 min.");
+      else
+        lv_label_set_text_fmt(gStatus, "%s field baseline sent fleet-wide.\n"
+                                      "RAM-only; reboot returns a fixture to AUTO.",
+                              modeName(gPendingMode));
     else
       lv_label_set_text(gStatus,
                         "NOT SENT: action audit storage or radio unavailable.");
@@ -48,9 +53,14 @@ static void applyYes(void *) {
 static void modeCb(lv_event_t *e) {
   gPendingMode = (uint8_t)(uintptr_t)lv_event_get_user_data(e);
   char summary[150];
-  snprintf(summary, sizeof(summary),
-           "%s field-profile baseline. LEDs/pattern leases still override; local "
-           "battery safety always wins.", modeName(gPendingMode));
+  if (gPendingMode == 0)
+    snprintf(summary, sizeof(summary),
+             "Catch daytime sleepers on timer wake for 6 min, force the dark DAY "
+             "baseline, then keep each captured radio awake for 10 min.");
+  else
+    snprintf(summary, sizeof(summary),
+             "%s field-profile baseline. LEDs/pattern leases still override; "
+             "local battery safety always wins.", modeName(gPendingMode));
   uiConfirm(summary, "Schedule", applyYes, nullptr);
 }
 
@@ -82,7 +92,7 @@ void appScheduleOpen() {
 
   lv_obj_t *title = lv_label_create(gScreen);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Time / Schedule");
+  lv_label_set_text(title, "Wake / Schedule");
   lv_obj_set_pos(title, 8, 5);
 
   gStatus = lv_label_create(gScreen);
@@ -91,7 +101,7 @@ void appScheduleOpen() {
   lv_obj_set_pos(gStatus, 8, 42);
 
   lv_obj_t *autoBtn = addModeButton(gScreen, "auto", 2, 6);
-  lv_obj_t *dayBtn = addModeButton(gScreen, "day dark", 0, 111);
+  lv_obj_t *dayBtn = addModeButton(gScreen, "wake fleet", 0, 111);
   lv_obj_t *nightBtn = addModeButton(gScreen, "night show", 1, 216);
 
   lv_obj_t *back = lv_button_create(gScreen);

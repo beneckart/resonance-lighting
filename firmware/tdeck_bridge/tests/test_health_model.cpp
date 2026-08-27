@@ -23,6 +23,10 @@ static HealthObservation observation(uint32_t id, uint32_t ageMs,
   o.id[2] = (uint8_t)id;
   o.ageMs = ageMs;
   o.battMv = battMv;
+  o.hasBq = true;
+  o.bqReg16 = 1u << 5;
+  o.bqStat1 = 1u << 3;
+  o.bqFault0 = 0;
   return o;
 }
 
@@ -33,6 +37,21 @@ int main() {
   assert(batteryHealthBand(true, 3101) == BatteryHealthBand::NEAR_LOW);
   assert(batteryHealthBand(true, 3100) == BatteryHealthBand::LOW_BATTERY);
   assert(batteryHealthBand(true, 0) == BatteryHealthBand::UNKNOWN);
+  assert(chargeStatus(false, true, 0x20, 0x08, 0) ==
+         ChargeStatus::OFF_AIR);
+  assert(chargeStatus(true, false, 0x20, 0x08, 0) ==
+         ChargeStatus::UNKNOWN);
+  assert(chargeStatus(true, true, 0x20, 0x08, 1) == ChargeStatus::FAULT);
+  assert(chargeStatus(true, true, 0x00, 0x08, 0) ==
+         ChargeStatus::CHARGE_DISABLED);
+  assert(chargeStatus(true, true, 0x20, 0x00, 0) ==
+         ChargeStatus::NOT_CHARGING);
+  assert(chargeStatus(true, true, 0x20, 0x08, 0) ==
+         ChargeStatus::CHARGING_CC);
+  assert(chargeStatus(true, true, 0x20, 0x10, 0) ==
+         ChargeStatus::CHARGING_CV);
+  assert(chargeStatus(true, true, 0x20, 0x18, 0) ==
+         ChargeStatus::TOP_OFF);
 
   HealthRegistryEntry registry[] = {entry(0x100001), entry(0x100002)};
   registry[0].callsign = "Luigi";
@@ -49,8 +68,10 @@ int main() {
   assert(n == 4);
   assert(tiles[0].registry == &registry[0]);
   assert(tiles[0].band == BatteryHealthBand::GOOD);
+  assert(tiles[0].chargeStatus == ChargeStatus::CHARGING_CC);
   assert(tiles[1].registry == &registry[1]);
   assert(tiles[1].band == BatteryHealthBand::OFF_AIR);
+  assert(tiles[1].chargeStatus == ChargeStatus::OFF_AIR);
   assert(tiles[1].battMv == 3050);  // stale detail survives greying
   assert(tiles[2].registry == nullptr && tiles[2].id[2] == 0x01);
   assert(tiles[2].band == BatteryHealthBand::LOW_BATTERY);

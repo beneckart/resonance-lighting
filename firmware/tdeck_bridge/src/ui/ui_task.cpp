@@ -56,10 +56,10 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_LOOP, "CA", appCaOpen},
     {LV_SYMBOL_SHUFFLE, "Contagion", appContagionOpen},
     {LV_SYMBOL_HOME, "Default", appCommissionOpen},
-    {LV_SYMBOL_GPS, "Schedule", appScheduleOpen},
+    {LV_SYMBOL_GPS, "Wake", appScheduleOpen},
     {LV_SYMBOL_EYE_OPEN, "Locate", openLocatePlaceholder},
     {LV_SYMBOL_WIFI, "RF", appRfOpen},
-    {LV_SYMBOL_POWER, "Sleep", appPowerOpen},
+    {LV_SYMBOL_POWER, "Rest", appPowerOpen},
     {LV_SYMBOL_IMAGE, "SunTest", openSunTest},
     {LV_SYMBOL_SETTINGS, "Settings", appSettingsOpen},
 };

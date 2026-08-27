@@ -75,6 +75,73 @@ class FleetWorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "cannot span ordinary cadence"):
             ota.gather_timing(self.args(discovery_timeout=149.0))
 
+    def test_commission_profile_audit_is_exact(self):
+        commission, unknown = ota.commission_profile_targets(
+            {
+                "AAAAAA": {"profile": 0},
+                "BBBBBB": {"profile": 1},
+                "CCCCCC": {"profile": None},
+                "DDDDDD": {},
+            }
+        )
+        self.assertEqual(commission, ["AAAAAA"])
+        self.assertEqual(unknown, ["CCCCCC", "DDDDDD"])
+
+    def test_profile_reconcile_persists_only_verified_commission_target(self):
+        emitted = []
+
+        class Ledger:
+            def emit(self, *args, **kwargs):
+                emitted.append((args, kwargs))
+
+        args = self.args(
+            fix_commission_profile=True,
+            expect_fw="fx-260827-abcdef0-p",
+            fresh_age_ms=5000,
+            profile_timeout=1.0,
+        )
+        proven = {
+            "AAAAAA": {"profile": 0},
+            "BBBBBB": {"profile": 1},
+        }
+        confirmed = {
+            "peers": {
+                "AAAAAA": {
+                    "profile": 1,
+                    "firmware_rev": args.expect_fw,
+                    "age_ms": 10,
+                }
+            }
+        }
+        with mock.patch.object(ota, "post_dashboard_command") as post, mock.patch.object(
+            ota, "dashboard_state", return_value=confirmed
+        ):
+            self.assertEqual(
+                ota.reconcile_field_profiles(args, proven, Ledger()), []
+            )
+        post.assert_called_once_with(
+            args.dashboard_url,
+            "FAAAAAA:1:1",
+            "Persist field profile AAAAAA",
+        )
+        self.assertIn(
+            ("PROFILE", "field_persist_confirmed", "AAAAAA"),
+            [entry[0] for entry in emitted],
+        )
+
+    def test_profile_reconcile_audits_without_mutating_by_default(self):
+        class Ledger:
+            def emit(self, *args, **kwargs):
+                pass
+
+        args = self.args(fix_commission_profile=False)
+        with mock.patch.object(ota, "post_dashboard_command") as post:
+            lingering = ota.reconcile_field_profiles(
+                args, {"AAAAAA": {"profile": 0}}, Ledger()
+            )
+        self.assertEqual(lingering, ["AAAAAA"])
+        post.assert_not_called()
+
     def test_campaign_loads_roster_then_requires_structured_ack(self):
         emitted = []
 

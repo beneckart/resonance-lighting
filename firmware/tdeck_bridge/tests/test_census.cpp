@@ -34,6 +34,13 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
   hb.last_command_sleep_s = 3600;
   hb.last_command_sleep_source_seq = 42;
   hb.last_protect_batt_mv = 3045;
+  hb.power_sample_flags = NB_POWER_SAMPLE_IBAT_VALID |
+                          NB_POWER_SAMPLE_VBAT_VALID |
+                          NB_POWER_SAMPLE_SOC_VALID |
+                          NB_POWER_SAMPLE_CHARGER_VALID;
+  hb.bq_reg16 = 1u << 5;
+  hb.bq_stat1 = 1u << 3;
+  hb.bq_fault0 = 0;
   snprintf(hb.fw_rev, sizeof(hb.fw_rev), "fx-260819-abcdef0-p");
   RxItem item = {};
   item.ms = 0;
@@ -76,6 +83,9 @@ int main() {
   assert(c.ingest(makeHb(1, 2, 2000, (int)NB_HB_FULL_LEN, -50, 2), 2000));
   assert(p1->hasLedOutput && p1->classLatched == 2 && p1->hasFw);
   assert(p1->hasFixtureState && p1->fixtureStateHeardMs == 2000);
+  assert(p1->hasPowerSampleFlags);
+  assert(p1->powerSampleFlags & NB_POWER_SAMPLE_IBAT_VALID);
+  assert(p1->hasBq);
   assert(p1->hasSleepAudit && p1->sleepAuditFlags == 0x07);
   assert(p1->lastSleepCause == 3 && p1->lastSleepS == 3600);
   assert(p1->lastSleepBattMv == 3175 && p1->lastSleepSourceSeq == 42);
@@ -85,11 +95,14 @@ int main() {
   assert(!p1->hasLedOutput && p1->classLatched == 2);  // latched across short
   assert(p1->hasFixtureState && p1->activeProgram == 1);
   assert(p1->hasSleepAudit); // provenance remains visible across hb-short
+  assert(p1->hasPowerSampleFlags); // sample proof also latches across hb-short
+  assert(p1->hasBq); // charger status also latches across hb-short
   CensusView v[8];
   size_t n = c.snapshot(v, 8, 3000);
   assert(n == 1 && v[0].fixtureClass == 2);
   assert(v[0].hasFixtureState);
   assert(v[0].activeProgram == 1 && v[0].battMa == -125);
+  assert(v[0].battMaValid && v[0].hasBq);
   assert(v[0].fwFingerprint ==
          censusFirmwareFingerprint("fx-260819-abcdef0-p"));
 
@@ -107,6 +120,7 @@ int main() {
   assert(c.ingest(makeHb(1, 1, 500, NB_HB_SHORT_LEN, -50), 6000));
   assert(p1->recv == 1 && p1->gaps == 0);
   assert(!p1->hasFixtureState && !p1->hasFw);
+  assert(!p1->hasPowerSampleFlags && !p1->hasBq);
 
   // --- seq restart (counter reset without uptime reset) ---
   assert(c.ingest(makeHb(1, 500, 7000, NB_HB_SHORT_LEN, -50), 7000));

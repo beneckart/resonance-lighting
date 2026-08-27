@@ -12,13 +12,13 @@ README remains the implementation, build, and acceptance record.
 **Claude** (streaming chat + 6-tool agent loop with the confirm rail),
 **Fleet** (stable roster/live views, class and raw-VBAT filters, sortable
 voltage, reported-color chips, detail/identify, and confirmed filtered-cohort
-blink), **Health** (single-screen voltage health grid for the
+blink), **Health** (single-screen voltage or charge-phase grid for the
 production registry plus live node detail), **LED Studio** (class-targeted solid colors and 1 Hz
 cohort blink via sustained 8 Hz direct-frame streaming, client-side dim),
-**Sleep / Dark** (confirmed 10 min or 1-12 h in one-hour steps; dark leases or
-rails-off timer sleep), **Knocker** (single strike plus selectable targeted
+**Blackout / Sleep** (confirmed 10 min or 1-12 h in one-hour steps; blackout
+leases or rails-off timer sleep), **Knocker** (single strike plus selectable targeted
 roll, immediate fleet multicast, and shared +1.0 s deadline multicast),
-**Time / Schedule** (GPS UTC status plus Auto / Day Dark / Night Show),
+**Wake / Schedule** (GPS UTC status plus Auto / Wake Fleet / Night Show),
 **CA Studio** (Greenberg-Hastings wildfire with light or daytime knock output),
 **Contagion** (Color Virus or Epidemic with light, knock, or both output and an
 exact manual seed),
@@ -155,30 +155,30 @@ firmware compares the AP channel to the stored mesh channel:
   `GUARD:ch-mismatch` on the status page. No auto-retry against a wrong-channel
 AP - fix the AP (`docs/howto/CAMP_NETWORK_SETUP.md`), then `wifi retry`.
 
-## Field LED Studio and rest controls (ADR 0048)
+## Field LED Studio and rest controls (ADR 0048, ADR 0064)
 
-Open **LEDs** from the launcher (or **Sleep / Dark** from Fleet):
+Open **LEDs** from the launcher (or **Rest** from Fleet):
 
 - LED Studio targets all fresh fixtures or one reported class: downlights,
   perimeter, uplights, or chandelier. Pick a labelled color, set dim, and use
   solid or 1 Hz blink. The class map comes from full heartbeats and can take
   about 60 seconds to fill after bridge boot. Streams cover the complete
   192-entry census, not only the first screenful.
-- Dark is an expiring electrical-dark lease. The LED rail is off, but the
+- Blackout is an expiring electrical-dark lease. The LED rail is off, but the
   ESP-NOW receiver stays awake and measured fleet draw remains roughly
   126-144 mA per fixture.
-- Low-power sleep cuts both switchable rails and the radio for the selected
+- Deep sleep cuts both switchable rails and the radio for the selected
   duration, then auto-wakes into normal behavior. It cannot be cancelled while
   the fixture is asleep. It uses the existing `NB_SLEEP_FOR` contract, not the
   transport-dark latch.
-- The screen opens on the safer reversible choice: Dark for 10 minutes.
-  Low-power sleep must be selected deliberately.
+- The screen opens on the safer reversible choice: Blackout for 10 minutes.
+  Deep sleep must be selected deliberately.
 - Both actions show live/seen counts and require the on-device confirmation
   modal, with focus on cancel. Only currently listening fixtures can receive a
   broadcast. Starting either action stops any suspended LED Studio stream.
 - Sleep remains absent from the Claude tool schema and serial quick commands;
   it is reachable only from the local physical UI.
-- Bridge OS retains the newest four Sleep/Dark/Release/Schedule actions in a
+- Bridge OS retains the newest four Sleep/Blackout/Release/Schedule actions in a
   checksummed NVS ring before sending RF. `show` prints the ring; `nb-master`
   exposes its newest entry. Availability-reducing actions are not sent if the
   audit write fails. Release remains restorative and may still transmit.
@@ -195,8 +195,10 @@ refresh and a round trip through node detail.
 
 The compact row keeps the operational values that matter most at a glance:
 raw VBAT, signed battery current (`+` charging, `-` discharging), age, and active
-program. RSSI/PDR and advisory gauge SOC remain on detail. A literal `idle`
-requires an observed full-heartbeat state; `?` means the program is unknown.
+program. Signed current appears only when tail 17 proves the MAX17260 sample is
+post-guard and fresh enough; `-` means unverified, including all old firmware.
+RSSI/PDR and advisory gauge SOC remain on detail. A literal `idle` requires an
+observed full-heartbeat state; `?` means the program is unknown.
 Full-heartbeat state is retained across intervening short heartbeats, but is
 cleared on sender reboot until the new boot reports it.
 
@@ -212,9 +214,9 @@ Press **View** to choose independently:
 - sort: stable callsign, stable short ID, voltage low/high first, most recent,
   or strongest signal.
 
-Detail spells out profile, lifecycle, program, network mode, and power tier as
-names such as `FIELD`, `DAY_CHARGE`, `DIRECT`, `COMMS`, and `PROTECT` instead of
-showing only numeric status codes.
+Detail spells out profile, lifecycle, program, network mode, power tier, and
+charger phase as names such as `FIELD`, `DAY_CHARGE`, `DIRECT`, `COMMS`,
+`PROTECT`, and `CHARGING_CC` instead of showing only numeric status codes.
 
 Voltage, age, and signal sorts are explicit operator choices; the default does
 not reorder on heartbeat arrival. A live class report is authoritative. While
@@ -232,7 +234,7 @@ The confirmation modal names the exact count and focuses cancel. On confirm,
 Bridge OS sends a paced exact-target green 30-second identify to that cohort;
 it does not broadcast to hidden or off-air fixtures and does not claim that an
 unreachable row changed. Single-row detail retains its existing ten-second
-green identify. **Power** opens Sleep / Dark, which also contains Release.
+green identify. **Power** opens Blackout / Sleep, which also contains Release.
 
 This Fleet work changes only the handheld view and the existing bounded
 identify path. It adds no packet type and performs no OTA, reboot, profile,
@@ -259,6 +261,16 @@ reset the bridge reported channel 11, DAY mode, healthy peripherals, live mesh
 receive, and zero send failures. Physical feature acceptance remains in
 `TODO.md`.
 
+The ADR 0064 power-truth follow-up is USB-flashed on exact T-Deck `8EB508` as a
+1,583,344-byte `tdeck-dev-local` binary, SHA-256
+`3bc13ca8a8bfeb60aaa31d349721b3760522dc1600f3913dd145400fe1ef905c`.
+It retains the preceding display/Fleet/filter work and adds validated-IBAT
+rendering, human BQ charge phase, the Health VBAT/CHG toggle, and unambiguous
+Wake/Blackout/Deep-sleep wording. Esptool verified every written region;
+post-reset serial reported exact identity `8EB508`, live channel-11 time
+traffic, and a running bridge. The complete native suite and embedded build
+pass. Physical display checks and a fixture canary remain open.
+
 ## Fleet Health
 
 Open **Health** for the read-only, no-scroll fleet triage view. The normal
@@ -266,11 +278,20 @@ Open **Health** for the read-only, no-scroll fleet triage view. The normal
 the grid automatically compacts if unexpected live IDs expand it toward the
 192-entry census limit. Registry positions stay stable in short-MAC order.
 
+Press the top-right toggle to color the same stable tiles by `VBAT` or `CHG`.
+VBAT mode uses:
+
 - green: raw reported VBAT >3.20 V;
 - yellow: raw reported VBAT >3.10 V and <=3.20 V;
 - red: raw reported VBAT <=3.10 V;
 - grey: a rostered fixture is not currently fresh/on-air; and
 - blue: a fresh heartbeat has no plausible battery voltage.
+
+CHG mode uses green for `CHARGING_CC`, cyan for `CHARGING_CV`, purple for
+`TOP_OFF`, amber for `NOT_CHARGING/DONE`, brown for `CHARGE_DISABLED`, red for
+charger fault, blue for unknown, and grey for off air. The status comes from
+the BQ25628E phase/fault registers, not an IBAT threshold guess. Tap a tile for
+the human phase plus validated signed IBAT and input voltage/current.
 
 These are operator triage bands, not ADR 0023 lifecycle thresholds. The app
 deliberately does not use gauge SOC as its primary color. Tap a square, or use
@@ -292,20 +313,22 @@ layout, input, detail, and memory-watermark checks remain open in `TODO.md`.
 
 The T-Deck parses checksum-valid active GPS RMC date/time and broadcasts one
 `NB_TIME_QUALITY` UTC anchor every two seconds. This cadence gives a field
-fixture several chances to hear time during either its 15-second production
-listen window or a future 8-second build-week window.
+fixture several chances to hear time during ADR 0064's approximately 12-second
+minimum trustworthy-power window.
 
-Open **Schedule** for GPS/UTC status and three fleet baselines:
+Open **Wake** for GPS/UTC status and three fleet baselines:
 
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
-- **Day Dark** temporarily forces the daylight baseline;
+- **Wake Fleet** catches timer wakes for six minutes, forces the dark daylight
+  baseline, and leaves each captured radio in its normal ten-minute control
+  hold for follow-up instructions;
 - **Night Show** temporarily forces the nighttime baseline.
 
-All three are RAM-only and repeat for six minutes to span the full 300-second
-field sleep cadence. LED Studio and program leases can override the baseline;
-dark remains higher authority. Knock stays one-shot and locally safety-gated,
-so it is not promised as a wake command for a sleeping fixture.
+All three are RAM-only. The campaign repetition spans a full fixture sleep
+cadence. LED Studio and program leases can override the baseline; Blackout
+remains higher authority. Knock stays one-shot and locally safety-gated, so it
+is not promised as a wake command for a sleeping fixture.
 
 Knocker's three fleet choices are deliberately distinct:
 

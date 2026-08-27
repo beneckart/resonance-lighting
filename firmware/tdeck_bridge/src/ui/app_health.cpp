@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <string.h>
 
+#include "fixture/src/core/packet.h"
 #include "../core/fleet_registry_generated.h"
 #include "../core/health_model.h"
 #include "../net/census_svc.h"
@@ -15,7 +16,12 @@ static lv_obj_t *gScreen = nullptr;
 static lv_obj_t *gHeader = nullptr;
 static lv_obj_t *gCaption = nullptr;
 static lv_obj_t *gBack = nullptr;
+static lv_obj_t *gModeButton = nullptr;
+static lv_obj_t *gLegend = nullptr;
 static lv_timer_t *gTimer = nullptr;
+
+enum class HealthColorMode : uint8_t { VBAT = 0, CHARGE = 1 };
+static HealthColorMode gColorMode = HealthColorMode::VBAT;
 
 static CensusView gCensusRows[CENSUS_MAX_TRACKED];
 static HealthObservation gObservations[CENSUS_MAX_TRACKED];
@@ -49,6 +55,20 @@ static lv_color_t bandColor(BatteryHealthBand band) {
   return lv_color_hex(0x343A40);
 }
 
+static lv_color_t chargeColor(ChargeStatus status) {
+  switch (status) {
+    case ChargeStatus::CHARGING_CC: return lv_color_hex(0x1B8A3A);
+    case ChargeStatus::CHARGING_CV: return lv_color_hex(0x168AAD);
+    case ChargeStatus::TOP_OFF: return lv_color_hex(0x805AD5);
+    case ChargeStatus::NOT_CHARGING: return lv_color_hex(0xD98E00);
+    case ChargeStatus::CHARGE_DISABLED: return lv_color_hex(0x8A651B);
+    case ChargeStatus::FAULT: return lv_color_hex(0xD52B2B);
+    case ChargeStatus::UNKNOWN: return lv_color_hex(0x2F80C9);
+    case ChargeStatus::OFF_AIR: return lv_color_hex(0x343A40);
+  }
+  return lv_color_hex(0x343A40);
+}
+
 static const char *registryStatusName(const HealthRegistryEntry *entry) {
   if (!entry) return "unregistered";
   return entry->status == HealthRegistryStatus::COMMISSION_FAILED
@@ -56,13 +76,13 @@ static const char *registryStatusName(const HealthRegistryEntry *entry) {
              : "commissioned";
 }
 
-static char classLetter(uint8_t cls) {
+static const char *className(uint8_t cls) {
   switch (cls) {
-    case 1: return 'D';
-    case 2: return 'P';
-    case 3: return 'U';
-    case 4: return 'C';
-    default: return '?';
+    case 1: return "downlight";
+    case 2: return "perimeter";
+    case 3: return "uplight";
+    case 4: return "chandelier";
+    default: return "unknown";
   }
 }
 
@@ -76,6 +96,34 @@ static const char *programName(uint8_t program) {
     case 5: return "contagion";
     default: return "?";
   }
+}
+
+static const char *lifeName(bool known, uint8_t life) {
+  if (!known) return "UNKNOWN";
+  switch (life) {
+    case 0: return "BOOT";
+    case 1: return "DAY_CHARGE";
+    case 2: return "DAY_ACTIVE";
+    case 3: return "NIGHT_SHOW";
+    case 4: return "COMMISSION";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *tierName(bool known, uint8_t tier) {
+  if (!known) return "UNKNOWN";
+  switch (tier) {
+    case 0: return "FULL";
+    case 1: return "DIM";
+    case 2: return "LEDS_OFF";
+    case 3: return "PROTECT";
+    default: return "UNKNOWN";
+  }
+}
+
+static ChargeStatus peerChargeStatus(const PeerStat &peer, bool fresh) {
+  return chargeStatus(fresh, peer.hasBq, peer.bqReg16, peer.bqStat1,
+                      peer.bqFault0);
 }
 
 static int tileIndexForObject(lv_obj_t *object) {
@@ -112,7 +160,23 @@ static void updateCaption(int index) {
                             (unsigned long)(tile.ageMs / 1000));
     }
   } else if (tile.band == BatteryHealthBand::UNKNOWN) {
-    lv_label_set_text_fmt(gCaption, "%s  live  no valid VBAT", identity);
+    if (gColorMode == HealthColorMode::VBAT)
+      lv_label_set_text_fmt(gCaption, "%s  live  no valid VBAT", identity);
+    else
+      lv_label_set_text_fmt(gCaption, "%s  %s  IBAT %s", identity,
+                            chargeStatusName(tile.chargeStatus),
+                            tile.battMaValid ? "valid" : "--");
+  } else if (gColorMode == HealthColorMode::CHARGE) {
+    if (tile.battMaValid)
+      lv_label_set_text_fmt(gCaption, "%s  %s  %+dmA  in %d.%02dV", identity,
+                            chargeStatusName(tile.chargeStatus), tile.battMa,
+                            tile.supplyMv / 1000,
+                            (tile.supplyMv % 1000) / 10);
+    else
+      lv_label_set_text_fmt(gCaption, "%s  %s  IBAT --  in %d.%02dV", identity,
+                            chargeStatusName(tile.chargeStatus),
+                            tile.supplyMv / 1000,
+                            (tile.supplyMv % 1000) / 10);
   } else {
     lv_label_set_text_fmt(gCaption, "%s  %d.%03d V  %s", identity,
                           tile.battMv / 1000, tile.battMv % 1000,
@@ -143,6 +207,8 @@ static void backFromHealth(lv_event_t *) {
   gHeader = nullptr;
   gCaption = nullptr;
   gBack = nullptr;
+  gModeButton = nullptr;
+  gLegend = nullptr;
   gUiTileCount = 0;
   uiGoHome();
 }
@@ -179,6 +245,20 @@ static bool tileIdentityChanged(size_t count) {
 }
 
 static size_t firstAttentionTile() {
+  if (gColorMode == HealthColorMode::CHARGE) {
+    const ChargeStatus priority[] = {
+        ChargeStatus::FAULT, ChargeStatus::UNKNOWN,
+        ChargeStatus::CHARGE_DISABLED,
+        ChargeStatus::NOT_CHARGING, ChargeStatus::OFF_AIR,
+        ChargeStatus::CHARGING_CC, ChargeStatus::CHARGING_CV,
+        ChargeStatus::TOP_OFF};
+    for (ChargeStatus status : priority) {
+      for (size_t i = 0; i < gTileCount; ++i) {
+        if (gTiles[i].chargeStatus == status) return i;
+      }
+    }
+    return 0;
+  }
   const BatteryHealthBand priority[] = {
       BatteryHealthBand::LOW_BATTERY, BatteryHealthBand::NEAR_LOW,
       BatteryHealthBand::UNKNOWN, BatteryHealthBand::OFF_AIR,
@@ -225,6 +305,7 @@ static void rebuildTileObjects() {
     lv_obj_add_event_cb(tile, tileClicked, LV_EVENT_CLICKED, nullptr);
     lv_group_add_obj(lvglGroup(), tile);
   }
+  if (gModeButton) lv_group_add_obj(lvglGroup(), gModeButton);
   lv_group_add_obj(lvglGroup(), gBack);
   gUiTileCount = gTileCount;
   if (gTileCount) lv_group_focus_obj(gTileObjects[firstAttentionTile()]);
@@ -233,10 +314,15 @@ static void rebuildTileObjects() {
 static void styleTiles() {
   for (size_t i = 0; i < gUiTileCount; ++i) {
     lv_obj_t *object = gTileObjects[i];
-    lv_color_t color = bandColor(gTiles[i].band);
+    lv_color_t color = gColorMode == HealthColorMode::VBAT
+                           ? bandColor(gTiles[i].band)
+                           : chargeColor(gTiles[i].chargeStatus);
     lv_obj_set_style_bg_color(object, color, 0);
     lv_obj_set_style_bg_color(object, color, LV_STATE_FOCUSED);
-    if (gTiles[i].band == BatteryHealthBand::LOW_BATTERY) {
+    if ((gColorMode == HealthColorMode::VBAT &&
+         gTiles[i].band == BatteryHealthBand::LOW_BATTERY) ||
+        (gColorMode == HealthColorMode::CHARGE &&
+         gTiles[i].chargeStatus == ChargeStatus::FAULT)) {
       lv_obj_set_style_border_color(object, lv_color_hex(0xFFB0B0), 0);
       lv_obj_set_style_border_width(object, 1, 0);
     } else if (!gTiles[i].registry) {
@@ -248,6 +334,31 @@ static void styleTiles() {
   }
 }
 
+static void updateModeChrome() {
+  if (gModeButton) {
+    lv_obj_t *label = lv_obj_get_child(gModeButton, 0);
+    if (label)
+      lv_label_set_text(label, gColorMode == HealthColorMode::VBAT ? "VBAT"
+                                                                   : "CHG");
+  }
+  if (gLegend) {
+    lv_label_set_text(
+        gLegend,
+        gColorMode == HealthColorMode::VBAT
+            ? "G>3.20  Y>3.10  R<=3.10  gray=off"
+            : "CC=green CV=cyan TOP=purple N=amber !=fault");
+  }
+}
+
+static void modeCb(lv_event_t *) {
+  gColorMode = gColorMode == HealthColorMode::VBAT
+                   ? HealthColorMode::CHARGE
+                   : HealthColorMode::VBAT;
+  updateModeChrome();
+  styleTiles();
+  updateCaption(focusedTileIndex());
+}
+
 static void refreshHealth(lv_timer_t *) {
   if (!gScreen || lv_screen_active() != gScreen) return;
   uint32_t now = millis();
@@ -257,6 +368,15 @@ static void refreshHealth(lv_timer_t *) {
     memcpy(gObservations[i].id, gCensusRows[i].id, 3);
     gObservations[i].ageMs = gCensusRows[i].ageMs;
     gObservations[i].battMv = gCensusRows[i].battMv;
+    gObservations[i].battMa = gCensusRows[i].battMa;
+    gObservations[i].battMaValid = gCensusRows[i].battMaValid;
+    gObservations[i].supplyMv = gCensusRows[i].supplyMv;
+    gObservations[i].supplyMa = gCensusRows[i].supplyMa;
+    gObservations[i].supplyGood = gCensusRows[i].supplyGood;
+    gObservations[i].hasBq = gCensusRows[i].hasBq;
+    gObservations[i].bqReg16 = gCensusRows[i].bqReg16;
+    gObservations[i].bqStat1 = gCensusRows[i].bqStat1;
+    gObservations[i].bqFault0 = gCensusRows[i].bqFault0;
   }
   gTileCount = healthBuildTiles(
       kHealthRegistry, kHealthRegistryCount, gObservations, censusCount,
@@ -265,10 +385,29 @@ static void refreshHealth(lv_timer_t *) {
   if (tileIdentityChanged(gTileCount)) rebuildTileObjects();
   styleTiles();
 
-  HealthSummary summary = healthSummarize(gTiles, gTileCount);
-  lv_label_set_text_fmt(gHeader, "Health G%u Y%u R%u ?%u -%u",
-                        summary.good, summary.nearLow, summary.low,
-                        summary.unknown, summary.offAir);
+  if (gColorMode == HealthColorMode::VBAT) {
+    HealthSummary summary = healthSummarize(gTiles, gTileCount);
+    lv_label_set_text_fmt(gHeader, "G%u Y%u R%u ?%u -%u",
+                          summary.good, summary.nearLow, summary.low,
+                          summary.unknown, summary.offAir);
+  } else {
+    uint16_t cc = 0, cv = 0, top = 0, notCharging = 0;
+    uint16_t fault = 0, unknown = 0, offAir = 0;
+    for (size_t i = 0; i < gTileCount; ++i) {
+      switch (gTiles[i].chargeStatus) {
+        case ChargeStatus::CHARGING_CC: ++cc; break;
+        case ChargeStatus::CHARGING_CV: ++cv; break;
+        case ChargeStatus::TOP_OFF: ++top; break;
+        case ChargeStatus::NOT_CHARGING:
+        case ChargeStatus::CHARGE_DISABLED: ++notCharging; break;
+        case ChargeStatus::FAULT: ++fault; break;
+        case ChargeStatus::UNKNOWN: ++unknown; break;
+        case ChargeStatus::OFF_AIR: ++offAir; break;
+      }
+    }
+    lv_label_set_text_fmt(gHeader, "C%u V%u T%u N%u !%u ?%u -%u", cc,
+                          cv, top, notCharging, fault, unknown, offAir);
+  }
   updateCaption(focusedTileIndex());
 }
 
@@ -318,28 +457,42 @@ static void openDetail(const uint8_t id[3]) {
                             registryStatusName(registry), role, capacity);
   } else {
     uint32_t ageMs = millis() - peer.lastHeardMs;
+    bool fresh = ageMs < censusFreshMsSafe();
     BatteryHealthBand band =
-        batteryHealthBand(ageMs < censusFreshMsSafe(), peer.battMv);
+        batteryHealthBand(fresh, peer.battMv);
     uint32_t total = peer.recv + peer.gaps;
     uint16_t pdr = total ? (uint16_t)((uint64_t)peer.recv * 1000 / total) : 0;
-    int soc = peer.soc == 255 ? -1 : peer.soc;
+    char ibat[20];
+    char soc[16];
+    if (peer.hasPowerSampleFlags &&
+        (peer.powerSampleFlags & NB_POWER_SAMPLE_IBAT_VALID))
+      snprintf(ibat, sizeof(ibat), "%+d mA", peer.battMa);
+    else
+      snprintf(ibat, sizeof(ibat), "-- (unverified)");
+    if (peer.soc == 255)
+      snprintf(soc, sizeof(soc), "unknown");
+    else
+      snprintf(soc, sizeof(soc), "%u%%", peer.soc);
+    ChargeStatus charge = peerChargeStatus(peer, fresh);
     lv_label_set_text_fmt(
         body,
-        "%s  battery %d.%03d V  current %d mA\n"
-        "age %lus  RSSI %d/%d  PDR %u.%u%%\n"
-        "supply %d.%03d V  %d mA  good %u\n"
-        "SOC %d%% advisory  class %c  tier %u\n"
-        "program %s  life %u  sensors 0x%02X%s\n"
+        "%s  VBAT %d.%03dV  IBAT %s\n"
+        "charge %s\n"
+        "input %d.%03dV  %dmA  %s\n"
+        "age %lus  signal %d/%d  PDR %u.%u%%\n"
+        "SOC %s  class %s  tier %s\n"
+        "program %s  life %s  sensors 0x%02X%s\n"
         "registry %s  %u mAh  %s\n"
         "fw %s",
-        bandName(band), peer.battMv / 1000, peer.battMv % 1000, peer.battMa,
+        bandName(band), peer.battMv / 1000, peer.battMv % 1000, ibat,
+        chargeStatusName(charge), peer.supplyMv / 1000,
+        peer.supplyMv % 1000, peer.supplyMa,
+        peer.supplyGood ? "GOOD" : "NOT GOOD",
         (unsigned long)(ageMs / 1000), peer.rssi, peer.rssiEwma, pdr / 10,
-        pdr % 10, peer.supplyMv / 1000, peer.supplyMv % 1000, peer.supplyMa,
-        peer.supplyGood, soc,
-        classLetter(peer.classLatched),
-        peer.hasFixtureState ? peer.powerTier : 0,
-        programName(peer.hasFixtureState ? peer.activeProgram : 0),
-        peer.hasFixtureState ? peer.lifeState : 0,
+        pdr % 10, soc, className(peer.classLatched),
+        tierName(peer.hasFixtureState, peer.powerTier),
+        peer.hasFixtureState ? programName(peer.activeProgram) : "unknown",
+        lifeName(peer.hasFixtureState, peer.lifeState),
         peer.hasIdentityRecovery ? peer.sensorBits : 0,
         peer.hasIdentityRecovery && peer.classMismatch ? " MISMATCH" : "",
         registryStatusName(registry), capacity, role,
@@ -390,20 +543,28 @@ void appHealthOpen() {
   lv_obj_center(backLabel);
   lv_obj_add_event_cb(gBack, backFromHealth, LV_EVENT_CLICKED, nullptr);
 
+  gModeButton = lv_button_create(gScreen);
+  lv_obj_set_size(gModeButton, 64, 23);
+  lv_obj_set_pos(gModeButton, 201, 2);
+  lv_obj_t *modeLabel = lv_label_create(gModeButton);
+  lv_obj_center(modeLabel);
+  lv_obj_add_event_cb(gModeButton, modeCb, LV_EVENT_CLICKED, nullptr);
+
   gCaption = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gCaption, &lv_font_montserrat_14, 0);
   lv_obj_set_pos(gCaption, 5, 199);
   lv_label_set_text(gCaption, "Loading registry...");
 
-  lv_obj_t *legend = lv_label_create(gScreen);
-  lv_obj_set_style_text_font(legend, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(legend, uiMutedTextColor(), 0);
-  lv_obj_set_pos(legend, 5, 219);
-  lv_label_set_text(legend, "G>3.20  Y>3.10  R<=3.10  gray=off");
+  gLegend = lv_label_create(gScreen);
+  lv_obj_set_style_text_font(gLegend, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(gLegend, uiMutedTextColor(), 0);
+  lv_obj_set_pos(gLegend, 5, 219);
+  updateModeChrome();
 
   gUiTileCount = 0;
   memset(gTileObjects, 0, sizeof(gTileObjects));
   lv_group_remove_all_objs(lvglGroup());
+  lv_group_add_obj(lvglGroup(), gModeButton);
   lv_group_add_obj(lvglGroup(), gBack);
   lvglSetNavHooks(&kHealthHooks);
 

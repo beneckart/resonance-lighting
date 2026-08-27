@@ -40,10 +40,13 @@ UTC once, clears OSF, and verifies readback. Maintenance telemetry exposes
 In field profile, scheduled day is electrically dark and scheduled night runs
 the autonomous program. Direct/program leases can override the baseline during
 day; a dark lease can suppress night. `NB_FORCE_LIFECYCLE` provides RAM-only
-Day Dark / Night Show / Auto and clears on reboot. Commission profile remains
-always awake with the ADR 0039 listener beacon. Only accepted operator commands
-hold field fixtures awake for ten minutes; peer heartbeats and time packets do
-not defeat the 300-second sleep / 15-second listen cadence.
+Wake Fleet (the dark day baseline) / Night Show / Auto and clears on reboot.
+Commission profile remains always awake with the ADR 0039 listener beacon. Only
+accepted operator commands hold field fixtures awake for ten minutes; peer
+heartbeats and time packets do not defeat the configured cadence. ADR 0064
+additionally holds every timer wake through a trustworthy post-charge-enable
+IBAT sample (normally about 12 s, bounded to 15 s on gauge failure), even if an
+older recipe requested less.
 
 ## Transport sleep and rig RSSI capture
 
@@ -110,7 +113,7 @@ tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ./build.sh --precharge-ma 300            # low-VBAT recovery current
 ./build.sh --wifi-source <gitignored-header>  # solenoid capability is universal
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
-./build.sh --profile field --day-sleep-s 120 --wake-listen-ms 3000  # named canary only
+./build.sh --profile field --day-sleep-s 120 --wake-listen-ms 12000 # ADR 0064 canary
 ```
 
 For ordinary edit/compile iteration, use the persistent development cache:
@@ -140,12 +143,16 @@ Run `./build.sh --help` for the short local-versus-fleet command contract.
 `tests/run_tests.sh` includes a fast, compile-free regression check for that
 boundary before it starts the native C++ suite.
 
-Production defaults remain a 300-second DAY_CHARGE timer sleep and a 15,000 ms
-post-wake listen grace. `--day-sleep-s` and `--wake-listen-ms` exist for named
-canary energy/maintenance-catch experiments; record both values with the
-artifact and do not infer equal energy from listen duty alone because every
-wake also pays fixed boot, sensor, and radio startup cost. USB telemetry exposes
-the compiled `day_sleep_s` and `wake_listen_ms` values.
+Source defaults remain a 300-second DAY_CHARGE timer sleep and a 15,000 ms
+post-wake listen grace. The installed 120 s / 3 s fleet artifact is superseded
+by ADR 0064 because it could sleep before the 6-second charge guard and a fresh
+MAX17260 conversion. New named 120-second canaries use at least 12,000 ms.
+Firmware independently withholds ordinary day sleep until valid IBAT or a
+15-second gauge-fault fail-open, so a shorter compiled grace cannot recreate
+the charge-path defect. Record both build values with the artifact and do not
+infer equal energy from listen duty alone because every wake also pays fixed
+boot, sensor, and radio startup cost. USB telemetry exposes the compiled
+`day_sleep_s` and `wake_listen_ms` values.
 
 For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
 retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed

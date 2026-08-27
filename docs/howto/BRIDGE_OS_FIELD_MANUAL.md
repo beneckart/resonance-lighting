@@ -79,7 +79,7 @@ The words below are deliberately conservative:
 | Device or feature | Status on 2026-08-27 | Practical meaning |
 |---|---|---|
 | T-Deck mesh, launcher, touch, trackball, keyboard, GPS, channel guard | Working | Hardware-probed on T-Deck `8EB508` |
-| T-Deck Claude, Fleet, LED Studio, Sleep / Dark, single Knock, CA Studio | Working with limits | Broad hardware or field smoke tests passed; read the app notes below |
+| T-Deck Claude, Fleet, LED Studio, Blackout / Sleep, single Knock, CA Studio | Working with limits | Broad hardware or field smoke tests passed; read the app notes below |
 | Contagion | Source-built, not field accepted | Color Virus/Epidemic; keep knock output off until named-canary qualification |
 | T-Deck Health and Schedule | Canary | Broad physical smoke passed; full color/off-air/override matrices remain open |
 | T-Deck callsigns, Patterns v1, RF Diagnostics, full-fleet Knock roll | Canary | Current image is flashed; deliberate named-canary checks remain open |
@@ -163,7 +163,7 @@ When two instructions disagree, the fixture follows this order:
 local safety and battery veto
   -> transport-dark or active dark lease
     -> active direct color or program lease
-      -> temporary Day Dark / Night Show baseline
+      -> temporary Wake Fleet / Night Show baseline
         -> UTC civil-twilight schedule
           -> panel-current fallback
 ```
@@ -172,14 +172,16 @@ This explains several apparently surprising results:
 
 - **Night Show** cannot defeat low-battery shutdown.
 - **LED Studio** can deliberately light a healthy fixture during scheduled day.
-- **Dark** can suppress a scheduled night show.
+- **Blackout** can suppress a scheduled night show.
 - A strike request can be sent successfully while the fixture refuses to move
   because its time, power, arming, or mechanism gate says no.
 
 ## Health: start here
 
-Use **Health** for the fastest whole-fleet triage. It fits the 141-entry
-production-health registry on one screen and appends unexpected live IDs.
+Use **Health** for the fastest whole-fleet triage. It fits the production-health
+registry on one screen and appends unexpected live IDs. The top-right button
+switches the stable tiles between raw battery-voltage (`VBAT`) and charger-phase
+(`CHG`) colors.
 
 | Tile | Meaning |
 |---|---|
@@ -190,12 +192,18 @@ production-health registry on one screen and appends unexpected live IDs.
 | Blue | fixture is live, but its battery value is not plausible |
 | Cyan border | live ID is outside the normal production-health roster |
 
+In CHG mode, green means `CHARGING_CC`, cyan `CHARGING_CV`, purple `TOP_OFF`,
+amber `NOT_CHARGING/DONE`, brown `CHARGE_DISABLED`, red charger fault, blue
+unknown, and grey off air. These phases come from the BQ25628E status/fault
+registers. They are not guesses from a small signed-current number.
+
 These colors are triage bands, not the fixture's complete ADR 0023 power-state
 machine. Do not force a red fixture to perform merely because it still answers.
 
-Tap or focus-and-click a square to see callsign and short ID, voltage/current,
-age, RSSI/PDR, supply, advisory SOC, class, program, lifecycle, sensor signature,
-firmware, registry status, battery capacity, and role.
+Tap or focus-and-click a square to see callsign and short ID, VBAT, validated
+signed IBAT, human charger phase, input voltage/current, age, RSSI/PDR, advisory
+SOC, class, program, lifecycle, tier, sensor signature, firmware, registry
+status, battery capacity, and role.
 
 Grey means **not fresh**, not automatically broken. After bridge boot, wait at
 least one normal sleep cadence before calling a field fixture missing. Older or
@@ -212,12 +220,17 @@ evidence.
 - age, raw battery voltage, signed battery current (`+` charge, `-` draw), and
   active program.
 
+Signed current is shown only when the fixture explicitly certifies a settled
+post-guard MAX17260 sample. `-` or `-- (unverified)` means the value cannot be
+trusted, which is expected for old firmware and the first heartbeat after wake.
+
 `inf` means this bridge has never observed the registry fixture. `idle` is a
 real reported program; `?` means program state has not been observed. Sparse
 full-heartbeat program state is retained across short heartbeats and discarded
 on peer reboot until the new boot supplies fresh full-heartbeat state. Detail
 keeps RSSI/PDR and advisory SOC, and spells out state names such as
-`DAY_CHARGE`, `DIRECT`, and `PROTECT` instead of showing only numeric codes.
+`DAY_CHARGE`, `DIRECT`, `PROTECT`, and `CHARGING_CC` instead of showing only
+numeric codes.
 
 Open a row for details and **Identify**, which requests a ten-second green blink.
 The default view includes the complete production registry plus unexpected live
@@ -247,8 +260,8 @@ dark-table colors. The same persistent switch is available in Settings.
 Press **Blink** to identify every **fresh** fixture in the current filtered view.
 The device first confirms the exact count with cancel focused, then walks that
 captured cohort with paced exact-target 30-second green blinks. Hidden and
-off-air fixtures are not targeted or claimed as reached. **Power** opens Sleep /
-Dark; Release remains available there.
+off-air fixtures are not targeted or claimed as reached. **Power** opens
+Blackout / Sleep; End Blackout remains available there.
 
 These Fleet view controls are flashed on primary T-Deck `8EB508` as of
 2026-08-27. Esptool write verification, an exact full application-region
@@ -263,6 +276,14 @@ SHA-256
 `c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`.
 Upload and an independent whole-application `verify-flash` digest comparison
 passed; physical layout/filter acceptance remains open in `TODO.md`.
+
+The ADR 0064 power-truth UI is now flashed on the same exact T-Deck as a
+1,583,344-byte `tdeck-dev-local` binary, SHA-256
+`3bc13ca8a8bfeb60aaa31d349721b3760522dc1600f3913dd145400fe1ef905c`.
+It adds validated-IBAT rendering, human charger phases, the Health VBAT/CHG
+toggle, and the Wake/Blackout/Deep-sleep names. Esptool verified every written
+region and post-reset serial reported live `8EB508` channel-11 traffic. Fixture
+canary validation remains open.
 
 Callsigns are display and command-entry aliases. Short MAC remains authoritative
 for flashing, OTA, manifests, persistence, and incident records. Unknown peers
@@ -293,7 +314,8 @@ This mapping is source-built as of 2026-08-25 and still needs a named RGB/RGBW
 physical recheck before show use.
 
 The stream continues when you press **Back**. It stops only when you press
-**Stop**, start a competing stream such as Patterns, or start a Sleep/Dark action.
+**Stop**, start a competing stream such as Patterns, or start a Blackout/Sleep
+action.
 If the stream disappears, fixtures return to autonomous behavior in about three
 seconds.
 
@@ -315,15 +337,15 @@ but the named HEX/RGBW physical acceptance matrix remains open. Use explicit
 canaries before an important show. Microphone reactivity is not part of T-Deck
 Patterns yet.
 
-## Sleep / Dark: know the difference
+## Blackout / Sleep: know the difference
 
-The screen defaults to **Dark** for **10 minutes**, the reversible choice. Read
-the selection before applying it; low-power sleep still cannot be cancelled.
+The screen defaults to **Blackout** for **10 minutes**, the reversible choice.
+Read the selection before applying it; deep sleep still cannot be cancelled.
 
 | Action | LEDs | Radio | Can cancel remotely? | Best use |
 |---|---|---|---|---|
-| Dark | rail off | awake | Yes, with Release Dark or lease expiry | Short reversible blackout and diagnostics |
-| Low-power sleep | rails off | off | No; timer wake or physical reset/power cycle | Overnight energy saving |
+| Blackout | rail off | awake | Yes, with End Blackout or lease expiry | Short reversible blackout and diagnostics |
+| Deep sleep | rails off | off | No; timer wake or physical reset/power cycle | Overnight energy saving |
 
 Available durations are 10 minutes and every whole hour from 1 through 12.
 Both actions show live/seen counts and require an on-device confirmation with
@@ -332,30 +354,35 @@ cancel focused by default.
 Before RF, Bridge OS durably records the action, duration, exact mesh sequence,
 bridge uptime, and fresh GPS UTC when available. The newest four actions survive
 a T-Deck reboot and appear under serial `show`; the newest also appears in the
-host dashboard's Master panel. If that write fails, Sleep or Dark is not sent.
+host dashboard's Master panel. If that write fails, Deep sleep or Blackout is
+not sent.
 
-For Dark, use **Release Dark** to return reachable fixtures to autonomous
-behavior. That button cannot wake a sleeping fixture. For Sleep, watch the live
-count fall after the command; only fixtures that were awake to hear it can leave
-the census. At timer wake they resume normal behavior automatically.
+For Blackout, use **End Blackout** to return reachable fixtures to autonomous
+behavior. That button cannot wake a sleeping fixture. For Deep sleep, watch the
+live count fall after the command; only fixtures that were awake to hear it can
+leave the census. At timer wake they resume normal behavior automatically.
 
-Dark-but-awake draw has measured roughly 126-144 mA per fixture. Rails-off sleep
-is sub-mA. Dark is not a power-saving substitute for an overnight sleep.
+Blackout-but-awake draw has measured roughly 126-144 mA per fixture. Rails-off
+sleep is sub-mA. Blackout is not a power-saving substitute for an overnight
+sleep.
 
-## Schedule: Auto, Day Dark, and Night Show
+## Wake: Auto, Wake Fleet, and Night Show
 
-The **Schedule** app shows the T-Deck GPS summary and whether a valid UTC fix is
+The **Wake** app shows the T-Deck GPS summary and whether a valid UTC fix is
 available. It offers three field baselines:
 
 - **Auto:** use UTC civil twilight at Black Rock City, with the fixture's
   bounded solar/power fallback if trustworthy time expires.
-- **Day Dark:** temporarily force the daytime baseline.
+- **Wake Fleet:** repeat the dark daytime baseline for six minutes so sleeping
+  fixtures receive it on timer wake. Each captured fixture then stays in its
+  normal ten-minute control hold for follow-up commands.
 - **Night Show:** temporarily force the nighttime baseline.
 
-The choice is RAM-only and clears on fixture reboot. The T-Deck repeats it for
-six minutes so a fixture on the normal 300-second daytime sleep cadence has a
-full opportunity to hear it. Direct colors and program leases can override this
-baseline; dark and local safety remain above it.
+The choice is RAM-only and clears on fixture reboot. Direct colors and program
+leases can override this baseline; Blackout and local safety remain above it.
+Wake Fleet is not an energy-saving dark command: its purpose is to make the
+fleet reachable. Use Blackout for an already-awake reversible blackout and Deep
+sleep for deliberate radio-off energy saving.
 
 Schedule is a production-direction feature with native coverage and first-canary
 firmware evidence, but the full multi-fixture sleep-cycle acceptance matrix is
@@ -669,7 +696,7 @@ post-OTA profile audit and under the same single-writer declaration as OTA.
 | LED Studio says targets, but lights do not change | lifecycle, class data, another publisher | Check Fleet program/output, wait for class heartbeats, stop CoreS3 audio or other frame sources |
 | Look stops when another app starts | stream ownership | LEDs and Patterns replace one another by design; start the desired one again |
 | Look continues after Back | app semantics | Return to LEDs/Patterns and press Stop |
-| Sleeping fixtures ignore Release Dark | radio is off | Wait for timer wake or physically reset/power-cycle an explicitly identified fixture |
+| Sleeping fixtures ignore End Blackout | radio is off | Wait for timer wake or physically reset/power-cycle an explicitly identified fixture |
 | Knock request produces no sound | local strike gates | Check day/surplus, power tier, solenoid arming, mechanism, and exact target |
 | Touch is unreliable | dust, gloves, glare | Use the trackball; remove protective film and tilt the display |
 | Wrong mesh channel was saved | Settings or serial configuration | Restore 11 and reboot cleanly; coordinate before touching any lab channel |
@@ -936,15 +963,16 @@ The detailed bring-up record is
 
 ## Make the whole reachable fleet dark now
 
-Use T-Deck **Sleep -> dark (radio awake)**, select a duration, compare live/seen,
-and confirm. This is reversible with **Release Dark**, but it is not low power.
+Use T-Deck **Rest -> blackout (LED off, radio on)**, select a duration, compare
+live/seen, and confirm. This is reversible with **End Blackout**, but it is not
+low power.
 
-If energy saving matters more than immediate reachability, use low-power sleep
+If energy saving matters more than immediate reachability, use Deep sleep
 instead and accept that it cannot be cancelled over the radio.
 
 ## Save power overnight
 
-Use T-Deck **Sleep -> low-power sleep**, choose the intended duration, read the
+Use T-Deck **Rest -> deep sleep (radio off)**, choose the intended duration, read the
 confirmation carefully, and record the pre-command live/seen count. Watch live
 fixtures disappear. Record any already-silent units separately; the command did
 not prove they slept.

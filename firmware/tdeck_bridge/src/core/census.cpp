@@ -110,6 +110,9 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->fixtureStateHeardMs = 0;
     peer->hasFw = false;
     peer->fwRev[0] = '\0';
+    peer->hasBq = false;
+    peer->hasPowerSampleFlags = false;
+    peer->powerSampleFlags = 0;
   }
   accountHeartbeat(peer, hb->h.seq, hb->h.uptime_ms);
   peer->rssi = item.rssi;
@@ -190,8 +193,10 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->fieldMaxMv = hb->field_max_mv;
   }
 
-  peer->hasBq = NB_HAS_HB_FIELD(len, bq_part);
-  if (peer->hasBq) {
+  if (NB_HAS_HB_FIELD(len, bq_part)) {
+    // Charger state rides hb-full. Latch it across hb-short frames, just like
+    // fixture state, so the health swatch does not blink UNKNOWN every 5 s.
+    peer->hasBq = true;
     peer->bqVindpmMv = hb->bq_vindpm_mv;
     peer->bqIchgMa = hb->bq_ichg_ma;
     peer->bqVregMv = hb->bq_vreg_mv;
@@ -287,6 +292,10 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->lastCommandSleepSourceSeq = hb->last_command_sleep_source_seq;
     peer->lastProtectBattMv = hb->last_protect_batt_mv;
   }
+  if (NB_HAS_HB_FIELD(len, power_sample_flags)) {
+    peer->hasPowerSampleFlags = true;
+    peer->powerSampleFlags = hb->power_sample_flags;
+  }
   return true;
 }
 
@@ -323,7 +332,16 @@ void Census::fillView(CensusView &v, const PeerStat &p, uint32_t nowMs) const {
   v.winPdrX1000 = p.winPdrX1000;
   v.battMv = p.battMv;
   v.battMa = p.battMa;
+  v.battMaValid = p.hasPowerSampleFlags &&
+                  (p.powerSampleFlags & NB_POWER_SAMPLE_IBAT_VALID);
   v.soc = p.soc;
+  v.supplyMv = p.supplyMv;
+  v.supplyMa = p.supplyMa;
+  v.supplyGood = p.supplyGood;
+  v.hasBq = p.hasBq;
+  v.bqReg16 = p.bqReg16;
+  v.bqStat1 = p.bqStat1;
+  v.bqFault0 = p.bqFault0;
   v.fixtureClass = p.classLatched;
   v.hasFixtureState = p.hasFixtureState;
   v.lifeState = p.hasFixtureState ? p.lifeState : 0;

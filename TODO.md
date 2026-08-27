@@ -4,6 +4,24 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Canary and promote trustworthy short-wake solar telemetry (ADR 0064).**
+  The 120 s / 3 s artifact exposed a real defect: boot disabled charging, sent
+  a full heartbeat before the 6 s battery guard, and could return to sleep
+  before either charge enable or a fresh MAX17260 Current conversion. Source
+  now appends explicit power-sample validity, withholds IBAT trust until 12 s,
+  sends a corrected full heartbeat on the validity transition, and blocks
+  ordinary day sleep until that sample or a bounded 15 s gauge-fault fail-open.
+  Native fixture/T-Deck/host tests and both embedded builds pass; exact T-Deck
+  `8EB508` is flashed with the new UI. Build one clean immutable credentialed
+  fixture artifact, OTA one named battery-backed field canary, and prove early
+  IBAT unverified -> charge enable -> validated positive sun current at about
+  12 s -> 120 s sleep. Remove input and prove negative current on a later wake;
+  also check a terminating/full battery, Health VBAT/CHG colors and detail, the
+  15 s no-gauge fail-open, Wake Fleet capture, and long Blackout lease. Only
+  then widen by explicit short-MAC roster. Include a deliberately persisted
+  commission canary with `--fix-commission-profile` and preserve exact-target
+  detection, NVS correction, and fresh field-profile confirmation in the OTA
+  ledger (Ben/Codex).
 - [ ] **Close LED Studio semantic-white behavior during class-census gaps.**
   The planner correctly sends dedicated W to a known downlight, but maps class
   `unknown` to RGB white and currently consumes only the raw T-Deck census. It
@@ -111,8 +129,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   The current rotated cables enumerate no fixture serial ports, so connect one
   real USB data cable, prove exact identity, preserve NVS, install the immutable
   production artifact, and verify field profile plus reboot ride-through (Ben).
-- [x] **Finish the 120 s sleep / 3 s listen production cadence rollout. DONE
-  2026-08-27.** Clean
+- [~] **Replace the unsafe effective 120 s / 3 s cadence after its completed
+  rollout.** Clean
   production artifact `fx-260826-51d1fe1-p` is built from commit `64264b2`,
   1,206,784 bytes, SHA-256
   `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
@@ -133,7 +151,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   pending-verify-proved after rotating USB power; Cynder and Meowth required the
   separate 930 s PROTECT pass. Ponyta was then corrected exactly from persisted
   commission to field. Protected Thor and the separate Bidoof downlink exception
-  remain intentionally outside this completed rollout scope.
+  remain intentionally outside that rollout scope. **ADR 0064 reopening:** the
+  3 s grace predated the 6 s charge-enable guard and could put a timer-woken
+  fixture back to sleep with charging disabled and cached-zero IBAT. Do not
+  treat the installed cadence as accepted solar behavior. The replacement
+  source enforces a trustworthy approximately 12 s power window with a 15 s
+  fail-open; complete the named-canary and immutable fleet promotion above.
 - [~] **Hardware-validate the first-class multi-target OTA state machine.**
   Source implementation is complete under ADR 0062: the T-Deck has a native-
   tested 160-target, 10 ms round-robin job roster plus explicit begin/add/freeze/
@@ -152,7 +175,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   expansion. Failed-closed canary attempts exposed/fixed serial saturation,
   status-request flooding, and a ledger field collision. Remaining: promote a
   clean immutable T-Deck artifact (the validated image is `dev-local`), run the
-  explicit injected-interruption case, and time one full fleet pass (Ben/Codex).
+  explicit injected-interruption case, and time one full fleet pass. The host
+  now audits every verified target's runtime profile and optional
+  `--fix-commission-profile` performs only exact-target persisted FIELD writes
+  with fresh expected-revision confirmation; hardware-validate that path with
+  the ADR 0064 canary (Ben/Codex).
 - [ ] **Expose positive awake/gather evidence.** Add compiled day-sleep,
   wake-listen, PROTECT-sleep, and PROTECT-grace values plus last-accepted-control
   age to fixture/bridge telemetry. Preserve separate evidence ages for short

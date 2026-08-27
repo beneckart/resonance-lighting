@@ -17,6 +17,20 @@ enum class BatteryHealthBand : uint8_t {
   UNKNOWN,
 };
 
+// Human-readable BQ25628E REG0x1E charge phases. These are charger truth, not
+// an IBAT threshold guess; the separate sample-valid bit says whether the net
+// battery-current number can be trusted.
+enum class ChargeStatus : uint8_t {
+  OFF_AIR = 0,
+  CHARGING_CC,
+  CHARGING_CV,
+  TOP_OFF,
+  NOT_CHARGING,
+  CHARGE_DISABLED,
+  FAULT,
+  UNKNOWN,
+};
+
 enum class HealthRegistryStatus : uint8_t {
   COMMISSIONED = 1,
   COMMISSION_FAILED = 2,
@@ -34,12 +48,27 @@ struct HealthObservation {
   uint8_t id[3];
   uint32_t ageMs;
   int16_t battMv;
+  int16_t battMa;
+  bool battMaValid;
+  int16_t supplyMv;
+  int16_t supplyMa;
+  bool supplyGood;
+  bool hasBq;
+  uint8_t bqReg16;
+  uint8_t bqStat1;
+  uint8_t bqFault0;
 };
 
 struct HealthTile {
   uint8_t id[3];
   BatteryHealthBand band;
+  ChargeStatus chargeStatus;
   int16_t battMv;
+  int16_t battMa;
+  bool battMaValid;
+  int16_t supplyMv;
+  int16_t supplyMa;
+  bool supplyGood;
   uint32_t ageMs;
   const HealthRegistryEntry *registry;  // null for an unexpected live ID
 };
@@ -54,6 +83,9 @@ struct HealthSummary {
 };
 
 BatteryHealthBand batteryHealthBand(bool onAir, int16_t battMv);
+ChargeStatus chargeStatus(bool onAir, bool hasBq, uint8_t bqReg16,
+                          uint8_t bqStat1, uint8_t bqFault0);
+const char *chargeStatusName(ChargeStatus status);
 
 // Registry entries always occupy stable, registry-sorted positions. Any live
 // observation not in the registry is appended in short-ID order; stale foreign

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <string.h>
 
+#include "fixture/src/core/packet.h"
 #include "../core/fleet_registry_generated.h"
 #include "../core/fleet_view_model.h"
 #include "../core/health_model.h"
@@ -231,6 +232,11 @@ static const char *netModeName(uint8_t mode) {
   }
 }
 
+static ChargeStatus peerChargeStatus(const PeerStat &peer, bool fresh) {
+  return chargeStatus(fresh, peer.hasBq, peer.bqReg16, peer.bqStat1,
+                      peer.bqFault0);
+}
+
 // Reported-output chip color: RGBW blended for a display swatch; unlit or
 // unknown fixtures show dark grey so "off" and "no data" stay distinguishable
 // from black-rendering-as-color.
@@ -309,7 +315,7 @@ static void refreshTable(lv_timer_t *) {
     else
       snprintf(buf, sizeof(buf), "-");
     lv_table_set_cell_value(gTable, r, 3, buf);
-    if (row.observed) {
+    if (row.observed && v.battMaValid) {
       if (v.battMa > 0)
         snprintf(buf, sizeof(buf), "+%d", v.battMa);
       else
@@ -321,7 +327,11 @@ static void refreshTable(lv_timer_t *) {
     lv_table_set_cell_value(
         gTable, r, 5,
         row.observed
-            ? (v.hasFixtureState ? programName(v.activeProgram) : "?")
+            ? (v.hasFixtureState
+                   ? (v.lifeState == 0 && v.activeProgram == 0
+                          ? "boot"
+                          : programName(v.activeProgram))
+                   : "?")
             : "-");
   }
 
@@ -390,6 +400,7 @@ static void openDetail(const uint8_t id[3]) {
     uint32_t total = p.recv + p.gaps;
     char win[16];
     char soc[16];
+    char ibat[20];
     char led[72];
     char stateAge[16];
     if (p.winPdrX1000 == 0xFFFF) snprintf(win, sizeof(win), "-");
@@ -398,6 +409,11 @@ static void openDetail(const uint8_t id[3]) {
       snprintf(soc, sizeof(soc), "unknown");
     else
       snprintf(soc, sizeof(soc), "%u%%", p.soc);
+    if (p.hasPowerSampleFlags &&
+        (p.powerSampleFlags & NB_POWER_SAMPLE_IBAT_VALID))
+      snprintf(ibat, sizeof(ibat), "%+d mA", p.battMa);
+    else
+      snprintf(ibat, sizeof(ibat), "-- (unverified)");
     if (p.hasLedOutput)
       snprintf(led, sizeof(led), "%s r%u g%u b%u w%u (%u px)",
                p.ledRailOn && p.ledLitPixels > 0 ? "ON" : "OFF", p.ledR,
@@ -413,8 +429,8 @@ static void openDetail(const uint8_t id[3]) {
         body,
         "age %lus  signal %d dBm (avg %d)\n"
         "PDR %lu/%lu  window %s\n"
-        "VBAT %d.%03dV  IBAT %+dmA  SOC %s\n"
-        "input %d.%03dV  %dmA  %s\n"
+        "VBAT %d.%03dV  IBAT %s  SOC %s\n"
+        "charge %s  in %d.%03dV/%dmA %s\n"
         "class %s  profile %s\n"
         "life %s  tier %s\n"
         "program %s  state %s  net %s\n"
@@ -422,8 +438,9 @@ static void openDetail(const uint8_t id[3]) {
         "fw %s",
         (unsigned long)((now - p.lastHeardMs) / 1000), p.rssi, p.rssiEwma,
         (unsigned long)p.recv, (unsigned long)total, win, p.battMv / 1000,
-        p.battMv >= 0 ? p.battMv % 1000 : -(p.battMv % 1000), p.battMa, soc,
-        p.supplyMv / 1000,
+        p.battMv >= 0 ? p.battMv % 1000 : -(p.battMv % 1000), ibat, soc,
+        chargeStatusName(peerChargeStatus(
+            p, now - p.lastHeardMs < censusFreshMsSafe())), p.supplyMv / 1000,
         p.supplyMv >= 0 ? p.supplyMv % 1000 : -(p.supplyMv % 1000),
         p.supplyMa, p.supplyGood ? "GOOD" : "NOT GOOD",
         className(p.classLatched), profileName(p.hasFixtureState, p.profile),

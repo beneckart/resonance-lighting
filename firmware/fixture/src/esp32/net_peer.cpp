@@ -41,6 +41,10 @@ static bool gProgramSetSeen = false;
 static uint8_t gProgramSetSrc[3] = {};
 static uint32_t gProgramSetSeq = 0;
 static uint32_t gProgramSetSenderUptime = 0;
+static bool gProfileSetSeen = false;
+static uint8_t gProfileSetSrc[3] = {};
+static uint32_t gProfileSetSeq = 0;
+static uint32_t gProfileSetSenderUptime = 0;
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -48,6 +52,7 @@ static uint32_t gDlRx = 0, gDlGaps = 0;
 static int8_t gDlRssi = 0;
 static bool gDlSeen = false;
 static uint32_t gDirectSeen = 0, gDirectMatched = 0;
+static uint8_t gLastPowerSampleFlags = 0;
 
 static ShowFrameIn gShowFrame = {};
 static uint8_t gIdentColor = 0, gIdentBlink = 0, gIdentValue = 255;
@@ -179,6 +184,7 @@ void netPeerSendHeartbeat(bool full) {
     hb.sleep_audit_flags |= 0x04;
     hb.last_protect_batt_mv = audit.batt_mv;
   }
+  hb.power_sample_flags = powerSampleFlags();
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -486,15 +492,30 @@ static void processPacket(const RxItem &it) {
     const NbProfile *p = (const NbProfile *)it.data;
     if (!nbTargetMatches(p->target_id, gMyId)) return;
     if (p->profile > PROFILE_PROD) return;
+    if (gProfileSetSeen && h->seq == gProfileSetSeq &&
+        h->uptime_ms == gProfileSetSenderUptime &&
+        memcmp(h->src_id, gProfileSetSrc, 3) == 0)
+      return; // repeated RF copy; never multiply one requested NVS write
     espNowNoteControlRx();
+    bool ok = true;
     if (p->flags & 0x01) {
-      nvsPersistProfile(p->profile);
+      ok = nvsPersistProfile(p->profile);
     } else {
       gCfg.profile = p->profile; // RAM-only until reboot
     }
-    Serial.printf("profile -> %s (%s)\n",
+    if (ok) {
+      gProfileSetSeen = true;
+      memcpy(gProfileSetSrc, h->src_id, 3);
+      gProfileSetSeq = h->seq;
+      gProfileSetSenderUptime = h->uptime_ms;
+      // Profile is full-heartbeat state. Confirm the exact-target mutation now
+      // instead of making an OTA operator wait up to the normal 60 s cadence.
+      netPeerSendHeartbeat(true);
+    }
+    Serial.printf("profile -> %s (%s%s)\n",
                   p->profile == PROFILE_DEV ? "commission" : "field",
-                  (p->flags & 0x01) ? "persisted" : "until reboot");
+                  (p->flags & 0x01) ? "persisted" : "until reboot",
+                  ok ? "" : " FAILED");
     break;
   }
   case NB_COMMISSION_DEFAULT: {
@@ -541,6 +562,7 @@ static void processPacket(const RxItem &it) {
 void netPeerInit() {
   uint32_t now = millis();
   strikeEventInit(gStrikeEvent);
+  gLastPowerSampleFlags = powerSampleFlags();
   gNextShortMs = now + jittered(shortPeriodMs());
   gNextFullMs = now + jittered(fullPeriodMs());
 }
@@ -555,6 +577,16 @@ void netPeerTick() {
   }
 
   uint32_t now = millis();
+  uint8_t powerFlags = powerSampleFlags();
+  if (powerFlags != gLastPowerSampleFlags) {
+    // A settled validity transition is operationally important and otherwise
+    // could miss a whole short wake (hb-full is normally every 60 s). Publish
+    // one full correction immediately, including initialized lifecycle state
+    // and post-guard BQ charge status.
+    gLastPowerSampleFlags = powerFlags;
+    netPeerSendHeartbeat(true);
+    gNextFullMs = now + jittered(fullPeriodMs());
+  }
   uint16_t strikePulseMs = 0;
   StrikeEventTick strikeTick = strikeEventTick(gStrikeEvent, now, strikePulseMs);
   if (strikeTick == STRIKE_EVENT_FIRE) {

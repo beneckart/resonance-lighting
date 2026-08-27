@@ -124,6 +124,15 @@ def parse_args() -> argparse.Namespace:
         help="after the deadline, flash and verify only named targets actually discovered",
     )
     parser.add_argument("--pending-verify-s", type=float, default=25.0)
+    parser.add_argument(
+        "--fix-commission-profile",
+        action="store_true",
+        help=(
+            "after every selected target verifies, persist FIELD profile with one "
+            "exact-target command for each verified fixture still reporting commission"
+        ),
+    )
+    parser.add_argument("--profile-timeout", type=float, default=90.0)
     parser.add_argument("--site", default="ca")
     parser.add_argument("--notes", default="")
     parser.add_argument("--job-out", help="exclusive-create path for unified job JSONL")
@@ -757,6 +766,85 @@ def verify_pending_window(
     return proven, missing
 
 
+def commission_profile_targets(proven: dict[str, dict]) -> tuple[list[str], list[str]]:
+    commission: list[str] = []
+    unknown: list[str] = []
+    for target, peer in proven.items():
+        profile = peer.get("profile")
+        if profile == 0:
+            commission.append(target)
+        elif profile != 1:
+            unknown.append(target)
+    return sorted(commission), sorted(unknown)
+
+
+def reconcile_field_profiles(
+    args: argparse.Namespace, proven: dict[str, dict], ledger: JobLedger
+) -> list[str]:
+    commission, unknown = commission_profile_targets(proven)
+    for target in commission:
+        ledger.emit("PROFILE", "commission_detected", target)
+    for target in unknown:
+        ledger.emit("PROFILE", "profile_unknown", target)
+    if unknown:
+        log("profile unknown after OTA: " + ",".join(unknown))
+    if not commission:
+        log("profile audit: no verified fixture remains in commission mode")
+        if unknown and args.fix_commission_profile:
+            raise SystemExit(
+                "post-OTA profile evidence unavailable for: " + ",".join(unknown)
+            )
+        return []
+    log("profile audit: commission mode detected on " + ",".join(commission))
+    if not args.fix_commission_profile:
+        log(
+            "commission profile left unchanged; repeat with "
+            "--fix-commission-profile under the same declared writer"
+        )
+        return commission
+
+    # Every mutation is exact-target and occurs only after that same target's
+    # new artifact survived pending verify. There is deliberately no broadcast
+    # profile command in this workflow.
+    for target in commission:
+        post_dashboard_command(
+            args.dashboard_url,
+            f"F{target}:1:1",
+            f"Persist field profile {target}",
+        )
+        ledger.emit("PROFILE", "field_persist_requested", target)
+
+    pending = set(commission)
+    deadline = time.monotonic() + args.profile_timeout
+    while pending and time.monotonic() < deadline:
+        peers = dashboard_state(args.dashboard_url).get("peers") or {}
+        for target in list(pending):
+            peer = peers.get(target)
+            if (
+                isinstance(peer, dict)
+                and int(peer.get("age_ms", 10**9)) <= args.fresh_age_ms
+                and peer.get("firmware_rev") == args.expect_fw
+                and peer.get("profile") == 1
+            ):
+                pending.remove(target)
+                ledger.emit("PROFILE", "field_persist_confirmed", target)
+                log(f"field profile confirmed: {target}")
+        if pending:
+            time.sleep(1.0)
+    if pending:
+        for target in sorted(pending):
+            ledger.emit("PROFILE", "field_persist_unconfirmed", target)
+        raise SystemExit(
+            "field profile correction unconfirmed for: "
+            + ",".join(sorted(pending))
+        )
+    if unknown:
+        raise SystemExit(
+            "post-OTA profile evidence unavailable for: " + ",".join(unknown)
+        )
+    return []
+
+
 def main() -> None:
     args = parse_args()
     targets = list(
@@ -825,6 +913,9 @@ def main() -> None:
         proven, missing = verify_pending_window(
             args, selected, baselines, ledger
         )
+        lingering_commission: list[str] = []
+        if not missing:
+            lingering_commission = reconcile_field_profiles(args, proven, ledger)
         deferred = [target for target in targets if target not in selected]
         ledger.emit(
             "CLEANUP",
@@ -832,6 +923,7 @@ def main() -> None:
             verified=sorted(proven),
             deferred=deferred,
             failed=missing,
+            lingering_commission=lingering_commission,
         )
         log(
             f"fleet batch complete: verified={len(proven)} "

@@ -21,6 +21,35 @@ BatteryHealthBand batteryHealthBand(bool onAir, int16_t battMv) {
   return BatteryHealthBand::LOW_BATTERY;
 }
 
+ChargeStatus chargeStatus(bool onAir, bool hasBq, uint8_t bqReg16,
+                          uint8_t bqStat1, uint8_t bqFault0) {
+  if (!onAir) return ChargeStatus::OFF_AIR;
+  if (!hasBq || bqReg16 == 0xFF || bqStat1 == 0xFF || bqFault0 == 0xFF)
+    return ChargeStatus::UNKNOWN;
+  if (bqFault0 != 0) return ChargeStatus::FAULT;
+  if ((bqReg16 & (1u << 5)) == 0) return ChargeStatus::CHARGE_DISABLED;
+  switch ((bqStat1 >> 3) & 0x03) {
+    case 1: return ChargeStatus::CHARGING_CC;
+    case 2: return ChargeStatus::CHARGING_CV;
+    case 3: return ChargeStatus::TOP_OFF;
+    default: return ChargeStatus::NOT_CHARGING;
+  }
+}
+
+const char *chargeStatusName(ChargeStatus status) {
+  switch (status) {
+    case ChargeStatus::CHARGING_CC: return "CHARGING_CC";
+    case ChargeStatus::CHARGING_CV: return "CHARGING_CV";
+    case ChargeStatus::TOP_OFF: return "TOP_OFF";
+    case ChargeStatus::NOT_CHARGING: return "NOT_CHARGING/DONE";
+    case ChargeStatus::CHARGE_DISABLED: return "CHARGE_DISABLED";
+    case ChargeStatus::FAULT: return "CHARGER_FAULT";
+    case ChargeStatus::UNKNOWN: return "UNKNOWN";
+    case ChargeStatus::OFF_AIR: return "OFF_AIR";
+  }
+  return "UNKNOWN";
+}
+
 const HealthRegistryEntry *healthRegistryFind(
     const HealthRegistryEntry *registry, size_t registryCount,
     const uint8_t id[3]) {
@@ -66,8 +95,19 @@ static void fillTile(HealthTile *tile, const uint8_t id[3],
   tile->registry = registry;
   tile->ageMs = observation ? observation->ageMs : UINT32_MAX;
   tile->battMv = observation ? observation->battMv : 0;
+  tile->battMa = observation ? observation->battMa : 0;
+  tile->battMaValid = observation && observation->battMaValid;
+  tile->supplyMv = observation ? observation->supplyMv : 0;
+  tile->supplyMa = observation ? observation->supplyMa : 0;
+  tile->supplyGood = observation && observation->supplyGood;
+  bool onAir = observation && observation->ageMs < freshMs;
   tile->band = batteryHealthBand(observation && observation->ageMs < freshMs,
                                 tile->battMv);
+  tile->chargeStatus = chargeStatus(
+      onAir, observation && observation->hasBq,
+      observation ? observation->bqReg16 : 0xFF,
+      observation ? observation->bqStat1 : 0xFF,
+      observation ? observation->bqFault0 : 0xFF);
 }
 
 size_t healthBuildTiles(const HealthRegistryEntry *registry,

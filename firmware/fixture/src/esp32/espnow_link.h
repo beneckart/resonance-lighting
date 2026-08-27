@@ -12,7 +12,7 @@ struct RxItem {
   int8_t rssi;
   uint8_t len;
   uint32_t rx_ms; // callback receipt time; scheduled events do not use drain time
-  uint8_t data[192]; // headroom over the full heartbeat + fixture-era packets
+  uint8_t data[250]; // ESP-NOW payload ceiling; append-only heartbeat headroom
 };
 static_assert(sizeof(NbHeartbeat) <= sizeof(((RxItem *)0)->data),
               "heartbeat outgrew the rx buffer -- bump RxItem::data");

@@ -200,8 +200,7 @@ struct __attribute__((packed)) NbHeartbeat {
   uint16_t recovery_detect_mv; // BQ ADC after the 30 mA presence test
   // tail 16 (sleep provenance; hb-full only). `sleep_audit_flags`: bit0 has
   // immediate prior sleep, bit1 has durable operator sleep, bit2 has durable
-  // PROTECT entry. Cause values are SleepCause. The compact 32 B tail brings
-  // the full heartbeat to exactly the fixture RX buffer's existing 192 B.
+  // PROTECT entry. Cause values are SleepCause.
   uint8_t sleep_audit_flags;
   uint8_t last_sleep_cause;
   uint32_t last_sleep_s;
@@ -216,7 +215,19 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t last_command_sleep_source_id[3];
   uint32_t last_command_sleep_source_seq;
   int16_t last_protect_batt_mv;
+  // tail 17 (power-sample validity; hb-full only). A successful I2C read is
+  // not enough to certify IBAT immediately after deep sleep: the MAX17260 can
+  // still be returning its hibernate-era conversion. Old senders end at tail
+  // 16, so new receivers treat their current as unverified instead of silently
+  // interpreting zero as energy balance.
+  uint8_t power_sample_flags;
 };
+
+// NbHeartbeat::power_sample_flags. Append bits; never renumber them.
+#define NB_POWER_SAMPLE_IBAT_VALID 0x01u
+#define NB_POWER_SAMPLE_VBAT_VALID 0x02u
+#define NB_POWER_SAMPLE_SOC_VALID 0x04u
+#define NB_POWER_SAMPLE_CHARGER_VALID 0x08u
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?
 #define NB_HAS_HB_FIELD(len, field) \

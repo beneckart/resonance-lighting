@@ -13,6 +13,11 @@
 
 // MAX17260 reads +8% high; ADR 0023, replicated across 8 sessions.
 #define RES_GAUGE_CURRENT_DIVISOR 1.08f
+// The charger presence guard runs at 6 s. In hibernate the MAX17260 Current
+// register can take another 5.625 s to update, so IBAT is not wire-valid until
+// 12 s. A 15 s fail-open bounds awake drain if the gauge is absent or faulted.
+static constexpr uint32_t RES_IBAT_VALID_AFTER_BOOT_MS = 12000UL;
+static constexpr uint32_t RES_POWER_WAKE_FAILOPEN_MS = 15000UL;
 
 // BQ25628E precharge limit. The 30 mA POR value stranded deeply discharged
 // production LFPs near 2.8 V despite valid solar input. Ben selected 300 mA
@@ -68,6 +73,11 @@ float batteryVolts();
 float batteryMa();     // corrected (/1.08)
 float batteryMaRaw();
 int batterySocPct();   // -1 = no reading; ADVISORY ONLY, never a control gate
+// Wire-ready validity for cached power samples. IBAT becomes valid only after
+// a complete worst-case post-charge-enable MAX17260 hibernate update window.
+uint8_t powerSampleFlags();
+bool batteryCurrentValid();
+bool powerWakeSampleWindowComplete();
 float supplyVolts();
 float supplyMa();
 bool supplyGood();
