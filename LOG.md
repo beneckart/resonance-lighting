@@ -10,6 +10,39 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Hawkeye passed ADR 0064 OTA canary
+
+Declared exact T-Deck `8EB508` as the sole writer and exact fixture `9F2664`
+(Hawkeye) as the only target. Fresh preflight showed the battery-backed field
+fixture on `fx-260826-51d1fe1-p`, 3.571 V battery, +317 mA battery current,
+6.137 V / 244 mA input, FIELD profile, DAY_ACTIVE lifecycle, FULL tier, DARK
+program, and no protect latch. OTA job `192D6A8B` used retained artifact
+`fx-260827-db0cb73-p`, source `8c0e577ed05b32453aeeefa239819920551e7a6d`,
+and binary SHA-256
+`e30c42802f34966ca5c959539d20bf9c737786c935dc81c3934a3ff638386b5c`.
+No other fixture was targeted.
+
+The shared-WiFi maintenance endpoint was found at `192.168.1.254`, fresh
+maintenance power preflight passed at 3.570 V battery and 6.026 V / 264 mA
+input, and the 1,207,408-byte upload returned its reboot ACK. The host then saw
+the exact new revision at 8.649 s uptime and did not accept the canary until a
+fresh software-reset heartbeat at 28.521 s uptime had survived the 25-second
+pending-verify gate. Profile audit confirmed FIELD; no commission correction or
+NVS write was needed. The job completed with one verified, zero deferred, and
+zero failed targets. The generated job and upload ledgers are retained under
+`ops/bench/data/Nevada City/`.
+
+Post-verify read-only telemetry reported 3.567-3.573 V, +312 to +323 mA IBAT,
+6.157-6.232 V / 240-242 mA input, charge status 2 (`CHARGING_CV`), FULL tier,
+and LEDs off. At 79.741 s uptime Hawkeye completed the sustained-solar probe
+and returned to DAY_ACTIVE. OTA reboot cleared the prior volatile DARK lease,
+so its program returned to IDLE. This proves artifact identity, power
+ride-through, corrected positive-sun telemetry, solar-active transition, and
+the profile audit. It does not yet prove the no-surplus 120-second sleep/wake
+path because Hawkeye's input remained above the 150 mA DAY_ACTIVE threshold.
+Hold fleet promotion until a low-input wake proves the validity transition and
+ordinary sleep behavior.
+
 ## 2026-08-27 -- Ben + Codex -- ADR 0064 immutable fixture candidate retained
 
 Committed the complete short-wake power-truth change as clean source

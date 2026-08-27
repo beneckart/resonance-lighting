@@ -15,15 +15,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `8EB508` is flashed with the new UI. Clean immutable credentialed candidate
   `fx-260827-db0cb73-p` is retained from source `8c0e577`, 1,207,408 bytes,
   SHA-256 `e30c42802f34966ca5c959539d20bf9c737786c935dc81c3934a3ff638386b5c`.
-  OTA one named battery-backed field canary and prove early
-  IBAT unverified -> charge enable -> validated positive sun current at about
-  12 s -> 120 s sleep. Remove input and prove negative current on a later wake;
-  also check a terminating/full battery, Health VBAT/CHG colors and detail, the
-  15 s no-gauge fail-open, Wake Fleet capture, and long Blackout lease. Only
-  then widen by explicit short-MAC roster. Include a deliberately persisted
-  commission canary with `--fix-commission-profile` and preserve exact-target
-  detection, NVS correction, and fresh field-profile confirmation in the OTA
-  ledger (Ben/Codex).
+  **2026-08-27 canary:** sole writer `8EB508` OTA-flashed only field-profile
+  Hawkeye `9F2664`; job `192D6A8B` proved exact-revision mesh rejoin past the
+  pending-verify gate with no commission fixture or mutation. Read-only
+  post-reboot evidence showed +312 to +323 mA at 3.567-3.573 V, strong input,
+  `CHARGING_CV`, and DAY_ACTIVE after the 60 s solar-surplus confirmation. The
+  exact job/upload ledgers are retained under `ops/bench/data/Nevada City/`.
+  This strong-solar run could not exercise ordinary sleep. Before widening,
+  reduce/remove Hawkeye's input and prove early IBAT unverified -> charge enable
+  -> validated signed current at about 12 s -> 120 s sleep -> later timer wake.
+  Also prove negative current, check a terminating/full battery, Health VBAT/CHG
+  colors and detail, the 15 s no-gauge fail-open, Wake Fleet capture, and long
+  Blackout lease. Include a deliberately persisted commission canary with
+  `--fix-commission-profile` and preserve exact-target detection, NVS correction,
+  and fresh field-profile confirmation in its OTA ledger (Ben/Codex).
 - [ ] **Close LED Studio semantic-white behavior during class-census gaps.**
   The planner correctly sends dedicated W to a known downlight, but maps class
   `unknown` to RGB white and currently consumes only the raw T-Deck census. It
