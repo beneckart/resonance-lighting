@@ -21,6 +21,18 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
   hb.life_state = 3;
   hb.active_program = 1;
   hb.fixture_class = fixtureClass;
+  hb.sleep_audit_flags = 0x07;
+  hb.last_sleep_cause = 3;
+  hb.last_sleep_s = 3600;
+  hb.last_sleep_batt_mv = 3175;
+  hb.last_sleep_source_id[0] = 0x9F;
+  hb.last_sleep_source_id[1] = 0x0E;
+  hb.last_sleep_source_id[2] = 0x7C;
+  hb.last_sleep_source_seq = 42;
+  hb.last_command_sleep_cause = 3;
+  hb.last_command_sleep_s = 3600;
+  hb.last_command_sleep_source_seq = 42;
+  hb.last_protect_batt_mv = 3045;
   snprintf(hb.fw_rev, sizeof(hb.fw_rev), "fx-260819-abcdef0-p");
   RxItem item = {};
   item.ms = 0;
@@ -62,9 +74,14 @@ int main() {
   // --- hb-full latches class; later hb-short keeps it ---
   assert(c.ingest(makeHb(1, 2, 2000, (int)NB_HB_FULL_LEN, -50, 2), 2000));
   assert(p1->hasLedOutput && p1->classLatched == 2 && p1->hasFw);
+  assert(p1->hasSleepAudit && p1->sleepAuditFlags == 0x07);
+  assert(p1->lastSleepCause == 3 && p1->lastSleepS == 3600);
+  assert(p1->lastSleepBattMv == 3175 && p1->lastSleepSourceSeq == 42);
+  assert(p1->lastProtectBattMv == 3045);
   assert(strncmp(p1->fwRev, "fx-260819", 9) == 0);
   assert(c.ingest(makeHb(1, 3, 3000, NB_HB_SHORT_LEN, -50), 3000));
   assert(!p1->hasLedOutput && p1->classLatched == 2);  // latched across short
+  assert(p1->hasSleepAudit); // provenance remains visible across hb-short
   CensusView v[8];
   size_t n = c.snapshot(v, 8, 3000);
   assert(n == 1 && v[0].fixtureClass == 2);

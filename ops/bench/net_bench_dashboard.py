@@ -32,6 +32,8 @@ import serial  # pyserial
 RX_MASTER = re.compile(
     r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)"
     r"(?: fw=(\S+))?"
+    r"(?: act=(\d+) actv=(\d+) actseq=(\d+) actup=(\d+) actutc=(\d+) actf=([0-9A-Fa-f]{2})"
+    r" acttgt=([0-9A-Fa-f]{6}) actn=(\d+))?"
 )
 RX_PEER = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
@@ -55,6 +57,9 @@ RX_PEER = re.compile(
     r"(?: prof=(\d+) life=(\d+) ptier=(\d+) prog=(\d+) nmin=(\d+))?"
     r"(?: cls=(\d+) ledrail=(\d+) ledr=(\d+) ledg=(\d+) ledb=(\d+) ledw=(\d+) ledn=(\d+))?"
     r"(?: sens=(\d+) cmis=(\d+) rec=(\d+) recmv=(\d+))?"
+    r"(?: audf=(\d+) slpr=(\d+) slps=(\d+) slpmv=(-?\d+) slpprof=(\d+) slplife=(\d+)"
+    r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
+    r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -67,6 +72,10 @@ RX_TIME = re.compile(
     r"delta=(-?\d+)"
 )
 RX_BOOT = re.compile(r"=== Resonance (?:net-bench|fixture) (\S+) ===")
+RX_MAINT_CAMPAIGN = re.compile(
+    r"nb-maint job=([0-9A-Fa-f]{8}) phase=(\d+) active=([01]) targets=(\d+) "
+    r"dispatch=(\d+) remain=(\d+) cycle=(\d+)"
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CALLSIGNS = REPO_ROOT / "ops" / "fleet" / "callsigns.csv"
@@ -155,6 +164,7 @@ class DashboardState:
         self.last_command: dict[str, Any] | None = None
         self.serial_handle: serial.Serial | None = None
         self.bridge_boot_fw: str | None = None
+        self.maintenance_campaign: dict[str, Any] | None = None
 
     def add_event(self, kind: str, payload: dict[str, Any]) -> None:
         with self.lock:
@@ -183,6 +193,13 @@ class DashboardState:
                     0, round((now_mono - received) * 1000)
                 )
                 time_sources[pid] = public
+            maintenance_campaign = None
+            if self.maintenance_campaign:
+                maintenance_campaign = dict(self.maintenance_campaign)
+                received = maintenance_campaign.pop("_received_monotonic")
+                maintenance_campaign["status_age_ms"] = max(
+                    0, round((now_mono - received) * 1000)
+                )
             return {
                 "ts_utc": now_iso(),
                 "serial": dict(self.serial_status),
@@ -192,6 +209,7 @@ class DashboardState:
                 "scans": list(self.scans),
                 "raw": list(self.raw),
                 "last_command": dict(self.last_command) if self.last_command else None,
+                "maintenance_campaign": maintenance_campaign,
             }
 
     def mark_serial(self, **kwargs: Any) -> None:
@@ -266,9 +284,45 @@ class SerialWorker(threading.Thread):
             self.state.serial_status["lines"] = int(self.state.serial_status.get("lines", 0)) + 1
             self.state.raw.append({"ts_utc": ts, "line": line})
 
+        m = RX_MAINT_CAMPAIGN.search(line)
+        if m:
+            job_id, phase, active, targets, dispatches, remain_ms, cycle_ms = m.groups()
+            row = {
+                "job_id": job_id.upper(),
+                "phase": int(phase),
+                "active": bool(int(active)),
+                "target_count": int(targets),
+                "dispatch_count": int(dispatches),
+                "remaining_ms": int(remain_ms),
+                "cycle_ms": int(cycle_ms),
+                "ts_utc": ts,
+                "_received_monotonic": time.monotonic(),
+            }
+            with self.state.lock:
+                self.state.maintenance_campaign = row
+            self.state.add_event("maintenance_campaign", row)
+            return
+
         m = RX_MASTER.search(line)
         if m:
-            pid, ch, frames, send_ok, send_fail, up, bv, fw = m.groups()
+            (
+                pid,
+                ch,
+                frames,
+                send_ok,
+                send_fail,
+                up,
+                bv,
+                fw,
+                action,
+                action_value,
+                action_seq,
+                action_up,
+                action_utc,
+                action_flags,
+                action_target,
+                action_count,
+            ) = m.groups()
             row = {
                 "id": pid,
                 "channel": int(ch),
@@ -278,6 +332,14 @@ class SerialWorker(threading.Thread):
                 "uptime_ms": int(up),
                 "battery_v": float(bv),
                 "firmware_rev": fw or self.state.bridge_boot_fw,
+                "action": int(action) if action is not None else None,
+                "action_value": int(action_value) if action_value is not None else None,
+                "action_mesh_seq": int(action_seq) if action_seq is not None else None,
+                "action_bridge_uptime_ms": int(action_up) if action_up is not None else None,
+                "action_utc_s": int(action_utc) if action_utc is not None else None,
+                "action_flags": int(action_flags, 16) if action_flags is not None else None,
+                "action_target": action_target,
+                "action_count": int(action_count) if action_count is not None else None,
                 "ts_utc": ts,
             }
             with self.state.lock:
@@ -440,6 +502,20 @@ class SerialWorker(threading.Thread):
                 class_mismatch,
                 recovery_state,
                 recovery_detect_mv,
+                sleep_audit_flags,
+                last_sleep_cause,
+                last_sleep_s,
+                last_sleep_batt_mv,
+                last_sleep_profile,
+                last_sleep_life_state,
+                last_sleep_power_tier,
+                last_sleep_source,
+                last_sleep_source_seq,
+                last_command_sleep_cause,
+                last_command_sleep_s,
+                last_command_sleep_source,
+                last_command_sleep_source_seq,
+                last_protect_batt_mv,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -516,6 +592,20 @@ class SerialWorker(threading.Thread):
                 "class_mismatch": bool(int(class_mismatch)) if class_mismatch is not None else None,
                 "recovery_state": int(recovery_state) if recovery_state is not None else None,
                 "recovery_detect_mv": maybe_u16(recovery_detect_mv),
+                "sleep_audit_flags": int(sleep_audit_flags) if sleep_audit_flags is not None else None,
+                "last_sleep_cause": int(last_sleep_cause) if last_sleep_cause is not None else None,
+                "last_sleep_s": int(last_sleep_s) if last_sleep_s is not None else None,
+                "last_sleep_batt_mv": int(last_sleep_batt_mv) if last_sleep_batt_mv is not None else None,
+                "last_sleep_profile": int(last_sleep_profile) if last_sleep_profile is not None else None,
+                "last_sleep_life_state": int(last_sleep_life_state) if last_sleep_life_state is not None else None,
+                "last_sleep_power_tier": int(last_sleep_power_tier) if last_sleep_power_tier is not None else None,
+                "last_sleep_source": last_sleep_source,
+                "last_sleep_source_seq": int(last_sleep_source_seq) if last_sleep_source_seq is not None else None,
+                "last_command_sleep_cause": int(last_command_sleep_cause) if last_command_sleep_cause is not None else None,
+                "last_command_sleep_s": int(last_command_sleep_s) if last_command_sleep_s is not None else None,
+                "last_command_sleep_source": last_command_sleep_source,
+                "last_command_sleep_source_seq": int(last_command_sleep_source_seq) if last_command_sleep_source_seq is not None else None,
+                "last_protect_batt_mv": int(last_protect_batt_mv) if last_protect_batt_mv is not None else None,
                 "ts_utc": ts,
             }
             if bq16 is not None:
@@ -596,6 +686,20 @@ class SerialWorker(threading.Thread):
                         "class_mismatch",
                         "recovery_state",
                         "recovery_detect_mv",
+                        "sleep_audit_flags",
+                        "last_sleep_cause",
+                        "last_sleep_s",
+                        "last_sleep_batt_mv",
+                        "last_sleep_profile",
+                        "last_sleep_life_state",
+                        "last_sleep_power_tier",
+                        "last_sleep_source",
+                        "last_sleep_source_seq",
+                        "last_command_sleep_cause",
+                        "last_command_sleep_s",
+                        "last_command_sleep_source",
+                        "last_command_sleep_source_seq",
+                        "last_protect_batt_mv",
                     ):
                         row[key] = previous.get(key)
                 self.state.peers[pid] = row
@@ -1068,6 +1172,26 @@ const LIFE_STATE = {0: "boot", 1: "day charge", 2: "day active", 3: "night show"
 const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
 const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback", 5: "contagion"};
 const RECOVERY_STATE = {0: "normal", 1: "recovery waiting", 2: "recovering", 3: "recovery refused", 4: "recovered", 5: "recovery I/O error"};
+const SLEEP_CAUSE = {0: "none", 1: "battery protect", 2: "day charge", 3: "fleet radio command", 4: "targeted radio command", 5: "transport", 6: "USB serial"};
+const ACTION_AUDIT = {0: "none", 1: "sleep all", 2: "dark all", 3: "release all", 4: "force day", 5: "force night", 6: "force auto"};
+
+function sleepAuditSummary(peer) {
+  if (!finite(peer.sleep_audit_flags)) return [];
+  const flags = Number(peer.sleep_audit_flags);
+  const rows = [];
+  if (flags & 1) {
+    const reason = SLEEP_CAUSE[peer.last_sleep_cause] || `sleep reason ${peer.last_sleep_cause}`;
+    const source = peer.last_sleep_source && peer.last_sleep_source !== "000000"
+      ? ` from ${peer.last_sleep_source} seq ${peer.last_sleep_source_seq}` : "";
+    rows.push(`last wake: ${reason}, ${Math.round(Number(peer.last_sleep_s) / 60)} min at ${peer.last_sleep_batt_mv} mV${source}`);
+  }
+  if (flags & 2) {
+    const reason = SLEEP_CAUSE[peer.last_command_sleep_cause] || `sleep reason ${peer.last_command_sleep_cause}`;
+    rows.push(`durable command receipt: ${reason}, ${Math.round(Number(peer.last_command_sleep_s) / 60)} min from ${peer.last_command_sleep_source} seq ${peer.last_command_sleep_source_seq}`);
+  }
+  if (flags & 4) rows.push(`last PROTECT entry: ${peer.last_protect_batt_mv} mV`);
+  return rows;
+}
 
 function sensorSignature(peer) {
   if (!finite(peer.sensor_bits)) return "sensor signature unknown";
@@ -1299,6 +1423,7 @@ function renderFleet(peers, selectedId) {
   const tier = POWER_TIER[selected.power_tier] || "unknown tier";
   const program = PROGRAM[selected.active_program] || "unknown program";
   const recovery = RECOVERY_STATE[selected.recovery_state] || "recovery unknown";
+  const sleepRows = sleepAuditSummary(selected);
   document.getElementById("selectedSummary").innerHTML =
     `<span class="summary-light" style="--summary-light:${lightColor}"></span>` +
     `<strong>${esc(peerCallsign(selected))}</strong>` +
@@ -1308,7 +1433,8 @@ function renderFleet(peers, selectedId) {
     `<span>${esc(sensorSignature(selected))}${selected.class_mismatch ? " / class mismatch" : ""}</span>` +
     `<span>${esc(recovery)}${finite(selected.recovery_detect_mv) ? ` (${selected.recovery_detect_mv} mV detect)` : ""}</span>` +
     `<span>heard ${msAge(selected.age_ms)} ago</span><span>${esc(life)} / ${esc(tier)} / ${esc(program)}</span>` +
-    `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : (light.known ? "light off" : "light telemetry unknown")}</span>`;
+    `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : (light.known ? "light off" : "light telemetry unknown")}</span>` +
+    sleepRows.map(row => `<span>${esc(row)}</span>`).join("");
 }
 function sortedPeers(s) {
   return Object.values(s.peers || {}).sort((a, b) => a.id.localeCompare(b.id));
@@ -1687,6 +1813,10 @@ function render(s) {
   });
 
   const m = s.master;
+  const actionName = m ? (ACTION_AUDIT[m.action] || `action ${m.action}`) : "none";
+  const actionWhen = m && (Number(m.action_flags) & 1)
+    ? new Date(Number(m.action_utc_s) * 1000).toLocaleString()
+    : (m && finite(m.action_bridge_uptime_ms) ? `bridge uptime ${Math.round(Number(m.action_bridge_uptime_ms) / 1000)} s` : "--");
   document.getElementById("masterRows").innerHTML = m ? `
     <tr><th>id</th><td>${esc(m.id)}</td></tr>
     <tr><th>firmware</th><td>${esc(m.firmware_rev || "?")}</td></tr>
@@ -1694,7 +1824,8 @@ function render(s) {
     <tr><th>uptime</th><td>${Math.round(m.uptime_ms / 1000)} s</td></tr>
     <tr><th>battery</th><td>${fmt(m.battery_v, 3)} V</td></tr>
     <tr><th>frames</th><td>${m.frames}</td></tr>
-    <tr><th>send fail</th><td>${m.send_fail}</td></tr>` : `<tr><td class="empty">Waiting for master line</td></tr>`;
+    <tr><th>send fail</th><td>${m.send_fail}</td></tr>
+    <tr><th>last action</th><td>${esc(actionName)}${m.action ? `, value ${m.action_value}, seq ${m.action_mesh_seq}` : ""}<div class="row-sub">${esc(actionWhen)}; ${m.action_count ?? 0} retained</div></td></tr>` : `<tr><td class="empty">Waiting for master line</td></tr>`;
 
   document.getElementById("rawLog").innerHTML = (s.raw || []).slice(-22).map(r => `<div>${esc(r.line)}</div>`).join("");
 }
@@ -1969,6 +2100,15 @@ def valid_command(cmd: str) -> bool:
         value = int(m.group(1))
         return 1 <= value <= 255
     if re.fullmatch(r"U[0-9A-Fa-f]{6}", cmd):
+        return True
+    if re.fullmatch(r"F[0-9A-Fa-f]{6}:[01]:[01]", cmd):
+        return cmd[1:7] != "000000"
+    m = re.fullmatch(r"uB([0-9A-Fa-f]{8}):(\d{1,4})", cmd)
+    if m:
+        return m.group(1) != "00000000" and 1 <= int(m.group(2)) <= 3600
+    if re.fullmatch(r"uA(?!00000000)[0-9A-Fa-f]{8}:[0-9A-Fa-f]{6}", cmd):
+        return not cmd.endswith(":000000")
+    if re.fullmatch(r"u[FS](?!00000000)[0-9A-Fa-f]{8}", cmd):
         return True
     if re.fullmatch(r"T[0-9A-Fa-f]{6}:[01]", cmd):
         return True

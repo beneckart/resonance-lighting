@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "../core/maintenance_campaign.h"
+
 // The ONLY translation unit that emits Nb packets (single-writer doctrine;
 // espnow_link deliberately does not export a raw send). Burst-repeat follows
 // the fleet RF convention: broadcast cmds 4x/5 ms, targeted 6x/8 ms.
@@ -21,11 +23,19 @@ void meshIdentify(const uint8_t target[3], uint8_t secs, uint8_t color = 0,
                   uint8_t blink = 0, uint8_t value = 255);
 bool meshStrike(const uint8_t id[3], uint16_t pulseMs);  // false: id==00:00:00
 bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs);
-void meshProgramLease(const uint8_t target[3], uint8_t programId,
+bool meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags, const uint8_t params[8]);
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
-void meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
+bool meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
 bool meshEnterMaintenance(const uint8_t target[3]);
+// Exact-target only. Profile persistence is an NVS mutation and must never be
+// exposed as an all-zero broadcast through the host CLI.
+bool meshProfile(const uint8_t target[3], uint8_t profile, bool persist);
+bool meshMaintenanceBegin(uint32_t jobId, uint16_t durationS);
+bool meshMaintenanceAdd(uint32_t jobId, const uint8_t target[3]);
+bool meshMaintenanceFreeze(uint32_t jobId);
+MaintenanceCampaignStatus meshMaintenanceStatus();
+void meshMaintenancePrintStatus();
 // Exact-target only. Commission-default persistence is an NVS mutation, so
 // Bridge OS never emits this command with the all-zero broadcast target.
 bool meshCommissionDefault(const uint8_t target[3], uint8_t mode, bool persist);

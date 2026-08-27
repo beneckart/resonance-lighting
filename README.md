@@ -104,7 +104,8 @@ on the LilyGO T-Deck Plus. Hardware is on hand and M0-M4 plus the first M5 apps
 are implemented and hardware-verified (ADRs 0047 and 0048). The channel guard
 and WiFi/mesh coexistence passed on the house channel-11 network; Beryl field
 configuration and validation remain open. The current app order is in
-`firmware/tdeck_bridge/APP_ROADMAP.md`.
+`firmware/tdeck_bridge/APP_ROADMAP.md`; CA Studio remains Greenberg-Hastings,
+while the separate Contagion app owns Color Virus and Epidemic (ADR 0055).
 
 The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-battery WS2812B has been superseded by later ADRs.
 
@@ -172,8 +173,9 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
   collision-proof firmware revision/manifest rules, explicit target handoff,
   fresh-evidence OTA completion, and USB boot-salute semantics for shared benches.
 - [`docs/howto/CORES3_AUDIO_REACTIVE.md`](docs/howto/CORES3_AUDIO_REACTIVE.md) --
-  connect and tune the Rode VideoMic NTG, read the CoreS3 audio display, run the
-  three-fixture sound-reactive bench, and troubleshoot the safe fallback path.
+  connect and tune the Rode VideoMic NTG, read the CoreS3 envelope/FFT
+  spectrogram and band modes, run the sound-reactive bench, and troubleshoot the
+  safe fallback path.
 - [`docs/howto/CAMP_NETWORK_SETUP.md`](docs/howto/CAMP_NETWORK_SETUP.md) --
   stand up Starlink + the Beryl AX travel router with the 2.4 GHz radio pinned to
   channel 11 so infrastructure WiFi and the ESP-NOW fleet can coexist on one
@@ -219,11 +221,14 @@ the ESP-NOW packet contract do not carry callsigns.
 
 For an explicit multi-fixture OTA, `ops/bench/fleet_dashboard_ota.py` accepts a
 comma-separated short-MAC target list plus one already-built immutable binary.
-It refuses unsafe power evidence, discovers and identity-checks every maintenance
-endpoint, uploads in bounded parallel jobs, and requires fresh exact-revision
-evidence beyond the A/B pending-verify gate. `--allow-stale-preflight` and
-`--allow-partial-discovery` are for a named, full-cadence sleeper pass; they do
-not permit unnamed discovery results or unsafe low-VBAT targets.
+It loads a job-scoped T-Deck roster, spans one selected sleep cadence, discovers
+and identity-checks maintenance endpoints, positively freezes all gather traffic,
+uploads in bounded parallel jobs, and requires fresh exact-revision evidence
+beyond the A/B pending-verify gate. One exclusive-created ledger records every
+target as verified, deferred, or failed. `--allow-partial-discovery` permits a
+named sleeper cohort to proceed without missing targets; it never permits unnamed
+discovery results or unsafe low-VBAT targets. See ADR 0062 and
+`docs/howto/FLEET_OTA_10_MINUTE_RUNBOOK.md`.
 
 ## Status
 

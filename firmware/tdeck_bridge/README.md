@@ -8,10 +8,11 @@ Field operators and IT support should start with the illustrated
 [`Bridge OS field manual`](../../docs/howto/BRIDGE_OS_FIELD_MANUAL.md). This
 README remains the implementation, build, and acceptance record.
 
-**Status 2026-08-25:** M0-M4 complete and hardware-verified. Working apps:
+**Status 2026-08-27:** M0-M4 complete and hardware-verified. Working apps:
 **Claude** (streaming chat + 6-tool agent loop with the confirm rail),
-**Fleet** (live census, reported-color chips, node detail + identify,
-Sleep/Dark entry point), **Health** (single-screen voltage health grid for the
+**Fleet** (stable roster/live views, class and raw-VBAT filters, sortable
+voltage, reported-color chips, detail/identify, and confirmed filtered-cohort
+blink), **Health** (single-screen voltage health grid for the
 production registry plus live node detail), **LED Studio** (class-targeted solid colors and 1 Hz
 cohort blink via sustained 8 Hz direct-frame streaming, client-side dim),
 **Sleep / Dark** (confirmed 10 min or 1-12 h in one-hour steps; dark leases or
@@ -161,11 +162,62 @@ Open **LEDs** from the launcher (or **Sleep / Dark** from Fleet):
   duration, then auto-wakes into normal behavior. It cannot be cancelled while
   the fixture is asleep. It uses the existing `NB_SLEEP_FOR` contract, not the
   transport-dark latch.
+- The screen opens on the safer reversible choice: Dark for 10 minutes.
+  Low-power sleep must be selected deliberately.
 - Both actions show live/seen counts and require the on-device confirmation
   modal, with focus on cancel. Only currently listening fixtures can receive a
   broadcast. Starting either action stops any suspended LED Studio stream.
 - Sleep remains absent from the Claude tool schema and serial quick commands;
   it is reachable only from the local physical UI.
+- Bridge OS retains the newest four Sleep/Dark/Release/Schedule actions in a
+  checksummed NVS ring before sending RF. `show` prints the ring; `nb-master`
+  exposes its newest entry. Availability-reducing actions are not sent if the
+  audit write fails. Release remains restorative and may still transmit.
+
+## Fleet list, filtering, and identify
+
+Open **Fleet** for the detailed scrollable list. Its default view is the full
+production registry plus any unexpected live peer, sorted alphabetically by
+callsign. Registry fixtures keep their row while off air, so a two-second
+telemetry refresh updates values without moving the operator's place. Grey
+rows are retained/off-air; `never` means the current bridge has not observed
+that registry identity. The selected identity and scroll context also survive
+refresh and a round trip through node detail.
+
+Press **View** to choose independently:
+
+- rows: registry plus live, every peer seen since bridge boot, or live now;
+- class: all, downlight, perimeter, uplight, chandelier, or unknown;
+- raw-VBAT band: all, good (>3.20 V), near low (>3.10 V and <=3.20 V), low
+  (<=3.10 V), off air, or live with no plausible battery voltage; and
+- sort: stable callsign, stable short ID, voltage low/high first, most recent,
+  or strongest signal.
+
+Voltage, age, and signal sorts are explicit operator choices; the default does
+not reorder on heartbeat arrival. A live class report is authoritative. While
+a fixture is absent or awaiting a full heartbeat, a known registry role can
+supply its class for filtering.
+
+Press **Blink** to snapshot only the fresh rows currently passing every filter.
+The confirmation modal names the exact count and focuses cancel. On confirm,
+Bridge OS sends a paced exact-target green 30-second identify to that cohort;
+it does not broadcast to hidden or off-air fixtures and does not claim that an
+unreachable row changed. Single-row detail retains its existing ten-second
+green identify. **Power** opens Sleep / Dark, which also contains Release.
+
+This Fleet work changes only the handheld view and the existing bounded
+identify path. It adds no packet type and performs no OTA, reboot, profile,
+lifecycle, or fixture-NVS mutation.
+
+The complete native Bridge suite and a local ESP32-S3 build pass. The
+`tdeck-dev-local` binary is 1,576,688 bytes with SHA-256
+`703b71a038530029dbd12b0cd072bc589b2d06dc83b12d9c3d4e6ca7073ea622`;
+the linker reports 50% flash and 44% global RAM use. This exact image is flashed
+on primary T-Deck `8EB508`; esptool verified each written region and a complete
+application-region readback matched the SHA-256 above. Post-reset channel 11,
+mesh traffic, peripheral probes, and memory telemetry passed. Physical dropdown
+layout, stable scrolling, input, 192-row memory-watermark, and filtered named-
+canary identify checks remain open in `TODO.md`.
 
 ## Fleet Health
 
@@ -378,9 +430,15 @@ Press **`s`** on the keyboard to toggle the **direct-sun test pattern**
   heartbeats report our downlink at `dlpdr=1.000`); strike path clamps 5-300 ms
   and the legacy addressed packet refuses an all-zero target. The Knocker UI's
   newer multicast modes use a deduplicated `NB_EVENT`, not that legacy packet.
-  Quick commands `i/I/K/U/B/b/t` are WAN-down safe;
-  `U<6-hex-ID>` sustains exact-target OTA maintenance for 35 seconds and has no
-  broadcast form.
+  Quick commands `i/I/K/U/F/B/b/t` are WAN-down safe. `U<6-hex-ID>` remains the
+  one-target 35-second maintenance command and has no broadcast form. Fleet OTA
+  uses the job-scoped `uB/uA/uF/uS` roster contract: up to 160 exact targets,
+  10 ms round-robin dispatch, structured `nb-maint` status, and a positively
+  acknowledged freeze before upload (ADR 0062).
+  `F<6-hex-ID>:<0|1>:<0|1>` selects commission/field profile and an explicit
+  persist bit for one exact nonzero target; there is no broadcast form.
+  Fleet-sized `nb-master`/`nb-peer` snapshots emit every 10 seconds because a
+  complete 100+ peer snapshot cannot physically drain at 1 Hz over 115200 baud.
 - **1-hour soak: heap_min bit-identical (257,608 B) across 3,643 s** with STA
   associated + census running; PSRAM low-water drift ~5 KB (bounded ring
   high-water). Log: session scratchpad `m1_soak.log`.

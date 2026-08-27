@@ -5,6 +5,7 @@
 #include "../net/census_svc.h"
 #include "../net/mesh_tx.h"
 #include "../net/stream_svc.h"
+#include "../store/store.h"
 #include "app_power.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
@@ -44,15 +45,28 @@ static uint32_t selectedDurationIndex() {
 
 static void refreshExplanation(lv_event_t *) {
   if (!gInfo) return;
+  const char *explanation;
   if (selectedAction() == RestAction::SLEEP) {
-    lv_label_set_text(gInfo,
-                      "Lowest draw: rails + radio off.\n"
-                      "Cannot cancel; timer auto-wakes.");
+    explanation = "Lowest draw: rails + radio off. Cannot cancel.";
   } else {
-    lv_label_set_text(gInfo,
-                      "LED rail off, radio reachable.\n"
-                      "Self-expires or Release Dark.");
+    explanation = "LED rail off; radio reachable and releasable.";
   }
+  ActionAuditRecord last;
+  char text[220];
+  if (storeLatestAction(last)) {
+    if (last.action == ACTION_AUDIT_SLEEP_ALL ||
+        last.action == ACTION_AUDIT_DARK_ALL)
+      snprintf(text, sizeof(text), "%s\nLast: %s %lumin, seq %lu",
+               explanation, actionAuditName(last.action),
+               (unsigned long)(last.value / 60UL),
+               (unsigned long)last.mesh_seq);
+    else
+      snprintf(text, sizeof(text), "%s\nLast: %s, seq %lu", explanation,
+               actionAuditName(last.action), (unsigned long)last.mesh_seq);
+  } else {
+    snprintf(text, sizeof(text), "%s\nLast: no retained action", explanation);
+  }
+  lv_label_set_text(gInfo, text);
 }
 
 static void applyYes(void *) {
@@ -61,16 +75,25 @@ static void applyYes(void *) {
   // as the sleep/dark action ends (or compete with a dark lease).
   streamStop();
   if (gPendingAction == RestAction::SLEEP) {
-    meshSleepAll(gPendingSeconds);
-    if (gInfo)
-      lv_label_set_text_fmt(gInfo, "sleep sent: %lu min; watch live count fall",
-                            (unsigned long)gPendingSeconds / 60UL);
+    bool sent = meshSleepAll(gPendingSeconds);
+    if (gInfo) {
+      if (sent)
+        lv_label_set_text_fmt(gInfo,
+                              "sleep sent: %lu min\nAudit saved; watch live count fall",
+                              (unsigned long)gPendingSeconds / 60UL);
+      else
+        lv_label_set_text(gInfo, "SLEEP NOT SENT\nAudit storage or radio unavailable");
+    }
   } else {
-    meshProgramLease(kAll, 4 /*COMMISSION_DARK*/, gPendingSeconds,
-                     0x01 /*hard cut*/, nullptr);
-    if (gInfo)
-      lv_label_set_text_fmt(gInfo, "dark lease sent: %lu min",
-                            (unsigned long)gPendingSeconds / 60UL);
+    bool sent = meshProgramLease(kAll, 4 /*COMMISSION_DARK*/, gPendingSeconds,
+                                 0x01 /*hard cut*/, nullptr);
+    if (gInfo) {
+      if (sent)
+        lv_label_set_text_fmt(gInfo, "dark lease sent: %lu min\nAudit saved",
+                              (unsigned long)gPendingSeconds / 60UL);
+      else
+        lv_label_set_text(gInfo, "DARK NOT SENT\nAudit storage or radio unavailable");
+    }
   }
 }
 
@@ -96,8 +119,9 @@ static void applyCb(lv_event_t *) {
 static void releaseCb(lv_event_t *) {
   static const uint8_t kAll[3] = {0, 0, 0};
   streamStop();
-  meshProgramLease(kAll, 4, 0, 0x01, nullptr);
+  bool sent = meshProgramLease(kAll, 4, 0, 0x01, nullptr);
   if (gInfo) lv_label_set_text(gInfo, "dark lease released -> autonomous");
+  if (!sent && gInfo) lv_label_set_text(gInfo, "release not sent: radio unavailable");
 }
 
 static void backCb(lv_event_t *) {
@@ -122,7 +146,7 @@ void appPowerOpen() {
   lv_obj_set_pos(actionLabel, 8, 48);
   gActionDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gActionDd, "dark (radio awake)\nlow-power sleep");
-  lv_dropdown_set_selected(gActionDd, 1);
+  lv_dropdown_set_selected(gActionDd, 0);
   lv_obj_set_pos(gActionDd, 92, 39);
   lv_obj_set_width(gActionDd, 220);
   lv_obj_add_event_cb(gActionDd, refreshExplanation, LV_EVENT_VALUE_CHANGED,
@@ -136,7 +160,7 @@ void appPowerOpen() {
                           "10 min\n1 hour\n2 hours\n3 hours\n4 hours\n"
                           "5 hours\n6 hours\n7 hours\n8 hours\n9 hours\n"
                           "10 hours\n11 hours\n12 hours");
-  lv_dropdown_set_selected(gDurationDd, 1);
+  lv_dropdown_set_selected(gDurationDd, 0);
   lv_obj_set_pos(gDurationDd, 92, 83);
   lv_obj_set_width(gDurationDd, 140);
 

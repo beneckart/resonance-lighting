@@ -463,7 +463,8 @@ def commission_one(
         # TMF ID/begin success followed by zero reports is the known stale
         # firmware/ranging state, not evidence of a bad cable. Give that exact
         # signature one bounded sensor-rail reset before declaring failure.
-        # S1 drops VSQT during timed sleep and then runs the verified boot cycle.
+        # A targeted, line-framed one-second sleep drops VSQT and then runs the
+        # verified boot cycle. Bare S/S1 is intentionally non-actionable.
         # An absent TMF ID skips this retry and remains a hardware/contact fault.
         if (
             expect_class == "downlight"
@@ -472,7 +473,7 @@ def commission_one(
             and int(telemetry.get("tmf_reads") or 0) == 0
         ):
             log(f"{board.port} {board.fixture_id}: TMF present with zero reads; one VSQT reset retry")
-            serial_command(board.port, "S1")
+            serial_command(board.port, f"!S{board.fixture_id}:1")
             telemetry = serial_telemetry_retry(
                 board.port, timeout_s=50.0, settle_s=10.0
             )

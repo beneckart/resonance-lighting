@@ -13,6 +13,7 @@
 #include "../net/mesh_tx.h"
 #include "../net/nb_emit.h"
 #include "../net/net_mgr.h"
+#include "fixture/src/core/fixture_context.h"
 #include "store.h"
 
 static void printHelp() {
@@ -32,6 +33,11 @@ static void printHelp() {
       "  I                        identify ALL for 8 s\n"
       "  K<ID>:<ms>               solenoid strike, 5-300 ms (never broadcast)\n"
       "  U<ID>                    exact-target OTA maintenance for 35 s\n"
+      "  F<ID>:<0|1>:<0|1>        exact profile commission/field + persist bit\n"
+      "  uB<job8>:<seconds>        begin/replace an OTA gather roster\n"
+      "  uA<job8>:<ID>             add one exact target to that roster\n"
+      "  uF<job8>                  freeze roster before any upload\n"
+      "  uS<job8>                  print structured roster status\n"
       "  B[secs]                  fleet dark lease (default 600 s)\n"
       "  b                        release fleet lease (back to autonomous)\n"
       "  t                        one-line JSON telemetry\n"
@@ -47,6 +53,25 @@ static bool parseHexId(const char *s, uint8_t out[3]) {
     char b[3] = {s[i * 2], s[i * 2 + 1], 0};
     out[i] = (uint8_t)strtoul(b, nullptr, 16);
   }
+  return true;
+}
+
+static bool parseHex32(const char *s, uint32_t &out) {
+  char copy[9] = {};
+  for (int i = 0; i < 8; ++i) {
+    if (!isxdigit((unsigned char)s[i])) return false;
+    copy[i] = s[i];
+  }
+  out = (uint32_t)strtoul(copy, nullptr, 16);
+  return out != 0;
+}
+
+static bool parseDecimalRange(const char *s, int low, int high, int &out) {
+  if (!s || !*s) return false;
+  char *end = nullptr;
+  long value = strtol(s, &end, 10);
+  if (!end || *end != 0 || value < low || value > high) return false;
+  out = (int)value;
   return true;
 }
 
@@ -83,6 +108,48 @@ static bool handleQuickCommand(const char *tok) {
       Serial.println("strike refused: needs a real target id");
     return true;
   }
+  if (strncmp(tok, "uB", 2) == 0) {
+    uint32_t jobId = 0;
+    int durationS = 0;
+    if (strlen(tok) < 12 || tok[10] != ':' ||
+        !parseHex32(tok + 2, jobId) ||
+        !parseDecimalRange(tok + 11, 1, 3600, durationS)) {
+      Serial.println("uB<8-hex-job>:<1-3600-seconds>");
+      return true;
+    }
+    if (meshMaintenanceBegin(jobId, (uint16_t)durationS))
+      Serial.printf("maintenance gather %08lX begun for %ds\n",
+                    (unsigned long)jobId, durationS);
+    else
+      Serial.println("maintenance gather begin refused");
+    meshMaintenancePrintStatus();
+    return true;
+  }
+  if (strncmp(tok, "uA", 2) == 0) {
+    uint32_t jobId = 0;
+    uint8_t id[3] = {};
+    if (strlen(tok) != 17 || tok[10] != ':' ||
+        !parseHex32(tok + 2, jobId) || !parseHexId(tok + 11, id)) {
+      Serial.println("uA<8-hex-job>:<6-hex-ID>");
+      return true;
+    }
+    if (!meshMaintenanceAdd(jobId, id))
+      Serial.println("maintenance target add refused (job/state/capacity)");
+    meshMaintenancePrintStatus();
+    return true;
+  }
+  if (strncmp(tok, "uF", 2) == 0 || strncmp(tok, "uS", 2) == 0) {
+    uint32_t jobId = 0;
+    bool freeze = tok[1] == 'F';
+    if (strlen(tok) != 10 || !parseHex32(tok + 2, jobId)) {
+      Serial.println(freeze ? "uF<8-hex-job>" : "uS<8-hex-job>");
+      return true;
+    }
+    if (freeze && !meshMaintenanceFreeze(jobId))
+      Serial.println("maintenance freeze refused (job/state mismatch)");
+    meshMaintenancePrintStatus();
+    return true;
+  }
   if (tok[0] == 'U') {
     uint8_t id[3];
     if (strlen(tok) != 7 || !parseHexId(tok + 1, id)) {
@@ -93,7 +160,26 @@ static bool handleQuickCommand(const char *tok) {
       Serial.printf("sustained TARGET_ENTER_MAINT %.6s 35s (nonblocking)\n",
                     tok + 1);
     else
-      Serial.println("maintenance refused: needs a real target id");
+      Serial.println("maintenance refused: invalid target or campaign active");
+    return true;
+  }
+  if (tok[0] == 'F') {
+    uint8_t id[3] = {};
+    if (strlen(tok) != 11 || tok[7] != ':' || tok[9] != ':' ||
+        !parseHexId(tok + 1, id) ||
+        (tok[8] != '0' && tok[8] != '1') ||
+        (tok[10] != '0' && tok[10] != '1')) {
+      Serial.println("F<6-hex-ID>:<0|1>:<0|1> (profile, persist)");
+      return true;
+    }
+    uint8_t profile = (uint8_t)(tok[8] - '0');
+    bool persist = tok[10] == '1';
+    if (meshProfile(id, profile, persist))
+      Serial.printf("profile %.6s=%s persist=%u\n", tok + 1,
+                    profile == PROFILE_DEV ? "commission" : "field",
+                    persist ? 1U : 0U);
+    else
+      Serial.println("profile refused: exact nonzero target required");
     return true;
   }
   if (tok[0] == 'B') {
@@ -132,6 +218,7 @@ static void printShow() {
   Serial.printf("net=%s ip=%s ap_ch=%u sntp=%d mesh_up=%d mesh_frames=%lu\n",
                 netStateName(), netIp(), netApChannel(), netSntpSynced() ? 1 : 0,
                 espnowUp() ? 1 : 0, (unsigned long)espnowStats().frames);
+  storePrintActions();
 }
 
 static void printMem() {

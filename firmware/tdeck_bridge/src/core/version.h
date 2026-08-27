@@ -7,6 +7,6 @@
     #define TDECK_FW_VERSION "dev-local"
   #else
     // Bump this value for every distinct retained field binary.
-    #define TDECK_FW_VERSION "0.2.0-field2"
+    #define TDECK_FW_VERSION "0.2.0-field3"
   #endif
 #endif

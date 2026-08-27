@@ -16,7 +16,7 @@ int main() {
   static_assert(sizeof(NbTransportSleep) == 20,
                 "NbTransportSleep drifted");
   static_assert(NB_DIRECT_MAX_ENTRIES == 18, "direct-frame capacity drifted");
-  assert(strcmp(TDECK_FW_VERSION, "0.2.0-field2") == 0);
+  assert(strcmp(TDECK_FW_VERSION, "0.2.0-field3") == 0);
 
   // Targeting semantics: 00:00:00 is "all" for nbTargetMatches consumers.
   const uint8_t all[3] = {0, 0, 0};

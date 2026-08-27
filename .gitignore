@@ -41,6 +41,7 @@ firmware/*/build/
 .gstack/
 .swarm/
 .playwright-mcp/
+/tmp/
 app/.claude/
 app/.gstack/
 app/.swarm/

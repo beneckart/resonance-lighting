@@ -1,0 +1,6 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260826-51d1fe1-p\\fixture.ino.bin", "artifact_sha256": "57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261", "campaign_duration_s": 190, "discovery_timeout_s": 150.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260826-51d1fe1-p", "gather_cadence": "ordinary", "job_id": "55003A6E", "phase": "PLAN", "target_count": 2, "targets": ["F40348", "F2BCF4"], "ts_utc": "2026-08-27T07:36:08Z"}
+{"elapsed_s": 0.047, "event": "passed", "job_id": "55003A6E", "phase": "PREFLIGHT", "target_count": 2, "ts_utc": "2026-08-27T07:36:08Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "55003A6E", "phase": "GATHER", "target": "F40348", "ts_utc": "2026-08-27T07:36:08Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "55003A6E", "phase": "GATHER", "target": "F2BCF4", "ts_utc": "2026-08-27T07:36:08Z"}
+{"elapsed_s": 0.375, "error": "JobLedger.emit() got multiple values for argument 'phase'", "event": "job_error", "job_id": "55003A6E", "phase": "CLEANUP", "ts_utc": "2026-08-27T07:36:08Z"}
+{"elapsed_s": 0.422, "error": "JobLedger.emit() got multiple values for argument 'phase'", "event": "freeze_unconfirmed", "job_id": "55003A6E", "phase": "CLEANUP", "ts_utc": "2026-08-27T07:36:08Z"}

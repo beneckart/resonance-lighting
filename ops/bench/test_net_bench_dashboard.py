@@ -46,6 +46,75 @@ class DashboardParserTests(unittest.TestCase):
         self.assertEqual(row["recovery_detect_mv"], 2421)
         self.assertEqual(row["callsign"], "Ponyta")
 
+    def test_sleep_audit_tail(self):
+        row = self.parse(
+            BASE
+            + " audf=7 slpr=3 slps=3600 slpmv=3175 slpprof=1 slplife=3"
+            + " slptier=0 slpsrc=9F0E7C slpseq=42 cmdslpr=3 cmdslps=3600"
+            + " cmdslpsrc=9F0E7C cmdslpseq=42 protmv=3045"
+        )
+        self.assertEqual(row["sleep_audit_flags"], 7)
+        self.assertEqual(row["last_sleep_cause"], 3)
+        self.assertEqual(row["last_sleep_s"], 3600)
+        self.assertEqual(row["last_sleep_batt_mv"], 3175)
+        self.assertEqual(row["last_sleep_source"], "9F0E7C")
+        self.assertEqual(row["last_sleep_source_seq"], 42)
+        self.assertEqual(row["last_command_sleep_source_seq"], 42)
+        self.assertEqual(row["last_protect_batt_mv"], 3045)
+
+    def test_master_action_audit_and_legacy_master(self):
+        state = dashboard.DashboardState()
+        worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
+        worker.handle_line(
+            "nb-master id=9F0E7C ch=11 frames=44 sendok=20 sendfail=0 "
+            "up=123000 bv=3.900 fw=tdeck-0.2.0-field3 act=1 actv=3600 "
+            "actseq=42 actup=122000 actutc=1787640000 actf=01 "
+            "acttgt=000000 actn=3"
+        )
+        master = state.snapshot()["master"]
+        self.assertEqual(master["action"], 1)
+        self.assertEqual(master["action_value"], 3600)
+        self.assertEqual(master["action_mesh_seq"], 42)
+        self.assertEqual(master["action_flags"], 1)
+        self.assertEqual(master["action_count"], 3)
+
+        worker.handle_line(
+            "nb-master id=9F0E7C ch=11 frames=45 sendok=21 sendfail=0 "
+            "up=124000 bv=3.899"
+        )
+        self.assertIsNone(state.snapshot()["master"]["action"])
+
+    def test_maintenance_campaign_status_is_structured_and_aged(self):
+        state = dashboard.DashboardState()
+        worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)
+        worker.handle_line(
+            "nb-maint job=12ab34cd phase=1 active=1 targets=130 "
+            "dispatch=456 remain=119000 cycle=1300"
+        )
+        row = state.snapshot()["maintenance_campaign"]
+        self.assertEqual(row["job_id"], "12AB34CD")
+        self.assertEqual(row["phase"], 1)
+        self.assertTrue(row["active"])
+        self.assertEqual(row["target_count"], 130)
+        self.assertEqual(row["cycle_ms"], 1300)
+        self.assertLess(row["status_age_ms"], 100)
+
+    def test_maintenance_campaign_command_validation(self):
+        self.assertTrue(dashboard.valid_command("uB12AB34CD:150"))
+        self.assertTrue(dashboard.valid_command("uA12AB34CD:F2B7DC"))
+        self.assertTrue(dashboard.valid_command("uF12AB34CD"))
+        self.assertTrue(dashboard.valid_command("uS12AB34CD"))
+        self.assertFalse(dashboard.valid_command("uB00000000:150"))
+        self.assertFalse(dashboard.valid_command("uB12AB34CD:0"))
+        self.assertFalse(dashboard.valid_command("uB12AB34CD:3601"))
+        self.assertFalse(dashboard.valid_command("uA12AB34CD:000000"))
+        self.assertFalse(dashboard.valid_command("uF00000000"))
+        self.assertTrue(dashboard.valid_command("UF2B7DC"))
+        self.assertTrue(dashboard.valid_command("FF2B7DC:1:1"))
+        self.assertTrue(dashboard.valid_command("Ff2b7dc:0:0"))
+        self.assertFalse(dashboard.valid_command("F000000:1:1"))
+        self.assertFalse(dashboard.valid_command("FF2B7DC:2:1"))
+
     def test_callsign_table_covers_the_production_health_roster(self):
         aliases = dashboard.CALLSIGN_BY_ID
         self.assertEqual(len(aliases), 144)

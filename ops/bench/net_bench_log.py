@@ -155,7 +155,10 @@ meta = dict(meta, segment_index=segment_index,
             segment_started_utc=segment_started_utc)
 
 rx_master = re.compile(
-    r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)")
+    r"nb-master id=(\w+) ch=(\d+) frames=(\d+) sendok=(\d+) sendfail=(\d+) up=(\d+) bv=([\d.]+)"
+    r"(?: fw=(\S+))?"
+    r"(?: act=(\d+) actv=(\d+) actseq=(\d+) actup=(\d+) actutc=(\d+) actf=([0-9A-Fa-f]{2})"
+    r" acttgt=([0-9A-Fa-f]{6}) actn=(\d+))?")
 rx_peer = re.compile(
     r"nb-peer id=(\w+) seq=(\d+) rx=(\d+) gaps=(\d+) pdr=([\d.]+) rssi=(-?\d+) bv=([\d.-]+) "
     r"ima=(-?\d+) soc=(-?\d+) rr=(\w+) ca=(\d+) mode=(\d+) dlpdr=([\d.]+) dlrssi=(-?\d+) up=(\d+) age=(\d+)"
@@ -174,7 +177,13 @@ rx_peer = re.compile(
     r" fcmchg=(\d+) fcmwait=(\d+) fcmdraw=(\d+) fcmprot=(\d+))?"
     r"(?: mppts=(\d+) mpptr=(\d+) mpptn=(\d+) mpptv=(\d+) mpptbest=(\d+) mpptlast=(\d+)"
     r" mppt46=(\d+) mppt48=(\d+) mppt50=(\d+))?"
-    r"(?: fcdim=(\d+) fclat=(\d+))?")
+    r"(?: fcdim=(\d+) fclat=(\d+))?"
+    r"(?: prof=(\d+) life=(\d+) ptier=(\d+) prog=(\d+) nmin=(\d+))?"
+    r"(?: cls=(\d+) ledrail=(\d+) ledr=(\d+) ledg=(\d+) ledb=(\d+) ledw=(\d+) ledn=(\d+))?"
+    r"(?: sens=(\d+) cmis=(\d+) rec=(\d+) recmv=(\d+))?"
+    r"(?: audf=(\d+) slpr=(\d+) slps=(\d+) slpmv=(-?\d+) slpprof=(\d+) slplife=(\d+)"
+    r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
+    r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -220,8 +229,17 @@ with open(out, file_mode, encoding="utf-8") as fh:
              bq20, bq21, bq22, bq38,
              fcwhc, fcwhd, fcpw, fcbw, fcdw, fclow, fcmchg, fcmwait,
              fcmdraw, fcmprot,
-             mppts, mpptr, mpptn, mpptv, mpptbest, mpptlast, mppt46, mppt48,
-             mppt50, fcdim, fclat) = m.groups()
+              mppts, mpptr, mpptn, mpptv, mpptbest, mpptlast, mppt46, mppt48,
+              mppt50, fcdim, fclat,
+              profile, life, power_tier, active_program, night_min,
+              fixture_class, led_rail_on, led_r, led_g, led_b, led_w,
+              led_lit_pixels, sensor_bits, class_mismatch, recovery_state,
+              recovery_detect_mv, sleep_audit_flags, last_sleep_cause,
+              last_sleep_s, last_sleep_batt_mv, last_sleep_profile,
+              last_sleep_life_state, last_sleep_power_tier, last_sleep_source,
+              last_sleep_source_seq, last_command_sleep_cause,
+              last_command_sleep_s, last_command_sleep_source,
+              last_command_sleep_source_seq, last_protect_batt_mv) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -319,7 +337,38 @@ with open(out, file_mode, encoding="utf-8") as fh:
                            mppt_p50_w=round(int(mppt50) / 100.0, 2))
             if fcdim is not None:
                 row.update(field_load_dimmed=bool(int(fcdim)),
-                           field_protect_latched=bool(int(fclat)))
+                            field_protect_latched=bool(int(fclat)))
+            if profile is not None:
+                row.update(profile=int(profile), life_state=int(life),
+                           power_tier=int(power_tier),
+                           active_program=int(active_program),
+                           night_min=int(night_min))
+            if fixture_class is not None:
+                row.update(fixture_class=int(fixture_class),
+                           led_rail_on=bool(int(led_rail_on)), led_r=int(led_r),
+                           led_g=int(led_g), led_b=int(led_b), led_w=int(led_w),
+                           led_lit_pixels=int(led_lit_pixels))
+            if sensor_bits is not None:
+                row.update(sensor_bits=int(sensor_bits),
+                           class_mismatch=bool(int(class_mismatch)),
+                           recovery_state=int(recovery_state),
+                           recovery_detect_mv=(None if int(recovery_detect_mv) == 65535
+                                               else int(recovery_detect_mv)))
+            if sleep_audit_flags is not None:
+                row.update(sleep_audit_flags=int(sleep_audit_flags),
+                           last_sleep_cause=int(last_sleep_cause),
+                           last_sleep_s=int(last_sleep_s),
+                           last_sleep_batt_mv=int(last_sleep_batt_mv),
+                           last_sleep_profile=int(last_sleep_profile),
+                           last_sleep_life_state=int(last_sleep_life_state),
+                           last_sleep_power_tier=int(last_sleep_power_tier),
+                           last_sleep_source=last_sleep_source,
+                           last_sleep_source_seq=int(last_sleep_source_seq),
+                           last_command_sleep_cause=int(last_command_sleep_cause),
+                           last_command_sleep_s=int(last_command_sleep_s),
+                           last_command_sleep_source=last_command_sleep_source,
+                           last_command_sleep_source_seq=int(last_command_sleep_source_seq),
+                           last_protect_batt_mv=int(last_protect_batt_mv))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "
@@ -329,11 +378,23 @@ with open(out, file_mode, encoding="utf-8") as fh:
             continue
         m = rx_master.search(text)
         if m:
-            pid, ch, frames, sok, sfail, up, bv = m.groups()
+            (pid, ch, frames, sok, sfail, up, bv, fw, action, action_value,
+             action_seq, action_up, action_utc, action_flags, action_target,
+             action_count) = m.groups()
             row = dict(meta, ts_utc=ts, elapsed_s=el, src="master", master_ip=addr[0],
                        master_id=pid, channel=int(ch), frames=int(frames),
                        send_ok=int(sok), send_fail=int(sfail), uptime_ms=int(up),
                        battery_v=float(bv))
+            if fw is not None:
+                row["firmware_rev"] = fw
+            if action is not None:
+                row.update(action=int(action), action_value=int(action_value),
+                           action_mesh_seq=int(action_seq),
+                           action_bridge_uptime_ms=int(action_up),
+                           action_utc_s=int(action_utc),
+                           action_flags=int(action_flags, 16),
+                           action_target=action_target,
+                           action_count=int(action_count))
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             continue
         m = rx_scanap.search(text)

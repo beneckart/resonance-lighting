@@ -35,17 +35,33 @@ static const char *resetReasonName(uint8_t raw) {
 // names, same order, same formats — the dashboard regex is the contract.
 void nbEmitTick(uint32_t nowMs) {
   static uint32_t lastMs = 0;
-  if (!gEnabled || nowMs - lastMs < 1000) return;
+  // A fleet-sized snapshot is tens of kilobytes.  At 115200 baud a 1 Hz full
+  // census never drains, starving serial commands and their acknowledgements.
+  // Ten seconds keeps health telemetry useful while leaving deterministic
+  // headroom for exact-target maintenance and other operator commands.
+  if (!gEnabled || nowMs - lastMs < 10000) return;
   lastMs = nowMs;
 
   const uint8_t *myId = meshMyId();
+  ActionAuditRecord action = {};
+  bool hasAction = storeLatestAction(action);
   Serial.printf(
       "nb-master id=%02X%02X%02X ch=%d frames=%lu sendok=%lu sendfail=%lu "
-      "up=%lu bv=%.3f fw=tdeck-" TDECK_FW_VERSION "\n",
+      "up=%lu bv=%.3f fw=tdeck-" TDECK_FW_VERSION " "
+      "act=%u actv=%lu actseq=%lu actup=%lu actutc=%lu actf=%02X "
+      "acttgt=%02X%02X%02X actn=%u\n",
       myId[0], myId[1], myId[2], settings().channel,
       (unsigned long)meshTxSeq(), (unsigned long)meshTxSendOk(),
       (unsigned long)meshTxSendFail(), (unsigned long)nowMs,
-      halBatteryMv() / 1000.0f);
+      halBatteryMv() / 1000.0f, hasAction ? action.action : 0,
+      (unsigned long)(hasAction ? action.value : 0),
+      (unsigned long)(hasAction ? action.mesh_seq : 0),
+      (unsigned long)(hasAction ? action.bridge_uptime_ms : 0),
+      (unsigned long)(hasAction ? action.utc_s : 0),
+      hasAction ? action.flags : 0,
+      hasAction ? action.target_id[0] : 0,
+      hasAction ? action.target_id[1] : 0,
+      hasAction ? action.target_id[2] : 0, storeActionCount());
 
   char line[1024];
   for (size_t i = 0; i < census().capacity(); ++i) {
@@ -137,7 +153,23 @@ void nbEmitTick(uint32_t nowMs) {
     if (p->hasIdentityRecovery && n < (int)sizeof(line))
       n += snprintf(line + n, sizeof(line) - n, " sens=%u cmis=%u rec=%u recmv=%u",
                     p->sensorBits, p->classMismatch, p->recoveryState,
-                    p->recoveryDetectMv);
+                     p->recoveryDetectMv);
+    if (p->hasSleepAudit && n < (int)sizeof(line))
+      n += snprintf(
+          line + n, sizeof(line) - n,
+          " audf=%u slpr=%u slps=%lu slpmv=%d slpprof=%u slplife=%u "
+          "slptier=%u slpsrc=%02X%02X%02X slpseq=%lu cmdslpr=%u cmdslps=%lu "
+          "cmdslpsrc=%02X%02X%02X cmdslpseq=%lu protmv=%d",
+          p->sleepAuditFlags, p->lastSleepCause,
+          (unsigned long)p->lastSleepS, p->lastSleepBattMv,
+          p->lastSleepProfile, p->lastSleepLifeState, p->lastSleepPowerTier,
+          p->lastSleepSourceId[0], p->lastSleepSourceId[1],
+          p->lastSleepSourceId[2], (unsigned long)p->lastSleepSourceSeq,
+          p->lastCommandSleepCause, (unsigned long)p->lastCommandSleepS,
+          p->lastCommandSleepSourceId[0], p->lastCommandSleepSourceId[1],
+          p->lastCommandSleepSourceId[2],
+          (unsigned long)p->lastCommandSleepSourceSeq,
+          p->lastProtectBattMv);
     if (n < 0) continue;
     // Clamp before the newline so a future tail cannot turn truncation into
     // an out-of-bounds write (donor comment, kept true here).

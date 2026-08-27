@@ -245,6 +245,25 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->recoveryState = hb->recovery_state;
     peer->recoveryDetectMv = hb->recovery_detect_mv;
   }
+  if (NB_HAS_HB_FIELD(len, last_protect_batt_mv)) {
+    peer->hasSleepAudit = true;
+    peer->sleepAuditFlags = hb->sleep_audit_flags;
+    peer->lastSleepCause = hb->last_sleep_cause;
+    peer->lastSleepS = hb->last_sleep_s;
+    peer->lastSleepBattMv = hb->last_sleep_batt_mv;
+    peer->lastSleepProfile = hb->last_sleep_profile;
+    peer->lastSleepLifeState = hb->last_sleep_life_state;
+    peer->lastSleepPowerTier = hb->last_sleep_power_tier;
+    memcpy(peer->lastSleepSourceId, hb->last_sleep_source_id,
+           sizeof(peer->lastSleepSourceId));
+    peer->lastSleepSourceSeq = hb->last_sleep_source_seq;
+    peer->lastCommandSleepCause = hb->last_command_sleep_cause;
+    peer->lastCommandSleepS = hb->last_command_sleep_s;
+    memcpy(peer->lastCommandSleepSourceId, hb->last_command_sleep_source_id,
+           sizeof(peer->lastCommandSleepSourceId));
+    peer->lastCommandSleepSourceSeq = hb->last_command_sleep_source_seq;
+    peer->lastProtectBattMv = hb->last_protect_batt_mv;
+  }
   return true;
 }
 

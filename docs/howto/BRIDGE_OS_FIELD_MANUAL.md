@@ -61,7 +61,7 @@ mutation, use one declared operator across all bridges and laptops. Follow
 | Walk the site, check health, identify a light, or set a temporary look | **T-Deck Bridge OS** | Handheld, mesh-native, works without a laptop; Claude is optional |
 | Check nearby fleet health without a laptop | **CoreS3 Listener** | Touch-first, paged wireless health view with fixture detail |
 | See the complete host dashboard or record serial telemetry | **CoreS3 Bridge OS + laptop** | The same image retains the proven USB dashboard and logger protocol |
-| Run audio-reactive lights today | **CoreS3 + Module Audio + RODE** | The only audio path already hardware-validated on fixtures |
+| Run audio-reactive lights today | **CoreS3 + Module Audio + RODE** | Broadband response is hardware-validated; FFT/band modes are the current experiment |
 | Use Cambium's binary serial transport | **CoreS3 Cambium build** | Separate firmware mode; not compatible with the text dashboard |
 | Run the dedicated performance audio box | **PUCA, after acceptance** | Powered-Pod20 standalone/radio baseline passes; exact waveform, visible fixture response/fallback, and field geometry remain open |
 | Run the ordinary autonomous show | **No bridge required** | The fixture fleet is designed to keep working without infrastructure |
@@ -76,15 +76,16 @@ The words below are deliberately conservative:
   acceptance matrix is still open.
 - **Planned** means do not expect a working feature.
 
-| Device or feature | Status on 2026-08-24 | Practical meaning |
+| Device or feature | Status on 2026-08-26 | Practical meaning |
 |---|---|---|
 | T-Deck mesh, launcher, touch, trackball, keyboard, GPS, channel guard | Working | Hardware-probed on T-Deck `8EB508` |
 | T-Deck Claude, Fleet, LED Studio, Sleep / Dark, single Knock, CA Studio | Working with limits | Broad hardware or field smoke tests passed; read the app notes below |
+| Contagion | Source-built, not field accepted | Color Virus/Epidemic; keep knock output off until named-canary qualification |
 | T-Deck Health and Schedule | Canary | Broad physical smoke passed; full color/off-air/override matrices remain open |
 | T-Deck callsigns, Patterns v1, RF Diagnostics, full-fleet Knock roll | Canary | Current image is flashed; deliberate named-canary checks remain open |
+| T-Deck Default selector and RGB white mapping | Source-built | Native and embedded builds pass; not flashed or hardware-validated |
 | T-Deck Locate, detailed sensor samples, microphone Patterns, voice | Planned | Locate is a visible placeholder; the others have no finished operator path |
-| CoreS3 normal dashboard bridge | Working | Channel-11 mesh and dashboard integration proven |
-| CoreS3 Module Audio bridge | Working | RODE path and three-fixture stale fallback proven |
+| CoreS3 Listener + Audio Bridge OS | Working baseline; spectral canary | Standalone speech/envelope response is fleet-proven; 25 Hz spectrogram and band modes need hardware acceptance |
 | PUCA Resonance bridge | Powered-Pod20 baseline passed | Locked standalone startup, codec/stereo capture, radio census, and full-census sender are proven; waveform/light and field gates remain open |
 
 The current T-Deck unit is short ID `8EB508`, full MAC
@@ -201,19 +202,44 @@ least one normal sleep cadence before calling a field fixture missing. Older or
 PROTECT firmware can require a 16-minute census before absence becomes strong
 evidence.
 
-## Fleet: inspect and identify individual fixtures
+## Fleet: filter, sort, inspect, and identify fixtures
 
-**Fleet** is a readable list of recent peers. It shows:
+**Fleet** is the detailed scrollable roster. It shows:
 
 - a chip of the fixture's reported rendered color;
 - callsign when known, otherwise short ID;
 - class letter: `D` downlight, `P` perimeter, `U` uplight, `C` chandelier;
-- age, RSSI, PDR, advisory SOC, and active program.
+- age, RSSI, PDR, raw battery voltage, and active program.
 
 Open a row for details and **Identify**, which requests a ten-second green blink.
-The visible Fleet table is capped at 64 peers and is ordered live-first; it is not
-a complete 130-fixture roster view. Use Health for full-roster triage and RF for
-radio summaries.
+The default view includes the complete production registry plus unexpected live
+peers and sorts by callsign. Registry fixtures keep grey off-air rows, so ordinary
+two-second refreshes do not move the list underneath a scroll. The selected
+fixture and scroll context survive refresh and a visit to detail.
+
+Press **View** to combine:
+
+- `roster + live`, `seen since boot`, or `live now` rows;
+- all light types, downlights, perimeter, uplights, chandelier, or unknown;
+- all battery states, good, near low, low, off air, or no valid VBAT; and
+- stable callsign, stable short ID, voltage low/high, most recent, or strongest
+  signal sorting.
+
+The raw-voltage bands match Health: good is above 3.20 V, near low is above
+3.10 V through 3.20 V, and low is at or below 3.10 V. `off air` is separate
+from `no valid VBAT`; silence is not displayed as a zero-voltage battery.
+
+Press **Blink** to identify every **fresh** fixture in the current filtered view.
+The device first confirms the exact count with cancel focused, then walks that
+captured cohort with paced exact-target 30-second green blinks. Hidden and
+off-air fixtures are not targeted or claimed as reached. **Power** opens Sleep /
+Dark; Release remains available there.
+
+These Fleet view controls are flashed on primary T-Deck `8EB508` as of
+2026-08-27. Esptool write verification, an exact full application-region
+readback, and post-reset channel-11 mesh/peripheral checks passed. Physical
+screen layout, dropdown, stable-scroll, detail/back, 192-row memory, and named
+filtered-identify canary acceptance remain open in `TODO.md`.
 
 Callsigns are display and command-entry aliases. Short MAC remains authoritative
 for flashing, OTA, manifests, persistence, and incident records. Unknown peers
@@ -235,6 +261,13 @@ Changing a swatch starts or updates the stream immediately. Class data arrives
 in full heartbeats and can take about 60 seconds to fill after bridge boot. If a
 class filter finds unexpectedly few fixtures, wait and check Fleet/Health before
 assuming those lights are missing.
+
+The **white** swatch means visible white, not blindly writing the fourth RGBW
+byte. Known downlights use their dedicated white die. Perimeter, uplight, and
+chandelier classes receive full red + green + blue with the white byte clear,
+so three-channel RGB modules work and mixed chandelier hardware remains safe.
+This mapping is source-built as of 2026-08-25 and still needs a named RGB/RGBW
+physical recheck before show use.
 
 The stream continues when you press **Back**. It stops only when you press
 **Stop**, start a competing stream such as Patterns, or start a Sleep/Dark action.
@@ -261,8 +294,8 @@ Patterns yet.
 
 ## Sleep / Dark: know the difference
 
-The screen defaults to **low-power sleep** for **1 hour**. Read the selection
-before applying it.
+The screen defaults to **Dark** for **10 minutes**, the reversible choice. Read
+the selection before applying it; low-power sleep still cannot be cancelled.
 
 | Action | LEDs | Radio | Can cancel remotely? | Best use |
 |---|---|---|---|---|
@@ -272,6 +305,11 @@ before applying it.
 Available durations are 10 minutes and every whole hour from 1 through 12.
 Both actions show live/seen counts and require an on-device confirmation with
 cancel focused by default.
+
+Before RF, Bridge OS durably records the action, duration, exact mesh sequence,
+bridge uptime, and fresh GPS UTC when available. The newest four actions survive
+a T-Deck reboot and appear under serial `show`; the newest also appears in the
+host dashboard's Master panel. If that write fails, Sleep or Dark is not sent.
 
 For Dark, use **Release Dark** to return reachable fixtures to autonomous
 behavior. That button cannot wake a sleeping fixture. For Sleep, watch the live
@@ -318,15 +356,13 @@ explicit hardware recheck. Use a named single fixture before using the roll.
 
 ## CA: cellular-automaton studio
 
-**CA Studio** leases a program to the fleet. The program selector contains:
+**CA Studio** leases the Greenberg-Hastings wildfire to the fleet. Choose the
+output that the CA excitation drives:
 
-| UI name | Program | Meaning |
-|---|---:|---|
-| idle | 0 | no active artistic program |
-| ca | 1 | Greenberg-Hastings cellular automaton |
-| bridge | 2 | bridge-show program |
-| direct | 3 | direct-frame program |
-| dark | 4 | dark program |
+| UI name | Meaning |
+|---|---|
+| lights | excitation renders the existing light wildfire |
+| knocks | excitation requests one sound-only solarnoid strike |
 
 For CA, the sliders mean:
 
@@ -334,15 +370,102 @@ For CA, the sliders mean:
 - `spark /256`: spontaneous activation probability;
 - `refractory`: refractory ticks;
 - `tick (ds)`: tick period in tenths of a second;
-- `hue`: base hue, 0-255.
+- `light hue`: base hue, 0-255; ignored by knock output; and
+- `ToF seed`: optionally let a detected visitor excite local CA.
 
 Choose a 120 s, 300 s, 600 s, or 1 h lease and press **Apply**. Fleet-wide apply
 requires confirmation. **Release** returns to autonomous behavior.
 
-The current fixture needs a release-then-re-lease workaround for parameter
-changes to the same program. Bridge OS performs it automatically, which can
-cause one brief visible blip. This is expected until the fixture-side reapply
-gap is fixed.
+Knock mode keeps the LED rail off. Every excitation edge requests one 40 ms
+mallet pulse, but each fixture still enforces daytime, solar-surplus, battery,
+arm, rest, maintenance, and mechanism safety. A fixture without a solarnoid
+still relays CA state and simply cannot make a physical knock.
+
+With **ToF seed** off, the wildfire is seeded by spontaneous sparks and excited
+neighbors. With it on, sensor-equipped downlights can also originate it from a
+hardened local presence edge; non-sensor fixtures still participate through
+neighbor state. The detector first learns about 25-30 seconds of per-zone
+background, then requires one confident zone to move at least 300 mm closer for
+three reports. Four clear reports re-arm it. This is intentionally less eager
+than the old direct bench reactions. Set `spark /256` to zero if the test should
+wait for presence or an already-excited neighbor.
+
+The separate ToF color-wipe interaction remains suppressed during the CA lease,
+so a visitor does not launch two propagation systems. Direct sun, close ground,
+and neighboring ToF emitters can still make optical evidence unavailable or
+noisy; ToF-off remains the reliable fallback for daytime knock wildfire.
+Same-program knob changes apply without the old release/re-lease light blip.
+
+## Contagion: color infection and epidemic
+
+**Contagion** is deliberately separate from CA Studio. Choose **Color Virus**
+for a hue that spreads and persists, or **Epidemic** for infected -> immune ->
+susceptible cycles. Choose lights, knocks, or lights + knocks; slow, medium, or
+fast; and a fixed or random seed color.
+
+Press **Start** to place all awake updated fixtures into a susceptible 10-minute
+lease. Fixtures are alphabetical by callsign. Touch **find name / ID** and type
+part of a callsign or short ID on the physical keyboard to narrow the synced
+dropdown, then select one fresh fixture and press **Seed** to begin. **Stop**
+returns the fleet to its autonomous behavior. Old fixture images reject program
+5, so a mixed-version fleet produces gaps rather than silently approximating
+the effect.
+
+In Color Virus, a successfully infected fixture keeps its hue until a new
+strain arrives. After the palm gate clears and re-arms, another hover on an
+infected source launches a newer strain across the already-infected graph.
+Random mode guarantees a visibly different hue at the source; fixed palette
+choices deliberately keep their selected color. One updated fixture among
+old-image neighbors will change color but cannot visibly spread until at least
+one neighbor also understands program 5.
+
+Knock and both modes request one 40 ms strike when a downlight becomes infected.
+Perimeter fixtures remain silent sensor/relay nodes, so a visitor-facing palm
+seed can spread into nearby mallet downlights. A strike request can be refused
+locally without suppressing the infection state. Do not begin physical
+validation fleet-wide: first use one named, explicitly armed daylight canary
+and retain the normal power/mechanism safety checks.
+
+For the current pre-program-5 fleet, choose **legacy fleet roll** instead of
+native knocks. Select the exact sensor source (for example Magmar `F2BDFC`) and
+confirm the 10-minute adapter. The source's first infected edge starts the same
+40 ms exact-target roll already used by Knocker, filtered to fresh downlights;
+repeated state frames do not repeat it. Stop disables both the lease and the
+adapter. This mode requires the T-Deck to remain awake and listening. Do not use
+it after those downlights run native Contagion, because native and compatibility
+paths represent the same artistic strike intent.
+
+The off-by-default **ToF** option uses the established learned approach gate on
+downlights and a deliberate palm easter egg on perimeter fixtures. Hover a flat
+palm about 5-10 cm above the perimeter sensor; touching it can be too close to
+range. The first named canary separated clear 0/16 zones from a sustained
+15-16/16-zone palm in cloudy daylight. The gate requires two broad near reports
+and four clear reports to re-arm. Treat this as provisional until direct-sun
+and final-geometry checks pass. The legacy listener color wipe remains
+downlight-only.
+
+## Default: commissioned no-command behavior
+
+The **Default** app changes what an updated fixture does in commission profile
+when no direct stream or program lease is active:
+
+| Choice | No-command behavior |
+|---|---|
+| ready beacon | Existing class-aware commission listener; the normal default |
+| wildfire CA | Autonomous light-only GH wildfire; no bridge must remain on |
+| rails dark | Strict electrically dark diagnostic fallback |
+
+Select one named short ID or `ALL: targeted fresh`, then choose **until reboot**
+or **persist after reboot**. The all action is not an anonymous broadcast: the
+T-Deck sorts the fresh census and sends one exact-target command per fixture.
+Persistence is an NVS mutation, so declare the T-Deck as the sole operator and
+do not run another profile/configuration writer at the same time.
+
+The setting is ignored in field profile. Active LED Studio, Patterns, Dark, or
+CA leases still win; changing the default during a lease changes where the
+fixture returns after release or expiry. Wildfire here is always light-only --
+daytime knock CA remains an explicit bounded CA Studio lease. This feature is
+source-built as of 2026-08-25 but has not yet been flashed or hardware-validated.
 
 ## RF: read-only radio diagnostics
 
@@ -490,12 +613,21 @@ iF2B7DC:10   # identify one fixture
 I            # identify all for 8 s
 KF2B7DC:40   # one addressed 40 ms strike request
 UF2B7DC      # exact-target maintenance request for 35 s; no broadcast form
+FF2B7DC:1:1  # exact-target field profile, persisted; first F is the command
 B600         # fleet dark lease for 600 s
 b            # release the fleet dark lease
 ```
 
 `U<ID>` only asks the named fixture to enter shared-WiFi maintenance. A laptop
 must still discover, identity-check, upload, and verify the immutable OTA artifact.
+Full-fleet work uses `ops/bench/fleet_dashboard_ota.py`, not a hand-entered list
+of `U<ID>` commands. Its job-scoped `uB/uA/uF/uS` protocol keeps the complete
+roster active and proves FREEZE before uploading; see
+`docs/howto/FLEET_OTA_10_MINUTE_RUNBOOK.md`.
+
+`F<ID>:<0|1>:<0|1>` is an NVS mutation. The first value is commission/field and
+the second is the persist bit. It refuses `000000`; use it only after an exact
+post-OTA profile audit and under the same single-writer declaration as OTA.
 
 ## T-Deck symptom guide
 
@@ -525,11 +657,16 @@ Use this order so a sleeping fixture is not misdiagnosed as dead:
 3. **RF:** is the mesh up, and are other fixtures arriving normally?
 4. **Wait:** at least one 300-second field cadence; up to 16 minutes for legacy
    or PROTECT behavior.
-5. **Compare peers:** if nearby fixtures are also absent, suspect bridge position,
+5. **Check provenance on current firmware:** the selected dashboard detail names
+   the last timer-sleep cause, retained operator-sleep source/sequence, and last
+   PROTECT-entry voltage. Compare a command receipt with the Master panel's last
+   retained action. A bridge action is an attempted send; fixture receipts prove
+   which peers actually heard it.
+6. **Compare peers:** if nearby fixtures are also absent, suspect bridge position,
    antenna obstruction, channel, or a local power event.
-6. **Physical inspection:** panel, cable, enclosure, charge state, and antenna
+7. **Physical inspection:** panel, cable, enclosure, charge state, and antenna
    keep-out.
-7. **USB rescue:** only after exact identity and the recovery procedure are ready.
+8. **USB rescue:** only after exact identity and the recovery procedure are ready.
 
 Do not infer that `online=true` from an old dashboard entry proves a fresh rejoin.
 
@@ -547,7 +684,7 @@ The ordinary image boots to a launcher:
 | App | Purpose | Laptop required? |
 |---|---|---|
 | Listener | 24-fixture-per-page health grid plus exact fixture detail | No |
-| Audio | built-in mic or Module Audio/RODE publisher | No |
+| Audio | built-in mic or Module Audio/RODE envelope/FFT publisher | No |
 
 Cambium remains a separate binary COBS/CRC artifact; never run the text dashboard
 against it. Module Audio is a hardware build variant of the ordinary two-app
@@ -613,15 +750,18 @@ and tuning. The short version is:
    block the direct stream. This does not flash fixtures or change saved state.
 6. Leave two seconds of ordinary ambient sound after entering Audio for calibration.
 7. Confirm intended fixtures appear live, then play the source.
-8. Use **Look** to cycle Classic, Ember, Huecycle, and Pulse. Use **Input** to
-   cycle Ambient Mic <-> Aux Input and **Pause/Start** to control the stream;
-   USB `M`, `N`, and `A` remain optional aliases.
+8. Read the fast spectrogram with bass at the bottom and high frequencies at the
+   top. Use **Mode** to cycle Classic, Ember, Huecycle, Pulse, Bands RGB, Bands
+   Split, and Timbre Hue. Use **Input** to cycle Ambient Mic <-> Aux Input and
+   **Pause/Start** to control the stream; USB `M`, `N`, and `A` remain optional
+   aliases.
 9. Pause or leave Audio before starting T-Deck LEDs or Patterns.
 
-The bridge sends about 10 direct frames per second. If the bridge pauses,
-unplugs, or fails, fixtures return to autonomous output after about three seconds.
-The accepted three-fixture baseline showed live RODE RMS, matched frames on all
-three perimeter fixtures, and zero send failures or receive drops.
+The bridge analyzes and refreshes the Audio display at a nominal 25 Hz but still
+sends only about 10 direct frames per second. If the bridge pauses, unplugs, or
+fails, fixtures return to autonomous output after about three seconds. The
+accepted baseline covers standalone speech/envelope response; deliberate
+bass/mid/high separation and display-cadence checks remain open.
 
 ## CoreS3 troubleshooting
 
@@ -636,6 +776,7 @@ three perimeter fixtures, and zero send failures or receive drops.
 | Bridge reacts, fixtures stay in CA | old CoreS3 image did not release the explicit lease or omitted current `fx-*` fixture identities from Audio frames | In CA Studio tap Release, then restart Audio; install `cores3-os-0.1.2-dev` or later on the CoreS3 for automatic takeover and current-fleet selection |
 | Bridge reacts, fixtures do not | fixtures not live, channel mismatch, lifecycle, old fixture firmware | Check live IDs, channel 11, direct-frame support, and authorized daylight override |
 | Unwanted rumble drives the lights | wind, handling, generator, solarnoid | Use directionality and windshield first; then 75 Hz or 150 Hz filtering |
+| Spectrogram has a permanent bright top rail | old image treated Module Audio stereo as one mono timeline | Install `cores3-os-0.2.0-dev` or later; it collapses complete L/R frames before FFT analysis |
 | CoreS3 screen flickers or stays black | wrong/old image or display initialization issue | Confirm the current PSRAM-framebuffer artifact and boot serial; preserve logs before reflash |
 
 For daylight audio tests, an authorized technician may temporarily set each

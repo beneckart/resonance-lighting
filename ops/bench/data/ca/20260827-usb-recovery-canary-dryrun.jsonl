@@ -1,0 +1,3 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260826-51d1fe1-p\\fixture.ino.bin", "artifact_sha256": "57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261", "campaign_duration_s": 168, "discovery_timeout_s": 150.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260826-51d1fe1-p", "gather_cadence": "ordinary", "job_id": "0646771A", "phase": "PLAN", "target_count": 2, "targets": ["F40348", "F2BCF4"], "ts_utc": "2026-08-27T07:19:08Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "0646771A", "phase": "PREFLIGHT", "target_count": 2, "ts_utc": "2026-08-27T07:19:08Z"}
+{"elapsed_s": 0.031, "event": "dry_run_complete", "job_id": "0646771A", "phase": "CLEANUP", "ts_utc": "2026-08-27T07:19:08Z"}

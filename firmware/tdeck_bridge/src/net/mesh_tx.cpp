@@ -9,6 +9,8 @@
 
 #include "espnow_link.h"
 #include "../core/knock_event.h"
+#include "../hal/hal_board.h"
+#include "../store/store.h"
 #include "fixture/src/core/fixture_context.h"
 #include "fixture/src/core/packet.h"
 
@@ -24,10 +26,7 @@ static uint32_t gLifecycleCampaignUntilMs = 0;
 static uint32_t gLifecycleCampaignNextMs = 0;
 static portMUX_TYPE gLifecycleCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
-static NbTargetCmd gMaintCampaign = {};
-static bool gMaintCampaignActive = false;
-static uint32_t gMaintCampaignUntilMs = 0;
-static uint32_t gMaintCampaignNextMs = 0;
+static MaintenanceCampaign gMaintCampaign;
 static portMUX_TYPE gMaintCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
 static void fillHeader(NbHeader *h, uint8_t type);
@@ -61,17 +60,9 @@ static void txGive() { xSemaphoreGive(gTxMutex); }
 void meshTxTick() {
   uint32_t now = millis();
   NbTargetCmd maintPacket = {};
-  bool sendMaint = false;
+  bool sendMaint;
   portENTER_CRITICAL(&gMaintCampaignMux);
-  if (gMaintCampaignActive &&
-      (int32_t)(now - gMaintCampaignUntilMs) >= 0) {
-    gMaintCampaignActive = false;
-  } else if (gMaintCampaignActive &&
-             (int32_t)(now - gMaintCampaignNextMs) >= 0) {
-    maintPacket = gMaintCampaign;
-    gMaintCampaignNextMs = now + 100;
-    sendMaint = true;
-  }
+  sendMaint = gMaintCampaign.next(now, maintPacket.target_id);
   portEXIT_CRITICAL(&gMaintCampaignMux);
   if (sendMaint && txTake()) {
     fillHeader(&maintPacket.h, NB_TARGET_ENTER_MAINT);
@@ -121,6 +112,25 @@ static void sendPacketRepeatedLocked(const void *packet, size_t len,
     esp_now_send(kBcast, (const uint8_t *)packet, len);
     if (i + 1 < count) delay(gapMs);
   }
+}
+
+// Caller holds gTxMutex. Checkpoint before RF so a reboot cannot erase the
+// intent or the exact mesh sequence of an availability-changing command.
+static bool auditActionBeforeSend(uint8_t action, uint32_t value,
+                                  const NbHeader &header,
+                                  const uint8_t target[3], bool required) {
+  GpsUtcObservation gps = halGpsUtc();
+  uint32_t ageMs = gps.valid ? millis() - gps.receivedMs : UINT32_MAX;
+  bool utcValid = gps.valid && ageMs <= 10000UL;
+  uint32_t utcS =
+      utcValid ? gps.utcS + (gps.subMs + ageMs) / 1000UL : 0;
+  bool ok = storeRecordAction(action, value, header.seq, header.uptime_ms,
+                              target, utcValid, utcS);
+  if (!ok)
+    Serial.printf("action-audit: persist FAILED for %s seq=%lu%s\n",
+                  actionAuditName(action), (unsigned long)header.seq,
+                  required ? "; command refused" : "; restorative send allowed");
+  return ok || !required;
 }
 
 void meshIdentify(const uint8_t target[3], uint8_t secs, uint8_t color,
@@ -200,7 +210,7 @@ void meshDirectFrame(const MeshDirectEntry *entries, uint8_t count,
   txGive();
 }
 
-void meshProgramLease(const uint8_t target[3], uint8_t programId,
+bool meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags,
                       const uint8_t params[8]) {
   NbProgramSet cmd = {};
@@ -210,10 +220,27 @@ void meshProgramLease(const uint8_t target[3], uint8_t programId,
   cmd.seed = esp_random();
   cmd.flags = flags;
   if (params) memcpy(cmd.params, params, sizeof(cmd.params));
-  if (!txTake()) return;
+  if (!txTake()) return false;
   fillHeader(&cmd.h, NB_PROGRAM_SET);
+  static const uint8_t kAll[3] = {0, 0, 0};
+  bool fleetWide = memcmp(target, kAll, sizeof(kAll)) == 0;
+  uint8_t auditAction = ACTION_AUDIT_NONE;
+  bool auditRequired = false;
+  if (fleetWide && leaseS == 0) {
+    auditAction = ACTION_AUDIT_RELEASE_ALL;
+  } else if (fleetWide && programId == 4) {
+    auditAction = ACTION_AUDIT_DARK_ALL;
+    auditRequired = true;
+  }
+  if (auditAction != ACTION_AUDIT_NONE &&
+      !auditActionBeforeSend(auditAction, leaseS, cmd.h, target,
+                             auditRequired)) {
+    txGive();
+    return false;
+  }
   sendPacketRepeatedLocked(&cmd, sizeof(cmd), 6, 8);
   txGive();
+  return true;
 }
 
 bool meshSleepAll(uint16_t seconds) {
@@ -224,17 +251,31 @@ bool meshSleepAll(uint16_t seconds) {
   // rails and enter timer deep sleep on the first copy they hear.
   if (!txTake()) return false;
   fillHeader(&cmd.h, NB_SLEEP_FOR);
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!auditActionBeforeSend(ACTION_AUDIT_SLEEP_ALL, seconds, cmd.h, kAll,
+                             true)) {
+    txGive();
+    return false;
+  }
   sendPacketRepeatedLocked(&cmd, sizeof(cmd), 4, 5);
   txGive();
   return true;
 }
 
-void meshForceLifecycle(uint8_t mode) {
-  if (mode > 2) return;
+bool meshForceLifecycle(uint8_t mode) {
+  if (mode > 2) return false;
   NbForceLifecycle packet = {};
   packet.mode = mode;
-  if (!txTake()) return;
+  if (!txTake()) return false;
   fillHeader(&packet.h, NB_FORCE_LIFECYCLE);
+  static const uint8_t kAll[3] = {0, 0, 0};
+  uint8_t action = mode == 0 ? ACTION_AUDIT_FORCE_DAY
+                             : (mode == 1 ? ACTION_AUDIT_FORCE_NIGHT
+                                          : ACTION_AUDIT_FORCE_AUTO);
+  if (!auditActionBeforeSend(action, mode, packet.h, kAll, true)) {
+    txGive();
+    return false;
+  }
   sendPacketRepeatedLocked(&packet, sizeof(packet), 4, 5);
   txGive();
 
@@ -245,22 +286,85 @@ void meshForceLifecycle(uint8_t mode) {
   gLifecycleCampaignNextMs = now + 2000;
   gLifecycleCampaignUntilMs = now + 360000UL;
   portEXIT_CRITICAL(&gLifecycleCampaignMux);
+  return true;
 }
 
 bool meshEnterMaintenance(const uint8_t target[3]) {
   static const uint8_t kAll[3] = {0, 0, 0};
   if (!target || memcmp(target, kAll, sizeof(kAll)) == 0) return false;
 
-  NbTargetCmd packet = {};
+  uint32_t now = millis();
+  uint32_t jobId = now | 0x80000000UL;
+  if (jobId == 0) jobId = 0x80000001UL;
+  bool ok = false;
+  portENTER_CRITICAL(&gMaintCampaignMux);
+  MaintenanceCampaignStatus current = gMaintCampaign.status(now);
+  // A legacy one-target request must never replace an explicit fleet gather.
+  if (current.phase != MAINT_CAMPAIGN_GATHER &&
+      gMaintCampaign.begin(jobId, 35000UL, now)) {
+    ok = gMaintCampaign.add(jobId, target);
+  }
+  portEXIT_CRITICAL(&gMaintCampaignMux);
+  return ok;
+}
+
+bool meshProfile(const uint8_t target[3], uint8_t profile, bool persist) {
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!target || memcmp(target, kAll, sizeof(kAll)) == 0 ||
+      profile > PROFILE_PROD)
+    return false;
+  NbProfile packet = {};
   memcpy(packet.target_id, target, sizeof(packet.target_id));
+  packet.profile = profile;
+  packet.flags = persist ? 0x01 : 0;
+  if (!txTake()) return false;
+  fillHeader(&packet.h, NB_PROFILE);
+  sendPacketRepeatedLocked(&packet, sizeof(packet), 6, 8);
+  txGive();
+  return true;
+}
+
+bool meshMaintenanceBegin(uint32_t jobId, uint16_t durationS) {
+  if (durationS == 0 || durationS > 3600) return false;
   uint32_t now = millis();
   portENTER_CRITICAL(&gMaintCampaignMux);
-  gMaintCampaign = packet;
-  gMaintCampaignActive = true;
-  gMaintCampaignNextMs = now;
-  gMaintCampaignUntilMs = now + 35000UL;
+  bool ok = gMaintCampaign.begin(jobId, (uint32_t)durationS * 1000UL, now);
   portEXIT_CRITICAL(&gMaintCampaignMux);
-  return true;
+  return ok;
+}
+
+bool meshMaintenanceAdd(uint32_t jobId, const uint8_t target[3]) {
+  portENTER_CRITICAL(&gMaintCampaignMux);
+  bool ok = gMaintCampaign.add(jobId, target);
+  portEXIT_CRITICAL(&gMaintCampaignMux);
+  return ok;
+}
+
+bool meshMaintenanceFreeze(uint32_t jobId) {
+  uint32_t now = millis();
+  portENTER_CRITICAL(&gMaintCampaignMux);
+  bool ok = gMaintCampaign.freeze(jobId, now);
+  portEXIT_CRITICAL(&gMaintCampaignMux);
+  return ok;
+}
+
+MaintenanceCampaignStatus meshMaintenanceStatus() {
+  uint32_t now = millis();
+  portENTER_CRITICAL(&gMaintCampaignMux);
+  MaintenanceCampaignStatus status = gMaintCampaign.status(now);
+  portEXIT_CRITICAL(&gMaintCampaignMux);
+  return status;
+}
+
+void meshMaintenancePrintStatus() {
+  MaintenanceCampaignStatus status = meshMaintenanceStatus();
+  Serial.printf(
+      "nb-maint job=%08lX phase=%u active=%u targets=%u dispatch=%lu "
+      "remain=%lu cycle=%lu\n",
+      (unsigned long)status.jobId, (unsigned)status.phase,
+      status.phase == MAINT_CAMPAIGN_GATHER ? 1U : 0U,
+      (unsigned)status.targetCount, (unsigned long)status.dispatchCount,
+      (unsigned long)status.remainingMs, (unsigned long)status.cycleMs);
 }
 
 bool meshCommissionDefault(const uint8_t target[3], uint8_t mode,

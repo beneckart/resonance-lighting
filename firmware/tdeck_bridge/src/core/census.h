@@ -6,7 +6,7 @@
 #include "rx_ring.h"
 
 // Passive fleet census over heartbeats — port of the cores3_bridge PeerStat
-// table (all 15 NB_HAS_HB_FIELD-gated tails, donor cores3_bridge.ino:270-912)
+// table (all 16 NB_HAS_HB_FIELD-gated tails, donor cores3_bridge.ino:270-912)
 // plus the Bridge OS additions:
 //   - per-peer RSSI EWMA, alpha 1/8 (donor: fixture neighbor_table.cpp:22)
 //   - windowed PDR next to the donor's cumulative-since-reset ratio
@@ -147,6 +147,24 @@ struct PeerStat {
   uint8_t classMismatch;
   uint8_t recoveryState;
   uint16_t recoveryDetectMv;
+
+  // Latched after the first full heartbeat: provenance changes only on a new
+  // sleep/protection event, so hb-short frames must not hide it from emitters.
+  bool hasSleepAudit;
+  uint8_t sleepAuditFlags;
+  uint8_t lastSleepCause;
+  uint32_t lastSleepS;
+  int16_t lastSleepBattMv;
+  uint8_t lastSleepProfile;
+  uint8_t lastSleepLifeState;
+  uint8_t lastSleepPowerTier;
+  uint8_t lastSleepSourceId[3];
+  uint32_t lastSleepSourceSeq;
+  uint8_t lastCommandSleepCause;
+  uint32_t lastCommandSleepS;
+  uint8_t lastCommandSleepSourceId[3];
+  uint32_t lastCommandSleepSourceSeq;
+  int16_t lastProtectBattMv;
 
   // Latched across hb-short frames (hb-full arrives every ~60 s in prod).
   uint8_t classLatched;  // 0 = never seen

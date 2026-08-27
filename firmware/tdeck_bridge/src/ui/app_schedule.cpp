@@ -33,11 +33,16 @@ static void refresh(lv_timer_t *) {
 }
 
 static void applyYes(void *) {
-  meshForceLifecycle(gPendingMode);
-  if (gStatus)
-    lv_label_set_text_fmt(gStatus, "%s field baseline sent fleet-wide.\n"
-                                  "RAM-only; reboot returns a fixture to AUTO.",
-                          modeName(gPendingMode));
+  bool sent = meshForceLifecycle(gPendingMode);
+  if (gStatus) {
+    if (sent)
+      lv_label_set_text_fmt(gStatus, "%s field baseline sent fleet-wide.\n"
+                                    "RAM-only; reboot returns a fixture to AUTO.",
+                            modeName(gPendingMode));
+    else
+      lv_label_set_text(gStatus,
+                        "NOT SENT: action audit storage or radio unavailable.");
+  }
 }
 
 static void modeCb(lv_event_t *e) {

@@ -1,0 +1,13 @@
+OWNER: Ben/Codex field laptop via T-Deck 8EB508
+SOURCE: 64264b2c60cbff9a9423642cb6cfee93e4272636
+ARTIFACT: fx-260826-51d1fe1-p 57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261
+TARGETS: stage-1 9F2638,9F26BC,F4019C
+OPERATION: targeted shared-WiFi OTA; field profile; channel 11; 120 s day sleep; 3000 ms timer-wake listen
+BRIDGE: T-Deck 8EB508 on COM152 through dashboard http://127.0.0.1:8765
+EXCLUSIONS: protected Magic Wand F40344; known downlink exception 9F26D8; low-voltage holdbacks; Akuma 9E668C remains the dev-local canary until separately promoted
+GATE: require safe power preflight, identity-matching maintenance discovery, upload acknowledgement, fresh exact revision, and survival beyond the 25 s pending-verify window before widening
+ATTEMPT 2026-08-27T00:36Z: stage-1 dry-run preflight passed with a 10 s freshness limit. The first live POST returned HTTP 500 because COM152 had disappeared and the dashboard was disconnected. Dashboard last_command remained the prior U9E668C Akuma test. No stage-1 maintenance command, discovery, or firmware upload occurred. Reconnect the T-Deck, wait for a fresh bridge heartbeat, and repeat the same explicit stage-1 batch.
+RESULT 2026-08-27T00:40Z-02:14Z: T-Deck 8EB508 returned on COM152. Stage 1 uploaded and verified 3/3. At the end of the 10-minute software-boot grace, all three stopped heartbeating near 600 s uptime and returned after an approximately 120 s timer sleep with reset_reason=deepsleep and the exact new revision. Widening used the same immutable binary throughout. Final production cohort is 85 exact new revision and 13 prior revision; all 85 passed fresh exact-revision and 25 s pending-verify evidence. Temporary B600 fleet-dark gather was explicitly released with b. Special/prototype/recovery revisions remained outside the target set.
+DEFERRED: 9F266C,9F26B0,9F2714,F2B7DC,F2BCF4,F2BDD4,F2BF7C,F3FD28,F40174,F401DC,F402A8,F40314,F4042C. These were not discovered and not flashed. Most report PROTECT; production PROTECT sleeps 900 s with an 8 s wake grace, so the five-minute deterministic pass could not cover one cadence. Last VBAT range was 3.101-3.539 V. Resume in a strong-sun window, not late day.
+POSTMORTEM: docs/tests/FLEET_OTA_120X3_ROLLOUT_POSTMORTEM_2026-08-26.md
+UPLOAD LEDGER: 20260827-004059, -010528, -011715, -012126, -012856, -013732, -014138, -015127, -020200, and -021127 fleet-ota-results JSONL files under ops/bench/data/ca.

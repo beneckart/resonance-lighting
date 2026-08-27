@@ -60,6 +60,8 @@ FIELD_DEFAULTS = {
     "maintain_v": "4.6",
 }
 
+OTA_PENDING_VERIFY_SURVIVAL_S = 25.0
+
 
 def normalize_peer_id(text: str) -> str:
     peer_id = text.strip().upper()
@@ -497,21 +499,75 @@ def dashboard_state(dashboard_url: str) -> dict[str, Any] | None:
     return fetch_json(dashboard_url.rstrip("/") + "/api/state", 4.0)
 
 
-def verify_rejoin(args: argparse.Namespace, expect_fw: str | None) -> None:
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def peer_rejoin_matches(
+    peer: dict[str, Any],
+    baseline: dict[str, Any] | None,
+    expect_fw: str | None,
+    fresh_age_ms: int,
+) -> tuple[bool, str]:
+    age_ms = _int_or_none(peer.get("age_ms"))
+    if age_ms is None or age_ms > fresh_age_ms:
+        return False, f"heartbeat age {age_ms} ms is not fresh"
+    if expect_fw is not None and peer.get("firmware_rev") != expect_fw:
+        return False, f"firmware is {peer.get('firmware_rev')}, expected {expect_fw}"
+
+    # A unique ADR 0040 revision proves which image booted. Mutable dev-local
+    # (or an omitted expected revision) cannot: require an observed reset from
+    # the pre-job peer state so a cached/reprinted heartbeat cannot pass.
+    mutable_identity = expect_fw is None or expect_fw == "dev-local" or (
+        baseline is not None and baseline.get("firmware_rev") == expect_fw
+    )
+    if mutable_identity:
+        if baseline is None:
+            return False, "mutable/unknown revision has no pre-job peer baseline"
+        before_up = _int_or_none(baseline.get("uptime_ms"))
+        after_up = _int_or_none(peer.get("uptime_ms"))
+        before_seq = _int_or_none(baseline.get("seq"))
+        after_seq = _int_or_none(peer.get("seq"))
+        uptime_reset = (
+            before_up is not None and after_up is not None and after_up < before_up
+        )
+        sequence_reset = (
+            before_seq is not None and after_seq is not None and after_seq < before_seq
+        )
+        if not (uptime_reset or sequence_reset):
+            return False, (
+                "same/unknown revision has no post-job uptime or sequence reset "
+                f"(up {before_up}->{after_up}, seq {before_seq}->{after_seq})"
+            )
+    return True, "fresh expected rejoin"
+
+
+def verify_rejoin(
+    args: argparse.Namespace,
+    expect_fw: str | None,
+    baseline: dict[str, Any] | None,
+    ota_started_at: float,
+) -> None:
     if args.skip_verify:
         return
     log("waiting for peer to rejoin ESP-NOW via dashboard")
     deadline = time.time() + args.verify_timeout
     last: dict[str, Any] | None = None
+    last_reason = "no peer heartbeat observed"
+    not_before = ota_started_at + OTA_PENDING_VERIFY_SURVIVAL_S
     while time.time() < deadline:
         state = dashboard_state(args.dashboard_url)
         if state:
             peer = (state.get("peers") or {}).get(args.peer_id)
             if isinstance(peer, dict):
                 last = peer
-                age_ok = int(peer.get("age_ms", 10**9)) <= args.fresh_age_ms
-                fw_ok = expect_fw is None or peer.get("firmware_rev") == expect_fw
-                if age_ok and fw_ok:
+                matches, last_reason = peer_rejoin_matches(
+                    peer, baseline, expect_fw, args.fresh_age_ms
+                )
+                if matches and time.time() >= not_before:
                     log(
                         "verified rejoin: "
                         f"fw={peer.get('firmware_rev')} rr={peer.get('reset_reason')} "
@@ -519,7 +575,9 @@ def verify_rejoin(args: argparse.Namespace, expect_fw: str | None) -> None:
                     )
                     return
         time.sleep(2.0)
-    raise SystemExit(f"peer did not rejoin with expected state; last={last}")
+    raise SystemExit(
+        f"peer did not rejoin with expected post-job state: {last_reason}; last={last}"
+    )
 
 
 def main() -> None:
@@ -551,6 +609,13 @@ def main() -> None:
         log("skip-ota requested; stopping before maintenance/OTA")
         return
 
+    baseline_state = dashboard_state(args.dashboard_url)
+    baseline_peer: dict[str, Any] | None = None
+    if baseline_state:
+        candidate = (baseline_state.get("peers") or {}).get(args.peer_id)
+        if isinstance(candidate, dict):
+            baseline_peer = dict(candidate)
+
     sent_at: float | None = None
     if not args.skip_maint:
         sent_at = send_targeted_maintenance(args)
@@ -572,8 +637,9 @@ def main() -> None:
 
     if sent_at is not None:
         wait_out_maintenance_tail(sent_at, args.maint_tail_s, ip)
+    ota_started_at = time.time()
     run_ota(args, bin_path, ip)
-    verify_rejoin(args, expect_fw)
+    verify_rejoin(args, expect_fw, baseline_peer, ota_started_at)
 
 
 if __name__ == "__main__":
