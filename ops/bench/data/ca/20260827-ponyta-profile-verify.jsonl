@@ -1,0 +1,4 @@
+{"elapsed_s": 0.0, "event": "profile_verify_started", "job_id": "0C66441D", "phase": "PLAN", "targets": ["F2B7DC"], "ts_utc": "2026-08-27T16:20:57Z"}
+{"elapsed_s": 0.032, "event": "target_added", "job_id": "0C66441D", "phase": "GATHER", "target": "F2B7DC", "ts_utc": "2026-08-27T16:20:57Z"}
+{"campaign": {"active": true, "cycle_ms": 10, "dispatch_count": 2, "job_id": "0C66441D", "phase": 1, "remaining_ms": 189970, "status_age_ms": 0, "target_count": 1, "ts_utc": "2026-08-27T16:20:57.668580+00:00"}, "elapsed_s": 0.078, "event": "bridge_acknowledged", "job_id": "0C66441D", "phase": "GATHER", "ts_utc": "2026-08-27T16:20:57Z"}
+{"campaign": {"active": false, "cycle_ms": 10, "dispatch_count": 13962, "job_id": "0C66441D", "phase": 2, "remaining_ms": 0, "status_age_ms": 15, "target_count": 1, "ts_utc": "2026-08-27T16:23:29.598327+00:00"}, "elapsed_s": 152.0, "event": "bridge_acknowledged", "job_id": "0C66441D", "phase": "FREEZE", "ts_utc": "2026-08-27T16:23:29Z"}

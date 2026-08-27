@@ -57,7 +57,26 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fully instrumented heartbeat. Increase the bounded line or split it under an
   explicit parse contract, add a max-tail regression, and verify the dashboard
   can audit profile without entering maintenance WiFi (Ben/Codex).
-- [~] **Finish the 120 s sleep / 3 s listen production cadence rollout.** Clean
+- [ ] **Preserve discovered endpoints across an all-or-none OTA discovery
+  timeout.** On 2026-08-27, an eight-target campaign discovered five exact
+  maintenance endpoints and then correctly stopped before upload when three
+  required peers timed out. `discover_batch()` raised before returning its
+  local `found` map, leaving `main()`'s finalizer unable to request `/resume`
+  from the five already found endpoints. Refactor discovery to return partial
+  state with its error (or raise a structured exception carrying it), retain
+  the acknowledged FREEZE behavior, add a regression for required-target
+  timeout after partial discovery, and prove every known endpoint receives
+  final cleanup (Ben/Codex).
+- [ ] **USB-data rescue Bidoof `9F26D8`.** It remains on known-good
+  `fx-260816-otafix1-b` and is continuously mesh-fresh on channel 11 with about
+  3.40 V VBAT and strong USB input, but it is the previously documented
+  targeted-maintenance downlink exception and never exposes an identity-
+  matching WiFi endpoint. Two 2026-08-27 supervised campaigns made no upload.
+  The current rotated cables enumerate no fixture serial ports, so connect one
+  real USB data cable, prove exact identity, preserve NVS, install the immutable
+  production artifact, and verify field profile plus reboot ride-through (Ben).
+- [x] **Finish the 120 s sleep / 3 s listen production cadence rollout. DONE
+  2026-08-27.** Clean
   production artifact `fx-260826-51d1fe1-p` is built from commit `64264b2`,
   1,206,784 bytes, SHA-256
   `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
@@ -73,8 +92,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the target set. See the 2026-08-26 fleet OTA post-mortem (Ben/Codex).
   **2026-08-27 update:** USB recovery completed and pending-verify-proved seven
   of those thirteen (`F2BCF4,F2BDD4,F2BF7C,F3FD28,F401DC,F402A8,F40314`) plus
-  thirteen additional old/intermediate fixtures. The still-unreached original
-  defer list is `9F266C,9F26B0,9F2714,F2B7DC,F40174,F4042C`.
+  thirteen additional old/intermediate fixtures. The final six original
+  holdbacks (`9F266C,9F26B0,9F2714,F2B7DC,F40174,F4042C`) were uploaded and
+  pending-verify-proved after rotating USB power; Cynder and Meowth required the
+  separate 930 s PROTECT pass. Ponyta was then corrected exactly from persisted
+  commission to field. Protected Thor and the separate Bidoof downlink exception
+  remain intentionally outside this completed rollout scope.
 - [~] **Hardware-validate the first-class multi-target OTA state machine.**
   Source implementation is complete under ADR 0062: the T-Deck has a native-
   tested 160-target, 10 ms round-robin job roster plus explicit begin/add/freeze/

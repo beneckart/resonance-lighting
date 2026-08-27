@@ -10,6 +10,48 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Rotated-power cohort updated; cadence holdbacks closed
+
+After Ben rotated the USB power cables onto dark lanterns, a read-only 379 s
+census found eight ordinary old-firmware candidates with safe power evidence.
+The exact immutable target remained `fx-260826-51d1fe1-p` (1,206,784 bytes,
+SHA-256 `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`).
+Protected Akuma `9E668C`, protected magic-wand Thor `F40344`, and unsafe 0 V
+Shuckle `F4031C` were excluded.
+
+The first eight-target 360 s campaign failed closed before upload because
+Bidoof `9F26D8`, Cynder `F4042C`, and Meowth `9F266C` did not expose maintenance
+endpoints. A follow-up exact five-target batch uploaded Loki `9E5AD4`, Chunli
+`9F2714`, Pacman `F40174`, Ponyta `F2B7DC`, and Rikku `9F26B0`; all five supplied
+fresh exact-revision heartbeats and survived the 25 s pending-verify gate. The
+apparent Cynder/Meowth failure was then correctly identified as cadence: both
+had reported `LedTier::PROTECT`, so a separate 930 s PROTECT campaign caught,
+uploaded, and pending-verify-proved both. This closes all six fixtures left in
+the original 120 s / 3 s cadence rollout defer list.
+
+An authoritative maintenance telemetry audit found Loki, Chunli, Pacman, and
+Rikku persisted as `field`, while Ponyta remained `commission`; exact targeted
+`FF2B7DC:1:1` changed and persisted Ponyta to field, and a subsequent full mesh
+heartbeat reported `profile=1`. Cynder and Meowth reported field immediately
+before OTA, and OTA preserves NVS profile. No named nonzero retained peer now
+reports commission. A stale `000000/profile=0` record matches Shuckle's old
+revision, panic reset, 0 V telemetry, and RSSI and is treated as a transient
+identity record rather than a separately addressable fixture.
+
+Bidoof remains the known `fx-260816-otafix1-b` targeted-maintenance downlink
+exception: it is continuously fresh on channel 11 with about 3.40 V battery and
+strong USB input, but two supervised campaigns never found an identity-matching
+WiFi endpoint. Windows exposes only T-Deck COM152; the rotated fixture cables
+provide power, not USB data. Bidoof therefore requires a real data-cable USB
+rescue. No AP fallback was used.
+
+The failed all-or-none campaign also exposed a cleanup edge case: when
+`discover_batch()` raises for missing required targets, its locally found
+endpoint map is not returned to `main()`, so the finalizer cannot request
+`/resume` for already discovered peers. The bridge roster still freezes
+correctly and no upload occurs, but the host should retain incremental discovery
+state across the exception so endpoint cleanup is complete.
+
 ## 2026-08-27 -- Ben + Codex -- Bridge day mode flashed; dev-cache defect isolated
 
 Ben found the dark Bridge OS presentation too dim in early-morning sun. The
