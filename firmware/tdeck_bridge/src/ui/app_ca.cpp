@@ -7,6 +7,7 @@
 #include "app_ca.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 // GH-CA params[8] semantics (fixture prog_gh_ca.cpp:9-33):
@@ -99,23 +100,19 @@ static void backCb(lv_event_t *) {
 
 void appCaOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Wildfire");
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t *title = lv_label_create(scr);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Wildfire CA");
-  lv_obj_set_pos(title, 8, 4);
-
   gProgDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gProgDd, "lights\nknocks");
-  lv_obj_set_pos(gProgDd, 150, 2);
-  lv_obj_set_width(gProgDd, 88);
+  lv_obj_set_pos(gProgDd, 8, 28);
+  lv_obj_set_width(gProgDd, 148);
   gLeaseDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gLeaseDd, "120s\n300s\n600s\n1h");
   lv_dropdown_set_selected(gLeaseDd, 2);
-  lv_obj_set_pos(gLeaseDd, 244, 2);
-  lv_obj_set_width(gLeaseDd, 72);
+  lv_obj_set_pos(gLeaseDd, 164, 28);
+  lv_obj_set_width(gLeaseDd, 148);
 
   lv_group_remove_all_objs(lvglGroup());
   lv_group_add_obj(lvglGroup(), gProgDd);
@@ -125,24 +122,24 @@ void appCaOpen() {
     lv_obj_t *lbl = lv_label_create(scr);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
     lv_label_set_text(lbl, kKnobs[i].name);
-    lv_obj_set_pos(lbl, 8, 42 + i * 26);
+    lv_obj_set_pos(lbl, 8, 69 + i * 22);
     gSliders[i] = lv_slider_create(scr);
     lv_obj_set_size(gSliders[i], 150, 12);
-    lv_obj_set_pos(gSliders[i], 110, 46 + i * 26);
+    lv_obj_set_pos(gSliders[i], 110, 73 + i * 22);
     lv_slider_set_range(gSliders[i], kKnobs[i].min, kKnobs[i].max);
     lv_slider_set_value(gSliders[i], kKnobs[i].dflt, LV_ANIM_OFF);
     lv_obj_add_event_cb(gSliders[i], sliderChanged, LV_EVENT_VALUE_CHANGED, nullptr);
     gValLabels[i] = lv_label_create(scr);
     lv_obj_set_style_text_font(gValLabels[i], &lv_font_montserrat_14, 0);
     lv_label_set_text_fmt(gValLabels[i], "%d", kKnobs[i].dflt);
-    lv_obj_set_pos(gValLabels[i], 272, 42 + i * 26);
+    lv_obj_set_pos(gValLabels[i], 272, 69 + i * 22);
     lv_group_add_obj(lvglGroup(), gSliders[i]);
   }
 
   gTofBtn = lv_button_create(scr);
   lv_obj_add_flag(gTofBtn, LV_OBJ_FLAG_CHECKABLE);
-  lv_obj_set_size(gTofBtn, 108, 25);
-  lv_obj_set_pos(gTofBtn, 8, 170);
+  lv_obj_set_size(gTofBtn, 108, 22);
+  lv_obj_set_pos(gTofBtn, 8, 175);
   gTofLabel = lv_label_create(gTofBtn);
   lv_label_set_text(gTofLabel, "ToF seed: off");
   lv_obj_center(gTofLabel);
@@ -151,7 +148,7 @@ void appCaOpen() {
 
   gInfo = lv_label_create(scr);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gInfo, 124, 174);
+  lv_obj_set_pos(gInfo, 124, 178);
   lv_obj_set_width(gInfo, 188);
   lv_label_set_text(gInfo, "hardened rising edge");
 

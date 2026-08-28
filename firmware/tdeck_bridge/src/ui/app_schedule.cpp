@@ -7,6 +7,7 @@
 #include "app_schedule.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 static lv_obj_t *gScreen = nullptr;
@@ -87,13 +88,9 @@ static lv_obj_t *addModeButton(lv_obj_t *parent, const char *name, uint8_t mode,
 
 void appScheduleOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Schedule");
   gScreen = lv_obj_create(nullptr);
   lv_obj_clear_flag(gScreen, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(gScreen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Wake / Schedule");
-  lv_obj_set_pos(title, 8, 5);
 
   gStatus = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gStatus, &lv_font_montserrat_14, 0);

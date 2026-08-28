@@ -14,6 +14,7 @@
 #include "../net/mesh_tx.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 namespace {
@@ -312,13 +313,9 @@ static void backCb(lv_event_t *) {
 
 void appContagionOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Contagion");
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(screen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Contagion");
-  lv_obj_set_pos(title, 8, 2);
 
   lv_group_remove_all_objs(lvglGroup());
   gModeDd = makeDropdown(screen, "Color Virus\nEpidemic", 8, 31, 148);

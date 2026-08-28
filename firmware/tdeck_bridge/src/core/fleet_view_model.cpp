@@ -66,6 +66,21 @@ static FleetBatteryFilter filterForBand(BatteryHealthBand band) {
   return FleetBatteryFilter::UNKNOWN;
 }
 
+static FleetChargeFilter filterForCharge(ChargeStatus status) {
+  switch (status) {
+    case ChargeStatus::CHARGING_CC: return FleetChargeFilter::CHARGING_CC;
+    case ChargeStatus::CHARGING_CV: return FleetChargeFilter::CHARGING_CV;
+    case ChargeStatus::TOP_OFF: return FleetChargeFilter::TOP_OFF;
+    case ChargeStatus::NOT_CHARGING:
+    case ChargeStatus::CHARGE_DISABLED:
+      return FleetChargeFilter::DONE_OFF;
+    case ChargeStatus::FAULT: return FleetChargeFilter::FAULT;
+    case ChargeStatus::UNKNOWN: return FleetChargeFilter::UNKNOWN;
+    case ChargeStatus::OFF_AIR: return FleetChargeFilter::OFF_AIR;
+  }
+  return FleetChargeFilter::UNKNOWN;
+}
+
 static bool rowMatches(const FleetViewRow &row,
                        const FleetViewSettings &settings) {
   if (settings.scope == FleetRowScope::SEEN_SINCE_BOOT && !row.observed)
@@ -81,6 +96,10 @@ static bool rowMatches(const FleetViewRow &row,
 
   if (settings.batteryFilter != FleetBatteryFilter::ALL &&
       settings.batteryFilter != filterForBand(row.batteryBand))
+    return false;
+
+  if (settings.chargeFilter != FleetChargeFilter::ALL &&
+      settings.chargeFilter != filterForCharge(row.chargeStatus))
     return false;
 
   if (settings.programFilter != FleetProgramFilter::ALL) {
@@ -183,6 +202,9 @@ static FleetViewRow makeRow(const HealthRegistryEntry *registry,
   }
   row.fresh = row.observed && row.view.ageMs < freshMs;
   row.batteryBand = batteryHealthBand(row.fresh, row.view.battMv);
+  row.chargeStatus = chargeStatus(row.fresh, row.view.hasBq,
+                                  row.view.bqReg16, row.view.bqStat1,
+                                  row.view.bqFault0);
   row.fixtureClass = row.view.fixtureClass;
   if (row.fixtureClass == 0 && registry)
     row.fixtureClass = fleetClassFromRole(registry->role);
@@ -207,6 +229,7 @@ FleetViewSettings fleetViewDefaults() {
   settings.scope = FleetRowScope::ROSTER_AND_LIVE;
   settings.classFilter = FleetClassFilter::ALL;
   settings.batteryFilter = FleetBatteryFilter::ALL;
+  settings.chargeFilter = FleetChargeFilter::ALL;
   settings.programFilter = FleetProgramFilter::ALL;
   settings.firmwareFilter = FleetFirmwareFilter::ALL;
   settings.sort = FleetSortMode::CALLSIGN_STABLE;

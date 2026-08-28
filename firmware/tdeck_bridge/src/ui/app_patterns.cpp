@@ -4,6 +4,7 @@
 #include <lvgl.h>
 
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 namespace {
@@ -127,17 +128,14 @@ void appPatternsSetStreamHooks(const PatternStreamHooks *hooks) {
 
 void appPatternsOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Patterns");
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t *title = lv_label_create(screen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Patterns");
-  lv_obj_set_pos(title, 8, 2);
-
   gInfo = lv_label_create(screen);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gInfo, 126, 8);
+  lv_obj_set_pos(gInfo, 8, 177);
+  lv_obj_set_width(gInfo, 304);
 
   lv_group_remove_all_objs(lvglGroup());
   gPaletteDd = makeDropdown(screen, "Ember\nForest\nOcean\nAurora\nMoon", 8,

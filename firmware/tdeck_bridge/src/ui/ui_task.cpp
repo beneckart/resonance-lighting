@@ -24,12 +24,12 @@
 #include "app_zones.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_theme.h"
 #include "ui_task.h"
 
 static bool gActive = false;
 static lv_obj_t *gLauncher = nullptr;
-static lv_obj_t *gStatusLabel = nullptr;
 
 // ---------------------------------------------------------------- launcher --
 
@@ -72,12 +72,12 @@ static bool launcherVertical(int dir) {
   lv_group_t *g = lvglGroup();
   lv_obj_t *focused = g ? lv_group_get_focused(g) : nullptr;
   if (!focused || !gLauncher) return false;
-  int32_t idx = lv_obj_get_index(focused) - 1;  // child 0 = status label
+  int32_t idx = lv_obj_get_index(focused);
   if (idx < 0) return false;
   int32_t target = idx + dir * 4;  // 4 columns
   int32_t tiles = (int32_t)(sizeof(kTiles) / sizeof(kTiles[0]));
   if (target < 0 || target >= tiles) return true;  // consume at grid edge
-  lv_obj_t *btn = lv_obj_get_child(gLauncher, target + 1);
+  lv_obj_t *btn = lv_obj_get_child(gLauncher, target);
   if (btn) lv_group_focus_obj(btn);
   return true;
 }
@@ -86,6 +86,7 @@ static const UiNavHooks kLauncherHooks = {launcherVertical, nullptr};
 void uiGoHome() {
   lv_obj_t *old = lv_screen_active();
   buildLauncher();
+  uiShellSetTitle("Home");
   lvglSetNavHooks(&kLauncherHooks);
   lv_screen_load(gLauncher);
   if (old && old != gLauncher) lv_obj_delete(old);
@@ -102,6 +103,7 @@ static void addBackHandlers(lv_obj_t *screen, lv_obj_t *focusTarget) {
 }
 
 static void openSunTest() {
+  uiShellSetTitle("SunTest");
   lvglSetNavHooks(nullptr);
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
@@ -111,8 +113,8 @@ static void openSunTest() {
     lv_obj_set_style_bg_color(bar, lv_color_white(), 0);
     lv_obj_set_style_radius(bar, 0, 0);
     lv_obj_set_style_border_width(bar, 0, 0);
-    lv_obj_set_size(bar, 20, 60);
-    lv_obj_set_pos(bar, i * 40, 0);
+    lv_obj_set_size(bar, 20, 34);
+    lv_obj_set_pos(bar, i * 40, UI_SHELL_BAR_HEIGHT);
   }
   static const lv_color_t rgb[3] = {lv_color_hex(0xFF0000),
                                     lv_color_hex(0x00FF00),
@@ -156,12 +158,13 @@ static void openSunTest() {
 }
 
 static void openPlaceholder(const char *name) {
+  uiShellSetTitle(name);
   lvglSetNavHooks(nullptr);
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_t *title = lv_label_create(scr);
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
   lv_label_set_text(title, name);
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 24);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 30);
   lv_obj_t *sub = lv_label_create(scr);
   lv_label_set_text(sub, "app lands in a later milestone");
   lv_obj_align(sub, LV_ALIGN_CENTER, 0, -10);
@@ -195,36 +198,16 @@ static void openLocatePlaceholder() { openPlaceholder("Locate"); }
 
 static void tileClicked(lv_event_t *e) {
   const Tile *tile = (const Tile *)lv_event_get_user_data(e);
-  if (tile && tile->open) tile->open();
-}
-
-static void statusTimer(lv_timer_t *) {
-  // Only touch the label while the launcher is the live screen.
-  if (!gStatusLabel || lv_screen_active() != gLauncher) return;
-  int live = 0, seen = 0;
-  uint32_t now = millis();
-  censusCountsSafe(&live, &seen, now);
-  uint16_t mv = halBatteryMv();
-  char buf[96];
-  const char *net;
-  switch (netState()) {
-    case NetState::ONLINE: net = LV_SYMBOL_WIFI; break;
-    case NetState::GUARD_BLOCKED: net = LV_SYMBOL_WARNING " GUARD"; break;
-    case NetState::CONNECTING: net = LV_SYMBOL_REFRESH; break;
-    default: net = "mesh"; break;
+  if (tile && tile->open) {
+    uiShellSetTitle(tile->name);
+    tile->open();
   }
-  snprintf(buf, sizeof(buf), "%s %ddBm  ch%u  " LV_SYMBOL_SHUFFLE " %d/%d  " LV_SYMBOL_BATTERY_FULL " %u%%",
-           net, netRssi(), settings().channel, live, seen,
-           lipoPercentFromMv(mv));
-  lv_label_set_text(gStatusLabel, buf);
 }
 
 static void styleLauncher() {
   if (!gLauncher) return;
   bool day = uiDayMode();
   lv_obj_set_style_bg_color(gLauncher, uiScreenColor(), 0);
-  if (gStatusLabel)
-    lv_obj_set_style_text_color(gStatusLabel, uiMutedTextColor(), 0);
   uint32_t count = lv_obj_get_child_count(gLauncher);
   for (uint32_t i = 0; i < count; ++i) {
     lv_obj_t *child = lv_obj_get_child(gLauncher, (int32_t)i);
@@ -259,11 +242,6 @@ static void buildLauncher() {
   }
   gLauncher = lv_obj_create(nullptr);
 
-  gStatusLabel = lv_label_create(gLauncher);
-  lv_obj_set_style_text_font(gStatusLabel, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gStatusLabel, 6, 4);
-  lv_label_set_text(gStatusLabel, "starting...");
-
   lv_obj_t *grid = gLauncher;
   const int cols = 4, cellW = 78, cellH = 52, x0 = 5, y0 = 26;
   lv_group_remove_all_objs(lvglGroup());
@@ -283,9 +261,6 @@ static void buildLauncher() {
   }
 
   styleLauncher();
-
-  lv_timer_create(statusTimer, 1000, nullptr);
-  statusTimer(nullptr);
 }
 
 // -------------------------------------------------------------------- task --
@@ -306,6 +281,8 @@ bool uiStart() {
   buildLauncher();
   lvglSetNavHooks(&kLauncherHooks);
   lv_screen_load(gLauncher);
+  uiShellStart();
+  uiShellSetTitle("Home");
   BaseType_t ok = xTaskCreatePinnedToCore(uiTask, "ui", 12288, nullptr, 4,
                                           nullptr, 1);
   gActive = ok == pdPASS;

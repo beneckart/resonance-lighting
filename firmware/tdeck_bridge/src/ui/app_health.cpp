@@ -9,11 +9,11 @@
 #include "../net/census_svc.h"
 #include "app_health.h"
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_theme.h"
 #include "ui_task.h"
 
 static lv_obj_t *gScreen = nullptr;
-static lv_obj_t *gHeader = nullptr;
 static lv_obj_t *gCaption = nullptr;
 static lv_obj_t *gBack = nullptr;
 static lv_obj_t *gModeButton = nullptr;
@@ -204,7 +204,6 @@ static void stopHealthTimer() {
 static void backFromHealth(lv_event_t *) {
   stopHealthTimer();
   gScreen = nullptr;
-  gHeader = nullptr;
   gCaption = nullptr;
   gBack = nullptr;
   gModeButton = nullptr;
@@ -387,9 +386,10 @@ static void refreshHealth(lv_timer_t *) {
 
   if (gColorMode == HealthColorMode::VBAT) {
     HealthSummary summary = healthSummarize(gTiles, gTileCount);
-    lv_label_set_text_fmt(gHeader, "G%u Y%u R%u ?%u -%u",
-                          summary.good, summary.nearLow, summary.low,
-                          summary.unknown, summary.offAir);
+    char status[80];
+    snprintf(status, sizeof(status), "G%u Y%u R%u ?%u -%u", summary.good,
+             summary.nearLow, summary.low, summary.unknown, summary.offAir);
+    uiShellSetAppStatus(status);
   } else {
     uint16_t cc = 0, cv = 0, top = 0, notCharging = 0;
     uint16_t fault = 0, unknown = 0, offAir = 0;
@@ -405,8 +405,10 @@ static void refreshHealth(lv_timer_t *) {
         case ChargeStatus::OFF_AIR: ++offAir; break;
       }
     }
-    lv_label_set_text_fmt(gHeader, "C%u V%u T%u N%u !%u ?%u -%u", cc,
-                          cv, top, notCharging, fault, unknown, offAir);
+    char status[96];
+    snprintf(status, sizeof(status), "C%u V%u T%u N%u !%u ?%u -%u", cc, cv,
+             top, notCharging, fault, unknown, offAir);
+    uiShellSetAppStatus(status);
   }
   updateCaption(focusedTileIndex());
 }
@@ -425,15 +427,13 @@ static void openDetail(const uint8_t id[3]) {
 
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(screen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
   if (registry)
-    lv_label_set_text_fmt(title, "%s  %02X%02X%02X", registry->callsign,
-                          id[0], id[1], id[2]);
-  else
-    lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
-  lv_obj_set_pos(title, 8, 5);
+    uiShellSetTitle(registry->callsign);
+  else {
+    char title[8];
+    snprintf(title, sizeof(title), "%02X%02X%02X", id[0], id[1], id[2]);
+    uiShellSetTitle(title);
+  }
 
   lv_obj_t *body = lv_label_create(screen);
   lv_obj_set_style_text_font(body, &lv_font_montserrat_14, 0);
@@ -526,18 +526,14 @@ static void openDetail(const uint8_t id[3]) {
 
 void appHealthOpen() {
   stopHealthTimer();
+  uiShellSetTitle("Health");
   gScreen = lv_obj_create(nullptr);
   lv_obj_clear_flag(gScreen, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(gScreen, uiScreenColor(), 0);
 
-  gHeader = lv_label_create(gScreen);
-  lv_obj_set_style_text_font(gHeader, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gHeader, 5, 5);
-  lv_label_set_text(gHeader, "Health");
-
   gBack = lv_button_create(gScreen);
   lv_obj_set_size(gBack, 46, 23);
-  lv_obj_set_pos(gBack, 270, 2);
+  lv_obj_set_pos(gBack, 270, 215);
   lv_obj_t *backLabel = lv_label_create(gBack);
   lv_label_set_text(backLabel, LV_SYMBOL_LEFT);
   lv_obj_center(backLabel);
@@ -545,7 +541,7 @@ void appHealthOpen() {
 
   gModeButton = lv_button_create(gScreen);
   lv_obj_set_size(gModeButton, 64, 23);
-  lv_obj_set_pos(gModeButton, 201, 2);
+  lv_obj_set_pos(gModeButton, 201, 215);
   lv_obj_t *modeLabel = lv_label_create(gModeButton);
   lv_obj_center(modeLabel);
   lv_obj_add_event_cb(gModeButton, modeCb, LV_EVENT_CLICKED, nullptr);
@@ -563,7 +559,7 @@ void appHealthOpen() {
   // Fix the key to one clipped line wholly inside the 320x240 viewport. An
   // auto-sized legend could extend the screen's content box and appear below
   // the physical bottom after focus/navigation changes.
-  lv_obj_set_size(gLegend, 310, 17);
+  lv_obj_set_size(gLegend, 190, 17);
   lv_label_set_long_mode(gLegend, LV_LABEL_LONG_CLIP);
   lv_obj_set_pos(gLegend, 5, 219);
   updateModeChrome();

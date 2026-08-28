@@ -46,9 +46,15 @@ int main() {
   };
   seen[0].hasFixtureState = true;
   seen[0].activeProgram = 0;
+  seen[0].hasBq = true;
+  seen[0].bqReg16 = 0x20;
+  seen[0].bqStat1 = 0x08;  // CHARGING_CC
   seen[0].fwFingerprint = censusFirmwareFingerprint("fx-260826-new-p");
   seen[1].hasFixtureState = true;
   seen[1].activeProgram = 3;
+  seen[1].hasBq = true;
+  seen[1].bqReg16 = 0x20;
+  seen[1].bqStat1 = 0x10;  // CHARGING_CV
   seen[1].fwFingerprint = censusFirmwareFingerprint("fx-260819-old-p");
   seen[2].hasFixtureState = true;
   seen[2].activeProgram = 1;
@@ -89,6 +95,47 @@ int main() {
   settings.batteryFilter = FleetBatteryFilter::OFF_AIR;
   n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
   assert(n == 2 && !rows[0].fresh && !rows[1].fresh);
+
+  // Charger-phase filters use BQ25628E status truth and keep radio silence
+  // distinct from a live charger that is done or off.
+  settings = fleetViewDefaults();
+  settings.chargeFilter = FleetChargeFilter::CHARGING_CC;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].view.id[2] == 0x01);
+  settings.chargeFilter = FleetChargeFilter::CHARGING_CV;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].view.id[2] == 0x02);
+  settings.chargeFilter = FleetChargeFilter::OFF_AIR;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 2 && !rows[0].fresh && !rows[1].fresh);
+
+  CensusView phases[] = {
+      observation(0x300001, 100, 3300, -40),
+      observation(0x300002, 100, 3300, -40),
+      observation(0x300003, 100, 3300, -40),
+      observation(0x300004, 100, 3300, -40),
+      observation(0x300005, 100, 3300, -40),
+  };
+  for (CensusView &phase : phases) {
+    phase.hasBq = true;
+    phase.bqReg16 = 0x20;
+  }
+  phases[0].bqStat1 = 0x08;
+  phases[1].bqStat1 = 0x10;
+  phases[2].bqStat1 = 0x18;
+  phases[3].bqStat1 = 0x00;
+  phases[4].bqFault0 = 0x01;
+  const FleetChargeFilter phaseFilters[] = {
+      FleetChargeFilter::CHARGING_CC, FleetChargeFilter::CHARGING_CV,
+      FleetChargeFilter::TOP_OFF, FleetChargeFilter::DONE_OFF,
+      FleetChargeFilter::FAULT,
+  };
+  for (size_t i = 0; i < 5; ++i) {
+    settings = fleetViewDefaults();
+    settings.chargeFilter = phaseFilters[i];
+    n = fleetBuildView(nullptr, 0, phases, 5, 5000, settings, rows, 12);
+    assert(n == 1 && rows[0].view.id[2] == i + 1);
+  }
 
   // Program zero is explicitly IDLE only when a full-heartbeat sample exists;
   // absent full state belongs to the distinct unknown cohort.

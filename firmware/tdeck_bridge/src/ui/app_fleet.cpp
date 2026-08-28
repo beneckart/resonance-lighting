@@ -1,6 +1,7 @@
 #include <lvgl.h>
 
 #include <Arduino.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "fixture/src/core/packet.h"
@@ -13,11 +14,11 @@
 #include "app_power.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 #include "ui_theme.h"
 
 static lv_obj_t *gTable = nullptr;
-static lv_obj_t *gHeader = nullptr;
 static lv_timer_t *gTimer = nullptr;
 static CensusView gSnapshot[CENSUS_MAX_TRACKED];
 static FleetViewRow gRows[CENSUS_MAX_TRACKED];
@@ -27,6 +28,15 @@ static uint8_t gSelectedId[3] = {};
 static bool gHasSelectedId = false;
 static bool gRestoreSelectionScroll = false;
 static FleetViewSettings gViewSettings = fleetViewDefaults();
+
+static void fleetStatus(const char *format, ...) {
+  char text[120];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(text, sizeof(text), format, args);
+  va_end(args);
+  uiShellSetAppStatus(text);
+}
 
 // A filtered identify is an exact-target roll, not a broadcast: off-air rows
 // are never claimed as reached, and the confirmed cohort cannot change while
@@ -275,13 +285,10 @@ static void refreshTable(lv_timer_t *) {
   int live = 0, seen = 0;
   censusCountsSafe(&live, &seen, now);
   if (gIdentifyTimer)
-    lv_label_set_text_fmt(gHeader, "Fleet blink %u/%u  %u shown",
-                          (unsigned)gIdentifyTargetIndex,
-                          (unsigned)gIdentifyTargetCount,
-                          (unsigned)gRowCount);
+    fleetStatus("blink %u/%u  %u shown", (unsigned)gIdentifyTargetIndex,
+                (unsigned)gIdentifyTargetCount, (unsigned)gRowCount);
   else
-    lv_label_set_text_fmt(gHeader, "Fleet %u shown  %d/%d live",
-                          (unsigned)gRowCount, live, seen);
+    fleetStatus("%u shown  %d/%d live", (unsigned)gRowCount, live, seen);
 
   lv_table_set_row_count(gTable, (uint32_t)gRowCount + 1);
   char buf[24];
@@ -351,7 +358,6 @@ static void stopTimer() {
     gTimer = nullptr;
   }
   gTable = nullptr;
-  gHeader = nullptr;
 }
 
 static void backFromFleet(lv_event_t *) {
@@ -382,19 +388,18 @@ static void openDetail(const uint8_t id[3]) {
   bool ok = censusPeerSafe(id, &p);
 
   lv_obj_t *scr = lv_obj_create(nullptr);
-  lv_obj_t *title = lv_label_create(scr);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
   const char *callsign = callsignForId(id);
   if (callsign)
-    lv_label_set_text_fmt(title, "%s  %02X%02X%02X", callsign, id[0], id[1],
-                          id[2]);
-  else
-    lv_label_set_text_fmt(title, "%02X%02X%02X", id[0], id[1], id[2]);
-  lv_obj_set_pos(title, 8, 6);
+    uiShellSetTitle(callsign);
+  else {
+    char title[8];
+    snprintf(title, sizeof(title), "%02X%02X%02X", id[0], id[1], id[2]);
+    uiShellSetTitle(title);
+  }
 
   lv_obj_t *body = lv_label_create(scr);
   lv_obj_set_style_text_font(body, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(body, 8, 40);
+  lv_obj_set_pos(body, 8, 32);
   if (ok) {
     uint32_t now = millis();
     uint32_t total = p.recv + p.gaps;
@@ -515,18 +520,14 @@ static void identifyRollTick(lv_timer_t *) {
     gIdentifyTimer = nullptr;
     gIdentifyTargetCount = 0;
     gIdentifyTargetIndex = 0;
-    if (gHeader)
-      lv_label_set_text_fmt(gHeader, "Blink sent to %u filtered live",
-                            (unsigned)sent);
+    fleetStatus("Blink sent to %u filtered live", (unsigned)sent);
     return;
   }
   meshIdentify(gIdentifyTargets[gIdentifyTargetIndex], 30, 2 /*green*/,
                1 /*blink*/, 128);
   ++gIdentifyTargetIndex;
-  if (gHeader)
-    lv_label_set_text_fmt(gHeader, "Fleet blink %u/%u",
-                          (unsigned)gIdentifyTargetIndex,
-                          (unsigned)gIdentifyTargetCount);
+  fleetStatus("blink %u/%u", (unsigned)gIdentifyTargetIndex,
+              (unsigned)gIdentifyTargetCount);
 }
 
 static void identifyFilteredYes(void *) {
@@ -538,7 +539,7 @@ static void identifyFilteredYes(void *) {
 
 static void identifyFilteredCb(lv_event_t *) {
   if (gIdentifyTimer) {
-    if (gHeader) lv_label_set_text(gHeader, "Filtered blink already running");
+    fleetStatus("Filtered blink already running");
     return;
   }
   gIdentifyTargetCount = 0;
@@ -548,7 +549,7 @@ static void identifyFilteredCb(lv_event_t *) {
     memcpy(gIdentifyTargets[gIdentifyTargetCount++], gRows[i].view.id, 3);
   }
   if (gIdentifyTargetCount == 0) {
-    if (gHeader) lv_label_set_text(gHeader, "No live fixtures in this view");
+    fleetStatus("No live fixtures in this view");
     return;
   }
   char summary[120];
@@ -563,6 +564,7 @@ static void identifyFilteredCb(lv_event_t *) {
 static lv_obj_t *gScopeDd = nullptr;
 static lv_obj_t *gClassDd = nullptr;
 static lv_obj_t *gBatteryDd = nullptr;
+static lv_obj_t *gChargeDd = nullptr;
 static lv_obj_t *gProgramDd = nullptr;
 static lv_obj_t *gFirmwareDd = nullptr;
 static lv_obj_t *gFirmwareRefDd = nullptr;
@@ -630,6 +632,9 @@ static void readViewSettings() {
   if (gBatteryDd)
     gViewSettings.batteryFilter =
         (FleetBatteryFilter)lv_dropdown_get_selected(gBatteryDd);
+  if (gChargeDd)
+    gViewSettings.chargeFilter =
+        (FleetChargeFilter)lv_dropdown_get_selected(gChargeDd);
   if (gProgramDd)
     gViewSettings.programFilter =
         (FleetProgramFilter)lv_dropdown_get_selected(gProgramDd);
@@ -653,6 +658,7 @@ static void closeViewSettings() {
   gScopeDd = nullptr;
   gClassDd = nullptr;
   gBatteryDd = nullptr;
+  gChargeDd = nullptr;
   gProgramDd = nullptr;
   gFirmwareDd = nullptr;
   gFirmwareRefDd = nullptr;
@@ -671,6 +677,7 @@ static void viewDefaultsCb(lv_event_t *) {
   if (gScopeDd) lv_dropdown_set_selected(gScopeDd, 0);
   if (gClassDd) lv_dropdown_set_selected(gClassDd, 0);
   if (gBatteryDd) lv_dropdown_set_selected(gBatteryDd, 0);
+  if (gChargeDd) lv_dropdown_set_selected(gChargeDd, 0);
   if (gProgramDd) lv_dropdown_set_selected(gProgramDd, 0);
   if (gFirmwareDd) lv_dropdown_set_selected(gFirmwareDd, 0);
   if (gFirmwareRefDd) lv_dropdown_set_selected(gFirmwareRefDd, 0);
@@ -698,16 +705,12 @@ static lv_obj_t *viewLabel(lv_obj_t *screen, const char *text, int y) {
 
 static void viewCb(lv_event_t *) {
   stopTimer();
+  uiShellSetTitle("View");
   lvglSetNavHooks(nullptr);
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_set_scroll_dir(screen, LV_DIR_VER);
   lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_AUTO);
   buildFirmwareOptions();
-
-  lv_obj_t *title = lv_label_create(screen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Fleet view");
-  lv_obj_set_pos(title, 8, 3);
 
   lv_group_remove_all_objs(lvglGroup());
   viewLabel(screen, "rows", 43);
@@ -724,28 +727,33 @@ static void viewCb(lv_event_t *) {
       screen,
       "all battery\ngood >3.20 V\nnear low 3.10-3.20\nlow <=3.10 V\noff air\nno valid VBAT",
       104, (uint16_t)gViewSettings.batteryFilter);
-  viewLabel(screen, "program", 151);
+  viewLabel(screen, "charge", 151);
+  gChargeDd = viewDropdown(
+      screen,
+      "all charge\nCHARGING_CC\nCHARGING_CV\nTOP-OFF\nDONE/OFF\nFAULT\nunknown\noff air",
+      140, (uint16_t)gViewSettings.chargeFilter);
+  viewLabel(screen, "program", 187);
   gProgramDd = viewDropdown(
       screen,
       "all programs\nIDLE\nCA\nBRIDGE\nDIRECT\nDARK\nVIRUS\nunknown",
-      140, (uint16_t)gViewSettings.programFilter);
-  viewLabel(screen, "fw rule", 187);
+      176, (uint16_t)gViewSettings.programFilter);
+  viewLabel(screen, "fw rule", 223);
   gFirmwareDd = viewDropdown(
       screen,
       "all firmware\nrevision known\nrevision unknown\nmatches reference\nnot ref / unknown",
-      176, (uint16_t)gViewSettings.firmwareFilter);
-  viewLabel(screen, "fw ref", 223);
-  gFirmwareRefDd = viewDropdown(screen, gFirmwareOptions, 212,
+      212, (uint16_t)gViewSettings.firmwareFilter);
+  viewLabel(screen, "fw ref", 259);
+  gFirmwareRefDd = viewDropdown(screen, gFirmwareOptions, 248,
                                 gFirmwareRefSelected);
-  viewLabel(screen, "sort", 259);
+  viewLabel(screen, "sort", 295);
   gSortDd = viewDropdown(
       screen,
       "callsign (stable)\nshort ID (stable)\nvoltage low first\nvoltage high first\nmost recent\nstrongest signal",
-      248, (uint16_t)gViewSettings.sort);
+      284, (uint16_t)gViewSettings.sort);
 
   lv_obj_t *defaults = lv_button_create(screen);
   lv_obj_set_size(defaults, 100, 34);
-  lv_obj_set_pos(defaults, 4, 286);
+  lv_obj_set_pos(defaults, 4, 322);
   lv_obj_t *defaultsLabel = lv_label_create(defaults);
   lv_label_set_text(defaultsLabel, "defaults");
   lv_obj_center(defaultsLabel);
@@ -754,7 +762,7 @@ static void viewCb(lv_event_t *) {
 
   lv_obj_t *done = lv_button_create(screen);
   lv_obj_set_size(done, 204, 34);
-  lv_obj_set_pos(done, 112, 286);
+  lv_obj_set_pos(done, 112, 322);
   lv_obj_t *doneLabel = lv_label_create(done);
   lv_label_set_text(doneLabel, LV_SYMBOL_OK " apply to Fleet");
   lv_obj_center(doneLabel);
@@ -768,13 +776,13 @@ static void viewCb(lv_event_t *) {
 
 // -------------------------------------------------------------------- open --
 
-// Bottom button bar: header text owns the top line, actions live where the
-// thumb is (touch-first per Ben), and nothing overlaps.
+// Bottom button bar: the shell owns the top line, actions live where the thumb
+// is (touch-first per Ben), and nothing overlaps.
 static lv_obj_t *makeBarButton(lv_obj_t *scr, int slot, const char *text,
                                lv_event_cb_t cb) {
   lv_obj_t *btn = lv_button_create(scr);
-  lv_obj_set_size(btn, 76, 30);
-  lv_obj_set_pos(btn, 2 + slot * 80, 208);
+  lv_obj_set_size(btn, 60, 30);
+  lv_obj_set_pos(btn, 2 + slot * 64, 208);
   lv_obj_t *l = lv_label_create(btn);
   lv_obj_set_style_text_font(l, &lv_font_montserrat_14, 0);
   lv_label_set_text(l, text);
@@ -785,31 +793,17 @@ static lv_obj_t *makeBarButton(lv_obj_t *scr, int slot, const char *text,
 
 void appFleetOpen() {
   stopTimer();
+  uiShellSetTitle("Fleet");
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(scr, uiScreenColor(), 0);
 
-  gHeader = lv_label_create(scr);
-  lv_obj_set_style_text_font(gHeader, &lv_font_montserrat_14, 0);
-  lv_obj_set_style_text_color(gHeader, uiTextColor(), 0);
-  lv_obj_set_width(gHeader, 254);
-  lv_obj_set_pos(gHeader, 8, 6);
-  lv_label_set_text(gHeader, "Fleet");
-
-  lv_obj_t *displayMode = lv_button_create(scr);
-  lv_obj_set_size(displayMode, 56, 26);
-  lv_obj_set_pos(displayMode, 262, 2);
-  lv_obj_t *displayModeLabel = lv_label_create(displayMode);
-  lv_obj_set_style_text_font(displayModeLabel, &lv_font_montserrat_14, 0);
-  lv_label_set_text(displayModeLabel, uiDayMode() ? "DAY" : "NITE");
-  lv_obj_center(displayModeLabel);
-  lv_obj_add_event_cb(displayMode, displayModeCb, LV_EVENT_CLICKED, nullptr);
-
   lv_obj_t *view = makeBarButton(scr, 0, "view", viewCb);
-  lv_obj_t *identify =
-      makeBarButton(scr, 1, LV_SYMBOL_EYE_OPEN " blink", identifyFilteredCb);
+  lv_obj_t *identify = makeBarButton(scr, 1, "blink", identifyFilteredCb);
   lv_obj_t *power = makeBarButton(scr, 2, "power", powerCb);
-  lv_obj_t *back = makeBarButton(scr, 3, LV_SYMBOL_LEFT " back", backFromFleet);
+  lv_obj_t *displayMode = makeBarButton(
+      scr, 3, uiDayMode() ? "DAY" : "NITE", displayModeCb);
+  lv_obj_t *back = makeBarButton(scr, 4, "back", backFromFleet);
 
   gTable = lv_table_create(scr);
   lv_obj_set_pos(gTable, 0, 30);

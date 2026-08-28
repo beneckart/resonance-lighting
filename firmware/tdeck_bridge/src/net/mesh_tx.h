@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "../core/control_activity_model.h"
 #include "../core/maintenance_campaign.h"
 
 // The ONLY translation unit that emits Nb packets (single-writer doctrine;
@@ -25,6 +26,8 @@ bool meshStrike(const uint8_t id[3], uint16_t pulseMs);  // false: id==00:00:00
 bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs);
 bool meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags, const uint8_t params[8]);
+ProgramLeaseActivity meshProgramActivity();
+bool meshStopTrackedProgramActivity();
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
 bool meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
 bool meshEnterMaintenance(const uint8_t target[3]);
