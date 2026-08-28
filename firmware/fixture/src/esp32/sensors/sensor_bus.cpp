@@ -1,6 +1,7 @@
 #include "sensor_bus.h"
 
 #include <Arduino.h>
+#include <Adafruit_MSA301.h>
 #include <Wire.h>
 
 #include "../../core/rtc_calendar.h"
@@ -26,6 +27,9 @@ static bool writeReg8(uint8_t addr, uint8_t reg, uint8_t val) {
   return Wire1.endTransmission() == 0;
 }
 
+static_assert(MSA311_I2CADDR_DEFAULT == MSA311_I2C_ADDR,
+              "fixture MSA311 probe address must match the driver");
+
 ProbeBits sensorBusProbe() {
   Wire1.setClock(100000); // ADR 0028: reassert, never raise
   ProbeBits bits = {};
@@ -48,10 +52,13 @@ ProbeBits sensorBusProbe() {
     bits.bmp581 = readReg8(0x47, 0x01, id) && id == 0x50;
   }
 
-  // MSA311 @0x26: PART_ID 0x01 == 0x13. Logged only (not a discriminator).
-  if (ack(0x26)) {
+  // MSA311 @0x62: PART_ID 0x01 == 0x13. Do not confuse it with the older
+  // MSA301 at 0x26; that address error made every MSA-only uplight appear
+  // sensorless until ADR 0067.
+  if (ack(MSA311_I2C_ADDR)) {
     uint8_t id = 0;
-    bits.msa311 = readReg8(0x26, 0x01, id) && id == 0x13;
+    bits.msa311 = readReg8(MSA311_I2C_ADDR, MSA311_PART_ID_REG, id) &&
+                   id == MSA311_PART_ID;
   }
 
   // Sparse time anchors do not determine fixture class. Their production

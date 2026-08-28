@@ -174,6 +174,12 @@ struct PeerStat {
   uint8_t lastCommandSleepSourceId[3];
   uint32_t lastCommandSleepSourceSeq;
   int16_t lastProtectBattMv;
+  bool hasProtectContext;
+  uint8_t lastProtectOrigin;
+  uint8_t lastProtectPredecessorStage;
+  uint8_t lastProtectResetReason;
+  uint8_t lastProtectLoadArmed;
+  uint16_t lastProtectResetStreak;
 
   // Latched across hb-short frames (hb-full arrives every ~60 s in prod).
   uint8_t classLatched;  // 0 = never seen

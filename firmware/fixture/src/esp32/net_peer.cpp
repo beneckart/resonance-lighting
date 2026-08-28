@@ -184,6 +184,16 @@ void netPeerSendHeartbeat(bool full) {
   if (sleepAuditProtectRecord(audit)) {
     hb.sleep_audit_flags |= 0x04;
     hb.last_protect_batt_mv = audit.batt_mv;
+    ProtectAuditContext context;
+    if (sleepAuditGetProtectContext(audit, context)) {
+      hb.last_protect_origin = context.origin;
+      hb.last_protect_predecessor_stage = context.predecessor_stage;
+      hb.last_protect_reset_reason = context.reset_reason;
+      hb.last_protect_load_armed = context.load_armed;
+      hb.last_protect_reset_streak =
+          context.reset_streak > 65535U ? 65535U
+                                        : (uint16_t)context.reset_streak;
+    }
   }
   hb.power_sample_flags = powerSampleFlags();
   espNowSendRaw(&hb, NB_HB_FULL_LEN);

@@ -183,7 +183,8 @@ rx_peer = re.compile(
     r"(?: sens=(\d+) cmis=(\d+) rec=(\d+) recmv=(\d+))?"
     r"(?: audf=(\d+) slpr=(\d+) slps=(\d+) slpmv=(-?\d+) slpprof=(\d+) slplife=(\d+)"
     r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
-    r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?")
+    r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?"
+    r"(?: protorig=(\d+) protprev=(\d+) protrst=(\d+) protarm=(\d+) protstreak=(\d+))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -239,7 +240,10 @@ with open(out, file_mode, encoding="utf-8") as fh:
               last_sleep_life_state, last_sleep_power_tier, last_sleep_source,
               last_sleep_source_seq, last_command_sleep_cause,
               last_command_sleep_s, last_command_sleep_source,
-              last_command_sleep_source_seq, last_protect_batt_mv) = m.groups()
+              last_command_sleep_source_seq, last_protect_batt_mv,
+              last_protect_origin, last_protect_predecessor_stage,
+              last_protect_reset_reason, last_protect_load_armed,
+              last_protect_reset_streak) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -369,6 +373,14 @@ with open(out, file_mode, encoding="utf-8") as fh:
                            last_command_sleep_source=last_command_sleep_source,
                            last_command_sleep_source_seq=int(last_command_sleep_source_seq),
                            last_protect_batt_mv=int(last_protect_batt_mv))
+            if last_protect_origin is not None:
+                row.update(
+                    last_protect_origin=int(last_protect_origin),
+                    last_protect_predecessor_stage=int(last_protect_predecessor_stage),
+                    last_protect_reset_reason=int(last_protect_reset_reason),
+                    last_protect_load_armed=bool(int(last_protect_load_armed)),
+                    last_protect_reset_streak=int(last_protect_reset_streak),
+                )
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:
                 extra = (f" | panel {float(sv):.2f}V*{sma}mA={float(sv)*int(sma)/1000:.2f}W "

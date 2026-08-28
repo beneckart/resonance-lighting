@@ -4,6 +4,83 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
+  Exact outer downlight Rikku `9F26B0` is dark on
+  `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
+  audit of 3.596 V in field profile at 2.809 s uptime. This is not a low-voltage
+  transition. Fleet history proves the latch predates that artifact: OTA at
+  3.582 V preserved it, and a later gather still found the 900 s PROTECT cadence
+  at 3.536 V. The leading entry mechanism is an unexpected reset with the
+  durable load marker armed, but current audit fields do not retain the
+  predecessor stage/reset reason. ADR 0068 source now preserves origin,
+  predecessor, reset reason, prior `load_arm`, and reset streak in the same-size
+  durable audit record and append-only heartbeat. Good USB/no-fault telemetry at
+  3.56-3.58 V / 99 percent accepted only about 0-2 mA, so the policy now adds a
+  separate sustained full-battery proof: corroborated real cell, >=3.45 V,
+  valid/good input, valid enabled/no-fault BQ, and CV/top-off/not-charging state
+  for 60 seconds. Missing data or a proof change resets the clock; CC with low
+  current is rejected. Fixture, T-Deck, parser, and embedded compile gates pass.
+  **2026-08-28 positive hardware canary passed:** clean combined artifact
+  `fx-260828-abd893c-p` from commit `5865282`, SHA-256
+  `6a0126f205be2cb6be034a71de5c5caa75f0af0acd00e1684ddc27377fb175f5`,
+  OTA-verified on exact Rikku through pending verify. The retained false PROTECT
+  satisfied the sustained full-battery proof, persisted stage 3, clean-rebooted,
+  and advanced OFF -> DIM -> FULL with the daytime rail off, downlight class,
+  healthy TMF/MSA, no mismatch, and no NVS erase or bypass. Next: negative-gate
+  fault injection, then fleet audit for other high-VBAT PROTECT entries
+  (Ben/Codex).
+- [x] **Finish ADR 0067 canary acceptance on exact uplight Togepi `9E5AB0` --
+  DONE 2026-08-28.** Before its exact USB update, registry-rostered 6 Ah uplight
+  Togepi reproduced the original defect on `fx-260828-658b7d2-p`: chandelier
+  class, `sensor_bits=0`, and no MSA311. Combined artifact
+  `fx-260828-abd893c-p` fixed class/MSA detection but exposed a second source
+  defect: the RGB uplight was incorrectly driven with four-byte `NEO_RGBW`, so
+  logical smoke/rail-on telemetry produced no physical light. Commit `0f08904`
+  pins uplight to one three-byte `NEO_GRB` pixel and uses RGB white for its smoke
+  frame. Complete native tests and embedded compile pass. Clean replacement
+  artifact `fx-260828-d8f62c3-p`, SHA-256
+  `57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097`,
+  passed exact USB write verification, uplight/MSA/class/power checks, visible
+  white breathing with about 119 mA real load delta, `L0`, reset, rail-off, and
+  ESP-NOW recovery. Donkey `F2BE10` was later found by exact cohort job
+  `444537E1` and passed upload, fresh exact-revision rejoin, pending verify, and
+  field-profile checks on the same artifact (Ben/Codex).
+- [x] **Promote ADR 0067 plus the RGB uplight format fix to every manufactured
+  uplight -- DONE 2026-08-28.** Exact jobs `45208DD7` and `444537E1` verified
+  19 OTA targets through fresh exact-revision rejoin and pending verify;
+  together with USB canary Togepi, all 20 physically manufactured uplights run
+  immutable artifact `fx-260828-d8f62c3-p`. A direct settled check on Psyduck
+  confirmed uplight class, `sensor_bits=8`, no mismatch, and field profile. Ben
+  confirmed the physical cohort is 20, not the 24 rows previously rostered from
+  planning allocations. Ken `F2B8DC`, Pikachu `F2BCE0`, Kirby `F2BE64`, and
+  Haunter `F40438` are not manufactured uplights and are role-unassigned; they
+  require no uplight rollout action (Ben/Codex).
+- [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
+  (ADR 0066).** Source commit `91663fd` and immutable artifact
+  `fx-260828-658b7d2-p` implement two bounded gitignored credential profiles;
+  native tests, production build, exact Swablu canary, and 98/110 intended
+  fixture promotion contracts passed. No secret is tracked. Hardware-prove the
+  second profile at the art site with one exact fixture before relying on it for
+  USB-tail avoidance. Exact Rikku `9F26B0` subsequently passed combined artifact
+  `fx-260828-abd893c-p`; the 11 intended fixtures still on the prior known-good
+  image are `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
+  `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
+  11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
+  `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank
+  `F2BF60`, uncalled `F2BFEC`, Thor `F40344`, Dratini `F4035C`, and Sneasel
+  `F403DC`. Read exact USB identity before flashing because the physical
+  slot-to-MAC map is still incomplete. Clank needs supervised low-voltage/
+  commission recovery (Ben/Codex).
+- [ ] **Close the ADR 0062 fleet-OTA control-plane gaps exposed by the dual-site
+  rollout.** A 101-target job received only 93 roster acknowledgements; a
+  53-target partial-discovery job failed the whole wave when eight found
+  endpoints vanished before fresh maintenance preflight; and a PROTECT cleanup
+  saw a transient dashboard HTTP 500 during freeze, then rejected a later safe
+  bridge phase-3 stopped/expired status. Make roster loading acknowledged and
+  retry-bounded, demote vanished endpoints to deferred before UPLOAD, retry
+  transport-only freeze failures without weakening exact job/target evidence,
+  and accept a fresh matching stopped phase as cleanup proof. Preserve no retry
+  after upload ACK or ambiguous upload (Ben/Codex).
 - [~] **Canary and promote trustworthy short-wake solar telemetry (ADR 0064).**
   The 120 s / 3 s artifact exposed a real defect: boot disabled charging, sent
   a full heartbeat before the 6 s battery guard, and could return to sleep
@@ -126,7 +203,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   checks passed. Add physical checks for no row/header wrapping,
   signed-current legibility, IDLE versus `?`, detail-line/button clearance,
   scrolling through all eight view rows, each charge-phase canary, and mixed-
-  revision match/non-match cohorts (Ben/Codex).
+  revision match/non-match cohorts. **2026-08-28 daylight UX finding:** the
+  fleet mixes lifecycle labels
+  such as `boot` with selected-program labels such as `CA`, which can read as a
+  daytime-lighting fault even though live `ledrail=false` and zero rendered
+  pixels prove the fixtures dark. Visually distinguish lifecycle from an armed
+  night program (for example `state: boot` and `armed: CA`) and keep rail/render
+  state authoritative (Ben/Codex).
 - [x] **Repair the T-Deck development-cache metadata boundary and prove warm
   incremental builds. DONE 2026-08-27:** cache schema 2 treats
   `build/dev-cache` as Arduino-owned and stores recipe plus interruption state
@@ -700,7 +783,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   then stop ranging or cut VSQT and repeat. Firmware currently relies on the
   driver's default autonomous mode rather than verifying it; ST's 3.3 V figures
   differ sharply between autonomous 4x4 / 5 Hz / 5 ms (about 19 mW) and
-  continuous mode (about 313 mW) (Ben + field team).
+  continuous mode (about 313 mW). **2026-08-28 canopy cross-check:** exact
+  outer-ring downlight Ponyta `F2B7DC` was dark in durable PROTECT. Its retained
+  entry audit records 3.236 V and persisted commission profile; later correction
+  to field did not clear the latch. Good USB produced about +192 to +260 mA with
+  no BQ fault, completed the 60-second guarded release, and clean-rebooted into
+  LEDS_OFF with healthy MSA311/TMF8820/BMP581. This supports the same
+  commission-energy/protection chain outside the perimeter cohort but does not
+  close the P126 harvest question. Ben confirmed every canopy/downlight without
+  exception has a 15 Ah cell, so correct Ponyta's live persisted 6,000 mAh
+  capacity to 15,000 mAh through the declared exact-target configuration path
+  before relying on its gauge SOC/capacity telemetry (Ben + field team).
 - [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
   visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter; all 24
   perimeters should now contain QC'd cells. Roughly 20 additional trunk lights
@@ -1009,10 +1102,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Measure the Beryl's actual draw** powered the way it will actually be
   powered (USB-C off the camp battery, not a wall wart) and record it against the
   camp energy budget. Nominal is about 5 W; confirm rather than assume (Ben).
-- [ ] **Resolve one virtual SSID across the camp and art-site Starlinks.** Both
-  APs must be on channel 11; if both are to serve OTA they must also share SSID
-  and PSK. Previously queued against the production credential work; now also
-  gated by ADR 0036 (Ben).
+- [~] **Hardware-prove distinct camp and art-site fixture maintenance profiles
+  (ADR 0066).** The one-virtual-SSID requirement is retired: both credential
+  pairs are compiled from a gitignored local header, and maintenance chooses a
+  visible known AP within one bounded join budget. The image has been promoted
+  over the established network; associate one exact fixture through the second
+  site AP, verify identity/telemetry, resume COMMS, and retain no secret in the
+  log or job ledger. ADR 0036 channel 11 still applies to devices using WiFi and
+  ESP-NOW simultaneously, not fixtures that already left the mesh for OTA
+  (Ben/Codex).
 - [ ] **Claude mesh bridge handheld -- decide whether to build at all (ADR 0037).**
   Direction and corrected design brief are recorded in
   `docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md`; nothing is committed.
@@ -1062,17 +1160,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   or DIM can correctly re-enter PROTECT, while a deliberate software reset at
   recovered FULL boots unparked. Prefer USB-installing `prtrel1-b`; enter
   download mode only when normal USB CDC/flashing is unavailable (Ben/Codex).
-- [x] **Assign the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE as
-  trunk lights.** `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`,
-  `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C` are allocated to the 6 Ah trunk
-  fleet. Registry role is the current compatibility spelling `uplight`; runtime
-  class probing remains automatic for the assembled sensor stack (Ben/Codex).
-- [x] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights --
-  DONE.**
-  `F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
-  `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
-  fleet with registry role `uplight`; runtime probing remains automatic
-  (Ben/Codex).
+- [x] **Reconcile the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE.**
+  `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`, `F3FD50`,
+  `F2BE10`, and `F2BE1C` became 6 Ah trunk/uplights. `F2BE64` was a planning
+  allocation only and remains role-unassigned. Runtime class probing remains
+  automatic for assembled sensor stacks (Ben/Codex).
+- [x] **Reconcile the second 2026-08-16 OTA-bootstrap batch -- DONE.**
+  `F402B8`, `F2BEF4`, `F2BE6C`, `F3FC8C`, `F2BF90`, `F401CC`, and reused board
+  `9F2694` became 6 Ah trunk/uplights. `F2B8DC`, `F2BCE0`, and `F40438` were
+  planning allocations only and remain role-unassigned (Ben/Codex).
 - [ ] **Finalize the fifty-four-board canopy/extra-candidate allocation.** Batch 1:
   `9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`,
   `F2BDC0`, `F402D0`, and `F4044C`. Batch 2: `9E5AD4`, `F2BE70`, `F40174`,
@@ -1084,10 +1180,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `9E5AE0`, `9E5B00`, `F401A8`, `F40350`, and `F40254`. Final four: `9F2678`,
   `9E5AC8`, `9F26B4`, and `9F2708`. All are OTA-ready with blank roles, AUTO
   class override, and a provisional 6 Ah profile. If assigned to
-  large-enclosure inner-ring
-  downlights, change them to 15 Ah before battery-backed validation; do not
-  mistake the sensorless probe's `chandelier` fallback for an assignment
-  (Ben/Codex).
+  large-enclosure inner-ring downlights, change them to 15 Ah before
+  battery-backed validation. Under ADR 0067 a sensorless automatic probe reports
+  uplight, but that is not an inventory assignment; the registry role remains
+  authoritative (Ben/Codex).
+- [ ] **Roster the future chandelier PowerFeathers by exact MAC before
+  installation (ADR 0067).** Set registry role `chandelier`, persist `O4` /
+  `class_ovr=4` through the exact-target commissioning path, verify the sensorless
+  chandelier result has no mismatch, and audit the full roster. Clear with `O0`
+  before repurposing any rostered board (Ben/Codex).
 - [~] **Census and USB-rescue any forgotten boards already inside enclosures.**
   Elliot is flashing some concurrently. Treat these as installed fixtures, use
   the `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` installed-battery path, separate

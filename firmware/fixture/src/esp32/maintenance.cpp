@@ -12,6 +12,7 @@
 #include "loads.h"
 #include "sensors/sensor_bus.h"
 #include "telemetry.h"
+#include "../core/wifi_credential_plan.h"
 
 // WiFi secrets (gitignored; copied from ../net_bench by build.sh).
 #if __has_include("../../wifi_secrets.h")
@@ -19,6 +20,31 @@
 #define RES_HAS_WIFI_SECRETS 1
 #else
 #define RES_HAS_WIFI_SECRETS 0
+#endif
+
+#if RES_HAS_WIFI_SECRETS
+#if !defined(RES_WIFI_SSID) || !defined(RES_WIFI_PASSWORD)
+#error "wifi_secrets.h must define RES_WIFI_SSID and RES_WIFI_PASSWORD"
+#endif
+#if defined(RES_WIFI_SSID_2) != defined(RES_WIFI_PASSWORD_2)
+#error "define both RES_WIFI_SSID_2 and RES_WIFI_PASSWORD_2, or neither"
+#endif
+
+struct MaintenanceWifiCredential {
+  const char *ssid;
+  const char *password;
+};
+
+static const MaintenanceWifiCredential kMaintenanceWifiCredentials[] = {
+    {RES_WIFI_SSID, RES_WIFI_PASSWORD},
+#if defined(RES_WIFI_SSID_2)
+    {RES_WIFI_SSID_2, RES_WIFI_PASSWORD_2},
+#endif
+};
+static constexpr size_t kMaintenanceWifiCredentialCount =
+    sizeof(kMaintenanceWifiCredentials) / sizeof(kMaintenanceWifiCredentials[0]);
+static_assert(kMaintenanceWifiCredentialCount <= 2,
+              "maintenance credential scratch arrays support at most two networks");
 #endif
 
 static WebServer gServer(80);
@@ -132,18 +158,81 @@ static bool startWifiOta() {
 #if RES_HAS_WIFI_SECRETS
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  WiFi.begin(RES_WIFI_SSID, RES_WIFI_PASSWORD);
-  uint32_t t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
-    esp_task_wdt_reset();
-    delay(250);
-    Serial.print(".");
+
+  int16_t bestRssi[2] = {WIFI_CREDENTIAL_UNSEEN_RSSI,
+                         WIFI_CREDENTIAL_UNSEEN_RSSI};
+  esp_task_wdt_reset();
+  int networkCount = WiFi.scanNetworks(false, true);
+  esp_task_wdt_reset();
+  if (networkCount >= 0) {
+    for (int i = 0; i < networkCount; ++i) {
+      String seenSsid = WiFi.SSID(i);
+      int32_t seenRssi = WiFi.RSSI(i);
+      if (seenRssi < -32767) seenRssi = -32767;
+      if (seenRssi > 32767) seenRssi = 32767;
+      for (size_t credential = 0;
+           credential < kMaintenanceWifiCredentialCount; ++credential) {
+        if (seenSsid == kMaintenanceWifiCredentials[credential].ssid &&
+            seenRssi > bestRssi[credential]) {
+          bestRssi[credential] = (int16_t)seenRssi;
+        }
+      }
+    }
+    WiFi.scanDelete();
+  } else {
+    Serial.printf("WiFi scan failed: %d; using configured order\n", networkCount);
   }
-  Serial.println();
+
+  uint8_t order[2] = {0, 1};
+  wifiCredentialOrder(bestRssi, kMaintenanceWifiCredentialCount, order);
+  const uint32_t totalJoinBudgetMs =
+      kMaintenanceWifiCredentialCount > 1 ? 30000UL : 20000UL;
+  uint32_t joinStartedMs = millis();
+  uint8_t connectedCredential = 0xFF;
+  for (size_t position = 0;
+       position < kMaintenanceWifiCredentialCount && WiFi.status() != WL_CONNECTED;
+       ++position) {
+    uint32_t elapsedMs = millis() - joinStartedMs;
+    uint32_t remainingMs = elapsedMs < totalJoinBudgetMs
+                               ? totalJoinBudgetMs - elapsedMs
+                               : 0;
+    size_t attemptsLeft = kMaintenanceWifiCredentialCount - position;
+    uint32_t attemptBudgetMs =
+        attemptsLeft ? remainingMs / (uint32_t)attemptsLeft : 0;
+    if (attemptBudgetMs == 0) break;
+
+    uint8_t credential = order[position];
+    WiFi.disconnect(false, false);
+    delay(100);
+    Serial.printf("WiFi join profile=%u/%u scan_rssi=%d timeout=%lu ms\n",
+                  (unsigned)(credential + 1),
+                  (unsigned)kMaintenanceWifiCredentialCount,
+                  (int)bestRssi[credential], (unsigned long)attemptBudgetMs);
+    WiFi.begin(kMaintenanceWifiCredentials[credential].ssid,
+               kMaintenanceWifiCredentials[credential].password);
+    uint32_t attemptStartedMs = millis();
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - attemptStartedMs < attemptBudgetMs) {
+      esp_task_wdt_reset();
+      delay(250);
+      Serial.print(".");
+    }
+    Serial.println();
+    if (WiFi.status() == WL_CONNECTED) {
+      connectedCredential = credential;
+    } else {
+      Serial.printf("WiFi join profile=%u failed\n", (unsigned)(credential + 1));
+    }
+  }
+
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi join failed");
+    WiFi.disconnect(false, false);
+    Serial.println("all configured WiFi joins failed");
     return false;
   }
+  Serial.printf("maintenance WiFi profile=%u/%u\n",
+                (unsigned)(connectedCredential + 1),
+                (unsigned)kMaintenanceWifiCredentialCount);
   configureOtaRoutes();
   gServer.begin();
   gOtaActive = true;

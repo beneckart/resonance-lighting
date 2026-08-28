@@ -1,0 +1,13 @@
+{"artifact": "C:\\Users\\benec\\OneDrive\\Documents\\ChatGPT\\resonance-lighting\\firmware\\fixture\\build\\fx-260828-d8f62c3-p\\fixture.ino.bin", "artifact_sha256": "57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097", "campaign_duration_s": 190, "discovery_timeout_s": 150.0, "elapsed_s": 0.016, "event": "job_started", "expected_revision": "fx-260828-d8f62c3-p", "gather_cadence": "ordinary", "job_id": "385B7EF8", "phase": "PLAN", "target_count": 4, "targets": ["9E5B5C", "F2BE1C", "F2BE10", "F4019C"], "ts_utc": "2026-08-28T23:04:32Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "385B7EF8", "phase": "PREFLIGHT", "target_count": 4, "ts_utc": "2026-08-28T23:04:33Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "385B7EF8", "phase": "GATHER", "target": "9E5B5C", "ts_utc": "2026-08-28T23:04:33Z"}
+{"elapsed_s": 0.094, "event": "target_added", "job_id": "385B7EF8", "phase": "GATHER", "target": "F2BE1C", "ts_utc": "2026-08-28T23:04:33Z"}
+{"elapsed_s": 0.109, "event": "target_added", "job_id": "385B7EF8", "phase": "GATHER", "target": "F2BE10", "ts_utc": "2026-08-28T23:04:33Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "385B7EF8", "phase": "GATHER", "target": "F4019C", "ts_utc": "2026-08-28T23:04:33Z"}
+{"campaign": {"active": true, "cycle_ms": 40, "dispatch_count": 7, "job_id": "385B7EF8", "phase": 1, "remaining_ms": 189917, "status_age_ms": 15, "target_count": 4, "ts_utc": "2026-08-28T23:04:33.125893+00:00"}, "elapsed_s": 0.156, "event": "bridge_acknowledged", "job_id": "385B7EF8", "phase": "GATHER", "ts_utc": "2026-08-28T23:04:33Z"}
+{"elapsed_s": 150.75, "event": "deferred_not_discovered", "job_id": "385B7EF8", "phase": "DISCOVER", "target": "9E5B5C", "ts_utc": "2026-08-28T23:07:03Z"}
+{"elapsed_s": 150.75, "event": "deferred_not_discovered", "job_id": "385B7EF8", "phase": "DISCOVER", "target": "F2BE1C", "ts_utc": "2026-08-28T23:07:03Z"}
+{"elapsed_s": 150.75, "event": "deferred_not_discovered", "job_id": "385B7EF8", "phase": "DISCOVER", "target": "F2BE10", "ts_utc": "2026-08-28T23:07:03Z"}
+{"elapsed_s": 150.75, "event": "deferred_not_discovered", "job_id": "385B7EF8", "phase": "DISCOVER", "target": "F4019C", "ts_utc": "2026-08-28T23:07:03Z"}
+{"campaign": {"active": false, "cycle_ms": 40, "dispatch_count": 13661, "job_id": "385B7EF8", "phase": 2, "remaining_ms": 0, "status_age_ms": 16, "target_count": 4, "ts_utc": "2026-08-28T23:07:03.778218+00:00"}, "elapsed_s": 150.813, "event": "bridge_acknowledged", "job_id": "385B7EF8", "phase": "FREEZE", "ts_utc": "2026-08-28T23:07:03Z"}
+{"elapsed_s": 150.813, "error": "no named targets were discovered; no OTA attempted", "event": "job_error", "job_id": "385B7EF8", "phase": "CLEANUP", "ts_utc": "2026-08-28T23:07:03Z"}

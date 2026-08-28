@@ -38,6 +38,11 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
                           NB_POWER_SAMPLE_VBAT_VALID |
                           NB_POWER_SAMPLE_SOC_VALID |
                           NB_POWER_SAMPLE_CHARGER_VALID;
+  hb.last_protect_origin = 2;
+  hb.last_protect_predecessor_stage = 2;
+  hb.last_protect_reset_reason = 9;
+  hb.last_protect_load_armed = 1;
+  hb.last_protect_reset_streak = 2;
   hb.bq_reg16 = 1u << 5;
   hb.bq_stat1 = 1u << 3;
   hb.bq_fault0 = 0;
@@ -90,6 +95,10 @@ int main() {
   assert(p1->lastSleepCause == 3 && p1->lastSleepS == 3600);
   assert(p1->lastSleepBattMv == 3175 && p1->lastSleepSourceSeq == 42);
   assert(p1->lastProtectBattMv == 3045);
+  assert(p1->hasProtectContext && p1->lastProtectOrigin == 2);
+  assert(p1->lastProtectPredecessorStage == 2);
+  assert(p1->lastProtectResetReason == 9 && p1->lastProtectLoadArmed == 1);
+  assert(p1->lastProtectResetStreak == 2);
   assert(strncmp(p1->fwRev, "fx-260819", 9) == 0);
   assert(c.ingest(makeHb(1, 3, 3000, NB_HB_SHORT_LEN, -50), 3000));
   assert(!p1->hasLedOutput && p1->classLatched == 2);  // latched across short

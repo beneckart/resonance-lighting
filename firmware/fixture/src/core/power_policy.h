@@ -30,6 +30,13 @@ struct PowerSample {
   float supply_v;
   float supply_ma;
   bool supply_good;
+  // BQ25628E release evidence. `charger_valid` means CHG_CTRL0, CHG_STAT,
+  // and FAULT_STAT0 all read successfully this tick. `charge_phase` is the
+  // raw CHG_STAT value from REG0x1E bits 4:3 (0 not-charging/done, 1 CC,
+  // 2 CV, 3 top-off). Unknown data can never release PROTECT.
+  bool charger_valid;
+  bool charging_enabled;
+  uint8_t charge_phase;
   bool charger_fault; // any BQ fault bit set (blocks PROTECT release)
 };
 
@@ -45,6 +52,10 @@ struct PowerConfig {
   uint16_t release_ma;      // default 20: corrected charge current floor
   uint16_t release_s;       // default 60: sustained duration
   uint16_t release_floor_mv;// default 3250: recovered voltage floor
+  // A full/tapered LFP may accept <release_ma indefinitely. This second proof
+  // still requires valid enabled/no-fault charger state, good input, a
+  // corroborated real battery, and CV/top-off/not-charging status throughout.
+  uint16_t release_full_mv; // default 3450: high-VBAT full/taper floor
   uint16_t protect_sleep_s; // default 900
 };
 
@@ -64,7 +75,14 @@ struct PowerState {
   uint32_t belowOffSinceMs;
   uint32_t aboveClearSinceMs;
   uint32_t releaseHeldSinceMs;
+  uint8_t releaseProof; // ProtectReleaseProof; proof changes restart the hold
   bool initialized;
+};
+
+enum ProtectReleaseProof : uint8_t {
+  PROTECT_RELEASE_NONE = 0,
+  PROTECT_RELEASE_CHARGE_CURRENT = 1,
+  PROTECT_RELEASE_FULL_BATTERY = 2,
 };
 
 // What the rest of the firmware consumes (the "power veto" -- programs and
@@ -79,6 +97,7 @@ struct PowerBudget {
   uint16_t sleep_s;
   bool tier_changed;      // this tick
   bool protect_released;  // compound release fired this tick (exactly once)
+  uint8_t protect_release_proof; // ProtectReleaseProof at release
   // ADR 0051: PROTECT is held in RAM only (glue must NOT write the durable
   // stage) until the battery is corroborated. Re-evaluated every tick; glue
   // persists on the first corroborated PROTECT tick.

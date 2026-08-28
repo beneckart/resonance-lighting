@@ -162,8 +162,14 @@ For an assembled fixture with a battery installed:
 2. Connect the enclosure rescue USB port to a proven supply.
 3. Flash `fx-260816-prtrel1-b` over normal USB if the port is available.
 4. Keep USB connected for at least 90 seconds after the upload.
-5. Require a valid battery at or above 3.25 V (ADR 0046), good external supply, no charger
-   fault, and at least +20 mA charge current continuously for 60 seconds.
+5. On pre-ADR-0068 images, require a valid battery at or above 3.25 V, good
+   external supply, no charger fault, and at least +20 mA charge current
+   continuously for 60 seconds. On an accepted ADR 0068 or later image, that
+   proof remains available but additionally requires valid/enabled BQ state.
+   A full/tapered battery may instead prove a corroborated real cell at or above
+   3.45 V with good input, valid enabled/no-fault BQ, and CV, top-off, or
+   not-charging/done state continuously for 60 seconds. CC with low current,
+   missing data, or a proof change restarts/refuses the release.
 6. The firmware persists the qualified release and performs an automatic clean
    reboot. The clean reboot is necessary because the parked boot skipped sensor,
    LED, and rail initialization.

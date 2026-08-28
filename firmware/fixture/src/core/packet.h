@@ -221,6 +221,13 @@ struct __attribute__((packed)) NbHeartbeat {
   // 16, so new receivers treat their current as unverified instead of silently
   // interpreting zero as energy balance.
   uint8_t power_sample_flags;
+  // tail 18 (PROTECT entry provenance; hb-full only). Old persisted records
+  // are explicitly origin=LEGACY with unknown predecessor/reset (0xFF).
+  uint8_t last_protect_origin; // ProtectOrigin
+  uint8_t last_protect_predecessor_stage;
+  uint8_t last_protect_reset_reason; // esp_reset_reason_t numeric
+  uint8_t last_protect_load_armed;
+  uint16_t last_protect_reset_streak; // saturated at 65535 on wire
 };
 
 // NbHeartbeat::power_sample_flags. Append bits; never renumber them.

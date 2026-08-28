@@ -2302,7 +2302,7 @@ void sensorTriadInit() {
   Wire1.setClock(100000);
   gTmf8820Present = gTmf8820.begin(Wire1);
   Wire1.setClock(100000);
-  Serial.printf("sensor triad @100kHz: MSA311(0x26)=%d TMF8820(0x41)=%d BMP581(0x47)=%d\n",
+  Serial.printf("sensor triad @100kHz: MSA311(0x62)=%d TMF8820(0x41)=%d BMP581(0x47)=%d\n",
                 gMsa311Present, gTmf8820Present, gBmp581Present);
 }
 

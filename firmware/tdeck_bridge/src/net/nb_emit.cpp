@@ -170,6 +170,13 @@ void nbEmitTick(uint32_t nowMs) {
           p->lastCommandSleepSourceId[2],
           (unsigned long)p->lastCommandSleepSourceSeq,
           p->lastProtectBattMv);
+    if (p->hasProtectContext && n < (int)sizeof(line))
+      n += snprintf(
+          line + n, sizeof(line) - n,
+          " protorig=%u protprev=%u protrst=%u protarm=%u protstreak=%u",
+          p->lastProtectOrigin, p->lastProtectPredecessorStage,
+          p->lastProtectResetReason, p->lastProtectLoadArmed,
+          p->lastProtectResetStreak);
     if (n < 0) continue;
     // Clamp before the newline so a future tail cannot turn truncation into
     // an out-of-bounds write (donor comment, kept true here).

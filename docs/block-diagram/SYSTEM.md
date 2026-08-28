@@ -1,8 +1,8 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-08-16. This supersedes the old
+**Status:** Current working architecture, 2026-08-28. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0041. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0067. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
@@ -15,15 +15,15 @@ no skilled repetitive assembly operation at fleet scale.
 
 This is the current Nevada City production target (ADR 0032, superseding the count
 allocation in ADR 0024). The team intends to build the full nominal layout; fewer
-fixtures are a contingency for an unforeseen integration or field issue. The trunk
-count and its final LED variant remain approximate. `ops/bom.md` mirrors these counts;
-update here first.
+fixtures are a contingency for an unforeseen integration or field issue. Twenty
+trunk/uplight units have been physically manufactured; the installed target and final
+LED mix remain approximate. `ops/bom.md` mirrors these counts; update here first.
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
 | Hanging downlight (7-10 ft) | 72 (3 rings x 24) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward); outermost ring of 24 also gets BMP581 (ADR 0034) |
 | Perimeter (5 ft shepherd hooks) | 24 | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah | VL53L5CX (outward); MSA311 likely |
-| Trunk light / uplight (no gobo) | about 16 (target 16) | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | MSA311 only; BMP581s moved to the outer hanging ring (ADR 0034) |
+| Trunk light / uplight (no gobo) | 20 manufactured; about 16 target installed | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | MSA311 only; BMP581s moved to the outer hanging ring (ADR 0034) |
 | Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none; chandelier is currently unpowered |
 
 Nominal total 130. All classes share PowerFeather V2 internals, firmware, and day-sleep
@@ -35,11 +35,13 @@ targets 18 lights. Board spares are healthy since the 90-board order (158 produc
 + ~8 bench); current enclosure demand is well within the 111-large/61-small pools --
 see `ops/bom.md` spares math.
 
-Automatic class identity follows the STEMMA signature in ADR 0041: TMF8820/8821
-means canopy/downlight; otherwise VL53L5CX means perimeter; otherwise MSA311 means
-trunk/uplight; otherwise no sensors means chandelier. `class_last` prevents a lost
-ToF sensor from silently reclassifying an assembled downlight or perimeter device.
-BMP581 is environmental and never determines class.
+Automatic class identity follows ADR 0067: TMF8820/8821 means canopy/downlight;
+otherwise VL53L5CX means perimeter; otherwise ID-verified MSA311 at `0x62` means
+trunk/uplight; otherwise no class sensors also means trunk/uplight for the
+installed 2026 fleet. `class_last` prevents a lost ToF sensor from silently
+reclassifying an assembled downlight or perimeter device. Future chandelier
+PowerFeathers are selected by exact MAC and persist `class_ovr=4` before
+installation. BMP581 is environmental and never determines class.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for

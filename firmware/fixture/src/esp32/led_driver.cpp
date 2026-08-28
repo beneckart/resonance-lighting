@@ -5,6 +5,7 @@
 
 #include "../core/fixture_context.h"
 #include "../core/hex_geometry.h"
+#include "../core/led_profile.h"
 #include "board_power.h"
 #include "boot_guard_io.h"
 #include "boot_park.h"
@@ -25,19 +26,14 @@ LedOutputSnapshot ledOutputSnapshot() { return gOutput; }
 
 void ledProfileForClass(uint8_t fixtureClass) {
   // Production 4 W point source decodes RGBW, NOT GRBW (led_sol_bench /raw
-  // slot-injection proved it; GRBW silently swaps R/G).
-  switch (fixtureClass) {
-  case FIXTURE_PERIMETER:
-    gCount = HEX_NUMPIXELS;
-    gIsRgbw = false;
-    gStrip.updateType(NEO_GRB + NEO_KHZ800);
-    break;
-  default: // downlight / uplight / chandelier(safe default) / unknown
-    gCount = 1;
-    gIsRgbw = true;
-    gStrip.updateType(NEO_RGBW + NEO_KHZ800);
-    break;
-  }
+  // slot-injection proved it; GRBW silently swaps R/G). Perimeter HEX and the
+  // lensed 3 W trunk/uplight module are both three-byte GRB. In particular, an
+  // RGBW frame sent to an uplight shifts every following pixel command and a
+  // W-only smoke frame is invisible on the physical RGB module.
+  FixtureLedProfile profile = fixtureLedProfile(fixtureClass);
+  gCount = profile.pixelCount;
+  gIsRgbw = profile.rgbw;
+  gStrip.updateType((gIsRgbw ? NEO_RGBW : NEO_GRB) + NEO_KHZ800);
   gStrip.updateLength(gCount);
   // setPin AFTER begin() detaches the RMT peripheral via the library's own
   // pinMode calls (Adafruit_NeoPixel::setPin does pinMode(INPUT)+pinMode(OUTPUT)
@@ -187,9 +183,15 @@ void ledSmokeFrame(FrameBuffer &f, uint32_t nowMs) {
     int pos = hexPathIndex((long)(nowMs / 290), HEX_NUMPIXELS, false);
     uint8_t p = geo.spiralOrder[pos];
     f.px[p][0] = f.px[p][1] = f.px[p][2] = 255;
-  } else {
+  } else if (gIsRgbw) {
     float ph = 0.5f + 0.5f * sinf((float)nowMs / 800.0f);
     f.px[0][3] = (uint8_t)(40 + 180 * ph); // W channel: warm, gobo-friendly
+  } else {
+    float ph = 0.5f + 0.5f * sinf((float)nowMs / 800.0f);
+    uint8_t v = (uint8_t)(40 + 180 * ph);
+    f.px[0][0] = v;
+    f.px[0][1] = v;
+    f.px[0][2] = v;
   }
 }
 

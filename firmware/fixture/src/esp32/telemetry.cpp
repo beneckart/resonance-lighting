@@ -222,6 +222,25 @@ String telemetryJson() {
     j += ",\"last_protect_entry_life_state\":" + String(sleepRecord.life_state);
     j += ",\"last_protect_entry_fixture_uptime_ms\":" +
          String((unsigned long)sleepRecord.fixture_uptime_ms);
+    ProtectAuditContext protectContext;
+    bool hasProtectContext =
+        sleepAuditGetProtectContext(sleepRecord, protectContext);
+    j += ",\"last_protect_entry_context_valid\":";
+    j += hasProtectContext ? "true" : "false";
+    if (hasProtectContext) {
+      j += ",\"last_protect_entry_origin\":\"" +
+           String(protectOriginName(protectContext.origin)) + "\"";
+      j += ",\"last_protect_entry_origin_code\":" +
+           String(protectContext.origin);
+      j += ",\"last_protect_entry_predecessor_stage\":" +
+           String(protectContext.predecessor_stage);
+      j += ",\"last_protect_entry_reset_reason\":" +
+           String(protectContext.reset_reason);
+      j += ",\"last_protect_entry_load_armed\":" +
+           String(protectContext.load_armed);
+      j += ",\"last_protect_entry_reset_streak\":" +
+           String((unsigned long)protectContext.reset_streak);
+    }
   }
   j += ",\"ota_pending_verify\":";
   j += (otaState == ESP_OTA_IMG_PENDING_VERIFY) ? "true" : "false";

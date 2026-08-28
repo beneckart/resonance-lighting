@@ -6,6 +6,20 @@ still calls the trunk role `uplight`; treat that as a compatibility name until t
 manifest/schema rename is coordinated (ADR 0032). `net_bench` remains the desk
 **bridge** build (master + serial bridge); this sketch is peer-only.
 
+## Fixture class identity
+
+The initial Wire1 probe and runtime drivers both use 100 kHz. Class identity is
+ordered: ID-verified TMF8820/TMF8821-family ToF -> downlight; otherwise VL53L5CX
+-> perimeter; otherwise MSA311 at `0x62` -> uplight. For the installed 2026 fleet,
+no class sensors also defaults to uplight. A remembered downlight or perimeter is
+retained with a mismatch if its ToF disappears.
+
+Future chandelier PowerFeathers must be selected by exact MAC, recorded as
+chandelier in the registry, and persist `O4` / `class_ovr=4` before installation.
+Use `O0` to return a repurposed board to automatic identity. A sensorless explicit
+chandelier is valid; an old automatically learned sensorless chandelier migrates
+to uplight. See ADR 0067.
+
 ## Cambium direct control
 
 `NB_DIRECT_FRAME` (type 25) carries up to 18 addressed RGBW entries per ESP-NOW
@@ -143,6 +157,15 @@ Run `./build.sh --help` for the short local-versus-fleet command contract.
 `tests/run_tests.sh` includes a fast, compile-free regression check for that
 boundary before it starts the native C++ suite.
 
+Maintenance WiFi credentials live only in gitignored `wifi_secrets.h`; copy
+`wifi_secrets.h.example` and replace its placeholders locally. The historical
+`RES_WIFI_SSID` / `RES_WIFI_PASSWORD` pair remains required. An optional
+`RES_WIFI_SSID_2` / `RES_WIFI_PASSWORD_2` pair adds a second maintenance/OTA
+network. On entry to maintenance, the fixture scans once, ranks visible known
+SSIDs by RSSI, and tries both within a shared 30-second join budget. A failed
+scan preserves primary-then-secondary order. Ordinary COMMS mode never joins
+either network and remains pinned to the ESP-NOW channel.
+
 Source defaults remain a 300-second DAY_CHARGE timer sleep and a 15,000 ms
 post-wake listen grace. The installed 120 s / 3 s fleet artifact is superseded
 by ADR 0064 because it could sleep before the 6-second charge guard and a fresh
@@ -264,8 +287,14 @@ and no charger fault. It does not clear PROTECT automatically or over ESP-NOW;
 Do not start with `RESET-BOOT-RESET`, erase NVS, or use `X`. Leave the fixture's
 LFP installed, connect the enclosure rescue USB port to a proven supply, and
 observe telemetry over normal USB CDC. A valid battery, good external supply,
-no charger fault, at least +20 mA charge current, and at least 3.25 V must all
-hold continuously for 60 seconds before the durable PROTECT latch releases.
+valid/enabled charger with no fault, at least +20 mA charge current, and at
+least 3.25 V must all hold continuously for 60 seconds before the durable
+PROTECT latch releases. ADR 0068 adds a second proof for a full/tapered battery
+that cannot accept +20 mA: a corroborated real cell, at least 3.45 V, and BQ
+`CHG_STAT` of CV, top-off, or not-charging/done must hold with the same good
+input and charger gates for 60 seconds. CC with low current, a proof change, or
+one missing sample restarts the timer. Both paths release to LEDS_OFF and make
+the same clean reboot; neither authorizes release from rebound voltage alone.
 
 On `fx-260816-otafix1-b`, do not rely on the physical RESET button. A RESET
 asserts a power-on-class reset; if the durable stage is still LEDS_OFF or DIM,
@@ -300,9 +329,13 @@ cell limit; later `G<ma>` overrides remain persistent.
 `slp_cmd` is the last validated operator sleep receipt; it records cause,
 duration, source short ID/sequence/uptime, local uptime, VBAT, profile,
 lifecycle, and power tier before the rails go down. `slp_prot` records the same
-local context once on entry into PROTECT. Recurring day-charge and PROTECT timer
-sleeps do not write NVS: their immediate cause uses RTC slow memory instead.
-An operator-caused sleep is refused if `slp_cmd` cannot be persisted.
+local context once on entry into PROTECT. ADR 0068 reuses its otherwise-empty
+source fields to retain origin, predecessor stage, reset reason, prior
+`load_arm`, and unexpected-reset streak without changing the 32-byte record.
+Older records are annotated once as `legacy-unknown` without losing their entry
+voltage/profile/uptime. Recurring day-charge and PROTECT timer sleeps do not
+write NVS: their immediate cause uses RTC slow memory instead. An
+operator-caused sleep is refused if `slp_cmd` cannot be persisted.
 
 Channel 11 is the production default. Channel-policy v1 migrates an absent key
 or the historical channel-6 fallback to the compiled channel (11 for production)
@@ -367,8 +400,10 @@ append-only output tails report fixture class, raw sensor-signature bits, class
 mismatch, LED-rail state, the post-cap RGBW average actually written to lit
 pixels, lit-pixel count, and low-VBAT recovery state/BQ presence-test voltage.
 Tail 16 adds immediate sleep cause plus compact durable operator-sleep and
-PROTECT-entry evidence. The full heartbeat is now 192 bytes; automatic
-day/protection repetitions remain flash-wear-free.
+PROTECT-entry evidence. Tail 17 certifies power-sample validity; tail 18 adds
+the durable PROTECT origin/predecessor/reset/marker/streak context. The full
+heartbeat is now 199 bytes; automatic day/protection repetitions remain
+flash-wear-free.
 The fleet dashboard uses measured render state rather than inferring color from
 the requested program. Older bridges remain compatible because every tail is
 length-gated against the one canonical `src/core/packet.h` layout.
