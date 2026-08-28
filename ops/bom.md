@@ -43,7 +43,7 @@ SYSTEM.md first, then this file. Order dates, costs, and statuses live in
 | MSA311 accel + STEMMA cable (likely) | 1 + 1 | from the 150-accel pool |
 | Shepherd hook | 1 | project-side sourcing, outside this electronics BOM |
 
-### Trunk light x about 16 (target 16; no gobo)
+### Trunk light x20 manufactured (about 16 target installed; no gobo)
 
 | Item | Per fixture | Source / status |
 |---|---|---|

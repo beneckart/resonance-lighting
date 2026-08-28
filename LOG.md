@@ -10,7 +10,7 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
-## 2026-08-28 -- Ben + Codex -- Uplight cohort rollout reached 20 of 24
+## 2026-08-28 -- Ben + Codex -- All 20 manufactured uplights updated
 
 Declared one OTA writer and reused immutable artifact
 `fx-260828-d8f62c3-p`, SHA-256
@@ -35,11 +35,13 @@ Job `444537E1` then targeted the other 15 uplights present in the dashboard.
 All 15 maintenance endpoints were found, including previously unreachable
 Donkey `F2BE10`; all 15 uploads acknowledged, all 15 produced fresh exact
 revision heartbeats, all 15 survived pending verify, and none remained in
-commission profile. Together with Togepi and the staged four, 20 of 24 rostered
-uplights now report the exact artifact. Four fixtures never appeared in the
-session and were not commanded or flashed: Ken `F2B8DC`, Pikachu `F2BCE0`,
-Kirby `F2BE64`, and Haunter `F40438`. Identify those units by USB or restore
-their power/mesh visibility before the uplight cohort is declared complete.
+commission profile. Together with Togepi and the staged four, all 20 physically
+manufactured uplights now report the exact artifact. Ben confirmed that only 20
+uplights were made; the 24-row roster had incorrectly promoted four earlier
+planning allocations into the physical cohort. Ken `F2B8DC`, Pikachu `F2BCE0`,
+Kirby `F2BE64`, and Haunter `F40438` are not manufactured uplights, were never
+rollout targets, and have been returned to role-unassigned registry state. The
+uplight rollout is therefore complete at 20 of 20.
 
 ## 2026-08-28 -- Ben + Codex -- Combined safety/class artifact and Rikku canary
 

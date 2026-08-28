@@ -42,26 +42,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097`,
   passed exact USB write verification, uplight/MSA/class/power checks, visible
   white breathing with about 119 mA real load delta, `L0`, reset, rail-off, and
-  ESP-NOW recovery. Donkey `F2BE10` remains unchanged: exact maintenance job
-  `1004BAFA` found no endpoint and made no upload; repair its maintenance
-  association or exact-USB-flash it before installation (Ben/Codex).
-- [~] **Promote ADR 0067 plus the RGB uplight format fix to the affected uplight
-  cohort.**
-  Resolve the approximately eight installed sensorless uplights to exact short
-  MACs from fresh telemetry/registry evidence and reuse immutable canary-passed
-  artifact `fx-260828-d8f62c3-p`; do not use the earlier RGBW-framed combined
-  artifact on uplights. Require a heartbeat newer than each job start, the exact
-  revision, uplight class, safe power, and survival beyond pending verify for
-  every target. Do not open fixtures merely because MSA remains absent;
-  sensorless uplight is the intentional degraded fallback (Ben/Codex).
-  **2026-08-28 rollout:** exact jobs `45208DD7` and `444537E1` verified 19
-  OTA targets through fresh exact-revision rejoin and pending verify; together
-  with USB canary Togepi, 20 of 24 rostered uplights now run
-  `fx-260828-d8f62c3-p`. A direct settled check on Psyduck confirmed uplight
-  class, `sensor_bits=8`, no mismatch, and field profile. The four unseen and
-  untouched tail fixtures are Ken `F2B8DC`, Pikachu `F2BCE0`, Kirby `F2BE64`,
-  and Haunter `F40438`; identify by USB or restore mesh/power visibility and
-  apply the same immutable artifact before marking this complete (Ben/Codex).
+  ESP-NOW recovery. Donkey `F2BE10` was later found by exact cohort job
+  `444537E1` and passed upload, fresh exact-revision rejoin, pending verify, and
+  field-profile checks on the same artifact (Ben/Codex).
+- [x] **Promote ADR 0067 plus the RGB uplight format fix to every manufactured
+  uplight -- DONE 2026-08-28.** Exact jobs `45208DD7` and `444537E1` verified
+  19 OTA targets through fresh exact-revision rejoin and pending verify;
+  together with USB canary Togepi, all 20 physically manufactured uplights run
+  immutable artifact `fx-260828-d8f62c3-p`. A direct settled check on Psyduck
+  confirmed uplight class, `sensor_bits=8`, no mismatch, and field profile. Ben
+  confirmed the physical cohort is 20, not the 24 rows previously rostered from
+  planning allocations. Ken `F2B8DC`, Pikachu `F2BCE0`, Kirby `F2BE64`, and
+  Haunter `F40438` are not manufactured uplights and are role-unassigned; they
+  require no uplight rollout action (Ben/Codex).
 - [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
   (ADR 0066).** Source commit `91663fd` and immutable artifact
   `fx-260828-658b7d2-p` implement two bounded gitignored credential profiles;
@@ -1116,17 +1109,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   or DIM can correctly re-enter PROTECT, while a deliberate software reset at
   recovered FULL boots unparked. Prefer USB-installing `prtrel1-b`; enter
   download mode only when normal USB CDC/flashing is unavailable (Ben/Codex).
-- [x] **Assign the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE as
-  trunk lights.** `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`,
-  `F3FD50`, `F2BE64`, `F2BE10`, and `F2BE1C` are allocated to the 6 Ah trunk
-  fleet. Registry role is the current compatibility spelling `uplight`; runtime
-  class probing remains automatic for the assembled sensor stack (Ben/Codex).
-- [x] **Finalize the second 2026-08-16 OTA-bootstrap batch as trunk lights --
-  DONE.**
-  `F402B8`, `F2BEF4`, `F2B8DC`, `F40438`, `F2BE6C`, `F3FC8C`, `F2BF90`,
-  `F2BCE0`, `F401CC`, and reused board `9F2694` are allocated to the 6 Ah trunk
-  fleet with registry role `uplight`; runtime probing remains automatic
-  (Ben/Codex).
+- [x] **Reconcile the first 2026-08-16 ten-board OTA-bootstrap batch -- DONE.**
+  `F3FC9C`, `F4019C`, `F2BE3C`, `F2BEB4`, `F40310`, `F2BD00`, `F3FD50`,
+  `F2BE10`, and `F2BE1C` became 6 Ah trunk/uplights. `F2BE64` was a planning
+  allocation only and remains role-unassigned. Runtime class probing remains
+  automatic for assembled sensor stacks (Ben/Codex).
+- [x] **Reconcile the second 2026-08-16 OTA-bootstrap batch -- DONE.**
+  `F402B8`, `F2BEF4`, `F2BE6C`, `F3FC8C`, `F2BF90`, `F401CC`, and reused board
+  `9F2694` became 6 Ah trunk/uplights. `F2B8DC`, `F2BCE0`, and `F40438` were
+  planning allocations only and remain role-unassigned (Ben/Codex).
 - [ ] **Finalize the fifty-four-board canopy/extra-candidate allocation.** Batch 1:
   `9F2684`, `9E5AD8`, `9F2688`, `9E5A70`, `9D7884`, `F40380`, `F2BED4`,
   `F2BDC0`, `F402D0`, and `F4044C`. Batch 2: `9E5AD4`, `F2BE70`, `F40174`,
