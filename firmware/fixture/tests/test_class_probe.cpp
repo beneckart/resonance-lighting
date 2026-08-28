@@ -3,6 +3,9 @@
 #include "../src/core/class_probe.h"
 
 int main() {
+  CHECK_EQ(MSA311_I2C_ADDR, 0x62u);
+  CHECK_EQ(MSA311_PART_ID_REG, 0x01u);
+  CHECK_EQ(MSA311_PART_ID, 0x13u);
   {
     ProbeBits b = {true, false, true, true, false, false};
     CHECK_EQ(probeBitsMask(b), 0x0Du);
@@ -36,8 +39,9 @@ int main() {
   {
     ProbeBits b = {false, false, false, false, false, false};
     ClassDecision d = classDecide(b, 0, 0);
-    CHECK_EQ(d.cls, (uint8_t)FIXTURE_CHANDELIER);
-    CHECK_EQ(d.persistLast, (uint8_t)FIXTURE_CHANDELIER); // true chandelier learns
+    CHECK_EQ(d.cls, (uint8_t)FIXTURE_UPLIGHT);
+    CHECK(!d.mismatch);
+    CHECK_EQ(d.persistLast, (uint8_t)FIXTURE_UPLIGHT);
   }
   // TMF + VL53 conflict -> downlight with mismatch flag.
   {
@@ -54,13 +58,28 @@ int main() {
     CHECK(d.mismatch); // probe says downlight
     CHECK_EQ(d.persistLast, 0);
   }
-  // No sensors is a chandelier signature, so a different override is flagged.
+  // No sensors uses the installation-stage uplight fallback.
   {
     ProbeBits b = {false, false, false, false, false, false};
     ClassDecision d = classDecide(b, FIXTURE_UPLIGHT, 0);
     CHECK_EQ(d.cls, (uint8_t)FIXTURE_UPLIGHT);
-    CHECK(d.mismatch);
+    CHECK(!d.mismatch);
     CHECK_EQ(d.persistLast, 0);
+  }
+  // Future chandelier MACs are explicit overrides. Their expected sensorless
+  // signature is valid and must not raise a false mismatch.
+  {
+    ProbeBits b = {false, false, false, false, false, false};
+    ClassDecision d = classDecide(b, FIXTURE_CHANDELIER, FIXTURE_UPLIGHT);
+    CHECK_EQ(d.cls, (uint8_t)FIXTURE_CHANDELIER);
+    CHECK(!d.mismatch);
+    CHECK_EQ(d.persistLast, 0);
+  }
+  {
+    ProbeBits b = {false, false, false, true, false, false};
+    ClassDecision d = classDecide(b, FIXTURE_CHANDELIER, 0);
+    CHECK_EQ(d.cls, (uint8_t)FIXTURE_CHANDELIER);
+    CHECK(d.mismatch); // an MSA-bearing board is not a clean chandelier
   }
   // Sensor death: an MSA-only result is ambiguous when class_last remembers a
   // ToF-bearing class. Keep the remembered class and do not overwrite it.
@@ -81,15 +100,24 @@ int main() {
     ProbeBits b = {false, false, false, false, false, false}; // MSA died
     ClassDecision d = classDecide(b, 0, FIXTURE_UPLIGHT);
     CHECK_EQ(d.cls, (uint8_t)FIXTURE_UPLIGHT);
-    CHECK(d.mismatch);
+    CHECK(!d.mismatch); // 2026 policy explicitly tolerates sensorless uplights
     CHECK_EQ(d.persistLast, 0);
   }
+  // Old sensorless firmware taught chandelier. The new no-sensor policy
+  // migrates that remembered value to uplight on the next boot.
+  {
+    ProbeBits b = {false, false, false, false, false, false};
+    ClassDecision d = classDecide(b, 0, FIXTURE_CHANDELIER);
+    CHECK_EQ(d.cls, (uint8_t)FIXTURE_UPLIGHT);
+    CHECK(!d.mismatch);
+    CHECK_EQ(d.persistLast, (uint8_t)FIXTURE_UPLIGHT);
+  }
   // BMP581 is environmental and never determines fixture class. A lone BMP is
-  // anomalous: use the safe chandelier profile without persisting it.
+  // anomalous: use the installation-stage uplight fallback without persisting.
   {
     ProbeBits b = {false, false, true, false, false, false};
     ClassDecision d = classDecide(b, 0, 0);
-    CHECK_EQ(d.cls, (uint8_t)FIXTURE_CHANDELIER);
+    CHECK_EQ(d.cls, (uint8_t)FIXTURE_UPLIGHT);
     CHECK(d.mismatch);
     CHECK_EQ(d.persistLast, 0);
   }

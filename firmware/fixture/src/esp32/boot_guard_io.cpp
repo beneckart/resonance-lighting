@@ -14,10 +14,27 @@ static BootDecision gDecision;
 static bool gNvsOk = false;
 static uint8_t gStoredStage = STAGE_IDLE;
 static bool gLoadArmed = false; // RAM mirror of the ADR 0051 durable marker
+static bool gHasProtectContext = false;
+static ProtectAuditContext gProtectContext;
+
+static void setProtectContext(uint8_t origin, uint8_t predecessor,
+                              uint8_t resetReason, bool loadArmed,
+                              uint32_t streak) {
+  gProtectContext = ProtectAuditContext{};
+  gProtectContext.origin = origin;
+  gProtectContext.predecessor_stage = predecessor;
+  gProtectContext.reset_reason = resetReason;
+  gProtectContext.load_armed = loadArmed ? 1 : 0;
+  gProtectContext.reset_streak = streak;
+  gHasProtectContext = true;
+}
 
 void bootGuardPreInit() {
+  gHasProtectContext = false;
+  gProtectContext = ProtectAuditContext{};
   gNvsOk = nvsReadStage(gStoredStage);
-  bool unexpected = bootGuardUnexpectedResetClass((int)esp_reset_reason());
+  uint8_t resetReason = (uint8_t)esp_reset_reason();
+  bool unexpected = bootGuardUnexpectedResetClass((int)resetReason);
   // ADR 0051: read the load-armed marker from the PREVIOUS run. Unreadable
   // marker -> assume armed (conservative: escalation stays possible).
   bool prevArmed = true;
@@ -32,6 +49,16 @@ void bootGuardPreInit() {
   else nvsClearBootCount();
   bool escalate = prevArmed || streak >= RES_BOOT_LOOP_ESCALATE_STREAK;
   gDecision = bootGuardDecide(gNvsOk, gStoredStage, unexpected, escalate);
+  if (gDecision.stage == STAGE_PROTECT && gStoredStage != STAGE_PROTECT) {
+    if (!gNvsOk) {
+      setProtectContext(PROTECT_ORIGIN_NVS_FAILSAFE, gStoredStage, resetReason,
+                        prevArmed, streak);
+    } else if (unexpected && escalate) {
+      setProtectContext(prevArmed ? PROTECT_ORIGIN_RESET_LOAD_ARMED
+                                  : PROTECT_ORIGIN_RESET_STREAK,
+                        gStoredStage, resetReason, prevArmed, streak);
+    }
+  }
   if (gDecision.persistStage != BOOT_GUARD_NO_WRITE) {
     if (!nvsWriteStage(gDecision.persistStage)) {
       // Retry-consumption could not be made durable: fail safe to PROTECT
@@ -39,6 +66,8 @@ void bootGuardPreInit() {
       gDecision.stage = STAGE_PROTECT;
       gDecision.park = true;
       gDecision.retryConsumed = false;
+      setProtectContext(PROTECT_ORIGIN_STAGE_PERSIST_FAILURE, gStoredStage,
+                        resetReason, prevArmed, streak);
     }
   }
   // This run starts with every load off (bootParkRailLow before anything else
@@ -61,6 +90,10 @@ uint8_t bootGuardStage() { return gDecision.stage; }
 bool bootGuardParked() { return gDecision.park; }
 bool bootGuardRetryConsumed() { return gDecision.retryConsumed; }
 bool bootGuardInterrupted() { return gDecision.interrupted; }
+bool bootGuardProtectContext(ProtectAuditContext &out) {
+  out = gProtectContext;
+  return gHasProtectContext;
+}
 
 // ADR 0051: durable load-armed marker. Arm BEFORE energizing (a failed write
 // refuses the load, mirroring the stage-persist doctrine); disarm is called

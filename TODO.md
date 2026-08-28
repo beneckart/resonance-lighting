@@ -4,6 +4,50 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
+  Exact outer downlight Rikku `9F26B0` is dark on
+  `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
+  audit of 3.596 V in field profile at 2.809 s uptime. This is not a low-voltage
+  transition. Fleet history proves the latch predates that artifact: OTA at
+  3.582 V preserved it, and a later gather still found the 900 s PROTECT cadence
+  at 3.536 V. The leading entry mechanism is an unexpected reset with the
+  durable load marker armed, but current audit fields do not retain the
+  predecessor stage/reset reason. ADR 0068 source now preserves origin,
+  predecessor, reset reason, prior `load_arm`, and reset streak in the same-size
+  durable audit record and append-only heartbeat. Good USB/no-fault telemetry at
+  3.56-3.58 V / 99 percent accepted only about 0-2 mA, so the policy now adds a
+  separate sustained full-battery proof: corroborated real cell, >=3.45 V,
+  valid/good input, valid enabled/no-fault BQ, and CV/top-off/not-charging state
+  for 60 seconds. Missing data or a proof change resets the clock; CC with low
+  current is rejected. Fixture, T-Deck, parser, and embedded compile gates pass.
+  Next: clean commit + immutable artifact, exact Rikku canary through automatic
+  stage-3 persist/clean reboot and healthy sensors/rail policy, negative-gate
+  fault injection, then fleet audit for other high-VBAT PROTECT entries. Do not
+  erase NVS or use bare-board `X` on this installed battery (Ben/Codex).
+- [~] **Finish ADR 0067 canary acceptance of Donkey `F2BE10` trunk/uplight.**
+  New-battery
+  recovery passed, and exact-target USB flash of current accepted artifact
+  `fx-260828-658b7d2-p` passed on 2026-08-28: exact MAC/revision, field profile,
+  channel 11, 3.34 V / about +260 mA charging, no BQ fault, FULL tier, guard
+  stage 1, no pending verify, and stable ESP-NOW through 54.8 seconds. This
+  current-image A/B still reports `sensor_bits=0`, `msa311_present=false`, and
+  chandelier class. Source inspection subsequently found the initial class probe
+  using the MSA301 address `0x26` instead of the MSA311 address `0x62`; the runtime
+  driver already used `0x62`. ADR 0067 source fixes that fleet-wide defect and
+  makes sensorless auto-classification uplight because no chandeliers are
+  installed. Next: cleanly commit, create a new immutable artifact, exact-target
+  canary Donkey, require uplight class plus healthy power/revision/pending-verify
+  evidence, and run the identity-gated LED smoke test. An MSA bit/sample is the
+  expected success result, but sensorless uplight is an explicitly accepted
+  degraded result. Do not mark installation-ready or send the completion salute
+  before those gates pass (Ben/Codex).
+- [ ] **Promote ADR 0067 to the affected uplight cohort after Donkey passes.**
+  Resolve the approximately eight installed sensorless uplights to exact short
+  MACs from fresh telemetry/registry evidence, build once from a clean commit,
+  and reuse that immutable binary. Require a heartbeat newer than each job start,
+  the exact revision, uplight class, safe power, and survival beyond pending
+  verify for every target. Do not open fixtures merely because MSA remains absent;
+  sensorless uplight is the intentional degraded fallback (Ben/Codex).
 - [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
   (ADR 0066).** Source commit `91663fd` and immutable artifact
   `fx-260828-658b7d2-p` implement two bounded gitignored credential profiles;
@@ -675,7 +719,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   then stop ranging or cut VSQT and repeat. Firmware currently relies on the
   driver's default autonomous mode rather than verifying it; ST's 3.3 V figures
   differ sharply between autonomous 4x4 / 5 Hz / 5 ms (about 19 mW) and
-  continuous mode (about 313 mW) (Ben + field team).
+  continuous mode (about 313 mW). **2026-08-28 canopy cross-check:** exact
+  outer-ring downlight Ponyta `F2B7DC` was dark in durable PROTECT. Its retained
+  entry audit records 3.236 V and persisted commission profile; later correction
+  to field did not clear the latch. Good USB produced about +192 to +260 mA with
+  no BQ fault, completed the 60-second guarded release, and clean-rebooted into
+  LEDS_OFF with healthy MSA311/TMF8820/BMP581. This supports the same
+  commission-energy/protection chain outside the perimeter cohort but does not
+  close the P126 harvest question. Ben confirmed every canopy/downlight without
+  exception has a 15 Ah cell, so correct Ponyta's live persisted 6,000 mAh
+  capacity to 15,000 mAh through the declared exact-target configuration path
+  before relying on its gauge SOC/capacity telemetry (Ben + field team).
 - [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
   visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter; all 24
   perimeters should now contain QC'd cells. Roughly 20 additional trunk lights
@@ -1064,10 +1118,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   `9E5AE0`, `9E5B00`, `F401A8`, `F40350`, and `F40254`. Final four: `9F2678`,
   `9E5AC8`, `9F26B4`, and `9F2708`. All are OTA-ready with blank roles, AUTO
   class override, and a provisional 6 Ah profile. If assigned to
-  large-enclosure inner-ring
-  downlights, change them to 15 Ah before battery-backed validation; do not
-  mistake the sensorless probe's `chandelier` fallback for an assignment
-  (Ben/Codex).
+  large-enclosure inner-ring downlights, change them to 15 Ah before
+  battery-backed validation. Under ADR 0067 a sensorless automatic probe reports
+  uplight, but that is not an inventory assignment; the registry role remains
+  authoritative (Ben/Codex).
+- [ ] **Roster the future chandelier PowerFeathers by exact MAC before
+  installation (ADR 0067).** Set registry role `chandelier`, persist `O4` /
+  `class_ovr=4` through the exact-target commissioning path, verify the sensorless
+  chandelier result has no mismatch, and audit the full roster. Clear with `O0`
+  before repurposing any rostered board (Ben/Codex).
 - [~] **Census and USB-rescue any forgotten boards already inside enclosures.**
   Elliot is flashing some concurrently. Treat these as installed fixtures, use
   the `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md` installed-battery path, separate

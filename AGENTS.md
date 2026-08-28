@@ -118,12 +118,15 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
 - Production batteries, TWO-TIER since 2026-07-24 (ADR 0025 + annotations): 33140 15 Ah (batteryhookup, 130 bought -- QUALIFICATION PENDING) for large-enclosure fixtures/downlights; 32700 6 Ah (fullbattery, qualified n=2 at ~5.75 Ah) for small-enclosure classes + chandelier. The Amazon "7.2 Ah" was measured and rejected; ADR 0023 thresholds are 6 Ah-derived -- re-derive for the 33140 before trusting.
 - Solar panels: Voltaic ETFE P105 5 W (downlights) / P126 2 W (perimeter), bought and outdoor-measured (ADR 0026).
 - Sensors and automatic class identity: ID-verified TMF8820/TMF8821-family sensor
-  -> canopy/downlight; else VL53L5CX -> perimeter; else MSA311 -> trunk/uplight;
-  else no STEMMA sensors -> chandelier. Preserve `class_last` and flag a mismatch
-  when a known ToF-bearing class falls back to MSA-only, or any sensored class
-  falls to no sensors (ADR 0041). BMP581 never determines class; the 30 bought
-  units are allocated as 24 outer-ring downlights + 6 spares (ADR 0034). Fused
-  IMUs were rejected -- per-device calibration (ADR 0027).
+  -> canopy/downlight; else VL53L5CX -> perimeter; else MSA311 at `0x62` ->
+  trunk/uplight; else no class sensors -> trunk/uplight for the installed 2026
+  fleet. Preserve `class_last` and flag a mismatch when a known ToF-bearing class
+  loses its ToF. Future chandelier PowerFeathers are selected by exact MAC and
+  persist `class_ovr=4` before installation; sensorless automatic records left by
+  older firmware migrate from chandelier to uplight (ADR 0067 supersedes ADR
+  0041's no-sensor fallback). BMP581 never determines class; the 30 bought units
+  are allocated as 24 outer-ring downlights + 6 spares (ADR 0034). Fused IMUs
+  were rejected -- per-device calibration (ADR 0027).
 - **Production show timing uses deterministic site/date schedules from sparse time
   anchors, not panel-current dusk consensus:** four purchased SAM-M8Q modules are
   initial GPS/GNSS soft anchors for absolute UTC and four purchased Adafruit DS3231

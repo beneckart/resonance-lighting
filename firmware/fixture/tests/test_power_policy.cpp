@@ -5,7 +5,10 @@
 static PowerSample sample(uint32_t nowMs, float bv, float ma,
                           bool supplyGood = false, float supplyMa = 0.0f,
                           bool fault = false, bool battValid = true,
-                          bool battCorroborated = true) {
+                          bool battCorroborated = true,
+                          uint8_t chargePhase = 1,
+                          bool chargerValid = true,
+                          bool chargingEnabled = true) {
   PowerSample s = {};
   s.now_ms = nowMs;
   s.batt_valid = battValid;
@@ -16,6 +19,9 @@ static PowerSample sample(uint32_t nowMs, float bv, float ma,
   s.supply_v = supplyGood ? 5.0f : 0.0f;
   s.supply_ma = supplyMa;
   s.supply_good = supplyGood;
+  s.charger_valid = chargerValid;
+  s.charging_enabled = chargingEnabled;
+  s.charge_phase = chargePhase;
   s.charger_fault = fault;
   return s;
 }
@@ -152,6 +158,8 @@ int main() {
     }
     CHECK(released);
     CHECK(b.tier == LedTier::OFF);
+    CHECK_EQ(b.protect_release_proof,
+             (uint8_t)PROTECT_RELEASE_CHARGE_CURRENT);
     // Charger fault blocks release.
     PowerState st2;
     powerStateInit(st2, LedTier::PROTECT);
@@ -169,6 +177,84 @@ int main() {
     b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.30f, 5, true, 300), c); // dip
     for (int i = 0; i < 40; i++) b3 = powerPolicyTick(st3, sample(t3 += 1000, 3.30f, 150, true, 300), c);
     CHECK(b3.tier == LedTier::PROTECT); // 40 s < 60 s after restart
+  }
+
+  // --- Full/tapered PROTECT release (ADR 0068) -------------------------------
+  {
+    // Rikku-class deadlock: good input and valid enabled/no-fault BQ in CV,
+    // 3.58 V real cell, but only +2 mA because the battery is already full.
+    PowerState st;
+    powerStateInit(st, LedTier::PROTECT);
+    uint32_t t = 1000;
+    PowerBudget b = {};
+    for (int i = 0; i < 61; i++) {
+      b = powerPolicyTick(
+          st, sample(t += 1000, 3.58f, 2, true, 60, false, true, true, 2), c);
+      if (!b.protect_released) CHECK(!b.must_sleep);
+    }
+    CHECK(b.protect_released);
+    CHECK(b.tier == LedTier::OFF);
+    CHECK_EQ(b.protect_release_proof,
+             (uint8_t)PROTECT_RELEASE_FULL_BATTERY);
+  }
+  {
+    // Every full-battery gate is fail-closed. High rebound alone, CC at low
+    // current, an uncorroborated BAT node, disabled charging, invalid charger
+    // data, or a charger fault must remain parked indefinitely.
+    auto staysProtected = [&](PowerSample s) {
+      PowerState st;
+      powerStateInit(st, LedTier::PROTECT);
+      PowerBudget b = {};
+      for (int i = 0; i < 120; i++) {
+        s.now_ms += 1000;
+        b = powerPolicyTick(st, s, c);
+      }
+      CHECK(b.tier == LedTier::PROTECT);
+    };
+    staysProtected(sample(1000, 3.44f, 2, true, 60, false, true, true, 2));
+    staysProtected(sample(1000, 3.58f, 2, true, 60, false, true, true, 1));
+    staysProtected(sample(1000, 3.58f, 2, true, 60, false, true, false, 2));
+    staysProtected(sample(1000, 3.58f, 2, true, 60, false, true, true, 2,
+                          true, false));
+    staysProtected(sample(1000, 3.58f, 2, true, 60, false, true, true, 2,
+                          false, true));
+    staysProtected(sample(1000, 3.58f, 2, true, 60, true, true, true, 2));
+  }
+  {
+    // Charger termination (phase 0) is acceptable only with all surrounding
+    // high-VBAT/input/corroboration gates. This covers a battery that has
+    // stopped accepting current entirely.
+    PowerState st;
+    powerStateInit(st, LedTier::PROTECT);
+    uint32_t t = 1000;
+    PowerBudget b = {};
+    for (int i = 0; i < 61; i++)
+      b = powerPolicyTick(
+          st, sample(t += 1000, 3.56f, 0, true, 20, false, true, true, 0), c);
+    CHECK(b.protect_released);
+    CHECK_EQ(b.protect_release_proof,
+             (uint8_t)PROTECT_RELEASE_FULL_BATTERY);
+  }
+  {
+    // Switching between charge-current and full-battery evidence restarts the
+    // 60-second hold; missing data also breaks the streak.
+    PowerState st;
+    powerStateInit(st, LedTier::PROTECT);
+    uint32_t t = 1000;
+    PowerBudget b = {};
+    for (int i = 0; i < 40; i++)
+      b = powerPolicyTick(
+          st, sample(t += 1000, 3.50f, 100, true, 150, false, true, true, 1), c);
+    for (int i = 0; i < 40; i++)
+      b = powerPolicyTick(
+          st, sample(t += 1000, 3.58f, 2, true, 60, false, true, true, 2), c);
+    CHECK(b.tier == LedTier::PROTECT);
+    b = powerPolicyTick(
+        st, sample(t += 1000, 0.0f, 0, true, 60, false, false), c);
+    for (int i = 0; i < 59; i++)
+      b = powerPolicyTick(
+          st, sample(t += 1000, 3.58f, 2, true, 60, false, true, true, 2), c);
+    CHECK(b.tier == LedTier::PROTECT);
   }
 
   // --- OFF tier climbs back to DIM with hysteresis ----------------------------

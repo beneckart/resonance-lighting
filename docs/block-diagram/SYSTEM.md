@@ -1,8 +1,8 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-08-16. This supersedes the old
+**Status:** Current working architecture, 2026-08-28. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0041. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0067. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
@@ -35,11 +35,13 @@ targets 18 lights. Board spares are healthy since the 90-board order (158 produc
 + ~8 bench); current enclosure demand is well within the 111-large/61-small pools --
 see `ops/bom.md` spares math.
 
-Automatic class identity follows the STEMMA signature in ADR 0041: TMF8820/8821
-means canopy/downlight; otherwise VL53L5CX means perimeter; otherwise MSA311 means
-trunk/uplight; otherwise no sensors means chandelier. `class_last` prevents a lost
-ToF sensor from silently reclassifying an assembled downlight or perimeter device.
-BMP581 is environmental and never determines class.
+Automatic class identity follows ADR 0067: TMF8820/8821 means canopy/downlight;
+otherwise VL53L5CX means perimeter; otherwise ID-verified MSA311 at `0x62` means
+trunk/uplight; otherwise no class sensors also means trunk/uplight for the
+installed 2026 fleet. `class_last` prevents a lost ToF sensor from silently
+reclassifying an assembled downlight or perimeter device. Future chandelier
+PowerFeathers are selected by exact MAC and persist `class_ovr=4` before
+installation. BMP581 is environmental and never determines class.
 
 Time hardware is also a sparse capability rather than a per-fixture requirement
 (ADR 0031). Four purchased SAM-M8Q modules are the initial GPS/GNSS soft anchors for

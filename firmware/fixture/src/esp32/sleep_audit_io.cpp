@@ -45,6 +45,15 @@ static void printRecord(const char *label, const SleepAuditRecord &record) {
       (unsigned long)record.source_seq,
       (unsigned long)record.source_uptime_ms,
       (unsigned long)record.fixture_uptime_ms);
+  ProtectAuditContext context;
+  if (sleepAuditGetProtectContext(record, context)) {
+    Serial.printf(
+        "sleep-audit: %s protect-origin=%s predecessor=%u reset=%u "
+        "load_armed=%u streak=%lu\n",
+        label, protectOriginName(context.origin), context.predecessor_stage,
+        context.reset_reason, context.load_armed,
+        (unsigned long)context.reset_streak);
+  }
 }
 
 void sleepAuditInit() {
@@ -66,6 +75,23 @@ void sleepAuditInit() {
     Serial.println("sleep-audit: protect NVS read FAILED");
   if (!sleepAuditValid(gProtectAudit))
     memset(&gProtectAudit, 0, sizeof(gProtectAudit));
+  else {
+    // Preserve pre-ADR-0068 entry voltage/profile/uptime while making the
+    // absent reset provenance explicit. This is a one-time same-size NVS
+    // migration; it never invents a cause for an old latch.
+    ProtectAuditContext context;
+    if (!sleepAuditGetProtectContext(gProtectAudit, context)) {
+      context.origin = PROTECT_ORIGIN_LEGACY;
+      context.predecessor_stage = 0xFF;
+      context.reset_reason = 0xFF;
+      if (sleepAuditSetProtectContext(gProtectAudit, context)) {
+        if (nvsWriteProtectEntry(gProtectAudit))
+          Serial.println("sleep-audit: annotated legacy PROTECT provenance");
+        else
+          Serial.println("sleep-audit: legacy PROTECT annotation persist FAILED");
+      }
+    }
+  }
 
   printRecord("wake", gWakeAudit);
   printRecord("last-command", gCommandAudit);
@@ -91,9 +117,21 @@ bool sleepAuditBeforeSleep(uint8_t cause, uint32_t durationS,
   return true;
 }
 
-bool sleepAuditRecordProtectEntry(uint32_t durationS) {
+bool sleepAuditRecordProtectEntry(uint32_t durationS,
+                                  const ProtectAuditContext *context) {
   SleepAuditRecord record =
       makeRecord(SLEEP_CAUSE_POWER_PROTECT, durationS, nullptr);
+  ProtectAuditContext fallback = {};
+  if (!context) {
+    fallback.origin = PROTECT_ORIGIN_LEGACY;
+    fallback.predecessor_stage = 0xFF;
+    fallback.reset_reason = 0xFF;
+    context = &fallback;
+  }
+  if (!sleepAuditSetProtectContext(record, *context)) {
+    Serial.println("sleep-audit: protect context encode FAILED");
+    return false;
+  }
   if (!nvsWriteProtectEntry(record)) {
     Serial.println("sleep-audit: protect entry persist FAILED");
     return false;
@@ -118,4 +156,3 @@ bool sleepAuditProtectRecord(SleepAuditRecord &out) {
 }
 
 bool sleepAuditHasProtectRecord() { return sleepAuditValid(gProtectAudit); }
-

@@ -48,6 +48,55 @@ bool sleepAuditValid(const SleepAuditRecord &record) {
          record.duration_s > 0 && record.checksum == checksum(record);
 }
 
+bool sleepAuditSetProtectContext(SleepAuditRecord &record,
+                                 const ProtectAuditContext &context) {
+  if (!sleepAuditValid(record) ||
+      record.cause != SLEEP_CAUSE_POWER_PROTECT ||
+      context.origin <= PROTECT_ORIGIN_UNKNOWN ||
+      context.origin > PROTECT_ORIGIN_LEGACY)
+    return false;
+  // PROTECT is a local power-policy/boot-guard event, never a remote source.
+  // Its source fields were zero before ADR 0068 and are safe to reuse.
+  record.flags &= (uint8_t)~SLEEP_AUDIT_REMOTE_SOURCE;
+  record.flags |= SLEEP_AUDIT_PROTECT_CONTEXT;
+  record.source_id[0] = context.origin;
+  record.source_id[1] = context.predecessor_stage;
+  record.source_id[2] = context.reset_reason;
+  record.source_seq = context.reset_streak;
+  record.source_uptime_ms = context.load_armed ? 1U : 0U;
+  record.checksum = checksum(record);
+  return true;
+}
+
+bool sleepAuditGetProtectContext(const SleepAuditRecord &record,
+                                 ProtectAuditContext &context) {
+  context = ProtectAuditContext{};
+  if (!sleepAuditValid(record) ||
+      record.cause != SLEEP_CAUSE_POWER_PROTECT ||
+      !(record.flags & SLEEP_AUDIT_PROTECT_CONTEXT) ||
+      record.source_id[0] <= PROTECT_ORIGIN_UNKNOWN ||
+      record.source_id[0] > PROTECT_ORIGIN_LEGACY)
+    return false;
+  context.origin = record.source_id[0];
+  context.predecessor_stage = record.source_id[1];
+  context.reset_reason = record.source_id[2];
+  context.reset_streak = record.source_seq;
+  context.load_armed = record.source_uptime_ms ? 1 : 0;
+  return true;
+}
+
+const char *protectOriginName(uint8_t origin) {
+  switch (origin) {
+  case PROTECT_ORIGIN_LOW_VBAT: return "low-vbat";
+  case PROTECT_ORIGIN_RESET_LOAD_ARMED: return "reset-load-armed";
+  case PROTECT_ORIGIN_RESET_STREAK: return "reset-streak";
+  case PROTECT_ORIGIN_NVS_FAILSAFE: return "nvs-failsafe";
+  case PROTECT_ORIGIN_STAGE_PERSIST_FAILURE: return "stage-persist-failure";
+  case PROTECT_ORIGIN_LEGACY: return "legacy-unknown";
+  default: return "unknown";
+  }
+}
+
 bool sleepCauseIsOperator(uint8_t cause) {
   return cause == SLEEP_CAUSE_RADIO_ALL ||
          cause == SLEEP_CAUSE_RADIO_TARGET ||
@@ -65,4 +114,3 @@ const char *sleepCauseName(uint8_t cause) {
   default: return "none";
   }
 }
-

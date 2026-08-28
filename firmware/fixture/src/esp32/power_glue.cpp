@@ -90,9 +90,36 @@ void powerGlueTick() {
   s.supply_ma = supplyMa();
   s.supply_good = supplyGood();
   const BqSnapshot &bq = bqSnapshot();
+  s.charger_valid = bq.reg16 != 0xFF && bq.stat1 != 0xFF &&
+                    bq.fault0 != 0xFF;
+  s.charging_enabled = s.charger_valid && chargingEnabled() &&
+                       (bq.reg16 & (1u << 5)) != 0;
+  s.charge_phase = s.charger_valid ? (uint8_t)((bq.stat1 >> 3) & 0x03)
+                                   : 0xFF;
   s.charger_fault = (bq.fault0 != 0x00 && bq.fault0 != 0xFF);
 
+  LedTier priorTier = gState.tier;
   PowerBudget b = powerPolicyTick(gState, s, gConfig);
+  ProtectAuditContext entryContext = {};
+  bool haveEntryContext = false;
+  if (priorTier != LedTier::PROTECT && b.tier == LedTier::PROTECT) {
+    entryContext.origin = PROTECT_ORIGIN_LOW_VBAT;
+    entryContext.predecessor_stage = powerTierToStage(priorTier);
+    entryContext.reset_reason = 0xFF; // runtime voltage transition, not reset
+    entryContext.load_armed = bootGuardLoadArmed() ? 1 : 0;
+    haveEntryContext = true;
+  }
+
+  // A full/tapered battery can be real while producing too little current to
+  // satisfy ADR 0051's normal corroboration window. Ask the rate-limited BQ
+  // presence test for independent cell proof so the high-VBAT release path can
+  // qualify; no load is energized and the test requires external power.
+  if (b.tier == LedTier::PROTECT && !s.batt_corroborated &&
+      s.batt_valid && s.batt_v * 1000.0f >= gConfig.release_full_mv &&
+      s.supply_valid && s.supply_good && s.charger_valid &&
+      s.charging_enabled && !s.charger_fault) {
+    batteryRequestPresenceCheck();
+  }
 
   if (s.batt_valid)
     integratorTick(gIntegrator, now, s.batt_ma, (uint16_t)(s.batt_v * 1000.0f));
@@ -108,17 +135,40 @@ void powerGlueTick() {
       gProtectPersistDeferred = true;
       batteryRequestPresenceCheck();
       Serial.println("power: PROTECT held RAM-only (battery uncorroborated)");
-    } else if (!bootGuardSetStage(powerTierToStage(b.tier)) &&
-               b.tier < LedTier::PROTECT) {
-      Serial.println("power: stage persist FAILED -> parking");
-      b.tier = LedTier::PROTECT;
-      b.brightness_cap = 0;
-      b.must_sleep = true;
-      b.protect_released = false; // release did NOT persist: no clean reboot
-      powerStateInit(gState, LedTier::PROTECT);
+    } else if (!bootGuardSetStage(powerTierToStage(b.tier))) {
+      if (b.tier == LedTier::PROTECT) {
+        // A real PROTECT posture whose stage write failed must not deep-sleep
+        // back into the old brighter stage. Stay awake, loads hard-off, and
+        // retry NVS each tick until the safe stage is durable.
+        gProtectPersistDeferred = true;
+        b.must_sleep = false;
+        Serial.println("power: PROTECT stage persist FAILED -> parked awake for retry");
+      } else {
+        Serial.println("power: stage persist FAILED -> parking");
+        b.tier = LedTier::PROTECT;
+        b.brightness_cap = 0;
+        b.must_sleep = true;
+        b.protect_released = false; // release did NOT persist: no clean reboot
+        powerStateInit(gState, LedTier::PROTECT);
+        entryContext.origin = PROTECT_ORIGIN_STAGE_PERSIST_FAILURE;
+        entryContext.predecessor_stage = powerTierToStage(priorTier);
+        entryContext.reset_reason = 0xFF;
+        entryContext.load_armed = bootGuardLoadArmed() ? 1 : 0;
+        haveEntryContext = true;
+      }
     }
-    Serial.printf("power: tier -> %u (bv=%.3f ma=%.0f)%s\n", (unsigned)b.tier,
-                  s.batt_v, s.batt_ma, b.protect_released ? " [protect released]" : "");
+    if (b.protect_released) {
+      const char *releaseProof =
+          b.protect_release_proof == PROTECT_RELEASE_FULL_BATTERY
+              ? "full-battery"
+              : "charge-current";
+      Serial.printf(
+          "power: tier -> %u (bv=%.3f ma=%.0f) [protect released: %s]\n",
+          (unsigned)b.tier, s.batt_v, s.batt_ma, releaseProof);
+    } else {
+      Serial.printf("power: tier -> %u (bv=%.3f ma=%.0f)\n",
+                    (unsigned)b.tier, s.batt_v, s.batt_ma);
+    }
 
     if (b.protect_released) {
       // A parked boot deliberately skipped the sensor-domain cold start,
@@ -143,8 +193,8 @@ void powerGlueTick() {
   }
 
   // Resolve a deferred PROTECT persist: corroboration arriving while the tier
-  // still holds writes the durable latch; leaving PROTECT (release path, which
-  // requires charge current and therefore corroboration) abandons it.
+  // still holds writes the durable latch; leaving PROTECT after either
+  // qualified release proof abandons the deferred entry.
   if (gProtectPersistDeferred) {
     if (b.tier != LedTier::PROTECT) {
       gProtectPersistDeferred = false;
@@ -152,11 +202,15 @@ void powerGlueTick() {
       // POSITIVE corroboration only (audit fix): the absence of the defer
       // flag alone also occurs on freeze ticks (EMPTY veto, recovery lane,
       // gauge dropout) and must never be misread as corroboration.
-      gProtectPersistDeferred = false;
-      if (bootGuardSetStage(powerTierToStage(LedTier::PROTECT)))
+      if (bootGuardSetStage(powerTierToStage(LedTier::PROTECT))) {
+        gProtectPersistDeferred = false;
         Serial.println("power: PROTECT persisted after corroboration");
-      else
-        Serial.println("power: deferred PROTECT persist FAILED (tier already parked)");
+      } else {
+        // Keep retrying and do not sleep into the previously stored brighter
+        // stage. The rail remains hard-off throughout.
+        b.must_sleep = false;
+        Serial.println("power: deferred PROTECT persist FAILED; retrying awake");
+      }
     } else {
       batteryRequestPresenceCheck(); // nudge the rate-limited check
     }
@@ -200,11 +254,15 @@ void powerGlueTick() {
   // Transition-only NVS checkpoint. Existing units first upgraded while
   // already parked get one backfill; recurring 900 s timer sleeps stay RTC-only.
   if (b.tier != LedTier::PROTECT) gProtectAuditAttempted = false;
+  ProtectAuditContext bootContext = {};
+  bool haveBootContext = bootGuardProtectContext(bootContext);
   if (!gProtectAuditAttempted &&
-      (enteredProtect ||
+      (enteredProtect || haveBootContext ||
        (b.tier == LedTier::PROTECT && !sleepAuditHasProtectRecord()))) {
     gProtectAuditAttempted = true;
-    sleepAuditRecordProtectEntry(b.sleep_s);
+    const ProtectAuditContext *context =
+        haveEntryContext ? &entryContext : (haveBootContext ? &bootContext : nullptr);
+    sleepAuditRecordProtectEntry(b.sleep_s, context);
   }
 
   // Never deep-sleep with an unverified image: the pending-verify window must

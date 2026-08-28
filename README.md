@@ -63,13 +63,16 @@ board on battery under WiFi (shared charger/gauge I2C bus). The earlier COTS bak
 candidates (FeatherS2 Neo, Atom Matrix, NeoHEX, DFR0559) served their purpose;
 PowerFeather V2 won.
 
-**Sensors and class identity** (ADRs 0027, 0034, 0041): every downlight carries an
-MSA311 accelerometer + downward TMF8820-mini multizone ToF; perimeter lights carry
-an outward VL53L5CX; trunk/uplights carry only MSA311; chandelier lights carry no
-STEMMA sensors. Auto-classification follows that same ordered signature and retains
-the remembered class when a distinguishing ToF disappears. BMP581 is non-classifying
-environmental telemetry on the outer 24 downlights. Fused IMUs were rejected
-(per-device calibration does not scale to the fleet). The **noisemaker**
+**Sensors and class identity** (ADRs 0027, 0034, 0041, 0067): every downlight
+carries an MSA311 accelerometer + downward TMF8820-mini multizone ToF; perimeter
+lights carry an outward VL53L5CX; trunk/uplights normally carry only MSA311;
+chandelier lights carry no class sensors. Auto-classification is ordered ToF then
+MSA311 at `0x62`, with a sensorless uplight fallback for the already-installed
+2026 fleet. Remembered downlight/perimeter classes survive a missing ToF. Future
+chandelier PowerFeathers are rostered by exact MAC and persist `class_ovr=4`
+before installation. BMP581 is non-classifying environmental telemetry on the
+outer 24 downlights. Fused IMUs were rejected (per-device calibration does not
+scale to the fleet). The **noisemaker**
 is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
 solar-surplus percussion; the speaker-synth path was abandoned once the strikes
 proved out.
@@ -183,7 +186,6 @@ The old custom-board target of ESP32-C3-MINI-1 + CN3058 + AP2112K + direct-from-
   stand up Starlink + the Beryl AX travel router with the 2.4 GHz radio pinned to
   channel 11 so infrastructure WiFi and the ESP-NOW fleet can coexist on one
   radio. Home rehearsal, field checklist, and troubleshooting (ADR 0036).
-
 ## Fleet dashboard
 
 CoreS3 Bridge OS now has a standalone touch Listener with a paged fleet-health

@@ -10,6 +10,259 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-28 -- Ben + Codex -- ADR 0068 full-battery PROTECT recovery developed
+
+Implemented the fail-closed fix for Rikku's high-VBAT PROTECT deadlock without
+weakening the loaded-collapse boot guard. OTA already parks all loads and clears
+`load_arm` before writing, but correctly preserves an existing PROTECT stage;
+high open-circuit VBAT also cannot disprove a real under-load collapse. The
+entry ladder therefore remains fail-safe. The release plane now has two separate
+60-second proofs, and changing proof or losing one battery sample restarts the
+clock. The existing >=+20 mA / >=3.25 V proof now explicitly requires a valid,
+enabled, no-fault BQ. The new full-battery proof requires a corroborated real
+cell, >=3.45 V, good external input, valid enabled/no-fault BQ, and `CHG_STAT`
+CV, top-off, or not-charging/done. CC with low current is rejected. Either proof
+persists LEDS_OFF and makes the existing clean reboot; neither releases on
+rebound voltage alone. A high plausible but uncorroborated cell requests the
+rate-limited BQ presence test so a tapered cell can establish independent proof.
+The same audit closed a pre-existing NVS failure hole: a failed PROTECT-stage
+write now stays parked awake and retries instead of timer-sleeping back into the
+older brighter stage; a failed release-stage write still returns to PROTECT and
+cannot clean-reboot.
+
+Added durable entry provenance without changing the 32-byte version-1 sleep
+audit layout: local PROTECT reuses otherwise-empty remote-source fields for
+origin, predecessor stage, reset reason, prior `load_arm`, and unexpected-reset
+streak. Old records are annotated once as `legacy-unknown` without losing their
+original voltage/profile/uptime. Append-only heartbeat tail 18 exposes the
+context through T-Deck census/`nb-peer`, the logger, and fleet dashboard.
+ADR 0068 records the decision and exact Rikku/fault-injection canary gates.
+
+The complete fixture native suite passed, including 195 power-policy, 26
+sleep-audit, and 70 packet-layout checks. The Donkey registry change was carried
+into the generated T-Deck health roster; its freshness check and all directly
+compiled T-Deck native test binaries passed. All 18 fleet-dashboard parser tests
+passed. A guarded
+field-profile PowerFeather development build passed at 1,210,353 bytes program /
+68,740 bytes globals and produced a 1,210,656-byte `dev-local` binary with
+SHA-256
+`ca910470953cd3ebff9c952d04becf15b6e220931d74ddc19ebb9043c01648ee`.
+That dirty-worktree binary is compile evidence only. Nothing was flashed or
+mutated on Rikku; next is a clean commit, immutable ADR 0040 artifact, exact
+Rikku automatic-recovery canary, and supervised negative-gate matrix.
+
+## 2026-08-28 -- Ben + Codex -- Rikku false high-VBAT PROTECT deadlock
+
+Ben connected a second canopy/downlight that was dark the prior night despite
+a roughly 3.6 V battery. A timestamped read-only USB catch identified exact
+Rikku `9F26B0` / `D8:85:AC:9F:26:B0` on COM11, running accepted artifact
+`fx-260827-1254f04-p` with the correct field profile and 15,000 mAh capacity.
+No flash, erase, maintenance, profile, rail, or NVS command was sent.
+
+Telemetry proved durable guard stage 4 / power tier 3 PROTECT with the LED rail
+off. The retained entry audit records PROTECT at 3.596 V in field profile only
+2.809 seconds into that boot. This is far above the 3.15/3.10/3.05 V power
+ladder and cannot be a voltage-floor transition. The leading mechanism is an
+unexpected reset while the durable load marker was armed, possibly after the
+one bounded FULL-to-DIM retry; the current audit does not retain the predecessor
+stage or reset reason, so the initiating reset class is not proven.
+
+Fleet history shows the latch predates the latest artifact: Rikku was already
+handled on the 900-second PROTECT cadence, then accepted the exact
+`fx-260827-1254f04-p` OTA at 3.582 V and survived pending verify. OTA correctly
+preserved NVS, including the bad latch. A later gather still found it at
+3.536 V on the same protected cadence.
+
+The current USB observation exposed a release deadlock. Input was good, the BQ
+had no fault, VBAT stabilized near 3.56-3.58 V / 99 percent, and the configured
+15 Ah capacity was correct, but the nearly full cell accepted only about
+0-2 mA. The compound release requires battery current >=20 mA continuously for
+60 seconds, so a healthy full battery can never clear false PROTECT merely by
+remaining on USB. Fix both axes before fleet use: make high-VBAT false
+escalation diagnosable/less trigger-happy without weakening real collapse
+safety, and add a sustained charger-termination/full-battery release proof that
+cannot release a rebounded depleted cell. Rikku remains protected pending an
+explicit recovery decision.
+
+## 2026-08-28 -- Ben + Codex -- All canopy batteries confirmed 15 Ah
+
+Ben confirmed that every canopy/downlight without exception has a 15 Ah
+battery. Ponyta `F2B7DC` therefore has a live persisted-capacity configuration
+error: telemetry reports 6,000 mAh while its physical class and existing
+registry record correctly require 15,000 mAh. No device command or NVS write
+was sent in this clarification; correct Ponyta through the declared exact-target
+configuration path before relying on gauge SOC or capacity telemetry.
+
+## 2026-08-28 -- Ben + Codex -- Sensorless uplight fallback and MSA311 probe fix
+
+Ben reported that roughly eight installed trunk/uplights appear to share Donkey
+`F2BE10`'s MSA311 detection failure. Opening that cohort to replace PowerFeathers
+is not practical before deployment, while no chandelier fixtures are installed.
+Ben therefore chose an installation-stage compatibility policy: automatic
+sensorless fixtures are uplights, and future chandelier PowerFeathers will be
+selected by exact MAC and persist an explicit class override before installation.
+
+Source inspection found the fleet-wide cause behind the apparent hardware pattern.
+The fixture's initial class probe polled `0x26`, the older MSA301 address, although
+the installed Adafruit library and production MSA311 hardware use `0x62`; the later
+runtime MSA311 driver already used the correct default. That split explains why a
+ToF-bearing fixture could classify first and initialize its MSA311 later, while an
+MSA-only uplight always appeared sensorless during class selection. The prior LOG
+inference that the boot class probe used `0x62` was therefore incorrect.
+
+ADR 0067 now supersedes ADR 0041's no-sensor-to-chandelier clause. Source probes
+MSA311 at `0x62` and pins PART_ID `0x13`; automatic order is TMF -> downlight,
+VL53L5CX -> perimeter, MSA311 -> uplight, then sensorless -> uplight. Existing
+downlight/perimeter ToF-loss guards remain. Old sensorless `class_last=chandelier`
+records migrate to uplight. A future sensorless chandelier is valid only with its
+exact-MAC-rostered persistent `O4` / `class_ovr=4`; `O0` clears that assignment.
+BMP581 remains non-classifying.
+
+The complete native fixture suite passed, including 50 class-probe checks. A
+guarded field-profile ESP32-S3 PowerFeather build passed with Arduino-ESP32 3.3.7,
+using 1,207,517 bytes of program storage and producing a 1,207,808-byte `dev-local`
+binary with SHA-256
+`7e30b9e8a2688e38f3f680cc3acc91d0c949c78735b8900e3840bb479595d74f`.
+That binary is compile evidence only. No revised firmware was flashed: the dirty
+worktree must first become a clean commit and immutable ADR 0040 artifact. Next is
+an exact Donkey canary, then exact-MAC promotion to the affected uplight cohort;
+future chandelier installation is blocked on its MAC/override roster audit.
+
+## 2026-08-28 -- Ben + Codex -- Ponyta dark-night cause and PROTECT release
+
+Onboarded from the repository and diagnosed the PowerFeather that Ben found
+dark overnight after a 3.22 V voltmeter reading. A timestamped Windows USB
+watcher caught its short wake as exact outer-ring downlight Ponyta `F2B7DC` /
+`68:EE:8F:F2:B7:DC` on COM10. The first 11.6-second enumeration was the
+fixture's protected field wake, not a failed cable or ROM-downloader problem.
+No image was built, selected, flashed, or erased.
+
+Read-only telemetry on `fx-260827-1254f04-p` proved the immediate cause of
+darkness: durable guard stage 4 / power tier 3 PROTECT with the LED rail off.
+The retained entry audit records PROTECT at 3.236 V while `profile=0`
+(commission); Ponyta has since been corrected to field, but a profile change
+does not clear the safety latch. This supports the known commission-energy /
+low-voltage chain, although the trace does not preserve the minimum loaded
+voltage or distinguish a direct voltage transition from a load-armed reset.
+The current live configuration also reports 6,000 mAh even though the registry
+records this large-enclosure downlight as 15,000 mAh. Ben subsequently confirmed
+that every canopy/downlight without exception has a 15 Ah cell, making this a
+proven persisted-capacity configuration error.
+
+With USB held continuously, charging enabled after the normal guard and stayed
+near +192 to +260 mA at 3.25-3.27 V from a good 4.65-4.78 V input. The BQ
+reported no fault and the configured 300 mA precharge read back correctly.
+After 60 seconds of qualified charging, firmware released PROTECT to
+LEDS_OFF, persisted guard stage 3, and performed its intentional clean software
+reboot. MSA311, TMF8820, and BMP581 then initialized and sampled cleanly. The
+fixture remains intentionally dark in the intermediate LEDS_OFF tier and needs
+continued charging before a nighttime readiness test. Only read-only `t`
+queries were sent; the recovery state transition and clean reboot were the
+firmware's automatic guarded behavior.
+
+## 2026-08-28 -- Ben + Codex -- Donkey exact current USB flash; MSA still absent
+
+Ben requested the newest accepted production fixture firmware on the red
+trunk/uplight. Codex declared this laptop/session the sole firmware and
+configuration writer, and exact target Donkey `F2BE10` /
+`68:EE:8F:F2:BE:10` on COM8. The dirty worktree was not built. Preflight selected
+retained immutable artifact `fx-260828-658b7d2-p` from its manifest and accepted
+promotion record, not by mtime: 1,208,640 bytes, source commit `91663fd`, SHA-256
+`95de59286831bcbb9d8f610f84b09e3ac761be558f106b10b9aee8dfb01bd8cc`.
+Manifest, recipe, embedded revision, local binary digest, FQBN, and Arduino CLI
+1.5.1 matched.
+
+Fresh target preflight proved the old `fx-260816-prtrel1-b` application, exact
+MAC, 3.341 V battery, +221 mA charging from good USB, no BQ fault, FULL power
+tier, and guard stage 1. Direct `arduino-cli upload` reused the retained build
+directory and wrote only COM8; esptool identified exact `F2BE10`, verified every
+bootloader/partition/application region hash, and reset normally. No build,
+OTA, profile/class command, manual NVS mutation, or second target was involved.
+
+Continuous read-only post-flash telemetry at 24.9 through 54.8 seconds proved
+exact `fx-260828-658b7d2-p`, field profile, channel 11, app0, no pending verify,
+3.343-3.346 V battery, about +254 to +284 mA charging, no BQ fault, configured
+300 mA precharge, FULL tier, guard stage 1, and live ESP-NOW. The current image
+still reports `sensor_bits=0`, `msa311_present=false`, and chandelier class.
+This rules out the old firmware as the MSA detection cause. The flash passed,
+but the uplight commissioning gate did not; no completion salute was sent and
+the fixture is not installation-ready until the external STEMMA data path or
+module is repaired.
+
+## 2026-08-27 -- Ben + Codex -- Donkey replacement MSA and cable still do not ACK
+
+Ben replaced Donkey `F2BE10`'s already-new MSA311 STEMMA cable and reconnected
+the fixture. Fresh normal application telemetry on COM8 showed a fully healthy
+power posture (guard stage 1, tier FULL, shared 3V3 rail on, good USB, no BQ
+fault), but the boot's verified VSQT off/on cycle again reported
+`tmf8820=0 vl53l5cx=0 bmp581=0 msa311=0` and classified chandelier. The charger
+and gauge continue to communicate on internal Wire1, so the MCU/bus is not
+generally dead. With a replacement sensor and cable still receiving power but
+no ACK at `0x62`, next isolate the external PowerFeather STEMMA connector/data
+contacts against one complete known-good MSA-plus-cable assembly; a new part is
+not yet a proven-good A/B reference. No device mutation was sent.
+
+## 2026-08-27 -- Ben + Codex -- Donkey MSA powered but absent on Wire1
+
+Ben observed the MSA311 breakout's power LED lit on recovered Donkey `F2BE10`.
+A fresh read at 181.9 seconds uptime simultaneously proved the fixture fully
+recovered to power tier 0 / guard stage 1 with the shared 3V3 LED rail on, while
+`msa311_present=false` remained. The firmware's probe addresses the MSA311 at
+its default `0x62` on Wire1 at the required 100 kHz; the earlier verified VSQT
+off/on cycle also received no acknowledgement. Powered-but-absent therefore
+narrows the fault to the STEMMA cable/connectors' SDA/SCL path, an unusual
+module/address mismatch, or the MSA board itself. No I2C scan command exists in
+this older image, and no device mutation was sent.
+
+## 2026-08-27 -- Ben + Codex -- Donkey new-battery PROTECT release; MSA still absent
+
+Ben installed a new battery in Donkey `F2BE10`, left USB connected, and pressed
+normal RESET. The application enumerated on COM8 immediately, so ROM bootloader
+mode was unnecessary. One continuous DTR/RTS-low, read-only telemetry session
+observed the old `fx-260816-prtrel1-b` recovery path without using bare-board
+`X`, forcing the LED rail, entering maintenance, or changing configuration.
+
+The new cell was recognized at 3.30-3.32 V / reported 51 percent. After the
+normal six-second guard, charging enabled and held about +254 to +265 mA from
+roughly 286-296 mA good USB input with no BQ fault. The qualified recovery then
+released PROTECT automatically, persisted guard stage 3 / LEDS_OFF, and made a
+clean software reboot. Post-reboot charging remained healthy; the LED rail
+correctly stayed off in the intermediate power tier. LED smoke acceptance and
+current-artifact promotion remain open.
+
+The same reboot performed a verified VSQT off/on recovery cycle and then probed
+`tmf8820=0 vl53l5cx=0 bmp581=0 msa311=0`. Repository history contains only the
+original sensorless August 16 bare-board commissioning for this MAC, also
+classified as chandelier; no retained evidence ever shows an MSA311. The
+`uplight` label is a later registry allocation, not a previously proven runtime
+class. Inspect/install the MSA311 and its STEMMA cable before treating this as an
+accepted trunk light.
+
+## 2026-08-27 -- Ben + Codex -- Donkey uplight dark in pre-ADR-0051 PROTECT
+
+Onboarded from the repository and diagnosed the USB-connected trunk/uplight as
+Donkey `F2BE10` / `68:EE:8F:F2:BE:10` on COM8. The port was opened with DTR/RTS
+low and only the read-only `t` telemetry query was sent; native USB CDC produced
+one boot, but no firmware, profile, class, lifecycle, maintenance, rail, NVS, or
+other device mutation was requested.
+
+The immediate reason for darkness is authoritative: old artifact
+`fx-260816-prtrel1-b` booted with persisted guard stage 4 (`stored=4`, `park=1`),
+power tier 3, and the physical LED rail off. USB itself was healthy at 4.760 V /
+70 mA with `supply_good=true` and no BQ fault. The BAT node read 2.345 V at about
++2.2 mA, but firmware judged the battery absent/implausible and kept charging
+off. Because this artifact predates ADR 0051, its history matches the known
+floating-BAT failure mode that could durably latch PROTECT on an empty board;
+an actually installed but disconnected or severely depleted cell cannot be
+excluded without physical inspection.
+
+Registry history confirms `F2BE10` was OTA-bootstrapped bare and later allocated
+to the 6 Ah trunk-light pool. Live auto-probe saw no MSA311 or other STEMMA
+sensor, so it classified as `chandelier`, not `uplight`. Check the battery and
+MSA311 connections before choosing the battery-absent guarded-clear path versus
+the installed-battery recovery lane. The LED module/data wiring remains untested
+because firmware never energized the rail.
+
 ## 2026-08-27 -- Ben + Codex -- Dual-site WiFi artifact and split-fleet rollout
 
 Ben confirmed that camp and art-site Starlinks must retain distinct network

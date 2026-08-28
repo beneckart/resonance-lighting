@@ -15,6 +15,7 @@ PowerConfig powerConfigDefaults() {
   c.release_ma = 20;
   c.release_s = 60;
   c.release_floor_mv = 3250;
+  c.release_full_mv = 3450;
   c.protect_sleep_s = 900;
   return c;
 }
@@ -98,6 +99,12 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   // advance in either direction, no release). Phase-4 row "I2C/BQ/gauge read
   // failure -> never interpret missing data as healthy/daylight/charged".
   if (!s.batt_valid || s.batt_v < 0.5f) {
+    // A missing tick interrupts either compound release proof. Do not let a
+    // one-minute telemetry gap count as one minute of sustained evidence.
+    if (st.tier == LedTier::PROTECT) {
+      st.releaseHeldSinceMs = 0;
+      st.releaseProof = PROTECT_RELEASE_NONE;
+    }
     fillBudget(b, st.tier, c);
     // A USB/VDC-powered service session must remain reachable even when a
     // previously persisted PROTECT stage has parked the rails. This does not
@@ -122,20 +129,45 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   LedTier prev = st.tier;
 
   if (st.tier == LedTier::PROTECT) {
-    // Compound release ONLY (addendum 2026-07-13): rebound voltage or a single
-    // positive-current sample must not release. All conditions, sustained.
-    bool qualified = s.supply_valid && s.supply_good && !s.charger_fault &&
-                     s.batt_ma >= (float)c.release_ma &&
-                     mv >= (int)c.release_floor_mv;
+    // Compound release ONLY (ADR 0023 addendum + ADR 0068): rebound voltage or
+    // one positive-current sample must not release. The ordinary proof is
+    // sustained charge current. A second proof handles a full/tapered LFP that
+    // cannot accept 20 mA: sustained high VBAT plus explicit enabled/no-fault
+    // BQ CV/top-off/not-charging status and a corroborated real cell. CC with
+    // low current is not full proof. Missing charger data is never healthy.
+    bool chargerQualified = s.supply_valid && s.supply_good &&
+                            s.charger_valid && s.charging_enabled &&
+                            !s.charger_fault;
+    bool currentQualified = chargerQualified &&
+                            s.batt_ma >= (float)c.release_ma &&
+                            mv >= (int)c.release_floor_mv;
+    bool fullPhase = s.charge_phase == 0 || s.charge_phase == 2 ||
+                     s.charge_phase == 3;
+    bool fullQualified = chargerQualified && s.batt_corroborated && fullPhase &&
+                         mv >= (int)c.release_full_mv;
+    uint8_t proof = currentQualified
+                        ? PROTECT_RELEASE_CHARGE_CURRENT
+                        : (fullQualified ? PROTECT_RELEASE_FULL_BATTERY
+                                         : PROTECT_RELEASE_NONE);
+    // Do not combine 30 seconds of one proof with 30 seconds of another. A
+    // taper transition may take longer to clear, but every accepted path then
+    // supplies one internally consistent 60-second evidence window.
+    if (proof != st.releaseProof) {
+      st.releaseHeldSinceMs = 0;
+      st.releaseProof = proof;
+    }
+    bool qualified = proof != PROTECT_RELEASE_NONE;
     if (heldFor(qualified, s.now_ms, st.releaseHeldSinceMs, c.release_s)) {
       // Release to OFF, not FULL: clearing PROTECT is permission to exist,
       // not to start the show; the ladder climbs on real voltage recovery.
       st.tier = LedTier::OFF;
       st.releaseHeldSinceMs = 0;
+      st.releaseProof = PROTECT_RELEASE_NONE;
       st.belowDimSinceMs = st.belowOffSinceMs = st.aboveClearSinceMs = 0;
       fillBudget(b, st.tier, c);
       b.tier_changed = true;
       b.protect_released = true;
+      b.protect_release_proof = proof;
       return b;
     }
     fillBudget(b, st.tier, c);
@@ -159,6 +191,7 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
     st.tier = LedTier::PROTECT;
     st.belowDimSinceMs = st.belowOffSinceMs = st.aboveClearSinceMs = 0;
     st.releaseHeldSinceMs = 0;
+    st.releaseProof = PROTECT_RELEASE_NONE;
     fillBudget(b, st.tier, c);
     b.tier_changed = true;
     // ADR 0051: the PROTECT posture (rails off, park) applies immediately and

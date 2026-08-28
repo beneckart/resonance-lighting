@@ -296,6 +296,15 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->hasPowerSampleFlags = true;
     peer->powerSampleFlags = hb->power_sample_flags;
   }
+  if (NB_HAS_HB_FIELD(len, last_protect_reset_streak)) {
+    peer->hasProtectContext = hb->last_protect_origin != 0;
+    peer->lastProtectOrigin = hb->last_protect_origin;
+    peer->lastProtectPredecessorStage =
+        hb->last_protect_predecessor_stage;
+    peer->lastProtectResetReason = hb->last_protect_reset_reason;
+    peer->lastProtectLoadArmed = hb->last_protect_load_armed;
+    peer->lastProtectResetStreak = hb->last_protect_reset_streak;
+  }
   return true;
 }
 

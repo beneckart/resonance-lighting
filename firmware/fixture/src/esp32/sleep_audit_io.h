@@ -16,10 +16,10 @@ bool sleepAuditBeforeSleep(uint8_t cause, uint32_t durationS,
                            const NbHeader *source = nullptr);
 
 // One durable checkpoint per transition into PROTECT, not per wake/sleep loop.
-bool sleepAuditRecordProtectEntry(uint32_t durationS);
+bool sleepAuditRecordProtectEntry(
+    uint32_t durationS, const ProtectAuditContext *context = nullptr);
 
 bool sleepAuditWakeRecord(SleepAuditRecord &out);
 bool sleepAuditCommandRecord(SleepAuditRecord &out);
 bool sleepAuditProtectRecord(SleepAuditRecord &out);
 bool sleepAuditHasProtectRecord();
-

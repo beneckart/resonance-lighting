@@ -60,6 +60,7 @@ RX_PEER = re.compile(
     r"(?: audf=(\d+) slpr=(\d+) slps=(\d+) slpmv=(-?\d+) slpprof=(\d+) slplife=(\d+)"
     r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
     r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?"
+    r"(?: protorig=(\d+) protprev=(\d+) protrst=(\d+) protarm=(\d+) protstreak=(\d+))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -516,6 +517,11 @@ class SerialWorker(threading.Thread):
                 last_command_sleep_source,
                 last_command_sleep_source_seq,
                 last_protect_batt_mv,
+                last_protect_origin,
+                last_protect_predecessor_stage,
+                last_protect_reset_reason,
+                last_protect_load_armed,
+                last_protect_reset_streak,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -606,6 +612,11 @@ class SerialWorker(threading.Thread):
                 "last_command_sleep_source": last_command_sleep_source,
                 "last_command_sleep_source_seq": int(last_command_sleep_source_seq) if last_command_sleep_source_seq is not None else None,
                 "last_protect_batt_mv": int(last_protect_batt_mv) if last_protect_batt_mv is not None else None,
+                "last_protect_origin": int(last_protect_origin) if last_protect_origin is not None else None,
+                "last_protect_predecessor_stage": int(last_protect_predecessor_stage) if last_protect_predecessor_stage is not None else None,
+                "last_protect_reset_reason": int(last_protect_reset_reason) if last_protect_reset_reason is not None else None,
+                "last_protect_load_armed": bool(int(last_protect_load_armed)) if last_protect_load_armed is not None else None,
+                "last_protect_reset_streak": int(last_protect_reset_streak) if last_protect_reset_streak is not None else None,
                 "ts_utc": ts,
             }
             if bq16 is not None:
@@ -1173,6 +1184,7 @@ const POWER_TIER = {0: "full", 1: "dim", 2: "LEDs off", 3: "protect"};
 const PROGRAM = {0: "idle", 1: "CA", 2: "bridge", 3: "direct", 4: "commission fallback", 5: "contagion"};
 const RECOVERY_STATE = {0: "normal", 1: "recovery waiting", 2: "recovering", 3: "recovery refused", 4: "recovered", 5: "recovery I/O error"};
 const SLEEP_CAUSE = {0: "none", 1: "battery protect", 2: "day charge", 3: "fleet radio command", 4: "targeted radio command", 5: "transport", 6: "USB serial"};
+const PROTECT_ORIGIN = {1: "low VBAT", 2: "load-armed reset", 3: "reset streak", 4: "NVS fail-safe", 5: "stage-persist failure", 6: "legacy / unknown"};
 const ACTION_AUDIT = {0: "none", 1: "sleep all", 2: "dark all", 3: "release all", 4: "force day", 5: "force night", 6: "force auto"};
 
 function sleepAuditSummary(peer) {
@@ -1189,7 +1201,14 @@ function sleepAuditSummary(peer) {
     const reason = SLEEP_CAUSE[peer.last_command_sleep_cause] || `sleep reason ${peer.last_command_sleep_cause}`;
     rows.push(`durable command receipt: ${reason}, ${Math.round(Number(peer.last_command_sleep_s) / 60)} min from ${peer.last_command_sleep_source} seq ${peer.last_command_sleep_source_seq}`);
   }
-  if (flags & 4) rows.push(`last PROTECT entry: ${peer.last_protect_batt_mv} mV`);
+  if (flags & 4) {
+    let detail = "";
+    if (finite(peer.last_protect_origin)) {
+      const origin = PROTECT_ORIGIN[peer.last_protect_origin] || `origin ${peer.last_protect_origin}`;
+      detail = `, ${origin}, predecessor stage ${peer.last_protect_predecessor_stage}, reset ${peer.last_protect_reset_reason}, load armed ${peer.last_protect_load_armed ? "yes" : "no"}, streak ${peer.last_protect_reset_streak}`;
+    }
+    rows.push(`last PROTECT entry: ${peer.last_protect_batt_mv} mV${detail}`);
+  }
   return rows;
 }
 

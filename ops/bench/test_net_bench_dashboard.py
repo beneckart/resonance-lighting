@@ -52,6 +52,7 @@ class DashboardParserTests(unittest.TestCase):
             + " audf=7 slpr=3 slps=3600 slpmv=3175 slpprof=1 slplife=3"
             + " slptier=0 slpsrc=9F0E7C slpseq=42 cmdslpr=3 cmdslps=3600"
             + " cmdslpsrc=9F0E7C cmdslpseq=42 protmv=3045"
+            + " protorig=2 protprev=2 protrst=9 protarm=1 protstreak=2"
         )
         self.assertEqual(row["sleep_audit_flags"], 7)
         self.assertEqual(row["last_sleep_cause"], 3)
@@ -61,6 +62,11 @@ class DashboardParserTests(unittest.TestCase):
         self.assertEqual(row["last_sleep_source_seq"], 42)
         self.assertEqual(row["last_command_sleep_source_seq"], 42)
         self.assertEqual(row["last_protect_batt_mv"], 3045)
+        self.assertEqual(row["last_protect_origin"], 2)
+        self.assertEqual(row["last_protect_predecessor_stage"], 2)
+        self.assertEqual(row["last_protect_reset_reason"], 9)
+        self.assertTrue(row["last_protect_load_armed"])
+        self.assertEqual(row["last_protect_reset_streak"], 2)
 
     def test_master_action_audit_and_legacy_master(self):
         state = dashboard.DashboardState()
