@@ -1,0 +1,15 @@
+{"artifact": "C:\\Users\\benec\\OneDrive\\Documents\\ChatGPT\\resonance-lighting\\firmware\\fixture\\build\\fx-260828-658b7d2-p\\fixture.ino.bin", "artifact_sha256": "95de59286831bcbb9d8f610f84b09e3ac761be558f106b10b9aee8dfb01bd8cc", "campaign_duration_s": 970, "discovery_timeout_s": 930.0, "elapsed_s": 0.032, "event": "job_started", "expected_revision": "fx-260828-658b7d2-p", "gather_cadence": "protect", "job_id": "2B156CD1", "phase": "PLAN", "target_count": 5, "targets": ["9F26B0", "9F2724", "F2B7DC", "F2BEE4", "F40308"], "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.079, "event": "passed", "job_id": "2B156CD1", "phase": "PREFLIGHT", "target_count": 5, "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.11, "event": "target_added", "job_id": "2B156CD1", "phase": "GATHER", "target": "9F26B0", "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.11, "event": "target_added", "job_id": "2B156CD1", "phase": "GATHER", "target": "9F2724", "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "2B156CD1", "phase": "GATHER", "target": "F2B7DC", "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "2B156CD1", "phase": "GATHER", "target": "F2BEE4", "ts_utc": "2026-08-28T01:28:55Z"}
+{"elapsed_s": 0.157, "event": "target_added", "job_id": "2B156CD1", "phase": "GATHER", "target": "F40308", "ts_utc": "2026-08-28T01:28:55Z"}
+{"campaign": {"active": true, "cycle_ms": 50, "dispatch_count": 5, "job_id": "2B156CD1", "phase": 1, "remaining_ms": 969918, "status_age_ms": 0, "target_count": 5, "ts_utc": "2026-08-28T01:28:55.504978+00:00"}, "elapsed_s": 0.172, "event": "bridge_acknowledged", "job_id": "2B156CD1", "phase": "GATHER", "ts_utc": "2026-08-28T01:28:55Z"}
+{"battery_v": 3.536, "elapsed_s": 495.516, "event": "endpoint_found", "firmware_rev": "fx-260827-1254f04-p", "ip": "192.168.1.109", "job_id": "2B156CD1", "phase": "DISCOVER", "target": "9F26B0", "ts_utc": "2026-08-28T01:37:10Z"}
+{"elapsed_s": 1132.594, "event": "deferred_not_discovered", "job_id": "2B156CD1", "phase": "DISCOVER", "target": "9F2724", "ts_utc": "2026-08-28T01:47:47Z"}
+{"elapsed_s": 1132.594, "event": "deferred_not_discovered", "job_id": "2B156CD1", "phase": "DISCOVER", "target": "F2B7DC", "ts_utc": "2026-08-28T01:47:47Z"}
+{"elapsed_s": 1132.594, "event": "deferred_not_discovered", "job_id": "2B156CD1", "phase": "DISCOVER", "target": "F2BEE4", "ts_utc": "2026-08-28T01:47:47Z"}
+{"elapsed_s": 1132.594, "event": "deferred_not_discovered", "job_id": "2B156CD1", "phase": "DISCOVER", "target": "F40308", "ts_utc": "2026-08-28T01:47:47Z"}
+{"elapsed_s": 1132.61, "error": "HTTP Error 500: Internal Server Error", "event": "job_error", "job_id": "2B156CD1", "phase": "CLEANUP", "ts_utc": "2026-08-28T01:47:47Z"}
+{"elapsed_s": 1132.61, "error": "HTTP Error 500: Internal Server Error", "event": "freeze_unconfirmed", "job_id": "2B156CD1", "phase": "CLEANUP", "ts_utc": "2026-08-28T01:47:47Z"}

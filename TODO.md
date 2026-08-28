@@ -4,6 +4,31 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
+  (ADR 0066).** Source commit `91663fd` and immutable artifact
+  `fx-260828-658b7d2-p` implement two bounded gitignored credential profiles;
+  native tests, production build, exact Swablu canary, and 98/110 intended
+  fixture promotion contracts passed. No secret is tracked. Hardware-prove the
+  second profile at the art site with one exact fixture before relying on it for
+  USB-tail avoidance. The 12 intended fixtures still on the prior known-good
+  image are `9F26B0`, `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
+  `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
+  11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
+  `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank
+  `F2BF60`, uncalled `F2BFEC`, Thor `F40344`, Dratini `F4035C`, and Sneasel
+  `F403DC`. Read exact USB identity before flashing because the physical
+  slot-to-MAC map is still incomplete. Clank needs supervised low-voltage/
+  commission recovery (Ben/Codex).
+- [ ] **Close the ADR 0062 fleet-OTA control-plane gaps exposed by the dual-site
+  rollout.** A 101-target job received only 93 roster acknowledgements; a
+  53-target partial-discovery job failed the whole wave when eight found
+  endpoints vanished before fresh maintenance preflight; and a PROTECT cleanup
+  saw a transient dashboard HTTP 500 during freeze, then rejected a later safe
+  bridge phase-3 stopped/expired status. Make roster loading acknowledged and
+  retry-bounded, demote vanished endpoints to deferred before UPLOAD, retry
+  transport-only freeze failures without weakening exact job/target evidence,
+  and accept a fresh matching stopped phase as cleanup proof. Preserve no retry
+  after upload ACK or ambiguous upload (Ben/Codex).
 - [~] **Canary and promote trustworthy short-wake solar telemetry (ADR 0064).**
   The 120 s / 3 s artifact exposed a real defect: boot disabled charging, sent
   a full heartbeat before the 6 s battery guard, and could return to sleep
@@ -959,10 +984,15 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Measure the Beryl's actual draw** powered the way it will actually be
   powered (USB-C off the camp battery, not a wall wart) and record it against the
   camp energy budget. Nominal is about 5 W; confirm rather than assume (Ben).
-- [ ] **Resolve one virtual SSID across the camp and art-site Starlinks.** Both
-  APs must be on channel 11; if both are to serve OTA they must also share SSID
-  and PSK. Previously queued against the production credential work; now also
-  gated by ADR 0036 (Ben).
+- [~] **Hardware-prove distinct camp and art-site fixture maintenance profiles
+  (ADR 0066).** The one-virtual-SSID requirement is retired: both credential
+  pairs are compiled from a gitignored local header, and maintenance chooses a
+  visible known AP within one bounded join budget. The image has been promoted
+  over the established network; associate one exact fixture through the second
+  site AP, verify identity/telemetry, resume COMMS, and retain no secret in the
+  log or job ledger. ADR 0036 channel 11 still applies to devices using WiFi and
+  ESP-NOW simultaneously, not fixtures that already left the mesh for OTA
+  (Ben/Codex).
 - [ ] **Claude mesh bridge handheld -- decide whether to build at all (ADR 0037).**
   Direction and corrected design brief are recorded in
   `docs/research/CLAUDE_MESH_BRIDGE_DESIGN_2026-08-15.md`; nothing is committed.

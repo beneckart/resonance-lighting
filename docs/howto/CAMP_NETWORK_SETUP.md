@@ -150,9 +150,15 @@ working on the bench goes quiet on the mesh at camp.
 
 ## 5. Open items
 
-- One virtual SSID spanning the camp and art-site Starlinks (queued in
-  `TODO.md`). Both APs must be on channel 11; if they are to serve OTA they must
-  also share SSID and PSK.
+- Hardware-prove both fixture maintenance profiles from the deployed ADR 0066
+  image: associate one exact fixture at camp and one at the art site, verify
+  identity/telemetry, then resume COMMS. The two sites may retain distinct
+  SSIDs and passwords. Real credentials stay in gitignored
+  `firmware/fixture/wifi_secrets.h` and must not enter this runbook or a job
+  ledger.
+- If a device uses WiFi and ESP-NOW simultaneously, every serving AP still must
+  obey ADR 0036's channel-11 rule. A fixture in deliberate OTA maintenance has
+  already left ESP-NOW and may associate with either local AP channel.
 - The router is ordered but not received; nothing here has been executed yet.
 - Beryl draw is unmeasured against the camp battery budget.
 

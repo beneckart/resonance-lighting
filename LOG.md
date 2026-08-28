@@ -10,6 +10,71 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- Dual-site WiFi artifact and split-fleet rollout
+
+Ben confirmed that camp and art-site Starlinks must retain distinct network
+credentials. ADR 0066 replaces the queued one-virtual-SSID requirement for
+fixture maintenance: the image may carry two gitignored credential profiles,
+scan once, prefer visible known APs by RSSI, fall back in declaration order,
+and share one bounded 30-second join budget. Ordinary COMMS remains ESP-NOW
+only. Serial output, recipes, manifests, and git use profile labels rather than
+credential values. Added the pure planner plus ten native checks, optional
+second-pair compile guards, example placeholders, and firmware documentation.
+The full fixture native suite and production ESP32-S3 build passed.
+
+Clean source commit `91663fd0688f6fa903d1086fb023337a372ff179`
+produced immutable artifact `fx-260828-658b7d2-p`, 1,208,640 bytes, SHA-256
+`95de59286831bcbb9d8f610f84b09e3ac761be558f106b10b9aee8dfb01bd8cc`.
+Its recipe label is non-secret. Swablu `F2BE70` passed the exact-target canary:
+upload ACK, software-reset mesh rejoin on the exact revision, survival past the
+25-second pending-verify gate, and FIELD profile. The first configured network
+then carried the wider rollout. The second site profile is compiled into the
+same image but still needs one explicit art-site hardware association check.
+
+The final read-only census before releasing T-Deck `8EB508` reported 98 of the
+110 intended fixtures on the exact new artifact and 12 on the prior known-good
+`fx-260827-1254f04-p`. Every one of the 98 has fresh exact-revision and
+pending-window proof; every verified profile was FIELD. No lingering commission
+mode was found among the promoted cohort. The 12 intended holdouts are Rikku
+`9F26B0`, Groot `9F2724`, Ponyta `F2B7DC`, Cammy `F2B900`, Spyro `F2BCF0`,
+Gambit `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, Toad `F2BEE4`, Daisy
+`F40308`, Dratini `F4035C`, and Sneasel `F403DC`. No accepted or ambiguous
+upload was automatically retried.
+
+The field crew departed mid-rollout with all 24 physical perimeter fixtures.
+The working historical/live perimeter reconstruction shows 13 already
+contract-verified on the new image. The art-site USB queue is Cammy `F2B900`,
+Spyro `F2BCF0`, Gambit `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled
+`F2BE80`, Clank `F2BF60`, uncalled `F2BFEC`, Thor `F40344`, Dratini `F4035C`,
+and Sneasel `F403DC`. The physical slot-to-MAC map remains incomplete, so read
+the identity over USB before writing rather than trusting box position alone.
+Clank remains the known unsafe/commission exception and needs supervised power
+recovery, not a casual OTA.
+
+The six-way uploader again delivered the predicted transfer speed: the final
+20- and 21-target ordinary camp waves each found every target and completed all
+41 full upload-plus-verification contracts in 176 and 225 seconds. The overall
+campaign did not approach ADR 0062's roughly ten-minute target. A 101-target
+roster received only 93 bridge add acknowledgements and failed closed before
+discovery; splitting fixed that control-plane loss. A later 53-target wave
+found all peers but eight maintenance endpoints vanished before the fresh-power
+preflight, so it also failed closed without uploads. The 48-target recovery
+wave passed, and an exact nine-target recovery passed eight; Cammy's HTTP peer
+closed without an ACK and its mesh revision remained old, so it was held.
+
+Movement of the perimeter load then made three discovered endpoints disappear
+before preflight and correctly produced no upload. A separate five-target
+PROTECT job found only Rikku during the complete sparse cadence. Its automatic
+freeze hit one transient dashboard HTTP 500; the finalizer also missed the
+acknowledgement, and a manual exact-job freeze then cleared the bridge before
+any upload. One final no-write Rikku attempt expired in bridge phase 3 without
+discovery. Follow-up tooling should retry a transient freeze transport error,
+accept a fresh stopped/expired phase as safe cleanup evidence, demote vanished
+partial-discovery endpoints instead of failing the whole selected wave, and
+make large roster add acknowledgement robust. All maintenance campaigns were
+inactive, all OTA/dashboard processes were stopped, and COM7 was opened and
+released successfully before Ben unplugged the T-Deck.
+
 ## 2026-08-27 -- Ben + Codex -- Current-source fleet OTA promotion and timing
 
 Codex was the sole writer through exact T-Deck `8EB508` on COM7. Source commit

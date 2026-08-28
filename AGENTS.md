@@ -155,12 +155,19 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   apply to fixtures in OTA maintenance mode, which have already left ESP-NOW by
   design. Router ordered, not configured; runbook in
   `docs/howto/CAMP_NETWORK_SETUP.md`.
+- **Fixture maintenance supports two site WiFi profiles (ADR 0066).** Real
+  credentials remain in gitignored `firmware/fixture/wifi_secrets.h`; recipes,
+  manifests, logs, and serial output use non-secret profile labels only. One
+  scan ranks visible known APs by RSSI, with declaration-order fallback inside
+  one bounded join budget. Ordinary COMMS never associates.
 - **LFP power-policy thresholds (LED dim / off / sleep) are measured, not folklore -- read ADR 0023 before setting any battery floor in bench or production firmware.** It has the voltage-to-remaining-capacity map, the tiered thresholds, the hysteresis/load-compensation/coulomb-hybrid requirements, and the recipe to re-derive on a new cell or load.
 
 **Open** (see TODO.md and ROADMAP.md):
 - Camp network bring-up: Beryl AX ordered but not received or configured; the
-  channel guard is specified but not implemented in any firmware; the one
-  virtual SSID across the camp and art-site Starlinks is unresolved (ADR 0036).
+  channel guard is specified but not implemented in any simultaneous
+  mesh-plus-WiFi firmware. Distinct camp and art-site fixture maintenance
+  profiles are implemented and fleet-promoted; second-site hardware association
+  remains to be proven (ADR 0036 + ADR 0066).
 - Claude mesh bridge handheld: direction recorded only. Hardware IS on hand
   (2x LilyGO **T-Deck Plus**, LCD variant + 1x M5Stack Cardputer ADV) but no
   firmware is written and no bring-up is done. T-Deck Plus is the primary target;

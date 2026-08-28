@@ -99,6 +99,9 @@ The camp AP (Starlink in bypass mode -> GL.iNet Beryl AX) therefore serves a
 dedicated 2.4 GHz SSID fixed to channel 11, and any device that associates while
 using ESP-NOW must verify the channel and drop WiFi rather than lose the mesh.
 Router ordered, not yet configured; runbook in `docs/howto/CAMP_NETWORK_SETUP.md`.
+Fixture maintenance images may carry two gitignored site credential profiles
+and select the strongest visible known AP (ADR 0066). Ordinary fixture COMMS
+never associates with either network, and no credential value enters git.
 The first simultaneous mesh-plus-internet consumer is now **Resonance Bridge OS**
 on the LilyGO T-Deck Plus. Hardware is on hand and M0-M4 plus the first M5 apps
 are implemented and hardware-verified (ADRs 0047 and 0048). The channel guard
