@@ -342,6 +342,26 @@ classified as chandelier; no retained evidence ever shows an MSA311. The
 class. Inspect/install the MSA311 and its STEMMA cable before treating this as an
 accepted trunk light.
 
+## 2026-08-27 -- Ben + Codex -- Archived one-off USB perimeter gobo controller
+
+Retained a dependency-free Windows Forms stopgap for field-testing one perimeter
+gobo without Starlink or the T-Deck under
+`ops/bench/archive/perimeter_gobo_usb/`. The local launcher automatically
+selects the sole COM port, opens native USB CDC with DTR/RTS low, and requires
+fresh read-only `t` telemetry proving an exact healthy perimeter fixture before
+enabling Start.
+
+Start sends the existing RAM-only `L1` command, whose production renderer walks
+one white pixel through the HEX spiral. Stop sends `L0` and explicitly explains
+that the boot remains forced dark. Return to Normal sends `L0`, waits for the
+rail-off path, and applies the documented 150 ms USB RTS reset pulse so normal
+field behavior resumes. The app refuses non-perimeter, deep-recovery,
+uninitialized, PROTECT, and LED-OFF targets; fixture-side power/boot/ramp gates
+remain authoritative. No firmware, WiFi, OTA, profile, lifecycle, or NVS change
+is performed. The code and its self-test are preserved for posterity, but the
+installed USB-extension/reset path was never hardware-validated, so this is not
+advertised as a supported production workflow.
+
 ## 2026-08-27 -- Ben + Codex -- Donkey uplight dark in pre-ADR-0051 PROTECT
 
 Onboarded from the repository and diagnosed the USB-connected trunk/uplight as
