@@ -10,6 +10,77 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-28 -- Ben + Codex -- Combined safety/class artifact and Rikku canary
+
+Built one immutable fleet artifact from clean pushed commit `5865282`, folding
+the ADR 0068 full-battery PROTECT recovery together with the ADR 0067 MSA311
+classification correction. The production recipe is field profile, channel 11,
+300 mA precharge, 120-second day sleep, 12-second wake listen, and listener
+commission default. Artifact `fx-260828-abd893c-p` is 1,211,504 bytes with
+SHA-256
+`6a0126f205be2cb6be034a71de5c5caa75f0af0acd00e1684ddc27377fb175f5`;
+its clean commit, canonical recipe, embedded revision, toolchain, build options,
+binary digest, and manifest all passed the ADR 0040 identity checks. The earlier
+classification-only sibling artifact was never uploaded and is obsolete.
+
+Exact Donkey `F2BE10` job `1004BAFA` acknowledged the single-target maintenance
+campaign, but no endpoint appeared on either maintenance subnet across the full
+360-second discovery window. Cleanup freeze was acknowledged. The host therefore
+made no HTTP upload and Donkey remains unchanged on `fx-260828-658b7d2-p`.
+
+Exact Rikku `9F26B0` job `A357B979` found a fresh endpoint at 3.597 V with good
+6.138 V input and no power fault, uploaded the combined artifact, received a
+fresh exact-revision heartbeat, and survived the 20-second pending-verify gate.
+The retained false PROTECT state then satisfied the new sustained full-battery
+proof, persisted LEDS_OFF, and made the intentional clean software reboot. It
+subsequently advanced OFF -> DIM -> FULL while keeping the daytime LED rail off.
+Fresh post-recovery telemetry through more than eight minutes shows field
+profile, exact revision, FULL tier, downlight class, sensor bits 9 (TMF8820 plus
+MSA311), no class mismatch, healthy BQ state, and no pending verify. This passes
+the positive ADR 0068 hardware canary without erasing NVS or bypassing the guard.
+The negative-gate fault matrix and fleet audit for other high-VBAT PROTECT
+entries remain open.
+
+Ben then brought in an installed uplight whose solar panel had been found
+disconnected and connected it to USB. Read-only identity established exact
+Togepi `9E5AB0`, a registry-rostered 6 Ah trunk/uplight. On the prior
+`fx-260828-658b7d2-p` image it reproduced ADR 0067 exactly: automatic class was
+chandelier, sensor bits were zero, and MSA311 was absent. Battery/input preflight
+was safe at 3.430 V and about +418 mA charge with good USB, no BQ fault, FULL
+tier, field profile, and rail off. An exact COM12 upload of the same combined
+artifact verified every written region against hardware MAC
+`D8:85:AC:9E:5A:B0`. Post-reset telemetry changed the same hardware to uplight,
+sensor bits 8, MSA311 present with a good live read, no mismatch, exact revision,
+and no pending verify. The first identity-gated `L1` smoke attempt asserted
+`smoke_render=true` and the 3V3-enable pad high, but Ben saw no light. That was a
+real second defect, not a bad rail: uplights are the lensed 3 W RGB module, while
+`ledProfileForClass()` had incorrectly grouped them with downlight RGBW modules
+and emitted four-byte `NEO_RGBW` frames. The W-only point-source smoke frame was
+therefore invisible, and ordinary RGB frames also had the wrong byte stride.
+
+Source commit `0f08904` fixes the physical class contract: perimeter and uplight
+use three-byte `NEO_GRB`, downlight retains slot-proven `NEO_RGBW`, and the smoke
+renderer uses equal RGB on an RGB point source versus dedicated W on RGBW. A new
+platform-independent profile helper and 10 native checks pin those mappings;
+the complete fixture native suite passed. The guarded ESP32 development compile
+passed at 1,210,377 bytes program / 68,740 bytes globals. Clean immutable
+artifact `fx-260828-d8f62c3-p` was then built from pushed commit `0f08904` with
+the same production recipe: 1,210,720 bytes, SHA-256
+`57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097`.
+Recipe hash/prefix, clean source, manifest, build flags, binary digest, and
+embedded revision all match. The prior `fx-260828-abd893c-p` remains valid for
+Rikku's ADR 0068 canary but is superseded for every uplight.
+
+An exact second COM12 upload verified every region on Togepi's hardware MAC.
+Fresh telemetry retained uplight class, sensor bits 8, a good MSA sample, field
+profile, channel 11, FULL tier, no fault/mismatch/pending verify, and ESP-NOW.
+Corrected `L1` visibly produced the requested white breathing pattern; the
+battery charge current fell from about +398 mA to +279 mA under the real LED
+load. Ben confirmed the physical output was "beautifully breathing." `L0`
+returned the rail off and charge current to about +420 mA; a 150 ms RTS reset
+then restored ordinary field behavior with the rail off. ADR 0067 classification,
+physical RGB framing, and optical smoke acceptance now pass on exact Togepi.
+
 ## 2026-08-28 -- Ben + Codex -- ADR 0068 full-battery PROTECT recovery developed
 
 Implemented the fail-closed fix for Rikku's high-VBAT PROTECT deadlock without

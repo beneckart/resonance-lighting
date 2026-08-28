@@ -20,33 +20,39 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   valid/good input, valid enabled/no-fault BQ, and CV/top-off/not-charging state
   for 60 seconds. Missing data or a proof change resets the clock; CC with low
   current is rejected. Fixture, T-Deck, parser, and embedded compile gates pass.
-  Next: clean commit + immutable artifact, exact Rikku canary through automatic
-  stage-3 persist/clean reboot and healthy sensors/rail policy, negative-gate
-  fault injection, then fleet audit for other high-VBAT PROTECT entries. Do not
-  erase NVS or use bare-board `X` on this installed battery (Ben/Codex).
-- [~] **Finish ADR 0067 canary acceptance of Donkey `F2BE10` trunk/uplight.**
-  New-battery
-  recovery passed, and exact-target USB flash of current accepted artifact
-  `fx-260828-658b7d2-p` passed on 2026-08-28: exact MAC/revision, field profile,
-  channel 11, 3.34 V / about +260 mA charging, no BQ fault, FULL tier, guard
-  stage 1, no pending verify, and stable ESP-NOW through 54.8 seconds. This
-  current-image A/B still reports `sensor_bits=0`, `msa311_present=false`, and
-  chandelier class. Source inspection subsequently found the initial class probe
-  using the MSA301 address `0x26` instead of the MSA311 address `0x62`; the runtime
-  driver already used `0x62`. ADR 0067 source fixes that fleet-wide defect and
-  makes sensorless auto-classification uplight because no chandeliers are
-  installed. Next: cleanly commit, create a new immutable artifact, exact-target
-  canary Donkey, require uplight class plus healthy power/revision/pending-verify
-  evidence, and run the identity-gated LED smoke test. An MSA bit/sample is the
-  expected success result, but sensorless uplight is an explicitly accepted
-  degraded result. Do not mark installation-ready or send the completion salute
-  before those gates pass (Ben/Codex).
-- [ ] **Promote ADR 0067 to the affected uplight cohort after Donkey passes.**
+  **2026-08-28 positive hardware canary passed:** clean combined artifact
+  `fx-260828-abd893c-p` from commit `5865282`, SHA-256
+  `6a0126f205be2cb6be034a71de5c5caa75f0af0acd00e1684ddc27377fb175f5`,
+  OTA-verified on exact Rikku through pending verify. The retained false PROTECT
+  satisfied the sustained full-battery proof, persisted stage 3, clean-rebooted,
+  and advanced OFF -> DIM -> FULL with the daytime rail off, downlight class,
+  healthy TMF/MSA, no mismatch, and no NVS erase or bypass. Next: negative-gate
+  fault injection, then fleet audit for other high-VBAT PROTECT entries
+  (Ben/Codex).
+- [x] **Finish ADR 0067 canary acceptance on exact uplight Togepi `9E5AB0` --
+  DONE 2026-08-28.** Before its exact USB update, registry-rostered 6 Ah uplight
+  Togepi reproduced the original defect on `fx-260828-658b7d2-p`: chandelier
+  class, `sensor_bits=0`, and no MSA311. Combined artifact
+  `fx-260828-abd893c-p` fixed class/MSA detection but exposed a second source
+  defect: the RGB uplight was incorrectly driven with four-byte `NEO_RGBW`, so
+  logical smoke/rail-on telemetry produced no physical light. Commit `0f08904`
+  pins uplight to one three-byte `NEO_GRB` pixel and uses RGB white for its smoke
+  frame. Complete native tests and embedded compile pass. Clean replacement
+  artifact `fx-260828-d8f62c3-p`, SHA-256
+  `57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097`,
+  passed exact USB write verification, uplight/MSA/class/power checks, visible
+  white breathing with about 119 mA real load delta, `L0`, reset, rail-off, and
+  ESP-NOW recovery. Donkey `F2BE10` remains unchanged: exact maintenance job
+  `1004BAFA` found no endpoint and made no upload; repair its maintenance
+  association or exact-USB-flash it before installation (Ben/Codex).
+- [ ] **Promote ADR 0067 plus the RGB uplight format fix to the affected uplight
+  cohort.**
   Resolve the approximately eight installed sensorless uplights to exact short
-  MACs from fresh telemetry/registry evidence, build once from a clean commit,
-  and reuse that immutable binary. Require a heartbeat newer than each job start,
-  the exact revision, uplight class, safe power, and survival beyond pending
-  verify for every target. Do not open fixtures merely because MSA remains absent;
+  MACs from fresh telemetry/registry evidence and reuse immutable canary-passed
+  artifact `fx-260828-d8f62c3-p`; do not use the earlier RGBW-framed combined
+  artifact on uplights. Require a heartbeat newer than each job start, the exact
+  revision, uplight class, safe power, and survival beyond pending verify for
+  every target. Do not open fixtures merely because MSA remains absent;
   sensorless uplight is the intentional degraded fallback (Ben/Codex).
 - [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
   (ADR 0066).** Source commit `91663fd` and immutable artifact
@@ -54,8 +60,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   native tests, production build, exact Swablu canary, and 98/110 intended
   fixture promotion contracts passed. No secret is tracked. Hardware-prove the
   second profile at the art site with one exact fixture before relying on it for
-  USB-tail avoidance. The 12 intended fixtures still on the prior known-good
-  image are `9F26B0`, `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
+  USB-tail avoidance. Exact Rikku `9F26B0` subsequently passed combined artifact
+  `fx-260828-abd893c-p`; the 11 intended fixtures still on the prior known-good
+  image are `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
   `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
   11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
   `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank
@@ -157,7 +164,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   checks passed. Add physical checks for no row/header wrapping,
   signed-current legibility, IDLE versus `?`, detail-line/button clearance,
   scrolling through all seven filter rows, and mixed-revision match/non-match
-  cohorts (Ben/Codex).
+  cohorts. **2026-08-28 daylight UX finding:** the fleet mixes lifecycle labels
+  such as `boot` with selected-program labels such as `CA`, which can read as a
+  daytime-lighting fault even though live `ledrail=false` and zero rendered
+  pixels prove the fixtures dark. Visually distinguish lifecycle from an armed
+  night program (for example `state: boot` and `armed: CA`) and keep rail/render
+  state authoritative (Ben/Codex).
 - [x] **Repair the T-Deck development-cache metadata boundary and prove warm
   incremental builds. DONE 2026-08-27:** cache schema 2 treats
   `build/dev-cache` as Arduino-owned and stores recipe plus interruption state
