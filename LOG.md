@@ -10,6 +10,160 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-27 -- Ben + Codex -- TSwift shell color and copy polish
+
+Ben's physical review accepted the permanent shell and found three small
+legibility issues: the `P` in Stop was clipped, app identity blended into the
+scrolling ribbon, and the idle text alternated between ambiguous phrases such
+as `join ch11 mesh` and the redundant `mesh ch11 mesh`. Widened Stop from 62 to
+66 pixels and reduced its internal padding. App identity now uses a blue accent,
+the ribbon retains its primary text color, and the independent clock uses cyan.
+The idle ticker now spells out `WiFi`, `WiFi joining`, `mesh-only`, or `GUARD`,
+followed by separated `ch11`, `live N/M`, and `bat N%` fields. Here `live N/M`
+means fresh fixtures now / distinct fixtures seen since this T-Deck booted.
+
+The complete native suite and build-wrapper contract passed. The locked build
+produced a 1,565,280-byte binary with SHA-256
+`3267a1b237a2a4708e5c999cf1730f497ecbc30bd80e299a8b76374764931d4c`;
+the linker reports 49 percent flash and 59 percent global RAM. Esptool flashed
+and verified only TSwift `979604` / `44:1B:F6:97:96:04` on COM157. Read-only
+post-reset evidence reported `tdeck-dev-local`, channel 11, 19/19 mesh sends
+with zero failures, valid local GPS time, and healthy PSRAM, keyboard, touch,
+ES7210, GPS, heap, and PSRAM probes. No fixture command or mutation was sent.
+
+## 2026-08-27 -- Ben + Codex -- TSwift promoted to permanent Bridge OS shell bar
+
+Ben accepted the compact activity ribbon as a useful control signal but asked
+to replace the overlay with real shell chrome. Bridge OS now permanently owns
+the top 26 pixels on every LVGL screen. The left cell carries app identity, the
+center carries idle app/network status or a scrolling activity ribbon, and a
+fixed right-side clock and Stop button appear while this T-Deck owns a stream
+or tracked program lease. Keeping the changing clock out of the text prevents
+it from restarting the scroll each second. Permanent streams say
+`LOCAL ... until STOP` and count up; expiring program leases count down. Fresh
+non-self T-Deck, PUCA, CoreS3, or
+unknown publishers remain passive warnings, and local-plus-foreign overlap is
+red.
+
+Removed duplicated per-screen title/status objects and migrated the launcher
+plus all 13 implemented apps to the y>=26 content contract. LED Studio's class
+picker and swatches and Wildfire CA's dense controls were explicitly reflowed;
+Fleet and Health moved their former top-right controls to bottom action rows.
+The bar never appears or disappears, so starting or stopping activity cannot
+shift app content or cover a title, picker, or action button. Fleet detail
+charger labels and Fleet View charger-phase filters remain included; Health's
+existing VBAT/CHG toggle remains unchanged in behavior.
+
+The complete native Bridge OS suite and build-wrapper contract passed. The
+locked development build produced a 1,565,056-byte binary with SHA-256
+`fcb0c499e749474e5c49128dcdc6245b613298a89e7b189cde7f0d80f2fc9810`;
+the linker reports 49 percent flash and 59 percent global RAM. Esptool flashed
+and verified only camp-labelled TSwift `979604` / `44:1B:F6:97:96:04` on
+COM157. Read-only post-reset checks passed PSRAM, keyboard, touch, ES7210, and
+GPS probes and reported `tdeck-dev-local`, channel 11, 15 live / 19 seen peers,
+and active mesh/time publication. No fixture command, OTA, profile/lifecycle
+change, reboot request, or NVS mutation was sent. Cross-app touch and conflict
+behavior remains for Ben's physical visual acceptance.
+
+## 2026-08-27 -- Ben + Codex -- TSwift banner moved off app action rows
+
+Physical acceptance immediately rejected the first persistent-banner layout:
+after LED Studio Green, its full-width bottom strip covered the app's
+Solid/Stop/Back controls. Auditing every Bridge OS screen confirmed the bottom
+row is universally operational and the top-right also contains controls in
+several apps. The common safe region is the top-left title/status area before
+the nearest interactive control at x=130.
+
+Replaced the bottom strip with a 122x26 top-left control pill. For local
+activity the entire pill is Stop, with stream mode plus explicit `n=` target
+count or program countdown in a scrolling label. Foreign-only status is still
+informational/non-clickable, and local-plus-foreign conflict remains red. The
+pill occupies x=2..124 and y=0..26, leaving LED Studio's x=130 class selector
+and y=200 Solid/Stop/Back row untouched.
+
+The full native suite passed. The locked warm build produced a 1,586,544-byte
+binary with SHA-256
+`aaf2b9ae2a0d111ca69def7a04bee52af0d03cab999f12308338c4cef6335b64`;
+the linker reports 50 percent flash and 59 percent global RAM. Esptool flashed
+only exact TSwift `979604` / `44:1B:F6:97:96:04` on COM157 and verified every
+region. Post-reset serial reported `tdeck-dev-local`, channel 11, live fleet
+receive, 14/14 sends with zero failures, and healthy heap/PSRAM. No serial
+command or fixture mutation was sent. COM157 was closed for the operator's
+immediate LED Studio recheck.
+
+## 2026-08-27 -- Ben + Codex -- Banner build flashed to camp-labelled TSwift
+
+Recorded the camp label `TSwift` for the second LCD T-Deck Plus, exact MAC
+`44:1B:F6:97:96:04`, short ID `979604`. USB enumeration independently exposed
+that full MAC on COM157; the only remaining dashboard process owned primary
+T-Deck COM152, so the exact upload target was unambiguous and free.
+
+Rebuilt through the healthy locked development cache and USB-flashed only
+TSwift with the banner and Fleet charge-filter image. The application is
+1,586,688 bytes with SHA-256
+`f97af709e6ea6bf234d323c53366384880c5fa734ee4a8203ac12bbe32ae45f3`;
+esptool identified the same full MAC and verified every written region.
+
+Post-reset serial reported `fw=tdeck-dev-local`, ID `979604`, channel 11, live
+mesh receive, 19/19 successful sends with zero failures, roughly 7.7 MB free
+PSRAM, and a valid local GPS time source. The local `probe` check passed 8 MB
+PSRAM, keyboard, GT911 touch, GPS at 38400 baud, and ES7210 at 0x40. Only local
+read-only `help` and `probe` commands were entered; no fixture command, OTA,
+profile/lifecycle change, reboot request, or NVS mutation was sent. The monitor
+was closed cleanly. Banner touch/expiry/conflict behavior and Fleet charge
+filter canaries remain queued for physical acceptance.
+
+## 2026-08-27 -- Ben + Codex -- Global control banner and charge filters built only
+
+Added a shell-level T-Deck control activity banner that stays on LVGL's top
+layer across apps. Local direct streams remain labelled `until STOP`; local
+program leases show a countdown, and one touch stops the stream and releases
+the tracked program without returning to its originating app. The passive side
+uses the existing packet header and lease fields to identify fresh non-self
+T-Deck, PUCA, CoreS3, or unknown controller activity by exact short ID. It adds
+no wire format, discovery packet, or polling traffic.
+
+Kept the already-present Health VBAT/CHG toggle unchanged. Existing Fleet detail
+charger decoding now uses the operator labels `CHARGING_CC`, `CHARGING_CV`,
+`TOP-OFF`, `DONE/OFF`, and `FAULT`; Fleet View adds filters for those phases plus
+unknown and off air. The generated Health roster was reconciled with the
+pre-existing local Bidoof registry update (6 Ah, downlight) so its source digest
+contract remains exact.
+
+The complete native Bridge OS suite passes, including new publisher freshness,
+self-suppression, program lease/release/expiry, and charger-filter tests. A
+locked no-upload development build completed at 1,586,688 bytes with SHA-256
+`f97af709e6ea6bf234d323c53366384880c5fa734ee4a8203ac12bbe32ae45f3`;
+the linker reports 50 percent flash and 59 percent global RAM. Because the build
+laptop was issuing a fleet OTA, this session deliberately opened no serial port,
+flashed no T-Deck, and sent no mesh, OTA, profile, lifecycle, reboot, or NVS
+command. Hardware acceptance remains queued until the OTA writer is finished.
+
+## 2026-08-27 -- Ben + Codex -- Second T-Deck Plus updated from origin
+
+Fast-forwarded the working branch from `ec5e6c6` to current `origin/main`
+`027f725a44d57c86a170d4ffba4d9817d1724aec`, preserving the existing local
+LOG, TODO, registry, USB-rescue, and camera work. The two append-heavy journal
+conflicts were reconciled by retaining the newer upstream record together with
+the later local camera and Bidoof updates.
+
+Positively identified the connected old handheld as LCD T-Deck Plus
+`44:1B:F6:97:96:04` / short ID `979604` on COM157. It was running
+`tdeck-0.1.0`; preflight showed healthy 8 MB PSRAM, keyboard, GT911 touch,
+ES7210 at 0x40, GPS at 38400 baud, channel-11 mesh traffic, and retained local
+credentials. No fixture or PUCA serial device was present on the selected
+port.
+
+The complete native Bridge OS suite and build-wrapper contract passed. Built
+current source through the healthy locked warm cache and USB-flashed only
+`979604`. The 1,583,456-byte `tdeck-dev-local` binary has SHA-256
+`12d43afdf80d483e3340ddf66b554d8878d13a71586917b40c4ad3fe0405d80c`;
+esptool verified every written region. Post-reset serial confirmed the same
+identity, retained SSID/API/model/channel/day-mode settings, healthy onboard
+peripherals, live mesh receive, 19/19 sends with zero failures, and firmware
+`tdeck-dev-local`. No fixture command, OTA, profile/channel persistence, or
+fixture NVS mutation was sent.
+
 ## 2026-08-27 -- Ben + Codex -- Current-source fleet OTA promotion and timing
 
 Codex was the sole writer through exact T-Deck `8EB508` on COM7. Source commit
@@ -311,6 +465,89 @@ ready, and zero direct frames. The OTA result is in
 `ops/bench/data/ca/2026-08-27-ota-results.jsonl`. Routine enclosed OTA is now
 accepted; paw-held DJ/setup controls, `/resume`/timeout, broadcast rejection,
 softAP absence, forced rollback, and visible audio/light acceptance remain open.
+## 2026-08-27 -- Ben + Codex -- Local Windows Arducam viewer added
+
+Added `ops/camera/`, a dependency-free localhost USB UVC viewer launched as a
+Microsoft Edge app window. It prefers an Arducam/USB Camera source, requests
+320x240 through 1920x1080 modes, reports the accepted mode, saves PNG snapshots
+and WebM recordings, supports mirror/fullscreen shortcuts, and exposes the
+camera controls Windows publishes to Chromium. A guarded launcher reuses one
+hidden localhost server; a companion script stops only its recorded matching
+process. Video stays local.
+
+The attached device enumerated as USB camera `0C45:6366` with video and audio
+interfaces. LilyGO's T-Deck schematic confirms that its ESP32-S3 USB data pins
+are present but the Type-C port has sink/device CC pull-downs, VBUS input, and
+no host 5 V source. The future T-Deck path is therefore a channel-11 WiFi
+320x240 JPEG/MJPEG viewer fed by a laptop or Pi, not a passive OTG cable.
+
+The likely Arducam B0205/B0506 day/night family is designed to leave its IR LED
+boards connected: a photoresistor automatically switches the 850 nm LEDs and
+mechanical IR-cut filter. Disconnect them, with USB power removed first, only
+for visible-only dim-room tests, reflection troubleshooting, or reduced power.
+HTML JavaScript, PowerShell launcher/stop parsing, ASCII, diff checks, localhost
+serving, and the complete no-permission UI passed. The Edge app is open; final
+live-video acceptance awaits the one-time user camera-permission click.
+
+## 2026-08-27 -- Ben + Codex -- Bidoof USB rescue and A/B verification completed
+
+Declared the single state-changing target as Bidoof `9F26D8` on COM156 and
+used immutable production artifact `fx-260826-51d1fe1-p` from clean commit
+`64264b2c60cbff9a9423642cb6cfee93e4272636`. Its 1,206,784-byte binary freshly
+matched manifest SHA-256
+`57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
+No competing flash or OTA process was active.
+
+The generic Arduino uploader failed closed before any write because this
+archived artifact retains the application binary but not the companion
+bootloader/partition binaries expected by the full-image upload recipe. Bidoof
+remained on the old image with uninterrupted uptime and guard stage FULL. The
+documented ESP32 application-only path then wrote only the existing app0 address
+`0x10000`; esptool positively identified full MAC `D8:85:AC:9F:26:D8`, wrote
+1,206,784 bytes, and verified the on-device data hash. The partition table and
+NVS were preserved.
+
+The production boot reported the exact revision, healthy field profile, channel
+11, good input/charge, downlight class, and healthy MSA311/TMF8820. An explicit
+serial `F1` persisted field profile. Local maintenance then joined
+`Party In The Woods`, exposed exact identity at `192.168.1.75`, and accepted the
+same immutable binary into app1. Fresh serial evidence showed `pending_verify`
+at 12.9 and 17.0 seconds, followed by the 20-second network self-test PASS,
+`ota_state=valid` at 21.0 seconds, and continued exact-revision stability through
+93.9 seconds. Final telemetry was VBAT 3.451 V / +673 mA, qualified 4.637 V input,
+no BQ fault, field/DAY_ACTIVE, channel-11 ESP-NOW 114/0 sends, guard FULL, and
+healthy MSA311/TMF8820.
+
+The original no-endpoint failure is closed: Bidoof now has working maintenance
+WiFi and a validated production image. A T-Deck-targeted maintenance command
+could not be rechecked because its COM152 bridge was physically absent; the
+dashboard correctly reported disconnected. That one test remains useful only to
+exclude a secondary ESP-NOW receive fault. Evidence is in
+`ops/bench/data/usb/2026-08-27-bidoof-usb-rescue.jsonl`.
+
+## 2026-08-27 -- Ben + Codex -- Bidoof USB diagnosis found WiFi-less same-version image
+
+The newly attached Espressif native-USB device on COM156 positively identified
+as Bidoof `9F26D8` / `D8:85:AC:9F:26:D8`. Read-only serial telemetry showed old
+`fx-260816-otafix1-b` on app0 with pending verify false, persisted commission
+profile, channel 11, guard stage FULL, and healthy PowerFeather, battery, charger,
+radio uplink, LED rail, MSA311, and TMF8820. Settled samples measured about
+3.43 V / +613 to +621 mA at the battery and 4.63 V / 610 to 632 mA good input,
+with no BQ fault. ESP-NOW status reported 41 successful sends and zero failures.
+
+A transient local USB `u` maintenance test supplied the missing discriminator.
+The fixture entered the maintenance transition but printed
+`no wifi_secrets.h -> cannot OTA`, immediately resumed ESP-NOW, and returned to
+healthy COMMS. No flash, NVS/profile/channel write, manual reset, or persistent
+mutation was performed. The accepted immutable `fx-260816-otafix1-b` artifact
+had demonstrably working compiled-in maintenance WiFi on its F40364 canary, so
+Bidoof is running different bytes under the same historical revision string.
+This fully explains why supervised targeted-maintenance campaigns never found
+an identity-matching endpoint; those observations do not prove a per-unit
+ESP-NOW downlink fault. A secondary receive fault remains untested until the
+current exact production artifact is USB-installed and targeted maintenance is
+rechecked. Preserve NVS, then verify field profile and reboot ride-through as
+already planned.
 
 ## 2026-08-27 -- Ben + Codex -- T-Deck warm-build cache boundary repaired and proven
 

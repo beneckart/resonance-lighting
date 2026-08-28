@@ -54,12 +54,48 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   no mismatch, sensor bits 5, and healthy MSA/TMF/BMP; TMF has 85,330 reads with
   zero errors/recoveries. This rules out a current fixture sensor failure and
   makes the raw-census unknown window the supported failure mechanism.
+- [ ] **Prototype the T-Deck WiFi camera viewer after the Windows UVC viewer is
+  accepted.** Keep the USB camera on a laptop or Raspberry Pi host and serve a
+  bounded 320x240 JPEG/MJPEG view to Bridge OS over the channel-11 WiFi network.
+  Measure latency, decode/render cost, heap/PSRAM watermark, and coexistence with
+  ESP-NOW before making it an app. The stock T-Deck Plus USB-C is wired as a
+  device/power sink and does not source camera VBUS; do not treat a passive OTG
+  adapter as a host solution (Ben/Codex).
+- [~] **Hardware-validate the permanent Bridge OS shell bar.** Source,
+  pure-model tests, the full native suite, and the embedded build pass. Hardware
+  rejected the initial full-width bottom overlay because it covered LED
+  Studio's Solid/Stop/Back row; the compact top-left pill avoided the buttons
+  but still covered titles. The current design reserves y=0..25 on every screen:
+  app identity at left, scrolling activity/idle status in the center, and fixed
+  clock/Stop cells at right only for local direct streams or tracked leases.
+  The clock updates separately so it cannot restart the ribbon animation.
+  Streams count up as `LOCAL ... until STOP`; leases count down; fresh competing
+  T-Deck, PUCA, CoreS3, or unknown publishers are passive warnings by exact ID.
+  All app content now starts at y>=26. Physical polish gives app identity, ticker,
+  and clock distinct colors, expands Stop to avoid clipping, and labels the idle
+  fields `WiFi joining`/`mesh-only`, `ch11`, `live N/M`, and `bat N%`. The exact
+  image is 1,565,280 bytes and is
+  flashed and boot/mesh-checked on camp-labelled TSwift `979604`; SHA-256 is
+  `3267a1b237a2a4708e5c999cf1730f497ecbc30bd80e299a8b76374764931d4c`.
+  On TSwift and named fixture canaries: start Solid, Blink, Patterns, CA,
+  Blackout, and Contagion;
+  navigate the launcher, every major app, and a confirmation modal; confirm the
+  shell ribbon and touch Stop remain available without covering app controls;
+  verify
+  direct frames go stale within
+  three seconds and program Release clears the lease. Check countdown expiry,
+  foreign-only status without a misleading Stop, local-plus-foreign conflict
+  color, self-frame suppression, known publisher labels, unknown-source ID,
+  and no false persistence after the three-second freshness window. Exercise a
+  second T-Deck plus PUCA/CoreS3 only after declaring one command operator and
+  naming every target under ADR 0040 (Ben/Codex).
 - [~] **Hardware-validate the stable/filterable T-Deck Fleet view.** Source,
   the complete native Bridge suite, and the local embedded build pass. The new
   default is the complete callsign-stable registry plus unexpected live peers;
   off-air fixtures retain grey rows, selection and scroll context survive the
   two-second refresh, and View offers roster/seen/live scope, class and raw-
-  VBAT-band filters, plus stable ID/name and dynamic voltage/age/signal sorts.
+  VBAT-band and charger-phase filters, plus stable ID/name and dynamic
+  voltage/age/signal sorts.
   The confirmed Blink action snapshots only fresh visible rows and paces exact
   30-second green identifies. On exact T-Deck `8EB508`, check all dropdowns,
   touch and trackball navigation, a long-list scroll through several refreshes,
@@ -78,8 +114,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   battery current on the compact row, moves RSSI/PDR and advisory SOC to detail,
   renders never-seen age as `inf`, and distinguishes a reported IDLE from unknown
   full-heartbeat state. Detail spells out profile, lifecycle, tier, program, and
-  network-mode names. View adds program plus exact-reference/non-reference
-  firmware rollout filters. The complete native suite passes. The combined
+  network-mode names. View adds charge phase, program, and exact-reference/non-
+  reference firmware rollout filters. Charge filters cover `CHARGING_CC`,
+  `CHARGING_CV`, `TOP-OFF`, `DONE/OFF`, `FAULT`, unknown, and off air. The
+  complete native suite passes. The combined
   local binary now flashed on exact `8EB508` is 1,581,168 bytes, SHA-256
   `c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`;
   the linker reports 50 percent flash and 50 percent global RAM. Upload and an
@@ -87,8 +125,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   post-reset identity, channel 11, mesh RX/TX, peripheral probes, and memory
   checks passed. Add physical checks for no row/header wrapping,
   signed-current legibility, IDLE versus `?`, detail-line/button clearance,
-  scrolling through all seven filter rows, and mixed-revision match/non-match
-  cohorts (Ben/Codex).
+  scrolling through all eight view rows, each charge-phase canary, and mixed-
+  revision match/non-match cohorts (Ben/Codex).
 - [x] **Repair the T-Deck development-cache metadata boundary and prove warm
   incremental builds. DONE 2026-08-27:** cache schema 2 treats
   `build/dev-cache` as Arduino-owned and stores recipe plus interruption state
@@ -149,16 +187,28 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   other 17 had to be rediscovered in a later job. Under allow-partial semantics,
   demote a vanished found endpoint back to deferred, retain the other exact
   identity-ready endpoints, and continue only after a fresh acknowledged FREEZE.
-- [ ] **USB-data rescue Bidoof `9F26D8`.** It remains on known-good
-  `fx-260816-otafix1-b` and is continuously mesh-fresh on channel 11 with about
-  3.40 V VBAT and strong USB input, but it is the previously documented
-  targeted-maintenance downlink exception and never exposes an identity-
-  matching WiFi endpoint. Two 2026-08-27 supervised campaigns made no upload.
-  The current rotated cables enumerate no fixture serial ports, so connect one
-  real USB data cable, prove exact identity, preserve NVS, install the immutable
-  production artifact, and verify field profile plus reboot ride-through (Ben).
-- [~] **Replace the unsafe effective 120 s / 3 s cadence after its completed
-  rollout.** Clean
+- [~] **USB-data rescue Bidoof `9F26D8`. USB/A-B WORK COMPLETE 2026-08-27.**
+  COM156 exact identity, application-only USB write, preserved NVS, explicit
+  persisted field profile, working `Party In The Woods` endpoint, app1
+  pending-verify -> valid transition, and stable battery-backed production boot
+  all passed on immutable `fx-260826-51d1fe1-p` / SHA-256
+  `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
+  Final state was field/DAY_ACTIVE, channel 11, ESP-NOW 114/0 sends, healthy
+  power/charge and MSA311/TMF8820. Remaining: with the T-Deck physically
+  connected, issue one exact `U9F26D8` maintenance command and verify the same
+  identity endpoint, then `/resume`; this only excludes a secondary receive
+  fault and is no longer needed to repair the missing-WiFi root cause (Ben).
+- [ ] **Make application-only immutable fixture USB upload first-class.** The
+  retained `fx-260826-51d1fe1-p` directory has the application binary, manifest,
+  hash, identity header, recipe, and build options, but not the bootloader and
+  partition binaries expected by `arduino-cli upload --build-path`. That generic
+  command failed before writing; the ESP32 application-only recipe at the
+  telemetry-proven app address succeeded and preserved NVS. Add an identity-
+  gated host path that validates target MAC, manifest/hash, current app address,
+  and write verification without requiring missing companion files; update the
+  USB rescue runbook and add a no-write failure regression (Ben/Codex).
+- [x] **Finish the 120 s sleep / 3 s listen production cadence rollout. DONE
+  2026-08-27.** Clean
   production artifact `fx-260826-51d1fe1-p` is built from commit `64264b2`,
   1,206,784 bytes, SHA-256
   `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
