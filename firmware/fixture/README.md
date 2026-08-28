@@ -143,6 +143,15 @@ Run `./build.sh --help` for the short local-versus-fleet command contract.
 `tests/run_tests.sh` includes a fast, compile-free regression check for that
 boundary before it starts the native C++ suite.
 
+Maintenance WiFi credentials live only in gitignored `wifi_secrets.h`; copy
+`wifi_secrets.h.example` and replace its placeholders locally. The historical
+`RES_WIFI_SSID` / `RES_WIFI_PASSWORD` pair remains required. An optional
+`RES_WIFI_SSID_2` / `RES_WIFI_PASSWORD_2` pair adds a second maintenance/OTA
+network. On entry to maintenance, the fixture scans once, ranks visible known
+SSIDs by RSSI, and tries both within a shared 30-second join budget. A failed
+scan preserves primary-then-secondary order. Ordinary COMMS mode never joins
+either network and remains pinned to the ESP-NOW channel.
+
 Source defaults remain a 300-second DAY_CHARGE timer sleep and a 15,000 ms
 post-wake listen grace. The installed 120 s / 3 s fleet artifact is superseded
 by ADR 0064 because it could sleep before the 6-second charge guard and a fresh
