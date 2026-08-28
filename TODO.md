@@ -45,7 +45,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   ESP-NOW recovery. Donkey `F2BE10` remains unchanged: exact maintenance job
   `1004BAFA` found no endpoint and made no upload; repair its maintenance
   association or exact-USB-flash it before installation (Ben/Codex).
-- [ ] **Promote ADR 0067 plus the RGB uplight format fix to the affected uplight
+- [~] **Promote ADR 0067 plus the RGB uplight format fix to the affected uplight
   cohort.**
   Resolve the approximately eight installed sensorless uplights to exact short
   MACs from fresh telemetry/registry evidence and reuse immutable canary-passed
@@ -54,6 +54,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   revision, uplight class, safe power, and survival beyond pending verify for
   every target. Do not open fixtures merely because MSA remains absent;
   sensorless uplight is the intentional degraded fallback (Ben/Codex).
+  **2026-08-28 rollout:** exact jobs `45208DD7` and `444537E1` verified 19
+  OTA targets through fresh exact-revision rejoin and pending verify; together
+  with USB canary Togepi, 20 of 24 rostered uplights now run
+  `fx-260828-d8f62c3-p`. A direct settled check on Psyduck confirmed uplight
+  class, `sensor_bits=8`, no mismatch, and field profile. The four unseen and
+  untouched tail fixtures are Ken `F2B8DC`, Pikachu `F2BCE0`, Kirby `F2BE64`,
+  and Haunter `F40438`; identify by USB or restore mesh/power visibility and
+  apply the same immutable artifact before marking this complete (Ben/Codex).
 - [~] **Finish dual-site maintenance WiFi deployment and the split-fleet tail
   (ADR 0066).** Source commit `91663fd` and immutable artifact
   `fx-260828-658b7d2-p` implement two bounded gitignored credential profiles;

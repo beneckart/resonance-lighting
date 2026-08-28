@@ -10,6 +10,37 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-28 -- Ben + Codex -- Uplight cohort rollout reached 20 of 24
+
+Declared one OTA writer and reused immutable artifact
+`fx-260828-d8f62c3-p`, SHA-256
+`57f40023e1e599d60cf2a309e6a7af2f94bf45716421309b2b3a15048b239097`.
+The first two four-target campaigns (`70E694A4` and `385B7EF8`) completed their
+full gather and freeze contracts but discovered no maintenance endpoints, so no
+upload occurred. Windows exposed only the 5 GHz `Party In The Woods` BSSID,
+which initially suggested a missing 2.4 GHz service. An exact no-upload Togepi
+maintenance control then found `9E5AB0` at `192.168.1.207`, disproving that
+hypothesis: Starlink's 2.4 GHz path was healthy and the Windows scan had omitted
+it. The earlier selected fixtures simply had not woken into the campaign.
+
+Job `45208DD7` targeted four freshly heard uplights (`F2BE1C`, `F3FC8C`,
+`F2BEB4`, and `9F2694`). All four identity-matched, accepted the exact binary,
+rejoined with the exact revision, survived pending verify, and retained field
+profile. A direct post-update maintenance check on Psyduck `F3FC8C` reported
+`fixture_class=uplight`, `class_ovr=0`, `sensor_bits=8`, and no mismatch; an
+explicit second `/resume` returned it to mesh after the diagnostic HTTP client
+timed out while the endpoint was dropping WiFi.
+
+Job `444537E1` then targeted the other 15 uplights present in the dashboard.
+All 15 maintenance endpoints were found, including previously unreachable
+Donkey `F2BE10`; all 15 uploads acknowledged, all 15 produced fresh exact
+revision heartbeats, all 15 survived pending verify, and none remained in
+commission profile. Together with Togepi and the staged four, 20 of 24 rostered
+uplights now report the exact artifact. Four fixtures never appeared in the
+session and were not commanded or flashed: Ken `F2B8DC`, Pikachu `F2BCE0`,
+Kirby `F2BE64`, and Haunter `F40438`. Identify those units by USB or restore
+their power/mesh visibility before the uplight cohort is declared complete.
+
 ## 2026-08-28 -- Ben + Codex -- Combined safety/class artifact and Rikku canary
 
 Built one immutable fleet artifact from clean pushed commit `5865282`, folding
