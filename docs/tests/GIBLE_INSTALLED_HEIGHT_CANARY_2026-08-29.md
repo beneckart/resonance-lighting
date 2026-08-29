@@ -175,7 +175,9 @@ five separate presence edges:
 The maximum retained post-parser individual zone was 4,982 mm at confidence 32
 (sequence 1471). The maximum closest-target/frame-summary depth was 4,781 mm at
 confidence 32 (sequence 1440). Those values prove that the old 2,500 mm parser
-cap is absent and the complete 5,000 mm sensor range reaches the presence gate.
+cap is absent and that far TMF reports reach the presence gate. They do not, by
+themselves, prove accurate or useful physical ranging at 5 m; the raw retest
+below rejects that stronger interpretation.
 They did not initiate presence because `PRESENCE_MAX_MM` intentionally limits a
 previously empty zone to 4,500 mm, separate from the 5,000 mm sensor/parser
 limit. A 4,763 mm sample occurred while an earlier latch was still held; it was
@@ -196,23 +198,84 @@ arbitration. It also confirms that the remaining failure is not host capture
 timing. It is not a useful-person-range pass: ordinary standing/walking did not
 trigger, and the successful interaction required the high-held gesture.
 
+## Raw distant-range height/aim retest
+
+Ben pointed out that Gible is less than 5 m high, yet ordinary people did not
+trigger it and the bamboo split had to be held much higher, roughly 2 m from the
+sensor. To distinguish a software threshold failure from installed physical
+range/aim, a final exact-target diagnostic removed every production
+discriminator except validity:
+
+- Revision: `fx-260829-4192016-t`
+- Source commit: `d9cb77528e646bfb06bf5882202181f8790bca64`
+- Target lock: compile-time short MAC `9E5B34`
+- Binary: 1,221,136 bytes
+- Binary SHA-256:
+  `27b9d412d4fe51c44fc37d4adc75a7c2b0481ab2750c13b08f020482773b7fc2`
+- Recipe SHA-256:
+  `419201645ff0321b58030837faac989ebb8648e108e5429131e0ad696907f113`
+- Promotion state: target-test-only, never fleetable
+- Active predicate: any confidence >=20 zone with `1,000 <= mm < 5,000`
+- Background learning, hit debounce, and hold hysteresis: disabled
+- Mesh presence-wave origin/relay: disabled
+- No active range: `R=255,G=0,B=0,W=0`
+- Active range: `R=255,G=255,B=255,W=0`
+
+The 1 m lower bound deliberately excludes Gible's already-known 166-363 mm
+bamboo/sensor self-splay. All native tests passed, including 565 presence
+checks and the build-wrapper isolation contract. The fresh embedded build used
+1,220,833 bytes program and 68,788 bytes globals. Exact job `AB8F3FA6` updated
+only Gible and verified the image through pending verify at 32,289 ms uptime.
+
+Exact campaign `29D15A90` froze the rolling trace after Ben's test. The drain
+retained 860 samples spanning 300.500 seconds with zero overwrite and zero
+sequence gap. The scene was red for 123.895 seconds before and 142.250 seconds
+after the sole 34.355-second interaction window. Neither empty interval
+contained a sampled 1-5 m return or white output. The interaction window
+contained 45 white samples across 23 raw rising edges. Every sampled 1-5 m
+return was white and every sample without one was not white.
+
+The range distribution contradicts the physical target distance:
+
+| Zone-return band | Returns | Confidence range |
+| --- | ---: | ---: |
+| Known self-splay, 166-358 mm | 3 | 255 |
+| 1-<3 m | 0 | -- |
+| 3-<4 m | 8 | 22-79 |
+| 4-<5 m | 65 | 20-75 |
+| Exactly 5,000 mm, raw but excluded | 1 | 49 |
+
+The distant reports covered zones 0-4. Maximum closest-target/frame summary was
+4,988 mm; maximum individual zone was exactly 5,000 mm. Yet Ben estimates that
+the bamboo split was roughly 2 m from the sensor when it finally triggered.
+These far returns are not independent empty-scene noise: they occur only while
+the nearby raised target changes the scene. Plausible causes are sensor aim,
+partial aperture/splay occlusion, edge/background ranging, or multipath. The
+trace cannot distinguish those optical causes, but it does show that the 4-5 m
+numbers are not calibrated evidence of a target physically 4-5 m away.
+
+Most importantly, an ordinary person did not trigger even this raw predicate.
+The current installation therefore fails before background learning, delta,
+debounce, or hold policy matter. Lower or re-aim Gible and inspect/clear the TMF
+aperture and field of view before another software threshold change.
+
 ## Verdict
 
-**HOLD -- useful installed-height interaction gate; PASS -- end-to-end presence
+**FAIL -- current Gible sensor geometry; PASS -- parser and end-to-end software
 path.** OTA safety, exact artifact identity, field posture, sensor health,
-full-range parsing, production debounce/latch, and output arbitration all
-passed. The foolproof sentinel rules out capture timing and shows five clean
-presence assertions when Ben holds the reported split high. It does not meet
-ADR 0070's release requirement for an ordinary standing/walking person. Do not
-fleet-promote this canopy interaction on the basis of Gible. The next action is
-mechanical range/aim diagnosis plus evidence-led sensitivity tuning; retain the
-5 m parser limit, per-zone background learning, and clear-to-rearm hysteresis.
+full-range report acceptance, production debounce/latch, raw predicate, and
+output arbitration all passed. The raw retest shows that empty-scene false
+positives are not the immediate problem. Gible fails to detect an ordinary
+person even without software discrimination, and it reports a nearby raised
+bamboo target at physically implausible 3.24-5.00 m distances. Do not
+fleet-promote or threshold-tune around this installation. Lower or re-aim it,
+clear/inspect the TMF field of view, then repeat the named-person gate.
 
 ## Cleanup
 
-Final exact restore job `F02313D7` replaced the sentinel trace image with the
-normal `fx-260829-7906e6f-p` binary and verified it through the pending-verify
-gate at 27,560 ms uptime. A fresh dashboard heartbeat showed field
+Final exact restore job `105DD74F` replaced the raw distant-range trace image
+with the normal `fx-260829-7906e6f-p` binary and verified it through the
+pending-verify gate at 26,599 ms uptime. A fresh dashboard heartbeat showed field
 profile, NIGHT_SHOW, FULL tier, GH CA, downlight class, sensor bits `9`, no class
 mismatch, recovery state 0, ordinary mesh mode, and no active maintenance
 campaign. No temporary visible lease or trace image remains on Gible.
@@ -231,3 +294,8 @@ Retained evidence is under `ops/bench/data/ca/`:
 - `20260829-gible-9E5B34-presence-sentinel-bracketed-split-high.jsonl`
 - `20260829-gible-9E5B34-presence-sentinel-final-restore-job.jsonl`
 - `20260829-122316-F02313D7-fleet-ota-results.jsonl`
+- `20260829-gible-9E5B34-distant-range-height-trace-ota-job.jsonl`
+- `20260829-124637-AB8F3FA6-fleet-ota-results.jsonl`
+- `20260829-gible-9E5B34-distant-range-bamboo-split-height.jsonl`
+- `20260829-gible-9E5B34-distant-range-final-restore-job.jsonl`
+- `20260829-125308-105DD74F-fleet-ota-results.jsonl`

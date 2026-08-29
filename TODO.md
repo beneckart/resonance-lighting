@@ -171,11 +171,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   recorded 46 >1 m frames, five presence rises, and 49 active samples; every
   active sample rendered full RGB white and no inactive sample did. This proves
   the sensor/parser/debounce/render path, but not useful ordinary standing or
-  walking interaction. Exact final job `F02313D7` restored the normal image and
-  verified field posture. Next: inspect/clean the TMF window and mechanically
-  diagnose installed aim/range on one reachable named downlight; use the new
-  raw zone/confidence evidence to tune geometry or sensitivity before promoting
-  ADR 0070. The MSA311 accent seam is implemented but fleet-disabled
+  walking interaction. A final raw 1-5 m target-only image removed background,
+  debounce, and hysteresis while excluding the known <400 mm self-splay. It
+  recorded no sampled false positives across 266.145 seconds of empty scene,
+  but a bamboo split held roughly 2 m away produced no 1-3 m return: instead,
+  the same 34.355-second interaction produced 3.24-5.00 m reports across five
+  zones. This rejects the far reports as proof of usable physical range and
+  points to aim, occlusion, edge/background ranging, or multipath. Exact final
+  job `105DD74F` restored the normal image and verified field posture. Next:
+  lower or re-aim Gible, clear/inspect the TMF aperture and field of view, then
+  repeat a normal-person test before any threshold tuning or ADR 0070
+  promotion. The MSA311 accent seam is implemented but fleet-disabled
   pending quiet/wind/touch/swing/climb traces; barometric modulation and
   aggregate ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
@@ -1018,10 +1024,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   mechanism from the usability problem: normal walking/standing produced no
   latch, while a split held high produced five clean rising edges at 2,504-
   4,497 mm, 49 active samples, exact white output for all active samples, and
-  zero white outside the latch. Log the low-ground broom stress case with zone
-  deltas and confidence. Compare one isolated downlight against a close group
-  with adjacent TMF emitters ranging; do not attribute the intermittent starts
-  to optical crosstalk until that A/B supports it. Then adjust aim, delta,
+  zero white outside the latch. The subsequent raw 1-5 m test found no empty-
+  scene false positive but reported a roughly 2 m raised bamboo target only as
+  3.24-5.00 m returns. Stop threshold tuning until Gible is lowered or re-aimed
+  and its aperture/field of view is inspected. After the mechanical change, log
+  the normal-person and low-ground broom cases with zone deltas and confidence.
+  Compare one isolated downlight against a close group with adjacent TMF
+  emitters ranging; do not attribute intermittent starts to optical crosstalk
+  until that A/B supports it. Then adjust delta,
   consecutive count, or sensor timing while retaining per-zone learning and
   clear-to-rearm hysteresis (ADR 0053/0070; Ben/Codex).
 - [ ] **Hardware-validate optional ToF-seeded CA on named canaries.** With one

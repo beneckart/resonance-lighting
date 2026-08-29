@@ -452,6 +452,55 @@ Next: have a person walk/stand directly under Sakura while an exact visible
 lease is active. If no `W=255` transition or raw 2.7-3.5 m return appears, treat
 15 ft height/aim/sunlight as a P0 gating concern and test one lower or better-
 aimed canopy fixture before any fleet promotion.
+## 2026-08-29 -- Ben + Codex -- Raw Gible test rejects 5 m as usable physical range
+
+Ben challenged the earlier interpretation correctly: Gible is less than 5 m
+high, yet a normal person did not trigger it and a bamboo split had to be held
+roughly 2 m from the sensor. The retained 4.8-5.0 m values proved that firmware
+no longer discards far reports, but they did not prove accurate or useful
+physical ranging at those distances.
+
+Built exact-target-only artifact `fx-260829-4192016-t` from pushed commit
+`d9cb775`, 1,221,136 bytes, SHA-256
+`27b9d412d4fe51c44fc37d4adc75a7c2b0481ab2750c13b08f020482773b7fc2`.
+Its immutable recipe SHA-256 is
+`419201645ff0321b58030837faac989ebb8648e108e5429131e0ad696907f113`.
+The diagnostic excludes Gible's known 166-363 mm self-splay, then treats any
+confident zone from 1,000 mm inclusive through 5,000 mm exclusive as immediate
+presence: no learned background, hit debounce, or hold hysteresis. Red means no
+such zone and full RGB white means one is present. Compile-time isolation
+prevents the aggressive predicate from originating or relaying a mesh presence
+wave. All native checks passed, including 565 presence checks, and the fresh
+ESP32-S3 build ended at 1,220,833 bytes program / 68,788 bytes globals. Job
+`AB8F3FA6` updated only Gible and verified the exact image through pending
+verify at 32,289 ms uptime.
+
+The 860-sample trace retained 300.500 seconds with no overwrite or sequence
+gap. It was red for 123.895 seconds before and 142.250 seconds after the sole
+34.355-second interaction window. No sampled 1-5 m return and no white output
+occurred in either empty interval. During Ben's raised-bamboo interval, 45
+samples were white across 23 raw rising edges. The detector contract matched
+exactly: every sampled 1-5 m return was white and no sample without one was
+white.
+
+The ranges inside that interval are the decisive anomaly. Despite Ben placing
+the bamboo split roughly 2 m from the sensor, the TMF produced no 1-3 m zone
+return. It produced eight 3-4 m returns and 65 4-<5 m returns across zones 0-4,
+plus one raw exactly-5,000 mm report. Confidences were 20-79. Maximum frame
+summary was 4,988 mm and maximum zone was 5,000 mm. These are not isolated
+empty-scene false positives; they appear only when the nearby raised target
+changes the optical scene. They are therefore evidence of aim, partial
+occlusion, edge/background ranging, or multipath, not calibrated 5 m person
+range.
+
+The software parser and visible path work, but Gible's installed sensor geometry
+fails the physical usability gate even with every background/debounce
+discriminator removed. Do not tune production thresholds around these far
+numbers. Lower or re-aim Gible, clear the TMF aperture/field of view, then repeat
+a normal-person test. Exact final job `105DD74F` restored normal canary
+`fx-260829-7906e6f-p` and verified it past pending verify at 26,599 ms with
+field profile, downlight class, and recovery state 0.
+
 ## 2026-08-29 -- Ben + Codex -- Gible sentinel proves the path but not useful interaction
 
 The earlier rolling captures left Ben unconvinced that the installed-height
