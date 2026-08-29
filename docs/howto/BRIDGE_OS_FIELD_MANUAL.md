@@ -865,13 +865,16 @@ shortcut.
 
 PUCA is the intended primary performance-audio instrument. Its powered-Pod20
 codec/stereo/radio/full-census baseline passes on the received board. Installed
-`0.5.0-dev` boots SAFE-IDLE: it advertises identity and can hear maintenance,
+`0.5.5-dev` boots SAFE-IDLE: it advertises identity and can hear maintenance,
 but emits no lighting frames unless the paw is held for 1.2 s during boot. A
 no-hold USB boot, exact `A4EB10` Bridge OS heartbeat, exact-target shared-WiFi
-OTA, post-OTA dark rejoin, and pending-verify survival passed on 2026-08-27. The
-paw-held DJ-first gesture, forced rollback, performer's waveform, visible
-fixture response/fallback, final field geometry, and multi-hour run remain
-acceptance gates. The factory Eurorack oscillator/effect image is not tree
+OTA, post-OTA dark rejoin, and pending-verify survival passed on 2026-08-27.
+Exact-unit raw-capacitance handling and the paw-held DJ-first power-on gesture
+passed on 2026-08-29 with `bootarmed=1` and `active=1`. Laptop line input and a
+visible paired HEARTBEAT look also pass. Timed setup gestures, forced rollback,
+the real RODE/performer waveform, named-fixture fallback, final field geometry,
+and a multi-hour run remain acceptance gates. The factory Eurorack
+oscillator/effect image is not tree
 firmware, and a CoreS3 binary is not PUCA-compatible.
 
 The hardware on hand is:

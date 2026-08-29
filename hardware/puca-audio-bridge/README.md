@@ -5,14 +5,19 @@ source for Resonance Tree. The manufacturer's name is styled with an accented
 `u`; this repo uses the ASCII spelling **PUCA** so Windows shells, searches, and
 agent handoffs remain reliable.
 
-**Status (2026-08-27): the standalone powered-Pod20 `0.4.1-dev` baseline and
-credentialed `0.5.0-dev` USB bootstrap/no-hold safe boot/exact-target OTA path
-pass on the received PUCA.** The installed behavior boots SAFE-IDLE and emits no
-lighting frames unless the capacitive paw is held for 1.2 s during boot; an
-armed boot starts in DJ mode + line input. PUCA advertises its exact `A4EB10`
+**Status (2026-08-29): the standalone powered-Pod20 `0.4.1-dev` baseline,
+credentialed `0.5.0-dev` safe OTA path, `0.5.2-dev` onboard-mic four-mode proof,
+`0.5.3-dev` clockwise carrier-control normalization, and `0.5.5-dev` capacitive
+paw/held-boot arming pass on the received
+PUCA.** The installed behavior boots SAFE-IDLE and
+emits no lighting frames unless the capacitive paw arms it during the five-
+second boot opportunity; an armed boot starts in DJ mode + line input. Exact
+hardware now proves `bootarmed=1` and `active=1` after a held-paw Pod20 power
+cycle. PUCA advertises its exact `A4EB10`
 identity to Bridge OS and accepts only exact-target shared-WiFi maintenance,
-never a fleet-wide request or factory-style softAP. Exact waveform/light
-fidelity, the paw-held DJ boot, full knob sweeps, stale fallback, rollback,
+never a fleet-wide request or factory-style softAP. Laptop line input through
+J5/J6 is proven; real RODE gain, exact waveform/light fidelity, timed post-arm
+setup gestures, stale fallback, rollback,
 multi-hour stability, and intended-placement RF/PDR remain open.
 
 The illustrated
@@ -64,8 +69,8 @@ The Eurorack carrier's controls are useful rather than decorative:
 
 | Control | Hardware mapping | Current Resonance use |
 |---|---|---|
-| Top knob | CV2 / GPIO33 ADC | input sensitivity, 0.25x-4x |
-| Bottom knob | CV3 / GPIO34 ADC | brightness ceiling; hue only in HUE mode |
+| Top knob | CV2 / GPIO33 ADC | input sensitivity, 0.25x-4x; clockwise increases, counterclockwise decreases |
+| Bottom knob | CV3 / GPIO34 ADC | brightness ceiling, clockwise toward maximum; clockwise hue wheel only in HUE mode |
 | No paw hold at boot | capacitive TOUCH input | SAFE-IDLE: identity/maintenance only, no lighting frames |
 | Paw held 1.2 s at boot | capacitive TOUCH input | arms DJ + line and opens setup; short touch cycles four live modes, long hold locks |
 | Paw after locked boot | capacitive TOUCH input | status display only; cannot arm/change/stop the performance |
@@ -119,6 +124,19 @@ For a DJ or mixer, use a documented record/booth output and keep the PUCA input
 below its 3.3 Vpp clipping limit. Add isolation and attenuation when the source
 can produce professional line-level peaks. Never feed a speaker output into the
 PUCA.
+
+The exact 2026-08-28 laptop/RODE candidate cable chain is electrically the
+intended unbalanced stereo breakout:
+
+- JSAUX ASIN `B07D8M5DML`: 3.5 mm TRS stereo male to red/white RCA male,
+  passive and bidirectional.
+- Two Bolvek ASIN `B09K3DHL82` adapters: one RCA female to 3.5 mm TS mono male
+  per channel.
+- Red and white TS plugs go separately to faceplate J5/J6 AUDIO IN, never J8/J9
+  AUDIO OUT. The topology does not join left and right or short either signal to
+  ground. The initial silent run mistakenly used J8/J9. Correct J5/J6 placement
+  raised RMS from 6-12 to 37-41 at 10 percent laptop output with zero clipping
+  or capture/transport errors, proving the complete line-to-fleet route.
 
 The first implementation should **not transmit raw audio**. It should reuse the
 proven `NB_DIRECT_FRAME` path at about 10 Hz and retain the fixture's existing
@@ -192,8 +210,17 @@ they are visible at night.
   `A4EB10` heartbeat in Bridge OS, exact-target maintenance, shared-WiFi OTA,
   post-OTA dark reboot, and pending-verify survival. DONE 2026-08-27; exact
   evidence is below.
-- [ ] Prove the remaining ADR 0063 gates: paw-held DJ-first arming and setup
-  gestures, `/resume`/10-minute timeout, fleet-wide-maintenance rejection on
+- [x] Service-start the onboard MEMS path, exercise DJ, HEARTBEAT, EMBER, and HUE
+  across the fresh fleet with clean capture/transport counters, and visibly
+  confirm audio-reactive fixture behavior. DONE 2026-08-28 on exact-target OTA-
+  installed `0.5.2-dev`; the same pass hardware-proved elapsed-time calibration
+  at about two seconds. Per-mode color distinction remains a separate visual
+  acceptance check.
+- [x] Prove paw-held DJ-first arming. DONE 2026-08-29 on `0.5.5-dev` with raw
+  capacitance evidence, fresh power-on rejoin, and local `bootarmed=1` /
+  `active=1` telemetry.
+- [ ] Prove the remaining ADR 0063 gates: timed setup short/long gestures,
+  `/resume`/10-minute timeout, fleet-wide-maintenance rejection on
   hardware, no softAP, and forced-self-test A/B rollback.
 - [ ] Prove one fixture receives direct frames on channel 11 and returns to
   autonomous output within three seconds after PUCA transmission stops.
@@ -265,6 +292,34 @@ they are visible at night.
 
 This accepts the routine enclosed-update path. The internal USB connector can
 remain behind the faceplate, but must remain physically accessible for rescue.
+
+## Four-mode mic proof and fault isolation (2026-08-28)
+
+- Installed exact-target diagnostic candidate
+  `firmware/puca_bridge/build/puca-bridge-20260828-paw-telemetry-v052-r1/puca_bridge.ino.bin`,
+  1,024,608 bytes, SHA-256
+  `3e3e8d9fa0ce3c8d60950abc027840eb345c95cf1f9438d1f0ff44cbac5a20e8`.
+  The standard shared-WiFi OTA path identity-matched `A4EB10`, uploaded once,
+  and verified fresh `puca-bridge-0.5.2-dev` rejoin.
+- The onboard MEMS path produced RMS about 1,300-5,500 and peaks through 14,685.
+  Ben visibly observed audio-reactive fixtures while serial cycled DJ,
+  HEARTBEAT, EMBER, and HUE over about 75-92 fresh fixture IDs. Send, I2S-read,
+  I2C, and receive-queue errors remained zero.
+- Time-based calibration was false at 1,500 ms and true at 2,505 ms before DJ
+  frames began. This replaces the accidental roughly five-second legacy frame-
+  count behavior at PUCA's approximately 10 Hz capture cadence.
+- Windows successfully played a 96 kHz, about -8 dBFS test through the exact
+  `Realtek HD Audio 2nd output` endpoint. Initial 10 and 25 percent runs stayed
+  at the noise floor because both TS plugs were in J8/J9 AUDIO OUT; Windows was
+  restored to 10 percent. After moving the plugs to J5/J6 AUDIO IN, the same
+  waveform raised RMS from 6-12 to 37-41 and rendered level to about 0.13-0.15
+  with zero clipping or capture/transport errors. The cable, faceplate line
+  path, WM8978 route, and line-to-fleet firmware path are proven.
+- The vendor example's GPIO15 digital read was the fault, not the paw hardware
+  or the earlier J8/J9 audio-output mistake. Released ESP32 touch capacitance is
+  867-870; a held paw falls through 216. `0.5.5-dev` uses hysteretic capacitance
+  detection and rejects near-zero/shorted readings. A real held-paw Pod20 power
+  cycle produced `bootarmed=1`, `active=1`, DJ + line, and zero error counters.
 
 ## What PUCA is not
 

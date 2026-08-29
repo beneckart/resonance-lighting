@@ -47,9 +47,6 @@
 // UNCONFIRMED (could not be pinned from sources; bench-verify before trusting):
 //   - which stereo slot (L/R) the mono I2S RX captures, and which physical
 //     mic / line channel that is;
-//   - paw touch polarity: [TRG] lights an LED while touchState==1, so HIGH is
-//     assumed = touched, but the carrier's touch circuit is not documented;
-//   - knob rotation direction vs ADC value (CW = up is assumed);
 //   - whether the CV2/CV3 jacks share the ADC nets with the pots (eurorack
 //     schematic PDF not parsed) -- a patched CV cable may fight the knobs;
 //   - MICBEN requirement for the Knowles MEMS pair (upstream enables it);
@@ -80,7 +77,7 @@
 #include "../cores3_bridge/audio_reactive.h"
 #include "puca_core.h"
 
-#define PUCA_BRIDGE_VERSION "0.5.0-dev"
+#define PUCA_BRIDGE_VERSION "0.5.5-dev"
 
 // Shared maintenance WiFi credentials. This file is gitignored and populated
 // by build.sh from an explicit --wifi-source or an existing sibling sketch.
@@ -117,6 +114,7 @@ static const int PIN_TOUCH = 15;     // [TRG] carrier capacitive paw, digital re
 static const int PIN_LED_BOARD = 5;  // [TRG] LED1, PUCA_DSP onboard
 static const int PIN_LED_TOP = 2;    // [TRG] LED2, carrier (LOW after boot)
 static const int PIN_LED_BTM = 4;    // [TRG] LED3, carrier (LOW after boot)
+static const uint32_t BOOT_ARM_WINDOW_MS = 5000;
 // Not used but known: BUTTON=36 onboard, TRIG1=13, TRIG2=14 (HIGH after boot)
 // [TRG]; BT_LVL jumper routes VBAT to GPIO14 [RDM] -- conflicts with TRIG2.
 
@@ -227,6 +225,7 @@ uint16_t audioPeak = 0;
 
 I2SClass i2sIn;
 AudioEnvelope audioEnvelope;
+AudioCalibrationClock audioCalibration;
 PucaPeakFollower heartbeatFollower;
 
 BridgeMode mode = MODE_CLASSIC;
@@ -266,6 +265,8 @@ bool knobsPrimed = false;
 float knobGain = 1.0f;    // 0.25x..4x sensitivity multiplier from KNOB1
 float lastShownLevel = 0.0f;
 PucaTouchGesture touchGesture;
+PucaCapTouchDetector pawCapDetector;
+uint16_t pawCapRaw = 0;
 PucaSetupWindow setupWindow;
 PucaLedPattern statusLed;
 bool bootArmRequested = false;
@@ -891,6 +892,7 @@ void setAudioActive(bool active) {
   audioActive = active;
   if (active) {
     audioEnvelope = AudioEnvelope{}; // re-run room-audio noise calibration
+    audioCalibration.reset();
     heartbeatFollower.reset();
   }
   digitalWrite(PIN_LED_TOP, (mode != MODE_OFF && audioActive) ? HIGH : LOW);
@@ -905,6 +907,7 @@ void setInputLineIn(bool lineIn) {
     setAudioActive(false);
   }
   audioEnvelope = AudioEnvelope{}; // different noise floor -> recalibrate
+  audioCalibration.reset();
   heartbeatFollower.reset();
   Serial.printf("input -> %s (%s)\n", lineIn ? "line" : "mic",
                 ok ? "codec ack" : "I2C WRITE FAILED");
@@ -921,11 +924,12 @@ void selectHeartbeatMode() {
 }
 
 // KNOB1: sensitivity multiplier, log-mapped 0.25x (CCW) .. 4x (CW), 1x center.
-// KNOB2: CLASSIC/HEARTBEAT/EMBER brightness ceiling 0..1; HUE hue 0..1 turn.
+// KNOB2: DJ/HEARTBEAT/EMBER brightness ceiling 0..1; HUE hue 0..1 turn.
 // Both ADC1 channels, so readings survive WiFi being up. 10 Hz + light EMA.
 void knobsTick() {
   float k1 = (float)analogRead(PIN_KNOB1) / 4095.0f;
-  float k2 = (float)analogRead(PIN_KNOB2) / 4095.0f;
+  float k2 = pucaCarrierPotFromAdc(
+      (float)analogRead(PIN_KNOB2) / 4095.0f);
   if (!knobsPrimed) {
     knob1Filt = k1;
     knob2Filt = k2;
@@ -934,16 +938,22 @@ void knobsTick() {
     knob1Filt += (k1 - knob1Filt) * 0.3f;
     knob2Filt += (k2 - knob2Filt) * 0.3f;
   }
-  knobGain = 0.25f * powf(16.0f, knob1Filt);
+  knobGain = pucaSensitivityGainFromAdc(knob1Filt);
 }
 
-// Paw: HIGH assumed = touched (see UNCONFIRMED header note). A continuous boot
-// hold is the physical arming interlock: without it PUCA joins the mesh only to
-// report identity/accept maintenance and never emits a lighting frame. The same
-// hold opens a 20 s setup window; short touches cycle DJ/HEARTBEAT/EMBER/HUE and
-// a long hold locks immediately. OFF is never in the paw cycle.
+bool pawTouched() {
+  pawCapRaw = (uint16_t)touchRead(PIN_TOUCH);
+  return pawCapDetector.update(pawCapRaw);
+}
+
+// Paw: the exact received unit exposes the electrode directly to ESP32 touch
+// channel T3/GPIO15. A continuous capacitance-qualified boot hold is the
+// physical arming interlock: without it PUCA joins the mesh only to report
+// identity/accept maintenance and never emits a lighting frame. The same hold
+// opens a 20 s setup window; short touches cycle DJ/HEARTBEAT/EMBER/HUE and a
+// long hold locks immediately. OFF is never in the paw cycle.
 void touchTick(uint32_t now) {
-  bool raw = digitalRead(PIN_TOUCH) == HIGH;
+  bool raw = pawTouched();
   if (setupWindow.update(now)) {
     Serial.println("controls=LOCKED (setup timeout)");
     showStatus(now);
@@ -979,10 +989,15 @@ void statusLedTick(uint32_t now) {
 bool detectBootSetupHold() {
   PucaBootHoldDetector detector;
   uint32_t startedMs = millis();
-  while (millis() - startedMs < 1800) {
-    if (detector.update(millis(), digitalRead(PIN_TOUCH) == HIGH)) return true;
+  digitalWrite(PIN_LED_BTM, HIGH); // steady red cue while boot arming is available
+  while (millis() - startedMs < BOOT_ARM_WINDOW_MS) {
+    if (detector.update(millis(), pawTouched())) {
+      digitalWrite(PIN_LED_BTM, LOW);
+      return true;
+    }
     delay(10);
   }
+  digitalWrite(PIN_LED_BTM, LOW);
   return false;
 }
 
@@ -1014,14 +1029,18 @@ void audioTick() {
   if (pcm.clipped) ++audioClippedBlocks;
   size_t stereoPairs = pucaStereoToMono(samples, sampleCount);
 
-  float level = audioEnvelope.update(samples, stereoPairs);
+  uint32_t capturedMs = millis();
+  audioCalibration.noteCapture(capturedMs);
+  bool calibrating = audioCalibration.calibratingCurrentCapture();
+  float level = audioEnvelope.update(
+      samples, stereoPairs, calibrating, audioCalibration.observationCount16());
   float shown = mode == MODE_HEARTBEAT
                     ? heartbeatFollower.update(audioPeak, knobGain)
                     : level * knobGain;
   if (shown > 1.0f) shown = 1.0f;
   lastShownLevel = shown;
 
-  bool inputReady = mode == MODE_HEARTBEAT || audioEnvelope.calibrated();
+  bool inputReady = mode == MODE_HEARTBEAT || audioCalibration.calibrated();
   if (mode == MODE_OFF || !inputReady) return;
 
   // The blocking read is the metronome; this floor only stops a burst if the
@@ -1035,10 +1054,12 @@ void audioTick() {
 
 // ---- serial CLI + status -------------------------------------------------------
 void printStatusJson() {
+  bool touched = pawTouched();
   Serial.printf("{\"mode\":\"%s\",\"level\":%.3f,\"wave\":%.3f,\"rms\":%.0f,\"peak\":%u,"
                 "\"clipblocks\":%lu,\"gain\":%.2f,\"hue\":%d,"
                 "\"peers\":%d,\"fixtures\":%d,\"sendok\":%lu,\"active\":%d,\"input\":\"%s\","
-                "\"ceil\":%.2f,\"sendfail\":%lu,\"codec\":%d,"
+                "\"ceil\":%.2f,\"sendfail\":%lu,\"codec\":%d,\"calibrated\":%d,"
+                "\"cal_ms\":%lu,\"cal_obs\":%lu,\"paw_cap\":%u,\"paw\":%d,"
                 "\"controls\":\"%s\",\"net\":\"%s\",\"maint_status\":%u,"
                 "\"boot_armed\":%d}\n",
                 modeName(mode), lastShownLevel, heartbeatFollower.level,
@@ -1046,11 +1067,63 @@ void printStatusJson() {
                 (unsigned long)audioClippedBlocks, knobGain,
                 (int)(knob2Filt * 360.0f), livePeerCount(), liveFixtureCount(),
                 (unsigned long)sendOk, audioActive ? 1 : 0,
-                inputLineIn ? "line" : "mic", knob2Filt,
-                (unsigned long)sendFail, codecReady ? 1 : 0,
-                setupWindow.unlocked ? "SETUP" : "LOCKED",
+                 inputLineIn ? "line" : "mic", knob2Filt,
+                 (unsigned long)sendFail, codecReady ? 1 : 0,
+                 audioCalibration.calibrated() ? 1 : 0,
+                 (unsigned long)audioCalibration.elapsedMs(),
+                 (unsigned long)audioCalibration.observations,
+                 (unsigned)pawCapRaw, touched ? 1 : 0,
+                 setupWindow.unlocked ? "SETUP" : "LOCKED",
                 netMode == PUCA_MODE_MAINT ? "MAINT" : "COMMS",
                 (unsigned)pucaMaintStatus, bootArmRequested ? 1 : 0);
+}
+
+// USB-only bench probe for the paw electrode itself. ESP32 touch-channel values
+// fall when capacitance increases. Normal paw gestures are suspended for this
+// bounded inactive-only measurement, while radio receive and heartbeats remain
+// serviced so the diagnostic does not create queue drops or a mesh outage.
+void runPawCapProbe() {
+  if (audioActive || netMode != PUCA_MODE_COMMS) {
+    Serial.println("pawprobe refused: requires inactive COMMS state");
+    return;
+  }
+
+  static const uint32_t DURATION_MS = 4000;
+  static const uint32_t REPORT_MS = 100;
+  Serial.println("pawprobe start duration_ms=4000 esp32_touch=lower-is-more-capacitance");
+
+  (void)touchRead(PIN_TOUCH); // discard first measurement
+  uint32_t start = millis();
+  uint32_t nextReport = start;
+  uint32_t minimum = UINT32_MAX;
+  uint32_t maximum = 0;
+  uint64_t total = 0;
+  uint32_t samples = 0;
+  while (millis() - start < DURATION_MS) {
+    uint32_t value = (uint32_t)touchRead(PIN_TOUCH);
+    pawCapRaw = (uint16_t)value;
+    if (value < minimum) minimum = value;
+    if (value > maximum) maximum = value;
+    total += value;
+    ++samples;
+    uint32_t now = millis();
+    if ((int32_t)(now - nextReport) >= 0) {
+      Serial.printf("pawprobe ms=%lu cap=%lu\n",
+                    (unsigned long)(now - start), (unsigned long)value);
+      nextReport += REPORT_MS;
+    }
+    processRx();
+    heartbeatTick(now);
+    esp_task_wdt_reset();
+    delay(10);
+  }
+
+  touchGesture = PucaTouchGesture();
+  pawCapDetector = PucaCapTouchDetector();
+  uint32_t average = samples ? (uint32_t)(total / samples) : 0;
+  Serial.printf("pawprobe done samples=%lu min=%lu avg=%lu max=%lu restored=cap-touch\n",
+                (unsigned long)samples, (unsigned long)minimum,
+                (unsigned long)average, (unsigned long)maximum);
 }
 
 void handleSerial() {
@@ -1062,9 +1135,10 @@ void handleSerial() {
     case 'A': setAudioActive(!audioActive); break;
     case 'I': setInputLineIn(!inputLineIn); showStatus(millis()); break;
     case 'H': selectHeartbeatMode(); showStatus(millis()); break;
+    case 'P': runPawCapProbe(); break;
     case '\r': case '\n': case ' ': break;
     default:
-      Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line");
+      Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line P=paw-cap-probe");
       break;
     }
   }
@@ -1074,7 +1148,8 @@ void statusTick(uint32_t now) {
   static uint32_t nextStatusMs = 0;
   if ((int32_t)(now - nextStatusMs) < 0) return;
   nextStatusMs = now + 1000;
-  Serial.printf("puca mode=%s active=%d bootarmed=%d net=%s maint=%u input=%s calibrated=%d level=%.3f wave=%.3f "
+  bool touched = pawTouched();
+  Serial.printf("puca mode=%s active=%d bootarmed=%d net=%s maint=%u input=%s calibrated=%d calms=%lu calobs=%lu pawcap=%u paw=%d level=%.3f wave=%.3f "
                 "gain=%.2f ceil=%.2f hue=%d peers=%d fixtures=%d sendok=%lu sendfail=%lu "
                 "rms=%.0f peak=%u clipblk=%lu clips=%lu frames=%lu readfail=%lu "
                 "rxdrop=%lu i2cerr=%lu codec=%d controls=%s up=%lu "
@@ -1084,7 +1159,10 @@ void statusTick(uint32_t now) {
                 netMode == PUCA_MODE_MAINT ? "MAINT" : "COMMS",
                 (unsigned)pucaMaintStatus,
                 inputLineIn ? "line" : "mic",
-                audioEnvelope.calibrated() ? 1 : 0, lastShownLevel,
+                 audioCalibration.calibrated() ? 1 : 0,
+                 (unsigned long)audioCalibration.elapsedMs(),
+                 (unsigned long)audioCalibration.observations,
+                 (unsigned)pawCapRaw, touched ? 1 : 0, lastShownLevel,
                 heartbeatFollower.level, knobGain,
                 knob2Filt, (int)(knob2Filt * 360.0f), livePeerCount(),
                 liveFixtureCount(),
@@ -1132,12 +1210,13 @@ void setup() {
   pinMode(PIN_LED_BOARD, OUTPUT);
   pinMode(PIN_LED_TOP, OUTPUT);
   pinMode(PIN_LED_BTM, OUTPUT);
-  pinMode(PIN_TOUCH, INPUT); // upstream trigger test uses plain INPUT [TRG]
+  // GPIO15 is configured by the first touchRead(); do not claim it as a plain
+  // digital GPIO first, or the electrode cannot use the RTC touch peripheral.
   digitalWrite(PIN_LED_BOARD, LOW);
   digitalWrite(PIN_LED_TOP, LOW);
   digitalWrite(PIN_LED_BTM, LOW);
 
-  Serial.println("hold paw 1.2 s now to ARM DJ; no hold = SAFE-IDLE");
+  Serial.println("hold paw 1.2 s during the 5 s steady-red cue to ARM DJ; no hold = SAFE-IDLE");
   bootArmRequested = detectBootSetupHold();
 
   analogReadResolution(12);
@@ -1181,7 +1260,7 @@ void setup() {
   Serial.printf("mode=%s gain-knob=GPIO%d mode-knob=GPIO%d paw=GPIO%d\n",
                 modeName(mode), PIN_KNOB1, PIN_KNOB2, PIN_TOUCH);
   Serial.println("status LED: LINE=1 long, MIC=2 long; DJ=1 short, HEARTBEAT=2, EMBER=3, HUE=4");
-  Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line");
+  Serial.println("keys: t=status-json M=next-live-mode A=audio-toggle I=mic/line H=heartbeat-line P=paw-cap-probe");
 }
 
 void loop() {

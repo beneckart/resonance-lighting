@@ -1,10 +1,13 @@
 # PUCA performance-audio bridge
 
 **Status: powered-Pod20 `0.4.1-dev` hardware baseline passed 2026-08-26;
-credentialed `0.5.0-dev` USB bootstrap, no-hold SAFE-IDLE, Bridge OS identity,
-exact-target shared-WiFi OTA, and post-OTA safe rejoin passed 2026-08-27.** The
-runtime sends no lighting frames unless the paw is held continuously for 1.2 s
-during boot. An armed boot starts in DJ mode (the previous CLASSIC per-slot
+credentialed `0.5.0-dev` USB bootstrap and safe OTA passed 2026-08-27; exact-
+target `0.5.2-dev` onboard-mic mode and time-calibration proof passed; exact-
+target `0.5.3-dev` clockwise carrier-control normalization passed build and OTA
+2026-08-28; exact-target `0.5.5-dev` capacitive paw and held-paw boot arming
+passed 2026-08-29.** The runtime sends no lighting frames unless the paw is held
+continuously for 1.2 s during the five-second steady-red boot opportunity. An
+armed boot starts in DJ mode (the previous CLASSIC per-slot
 look), with line input and a 20 s setup window. PUCA advertises its `A4EB10`
 identity/revision to Bridge OS and accepts only an exact-target maintenance
 request before leaving ESP-NOW for the standard shared-WiFi `/telemetry`,
@@ -14,11 +17,17 @@ never creates the factory softAP.
 The prior WM8978, stereo I2S capture, faceplate paw, powered knob ADCs,
 channel-11 receive, ADR 0040 fixture filtering, and more-than-18-fixture
 transmit chunking all ran on hardware. A 207 s soak reached 70+ eligible
-fixtures and 8,318 successful send callbacks with zero reported errors. Paw-held
-DJ arming, forced rollback, `/resume`/timeout, fleet-wide-maintenance rejection
-on hardware, the performer's waveform, visible fixture response/stale fallback,
-full knob sweeps, mixed-output fidelity, multi-hour stability, and field-range
-geometry remain unverified.
+fixtures and 8,318 successful send callbacks with zero reported errors. The
+2026-08-28 service-started onboard-mic run exercised DJ, HEARTBEAT, EMBER, and
+HUE across about 75-92 fresh fixtures with clean transport and capture counters;
+Ben visibly confirmed audio-reactive fixture behavior. A repeat laptop waveform
+with the TS plugs corrected from J8/J9 AUDIO OUT to J5/J6 AUDIO IN raised RMS
+from 6-12 to 37-41 with zero clipping/errors, proving the faceplate line path.
+The paw electrode is proven through the ESP32 T3/GPIO15 capacitance peripheral;
+a held-paw Pod20 power cycle produced `bootarmed=1` and active DJ. Timed setup
+gestures, line-route continuity, forced rollback, `/resume`/timeout, fleet-wide-
+maintenance rejection, stale fallback, mixed-output fidelity,
+multi-hour stability, and field-range geometry remain unverified.
 
 Target: **PUCA DSP Original Edition** (ESP32-PICO-D4 + WM8978 codec, 8 MB
 PSRAM) on the Ohmic 6 HP Eurorack expansion -- the ADR 0035 primary
@@ -88,7 +97,7 @@ All sources fetched 2026-08-19 from
 | KNOB1 = top pot (CV2) | 33 (ADC1_CH5) | [CV test](https://github.com/ohmic-net/puca_dsp/blob/main/puca-eurorack/hardware_test_arduino/Puca_Eurorack_CV_test/Puca_Eurorack_CV_test.ino) `//IO33 CV2 Top Pot` | High |
 | KNOB2 = bottom pot (CV3) | 34 (ADC1_CH6) | same, `//I034 CV3 Btm Pot` | High |
 | CV1 jack (unused) | 32 (ADC1_CH4) | same, `//IO32 CV1 V/Oct Input` | High |
-| Paw (capacitive touch) | 15 | [trigger test](https://github.com/ohmic-net/puca_dsp/blob/main/puca-eurorack/hardware_test_arduino/Puca_Eurorack_trigger_test/Puca_Eurorack_trigger_test.ino) `#define TOUCH 15`, digital read | Pin high; **polarity UNCONFIRMED** (HIGH=touched inferred from the test's LED behavior) |
+| Paw (capacitive touch) | 15 / ESP32 T3 | Vendor [trigger test](https://github.com/ohmic-net/puca_dsp/blob/main/puca-eurorack/hardware_test_arduino/Puca_Eurorack_trigger_test/Puca_Eurorack_trigger_test.ino) names GPIO15 but its digital read does not work on this exact unit; `touchRead(15)` is hardware-proven | High: released 867-870, held through 216; press <=650, release >=750, invalid <50 fails safe |
 | TRIG1 / TRIG2 (unused) | 13 / 14 | trigger test; "HIGH after boot" (active low) | High |
 | Onboard button (unused) | 36 | both test sketches `#define BUTTON 36` | High |
 | LED1 (onboard) | 5 | trigger test | High |
@@ -103,8 +112,8 @@ before clipping**. Never feed it a speaker output.
 
 | Control | Function |
 |---|---|
-| KNOB1 (top pot) | input sensitivity: 0.25x-4x multiplier on the envelope level (log taper, 1x at center) |
-| KNOB2 (bottom pot) | DJ + HEARTBEAT + EMBER: brightness ceiling 0-100%; HUE: hue, one full wheel per turn |
+| KNOB1 (top pot) | input sensitivity: 0.25x-4x multiplier on the envelope level (log taper, 1x at center); clockwise increases, counterclockwise decreases |
+| KNOB2 (bottom pot) | DJ + HEARTBEAT + EMBER: brightness ceiling 0-100%, clockwise toward maximum; HUE: hue, clockwise through one full wheel |
 | No paw hold at boot | SAFE-IDLE: mesh identity/maintenance remain available, but PUCA emits no lighting frames |
 | Paw held continuously at boot | after a 1.2 s hold, arms DJ + line input and opens a 20 s setup window |
 | Paw touch after locked boot | status display only; it cannot arm, change, or stop the performance |
@@ -126,7 +135,7 @@ service/serial state, never a paw-cycle accident. It sends one black frame and
 stops publishing so the 3 s staleness + micro-lease expiry can return fixtures
 to autonomy.
 
-Serial CLI at 115200 (boot banner `=== Resonance puca-bridge 0.5.0-dev ===`,
+Serial CLI at 115200 (boot banner `=== Resonance puca-bridge 0.5.5-dev ===`,
 plus a 1 Hz `puca ...` status line):
 
 | Key | Action |
@@ -136,6 +145,7 @@ plus a 1 Hz `puca ...` status line):
 | `A` | audio on/off toggle (off sends one zero frame; on re-runs the 2 s noise calibration) |
 | `I` | input path toggle: 3.5 mm line-in (boot default) <-> onboard MEMS mics |
 | `H` | select 3.5 mm line input and HEARTBEAT mode in one step |
+| `P` | inactive-only four-second raw GPIO15 capacitive probe; normal capacitive paw handling resumes afterward |
 
 ## Build / flash
 
@@ -212,7 +222,25 @@ only sends the exact-target maintenance request.
    ESP-NOW heartbeat, and writable NVS before cancelling A/B rollback. Arm DJ
    only with a later deliberate paw-held power cycle. USB remains recovery.
 
-The installed and OTA-proven 2026-08-27 bootstrap candidate is
+The installed and exact-target OTA-proven 2026-08-29 candidate is
+`build/puca-bridge-20260829-paw-cap-touch-v055-r1/puca_bridge.ino.bin`,
+1,038,176 bytes, SHA-256
+`b7d4db31f339a14d079a273170544f6b4218a367075799736f1229a6c1c2f2c1`.
+It replaces the vendor example's nonfunctional GPIO15 digital read with the
+hardware-proven ESP32 capacitance channel, preserves the fail-safe boot gate,
+and passed a real held-paw Pod20 power cycle with `bootarmed=1`, `active=1`.
+This remains a development bench identity, not a promoted show release.
+
+The superseded exact-target OTA-proven 2026-08-28 diagnostic candidate is
+`build/puca-bridge-20260828-paw-telemetry-v052-r1/puca_bridge.ino.bin`,
+1,024,608 bytes, SHA-256
+`3e3e8d9fa0ce3c8d60950abc027840eb345c95cf1f9438d1f0ff44cbac5a20e8`.
+It adds active-high raw paw telemetry, a five-second steady-red arm opportunity,
+and elapsed-time calibration proven on hardware at about two seconds. The paw
+signal itself remains intermittent, so this is a diagnostic bench identity, not
+a promoted show release.
+
+The prior OTA-proven 2026-08-27 bootstrap candidate is
 `build/puca-bridge-20260827-ota-safe-v050-bootstrap-r3/puca_bridge.ino.bin`,
 1,024,128 bytes, SHA-256
 `1e90f6f1731a622b11274fa91abbc6eeebb17c35abe90bd86337c915cb99e8da`.
@@ -231,14 +259,19 @@ It is an exact bench-recovery identity, not a show-release claim.
 1. DONE 2026-08-26: exact Original Edition identity, 4 MB flash, CP2102N USB
    serial, MAC, boot banner, codec, stereo I2S, channel 11, powered Pod20, and
    historical locked HEARTBEAT/line defaults are recorded in the hardware README.
-2. DONE in part 2026-08-27 on `0.5.0-dev`: no-hold USB and OTA/software boots
+2. DONE 2026-08-27/29 on `0.5.0-dev`, `0.5.2-dev`, and `0.5.5-dev`: no-hold USB and OTA/software boots
    reported `active=0`, `bootarmed=0`, locked controls, healthy codec, and zero
-   direct frames while Bridge OS received the PUCA heartbeat. Still verify the
-   1.2 s physical paw hold arms DJ first and the setup/lock gestures.
+   direct frames while Bridge OS received the PUCA heartbeat. Raw capacitance
+   isolated the vendor digital-read mismatch; a held-paw full power cycle on
+   `0.5.5-dev` returned `bootarmed=1`, `active=1`, and DJ + line. Timed short-
+   touch mode cycling and long-hold setup lock remain to be accepted.
 3. Finish both knob full sweeps: `gain` must cover 0.25-4.00 and `ceil` 0-1.00;
    note whether patched CV2/CV3 cables disturb them.
-4. Clap-test the MEMS path if it will be used, then test the RODE through the
-   chosen faceplate input. Record unclipped working gains.
+4. DONE 2026-08-28 for onboard MEMS capture, all four renderers, and the complete
+   laptop-to-J5/J6 line path. The initial silent run had both TS plugs in J8/J9
+   AUDIO OUT; corrected J5/J6 routing raised RMS from 6-12 to 37-41 at only 10
+   percent laptop level with zero clipping/errors. Test the RODE and record its
+   unclipped working gain.
 5. One named fixture: confirm visible HEARTBEAT response and autonomous return
    within about 3 s after PUCA stops publishing.
 6. Mixed HEX/RGBW group: verify visible output and stale fallback. The current
@@ -283,9 +316,9 @@ during pre-playa bench work, then recovered from the Claude session record.
 
 - The codec and onboard MEMS microphones are live: the first boot reported
   `codec=1 i2cerr=0`, and the envelope tracked room sound.
-- One boot entered EMBER unexpectedly, consistent with a spurious paw edge.
-  The current test-covered guard ignores the first 2.5 s and baselines the
-  settled input before accepting a press; that delta still needs hardware proof.
+- One older digital-input boot entered EMBER unexpectedly. That path is
+  superseded: exact-unit capacitance plus hysteresis now drives the paw, and a
+  held-paw `0.5.5-dev` power cycle is hardware-proven.
 - Knobs reading zero on USB-only power is expected. The Eurorack back PCB powers
   the pots' reference rail and TL072 buffers from the Eurorack header. Knobs,
   faceplate audio/CV inputs, and amplified outputs require Eurorack power; USB
@@ -293,7 +326,7 @@ during pre-playa bench work, then recovered from the Claude session record.
 - On 2026-08-26, the powered Pod20 and USB combination booted `0.4.1-dev` with
   `codec=1`, line input, HEARTBEAT, and LOCKED controls. Normal paw touches
   replayed status without changing mode. Powered knobs reported stable nonzero
-  values; complete sweeps remain open.
+  values; both complete clockwise endpoint sweeps later passed on `0.5.3-dev`.
 - The received unit identifies as ESP32-PICO-D4 revision 1.0 with 4 MB embedded
   flash and MAC `4C:75:25:A4:EB:10`; Windows CP2102N identity is
   `USB\\VID_10C4&PID_EA60\\0EC45B486617EC1183509E9D47486EB0` on the current
