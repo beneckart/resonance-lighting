@@ -4,6 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #include "../core/fixture_context.h"
+#include "../core/frame_budget.h"
 #include "../core/hex_geometry.h"
 #include "../core/led_profile.h"
 #include "board_power.h"
@@ -108,6 +109,8 @@ void ledRailOff() {
 void ledRender(const FrameBuffer &f, uint8_t brightnessCap) {
   if (!gRailOn) return;
   uint16_t n = min((uint16_t)f.count, gCount);
+  FramePowerBudget frameBudget =
+      framePowerBudget(f, gCount, gIsRgbw, brightnessCap);
   uint32_t sumR = 0, sumG = 0, sumB = 0, sumW = 0;
   uint8_t lit = 0;
   for (uint16_t i = 0; i < gCount; i++) {
@@ -116,13 +119,14 @@ void ledRender(const FrameBuffer &f, uint8_t brightnessCap) {
       continue;
     }
     // Supervised commissioning uses direct linear 8-bit levels: 0 is off,
-    // 128 is dim, and 255 is bright. Keep only the hard power-policy cap.
-    uint8_t r = (uint8_t)(((uint16_t)f.px[i][0] * brightnessCap + 127) / 255);
-    uint8_t g = (uint8_t)(((uint16_t)f.px[i][1] * brightnessCap + 127) / 255);
-    uint8_t b = (uint8_t)(((uint16_t)f.px[i][2] * brightnessCap + 127) / 255);
+    // 128 is dim, and 255 is bright. Compose the hard battery-policy cap with
+    // the physical dense-frame HEX budget; sparse frames remain unchanged.
+    uint8_t r = framePowerScaleChannel(f.px[i][0], frameBudget);
+    uint8_t g = framePowerScaleChannel(f.px[i][1], frameBudget);
+    uint8_t b = framePowerScaleChannel(f.px[i][2], frameBudget);
     uint8_t w = 0;
     if (gIsRgbw) {
-      w = (uint8_t)(((uint16_t)f.px[i][3] * brightnessCap + 127) / 255);
+      w = framePowerScaleChannel(f.px[i][3], frameBudget);
       gStrip.setPixelColor(i, gStrip.Color(r, g, b, w));
     } else {
       gStrip.setPixelColor(i, gStrip.Color(r, g, b));

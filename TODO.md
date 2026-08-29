@@ -22,6 +22,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   release, clean reboot, pending verify, downlight sensors/class, and later
   LEDS_OFF -> DIM -> FULL recovery. Do not use a profile/NVS workaround as the
   fleet fix (Ben/Codex).
+- [~] **P0: canary ADR 0069 synchronized palette, count-aware HEX power, and
+  continuous ToF interaction.** Source and native tests now provide a 20-minute
+  UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical HEX budget
+  that leaves sparse gobos full-bright and scales dense washes; and a local ToF
+  renderer that maps 150-1,800 mm to color while peeling perimeter output
+  37 -> 19 -> 7 -> 1 pixels, with a close dedicated-W downlight gobo pop. The
+  interaction applies after every visible program, including direct bridge
+  frames, but cannot awaken blackout or bypass battery/rail policy. Complete
+  native tests and an ESP32-S3 commission/listener development compile pass.
+  No artifact was flashed. Next: named battery-installed perimeter and
+  downlight canaries with measured draw and installed-range tuning. The MSA311
+  accent seam is implemented but fleet-disabled pending quiet/wind/touch/swing/
+  climb traces; barometric modulation and aggregate ring/all-perimeter presence
+  remain open (Ben/Codex; ADR 0069).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
