@@ -106,6 +106,10 @@ class DashboardParserTests(unittest.TestCase):
         self.assertLess(row["status_age_ms"], 100)
 
     def test_maintenance_campaign_command_validation(self):
+        self.assertTrue(dashboard.valid_command("wifi off"))
+        self.assertTrue(dashboard.valid_command("wifi retry"))
+        self.assertTrue(dashboard.valid_command("show"))
+        self.assertFalse(dashboard.valid_command("wifi forget"))
         self.assertTrue(dashboard.valid_command("uB12AB34CD:150"))
         self.assertTrue(dashboard.valid_command("uA12AB34CD:F2B7DC"))
         self.assertTrue(dashboard.valid_command("uF12AB34CD"))
@@ -120,6 +124,12 @@ class DashboardParserTests(unittest.TestCase):
         self.assertTrue(dashboard.valid_command("Ff2b7dc:0:0"))
         self.assertFalse(dashboard.valid_command("F000000:1:1"))
         self.assertFalse(dashboard.valid_command("FF2B7DC:2:1"))
+        self.assertTrue(dashboard.valid_command("AF2B7DC"))
+        self.assertTrue(dashboard.valid_command("Af2b7dc:180"))
+        self.assertTrue(dashboard.valid_command("AF2B7DC:0"))
+        self.assertFalse(dashboard.valid_command("A000000:180"))
+        self.assertFalse(dashboard.valid_command("AF2B7DC:901"))
+        self.assertFalse(dashboard.valid_command("AF2B7DC:-1"))
 
     def test_callsign_table_covers_the_production_health_roster(self):
         aliases = dashboard.CALLSIGN_BY_ID

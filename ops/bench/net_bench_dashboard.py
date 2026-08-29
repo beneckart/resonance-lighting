@@ -2110,7 +2110,10 @@ def parse_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def valid_command(cmd: str) -> bool:
-    if cmd in {"r", "U", "S", "c", "I", "i", "+", "-", "b", "L"}:
+    if cmd in {
+        "r", "U", "S", "c", "I", "i", "+", "-", "b", "L",
+        "wifi off", "wifi retry", "show",
+    }:
         return True
     m = re.fullmatch(r"i[0-9A-Fa-f]{6}(?::(\d{1,3}))?", cmd)
     if m:
@@ -2122,6 +2125,11 @@ def valid_command(cmd: str) -> bool:
         return True
     if re.fullmatch(r"F[0-9A-Fa-f]{6}:[01]:[01]", cmd):
         return cmd[1:7] != "000000"
+    m = re.fullmatch(r"A([0-9A-Fa-f]{6})(?::(\d{1,3}))?", cmd)
+    if m:
+        if m.group(1) == "000000":
+            return False
+        return m.group(2) is None or 0 <= int(m.group(2)) <= 900
     m = re.fullmatch(r"uB([0-9A-Fa-f]{8}):(\d{1,4})", cmd)
     if m:
         return m.group(1) != "00000000" and 1 <= int(m.group(2)) <= 3600
