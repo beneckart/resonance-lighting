@@ -13,6 +13,19 @@ static void learnBaseline(uint16_t &baselineMm, uint16_t depthMm) {
   if (!baselineMm || depthMm < baselineMm) baselineMm = depthMm;
 }
 
+static void followBackground(uint16_t &baselineMm, uint16_t depthMm) {
+  if (!baselineMm || depthMm <= baselineMm) {
+    baselineMm = depthMm;
+    return;
+  }
+  // A fixture can finish its warmup in a close shipping bin and then move
+  // several metres upward without rebooting. Follow a farther, non-presence
+  // scene with a bounded EMA so the learned background relocates in seconds,
+  // while a closer person is still held out of the baseline by the delta gate.
+  uint16_t delta = (uint16_t)(depthMm - baselineMm);
+  baselineMm = (uint16_t)(baselineMm + (delta + 7u) / 8u);
+}
+
 bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
                         const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
                         const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]) {
@@ -23,7 +36,8 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
     ++gate.warmupReads;
     for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
       bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                   zoneMm[zone] >= 80 && zoneMm[zone] <= 2500;
+                   zoneMm[zone] >= 80 &&
+                   zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
       if (valid) learnBaseline(gate.baselineMm[zone], zoneMm[zone]);
     }
     return false;
@@ -32,7 +46,15 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
   uint16_t closeMask = 0;
   for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
     bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                 zoneMm[zone] >= 80 && zoneMm[zone] <= 2500;
+                 zoneMm[zone] >= 80 &&
+                 zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
+    if (valid) {
+      gate.emptyStreak[zone] = 0;
+    } else if (gate.emptyStreak[zone] < PRESENCE_EMPTY_REBASE_READS) {
+      ++gate.emptyStreak[zone];
+      if (gate.emptyStreak[zone] >= PRESENCE_EMPTY_REBASE_READS)
+        gate.baselineMm[zone] = 0;
+    }
     bool close = valid &&
         (gate.baselineMm[zone]
              ? (uint32_t)zoneMm[zone] + PRESENCE_DELTA_MM < gate.baselineMm[zone]
@@ -62,9 +84,10 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
       gate.closeStreak[zone] = 0;
     }
     bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                 zoneMm[zone] >= 80 && zoneMm[zone] <= 2500;
+                 zoneMm[zone] >= 80 &&
+                 zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
     if (valid && !close)
-      learnBaseline(gate.baselineMm[zone], zoneMm[zone]);
+      followBackground(gate.baselineMm[zone], zoneMm[zone]);
   }
   if (!rising) return false;
   memset(gate.closeStreak, 0, sizeof(gate.closeStreak));

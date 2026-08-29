@@ -59,8 +59,12 @@ int main() {
   LocalInteractionInputs downlight = {};
   downlight.fixtureClass = FIXTURE_DOWNLIGHT;
   downlight.tofValid = true;
-  downlight.tofDistanceMm = 250;
+  downlight.tofDistanceMm = 3000;
   frame = solid(1, 0, 0, 0, 25);
+  original = frame;
+  assert(!interactionApply(frame, downlight));
+  assert(memcmp(&frame, &original, sizeof(frame)) == 0);
+  downlight.tofPresenceActive = true;
   assert(interactionApply(frame, downlight));
   assert(frame.px[0][3] == 255);
   assert(frame.px[0][0] == 0 && frame.px[0][1] == 0 &&

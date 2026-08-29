@@ -32,6 +32,16 @@ static uint8_t distanceHue(uint16_t distanceMm) {
 
 static bool applyTof(FrameBuffer &frame,
                      const LocalInteractionInputs &inputs) {
+  if (inputs.fixtureClass == FIXTURE_DOWNLIGHT && frame.count == 1) {
+    if (!inputs.tofPresenceActive) return false;
+    // A persistent, background-relative canopy hit exposes the crisp gobo at
+    // full output. Distance color remains a perimeter gesture; absolute close
+    // thresholds cannot work when the canopy is roughly 15 ft above ground.
+    frameClear(frame);
+    frame.px[0][3] = 255;
+    return true;
+  }
+
   if (!inputs.tofValid ||
       inputs.tofDistanceMm < RES_TOF_INTERACTION_NEAR_MM ||
       inputs.tofDistanceMm > RES_TOF_INTERACTION_MAX_MM)
@@ -63,19 +73,6 @@ static bool applyTof(FrameBuffer &frame,
     return true;
   }
 
-  if (inputs.fixtureClass == FIXTURE_DOWNLIGHT && frame.count == 1) {
-    frameClear(frame);
-    if (inputs.tofDistanceMm <= RES_TOF_INTERACTION_CLOSE_MM) {
-      // At intimate range, pop the dedicated white point source through its
-      // physical gobo instead of trying to express closeness as dimness.
-      frame.px[0][3] = 255;
-    } else {
-      frame.px[0][0] = r;
-      frame.px[0][1] = g;
-      frame.px[0][2] = b;
-    }
-    return true;
-  }
   return false;
 }
 

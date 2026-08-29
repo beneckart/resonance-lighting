@@ -49,6 +49,32 @@ int main() {
   CHECK(!observe2(gate, ++seq, 910, 50, 0, 0));
   CHECK(observe2(gate, ++seq, 920, 50, 0, 0));
 
+  // Fifteen-foot canopy geometry: ground can be near the 5 m sensor limit,
+  // while a person's head is typically around 3 m away. A fixture that warmed
+  // up against a close bin wall must follow the new far background, then fire
+  // on the persistent closer head return.
+  tmfPresenceInit(gate);
+  seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 200, 50, 0, 0));
+  for (int i = 0; i < 48; ++i)
+    CHECK(!observe2(gate, ++seq, 4600, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 3000, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 3010, 50, 0, 0));
+  CHECK(observe2(gate, ++seq, 2990, 50, 0, 0));
+
+  // If the 15 ft ground produces no confident return, clear the stale bin
+  // baseline. A later head return is presence even without a ground baseline.
+  tmfPresenceInit(gate);
+  seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 200, 50, 0, 0));
+  for (int i = 0; i < PRESENCE_EMPTY_REBASE_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
+  CHECK(!observe2(gate, ++seq, 3100, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 3090, 50, 0, 0));
+  CHECK(observe2(gate, ++seq, 3110, 50, 0, 0));
+
   // Two unrelated one-frame glitches in different zones do not combine into
   // presence; the same changed zone must persist for the second report.
   tmfPresenceInit(gate);
