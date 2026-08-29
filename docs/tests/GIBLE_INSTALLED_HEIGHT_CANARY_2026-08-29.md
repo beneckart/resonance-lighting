@@ -259,17 +259,85 @@ The current installation therefore fails before background learning, delta,
 debounce, or hold policy matter. Lower or re-aim Gible and inspect/clear the TMF
 aperture and field of view before another software threshold change.
 
+## Astro lower-height control
+
+Astro `9E5B44`, reported by Ben as roughly 12 ft high, provided the lower-hung
+control using the identical raw 1-5 m predicate. The only recipe change from
+Gible was the compile-time target lock:
+
+- Revision: `fx-260829-066846f-t`
+- Source commit: `d9cb77528e646bfb06bf5882202181f8790bca64`
+- Target lock: compile-time short MAC `9E5B44`
+- Binary: 1,221,136 bytes
+- Binary SHA-256:
+  `b9dba40884967fd182093d1e9ab370a7d40fd89b74f5ccc3ec6588d967636877`
+- Recipe SHA-256:
+  `066846f139e79f02aaa1ef6709e8618563d544e28bebada4e7db3ecf2cfeba09`
+- Promotion state: target-test-only, never fleetable
+
+Exact OTA job `861C9C57` updated only Astro and verified the diagnostic through
+pending verify at 31,899 ms uptime. Dawn then put the field fleet into its
+scheduled dark posture. Astro accepted a nonpersistent exact-target commission
+profile, but a pre-existing RAM-only fleet dark lease still suppressed its
+rail. Releasing that lease left field/day fixtures dark and made Astro alone
+render the intended full-red baseline. No persistent profile mutation was
+made.
+
+Ben's visual result was unambiguous despite increasing dawn light: ordinary
+walking beneath Astro produced at most a split-second flicker; raising a hand
+above his head made the response substantially denser and appear to stick.
+Astro was estimated near 12 ft and Ben is 6 ft 3 in, leaving about 5 ft 9 in
+(1.75 m) from sensor to head before a raised-hand gesture.
+
+The rolling drain retained 913 samples spanning 304.3 seconds with zero
+sequence gaps. It recorded 35 white samples across 18 sampled runs and 28 raw
+rising indications. Individual sampled runs were 0.3-1.62 seconds; grouping
+runs separated by at most two seconds produced two principal eight-second
+interaction clusters plus shorter clusters. This diagnostic intentionally had
+no debounce or hold, so the denser raised-hand response should not be described
+as a continuously held production latch.
+
+Every qualifying zone return was 1,003-1,561 mm at confidence 20-41, distributed
+across zones 1, 2, 3, and 5. There were no sampled returns from 1.562 m through
+5 m. The trace was red for 49.676 seconds before the first white sample and
+212.752 seconds after the last, with no sampled 1-5 m false positive in either
+empty interval. Fixed self-splay remained visible separately at roughly
+171-315 mm with high confidence and was excluded by the diagnostic lower bound.
+
+Dawn is a real negative confound, not a reason to discard the control. It made
+the red/white output harder to judge and may have reduced optical ToF range and
+confidence. The accepted returns were only confidence 20-41 against a threshold
+of 20, so a modest ambient-light penalty could plausibly turn a marginal
+roughly-1.75 m head return into intermittent flicker while preserving the closer
+raised-hand response. Do not treat 1.561 m as a hard nighttime range limit.
+Conversely, the run provides no basis for expecting darkness to turn this into
+reliable 3-5 m ranging. Repeat after dark before locking height, and require
+margin for shorter people, clothing, dust, sway, and unit variation.
+
+This lower-height control resolves the central Gible ambiguity. A real nearby
+target produces physically plausible 1.0-1.56 m ranges on Astro, whereas
+Gible reported a roughly 2 m raised bamboo target as 3.24-5.00 m. Astro also
+shows that a 12 ft mounting remains marginal for passive walk-under detection:
+Ben's roughly 1.75 m head gap was outside the captured reliable band, while a
+raised hand moved into it. If ordinary adult walk-under interaction is a goal,
+test a roughly 10 ft mounting or equivalent re-aim next; do not infer fleet
+acceptance from the raised-hand response alone.
+
 ## Verdict
 
-**FAIL -- current Gible sensor geometry; PASS -- parser and end-to-end software
-path.** OTA safety, exact artifact identity, field posture, sensor health,
+**FAIL -- current Gible sensor geometry; MARGINAL -- Astro at roughly 12 ft;
+PASS -- parser and end-to-end software path.** OTA safety, exact artifact
+identity, field posture, sensor health,
 full-range report acceptance, production debounce/latch, raw predicate, and
 output arbitration all passed. The raw retest shows that empty-scene false
 positives are not the immediate problem. Gible fails to detect an ordinary
 person even without software discrimination, and it reports a nearby raised
 bamboo target at physically implausible 3.24-5.00 m distances. Do not
 fleet-promote or threshold-tune around this installation. Lower or re-aim it,
-clear/inspect the TMF field of view, then repeat the named-person gate.
+clear/inspect the TMF field of view, then repeat the named-person gate. Astro's
+plausible 1.0-1.56 m returns prove that lowering helps, but its walk-under
+flicker/raised-hand requirement shows that 12 ft is not yet a passive-person
+acceptance height.
 
 ## Cleanup
 
@@ -279,6 +347,14 @@ pending-verify gate at 26,599 ms uptime. A fresh dashboard heartbeat showed fiel
 profile, NIGHT_SHOW, FULL tier, GH CA, downlight class, sensor bits `9`, no class
 mismatch, recovery state 0, ordinary mesh mode, and no active maintenance
 campaign. No temporary visible lease or trace image remains on Gible.
+
+Astro final restore job `AFF7F2E7` replaced the target-only trace image with
+its exact pre-test `fx-260828-658b7d2-p` binary, SHA-256
+`95de59286831bcbb9d8f610f84b09e3ac761be558f106b10b9aee8dfb01bd8cc`.
+It passed fresh exact-revision rejoin and pending verify at 32,039 ms uptime with
+downlight class, field profile, and recovery state 0. The nonpersistent
+commission posture cleared on reboot; Astro did not retain a test profile or
+trace image.
 
 Retained evidence is under `ops/bench/data/ca/`:
 
@@ -299,3 +375,6 @@ Retained evidence is under `ops/bench/data/ca/`:
 - `20260829-gible-9E5B34-distant-range-bamboo-split-height.jsonl`
 - `20260829-gible-9E5B34-distant-range-final-restore-job.jsonl`
 - `20260829-125308-105DD74F-fleet-ota-results.jsonl`
+- `20260829-astro-9E5B44-distant-range-height-trace-ota-job.jsonl`
+- `20260829-astro-9E5B44-lower-height-walk-flicker-raised-hand-stick.jsonl`
+- `20260829-astro-9E5B44-lower-height-final-restore-job.jsonl`
