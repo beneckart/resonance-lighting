@@ -21,8 +21,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   regression is the direct branch proof. Groot `9F2724` subsequently arrived
   in genuine low-voltage PROTECT, released on the old image during the longer
   physical-reset window, and passed the same exact canary plus USB/WiFi gate;
-  this confirms a second repaired fixture without claiming a timer-wake
-  hardware replay of the fixed branch (Ben/Codex).
+  this confirms a second repaired fixture. Logan `9E5A88` then supplied the
+  missing live branch proof: the exact canary remained awake at 21.6 s after a
+  deliberate one-second deep sleep (past the old 12 s cutoff), completed the
+  sustained full-battery PROTECT release, persisted OFF, clean-rebooted, and
+  advanced to DIM with healthy MSA/TMF and WiFi. This closes the timer-wake
+  hardware acceptance (Ben/Codex).
+- [ ] **Repair quarantined downlight Shuckle `F4031C`.** Its old commission
+  image repeatedly failed all four PowerFeather init attempts with charger,
+  gauge, rails, and sensors inaccessible. Disconnecting the sensor chain made
+  the board healthy; TMF8820-only and MSA311-only each passed, while the suspect
+  inter-sensor cable also failed when connected directly to the known-good MSA.
+  Ben then accidentally connected solar without the battery and the USB app
+  stopped enumerating. Recover USB-only without erasing, discard/mark the bad
+  cable, validate a different cable directly, rebuild the full chain, reconnect
+  the confirmed 15 Ah cell, and complete exact USB/WiFi commissioning before
+  removing quarantine (Ben/Codex).
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
   20-minute UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical
@@ -106,8 +120,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixture promotion contracts passed. No secret is tracked. Hardware-prove the
   second profile at the art site with one exact fixture before relying on it for
   USB-tail avoidance. Exact Rikku `9F26B0` subsequently passed combined artifact
-  `fx-260828-abd893c-p`; the 11 intended fixtures still on the prior known-good
-  image are `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
+  `fx-260828-abd893c-p`; 12 intended fixtures still lack the current dual-site
+  fleet image. The set is `9E5A88`, `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
   `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
   11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
   `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank

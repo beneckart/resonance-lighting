@@ -10,6 +10,71 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Logan proves the fixed timer-wake PROTECT release
+
+Exact downlight Logan `9E5A88` / `D8:85:AC:9E:5A:88` appeared on COM158 during
+a short deep-sleep wake. Read-only telemetry on dual-site production image
+`fx-260828-658b7d2-p` showed 3.595 V / 100 percent, good 6.245 V input,
+charging enabled, no BQ fault, and durable power tier 3 / guard stage 4
+PROTECT. Its retained sleep receipt named the immediately preceding failure:
+120-second `day-charge` sleep at tier 3. That is the exact lifecycle race
+previously diagnosed on Toad. The port disappeared at the old 12-second wake
+boundary as expected.
+
+Caught the next exact wake and uploaded already-built immutable bench canary
+`fx-260829-b0ff5db-b`, binary SHA-256
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`;
+no compile ran. Ben confirmed this physical downlight has a 15 Ah cell, so its
+stale 6 Ah NVS capacity was corrected to 15,000 mAh. The retained PROTECT latch
+survived both upload and the configuration reboot.
+
+Issued one exact-target, one-second serial sleep while the canary still held
+PROTECT. On the resulting genuine deep-sleep wake, Logan remained awake at
+21.636 seconds with tier 3 / stage 4, good input, no fault, and the exact image
+-- directly beyond the old 12-second day-sleep cutoff. It then completed the
+sustained full-battery release, persisted stage 3 / LEDS_OFF, software-rebooted,
+and advanced to stage 2 / DIM. Settled telemetry showed field profile, channel
+11, exact image, no interruption, healthy MSA311 and TMF8820 samples with zero
+TMF errors, ESP-NOW, and `pending_verify=false`. The first WiFi HTTP read had an
+empty body after successful association; one explicit COMMS resume and bounded
+transport-only retry passed the exact endpoint at `192.168.1.186` without a
+second upload. This is the missing real-hardware acceptance of the fixed
+timer-wake branch. Evidence is in
+`ops/bench/data/usb/2026-08-29-9E5A88-protect-timer-release-canary.jsonl` and
+`ops/bench/data/usb/2026-08-29-9E5A88-protect-timer-release-proof.jsonl`.
+
+Like Toad and Groot, Logan currently carries the one-profile variant-`b`
+service image and must receive the future dual-site production artifact before
+fleet closure.
+
+## 2026-08-29 -- Ben + Codex -- Shuckle isolated to a bad sensor-chain cable
+
+Exact downlight Shuckle `F4031C` / `68:EE:8F:F4:03:1C` appeared on COM33 on old
+commission image `fx-260817-ec7f28d-b`. It initially reported the last reset as
+panic, `pf_ready=false`, no battery, no sensors, and no rail. A non-writing ROM
+flash-ID check proved healthy ESP32-S3 revision 0.2, 8 MB flash, 2 MB physical
+PSRAM, and exact MAC. The following captured boot reproduced four failed
+`Board.init` attempts, failed VSQT off/on control, a class mismatch, and repeated
+LED-rail pad verification failures. No image was built, flashed, or erased.
+
+Ben fully depowered the fixture and disconnected the external STEMMA chain.
+USB-only boot immediately restored the PowerFeather, charger/gauge telemetry,
+300 mA precharge readback, no-fault BQ, and rail control. TMF8820-only then
+passed presence and ranging with zero errors; MSA311-only passed presence and a
+healthy sample. Reattaching both sensors reproduced the hard bus failure with
+the original and replacement chain attempts. The suspect inter-sensor cable
+finally failed even when connected directly from the PowerFeather to the
+known-good MSA311, isolating a defective or miswired cable rather than a dead
+PowerFeather or sensor.
+
+Before a separately proven replacement cable was available, Ben accidentally
+connected solar without the battery. Shuckle then stopped enumerating over USB;
+the planned USB-only bootloader recovery was deferred when Ben moved to the next
+fixture. Registry status is now quarantined with explicit do-not-install notes.
+Next service must remain USB-only, preserve flash/NVS, replace and independently
+prove the cable, restore the full chain and confirmed 15 Ah battery, then pass
+exact USB/WiFi commissioning before quarantine is removed.
+
 ## 2026-08-29 -- Ben + Codex -- Groot recovered and received the PROTECT-sleep fix
 
 The next USB-connected problem fixture did not enumerate during a no-reset
