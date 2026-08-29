@@ -120,8 +120,8 @@ tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ./build.sh                          # compile only
 ./build.sh --port /dev/ttyACM0      # USB flash
 ./build.sh --ota <ip>               # OTA via POST /update
-./build.sh --artifact-dir build/r1  # stable artifact for fleet_usb_bringup.py
-./build.sh --fw-rev fx-YYMMDD-xxxxxxx-b  # override reported artifact identity
+./build.sh --artifact-variant b --wifi-profile-label party-in-the-woods-v1 \
+  --channel 11 --profile field --basic-listener  # immutable canary artifact
 ./build.sh --channel 11 --profile commission
 ./build.sh --channel 11 --profile commission --basic-listener
 ./build.sh --precharge-ma 300            # low-VBAT recovery current
@@ -139,8 +139,10 @@ For ordinary edit/compile iteration, use the persistent development cache:
 This path is serialized by an atomic lock and invalidated when the FQBN, flags,
 toolchain, SDK, or firmware libraries change. Its mutable binary always reports
 `dev-local`; it is suitable only for local iteration and, after host checks, one
-explicit USB target. It is rejected with `--ota`, `--artifact-dir`, or
-`--fw-rev`. Do not pass its binary to fleet tools.
+explicit USB target. It is rejected with `--ota` or `--artifact-variant`.
+Manual `--artifact-dir`/`--fw-rev` is disabled; the
+artifact path and revision are derived from the exact canonical recipe before
+compilation. Do not pass a development-cache binary to fleet tools.
 
 If a cached build is killed, times out, or loses its wrapper, first confirm that
 no `arduino-cli`, Xtensa compiler/linker, or `esptool` process remains, then run:
@@ -180,8 +182,9 @@ boot, sensor, and radio startup cost. USB telemetry exposes the compiled
 For any shared/fleet artifact, the manual `fixture-YYYY-MM-DD.N` counter is
 retired. Follow `../../docs/howto/FIRMWARE_ARTIFACT_HANDOFF.md`: clean committed
 source, generated `fx-YYMMDD-<recipe7>-<variant>`, immutable manifest, exact
-binary SHA-256, and explicit target MACs. Build/manifest automation is pending;
-until it lands, do not publish a new shared artifact under a legacy reused name.
+binary SHA-256, and explicit target MACs. `build.sh --artifact-variant ...`
+owns the canonical recipe bytes, revision/path, embedded identity, manifest,
+and post-build cross-checks. Its golden test pins the final-LF byte contract.
 
 Always `-DPOWERFEATHER_BOARD_V2=1` (build.sh injects it). Chemistry is
 build-time (`--chem lfp` default); everything else is runtime NVS.

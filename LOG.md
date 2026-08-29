@@ -10,6 +10,50 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Toad fixed; artifact identity made automatic
+
+Fixed the lifecycle ownership bug diagnosed below. `lifeTick` now suppresses
+ordinary field `DAY_CHARGE` sleep whenever the power tier is PROTECT, leaving
+the PROTECT cadence and qualified 60-second release entirely under power
+policy. Native regression coverage keeps ordinary FULL/DIM/OFF day sleep
+unchanged and pins PROTECT `wantSleep=false`. Integrated the accepted ADR 0069
+and ADR 0070 source before validation; the complete native suite passed, as did
+a guarded ESP32-S3 field/basic-listener build.
+
+Built immutable canary `fx-260829-b0ff5db-b` from clean commit
+`280598802a306c7d3c2b901b480f2dac864f4ca5`. Its canonical recipe SHA-256 is
+`b0ff5db9edd5f65d1e53fbcbba85de6a291ee2e83527dd802e0e451183020071`;
+the 1,212,640-byte binary SHA-256 is
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`.
+It is deliberately variant `b` and labelled `party-in-the-woods-v1`, because
+this checkout has one local maintenance profile rather than the accepted
+dual-profile fleet credential set.
+
+The exact USB serial identity on COM56 matched Toad `F2BEE4` before upload.
+Flash-ID, upload, embedded revision, field/channel-11 configuration, 15 Ah / 2 A
+settings, no-fault BQ, downlight class, class match, MSA311, TMF8820, BMP581,
+ESP-NOW, and pending-verify=false checks passed. A later deep-sleep wake still
+reported the exact image; by 9.712 s it was charging at +536.7 mA from 4.637 V /
+504 mA good input with all three sensors healthy. The retained boot stage was
+already DIM after flash, so this hardware run did not recreate a live PROTECT
+release; the native lifecycle test is the direct proof of that branch. Toad is
+no longer parked and its ordinary 120-second field cycle is operating. Evidence
+is in `ops/bench/data/usb/2026-08-29-F2BEE4-protect-day-sleep-canary.jsonl`.
+
+The first artifact candidate exposed the recurring manual identity hazard: its
+hash was calculated without the canonical recipe's final LF. The mismatch was
+caught before upload and `fx-260829-e9350b7-b` was marked rejected/never
+flashed. To remove that class of wasted cold build, `build.sh` now owns the
+immutable transaction via `--artifact-variant`: clean-source check, exact
+compact-JSON-plus-LF recipe bytes, derived revision and path, embedded identity,
+fresh build, manifest/binary hashes, and post-build cross-check. Manual
+`--artifact-dir`/`--fw-rev` is refused, direct flash/OTA is refused in artifact
+mode, and profile/channel/non-secret WiFi label must be explicit. A compile-free
+golden test reproduces accepted recipe hash `d374034...`, so newline, encoding,
+key order, or normalization drift fails before compilation. The full native
+suite passes with this contract. Also quoted three pre-existing registry notes
+whose commas had malformed CSV rows, then recorded Toad's exact canary identity.
+
 ## 2026-08-29 -- Ben + Codex -- Toad PROTECT recovery defeated by day sleep
 
 Onboarded from the repository and watched Windows USB long enough to catch the

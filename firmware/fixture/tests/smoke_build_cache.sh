@@ -64,8 +64,7 @@ grep -aq 'dev-local' build/dev-cache/fixture.ino.bin || fail "dev-local missing 
 boundary_index=0
 for args in \
   '--dev-cache --ota 10.0.0.200' \
-  '--dev-cache --artifact-dir build/nope' \
-  '--dev-cache --fw-rev fx-260822-0000000-t'; do
+  '--dev-cache --artifact-variant b'; do
   boundary_index=$((boundary_index + 1))
   # Intentional word splitting: these are fixed, non-secret test vectors.
   # shellcheck disable=SC2086

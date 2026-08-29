@@ -4,24 +4,23 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [ ] **P0: prevent field day sleep from resetting a qualified PROTECT release.**
-  Exact outer downlight Toad `F2BEE4` on `fx-260827-1254f04-p` is safely dark
-  in durable stage-4 PROTECT after a retained 3.039 V low-VBAT entry. Read-only
-  USB evidence on 2026-08-29 proved a healthy recovery path at 3.283 V,
-  +506 mA corrected battery current, 4.637 V / 486 mA good input, charging
-  enabled, no BQ fault, and 300 mA precharge. Nevertheless, at the approximately
-  12-second ADR 0064 sample boundary `behavior_glue` took ordinary 120-second
-  `day-charge` sleep while the power tier was still PROTECT. Each deep sleep
-  clears the RAM-only 60-second release hold, so the fixture cannot satisfy its
-  own charge-current proof. The current Aug-28 source still has this independent
-  lifecycle gate. Make power policy the sole owner of PROTECT sleep (ordinary
-  DAY_CHARGE sleep must not run at `LedTier::PROTECT`); add native coverage that
-  qualified field recovery remains awake through release, unqualified PROTECT
-  still takes its 900-second cadence, and ordinary non-PROTECT day sleep is
-  unchanged. Then build one clean ADR 0040 artifact and canary exact Toad through
-  release, clean reboot, pending verify, downlight sensors/class, and later
-  LEDS_OFF -> DIM -> FULL recovery. Do not use a profile/NVS workaround as the
-  fleet fix (Ben/Codex).
+- [x] **Prevent field day sleep from resetting a qualified PROTECT release --
+  DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
+  `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut
+  short by the independent 12-second `day-charge` sleep, making a continuous
+  60-second release proof impossible. Lifecycle now makes power policy the
+  sole owner of sleep at `LedTier::PROTECT`; native coverage pins PROTECT awake
+  while FULL/DIM/OFF day behavior remains unchanged. The full integrated native
+  suite and ESP32-S3 build pass. Exact-target USB canary
+  `fx-260829-b0ff5db-b`, SHA-256
+  `276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`,
+  passed on Toad with field/channel 11, healthy charging/no-fault BQ, correct
+  downlight class, MSA/TMF/BMP samples, ESP-NOW, and a later clean 120-second
+  timer wake. Toad's retained stage was already DIM after the USB flash, so
+  this exact run did not replay a live PROTECT -> OFF release; the pure
+  regression is the direct branch proof and a future naturally parked fixture
+  may provide additional hardware release evidence without reopening Toad
+  (Ben/Codex).
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
   20-minute UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical

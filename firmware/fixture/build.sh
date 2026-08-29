@@ -4,8 +4,8 @@
 #   ./build.sh                          # compile only (throwaway build dir)
 #   ./build.sh --port /dev/ttyACM0      # compile + USB flash
 #   ./build.sh --ota 10.0.0.200         # compile + OTA via POST /update
-#   ./build.sh --artifact-dir out/r1    # stable dir for fleet_usb_bringup.py
-#   ./build.sh --fw-rev fx-YYMMDD-xxxxxxx-b  # reported artifact identity
+#   ./build.sh --artifact-variant b --wifi-profile-label party-in-the-woods-v1
+#                                       # immutable canary artifact + manifest
 #   ./build.sh --profile commission     # default NVS profile when unset
 #   ./build.sh --channel 11             # ESP-NOW/AP channel build default
 #   ./build.sh --wifi-source <header>    # replace local gitignored credentials
@@ -36,6 +36,8 @@ FQBN="esp32:esp32:esp32s3_powerfeather"
 PORT=""
 OTA_IP=""
 ARTIFACT_DIR=""
+ARTIFACT_VARIANT=""
+WIFI_PROFILE_LABEL=""
 CHANNEL=""
 PROFILE=""
 CHEM="lfp"
@@ -72,9 +74,10 @@ Recommended local iteration (compile only):
 One explicitly named USB development target may add:
   --port PORT
 
-Shared/fleet artifacts must omit --dev-cache and follow ADR 0040 with a fresh
---artifact-dir and immutable --fw-rev. The development cache always reports
-dev-local and is rejected with --ota, --artifact-dir, or --fw-rev.
+Shared/fleet artifacts must omit --dev-cache and use --artifact-variant. The
+wrapper hashes the exact canonical recipe bytes, derives the revision/path,
+and writes/verifies the manifest. Manual --artifact-dir/--fw-rev is refused.
+The development cache always reports dev-local.
 
 Development-cache options:
   --dev-cache                 use the persistent single-writer local cache
@@ -85,8 +88,8 @@ Development-cache options:
 Common build options:
   --port PORT                 compile and upload over USB
   --ota IP                    fresh compile and HTTP OTA upload
-  --artifact-dir PATH         retain fresh build output at PATH
-  --fw-rev REV                embed immutable fx-YYMMDD-recipe7-class identity
+  --artifact-variant p|b|t    create a fresh immutable artifact (ADR 0040)
+  --wifi-profile-label LABEL  required non-secret credential-set label
   --profile commission|field  default profile when NVS is unset
   --channel N                 ESP-NOW/AP channel build default
   --wifi-source PATH          install a local gitignored credentials header
@@ -248,6 +251,8 @@ while [[ $# -gt 0 ]]; do
     --port) PORT="$2"; shift 2 ;;
     --ota) OTA_IP="$2"; shift 2 ;;
     --artifact-dir) ARTIFACT_DIR="$2"; shift 2 ;;
+    --artifact-variant) ARTIFACT_VARIANT="$2"; shift 2 ;;
+    --wifi-profile-label) WIFI_PROFILE_LABEL="$2"; shift 2 ;;
     --fw-rev) FW_REV="$2"; shift 2 ;;
     --channel) CHANNEL="$2"; shift 2 ;;
     --profile) PROFILE="$2"; shift 2 ;;
@@ -285,9 +290,26 @@ if (( CLEAN_DEV_CACHE || RECOVER_DEV_CACHE )); then
 fi
 
 if (( DEV_CACHE )); then
-  [[ -z "$ARTIFACT_DIR" ]] || fail "--dev-cache cannot be combined with --artifact-dir"
-  [[ -z "$FW_REV" ]] || fail "--dev-cache cannot be combined with --fw-rev"
+  [[ -z "$ARTIFACT_VARIANT" ]] || fail "--dev-cache cannot be combined with --artifact-variant"
   [[ -z "$OTA_IP" ]] || fail "--dev-cache cannot be combined with --ota"
+fi
+
+if [[ -n "$ARTIFACT_DIR" || -n "$FW_REV" ]]; then
+  fail "manual --artifact-dir/--fw-rev is disabled; use --artifact-variant with --wifi-profile-label"
+fi
+if [[ -n "$ARTIFACT_VARIANT" ]]; then
+  [[ "$ARTIFACT_VARIANT" =~ ^[pbt]$ ]] ||
+    fail "bad --artifact-variant: $ARTIFACT_VARIANT (expected p|b|t)"
+  [[ -n "$WIFI_PROFILE_LABEL" ]] ||
+    fail "--artifact-variant requires --wifi-profile-label"
+  [[ "$WIFI_PROFILE_LABEL" =~ ^[A-Za-z0-9._-]+$ ]] ||
+    fail "bad --wifi-profile-label: use a non-secret ASCII label"
+  [[ -n "$PROFILE" ]] || fail "--artifact-variant requires explicit --profile"
+  [[ -n "$CHANNEL" ]] || fail "--artifact-variant requires explicit --channel"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] ||
+    fail "artifact builds never flash directly; upload the retained artifact with exact-target tooling"
+elif [[ -n "$WIFI_PROFILE_LABEL" ]]; then
+  fail "--wifi-profile-label requires --artifact-variant"
 fi
 
 [[ "$PRECHARGE_MA" =~ ^[0-9]+$ ]] || {
@@ -302,6 +324,10 @@ fi
 (( DAY_SLEEP_S >= 30 && DAY_SLEEP_S <= 3600 )) || fail "bad --day-sleep-s: $DAY_SLEEP_S (expected 30..3600)"
 [[ "$WAKE_LISTEN_MS" =~ ^[0-9]+$ ]] || fail "bad --wake-listen-ms: $WAKE_LISTEN_MS (expected 1000..60000)"
 (( WAKE_LISTEN_MS >= 1000 && WAKE_LISTEN_MS <= 60000 )) || fail "bad --wake-listen-ms: $WAKE_LISTEN_MS (expected 1000..60000)"
+if [[ -n "$CHANNEL" ]]; then
+  [[ "$CHANNEL" =~ ^[0-9]+$ ]] || fail "bad --channel: $CHANNEL (expected 1..13)"
+  (( CHANNEL >= 1 && CHANNEL <= 13 )) || fail "bad --channel: $CHANNEL (expected 1..13)"
+fi
 if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
   [[ "$DEEP_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
     echo "bad --deep-recovery-target: $DEEP_RECOVERY_TARGET (expected six hex digits)" >&2
@@ -346,24 +372,19 @@ case "$CHEM" in
   *) echo "unknown --chem: $CHEM (lfp|3v7)" >&2; exit 2 ;;
 esac
 [[ -n "$CHANNEL" ]] && FLAGS+=" -DRES_CHANNEL=$CHANNEL"
-if [[ -n "$FW_REV" ]]; then
-  [[ "$FW_REV" =~ ^fx-[0-9]{6}-[0-9a-f]{7}-[pbt]$ ]] || {
-    echo "bad --fw-rev: $FW_REV (expected fx-YYMMDD-recipe7-class)" >&2
-    exit 2
-  }
-fi
 if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
-  [[ -n "$FW_REV" && "$FW_REV" == *-t ]] || {
-    echo "--deep-recovery-target requires an explicit test-class (-t) --fw-rev" >&2
+  [[ "$ARTIFACT_VARIANT" == "t" ]] || {
+    echo "--deep-recovery-target requires --artifact-variant t" >&2
     exit 2
   }
   FLAGS+=" -DRES_DEEP_RECOVERY_TARGET=0x${DEEP_RECOVERY_TARGET}UL"
   FLAGS+=" -DRES_DEEP_RECOVERY_MAX_CHARGE_MA=100"
 fi
+MANIFEST_PROFILE=""
 case "$PROFILE" in
   "") ;;
-  dev|commission)  FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_DEV" ;;
-  prod|field) FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_PROD" ;;
+  dev|commission)  FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_DEV"; MANIFEST_PROFILE="commission" ;;
+  prod|field) FLAGS+=" -DRES_PROFILE_DEFAULT=PROFILE_PROD"; MANIFEST_PROFILE="field" ;;
   *) echo "unknown --profile: $PROFILE (commission|field; dev|prod aliases)" >&2; exit 2 ;;
 esac
 FLAGS+="$EXTRA_FLAGS"
@@ -442,9 +463,18 @@ prepare_dev_cache() {
 # compiles against Arduino's shared sketch cache corrupt artifacts.
 if (( DEV_CACHE )); then
   prepare_dev_cache
-elif [[ -n "$ARTIFACT_DIR" ]]; then
-  BUILD_PATH="$ARTIFACT_DIR"
-  mkdir -p "$BUILD_PATH"
+elif [[ -n "$ARTIFACT_VARIANT" ]]; then
+  command -v python >/dev/null 2>&1 || fail "python is required for immutable artifact identity"
+  REPO_ROOT="$(cd ../.. && pwd -P)"
+  ARTIFACT_INFO="$(python artifact_recipe.py prepare \
+    --repo-root "$REPO_ROOT" \
+    --artifact-root "$SKETCH_DIR/build" \
+    --variant "$ARTIFACT_VARIANT" \
+    --flags "$FLAGS")"
+  IFS=$'\t' read -r FW_REV BUILD_PATH RECIPE_SHA <<< "$ARTIFACT_INFO"
+  [[ -n "$FW_REV" && -n "$BUILD_PATH" && -n "$RECIPE_SHA" ]] ||
+    fail "artifact identity helper returned incomplete metadata"
+  echo "ARTIFACT_PLAN fw_rev=$FW_REV recipe_sha256=$RECIPE_SHA path=$BUILD_PATH"
 else
   BUILD_PATH="$(mktemp -d /tmp/fixture-build.XXXXXX)"
   TEMP_BUILD_PATH="$BUILD_PATH"
@@ -513,6 +543,15 @@ if [[ ! -s "$BIN" || ! -s "$BUILD_PATH/build.options.json" ]]; then
 fi
 echo "artifact: $BIN ($(stat -c%s "$BIN") bytes)"
 sha256sum "$BIN"
+
+if [[ -n "$ARTIFACT_VARIANT" ]]; then
+  python artifact_recipe.py finalize \
+    --repo-root "$REPO_ROOT" \
+    --artifact-dir "$BUILD_PATH" \
+    --channel-default "$CHANNEL" \
+    --profile-default "$MANIFEST_PROFILE" \
+    --wifi-profile "$WIFI_PROFILE_LABEL"
+fi
 
 if [[ -n "$PORT" ]]; then
   arduino-cli upload --fqbn "$FQBN" --port "$PORT" --build-path "$BUILD_PATH" .

@@ -56,8 +56,27 @@ The recipe hash is computed from canonical, ordered inputs:
 - manifest schema version.
 
 Build time, hostname, and branch name are metadata, not recipe inputs. Branch
-names move. Dirty source is refused for shared/fleet builds. An explicitly
-allowed dirty build is variant `t` and may not be offered by fleet OTA tooling.
+names move. The fixture artifact wrapper refuses dirty source for every
+automatically named artifact, including variant `t`; make a clean checkpoint
+first. A `t` image remains targeted and may not be offered by fleet OTA tooling.
+
+The recipe serialization is compact ASCII JSON followed by exactly one LF.
+Do not calculate the hash or type the revision manually. Use the fixture build
+wrapper, which writes those exact bytes before compilation and pins the
+serialization with a golden test against a previously accepted artifact:
+
+```bash
+cd firmware/fixture
+./build.sh --artifact-variant b \
+  --wifi-profile-label party-in-the-woods-v1 \
+  --profile field --channel 11 --basic-listener \
+  --precharge-ma 300 --day-sleep-s 120 --wake-listen-ms 12000
+```
+
+`--artifact-variant` requires explicit profile, channel, and non-secret WiFi
+profile label. It refuses direct USB/OTA upload; flash the retained artifact
+with exact-target tooling after inspection. Manual `--artifact-dir` and
+`--fw-rev` are disabled.
 
 The build-class suffix is not a runtime behavior selector. The normal `p` image
 contains commission-listener, strict commission-dark, and field postures behind
@@ -72,6 +91,7 @@ directory and never overwrite a revision that has been flashed:
 
 ```
 firmware/fixture/build/<fw_rev>/
+  recipe.json
   fixture.ino.bin
   build.options.json
   manifest.json

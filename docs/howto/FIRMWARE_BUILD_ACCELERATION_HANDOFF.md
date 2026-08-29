@@ -9,6 +9,12 @@ local path; job-count and one-device hardware follow-ups are deferred. See
 **Base at handoff:** `main` at `dfb4c95`  
 **Primary target:** `firmware/fixture/build.sh` on the Windows + Git Bash PowerFeather bench
 
+**2026-08-29 artifact-path update:** this document preserves the original
+cache experiment, including historical `--artifact-dir`/`--fw-rev` commands.
+Those manual release options are now disabled. Current immutable builds use
+`--artifact-variant` plus an explicit `--wifi-profile-label`; see
+`FIRMWARE_ARTIFACT_HANDOFF.md`. The development-cache design is unchanged.
+
 ## Objective
 
 Reduce the normal edit → compile → flash iteration time without reintroducing the cache corruption and agent churn that previously occurred when multiple Arduino builds wrote the same cache concurrently.
