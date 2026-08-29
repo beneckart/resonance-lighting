@@ -10,6 +10,62 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Toad PROTECT recovery defeated by day sleep
+
+Onboarded from the repository and watched Windows USB long enough to catch the
+short field wake of exact outer-ring downlight Toad `F2BEE4` /
+`68:EE:8F:F2:BE:E4` on COM56. No firmware, profile, NVS, reboot, rail, or other
+device mutation was requested. The host added the repository-documented
+`pyserial` dependency only so the existing no-reset telemetry path could run.
+
+Read-only telemetry identifies accepted artifact `fx-260827-1254f04-p`, field
+profile, channel 11, correct 15,000 mAh capacity, downlight class, valid OTA
+state, and durable guard stage 4 / power tier 3 PROTECT with the LED rail off.
+The retained PROTECT entry was at 3.039 V in field profile after about 1,637 s
+of fixture uptime, consistent with the known low-VBAT history. A separate
+durable receipt records a prior six-hour radio-all sleep from exact T-Deck
+`8EB508`, sequence 10, but the current recurring sleep is local rather than a
+still-active operator command.
+
+USB power and the charge path are healthy. On the next 120-second wake, the
+early stale gauge sample corrected by 5.9 s; at 11.151 s telemetry reported
+3.283 V, +506 mA corrected battery current, 4.637 V / 486 mA good input,
+charging enabled, no BQ fault, and verified 300 mA precharge. The port then
+disappeared at the approximately 12-second wake boundary. The following boot
+record named the preceding sleep `day-charge` for 120 seconds, not PROTECT for
+900 seconds.
+
+This proves a control-plane race, not a failed cell, charger, cable, or USB
+port. `power_policy` correctly suppresses its own PROTECT sleep while the
+60-second charge-current release proof is accumulating, but `behavior_glue`
+independently takes ordinary field `DAY_CHARGE` sleep once the ADR 0064 power
+sample window completes. That path does not exclude `LedTier::PROTECT` or
+otherwise honor the in-progress release hold. Deep sleep clears the RAM-only
+release timer, so each 12-second wake restarts a proof that requires 60
+continuous seconds and Toad can never release. The current Aug-28 source and
+accepted artifact change PROTECT proof quality/provenance but leave this
+day-sleep gate unchanged, so updating alone is not yet an adequate repair.
+
+Leave Toad connected: it is safely dark and gains charge during each wake and
+subsequent sleep, but the durable latch will remain until the sleep ownership
+bug is fixed or an explicitly controlled service posture keeps it awake long
+enough for the automatic release. Next is a native regression and source fix
+making the power-policy path the sole owner of PROTECT sleep, followed by a
+clean immutable artifact and exact-Toad canary under ADR 0040.
+
+## 2026-08-29 -- Ben + Codex -- Primary T-Deck updated to current Bridge OS
+
+USB-flashed the other known T-Deck Plus, exact identity `8EB508`
+(`44:1B:F6:8E:B5:08`), observed on `COM152`. The guarded development-cache
+wrapper rebuilt from pushed commit `30c4124` before upload. The resulting
+`tdeck-dev-local` binary is 1,565,584 bytes with SHA-256
+`345f150d53ceec57de6925531953a38e49cff2de87523ab359cd6fa36992721d`.
+Esptool verified every written region and reset the board successfully.
+Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
+healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
+and zero send failures. The camp-labelled TSwift `979604` was not connected or
+changed during this flash.
+
 ## 2026-08-28 -- Ben + Codex -- All 20 manufactured uplights updated
 
 Declared one OTA writer and reused immutable artifact

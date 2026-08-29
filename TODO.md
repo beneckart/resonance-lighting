@@ -4,6 +4,24 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **P0: prevent field day sleep from resetting a qualified PROTECT release.**
+  Exact outer downlight Toad `F2BEE4` on `fx-260827-1254f04-p` is safely dark
+  in durable stage-4 PROTECT after a retained 3.039 V low-VBAT entry. Read-only
+  USB evidence on 2026-08-29 proved a healthy recovery path at 3.283 V,
+  +506 mA corrected battery current, 4.637 V / 486 mA good input, charging
+  enabled, no BQ fault, and 300 mA precharge. Nevertheless, at the approximately
+  12-second ADR 0064 sample boundary `behavior_glue` took ordinary 120-second
+  `day-charge` sleep while the power tier was still PROTECT. Each deep sleep
+  clears the RAM-only 60-second release hold, so the fixture cannot satisfy its
+  own charge-current proof. The current Aug-28 source still has this independent
+  lifecycle gate. Make power policy the sole owner of PROTECT sleep (ordinary
+  DAY_CHARGE sleep must not run at `LedTier::PROTECT`); add native coverage that
+  qualified field recovery remains awake through release, unqualified PROTECT
+  still takes its 900-second cadence, and ordinary non-PROTECT day sleep is
+  unchanged. Then build one clean ADR 0040 artifact and canary exact Toad through
+  release, clean reboot, pending verify, downlight sensors/class, and later
+  LEDS_OFF -> DIM -> FULL recovery. Do not use a profile/NVS workaround as the
+  fleet fix (Ben/Codex).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
