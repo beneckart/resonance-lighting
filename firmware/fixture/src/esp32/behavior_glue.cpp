@@ -592,6 +592,7 @@ void behaviorTick() {
   LifeInputs li = {};
   li.nowMs = now;
   li.supplyGood = supplyGood();
+  li.supplyV = supplyVolts();
   li.supplyMa = supplyMa();
   li.battV = batteryVolts();
   li.tier = (uint8_t)pb.tier;

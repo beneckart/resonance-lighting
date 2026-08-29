@@ -7,6 +7,8 @@ LifeConfig lifeConfigDefaults(bool devProfile) {
   c.usefulSupplyMa = 20;
   c.surplusMa = 150;
   c.surplusExitMa = 100;
+  c.reservoirMv = 5800;
+  c.reservoirExitMv = 5400;
   c.surplusConfirmS = 60;
   c.noSurplusConfirmS = 300;
   c.nightMaxMin = 630;
@@ -63,14 +65,21 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   }
 
   bool dayEvidence = in.supplyGood && in.supplyMa >= (float)c.usefulSupplyMa;
-  // DAY_ACTIVE means measured renewable/input surplus, not merely a charged
-  // battery. Requiring FULL tier before entry prevents the radio/actuator
-  // posture from competing with battery recovery. A lower current threshold
-  // holds an already-active fixture through ordinary solar variation.
-  bool solarEnter = in.supplyGood && in.supplyMa >= (float)c.surplusMa &&
-                    in.tier == 0;
-  bool solarStay = in.supplyGood &&
-                   in.supplyMa >= (float)c.surplusExitMa;
+  // DAY_ACTIVE requires measured renewable-side energy, not merely a charged
+  // battery. The solarnoid's immediate store is the VDC capacitor: a tapered
+  // or charge-done BQ legitimately reports 0 mA while that reservoir remains
+  // charged. Accept either live harvest or reservoir voltage, always with the
+  // charger's supply-good qualification and FULL battery tier. Hysteresis
+  // holds an already-active fixture through ordinary solar/load variation.
+  bool liveHarvest = in.supplyMa >= (float)c.surplusMa;
+  bool storedStrikeEnergy = in.supplyV * 1000.0f >= (float)c.reservoirMv;
+  bool renewableEnter = in.supplyGood && (liveHarvest || storedStrikeEnergy);
+  bool renewableStay =
+      in.supplyGood &&
+      (in.supplyMa >= (float)c.surplusExitMa ||
+       in.supplyV * 1000.0f >= (float)c.reservoirExitMv);
+  bool solarEnter = renewableEnter && in.tier == 0;
+  bool solarStay = renewableStay;
 
   // Day evidence clears the bounded-night latch.
   if (dayEvidence) st.nightDone = false;
@@ -144,7 +153,7 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   // LedTier: 0 FULL, 1 DIM, 2 OFF, 3 PROTECT -- the power veto over art.
   out.showActive = (st.state == LIFE_NIGHT_SHOW) && in.tier <= 1;
   out.strikesAllowed = (st.state == LIFE_DAY_ACTIVE) && in.tier == 0 &&
-                       in.supplyGood && in.supplyMa >= (float)c.surplusMa;
+                       renewableEnter;
   out.nightMin = (st.state == LIFE_NIGHT_SHOW)
                      ? (uint16_t)((in.nowMs - st.nightStartMs) / 60000UL)
                      : 0;

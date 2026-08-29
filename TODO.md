@@ -65,7 +65,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixture/Bridge OS suites, host parser tests, and an ESP32-S3 compile pass.
   Normal production artifact `fx-260829-af1d4ec-p` (not a target/hour canary)
   is now verified on 84 fixtures and exposes the audit tail, but no exact
-  target/hour actuation run has been accepted. On one physically identified,
+  target/hour actuation run has been accepted.
+  **Noon field finding / ADR 0072:** Hawkeye `9F2664` and Navi `9F0E7C`
+  abstained with valid roughly 6.65 V VDC but 0 mA charger input. Hawkeye's BQ
+  was enabled, not HIZ, fault-free, and charge-done; the old instantaneous
+  150 mA gate rejected a charged solarnoid capacitor during charger taper.
+  Source now accepts either >=150 mA live harvest or `supply_good` plus >=5.8 V
+  VDC after the existing 60-second confirmation, with 100 mA / 5.4 V exit
+  hysteresis and fresh entry-grade evidence required at every strike. Native
+  regression coverage passes. Prove this only on exact Hawkeye in one future
+  UTC hour, then restore its retained `fx-260829-af1d4ec-p` binary; do not
+  fleet-promote the correction before that evidence.
+  On one physically identified,
   battery-installed cymbal downlight, prove high-quality UTC wake alignment,
   T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to
   sleep, and no duplicate after an in-window reset. Then prove unison abstention

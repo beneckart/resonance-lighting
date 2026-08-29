@@ -69,7 +69,9 @@ python ops/bench/field_cycle_ota.py ABCDEF \
 Require a fresh exact-revision heartbeat and survival past pending verify.
 Verify that NVS still reports field profile, channel 11, downlight class, the
 expected sensors, an armed solenoid, no class mismatch, no BQ fault, recovery
-zero, and sufficient measured solar input.
+zero, and sufficient measured renewable-side energy. Under ADR 0072 that final
+gate is `supply_good` plus either at least 150 mA live input or at least 5.8 V
+on the VDC/solarnoid reservoir, always with FULL battery tier.
 
 ## Expected hour
 
@@ -111,6 +113,11 @@ For the primary high-quality-time acceptance, require:
 - `ritexp` is `3` or `7` according to the deterministic after-ring assignment;
 - `ritat == ritfire == ritexp`; and
 - `ritref == 0` and `ritblk == 0`.
+
+Also retain `supply_v`, `supply_ma`, `supply_good`, battery tier, charger
+enable/phase/fault, and solenoid counters around the window. A charge-done
+fixture may correctly report 0 mA while its VDC reservoir remains charged;
+that is the ADR 0072 regression case, not missing-solar evidence.
 
 The same fields are available by targeted maintenance `GET /telemetry` if the
 installed bridge has not yet been updated for the heartbeat tail. Audible

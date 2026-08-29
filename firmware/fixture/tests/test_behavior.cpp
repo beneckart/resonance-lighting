@@ -510,8 +510,10 @@ int main() {
     CHECK(!o.solarProbeActive);
     CHECK(o.strikesAllowed);
 
-    // Entry and strike permission use 150 mA, while 100 mA hysteresis keeps
-    // an already energy-ready fixture in that state through solar variation.
+    // With no charged-reservoir evidence, entry and strike permission use
+    // 150 mA, while 100 mA hysteresis keeps an already energy-ready fixture in
+    // that state through solar variation.
+    in.supplyV = 4.6f;
     in.supplyMa = 120;
     in.nowMs = 62000;
     o = lifeTick(st, in, prod);
@@ -527,6 +529,55 @@ int main() {
     o = lifeTick(st, in, prod);
     CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
     CHECK(o.wantSleep);
+  }
+
+  {
+    // Charge taper/done regression from the 2026-08-29 field observation:
+    // the BQ can report 0 mA with a valid 6.65 V VDC/cap reservoir. That is
+    // renewable-side strike energy, not permission inferred from VBAT alone.
+    LifeConfig prod = lifeConfigDefaults(false);
+    LifeState_t st;
+    lifeInit(st);
+    LifeInputs in = {};
+    in.forceNight = 0;
+    in.supplyGood = true;
+    in.supplyV = 6.65f;
+    in.supplyMa = 0;
+    in.battV = 3.34f;
+    in.tier = 0;
+    in.rxHoldMs = 600000;
+    in.awakeGraceUntilMs = 15000;
+    LifeOutputs o = {};
+    for (uint32_t s = 1; s <= 61; ++s) {
+      in.nowMs = s * 1000UL;
+      o = lifeTick(st, in, prod);
+    }
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(o.strikesAllowed);
+
+    // A charged battery without qualified VDC is still not enough.
+    in.supplyGood = false;
+    in.nowMs = 62000;
+    o = lifeTick(st, in, prod);
+    CHECK(!o.strikesAllowed);
+
+    // Reservoir hysteresis preserves ACTIVE below the 5.8 V entry floor, but
+    // the strike gate itself requires fresh entry-grade energy.
+    in.supplyGood = true;
+    in.supplyV = 5.6f;
+    in.nowMs = 63000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    CHECK(!o.strikesAllowed);
+    in.supplyV = 5.39f;
+    in.nowMs = 64000;
+    o = lifeTick(st, in, prod);
+    in.nowMs = 363999;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
+    in.nowMs = 364000;
+    o = lifeTick(st, in, prod);
+    CHECK_EQ(o.state, (uint8_t)LIFE_DAY_CHARGE);
   }
 
   {

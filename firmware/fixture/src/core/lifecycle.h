@@ -24,6 +24,8 @@ struct LifeConfig {
   uint16_t usefulSupplyMa;    // input current that counts as "day evidence" (20)
   uint16_t surplusMa;         // enter/strike threshold for DAY_ACTIVE (150)
   uint16_t surplusExitMa;     // remain-active hysteresis threshold (100)
+  uint16_t reservoirMv;       // charged VDC/cap proxy for enter/strike (5800)
+  uint16_t reservoirExitMv;   // charged VDC/cap remain-active floor (5400)
   uint16_t surplusConfirmS;   // 60
   uint16_t noSurplusConfirmS; // 300 (fall back to DAY_CHARGE)
   uint16_t nightMaxMin;       // bounded night force-exit (630)
@@ -37,6 +39,7 @@ LifeConfig lifeConfigDefaults(bool devProfile);
 struct LifeInputs {
   uint32_t nowMs;
   bool supplyGood;
+  float supplyV;
   float supplyMa;
   float battV;
   uint8_t tier;        // LedTier byte; PROTECT/OFF suppress the show

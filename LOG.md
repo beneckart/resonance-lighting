@@ -10,6 +10,33 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Noon ritual abstention traced to the wrong energy signal
+
+The accepted UTC-modulated CA/mainline production image remained healthy on 84
+live fixtures, but the first post-rollout hourly-ritual observation sampled no
+attempt on exact downlights Hawkeye `9F2664` and Navi `9F0E7C`. Targeted
+maintenance reads after the 12:00 local window found valid roughly 6.65 V VDC,
+FULL tier, and 0 mA supply current, with all ritual audit fields zero. Hawkeye's
+fresh charger state was enabled, not HIZ, fault-free, and charge-done. A wider
+read-only snapshot found the same valid-input/zero-current/done state across
+many downlights; Navi later returned to hundreds of mA without a configuration
+change. The fixtures abstained before the schedule core rather than failing a
+mechanism action.
+
+ADR 0072 corrects the policy seam. The solarnoid's immediate store is its VDC
+capacitor, so `DAY_ACTIVE` and autonomous strike permission now accept either
+the existing 150 mA live-harvest proof or a qualified VDC reservoir >=5.8 V.
+Remain-active hysteresis accepts 100 mA or >=5.4 V, while every strike still
+requires fresh entry-grade evidence. FULL battery tier, `supply_good`, schedule,
+time, authority, exact canary target/hour, power policy, and every hard
+mechanism gate remain mandatory; battery voltage/SOC alone grant nothing.
+
+The complete native fixture suite passes, including the new field regression
+for 0 mA at 6.65 V and negative checks for invalid/low VDC. This source is not
+fleet-promoted. The 84-fixture `fx-260829-af1d4ec-p` cohort keeps the earlier
+safe-abstaining gate while Hawkeye receives a one-target/one-hour canary. Raw
+observation ledgers are under `ops/bench/data/Black Rock City/`.
+
 ## 2026-08-29 -- Ben + Codex -- Accepted CA/mainline production image widened to 84 fixtures
 
 Built immutable production artifact `fx-260829-af1d4ec-p` from clean commit
