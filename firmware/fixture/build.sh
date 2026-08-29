@@ -15,6 +15,7 @@
 #   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
 #   ./build.sh --presence-sentinel       # trace-only red -> RGB-white presence
 #   ./build.sh --presence-distant-range  # trace-only raw 1000..<5000 mm presence
+#   ./build.sh --sentinel-trace-target A1B2C3 # radio-off + VL53 power A/B/A
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -54,6 +55,7 @@ DEEP_RECOVERY_TARGET=""
 MSA_TRACE_TARGET=""
 PRESENCE_SENTINEL=0
 PRESENCE_DISTANT_RANGE=0
+SENTINEL_TRACE_TARGET=""
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -106,6 +108,7 @@ Common build options:
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
+  --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -274,6 +277,7 @@ while [[ $# -gt 0 ]]; do
     --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
     --presence-sentinel) PRESENCE_SENTINEL=1; shift ;;
     --presence-distant-range) PRESENCE_DISTANT_RANGE=1; shift ;;
+    --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -364,6 +368,16 @@ if (( PRESENCE_DISTANT_RANGE )); then
   (( PRESENCE_SENTINEL )) ||
     fail "--presence-distant-range requires --presence-sentinel"
 fi
+if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
+  [[ "$SENTINEL_TRACE_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
+    echo "bad --sentinel-trace-target: $SENTINEL_TRACE_TARGET (expected six hex digits)" >&2
+    exit 2
+  }
+  [[ -z "$DEEP_RECOVERY_TARGET" ]] ||
+    fail "--sentinel-trace-target cannot be combined with --deep-recovery-target"
+  [[ -z "$MSA_TRACE_TARGET" ]] ||
+    fail "--sentinel-trace-target cannot be combined with --msa-trace-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -420,6 +434,11 @@ if (( PRESENCE_SENTINEL )); then
 fi
 if (( PRESENCE_DISTANT_RANGE )); then
   FLAGS+=" -DRES_CANOPY_PRESENCE_DISTANT_RANGE=1"
+fi
+if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
+  [[ "$ARTIFACT_VARIANT" == "t" ]] ||
+    fail "--sentinel-trace-target requires --artifact-variant t"
+  FLAGS+=" -DRES_SENTINEL_TRACE_TARGET=0x${SENTINEL_TRACE_TARGET}UL"
 fi
 MANIFEST_PROFILE=""
 case "$PROFILE" in

@@ -147,7 +147,9 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   power/boot/OTA safety vetoes remain. Strict rail-off commission stays available
   for explicit rail-cycle diagnostics.
 - LED electrical drive by role (ADR 0029 + 2026-07-11 amendment): BOTH LED roles on the switchable 3V3 rail -- the instrumented A/B through production-realistic cabling inverted the fat-wire VBAT result (rail +2.5 % mean, 22/25). One harness, one pinout; the rail is the hard kill; boost shelved with complete numbers.
-- Noisemaker: solenoid mallet striking the bamboo -- daytime solar-surplus percussion; the #3885 speaker-synth path abandoned once strikes proved out (ADR 0030, 2026-07-15).
+- Noisemaker: solenoid mallet striking an installed finger cymbal on each of the
+  72 canopy bamboo assemblies -- daytime solar-surplus percussion; the #3885
+  speaker-synth path abandoned once strikes proved out (ADR 0030 + 0071).
 - **Performance-audio source: received PUCA DSP Original Edition + Eurorack
   expansion + RODE VideoMic NTG is the primary optional bridge; CoreS3 + Module
   Audio remains the independent fallback (ADR 0035). Hardware is on hand but
@@ -193,7 +195,9 @@ The wider Resonance project team is in `BACKGROUND.md` -- read it for names and 
   LED choice, power, mounting, enclosure, and sensor allocation remain open (ADR 0032).
 - Chandelier light electronics scope/ownership (18 lights, internals fungible with
   the fleet -- ADR 0032) and its exact HEX/RGBW mix.
-- ~~Noisemaker verdict~~ -- DECIDED 2026-07-15 (ADR 0030): solenoid bamboo-strike; the #3885 speaker path is abandoned. Open: voltage variant, strike power source, mounting, scope.
+- ~~Noisemaker verdict~~ -- DECIDED (ADR 0030 + 0071): solenoid mallet into the
+  installed canopy finger cymbal; the #3885 speaker path is abandoned. Open:
+  voltage variant, strike power source, mounting, scope.
 - Bottom-up nightly energy budget by role; MPPT policy.
 - SAM-M8Q GPS and DS3231 RTC anchor qualification; final anchor counts/placement,
   power/backup strategy, time-quality protocol, schedule versioning, and invalid-time

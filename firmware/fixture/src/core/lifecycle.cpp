@@ -153,16 +153,19 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   // continuous probe either confirms DAY_ACTIVE or the current falls away.
   out.solarProbeActive = st.state == LIFE_DAY_CHARGE && solarEnter &&
                          st.surplusHeldSinceMs != 0;
-  // Day-charge duty cycle (prod only): sleep unless recently booted/woken or
-  // an actual operator command was accepted (ordinary fleet heartbeats and
-  // time beacons must never keep every fixture awake indefinitely).
+  // Daytime duty cycle (prod only): energy readiness grants actuator
+  // permission, not an all-day radio lease. Sleep from DAY_CHARGE or
+  // DAY_ACTIVE unless recently booted/woken or an actual operator command was
+  // accepted. Platform glue may hold one fixed UTC ritual window. Ordinary
+  // fleet heartbeats and time beacons never keep every fixture awake.
   bool rxHold = in.lastRxMs && (in.nowMs - in.lastRxMs) < in.rxHoldMs;
   // PROTECT sleep belongs exclusively to power_policy. In particular, its
   // qualified release path deliberately stays awake for a continuous 60 s
   // evidence window. Letting the independent DAY_CHARGE cadence sleep here
   // resets that RAM-only window on every wake and makes release impossible.
   bool powerOwnsSleep = in.tier == (uint8_t)LedTier::PROTECT;
-  out.wantSleep = (st.state == LIFE_DAY_CHARGE) && !c.devNoSleep && !rxHold &&
+  bool daytime = st.state == LIFE_DAY_CHARGE || st.state == LIFE_DAY_ACTIVE;
+  out.wantSleep = daytime && !c.devNoSleep && !rxHold &&
                   !out.solarProbeActive && !powerOwnsSleep &&
                   (int32_t)(in.nowMs - in.awakeGraceUntilMs) >= 0;
   out.sleepS = c.daySleepS;

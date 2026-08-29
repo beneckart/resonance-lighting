@@ -26,6 +26,7 @@
 #include "src/esp32/power_glue.h"
 #include "src/esp32/sensors/sensor_bus.h"
 #include "src/esp32/sensors/sensors.h"
+#include "src/esp32/sentinel_trace.h"
 #include "src/esp32/serial_cli.h"
 #include "src/esp32/sleep_audit_io.h"
 #include "src/esp32/solenoid.h"
@@ -97,7 +98,9 @@ void setup() {
   }
   // 9. Class sensors (cooperative machines; perimeter's VL53L5CX firmware
   //    upload takes several seconds, once).
-  if (!deepRecoveryBuild() && !bootGuardParked()) sensorsInit(gTelemetryFixtureClass);
+  if (!deepRecoveryBuild() && !bootGuardParked() &&
+      !sentinelTraceSkipInitialSensors())
+    sensorsInit(gTelemetryFixtureClass);
 
   // 11. Watchdog before network bring-up.
   watchdogInit();
@@ -132,6 +135,7 @@ void setup() {
   behaviorInit(gTelemetryFixtureClass, ledPixelCount(),
                ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2]);
   motionTraceInit();
+  sentinelTraceInit();
   timeAnchorInit(haveRtcAnchor);
 }
 
@@ -144,18 +148,28 @@ void loop() {
   boardPowerTick();
   statusLedTick();
   otaVerifyTick();
-  sensorsTick();
-  commsRecoveryTick();
-
   if (maintMode() == MODE_MAINT) {
     // A targeted trace image keeps the pre-maintenance flight recorder
     // available while WiFi serves it; normal behavior remains deliberately
     // paused and the LED rail stays off in maintenance.
     motionTraceNotePresenceSentinel(false);
     motionTraceTick();
+    sentinelTraceTick();
     maintenanceTick();
     return;
   }
+
+  // The exact-target sentinel experiment deliberately owns the loop after it
+  // turns ESP-NOW off. It samples power and optionally the perimeter ToF, then
+  // enters maintenance only after the bounded A/B/A campaign completes.
+  if (sentinelTraceOwnsLoop()) {
+    powerGlueTick(); // retain the ordinary low-VBAT protection boundary
+    sentinelTraceTick();
+    return;
+  }
+
+  sensorsTick();
+  commsRecoveryTick();
 
   // COMMS mode.
   netPeerTick();
@@ -164,6 +178,7 @@ void loop() {
   behaviorTick();
   renderTick();
   motionTraceTick();
+  sentinelTraceTick();
 }
 
 // Render arbitration: color-identify (rig ordering) > bench smoke toggle >

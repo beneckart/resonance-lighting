@@ -230,6 +230,48 @@ Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
 healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
 and zero send failures. The camp-labelled TSwift `979604` was not connected or
 changed during this flash.
+## 2026-08-29 -- Ben + Codex -- Hourly cymbal ritual and sentinel power gate staged
+
+Recorded the installed noisemaker truth: all 72 canopy/downlight mallets strike
+small finger cymbals mounted on the bamboo, not bare bamboo. ADR 0071 accepts a
+rootless hourly daytime ritual for energy-ready field downlights. Its fixed
+T-20 through T+47-second window attempts a high-time-quality fleet unison at
+T+5, one deterministic 500 ms hash-slot roll from T+12 through T+35.5, and a
+one-quarter-fleet after-ring from T+42 through T+45.5. The unison abstains above
+500 ms reported UTC uncertainty; the organic acts tolerate at most 3,000 ms.
+Invalid time, scheduled night, weak energy, a bridge/program lease, wrong
+class, or any existing solenoid hard gate remains an abstention.
+
+DAY_ACTIVE now means energy permission rather than an all-day radio lease. A
+field fixture returns to the ordinary bounded sleep/listen cadence from either
+day state. A confirmed energy-ready state may cross one timer sleep, is
+consumed at boot, and re-arms only if the fresh wake still satisfies the real
+strike gate. With valid UTC, an eligible downlight shortens only the final
+ordinary sleep needed to wake 20 seconds before the hour. The per-event ledger
+is RTC-retained and marked before actuation so a mechanism refusal or reset
+cannot retry the same event into a brownout loop.
+
+Persistent perimeter sensing remains deliberately unimplemented. Instead, a
+new exact-target `--sentinel-trace-target` test image runs an automatic 10-
+minute radio-off/sensor-off baseline, 30-second VL53 warm-up, 10-minute radio-
+off MSA311/VL53L5CX phase, and second 10-minute radio-off/sensor-off baseline.
+One-second PSRAM records retain corrected/raw battery current, battery/supply
+telemetry, charger state, explicit radio/rail truth, VL53 progress/range/zones,
+and palm-cover edges. Maintenance WiFi starts only after the campaign. The
+downloader verifies exact identity/revision/target/perimeter/completion, proves
+radio and rail phase truth plus advancing VL53 frames, and exclusive-creates
+the JSONL. The runbook requires physical target confirmation, one writer, an
+immutable `-t` artifact, and restoration of the exact prior fleet binary.
+
+The complete native fixture suite passes, including 18 daytime-ritual checks,
+15 sentinel-ring checks, and the expanded build-wrapper contract. Six Python
+capture tests and syntax compilation pass. A guarded, throwaway field/channel-
+11 sentinel test compile with dummy target `A1B2C3` passes at 1,207,669 bytes
+program / 68,804 bytes globals and emits a 1,207,984-byte binary. The temporary
+binary was automatically discarded; no artifact was published or flashed.
+Next is one named cymbal/downlight hourly-boundary canary and one physically
+confirmed perimeter power campaign before any sentinel implementation.
+
 ## 2026-08-29 -- Ben + Codex -- Windy-night canopy presence passes
 
 Ben physically located Sakura `F2BE0C` with Fleet Identify and corrected the

@@ -41,6 +41,31 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   cable, validate a different cable directly, rebuild the full chain, reconnect
   the confirmed 15 Ah cell, and complete exact USB/WiFi commissioning before
   removing quarantine (Ben/Codex).
+- [~] **P0: hardware-validate ADR 0071's hourly 72-cymbal daytime ritual.**
+  Source now decouples energy readiness from all-day radio reception, carries
+  readiness across only one freshly requalified timer wake, aligns the final
+  sleep to T-20 seconds, and implements the fixed unison -> deterministic roll
+  -> sparse after-ring through T+47 seconds. Native and exact-target embedded
+  compile gates pass; nothing was flashed. On one physically identified,
+  battery-installed cymbal downlight, prove high-quality UTC wake alignment,
+  T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to
+  sleep, and no duplicate after an in-window reset. Then prove unison abstention
+  with >500 ms uncertainty and all schedule/energy/lease/class/mechanism vetoes.
+  Widen only through immutable named artifacts and explicit target cohorts
+  (Ben/Codex; ADR 0071).
+- [ ] **P0: run the exact-target radio-off + perimeter-ToF sentinel power
+  campaign before implementing sentinel wake behavior.** Physically identify
+  one healthy perimeter fixture, record its exact current artifact/SHA/state,
+  build one immutable `--sentinel-trace-target <MAC>` `-t` image, and run the
+  automatic 10-minute off / 30-second warm-up / 10-minute ToF / 10-minute off
+  A/B/A. First use battery-isolated or consistently shaded input for load
+  delta; repeat in full sun for net energy and at least 20 deliberate close-palm
+  approaches. Download with `capture_sentinel_trace.py`, reject any radio leak,
+  rail mismatch, stalled VL53 reads, reset/fault, poor sunlight detection, or
+  unacceptable 6 Ah/night-budget cost, then restore and verify the exact prior
+  fleet binary. Do not implement visitor-triggered fleet wake until Ben accepts
+  this evidence; any eventual session needs a non-extendable deadline and
+  cooldown (Ben/Codex; ADR 0071).
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
   20-minute UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical

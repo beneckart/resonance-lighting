@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "../core/choreo/program.h"
+#include "../core/daytime_ritual.h"
 #include "../core/interaction_modulator.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
@@ -59,6 +60,13 @@ static uint8_t gLastCommissionDefault = 0xFF;
 static TimeConsensus gTimeConsensus;
 static bool gScheduleValid = false;
 static bool gScheduleNight = false;
+static bool gRitualKeepAwake = false;
+
+static constexpr uint32_t kRitualRtcMagic = 0x52544C31UL; // "RTL1"
+static constexpr uint32_t kDayEnergyCarryMagic = 0x454E5231UL; // "ENR1"
+RTC_DATA_ATTR static uint32_t gRitualRtcMagic = 0;
+RTC_DATA_ATTR static DaytimeRitualState gRitualState;
+RTC_DATA_ATTR static uint32_t gDayEnergyCarry = 0;
 
 struct PresenceWaveState {
   uint32_t eventId;
@@ -336,6 +344,19 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gRuntime.init(fixtureClass, pixelCount, seed, configuredAutonomousProgram());
   neighborTableInit(gNeighbors);
   lifeInit(gLife);
+  if (gRitualRtcMagic != kRitualRtcMagic) {
+    daytimeRitualInit(gRitualState);
+    gRitualRtcMagic = kRitualRtcMagic;
+  }
+  bool carriedEnergy = esp_reset_reason() == ESP_RST_DEEPSLEEP &&
+                       gDayEnergyCarry == kDayEnergyCarryMagic;
+  // The carry is one-hop only. A fresh measurement must explicitly re-arm it
+  // before the next timer sleep, so vanished solar cannot remain permission.
+  gDayEnergyCarry = 0;
+  if (carriedEnergy) {
+    gLife.state = LIFE_DAY_ACTIVE;
+    Serial.println("lifecycle: restored one-wake daytime energy readiness");
+  }
   gLifeCfg = lifeConfigDefaults(gCfg.profile == PROFILE_DEV);
   gLifeCfg.daySleepS = RES_DAY_SLEEP_S;
   gLifeCfg.nightMaxMin = gCfg.nightMaxMin;
@@ -346,6 +367,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
                                        : RES_BOOT_AWAKE_MS);
   gSolarProbeActive = false;
   gTofPresenceActive = false;
+  gRitualKeepAwake = false;
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
@@ -554,13 +576,40 @@ void behaviorTick() {
   gNetNightMin = lo.nightMin;
   gTelemetryLifeState = lo.state;
 
-  // Feed the runtime a fresh ShowFrame (micro-lease path).
+  // Feed the runtime a fresh ShowFrame (micro-lease path) before evaluating
+  // autonomy. A frame received on this loop owns the ritual veto immediately.
   const ShowFrameIn &sf = netPeerLastShowFrame();
   if (sf.rx_ms && sf.rx_ms != gLastShowFrameRxMs) {
     gLastShowFrameRxMs = sf.rx_ms;
     ShowFrameState fs = {sf.rx_ms, sf.phase, sf.hue, sf.flags, sf.val,
                          sf.bright, sf.effect, sf.beat_phase, sf.energy};
     gRuntime.noteShowFrame(fs, now);
+  }
+
+  DaytimeRitualInputs ritualIn = {};
+  ritualIn.enabled = gCfg.profile == PROFILE_PROD &&
+                     gClass == FIXTURE_DOWNLIGHT;
+  ritualIn.scheduledDay = gScheduleValid && !gScheduleNight;
+  ritualIn.energyReady = gStrikesAllowed;
+  ritualIn.authorityFree = !gRuntime.leaseActive();
+  ritualIn.utcValid = wall.valid;
+  ritualIn.utcS = wall.utcS;
+  ritualIn.subMs = wall.subMs;
+  ritualIn.uncertaintyMs = wall.uncertaintyMs;
+  memcpy(ritualIn.fixtureId, gMyId, sizeof(ritualIn.fixtureId));
+  DaytimeRitualOutputs ritual =
+      daytimeRitualTick(gRitualState, ritualIn);
+  gRitualKeepAwake = ritual.keepAwake;
+  if (ritual.strikeRequested) {
+    const char *eventName = daytimeRitualEventName(ritual.event);
+    Serial.printf("daytime-ritual: hour=%lu event=%s attempt\n",
+                  (unsigned long)ritual.hourKey, eventName);
+    if (!strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM,
+                                behaviorStrikePermitted())) {
+      Serial.printf("daytime-ritual: %s refused (energy gate)\n", eventName);
+    } else if (!solenoidStrike(RES_SOLENOID_DEFAULT_MS, eventName)) {
+      Serial.printf("daytime-ritual: %s blocked (mechanism gate)\n", eventName);
+    }
   }
 
   if (gShowActive) {
@@ -693,15 +742,27 @@ void behaviorTick() {
 #endif
   }
 
-  // Prod day-charge duty cycle. Blocked by pending OTA verify and maintenance
+  // Prod daytime duty cycle. Blocked by pending OTA verify and maintenance
   // handled elsewhere; the wake listen window re-arms via behaviorInit's grace.
   // An operator-selected program lease promises that the receiver remains
   // reachable for its full duration. In particular, a long DARK/blackout lease
   // must not hit the generic 10-minute control hold, deep-sleep, and lose its
   // RAM lease on reboot. Once the lease expires, normal day sleep resumes.
-  if (lo.wantSleep && powerWakeSampleWindowComplete() &&
-      !gRuntime.leaseActive() && !otaVerifyPending())
-    enterTimedDeepSleep(lo.sleepS, SLEEP_CAUSE_DAY_CHARGE);
+  if (lo.wantSleep && !gRitualKeepAwake && powerWakeSampleWindowComplete() &&
+      !gRuntime.leaseActive() && !otaVerifyPending()) {
+    uint16_t sleepS = lo.sleepS;
+    if (gCfg.profile == PROFILE_PROD && gClass == FIXTURE_DOWNLIGHT &&
+        gStrikesAllowed && gScheduleValid && !gScheduleNight && wall.valid) {
+      sleepS = daytimeRitualSleepS(wall.utcS, wall.subMs, sleepS);
+    }
+    // Restore DAY_ACTIVE for only the next timer wake, and only while the
+    // current measurement still grants actual strike permission.
+    gDayEnergyCarry =
+        gLife.state == LIFE_DAY_ACTIVE && gStrikesAllowed
+            ? kDayEnergyCarryMagic
+            : 0;
+    enterTimedDeepSleep(sleepS, SLEEP_CAUSE_DAY_CHARGE);
+  }
 }
 
 bool behaviorFrame(FrameBuffer &f) {
