@@ -429,7 +429,9 @@ int main() {
     o = lifeTick(st, in, prod);
     CHECK(!o.wantSleep);
     // Morning: day evidence clears the latch and dawn logic resumes.
-    in.supplyGood = true;
+    // The BQ supply-good bit may flicker false when charging is done. VDC is
+    // the direct upstream reservoir measurement and remains authoritative.
+    in.supplyGood = false;
     in.supplyMa = 300;
     in.nowMs = (t += 1000);
     o = lifeTick(st, in, prod);
@@ -555,15 +557,15 @@ int main() {
     CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
     CHECK(o.strikesAllowed);
 
-    // A charged battery without qualified VDC is still not enough.
-    in.supplyGood = false;
+    // A charged battery without external/reservoir VDC is still not enough.
+    in.supplyV = 0.0f;
     in.nowMs = 62000;
     o = lifeTick(st, in, prod);
     CHECK(!o.strikesAllowed);
 
     // Reservoir hysteresis preserves ACTIVE below the 5.8 V entry floor, but
     // the strike gate itself requires fresh entry-grade energy.
-    in.supplyGood = true;
+    in.supplyGood = false;
     in.supplyV = 5.6f;
     in.nowMs = 63000;
     o = lifeTick(st, in, prod);

@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Pre-window canary caught charger-validity flicker
+
+Hawkeye `9F2664` accepted exact one-hour artifact `fx-260829-2876d89-t`,
+SHA-256 `e7c6b1f29b4de7965ff3ced7db7f4160710d84a7a12e40acff48407c050b1a8d`,
+and passed job `F6088220`: prior production revision, fresh maintenance power,
+exact upload, software-reset rejoin, 32.632-second pending gate, field/downlight,
+and recovery 0. The target hour had not arrived.
+
+A four-minute read-only pre-window watch then found continuously high
+6.57-6.75 V VDC but lifecycle remained `DAY_CHARGE`. The BQ `supply_good` bit
+briefly flickered false while VDC remained charged, resetting the ADR 0072
+60-second confirmation. ADR 0073 separates the paths: live current still needs
+`supply_good`, while the independently measured 5.8 V solarnoid reservoir does
+not. A high LFP alone cannot meet that external VDC threshold. The first canary
+is retained but superseded before its eligible hour; it did not actuate.
+
 ## 2026-08-29 -- Ben + Codex -- Noon ritual abstention traced to the wrong energy signal
 
 The accepted UTC-modulated CA/mainline production image remained healthy on 84

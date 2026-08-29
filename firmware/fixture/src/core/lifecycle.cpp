@@ -68,16 +68,16 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   // DAY_ACTIVE requires measured renewable-side energy, not merely a charged
   // battery. The solarnoid's immediate store is the VDC capacitor: a tapered
   // or charge-done BQ legitimately reports 0 mA while that reservoir remains
-  // charged. Accept either live harvest or reservoir voltage, always with the
-  // charger's supply-good qualification and FULL battery tier. Hysteresis
+  // charged. Accept either charger-qualified live harvest or the independent
+  // upstream reservoir voltage, always with FULL battery tier. Hysteresis
   // holds an already-active fixture through ordinary solar/load variation.
-  bool liveHarvest = in.supplyMa >= (float)c.surplusMa;
+  bool liveHarvest =
+      in.supplyGood && in.supplyMa >= (float)c.surplusMa;
   bool storedStrikeEnergy = in.supplyV * 1000.0f >= (float)c.reservoirMv;
-  bool renewableEnter = in.supplyGood && (liveHarvest || storedStrikeEnergy);
+  bool renewableEnter = liveHarvest || storedStrikeEnergy;
   bool renewableStay =
-      in.supplyGood &&
-      (in.supplyMa >= (float)c.surplusExitMa ||
-       in.supplyV * 1000.0f >= (float)c.reservoirExitMv);
+      (in.supplyGood && in.supplyMa >= (float)c.surplusExitMa) ||
+      in.supplyV * 1000.0f >= (float)c.reservoirExitMv;
   bool solarEnter = renewableEnter && in.tier == 0;
   bool solarStay = renewableStay;
 

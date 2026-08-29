@@ -76,6 +76,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   regression coverage passes. Prove this only on exact Hawkeye in one future
   UTC hour, then restore its retained `fx-260829-af1d4ec-p` binary; do not
   fleet-promote the correction before that evidence.
+  **Pre-window ADR 0073 correction:** first Hawkeye canary
+  `fx-260829-2876d89-t` passed exact OTA/pending verification, but a four-minute
+  watch held 6.57-6.75 V while `supply_good` flickered and lifecycle never left
+  DAY_CHARGE. The charger-valid bit is not the upstream cap-voltage authority.
+  Live-current qualification still requires it; >=5.8 V reservoir qualification
+  now stands independently. The first artifact was superseded before its hour
+  and did not actuate. Build and use a new exact artifact for the same hour.
   On one physically identified,
   battery-installed cymbal downlight, prove high-quality UTC wake alignment,
   T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to
