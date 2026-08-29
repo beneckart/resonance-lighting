@@ -32,6 +32,7 @@ static void printHelp() {
       "quick commands (mesh, WAN-down safe):\n"
       "  i<ID>[:secs]             identify one fixture (blink), e.g. i9E5AB8:10\n"
       "  I                        identify ALL for 8 s\n"
+      "  A<ID>[:secs]             exact-target CA lease; 0 releases (default 180 s)\n"
       "  K<ID>:<ms>               solenoid strike, 5-300 ms (never broadcast)\n"
       "  U<ID>                    exact-target OTA maintenance for 35 s\n"
       "  F<ID>:<0|1>:<0|1>        exact profile commission/field + persist bit\n"
@@ -95,6 +96,31 @@ static bool handleQuickCommand(const char *tok) {
     if (secs > 255) secs = 255;
     meshIdentify(id, (uint8_t)secs);
     Serial.printf("identify %.6s %ds\n", tok + 1, secs);
+    return true;
+  }
+  if (tok[0] == 'A' && tok[1] != 0) {
+    uint8_t id[3] = {};
+    size_t len = strlen(tok);
+    const char *colon = len > 7 && tok[7] == ':' ? tok + 7 : nullptr;
+    if ((len != 7 && !colon) || !parseHexId(tok + 1, id) ||
+        memcmp(id, kAll, sizeof(id)) == 0) {
+      Serial.println("A<6-hex-ID>[:0-900-secs] (exact target required)");
+      return true;
+    }
+    int secs = 180;
+    if (colon && !parseDecimalRange(colon + 1, 0, 900, secs)) {
+      Serial.println("A<6-hex-ID>[:0-900-secs] (0 releases)");
+      return true;
+    }
+    if (!meshProgramLease(id, 1 /* PROG_GH_CA */, (uint16_t)secs,
+                          0x01 /* hard cut */, nullptr)) {
+      Serial.println("CA lease refused: exact nonzero target required");
+      return true;
+    }
+    if (secs)
+      Serial.printf("CA %.6s %ds lease\n", tok + 1, secs);
+    else
+      Serial.printf("CA %.6s released\n", tok + 1);
     return true;
   }
   if (tok[0] == 'K' && tok[1] != 0) {

@@ -186,6 +186,11 @@ show                      # api key redacted
 probe | mem | reboot | help
 ```
 
+For daylight fixture interaction checks, `A<ID>[:secs]` grants one exact
+fixture a self-expiring CA lease (180 s by default, capped at 900 s) without
+waking the rest of the fleet; `A<ID>:0` releases it early. The command remains
+available over USB when the handheld has no WAN connection.
+
 ## Channel guard (ADR 0036/0037)
 
 One 2.4 GHz radio; in STA mode the AP picks the channel. On association the
