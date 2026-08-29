@@ -2,18 +2,19 @@
 
 ## Result
 
-Two exact-target radio-off + perimeter-ToF A/B/A field campaigns completed
-their interaction sequences, but neither produced an acceptable power trace.
-Rapid sunrise changed solar input across the first run, and both completed
+Three exact-target radio-off + perimeter-ToF A/B/A field campaigns completed
+their interaction sequences, but none produced an acceptable power trace.
+Rapid sunrise changed solar input across the first run. The first two completed
 PSRAM buffers were then erased by task-watchdog resets while maintenance WiFi
-was trying to start. The second run held the panel consistently covered and
-therefore fixed the environmental control, but it independently reproduced the
-retrieval failure.
+was trying to start. The second and third runs held the panel consistently
+covered and therefore fixed the environmental control, but independently
+reproduced the retrieval/checkpoint failure.
 
 Treat these as useful interaction/retrieval-path evidence, not as a measured
-sentinel current delta and not as a promotion gate pass. The first run was
-restored without opening the enclosure. An exact-prior restore gather was
-armed after the second reset and completed successfully without lid access.
+sentinel current delta and not as a promotion gate pass. Every canary was
+restored without opening the enclosure. The final exact-prior restore was
+armed while the canary was stuck in an unintended reset/rerun loop, intercepted
+the next brief mesh window, and completed without operator involvement.
 
 ## Declared operation
 
@@ -171,6 +172,99 @@ field profile, perimeter class, `sensor_bits=2`, recovery state zero, no BQ
 fault, and charging input after Ben uncovered the panel. No lid access, fleet
 broadcast, or profile mutation was required.
 
+## Persistent-canary post-mortem
+
+The third canary used clean source `ab27ea3` and immutable exact-target artifact:
+
+```text
+fw_rev: fx-260829-96862d8-t
+bytes: 1227152
+sha256: bcb5b98c616a5ef578600f6e67623748d48bd8bf27808ca910b06dcfb80986cc
+recipe_sha256: 96862d8b4b1117cce4d1a256bc0e951fb11e4a6acc9d6c14b85ef2944de31be6
+target: F2BCF0 (Spyro), test-only and not fleetable
+```
+
+OTA job `34CB76FC` found only Spyro at `192.168.1.99`, rechecked zero
+covered-panel input, uploaded the sealed SHA-256, and formally verified the
+exact revision at 28,168 ms same-boot uptime. Ben then made at least 18-21
+reported close approaches during the active window (12-15 followed by about
+6); four additional cycles were requested but not explicitly confirmed. The
+interaction count is operator context only because no trace was recovered.
+
+The critical failure sequence was reconstructed from live mesh timing:
+
+```text
+~09:43:30 local  third measurement window ended; checkpoint/retrieval began
+~09:44:30        task-watchdog reboot on the exact canary
+~09:45:10        fresh boot reached about 31 s uptime, then radio disappeared
+~09:55:16        another task-watchdog reboot
+~09:55:47        fresh boot again reached about 31 s uptime, then radio disappeared
+ 10:06:02        restore gather caught the next maintenance window and uploaded prior
+```
+
+The first post-reset radio pattern is the exact-target canary's 30-second radio
+settle followed by baseline A. It proves that boot did not accept the completed
+checkpoint and silently started a new campaign. The old persistence code
+returned only `false`: it did not report whether the header was missing,
+partially committed, CRC-invalid, capacity-rejected, or sample-invalid, and it
+did not read the stored bytes back after the write. The precise rejected field
+is therefore not recoverable from this run. This is an observability defect as
+well as a persistence defect; the evidence supports "checkpoint absent or
+rejected," not a more specific flash claim.
+
+The next reboot occurred about one 30-second settle plus one 10-minute baseline
+after the first. That places it at `startTof()`. The perimeter initializer
+uploads the VL53L5CX firmware blob synchronously over the mandatory 100 kHz bus.
+The high-level call had watchdog resets only before and after it, while the
+vendored I2C chunk loop had none. A healthy complete upload can therefore exceed
+the fixture's eight-second task watchdog. The timing plus the only unserviced
+operation at that transition makes this the supported cause of the repeating
+rerun resets.
+
+Fresh post-watchdog heartbeats reported `sensor_bits=10`, meaning MSA311 plus
+VL53L5CX were both acknowledged on this boot. This confirms that the corrected
+MSA311 `0x62` address can see Spyro's device. The earlier bit-2-only boots remain
+evidence of intermittent probe/rail-chain behavior, not proof that MSA311 is
+absent.
+
+### Corrective actions
+
+The persistence format is now a two-sector fail-closed journal:
+
+1. Before measurement, the exact artifact erases and writes a CRC-protected run
+   marker and reads it back. Failure enters maintenance; measurement never starts.
+2. The completed header and sample data live after that marker. The header is
+   still written last, but the marker is never erased during checkpointing.
+3. Firmware reads back the complete stored trace, validates artifact tag,
+   schema, sample size, capacity, no overwrite, contiguous sequence, header CRC,
+   and sample CRC, and only then reports `persisted=true`.
+4. A reset with a matching run marker but no valid checkpoint enters retrieval
+   recovery and reports the exact rejection state. It cannot start another
+   campaign or ask for another interaction sequence.
+
+The vendored VL53 I/O now services the already-armed fixture watchdog between
+bounded 100 kHz write/read chunks and ULD waits. The hook is a no-op during
+ordinary boot before the watchdog is armed. This preserves the eight-second hang
+boundary while supervising a long but advancing firmware transfer.
+
+The operator process also failed. The unproven persistence path was tested by
+running another full 30-minute campaign and asking Ben for another interaction
+set. Later, radio silence was interpreted from estimated phase time rather than
+positive device state, leading to yet another request after the canary had
+already restarted. No further human-assisted campaign is permitted until the
+new `--sentinel-trace-smoke` build completes its 40-second automatic sequence,
+survives a deliberate same-artifact OTA reset, and returns the same persisted
+count/sequence over HTTP. Smoke telemetry is explicitly tagged, and the power
+capture tool refuses to accept it as measurement evidence.
+
+Exact-prior recovery job `E1428FE2` ran unattended with a 900-second discovery
+window and addressed only `F2BCF0`. It found the canary at `192.168.1.99`,
+uploaded the retained 1,207,376-byte `fx-260827-1254f04-p` binary with SHA-256
+`2f9a93344e172b023ee8df473b7c747b26f38dc0ec5353f6efd00d50ec45f4af`,
+and formally verified a fresh software-reset rejoin at 30,316 ms uptime. Final
+state was field profile, perimeter class, recovery zero, and no commission
+residue. No lid access or physical action was required.
+
 ## Retained ledgers
 
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-canary-ota-job.jsonl`
@@ -183,12 +277,17 @@ broadcast, or profile mutation was required.
 - `ops/bench/data/Black Rock City/20260829-150227-A54875FD-fleet-ota-results.jsonl`
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-rerun-restore-job.jsonl`
 - `ops/bench/data/Black Rock City/20260829-154531-612D848D-fleet-ota-results.jsonl`
+- `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-persist-canary-ota-job.jsonl`
+- `ops/bench/data/Black Rock City/20260829-161217-34CB76FC-fleet-ota-results.jsonl`
+- `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-persist-restore-job.jsonl`
+- `ops/bench/data/Black Rock City/20260829-170602-E1428FE2-fleet-ota-results.jsonl`
 
 ## Required rerun
 
-1. Hardware-prove completed-trace flash checkpoint, reset survival, and
-   retrieval before trusting another full campaign. WiFi startup may still be
-   diagnosed separately, but it can no longer be allowed to erase evidence.
+1. Hardware-prove the 40-second no-human smoke artifact, including complete
+   checkpoint readback, same-artifact OTA reset survival, identical post-reset
+   count/sequence, and exact-prior restore. Do not run another full campaign or
+   request physical interaction before this passes.
 2. Re-run under consistently shaded/battery-isolated input for the incremental
    radio-off VL53 current.
 3. Re-run in stable full sun for net energy and at least 20 deliberate palm
