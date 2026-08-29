@@ -1,5 +1,6 @@
 #pragma once
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,6 +25,47 @@ enum BridgeMode : uint8_t {
   MODE_OFF,
   MODE_COUNT,
 };
+
+// Ohmic's Original Edition trigger test treats GPIO15 HIGH as a touched paw.
+// Keep the electrical polarity in one native-tested boundary so boot arming,
+// runtime gestures, and telemetry cannot disagree.
+inline bool pucaPawTouchedFromPinHigh(bool pinHigh) { return pinHigh; }
+
+// Exact received PUCA A4EB10 bench calibration (2026-08-29): released GPIO15
+// capacitance was 867-870 counts and a held paw fell to 216. Classic ESP32
+// touch counts fall as capacitance rises. Hysteresis rejects the transition
+// band, and a near-zero reading fails safe as an invalid/shorted channel.
+struct PucaCapTouchDetector {
+  bool touched = false;
+
+  bool update(uint16_t cap, uint16_t pressMax = 650,
+              uint16_t releaseMin = 750, uint16_t validMin = 50) {
+    if (cap < validMin) {
+      touched = false;
+      return false;
+    }
+    if (touched) {
+      if (cap >= releaseMin) touched = false;
+    } else if (cap <= pressMax) {
+      touched = true;
+    }
+    return touched;
+  }
+};
+
+// The received carrier pots read ADC-high at the physical CCW end and ADC-low
+// at CW. Normalize both so 0 is fully CCW and 1 is fully CW.
+inline float pucaCarrierPotFromAdc(float normalizedAdc) {
+  if (normalizedAdc < 0.0f) normalizedAdc = 0.0f;
+  if (normalizedAdc > 1.0f) normalizedAdc = 1.0f;
+  return 1.0f - normalizedAdc;
+}
+
+// Clockwise consistently means more audio sensitivity: 0.25x at CCW, 1x at
+// center, and 4x at CW.
+inline float pucaSensitivityGainFromAdc(float normalizedAdc) {
+  return 0.25f * powf(16.0f, pucaCarrierPotFromAdc(normalizedAdc));
+}
 
 inline BridgeMode pucaNextLiveMode(BridgeMode current) {
   switch (current) {

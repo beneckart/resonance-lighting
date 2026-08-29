@@ -131,6 +131,30 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   no mismatch, sensor bits 5, and healthy MSA/TMF/BMP; TMF has 85,330 reads with
   zero errors/recoveries. This rules out a current fixture sensor failure and
   makes the raw-census unknown window the supported failure mechanism.
+- [ ] **P0: detect and recover a live T-Deck transmit-path stall.** On
+  2026-08-29 exact bridge `8EB508` continued receiving the channel-11 fleet and
+  emitting a healthy census while both LED Studio and Fleet/Blink stopped
+  affecting fixtures. `sendok` stayed exactly 9,058 across attempted sends and
+  `sendfail` stayed zero; fixtures remained in CA. A T-Deck reboot restored the
+  path immediately, and Ben confirmed a new all-fleet green stream while TX
+  callbacks advanced. Instrument every synchronous `esp_now_send()` result
+  (accepted/error counts plus last error), because the existing counters see
+  callbacks only and ordinary send sites discard enqueue failures. LED Studio
+  must distinguish planned targets from successfully submitted frames and show
+  a radio fault instead of an active-looking stream. Add a bounded peer/radio
+  re-init or watchdog policy for stream-active TX-flat/RX-growing evidence,
+  preserve a diagnostic before recovery, and hardware-reproduce with an
+  all-fleet soak. Do not infer CA arbitration from this signature
+  (Ben/Codex).
+- [ ] **P0: make the localhost fleet dashboard fail visibly stale on serial
+  loss.** During the same 2026-08-29 investigation, COM7 disappeared while the
+  dashboard process and HTTP server stayed alive. `/api/state` and the browser
+  continued serving the last 01:55 master/peer snapshot with no disconnect or
+  master-age warning, making later read-only checks look live. Expose serial
+  connected/disconnected state and master age in both API and UI, stop presenting
+  cached peers as current, and either reconnect with explicit bridge identity
+  verification or require an operator restart. Add a regression test for an
+  unplugged/re-enumerated port while HTTP remains up (Ben/Codex).
 - [~] **Hardware-validate the stable/filterable T-Deck Fleet view.** Source,
   the complete native Bridge suite, and the local embedded build pass. The new
   default is the complete callsign-stable registry plus unexpected live peers;
@@ -445,11 +469,36 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   over 207 s with all reported error/clipping counters zero. The current 103
   native checks pass; installed `0.4.1-dev` binary is 964,752 bytes with SHA-256
   `e8ec74680564f96f10c2f6e87b37eb807b9d9ba3b355ccf41c72f8301c4984b6`.
-  ADR 0063 `0.5.0-dev` is now credentialed and installed. The 2026-08-27 bench
+  ADR 0063 `0.5.0-dev` was credentialed and installed. The 2026-08-27 bench
   pass proved no-hold SAFE-IDLE with zero direct frames, `A4EB10` Bridge OS
   identity, exact-target shared-WiFi maintenance, retained-binary OTA, dark
-  software-reset rejoin, and 25 s pending-verify survival. Still prove the
-  physical paw-held DJ-first/setup gestures, `/resume`, maintenance timeout,
+  software-reset rejoin, and 25 s pending-verify survival. The 2026-08-28
+  `0.5.2-dev` bench pass exercised DJ/HEARTBEAT/EMBER/HUE from the onboard MEMS
+  path across about 75-92 fresh fixtures with zero reported transport/I2S/
+  I2C errors, and replaced frame-count calibration with a hardware-proven two-
+  second clock; Ben visibly confirmed audio-reactive fixture behavior. The
+  Initial laptop testing remained at the line noise floor because the TS plugs
+  were mistakenly in J8/J9 AUDIO OUT. Exact JSAUX
+  `B07D8M5DML` plus two Bolvek `B09K3DHL82` adapters are the correct TRS-stereo
+  -> dual-RCA -> dual-TS-mono topology. After moving them to J5/J6 AUDIO IN, the
+  same 10 percent laptop waveform raised RMS from 6-12 to 37-41 with level about
+  0.13-0.15 and zero clip/error counters, proving cable, faceplate line routing,
+  codec/I2S, renderer, and fleet transport. A later 60 percent laptop paired-
+  pulse run reached `wave=0.222` and peak 2,063 with zero errors/clips across
+  about 84-93 fresh fixtures; Ben visibly accepted the deep-red HEARTBEAT look
+  while sweeping the top knob through 0.26x-4.00x. That pass exposed the
+  carrier's reversed raw-ADC polarity. Exact-target OTA-installed `0.5.3-dev`
+  now normalizes both pots so clockwise increases top sensitivity and bottom
+  brightness/hue; 121 native checks, fresh embedded build, and expected-revision
+  rejoin pass. A full power cycle and physical full-clockwise test then read
+  exactly `gain=4.00`, `ceil=1.00`, and HUE endpoint 360. Still test real RODE
+  gain/clipping.
+  The paw fault is closed in `0.5.5-dev`: the vendor example's GPIO15 digital
+  read stayed low, while raw ESP32 capacitance proved released 867-870 and held
+  through 216. Hysteretic, invalid-low-fail-safe capacitance handling passed 129
+  native checks, exact-target OTA/rejoin, and a real held-paw Pod20 power cycle
+  with `bootarmed=1`, `active=1`, DJ + line, and zero errors. Still prove timed
+  post-arm short-touch mode cycling and long-hold lock, `/resume`, maintenance timeout,
   fleet-wide-maintenance rejection without disturbing the live fleet, no PUCA
   softAP, and forced-self-test rollback.
   On the no-human bench, prove `peak`/`wave`/deep-red output from the performer's
@@ -772,11 +821,46 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   algorithm error. Open/reseat one trunk canary, use `P<id>:10` for a cold
   VSQT re-probe, then repair the remainder. Preserve the dashboard flags until
   the physical mapping is written down (Ben + Elliot/field team).
-- [ ] **Close the remaining visibly red/non-OTA fixtures after the overnight
-  test.** A couple of lanterns still show the prior red posture because they did
-  not accept the current OTA. The exact 12-ID observed holdback census remains
-  below; do not spend tonight looping retries. Diagnose from fresh power and
-  image evidence in the morning (Ben/Codex + field team).
+- [x] **Identify the anomalous red canopy CA renderer -- DONE 2026-08-29.** Ben
+  filtered Fleet by firmware and identified it on the first try as Sakura
+  `F2BE0C`, the sole observed `fx-260829-8790f6d-p` fixture. That artifact was
+  built from clean pushed source `ab71b8989b12e860ad1d82a5e1cf4767773a86f7`,
+  which inherits ADR 0069's synchronized autonomous palette cadence from
+  `f5b86070931a6b32272735930fa8abf869ce02d2`. With trusted UTC and no bridge
+  lease, GH CA advances hue by 43 every 1,200 seconds in a six-step, two-hour
+  loop; bridge-owned rendering preserves the commanded hue. This exactly
+  explains the red and later non-blue CA colors plus normal green Fleet Blink
+  and LED Studio control. It is not Daxter, a class mismatch, missed OTA, stuck
+  channel, stale hue lease, or retired ready signal. Do not OTA from color alone.
+  The separate exact 12-ID historical holdback census remains below
+  (Ben/Codex + field team).
+- [x] **Accept ADR 0069's synchronized palette cadence -- DONE 2026-08-29.**
+  After the earlier red and later non-blue physical observations, exact Sakura
+  `F2BE0C` on `fx-260829-8790f6d-p` produced a fresh read-only GH CA state-1
+  sample at RGB `51,0,70`, exactly matching the UTC-derived purple-phase ratio,
+  while baseline downlights retained static blue. Ben physically confirmed the
+  nice purple output and accepted the artistic behavior. Normal CA animation,
+  Fleet Blink, and LED Studio lease behavior had already passed. The planned
+  two-hour monitor was deleted; a complete loop is no longer a release gate
+  (Ben).
+- [ ] **Consolidate the validated canary stack into one immutable fleet
+  candidate.** The 110-fixture night census contains five special instances:
+  Akuma `9E668C` on mutable `dev-local`, Rikku `9F26B0` on ADR 0068 intermediate
+  `fx-260828-abd893c-p`, Dixie `F40314` and Froakie `9E5B18` on ADR 0069
+  `fx-260829-97aed8e-p`, and Sakura `F2BE0C` on ADR 0069/0070 superset
+  `fx-260829-8790f6d-p`. Do not combine or relabel those binaries. Current main
+  already contains the safety/class/uplight fixes; fixture source through clean
+  branch commit `ab71b8989b12e860ad1d82a5e1cf4767773a86f7` is the candidate
+  interaction/presence superset. Keep the later exact-target motion recorder
+  out of the ordinary release. Before merging/building, pass the ADR 0068
+  negative fault matrix, measure one perimeter HEX canary's current/rail states,
+  and quantify one named hanging downlight's person-range margin. The
+  synchronized palette cadence was accepted separately on 2026-08-29. Then merge accepted source,
+  make a fresh clean ADR 0040 artifact, repeat a mixed downlight/perimeter/
+  uplight canary, and widen only to explicit safe targets. Preserve the existing
+  low-voltage, PROTECT, recovery, Magic Wand, and target-diagnostic exclusions;
+  normalize Akuma separately because `dev-local` is not immutable identity
+  (Ben/Codex + field team).
 - [x] **Field-validate ADR 0044's TMF presence wipe -- DONE 2026-08-16.** The
   per-zone learned background prevented the occluding rig from acting as a fixed
   threshold trigger, and the field team repeatedly triggered complete-looking
@@ -2312,8 +2396,18 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   callbacks with zero audio/I2C/radio queue errors. The 2026-08-27 `0.5.0-dev`
   pass then proved USB bootstrap, no-hold SAFE-IDLE/zero direct frames, Bridge
   OS identity, exact-target shared-WiFi OTA, dark rejoin, and pending-verify
-  survival. Next: physical DJ-first boot hold/setup gestures, rollback,
-  `/resume`/timeout/broadcast-rejection/no-softAP checks, full knob sweeps,
+  survival. A 2026-08-28 `0.5.2-dev` exact-target OTA then hardware-proved all
+  four live renderers from the onboard mics and the corrected two-second
+  calibration clock. The apparent silent faceplate input was operator routing:
+  both TS plugs were in J8/J9 AUDIO OUT. Moving them to J5/J6 AUDIO IN made the
+  same laptop waveform raise RMS from 6-12 to 37-41 with zero clipping/errors,
+  proving the complete line-to-fleet path; real RODE gain remains open. The
+  apparent paw fault was the vendor example's digital-read method: exact-unit
+  raw capacitance is released 867-870 and held through 216. `0.5.5-dev` uses
+  hysteretic fail-safe capacitance detection; a real power cycle proved
+  `bootarmed=1`, `active=1`, and DJ + line. Next: prove timed post-arm setup
+  gestures and rollback,
+  `/resume`/timeout/broadcast-rejection/no-softAP checks,
   exact RODE/DG faceplate route and gain, visible named-
   fixture response plus three-second fallback, mixed HEX/RGBW fidelity, intended-
   placement RF/PDR, overrun/reset, and multi-hour stability. Full checklist:

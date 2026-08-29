@@ -10,6 +10,347 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Sakura synchronized palette accepted
+
+Reconnected exact T-Deck `8EB508` on `COM7` with fresh master timestamps and
+advancing RX/TX counters, then took a strictly read-only Sakura sample. Exact
+Sakura `F2BE0C` reported `fx-260829-8790f6d-p`, GH CA state 1, and RGB
+`51,0,70`. That ratio exactly matches the firmware's expected UTC-derived
+purple phase, while ordinary baseline downlights retained their static blue
+hue. Ben simultaneously identified Sakura physically and described it as a
+nice purple. Combined with the earlier red observation, later non-blue drift,
+normal CA animation, exact canary provenance, and correct Fleet Blink/LED
+Studio lease behavior, Ben accepted the synchronized palette feature without
+requiring the remainder of a formal two-hour watch. The finite read-only
+heartbeat monitor was deleted before any later run. No fixture command, OTA,
+reboot, NVS, profile, or persistence write occurred. Palette cadence is no
+longer a fleet-release gate; the electrical, installed-height, and ADR 0068
+negative-safety gates remain open.
+
+## 2026-08-29 -- Ben + Codex -- Canary inventory scopes unified fixture release
+
+Audited the exact 110-fixture night census by artifact and source provenance.
+The fleet is split across 76 general dual-site fixtures on
+`fx-260828-658b7d2-p`, 16 freshly heard members of the completed 20-uplight
+cohort on `fx-260828-d8f62c3-p`, 13 older baseline/holdback fixtures, and five
+special canary instances: Akuma `9E668C` on mutable `dev-local`, Rikku `9F26B0`
+on the ADR 0068 intermediate `fx-260828-abd893c-p`, Dixie `F40314` plus Froakie
+`9E5B18` on ADR 0069 artifact `fx-260829-97aed8e-p`, and Sakura `F2BE0C` on the
+ADR 0069/0070 superset `fx-260829-8790f6d-p`.
+
+The source does have a coherent convergence path. Current `main` already
+contains the dual-site maintenance, short-wake telemetry, full-battery PROTECT
+recovery, MSA/uplight classification, and RGB uplight framing changes. Remote
+branch `origin/codex/build-week-interaction-sprint` is exactly six commits ahead
+from `main` with no divergent main commits. Fixture source through clean commit
+`ab71b8989b12e860ad1d82a5e1cf4767773a86f7` adds ADR 0069's count-aware HEX
+budget, synchronized palette, and local interaction plus ADR 0070's full-range
+canopy presence. Its exact Sakura artifact passed identity, OTA/rejoin, pending
+verify, basic sensor-to-output, and no-empty-trigger checks. The later
+`fa2c9d9` motion flight recorder is exact-target diagnostic instrumentation and
+is not part of the ordinary fleet-release cutoff.
+
+Do not reuse or combine the existing canary binaries. After the remaining
+hardware gates, merge the accepted source, build one new clean immutable ADR
+0040 artifact, repeat a small mixed-role canary, and widen with explicit safe
+target lists. Remaining gates are the ADR 0068 negative release/fault matrix,
+one named installed-height canopy raw-range margin check, and a measured
+perimeter HEX current/rail check. Ben subsequently accepted the synchronized
+palette cadence from physical and exact telemetry evidence without requiring a
+formal two-hour watch. Akuma's mutable development identity, low-voltage/PROTECT
+fixtures, recovery exceptions, and target-bound diagnostics remain exclusions
+until separately cleared. No build, OTA, fixture command, or persistent state
+change occurred during this inventory.
+
+## 2026-08-29 -- Ben + Codex -- Night census identifies Sakura palette canary
+
+Onboarded through the canonical repository documents, then opened the existing
+read-only host dashboard on the sole connected ESP32-S3 serial device. Exact
+T-Deck `8EB508` was positively identified on `COM7`, channel 11, with zero
+reported send failures. Its already-running census had seen 111 identities;
+110 field-profile fixtures were heard within 15 minutes, 98 within 60 seconds,
+and the five-second live count varied around 80-95 with the weak field links.
+The 15-minute fixture cohort reported 108 NIGHT_SHOW, 105 CA, 96 FULL, 3 DIM,
+and 11 PROTECT. Firmware was mixed across 76 `fx-260828-658b7d2-p`, 16
+`fx-260828-d8f62c3-p`, 11 `fx-260827-1254f04-p`, two
+`fx-260826-51d1fe1-p`, two `fx-260829-97aed8e-p`, and one each of
+`dev-local`, `fx-260828-abd893c-p`, and `fx-260829-8790f6d-p`.
+
+The same session exposed a bridge-side control failure. LED Studio and the
+T-Deck Fleet/Blink action produced no visible response while fixtures continued
+CA. Bridge receive frames kept climbing, but `sendok` remained exactly 9,058
+through multiple attempted actions and `sendfail` remained zero. Source review
+showed why the zero is misleading: transmit accounting observes only ESP-NOW
+completion callbacks, while all ordinary `esp_now_send()` call sites discard a
+synchronous enqueue error. LED Studio also reports the number of planned fresh
+targets, not confirmed radio submissions. The failure is therefore isolated to
+the T-Deck transmit path before fixture command acceptance, not CA arbitration;
+the exact ESP-NOW error and initiating mechanism remain unknown.
+
+Releasing COM7 for a read-only `show` query unexpectedly reset the USB-native
+T-Deck. It returned mesh-only, channel 11, SSID unset, and ESP-NOW marked up.
+After reboot, an exact-target diagnostic immediately advanced successful send
+callbacks, and a new all-fleet green LED Studio stream advanced TX continuously
+with zero callback failures. Ben confirmed every visible fixture green. Treat
+reboot as recovery evidence, not root cause or an adequate permanent fix: add
+synchronous-submit telemetry, a truthful UI fault state, and bounded recovery
+for a flat TX counter while RX remains healthy.
+
+The first telemetry interpretation did not identify the physical lantern. No
+fresh class-bearing downlight heartbeat reported red output, while the fresh
+red/orange renderers with authoritative LED telemetry reported perimeter class.
+Ben eliminated Daxter `9D7884` because it is a known real perimeter light, then
+showed that the anomalous lantern joined Fleet's filtered downlight green blink.
+The lantern also followed the normal changing CA pattern and accepted arbitrary
+LED Studio colors, ruling out a stuck LED channel, retired constant-red ready
+behavior, and general direct-control failure.
+
+Ben then filtered Fleet by firmware and identified the physical lantern on the
+first try as Sakura `F2BE0C`, the sole observed `fx-260829-8790f6d-p` fixture.
+Artifact provenance resolves the color anomaly: that exact canary was built
+from clean pushed source `ab71b8989b12e860ad1d82a5e1cf4767773a86f7`, which
+inherits `f5b86070931a6b32272735930fa8abf869ce02d2` and ADR 0069's synchronized
+autonomous palette experiment. With trusted UTC and no bridge lease, GH CA
+advances its base hue by 43 every 1,200 seconds in a six-step, two-hour loop.
+A bridge lease deliberately preserves the requested hue. Sakura therefore can
+appear red, later drift to a different non-blue hue, continue the same CA
+animation, and still obey green Fleet Blink or any LED Studio color. This is
+intentional canary behavior, not a class mismatch, missed OTA, stale hue lease,
+or LED fault. Sakura was deployed as the installed-height canopy-presence
+canary, but its artifact also inherited the palette-cadence experiment. That
+feature remains on `origin/codex/build-week-interaction-sprint`; current main
+does not contain it. Decide whether to promote the cadence or return Sakura to
+the static fleet palette after the canary evaluation.
+
+The post-blink host investigation also found that the dashboard's last master
+and peer snapshot was frozen at 01:55 even though localhost continued serving
+normally. COM7 no longer enumerated, but the page exposed neither serial loss nor
+master age, so later apparent telemetry was cached rather than live. No firmware,
+profile, NVS, OTA, or persistent fixture setting changed; the earlier diagnostic
+COM reopen reset only T-Deck `8EB508`.
+
+## 2026-08-29 -- Ben + Codex -- PUCA capacitive paw root-caused and boot arming proven
+
+Retested exact PUCA `A4EB10` with both faceplate audio plugs removed. A confirmed
+12-second stationary paw hold produced 11/11 `pawpin=0` samples, disproving the
+idea that the earlier J8/J9 output-jack mistake was the continuing cause. Ohmic's
+published trigger test uses `digitalRead(GPIO15)`, but its carrier schematic
+routes the paw separately from the TL074 audio-output stages and the exact unit's
+digital input never tracked touch.
+
+Added an inactive-only raw ESP32 touch-channel probe in `0.5.4-dev`. The released
+paw was exceptionally stable at 867-870 counts; a held paw fell cleanly to 216.
+This proves the electrode, front-panel/header path, GPIO15, and ESP32 touch
+peripheral. The first blocking probe exposed and then fixed two diagnostic-only
+artifacts: one transient digital HIGH on peripheral restoration and receive-queue
+drops while the loop was blocked.
+
+Production paw handling now uses the actual ESP32 T3/GPIO15 capacitance channel,
+not the vendor example's digital input. `0.5.5-dev` applies exact-unit hysteresis
+(press <=650, release >=750) and rejects near-zero/shorted readings below 50 so
+the arming gate fails safe. The 1.2-second continuous boot hold, five-second
+opportunity, setup window, and SAFE-IDLE policy are unchanged. All 129 native
+checks pass. Fresh artifact
+`firmware/puca_bridge/build/puca-bridge-20260829-paw-cap-touch-v055-r1/puca_bridge.ino.bin`
+is 1,038,176 bytes, SHA-256
+`b7d4db31f339a14d079a273170544f6b4218a367075799736f1229a6c1c2f2c1`,
+with `esp32:esp32:pico32:PartitionScheme=default`. Exact-target shared-WiFi OTA
+uploaded once to identity-matching `A4EB10` and verified a fresh
+`puca-bridge-0.5.5-dev` software-reset rejoin.
+
+Ben then held the paw before a real Pod20 power cycle. The PUCA rejoined with
+fresh `reset=poweron`; preserved USB telemetry proved `bootarmed=1`, `active=1`,
+DJ + line input, released `pawcap=865-868`, 3,000+ direct frames, and zero send,
+capture, queue, I2C, or clipping errors. USB `A` stopped publication and froze
+the direct-frame count. A final released `P` probe remained 866-868 while
+servicing mesh traffic, with `paw=0`, zero queue drops, and no synthetic edge.
+The physical paw and boot arming are accepted; real RODE gain and the timed
+post-arm setup gestures remain open.
+
+## 2026-08-28 -- Ben + Codex -- PUCA mic modes proven; line and paw faults isolated
+
+After the separate fleet OTA ended, declared this laptop the sole PUCA operator
+and used T-Deck bridge `8EB508` on channel 11 plus exact PUCA `A4EB10`. A
+service-started onboard-MEMS run exercised DJ, HEARTBEAT, EMBER, and HUE on the
+live fleet, and Ben visibly confirmed audio-reactive fixture behavior. Serial
+evidence covered about 75-92 fresh fixtures, RMS roughly
+1,300-5,500, peaks through 14,685, useful rendered levels through 0.56, and zero
+send, I2S-read, I2C, or receive-queue errors. Ben directly observed the audio-
+reactive fixture behavior. Each run ended with `A`, a final blackout, frozen
+direct-frame count, and return to inactive DJ/line state.
+
+The laptop headphone proof did not reach the PUCA faceplate line input. Windows
+recognized `Realtek HD Audio 2nd output`; a directed 96 kHz WASAPI stream played
+successfully at about -8 dBFS. The endpoint was unmuted, and tests at its original
+10 percent level and a temporary 25 percent level left PUCA at the same RMS 7-10
+noise floor. The level was restored to 10 percent. This isolates the remaining
+fault to the analog adapter/faceplate route or the WM8978 line-routing setup; it
+does not implicate the shared codec/I2S/DSP/render/mesh path, which the onboard
+mics proved. Verify adapter continuity and both J5/J6 inputs before changing
+codec registers.
+
+Ben later identified the exact passive chain: JSAUX `B07D8M5DML` 3.5 mm TRS
+stereo male to dual RCA male, then two Bolvek `B09K3DHL82` RCA-female-to-3.5 mm
+TS-mono adapters. This is electrically the correct one-channel-per-J5/J6
+topology and does not inherently short or combine channels. Remaining physical
+checks are continuity, full plug seating, and confirming J5/J6 AUDIO IN rather
+than J8/J9 AUDIO OUT before investigating WM8978 line-register routing.
+
+Correction and positive retest: the two TS plugs had in fact been in faceplate
+J8/J9 AUDIO OUT. Ben moved them to J5/J6 AUDIO IN and the identical directed
+96 kHz laptop waveform at the restored 10 percent Windows level immediately
+raised line RMS from 6-12 at quiet to 37-41, with rendered level about 0.13-0.15,
+zero clipping, and zero transport/capture errors across about 83-91 fresh
+fixtures. `A` then stopped the publisher and returned level to zero. This proves
+the exact cable chain, faceplate J5/J6 path, WM8978 line routing, I2S capture,
+envelope, renderer, and fleet transport. Only real RODE gain/clipping and visual
+per-mode/fallback acceptance remain on this audio axis.
+
+A follow-up 28.5-second laptop burst run temporarily used 25 percent headphone
+level and advanced DJ -> HEARTBEAT -> EMBER -> HUE at seven-second intervals.
+The final status proved HUE active after the complete serial sequence, direct
+frames advanced from 1,871 to 4,591, send callbacks reached 5,225 with zero
+send/read/I2C/queue/clipping errors, and line level returned to zero with the
+bursts stopped. Cleanup sent `A`, returned mode to DJ, and restored the Windows
+endpoint to 10 percent.
+
+A dedicated HEARTBEAT repeat used a synthesized 16-second paired-pulse waveform
+through the same laptop/J5/J6 line path. With the top sensitivity control first
+confirmed at its 4.00x maximum and the headphone endpoint temporarily at 60
+percent, telemetry captured rendered peaks through 0.222 across about 84-93
+fresh fixtures. Capture peaks reached 2,063 without a single clip, send failure,
+I2S read failure, I2C error, or receive-queue drop. Cleanup stopped publication,
+returned mode to inactive DJ, and restored the headphone endpoint to its 10
+percent baseline; final telemetry reconfirmed gain 4.00x and zero error counters.
+Ben visibly confirmed that the paired deep-red HEARTBEAT response works. He was
+turning the sensitivity knob during the run, which explains the logged 0.26x-
+4.00x changes; the complete top-knob sweep is therefore also proven. Physical
+orientation is counterclockwise for more sensitivity and clockwise for less,
+opposite Ben's initial expectation.
+
+Ben requested the conventional carrier-control direction after that proof.
+`puca-bridge-0.5.3-dev` now explicitly normalizes both carrier pots: fully
+clockwise raises the top audio-sensitivity control to 4.00x and the bottom
+brightness ceiling to 1.00; in HUE, clockwise also advances the color wheel.
+The pure mapping and all existing safety/render checks pass 121/121. Fresh
+combined artifact
+`firmware/puca_bridge/build/puca-bridge-20260828-knob-direction-v053-r2/puca_bridge.ino.bin`
+is 1,024,656 bytes, SHA-256
+`97e43bf5e2686057474e95d4404a839967b9681e05832919ea81e77079b4bcb5`,
+with the explicit `esp32:esp32:pico32:PartitionScheme=default` recipe. The prior
+top-only `r1` build was never deployed. Exact-target `UA4EB10` maintenance found
+identity-matching `192.168.1.159`, uploaded `r2` once, and verified a fresh
+`puca-bridge-0.5.3-dev` software-reset rejoin. Post-update USB telemetry remained
+SAFE-IDLE with zero direct frames and zero capture/transport errors.
+After a later full power cycle, fully clockwise hardware telemetry read exactly
+`gain=4.00`, `ceil=1.00`, and HUE endpoint 360, accepting both corrected control
+directions. The original PUCA USB cable then enumerated only as a failed USB
+device descriptor; moving the known-good T-Deck cable to PUCA immediately
+restored its exact CP2102 identity on COM6. Treat the original cable as suspect;
+the PUCA USB interface itself passed the swap test.
+
+The first polarity guess produced and exact-target OTA-installed
+`0.5.1-dev`, but official Ohmic Original Edition trigger source and later raw
+telemetry disproved active-low operation. It was superseded in the same session.
+Source and exact-target OTA now run `puca-bridge-0.5.2-dev`: active-high paw
+handling, raw `pawpin`/`paw` telemetry, a five-second steady-red boot opportunity,
+and elapsed-time audio calibration. Native tests pass 105/105. The immutable
+candidate is
+`firmware/puca_bridge/build/puca-bridge-20260828-paw-telemetry-v052-r1/puca_bridge.ino.bin`,
+1,024,608 bytes, SHA-256
+`3e3e8d9fa0ce3c8d60950abc027840eb345c95cf1f9438d1f0ff44cbac5a20e8`.
+Exact-target shared-WiFi OTA found `A4EB10` at `192.168.1.159`, uploaded once,
+and verified fresh `0.5.2-dev` software-reset rejoin. A subsequent full power
+cycle also rejoined cleanly.
+
+Hardware validated the calibration correction: `calibrated` was false at
+1,500 ms and true at 2,505 ms before direct frames began. Paw release is
+definitively GPIO15 low. Runtime sampling caught two intermittent high readings
+about 4.2 seconds apart during one attempt, but a later confirmed ten-second
+stationary hold produced no transition, and the five-second held-paw power-cycle
+still returned `bootarmed=0`. Do not weaken the physical arming interlock around
+an intermittent signal. Until the carrier touch path is electrically inspected
+or traced at higher rate, USB service `A` is the repeatable bench start path;
+SAFE-IDLE remains the no-touch boot result.
+
+## 2026-08-28 -- Ben + Codex -- Daytime interaction and bounded fleet wake brainstorm
+
+Onboarded from the current `main` architecture and reviewed the measured daytime
+radio floor, field sleep cadence, UTC/civil-twilight scheduler, conditional solar
+probe, perimeter palm gate, distributed CA/Contagion seams, and solarnoid policy.
+No fixture, bridge, serial port, artifact, or shared bench was changed or
+commanded. This is exploratory context, not a new ADR or implementation decision.
+
+Continuous radio receive remains the wrong default: the measured dark-awake
+floor is 126-144 mA before perimeter ToF load, or 1.51-1.73 Ah across 12 hours.
+The promising architecture separates local renewable/strike eligibility from
+radio availability. Strong solar may permit a strike or a richer rendezvous, but
+should not by itself require all-day receive.
+
+The leading artistic candidate combines scheduled and interactive behavior. A
+bounded hourly daytime rendezvous wakes the fleet for a short roll call or
+ring-wise composition and opens a fixed invitation window. Fresh perimeter palm
+edges contribute engagement credits; distinct source IDs or sectors are more
+valuable than a held/repeated gesture. Successive thresholds grow the response
+from a few nearby downlights, to one ring, to a three-ring ripple, to a full
+chorus. The session has an absolute hard end and cooldown that activity cannot
+extend, while every downlight retains its autonomous solar/power/mechanism gates.
+
+Between scheduled windows, a future low-duty perimeter-sentinel posture could
+turn the radio on only after local ToF detection and let a small expiring event
+spread as ordinary sleepers wake. Do not select that posture until the existing
+named-perimeter A/B measures MCU plus VL53L5CX ranging with the radio off; the
+small 2 W / 6 Ah perimeter class is the tightest daytime budget. The existing
+generic choreography, event-fabric, sensor-power, wake-window, localization, and
+solarnoid validation TODOs already cover the needed work, so no duplicate TODO
+was added.
+
+## 2026-08-28 -- Ben + Codex -- TMF8820 twenty-foot installation range reviewed
+
+Onboarded through the canonical repository documents and compared the exact
+ordered TMF8820-mini, current fixture implementation, open height-validation
+TODO, and ams OSRAM datasheet performance. No firmware, fixture, bridge, serial
+port, or shared bench was changed or commanded.
+
+The TMF8820's specified maximum target distance is 5,000 mm (16.4 ft), while a
+20 ft sensor-to-ground distance is 6,096 mm and cannot produce a ground return.
+A roughly 6 ft person's head would be about 4,267 mm (14 ft) from the sensor,
+inside only the best-case low-ambient raw range. The datasheet's 3x3 / 550 k
+iteration table reaches 5 m on a full-FoV 18 percent grey center target under
+350 lux LED lighting, but falls to 3.0 m center / 2.8 m edge / 2.0 m corner at
+the equivalent of 1 klux sunlight; a person fills less than the test target.
+
+The deployed source is more restrictive than the silicon: sensor parsing drops
+returns beyond 2,500 mm and the no-background presence path admits only targets
+within 2,200 mm. Therefore the current artifact will not detect a person from a
+20 ft mounting height. A night-only foreground interaction may be recoverable
+with a deliberately tested long-range configuration and gate change, but this
+is not yet evidence: the exact-part downlight-height test remains open. If ToF
+interaction matters, pause further high placement until one exact enclosed
+fixture passes a 20 ft walk-under test; otherwise treat the high TMFs as class-ID
+devices, not reliable presence sensors.
+
+## 2026-08-28 -- Ben + Codex -- RODE-only PUCA mode proof scoped
+
+Fast-forward pull confirmed local `main` already matched `origin/main`. Onboarded
+through the canonical repository documents and reviewed the current PUCA hardware
+record, ADRs 0035/0063, firmware, native tests, and audio operating guides while a
+separate laptop retained ownership of the active fleet OTA. The in-progress
+untracked fleet-OTA ledger was preserved and no serial port, bridge, fixture, or
+PUCA was opened, commanded, reset, built, or flashed.
+
+The RODE VideoMic NTG is sufficient to validate the PUCA line-input path and
+visibly distinguish DJ, HEARTBEAT, EMBER, and HUE with speech, claps, or a played
+click track. It cannot prove fidelity to the performer's exact arbitrary
+waveform; that remains a later generator/photodiode gate. Current `0.5.0-dev`
+has no dry-run or named-canary output: once armed it sends direct frames to the
+complete fresh fixture census. SAFE-IDLE also returns from audio processing
+before updating RMS, peak, clipping, envelope, or color evidence. Therefore do
+not arm it in parallel with the fleet OTA. After the OTA operator releases the
+radio, run the RODE test in a declared one-publisher window, capture serial
+level/peak/clip evidence for all four modes, observe a controlled mixed RGB/RGBW
+cohort, and finish by proving the roughly three-second autonomous fallback.
+
 ## 2026-08-28 -- Ben + Codex -- All 20 manufactured uplights updated
 
 Declared one OTA writer and reused immutable artifact

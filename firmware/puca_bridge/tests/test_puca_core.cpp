@@ -3,6 +3,36 @@
 #include "../puca_core.h"
 
 int main() {
+  CHECK(pucaPawTouchedFromPinHigh(true));
+  CHECK(!pucaPawTouchedFromPinHigh(false));
+
+  PucaCapTouchDetector capTouch;
+  CHECK(!capTouch.update(868));
+  CHECK(!capTouch.update(700));
+  CHECK(capTouch.update(600));
+  CHECK(capTouch.update(700)); // hysteresis holds the touched state
+  CHECK(!capTouch.update(800));
+  CHECK(!capTouch.update(0));   // invalid/shorted channel fails safe
+  CHECK(capTouch.update(216));
+  CHECK(!capTouch.update(49));
+
+  CHECK(pucaCarrierPotFromAdc(0.0f) > 0.99f);
+  CHECK(pucaCarrierPotFromAdc(0.0f) < 1.01f);
+  CHECK(pucaCarrierPotFromAdc(0.5f) > 0.49f);
+  CHECK(pucaCarrierPotFromAdc(0.5f) < 0.51f);
+  CHECK(pucaCarrierPotFromAdc(1.0f) > -0.01f);
+  CHECK(pucaCarrierPotFromAdc(1.0f) < 0.01f);
+  CHECK(pucaCarrierPotFromAdc(-1.0f) > 0.99f);
+  CHECK(pucaCarrierPotFromAdc(2.0f) < 0.01f);
+  CHECK(pucaSensitivityGainFromAdc(0.0f) > 3.99f);
+  CHECK(pucaSensitivityGainFromAdc(0.0f) < 4.01f);
+  CHECK(pucaSensitivityGainFromAdc(0.5f) > 0.99f);
+  CHECK(pucaSensitivityGainFromAdc(0.5f) < 1.01f);
+  CHECK(pucaSensitivityGainFromAdc(1.0f) > 0.24f);
+  CHECK(pucaSensitivityGainFromAdc(1.0f) < 0.26f);
+  CHECK(pucaSensitivityGainFromAdc(-1.0f) > 3.99f);
+  CHECK(pucaSensitivityGainFromAdc(2.0f) < 0.26f);
+
   CHECK_EQ(pucaIsFixtureFirmware("fx-260826-024e508-p"), true);
   CHECK_EQ(pucaIsFixtureFirmware("fixture-0.1"), true);
   CHECK_EQ(pucaIsFixtureFirmware("dev-local"), true);
