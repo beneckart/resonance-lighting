@@ -15,4 +15,5 @@ uint32_t motionTraceCount();
 uint32_t motionTraceOverwrites();
 void motionTraceInit();
 void motionTraceTick();
+void motionTraceNotePresenceSentinel(bool whiteActive);
 void motionTraceHandleHttp(WebServer &server);

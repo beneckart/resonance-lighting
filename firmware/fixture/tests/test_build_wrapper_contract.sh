@@ -38,6 +38,7 @@ grep -Fq -- 'dev-local' <<< "$help" || fail "help omits development identity"
 grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
 grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
 grep -Fq -- '--msa-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
+grep -Fq -- '--presence-sentinel' <<< "$help" || fail "help omits presence sentinel"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -65,6 +66,8 @@ expect_rejected 'bad --msa-trace-target' --msa-trace-target invalid
 expect_rejected '--msa-trace-target requires --artifact-variant t' \
   --msa-trace-target F2BE0C --artifact-variant p \
   --wifi-profile-label test-v1 --profile field --channel 11
+expect_rejected '--presence-sentinel requires --msa-trace-target' \
+  --presence-sentinel
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"

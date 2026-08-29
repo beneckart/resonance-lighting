@@ -10,6 +10,19 @@ static MotionTraceSample sampleAt(uint32_t uptimeMs) {
 }
 
 int main() {
+  FrameBuffer sentinel = {};
+  sentinel.count = 4;
+  sentinel.px[0][3] = 25;
+  sentinel.px[1][1] = 99;
+  motionTracePresenceSentinelFrame(sentinel, false);
+  assert(sentinel.count == 1);
+  assert(sentinel.px[0][0] == 255 && sentinel.px[0][1] == 0);
+  assert(sentinel.px[0][2] == 0 && sentinel.px[0][3] == 0);
+  assert(sentinel.px[1][0] == 0 && sentinel.px[1][1] == 0);
+  motionTracePresenceSentinelFrame(sentinel, true);
+  assert(sentinel.px[0][0] == 255 && sentinel.px[0][1] == 255);
+  assert(sentinel.px[0][2] == 255 && sentinel.px[0][3] == 0);
+
   MotionTraceSample storage[3] = {};
   MotionTraceBuffer buffer;
   motionTraceBufferInit(buffer, storage, 3);
