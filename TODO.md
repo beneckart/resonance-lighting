@@ -85,7 +85,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   with exact-artifact/header/sample CRC and sequence validation, then reloads it
   into retrieval after any reset. Native, 20 focused Python, and embedded build
   gates pass; hardware persistence/retrieval proof remains required. Exact-prior
-  no-lid restore job `612D848D` is armed for Spyro's next window.
+  no-lid restore job `612D848D` completed and formally verified Spyro back on
+  `fx-260827-1254f04-p` at 27,720 ms uptime, field/perimeter, no recovery or BQ
+  fault.
   Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
