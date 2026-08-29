@@ -37,7 +37,11 @@ no overwrite, and exact sequence before resuming retrieval. A later WiFi reset
 therefore retries with the flash copy instead of re-running the experiment.
 The full native suite, 20 OTA/capture Python tests, and an ESP32-S3 development
 compile pass. Hardware persistence proof is still required. Exact-prior restore
-job `612D848D` is armed for Spyro's next radio window without opening the lid.
+job `612D848D` subsequently found only Spyro at `192.168.1.99`, uploaded the
+retained `fx-260827-1254f04-p` bytes, and formally verified a fresh same-boot
+heartbeat at 27,720 ms. Final state was exact prior revision, field profile,
+perimeter class, `sensor_bits=2`, recovery zero, no BQ fault, and charging input
+after the panel was uncovered. No lid access was required.
 
 ## 2026-08-29 -- Ben + Codex -- Spyro sentinel run restored safely; retrieval watchdog fixed
 

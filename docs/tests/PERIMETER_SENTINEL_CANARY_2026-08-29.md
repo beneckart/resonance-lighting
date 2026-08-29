@@ -13,7 +13,7 @@ retrieval failure.
 Treat these as useful interaction/retrieval-path evidence, not as a measured
 sentinel current delta and not as a promotion gate pass. The first run was
 restored without opening the enclosure. An exact-prior restore gather was
-armed after the second reset and is retained in the job ledger below.
+armed after the second reset and completed successfully without lid access.
 
 ## Declared operation
 
@@ -162,9 +162,14 @@ ESP32-S3 development compile pass. This persistence path is not yet proven on
 hardware and is the next canary gate.
 
 Exact-prior restore job `612D848D` was armed after the reset with the retained
-`fx-260827-1254f04-p` binary and its exact SHA-256. It continuously addresses
-only `F2BCF0` and waits for Spyro's next radio/maintenance window; no lid access
-or fleet broadcast is required.
+`fx-260827-1254f04-p` binary and its exact SHA-256. It addressed only `F2BCF0`,
+found Spyro at `192.168.1.99` with 3.148 V VBAT, rechecked maintenance power,
+uploaded the exact prior image, and received a fresh software-reset rejoin. The
+fixed verifier accepted a later same-boot heartbeat at 27,720 ms, beyond the
+25-second pending gate. Final dashboard evidence was exact prior revision,
+field profile, perimeter class, `sensor_bits=2`, recovery state zero, no BQ
+fault, and charging input after Ben uncovered the panel. No lid access, fleet
+broadcast, or profile mutation was required.
 
 ## Retained ledgers
 
@@ -177,6 +182,7 @@ or fleet broadcast is required.
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-canary-rerun-ota-job.jsonl`
 - `ops/bench/data/Black Rock City/20260829-150227-A54875FD-fleet-ota-results.jsonl`
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-rerun-restore-job.jsonl`
+- `ops/bench/data/Black Rock City/20260829-154531-612D848D-fleet-ota-results.jsonl`
 
 ## Required rerun
 
