@@ -13,9 +13,12 @@ class SentinelTraceTests(unittest.TestCase):
             "sentinel_trace_build": True,
             "sentinel_trace_target": "A1B2C3",
             "sentinel_trace_target_match": True,
+            "sentinel_trace_smoke": False,
             "sentinel_trace_phase": "retrieval",
             "sentinel_trace_capacity": 4096,
             "sentinel_trace_persisted": True,
+            "sentinel_trace_recovery_only": False,
+            "sentinel_trace_persistence_state": "persisted",
             "fixture_class": "perimeter",
             "mode": 1,
             "maint_status": 1,
@@ -73,6 +76,10 @@ class SentinelTraceTests(unittest.TestCase):
     def test_preflight_requires_exact_complete_perimeter(self):
         trace.preflight_fixture(self.fixture(), "A1B2C3", "fx-260829-abcdef0-t")
         bad = self.fixture()
+        bad["sentinel_trace_smoke"] = True
+        with self.assertRaisesRegex(ValueError, "not a power campaign"):
+            trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
+        bad = self.fixture()
         bad["sentinel_trace_phase"] = "tof-active"
         with self.assertRaisesRegex(ValueError, "not complete"):
             trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
@@ -87,6 +94,12 @@ class SentinelTraceTests(unittest.TestCase):
         bad = self.fixture()
         bad["sentinel_trace_persisted"] = False
         with self.assertRaisesRegex(ValueError, "not positively flash-persisted"):
+            trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
+        bad = self.fixture()
+        bad["sentinel_trace_persisted"] = False
+        bad["sentinel_trace_recovery_only"] = True
+        bad["sentinel_trace_persistence_state"] = "bad-header-crc"
+        with self.assertRaisesRegex(ValueError, "fail-closed recovery.*bad-header-crc"):
             trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
 
     def test_campaign_validation_and_summary(self):

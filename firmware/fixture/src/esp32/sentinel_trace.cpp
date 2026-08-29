@@ -12,6 +12,7 @@
 
 #include "../core/fixture_context.h"
 #include "../core/presence_wave.h"
+#include "../core/sentinel_persistence.h"
 #include "../core/sentinel_trace.h"
 #include "../core/version.h"
 #include "board_power.h"
@@ -23,30 +24,22 @@
 #include "sensors/sensors.h"
 #include "telemetry.h"
 
+#if defined(RES_SENTINEL_TRACE_SMOKE)
+static constexpr uint32_t kRadioSettleMs = 5000UL;
+static constexpr uint32_t kBaselineMs = 10000UL;
+static constexpr uint32_t kTofWarmupMs = 5000UL;
+static constexpr uint32_t kTofActiveMs = 10000UL;
+#else
 static constexpr uint32_t kRadioSettleMs = 30000UL;
 static constexpr uint32_t kBaselineMs = 10UL * 60UL * 1000UL;
 static constexpr uint32_t kTofWarmupMs = 30000UL;
 static constexpr uint32_t kTofActiveMs = 10UL * 60UL * 1000UL;
+#endif
 static constexpr uint32_t kSampleMs = 1000UL;
 static constexpr uint32_t kMaintenanceRetryMs = 60000UL;
-static constexpr uint32_t kPersistMagic = 0x53454E54UL; // "SENT"
-static constexpr uint16_t kPersistSchema = 1;
-static constexpr size_t kPersistDataOffset = 4096;
-
-struct __attribute__((packed)) SentinelPersistHeader {
-  uint32_t magic;
-  uint16_t schema;
-  uint16_t sampleSize;
-  uint32_t artifactTag;
-  uint32_t count;
-  uint32_t overwrites;
-  uint32_t newestSeq;
-  uint32_t samplesCrc32;
-  uint32_t headerCrc32;
-};
-
-static_assert(sizeof(SentinelPersistHeader) == 32,
-              "sentinel persistence header layout changed");
+static constexpr size_t kPersistMarkerOffset = 0;
+static constexpr size_t kPersistHeaderOffset = 4096;
+static constexpr size_t kPersistDataOffset = 8192;
 
 static SentinelTraceBuffer gTrace;
 static uint8_t gPhase = SENTINEL_TRACE_DISABLED;
@@ -57,9 +50,19 @@ static bool gSensorRailOn = false;
 static Vl53CoverGate gCoverGate;
 static bool gPresenceRisingPending = false;
 static bool gTracePersisted = false;
+static bool gRecoveryOnly = false;
+static const char *gPersistenceState = "none";
 
 bool sentinelTraceBuild() {
 #if defined(RES_SENTINEL_TRACE_TARGET)
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool sentinelTraceSmokeBuild() {
+#if defined(RES_SENTINEL_TRACE_TARGET) && defined(RES_SENTINEL_TRACE_SMOKE)
   return true;
 #else
   return false;
@@ -99,21 +102,11 @@ uint32_t sentinelTraceCapacity() { return gTrace.capacity; }
 uint32_t sentinelTraceCount() { return gTrace.count; }
 uint32_t sentinelTraceOverwrites() { return gTrace.overwrites; }
 bool sentinelTracePersisted() { return gTracePersisted; }
-
-static uint32_t crc32Update(uint32_t crc, const void *data, size_t length) {
-  const uint8_t *bytes = static_cast<const uint8_t *>(data);
-  while (length--) {
-    crc ^= *bytes++;
-    for (uint8_t bit = 0; bit < 8; ++bit)
-      crc = (crc >> 1) ^ (0xEDB88320UL & (0U - (crc & 1U)));
-  }
-  return crc;
-}
+bool sentinelTraceRecoveryOnly() { return gRecoveryOnly; }
+const char *sentinelTracePersistenceState() { return gPersistenceState; }
 
 static uint32_t artifactTag() {
-  uint32_t crc = crc32Update(0xFFFFFFFFUL, RES_FIXTURE_VERSION,
-                             strlen(RES_FIXTURE_VERSION));
-  return crc ^ 0xFFFFFFFFUL;
+  return sentinelPersistArtifactTag(RES_FIXTURE_VERSION);
 }
 
 static const esp_partition_t *tracePartition() {
@@ -125,25 +118,85 @@ static size_t alignUp(size_t value, size_t alignment) {
   return (value + alignment - 1U) & ~(alignment - 1U);
 }
 
-static bool loadPersistedTrace() {
+static bool readRunMarker(SentinelRunMarker &marker) {
   const esp_partition_t *partition = tracePartition();
   if (!partition || partition->size < kPersistDataOffset) return false;
+  return esp_partition_read(partition, kPersistMarkerOffset, &marker,
+                            sizeof(marker)) == ESP_OK;
+}
+
+static bool runMarkerBlocksRestart() {
+  SentinelRunMarker marker = {};
+  if (!readRunMarker(marker)) return false;
+  if (sentinelRunMarkerValid(marker, artifactTag())) {
+    gPersistenceState = "run-marker";
+    return true;
+  }
+  // A torn marker for this exact artifact still means the campaign may have
+  // started. Fail closed instead of asking an operator to repeat it.
+  if (marker.magic == SENTINEL_RUN_MAGIC &&
+      marker.artifactTag == artifactTag()) {
+    gPersistenceState = "run-marker-invalid";
+    return true;
+  }
+  return false;
+}
+
+static bool writeRunMarker() {
+  const esp_partition_t *partition = tracePartition();
+  if (!partition || partition->size < kPersistDataOffset) {
+    gPersistenceState = "partition-missing";
+    return false;
+  }
+  SentinelRunMarker marker = {};
+  sentinelRunMarkerBuild(marker, artifactTag());
+  esp_task_wdt_reset();
+  if (esp_partition_erase_range(partition, kPersistMarkerOffset, 4096) !=
+      ESP_OK) {
+    gPersistenceState = "marker-erase-failed";
+    return false;
+  }
+  esp_task_wdt_reset();
+  if (esp_partition_write(partition, kPersistMarkerOffset, &marker,
+                          sizeof(marker)) != ESP_OK) {
+    gPersistenceState = "marker-write-failed";
+    return false;
+  }
+  SentinelRunMarker check = {};
+  if (!readRunMarker(check) ||
+      !sentinelRunMarkerValid(check, artifactTag())) {
+    gPersistenceState = "marker-readback-failed";
+    return false;
+  }
+  gPersistenceState = "run-marker";
+  return true;
+}
+
+static bool loadPersistedTrace() {
+  const esp_partition_t *partition = tracePartition();
+  if (!partition || partition->size < kPersistDataOffset) {
+    gPersistenceState = "partition-missing";
+    return false;
+  }
 
   SentinelPersistHeader header = {};
-  if (esp_partition_read(partition, 0, &header, sizeof(header)) != ESP_OK)
+  if (esp_partition_read(partition, kPersistHeaderOffset, &header,
+                         sizeof(header)) != ESP_OK) {
+    gPersistenceState = "header-read-failed";
     return false;
-  uint32_t headerCrc =
-      crc32Update(0xFFFFFFFFUL, &header,
-                  offsetof(SentinelPersistHeader, headerCrc32)) ^
-      0xFFFFFFFFUL;
+  }
+  SentinelPersistVerdict verdict = sentinelPersistHeaderValidate(
+      header, artifactTag(), sizeof(SentinelTraceSample), gTrace.capacity,
+      header.samplesCrc32);
+  if (verdict != SENTINEL_PERSIST_VALID) {
+    gPersistenceState = sentinelPersistVerdictName(verdict);
+    Serial.printf("sentinel-trace: checkpoint rejected: %s\n",
+                  gPersistenceState);
+    return false;
+  }
   size_t dataBytes = (size_t)header.count * sizeof(SentinelTraceSample);
-  if (header.magic != kPersistMagic || header.schema != kPersistSchema ||
-      header.sampleSize != sizeof(SentinelTraceSample) ||
-      header.artifactTag != artifactTag() || !header.count ||
-      header.count > gTrace.capacity || header.overwrites != 0 ||
-      header.newestSeq != header.count ||
-      header.headerCrc32 != headerCrc ||
-      kPersistDataOffset + dataBytes > partition->size) {
+  if (kPersistDataOffset + dataBytes > partition->size) {
+    gPersistenceState = "partition-range";
     return false;
   }
 
@@ -161,21 +214,33 @@ static bool loadPersistedTrace() {
                            batch, bytes) != ESP_OK) {
       return false;
     }
-    crc = crc32Update(crc, batch, bytes);
+    crc = sentinelPersistCrc32Update(crc, batch, bytes);
     for (uint32_t i = 0; i < count; ++i) {
-      if (batch[i].seq != loaded + i + 1U) return false;
+      if (batch[i].seq != loaded + i + 1U) {
+        gPersistenceState = "sample-sequence";
+        return false;
+      }
     }
     memcpy(gTrace.samples + loaded, batch, bytes);
     loaded += count;
   }
   uint32_t sampleCrc = crc ^ 0xFFFFFFFFUL;
-  if (sampleCrc != header.samplesCrc32) return false;
+  verdict = sentinelPersistHeaderValidate(
+      header, artifactTag(), sizeof(SentinelTraceSample), gTrace.capacity,
+      sampleCrc);
+  if (verdict != SENTINEL_PERSIST_VALID) {
+    gPersistenceState = sentinelPersistVerdictName(verdict);
+    Serial.printf("sentinel-trace: checkpoint rejected: %s\n",
+                  gPersistenceState);
+    return false;
+  }
 
   gTrace.count = header.count;
   gTrace.writeIndex = header.count % gTrace.capacity;
   gTrace.nextSeq = header.newestSeq + 1U;
   gTrace.overwrites = header.overwrites;
   gTracePersisted = true;
+  gPersistenceState = "persisted";
   Serial.printf("sentinel-trace: restored %lu samples from flash crc=%08lX\n",
                 (unsigned long)header.count,
                 (unsigned long)header.samplesCrc32);
@@ -184,19 +249,29 @@ static bool loadPersistedTrace() {
 
 static bool persistTrace() {
   const esp_partition_t *partition = tracePartition();
-  if (!partition || !gTrace.count || gTrace.overwrites != 0) return false;
+  if (!partition || !gTrace.count || gTrace.overwrites != 0) {
+    gPersistenceState = "checkpoint-precondition";
+    return false;
+  }
 
   size_t dataBytes = (size_t)gTrace.count * sizeof(SentinelTraceSample);
   size_t requiredBytes = kPersistDataOffset + alignUp(dataBytes, 4);
   size_t eraseBytes = alignUp(requiredBytes, 4096);
-  if (eraseBytes > partition->size) return false;
+  if (eraseBytes > partition->size) {
+    gPersistenceState = "partition-range";
+    return false;
+  }
 
-  // The header is erased first and written last. A reset during persistence
-  // therefore leaves no apparently valid partial checkpoint.
-  for (size_t offset = 0; offset < eraseBytes; offset += 4096) {
+  // Preserve the first-sector run marker. The checkpoint header is erased
+  // first and written last; a reset leaves either a valid trace or a durable
+  // marker that blocks an automatic rerun.
+  for (size_t offset = kPersistHeaderOffset; offset < eraseBytes;
+       offset += 4096) {
     esp_task_wdt_reset();
-    if (esp_partition_erase_range(partition, offset, 4096) != ESP_OK)
+    if (esp_partition_erase_range(partition, offset, 4096) != ESP_OK) {
+      gPersistenceState = "checkpoint-erase-failed";
       return false;
+    }
   }
 
   SentinelTraceSample batch[32];
@@ -206,7 +281,10 @@ static bool persistTrace() {
   while (written < gTrace.count) {
     memset(batch, 0xFF, sizeof(batch));
     uint32_t got = sentinelTraceBufferCollectAfter(gTrace, cursor, batch, 32);
-    if (!got) return false;
+    if (!got) {
+      gPersistenceState = "checkpoint-collect-failed";
+      return false;
+    }
     size_t bytes = (size_t)got * sizeof(SentinelTraceSample);
     size_t writeBytes = alignUp(bytes, 4);
     esp_task_wdt_reset();
@@ -214,31 +292,33 @@ static bool persistTrace() {
                             kPersistDataOffset +
                                 (size_t)written * sizeof(SentinelTraceSample),
                             batch, writeBytes) != ESP_OK) {
+      gPersistenceState = "checkpoint-write-failed";
       return false;
     }
-    crc = crc32Update(crc, batch, bytes);
+    crc = sentinelPersistCrc32Update(crc, batch, bytes);
     cursor = batch[got - 1U].seq;
     written += got;
   }
 
   SentinelPersistHeader header = {};
-  header.magic = kPersistMagic;
-  header.schema = kPersistSchema;
-  header.sampleSize = sizeof(SentinelTraceSample);
-  header.artifactTag = artifactTag();
-  header.count = gTrace.count;
-  header.overwrites = gTrace.overwrites;
-  header.newestSeq = sentinelTraceBufferNewestSeq(gTrace);
-  header.samplesCrc32 = crc ^ 0xFFFFFFFFUL;
-  header.headerCrc32 =
-      crc32Update(0xFFFFFFFFUL, &header,
-                  offsetof(SentinelPersistHeader, headerCrc32)) ^
-      0xFFFFFFFFUL;
+  sentinelPersistHeaderBuild(
+      header, artifactTag(), sizeof(SentinelTraceSample), gTrace.count,
+      gTrace.overwrites, sentinelTraceBufferNewestSeq(gTrace),
+      crc ^ 0xFFFFFFFFUL);
   esp_task_wdt_reset();
-  if (esp_partition_write(partition, 0, &header, sizeof(header)) != ESP_OK)
+  if (esp_partition_write(partition, kPersistHeaderOffset, &header,
+                          sizeof(header)) != ESP_OK) {
+    gPersistenceState = "header-write-failed";
     return false;
+  }
   esp_task_wdt_reset();
-  gTracePersisted = true;
+  // A write acknowledgement is not durable evidence. Read and CRC the exact
+  // stored bytes before advertising persistence or starting WiFi.
+  if (!loadPersistedTrace()) {
+    Serial.printf("sentinel-trace: checkpoint readback failed: %s\n",
+                  gPersistenceState);
+    return false;
+  }
   Serial.printf("sentinel-trace: checkpointed %lu samples to flash crc=%08lX\n",
                 (unsigned long)header.count,
                 (unsigned long)header.samplesCrc32);
@@ -249,6 +329,19 @@ static void setPhase(uint8_t phase) {
   gPhase = phase;
   gPhaseStartMs = millis();
   Serial.printf("sentinel-trace: -> %s\n", sentinelTracePhaseName(phase));
+}
+
+static void enterRecoveryRetrieval(const char *reason) {
+  railEnableVSQT(false);
+  gSensorRailOn = false;
+  gRecoveryOnly = !gTracePersisted;
+  setPhase(SENTINEL_TRACE_RETRIEVAL);
+  Serial.printf("sentinel-trace: %s; fail-closed retrieval state=%s\n",
+                reason, gPersistenceState);
+  if (!enterMaintenance()) {
+    gNextMaintRetryMs = millis() + kMaintenanceRetryMs;
+    Serial.println("sentinel-trace: maintenance start failed; retry in 60s");
+  }
 }
 
 void sentinelTraceInit() {
@@ -281,21 +374,28 @@ void sentinelTraceInit() {
     return;
   }
   if (loadPersistedTrace()) {
-    railEnableVSQT(false);
-    gSensorRailOn = false;
-    setPhase(SENTINEL_TRACE_RETRIEVAL);
-    if (!enterMaintenance()) {
-      gNextMaintRetryMs = millis() + kMaintenanceRetryMs;
-      Serial.println("sentinel-trace: restored maintenance start failed; retry in 60s");
-    }
+    enterRecoveryRetrieval("restored completed checkpoint");
+    return;
+  }
+  if (runMarkerBlocksRestart()) {
+    enterRecoveryRetrieval("prior campaign marker without valid checkpoint");
+    return;
+  }
+  if (!writeRunMarker()) {
+    enterRecoveryRetrieval("could not durably arm campaign");
     return;
   }
   vl53CoverInit(gCoverGate);
   gSensorRailOn = true; // class probe left the verified VSQT domain on
   setPhase(SENTINEL_TRACE_RADIO_SETTLE);
-  Serial.printf("sentinel-trace: armed target=%s capacity=%lu bytes=%lu A/B/A=600/600/600s\n",
+  Serial.printf("sentinel-trace: armed target=%s capacity=%lu bytes=%lu "
+                "smoke=%d A/B/A=%lu/%lu/%lus\n",
                 gShortId.c_str(), (unsigned long)gTrace.capacity,
-                (unsigned long)(gTrace.capacity * sizeof(SentinelTraceSample)));
+                (unsigned long)(gTrace.capacity * sizeof(SentinelTraceSample)),
+                sentinelTraceSmokeBuild() ? 1 : 0,
+                (unsigned long)(kBaselineMs / 1000UL),
+                (unsigned long)(kTofActiveMs / 1000UL),
+                (unsigned long)(kBaselineMs / 1000UL));
 #endif
 }
 
@@ -431,7 +531,9 @@ void sentinelTraceTick() {
   } else if (gPhase == SENTINEL_TRACE_BASELINE_B &&
              elapsed >= kBaselineMs) {
     if (!persistTrace())
-      Serial.println("sentinel-trace: flash checkpoint failed; PSRAM-only retrieval");
+      Serial.printf("sentinel-trace: flash checkpoint failed state=%s; "
+                    "volatile trace available only until reset\n",
+                    gPersistenceState);
     beginRetrieval();
   }
 #endif
@@ -483,6 +585,8 @@ void sentinelTraceHandleHttp(WebServer &server) {
   body += target;
   body += "\",\"sample_hz\":1,\"sample_bytes\":";
   body += String((unsigned)sizeof(SentinelTraceSample));
+  body += ",\"smoke\":";
+  body += sentinelTraceSmokeBuild() ? "true" : "false";
   body += ",\"phase\":\"" + String(sentinelTracePhaseName(gPhase)) + "\"";
   body += ",\"capacity\":" + String((unsigned long)gTrace.capacity);
   body += ",\"count\":" + String((unsigned long)gTrace.count);
@@ -493,6 +597,9 @@ void sentinelTraceHandleHttp(WebServer &server) {
   body += ",\"overwrites\":" + String((unsigned long)gTrace.overwrites);
   body += ",\"persisted\":";
   body += gTracePersisted ? "true" : "false";
+  body += ",\"recovery_only\":";
+  body += gRecoveryOnly ? "true" : "false";
+  body += ",\"persistence_state\":\"" + String(gPersistenceState) + "\"";
   body += "}\n";
 
   for (uint32_t i = 0; i < count; ++i) {

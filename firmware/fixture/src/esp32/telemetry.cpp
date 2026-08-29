@@ -271,6 +271,8 @@ String telemetryJson() {
     j += ",\"sentinel_trace_target\":\"" + String(target) + "\"";
     j += ",\"sentinel_trace_target_match\":";
     j += sentinelTraceTargetMatches() ? "true" : "false";
+    j += ",\"sentinel_trace_smoke\":";
+    j += sentinelTraceSmokeBuild() ? "true" : "false";
     j += ",\"sentinel_trace_phase\":\"" +
          String(sentinelTracePhaseName(sentinelTracePhase())) + "\"";
     j += ",\"sentinel_trace_capacity\":" +
@@ -281,6 +283,10 @@ String telemetryJson() {
          String((unsigned long)sentinelTraceOverwrites());
     j += ",\"sentinel_trace_persisted\":";
     j += sentinelTracePersisted() ? "true" : "false";
+    j += ",\"sentinel_trace_recovery_only\":";
+    j += sentinelTraceRecoveryOnly() ? "true" : "false";
+    j += ",\"sentinel_trace_persistence_state\":\"" +
+         String(sentinelTracePersistenceState()) + "\"";
   }
   const SensorSnapshot &sn = sensors();
   j += ",\"msa311_present\":";

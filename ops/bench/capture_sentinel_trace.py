@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Recover one exact-target radio-off + perimeter-ToF power A/B/A trace.
 
-The fixture stores the complete campaign in PSRAM and enters maintenance WiFi
-only after both baselines and the ToF phase finish. Output is exclusive-created.
+The fixture checkpoints the complete campaign into a read-verified flash
+journal before entering maintenance WiFi. Output is exclusive-created.
 """
 
 from __future__ import annotations
@@ -61,6 +61,8 @@ def preflight_fixture(data: dict, target: str, expect_fw: str) -> None:
         raise ValueError("sentinel image is compiled for a different target")
     if not data.get("sentinel_trace_target_match"):
         raise ValueError("compiled sentinel target does not match the fixture")
+    if data.get("sentinel_trace_smoke") is True:
+        raise ValueError("short sentinel smoke evidence is not a power campaign")
     if data.get("fixture_class") != "perimeter":
         raise ValueError(f"fixture is {data.get('fixture_class')!r}, not perimeter")
     if data.get("sentinel_trace_phase") != "retrieval":
@@ -71,6 +73,11 @@ def preflight_fixture(data: dict, target: str, expect_fw: str) -> None:
         raise ValueError("fixture is not identity-ready in active maintenance mode")
     if int(data.get("sentinel_trace_capacity", 0)) < 1900:
         raise ValueError("fixture sentinel trace buffer is too small for the full campaign")
+    if data.get("sentinel_trace_recovery_only") is True:
+        raise ValueError(
+            "fixture is in fail-closed recovery without a valid checkpoint: "
+            f"{data.get('sentinel_trace_persistence_state')!r}"
+        )
     if data.get("sentinel_trace_persisted") is not True:
         raise ValueError("completed trace is not positively flash-persisted")
 

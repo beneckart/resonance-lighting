@@ -18,3 +18,7 @@ void watchdogInit() {
 }
 
 bool watchdogArmed() { return gArmed; }
+
+void watchdogService() {
+  if (gArmed) esp_task_wdt_reset();
+}

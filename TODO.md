@@ -50,7 +50,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   gates pass; hardware persistence/retrieval proof remains required. Exact-prior
   no-lid restore job `612D848D` completed and formally verified Spyro back on
   `fx-260827-1254f04-p` at 27,720 ms uptime, field/perimeter, no recovery or BQ
-  fault.
+  fault. A later exact `fx-260829-96862d8-t` persistence attempt passed OTA but
+  did not yield an accepted trace; job `E1428FE2` restored the exact prior image
+  and verified it. Source now writes a CRC-protected run marker before
+  acquisition, read-validates a completed checkpoint before advertising it,
+  enters rail-off recovery-only maintenance after an interrupted/corrupt run,
+  exposes the named persistence state, and makes the host refuse recovery-only
+  evidence. Native and focused host tests pass. Next hardware run must prove
+  complete checkpoint retrieval plus a deliberate retrieval reset without
+  silently re-running the experiment.
   Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
