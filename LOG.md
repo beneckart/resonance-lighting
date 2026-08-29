@@ -452,6 +452,42 @@ Next: have a person walk/stand directly under Sakura while an exact visible
 lease is active. If no `W=255` transition or raw 2.7-3.5 m return appears, treat
 15 ft height/aim/sunlight as a P0 gating concern and test one lower or better-
 aimed canopy fixture before any fleet promotion.
+## 2026-08-29 -- Ben + Codex -- Astro control puts useful raw range below 1.6 m
+
+Repeated Gible's raw 1-5 m height/aim experiment on lower-hung downlight Astro
+`9E5B44`, reported near 12 ft. Built exact-target-only artifact
+`fx-260829-066846f-t` from the same pushed source `d9cb775`; its 1,221,136-byte
+binary SHA-256 is
+`b9dba40884967fd182093d1e9ab370a7d40fd89b74f5ccc3ec6588d967636877`
+and immutable recipe SHA-256 is
+`066846f139e79f02aaa1ef6709e8618563d544e28bebada4e7db3ecf2cfeba09`.
+The only diagnostic recipe change from Gible was the target lock. Job
+`861C9C57` updated only Astro and verified it through pending verify.
+
+Dawn suppressed the field show, so Astro alone received a temporary,
+nonpersistent commission profile. A pre-existing RAM-only fleet dark lease was
+released; scheduled field fixtures remained dark while Astro rendered the raw
+red/white sentinel. Ben observed only a split-second flicker while walking
+beneath Astro, but a substantially denser response when he raised his hand.
+Astro is about 12 ft high and Ben is 6 ft 3 in, leaving about 1.75 m from sensor
+to head before the raised gesture.
+
+The exact rolling drain retained 913 samples over 304.3 seconds with no sequence
+gap. It captured 35 white samples in 18 short runs. Every qualifying zone return
+was physically plausible at 1,003-1,561 mm, confidence 20-41, across zones 1,
+2, 3, and 5. There were no sampled 1.562-5 m returns. Empty intervals spanning
+49.676 seconds before and 212.752 seconds after the interaction contained no
+sampled 1-5 m false positives. This directly contrasts with Gible's nearby
+raised target being misreported at 3.24-5.00 m.
+
+Lowering therefore helps, but roughly 12 ft remains marginal for passive
+walk-under interaction: Ben's head gap was just outside Astro's demonstrated
+reliable band and a raised hand moved into it. Test roughly 10 ft or equivalent
+re-aim before choosing an installed height; do not threshold-tune around
+Gible's far artifacts. Exact job `AFF7F2E7` restored Astro's original
+`fx-260828-658b7d2-p` image and verified field profile, downlight class, recovery
+state 0, and pending-verify survival at 32,039 ms uptime.
+
 ## 2026-08-29 -- Ben + Codex -- Raw Gible test rejects 5 m as usable physical range
 
 Ben challenged the earlier interpretation correctly: Gible is less than 5 m

@@ -177,10 +177,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   but a bamboo split held roughly 2 m away produced no 1-3 m return: instead,
   the same 34.355-second interaction produced 3.24-5.00 m reports across five
   zones. This rejects the far reports as proof of usable physical range and
-  points to aim, occlusion, edge/background ranging, or multipath. Exact final
-  job `105DD74F` restored the normal image and verified field posture. Next:
-  lower or re-aim Gible, clear/inspect the TMF aperture and field of view, then
-  repeat a normal-person test before any threshold tuning or ADR 0070
+  points to aim, occlusion, edge/background ranging, or multipath. A lower-hung
+  Astro `9E5B44` control then used the identical raw predicate. At roughly 12 ft,
+  walking beneath it produced only a split-second flicker while Ben's raised
+  hand produced a denser visible response. Its 304.3-second trace contained 35
+  white samples, all from physically plausible 1.003-1.561 m zone returns, and
+  no 1.562-5 m return or empty-scene false positive. Since Ben is 6 ft 3 in,
+  the roughly 1.75 m sensor-to-head gap was just outside the demonstrated band.
+  Lowering helps, but 12 ft remains marginal for passive walk-under behavior.
+  Exact jobs restored both fixtures and verified field posture. Next: test a
+  roughly 10 ft mounting or equivalent re-aim, inspect/clear Gible's TMF
+  aperture and field of view, then repeat a normal-person test before any
+  threshold tuning or ADR 0070
   promotion. The MSA311 accent seam is implemented but fleet-disabled
   pending quiet/wind/touch/swing/climb traces; barometric modulation and
   aggregate ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
