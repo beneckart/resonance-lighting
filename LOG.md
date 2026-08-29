@@ -10,7 +10,7 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
-## 2026-08-29 -- Ben + Codex -- Sentinel persistence now fails closed across interrupted runs
+## 2026-08-29 -- Ben + Codex -- Spyro sentinel post-mortem; fail-closed recovery and VL53 watchdog fix
 
 The first flash-persistence hardware follow-up used exact Spyro `F2BCF0` and
 target-only artifact `fx-260829-96862d8-t`. OTA job `34CB76FC` verified the
@@ -19,6 +19,17 @@ retrievable trace. Exact restore job `E1428FE2` later returned Spyro to retained
 fleet artifact `fx-260827-1254f04-p` and verified the restore through pending
 verify. Retain both operation ledgers, but do not count this as the required
 hardware persistence acceptance.
+
+Ben reported at least 18-21 close approaches during the controlled run. After
+the expected retrieval transition, Spyro rebooted with `task_watchdog`, failed
+to accept the checkpoint without reporting why, and silently started another
+30-minute campaign. It rebooted again one 30-second settle plus one 10-minute
+baseline later, exactly at `startTof()`. The synchronous VL53 firmware upload
+over the required 100 kHz bus serviced the watchdog only before and after the
+whole transfer; the timing and source isolate that unserviced transfer as the
+rerun watchdog. Fresh boot telemetry reported `sensor_bits=10`, proving MSA311
+at corrected address `0x62` plus VL53 on that boot. Earlier bit-2-only boots are
+therefore intermittent probe/rail-chain evidence, not proof of absence.
 
 Source hardening now treats an interrupted or corrupted campaign as a recovery
 condition instead of silently starting the physical experiment again. A
@@ -30,13 +41,19 @@ telemetry and the HTTP trace header, and the host capture tool refuses a
 recovery-only fixture. The pure core module pins the packed marker/header
 layouts, artifact tag, CRCs, sequence/count constraints, and named failure
 reasons. Long VL53 transfers service the task watchdog through the shared
-watchdog seam.
+watchdog seam. A new `--sentinel-trace-smoke` option compresses the automatic
+sequence to 40 seconds. Smoke telemetry is tagged and the power downloader
+rejects it, so checkpoint/readback, same-artifact reset survival, and retrieval
+can be proven without operator interaction before another full campaign.
 
 The complete native fixture suite passes, including the expanded 23-check
-sentinel regression, and all three focused capture-host tests pass. Hardware
-still must prove a complete persisted campaign, deliberate reset during
-retrieval, exact trace recovery without rerun, and final exact-prior restore
-before the sentinel power result can be accepted.
+sentinel regression; 25 focused Python tests pass; and an ESP32-S3 development
+compile passes at 36% flash / 20% globals. The process failure is explicit: an
+unproven persistence path was tested with another full campaign, and phase was
+later inferred from silence, causing unnecessary repeated requests to Ben. No
+further human-assisted campaign is permitted until smoke checkpoint, deliberate
+same-artifact reset, exact trace recovery without rerun, and exact-prior restore
+all pass.
 
 ## 2026-08-29 -- Ben + Codex -- Shaded Spyro rerun reproduced retrieval reset; trace persistence added
 

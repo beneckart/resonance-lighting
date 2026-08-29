@@ -51,14 +51,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   no-lid restore job `612D848D` completed and formally verified Spyro back on
   `fx-260827-1254f04-p` at 27,720 ms uptime, field/perimeter, no recovery or BQ
   fault. A later exact `fx-260829-96862d8-t` persistence attempt passed OTA but
-  did not yield an accepted trace; job `E1428FE2` restored the exact prior image
-  and verified it. Source now writes a CRC-protected run marker before
-  acquisition, read-validates a completed checkpoint before advertising it,
-  enters rail-off recovery-only maintenance after an interrupted/corrupt run,
-  exposes the named persistence state, and makes the host refuse recovery-only
-  evidence. Native and focused host tests pass. Next hardware run must prove
-  complete checkpoint retrieval plus a deliberate retrieval reset without
-  silently re-running the experiment.
+  did not yield an accepted trace. It silently reran after a task-watchdog reset,
+  then reset again at the VL53 transition because the synchronous 100 kHz
+  firmware upload lacked internal watchdog service. Job `E1428FE2` restored the
+  exact prior image and verified it at 30,316 ms uptime. Source now writes a
+  CRC-protected run marker before acquisition, read-validates a separately
+  committed checkpoint before advertising it, enters rail-off recovery-only
+  maintenance after an interrupted/corrupt run, exposes the named persistence
+  state, and makes the host refuse recovery-only evidence. VL53 I2C chunks and
+  waits service the armed watchdog. Before any full or human-assisted rerun,
+  pass the new 40-second `--sentinel-trace-smoke` gate, OTA the same exact
+  artifact again to prove reboot survival and identical count/sequence, retrieve
+  it, and restore the exact prior. Smoke evidence is not power evidence and the
+  downloader rejects it. Fresh `sensor_bits=10` proves MSA311 at corrected
+  `0x62` plus VL53 on that boot; investigate why earlier boots were intermittently
+  bit 2 before describing the chain as consistently healthy.
   Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
