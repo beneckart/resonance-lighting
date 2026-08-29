@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Eevee recovered from low-voltage PROTECT
+
+Exact outer-ring downlight Eevee `9F0E54` / `D8:85:AC:9F:0E:54` appeared on
+COM70 after Ben tapped physical RESET. Read-only telemetry on dual-site image
+`fx-260828-658b7d2-p` showed a genuine retained 3.030 V PROTECT entry, 3.304 V
+battery with about +1.05 A charging, good USB input, no BQ fault, and stale
+6 Ah NVS capacity despite the registry's physical 15 Ah assignment. The old
+image's longer physical-reset service window stayed awake long enough to
+complete its healthy-battery proof, persist OFF, and reboot. MSA311, TMF8820,
+and required outer-ring BMP581 then all sampled normally.
+
+Reused already-built immutable canary `fx-260829-b0ff5db-b`, SHA-256
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`; no
+compile ran. Exact USB commissioning restored 15,000 mAh capacity and passed
+the shared-WiFi endpoint at `192.168.1.119`. After explicitly returning from
+maintenance WiFi to COMMS, settled telemetry showed 3.314 V / +1.108 A,
+good 4.637 V input, 2 A charge configuration, no BQ fault, tier 2 / stage 3,
+field profile, channel 11, ESP-NOW up, exact revision, `pending_verify=false`,
+and healthy MSA/TMF/BMP samples with zero TMF errors. Evidence is in
+`ops/bench/data/usb/2026-08-29-9F0E54-protect-canary.jsonl`.
+
+Eevee is ready to unplug, but this variant-`b` service image has only the
+Party In The Woods maintenance profile. Add it to the future dual-site
+production tail before fleet closure.
+
 ## 2026-08-29 -- Ben + Codex -- Logan proves the fixed timer-wake PROTECT release
 
 Exact downlight Logan `9E5A88` / `D8:85:AC:9E:5A:88` appeared on COM158 during

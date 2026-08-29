@@ -26,7 +26,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   deliberate one-second deep sleep (past the old 12 s cutoff), completed the
   sustained full-battery PROTECT release, persisted OFF, clean-rebooted, and
   advanced to DIM with healthy MSA/TMF and WiFi. This closes the timer-wake
-  hardware acceptance (Ben/Codex).
+  hardware acceptance. Eevee `9F0E54` then arrived in genuine low-voltage
+  PROTECT with a retained 3.030 V entry. Physical RESET gave the old image's
+  long service window; healthy roughly 1.1 A charging released it cleanly to
+  OFF. The same exact canary passed USB/WiFi commissioning with its physical
+  15 Ah capacity restored and healthy MSA/TMF/BMP telemetry (Ben/Codex).
 - [ ] **Repair quarantined downlight Shuckle `F4031C`.** Its old commission
   image repeatedly failed all four PowerFeather init attempts with charger,
   gauge, rails, and sensors inaccessible. Disconnecting the sensor chain made
@@ -120,9 +124,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixture promotion contracts passed. No secret is tracked. Hardware-prove the
   second profile at the art site with one exact fixture before relying on it for
   USB-tail avoidance. Exact Rikku `9F26B0` subsequently passed combined artifact
-  `fx-260828-abd893c-p`; 12 intended fixtures still lack the current dual-site
-  fleet image. The set is `9E5A88`, `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
-  `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
+  `fx-260828-abd893c-p`; 13 intended fixtures still lack the current dual-site
+  fleet image. The set is `9E5A88`, `9F0E54`, `9F2724`, `F2B7DC`, `F2B900`,
+  `F2BCF0`, `F2BCF4`, `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and
+  `F403DC`. The working
   11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
   `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank
   `F2BF60`, uncalled `F2BFEC`, Thor `F40344`, Dratini `F4035C`, and Sneasel
