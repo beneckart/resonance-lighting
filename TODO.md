@@ -18,9 +18,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   downlight class, MSA/TMF/BMP samples, ESP-NOW, and a later clean 120-second
   timer wake. Toad's retained stage was already DIM after the USB flash, so
   this exact run did not replay a live PROTECT -> OFF release; the pure
-  regression is the direct branch proof and a future naturally parked fixture
-  may provide additional hardware release evidence without reopening Toad
-  (Ben/Codex).
+  regression is the direct branch proof. Groot `9F2724` subsequently arrived
+  in genuine low-voltage PROTECT, released on the old image during the longer
+  physical-reset window, and passed the same exact canary plus USB/WiFi gate;
+  this confirms a second repaired fixture without claiming a timer-wake
+  hardware replay of the fixed branch (Ben/Codex).
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
   20-minute UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical

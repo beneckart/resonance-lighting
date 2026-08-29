@@ -10,6 +10,37 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Groot recovered and received the PROTECT-sleep fix
+
+The next USB-connected problem fixture did not enumerate during a no-reset
+watch lasting longer than its ordinary 120-second day cycle. One deliberate
+physical RESET exposed exact downlight Groot `9F2724` /
+`D8:85:AC:9F:27:24` on COM76. Read-only telemetry on accepted production image
+`fx-260827-1254f04-p` showed a real installed 15 Ah LFP, durable guard stage 4 /
+power tier 3 PROTECT, good 4.597 V USB input, +547.5 mA battery charging, and no
+BQ fault. The retained entry was at 2.974 V, so unlike Rikku this was consistent
+with a genuine earlier low-voltage latch.
+
+The physical reset provided the ten-minute cold-boot listen window. Groot
+therefore completed the existing 60-second charge-current release, persisted
+stage 2 / DIM, and clean-software-rebooted before any flash. Both required
+downlight sensors then returned healthy. This distinguishes the initial USB
+silence from a bad cable or dead board: the fixture had been in its 900-second
+PROTECT sleep cadence, and USB insertion alone is not a wake source. The old
+image remained vulnerable on ordinary 12-second timer wakes to the independent
+day-charge sleep bug already proven on Toad.
+
+Uploaded the already-built immutable bench canary `fx-260829-b0ff5db-b`; no
+second compile occurred. Exact USB identity, ESP32-S3 revision 0.2, 8 MB flash,
+2 MB physical PSRAM, binary SHA-256, field/channel-11 configuration, 15 Ah /
+2 A settings, 300 mA precharge, no-fault charging, downlight class, MSA311 and
+TMF8820 samples, ESP-NOW, and shared-WiFi maintenance endpoint all passed. A
+settled post-check reported the exact revision, stage 2 / DIM, no interruption,
+3.274 V at +543.1 mA, and `pending_verify=false`. This remains a one-profile
+variant-`b` service image, not the future dual-profile fleet artifact. Evidence
+is in
+`ops/bench/data/usb/2026-08-29-9F2724-protect-day-sleep-canary.jsonl`.
+
 ## 2026-08-29 -- Ben + Codex -- Toad fixed; artifact identity made automatic
 
 Fixed the lifecycle ownership bug diagnosed below. `lifeTick` now suppresses
