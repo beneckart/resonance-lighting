@@ -452,6 +452,54 @@ Next: have a person walk/stand directly under Sakura while an exact visible
 lease is active. If no `W=255` transition or raw 2.7-3.5 m return appears, treat
 15 ft height/aim/sunlight as a P0 gating concern and test one lower or better-
 aimed canopy fixture before any fleet promotion.
+## 2026-08-29 -- Ben + Codex -- Gible sentinel proves the path but not useful interaction
+
+The earlier rolling captures left Ben unconvinced that the installed-height
+experiment was timed and signaled clearly enough. Built exact-target-only trace
+artifact `fx-260829-e98247b-t` from pushed test commit `ce785c5`, 1,222,416
+bytes, SHA-256
+`f19c8e2f597e0baa3145c0c2c450becf07b83a398685da4a21140a6e118d2bdc`.
+Its immutable recipe SHA-256 is
+`e98247b9ddff406e8e16769073792e839b14a9751200aa55853cfa166c15bbb5`.
+The build is locked to Gible `9E5B34`, marked target-test-only and never
+fleetable, and retains just over five minutes at one 300 ms sample per record.
+It leaves the production TMF gate/debounce unchanged but replaces visible
+output on that exact target with an unmistakable sentinel: solid red without a
+presence latch and full RGB white while the latch is active. Exact Identify
+still has higher precedence and supplied green start/end markers.
+
+Job `C2DFDDB2` updated only Gible, received fresh 3.297 V maintenance evidence,
+and verified the exact trace image through pending verify at 23,972 ms uptime.
+Ben physically confirmed the red baseline. The final 1,024-sample capture
+contained two approximately 10-second green markers at sequences 1031-1060 and
+1501-1530. Between them, the first 111.855 seconds after the first marker were
+red with no false latch. Ben then had to hold a split high to trigger Gible.
+The recorder captured five separate presence rises at 2,504-4,497 mm and 49
+active samples across 27.356 seconds. Every active sample rendered exact
+`R=255,G=255,B=255,W=0`; no inactive sample rendered white. The sequence then
+returned to red for 8.030 seconds before the second green marker. This rules out
+capture timing and proves the sensor -> full-range parser -> production
+debounce/latch -> render arbitration path on installed hardware. Exact capture
+campaign `29CC104A` selected only Gible, froze before drain, and made no NVS or
+profile mutation.
+
+The trace also answers the range-cap question directly. Its maximum retained
+post-parser zone was 4,982 mm at confidence 32; the maximum frame summary was
+4,781 mm. The parser therefore demonstrably accepts the TMF through its 5,000 mm
+limit. Presence intentionally has a separate 4,500 mm empty-background ceiling,
+so the 4,982 and 4,781 mm frames did not initiate a latch. Rising-edge depths
+were 4,497, 2,508, 2,860, 3,829, and 2,504 mm. Ben's impression that the useful
+trigger was mostly near 2.5-3 m is consistent with the trace and is not evidence
+that the retired 2.5 m parser cap remains.
+
+It does not pass ADR 0070's usability gate: ordinary standing and walking had
+not triggered, and the successful gesture required holding the reported split
+high. Treat the remaining issue as installed aim/range/sensitivity, not a dead
+sensor or broken output path. No production threshold or fleet artifact changed.
+Exact restore job `F02313D7` put normal canary `fx-260829-7906e6f-p` back on
+Gible and verified it past pending verify at 27,560 ms with downlight class,
+field profile, and recovery state 0.
+
 ## 2026-08-29 -- Ben + Codex -- Gible installed-height canopy canary failed
 
 Built immutable normal canary `fx-260829-7906e6f-p` (1,212,736 bytes, SHA-256

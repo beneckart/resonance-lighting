@@ -102,7 +102,7 @@ person to race a capture deadline.
 
 ## Triggered results
 
-The two accepted 1,024-sample windows were:
+The two diagnostic 1,024-sample windows were:
 
 | Condition | Retained span | Positive depth frames | Depth range | Person-range frames | Presence active/rising | Full dedicated W=255 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -126,22 +126,93 @@ important alignment control: the ordinary warm-white states Ben saw are in the
 record, while the required full-white state and its owning presence latch are
 absent.
 
+## Foolproof sentinel retest
+
+Ben did not accept the earlier visual distinction or trigger timing as
+foolproof, so the final retest used an exact-target diagnostic that left the
+production presence detector unchanged and made its state visually binary:
+
+- Revision: `fx-260829-e98247b-t`
+- Source commit: `ce785c571cc6adc2ddd03145ded11444cd933297`
+- Target lock: compile-time short MAC `9E5B34`
+- Binary: 1,222,416 bytes
+- Binary SHA-256:
+  `f19c8e2f597e0baa3145c0c2c450becf07b83a398685da4a21140a6e118d2bdc`
+- Recipe SHA-256:
+  `e98247b9ddff406e8e16769073792e839b14a9751200aa55853cfa166c15bbb5`
+- Promotion state: target-test-only, never fleetable
+- No latch: `R=255,G=0,B=0,W=0`
+- Presence latch: `R=255,G=255,B=255,W=0`
+
+The sentinel applies only after ordinary program arbitration and only while the
+frame is already visible; identify, smoke, blackout, battery, and rail authority
+remain unchanged. Native tests passed, including the complete 558-check
+presence suite. The 300 ms trace interval gives the internal 1,024-sample
+fallback just over five minutes of retained history. Job `C2DFDDB2` updated
+only Gible and verified the exact trace revision through pending verify at
+23,972 ms uptime. Ben physically confirmed the red baseline.
+
+The T-Deck's exact Gible Identify action supplied two approximately 10-second
+green markers. The first occupied sequences 1031-1060 at 369.415-379.119 s
+fixture uptime; the second occupied sequences 1501-1530 at 526.360-536.044 s.
+The complete retained window was frozen only after the second marker, so the
+person was not racing a host-side capture timer. Exact maintenance campaign
+`29CC104A` selected only Gible, froze before the drain, and made no NVS or
+profile mutation.
+
+Ben reported that he had to trigger with a split held high. The raw record
+between the markers contained 46 positive depth frames above 1 m. It asserted
+five separate presence edges:
+
+| Rising sequence | Fixture uptime | Trigger depth | Confidence |
+| ---: | ---: | ---: | ---: |
+| 1395 | 490.974 s | 4,497 mm | 30 |
+| 1415 | 497.614 s | 2,508 mm | 47 |
+| 1442 | 506.664 s | 2,860 mm | 38 |
+| 1459 | 512.330 s | 3,829 mm | 38 |
+| 1472 | 516.689 s | 2,504 mm | 59 |
+
+The maximum retained post-parser individual zone was 4,982 mm at confidence 32
+(sequence 1471). The maximum closest-target/frame-summary depth was 4,781 mm at
+confidence 32 (sequence 1440). Those values prove that the old 2,500 mm parser
+cap is absent and the complete 5,000 mm sensor range reaches the presence gate.
+They did not initiate presence because `PRESENCE_MAX_MM` intentionally limits a
+previously empty zone to 4,500 mm, separate from the 5,000 mm sensor/parser
+limit. A 4,763 mm sample occurred while an earlier latch was still held; it was
+not a rising-edge trigger. Most new assertions began at 2,504-2,860 mm, matching
+Ben's visual estimate, while the 3,829 and 4,497 mm edges independently prove
+operation beyond the old cap.
+
+The five active runs covered sequences 1395-1404, 1415-1430, 1442-1451,
+1459-1465, and 1472-1477: 49 samples total. All 49 active samples rendered exact
+full RGB white, no inactive sample rendered white, and no active sample remained
+red. After the first green marker ended, the recorder retained 111.855 seconds
+of red baseline before the first presence edge. After the last white sample it
+returned to red for 8.030 seconds before the second green marker.
+
+This is conclusive end-to-end evidence for the installed Gible sensor, full-
+range parser, unchanged production debounce/latch, and visible output
+arbitration. It also confirms that the remaining failure is not host capture
+timing. It is not a useful-person-range pass: ordinary standing/walking did not
+trigger, and the successful interaction required the high-held gesture.
+
 ## Verdict
 
-**FAIL -- installed-height interaction gate.** OTA safety, exact artifact
-identity, field posture, sensor health, ordinary CA behavior, and rolling-trace
-alignment all passed. Gible did not see a standing or walking person at useful
-range and never asserted the ADR 0070 presence response. Do not fleet-promote
-this canopy interaction on the basis of Gible. The next action is mechanical
-range/aim diagnosis at the TMF window and installed sensor angle; do not widen
-the 5 m parser limit or weaken confidence/debounce thresholds without new raw
-range evidence.
+**HOLD -- useful installed-height interaction gate; PASS -- end-to-end presence
+path.** OTA safety, exact artifact identity, field posture, sensor health,
+full-range parsing, production debounce/latch, and output arbitration all
+passed. The foolproof sentinel rules out capture timing and shows five clean
+presence assertions when Ben holds the reported split high. It does not meet
+ADR 0070's release requirement for an ordinary standing/walking person. Do not
+fleet-promote this canopy interaction on the basis of Gible. The next action is
+mechanical range/aim diagnosis plus evidence-led sensitivity tuning; retain the
+5 m parser limit, per-zone background learning, and clear-to-rearm hysteresis.
 
 ## Cleanup
 
-Final exact restore job `32F8BF78` replaced the temporary trace image with the
+Final exact restore job `F02313D7` replaced the sentinel trace image with the
 normal `fx-260829-7906e6f-p` binary and verified it through the pending-verify
-gate at 28,353 ms uptime. A later fresh dashboard heartbeat showed field
+gate at 27,560 ms uptime. A fresh dashboard heartbeat showed field
 profile, NIGHT_SHOW, FULL tier, GH CA, downlight class, sensor bits `9`, no class
 mismatch, recovery state 0, ordinary mesh mode, and no active maintenance
 campaign. No temporary visible lease or trace image remains on Gible.
@@ -155,3 +226,8 @@ Retained evidence is under `ops/bench/data/ca/`:
 - `20260829-gible-9E5B34-trigger-under-motion.jsonl`
 - `20260829-gible-9E5B34-trigger-walk-motion.jsonl`
 - `20260829-gible-9E5B34-triggered-trace-final-restore-job.jsonl`
+- `20260829-gible-9E5B34-presence-sentinel-trace-ota-job.jsonl`
+- `20260829-121148-C2DFDDB2-fleet-ota-results.jsonl`
+- `20260829-gible-9E5B34-presence-sentinel-bracketed-split-high.jsonl`
+- `20260829-gible-9E5B34-presence-sentinel-final-restore-job.jsonl`
+- `20260829-122316-F02313D7-fleet-ota-results.jsonl`
