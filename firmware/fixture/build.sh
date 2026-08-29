@@ -14,6 +14,7 @@
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
 #   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
 #   ./build.sh --presence-sentinel       # trace-only red -> RGB-white presence
+#   ./build.sh --presence-distant-range  # trace-only raw 1000..<5000 mm presence
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -50,6 +51,7 @@ WAKE_LISTEN_MS="15000"
 DEEP_RECOVERY_TARGET=""
 MSA_TRACE_TARGET=""
 PRESENCE_SENTINEL=0
+PRESENCE_DISTANT_RANGE=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -100,6 +102,7 @@ Common build options:
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
+  --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -265,6 +268,7 @@ while [[ $# -gt 0 ]]; do
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
     --presence-sentinel) PRESENCE_SENTINEL=1; shift ;;
+    --presence-distant-range) PRESENCE_DISTANT_RANGE=1; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -328,6 +332,12 @@ if (( PRESENCE_SENTINEL )); then
   [[ -n "$MSA_TRACE_TARGET" ]] ||
     fail "--presence-sentinel requires --msa-trace-target"
 fi
+if (( PRESENCE_DISTANT_RANGE )); then
+  [[ -n "$MSA_TRACE_TARGET" ]] ||
+    fail "--presence-distant-range requires --msa-trace-target"
+  (( PRESENCE_SENTINEL )) ||
+    fail "--presence-distant-range requires --presence-sentinel"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -389,6 +399,9 @@ if [[ -n "$MSA_TRACE_TARGET" ]]; then
 fi
 if (( PRESENCE_SENTINEL )); then
   FLAGS+=" -DRES_CANOPY_PRESENCE_SENTINEL=1"
+fi
+if (( PRESENCE_DISTANT_RANGE )); then
+  FLAGS+=" -DRES_CANOPY_PRESENCE_DISTANT_RANGE=1"
 fi
 case "$PROFILE" in
   "") ;;

@@ -35,6 +35,7 @@ grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
 grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
 grep -Fq -- '--msa-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
 grep -Fq -- '--presence-sentinel' <<< "$help" || fail "help omits presence sentinel"
+grep -Fq -- '--presence-distant-range' <<< "$help" || fail "help omits distant-range sentinel"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -50,6 +51,11 @@ expect_rejected 'bad --wake-listen-ms' --wake-listen-ms invalid
 expect_rejected 'bad --msa-trace-target' --msa-trace-target invalid
 expect_rejected '--presence-sentinel requires --msa-trace-target' \
   --presence-sentinel
+expect_rejected '--presence-distant-range requires --msa-trace-target' \
+  --presence-distant-range
+expect_rejected '--presence-distant-range requires --presence-sentinel' \
+  --presence-distant-range --msa-trace-target F2BE0C \
+  --fw-rev fx-260829-0000000-t
 expect_rejected '--msa-trace-target requires an explicit test-class' \
   --msa-trace-target F2BE0C --fw-rev fx-260829-0000000-p
 
