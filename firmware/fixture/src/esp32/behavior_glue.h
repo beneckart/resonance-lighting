@@ -36,6 +36,10 @@ uint8_t behaviorLifeState();
 bool behaviorStrikesAllowed();
 uint16_t behaviorDaySleepS();
 uint32_t behaviorWakeListenMs();
+// Read-only observability for exact-target motion traces. These expose the
+// same learned TMF gate that owns the visible listener response.
+bool behaviorTofPresenceActive();
+bool behaviorTofPresenceRising();
 
 // The autonomous-program strike gate: field = DAY_ACTIVE + solar surplus +
 // FULL tier; commission relaxes the surplus requirement but never the night
