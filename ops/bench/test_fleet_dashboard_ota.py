@@ -215,6 +215,42 @@ class FleetWorkflowTests(unittest.TestCase):
             ota.same_boot_as_exact_revision({"uptime_ms": 29575}, exact)
         )
 
+    def test_cached_post_upload_heartbeat_survives_long_reconcile(self):
+        baseline = {"firmware_rev": "old", "uptime_ms": 190716, "seq": 900}
+        peer = {
+            "firmware_rev": "new",
+            "uptime_ms": 32632,
+            "seq": 10,
+            "age_ms": 433709,
+        }
+        self.assertTrue(
+            ota.post_upload_exact_seen(peer, baseline, "new", 100.0, now=540.0)
+        )
+
+    def test_cached_pre_upload_heartbeat_is_rejected(self):
+        baseline = {"firmware_rev": "new", "uptime_ms": 190716, "seq": 900}
+        peer = {
+            "firmware_rev": "new",
+            "uptime_ms": 32632,
+            "seq": 10,
+            "age_ms": 450000,
+        }
+        self.assertFalse(
+            ota.post_upload_exact_seen(peer, baseline, "new", 100.0, now=540.0)
+        )
+
+    def test_cached_post_upload_heartbeat_requires_reset_evidence(self):
+        baseline = {"firmware_rev": "old", "uptime_ms": 1000, "seq": 10}
+        peer = {
+            "firmware_rev": "new",
+            "uptime_ms": 32632,
+            "seq": 20,
+            "age_ms": 1000,
+        }
+        self.assertFalse(
+            ota.post_upload_exact_seen(peer, baseline, "new", 100.0, now=110.0)
+        )
+
     def test_fresh_maintenance_preflight_reprobes_identity_and_power(self):
         emitted = []
 

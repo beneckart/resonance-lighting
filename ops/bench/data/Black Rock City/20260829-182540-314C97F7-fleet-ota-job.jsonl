@@ -1,0 +1,147 @@
+{"artifact": "C:\\Users\\benec\\OneDrive\\Documents\\ChatGPT\\resonance-lighting-daytime\\firmware\\fixture\\build\\fx-260829-af1d4ec-p\\fixture.ino.bin", "artifact_sha256": "669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8", "campaign_duration_s": 190, "discovery_timeout_s": 150.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260829-af1d4ec-p", "gather_cadence": "ordinary", "job_id": "314C97F7", "phase": "PLAN", "target_count": 78, "targets": ["9D7884", "9E5954", "9E5A58", "9E5A84", "9E5A94", "9E5AB0", "9E5AC8", "9E5AD4", "9E5AE0", "9E5B04", "9E5B10", "9E5B14", "9E5B34", "9E5B44", "9E5B48", "9E5B68", "9E5B8C", "9F0E30", "9F0E5C", "9F0E7C", "9F2638", "9F266C", "9F2694", "9F26AC", "9F26B0", "9F26B4", "9F26BC", "9F26C0", "9F26C4", "9F26D4", "9F26E8", "9F2718", "9F2720", "9F2738", "9F275C", "F2BCF0", "F2BCF4", "F2BD00", "F2BDB0", "F2BDB4", "F2BDC4", "F2BDFC", "F2BE08", "F2BE1C", "F2BE38", "F2BE48", "F2BE60", "F2BE6C", "F2BE70", "F2BE94", "F2BEA4", "F2BEB4", "F2BF54", "F2BF5C", "F2BF7C", "F2BF8C", "F2BF90", "F3FC90", "F3FC9C", "F3FCAC", "F3FD28", "F3FD60", "F40174", "F4019C", "F401A8", "F401CC", "F401DC", "F40254", "F40268", "F402C4", "F40308", "F40350", "F40364", "F40384", "F403DC", "F403F0", "F4042C", "F4043C"], "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "314C97F7", "phase": "PREFLIGHT", "target_count": 78, "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.062, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9D7884", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5954", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.094, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5A58", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.109, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5A84", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5A94", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5AB0", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5AC8", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.156, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5AD4", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.172, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5AE0", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.187, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B04", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.203, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B10", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.219, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B14", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.234, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B34", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.266, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B44", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.281, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B48", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.297, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B68", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.312, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9E5B8C", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.328, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F0E30", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.344, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F0E5C", "ts_utc": "2026-08-29T18:25:40Z"}
+{"elapsed_s": 0.359, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F0E7C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.375, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F2638", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.391, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F266C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.406, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F2694", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.422, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26AC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.437, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26B0", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.453, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26B4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.469, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26BC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.484, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26C0", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.5, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26C4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.516, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26D4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.531, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F26E8", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.547, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F2718", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.562, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F2720", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.578, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F2738", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.594, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "9F275C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.609, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BCF0", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.641, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BCF4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.656, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BD00", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.672, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BDB0", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.687, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BDB4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.703, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BDC4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.719, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BDFC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.734, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE08", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.75, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE1C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.781, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE38", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.797, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE48", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.797, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE60", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.812, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE6C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.828, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE70", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.844, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BE94", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.859, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BEA4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.875, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BEB4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.906, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BF54", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.922, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BF5C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.937, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BF7C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.953, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BF8C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.969, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F2BF90", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 0.984, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F3FC90", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.0, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F3FC9C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.016, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F3FCAC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.031, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F3FD28", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.047, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F3FD60", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.062, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40174", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.078, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F4019C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.094, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F401A8", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.125, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F401CC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.125, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F401DC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.141, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40254", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.156, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40268", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.172, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F402C4", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.187, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40308", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.203, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40350", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.219, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40364", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.234, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F40384", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.25, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F403DC", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.266, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F403F0", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.281, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F4042C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"elapsed_s": 1.297, "event": "target_added", "job_id": "314C97F7", "phase": "GATHER", "target": "F4043C", "ts_utc": "2026-08-29T18:25:41Z"}
+{"campaign": {"active": true, "cycle_ms": 780, "dispatch_count": 104, "job_id": "314C97F7", "phase": 1, "remaining_ms": 188715, "status_age_ms": 16, "target_count": 78, "ts_utc": "2026-08-29T18:25:41.984668+00:00"}, "elapsed_s": 1.344, "event": "bridge_acknowledged", "job_id": "314C97F7", "phase": "GATHER", "ts_utc": "2026-08-29T18:25:41Z"}
+{"battery_v": 3.347, "elapsed_s": 6.969, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.50", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE60", "ts_utc": "2026-08-29T18:25:47Z"}
+{"battery_v": 3.397, "elapsed_s": 7.375, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.128", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F0E7C", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.351, "elapsed_s": 7.375, "event": "endpoint_found", "firmware_rev": "fx-260829-7906e6f-p", "ip": "192.168.1.107", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B34", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.39, "elapsed_s": 7.437, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.194", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26C4", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.363, "elapsed_s": 7.656, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.158", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F266C", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.3, "elapsed_s": 7.734, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.116", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F0E5C", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.391, "elapsed_s": 7.891, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.207", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F2718", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.396, "elapsed_s": 7.891, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.219", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F2738", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.345, "elapsed_s": 7.953, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.245", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B68", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.386, "elapsed_s": 8.031, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.247", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BF8C", "ts_utc": "2026-08-29T18:25:48Z"}
+{"battery_v": 3.28, "elapsed_s": 12.156, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.55", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE70", "ts_utc": "2026-08-29T18:25:52Z"}
+{"battery_v": 3.322, "elapsed_s": 12.172, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.47", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F4019C", "ts_utc": "2026-08-29T18:25:52Z"}
+{"battery_v": 3.201, "elapsed_s": 12.172, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.56", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BDFC", "ts_utc": "2026-08-29T18:25:52Z"}
+{"battery_v": 3.222, "elapsed_s": 12.187, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.33", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5954", "ts_utc": "2026-08-29T18:25:52Z"}
+{"battery_v": 3.403, "elapsed_s": 12.703, "event": "endpoint_found", "firmware_rev": "fx-260828-abd893c-p", "ip": "192.168.1.108", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26B0", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.394, "elapsed_s": 12.75, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.175", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F0E30", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.356, "elapsed_s": 12.75, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.119", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B14", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.302, "elapsed_s": 12.766, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.148", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F40364", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.349, "elapsed_s": 12.766, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.165", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F3FC9C", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.275, "elapsed_s": 13.281, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.251", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F4043C", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.38, "elapsed_s": 13.297, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.210", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5AC8", "ts_utc": "2026-08-29T18:25:53Z"}
+{"battery_v": 3.391, "elapsed_s": 13.469, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.227", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26BC", "ts_utc": "2026-08-29T18:25:54Z"}
+{"battery_v": 3.356, "elapsed_s": 17.594, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.93", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26E8", "ts_utc": "2026-08-29T18:25:58Z"}
+{"battery_v": 3.295, "elapsed_s": 23.516, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.154", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BF7C", "ts_utc": "2026-08-29T18:26:04Z"}
+{"battery_v": 3.324, "elapsed_s": 23.969, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.199", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F3FD60", "ts_utc": "2026-08-29T18:26:04Z"}
+{"battery_v": 3.299, "elapsed_s": 28.266, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.22", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F4042C", "ts_utc": "2026-08-29T18:26:08Z"}
+{"battery_v": 3.301, "elapsed_s": 28.312, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.24", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F401DC", "ts_utc": "2026-08-29T18:26:08Z"}
+{"battery_v": 3.303, "elapsed_s": 28.875, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.147", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BEB4", "ts_utc": "2026-08-29T18:26:09Z"}
+{"battery_v": 3.345, "elapsed_s": 29.437, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.218", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE38", "ts_utc": "2026-08-29T18:26:10Z"}
+{"battery_v": 3.267, "elapsed_s": 34.609, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.226", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F3FD28", "ts_utc": "2026-08-29T18:26:15Z"}
+{"battery_v": 3.352, "elapsed_s": 38.312, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.21", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B48", "ts_utc": "2026-08-29T18:26:18Z"}
+{"battery_v": 3.299, "elapsed_s": 38.875, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.133", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BD00", "ts_utc": "2026-08-29T18:26:19Z"}
+{"battery_v": 3.354, "elapsed_s": 43.266, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.78", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26C0", "ts_utc": "2026-08-29T18:26:23Z"}
+{"battery_v": 3.299, "elapsed_s": 43.812, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.114", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE1C", "ts_utc": "2026-08-29T18:26:24Z"}
+{"battery_v": 3.352, "elapsed_s": 43.906, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.168", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5A58", "ts_utc": "2026-08-29T18:26:24Z"}
+{"battery_v": 3.322, "elapsed_s": 48.125, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.29", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F401CC", "ts_utc": "2026-08-29T18:26:28Z"}
+{"battery_v": 3.221, "elapsed_s": 53.094, "event": "endpoint_found", "firmware_rev": "fx-260827-1254f04-p", "ip": "192.168.1.41", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BDC4", "ts_utc": "2026-08-29T18:26:33Z"}
+{"battery_v": 3.598, "elapsed_s": 53.656, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.113", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B04", "ts_utc": "2026-08-29T18:26:34Z"}
+{"battery_v": 3.338, "elapsed_s": 57.969, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.60", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F2638", "ts_utc": "2026-08-29T18:26:38Z"}
+{"battery_v": 3.345, "elapsed_s": 59.078, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.249", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F40350", "ts_utc": "2026-08-29T18:26:39Z"}
+{"battery_v": 3.352, "elapsed_s": 63.484, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.189", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26D4", "ts_utc": "2026-08-29T18:26:44Z"}
+{"battery_v": 3.299, "elapsed_s": 68.391, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.159", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE94", "ts_utc": "2026-08-29T18:26:49Z"}
+{"battery_v": 3.34, "elapsed_s": 68.406, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.157", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F401A8", "ts_utc": "2026-08-29T18:26:49Z"}
+{"battery_v": 3.337, "elapsed_s": 68.406, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.202", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BDB0", "ts_utc": "2026-08-29T18:26:49Z"}
+{"battery_v": 3.353, "elapsed_s": 68.469, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.211", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F2720", "ts_utc": "2026-08-29T18:26:49Z"}
+{"battery_v": 3.244, "elapsed_s": 72.797, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.100", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5AD4", "ts_utc": "2026-08-29T18:26:53Z"}
+{"battery_v": 3.215, "elapsed_s": 73.297, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.200", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE48", "ts_utc": "2026-08-29T18:26:53Z"}
+{"battery_v": 3.201, "elapsed_s": 77.609, "event": "endpoint_found", "firmware_rev": "fx-260827-1254f04-p", "ip": "192.168.1.99", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BCF0", "ts_utc": "2026-08-29T18:26:58Z"}
+{"battery_v": 3.356, "elapsed_s": 77.672, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.101", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F402C4", "ts_utc": "2026-08-29T18:26:58Z"}
+{"battery_v": 3.305, "elapsed_s": 78.125, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.171", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BE6C", "ts_utc": "2026-08-29T18:26:58Z"}
+{"battery_v": 3.33, "elapsed_s": 83.094, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.141", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BEA4", "ts_utc": "2026-08-29T18:27:03Z"}
+{"battery_v": 3.341, "elapsed_s": 83.109, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.182", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F40268", "ts_utc": "2026-08-29T18:27:03Z"}
+{"battery_v": 3.343, "elapsed_s": 92.922, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.163", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F275C", "ts_utc": "2026-08-29T18:27:13Z"}
+{"battery_v": 3.298, "elapsed_s": 92.969, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.233", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F26AC", "ts_utc": "2026-08-29T18:27:13Z"}
+{"battery_v": 3.326, "elapsed_s": 97.687, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.164", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BF54", "ts_utc": "2026-08-29T18:27:18Z"}
+{"battery_v": 3.348, "elapsed_s": 97.75, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.137", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B44", "ts_utc": "2026-08-29T18:27:18Z"}
+{"battery_v": 3.316, "elapsed_s": 102.016, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.76", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5A94", "ts_utc": "2026-08-29T18:27:22Z"}
+{"battery_v": 3.356, "elapsed_s": 102.094, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.57", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F40254", "ts_utc": "2026-08-29T18:27:22Z"}
+{"battery_v": 3.301, "elapsed_s": 102.656, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.212", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9F2694", "ts_utc": "2026-08-29T18:27:23Z"}
+{"battery_v": 3.34, "elapsed_s": 102.812, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.235", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9E5B10", "ts_utc": "2026-08-29T18:27:23Z"}
+{"battery_v": 3.219, "elapsed_s": 126.484, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.112", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F40384", "ts_utc": "2026-08-29T18:27:47Z"}
+{"battery_v": 3.298, "elapsed_s": 126.656, "event": "endpoint_found", "firmware_rev": "fx-260828-d8f62c3-p", "ip": "192.168.1.120", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F2BF90", "ts_utc": "2026-08-29T18:27:47Z"}
+{"battery_v": 3.343, "elapsed_s": 131.156, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.77", "job_id": "314C97F7", "phase": "DISCOVER", "target": "F403F0", "ts_utc": "2026-08-29T18:27:51Z"}
+{"battery_v": 3.309, "elapsed_s": 146.328, "event": "endpoint_found", "firmware_rev": "fx-260828-658b7d2-p", "ip": "192.168.1.188", "job_id": "314C97F7", "phase": "DISCOVER", "target": "9D7884", "ts_utc": "2026-08-29T18:28:06Z"}
+{"elapsed_s": 155.359, "error": "maintenance discovery timed out for: 9E5A84,9E5AB0,9E5AE0,9E5B8C,9F26B4,F2BCF4,F2BDB4,F2BE08,F2BF5C,F3FC90,F3FCAC,F40174,F40308,F403DC", "event": "job_error", "job_id": "314C97F7", "phase": "CLEANUP", "ts_utc": "2026-08-29T18:28:16Z"}
+{"campaign": {"active": false, "cycle_ms": 780, "dispatch_count": 12645, "job_id": "314C97F7", "phase": 2, "remaining_ms": 0, "status_age_ms": 94, "target_count": 78, "ts_utc": "2026-08-29T18:28:16.227548+00:00"}, "elapsed_s": 155.672, "event": "bridge_acknowledged", "job_id": "314C97F7", "phase": "FREEZE", "ts_utc": "2026-08-29T18:28:16Z"}

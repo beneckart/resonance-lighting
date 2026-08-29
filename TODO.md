@@ -4,6 +4,17 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [~] **Finish the `fx-260829-af1d4ec-p` safe-fleet convergence.** The accepted
+  UTC-modulated CA/mainline production image is exact-revision and pending-gate
+  verified on 84 live fixtures. Retry only the seven explicit healthy deferred
+  peers when they next become reachable: Togepi `9E5AB0`, Gambit `F2BCF4`, Abra
+  `F2BDB4`, Yoshi `F2BE08`, Kiki `F2BF5C`, Ditto `F3FCAC`, and Sneasel `F403DC`.
+  Do not fold the remaining low-voltage/recovery, batteryless/quarantined,
+  mutable-development, protected/ambiguous, or non-retained-prior special
+  canaries into a bulk retry. Re-establish fresh power/state evidence and exact
+  rollback bytes first. Evidence jobs: mixed-role `C4B0A600`, no-upload refusal
+  `314C97F7`, main widening `FCCFAC70`, 360-second deferred pass `B9E7ED6E`, and
+  late safe-state pass `A1E3218D` (Ben/Codex).
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
   `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut
@@ -51,8 +62,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   that target/hour. RTC-retained expected/attempted/fired/refused/blocked masks
   are emitted immediately in full heartbeats and maintenance JSON. Generated
   immutable artifact identity, the mainline PROTECT recovery-awake fix, native
-  fixture/Bridge OS suites, host parser tests, and an ESP32-S3 compile pass;
-  nothing was flashed. On one physically identified,
+  fixture/Bridge OS suites, host parser tests, and an ESP32-S3 compile pass.
+  Normal production artifact `fx-260829-af1d4ec-p` (not a target/hour canary)
+  is now verified on 84 fixtures and exposes the audit tail, but no exact
+  target/hour actuation run has been accepted. On one physically identified,
   battery-installed cymbal downlight, prove high-quality UTC wake alignment,
   T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to
   sleep, and no duplicate after an in-window reset. Then prove unison abstention

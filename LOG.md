@@ -10,6 +10,54 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Accepted CA/mainline production image widened to 84 fixtures
+
+Built immutable production artifact `fx-260829-af1d4ec-p` from clean commit
+`0d8a2443325e710ec7671e7751074908aec45aea` with the accepted field recipe:
+channel 11, dual-site maintenance label, 300 mA precharge, 120-second day sleep,
+12-second wake listen, and listener commission default. No exact-target,
+sentinel, solenoid-override, or MSA-interaction test flag is present. The binary
+is 1,220,240 bytes with SHA-256
+`669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8`;
+manifest, recipe, build options, byte count, embedded revision, and retained
+binary all agree. It contains the field-accepted UTC-modulated autonomous GH CA
+palette as well as current mainline power, classification, telemetry, and
+hourly-ritual source.
+
+Hawkeye `9F2664`, Marill `F40348`, and Espeon `F40310` formed the first exact
+mixed-role canary. All three passed fresh maintenance power/identity checks,
+parallel shared-WiFi OTA, software-reset mesh rejoin, the 25-second pending-
+verify gate, correct downlight/perimeter/uplight class, FIELD profile, and
+recovery state 0. Wider job `314C97F7` intentionally uploaded nothing when 14
+of its 78 named fixtures missed the first complete ordinary-cadence discovery
+window. Partial-discovery job `FCCFAC70` then uploaded 67 exact endpoints: 66
+passed the original verifier and Panther `9E5A84` supplied a valid exact-
+revision heartbeat at 32,632 ms uptime before the host finished serial HTTP
+reconciliation. The heartbeat was already older than the host's five-second
+entry window when verification began, causing a false failure despite real
+post-gate evidence.
+
+The fleet verifier now backdates a bridge-cached heartbeat from `age_ms`,
+requires that reception to be after upload began, and also requires reboot
+evidence against the preflight baseline. It therefore cannot accept a pre-job
+cache entry. Twenty host tests pass, including post-upload, pre-upload, and
+missing-reset cases. The repair was exercised live by late safe-state job
+`A1E3218D`: four exact heartbeats that aged during HTTP reconciliation were
+accepted from the guarded cached path, six from the ordinary fresh path, and
+all ten then passed the pending gate. A separate 360-second sleeping-peer job
+`B9E7ED6E` found and fully verified four more fixtures.
+
+The final read-only census reports 84 fixtures on exact
+`fx-260829-af1d4ec-p`. Seven healthy named peers never joined maintenance WiFi
+even across 360 seconds and were not flashed: Togepi `9E5AB0`, Gambit `F2BCF4`,
+Abra `F2BDB4`, Yoshi `F2BE08`, Kiki `F2BF5C`, Ditto `F3FCAC`, and Sneasel
+`F403DC`. Low-voltage/recovery, batteryless/quarantined, mutable-development,
+protected/ambiguous, and seven special canaries whose exact prior bytes are no
+longer retained also remained unchanged. All job and uploader ledgers are in
+`ops/bench/data/Black Rock City/`. Production rollout does not close ADR 0071's
+exact target/hour cymbal-actuation acceptance; its new audit tail will make the
+next hourly observation attributable without opening a lid.
+
 ## 2026-08-29 -- Ben + Codex -- Mainline-integrated one-target/one-hour cymbal canary
 
 Merged current `origin/main` into the daytime branch and resolved duplicate

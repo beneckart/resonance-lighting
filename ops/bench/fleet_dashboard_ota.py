@@ -702,11 +702,41 @@ def same_boot_as_exact_revision(peer: dict, exact_peer: dict) -> bool:
         return False
 
 
+def post_upload_exact_seen(
+    peer: dict,
+    baseline: dict | None,
+    expected_fw: str,
+    upload_not_before: float,
+    now: float | None = None,
+) -> bool:
+    """Accept a cached heartbeat that the bridge received after upload began.
+
+    A large fleet can spend minutes reconciling HTTP endpoints before mesh
+    verification starts.  A fixture may emit its exact post-OTA heartbeat and
+    then obey a retained long-sleep command during that interval.  The bridge's
+    peer age lets us backdate the actual reception; the preflight baseline must
+    also prove a reboot so a cached pre-job record cannot satisfy this gate.
+    """
+    if not isinstance(peer, dict) or not isinstance(baseline, dict):
+        return False
+    if peer.get("firmware_rev") != expected_fw:
+        return False
+    try:
+        age_ms = int(peer["age_ms"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    if age_ms < 0 or not post_job_reset_seen(peer, baseline):
+        return False
+    observed_at = (time.monotonic() if now is None else now) - age_ms / 1000.0
+    return observed_at >= upload_not_before
+
+
 def verify_pending_window(
     args: argparse.Namespace,
     targets: list[str],
     baselines: dict[str, dict],
     ledger: JobLedger,
+    upload_not_before: float,
 ) -> tuple[dict[str, dict], list[str]]:
     log(
         "requiring fresh exact-revision heartbeats beyond the "
@@ -736,17 +766,30 @@ def verify_pending_window(
                 and baseline.get("firmware_rev") == args.expect_fw
             ):
                 exact_revision_fresh = post_job_reset_seen(peer, baseline)
-            if exact_revision_fresh and target not in first_exact:
+            exact_revision_post_upload = post_upload_exact_seen(
+                peer,
+                baseline,
+                args.expect_fw,
+                upload_not_before,
+            )
+            exact_revision_seen = exact_revision_fresh or exact_revision_post_upload
+            if exact_revision_seen and target not in first_exact:
                 first_exact[target] = dict(peer)
-                log(f"fresh exact revision: {target}")
+                evidence = (
+                    "fresh_exact_revision"
+                    if exact_revision_fresh
+                    else "cached_post_upload_exact_revision"
+                )
+                log(f"exact post-upload revision: {target} ({evidence})")
                 ledger.emit(
                     "VERIFY",
-                    "fresh_exact_revision",
+                    evidence,
                     target,
+                    age_ms=peer.get("age_ms"),
                     uptime_ms=peer.get("uptime_ms"),
                     reset_reason=peer.get("reset_reason"),
                 )
-            good = exact_revision_fresh or (
+            good = exact_revision_seen or (
                 isinstance(peer, dict)
                 and peer.get("firmware_rev") == args.expect_fw
                 and target in first_exact
@@ -934,12 +977,13 @@ def main() -> None:
         found.update(selected_found)
         ledger.emit("PREFLIGHT", "fresh_maintenance_power_passed", count=len(selected))
 
+        upload_not_before = time.monotonic()
         results, result_file = run_ota(args, selected, binary, found, ledger)
         ledger.emit("UPLOAD", "batch_finished", result_file=str(result_file))
         reconcile_and_resume(args, selected, found, results, ledger)
 
         proven, missing = verify_pending_window(
-            args, selected, baselines, ledger
+            args, selected, baselines, ledger, upload_not_before
         )
         lingering_commission: list[str] = []
         if not missing:
