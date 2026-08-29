@@ -14,6 +14,7 @@
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
 #   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
 #   ./build.sh --sentinel-trace-target A1B2C3 # radio-off + VL53 power A/B/A
+#   ./build.sh --sentinel-trace-smoke        # 40 s persistence/recovery gate
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -50,6 +51,7 @@ WAKE_LISTEN_MS="15000"
 DEEP_RECOVERY_TARGET=""
 MSA_TRACE_TARGET=""
 SENTINEL_TRACE_TARGET=""
+SENTINEL_TRACE_SMOKE=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -100,6 +102,7 @@ Common build options:
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
+  --sentinel-trace-smoke      short no-human persistence/recovery gate; requires target
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -265,6 +268,7 @@ while [[ $# -gt 0 ]]; do
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
+    --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -334,6 +338,10 @@ if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
   [[ -z "$MSA_TRACE_TARGET" ]] ||
     fail "--sentinel-trace-target cannot be combined with --msa-trace-target"
 fi
+if (( SENTINEL_TRACE_SMOKE )); then
+  [[ -n "$SENTINEL_TRACE_TARGET" ]] ||
+    fail "--sentinel-trace-smoke requires --sentinel-trace-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -399,6 +407,9 @@ if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
     exit 2
   }
   FLAGS+=" -DRES_SENTINEL_TRACE_TARGET=0x${SENTINEL_TRACE_TARGET}UL"
+  if (( SENTINEL_TRACE_SMOKE )); then
+    FLAGS+=" -DRES_SENTINEL_TRACE_SMOKE=1"
+  fi
 fi
 case "$PROFILE" in
   "") ;;
