@@ -10,6 +10,42 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Sakura 15 ft canopy canary staged
+
+Built immutable production candidate `fx-260829-8790f6d-p` from clean pushed
+source `ab71b8989b12e860ad1d82a5e1cf4767773a86f7` with the current field recipe:
+channel 11, 300 mA precharge, 120-second day sleep, 12-second wake listen,
+listener commission default, and dual-site maintenance credentials. The binary
+is 1,212,640 bytes with SHA-256
+`5bd65970990a34e511b44cb9a9ef1a7dc4e93a7b3cd3746df08abafb3e0ab6bf`.
+Recipe hash, embedded revision, clean commit, build options, manifest, exact
+binary bytes, and SHA file all agree.
+
+Declared one OTA writer and targeted only healthy zero-return installed-height
+candidate Sakura `F2BE0C`. Exact job `C804CF1F` passed dashboard and fresh
+maintenance power preflights at 3.31-3.32 V, identity-matched
+`192.168.1.109`, uploaded the exact retained artifact, produced a fresh exact-
+revision software-reboot heartbeat, and remained on that revision past the
+pending-verify gate at 31,044 ms uptime. It retained field profile, downlight
+class, and recovery state 0. The complete job and uploader ledgers are retained
+in the Black Rock City data folder.
+
+A post-update exact TMF census then recorded six consecutive raw zero-depth
+reports while TMF remained read-OK with 405-456 completed reads, zero errors,
+zero recoveries, and zero sensor-domain resets. This proves that accepting the
+full 5 m range does not turn the high empty scene into a permanent ground
+target. A 10-minute exact CA lease produced the expected visible low-white
+baseline (`rail=1`, one pixel, `W=25`). An eight-minute telemetry watch saw no
+spontaneous `W=255` event. An exact 20-second identify blink was sent to help
+locate the fixture, but no person-under-Sakura attempt was confirmed during the
+watch, so human detection is unexercised rather than failed. Eight exact release
+acknowledgements ended the lease and a fresh mesh heartbeat completed cleanup.
+
+Next: have a person walk/stand directly under Sakura while an exact visible
+lease is active. If no `W=255` transition or raw 2.7-3.5 m return appears, treat
+15 ft height/aim/sunlight as a P0 gating concern and test one lower or better-
+aimed canopy fixture before any fleet promotion.
+
 ## 2026-08-28 -- Ben + Codex -- Art-site TMF height census and 15 ft canopy fix
 
 Ran a read-only exact-target TMF census while canopy installation was underway.
