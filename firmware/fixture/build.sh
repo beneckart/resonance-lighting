@@ -16,6 +16,7 @@
 #   ./build.sh --presence-sentinel       # trace-only red -> RGB-white presence
 #   ./build.sh --presence-distant-range  # trace-only raw 1000..<5000 mm presence
 #   ./build.sh --sentinel-trace-target A1B2C3 # radio-off + VL53 power A/B/A
+#   ./build.sh --sentinel-trace-smoke        # 40 s persistence/recovery gate
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -56,6 +57,7 @@ MSA_TRACE_TARGET=""
 PRESENCE_SENTINEL=0
 PRESENCE_DISTANT_RANGE=0
 SENTINEL_TRACE_TARGET=""
+SENTINEL_TRACE_SMOKE=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -109,6 +111,7 @@ Common build options:
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
   --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
+  --sentinel-trace-smoke      short no-human persistence/recovery gate; requires target
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -278,6 +281,7 @@ while [[ $# -gt 0 ]]; do
     --presence-sentinel) PRESENCE_SENTINEL=1; shift ;;
     --presence-distant-range) PRESENCE_DISTANT_RANGE=1; shift ;;
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
+    --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -378,6 +382,10 @@ if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
   [[ -z "$MSA_TRACE_TARGET" ]] ||
     fail "--sentinel-trace-target cannot be combined with --msa-trace-target"
 fi
+if (( SENTINEL_TRACE_SMOKE )); then
+  [[ -n "$SENTINEL_TRACE_TARGET" ]] ||
+    fail "--sentinel-trace-smoke requires --sentinel-trace-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -439,6 +447,9 @@ if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
   [[ "$ARTIFACT_VARIANT" == "t" ]] ||
     fail "--sentinel-trace-target requires --artifact-variant t"
   FLAGS+=" -DRES_SENTINEL_TRACE_TARGET=0x${SENTINEL_TRACE_TARGET}UL"
+  if (( SENTINEL_TRACE_SMOKE )); then
+    FLAGS+=" -DRES_SENTINEL_TRACE_SMOKE=1"
+  fi
 fi
 MANIFEST_PROFILE=""
 case "$PROFILE" in

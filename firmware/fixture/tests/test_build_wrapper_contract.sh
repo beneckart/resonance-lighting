@@ -42,6 +42,8 @@ grep -Fq -- '--presence-sentinel' <<< "$help" || fail "help omits presence senti
 grep -Fq -- '--presence-distant-range' <<< "$help" || fail "help omits distant-range sentinel"
 grep -Fq -- '--sentinel-trace-target MAC' <<< "$help" ||
   fail "help omits exact-target sentinel trace"
+grep -Fq -- '--sentinel-trace-smoke' <<< "$help" ||
+  fail "help omits sentinel persistence smoke gate"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -81,6 +83,8 @@ expect_rejected '--sentinel-trace-target requires --artifact-variant t' \
   --wifi-profile-label test-v1 --profile field --channel 11
 expect_rejected '--sentinel-trace-target cannot be combined with --msa-trace-target' \
   --sentinel-trace-target A1B2C3 --msa-trace-target F2BE0C
+expect_rejected '--sentinel-trace-smoke requires --sentinel-trace-target' \
+  --sentinel-trace-smoke
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"
