@@ -83,6 +83,7 @@ static uint32_t gLastPresenceOriginMs = 0;
 static uint32_t gLastWaveActivityMs = 0;
 static bool gPresencePending = false;
 static uint32_t gPresenceFireAtMs = 0;
+static bool gTofPresenceActive = false;
 static bool gTofPresenceRising = false;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
@@ -109,7 +110,7 @@ static void applyLocalInteraction(FrameBuffer &frame) {
   LocalInteractionInputs inputs = {};
   inputs.fixtureClass = gClass;
   inputs.tofPresenceActive =
-      gClass == FIXTURE_DOWNLIGHT && gPresence.latched;
+      gClass == FIXTURE_DOWNLIGHT && gTofPresenceActive;
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
       snapshot.tofDepthMm) {
     inputs.tofValid = true;
@@ -239,6 +240,16 @@ static void waveTick(uint32_t now) {
   // perimeter fixtures use a deliberate broad VL53L5CX palm-cover edge.
   gTofPresenceRising = false;
   const SensorSnapshot &snapshot = sensors();
+#if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
+  if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk) {
+    bool active = tmfDistantRangePresent(snapshot.tofZoneMm,
+                                         snapshot.tofZoneConfidence);
+    gTofPresenceRising = active && !gTofPresenceActive;
+    gTofPresenceActive = active;
+  } else {
+    gTofPresenceActive = false;
+  }
+#else
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk)
     gTofPresenceRising =
         tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
@@ -246,6 +257,18 @@ static void waveTick(uint32_t now) {
   else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent && snapshot.vlOk)
     gTofPresenceRising =
         vl53CoverObserve(gVl53Cover, snapshot.vlReads, snapshot.vlNearZones);
+  gTofPresenceActive =
+      gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
+      gPresence.latched;
+#endif
+
+#if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
+  // This exact-target false-positive diagnostic must remain local. The raw
+  // predicate can chatter on bamboo/self-geometry, so never originate or relay
+  // a presence wave from this image.
+  gPresencePending = false;
+  return;
+#endif
 
   if (gRuntime.leaseActive()) {
     gPresencePending = false;
@@ -322,6 +345,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
                                        ? RES_WAKE_LISTEN_MS
                                        : RES_BOOT_AWAKE_MS);
   gSolarProbeActive = false;
+  gTofPresenceActive = false;
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
@@ -336,7 +360,7 @@ uint8_t behaviorLifeState() { return gLife.state; }
 bool behaviorStrikesAllowed() { return gStrikesAllowed; }
 uint16_t behaviorDaySleepS() { return gLifeCfg.daySleepS; }
 uint32_t behaviorWakeListenMs() { return RES_WAKE_LISTEN_MS; }
-bool behaviorTofPresenceActive() { return gPresence.latched; }
+bool behaviorTofPresenceActive() { return gTofPresenceActive; }
 bool behaviorTofPresenceRising() { return gTofPresenceRising; }
 
 bool behaviorStrikePermitted() {

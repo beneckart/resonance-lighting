@@ -218,6 +218,12 @@ void motionTraceHandleHttp(WebServer &server) {
 #else
   body += "false";
 #endif
+  body += ",\"presence_distant_range_build\":";
+#if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
+  body += "true";
+#else
+  body += "false";
+#endif
   body += ",\"sample_bytes\":";
   body += String((unsigned)sizeof(MotionTraceSample));
   body += ",\"capacity\":" + String((unsigned long)gTrace.capacity);

@@ -39,6 +39,7 @@ grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
 grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
 grep -Fq -- '--msa-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
 grep -Fq -- '--presence-sentinel' <<< "$help" || fail "help omits presence sentinel"
+grep -Fq -- '--presence-distant-range' <<< "$help" || fail "help omits distant-range sentinel"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -68,6 +69,10 @@ expect_rejected '--msa-trace-target requires --artifact-variant t' \
   --wifi-profile-label test-v1 --profile field --channel 11
 expect_rejected '--presence-sentinel requires --msa-trace-target' \
   --presence-sentinel
+expect_rejected '--presence-distant-range requires --msa-trace-target' \
+  --presence-distant-range
+expect_rejected '--presence-distant-range requires --presence-sentinel' \
+  --presence-distant-range --msa-trace-target F2BE0C
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"
