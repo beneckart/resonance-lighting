@@ -18,6 +18,9 @@ struct LocalInteractionInputs {
   uint8_t fixtureClass;
   bool tofValid;
   uint16_t tofDistanceMm;
+  // Downlights use the learned per-zone canopy presence gate, not perimeter's
+  // absolute chest-height range mapping.
+  bool tofPresenceActive;
   bool msaValid;
   uint16_t msaSwayMg;
   // MSA thresholds need one field trace before fleet enablement. Keeping the

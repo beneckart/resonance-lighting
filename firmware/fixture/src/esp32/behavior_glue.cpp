@@ -108,6 +108,8 @@ static void applyLocalInteraction(FrameBuffer &frame) {
   const SensorSnapshot &snapshot = sensors();
   LocalInteractionInputs inputs = {};
   inputs.fixtureClass = gClass;
+  inputs.tofPresenceActive =
+      gClass == FIXTURE_DOWNLIGHT && gPresence.latched;
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
       snapshot.tofDepthMm) {
     inputs.tofValid = true;

@@ -10,6 +10,42 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-28 -- Ben + Codex -- Art-site TMF height census and 15 ft canopy fix
+
+Ran a read-only exact-target TMF census while canopy installation was underway.
+Campaign `207B660F` selected 61 live TMF-bearing downlights and discovered 46
+shared-WiFi maintenance endpoints across one complete wake window. No firmware,
+NVS, profile, or persistence write occurred. Six raw telemetry samples per node
+separated 42 close returns at 145-575 mm, consistent with fixtures in bins, from
+four healthy all-zero nodes: Panther `9E5A84`, Gible `9E5B34`, Sakura `F2BE0C`,
+and Leia `F40384`. The latter are the strongest installed-height candidates,
+though physical location is not proven. Fifteen nodes did not present an HTTP
+endpoint and remain unsampled, not failed. Every sampled fixture subsequently
+returned to mesh with a fresh heartbeat. Evidence is retained in the Black Rock
+City data folder and summarized in the build-week TMF test note.
+
+The census and Ben's report of roughly 15 ft sensor-to-ground mounting exposed
+an artificial 2,500 mm firmware cap. TMF8820 hardware supports 5,000 mm, while a
+standing head under this geometry is commonly about 2,700-3,200 mm away. ADR
+0070 therefore accepts confident scene returns through 5,000 mm, extends the
+empty-background presence window to 4,500 mm, clears a stale per-zone baseline
+after 12 empty reports, and slowly follows a farther non-presence background.
+This lets a powered fixture re-baseline after moving from a close shipping bin
+to the tree without a reboot.
+
+ADR 0069's downlight absolute distance/color/380 mm gobo rule is superseded.
+Downlights now use the existing debounced per-zone presence latch and hold full
+dedicated white while a person is present. Perimeter keeps its 150-1,800 mm
+continuous hue and 37 -> 19 -> 7 -> 1 ring peel. Blackout, program suppression,
+battery tiers, rail policy, and the physical HEX budget keep authority.
+
+The full native fixture suite passed, including 558 presence checks. An
+ESP32-S3 commission/listener development compile passed at 1,201,065 bytes
+program and 68,716 bytes globals; its 1,201,360-byte `dev-local` binary SHA-256
+is `c19b95df3e65aaade0a43625716defe0bf16911c6d1c307a1e9aaf32762775a2`.
+No binary was flashed. Next is one immutable update on a named healthy installed
+zero-return candidate and a person-under-fixture daylight/night canary.
+
 ## 2026-08-28 -- Ben + Codex -- Build-week palette, HEX power, and ToF sprint
 
 Started the final build-week interaction sprint in an isolated clean worktree

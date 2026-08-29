@@ -14,7 +14,7 @@ struct SensorSnapshot {
   float swayEnvG;   // sway envelope (g)
   // TMF8820 depth (downlight)
   bool tmfPresent, tmfOk;
-  uint16_t tofDepthMm;       // closest confident scene target (80..2500 mm)
+  uint16_t tofDepthMm;       // closest confident scene target (80..5000 mm)
   float tofDepthFilteredMm;  // EMA 0.35
   uint16_t tofConfidence;
   uint16_t tofZoneMm[9];         // closest confident return per 3x3 channel

@@ -111,7 +111,10 @@ static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
     uint16_t mm = (uint16_t)r.distance_mm;
     // The enclosed sensor has a known ~20 mm fixture/window return. Ignore the
     // near field and use the closest confident scene target.
-    if (mm < 80 || mm > 2500 || r.confidence < 20) continue;
+    // TMF8820 is specified through 5000 mm. Keep the entire supported range:
+    // at the installed ~15 ft canopy geometry, a person's head is commonly
+    // 2700-3200 mm away even though the ground is near the range limit.
+    if (mm < 80 || mm > 5000 || r.confidence < 20) continue;
     if (r.channel >= 1 && r.channel <= 9) {
       uint8_t zone = (uint8_t)(r.channel - 1);
       if (!gSnap.tofZoneMm[zone] || mm < gSnap.tofZoneMm[zone]) {
