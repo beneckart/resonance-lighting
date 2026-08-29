@@ -10,6 +10,7 @@
 #include "espnow_link.h"
 #include "identity.h"
 #include "loads.h"
+#include "motion_trace.h"
 #include "sensors/sensor_bus.h"
 #include "telemetry.h"
 #include "../core/wifi_credential_plan.h"
@@ -123,6 +124,10 @@ static void configureOtaRoutes() {
   if (gOtaRoutesConfigured) return;
   gServer.on("/", HTTP_GET, []() { gServer.send(200, "text/plain", telemetryBanner()); });
   gServer.on("/telemetry", HTTP_GET, []() { gServer.send(200, "application/json", telemetryJson()); });
+#if defined(RES_MSA_TRACE_TARGET)
+  gServer.on("/motion-trace", HTTP_GET,
+             []() { motionTraceHandleHttp(gServer); });
+#endif
   gServer.on("/rtc", HTTP_POST, handleRtcCommission);
   gServer.on("/resume", HTTP_GET, []() {
     gServer.send(200, "text/plain", "resuming\n");

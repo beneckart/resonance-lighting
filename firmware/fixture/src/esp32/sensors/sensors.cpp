@@ -69,6 +69,14 @@ static void msaTick(uint32_t now) {
   if (!gAccel.restZeroed && gZeroAtMs && now >= gZeroAtMs) {
     if (accelFilterZero(gAccel)) gZeroAtMs = 0;
   }
+  ++gSnap.msaReads;
+  gSnap.msaSampleMs = now;
+  gSnap.accelXG = ax;
+  gSnap.accelYG = ay;
+  gSnap.accelZG = az;
+  gSnap.gravityXG = gAccel.gx;
+  gSnap.gravityYG = gAccel.gy;
+  gSnap.gravityZG = gAccel.gz;
   gSnap.tiltDeg = gAccel.tiltDeg;
   gSnap.swayEnvG = gAccel.swayEnv;
 }

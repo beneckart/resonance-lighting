@@ -258,6 +258,33 @@ minimum white hold, release hysteresis, and retrigger cooldown. Preserve the
 current proven behavior until that evidence exists; do not use MSA as a blanket
 veto because it would suppress the exact wind-assisted discovery Ben observed.
 
+## 2026-08-29 -- Ben + Codex -- Exact-target canopy flight recorder staged
+
+Implemented the evidence path requested by the windy-night observation without
+changing the production interaction. An exact-target `-t` image now records a
+bounded motion flight trace during ordinary mesh/show operation, so capture
+does not require the hanging light to stop behaving. Each 25 Hz MSA sample
+retains raw XYZ, low-pass gravity, tilt/sway, all nine current TMF zones and
+confidences, the production presence edge/latch, lifecycle/program/power tier,
+and the rendered LED snapshot. PSRAM holds 8,192 samples (about 5.5 minutes); a
+reported 1,024-sample fallback is used if PSRAM allocation fails.
+
+The recorder is compile-bound to one six-digit fixture ID and disables itself
+on a physical-ID mismatch. After the scene, maintenance WiFi exposes a bounded
+NDJSON batch endpoint. `ops/bench/capture_motion_trace.py` verifies exact
+fixture identity, exact `-t` revision, compiled target match, downlight class,
+MSA health, maintenance state, and buffer availability before exclusive-
+creating a JSONL trace. The field runbook requires a visually confirmed hanging
+target, one OTA writer, a named pre-trace artifact/SHA, exact single-target OTA,
+and restoration of that prior artifact through fresh heartbeat and pending-
+verify proof.
+
+All native fixture tests pass, including the new ring overwrite/cursor test;
+the downloader unit tests pass. A full ESP32-S3 commission/channel-11 test
+compile also passes at 1,204,237 bytes program / 68,780 bytes globals and emits
+a 1,204,528-byte binary. No target artifact was built or flashed because the
+physical hanging fixture ID still needs visual confirmation.
+
 ## 2026-08-29 -- Ben + Codex -- Sakura 15 ft canopy canary staged
 
 Built immutable production candidate `fx-260829-8790f6d-p` from clean pushed

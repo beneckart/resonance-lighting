@@ -336,6 +336,8 @@ uint8_t behaviorLifeState() { return gLife.state; }
 bool behaviorStrikesAllowed() { return gStrikesAllowed; }
 uint16_t behaviorDaySleepS() { return gLifeCfg.daySleepS; }
 uint32_t behaviorWakeListenMs() { return RES_WAKE_LISTEN_MS; }
+bool behaviorTofPresenceActive() { return gPresence.latched; }
+bool behaviorTofPresenceRising() { return gTofPresenceRising; }
 
 bool behaviorStrikePermitted() {
   if (gStrikesAllowed) return true;

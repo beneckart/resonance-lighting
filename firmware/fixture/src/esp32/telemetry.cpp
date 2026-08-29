@@ -11,6 +11,7 @@
 #include "identity.h"
 #include "led_driver.h"
 #include "maintenance.h"
+#include "motion_trace.h"
 #include "net_peer.h"
 #include "nvs_store.h"
 #include "sensors/sensor_bus.h"
@@ -244,12 +245,29 @@ String telemetryJson() {
   }
   j += ",\"ota_pending_verify\":";
   j += (otaState == ESP_OTA_IMG_PENDING_VERIFY) ? "true" : "false";
+  j += ",\"motion_trace_build\":";
+  j += motionTraceBuild() ? "true" : "false";
+  if (motionTraceBuild()) {
+    char target[7];
+    snprintf(target, sizeof(target), "%06lX",
+             (unsigned long)motionTraceTargetId());
+    j += ",\"motion_trace_target\":\"" + String(target) + "\"";
+    j += ",\"motion_trace_target_match\":";
+    j += motionTraceTargetMatches() ? "true" : "false";
+    j += ",\"motion_trace_capacity\":" +
+         String((unsigned long)motionTraceCapacity());
+    j += ",\"motion_trace_count\":" +
+         String((unsigned long)motionTraceCount());
+    j += ",\"motion_trace_overwrites\":" +
+         String((unsigned long)motionTraceOverwrites());
+  }
   const SensorSnapshot &sn = sensors();
   j += ",\"msa311_present\":";
   j += sn.msaPresent ? "true" : "false";
   if (sn.msaPresent) {
     j += ",\"msa_read_ok\":";
     j += sn.msaOk ? "true" : "false";
+    j += ",\"msa_reads\":" + String((unsigned long)sn.msaReads);
     j += ",\"tilt_deg\":" + String(sn.tiltDeg, 2);
     j += ",\"sway_env_g\":" + String(sn.swayEnvG, 4);
   }

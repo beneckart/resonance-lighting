@@ -12,6 +12,7 @@
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
 #   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
+#   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -48,6 +49,7 @@ PRECHARGE_MA="300"
 DAY_SLEEP_S="300"
 WAKE_LISTEN_MS="15000"
 DEEP_RECOVERY_TARGET=""
+MSA_TRACE_TARGET=""
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -97,6 +99,7 @@ Common build options:
   --precharge-ma N            BQ precharge limit, 10..310 in 10 mA steps
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
+  --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -262,6 +265,7 @@ while [[ $# -gt 0 ]]; do
     --day-sleep-s) DAY_SLEEP_S="$2"; shift 2 ;;
     --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2 ;;
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -334,6 +338,14 @@ if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
     exit 2
   }
 fi
+if [[ -n "$MSA_TRACE_TARGET" ]]; then
+  [[ "$MSA_TRACE_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
+    echo "bad --msa-trace-target: $MSA_TRACE_TARGET (expected six hex digits)" >&2
+    exit 2
+  }
+  [[ -z "$DEEP_RECOVERY_TARGET" ]] ||
+    fail "--msa-trace-target cannot be combined with --deep-recovery-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -379,6 +391,11 @@ if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
   }
   FLAGS+=" -DRES_DEEP_RECOVERY_TARGET=0x${DEEP_RECOVERY_TARGET}UL"
   FLAGS+=" -DRES_DEEP_RECOVERY_MAX_CHARGE_MA=100"
+fi
+if [[ -n "$MSA_TRACE_TARGET" ]]; then
+  [[ "$ARTIFACT_VARIANT" == "t" ]] ||
+    fail "--msa-trace-target requires --artifact-variant t"
+  FLAGS+=" -DRES_MSA_TRACE_TARGET=0x${MSA_TRACE_TARGET}UL"
 fi
 MANIFEST_PROFILE=""
 case "$PROFILE" in

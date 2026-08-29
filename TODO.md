@@ -77,14 +77,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   seam is implemented but fleet-disabled pending
   quiet/wind/touch/swing/climb traces; barometric modulation and aggregate
   ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
-- [ ] **P1: characterize the canopy as a swinging scanner before tuning ToF or
+- [~] **P1: characterize the canopy as a swinging scanner before tuning ToF or
   MSA thresholds.** Windy-night field observation shows each downlight swings
   chaotically over two pendulum axes. A stationary person can be discovered by
   multiple nearby fixtures as their ToF cones sweep past, producing a lively
   multi-light white response that Ben likes. Record one named installed fixture
   through empty wind, a stationary person, walking, and leaving with TMF scalar/
   per-zone range and confidence, MSA311 sway envelope, and visible presence
-  state on one clock. Measure empty-scene false triggers and response durations,
+  state on one clock. Exact-target source instrumentation now compiles and
+  records about 5.5 minutes at 25 Hz during real show behavior: raw XYZ,
+  low-pass gravity, tilt/sway, all nine TMF zones/confidences, production
+  presence edge/latch, lifecycle/program/power, and rendered output. Its
+  maintenance downloader refuses identity/revision/target/sensor mismatches and
+  exclusive-creates evidence. Native tests and an embedded ESP32-S3 test build
+  pass. Next: physically identify one actually hanging downlight, build its
+  immutable `-t` artifact, run the wind/still/walk/leave scene, download, and
+  restore its exact pre-trace fleet artifact. Measure empty-scene false triggers and response durations,
   then tune minimum white hold, clear hysteresis, and retrigger cooldown. Do not
   use MSA311 as a blanket swing veto: that would erase the desired scanning
   behavior. Keep the currently proven thresholds until this trace exists

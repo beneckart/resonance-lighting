@@ -18,6 +18,7 @@
 #include "src/esp32/identity.h"
 #include "src/esp32/led_driver.h"
 #include "src/esp32/maintenance.h"
+#include "src/esp32/motion_trace.h"
 #include "src/esp32/net_peer.h"
 #include "src/esp32/nvs_store.h"
 #include "src/esp32/ota_verify.h"
@@ -129,6 +130,7 @@ void setup() {
   powerGlueInit();
   behaviorInit(gTelemetryFixtureClass, ledPixelCount(),
                ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2]);
+  motionTraceInit();
   timeAnchorInit(haveRtcAnchor);
 }
 
@@ -145,6 +147,10 @@ void loop() {
   commsRecoveryTick();
 
   if (maintMode() == MODE_MAINT) {
+    // A targeted trace image keeps the pre-maintenance flight recorder
+    // available while WiFi serves it; normal behavior remains deliberately
+    // paused and the LED rail stays off in maintenance.
+    motionTraceTick();
     maintenanceTick();
     return;
   }
@@ -155,6 +161,7 @@ void loop() {
   powerGlueTick();
   behaviorTick();
   renderTick();
+  motionTraceTick();
 }
 
 // Render arbitration: color-identify (rig ordering) > bench smoke toggle >

@@ -10,6 +10,10 @@
 struct SensorSnapshot {
   // MSA311 accel chain
   bool msaPresent, msaOk;
+  uint32_t msaReads;  // successful samples at the cooperative 25 Hz cadence
+  uint32_t msaSampleMs;
+  float accelXG, accelYG, accelZG;       // raw sensor axes (g)
+  float gravityXG, gravityYG, gravityZG; // 0.4 s low-pass gravity vector (g)
   float tiltDeg;    // vs calibrated rest, spin-invariant
   float swayEnvG;   // sway envelope (g)
   // TMF8820 depth (downlight)
