@@ -279,6 +279,8 @@ String telemetryJson() {
          String((unsigned long)sentinelTraceCount());
     j += ",\"sentinel_trace_overwrites\":" +
          String((unsigned long)sentinelTraceOverwrites());
+    j += ",\"sentinel_trace_persisted\":";
+    j += sentinelTracePersisted() ? "true" : "false";
   }
   const SensorSnapshot &sn = sensors();
   j += ",\"msa311_present\":";

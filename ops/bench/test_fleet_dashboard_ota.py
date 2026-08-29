@@ -196,6 +196,25 @@ class FleetWorkflowTests(unittest.TestCase):
             ota.post_job_reset_seen({"uptime_ms": 5000, "seq": 12}, baseline)
         )
 
+    def test_cached_exact_revision_accepts_later_same_boot_heartbeat(self):
+        exact = {"uptime_ms": 2625, "seq": 2, "age_ms": 500}
+        heartbeat = {"uptime_ms": 29575, "seq": 5, "age_ms": 6500}
+        self.assertTrue(ota.same_boot_as_exact_revision(heartbeat, exact))
+
+    def test_cached_exact_revision_does_not_cross_reboot(self):
+        exact = {"uptime_ms": 2625, "seq": 2}
+        self.assertFalse(
+            ota.same_boot_as_exact_revision(
+                {"uptime_ms": 900, "seq": 1}, exact
+            )
+        )
+
+    def test_cached_exact_revision_requires_complete_boot_evidence(self):
+        exact = {"uptime_ms": 2625, "seq": 2}
+        self.assertFalse(
+            ota.same_boot_as_exact_revision({"uptime_ms": 29575}, exact)
+        )
+
     def test_fresh_maintenance_preflight_reprobes_identity_and_power(self):
         emitted = []
 

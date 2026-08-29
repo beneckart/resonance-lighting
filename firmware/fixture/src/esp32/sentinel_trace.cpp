@@ -4,7 +4,11 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <esp_heap_caps.h>
+#include <esp_partition.h>
 #include <esp_task_wdt.h>
+
+#include <stddef.h>
+#include <string.h>
 
 #include "../core/fixture_context.h"
 #include "../core/presence_wave.h"
@@ -25,6 +29,24 @@ static constexpr uint32_t kTofWarmupMs = 30000UL;
 static constexpr uint32_t kTofActiveMs = 10UL * 60UL * 1000UL;
 static constexpr uint32_t kSampleMs = 1000UL;
 static constexpr uint32_t kMaintenanceRetryMs = 60000UL;
+static constexpr uint32_t kPersistMagic = 0x53454E54UL; // "SENT"
+static constexpr uint16_t kPersistSchema = 1;
+static constexpr size_t kPersistDataOffset = 4096;
+
+struct __attribute__((packed)) SentinelPersistHeader {
+  uint32_t magic;
+  uint16_t schema;
+  uint16_t sampleSize;
+  uint32_t artifactTag;
+  uint32_t count;
+  uint32_t overwrites;
+  uint32_t newestSeq;
+  uint32_t samplesCrc32;
+  uint32_t headerCrc32;
+};
+
+static_assert(sizeof(SentinelPersistHeader) == 32,
+              "sentinel persistence header layout changed");
 
 static SentinelTraceBuffer gTrace;
 static uint8_t gPhase = SENTINEL_TRACE_DISABLED;
@@ -34,6 +56,7 @@ static uint32_t gNextMaintRetryMs = 0;
 static bool gSensorRailOn = false;
 static Vl53CoverGate gCoverGate;
 static bool gPresenceRisingPending = false;
+static bool gTracePersisted = false;
 
 bool sentinelTraceBuild() {
 #if defined(RES_SENTINEL_TRACE_TARGET)
@@ -75,6 +98,152 @@ uint8_t sentinelTracePhase() { return gPhase; }
 uint32_t sentinelTraceCapacity() { return gTrace.capacity; }
 uint32_t sentinelTraceCount() { return gTrace.count; }
 uint32_t sentinelTraceOverwrites() { return gTrace.overwrites; }
+bool sentinelTracePersisted() { return gTracePersisted; }
+
+static uint32_t crc32Update(uint32_t crc, const void *data, size_t length) {
+  const uint8_t *bytes = static_cast<const uint8_t *>(data);
+  while (length--) {
+    crc ^= *bytes++;
+    for (uint8_t bit = 0; bit < 8; ++bit)
+      crc = (crc >> 1) ^ (0xEDB88320UL & (0U - (crc & 1U)));
+  }
+  return crc;
+}
+
+static uint32_t artifactTag() {
+  uint32_t crc = crc32Update(0xFFFFFFFFUL, RES_FIXTURE_VERSION,
+                             strlen(RES_FIXTURE_VERSION));
+  return crc ^ 0xFFFFFFFFUL;
+}
+
+static const esp_partition_t *tracePartition() {
+  return esp_partition_find_first(ESP_PARTITION_TYPE_DATA,
+                                  ESP_PARTITION_SUBTYPE_DATA_SPIFFS, nullptr);
+}
+
+static size_t alignUp(size_t value, size_t alignment) {
+  return (value + alignment - 1U) & ~(alignment - 1U);
+}
+
+static bool loadPersistedTrace() {
+  const esp_partition_t *partition = tracePartition();
+  if (!partition || partition->size < kPersistDataOffset) return false;
+
+  SentinelPersistHeader header = {};
+  if (esp_partition_read(partition, 0, &header, sizeof(header)) != ESP_OK)
+    return false;
+  uint32_t headerCrc =
+      crc32Update(0xFFFFFFFFUL, &header,
+                  offsetof(SentinelPersistHeader, headerCrc32)) ^
+      0xFFFFFFFFUL;
+  size_t dataBytes = (size_t)header.count * sizeof(SentinelTraceSample);
+  if (header.magic != kPersistMagic || header.schema != kPersistSchema ||
+      header.sampleSize != sizeof(SentinelTraceSample) ||
+      header.artifactTag != artifactTag() || !header.count ||
+      header.count > gTrace.capacity || header.overwrites != 0 ||
+      header.newestSeq != header.count ||
+      header.headerCrc32 != headerCrc ||
+      kPersistDataOffset + dataBytes > partition->size) {
+    return false;
+  }
+
+  SentinelTraceSample batch[32];
+  uint32_t loaded = 0;
+  uint32_t crc = 0xFFFFFFFFUL;
+  while (loaded < header.count) {
+    uint32_t count = header.count - loaded;
+    if (count > 32) count = 32;
+    size_t bytes = (size_t)count * sizeof(SentinelTraceSample);
+    esp_task_wdt_reset();
+    if (esp_partition_read(partition,
+                           kPersistDataOffset +
+                               (size_t)loaded * sizeof(SentinelTraceSample),
+                           batch, bytes) != ESP_OK) {
+      return false;
+    }
+    crc = crc32Update(crc, batch, bytes);
+    for (uint32_t i = 0; i < count; ++i) {
+      if (batch[i].seq != loaded + i + 1U) return false;
+    }
+    memcpy(gTrace.samples + loaded, batch, bytes);
+    loaded += count;
+  }
+  uint32_t sampleCrc = crc ^ 0xFFFFFFFFUL;
+  if (sampleCrc != header.samplesCrc32) return false;
+
+  gTrace.count = header.count;
+  gTrace.writeIndex = header.count % gTrace.capacity;
+  gTrace.nextSeq = header.newestSeq + 1U;
+  gTrace.overwrites = header.overwrites;
+  gTracePersisted = true;
+  Serial.printf("sentinel-trace: restored %lu samples from flash crc=%08lX\n",
+                (unsigned long)header.count,
+                (unsigned long)header.samplesCrc32);
+  return true;
+}
+
+static bool persistTrace() {
+  const esp_partition_t *partition = tracePartition();
+  if (!partition || !gTrace.count || gTrace.overwrites != 0) return false;
+
+  size_t dataBytes = (size_t)gTrace.count * sizeof(SentinelTraceSample);
+  size_t requiredBytes = kPersistDataOffset + alignUp(dataBytes, 4);
+  size_t eraseBytes = alignUp(requiredBytes, 4096);
+  if (eraseBytes > partition->size) return false;
+
+  // The header is erased first and written last. A reset during persistence
+  // therefore leaves no apparently valid partial checkpoint.
+  for (size_t offset = 0; offset < eraseBytes; offset += 4096) {
+    esp_task_wdt_reset();
+    if (esp_partition_erase_range(partition, offset, 4096) != ESP_OK)
+      return false;
+  }
+
+  SentinelTraceSample batch[32];
+  uint32_t cursor = 0;
+  uint32_t written = 0;
+  uint32_t crc = 0xFFFFFFFFUL;
+  while (written < gTrace.count) {
+    memset(batch, 0xFF, sizeof(batch));
+    uint32_t got = sentinelTraceBufferCollectAfter(gTrace, cursor, batch, 32);
+    if (!got) return false;
+    size_t bytes = (size_t)got * sizeof(SentinelTraceSample);
+    size_t writeBytes = alignUp(bytes, 4);
+    esp_task_wdt_reset();
+    if (esp_partition_write(partition,
+                            kPersistDataOffset +
+                                (size_t)written * sizeof(SentinelTraceSample),
+                            batch, writeBytes) != ESP_OK) {
+      return false;
+    }
+    crc = crc32Update(crc, batch, bytes);
+    cursor = batch[got - 1U].seq;
+    written += got;
+  }
+
+  SentinelPersistHeader header = {};
+  header.magic = kPersistMagic;
+  header.schema = kPersistSchema;
+  header.sampleSize = sizeof(SentinelTraceSample);
+  header.artifactTag = artifactTag();
+  header.count = gTrace.count;
+  header.overwrites = gTrace.overwrites;
+  header.newestSeq = sentinelTraceBufferNewestSeq(gTrace);
+  header.samplesCrc32 = crc ^ 0xFFFFFFFFUL;
+  header.headerCrc32 =
+      crc32Update(0xFFFFFFFFUL, &header,
+                  offsetof(SentinelPersistHeader, headerCrc32)) ^
+      0xFFFFFFFFUL;
+  esp_task_wdt_reset();
+  if (esp_partition_write(partition, 0, &header, sizeof(header)) != ESP_OK)
+    return false;
+  esp_task_wdt_reset();
+  gTracePersisted = true;
+  Serial.printf("sentinel-trace: checkpointed %lu samples to flash crc=%08lX\n",
+                (unsigned long)header.count,
+                (unsigned long)header.samplesCrc32);
+  return true;
+}
 
 static void setPhase(uint8_t phase) {
   gPhase = phase;
@@ -109,6 +278,16 @@ void sentinelTraceInit() {
   if (!gTrace.capacity) {
     gPhase = SENTINEL_TRACE_ERROR;
     Serial.println("sentinel-trace: buffer allocation failed; refusing experiment");
+    return;
+  }
+  if (loadPersistedTrace()) {
+    railEnableVSQT(false);
+    gSensorRailOn = false;
+    setPhase(SENTINEL_TRACE_RETRIEVAL);
+    if (!enterMaintenance()) {
+      gNextMaintRetryMs = millis() + kMaintenanceRetryMs;
+      Serial.println("sentinel-trace: restored maintenance start failed; retry in 60s");
+    }
     return;
   }
   vl53CoverInit(gCoverGate);
@@ -251,6 +430,8 @@ void sentinelTraceTick() {
     setPhase(SENTINEL_TRACE_BASELINE_B);
   } else if (gPhase == SENTINEL_TRACE_BASELINE_B &&
              elapsed >= kBaselineMs) {
+    if (!persistTrace())
+      Serial.println("sentinel-trace: flash checkpoint failed; PSRAM-only retrieval");
     beginRetrieval();
   }
 #endif
@@ -310,6 +491,8 @@ void sentinelTraceHandleHttp(WebServer &server) {
   body += ",\"newest_seq\":" +
           String((unsigned long)sentinelTraceBufferNewestSeq(gTrace));
   body += ",\"overwrites\":" + String((unsigned long)gTrace.overwrites);
+  body += ",\"persisted\":";
+  body += gTracePersisted ? "true" : "false";
   body += "}\n";
 
   for (uint32_t i = 0; i < count; ++i) {

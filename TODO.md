@@ -77,6 +77,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   next full campaign, hardware-prove retrieval with this fix, then repeat under
   stable shade/battery-only and stable full sun. Also resolve Spyro's corrected
   boot probe still reporting only VL53 bit 2 rather than MSA+VL53 bits 10.
+  **Controlled-shade rerun:** exact canary `fx-260829-9f140c3-t` held input
+  below `supply_good`, and Ben made about 14-15 close approaches, but retrieval
+  independently reset with `task_watchdog` again and erased PSRAM. Do not accept
+  a power delta or edge count. Async WiFi scan alone is therefore insufficient.
+  Source now checkpoints the completed trace to the unused SPIFFS partition
+  with exact-artifact/header/sample CRC and sequence validation, then reloads it
+  into retrieval after any reset. Native, 20 focused Python, and embedded build
+  gates pass; hardware persistence/retrieval proof remains required. Exact-prior
+  no-lid restore job `612D848D` is armed for Spyro's next window.
   Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a

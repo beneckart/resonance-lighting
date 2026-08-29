@@ -15,6 +15,7 @@ uint8_t sentinelTracePhase();
 uint32_t sentinelTraceCapacity();
 uint32_t sentinelTraceCount();
 uint32_t sentinelTraceOverwrites();
+bool sentinelTracePersisted();
 
 void sentinelTraceInit();
 void sentinelTraceTick();

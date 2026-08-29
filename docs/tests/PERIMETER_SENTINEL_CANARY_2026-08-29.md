@@ -2,15 +2,18 @@
 
 ## Result
 
-The first exact-target radio-off + perimeter-ToF A/B/A field campaign completed
-its interaction sequence, but it did not produce an acceptable power trace.
-Rapid sunrise changed solar input across the three phases, and the completed
-PSRAM buffer was then erased by a task-watchdog reset while maintenance WiFi
-was trying to start. Spyro was restored without opening its enclosure and is
-back on its exact prior fleet artifact.
+Two exact-target radio-off + perimeter-ToF A/B/A field campaigns completed
+their interaction sequences, but neither produced an acceptable power trace.
+Rapid sunrise changed solar input across the first run, and both completed
+PSRAM buffers were then erased by task-watchdog resets while maintenance WiFi
+was trying to start. The second run held the panel consistently covered and
+therefore fixed the environmental control, but it independently reproduced the
+retrieval failure.
 
-Treat this as useful interaction/retrieval-path evidence, not as a measured
-sentinel current delta and not as a promotion gate pass.
+Treat these as useful interaction/retrieval-path evidence, not as a measured
+sentinel current delta and not as a promotion gate pass. The first run was
+restored without opening the enclosure. An exact-prior restore gather was
+armed after the second reset and is retained in the job ledger below.
 
 ## Declared operation
 
@@ -103,6 +106,66 @@ pending-verify gate at 42,123 ms uptime. Final evidence was exact prior revision
 field profile, perimeter class, FULL tier, no BQ fault, about 3.20 V VBAT, and
 valid external input. No fleet or profile broadcast was used.
 
+## Controlled-shade rerun
+
+The rerun used clean source `61f2b0c` and a newly sealed exact-target artifact:
+
+```text
+fw_rev: fx-260829-9f140c3-t
+bytes: 1225728
+sha256: 03a100407b7a51e61f61cb9b81c855e39d7405dadc9ddd893c97ba51906c7512
+recipe_sha256: 9f140c31f3c7056ba7a9ccad833077bd36de56d9bb83ef0b74eff02782e922ac
+target: F2BCF0 (Spyro), test-only and not fleetable
+```
+
+Ben physically covered Spyro's panel and kept the fixture orientation fixed.
+Fresh preflight showed `supply_good=false`, about 2.32-2.38 V input, zero input
+current, about 3.15 V VBAT, and no BQ fault. Exact OTA job `A54875FD` found only
+Spyro at `192.168.1.99`, rechecked the covered power state, and uploaded the
+sealed binary. The new image produced a fresh exact-revision software-reset
+heartbeat at 2,625 ms and a later same-boot heartbeat at 29,575 ms. That later
+heartbeat proves survival beyond the 25-second pending-verify gate.
+
+The host verifier nevertheless returned a false failure because its 5-second
+freshness test was narrower than the bridge's cached-peer report cadence. It
+saw the exact revision but did not accept the later 29,575 ms heartbeat after
+the embedded peer age had crossed five seconds. Verification now latches one
+fresh exact-revision boot and accepts a later same-boot uptime/sequence report;
+uptime and sequence must remain monotonic, so cached evidence cannot cross a
+reboot. The focused OTA/capture suite passes 20 tests.
+
+The controlled campaign ran approximately:
+
+```text
+08:03:07-08:13:07 local  baseline A, radio off, sensor rail off
+08:13:07-08:13:37 local  VL53 warmup, radio off
+08:13:37-08:23:37 local  VL53 active, radio off
+08:23:37-08:33:37 local  baseline B, radio off, sensor rail off
+```
+
+Ben performed about 10 or more deliberate close-palm approaches late in the
+active phase and another 4-5 near its end, approximately 14-15 total, using
+clear intervals to re-arm. Because the trace was again lost, no firmware edge
+count or miss rate can be accepted.
+
+The watchdog-safe asynchronous scan did not make the volatile retrieval path
+acceptable. No HTTP endpoint appeared, and the dashboard then reported a new
+`task_watchdog` boot. This second independent loss establishes that the trace
+must not depend on PSRAM surviving any WiFi startup or request path. Source now
+checkpoints the completed trace into the otherwise-unused 1.5 MB SPIFFS data
+partition before WiFi starts. It erases/writes in watchdog-fed chunks, writes
+the header last, and validates artifact tag, schema, sample size, header CRC,
+sample CRC, count, overwrite state, and exact sequence before restoring. A
+later watchdog boot re-enters retrieval with the flash copy instead of starting
+a new measurement. The full native suite, 20 focused Python tests, and an
+ESP32-S3 development compile pass. This persistence path is not yet proven on
+hardware and is the next canary gate.
+
+Exact-prior restore job `612D848D` was armed after the reset with the retained
+`fx-260827-1254f04-p` binary and its exact SHA-256. It continuously addresses
+only `F2BCF0` and waits for Spyro's next radio/maintenance window; no lid access
+or fleet broadcast is required.
+
 ## Retained ledgers
 
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-canary-ota-job.jsonl`
@@ -111,11 +174,15 @@ valid external input. No fleet or profile broadcast was used.
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-restore-job.jsonl`
 - `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-restore-r2-job.jsonl`
 - `ops/bench/data/Black Rock City/20260829-143320-DCE67738-fleet-ota-results.jsonl`
+- `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-canary-rerun-ota-job.jsonl`
+- `ops/bench/data/Black Rock City/20260829-150227-A54875FD-fleet-ota-results.jsonl`
+- `ops/bench/data/Black Rock City/20260829-spyro-F2BCF0-sentinel-rerun-restore-job.jsonl`
 
 ## Required rerun
 
-1. Hardware-prove the watchdog-safe maintenance scan and trace retrieval before
-   trusting another full campaign.
+1. Hardware-prove completed-trace flash checkpoint, reset survival, and
+   retrieval before trusting another full campaign. WiFi startup may still be
+   diagnosed separately, but it can no longer be allowed to erase evidence.
 2. Re-run under consistently shaded/battery-isolated input for the incremental
    radio-off VL53 current.
 3. Re-run in stable full sun for net energy and at least 20 deliberate palm
