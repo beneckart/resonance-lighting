@@ -10,6 +10,35 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Shaded Spyro rerun reproduced retrieval reset; trace persistence added
+
+Re-ran the exact-target perimeter sentinel A/B/A on Spyro `F2BCF0` with the
+panel physically covered and orientation fixed. Immutable artifact
+`fx-260829-9f140c3-t` from source `61f2b0c`, 1,225,728 bytes, SHA-256
+`03a100407b7a51e61f61cb9b81c855e39d7405dadc9ddd893c97ba51906c7512`,
+uploaded only to Spyro. Fresh input stayed below `supply_good` at zero input
+current, and Ben made about 14-15 close approaches during the VL53 phase.
+
+The image reported exact revision at 2,625 ms and again from the same boot at
+29,575 ms, proving the 25-second pending gate. The host verifier falsely timed
+out because its five-second live-age limit was narrower than the bridge's
+cached-peer report cadence. It now latches a fresh exact-revision boot and can
+accept a later same-boot monotonic uptime/sequence report without allowing
+cached identity to cross a reboot.
+
+The completed controlled trace was again erased by a `task_watchdog` reset
+before HTTP retrieval. This independently reproduces the retrieval fault and
+shows that watchdog-safe async scan alone cannot make volatile PSRAM evidence
+acceptable. Exact-target sentinel builds now checkpoint the completed trace to
+the otherwise-unused SPIFFS data partition before WiFi starts. Sector-bounded
+erase/write operations feed the watchdog; the header is written last; and boot
+requires matching artifact tag, schema, sample size, header/sample CRCs, count,
+no overwrite, and exact sequence before resuming retrieval. A later WiFi reset
+therefore retries with the flash copy instead of re-running the experiment.
+The full native suite, 20 OTA/capture Python tests, and an ESP32-S3 development
+compile pass. Hardware persistence proof is still required. Exact-prior restore
+job `612D848D` is armed for Spyro's next radio window without opening the lid.
+
 ## 2026-08-29 -- Ben + Codex -- Spyro sentinel run restored safely; retrieval watchdog fixed
 
 Ran the first exact-target ADR 0071 sentinel campaign on physically identified

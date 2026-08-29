@@ -684,6 +684,24 @@ def post_job_reset_seen(peer: dict, baseline: dict | None) -> bool:
     return False
 
 
+def same_boot_as_exact_revision(peer: dict, exact_peer: dict) -> bool:
+    """Accept a later bridge report from the exact-revision boot.
+
+    The bridge reports its cached peer table on a different cadence from peer
+    heartbeats.  A real post-gate heartbeat may consequently arrive in a host
+    report whose embedded ``age_ms`` already exceeds the narrow live preflight
+    window.  Uptime and sequence must both remain monotonic so a reboot cannot
+    inherit that cached revision proof.
+    """
+    try:
+        return (
+            int(peer["uptime_ms"]) >= int(exact_peer["uptime_ms"])
+            and int(peer["seq"]) >= int(exact_peer["seq"])
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def verify_pending_window(
     args: argparse.Namespace,
     targets: list[str],
@@ -694,7 +712,7 @@ def verify_pending_window(
         "requiring fresh exact-revision heartbeats beyond the "
         f"{args.pending_verify_s:.0f} s pending-verify gate"
     )
-    first_exact: set[str] = set()
+    first_exact: dict[str, dict] = {}
     proven: dict[str, dict] = {}
     deadline = time.monotonic() + args.verify_timeout
     while time.monotonic() < deadline:
@@ -705,26 +723,36 @@ def verify_pending_window(
             firmware_age = 10**9
             if isinstance(peer, dict) and peer.get("firmware_rev_age_ms") is not None:
                 firmware_age = int(peer["firmware_rev_age_ms"])
-            good = (
+            heartbeat_fresh = (
                 isinstance(peer, dict)
                 and int(peer.get("age_ms", 10**9)) <= args.fresh_age_ms
-                and firmware_age <= args.fresh_age_ms
                 and peer.get("firmware_rev") == args.expect_fw
             )
+            exact_revision_fresh = heartbeat_fresh and firmware_age <= args.fresh_age_ms
             baseline = baselines.get(target)
-            if good and baseline and baseline.get("firmware_rev") == args.expect_fw:
-                good = post_job_reset_seen(peer, baseline)
+            if (
+                exact_revision_fresh
+                and baseline
+                and baseline.get("firmware_rev") == args.expect_fw
+            ):
+                exact_revision_fresh = post_job_reset_seen(peer, baseline)
+            if exact_revision_fresh and target not in first_exact:
+                first_exact[target] = dict(peer)
+                log(f"fresh exact revision: {target}")
+                ledger.emit(
+                    "VERIFY",
+                    "fresh_exact_revision",
+                    target,
+                    uptime_ms=peer.get("uptime_ms"),
+                    reset_reason=peer.get("reset_reason"),
+                )
+            good = exact_revision_fresh or (
+                isinstance(peer, dict)
+                and peer.get("firmware_rev") == args.expect_fw
+                and target in first_exact
+                and same_boot_as_exact_revision(peer, first_exact[target])
+            )
             if good:
-                if target not in first_exact:
-                    first_exact.add(target)
-                    log(f"fresh exact revision: {target}")
-                    ledger.emit(
-                        "VERIFY",
-                        "fresh_exact_revision",
-                        target,
-                        uptime_ms=peer.get("uptime_ms"),
-                        reset_reason=peer.get("reset_reason"),
-                    )
                 # Pending images are forbidden to deep-sleep. Therefore either
                 # a fresh exact-revision heartbeat with uptime beyond the gate,
                 # or a later boot whose reset reason is deepsleep, proves that
