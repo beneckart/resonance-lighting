@@ -10,6 +10,40 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Gible installed-height canopy canary failed
+
+Built immutable normal canary `fx-260829-7906e6f-p` (1,212,736 bytes, SHA-256
+`95df1a6b18f21c0f0643949e70474a4d2af019e85efbb86f21877af350dadb7d`)
+from clean test commit `fe6619f`. Exact one-target job `A04CDF37` updated only
+hanging downlight Gible `9E5B34`, then proved fresh exact-revision rejoin past
+pending verify with field profile, downlight class, healthy TMF/MSA, no class
+mismatch, and recovery state 0.
+
+The initial scalar censuses and timed/condensed person choreography were kept
+as diagnostic evidence but rejected as acceptance runs. An exact-target trace
+variant `fx-260829-1170f20-t` continuously recorded sensor, presence, motion,
+and rendered LED state into a rolling buffer. Physical PSRAM was not exposed to
+this image, so its explicit 1,024-sample internal-RAM fallback was used. Two
+human-triggered drains retained about 70 seconds each without asking Ben to
+race a timer: one while standing beneath Gible and one after a natural walk.
+
+The standing window contained 48 valid depth frames at only 168-363 mm; the
+walking window contained 23 at only 166-362 mm. Both were confined to the same
+two near-field zones. Neither contained a person-range return, presence edge,
+held presence, or full dedicated-white `W=255` response. Ben's observation of
+repeated warm-white changes is also present in the trace: seven separate
+pre-trigger `W=25` intervals match GH CA's ordinary quiescent point-source
+state and provide a useful timing control. They are not the ADR 0070 response,
+which requires the presence latch to force `W=255`.
+
+The installed-height interaction gate therefore failed cleanly without a
+threshold change or fleet promotion. Exact final job `32F8BF78` restored the
+normal canary and verified it past pending verify at 28,353 ms; a later fresh
+heartbeat showed ordinary mesh mode, field NIGHT_SHOW/FULL/GH CA, downlight
+class, sensor bits `9`, no mismatch, and recovery 0. Next is mechanical
+TMF-window/aim diagnosis using raw range evidence, not a wider parser limit or
+weaker debounce.
+
 ## 2026-08-28 -- Ben + Codex -- Art-site TMF height census and 15 ft canopy fix
 
 Ran a read-only exact-target TMF census while canopy installation was underway.
