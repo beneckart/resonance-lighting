@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-28
 
-**Status:** Accepted; native/embedded validation and one exact installed OTA
-canary passed; person-under-fixture detection pending
+**Status:** Accepted; native/embedded validation and one exact functional OTA
+canary passed; named installed-height range margin pending
 
 **Owner:** Ben
 
@@ -113,6 +113,26 @@ did not create an empty-scene ground false positive. A visible exact lease held
 the expected `W=25` baseline for eight minutes with no spontaneous `W=255`
 trigger, then released cleanly. No person-under-fixture attempt was confirmed,
 so the required human detection half remains open.
+
+### Physical follow-up and moving-sensor correction
+
+Fleet Identify showed that Sakura was still in a bin. Its zero-depth scene was
+an open/clear bin view, not evidence that it was one of the installed high
+fixtures. When Ben pointed Sakura at himself, the new artifact changed to full
+dedicated white as intended, closing the functional sensor -> latch -> output
+path. Independently, people walking under the installed tree visibly caused
+multiple canopy fixtures to turn white, so the installation-level artistic
+behavior works. A named installed fixture still needs quantitative raw-range
+margin before broad promotion of the 5 m change.
+
+Wind also changes the model: the fixture is not rigid. It swings as a pendulum
+over roughly two degrees of freedom, so the sensor cone scans the scene. A
+stationary person may legitimately trigger several nearby lanterns as they
+sweep toward that person. This is a desired interaction, not necessarily a
+false positive. ADR 0070 therefore remains unchanged for now. Any later
+MSA-assisted tuning must first correlate sway, per-zone TMF returns, empty-scene
+false triggers, and visible output; MSA must not become a blanket veto for
+swing-assisted encounters.
 
 ## References
 

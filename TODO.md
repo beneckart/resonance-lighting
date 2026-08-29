@@ -10,9 +10,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   HEX budget that leaves sparse gobos full-bright and scales dense washes; and
   a local ToF renderer that maps 150-1,800 mm to color while peeling perimeter
   output 37 -> 19 -> 7 -> 1 pixels. The art-site TMF census sampled 46/61 exact
-  downlights: 42 close bin-like returns at 145-575 mm and four healthy all-zero
-  installed-height candidates (Panther `9E5A84`, Gible `9E5B34`, Sakura
-  `F2BE0C`, Leia `F40384`). The reported roughly 15 ft canopy height exposed an
+  downlights: 42 close returns at 145-575 mm and four healthy all-zero/open-view
+  nodes (Panther `9E5A84`, Gible `9E5B34`, Sakura `F2BE0C`, Leia `F40384`).
+  Fleet Identify later proved Sakura was in a bin, so zero depth is not evidence
+  of installation height. The reported roughly 15 ft canopy height exposed an
   artificial 2.5 m parser/presence cap; hardware supports 5 m and a standing
   head should be about 2.7-3.2 m away. ADR 0070 now accepts the full range,
   re-baselines after a close-bin -> far-tree move or sustained empty scene, and
@@ -28,14 +29,29 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fresh exact-revision rejoin, pending verify, field/downlight/recovery checks,
   post-update healthy zero-depth TMF telemetry, visible low-white lease, no
   empty-scene false trigger across eight minutes, exact release, and mesh
-  cleanup. A 20-second locate blink was sent, but nobody was confirmed beneath
-  Sakura during the watch. Next: person-under-Sakura canary requiring a raw
-  2.7-3.5 m return and persistent full-W response plus clean release. If that
-  does not occur, height/aim/sunlight is a P0 installation gate and one lower or
-  better-aimed canopy must be tried before fleet promotion. The MSA311 accent
+  cleanup. Ben then used Fleet Identify, pointed the bin-resident Sakura at
+  himself, and visually confirmed the intended full-white response. People
+  walking under the installed tree also reliably turn nearby canopy lights
+  white. The interaction therefore passes artistically and Sakura's new path
+  passes functionally. Before fleet promotion, still quantify one named
+  installed fixture's raw range/margin at the roughly 15 ft height; if it cannot
+  see a standing person, height/aim/sunlight remains a P0 installation gate.
+  The MSA311 accent
   seam is implemented but fleet-disabled pending
   quiet/wind/touch/swing/climb traces; barometric modulation and aggregate
   ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
+- [ ] **P1: characterize the canopy as a swinging scanner before tuning ToF or
+  MSA thresholds.** Windy-night field observation shows each downlight swings
+  chaotically over two pendulum axes. A stationary person can be discovered by
+  multiple nearby fixtures as their ToF cones sweep past, producing a lively
+  multi-light white response that Ben likes. Record one named installed fixture
+  through empty wind, a stationary person, walking, and leaving with TMF scalar/
+  per-zone range and confidence, MSA311 sway envelope, and visible presence
+  state on one clock. Measure empty-scene false triggers and response durations,
+  then tune minimum white hold, clear hysteresis, and retrigger cooldown. Do not
+  use MSA311 as a blanket swing veto: that would erase the desired scanning
+  behavior. Keep the currently proven thresholds until this trace exists
+  (Ben/Codex; follows ADR 0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
