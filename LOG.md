@@ -230,6 +230,35 @@ Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
 healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
 and zero send failures. The camp-labelled TSwift `979604` was not connected or
 changed during this flash.
+## 2026-08-29 -- Ben + Codex -- Spyro sentinel run restored safely; retrieval watchdog fixed
+
+Ran the first exact-target ADR 0071 sentinel campaign on physically identified
+perimeter fixture Spyro `F2BCF0`. Clean immutable artifact
+`fx-260829-f13e090-t` from source `bb86098`, 1,225,488 bytes, SHA-256
+`249c500e3a9bf12ab4902ec1db1c18680605d3a1a35bf7933e2c162dc1061cb1`,
+passed single-target OTA, fresh exact-revision rejoin, and pending verify. Ben
+performed about 15-16 close hand holds during the 10-minute radio-off VL53
+phase. The corrected canary probe still reported `sensor_bits=2`, so Spyro's
+MSA311 was not freshly proven despite the historical wrong-address bug.
+
+The run is not an accepted power result. Rapid sunrise made the A/B/A solar
+input nonlinear, and maintenance retrieval later hit an 8-second task watchdog
+while no HTTP endpoint was available, erasing the completed PSRAM trace. The
+unbounded gap was the synchronous all-channel WiFi scan; join loops already
+serviced the watchdog. Maintenance now runs that scan asynchronously, polls
+while resetting the watchdog, and falls back to configured credential order
+after 15 seconds. Native tests, 17 Python OTA/capture tests, and an ESP32-S3
+development compile pass.
+
+Spyro was recovered without opening its lid. Exact restore job `DCE67738` found
+it at `192.168.1.99`, uploaded retained prior artifact
+`fx-260827-1254f04-p` / SHA-256
+`2f9a93344e172b023ee8df473b7c747b26f38dc0ec5353f6efd00d50ec45f4af`,
+and proved fresh software-reset rejoin beyond pending verify with field profile,
+perimeter class, FULL tier, no BQ fault, and valid input. The full evidence and
+required stable-shade/full-sun reruns are in
+`docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
+
 ## 2026-08-29 -- Ben + Codex -- Hourly cymbal ritual and sentinel power gate staged
 
 Recorded the installed noisemaker truth: all 72 canopy/downlight mallets strike
