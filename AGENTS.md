@@ -24,6 +24,11 @@ After session, append to `LOG.md` with a dated entry summarizing what changed an
   revisions are generated as `fx-YYMMDD-<recipe7>-<variant>` and travel with an
   immutable manifest plus exact binary SHA-256. Never reuse a revision, select
   an image by newest mtime/`latest`, or treat a branch name as an artifact.
+  For fixture artifacts, use `build.sh --artifact-variant p|b|t` with explicit
+  profile, channel, and `--wifi-profile-label`; the wrapper owns the canonical
+  recipe bytes, revision, path, manifest, and cross-checks. Manual
+  `--artifact-dir`/`--fw-rev` is disabled so newline/encoding drift fails before
+  the cold compile.
   Live color control may remain intentionally leaseless, but OTA, USB flash,
   profile/channel persistence, reboot, and NVS mutation have one declared
   operator across all bridges/laptops. Name explicit target short MACs.

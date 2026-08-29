@@ -10,11 +10,11 @@
 #include "../store/store.h"
 #include "app_chat.h"
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 #define SCROLLBACK_CAP 6144
 
-static lv_obj_t *gStatus = nullptr;
 static lv_obj_t *gScrollBox = nullptr;
 static lv_obj_t *gScrollLabel = nullptr;
 static lv_obj_t *gInput = nullptr;
@@ -94,22 +94,20 @@ static void chatTick(lv_timer_t *) {
   // even mid-chat; the mesh is the primary function).
   MeshStats ms = espnowStats();
   bool meshSilent = ms.frames == 0 || millis() - ms.lastFrameMs > 15000;
-  lv_color_t color = lv_color_hex(0x808890);
+  uint32_t color = 0x808890;
   const char *txt = claudeStatusLine();
   switch (claudeState()) {
-    case ChatState::QUEUED: color = lv_color_hex(0xE8A33D); break;     // amber
-    case ChatState::CONNECTING: color = lv_color_hex(0xE8D44D); break; // yellow
-    case ChatState::STREAMING: color = lv_color_hex(0x4DC3E8); break;  // cyan
-    case ChatState::BACKOFF: color = lv_color_hex(0xE8A33D); break;
-    case ChatState::FAILED: color = lv_color_hex(0xE85D5D); break;     // red
+    case ChatState::QUEUED: color = 0xE8A33D; break;      // amber
+    case ChatState::CONNECTING: color = 0xE8D44D; break;  // yellow
+    case ChatState::STREAMING: color = 0x4DC3E8; break;   // cyan
+    case ChatState::BACKOFF: color = 0xE8A33D; break;
+    case ChatState::FAILED: color = 0xE85D5D; break;      // red
     default: break;
   }
   char line[120];
   snprintf(line, sizeof(line), "%s%s", txt, meshSilent ? "  | MESH SILENT" : "");
-  lv_label_set_text(gStatus, line);
-  lv_obj_set_style_text_color(gStatus, meshSilent && claudeState() == ChatState::IDLE
-                                           ? lv_color_hex(0xE85D5D)
-                                           : color, 0);
+  uiShellSetAppStatus(
+      line, meshSilent && claudeState() == ChatState::IDLE ? 0xE85D5D : color);
 }
 
 // Local slash commands — handled on-device, never sent to the API.
@@ -170,7 +168,6 @@ static void backCb(lv_event_t *) {
     lv_timer_delete(gTimer);
     gTimer = nullptr;
   }
-  gStatus = nullptr;
   gScrollBox = nullptr;
   gScrollLabel = nullptr;
   gInput = nullptr;
@@ -191,6 +188,7 @@ static bool chatEnter() {
 static const UiNavHooks kChatHooks = {chatVertical, chatEnter};
 
 void appChatOpen() {
+  uiShellSetTitle("Claude");
   if (!gScrollback) {
     gScrollback = (char *)ps_malloc(SCROLLBACK_CAP);
     if (gScrollback) {
@@ -201,14 +199,9 @@ void appChatOpen() {
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-  gStatus = lv_label_create(scr);
-  lv_obj_set_style_text_font(gStatus, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gStatus, 6, 4);
-  lv_label_set_text(gStatus, "ready");
-
   lv_obj_t *back = lv_button_create(scr);
-  lv_obj_set_size(back, 44, 22);
-  lv_obj_set_pos(back, 272, 0);
+  lv_obj_set_size(back, 44, 36);
+  lv_obj_set_pos(back, 274, 204);
   lv_obj_t *bl = lv_label_create(back);
   lv_obj_set_style_text_font(bl, &lv_font_montserrat_14, 0);
   lv_label_set_text(bl, LV_SYMBOL_LEFT);
@@ -216,8 +209,8 @@ void appChatOpen() {
   lv_obj_add_event_cb(back, backCb, LV_EVENT_CLICKED, nullptr);
 
   gScrollBox = lv_obj_create(scr);
-  lv_obj_set_pos(gScrollBox, 0, 24);
-  lv_obj_set_size(gScrollBox, 320, 178);
+  lv_obj_set_pos(gScrollBox, 0, UI_SHELL_BAR_HEIGHT);
+  lv_obj_set_size(gScrollBox, 320, 176);
   lv_obj_set_style_bg_color(gScrollBox, lv_color_hex(0x14181C), 0);
   lv_obj_set_style_border_width(gScrollBox, 0, 0);
   lv_obj_set_style_pad_all(gScrollBox, 6, 0);
@@ -232,7 +225,7 @@ void appChatOpen() {
   lv_textarea_set_one_line(gInput, true);
   lv_textarea_set_placeholder_text(gInput, "type; ENTER sends");
   lv_obj_set_pos(gInput, 0, 204);
-  lv_obj_set_size(gInput, 320, 36);
+  lv_obj_set_size(gInput, 270, 36);
   lv_obj_add_event_cb(gInput, submitCb, LV_EVENT_READY, nullptr);
 
   lv_group_remove_all_objs(lvglGroup());

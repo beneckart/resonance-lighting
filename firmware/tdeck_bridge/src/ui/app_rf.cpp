@@ -14,6 +14,7 @@
 #include "../store/store.h"
 #include "app_rf.h"
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_theme.h"
 #include "ui_task.h"
 
@@ -264,15 +265,10 @@ static void backCb(lv_event_t *) {
 
 void appRfOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("RF");
   gScreen = lv_obj_create(nullptr);
   lv_obj_clear_flag(gScreen, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(gScreen, uiScreenColor(), 0);
-
-  lv_obj_t *title = lv_label_create(gScreen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-  setTextColor(title, uiDayMode() ? 0x111827 : 0xFFFFFF);
-  lv_label_set_text(title, "RF Diagnostics");
-  lv_obj_set_pos(title, 5, 3);
 
   gSummary = lv_label_create(gScreen);
   lv_obj_set_style_text_font(gSummary, &lv_font_montserrat_14, 0);

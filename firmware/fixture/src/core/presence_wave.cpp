@@ -96,6 +96,17 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
   return true;
 }
 
+bool tmfDistantRangePresent(
+    const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
+    const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]) {
+  for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
+    if (zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
+        zoneMm[zone] >= 1000 && zoneMm[zone] < PRESENCE_SENSOR_MAX_MM)
+      return true;
+  }
+  return false;
+}
+
 void vl53CoverInit(Vl53CoverGate &gate) {
   memset(&gate, 0, sizeof(gate));
 }

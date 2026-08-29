@@ -33,6 +33,17 @@ enum class FleetBatteryFilter : uint8_t {
   UNKNOWN,
 };
 
+enum class FleetChargeFilter : uint8_t {
+  ALL = 0,
+  CHARGING_CC,
+  CHARGING_CV,
+  TOP_OFF,
+  DONE_OFF,
+  FAULT,
+  UNKNOWN,
+  OFF_AIR,
+};
+
 enum class FleetProgramFilter : uint8_t {
   ALL = 0,
   IDLE,
@@ -65,6 +76,7 @@ struct FleetViewSettings {
   FleetRowScope scope;
   FleetClassFilter classFilter;
   FleetBatteryFilter batteryFilter;
+  FleetChargeFilter chargeFilter;
   FleetProgramFilter programFilter;
   FleetFirmwareFilter firmwareFilter;
   char firmwareReference[24];
@@ -75,6 +87,7 @@ struct FleetViewRow {
   CensusView view;
   const HealthRegistryEntry *registry;
   BatteryHealthBand batteryBand;
+  ChargeStatus chargeStatus;
   uint8_t fixtureClass;
   bool observed;
   bool fresh;

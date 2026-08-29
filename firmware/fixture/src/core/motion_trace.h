@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include "fixture_context.h"
+
 #define MOTION_TRACE_ZONE_COUNT 9
 
 struct __attribute__((packed)) MotionTraceSample {
@@ -21,6 +23,7 @@ struct __attribute__((packed)) MotionTraceSample {
   uint16_t tofZoneConfidence[MOTION_TRACE_ZONE_COUNT];
   uint8_t presenceActive;
   uint8_t presenceRising;
+  uint8_t presenceSentinelWhite;
   uint8_t lifeState;
   uint8_t program;
   uint8_t powerTier;
@@ -31,6 +34,12 @@ struct __attribute__((packed)) MotionTraceSample {
   uint8_t ledW;
   uint8_t ledLitPixels;
 };
+
+// Exact-target test-image visualization: an unmistakable full-red baseline
+// becomes full RGB white only while the production presence latch is active.
+// The dedicated W channel stays off so ordinary CA W=25 cannot be confused
+// with this diagnostic state.
+void motionTracePresenceSentinelFrame(FrameBuffer &frame, bool presenceActive);
 
 struct MotionTraceBuffer {
   MotionTraceSample *samples;

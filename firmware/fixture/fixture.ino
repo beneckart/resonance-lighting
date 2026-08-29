@@ -9,6 +9,7 @@
 // Build/flash: ./build.sh --port /dev/ttyACMx   (see build.sh for flags)
 
 #include "src/core/class_probe.h"
+#include "src/core/motion_trace.h"
 #include "src/core/version.h"
 #include "src/esp32/behavior_glue.h"
 #include "src/esp32/board_power.h"
@@ -151,6 +152,7 @@ void loop() {
     // A targeted trace image keeps the pre-maintenance flight recorder
     // available while WiFi serves it; normal behavior remains deliberately
     // paused and the LED rail stays off in maintenance.
+    motionTraceNotePresenceSentinel(false);
     motionTraceTick();
     sentinelTraceTick();
     maintenanceTick();
@@ -207,6 +209,17 @@ void renderTick() {
   } else {
     have = behaviorFrame(f); // NIGHT_SHOW program output
   }
+  motionTraceNotePresenceSentinel(false);
+#if defined(RES_CANOPY_PRESENCE_SENTINEL)
+  // Exact-target trace-only visual contract. Identify/smoke keep their higher
+  // arbitration precedence so green start/end markers remain visible and
+  // recorded. Never awaken a suppressed/dark frame or bypass the power cap.
+  if (have && !ident && !gSmokeRender && motionTraceTargetMatches()) {
+    bool presenceActive = behaviorTofPresenceActive();
+    motionTracePresenceSentinelFrame(f, presenceActive);
+    motionTraceNotePresenceSentinel(presenceActive);
+  }
+#endif
   if (cap == 0 || !have) {
     if (ledRailIsOn()) ledRailOff();
     return;

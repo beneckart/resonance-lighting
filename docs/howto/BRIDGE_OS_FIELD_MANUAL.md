@@ -88,12 +88,14 @@ The words below are deliberately conservative:
 | CoreS3 Listener + Audio Bridge OS | Working baseline; spectral canary | Standalone speech/envelope response is fleet-proven; 25 Hz spectrogram and band modes need hardware acceptance |
 | PUCA Resonance bridge | `0.5` safe boot/OTA passed; show acceptance pending | Codec/stereo capture, radio census, no-hold safe boot, Bridge identity, and exact-target OTA are proven; armed controls, waveform/light, rollback, and field gates remain open |
 
-The current T-Deck unit is short ID `8EB508`, full MAC
-`44:1B:F6:8E:B5:08`. The callsign-aware binary recorded on 2026-08-24 is
+The primary T-Deck is short ID `8EB508`, full MAC
+`44:1B:F6:8E:B5:08`. The second unit is physically labelled `TSwift`, short ID
+`979604`, full MAC `44:1B:F6:97:96:04`. The callsign-aware primary binary
+recorded on 2026-08-24 is
 1,550,224 bytes with SHA-256
 `3026593615bd58304c2a6b8893bf4f92cd8f9f92211f9222a5a28517fedf6e32`.
-A COM port is an observation, not identity; `COM152` was the observed port at
-that flash, not a permanent name.
+A COM port is an observation, not identity; `COM152` was observed for the
+primary and `COM157` for TSwift, not assigned as permanent names.
 
 # Part I: T-Deck Bridge OS
 
@@ -101,8 +103,8 @@ that flash, not a permanent name.
 
 1. Power the T-Deck and wait for the launcher.
 2. Read the top line. Confirm `ch11`, confirm the mesh live/seen count is
-   plausible, and note whether the left side says online, mesh-only, connecting,
-   or guard.
+   plausible, and note whether the center ticker says `WiFi`, `mesh-only`,
+   `WiFi joining`, or `GUARD`.
 3. Open **Health**. A mostly grey screen immediately after boot can be normal;
    give sleeping fixtures time to report.
 4. If you will command a fixture, name the intended callsign and short ID before
@@ -126,6 +128,19 @@ The T-Deck has three useful input methods:
 On the launcher, left/right moves one tile and up/down jumps one four-tile row.
 The blue tile is focused. Most app screens put **Back** at the bottom.
 
+The top 26-pixel shell bar is always present: the current app has a blue accent
+at left and normal app/network status uses the main ticker color in the center.
+The clock is cyan. While a local color stream or program lease
+is active, the center becomes a colored scrolling ribbon. A permanent stream
+says `LOCAL`, its mode and target count, and `until STOP`. A separate clock cell
+counts up for permanent streams or down for expiring leases, without restarting
+the scrolling ribbon. A fixed `STOP` button appears at the right and ends
+the local stream plus the tracked program without leaving the current app.
+Fresh commands from another T-Deck, PUCA, CoreS3, or unknown publisher appear
+as a blue informational ribbon with no Stop. Red means local and foreign
+control activity overlap. App content starts below the bar, so none of these
+states cover controls.
+
 ![Bridge OS launcher map](BRIDGE_OS_LAUNCHER.svg)
 
 *Figure 2. Source-derived launcher map at three times the device's 320 x 240
@@ -139,18 +154,19 @@ power.
 
 ## Reading the top status line
 
-The launcher compresses five facts into one line:
+When no control activity is present, the shell compresses four facts into its
+center cell:
 
 ```text
-network   WiFi signal   mesh channel   live/seen fixtures   T-Deck battery
-ONLINE      -57 dBm         ch11              74/86               83%
+network      mesh channel   live/seen fixtures   T-Deck battery
+WiFi             ch11              74/86               83%
 ```
 
 | Display | Meaning | What to do |
 |---|---|---|
-| `ONLINE` or WiFi symbol | WiFi is associated on the correct channel; mesh and internet can coexist | Claude should work after time sync |
-| `mesh` or mesh-only | No infrastructure WiFi, but ESP-NOW is active | Normal for field control without Claude |
-| connecting/refresh | WiFi join is in progress | Wait up to about 15 seconds; mesh returns on timeout |
+| `WiFi` | WiFi is associated on the correct channel; mesh and internet can coexist | Claude should work after time sync |
+| `mesh-only` | No infrastructure WiFi, but ESP-NOW is active | Normal for field control without Claude |
+| `WiFi joining` | WiFi association is in progress while ESP-NOW stays active | Wait up to about 15 seconds; the bridge returns to mesh-only on timeout |
 | `GUARD` | The AP channel does not match the stored mesh channel | Fix the AP to channel 11, then retry WiFi |
 | `ch11` | The stored mesh channel | This is the production value |
 | `74/86` | 74 live now, 86 seen since boot | Only the 74 live fixtures are plausible immediate recipients |
@@ -181,7 +197,7 @@ This explains several apparently surprising results:
 ## Health: start here
 
 Use **Health** for the fastest whole-fleet triage. It fits the production-health
-registry on one screen and appends unexpected live IDs. The top-right button
+registry on one screen and appends unexpected live IDs. The bottom mode button
 switches the stable tiles between raw battery-voltage (`VBAT`) and charger-phase
 (`CHG`) colors.
 
@@ -194,8 +210,8 @@ switches the stable tiles between raw battery-voltage (`VBAT`) and charger-phase
 | Blue | fixture is live, but its battery value is not plausible |
 | Cyan border | live ID is outside the normal production-health roster |
 
-In CHG mode, green means `CHARGING_CC`, cyan `CHARGING_CV`, purple `TOP_OFF`,
-amber `NOT_CHARGING/DONE`, brown `CHARGE_DISABLED`, red charger fault, blue
+In CHG mode, green means `CHARGING_CC`, cyan `CHARGING_CV`, purple `TOP-OFF`,
+amber `DONE/OFF`, red `FAULT`, blue
 unknown, and grey off air. These phases come from the BQ25628E status/fault
 registers. They are not guesses from a small signed-current number.
 
@@ -849,13 +865,16 @@ shortcut.
 
 PUCA is the intended primary performance-audio instrument. Its powered-Pod20
 codec/stereo/radio/full-census baseline passes on the received board. Installed
-`0.5.0-dev` boots SAFE-IDLE: it advertises identity and can hear maintenance,
+`0.5.5-dev` boots SAFE-IDLE: it advertises identity and can hear maintenance,
 but emits no lighting frames unless the paw is held for 1.2 s during boot. A
 no-hold USB boot, exact `A4EB10` Bridge OS heartbeat, exact-target shared-WiFi
-OTA, post-OTA dark rejoin, and pending-verify survival passed on 2026-08-27. The
-paw-held DJ-first gesture, forced rollback, performer's waveform, visible
-fixture response/fallback, final field geometry, and multi-hour run remain
-acceptance gates. The factory Eurorack oscillator/effect image is not tree
+OTA, post-OTA dark rejoin, and pending-verify survival passed on 2026-08-27.
+Exact-unit raw-capacitance handling and the paw-held DJ-first power-on gesture
+passed on 2026-08-29 with `bootarmed=1` and `active=1`. Laptop line input and a
+visible paired HEARTBEAT look also pass. Timed setup gestures, forced rollback,
+the real RODE/performer waveform, named-fixture fallback, final field geometry,
+and a multi-hour run remain acceptance gates. The factory Eurorack
+oscillator/effect image is not tree
 firmware, and a CoreS3 binary is not PUCA-compatible.
 
 The hardware on hand is:

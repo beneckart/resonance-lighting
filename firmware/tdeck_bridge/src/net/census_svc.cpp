@@ -22,6 +22,9 @@ static TailFrame gTail[TAIL_CAP];
 static uint32_t gTailNext = 0;  // monotonically increasing write index
 static portMUX_TYPE gTailLock = portMUX_INITIALIZER_UNLOCKED;
 
+static ForeignControlTracker gForeignControl;
+static portMUX_TYPE gForeignControlLock = portMUX_INITIALIZER_UNLOCKED;
+
 static void noteTailFrame(const RxItem &item, const NbHeader *h) {
   TailFrame f;
   f.ms = item.ms;
@@ -64,6 +67,9 @@ void censusSvcTick(uint32_t nowMs) {
   while (budget-- > 0 && espnowRingPop(&item)) {
     const NbHeader *h = (const NbHeader *)item.data;
     if (memcmp(h->src_id, meshMyId(), 3) == 0) continue;  // our own bursts
+    taskENTER_CRITICAL(&gForeignControlLock);
+    gForeignControl.observe(item, meshMyId());
+    taskEXIT_CRITICAL(&gForeignControlLock);
     noteTailFrame(item, h);
     contagionFanoutObserve(item);
     taskENTER_CRITICAL(&gCensusLock);
@@ -149,4 +155,14 @@ uint32_t censusFreshMsSafe() {
   uint32_t freshMs = gCensus.freshMs();
   taskEXIT_CRITICAL(&gCensusLock);
   return freshMs;
+}
+
+bool censusForeignControlSafe(ForeignControlActivity *out, uint32_t nowMs) {
+  if (!out) return false;
+  taskENTER_CRITICAL(&gForeignControlLock);
+  // Direct/show/lifecycle traffic is active only while frames remain fresh.
+  // Program leases carry their own wire TTL and remain visible until expiry.
+  bool active = gForeignControl.latest(nowMs, 3000UL, *out);
+  taskEXIT_CRITICAL(&gForeignControlLock);
+  return active;
 }

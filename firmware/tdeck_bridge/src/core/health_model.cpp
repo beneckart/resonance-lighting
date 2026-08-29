@@ -40,10 +40,10 @@ const char *chargeStatusName(ChargeStatus status) {
   switch (status) {
     case ChargeStatus::CHARGING_CC: return "CHARGING_CC";
     case ChargeStatus::CHARGING_CV: return "CHARGING_CV";
-    case ChargeStatus::TOP_OFF: return "TOP_OFF";
-    case ChargeStatus::NOT_CHARGING: return "NOT_CHARGING/DONE";
-    case ChargeStatus::CHARGE_DISABLED: return "CHARGE_DISABLED";
-    case ChargeStatus::FAULT: return "CHARGER_FAULT";
+    case ChargeStatus::TOP_OFF: return "TOP-OFF";
+    case ChargeStatus::NOT_CHARGING: return "DONE/OFF";
+    case ChargeStatus::CHARGE_DISABLED: return "DONE/OFF";
+    case ChargeStatus::FAULT: return "FAULT";
     case ChargeStatus::UNKNOWN: return "UNKNOWN";
     case ChargeStatus::OFF_AIR: return "OFF_AIR";
   }

@@ -10,6 +10,7 @@
 #include "fixture/src/core/fixture_context.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 static constexpr uint32_t COMMISSION_ROLL_STEP_MS = 80;
@@ -135,13 +136,9 @@ static void backCb(lv_event_t *) {
 
 void appCommissionOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Default");
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(screen);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Commission Default");
-  lv_obj_set_pos(title, 8, 4);
 
   gTargetCount = snapshotFresh(gTargets, CENSUS_MAX_TRACKED, millis());
   static char options[1600];

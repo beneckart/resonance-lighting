@@ -10,7 +10,8 @@ README remains the implementation, build, and acceptance record.
 
 **Status 2026-08-27:** M0-M4 complete and hardware-verified. Working apps:
 **Claude** (streaming chat + 6-tool agent loop with the confirm rail),
-**Fleet** (stable roster/live views, class and raw-VBAT filters, sortable
+**Fleet** (stable roster/live views, class, raw-VBAT, charge-phase, program,
+and exact-firmware filters, sortable
 voltage, reported-color chips, detail/identify, and confirmed filtered-cohort
 blink), **Health** (single-screen voltage or charge-phase grid for the
 production registry plus live node detail), **LED Studio** (class-targeted solid colors and 1 Hz
@@ -27,6 +28,40 @@ exact manual seed),
 **RF Diagnostics** (read-only mesh survey), **Settings**, **SunTest**.
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
+
+## Permanent control shell
+
+Bridge OS permanently reserves the top 26 pixels on LVGL's top layer. Every app
+uses y=26..239, so control status never appears over an app title, picker, or
+action button and starting or stopping activity never shifts the layout. The
+left cell names the current app. The center normally shows app or network/mesh
+status; while this T-Deck owns a direct stream or tracked program lease it
+becomes a scrolling activity ribbon. Direct streams show `LOCAL`, mode, target
+count, and `until STOP`. A separate fixed clock cell shows elapsed time for a
+permanent stream or remaining time for an expiring program, so changing digits
+cannot restart the ribbon animation. A fixed Stop button appears at the right only for local
+activity, ending the stream and releasing the tracked program without requiring
+the operator to return to the originating app.
+A Contagion stop also disables its old-fleet compatibility fanout.
+
+The same shell passively inspects the existing fleet packet contract for the
+newest active non-self controller. It names known T-Deck (`8EB508`, `979604`),
+PUCA (`A4EB10`), and CoreS3 (`4D5DB0`, historical `E39F1C`) publishers and
+shows the exact short ID for an unknown controller. Direct/show/lifecycle
+traffic stays active while fresh for three seconds; program activity follows
+the command's wire lease. Foreign-only status is informational and has no Stop
+button; simultaneous local and foreign activity uses the conflict color. This
+adds no packet or probe traffic.
+
+The first full-width bottom strip was rejected on hardware because it covered
+each app's operational action row. A compact top-left pill proved the ribbon
+concept but still covered titles. The permanent shell replaces both overlays;
+all implemented screens were migrated below its fixed boundary. This revision
+is flashed on the second T-Deck, physically labelled `TSwift` (`979604`):
+1,565,280 bytes, SHA-256
+`3267a1b237a2a4708e5c999cf1730f497ecbc30bd80e299a8b76374764931d4c`.
+Its cross-app touch, expiry, and competing-publisher behavior remain in the
+hardware acceptance list in `TODO.md`.
 
 The Default app is present in the current combined `8EB508` image but is not yet
 hardware-validated. It
@@ -79,6 +114,11 @@ timing and mixed-firmware checks remain before flashing this UI.
 **Board: T-Deck Plus, LCD variant — NOT the T-Deck Pro** (e-paper; different
 touch/keyboard drivers; the names are one word apart and that is the easiest
 available mistake — ADR 0037 §10).
+
+Known handheld identities are primary Bridge OS `8EB508`
+(`44:1B:F6:8E:B5:08`) and camp-labelled `TSwift` `979604`
+(`44:1B:F6:97:96:04`). Treat COM ports only as observations; TSwift was on
+COM157 for the 2026-08-27 banner/charge-filter flash.
 
 ## Hardware verdicts (probed on real hardware, 2026-08-19)
 
@@ -213,7 +253,9 @@ Press **View** to choose independently:
 - rows: registry plus live, every peer seen since bridge boot, or live now;
 - class: all, downlight, perimeter, uplight, chandelier, or unknown;
 - raw-VBAT band: all, good (>3.20 V), near low (>3.10 V and <=3.20 V), low
-  (<=3.10 V), off air, or live with no plausible battery voltage; and
+  (<=3.10 V), off air, or live with no plausible battery voltage;
+- charger phase: all, `CHARGING_CC`, `CHARGING_CV`, `TOP-OFF`, `DONE/OFF`,
+  `FAULT`, unknown, or off air;
 - program: all, IDLE, CA, BRIDGE, DIRECT, DARK, VIRUS, or unknown;
 - firmware: all, known, unknown, exact selected reference, or everything that
   does not match that reference (including unknown revision evidence); and
@@ -222,7 +264,8 @@ Press **View** to choose independently:
 
 Detail spells out profile, lifecycle, program, network mode, power tier, and
 charger phase as names such as `FIELD`, `DAY_CHARGE`, `DIRECT`, `COMMS`,
-`PROTECT`, and `CHARGING_CC` instead of showing only numeric status codes.
+`PROTECT`, `CHARGING_CC`, `CHARGING_CV`, `TOP-OFF`, `DONE/OFF`, and `FAULT`
+instead of showing only numeric status codes.
 
 Voltage, age, and signal sorts are explicit operator choices; the default does
 not reorder on heartbeat arrival. A live class report is authoritative. While

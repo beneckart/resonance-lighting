@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../core/census.h"
+#include "../core/control_activity_model.h"
 
 // Shared bound for full-fleet consumers. Keep this at the PSRAM allocation
 // capacity so a class-targeted stream never silently stops at the first 64
@@ -38,3 +39,7 @@ struct TailFrame {
   uint8_t len;
 };
 size_t censusTailSafe(TailFrame *out, size_t maxOut);  // newest first
+
+  // Fresh non-self control traffic, used by the persistent shell to warn when
+// another T-Deck, PUCA, CoreS3, or unknown publisher is actively commanding.
+bool censusForeignControlSafe(ForeignControlActivity *out, uint32_t nowMs);

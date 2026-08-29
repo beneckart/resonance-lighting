@@ -11,6 +11,7 @@
 #include "app_knocker.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 static lv_obj_t *gTargetDd = nullptr;
@@ -164,13 +165,9 @@ static void backCb(lv_event_t *) {
 
 void appKnockerOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Knocker");
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(scr);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Knocker");
-  lv_obj_set_pos(title, 8, 6);
 
   // Fleet modes followed by every fresh census entry for one-device strikes.
   gTargetCount = snapshotFresh(gTargets, CENSUS_MAX_TRACKED, millis());

@@ -5,6 +5,7 @@
 #include "../net/stream_svc.h"
 #include "app_zones.h"
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_task.h"
 
 struct Swatch {
@@ -93,19 +94,15 @@ static void backCb(lv_event_t *) {
 
 void appZonesOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("LEDs");
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *title = lv_label_create(scr);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "LED Studio");
-  lv_obj_set_pos(title, 8, 4);
 
   gClassDd = lv_dropdown_create(scr);
   lv_dropdown_set_options(gClassDd,
                           "all\ndownlights\nperimeter\nuplights\nchandelier");
-  lv_obj_set_pos(gClassDd, 130, 2);
-  lv_obj_set_width(gClassDd, 182);
+  lv_obj_set_pos(gClassDd, 8, 28);
+  lv_obj_set_width(gClassDd, 304);
   lv_obj_add_event_cb(gClassDd, classChanged, LV_EVENT_VALUE_CHANGED, nullptr);
 
   lv_group_remove_all_objs(lvglGroup());
@@ -114,8 +111,8 @@ void appZonesOpen() {
   // Swatch grid, 4x2, thumb-sized and text-labelled for field use.
   for (int i = 0; i < 8; ++i) {
     lv_obj_t *btn = lv_button_create(scr);
-    lv_obj_set_size(btn, 72, 44);
-    lv_obj_set_pos(btn, 6 + (i % 4) * 78, 44 + (i / 4) * 50);
+    lv_obj_set_size(btn, 72, 38);
+    lv_obj_set_pos(btn, 6 + (i % 4) * 78, 69 + (i / 4) * 42);
     const Swatch &s = kSwatches[i];
     uint16_t wboost = (uint16_t)(s.w * 4 / 5);
     lv_obj_set_style_bg_color(

@@ -4,6 +4,43 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [x] **Prevent field day sleep from resetting a qualified PROTECT release --
+  DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
+  `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut
+  short by the independent 12-second `day-charge` sleep, making a continuous
+  60-second release proof impossible. Lifecycle now makes power policy the
+  sole owner of sleep at `LedTier::PROTECT`; native coverage pins PROTECT awake
+  while FULL/DIM/OFF day behavior remains unchanged. The full integrated native
+  suite and ESP32-S3 build pass. Exact-target USB canary
+  `fx-260829-b0ff5db-b`, SHA-256
+  `276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`,
+  passed on Toad with field/channel 11, healthy charging/no-fault BQ, correct
+  downlight class, MSA/TMF/BMP samples, ESP-NOW, and a later clean 120-second
+  timer wake. Toad's retained stage was already DIM after the USB flash, so
+  this exact run did not replay a live PROTECT -> OFF release; the pure
+  regression is the direct branch proof. Groot `9F2724` subsequently arrived
+  in genuine low-voltage PROTECT, released on the old image during the longer
+  physical-reset window, and passed the same exact canary plus USB/WiFi gate;
+  this confirms a second repaired fixture. Logan `9E5A88` then supplied the
+  missing live branch proof: the exact canary remained awake at 21.6 s after a
+  deliberate one-second deep sleep (past the old 12 s cutoff), completed the
+  sustained full-battery PROTECT release, persisted OFF, clean-rebooted, and
+  advanced to DIM with healthy MSA/TMF and WiFi. This closes the timer-wake
+  hardware acceptance. Eevee `9F0E54` then arrived in genuine low-voltage
+  PROTECT with a retained 3.030 V entry. Physical RESET gave the old image's
+  long service window; healthy roughly 1.1 A charging released it cleanly to
+  OFF. The same exact canary passed USB/WiFi commissioning with its physical
+  15 Ah capacity restored and healthy MSA/TMF/BMP telemetry (Ben/Codex).
+- [ ] **Repair quarantined downlight Shuckle `F4031C`.** Its old commission
+  image repeatedly failed all four PowerFeather init attempts with charger,
+  gauge, rails, and sensors inaccessible. Disconnecting the sensor chain made
+  the board healthy; TMF8820-only and MSA311-only each passed, while the suspect
+  inter-sensor cable also failed when connected directly to the known-good MSA.
+  Ben then accidentally connected solar without the battery and the USB app
+  stopped enumerating. Recover USB-only without erasing, discard/mark the bad
+  cable, validate a different cable directly, rebuild the full chain, reconnect
+  the confirmed 15 Ah cell, and complete exact USB/WiFi commissioning before
+  removing quarantine (Ben/Codex).
 - [~] **P0: hardware-validate ADR 0071's hourly 72-cymbal daytime ritual.**
   Source now decouples energy readiness from all-day radio reception, carries
   readiness across only one freshly requalified timer wake, aligns the final
@@ -123,6 +160,45 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   use MSA311 as a blanket swing veto: that would erase the desired scanning
   behavior. Keep the currently proven thresholds until this trace exists
   (Ben/Codex; follows ADR 0070).
+  superseded. **2026-08-29 Gible installed-height canary: OTA safety passed but
+  useful-height interaction remains on hold.** Exact target Gible `9E5B34`
+  accepted immutable normal
+  artifact `fx-260829-7906e6f-p`, SHA-256
+  `95df1a6b18f21c0f0643949e70474a4d2af019e85efbb86f21877af350dadb7d`,
+  and passed fresh exact-revision rejoin/pending verify. Two valid exact-target
+  rolling traces retained about 70 seconds each while Ben stood and walked
+  naturally beneath the installed fixture. They saw only fixed 166-363 mm
+  near-field returns, no person-range return, no presence edge/latch, and no
+  required `W=255` response. Seven pre-trigger `W=25` intervals match Ben's
+  visual observation and ordinary GH CA quiescence. A later foolproof,
+  five-minute exact-target sentinel removed the remaining capture ambiguity:
+  red meant no latch and full RGB white meant the unchanged production
+  presence latch was active, with two green Identify markers bracketing the
+  experiment. Ben had to hold a split high to trigger it. The trace then
+  recorded 46 >1 m frames, five presence rises, and 49 active samples; every
+  active sample rendered full RGB white and no inactive sample did. This proves
+  the sensor/parser/debounce/render path, but not useful ordinary standing or
+  walking interaction. A final raw 1-5 m target-only image removed background,
+  debounce, and hysteresis while excluding the known <400 mm self-splay. It
+  recorded no sampled false positives across 266.145 seconds of empty scene,
+  but a bamboo split held roughly 2 m away produced no 1-3 m return: instead,
+  the same 34.355-second interaction produced 3.24-5.00 m reports across five
+  zones. This rejects the far reports as proof of usable physical range and
+  points to aim, occlusion, edge/background ranging, or multipath. A lower-hung
+  Astro `9E5B44` control then used the identical raw predicate. At roughly 12 ft,
+  walking beneath it produced only a split-second flicker while Ben's raised
+  hand produced a denser visible response. Its 304.3-second trace contained 35
+  white samples, all from physically plausible 1.003-1.561 m zone returns, and
+  no 1.562-5 m return or empty-scene false positive. Since Ben is 6 ft 3 in,
+  the roughly 1.75 m sensor-to-head gap was just outside the demonstrated band.
+  Lowering helps, but 12 ft remains marginal for passive walk-under behavior.
+  Exact jobs restored both fixtures and verified field posture. Next: test a
+  roughly 10 ft mounting or equivalent re-aim, inspect/clear Gible's TMF
+  aperture and field of view, then repeat a normal-person test before any
+  threshold tuning or ADR 0070
+  promotion. The MSA311 accent seam is implemented but fleet-disabled
+  pending quiet/wind/touch/swing/climb traces; barometric modulation and
+  aggregate ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
@@ -181,9 +257,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixture promotion contracts passed. No secret is tracked. Hardware-prove the
   second profile at the art site with one exact fixture before relying on it for
   USB-tail avoidance. Exact Rikku `9F26B0` subsequently passed combined artifact
-  `fx-260828-abd893c-p`; the 11 intended fixtures still on the prior known-good
-  image are `9F2724`, `F2B7DC`, `F2B900`, `F2BCF0`, `F2BCF4`,
-  `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and `F403DC`. The working
+  `fx-260828-abd893c-p`; 13 intended fixtures still lack the current dual-site
+  fleet image. The set is `9E5A88`, `9F0E54`, `9F2724`, `F2B7DC`, `F2B900`,
+  `F2BCF0`, `F2BCF4`, `F2BDC4`, `F2BDD4`, `F2BEE4`, `F40308`, `F4035C`, and
+  `F403DC`. The working
   11-unit perimeter USB queue is Cammy `F2B900`, Spyro `F2BCF0`, Gambit
   `F2BCF4`, Batman `F2BDC4`, Gengar `F2BDD4`, uncalled `F2BE80`, Clank
   `F2BF60`, uncalled `F2BFEC`, Thor `F40344`, Dratini `F4035C`, and Sneasel
@@ -250,12 +327,72 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   no mismatch, sensor bits 5, and healthy MSA/TMF/BMP; TMF has 85,330 reads with
   zero errors/recoveries. This rules out a current fixture sensor failure and
   makes the raw-census unknown window the supported failure mechanism.
+- [ ] **Prototype the T-Deck WiFi camera viewer after the Windows UVC viewer is
+  accepted.** Keep the USB camera on a laptop or Raspberry Pi host and serve a
+  bounded 320x240 JPEG/MJPEG view to Bridge OS over the channel-11 WiFi network.
+  Measure latency, decode/render cost, heap/PSRAM watermark, and coexistence with
+  ESP-NOW before making it an app. The stock T-Deck Plus USB-C is wired as a
+  device/power sink and does not source camera VBUS; do not treat a passive OTG
+  adapter as a host solution (Ben/Codex).
+- [~] **Hardware-validate the permanent Bridge OS shell bar.** Source,
+  pure-model tests, the full native suite, and the embedded build pass. Hardware
+  rejected the initial full-width bottom overlay because it covered LED
+  Studio's Solid/Stop/Back row; the compact top-left pill avoided the buttons
+  but still covered titles. The current design reserves y=0..25 on every screen:
+  app identity at left, scrolling activity/idle status in the center, and fixed
+  clock/Stop cells at right only for local direct streams or tracked leases.
+  The clock updates separately so it cannot restart the ribbon animation.
+  Streams count up as `LOCAL ... until STOP`; leases count down; fresh competing
+  T-Deck, PUCA, CoreS3, or unknown publishers are passive warnings by exact ID.
+  All app content now starts at y>=26. Physical polish gives app identity, ticker,
+  and clock distinct colors, expands Stop to avoid clipping, and labels the idle
+  fields `WiFi joining`/`mesh-only`, `ch11`, `live N/M`, and `bat N%`. The exact
+  image is 1,565,280 bytes and is
+  flashed and boot/mesh-checked on camp-labelled TSwift `979604`; SHA-256 is
+  `3267a1b237a2a4708e5c999cf1730f497ecbc30bd80e299a8b76374764931d4c`.
+  On TSwift and named fixture canaries: start Solid, Blink, Patterns, CA,
+  Blackout, and Contagion;
+  navigate the launcher, every major app, and a confirmation modal; confirm the
+  shell ribbon and touch Stop remain available without covering app controls;
+  verify
+  direct frames go stale within
+  three seconds and program Release clears the lease. Check countdown expiry,
+  foreign-only status without a misleading Stop, local-plus-foreign conflict
+  color, self-frame suppression, known publisher labels, unknown-source ID,
+  and no false persistence after the three-second freshness window. Exercise a
+  second T-Deck plus PUCA/CoreS3 only after declaring one command operator and
+  naming every target under ADR 0040 (Ben/Codex).
+- [ ] **P0: detect and recover a live T-Deck transmit-path stall.** On
+  2026-08-29 exact bridge `8EB508` continued receiving the channel-11 fleet and
+  emitting a healthy census while both LED Studio and Fleet/Blink stopped
+  affecting fixtures. `sendok` stayed exactly 9,058 across attempted sends and
+  `sendfail` stayed zero; fixtures remained in CA. A T-Deck reboot restored the
+  path immediately, and Ben confirmed a new all-fleet green stream while TX
+  callbacks advanced. Instrument every synchronous `esp_now_send()` result
+  (accepted/error counts plus last error), because the existing counters see
+  callbacks only and ordinary send sites discard enqueue failures. LED Studio
+  must distinguish planned targets from successfully submitted frames and show
+  a radio fault instead of an active-looking stream. Add a bounded peer/radio
+  re-init or watchdog policy for stream-active TX-flat/RX-growing evidence,
+  preserve a diagnostic before recovery, and hardware-reproduce with an
+  all-fleet soak. Do not infer CA arbitration from this signature
+  (Ben/Codex).
+- [ ] **P0: make the localhost fleet dashboard fail visibly stale on serial
+  loss.** During the same 2026-08-29 investigation, COM7 disappeared while the
+  dashboard process and HTTP server stayed alive. `/api/state` and the browser
+  continued serving the last 01:55 master/peer snapshot with no disconnect or
+  master-age warning, making later read-only checks look live. Expose serial
+  connected/disconnected state and master age in both API and UI, stop presenting
+  cached peers as current, and either reconnect with explicit bridge identity
+  verification or require an operator restart. Add a regression test for an
+  unplugged/re-enumerated port while HTTP remains up (Ben/Codex).
 - [~] **Hardware-validate the stable/filterable T-Deck Fleet view.** Source,
   the complete native Bridge suite, and the local embedded build pass. The new
   default is the complete callsign-stable registry plus unexpected live peers;
   off-air fixtures retain grey rows, selection and scroll context survive the
   two-second refresh, and View offers roster/seen/live scope, class and raw-
-  VBAT-band filters, plus stable ID/name and dynamic voltage/age/signal sorts.
+  VBAT-band and charger-phase filters, plus stable ID/name and dynamic
+  voltage/age/signal sorts.
   The confirmed Blink action snapshots only fresh visible rows and paces exact
   30-second green identifies. On exact T-Deck `8EB508`, check all dropdowns,
   touch and trackball navigation, a long-list scroll through several refreshes,
@@ -274,8 +411,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   battery current on the compact row, moves RSSI/PDR and advisory SOC to detail,
   renders never-seen age as `inf`, and distinguishes a reported IDLE from unknown
   full-heartbeat state. Detail spells out profile, lifecycle, tier, program, and
-  network-mode names. View adds program plus exact-reference/non-reference
-  firmware rollout filters. The complete native suite passes. The combined
+  network-mode names. View adds charge phase, program, and exact-reference/non-
+  reference firmware rollout filters. Charge filters cover `CHARGING_CC`,
+  `CHARGING_CV`, `TOP-OFF`, `DONE/OFF`, `FAULT`, unknown, and off air. The
+  complete native suite passes. The combined
   local binary now flashed on exact `8EB508` is 1,581,168 bytes, SHA-256
   `c87b2805feb8bd95c0d6c9ae3022baaa40079483bca652de6c33f738c0e69e7e`;
   the linker reports 50 percent flash and 50 percent global RAM. Upload and an
@@ -283,8 +422,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   post-reset identity, channel 11, mesh RX/TX, peripheral probes, and memory
   checks passed. Add physical checks for no row/header wrapping,
   signed-current legibility, IDLE versus `?`, detail-line/button clearance,
-  scrolling through all seven filter rows, and mixed-revision match/non-match
-  cohorts. **2026-08-28 daylight UX finding:** the fleet mixes lifecycle labels
+  scrolling through all eight view rows, each charge-phase canary, and mixed-
+  revision match/non-match cohorts. **2026-08-28 daylight UX finding:** the
+  fleet mixes lifecycle labels
   such as `boot` with selected-program labels such as `CA`, which can read as a
   daytime-lighting fault even though live `ledrail=false` and zero rendered
   pixels prove the fixtures dark. Visually distinguish lifecycle from an armed
@@ -350,16 +490,28 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   other 17 had to be rediscovered in a later job. Under allow-partial semantics,
   demote a vanished found endpoint back to deferred, retain the other exact
   identity-ready endpoints, and continue only after a fresh acknowledged FREEZE.
-- [ ] **USB-data rescue Bidoof `9F26D8`.** It remains on known-good
-  `fx-260816-otafix1-b` and is continuously mesh-fresh on channel 11 with about
-  3.40 V VBAT and strong USB input, but it is the previously documented
-  targeted-maintenance downlink exception and never exposes an identity-
-  matching WiFi endpoint. Two 2026-08-27 supervised campaigns made no upload.
-  The current rotated cables enumerate no fixture serial ports, so connect one
-  real USB data cable, prove exact identity, preserve NVS, install the immutable
-  production artifact, and verify field profile plus reboot ride-through (Ben).
-- [~] **Replace the unsafe effective 120 s / 3 s cadence after its completed
-  rollout.** Clean
+- [~] **USB-data rescue Bidoof `9F26D8`. USB/A-B WORK COMPLETE 2026-08-27.**
+  COM156 exact identity, application-only USB write, preserved NVS, explicit
+  persisted field profile, working `Party In The Woods` endpoint, app1
+  pending-verify -> valid transition, and stable battery-backed production boot
+  all passed on immutable `fx-260826-51d1fe1-p` / SHA-256
+  `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
+  Final state was field/DAY_ACTIVE, channel 11, ESP-NOW 114/0 sends, healthy
+  power/charge and MSA311/TMF8820. Remaining: with the T-Deck physically
+  connected, issue one exact `U9F26D8` maintenance command and verify the same
+  identity endpoint, then `/resume`; this only excludes a secondary receive
+  fault and is no longer needed to repair the missing-WiFi root cause (Ben).
+- [ ] **Make application-only immutable fixture USB upload first-class.** The
+  retained `fx-260826-51d1fe1-p` directory has the application binary, manifest,
+  hash, identity header, recipe, and build options, but not the bootloader and
+  partition binaries expected by `arduino-cli upload --build-path`. That generic
+  command failed before writing; the ESP32 application-only recipe at the
+  telemetry-proven app address succeeded and preserved NVS. Add an identity-
+  gated host path that validates target MAC, manifest/hash, current app address,
+  and write verification without requiring missing companion files; update the
+  USB rescue runbook and add a no-write failure regression (Ben/Codex).
+- [x] **Finish the 120 s sleep / 3 s listen production cadence rollout. DONE
+  2026-08-27.** Clean
   production artifact `fx-260826-51d1fe1-p` is built from commit `64264b2`,
   1,206,784 bytes, SHA-256
   `57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
@@ -564,11 +716,36 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   over 207 s with all reported error/clipping counters zero. The current 103
   native checks pass; installed `0.4.1-dev` binary is 964,752 bytes with SHA-256
   `e8ec74680564f96f10c2f6e87b37eb807b9d9ba3b355ccf41c72f8301c4984b6`.
-  ADR 0063 `0.5.0-dev` is now credentialed and installed. The 2026-08-27 bench
+  ADR 0063 `0.5.0-dev` was credentialed and installed. The 2026-08-27 bench
   pass proved no-hold SAFE-IDLE with zero direct frames, `A4EB10` Bridge OS
   identity, exact-target shared-WiFi maintenance, retained-binary OTA, dark
-  software-reset rejoin, and 25 s pending-verify survival. Still prove the
-  physical paw-held DJ-first/setup gestures, `/resume`, maintenance timeout,
+  software-reset rejoin, and 25 s pending-verify survival. The 2026-08-28
+  `0.5.2-dev` bench pass exercised DJ/HEARTBEAT/EMBER/HUE from the onboard MEMS
+  path across about 75-92 fresh fixtures with zero reported transport/I2S/
+  I2C errors, and replaced frame-count calibration with a hardware-proven two-
+  second clock; Ben visibly confirmed audio-reactive fixture behavior. The
+  Initial laptop testing remained at the line noise floor because the TS plugs
+  were mistakenly in J8/J9 AUDIO OUT. Exact JSAUX
+  `B07D8M5DML` plus two Bolvek `B09K3DHL82` adapters are the correct TRS-stereo
+  -> dual-RCA -> dual-TS-mono topology. After moving them to J5/J6 AUDIO IN, the
+  same 10 percent laptop waveform raised RMS from 6-12 to 37-41 with level about
+  0.13-0.15 and zero clip/error counters, proving cable, faceplate line routing,
+  codec/I2S, renderer, and fleet transport. A later 60 percent laptop paired-
+  pulse run reached `wave=0.222` and peak 2,063 with zero errors/clips across
+  about 84-93 fresh fixtures; Ben visibly accepted the deep-red HEARTBEAT look
+  while sweeping the top knob through 0.26x-4.00x. That pass exposed the
+  carrier's reversed raw-ADC polarity. Exact-target OTA-installed `0.5.3-dev`
+  now normalizes both pots so clockwise increases top sensitivity and bottom
+  brightness/hue; 121 native checks, fresh embedded build, and expected-revision
+  rejoin pass. A full power cycle and physical full-clockwise test then read
+  exactly `gain=4.00`, `ceil=1.00`, and HUE endpoint 360. Still test real RODE
+  gain/clipping.
+  The paw fault is closed in `0.5.5-dev`: the vendor example's GPIO15 digital
+  read stayed low, while raw ESP32 capacitance proved released 867-870 and held
+  through 216. Hysteretic, invalid-low-fail-safe capacitance handling passed 129
+  native checks, exact-target OTA/rejoin, and a real held-paw Pod20 power cycle
+  with `bootarmed=1`, `active=1`, DJ + line, and zero errors. Still prove timed
+  post-arm short-touch mode cycling and long-hold lock, `/resume`, maintenance timeout,
   fleet-wide-maintenance rejection without disturbing the live fleet, no PUCA
   softAP, and forced-self-test rollback.
   On the no-human bench, prove `peak`/`wave`/deep-red output from the performer's
@@ -891,11 +1068,46 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   algorithm error. Open/reseat one trunk canary, use `P<id>:10` for a cold
   VSQT re-probe, then repair the remainder. Preserve the dashboard flags until
   the physical mapping is written down (Ben + Elliot/field team).
-- [ ] **Close the remaining visibly red/non-OTA fixtures after the overnight
-  test.** A couple of lanterns still show the prior red posture because they did
-  not accept the current OTA. The exact 12-ID observed holdback census remains
-  below; do not spend tonight looping retries. Diagnose from fresh power and
-  image evidence in the morning (Ben/Codex + field team).
+- [x] **Identify the anomalous red canopy CA renderer -- DONE 2026-08-29.** Ben
+  filtered Fleet by firmware and identified it on the first try as Sakura
+  `F2BE0C`, the sole observed `fx-260829-8790f6d-p` fixture. That artifact was
+  built from clean pushed source `ab71b8989b12e860ad1d82a5e1cf4767773a86f7`,
+  which inherits ADR 0069's synchronized autonomous palette cadence from
+  `f5b86070931a6b32272735930fa8abf869ce02d2`. With trusted UTC and no bridge
+  lease, GH CA advances hue by 43 every 1,200 seconds in a six-step, two-hour
+  loop; bridge-owned rendering preserves the commanded hue. This exactly
+  explains the red and later non-blue CA colors plus normal green Fleet Blink
+  and LED Studio control. It is not Daxter, a class mismatch, missed OTA, stuck
+  channel, stale hue lease, or retired ready signal. Do not OTA from color alone.
+  The separate exact 12-ID historical holdback census remains below
+  (Ben/Codex + field team).
+- [x] **Accept ADR 0069's synchronized palette cadence -- DONE 2026-08-29.**
+  After the earlier red and later non-blue physical observations, exact Sakura
+  `F2BE0C` on `fx-260829-8790f6d-p` produced a fresh read-only GH CA state-1
+  sample at RGB `51,0,70`, exactly matching the UTC-derived purple-phase ratio,
+  while baseline downlights retained static blue. Ben physically confirmed the
+  nice purple output and accepted the artistic behavior. Normal CA animation,
+  Fleet Blink, and LED Studio lease behavior had already passed. The planned
+  two-hour monitor was deleted; a complete loop is no longer a release gate
+  (Ben).
+- [ ] **Consolidate the validated canary stack into one immutable fleet
+  candidate.** The 110-fixture night census contains five special instances:
+  Akuma `9E668C` on mutable `dev-local`, Rikku `9F26B0` on ADR 0068 intermediate
+  `fx-260828-abd893c-p`, Dixie `F40314` and Froakie `9E5B18` on ADR 0069
+  `fx-260829-97aed8e-p`, and Sakura `F2BE0C` on ADR 0069/0070 superset
+  `fx-260829-8790f6d-p`. Do not combine or relabel those binaries. Current main
+  already contains the safety/class/uplight fixes; fixture source through clean
+  branch commit `ab71b8989b12e860ad1d82a5e1cf4767773a86f7` is the candidate
+  interaction/presence superset. Keep the later exact-target motion recorder
+  out of the ordinary release. Before merging/building, pass the ADR 0068
+  negative fault matrix, measure one perimeter HEX canary's current/rail states,
+  and quantify one named hanging downlight's person-range margin. The
+  synchronized palette cadence was accepted separately on 2026-08-29. Then merge accepted source,
+  make a fresh clean ADR 0040 artifact, repeat a mixed downlight/perimeter/
+  uplight canary, and widen only to explicit safe targets. Preserve the existing
+  low-voltage, PROTECT, recovery, Magic Wand, and target-diagnostic exclusions;
+  normalize Akuma separately because `dev-local` is not immutable identity
+  (Ben/Codex + field team).
 - [x] **Field-validate ADR 0044's TMF presence wipe -- DONE 2026-08-16.** The
   per-zone learned background prevented the occluding rig from acting as a fixed
   threshold trigger, and the field team repeatedly triggered complete-looking
@@ -907,12 +1119,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixed-distance trigger.** The initial robust setting requires one confident
   zone to move >=300 mm closer than its learned background for three consecutive
   reports. It passed the rig-occlusion proof but was a little difficult to
-  activate. Log one normal walk plus the low-ground broom stress case with zone
-  deltas and confidence. Compare one isolated downlight against a close group
-  with adjacent TMF emitters ranging; do not attribute the intermittent starts
-  to optical crosstalk until that A/B supports it. Then adjust delta,
+  activate. The 2026-08-29 installed Gible sentinel trace now separates the
+  mechanism from the usability problem: normal walking/standing produced no
+  latch, while a split held high produced five clean rising edges at 2,504-
+  4,497 mm, 49 active samples, exact white output for all active samples, and
+  zero white outside the latch. The subsequent raw 1-5 m test found no empty-
+  scene false positive but reported a roughly 2 m raised bamboo target only as
+  3.24-5.00 m returns. Stop threshold tuning until Gible is lowered or re-aimed
+  and its aperture/field of view is inspected. After the mechanical change, log
+  the normal-person and low-ground broom cases with zone deltas and confidence.
+  Compare one isolated downlight against a close group with adjacent TMF
+  emitters ranging; do not attribute intermittent starts to optical crosstalk
+  until that A/B supports it. Then adjust delta,
   consecutive count, or sensor timing while retaining per-zone learning and
-  clear-to-rearm hysteresis (ADR 0053; Ben/Codex).
+  clear-to-rearm hysteresis (ADR 0053/0070; Ben/Codex).
 - [ ] **Hardware-validate optional ToF-seeded CA on named canaries.** With one
   sensor-verified downlight and at least two non-sensor CA neighbors, set
   `spark /256 = 0` and prove ToF off stays quiescent, ToF on emits exactly one
@@ -2431,8 +2651,18 @@ See `docs/tests/NETWORKING_FEASIBILITY_5NODE_2026-06-07.md` + `firmware/net_benc
   callbacks with zero audio/I2C/radio queue errors. The 2026-08-27 `0.5.0-dev`
   pass then proved USB bootstrap, no-hold SAFE-IDLE/zero direct frames, Bridge
   OS identity, exact-target shared-WiFi OTA, dark rejoin, and pending-verify
-  survival. Next: physical DJ-first boot hold/setup gestures, rollback,
-  `/resume`/timeout/broadcast-rejection/no-softAP checks, full knob sweeps,
+  survival. A 2026-08-28 `0.5.2-dev` exact-target OTA then hardware-proved all
+  four live renderers from the onboard mics and the corrected two-second
+  calibration clock. The apparent silent faceplate input was operator routing:
+  both TS plugs were in J8/J9 AUDIO OUT. Moving them to J5/J6 AUDIO IN made the
+  same laptop waveform raise RMS from 6-12 to 37-41 with zero clipping/errors,
+  proving the complete line-to-fleet path; real RODE gain remains open. The
+  apparent paw fault was the vendor example's digital-read method: exact-unit
+  raw capacitance is released 867-870 and held through 216. `0.5.5-dev` uses
+  hysteretic fail-safe capacitance detection; a real power cycle proved
+  `bootarmed=1`, `active=1`, and DJ + line. Next: prove timed post-arm setup
+  gestures and rollback,
+  `/resume`/timeout/broadcast-rejection/no-softAP checks,
   exact RODE/DG faceplate route and gain, visible named-
   fixture response plus three-second fallback, mixed HEX/RGBW fidelity, intended-
   placement RF/PDR, overrun/reset, and multi-hour stability. Full checklist:

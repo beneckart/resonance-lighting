@@ -410,6 +410,19 @@ int main() {
     in.lastRxMs = 0;
     CHECK(o.wantSleep);
     CHECK_EQ(o.sleepS, 300u);
+    // Toad F2BEE4 regression: lifecycle must never take the ordinary day
+    // cadence while PROTECT owns the sleep/recovery decision. Otherwise the
+    // 12 s wake resets power_policy's required 60 s release proof forever.
+    in.tier = (uint8_t)LedTier::PROTECT;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, prod);
+    CHECK(!o.wantSleep);
+    // OFF is not PROTECT: ordinary field day duty-cycling remains unchanged.
+    in.tier = (uint8_t)LedTier::OFF;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, prod);
+    CHECK(o.wantSleep);
+    in.tier = (uint8_t)LedTier::FULL;
     // Heard the bridge 1 s ago: held awake.
     in.lastRxMs = in.nowMs - 1000;
     in.nowMs = (t += 1000);

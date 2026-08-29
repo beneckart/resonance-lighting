@@ -18,7 +18,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | App | State | Important remaining work |
 |---|---|---|
 | Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
-| Fleet | Filterable stable roster flashed on `8EB508`; physical acceptance open | Full registry plus unexpected peers, stable default order, class/VBAT/program/firmware filters, validated signed IBAT, readable state and charge names, filtered identify, and day/night palettes are implemented. Complete the sunlight, long-scroll, memory, and named-canary matrix in `TODO.md`. |
+| Fleet | Stable roster baseline flashed on `8EB508`; charge filters flashed on TSwift `979604` | Full registry plus unexpected peers, stable default order, class/VBAT/charge/program/firmware filters, validated signed IBAT, readable state and charge names, filtered identify, and day/night palettes are implemented. Complete the sunlight, long-scroll, memory, charge-canary, and named-canary matrix in `TODO.md`. |
 | Health | VBAT/charge-status grid flashed on `8EB508`; physical acceptance open | Source roster covers 144 production fixtures. The fixed swatches toggle between raw VBAT bands and BQ charger phase; validate colors, current-validity transition, off-air behavior, detail layout, and memory on named fixtures. |
 | LED Studio | Working; field-smoke-tested; RGB-white fix source-built | White now maps to dedicated W on downlights and full RGB on perimeter/uplight/chandelier classes. Recheck on a named RGB uplight plus RGBW downlight. The broader color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Blackout / Sleep | Working; field-smoke-tested | The reversible radio-awake action is now labelled Blackout; the availability-reducing action is Deep sleep. Validate long blackout expiry plus rails-off sleep/rejoin on named canaries. |
@@ -33,6 +33,16 @@ when the packet contract can report measurements that heartbeats do not contain.
 | Sensors Health | First slice implemented as Health | Battery/on-air triage plus existing heartbeat detail is implemented; detailed sensor samples still need `NB_SENSOR_REPORT`. |
 | Locate | Placeholder | Survey packets exist, but the T-Deck does not retain/model neighbor reports for a UI. |
 | RF | Flashed on `8EB508`; hardware check pending | Hardware-check both pages, counts, selection, ranking, frame tail, and channel-guard labels. |
+
+The permanent 26-pixel control shell is source-built outside every app. It
+keeps app identity and idle status in a stable top row, turns the center into a
+scrolling local stream/program ribbon, exposes a fixed Stop button, counts down
+expiring leases, and passively warns about a fresh competing T-Deck, PUCA,
+CoreS3, or unknown publisher. Hardware rejected the initial bottom strip
+because it covered action buttons; a compact top-left pill proved the concept
+but still covered titles. All app content now begins below the shell. This
+replacement is flashed on camp-labelled TSwift `979604`; the remaining
+behavioral matrix is tracked in `TODO.md`.
 
 ## Priority rules
 

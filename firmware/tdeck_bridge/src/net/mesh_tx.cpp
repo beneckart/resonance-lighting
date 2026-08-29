@@ -29,6 +29,9 @@ static portMUX_TYPE gLifecycleCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 static MaintenanceCampaign gMaintCampaign;
 static portMUX_TYPE gMaintCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
+static ProgramLeaseTracker gProgramLeaseTracker;
+static portMUX_TYPE gProgramLeaseMux = portMUX_INITIALIZER_UNLOCKED;
+
 static void fillHeader(NbHeader *h, uint8_t type);
 
 void meshTxBegin() {
@@ -240,7 +243,23 @@ bool meshProgramLease(const uint8_t target[3], uint8_t programId,
   }
   sendPacketRepeatedLocked(&cmd, sizeof(cmd), 6, 8);
   txGive();
+  portENTER_CRITICAL(&gProgramLeaseMux);
+  gProgramLeaseTracker.note(target, programId, leaseS, millis());
+  portEXIT_CRITICAL(&gProgramLeaseMux);
   return true;
+}
+
+ProgramLeaseActivity meshProgramActivity() {
+  portENTER_CRITICAL(&gProgramLeaseMux);
+  ProgramLeaseActivity activity = gProgramLeaseTracker.snapshot(millis());
+  portEXIT_CRITICAL(&gProgramLeaseMux);
+  return activity;
+}
+
+bool meshStopTrackedProgramActivity() {
+  ProgramLeaseActivity activity = meshProgramActivity();
+  if (!activity.active) return false;
+  return meshProgramLease(activity.target, 0, 0, 0x01, nullptr);
 }
 
 bool meshSleepAll(uint16_t seconds) {

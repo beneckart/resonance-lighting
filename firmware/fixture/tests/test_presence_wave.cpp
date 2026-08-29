@@ -16,6 +16,28 @@ static bool observe2(TmfPresenceGate &gate, uint32_t seq,
 }
 
 int main() {
+  // Exact-target height diagnostic: every confident parsed return from 1 m up
+  // to (but not including) 5,000 mm is active. The known sub-400 mm bamboo
+  // self-return is excluded; no background or debounce semantics are hidden.
+  uint16_t anyMm[PRESENCE_ZONE_COUNT] = {};
+  uint16_t anyConfidence[PRESENCE_ZONE_COUNT] = {};
+  CHECK(!tmfDistantRangePresent(anyMm, anyConfidence));
+  anyMm[4] = 999;
+  anyConfidence[4] = 255;
+  CHECK(!tmfDistantRangePresent(anyMm, anyConfidence));
+  anyMm[4] = 1000;
+  CHECK(tmfDistantRangePresent(anyMm, anyConfidence));
+  anyMm[4] = 4999;
+  anyConfidence[4] = PRESENCE_MIN_CONFIDENCE;
+  CHECK(tmfDistantRangePresent(anyMm, anyConfidence));
+  anyMm[4] = 5000;
+  CHECK(!tmfDistantRangePresent(anyMm, anyConfidence));
+  anyMm[4] = 4982;
+  anyConfidence[4] = PRESENCE_MIN_CONFIDENCE - 1;
+  CHECK(!tmfDistantRangePresent(anyMm, anyConfidence));
+  anyConfidence[4] = PRESENCE_MIN_CONFIDENCE;
+  CHECK(tmfDistantRangePresent(anyMm, anyConfidence));
+
   // A stable close rig return in zone 0 warms up without firing. Movement in
   // another zone is compared with that zone's own background, so the rig does
   // not either auto-fire the detector or hide the person behind a scalar min.

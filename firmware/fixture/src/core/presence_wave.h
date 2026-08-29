@@ -39,6 +39,15 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
                         const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
                         const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]);
 
+// Deliberately aggressive exact-target installed-height predicate. This
+// removes background learning, hit debounce, and hold/release hysteresis. Any
+// one confident zone from 1 m to the 5 m sensor limit is active; the lower bound
+// excludes Gible's already-known 166-363 mm bamboo/sensor self-returns. Normal
+// builds do not use this helper.
+bool tmfDistantRangePresent(
+    const uint16_t zoneMm[PRESENCE_ZONE_COUNT],
+    const uint16_t zoneConfidence[PRESENCE_ZONE_COUNT]);
+
 struct Vl53CoverGate {
   uint32_t lastReadSeq;
   uint8_t hitReads;

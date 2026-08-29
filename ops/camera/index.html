@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resonance Camera Bench</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071116;
+      --panel: #0e1c22;
+      --panel-2: #14262e;
+      --line: #27414b;
+      --text: #e7f1f2;
+      --muted: #8ea8ad;
+      --cyan: #63d9dc;
+      --green: #85d9a1;
+      --amber: #f4c069;
+      --red: #ff7e78;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 840px;
+      background:
+        radial-gradient(circle at 20% -10%, rgba(49, 133, 143, 0.25), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+      font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+
+    button, select, input { font: inherit; }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    header, footer, .controls, .stage {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 12px 16px;
+    }
+
+    h1 { margin: 0; font-size: 18px; letter-spacing: 0.02em; }
+    .subtitle { color: var(--muted); margin-left: 8px; font-weight: 400; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 14px currentColor;
+    }
+    .dot.live { background: var(--green); }
+    .dot.error { background: var(--red); }
+
+    main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 14px;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 480px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%) 0 0 / 24px 24px,
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%) 0 0 / 24px 24px,
+        #030708;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      transition: transform 120ms ease;
+    }
+    video.mirrored { transform: scaleX(-1); }
+
+    .empty {
+      position: absolute;
+      text-align: center;
+      max-width: 440px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .empty strong { color: var(--text); display: block; font-size: 22px; margin-bottom: 8px; }
+    .empty.hidden { display: none; }
+
+    .rec-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: none;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .rec-badge.live { display: flex; }
+    .rec-badge i { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+
+    .controls {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .group { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 14px; }
+    .group:last-child { border-bottom: 0; margin-bottom: 0; }
+    .group h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--cyan); }
+
+    label { display: grid; gap: 5px; color: var(--muted); margin-top: 10px; }
+    select, input[type="range"] { width: 100%; }
+    select {
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    input[type="range"] { accent-color: var(--cyan); }
+    .range-label { display: flex; justify-content: space-between; gap: 10px; }
+    .range-label output { color: var(--text); font-variant-numeric: tabular-nums; }
+
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--cyan); }
+    button.primary { background: #185c64; border-color: #267c85; }
+    button.recording { background: #672e2c; border-color: var(--red); }
+    button:disabled { opacity: 0.42; cursor: default; }
+
+    .check { display: flex; align-items: center; gap: 8px; color: var(--text); }
+    .check input { accent-color: var(--cyan); }
+
+    .capabilities { display: grid; gap: 10px; }
+    .cap-empty { color: var(--muted); }
+
+    .ir-note {
+      padding: 10px;
+      border: 1px solid #6b5224;
+      border-radius: 9px;
+      background: rgba(100, 70, 20, 0.2);
+      color: #f4d69d;
+    }
+
+    footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 9px 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #mode { color: var(--text); font-variant-numeric: tabular-nums; }
+    kbd { border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; padding: 1px 5px; color: var(--text); }
+
+    @media (max-width: 1000px) {
+      body { min-width: 720px; }
+      main { grid-template-columns: minmax(0, 1fr) 260px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Resonance Camera Bench <span class="subtitle">local USB viewer</span></h1>
+      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Waiting for camera permission</span></div>
+    </header>
+
+    <main>
+      <section id="stage" class="stage">
+        <video id="video" autoplay playsinline muted></video>
+        <div id="empty" class="empty"><strong>Camera preview</strong>Allow camera access when Windows asks. The external USB camera will be preferred automatically.</div>
+        <div id="recBadge" class="rec-badge"><i></i> REC <span id="recTime">00:00</span></div>
+      </section>
+
+      <aside class="controls">
+        <div class="group">
+          <h2>Source</h2>
+          <label>Camera<select id="cameraSelect"></select></label>
+          <label>Requested mode
+            <select id="resolutionSelect">
+              <option value="320x240">320 x 240</option>
+              <option value="640x480" selected>640 x 480</option>
+              <option value="1280x720">1280 x 720</option>
+              <option value="1920x1080">1920 x 1080</option>
+            </select>
+          </label>
+          <div class="buttons">
+            <button id="restartButton" class="primary">Start / restart</button>
+            <button id="stopButton">Stop</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Capture</h2>
+          <div class="buttons">
+            <button id="snapshotButton" disabled>Snapshot</button>
+            <button id="recordButton" disabled>Record</button>
+            <button id="fullscreenButton" disabled>Fullscreen</button>
+            <button id="resetButton" disabled>Auto reset</button>
+          </div>
+          <label class="check"><input id="mirrorToggle" type="checkbox"> Mirror preview</label>
+        </div>
+
+        <div class="group">
+          <h2>Camera controls</h2>
+          <div id="capabilities" class="capabilities"><div class="cap-empty">Controls appear after the camera starts.</div></div>
+        </div>
+
+        <div class="group">
+          <h2>IR illumination</h2>
+          <div class="ir-note">Leave the Arducam IR boards connected for normal use: supported day/night modules switch their LEDs and IR-cut filter automatically. Unplug them only for visible-only dim-room tests or reflection/power troubleshooting. Remove USB power first.</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <span id="mode">No active stream</span>
+      <span><kbd>Space</kbd> snapshot &nbsp; <kbd>R</kbd> record &nbsp; <kbd>M</kbd> mirror &nbsp; <kbd>F</kbd> fullscreen</span>
+    </footer>
+  </div>
+
+  <canvas id="canvas" hidden></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const stage = document.getElementById('stage');
+    const empty = document.getElementById('empty');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const resolutionSelect = document.getElementById('resolutionSelect');
+    const restartButton = document.getElementById('restartButton');
+    const stopButton = document.getElementById('stopButton');
+    const snapshotButton = document.getElementById('snapshotButton');
+    const recordButton = document.getElementById('recordButton');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    const resetButton = document.getElementById('resetButton');
+    const mirrorToggle = document.getElementById('mirrorToggle');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const mode = document.getElementById('mode');
+    const capabilities = document.getElementById('capabilities');
+    const recBadge = document.getElementById('recBadge');
+    const recTime = document.getElementById('recTime');
+
+    let stream = null;
+    let track = null;
+    let recorder = null;
+    let recordingChunks = [];
+    let recordStartedAt = 0;
+    let recordTimer = null;
+
+    function setStatus(text, state = 'idle') {
+      statusText.textContent = text;
+      statusDot.className = `dot ${state === 'live' ? 'live' : state === 'error' ? 'error' : ''}`;
+    }
+
+    function stamp() {
+      return new Date().toISOString().replace(/[:.]/g, '-');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function stopTracks() {
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      clearInterval(recordTimer);
+      recordTimer = null;
+      recordButton.textContent = 'Record';
+      recordButton.classList.remove('recording');
+      recBadge.classList.remove('live');
+      if (stream) stream.getTracks().forEach(item => item.stop());
+      stream = null;
+      track = null;
+      video.srcObject = null;
+      empty.classList.remove('hidden');
+      snapshotButton.disabled = true;
+      recordButton.disabled = true;
+      fullscreenButton.disabled = true;
+      resetButton.disabled = true;
+      mode.textContent = 'No active stream';
+      capabilities.innerHTML = '<div class="cap-empty">Controls appear after the camera starts.</div>';
+    }
+
+    async function refreshDevices(preferredId = '') {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(device => device.kind === 'videoinput');
+      const previous = preferredId || cameraSelect.value;
+      cameraSelect.innerHTML = '';
+      cameras.forEach((camera, index) => {
+        const option = document.createElement('option');
+        option.value = camera.deviceId;
+        option.textContent = camera.label || `Camera ${index + 1}`;
+        cameraSelect.appendChild(option);
+      });
+
+      const preferred = cameras.find(camera => /arducam|usb camera|usb 2\.0 camera|0c45/i.test(camera.label));
+      if (cameras.some(camera => camera.deviceId === previous)) cameraSelect.value = previous;
+      else if (preferred) cameraSelect.value = preferred.deviceId;
+      return cameras;
+    }
+
+    async function bootstrapPermission() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('This browser does not expose camera capture. Open the launcher in current Microsoft Edge.');
+      }
+      let temporary = null;
+      try {
+        temporary = await navigator.mediaDevices.getUserMedia({video: true, audio: false});
+        await refreshDevices();
+      } finally {
+        if (temporary) temporary.getTracks().forEach(item => item.stop());
+      }
+    }
+
+    function selectedSize() {
+      const [width, height] = resolutionSelect.value.split('x').map(Number);
+      return {width, height};
+    }
+
+    async function startCamera() {
+      setStatus('Opening camera...');
+      stopTracks();
+      try {
+        if (!cameraSelect.options.length || !cameraSelect.options[0].textContent.trim()) {
+          await bootstrapPermission();
+        }
+        const {width, height} = selectedSize();
+        const videoConstraints = {
+          width: {ideal: width},
+          height: {ideal: height},
+          frameRate: {ideal: 30}
+        };
+        if (cameraSelect.value) videoConstraints.deviceId = {exact: cameraSelect.value};
+
+        stream = await navigator.mediaDevices.getUserMedia({video: videoConstraints, audio: false});
+        track = stream.getVideoTracks()[0];
+        video.srcObject = stream;
+        await video.play();
+        await refreshDevices(track.getSettings().deviceId || cameraSelect.value);
+        cameraSelect.value = track.getSettings().deviceId || cameraSelect.value;
+        empty.classList.add('hidden');
+        snapshotButton.disabled = false;
+        recordButton.disabled = false;
+        fullscreenButton.disabled = false;
+        resetButton.disabled = false;
+        renderCapabilities();
+        updateMode();
+        setStatus(track.label || 'Camera live', 'live');
+      } catch (error) {
+        stopTracks();
+        const message = error && error.message ? error.message : String(error);
+        setStatus(message, 'error');
+        empty.innerHTML = `<strong>Camera unavailable</strong>${message}`;
+      }
+    }
+
+    function updateMode() {
+      if (!track) return;
+      const settings = track.getSettings();
+      mode.textContent = `${settings.width || '?'} x ${settings.height || '?'} at ${Math.round(settings.frameRate || 0)} fps | ${track.label || 'camera'}`;
+    }
+
+    function addSelectControl(name, label, values, current) {
+      const wrapper = document.createElement('label');
+      wrapper.textContent = label;
+      const select = document.createElement('select');
+      select.dataset.constraint = name;
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        option.selected = value === current;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', () => applyControl(name, select.value));
+      wrapper.appendChild(select);
+      capabilities.appendChild(wrapper);
+    }
+
+    function addRangeControl(name, label, range, current) {
+      const wrapper = document.createElement('label');
+      const title = document.createElement('span');
+      title.className = 'range-label';
+      const output = document.createElement('output');
+      output.textContent = current ?? range.min;
+      title.innerHTML = `<span>${label}</span>`;
+      title.appendChild(output);
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = range.min;
+      input.max = range.max;
+      input.step = range.step || Math.max((range.max - range.min) / 100, 0.001);
+      input.value = current ?? range.min;
+      input.dataset.constraint = name;
+      input.addEventListener('input', () => output.textContent = input.value);
+      input.addEventListener('change', () => applyControl(name, Number(input.value)));
+      wrapper.append(title, input);
+      capabilities.appendChild(wrapper);
+    }
+
+    async function applyControl(name, value) {
+      if (!track) return;
+      try {
+        await track.applyConstraints({advanced: [{[name]: value}]});
+        updateMode();
+        setStatus(`${track.label || 'Camera'}: ${name} updated`, 'live');
+      } catch (error) {
+        setStatus(`${name}: ${error.message || error}`, 'error');
+      }
+    }
+
+    function renderCapabilities() {
+      capabilities.innerHTML = '';
+      if (!track || typeof track.getCapabilities !== 'function') {
+        capabilities.innerHTML = '<div class="cap-empty">This driver does not publish advanced controls.</div>';
+        return;
+      }
+      const caps = track.getCapabilities();
+      const settings = track.getSettings();
+      const selectControls = [
+        ['exposureMode', 'Exposure mode'],
+        ['focusMode', 'Focus mode'],
+        ['whiteBalanceMode', 'White balance']
+      ];
+      const rangeControls = [
+        ['exposureTime', 'Exposure time'],
+        ['exposureCompensation', 'Exposure compensation'],
+        ['focusDistance', 'Focus distance'],
+        ['brightness', 'Brightness'],
+        ['contrast', 'Contrast'],
+        ['saturation', 'Saturation'],
+        ['sharpness', 'Sharpness'],
+        ['zoom', 'Zoom']
+      ];
+      selectControls.forEach(([name, label]) => {
+        if (Array.isArray(caps[name]) && caps[name].length) addSelectControl(name, label, caps[name], settings[name]);
+      });
+      rangeControls.forEach(([name, label]) => {
+        if (caps[name] && Number.isFinite(caps[name].min)) addRangeControl(name, label, caps[name], settings[name]);
+      });
+      if ('torch' in caps) {
+        const wrapper = document.createElement('label');
+        wrapper.className = 'check';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.addEventListener('change', () => applyControl('torch', input.checked));
+        wrapper.append(input, document.createTextNode(' Camera torch'));
+        capabilities.appendChild(wrapper);
+      }
+      if (!capabilities.children.length) capabilities.innerHTML = '<div class="cap-empty">Windows exposes no adjustable controls for this camera.</div>';
+    }
+
+    function snapshot() {
+      if (!video.videoWidth || !video.videoHeight) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (mirrorToggle.checked) {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+      }
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        if (blob) downloadBlob(blob, `resonance-camera-${stamp()}.png`);
+      }, 'image/png');
+      setStatus('Snapshot saved to Downloads', 'live');
+    }
+
+    function preferredRecordingType() {
+      const choices = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      return choices.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    }
+
+    function startRecording() {
+      recordingChunks = [];
+      const mimeType = preferredRecordingType();
+      recorder = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
+      const activeRecorder = recorder;
+      activeRecorder.ondataavailable = event => { if (event.data.size) recordingChunks.push(event.data); };
+      activeRecorder.onstop = () => {
+        const blob = new Blob(recordingChunks, {type: activeRecorder.mimeType || 'video/webm'});
+        downloadBlob(blob, `resonance-camera-${stamp()}.webm`);
+        recordingChunks = [];
+      };
+      activeRecorder.start(1000);
+      recordStartedAt = Date.now();
+      recordTimer = setInterval(updateRecordTimer, 250);
+      updateRecordTimer();
+      recordButton.textContent = 'Stop recording';
+      recordButton.classList.add('recording');
+      recBadge.classList.add('live');
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      clearInterval(recordTimer);
+      recordTimer = null;
+      recordButton.textContent = 'Record';
+      recordButton.classList.remove('recording');
+      recBadge.classList.remove('live');
+      setStatus('Recording saved to Downloads', 'live');
+    }
+
+    function toggleRecording() {
+      if (!stream) return;
+      if (recorder && recorder.state !== 'inactive') stopRecording();
+      else startRecording();
+    }
+
+    function updateRecordTimer() {
+      const seconds = Math.floor((Date.now() - recordStartedAt) / 1000);
+      recTime.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    async function fullscreen() {
+      if (!document.fullscreenElement) await stage.requestFullscreen();
+      else await document.exitFullscreen();
+    }
+
+    async function resetAutomaticControls() {
+      if (!track) return;
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      const advanced = {};
+      if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) advanced.exposureMode = 'continuous';
+      if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) advanced.focusMode = 'continuous';
+      if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) advanced.whiteBalanceMode = 'continuous';
+      try {
+        if (Object.keys(advanced).length) await track.applyConstraints({advanced: [advanced]});
+        renderCapabilities();
+        setStatus('Automatic camera controls restored', 'live');
+      } catch (error) {
+        setStatus(error.message || String(error), 'error');
+      }
+    }
+
+    restartButton.addEventListener('click', startCamera);
+    stopButton.addEventListener('click', () => { stopTracks(); setStatus('Camera stopped'); });
+    cameraSelect.addEventListener('change', startCamera);
+    resolutionSelect.addEventListener('change', startCamera);
+    snapshotButton.addEventListener('click', snapshot);
+    recordButton.addEventListener('click', toggleRecording);
+    fullscreenButton.addEventListener('click', fullscreen);
+    resetButton.addEventListener('click', resetAutomaticControls);
+    mirrorToggle.addEventListener('change', () => video.classList.toggle('mirrored', mirrorToggle.checked));
+    stage.addEventListener('dblclick', fullscreen);
+
+    document.addEventListener('keydown', event => {
+      if (event.target.matches('select, input, button')) return;
+      if (event.code === 'Space') { event.preventDefault(); snapshot(); }
+      if (event.key.toLowerCase() === 'r') toggleRecording();
+      if (event.key.toLowerCase() === 'm') { mirrorToggle.checked = !mirrorToggle.checked; mirrorToggle.dispatchEvent(new Event('change')); }
+      if (event.key.toLowerCase() === 'f') fullscreen();
+    });
+
+    navigator.mediaDevices?.addEventListener('devicechange', async () => {
+      await refreshDevices(track?.getSettings().deviceId || '');
+    });
+
+    window.addEventListener('beforeunload', stopTracks);
+
+    (async () => {
+      try {
+        await bootstrapPermission();
+        await startCamera();
+      } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        setStatus(message, 'error');
+        empty.innerHTML = `<strong>Camera permission needed</strong>${message}<br><br>Use Start / restart after allowing access.`;
+      }
+    })();
+  </script>
+</body>
+</html>

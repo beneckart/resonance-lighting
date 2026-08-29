@@ -26,6 +26,13 @@ StreamMode streamMode() {
   return mode;
 }
 
+uint32_t streamElapsedMs(uint32_t nowMs) {
+  portENTER_CRITICAL(&gStreamMux);
+  uint32_t elapsed = gMode == StreamMode::OFF ? 0 : nowMs - gModeStartedMs;
+  portEXIT_CRITICAL(&gStreamMux);
+  return elapsed;
+}
+
 int streamTargetCount() {
   portENTER_CRITICAL(&gStreamMux);
   int targets = gTargets;

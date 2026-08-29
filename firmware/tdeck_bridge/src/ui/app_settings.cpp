@@ -6,6 +6,7 @@
 #include "../store/store.h"
 #include "app_settings.h"
 #include "lvgl_glue.h"
+#include "ui_shell.h"
 #include "ui_theme.h"
 #include "ui_task.h"
 
@@ -46,12 +47,8 @@ static void backCb(lv_event_t *) { uiGoHome(); }
 
 void appSettingsOpen() {
   lvglSetNavHooks(nullptr);
+  uiShellSetTitle("Settings");
   lv_obj_t *scr = lv_obj_create(nullptr);
-
-  lv_obj_t *title = lv_label_create(scr);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-  lv_label_set_text(title, "Settings");
-  lv_obj_set_pos(title, 8, 6);
 
   lv_obj_t *modeLabel = lv_label_create(scr);
   lv_label_set_text(modeLabel, "display");

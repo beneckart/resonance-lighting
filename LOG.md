@@ -10,6 +10,244 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Completed-work integration prepared for main
+
+Collected every unique completed change from the active fixture, daytime
+ritual, canopy canary, and PUCA worktrees onto current `origin/main` without
+mutating or discarding their source histories. The integration retains the raw
+Spyro, Gible, Astro, Donkey, and fleet-operation ledgers; combines the canopy
+motion/presence diagnostics with automatic immutable artifact identity; keeps
+PROTECT sleep ownership in power policy; and includes the hourly cymbal ritual,
+fail-closed sentinel persistence, Spyro post-mortem, installed-height findings,
+and capacitive-paw validation. Two retained Spyro JSONL records were normalized
+from CRLF to LF with no JSON content change.
+
+The complete fixture native suite passes, including the build-wrapper artifact
+contract and all combined lifecycle, ritual, motion, and sentinel regressions.
+The PUCA native suite passes 129 checks, and 41 focused Python motion, sentinel,
+dashboard OTA, and dashboard tests pass. Final integration is ready for the
+explicit `origin/main` update requested by Ben.
+
+## 2026-08-29 -- Ben + Codex -- Eevee recovered from low-voltage PROTECT
+
+Exact outer-ring downlight Eevee `9F0E54` / `D8:85:AC:9F:0E:54` appeared on
+COM70 after Ben tapped physical RESET. Read-only telemetry on dual-site image
+`fx-260828-658b7d2-p` showed a genuine retained 3.030 V PROTECT entry, 3.304 V
+battery with about +1.05 A charging, good USB input, no BQ fault, and stale
+6 Ah NVS capacity despite the registry's physical 15 Ah assignment. The old
+image's longer physical-reset service window stayed awake long enough to
+complete its healthy-battery proof, persist OFF, and reboot. MSA311, TMF8820,
+and required outer-ring BMP581 then all sampled normally.
+
+Reused already-built immutable canary `fx-260829-b0ff5db-b`, SHA-256
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`; no
+compile ran. Exact USB commissioning restored 15,000 mAh capacity and passed
+the shared-WiFi endpoint at `192.168.1.119`. After explicitly returning from
+maintenance WiFi to COMMS, settled telemetry showed 3.314 V / +1.108 A,
+good 4.637 V input, 2 A charge configuration, no BQ fault, tier 2 / stage 3,
+field profile, channel 11, ESP-NOW up, exact revision, `pending_verify=false`,
+and healthy MSA/TMF/BMP samples with zero TMF errors. Evidence is in
+`ops/bench/data/usb/2026-08-29-9F0E54-protect-canary.jsonl`.
+
+Eevee is ready to unplug, but this variant-`b` service image has only the
+Party In The Woods maintenance profile. Add it to the future dual-site
+production tail before fleet closure.
+
+## 2026-08-29 -- Ben + Codex -- Logan proves the fixed timer-wake PROTECT release
+
+Exact downlight Logan `9E5A88` / `D8:85:AC:9E:5A:88` appeared on COM158 during
+a short deep-sleep wake. Read-only telemetry on dual-site production image
+`fx-260828-658b7d2-p` showed 3.595 V / 100 percent, good 6.245 V input,
+charging enabled, no BQ fault, and durable power tier 3 / guard stage 4
+PROTECT. Its retained sleep receipt named the immediately preceding failure:
+120-second `day-charge` sleep at tier 3. That is the exact lifecycle race
+previously diagnosed on Toad. The port disappeared at the old 12-second wake
+boundary as expected.
+
+Caught the next exact wake and uploaded already-built immutable bench canary
+`fx-260829-b0ff5db-b`, binary SHA-256
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`;
+no compile ran. Ben confirmed this physical downlight has a 15 Ah cell, so its
+stale 6 Ah NVS capacity was corrected to 15,000 mAh. The retained PROTECT latch
+survived both upload and the configuration reboot.
+
+Issued one exact-target, one-second serial sleep while the canary still held
+PROTECT. On the resulting genuine deep-sleep wake, Logan remained awake at
+21.636 seconds with tier 3 / stage 4, good input, no fault, and the exact image
+-- directly beyond the old 12-second day-sleep cutoff. It then completed the
+sustained full-battery release, persisted stage 3 / LEDS_OFF, software-rebooted,
+and advanced to stage 2 / DIM. Settled telemetry showed field profile, channel
+11, exact image, no interruption, healthy MSA311 and TMF8820 samples with zero
+TMF errors, ESP-NOW, and `pending_verify=false`. The first WiFi HTTP read had an
+empty body after successful association; one explicit COMMS resume and bounded
+transport-only retry passed the exact endpoint at `192.168.1.186` without a
+second upload. This is the missing real-hardware acceptance of the fixed
+timer-wake branch. Evidence is in
+`ops/bench/data/usb/2026-08-29-9E5A88-protect-timer-release-canary.jsonl` and
+`ops/bench/data/usb/2026-08-29-9E5A88-protect-timer-release-proof.jsonl`.
+
+Like Toad and Groot, Logan currently carries the one-profile variant-`b`
+service image and must receive the future dual-site production artifact before
+fleet closure.
+
+## 2026-08-29 -- Ben + Codex -- Shuckle isolated to a bad sensor-chain cable
+
+Exact downlight Shuckle `F4031C` / `68:EE:8F:F4:03:1C` appeared on COM33 on old
+commission image `fx-260817-ec7f28d-b`. It initially reported the last reset as
+panic, `pf_ready=false`, no battery, no sensors, and no rail. A non-writing ROM
+flash-ID check proved healthy ESP32-S3 revision 0.2, 8 MB flash, 2 MB physical
+PSRAM, and exact MAC. The following captured boot reproduced four failed
+`Board.init` attempts, failed VSQT off/on control, a class mismatch, and repeated
+LED-rail pad verification failures. No image was built, flashed, or erased.
+
+Ben fully depowered the fixture and disconnected the external STEMMA chain.
+USB-only boot immediately restored the PowerFeather, charger/gauge telemetry,
+300 mA precharge readback, no-fault BQ, and rail control. TMF8820-only then
+passed presence and ranging with zero errors; MSA311-only passed presence and a
+healthy sample. Reattaching both sensors reproduced the hard bus failure with
+the original and replacement chain attempts. The suspect inter-sensor cable
+finally failed even when connected directly from the PowerFeather to the
+known-good MSA311, isolating a defective or miswired cable rather than a dead
+PowerFeather or sensor.
+
+Before a separately proven replacement cable was available, Ben accidentally
+connected solar without the battery. Shuckle then stopped enumerating over USB;
+the planned USB-only bootloader recovery was deferred when Ben moved to the next
+fixture. Registry status is now quarantined with explicit do-not-install notes.
+Next service must remain USB-only, preserve flash/NVS, replace and independently
+prove the cable, restore the full chain and confirmed 15 Ah battery, then pass
+exact USB/WiFi commissioning before quarantine is removed.
+
+## 2026-08-29 -- Ben + Codex -- Groot recovered and received the PROTECT-sleep fix
+
+The next USB-connected problem fixture did not enumerate during a no-reset
+watch lasting longer than its ordinary 120-second day cycle. One deliberate
+physical RESET exposed exact downlight Groot `9F2724` /
+`D8:85:AC:9F:27:24` on COM76. Read-only telemetry on accepted production image
+`fx-260827-1254f04-p` showed a real installed 15 Ah LFP, durable guard stage 4 /
+power tier 3 PROTECT, good 4.597 V USB input, +547.5 mA battery charging, and no
+BQ fault. The retained entry was at 2.974 V, so unlike Rikku this was consistent
+with a genuine earlier low-voltage latch.
+
+The physical reset provided the ten-minute cold-boot listen window. Groot
+therefore completed the existing 60-second charge-current release, persisted
+stage 2 / DIM, and clean-software-rebooted before any flash. Both required
+downlight sensors then returned healthy. This distinguishes the initial USB
+silence from a bad cable or dead board: the fixture had been in its 900-second
+PROTECT sleep cadence, and USB insertion alone is not a wake source. The old
+image remained vulnerable on ordinary 12-second timer wakes to the independent
+day-charge sleep bug already proven on Toad.
+
+Uploaded the already-built immutable bench canary `fx-260829-b0ff5db-b`; no
+second compile occurred. Exact USB identity, ESP32-S3 revision 0.2, 8 MB flash,
+2 MB physical PSRAM, binary SHA-256, field/channel-11 configuration, 15 Ah /
+2 A settings, 300 mA precharge, no-fault charging, downlight class, MSA311 and
+TMF8820 samples, ESP-NOW, and shared-WiFi maintenance endpoint all passed. A
+settled post-check reported the exact revision, stage 2 / DIM, no interruption,
+3.274 V at +543.1 mA, and `pending_verify=false`. This remains a one-profile
+variant-`b` service image, not the future dual-profile fleet artifact. Evidence
+is in
+`ops/bench/data/usb/2026-08-29-9F2724-protect-day-sleep-canary.jsonl`.
+
+## 2026-08-29 -- Ben + Codex -- Toad fixed; artifact identity made automatic
+
+Fixed the lifecycle ownership bug diagnosed below. `lifeTick` now suppresses
+ordinary field `DAY_CHARGE` sleep whenever the power tier is PROTECT, leaving
+the PROTECT cadence and qualified 60-second release entirely under power
+policy. Native regression coverage keeps ordinary FULL/DIM/OFF day sleep
+unchanged and pins PROTECT `wantSleep=false`. Integrated the accepted ADR 0069
+and ADR 0070 source before validation; the complete native suite passed, as did
+a guarded ESP32-S3 field/basic-listener build.
+
+Built immutable canary `fx-260829-b0ff5db-b` from clean commit
+`280598802a306c7d3c2b901b480f2dac864f4ca5`. Its canonical recipe SHA-256 is
+`b0ff5db9edd5f65d1e53fbcbba85de6a291ee2e83527dd802e0e451183020071`;
+the 1,212,640-byte binary SHA-256 is
+`276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0`.
+It is deliberately variant `b` and labelled `party-in-the-woods-v1`, because
+this checkout has one local maintenance profile rather than the accepted
+dual-profile fleet credential set.
+
+The exact USB serial identity on COM56 matched Toad `F2BEE4` before upload.
+Flash-ID, upload, embedded revision, field/channel-11 configuration, 15 Ah / 2 A
+settings, no-fault BQ, downlight class, class match, MSA311, TMF8820, BMP581,
+ESP-NOW, and pending-verify=false checks passed. A later deep-sleep wake still
+reported the exact image; by 9.712 s it was charging at +536.7 mA from 4.637 V /
+504 mA good input with all three sensors healthy. The retained boot stage was
+already DIM after flash, so this hardware run did not recreate a live PROTECT
+release; the native lifecycle test is the direct proof of that branch. Toad is
+no longer parked and its ordinary 120-second field cycle is operating. Evidence
+is in `ops/bench/data/usb/2026-08-29-F2BEE4-protect-day-sleep-canary.jsonl`.
+
+The first artifact candidate exposed the recurring manual identity hazard: its
+hash was calculated without the canonical recipe's final LF. The mismatch was
+caught before upload and `fx-260829-e9350b7-b` was marked rejected/never
+flashed. To remove that class of wasted cold build, `build.sh` now owns the
+immutable transaction via `--artifact-variant`: clean-source check, exact
+compact-JSON-plus-LF recipe bytes, derived revision and path, embedded identity,
+fresh build, manifest/binary hashes, and post-build cross-check. Manual
+`--artifact-dir`/`--fw-rev` is refused, direct flash/OTA is refused in artifact
+mode, and profile/channel/non-secret WiFi label must be explicit. A compile-free
+golden test reproduces accepted recipe hash `d374034...`, so newline, encoding,
+key order, or normalization drift fails before compilation. The full native
+suite passes with this contract. Also quoted three pre-existing registry notes
+whose commas had malformed CSV rows, then recorded Toad's exact canary identity.
+
+## 2026-08-29 -- Ben + Codex -- Toad PROTECT recovery defeated by day sleep
+
+Onboarded from the repository and watched Windows USB long enough to catch the
+short field wake of exact outer-ring downlight Toad `F2BEE4` /
+`68:EE:8F:F2:BE:E4` on COM56. No firmware, profile, NVS, reboot, rail, or other
+device mutation was requested. The host added the repository-documented
+`pyserial` dependency only so the existing no-reset telemetry path could run.
+
+Read-only telemetry identifies accepted artifact `fx-260827-1254f04-p`, field
+profile, channel 11, correct 15,000 mAh capacity, downlight class, valid OTA
+state, and durable guard stage 4 / power tier 3 PROTECT with the LED rail off.
+The retained PROTECT entry was at 3.039 V in field profile after about 1,637 s
+of fixture uptime, consistent with the known low-VBAT history. A separate
+durable receipt records a prior six-hour radio-all sleep from exact T-Deck
+`8EB508`, sequence 10, but the current recurring sleep is local rather than a
+still-active operator command.
+
+USB power and the charge path are healthy. On the next 120-second wake, the
+early stale gauge sample corrected by 5.9 s; at 11.151 s telemetry reported
+3.283 V, +506 mA corrected battery current, 4.637 V / 486 mA good input,
+charging enabled, no BQ fault, and verified 300 mA precharge. The port then
+disappeared at the approximately 12-second wake boundary. The following boot
+record named the preceding sleep `day-charge` for 120 seconds, not PROTECT for
+900 seconds.
+
+This proves a control-plane race, not a failed cell, charger, cable, or USB
+port. `power_policy` correctly suppresses its own PROTECT sleep while the
+60-second charge-current release proof is accumulating, but `behavior_glue`
+independently takes ordinary field `DAY_CHARGE` sleep once the ADR 0064 power
+sample window completes. That path does not exclude `LedTier::PROTECT` or
+otherwise honor the in-progress release hold. Deep sleep clears the RAM-only
+release timer, so each 12-second wake restarts a proof that requires 60
+continuous seconds and Toad can never release. The current Aug-28 source and
+accepted artifact change PROTECT proof quality/provenance but leave this
+day-sleep gate unchanged, so updating alone is not yet an adequate repair.
+
+Leave Toad connected: it is safely dark and gains charge during each wake and
+subsequent sleep, but the durable latch will remain until the sleep ownership
+bug is fixed or an explicitly controlled service posture keeps it awake long
+enough for the automatic release. Next is a native regression and source fix
+making the power-policy path the sole owner of PROTECT sleep, followed by a
+clean immutable artifact and exact-Toad canary under ADR 0040.
+
+## 2026-08-29 -- Ben + Codex -- Primary T-Deck updated to current Bridge OS
+
+USB-flashed the other known T-Deck Plus, exact identity `8EB508`
+(`44:1B:F6:8E:B5:08`), observed on `COM152`. The guarded development-cache
+wrapper rebuilt from pushed commit `30c4124` before upload. The resulting
+`tdeck-dev-local` binary is 1,565,584 bytes with SHA-256
+`345f150d53ceec57de6925531953a38e49cff2de87523ab359cd6fa36992721d`.
+Esptool verified every written region and reset the board successfully.
+Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
+healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
+and zero send failures. The camp-labelled TSwift `979604` was not connected or
+changed during this flash.
 ## 2026-08-29 -- Ben + Codex -- Spyro sentinel post-mortem; fail-closed recovery and VL53 watchdog fix
 
 The first flash-persistence hardware follow-up used exact Spyro `F2BCF0` and
@@ -249,6 +487,172 @@ Next: have a person walk/stand directly under Sakura while an exact visible
 lease is active. If no `W=255` transition or raw 2.7-3.5 m return appears, treat
 15 ft height/aim/sunlight as a P0 gating concern and test one lower or better-
 aimed canopy fixture before any fleet promotion.
+## 2026-08-29 -- Ben + Codex -- Astro control puts useful raw range below 1.6 m
+
+Repeated Gible's raw 1-5 m height/aim experiment on lower-hung downlight Astro
+`9E5B44`, reported near 12 ft. Built exact-target-only artifact
+`fx-260829-066846f-t` from the same pushed source `d9cb775`; its 1,221,136-byte
+binary SHA-256 is
+`b9dba40884967fd182093d1e9ab370a7d40fd89b74f5ccc3ec6588d967636877`
+and immutable recipe SHA-256 is
+`066846f139e79f02aaa1ef6709e8618563d544e28bebada4e7db3ecf2cfeba09`.
+The only diagnostic recipe change from Gible was the target lock. Job
+`861C9C57` updated only Astro and verified it through pending verify.
+
+Dawn suppressed the field show, so Astro alone received a temporary,
+nonpersistent commission profile. A pre-existing RAM-only fleet dark lease was
+released; scheduled field fixtures remained dark while Astro rendered the raw
+red/white sentinel. Ben observed only a split-second flicker while walking
+beneath Astro, but a substantially denser response when he raised his hand.
+Astro is about 12 ft high and Ben is 6 ft 3 in, leaving about 1.75 m from sensor
+to head before the raised gesture.
+
+The exact rolling drain retained 913 samples over 304.3 seconds with no sequence
+gap. It captured 35 white samples in 18 short runs. Every qualifying zone return
+was physically plausible at 1,003-1,561 mm, confidence 20-41, across zones 1,
+2, 3, and 5. There were no sampled 1.562-5 m returns. Empty intervals spanning
+49.676 seconds before and 212.752 seconds after the interaction contained no
+sampled 1-5 m false positives. This directly contrasts with Gible's nearby
+raised target being misreported at 3.24-5.00 m.
+
+Lowering therefore helps, but roughly 12 ft remains marginal for passive
+walk-under interaction: Ben's head gap was just outside Astro's demonstrated
+reliable band and a raised hand moved into it. Test roughly 10 ft or equivalent
+re-aim before choosing an installed height; do not threshold-tune around
+Gible's far artifacts. Exact job `AFF7F2E7` restored Astro's original
+`fx-260828-658b7d2-p` image and verified field profile, downlight class, recovery
+state 0, and pending-verify survival at 32,039 ms uptime.
+
+## 2026-08-29 -- Ben + Codex -- Raw Gible test rejects 5 m as usable physical range
+
+Ben challenged the earlier interpretation correctly: Gible is less than 5 m
+high, yet a normal person did not trigger it and a bamboo split had to be held
+roughly 2 m from the sensor. The retained 4.8-5.0 m values proved that firmware
+no longer discards far reports, but they did not prove accurate or useful
+physical ranging at those distances.
+
+Built exact-target-only artifact `fx-260829-4192016-t` from pushed commit
+`d9cb775`, 1,221,136 bytes, SHA-256
+`27b9d412d4fe51c44fc37d4adc75a7c2b0481ab2750c13b08f020482773b7fc2`.
+Its immutable recipe SHA-256 is
+`419201645ff0321b58030837faac989ebb8648e108e5429131e0ad696907f113`.
+The diagnostic excludes Gible's known 166-363 mm self-splay, then treats any
+confident zone from 1,000 mm inclusive through 5,000 mm exclusive as immediate
+presence: no learned background, hit debounce, or hold hysteresis. Red means no
+such zone and full RGB white means one is present. Compile-time isolation
+prevents the aggressive predicate from originating or relaying a mesh presence
+wave. All native checks passed, including 565 presence checks, and the fresh
+ESP32-S3 build ended at 1,220,833 bytes program / 68,788 bytes globals. Job
+`AB8F3FA6` updated only Gible and verified the exact image through pending
+verify at 32,289 ms uptime.
+
+The 860-sample trace retained 300.500 seconds with no overwrite or sequence
+gap. It was red for 123.895 seconds before and 142.250 seconds after the sole
+34.355-second interaction window. No sampled 1-5 m return and no white output
+occurred in either empty interval. During Ben's raised-bamboo interval, 45
+samples were white across 23 raw rising edges. The detector contract matched
+exactly: every sampled 1-5 m return was white and no sample without one was
+white.
+
+The ranges inside that interval are the decisive anomaly. Despite Ben placing
+the bamboo split roughly 2 m from the sensor, the TMF produced no 1-3 m zone
+return. It produced eight 3-4 m returns and 65 4-<5 m returns across zones 0-4,
+plus one raw exactly-5,000 mm report. Confidences were 20-79. Maximum frame
+summary was 4,988 mm and maximum zone was 5,000 mm. These are not isolated
+empty-scene false positives; they appear only when the nearby raised target
+changes the optical scene. They are therefore evidence of aim, partial
+occlusion, edge/background ranging, or multipath, not calibrated 5 m person
+range.
+
+The software parser and visible path work, but Gible's installed sensor geometry
+fails the physical usability gate even with every background/debounce
+discriminator removed. Do not tune production thresholds around these far
+numbers. Lower or re-aim Gible, clear the TMF aperture/field of view, then repeat
+a normal-person test. Exact final job `105DD74F` restored normal canary
+`fx-260829-7906e6f-p` and verified it past pending verify at 26,599 ms with
+field profile, downlight class, and recovery state 0.
+
+## 2026-08-29 -- Ben + Codex -- Gible sentinel proves the path but not useful interaction
+
+The earlier rolling captures left Ben unconvinced that the installed-height
+experiment was timed and signaled clearly enough. Built exact-target-only trace
+artifact `fx-260829-e98247b-t` from pushed test commit `ce785c5`, 1,222,416
+bytes, SHA-256
+`f19c8e2f597e0baa3145c0c2c450becf07b83a398685da4a21140a6e118d2bdc`.
+Its immutable recipe SHA-256 is
+`e98247b9ddff406e8e16769073792e839b14a9751200aa55853cfa166c15bbb5`.
+The build is locked to Gible `9E5B34`, marked target-test-only and never
+fleetable, and retains just over five minutes at one 300 ms sample per record.
+It leaves the production TMF gate/debounce unchanged but replaces visible
+output on that exact target with an unmistakable sentinel: solid red without a
+presence latch and full RGB white while the latch is active. Exact Identify
+still has higher precedence and supplied green start/end markers.
+
+Job `C2DFDDB2` updated only Gible, received fresh 3.297 V maintenance evidence,
+and verified the exact trace image through pending verify at 23,972 ms uptime.
+Ben physically confirmed the red baseline. The final 1,024-sample capture
+contained two approximately 10-second green markers at sequences 1031-1060 and
+1501-1530. Between them, the first 111.855 seconds after the first marker were
+red with no false latch. Ben then had to hold a split high to trigger Gible.
+The recorder captured five separate presence rises at 2,504-4,497 mm and 49
+active samples across 27.356 seconds. Every active sample rendered exact
+`R=255,G=255,B=255,W=0`; no inactive sample rendered white. The sequence then
+returned to red for 8.030 seconds before the second green marker. This rules out
+capture timing and proves the sensor -> full-range parser -> production
+debounce/latch -> render arbitration path on installed hardware. Exact capture
+campaign `29CC104A` selected only Gible, froze before drain, and made no NVS or
+profile mutation.
+
+The trace also answers the range-cap question directly. Its maximum retained
+post-parser zone was 4,982 mm at confidence 32; the maximum frame summary was
+4,781 mm. The parser therefore demonstrably accepts the TMF through its 5,000 mm
+limit. Presence intentionally has a separate 4,500 mm empty-background ceiling,
+so the 4,982 and 4,781 mm frames did not initiate a latch. Rising-edge depths
+were 4,497, 2,508, 2,860, 3,829, and 2,504 mm. Ben's impression that the useful
+trigger was mostly near 2.5-3 m is consistent with the trace and is not evidence
+that the retired 2.5 m parser cap remains.
+
+It does not pass ADR 0070's usability gate: ordinary standing and walking had
+not triggered, and the successful gesture required holding the reported split
+high. Treat the remaining issue as installed aim/range/sensitivity, not a dead
+sensor or broken output path. No production threshold or fleet artifact changed.
+Exact restore job `F02313D7` put normal canary `fx-260829-7906e6f-p` back on
+Gible and verified it past pending verify at 27,560 ms with downlight class,
+field profile, and recovery state 0.
+
+## 2026-08-29 -- Ben + Codex -- Gible installed-height canopy canary failed
+
+Built immutable normal canary `fx-260829-7906e6f-p` (1,212,736 bytes, SHA-256
+`95df1a6b18f21c0f0643949e70474a4d2af019e85efbb86f21877af350dadb7d`)
+from clean test commit `fe6619f`. Exact one-target job `A04CDF37` updated only
+hanging downlight Gible `9E5B34`, then proved fresh exact-revision rejoin past
+pending verify with field profile, downlight class, healthy TMF/MSA, no class
+mismatch, and recovery state 0.
+
+The initial scalar censuses and timed/condensed person choreography were kept
+as diagnostic evidence but rejected as acceptance runs. An exact-target trace
+variant `fx-260829-1170f20-t` continuously recorded sensor, presence, motion,
+and rendered LED state into a rolling buffer. Physical PSRAM was not exposed to
+this image, so its explicit 1,024-sample internal-RAM fallback was used. Two
+human-triggered drains retained about 70 seconds each without asking Ben to
+race a timer: one while standing beneath Gible and one after a natural walk.
+
+The standing window contained 48 valid depth frames at only 168-363 mm; the
+walking window contained 23 at only 166-362 mm. Both were confined to the same
+two near-field zones. Neither contained a person-range return, presence edge,
+held presence, or full dedicated-white `W=255` response. Ben's observation of
+repeated warm-white changes is also present in the trace: seven separate
+pre-trigger `W=25` intervals match GH CA's ordinary quiescent point-source
+state and provide a useful timing control. They are not the ADR 0070 response,
+which requires the presence latch to force `W=255`.
+
+The installed-height interaction gate therefore failed cleanly without a
+threshold change or fleet promotion. Exact final job `32F8BF78` restored the
+normal canary and verified it past pending verify at 28,353 ms; a later fresh
+heartbeat showed ordinary mesh mode, field NIGHT_SHOW/FULL/GH CA, downlight
+class, sensor bits `9`, no mismatch, and recovery 0. Next is mechanical
+TMF-window/aim diagnosis using raw range evidence, not a wider parser limit or
+weaker debounce.
 
 ## 2026-08-28 -- Ben + Codex -- Art-site TMF height census and 15 ft canopy fix
 
@@ -324,6 +728,346 @@ PowerFeather development compile also passed at 1,201,937 bytes program and
 `9f9cd933e3c1a51929824d625e49d916be1fab298cf1aa9aea554d2d8e4a060f`.
 This dirty `dev-local` binary is compile evidence only: nothing was flashed or
 published. Named battery-installed perimeter and downlight canaries are next.
+## 2026-08-29 -- Ben + Codex -- Sakura synchronized palette accepted
+
+Reconnected exact T-Deck `8EB508` on `COM7` with fresh master timestamps and
+advancing RX/TX counters, then took a strictly read-only Sakura sample. Exact
+Sakura `F2BE0C` reported `fx-260829-8790f6d-p`, GH CA state 1, and RGB
+`51,0,70`. That ratio exactly matches the firmware's expected UTC-derived
+purple phase, while ordinary baseline downlights retained their static blue
+hue. Ben simultaneously identified Sakura physically and described it as a
+nice purple. Combined with the earlier red observation, later non-blue drift,
+normal CA animation, exact canary provenance, and correct Fleet Blink/LED
+Studio lease behavior, Ben accepted the synchronized palette feature without
+requiring the remainder of a formal two-hour watch. The finite read-only
+heartbeat monitor was deleted before any later run. No fixture command, OTA,
+reboot, NVS, profile, or persistence write occurred. Palette cadence is no
+longer a fleet-release gate; the electrical, installed-height, and ADR 0068
+negative-safety gates remain open.
+
+## 2026-08-29 -- Ben + Codex -- Canary inventory scopes unified fixture release
+
+Audited the exact 110-fixture night census by artifact and source provenance.
+The fleet is split across 76 general dual-site fixtures on
+`fx-260828-658b7d2-p`, 16 freshly heard members of the completed 20-uplight
+cohort on `fx-260828-d8f62c3-p`, 13 older baseline/holdback fixtures, and five
+special canary instances: Akuma `9E668C` on mutable `dev-local`, Rikku `9F26B0`
+on the ADR 0068 intermediate `fx-260828-abd893c-p`, Dixie `F40314` plus Froakie
+`9E5B18` on ADR 0069 artifact `fx-260829-97aed8e-p`, and Sakura `F2BE0C` on the
+ADR 0069/0070 superset `fx-260829-8790f6d-p`.
+
+The source does have a coherent convergence path. Current `main` already
+contains the dual-site maintenance, short-wake telemetry, full-battery PROTECT
+recovery, MSA/uplight classification, and RGB uplight framing changes. Remote
+branch `origin/codex/build-week-interaction-sprint` is exactly six commits ahead
+from `main` with no divergent main commits. Fixture source through clean commit
+`ab71b8989b12e860ad1d82a5e1cf4767773a86f7` adds ADR 0069's count-aware HEX
+budget, synchronized palette, and local interaction plus ADR 0070's full-range
+canopy presence. Its exact Sakura artifact passed identity, OTA/rejoin, pending
+verify, basic sensor-to-output, and no-empty-trigger checks. The later
+`fa2c9d9` motion flight recorder is exact-target diagnostic instrumentation and
+is not part of the ordinary fleet-release cutoff.
+
+Do not reuse or combine the existing canary binaries. After the remaining
+hardware gates, merge the accepted source, build one new clean immutable ADR
+0040 artifact, repeat a small mixed-role canary, and widen with explicit safe
+target lists. Remaining gates are the ADR 0068 negative release/fault matrix,
+one named installed-height canopy raw-range margin check, and a measured
+perimeter HEX current/rail check. Ben subsequently accepted the synchronized
+palette cadence from physical and exact telemetry evidence without requiring a
+formal two-hour watch. Akuma's mutable development identity, low-voltage/PROTECT
+fixtures, recovery exceptions, and target-bound diagnostics remain exclusions
+until separately cleared. No build, OTA, fixture command, or persistent state
+change occurred during this inventory.
+
+## 2026-08-29 -- Ben + Codex -- Night census identifies Sakura palette canary
+
+Onboarded through the canonical repository documents, then opened the existing
+read-only host dashboard on the sole connected ESP32-S3 serial device. Exact
+T-Deck `8EB508` was positively identified on `COM7`, channel 11, with zero
+reported send failures. Its already-running census had seen 111 identities;
+110 field-profile fixtures were heard within 15 minutes, 98 within 60 seconds,
+and the five-second live count varied around 80-95 with the weak field links.
+The 15-minute fixture cohort reported 108 NIGHT_SHOW, 105 CA, 96 FULL, 3 DIM,
+and 11 PROTECT. Firmware was mixed across 76 `fx-260828-658b7d2-p`, 16
+`fx-260828-d8f62c3-p`, 11 `fx-260827-1254f04-p`, two
+`fx-260826-51d1fe1-p`, two `fx-260829-97aed8e-p`, and one each of
+`dev-local`, `fx-260828-abd893c-p`, and `fx-260829-8790f6d-p`.
+
+The same session exposed a bridge-side control failure. LED Studio and the
+T-Deck Fleet/Blink action produced no visible response while fixtures continued
+CA. Bridge receive frames kept climbing, but `sendok` remained exactly 9,058
+through multiple attempted actions and `sendfail` remained zero. Source review
+showed why the zero is misleading: transmit accounting observes only ESP-NOW
+completion callbacks, while all ordinary `esp_now_send()` call sites discard a
+synchronous enqueue error. LED Studio also reports the number of planned fresh
+targets, not confirmed radio submissions. The failure is therefore isolated to
+the T-Deck transmit path before fixture command acceptance, not CA arbitration;
+the exact ESP-NOW error and initiating mechanism remain unknown.
+
+Releasing COM7 for a read-only `show` query unexpectedly reset the USB-native
+T-Deck. It returned mesh-only, channel 11, SSID unset, and ESP-NOW marked up.
+After reboot, an exact-target diagnostic immediately advanced successful send
+callbacks, and a new all-fleet green LED Studio stream advanced TX continuously
+with zero callback failures. Ben confirmed every visible fixture green. Treat
+reboot as recovery evidence, not root cause or an adequate permanent fix: add
+synchronous-submit telemetry, a truthful UI fault state, and bounded recovery
+for a flat TX counter while RX remains healthy.
+
+The first telemetry interpretation did not identify the physical lantern. No
+fresh class-bearing downlight heartbeat reported red output, while the fresh
+red/orange renderers with authoritative LED telemetry reported perimeter class.
+Ben eliminated Daxter `9D7884` because it is a known real perimeter light, then
+showed that the anomalous lantern joined Fleet's filtered downlight green blink.
+The lantern also followed the normal changing CA pattern and accepted arbitrary
+LED Studio colors, ruling out a stuck LED channel, retired constant-red ready
+behavior, and general direct-control failure.
+
+Ben then filtered Fleet by firmware and identified the physical lantern on the
+first try as Sakura `F2BE0C`, the sole observed `fx-260829-8790f6d-p` fixture.
+Artifact provenance resolves the color anomaly: that exact canary was built
+from clean pushed source `ab71b8989b12e860ad1d82a5e1cf4767773a86f7`, which
+inherits `f5b86070931a6b32272735930fa8abf869ce02d2` and ADR 0069's synchronized
+autonomous palette experiment. With trusted UTC and no bridge lease, GH CA
+advances its base hue by 43 every 1,200 seconds in a six-step, two-hour loop.
+A bridge lease deliberately preserves the requested hue. Sakura therefore can
+appear red, later drift to a different non-blue hue, continue the same CA
+animation, and still obey green Fleet Blink or any LED Studio color. This is
+intentional canary behavior, not a class mismatch, missed OTA, stale hue lease,
+or LED fault. Sakura was deployed as the installed-height canopy-presence
+canary, but its artifact also inherited the palette-cadence experiment. That
+feature remains on `origin/codex/build-week-interaction-sprint`; current main
+does not contain it. Decide whether to promote the cadence or return Sakura to
+the static fleet palette after the canary evaluation.
+
+The post-blink host investigation also found that the dashboard's last master
+and peer snapshot was frozen at 01:55 even though localhost continued serving
+normally. COM7 no longer enumerated, but the page exposed neither serial loss nor
+master age, so later apparent telemetry was cached rather than live. No firmware,
+profile, NVS, OTA, or persistent fixture setting changed; the earlier diagnostic
+COM reopen reset only T-Deck `8EB508`.
+
+## 2026-08-29 -- Ben + Codex -- PUCA capacitive paw root-caused and boot arming proven
+
+Retested exact PUCA `A4EB10` with both faceplate audio plugs removed. A confirmed
+12-second stationary paw hold produced 11/11 `pawpin=0` samples, disproving the
+idea that the earlier J8/J9 output-jack mistake was the continuing cause. Ohmic's
+published trigger test uses `digitalRead(GPIO15)`, but its carrier schematic
+routes the paw separately from the TL074 audio-output stages and the exact unit's
+digital input never tracked touch.
+
+Added an inactive-only raw ESP32 touch-channel probe in `0.5.4-dev`. The released
+paw was exceptionally stable at 867-870 counts; a held paw fell cleanly to 216.
+This proves the electrode, front-panel/header path, GPIO15, and ESP32 touch
+peripheral. The first blocking probe exposed and then fixed two diagnostic-only
+artifacts: one transient digital HIGH on peripheral restoration and receive-queue
+drops while the loop was blocked.
+
+Production paw handling now uses the actual ESP32 T3/GPIO15 capacitance channel,
+not the vendor example's digital input. `0.5.5-dev` applies exact-unit hysteresis
+(press <=650, release >=750) and rejects near-zero/shorted readings below 50 so
+the arming gate fails safe. The 1.2-second continuous boot hold, five-second
+opportunity, setup window, and SAFE-IDLE policy are unchanged. All 129 native
+checks pass. Fresh artifact
+`firmware/puca_bridge/build/puca-bridge-20260829-paw-cap-touch-v055-r1/puca_bridge.ino.bin`
+is 1,038,176 bytes, SHA-256
+`b7d4db31f339a14d079a273170544f6b4218a367075799736f1229a6c1c2f2c1`,
+with `esp32:esp32:pico32:PartitionScheme=default`. Exact-target shared-WiFi OTA
+uploaded once to identity-matching `A4EB10` and verified a fresh
+`puca-bridge-0.5.5-dev` software-reset rejoin.
+
+Ben then held the paw before a real Pod20 power cycle. The PUCA rejoined with
+fresh `reset=poweron`; preserved USB telemetry proved `bootarmed=1`, `active=1`,
+DJ + line input, released `pawcap=865-868`, 3,000+ direct frames, and zero send,
+capture, queue, I2C, or clipping errors. USB `A` stopped publication and froze
+the direct-frame count. A final released `P` probe remained 866-868 while
+servicing mesh traffic, with `paw=0`, zero queue drops, and no synthetic edge.
+The physical paw and boot arming are accepted; real RODE gain and the timed
+post-arm setup gestures remain open.
+
+## 2026-08-28 -- Ben + Codex -- PUCA mic modes proven; line and paw faults isolated
+
+After the separate fleet OTA ended, declared this laptop the sole PUCA operator
+and used T-Deck bridge `8EB508` on channel 11 plus exact PUCA `A4EB10`. A
+service-started onboard-MEMS run exercised DJ, HEARTBEAT, EMBER, and HUE on the
+live fleet, and Ben visibly confirmed audio-reactive fixture behavior. Serial
+evidence covered about 75-92 fresh fixtures, RMS roughly
+1,300-5,500, peaks through 14,685, useful rendered levels through 0.56, and zero
+send, I2S-read, I2C, or receive-queue errors. Ben directly observed the audio-
+reactive fixture behavior. Each run ended with `A`, a final blackout, frozen
+direct-frame count, and return to inactive DJ/line state.
+
+The laptop headphone proof did not reach the PUCA faceplate line input. Windows
+recognized `Realtek HD Audio 2nd output`; a directed 96 kHz WASAPI stream played
+successfully at about -8 dBFS. The endpoint was unmuted, and tests at its original
+10 percent level and a temporary 25 percent level left PUCA at the same RMS 7-10
+noise floor. The level was restored to 10 percent. This isolates the remaining
+fault to the analog adapter/faceplate route or the WM8978 line-routing setup; it
+does not implicate the shared codec/I2S/DSP/render/mesh path, which the onboard
+mics proved. Verify adapter continuity and both J5/J6 inputs before changing
+codec registers.
+
+Ben later identified the exact passive chain: JSAUX `B07D8M5DML` 3.5 mm TRS
+stereo male to dual RCA male, then two Bolvek `B09K3DHL82` RCA-female-to-3.5 mm
+TS-mono adapters. This is electrically the correct one-channel-per-J5/J6
+topology and does not inherently short or combine channels. Remaining physical
+checks are continuity, full plug seating, and confirming J5/J6 AUDIO IN rather
+than J8/J9 AUDIO OUT before investigating WM8978 line-register routing.
+
+Correction and positive retest: the two TS plugs had in fact been in faceplate
+J8/J9 AUDIO OUT. Ben moved them to J5/J6 AUDIO IN and the identical directed
+96 kHz laptop waveform at the restored 10 percent Windows level immediately
+raised line RMS from 6-12 at quiet to 37-41, with rendered level about 0.13-0.15,
+zero clipping, and zero transport/capture errors across about 83-91 fresh
+fixtures. `A` then stopped the publisher and returned level to zero. This proves
+the exact cable chain, faceplate J5/J6 path, WM8978 line routing, I2S capture,
+envelope, renderer, and fleet transport. Only real RODE gain/clipping and visual
+per-mode/fallback acceptance remain on this audio axis.
+
+A follow-up 28.5-second laptop burst run temporarily used 25 percent headphone
+level and advanced DJ -> HEARTBEAT -> EMBER -> HUE at seven-second intervals.
+The final status proved HUE active after the complete serial sequence, direct
+frames advanced from 1,871 to 4,591, send callbacks reached 5,225 with zero
+send/read/I2C/queue/clipping errors, and line level returned to zero with the
+bursts stopped. Cleanup sent `A`, returned mode to DJ, and restored the Windows
+endpoint to 10 percent.
+
+A dedicated HEARTBEAT repeat used a synthesized 16-second paired-pulse waveform
+through the same laptop/J5/J6 line path. With the top sensitivity control first
+confirmed at its 4.00x maximum and the headphone endpoint temporarily at 60
+percent, telemetry captured rendered peaks through 0.222 across about 84-93
+fresh fixtures. Capture peaks reached 2,063 without a single clip, send failure,
+I2S read failure, I2C error, or receive-queue drop. Cleanup stopped publication,
+returned mode to inactive DJ, and restored the headphone endpoint to its 10
+percent baseline; final telemetry reconfirmed gain 4.00x and zero error counters.
+Ben visibly confirmed that the paired deep-red HEARTBEAT response works. He was
+turning the sensitivity knob during the run, which explains the logged 0.26x-
+4.00x changes; the complete top-knob sweep is therefore also proven. Physical
+orientation is counterclockwise for more sensitivity and clockwise for less,
+opposite Ben's initial expectation.
+
+Ben requested the conventional carrier-control direction after that proof.
+`puca-bridge-0.5.3-dev` now explicitly normalizes both carrier pots: fully
+clockwise raises the top audio-sensitivity control to 4.00x and the bottom
+brightness ceiling to 1.00; in HUE, clockwise also advances the color wheel.
+The pure mapping and all existing safety/render checks pass 121/121. Fresh
+combined artifact
+`firmware/puca_bridge/build/puca-bridge-20260828-knob-direction-v053-r2/puca_bridge.ino.bin`
+is 1,024,656 bytes, SHA-256
+`97e43bf5e2686057474e95d4404a839967b9681e05832919ea81e77079b4bcb5`,
+with the explicit `esp32:esp32:pico32:PartitionScheme=default` recipe. The prior
+top-only `r1` build was never deployed. Exact-target `UA4EB10` maintenance found
+identity-matching `192.168.1.159`, uploaded `r2` once, and verified a fresh
+`puca-bridge-0.5.3-dev` software-reset rejoin. Post-update USB telemetry remained
+SAFE-IDLE with zero direct frames and zero capture/transport errors.
+After a later full power cycle, fully clockwise hardware telemetry read exactly
+`gain=4.00`, `ceil=1.00`, and HUE endpoint 360, accepting both corrected control
+directions. The original PUCA USB cable then enumerated only as a failed USB
+device descriptor; moving the known-good T-Deck cable to PUCA immediately
+restored its exact CP2102 identity on COM6. Treat the original cable as suspect;
+the PUCA USB interface itself passed the swap test.
+
+The first polarity guess produced and exact-target OTA-installed
+`0.5.1-dev`, but official Ohmic Original Edition trigger source and later raw
+telemetry disproved active-low operation. It was superseded in the same session.
+Source and exact-target OTA now run `puca-bridge-0.5.2-dev`: active-high paw
+handling, raw `pawpin`/`paw` telemetry, a five-second steady-red boot opportunity,
+and elapsed-time audio calibration. Native tests pass 105/105. The immutable
+candidate is
+`firmware/puca_bridge/build/puca-bridge-20260828-paw-telemetry-v052-r1/puca_bridge.ino.bin`,
+1,024,608 bytes, SHA-256
+`3e3e8d9fa0ce3c8d60950abc027840eb345c95cf1f9438d1f0ff44cbac5a20e8`.
+Exact-target shared-WiFi OTA found `A4EB10` at `192.168.1.159`, uploaded once,
+and verified fresh `0.5.2-dev` software-reset rejoin. A subsequent full power
+cycle also rejoined cleanly.
+
+Hardware validated the calibration correction: `calibrated` was false at
+1,500 ms and true at 2,505 ms before direct frames began. Paw release is
+definitively GPIO15 low. Runtime sampling caught two intermittent high readings
+about 4.2 seconds apart during one attempt, but a later confirmed ten-second
+stationary hold produced no transition, and the five-second held-paw power-cycle
+still returned `bootarmed=0`. Do not weaken the physical arming interlock around
+an intermittent signal. Until the carrier touch path is electrically inspected
+or traced at higher rate, USB service `A` is the repeatable bench start path;
+SAFE-IDLE remains the no-touch boot result.
+
+## 2026-08-28 -- Ben + Codex -- Daytime interaction and bounded fleet wake brainstorm
+
+Onboarded from the current `main` architecture and reviewed the measured daytime
+radio floor, field sleep cadence, UTC/civil-twilight scheduler, conditional solar
+probe, perimeter palm gate, distributed CA/Contagion seams, and solarnoid policy.
+No fixture, bridge, serial port, artifact, or shared bench was changed or
+commanded. This is exploratory context, not a new ADR or implementation decision.
+
+Continuous radio receive remains the wrong default: the measured dark-awake
+floor is 126-144 mA before perimeter ToF load, or 1.51-1.73 Ah across 12 hours.
+The promising architecture separates local renewable/strike eligibility from
+radio availability. Strong solar may permit a strike or a richer rendezvous, but
+should not by itself require all-day receive.
+
+The leading artistic candidate combines scheduled and interactive behavior. A
+bounded hourly daytime rendezvous wakes the fleet for a short roll call or
+ring-wise composition and opens a fixed invitation window. Fresh perimeter palm
+edges contribute engagement credits; distinct source IDs or sectors are more
+valuable than a held/repeated gesture. Successive thresholds grow the response
+from a few nearby downlights, to one ring, to a three-ring ripple, to a full
+chorus. The session has an absolute hard end and cooldown that activity cannot
+extend, while every downlight retains its autonomous solar/power/mechanism gates.
+
+Between scheduled windows, a future low-duty perimeter-sentinel posture could
+turn the radio on only after local ToF detection and let a small expiring event
+spread as ordinary sleepers wake. Do not select that posture until the existing
+named-perimeter A/B measures MCU plus VL53L5CX ranging with the radio off; the
+small 2 W / 6 Ah perimeter class is the tightest daytime budget. The existing
+generic choreography, event-fabric, sensor-power, wake-window, localization, and
+solarnoid validation TODOs already cover the needed work, so no duplicate TODO
+was added.
+
+## 2026-08-28 -- Ben + Codex -- TMF8820 twenty-foot installation range reviewed
+
+Onboarded through the canonical repository documents and compared the exact
+ordered TMF8820-mini, current fixture implementation, open height-validation
+TODO, and ams OSRAM datasheet performance. No firmware, fixture, bridge, serial
+port, or shared bench was changed or commanded.
+
+The TMF8820's specified maximum target distance is 5,000 mm (16.4 ft), while a
+20 ft sensor-to-ground distance is 6,096 mm and cannot produce a ground return.
+A roughly 6 ft person's head would be about 4,267 mm (14 ft) from the sensor,
+inside only the best-case low-ambient raw range. The datasheet's 3x3 / 550 k
+iteration table reaches 5 m on a full-FoV 18 percent grey center target under
+350 lux LED lighting, but falls to 3.0 m center / 2.8 m edge / 2.0 m corner at
+the equivalent of 1 klux sunlight; a person fills less than the test target.
+
+The deployed source is more restrictive than the silicon: sensor parsing drops
+returns beyond 2,500 mm and the no-background presence path admits only targets
+within 2,200 mm. Therefore the current artifact will not detect a person from a
+20 ft mounting height. A night-only foreground interaction may be recoverable
+with a deliberately tested long-range configuration and gate change, but this
+is not yet evidence: the exact-part downlight-height test remains open. If ToF
+interaction matters, pause further high placement until one exact enclosed
+fixture passes a 20 ft walk-under test; otherwise treat the high TMFs as class-ID
+devices, not reliable presence sensors.
+
+## 2026-08-28 -- Ben + Codex -- RODE-only PUCA mode proof scoped
+
+Fast-forward pull confirmed local `main` already matched `origin/main`. Onboarded
+through the canonical repository documents and reviewed the current PUCA hardware
+record, ADRs 0035/0063, firmware, native tests, and audio operating guides while a
+separate laptop retained ownership of the active fleet OTA. The in-progress
+untracked fleet-OTA ledger was preserved and no serial port, bridge, fixture, or
+PUCA was opened, commanded, reset, built, or flashed.
+
+The RODE VideoMic NTG is sufficient to validate the PUCA line-input path and
+visibly distinguish DJ, HEARTBEAT, EMBER, and HUE with speech, claps, or a played
+click track. It cannot prove fidelity to the performer's exact arbitrary
+waveform; that remains a later generator/photodiode gate. Current `0.5.0-dev`
+has no dry-run or named-canary output: once armed it sends direct frames to the
+complete fresh fixture census. SAFE-IDLE also returns from audio processing
+before updating RMS, peak, clipping, envelope, or color evidence. Therefore do
+not arm it in parallel with the fleet OTA. After the OTA operator releases the
+radio, run the RODE test in a declared one-publisher window, capture serial
+level/peak/clip evidence for all four modes, observe a controlled mixed RGB/RGBW
+cohort, and finish by proving the roughly three-second autonomous fallback.
 
 ## 2026-08-28 -- Ben + Codex -- All 20 manufactured uplights updated
 
@@ -766,6 +1510,159 @@ partial-discovery endpoints instead of failing the whole selected wave, and
 make large roster add acknowledgement robust. All maintenance campaigns were
 inactive, all OTA/dashboard processes were stopped, and COM7 was opened and
 released successfully before Ben unplugged the T-Deck.
+## 2026-08-27 -- Ben + Codex -- TSwift shell color and copy polish
+
+Ben's physical review accepted the permanent shell and found three small
+legibility issues: the `P` in Stop was clipped, app identity blended into the
+scrolling ribbon, and the idle text alternated between ambiguous phrases such
+as `join ch11 mesh` and the redundant `mesh ch11 mesh`. Widened Stop from 62 to
+66 pixels and reduced its internal padding. App identity now uses a blue accent,
+the ribbon retains its primary text color, and the independent clock uses cyan.
+The idle ticker now spells out `WiFi`, `WiFi joining`, `mesh-only`, or `GUARD`,
+followed by separated `ch11`, `live N/M`, and `bat N%` fields. Here `live N/M`
+means fresh fixtures now / distinct fixtures seen since this T-Deck booted.
+
+The complete native suite and build-wrapper contract passed. The locked build
+produced a 1,565,280-byte binary with SHA-256
+`3267a1b237a2a4708e5c999cf1730f497ecbc30bd80e299a8b76374764931d4c`;
+the linker reports 49 percent flash and 59 percent global RAM. Esptool flashed
+and verified only TSwift `979604` / `44:1B:F6:97:96:04` on COM157. Read-only
+post-reset evidence reported `tdeck-dev-local`, channel 11, 19/19 mesh sends
+with zero failures, valid local GPS time, and healthy PSRAM, keyboard, touch,
+ES7210, GPS, heap, and PSRAM probes. No fixture command or mutation was sent.
+
+## 2026-08-27 -- Ben + Codex -- TSwift promoted to permanent Bridge OS shell bar
+
+Ben accepted the compact activity ribbon as a useful control signal but asked
+to replace the overlay with real shell chrome. Bridge OS now permanently owns
+the top 26 pixels on every LVGL screen. The left cell carries app identity, the
+center carries idle app/network status or a scrolling activity ribbon, and a
+fixed right-side clock and Stop button appear while this T-Deck owns a stream
+or tracked program lease. Keeping the changing clock out of the text prevents
+it from restarting the scroll each second. Permanent streams say
+`LOCAL ... until STOP` and count up; expiring program leases count down. Fresh
+non-self T-Deck, PUCA, CoreS3, or
+unknown publishers remain passive warnings, and local-plus-foreign overlap is
+red.
+
+Removed duplicated per-screen title/status objects and migrated the launcher
+plus all 13 implemented apps to the y>=26 content contract. LED Studio's class
+picker and swatches and Wildfire CA's dense controls were explicitly reflowed;
+Fleet and Health moved their former top-right controls to bottom action rows.
+The bar never appears or disappears, so starting or stopping activity cannot
+shift app content or cover a title, picker, or action button. Fleet detail
+charger labels and Fleet View charger-phase filters remain included; Health's
+existing VBAT/CHG toggle remains unchanged in behavior.
+
+The complete native Bridge OS suite and build-wrapper contract passed. The
+locked development build produced a 1,565,056-byte binary with SHA-256
+`fcb0c499e749474e5c49128dcdc6245b613298a89e7b189cde7f0d80f2fc9810`;
+the linker reports 49 percent flash and 59 percent global RAM. Esptool flashed
+and verified only camp-labelled TSwift `979604` / `44:1B:F6:97:96:04` on
+COM157. Read-only post-reset checks passed PSRAM, keyboard, touch, ES7210, and
+GPS probes and reported `tdeck-dev-local`, channel 11, 15 live / 19 seen peers,
+and active mesh/time publication. No fixture command, OTA, profile/lifecycle
+change, reboot request, or NVS mutation was sent. Cross-app touch and conflict
+behavior remains for Ben's physical visual acceptance.
+
+## 2026-08-27 -- Ben + Codex -- TSwift banner moved off app action rows
+
+Physical acceptance immediately rejected the first persistent-banner layout:
+after LED Studio Green, its full-width bottom strip covered the app's
+Solid/Stop/Back controls. Auditing every Bridge OS screen confirmed the bottom
+row is universally operational and the top-right also contains controls in
+several apps. The common safe region is the top-left title/status area before
+the nearest interactive control at x=130.
+
+Replaced the bottom strip with a 122x26 top-left control pill. For local
+activity the entire pill is Stop, with stream mode plus explicit `n=` target
+count or program countdown in a scrolling label. Foreign-only status is still
+informational/non-clickable, and local-plus-foreign conflict remains red. The
+pill occupies x=2..124 and y=0..26, leaving LED Studio's x=130 class selector
+and y=200 Solid/Stop/Back row untouched.
+
+The full native suite passed. The locked warm build produced a 1,586,544-byte
+binary with SHA-256
+`aaf2b9ae2a0d111ca69def7a04bee52af0d03cab999f12308338c4cef6335b64`;
+the linker reports 50 percent flash and 59 percent global RAM. Esptool flashed
+only exact TSwift `979604` / `44:1B:F6:97:96:04` on COM157 and verified every
+region. Post-reset serial reported `tdeck-dev-local`, channel 11, live fleet
+receive, 14/14 sends with zero failures, and healthy heap/PSRAM. No serial
+command or fixture mutation was sent. COM157 was closed for the operator's
+immediate LED Studio recheck.
+
+## 2026-08-27 -- Ben + Codex -- Banner build flashed to camp-labelled TSwift
+
+Recorded the camp label `TSwift` for the second LCD T-Deck Plus, exact MAC
+`44:1B:F6:97:96:04`, short ID `979604`. USB enumeration independently exposed
+that full MAC on COM157; the only remaining dashboard process owned primary
+T-Deck COM152, so the exact upload target was unambiguous and free.
+
+Rebuilt through the healthy locked development cache and USB-flashed only
+TSwift with the banner and Fleet charge-filter image. The application is
+1,586,688 bytes with SHA-256
+`f97af709e6ea6bf234d323c53366384880c5fa734ee4a8203ac12bbe32ae45f3`;
+esptool identified the same full MAC and verified every written region.
+
+Post-reset serial reported `fw=tdeck-dev-local`, ID `979604`, channel 11, live
+mesh receive, 19/19 successful sends with zero failures, roughly 7.7 MB free
+PSRAM, and a valid local GPS time source. The local `probe` check passed 8 MB
+PSRAM, keyboard, GT911 touch, GPS at 38400 baud, and ES7210 at 0x40. Only local
+read-only `help` and `probe` commands were entered; no fixture command, OTA,
+profile/lifecycle change, reboot request, or NVS mutation was sent. The monitor
+was closed cleanly. Banner touch/expiry/conflict behavior and Fleet charge
+filter canaries remain queued for physical acceptance.
+
+## 2026-08-27 -- Ben + Codex -- Global control banner and charge filters built only
+
+Added a shell-level T-Deck control activity banner that stays on LVGL's top
+layer across apps. Local direct streams remain labelled `until STOP`; local
+program leases show a countdown, and one touch stops the stream and releases
+the tracked program without returning to its originating app. The passive side
+uses the existing packet header and lease fields to identify fresh non-self
+T-Deck, PUCA, CoreS3, or unknown controller activity by exact short ID. It adds
+no wire format, discovery packet, or polling traffic.
+
+Kept the already-present Health VBAT/CHG toggle unchanged. Existing Fleet detail
+charger decoding now uses the operator labels `CHARGING_CC`, `CHARGING_CV`,
+`TOP-OFF`, `DONE/OFF`, and `FAULT`; Fleet View adds filters for those phases plus
+unknown and off air. The generated Health roster was reconciled with the
+pre-existing local Bidoof registry update (6 Ah, downlight) so its source digest
+contract remains exact.
+
+The complete native Bridge OS suite passes, including new publisher freshness,
+self-suppression, program lease/release/expiry, and charger-filter tests. A
+locked no-upload development build completed at 1,586,688 bytes with SHA-256
+`f97af709e6ea6bf234d323c53366384880c5fa734ee4a8203ac12bbe32ae45f3`;
+the linker reports 50 percent flash and 59 percent global RAM. Because the build
+laptop was issuing a fleet OTA, this session deliberately opened no serial port,
+flashed no T-Deck, and sent no mesh, OTA, profile, lifecycle, reboot, or NVS
+command. Hardware acceptance remains queued until the OTA writer is finished.
+
+## 2026-08-27 -- Ben + Codex -- Second T-Deck Plus updated from origin
+
+Fast-forwarded the working branch from `ec5e6c6` to current `origin/main`
+`027f725a44d57c86a170d4ffba4d9817d1724aec`, preserving the existing local
+LOG, TODO, registry, USB-rescue, and camera work. The two append-heavy journal
+conflicts were reconciled by retaining the newer upstream record together with
+the later local camera and Bidoof updates.
+
+Positively identified the connected old handheld as LCD T-Deck Plus
+`44:1B:F6:97:96:04` / short ID `979604` on COM157. It was running
+`tdeck-0.1.0`; preflight showed healthy 8 MB PSRAM, keyboard, GT911 touch,
+ES7210 at 0x40, GPS at 38400 baud, channel-11 mesh traffic, and retained local
+credentials. No fixture or PUCA serial device was present on the selected
+port.
+
+The complete native Bridge OS suite and build-wrapper contract passed. Built
+current source through the healthy locked warm cache and USB-flashed only
+`979604`. The 1,583,456-byte `tdeck-dev-local` binary has SHA-256
+`12d43afdf80d483e3340ddf66b554d8878d13a71586917b40c4ad3fe0405d80c`;
+esptool verified every written region. Post-reset serial confirmed the same
+identity, retained SSID/API/model/channel/day-mode settings, healthy onboard
+peripherals, live mesh receive, 19/19 sends with zero failures, and firmware
+`tdeck-dev-local`. No fixture command, OTA, profile/channel persistence, or
+fixture NVS mutation was sent.
 
 ## 2026-08-27 -- Ben + Codex -- Current-source fleet OTA promotion and timing
 
@@ -1068,6 +1965,89 @@ ready, and zero direct frames. The OTA result is in
 `ops/bench/data/ca/2026-08-27-ota-results.jsonl`. Routine enclosed OTA is now
 accepted; paw-held DJ/setup controls, `/resume`/timeout, broadcast rejection,
 softAP absence, forced rollback, and visible audio/light acceptance remain open.
+## 2026-08-27 -- Ben + Codex -- Local Windows Arducam viewer added
+
+Added `ops/camera/`, a dependency-free localhost USB UVC viewer launched as a
+Microsoft Edge app window. It prefers an Arducam/USB Camera source, requests
+320x240 through 1920x1080 modes, reports the accepted mode, saves PNG snapshots
+and WebM recordings, supports mirror/fullscreen shortcuts, and exposes the
+camera controls Windows publishes to Chromium. A guarded launcher reuses one
+hidden localhost server; a companion script stops only its recorded matching
+process. Video stays local.
+
+The attached device enumerated as USB camera `0C45:6366` with video and audio
+interfaces. LilyGO's T-Deck schematic confirms that its ESP32-S3 USB data pins
+are present but the Type-C port has sink/device CC pull-downs, VBUS input, and
+no host 5 V source. The future T-Deck path is therefore a channel-11 WiFi
+320x240 JPEG/MJPEG viewer fed by a laptop or Pi, not a passive OTG cable.
+
+The likely Arducam B0205/B0506 day/night family is designed to leave its IR LED
+boards connected: a photoresistor automatically switches the 850 nm LEDs and
+mechanical IR-cut filter. Disconnect them, with USB power removed first, only
+for visible-only dim-room tests, reflection troubleshooting, or reduced power.
+HTML JavaScript, PowerShell launcher/stop parsing, ASCII, diff checks, localhost
+serving, and the complete no-permission UI passed. The Edge app is open; final
+live-video acceptance awaits the one-time user camera-permission click.
+
+## 2026-08-27 -- Ben + Codex -- Bidoof USB rescue and A/B verification completed
+
+Declared the single state-changing target as Bidoof `9F26D8` on COM156 and
+used immutable production artifact `fx-260826-51d1fe1-p` from clean commit
+`64264b2c60cbff9a9423642cb6cfee93e4272636`. Its 1,206,784-byte binary freshly
+matched manifest SHA-256
+`57306019dbf93a1d0cf950f25b9f557d9a0a68663621a7ce4579aba01dea1261`.
+No competing flash or OTA process was active.
+
+The generic Arduino uploader failed closed before any write because this
+archived artifact retains the application binary but not the companion
+bootloader/partition binaries expected by the full-image upload recipe. Bidoof
+remained on the old image with uninterrupted uptime and guard stage FULL. The
+documented ESP32 application-only path then wrote only the existing app0 address
+`0x10000`; esptool positively identified full MAC `D8:85:AC:9F:26:D8`, wrote
+1,206,784 bytes, and verified the on-device data hash. The partition table and
+NVS were preserved.
+
+The production boot reported the exact revision, healthy field profile, channel
+11, good input/charge, downlight class, and healthy MSA311/TMF8820. An explicit
+serial `F1` persisted field profile. Local maintenance then joined
+`Party In The Woods`, exposed exact identity at `192.168.1.75`, and accepted the
+same immutable binary into app1. Fresh serial evidence showed `pending_verify`
+at 12.9 and 17.0 seconds, followed by the 20-second network self-test PASS,
+`ota_state=valid` at 21.0 seconds, and continued exact-revision stability through
+93.9 seconds. Final telemetry was VBAT 3.451 V / +673 mA, qualified 4.637 V input,
+no BQ fault, field/DAY_ACTIVE, channel-11 ESP-NOW 114/0 sends, guard FULL, and
+healthy MSA311/TMF8820.
+
+The original no-endpoint failure is closed: Bidoof now has working maintenance
+WiFi and a validated production image. A T-Deck-targeted maintenance command
+could not be rechecked because its COM152 bridge was physically absent; the
+dashboard correctly reported disconnected. That one test remains useful only to
+exclude a secondary ESP-NOW receive fault. Evidence is in
+`ops/bench/data/usb/2026-08-27-bidoof-usb-rescue.jsonl`.
+
+## 2026-08-27 -- Ben + Codex -- Bidoof USB diagnosis found WiFi-less same-version image
+
+The newly attached Espressif native-USB device on COM156 positively identified
+as Bidoof `9F26D8` / `D8:85:AC:9F:26:D8`. Read-only serial telemetry showed old
+`fx-260816-otafix1-b` on app0 with pending verify false, persisted commission
+profile, channel 11, guard stage FULL, and healthy PowerFeather, battery, charger,
+radio uplink, LED rail, MSA311, and TMF8820. Settled samples measured about
+3.43 V / +613 to +621 mA at the battery and 4.63 V / 610 to 632 mA good input,
+with no BQ fault. ESP-NOW status reported 41 successful sends and zero failures.
+
+A transient local USB `u` maintenance test supplied the missing discriminator.
+The fixture entered the maintenance transition but printed
+`no wifi_secrets.h -> cannot OTA`, immediately resumed ESP-NOW, and returned to
+healthy COMMS. No flash, NVS/profile/channel write, manual reset, or persistent
+mutation was performed. The accepted immutable `fx-260816-otafix1-b` artifact
+had demonstrably working compiled-in maintenance WiFi on its F40364 canary, so
+Bidoof is running different bytes under the same historical revision string.
+This fully explains why supervised targeted-maintenance campaigns never found
+an identity-matching endpoint; those observations do not prove a per-unit
+ESP-NOW downlink fault. A secondary receive fault remains untested until the
+current exact production artifact is USB-installed and targeted maintenance is
+rechecked. Preserve NVS, then verify field profile and reboot ride-through as
+already planned.
 
 ## 2026-08-27 -- Ben + Codex -- T-Deck warm-build cache boundary repaired and proven
 

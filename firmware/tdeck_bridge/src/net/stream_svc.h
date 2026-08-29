@@ -31,4 +31,5 @@ void streamPatternStop();
 bool streamPatternActive();
 void streamStop();  // stop sending; fixtures revert via staleness/micro-lease
 StreamMode streamMode();
+uint32_t streamElapsedMs(uint32_t nowMs);
 int streamTargetCount();  // fixtures covered by the last wave
