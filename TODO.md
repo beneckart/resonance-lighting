@@ -153,6 +153,23 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   use MSA311 as a blanket swing veto: that would erase the desired scanning
   behavior. Keep the currently proven thresholds until this trace exists
   (Ben/Codex; follows ADR 0070).
+  superseded. **2026-08-29 Gible installed-height canary: OTA safety passed but
+  interaction failed.** Exact target Gible `9E5B34` accepted immutable normal
+  artifact `fx-260829-7906e6f-p`, SHA-256
+  `95df1a6b18f21c0f0643949e70474a4d2af019e85efbb86f21877af350dadb7d`,
+  and passed fresh exact-revision rejoin/pending verify. Two valid exact-target
+  rolling traces retained about 70 seconds each while Ben stood and walked
+  naturally beneath the installed fixture. They saw only fixed 166-363 mm
+  near-field returns, no person-range return, no presence edge/latch, and no
+  required `W=255` response. Seven pre-trigger `W=25` intervals match Ben's
+  visual observation and ordinary GH CA quiescence, proving the walk was in the
+  buffer rather than missed by capture timing. Final job `32F8BF78` restored
+  the normal image and verified field posture. Next: inspect/clean the TMF
+  window and mechanically diagnose installed aim/range on one reachable named
+  downlight; collect raw zone/confidence evidence before changing thresholds or
+  promoting ADR 0070. The MSA311 accent seam is implemented but fleet-disabled
+  pending quiet/wind/touch/swing/climb traces; barometric modulation and
+  aggregate ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry
