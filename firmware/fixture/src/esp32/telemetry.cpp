@@ -280,6 +280,7 @@ String telemetryJson() {
     j += ",\"tof_depth_filtered_mm\":" + String(sn.tofDepthFilteredMm, 1);
     j += ",\"tof_confidence\":" + String(sn.tofConfidence);
     j += ",\"tmf_reads\":" + String((unsigned long)sn.tmfReads);
+    j += ",\"tmf_frame_ms\":" + String((unsigned long)sn.tmfFrameMs);
     j += ",\"tmf_errors\":" + String((unsigned long)sn.tmfErrors);
     j += ",\"tmf_recoveries\":" + String((unsigned long)sn.tmfRecoveries);
   }
@@ -289,7 +290,17 @@ String telemetryJson() {
   if (sn.vlPresent) {
     j += ",\"vl_read_ok\":";
     j += sn.vlOk ? "true" : "false";
+    j += ",\"vl_frame_ms\":" + String((unsigned long)sn.vlFrameMs);
+    j += ",\"vl_plane_valid\":";
+    j += sn.vlPlaneValid ? "true" : "false";
+    j += ",\"vl_no_return_frame\":";
+    j += (sn.vlReads && sn.vlValidZones == 0) ? "true" : "false";
     j += ",\"vl_tilt_deg\":" + String(sn.vlTiltDeg, 2);
+    if (sn.vlPlaneValid) {
+      j += ",\"vl_plane_a\":" + String(sn.vlPlaneA, 4);
+      j += ",\"vl_plane_b\":" + String(sn.vlPlaneB, 4);
+      j += ",\"vl_plane_c_mm\":" + String(sn.vlPlaneC, 1);
+    }
     j += ",\"vl_zones\":" + String(sn.vlZones);
     j += ",\"vl_closest_mm\":" + String(sn.vlClosestMm);
     j += ",\"vl_reads\":" + String((unsigned long)sn.vlReads);

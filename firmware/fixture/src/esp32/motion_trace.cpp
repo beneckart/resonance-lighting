@@ -4,6 +4,8 @@
 #include <WebServer.h>
 #include <esp_heap_caps.h>
 
+#include "../core/fixture_context.h"
+#include "../core/interaction_modulator.h"
 #include "../core/motion_trace.h"
 #include "../core/version.h"
 #include "behavior_glue.h"
@@ -56,12 +58,12 @@ void motionTraceInit() {
 
   // 8192 samples retain about 5.5 minutes at the fixture's cooperative 25 Hz
   // poll cadence. Keep a short internal-RAM fallback so a PSRAM fault still
-  // yields a useful, explicitly reported 41-second trace.
+  // yields a useful, explicitly reported 20-second diagnostic trace.
   uint32_t capacity = 8192;
   MotionTraceSample *storage = (MotionTraceSample *)heap_caps_malloc(
       sizeof(MotionTraceSample) * capacity, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!storage) {
-    capacity = 1024;
+    capacity = 512;
     storage = (MotionTraceSample *)heap_caps_malloc(
         sizeof(MotionTraceSample) * capacity, MALLOC_CAP_8BIT);
   }
@@ -93,6 +95,12 @@ static uint16_t centiDegrees(float value) {
   return (uint16_t)(scaled + 0.5f);
 }
 
+static uint16_t positiveMillimetres(float value) {
+  if (!(value > 0.0f)) return 0;
+  if (value >= 65535.0f) return 65535;
+  return (uint16_t)(value + 0.5f);
+}
+
 void motionTraceTick() {
 #if defined(RES_MSA_TRACE_TARGET)
   if (!motionTraceTargetMatches() || !gTrace.capacity) return;
@@ -115,14 +123,42 @@ void motionTraceTick() {
   sample.gravityMg[2] = signedMilli(sensor.gravityZG);
   sample.tiltCdeg = centiDegrees(sensor.tiltDeg);
   sample.swayMg = unsignedMilli(sensor.swayEnvG);
-  sample.tmfReads = sensor.tmfReads;
-  sample.tofDepthMm = sensor.tofDepthMm;
-  sample.tofConfidence = sensor.tofConfidence;
-  memcpy(sample.tofZoneMm, sensor.tofZoneMm, sizeof(sample.tofZoneMm));
-  memcpy(sample.tofZoneConfidence, sensor.tofZoneConfidence,
-         sizeof(sample.tofZoneConfidence));
+  sample.fixtureClass = gTelemetryFixtureClass;
+  if (gTelemetryFixtureClass == FIXTURE_DOWNLIGHT) {
+    sample.rangeSensor = MOTION_TRACE_RANGE_TMF8820;
+    sample.rangeReads = sensor.tmfReads;
+    sample.rangeFrameMs = sensor.tmfFrameMs;
+    sample.closestMm = sensor.tofDepthMm;
+    sample.closestConfidence = sensor.tofConfidence;
+    memcpy(sample.zonePrimary, sensor.tofZoneMm, sizeof(sensor.tofZoneMm));
+    memcpy(sample.zoneAuxiliary, sensor.tofZoneConfidence,
+           sizeof(sensor.tofZoneConfidence));
+  } else if (gTelemetryFixtureClass == FIXTURE_PERIMETER) {
+    sample.rangeSensor = MOTION_TRACE_RANGE_VL53L5CX;
+    sample.rangeReads = sensor.vlReads;
+    sample.rangeFrameMs = sensor.vlFrameMs;
+    sample.closestMm = sensor.vlClosestMm;
+    memcpy(sample.zonePrimary, sensor.vlZoneNearestMm,
+           sizeof(sensor.vlZoneNearestMm));
+    memcpy(sample.zoneAuxiliary, sensor.vlZoneGroundMm,
+           sizeof(sensor.vlZoneGroundMm));
+    sample.planeAMilli = signedMilli(sensor.vlPlaneA);
+    sample.planeBMilli = signedMilli(sensor.vlPlaneB);
+    sample.planeCMm = positiveMillimetres(sensor.vlPlaneC);
+    sample.planeTiltCdeg = centiDegrees(sensor.vlTiltDeg);
+    sample.planeValid = sensor.vlPlaneValid ? 1 : 0;
+    sample.planeZones = sensor.vlZones;
+    sample.validZones = sensor.vlValidZones;
+    sample.targetZones = sensor.vlTargetZones;
+    sample.nearZones = sensor.vlNearZones;
+  }
   sample.presenceActive = behaviorTofPresenceActive() ? 1 : 0;
   sample.presenceRising = gPendingPresenceRising ? 1 : 0;
+  sample.rangeInteractionActive =
+      (gTelemetryFixtureClass == FIXTURE_DOWNLIGHT && sample.presenceActive) ||
+      (gTelemetryFixtureClass == FIXTURE_PERIMETER &&
+       sample.closestMm >= RES_TOF_INTERACTION_NEAR_MM &&
+       sample.closestMm <= RES_TOF_INTERACTION_MAX_MM);
   gPendingPresenceRising = false;
   sample.lifeState = gTelemetryLifeState;
   sample.program = gTelemetryProgram;
@@ -173,22 +209,26 @@ void motionTraceHandleHttp(WebServer &server) {
   uint32_t requested = server.hasArg("max")
                            ? parseUint32(server.arg("max"), 16)
                            : 16;
-  if (requested > 32) requested = 32;
-  MotionTraceSample batch[32];
+  if (requested > 16) requested = 16;
+  // Static storage avoids placing ~2 kB of packed trace records underneath
+  // WebServer's own handler stack. The server is single-threaded in loop().
+  static MotionTraceSample batch[16];
   uint32_t count = requested
                        ? motionTraceBufferCollectAfter(gTrace, after, batch,
                                                        requested)
                        : 0;
 
   String body;
-  body.reserve(512 + count * 360);
-  body += "{\"kind\":\"meta\",\"schema\":1,\"fixture_id\":\"";
+  body.reserve(640 + count * 520);
+  body += "{\"kind\":\"meta\",\"schema\":2,\"fixture_id\":\"";
   body += gShortId;
   body += "\",\"fw\":\"" RES_FIXTURE_VERSION "\",\"target\":\"";
   char target[7];
   snprintf(target, sizeof(target), "%06lX",
            (unsigned long)motionTraceTargetId());
   body += target;
+  body += "\",\"fixture_class\":\"";
+  body += fixtureClassName(gTelemetryFixtureClass);
   body += "\",\"sample_hz\":25,\"sample_bytes\":";
   body += String((unsigned)sizeof(MotionTraceSample));
   body += ",\"capacity\":" + String((unsigned long)gTrace.capacity);
@@ -211,15 +251,38 @@ void motionTraceHandleHttp(WebServer &server) {
             String(sample.gravityMg[1]) + ',' + String(sample.gravityMg[2]) + ']';
     body += ",\"tilt_cdeg\":" + String(sample.tiltCdeg);
     body += ",\"sway_mg\":" + String(sample.swayMg);
-    body += ",\"tmf_reads\":" + String((unsigned long)sample.tmfReads);
-    body += ",\"tof_depth_mm\":" + String(sample.tofDepthMm);
-    body += ",\"tof_confidence\":" + String(sample.tofConfidence);
-    body += ",\"tof_zone_mm\":";
-    appendArray(body, sample.tofZoneMm, MOTION_TRACE_ZONE_COUNT);
-    body += ",\"tof_zone_confidence\":";
-    appendArray(body, sample.tofZoneConfidence, MOTION_TRACE_ZONE_COUNT);
+    body += ",\"fixture_class\":" + String(sample.fixtureClass);
+    body += ",\"range_sensor\":" + String(sample.rangeSensor);
+    body += ",\"range_reads\":" + String((unsigned long)sample.rangeReads);
+    body += ",\"range_frame_ms\":" +
+            String((unsigned long)sample.rangeFrameMs);
+    body += ",\"closest_mm\":" + String(sample.closestMm);
+    if (sample.rangeSensor == MOTION_TRACE_RANGE_TMF8820) {
+      body += ",\"closest_confidence\":" + String(sample.closestConfidence);
+      body += ",\"tmf_zone_mm\":";
+      appendArray(body, sample.zonePrimary, 9);
+      body += ",\"tmf_zone_confidence\":";
+      appendArray(body, sample.zoneAuxiliary, 9);
+    } else if (sample.rangeSensor == MOTION_TRACE_RANGE_VL53L5CX) {
+      body += ",\"vl_zone_nearest_mm\":";
+      appendArray(body, sample.zonePrimary, MOTION_TRACE_ZONE_COUNT);
+      body += ",\"vl_zone_ground_mm\":";
+      appendArray(body, sample.zoneAuxiliary, MOTION_TRACE_ZONE_COUNT);
+      body += ",\"vl_plane_valid\":" + String(sample.planeValid);
+      body += ",\"vl_plane_a_milli\":" + String(sample.planeAMilli);
+      body += ",\"vl_plane_b_milli\":" + String(sample.planeBMilli);
+      body += ",\"vl_plane_c_mm\":" + String(sample.planeCMm);
+      body += ",\"vl_plane_tilt_cdeg\":" + String(sample.planeTiltCdeg);
+      body += ",\"vl_plane_zones\":" + String(sample.planeZones);
+      body += ",\"vl_valid_zones\":" + String(sample.validZones);
+      body += ",\"vl_target_zones\":" + String(sample.targetZones);
+      body += ",\"vl_near_zones\":" + String(sample.nearZones);
+      body += ",\"vl_no_return\":" + String(sample.validZones == 0 ? 1 : 0);
+    }
     body += ",\"presence_active\":" + String(sample.presenceActive);
     body += ",\"presence_rising\":" + String(sample.presenceRising);
+    body += ",\"range_interaction_active\":" +
+            String(sample.rangeInteractionActive);
     body += ",\"life_state\":" + String(sample.lifeState);
     body += ",\"program\":" + String(sample.program);
     body += ",\"power_tier\":" + String(sample.powerTier);

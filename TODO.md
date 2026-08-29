@@ -60,6 +60,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   use MSA311 as a blanket swing veto: that would erase the desired scanning
   behavior. Keep the currently proven thresholds until this trace exists
   (Ben/Codex; follows ADR 0070).
+- [~] **P1: characterize perimeter lights as constrained one-axis scanners.**
+  Installed perimeter suspension freezes yaw and roll but allows large pitch
+  swings. The outward VL53L5CX therefore alternates among a moving ground
+  plane, partial ground, people/objects, and potentially a pure sky/no-return
+  frame. Current visible modulation does not consume `vl_tilt_deg`, but it does
+  map the nearest 150-1,800 mm return directly to hue and 37 -> 19 -> 7 -> 1
+  ring peel. Swept ground can therefore impersonate distance interaction, while
+  a sky phase drops back to the base program. The old tilt telemetry also held
+  the last successful plane when a fresh fit failed. Source instrumentation now
+  records fresh plane-validity, explicit no-return frames, all 16 nearest
+  returns, all 16 farthest ground candidates, plane coefficients/counts,
+  full MSA gravity, range interaction, presence, and rendered output on one
+  clock. Next: identify one hanging perimeter, prebuild its exact `-t` image,
+  and pair its windy trace with the canopy run. Derive signed pitch offline from
+  the dominant gravity-vector axis; do not guess a board axis or stabilize away
+  the aesthetically useful scan before evidence (Ben/Codex; follows ADR 0027).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
   Exact outer downlight Rikku `9F26B0` is dark on
   `fx-260827-1254f04-p` with durable guard stage 4 / power tier 3 and an entry

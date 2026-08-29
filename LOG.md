@@ -10,6 +10,37 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Perimeter one-axis scanner recorder staged
+
+Ben observed that the installed perimeter suspension freezes yaw and roll but
+permits a large pitch swing. This invalidates a rigid ground-plane mental model:
+the 4x4 VL53L5CX can see a rapidly moving ground plane, a partial plane, or no
+ground at all when it points toward the sky. Inspection confirmed that the
+plane-fit tilt itself does not drive current visible behavior. The perimeter
+renderer instead maps the nearest valid 150-1,800 mm return to hue and HEX ring
+peel, so swept ground can still masquerade as an interaction and an expected
+sky frame can abruptly remove the override. `vl_tilt_deg` also retained its
+last value after a fresh fit failure, making it unsafe without frame validity.
+
+Generalized the exact-target motion recorder for either canopy/TMF or
+perimeter/VL53. A perimeter record now aligns 25 Hz raw/gravity motion with the
+5 Hz range-frame sequence, 16 nearest returns, 16 farthest ground candidates,
+closest range, valid/target/near/plane zone counts, fresh plane coefficients,
+fresh plane-validity/no-return truth, range-interaction state, deliberate cover
+presence, and rendered output. The full gravity vector supports an offline PCA
+signed-pitch coordinate without assuming that the physical hinge axis matches
+a particular sensor-board axis. The analyzer also estimates dominant swing
+period, one-axis variance fraction, return/plane duty, interaction duty, and an
+augmented CSV. No production threshold or renderer changed.
+
+The complete native fixture suite and six host capture/analysis tests pass. A
+full ESP32-S3 channel-11 test compile passes at 1,205,505 bytes program and
+68,836 bytes globals, emitting a 1,205,808-byte verification binary with
+SHA-256 `804dd9a71b825bd7936c618d4cc958703c629ffe659c908e49c548d2e01287ce`.
+This throwaway compile used a non-physical placeholder target and no WiFi
+credentials; it was not retained or flashed. Exact artifacts still require one
+visually confirmed hanging canopy ID and one hanging perimeter ID.
+
 ## 2026-08-29 -- Ben + Codex -- Windy-night canopy presence passes
 
 Ben physically located Sakura `F2BE0C` with Fleet Identify and corrected the

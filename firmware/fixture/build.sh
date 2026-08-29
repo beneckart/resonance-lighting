@@ -12,7 +12,7 @@
 #   ./build.sh --chem 3v7               # bench-only Li-ion build (default lfp)
 #   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
-#   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
+#   ./build.sh --motion-trace-target F2BE0C  # target-locked wind/range recorder
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -96,7 +96,7 @@ Common build options:
   --precharge-ma N            BQ precharge limit, 10..310 in 10 mA steps
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
-  --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
+  --motion-trace-target MAC   exact-target motion/range recorder; requires -t fw rev
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -260,7 +260,7 @@ while [[ $# -gt 0 ]]; do
     --day-sleep-s) DAY_SLEEP_S="$2"; shift 2 ;;
     --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2 ;;
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
-    --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
+    --motion-trace-target|--msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -314,11 +314,11 @@ if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
 fi
 if [[ -n "$MSA_TRACE_TARGET" ]]; then
   [[ "$MSA_TRACE_TARGET" =~ ^[0-9A-F]{6}$ ]] || {
-    echo "bad --msa-trace-target: $MSA_TRACE_TARGET (expected six hex digits)" >&2
+    echo "bad --motion-trace-target: $MSA_TRACE_TARGET (expected six hex digits)" >&2
     exit 2
   }
   [[ -z "$DEEP_RECOVERY_TARGET" ]] ||
-    fail "--msa-trace-target cannot be combined with --deep-recovery-target"
+    fail "--motion-trace-target cannot be combined with --deep-recovery-target"
 fi
 
 # An explicit source replaces stale local credentials before compilation. This
@@ -374,7 +374,7 @@ if [[ -n "$DEEP_RECOVERY_TARGET" ]]; then
 fi
 if [[ -n "$MSA_TRACE_TARGET" ]]; then
   [[ -n "$FW_REV" && "$FW_REV" == *-t ]] || {
-    echo "--msa-trace-target requires an explicit test-class (-t) --fw-rev" >&2
+    echo "--motion-trace-target requires an explicit test-class (-t) --fw-rev" >&2
     exit 2
   }
   FLAGS+=" -DRES_MSA_TRACE_TARGET=0x${MSA_TRACE_TARGET}UL"

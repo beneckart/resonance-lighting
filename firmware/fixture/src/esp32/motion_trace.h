@@ -1,4 +1,4 @@
-// Exact-target, test-image-only MSA311/TMF/visible-output flight recorder.
+// Exact-target, test-image-only MSA311/range/visible-output flight recorder.
 // Samples accumulate in PSRAM during ordinary ESP-NOW operation and are read
 // later through a bounded maintenance-WiFi NDJSON endpoint.
 #pragma once

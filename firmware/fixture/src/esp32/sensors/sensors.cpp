@@ -102,6 +102,7 @@ static void handleTmfMeasurement(struct tmf882x_msg_meas_results *results) {
   if (!results) return;
   gSnap.tmfOk = true;
   gSnap.tmfReads++;
+  gSnap.tmfFrameMs = millis();
   tmfRecoveryObserve(gTmfRecovery, true);
   // Every completed report describes a new scene. Clear the previous return
   // before scanning so an empty report cannot masquerade as a person who is
@@ -284,6 +285,8 @@ static void vlTick(uint32_t now) {
   static VL53L5CX_ResultsData results;
   if (!gVl.getRangingData(&results)) return;
   ++gSnap.vlReads;
+  gSnap.vlFrameMs = now;
+  gSnap.vlPlaneValid = false;
   // ULD per-target arrays are zone-major (zone * VL53L5CX_NB_TARGET_PER_ZONE
   // + target, per-zone nb_target_detected gates stale entries); selection
   // lives in core/tof_grid so the native tests pin that layout.
@@ -312,6 +315,7 @@ static void vlTick(uint32_t now) {
       results.distance_mm, results.target_status, results.nb_target_detected,
       TOF_ZONES, VL53L5CX_NB_TARGET_PER_ZONE, 30, 4000,
       gSnap.vlZoneNearestMm);
+  memcpy(gSnap.vlZoneGroundMm, zoneMm, sizeof(gSnap.vlZoneGroundMm));
   float px[TOF_ZONES], py[TOF_ZONES], pz[TOF_ZONES];
   bool keep[TOF_ZONES];
   for (int i = 0; i < TOF_ZONES; i++) {
@@ -333,6 +337,10 @@ static void vlTick(uint32_t now) {
       gVlRestSet = true;
     }
     gSnap.vlTiltDeg = planeTiltDeg(a, b, gVlRestA, gVlRestB);
+    gSnap.vlPlaneA = a;
+    gSnap.vlPlaneB = b;
+    gSnap.vlPlaneC = c;
+    gSnap.vlPlaneValid = true;
     gSnap.vlOk = true;
   }
   gSnap.vlClosestMm = closest;

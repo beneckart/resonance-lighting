@@ -1,8 +1,9 @@
-# Canopy motion trace field run
+# Hanging-fixture motion trace field run
 
-Use this runbook to measure a hanging downlight's wind-driven two-axis motion
-against TMF presence and visible output. The test image is a short-lived,
-exact-target instrument. It is never a fleet artifact.
+Use this runbook to measure a canopy downlight's wind-driven two-axis motion or
+a perimeter light's constrained pitch swing against range sensing and visible
+output. The test image is a short-lived, exact-target instrument. It is never a
+fleet artifact.
 
 ## What the recorder captures
 
@@ -10,13 +11,16 @@ At the fixture's existing 25 Hz cooperative MSA311 cadence:
 
 - raw X/Y/Z acceleration and the low-pass gravity vector, in mg;
 - tilt from boot rest, in centidegrees, and the current sway envelope, in mg;
-- TMF report sequence, closest depth/confidence, and all nine zone depths and
-  confidences;
+- canopy/TMF report sequence, closest depth/confidence, and all nine zone
+  depths and confidences; or
+- perimeter/VL53L5CX report sequence, all 16 nearest returns, all 16 farthest
+  ground candidates, closest range, target/valid/near/plane zone counts, fresh
+  plane coefficients/tilt/validity, and explicit no-return frames;
 - the production presence latch and rising edge;
 - lifecycle, program, power tier, and the rendered LED rail/color/pixel count.
 
 The recorder stores 8,192 samples in PSRAM, about 5.5 minutes. If PSRAM
-allocation fails, it explicitly reports a 1,024-sample, roughly 41-second
+allocation fails, it explicitly reports a 512-sample, roughly 20-second
 internal-RAM fallback. Recording occurs during ordinary mesh/show behavior.
 Maintenance mode is used only afterward to drain the retained history, and it
 keeps the LED rail off.
@@ -28,7 +32,7 @@ keeps the LED rail off.
 2. Record its exact six-digit short MAC, current firmware revision, profile,
    class, power state, and the exact prior artifact/SHA before any write.
 3. Declare one OTA writer. The trace build must use
-   `--msa-trace-target <SHORT_MAC>` and an immutable `-t` revision. The firmware
+   `--motion-trace-target <SHORT_MAC>` and an immutable `-t` revision. The firmware
    disables recording if the physical short MAC differs from the compiled one.
 4. Target that one MAC only. Require a production battery or another proven
    stable supply, exact endpoint identity, fresh post-reboot heartbeat, exact
@@ -40,8 +44,9 @@ keeps the LED rail off.
 
 ## Suggested five-minute scene
 
-After the test image has rebooted and TMF has had at least 30 seconds to learn
-the hanging background, call out the wall-clock time at each transition:
+After the test image has rebooted and a canopy TMF has had at least 30 seconds
+to learn the hanging background, call out the wall-clock time at each
+transition:
 
 1. 60 seconds: wind only; nobody under or near the chosen cone.
 2. 60 seconds: one person stands still under the nominal fixture position.
@@ -72,7 +77,7 @@ python ops/bench/capture_motion_trace.py \
   --expect-fw fx-260829-1234567-t \
   --history-s 300 \
   --label wind-still-walk-leave \
-  --out "ops/bench/data/Black Rock City/2026-08-29-abcdef-canopy-motion.jsonl"
+  --out "ops/bench/data/Black Rock City/2026-08-29-abcdef-hanging-motion.jsonl"
 ```
 
 Do not use `--live-s` for the primary artistic trace: behavior is paused in
@@ -88,6 +93,16 @@ only for sensor/readout diagnostics.
 - Does visible white chatter, or does the current latch bridge adjacent sweeps?
 - Can sway drive color/phase without attenuating brightness or vetoing the
   desirable wind-assisted scanner behavior?
+- For a perimeter light, what fraction of pitch phases show ground, partial
+  ground, or no return at all?
+- Does the current 150-1,800 mm nearest-return mapping mistake swept ground for
+  a person, and does it drop abruptly during expected sky phases?
+
+Run `ops/bench/analyze_motion_trace.py` immediately after capture. It derives a
+signed principal swing coordinate from the full gravity vectors (so the
+perimeter mounting need not align pitch with a guessed sensor axis), estimates
+the dominant period and one-axis variance fraction, reports plane/no-return and
+interaction duty, and can exclusive-create an augmented CSV plus summary JSON.
 
 Prefer modulation from swing phase, direction, hue, or temporal accents. Do not
 make MSA motion a blanket brightness reduction or ToF veto.

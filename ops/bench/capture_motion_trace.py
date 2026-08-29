@@ -62,10 +62,21 @@ def preflight_fixture(data: dict, target: str, expect_fw: str) -> None:
         raise ValueError("trace image is compiled for a different target")
     if not data.get("motion_trace_target_match"):
         raise ValueError("fixture reports that the compiled trace target does not match")
-    if data.get("fixture_class") != "downlight":
-        raise ValueError(f"fixture is {data.get('fixture_class')!r}, not a downlight")
+    fixture_class = data.get("fixture_class")
+    if fixture_class not in {"downlight", "perimeter"}:
+        raise ValueError(
+            f"fixture is {fixture_class!r}, not a traceable downlight/perimeter"
+        )
     if not data.get("msa311_present") or not data.get("msa_read_ok"):
         raise ValueError("MSA311 is absent or not producing valid samples")
+    if fixture_class == "downlight" and (
+        not data.get("tmf8820_present") or not data.get("tmf_read_ok")
+    ):
+        raise ValueError("downlight TMF8820 is absent or not producing valid frames")
+    if fixture_class == "perimeter" and (
+        not data.get("vl53l5cx_present") or not data.get("vl_read_ok")
+    ):
+        raise ValueError("perimeter VL53L5CX is absent or not producing valid frames")
     if int(data.get("mode", -1)) != 1 or int(data.get("maint_status", -1)) != 1:
         raise ValueError("fixture is not identity-ready in active maintenance mode")
     if int(data.get("motion_trace_capacity", 0)) <= 0:
@@ -154,7 +165,7 @@ def main() -> None:
 
             while True:
                 batch_meta, samples = parse_trace_ndjson(
-                    fetch_text(endpoint(args.host, cursor, 32), args.timeout)
+                    fetch_text(endpoint(args.host, cursor, 16), args.timeout)
                 )
                 for sample in samples:
                     seq = int(sample["seq"])

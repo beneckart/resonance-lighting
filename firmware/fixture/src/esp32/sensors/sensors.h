@@ -24,6 +24,7 @@ struct SensorSnapshot {
   uint16_t tofZoneMm[9];         // closest confident return per 3x3 channel
   uint16_t tofZoneConfidence[9];
   uint32_t tmfReads, tmfErrors, tmfRecoveries;
+  uint32_t tmfFrameMs; // uptime of the latest completed report
   uint8_t tmfDomainResets; // bounded full VSQT + driver rebuilds this boot
   // VL53L5CX plane fit (perimeter)
   bool vlPresent, vlOk;
@@ -35,6 +36,10 @@ struct SensorSnapshot {
   uint8_t vlTargetZones; // zones reporting any raw target this frame
   uint8_t vlValidZones; // zones with a valid 30..4000 mm return this frame
   uint16_t vlZoneNearestMm[16]; // nearest valid return per 4x4 zone
+  uint16_t vlZoneGroundMm[16]; // farthest valid ground candidate per 4x4 zone
+  uint32_t vlFrameMs; // uptime of the latest completed ranging frame
+  bool vlPlaneValid; // fit succeeded for this exact frame (false includes sky)
+  float vlPlaneA, vlPlaneB, vlPlaneC; // current z=a*x+b*y+c fit
   // BMP581 env (uplight)
   bool bmpPresent, bmpOk;
   float tempC;

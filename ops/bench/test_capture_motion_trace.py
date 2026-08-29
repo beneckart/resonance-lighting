@@ -18,6 +18,8 @@ class MotionTraceTests(unittest.TestCase):
             "fixture_class": "downlight",
             "msa311_present": True,
             "msa_read_ok": True,
+            "tmf8820_present": True,
+            "tmf_read_ok": True,
             "mode": 1,
             "maint_status": 1,
         }
@@ -36,6 +38,18 @@ class MotionTraceTests(unittest.TestCase):
         bad["msa_read_ok"] = False
         with self.assertRaisesRegex(ValueError, "MSA311"):
             trace.preflight_fixture(bad, "9E5A84", "fx-260829-abcdef0-t")
+
+    def test_preflight_accepts_healthy_perimeter_and_requires_vl53(self):
+        perimeter = self.fixture()
+        perimeter["fixture_class"] = "perimeter"
+        perimeter["tmf8820_present"] = False
+        perimeter["tmf_read_ok"] = False
+        perimeter["vl53l5cx_present"] = True
+        perimeter["vl_read_ok"] = True
+        trace.preflight_fixture(perimeter, "9E5A84", "fx-260829-abcdef0-t")
+        perimeter["vl_read_ok"] = False
+        with self.assertRaisesRegex(ValueError, "VL53L5CX"):
+            trace.preflight_fixture(perimeter, "9E5A84", "fx-260829-abcdef0-t")
 
     def test_history_cursor_is_bounded_by_retained_window(self):
         meta = {"oldest_seq": 100, "newest_seq": 1000, "sample_hz": 25}

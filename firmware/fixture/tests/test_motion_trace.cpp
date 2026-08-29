@@ -10,6 +10,8 @@ static MotionTraceSample sampleAt(uint32_t uptimeMs) {
 }
 
 int main() {
+  static_assert(sizeof(MotionTraceSample) <= 128,
+                "five-minute PSRAM trace record grew unexpectedly");
   MotionTraceSample storage[3] = {};
   MotionTraceBuffer buffer;
   motionTraceBufferInit(buffer, storage, 3);

@@ -5,7 +5,13 @@
 
 #include <stdint.h>
 
-#define MOTION_TRACE_ZONE_COUNT 9
+#define MOTION_TRACE_ZONE_COUNT 16
+
+enum MotionTraceRangeSensor : uint8_t {
+  MOTION_TRACE_RANGE_NONE = 0,
+  MOTION_TRACE_RANGE_TMF8820 = 1,
+  MOTION_TRACE_RANGE_VL53L5CX = 2,
+};
 
 struct __attribute__((packed)) MotionTraceSample {
   uint32_t seq;
@@ -14,13 +20,29 @@ struct __attribute__((packed)) MotionTraceSample {
   int16_t gravityMg[3];
   uint16_t tiltCdeg;
   uint16_t swayMg;
-  uint32_t tmfReads;
-  uint16_t tofDepthMm;
-  uint16_t tofConfidence;
-  uint16_t tofZoneMm[MOTION_TRACE_ZONE_COUNT];
-  uint16_t tofZoneConfidence[MOTION_TRACE_ZONE_COUNT];
+  uint8_t fixtureClass;
+  uint8_t rangeSensor;
+  uint32_t rangeReads;
+  uint32_t rangeFrameMs;
+  uint16_t closestMm;
+  uint16_t closestConfidence;
+  // TMF: primary=3x3 nearest range, auxiliary=confidence (first 9 slots).
+  // VL53: primary=4x4 nearest range, auxiliary=farthest ground candidate.
+  uint16_t zonePrimary[MOTION_TRACE_ZONE_COUNT];
+  uint16_t zoneAuxiliary[MOTION_TRACE_ZONE_COUNT];
+  // VL53 plane fit for the current frame. Slopes are a/b * 1000; c is mm.
+  int16_t planeAMilli;
+  int16_t planeBMilli;
+  uint16_t planeCMm;
+  uint16_t planeTiltCdeg;
+  uint8_t planeValid;
+  uint8_t planeZones;
+  uint8_t validZones;
+  uint8_t targetZones;
+  uint8_t nearZones;
   uint8_t presenceActive;
   uint8_t presenceRising;
+  uint8_t rangeInteractionActive;
   uint8_t lifeState;
   uint8_t program;
   uint8_t powerTier;

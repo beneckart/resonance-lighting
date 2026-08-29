@@ -33,7 +33,7 @@ grep -Fq -- 'Shared/fleet artifacts must omit --dev-cache' <<< "$help" ||
 grep -Fq -- 'dev-local' <<< "$help" || fail "help omits development identity"
 grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
 grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
-grep -Fq -- '--msa-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
+grep -Fq -- '--motion-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -46,9 +46,9 @@ expect_rejected 'bad --day-sleep-s' --day-sleep-s 29
 expect_rejected 'bad --day-sleep-s' --day-sleep-s invalid
 expect_rejected 'bad --wake-listen-ms' --wake-listen-ms 999
 expect_rejected 'bad --wake-listen-ms' --wake-listen-ms invalid
-expect_rejected 'bad --msa-trace-target' --msa-trace-target invalid
-expect_rejected '--msa-trace-target requires an explicit test-class' \
-  --msa-trace-target F2BE0C --fw-rev fx-260829-0000000-p
+expect_rejected 'bad --motion-trace-target' --motion-trace-target invalid
+expect_rejected '--motion-trace-target requires an explicit test-class' \
+  --motion-trace-target F2BE0C --fw-rev fx-260829-0000000-p
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"
