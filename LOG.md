@@ -10,6 +10,45 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-28 -- Ben + Codex -- Build-week palette, HEX power, and ToF sprint
+
+Started the final build-week interaction sprint in an isolated clean worktree
+from current `origin/main`; the active checkout's unrelated dirty T-Deck work
+was not moved or modified. Upstream already recorded Ben's physical fleet truth:
+20 manufactured uplights, with four former planning allocations returned to
+unassigned, so no duplicate roster edit was needed.
+
+ADR 0069 adds three bounded fixture-side improvements. First, the physical
+37-pixel RGB HEX driver now budgets the rendered frame to 765 linear RGB channel
+units after composing the existing battery-tier brightness cap. A sparse gobo
+at or below one full RGB pixel/three full saturated channels remains unscaled;
+dense washes are uniformly scaled with fail-safe downward rounding. Point RGBW
+and uplight RGB output behavior is unchanged.
+
+Second, autonomous GH CA uses the existing trusted UTC estimate for a
+synchronized palette step every 20 minutes, with a six-step/two-hour loop.
+Invalid time preserves the configured hue, and a bridge-owned program keeps its
+requested palette. This is the first synchronized artistic cadence, not yet
+program-ID rotation.
+
+Third, a post-program local interaction layer restores continuous ToF behavior
+without changing `packet.h`. From 150 through 1,800 mm, distance drives color;
+the perimeter HEX peels 37 -> 19 -> 7 -> 1 pixels as someone approaches, and a
+downlight switches to its full dedicated-W point source at <=380 mm for the
+crisp gobo pop. It applies to any visible program, including direct bridge
+frames, but an all-zero/suppressed frame remains dark and the physical current
+budget plus all existing power vetoes remain downstream. MSA311 motion input is
+plumbed into the same pure layer with a canary switch, but normal builds leave
+it disabled until installed wind-versus-human traces set threshold/hysteresis/
+hold behavior. BMP581 and multi-fixture aggregate gestures remain open.
+
+The complete native fixture suite passed. A guarded commission/listener
+PowerFeather development compile also passed at 1,201,937 bytes program and
+68,708 bytes globals; its 1,202,240-byte binary has SHA-256
+`9f9cd933e3c1a51929824d625e49d916be1fab298cf1aa9aea554d2d8e4a060f`.
+This dirty `dev-local` binary is compile evidence only: nothing was flashed or
+published. Named battery-installed perimeter and downlight canaries are next.
+
 ## 2026-08-28 -- Ben + Codex -- All 20 manufactured uplights updated
 
 Declared one OTA writer and reused immutable artifact

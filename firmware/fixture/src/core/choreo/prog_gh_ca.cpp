@@ -16,6 +16,7 @@
 #include "program.h"
 
 #include "../hex_geometry.h"
+#include "../show_palette.h"
 
 class ProgGhCa : public Program {
 public:
@@ -117,6 +118,8 @@ private:
   void render(const ProgramInputs &in, ProgramOutputs &out) {
     out.frame.count = (uint8_t)mPixels;
     frameClear(out.frame);
+    uint8_t renderHue =
+        showPaletteHue(mHue, in.synchronizedPalette, in.utcValid, in.utcS);
     uint8_t intensity = 0;
     if (mState == 1) {
       // Excited: ~200 ms attack to full, hold for the tick.
@@ -132,7 +135,7 @@ private:
 
     if (mPixels == 1) {
       uint8_t r, g, b;
-      hueToRgb(mHue, intensity, r, g, b);
+      hueToRgb(renderHue, intensity, r, g, b);
       out.frame.px[0][0] = r;
       out.frame.px[0][1] = g;
       out.frame.px[0][2] = b;
@@ -152,7 +155,7 @@ private:
         if (ring > front) break;
         uint8_t v = (ring == front) ? intensity : intensity / (2 + ring);
         uint8_t r, g, b;
-        hueToRgb(mHue, v, r, g, b);
+        hueToRgb(renderHue, v, r, g, b);
         for (int i = 0; i < geo.ringSize[ring]; i++) {
           uint8_t p = geo.ringMembers[ring][i];
           out.frame.px[p][0] = r;
@@ -163,7 +166,7 @@ private:
     } else {
       uint8_t v = intensity;
       uint8_t r, g, b;
-      hueToRgb(mHue, v, r, g, b);
+      hueToRgb(renderHue, v, r, g, b);
       uint8_t c = geo.spiralOrder[0];
       out.frame.px[c][0] = r;
       out.frame.px[c][1] = g;

@@ -49,6 +49,11 @@ struct ProgramInputs {
   const ShowFrameState *showFrame;
   uint8_t tier;        // LedTier as byte; programs may adapt artistically
   uint8_t tickDivider; // power throttle (runtime pre-applies; informational)
+  // Valid shared UTC lets autonomous programs make fleet-synchronous choices.
+  // Bridge-owned programs keep their requested palette exactly.
+  bool synchronizedPalette;
+  bool utcValid;
+  uint32_t utcS;
   // One fresh, debounced local ToF presence edge. Programs must explicitly
   // opt in; it is never a continuing level or actuator permission.
   bool tofPresenceRising;

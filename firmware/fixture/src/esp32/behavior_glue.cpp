@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "../core/choreo/program.h"
+#include "../core/interaction_modulator.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
 #include "../core/presence_wave.h"
@@ -34,6 +35,9 @@
 #define RES_WAVE_VISITED_MAX 160
 #define RES_WAVE_HOPS 150
 #define RES_WAVE_ORIGIN_COOLDOWN_MS 2000
+#ifndef RES_MSA_LOCAL_INTERACTION
+#define RES_MSA_LOCAL_INTERACTION 0
+#endif
 
 static ChoreoRuntime gRuntime;
 static NeighborTable gNeighbors;
@@ -98,6 +102,33 @@ static bool commissionListenerFallback() {
 static bool commissionDarkFallback() {
   return gCfg.profile == PROFILE_DEV &&
          gCfg.commissionDefault == COMMISSION_DEFAULT_DARK;
+}
+
+static void applyLocalInteraction(FrameBuffer &frame) {
+  const SensorSnapshot &snapshot = sensors();
+  LocalInteractionInputs inputs = {};
+  inputs.fixtureClass = gClass;
+  if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
+      snapshot.tofDepthMm) {
+    inputs.tofValid = true;
+    float filtered = snapshot.tofDepthFilteredMm;
+    inputs.tofDistanceMm =
+        filtered >= 1.0f && filtered <= 65535.0f
+            ? (uint16_t)(filtered + 0.5f)
+            : snapshot.tofDepthMm;
+  } else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent &&
+             snapshot.vlOk && snapshot.vlClosestMm) {
+    inputs.tofValid = true;
+    inputs.tofDistanceMm = snapshot.vlClosestMm;
+  }
+  inputs.msaValid = snapshot.msaPresent && snapshot.msaOk;
+  if (snapshot.swayEnvG > 0.0f) {
+    float swayMg = snapshot.swayEnvG * 1000.0f;
+    inputs.msaSwayMg =
+        swayMg >= 65535.0f ? 65535u : (uint16_t)(swayMg + 0.5f);
+  }
+  inputs.msaInteractionEnabled = RES_MSA_LOCAL_INTERACTION != 0;
+  interactionApply(frame, inputs);
 }
 
 static void waveClear() {
@@ -520,6 +551,9 @@ void behaviorTick() {
     pin.showFrame = &fs;
     pin.tier = (uint8_t)pb.tier;
     pin.tickDivider = pb.tick_divider;
+    pin.synchronizedPalette = !gRuntime.leaseActive();
+    pin.utcValid = wall.valid;
+    pin.utcS = wall.utcS;
     pin.tofPresenceRising = gTofPresenceRising;
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
@@ -535,6 +569,7 @@ void behaviorTick() {
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
 #endif
+    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -586,6 +621,9 @@ void behaviorTick() {
     pin.showFrame = &fs;
     pin.tier = (uint8_t)pb.tier;
     pin.tickDivider = pb.tick_divider;
+    pin.synchronizedPalette = !gRuntime.leaseActive();
+    pin.utcValid = wall.valid;
+    pin.utcS = wall.utcS;
     pin.tofPresenceRising = gTofPresenceRising;
     ProgramOutputs pout = {};
     gRuntime.tick(pin, pout);
@@ -594,6 +632,7 @@ void behaviorTick() {
     handleProgramStrike(pout);
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
+    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
