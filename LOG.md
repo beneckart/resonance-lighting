@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Completed-work integration prepared for main
+
+Collected every unique completed change from the active fixture, daytime
+ritual, canopy canary, and PUCA worktrees onto current `origin/main` without
+mutating or discarding their source histories. The integration retains the raw
+Spyro, Gible, Astro, Donkey, and fleet-operation ledgers; combines the canopy
+motion/presence diagnostics with automatic immutable artifact identity; keeps
+PROTECT sleep ownership in power policy; and includes the hourly cymbal ritual,
+fail-closed sentinel persistence, Spyro post-mortem, installed-height findings,
+and capacitive-paw validation. Two retained Spyro JSONL records were normalized
+from CRLF to LF with no JSON content change.
+
+The complete fixture native suite passes, including the build-wrapper artifact
+contract and all combined lifecycle, ritual, motion, and sentinel regressions.
+The PUCA native suite passes 129 checks, and 41 focused Python motion, sentinel,
+dashboard OTA, and dashboard tests pass. Final integration is ready for the
+explicit `origin/main` update requested by Ben.
+
 ## 2026-08-29 -- Ben + Codex -- Eevee recovered from low-voltage PROTECT
 
 Exact outer-ring downlight Eevee `9F0E54` / `D8:85:AC:9F:0E:54` appeared on
