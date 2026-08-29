@@ -93,7 +93,7 @@ holdover.
         - ESP-NOW time-quality beacons -> remaining fixtures
 
         Noisemaker (DECIDED, ADR 0030): the "solarnoid" -- VDC-tap
-        solar supply + cap + solenoid + mallet strikes the bamboo.
+        solar supply + cap + solenoid + mallet strikes a finger cymbal.
         Daytime percussion; LARGE-hat fixtures (downlights) only
 ```
 

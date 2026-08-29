@@ -151,11 +151,14 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   // continuous probe either confirms DAY_ACTIVE or the current falls away.
   out.solarProbeActive = st.state == LIFE_DAY_CHARGE && solarEnter &&
                          st.surplusHeldSinceMs != 0;
-  // Day-charge duty cycle (prod only): sleep unless recently booted/woken or
-  // an actual operator command was accepted (ordinary fleet heartbeats and
-  // time beacons must never keep every fixture awake indefinitely).
+  // Daytime duty cycle (prod only): energy readiness grants actuator
+  // permission, not an all-day radio lease. Sleep from DAY_CHARGE or
+  // DAY_ACTIVE unless recently booted/woken or an actual operator command was
+  // accepted. Platform glue may hold one fixed UTC ritual window. Ordinary
+  // fleet heartbeats and time beacons never keep every fixture awake.
   bool rxHold = in.lastRxMs && (in.nowMs - in.lastRxMs) < in.rxHoldMs;
-  out.wantSleep = (st.state == LIFE_DAY_CHARGE) && !c.devNoSleep && !rxHold &&
+  bool daytime = st.state == LIFE_DAY_CHARGE || st.state == LIFE_DAY_ACTIVE;
+  out.wantSleep = daytime && !c.devNoSleep && !rxHold &&
                   !out.solarProbeActive &&
                   (int32_t)(in.nowMs - in.awakeGraceUntilMs) >= 0;
   out.sleepS = c.daySleepS;

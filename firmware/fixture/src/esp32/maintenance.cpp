@@ -11,6 +11,7 @@
 #include "identity.h"
 #include "loads.h"
 #include "motion_trace.h"
+#include "sentinel_trace.h"
 #include "sensors/sensor_bus.h"
 #include "telemetry.h"
 #include "../core/wifi_credential_plan.h"
@@ -127,6 +128,10 @@ static void configureOtaRoutes() {
 #if defined(RES_MSA_TRACE_TARGET)
   gServer.on("/motion-trace", HTTP_GET,
              []() { motionTraceHandleHttp(gServer); });
+#endif
+#if defined(RES_SENTINEL_TRACE_TARGET)
+  gServer.on("/sentinel-trace", HTTP_GET,
+             []() { sentinelTraceHandleHttp(gServer); });
 #endif
   gServer.on("/rtc", HTTP_POST, handleRtcCommission);
   gServer.on("/resume", HTTP_GET, []() {

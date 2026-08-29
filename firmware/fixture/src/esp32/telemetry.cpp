@@ -16,6 +16,7 @@
 #include "nvs_store.h"
 #include "sensors/sensor_bus.h"
 #include "sensors/sensors.h"
+#include "sentinel_trace.h"
 #include "solenoid.h"
 #include "sleep_audit_io.h"
 
@@ -260,6 +261,24 @@ String telemetryJson() {
          String((unsigned long)motionTraceCount());
     j += ",\"motion_trace_overwrites\":" +
          String((unsigned long)motionTraceOverwrites());
+  }
+  j += ",\"sentinel_trace_build\":";
+  j += sentinelTraceBuild() ? "true" : "false";
+  if (sentinelTraceBuild()) {
+    char target[7];
+    snprintf(target, sizeof(target), "%06lX",
+             (unsigned long)sentinelTraceTargetId());
+    j += ",\"sentinel_trace_target\":\"" + String(target) + "\"";
+    j += ",\"sentinel_trace_target_match\":";
+    j += sentinelTraceTargetMatches() ? "true" : "false";
+    j += ",\"sentinel_trace_phase\":\"" +
+         String(sentinelTracePhaseName(sentinelTracePhase())) + "\"";
+    j += ",\"sentinel_trace_capacity\":" +
+         String((unsigned long)sentinelTraceCapacity());
+    j += ",\"sentinel_trace_count\":" +
+         String((unsigned long)sentinelTraceCount());
+    j += ",\"sentinel_trace_overwrites\":" +
+         String((unsigned long)sentinelTraceOverwrites());
   }
   const SensorSnapshot &sn = sensors();
   j += ",\"msa311_present\":";

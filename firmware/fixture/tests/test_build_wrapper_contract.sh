@@ -34,6 +34,8 @@ grep -Fq -- 'dev-local' <<< "$help" || fail "help omits development identity"
 grep -Fq -- '--day-sleep-s N' <<< "$help" || fail "help omits day sleep cadence"
 grep -Fq -- '--wake-listen-ms N' <<< "$help" || fail "help omits wake listen cadence"
 grep -Fq -- '--msa-trace-target MAC' <<< "$help" || fail "help omits exact-target motion trace"
+grep -Fq -- '--sentinel-trace-target MAC' <<< "$help" ||
+  fail "help omits exact-target sentinel trace"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -49,6 +51,12 @@ expect_rejected 'bad --wake-listen-ms' --wake-listen-ms invalid
 expect_rejected 'bad --msa-trace-target' --msa-trace-target invalid
 expect_rejected '--msa-trace-target requires an explicit test-class' \
   --msa-trace-target F2BE0C --fw-rev fx-260829-0000000-p
+expect_rejected 'bad --sentinel-trace-target' --sentinel-trace-target invalid
+expect_rejected '--sentinel-trace-target requires an explicit test-class' \
+  --sentinel-trace-target A1B2C3 --fw-rev fx-260829-0000000-p
+expect_rejected '--sentinel-trace-target cannot be combined with --msa-trace-target' \
+  --sentinel-trace-target A1B2C3 --msa-trace-target F2BE0C \
+  --fw-rev fx-260829-0000000-t
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"

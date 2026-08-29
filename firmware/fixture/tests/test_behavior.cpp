@@ -376,6 +376,11 @@ int main() {
     }
     CHECK_EQ(o.state, (uint8_t)LIFE_DAY_ACTIVE);
     CHECK(o.strikesAllowed); // tier FULL (0), surplus
+    // Energy-ready is not an all-day radio lease once the boot grace expires.
+    in.awakeGraceUntilMs = 0;
+    in.nowMs = (t += 1000);
+    o = lifeTick(st, in, prod);
+    CHECK(o.wantSleep);
     // Supply dies: 30 min sustained absence -> NIGHT.
     in.supplyGood = false;
     in.supplyMa = 0;
@@ -493,7 +498,7 @@ int main() {
     CHECK(o.strikesAllowed);
 
     // Entry and strike permission use 150 mA, while 100 mA hysteresis keeps
-    // an already-active fixture awake through modest solar variation.
+    // an already energy-ready fixture in that state through solar variation.
     in.supplyMa = 120;
     in.nowMs = 62000;
     o = lifeTick(st, in, prod);

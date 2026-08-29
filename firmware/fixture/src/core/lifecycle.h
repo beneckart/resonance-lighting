@@ -13,7 +13,7 @@
 enum LifeState : uint8_t {
   LIFE_BOOT = 0,
   LIFE_DAY_CHARGE = 1, // day, no surplus: prod duty-cycles the radio
-  LIFE_DAY_ACTIVE = 2, // day, surplus: fully awake, strikes permitted
+  LIFE_DAY_ACTIVE = 2, // day, surplus: energy-ready; strikes permitted
   LIFE_NIGHT_SHOW = 3, // program runtime drives the LEDs (power veto applies)
   LIFE_COMMISSION = 4, // bridge-commanded runtime; no solar/autonomous transition
 };
@@ -63,7 +63,7 @@ struct LifeOutputs {
   bool showActive;     // run the program runtime + choreo tx
   bool strikesAllowed; // daytime-surplus gate (ANDed with power.may_strike)
   bool solarProbeActive; // measured surplus is extending a DAY_CHARGE wake
-  bool wantSleep;      // prod DAY_CHARGE duty cycle
+  bool wantSleep;      // prod daytime radio duty cycle (CHARGE or ACTIVE)
   uint16_t sleepS;
   uint16_t nightMin;   // minutes into the current night (heartbeat tail 13)
 };

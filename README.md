@@ -73,7 +73,8 @@ chandelier PowerFeathers are rostered by exact MAC and persist `class_ovr=4`
 before installation. BMP581 is non-classifying environmental telemetry on the
 outer 24 downlights. Fused IMUs were rejected (per-device calibration does not
 scale to the fleet). The **noisemaker**
-is decided (ADR 0030): a solenoid mallet physically strikes the bamboo -- daytime
+is decided (ADR 0030/0071): a solenoid mallet physically strikes an installed
+finger cymbal on each canopy bamboo assembly -- daytime
 solar-surplus percussion; the speaker-synth path was abandoned once the strikes
 proved out.
 

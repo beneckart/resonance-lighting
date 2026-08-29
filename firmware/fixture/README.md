@@ -128,6 +128,8 @@ tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ./build.sh --wifi-source <gitignored-header>  # solenoid capability is universal
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ./build.sh --profile field --day-sleep-s 120 --wake-listen-ms 12000 # ADR 0064 canary
+./build.sh --msa-trace-target ABCDEF --fw-rev fx-YYMMDD-xxxxxxx-t
+./build.sh --sentinel-trace-target ABCDEF --fw-rev fx-YYMMDD-xxxxxxx-t
 ```
 
 For ordinary edit/compile iteration, use the persistent development cache:
@@ -357,7 +359,7 @@ its setting can be RAM-only until reboot or explicitly persisted with
 loads; its commission-mode retry is 60 s, and a verified external source keeps
 the parked control plane awake for service.
 
-`PROFILE_PROD=1` is the operator-facing **field** profile: 300 s/15 s day-charge
+`PROFILE_PROD=1` is the operator-facing **field** profile: 300 s/15 s daytime
 duty cycle (energy-gated), 0.2 Hz hb-short, scheduled/autonomous behavior, and the
 normal 900 s PROTECT sleep. Local power and solenoid safety vetoes are identical
 in both profiles; commission changes reachability and fallback behavior, not load
@@ -369,11 +371,21 @@ profile, so it cannot replace the scheduled night CA or daytime sleep policy.
 A timer wake with FULL power tier and measured good input at or above 150 mA
 holds a RAM-only solar probe awake beyond the ordinary 15-second window. Sixty
 continuous seconds earns `DAY_ACTIVE`; a transient clears immediately and
-returns to the normal cadence. Once active, 100 mA is the remain-awake threshold
-with a 300-second dropout confirmation. Autonomous program strikes still
+returns to the normal cadence. Once active, 100 mA is the energy-state
+hysteresis threshold with a 300-second dropout confirmation; ADR 0071 no longer
+treats that state as an all-day radio lease. DAY_ACTIVE returns to the normal
+sleep/listen cadence after its grace and may carry readiness across one timer
+sleep only when the fresh strike gate re-arms it. Autonomous strikes still
 require at least 150 mA and the normal energy gate; deliberate operator knocks
 are best-effort attempts under ADR 0065. Battery voltage alone is not surplus
-evidence. See ADR 0060.
+evidence. See ADR 0060/0071.
+
+Energy-ready downlights with trustworthy UTC shorten only their final daytime
+sleep to wake 20 seconds before each hour. ADR 0071's fixed ritual attempts one
+high-time-quality unison, one deterministic organic roll, and a sparse after-
+ring, then returns to sleep by T+47 seconds. Invalid/weak time, scheduled night,
+weak energy, a bridge lease, or any hard solenoid gate causes abstention. The
+installed mallets strike finger cymbals, not bare bamboo.
 
 The supervised `--basic-listener` posture is deliberately minimal and class
 aware. With no active bridge lease, canopy/downlights hold their dedicated warm
