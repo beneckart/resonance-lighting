@@ -71,6 +71,8 @@ def preflight_fixture(data: dict, target: str, expect_fw: str) -> None:
         raise ValueError("fixture is not identity-ready in active maintenance mode")
     if int(data.get("sentinel_trace_capacity", 0)) < 1900:
         raise ValueError("fixture sentinel trace buffer is too small for the full campaign")
+    if data.get("sentinel_trace_persisted") is not True:
+        raise ValueError("completed trace is not positively flash-persisted")
 
 
 def endpoint(host: str, after: int, maximum: int) -> str:
@@ -147,6 +149,8 @@ def main() -> None:
         meta, _ = parse_trace_ndjson(fetch_text(endpoint(args.host, 0, 0), args.timeout))
         if str(meta.get("fixture_id", "")).upper() != target:
             raise ValueError("trace endpoint identity differs from telemetry")
+        if meta.get("persisted") is not True:
+            raise ValueError("trace endpoint does not confirm flash persistence")
         oldest = int(meta.get("oldest_seq", 0))
         newest = int(meta.get("newest_seq", 0))
         if oldest <= 0 or newest < oldest:

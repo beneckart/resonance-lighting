@@ -15,6 +15,7 @@ class SentinelTraceTests(unittest.TestCase):
             "sentinel_trace_target_match": True,
             "sentinel_trace_phase": "retrieval",
             "sentinel_trace_capacity": 4096,
+            "sentinel_trace_persisted": True,
             "fixture_class": "perimeter",
             "mode": 1,
             "maint_status": 1,
@@ -82,6 +83,10 @@ class SentinelTraceTests(unittest.TestCase):
         bad = self.fixture()
         bad["sentinel_trace_capacity"] = 1024
         with self.assertRaisesRegex(ValueError, "too small"):
+            trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
+        bad = self.fixture()
+        bad["sentinel_trace_persisted"] = False
+        with self.assertRaisesRegex(ValueError, "not positively flash-persisted"):
             trace.preflight_fixture(bad, "A1B2C3", "fx-260829-abcdef0-t")
 
     def test_campaign_validation_and_summary(self):
