@@ -230,6 +230,34 @@ Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
 healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
 and zero send failures. The camp-labelled TSwift `979604` was not connected or
 changed during this flash.
+## 2026-08-29 -- Ben + Codex -- Sentinel persistence now fails closed across interrupted runs
+
+The first flash-persistence hardware follow-up used exact Spyro `F2BCF0` and
+target-only artifact `fx-260829-96862d8-t`. OTA job `34CB76FC` verified the
+test image through pending verify, but the run did not produce an accepted
+retrievable trace. Exact restore job `E1428FE2` later returned Spyro to retained
+fleet artifact `fx-260827-1254f04-p` and verified the restore through pending
+verify. Retain both operation ledgers, but do not count this as the required
+hardware persistence acceptance.
+
+Source hardening now treats an interrupted or corrupted campaign as a recovery
+condition instead of silently starting the physical experiment again. A
+separate CRC-protected run marker is written before acquisition. On boot, a
+matching marker without a valid artifact-bound checkpoint enters rail-off,
+recovery-only maintenance. Completed checkpoints are read back and fully
+validated before persistence is advertised. Validation reasons are explicit in
+telemetry and the HTTP trace header, and the host capture tool refuses a
+recovery-only fixture. The pure core module pins the packed marker/header
+layouts, artifact tag, CRCs, sequence/count constraints, and named failure
+reasons. Long VL53 transfers service the task watchdog through the shared
+watchdog seam.
+
+The complete native fixture suite passes, including the expanded 23-check
+sentinel regression, and all three focused capture-host tests pass. Hardware
+still must prove a complete persisted campaign, deliberate reset during
+retrieval, exact trace recovery without rerun, and final exact-prior restore
+before the sentinel power result can be accepted.
+
 ## 2026-08-29 -- Ben + Codex -- Shaded Spyro rerun reproduced retrieval reset; trace persistence added
 
 Re-ran the exact-target perimeter sentinel A/B/A on Spyro `F2BCF0` with the

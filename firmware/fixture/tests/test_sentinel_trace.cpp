@@ -1,6 +1,7 @@
 #include "test_util.h"
 
 #include "../src/core/sentinel_trace.h"
+#include "../src/core/sentinel_persistence.h"
 
 #include <cstring>
 
@@ -30,6 +31,37 @@ int main() {
   CHECK_EQ(out[1].batteryMa, 104);
   CHECK(std::strcmp(sentinelTracePhaseName(SENTINEL_TRACE_BASELINE_A),
                     "baseline-a") == 0);
+
+  const uint32_t artifact = sentinelPersistArtifactTag("fx-test-t");
+  CHECK(artifact != 0);
+  SentinelRunMarker marker = {};
+  sentinelRunMarkerBuild(marker, artifact);
+  CHECK(sentinelRunMarkerValid(marker, artifact));
+  CHECK(!sentinelRunMarkerValid(marker, artifact + 1));
+  marker.markerCrc32 ^= 1;
+  CHECK(!sentinelRunMarkerValid(marker, artifact));
+
+  const char payload[] = "durable sentinel samples";
+  const uint32_t payloadCrc = sentinelPersistCrc32(payload, sizeof(payload));
+  SentinelPersistHeader header = {};
+  sentinelPersistHeaderBuild(header, artifact, sizeof(SentinelTraceSample),
+                             1830, 0, 1830, payloadCrc);
+  CHECK_EQ(sentinelPersistHeaderValidate(
+               header, artifact, sizeof(SentinelTraceSample), 4096, payloadCrc),
+           SENTINEL_PERSIST_VALID);
+  CHECK_EQ(sentinelPersistHeaderValidate(
+               header, artifact, sizeof(SentinelTraceSample), 1024, payloadCrc),
+           SENTINEL_PERSIST_CAPACITY);
+  CHECK_EQ(sentinelPersistHeaderValidate(
+               header, artifact, sizeof(SentinelTraceSample), 4096,
+               payloadCrc ^ 1),
+           SENTINEL_PERSIST_BAD_SAMPLES_CRC);
+  header.newestSeq++;
+  header.headerCrc32 = sentinelPersistCrc32(
+      &header, offsetof(SentinelPersistHeader, headerCrc32));
+  CHECK_EQ(sentinelPersistHeaderValidate(
+               header, artifact, sizeof(SentinelTraceSample), 4096, payloadCrc),
+           SENTINEL_PERSIST_BAD_SEQUENCE);
 
   return testReport("test_sentinel_trace");
 }

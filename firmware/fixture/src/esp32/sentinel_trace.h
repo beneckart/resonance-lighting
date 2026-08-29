@@ -7,6 +7,7 @@
 class WebServer;
 
 bool sentinelTraceBuild();
+bool sentinelTraceSmokeBuild();
 uint32_t sentinelTraceTargetId();
 bool sentinelTraceTargetMatches();
 bool sentinelTraceOwnsLoop();
@@ -16,6 +17,8 @@ uint32_t sentinelTraceCapacity();
 uint32_t sentinelTraceCount();
 uint32_t sentinelTraceOverwrites();
 bool sentinelTracePersisted();
+bool sentinelTraceRecoveryOnly();
+const char *sentinelTracePersistenceState();
 
 void sentinelTraceInit();
 void sentinelTraceTick();

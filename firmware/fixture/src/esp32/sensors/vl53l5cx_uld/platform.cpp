@@ -64,6 +64,7 @@
 #include "SparkFun_VL53L5CX_Library.h"
 #include "SparkFun_VL53L5CX_IO.h"
 #include "platform.h"
+#include "../../watchdog.h" // RESONANCE: safe before/after bounded ULD waits
 
 uint8_t RdByte(VL53L5CX_Platform *p_platform, uint16_t RegisterAdress, uint8_t *p_value)
 {
@@ -100,6 +101,8 @@ void SwapBuffer(uint8_t *buffer, uint16_t size)
 
 uint8_t WaitMs(VL53L5CX_Platform *p_platform, uint32_t TimeMs)
 {
+	watchdogService();
 	delay(TimeMs);
+	watchdogService();
 	return 0;
 }

@@ -21,6 +21,7 @@
 
 #include "SparkFun_VL53L5CX_IO.h"
 #include "SparkFun_VL53L5CX_Library_Constants.h"
+#include "../../watchdog.h" // RESONANCE: supervise long 100 kHz transfers
 
 bool SparkFun_VL53L5CX_IO::begin(byte address, TwoWire &wirePort)
 {
@@ -51,6 +52,9 @@ uint8_t SparkFun_VL53L5CX_IO::writeMultipleBytes(uint16_t registerAddress, uint8
     uint32_t bytesToSend = bufferSize;
     while (bytesToSend > 0)
     {
+        // RESONANCE: the VL53 firmware blob takes longer than the fixture's
+        // eight-second watchdog at 100 kHz. Service once per bounded I2C chunk.
+        watchdogService();
         uint32_t len = bytesToSend;
         if (len > (wireMaxPacketSize - 2)) // Allow 2 byte for register address
             len = (wireMaxPacketSize - 2);
@@ -70,6 +74,7 @@ uint8_t SparkFun_VL53L5CX_IO::writeMultipleBytes(uint16_t registerAddress, uint8
         startSpot += len; // Move the pointer forward
         bytesToSend -= len;
         registerAddress += len; // Move register address forward
+        delay(0);
     }
     return (i2cError);
 }
@@ -91,6 +96,7 @@ uint8_t SparkFun_VL53L5CX_IO::readMultipleBytes(uint16_t registerAddress, uint8_
     uint16_t offset = 0;
     while (bytesToReadRemaining > 0)
     {
+        watchdogService();
         // Limit to 32 bytes or whatever the buffer limit is for given platform
         uint16_t bytesToRead = bytesToReadRemaining;
         if (bytesToRead > wireMaxPacketSize)
@@ -107,6 +113,7 @@ uint8_t SparkFun_VL53L5CX_IO::readMultipleBytes(uint16_t registerAddress, uint8_
 
         offset += bytesToRead;
         bytesToReadRemaining -= bytesToRead;
+        delay(0);
     }
 
     return (0); // Success
@@ -114,6 +121,7 @@ uint8_t SparkFun_VL53L5CX_IO::readMultipleBytes(uint16_t registerAddress, uint8_
 
 uint8_t SparkFun_VL53L5CX_IO::readSingleByte(uint16_t registerAddress)
 {
+    watchdogService();
     _i2cPort->beginTransmission(_address);
     _i2cPort->write(highByte(registerAddress));
     _i2cPort->write(lowByte(registerAddress));
@@ -124,6 +132,7 @@ uint8_t SparkFun_VL53L5CX_IO::readSingleByte(uint16_t registerAddress)
 
 uint8_t SparkFun_VL53L5CX_IO::writeSingleByte(uint16_t registerAddress, uint8_t const value)
 {
+    watchdogService();
     _i2cPort->beginTransmission(_address);
     _i2cPort->write(highByte(registerAddress));
     _i2cPort->write(lowByte(registerAddress));

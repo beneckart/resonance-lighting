@@ -39,3 +39,8 @@ Everything else is byte-identical to the upstream commit.
    distance + status + nb_target for the ground-plane fit, and it reads the
    sensor from loop() (no core-0 task), so the per-frame I2C read on the shared
    100 kHz Wire1 must stay short.
+6. `SparkFun_VL53L5CX_IO.cpp` and `platform.cpp`: service the fixture task
+   watchdog between bounded I2C chunks and ULD waits. At the production-safe
+   100 kHz bus rate, a full VL53 firmware upload can exceed the eight-second
+   watchdog even while every individual transfer is healthy. The service hook
+   is a no-op during ordinary boot initialization before the watchdog is armed.
