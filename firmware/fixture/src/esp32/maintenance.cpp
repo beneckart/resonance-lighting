@@ -164,6 +164,33 @@ static void configureOtaRoutes() {
   gOtaRoutesConfigured = true;
 }
 
+// A synchronous all-channel scan can exceed the fixture's 8-second task
+// watchdog in a crowded field RF environment.  Keep the useful RSSI-ranked
+// credential choice, but poll the Arduino async scan so the loop task remains
+// supervised and a completed PSRAM trace cannot be erased by a scan reset.
+static int16_t watchdogSafeWifiScan(uint32_t timeoutMs) {
+  esp_task_wdt_reset();
+  int16_t result = WiFi.scanNetworks(true, true);
+  if (result != WIFI_SCAN_RUNNING) {
+    esp_task_wdt_reset();
+    return result;
+  }
+
+  uint32_t startedMs = millis();
+  while ((result = WiFi.scanComplete()) == WIFI_SCAN_RUNNING) {
+    esp_task_wdt_reset();
+    if (millis() - startedMs >= timeoutMs) {
+      WiFi.scanDelete();
+      Serial.printf("WiFi async scan timed out after %lu ms; using configured order\n",
+                    (unsigned long)timeoutMs);
+      return WIFI_SCAN_FAILED;
+    }
+    delay(50);
+  }
+  esp_task_wdt_reset();
+  return result;
+}
+
 static bool startWifiOta() {
 #if RES_HAS_WIFI_SECRETS
   WiFi.mode(WIFI_STA);
@@ -171,9 +198,7 @@ static bool startWifiOta() {
 
   int16_t bestRssi[2] = {WIFI_CREDENTIAL_UNSEEN_RSSI,
                          WIFI_CREDENTIAL_UNSEEN_RSSI};
-  esp_task_wdt_reset();
-  int networkCount = WiFi.scanNetworks(false, true);
-  esp_task_wdt_reset();
+  int networkCount = watchdogSafeWifiScan(15000UL);
   if (networkCount >= 0) {
     for (int i = 0; i < networkCount; ++i) {
       String seenSsid = WiFi.SSID(i);

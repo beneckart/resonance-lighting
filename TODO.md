@@ -29,6 +29,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fleet binary. Do not implement visitor-triggered fleet wake until Ben accepts
   this evidence; any eventual session needs a non-extendable deadline and
   cooldown (Ben/Codex; ADR 0071).
+  **2026-08-29 partial field run:** physically confirmed Spyro `F2BCF0` passed
+  exact canary OTA and pending verify; Ben performed about 15-16 close hand
+  holds during the active phase. Do not accept a power delta: rapid sunrise
+  contaminated the A/B/A trend, and an 8-second task-watchdog reset during the
+  synchronous maintenance WiFi scan erased the completed PSRAM trace. Exact
+  prior artifact `fx-260827-1254f04-p` was restored and fully verified without
+  opening the lid. Source now uses bounded asynchronous WiFi scanning with
+  watchdog service; native, Python, and embedded compile gates pass. Before the
+  next full campaign, hardware-prove retrieval with this fix, then repeat under
+  stable shade/battery-only and stable full sun. Also resolve Spyro's corrected
+  boot probe still reporting only VL53 bit 2 rather than MSA+VL53 bits 10.
+  Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
   20-minute UTC-synchronized GH hue cadence; a 765-RGB-channel-unit physical
