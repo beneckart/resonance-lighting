@@ -14,7 +14,12 @@
 
 static MotionTraceBuffer gTrace;
 static uint32_t gLastMsaRead = 0;
+static uint32_t gLastTraceSampleMs = 0;
 static bool gPendingPresenceRising = false;
+static bool gPresenceSentinelWhite = false;
+
+#define RES_MOTION_TRACE_SAMPLE_INTERVAL_MS 300UL
+#define RES_MOTION_TRACE_SAMPLE_HZ 3
 
 bool motionTraceBuild() {
 #if defined(RES_MSA_TRACE_TARGET)
@@ -46,6 +51,14 @@ uint32_t motionTraceCapacity() { return gTrace.capacity; }
 uint32_t motionTraceCount() { return gTrace.count; }
 uint32_t motionTraceOverwrites() { return gTrace.overwrites; }
 
+void motionTraceNotePresenceSentinel(bool whiteActive) {
+#if defined(RES_MSA_TRACE_TARGET) && defined(RES_CANOPY_PRESENCE_SENTINEL)
+  gPresenceSentinelWhite = motionTraceTargetMatches() && whiteActive;
+#else
+  (void)whiteActive;
+#endif
+}
+
 void motionTraceInit() {
 #if defined(RES_MSA_TRACE_TARGET)
   if (!motionTraceTargetMatches()) {
@@ -54,9 +67,9 @@ void motionTraceInit() {
     return;
   }
 
-  // 8192 samples retain about 5.5 minutes at the fixture's cooperative 25 Hz
-  // poll cadence. Keep a short internal-RAM fallback so a PSRAM fault still
-  // yields a useful, explicitly reported 41-second trace.
+  // At the bounded diagnostic cadence, the 8192-sample PSRAM buffer is ample
+  // and the internal-RAM fallback still retains just over five minutes. The
+  // one-loop presence edge is held until the next recorded sample.
   uint32_t capacity = 8192;
   MotionTraceSample *storage = (MotionTraceSample *)heap_caps_malloc(
       sizeof(MotionTraceSample) * capacity, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -96,14 +109,20 @@ static uint16_t centiDegrees(float value) {
 void motionTraceTick() {
 #if defined(RES_MSA_TRACE_TARGET)
   if (!motionTraceTargetMatches() || !gTrace.capacity) return;
-  // The TMF edge and the 25 Hz MSA sample need not land in the same loop.
+  // The TMF edge and the bounded MSA trace sample need not land in the same
+  // loop.
   // Hold the one-loop edge until it has been committed beside a motion sample.
   gPendingPresenceRising =
       gPendingPresenceRising || behaviorTofPresenceRising();
   const SensorSnapshot &sensor = sensors();
   if (!sensor.msaOk || !sensor.msaReads || sensor.msaReads == gLastMsaRead)
     return;
+  if (gLastTraceSampleMs &&
+      sensor.msaSampleMs - gLastTraceSampleMs <
+          RES_MOTION_TRACE_SAMPLE_INTERVAL_MS)
+    return;
   gLastMsaRead = sensor.msaReads;
+  gLastTraceSampleMs = sensor.msaSampleMs;
 
   MotionTraceSample sample = {};
   sample.uptimeMs = sensor.msaSampleMs;
@@ -123,6 +142,7 @@ void motionTraceTick() {
          sizeof(sample.tofZoneConfidence));
   sample.presenceActive = behaviorTofPresenceActive() ? 1 : 0;
   sample.presenceRising = gPendingPresenceRising ? 1 : 0;
+  sample.presenceSentinelWhite = gPresenceSentinelWhite ? 1 : 0;
   gPendingPresenceRising = false;
   sample.lifeState = gTelemetryLifeState;
   sample.program = gTelemetryProgram;
@@ -189,7 +209,16 @@ void motionTraceHandleHttp(WebServer &server) {
   snprintf(target, sizeof(target), "%06lX",
            (unsigned long)motionTraceTargetId());
   body += target;
-  body += "\",\"sample_hz\":25,\"sample_bytes\":";
+  body += "\",\"sample_hz\":" + String(RES_MOTION_TRACE_SAMPLE_HZ);
+  body += ",\"sample_interval_ms\":" +
+          String((unsigned long)RES_MOTION_TRACE_SAMPLE_INTERVAL_MS);
+  body += ",\"presence_sentinel_build\":";
+#if defined(RES_CANOPY_PRESENCE_SENTINEL)
+  body += "true";
+#else
+  body += "false";
+#endif
+  body += ",\"sample_bytes\":";
   body += String((unsigned)sizeof(MotionTraceSample));
   body += ",\"capacity\":" + String((unsigned long)gTrace.capacity);
   body += ",\"count\":" + String((unsigned long)gTrace.count);
@@ -220,6 +249,8 @@ void motionTraceHandleHttp(WebServer &server) {
     appendArray(body, sample.tofZoneConfidence, MOTION_TRACE_ZONE_COUNT);
     body += ",\"presence_active\":" + String(sample.presenceActive);
     body += ",\"presence_rising\":" + String(sample.presenceRising);
+    body += ",\"presence_sentinel_white\":" +
+            String(sample.presenceSentinelWhite);
     body += ",\"life_state\":" + String(sample.lifeState);
     body += ",\"program\":" + String(sample.program);
     body += ",\"power_tier\":" + String(sample.powerTier);

@@ -13,6 +13,7 @@
 #   ./build.sh --precharge-ma 300        # BQ low-VBAT recovery limit (10..310)
 #   ./build.sh --deep-recovery-target F401DC  # target-locked low-VBAT test image
 #   ./build.sh --msa-trace-target F2BE0C   # target-locked wind/ToF recorder
+#   ./build.sh --presence-sentinel       # trace-only red -> RGB-white presence
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -48,6 +49,7 @@ DAY_SLEEP_S="300"
 WAKE_LISTEN_MS="15000"
 DEEP_RECOVERY_TARGET=""
 MSA_TRACE_TARGET=""
+PRESENCE_SENTINEL=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -97,6 +99,7 @@ Common build options:
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
+  --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -261,6 +264,7 @@ while [[ $# -gt 0 ]]; do
     --wake-listen-ms) WAKE_LISTEN_MS="$2"; shift 2 ;;
     --deep-recovery-target) DEEP_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --msa-trace-target) MSA_TRACE_TARGET="${2^^}"; shift 2 ;;
+    --presence-sentinel) PRESENCE_SENTINEL=1; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -320,6 +324,10 @@ if [[ -n "$MSA_TRACE_TARGET" ]]; then
   [[ -z "$DEEP_RECOVERY_TARGET" ]] ||
     fail "--msa-trace-target cannot be combined with --deep-recovery-target"
 fi
+if (( PRESENCE_SENTINEL )); then
+  [[ -n "$MSA_TRACE_TARGET" ]] ||
+    fail "--presence-sentinel requires --msa-trace-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -378,6 +386,9 @@ if [[ -n "$MSA_TRACE_TARGET" ]]; then
     exit 2
   }
   FLAGS+=" -DRES_MSA_TRACE_TARGET=0x${MSA_TRACE_TARGET}UL"
+fi
+if (( PRESENCE_SENTINEL )); then
+  FLAGS+=" -DRES_CANOPY_PRESENCE_SENTINEL=1"
 fi
 case "$PROFILE" in
   "") ;;

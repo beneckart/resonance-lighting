@@ -2,6 +2,17 @@
 
 #include <string.h>
 
+void motionTracePresenceSentinelFrame(FrameBuffer &frame,
+                                      bool presenceActive) {
+  frameClear(frame);
+  frame.count = 1;
+  frame.px[0][0] = 255;
+  if (presenceActive) {
+    frame.px[0][1] = 255;
+    frame.px[0][2] = 255;
+  }
+}
+
 void motionTraceBufferInit(MotionTraceBuffer &buffer,
                            MotionTraceSample *storage, uint32_t capacity) {
   memset(&buffer, 0, sizeof(buffer));
