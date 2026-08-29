@@ -10,6 +10,39 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Mainline-integrated one-target/one-hour cymbal canary
+
+Merged current `origin/main` into the daytime branch and resolved duplicate
+ritual/sentinel history to main's newer integrated versions. The canary now
+inherits generated immutable artifact identity, the PROTECT recovery-awake
+fix, fail-closed sentinel persistence, and the later VL53 watchdog service.
+
+The scheduled cymbal validation is now a generated variant-`t` artifact locked
+to one exact short MAC and one exact Unix UTC hour. A wrong fixture cannot
+participate or shorten sleep, the retained image cannot repeat in another hour,
+and the wrapper refuses missing target/hour pairs, non-field builds, other
+exact-target tests, and the solenoid safety override. Normal time, schedule,
+FULL-tier, measured-solar, authority, boot-guard, rest, NVS marker, and mechanism
+gates remain unchanged.
+
+RTC-retained expected/attempted/fired/policy-refused/mechanism-blocked masks,
+time uncertainty, hour, target match, and window completion now ride append-only
+full-heartbeat tail 19 and maintenance JSON. Fixture, CoreS3, T-Deck, dashboard,
+and JSONL logger paths all understand the tail; each event and boundary forces
+a full heartbeat so the run needs no lid access or phase inference.
+
+The complete fixture suite passes, including 30 daytime-ritual checks and the
+218-byte append-only heartbeat layout. The complete T-Deck native suite passes,
+19 dashboard parser tests pass, Python syntax checks pass, and the ESP32-S3
+development compile passes at 36 percent flash / 20 percent globals. While
+running the merged Bridge OS suite, a mainline registry regression was also
+fixed: quarantining Shuckle `F4031C` now removes it from production-health
+alerts without invalidating its permanent callsign; the generated 143-fixture
+health roster and regression are current. Fresh embedded bridge builds also
+pass: T-Deck uses 49 percent flash / 59 percent globals, and CoreS3 uses 37
+percent flash / 30 percent globals. No fixture or bridge was flashed.
+Hardware procedure: `docs/howto/DAYTIME_RITUAL_CANARY.md`.
+
 ## 2026-08-29 -- Ben + Codex -- Completed-work integration prepared for main
 
 Collected every unique completed change from the active fixture, daytime

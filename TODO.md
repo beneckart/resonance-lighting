@@ -45,14 +45,20 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Source now decouples energy readiness from all-day radio reception, carries
   readiness across only one freshly requalified timer wake, aligns the final
   sleep to T-20 seconds, and implements the fixed unison -> deterministic roll
-  -> sparse after-ring through T+47 seconds. Native and exact-target embedded
-  compile gates pass; nothing was flashed. On one physically identified,
+  -> sparse after-ring through T+47 seconds. The hardware canary is now locked
+  to one exact short MAC and one exact UTC hour, cannot combine with another
+  test or the solenoid safety bypass, and cannot align sleep or strike outside
+  that target/hour. RTC-retained expected/attempted/fired/refused/blocked masks
+  are emitted immediately in full heartbeats and maintenance JSON. Generated
+  immutable artifact identity, the mainline PROTECT recovery-awake fix, native
+  fixture/Bridge OS suites, host parser tests, and an ESP32-S3 compile pass;
+  nothing was flashed. On one physically identified,
   battery-installed cymbal downlight, prove high-quality UTC wake alignment,
   T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to
   sleep, and no duplicate after an in-window reset. Then prove unison abstention
   with >500 ms uncertainty and all schedule/energy/lease/class/mechanism vetoes.
-  Widen only through immutable named artifacts and explicit target cohorts
-  (Ben/Codex; ADR 0071).
+  Widen only through immutable named artifacts and explicit target cohorts.
+  Runbook: `docs/howto/DAYTIME_RITUAL_CANARY.md` (Ben/Codex; ADR 0071).
 - [ ] **P0: run the exact-target radio-off + perimeter-ToF sentinel power
   campaign before implementing sentinel wake behavior.** Physically identify
   one healthy perimeter fixture, record its exact current artifact/SHA/state,

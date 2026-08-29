@@ -175,6 +175,38 @@ String telemetryJson() {
   j += ",\"day_sleep_s\":" + String(behaviorDaySleepS());
   j += ",\"wake_listen_ms\":" +
        String((unsigned long)behaviorWakeListenMs());
+  j += ",\"daytime_ritual_canary_build\":";
+  j += behaviorDaytimeRitualCanaryBuild() ? "true" : "false";
+  if (behaviorDaytimeRitualCanaryBuild()) {
+    char target[7];
+    snprintf(target, sizeof(target), "%06lX",
+             (unsigned long)behaviorDaytimeRitualCanaryTarget());
+    j += ",\"daytime_ritual_canary_target\":\"" + String(target) + "\"";
+    j += ",\"daytime_ritual_canary_target_match\":";
+    j += behaviorDaytimeRitualCanaryTargetMatches() ? "true" : "false";
+    j += ",\"daytime_ritual_canary_hour_key\":" +
+         String((unsigned long)behaviorDaytimeRitualCanaryHourKey());
+  }
+  DaytimeRitualAudit ritualAudit = behaviorDaytimeRitualAudit();
+  j += ",\"daytime_ritual_hour_key\":" +
+       String((unsigned long)ritualAudit.hourKey);
+  j += ",\"daytime_ritual_expected_mask\":" +
+       String(ritualAudit.expectedMask);
+  j += ",\"daytime_ritual_attempted_mask\":" +
+       String(ritualAudit.attemptedMask);
+  j += ",\"daytime_ritual_fired_mask\":" + String(ritualAudit.firedMask);
+  j += ",\"daytime_ritual_policy_refused_mask\":" +
+       String(ritualAudit.policyRefusedMask);
+  j += ",\"daytime_ritual_mechanism_blocked_mask\":" +
+       String(ritualAudit.mechanismBlockedMask);
+  j += ",\"daytime_ritual_last_uncertainty_ms\":" +
+       String(ritualAudit.lastUncertaintyMs);
+  j += ",\"daytime_ritual_window_seen\":";
+  j += (ritualAudit.flags & DAYTIME_RITUAL_AUDIT_WINDOW_SEEN) ? "true"
+                                                              : "false";
+  j += ",\"daytime_ritual_window_complete\":";
+  j += (ritualAudit.flags & DAYTIME_RITUAL_AUDIT_WINDOW_COMPLETE) ? "true"
+                                                                  : "false";
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
   j += ",\"active_program\":" + String(gTelemetryProgram);
   j += ",\"direct_seen\":" + String((unsigned long)netPeerDirectSeen());

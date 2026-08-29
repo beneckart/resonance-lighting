@@ -228,6 +228,19 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t last_protect_reset_reason; // esp_reset_reason_t numeric
   uint8_t last_protect_load_armed;
   uint16_t last_protect_reset_streak; // saturated at 65535 on wire
+  // tail 19 (scheduled daytime ritual audit; hb-full only). Event masks use
+  // DaytimeRitualEventMask values without importing the behavior header into
+  // the wire contract. Old receivers stop safely at tail 18.
+  uint8_t ritual_flags;
+  uint8_t ritual_expected_mask;
+  uint8_t ritual_attempted_mask;
+  uint8_t ritual_fired_mask;
+  uint8_t ritual_policy_refused_mask;
+  uint8_t ritual_mechanism_blocked_mask;
+  uint16_t ritual_last_uncertainty_ms;
+  uint32_t ritual_hour_key;
+  uint32_t ritual_canary_hour_key;
+  uint8_t ritual_canary_target_id[3];
 };
 
 // NbHeartbeat::power_sample_flags. Append bits; never renumber them.
@@ -235,6 +248,12 @@ struct __attribute__((packed)) NbHeartbeat {
 #define NB_POWER_SAMPLE_VBAT_VALID 0x02u
 #define NB_POWER_SAMPLE_SOC_VALID 0x04u
 #define NB_POWER_SAMPLE_CHARGER_VALID 0x08u
+
+// NbHeartbeat::ritual_flags. Append bits; never renumber them.
+#define NB_RITUAL_CANARY_BUILD 0x01u
+#define NB_RITUAL_CANARY_TARGET_MATCH 0x02u
+#define NB_RITUAL_WINDOW_SEEN 0x04u
+#define NB_RITUAL_WINDOW_COMPLETE 0x08u
 
 // Receiver-side tail gate: does a packet of length `len` include `field`?
 #define NB_HAS_HB_FIELD(len, field) \

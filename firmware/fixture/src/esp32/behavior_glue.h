@@ -36,6 +36,31 @@ uint8_t behaviorLifeState();
 bool behaviorStrikesAllowed();
 uint16_t behaviorDaySleepS();
 uint32_t behaviorWakeListenMs();
+
+// RTC-retained evidence for the last scheduled ritual hour. Exact-target
+// canaries expose their target/hour lock so maintenance retrieval can prove
+// that the intended fixture attempted, fired, or safely refused every act.
+struct DaytimeRitualAudit {
+  uint32_t hourKey;
+  uint8_t expectedMask;
+  uint8_t attemptedMask;
+  uint8_t firedMask;
+  uint8_t policyRefusedMask;
+  uint8_t mechanismBlockedMask;
+  uint16_t lastUncertaintyMs;
+  uint8_t flags;
+};
+
+enum DaytimeRitualAuditFlags : uint8_t {
+  DAYTIME_RITUAL_AUDIT_WINDOW_SEEN = 0x01,
+  DAYTIME_RITUAL_AUDIT_WINDOW_COMPLETE = 0x02,
+};
+
+bool behaviorDaytimeRitualCanaryBuild();
+uint32_t behaviorDaytimeRitualCanaryTarget();
+bool behaviorDaytimeRitualCanaryTargetMatches();
+uint32_t behaviorDaytimeRitualCanaryHourKey();
+DaytimeRitualAudit behaviorDaytimeRitualAudit();
 // Read-only observability for exact-target motion traces. These expose the
 // same learned TMF gate that owns the visible listener response.
 bool behaviorTofPresenceActive();

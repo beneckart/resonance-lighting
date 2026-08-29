@@ -196,6 +196,27 @@ void netPeerSendHeartbeat(bool full) {
     }
   }
   hb.power_sample_flags = powerSampleFlags();
+  DaytimeRitualAudit ritualAudit = behaviorDaytimeRitualAudit();
+  if (behaviorDaytimeRitualCanaryBuild())
+    hb.ritual_flags |= NB_RITUAL_CANARY_BUILD;
+  if (behaviorDaytimeRitualCanaryTargetMatches())
+    hb.ritual_flags |= NB_RITUAL_CANARY_TARGET_MATCH;
+  if (ritualAudit.flags & DAYTIME_RITUAL_AUDIT_WINDOW_SEEN)
+    hb.ritual_flags |= NB_RITUAL_WINDOW_SEEN;
+  if (ritualAudit.flags & DAYTIME_RITUAL_AUDIT_WINDOW_COMPLETE)
+    hb.ritual_flags |= NB_RITUAL_WINDOW_COMPLETE;
+  hb.ritual_expected_mask = ritualAudit.expectedMask;
+  hb.ritual_attempted_mask = ritualAudit.attemptedMask;
+  hb.ritual_fired_mask = ritualAudit.firedMask;
+  hb.ritual_policy_refused_mask = ritualAudit.policyRefusedMask;
+  hb.ritual_mechanism_blocked_mask = ritualAudit.mechanismBlockedMask;
+  hb.ritual_last_uncertainty_ms = ritualAudit.lastUncertaintyMs;
+  hb.ritual_hour_key = ritualAudit.hourKey;
+  hb.ritual_canary_hour_key = behaviorDaytimeRitualCanaryHourKey();
+  uint32_t ritualTarget = behaviorDaytimeRitualCanaryTarget();
+  hb.ritual_canary_target_id[0] = (uint8_t)(ritualTarget >> 16);
+  hb.ritual_canary_target_id[1] = (uint8_t)(ritualTarget >> 8);
+  hb.ritual_canary_target_id[2] = (uint8_t)ritualTarget;
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 

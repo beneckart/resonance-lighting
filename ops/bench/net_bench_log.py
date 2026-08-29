@@ -184,7 +184,9 @@ rx_peer = re.compile(
     r"(?: audf=(\d+) slpr=(\d+) slps=(\d+) slpmv=(-?\d+) slpprof=(\d+) slplife=(\d+)"
     r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
     r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?"
-    r"(?: protorig=(\d+) protprev=(\d+) protrst=(\d+) protarm=(\d+) protstreak=(\d+))?")
+    r"(?: protorig=(\d+) protprev=(\d+) protrst=(\d+) protarm=(\d+) protstreak=(\d+))?"
+    r"(?: ritf=(\d+) ritexp=(\d+) ritat=(\d+) ritfire=(\d+) ritref=(\d+) ritblk=(\d+)"
+    r" ritu=(\d+) rith=(\d+) ritcanh=(\d+) ritcantgt=([0-9A-Fa-f]{6}))?")
 # Field 2.4 GHz coverage scan (relayed over ESP-NOW by a -DNB_SCAN_REPORT peer).
 # ssid is LAST because it may contain spaces.
 rx_scanap = re.compile(
@@ -243,7 +245,11 @@ with open(out, file_mode, encoding="utf-8") as fh:
               last_command_sleep_source_seq, last_protect_batt_mv,
               last_protect_origin, last_protect_predecessor_stage,
               last_protect_reset_reason, last_protect_load_armed,
-              last_protect_reset_streak) = m.groups()
+              last_protect_reset_streak, ritual_flags, ritual_expected_mask,
+              ritual_attempted_mask, ritual_fired_mask,
+              ritual_policy_refused_mask, ritual_mechanism_blocked_mask,
+              ritual_last_uncertainty_ms, ritual_hour_key,
+              ritual_canary_hour_key, ritual_canary_target) = m.groups()
             up = int(up)
             if pid in last_up and up < last_up[pid] - 2000:
                 reb += 1
@@ -380,6 +386,19 @@ with open(out, file_mode, encoding="utf-8") as fh:
                     last_protect_reset_reason=int(last_protect_reset_reason),
                     last_protect_load_armed=bool(int(last_protect_load_armed)),
                     last_protect_reset_streak=int(last_protect_reset_streak),
+                )
+            if ritual_flags is not None:
+                row.update(
+                    daytime_ritual_flags=int(ritual_flags),
+                    daytime_ritual_expected_mask=int(ritual_expected_mask),
+                    daytime_ritual_attempted_mask=int(ritual_attempted_mask),
+                    daytime_ritual_fired_mask=int(ritual_fired_mask),
+                    daytime_ritual_policy_refused_mask=int(ritual_policy_refused_mask),
+                    daytime_ritual_mechanism_blocked_mask=int(ritual_mechanism_blocked_mask),
+                    daytime_ritual_last_uncertainty_ms=int(ritual_last_uncertainty_ms),
+                    daytime_ritual_hour_key=int(ritual_hour_key),
+                    daytime_ritual_canary_hour_key=int(ritual_canary_hour_key),
+                    daytime_ritual_canary_target=ritual_canary_target.upper(),
                 )
             fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
             if n % 50 == 0:

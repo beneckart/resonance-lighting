@@ -305,6 +305,20 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->lastProtectLoadArmed = hb->last_protect_load_armed;
     peer->lastProtectResetStreak = hb->last_protect_reset_streak;
   }
+  if (NB_HAS_HB_FIELD(len, ritual_canary_target_id)) {
+    peer->hasRitualAudit = true;
+    peer->ritualFlags = hb->ritual_flags;
+    peer->ritualExpectedMask = hb->ritual_expected_mask;
+    peer->ritualAttemptedMask = hb->ritual_attempted_mask;
+    peer->ritualFiredMask = hb->ritual_fired_mask;
+    peer->ritualPolicyRefusedMask = hb->ritual_policy_refused_mask;
+    peer->ritualMechanismBlockedMask = hb->ritual_mechanism_blocked_mask;
+    peer->ritualLastUncertaintyMs = hb->ritual_last_uncertainty_ms;
+    peer->ritualHourKey = hb->ritual_hour_key;
+    peer->ritualCanaryHourKey = hb->ritual_canary_hour_key;
+    memcpy(peer->ritualCanaryTargetId, hb->ritual_canary_target_id,
+           sizeof(peer->ritualCanaryTargetId));
+  }
   return true;
 }
 

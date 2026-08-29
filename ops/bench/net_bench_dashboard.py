@@ -61,6 +61,8 @@ RX_PEER = re.compile(
     r" slptier=(\d+) slpsrc=([0-9A-Fa-f]{6}) slpseq=(\d+) cmdslpr=(\d+) cmdslps=(\d+)"
     r" cmdslpsrc=([0-9A-Fa-f]{6}) cmdslpseq=(\d+) protmv=(-?\d+))?"
     r"(?: protorig=(\d+) protprev=(\d+) protrst=(\d+) protarm=(\d+) protstreak=(\d+))?"
+    r"(?: ritf=(\d+) ritexp=(\d+) ritat=(\d+) ritfire=(\d+) ritref=(\d+) ritblk=(\d+)"
+    r" ritu=(\d+) rith=(\d+) ritcanh=(\d+) ritcantgt=([0-9A-Fa-f]{6}))?"
 )
 RX_SCANAP = re.compile(
     r"nb-scanap from=(\w+) scan=(\d+) idx=(\d+) count=(\d+) bssid=([0-9a-fA-F:]+) "
@@ -522,6 +524,16 @@ class SerialWorker(threading.Thread):
                 last_protect_reset_reason,
                 last_protect_load_armed,
                 last_protect_reset_streak,
+                ritual_flags,
+                ritual_expected_mask,
+                ritual_attempted_mask,
+                ritual_fired_mask,
+                ritual_policy_refused_mask,
+                ritual_mechanism_blocked_mask,
+                ritual_last_uncertainty_ms,
+                ritual_hour_key,
+                ritual_canary_hour_key,
+                ritual_canary_target,
             ) = m.groups()
             supply_v = maybe_float(sv)
             supply_ma = int(sma) if sma is not None else None
@@ -617,6 +629,16 @@ class SerialWorker(threading.Thread):
                 "last_protect_reset_reason": int(last_protect_reset_reason) if last_protect_reset_reason is not None else None,
                 "last_protect_load_armed": bool(int(last_protect_load_armed)) if last_protect_load_armed is not None else None,
                 "last_protect_reset_streak": int(last_protect_reset_streak) if last_protect_reset_streak is not None else None,
+                "daytime_ritual_flags": int(ritual_flags) if ritual_flags is not None else None,
+                "daytime_ritual_expected_mask": int(ritual_expected_mask) if ritual_expected_mask is not None else None,
+                "daytime_ritual_attempted_mask": int(ritual_attempted_mask) if ritual_attempted_mask is not None else None,
+                "daytime_ritual_fired_mask": int(ritual_fired_mask) if ritual_fired_mask is not None else None,
+                "daytime_ritual_policy_refused_mask": int(ritual_policy_refused_mask) if ritual_policy_refused_mask is not None else None,
+                "daytime_ritual_mechanism_blocked_mask": int(ritual_mechanism_blocked_mask) if ritual_mechanism_blocked_mask is not None else None,
+                "daytime_ritual_last_uncertainty_ms": int(ritual_last_uncertainty_ms) if ritual_last_uncertainty_ms is not None else None,
+                "daytime_ritual_hour_key": int(ritual_hour_key) if ritual_hour_key is not None else None,
+                "daytime_ritual_canary_hour_key": int(ritual_canary_hour_key) if ritual_canary_hour_key is not None else None,
+                "daytime_ritual_canary_target": ritual_canary_target.upper() if ritual_canary_target is not None else None,
                 "ts_utc": ts,
             }
             if bq16 is not None:
@@ -711,6 +733,16 @@ class SerialWorker(threading.Thread):
                         "last_command_sleep_source",
                         "last_command_sleep_source_seq",
                         "last_protect_batt_mv",
+                        "daytime_ritual_flags",
+                        "daytime_ritual_expected_mask",
+                        "daytime_ritual_attempted_mask",
+                        "daytime_ritual_fired_mask",
+                        "daytime_ritual_policy_refused_mask",
+                        "daytime_ritual_mechanism_blocked_mask",
+                        "daytime_ritual_last_uncertainty_ms",
+                        "daytime_ritual_hour_key",
+                        "daytime_ritual_canary_hour_key",
+                        "daytime_ritual_canary_target",
                     ):
                         row[key] = previous.get(key)
                 self.state.peers[pid] = row
@@ -1212,6 +1244,20 @@ function sleepAuditSummary(peer) {
   return rows;
 }
 
+function ritualAuditSummary(peer) {
+  if (!finite(peer.daytime_ritual_flags)) return [];
+  const flags = Number(peer.daytime_ritual_flags);
+  const canary = flags & 1
+    ? `canary ${peer.daytime_ritual_canary_target || "?"} hour ${peer.daytime_ritual_canary_hour_key}`
+    : `production hour ${peer.daytime_ritual_hour_key}`;
+  const target = flags & 1 ? ((flags & 2) ? "target matched" : "TARGET MISMATCH") : "fleet schedule";
+  const window = flags & 8 ? "complete" : ((flags & 4) ? "in window" : "not observed");
+  return [
+    `${canary}: ${target}, ${window}, uncertainty ${peer.daytime_ritual_last_uncertainty_ms ?? "--"} ms`,
+    `ritual masks expected/attempted/fired/refused/blocked ${peer.daytime_ritual_expected_mask ?? "--"}/${peer.daytime_ritual_attempted_mask ?? "--"}/${peer.daytime_ritual_fired_mask ?? "--"}/${peer.daytime_ritual_policy_refused_mask ?? "--"}/${peer.daytime_ritual_mechanism_blocked_mask ?? "--"}`
+  ];
+}
+
 function sensorSignature(peer) {
   if (!finite(peer.sensor_bits)) return "sensor signature unknown";
   const bits = Number(peer.sensor_bits);
@@ -1443,6 +1489,7 @@ function renderFleet(peers, selectedId) {
   const program = PROGRAM[selected.active_program] || "unknown program";
   const recovery = RECOVERY_STATE[selected.recovery_state] || "recovery unknown";
   const sleepRows = sleepAuditSummary(selected);
+  const ritualRows = ritualAuditSummary(selected);
   document.getElementById("selectedSummary").innerHTML =
     `<span class="summary-light" style="--summary-light:${lightColor}"></span>` +
     `<strong>${esc(peerCallsign(selected))}</strong>` +
@@ -1453,7 +1500,7 @@ function renderFleet(peers, selectedId) {
     `<span>${esc(recovery)}${finite(selected.recovery_detect_mv) ? ` (${selected.recovery_detect_mv} mV detect)` : ""}</span>` +
     `<span>heard ${msAge(selected.age_ms)} ago</span><span>${esc(life)} / ${esc(tier)} / ${esc(program)}</span>` +
     `<span>${light.on ? `RGB ${light.r},${light.g},${light.b} - ${selected.led_lit_pixels} px` : (light.known ? "light off" : "light telemetry unknown")}</span>` +
-    sleepRows.map(row => `<span>${esc(row)}</span>`).join("");
+    sleepRows.concat(ritualRows).map(row => `<span>${esc(row)}</span>`).join("");
 }
 function sortedPeers(s) {
   return Object.values(s.peers || {}).sort((a, b) => a.id.localeCompare(b.id));

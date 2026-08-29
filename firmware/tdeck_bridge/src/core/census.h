@@ -181,6 +181,18 @@ struct PeerStat {
   uint8_t lastProtectLoadArmed;
   uint16_t lastProtectResetStreak;
 
+  bool hasRitualAudit;
+  uint8_t ritualFlags;
+  uint8_t ritualExpectedMask;
+  uint8_t ritualAttemptedMask;
+  uint8_t ritualFiredMask;
+  uint8_t ritualPolicyRefusedMask;
+  uint8_t ritualMechanismBlockedMask;
+  uint16_t ritualLastUncertaintyMs;
+  uint32_t ritualHourKey;
+  uint32_t ritualCanaryHourKey;
+  uint8_t ritualCanaryTargetId[3];
+
   // Latched across hb-short frames (hb-full arrives every ~60 s in prod).
   uint8_t classLatched;  // 0 = never seen
 };

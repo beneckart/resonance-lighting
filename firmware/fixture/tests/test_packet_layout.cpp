@@ -54,7 +54,10 @@ int main() {
   CHECK_EQ(offsetof(NbHeartbeat, power_sample_flags), 192u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_origin), 193u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_reset_streak), 197u);
-  CHECK_EQ(sizeof(NbHeartbeat), 199u);
+  CHECK_EQ(offsetof(NbHeartbeat, ritual_flags), 199u);
+  CHECK_EQ(offsetof(NbHeartbeat, ritual_hour_key), 207u);
+  CHECK_EQ(offsetof(NbHeartbeat, ritual_canary_target_id), 215u);
+  CHECK_EQ(sizeof(NbHeartbeat), 218u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
@@ -94,6 +97,8 @@ int main() {
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat), power_sample_flags));
   CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat),
                         last_protect_reset_streak));
+  CHECK(NB_HAS_HB_FIELD((int)sizeof(NbHeartbeat),
+                        ritual_canary_target_id));
   // A legacy 142 B bench heartbeat fails the tail-13 gate.
   CHECK(!NB_HAS_HB_FIELD(142, profile));
   // A pre-dashboard 148 B fixture heartbeat fails the new tail-14 gate.

@@ -63,7 +63,7 @@ void nbEmitTick(uint32_t nowMs) {
       hasAction ? action.target_id[1] : 0,
       hasAction ? action.target_id[2] : 0, storeActionCount());
 
-  char line[1024];
+  char line[1152];
   for (size_t i = 0; i < census().capacity(); ++i) {
     const PeerStat *p = census().at(i);
     if (!p) continue;
@@ -177,6 +177,18 @@ void nbEmitTick(uint32_t nowMs) {
           p->lastProtectOrigin, p->lastProtectPredecessorStage,
           p->lastProtectResetReason, p->lastProtectLoadArmed,
           p->lastProtectResetStreak);
+    if (p->hasRitualAudit && n < (int)sizeof(line))
+      n += snprintf(
+          line + n, sizeof(line) - n,
+          " ritf=%u ritexp=%u ritat=%u ritfire=%u ritref=%u ritblk=%u "
+          "ritu=%u rith=%lu ritcanh=%lu ritcantgt=%02X%02X%02X",
+          p->ritualFlags, p->ritualExpectedMask, p->ritualAttemptedMask,
+          p->ritualFiredMask, p->ritualPolicyRefusedMask,
+          p->ritualMechanismBlockedMask, p->ritualLastUncertaintyMs,
+          (unsigned long)p->ritualHourKey,
+          (unsigned long)p->ritualCanaryHourKey,
+          p->ritualCanaryTargetId[0], p->ritualCanaryTargetId[1],
+          p->ritualCanaryTargetId[2]);
     if (n < 0) continue;
     // Clamp before the newline so a future tail cannot turn truncation into
     // an out-of-bounds write (donor comment, kept true here).

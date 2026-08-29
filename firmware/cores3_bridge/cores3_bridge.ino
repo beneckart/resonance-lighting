@@ -412,6 +412,18 @@ struct PeerStat {
   uint8_t classMismatch;
   uint8_t recoveryState;
   uint16_t recoveryDetectMv;
+
+  bool hasRitualAudit;
+  uint8_t ritualFlags;
+  uint8_t ritualExpectedMask;
+  uint8_t ritualAttemptedMask;
+  uint8_t ritualFiredMask;
+  uint8_t ritualPolicyRefusedMask;
+  uint8_t ritualMechanismBlockedMask;
+  uint16_t ritualLastUncertaintyMs;
+  uint32_t ritualHourKey;
+  uint32_t ritualCanaryHourKey;
+  uint8_t ritualCanaryTargetId[3];
 };
 
 PeerStat peers[NB_MAX_TRACKED] = {};
@@ -1294,6 +1306,20 @@ void processHeartbeat(const RxItem &item) {
     peer->recoveryState = hb->recovery_state;
     peer->recoveryDetectMv = hb->recovery_detect_mv;
   }
+  peer->hasRitualAudit = NB_HAS_HB_FIELD(item.len, ritual_canary_target_id);
+  if (peer->hasRitualAudit) {
+    peer->ritualFlags = hb->ritual_flags;
+    peer->ritualExpectedMask = hb->ritual_expected_mask;
+    peer->ritualAttemptedMask = hb->ritual_attempted_mask;
+    peer->ritualFiredMask = hb->ritual_fired_mask;
+    peer->ritualPolicyRefusedMask = hb->ritual_policy_refused_mask;
+    peer->ritualMechanismBlockedMask = hb->ritual_mechanism_blocked_mask;
+    peer->ritualLastUncertaintyMs = hb->ritual_last_uncertainty_ms;
+    peer->ritualHourKey = hb->ritual_hour_key;
+    peer->ritualCanaryHourKey = hb->ritual_canary_hour_key;
+    memcpy(peer->ritualCanaryTargetId, hb->ritual_canary_target_id,
+           sizeof(peer->ritualCanaryTargetId));
+  }
 }
 
 void emitScanAp(const RxItem &item) {
@@ -1428,7 +1454,7 @@ void emitBridgeStats() {
   }
 #endif
 
-  char line[1024];
+  char line[1152];
   for (size_t i = 0; i < NB_MAX_TRACKED; ++i) {
     PeerStat *p = &peers[i];
     if (!p->used) continue;
@@ -1535,6 +1561,19 @@ void emitBridgeStats() {
                     " sens=%u cmis=%u rec=%u recmv=%u",
                     p->sensorBits, p->classMismatch, p->recoveryState,
                     p->recoveryDetectMv);
+    }
+    if (p->hasRitualAudit && n < (int)sizeof(line)) {
+      n += snprintf(
+          line + n, sizeof(line) - n,
+          " ritf=%u ritexp=%u ritat=%u ritfire=%u ritref=%u ritblk=%u "
+          "ritu=%u rith=%lu ritcanh=%lu ritcantgt=%02X%02X%02X",
+          p->ritualFlags, p->ritualExpectedMask, p->ritualAttemptedMask,
+          p->ritualFiredMask, p->ritualPolicyRefusedMask,
+          p->ritualMechanismBlockedMask, p->ritualLastUncertaintyMs,
+          (unsigned long)p->ritualHourKey,
+          (unsigned long)p->ritualCanaryHourKey,
+          p->ritualCanaryTargetId[0], p->ritualCanaryTargetId[1],
+          p->ritualCanaryTargetId[2]);
     }
     if (n < 0) continue;
     // snprintf returns the length it wanted to write. Clamp before appending a

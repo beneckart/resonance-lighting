@@ -64,10 +64,14 @@ def main() -> None:
         assignments[fixture_id] = row
 
     rows: list[dict[str, str]] = []
+    known_fixture_ids: set[str] = set()
     seen: set[str] = set()
     for row in source_rows:
         if row.get("board") != "PowerFeather V2":
             continue
+        known_fixture_id = row.get("fixture_id", "").strip().upper()
+        if re.fullmatch(r"[0-9A-F]{6}", known_fixture_id):
+            known_fixture_ids.add(known_fixture_id)
         status = row.get("status", "").strip()
         if status not in ACTIVE_STATUSES:
             continue
@@ -84,11 +88,15 @@ def main() -> None:
 
     rows.sort(key=lambda row: int(row["fixture_id"], 16))
     missing = seen - set(assignments)
-    extra = set(assignments) - seen
+    # Callsigns are permanent operator identity, including for quarantined and
+    # retired physical fixtures. Only an assignment absent from the complete
+    # PowerFeather registry is invalid; non-production status merely removes
+    # the fixture from the generated health-alert roster.
+    extra = set(assignments) - known_fixture_ids
     if missing:
         fail(f"production-health fixtures missing callsigns: {sorted(missing)}")
     if extra:
-        fail(f"callsigns assigned outside production-health roster: {sorted(extra)}")
+        fail(f"callsigns assigned outside fixture registry: {sorted(extra)}")
     registry_digest = hashlib.sha256(registry_raw).hexdigest()
     callsigns_digest = hashlib.sha256(callsigns_raw).hexdigest()
 

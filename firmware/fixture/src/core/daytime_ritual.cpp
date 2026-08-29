@@ -32,6 +32,12 @@ static bool due(uint32_t elapsedMs, uint32_t dueMs) {
   return elapsedMs >= dueMs && elapsedMs - dueMs <= kEventLateMs;
 }
 
+static uint32_t windowHourKey(uint32_t utcS) {
+  uint32_t hourKey = utcS / 3600UL;
+  if (utcS % 3600UL >= 3600UL - DAYTIME_RITUAL_PREWAKE_S) ++hourKey;
+  return hourKey;
+}
+
 static bool alreadyAttempted(const DaytimeRitualState &state, uint8_t event,
                              uint32_t eventKey) {
   return event >= DAYTIME_RITUAL_UNISON && event <= DAYTIME_RITUAL_AFTER &&
@@ -50,6 +56,9 @@ DaytimeRitualOutputs daytimeRitualTick(DaytimeRitualState &state,
   if (!in.enabled || !in.scheduledDay || !in.energyReady ||
       !in.authorityFree || !in.utcValid || in.subMs >= 1000 ||
       in.uncertaintyMs > DAYTIME_RITUAL_ORGANIC_MAX_UNCERT_MS)
+    return out;
+
+  if (in.allowedHourKey && windowHourKey(in.utcS) != in.allowedHourKey)
     return out;
 
   uint32_t elapsedMs = (in.utcS % 3600UL) * 1000UL + in.subMs;
@@ -97,6 +106,34 @@ uint16_t daytimeRitualSleepS(uint32_t utcS, uint16_t subMs,
   uint32_t deltaS = (deltaMs + 999UL) / 1000UL;
   if (deltaS == 0) deltaS = 1;
   return deltaS < normalSleepS ? (uint16_t)deltaS : normalSleepS;
+}
+
+uint16_t daytimeRitualSleepSForHour(uint32_t utcS, uint16_t subMs,
+                                    uint16_t normalSleepS,
+                                    uint32_t allowedHourKey) {
+  if (!allowedHourKey)
+    return daytimeRitualSleepS(utcS, subMs, normalSleepS);
+  if (!normalSleepS || subMs >= 1000) return normalSleepS;
+
+  uint64_t nowMs = (uint64_t)utcS * 1000ULL + subMs;
+  uint64_t prewakeMs = (uint64_t)allowedHourKey * kHourMs -
+                       (uint64_t)DAYTIME_RITUAL_PREWAKE_S * 1000ULL;
+  if (nowMs >= prewakeMs) return normalSleepS;
+  uint64_t deltaMs = prewakeMs - nowMs;
+  uint64_t deltaS = (deltaMs + 999ULL) / 1000ULL;
+  return deltaS < normalSleepS ? (uint16_t)deltaS : normalSleepS;
+}
+
+uint8_t daytimeRitualEventMask(uint8_t event) {
+  if (event < DAYTIME_RITUAL_UNISON || event > DAYTIME_RITUAL_AFTER) return 0;
+  return (uint8_t)(1U << (event - DAYTIME_RITUAL_UNISON));
+}
+
+uint8_t daytimeRitualExpectedMask(const uint8_t fixtureId[3]) {
+  uint8_t mask = DAYTIME_RITUAL_MASK_UNISON | DAYTIME_RITUAL_MASK_ROLL;
+  if ((fixtureHash(fixtureId) & 0x03U) == 0)
+    mask |= DAYTIME_RITUAL_MASK_AFTER;
+  return mask;
 }
 
 const char *daytimeRitualEventName(uint8_t event) {

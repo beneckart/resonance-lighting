@@ -68,6 +68,23 @@ class DashboardParserTests(unittest.TestCase):
         self.assertTrue(row["last_protect_load_armed"])
         self.assertEqual(row["last_protect_reset_streak"], 2)
 
+    def test_daytime_ritual_audit_tail(self):
+        row = self.parse(
+            BASE
+            + " ritf=7 ritexp=3 ritat=3 ritfire=3 ritref=0 ritblk=0"
+            + " ritu=125 rith=496700 ritcanh=496700 ritcantgt=F2B7DC"
+        )
+        self.assertEqual(row["daytime_ritual_flags"], 7)
+        self.assertEqual(row["daytime_ritual_expected_mask"], 3)
+        self.assertEqual(row["daytime_ritual_attempted_mask"], 3)
+        self.assertEqual(row["daytime_ritual_fired_mask"], 3)
+        self.assertEqual(row["daytime_ritual_policy_refused_mask"], 0)
+        self.assertEqual(row["daytime_ritual_mechanism_blocked_mask"], 0)
+        self.assertEqual(row["daytime_ritual_last_uncertainty_ms"], 125)
+        self.assertEqual(row["daytime_ritual_hour_key"], 496700)
+        self.assertEqual(row["daytime_ritual_canary_hour_key"], 496700)
+        self.assertEqual(row["daytime_ritual_canary_target"], "F2B7DC")
+
     def test_master_action_audit_and_legacy_master(self):
         state = dashboard.DashboardState()
         worker = dashboard.SerialWorker(state, "TEST", 115200, None, 54321)

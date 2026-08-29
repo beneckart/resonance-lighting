@@ -91,7 +91,7 @@ int main() {
 
   // The generated production roster is stable, sorted, and intentionally
   // excludes quarantined, bench-only, merely enumerated, and bridge hardware.
-  assert(kHealthRegistryCount == 144);
+  assert(kHealthRegistryCount == 143);
   for (size_t i = 1; i < kHealthRegistryCount; ++i) {
     assert(std::memcmp(kHealthRegistry[i - 1].id, kHealthRegistry[i].id, 3) < 0);
   }
@@ -116,6 +116,9 @@ int main() {
   const HealthRegistryEntry *bidoof =
       healthRegistryFind(kHealthRegistry, kHealthRegistryCount, bidoofId);
   assert(bidoof && std::strcmp(bidoof->callsign, "Bidoof") == 0);
+  const uint8_t shuckleId[3] = {0xF4, 0x03, 0x1C};
+  assert(healthRegistryFind(kHealthRegistry, kHealthRegistryCount,
+                            shuckleId) == nullptr);
 
   std::printf("health_model ok (%zu registry fixtures)\n", kHealthRegistryCount);
   return 0;

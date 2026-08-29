@@ -68,6 +68,21 @@ int main() {
   }
   CHECK(sawRoll);
 
+  // A canary is locked to one exact UTC hour. It holds the named pre-roll and
+  // may strike in that hour, but the identical wall-clock phase in either
+  // adjacent hour is inert.
+  daytimeRitualInit(state);
+  in = baseInput();
+  in.allowedHourKey = 100;
+  in.utcS = 99UL * 3600UL + 3580UL;
+  CHECK(daytimeRitualTick(state, in).keepAwake);
+  in.utcS = 100UL * 3600UL + 5UL;
+  CHECK(daytimeRitualTick(state, in).strikeRequested);
+  in.utcS = 101UL * 3600UL + 5UL;
+  out = daytimeRitualTick(state, in);
+  CHECK(!out.keepAwake);
+  CHECK(!out.strikeRequested);
+
   // Energy, schedule, authority, and time are all independent vetoes.
   DaytimeRitualInputs veto = baseInput();
   veto.utcS += 5;
@@ -85,6 +100,29 @@ int main() {
   CHECK_EQ(daytimeRitualSleepS(100UL * 3600UL + 3000UL, 0, 300), 300u);
   CHECK_EQ(daytimeRitualSleepS(100UL * 3600UL + 3570UL, 0, 300), 10u);
   CHECK_EQ(daytimeRitualSleepS(100UL * 3600UL + 3569UL, 500, 300), 11u);
+
+  // A future canary hour uses the normal cadence until its final sleep, lands
+  // on T-20, and never aligns to a second ritual after the named hour passes.
+  CHECK_EQ(daytimeRitualSleepSForHour(100UL * 3600UL + 3000UL, 0, 300,
+                                      102UL),
+           300u);
+  CHECK_EQ(daytimeRitualSleepSForHour(101UL * 3600UL + 3570UL, 0, 300,
+                                      102UL),
+           10u);
+  CHECK_EQ(daytimeRitualSleepSForHour(102UL * 3600UL + 48UL, 0, 300,
+                                      102UL),
+           300u);
+
+  DaytimeRitualInputs expectedInput = baseInput();
+  uint8_t expected = daytimeRitualExpectedMask(expectedInput.fixtureId);
+  CHECK((expected & DAYTIME_RITUAL_MASK_UNISON) != 0);
+  CHECK((expected & DAYTIME_RITUAL_MASK_ROLL) != 0);
+  CHECK_EQ(daytimeRitualEventMask(DAYTIME_RITUAL_UNISON),
+           (uint8_t)DAYTIME_RITUAL_MASK_UNISON);
+  CHECK_EQ(daytimeRitualEventMask(DAYTIME_RITUAL_ROLL),
+           (uint8_t)DAYTIME_RITUAL_MASK_ROLL);
+  CHECK_EQ(daytimeRitualEventMask(DAYTIME_RITUAL_AFTER),
+           (uint8_t)DAYTIME_RITUAL_MASK_AFTER);
 
   return testReport("test_daytime_ritual");
 }

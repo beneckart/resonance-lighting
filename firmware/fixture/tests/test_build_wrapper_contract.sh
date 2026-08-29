@@ -44,6 +44,10 @@ grep -Fq -- '--sentinel-trace-target MAC' <<< "$help" ||
   fail "help omits exact-target sentinel trace"
 grep -Fq -- '--sentinel-trace-smoke' <<< "$help" ||
   fail "help omits sentinel persistence smoke gate"
+grep -Fq -- '--daytime-ritual-target MAC' <<< "$help" ||
+  fail "help omits exact-target daytime ritual canary"
+grep -Fq -- '--daytime-ritual-hour HOUR' <<< "$help" ||
+  fail "help omits one-hour ritual lock"
 
 expect_rejected '--dev-cache cannot be combined with --ota' \
   --dev-cache --ota 192.0.2.1
@@ -85,6 +89,25 @@ expect_rejected '--sentinel-trace-target cannot be combined with --msa-trace-tar
   --sentinel-trace-target A1B2C3 --msa-trace-target F2BE0C
 expect_rejected '--sentinel-trace-smoke requires --sentinel-trace-target' \
   --sentinel-trace-smoke
+expect_rejected 'bad --daytime-ritual-target' \
+  --daytime-ritual-target invalid --daytime-ritual-hour 496700
+expect_rejected '--daytime-ritual-target requires --daytime-ritual-hour' \
+  --daytime-ritual-target A1B2C3
+expect_rejected '--daytime-ritual-hour requires --daytime-ritual-target' \
+  --daytime-ritual-hour 496700
+expect_rejected 'bad --daytime-ritual-hour' \
+  --daytime-ritual-target A1B2C3 --daytime-ritual-hour invalid
+expect_rejected '--daytime-ritual-target cannot be combined with another exact-target test' \
+  --daytime-ritual-target A1B2C3 --daytime-ritual-hour 496700 \
+  --sentinel-trace-target A1B2C3
+expect_rejected '--daytime-ritual-target cannot bypass the production strike gate' \
+  --daytime-ritual-target A1B2C3 --daytime-ritual-hour 496700 --solenoid-test
+expect_rejected '--daytime-ritual-target requires --artifact-variant t' \
+  --daytime-ritual-target A1B2C3 --daytime-ritual-hour 496700 \
+  --artifact-variant p --wifi-profile-label test-v1 --profile field --channel 11
+expect_rejected '--daytime-ritual-target requires --profile field' \
+  --daytime-ritual-target A1B2C3 --daytime-ritual-hour 496700 \
+  --artifact-variant t --wifi-profile-label test-v1 --profile commission --channel 11
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"

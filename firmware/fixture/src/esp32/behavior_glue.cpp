@@ -30,6 +30,12 @@
 #ifndef RES_DAY_SLEEP_S
 #define RES_DAY_SLEEP_S 300U         // DAY_CHARGE timer sleep
 #endif
+#ifndef RES_DAYTIME_RITUAL_CANARY_TARGET
+#define RES_DAYTIME_RITUAL_CANARY_TARGET 0UL
+#endif
+#ifndef RES_DAYTIME_RITUAL_CANARY_HOUR
+#define RES_DAYTIME_RITUAL_CANARY_HOUR 0UL
+#endif
 #define RES_CHOREO_KEEPALIVE_MS 1000
 #define RES_NEIGHBOR_FRESH_MS 3000
 #define RES_WAVE_CAPABLE_FLAG 0x08
@@ -62,11 +68,69 @@ static bool gScheduleValid = false;
 static bool gScheduleNight = false;
 static bool gRitualKeepAwake = false;
 
-static constexpr uint32_t kRitualRtcMagic = 0x52544C31UL; // "RTL1"
+static constexpr uint32_t kRitualRtcMagic = 0x52544C32UL; // "RTL2"
 static constexpr uint32_t kDayEnergyCarryMagic = 0x454E5231UL; // "ENR1"
 RTC_DATA_ATTR static uint32_t gRitualRtcMagic = 0;
 RTC_DATA_ATTR static DaytimeRitualState gRitualState;
+RTC_DATA_ATTR static DaytimeRitualAudit gRitualAudit;
 RTC_DATA_ATTR static uint32_t gDayEnergyCarry = 0;
+
+static uint32_t shortFixtureId() {
+  return ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) |
+         gMyId[2];
+}
+
+bool behaviorDaytimeRitualCanaryBuild() {
+  return RES_DAYTIME_RITUAL_CANARY_TARGET != 0UL &&
+         RES_DAYTIME_RITUAL_CANARY_HOUR != 0UL;
+}
+
+uint32_t behaviorDaytimeRitualCanaryTarget() {
+  return (uint32_t)RES_DAYTIME_RITUAL_CANARY_TARGET;
+}
+
+bool behaviorDaytimeRitualCanaryTargetMatches() {
+  return behaviorDaytimeRitualCanaryBuild() &&
+         shortFixtureId() == behaviorDaytimeRitualCanaryTarget();
+}
+
+uint32_t behaviorDaytimeRitualCanaryHourKey() {
+  return (uint32_t)RES_DAYTIME_RITUAL_CANARY_HOUR;
+}
+
+DaytimeRitualAudit behaviorDaytimeRitualAudit() { return gRitualAudit; }
+
+static void beginRitualAudit(uint32_t hourKey, uint16_t uncertaintyMs) {
+  if (gRitualAudit.hourKey != hourKey) {
+    memset(&gRitualAudit, 0, sizeof(gRitualAudit));
+    gRitualAudit.hourKey = hourKey;
+    gRitualAudit.expectedMask = daytimeRitualExpectedMask(gMyId);
+  }
+  gRitualAudit.lastUncertaintyMs = uncertaintyMs;
+}
+
+static bool observeCanaryWindow(const TimeEstimate &wall) {
+  if (!behaviorDaytimeRitualCanaryTargetMatches() || !wall.valid ||
+      wall.subMs >= 1000)
+    return false;
+  uint64_t nowMs = (uint64_t)wall.utcS * 1000ULL + wall.subMs;
+  uint64_t hourMs =
+      (uint64_t)behaviorDaytimeRitualCanaryHourKey() * 3600000ULL;
+  uint64_t startMs = hourMs -
+                     (uint64_t)DAYTIME_RITUAL_PREWAKE_S * 1000ULL;
+  uint64_t endMs = hourMs + (uint64_t)DAYTIME_RITUAL_END_S * 1000ULL;
+  uint8_t before = gRitualAudit.flags;
+  if (nowMs >= startMs && nowMs <= endMs) {
+    beginRitualAudit(behaviorDaytimeRitualCanaryHourKey(),
+                     wall.uncertaintyMs);
+    gRitualAudit.flags |= DAYTIME_RITUAL_AUDIT_WINDOW_SEEN;
+  } else if (nowMs > endMs &&
+             gRitualAudit.hourKey == behaviorDaytimeRitualCanaryHourKey() &&
+             (gRitualAudit.flags & DAYTIME_RITUAL_AUDIT_WINDOW_SEEN)) {
+    gRitualAudit.flags |= DAYTIME_RITUAL_AUDIT_WINDOW_COMPLETE;
+  }
+  return before != gRitualAudit.flags;
+}
 
 struct PresenceWaveState {
   uint32_t eventId;
@@ -346,6 +410,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   lifeInit(gLife);
   if (gRitualRtcMagic != kRitualRtcMagic) {
     daytimeRitualInit(gRitualState);
+    memset(&gRitualAudit, 0, sizeof(gRitualAudit));
     gRitualRtcMagic = kRitualRtcMagic;
   }
   bool carriedEnergy = esp_reset_reason() == ESP_RST_DEEPSLEEP &&
@@ -587,8 +652,11 @@ void behaviorTick() {
   }
 
   DaytimeRitualInputs ritualIn = {};
+  bool ritualCanary = behaviorDaytimeRitualCanaryBuild();
+  bool ritualTargetOk = !ritualCanary ||
+                        behaviorDaytimeRitualCanaryTargetMatches();
   ritualIn.enabled = gCfg.profile == PROFILE_PROD &&
-                     gClass == FIXTURE_DOWNLIGHT;
+                     gClass == FIXTURE_DOWNLIGHT && ritualTargetOk;
   ritualIn.scheduledDay = gScheduleValid && !gScheduleNight;
   ritualIn.energyReady = gStrikesAllowed;
   ritualIn.authorityFree = !gRuntime.leaseActive();
@@ -597,19 +665,35 @@ void behaviorTick() {
   ritualIn.subMs = wall.subMs;
   ritualIn.uncertaintyMs = wall.uncertaintyMs;
   memcpy(ritualIn.fixtureId, gMyId, sizeof(ritualIn.fixtureId));
+  ritualIn.allowedHourKey = ritualCanary
+                                ? behaviorDaytimeRitualCanaryHourKey()
+                                : 0;
+  bool ritualAuditChanged = observeCanaryWindow(wall);
   DaytimeRitualOutputs ritual =
       daytimeRitualTick(gRitualState, ritualIn);
   gRitualKeepAwake = ritual.keepAwake;
   if (ritual.strikeRequested) {
     const char *eventName = daytimeRitualEventName(ritual.event);
+    beginRitualAudit(ritual.hourKey, wall.uncertaintyMs);
+    uint8_t eventMask = daytimeRitualEventMask(ritual.event);
+    gRitualAudit.attemptedMask |= eventMask;
     Serial.printf("daytime-ritual: hour=%lu event=%s attempt\n",
                   (unsigned long)ritual.hourKey, eventName);
     if (!strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM,
                                 behaviorStrikePermitted())) {
+      gRitualAudit.policyRefusedMask |= eventMask;
       Serial.printf("daytime-ritual: %s refused (energy gate)\n", eventName);
     } else if (!solenoidStrike(RES_SOLENOID_DEFAULT_MS, eventName)) {
+      gRitualAudit.mechanismBlockedMask |= eventMask;
       Serial.printf("daytime-ritual: %s blocked (mechanism gate)\n", eventName);
+    } else {
+      gRitualAudit.firedMask |= eventMask;
     }
+    // A full heartbeat immediately after every bounded act makes the canary
+    // visible without opening the enclosure or waiting for the 60 s cadence.
+    netPeerSendHeartbeat(true);
+  } else if (ritualAuditChanged) {
+    netPeerSendHeartbeat(true);
   }
 
   if (gShowActive) {
@@ -752,8 +836,11 @@ void behaviorTick() {
       !gRuntime.leaseActive() && !otaVerifyPending()) {
     uint16_t sleepS = lo.sleepS;
     if (gCfg.profile == PROFILE_PROD && gClass == FIXTURE_DOWNLIGHT &&
-        gStrikesAllowed && gScheduleValid && !gScheduleNight && wall.valid) {
-      sleepS = daytimeRitualSleepS(wall.utcS, wall.subMs, sleepS);
+        ritualTargetOk && gStrikesAllowed && gScheduleValid &&
+        !gScheduleNight && wall.valid) {
+      sleepS = daytimeRitualSleepSForHour(
+          wall.utcS, wall.subMs, sleepS,
+          ritualCanary ? behaviorDaytimeRitualCanaryHourKey() : 0);
     }
     // Restore DAY_ACTIVE for only the next timer wake, and only while the
     // current measurement still grants actual strike permission.

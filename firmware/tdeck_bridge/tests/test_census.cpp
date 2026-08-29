@@ -43,6 +43,18 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
   hb.last_protect_reset_reason = 9;
   hb.last_protect_load_armed = 1;
   hb.last_protect_reset_streak = 2;
+  hb.ritual_flags = NB_RITUAL_CANARY_BUILD |
+                    NB_RITUAL_CANARY_TARGET_MATCH |
+                    NB_RITUAL_WINDOW_SEEN;
+  hb.ritual_expected_mask = 0x03;
+  hb.ritual_attempted_mask = 0x03;
+  hb.ritual_fired_mask = 0x03;
+  hb.ritual_last_uncertainty_ms = 125;
+  hb.ritual_hour_key = 496700;
+  hb.ritual_canary_hour_key = 496700;
+  hb.ritual_canary_target_id[0] = 0xAA;
+  hb.ritual_canary_target_id[1] = 0xBB;
+  hb.ritual_canary_target_id[2] = idLo;
   hb.bq_reg16 = 1u << 5;
   hb.bq_stat1 = 1u << 3;
   hb.bq_fault0 = 0;
@@ -99,6 +111,12 @@ int main() {
   assert(p1->lastProtectPredecessorStage == 2);
   assert(p1->lastProtectResetReason == 9 && p1->lastProtectLoadArmed == 1);
   assert(p1->lastProtectResetStreak == 2);
+  assert(p1->hasRitualAudit);
+  assert(p1->ritualFlags & NB_RITUAL_CANARY_TARGET_MATCH);
+  assert(p1->ritualExpectedMask == 0x03 && p1->ritualFiredMask == 0x03);
+  assert(p1->ritualHourKey == 496700 &&
+         p1->ritualCanaryHourKey == 496700);
+  assert(p1->ritualCanaryTargetId[2] == 1);
   assert(strncmp(p1->fwRev, "fx-260819", 9) == 0);
   assert(c.ingest(makeHb(1, 3, 3000, NB_HB_SHORT_LEN, -50), 3000));
   assert(!p1->hasLedOutput && p1->classLatched == 2);  // latched across short

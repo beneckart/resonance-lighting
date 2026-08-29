@@ -17,6 +17,8 @@
 #   ./build.sh --presence-distant-range  # trace-only raw 1000..<5000 mm presence
 #   ./build.sh --sentinel-trace-target A1B2C3 # radio-off + VL53 power A/B/A
 #   ./build.sh --sentinel-trace-smoke        # 40 s persistence/recovery gate
+#   ./build.sh --daytime-ritual-target A1B2C3 --daytime-ritual-hour 496700
+#                                       # one exact fixture, one Unix UTC hour
 #   ./build.sh --canopy-solenoid         # deprecated no-op; now fleet default
 #   ./build.sh --solenoid-test           # targeted rev-2 manual-control bring-up
 #   ./build.sh --basic-listener          # class-aware listener when no command
@@ -58,6 +60,9 @@ PRESENCE_SENTINEL=0
 PRESENCE_DISTANT_RANGE=0
 SENTINEL_TRACE_TARGET=""
 SENTINEL_TRACE_SMOKE=0
+DAYTIME_RITUAL_TARGET=""
+DAYTIME_RITUAL_HOUR=""
+SOLENOID_TEST=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -112,6 +117,8 @@ Common build options:
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
   --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
   --sentinel-trace-smoke      short no-human persistence/recovery gate; requires target
+  --daytime-ritual-target MAC exact cymbal/downlight canary target
+  --daytime-ritual-hour HOUR  one Unix UTC hour key; requires ritual target
   -h, --help                  show this contract without compiling
 EOF
 }
@@ -282,6 +289,8 @@ while [[ $# -gt 0 ]]; do
     --presence-distant-range) PRESENCE_DISTANT_RANGE=1; shift ;;
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
+    --daytime-ritual-target) DAYTIME_RITUAL_TARGET="${2^^}"; shift 2 ;;
+    --daytime-ritual-hour) DAYTIME_RITUAL_HOUR="$2"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -291,7 +300,7 @@ while [[ $# -gt 0 ]]; do
       echo "NOTICE: --canopy-solenoid is deprecated; solenoid capability is now the fleet default"
       shift
       ;;
-    --solenoid-test) EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
+    --solenoid-test) SOLENOID_TEST=1; EXTRA_FLAGS+=" -DRES_SOLENOID_FORCE_ENABLED=1 -DRES_SOLENOID_TEST_OVERRIDE=1"; shift ;;
     --ota-fail-selftest) EXTRA_FLAGS+=" -DRES_OTA_FAIL_SELFTEST=1"; shift ;;
     --wdt-hangtest) EXTRA_FLAGS+=" -DRES_WDT_HANGTEST=1"; shift ;;
     --basic-listener|--quiet-autonomy) EXTRA_FLAGS+=" -DRES_BASIC_LISTENER=1"; shift ;;
@@ -386,6 +395,23 @@ if (( SENTINEL_TRACE_SMOKE )); then
   [[ -n "$SENTINEL_TRACE_TARGET" ]] ||
     fail "--sentinel-trace-smoke requires --sentinel-trace-target"
 fi
+if [[ -n "$DAYTIME_RITUAL_TARGET" ]]; then
+  [[ "$DAYTIME_RITUAL_TARGET" =~ ^[0-9A-F]{6}$ ]] ||
+    fail "bad --daytime-ritual-target: $DAYTIME_RITUAL_TARGET (expected six hex digits)"
+  [[ -n "$DAYTIME_RITUAL_HOUR" ]] ||
+    fail "--daytime-ritual-target requires --daytime-ritual-hour"
+  [[ "$DAYTIME_RITUAL_HOUR" =~ ^[0-9]+$ ]] ||
+    fail "bad --daytime-ritual-hour: $DAYTIME_RITUAL_HOUR (expected Unix UTC hour key)"
+  (( DAYTIME_RITUAL_HOUR > 0 && DAYTIME_RITUAL_HOUR <= 1193046 )) ||
+    fail "bad --daytime-ritual-hour: $DAYTIME_RITUAL_HOUR (out of uint32 UTC range)"
+  [[ -z "$DEEP_RECOVERY_TARGET" && -z "$MSA_TRACE_TARGET" &&
+     -z "$SENTINEL_TRACE_TARGET" ]] ||
+    fail "--daytime-ritual-target cannot be combined with another exact-target test"
+  (( ! SOLENOID_TEST )) ||
+    fail "--daytime-ritual-target cannot bypass the production strike gate"
+elif [[ -n "$DAYTIME_RITUAL_HOUR" ]]; then
+  fail "--daytime-ritual-hour requires --daytime-ritual-target"
+fi
 
 # An explicit source replaces stale local credentials before compilation. This
 # is mainly for one-time USB recovery onto the portable-router OTA path.
@@ -450,6 +476,14 @@ if [[ -n "$SENTINEL_TRACE_TARGET" ]]; then
   if (( SENTINEL_TRACE_SMOKE )); then
     FLAGS+=" -DRES_SENTINEL_TRACE_SMOKE=1"
   fi
+fi
+if [[ -n "$DAYTIME_RITUAL_TARGET" ]]; then
+  [[ "$ARTIFACT_VARIANT" == "t" ]] ||
+    fail "--daytime-ritual-target requires --artifact-variant t"
+  [[ "$PROFILE" == "field" || "$PROFILE" == "prod" ]] ||
+    fail "--daytime-ritual-target requires --profile field"
+  FLAGS+=" -DRES_DAYTIME_RITUAL_CANARY_TARGET=0x${DAYTIME_RITUAL_TARGET}UL"
+  FLAGS+=" -DRES_DAYTIME_RITUAL_CANARY_HOUR=${DAYTIME_RITUAL_HOUR}UL"
 fi
 MANIFEST_PROFILE=""
 case "$PROFILE" in

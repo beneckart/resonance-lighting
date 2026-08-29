@@ -128,8 +128,13 @@ tests/run_tests.sh   wrapper contract + native g++ suite -- before every flash
 ./build.sh --wifi-source <gitignored-header>  # solenoid capability is universal
 ./build.sh --wifi-source <gitignored-header> --solenoid-test  # targeted bench image
 ./build.sh --profile field --day-sleep-s 120 --wake-listen-ms 12000 # ADR 0064 canary
-./build.sh --msa-trace-target ABCDEF --fw-rev fx-YYMMDD-xxxxxxx-t
-./build.sh --sentinel-trace-target ABCDEF --fw-rev fx-YYMMDD-xxxxxxx-t
+./build.sh --artifact-variant t --wifi-profile-label party-in-the-woods-v1 \
+  --profile field --channel 11 --msa-trace-target ABCDEF
+./build.sh --artifact-variant t --wifi-profile-label party-in-the-woods-v1 \
+  --profile field --channel 11 --sentinel-trace-target ABCDEF
+./build.sh --artifact-variant t --wifi-profile-label party-in-the-woods-v1 \
+  --profile field --channel 11 --daytime-ritual-target ABCDEF \
+  --daytime-ritual-hour 496700
 ```
 
 For ordinary edit/compile iteration, use the persistent development cache:
@@ -389,6 +394,15 @@ high-time-quality unison, one deterministic organic roll, and a sparse after-
 ring, then returns to sleep by T+47 seconds. Invalid/weak time, scheduled night,
 weak energy, a bridge lease, or any hard solenoid gate causes abstention. The
 installed mallets strike finger cymbals, not bare bamboo.
+
+The hardware-validation image adds `--daytime-ritual-target <MAC>` plus
+`--daytime-ritual-hour <utc_s/3600>`. It requires a generated variant-`t`
+artifact and field profile, refuses the solenoid test override, and is inert on
+the wrong fixture and outside that one hour. RTC-retained event/outcome masks
+ride full-heartbeat tail 19 and maintenance JSON; updated bridges and host
+loggers expose expected, attempted, fired, policy-refused, mechanism-blocked,
+uncertainty, target, and hour without lid access. See
+`../../docs/howto/DAYTIME_RITUAL_CANARY.md`.
 
 The supervised `--basic-listener` posture is deliberately minimal and class
 aware. With no active bridge lease, canopy/downlights hold their dedicated warm

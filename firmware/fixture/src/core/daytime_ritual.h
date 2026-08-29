@@ -12,6 +12,12 @@ enum DaytimeRitualEvent : uint8_t {
   DAYTIME_RITUAL_AFTER = 3,
 };
 
+enum DaytimeRitualEventMask : uint8_t {
+  DAYTIME_RITUAL_MASK_UNISON = 0x01,
+  DAYTIME_RITUAL_MASK_ROLL = 0x02,
+  DAYTIME_RITUAL_MASK_AFTER = 0x04,
+};
+
 // Retain this tiny ledger across timer deep-sleep. A reset during or just
 // after a strike must not turn the same hourly event into a reboot loop.
 struct DaytimeRitualState {
@@ -28,6 +34,9 @@ struct DaytimeRitualInputs {
   uint16_t subMs;
   uint16_t uncertaintyMs;
   uint8_t fixtureId[3];
+  // Zero means the production every-hour schedule. A target-locked canary
+  // supplies one Unix UTC hour key and cannot actuate in any other hour.
+  uint32_t allowedHourKey;
 };
 
 struct DaytimeRitualOutputs {
@@ -45,6 +54,18 @@ DaytimeRitualOutputs daytimeRitualTick(DaytimeRitualState &state,
 // hourly pre-roll boundary. Invalid time keeps the normal cadence.
 uint16_t daytimeRitualSleepS(uint32_t utcS, uint16_t subMs,
                              uint16_t normalSleepS);
+
+// Canary form: align only to the named UTC hour. Once that window has passed,
+// return the ordinary sleep cadence rather than aligning to another hour.
+uint16_t daytimeRitualSleepSForHour(uint32_t utcS, uint16_t subMs,
+                                    uint16_t normalSleepS,
+                                    uint32_t allowedHourKey);
+
+// The after-ring belongs to a deterministic quarter of fixtures. These
+// helpers let a retrieval tool distinguish a correct two-event canary from a
+// missed third event without duplicating the hash contract.
+uint8_t daytimeRitualExpectedMask(const uint8_t fixtureId[3]);
+uint8_t daytimeRitualEventMask(uint8_t event);
 
 const char *daytimeRitualEventName(uint8_t event);
 
