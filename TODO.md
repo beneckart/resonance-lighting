@@ -23,7 +23,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   passed on Dixie and the base downlight/full-output canary passed on Froakie
   under ADR 0069, but the close downlight response was not exercised and is now
   superseded. **2026-08-29 Gible installed-height canary: OTA safety passed but
-  interaction failed.** Exact target Gible `9E5B34` accepted immutable normal
+  useful-height interaction remains on hold.** Exact target Gible `9E5B34`
+  accepted immutable normal
   artifact `fx-260829-7906e6f-p`, SHA-256
   `95df1a6b18f21c0f0643949e70474a4d2af019e85efbb86f21877af350dadb7d`,
   and passed fresh exact-revision rejoin/pending verify. Two valid exact-target
@@ -31,12 +32,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   naturally beneath the installed fixture. They saw only fixed 166-363 mm
   near-field returns, no person-range return, no presence edge/latch, and no
   required `W=255` response. Seven pre-trigger `W=25` intervals match Ben's
-  visual observation and ordinary GH CA quiescence, proving the walk was in the
-  buffer rather than missed by capture timing. Final job `32F8BF78` restored
-  the normal image and verified field posture. Next: inspect/clean the TMF
-  window and mechanically diagnose installed aim/range on one reachable named
-  downlight; collect raw zone/confidence evidence before changing thresholds or
-  promoting ADR 0070. The MSA311 accent seam is implemented but fleet-disabled
+  visual observation and ordinary GH CA quiescence. A later foolproof,
+  five-minute exact-target sentinel removed the remaining capture ambiguity:
+  red meant no latch and full RGB white meant the unchanged production
+  presence latch was active, with two green Identify markers bracketing the
+  experiment. Ben had to hold a split high to trigger it. The trace then
+  recorded 46 >1 m frames, five presence rises, and 49 active samples; every
+  active sample rendered full RGB white and no inactive sample did. This proves
+  the sensor/parser/debounce/render path, but not useful ordinary standing or
+  walking interaction. Exact final job `F02313D7` restored the normal image and
+  verified field posture. Next: inspect/clean the TMF window and mechanically
+  diagnose installed aim/range on one reachable named downlight; use the new
+  raw zone/confidence evidence to tune geometry or sensitivity before promoting
+  ADR 0070. The MSA311 accent seam is implemented but fleet-disabled
   pending quiet/wind/touch/swing/climb traces; barometric modulation and
   aggregate ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
@@ -823,12 +831,16 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fixed-distance trigger.** The initial robust setting requires one confident
   zone to move >=300 mm closer than its learned background for three consecutive
   reports. It passed the rig-occlusion proof but was a little difficult to
-  activate. Log one normal walk plus the low-ground broom stress case with zone
+  activate. The 2026-08-29 installed Gible sentinel trace now separates the
+  mechanism from the usability problem: normal walking/standing produced no
+  latch, while a split held high produced five clean rising edges at 2,504-
+  4,497 mm, 49 active samples, exact white output for all active samples, and
+  zero white outside the latch. Log the low-ground broom stress case with zone
   deltas and confidence. Compare one isolated downlight against a close group
   with adjacent TMF emitters ranging; do not attribute the intermittent starts
-  to optical crosstalk until that A/B supports it. Then adjust delta,
+  to optical crosstalk until that A/B supports it. Then adjust aim, delta,
   consecutive count, or sensor timing while retaining per-zone learning and
-  clear-to-rearm hysteresis (ADR 0053; Ben/Codex).
+  clear-to-rearm hysteresis (ADR 0053/0070; Ben/Codex).
 - [ ] **Hardware-validate optional ToF-seeded CA on named canaries.** With one
   sensor-verified downlight and at least two non-sensor CA neighbors, set
   `spark /256 = 0` and prove ToF off stays quiescent, ToF on emits exactly one
