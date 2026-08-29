@@ -230,6 +230,34 @@ Post-reset serial reported the exact `8EB508` identity on mesh channel 11,
 healthy 8 MB PSRAM, keyboard, touch, ES7210, and GPS probes, active mesh receive,
 and zero send failures. The camp-labelled TSwift `979604` was not connected or
 changed during this flash.
+## 2026-08-29 -- Ben + Codex -- Windy-night canopy presence passes
+
+Ben physically located Sakura `F2BE0C` with Fleet Identify and corrected the
+census inference: Sakura was in a bin, not installed high. Its all-zero TMF
+scene therefore meant an open/clear view from the bin, not evidence of canopy
+height. Ben pointed Sakura at himself and the ADR 0070 canary correctly changed
+from its low-white baseline to full dedicated white. This closes the new
+artifact's sensor -> presence latch -> visible output path. Separately, people
+walking beneath the installed tree reliably caused canopy lights to turn white,
+which is the intended artistic response. The precise named installed-height
+artifact canary remains useful for quantitative margin, but the installation's
+observable interaction is working.
+
+The test occurred on a windy night and invalidated the mental model of a rigid
+sensor observing a moving target. Each lantern swings chaotically as a pendulum
+over roughly two degrees of freedom, so its TMF cone scans the space. A person
+standing still can be discovered sequentially by several nearby fixtures as
+their cones swing across them. This feels alive and should be treated as an
+artistic affordance, not automatically motion-compensated away.
+
+No firmware threshold changed from this observation. The next tuning step is a
+correlated empty-wind/person trace of TMF depth, per-zone confidence, MSA311 sway
+envelope, and visible presence state. Use it to distinguish desirable swinging-
+scanner encounters from background/branch/ground false positives and to choose
+minimum white hold, release hysteresis, and retrigger cooldown. Preserve the
+current proven behavior until that evidence exists; do not use MSA as a blanket
+veto because it would suppress the exact wind-assisted discovery Ben observed.
+
 ## 2026-08-29 -- Ben + Codex -- Sakura 15 ft canopy canary staged
 
 Built immutable production candidate `fx-260829-8790f6d-p` from clean pushed

@@ -69,3 +69,22 @@ The lease was explicitly released and Sakura remained on mesh. A human was not
 confirmed beneath the fixture, so this passes empty-scene stability but does
 not yet pass installed human detection. The exact OTA, uploader, post-update
 TMF, and interaction-watch JSONL ledgers are retained beside the census.
+
+## Windy-night physical follow-up
+
+Ben used Fleet Identify and found Sakura in a bin. This corrects the earlier
+physical inference: Sakura's all-zero samples represented an open/clear view
+from the bin, not an installed-height ground measurement. When aimed at Ben,
+Sakura changed to full white, visually passing the updated artifact's complete
+sensor-to-output path. People walking beneath the installed tree also caused
+canopy lights to turn white as intended.
+
+The night was windy. Installed lanterns were visibly swinging in a chaotic
+two-axis pendulum motion, so their sensor cones swept across the interaction
+area. A stationary person could trigger several nearby lights at different
+times as those fixtures happened to swing toward them. Future analysis must
+model this as a moving sensor encountering a moving or stationary person, not a
+fixed sensor tracking only a moving object. The next evidence run should align
+TMF per-zone/depth/confidence, MSA311 sway, and rendered white state for empty
+wind, stationary-person, walking, and departure periods. No threshold was
+changed from this qualitative observation.
