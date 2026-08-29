@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-28
 
-**Status:** Accepted in source; native and embedded compile validation passed;
-installed-height canary pending
+**Status:** Accepted; native/embedded validation and one exact installed OTA
+canary passed; person-under-fixture detection pending
 
 **Owner:** Ben
 
@@ -100,6 +100,19 @@ then have a person walk beneath it while a visible show lease is active. Pass
 requires a debounced full-white response from ordinary standing/walking height,
 clean release after departure, no spontaneous empty-scene triggering, and
 healthy TMF read/error/recovery telemetry.
+
+## 2026-08-29 canary update
+
+Immutable artifact `fx-260829-8790f6d-p`, SHA-256
+`5bd65970990a34e511b44cb9a9ef1a7dc4e93a7b3cd3746df08abafb3e0ab6bf`,
+passed exact sole-target OTA on Sakura `F2BE0C`, fresh exact-revision rejoin,
+31-second pending-verify survival, field profile, downlight class, and recovery
+state 0. Six post-update TMF samples remained zero-depth with read OK, zero
+errors, zero recoveries, and zero domain resets; the expanded range therefore
+did not create an empty-scene ground false positive. A visible exact lease held
+the expected `W=25` baseline for eight minutes with no spontaneous `W=255`
+trigger, then released cleanly. No person-under-fixture attempt was confirmed,
+so the required human detection half remains open.
 
 ## References
 

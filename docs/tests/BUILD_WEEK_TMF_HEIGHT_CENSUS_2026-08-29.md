@@ -53,3 +53,19 @@ specified through 5,000 mm.
 ADR 0070 records the resulting role-specific change. Perimeter keeps its close
 chest-height distance mapping. Canopy accepts the full 5 m sensor range and uses
 learned per-zone background delta plus a persistent presence latch.
+
+## Sakura post-update canary
+
+Clean artifact `fx-260829-8790f6d-p` was exact-OTA canaried only on Sakura
+`F2BE0C`. Job `C804CF1F` passed fresh maintenance power, exact endpoint
+identity, upload acknowledgement, fresh exact-revision rejoin, and the pending-
+verify survival gate. A post-update six-sample read still reported zero raw
+depth with healthy TMF status and no errors/recoveries/resets, confirming a
+stable empty high scene under the full-range parser.
+
+An exact CA lease made the fixture visibly baseline-white at `W=25`. Eight
+minutes of fresh heartbeat monitoring saw no spontaneous `W=255` transition.
+The lease was explicitly released and Sakura remained on mesh. A human was not
+confirmed beneath the fixture, so this passes empty-scene stability but does
+not yet pass installed human detection. The exact OTA, uploader, post-update
+TMF, and interaction-watch JSONL ledgers are retained beside the census.

@@ -59,11 +59,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   native tests and an ESP32-S3 development compile pass. The perimeter canary
   passed on Dixie and the base downlight/full-output canary passed on Froakie
   under ADR 0069, but the close downlight response was not exercised and is now
-  superseded. Next: build one clean immutable ADR 0070 artifact; exact-update
-  one healthy installed zero-return candidate; then have a person walk
-  underneath and require full-W response, clean release, no empty false
-  triggers, healthy TMF telemetry, fresh exact revision, and pending-verify
-  survival. The MSA311 accent seam is implemented but fleet-disabled pending
+  superseded. **2026-08-29 partial installed canary:** exact Sakura `F2BE0C`
+  passed immutable artifact `fx-260829-8790f6d-p`, SHA-256
+  `5bd65970990a34e511b44cb9a9ef1a7dc4e93a7b3cd3746df08abafb3e0ab6bf`,
+  fresh exact-revision rejoin, pending verify, field/downlight/recovery checks,
+  post-update healthy zero-depth TMF telemetry, visible low-white lease, no
+  empty-scene false trigger across eight minutes, exact release, and mesh
+  cleanup. A 20-second locate blink was sent, but nobody was confirmed beneath
+  Sakura during the watch. Next: person-under-Sakura canary requiring a raw
+  2.7-3.5 m return and persistent full-W response plus clean release. If that
+  does not occur, height/aim/sunlight is a P0 installation gate and one lower or
+  better-aimed canopy must be tried before fleet promotion. The MSA311 accent
+  seam is implemented but fleet-disabled pending
   quiet/wind/touch/swing/climb traces; barometric modulation and aggregate
   ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
 - [~] **P0: canary ADR 0068 high-VBAT PROTECT recovery and provenance.**
