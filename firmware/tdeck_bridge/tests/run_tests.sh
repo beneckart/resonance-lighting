@@ -14,6 +14,8 @@ bash "${TESTS_DIR}/test_build_wrapper_contract.sh"
 
 python "${SKETCH_DIR}/tools/generate_health_registry.py" \
   "${FIRMWARE_ROOT}/../ops/fleet/registry.csv" \
+  "${FIRMWARE_ROOT}/../ops/fleet/callsigns.csv" \
+  "${FIRMWARE_ROOT}/../ops/fleet/roster.csv" \
   > "${BUILD_DIR}/fleet_registry_generated.h"
 diff -u "${SKETCH_DIR}/src/core/fleet_registry_generated.h" \
   "${BUILD_DIR}/fleet_registry_generated.h"

@@ -838,6 +838,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   The current combined image now flashed on exact `8EB508` carries all 144
   identities, including `Magmar [F2BDFC]`, `Magneto [F402A4]`, and
   `Marill [F40348]`.
+  **2026-08-30 source follow-up:** ADR 0074 now generates an exact 118-fixture
+  physical roster from `roster.csv`, retains the wider permanent alias table,
+  and assigns `Onix [F402A8]`. The scoped source has native/model proof but was
+  deliberately not built or flashed; include it in the next accumulated T-Deck
+  build and verify Onix lookup plus all/site/camp/repair Fleet filters.
   It is USB-flashed to exact T-Deck `8EB508`; upload verification, hardware
   probes, channel 11 rejoin, zero-failure mesh transmission, and fresh receive
   from all seven newly registered IDs passed. Check
@@ -876,9 +881,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   unavailable/partial observation labels, RX/TX counters, and WiFi/AP/channel
   guard state. The app must send no mesh command and alter no fixture state
   during validation. It is flashed in the combined `8EB508` image identified
-  above (Ben/Codex).
+  above. **2026-08-30 source follow-up:** the expected RF denominator is now the
+  111-fixture site scope; known camp/repair observations are neither expected
+  site peers nor mislabeled foreign. This is not yet built/flashed (Ben/Codex).
 - [~] **Hardware-validate the T-Deck Health app.** Source, native tests, and the
-  merged image now flashed to T-Deck `8EB508` cover the 134-entry production registry,
+  merged image now flashed to T-Deck `8EB508` cover the earlier unscoped registry,
   stable no-scroll tile ordering,
   fresh/off-air merge, unexpected live IDs, and exact raw-VBAT bands: green
   >3.20 V, yellow >3.10 V, red <=3.10 V. On T-Deck `8EB508`, verify all tiles
@@ -888,7 +895,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   fleet command during validation. Health remains present in the combined
   1,542,448-byte image identified above. Ben reports the first physical
   Health/Schedule smoke check looks good on 2026-08-24; retain the explicit
-  color/off-air and memory matrix before closing this item (Ben/Codex).
+  color/off-air and memory matrix before closing this item. **2026-08-30 source
+  follow-up:** Health now expects exactly 111 site fixtures and suppresses the
+  four camp plus three repair rows; source/native tests pass, but no embedded
+  build or flash has been run yet (Ben/Codex).
 - [~] **Field-validate the T-Deck LED Studio / Sleep app on explicit canaries.**
   T-Deck `8EB508` on `COM152` now runs `tdeck-dev-local` and passed exact flash
   verification, clean boot, peripherals, memory, correct machine identity, and
@@ -1088,14 +1098,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   exception has a 15 Ah cell, so correct Ponyta's live persisted 6,000 mAh
   capacity to 15,000 mAh through the declared exact-target configuration path
   before relying on its gauge SOC/capacity telemetry (Ben + field team).
-- [ ] **Turn the physical census into a slot-to-MAC dark-matter map.** Current
-  visual inventory is 74 canopy, 8 installed trunk, and 24 perimeter; all 24
-  perimeters should now contain QC'd cells. Roughly 20 additional trunk lights
-  are boxed and batteryless. Give every rig slot a durable label, use addressed
-  identify to record its short MAC, and explicitly record empty, batteryless,
-  bootloader, and silent slots. Reconcile the expected 106 powered
-  fixtures against dashboard identities instead of inferring missing units from
-  aggregate counts (Ben + Elliot/field team).
+- [~] **Finish the slot-to-MAC map for the reconciled physical roster.** ADR 0074
+  and `ops/fleet/roster.csv` now name the exact 118 built fixtures: 74 canopy,
+  24 perimeter, and 20 uplight. Operational scope is 111 at the art site, four
+  camp uplights, and three repair/offline canopy units. A full-cadence census saw
+  all 111 expected site identities. Durable rig-slot labels and exact physical
+  positions remain incomplete; record those without inferring identity from box
+  order or aggregate counts (Ben + Elliot/field team).
 
 - [~] **Choose the daytime recovery posture after the dark-awake baseline.**
   `B3600` proved that removing the LED load swings the updated awake fleet from

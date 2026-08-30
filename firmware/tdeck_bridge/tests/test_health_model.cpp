@@ -6,12 +6,14 @@
 #include "core/fleet_registry_generated.h"
 #include "core/health_model.h"
 
-static HealthRegistryEntry entry(uint32_t id) {
+static HealthRegistryEntry entry(
+    uint32_t id, HealthRosterScope scope = HealthRosterScope::SITE) {
   HealthRegistryEntry e = {};
   e.id[0] = (uint8_t)(id >> 16);
   e.id[1] = (uint8_t)(id >> 8);
   e.id[2] = (uint8_t)id;
   e.status = HealthRegistryStatus::COMMISSIONED;
+  e.scope = scope;
   return e;
 }
 
@@ -53,7 +55,11 @@ int main() {
   assert(chargeStatus(true, true, 0x20, 0x18, 0) ==
          ChargeStatus::TOP_OFF);
 
-  HealthRegistryEntry registry[] = {entry(0x100001), entry(0x100002)};
+  HealthRegistryEntry registry[] = {
+      entry(0x100001), entry(0x100002),
+      entry(0x100003, HealthRosterScope::CAMP),
+      entry(0x100004, HealthRosterScope::REPAIR),
+  };
   registry[0].callsign = "Luigi";
   registry[1].callsign = "Ponyta";
   HealthObservation observations[] = {
@@ -62,9 +68,10 @@ int main() {
       observation(0x200002, 100, 3150),   // live foreign, sorted second
       observation(0x200001, 100, 3000),   // live foreign, sorted first
       observation(0x200003, 6000, 3300),  // stale foreign, omitted
+      observation(0x100003, 100, 3300),   // live camp, known but not Health
   };
   HealthTile tiles[8] = {};
-  size_t n = healthBuildTiles(registry, 2, observations, 5, 5000, tiles, 8);
+  size_t n = healthBuildTiles(registry, 4, observations, 6, 5000, tiles, 8);
   assert(n == 4);
   assert(tiles[0].registry == &registry[0]);
   assert(tiles[0].band == BatteryHealthBand::GOOD);
@@ -85,25 +92,47 @@ int main() {
   assert(summary.offAir == 1);
   assert(summary.unknown == 0);
   assert(summary.unregisteredLive == 2);
-  assert(healthRegistryFindCallsign(registry, 2, "luigi") == &registry[0]);
-  assert(healthRegistryFindCallsign(registry, 2, "PONYTA") == &registry[1]);
-  assert(healthRegistryFindCallsign(registry, 2, "missing") == nullptr);
+  assert(healthRegistryFindCallsign(registry, 4, "luigi") == &registry[0]);
+  assert(healthRegistryFindCallsign(registry, 4, "PONYTA") == &registry[1]);
+  assert(healthRegistryFindCallsign(registry, 4, "missing") == nullptr);
+  assert(healthRegistryCountScope(registry, 4, HealthRosterScope::SITE) == 2);
+  assert(healthRegistryCountScope(registry, 4, HealthRosterScope::CAMP) == 1);
+  assert(healthRegistryCountScope(registry, 4, HealthRosterScope::REPAIR) == 1);
+  assert(std::strcmp(healthRosterScopeName(HealthRosterScope::REPAIR),
+                     "repair") == 0);
 
-  // The generated production roster is stable, sorted, and intentionally
-  // excludes quarantined, bench-only, merely enumerated, and bridge hardware.
-  assert(kHealthRegistryCount == 143);
+  // The generated physical roster is stable and sorted. Health/RF expect only
+  // the site scope; Fleet retains camp and repair inventory.
+  assert(kHealthRegistryCount == 118);
+  assert(healthRegistryCountScope(kHealthRegistry, kHealthRegistryCount,
+                                  HealthRosterScope::SITE) == 111);
+  assert(healthRegistryCountScope(kHealthRegistry, kHealthRegistryCount,
+                                  HealthRosterScope::CAMP) == 4);
+  assert(healthRegistryCountScope(kHealthRegistry, kHealthRegistryCount,
+                                  HealthRosterScope::REPAIR) == 3);
+  size_t downlights = 0, perimeters = 0, uplights = 0;
   for (size_t i = 1; i < kHealthRegistryCount; ++i) {
     assert(std::memcmp(kHealthRegistry[i - 1].id, kHealthRegistry[i].id, 3) < 0);
   }
   for (size_t i = 0; i < kHealthRegistryCount; ++i) {
     size_t len = std::strlen(kHealthRegistry[i].callsign);
     assert(len >= 3 && len <= 7);
+    if (std::strcmp(kHealthRegistry[i].role, "downlight") == 0)
+      ++downlights;
+    else if (std::strcmp(kHealthRegistry[i].role, "perimeter") == 0)
+      ++perimeters;
+    else if (std::strcmp(kHealthRegistry[i].role, "uplight") == 0)
+      ++uplights;
+    else
+      assert(false);
     for (size_t j = i + 1; j < kHealthRegistryCount; ++j)
       assert(std::strcmp(kHealthRegistry[i].callsign,
                          kHealthRegistry[j].callsign) != 0);
   }
+  assert(downlights == 74 && perimeters == 24 && uplights == 20);
   assert(std::strlen(kHealthRegistryCsvSha256) == 64);
   assert(std::strlen(kCallsignsCsvSha256) == 64);
+  assert(std::strlen(kFleetRosterCsvSha256) == 64);
   const uint8_t ponytaId[3] = {0xF2, 0xB7, 0xDC};
   const HealthRegistryEntry *ponyta =
       healthRegistryFind(kHealthRegistry, kHealthRegistryCount, ponytaId);
@@ -117,8 +146,16 @@ int main() {
       healthRegistryFind(kHealthRegistry, kHealthRegistryCount, bidoofId);
   assert(bidoof && std::strcmp(bidoof->callsign, "Bidoof") == 0);
   const uint8_t shuckleId[3] = {0xF4, 0x03, 0x1C};
-  assert(healthRegistryFind(kHealthRegistry, kHealthRegistryCount,
-                            shuckleId) == nullptr);
+  const HealthRegistryEntry *shuckle =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, shuckleId);
+  assert(shuckle && shuckle->scope == HealthRosterScope::REPAIR);
+  assert(shuckle->status == HealthRegistryStatus::QUARANTINED);
+  const uint8_t onixId[3] = {0xF4, 0x02, 0xA8};
+  const HealthRegistryEntry *onix =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, onixId);
+  assert(onix && std::strcmp(onix->callsign, "Onix") == 0);
+  assert(onix->scope == HealthRosterScope::SITE);
+  assert(std::strcmp(onix->role, "perimeter") == 0);
 
   std::printf("health_model ok (%zu registry fixtures)\n", kHealthRegistryCount);
   return 0;

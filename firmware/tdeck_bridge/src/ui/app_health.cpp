@@ -71,9 +71,13 @@ static lv_color_t chargeColor(ChargeStatus status) {
 
 static const char *registryStatusName(const HealthRegistryEntry *entry) {
   if (!entry) return "unregistered";
-  return entry->status == HealthRegistryStatus::COMMISSION_FAILED
-             ? "commission failed"
-             : "commissioned";
+  switch (entry->status) {
+    case HealthRegistryStatus::COMMISSIONED: return "commissioned";
+    case HealthRegistryStatus::COMMISSION_FAILED: return "commission failed";
+    case HealthRegistryStatus::ENUMERATED: return "enumerated";
+    case HealthRegistryStatus::QUARANTINED: return "quarantined";
+  }
+  return "unknown";
 }
 
 static const char *className(uint8_t cls) {

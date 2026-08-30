@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-30 -- Ben + Codex -- Physical fleet roster scoped by site, camp, and repair
+
+Reconciled the authoritative 2026 physical build to 118 exact identities: 74
+canopy, 24 perimeter, and 20 uplight. Operational scope is 111 fixtures at the
+art site, four uplights at camp (Yuffie `9F0E4C`, Zidane `F2BEF4`, Psyduck
+`F3FC8C`, and Cream `F3FD50`), and three canopy units in repair/offline scope
+(Olimar `F2BE8C`, Shuckle `F4031C`, and Tidus `F40424`). The perimeter type map
+uses the retained USB-powered perimeter cohort and mixed-role canary evidence;
+Kairi `9F26B4` closes the 24-unit perimeter count. Live unnamed perimeter
+`F402A8` now has permanent callsign Onix.
+
+ADR 0074 separates physical fleet membership from the commissioning ledger and
+permanent callsign table. Added `ops/fleet/roster.csv` as the exact physical
+inventory. The Bridge generator now joins roster, registry, and callsigns and
+pins all type/scope counts. Fleet retains all 118 built devices, adds placement
+filters, and marks camp/repair rows. Health and RF expect only the 111 site
+fixtures; a known camp/repair peer is not counted as site or mislabeled foreign.
+Bench, demo, spare, protected one-off, and unused commissioned identities no
+longer inflate operational Fleet/Health expectations.
+
+The complete T-Deck native suite passes with the 118-entry generated inventory,
+and all 19 host dashboard/callsign tests pass. Per Ben's direction, no embedded
+build, bridge flash, fixture command, or hardware access occurred. The current
+T-Deck remains on its preceding roster until these accumulated source changes
+are deliberately built and flashed later.
+
 ## 2026-08-30 -- Ben + Codex -- Seven inactive canaries returned to fleet image
 
 With the USB helper finished, Codex declared sole write authority through exact

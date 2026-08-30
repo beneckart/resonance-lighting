@@ -5,12 +5,15 @@
 #include "core/fleet_view_model.h"
 
 static HealthRegistryEntry entry(uint32_t id, const char *callsign,
-                                 const char *role) {
+                                 const char *role,
+                                 HealthRosterScope scope =
+                                     HealthRosterScope::SITE) {
   HealthRegistryEntry e = {};
   e.id[0] = (uint8_t)(id >> 16);
   e.id[1] = (uint8_t)(id >> 8);
   e.id[2] = (uint8_t)id;
   e.status = HealthRegistryStatus::COMMISSIONED;
+  e.scope = scope;
   e.callsign = callsign;
   e.role = role;
   return e;
@@ -34,8 +37,9 @@ int main() {
   HealthRegistryEntry registry[] = {
       entry(0x100001, "Zelda", "downlight"),
       entry(0x100002, "Abra", "perimeter"),
-      entry(0x100003, "Mario", "uplight"),
-      entry(0x100004, "Epona", "chandelier_tester"),
+      entry(0x100003, "Mario", "uplight", HealthRosterScope::CAMP),
+      entry(0x100004, "Epona", "chandelier_tester",
+            HealthRosterScope::REPAIR),
   };
   CensusView seen[] = {
       observation(0x100001, 100, 3300, -60, 1),
@@ -79,7 +83,20 @@ int main() {
   assert(rows[1].batteryBand == BatteryHealthBand::OFF_AIR);
   assert(rows[2].batteryBand == BatteryHealthBand::OFF_AIR);
 
+  // Placement filtering separates expected site peers from camp and repair
+  // inventory. A placement filter also excludes foreign live observations.
+  settings.rosterFilter = FleetRosterFilter::SITE;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 2);
+  settings.rosterFilter = FleetRosterFilter::CAMP;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].registry->scope == HealthRosterScope::CAMP);
+  settings.rosterFilter = FleetRosterFilter::REPAIR;
+  n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
+  assert(n == 1 && rows[0].registry->scope == HealthRosterScope::REPAIR);
+
   // A class filter works for live telemetry and absent registry-role fallbacks.
+  settings = fleetViewDefaults();
   settings.classFilter = FleetClassFilter::CHANDELIER;
   n = fleetBuildView(registry, 4, seen, 5, 5000, settings, rows, 12);
   assert(n == 2);

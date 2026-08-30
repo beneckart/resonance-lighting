@@ -28,6 +28,7 @@ struct RfPeerObservation {
   bool rssiAvailable;
   uint16_t pdrX1000;
   uint16_t windowPdrX1000;
+  bool inPhysicalRoster;
   bool inProductionRoster;
 };
 
@@ -65,6 +66,8 @@ struct RfReport {
 // is strict: age == freshMs is stale. "Unobserved" means a production-roster
 // ID has no retained census entry; it is not a claim that the fixture is
 // powered off. The census is bounded and can evict entries if it fills.
+// Known camp/repair peers count in overall census metrics but are neither site
+// roster observations nor foreign devices.
 // RSSI-unavailable fresh peers are counted but not ranked.
 // Link ranks use RSSI first, then known PDR, then age, then ascending short ID.
 // Strong ties prefer higher PDR and younger age; weak ties prefer lower PDR

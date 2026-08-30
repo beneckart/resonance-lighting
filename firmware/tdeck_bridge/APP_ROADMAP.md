@@ -18,8 +18,8 @@ when the packet contract can report measurements that heartbeats do not contain.
 | App | State | Important remaining work |
 |---|---|---|
 | Claude | Working, hardware-verified | Census examines all 192 tracked slots and returns explicit 24-row pages; command authentication remains open. |
-| Fleet | Stable roster baseline flashed on `8EB508`; charge filters flashed on TSwift `979604` | Full registry plus unexpected peers, stable default order, class/VBAT/charge/program/firmware filters, validated signed IBAT, readable state and charge names, filtered identify, and day/night palettes are implemented. Complete the sunlight, long-scroll, memory, charge-canary, and named-canary matrix in `TODO.md`. |
-| Health | VBAT/charge-status grid flashed on `8EB508`; physical acceptance open | Source roster covers 144 production fixtures. The fixed swatches toggle between raw VBAT bands and BQ charger phase; validate colors, current-validity transition, off-air behavior, detail layout, and memory on named fixtures. |
+| Fleet | Stable roster baseline flashed on `8EB508`; scoped source not yet built/flashed | Source now carries the exact 118-fixture physical roster, all/site/camp/repair filters, stable default order, class/VBAT/charge/program/firmware filters, validated signed IBAT, readable state and charge names, filtered identify, and day/night palettes. Complete the sunlight, long-scroll, memory, charge-canary, and named-canary matrix in `TODO.md`. |
+| Health | VBAT/charge-status grid flashed on `8EB508`; scoped source not yet built/flashed | Source Health expects only the 111 art-site fixtures; four camp uplights and three repair canopy units remain in Fleet without false alerts. The fixed swatches toggle between raw VBAT bands and BQ charger phase; validate colors, current-validity transition, off-air behavior, detail layout, and memory on named fixtures. |
 | LED Studio | Working; field-smoke-tested; RGB-white fix source-built | White now maps to dedicated W on downlights and full RGB on perimeter/uplight/chandelier classes. Recheck on a named RGB uplight plus RGBW downlight. The broader color, class, blink, stop, and fleet-airtime matrix remains open. |
 | Blackout / Sleep | Working; field-smoke-tested | The reversible radio-awake action is now labelled Blackout; the availability-reducing action is Deep sleep. Validate long blackout expiry plus rails-off sleep/rejoin on named canaries. |
 | Knocker | Three fleet modes built; pending fixture/T-Deck hardware validation | Retains the deterministic 192-entry targeted roll and adds immediate multicast plus a shared +1.0 s multicast deadline. Every fixture rechecks its local strike gates at fire time. |
@@ -149,12 +149,12 @@ launcher space. The Schedule tile belongs to the concurrent RTC/GPS workstream.
 Detailed tilt, ToF depth/zones, and sensor error counters remain a later phase
 behind `NB_SENSOR_REPORT`.
 
-Field-source update, 2026-08-24: the first slice now has a dedicated **Health**
-tile. It keeps 141 commissioned/commission-failed production registry entries
-in stable short-ID order, colors fresh nodes from raw VBAT at 3.20/3.10 V, greys
-off-air nodes, and appends unexpected live IDs. The pure merge/band model and
-registry-generation contract pass native tests. The final merged image is now
-flashed on T-Deck `8EB508`; hardware layout, touch, trackball, detail, and
+Field-source update, 2026-08-30: the first slice has a dedicated **Health** tile.
+Its source now keeps 111 art-site entries in stable short-ID order, colors fresh
+nodes from raw VBAT at 3.20/3.10 V, greys off-air nodes, and appends unexpected
+live IDs. Fleet separately retains all 118 built fixtures. The pure merge/band
+model and three-CSV generation contract pass native tests. This scoped update is
+not yet built or flashed; hardware layout, touch, trackball, detail, and
 heap-watermark checks remain before acceptance.
 
 ### C. Patterns v1 - deterministic and manual

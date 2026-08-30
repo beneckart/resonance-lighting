@@ -1,8 +1,8 @@
 # System Architecture + Power Budget
 
-**Status:** Current working architecture, 2026-08-28. This supersedes the old
+**Status:** Current working architecture, 2026-08-30. This supersedes the old
 ESP32-C3/CN3058/AP2112K/direct-Vbat first pass. Historical decisions remain in earlier
-ADRs; for the live path read this with ADRs 0021-0067. **The Fleet Plan table below is
+ADRs; for the live path read this with ADRs 0021-0074. **The Fleet Plan table below is
 the canonical living count** -- other docs reference it instead of repeating numbers.
 
 ## System Goal
@@ -15,18 +15,21 @@ no skilled repetitive assembly operation at fleet scale.
 
 This is the current Nevada City production target (ADR 0032, superseding the count
 allocation in ADR 0024). The team intends to build the full nominal layout; fewer
-fixtures are a contingency for an unforeseen integration or field issue. Twenty
-trunk/uplight units have been physically manufactured; the installed target and final
-LED mix remain approximate. `ops/bom.md` mirrors these counts; update here first.
+fixtures are a contingency for an unforeseen integration or field issue. The
+authoritative 2026 as-built lighting fleet is 118 fixtures: 74 canopy, 24
+perimeter, and 20 uplight. Its operational split is 111 at the art site, four
+camp uplights, and three canopy fixtures in repair/offline scope (ADR 0074).
+`ops/fleet/roster.csv` names every physical identity. `ops/bom.md` mirrors the
+design counts; update here first when the design allocation changes.
 
 | Class | Count | LED | Power | Sensors (tentative) |
 |---|---|---|---|---|
-| Hanging downlight (7-10 ft) | 72 (3 rings x 24) | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward); outermost ring of 24 also gets BMP581 (ADR 0034) |
-| Perimeter (5 ft shepherd hooks) | 24 | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah | VL53L5CX (outward); MSA311 likely |
-| Trunk light / uplight (no gobo) | 20 manufactured; about 16 target installed | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | MSA311 only; BMP581s moved to the outer hanging ring (ADR 0034) |
+| Hanging downlight (7-10 ft) | 72 nominal (3 rings x 24); 74 built | 4 W RGBW + gobo | Voltaic P105-class 5 W panel + 33140 15 Ah cell (fleet standard for large hats, 07-24; qualification pending) | MSA311 + TMF8820-mini (downward); outermost ring of 24 also gets BMP581 (ADR 0034) |
+| Perimeter (5 ft shepherd hooks) | 24 built; all site scope | SK6812 HEX + gobo ("dancing gobo" -- lit pixel steps around the board to swing the pattern) | Voltaic P126-class 2 W panel + 32700 6 Ah | VL53L5CX (outward); MSA311 likely |
+| Trunk light / uplight (no gobo) | 20 built; 16 site + 4 camp | trending all 4 W RGBW; lensed 3 W RGB variant under test for extra throw | Power and mounting integration in progress; 32700 6 Ah/small-enclosure and P105 inventory are available | MSA311 only; BMP581s moved to the outer hanging ring (ADR 0034) |
 | Chandelier | 18 | HEX + RGBW mix (TBD) | likely 6 Ah + USB-C top-ups, carpenter-built box housing | none; chandelier is currently unpowered |
 
-Nominal total 130. All classes share PowerFeather V2 internals, firmware, and day-sleep
+Nominal design total 130; current as-built lighting fleet total 118. All classes share PowerFeather V2 internals, firmware, and day-sleep
 behavior. Every fixture gets a gasketed panel-mount USB-C rescue/charge port wired
 to the PowerFeather's USB-C (150 extension cables bought 2026-07-10) -- USB recovery
 without opening the hat; the solar-free classes also charge through it.

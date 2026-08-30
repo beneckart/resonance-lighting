@@ -80,6 +80,24 @@ const HealthRegistryEntry *healthRegistryFindCallsign(
   return nullptr;
 }
 
+size_t healthRegistryCountScope(const HealthRegistryEntry *registry,
+                                size_t registryCount,
+                                HealthRosterScope scope) {
+  size_t count = 0;
+  for (size_t i = 0; registry && i < registryCount; ++i)
+    if (registry[i].scope == scope) ++count;
+  return count;
+}
+
+const char *healthRosterScopeName(HealthRosterScope scope) {
+  switch (scope) {
+    case HealthRosterScope::SITE: return "site";
+    case HealthRosterScope::CAMP: return "camp";
+    case HealthRosterScope::REPAIR: return "repair";
+  }
+  return "unknown";
+}
+
 static const HealthObservation *findObservation(
     const HealthObservation *observations, size_t count, const uint8_t id[3]) {
   for (size_t i = 0; i < count; ++i) {
@@ -117,6 +135,7 @@ size_t healthBuildTiles(const HealthRegistryEntry *registry,
                         HealthTile *out, size_t maxOut) {
   size_t n = 0;
   for (size_t i = 0; i < registryCount && n < maxOut; ++i) {
+    if (registry[i].scope != HealthRosterScope::SITE) continue;
     const HealthObservation *obs =
         findObservation(observations, observationCount, registry[i].id);
     fillTile(&out[n++], registry[i].id, &registry[i], obs, freshMs);

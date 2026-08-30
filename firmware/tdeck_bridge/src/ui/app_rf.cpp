@@ -47,17 +47,17 @@ static int compareId(const uint8_t a[3], const uint8_t b[3]) {
   return memcmp(a, b, 3);
 }
 
-static bool inProductionRoster(const uint8_t id[3]) {
+static const HealthRegistryEntry *registryEntry(const uint8_t id[3]) {
   size_t lo = 0;
   size_t hi = kHealthRegistryCount;
   while (lo < hi) {
     size_t mid = lo + (hi - lo) / 2;
     int cmp = compareId(id, kHealthRegistry[mid].id);
-    if (cmp == 0) return true;
+    if (cmp == 0) return &kHealthRegistry[mid];
     if (cmp < 0) hi = mid;
     else lo = mid + 1;
   }
-  return false;
+  return nullptr;
 }
 
 static RfWifiState wifiState() {
@@ -139,8 +139,10 @@ static void renderLinkPage(uint32_t now) {
     gPeerRows[i].rssiAvailable = gCensusRows[i].rssiEwma < 0;
     gPeerRows[i].pdrX1000 = gCensusRows[i].pdrX1000;
     gPeerRows[i].windowPdrX1000 = gCensusRows[i].winPdrX1000;
+    const HealthRegistryEntry *entry = registryEntry(gCensusRows[i].id);
+    gPeerRows[i].inPhysicalRoster = entry != nullptr;
     gPeerRows[i].inProductionRoster =
-        inProductionRoster(gCensusRows[i].id);
+        entry && entry->scope == HealthRosterScope::SITE;
   }
 
   RfReport report;
@@ -148,8 +150,10 @@ static void renderLinkPage(uint32_t now) {
   // observation window cannot have closed during the first minute of boot.
   uint16_t observed =
       now < 60000 ? RF_PDR_UNAVAILABLE : censusObservedPermilleSafe();
-  rfBuildReport(gPeerRows, count, censusFreshMsSafe(), kHealthRegistryCount,
-                observed, &report);
+  const size_t siteRosterCount = healthRegistryCountScope(
+      kHealthRegistry, kHealthRegistryCount, HealthRosterScope::SITE);
+  rfBuildReport(gPeerRows, count, censusFreshMsSafe(), siteRosterCount, observed,
+                &report);
   MeshStats mesh = espnowStats();
   RfWifiState wifi = wifiState();
   uint8_t meshChannel = settings().channel;
@@ -175,13 +179,13 @@ static void renderLinkPage(uint32_t now) {
   char summary[512];
   snprintf(summary, sizeof(summary),
            "census %u live / %u seen / %u stale\n"
-           "roster %u/%u; unobs %u; other live %u\n"
+           "site %u/%u; unobs %u; foreign live %u\n"
            "listen %s | PDR w=60s c=sync\n"
            "mesh %s ch%u | wifi %s AP%s %s\n"
            "rx %lu invalid %lu ring %lu\n"
            "tx ok %lu fail %lu",
            report.summary.live, report.summary.seen, report.summary.stale,
-           report.summary.rosterSeen, (unsigned)kHealthRegistryCount,
+           report.summary.rosterSeen, (unsigned)siteRosterCount,
            report.summary.rosterUnobserved, report.summary.foreignLive, listen,
            espnowUp() ? "UP" : "DOWN", meshChannel, wifiName(wifi), ap,
            guardName(guard), (unsigned long)mesh.frames,

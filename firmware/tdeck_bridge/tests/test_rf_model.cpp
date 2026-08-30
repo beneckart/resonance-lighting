@@ -16,6 +16,7 @@ static RfPeerObservation peer(uint32_t id, uint32_t ageMs, int8_t rssi,
   p.rssiAvailable = rssiKnown;
   p.pdrX1000 = pdr;
   p.windowPdrX1000 = windowPdr;
+  p.inPhysicalRoster = roster;
   p.inProductionRoster = roster;
   return p;
 }
@@ -64,6 +65,17 @@ int main() {
   assert(report.weakest[0].pdrSource == RfPdrSource::CUMULATIVE);
   assert(idOf(report.weakest[1]) == 0x100001);  // tied RSSI/PDR, older first
   assert(idOf(report.weakest[2]) == 0x100002);  // exact tie, lower ID first
+
+  // A known camp/repair fixture remains part of the overall census but does
+  // not satisfy the site denominator and is not mislabeled as foreign.
+  RfPeerObservation camp =
+      peer(0x100006, 100, -55, true, 1000, 1000, false);
+  camp.inPhysicalRoster = true;
+  rfBuildReport(&camp, 1, 5000, 8, 1000, &report);
+  assert(report.summary.seen == 1 && report.summary.live == 1);
+  assert(report.summary.rosterSeen == 0);
+  assert(report.summary.rosterUnobserved == 8);
+  assert(report.summary.foreignSeen == 0 && report.summary.foreignLive == 0);
 
   // The freshness boundary is strict and unavailable metrics stay explicit.
   RfPeerObservation unavailable =

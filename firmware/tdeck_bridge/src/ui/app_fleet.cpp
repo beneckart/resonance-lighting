@@ -167,6 +167,11 @@ static char classLetter(uint8_t cls) {
   }
 }
 
+static char rosterScopeLetter(const HealthRegistryEntry *entry) {
+  if (!entry || entry->scope == HealthRosterScope::SITE) return '\0';
+  return entry->scope == HealthRosterScope::CAMP ? 'C' : 'R';
+}
+
 static const char *programName(uint8_t prog) {
   switch (prog) {  // core/choreo/program.h registry
     case 0: return "idle";
@@ -299,7 +304,11 @@ static void refreshTable(lv_timer_t *) {
     lv_table_set_cell_value(gTable, r, 0, "");  // chip column (draw hook)
     const char *callsign = row.registry ? row.registry->callsign
                                         : callsignForId(v.id);
-    if (callsign)
+    char rosterLetter = rosterScopeLetter(row.registry);
+    if (callsign && rosterLetter)
+      snprintf(buf, sizeof(buf), "%s %c@%c", callsign,
+               classLetter(row.fixtureClass), rosterLetter);
+    else if (callsign)
       snprintf(buf, sizeof(buf), "%s %c", callsign,
                classLetter(row.fixtureClass));
     else
@@ -386,6 +395,8 @@ static void openDetail(const uint8_t id[3]) {
   lvglSetNavHooks(nullptr);  // default linear nav between identify/back
   PeerStat p;
   bool ok = censusPeerSafe(id, &p);
+  const HealthRegistryEntry *registry =
+      healthRegistryFind(kHealthRegistry, kHealthRegistryCount, id);
 
   lv_obj_t *scr = lv_obj_create(nullptr);
   const char *callsign = callsignForId(id);
@@ -436,7 +447,8 @@ static void openDetail(const uint8_t id[3]) {
         "PDR %lu/%lu  window %s\n"
         "VBAT %d.%03dV  IBAT %s  SOC %s\n"
         "charge %s  in %d.%03dV/%dmA %s\n"
-        "class %s  profile %s\n"
+        "class %s  roster %s\n"
+        "profile %s\n"
         "life %s  tier %s\n"
         "program %s  state %s  net %s\n"
         "LED %s\n"
@@ -448,13 +460,19 @@ static void openDetail(const uint8_t id[3]) {
             p, now - p.lastHeardMs < censusFreshMsSafe())), p.supplyMv / 1000,
         p.supplyMv >= 0 ? p.supplyMv % 1000 : -(p.supplyMv % 1000),
         p.supplyMa, p.supplyGood ? "GOOD" : "NOT GOOD",
-        className(p.classLatched), profileName(p.hasFixtureState, p.profile),
+        className(p.classLatched),
+        registry ? healthRosterScopeName(registry->scope) : "foreign",
+        profileName(p.hasFixtureState, p.profile),
         lifeName(p.hasFixtureState, p.lifeState),
         tierName(p.hasFixtureState, p.powerTier),
         programDetailName(p.hasFixtureState, p.activeProgram), stateAge,
         netModeName(p.mode), led, p.hasFw ? p.fwRev : "unknown");
   } else {
-    lv_label_set_text(body, "(no longer in census)");
+    if (registry)
+      lv_label_set_text_fmt(body, "%s roster; no census sample",
+                            healthRosterScopeName(registry->scope));
+    else
+      lv_label_set_text(body, "(no longer in census)");
   }
 
   lv_obj_t *ident = lv_button_create(scr);
@@ -562,6 +580,7 @@ static void identifyFilteredCb(lv_event_t *) {
 // ------------------------------------------------------------ view options --
 
 static lv_obj_t *gScopeDd = nullptr;
+static lv_obj_t *gRosterDd = nullptr;
 static lv_obj_t *gClassDd = nullptr;
 static lv_obj_t *gBatteryDd = nullptr;
 static lv_obj_t *gChargeDd = nullptr;
@@ -626,6 +645,9 @@ static void buildFirmwareOptions() {
 static void readViewSettings() {
   if (gScopeDd)
     gViewSettings.scope = (FleetRowScope)lv_dropdown_get_selected(gScopeDd);
+  if (gRosterDd)
+    gViewSettings.rosterFilter =
+        (FleetRosterFilter)lv_dropdown_get_selected(gRosterDd);
   if (gClassDd)
     gViewSettings.classFilter =
         (FleetClassFilter)lv_dropdown_get_selected(gClassDd);
@@ -656,6 +678,7 @@ static void readViewSettings() {
 
 static void closeViewSettings() {
   gScopeDd = nullptr;
+  gRosterDd = nullptr;
   gClassDd = nullptr;
   gBatteryDd = nullptr;
   gChargeDd = nullptr;
@@ -675,6 +698,7 @@ static void viewDoneCb(lv_event_t *) {
 static void viewDefaultsCb(lv_event_t *) {
   gViewSettings = fleetViewDefaults();
   if (gScopeDd) lv_dropdown_set_selected(gScopeDd, 0);
+  if (gRosterDd) lv_dropdown_set_selected(gRosterDd, 0);
   if (gClassDd) lv_dropdown_set_selected(gClassDd, 0);
   if (gBatteryDd) lv_dropdown_set_selected(gBatteryDd, 0);
   if (gChargeDd) lv_dropdown_set_selected(gChargeDd, 0);
@@ -717,43 +741,46 @@ static void viewCb(lv_event_t *) {
   gScopeDd = viewDropdown(screen,
                           "roster + live\nseen since boot\nlive now", 32,
                           (uint16_t)gViewSettings.scope);
-  viewLabel(screen, "class", 79);
+  viewLabel(screen, "place", 79);
+  gRosterDd = viewDropdown(screen, "all roster\nsite\ncamp\nrepair", 68,
+                           (uint16_t)gViewSettings.rosterFilter);
+  viewLabel(screen, "class", 115);
   gClassDd = viewDropdown(
       screen,
       "all light types\ndownlights\nperimeter\nuplights\nchandelier\nunknown",
-      68, (uint16_t)gViewSettings.classFilter);
-  viewLabel(screen, "battery", 115);
+      104, (uint16_t)gViewSettings.classFilter);
+  viewLabel(screen, "battery", 151);
   gBatteryDd = viewDropdown(
       screen,
       "all battery\ngood >3.20 V\nnear low 3.10-3.20\nlow <=3.10 V\noff air\nno valid VBAT",
-      104, (uint16_t)gViewSettings.batteryFilter);
-  viewLabel(screen, "charge", 151);
+      140, (uint16_t)gViewSettings.batteryFilter);
+  viewLabel(screen, "charge", 187);
   gChargeDd = viewDropdown(
       screen,
       "all charge\nCHARGING_CC\nCHARGING_CV\nTOP-OFF\nDONE/OFF\nFAULT\nunknown\noff air",
-      140, (uint16_t)gViewSettings.chargeFilter);
-  viewLabel(screen, "program", 187);
+      176, (uint16_t)gViewSettings.chargeFilter);
+  viewLabel(screen, "program", 223);
   gProgramDd = viewDropdown(
       screen,
       "all programs\nIDLE\nCA\nBRIDGE\nDIRECT\nDARK\nVIRUS\nunknown",
-      176, (uint16_t)gViewSettings.programFilter);
-  viewLabel(screen, "fw rule", 223);
+      212, (uint16_t)gViewSettings.programFilter);
+  viewLabel(screen, "fw rule", 259);
   gFirmwareDd = viewDropdown(
       screen,
       "all firmware\nrevision known\nrevision unknown\nmatches reference\nnot ref / unknown",
-      212, (uint16_t)gViewSettings.firmwareFilter);
-  viewLabel(screen, "fw ref", 259);
-  gFirmwareRefDd = viewDropdown(screen, gFirmwareOptions, 248,
+      248, (uint16_t)gViewSettings.firmwareFilter);
+  viewLabel(screen, "fw ref", 295);
+  gFirmwareRefDd = viewDropdown(screen, gFirmwareOptions, 284,
                                 gFirmwareRefSelected);
-  viewLabel(screen, "sort", 295);
+  viewLabel(screen, "sort", 331);
   gSortDd = viewDropdown(
       screen,
       "callsign (stable)\nshort ID (stable)\nvoltage low first\nvoltage high first\nmost recent\nstrongest signal",
-      284, (uint16_t)gViewSettings.sort);
+      320, (uint16_t)gViewSettings.sort);
 
   lv_obj_t *defaults = lv_button_create(screen);
   lv_obj_set_size(defaults, 100, 34);
-  lv_obj_set_pos(defaults, 4, 322);
+  lv_obj_set_pos(defaults, 4, 358);
   lv_obj_t *defaultsLabel = lv_label_create(defaults);
   lv_label_set_text(defaultsLabel, "defaults");
   lv_obj_center(defaultsLabel);
@@ -762,7 +789,7 @@ static void viewCb(lv_event_t *) {
 
   lv_obj_t *done = lv_button_create(screen);
   lv_obj_set_size(done, 204, 34);
-  lv_obj_set_pos(done, 112, 322);
+  lv_obj_set_pos(done, 112, 358);
   lv_obj_t *doneLabel = lv_label_create(done);
   lv_label_set_text(doneLabel, LV_SYMBOL_OK " apply to Fleet");
   lv_obj_center(doneLabel);

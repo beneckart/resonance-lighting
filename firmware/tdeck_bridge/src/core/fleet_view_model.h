@@ -15,6 +15,13 @@ enum class FleetRowScope : uint8_t {
   LIVE_NOW,
 };
 
+enum class FleetRosterFilter : uint8_t {
+  ALL = 0,
+  SITE,
+  CAMP,
+  REPAIR,
+};
+
 enum class FleetClassFilter : uint8_t {
   ALL = 0,
   DOWNLIGHT = 1,
@@ -74,6 +81,7 @@ enum class FleetSortMode : uint8_t {
 
 struct FleetViewSettings {
   FleetRowScope scope;
+  FleetRosterFilter rosterFilter;
   FleetClassFilter classFilter;
   FleetBatteryFilter batteryFilter;
   FleetChargeFilter chargeFilter;

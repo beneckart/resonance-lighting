@@ -34,11 +34,23 @@ enum class ChargeStatus : uint8_t {
 enum class HealthRegistryStatus : uint8_t {
   COMMISSIONED = 1,
   COMMISSION_FAILED = 2,
+  ENUMERATED = 3,
+  QUARANTINED = 4,
+};
+
+// Physical-fleet placement is independent of commissioning state. SITE rows
+// are expected in Health/RF. CAMP and REPAIR remain visible in Fleet without
+// creating false off-air alerts at the installation.
+enum class HealthRosterScope : uint8_t {
+  SITE = 0,
+  CAMP = 1,
+  REPAIR = 2,
 };
 
 struct HealthRegistryEntry {
   uint8_t id[3];
   HealthRegistryStatus status;
+  HealthRosterScope scope;
   uint16_t capacityMah;
   const char *callsign;
   const char *role;
@@ -87,9 +99,11 @@ ChargeStatus chargeStatus(bool onAir, bool hasBq, uint8_t bqReg16,
                           uint8_t bqStat1, uint8_t bqFault0);
 const char *chargeStatusName(ChargeStatus status);
 
-// Registry entries always occupy stable, registry-sorted positions. Any live
-// observation not in the registry is appended in short-ID order; stale foreign
-// observations are omitted so old bench visitors cannot crowd the field view.
+// SITE registry entries always occupy stable, registry-sorted positions. Any
+// live observation outside the complete physical roster is appended in short-ID
+// order; CAMP/REPAIR observations are known inventory and stay out of Health.
+// Stale foreign observations are omitted so old bench visitors cannot crowd the
+// field view.
 size_t healthBuildTiles(const HealthRegistryEntry *registry,
                         size_t registryCount,
                         const HealthObservation *observations,
@@ -105,3 +119,9 @@ const HealthRegistryEntry *healthRegistryFind(
 const HealthRegistryEntry *healthRegistryFindCallsign(
     const HealthRegistryEntry *registry, size_t registryCount,
     const char *callsign);
+
+size_t healthRegistryCountScope(const HealthRegistryEntry *registry,
+                                size_t registryCount,
+                                HealthRosterScope scope);
+
+const char *healthRosterScopeName(HealthRosterScope scope);

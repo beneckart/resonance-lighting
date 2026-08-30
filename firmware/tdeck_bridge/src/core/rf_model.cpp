@@ -86,7 +86,7 @@ void rfBuildReport(const RfPeerObservation *peers, size_t peerCount,
     if (peer.inProductionRoster) {
       ++out->summary.rosterSeen;
       if (fresh) ++out->summary.rosterLive;
-    } else {
+    } else if (!peer.inPhysicalRoster) {
       ++out->summary.foreignSeen;
       if (fresh) ++out->summary.foreignLive;
     }

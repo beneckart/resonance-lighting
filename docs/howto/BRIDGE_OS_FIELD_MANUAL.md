@@ -196,8 +196,10 @@ This explains several apparently surprising results:
 
 ## Health: start here
 
-Use **Health** for the fastest whole-fleet triage. It fits the production-health
-registry on one screen and appends unexpected live IDs. The bottom mode button
+Use **Health** for the fastest art-site triage. Its scoped source fits the 111
+fixtures expected at the artwork on one screen and appends unexpected live IDs.
+The four camp uplights and three repair canopy fixtures remain in Fleet but do
+not become false Health alerts. The bottom mode button
 switches the stable tiles between raw battery-voltage (`VBAT`) and charger-phase
 (`CHG`) colors.
 
@@ -208,7 +210,7 @@ switches the stable tiles between raw battery-voltage (`VBAT`) and charger-phase
 | Red | fresh raw VBAT is at or below 3.10 V |
 | Grey | rostered fixture is not fresh/on-air |
 | Blue | fixture is live, but its battery value is not plausible |
-| Cyan border | live ID is outside the normal production-health roster |
+| Cyan border | live ID is outside the 118-fixture physical roster |
 
 In CHG mode, green means `CHARGING_CC`, cyan `CHARGING_CV`, purple `TOP-OFF`,
 amber `DONE/OFF`, red `FAULT`, blue
@@ -230,11 +232,12 @@ evidence.
 
 ## Fleet: filter, sort, inspect, and identify fixtures
 
-**Fleet** is the detailed scrollable roster. It shows:
+**Fleet** is the detailed scrollable 118-fixture physical roster. It shows:
 
 - a chip of the fixture's reported rendered color;
 - callsign when known, otherwise short ID;
 - class letter: `D` downlight, `P` perimeter, `U` uplight, `C` chandelier;
+- `@C` or `@R` after the class for non-site camp or repair inventory;
 - age, raw battery voltage, signed battery current (`+` charge, `-` draw), and
   active program.
 
@@ -251,7 +254,7 @@ keeps RSSI/PDR and advisory SOC, and spells out state names such as
 numeric codes.
 
 Open a row for details and **Identify**, which requests a ten-second green blink.
-The default view includes the complete production registry plus unexpected live
+The default view includes the complete physical roster plus unexpected live
 peers and sorts by callsign. Registry fixtures keep grey off-air rows, so ordinary
 two-second refreshes do not move the list underneath a scroll. The selected
 fixture and scroll context survive refresh and a visit to detail.
@@ -259,6 +262,7 @@ fixture and scroll context survive refresh and a visit to detail.
 Press **View** to combine:
 
 - `roster + live`, `seen since boot`, or `live now` rows;
+- all roster, site, camp, or repair placement;
 - all light types, downlights, perimeter, uplights, chandelier, or unknown;
 - all battery states, good, near low, low, off air, or no valid VBAT;
 - all programs or one of IDLE, CA, BRIDGE, DIRECT, DARK, VIRUS, and unknown;
@@ -281,8 +285,10 @@ captured cohort with paced exact-target 30-second green blinks. Hidden and
 off-air fixtures are not targeted or claimed as reached. **Power** opens
 Blackout / Sleep; End Blackout remains available there.
 
-These Fleet view controls are flashed on primary T-Deck `8EB508` as of
-2026-08-27. Esptool write verification, an exact full application-region
+The pre-scope Fleet controls are flashed on primary T-Deck `8EB508` as of
+2026-08-27. The 2026-08-30 physical-roster and placement-filter update is
+source/native-tested but deliberately not yet built or flashed. The prior
+esptool write verification, exact full application-region
 readback, and post-reset channel-11 mesh/peripheral checks passed. Physical
 screen layout, dropdown, stable-scroll, detail/back, 192-row memory, and named
 filtered-identify canary acceptance remain open in `TODO.md`.

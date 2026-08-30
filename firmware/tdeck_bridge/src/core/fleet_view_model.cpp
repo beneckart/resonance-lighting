@@ -87,6 +87,16 @@ static bool rowMatches(const FleetViewRow &row,
     return false;
   if (settings.scope == FleetRowScope::LIVE_NOW && !row.fresh) return false;
 
+  if (settings.rosterFilter != FleetRosterFilter::ALL) {
+    if (!row.registry) return false;
+    HealthRosterScope wanted = HealthRosterScope::SITE;
+    if (settings.rosterFilter == FleetRosterFilter::CAMP)
+      wanted = HealthRosterScope::CAMP;
+    else if (settings.rosterFilter == FleetRosterFilter::REPAIR)
+      wanted = HealthRosterScope::REPAIR;
+    if (row.registry->scope != wanted) return false;
+  }
+
   if (settings.classFilter != FleetClassFilter::ALL) {
     uint8_t wanted = settings.classFilter == FleetClassFilter::UNKNOWN
                          ? 0
@@ -227,6 +237,7 @@ static void insertSorted(FleetViewRow *rows, size_t count,
 FleetViewSettings fleetViewDefaults() {
   FleetViewSettings settings = {};
   settings.scope = FleetRowScope::ROSTER_AND_LIVE;
+  settings.rosterFilter = FleetRosterFilter::ALL;
   settings.classFilter = FleetClassFilter::ALL;
   settings.batteryFilter = FleetBatteryFilter::ALL;
   settings.chargeFilter = FleetChargeFilter::ALL;

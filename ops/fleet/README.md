@@ -10,8 +10,11 @@ fixtures.
 - `mac` and `fixture_id` identify the electronics. COM ports, USB paths, WiFi IPs,
   fixture roles, and installation locations can change and are not identity.
 - `registry.csv` is the compact current-state index. Keep one row per MAC.
+- `roster.csv` is the authoritative 118-fixture physical build. Its type and
+  `site`/`camp`/`repair` scope are independent of commissioning status.
 - `callsigns.csv` is the operator-friendly alias table. It assigns one permanent
-  callsign to every production-health fixture and retains unassigned spare names.
+  callsign to physical fixtures and other retained identities, and reserves spare
+  names for future fixtures.
   The short MAC remains the device identity for logs, OTA, flashing, persistence,
   and every other safety-sensitive operation.
 - `bringup/*.jsonl` is append-only commissioning evidence. It may contain several
@@ -24,9 +27,10 @@ the ESP-NOW wire contract or the MAC-derived identity model.
 
 - Callsigns are unique case-insensitively, ASCII-only, one word, and 3-7
   characters.
-- `assignment=assigned` rows map the 141 commissioned or commission-failed
-  production-health PowerFeathers. `assignment=spare` rows reserve the remaining
-  names for future fixtures.
+- `assignment=assigned` rows retain permanent aliases for known PowerFeathers.
+  The operational Bridge OS roster is the 118-row `roster.csv`, not every
+  assigned callsign. `assignment=spare` rows reserve the remaining names for
+  future fixtures.
 - A callsign stays bound to its short MAC and is never silently reassigned or
   reused after retirement. Unknown and non-production devices continue to display
   their short MAC.
@@ -37,7 +41,7 @@ the ESP-NOW wire contract or the MAC-derived identity model.
 
 The initial allocation was a deterministic shuffle of the reviewed 160-name pool
 using the seed `resonance-tree-callsigns-v1`, followed by assignment to the
-numerically sorted production-health roster. That explains the initial mapping;
+then-current numerically sorted commissioning roster. That explains the initial mapping;
 it is not a regeneration rule. The checked-in table is authoritative from this
 point forward.
 
