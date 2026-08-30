@@ -10,6 +10,40 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-30 -- Ben + Codex -- Seven inactive canaries returned to fleet image
+
+With the USB helper finished, Codex declared sole write authority through exact
+T-Deck `8EB508` and limited the operation to Dixie `F40314`, Froakie `9E5B18`,
+Sakura `F2BE0C`, Akuma `9E668C`, Logan `9E5A88`, Eevee `9F0E54`, and Toad
+`F2BEE4`. The retained accepted image was independently rehashed before use:
+`fx-260829-af1d4ec-p`, 1,220,240 bytes, SHA-256
+`669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8`.
+Groot `9F2724` remained excluded in PROTECT, and no other perimeter or helper
+target was included.
+
+The first job, `F9527F52`, failed closed before discovery or upload because the
+host dashboard still served a stale pre-reboot campaign while COM7 produced no
+new bytes. A documented 150 ms RTS pulse and a blind bridge-only `reboot`
+command did not recover the USB-native path; one physical T-Deck reset did.
+Fresh telemetry then proved exact bridge `8EB508`, channel 11, live fleet RX,
+and zero send failures. A premature retry, `58265FB7`, also uploaded nothing:
+the newly rebooted bridge census had not yet rediscovered six targets, so local
+preflight refused them as absent. After one complete 120-second fixture wake
+cadence, all seven reported fresh expected prior revisions and battery-backed
+power evidence.
+
+Exact job `20A71833` then found all seven maintenance endpoints, uploaded only
+those identities, and recovered 7/7 without a button. Every fixture supplied a
+fresh `fx-260829-af1d4ec-p` software-reset heartbeat and survived the 25-second
+pending-verify gate; the batch finished with no deferred or failed targets.
+Final read-only state showed FIELD profile on all seven, recovery 0 and no class
+mismatch wherever the extended identity tail was present, 3.16-3.31 V battery,
+and an inactive maintenance campaign. These seven inactive experiments are now
+ordinary fleet members; their validated source histories remain ancestors of
+the accepted production source, but future experiments must use newly built
+immutable exact-target artifacts rather than assuming the old canary binaries
+can be reconstructed byte-for-byte.
+
 ## 2026-08-29 -- Ben + Codex -- Proven CA production image reaches 85 fixtures
 
 The exact UTC-modulated CA/mainline production artifact remains

@@ -6,19 +6,25 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 - [~] **Finish the `fx-260829-af1d4ec-p` safe-fleet convergence.** The accepted
   UTC-modulated CA/mainline production image is exact-revision and pending-gate
-  verified on 85 live fixtures. Togepi `9E5AB0` joined the accepted cohort in
-  exact job `69A9FF09`. Retry only the five still-safe deferred peers when they
+  verified on 92 deployed fixtures. Exact job `20A71833` returned the seven
+  inactive daytime/power canaries Dixie `F40314`, Froakie `9E5B18`, Sakura
+  `F2BE0C`, Akuma `9E668C`, Logan `9E5A88`, Eevee `9F0E54`, and Toad `F2BEE4`
+  to the accepted image after sole-writer confirmation; all seven passed exact
+  upload, software-reset rejoin, pending verification, and FIELD-profile audit.
+  Togepi `9E5AB0` had previously joined the accepted cohort in exact job
+  `69A9FF09`. Retry only the five still-safe deferred peers when they
   next expose maintenance endpoints: Gambit `F2BCF4`, Abra `F2BDB4`, Yoshi
   `F2BE08`, Kiki `F2BF5C`, and Ditto `F3FCAC`. Sneasel `F403DC` is no longer in
   this healthy cohort: fresh telemetry shows durable PROTECT and a 900-second
   cadence, so recover/qualify it separately before any OTA.
   Do not fold the remaining low-voltage/recovery, batteryless/quarantined,
-  mutable-development, protected/ambiguous, or non-retained-prior special
+  mutable-development, protected/ambiguous, or other non-retained-prior special
   canaries into a bulk retry. Re-establish fresh power/state evidence and exact
   rollback bytes first. Evidence jobs: mixed-role `C4B0A600`, no-upload refusal
   `314C97F7`, main widening `FCCFAC70`, 360-second deferred pass `B9E7ED6E`,
   late safe-state pass `A1E3218D`, no-upload final gather `4143956A`, and
-  Togepi convergence `69A9FF09` (Ben/Codex).
+  Togepi convergence `69A9FF09`, and inactive-canary convergence `20A71833`
+  (Ben/Codex).
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
   `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut
