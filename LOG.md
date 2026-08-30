@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-30 -- Ben + Codex -- Laptop-retirement field evidence preserved
+
+Fetched current `origin/main` before retiring the Nevada City/BRC laptop and
+reconciled every linked worktree against the remote. Preserved the uncommitted
+canonical fleet registry work from the 2026-08-30 perimeter recovery session:
+one newly registered fixture and 13 updated perimeter fixtures, all with unique
+IDs and parseable CSV records. Several records deliberately leave firmware
+identity blank where the reported image had no matching immutable manifest or
+binary SHA in this checkout.
+
+Also retained six previously untracked Black Rock City JSONL records: the
+arrival censuses, the successful Dixie and Froakie canary OTA jobs, Kairi's
+freeze-unconfirmed recovery attempt, and Sakura's dry-run ledger. The short
+arrival trace carries incorrect default battery metadata and is explicitly
+excluded by the following authoritative trace; it remains as raw append-only
+evidence rather than being silently discarded. The two Sakura canary/post-TMF
+records found in the older release worktree were byte-identical to files already
+on `origin/main` and were not duplicated.
+
 ## 2026-08-29 -- Ben + Codex -- Completed-work integration prepared for main
 
 Collected every unique completed change from the active fixture, daytime
