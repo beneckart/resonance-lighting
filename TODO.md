@@ -6,15 +6,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 - [~] **Finish the `fx-260829-af1d4ec-p` safe-fleet convergence.** The accepted
   UTC-modulated CA/mainline production image is exact-revision and pending-gate
-  verified on 84 live fixtures. Retry only the seven explicit healthy deferred
-  peers when they next become reachable: Togepi `9E5AB0`, Gambit `F2BCF4`, Abra
-  `F2BDB4`, Yoshi `F2BE08`, Kiki `F2BF5C`, Ditto `F3FCAC`, and Sneasel `F403DC`.
+  verified on 85 live fixtures. Togepi `9E5AB0` joined the accepted cohort in
+  exact job `69A9FF09`. Retry only the five still-safe deferred peers when they
+  next expose maintenance endpoints: Gambit `F2BCF4`, Abra `F2BDB4`, Yoshi
+  `F2BE08`, Kiki `F2BF5C`, and Ditto `F3FCAC`. Sneasel `F403DC` is no longer in
+  this healthy cohort: fresh telemetry shows durable PROTECT and a 900-second
+  cadence, so recover/qualify it separately before any OTA.
   Do not fold the remaining low-voltage/recovery, batteryless/quarantined,
   mutable-development, protected/ambiguous, or non-retained-prior special
   canaries into a bulk retry. Re-establish fresh power/state evidence and exact
   rollback bytes first. Evidence jobs: mixed-role `C4B0A600`, no-upload refusal
-  `314C97F7`, main widening `FCCFAC70`, 360-second deferred pass `B9E7ED6E`, and
-  late safe-state pass `A1E3218D` (Ben/Codex).
+  `314C97F7`, main widening `FCCFAC70`, 360-second deferred pass `B9E7ED6E`,
+  late safe-state pass `A1E3218D`, no-upload final gather `4143956A`, and
+  Togepi convergence `69A9FF09` (Ben/Codex).
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
   `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut
@@ -82,7 +86,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   DAY_CHARGE. The charger-valid bit is not the upstream cap-voltage authority.
   Live-current qualification still requires it; >=5.8 V reservoir qualification
   now stands independently. The first artifact was superseded before its hour
-  and did not actuate. Build and use a new exact artifact for the same hour.
+  and did not actuate. The corrected replacement finished only after that hour
+  expired and was never deployed. Build a new exact artifact for a future
+  scheduled-day hour.
   On one physically identified,
   battery-installed cymbal downlight, prove high-quality UTC wake alignment,
   T+5 unison attempt, stable hash slot, optional after-ring, hard end, return to

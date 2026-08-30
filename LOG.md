@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-29 -- Ben + Codex -- Proven CA production image reaches 85 fixtures
+
+The exact UTC-modulated CA/mainline production artifact remains
+`fx-260829-af1d4ec-p`, SHA-256
+`669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8`.
+After the daytime canary work, Hawkeye `9F2664` was restored from those retained
+exact bytes. Job `0536C7C2` passed exact canary preflight, upload, fresh
+software-reset rejoin, 40.626-second pending gate, field/downlight identity,
+and recovery 0.
+
+A final explicit seven-peer convergence job `4143956A` found Togepi `9E5AB0`
+and Sneasel `F403DC`, but a host suspension let the bridge campaign advance
+before freeze acknowledgement. The immutable ledger proves no upload phase or
+OTA result occurred; cleanup resumed the targets. Fresh state then showed
+Togepi safe at FIELD/FULL/recovery 0, while Sneasel was in durable PROTECT on a
+900-second sleep cadence. Sneasel was removed from the healthy retry cohort.
+
+Togepi alone passed job `69A9FF09`: exact retained prior-artifact preflight,
+maintenance endpoint, production upload, fresh exact-revision software-reset
+rejoin, 37.344-second pending gate, uplight class, FIELD profile, and recovery
+0. The final read-only census reports 85 fixtures on the accepted production
+revision. Gambit `F2BCF4`, Abra `F2BDB4`, Yoshi `F2BE08`, Kiki `F2BF5C`, and
+Ditto `F3FCAC` still did not expose maintenance endpoints and remain untouched;
+Sneasel remains untouched in PROTECT. No further bulk retry was attempted.
+
 ## 2026-08-29 -- Ben + Codex -- Pre-window canary caught charger-validity flicker
 
 Hawkeye `9F2664` accepted exact one-hour artifact `fx-260829-2876d89-t`,
