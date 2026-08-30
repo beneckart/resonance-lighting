@@ -20,7 +20,16 @@ int main() {
   assert(record.flags == ACTION_AUDIT_UTC_VALID);
   assert(std::strcmp(actionAuditName(record.action), "sleep-all") == 0);
 
-  // The fifth write overwrites the oldest of a four-entry ring.
+  const uint8_t target[3] = {0x9F, 0x26, 0x64};
+  assert(actionAuditAppend(log, ACTION_AUDIT_RESET_TARGET, 1, 0, 124000, 43,
+                           target, 0));
+  assert(actionAuditNewest(log, record));
+  assert(record.action == ACTION_AUDIT_RESET_TARGET);
+  assert(record.value == 1 && record.mesh_seq == 43);
+  assert(std::memcmp(record.target_id, target, sizeof(target)) == 0);
+  assert(std::strcmp(actionAuditName(record.action), "reset-target") == 0);
+
+  // Additional writes overwrite the oldest entries in the four-entry ring.
   for (uint8_t i = 0; i < 4; ++i)
     assert(actionAuditAppend(log, ACTION_AUDIT_FORCE_DAY + (i % 3), i,
                              0, 200000 + i, 50 + i, all, 0));

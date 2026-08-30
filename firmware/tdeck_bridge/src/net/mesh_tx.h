@@ -29,6 +29,8 @@ bool meshProgramLease(const uint8_t target[3], uint8_t programId,
 ProgramLeaseActivity meshProgramActivity();
 bool meshStopTrackedProgramActivity();
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
+// Serial-diagnostic exception from ADR 0072: exact nonzero target, fixed 1 s.
+bool meshResetTarget(const uint8_t target[3]);
 bool meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
 bool meshEnterMaintenance(const uint8_t target[3]);
 // Exact-target only. Profile persistence is an NVS mutation and must never be

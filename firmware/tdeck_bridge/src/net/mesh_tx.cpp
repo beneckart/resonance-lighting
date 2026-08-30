@@ -281,6 +281,25 @@ bool meshSleepAll(uint16_t seconds) {
   return true;
 }
 
+bool meshResetTarget(const uint8_t target[3]) {
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!target || memcmp(target, kAll, sizeof(kAll)) == 0) return false;
+
+  NbTargetU16 cmd = {};
+  memcpy(cmd.target_id, target, sizeof(cmd.target_id));
+  cmd.value = 1; // Fixed diagnostic reset: never expose arbitrary sleep here.
+  if (!txTake()) return false;
+  fillHeader(&cmd.h, NB_TARGET_SLEEP_FOR);
+  if (!auditActionBeforeSend(ACTION_AUDIT_RESET_TARGET, cmd.value, cmd.h,
+                             target, true)) {
+    txGive();
+    return false;
+  }
+  sendPacketRepeatedLocked(&cmd, sizeof(cmd), 6, 8);
+  txGive();
+  return true;
+}
+
 bool meshForceLifecycle(uint8_t mode) {
   if (mode > 2) return false;
   NbForceLifecycle packet = {};

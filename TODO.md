@@ -376,7 +376,50 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   re-init or watchdog policy for stream-active TX-flat/RX-growing evidence,
   preserve a diagnostic before recovery, and hardware-reproduce with an
   all-fleet soak. Do not infer CA arbitration from this signature
-  (Ben/Codex).
+  (Ben/Codex). The 2026-08-30 solid-color/warm-white observation is not another
+  occurrence: Blink reached every fixture and isolated that symptom to local
+  interaction precedence after receive.
+- [ ] **P0: restore explicit LED Studio authority over local interaction.** The
+  newly promoted ADR 0069/0070 fixture path applies ToF interaction after every
+  visible program, including DIRECT. Ben observed roughly half the fleet show
+  warm white instead of the selected solid color while Blink still reached and
+  blinked all fixtures. This is the exact signature of active downlight
+  presence clearing a visible DIRECT frame to `W=255`, while the all-zero blink
+  edge remains protected. Decide whether any active bridge lease suppresses
+  local interaction by default, or whether Bridge OS exposes a deliberate
+  interaction opt-in. Supersede ADR 0069's direct-frame precedence explicitly,
+  add native solid/blink regression coverage, prove on one named downlight plus
+  one perimeter canary, then build and canary a new immutable production image
+  before widening (Ben/Codex).
+- [ ] **P0: make canopy presence recover from post-warmup fixture lowering.**
+  ADR 0070 correctly handles a fixture moving from a close bin to a farther
+  installed background, but the inverse movement is ambiguous with a person:
+  after lowering, ground newly <=4.5 m with no baseline, or >300 mm closer than
+  the old baseline, becomes `close` for three reads and latches. While latched,
+  the closer ground is never learned and prevents the four-read clear. Add a
+  native high/no-return -> lower-ground regression and choose a safe
+  re-baselining contract that cannot learn a stationary person as background.
+  **2026-08-30 canary disproved reboot recovery:** exact warm-white downlight
+  `9E5AC8` passed a 3.307 V/FULL/current-revision preflight, received a guarded
+  one-second target reset from bridge `8EB508`, and freshly rejoined with exact
+  retained radio-target/source/sequence proof. After far more than the roughly
+  27-second 90-read warmup, a fresh DIRECT green stream still produced
+  `W=255` for the rest of a five-minute observation. Ben subsequently requested
+  one broader observational reset despite that negative canary. A guarded
+  74-target safe roster received 74 acknowledgements; 69 produced fresh rejoin
+  evidence and `9F2720`, `F2BE38`, `F3FD60`, `F401A8`, and `F402B8` did not
+  reappear within the bounded three-minute window. This does not change the
+  negative named-canary conclusion. Do not retune thresholds from the reboot
+  test. Next capture per-zone raw range/confidence, learned baselines, close
+  masks/streaks, and latch state on one installed white fixture; distinguish
+  invalid/no-background zones, immediate post-warmup re-latch, and actual
+  occupied cones before choosing a safe re-baselining contract. Ben reports
+  that the broad reset cleared roughly half of the stuck warm-white cohort,
+  confirming partial latch recovery but not stability. He explicitly waived a
+  separate firmware canary and authorized immediate fleet deployment of ADR
+  0073's full RGB-white (`R=G=B=255`, `W=0`) presence discriminator. This is a
+  diagnostic renderer, not the authority or re-baselining fix; use the new
+  visual cohort plus telemetry to guide raw-state capture (Ben/Codex).
 - [ ] **P0: make the localhost fleet dashboard fail visibly stale on serial
   loss.** During the same 2026-08-29 investigation, COM7 disappeared while the
   dashboard process and HTTP server stayed alive. `/api/state` and the browser

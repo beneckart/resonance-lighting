@@ -222,8 +222,13 @@ Open **LEDs** from the launcher (or **Rest** from Fleet):
 - Both actions show live/seen counts and require the on-device confirmation
   modal, with focus on cancel. Only currently listening fixtures can receive a
   broadcast. Starting either action stops any suspended LED Studio stream.
-- Sleep remains absent from the Claude tool schema and serial quick commands;
-  it is reachable only from the local physical UI.
+- Fleet sleep remains absent from the Claude tool schema and serial quick
+  commands; it is reachable only from the local physical UI. ADR 0072 adds the
+  much narrower serial-only `R<6-hex-ID>` diagnostic reset: one exact nonzero
+  fixture receives a fixed one-second `NB_TARGET_SLEEP_FOR`, after a required
+  durable T-Deck audit write. The fixture also persists its established
+  operator-sleep provenance before sleeping. The command cannot broadcast or
+  select another duration.
 - Bridge OS retains the newest four Sleep/Blackout/Release/Schedule actions in a
   checksummed NVS ring before sending RF. `show` prints the ring; `nb-master`
   exposes its newest entry. Availability-reducing actions are not sent if the

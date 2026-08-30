@@ -13,6 +13,7 @@ enum ActionAuditKind : uint8_t {
   ACTION_AUDIT_FORCE_DAY = 4,
   ACTION_AUDIT_FORCE_NIGHT = 5,
   ACTION_AUDIT_FORCE_AUTO = 6,
+  ACTION_AUDIT_RESET_TARGET = 7,
 };
 
 enum ActionAuditFlags : uint8_t {

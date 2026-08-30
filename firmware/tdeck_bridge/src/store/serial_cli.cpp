@@ -36,6 +36,7 @@ static void printHelp() {
       "  K<ID>:<ms>               solenoid strike, 5-300 ms (never broadcast)\n"
       "  U<ID>                    exact-target OTA maintenance for 35 s\n"
       "  F<ID>:<0|1>:<0|1>        exact profile commission/field + persist bit\n"
+      "  R<ID>                    exact-target 1 s diagnostic reset\n"
       "  uB<job8>:<seconds>        begin/replace an OTA gather roster\n"
       "  uA<job8>:<ID>             add one exact target to that roster\n"
       "  uF<job8>                  freeze roster before any upload\n"
@@ -207,6 +208,20 @@ static bool handleQuickCommand(const char *tok) {
                     persist ? 1U : 0U);
     else
       Serial.println("profile refused: exact nonzero target required");
+    return true;
+  }
+  if (tok[0] == 'R') {
+    uint8_t id[3] = {};
+    static const uint8_t kZero[3] = {0, 0, 0};
+    if (strlen(tok) != 7 || !parseHexId(tok + 1, id) ||
+        memcmp(id, kZero, sizeof(id)) == 0) {
+      Serial.println("R<6-hex-ID> (exact nonzero target required)");
+      return true;
+    }
+    if (meshResetTarget(id))
+      Serial.printf("reset %.6s: exact-target 1s deep sleep sent\n", tok + 1);
+    else
+      Serial.println("reset refused: audit storage or radio unavailable");
     return true;
   }
   if (tok[0] == 'B') {

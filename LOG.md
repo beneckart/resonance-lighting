@@ -10,6 +10,172 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-30 -- Ben + Codex -- RGB-only canopy presence rollout authorized
+
+After the guarded 74-target reset, Ben observed that roughly half of the stuck
+warm-white lights returned to the selected green. This partial recovery means
+reset/re-warmup can clear some latches, but exact `9E5AC8` already proved that
+an installed fixture can re-latch and return to presence white after a clean
+warmup. Reboot is therefore useful incident evidence, not a complete recovery
+or a substitute for raw per-zone state capture.
+
+Ben directed an immediate fleet deployment, without a separate firmware
+canary, of a narrow visual discriminator: active downlight presence now clears
+the visible frame to full RGB white (`R=G=B=255`, `W=0`) instead of dedicated
+warm white (`W=255`). No threshold, baseline, debounce, precedence, blackout,
+packet, NVS, or power-policy behavior changes. Full RGB point-source output is
+already supported and was hardware-exercised by the Gible sentinel; existing
+battery-tier, rail-ramp/sag, and hard rail-off gates remain authoritative.
+
+ADR 0073 records Ben's explicit no-canary field-time decision and the temporary
+diagnostic intent. The interaction regression now pins all three RGB channels
+to 255 and W to zero. The complete fixture native suite passed, including all
+565 presence-gate checks. Next is a clean immutable variant-`p` build followed
+by an explicit eligible-roster OTA and fresh exact-revision/pending-verify
+evidence.
+
+## 2026-08-30 -- Ben + Codex -- Explicit safe-cohort fleet reset completed
+
+After the negative `9E5AC8` reboot canary, Ben explicitly requested a broader
+fleet reset as an observational test. T-Deck `8EB508` remained the sole writer.
+The guarded roster admitted only fresh registered commissioned PowerFeather V2
+fixtures on field profile, `fx-260829-af1d4ec-p`, COMMS, FULL tier, and battery
+at or above 3.20 V. The 74 exact targets were `9D7884`, `9E5A58`, `9E5A5C`,
+`9E5A74`, `9E5A94`, `9E5AB0`, `9E5AC8`, `9E5AE4`, `9E5B04`, `9E5B10`,
+`9E5B14`, `9E5B18`, `9E5B34`, `9E5B44`, `9E5B48`, `9E5B68`, `9E5B8C`,
+`9E668C`, `9F0E30`, `9F0E5C`, `9F0E7C`, `9F2638`, `9F2664`, `9F266C`,
+`9F2680`, `9F2694`, `9F26AC`, `9F26B0`, `9F26BC`, `9F26C0`, `9F26C4`,
+`9F26D4`, `9F26E4`, `9F26E8`, `9F2718`, `9F2720`, `9F2738`, `9F275C`,
+`F2BD00`, `F2BDB0`, `F2BE0C`, `F2BE1C`, `F2BE20`, `F2BE38`, `F2BE3C`,
+`F2BE60`, `F2BE6C`, `F2BE70`, `F2BE94`, `F2BEA4`, `F2BEB4`, `F2BF54`,
+`F2BF8C`, `F2BF90`, `F2BFE0`, `F3FC90`, `F3FC9C`, `F3FD60`, `F40174`,
+`F4019C`, `F401A8`, `F401CC`, `F401DC`, `F40254`, `F40268`, `F402B8`,
+`F402C4`, `F40310`, `F40314`, `F40348`, `F40350`, `F40364`, `F403F0`,
+and `F4042C`.
+
+All 74 exact one-second reset commands were acknowledged. Sixty-nine targets
+produced a fresh post-command heartbeat during the bounded three-minute rejoin
+window. Rejoin was not proven for `9F2720`, `F2BE38`, `F3FD60`, `F401A8`, and
+`F402B8`; an upload acknowledgement is not being treated as rejoin evidence.
+No command was sent to excluded candidates: the census recorded four below the
+battery gate, four outside FULL tier, ten not registered fixtures, three on a
+different revision, and eighteen stale records. These exclusion counters may
+overlap. Opening/holding the T-Deck serial session stopped the prior green
+stream, so visual outcome remains a separate Ben observation after restarting
+green.
+
+For a further visual discriminator, changing only the downlight presence
+override to full RGB (`R=G=B=255`, `W=0`) would turn sensor-overridden fixtures
+cool RGB white while leaving the chosen LED Studio color distinguishable. That
+requires a new immutable fixture artifact and should begin with one named,
+healthy downlight canary rather than a fleet OTA. Existing DIRECT plus `W=255`
+telemetry already identifies the current local-interaction path, so this would
+be an operator-visible confirmation rather than the first causal evidence.
+
+## 2026-08-30 -- Ben + Codex -- Exact reset canary disproved height-relearn recovery
+
+Ben authorized a safe exact-target reset after the green census identified 34
+warm-white downlights. ADR 0072 adds only serial `R<6-hex-ID>` to T-Deck: it
+rejects zero/broadcast targets, fixes `NB_TARGET_SLEEP_FOR` to one second,
+repeats the addressed packet six times, and requires a durable `reset-target`
+audit before RF. Reset remains absent from the Claude tool schema. Both the
+T-Deck action audit and the fixture's established operator-sleep provenance
+write NVS; no profile, capacity, OTA, or other fixture configuration changes.
+
+The build-wrapper contract and focused action-audit native test passed. The
+aggregate Bridge native runner stopped on the pre-existing production-health
+registry error for callsigned `F4031C`; none of that registry/generator state
+was changed. The embedded build passed at 1,566,448 bytes, 49 percent flash and
+59 percent static RAM, SHA-256
+`616682f61bf4b2b5ddf75e9baa973e86b8f95627f34e6250f698156ceeba2e9e`.
+COM7 positively identified exact T-Deck `8EB508` / full MAC
+`44:1B:F6:8E:B5:08`; only that bridge was USB-flashed and esptool verified every
+write region.
+
+The first proposed canary, `9E5954`, was rejected without transmission because
+its fresh 3.172 V/no-supply report was below the conservative 3.20 V gate. A
+passive ranking found all 34 census IDs. Exact white-cohort fixtures `9E5954`
+(3.18 V), `F2BEE4` (3.16 V/DIM), and `9F0E54` (3.09 V/DIM) were explicitly
+excluded from any reset. `9E5AC8` instead passed at 3.307 V, FULL tier, field
+profile, expected `fx-260829-af1d4ec-p` revision, and prior exact green-census
+downlight proof.
+
+T-Deck `8EB508` was the sole writer and sent only `R9E5AC8`. The bridge
+acknowledged the fixed one-second command; `9E5AC8` freshly rejoined from deep
+sleep at 1.153 seconds uptime and 3.319 V. Its later full heartbeat retained
+sleep cause radio-target (`4`), duration 1 second, source `8EB508`, and source
+sequence 21025. After much longer than the roughly 27-second 90-read TMF warmup,
+Ben restarted solid green. `9E5AC8` freshly reported DIRECT but still rendered
+dedicated `W=255`, and remained white through the rest of the bounded
+five-minute observation while healthy near 3.313 V/FULL.
+
+The canary therefore disproved reboot-at-final-height as recovery for this
+incident. No other fixture was reset. The remaining work is raw per-zone
+presence-state capture plus the explicit LED Studio/local-interaction authority
+fix; do not fleet-reset the white cohort.
+
+## 2026-08-30 -- Ben + Codex -- LED Studio solid color loses to canopy interaction
+
+Ben reported that roughly half of the visible fleet ignored a new LED Studio
+solid color and showed warm white. His follow-up that Blink still blinks all
+fixtures rules out the initial partial-chunk/T-Deck-TX hypothesis: solid and
+blink use the same census, addressing, packet chunks, and 8 Hz stream.
+
+The behavior instead matches the just-promoted ADR 0069/0070 local-interaction
+precedence exactly. The production fixture renders DIRECT first, then applies
+local interaction to every visible program. A downlight with its debounced TMF
+presence latch active clears that colored frame and writes full dedicated white
+`W=255`. Blink's off edge is all zero; `interactionApply()` deliberately cannot
+awaken a zero frame, so the same fixture still visibly blinks. The accepted
+`fx-260829-af1d4ec-p` image containing this behavior reached 85 fixtures late
+2026-08-29 and seven additional inactive canaries early 2026-08-30, explaining
+why the effect first appeared tonight.
+
+The radio command is therefore arriving and then being overwritten locally;
+this is not semantic-white mapping or the separate open T-Deck TX-stall P0.
+ADR 0069 explicitly allowed local interaction over direct bridge frames, but
+Ben identifies the observed loss of LED Studio color authority as a regression.
+Ben then recalled that the affected lights had been lowered. That supplies the
+likely sensor cause: ADR 0070 widened valid TMF returns from 2.5 m to 5.0 m and
+the no-background presence ceiling from 2.2 m to 4.5 m. A fixture lowered after
+its 90-read warmup can expose ground that is newly within 4.5 m while its
+per-zone baseline is zero, or move ground more than 300 mm closer than the old
+baseline. Three consecutive returns then latch presence. The gate intentionally
+follows a farther background but never a closer one, so the stationary new
+ground remains `closeMask`, prevents the four-read clear, and can hold white
+indefinitely. A reboot at final height should relearn that ground during warmup,
+which is a useful named-canary diagnostic but not a permanent control or
+re-baselining fix.
+
+A live green LED Studio census then confirmed the interpretation. Opening
+native USB COM7 reset exact T-Deck `8EB508` even with DTR/RTS disabled, so the
+first attempted passive census stopped the stream and was invalid; it did not
+reset any fixture. Codex held the next serial session open, Ben restarted the
+green stream, and the bounded ten-minute observation saw 110 fixture IDs and
+34 distinct downlights explicitly report DIRECT plus a zero-RGB/nonzero-W
+output: `9E5954`, `9E5A58`, `9E5A74`, `9E5A94`, `9E5AC8`, `9E5AD4`, `9E5B10`,
+`9E5B18`, `9E5B68`, `9F0E54`, `9F0E5C`, `9F2664`, `9F2680`, `9F26AC`,
+`9F26B0`, `9F26C0`, `9F26C4`, `9F26D4`, `9F26E4`, `9F26E8`, `9F2718`,
+`9F2720`, `F2BE20`, `F2BE60`, `F2BEA4`, `F2BEE4`, `F2BF54`, `F2BF8C`,
+`F3FD60`, `F40174`, `F40268`, `F40350`, `F40364`, and `F4042C`. Fresh green
+downlights also appeared during the same observation, so the evidence is a
+per-fixture latch cohort rather than unconditional class-wide white.
+
+At that initial census stage no reset was sent. ADR 0048 deliberately excluded
+sleep/reboot from the
+T-Deck serial and agent surfaces; the installed bridge exposes only a
+physically confirmed fleet-wide sleep, not the exact-target one-second sleep
+needed for this cohort. Adding and flashing such a guarded command is an
+explicit authority/architecture choice, not an incidental bench command. Ben
+subsequently authorized that narrow addition and canary; its negative result is
+recorded in the entry above.
+
+Changing the precedence requires an explicit follow-up decision: normally an
+active DIRECT/program lease should suppress local sensor modulation, or the
+operator needs a deliberate opt-in interaction mode. No fixture, bridge,
+profile, NVS, OTA, or reboot mutation had been performed at the end of this
+initial diagnostic stage.
+
 ## 2026-08-29 -- Ben + Codex -- Completed-work integration prepared for main
 
 Collected every unique completed change from the active fixture, daytime

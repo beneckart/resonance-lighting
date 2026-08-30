@@ -35,10 +35,15 @@ static bool applyTof(FrameBuffer &frame,
   if (inputs.fixtureClass == FIXTURE_DOWNLIGHT && frame.count == 1) {
     if (!inputs.tofPresenceActive) return false;
     // A persistent, background-relative canopy hit exposes the crisp gobo at
-    // full output. Distance color remains a perimeter gesture; absolute close
-    // thresholds cannot work when the canopy is roughly 15 ft above ground.
+    // full RGB white. Keeping W off makes the local presence override visually
+    // distinguishable from warm-white output during the field regression
+    // investigation. Distance color remains a perimeter gesture; absolute
+    // close thresholds cannot work when the canopy is roughly 15 ft above
+    // ground.
     frameClear(frame);
-    frame.px[0][3] = 255;
+    frame.px[0][0] = 255;
+    frame.px[0][1] = 255;
+    frame.px[0][2] = 255;
     return true;
   }
 
