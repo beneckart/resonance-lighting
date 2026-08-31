@@ -4,15 +4,19 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [ ] **Build and explicitly deploy the ADR 0073 minimum-viability field
-  bundle.** Source/native and fixture/T-Deck development builds pass: scheduled-
+- [~] **Complete the partial ADR 0073 minimum-viability field rollout.** Source/
+  native and fixture/T-Deck development builds pass: scheduled-
   night uplights use the 128/255 RGB-white visibility floor; perimeters use one
   full RGB-white center pixel with local/origin VL53 art disabled; canopy
   presence blinks the already-rendered color; and the T-Deck adds an explicit
-  `R=G=B=255,W=0` swatch. Create one clean immutable field/channel-11 artifact,
-  retain `fx-260831-b3e2738-b` as rollback, and require fresh exact-revision
-  heartbeats beyond pending verify. Do not infer fleet OTA from the source
-  change alone (Ben/Codex; ADR 0073).
+  `R=G=B=255,W=0` swatch. Immutable artifact `fx-260831-dc82da7-b`, SHA-256
+  `7230f81ff1737fa51ebdd357b9249748e5712657469de82a4b5b75799ac83299`,
+  is verified on 96 of 112 fixtures: all 91 that were non-PROTECT at rollout
+  start plus five explicitly targeted PROTECT fixtures. Resume later against
+  only the 16 rollback-revision fixtures in
+  `docs/tests/ADR_0073_PARTIAL_FLEET_ROLLOUT_2026-08-31.md`; continue requiring
+  fresh exact-revision heartbeats beyond pending verify and retain
+  `fx-260831-b3e2738-b` as rollback (Ben/Codex; ADR 0073).
 - [ ] **Assign known physical callsigns to newly preserved fixtures `9F268C`
   and `F402A8`.** Their commissioned registry rows are valid, but the T-Deck
   production-health generator correctly refuses active fixtures without an
@@ -32,18 +36,18 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   verify gate; no failure required physical access. Ben reports the ordinary-
   wake two-chime behavior is "incredibly delightful" and working very well.
   Preserve the prior artifact as the artistic rollback (Ben/Codex; ADR 0072).
-- [ ] **Triage the 21 active/probable PROTECT fixtures from the 2026-08-31 post-
-  deployment census.** Prioritize the ten physical perimeters because of their
-  6 Ah batteries/P126 panels, especially Gengar `F2BDD4` and Skitty `F3FD28`
-  near 3.02 V, then uplight Donkey `F2BE10` at 2.98 V and canopy Ponyta
-  `F2B7DC` at 3.03 V. Record installed positions for PROTECT uplights Mipha
+- [ ] **Triage the changing PROTECT cohort from the 2026-08-31 field census.**
+  Prioritize physical perimeters because of their 6 Ah batteries/P126 panels,
+  including Gengar `F2BDD4` and Skitty `F3FD28`, then uplight Donkey `F2BE10`
+  and canopy Ponyta `F2B7DC`. Record installed positions for PROTECT uplights Mipha
   `9E5B5C`, Cubone `9F2648`, and Donkey so the suspected north-side panel issue
   can be tested instead of inferred. Resolve roles for Chunli `9F2714`, Abra
   `F2BDB4`, Yoshi `F2BE08`, and Dratini `F4035C`; preserve Skitty's physical
   perimeter identity while separately diagnosing its missing live sensor/class
-  report. All census members already run `fx-260831-b3e2738-b` in field profile,
-  so this is a charging/placement/identity follow-up, not a firmware rollout
-  task (Ben/Codex).
+  report. Power state changed during the OTA session: 96 fixtures now run ADR
+  0073 while the exact 16-fixture rollback/resume roster remains in
+  `docs/tests/ADR_0073_PARTIAL_FLEET_ROLLOUT_2026-08-31.md`. Treat recorded
+  voltages as stale snapshots, not live safety evidence (Ben/Codex).
 
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on

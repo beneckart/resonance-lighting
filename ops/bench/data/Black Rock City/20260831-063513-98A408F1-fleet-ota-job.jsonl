@@ -1,0 +1,11 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260831-dc82da7-b\\fixture.ino.bin", "artifact_sha256": "7230f81ff1737fa51ebdd357b9249748e5712657469de82a4b5b75799ac83299", "campaign_duration_s": 970, "discovery_timeout_s": 930.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260831-dc82da7-b", "gather_cadence": "protect", "job_id": "98A408F1", "phase": "PLAN", "target_count": 6, "targets": ["F2BCF0", "9E5B5C", "F4043C", "9F0E54", "F2B900", "F3FD88"], "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.016, "event": "passed", "job_id": "98A408F1", "phase": "PREFLIGHT", "target_count": 6, "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.032, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "F2BCF0", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.047, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "9E5B5C", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "F4043C", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.094, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "9F0E54", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.11, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "F2B900", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 0.11, "event": "target_added", "job_id": "98A408F1", "phase": "GATHER", "target": "F3FD88", "ts_utc": "2026-08-31T06:35:13Z"}
+{"campaign": {"active": true, "cycle_ms": 60, "dispatch_count": 7, "job_id": "98A408F1", "phase": 1, "remaining_ms": 969901, "status_age_ms": 16, "target_count": 6, "ts_utc": "2026-08-31T06:35:13.674288+00:00"}, "elapsed_s": 0.141, "event": "bridge_acknowledged", "job_id": "98A408F1", "phase": "GATHER", "ts_utc": "2026-08-31T06:35:13Z"}
+{"elapsed_s": 128.828, "error": "[Errno 22] Invalid argument", "event": "job_error", "job_id": "98A408F1", "phase": "CLEANUP", "ts_utc": "2026-08-31T06:37:22Z"}
+{"campaign": {"active": false, "cycle_ms": 60, "dispatch_count": 8489, "job_id": "98A408F1", "phase": 2, "remaining_ms": 0, "status_age_ms": 0, "target_count": 6, "ts_utc": "2026-08-31T06:37:22.406867+00:00"}, "elapsed_s": 128.875, "event": "bridge_acknowledged", "job_id": "98A408F1", "phase": "FREEZE", "ts_utc": "2026-08-31T06:37:22Z"}

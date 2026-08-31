@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- ADR 0073 partial fleet rollout stopped at 96/112
+
+Built immutable field/channel-11 fixture artifact `fx-260831-dc82da7-b`
+(1,220,192 bytes, SHA-256
+`7230f81ff1737fa51ebdd357b9249748e5712657469de82a4b5b75799ac83299`)
+from clean source commit `49e06b7` and deployed it through USB T-Deck bridge
+`8EB508`. Fresh exact-revision heartbeats beyond the pending-verify interval
+prove 96 of 112 fixtures: all 91 fixtures that were non-PROTECT at rollout
+start plus five explicitly targeted PROTECT fixtures (Ponyta `F2B7DC`, Batman
+`F2BDC4`, Gengar `F2BDD4`, Yoshi `F2BE08`, and Donkey `F2BE10`).
+
+Ben ended the field session before the remaining PROTECT phases. Sixteen
+fixtures still report rollback artifact `fx-260831-b3e2738-b`; 15 received no
+upload, while Abra `F2BDB4` closed its HTTP connection and never produced a
+new-revision heartbeat, so it is correctly counted as not updated. The final
+six-target campaign `98A408F1` found no endpoints and was manually frozen
+before the host process was stopped. The final dashboard record reports phase
+2 and `active=false`, so no OTA campaign was left running. Exact updated and
+resume rosters, battery snapshot caveats, and job-ledger identities are in
+`docs/tests/ADR_0073_PARTIAL_FLEET_ROLLOUT_2026-08-31.md`.
+Because this laptop is being retired before the resume pass, the handoff commit
+also force-retains the artifact's canonical binary, manifest, recipe, build
+options, and SHA file at its normal immutable build path. The next bench can
+therefore upload the exact existing bytes rather than rebuilding them.
+
 ## 2026-08-31 -- Ben + Codex -- Minimum-viability role lighting implemented
 
 Implemented ADR 0073 as one final-burn fixture/handheld bundle without changing

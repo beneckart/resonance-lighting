@@ -1,1 +1,6 @@
 *.pdf binary
+
+# Retained ADR 0073 immutable artifact handoff; preserve canonical recipe bytes.
+firmware/fixture/build/fx-260831-dc82da7-b/*.json text eol=lf
+firmware/fixture/build/fx-260831-dc82da7-b/*.txt text eol=lf
+firmware/fixture/build/fx-260831-dc82da7-b/*.bin binary
