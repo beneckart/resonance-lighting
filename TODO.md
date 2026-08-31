@@ -4,7 +4,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [~] **Complete the partial ADR 0073 minimum-viability field rollout.** Source/
+- [ ] **Build and explicitly deploy the ADR 0074 emergency inspection image.**
+  Source now makes every point-source/unknown role static linear
+  `R=G=B=255,W=0`, keeps perimeters to one full-RGB center pixel, disables
+  autonomous/direct/presence art and chimes, starts one hour before civil dusk,
+  and duty-cycles only the radio at 12 s on / 120 s off without blinking the
+  LED rail. Native and ESP32-S3 development builds pass; battery DIM/OFF/PROTECT
+  remains authoritative. Create one clean immutable field/channel-11 artifact,
+  inspect its manifest/SHA, and deploy with exact named rosters plus fresh
+  exact-revision heartbeats beyond pending verify. The first field observation
+  must confirm full RGB point output, one-pixel perimeter output, continuous
+  light through a radio-off boundary, radio rejoin/heartbeat, and the advanced
+  dusk boundary. Retain both ADR 0073 and ADR 0072 artifacts as rollback
+  (Ben/Codex; ADR 0074).
+- [x] **ADR 0073 partial rollout recorded -- SUPERSEDED FOR INSPECTION
+  2026-08-31.** Source/
   native and fixture/T-Deck development builds pass: scheduled-
   night uplights use the 128/255 RGB-white visibility floor; perimeters use one
   full RGB-white center pixel with local/origin VL53 art disabled; canopy
@@ -16,7 +30,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   only the 16 rollback-revision fixtures in
   `docs/tests/ADR_0073_PARTIAL_FLEET_ROLLOUT_2026-08-31.md`; continue requiring
   fresh exact-revision heartbeats beyond pending verify and retain
-  `fx-260831-b3e2738-b` as rollback (Ben/Codex; ADR 0073).
+  `fx-260831-b3e2738-b` as rollback. ADR 0074 now owns the next fleet rollout;
+  preserve this 96/112 census as exact rollback evidence rather than completing
+  the superseded artistic widening (Ben/Codex; ADR 0073/0074).
 - [ ] **Assign known physical callsigns to newly preserved fixtures `9F268C`
   and `F402A8`.** Their commissioned registry rows are valid, but the T-Deck
   production-health generator correctly refuses active fixtures without an

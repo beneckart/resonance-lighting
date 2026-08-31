@@ -7,6 +7,7 @@
 #include "../core/field_behavior.h"
 #include "../core/field_role_policy.h"
 #include "../core/interaction_modulator.h"
+#include "../core/inspection_posture.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
 #include "../core/presence_wave.h"
@@ -16,6 +17,7 @@
 #include "board_power.h"
 #include "espnow_link.h"
 #include "identity.h"
+#include "maintenance.h"
 #include "net_peer.h"
 #include "nvs_store.h"
 #include "ota_verify.h"
@@ -62,6 +64,7 @@ static TimeConsensus gTimeConsensus;
 static bool gScheduleValid = false;
 static bool gScheduleNight = false;
 static bool gRitualKeepAwake = false;
+static InspectionRadioDutyState gInspectionRadioDuty;
 
 static constexpr uint32_t kRitualRtcMagic = 0x52544C31UL; // "RTL1"
 static constexpr uint32_t kDayEnergyCarryMagic = 0x454E5231UL; // "ENR1"
@@ -108,7 +111,8 @@ static uint8_t gWakeChimeStage = WAKE_CHIME_UNDECIDED;
 static uint32_t gWakeChimeNextMs = 0;
 
 static uint8_t configuredAutonomousProgram() {
-  if (gCfg.profile == PROFILE_PROD) return PROG_GH_CA;
+  if (gCfg.profile == PROFILE_PROD)
+    return inspectionStaticEnabled() ? PROG_IDLE : PROG_GH_CA;
   return gCfg.commissionDefault == COMMISSION_DEFAULT_CA
              ? PROG_GH_CA
              : PROG_COMMISSION_DARK;
@@ -229,6 +233,7 @@ static void waveOrigin() {
 }
 
 void behaviorOnEvent(const NbEvent &event) {
+  if (inspectionStaticEnabled()) return;
   if (event.kind != NB_EVENT_PRESENCE_WAVE || !event.event_id) return;
   // Bridge/direct authority suppresses autonomous presence propagation. A
   // blackout must not collect a hidden wave that reappears when its lease ends.
@@ -386,6 +391,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   gWakeChimeNextMs = 0;
   memset(&gWave, 0, sizeof(gWave));
   timeConsensusInit(gTimeConsensus);
+  inspectionRadioDutyInit(gInspectionRadioDuty);
 }
 
 void behaviorForceNight(int8_t force) { gForceNight = force; }
@@ -442,6 +448,14 @@ void behaviorOnPeerHeartbeat(const uint8_t srcId[3], int8_t rssi, uint8_t caStat
 
 void behaviorOnProgramSet(const NbProgramSet &ps) {
   if (!nbTargetMatches(ps.target_id, gMyId)) return;
+  if (inspectionStaticEnabled()) {
+    uint8_t params[8] = {};
+    gRuntime.applyProgramSet(0, 0, 0, 0, params, millis());
+    transportWakeDarkRelease();
+    Serial.printf("program-set: prog=%u ignored by static inspection posture\n",
+                  ps.program_id);
+    return;
+  }
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
   if (ok) transportWakeDarkRelease();
@@ -466,6 +480,10 @@ void behaviorOnNeighborSet(const NbNeighborSet &ns) {
 
 void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
                            uint8_t flags) {
+  if (inspectionStaticEnabled()) {
+    transportWakeDarkRelease();
+    return;
+  }
   // Micro-lease grant + staleness bookkeeping live in the runtime.
   uint32_t now = millis();
   DirectFrameState fs = {now, r, g, b, w, flags};
@@ -604,10 +622,33 @@ static bool ordinaryWakeChimesTick(bool eligible, bool finishingWake,
   return false;
 }
 
+static void inspectionRadioTick(uint32_t now) {
+  bool eligible = inspectionStaticEnabled() &&
+                  gCfg.profile == PROFILE_PROD && gShowActive &&
+                  gScheduleValid && gScheduleNight &&
+                  powerWakeSampleWindowComplete() && !otaVerifyPending() &&
+                  !transportWakeDarkActive();
+  InspectionRadioAction action = inspectionRadioDutyTick(
+      gInspectionRadioDuty, eligible, now, RES_WAKE_LISTEN_MS,
+      (uint32_t)RES_DAY_SLEEP_S * 1000UL);
+  if (action == INSPECTION_RADIO_PAUSE) {
+    if (!commsPauseRadio()) inspectionRadioDutyInit(gInspectionRadioDuty);
+  } else if (action == INSPECTION_RADIO_RESUME) {
+    if (commsResumeRadio()) netPeerSendHeartbeat(true);
+  }
+}
+
 void behaviorTick() {
   uint32_t now = millis();
 
-  waveTick(now);
+  if (inspectionStaticEnabled()) {
+    gTofPresenceActive = false;
+    gTofPresenceRising = false;
+    gPresencePending = false;
+    if (gWave.eventId) waveClear();
+  } else {
+    waveTick(now);
+  }
 
   // Profile/default flips re-derive the lifecycle and fallback live. An active
   // lease remains authoritative; the selected fallback takes over on release.
@@ -653,7 +694,7 @@ void behaviorTick() {
   } else {
     gScheduleValid = false;
   }
-  applyAutonomousFieldSchedule(wall, now);
+  if (!inspectionStaticEnabled()) applyAutonomousFieldSchedule(wall, now);
   // Explicit bridge/serial override wins. With AUTO selected, trustworthy UTC
   // supersedes the panel-current dusk heuristic through the existing seam.
   li.forceNight = gForceNight >= 0 ? gForceNight
@@ -694,7 +735,8 @@ void behaviorTick() {
   }
 
   DaytimeRitualInputs ritualIn = {};
-  ritualIn.enabled = gCfg.profile == PROFILE_PROD &&
+  ritualIn.enabled = !inspectionStaticEnabled() &&
+                     gCfg.profile == PROFILE_PROD &&
                      gClass == FIXTURE_DOWNLIGHT;
   ritualIn.scheduledDay = gScheduleValid && !gScheduleNight;
   ritualIn.batterySafe = fieldRitualBatterySafe(pb);
@@ -753,7 +795,8 @@ void behaviorTick() {
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
 #endif
-    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
+    if (!inspectionStaticEnabled() && !gProgramSuppressesLight)
+      applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -765,7 +808,7 @@ void behaviorTick() {
 #ifdef RES_BASIC_LISTENER
     allowChoreoTx = allowChoreoTx || gCfg.profile == PROFILE_DEV;
 #endif
-    if (allowChoreoTx &&
+    if (!inspectionStaticEnabled() && allowChoreoTx &&
         (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
@@ -816,7 +859,8 @@ void behaviorTick() {
     handleProgramStrike(pout);
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
-    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
+    if (!inspectionStaticEnabled() && !gProgramSuppressesLight)
+      applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -825,7 +869,8 @@ void behaviorTick() {
     // daemon only on sparse full heartbeats (~60 s lag, measured).
     // state tx deliberately NOT power-vetoed here: on the bench a low cell
     // must still report truthfully (Luigi at 21%% went state-silent, measured)
-    if (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0) {
+    if (!inspectionStaticEnabled() &&
+        (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
       fillHeader(&cs.h, NB_CHOREO_STATE);
@@ -855,7 +900,9 @@ void behaviorTick() {
   // reachable for its full duration. In particular, a long DARK/blackout lease
   // must not hit the generic 10-minute control hold, deep-sleep, and lose its
   // RAM lease on reboot. Once the lease expires, normal day sleep resumes.
-  bool wakeChimeEligible =
+  inspectionRadioTick(now);
+
+  bool wakeChimeEligible = !inspectionStaticEnabled() &&
       (lo.state == LIFE_DAY_CHARGE || lo.state == LIFE_DAY_ACTIVE) &&
       powerWakeSampleWindowComplete() &&
       !gRuntime.leaseActive() && !otaVerifyPending() &&
@@ -887,6 +934,12 @@ bool behaviorFrame(FrameBuffer &f) {
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.
   if (transportWakeDarkActive()) return false;
+  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
+      gShowActive) {
+    f = gFrame;
+    fieldNightRoleApply(f, gClass, true);
+    return true;
+  }
   if (gCfg.profile == PROFILE_PROD && gShowActive &&
       (gClass == FIXTURE_UPLIGHT || gClass == FIXTURE_PERIMETER)) {
     f = gFrame;
@@ -920,4 +973,9 @@ bool behaviorFrame(FrameBuffer &f) {
   f = gFrame;
   return true;
 #endif
+}
+
+bool behaviorStaticInspectionActive() {
+  return inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
+         gShowActive && !transportWakeDarkActive();
 }

@@ -21,8 +21,8 @@ int main() {
 
   assert(fieldNightRoleApply(frame, FIXTURE_UPLIGHT, false));
   assert(frame.count == 1);
-  assert(frame.px[0][0] == 128 && frame.px[0][1] == 128 &&
-         frame.px[0][2] == 128 && frame.px[0][3] == 0);
+  assert(frame.px[0][0] == 255 && frame.px[0][1] == 255 &&
+         frame.px[0][2] == 255 && frame.px[0][3] == 0);
   assert(fieldFrameVisible(frame));
 
   assert(fieldNightRoleApply(frame, FIXTURE_UPLIGHT, true));
@@ -45,8 +45,20 @@ int main() {
 
   frameClear(frame);
   frame.count = 1;
-  assert(!fieldNightRoleApply(frame, FIXTURE_DOWNLIGHT, true));
-  assert(!fieldFrameVisible(frame));
+  assert(fieldNightRoleApply(frame, FIXTURE_DOWNLIGHT, false));
+  assert(frame.px[0][0] == 255 && frame.px[0][1] == 255 &&
+         frame.px[0][2] == 255 && frame.px[0][3] == 0);
+
+  frameClear(frame);
+  assert(fieldNightRoleApply(frame, FIXTURE_UNKNOWN, false));
+  assert(frame.count == 1);
+  assert(frame.px[0][0] == 255 && frame.px[0][1] == 255 &&
+         frame.px[0][2] == 255 && frame.px[0][3] == 0);
+
+  frameClear(frame);
+  assert(fieldNightRoleApply(frame, FIXTURE_CHANDELIER, false));
+  assert(frame.px[0][0] == 255 && frame.px[0][1] == 255 &&
+         frame.px[0][2] == 255 && frame.px[0][3] == 0);
 
   printf("field role policy tests passed\n");
   return 0;

@@ -1,6 +1,6 @@
-// Final scheduled-night role policy for minimum-viability field rendering.
-// This runs after programs and local interaction, but before the platform LED
-// driver's battery brightness cap. It therefore cannot bypass DIM/OFF/PROTECT.
+// Temporary scheduled inspection policy for maximum-visibility field
+// rendering. This runs before the platform LED driver's battery brightness
+// cap, so it cannot bypass DIM/OFF/PROTECT.
 #pragma once
 
 #include <stdint.h>
@@ -10,9 +10,9 @@
 // True when any live pixel/channel is nonzero.
 bool fieldFrameVisible(const FrameBuffer &frame);
 
-// Applies the scheduled-night field override for roles with a visibility
-// floor. modeWouldLight is the pre-override artistic intent, including a
-// program's explicit suppress-light result. Returns true when this class owns
-// a field override and frame was replaced.
+// Replaces every fixture role with static linear RGB white at 255. Perimeters
+// retain only their physical center pixel; all point-source and unknown roles
+// use pixel zero. modeWouldLight is retained only to avoid breaking older
+// callers while this emergency posture supersedes artistic intent.
 bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass,
                          bool modeWouldLight);

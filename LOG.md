@@ -10,6 +10,34 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Emergency static inspection firmware implemented
+
+Art Support judged the installed piece too dim and unsafe, so ADR 0074
+temporarily supersedes the autonomous show. During the scheduled field interval,
+every canopy/downlight, uplight, chandelier, and unknown fixture now renders
+linear `R=G=B=255,W=0`; perimeters render only that same full-RGB physical
+center pixel. Program/direct color, presence effects, autonomous propagation,
+Identify/Smoke blinking, wake chimes, the hourly ritual, and 1 Hz choreography
+traffic cannot alter this inspection frame. Existing startup sag limiting and
+FULL/DIM/OFF/PROTECT authority remain unchanged.
+
+The schedule now starts exactly one hour before evening civil dusk while still
+ending at civil dawn. With trustworthy scheduled time and a safe active light,
+ESP-NOW listens for 12 seconds and then turns only the radio off for 120 seconds;
+the CPU and LED rail remain live, so there is no light blink. Missing time,
+transport dark, pending OTA verification, incomplete wake power evidence, or a
+failed radio restart restores continuous listening/recovery. A fresh full
+heartbeat is sent at each listen-window start.
+
+Measured full RGB is about 417.6 mA total and the awake controller/radio branch
+has measured 116-168 mA, radio-RX dominated. The 9.1 percent radio duty can save
+at most about 105-153 mA average; even a conservative half-of-116 mA avoidable
+case saves about 53 mA, roughly 13 percent of the full-RGB load. The exact
+radio-off/CPU-awake floor remains unmeasured and is not overstated. The complete
+native suite passes, and the ESP32-S3 field/channel-11 development build passes
+at 36 percent flash and 20 percent static RAM with the deployed 120/12 cadence.
+Immutable artifact and rollout remain pending.
+
 ## 2026-08-31 -- Ben + Codex -- ADR 0073 partial fleet rollout stopped at 96/112
 
 Built immutable field/channel-11 fixture artifact `fx-260831-dc82da7-b`

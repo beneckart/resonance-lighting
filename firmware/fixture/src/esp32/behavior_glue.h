@@ -13,6 +13,10 @@ void behaviorTick(); // lifecycle + program tick + choreo tx + day-sleep
 // Frame source for renderTick: true when the show frame in `f` should render
 // (NIGHT_SHOW with power headroom). Identify/smoke still take precedence.
 bool behaviorFrame(FrameBuffer &f);
+// True when the emergency inspection posture owns the field renderer. This
+// lets render arbitration prevent identify/smoke blink from dimming a live
+// safety light.
+bool behaviorStaticInspectionActive();
 
 // Rx hooks (called by net_peer from loop context).
 void behaviorOnChoreoState(const uint8_t srcId[3], int8_t rssi, const NbChoreoState &cs);

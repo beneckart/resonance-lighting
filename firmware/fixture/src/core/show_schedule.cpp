@@ -7,7 +7,12 @@ static double wrap360(double v) {
   return v < 0.0 ? v + 360.0 : v;
 }
 
-ShowScheduleResult showScheduleAt(uint32_t utcS) {
+struct SolarPosition {
+  double elevationDeg;
+  double hourAngleDeg;
+};
+
+static SolarPosition solarPositionAt(uint32_t utcS) {
   // Compact solar-position calculation referenced to J2000. Its sub-minute
   // accuracy is far tighter than the build-week scheduling requirement.
   const double latitudeDeg = 40.7864;
@@ -31,9 +36,19 @@ ShowScheduleResult showScheduleAt(uint32_t utcS) {
   double lat = latitudeDeg * rad;
   double elevation = asin(sin(lat) * sin(decl) +
                           cos(lat) * cos(decl) * cos(hourAngle * rad)) / rad;
-  ShowScheduleResult result;
-  result.solarElevationDeg = (float)elevation;
-  result.night = elevation <= -6.0;
-  return result;
+  return {elevation, hourAngle};
 }
 
+ShowScheduleResult showScheduleAt(uint32_t utcS) {
+  SolarPosition now = solarPositionAt(utcS);
+  SolarPosition oneHourLater = solarPositionAt(utcS + 3600UL);
+  ShowScheduleResult result;
+  result.solarElevationDeg = (float)now.elevationDeg;
+  // Advancing the entire solar calculation would also end the show one hour
+  // before dawn. Only the evening/rising hour-angle side looks ahead.
+  bool civilNight = now.elevationDeg <= -6.0;
+  bool withinPreDuskHour = now.hourAngleDeg > 0.0 &&
+                           oneHourLater.elevationDeg <= -6.0;
+  result.night = civilNight || withinPreDuskHour;
+  return result;
+}

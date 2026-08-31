@@ -20,15 +20,7 @@ static void setRgbWhite(FrameBuffer &frame, uint8_t pixel, uint8_t value) {
   frame.px[pixel][3] = 0;
 }
 
-bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass,
-                         bool modeWouldLight) {
-  if (fixtureClass == FIXTURE_UPLIGHT) {
-    frame.count = 1;
-    frameClear(frame);
-    setRgbWhite(frame, 0, modeWouldLight ? 255 : 128);
-    return true;
-  }
-
+bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass, bool) {
   if (fixtureClass == FIXTURE_PERIMETER) {
     frame.count = FRAME_MAX_PIXELS;
     frameClear(frame);
@@ -38,5 +30,10 @@ bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass,
     return true;
   }
 
-  return false;
+  // Downlight/canopy, uplight, chandelier, and unknown all use the safe
+  // one-point-source profile until physical identity says otherwise.
+  frame.count = 1;
+  frameClear(frame);
+  setRgbWhite(frame, 0, 255);
+  return true;
 }

@@ -9,7 +9,6 @@ struct ShowScheduleResult {
   float solarElevationDeg;
 };
 
-// Burning Man / Black Rock City 2026 installation site. Civil twilight
-// (-6 degrees solar elevation) is the default dusk/dawn boundary.
+// Burning Man / Black Rock City 2026 installation site. The inspection light
+// starts one hour before evening civil dusk and remains on through civil dawn.
 ShowScheduleResult showScheduleAt(uint32_t utcS);
-
