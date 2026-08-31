@@ -370,9 +370,11 @@ Open **Wake** for GPS/UTC status and three fleet baselines:
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
 - **Wake Fleet** catches timer wakes for six minutes and leaves each captured
-  radio continuously reachable for its own ten-minute control window. On the
-  emergency inspection fixture image it preserves Auto/static fallback and
-  arms LED/audio direct frames; older images retain the dark-day behavior;
+  radio continuously reachable. On the emergency inspection fixture image it
+  preserves Auto/static fallback and arms LED/audio direct frames. Campaign
+  copies refresh the ten-minute arm while gathering, so the final copies leave
+  about ten minutes of full-fleet control (about sixteen minutes maximum from
+  the button press); older images retain the dark-day behavior;
 - **Night Show** temporarily forces the nighttime baseline.
 
 All three are RAM-only. The campaign repetition spans a full fixture sleep

@@ -9,8 +9,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   `R=G=B=255,W=0`, keeps perimeters to one full-RGB center pixel, disables
   autonomous/presence art and chimes, starts one hour before civil dusk,
   and duty-cycles only the radio at 12 s on / 120 s off without blinking the
-  LED rail. ADR 0075 adds a non-extendable ten-minute direct-control window
-  opened by Wake Fleet: LED Studio and CoreS3 Audio may temporarily override,
+  LED rail. ADR 0075/0076 add a campaign-owned bounded direct-control session:
+  Wake Fleet gathers for six minutes and its final copies leave roughly ten
+  minutes of full-fleet control. LED/audio frames cannot extend it. LED Studio
+  and CoreS3 Audio may temporarily override,
   perimeters stay center-pixel-only, and static white self-restores. CoreS3
   Audio adds 1X/1.5X/2X/3X output gain with a 2X default. Native and embedded
   fixture/T-Deck/CoreS3 builds pass; battery DIM/OFF/PROTECT remains
@@ -26,7 +28,7 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   the advanced dusk boundary. Then tap Wake Fleet, wait one complete radio-off
   phase, verify fleet-wide LED/audio control, stop the stream and confirm static
   fallback, and confirm control expiry restores duty cycling. Retain ADR 0074,
-  ADR 0073, and ADR 0072 artifacts as rollback (Ben/Codex; ADR 0074/0075).
+  ADR 0073, and ADR 0072 artifacts as rollback (Ben/Codex; ADR 0074/0075/0076).
 - [x] **ADR 0073 partial rollout recorded -- SUPERSEDED FOR INSPECTION
   2026-08-31.** Source/
   native and fixture/T-Deck development builds pass: scheduled-

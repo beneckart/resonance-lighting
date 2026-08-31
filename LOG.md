@@ -10,6 +10,16 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Wake Fleet timing clarification
+
+Final audit clarified ADR 0075's bound without changing code or artifact. Wake
+Fleet republishes for six minutes, and each campaign packet refreshes that
+fixture's ten-minute inspection-control deadline. The final campaign copies
+therefore leave roughly ten minutes of full-fleet control, for a maximum session
+of about sixteen minutes from the button press. LED Studio and CoreS3 Audio
+direct frames still cannot extend the deadline. ADR 0076 records the exact
+semantics; retained artifact `fx-260831-f121868-b` already implements them.
+
 ## 2026-08-31 -- Ben + Codex -- Bounded inspection control and brighter audio
 
 ADR 0075 restores deliberately limited operator control without restoring the

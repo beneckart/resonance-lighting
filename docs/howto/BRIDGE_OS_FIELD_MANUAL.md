@@ -393,9 +393,10 @@ available. It offers three field baselines:
   bounded solar/power fallback if trustworthy time expires.
 - **Wake Fleet:** repeat for six minutes so sleeping fixtures receive it on
   timer wake. On the emergency inspection image, this preserves Auto/static
-  fallback and opens one non-extendable ten-minute LED/audio direct-control
-  window. Older images use the dark daytime baseline. Each captured radio
-  stays continuously reachable for its own ten-minute window.
+  fallback and opens a bounded LED/audio direct-control session. Campaign
+  copies refresh the ten-minute arm during the six-minute gather, leaving about
+  ten minutes of full-fleet control afterward (about sixteen minutes maximum
+  from the button press). Older images use the dark daytime baseline.
 - **Night Show:** temporarily force the nighttime baseline.
 
 The choice is RAM-only and clears on fixture reboot. In the inspection image,
