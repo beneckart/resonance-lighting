@@ -43,6 +43,12 @@ with SHA-256
 the independent host hash matches its immutable manifest. Nothing was flashed
 or OTA'd as part of the build.
 
+A read-only rollout preflight found the laptop on the site `192.168.1.0/24`
+LAN, but no serial bridge was connected and no fixture served a maintenance
+`/telemetry` endpoint anywhere on that subnet. No maintenance command or OTA
+upload was attempted: without a bridge or an already addressed maintenance
+endpoint there was no identity-checked path to the fleet.
+
 ## 2026-08-30 -- Ben + Codex -- Laptop-retirement field evidence preserved
 
 Fetched current `origin/main` before retiring the Nevada City/BRC laptop and
