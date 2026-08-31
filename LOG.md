@@ -36,7 +36,12 @@ case saves about 53 mA, roughly 13 percent of the full-RGB load. The exact
 radio-off/CPU-awake floor remains unmeasured and is not overstated. The complete
 native suite passes, and the ESP32-S3 field/channel-11 development build passes
 at 36 percent flash and 20 percent static RAM with the deployed 120/12 cadence.
-Immutable artifact and rollout remain pending.
+Clean commit `4efad93` then produced immutable artifact
+`fx-260831-32dcb76-b` (1,216,864 bytes, SHA-256
+`e82376535270057297f28198c94f9d51d65b2886fde16d63d1de386f10dac981`).
+Independent manifest/hash checks pass. The exact binary and canonical handoff
+files are retained in git for the camp ThinkPad; nothing was flashed and fleet
+rollout remains pending.
 
 ## 2026-08-31 -- Ben + Codex -- ADR 0073 partial fleet rollout stopped at 96/112
 

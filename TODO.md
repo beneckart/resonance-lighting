@@ -4,19 +4,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [ ] **Build and explicitly deploy the ADR 0074 emergency inspection image.**
+- [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   Source now makes every point-source/unknown role static linear
   `R=G=B=255,W=0`, keeps perimeters to one full-RGB center pixel, disables
   autonomous/direct/presence art and chimes, starts one hour before civil dusk,
   and duty-cycles only the radio at 12 s on / 120 s off without blinking the
   LED rail. Native and ESP32-S3 development builds pass; battery DIM/OFF/PROTECT
-  remains authoritative. Create one clean immutable field/channel-11 artifact,
-  inspect its manifest/SHA, and deploy with exact named rosters plus fresh
-  exact-revision heartbeats beyond pending verify. The first field observation
-  must confirm full RGB point output, one-pixel perimeter output, continuous
-  light through a radio-off boundary, radio rejoin/heartbeat, and the advanced
-  dusk boundary. Retain both ADR 0073 and ADR 0072 artifacts as rollback
-  (Ben/Codex; ADR 0074).
+  remains authoritative. Clean immutable field/channel-11 artifact
+  `fx-260831-32dcb76-b`, SHA-256
+  `e82376535270057297f28198c94f9d51d65b2886fde16d63d1de386f10dac981`,
+  is built and independently checked. Deploy it with exact named rosters plus
+  fresh exact-revision heartbeats beyond pending verify. The first field
+  observation must confirm full RGB point output, one-pixel perimeter output,
+  continuous light through a radio-off boundary, radio rejoin/heartbeat, and
+  the advanced dusk boundary. Retain both ADR 0073 and ADR 0072 artifacts as
+  rollback (Ben/Codex; ADR 0074).
 - [x] **ADR 0073 partial rollout recorded -- SUPERSEDED FOR INSPECTION
   2026-08-31.** Source/
   native and fixture/T-Deck development builds pass: scheduled-

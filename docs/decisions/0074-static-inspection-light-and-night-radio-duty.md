@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-31
 
-**Status:** Accepted for the emergency art-inspection image; native suite and
-ESP32-S3 development build pass. Immutable artifact and rollout pending.
+**Status:** Accepted for the emergency art-inspection image; native suite,
+ESP32-S3 development build, and immutable artifact pass. Rollout pending.
 
 **Owner:** Ben
 
@@ -101,9 +101,13 @@ it would cut the switchable 3V3 LED rail and visibly blink the safety light.
 5. ESP32-S3 development build passes at 36 percent flash and 20 percent static
    RAM using field/channel-11, 300 mA precharge, 120-second off, and 12-second
    listen compile defaults.
-6. Before rollout, create one clean immutable ADR 0040 artifact and retain the
-   prior exact artifacts as rollback. OTA completion still requires a fresh
-   exact-revision heartbeat beyond pending verify.
+6. Clean source commit `4efad9320fb3f0134e730ca5ad7b586627d492b0`
+   produced immutable field artifact `fx-260831-32dcb76-b`, 1,216,864 bytes,
+   SHA-256
+   `e82376535270057297f28198c94f9d51d65b2886fde16d63d1de386f10dac981`.
+   Its manifest, recipe, build options, SHA file, and exact application binary
+   are retained for the camp-laptop handoff. OTA completion still requires a
+   fresh exact-revision heartbeat beyond pending verify.
 
 ## References
 
