@@ -14,6 +14,7 @@
 #include "app_commission.h"
 #include "app_contagion.h"
 #include "app_fleet.h"
+#include "app_field.h"
 #include "app_health.h"
 #include "app_knocker.h"
 #include "app_power.h"
@@ -61,6 +62,7 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_WIFI, "RF", appRfOpen},
     {LV_SYMBOL_POWER, "Rest", appPowerOpen},
     {LV_SYMBOL_IMAGE, "SunTest", openSunTest},
+    {LV_SYMBOL_EDIT, "Field", appFieldOpen},
     {LV_SYMBOL_SETTINGS, "Settings", appSettingsOpen},
 };
 

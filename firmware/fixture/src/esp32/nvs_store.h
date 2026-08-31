@@ -29,6 +29,10 @@ struct FixtureConfig {
   uint8_t channel;      // ESP-NOW/WiFi channel (must match the maintenance AP)
   uint16_t nightMaxMin; // bounded-night force-exit (13-15 h artifact fix)
   uint16_t dimMv, offMv, slpMv; // per-unit ADR-0023 overrides; 0 = tier default
+  uint8_t dayChimeChanceX256; // 255=every ordinary daytime wake, 0=off
+  uint8_t showSchedule; // 0=current CA only, 1=four-mode UTC rotation
+  uint16_t presenceSeedMinS; // accepted local mesh/program seed interval
+  uint16_t presenceRearmClearS; // continuous clear time before another seed
 };
 
 extern FixtureConfig gCfg;
@@ -55,6 +59,9 @@ bool nvsPersistClassLast(uint8_t cls);
 bool nvsPersistSolEn(uint8_t en);
 bool nvsPersistMaintV10(uint8_t v10);
 bool nvsPersistChannel(uint8_t channel);
+bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                           uint16_t presenceSeedMinS,
+                           uint16_t presenceRearmClearS);
 
 // Boot-guard stage (kept separate from FixtureConfig: it is read before
 // Serial/Board init and written on safety-critical paths).

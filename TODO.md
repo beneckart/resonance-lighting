@@ -4,6 +4,21 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Assign known physical callsigns to newly preserved fixtures `9F268C`
+  and `F402A8`.** Their commissioned registry rows are valid, but the T-Deck
+  production-health generator correctly refuses active fixtures without an
+  entry in `ops/fleet/callsigns.csv`. Use the names actually attached in the
+  field; do not consume arbitrary spares merely to make the test green (Ben).
+- [~] **Deploy and observe the ADR 0072 final-burn bundle.** Source now combines
+  two battery-safe ordinary-wake canopy chimes, the hourly ritual, perimeter
+  too-close center hold, propagation-only 300 s/30 s re-arm, and autonomous
+  10-minute CA/Color Virus/Epidemic/presence-CA rotation. Fixture native and
+  T-Deck embedded build gates pass. Finish one immutable field/channel-11
+  fixture artifact, retain rollback identity, OTA the full intended cohort,
+  and require fresh revision/pending-verify survival. Artistic regressions may
+  roll back; any OFF/PROTECT, sleep, OTA, or rescue anomaly stops rollout
+  immediately (Ben/Codex; ADR 0072).
+
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
   `fx-260827-1254f04-p`: healthy +506 mA charging in durable PROTECT was cut

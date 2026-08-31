@@ -403,6 +403,36 @@ bool meshCommissionDefault(const uint8_t target[3], uint8_t mode,
   return true;
 }
 
+bool meshFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                     uint16_t presenceSeedMinS,
+                     uint16_t presenceRearmClearS, bool persist) {
+  if (showSchedule > 1 || presenceSeedMinS < 10 ||
+      presenceSeedMinS > 3600 || presenceRearmClearS < 1 ||
+      presenceRearmClearS > 600)
+    return false;
+  NbFieldTuning packet = {};
+  packet.flags = persist ? 0x01 : 0;
+  packet.day_chime_chance_x256 = dayChimeChanceX256;
+  packet.show_schedule = showSchedule;
+  packet.presence_seed_min_s = presenceSeedMinS;
+  packet.presence_rearm_clear_s = presenceRearmClearS;
+  if (!txTake()) return false;
+  fillHeader(&packet.h, NB_FIELD_TUNING);
+  uint32_t auditValue = (uint32_t)dayChimeChanceX256 |
+                        ((uint32_t)showSchedule << 8) |
+                        ((uint32_t)presenceSeedMinS << 9) |
+                        ((uint32_t)presenceRearmClearS << 21);
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!auditActionBeforeSend(ACTION_AUDIT_FIELD_TUNING, auditValue,
+                             packet.h, kAll, true)) {
+    txGive();
+    return false;
+  }
+  sendPacketRepeatedLocked(&packet, sizeof(packet), 6, 8);
+  txGive();
+  return true;
+}
+
 bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId) {
   NbTimeQuality q = {};

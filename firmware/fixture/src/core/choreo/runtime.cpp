@@ -1,5 +1,7 @@
 #include "program.h"
 
+#include <string.h>
+
 Program *newProgIdle();
 Program *newProgGhCa();
 Program *newProgBridge();
@@ -25,6 +27,8 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
   mPixels = pixelCount;
   mSeed = seed ? seed : 1;
   mAutonomous = byId(autonomousProgram) ? autonomousProgram : PROG_GH_CA;
+  mAutonomousHasParams = false;
+  mAutonomousSeed = mSeed;
   mActive = mAutonomous;
   mLease = {};
   mFading = false;
@@ -41,9 +45,24 @@ void ChoreoRuntime::init(uint8_t fixtureClass, uint16_t pixelCount, uint32_t see
 
 bool ChoreoRuntime::setAutonomousProgram(uint8_t programId, uint32_t nowMs,
                                          bool hardCut) {
+  return setAutonomousPreset(programId, nullptr, mSeed, nowMs, hardCut);
+}
+
+bool ChoreoRuntime::setAutonomousPreset(uint8_t programId,
+                                        const uint8_t params[8], uint32_t seed,
+                                        uint32_t nowMs, bool hardCut) {
   if (!byId(programId)) return false;
+  bool hasParams = params != nullptr;
+  bool changed = mAutonomous != programId ||
+                 mAutonomousHasParams != hasParams ||
+                 mAutonomousSeed != (seed ? seed : mSeed) ||
+                 (hasParams && memcmp(mAutonomousParams, params, 8) != 0);
   mAutonomous = programId;
-  if (!mLease.active) selectAutonomous(nowMs, hardCut);
+  mAutonomousHasParams = hasParams;
+  mAutonomousSeed = seed ? seed : mSeed;
+  if (hasParams) memcpy(mAutonomousParams, params, 8);
+  else memset(mAutonomousParams, 0, sizeof(mAutonomousParams));
+  if (changed && !mLease.active) selectAutonomous(nowMs, hardCut);
   return true;
 }
 
@@ -126,9 +145,11 @@ void ChoreoRuntime::noteDirectFrame(const DirectFrameState &f, uint32_t nowMs) {
 
 void ChoreoRuntime::selectAutonomous(uint32_t nowMs, bool hardCut) {
   static const uint8_t noParams[8] = {};
-  byId(mAutonomous)->reset(mSeed,
-                           mAutonomous == PROG_GH_CA ? nullptr : noParams,
-                           mClass, mPixels);
+  const uint8_t *params = mAutonomousHasParams
+                              ? mAutonomousParams
+                              : (mAutonomous == PROG_GH_CA ? nullptr
+                                                           : noParams);
+  byId(mAutonomous)->reset(mAutonomousSeed, params, mClass, mPixels);
   // A leased program may be the same numeric program as the autonomous
   // fallback but carry different params (notably GH knock mode). Release and
   // expiry must restore the default autonomous configuration, not preserve

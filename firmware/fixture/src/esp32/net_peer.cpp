@@ -46,6 +46,10 @@ static bool gProfileSetSeen = false;
 static uint8_t gProfileSetSrc[3] = {};
 static uint32_t gProfileSetSeq = 0;
 static uint32_t gProfileSetSenderUptime = 0;
+static bool gFieldTuningSeen = false;
+static uint8_t gFieldTuningSrc[3] = {};
+static uint32_t gFieldTuningSeq = 0;
+static uint32_t gFieldTuningSenderUptime = 0;
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -558,6 +562,45 @@ static void processPacket(const RxItem &it) {
     }
     Serial.printf("commission-default -> %s (%s%s)\n",
                   commissionDefaultName(p->mode),
+                  (p->flags & 0x01) ? "persisted" : "until reboot",
+                  ok ? "" : " FAILED");
+    break;
+  }
+  case NB_FIELD_TUNING: {
+    if (it.len < (int)sizeof(NbFieldTuning)) return;
+    const NbFieldTuning *p = (const NbFieldTuning *)it.data;
+    if (!nbTargetMatches(p->target_id, gMyId) || p->show_schedule > 1 ||
+        p->presence_seed_min_s < 10 || p->presence_seed_min_s > 3600 ||
+        p->presence_rearm_clear_s < 1 ||
+        p->presence_rearm_clear_s > 600)
+      return;
+    if (gFieldTuningSeen && h->seq == gFieldTuningSeq &&
+        h->uptime_ms == gFieldTuningSenderUptime &&
+        memcmp(h->src_id, gFieldTuningSrc, 3) == 0)
+      return;
+    espNowNoteControlRx();
+    bool ok = true;
+    if (p->flags & 0x01) {
+      ok = nvsPersistFieldTuning(
+          p->day_chime_chance_x256, p->show_schedule,
+          p->presence_seed_min_s, p->presence_rearm_clear_s);
+    } else {
+      gCfg.dayChimeChanceX256 = p->day_chime_chance_x256;
+      gCfg.showSchedule = p->show_schedule;
+      gCfg.presenceSeedMinS = p->presence_seed_min_s;
+      gCfg.presenceRearmClearS = p->presence_rearm_clear_s;
+    }
+    if (ok) {
+      gFieldTuningSeen = true;
+      memcpy(gFieldTuningSrc, h->src_id, 3);
+      gFieldTuningSeq = h->seq;
+      gFieldTuningSenderUptime = h->uptime_ms;
+      netPeerSendHeartbeat(true);
+    }
+    Serial.printf("field-tuning -> chime=%u/256 show=%u seed=%us clear=%us "
+                  "(%s%s)\n",
+                  p->day_chime_chance_x256, p->show_schedule,
+                  p->presence_seed_min_s, p->presence_rearm_clear_s,
                   (p->flags & 0x01) ? "persisted" : "until reboot",
                   ok ? "" : " FAILED");
     break;

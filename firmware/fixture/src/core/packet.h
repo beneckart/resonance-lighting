@@ -18,7 +18,8 @@
 //   - 27..28 field-pack era (transport sleep + bounded locate survey).
 //   - 29     reserved for the queued bounded sensor-report packet.
 //   - 30     commission-default selector (Bridge OS -> fixture).
-//   - 31+    free.
+//   - 31     durable field behavior tuning (Bridge OS -> fixture).
+//   - 32+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -65,6 +66,7 @@ enum NbType : uint8_t {
   NB_LOCATE_CONTROL = 28,  // bridge -> all/target: bounded RSSI survey window
   // 29 remains reserved for NB_SENSOR_REPORT (not yet implemented).
   NB_COMMISSION_DEFAULT = 30, // bridge -> target: commission no-command fallback
+  NB_FIELD_TUNING = 31, // bridge -> all/target: durable burn behavior knobs
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -449,6 +451,16 @@ struct __attribute__((packed)) NbCommissionDefault { // 30: commission fallback
   uint8_t target_id[3]; // Bridge OS deliberately sends exact fixture IDs only
   uint8_t mode;         // CommissionDefaultMode
   uint8_t flags;        // bit0=persist to NVS (else RAM-only until reboot)
+};
+
+struct __attribute__((packed)) NbFieldTuning { // 31: final-burn behavior knobs
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all; fleet apply is intentional here
+  uint8_t flags;        // bit0=persist the whole setting atomically to NVS
+  uint8_t day_chime_chance_x256; // 255=100%; 64=25%; 32=12.5%; 0=off
+  uint8_t show_schedule; // 0=current CA only; 1=four-mode UTC rotation
+  uint16_t presence_seed_min_s; // 10..3600 accepted
+  uint16_t presence_rearm_clear_s; // 1..600 accepted
 };
 
 // ---- helpers (pure; ESP-NOW send lives in esp32/espnow_link) ----------------

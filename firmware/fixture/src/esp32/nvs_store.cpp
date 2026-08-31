@@ -4,6 +4,7 @@
 #include <Preferences.h>
 
 #include "../core/radio_config.h"
+#include "../core/field_behavior.h"
 #include "../core/solenoid_config.h"
 #ifndef RES_PROFILE_DEFAULT
 #define RES_PROFILE_DEFAULT PROFILE_DEV // M1 bringup posture; promote to field later
@@ -15,6 +16,24 @@ FixtureConfig gCfg;
 
 static const char *kNs = "resfx";
 static bool gLoaded = false;
+
+struct __attribute__((packed)) FieldTuningBlob {
+  uint8_t version;
+  uint8_t dayChimeChanceX256;
+  uint8_t showSchedule;
+  uint8_t reserved;
+  uint16_t presenceSeedMinS;
+  uint16_t presenceRearmClearS;
+};
+
+static constexpr uint8_t kFieldTuningVersion = 1;
+
+static bool fieldTuningValid(const FieldTuningBlob &tuning) {
+  return tuning.version == kFieldTuningVersion && tuning.showSchedule <= 1 &&
+         tuning.presenceSeedMinS >= 10 && tuning.presenceSeedMinS <= 3600 &&
+         tuning.presenceRearmClearS >= 1 &&
+         tuning.presenceRearmClearS <= 600;
+}
 
 static uint16_t checkedU16(Preferences &pf, const char *key, uint16_t fallback,
                            uint16_t minVal, uint16_t maxVal) {
@@ -140,14 +159,31 @@ void nvsLoadConfig() {
   gCfg.dimMv = checkedU16(pf, "dim_mv", 0, 0, 4000);
   gCfg.offMv = checkedU16(pf, "off_mv", 0, 0, 4000);
   gCfg.slpMv = checkedU16(pf, "slp_mv", 0, 0, 4000);
+  FieldTuningBlob tuning = {
+      kFieldTuningVersion, FIELD_CHIME_CHANCE_DEFAULT,
+      FIELD_SHOW_SCHEDULE_DEFAULT, 0, FIELD_PRESENCE_SEED_MIN_S_DEFAULT,
+      FIELD_PRESENCE_REARM_CLEAR_S_DEFAULT};
+  if (pf.getBytesLength("field_tune") == sizeof(tuning)) {
+    FieldTuningBlob stored = {};
+    if (pf.getBytes("field_tune", &stored, sizeof(stored)) == sizeof(stored) &&
+        fieldTuningValid(stored))
+      tuning = stored;
+  }
+  gCfg.dayChimeChanceX256 = tuning.dayChimeChanceX256;
+  gCfg.showSchedule = tuning.showSchedule;
+  gCfg.presenceSeedMinS = tuning.presenceSeedMinS;
+  gCfg.presenceRearmClearS = tuning.presenceRearmClearS;
   pf.end();
   Serial.printf("  config: cap=%u mAh charge=%u mA class_ovr=%u profile=%s "
                 "commission_default=%s sol_en=%u maintain=%.1fV ch=%u "
-                "night_max=%umin\n",
+                "night_max=%umin chime=%u/256 show_sched=%u seed_min=%us "
+                "seed_clear=%us\n",
                 gCfg.capMah, gCfg.chargeMa, gCfg.classOvr,
                 gCfg.profile == PROFILE_DEV ? "commission" : "field",
                 commissionDefaultName(gCfg.commissionDefault), gCfg.solEn,
-                gCfg.maintV10 / 10.0f, gCfg.channel, gCfg.nightMaxMin);
+                gCfg.maintV10 / 10.0f, gCfg.channel, gCfg.nightMaxMin,
+                gCfg.dayChimeChanceX256, gCfg.showSchedule,
+                gCfg.presenceSeedMinS, gCfg.presenceRearmClearS);
 }
 
 static bool putU32(const char *key, uint32_t v) {
@@ -290,6 +326,26 @@ void nvsClearBootCount() {
   // healthy minute, and the streak is almost always already zero.
   if (pf.getUInt("boots", 0) != 0) pf.putUInt("boots", 0);
   pf.end();
+}
+
+bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                           uint16_t presenceSeedMinS,
+                           uint16_t presenceRearmClearS) {
+  FieldTuningBlob tuning = {kFieldTuningVersion, dayChimeChanceX256,
+                            showSchedule, 0, presenceSeedMinS,
+                            presenceRearmClearS};
+  if (!fieldTuningValid(tuning)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putBytes("field_tune", &tuning, sizeof(tuning)) ==
+            sizeof(tuning);
+  pf.end();
+  if (!ok) return false;
+  gCfg.dayChimeChanceX256 = dayChimeChanceX256;
+  gCfg.showSchedule = showSchedule;
+  gCfg.presenceSeedMinS = presenceSeedMinS;
+  gCfg.presenceRearmClearS = presenceRearmClearS;
+  return true;
 }
 
 bool nvsReadSleepCommand(SleepAuditRecord &record) {

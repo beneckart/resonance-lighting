@@ -42,6 +42,11 @@ void meshMaintenancePrintStatus();
 // Exact-target only. Commission-default persistence is an NVS mutation, so
 // Bridge OS never emits this command with the all-zero broadcast target.
 bool meshCommissionDefault(const uint8_t target[3], uint8_t mode, bool persist);
+// Deliberate fleet-wide durable burn behavior tuning. The on-device UI owns
+// confirmation; the sender checkpoints an action audit before RF.
+bool meshFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                     uint16_t presenceSeedMinS,
+                     uint16_t presenceRearmClearS, bool persist);
 bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId);
 

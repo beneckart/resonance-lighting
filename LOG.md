@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-30 -- Ben + Codex -- Final-burn autonomous art bundle implemented
+
+Implemented the deadline-driven single field bundle in ADR 0072. Canopy
+downlights now attempt one battery-safe cymbal hit after a trustworthy daytime
+wake sample and a second before sleep, with a durable stochastic attenuation
+knob defaulting to 100 percent. The UTC-hour ritual now uses the same FULL/DIM
+safety boundary instead of requiring solar surplus; OFF/PROTECT and every hard
+mechanism gate remain vetoes.
+
+Perimeter interaction now holds the crisp center pixel through transient
+too-close invalid/zero distances only after a proven valid close approach.
+Program/wave origins now default to a five-minute minimum plus 30 seconds
+continuously clear before re-arm, without slowing local sensor rendering. A
+rootless UTC schedule rotates every 10 minutes through existing CA, Color
+Virus, Epidemic, and a K=2/no-spark visitor-started CA. Canopy and perimeter
+ToF fixtures may originate these program events; other classes relay/render.
+
+Added canonical append-only packet type 31 and one versioned NVS blob for the
+four field knobs, plus a confirmed/audited T-Deck Field screen. The first full
+fixture native run passed. A fresh T-Deck embedded build passed at 49 percent
+flash and 59 percent static RAM. The T-Deck native wrapper remains blocked by
+two newly preserved commissioned fixtures (`9F268C`, `F402A8`) lacking callsign
+assignments; no physical identity was invented to bypass that data contract.
+
 ## 2026-08-30 -- Ben + Codex -- Laptop-retirement field evidence preserved
 
 Fetched current `origin/main` before retiring the Nevada City/BRC laptop and
