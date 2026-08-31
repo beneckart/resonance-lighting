@@ -10,6 +10,82 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Final-burn fleet deployed and PROTECT census
+
+Deployed immutable field/channel-11 artifact `fx-260831-b3e2738-b` (1,220,288
+bytes, SHA-256
+`1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`)
+from clean source commit `316470a` to the installed fleet through the USB T-Deck
+bridge. Every upload used an explicit short-MAC roster and fresh identity/power
+preflight. Success required a new exact-revision mesh heartbeat after the job
+start and survival beyond the 25-second OTA pending-verify window; upload ACKs
+alone were not accepted. Attempts that lost a maintenance endpoint or did not
+discover a target made no upload to that target.
+
+The staged fleet jobs and two final direct-target retries leave all 112 visible
+PowerFeather fixtures on the exact artifact, with zero older revisions and zero
+fixtures reporting commission profile. Low-voltage PROTECT peers were included
+after Ben explicitly accepted the A/B rollback tradeoff. Eight of eight in the
+first low/early PROTECT cohort and seven of seven in the phase-aligned final
+cohort passed; the latter safely deferred sensorless perimeter `F402A8`, which
+then passed the legacy direct-target path at 3.211 V. Canopy `F3FC90`, which had
+ignored several roster campaigns, also passed the direct-target path at 3.251 V.
+No OTA failure required physical access. Ben reports the new ordinary-wake
+two-chime behavior is "incredibly delightful" and working very well in the art.
+
+The post-deployment dashboard census found 19 fixtures explicitly reporting
+PROTECT plus two abbreviated deep-sleep reports retaining a 900-second,
+`last_sleep_tier=3` state (`F2BDB4` and `F3FD28`), for 21 active/probable
+PROTECT fixtures. Known roles are ten perimeters (the nine registry-labeled
+perimeters plus Skitty `F3FD28`, whose prior USB/VL53 history proves its physical
+role), three uplights, and four downlights; four remain role-unresolved. Lowest
+reported batteries were uplight Donkey `F2BE10` at 2.98 V, perimeters Gengar
+`F2BDD4` and Skitty near 3.02 V, downlight Ponyta `F2B7DC` at 3.03 V, and
+unresolved Chunli `9F2714` at 3.04 V. Registry locations for all three PROTECT
+uplights remain `trunk light - position TBD`, so the telemetry cannot identify
+which, if any, are on the north side. All 21 report the exact new revision and
+field profile; Skitty's `commission_failed` registry status is historical sensor
+commissioning metadata, not a current commission firmware profile. The fleet
+registry now preserves physical perimeter roles for Rotom `F2BF7C` and Skitty;
+Rotom is promoted to commissioned after its fresh class-2 heartbeat reported
+healthy VL53L5CX and MSA311, while Skitty remains sensor-failed.
+
+## 2026-08-31 -- Ben + Codex -- DG1022Z HEARTBEAT visible but under-scaled
+
+Ben and the waveform owner ran the no-human DG1022Z path into the powered PUCA.
+The HEARTBEAT response works, but Ben reports it remains very dim with the Rigol
+at 4 Vpp and both carrier controls fully clockwise. The generator is explicitly
+not connected to a person, so the body-connected isolation prohibition was not
+in scope for this bench observation.
+
+No amplitude increase beyond the documented 4 Vpp faceplate baseline was
+recommended without capture evidence. Next discriminate the source waveform
+from the PUCA gain map using a High-Z, 0 V offset, 4 Vpp 1 kHz sine, then capture
+PUCA `peak`, `wave`, `gain`, `ceil`, and `clipblocks` over service USB. The
+current faceplate path attenuates about 4:1 and HEARTBEAT maps the raw codec peak
+linearly through at most 4x sensitivity, so firmware scaling remains a credible
+cause if the sine also stays dim. No firmware or hardware was changed.
+
+## 2026-08-31 -- Ben + Codex -- PUCA HEARTBEAT field controls reconciled
+
+Onboarded from the canonical architecture, current PUCA hardware/firmware
+records, ADRs 0035/0063, and the DG1022Z runbook for a read-only operator
+walkthrough. Reconciled the installed `puca-bridge-0.5.5-dev` safe-boot behavior:
+hold the capacitive paw continuously for 1.2 seconds during the five-second
+steady-red boot opportunity to arm DJ + line, then release and use one short
+touch to select HEARTBEAT; a long hold locks immediately or the setup window
+locks 20 seconds after the last activity. Boot-held arming is hardware-proven;
+the post-arm short-touch/long-hold sequence remains native-tested but not yet
+recorded as a hardware acceptance pass.
+
+The paired Rigol DG1022Z bench baseline remains one front-channel analog output,
+High Z load display, 0 V offset, and 1 Vpp initial amplitude into PUCA J5/J6
+AUDIO IN with generator output disabled during hookup. No device was opened,
+powered, commanded, built, flashed, or otherwise changed. The existing warning
+still applies: do not electrically join PUCA/Pod20/USB/Tree ground to a
+body-connected ceremony circuit without a separately isolated monitor boundary
+approved for the complete powered system.
+
 ## 2026-08-30 -- Ben + Codex -- Final-burn autonomous art bundle implemented
 
 Implemented the deadline-driven single field bundle in ADR 0072. Canopy

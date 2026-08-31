@@ -1,0 +1,26 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260831-b3e2738-b\\fixture.ino.bin", "artifact_sha256": "1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d", "campaign_duration_s": 970, "discovery_timeout_s": 930.0, "elapsed_s": 0.015, "event": "job_started", "expected_revision": "fx-260831-b3e2738-b", "gather_cadence": "protect", "job_id": "DCAA635F", "phase": "PLAN", "target_count": 22, "targets": ["9E5B48", "9E5B5C", "9F0E54", "9F0E7C", "9F2648", "9F2714", "F2B7DC", "F2B900", "F2BCF0", "F2BDB4", "F2BDC4", "F2BDD4", "F2BDFC", "F2BE08", "F2BE10", "F2BE48", "F3FC90", "F3FD28", "F402A8", "F4035C", "F40384", "F4043C"], "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "DCAA635F", "phase": "PREFLIGHT", "target_count": 22, "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.031, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9E5B48", "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.047, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9E5B5C", "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.062, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9F0E54", "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.062, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9F0E7C", "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9F2648", "ts_utc": "2026-08-31T01:59:54Z"}
+{"elapsed_s": 0.109, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "9F2714", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2B7DC", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2B900", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.156, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BCF0", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.156, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BDB4", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.172, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BDC4", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.187, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BDD4", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.187, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BDFC", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.203, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BE08", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.234, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BE10", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.234, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F2BE48", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.234, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F3FC90", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.25, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F3FD28", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.25, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F402A8", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.25, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F4035C", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.281, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F40384", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 0.297, "event": "target_added", "job_id": "DCAA635F", "phase": "GATHER", "target": "F4043C", "ts_utc": "2026-08-31T01:59:55Z"}
+{"elapsed_s": 30.562, "error": "bridge did not acknowledge campaign DCAA635F phase=1 active=1 targets=22; last={'job_id': 'DCAA635F', 'phase': 1, 'active': True, 'target_count': 20, 'dispatch_count': 1642, 'remaining_ms': 949708, 'cycle_ms': 200, 'ts_utc': '2026-08-31T02:00:16.246181+00:00', 'status_age_ms': 8969}", "event": "job_error", "job_id": "DCAA635F", "phase": "CLEANUP", "ts_utc": "2026-08-31T02:00:25Z"}
+{"elapsed_s": 60.609, "error": "bridge did not acknowledge campaign DCAA635F phase=2 active=0 targets=22; last={'job_id': 'DCAA635F', 'phase': 2, 'active': False, 'target_count': 20, 'dispatch_count': 2453, 'remaining_ms': 0, 'cycle_ms': 200, 'ts_utc': '2026-08-31T02:00:46.158312+00:00', 'status_age_ms': 9093}", "event": "freeze_unconfirmed", "job_id": "DCAA635F", "phase": "CLEANUP", "ts_utc": "2026-08-31T02:00:55Z"}

@@ -9,17 +9,32 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   production-health generator correctly refuses active fixtures without an
   entry in `ops/fleet/callsigns.csv`. Use the names actually attached in the
   field; do not consume arbitrary spares merely to make the test green (Ben).
-- [~] **Deploy and observe the ADR 0072 final-burn bundle.** Source now combines
+- [x] **Deploy and observe the ADR 0072 final-burn bundle -- DONE 2026-08-31.** Source combines
   two battery-safe ordinary-wake canopy chimes, the hourly ritual, perimeter
   too-close center hold, propagation-only 300 s/30 s re-arm, and autonomous
   10-minute CA/Color Virus/Epidemic/presence-CA rotation. Fixture native and
   T-Deck embedded build gates pass. Immutable field/channel-11 artifact
   `fx-260831-b3e2738-b`, SHA-256
   `1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`,
-  is ready from clean commit `316470a`. Retain rollback identity, OTA the full intended cohort,
-  and require fresh revision/pending-verify survival. Artistic regressions may
-  roll back; any OFF/PROTECT, sleep, OTA, or rescue anomaly stops rollout
-  immediately (Ben/Codex; ADR 0072).
+  was built from clean commit `316470a`. Exact named fleet and direct-target
+  OTA paths now leave all 112 visible PowerFeathers reporting that revision in
+  field profile, with zero old revisions or commission-profile fixtures. Every
+  accepted target produced a fresh exact-revision heartbeat beyond the pending-
+  verify gate; no failure required physical access. Ben reports the ordinary-
+  wake two-chime behavior is "incredibly delightful" and working very well.
+  Preserve the prior artifact as the artistic rollback (Ben/Codex; ADR 0072).
+- [ ] **Triage the 21 active/probable PROTECT fixtures from the 2026-08-31 post-
+  deployment census.** Prioritize the ten physical perimeters because of their
+  6 Ah batteries/P126 panels, especially Gengar `F2BDD4` and Skitty `F3FD28`
+  near 3.02 V, then uplight Donkey `F2BE10` at 2.98 V and canopy Ponyta
+  `F2B7DC` at 3.03 V. Record installed positions for PROTECT uplights Mipha
+  `9E5B5C`, Cubone `9F2648`, and Donkey so the suspected north-side panel issue
+  can be tested instead of inferred. Resolve roles for Chunli `9F2714`, Abra
+  `F2BDB4`, Yoshi `F2BE08`, and Dratini `F4035C`; preserve Skitty's physical
+  perimeter identity while separately diagnosing its missing live sensor/class
+  report. All census members already run `fx-260831-b3e2738-b` in field profile,
+  so this is a charging/placement/identity follow-up, not a firmware rollout
+  task (Ben/Codex).
 
 - [x] **Prevent field day sleep from resetting a qualified PROTECT release --
   DONE 2026-08-29.** Exact outer downlight Toad `F2BEE4` proved the defect on
@@ -774,7 +789,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   reviewer approves a separately isolated monitor boundary with all field power
   and USB connections present. The rear Sync output is timing-only, not a copy
   of the arbitrary waveform; direct connection to the AC-coupled audio input
-  may detect both square-wave edges (Ben/Codex).
+  may detect both square-wave edges. **2026-08-31 partial hardware result:** the
+  no-human DG1022Z path visibly drives HEARTBEAT, but Ben reports very dim output
+  even at 4 Vpp with both PUCA carrier controls fully clockwise. Before changing
+  the 4 Vpp boundary, compare a High-Z/0 V/4 Vpp 1 kHz sine and record service-
+  USB `peak`, `wave`, `gain`, `ceil`, and `clipblocks`; if the sine is also dim,
+  retune the faceplate/codec-to-HEARTBEAT scaling rather than adding unmeasured
+  source voltage (Ben/Codex).
 - [ ] **Physically confirm the inferred full MACs for the three restored fleet
   identities.** The retained 2026-08-18 OTA/RSSI evidence proves short IDs
   `F2BDFC`, `F402A4`, and `F40348`; their `68:EE:8F` OUIs were reconstructed
