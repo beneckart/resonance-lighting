@@ -283,8 +283,7 @@ static void processPacket(const RxItem &it) {
     memcpy(gProgramSetSrc, h->src_id, 3);
     gProgramSetSeq = h->seq;
     gProgramSetSenderUptime = h->uptime_ms;
-    espNowNoteControlRx();
-    behaviorOnProgramSet(*ps);
+    if (behaviorOnProgramSet(*ps)) espNowNoteControlRx();
     break;
   }
   case NB_NEIGHBOR_SET: {
@@ -314,7 +313,7 @@ static void processPacket(const RxItem &it) {
   }
   case NB_SHOWFRAME: {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
-    espNowNoteControlRx();
+    if (!behaviorInspectionDirectOnly()) espNowNoteControlRx();
     accountDownlink(h, it.rssi);
     const NbShowFrame *f = (const NbShowFrame *)it.data;
     gShowFrame.rx_ms = millis();
@@ -341,7 +340,6 @@ static void processPacket(const RxItem &it) {
     const NbDirectEntry *e = nbDirectFindEntry(df, it.len, gMyId);
     if (!e) break; // frame doesn't name us: not ours, ignore
     ++gDirectMatched;
-    espNowNoteControlRx();
     behaviorOnDirectFrame(e->r, e->g, e->b, e->w, df->flags);
     break;
   }
@@ -352,9 +350,14 @@ static void processPacket(const RxItem &it) {
     if (fl->mode > 2) return;
     espNowNoteControlRx();
     // Radio twin of serial 'N': RAM-only, a reboot always returns to auto.
-    behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
-    Serial.printf("force_night -> %s (radio)\n",
-                  fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
+    // The static inspection posture deliberately reinterprets DAY as its
+    // bounded Wake Fleet control arm while preserving lifecycle AUTO.
+    bool armed = behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
+    if (armed)
+      Serial.println("wake-fleet -> inspection control armed (radio)");
+    else
+      Serial.printf("force_night -> %s (radio)\n",
+                    fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
     break;
   }
   case NB_TRANSPORT_SLEEP: {

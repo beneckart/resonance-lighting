@@ -1,6 +1,6 @@
 #pragma once
 
-// UTC/schedule status plus RAM-only fleet baseline override. Artistic leases
-// in LED Studio / Patterns remain a separate, higher-precedence layer.
+// UTC/schedule status plus RAM-only fleet baseline override. In the emergency
+// inspection fixture image, Wake Fleet instead opens a bounded direct-frame
+// control window while preserving the autonomous static-light fallback.
 void appScheduleOpen();
-

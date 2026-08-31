@@ -60,6 +60,38 @@ int main() {
   assert(frame.px[0][0] == 255 && frame.px[0][1] == 255 &&
          frame.px[0][2] == 255 && frame.px[0][3] == 0);
 
+  frame.count = FRAME_MAX_PIXELS;
+  frameClear(frame);
+  for (uint8_t i = 0; i < FRAME_MAX_PIXELS; ++i) {
+    frame.px[i][0] = 11;
+    frame.px[i][1] = 22;
+    frame.px[i][2] = 33;
+    frame.px[i][3] = 44;
+  }
+  assert(fieldDirectRoleApply(frame, FIXTURE_PERIMETER));
+  assert(frame.count == FRAME_MAX_PIXELS);
+  center = hexGeometry().spiralOrder[0];
+  for (uint8_t i = 0; i < FRAME_MAX_PIXELS; ++i) {
+    if (i == center) {
+      assert(frame.px[i][0] == 11 && frame.px[i][1] == 22 &&
+             frame.px[i][2] == 33 && frame.px[i][3] == 0);
+    } else {
+      assert(frame.px[i][0] == 0 && frame.px[i][1] == 0 &&
+             frame.px[i][2] == 0 && frame.px[i][3] == 0);
+    }
+  }
+
+  frame.count = 1;
+  frameClear(frame);
+  frame.px[0][0] = 9;
+  frame.px[0][1] = 19;
+  frame.px[0][2] = 29;
+  frame.px[0][3] = 39;
+  assert(fieldDirectRoleApply(frame, FIXTURE_DOWNLIGHT));
+  assert(frame.count == 1);
+  assert(frame.px[0][0] == 9 && frame.px[0][1] == 19 &&
+         frame.px[0][2] == 29 && frame.px[0][3] == 39);
+
   printf("field role policy tests passed\n");
   return 0;
 }

@@ -65,6 +65,7 @@ static bool gScheduleValid = false;
 static bool gScheduleNight = false;
 static bool gRitualKeepAwake = false;
 static InspectionRadioDutyState gInspectionRadioDuty;
+static InspectionControlWindow gInspectionControl;
 
 static constexpr uint32_t kRitualRtcMagic = 0x52544C31UL; // "RTL1"
 static constexpr uint32_t kDayEnergyCarryMagic = 0x454E5231UL; // "ENR1"
@@ -392,9 +393,26 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   memset(&gWave, 0, sizeof(gWave));
   timeConsensusInit(gTimeConsensus);
   inspectionRadioDutyInit(gInspectionRadioDuty);
+  inspectionControlInit(gInspectionControl);
 }
 
-void behaviorForceNight(int8_t force) { gForceNight = force; }
+bool behaviorForceNight(int8_t force) {
+  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
+    if (force == 0) {
+      // In the inspection image, T-Deck Wake Fleet is an explicit bounded
+      // operator arm. Preserve AUTO so the safety light remains the fallback
+      // instead of forcing the fleet into a dark DAY baseline.
+      inspectionControlArm(gInspectionControl, millis(), RES_RX_HOLD_MS);
+      gForceNight = -1;
+      Serial.println("inspection control: armed for 10 min; lifecycle stays AUTO");
+      return true;
+    }
+    // AUTO or NIGHT SHOW is an explicit return to the inspection baseline.
+    inspectionControlClose(gInspectionControl);
+  }
+  gForceNight = force;
+  return false;
+}
 int8_t behaviorForcedNight() { return gForceNight; }
 uint8_t behaviorLifeState() { return gLife.state; }
 bool behaviorStrikesAllowed() { return gStrikesAllowed; }
@@ -446,15 +464,15 @@ void behaviorOnPeerHeartbeat(const uint8_t srcId[3], int8_t rssi, uint8_t caStat
   e->choreoState = caState;
 }
 
-void behaviorOnProgramSet(const NbProgramSet &ps) {
-  if (!nbTargetMatches(ps.target_id, gMyId)) return;
+bool behaviorOnProgramSet(const NbProgramSet &ps) {
+  if (!nbTargetMatches(ps.target_id, gMyId)) return false;
   if (inspectionStaticEnabled()) {
     uint8_t params[8] = {};
     gRuntime.applyProgramSet(0, 0, 0, 0, params, millis());
     transportWakeDarkRelease();
     Serial.printf("program-set: prog=%u ignored by static inspection posture\n",
                   ps.program_id);
-    return;
+    return false;
   }
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
@@ -462,6 +480,7 @@ void behaviorOnProgramSet(const NbProgramSet &ps) {
   if (ok && ps.lease_s) waveClear();
   Serial.printf("program-set: prog=%u lease=%us -> %s\n", ps.program_id,
                 ps.lease_s, ok ? "applied" : "REJECTED (unknown program)");
+  return ok;
 }
 
 void behaviorOnNeighborSet(const NbNeighborSet &ns) {
@@ -478,18 +497,23 @@ void behaviorOnNeighborSet(const NbNeighborSet &ns) {
   // rig re-pushes after reboots via the host script for now.
 }
 
-void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
+bool behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
                            uint8_t flags) {
-  if (inspectionStaticEnabled()) {
-    transportWakeDarkRelease();
-    return;
-  }
-  // Micro-lease grant + staleness bookkeeping live in the runtime.
   uint32_t now = millis();
+  bool inspectionField =
+      inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD;
+  if (inspectionField && !inspectionControlActive(gInspectionControl, now))
+    return false;
+  // Micro-lease grant + staleness bookkeeping live in the runtime.
   DirectFrameState fs = {now, r, g, b, w, flags};
   gRuntime.noteDirectFrame(fs, now);
+  // Ordinary direct control owns the standard rolling 10-minute receive hold.
+  // Inspection control is deliberately different: Wake Fleet owns one fixed
+  // deadline, and a forgotten 10 Hz publisher must not extend it forever.
+  if (!inspectionField) espNowNoteControlRx();
   transportWakeDarkRelease();
   if (flags & 0x01) waveClear();
+  return true;
 }
 
 uint8_t behaviorNeighborSnapshot(NeighborView *out, uint8_t maxOut) {
@@ -623,11 +647,12 @@ static bool ordinaryWakeChimesTick(bool eligible, bool finishingWake,
 }
 
 static void inspectionRadioTick(uint32_t now) {
+  bool controlActive = inspectionControlActive(gInspectionControl, now);
   bool eligible = inspectionStaticEnabled() &&
                   gCfg.profile == PROFILE_PROD && gShowActive &&
                   gScheduleValid && gScheduleNight &&
                   powerWakeSampleWindowComplete() && !otaVerifyPending() &&
-                  !transportWakeDarkActive();
+                  !transportWakeDarkActive() && !controlActive;
   InspectionRadioAction action = inspectionRadioDutyTick(
       gInspectionRadioDuty, eligible, now, RES_WAKE_LISTEN_MS,
       (uint32_t)RES_DAY_SLEEP_S * 1000UL);
@@ -761,7 +786,10 @@ void behaviorTick() {
     }
   }
 
-  if (gShowActive) {
+  bool inspectionControlRunning =
+      inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
+      inspectionControlActive(gInspectionControl, now);
+  if (gShowActive || inspectionControlRunning) {
     NeighborView views[NEIGHBOR_PINNED_MAX];
     uint8_t nviews = neighborSnapshot(gNeighbors, now, RES_NEIGHBOR_FRESH_MS,
                                       views, NEIGHBOR_PINNED_MAX);
@@ -934,11 +962,18 @@ bool behaviorFrame(FrameBuffer &f) {
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.
   if (transportWakeDarkActive()) return false;
-  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
-      gShowActive) {
-    f = gFrame;
-    fieldNightRoleApply(f, gClass, true);
-    return true;
+  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
+    bool controlActive = inspectionControlActive(gInspectionControl, millis());
+    if (controlActive && gRuntime.activeProgram() == PROG_DIRECT) {
+      f = gFrame;
+      fieldDirectRoleApply(f, gClass);
+      return true;
+    }
+    if (gShowActive) {
+      f = gFrame;
+      fieldNightRoleApply(f, gClass, true);
+      return true;
+    }
   }
   if (gCfg.profile == PROFILE_PROD && gShowActive &&
       (gClass == FIXTURE_UPLIGHT || gClass == FIXTURE_PERIMETER)) {
@@ -978,4 +1013,8 @@ bool behaviorFrame(FrameBuffer &f) {
 bool behaviorStaticInspectionActive() {
   return inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
          gShowActive && !transportWakeDarkActive();
+}
+
+bool behaviorInspectionDirectOnly() {
+  return inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD;
 }

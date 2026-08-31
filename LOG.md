@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Bounded inspection control and brighter audio
+
+ADR 0075 restores deliberately limited operator control without restoring the
+autonomous show. In the static inspection field image, T-Deck Wake Fleet now
+runs its existing six-minute catch campaign but preserves lifecycle Auto and
+opens one non-extendable ten-minute direct-frame window per captured fixture.
+LED Studio and all seven CoreS3 Audio modes can drive the armed fleet; continuing
+frames do not extend the deadline, ignored program/show streams do not create
+awake holds, static inspection white returns after direct-frame staleness, and
+night radio duty resumes at expiry. Auto or Night Show closes the window.
+Perimeter direct output remains center-pixel-only, while point sources preserve
+their explicit one-pixel RGBW command. DIM/OFF/PROTECT and all recovery gates
+remain authoritative.
+
+CoreS3 Audio now applies a RAM-only post-color output gain with 1X, 1.5X, 2X,
+and 3X steps, defaulting to 2X. A fourth Audio footer button and USB `V` cycle
+the setting; every channel saturates at 255 and fixture power policy still
+applies downstream. T-Deck standalone OTA was explicitly deferred in favor of
+bringing the Starlink/shared-WiFi path and this laptop out one last time.
+
+The full fixture and CoreS3 native suites pass. Development hardware builds
+pass for fixture (36 percent flash, 20 percent static RAM), CoreS3 (36/29), and
+T-Deck (49/59). No hardware was flashed. Next is a clean source commit and a
+replacement immutable inspection artifact before fleet OTA.
+
 ## 2026-08-31 -- Ben + Codex -- Emergency static inspection firmware implemented
 
 Art Support judged the installed piece too dim and unsafe, so ADR 0074

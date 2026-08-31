@@ -25,6 +25,21 @@ struct InspectionRadioDutyState {
   uint32_t phaseStartMs;
 };
 
+// Wake Fleet opens one bounded, RAM-only operator window in the otherwise
+// static inspection image. The deadline is deliberately not extended by
+// direct frames: a forgotten LED/audio publisher cannot own the installation
+// indefinitely. Re-running Wake Fleet is the explicit re-arm gesture.
+struct InspectionControlWindow {
+  bool armed;
+  uint32_t deadlineMs;
+};
+
+void inspectionControlInit(InspectionControlWindow &state);
+void inspectionControlArm(InspectionControlWindow &state, uint32_t nowMs,
+                          uint32_t durationMs);
+void inspectionControlClose(InspectionControlWindow &state);
+bool inspectionControlActive(InspectionControlWindow &state, uint32_t nowMs);
+
 void inspectionRadioDutyInit(InspectionRadioDutyState &state);
 
 // Eligible means scheduled inspection light is active with trustworthy UTC.

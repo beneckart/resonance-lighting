@@ -1,5 +1,30 @@
 #include "inspection_posture.h"
 
+void inspectionControlInit(InspectionControlWindow &state) {
+  state = InspectionControlWindow{};
+}
+
+void inspectionControlArm(InspectionControlWindow &state, uint32_t nowMs,
+                          uint32_t durationMs) {
+  if (durationMs == 0) {
+    inspectionControlInit(state);
+    return;
+  }
+  state.armed = true;
+  state.deadlineMs = nowMs + durationMs;
+}
+
+void inspectionControlClose(InspectionControlWindow &state) {
+  inspectionControlInit(state);
+}
+
+bool inspectionControlActive(InspectionControlWindow &state, uint32_t nowMs) {
+  if (!state.armed) return false;
+  if ((int32_t)(state.deadlineMs - nowMs) > 0) return true;
+  inspectionControlInit(state);
+  return false;
+}
+
 void inspectionRadioDutyInit(InspectionRadioDutyState &state) {
   state = InspectionRadioDutyState{};
   state.radioOn = true;

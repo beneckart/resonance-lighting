@@ -40,7 +40,8 @@ static void applyYes(void *) {
       if (gPendingMode == 0)
         lv_label_set_text(gStatus,
                           "WAKE FLEET campaign started.\n"
-                          "Catches timer wakes for 6 min; then radios stay up 10 min.");
+                          "Catches timer wakes for 6 min; each radio stays up 10 min.\n"
+                          "Inspection image: LED/audio control armed, AUTO retained.");
       else
         lv_label_set_text_fmt(gStatus, "%s field baseline sent fleet-wide.\n"
                                       "RAM-only; reboot returns a fixture to AUTO.",
@@ -53,15 +54,17 @@ static void applyYes(void *) {
 
 static void modeCb(lv_event_t *e) {
   gPendingMode = (uint8_t)(uintptr_t)lv_event_get_user_data(e);
-  char summary[150];
+  char summary[240];
   if (gPendingMode == 0)
     snprintf(summary, sizeof(summary),
-             "Catch daytime sleepers on timer wake for 6 min, force the dark DAY "
-             "baseline, then keep each captured radio awake for 10 min.");
-  else
-    snprintf(summary, sizeof(summary),
-             "%s field-profile baseline. LEDs/pattern leases still override; "
-             "local battery safety always wins.", modeName(gPendingMode));
+             "Catch sleepers for 6 min and keep each captured radio awake for 10 "
+             "min. The inspection image arms bounded LED/audio control and keeps "
+             "AUTO; older images use the dark DAY baseline.");
+    else
+      snprintf(summary, sizeof(summary),
+             "%s field baseline. On the inspection image this closes manual "
+             "control and restores static safety light; battery safety wins.",
+             modeName(gPendingMode));
   uiConfirm(summary, "Schedule", applyYes, nullptr);
 }
 

@@ -16,3 +16,8 @@ bool fieldFrameVisible(const FrameBuffer &frame);
 // callers while this emergency posture supersedes artistic intent.
 bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass,
                          bool modeWouldLight);
+
+// Preserve an explicit direct-frame color while retaining the physical role
+// safety contract. Point sources use their one commanded RGBW pixel;
+// perimeters use only the physical center pixel, never a 37-pixel wash.
+bool fieldDirectRoleApply(FrameBuffer &frame, uint8_t fixtureClass);

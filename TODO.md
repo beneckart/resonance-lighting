@@ -7,18 +7,23 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   Source now makes every point-source/unknown role static linear
   `R=G=B=255,W=0`, keeps perimeters to one full-RGB center pixel, disables
-  autonomous/direct/presence art and chimes, starts one hour before civil dusk,
+  autonomous/presence art and chimes, starts one hour before civil dusk,
   and duty-cycles only the radio at 12 s on / 120 s off without blinking the
-  LED rail. Native and ESP32-S3 development builds pass; battery DIM/OFF/PROTECT
-  remains authoritative. Clean immutable field/channel-11 artifact
-  `fx-260831-32dcb76-b`, SHA-256
-  `e82376535270057297f28198c94f9d51d65b2886fde16d63d1de386f10dac981`,
-  is built and independently checked. Deploy it with exact named rosters plus
+  LED rail. ADR 0075 adds a non-extendable ten-minute direct-control window
+  opened by Wake Fleet: LED Studio and CoreS3 Audio may temporarily override,
+  perimeters stay center-pixel-only, and static white self-restores. CoreS3
+  Audio adds 1X/1.5X/2X/3X output gain with a 2X default. Native and embedded
+  fixture/T-Deck/CoreS3 builds pass; battery DIM/OFF/PROTECT remains
+  authoritative. The prior `fx-260831-32dcb76-b` artifact predates this control
+  seam and is superseded before deployment. Build one clean replacement
+  immutable field/channel-11 artifact, then deploy with exact named rosters plus
   fresh exact-revision heartbeats beyond pending verify. The first field
   observation must confirm full RGB point output, one-pixel perimeter output,
   continuous light through a radio-off boundary, radio rejoin/heartbeat, and
-  the advanced dusk boundary. Retain both ADR 0073 and ADR 0072 artifacts as
-  rollback (Ben/Codex; ADR 0074).
+  the advanced dusk boundary. Then tap Wake Fleet, wait one complete radio-off
+  phase, verify fleet-wide LED/audio control, stop the stream and confirm static
+  fallback, and confirm control expiry restores duty cycling. Retain ADR 0074,
+  ADR 0073, and ADR 0072 artifacts as rollback (Ben/Codex; ADR 0074/0075).
 - [x] **ADR 0073 partial rollout recorded -- SUPERSEDED FOR INSPECTION
   2026-08-31.** Source/
   native and fixture/T-Deck development builds pass: scheduled-
@@ -1462,6 +1467,13 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
 - [ ] **Run one parallel shared-WiFi OTA over the Beryl**, not just a house
   network, using the normal targeted `U<id>` + `field_cycle_ota.py` path. Do not
   build or use the deprecated per-board maintenance-AP fallback (Ben/Claude).
+- [ ] **DEFERRED: consider a standalone T-Deck fixture OTA appliance after the
+  event.** The field path remains laptop plus shared WiFi. A future handheld
+  design may preload immutable binary/manifest/hash files in the T-Deck's FAT
+  partition or microSD, provide one shared channel-11 maintenance AP matching a
+  fixture-known profile, perform exact identity-checked HTTP uploads, and verify
+  fresh exact-revision heartbeats beyond pending verify. Do not send firmware
+  over ESP-NOW or revive per-fixture self-hosted AP mode (Ben/Codex).
 - [ ] **Measure the Beryl's actual draw** powered the way it will actually be
   powered (USB-C off the camp battery, not a wall wart) and record it against the
   camp energy budget. Nominal is about 5 W; confirm rather than assume (Ben).

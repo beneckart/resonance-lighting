@@ -28,7 +28,7 @@ when the packet contract can report measurements that heartbeats do not contain.
 | Default | Source-built; hardware validation pending | Exact-target commission fallback selector: ready beacon, light CA, or strict dark; RAM-only or persisted. Verify named canaries and NVS survival before fleet use. |
 | Settings | Working; day/night flashed on `8EB508` | Persistent display mode and saved night backlight are implemented; secrets remain serial-only by design. |
 | SunTest | Working diagnostic | Its direct-sun purpose is complete; retain as a service diagnostic. |
-| Wake / Schedule | Flashed on `8EB508`; broad physical smoke passed | Day Dark is now the operationally explicit Wake Fleet campaign; GPS/UTC Auto and Night Show remain. Validate one full timer-wake catch plus the post-capture ten-minute control hold. |
+| Wake / Schedule | Flashed on `8EB508`; broad physical smoke passed | Wake Fleet runs a six-minute catch campaign and a per-fixture ten-minute hold. Emergency inspection firmware preserves Auto and treats it as a bounded LED/audio arm; older firmware uses Day Dark. Validate one full timer-wake catch plus control expiry/fallback. |
 | Patterns | Flashed on `8EB508`; hardware check pending | Hardware-check the four modes, five palettes, class/cohort filters, owner handoff, and stop behavior on named canaries. ES7210 audio is v2. |
 | Sensors Health | First slice implemented as Health | Battery/on-air triage plus existing heartbeat detail is implemented; detailed sensor samples still need `NB_SENSOR_REPORT`. |
 | Locate | Placeholder | Survey packets exist, but the T-Deck does not retain/model neighbor reports for a UI. |

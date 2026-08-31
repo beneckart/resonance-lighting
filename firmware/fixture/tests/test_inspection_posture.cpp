@@ -5,6 +5,25 @@
 int main() {
   CHECK(inspectionStaticEnabled());
 
+  InspectionControlWindow control;
+  inspectionControlInit(control);
+  CHECK(!inspectionControlActive(control, 100));
+  inspectionControlArm(control, 100, 600000);
+  CHECK(inspectionControlActive(control, 100));
+  CHECK(inspectionControlActive(control, 600099));
+  CHECK(!inspectionControlActive(control, 600100));
+  CHECK(!control.armed);
+
+  // The signed deadline comparison remains correct across millis() wrap.
+  inspectionControlArm(control, 0xFFFFFF00u, 1000);
+  CHECK(inspectionControlActive(control, 0xFFFFFF80u));
+  CHECK(inspectionControlActive(control, 0x00000200u));
+  CHECK(!inspectionControlActive(control, 0x000002E8u));
+
+  inspectionControlArm(control, 5000, 600000);
+  inspectionControlClose(control);
+  CHECK(!inspectionControlActive(control, 5001));
+
   InspectionRadioDutyState state;
   inspectionRadioDutyInit(state);
   CHECK(state.radioOn);

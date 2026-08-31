@@ -37,3 +37,27 @@ bool fieldNightRoleApply(FrameBuffer &frame, uint8_t fixtureClass, bool) {
   setRgbWhite(frame, 0, 255);
   return true;
 }
+
+bool fieldDirectRoleApply(FrameBuffer &frame, uint8_t fixtureClass) {
+  uint8_t r = frame.px[0][0];
+  uint8_t g = frame.px[0][1];
+  uint8_t b = frame.px[0][2];
+  uint8_t w = frame.px[0][3];
+  frameClear(frame);
+
+  if (fixtureClass == FIXTURE_PERIMETER) {
+    frame.count = FRAME_MAX_PIXELS;
+    uint8_t center = hexGeometry().spiralOrder[0];
+    frame.px[center][0] = r;
+    frame.px[center][1] = g;
+    frame.px[center][2] = b;
+    return true;
+  }
+
+  frame.count = 1;
+  frame.px[0][0] = r;
+  frame.px[0][1] = g;
+  frame.px[0][2] = b;
+  frame.px[0][3] = w;
+  return true;
+}

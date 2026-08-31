@@ -369,16 +369,19 @@ Open **Wake** for GPS/UTC status and three fleet baselines:
 
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
-- **Wake Fleet** catches timer wakes for six minutes, forces the dark daylight
-  baseline, and leaves each captured radio in its normal ten-minute control
-  hold for follow-up instructions;
+- **Wake Fleet** catches timer wakes for six minutes and leaves each captured
+  radio continuously reachable for its own ten-minute control window. On the
+  emergency inspection fixture image it preserves Auto/static fallback and
+  arms LED/audio direct frames; older images retain the dark-day behavior;
 - **Night Show** temporarily forces the nighttime baseline.
 
 All three are RAM-only. The campaign repetition spans a full fixture sleep
-cadence. LED Studio and program leases can override the baseline; Blackout
-remains higher authority. Knock stays one-shot and hard-mechanism-gated, so it
-is not promised as a wake command for a sleeping fixture or as guaranteed
-physical motion.
+cadence. In the inspection image, direct LED/audio frames are admitted only
+during the bounded Wake Fleet window and do not extend it; program/show modes
+stay disabled, static inspection white returns after direct-frame staleness,
+and battery safety remains higher authority. Knock stays one-shot and hard-
+mechanism-gated, so it is not promised as a wake command for a sleeping fixture
+or as guaranteed physical motion.
 
 Knocker's three fleet choices are deliberately distinct:
 

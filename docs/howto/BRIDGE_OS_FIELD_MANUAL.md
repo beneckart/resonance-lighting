@@ -391,16 +391,20 @@ available. It offers three field baselines:
 
 - **Auto:** use UTC civil twilight at Black Rock City, with the fixture's
   bounded solar/power fallback if trustworthy time expires.
-- **Wake Fleet:** repeat the dark daytime baseline for six minutes so sleeping
-  fixtures receive it on timer wake. Each captured fixture then stays in its
-  normal ten-minute control hold for follow-up commands.
+- **Wake Fleet:** repeat for six minutes so sleeping fixtures receive it on
+  timer wake. On the emergency inspection image, this preserves Auto/static
+  fallback and opens one non-extendable ten-minute LED/audio direct-control
+  window. Older images use the dark daytime baseline. Each captured radio
+  stays continuously reachable for its own ten-minute window.
 - **Night Show:** temporarily force the nighttime baseline.
 
-The choice is RAM-only and clears on fixture reboot. Direct colors and program
-leases can override this baseline; Blackout and local safety remain above it.
-Wake Fleet is not an energy-saving dark command: its purpose is to make the
-fleet reachable. Use Blackout for an already-awake reversible blackout and Deep
-sleep for deliberate radio-off energy saving.
+The choice is RAM-only and clears on fixture reboot. In the inspection image,
+only direct colors are admitted during the armed window; show/program modes
+remain disabled. Direct frames do not extend the deadline, static inspection
+white returns within three seconds after a stream stops, and battery safety
+remains above all control. Wake Fleet is not an energy-saving command: its
+purpose is to make the fleet reachable. Use Blackout for an already-awake
+reversible blackout and Deep sleep for deliberate radio-off energy saving.
 
 Schedule is a production-direction feature with native coverage and first-canary
 firmware evidence, but the full multi-fixture sleep-cycle acceptance matrix is

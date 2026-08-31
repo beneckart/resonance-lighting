@@ -60,6 +60,18 @@ int main() {
   CHECK_EQ(blue.b, 255);
   CHECK_EQ(red.w, 0);
 
+  CHECK(audioOutputGainMultiplier(AUDIO_GAIN_1X) == 1.0f);
+  CHECK(audioOutputGainMultiplier(AUDIO_GAIN_1_5X) == 1.5f);
+  CHECK(audioOutputGainMultiplier(AUDIO_GAIN_2X) == 2.0f);
+  CHECK(audioOutputGainMultiplier(AUDIO_GAIN_3X) == 3.0f);
+  CHECK_EQ(audioNextOutputGain(AUDIO_GAIN_1X), AUDIO_GAIN_1_5X);
+  CHECK_EQ(audioNextOutputGain(AUDIO_GAIN_3X), AUDIO_GAIN_1X);
+  AudioColor gained = audioApplyOutputGain({100, 150, 200, 75}, AUDIO_GAIN_2X);
+  CHECK_EQ(gained.r, 200);
+  CHECK_EQ(gained.g, 255);
+  CHECK_EQ(gained.b, 255);
+  CHECK_EQ(gained.w, 150);
+
   CHECK_EQ(audioDirectFrameCount(0), 0u);
   CHECK_EQ(audioDirectFrameCount(18), 1u);
   CHECK_EQ(audioDirectFrameCount(19), 2u);
