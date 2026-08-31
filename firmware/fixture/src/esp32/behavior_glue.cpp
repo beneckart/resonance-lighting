@@ -5,6 +5,7 @@
 #include "../core/choreo/program.h"
 #include "../core/daytime_ritual.h"
 #include "../core/field_behavior.h"
+#include "../core/field_role_policy.h"
 #include "../core/interaction_modulator.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
@@ -83,7 +84,6 @@ struct PresenceWaveState {
 
 static PresenceWaveState gWave;
 static TmfPresenceGate gPresence;
-static Vl53CoverGate gVl53Cover;
 static bool gWaveDisplayActive = false;
 static uint8_t gWaveDisplayHue = 0;
 static uint8_t gWaveDisplayValue = 96;
@@ -96,7 +96,6 @@ static bool gTofPresenceRising = false;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
 static PresenceSeedGate gPresenceSeedGate;
-static PerimeterCloseHold gPerimeterCloseHold;
 static uint32_t gLastAutonomousSlot = UINT32_MAX;
 
 enum WakeChimeStage : uint8_t {
@@ -129,6 +128,7 @@ static void applyLocalInteraction(FrameBuffer &frame) {
   const SensorSnapshot &snapshot = sensors();
   LocalInteractionInputs inputs = {};
   inputs.fixtureClass = gClass;
+  inputs.nowMs = millis();
   inputs.tofPresenceActive =
       gClass == FIXTURE_DOWNLIGHT && gTofPresenceActive;
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
@@ -139,21 +139,6 @@ static void applyLocalInteraction(FrameBuffer &frame) {
         filtered >= 1.0f && filtered <= 65535.0f
             ? (uint16_t)(filtered + 0.5f)
             : snapshot.tofDepthMm;
-  } else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent &&
-             snapshot.vlOk) {
-    bool valid = snapshot.vlClosestMm != 0;
-    bool closeHeld = perimeterCloseHoldObserve(
-        gPerimeterCloseHold, snapshot.vlReads, valid, snapshot.vlClosestMm,
-        snapshot.vlTargetZones != 0, millis());
-    if (valid) {
-      inputs.tofValid = true;
-      inputs.tofDistanceMm = snapshot.vlClosestMm;
-    } else if (closeHeld) {
-      // A raw too-close/error-status target after a proven close approach
-      // keeps the single crisp center pixel instead of dropping the gesture.
-      inputs.tofValid = true;
-      inputs.tofDistanceMm = RES_TOF_INTERACTION_NEAR_MM;
-    }
   }
   inputs.msaValid = snapshot.msaPresent && snapshot.msaOk;
   if (snapshot.swayEnvG > 0.0f) {
@@ -267,8 +252,8 @@ void behaviorOnTimeQuality(const NbTimeQuality &time, const uint8_t srcId[3]) {
 
 static void waveTick(uint32_t now) {
   // Consume each sensor report exactly once even while another program owns
-  // the renderer. Downlights use the learned TMF approach edge; reachable
-  // perimeter fixtures use a deliberate broad VL53L5CX palm-cover edge.
+  // the renderer. Only downlights currently use ToF for art or propagation;
+  // perimeter VL53L5CX data remains sampled/telemetried for later diagnosis.
   bool rawPresenceRising = false;
   const SensorSnapshot &snapshot = sensors();
 #if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
@@ -285,18 +270,13 @@ static void waveTick(uint32_t now) {
     rawPresenceRising =
         tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
                            snapshot.tofZoneConfidence);
-  else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent && snapshot.vlOk)
-    rawPresenceRising =
-        vl53CoverObserve(gVl53Cover, snapshot.vlReads, snapshot.vlNearZones);
   gTofPresenceActive =
       gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
       gPresence.latched;
 #endif
 
   bool propagationPresenceActive =
-      gClass == FIXTURE_DOWNLIGHT ? gTofPresenceActive
-                                  : (gClass == FIXTURE_PERIMETER &&
-                                     gVl53Cover.latched);
+      gClass == FIXTURE_DOWNLIGHT && gTofPresenceActive;
   gTofPresenceRising = presenceSeedGateObserve(
       gPresenceSeedGate, rawPresenceRising, propagationPresenceActive, now,
       gCfg.presenceSeedMinS, gCfg.presenceRearmClearS);
@@ -400,9 +380,7 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
-  vl53CoverInit(gVl53Cover);
   presenceSeedGateInit(gPresenceSeedGate);
-  perimeterCloseHoldInit(gPerimeterCloseHold);
   gLastAutonomousSlot = UINT32_MAX;
   gWakeChimeStage = WAKE_CHIME_UNDECIDED;
   gWakeChimeNextMs = 0;
@@ -909,6 +887,14 @@ bool behaviorFrame(FrameBuffer &f) {
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.
   if (transportWakeDarkActive()) return false;
+  if (gCfg.profile == PROFILE_PROD && gShowActive &&
+      (gClass == FIXTURE_UPLIGHT || gClass == FIXTURE_PERIMETER)) {
+    f = gFrame;
+    bool modeWouldLight =
+        !gProgramSuppressesLight && fieldFrameVisible(gFrame);
+    fieldNightRoleApply(f, gClass, modeWouldLight);
+    return true;
+  }
   if (gProgramSuppressesLight) return false;
 #ifdef RES_BASIC_LISTENER
   // A bridge DARK lease is electrically dark, not merely an all-zero frame.

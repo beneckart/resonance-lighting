@@ -65,10 +65,18 @@ int main() {
   assert(!interactionApply(frame, downlight));
   assert(memcmp(&frame, &original, sizeof(frame)) == 0);
   downlight.tofPresenceActive = true;
+  downlight.nowMs = 0;
+  original = frame;
+  assert(!interactionApply(frame, downlight));
+  assert(memcmp(&frame, &original, sizeof(frame)) == 0);
+  downlight.nowMs = 500;
   assert(interactionApply(frame, downlight));
-  assert(frame.px[0][3] == 255);
-  assert(frame.px[0][0] == 0 && frame.px[0][1] == 0 &&
-         frame.px[0][2] == 0);
+  assert(litPixels(frame) == 0);
+  frame = solid(1, 255, 64, 192, 0);
+  original = frame;
+  downlight.nowMs = 1000;
+  assert(!interactionApply(frame, downlight));
+  assert(memcmp(&frame, &original, sizeof(frame)) == 0);
 
   // A blackout cannot be awakened by either sensor path.
   frame = solid(37, 0, 0, 0);

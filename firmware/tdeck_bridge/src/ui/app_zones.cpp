@@ -12,11 +12,12 @@ struct Swatch {
   const char *name;
   uint8_t r, g, b, w;
 };
-static const Swatch kSwatches[8] = {
+static const Swatch kSwatches[9] = {
     {"red", 255, 0, 0, 0},      {"amber", 255, 96, 0, 40},
     {"green", 0, 255, 0, 0},    {"cyan", 0, 200, 200, 0},
     {"blue", 0, 0, 255, 0},     {"purple", 160, 0, 255, 0},
     {"white", 0, 0, 0, 255},    {"pink", 255, 40, 120, 0},
+    {"RGB white", 255, 255, 255, 0},
 };
 
 static lv_obj_t *gClassDd = nullptr;
@@ -108,11 +109,11 @@ void appZonesOpen() {
   lv_group_remove_all_objs(lvglGroup());
   lv_group_add_obj(lvglGroup(), gClassDd);
 
-  // Swatch grid, 4x2, thumb-sized and text-labelled for field use.
-  for (int i = 0; i < 8; ++i) {
+  // Swatch grid, 4x3, compact and text-labelled for field use.
+  for (int i = 0; i < 9; ++i) {
     lv_obj_t *btn = lv_button_create(scr);
-    lv_obj_set_size(btn, 72, 38);
-    lv_obj_set_pos(btn, 6 + (i % 4) * 78, 69 + (i / 4) * 42);
+    lv_obj_set_size(btn, 72, 29);
+    lv_obj_set_pos(btn, 6 + (i % 4) * 78, 66 + (i / 4) * 32);
     const Swatch &s = kSwatches[i];
     uint16_t wboost = (uint16_t)(s.w * 4 / 5);
     lv_obj_set_style_bg_color(
@@ -125,7 +126,7 @@ void appZonesOpen() {
     lv_obj_t *name = lv_label_create(btn);
     lv_label_set_text(name, s.name);
     lv_obj_set_style_text_color(name,
-                                (i == 1 || i == 2 || i == 3 || i == 6)
+                                (i == 1 || i == 2 || i == 3 || i == 6 || i == 8)
                                     ? lv_color_black()
                                     : lv_color_white(),
                                 0);
@@ -136,10 +137,10 @@ void appZonesOpen() {
   lv_obj_t *dimLbl = lv_label_create(scr);
   lv_obj_set_style_text_font(dimLbl, &lv_font_montserrat_14, 0);
   lv_label_set_text(dimLbl, "dim");
-  lv_obj_set_pos(dimLbl, 8, 150);
+  lv_obj_set_pos(dimLbl, 8, 164);
   gDimSlider = lv_slider_create(scr);
   lv_obj_set_size(gDimSlider, 250, 14);
-  lv_obj_set_pos(gDimSlider, 46, 152);
+  lv_obj_set_pos(gDimSlider, 46, 166);
   lv_slider_set_range(gDimSlider, 8, 255);
   lv_slider_set_value(gDimSlider, 255, LV_ANIM_OFF);
   lv_obj_add_event_cb(gDimSlider, dimChanged, LV_EVENT_VALUE_CHANGED, nullptr);
@@ -147,13 +148,13 @@ void appZonesOpen() {
 
   gInfo = lv_label_create(scr);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
-  lv_obj_set_pos(gInfo, 8, 176);
+  lv_obj_set_pos(gInfo, 8, 185);
   if (streamMode() == StreamMode::BLINK) gBlink = true;
   refreshInfo(nullptr);
 
   lv_obj_t *mode = lv_button_create(scr);
-  lv_obj_set_size(mode, 100, 34);
-  lv_obj_set_pos(mode, 8, 200);
+  lv_obj_set_size(mode, 100, 31);
+  lv_obj_set_pos(mode, 8, 205);
   gModeLabel = lv_label_create(mode);
   lv_label_set_text(gModeLabel, gBlink ? "blink 1Hz" : "solid");
   lv_obj_center(gModeLabel);
@@ -161,8 +162,8 @@ void appZonesOpen() {
   lv_group_add_obj(lvglGroup(), mode);
 
   lv_obj_t *stop = lv_button_create(scr);
-  lv_obj_set_size(stop, 100, 34);
-  lv_obj_set_pos(stop, 114, 200);
+  lv_obj_set_size(stop, 100, 31);
+  lv_obj_set_pos(stop, 114, 205);
   lv_obj_t *sl = lv_label_create(stop);
   lv_label_set_text(sl, LV_SYMBOL_STOP " stop");
   lv_obj_center(sl);
@@ -170,8 +171,8 @@ void appZonesOpen() {
   lv_group_add_obj(lvglGroup(), stop);
 
   lv_obj_t *back = lv_button_create(scr);
-  lv_obj_set_size(back, 92, 34);
-  lv_obj_set_pos(back, 220, 200);
+  lv_obj_set_size(back, 92, 31);
+  lv_obj_set_pos(back, 220, 205);
   lv_obj_t *bl = lv_label_create(back);
   lv_label_set_text(bl, LV_SYMBOL_LEFT " back");
   lv_obj_center(bl);

@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Minimum-viability role lighting implemented
+
+Implemented ADR 0073 as one final-burn fixture/handheld bundle without changing
+the battery or recovery authority. During the scheduled-night field show,
+uplights now render one RGB-white point at 128 when the underlying mode is dark
+and 255 when it is lit. Perimeters now render only their full-scale RGB-white
+center pixel; all other HEX pixels stay zero, and their VL53L5CX remains sampled
+and telemetried but no longer modifies art or originates presence traffic.
+OFF/PROTECT still cut the rail, DIM still scales the rendered values, and
+transport/boot/OTA service safety remains intact.
+
+Canopy presence now blinks the program or direct-stream color at 1 Hz instead
+of replacing it with dedicated warm white. The T-Deck LED screen adds an
+explicit `R=G=B=255,W=0` RGB-white swatch while retaining the existing dedicated
+W swatch. A brightness-path audit found no gamma transform: frames and driver
+scaling are linear and NeoPixel global brightness is 255. Existing dimness is a
+mix of optical/3V3 limitations and deliberate low-valued program states,
+battery DIM, and dense-HEX current limiting; it is not an unseen gamma penalty.
+
+The full fixture native suite passes. Fixture and T-Deck ESP32-S3 development
+builds pass at 36 percent flash/21 percent static RAM and 49 percent flash/59
+percent static RAM respectively. The focused T-Deck direct-frame native test
+passes; its full wrapper remains blocked by the pre-existing missing callsigns
+for `9F268C` and `F402A8`. No immutable artifact was created and nothing was
+flashed or OTA'd in this implementation session.
+
 ## 2026-08-31 -- Ben + Codex -- Final-burn fleet deployed and PROTECT census
 
 Deployed immutable field/channel-11 artifact `fx-260831-b3e2738-b` (1,220,288

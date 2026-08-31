@@ -4,6 +4,15 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Build and explicitly deploy the ADR 0073 minimum-viability field
+  bundle.** Source/native and fixture/T-Deck development builds pass: scheduled-
+  night uplights use the 128/255 RGB-white visibility floor; perimeters use one
+  full RGB-white center pixel with local/origin VL53 art disabled; canopy
+  presence blinks the already-rendered color; and the T-Deck adds an explicit
+  `R=G=B=255,W=0` swatch. Create one clean immutable field/channel-11 artifact,
+  retain `fx-260831-b3e2738-b` as rollback, and require fresh exact-revision
+  heartbeats beyond pending verify. Do not infer fleet OTA from the source
+  change alone (Ben/Codex; ADR 0073).
 - [ ] **Assign known physical callsigns to newly preserved fixtures `9F268C`
   and `F402A8`.** Their commissioned registry rows are valid, but the T-Deck
   production-health generator correctly refuses active fixtures without an
@@ -135,6 +144,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   downloader rejects it. Fresh `sensor_bits=10` proves MSA311 at corrected
   `0x62` plus VL53 on that boot; investigate why earlier boots were intermittently
   bit 2 before describing the chain as consistently healthy.
+  **2026-08-31 field posture:** ADR 0073 disables perimeter ToF art and program
+  origins in the production image while keeping VL53 sampling/telemetry. This
+  campaign remains the post-burn evidence gate before restoring either use.
   Evidence: `docs/tests/PERIMETER_SENTINEL_CANARY_2026-08-29.md`.
 - [~] **P0: canary ADR 0069/0070 synchronized palette, count-aware HEX power,
   and role-correct ToF interaction.** Source and native tests now provide a
@@ -149,7 +161,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   artificial 2.5 m parser/presence cap; hardware supports 5 m and a standing
   head should be about 2.7-3.2 m away. ADR 0070 now accepts the full range,
   re-baselines after a close-bin -> far-tree move or sustained empty scene, and
-  drives a persistent full-W downlight gobo from learned per-zone presence.
+  drove a persistent full-W downlight gobo from learned per-zone presence;
+  ADR 0073 now blinks the already-rendered program/direct color instead.
   Interaction applies after every visible program, including direct bridge
   frames, but cannot awaken blackout or bypass battery/rail policy. Complete
   native tests and an ESP32-S3 development compile pass. The perimeter canary
@@ -171,7 +184,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   The MSA311 accent
   seam is implemented but fleet-disabled pending
   quiet/wind/touch/swing/climb traces; barometric modulation and aggregate
-  ring/all-perimeter presence remain open (Ben/Codex; ADR 0069/0070).
+  ring/all-perimeter presence remain open. Perimeter local/origin ToF art is
+  field-disabled pending the sentinel evidence above (Ben/Codex; ADR
+  0069/0070/0073).
 - [~] **P1: characterize the canopy as a swinging scanner before tuning ToF or
   MSA thresholds.** Windy-night field observation shows each downlight swings
   chaotically over two pendulum axes. A stationary person can be discovered by
