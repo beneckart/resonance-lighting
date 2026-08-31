@@ -32,8 +32,11 @@ bringing the Starlink/shared-WiFi path and this laptop out one last time.
 
 The full fixture and CoreS3 native suites pass. Development hardware builds
 pass for fixture (36 percent flash, 20 percent static RAM), CoreS3 (36/29), and
-T-Deck (49/59). No hardware was flashed. Next is a clean source commit and a
-replacement immutable inspection artifact before fleet OTA.
+T-Deck (49/59). Clean source commit `7c1f71d` produced replacement immutable
+field artifact `fx-260831-f121868-b` (1,217,856 bytes, SHA-256
+`569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e`).
+Manifest commit/recipe/flags and independent byte/hash checks agree. No hardware
+was flashed; fleet OTA remains the next action.
 
 ## 2026-08-31 -- Ben + Codex -- Emergency static inspection firmware implemented
 

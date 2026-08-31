@@ -7,3 +7,6 @@ firmware/fixture/build/fx-260831-dc82da7-b/*.bin binary
 firmware/fixture/build/fx-260831-32dcb76-b/*.json text eol=lf
 firmware/fixture/build/fx-260831-32dcb76-b/*.txt text eol=lf
 firmware/fixture/build/fx-260831-32dcb76-b/*.bin binary
+firmware/fixture/build/fx-260831-f121868-b/*.json text eol=lf
+firmware/fixture/build/fx-260831-f121868-b/*.txt text eol=lf
+firmware/fixture/build/fx-260831-f121868-b/*.bin binary

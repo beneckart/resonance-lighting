@@ -15,9 +15,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Audio adds 1X/1.5X/2X/3X output gain with a 2X default. Native and embedded
   fixture/T-Deck/CoreS3 builds pass; battery DIM/OFF/PROTECT remains
   authoritative. The prior `fx-260831-32dcb76-b` artifact predates this control
-  seam and is superseded before deployment. Build one clean replacement
-  immutable field/channel-11 artifact, then deploy with exact named rosters plus
-  fresh exact-revision heartbeats beyond pending verify. The first field
+  seam and is superseded before deployment. Clean replacement field/channel-11
+  artifact `fx-260831-f121868-b`, SHA-256
+  `569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e`,
+  is built from source commit `7c1f71d`, retained, and independently checked.
+  Deploy it with exact named rosters plus fresh exact-revision heartbeats beyond
+  pending verify. The first field
   observation must confirm full RGB point output, one-pixel perimeter output,
   continuous light through a radio-off boundary, radio rejoin/heartbeat, and
   the advanced dusk boundary. Then tap Wake Fleet, wait one complete radio-off

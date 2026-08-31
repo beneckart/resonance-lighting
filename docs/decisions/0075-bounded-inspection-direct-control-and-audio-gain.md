@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-31
 
-**Status:** Accepted in source; native and embedded builds passed. Immutable
-fixture artifact and field rollout pending.
+**Status:** Accepted; native and embedded builds plus immutable fixture artifact
+passed. Field rollout pending.
 
 **Owner:** Ben
 
@@ -94,7 +94,13 @@ consistently.
    build uses field/channel 11, 300 mA precharge, 120-second radio-off, and a
    12-second listen window at 36 percent flash and 20 percent static RAM.
    T-Deck passes at 49/59 percent and CoreS3 at 36/29 percent flash/static RAM.
-6. Immutable fixture artifact identity remains required before rollout.
+6. Clean source commit `7c1f71ddeb22152ecb81adc76a21fc2bd55e976f`
+   produced immutable field artifact `fx-260831-f121868-b`, 1,217,856 bytes,
+   SHA-256
+   `569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e`.
+   Its manifest reports the exact clean source commit, field/channel 11,
+   300 mA precharge, 120/12 radio cadence, basic listener, and
+   `party-in-the-woods-v1`; independent byte/hash checks agree.
 
 ## References
 
