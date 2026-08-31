@@ -13,8 +13,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   two battery-safe ordinary-wake canopy chimes, the hourly ritual, perimeter
   too-close center hold, propagation-only 300 s/30 s re-arm, and autonomous
   10-minute CA/Color Virus/Epidemic/presence-CA rotation. Fixture native and
-  T-Deck embedded build gates pass. Finish one immutable field/channel-11
-  fixture artifact, retain rollback identity, OTA the full intended cohort,
+  T-Deck embedded build gates pass. Immutable field/channel-11 artifact
+  `fx-260831-b3e2738-b`, SHA-256
+  `1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`,
+  is ready from clean commit `316470a`. Retain rollback identity, OTA the full intended cohort,
   and require fresh revision/pending-verify survival. Artistic regressions may
   roll back; any OFF/PROTECT, sleep, OTA, or rescue anomaly stops rollout
   immediately (Ben/Codex; ADR 0072).

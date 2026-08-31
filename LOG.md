@@ -34,6 +34,15 @@ flash and 59 percent static RAM. The T-Deck native wrapper remains blocked by
 two newly preserved commissioned fixtures (`9F268C`, `F402A8`) lacking callsign
 assignments; no physical identity was invented to bypass that data contract.
 
+The fresh immutable fixture build completed from clean commit `316470a` using
+the current fleet recipe (field profile, channel 11, basic listener, 300 mA
+precharge, 120-second day sleep, 12-second wake listen, and WiFi profile label
+`party-in-the-woods-v1`). Artifact `fx-260831-b3e2738-b` is 1,220,288 bytes
+with SHA-256
+`1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`;
+the independent host hash matches its immutable manifest. Nothing was flashed
+or OTA'd as part of the build.
+
 ## 2026-08-30 -- Ben + Codex -- Laptop-retirement field evidence preserved
 
 Fetched current `origin/main` before retiring the Nevada City/BRC laptop and
