@@ -10,6 +10,65 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-01 -- Ben + Codex -- Inspection image partial fleet rollout
+
+Exact immutable artifact `fx-260831-f121868-b` was OTA-deployed at the tree in
+router-sized waves. Seventy of 114 installed fixtures now have fresh
+exact-revision proof beyond the 25-second pending-verify gate. Forty-four remain
+on prior images; 39 reported PROTECT in the final snapshot. Five confirmed
+physical canopy/downlights remain. No fixture below 2.872 V was encountered in
+the successfully uploaded waves, and no upload required physical intervention.
+
+The shared-WiFi client population plateaued around 14-16, so the rollout used
+explicit small batches. Job waves verified 16 + 13 + 14 + 14 + 13 fixtures.
+`F4042C` missed one job freshness deadline but supplied supplemental fresh proof
+18 seconds later at 419,516 ms uptime. Two older `-p` images (`9F0E30` and
+`9F26B4`) continued mesh heartbeats but did not expose maintenance endpoints.
+Ordinary exception and 14-board PROTECT gathers found no endpoints and made no
+uploads. At operator departure the bridge reported no active maintenance
+campaign. Exact resume roster, job table, and artifact identity are recorded in
+`docs/tests/ADR_0074_PARTIAL_FLEET_ROLLOUT_2026-09-01.md`.
+
+## 2026-09-01 -- Ben + Codex -- Perimeter charging diagnosis: P126 setpoint mismatch plus no-input outliers
+
+Onboarded through the repository orientation, live architecture, recent power-policy
+ADRs, production fixture source, retained Black Rock City censuses, and the current
+read-only dashboard state. The active full-fleet inspection-artifact OTA job was not
+interrupted or mutated.
+
+All 20 registry-known perimeters in the live dashboard reported field profile,
+charging enabled, no BQ fault, and `bq_vindpm_mv=4600`. The same nighttime snapshot
+had a 3.190 V median, 19/20 below the 3.250 V PROTECT-release floor, and 16/20 already
+reporting PROTECT. Production firmware defaults and persists 4.6 V for every class,
+but the production-cabling P126 sweep qualified 5.8 V. The exact July 10 same-wake
+P126 comparison measured 4.6 V at a 16.2 percent BQ-input-power penalty and about a
+19 percent battery-charge-current penalty versus 5.8 V. This is a real fleet-wide
+harvest loss, but it does not by itself explain zero input.
+
+The retained daylight censuses separate the mechanisms. Around 15:18 PDT on Aug 28,
+five of six now-known perimeter IDs had good charger input, but only about 0.10-0.23 W
+and none had positive battery current while awake. Around 18:18-18:25 PDT, 15 of 17
+had good input at up to about 0.30 W, but only four ever crossed positive awake battery
+current. Negative current during a 12-second radio wake is not proof of zero daily
+charge: the BQ continues charging autonomously through the following 120-second sleep.
+It does prove that the installed late-day panel power did not cover the awake load.
+Skitty `F3FD28` and Gengar `F2BDD4` instead showed the true no-input signature --
+roughly 0.01 V and 0 mA at the charger input -- and are now the two lowest known
+perimeters at about 2.98 V and 2.95 V. Their panel orientation, shade/dust, pigtail,
+polarity, and VDC connection remain physical inspection priorities.
+
+Conclusion: MPP/VINDPM is a contributing configuration defect and likely erases the
+small P126 energy margin, while actual disconnected/shaded panel paths and the prior
+commission-profile drain explain additional failures. The emergency bright/long
+inspection posture can keep the class energy-negative even after profiles are fixed.
+Do not broadcast 5.8 V fleet-wide: P105 fixtures are qualified at 4.6 V, and a 5.8 V
+persisted setting rejects 5 V USB. Safest next strong-sun test is artistic loads off,
+named-perimeter telemetry before/after physical inspection, then a target-isolated
+4.6 -> 5.8 -> 4.6 comparison. A production correction should be class-aware in field
+operation and return to a USB-safe 4.6 V before maintenance. Existing TODO items
+already cover the perimeter panel inspection and MPPT decision, so no duplicate was
+added.
+
 ## 2026-08-31 -- Ben + Codex -- Performance Hold flashed on second T-Deck
 
 USB identity on COM157 confirmed exact second T-Deck `979604`

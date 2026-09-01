@@ -5,6 +5,12 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 ## Immediate documentation / repo hygiene
 
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
+  PARTIAL 2026-09-01: 70 of the 114-fixture installed census have fresh exact
+  revision proof; 44 remain, including 39 currently reporting PROTECT and five
+  confirmed physical canopy/downlights. Resume only the exact roster in
+  `docs/tests/ADR_0074_PARTIAL_FLEET_ROLLOUT_2026-09-01.md`. The two older
+  `-p` images `9F0E30` and `9F26B4` require explicit rescue handling because
+  they report mesh heartbeats but did not open shared-WiFi maintenance.
   Source now makes every point-source/unknown role static linear
   `R=G=B=255,W=0`, keeps perimeters to one full-RGB center pixel, disables
   autonomous/presence art and chimes, starts one hour before civil dusk,
