@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- Performance Hold flashed on second T-Deck
+
+USB identity on COM157 confirmed exact second T-Deck `979604`
+(`44:1B:F6:97:96:04`) before writing. The same ADR 0077 Performance Hold
+development image already verified on `8EB508` was uploaded without rebuilding:
+1,568,560 bytes, SHA-256
+`5b4a896504ec81d67edda16bd59b88bbec2e98ce524c2ea93bab228e132fa639`.
+Esptool verified every written region. Post-reset telemetry confirms exact ID,
+channel 11, stable memory, approximately 4.51 V USB-powered battery telemetry,
+and `tdeck-dev-local`. The local fleet dashboard moved from disconnected COM152
+to the currently attached COM157 bridge.
+
 ## 2026-08-31 -- Ben + Codex -- One-hour T-Deck Performance Hold
 
 ADR 0077 adds a separate confirmed Performance Hold to the T-Deck Wake app.
