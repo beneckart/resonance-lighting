@@ -21,6 +21,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   artifact `fx-260831-f121868-b`, SHA-256
   `569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e`,
   is built from source commit `7c1f71d`, retained, and independently checked.
+  T-Deck `8EB508` is USB-flashed with ADR 0077's separate one-hour Performance
+  Hold, which uses the existing Wake packet and needs no fixture rebuild. Its
+  final refresh leaves up to a ten-minute bounded fixture tail. Field-smoke the
+  new button, countdown, Auto/Night cancellation, and one sustained CoreS3
+  Audio stream.
   Deploy it with exact named rosters plus fresh exact-revision heartbeats beyond
   pending verify. The first field
   observation must confirm full RGB point output, one-pixel perimeter output,

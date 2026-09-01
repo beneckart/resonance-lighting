@@ -30,6 +30,17 @@ ProgramLeaseActivity meshProgramActivity();
 bool meshStopTrackedProgramActivity();
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
 bool meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
+// One-hour inspection-performance arm using the same RAM-only mode-0 packet as
+// Wake Fleet. It changes controller resend duration only; fixture battery
+// safety and the fixture-side ten-minute arm remain authoritative.
+bool meshPerformanceHold();
+struct MeshLifecycleCampaignStatus {
+  bool active;
+  uint8_t mode;
+  uint32_t durationMs;
+  uint32_t remainingMs;
+};
+MeshLifecycleCampaignStatus meshLifecycleCampaignStatus();
 bool meshEnterMaintenance(const uint8_t target[3]);
 // Exact-target only. Profile persistence is an NVS mutation and must never be
 // exposed as an all-zero broadcast through the host CLI.

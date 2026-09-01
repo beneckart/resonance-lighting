@@ -24,6 +24,7 @@ static NbForceLifecycle gLifecycleCampaign = {};
 static bool gLifecycleCampaignActive = false;
 static uint32_t gLifecycleCampaignUntilMs = 0;
 static uint32_t gLifecycleCampaignNextMs = 0;
+static uint32_t gLifecycleCampaignDurationMs = 0;
 static portMUX_TYPE gLifecycleCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
 static MaintenanceCampaign gMaintCampaign;
@@ -281,7 +282,7 @@ bool meshSleepAll(uint16_t seconds) {
   return true;
 }
 
-bool meshForceLifecycle(uint8_t mode) {
+static bool forceLifecycleFor(uint8_t mode, uint32_t campaignDurationMs) {
   if (mode > 2) return false;
   NbForceLifecycle packet = {};
   packet.mode = mode;
@@ -303,9 +304,33 @@ bool meshForceLifecycle(uint8_t mode) {
   gLifecycleCampaign = packet;
   gLifecycleCampaignActive = true;
   gLifecycleCampaignNextMs = now + 2000;
-  gLifecycleCampaignUntilMs = now + 360000UL;
+  gLifecycleCampaignUntilMs = now + campaignDurationMs;
+  gLifecycleCampaignDurationMs = campaignDurationMs;
   portEXIT_CRITICAL(&gLifecycleCampaignMux);
   return true;
+}
+
+bool meshForceLifecycle(uint8_t mode) {
+  return forceLifecycleFor(mode, 360000UL);
+}
+
+bool meshPerformanceHold() {
+  return forceLifecycleFor(0, 3600000UL);
+}
+
+MeshLifecycleCampaignStatus meshLifecycleCampaignStatus() {
+  MeshLifecycleCampaignStatus status = {};
+  uint32_t now = millis();
+  portENTER_CRITICAL(&gLifecycleCampaignMux);
+  if (gLifecycleCampaignActive &&
+      (int32_t)(now - gLifecycleCampaignUntilMs) < 0) {
+    status.active = true;
+    status.mode = gLifecycleCampaign.mode;
+    status.durationMs = gLifecycleCampaignDurationMs;
+    status.remainingMs = gLifecycleCampaignUntilMs - now;
+  }
+  portEXIT_CRITICAL(&gLifecycleCampaignMux);
+  return status;
 }
 
 bool meshEnterMaintenance(const uint8_t target[3]) {

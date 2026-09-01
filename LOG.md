@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-08-31 -- Ben + Codex -- One-hour T-Deck Performance Hold
+
+ADR 0077 adds a separate confirmed Performance Hold to the T-Deck Wake app.
+It republishes the existing inspection-safe lifecycle mode-0 command every two
+seconds for one hour, so sleeping fixtures gather and their fixture-owned
+ten-minute direct-control arms keep refreshing. The final controller copy
+leaves up to roughly ten minutes of bounded tail. Direct/audio frames still
+cannot extend the deadline; Auto or Night Show replaces the campaign, and all
+fixture battery/recovery authority remains unchanged. No fixture protocol,
+source, or immutable artifact changed.
+
+The Wake screen now retains the original 16-minute option, adds a distinct
+`hold 1h` button, and displays the active campaign plus remaining time. The
+warm-cache T-Deck build passed at 49 percent flash and 59 percent static RAM;
+its 1,568,560-byte binary SHA-256 is
+`5b4a896504ec81d67edda16bd59b88bbec2e98ce524c2ea93bab228e132fa639`.
+USB upload and flash hash verification passed on exact T-Deck `8EB508`
+(`44:1B:F6:8E:B5:08`). Post-reset channel-11, GPS UTC, mesh-send, and memory
+telemetry are healthy. The full native wrapper stopped at the already-recorded
+missing-callsign gate for `9F268C` and `F402A8`; the wrapper contract and all
+native core binaries pass when run past that inventory-only gate. No new native
+core module was introduced by this controller/UI-only change.
+
 ## 2026-08-31 -- Ben + Codex -- Wake Fleet timing clarification
 
 Final audit clarified ADR 0075's bound without changing code or artifact. Wake

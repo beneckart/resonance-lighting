@@ -365,7 +365,7 @@ The T-Deck parses checksum-valid active GPS RMC date/time and broadcasts one
 fixture several chances to hear time during ADR 0064's approximately 12-second
 minimum trustworthy-power window.
 
-Open **Wake** for GPS/UTC status and three fleet baselines:
+Open **Wake** for GPS/UTC status and four fleet controls:
 
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
@@ -375,15 +375,21 @@ Open **Wake** for GPS/UTC status and three fleet baselines:
   copies refresh the ten-minute arm while gathering, so the final copies leave
   about ten minutes of full-fleet control (about sixteen minutes maximum from
   the button press); older images retain the dark-day behavior;
+- **Performance Hold** repeats that same inspection-safe Wake command for one
+  hour, gathering sleepers and continually refreshing the fixture-owned
+  ten-minute arm. The final copy leaves up to roughly ten minutes of bounded
+  tail. The T-Deck shows the remaining campaign time;
 - **Night Show** temporarily forces the nighttime baseline.
 
-All three are RAM-only. The campaign repetition spans a full fixture sleep
-cadence. In the inspection image, direct LED/audio frames are admitted only
-during the bounded Wake Fleet window and do not extend it; program/show modes
-stay disabled, static inspection white returns after direct-frame staleness,
-and battery safety remains higher authority. Knock stays one-shot and hard-
-mechanism-gated, so it is not promised as a wake command for a sleeping fixture
-or as guaranteed physical motion.
+All four are RAM-only. Auto or Night Show immediately replaces Wake Fleet or
+Performance Hold and closes inspection direct control. Campaign repetition
+spans a full fixture sleep cadence. In the inspection image, direct LED/audio
+frames are admitted only
+during the bounded Wake/Performance window and do not extend it; program/show
+modes stay disabled, static inspection white returns after direct-frame
+staleness, and battery safety remains higher authority. Knock stays one-shot
+and hard-mechanism-gated, so it is not promised as a wake command for a sleeping
+fixture or as guaranteed physical motion.
 
 Knocker's three fleet choices are deliberately distinct:
 
