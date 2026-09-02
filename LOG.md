@@ -10,6 +10,15 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-02 -- Ben + Codex -- Final-burn branch promoted to main
+
+At Ben's request, the complete `codex/burn-final-sunrise` history was prepared
+for fast-forward promotion to `main`. This carries the emergency inspection
+firmware source, retained immutable fixture artifacts, T-Deck performance-hold
+work and flash records, and the partial 2026-09-01 fleet-rollout evidence into
+the repository's primary branch. The burn branch remains available as a named
+historical pointer.
+
 ## 2026-09-01 -- Ben + Codex -- Inspection image partial fleet rollout
 
 Exact immutable artifact `fx-260831-f121868-b` was OTA-deployed at the tree in
