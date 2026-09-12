@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-12 -- Ben + Codex -- Storage census and one OTA canary verified
+
+Completed a 17-minute uninterrupted census after recovering an earlier host
+capture gap: 106 of 114 installed fixtures heard, all FIELD, no reported
+0-0.6 V batteries; Ponyta 2.582 V and Chunli 2.618 V are lowest. Eight missing
+fixtures remain unknown. The main saving is removing periodic radio wakes;
+ship's extra gain over uninterrupted deep sleep is small, with USB wake its
+main servicing advantage. Full evidence is in
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and the main checkout's
+`ops/bench/data/ca/20260912-155847-container/`.
+
+Built immutable canary `fx-260912-f951ae9-b` from `fcc5ef0`, exact SHA-256
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`, and
+used Ben's OTA authorization for only Hellboy `9F26C4`. Job `84DEEB42` proved
+fresh exact revision beyond 25 seconds, FIELD profile, recovery state zero.
+No storage command was sent; the original separate confirmation requirement
+remains. Fixture/T-Deck native suites and the fixture embedded build passed.
+
+Added storage receipt/request logging with separate PREPARED, refusal, and
+entry-failure meanings. All 16 relevant Python tests pass. Screen review found
+that content-sized confirmation dialogs could obscure the footer; bounded
+the dialog with a scrollable content region. The first incomplete T-Deck
+compile was intentionally stopped, its compiler descendants checked gone,
+and its directory abandoned. The corrected storage2 image uses a new build
+directory. This does not alter the already verified fixture artifact.
+
 ## 2026-09-12 -- Ben + Codex -- Explicit container-storage capability prepared
 
 Added exact-target indefinite RESET-wake and USB-wake ship commands, durable
