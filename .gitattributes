@@ -10,3 +10,11 @@ firmware/fixture/build/fx-260831-32dcb76-b/*.bin binary
 firmware/fixture/build/fx-260831-f121868-b/*.json text eol=lf
 firmware/fixture/build/fx-260831-f121868-b/*.txt text eol=lf
 firmware/fixture/build/fx-260831-f121868-b/*.bin binary
+
+# Container-storage canary and handheld artifacts retain exact handoff bytes.
+firmware/fixture/build/fx-260912-f951ae9-b/*.json text eol=lf
+firmware/fixture/build/fx-260912-f951ae9-b/*.txt text eol=lf
+firmware/fixture/build/fx-260912-f951ae9-b/*.bin binary
+firmware/tdeck_bridge/build/storage-20260912-r2/*.json text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r2/*.txt text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r2/*.bin binary
