@@ -200,6 +200,7 @@ void netPeerSendHeartbeat(bool full) {
     }
   }
   hb.power_sample_flags = powerSampleFlags();
+  hb.storage_capabilities = 0x03;
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -367,6 +368,13 @@ static void processPacket(const RxItem &it) {
     if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
     espNowNoteControlRx();
     enterTransportSleep(ts->seconds, SLEEP_CAUSE_TRANSPORT, &ts->h);
+    break;
+  }
+  case NB_STORAGE_SLEEP: {
+    if (it.len != sizeof(NbStorageSleep)) return;
+    const NbStorageSleep &request = *(const NbStorageSleep *)it.data;
+    if (!nbStorageRequestValid(request, gMyId)) return;
+    enterStorageSleep(request);
     break;
   }
   case NB_LOCATE_CONTROL: {

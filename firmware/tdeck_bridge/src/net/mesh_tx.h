@@ -4,6 +4,15 @@
 
 #include "../core/control_activity_model.h"
 #include "../core/maintenance_campaign.h"
+#include "../core/storage_campaign.h"
+#include "fixture/src/core/packet.h"
+
+// Called only by the locally confirmed storage UI. No serial/agent entry point.
+bool meshStorageBegin(const uint8_t (*targets)[3], size_t count, uint8_t mode,
+                      uint32_t sleepS);
+void meshStorageStop();
+StorageCampaignStatus meshStorageStatus();
+void meshStorageReceipt(const NbStorageReceipt &receipt);
 
 // The ONLY translation unit that emits Nb packets (single-writer doctrine;
 // espnow_link deliberately does not export a raw send). Burst-repeat follows

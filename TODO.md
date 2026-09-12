@@ -4,6 +4,14 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
+- [ ] **Qualify explicit container storage (ADR 0080).** Source and T-Deck UI
+  are prepared. After Ben confirms sleep/ship commands, test one accessible
+  battery-powered fixture: rails off, external sleep current, USB ship wake,
+  physical RESET deep-sleep wake, refusal/entry-failure evidence, and no
+  premature OTA verification. Then deploy only a named roster. Measure the
+  gauge-enabled ship implementation instead of assuming the vendor's 1 uA
+  gauge-disabled result. Verify date-picker layout on the actual T-Deck.
+
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   PARTIAL 2026-09-01: 70 of the 114-fixture installed census have fresh exact
   revision proof; 44 remain, including 39 currently reporting PROTECT and five

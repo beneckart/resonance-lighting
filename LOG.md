@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-12 -- Ben + Codex -- Explicit container-storage capability prepared
+
+Added exact-target indefinite RESET-wake and USB-wake ship commands, durable
+sleep audit causes, pre-entry receipts, and an appended capability heartbeat
+tail. OTA never selects storage automatically. The T-Deck Power screen now
+offers a reviewed storage action and a GPS-backed Pacific date/time picker
+using existing transport sleep, with an explicit roster and a 16-minute
+catch-up window for PROTECT sleepers. ADR 0080 records the wake contracts,
+confirmation boundary, and remaining physical current/wake qualification.
+
+Fixed pre-existing T-Deck registry-generation drift: new unnamed fixtures use
+their exact ID, retired fixtures can retain historical callsigns, and the
+generated roster is refreshed without changing the source registry/callsigns.
+All fixture native tests passed. Embedded builds and the T-Deck test completion
+are recorded in the follow-up validation entry. No sleep/ship command or flash
+was issued while preparing this source.
+
 ## 2026-09-02 -- Ben + Codex -- Final-burn branch promoted to main
 
 At Ben's request, the complete `codex/burn-final-sunrise` history was prepared

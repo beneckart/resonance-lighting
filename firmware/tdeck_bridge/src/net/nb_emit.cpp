@@ -14,6 +14,15 @@
 static bool gEnabled = true;
 
 void nbEmitEnable(bool on) { gEnabled = on; }
+void nbEmitStorageReceipt(const RxItem &item) {
+  if (item.len != sizeof(NbStorageReceipt)) return;
+  const NbStorageReceipt &r = *(const NbStorageReceipt *)item.data;
+  meshStorageReceipt(r);
+  Serial.printf("nb-storage id=%02X%02X%02X source=%02X%02X%02X seq=%lu mode=%u status=%u\n",
+      r.h.src_id[0], r.h.src_id[1], r.h.src_id[2],
+      r.request_source[0], r.request_source[1], r.request_source[2],
+      (unsigned long)r.request_seq, r.mode, r.status);
+}
 bool nbEmitEnabled() { return gEnabled; }
 
 static const char *resetReasonName(uint8_t raw) {
