@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "fw_rev": "tdeck-0.3.0-storage4",
+  "source_commit": "556c2f6cdbefd152a1f79437b9e7f859b7b7fd44",
+  "built_utc": "2026-09-13T00:43:55.646118+00:00",
+  "fqbn": "esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB",
+  "build_options": {
+    "additionalFiles": "..\\..,..\\..,..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..",
+    "compiler.optimization_flags": "-Os",
+    "customBuildProperties": "compiler.cpp.extra_flags=-IC:/Users/benec/Documents/resonance-tree-storage-host-20260912/firmware -IC:/Users/benec/Documents/resonance-tree-storage-host-20260912/firmware/tdeck_bridge -DLV_CONF_INCLUDE_SIMPLE,compiler.c.extra_flags=-IC:/Users/benec/Documents/resonance-tree-storage-host-20260912/firmware -IC:/Users/benec/Documents/resonance-tree-storage-host-20260912/firmware/tdeck_bridge -DLV_CONF_INCLUDE_SIMPLE",
+    "fqbn": "esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB",
+    "hardwareFolders": "C:\\Users\\benec\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7,C:\\Users\\benec\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7",
+    "otherLibrariesFolders": "C:\\Users\\benec\\Documents\\Arduino\\libraries",
+    "sketchLocation": "C:\\Users\\benec\\Documents\\resonance-tree-storage-host-20260912\\firmware\\tdeck_bridge"
+  },
+  "source_changes_after_build": "README and native test CRLF comparison only; firmware source unchanged",
+  "declared_operator": "ben-codex",
+  "target_short_mac": "8EB508",
+  "target_full_mac": "44:1b:f6:8e:b5:08",
+  "files": {
+    "tdeck_bridge.ino.bin": {
+      "bytes": 1578224,
+      "sha256": "11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1"
+    },
+    "tdeck_bridge.ino.bootloader.bin": {
+      "bytes": 19984,
+      "sha256": "5403ba8cdf81cbb47f2debe13c0f5ff5903540075ccaf3fac65f0ee68213cb7d"
+    },
+    "tdeck_bridge.ino.partitions.bin": {
+      "bytes": 3072,
+      "sha256": "ace02503447d0f470692e65fa76002f2d77a92dc81cd3813d8aa66718d716da9"
+    },
+    "build.options.json": {
+      "bytes": 3025,
+      "sha256": "b449f8e71b9a9d01f8903694f7a4527f6488783dc6916ed25ac8d98762fce5b4"
+    }
+  }
+}
