@@ -74,6 +74,8 @@ static void showBox(const char *summary, const char *origin, bool crossTask) {
   lv_group_focus_obj(no);
 }
 
+bool uiConfirmIsOpen() { return gBox != nullptr; }
+
 void uiConfirm(const char *summary, const char *origin, ConfirmYesFn onYes,
                void *user) {
   if (gBox) return;  // one confirm in flight; a second request is dropped

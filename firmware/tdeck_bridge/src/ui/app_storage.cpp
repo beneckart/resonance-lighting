@@ -69,6 +69,7 @@ static void refresh(lv_timer_t *) {
   }
 }
 static void modeChanged(lv_event_t *) {
+  if (uiConfirmIsOpen()) return;
   if (meshStorageStatus().active) return;
   gShowingCampaign = false;
   bool timed = mode() == 0;
@@ -85,6 +86,7 @@ static void modeChanged(lv_event_t *) {
 }
 
 static void applyYes(void *) {
+  if (!gScreen || lv_screen_active() != gScreen) return;
   uint32_t seconds = 0;
   if (gPendingMode == 0) {
     uint32_t now;
@@ -104,6 +106,9 @@ static void applyYes(void *) {
 }
 
 static void applyCb(lv_event_t *) {
+  // Keyboard focus can reach background controls while the modal is open.
+  // Never replace the target/mode/date represented by its visible summary.
+  if (uiConfirmIsOpen()) return;
   if (meshStorageStatus().active) {
     lv_label_set_text(gStatus, "Campaign is running. Stop it before starting another.");
     return;
@@ -152,11 +157,13 @@ static void applyCb(lv_event_t *) {
 }
 
 static void stopCb(lv_event_t *) {
+  if (uiConfirmIsOpen()) return;
   meshStorageStop();
   gShowingCampaign = false;
   lv_label_set_text(gStatus, "Further sends stopped.\nAlready sleeping fixtures remain asleep.");
 }
 static void backCb(lv_event_t *) {
+  if (uiConfirmIsOpen()) return;
   meshStorageStop();
   if (gTimer) lv_timer_delete(gTimer);
   gTimer = nullptr;

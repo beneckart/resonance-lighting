@@ -46,7 +46,7 @@ Not heard in the completed observation:
 |---|---|---|
 | 9F0E30 | Wooper | Already failed maintenance discovery on September 1 |
 | 9F26B4 | Kairi | Already failed maintenance discovery on September 1 |
-| F2BCF4 | Gambit | Unobserved |
+| F2BCF4 | Gambit | Earlier sub-1 V cell was removed; a healthy replacement was later recorded |
 | F2BDD4 | Gengar | Unobserved |
 | F2BDFC | Magmar | Unobserved |
 | F2BE10 | Donkey | Unobserved |
@@ -64,6 +64,9 @@ These are planning calculations, not measured storage current in the assembled
 fixtures. Radio examples assume 130 mA while awake, based on the bench range
 in ADR 0045. They exclude LEDs and sleep current; boot/listen variation changes
 the estimate. A week is 168 hours.
+
+The manufacturer's board-current measurements use a 3.7 V source; they are
+references, not measurements of these assembled LFP fixtures.
 
 | Posture | Assumption | Per-fixture draw in 7 days |
 |---|---|---:|
@@ -136,6 +139,12 @@ Job `84DEEB42` uploaded this exact image at 16:39 PDT and verified a fresh
 matching-revision heartbeat at 25,953 ms uptime at 16:40:08 PDT. Reset reason
 was software, class 1, recovery state 0, and FIELD profile persisted. This is
 successful OTA evidence, not a storage or USB-wake test.
+
+At approximately 16:52 PDT it also reported a deep-sleep reset and a short
+12.6-second awake boot, consistent with returning to the existing 120-second
+day cycle after the normal ten-minute cold-boot listen window. The old
+controller still showed an unset automatic sleep-audit tail; that field needs
+rechecking on the new controller before claiming retained RTC provenance.
 
 Job ledger: `ops/bench/data/ca/20260912-155847-container/hellboy-canary-ota.jsonl`.
 Only this one fixture was updated. No deliberate sleep, ship, lifecycle, or
