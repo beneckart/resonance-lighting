@@ -77,6 +77,13 @@ references, not measurements of these assembled LFP fixtures.
 | Conservative assembled sleep budget | ADR 0045 placeholder, 1 mA | 168 mAh |
 | Ship mode reference | Vendor V2 board, gauge off, 1 uA | 0.168 mAh |
 
+Applying those radio assumptions to the observed 31 short-cycle and 75
+PROTECT-cycle fixtures gives about **77.77 Ah per week across 106 fixtures**
+(about 249 Wh at 3.2 V). That projects the observed posture forward; it is not
+an energy measurement or an estimate of remaining capacity. Uninterrupted
+sleep removes this periodic-radio component. Attached-hardware leakage still
+needs measurement and continues in addition to any board-current figure.
+
 Eliminating periodic wakeups is worthwhile. The illustrative 24-to-1 uA
 difference is only 3.864 mAh per fixture per week, or 0.440 Ah across 114
 fixtures (about 1.4 Wh at 3.2 V). That alone does not justify cumbersome QON
@@ -143,8 +150,11 @@ successful OTA evidence, not a storage or USB-wake test.
 At approximately 16:52 PDT it also reported a deep-sleep reset and a short
 12.6-second awake boot, consistent with returning to the existing 120-second
 day cycle after the normal ten-minute cold-boot listen window. The old
-controller still showed an unset automatic sleep-audit tail; that field needs
-rechecking on the new controller before claiming retained RTC provenance.
+controller initially showed an unset automatic sleep-audit tail. After its
+receiver/cache restart, a fresh 17:04 PDT report confirmed cause 2, 120 seconds,
+3.308 V at entry and a deep-sleep reset at 3.313 V. Ordinary RTC sleep-audit
+retention is therefore confirmed; indefinite storage/wake is still untested.
+Evidence: `hellboy-rtc-confirmed.json` in the census data directory.
 
 Job ledger: `ops/bench/data/ca/20260912-155847-container/hellboy-canary-ota.jsonl`.
 Only this one fixture was updated. No deliberate sleep, ship, lifecycle, or

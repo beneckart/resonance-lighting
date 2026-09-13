@@ -18,3 +18,7 @@ firmware/fixture/build/fx-260912-f951ae9-b/*.bin binary
 firmware/tdeck_bridge/build/storage-20260912-r2/*.json text eol=lf
 firmware/tdeck_bridge/build/storage-20260912-r2/*.txt text eol=lf
 firmware/tdeck_bridge/build/storage-20260912-r2/*.bin binary
+
+firmware/tdeck_bridge/build/storage-20260912-r3/*.json text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r3/*.txt text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r3/*.bin binary

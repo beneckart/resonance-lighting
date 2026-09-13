@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-12 -- Ben + Codex -- Storage confirmation proposal frozen
+
+Final UI review found keyboard focus could reach background controls while a
+confirmation was open. Storage now refuses background Review/Back/mode/Stop
+actions until that modal closes, preserving its exact target, wake method and
+date. Confirmation also refuses entry after the Storage screen has gone away.
+The completed storage2 image passed its embedded build but was not flashed;
+storage3 uses a fresh retained build directory. Ordinary Hellboy RTC audit
+retention is now confirmed after clearing the receiver cache; physical storage
+entry and wake remain untested and require Ben's separate confirmation.
+
 ## 2026-09-12 -- Ben + Codex -- Storage census and one OTA canary verified
 
 Completed a 17-minute uninterrupted census after recovering an earlier host
