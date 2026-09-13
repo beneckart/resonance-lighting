@@ -1,0 +1,102 @@
+{
+  "snapshot_utc": "2026-09-13T01:04:51.240278+00:00",
+  "targets": [
+    {
+      "id": "F4019C",
+      "callsign": "Treecko",
+      "battery_v": 3.276,
+      "age_ms": 353638,
+      "period_s": 900,
+      "eta_s": 546
+    },
+    {
+      "id": "9F0E7C",
+      "callsign": "Navi",
+      "battery_v": 3.195,
+      "age_ms": 354905,
+      "period_s": 900,
+      "eta_s": 545
+    },
+    {
+      "id": "9E5B44",
+      "callsign": "Astro",
+      "battery_v": 3.069,
+      "age_ms": 351197,
+      "period_s": 900,
+      "eta_s": 549
+    },
+    {
+      "id": "9F2694",
+      "callsign": "Mewtwo",
+      "battery_v": 3.305,
+      "age_ms": 351548,
+      "period_s": 900,
+      "eta_s": 548
+    },
+    {
+      "id": "F2BE1C",
+      "callsign": "Ryu",
+      "battery_v": 3.058,
+      "age_ms": 346112,
+      "period_s": 900,
+      "eta_s": 554
+    },
+    {
+      "id": "F2B7DC",
+      "callsign": "Ponyta",
+      "battery_v": 2.547,
+      "age_ms": 352382,
+      "period_s": 900,
+      "eta_s": 548
+    },
+    {
+      "id": "F2B900",
+      "callsign": "Cammy",
+      "battery_v": 3.279,
+      "age_ms": 336901,
+      "period_s": 900,
+      "eta_s": 563
+    },
+    {
+      "id": "F3FC90",
+      "callsign": "Shinx",
+      "battery_v": 3.304,
+      "age_ms": 338077,
+      "period_s": 900,
+      "eta_s": 562
+    },
+    {
+      "id": "F3FD88",
+      "callsign": "Torkoal",
+      "battery_v": 3.278,
+      "age_ms": 340208,
+      "period_s": 900,
+      "eta_s": 560
+    },
+    {
+      "id": "F401A8",
+      "callsign": "Luigi",
+      "battery_v": 3.228,
+      "age_ms": 343570,
+      "period_s": 900,
+      "eta_s": 556
+    },
+    {
+      "id": "F40308",
+      "callsign": "Daisy",
+      "battery_v": 3.276,
+      "age_ms": 334803,
+      "period_s": 900,
+      "eta_s": 565
+    },
+    {
+      "id": "F2BF90",
+      "callsign": "Sora",
+      "battery_v": 3.238,
+      "age_ms": 344883,
+      "period_s": 900,
+      "eta_s": 555
+    }
+  ],
+  "authorization": "Ben explicitly authorized all responding fleet USB-wake storage; Ponyta priority cohort"
+}

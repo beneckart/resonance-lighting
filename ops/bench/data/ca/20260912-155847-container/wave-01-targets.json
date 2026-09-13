@@ -1,0 +1,103 @@
+{
+  "snapshot_utc": "2026-09-13T00:10:04.519568+00:00",
+  "operator": "Ben + Codex",
+  "authorization": "2026-09-12 Ben explicitly authorized fleet OTA and USB-wake storage",
+  "targets": [
+    {
+      "id": "F3FCAC",
+      "callsign": "Ditto",
+      "battery_v": 3.302,
+      "age_ms": 92988,
+      "sleep_s": 120,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9E5AC8",
+      "callsign": "Gastly",
+      "battery_v": 3.278,
+      "age_ms": 81723,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE60",
+      "callsign": "Ganon",
+      "battery_v": 3.274,
+      "age_ms": 78672,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40384",
+      "callsign": "Leia",
+      "battery_v": 3.268,
+      "age_ms": 26995,
+      "sleep_s": 120,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9D7884",
+      "callsign": "Daxter",
+      "battery_v": 3.267,
+      "age_ms": 127444,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5A5C",
+      "callsign": "Yuna",
+      "battery_v": 3.266,
+      "age_ms": 81134,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F0E54",
+      "callsign": "Eevee",
+      "battery_v": 3.25,
+      "age_ms": 26582,
+      "sleep_s": 120,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F2BF8C",
+      "callsign": "Snorlax",
+      "battery_v": 3.25,
+      "age_ms": 26536,
+      "sleep_s": 120,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F266C",
+      "callsign": "Meowth",
+      "battery_v": 3.244,
+      "age_ms": 80021,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE08",
+      "callsign": "Yoshi",
+      "battery_v": 3.243,
+      "age_ms": 81712,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F4042C",
+      "callsign": "Cynder",
+      "battery_v": 3.237,
+      "age_ms": 80635,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BDB4",
+      "callsign": "Abra",
+      "battery_v": 3.233,
+      "age_ms": 27431,
+      "sleep_s": 120,
+      "fw": "fx-260831-b3e2738-b"
+    }
+  ]
+}

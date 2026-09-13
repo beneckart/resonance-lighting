@@ -35,3 +35,17 @@ Native tests exercise parser bounds and malformed/duplicate/zero targets.
 Embedded build, USB identity/boot verification, canary receipt and subsequent
 radio observations are required for the deployed record. USB wake and actual
 assembled storage current still need physical qualification at service.
+
+## 2026-09-12 field rollout result
+
+Ben explicitly authorized fleet storage and direct laptop operation. The
+retained f951ae9 fixture image and tdeck-0.3.0-storage4 controller completed
+106 exact-target USB-storage PREPARED receipts with matching durable audits.
+The final receipt was 18:39:20 PDT. At 19:17:57, all 106 remained radio-quiet
+for at least 38m37s with continuous capture and no bridge restart; every job
+was stopped. Eight unobserved installed fixtures were not commanded.
+See `docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and retained job ledgers.
+This promotes the radio-command path for this authorized deployment only;
+physical USB wake, assembled storage current and LCD inspection remain open.
+The final UI path is Home -> Rest -> Store. ADR 0081 supersedes the earlier
+host-serial exclusion for the narrowly confirmed USB-storage operation.

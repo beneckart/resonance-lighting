@@ -1,10 +1,65 @@
-# Nevada City container census and storage plan, 2026-09-12
+# Nevada City container census and USB storage, 2026-09-12
 
-Ben reported about a week in a dark shipping container, with fixtures presently
-inaccessible for moving into sunlight. Storage should last until physical
-service. USB wake is preferred; physical RESET is acceptable. OTA is authorized
-at operator discretion. Deliberate sleep/ship commands still require Ben's
-separate confirmation.
+Ben requested a census after roughly a week in a dark shipping container and
+storage until physical service. At 17:08 PDT he explicitly authorized fleet
+USB-wake storage, then direct laptop operation without a T-Deck tap. His later
+dinner plan put the expected return at roughly 18:30-19:00 PDT.
+
+## Completed operation, 19:18 PDT
+
+- 106 of the 114 previously installed fixtures were heard. All 106 passed
+  exact-revision OTA verification beyond the pending-verification window on
+  `fx-260912-f951ae9-b`; no failed, deferred or commission target remained.
+- All 106 acknowledged untimed USB-wake storage, with matching source/sequence
+  receipts and durable cause-8, zero-duration audits. No refusal, entry failure
+  or later radio rejoin was observed.
+- The final five acknowledged by 18:39:20 PDT. The last job stopped sending at
+  18:39:37. The full 960-second quiet interval elapsed at 18:55:20; the final
+  live check at 19:17:57 established 38 minutes 37 seconds of quiet after the
+  last receipt, uninterrupted capture, and no controller restart.
+- A fresh controller status confirmed job 3718EB1B inactive, 17/17 prepared,
+  zero refused. Dashboard/logger processes were stopped at 19:18 and the
+  temporary Windows awake hold was released. Laptop, T-Deck and network are
+  ready to pack; none is needed to maintain storage.
+- Eight installed fixtures never responded and were not commanded. Their
+  condition remains unknown; exact names and IDs appear below.
+
+Ponyta F2B7DC and Chunli 9F2714 both acknowledged storage. Ponyta's last report
+at storage entry was 2.562 V; an earlier 2.547 V sample was late in a protected
+listening window. These readings do not diagnose a ruined cell.
+
+Final evidence is `storage-final.json` and CSV, `pack-up-controller-status.json`,
+all eight storage job ledgers, and the SHA-256 evidence manifest under
+`ops/bench/data/ca/20260912-155847-container/`. The read-only reconciler required
+all 106 receipts, durable audits, stopped jobs, at least 960 seconds of quiet,
+live capture and no bridge restart. Its final capture contained 48,755 rows;
+maximum controller-report gap was 10.024 seconds. Radio evidence is not an
+assembled-current measurement or a physical USB-wake test; both remain open.
+The compact evidence is retained on `codex/container-storage-host-20260912`;
+large raw captures and private device backups remain local.
+
+## Wake and controller handoff
+
+The selected mode is untimed USB-wake ship mode. Good USB or solar input wakes
+it; QON is an alternative. RESET/BOOT alone cannot wake an unpowered ESP32.
+The laptop, network and T-Deck are not needed to maintain this storage state.
+
+T-Deck Home -> Rest -> Store now offers USB storage, RESET-wake deep sleep,
+and a Pacific date/time wake picker using fresh GPS time. The timer option is
+limited to 30 minutes through seven days. Pure-core calendar/campaign/receipt
+and parser tests, the full native suite and the embedded build passed. Actual
+LCD layout, physical wake behavior and assembled storage current still need
+service-time qualification.
+
+Retained T-Deck artifact: `tdeck-0.3.0-storage4`, 1,578,224 bytes, SHA-256
+`11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1`.
+Firmware source: `556c2f6cdbefd152a1f79437b9e7f859b7b7fd44`; artifact commit
+`a53181a` on `codex/container-storage-host-20260912`. Exact application,
+bootloader, partitions, build options and manifest are retained in
+`../resonance-tree-storage-host-20260912/firmware/tdeck_bridge/build/storage-host-20260912-r4/`.
+The private pre-flash NVS/apps backup is retained locally and is not committed.
+The storage3 build was not flashed; no firmware source changed during the
+storage4 build. Its post-build test-only CRLF comparison fix passed the suite.
 
 ## Census
 
@@ -57,6 +112,15 @@ Silence does not distinguish RF obstruction, disconnected power, an old sleep
 command, or depleted cells. The previously reported 0-0.6 V fixtures cannot be
 declared recovered from this census. Do not infer remaining capacity from LFP
 plateau voltage or the fuel gauge's low SOC percentage alone (ADR 0023).
+
+Historical very-low reports need a separate service check. The August 27
+recovery report recorded Tidus `F40424` near 0.01 V with recovery refused;
+Tidus is outside the 114-ID installed baseline used here and was not heard.
+That report also recorded Clank `F2BF60` at 0.86 V; today's Clank report is
+3.267 V in FIELD on the August 31 image, so the old cell reading must not be
+assigned to its current cell without checking its service history. Gambit's
+old sub-1 V cell was explicitly removed. None of those historical cases is
+proved resolved merely by today's absence of 0-0.6 V telemetry.
 
 ## Battery tradeoff
 
@@ -113,14 +177,15 @@ work in the main checkout. ADR 0080 defines the new exact-target USB/RESET
 storage modes, capability advertisement, pre-entry receipts and durable audit.
 Firmware installation does not select storage or bypass battery protection.
 
-T-Deck Power -> Store also offers a Pacific date/time picker using the existing
+T-Deck Rest -> Store also offers a Pacific date/time picker using the existing
 timed-transport command, with fresh GPS time, a seven-day limit, and a
 16-minute exact-roster catch-up campaign. The controller cannot recall asleep
 fixtures, and the ESP32's timer may drift. A PREPARED receipt is not measured
 electrical power-off proof. Physical wake/current qualification remains open.
 
-No sleep/ship command is authorized by the OTA permission alone. Any canary
-OTA and final artifact identities are recorded in the validation addendum.
+The OTA permission alone did not authorize storage. Ben separately approved
+fleet USB-wake storage at 17:08 PDT and then direct laptop operation; those
+permissions are satisfied and remain in force for this rollout.
 
 ## Validation and live canary
 
@@ -132,7 +197,7 @@ decoding: 4 passed; census: 7 passed.
 
 Immutable fixture artifact:
 
-- Revision: `fx-260912-f951ae9-b` (canary, not fleet-promoted).
+- Revision: `fx-260912-f951ae9-b` (same exact artifact used in the authorized storage rollout).
 - Bytes: 1,218,752.
 - SHA-256: `ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`.
 - FIELD, channel 11, LFP, 300 mA precharge, 120-second day sleep,
@@ -153,12 +218,14 @@ day cycle after the normal ten-minute cold-boot listen window. The old
 controller initially showed an unset automatic sleep-audit tail. After its
 receiver/cache restart, a fresh 17:04 PDT report confirmed cause 2, 120 seconds,
 3.308 V at entry and a deep-sleep reset at 3.313 V. Ordinary RTC sleep-audit
-retention is therefore confirmed; indefinite storage/wake is still untested.
+retention was therefore confirmed. At that checkpoint, indefinite storage and
+physical wake were still untested; the final storage result is recorded above.
 Evidence: `hellboy-rtc-confirmed.json` in the census data directory.
 
 Job ledger: `ops/bench/data/ca/20260912-155847-container/hellboy-canary-ota.jsonl`.
-Only this one fixture was updated. No deliberate sleep, ship, lifecycle, or
-LED command was sent. The successful job froze its maintenance gather before
+At this initial canary checkpoint, only Hellboy had been updated and no
+deliberate storage command had been sent. Later rollout updates above
+supersede that initial deployment count. The successful job froze its maintenance gather before
 upload and completed without deferred or failed targets.
 
 Completed census JSONL SHA-256:

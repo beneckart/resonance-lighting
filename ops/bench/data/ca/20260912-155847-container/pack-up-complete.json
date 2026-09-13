@@ -1,0 +1,20 @@
+{
+  "ts_utc": "2026-09-13T02:19:09.485827+00:00",
+  "radio_storage_verification_complete": true,
+  "prepared_count": 106,
+  "unobserved_installed": [
+    "9F0E30",
+    "9F26B4",
+    "F2BCF4",
+    "F2BDD4",
+    "F2BDFC",
+    "F2BE10",
+    "F2BE94",
+    "F3FD28"
+  ],
+  "all_storage_campaigns_stopped": true,
+  "dashboard_pid_1092_stopped": true,
+  "logger_pid_8568_stopped": true,
+  "temporary_awake_hold_released": true,
+  "ready_to_pack": true
+}

@@ -1,0 +1,33 @@
+{
+  "ts_utc": "2026-09-13T02:17:57.427828+00:00",
+  "serial": {
+    "connected": true,
+    "port": "COM152",
+    "error": null,
+    "lines": 52191,
+    "started_ts": "2026-09-13T00:56:43.205620+00:00"
+  },
+  "master": {
+    "id": "8EB508",
+    "channel": 11,
+    "frames": 2541,
+    "send_ok": 130895,
+    "send_fail": 0,
+    "uptime_ms": 4881244,
+    "battery_v": 4.712,
+    "firmware_rev": "tdeck-0.3.0-storage4",
+    "action": 9,
+    "action_value": 0,
+    "action_mesh_seq": 943,
+    "action_bridge_uptime_ms": 1682144,
+    "action_utc_s": 1789262675,
+    "action_flags": 1,
+    "action_target": "F3FC9C",
+    "action_count": 4,
+    "ts_utc": "2026-09-13T02:17:54.513132+00:00"
+  },
+  "storage_status": {
+    "ts_utc": "2026-09-13T02:17:57.202091+00:00",
+    "line": "nb-storage-campaign job=3718EB1B mode=2 active=0 targets=17 prepared=17 refused=0 remaining_ms=0 dispatches=49216"
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "snapshot_utc": "2026-09-13T00:40:35.062008+00:00",
+  "operator": "ben-codex",
+  "targets": [
+    {
+      "id": "F403F0",
+      "callsign": "Midna",
+      "battery_v": 3.315,
+      "age_ms": 714616,
+      "last_sleep_s": 900,
+      "eta_s": 185,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40268",
+      "callsign": "Falco",
+      "battery_v": 3.285,
+      "age_ms": 712853,
+      "last_sleep_s": 900,
+      "eta_s": 187,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40310",
+      "callsign": "Espeon",
+      "battery_v": 3.274,
+      "age_ms": 705388,
+      "last_sleep_s": 900,
+      "eta_s": 195,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5AB0",
+      "callsign": "Togepi",
+      "battery_v": 3.285,
+      "age_ms": 704554,
+      "last_sleep_s": 900,
+      "eta_s": 195,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE38",
+      "callsign": "Mantis",
+      "battery_v": 3.292,
+      "age_ms": 701251,
+      "last_sleep_s": 900,
+      "eta_s": 199,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BDB0",
+      "callsign": "Robin",
+      "battery_v": 3.294,
+      "age_ms": 699724,
+      "last_sleep_s": 900,
+      "eta_s": 200,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F0E4C",
+      "callsign": "Yuffie",
+      "battery_v": 3.169,
+      "age_ms": 693079,
+      "last_sleep_s": 900,
+      "eta_s": 207,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E668C",
+      "callsign": "Akuma",
+      "battery_v": 3.162,
+      "age_ms": 687876,
+      "last_sleep_s": 900,
+      "eta_s": 212,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F26AC",
+      "callsign": "Tauros",
+      "battery_v": 2.998,
+      "age_ms": 685357,
+      "last_sleep_s": 900,
+      "eta_s": 215,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F3FD60",
+      "callsign": "Spock",
+      "battery_v": 2.959,
+      "age_ms": 655667,
+      "last_sleep_s": 900,
+      "eta_s": 244,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BF54",
+      "callsign": "Pauline",
+      "battery_v": 3.282,
+      "age_ms": 654460,
+      "last_sleep_s": 900,
+      "eta_s": 246,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2648",
+      "callsign": "Cubone",
+      "battery_v": 3.266,
+      "age_ms": 650222,
+      "last_sleep_s": 900,
+      "eta_s": 250,
+      "firmware_rev": "fx-260831-b3e2738-b"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "snapshot_utc": "2026-09-13T01:02:23.755792+00:00",
+  "targets": [
+    {
+      "id": "9F2680",
+      "callsign": "Buizel",
+      "battery_v": 3.184,
+      "age_ms": 18091,
+      "period_s": 56,
+      "eta_s": 38,
+      "power_tier": 0
+    },
+    {
+      "id": "9F0E5C",
+      "callsign": "Tangela",
+      "battery_v": 3.189,
+      "age_ms": 18491,
+      "period_s": 58,
+      "eta_s": 40,
+      "power_tier": 0
+    },
+    {
+      "id": "9F26D4",
+      "callsign": "Hulk",
+      "battery_v": 3.177,
+      "age_ms": 18284,
+      "period_s": 64,
+      "eta_s": 46,
+      "power_tier": 0
+    },
+    {
+      "id": "9F266C",
+      "callsign": "Meowth",
+      "battery_v": 3.247,
+      "age_ms": 18612,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 0
+    },
+    {
+      "id": "9F2720",
+      "callsign": "Wanda",
+      "battery_v": 3.162,
+      "age_ms": 18598,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 1
+    },
+    {
+      "id": "9E5A88",
+      "callsign": "Logan",
+      "battery_v": 3.197,
+      "age_ms": 18669,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 0
+    },
+    {
+      "id": "9E5B14",
+      "callsign": "Falcon",
+      "battery_v": 3.181,
+      "age_ms": 19022,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 0
+    },
+    {
+      "id": "9E5B68",
+      "callsign": "Piplup",
+      "battery_v": 3.222,
+      "age_ms": 18837,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 0
+    },
+    {
+      "id": "9F2638",
+      "callsign": "Lucas",
+      "battery_v": 3.188,
+      "age_ms": 18727,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 1
+    },
+    {
+      "id": "9E5AE4",
+      "callsign": "Blade",
+      "battery_v": 3.175,
+      "age_ms": 18913,
+      "period_s": 120,
+      "eta_s": 101,
+      "power_tier": 0
+    }
+  ],
+  "authorization": "Ben explicitly authorized all responding fleet USB-wake storage"
+}

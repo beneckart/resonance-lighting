@@ -1,0 +1,60 @@
+{
+  "snapshot_utc": "2026-09-13T00:45:29.995123+00:00",
+  "targets": [
+    {
+      "id": "9F2714",
+      "callsign": "Chunli",
+      "battery_v": 2.615,
+      "age_ms": 672905,
+      "last_sleep_s": 900,
+      "eta_s": 227,
+      "firmware_rev": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9E5B48",
+      "callsign": "Sackboy",
+      "battery_v": 3.216,
+      "age_ms": 373764,
+      "last_sleep_s": 900,
+      "eta_s": 526,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5B04",
+      "callsign": "Torchic",
+      "battery_v": 3.04,
+      "age_ms": 352581,
+      "last_sleep_s": 900,
+      "eta_s": 547,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40314",
+      "callsign": "Dixie",
+      "battery_v": 3.314,
+      "age_ms": 326072,
+      "last_sleep_s": 900,
+      "eta_s": 574,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F403DC",
+      "callsign": "Sneasel",
+      "battery_v": 3.271,
+      "age_ms": 310491,
+      "last_sleep_s": 900,
+      "eta_s": 590,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F3FC9C",
+      "callsign": "Gamora",
+      "battery_v": 3.313,
+      "age_ms": 294377,
+      "last_sleep_s": 900,
+      "eta_s": 606,
+      "firmware_rev": "fx-260831-dc82da7-b"
+    }
+  ],
+  "operator": "ben-codex"
+}

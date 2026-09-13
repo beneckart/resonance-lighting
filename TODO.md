@@ -4,13 +4,26 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## Immediate documentation / repo hygiene
 
-- [ ] **Qualify explicit container storage (ADR 0080).** Source and T-Deck UI
-  are prepared. After Ben confirms sleep/ship commands, test one accessible
-  battery-powered fixture: rails off, external sleep current, USB ship wake,
-  physical RESET deep-sleep wake, refusal/entry-failure evidence, and no
-  premature OTA verification. Then deploy only a named roster. Measure the
-  gauge-enabled ship implementation instead of assuming the vendor's 1 uA
-  gauge-disabled result. Verify date-picker layout on the actual T-Deck.
+- [x] **Authorized USB-wake container-storage rollout completed 2026-09-12.**
+  All 106 observed fixtures passed exact f951ae9 OTA verification, acknowledged
+  USB storage with matching durable audits, and stayed quiet for at least
+  38m37s after the final receipt. All campaigns stopped; laptop capture and
+  temporary awake hold released at 19:18 PDT. Eight never-heard fixtures were
+  not commanded. See `docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and
+  `storage-final.json` in the retained container evidence directory. Source
+  and artifact: `../resonance-tree-storage-host-20260912`.
+- [ ] **Qualify storage on an accessible assembled fixture during servicing.**
+  Measure gauge-enabled ship current and timerless deep-sleep current; test
+  USB/solar/QON wake from ship and RESET wake from timerless deep sleep; inspect
+  T-Deck Rest -> Store layout and calendar behavior on the physical screen.
+  Today's PREPARED/audit/quiet result does not measure electrical current or
+  prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
+- [ ] **Physically check the eight unobserved container fixtures.** Wooper
+  `9F0E30`, Kairi `9F26B4`, Gambit `F2BCF4`, Gengar `F2BDD4`, Magmar `F2BDFC`,
+  Donkey `F2BE10`, Milotic `F2BE94`, Skitty `F3FD28`. None can be called dead
+  or recovered from this census. Identify the historical 0-0.6 V reports by
+  exact fixture/cell and measure cell-terminal voltage at service. Remove
+  external power before battery swaps, per PowerFeather's handling guidance.
 
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   PARTIAL 2026-09-01: 70 of the 114-fixture installed census have fresh exact

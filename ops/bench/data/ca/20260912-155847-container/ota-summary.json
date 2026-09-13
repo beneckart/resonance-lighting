@@ -1,0 +1,190 @@
+{
+  "fixture_revision": "fx-260912-f951ae9-b",
+  "binary_sha256": "ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001",
+  "verified_count": 106,
+  "jobs": [
+    {
+      "ledger": "hellboy-canary-ota.jsonl",
+      "job_id": "84DEEB42",
+      "finished_utc": "2026-09-12T23:40:08Z",
+      "verified": [
+        "9F26C4"
+      ]
+    },
+    {
+      "ledger": "wave-01-ota.jsonl",
+      "job_id": "6FA40ADD",
+      "finished_utc": "2026-09-13T00:13:24Z",
+      "verified": [
+        "9D7884",
+        "9E5A5C",
+        "9E5AC8",
+        "9F0E54",
+        "9F266C",
+        "F2BDB4",
+        "F2BE08",
+        "F2BE60",
+        "F2BF8C",
+        "F3FCAC",
+        "F40384",
+        "F4042C"
+      ]
+    },
+    {
+      "ledger": "wave-02-ota.jsonl",
+      "job_id": "3E765F38",
+      "finished_utc": "2026-09-13T00:16:13Z",
+      "verified": [
+        "9E5954",
+        "9E5A84",
+        "9E5A88",
+        "9E5AE4",
+        "9E5B14",
+        "9E5B5C",
+        "9E5B68",
+        "9F0E5C",
+        "9F2638",
+        "9F2680",
+        "9F26D8",
+        "F2BF74"
+      ]
+    },
+    {
+      "ledger": "wave-03-ota.jsonl",
+      "job_id": "30F7331C",
+      "finished_utc": "2026-09-13T00:20:34Z",
+      "verified": [
+        "9E5A74",
+        "9E5B10",
+        "9E5B34",
+        "9F2664",
+        "9F26D4",
+        "9F2718",
+        "9F2720",
+        "F2BE48",
+        "F2BEF4",
+        "F3FD50",
+        "F40348",
+        "F4035C"
+      ]
+    },
+    {
+      "ledger": "wave-04-ota.jsonl",
+      "job_id": "B70DF436",
+      "finished_utc": "2026-09-13T00:24:24Z",
+      "verified": [
+        "9E5B18",
+        "9E5B8C",
+        "9F26B0",
+        "9F26C0",
+        "F2BCF0",
+        "F2BE3C",
+        "F2BEA4",
+        "F2BEE4",
+        "F2BF60",
+        "F2BFE0",
+        "F3FC8C",
+        "F40350"
+      ]
+    },
+    {
+      "ledger": "wave-05-ota.jsonl",
+      "job_id": "A1182971",
+      "finished_utc": "2026-09-13T00:29:14Z",
+      "verified": [
+        "9E5B44",
+        "9F0E7C",
+        "9F2694",
+        "F2B7DC",
+        "F2B900",
+        "F2BE1C",
+        "F2BF90",
+        "F3FC90",
+        "F3FD88",
+        "F4019C",
+        "F401A8",
+        "F40308"
+      ]
+    },
+    {
+      "ledger": "wave-06-ota.jsonl",
+      "job_id": "C3D927C3",
+      "finished_utc": "2026-09-13T00:34:24Z",
+      "verified": [
+        "9E5A58",
+        "9E5AD4",
+        "9F268C",
+        "9F26BC",
+        "9F26E8",
+        "9F2738",
+        "F2BE20",
+        "F2BF7C",
+        "F40174",
+        "F40254",
+        "F402A8",
+        "F4043C"
+      ]
+    },
+    {
+      "ledger": "wave-07-ota.jsonl",
+      "job_id": "0B49D269",
+      "finished_utc": "2026-09-13T00:39:44Z",
+      "verified": [
+        "9E5A94",
+        "9F26E4",
+        "F2BD00",
+        "F2BDC4",
+        "F2BE0C",
+        "F2BE6C",
+        "F2BE70",
+        "F401CC",
+        "F402B8",
+        "F402C4",
+        "F40364"
+      ]
+    },
+    {
+      "ledger": "wave-08-ota.jsonl",
+      "job_id": "EEB21DEB",
+      "finished_utc": "2026-09-13T00:45:35Z",
+      "verified": [
+        "9E5AB0",
+        "9E668C",
+        "9F0E4C",
+        "9F2648",
+        "9F26AC",
+        "F2BDB0",
+        "F2BE38",
+        "F2BF54",
+        "F3FD60",
+        "F40268",
+        "F40310",
+        "F403F0"
+      ]
+    },
+    {
+      "ledger": "wave-09-ota.jsonl",
+      "job_id": "CFEB425C",
+      "finished_utc": "2026-09-13T00:46:05Z",
+      "verified": [
+        "9E5AE0",
+        "9F275C",
+        "F2BEB4",
+        "F401DC"
+      ]
+    },
+    {
+      "ledger": "wave-10-ota.jsonl",
+      "job_id": "767B02FD",
+      "finished_utc": "2026-09-13T00:56:15Z",
+      "verified": [
+        "9E5B04",
+        "9E5B48",
+        "9F2714",
+        "F3FC9C",
+        "F40314",
+        "F403DC"
+      ]
+    }
+  ]
+}

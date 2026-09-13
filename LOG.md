@@ -10,6 +10,69 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-12 -- Ben + Codex -- 106 fixtures stored; pack-up complete
+
+All 106 observed fixtures acknowledged untimed USB-wake storage on the exact
+retained f951ae9 image. The final five replied by 18:39:20 PDT; the final
+17-target job stopped at 18:39:37 with no failed or unresolved target. All
+106 source/sequence receipts match durable cause-8, zero-duration audits.
+The final 19:17:57 read-only reconciliation passed after 38m37s of radio quiet
+since the last receipt, with continuous logger/master evidence and no bridge
+restart. A fresh storage-status confirmed the controller inactive. No further
+sleep command was needed when Ben requested pack-up at 19:17.
+
+Stopped only this run's logger/dashboard and released the temporary Windows
+awake hold at 19:18. Laptop, T-Deck and Starlink can be packed. The eight
+never-heard installed fixtures were not commanded and remain physical-service
+exceptions. USB/solar or QON wakes the selected mode; RESET/BOOT alone does
+not. Assembled current and physical wake still require service-time testing.
+
+Final proof, exact ledgers/rosters, controller flash identity and capture
+hashes are retained with the report at
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md`. Compact evidence and source
+are on `codex/container-storage-host-20260912`; large raw logs/private NVS
+backups stay local. T-Deck Rest -> Store includes indefinite storage and a
+fresh-GPS Pacific wake picker from 30 minutes to seven days. Native and
+embedded checks passed; physical LCD/wake/current qualification remains open.
+
+## 2026-09-12 -- Ben + Codex -- All 106 OTA verified; direct USB storage underway
+
+Ben's later instruction authorizes direct laptop operation, without a physical
+T-Deck confirmation tap. His dinner return window is approximately
+18:30-19:00 PDT. ADR 0081 records the narrow host-command exception.
+
+All 106 observed fixtures passed fresh exact-revision and pending-window OTA
+verification on the retained `fx-260912-f951ae9-b` image by 17:56:15 PDT;
+no target failed or remained in commission. The eight census exceptions were
+not heard and were not commanded. Exact per-job evidence is in the container
+run directory, including `all-106-ota-verified.txt`.
+
+Flashed exact T-Deck 8EB508 / 44:1b:f6:8e:b5:08 on COM152 with retained
+`tdeck-0.3.0-storage4`, 1,578,224 bytes, SHA-256
+`11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1`.
+Every written flash-region hash verified, then fresh boot identity, channel 11,
+radio census and an idle host storage controller were confirmed. Firmware
+source is 556c2f6 in `../resonance-tree-storage-host-20260912`; artifact commit
+a53181a retains binaries and manifest. Full native and embedded checks passed.
+The native registry comparison now tolerates Windows CRLF; firmware did not
+change after the retained build. A private NVS/apps recovery backup remains
+local and must not be committed.
+
+Hellboy's first storage command was accepted at 17:57:18 PDT. At 17:59:12 it
+reported PREPARED for source 8EB508 / sequence 21, then stayed quiet past its
+former 120-second cadence. Its durable command audit reports USB storage,
+zero duration, the same source and sequence. Two subsequent groups brought
+the total to 31 PREPARED by 18:04, all with matching durable audits and no
+rejoin or failure. Storage requests are now actually being sent under Ben's
+explicit permission; earlier no-command notes describe earlier checkpoints.
+
+The 75 PROTECT-cycle fixtures are being handled in complete timing cohorts,
+with Ponyta's group armed first. Remaining exact-roster plan and per-command
+ledgers are retained. The final full-cadence quiet observation is still due;
+PREPARED plus radio silence is not measured electrical current or a physical
+USB-wake test. Expected pack-up readiness is about 18:40-18:50 PDT if these
+cohorts behave as observed. Temporary laptop awake hold remains active.
+
 ## 2026-09-12 -- Ben + Codex -- Explicit unattended USB-storage operation
 
 Ben authorized putting the fleet in USB-wake storage and asked for direct
