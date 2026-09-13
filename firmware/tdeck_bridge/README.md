@@ -31,7 +31,7 @@ voice (whisperd), and polish (M5 tail + M6).
 
 ## Container storage (2026-09-12)
 
-Open **Blackout / Sleep -> Store**. Storage3 adds three reviewed options:
+Open **Rest -> Store**. Storage3 adds three reviewed options:
 
 - **Until USB power (ship):** no timer; good USB/solar input or QON wakes the
   fixture. RESET/BOOT alone will not. Requires fresh storage-capable firmware.
@@ -57,7 +57,23 @@ The date option resumes radio reception with LEDs latched dark.
 See [ADR 0080](../../docs/decisions/0080-explicit-container-storage.md) and the
 [September 12 census](../../docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md)
 for scope and deployment evidence. Only Hellboy `9F26C4` has received the new
-fixture capability so far. Fleet storage still requires Ben's explicit go-ahead.
+fixture capability so far. Ben explicitly authorized fleet USB storage on September 12; see the rollout record.
+
+## Explicit USB host storage (ADR 0081)
+
+At Ben's request, storage4 also supports unattended laptop operation after his
+explicit approval. The USB CLI accepts `storage-usb <job8> <ID,ID,...>
+CONFIRM-USB-WAKE` as one line, with 1-20 unique exact targets and fresh advertised
+USB-storage capability. `storage-status` reads progress; `storage-stop <job8>`
+stops only the matching host job. No generic raw packet or agent sleep tool is
+added. A maintenance gather blocks host storage entry. Cold boot stays idle.
+
+Use `ops/bench/fleet_storage_usb.py` with the exact verified fixture revision,
+named targets, an exclusive new ledger path and `--confirm-usb-wake`. The host
+requires the expected bridge/revision/channel, matches receipt source and
+sequence, checks for late failure, and stops remaining sends. PREPARED is not
+a measurement of electrical power-off. The script never turns a queued USB
+write into a claim that a fixture slept.
 
 ## Permanent control shell
 
