@@ -29,6 +29,36 @@ exact manual seed),
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
 
+## Container storage (2026-09-12)
+
+Open **Blackout / Sleep -> Store**. Storage3 adds three reviewed options:
+
+- **Until USB power (ship):** no timer; good USB/solar input or QON wakes the
+  fixture. RESET/BOOT alone will not. Requires fresh storage-capable firmware.
+- **Until physical RESET:** no timer; physical RESET wakes it. USB alone will
+  not. Requires fresh storage-capable firmware.
+- **Wake on date:** choose Pacific local date/time, from 30 minutes to seven
+  days ahead. Requires fresh T-Deck GPS time. Uses the existing transport
+  command; the sleep clock can drift. DST gaps/repeated hours are refused.
+
+Listen for a complete 15-minute PROTECT cadence before opening Store. Choose
+an exact ID for an initial trial. Review freezes the target list and wake
+method; Cancel is initially focused. Confirm starts a 16-minute catch-up
+campaign. Keep the screen open and the handheld powered for that interval.
+Back/Stop ends further sends; neither wakes fixtures already asleep. Rebooting
+the handheld never resumes a storage campaign.
+
+For indefinite modes, `prepared` means the fixture persisted the request and
+was about to enter storage. It does not prove electrical shutdown or low
+current; inspect refusals/entry failures and qualify physical wake/current on
+an accessible fixture. The firmware update itself never selects storage.
+The date option resumes radio reception with LEDs latched dark.
+
+See [ADR 0080](../../docs/decisions/0080-explicit-container-storage.md) and the
+[September 12 census](../../docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md)
+for scope and deployment evidence. Only Hellboy `9F26C4` has received the new
+fixture capability so far. Fleet storage still requires Ben's explicit go-ahead.
+
 ## Permanent control shell
 
 Bridge OS permanently reserves the top 26 pixels on LVGL's top layer. Every app
