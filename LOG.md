@@ -10,6 +10,15 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-12 -- Ben + Codex -- Explicit unattended USB-storage operation
+
+Ben authorized putting the fleet in USB-wake storage and asked for direct
+laptop operation while a campmate later packs the equipment. ADR 0081 adds a
+bounded, exact-roster USB CLI with explicit confirmation text, fresh capability
+checks, job-owned stop/status, and no automatic campaign resume. The existing
+physical UI flow remains intact. Work is isolated from the still-running
+storage3 compile; storage4 uses a separate source checkout/build directory.
+
 ## 2026-09-12 -- Ben + Codex -- Storage confirmation proposal frozen
 
 Final UI review found keyboard focus could reach background controls while a

@@ -7,10 +7,12 @@
 #include "../core/storage_campaign.h"
 #include "fixture/src/core/packet.h"
 
-// Called only by the locally confirmed storage UI. No serial/agent entry point.
+// Local reviewed UI, or explicitly confirmed exact-roster USB host operation.
 bool meshStorageBegin(const uint8_t (*targets)[3], size_t count, uint8_t mode,
-                      uint32_t sleepS);
+                      uint32_t sleepS, uint32_t hostJobId = 0);
 void meshStorageStop();
+bool meshStorageStopHostJob(uint32_t jobId);
+void meshStoragePrintStatus();
 StorageCampaignStatus meshStorageStatus();
 void meshStorageReceipt(const NbStorageReceipt &receipt);
 
@@ -18,8 +20,8 @@ void meshStorageReceipt(const NbStorageReceipt &receipt);
 // espnow_link deliberately does not export a raw send). Burst-repeat follows
 // the fleet RF convention: broadcast cmds 4x/5 ms, targeted 6x/8 ms.
 // M2's TxService adds the confirm rail + stream ownership ON TOP of these.
-// The one sleep exception is a local-UI-only, confirmed fleet timer sleep;
-// agent tools and the serial CLI intentionally do not expose it (ADR 0048).
+// Timer sleep remains local-UI-only. ADR 0081 adds only explicitly confirmed,
+// exact-roster USB-wake storage to the serial CLI; agent tools exclude sleep.
 
 void meshTxBegin();                 // derive our 3-byte id from the STA MAC
 void meshTxTick();                  // bounded resend campaigns for sleeping peers

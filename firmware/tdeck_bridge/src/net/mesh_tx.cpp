@@ -32,6 +32,7 @@ static portMUX_TYPE gMaintCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
 static ProgramLeaseTracker gProgramLeaseTracker;
 static StorageCampaign gStorageCampaign;
+static uint32_t gStorageHostJobId = 0;
 static NbHeader gStorageHeaders[StorageCampaign::kCapacity] = {};
 static bool gStorageAudited[StorageCampaign::kCapacity] = {};
 static void storageTick(uint32_t now);
@@ -143,10 +144,17 @@ static bool auditActionBeforeSend(uint8_t action, uint32_t value,
 }
 
 bool meshStorageBegin(const uint8_t (*targets)[3], size_t count, uint8_t mode,
-                      uint32_t sleepS) {
+                      uint32_t sleepS, uint32_t hostJobId) {
   if (!txTake()) return false;
+  if (hostJobId) {
+    portENTER_CRITICAL(&gMaintCampaignMux);
+    bool gathering = gMaintCampaign.status(millis()).phase == MAINT_CAMPAIGN_GATHER;
+    portEXIT_CRITICAL(&gMaintCampaignMux);
+    if (gathering) { txGive(); return false; }
+  }
   bool ok = gStorageCampaign.begin(targets, count, mode, sleepS, millis());
   if (ok) {
+    gStorageHostJobId = hostJobId;
     memset(gStorageHeaders, 0, sizeof(gStorageHeaders));
     memset(gStorageAudited, 0, sizeof(gStorageAudited));
     // Stop local hold/gather campaigns so a service request cannot compete
@@ -167,6 +175,27 @@ void meshStorageStop() {
   if (!txTake()) return;
   gStorageCampaign.stop();
   txGive();
+}
+
+bool meshStorageStopHostJob(uint32_t jobId) {
+  if (!jobId || !txTake()) return false;
+  bool matches = gStorageHostJobId == jobId;
+  if (matches) gStorageCampaign.stop();
+  txGive();
+  return matches;
+}
+
+void meshStoragePrintStatus() {
+  if (!txTake()) return;
+  StorageCampaignStatus s = gStorageCampaign.status(millis());
+  uint32_t job = gStorageHostJobId;
+  uint8_t mode = gStorageCampaign.mode();
+  txGive();
+  Serial.printf("nb-storage-campaign job=%08lX mode=%u active=%u targets=%u "
+                "prepared=%u refused=%u remaining_ms=%lu dispatches=%lu\n",
+      (unsigned long)job, mode, s.active ? 1U : 0U, s.targets,
+      s.prepared, s.refused, (unsigned long)s.remainingMs,
+      (unsigned long)s.dispatches);
 }
 
 StorageCampaignStatus meshStorageStatus() {
