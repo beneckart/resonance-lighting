@@ -19,6 +19,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Today's PREPARED/audit/quiet result does not measure electrical current or
   prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
 - [ ] **Map and service the Oakland lantern bin and two backyard prototypes.**
+  Ben intends to keep them out, with no deliberate sleep/ship command.
+  Preserve revision/configuration/reset/sleep/charger state before changing
+  firmware or clearing guards; compare Groot against Kairi/Kiki for the
+  post-mortem, and investigate Wooper's older maintenance-discovery failure.
   September 14 read-only TSwift snapshot: Groot 9F2724 (2.880 V), Kairi
   9F26B4 (3.303 V), Kiki F2BF5C (3.277 V), Wooper 9F0E30 (3.321 V), and
   P105 prototype 9F26F8 (2.992 V). These are last-listen readings, not cell

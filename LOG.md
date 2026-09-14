@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Oakland units stay out; preserve post-mortem baseline
+
+Ben plans to leave the Oakland lanterns out, with no deliberate sleep/ship
+commands, and may bring some inside for post-mortem analysis. Existing
+automatic power policy remains in place; no forced-awake hold was requested.
+The high-voltage PROTECT units plausibly survived dark storage through sparse
+radio duty: roughly 216 mAh/week at 130 mA for 9 seconds awake / 900 asleep,
+excluding leakage/other loads. This is a model, not measured storage draw or
+remaining capacity; LFP voltage plateau and unknown recent solar history limit
+the 3.3 V inference. Wooper's current shorter cadence models about 1.99 Ah/week.
+
+Prioritize Groot versus a higher-voltage PROTECT fixture (Kairi/Kiki), retain
+state before firmware/guard changes, then compare actual cell/load/current and
+charge behavior. Keep old prototype 9F26F8 separate from production conclusions.
+Updated `docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md` and TODO; no device
+changes were issued and the earlier passive capture remains immutable.
+
 ## 2026-09-14 -- Ben + Codex -- Oakland bin accounts for Kairi and Wooper
 
 Ben brought a separate bin from Nevada City to Oakland: five canopy lanterns

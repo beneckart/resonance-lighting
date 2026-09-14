@@ -62,6 +62,45 @@ sleep, ship, reboot, NVS or charging-setting changes were made.
   inspect the old P105 prototype's 2.992 V report and present power setup.
 - Treat Kairi/Wooper's older maintenance-discovery issues as service history,
   not evidence of dead cells; both now have radio reports above 3.3 V.
-- If updating or storing these Oakland units, prepare exact targets and artifact
-  identity for this local batch. Batteryless solar-only uplight power has not
-  been established as a stable OTA/reboot supply.
+- Ben plans to leave these units out; no deliberate storage is requested.
+  For any later firmware work, prepare exact targets and artifact identity.
+  Batteryless solar-only uplight power is not a proven OTA/reboot supply.
+
+## Operating intent and post-mortem plan, September 14 follow-up
+
+Ben plans to keep the Oakland lanterns out and does not want deliberate sleep
+or ship mode for this group. Leave the existing automatic power behavior in
+place; this is not an instruction to force a continuously awake radio hold.
+He may bring selected units inside for post-mortem analysis. No new device
+command or firmware change was made for this discussion.
+
+The approximately 3.3 V readings are consistent with preserved capacity but
+cannot establish remaining Ah. LFP has a broad, flat voltage plateau; the
+project's measured load/voltage dependence is in ADR 0023, and the chemistry's
+SOC/OCV shape is illustrated in TI's LiFePO4 Design Considerations, section 2:
+https://www.ti.com/lit/pdf/sluaar1 (checked 2026-09-14).
+
+Kairi and Kiki report PROTECT, rails off and roughly 9-second boots between
+900-second sleeps. With the measured-range planning assumption of 130 mA
+awake, the radio component is 130 * 9 / (900 + 9) * 168 = 216.2 mAh/week.
+That is 3.6% of a nominal 6 Ah cell or 1.44% of a nominal 15 Ah cell, before
+sleep leakage and any other loads. Wooper's present 12/120-second cadence
+would instead cost about 1,985.5 mAh/week in radio duty alone. Neither snapshot
+reconstructs the full dark interval. Starting capacity, prior load history,
+actual cell capacity and any sunlight since removal remain unknown. Do not
+call 3.3 V 'full' or infer measured storage drain from this calculation.
+
+Recommended first comparison: Groot (2.880 V) versus Kairi or Kiki (above
+3.27 V but still PROTECT). Wooper is also useful for the old shared-WiFi
+maintenance-discovery failure. The old 9F26F8 prototype should be analyzed
+separately because its harness/firmware differ from production fixtures.
+
+Before changing firmware, resetting guards or swapping batteries, retain
+available revision, configuration, reset/sleep audit and charger/gauge state;
+identify the actual cell/enclosure and measure terminal voltage. Then compare
+loaded/relaxed voltage, actual sleep/listen current and charge-path behavior.
+Preserve a flash/NVS backup where practical. Existing passive evidence already
+captures the present radio-visible baseline; do not delay needed servicing
+merely to obtain an untouched long-duration trace. Determine whether PROTECT
+persisted appropriately without qualifying charging or whether an old firmware
+path stranded capacity. A high rebound reading alone does not prove a bad latch.
