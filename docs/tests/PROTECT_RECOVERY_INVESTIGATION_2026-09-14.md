@@ -111,3 +111,24 @@ cycle. Performance Hold repeats long enough to catch that cycle, but does not
 keep a still-protected fixture continuously reachable. Qualified recovery or
 OTA/maintenance can separately change its awake behavior. Continuous radio
 claims apply only while the fixture's power policy permits them.
+
+## Explicit PROTECT clear availability
+
+The current T-Deck and ESP-NOW protocol have no un-PROTECT command. Wake,
+reboot and ordinary OTA do not clear the durable guard. Physical RESET and
+power cycling also preserve the NVS latch.
+
+The fixture USB serial CLI has an explicit `X` recovery command, but only for
+the historical battery-absent commissioning edge. It requires PowerFeather
+ready, battery absent, charging disabled, good external input of at least
+4.5 V, and no reported charger fault. It then persists IDLE and reboots. It is
+not an installed-battery override and is not exposed over ESP-NOW.
+
+A remote controlled recovery/retry could be implemented in fixture firmware
+and the T-Deck; physical intervention is not inherently required by the latch.
+That capability does not exist today. Preserve entry evidence before any such
+service change. No device command or firmware change was made for this check.
+
+Source: `firmware/fixture/src/esp32/serial_cli.cpp` (`case 'X'`),
+`firmware/fixture/src/core/boot_guard.cpp`, `firmware/fixture/src/core/packet.h`,
+and `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md`.

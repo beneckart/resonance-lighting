@@ -10,6 +10,15 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Explicit PROTECT clear capability checked
+
+Confirmed there is no T-Deck/ESP-NOW un-PROTECT command. Durable NVS PROTECT
+survives RESET, power cycling and ordinary OTA. The fixture serial X command
+is restricted to verified externally powered, battery-absent, charging-off,
+no-fault bare boards; it is not an installed-battery override. Added the exact
+capability boundary to the recovery investigation. A remote controlled retry
+would require new fixture and handheld support. No device or firmware changes.
+
 ## 2026-09-14 -- Ben + Codex -- Wake does not override PROTECT radio sleep
 
 Traced Wake/Performance Hold from NB_FORCE_LIFECYCLE through ordinary receive
