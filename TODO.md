@@ -19,6 +19,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Today's PREPARED/audit/quiet result does not measure electrical current or
   prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
 - [ ] **Priority: investigate high-VBAT PROTECT recovery and chime eligibility.**
+  Wake/Performance Hold do not keep PROTECT radios continuously awake; surface
+  this exclusion in Wake eligibility/status instead of implying full-fleet reach.
   September 12 census: 40/74 PROTECT at >=3.25 V, but no good-input recovery
   trace. Both known release fixes were already in those fleet revisions.
   Current-policy offline reproduction shows net-positive sleep-cycle charging

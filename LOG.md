@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Wake does not override PROTECT radio sleep
+
+Traced Wake/Performance Hold from NB_FORCE_LIFECYCLE through ordinary receive
+hold and inspection control. PROTECT's separate power_glue deadline is set only
+at boot and remains authoritative; Wake does not extend it, clear the latch or
+guarantee full-time radio. Verified the independent 8-second grace/sleep gate
+in Kiki's 91663fd source, Groot's 2805988, final-burn 316470a and inspection
+7c1f71d. Expected PROTECT listening is about 8-9 s / 900 s asleep unless a
+separate recovery/OTA/service condition holds it awake.
+
+The six-minute Wake campaign also cannot guarantee capturing a 15-minute
+PROTECT cadence. Corrected overly broad 'full-fleet' / 'each captured radio'
+operator documentation; Performance Hold spans more wake cycles but still does
+not override PROTECT. Added the distinction to the recovery investigation and
+queued explicit Wake eligibility diagnostics. No firmware or device changes.
+
 ## 2026-09-14 -- Ben + Codex -- High-VBAT PROTECT cohort and recovery limitation
 
 Ben linked unexpected quiet during the last Burning Man days to possible stuck

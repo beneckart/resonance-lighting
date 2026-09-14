@@ -395,7 +395,7 @@ available. It offers three field baselines:
   timer wake. On the emergency inspection image, this preserves Auto/static
   fallback and opens a bounded LED/audio direct-control session. Campaign
   copies refresh the ten-minute arm during the six-minute gather, leaving about
-  ten minutes of full-fleet control afterward (about sixteen minutes maximum
+  ten minutes of control for eligible fixtures afterward (about sixteen minutes maximum
   from the button press). Older images use the dark daytime baseline.
 - **Night Show:** temporarily force the nighttime baseline.
 
@@ -406,6 +406,17 @@ white returns within three seconds after a stream stops, and battery safety
 remains above all control. Wake Fleet is not an energy-saving command: its
 purpose is to make the fleet reachable. Use Blackout for an already-awake
 reversible blackout and Deep sleep for deliberate radio-off energy saving.
+
+
+PROTECT exception: Wake Fleet and Performance Hold do not override the power
+policy's sleep decision or clear its durable latch. A protected fixture normally
+listens for about 8-9 seconds between 900-second sleeps; receiving Wake refreshes
+ordinary lifecycle/control state, but not the independent PROTECT sleep grace.
+The six-minute Wake campaign cannot guarantee catching a 15-minute PROTECT
+cycle. Performance Hold repeats long enough to catch that cycle, but does not
+keep a still-protected fixture continuously reachable. Qualified recovery or
+OTA/maintenance can separately change its awake behavior. Continuous radio
+claims apply only while the fixture's power policy permits them.
 
 Schedule is a production-direction feature with native coverage and first-canary
 firmware evidence, but the full multi-fixture sleep-cycle acceptance matrix is

@@ -99,3 +99,15 @@ ADR 0068, and the August 29 Toad/Logan/Groot entries in LOG.md.
   and negative cases before any fleet deployment.
 - Expose why recovery is waiting and why autonomous chiming is ineligible in
   future diagnostics; a voltage plus PROTECT badge conceals the needed evidence.
+
+## Wake-app interaction
+
+PROTECT exception: Wake Fleet and Performance Hold do not override the power
+policy's sleep decision or clear its durable latch. A protected fixture normally
+listens for about 8-9 seconds between 900-second sleeps; receiving Wake refreshes
+ordinary lifecycle/control state, but not the independent PROTECT sleep grace.
+The six-minute Wake campaign cannot guarantee catching a 15-minute PROTECT
+cycle. Performance Hold repeats long enough to catch that cycle, but does not
+keep a still-protected fixture continuously reachable. Qualified recovery or
+OTA/maintenance can separately change its awake behavior. Continuous radio
+claims apply only while the fixture's power policy permits them.
