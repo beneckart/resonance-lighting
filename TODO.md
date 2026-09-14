@@ -18,7 +18,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   remain acceptable and cap sensing is not a required operator-strike gate.
   Quantify monitoring overhead and hardware cutoff leakage.
   Assess RFID identity plus independent targeted hardware wake/reset from
-  ground level, including shared RTC coin-cell power and passive fallback;
+  ground level, including shared RTC coin-cell power and passive fallback.
+  Include bounded wake-directly-to-maintenance for faster OTA, fleet coverage
+  and duplicate-wake behavior that cannot interrupt an active upload;
   see `docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`. Discussion draft:
   `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
 

@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Instant maintenance wake as an OTA speed objective
+
+Ben identified a second benefit for an independent wake interface: shorter OTA
+turnaround. Added the requirement to the RFID feasibility note. It removes
+sleep-cadence gathering and repeat straggler capture, especially the roughly
+15-minute PROTECT rendezvous; it does not shorten compile/upload or verified
+reboot. The runbook's ordinary-fleet phase timings are planning targets, not
+an observed storage-run speed claim.
+
+Specify retained bounded maintenance intent, loads parked, duplicate wake that
+does not reset an active upload, group/roster coverage and the existing power
+and pending-verify gates. A bare hardware reset may promptly sleep again and
+never clears PROTECT. No implementation or device command.
+
 ## 2026-09-14 -- Ben + Codex -- RFID identification plus independent reset/wake explored
 
 Ben connected the earlier battery-free fixture-ID idea to a ground-accessible

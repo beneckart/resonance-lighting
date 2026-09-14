@@ -142,6 +142,36 @@ tap. A reader accessory could be integrated with the handheld workflow; neither
 its compatibility nor budget has been selected. The interface is for deliberate
 service, not assumed to replace the primary show-control network.
 
+## OTA acceleration: wake directly into bounded maintenance
+
+Ben identified instant wake as a way to reduce OTA turnaround on 2026-09-14.
+It can remove most sleep-cadence waiting and repeated capture of stragglers.
+It does not speed compilation, image transfer or the post-boot verification
+window. The current runbook budgets about 2.5 minutes gather/association,
+7-9 minutes parallel upload, and 30-45 seconds verification/cleanup for roughly
+130 healthy ordinary-cadence fixtures. These are planning targets, not a
+proven result for the September 12 storage cohort. PROTECT rendezvous can
+require roughly 15 minutes and sits outside that ordinary target.
+[OTA runbook](../../howto/FLEET_OTA_10_MINUTE_RUNBOOK.md).
+
+The desired feature is a retained, bounded 'wake for maintenance' request,
+not merely an ESP reset. On boot, park art loads, identify the requested
+maintenance session, join the known maintenance network and remain available
+through upload/reboot verification, subject to qualified power and an expiry.
+A plain reset preserves PROTECT and may soon return to sleep. Recovery from
+unavailable power or a broken Wi-Fi join remains a separate problem.
+
+Wake should not reset an already uploading fixture. Define duplicate requests,
+job identity and cancellation, and preserve the existing fresh-revision and
+pending-verify acceptance gates. For fleet OTA, measure coverage and group or
+rapid roster wake: a reader that requires visiting every lantern may spend
+much of the time saved. A separate trigger radio is another candidate for
+this wake function; the primary firmware image can continue over shared Wi-Fi.
+
+Longer-term pre-staging of a verified image can also remove transfer time
+from the activation window; this is distinct from instant wake and remains
+unimplemented. See [future OTA options](../../design/FLEET_OTA_FUTURE_SPEED_OPTIONS.md).
+
 ## Small proof before a board decision
 
 1. Confirm one candidate's GPIO control, passive fallback, availability, reader
