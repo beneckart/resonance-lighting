@@ -151,3 +151,11 @@ a load/transient/connection problem, or a faulty reading remain mechanisms to
 separate; Kairi's unarmed entry does not support asserting an LED-load sag.
 Capture exact state before guard resets and compare cell-terminal and reported
 voltage under controlled conditions. No commands were sent for this analysis.
+
+## Fleet recovery investigation
+
+Ben clarified that unexpectedly reduced chiming occurred during the last days
+at Burning Man. The broader cohort, source-fix comparison, offline recovery
+reproduction and separate inspection-firmware chime veto are documented in
+`PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`. This is the priority bench
+follow-up; Oakland devices remain unchanged.

@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- High-VBAT PROTECT cohort and recovery limitation
+
+Ben linked unexpected quiet during the last Burning Man days to possible stuck
+PROTECT. Reconciled the retained September 12 census: 74 PROTECT, 40 at >=3.25 V,
+seven at >=3.30 V. The 40 entry histories are 35 low-VBAT, four load-armed reset,
+one legacy; all report supply-good false in the dark-storage snapshot. This is
+a substantial triage cohort, not proof of 40 healthy batteries or sunny failures.
+
+Manifest/source ancestry confirms all three September 12 fleet images already
+contained the full-battery and PROTECT sleep-ownership fixes. Kiki's older
+658b7d2 contains neither; Groot's b0ff5db contains both. Offline injected-sample
+checks against unchanged current power_policy reproduce a remaining limitation:
+net-positive charge across sleep/wake can coexist with negative awake current,
+so no recovery proof starts below the full-battery floor. Stable current and
+full/CV positive controls release correctly. This is not hardware validation.
+
+Also separated a known chime contributor: September 1 inspection firmware on
+70 fixtures deliberately disabled autonomous chimes; the earlier final-burn and
+visibility images allow them in FULL/DIM. Bench plan, exact cohort and synthetic
+reproduction are in `docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`.
+No production code or device state changed; preserve Oakland specimens for
+controlled diagnosis before deciding a repair.
+
 ## 2026-09-14 -- Ben + Codex -- Timed sleep does not set PROTECT
 
 Traced T-Deck Rest 12-hour radio sleep through NB_SLEEP_FOR into the fixture's

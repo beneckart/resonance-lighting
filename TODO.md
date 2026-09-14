@@ -18,6 +18,16 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   T-Deck Rest -> Store layout and calendar behavior on the physical screen.
   Today's PREPARED/audit/quiet result does not measure electrical current or
   prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
+- [ ] **Priority: investigate high-VBAT PROTECT recovery and chime eligibility.**
+  September 12 census: 40/74 PROTECT at >=3.25 V, but no good-input recovery
+  trace. Both known release fixes were already in those fleet revisions.
+  Current-policy offline reproduction shows net-positive sleep-cycle charging
+  can fail the awake +20 mA/60 s proof; intermittent evidence also restarts it.
+  Preserve Kiki/Kairi/Groot state; compare stable and weak/variable input with
+  actual sleep/wake current, then distinguish battery/path faults from a policy
+  limitation before changing thresholds or deploying. Track the separate
+  intentional inspection-firmware chime veto. Add recovery/chime waiting reasons
+  to diagnostics. See `docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`.
 - [ ] **Map and service the Oakland lantern bin and two backyard prototypes.**
   Ben intends to keep them out, with no deliberate sleep/ship command.
   Preserve revision/configuration/reset/sleep/charger state before changing
