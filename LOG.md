@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Timed sleep does not set PROTECT
+
+Traced T-Deck Rest 12-hour radio sleep through NB_SLEEP_FOR into the fixture's
+timed deep sleep. It records the operator request without setting PROTECT;
+an expected timer wake preserves the previous power stage. Wooper retains a
+12-hour command yet currently reports NORMAL. Kairi instead records a low-VBAT
+entry at 2.993 V (no load armed), now 3.303 V/PROTECT; Kiki has a 2.978 V older
+entry, now 3.277 V/PROTECT. These are historical trigger records, not independent
+cell measurements. A voltage rebound alone never qualifies the charge-based
+release. Groot's low-VBAT entry is 2.976 V with load armed, now 2.880 V.
+
+Ben clarified the early morning timing and doubts significant solar recovery;
+no measured charge history supports that explanation, so it is not adopted.
+The available listen samples show negative battery current/good-input false
+for the high-voltage production fixtures. Updated the Oakland post-mortem
+record with exact command/protection distinctions; no device changes.
+
 ## 2026-09-14 -- Ben + Codex -- Oakland units stay out; preserve post-mortem baseline
 
 Ben plans to leave the Oakland lanterns out, with no deliberate sleep/ship

@@ -104,3 +104,50 @@ captures the present radio-visible baseline; do not delay needed servicing
 merely to obtain an untouched long-duration trace. Determine whether PROTECT
 persisted appropriately without qualifying charging or whether an old firmware
 path stranded capacity. A high rebound reading alone does not prove a bad latch.
+
+## Twelve-hour radio sleep versus PROTECT; morning-sun correction
+
+Ben clarified that it was about 09:23 and doubted meaningful solar recovery.
+No retained measurement establishes meaningful post-storage solar charging.
+Do not use morning sunlight as the explanation for the high-voltage units.
+In the available listen samples, Kairi/Kiki/Wooper report negative battery
+current and supply-good false; those instants do not reconstruct prior input.
+
+Code trace: the existing T-Deck Rest deep-sleep choice invokes meshSleepAll
+with 43200 seconds, emits NB_SLEEP_FOR, and the fixture calls
+enterTimedDeepSleep with SLEEP_CAUSE_RADIO_ALL. It records the command, cuts
+loads/rails and starts the timer. It does not write STAGE_PROTECT. An ordinary
+ESP_RST_DEEPSLEEP wake is expected by boot_guard and preserves the existing
+stage. This existing 12-hour UI is distinct from the multi-day transport packet
+and the September 12 untimed USB-storage operation. A prior PROTECT latch
+survives timed sleep; the command does not clear it either.
+
+PROTECT is durable event history rather than a label recomputed from current
+voltage. Default voltage entry is below 3.05 V after load compensation; reset
+escalation and persistence fail-safe paths can also park a healthy-voltage
+unit. The ordinary release requires 60 continuous seconds of qualified
+charging at >=20 mA and compensated voltage >=3.25 V, with good supply and
+enabled/no-fault charger state. The newer full/taper alternative uses >=3.45 V
+plus additional evidence. Neither is a simple 'voltage now exceeds 3.25' rule.
+Known older release-timing bugs also belong in the post-mortem, not a blanket
+assumption that every retained latch is erroneous.
+
+Concrete September 14 evidence:
+
+- Wooper: 12-hour radio sleep retained from TSwift 979604, sequence 1759;
+  now NORMAL at 3.321 V. No valid PROTECT-entry record was reported.
+- Kairi: low-VBAT origin 1, entry reading 2.993 V, predecessor FULL,
+  no load armed and no reset-origin event at that entry. Now PROTECT at
+  3.303 V. No operator sleep command is present in its retained command slot.
+- Kiki: PROTECT-entry reading 2.978 V, now PROTECT at 3.277 V; the older
+  heartbeat lacks the detailed origin. It also retains a distinct 8-hour
+  operator sleep from TSwift, sequence 40. This does not establish causality.
+- Groot: low-VBAT origin 1, entry 2.976 V from DIM with load armed;
+  now PROTECT at 2.880 V.
+
+These records establish what firmware observed. They do not independently
+prove the cell-terminal voltage or the cause of the dip. Voltage relaxation,
+a load/transient/connection problem, or a faulty reading remain mechanisms to
+separate; Kairi's unarmed entry does not support asserting an LED-load sag.
+Capture exact state before guard resets and compare cell-terminal and reported
+voltage under controlled conditions. No commands were sent for this analysis.
