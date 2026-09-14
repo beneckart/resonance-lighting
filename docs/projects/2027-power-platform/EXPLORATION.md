@@ -295,6 +295,15 @@ High-VBAT PROTECT remains a recovery investigation, not a confirmed count of
 causal breakdown. Review recovery, reachability, lighting control and presence
 quality ahead of adding cap sensing to every fixture.
 
+## Ground-accessible RFID service option
+
+Ben's proposed extension combines battery-free identity with addressed hardware
+wake/reset, potentially sharing an RTC backup cell. See
+[RFID service access](RFID_SERVICE_ACCESS.md) for chip-level feasibility,
+independent pulse/power controls, coin-cell budgeting and separate passive-ID
+versus service-command range tests. This remains exploratory; no receiver or
+reset implementation is selected.
+
 ## Firmware/tooling review and retirement candidates
 
 Keep a single model of operator intent, energy permission and hardware faults,

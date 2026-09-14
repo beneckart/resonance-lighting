@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- RFID identification plus independent reset/wake explored
+
+Ben connected the earlier battery-free fixture-ID idea to a ground-accessible
+hardware reset/wake and asked whether an RTC coin cell could support it.
+Recovered the earlier request from the Postmortem Findings task; no prior
+selected RFID component was found. Added a feasibility note at
+`docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`.
+
+Primary documentation establishes RF-controlled GPIO without ESP firmware on
+EM4325-class UHF RFID, with an official coin-cell reference design. Proposed
+independent bounded reset/ship-wake circuitry, a retained service request,
+and harmless inventory separate from deliberate targeted action. Shared coin
+power is plausible for control only; quantify complete standby/RF-event draw,
+isolation and clock-retention effects. Passive ID, assisted ID and actuation
+range need separate installed tests; passive fallback can be much shorter.
+
+Reset does not clear durable PROTECT or supply energy to an empty main cell.
+QON wakes BQ ship but not shutdown, and external-input reset behavior needs
+explicit design. No chip/reader selected, device action, or firmware change.
+
 ## 2026-09-14 -- Ben + Codex -- Chime sensing demoted; command reception prioritized
 
 Ben corrected the exploratory priority: both capboard revisions already have

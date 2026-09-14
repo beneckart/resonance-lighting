@@ -15,8 +15,11 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   sensing, gauge characterization for both cell types, command reception
   energy/latency, low-power recovery and date/service wake contracts. Keep
   the existing chime-cap divider optional for diagnostics; weak/null strikes
-  remain acceptable and cap sensing is not a required operator-strike gate. Quantify monitoring
-  overhead and hardware cutoff leakage. Discussion draft:
+  remain acceptable and cap sensing is not a required operator-strike gate.
+  Quantify monitoring overhead and hardware cutoff leakage.
+  Assess RFID identity plus independent targeted hardware wake/reset from
+  ground level, including shared RTC coin-cell power and passive fallback;
+  see `docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`. Discussion draft:
   `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
 
 ## Immediate documentation / repo hygiene
