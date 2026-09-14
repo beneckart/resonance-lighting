@@ -10,6 +10,27 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Chime sensing demoted; command reception prioritized
+
+Ben corrected the exploratory priority: both capboard revisions already have
+optional voltage-divider sensing, and the populated bench proof produced
+excellent data. Weak/null underfilled-cap strikes are acceptable; he reports
+fast refill in weak sun and consistent several-Hz independent 433 MHz rings.
+Chimes were more reliable than light control or presence sensing; sleeping
+ESPs and suspect PROTECT recovery were the main remote-control impediment.
+
+Revised the design exploration to preserve the working solar-fed bounded
+strike path, keep cap telemetry optional for diagnostics, and compare radio
+reachability/latency per unit energy. At an illustrative 3.3 V and 130 mA,
+12 seconds of LEDs-off awake operation costs 5.15 J versus 4.75 J total stored
+in a nominal 66 mF/12 V bank. This is not isolated RF power or per-strike energy.
+Historical fast capacitor refill was measured on a bench supply; Ben's latest
+weak-sun report is retained as field observation, not substituted for that trace.
+
+ESP-NOW reception windows and an independent trigger/wake path are research
+comparisons only. No deployment, new strike veto, or hardware change. The exact
+count of erroneous PROTECT latches remains unresolved; no new guard command.
+
 ## 2026-09-14 -- Ben + Codex -- 2027 power-platform exploration; recovery UI deferred
 
 Ben explicitly tabled implementation of a T-Deck un-PROTECT/recovery command

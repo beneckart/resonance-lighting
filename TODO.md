@@ -12,8 +12,10 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 - [ ] **Evaluate a dedicated LFP/solar power platform against the current fleet.**
   Start with requirements and measured bench/outdoor comparisons, not a fleet
   BOM. Assess autonomous LFP charging, private power bus, solar-only energy
-  sensing, gauge characterization for both cell types, chime-cap voltage,
-  low-power recovery and date/service wake contracts. Quantify monitoring
+  sensing, gauge characterization for both cell types, command reception
+  energy/latency, low-power recovery and date/service wake contracts. Keep
+  the existing chime-cap divider optional for diagnostics; weak/null strikes
+  remain acceptable and cap sensing is not a required operator-strike gate. Quantify monitoring
   overhead and hardware cutoff leakage. Discussion draft:
   `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
 

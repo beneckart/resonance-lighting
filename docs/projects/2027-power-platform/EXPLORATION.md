@@ -32,7 +32,7 @@ Solar -> input protection -> solar V/I measurement ->+-> charger input selector
                                                     |
                                                     +-> controlled chime-cap charge
                                                                |
-                                                cap V / driver / bounded strike
+                                            driver / bounded strike / optional cap V
 
 Charger/power path <-> battery shunt + LFP protection <-> cell + NTC
           |
@@ -54,7 +54,7 @@ a separate artistic/energy decision, not implicit in this sketch.
 | Separate MAX bus? | Put charger and gauge on a short private power bus; put cable-connected sensors on another bus. | Contains peripheral faults; no evidence yet that gauge and charger need separate buses from each other. |
 | Remove 100 kHz constraint? | Remove it from the sensors by separating buses. Keep existing PowerFeathers at 100 kHz. | Power telemetry needs little bandwidth; qualify higher speed on a new PCB only if useful. |
 | Remove SOC/gauge? | Keep current sensing and evaluate characterized gauging; stop treating an unvalidated percentage as truth. | Battery energy accounting is valuable even when the percentage model is wrong. |
-| Better chime readiness? | Measure capacitor voltage; instrument pulse current in R&D. | The cap is the immediate energy store; battery SOC is not its charge state. |
+| Better chime response? | Prioritize low-energy command reception; retain the existing optional cap divider for diagnostics. | Ben reports robust refill/strikes; missed commands and sleeping ESPs were the practical bottleneck. |
 | More sleep modes? | Define independent charging, logic, load and wake behavior, with a small number of clear user modes. | A date wake and indefinite service storage have different wake contracts. |
 | Highest priority? | LFP-correct autonomous charging, final battery cutoff, isolated buses and whole-cycle recovery evidence. | These address failure/recovery, rather than merely describing failures better. |
 
@@ -82,8 +82,11 @@ a separate artistic/energy decision, not implicit in this sketch.
   artifacts is necessary before attributing past errors to a particular model
   or initialization bug.
 - Chime operator attempts were deliberately decoupled from inferred energy
-  permission because cap charge was not measured. See
-  [ADR 0065](../../decisions/0065-operator-knocks-are-best-effort-attempts.md).
+  permission because weak/null strikes are acceptable. Cap sensing already
+  existed on both board revisions and produced useful bench traces, although
+  Ben left its connection unpopulated outside the proof of concept. See
+  [ADR 0065](../../decisions/0065-operator-knocks-are-best-effort-attempts.md)
+  and [the bench probe documentation](../../../firmware/net_bench/README.md).
 
 ## Charging and source qualification
 
@@ -187,16 +190,18 @@ Prioritize these measurements over another opaque percentage:
 | Cell and system voltage, signed battery current, accumulated charge | Is the cell gaining energy over the whole cycle? |
 | Cell temperature and charger enable/phase/fault/limit state | Why is charging allowed, limited, or stopped? |
 | LED rail voltage/current and rail-enable truth | Did the commanded load actually turn on/off; is a harness suspect? |
-| Chime-cap voltage before/after a strike | Was electrical strike energy available and consumed? |
+| Optional existing chime-cap divider, used in diagnostics | Explain weak strikes or compare hardware; not an operator-strike permission gate. |
 | Fast minimum-voltage/overcurrent capture and reset reason | Did cell voltage, the power path, or the regulated rail fail first? |
 | Sample age/source/validity and reset counters | Is the displayed evidence current and comparable? |
 
 For a known capacitance, stored energy is E = 0.5*C*V^2; usable cap energy between
 two voltages is 0.5*C*(Vhigh^2 - Vlow^2). This is electrical energy, not acoustic
 output. Concurrent charging, capacitance tolerance, ESR and conversion loss must
-be accounted for. Validate cap voltage against actual strike quality and instrument
-pulse current during development. Current draw still cannot prove a mallet made
-contact; mechanical confirmation is a separate optional sensor.
+be accounted for. Existing bench traces already demonstrated this measurement
+well. Preserve it for diagnosis or future capacitor/coil comparisons; it is not
+a priority fleet addition or a required strike gate. Current draw cannot prove
+mechanical contact, but Ben accepts a weak/null strike and reports the chimes
+were the most robust subsystem. Mechanical confirmation is not a proposed need.
 
 Separate ESP32, LEDs, sensors and chime charging/driver power domains. Include
 hardware default-off behavior, controlled inrush, flyback protection and an
@@ -238,6 +243,58 @@ A local RTC would also improve shared wake rendezvous and time holdover. It woul
 not replace network time anchors or prove chime synchronization accuracy. This
 would be a future extension of ADR 0031, not a silent change to the 2026 design.
 
+## Field correction: command reception outranks cap instrumentation
+
+Ben clarified on 2026-09-14 that both v1 and v2 capboards already included
+voltage dividers. Only the proof-of-concept connection was populated, and its
+data was excellent. He observed rapid refill in weak sun and consistent rings
+at several Hz using the independent 433 MHz trigger. These are operator field
+observations, not a new instrumented weak-sun energy trace. Chimes were more
+robust than lighting control or presence sensing. An underfilled-cap attempt
+producing a weak or absent strike is an acceptable outcome.
+
+Consequently, revise the initial cap-sensing priority downward. Keep existing
+pads/probe support for diagnosis and hardware experiments. Do not require a
+telemetry reading, an extra ESP wake, or a new cap-voltage veto for deliberate
+operator strikes. Preserve the proven solar-fed cap and bounded-pulse path.
+The harder problem is reaching a sleeping ESP to deliver the request at all.
+
+Planning arithmetic using 130 mA battery draw at 3.3 V for an awake fixture
+with LEDs off (whole fixture, not isolated RF silicon):
+
+| Activity | Approximate energy |
+|---|---:|
+| 12 seconds awake | 5.15 J |
+| One minute awake | 25.7 J |
+| One hour awake | 1544 J / 0.429 Wh |
+| Nominal 66 mF cap bank charged to 12 V | 4.75 J stored |
+
+The cap figure is total stored energy, not energy per ring or usable energy
+down to a minimum useful strike voltage. Neither calculation establishes a
+sustainable weak-sun strike rate. The retained Aug 6 59 mF/12.284 V/50 ms
+bench pulse removed about 1.193 J net from the cap; its fast refill used a
+bench supply and must not be described as a weak-sun measurement.
+
+For the next platform, compare coordinated narrow ESP-NOW reception windows
+against an independent trigger/wake receiver. Espressif documents connectionless
+receive window/interval power saving; this is an R&D candidate, not a tested
+mode in the deployed fixture. Measure whole-board energy and command latency
+on the actual SDK/configuration, including clock drift and missed windows.
+[Espressif power-saving guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/wifi-driver/wifi-performance-and-power-save.html).
+
+An independent receiver could either trigger a hardware-bounded chime directly
+or wake the ESP for richer control. The existing 433 MHz path demonstrates the
+benefit of independent actuation, not a free receiver power budget. Qualify the
+complete receiver/regulator path and its source of power; historical rev-2
+receiver hardware remains subject to its separate repair requirements. Do not
+turn a chime into an automatic full-radio wake unless the requested action needs
+it. No receiver selection, retrofit or changed protection policy is decided.
+
+High-VBAT PROTECT remains a recovery investigation, not a confirmed count of
+40-plus false latches. The reception bottleneck exists regardless of the final
+causal breakdown. Review recovery, reachability, lighting control and presence
+quality ahead of adding cap sensing to every fixture.
+
 ## Firmware/tooling review and retirement candidates
 
 Keep a single model of operator intent, energy permission and hardware faults,
@@ -277,7 +334,11 @@ The proposed explicit T-Deck recovery command remains on the design backlog.
 5. Qualify SOC against external charge accounting on each cell type, including
    partial cycles, long dark periods, temperature and storage-current offsets.
    A repeatable error bound, not a plausible-looking plot, is the release gate.
-6. Run outdoor comparative soaks on a small cohort. Set numeric leakage,
+6. Compare command-to-strike/light latency, fresh reception rate and energy
+   together. Evaluate narrower coordinated ESP-NOW listening versus an
+   independent trigger/wake path, including actual receiver/regulator standby
+   power, range, missed/false triggers and operation while the ESP is parked.
+7. Run outdoor comparative soaks on a small cohort. Set numeric leakage,
    harvest, recovery, reachability and show-quality targets before choosing the
    next production architecture. Record accepted choices in future ADRs.
 
