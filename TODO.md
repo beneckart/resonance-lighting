@@ -2,6 +2,21 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
+## 2027 planning -- exploration, no implementation yet
+
+- [ ] **Review the firmware/tooling feature set with the post-event evidence.**
+  Inventory commissioning, diagnosis, show, maintenance, storage and repair
+  workflows; mark keep/improve/consolidate/retire and the replacement evidence.
+  T-Deck per-fixture controlled PROTECT recovery is explicitly deferred at
+  Ben's request on 2026-09-14; preserve specimens/history before any repair.
+- [ ] **Evaluate a dedicated LFP/solar power platform against the current fleet.**
+  Start with requirements and measured bench/outdoor comparisons, not a fleet
+  BOM. Assess autonomous LFP charging, private power bus, solar-only energy
+  sensing, gauge characterization for both cell types, chime-cap voltage,
+  low-power recovery and date/service wake contracts. Quantify monitoring
+  overhead and hardware cutoff leakage. Discussion draft:
+  `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
+
 ## Immediate documentation / repo hygiene
 
 - [x] **Authorized USB-wake container-storage rollout completed 2026-09-12.**

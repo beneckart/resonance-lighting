@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- 2027 power-platform exploration; recovery UI deferred
+
+Ben explicitly tabled implementation of a T-Deck un-PROTECT/recovery command
+and asked for broader firmware/tooling assessment with a year until the next
+event. Recorded an exploratory brief in
+`docs/projects/2027-power-platform/EXPLORATION.md`, not an accepted ADR/BOM.
+
+Reviewed local bus/SOC/current/solar/chime evidence and primary datasheets.
+Proposed priorities: autonomous LFP-correct charging/recovery, private power
+bus, whole-cycle energy accounting, source identity, chime-cap voltage,
+independent load/cell cutoff and explicit calendar/service wake contracts.
+Keep the gauge for characterization rather than blaming its silicon for an
+unqualified SOC model. INA228 accumulation costs 640 uA typical while running;
+its production measurement power source and gaps need design. Hardware fault
+capture and retained evidence are more useful than additional opaque flags.
+
+Queued a feature inventory and small comparative qualification program before
+any board selection or retirement. No firmware, device commands, purchases,
+or current fleet architecture changed.
+
 ## 2026-09-14 -- Ben + Codex -- Explicit PROTECT clear capability checked
 
 Confirmed there is no T-Deck/ESP-NOW un-PROTECT command. Durable NVS PROTECT
