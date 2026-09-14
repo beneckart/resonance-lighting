@@ -230,3 +230,16 @@ upload and completed without deferred or failed targets.
 
 Completed census JSONL SHA-256:
 `d0bd4f235cfe52e66c338ca59d57da29b4aa46fd0325d712955e1b77ec28bd5f`.
+
+## 2026-09-14 location follow-up
+
+Ben found a separate lantern bin and brought it to Oakland. Kairi 9F26B4 and
+Wooper 9F0E30 are now heard there, accounting for two of the historical eight
+unobserved fixtures. Groot 9F2724, Kiki F2BF5C and backyard prototype 9F26F8
+are also heard, but were outside the 114-ID baseline. None of these five was
+in the stored 106; their present radio activity does not demonstrate a storage
+failure. Other bin lanterns are not yet mapped and may overlap the stored
+cohort. Radio reach on September 12 did not prove physical container location.
+The exact 106 storage receipts and eight-ID absence record above stay intact.
+Current inventory and remaining six unknowns are recorded in
+`OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.

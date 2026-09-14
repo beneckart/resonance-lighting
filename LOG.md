@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Oakland bin accounts for Kairi and Wooper
+
+Ben brought a separate bin from Nevada City to Oakland: five canopy lanterns
+and one batteryless uplight with its panel connected. Two old backyard
+prototypes are also present; the perimeter may be disconnected/batteryless.
+TSwift's five reported identities are Groot 9F2724, Kairi 9F26B4, Kiki F2BF5C,
+Wooper 9F0E30 and prototype 9F26F8. None was in the September 12 stored 106.
+Kairi/Wooper account for two of that census's eight missing IDs; six remain
+unlocated. Groot/Kiki/prototype were outside the 114-ID baseline. Other bin
+units are not yet mapped and may still overlap the stored group.
+
+A 22-second read-only serial snapshot verified connected TSwift 979604 on
+COM157, channel 11, tdeck-dev-local; storage4 was flashed on other T-Deck
+8EB508. Last-listen battery reports were Groot 2.880 V, prototype 2.992 V,
+and the other three 3.277-3.321 V, with ages 18 seconds to 13.6 minutes.
+These are retained reports, not simultaneous cell measurements or a complete
+900-second census. No commands, firmware/power changes or background process
+were issued/left running. Exact evidence and service items are in
+`docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.
+
 ## 2026-09-12 -- Ben + Codex -- 106 fixtures stored; pack-up complete
 
 All 106 observed fixtures acknowledged untimed USB-wake storage on the exact

@@ -18,12 +18,22 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   T-Deck Rest -> Store layout and calendar behavior on the physical screen.
   Today's PREPARED/audit/quiet result does not measure electrical current or
   prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
-- [ ] **Physically check the eight unobserved container fixtures.** Wooper
-  `9F0E30`, Kairi `9F26B4`, Gambit `F2BCF4`, Gengar `F2BDD4`, Magmar `F2BDFC`,
-  Donkey `F2BE10`, Milotic `F2BE94`, Skitty `F3FD28`. None can be called dead
-  or recovered from this census. Identify the historical 0-0.6 V reports by
-  exact fixture/cell and measure cell-terminal voltage at service. Remove
-  external power before battery swaps, per PowerFeather's handling guidance.
+- [ ] **Map and service the Oakland lantern bin and two backyard prototypes.**
+  September 14 read-only TSwift snapshot: Groot 9F2724 (2.880 V), Kairi
+  9F26B4 (3.303 V), Kiki F2BF5C (3.277 V), Wooper 9F0E30 (3.321 V), and
+  P105 prototype 9F26F8 (2.992 V). These are last-listen readings, not cell
+  measurements. None was in the stored 106. Map all five canopy lanterns,
+  the batteryless panel-connected uplight and both prototypes to exact IDs;
+  check Groot's cell/charge path and the prototype power setup. TSwift 979604
+  still runs older firmware; storage4 is on primary 8EB508. See
+  `docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.
+- [ ] **Locate/check the six remaining unobserved September 12 fixtures.**
+  Gambit `F2BCF4`, Gengar `F2BDD4`, Magmar `F2BDFC`, Donkey `F2BE10`,
+  Milotic `F2BE94`, Skitty `F3FD28`. Kairi and Wooper were subsequently heard
+  in Oakland on September 14, accounting for two of the original eight.
+  Absence does not diagnose a dead/recovered cell or prove container location.
+  Identify historical 0-0.6 V reports by exact fixture/cell and measure actual
+  cell-terminal voltage at service; remove external power before battery swaps.
 
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   PARTIAL 2026-09-01: 70 of the 114-fixture installed census have fresh exact
