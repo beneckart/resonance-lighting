@@ -1,0 +1,199 @@
+{
+  "recorded_date": "2026-10-06",
+  "purpose": "Preserve remaining small local records from the 2026-09-12 storage session without changing the original curated evidence.",
+  "original_manifest": "evidence-manifest.json",
+  "supplemental_file_count": 26,
+  "supplemental_total_bytes": 2632997,
+  "interpretation": "Historical or superseded records only. Use final/ for the completed initial census and storage-final.json / storage-final.csv for storage outcome reconciliation. None of these supplemental files independently proves an electrical sleep current or physical USB wake.",
+  "files": [
+    {
+      "path": "checkpoint-1.json",
+      "bytes": 534621,
+      "sha256": "05ea53c6315d99de83ba1ef666af7e56ff15275472e9cea36c8dcd806ac20fe5",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "checkpoint-2/not-observed-targets.txt",
+      "bytes": 64,
+      "sha256": "cea5f6e83efa1b295b18fa4882ebe5dc94a6ff85b383fcf0553c98f213030ac1",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "checkpoint-2/observed-targets.txt",
+      "bytes": 848,
+      "sha256": "4ece8887ba59ea93e0cf781742ee76588d413feac5966065c9e311d0e0639aa6",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "checkpoint-2/peers.csv",
+      "bytes": 20585,
+      "sha256": "567e84dd2c9955b67d1cb70e30ca0db956cc25bbc54a50d2e29a1eb8586d818e",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "checkpoint-2/summary.json",
+      "bytes": 100791,
+      "sha256": "951a75c5f4ebec45e887c4f9bde14659718e7b4c280df276bcec008dbb70d417",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "dashboard.err",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "historical_process_log",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "dashboard.out",
+      "bytes": 95,
+      "sha256": "ebe46733bd0c2406e5b01d09c5b8d38d57c970dacac908cc729d1701bd26efc6",
+      "status": "historical_process_log",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "hellboy-post-cycle.json",
+      "bytes": 3470,
+      "sha256": "dbcdd3710b4d660c03c07e28d5ef37376089684f8ad66f566c4e7fe962d167a7",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "interim-1/not-observed-targets.txt",
+      "bytes": 512,
+      "sha256": "c21ded8b00f6c341c3444c65ca4c04c4dee5b0d7b33819b5a247ce46966b5166",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "interim-1/observed-targets.txt",
+      "bytes": 400,
+      "sha256": "f586c17ad579649ee2e1f5dea5e8dde09bcc2eef988b5b57bfcec78ce40bac02",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "interim-1/peers.csv",
+      "bytes": 9705,
+      "sha256": "793833fd2feeb6531457e23f27ce305ae2d46f0a5accfa77748c82e380f77d30",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "interim-1/summary.json",
+      "bytes": 49975,
+      "sha256": "c881a6f6325df36f4e8b0c2e504d916bb467c9d9c809a18434e7d672d50ca217",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "live-state.json",
+      "bytes": 467,
+      "sha256": "5c66350297256a0eb41fcfe41b0f4dc9cf076df8e4416c522eee2d95502eca0a",
+      "status": "duplicate_of_curated_pack_up_complete",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "logger.err",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "historical_process_log",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "logger.out",
+      "bytes": 14693,
+      "sha256": "c4b548f0a97da8e7f09b283f62eba2e0cc2d55f6abcf71c118e0df8dd4e9243b",
+      "status": "historical_process_log",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "pre-storage-old-bridge-snapshot.json",
+      "bytes": 523387,
+      "sha256": "b1c7226f3561baa29679bf1726bd70f94d819c09b462b72d42a4915d3c27298a",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-after-first-21.json",
+      "bytes": 342175,
+      "sha256": "1e5532ed90d32cea355ace77169f987f56f6a4ceb9528dfebf31db0d16fe514f",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-after-first-31.json",
+      "bytes": 392879,
+      "sha256": "b9784927718e14945c3da01ca1ad8535c92d5b3194f39555d70d2d153a033028",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-all-106-controller-seen.json",
+      "bytes": 524919,
+      "sha256": "1334e3ad9043830294b2fd380357d3cfb91301d89f113943b228fb6a43b65e97",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-audit-live.json",
+      "bytes": 24303,
+      "sha256": "9deadee34dea431206e60e069095abf112b2808bf154f766e96eed176167db92",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-canary-dry-run.jsonl",
+      "bytes": 3318,
+      "sha256": "f1cdd581f3d1dcd0dc22dc3f2f705412ae0a281be8323e8e5a12f0172bb40078",
+      "status": "historical_dry_run_no_device_operation",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-evidence-live.csv",
+      "bytes": 16635,
+      "sha256": "66c1292ee4dc0a912efebb7fb9766cdbf330898610d38c4641d2379da313d246",
+      "status": "superseded_intermediate_reconciliation",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-evidence-live.json",
+      "bytes": 56363,
+      "sha256": "79c1a53335f652f384f197a45665ac967f18ac723a977c01241d5222db8ee65a",
+      "status": "superseded_intermediate_reconciliation",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "storage-first-31-audit-check.json",
+      "bytes": 11118,
+      "sha256": "0b9ea8dac8f01850d91daa702aeb4be43bf2f73935068d99d941183adb399f11",
+      "status": "historical_intermediate_snapshot",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "wave-01-dry-run.jsonl",
+      "bytes": 894,
+      "sha256": "80d1e353b0876b38cda06e1d8cb5de1fa201f4e9d604d474fb0f568172f35139",
+      "status": "historical_dry_run_no_device_operation",
+      "authoritative_storage_outcome": false
+    },
+    {
+      "path": "../20260912-233905-9690A585-fleet-ota-job.jsonl",
+      "bytes": 780,
+      "sha256": "9e47ef521335a869d14c2df69caa7db92a562ccc090b5a552cb0f799fb6c3a34",
+      "status": "historical_dry_run_no_device_operation",
+      "authoritative_storage_outcome": false
+    }
+  ],
+  "large_raw_captures_retained_local_only": [
+    "census.jsonl",
+    "ota-watch.jsonl",
+    "storage-rollout.jsonl"
+  ],
+  "private_nvs_backups_excluded": true,
+  "manifest_self_hash_included": false
+}

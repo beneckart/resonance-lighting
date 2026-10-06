@@ -82,6 +82,12 @@ ops/bench/data/**/*-local-full.jsonl
 ops/bench/data/**/*-charge-taper-*.jsonl
 ops/bench/data/**/*-charge-taper-*.done.json
 
+# September 12 storage: exact hashes and curated/supplementary evidence are
+# committed; keep these full raw captures local (two exceed GitHub's limit).
+/ops/bench/data/ca/20260912-155847-container/census.jsonl
+/ops/bench/data/ca/20260912-155847-container/ota-watch.jsonl
+/ops/bench/data/ca/20260912-155847-container/storage-rollout.jsonl
+
 # QA/audit test-output artifacts (network-tester runs)
 app/audit-shards/
 app/*-audit.json

@@ -10,6 +10,46 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-06 -- Ben + Codex -- Consolidate storage firmware and post-event work
+
+Ben requested committing all pending work and pushing to origin. Integrated
+both storage branches with the pending Atom/Magic Wand conductors, preserving
+the exact deployed fixture/T-Deck artifacts and their original identities.
+Added `docs/howto/FIXTURE_STORAGE_AND_WAKE.md` with wake contracts, operation,
+rollout evidence and the still-open electrical/UI qualification. Fixed stale
+canary counts and worktree-only artifact references. Added
+`docs/postmortem/README.md`, linked from README, ROADMAP and TODO, to connect the
+container/Oakland/PROTECT records with both 2027 brainstorming drafts. Those
+ideas remain exploratory; controlled PROTECT recovery is still deferred.
+
+Preserved the small supplementary storage snapshots/process logs/dry run with
+a separate exact-byte manifest and explicit historical status. The three large
+raw captures stay local with hashes retained; private NVS backups and Wi-Fi
+secrets remain excluded. Original evidence and artifact bytes are unchanged.
+
+Review caught a Magic Wand high-hold shock that could leave a gesture armed.
+The source now cancels it immediately and has a regression at the rejection
+threshold; previous embedded builds predate the fix and need a new artifact
+before deployment. T-Deck registry generation also depended on CSV checkout
+line endings; canonical LF hashing and LF/CRLF/content-change tests fix that
+portability issue without altering the fleet entries or historical artifacts.
+
+Retained the exact September 3 25 ms Atom application and supporting flash
+files with a historical manifest. Its original build used uncommitted source;
+the new record explicitly leaves the build source commit unknown rather than
+assigning today's integration commit to that binary.
+
+Validation: all 33 fixture and 20 T-Deck native executables, five conductor
+native executables, 26 Python host/storage tests, two registry-generator
+regressions, build-wrapper contracts, local documentation links and staged
+whitespace checks passed. All 57 curated and 26 supplementary evidence records
+retain their exact hashes in Git, as do the retained firmware binaries/options.
+No fresh embedded image was built; the preserved binaries are the historical
+ones, and the updated Wand source still requires a new artifact and canary.
+
+No device commands, reflashes or changes to live fleet state were made during
+this repository consolidation.
+
 ## 2026-09-14 -- Ben + Codex -- Instant maintenance wake as an OTA speed objective
 
 Ben identified a second benefit for an independent wake interface: shorter OTA
@@ -304,6 +344,68 @@ draw. The vendor-board 24-to-1 uA deep-sleep/ship comparison saves just
 advantage. Our ship implementation retains the gauge and needs external
 current measurement; do not claim the vendor's gauge-disabled 1 uA result.
 
+## 2026-09-12 -- Ben + Codex -- Explicit unattended USB-storage operation
+
+Ben authorized putting the fleet in USB-wake storage and asked for direct
+laptop operation while a campmate later packs the equipment. ADR 0081 adds a
+bounded, exact-roster USB CLI with explicit confirmation text, fresh capability
+checks, job-owned stop/status, and no automatic campaign resume. The existing
+physical UI flow remains intact. Work is isolated from the still-running
+storage3 compile; storage4 uses a separate source checkout/build directory.
+
+## 2026-09-12 -- Ben + Codex -- Storage confirmation proposal frozen
+
+Final UI review found keyboard focus could reach background controls while a
+confirmation was open. Storage now refuses background Review/Back/mode/Stop
+actions until that modal closes, preserving its exact target, wake method and
+date. Confirmation also refuses entry after the Storage screen has gone away.
+The completed storage2 image passed its embedded build but was not flashed;
+storage3 uses a fresh retained build directory. Ordinary Hellboy RTC audit
+retention is now confirmed after clearing the receiver cache; physical storage
+entry and wake remain untested and require Ben's separate confirmation.
+
+## 2026-09-12 -- Ben + Codex -- Storage census and one OTA canary verified
+
+Completed a 17-minute uninterrupted census after recovering an earlier host
+capture gap: 106 of 114 installed fixtures heard, all FIELD, no reported
+0-0.6 V batteries; Ponyta 2.582 V and Chunli 2.618 V are lowest. Eight missing
+fixtures remain unknown. The main saving is removing periodic radio wakes;
+ship's extra gain over uninterrupted deep sleep is small, with USB wake its
+main servicing advantage. Full evidence is in
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and the main checkout's
+`ops/bench/data/ca/20260912-155847-container/`.
+
+Built immutable canary `fx-260912-f951ae9-b` from `fcc5ef0`, exact SHA-256
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`, and
+used Ben's OTA authorization for only Hellboy `9F26C4`. Job `84DEEB42` proved
+fresh exact revision beyond 25 seconds, FIELD profile, recovery state zero.
+No storage command was sent; the original separate confirmation requirement
+remains. Fixture/T-Deck native suites and the fixture embedded build passed.
+
+Added storage receipt/request logging with separate PREPARED, refusal, and
+entry-failure meanings. All 16 relevant Python tests pass. Screen review found
+that content-sized confirmation dialogs could obscure the footer; bounded
+the dialog with a scrollable content region. The first incomplete T-Deck
+compile was intentionally stopped, its compiler descendants checked gone,
+and its directory abandoned. The corrected storage2 image uses a new build
+directory. This does not alter the already verified fixture artifact.
+
+## 2026-09-12 -- Ben + Codex -- Explicit container-storage capability prepared
+
+Added exact-target indefinite RESET-wake and USB-wake ship commands, durable
+sleep audit causes, pre-entry receipts, and an appended capability heartbeat
+tail. OTA never selects storage automatically. The T-Deck Power screen now
+offers a reviewed storage action and a GPS-backed Pacific date/time picker
+using existing transport sleep, with an explicit roster and a 16-minute
+catch-up window for PROTECT sleepers. ADR 0080 records the wake contracts,
+confirmation boundary, and remaining physical current/wake qualification.
+
+Fixed pre-existing T-Deck registry-generation drift: new unnamed fixtures use
+their exact ID, retired fixtures can retain historical callsigns, and the
+generated roster is refreshed without changing the source registry/callsigns.
+All fixture native tests passed. Embedded builds and the T-Deck test completion
+are recorded in the follow-up validation entry. No sleep/ship command or flash
+was issued while preparing this source.
 ## 2026-09-03 -- Ben + Codex -- Fourth and final 25 ms Atom Conductor flashed
 
 Identified the last COM42 Atom as full MAC `14:08:08:54:B8:C8` (short ID
@@ -462,7 +564,6 @@ size is 938,416 bytes with SHA-256
 No Atom was flashed. Button wake/current, named-canopy commands, graph geometry,
 trusted/missing-time and civil-dusk switching, installed-fleet traffic, PROTECT
 behavior, and power-loss recovery remain hardware validation gates.
-
 ## 2026-09-02 -- Ben + Codex -- Final-burn branch promoted to main
 
 At Ben's request, the complete `codex/burn-final-sunrise` history was prepared

@@ -6,6 +6,17 @@ still calls the trunk role `uplight`; treat that as a compatibility name until t
 manifest/schema rename is coordinated (ADR 0032). `net_bench` remains the desk
 **bridge** build (master + serial bridge); this sketch is peer-only.
 
+## Indefinite storage and service wake
+
+The September 12 image adds explicitly confirmed, exact-target storage:
+untimed BQ ship with good USB/solar or QON wake, and untimed deep sleep with
+physical RESET wake. Ship retains the fuel gauge; RESET/BOOT alone cannot wake
+its unpowered ESP. OTA alone never enters storage or clears PROTECT. T-Deck
+Rest -> Store also provides the existing timed sleep through a Pacific date
+picker. See the [storage and wake guide](../../docs/howto/FIXTURE_STORAGE_AND_WAKE.md)
+for exact firmware identities, 106-fixture deployment evidence and physical
+wake/current tests still outstanding.
+
 ## Fixture class identity
 
 The initial Wire1 probe and runtime drivers both use 100 kHz. Class identity is

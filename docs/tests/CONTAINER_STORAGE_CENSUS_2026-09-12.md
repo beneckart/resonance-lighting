@@ -35,8 +35,10 @@ all 106 receipts, durable audits, stopped jobs, at least 960 seconds of quiet,
 live capture and no bridge restart. Its final capture contained 48,755 rows;
 maximum controller-report gap was 10.024 seconds. Radio evidence is not an
 assembled-current measurement or a physical USB-wake test; both remain open.
-The compact evidence is retained on `codex/container-storage-host-20260912`;
-large raw captures and private device backups remain local.
+The compact evidence and storage branch history are now integrated in this
+repository. Large raw captures and private device backups remain local.
+See the [storage and wake guide](../howto/FIXTURE_STORAGE_AND_WAKE.md) for the
+operator summary and canonical artifact links.
 
 ## Wake and controller handoff
 
@@ -54,9 +56,9 @@ service-time qualification.
 Retained T-Deck artifact: `tdeck-0.3.0-storage4`, 1,578,224 bytes, SHA-256
 `11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1`.
 Firmware source: `556c2f6cdbefd152a1f79437b9e7f859b7b7fd44`; artifact commit
-`a53181a` on `codex/container-storage-host-20260912`. Exact application,
+`a53181a`, now integrated with the storage branch history. Exact application,
 bootloader, partitions, build options and manifest are retained in
-`../resonance-tree-storage-host-20260912/firmware/tdeck_bridge/build/storage-host-20260912-r4/`.
+[`firmware/tdeck_bridge/build/storage-host-20260912-r4/`](../../firmware/tdeck_bridge/build/storage-host-20260912-r4/).
 The private pre-flash NVS/apps backup is retained locally and is not committed.
 The storage3 build was not flashed; no firmware source changed during the
 storage4 build. Its post-build test-only CRLF comparison fix passed the suite.
@@ -171,9 +173,9 @@ Primary references checked 2026-09-12:
 
 ## Prepared controls and deployment boundary
 
-Source is isolated on `codex/container-storage-20260912` in the adjacent
-`resonance-tree-storage-20260912` worktree, preserving unfinished conductor
-work in the main checkout. ADR 0080 defines the new exact-target USB/RESET
+Source was developed on `codex/container-storage-20260912` and continued on
+`codex/container-storage-host-20260912`; both histories and the concurrent
+conductor work are now integrated in main. ADR 0080 defines exact-target USB/RESET
 storage modes, capability advertisement, pre-entry receipts and durable audit.
 Firmware installation does not select storage or bypass battery protection.
 
@@ -202,8 +204,8 @@ Immutable fixture artifact:
 - SHA-256: `ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`.
 - FIELD, channel 11, LFP, 300 mA precharge, 120-second day sleep,
   12,000 ms listen grace, basic listener; same flags as `fx-260831-f121868-b`.
-- Local artifact directory:
-  `../resonance-tree-storage-20260912/firmware/fixture/build/fx-260912-f951ae9-b/`.
+- Retained artifact directory:
+  [`firmware/fixture/build/fx-260912-f951ae9-b/`](../../firmware/fixture/build/fx-260912-f951ae9-b/).
 
 Ben + Codex declared the single operator for exact target Hellboy `9F26C4`.
 Preflight reported 3.312 V; shared-WiFi discovery found it at 3.316 V.

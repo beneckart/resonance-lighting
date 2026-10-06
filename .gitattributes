@@ -1,5 +1,12 @@
 *.pdf binary
 
+# Supplemental storage dry run: preserve exact evidence-manifest bytes.
+ops/bench/data/ca/20260912-233905-9690A585-fleet-ota-job.jsonl -text -whitespace
+
+# Historical deployed Atom conductor: retain binary and original options bytes.
+firmware/atom_conductor/build/field-25ms-20260903-r2/*.bin binary
+firmware/atom_conductor/build/field-25ms-20260903-r2/*.json -text -whitespace
+
 # Retained ADR 0073 immutable artifact handoff; preserve canonical recipe bytes.
 firmware/fixture/build/fx-260831-dc82da7-b/*.json text eol=lf
 firmware/fixture/build/fx-260831-dc82da7-b/*.txt text eol=lf
@@ -10,3 +17,19 @@ firmware/fixture/build/fx-260831-32dcb76-b/*.bin binary
 firmware/fixture/build/fx-260831-f121868-b/*.json text eol=lf
 firmware/fixture/build/fx-260831-f121868-b/*.txt text eol=lf
 firmware/fixture/build/fx-260831-f121868-b/*.bin binary
+
+# Container-storage canary and handheld artifacts retain exact handoff bytes.
+firmware/fixture/build/fx-260912-f951ae9-b/*.json text eol=lf
+firmware/fixture/build/fx-260912-f951ae9-b/*.txt text eol=lf
+firmware/fixture/build/fx-260912-f951ae9-b/*.bin binary
+firmware/tdeck_bridge/build/storage-20260912-r2/*.json text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r2/*.txt text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r2/*.bin binary
+
+firmware/tdeck_bridge/build/storage-20260912-r3/*.json text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r3/*.txt text eol=lf
+firmware/tdeck_bridge/build/storage-20260912-r3/*.bin binary
+
+firmware/tdeck_bridge/build/storage-host-20260912-r4/*.json text eol=lf
+firmware/tdeck_bridge/build/storage-host-20260912-r4/*.txt text eol=lf
+firmware/tdeck_bridge/build/storage-host-20260912-r4/*.bin binary

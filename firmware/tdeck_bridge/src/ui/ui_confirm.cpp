@@ -60,6 +60,12 @@ static void showBox(const char *summary, const char *origin, bool crossTask) {
   lv_msgbox_add_text(gBox, summary);
   lv_obj_t *yes = lv_msgbox_add_footer_button(gBox, LV_SYMBOL_OK " confirm");
   lv_obj_t *no = lv_msgbox_add_footer_button(gBox, LV_SYMBOL_CLOSE " cancel");
+  // Keep both decisions on the 320x240 display even for a long wake contract.
+  // Fixed height makes LVGL's content region flex and scroll independently of
+  // its header/footer. A content-sized box can push the footer off screen.
+  lv_obj_set_size(gBox, 304, 220);
+  lv_obj_set_style_text_font(gBox, &lv_font_montserrat_14, 0);
+  lv_obj_center(gBox);
   lv_obj_add_event_cb(yes, yesCb, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_event_cb(no, noCb, LV_EVENT_CLICKED, nullptr);
   // Focus lands on CANCEL: confirming takes a deliberate move + press.
@@ -67,6 +73,8 @@ static void showBox(const char *summary, const char *origin, bool crossTask) {
   lv_group_add_obj(lvglGroup(), no);
   lv_group_focus_obj(no);
 }
+
+bool uiConfirmIsOpen() { return gBox != nullptr; }
 
 void uiConfirm(const char *summary, const char *origin, ConfirmYesFn onYes,
                void *user) {

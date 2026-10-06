@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <ctype.h>
+#include "../core/storage_host_command.h"
 
 #include "../hal/hal_board.h"
 #include "../hal/hal_display.h"
@@ -13,6 +14,7 @@
 #include "../net/mesh_tx.h"
 #include "../net/nb_emit.h"
 #include "../net/net_mgr.h"
+#include "../net/stream_svc.h"
 #include "fixture/src/core/fixture_context.h"
 #include "store.h"
 
@@ -29,6 +31,9 @@ static void printHelp() {
       "  wifi retry|off           re-attempt association / mesh-only\n"
       "  peers                    census table\n"
       "  emit on|off              1 Hz nb-master/nb-peer dashboard lines\n"
+      "  storage-usb <job8> <IDs> CONFIRM-USB-WAKE  exact list, max 20\n"
+      "  storage-status           read storage campaign state\n"
+      "  storage-stop <job8>       stop only that host job's further sends\n"
       "quick commands (mesh, WAN-down safe):\n"
       "  i<ID>[:secs]             identify one fixture (blink), e.g. i9E5AB8:10\n"
       "  I                        identify ALL for 8 s\n"
@@ -269,6 +274,48 @@ static void handleLine(char *line) {
     argv[argc++] = tok;
   if (argc == 0) return;
 
+  if (strcmp(argv[0], "storage-usb") == 0) {
+    StorageHostRequest request = {};
+    if (argc != 4 || !storageHostRequest(argv[1], argv[2], argv[3], request)) {
+      Serial.println("nb-storage-host accepted=0 reason=invalid-request");
+      return;
+    }
+    static PeerStat peer;
+    uint32_t now = millis();
+    for (size_t i = 0; i < request.count; ++i) {
+      if (!censusPeerSafe(request.targets[i], &peer) || !peer.hasFw ||
+          strncmp(peer.fwRev, "fx-", 3) != 0 ||
+          now - peer.lastHeardMs > 1800000UL ||
+          !(peer.storageCapabilities & 2) ||
+          now - peer.storageCapabilitiesHeardMs > 1800000UL) {
+        Serial.printf("nb-storage-host job=%08lX accepted=0 reason=capability "
+                      "target=%02X%02X%02X\n", (unsigned long)request.jobId,
+                      request.targets[i][0], request.targets[i][1], request.targets[i][2]);
+        return;
+      }
+    }
+    bool ok = meshStorageBegin(request.targets, request.count,
+                               NB_STORAGE_USB_WAKE, 0, request.jobId);
+    if (ok) streamStop();
+    Serial.printf("nb-storage-host job=%08lX accepted=%u reason=%s\n",
+        (unsigned long)request.jobId, ok ? 1U : 0U, ok ? "started" : "busy");
+    meshStoragePrintStatus();
+    return;
+  }
+  if (strcmp(argv[0], "storage-status") == 0 && argc == 1) {
+    meshStoragePrintStatus();
+    return;
+  }
+  if (strcmp(argv[0], "storage-stop") == 0) {
+    uint32_t job = 0;
+    bool ok = argc == 2 && storageHostJobId(argv[1], job) &&
+              meshStorageStopHostJob(job);
+    Serial.printf("nb-storage-stop job=%08lX accepted=%u\n",
+                  (unsigned long)job, ok ? 1U : 0U);
+    meshStoragePrintStatus();
+    return;
+  }
+
   if (argc == 1 && handleQuickCommand(argv[0])) {
     return;
   } else if (strcmp(argv[0], "help") == 0 || strcmp(argv[0], "?") == 0) {
@@ -363,16 +410,23 @@ static void handleLine(char *line) {
 void serialCliTick() {
   static char buf[192];
   static size_t n = 0;
+  static bool overflow = false;
   while (Serial.available()) {
     char ch = (char)Serial.read();
     if (ch == '\n' || ch == '\r') {
-      if (n > 0) {
+      if (overflow) {
+        n = 0;
+        overflow = false;
+        Serial.println("serial: overlong command discarded");
+      } else if (n > 0) {
         buf[n] = 0;
         n = 0;
         handleLine(buf);
       }
     } else if (n < sizeof(buf) - 1) {
       buf[n++] = ch;
+    } else {
+      overflow = true;
     }
   }
 }

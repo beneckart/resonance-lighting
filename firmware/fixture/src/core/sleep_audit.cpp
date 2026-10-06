@@ -44,8 +44,10 @@ SleepAuditRecord sleepAuditMake(uint8_t cause, uint32_t durationS,
 bool sleepAuditValid(const SleepAuditRecord &record) {
   return record.magic == kSleepAuditMagic &&
          record.version == kSleepAuditVersion &&
-         record.cause > SLEEP_CAUSE_NONE && record.cause <= SLEEP_CAUSE_SERIAL &&
-         record.duration_s > 0 && record.checksum == checksum(record);
+         record.cause > SLEEP_CAUSE_NONE && record.cause <= SLEEP_CAUSE_STORAGE_USB &&
+         ((record.cause >= SLEEP_CAUSE_STORAGE_RESET && record.duration_s == 0) ||
+          (record.cause <= SLEEP_CAUSE_SERIAL && record.duration_s > 0)) &&
+         record.checksum == checksum(record);
 }
 
 bool sleepAuditSetProtectContext(SleepAuditRecord &record,
@@ -100,7 +102,8 @@ const char *protectOriginName(uint8_t origin) {
 bool sleepCauseIsOperator(uint8_t cause) {
   return cause == SLEEP_CAUSE_RADIO_ALL ||
          cause == SLEEP_CAUSE_RADIO_TARGET ||
-         cause == SLEEP_CAUSE_TRANSPORT || cause == SLEEP_CAUSE_SERIAL;
+         cause == SLEEP_CAUSE_TRANSPORT || cause == SLEEP_CAUSE_SERIAL ||
+         cause == SLEEP_CAUSE_STORAGE_RESET || cause == SLEEP_CAUSE_STORAGE_USB;
 }
 
 const char *sleepCauseName(uint8_t cause) {
@@ -111,6 +114,8 @@ const char *sleepCauseName(uint8_t cause) {
   case SLEEP_CAUSE_RADIO_TARGET: return "radio-target";
   case SLEEP_CAUSE_TRANSPORT: return "transport";
   case SLEEP_CAUSE_SERIAL: return "serial";
+  case SLEEP_CAUSE_STORAGE_RESET: return "storage-reset";
+  case SLEEP_CAUSE_STORAGE_USB: return "storage-usb";
   default: return "none";
   }
 }

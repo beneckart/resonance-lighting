@@ -4,6 +4,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
 
 ## 2027 planning -- exploration, no implementation yet
 
+Entry point: [2026 postmortem and future work](docs/postmortem/README.md).
+Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md).
+
 - [ ] **Review the firmware/tooling feature set with the post-event evidence.**
   Inventory commissioning, diagnosis, show, maintenance, storage and repair
   workflows; mark keep/improve/consolidate/retire and the replacement evidence.
@@ -33,7 +36,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   temporary awake hold released at 19:18 PDT. Eight never-heard fixtures were
   not commanded. See `docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and
   `storage-final.json` in the retained container evidence directory. Source
-  and artifact: `../resonance-tree-storage-host-20260912`.
+  and exact artifacts are integrated in this repository; see
+  [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md).
 - [ ] **Qualify storage on an accessible assembled fixture during servicing.**
   Measure gauge-enabled ship current and timerless deep-sleep current; test
   USB/solar/QON wake from ship and RESET wake from timerless deep sleep; inspect
@@ -1110,7 +1114,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   explicitly named sacrificial USB fixture and verify fresh telemetry. Cache
   reuse itself is already host-adopted and does not depend on this tuning (Ben +
   Codex).
-- [~] **Hardware-validate the Magic Wand Conductor (ADR 0079).** The installed
+- [~] **Hardware-validate the Magic Wand Conductor (ADR 0079).** The October 6
+  final-high-hold shock fix has native regression coverage; earlier embedded
+  builds predate it, so build a new identified artifact before the canary. The installed
   `.1` image remains the known-good fallback. Dedicated source now checks exact
   MAC `F40344` / `68:EE:8F:F4:03:44`, requires a still-lift-high-hold gesture
   corroborated by MSA311 and BMP581, reuses the Atom's bounded Wake/gather and

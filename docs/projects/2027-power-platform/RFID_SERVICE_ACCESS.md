@@ -1,5 +1,7 @@
 # RFID identification and independent service wake/reset
 
+Navigation: [2026 postmortem and future work](../../postmortem/README.md).
+
 Date: 2026-09-14
 
 Status: feasibility exploration only. No selected circuit, reader purchase,

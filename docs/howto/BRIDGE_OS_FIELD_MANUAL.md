@@ -357,6 +357,13 @@ Patterns yet.
 
 ## Blackout / Sleep: know the difference
 
+For indefinite storage or a calendar wake, use **Home -> Rest -> Store** on
+`tdeck-0.3.0-storage4`. The [storage and wake guide](FIXTURE_STORAGE_AND_WAKE.md)
+documents the exact firmware, reviewed roster/confirmation, and remaining
+physical qualification. USB-wake ship also wakes from good solar input or QON;
+RESET/BOOT cannot wake its unpowered ESP. These modes differ from the timed
+radio sleep described below.
+
 The screen defaults to **Blackout** for **10 minutes**, the reversible choice.
 Read the selection before applying it; deep sleep still cannot be cancelled.
 

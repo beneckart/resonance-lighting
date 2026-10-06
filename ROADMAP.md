@@ -1,5 +1,13 @@
 # Roadmap
 
+## Post-event entry point (2026-10-06)
+
+The [2026 postmortem and 2027 future-work index](docs/postmortem/README.md)
+collects field evidence, storage firmware, unresolved recovery behavior and
+hardware/service-access brainstorming. Use it with [TODO](TODO.md) for the next
+cycle; no custom power platform has been selected. The phase plan below is
+retained as the 2026 delivery baseline, not a fresh claim about current status.
+
 Phases of work for the Resonance Lighting workstream, working backwards from Burning Man
 2026.
 

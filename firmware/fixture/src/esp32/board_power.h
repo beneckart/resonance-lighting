@@ -128,4 +128,5 @@ void enterTimedDeepSleep(uint32_t seconds, uint8_t cause,
 void enterTransportSleep(uint32_t seconds, uint8_t cause,
                          const NbHeader *source = nullptr);
 bool transportWakeDarkActive();
+void enterStorageSleep(const NbStorageSleep &request);
 void transportWakeDarkRelease();

@@ -1,5 +1,7 @@
 # 2027 solar LFP fixture platform -- design exploration
 
+Navigation: [2026 postmortem and future work](../../postmortem/README.md).
+
 Date: 2026-09-14
 
 Status: discussion draft, not an accepted architecture, BOM, or deployment plan.

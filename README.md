@@ -4,6 +4,16 @@ Power and lighting workstream for the **Resonance Tree** -- a bamboo art install
 
 Sister tracks (not in this repo): bamboo structure (Bamboo Pure, Bali), structural engineering (Ed), parametric lighting design (Vishnu), project management (Elliot + Co-Work agent).
 
+## Post-event storage and 2027 planning
+
+Start with the [2026 postmortem and future-work index](docs/postmortem/README.md)
+for the container-storage outcome, Oakland inventory, PROTECT investigation and
+2027 hardware/tooling brainstorming. The
+[storage and wake guide](docs/howto/FIXTURE_STORAGE_AND_WAKE.md) documents the
+implemented USB/solar-wake ship mode, RESET-wake sleep, date picker and exact
+retained firmware. These records supersede pre-event status where noted; the
+2027 concepts remain discussion drafts.
+
 ## Who's working here
 
 - **Ben Eckart** -- power systems, firmware, mesh networking. Owns `/firmware/` and `/hardware/`.

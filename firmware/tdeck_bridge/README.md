@@ -29,6 +29,57 @@ exact manual seed),
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
 
+## Container storage (2026-09-12)
+
+Open **Home -> Rest -> Store**. The retained `tdeck-0.3.0-storage4` image offers
+three reviewed options:
+
+- **Until USB power (ship):** no timer; good USB/solar input or QON wakes the
+  fixture. RESET/BOOT alone will not. Requires fresh storage-capable firmware.
+- **Until physical RESET:** no timer; physical RESET wakes it. USB alone will
+  not. Requires fresh storage-capable firmware.
+- **Wake on date:** choose Pacific local date/time, from 30 minutes to seven
+  days ahead. Requires fresh T-Deck GPS time. Uses the existing transport
+  command; the sleep clock can drift. DST gaps/repeated hours are refused.
+
+Listen for a complete 15-minute PROTECT cadence before opening Store. Choose
+an exact ID for an initial trial. Review freezes the target list and wake
+method; Cancel is initially focused. Confirm starts a 16-minute catch-up
+campaign. Keep the screen open and the handheld powered for that interval.
+Back/Stop ends further sends; neither wakes fixtures already asleep. Rebooting
+the handheld never resumes a storage campaign.
+
+For indefinite modes, `prepared` means the fixture persisted the request and
+was about to enter storage. It does not prove electrical shutdown or low
+current; inspect refusals/entry failures and qualify physical wake/current on
+an accessible fixture. The firmware update itself never selects storage.
+The date option resumes radio reception with LEDs latched dark.
+
+See [ADR 0080](../../docs/decisions/0080-explicit-container-storage.md) and the
+[September 12 census](../../docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md)
+for scope and deployment evidence. All 106 observed fixtures received the exact
+`fx-260912-f951ae9-b` artifact and acknowledged storage in the authorized
+September 12 rollout. Physical wake/current and LCD qualification remain open.
+The [storage and wake guide](../../docs/howto/FIXTURE_STORAGE_AND_WAKE.md)
+links both immutable artifacts and distinguishes historical rollout evidence
+from a new service operation.
+
+## Explicit USB host storage (ADR 0081)
+
+At Ben's request, storage4 also supports unattended laptop operation after his
+explicit approval. The USB CLI accepts `storage-usb <job8> <ID,ID,...>
+CONFIRM-USB-WAKE` as one line, with 1-20 unique exact targets and fresh advertised
+USB-storage capability. `storage-status` reads progress; `storage-stop <job8>`
+stops only the matching host job. No generic raw packet or agent sleep tool is
+added. A maintenance gather blocks host storage entry. Cold boot stays idle.
+
+Use `ops/bench/fleet_storage_usb.py` with the exact verified fixture revision,
+named targets, an exclusive new ledger path and `--confirm-usb-wake`. The host
+requires the expected bridge/revision/channel, matches receipt source and
+sequence, checks for late failure, and stops remaining sends. PREPARED is not
+a measurement of electrical power-off. The script never turns a queued USB
+write into a claim that a fixture slept.
+
 ## Permanent control shell
 
 Bridge OS permanently reserves the top 26 pixels on LVGL's top layer. Every app

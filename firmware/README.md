@@ -1,10 +1,15 @@
 # Firmware
 
-ESP32 firmware for the Resonance fixtures. Current reality: a set of standalone
-Arduino-ESP32 bench sketches (below), each proving a production subsystem on the
-PowerFeather V2. The layered production codebase in `ARCHITECTURE.md` is the target,
-not yet built; `net_bench` is the closest thing to production firmware today
-(ESP-NOW + OTA + watchdog + field-cycle low-battery lifecycle).
+ESP32 firmware for the Resonance fixtures and controllers. The deployed peer
+firmware is [fixture](fixture/README.md); [tdeck_bridge](tdeck_bridge/README.md)
+is the handheld controller. `net_bench` remains a bench/bridge tool. The older
+layered target in `ARCHITECTURE.md` is historical context; see the fixture
+README for the implemented architecture.
+
+The [storage and wake guide](../docs/howto/FIXTURE_STORAGE_AND_WAKE.md) documents
+the September 12 USB/solar-wake storage firmware, exact retained fixture and
+T-Deck artifacts, rollout evidence and remaining qualification. Post-event
+analysis and 2027 ideas are indexed [here](../docs/postmortem/README.md).
 
 > **Building a new app on the PowerFeather V2 bench boards?** Read
 > [`POWERFEATHER_NOTES.md`](POWERFEATHER_NOTES.md) first -- the switchable 3V3 rail

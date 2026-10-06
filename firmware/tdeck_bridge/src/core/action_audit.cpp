@@ -34,7 +34,7 @@ bool actionAuditAppend(ActionAuditLog &log, uint8_t action, uint32_t value,
                        uint32_t meshSeq, const uint8_t targetId[3],
                        uint8_t flags) {
   if (!actionAuditValid(log) || action <= ACTION_AUDIT_NONE ||
-      action > ACTION_AUDIT_FIELD_TUNING)
+      action > ACTION_AUDIT_TRANSPORT)
     return false;
   ActionAuditRecord record = {};
   record.action = action;
@@ -73,6 +73,9 @@ const char *actionAuditName(uint8_t action) {
   case ACTION_AUDIT_FORCE_NIGHT: return "force-night";
   case ACTION_AUDIT_FORCE_AUTO: return "force-auto";
   case ACTION_AUDIT_FIELD_TUNING: return "field-tuning";
+  case ACTION_AUDIT_STORAGE_RESET: return "storage-reset";
+  case ACTION_AUDIT_STORAGE_USB: return "storage-usb";
+  case ACTION_AUDIT_TRANSPORT: return "transport";
   default: return "none";
   }
 }

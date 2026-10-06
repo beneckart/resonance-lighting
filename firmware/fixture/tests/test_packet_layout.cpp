@@ -54,7 +54,10 @@ int main() {
   CHECK_EQ(offsetof(NbHeartbeat, power_sample_flags), 192u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_origin), 193u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_reset_streak), 197u);
-  CHECK_EQ(sizeof(NbHeartbeat), 199u);
+  CHECK_EQ(offsetof(NbHeartbeat, storage_capabilities), 199u);
+  CHECK_EQ(sizeof(NbHeartbeat), 200u);
+  CHECK_EQ(sizeof(NbStorageSleep), 21u);
+  CHECK_EQ(sizeof(NbStorageReceipt), 22u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);

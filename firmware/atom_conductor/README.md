@@ -9,6 +9,18 @@ restricted one-target campmate proof. The conductor is a fleet controller and
 must stay with Ben until command authentication and lost-device revocation are
 implemented.
 
+## Retained deployed artifact
+
+The exact 25 ms image `atom-conductor-2026-09-03.1` deployed on 2026-09-03 to
+`1B636C`, `54AD9C`, `54B0C8`, and `54B8C8` is retained with its bootloader,
+partitions, build options, and [artifact manifest](build/field-25ms-20260903-r2/artifact-manifest.json).
+The application is 938,416 bytes with SHA-256
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`.
+This is a retrospective preservation of the original bytes, not a new build.
+The source was uncommitted when built; the manifest does not invent a source
+commit or claim reproducibility from later source. Historical flash/boot proof
+is recorded in `LOG.md`; hardware interaction qualification remains open below.
+
 ## Controls
 
 The Atom has one pressable 5x5 face:
