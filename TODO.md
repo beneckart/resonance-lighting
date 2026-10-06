@@ -2,7 +2,76 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
+## 2027 planning -- exploration, no implementation yet
+
+- [ ] **Review the firmware/tooling feature set with the post-event evidence.**
+  Inventory commissioning, diagnosis, show, maintenance, storage and repair
+  workflows; mark keep/improve/consolidate/retire and the replacement evidence.
+  T-Deck per-fixture controlled PROTECT recovery is explicitly deferred at
+  Ben's request on 2026-09-14; preserve specimens/history before any repair.
+- [ ] **Evaluate a dedicated LFP/solar power platform against the current fleet.**
+  Start with requirements and measured bench/outdoor comparisons, not a fleet
+  BOM. Assess autonomous LFP charging, private power bus, solar-only energy
+  sensing, gauge characterization for both cell types, command reception
+  energy/latency, low-power recovery and date/service wake contracts. Keep
+  the existing chime-cap divider optional for diagnostics; weak/null strikes
+  remain acceptable and cap sensing is not a required operator-strike gate.
+  Quantify monitoring overhead and hardware cutoff leakage.
+  Assess RFID identity plus independent targeted hardware wake/reset from
+  ground level, including shared RTC coin-cell power and passive fallback.
+  Include bounded wake-directly-to-maintenance for faster OTA, fleet coverage
+  and duplicate-wake behavior that cannot interrupt an active upload;
+  see `docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`. Discussion draft:
+  `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
+
 ## Immediate documentation / repo hygiene
+
+- [x] **Authorized USB-wake container-storage rollout completed 2026-09-12.**
+  All 106 observed fixtures passed exact f951ae9 OTA verification, acknowledged
+  USB storage with matching durable audits, and stayed quiet for at least
+  38m37s after the final receipt. All campaigns stopped; laptop capture and
+  temporary awake hold released at 19:18 PDT. Eight never-heard fixtures were
+  not commanded. See `docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and
+  `storage-final.json` in the retained container evidence directory. Source
+  and artifact: `../resonance-tree-storage-host-20260912`.
+- [ ] **Qualify storage on an accessible assembled fixture during servicing.**
+  Measure gauge-enabled ship current and timerless deep-sleep current; test
+  USB/solar/QON wake from ship and RESET wake from timerless deep sleep; inspect
+  T-Deck Rest -> Store layout and calendar behavior on the physical screen.
+  Today's PREPARED/audit/quiet result does not measure electrical current or
+  prove a physical wake cycle. RESET/BOOT alone does not wake ship mode.
+- [ ] **Priority: investigate high-VBAT PROTECT recovery and chime eligibility.**
+  Wake/Performance Hold do not keep PROTECT radios continuously awake; surface
+  this exclusion in Wake eligibility/status instead of implying full-fleet reach.
+  September 12 census: 40/74 PROTECT at >=3.25 V, but no good-input recovery
+  trace. Both known release fixes were already in those fleet revisions.
+  Current-policy offline reproduction shows net-positive sleep-cycle charging
+  can fail the awake +20 mA/60 s proof; intermittent evidence also restarts it.
+  Preserve Kiki/Kairi/Groot state; compare stable and weak/variable input with
+  actual sleep/wake current, then distinguish battery/path faults from a policy
+  limitation before changing thresholds or deploying. Track the separate
+  intentional inspection-firmware chime veto. Add recovery/chime waiting reasons
+  to diagnostics. See `docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`.
+- [ ] **Map and service the Oakland lantern bin and two backyard prototypes.**
+  Ben intends to keep them out, with no deliberate sleep/ship command.
+  Preserve revision/configuration/reset/sleep/charger state before changing
+  firmware or clearing guards; compare Groot against Kairi/Kiki for the
+  post-mortem, and investigate Wooper's older maintenance-discovery failure.
+  September 14 read-only TSwift snapshot: Groot 9F2724 (2.880 V), Kairi
+  9F26B4 (3.303 V), Kiki F2BF5C (3.277 V), Wooper 9F0E30 (3.321 V), and
+  P105 prototype 9F26F8 (2.992 V). These are last-listen readings, not cell
+  measurements. None was in the stored 106. Map all five canopy lanterns,
+  the batteryless panel-connected uplight and both prototypes to exact IDs;
+  check Groot's cell/charge path and the prototype power setup. TSwift 979604
+  still runs older firmware; storage4 is on primary 8EB508. See
+  `docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.
+- [ ] **Locate/check the six remaining unobserved September 12 fixtures.**
+  Gambit `F2BCF4`, Gengar `F2BDD4`, Magmar `F2BDFC`, Donkey `F2BE10`,
+  Milotic `F2BE94`, Skitty `F3FD28`. Kairi and Wooper were subsequently heard
+  in Oakland on September 14, accounting for two of the original eight.
+  Absence does not diagnose a dead/recovered cell or prove container location.
+  Identify historical 0-0.6 V reports by exact fixture/cell and measure actual
+  cell-terminal voltage at service; remove external power before battery swaps.
 
 - [ ] **Explicitly deploy the prepared ADR 0074 emergency inspection image.**
   PARTIAL 2026-09-01: 70 of the 114-fixture installed census have fresh exact
@@ -1041,15 +1110,24 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   explicitly named sacrificial USB fixture and verify fresh telemetry. Cache
   reuse itself is already host-adopted and does not depend on this tuning (Ben +
   Codex).
-- [ ] **NeoHex-Magic-Wand playa follow-up.** The installed `.1` image is working
-  on battery and its OTA transport/reboot bench test passed. Before replacing
-  it, build the current `.2` source as one immutable artifact, target only
-  `F40344` / `68:EE:8F:F4:03:44`, use the installed LFP for ride-through, and
-  complete the fresh-heartbeat/pending-verify acceptance. Then map MSA311
-  movement and BMP581 relative elevation into reviewed pattern behavior. Replace
-  the Tennessee maintenance WiFi profile with the agreed playa router profile
-  first. Registry role `magic_wand` and the batch-OTA sole-target interlock are
-  complete (ADR 0050; Ben + Steve).
+- [~] **Hardware-validate the Magic Wand Conductor (ADR 0079).** The installed
+  `.1` image remains the known-good fallback. Dedicated source now checks exact
+  MAC `F40344` / `68:EE:8F:F4:03:44`, requires a still-lift-high-hold gesture
+  corroborated by MSA311 and BMP581, reuses the Atom's bounded Wake/gather and
+  neighbor graph, shows per-Hex spiral progress, gates chime versus color at
+  civil dusk, and cycles all-740-pixel R/G/B/dim-RGB local feedback. Native
+  gesture/visual tests, the complete fixture-core suite, and the dedicated
+  channel-11 PowerFeather build pass. The existing LED switch cannot be read
+  through PowerFeather current because the Pololu branch bypasses its gauge.
+  Remaining: capture realistic handling traces and tune false-positive/miss
+  thresholds; verify the twenty spiral orientations and fill power; USB-canary
+  one named canopy through trusted/missing time, chime, four colors, cleanup,
+  and power-loss recovery. Before replacing `.1`, retain a dedicated immutable
+  artifact, use the installed LFP for ride-through, and complete fresh-revision
+  pending-verify acceptance. Any OTA must remain sole-target with ADR 0050's
+  explicit special-target acknowledgement. Keep fleet-control use under Ben's
+  or Steve's supervision until portable-controller authentication, labeling,
+  and revocation gates close (Ben + Steve).
 - [x] **Capture the Nevada City rig RSSI matrix before pack-out -- DONE
   2026-08-17.** Bridge `4D5DB0` and 84 qualified fixtures received the immutable
   transport/RSSI image. The 140-second `L` survey preserved 25,154 observations
@@ -1738,10 +1816,12 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   Direction: distribute simple Atom Matrix + Atomic Battery Base mini-bridges
   instead of prioritizing 433 MHz receivers this year; keep the wide-input
   dry-contact receiver retrofit as an open fallback. First proof
-  `atom-clicker-2026-08-09.1` is USB-flashed on Atom `54AD9C` (COM42), fixed to
-  channel 11, target `9E5B8C`, and a 40 ms type-17 strike. Its only runtime
-  control is the pressable 5x5 face; it requires release, debounces, rate-limits,
-  and exposes no WiFi/OTA/serial/fleet configuration commands. Remaining:
+  `atom-clicker-2026-08-09.1` was proven on Atom `54AD9C`, fixed to channel 11,
+  target `9E5B8C`, and a 40 ms type-17 strike, but Ben explicitly repurposed that
+  Atom as a full 25 ms Conductor on 2026-09-03. No reduced-access clicker is
+  currently flashed. The retained clicker source's only runtime control is the
+  pressable 5x5 face; it requires release, debounces, rate-limits, and exposes
+  no WiFi/OTA/serial/fleet configuration commands. Remaining:
   physically confirm one press -> one strong strike; inventory/source Atom
   Matrix units and 200 mAh Atomic Battery Bases; measure runtime and implement
   button-wake/deep-sleep; define target provisioning, labels, charging, and
@@ -1749,6 +1829,34 @@ to-buy queue, lead-time risks). Items below are follow-ups, not the ledger.
   the current ESP-NOW packet is unauthenticated; add honest actuator ACK/feedback;
   and test multi-clicker coexistence, coverage, cooldown, and abuse behavior
   against the production fleet (Ben/Codex).
+- [~] **Hardware-validate the Ben-only Atom Conductor (ADR 0078).** Source now
+  implements GPIO39 button wake, a six-minute Wake/neighbor gather, local
+  160-peer/eight-edge graph planning, exact-target canopy chime waves, RGBW
+  direct-frame waves, trusted fleet UTC with an explicit civil-dusk action gate,
+  five-minute explicit renewal while local input stays fresh, 15-minute
+  inactivity cleanup, a one-hour absolute deadline, repeated Auto, and deep
+  sleep. Before civil dusk the button chimes even during the inspection light's
+  one-hour overlap; after civil dusk it cycles R/G/B/W. Missing/stale time
+  refuses both. Native Atom and full fixture-core tests plus the channel-11 Atom
+  Matrix embedded build pass; no deployed fixture behavior or wire layout
+  changed. Ben's field observation selected 25 ms because it rang longer than
+  40 ms. On 2026-09-03, exact revision `atom-conductor-2026-09-03.1`, binary
+  SHA-256
+  `fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`,
+  was USB-flashed to new Atom `1B636C` on COM42; upload hashes and a controlled
+  boot proved the expected revision, node ID, channel 11, 25 ms pulse, color
+  value 64, and ready radio. Ben plans a few identical full-conductor spares for
+  battery redundancy; exact binary reuse and controlled boot proof are complete
+  on the final four-unit roster: `1B636C`, repurposed former clicker `54AD9C`,
+  `54B0C8`, and `54B8C8`.
+  Remaining: prove face-button wake and
+  measure sleep/runtime on the 200 mAh base; canary trusted/missing UTC and both
+  sides of civil dusk on one named canopy; compare a small
+  cluster's wave layers to physical adjacency; record full-fleet fresh/edge/drop
+  counts and action duration; test an awake PROTECT canopy without holding it
+  awake; and cut Atom power before Auto to prove fixture self-recovery. Keep the
+  conductor with Ben until the existing authentication/authorization, labeling,
+  and lost-device revocation gates are closed (Ben/Codex).
 - [ ] **P0: quarantine the RX480E dock on all fabricated solarnoid v2.0 boards.**
   First bring-up on 2026-08-09 smoked two receivers. The ordered PCB assigns
   HT7550-1 pin 2 to P5V and pin 3 to VBOOST, but Holtek specifies SOT-89

@@ -6,6 +6,9 @@
 
 struct ShowScheduleResult {
   bool night;
+  // True only from evening civil dusk through civil dawn. `night` may start
+  // earlier for an installation-specific pre-dusk lighting window.
+  bool civilNight;
   float solarElevationDeg;
 };
 

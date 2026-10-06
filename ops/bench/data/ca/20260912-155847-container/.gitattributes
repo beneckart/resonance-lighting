@@ -1,0 +1,2 @@
+# Preserve captured bytes; whitespace checks do not apply to evidence.
+* -text -whitespace

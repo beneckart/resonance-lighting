@@ -49,6 +49,7 @@ ShowScheduleResult showScheduleAt(uint32_t utcS) {
   bool civilNight = now.elevationDeg <= -6.0;
   bool withinPreDuskHour = now.hourAngleDeg > 0.0 &&
                            oneHourLater.elevationDeg <= -6.0;
+  result.civilNight = civilNight;
   result.night = civilNight || withinPreDuskHour;
   return result;
 }

@@ -1,0 +1,25 @@
+{
+  "recorded_utc": "2026-09-14T16:19:46.822060+00:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 56,
+      "sha256": "120400d146f3a3e95dbb7c77695b66dc5d50839aa6dfae688fef178b49267861"
+    },
+    {
+      "path": "reconciliation.json",
+      "bytes": 2724,
+      "sha256": "c8be8aa005db8efde7da505e863324efc6ff7fe01b9dc41892378ac55528a4f6"
+    },
+    {
+      "path": "serial.jsonl",
+      "bytes": 13099,
+      "sha256": "a583c06b3705f43c54d99f4b09e1f6d7d55e88d7afe394ed273c14cf8e6f7e2c"
+    },
+    {
+      "path": "snapshot.json",
+      "bytes": 5837,
+      "sha256": "b5e9d6e3bad43b5e7bc77d3727db26138c409408fe9bb189fa509248b12c768c"
+    }
+  ]
+}

@@ -2110,6 +2110,9 @@ def parse_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def valid_command(cmd: str) -> bool:
+    from storage_host import valid_storage_command
+    if cmd.startswith("storage-"):
+        return valid_storage_command(cmd)
     if cmd in {
         "r", "U", "S", "c", "I", "i", "+", "-", "b", "L",
         "wifi off", "wifi retry", "show",

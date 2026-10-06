@@ -370,10 +370,10 @@ Open **Wake** for GPS/UTC status and four fleet controls:
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
 - **Wake Fleet** catches timer wakes for six minutes and leaves each captured
-  radio continuously reachable. On the emergency inspection fixture image it
+  eligible radio continuously reachable. On the emergency inspection fixture image it
   preserves Auto/static fallback and arms LED/audio direct frames. Campaign
   copies refresh the ten-minute arm while gathering, so the final copies leave
-  about ten minutes of full-fleet control (about sixteen minutes maximum from
+  about ten minutes of eligible-fixture control (about sixteen minutes maximum from
   the button press); older images retain the dark-day behavior;
 - **Performance Hold** repeats that same inspection-safe Wake command for one
   hour, gathering sleepers and continually refreshing the fixture-owned
@@ -383,13 +383,24 @@ Open **Wake** for GPS/UTC status and four fleet controls:
 
 All four are RAM-only. Auto or Night Show immediately replaces Wake Fleet or
 Performance Hold and closes inspection direct control. Campaign repetition
-spans a full fixture sleep cadence. In the inspection image, direct LED/audio
+spans the ordinary 120-second cycle; PROTECT is an exception below. In the inspection image, direct LED/audio
 frames are admitted only
 during the bounded Wake/Performance window and do not extend it; program/show
 modes stay disabled, static inspection white returns after direct-frame
 staleness, and battery safety remains higher authority. Knock stays one-shot
 and hard-mechanism-gated, so it is not promised as a wake command for a sleeping
 fixture or as guaranteed physical motion.
+
+
+PROTECT exception: Wake Fleet and Performance Hold do not override the power
+policy's sleep decision or clear its durable latch. A protected fixture normally
+listens for about 8-9 seconds between 900-second sleeps; receiving Wake refreshes
+ordinary lifecycle/control state, but not the independent PROTECT sleep grace.
+The six-minute Wake campaign cannot guarantee catching a 15-minute PROTECT
+cycle. Performance Hold repeats long enough to catch that cycle, but does not
+keep a still-protected fixture continuously reachable. Qualified recovery or
+OTA/maintenance can separately change its awake behavior. Continuous radio
+claims apply only while the fixture's power policy permits them.
 
 Knocker's three fleet choices are deliberately distinct:
 

@@ -13,6 +13,9 @@ not yet built; `net_bench` is the closest thing to production firmware today
 > `led_studio/` (merged HEX + RGBW + RGB aesthetic tool),
 > `net_bench/` (ESP-NOW networking feasibility bench), `smoke_test/`,
 > `cores3_bridge/` (dedicated M5Stack CoreS3 fleet bridge),
+> `atom_clicker/` (one-target reduced-access proof), `atom_conductor/` (Ben-only
+> bounded Wake/gather plus centrally replayed canopy waves),
+> `magic_wand_conductor/` (Steve's two-sensor lift-controlled fleet conductor),
 > `powerfeather_demo_port/`, `presence_bench/` (I2C multi-sensor bench),
 > `sway_demo/` (MSA311 tilt/sway -> RGBW color, with a web verifier),
 > `speaker_demo/` (STEMMA speaker #3885 percussion synth, noisemaker candidate A).

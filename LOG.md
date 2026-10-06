@@ -10,6 +10,459 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-09-14 -- Ben + Codex -- Instant maintenance wake as an OTA speed objective
+
+Ben identified a second benefit for an independent wake interface: shorter OTA
+turnaround. Added the requirement to the RFID feasibility note. It removes
+sleep-cadence gathering and repeat straggler capture, especially the roughly
+15-minute PROTECT rendezvous; it does not shorten compile/upload or verified
+reboot. The runbook's ordinary-fleet phase timings are planning targets, not
+an observed storage-run speed claim.
+
+Specify retained bounded maintenance intent, loads parked, duplicate wake that
+does not reset an active upload, group/roster coverage and the existing power
+and pending-verify gates. A bare hardware reset may promptly sleep again and
+never clears PROTECT. No implementation or device command.
+
+## 2026-09-14 -- Ben + Codex -- RFID identification plus independent reset/wake explored
+
+Ben connected the earlier battery-free fixture-ID idea to a ground-accessible
+hardware reset/wake and asked whether an RTC coin cell could support it.
+Recovered the earlier request from the Postmortem Findings task; no prior
+selected RFID component was found. Added a feasibility note at
+`docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`.
+
+Primary documentation establishes RF-controlled GPIO without ESP firmware on
+EM4325-class UHF RFID, with an official coin-cell reference design. Proposed
+independent bounded reset/ship-wake circuitry, a retained service request,
+and harmless inventory separate from deliberate targeted action. Shared coin
+power is plausible for control only; quantify complete standby/RF-event draw,
+isolation and clock-retention effects. Passive ID, assisted ID and actuation
+range need separate installed tests; passive fallback can be much shorter.
+
+Reset does not clear durable PROTECT or supply energy to an empty main cell.
+QON wakes BQ ship but not shutdown, and external-input reset behavior needs
+explicit design. No chip/reader selected, device action, or firmware change.
+
+## 2026-09-14 -- Ben + Codex -- Chime sensing demoted; command reception prioritized
+
+Ben corrected the exploratory priority: both capboard revisions already have
+optional voltage-divider sensing, and the populated bench proof produced
+excellent data. Weak/null underfilled-cap strikes are acceptable; he reports
+fast refill in weak sun and consistent several-Hz independent 433 MHz rings.
+Chimes were more reliable than light control or presence sensing; sleeping
+ESPs and suspect PROTECT recovery were the main remote-control impediment.
+
+Revised the design exploration to preserve the working solar-fed bounded
+strike path, keep cap telemetry optional for diagnostics, and compare radio
+reachability/latency per unit energy. At an illustrative 3.3 V and 130 mA,
+12 seconds of LEDs-off awake operation costs 5.15 J versus 4.75 J total stored
+in a nominal 66 mF/12 V bank. This is not isolated RF power or per-strike energy.
+Historical fast capacitor refill was measured on a bench supply; Ben's latest
+weak-sun report is retained as field observation, not substituted for that trace.
+
+ESP-NOW reception windows and an independent trigger/wake path are research
+comparisons only. No deployment, new strike veto, or hardware change. The exact
+count of erroneous PROTECT latches remains unresolved; no new guard command.
+
+## 2026-09-14 -- Ben + Codex -- 2027 power-platform exploration; recovery UI deferred
+
+Ben explicitly tabled implementation of a T-Deck un-PROTECT/recovery command
+and asked for broader firmware/tooling assessment with a year until the next
+event. Recorded an exploratory brief in
+`docs/projects/2027-power-platform/EXPLORATION.md`, not an accepted ADR/BOM.
+
+Reviewed local bus/SOC/current/solar/chime evidence and primary datasheets.
+Proposed priorities: autonomous LFP-correct charging/recovery, private power
+bus, whole-cycle energy accounting, source identity, chime-cap voltage,
+independent load/cell cutoff and explicit calendar/service wake contracts.
+Keep the gauge for characterization rather than blaming its silicon for an
+unqualified SOC model. INA228 accumulation costs 640 uA typical while running;
+its production measurement power source and gaps need design. Hardware fault
+capture and retained evidence are more useful than additional opaque flags.
+
+Queued a feature inventory and small comparative qualification program before
+any board selection or retirement. No firmware, device commands, purchases,
+or current fleet architecture changed.
+
+## 2026-09-14 -- Ben + Codex -- Explicit PROTECT clear capability checked
+
+Confirmed there is no T-Deck/ESP-NOW un-PROTECT command. Durable NVS PROTECT
+survives RESET, power cycling and ordinary OTA. The fixture serial X command
+is restricted to verified externally powered, battery-absent, charging-off,
+no-fault bare boards; it is not an installed-battery override. Added the exact
+capability boundary to the recovery investigation. A remote controlled retry
+would require new fixture and handheld support. No device or firmware changes.
+
+## 2026-09-14 -- Ben + Codex -- Wake does not override PROTECT radio sleep
+
+Traced Wake/Performance Hold from NB_FORCE_LIFECYCLE through ordinary receive
+hold and inspection control. PROTECT's separate power_glue deadline is set only
+at boot and remains authoritative; Wake does not extend it, clear the latch or
+guarantee full-time radio. Verified the independent 8-second grace/sleep gate
+in Kiki's 91663fd source, Groot's 2805988, final-burn 316470a and inspection
+7c1f71d. Expected PROTECT listening is about 8-9 s / 900 s asleep unless a
+separate recovery/OTA/service condition holds it awake.
+
+The six-minute Wake campaign also cannot guarantee capturing a 15-minute
+PROTECT cadence. Corrected overly broad 'full-fleet' / 'each captured radio'
+operator documentation; Performance Hold spans more wake cycles but still does
+not override PROTECT. Added the distinction to the recovery investigation and
+queued explicit Wake eligibility diagnostics. No firmware or device changes.
+
+## 2026-09-14 -- Ben + Codex -- High-VBAT PROTECT cohort and recovery limitation
+
+Ben linked unexpected quiet during the last Burning Man days to possible stuck
+PROTECT. Reconciled the retained September 12 census: 74 PROTECT, 40 at >=3.25 V,
+seven at >=3.30 V. The 40 entry histories are 35 low-VBAT, four load-armed reset,
+one legacy; all report supply-good false in the dark-storage snapshot. This is
+a substantial triage cohort, not proof of 40 healthy batteries or sunny failures.
+
+Manifest/source ancestry confirms all three September 12 fleet images already
+contained the full-battery and PROTECT sleep-ownership fixes. Kiki's older
+658b7d2 contains neither; Groot's b0ff5db contains both. Offline injected-sample
+checks against unchanged current power_policy reproduce a remaining limitation:
+net-positive charge across sleep/wake can coexist with negative awake current,
+so no recovery proof starts below the full-battery floor. Stable current and
+full/CV positive controls release correctly. This is not hardware validation.
+
+Also separated a known chime contributor: September 1 inspection firmware on
+70 fixtures deliberately disabled autonomous chimes; the earlier final-burn and
+visibility images allow them in FULL/DIM. Bench plan, exact cohort and synthetic
+reproduction are in `docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`.
+No production code or device state changed; preserve Oakland specimens for
+controlled diagnosis before deciding a repair.
+
+## 2026-09-14 -- Ben + Codex -- Timed sleep does not set PROTECT
+
+Traced T-Deck Rest 12-hour radio sleep through NB_SLEEP_FOR into the fixture's
+timed deep sleep. It records the operator request without setting PROTECT;
+an expected timer wake preserves the previous power stage. Wooper retains a
+12-hour command yet currently reports NORMAL. Kairi instead records a low-VBAT
+entry at 2.993 V (no load armed), now 3.303 V/PROTECT; Kiki has a 2.978 V older
+entry, now 3.277 V/PROTECT. These are historical trigger records, not independent
+cell measurements. A voltage rebound alone never qualifies the charge-based
+release. Groot's low-VBAT entry is 2.976 V with load armed, now 2.880 V.
+
+Ben clarified the early morning timing and doubts significant solar recovery;
+no measured charge history supports that explanation, so it is not adopted.
+The available listen samples show negative battery current/good-input false
+for the high-voltage production fixtures. Updated the Oakland post-mortem
+record with exact command/protection distinctions; no device changes.
+
+## 2026-09-14 -- Ben + Codex -- Oakland units stay out; preserve post-mortem baseline
+
+Ben plans to leave the Oakland lanterns out, with no deliberate sleep/ship
+commands, and may bring some inside for post-mortem analysis. Existing
+automatic power policy remains in place; no forced-awake hold was requested.
+The high-voltage PROTECT units plausibly survived dark storage through sparse
+radio duty: roughly 216 mAh/week at 130 mA for 9 seconds awake / 900 asleep,
+excluding leakage/other loads. This is a model, not measured storage draw or
+remaining capacity; LFP voltage plateau and unknown recent solar history limit
+the 3.3 V inference. Wooper's current shorter cadence models about 1.99 Ah/week.
+
+Prioritize Groot versus a higher-voltage PROTECT fixture (Kairi/Kiki), retain
+state before firmware/guard changes, then compare actual cell/load/current and
+charge behavior. Keep old prototype 9F26F8 separate from production conclusions.
+Updated `docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md` and TODO; no device
+changes were issued and the earlier passive capture remains immutable.
+
+## 2026-09-14 -- Ben + Codex -- Oakland bin accounts for Kairi and Wooper
+
+Ben brought a separate bin from Nevada City to Oakland: five canopy lanterns
+and one batteryless uplight with its panel connected. Two old backyard
+prototypes are also present; the perimeter may be disconnected/batteryless.
+TSwift's five reported identities are Groot 9F2724, Kairi 9F26B4, Kiki F2BF5C,
+Wooper 9F0E30 and prototype 9F26F8. None was in the September 12 stored 106.
+Kairi/Wooper account for two of that census's eight missing IDs; six remain
+unlocated. Groot/Kiki/prototype were outside the 114-ID baseline. Other bin
+units are not yet mapped and may still overlap the stored group.
+
+A 22-second read-only serial snapshot verified connected TSwift 979604 on
+COM157, channel 11, tdeck-dev-local; storage4 was flashed on other T-Deck
+8EB508. Last-listen battery reports were Groot 2.880 V, prototype 2.992 V,
+and the other three 3.277-3.321 V, with ages 18 seconds to 13.6 minutes.
+These are retained reports, not simultaneous cell measurements or a complete
+900-second census. No commands, firmware/power changes or background process
+were issued/left running. Exact evidence and service items are in
+`docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.
+
+## 2026-09-12 -- Ben + Codex -- 106 fixtures stored; pack-up complete
+
+All 106 observed fixtures acknowledged untimed USB-wake storage on the exact
+retained f951ae9 image. The final five replied by 18:39:20 PDT; the final
+17-target job stopped at 18:39:37 with no failed or unresolved target. All
+106 source/sequence receipts match durable cause-8, zero-duration audits.
+The final 19:17:57 read-only reconciliation passed after 38m37s of radio quiet
+since the last receipt, with continuous logger/master evidence and no bridge
+restart. A fresh storage-status confirmed the controller inactive. No further
+sleep command was needed when Ben requested pack-up at 19:17.
+
+Stopped only this run's logger/dashboard and released the temporary Windows
+awake hold at 19:18. Laptop, T-Deck and Starlink can be packed. The eight
+never-heard installed fixtures were not commanded and remain physical-service
+exceptions. USB/solar or QON wakes the selected mode; RESET/BOOT alone does
+not. Assembled current and physical wake still require service-time testing.
+
+Final proof, exact ledgers/rosters, controller flash identity and capture
+hashes are retained with the report at
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md`. Compact evidence and source
+are on `codex/container-storage-host-20260912`; large raw logs/private NVS
+backups stay local. T-Deck Rest -> Store includes indefinite storage and a
+fresh-GPS Pacific wake picker from 30 minutes to seven days. Native and
+embedded checks passed; physical LCD/wake/current qualification remains open.
+
+## 2026-09-12 -- Ben + Codex -- All 106 OTA verified; direct USB storage underway
+
+Ben's later instruction authorizes direct laptop operation, without a physical
+T-Deck confirmation tap. His dinner return window is approximately
+18:30-19:00 PDT. ADR 0081 records the narrow host-command exception.
+
+All 106 observed fixtures passed fresh exact-revision and pending-window OTA
+verification on the retained `fx-260912-f951ae9-b` image by 17:56:15 PDT;
+no target failed or remained in commission. The eight census exceptions were
+not heard and were not commanded. Exact per-job evidence is in the container
+run directory, including `all-106-ota-verified.txt`.
+
+Flashed exact T-Deck 8EB508 / 44:1b:f6:8e:b5:08 on COM152 with retained
+`tdeck-0.3.0-storage4`, 1,578,224 bytes, SHA-256
+`11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1`.
+Every written flash-region hash verified, then fresh boot identity, channel 11,
+radio census and an idle host storage controller were confirmed. Firmware
+source is 556c2f6 in `../resonance-tree-storage-host-20260912`; artifact commit
+a53181a retains binaries and manifest. Full native and embedded checks passed.
+The native registry comparison now tolerates Windows CRLF; firmware did not
+change after the retained build. A private NVS/apps recovery backup remains
+local and must not be committed.
+
+Hellboy's first storage command was accepted at 17:57:18 PDT. At 17:59:12 it
+reported PREPARED for source 8EB508 / sequence 21, then stayed quiet past its
+former 120-second cadence. Its durable command audit reports USB storage,
+zero duration, the same source and sequence. Two subsequent groups brought
+the total to 31 PREPARED by 18:04, all with matching durable audits and no
+rejoin or failure. Storage requests are now actually being sent under Ben's
+explicit permission; earlier no-command notes describe earlier checkpoints.
+
+The 75 PROTECT-cycle fixtures are being handled in complete timing cohorts,
+with Ponyta's group armed first. Remaining exact-roster plan and per-command
+ledgers are retained. The final full-cadence quiet observation is still due;
+PREPARED plus radio silence is not measured electrical current or a physical
+USB-wake test. Expected pack-up readiness is about 18:40-18:50 PDT if these
+cohorts behave as observed. Temporary laptop awake hold remains active.
+
+## 2026-09-12 -- Ben + Codex -- Fleet USB storage authorized
+
+Ben returned at approximately 17:08 PDT and explicitly authorized putting the
+fleet into USB-wake storage. Earlier sleep/ship confirmation is now satisfied.
+Continuing exact-target OTA batches from the tested immutable f951ae9 image,
+then storage through the T-Deck with explicit request/receipt evidence. First
+additional wave: 12 targets, job 6FA40ADD. The T-Deck storage3 build continues;
+physical storage wake/current remains unmeasured. Full rollout results will
+be appended when known.
+
+## 2026-09-12 -- Ben + Codex -- Container census and one storage-capability OTA canary
+
+Onboarded in Nevada City after roughly a week of dark container storage.
+Ben wants fixtures off until physical service; USB wake preferred, RESET
+acceptable, and QON effort only if the battery benefit warrants it. Ben
+authorized OTA at discretion while AFK, retaining his earlier requirement
+for separate confirmation before deliberate deep-sleep/ship commands.
+
+Completed an uninterrupted 1,020-second census after a recorded host-process
+capture gap: 106 of the September 1 installed roster of 114 heard, all FIELD,
+all latest retained LED reports off and supply-good false. No 0-0.6 V report
+appeared in either capture segment. Ponyta `F2B7DC` was lowest at 2.582 V;
+Chunli `9F2714` was 2.618 V. These are readings, not a ruined-cell diagnosis.
+Eight missing fixtures remain unknown. Seventy-four latest tiers were PROTECT.
+Details, field ages, limitations and battery calculations are recorded in
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md`; raw data and exact rosters
+are in `ops/bench/data/ca/20260912-155847-container/`.
+
+Prepared storage firmware in the isolated adjacent worktree
+`resonance-tree-storage-20260912`, branch `codex/container-storage-20260912`,
+preserving unfinished conductor changes here. The canonical protocol adds
+exact-target USB-wake ship mode and RESET-wake indefinite deep sleep; OTA
+does not select either. The T-Deck adds reviewed storage and a GPS-backed
+Pacific date/time picker with a seven-day limit and 16-minute catch-up window.
+ADR 0080 in that worktree records the contract and physical qualification still
+needed. The first T-Deck build was abandoned to fix confirmation-dialog fit;
+its replacement uses a fresh path, never the interrupted directory.
+
+Fixture and T-Deck native suites passed. Fixture embedded artifact
+`fx-260912-f951ae9-b` (1,218,752 bytes), SHA-256
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`,
+was built from clean `fcc5ef0` with the same runtime flags as the installed
+inspection image. Sole operator Ben + Codex OTA-updated only Hellboy `9F26C4`.
+Job `84DEEB42` verified a fresh exact-revision heartbeat at 25,953 ms uptime,
+FIELD profile and recovery state zero at 16:40:08 PDT. No deliberate sleep,
+ship, lifecycle or LED command was sent.
+
+Added a read-only census summarizer and storage request/receipt logging;
+all 16 relevant Python tests pass. Periodic radio wakes dominate storage
+draw. The vendor-board 24-to-1 uA deep-sleep/ship comparison saves just
+0.440 Ah/week across 114 fixtures; USB wake is ship's stronger practical
+advantage. Our ship implementation retains the gauge and needs external
+current measurement; do not claim the vendor's gauge-disabled 1 uA result.
+
+## 2026-09-03 -- Ben + Codex -- Fourth and final 25 ms Atom Conductor flashed
+
+Identified the last COM42 Atom as full MAC `14:08:08:54:B8:C8` (short ID
+`54B8C8`) and found no prior role or identity record in the repo. SHA-checked
+and reused exact 938,416-byte `atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54B8C8`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`; no fleet action was sent. Ben's completed full-conductor roster
+is `1B636C`, `54AD9C`, `54B0C8`, and `54B8C8`.
+
+## 2026-09-03 -- Ben + Codex -- Third 25 ms Atom Conductor flashed
+
+Identified the next COM42 Atom as full MAC `14:08:08:54:B0:C8` (short ID
+`54B0C8`) and found no prior role or identity record in the repo. SHA-checked
+and reused exact 938,416-byte `atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54B0C8`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`; no fleet action was sent. The full-conductor roster is now
+`1B636C`, `54AD9C`, and `54B0C8`.
+
+## 2026-09-03 -- Ben + Codex -- Second 25 ms Atom Conductor flashed
+
+Identified the next COM42 Atom before writing it as full MAC
+`14:08:08:54:AD:9C` (short ID `54AD9C`). This was the previously recorded
+reduced-access clicker for target `9E5B8C`; Ben explicitly approved replacing
+that role with the full conductor.
+
+SHA-checked and reused the exact 938,416-byte
+`atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54AD9C`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`. No fleet action was sent. The current full-conductor roster is
+`1B636C` and `54AD9C`; the latter no longer has the one-target clicker image.
+
+## 2026-09-03 -- Ben + Codex -- Atom Conductor changed to 25 ms and reflashed
+
+Ben corrected the conductor strike recipe after field observation that a 25 ms
+solenoid pulse produced longer cymbal ringing than 40 ms. Changed the Atom
+Conductor source/build defaults and documented validation recipe to 25 ms, and
+gave it distinct revision `atom-conductor-2026-09-03.1` so it cannot be confused
+with the superseded 40 ms image.
+
+Built once in fresh path `field-25ms-20260903-r2` for channel 11, 25 ms pulse,
+and RGBW value 64. The build uses 938,165 bytes (47 percent flash) and 54,936
+bytes (16 percent RAM); its 938,416-byte application has SHA-256
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`.
+USB-reflashed exact Atom `1B636C` on COM42, verified every written-region hash,
+and captured a controlled reboot reporting the new revision, node `1B636C`,
+channel 11, `pulse=25`, `color=64`, and `radio=ready`. No fleet action was sent.
+This exact binary supersedes both earlier 40 ms `r3` and the unversioned interim
+25 ms `r1` for all planned spare full-conductor Atoms.
+
+## 2026-09-03 -- Ben + Codex -- Atom Conductor canary flashed to 1B636C
+
+Windows enumerated the connected original Atom Matrix as FTDI data port COM42;
+a read-only chip probe identified ESP32-PICO-D4 MAC `F8:B3:B7:1B:63:6C`
+(short ID `1B636C`). This is a third recorded Atom identity, distinct from the
+older smoke-test `1B5108` and reduced-access clicker `54AD9C`.
+
+USB-flashed the already validated `verify-20260902-r3` Atom Conductor binary,
+without rebuilding it. The 938,416-byte application SHA-256 remains
+`715a64c90056dc511b95015389520574b3123c0eb71ba232d102c03b560322f9`;
+the upload verified every written flash-region hash. A controlled serial reboot
+then reported `atom-conductor-2026-09-02.2`, node `1B636C`, channel 11, 40 ms
+strike, RGBW value 64, and `radio=ready`. No fleet action was requested; the
+cold-boot image is waiting for its first face press.
+
+Ben intends to flash a few identical full-conductor spares so a depleted unit
+does not end the interaction. Reuse this exact inspected binary for the spares,
+record each full MAC/short ID and boot proof, and keep all of them in Ben's
+custody: redundancy does not change the unauthenticated fleet-command risk.
+
+## 2026-09-03 -- Ben + Codex -- Magic Wand gesture conductor built
+
+Located Steve's `codex/NeoHex-Magic-Wand` work and confirmed that its merge tip
+`codex/integrate-magic-wand` is already an ancestor of current `main`. Added
+`firmware/magic_wand_conductor/` as a separate exact-device image while
+preserving the working installed `net-bench-2026-08-19.1` fallback and its `.2`
+source. The new binary checks the full `68:EE:8F:F4:03:44` MAC and refuses power
+configuration, external LED frames, and fleet transmission on any other board.
+
+Resolved the no-button control around a deliberate two-sensor gesture: hold
+still 1.6 seconds, lift at least 0.45 m with MSA311 motion corroboration, then
+hold at least 0.35 m high for 0.8 seconds. Shocks, motion without barometric
+rise, pressure drift without motion, and stale/missing sensors fail closed.
+Return to the original height, or hold still five seconds at a new height, to
+re-arm. Thresholds remain provisional pending traces of Steve's real carries,
+handoffs, and lifts.
+
+The existing LED switch cannot be used as a software input without a hardware
+sense wire. Its Pololu 5.1 V branch leaves the PCM in parallel with the
+PowerFeather, so LED load bypasses the MAX17260 sense resistor; voltage-sag
+inference on the 15 Ah LFP would be unreliable. The conductor does not invent a
+switch or LED-rail state in telemetry. Because the switch is not a controller
+wake source, Auto cleanup returns to an always-listening idle animation rather
+than deep sleep.
+
+The first accepted gesture starts ADR 0078's bounded six-minute Wake/neighbor
+gather. Each of the twenty NeoHex boards visibly loads center-out in the shared
+37-pixel spiral geometry with a moving frontier head. Once ready, later gestures
+remain chimes through the one-hour pre-dusk lighting overlap and switch to color
+at true civil dusk using canonical trusted UTC. Night selections display across
+all 740 pixels and cycle red -> green -> blue -> dim RGB; the matching tree
+frames use 64 on single channels or `21,21,21` RGB with no W die. Session
+renewal, 15-minute inactivity, one-hour absolute maximum, repeated Auto, graph
+planning, exact canopy targets, and no power-tier target filter match the Atom.
+
+Native gesture and visual-policy tests pass, including knock, drift,
+motion-only, sensor-loss, single-fire, and re-arm cases. The complete fixture
+core suite reports `ALL TESTS PASSED`. The final channel-11 PowerFeather build
+uses 962,625 bytes (28 percent flash) and 129,108 bytes (39 percent RAM); its
+962,768-byte binary has SHA-256
+`6d7f18db8a6fc8d7b2228f198784ead206bd21fe588d6dc12c48b2279cee3d73`.
+No wand or fixture was flashed. ADR 0079 records the decision and hardware
+validation gates.
+
+## 2026-09-02 -- Ben + Codex -- Ben-only Atom Conductor built
+
+Added `firmware/atom_conductor/` as a separate fleet controller while preserving
+the reduced one-target `atom_clicker/`. One face-button wake now opens a bounded
+six-minute Wake/neighbor-survey gather. The Atom reconstructs a 160-peer local
+graph from each reporter's eight strongest observations and centrally replays
+fresh, class-confirmed canopy waves: exact-target deliberate chimes or chunked
+RGBW direct frames. Disconnected graph components fall back to six-dB
+Atom-relative RSSI bands; power tier is intentionally not a target filter, so an
+awake PROTECT/low-voltage canopy may attempt an operator strike while its own
+power policy still owns sleep.
+
+Clarified and implemented the two-clock contract from the design discussion.
+Every strike/color/color-advance button action refreshes only the Atom's local
+15-minute inactivity timer. A separate scheduler issues explicit Wake renewal
+every five minutes while that local activity remains fresh. Effects never invoke
+the Wake sender. Fifteen minutes idle or one hour absolute starts a ten-second
+repeated Auto cleanup and GPIO39 deep sleep. Fixture-side expiry remains
+authoritative if the Atom crashes or loses power. The conductor has no WiFi,
+OTA, maintenance, NVS mutation, fleet-sleep, or serial command surface and
+remains Ben-only while
+fleet commands are unauthenticated (ADR 0078).
+
+The automatic actuator family follows true civil dusk, not the inspection
+light's one-hour pre-dusk start: short press remains chime throughout that
+visible-light overlap, then becomes the next R/G/B/W wave at civil dusk. The
+Atom consumes the existing `NB_TIME_QUALITY` path and the canonical UTC
+consensus/BRC solar calculation. Missing or stale trusted time fails closed and
+emits neither strike nor light; lifecycle heartbeat state is deliberately not a
+fallback because Wake changes older images and inspection night starts early.
+
+Atom native timing/graph/action-gate tests and the full fixture-core suite pass.
+A real channel-11 Atom Matrix build with a 40 ms strike and RGBW value 64 passes
+at 938,165 bytes (47 percent flash) and 54,936 bytes (16 percent RAM); binary
+size is 938,416 bytes with SHA-256
+`715a64c90056dc511b95015389520574b3123c0eb71ba232d102c03b560322f9`.
+No Atom was flashed. Button wake/current, named-canopy commands, graph geometry,
+trusted/missing-time and civil-dusk switching, installed-fleet traffic, PROTECT
+behavior, and power-loss recovery remain hardware validation gates.
+
 ## 2026-09-02 -- Ben + Codex -- Final-burn branch promoted to main
 
 At Ben's request, the complete `codex/burn-final-sunrise` history was prepared

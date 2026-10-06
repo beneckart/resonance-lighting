@@ -1,0 +1,42 @@
+{
+  "snapshot_utc": "2026-09-13T00:44:22.365026+00:00",
+  "targets": [
+    {
+      "id": "F2BEB4",
+      "callsign": "Lapras",
+      "battery_v": 3.28,
+      "age_ms": 850243,
+      "last_sleep_s": 900,
+      "eta_s": 50,
+      "firmware_rev": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9E5AE0",
+      "callsign": "Ralts",
+      "battery_v": 3.006,
+      "age_ms": 842902,
+      "last_sleep_s": 900,
+      "eta_s": 57,
+      "firmware_rev": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F401DC",
+      "callsign": "Zubat",
+      "battery_v": 3.28,
+      "age_ms": 835122,
+      "last_sleep_s": 900,
+      "eta_s": 65,
+      "firmware_rev": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F275C",
+      "callsign": "Totoro",
+      "battery_v": 3.27,
+      "age_ms": 830918,
+      "last_sleep_s": 900,
+      "eta_s": 69,
+      "firmware_rev": "fx-260831-f121868-b"
+    }
+  ],
+  "operator": "ben-codex"
+}

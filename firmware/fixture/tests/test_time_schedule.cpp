@@ -21,10 +21,15 @@ int main() {
   // 2026-08-30: civil dawn around 05:52 PDT and dusk around 19:59 PDT.
   // Inspection light starts one hour before dusk but does not end early.
   CHECK(showScheduleAt(1788087600UL).night);  // 04:00 PDT, before civil dawn
+  CHECK(showScheduleAt(1788087600UL).civilNight);
   CHECK(!showScheduleAt(1788098400UL).night); // 07:00 PDT, after civil dawn
+  CHECK(!showScheduleAt(1788098400UL).civilNight);
   CHECK(!showScheduleAt(1788139800UL).night); // 18:30 PDT, >1 h before dusk
+  CHECK(!showScheduleAt(1788139800UL).civilNight);
   CHECK(showScheduleAt(1788143400UL).night);  // 19:30 PDT, pre-dusk hour
+  CHECK(!showScheduleAt(1788143400UL).civilNight);
   CHECK(showScheduleAt(1788147000UL).night);  // 20:30 PDT, after civil dusk
+  CHECK(showScheduleAt(1788147000UL).civilNight);
 
   TimeConsensus tc;
   timeConsensusInit(tc);

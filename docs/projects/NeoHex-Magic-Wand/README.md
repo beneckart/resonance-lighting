@@ -61,6 +61,27 @@ zones from being paralleled through the small Grove conductors.
 
 ## Firmware
 
+The working installed image and its recovery source remain in `net_bench`, but
+the gesture-controlled fleet interaction now has its own exact-device target:
+
+```sh
+./firmware/magic_wand_conductor/build.sh --channel 11 \
+  --build-path firmware/magic_wand_conductor/build/wand-canary-r1
+```
+
+`magic_wand_conductor` recognizes a deliberate MSA311/BMP581 still-lift-hold
+gesture, opens the same bounded Wake/neighbor gather as the Atom Conductor, and
+then issues civil-dusk-gated canopy chime or R/G/B/dim-RGB waves. It also uses
+all twenty local Hex faces for per-board spiral gather progress and mode
+feedback. The source and hardware gates are in
+`firmware/magic_wand_conductor/README.md` and ADR 0079.
+
+The LED toggle is not observable in software. The Pololu load branches from the
+PCM beside the PowerFeather and bypasses its current sense, so the conductor
+does not infer switch state from battery current or voltage sag.
+
+### Existing recovery image
+
 The fleet role is selected at compile time:
 
 ```sh
@@ -114,8 +135,8 @@ predated the current immutable-artifact completion contract. Treat it as a
 successful transport/reboot test, not as proof of the full production
 pending-verify/A-B rollback gate.
 
-The source on this branch is the later `.2` port onto Ben's current `main`; it
-is compile-checked but is not the image currently installed. Before replacing
+The preserved `.2` source is a later port onto Ben's current `main`; it is
+compile-checked but is not the image currently installed. Before replacing
 the working playa image, Ben should build one immutable artifact, record its
 manifest/SHA, target only MAC `68:EE:8F:F4:03:44`, use the installed LFP for OTA
 ride-through, and verify fresh post-reboot telemetry after the pending window.
@@ -128,8 +149,8 @@ not an artifact bypass; use only a dedicated Magic Wand binary.
 
 ## Open work
 
-- Map MSA311 movement and BMP581 relative elevation into intentional pattern
-  changes; readings are presently telemetry only.
+- Hardware-tune the conductor's provisional MSA311/BMP581 gesture thresholds
+  against Steve's real handling and canary it on one named canopy.
 - Replace the Tennessee maintenance WiFi profile with the agreed playa router
   profile before attempting shared-WiFi OTA on site.
 - Mechanically strain-relieve and insulate every board, fuse, WAGO, PCM, and

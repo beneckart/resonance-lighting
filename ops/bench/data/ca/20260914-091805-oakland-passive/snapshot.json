@@ -1,0 +1,44 @@
+{
+  "capture_seconds": 22,
+  "commands_sent": 0,
+  "counts": {
+    "nb-time": 11,
+    "nb-master": 2,
+    "nb-peer": 10,
+    "nb-mem": 2
+  },
+  "latest": [
+    {
+      "ts_utc": "2026-09-14T16:18:26.790164+00:00",
+      "line": "nb-time from=979604 utc=1789402705 sub=0 src=1 hops=0 age=0 uncert=1064 boot=38975 flags=03 linkrssi=0 gps=1 gpsutc=1789402705 gpssub=0 gpsage=814 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.732137+00:00",
+      "line": "nb-master id=979604 ch=11 frames=591 sendok=591 sendfail=0 up=1360250 bv=4.542 fw=tdeck-dev-local act=1 actv=43200 actseq=1874 actup=2081294 actutc=1788893720 actf=01 acttgt=000000 actn=4"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.756420+00:00",
+      "line": "nb-peer id=9F0E30 seq=5 rx=6 gaps=0 pdr=1.0000 rssi=-92 bv=3.321 ima=-129 soc=1 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=12150 age=17749 sv=5.716 sma=0 sgood=0 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=6000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260830-7ae6502-p mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=3321 fcmax=3321 bqv=4600 bqichg=2000 bqvreg=3600 bq16=B0 bq18=08 bq1d=40 bq1e=00 bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=0 prog=1 nmin=0 cls=3 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=3 slpr=2 slps=120 slpmv=3319 slpprof=1 slplife=1 slptier=0 slpsrc=000000 slpseq=0 cmdslpr=3 cmdslps=43200 cmdslpsrc=979604 cmdslpseq=1759 protmv=0"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.778742+00:00",
+      "line": "nb-peer id=9F26F8 seq=9 rx=10 gaps=0 pdr=1.0000 rssi=-90 bv=2.992 ima=-58 soc=4 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=8084 age=597486 sv=4.640 sma=24 sgood=1 lux=2161.7 ch0=1539 ch1=636 ptc=14.6 prh=91 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=6000 chg=1500 dd=0.0 ddb=3500 dda=0 fw=net-bench-2026-07-14.1 mt=0 fc=2 fcr=2 fcc=9 fce=3684 fcchg=0 fcdis=87 fcmin=2941 fcmax=3004 bqv=4600 bqichg=1480 bqvreg=3600 bq16=A0 bq18=08 bq1d=54 bq1e=0C bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=2 fcpw=11 fcbw=12 fcdw=37 fclow=0 fcmchg=61 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=1 mpptn=0 mpptv=46 mpptbest=46 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.807045+00:00",
+      "line": "nb-peer id=9F26B4 seq=4 rx=5 gaps=0 pdr=1.0000 rssi=-91 bv=3.303 ima=-133 soc=72 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=9170 age=98383 sv=5.657 sma=0 sgood=0 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=6000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260829-af1d4ec-p mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=3303 fcmax=3303 bqv=4600 bqichg=2000 bqvreg=3600 bq16=A0 bq18=08 bq1d=40 bq1e=00 bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=3 prog=1 nmin=0 cls=0 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=5 slpr=1 slps=900 slpmv=3305 slpprof=1 slplife=1 slptier=3 slpsrc=000000 slpseq=0 cmdslpr=0 cmdslps=0 cmdslpsrc=000000 cmdslpseq=0 protmv=2993 protorig=1 protprev=1 protrst=255 protarm=0 protstreak=0"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.829847+00:00",
+      "line": "nb-peer id=F2BF5C seq=4 rx=5 gaps=0 pdr=1.0000 rssi=-90 bv=3.277 ima=-132 soc=98 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=9170 age=818297 sv=2.755 sma=0 sgood=0 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=15000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260828-658b7d2-p mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=3277 fcmax=3277 bqv=4600 bqichg=2000 bqvreg=3600 bq16=A0 bq18=08 bq1d=40 bq1e=00 bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=3 prog=1 nmin=0 cls=0 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=7 slpr=1 slps=900 slpmv=3277 slpprof=1 slplife=1 slptier=3 slpsrc=000000 slpseq=0 cmdslpr=3 cmdslps=28800 cmdslpsrc=979604 cmdslpseq=40 protmv=2978"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.870351+00:00",
+      "line": "nb-peer id=9F2724 seq=4 rx=5 gaps=0 pdr=1.0000 rssi=-89 bv=2.880 ima=-150 soc=99 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=9271 age=667208 sv=0.000 sma=0 sgood=0 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=15000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260829-b0ff5db-b mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=2880 fcmax=2880 bqv=4600 bqichg=2000 bqvreg=3600 bq16=A0 bq18=08 bq1d=00 bq1e=00 bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=3 prog=1 nmin=0 cls=0 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=5 slpr=1 slps=900 slpmv=2881 slpprof=1 slplife=1 slptier=3 slpsrc=000000 slpseq=0 cmdslpr=0 cmdslps=0 cmdslpsrc=000000 cmdslpseq=0 protmv=2976 protorig=1 protprev=2 protrst=255 protarm=1 protstreak=0"
+    },
+    {
+      "ts_utc": "2026-09-14T16:18:22.871296+00:00",
+      "line": "nb-mem heap_free=37396 heap_min=36640 psram_free=7716744 psram_min=7713164 bat_mv=4558"
+    }
+  ]
+}

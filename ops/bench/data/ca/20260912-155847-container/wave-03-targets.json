@@ -1,0 +1,114 @@
+{
+  "snapshot_utc": "2026-09-13T00:18:06.248612+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "9E5A74",
+      "callsign": "Ahsoka",
+      "battery_v": 3.159,
+      "age_ms": 33987,
+      "sleep_s": 120,
+      "eta_s": 86.013,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2664",
+      "callsign": "Hawkeye",
+      "battery_v": 3.167,
+      "age_ms": 31245,
+      "sleep_s": 120,
+      "eta_s": 88.755,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F26D4",
+      "callsign": "Hulk",
+      "battery_v": 3.18,
+      "age_ms": 31026,
+      "sleep_s": 120,
+      "eta_s": 88.974,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2718",
+      "callsign": "Espio",
+      "battery_v": 3.165,
+      "age_ms": 33892,
+      "sleep_s": 120,
+      "eta_s": 86.108,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2720",
+      "callsign": "Wanda",
+      "battery_v": 3.168,
+      "age_ms": 32890,
+      "sleep_s": 120,
+      "eta_s": 87.11,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE48",
+      "callsign": "Lando",
+      "battery_v": 3.153,
+      "age_ms": 111652,
+      "sleep_s": 120,
+      "eta_s": 8.347999999999999,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F3FD50",
+      "callsign": "Cream",
+      "battery_v": 3.261,
+      "age_ms": 836817,
+      "sleep_s": 900,
+      "eta_s": 63.18299999999999,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5B10",
+      "callsign": "Revali",
+      "battery_v": 3.286,
+      "age_ms": 835169,
+      "sleep_s": 900,
+      "eta_s": 64.83100000000002,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BEF4",
+      "callsign": "Zidane",
+      "battery_v": 3.211,
+      "age_ms": 832996,
+      "sleep_s": 900,
+      "eta_s": 67.00400000000002,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40348",
+      "callsign": "Marill",
+      "battery_v": 3.279,
+      "age_ms": 816514,
+      "sleep_s": 900,
+      "eta_s": 83.48599999999999,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F4035C",
+      "callsign": "Dratini",
+      "battery_v": 3.316,
+      "age_ms": 812330,
+      "sleep_s": 900,
+      "eta_s": 87.66999999999996,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9E5B34",
+      "callsign": "Gible",
+      "battery_v": 3.058,
+      "age_ms": 801108,
+      "sleep_s": 900,
+      "eta_s": 98.89200000000005,
+      "fw": "fx-260831-f121868-b"
+    }
+  ]
+}
