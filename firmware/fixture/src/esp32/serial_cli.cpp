@@ -255,8 +255,12 @@ void handleSerial() {
                     behaviorLifeState());
       break;
     }
-    behaviorForceNight(v == 2 ? -1 : (int8_t)v);
-    Serial.printf("force_night -> %s\n", v == 2 ? "auto" : (v ? "night" : "day"));
+    bool armed = behaviorForceNight(v == 2 ? -1 : (int8_t)v);
+    if (armed)
+      Serial.println("wake-fleet -> inspection control armed");
+    else
+      Serial.printf("force_night -> %s\n",
+                    v == 2 ? "auto" : (v ? "night" : "day"));
     break;
   }
   case 'L': { // bench LED override: L1 smoke/rail on, L0 forced rail off

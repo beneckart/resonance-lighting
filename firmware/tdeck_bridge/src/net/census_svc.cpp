@@ -79,6 +79,7 @@ void censusSvcTick(uint32_t nowMs) {
     if (consumed) continue;
     if (h->type == NB_SCANAP) nbEmitScanAp(item);
     else if (h->type == NB_NEIGHBOR_REPORT) nbEmitNeighborReport(item);
+    else if (h->type == NB_STORAGE_RECEIPT) nbEmitStorageReceipt(item);
   }
   taskENTER_CRITICAL(&gCensusLock);
   gCensus.tickWindow(nowMs);

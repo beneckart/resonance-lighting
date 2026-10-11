@@ -4,7 +4,10 @@
 
 #include "../core/choreo/program.h"
 #include "../core/daytime_ritual.h"
+#include "../core/field_behavior.h"
+#include "../core/field_role_policy.h"
 #include "../core/interaction_modulator.h"
+#include "../core/inspection_posture.h"
 #include "../core/lifecycle.h"
 #include "../core/neighbor_table.h"
 #include "../core/presence_wave.h"
@@ -14,6 +17,7 @@
 #include "board_power.h"
 #include "espnow_link.h"
 #include "identity.h"
+#include "maintenance.h"
 #include "net_peer.h"
 #include "nvs_store.h"
 #include "ota_verify.h"
@@ -35,7 +39,6 @@
 #define RES_WAVE_CAPABLE_FLAG 0x08
 #define RES_WAVE_VISITED_MAX 160
 #define RES_WAVE_HOPS 150
-#define RES_WAVE_ORIGIN_COOLDOWN_MS 2000
 #ifndef RES_MSA_LOCAL_INTERACTION
 #define RES_MSA_LOCAL_INTERACTION 0
 #endif
@@ -61,6 +64,8 @@ static TimeConsensus gTimeConsensus;
 static bool gScheduleValid = false;
 static bool gScheduleNight = false;
 static bool gRitualKeepAwake = false;
+static InspectionRadioDutyState gInspectionRadioDuty;
+static InspectionControlWindow gInspectionControl;
 
 static constexpr uint32_t kRitualRtcMagic = 0x52544C31UL; // "RTL1"
 static constexpr uint32_t kDayEnergyCarryMagic = 0x454E5231UL; // "ENR1"
@@ -83,7 +88,6 @@ struct PresenceWaveState {
 
 static PresenceWaveState gWave;
 static TmfPresenceGate gPresence;
-static Vl53CoverGate gVl53Cover;
 static bool gWaveDisplayActive = false;
 static uint8_t gWaveDisplayHue = 0;
 static uint8_t gWaveDisplayValue = 96;
@@ -95,9 +99,21 @@ static bool gTofPresenceActive = false;
 static bool gTofPresenceRising = false;
 static uint32_t gRetiredWaveIds[4] = {};
 static uint8_t gRetiredWavePos = 0;
+static PresenceSeedGate gPresenceSeedGate;
+static uint32_t gLastAutonomousSlot = UINT32_MAX;
+
+enum WakeChimeStage : uint8_t {
+  WAKE_CHIME_UNDECIDED = 0,
+  WAKE_CHIME_FIRST_SENT = 1,
+  WAKE_CHIME_SECOND_SENT = 2,
+  WAKE_CHIME_DONE = 3,
+};
+static uint8_t gWakeChimeStage = WAKE_CHIME_UNDECIDED;
+static uint32_t gWakeChimeNextMs = 0;
 
 static uint8_t configuredAutonomousProgram() {
-  if (gCfg.profile == PROFILE_PROD) return PROG_GH_CA;
+  if (gCfg.profile == PROFILE_PROD)
+    return inspectionStaticEnabled() ? PROG_IDLE : PROG_GH_CA;
   return gCfg.commissionDefault == COMMISSION_DEFAULT_CA
              ? PROG_GH_CA
              : PROG_COMMISSION_DARK;
@@ -117,6 +133,7 @@ static void applyLocalInteraction(FrameBuffer &frame) {
   const SensorSnapshot &snapshot = sensors();
   LocalInteractionInputs inputs = {};
   inputs.fixtureClass = gClass;
+  inputs.nowMs = millis();
   inputs.tofPresenceActive =
       gClass == FIXTURE_DOWNLIGHT && gTofPresenceActive;
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
@@ -127,10 +144,6 @@ static void applyLocalInteraction(FrameBuffer &frame) {
         filtered >= 1.0f && filtered <= 65535.0f
             ? (uint16_t)(filtered + 0.5f)
             : snapshot.tofDepthMm;
-  } else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent &&
-             snapshot.vlOk && snapshot.vlClosestMm) {
-    inputs.tofValid = true;
-    inputs.tofDistanceMm = snapshot.vlClosestMm;
   }
   inputs.msaValid = snapshot.msaPresent && snapshot.msaOk;
   if (snapshot.swayEnvG > 0.0f) {
@@ -221,6 +234,7 @@ static void waveOrigin() {
 }
 
 void behaviorOnEvent(const NbEvent &event) {
+  if (inspectionStaticEnabled()) return;
   if (event.kind != NB_EVENT_PRESENCE_WAVE || !event.event_id) return;
   // Bridge/direct authority suppresses autonomous presence propagation. A
   // blackout must not collect a hidden wave that reappears when its lease ends.
@@ -244,31 +258,34 @@ void behaviorOnTimeQuality(const NbTimeQuality &time, const uint8_t srcId[3]) {
 
 static void waveTick(uint32_t now) {
   // Consume each sensor report exactly once even while another program owns
-  // the renderer. Downlights use the learned TMF approach edge; reachable
-  // perimeter fixtures use a deliberate broad VL53L5CX palm-cover edge.
-  gTofPresenceRising = false;
+  // the renderer. Only downlights currently use ToF for art or propagation;
+  // perimeter VL53L5CX data remains sampled/telemetried for later diagnosis.
+  bool rawPresenceRising = false;
   const SensorSnapshot &snapshot = sensors();
 #if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk) {
     bool active = tmfDistantRangePresent(snapshot.tofZoneMm,
                                          snapshot.tofZoneConfidence);
-    gTofPresenceRising = active && !gTofPresenceActive;
+    rawPresenceRising = active && !gTofPresenceActive;
     gTofPresenceActive = active;
   } else {
     gTofPresenceActive = false;
   }
 #else
   if (gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk)
-    gTofPresenceRising =
+    rawPresenceRising =
         tmfPresenceObserve(gPresence, snapshot.tmfReads, snapshot.tofZoneMm,
                            snapshot.tofZoneConfidence);
-  else if (gClass == FIXTURE_PERIMETER && snapshot.vlPresent && snapshot.vlOk)
-    gTofPresenceRising =
-        vl53CoverObserve(gVl53Cover, snapshot.vlReads, snapshot.vlNearZones);
   gTofPresenceActive =
       gClass == FIXTURE_DOWNLIGHT && snapshot.tmfPresent && snapshot.tmfOk &&
       gPresence.latched;
 #endif
+
+  bool propagationPresenceActive =
+      gClass == FIXTURE_DOWNLIGHT && gTofPresenceActive;
+  gTofPresenceRising = presenceSeedGateObserve(
+      gPresenceSeedGate, rawPresenceRising, propagationPresenceActive, now,
+      gCfg.presenceSeedMinS, gCfg.presenceRearmClearS);
 
 #if defined(RES_CANOPY_PRESENCE_DISTANT_RANGE)
   // This exact-target false-positive diagnostic must remain local. The raw
@@ -294,9 +311,7 @@ static void waveTick(uint32_t now) {
     gPresencePending = false;
     return;
   }
-  if (gTofPresenceRising &&
-      now - gLastPresenceOriginMs >= RES_WAVE_ORIGIN_COOLDOWN_MS &&
-      powerBudget().brightness_cap > 0) {
+  if (gTofPresenceRising && powerBudget().brightness_cap > 0) {
     // A person can be visible to adjacent canopies. Randomize the origin by a
     // few hundred ms; the first event heard cancels every other pending origin
     // so one physical approach yields one hue instead of a boot-time palette.
@@ -371,12 +386,33 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
   frameClear(gFrame);
   gFrame.count = (uint8_t)pixelCount;
   tmfPresenceInit(gPresence);
-  vl53CoverInit(gVl53Cover);
+  presenceSeedGateInit(gPresenceSeedGate);
+  gLastAutonomousSlot = UINT32_MAX;
+  gWakeChimeStage = WAKE_CHIME_UNDECIDED;
+  gWakeChimeNextMs = 0;
   memset(&gWave, 0, sizeof(gWave));
   timeConsensusInit(gTimeConsensus);
+  inspectionRadioDutyInit(gInspectionRadioDuty);
+  inspectionControlInit(gInspectionControl);
 }
 
-void behaviorForceNight(int8_t force) { gForceNight = force; }
+bool behaviorForceNight(int8_t force) {
+  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
+    if (force == 0) {
+      // In the inspection image, T-Deck Wake Fleet is an explicit bounded
+      // operator arm. Preserve AUTO so the safety light remains the fallback
+      // instead of forcing the fleet into a dark DAY baseline.
+      inspectionControlArm(gInspectionControl, millis(), RES_RX_HOLD_MS);
+      gForceNight = -1;
+      Serial.println("inspection control: armed for 10 min; lifecycle stays AUTO");
+      return true;
+    }
+    // AUTO or NIGHT SHOW is an explicit return to the inspection baseline.
+    inspectionControlClose(gInspectionControl);
+  }
+  gForceNight = force;
+  return false;
+}
 int8_t behaviorForcedNight() { return gForceNight; }
 uint8_t behaviorLifeState() { return gLife.state; }
 bool behaviorStrikesAllowed() { return gStrikesAllowed; }
@@ -428,14 +464,23 @@ void behaviorOnPeerHeartbeat(const uint8_t srcId[3], int8_t rssi, uint8_t caStat
   e->choreoState = caState;
 }
 
-void behaviorOnProgramSet(const NbProgramSet &ps) {
-  if (!nbTargetMatches(ps.target_id, gMyId)) return;
+bool behaviorOnProgramSet(const NbProgramSet &ps) {
+  if (!nbTargetMatches(ps.target_id, gMyId)) return false;
+  if (inspectionStaticEnabled()) {
+    uint8_t params[8] = {};
+    gRuntime.applyProgramSet(0, 0, 0, 0, params, millis());
+    transportWakeDarkRelease();
+    Serial.printf("program-set: prog=%u ignored by static inspection posture\n",
+                  ps.program_id);
+    return false;
+  }
   bool ok = gRuntime.applyProgramSet(ps.program_id, ps.lease_s, ps.seed, ps.flags,
                                      ps.params, millis());
   if (ok) transportWakeDarkRelease();
   if (ok && ps.lease_s) waveClear();
   Serial.printf("program-set: prog=%u lease=%us -> %s\n", ps.program_id,
                 ps.lease_s, ok ? "applied" : "REJECTED (unknown program)");
+  return ok;
 }
 
 void behaviorOnNeighborSet(const NbNeighborSet &ns) {
@@ -452,14 +497,23 @@ void behaviorOnNeighborSet(const NbNeighborSet &ns) {
   // rig re-pushes after reboots via the host script for now.
 }
 
-void behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
+bool behaviorOnDirectFrame(uint8_t r, uint8_t g, uint8_t b, uint8_t w,
                            uint8_t flags) {
-  // Micro-lease grant + staleness bookkeeping live in the runtime.
   uint32_t now = millis();
+  bool inspectionField =
+      inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD;
+  if (inspectionField && !inspectionControlActive(gInspectionControl, now))
+    return false;
+  // Micro-lease grant + staleness bookkeeping live in the runtime.
   DirectFrameState fs = {now, r, g, b, w, flags};
   gRuntime.noteDirectFrame(fs, now);
+  // Ordinary direct control owns the standard rolling 10-minute receive hold.
+  // Inspection control is deliberately different: Wake Fleet owns one fixed
+  // deadline, and a forgotten 10 Hz publisher must not extend it forever.
+  if (!inspectionField) espNowNoteControlRx();
   transportWakeDarkRelease();
   if (flags & 0x01) waveClear();
+  return true;
 }
 
 uint8_t behaviorNeighborSnapshot(NeighborView *out, uint8_t maxOut) {
@@ -499,10 +553,127 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
 }
 #endif
 
+static bool fieldRitualBatterySafe(const PowerBudget &pb) {
+  return pb.tier == LedTier::FULL || pb.tier == LedTier::DIM;
+}
+
+static void applyAutonomousFieldSchedule(const TimeEstimate &wall,
+                                         uint32_t now) {
+  if (gCfg.profile != PROFILE_PROD || !gCfg.showSchedule || !wall.valid) {
+    if (gLastAutonomousSlot != UINT32_MAX) {
+      gRuntime.setAutonomousProgram(configuredAutonomousProgram(), now, false);
+      gLastAutonomousSlot = UINT32_MAX;
+    }
+    return;
+  }
+
+  // Ten-minute acts mean a 20-minute visitor sees at least two modes, usually
+  // three. The four-act loop completes every 40 minutes without a bridge.
+  uint32_t slot = wall.utcS / 600UL;
+  if (slot == gLastAutonomousSlot) return;
+  gLastAutonomousSlot = slot;
+  uint8_t params[8] = {};
+  uint8_t program = PROG_GH_CA;
+  const uint8_t *preset = nullptr;
+  switch (slot & 0x03U) {
+  case 1: // Color Virus: every ToF-bearing class may originate a new strain.
+    program = PROG_CONTAGION;
+    params[0] = 0;
+    params[4] = 10;
+    params[5] = 8;
+    params[6] = 1;
+    params[7] = 0x02; // random hue for a local visitor seed
+    preset = params;
+    break;
+  case 2: // Recurring epidemic, likewise visitor-seeded.
+    program = PROG_CONTAGION;
+    params[0] = 1;
+    params[2] = 3;
+    params[3] = 5;
+    params[4] = 10;
+    params[5] = 8;
+    params[6] = 1;
+    params[7] = 0x02;
+    preset = params;
+    break;
+  case 3: // No sparks: two nearby excited neighbors or a visitor starts fire.
+    params[0] = 2;
+    params[1] = 0;
+    params[2] = 3;
+    params[3] = 10;
+    params[6] = 1;
+    preset = params;
+    break;
+  default: // Existing CA, unchanged.
+    break;
+  }
+  uint32_t seed = slot ^ ((uint32_t)gMyId[0] << 16) ^
+                  ((uint32_t)gMyId[1] << 8) ^ gMyId[2];
+  gRuntime.setAutonomousPreset(program, preset, seed, now, false);
+  Serial.printf("autonomous-schedule: slot=%lu act=%u program=%u\n",
+                (unsigned long)slot, (unsigned)(slot & 0x03U), program);
+}
+
+static bool ordinaryWakeChimesTick(bool eligible, bool finishingWake,
+                                   uint32_t now) {
+  if (gWakeChimeStage == WAKE_CHIME_DONE) return false;
+  if (gWakeChimeStage == WAKE_CHIME_UNDECIDED && !eligible) return false;
+  if (gWakeChimeStage == WAKE_CHIME_UNDECIDED) {
+    if (!fieldChanceSelected(gCfg.dayChimeChanceX256, esp_random())) {
+      gWakeChimeStage = WAKE_CHIME_DONE;
+      return false;
+    }
+    gWakeChimeStage = WAKE_CHIME_FIRST_SENT;
+    gWakeChimeNextMs = now + RES_SOLENOID_DEFAULT_MS +
+                       RES_SOLENOID_REST_MS + 20U;
+    if (!solenoidStrike(RES_SOLENOID_DEFAULT_MS, "day-cricket-1"))
+      Serial.println("day-cricket: first hit blocked (mechanism gate)");
+    return finishingWake;
+  }
+  if (gWakeChimeStage == WAKE_CHIME_FIRST_SENT) {
+    if (!finishingWake) return false;
+    if ((int32_t)(now - gWakeChimeNextMs) < 0) return true;
+    gWakeChimeStage = WAKE_CHIME_SECOND_SENT;
+    gWakeChimeNextMs = now + RES_SOLENOID_DEFAULT_MS + 20U;
+    if (!solenoidStrike(RES_SOLENOID_DEFAULT_MS, "day-cricket-2"))
+      Serial.println("day-cricket: second hit blocked (mechanism gate)");
+    return true;
+  }
+  if ((int32_t)(now - gWakeChimeNextMs) < 0 ||
+      !solenoidQuietFor(10))
+    return true;
+  gWakeChimeStage = WAKE_CHIME_DONE;
+  return false;
+}
+
+static void inspectionRadioTick(uint32_t now) {
+  bool controlActive = inspectionControlActive(gInspectionControl, now);
+  bool eligible = inspectionStaticEnabled() &&
+                  gCfg.profile == PROFILE_PROD && gShowActive &&
+                  gScheduleValid && gScheduleNight &&
+                  powerWakeSampleWindowComplete() && !otaVerifyPending() &&
+                  !transportWakeDarkActive() && !controlActive;
+  InspectionRadioAction action = inspectionRadioDutyTick(
+      gInspectionRadioDuty, eligible, now, RES_WAKE_LISTEN_MS,
+      (uint32_t)RES_DAY_SLEEP_S * 1000UL);
+  if (action == INSPECTION_RADIO_PAUSE) {
+    if (!commsPauseRadio()) inspectionRadioDutyInit(gInspectionRadioDuty);
+  } else if (action == INSPECTION_RADIO_RESUME) {
+    if (commsResumeRadio()) netPeerSendHeartbeat(true);
+  }
+}
+
 void behaviorTick() {
   uint32_t now = millis();
 
-  waveTick(now);
+  if (inspectionStaticEnabled()) {
+    gTofPresenceActive = false;
+    gTofPresenceRising = false;
+    gPresencePending = false;
+    if (gWave.eventId) waveClear();
+  } else {
+    waveTick(now);
+  }
 
   // Profile/default flips re-derive the lifecycle and fallback live. An active
   // lease remains authoritative; the selected fallback takes over on release.
@@ -519,6 +690,7 @@ void behaviorTick() {
       lifeInit(gLife);
       gSolarProbeActive = false;
     }
+    gLastAutonomousSlot = UINT32_MAX;
     gRuntime.setAutonomousProgram(configuredAutonomousProgram(), now, true);
     if (!commissionListenerFallback()) waveClear();
   }
@@ -547,6 +719,7 @@ void behaviorTick() {
   } else {
     gScheduleValid = false;
   }
+  if (!inspectionStaticEnabled()) applyAutonomousFieldSchedule(wall, now);
   // Explicit bridge/serial override wins. With AUTO selected, trustworthy UTC
   // supersedes the panel-current dusk heuristic through the existing seam.
   li.forceNight = gForceNight >= 0 ? gForceNight
@@ -587,10 +760,11 @@ void behaviorTick() {
   }
 
   DaytimeRitualInputs ritualIn = {};
-  ritualIn.enabled = gCfg.profile == PROFILE_PROD &&
+  ritualIn.enabled = !inspectionStaticEnabled() &&
+                     gCfg.profile == PROFILE_PROD &&
                      gClass == FIXTURE_DOWNLIGHT;
   ritualIn.scheduledDay = gScheduleValid && !gScheduleNight;
-  ritualIn.energyReady = gStrikesAllowed;
+  ritualIn.batterySafe = fieldRitualBatterySafe(pb);
   ritualIn.authorityFree = !gRuntime.leaseActive();
   ritualIn.utcValid = wall.valid;
   ritualIn.utcS = wall.utcS;
@@ -604,15 +778,18 @@ void behaviorTick() {
     const char *eventName = daytimeRitualEventName(ritual.event);
     Serial.printf("daytime-ritual: hour=%lu event=%s attempt\n",
                   (unsigned long)ritual.hourKey, eventName);
-    if (!strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM,
-                                behaviorStrikePermitted())) {
-      Serial.printf("daytime-ritual: %s refused (energy gate)\n", eventName);
+    if (!strikePolicyMayAttempt(StrikeOrigin::FIELD_RITUAL_BEST_EFFORT,
+                                fieldRitualBatterySafe(pb))) {
+      Serial.printf("daytime-ritual: %s refused (battery tier)\n", eventName);
     } else if (!solenoidStrike(RES_SOLENOID_DEFAULT_MS, eventName)) {
       Serial.printf("daytime-ritual: %s blocked (mechanism gate)\n", eventName);
     }
   }
 
-  if (gShowActive) {
+  bool inspectionControlRunning =
+      inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
+      inspectionControlActive(gInspectionControl, now);
+  if (gShowActive || inspectionControlRunning) {
     NeighborView views[NEIGHBOR_PINNED_MAX];
     uint8_t nviews = neighborSnapshot(gNeighbors, now, RES_NEIGHBOR_FRESH_MS,
                                       views, NEIGHBOR_PINNED_MAX);
@@ -646,7 +823,8 @@ void behaviorTick() {
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
 #endif
-    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
+    if (!inspectionStaticEnabled() && !gProgramSuppressesLight)
+      applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -658,7 +836,7 @@ void behaviorTick() {
 #ifdef RES_BASIC_LISTENER
     allowChoreoTx = allowChoreoTx || gCfg.profile == PROFILE_DEV;
 #endif
-    if (allowChoreoTx &&
+    if (!inspectionStaticEnabled() && allowChoreoTx &&
         (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
@@ -709,7 +887,8 @@ void behaviorTick() {
     handleProgramStrike(pout);
     if (commissionListenerFallback() && !gRuntime.leaseActive())
       quietIdleFrame(gFrame, gPixels, now);
-    if (!gProgramSuppressesLight) applyLocalInteraction(gFrame);
+    if (!inspectionStaticEnabled() && !gProgramSuppressesLight)
+      applyLocalInteraction(gFrame);
     gNetCaState = pout.txState;
     gNetProgram = gRuntime.activeProgram();
     gTelemetryProgram = gNetProgram;
@@ -718,7 +897,8 @@ void behaviorTick() {
     // daemon only on sparse full heartbeats (~60 s lag, measured).
     // state tx deliberately NOT power-vetoed here: on the bench a low cell
     // must still report truthfully (Luigi at 21%% went state-silent, measured)
-    if (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0) {
+    if (!inspectionStaticEnabled() &&
+        (pout.sendNow || (int32_t)(now - gNextChoreoTxMs) >= 0)) {
       NbChoreoState cs;
       memset(&cs, 0, sizeof(cs));
       fillHeader(&cs.h, NB_CHOREO_STATE);
@@ -748,11 +928,23 @@ void behaviorTick() {
   // reachable for its full duration. In particular, a long DARK/blackout lease
   // must not hit the generic 10-minute control hold, deep-sleep, and lose its
   // RAM lease on reboot. Once the lease expires, normal day sleep resumes.
-  if (lo.wantSleep && !gRitualKeepAwake && powerWakeSampleWindowComplete() &&
-      !gRuntime.leaseActive() && !otaVerifyPending()) {
+  inspectionRadioTick(now);
+
+  bool wakeChimeEligible = !inspectionStaticEnabled() &&
+      (lo.state == LIFE_DAY_CHARGE || lo.state == LIFE_DAY_ACTIVE) &&
+      powerWakeSampleWindowComplete() &&
+      !gRuntime.leaseActive() && !otaVerifyPending() &&
+      gCfg.profile == PROFILE_PROD && gClass == FIXTURE_DOWNLIGHT &&
+      fieldRitualBatterySafe(pb);
+  bool wakeChimesHolding =
+      ordinaryWakeChimesTick(wakeChimeEligible, lo.wantSleep, now);
+  if (lo.wantSleep && !gRitualKeepAwake && !wakeChimesHolding &&
+      powerWakeSampleWindowComplete() && !gRuntime.leaseActive() &&
+      !otaVerifyPending()) {
     uint16_t sleepS = lo.sleepS;
     if (gCfg.profile == PROFILE_PROD && gClass == FIXTURE_DOWNLIGHT &&
-        gStrikesAllowed && gScheduleValid && !gScheduleNight && wall.valid) {
+        fieldRitualBatterySafe(pb) && gScheduleValid && !gScheduleNight &&
+        wall.valid) {
       sleepS = daytimeRitualSleepS(wall.utcS, wall.subMs, sleepS);
     }
     // Restore DAY_ACTIVE for only the next timer wake, and only while the
@@ -770,6 +962,27 @@ bool behaviorFrame(FrameBuffer &f) {
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.
   if (transportWakeDarkActive()) return false;
+  if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
+    bool controlActive = inspectionControlActive(gInspectionControl, millis());
+    if (controlActive && gRuntime.activeProgram() == PROG_DIRECT) {
+      f = gFrame;
+      fieldDirectRoleApply(f, gClass);
+      return true;
+    }
+    if (gShowActive) {
+      f = gFrame;
+      fieldNightRoleApply(f, gClass, true);
+      return true;
+    }
+  }
+  if (gCfg.profile == PROFILE_PROD && gShowActive &&
+      (gClass == FIXTURE_UPLIGHT || gClass == FIXTURE_PERIMETER)) {
+    f = gFrame;
+    bool modeWouldLight =
+        !gProgramSuppressesLight && fieldFrameVisible(gFrame);
+    fieldNightRoleApply(f, gClass, modeWouldLight);
+    return true;
+  }
   if (gProgramSuppressesLight) return false;
 #ifdef RES_BASIC_LISTENER
   // A bridge DARK lease is electrically dark, not merely an all-zero frame.
@@ -795,4 +1008,13 @@ bool behaviorFrame(FrameBuffer &f) {
   f = gFrame;
   return true;
 #endif
+}
+
+bool behaviorStaticInspectionActive() {
+  return inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD &&
+         gShowActive && !transportWakeDarkActive();
+}
+
+bool behaviorInspectionDirectOnly() {
+  return inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD;
 }

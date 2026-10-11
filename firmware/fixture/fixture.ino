@@ -181,9 +181,10 @@ void loop() {
   sentinelTraceTick();
 }
 
-// Render arbitration: color-identify (rig ordering) > bench smoke toggle >
-// the program runtime's night show. The power veto caps everything; a
-// hard-parked boot never lights.
+// Render arbitration: the scheduled static inspection light wins over
+// identify/smoke so a field command cannot blink a safety light. Outside that
+// posture, the established rig/bench ordering remains. The power veto caps
+// everything; a hard-parked boot never lights.
 void renderTick() {
   if (deepRecoveryBuild()) {
     if (ledRailIsOn()) ledRailOff();
@@ -199,7 +200,9 @@ void renderTick() {
   bool ident = netPeerIdentifyActive() && netPeerIdentifyColor() > 0;
   FrameBuffer f;
   bool have = false;
-  if (ident) {
+  if (behaviorStaticInspectionActive()) {
+    have = behaviorFrame(f);
+  } else if (ident) {
     ledIdentifyFrame(f, netPeerIdentifyColor(), netPeerIdentifyBlink(),
                      netPeerIdentifyValue(), now);
     have = true;

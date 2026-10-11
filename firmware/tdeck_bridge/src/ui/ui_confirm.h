@@ -10,6 +10,8 @@
 typedef void (*ConfirmYesFn)(void *user);
 void uiConfirm(const char *summary, const char *origin, ConfirmYesFn onYes,
                void *user);
+// UI-task only: keep a reviewed proposal immutable until the modal closes.
+bool uiConfirmIsOpen();
 
 // Cross-task path (agent tools on the net task): blocks the CALLING task until
 // the operator answers on-device or the timeout lapses. Focus lands on cancel.

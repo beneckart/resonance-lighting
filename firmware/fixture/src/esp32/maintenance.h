@@ -36,6 +36,12 @@ bool maintenanceReady();
 bool enterMaintenance(); // loads off -> ESP-NOW down -> WiFi join -> serve OTA
 void enterComms();       // WiFi down -> STA unassociated on channel -> ESP-NOW up
 void commsRecoveryTick(); // retry a failed ESP-NOW init without losing USB service
+// Inspection posture may stop only the radio while leaving LED/sensor rails
+// and the CPU live. Recovery must distinguish that deliberate pause from an
+// ESP-NOW initialization failure.
+bool commsPauseRadio();
+bool commsResumeRadio();
+bool commsRadioPaused();
 uint32_t commsInitAttempts();
 uint32_t commsInitFailures();
 bool maintenancePowerOk();

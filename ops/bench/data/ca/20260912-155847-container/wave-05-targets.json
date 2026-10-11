@@ -1,0 +1,114 @@
+{
+  "snapshot_utc": "2026-09-13T00:25:05.532388+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "F4019C",
+      "callsign": "Treecko",
+      "battery_v": 3.278,
+      "age_ms": 860656,
+      "sleep_s": 900,
+      "eta_s": 39.34400000000005,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F0E7C",
+      "callsign": "Navi",
+      "battery_v": 3.194,
+      "age_ms": 860598,
+      "sleep_s": 900,
+      "eta_s": 39.402000000000044,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5B44",
+      "callsign": "Astro",
+      "battery_v": 3.073,
+      "age_ms": 852367,
+      "sleep_s": 900,
+      "eta_s": 47.63300000000004,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2694",
+      "callsign": "Mewtwo",
+      "battery_v": 3.31,
+      "age_ms": 810770,
+      "sleep_s": 900,
+      "eta_s": 89.23000000000002,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2BE1C",
+      "callsign": "Ryu",
+      "battery_v": 3.063,
+      "age_ms": 788350,
+      "sleep_s": 900,
+      "eta_s": 111.64999999999998,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2B7DC",
+      "callsign": "Ponyta",
+      "battery_v": 2.582,
+      "age_ms": 776359,
+      "sleep_s": 900,
+      "eta_s": 123.64099999999996,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2B900",
+      "callsign": "Cammy",
+      "battery_v": 3.28,
+      "age_ms": 727172,
+      "sleep_s": 900,
+      "eta_s": 172.82799999999997,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F3FC90",
+      "callsign": "Shinx",
+      "battery_v": 3.313,
+      "age_ms": 722363,
+      "sleep_s": 900,
+      "eta_s": 177.63699999999994,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F3FD88",
+      "callsign": "Torkoal",
+      "battery_v": 3.278,
+      "age_ms": 716443,
+      "sleep_s": 900,
+      "eta_s": 183.55700000000002,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F401A8",
+      "callsign": "Luigi",
+      "battery_v": 3.231,
+      "age_ms": 716171,
+      "sleep_s": 900,
+      "eta_s": 183.82899999999995,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40308",
+      "callsign": "Daisy",
+      "battery_v": 3.275,
+      "age_ms": 703551,
+      "sleep_s": 900,
+      "eta_s": 196.44899999999996,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2BF90",
+      "callsign": "Sora",
+      "battery_v": 3.24,
+      "age_ms": 698090,
+      "sleep_s": 900,
+      "eta_s": 201.90999999999997,
+      "fw": "fx-260831-dc82da7-b"
+    }
+  ]
+}

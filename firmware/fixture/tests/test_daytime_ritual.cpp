@@ -6,7 +6,7 @@ static DaytimeRitualInputs baseInput() {
   DaytimeRitualInputs in = {};
   in.enabled = true;
   in.scheduledDay = true;
-  in.energyReady = true;
+  in.batterySafe = true;
   in.authorityFree = true;
   in.utcValid = true;
   in.utcS = 100UL * 3600UL;
@@ -71,7 +71,7 @@ int main() {
   // Energy, schedule, authority, and time are all independent vetoes.
   DaytimeRitualInputs veto = baseInput();
   veto.utcS += 5;
-  veto.energyReady = false;
+  veto.batterySafe = false;
   CHECK(!daytimeRitualTick(state, veto).keepAwake);
   veto = baseInput(); veto.utcS += 5; veto.scheduledDay = false;
   CHECK(!daytimeRitualTick(state, veto).strikeRequested);

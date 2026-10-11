@@ -46,6 +46,10 @@ static bool gProfileSetSeen = false;
 static uint8_t gProfileSetSrc[3] = {};
 static uint32_t gProfileSetSeq = 0;
 static uint32_t gProfileSetSenderUptime = 0;
+static bool gFieldTuningSeen = false;
+static uint8_t gFieldTuningSrc[3] = {};
+static uint32_t gFieldTuningSeq = 0;
+static uint32_t gFieldTuningSenderUptime = 0;
 
 // Downlink (bridge SHOWFRAME/broadcast) accounting, donor semantics.
 static uint32_t gDlLastSeq = 0;
@@ -196,6 +200,7 @@ void netPeerSendHeartbeat(bool full) {
     }
   }
   hb.power_sample_flags = powerSampleFlags();
+  hb.storage_capabilities = 0x03;
   espNowSendRaw(&hb, NB_HB_FULL_LEN);
 }
 
@@ -279,8 +284,7 @@ static void processPacket(const RxItem &it) {
     memcpy(gProgramSetSrc, h->src_id, 3);
     gProgramSetSeq = h->seq;
     gProgramSetSenderUptime = h->uptime_ms;
-    espNowNoteControlRx();
-    behaviorOnProgramSet(*ps);
+    if (behaviorOnProgramSet(*ps)) espNowNoteControlRx();
     break;
   }
   case NB_NEIGHBOR_SET: {
@@ -310,7 +314,7 @@ static void processPacket(const RxItem &it) {
   }
   case NB_SHOWFRAME: {
     if (it.len < (int)(sizeof(NbHeader) + 4)) return;
-    espNowNoteControlRx();
+    if (!behaviorInspectionDirectOnly()) espNowNoteControlRx();
     accountDownlink(h, it.rssi);
     const NbShowFrame *f = (const NbShowFrame *)it.data;
     gShowFrame.rx_ms = millis();
@@ -337,7 +341,6 @@ static void processPacket(const RxItem &it) {
     const NbDirectEntry *e = nbDirectFindEntry(df, it.len, gMyId);
     if (!e) break; // frame doesn't name us: not ours, ignore
     ++gDirectMatched;
-    espNowNoteControlRx();
     behaviorOnDirectFrame(e->r, e->g, e->b, e->w, df->flags);
     break;
   }
@@ -348,9 +351,14 @@ static void processPacket(const RxItem &it) {
     if (fl->mode > 2) return;
     espNowNoteControlRx();
     // Radio twin of serial 'N': RAM-only, a reboot always returns to auto.
-    behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
-    Serial.printf("force_night -> %s (radio)\n",
-                  fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
+    // The static inspection posture deliberately reinterprets DAY as its
+    // bounded Wake Fleet control arm while preserving lifecycle AUTO.
+    bool armed = behaviorForceNight(fl->mode == 2 ? -1 : (int8_t)fl->mode);
+    if (armed)
+      Serial.println("wake-fleet -> inspection control armed (radio)");
+    else
+      Serial.printf("force_night -> %s (radio)\n",
+                    fl->mode == 2 ? "auto" : (fl->mode ? "night" : "day"));
     break;
   }
   case NB_TRANSPORT_SLEEP: {
@@ -360,6 +368,13 @@ static void processPacket(const RxItem &it) {
     if (ts->seconds == 0 || ts->seconds > 7UL * 24UL * 3600UL) return;
     espNowNoteControlRx();
     enterTransportSleep(ts->seconds, SLEEP_CAUSE_TRANSPORT, &ts->h);
+    break;
+  }
+  case NB_STORAGE_SLEEP: {
+    if (it.len != sizeof(NbStorageSleep)) return;
+    const NbStorageSleep &request = *(const NbStorageSleep *)it.data;
+    if (!nbStorageRequestValid(request, gMyId)) return;
+    enterStorageSleep(request);
     break;
   }
   case NB_LOCATE_CONTROL: {
@@ -558,6 +573,45 @@ static void processPacket(const RxItem &it) {
     }
     Serial.printf("commission-default -> %s (%s%s)\n",
                   commissionDefaultName(p->mode),
+                  (p->flags & 0x01) ? "persisted" : "until reboot",
+                  ok ? "" : " FAILED");
+    break;
+  }
+  case NB_FIELD_TUNING: {
+    if (it.len < (int)sizeof(NbFieldTuning)) return;
+    const NbFieldTuning *p = (const NbFieldTuning *)it.data;
+    if (!nbTargetMatches(p->target_id, gMyId) || p->show_schedule > 1 ||
+        p->presence_seed_min_s < 10 || p->presence_seed_min_s > 3600 ||
+        p->presence_rearm_clear_s < 1 ||
+        p->presence_rearm_clear_s > 600)
+      return;
+    if (gFieldTuningSeen && h->seq == gFieldTuningSeq &&
+        h->uptime_ms == gFieldTuningSenderUptime &&
+        memcmp(h->src_id, gFieldTuningSrc, 3) == 0)
+      return;
+    espNowNoteControlRx();
+    bool ok = true;
+    if (p->flags & 0x01) {
+      ok = nvsPersistFieldTuning(
+          p->day_chime_chance_x256, p->show_schedule,
+          p->presence_seed_min_s, p->presence_rearm_clear_s);
+    } else {
+      gCfg.dayChimeChanceX256 = p->day_chime_chance_x256;
+      gCfg.showSchedule = p->show_schedule;
+      gCfg.presenceSeedMinS = p->presence_seed_min_s;
+      gCfg.presenceRearmClearS = p->presence_rearm_clear_s;
+    }
+    if (ok) {
+      gFieldTuningSeen = true;
+      memcpy(gFieldTuningSrc, h->src_id, 3);
+      gFieldTuningSeq = h->seq;
+      gFieldTuningSenderUptime = h->uptime_ms;
+      netPeerSendHeartbeat(true);
+    }
+    Serial.printf("field-tuning -> chime=%u/256 show=%u seed=%us clear=%us "
+                  "(%s%s)\n",
+                  p->day_chime_chance_x256, p->show_schedule,
+                  p->presence_seed_min_s, p->presence_rearm_clear_s,
                   (p->flags & 0x01) ? "persisted" : "until reboot",
                   ok ? "" : " FAILED");
     break;

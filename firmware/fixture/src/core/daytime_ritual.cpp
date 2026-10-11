@@ -47,7 +47,7 @@ static void markAttempted(DaytimeRitualState &state, uint8_t event,
 DaytimeRitualOutputs daytimeRitualTick(DaytimeRitualState &state,
                                        const DaytimeRitualInputs &in) {
   DaytimeRitualOutputs out = {};
-  if (!in.enabled || !in.scheduledDay || !in.energyReady ||
+  if (!in.enabled || !in.scheduledDay || !in.batterySafe ||
       !in.authorityFree || !in.utcValid || in.subMs >= 1000 ||
       in.uncertaintyMs > DAYTIME_RITUAL_ORGANIC_MAX_UNCERT_MS)
     return out;

@@ -1,0 +1,12 @@
+{
+  "stable_charge_release_ms": 61000,
+  "weak_source_release_ms": 0,
+  "intermittent_charge_release_ms": 0,
+  "full_cv_release_ms": 61000,
+  "weak_cycle_mean_battery_ma_model": 48.713,
+  "weak_cycles_checked": 20,
+  "source_commit": "ffcbf034c88bef1cdf3ea92a090e973d3e335946",
+  "policy_sha256": "6ad97fd574cee29058e868b1be73570719ab75098ca9c1be86ccb22d1905f87d",
+  "hardware_test": false,
+  "interpretation": "A net-positive sleep-cycle source can fail awake charge qualification below the full-battery voltage floor. Synthetic input conditions demonstrate reachability of the state, not the cause on any physical fixture. Zero release_ms means no release in 600 simulated awake seconds."
+}

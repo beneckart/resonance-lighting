@@ -81,11 +81,15 @@ per-slot R/G/B, EMBER warm-white, HUECYCLE (20 s shared hue rotation), PULSE
 (broadband transient flashes over a dim floor), BANDS RGB (shared bass/red,
 mid/green, treble/blue), BANDS SPLIT (stable fixture thirds each follow one
 band), and TIMBRE HUE (spectral centroid selects color while energy selects
-brightness). The Audio footer has **Start/Pause**, **Input**, and **Mode**. Input
+brightness). A RAM-only output gain applies after color generation so every
+mode keeps its hue while becoming easier to see: **1X**, **1.5X**, **2X**, and
+**3X**, with **2X** as the brighter field default. Channel values saturate at
+255; fixture battery DIM/OFF/PROTECT policy remains downstream and authoritative.
+The Audio footer has **Start/Pause**, **Input**, **Mode**, and **Gain**. Input
 cycles between the CoreS3's ambient microphones and Module Audio's Aux input;
-USB `A`, `N`, and `M` remain optional compatibility controls for those same
-actions. Leaving Audio sends a zero frame and stops publishing, so a hidden app
-cannot fight another artistic publisher.
+USB `A`, `N`, `M`, and `V` remain optional compatibility controls for those
+same actions. Leaving Audio sends a zero frame and stops publishing, so a
+hidden app cannot fight another artistic publisher.
 Direct-frame staleness still returns each fixture to its autonomous program
 after three seconds; the app does not persist a lifecycle override. Peers whose
 full heartbeat identifies non-fixture firmware are omitted so an old bench node

@@ -4,13 +4,24 @@
 
 #include "../core/control_activity_model.h"
 #include "../core/maintenance_campaign.h"
+#include "../core/storage_campaign.h"
+#include "fixture/src/core/packet.h"
+
+// Local reviewed UI, or explicitly confirmed exact-roster USB host operation.
+bool meshStorageBegin(const uint8_t (*targets)[3], size_t count, uint8_t mode,
+                      uint32_t sleepS, uint32_t hostJobId = 0);
+void meshStorageStop();
+bool meshStorageStopHostJob(uint32_t jobId);
+void meshStoragePrintStatus();
+StorageCampaignStatus meshStorageStatus();
+void meshStorageReceipt(const NbStorageReceipt &receipt);
 
 // The ONLY translation unit that emits Nb packets (single-writer doctrine;
 // espnow_link deliberately does not export a raw send). Burst-repeat follows
 // the fleet RF convention: broadcast cmds 4x/5 ms, targeted 6x/8 ms.
 // M2's TxService adds the confirm rail + stream ownership ON TOP of these.
-// The one sleep exception is a local-UI-only, confirmed fleet timer sleep;
-// agent tools and the serial CLI intentionally do not expose it (ADR 0048).
+// Timer sleep remains local-UI-only. ADR 0081 adds only explicitly confirmed,
+// exact-roster USB-wake storage to the serial CLI; agent tools exclude sleep.
 
 void meshTxBegin();                 // derive our 3-byte id from the STA MAC
 void meshTxTick();                  // bounded resend campaigns for sleeping peers
@@ -29,9 +40,20 @@ bool meshProgramLease(const uint8_t target[3], uint8_t programId,
 ProgramLeaseActivity meshProgramActivity();
 bool meshStopTrackedProgramActivity();
 bool meshSleepAll(uint16_t seconds);  // local confirmed UI only; 1..65535 s
-// Serial-diagnostic exception from ADR 0072: exact nonzero target, fixed 1 s.
+// August exact-target diagnostic reset decision: nonzero target, fixed 1 s.
 bool meshResetTarget(const uint8_t target[3]);
 bool meshForceLifecycle(uint8_t mode); // 0=day 1=night 2=auto; RAM-only fleet
+// One-hour inspection-performance arm using the same RAM-only mode-0 packet as
+// Wake Fleet. It changes controller resend duration only; fixture battery
+// safety and the fixture-side ten-minute arm remain authoritative.
+bool meshPerformanceHold();
+struct MeshLifecycleCampaignStatus {
+  bool active;
+  uint8_t mode;
+  uint32_t durationMs;
+  uint32_t remainingMs;
+};
+MeshLifecycleCampaignStatus meshLifecycleCampaignStatus();
 bool meshEnterMaintenance(const uint8_t target[3]);
 // Exact-target only. Profile persistence is an NVS mutation and must never be
 // exposed as an all-zero broadcast through the host CLI.
@@ -44,6 +66,11 @@ void meshMaintenancePrintStatus();
 // Exact-target only. Commission-default persistence is an NVS mutation, so
 // Bridge OS never emits this command with the all-zero broadcast target.
 bool meshCommissionDefault(const uint8_t target[3], uint8_t mode, bool persist);
+// Deliberate fleet-wide durable burn behavior tuning. The on-device UI owns
+// confirmation; the sender checkpoints an action audit before RF.
+bool meshFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                     uint16_t presenceSeedMinS,
+                     uint16_t presenceRearmClearS, bool persist);
 bool meshTimeQuality(uint32_t utcS, uint16_t subMs, uint16_t ageS,
                      uint16_t uncertaintyMs, uint16_t bootId);
 

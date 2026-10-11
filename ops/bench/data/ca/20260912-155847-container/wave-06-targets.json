@@ -1,0 +1,114 @@
+{
+  "snapshot_utc": "2026-09-13T00:30:09.356849+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "F2BF7C",
+      "callsign": "Rotom",
+      "battery_v": 3.281,
+      "age_ms": 842979,
+      "sleep_s": 900,
+      "eta_s": 57.02099999999996,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F4043C",
+      "callsign": "Joltik",
+      "battery_v": 3.264,
+      "age_ms": 818250,
+      "sleep_s": 900,
+      "eta_s": 81.75,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F2BE20",
+      "callsign": "Sonic",
+      "battery_v": 3.294,
+      "age_ms": 802577,
+      "sleep_s": 900,
+      "eta_s": 97.423,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5AD4",
+      "callsign": "Loki",
+      "battery_v": 3.323,
+      "age_ms": 797078,
+      "sleep_s": 900,
+      "eta_s": 102.92200000000003,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F26BC",
+      "callsign": "Pinsir",
+      "battery_v": 3.23,
+      "age_ms": 781764,
+      "sleep_s": 900,
+      "eta_s": 118.23599999999999,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40174",
+      "callsign": "Pacman",
+      "battery_v": 3.029,
+      "age_ms": 778112,
+      "sleep_s": 900,
+      "eta_s": 121.88800000000003,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5A58",
+      "callsign": "Murkrow",
+      "battery_v": 3.195,
+      "age_ms": 759752,
+      "sleep_s": 900,
+      "eta_s": 140.24800000000005,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40254",
+      "callsign": "Leeloo",
+      "battery_v": 3.259,
+      "age_ms": 752007,
+      "sleep_s": 900,
+      "eta_s": 147.99300000000005,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2738",
+      "callsign": "Ness",
+      "battery_v": 3.284,
+      "age_ms": 722909,
+      "sleep_s": 900,
+      "eta_s": 177.091,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F402A8",
+      "callsign": null,
+      "battery_v": 3.278,
+      "age_ms": 707341,
+      "sleep_s": 900,
+      "eta_s": 192.659,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9F268C",
+      "callsign": null,
+      "battery_v": 3.315,
+      "age_ms": 703406,
+      "sleep_s": 900,
+      "eta_s": 196.59400000000005,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F26E8",
+      "callsign": "Tifa",
+      "battery_v": 3.254,
+      "age_ms": 690708,
+      "sleep_s": 900,
+      "eta_s": 209.29200000000003,
+      "fw": "fx-260831-f121868-b"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "snapshot_utc": "2026-09-13T00:34:18.847662+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "F2BDC4",
+      "callsign": "Batman",
+      "battery_v": 3.282,
+      "age_ms": 862898,
+      "sleep_s": 900,
+      "eta_s": 37.101999999999975,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2BE0C",
+      "callsign": "Sakura",
+      "battery_v": 3.083,
+      "age_ms": 859108,
+      "sleep_s": 900,
+      "eta_s": 40.89200000000005,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BD00",
+      "callsign": "Tepig",
+      "battery_v": 3.243,
+      "age_ms": 858826,
+      "sleep_s": 900,
+      "eta_s": 41.17399999999998,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9E5A94",
+      "callsign": "Venom",
+      "battery_v": 3.274,
+      "age_ms": 847813,
+      "sleep_s": 900,
+      "eta_s": 52.18700000000001,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE70",
+      "callsign": "Swablu",
+      "battery_v": 3.26,
+      "age_ms": 847072,
+      "sleep_s": 900,
+      "eta_s": 52.928,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F2BE6C",
+      "callsign": "Nebula",
+      "battery_v": 3.234,
+      "age_ms": 796175,
+      "sleep_s": 900,
+      "eta_s": 103.82500000000005,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F401CC",
+      "callsign": "Ratchet",
+      "battery_v": 3.278,
+      "age_ms": 771937,
+      "sleep_s": 900,
+      "eta_s": 128.063,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "F402C4",
+      "callsign": "Ripley",
+      "battery_v": 3.192,
+      "age_ms": 768692,
+      "sleep_s": 900,
+      "eta_s": 131.308,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40364",
+      "callsign": "Riju",
+      "battery_v": 3.249,
+      "age_ms": 765802,
+      "sleep_s": 900,
+      "eta_s": 134.19799999999998,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F26E4",
+      "callsign": "Grogu",
+      "battery_v": 3.195,
+      "age_ms": 628163,
+      "sleep_s": 900,
+      "eta_s": 271.837,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F402B8",
+      "callsign": "Raven",
+      "battery_v": 3.04,
+      "age_ms": 625611,
+      "sleep_s": 900,
+      "eta_s": 274.389,
+      "fw": "fx-260831-dc82da7-b"
+    }
+  ],
+  "deferred_before_dispatch": [
+    {
+      "id": "9F2714",
+      "callsign": "Chunli",
+      "battery_v": 2.615,
+      "age_ms": 2744,
+      "sleep_s": 900,
+      "eta_s": 897.256,
+      "fw": "fx-260831-b3e2738-b"
+    }
+  ],
+  "reason": "Chunli just completed its listen window; keep this gather within maintenance endpoint lifetime."
+}

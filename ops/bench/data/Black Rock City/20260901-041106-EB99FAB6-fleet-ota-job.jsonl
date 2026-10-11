@@ -1,0 +1,19 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260831-f121868-b\\fixture.ino.bin", "artifact_sha256": "569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e", "campaign_duration_s": 970, "discovery_timeout_s": 930.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260831-f121868-b", "gather_cadence": "protect", "job_id": "EB99FAB6", "phase": "PLAN", "target_count": 14, "targets": ["9F2694", "F2BE48", "F40308", "F2BF90", "F2BF7C", "9F2714", "F2BF8C", "F2BDC4", "F2BD00", "F4035C", "F4019C", "F402A8", "F401DC", "F2BE1C"], "ts_utc": "2026-09-01T04:11:06Z"}
+{"elapsed_s": 0.047, "event": "passed", "job_id": "EB99FAB6", "phase": "PREFLIGHT", "target_count": 14, "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.063, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "9F2694", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.063, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BE48", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.063, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F40308", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BF90", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BF7C", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.11, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "9F2714", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BF8C", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.125, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BDC4", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BD00", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.141, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F4035C", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.156, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F4019C", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.188, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F402A8", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.203, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F401DC", "ts_utc": "2026-09-01T04:11:07Z"}
+{"elapsed_s": 0.203, "event": "target_added", "job_id": "EB99FAB6", "phase": "GATHER", "target": "F2BE1C", "ts_utc": "2026-09-01T04:11:07Z"}
+{"campaign": {"active": true, "cycle_ms": 140, "dispatch_count": 13, "job_id": "EB99FAB6", "phase": 1, "remaining_ms": 969869, "status_age_ms": 203, "target_count": 14, "ts_utc": "2026-09-01T04:11:09.042195+00:00"}, "elapsed_s": 2.266, "event": "bridge_acknowledged", "job_id": "EB99FAB6", "phase": "GATHER", "ts_utc": "2026-09-01T04:11:09Z"}
+{"elapsed_s": 819.281, "error": "[Errno 22] Invalid argument", "event": "job_error", "job_id": "EB99FAB6", "phase": "CLEANUP", "ts_utc": "2026-09-01T04:24:46Z"}
+{"elapsed_s": 849.453, "error": "bridge did not acknowledge campaign EB99FAB6 phase=2 active=0 targets=14; last={'job_id': '00000000', 'phase': 0, 'active': False, 'target_count': 0, 'dispatch_count': 0, 'remaining_ms': 0, 'cycle_ms': 0, 'ts_utc': '2026-09-01T04:25:06.445366+00:00', 'status_age_ms': 9735}", "event": "freeze_unconfirmed", "job_id": "EB99FAB6", "phase": "CLEANUP", "ts_utc": "2026-09-01T04:25:16Z"}

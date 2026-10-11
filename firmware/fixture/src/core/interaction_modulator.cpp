@@ -34,16 +34,11 @@ static bool applyTof(FrameBuffer &frame,
                      const LocalInteractionInputs &inputs) {
   if (inputs.fixtureClass == FIXTURE_DOWNLIGHT && frame.count == 1) {
     if (!inputs.tofPresenceActive) return false;
-    // A persistent, background-relative canopy hit exposes the crisp gobo at
-    // full RGB white. Keeping W off makes the local presence override visually
-    // distinguishable from warm-white output during the field regression
-    // investigation. Distance color remains a perimeter gesture; absolute
-    // close thresholds cannot work when the canopy is roughly 15 ft above
-    // ground.
+    // Blink the program/direct frame itself at 1 Hz. Presence therefore keeps
+    // Color Virus's infection hue and an LED-app color instead of replacing
+    // either with dedicated warm white.
+    if (((inputs.nowMs / 500u) & 1u) == 0u) return false;
     frameClear(frame);
-    frame.px[0][0] = 255;
-    frame.px[0][1] = 255;
-    frame.px[0][2] = 255;
     return true;
   }
 

@@ -1,0 +1,107 @@
+{
+  "ts_utc": "2026-09-13T00:56:59.714164+00:00",
+  "serial": {
+    "connected": true,
+    "port": "COM152",
+    "error": null,
+    "lines": 12,
+    "started_ts": "2026-09-13T00:56:43.205620+00:00"
+  },
+  "master": {
+    "id": "8EB508",
+    "channel": 11,
+    "frames": 9,
+    "send_ok": 9,
+    "send_fail": 0,
+    "uptime_ms": 20004,
+    "battery_v": 4.714,
+    "firmware_rev": "tdeck-0.3.0-storage4",
+    "action": 4,
+    "action_value": 0,
+    "action_mesh_seq": 234,
+    "action_bridge_uptime_ms": 471372,
+    "action_utc_s": 1788230438,
+    "action_flags": 1,
+    "action_target": "000000",
+    "action_count": 4,
+    "ts_utc": "2026-09-13T00:56:53.294534+00:00"
+  },
+  "peers": {},
+  "time_sources": {
+    "8EB508": {
+      "id": "8EB508",
+      "callsign": null,
+      "utc_s": 1789261019,
+      "sub_ms": 0,
+      "source": 1,
+      "hops": 0,
+      "age_s": 0,
+      "uncertainty_ms": 470,
+      "boot_id": 54396,
+      "flags": 3,
+      "valid": true,
+      "date_valid": true,
+      "link_rssi_dbm": 0,
+      "gps_valid": true,
+      "gps_utc_s": 1789261019,
+      "gps_sub_ms": 0,
+      "gps_age_ms": 220,
+      "gps_delta_ms": 0,
+      "ts_utc": "2026-09-13T00:56:58.743456+00:00",
+      "observation_age_ms": 984
+    }
+  },
+  "scans": [],
+  "raw": [
+    {
+      "ts_utc": "2026-09-13T00:56:43.290539+00:00",
+      "line": "nb-master id=8EB508 ch=11 frames=4 sendok=4 sendfail=0 up=10000 bv=4.708 fw=tdeck-0.3.0-storage4 act=4 actv=0 actseq=234 actup=471372 actutc=1788230438 actf=01 acttgt=000000 actn=4"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:43.292539+00:00",
+      "line": "nb-mem heap_free=23152 heap_min=22948 psram_free=7714996 psram_min=7714788 bat_mv=4700"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:44.722646+00:00",
+      "line": "nb-time from=8EB508 utc=1789261005 sub=0 src=1 hops=0 age=0 uncert=419 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261005 gpssub=0 gpsage=169 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:46.723646+00:00",
+      "line": "nb-time from=8EB508 utc=1789261007 sub=0 src=1 hops=0 age=0 uncert=418 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261007 gpssub=0 gpsage=168 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:48.722601+00:00",
+      "line": "nb-time from=8EB508 utc=1789261009 sub=0 src=1 hops=0 age=0 uncert=402 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261009 gpssub=0 gpsage=152 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:50.723555+00:00",
+      "line": "nb-time from=8EB508 utc=1789261011 sub=0 src=1 hops=0 age=0 uncert=413 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261011 gpssub=0 gpsage=163 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:52.737252+00:00",
+      "line": "nb-time from=8EB508 utc=1789261013 sub=0 src=1 hops=0 age=0 uncert=429 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261013 gpssub=0 gpsage=179 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:53.294534+00:00",
+      "line": "nb-master id=8EB508 ch=11 frames=9 sendok=9 sendfail=0 up=20004 bv=4.714 fw=tdeck-0.3.0-storage4 act=4 actv=0 actseq=234 actup=471372 actutc=1788230438 actf=01 acttgt=000000 actn=4"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:53.295535+00:00",
+      "line": "nb-mem heap_free=23152 heap_min=22760 psram_free=7714996 psram_min=7714788 bat_mv=4708"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:54.739378+00:00",
+      "line": "nb-time from=8EB508 utc=1789261015 sub=0 src=1 hops=0 age=0 uncert=470 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261015 gpssub=0 gpsage=220 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:56.739474+00:00",
+      "line": "nb-time from=8EB508 utc=1789261017 sub=0 src=1 hops=0 age=0 uncert=460 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261017 gpssub=0 gpsage=210 delta=0"
+    },
+    {
+      "ts_utc": "2026-09-13T00:56:58.743456+00:00",
+      "line": "nb-time from=8EB508 utc=1789261019 sub=0 src=1 hops=0 age=0 uncert=470 boot=54396 flags=03 linkrssi=0 gps=1 gpsutc=1789261019 gpssub=0 gpsage=220 delta=0"
+    }
+  ],
+  "last_command": null,
+  "maintenance_campaign": null
+}

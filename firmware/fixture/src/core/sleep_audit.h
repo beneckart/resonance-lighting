@@ -12,6 +12,8 @@ enum SleepCause : uint8_t {
   SLEEP_CAUSE_RADIO_TARGET = 4,
   SLEEP_CAUSE_TRANSPORT = 5,
   SLEEP_CAUSE_SERIAL = 6,
+  SLEEP_CAUSE_STORAGE_RESET = 7,
+  SLEEP_CAUSE_STORAGE_USB = 8,
 };
 
 enum SleepAuditFlags : uint8_t {

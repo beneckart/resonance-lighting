@@ -110,6 +110,10 @@ public:
   // Profile flips change only the fallback. An active bridge lease remains
   // authoritative until release/expiry; otherwise switch immediately.
   bool setAutonomousProgram(uint8_t programId, uint32_t nowMs, bool hardCut);
+  // UTC field scheduling uses the same programs with explicit autonomous
+  // params. Passing nullptr restores that program's compiled defaults.
+  bool setAutonomousPreset(uint8_t programId, const uint8_t params[8],
+                           uint32_t seed, uint32_t nowMs, bool hardCut);
 
   uint8_t activeProgram() const { return mActive; }
   bool leaseActive() const { return mLease.active; }
@@ -127,6 +131,9 @@ private:
   uint32_t mSeed = 1;
   uint8_t mActive = PROG_IDLE;
   uint8_t mAutonomous = PROG_GH_CA; // class default (all classes: GH at night)
+  uint8_t mAutonomousParams[8] = {};
+  bool mAutonomousHasParams = false;
+  uint32_t mAutonomousSeed = 1;
   ChoreoLease mLease = {};
   DirectFrameState mDirect = {}; // latest direct color (unlike showFrame, the
                                  // runtime owns this storage, not net_peer)

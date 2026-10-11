@@ -46,6 +46,7 @@ static RxItem makeHb(uint8_t idLo, uint32_t seq, uint32_t uptimeMs, int len,
   hb.bq_reg16 = 1u << 5;
   hb.bq_stat1 = 1u << 3;
   hb.bq_fault0 = 0;
+  hb.storage_capabilities = 3;
   snprintf(hb.fw_rev, sizeof(hb.fw_rev), "fx-260819-abcdef0-p");
   RxItem item = {};
   item.ms = 0;
@@ -88,6 +89,7 @@ int main() {
   assert(c.ingest(makeHb(1, 2, 2000, (int)NB_HB_FULL_LEN, -50, 2), 2000));
   assert(p1->hasLedOutput && p1->classLatched == 2 && p1->hasFw);
   assert(p1->hasFixtureState && p1->fixtureStateHeardMs == 2000);
+  assert(p1->storageCapabilities == 3 && p1->storageCapabilitiesHeardMs == 2000);
   assert(p1->hasPowerSampleFlags);
   assert(p1->powerSampleFlags & NB_POWER_SAMPLE_IBAT_VALID);
   assert(p1->hasBq);
@@ -106,6 +108,7 @@ int main() {
   assert(p1->hasSleepAudit); // provenance remains visible across hb-short
   assert(p1->hasPowerSampleFlags); // sample proof also latches across hb-short
   assert(p1->hasBq); // charger status also latches across hb-short
+  assert(p1->storageCapabilities == 3 && p1->storageCapabilitiesHeardMs == 2000);
   CensusView v[8];
   size_t n = c.snapshot(v, 8, 3000);
   assert(n == 1 && v[0].fixtureClass == 2);
@@ -202,6 +205,18 @@ int main() {
   int popped = 0;
   while (ring.pop(&outItem)) ++popped;
   assert(popped == 4 && ring.pending() == 0);
+
+  Census caps;
+  static PeerStat capStorage[1];
+  caps.init(capStorage, 1, 5000, 10000, 0);
+  caps.ingest(makeHb(50, 1, 1000, NB_HB_FULL_LEN, -40), 1000);
+  const PeerStat *capPeer = caps.byId(pid(50));
+  assert(capPeer->storageCapabilities == 3);
+  caps.ingest(makeHb(50, 2, 2000, offsetof(NbHeartbeat, storage_capabilities), -40), 2000);
+  assert(capPeer->storageCapabilities == 0); // older full HB revokes support
+  caps.ingest(makeHb(50, 3, 3000, NB_HB_FULL_LEN, -40), 3000);
+  caps.ingest(makeHb(50, 1, 100, NB_HB_SHORT_LEN, -40), 4000);
+  assert(capPeer->storageCapabilities == 0); // reboot short HB cannot reuse support
 
   printf("census ok\n");
   return 0;

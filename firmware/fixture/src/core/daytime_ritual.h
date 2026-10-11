@@ -21,7 +21,7 @@ struct DaytimeRitualState {
 struct DaytimeRitualInputs {
   bool enabled;          // field profile + cymbal-bearing fixture
   bool scheduledDay;     // site/date schedule, never the panel heuristic
-  bool energyReady;      // platform-owned renewable + battery permission
+  bool batterySafe;      // FULL/DIM only; OFF/PROTECT remain hard vetoes
   bool authorityFree;    // no operator/program lease
   bool utcValid;
   uint32_t utcS;

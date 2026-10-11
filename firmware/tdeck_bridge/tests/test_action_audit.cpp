@@ -29,6 +29,23 @@ int main() {
   assert(std::memcmp(record.target_id, target, sizeof(target)) == 0);
   assert(std::strcmp(actionAuditName(record.action), "reset-target") == 0);
 
+  // The October merge must retain the deployed storage branch's action IDs.
+  // Its field-tuning ID collided with the old laptop-only reset ID (7).
+  static_assert(ACTION_AUDIT_FIELD_TUNING == 7, "field audit ID changed");
+  static_assert(ACTION_AUDIT_STORAGE_RESET == 8, "storage reset ID changed");
+  static_assert(ACTION_AUDIT_STORAGE_USB == 9, "storage USB ID changed");
+  static_assert(ACTION_AUDIT_TRANSPORT == 10, "transport ID changed");
+  static_assert(ACTION_AUDIT_RESET_TARGET == 11, "reset ID must be appended");
+  const char *mergedNames[] = {
+      "field-tuning", "storage-reset", "storage-usb", "transport", "reset-target"};
+  for (uint8_t action = 7; action <= 11; ++action) {
+    assert(actionAuditAppend(log, action, 1, 0, 125000, 44, target, 0));
+    assert(actionAuditNewest(log, record));
+    assert(record.action == action);
+    assert(std::strcmp(actionAuditName(record.action), mergedNames[action - 7]) == 0);
+  }
+  assert(!actionAuditAppend(log, 12, 1, 0, 125000, 44, target, 0));
+
   // Additional writes overwrite the oldest entries in the four-entry ring.
   for (uint8_t i = 0; i < 4; ++i)
     assert(actionAuditAppend(log, ACTION_AUDIT_FORCE_DAY + (i % 3), i,

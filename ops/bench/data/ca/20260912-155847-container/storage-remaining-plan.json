@@ -1,0 +1,92 @@
+{
+  "created_utc": "2026-09-13T01:06:57.172675+00:00",
+  "operator": "ben-codex",
+  "authorization": "Explicit fleet USB-wake storage permission, Sept 12 2026",
+  "expected_firmware": "fx-260912-f951ae9-b",
+  "depends_on_successful_ledger": "storage-03.jsonl",
+  "groups": [
+    {
+      "number": 4,
+      "targets": [
+        "F403F0",
+        "F40268",
+        "F40310",
+        "9E5AB0",
+        "F2BE38",
+        "F2BDB0",
+        "9F0E4C",
+        "9E668C",
+        "9F26AC",
+        "F3FD60",
+        "F2BF54",
+        "9F2648",
+        "F2BEB4",
+        "9E5AE0",
+        "F401DC",
+        "9F275C"
+      ]
+    },
+    {
+      "number": 5,
+      "targets": [
+        "F2BF7C",
+        "F4043C",
+        "F2BE20",
+        "9E5AD4",
+        "9F26BC",
+        "F40174",
+        "9E5A58",
+        "F40254",
+        "9F2738",
+        "F402A8",
+        "9F268C",
+        "9F26E8"
+      ]
+    },
+    {
+      "number": 6,
+      "targets": [
+        "F3FD50",
+        "9E5B10",
+        "F2BEF4",
+        "F40348",
+        "F4035C",
+        "9E5B34",
+        "9E5B18",
+        "F2BE3C",
+        "9F26C0",
+        "9F26B0",
+        "F2BEA4",
+        "F2BF60",
+        "9E5B8C",
+        "F40350",
+        "F2BCF0",
+        "F2BEE4",
+        "F3FC8C",
+        "F2BFE0"
+      ]
+    },
+    {
+      "number": 7,
+      "targets": [
+        "F2BDC4",
+        "F2BE0C",
+        "F2BD00",
+        "9E5A94",
+        "F2BE70",
+        "F2BE6C",
+        "F401CC",
+        "F402C4",
+        "F40364",
+        "9F26E4",
+        "F402B8",
+        "9F2714",
+        "9E5B48",
+        "9E5B04",
+        "F40314",
+        "F403DC",
+        "F3FC9C"
+      ]
+    }
+  ]
+}

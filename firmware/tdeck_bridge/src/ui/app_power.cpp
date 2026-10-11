@@ -7,6 +7,7 @@
 #include "../net/stream_svc.h"
 #include "../store/store.h"
 #include "app_power.h"
+#include "app_storage.h"
 #include "lvgl_glue.h"
 #include "ui_confirm.h"
 #include "ui_shell.h"
@@ -161,6 +162,16 @@ void appPowerOpen() {
   lv_dropdown_set_selected(gDurationDd, 0);
   lv_obj_set_pos(gDurationDd, 92, 83);
   lv_obj_set_width(gDurationDd, 140);
+  lv_obj_t *storage = lv_button_create(scr);
+  lv_obj_set_pos(storage, 240, 83);
+  lv_obj_set_size(storage, 72, 36);
+  lv_obj_t *storageText = lv_label_create(storage);
+  lv_label_set_text(storageText, "Store");
+  lv_obj_center(storageText);
+  lv_obj_add_event_cb(storage, [](lv_event_t *) {
+    gActionDd = nullptr; gDurationDd = nullptr; gInfo = nullptr;
+    appStorageOpen();
+  }, LV_EVENT_CLICKED, nullptr);
 
   gInfo = lv_label_create(scr);
   lv_obj_set_style_text_font(gInfo, &lv_font_montserrat_14, 0);
@@ -193,6 +204,7 @@ void appPowerOpen() {
   lv_group_remove_all_objs(lvglGroup());
   lv_group_add_obj(lvglGroup(), gActionDd);
   lv_group_add_obj(lvglGroup(), gDurationDd);
+  lv_group_add_obj(lvglGroup(), storage);
   lv_group_add_obj(lvglGroup(), apply);
   lv_group_add_obj(lvglGroup(), release);
   lv_group_add_obj(lvglGroup(), back);

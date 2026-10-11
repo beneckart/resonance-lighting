@@ -10,6 +10,959 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Bodhi Hive pull and VBAT chime retrofit preflight
+
+Fetched origin/main at c1e1945 and merged the laptop's local f8375d1 August
+field-diagnostic commit. Preserved both histories and all journal evidence;
+the pre-existing untracked August 30 OTA ledger remains untouched. Resolved
+the renderer conflict in favor of origin's later color-preserving presence
+blink. Preserved the exact-target T-Deck reset command beside current wake,
+performance and storage support. Appended reset action kind 11 so origin's
+deployed action kinds 7-10 keep their meanings; added regression coverage and
+recorded the historical kind-7 ambiguity before any old diagnostic bridge is
+upgraded. Appended provenance/supersession notes to the laptop-local ADR 0072
+and 0073 files whose numbers were independently reused on origin.
+
+Ben is at Bodhi Hive and reports a new header across VBAT/EN/VS/D13, with VBAT
+feeding the v2 capboard in place of VDC. He confirmed an installed LFP and an
+isolated former solar/VDC feed. The intent is D7-triggered battery chimes
+without sunlight. Recorded the wiring and remaining qualification in the
+capboard README and TODO. Current operator strike source already bypasses the
+autonomous daylight/solar energy gate; no fixture firmware change is needed
+just to request such a pulse. Installed firmware/identity and electrical
+performance remain unverified. USB assistance, always-enabled boost standby,
+VBAT-load gauge visibility, low-battery cutoff, and the existing fabricated-v2
+receiver regulator fault all remain relevant to the experiment.
+
+Windows serial enumeration, repeated outside the restricted shell, found no
+ports. After Ben reseated USB, the present-device inventory showed an unknown
+USB device with "Device Descriptor Request Failed" (VID_0000/PID_0002), still
+without a COM port or verified fixture identity. Suggested a known data cable
+directly into PowerFeather, bypassing the enclosure extension/hub. No
+fixture/bridge command, reset, NVS mutation, flash, or OTA occurred.
+
+Validation: all 33 fixture native executables passed. Nineteen T-Deck native
+executables passed in the aggregate run; test_direct_frame_plan encountered a
+Windows executable launch permission error and then passed on a focused rebuild
+and rerun. Both build-wrapper contracts and both registry-generator tests
+passed. The merged fixture source/tests match origin/main exactly. Whitespace
+checks against origin pass; checking the entire incoming pull against the old
+laptop HEAD reports four pre-existing end-of-file blank lines from origin,
+which were left intact. No new embedded build was made.
+
+## 2026-10-06 -- Ben + Codex -- Consolidate storage firmware and post-event work
+
+Ben requested committing all pending work and pushing to origin. Integrated
+both storage branches with the pending Atom/Magic Wand conductors, preserving
+the exact deployed fixture/T-Deck artifacts and their original identities.
+Added `docs/howto/FIXTURE_STORAGE_AND_WAKE.md` with wake contracts, operation,
+rollout evidence and the still-open electrical/UI qualification. Fixed stale
+canary counts and worktree-only artifact references. Added
+`docs/postmortem/README.md`, linked from README, ROADMAP and TODO, to connect the
+container/Oakland/PROTECT records with both 2027 brainstorming drafts. Those
+ideas remain exploratory; controlled PROTECT recovery is still deferred.
+
+Preserved the small supplementary storage snapshots/process logs/dry run with
+a separate exact-byte manifest and explicit historical status. The three large
+raw captures stay local with hashes retained; private NVS backups and Wi-Fi
+secrets remain excluded. Original evidence and artifact bytes are unchanged.
+
+Review caught a Magic Wand high-hold shock that could leave a gesture armed.
+The source now cancels it immediately and has a regression at the rejection
+threshold; previous embedded builds predate the fix and need a new artifact
+before deployment. T-Deck registry generation also depended on CSV checkout
+line endings; canonical LF hashing and LF/CRLF/content-change tests fix that
+portability issue without altering the fleet entries or historical artifacts.
+
+Retained the exact September 3 25 ms Atom application and supporting flash
+files with a historical manifest. Its original build used uncommitted source;
+the new record explicitly leaves the build source commit unknown rather than
+assigning today's integration commit to that binary.
+
+Validation: all 33 fixture and 20 T-Deck native executables, five conductor
+native executables, 26 Python host/storage tests, two registry-generator
+regressions, build-wrapper contracts, local documentation links and staged
+whitespace checks passed. All 57 curated and 26 supplementary evidence records
+retain their exact hashes in Git, as do the retained firmware binaries/options.
+No fresh embedded image was built; the preserved binaries are the historical
+ones, and the updated Wand source still requires a new artifact and canary.
+
+No device commands, reflashes or changes to live fleet state were made during
+this repository consolidation.
+
+## 2026-09-14 -- Ben + Codex -- Instant maintenance wake as an OTA speed objective
+
+Ben identified a second benefit for an independent wake interface: shorter OTA
+turnaround. Added the requirement to the RFID feasibility note. It removes
+sleep-cadence gathering and repeat straggler capture, especially the roughly
+15-minute PROTECT rendezvous; it does not shorten compile/upload or verified
+reboot. The runbook's ordinary-fleet phase timings are planning targets, not
+an observed storage-run speed claim.
+
+Specify retained bounded maintenance intent, loads parked, duplicate wake that
+does not reset an active upload, group/roster coverage and the existing power
+and pending-verify gates. A bare hardware reset may promptly sleep again and
+never clears PROTECT. No implementation or device command.
+
+## 2026-09-14 -- Ben + Codex -- RFID identification plus independent reset/wake explored
+
+Ben connected the earlier battery-free fixture-ID idea to a ground-accessible
+hardware reset/wake and asked whether an RTC coin cell could support it.
+Recovered the earlier request from the Postmortem Findings task; no prior
+selected RFID component was found. Added a feasibility note at
+`docs/projects/2027-power-platform/RFID_SERVICE_ACCESS.md`.
+
+Primary documentation establishes RF-controlled GPIO without ESP firmware on
+EM4325-class UHF RFID, with an official coin-cell reference design. Proposed
+independent bounded reset/ship-wake circuitry, a retained service request,
+and harmless inventory separate from deliberate targeted action. Shared coin
+power is plausible for control only; quantify complete standby/RF-event draw,
+isolation and clock-retention effects. Passive ID, assisted ID and actuation
+range need separate installed tests; passive fallback can be much shorter.
+
+Reset does not clear durable PROTECT or supply energy to an empty main cell.
+QON wakes BQ ship but not shutdown, and external-input reset behavior needs
+explicit design. No chip/reader selected, device action, or firmware change.
+
+## 2026-09-14 -- Ben + Codex -- Chime sensing demoted; command reception prioritized
+
+Ben corrected the exploratory priority: both capboard revisions already have
+optional voltage-divider sensing, and the populated bench proof produced
+excellent data. Weak/null underfilled-cap strikes are acceptable; he reports
+fast refill in weak sun and consistent several-Hz independent 433 MHz rings.
+Chimes were more reliable than light control or presence sensing; sleeping
+ESPs and suspect PROTECT recovery were the main remote-control impediment.
+
+Revised the design exploration to preserve the working solar-fed bounded
+strike path, keep cap telemetry optional for diagnostics, and compare radio
+reachability/latency per unit energy. At an illustrative 3.3 V and 130 mA,
+12 seconds of LEDs-off awake operation costs 5.15 J versus 4.75 J total stored
+in a nominal 66 mF/12 V bank. This is not isolated RF power or per-strike energy.
+Historical fast capacitor refill was measured on a bench supply; Ben's latest
+weak-sun report is retained as field observation, not substituted for that trace.
+
+ESP-NOW reception windows and an independent trigger/wake path are research
+comparisons only. No deployment, new strike veto, or hardware change. The exact
+count of erroneous PROTECT latches remains unresolved; no new guard command.
+
+## 2026-09-14 -- Ben + Codex -- 2027 power-platform exploration; recovery UI deferred
+
+Ben explicitly tabled implementation of a T-Deck un-PROTECT/recovery command
+and asked for broader firmware/tooling assessment with a year until the next
+event. Recorded an exploratory brief in
+`docs/projects/2027-power-platform/EXPLORATION.md`, not an accepted ADR/BOM.
+
+Reviewed local bus/SOC/current/solar/chime evidence and primary datasheets.
+Proposed priorities: autonomous LFP-correct charging/recovery, private power
+bus, whole-cycle energy accounting, source identity, chime-cap voltage,
+independent load/cell cutoff and explicit calendar/service wake contracts.
+Keep the gauge for characterization rather than blaming its silicon for an
+unqualified SOC model. INA228 accumulation costs 640 uA typical while running;
+its production measurement power source and gaps need design. Hardware fault
+capture and retained evidence are more useful than additional opaque flags.
+
+Queued a feature inventory and small comparative qualification program before
+any board selection or retirement. No firmware, device commands, purchases,
+or current fleet architecture changed.
+
+## 2026-09-14 -- Ben + Codex -- Explicit PROTECT clear capability checked
+
+Confirmed there is no T-Deck/ESP-NOW un-PROTECT command. Durable NVS PROTECT
+survives RESET, power cycling and ordinary OTA. The fixture serial X command
+is restricted to verified externally powered, battery-absent, charging-off,
+no-fault bare boards; it is not an installed-battery override. Added the exact
+capability boundary to the recovery investigation. A remote controlled retry
+would require new fixture and handheld support. No device or firmware changes.
+
+## 2026-09-14 -- Ben + Codex -- Wake does not override PROTECT radio sleep
+
+Traced Wake/Performance Hold from NB_FORCE_LIFECYCLE through ordinary receive
+hold and inspection control. PROTECT's separate power_glue deadline is set only
+at boot and remains authoritative; Wake does not extend it, clear the latch or
+guarantee full-time radio. Verified the independent 8-second grace/sleep gate
+in Kiki's 91663fd source, Groot's 2805988, final-burn 316470a and inspection
+7c1f71d. Expected PROTECT listening is about 8-9 s / 900 s asleep unless a
+separate recovery/OTA/service condition holds it awake.
+
+The six-minute Wake campaign also cannot guarantee capturing a 15-minute
+PROTECT cadence. Corrected overly broad 'full-fleet' / 'each captured radio'
+operator documentation; Performance Hold spans more wake cycles but still does
+not override PROTECT. Added the distinction to the recovery investigation and
+queued explicit Wake eligibility diagnostics. No firmware or device changes.
+
+## 2026-09-14 -- Ben + Codex -- High-VBAT PROTECT cohort and recovery limitation
+
+Ben linked unexpected quiet during the last Burning Man days to possible stuck
+PROTECT. Reconciled the retained September 12 census: 74 PROTECT, 40 at >=3.25 V,
+seven at >=3.30 V. The 40 entry histories are 35 low-VBAT, four load-armed reset,
+one legacy; all report supply-good false in the dark-storage snapshot. This is
+a substantial triage cohort, not proof of 40 healthy batteries or sunny failures.
+
+Manifest/source ancestry confirms all three September 12 fleet images already
+contained the full-battery and PROTECT sleep-ownership fixes. Kiki's older
+658b7d2 contains neither; Groot's b0ff5db contains both. Offline injected-sample
+checks against unchanged current power_policy reproduce a remaining limitation:
+net-positive charge across sleep/wake can coexist with negative awake current,
+so no recovery proof starts below the full-battery floor. Stable current and
+full/CV positive controls release correctly. This is not hardware validation.
+
+Also separated a known chime contributor: September 1 inspection firmware on
+70 fixtures deliberately disabled autonomous chimes; the earlier final-burn and
+visibility images allow them in FULL/DIM. Bench plan, exact cohort and synthetic
+reproduction are in `docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md`.
+No production code or device state changed; preserve Oakland specimens for
+controlled diagnosis before deciding a repair.
+
+## 2026-09-14 -- Ben + Codex -- Timed sleep does not set PROTECT
+
+Traced T-Deck Rest 12-hour radio sleep through NB_SLEEP_FOR into the fixture's
+timed deep sleep. It records the operator request without setting PROTECT;
+an expected timer wake preserves the previous power stage. Wooper retains a
+12-hour command yet currently reports NORMAL. Kairi instead records a low-VBAT
+entry at 2.993 V (no load armed), now 3.303 V/PROTECT; Kiki has a 2.978 V older
+entry, now 3.277 V/PROTECT. These are historical trigger records, not independent
+cell measurements. A voltage rebound alone never qualifies the charge-based
+release. Groot's low-VBAT entry is 2.976 V with load armed, now 2.880 V.
+
+Ben clarified the early morning timing and doubts significant solar recovery;
+no measured charge history supports that explanation, so it is not adopted.
+The available listen samples show negative battery current/good-input false
+for the high-voltage production fixtures. Updated the Oakland post-mortem
+record with exact command/protection distinctions; no device changes.
+
+## 2026-09-14 -- Ben + Codex -- Oakland units stay out; preserve post-mortem baseline
+
+Ben plans to leave the Oakland lanterns out, with no deliberate sleep/ship
+commands, and may bring some inside for post-mortem analysis. Existing
+automatic power policy remains in place; no forced-awake hold was requested.
+The high-voltage PROTECT units plausibly survived dark storage through sparse
+radio duty: roughly 216 mAh/week at 130 mA for 9 seconds awake / 900 asleep,
+excluding leakage/other loads. This is a model, not measured storage draw or
+remaining capacity; LFP voltage plateau and unknown recent solar history limit
+the 3.3 V inference. Wooper's current shorter cadence models about 1.99 Ah/week.
+
+Prioritize Groot versus a higher-voltage PROTECT fixture (Kairi/Kiki), retain
+state before firmware/guard changes, then compare actual cell/load/current and
+charge behavior. Keep old prototype 9F26F8 separate from production conclusions.
+Updated `docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md` and TODO; no device
+changes were issued and the earlier passive capture remains immutable.
+
+## 2026-09-14 -- Ben + Codex -- Oakland bin accounts for Kairi and Wooper
+
+Ben brought a separate bin from Nevada City to Oakland: five canopy lanterns
+and one batteryless uplight with its panel connected. Two old backyard
+prototypes are also present; the perimeter may be disconnected/batteryless.
+TSwift's five reported identities are Groot 9F2724, Kairi 9F26B4, Kiki F2BF5C,
+Wooper 9F0E30 and prototype 9F26F8. None was in the September 12 stored 106.
+Kairi/Wooper account for two of that census's eight missing IDs; six remain
+unlocated. Groot/Kiki/prototype were outside the 114-ID baseline. Other bin
+units are not yet mapped and may still overlap the stored group.
+
+A 22-second read-only serial snapshot verified connected TSwift 979604 on
+COM157, channel 11, tdeck-dev-local; storage4 was flashed on other T-Deck
+8EB508. Last-listen battery reports were Groot 2.880 V, prototype 2.992 V,
+and the other three 3.277-3.321 V, with ages 18 seconds to 13.6 minutes.
+These are retained reports, not simultaneous cell measurements or a complete
+900-second census. No commands, firmware/power changes or background process
+were issued/left running. Exact evidence and service items are in
+`docs/tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md`.
+
+## 2026-09-12 -- Ben + Codex -- 106 fixtures stored; pack-up complete
+
+All 106 observed fixtures acknowledged untimed USB-wake storage on the exact
+retained f951ae9 image. The final five replied by 18:39:20 PDT; the final
+17-target job stopped at 18:39:37 with no failed or unresolved target. All
+106 source/sequence receipts match durable cause-8, zero-duration audits.
+The final 19:17:57 read-only reconciliation passed after 38m37s of radio quiet
+since the last receipt, with continuous logger/master evidence and no bridge
+restart. A fresh storage-status confirmed the controller inactive. No further
+sleep command was needed when Ben requested pack-up at 19:17.
+
+Stopped only this run's logger/dashboard and released the temporary Windows
+awake hold at 19:18. Laptop, T-Deck and Starlink can be packed. The eight
+never-heard installed fixtures were not commanded and remain physical-service
+exceptions. USB/solar or QON wakes the selected mode; RESET/BOOT alone does
+not. Assembled current and physical wake still require service-time testing.
+
+Final proof, exact ledgers/rosters, controller flash identity and capture
+hashes are retained with the report at
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md`. Compact evidence and source
+are on `codex/container-storage-host-20260912`; large raw logs/private NVS
+backups stay local. T-Deck Rest -> Store includes indefinite storage and a
+fresh-GPS Pacific wake picker from 30 minutes to seven days. Native and
+embedded checks passed; physical LCD/wake/current qualification remains open.
+
+## 2026-09-12 -- Ben + Codex -- All 106 OTA verified; direct USB storage underway
+
+Ben's later instruction authorizes direct laptop operation, without a physical
+T-Deck confirmation tap. His dinner return window is approximately
+18:30-19:00 PDT. ADR 0081 records the narrow host-command exception.
+
+All 106 observed fixtures passed fresh exact-revision and pending-window OTA
+verification on the retained `fx-260912-f951ae9-b` image by 17:56:15 PDT;
+no target failed or remained in commission. The eight census exceptions were
+not heard and were not commanded. Exact per-job evidence is in the container
+run directory, including `all-106-ota-verified.txt`.
+
+Flashed exact T-Deck 8EB508 / 44:1b:f6:8e:b5:08 on COM152 with retained
+`tdeck-0.3.0-storage4`, 1,578,224 bytes, SHA-256
+`11b98b33ca46babf21ad27cb1f2edd7cccdf6319a5e130df3e5442fd6260c1b1`.
+Every written flash-region hash verified, then fresh boot identity, channel 11,
+radio census and an idle host storage controller were confirmed. Firmware
+source is 556c2f6 in `../resonance-tree-storage-host-20260912`; artifact commit
+a53181a retains binaries and manifest. Full native and embedded checks passed.
+The native registry comparison now tolerates Windows CRLF; firmware did not
+change after the retained build. A private NVS/apps recovery backup remains
+local and must not be committed.
+
+Hellboy's first storage command was accepted at 17:57:18 PDT. At 17:59:12 it
+reported PREPARED for source 8EB508 / sequence 21, then stayed quiet past its
+former 120-second cadence. Its durable command audit reports USB storage,
+zero duration, the same source and sequence. Two subsequent groups brought
+the total to 31 PREPARED by 18:04, all with matching durable audits and no
+rejoin or failure. Storage requests are now actually being sent under Ben's
+explicit permission; earlier no-command notes describe earlier checkpoints.
+
+The 75 PROTECT-cycle fixtures are being handled in complete timing cohorts,
+with Ponyta's group armed first. Remaining exact-roster plan and per-command
+ledgers are retained. The final full-cadence quiet observation is still due;
+PREPARED plus radio silence is not measured electrical current or a physical
+USB-wake test. Expected pack-up readiness is about 18:40-18:50 PDT if these
+cohorts behave as observed. Temporary laptop awake hold remains active.
+
+## 2026-09-12 -- Ben + Codex -- Fleet USB storage authorized
+
+Ben returned at approximately 17:08 PDT and explicitly authorized putting the
+fleet into USB-wake storage. Earlier sleep/ship confirmation is now satisfied.
+Continuing exact-target OTA batches from the tested immutable f951ae9 image,
+then storage through the T-Deck with explicit request/receipt evidence. First
+additional wave: 12 targets, job 6FA40ADD. The T-Deck storage3 build continues;
+physical storage wake/current remains unmeasured. Full rollout results will
+be appended when known.
+
+## 2026-09-12 -- Ben + Codex -- Container census and one storage-capability OTA canary
+
+Onboarded in Nevada City after roughly a week of dark container storage.
+Ben wants fixtures off until physical service; USB wake preferred, RESET
+acceptable, and QON effort only if the battery benefit warrants it. Ben
+authorized OTA at discretion while AFK, retaining his earlier requirement
+for separate confirmation before deliberate deep-sleep/ship commands.
+
+Completed an uninterrupted 1,020-second census after a recorded host-process
+capture gap: 106 of the September 1 installed roster of 114 heard, all FIELD,
+all latest retained LED reports off and supply-good false. No 0-0.6 V report
+appeared in either capture segment. Ponyta `F2B7DC` was lowest at 2.582 V;
+Chunli `9F2714` was 2.618 V. These are readings, not a ruined-cell diagnosis.
+Eight missing fixtures remain unknown. Seventy-four latest tiers were PROTECT.
+Details, field ages, limitations and battery calculations are recorded in
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md`; raw data and exact rosters
+are in `ops/bench/data/ca/20260912-155847-container/`.
+
+Prepared storage firmware in the isolated adjacent worktree
+`resonance-tree-storage-20260912`, branch `codex/container-storage-20260912`,
+preserving unfinished conductor changes here. The canonical protocol adds
+exact-target USB-wake ship mode and RESET-wake indefinite deep sleep; OTA
+does not select either. The T-Deck adds reviewed storage and a GPS-backed
+Pacific date/time picker with a seven-day limit and 16-minute catch-up window.
+ADR 0080 in that worktree records the contract and physical qualification still
+needed. The first T-Deck build was abandoned to fix confirmation-dialog fit;
+its replacement uses a fresh path, never the interrupted directory.
+
+Fixture and T-Deck native suites passed. Fixture embedded artifact
+`fx-260912-f951ae9-b` (1,218,752 bytes), SHA-256
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`,
+was built from clean `fcc5ef0` with the same runtime flags as the installed
+inspection image. Sole operator Ben + Codex OTA-updated only Hellboy `9F26C4`.
+Job `84DEEB42` verified a fresh exact-revision heartbeat at 25,953 ms uptime,
+FIELD profile and recovery state zero at 16:40:08 PDT. No deliberate sleep,
+ship, lifecycle or LED command was sent.
+
+Added a read-only census summarizer and storage request/receipt logging;
+all 16 relevant Python tests pass. Periodic radio wakes dominate storage
+draw. The vendor-board 24-to-1 uA deep-sleep/ship comparison saves just
+0.440 Ah/week across 114 fixtures; USB wake is ship's stronger practical
+advantage. Our ship implementation retains the gauge and needs external
+current measurement; do not claim the vendor's gauge-disabled 1 uA result.
+
+## 2026-09-12 -- Ben + Codex -- Explicit unattended USB-storage operation
+
+Ben authorized putting the fleet in USB-wake storage and asked for direct
+laptop operation while a campmate later packs the equipment. ADR 0081 adds a
+bounded, exact-roster USB CLI with explicit confirmation text, fresh capability
+checks, job-owned stop/status, and no automatic campaign resume. The existing
+physical UI flow remains intact. Work is isolated from the still-running
+storage3 compile; storage4 uses a separate source checkout/build directory.
+
+## 2026-09-12 -- Ben + Codex -- Storage confirmation proposal frozen
+
+Final UI review found keyboard focus could reach background controls while a
+confirmation was open. Storage now refuses background Review/Back/mode/Stop
+actions until that modal closes, preserving its exact target, wake method and
+date. Confirmation also refuses entry after the Storage screen has gone away.
+The completed storage2 image passed its embedded build but was not flashed;
+storage3 uses a fresh retained build directory. Ordinary Hellboy RTC audit
+retention is now confirmed after clearing the receiver cache; physical storage
+entry and wake remain untested and require Ben's separate confirmation.
+
+## 2026-09-12 -- Ben + Codex -- Storage census and one OTA canary verified
+
+Completed a 17-minute uninterrupted census after recovering an earlier host
+capture gap: 106 of 114 installed fixtures heard, all FIELD, no reported
+0-0.6 V batteries; Ponyta 2.582 V and Chunli 2.618 V are lowest. Eight missing
+fixtures remain unknown. The main saving is removing periodic radio wakes;
+ship's extra gain over uninterrupted deep sleep is small, with USB wake its
+main servicing advantage. Full evidence is in
+`docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md` and the main checkout's
+`ops/bench/data/ca/20260912-155847-container/`.
+
+Built immutable canary `fx-260912-f951ae9-b` from `fcc5ef0`, exact SHA-256
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`, and
+used Ben's OTA authorization for only Hellboy `9F26C4`. Job `84DEEB42` proved
+fresh exact revision beyond 25 seconds, FIELD profile, recovery state zero.
+No storage command was sent; the original separate confirmation requirement
+remains. Fixture/T-Deck native suites and the fixture embedded build passed.
+
+Added storage receipt/request logging with separate PREPARED, refusal, and
+entry-failure meanings. All 16 relevant Python tests pass. Screen review found
+that content-sized confirmation dialogs could obscure the footer; bounded
+the dialog with a scrollable content region. The first incomplete T-Deck
+compile was intentionally stopped, its compiler descendants checked gone,
+and its directory abandoned. The corrected storage2 image uses a new build
+directory. This does not alter the already verified fixture artifact.
+
+## 2026-09-12 -- Ben + Codex -- Explicit container-storage capability prepared
+
+Added exact-target indefinite RESET-wake and USB-wake ship commands, durable
+sleep audit causes, pre-entry receipts, and an appended capability heartbeat
+tail. OTA never selects storage automatically. The T-Deck Power screen now
+offers a reviewed storage action and a GPS-backed Pacific date/time picker
+using existing transport sleep, with an explicit roster and a 16-minute
+catch-up window for PROTECT sleepers. ADR 0080 records the wake contracts,
+confirmation boundary, and remaining physical current/wake qualification.
+
+Fixed pre-existing T-Deck registry-generation drift: new unnamed fixtures use
+their exact ID, retired fixtures can retain historical callsigns, and the
+generated roster is refreshed without changing the source registry/callsigns.
+All fixture native tests passed. Embedded builds and the T-Deck test completion
+are recorded in the follow-up validation entry. No sleep/ship command or flash
+was issued while preparing this source.
+## 2026-09-03 -- Ben + Codex -- Fourth and final 25 ms Atom Conductor flashed
+
+Identified the last COM42 Atom as full MAC `14:08:08:54:B8:C8` (short ID
+`54B8C8`) and found no prior role or identity record in the repo. SHA-checked
+and reused exact 938,416-byte `atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54B8C8`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`; no fleet action was sent. Ben's completed full-conductor roster
+is `1B636C`, `54AD9C`, `54B0C8`, and `54B8C8`.
+
+## 2026-09-03 -- Ben + Codex -- Third 25 ms Atom Conductor flashed
+
+Identified the next COM42 Atom as full MAC `14:08:08:54:B0:C8` (short ID
+`54B0C8`) and found no prior role or identity record in the repo. SHA-checked
+and reused exact 938,416-byte `atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54B0C8`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`; no fleet action was sent. The full-conductor roster is now
+`1B636C`, `54AD9C`, and `54B0C8`.
+
+## 2026-09-03 -- Ben + Codex -- Second 25 ms Atom Conductor flashed
+
+Identified the next COM42 Atom before writing it as full MAC
+`14:08:08:54:AD:9C` (short ID `54AD9C`). This was the previously recorded
+reduced-access clicker for target `9E5B8C`; Ben explicitly approved replacing
+that role with the full conductor.
+
+SHA-checked and reused the exact 938,416-byte
+`atom-conductor-2026-09-03.1` application
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`
+without rebuilding. Every written flash-region hash verified. A controlled
+reboot reported node `54AD9C`, channel 11, `pulse=25`, `color=64`, and
+`radio=ready`. No fleet action was sent. The current full-conductor roster is
+`1B636C` and `54AD9C`; the latter no longer has the one-target clicker image.
+
+## 2026-09-03 -- Ben + Codex -- Atom Conductor changed to 25 ms and reflashed
+
+Ben corrected the conductor strike recipe after field observation that a 25 ms
+solenoid pulse produced longer cymbal ringing than 40 ms. Changed the Atom
+Conductor source/build defaults and documented validation recipe to 25 ms, and
+gave it distinct revision `atom-conductor-2026-09-03.1` so it cannot be confused
+with the superseded 40 ms image.
+
+Built once in fresh path `field-25ms-20260903-r2` for channel 11, 25 ms pulse,
+and RGBW value 64. The build uses 938,165 bytes (47 percent flash) and 54,936
+bytes (16 percent RAM); its 938,416-byte application has SHA-256
+`fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2`.
+USB-reflashed exact Atom `1B636C` on COM42, verified every written-region hash,
+and captured a controlled reboot reporting the new revision, node `1B636C`,
+channel 11, `pulse=25`, `color=64`, and `radio=ready`. No fleet action was sent.
+This exact binary supersedes both earlier 40 ms `r3` and the unversioned interim
+25 ms `r1` for all planned spare full-conductor Atoms.
+
+## 2026-09-03 -- Ben + Codex -- Atom Conductor canary flashed to 1B636C
+
+Windows enumerated the connected original Atom Matrix as FTDI data port COM42;
+a read-only chip probe identified ESP32-PICO-D4 MAC `F8:B3:B7:1B:63:6C`
+(short ID `1B636C`). This is a third recorded Atom identity, distinct from the
+older smoke-test `1B5108` and reduced-access clicker `54AD9C`.
+
+USB-flashed the already validated `verify-20260902-r3` Atom Conductor binary,
+without rebuilding it. The 938,416-byte application SHA-256 remains
+`715a64c90056dc511b95015389520574b3123c0eb71ba232d102c03b560322f9`;
+the upload verified every written flash-region hash. A controlled serial reboot
+then reported `atom-conductor-2026-09-02.2`, node `1B636C`, channel 11, 40 ms
+strike, RGBW value 64, and `radio=ready`. No fleet action was requested; the
+cold-boot image is waiting for its first face press.
+
+Ben intends to flash a few identical full-conductor spares so a depleted unit
+does not end the interaction. Reuse this exact inspected binary for the spares,
+record each full MAC/short ID and boot proof, and keep all of them in Ben's
+custody: redundancy does not change the unauthenticated fleet-command risk.
+
+## 2026-09-03 -- Ben + Codex -- Magic Wand gesture conductor built
+
+Located Steve's `codex/NeoHex-Magic-Wand` work and confirmed that its merge tip
+`codex/integrate-magic-wand` is already an ancestor of current `main`. Added
+`firmware/magic_wand_conductor/` as a separate exact-device image while
+preserving the working installed `net-bench-2026-08-19.1` fallback and its `.2`
+source. The new binary checks the full `68:EE:8F:F4:03:44` MAC and refuses power
+configuration, external LED frames, and fleet transmission on any other board.
+
+Resolved the no-button control around a deliberate two-sensor gesture: hold
+still 1.6 seconds, lift at least 0.45 m with MSA311 motion corroboration, then
+hold at least 0.35 m high for 0.8 seconds. Shocks, motion without barometric
+rise, pressure drift without motion, and stale/missing sensors fail closed.
+Return to the original height, or hold still five seconds at a new height, to
+re-arm. Thresholds remain provisional pending traces of Steve's real carries,
+handoffs, and lifts.
+
+The existing LED switch cannot be used as a software input without a hardware
+sense wire. Its Pololu 5.1 V branch leaves the PCM in parallel with the
+PowerFeather, so LED load bypasses the MAX17260 sense resistor; voltage-sag
+inference on the 15 Ah LFP would be unreliable. The conductor does not invent a
+switch or LED-rail state in telemetry. Because the switch is not a controller
+wake source, Auto cleanup returns to an always-listening idle animation rather
+than deep sleep.
+
+The first accepted gesture starts ADR 0078's bounded six-minute Wake/neighbor
+gather. Each of the twenty NeoHex boards visibly loads center-out in the shared
+37-pixel spiral geometry with a moving frontier head. Once ready, later gestures
+remain chimes through the one-hour pre-dusk lighting overlap and switch to color
+at true civil dusk using canonical trusted UTC. Night selections display across
+all 740 pixels and cycle red -> green -> blue -> dim RGB; the matching tree
+frames use 64 on single channels or `21,21,21` RGB with no W die. Session
+renewal, 15-minute inactivity, one-hour absolute maximum, repeated Auto, graph
+planning, exact canopy targets, and no power-tier target filter match the Atom.
+
+Native gesture and visual-policy tests pass, including knock, drift,
+motion-only, sensor-loss, single-fire, and re-arm cases. The complete fixture
+core suite reports `ALL TESTS PASSED`. The final channel-11 PowerFeather build
+uses 962,625 bytes (28 percent flash) and 129,108 bytes (39 percent RAM); its
+962,768-byte binary has SHA-256
+`6d7f18db8a6fc8d7b2228f198784ead206bd21fe588d6dc12c48b2279cee3d73`.
+No wand or fixture was flashed. ADR 0079 records the decision and hardware
+validation gates.
+
+## 2026-09-02 -- Ben + Codex -- Ben-only Atom Conductor built
+
+Added `firmware/atom_conductor/` as a separate fleet controller while preserving
+the reduced one-target `atom_clicker/`. One face-button wake now opens a bounded
+six-minute Wake/neighbor-survey gather. The Atom reconstructs a 160-peer local
+graph from each reporter's eight strongest observations and centrally replays
+fresh, class-confirmed canopy waves: exact-target deliberate chimes or chunked
+RGBW direct frames. Disconnected graph components fall back to six-dB
+Atom-relative RSSI bands; power tier is intentionally not a target filter, so an
+awake PROTECT/low-voltage canopy may attempt an operator strike while its own
+power policy still owns sleep.
+
+Clarified and implemented the two-clock contract from the design discussion.
+Every strike/color/color-advance button action refreshes only the Atom's local
+15-minute inactivity timer. A separate scheduler issues explicit Wake renewal
+every five minutes while that local activity remains fresh. Effects never invoke
+the Wake sender. Fifteen minutes idle or one hour absolute starts a ten-second
+repeated Auto cleanup and GPIO39 deep sleep. Fixture-side expiry remains
+authoritative if the Atom crashes or loses power. The conductor has no WiFi,
+OTA, maintenance, NVS mutation, fleet-sleep, or serial command surface and
+remains Ben-only while
+fleet commands are unauthenticated (ADR 0078).
+
+The automatic actuator family follows true civil dusk, not the inspection
+light's one-hour pre-dusk start: short press remains chime throughout that
+visible-light overlap, then becomes the next R/G/B/W wave at civil dusk. The
+Atom consumes the existing `NB_TIME_QUALITY` path and the canonical UTC
+consensus/BRC solar calculation. Missing or stale trusted time fails closed and
+emits neither strike nor light; lifecycle heartbeat state is deliberately not a
+fallback because Wake changes older images and inspection night starts early.
+
+Atom native timing/graph/action-gate tests and the full fixture-core suite pass.
+A real channel-11 Atom Matrix build with a 40 ms strike and RGBW value 64 passes
+at 938,165 bytes (47 percent flash) and 54,936 bytes (16 percent RAM); binary
+size is 938,416 bytes with SHA-256
+`715a64c90056dc511b95015389520574b3123c0eb71ba232d102c03b560322f9`.
+No Atom was flashed. Button wake/current, named-canopy commands, graph geometry,
+trusted/missing-time and civil-dusk switching, installed-fleet traffic, PROTECT
+behavior, and power-loss recovery remain hardware validation gates.
+## 2026-09-02 -- Ben + Codex -- Final-burn branch promoted to main
+
+At Ben's request, the complete `codex/burn-final-sunrise` history was prepared
+for fast-forward promotion to `main`. This carries the emergency inspection
+firmware source, retained immutable fixture artifacts, T-Deck performance-hold
+work and flash records, and the partial 2026-09-01 fleet-rollout evidence into
+the repository's primary branch. The burn branch remains available as a named
+historical pointer.
+
+## 2026-09-01 -- Ben + Codex -- Inspection image partial fleet rollout
+
+Exact immutable artifact `fx-260831-f121868-b` was OTA-deployed at the tree in
+router-sized waves. Seventy of 114 installed fixtures now have fresh
+exact-revision proof beyond the 25-second pending-verify gate. Forty-four remain
+on prior images; 39 reported PROTECT in the final snapshot. Five confirmed
+physical canopy/downlights remain. No fixture below 2.872 V was encountered in
+the successfully uploaded waves, and no upload required physical intervention.
+
+The shared-WiFi client population plateaued around 14-16, so the rollout used
+explicit small batches. Job waves verified 16 + 13 + 14 + 14 + 13 fixtures.
+`F4042C` missed one job freshness deadline but supplied supplemental fresh proof
+18 seconds later at 419,516 ms uptime. Two older `-p` images (`9F0E30` and
+`9F26B4`) continued mesh heartbeats but did not expose maintenance endpoints.
+Ordinary exception and 14-board PROTECT gathers found no endpoints and made no
+uploads. At operator departure the bridge reported no active maintenance
+campaign. Exact resume roster, job table, and artifact identity are recorded in
+`docs/tests/ADR_0074_PARTIAL_FLEET_ROLLOUT_2026-09-01.md`.
+
+## 2026-09-01 -- Ben + Codex -- Perimeter charging diagnosis: P126 setpoint mismatch plus no-input outliers
+
+Onboarded through the repository orientation, live architecture, recent power-policy
+ADRs, production fixture source, retained Black Rock City censuses, and the current
+read-only dashboard state. The active full-fleet inspection-artifact OTA job was not
+interrupted or mutated.
+
+All 20 registry-known perimeters in the live dashboard reported field profile,
+charging enabled, no BQ fault, and `bq_vindpm_mv=4600`. The same nighttime snapshot
+had a 3.190 V median, 19/20 below the 3.250 V PROTECT-release floor, and 16/20 already
+reporting PROTECT. Production firmware defaults and persists 4.6 V for every class,
+but the production-cabling P126 sweep qualified 5.8 V. The exact July 10 same-wake
+P126 comparison measured 4.6 V at a 16.2 percent BQ-input-power penalty and about a
+19 percent battery-charge-current penalty versus 5.8 V. This is a real fleet-wide
+harvest loss, but it does not by itself explain zero input.
+
+The retained daylight censuses separate the mechanisms. Around 15:18 PDT on Aug 28,
+five of six now-known perimeter IDs had good charger input, but only about 0.10-0.23 W
+and none had positive battery current while awake. Around 18:18-18:25 PDT, 15 of 17
+had good input at up to about 0.30 W, but only four ever crossed positive awake battery
+current. Negative current during a 12-second radio wake is not proof of zero daily
+charge: the BQ continues charging autonomously through the following 120-second sleep.
+It does prove that the installed late-day panel power did not cover the awake load.
+Skitty `F3FD28` and Gengar `F2BDD4` instead showed the true no-input signature --
+roughly 0.01 V and 0 mA at the charger input -- and are now the two lowest known
+perimeters at about 2.98 V and 2.95 V. Their panel orientation, shade/dust, pigtail,
+polarity, and VDC connection remain physical inspection priorities.
+
+Conclusion: MPP/VINDPM is a contributing configuration defect and likely erases the
+small P126 energy margin, while actual disconnected/shaded panel paths and the prior
+commission-profile drain explain additional failures. The emergency bright/long
+inspection posture can keep the class energy-negative even after profiles are fixed.
+Do not broadcast 5.8 V fleet-wide: P105 fixtures are qualified at 4.6 V, and a 5.8 V
+persisted setting rejects 5 V USB. Safest next strong-sun test is artistic loads off,
+named-perimeter telemetry before/after physical inspection, then a target-isolated
+4.6 -> 5.8 -> 4.6 comparison. A production correction should be class-aware in field
+operation and return to a USB-safe 4.6 V before maintenance. Existing TODO items
+already cover the perimeter panel inspection and MPPT decision, so no duplicate was
+added.
+
+## 2026-08-31 -- Ben + Codex -- Performance Hold flashed on second T-Deck
+
+USB identity on COM157 confirmed exact second T-Deck `979604`
+(`44:1B:F6:97:96:04`) before writing. The same ADR 0077 Performance Hold
+development image already verified on `8EB508` was uploaded without rebuilding:
+1,568,560 bytes, SHA-256
+`5b4a896504ec81d67edda16bd59b88bbec2e98ce524c2ea93bab228e132fa639`.
+Esptool verified every written region. Post-reset telemetry confirms exact ID,
+channel 11, stable memory, approximately 4.51 V USB-powered battery telemetry,
+and `tdeck-dev-local`. The local fleet dashboard moved from disconnected COM152
+to the currently attached COM157 bridge.
+
+## 2026-08-31 -- Ben + Codex -- One-hour T-Deck Performance Hold
+
+ADR 0077 adds a separate confirmed Performance Hold to the T-Deck Wake app.
+It republishes the existing inspection-safe lifecycle mode-0 command every two
+seconds for one hour, so sleeping fixtures gather and their fixture-owned
+ten-minute direct-control arms keep refreshing. The final controller copy
+leaves up to roughly ten minutes of bounded tail. Direct/audio frames still
+cannot extend the deadline; Auto or Night Show replaces the campaign, and all
+fixture battery/recovery authority remains unchanged. No fixture protocol,
+source, or immutable artifact changed.
+
+The Wake screen now retains the original 16-minute option, adds a distinct
+`hold 1h` button, and displays the active campaign plus remaining time. The
+warm-cache T-Deck build passed at 49 percent flash and 59 percent static RAM;
+its 1,568,560-byte binary SHA-256 is
+`5b4a896504ec81d67edda16bd59b88bbec2e98ce524c2ea93bab228e132fa639`.
+USB upload and flash hash verification passed on exact T-Deck `8EB508`
+(`44:1B:F6:8E:B5:08`). Post-reset channel-11, GPS UTC, mesh-send, and memory
+telemetry are healthy. The full native wrapper stopped at the already-recorded
+missing-callsign gate for `9F268C` and `F402A8`; the wrapper contract and all
+native core binaries pass when run past that inventory-only gate. No new native
+core module was introduced by this controller/UI-only change.
+
+## 2026-08-31 -- Ben + Codex -- Wake Fleet timing clarification
+
+Final audit clarified ADR 0075's bound without changing code or artifact. Wake
+Fleet republishes for six minutes, and each campaign packet refreshes that
+fixture's ten-minute inspection-control deadline. The final campaign copies
+therefore leave roughly ten minutes of full-fleet control, for a maximum session
+of about sixteen minutes from the button press. LED Studio and CoreS3 Audio
+direct frames still cannot extend the deadline. ADR 0076 records the exact
+semantics; retained artifact `fx-260831-f121868-b` already implements them.
+
+## 2026-08-31 -- Ben + Codex -- Bounded inspection control and brighter audio
+
+ADR 0075 restores deliberately limited operator control without restoring the
+autonomous show. In the static inspection field image, T-Deck Wake Fleet now
+runs its existing six-minute catch campaign but preserves lifecycle Auto and
+opens one non-extendable ten-minute direct-frame window per captured fixture.
+LED Studio and all seven CoreS3 Audio modes can drive the armed fleet; continuing
+frames do not extend the deadline, ignored program/show streams do not create
+awake holds, static inspection white returns after direct-frame staleness, and
+night radio duty resumes at expiry. Auto or Night Show closes the window.
+Perimeter direct output remains center-pixel-only, while point sources preserve
+their explicit one-pixel RGBW command. DIM/OFF/PROTECT and all recovery gates
+remain authoritative.
+
+CoreS3 Audio now applies a RAM-only post-color output gain with 1X, 1.5X, 2X,
+and 3X steps, defaulting to 2X. A fourth Audio footer button and USB `V` cycle
+the setting; every channel saturates at 255 and fixture power policy still
+applies downstream. T-Deck standalone OTA was explicitly deferred in favor of
+bringing the Starlink/shared-WiFi path and this laptop out one last time.
+
+The full fixture and CoreS3 native suites pass. Development hardware builds
+pass for fixture (36 percent flash, 20 percent static RAM), CoreS3 (36/29), and
+T-Deck (49/59). Clean source commit `7c1f71d` produced replacement immutable
+field artifact `fx-260831-f121868-b` (1,217,856 bytes, SHA-256
+`569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e`).
+Manifest commit/recipe/flags and independent byte/hash checks agree. No hardware
+was flashed; fleet OTA remains the next action.
+
+## 2026-08-31 -- Ben + Codex -- Emergency static inspection firmware implemented
+
+Art Support judged the installed piece too dim and unsafe, so ADR 0074
+temporarily supersedes the autonomous show. During the scheduled field interval,
+every canopy/downlight, uplight, chandelier, and unknown fixture now renders
+linear `R=G=B=255,W=0`; perimeters render only that same full-RGB physical
+center pixel. Program/direct color, presence effects, autonomous propagation,
+Identify/Smoke blinking, wake chimes, the hourly ritual, and 1 Hz choreography
+traffic cannot alter this inspection frame. Existing startup sag limiting and
+FULL/DIM/OFF/PROTECT authority remain unchanged.
+
+The schedule now starts exactly one hour before evening civil dusk while still
+ending at civil dawn. With trustworthy scheduled time and a safe active light,
+ESP-NOW listens for 12 seconds and then turns only the radio off for 120 seconds;
+the CPU and LED rail remain live, so there is no light blink. Missing time,
+transport dark, pending OTA verification, incomplete wake power evidence, or a
+failed radio restart restores continuous listening/recovery. A fresh full
+heartbeat is sent at each listen-window start.
+
+Measured full RGB is about 417.6 mA total and the awake controller/radio branch
+has measured 116-168 mA, radio-RX dominated. The 9.1 percent radio duty can save
+at most about 105-153 mA average; even a conservative half-of-116 mA avoidable
+case saves about 53 mA, roughly 13 percent of the full-RGB load. The exact
+radio-off/CPU-awake floor remains unmeasured and is not overstated. The complete
+native suite passes, and the ESP32-S3 field/channel-11 development build passes
+at 36 percent flash and 20 percent static RAM with the deployed 120/12 cadence.
+Clean commit `4efad93` then produced immutable artifact
+`fx-260831-32dcb76-b` (1,216,864 bytes, SHA-256
+`e82376535270057297f28198c94f9d51d65b2886fde16d63d1de386f10dac981`).
+Independent manifest/hash checks pass. The exact binary and canonical handoff
+files are retained in git for the camp ThinkPad; nothing was flashed and fleet
+rollout remains pending.
+
+## 2026-08-31 -- Ben + Codex -- ADR 0073 partial fleet rollout stopped at 96/112
+
+Built immutable field/channel-11 fixture artifact `fx-260831-dc82da7-b`
+(1,220,192 bytes, SHA-256
+`7230f81ff1737fa51ebdd357b9249748e5712657469de82a4b5b75799ac83299`)
+from clean source commit `49e06b7` and deployed it through USB T-Deck bridge
+`8EB508`. Fresh exact-revision heartbeats beyond the pending-verify interval
+prove 96 of 112 fixtures: all 91 fixtures that were non-PROTECT at rollout
+start plus five explicitly targeted PROTECT fixtures (Ponyta `F2B7DC`, Batman
+`F2BDC4`, Gengar `F2BDD4`, Yoshi `F2BE08`, and Donkey `F2BE10`).
+
+Ben ended the field session before the remaining PROTECT phases. Sixteen
+fixtures still report rollback artifact `fx-260831-b3e2738-b`; 15 received no
+upload, while Abra `F2BDB4` closed its HTTP connection and never produced a
+new-revision heartbeat, so it is correctly counted as not updated. The final
+six-target campaign `98A408F1` found no endpoints and was manually frozen
+before the host process was stopped. The final dashboard record reports phase
+2 and `active=false`, so no OTA campaign was left running. Exact updated and
+resume rosters, battery snapshot caveats, and job-ledger identities are in
+`docs/tests/ADR_0073_PARTIAL_FLEET_ROLLOUT_2026-08-31.md`.
+Because this laptop is being retired before the resume pass, the handoff commit
+also force-retains the artifact's canonical binary, manifest, recipe, build
+options, and SHA file at its normal immutable build path. The next bench can
+therefore upload the exact existing bytes rather than rebuilding them.
+
+## 2026-08-31 -- Ben + Codex -- Minimum-viability role lighting implemented
+
+Implemented ADR 0073 as one final-burn fixture/handheld bundle without changing
+the battery or recovery authority. During the scheduled-night field show,
+uplights now render one RGB-white point at 128 when the underlying mode is dark
+and 255 when it is lit. Perimeters now render only their full-scale RGB-white
+center pixel; all other HEX pixels stay zero, and their VL53L5CX remains sampled
+and telemetried but no longer modifies art or originates presence traffic.
+OFF/PROTECT still cut the rail, DIM still scales the rendered values, and
+transport/boot/OTA service safety remains intact.
+
+Canopy presence now blinks the program or direct-stream color at 1 Hz instead
+of replacing it with dedicated warm white. The T-Deck LED screen adds an
+explicit `R=G=B=255,W=0` RGB-white swatch while retaining the existing dedicated
+W swatch. A brightness-path audit found no gamma transform: frames and driver
+scaling are linear and NeoPixel global brightness is 255. Existing dimness is a
+mix of optical/3V3 limitations and deliberate low-valued program states,
+battery DIM, and dense-HEX current limiting; it is not an unseen gamma penalty.
+
+The full fixture native suite passes. Fixture and T-Deck ESP32-S3 development
+builds pass at 36 percent flash/21 percent static RAM and 49 percent flash/59
+percent static RAM respectively. The focused T-Deck direct-frame native test
+passes; its full wrapper remains blocked by the pre-existing missing callsigns
+for `9F268C` and `F402A8`. No immutable artifact was created and nothing was
+flashed or OTA'd in this implementation session.
+
+## 2026-08-31 -- Ben + Codex -- Final-burn fleet deployed and PROTECT census
+
+Deployed immutable field/channel-11 artifact `fx-260831-b3e2738-b` (1,220,288
+bytes, SHA-256
+`1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`)
+from clean source commit `316470a` to the installed fleet through the USB T-Deck
+bridge. Every upload used an explicit short-MAC roster and fresh identity/power
+preflight. Success required a new exact-revision mesh heartbeat after the job
+start and survival beyond the 25-second OTA pending-verify window; upload ACKs
+alone were not accepted. Attempts that lost a maintenance endpoint or did not
+discover a target made no upload to that target.
+
+The staged fleet jobs and two final direct-target retries leave all 112 visible
+PowerFeather fixtures on the exact artifact, with zero older revisions and zero
+fixtures reporting commission profile. Low-voltage PROTECT peers were included
+after Ben explicitly accepted the A/B rollback tradeoff. Eight of eight in the
+first low/early PROTECT cohort and seven of seven in the phase-aligned final
+cohort passed; the latter safely deferred sensorless perimeter `F402A8`, which
+then passed the legacy direct-target path at 3.211 V. Canopy `F3FC90`, which had
+ignored several roster campaigns, also passed the direct-target path at 3.251 V.
+No OTA failure required physical access. Ben reports the new ordinary-wake
+two-chime behavior is "incredibly delightful" and working very well in the art.
+
+The post-deployment dashboard census found 19 fixtures explicitly reporting
+PROTECT plus two abbreviated deep-sleep reports retaining a 900-second,
+`last_sleep_tier=3` state (`F2BDB4` and `F3FD28`), for 21 active/probable
+PROTECT fixtures. Known roles are ten perimeters (the nine registry-labeled
+perimeters plus Skitty `F3FD28`, whose prior USB/VL53 history proves its physical
+role), three uplights, and four downlights; four remain role-unresolved. Lowest
+reported batteries were uplight Donkey `F2BE10` at 2.98 V, perimeters Gengar
+`F2BDD4` and Skitty near 3.02 V, downlight Ponyta `F2B7DC` at 3.03 V, and
+unresolved Chunli `9F2714` at 3.04 V. Registry locations for all three PROTECT
+uplights remain `trunk light - position TBD`, so the telemetry cannot identify
+which, if any, are on the north side. All 21 report the exact new revision and
+field profile; Skitty's `commission_failed` registry status is historical sensor
+commissioning metadata, not a current commission firmware profile. The fleet
+registry now preserves physical perimeter roles for Rotom `F2BF7C` and Skitty;
+Rotom is promoted to commissioned after its fresh class-2 heartbeat reported
+healthy VL53L5CX and MSA311, while Skitty remains sensor-failed.
+
+## 2026-08-31 -- Ben + Codex -- DG1022Z HEARTBEAT visible but under-scaled
+
+Ben and the waveform owner ran the no-human DG1022Z path into the powered PUCA.
+The HEARTBEAT response works, but Ben reports it remains very dim with the Rigol
+at 4 Vpp and both carrier controls fully clockwise. The generator is explicitly
+not connected to a person, so the body-connected isolation prohibition was not
+in scope for this bench observation.
+
+No amplitude increase beyond the documented 4 Vpp faceplate baseline was
+recommended without capture evidence. Next discriminate the source waveform
+from the PUCA gain map using a High-Z, 0 V offset, 4 Vpp 1 kHz sine, then capture
+PUCA `peak`, `wave`, `gain`, `ceil`, and `clipblocks` over service USB. The
+current faceplate path attenuates about 4:1 and HEARTBEAT maps the raw codec peak
+linearly through at most 4x sensitivity, so firmware scaling remains a credible
+cause if the sine also stays dim. No firmware or hardware was changed.
+
+## 2026-08-31 -- Ben + Codex -- PUCA HEARTBEAT field controls reconciled
+
+Onboarded from the canonical architecture, current PUCA hardware/firmware
+records, ADRs 0035/0063, and the DG1022Z runbook for a read-only operator
+walkthrough. Reconciled the installed `puca-bridge-0.5.5-dev` safe-boot behavior:
+hold the capacitive paw continuously for 1.2 seconds during the five-second
+steady-red boot opportunity to arm DJ + line, then release and use one short
+touch to select HEARTBEAT; a long hold locks immediately or the setup window
+locks 20 seconds after the last activity. Boot-held arming is hardware-proven;
+the post-arm short-touch/long-hold sequence remains native-tested but not yet
+recorded as a hardware acceptance pass.
+
+The paired Rigol DG1022Z bench baseline remains one front-channel analog output,
+High Z load display, 0 V offset, and 1 Vpp initial amplitude into PUCA J5/J6
+AUDIO IN with generator output disabled during hookup. No device was opened,
+powered, commanded, built, flashed, or otherwise changed. The existing warning
+still applies: do not electrically join PUCA/Pod20/USB/Tree ground to a
+body-connected ceremony circuit without a separately isolated monitor boundary
+approved for the complete powered system.
+
+## 2026-08-30 -- Ben + Codex -- Final-burn autonomous art bundle implemented
+
+Implemented the deadline-driven single field bundle in ADR 0072. Canopy
+downlights now attempt one battery-safe cymbal hit after a trustworthy daytime
+wake sample and a second before sleep, with a durable stochastic attenuation
+knob defaulting to 100 percent. The UTC-hour ritual now uses the same FULL/DIM
+safety boundary instead of requiring solar surplus; OFF/PROTECT and every hard
+mechanism gate remain vetoes.
+
+Perimeter interaction now holds the crisp center pixel through transient
+too-close invalid/zero distances only after a proven valid close approach.
+Program/wave origins now default to a five-minute minimum plus 30 seconds
+continuously clear before re-arm, without slowing local sensor rendering. A
+rootless UTC schedule rotates every 10 minutes through existing CA, Color
+Virus, Epidemic, and a K=2/no-spark visitor-started CA. Canopy and perimeter
+ToF fixtures may originate these program events; other classes relay/render.
+
+Added canonical append-only packet type 31 and one versioned NVS blob for the
+four field knobs, plus a confirmed/audited T-Deck Field screen. The first full
+fixture native run passed. A fresh T-Deck embedded build passed at 49 percent
+flash and 59 percent static RAM. The T-Deck native wrapper remains blocked by
+two newly preserved commissioned fixtures (`9F268C`, `F402A8`) lacking callsign
+assignments; no physical identity was invented to bypass that data contract.
+
+The fresh immutable fixture build completed from clean commit `316470a` using
+the current fleet recipe (field profile, channel 11, basic listener, 300 mA
+precharge, 120-second day sleep, 12-second wake listen, and WiFi profile label
+`party-in-the-woods-v1`). Artifact `fx-260831-b3e2738-b` is 1,220,288 bytes
+with SHA-256
+`1c31b265a1dba8544a7b02670e42382314d20fc0820cb67ed312ad43b25c349d`;
+the independent host hash matches its immutable manifest. Nothing was flashed
+or OTA'd as part of the build.
+
+A read-only rollout preflight found the laptop on the site `192.168.1.0/24`
+LAN, but no serial bridge was connected and no fixture served a maintenance
+`/telemetry` endpoint anywhere on that subnet. No maintenance command or OTA
+upload was attempted: without a bridge or an already addressed maintenance
+endpoint there was no identity-checked path to the fleet.
+
+## 2026-08-30 -- Ben + Codex -- Laptop-retirement field evidence preserved
+
+Fetched current `origin/main` before retiring the Nevada City/BRC laptop and
+reconciled every linked worktree against the remote. Preserved the uncommitted
+canonical fleet registry work from the 2026-08-30 perimeter recovery session:
+one newly registered fixture and 13 updated perimeter fixtures, all with unique
+IDs and parseable CSV records. Several records deliberately leave firmware
+identity blank where the reported image had no matching immutable manifest or
+binary SHA in this checkout.
+
+Also retained six previously untracked Black Rock City JSONL records: the
+arrival censuses, the successful Dixie and Froakie canary OTA jobs, Kairi's
+freeze-unconfirmed recovery attempt, and Sakura's dry-run ledger. The short
+arrival trace carries incorrect default battery metadata and is explicitly
+excluded by the following authoritative trace; it remains as raw append-only
+evidence rather than being silently discarded. The two Sakura canary/post-TMF
+records found in the older release worktree were byte-identical to files already
+on `origin/main` and were not duplicated.
+
 ## 2026-08-30 -- Ben + Codex -- RGB-only canopy presence rollout authorized
 
 After the guarded 74-target reset, Ben observed that roughly half of the stuck

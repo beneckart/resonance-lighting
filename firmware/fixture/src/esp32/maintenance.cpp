@@ -60,6 +60,7 @@ static uint32_t gLastMaintRefuseMs = 0;
 static uint32_t gNextCommsRetryMs = 0;
 static uint32_t gCommsInitAttempts = 0;
 static uint32_t gCommsInitFailures = 0;
+static bool gCommsRadioPaused = false;
 
 #define RES_COMMS_RETRY_MS 1000
 
@@ -329,6 +330,7 @@ bool enterMaintenance() {
   if (!maintenancePowerOk()) return false;
   Serial.println("-> MAINTENANCE (WiFi OTA)");
   allLoadsOff("maintenance");
+  gCommsRadioPaused = false;
   espNowDeinit();
   gMode = MODE_MAINT;
   gMaintEnteredMs = millis();
@@ -363,16 +365,39 @@ void enterComms() {
   Serial.println("-> COMMS (ESP-NOW)");
   if (gOtaActive) stopOtaAndWifi();
   gMode = MODE_COMMS;
+  gCommsRadioPaused = false;
   startEspNowComms();
 }
 
 void commsRecoveryTick() {
-  if (gMode != MODE_COMMS || espNowUp()) return;
+  if (gMode != MODE_COMMS || gCommsRadioPaused || espNowUp()) return;
   uint32_t now = millis();
   if (gNextCommsRetryMs && (int32_t)(now - gNextCommsRetryMs) < 0) return;
   Serial.println("retrying ESP-NOW comms");
   startEspNowComms();
 }
+
+bool commsPauseRadio() {
+  if (gMode != MODE_COMMS) return false;
+  if (gCommsRadioPaused) return true;
+  espNowDeinit();
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  gCommsRadioPaused = true;
+  gNextCommsRetryMs = 0;
+  Serial.println("inspection radio: paused; light remains live");
+  return true;
+}
+
+bool commsResumeRadio() {
+  if (gMode != MODE_COMMS) return false;
+  if (!gCommsRadioPaused && espNowUp()) return true;
+  gCommsRadioPaused = false;
+  Serial.println("inspection radio: listen window");
+  return startEspNowComms();
+}
+
+bool commsRadioPaused() { return gCommsRadioPaused; }
 
 void maintenanceTick() {
   if (gMode != MODE_MAINT) return;

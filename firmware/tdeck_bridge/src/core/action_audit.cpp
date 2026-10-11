@@ -72,6 +72,10 @@ const char *actionAuditName(uint8_t action) {
   case ACTION_AUDIT_FORCE_DAY: return "force-day";
   case ACTION_AUDIT_FORCE_NIGHT: return "force-night";
   case ACTION_AUDIT_FORCE_AUTO: return "force-auto";
+  case ACTION_AUDIT_FIELD_TUNING: return "field-tuning";
+  case ACTION_AUDIT_STORAGE_RESET: return "storage-reset";
+  case ACTION_AUDIT_STORAGE_USB: return "storage-usb";
+  case ACTION_AUDIT_TRANSPORT: return "transport";
   case ACTION_AUDIT_RESET_TARGET: return "reset-target";
   default: return "none";
   }

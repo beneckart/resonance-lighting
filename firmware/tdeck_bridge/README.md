@@ -29,6 +29,57 @@ exact manual seed),
 Remaining: Locate, detailed sensor reports, ES7210 audio-reactive Patterns,
 voice (whisperd), and polish (M5 tail + M6).
 
+## Container storage (2026-09-12)
+
+Open **Home -> Rest -> Store**. The retained `tdeck-0.3.0-storage4` image offers
+three reviewed options:
+
+- **Until USB power (ship):** no timer; good USB/solar input or QON wakes the
+  fixture. RESET/BOOT alone will not. Requires fresh storage-capable firmware.
+- **Until physical RESET:** no timer; physical RESET wakes it. USB alone will
+  not. Requires fresh storage-capable firmware.
+- **Wake on date:** choose Pacific local date/time, from 30 minutes to seven
+  days ahead. Requires fresh T-Deck GPS time. Uses the existing transport
+  command; the sleep clock can drift. DST gaps/repeated hours are refused.
+
+Listen for a complete 15-minute PROTECT cadence before opening Store. Choose
+an exact ID for an initial trial. Review freezes the target list and wake
+method; Cancel is initially focused. Confirm starts a 16-minute catch-up
+campaign. Keep the screen open and the handheld powered for that interval.
+Back/Stop ends further sends; neither wakes fixtures already asleep. Rebooting
+the handheld never resumes a storage campaign.
+
+For indefinite modes, `prepared` means the fixture persisted the request and
+was about to enter storage. It does not prove electrical shutdown or low
+current; inspect refusals/entry failures and qualify physical wake/current on
+an accessible fixture. The firmware update itself never selects storage.
+The date option resumes radio reception with LEDs latched dark.
+
+See [ADR 0080](../../docs/decisions/0080-explicit-container-storage.md) and the
+[September 12 census](../../docs/tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md)
+for scope and deployment evidence. All 106 observed fixtures received the exact
+`fx-260912-f951ae9-b` artifact and acknowledged storage in the authorized
+September 12 rollout. Physical wake/current and LCD qualification remain open.
+The [storage and wake guide](../../docs/howto/FIXTURE_STORAGE_AND_WAKE.md)
+links both immutable artifacts and distinguishes historical rollout evidence
+from a new service operation.
+
+## Explicit USB host storage (ADR 0081)
+
+At Ben's request, storage4 also supports unattended laptop operation after his
+explicit approval. The USB CLI accepts `storage-usb <job8> <ID,ID,...>
+CONFIRM-USB-WAKE` as one line, with 1-20 unique exact targets and fresh advertised
+USB-storage capability. `storage-status` reads progress; `storage-stop <job8>`
+stops only the matching host job. No generic raw packet or agent sleep tool is
+added. A maintenance gather blocks host storage entry. Cold boot stays idle.
+
+Use `ops/bench/fleet_storage_usb.py` with the exact verified fixture revision,
+named targets, an exclusive new ledger path and `--confirm-usb-wake`. The host
+requires the expected bridge/revision/channel, matches receipt source and
+sequence, checks for late failure, and stops remaining sends. PREPARED is not
+a measurement of electrical power-off. The script never turns a queued USB
+write into a claim that a fixture slept.
+
 ## Permanent control shell
 
 Bridge OS permanently reserves the top 26 pixels on LVGL's top layer. Every app
@@ -223,7 +274,8 @@ Open **LEDs** from the launcher (or **Rest** from Fleet):
   modal, with focus on cancel. Only currently listening fixtures can receive a
   broadcast. Starting either action stops any suspended LED Studio stream.
 - Fleet sleep remains absent from the Claude tool schema and serial quick
-  commands; it is reachable only from the local physical UI. ADR 0072 adds the
+  commands; it is reachable only from the local physical UI. The
+  [August exact-target reset decision](../../docs/decisions/0072-exact-target-diagnostic-reset.md) adds the
   much narrower serial-only `R<6-hex-ID>` diagnostic reset: one exact nonzero
   fixture receives a fixed one-second `NB_TARGET_SLEEP_FOR`, after a required
   durable T-Deck audit write. The fixture also persists its established
@@ -370,20 +422,42 @@ The T-Deck parses checksum-valid active GPS RMC date/time and broadcasts one
 fixture several chances to hear time during ADR 0064's approximately 12-second
 minimum trustworthy-power window.
 
-Open **Wake** for GPS/UTC status and three fleet baselines:
+Open **Wake** for GPS/UTC status and four fleet controls:
 
 - **Auto** returns to UTC civil twilight, with fixture solar/power fallback if
   trustworthy time expires;
-- **Wake Fleet** catches timer wakes for six minutes, forces the dark daylight
-  baseline, and leaves each captured radio in its normal ten-minute control
-  hold for follow-up instructions;
+- **Wake Fleet** catches timer wakes for six minutes and leaves each captured
+  eligible radio continuously reachable. On the emergency inspection fixture image it
+  preserves Auto/static fallback and arms LED/audio direct frames. Campaign
+  copies refresh the ten-minute arm while gathering, so the final copies leave
+  about ten minutes of eligible-fixture control (about sixteen minutes maximum from
+  the button press); older images retain the dark-day behavior;
+- **Performance Hold** repeats that same inspection-safe Wake command for one
+  hour, gathering sleepers and continually refreshing the fixture-owned
+  ten-minute arm. The final copy leaves up to roughly ten minutes of bounded
+  tail. The T-Deck shows the remaining campaign time;
 - **Night Show** temporarily forces the nighttime baseline.
 
-All three are RAM-only. The campaign repetition spans a full fixture sleep
-cadence. LED Studio and program leases can override the baseline; Blackout
-remains higher authority. Knock stays one-shot and hard-mechanism-gated, so it
-is not promised as a wake command for a sleeping fixture or as guaranteed
-physical motion.
+All four are RAM-only. Auto or Night Show immediately replaces Wake Fleet or
+Performance Hold and closes inspection direct control. Campaign repetition
+spans the ordinary 120-second cycle; PROTECT is an exception below. In the inspection image, direct LED/audio
+frames are admitted only
+during the bounded Wake/Performance window and do not extend it; program/show
+modes stay disabled, static inspection white returns after direct-frame
+staleness, and battery safety remains higher authority. Knock stays one-shot
+and hard-mechanism-gated, so it is not promised as a wake command for a sleeping
+fixture or as guaranteed physical motion.
+
+
+PROTECT exception: Wake Fleet and Performance Hold do not override the power
+policy's sleep decision or clear its durable latch. A protected fixture normally
+listens for about 8-9 seconds between 900-second sleeps; receiving Wake refreshes
+ordinary lifecycle/control state, but not the independent PROTECT sleep grace.
+The six-minute Wake campaign cannot guarantee catching a 15-minute PROTECT
+cycle. Performance Hold repeats long enough to catch that cycle, but does not
+keep a still-protected fixture continuously reachable. Qualified recovery or
+OTA/maintenance can separately change its awake behavior. Continuous radio
+claims apply only while the fixture's power policy permits them.
 
 Knocker's three fleet choices are deliberately distinct:
 

@@ -24,12 +24,18 @@ static NbForceLifecycle gLifecycleCampaign = {};
 static bool gLifecycleCampaignActive = false;
 static uint32_t gLifecycleCampaignUntilMs = 0;
 static uint32_t gLifecycleCampaignNextMs = 0;
+static uint32_t gLifecycleCampaignDurationMs = 0;
 static portMUX_TYPE gLifecycleCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
 static MaintenanceCampaign gMaintCampaign;
 static portMUX_TYPE gMaintCampaignMux = portMUX_INITIALIZER_UNLOCKED;
 
 static ProgramLeaseTracker gProgramLeaseTracker;
+static StorageCampaign gStorageCampaign;
+static uint32_t gStorageHostJobId = 0;
+static NbHeader gStorageHeaders[StorageCampaign::kCapacity] = {};
+static bool gStorageAudited[StorageCampaign::kCapacity] = {};
+static void storageTick(uint32_t now);
 static portMUX_TYPE gProgramLeaseMux = portMUX_INITIALIZER_UNLOCKED;
 
 static void fillHeader(NbHeader *h, uint8_t type);
@@ -62,6 +68,7 @@ static void txGive() { xSemaphoreGive(gTxMutex); }
 
 void meshTxTick() {
   uint32_t now = millis();
+  storageTick(now);
   NbTargetCmd maintPacket = {};
   bool sendMaint;
   portENTER_CRITICAL(&gMaintCampaignMux);
@@ -134,6 +141,123 @@ static bool auditActionBeforeSend(uint8_t action, uint32_t value,
                   actionAuditName(action), (unsigned long)header.seq,
                   required ? "; command refused" : "; restorative send allowed");
   return ok || !required;
+}
+
+bool meshStorageBegin(const uint8_t (*targets)[3], size_t count, uint8_t mode,
+                      uint32_t sleepS, uint32_t hostJobId) {
+  if (!txTake()) return false;
+  if (hostJobId) {
+    portENTER_CRITICAL(&gMaintCampaignMux);
+    bool gathering = gMaintCampaign.status(millis()).phase == MAINT_CAMPAIGN_GATHER;
+    portEXIT_CRITICAL(&gMaintCampaignMux);
+    if (gathering) { txGive(); return false; }
+  }
+  bool ok = gStorageCampaign.begin(targets, count, mode, sleepS, millis());
+  if (ok) {
+    gStorageHostJobId = hostJobId;
+    memset(gStorageHeaders, 0, sizeof(gStorageHeaders));
+    memset(gStorageAudited, 0, sizeof(gStorageAudited));
+    // Stop local hold/gather campaigns so a service request cannot compete
+    // with previously suspended radio authority after this screen closes.
+    portENTER_CRITICAL(&gLifecycleCampaignMux);
+    gLifecycleCampaignActive = false;
+    portEXIT_CRITICAL(&gLifecycleCampaignMux);
+    portENTER_CRITICAL(&gMaintCampaignMux);
+    MaintenanceCampaignStatus maint = gMaintCampaign.status(millis());
+    gMaintCampaign.freeze(maint.jobId, millis());
+    portEXIT_CRITICAL(&gMaintCampaignMux);
+  }
+  txGive();
+  return ok;
+}
+
+void meshStorageStop() {
+  if (!txTake()) return;
+  gStorageCampaign.stop();
+  txGive();
+}
+
+bool meshStorageStopHostJob(uint32_t jobId) {
+  if (!jobId || !txTake()) return false;
+  bool matches = gStorageHostJobId == jobId;
+  if (matches) gStorageCampaign.stop();
+  txGive();
+  return matches;
+}
+
+void meshStoragePrintStatus() {
+  if (!txTake()) return;
+  StorageCampaignStatus s = gStorageCampaign.status(millis());
+  uint32_t job = gStorageHostJobId;
+  uint8_t mode = gStorageCampaign.mode();
+  txGive();
+  Serial.printf("nb-storage-campaign job=%08lX mode=%u active=%u targets=%u "
+                "prepared=%u refused=%u remaining_ms=%lu dispatches=%lu\n",
+      (unsigned long)job, mode, s.active ? 1U : 0U, s.targets,
+      s.prepared, s.refused, (unsigned long)s.remainingMs,
+      (unsigned long)s.dispatches);
+}
+
+StorageCampaignStatus meshStorageStatus() {
+  StorageCampaignStatus s = {};
+  if (!txTake()) return s;
+  s = gStorageCampaign.status(millis());
+  txGive();
+  return s;
+}
+
+void meshStorageReceipt(const NbStorageReceipt &r) {
+  if (memcmp(r.request_source, gMyId, 3) != 0 || !txTake()) return;
+  StorageCampaignStatus s = gStorageCampaign.status(millis());
+  for (size_t i = 0; i < s.targets; ++i) {
+    if (gStorageAudited[i] && r.request_seq == gStorageHeaders[i].seq &&
+        r.mode == gStorageCampaign.mode() &&
+        memcmp(r.h.src_id, gStorageCampaign.target(i), 3) == 0)
+      gStorageCampaign.receipt(i, r.status);
+  }
+  txGive();
+}
+
+static void storageTick(uint32_t now) {
+  if (!txTake()) return;
+  size_t index;
+  uint8_t target[3];
+  uint32_t seconds;
+  if (!gStorageCampaign.next(now, index, target, seconds)) {
+    txGive();
+    return;
+  }
+  uint8_t mode = gStorageCampaign.mode();
+  NbHeader &header = gStorageHeaders[index];
+  if (!gStorageAudited[index]) {
+    fillHeader(&header, mode == 0 ? NB_TRANSPORT_SLEEP : NB_STORAGE_SLEEP);
+    uint8_t action = mode == 0 ? ACTION_AUDIT_TRANSPORT :
+        (mode == NB_STORAGE_USB_WAKE ? ACTION_AUDIT_STORAGE_USB : ACTION_AUDIT_STORAGE_RESET);
+    if (!auditActionBeforeSend(action, seconds, header, target, true)) {
+      gStorageCampaign.receipt(index, NB_STORAGE_REFUSED_AUDIT);
+      txGive();
+      return;
+    }
+    gStorageAudited[index] = true;
+    Serial.printf("nb-storage-request target=%02X%02X%02X seq=%lu mode=%u seconds=%lu\n",
+        target[0], target[1], target[2], (unsigned long)header.seq, mode,
+        (unsigned long)seconds);
+  }
+  if (mode == 0) {
+    NbTransportSleep cmd = {};
+    cmd.h = header;
+    memcpy(cmd.target_id, target, 3);
+    cmd.seconds = seconds;
+    esp_now_send(kBcast, (const uint8_t *)&cmd, sizeof(cmd));
+  } else {
+    NbStorageSleep cmd = {};
+    cmd.h = header;
+    memcpy(cmd.target_id, target, 3);
+    cmd.mode = mode;
+    cmd.confirm = NB_STORAGE_CONFIRM;
+    esp_now_send(kBcast, (const uint8_t *)&cmd, sizeof(cmd));
+  }
+  txGive();
 }
 
 void meshIdentify(const uint8_t target[3], uint8_t secs, uint8_t color,
@@ -300,7 +424,7 @@ bool meshResetTarget(const uint8_t target[3]) {
   return true;
 }
 
-bool meshForceLifecycle(uint8_t mode) {
+static bool forceLifecycleFor(uint8_t mode, uint32_t campaignDurationMs) {
   if (mode > 2) return false;
   NbForceLifecycle packet = {};
   packet.mode = mode;
@@ -322,9 +446,33 @@ bool meshForceLifecycle(uint8_t mode) {
   gLifecycleCampaign = packet;
   gLifecycleCampaignActive = true;
   gLifecycleCampaignNextMs = now + 2000;
-  gLifecycleCampaignUntilMs = now + 360000UL;
+  gLifecycleCampaignUntilMs = now + campaignDurationMs;
+  gLifecycleCampaignDurationMs = campaignDurationMs;
   portEXIT_CRITICAL(&gLifecycleCampaignMux);
   return true;
+}
+
+bool meshForceLifecycle(uint8_t mode) {
+  return forceLifecycleFor(mode, 360000UL);
+}
+
+bool meshPerformanceHold() {
+  return forceLifecycleFor(0, 3600000UL);
+}
+
+MeshLifecycleCampaignStatus meshLifecycleCampaignStatus() {
+  MeshLifecycleCampaignStatus status = {};
+  uint32_t now = millis();
+  portENTER_CRITICAL(&gLifecycleCampaignMux);
+  if (gLifecycleCampaignActive &&
+      (int32_t)(now - gLifecycleCampaignUntilMs) < 0) {
+    status.active = true;
+    status.mode = gLifecycleCampaign.mode;
+    status.durationMs = gLifecycleCampaignDurationMs;
+    status.remainingMs = gLifecycleCampaignUntilMs - now;
+  }
+  portEXIT_CRITICAL(&gLifecycleCampaignMux);
+  return status;
 }
 
 bool meshEnterMaintenance(const uint8_t target[3]) {
@@ -417,6 +565,36 @@ bool meshCommissionDefault(const uint8_t target[3], uint8_t mode,
   packet.flags = persist ? 0x01 : 0;
   if (!txTake()) return false;
   fillHeader(&packet.h, NB_COMMISSION_DEFAULT);
+  sendPacketRepeatedLocked(&packet, sizeof(packet), 6, 8);
+  txGive();
+  return true;
+}
+
+bool meshFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
+                     uint16_t presenceSeedMinS,
+                     uint16_t presenceRearmClearS, bool persist) {
+  if (showSchedule > 1 || presenceSeedMinS < 10 ||
+      presenceSeedMinS > 3600 || presenceRearmClearS < 1 ||
+      presenceRearmClearS > 600)
+    return false;
+  NbFieldTuning packet = {};
+  packet.flags = persist ? 0x01 : 0;
+  packet.day_chime_chance_x256 = dayChimeChanceX256;
+  packet.show_schedule = showSchedule;
+  packet.presence_seed_min_s = presenceSeedMinS;
+  packet.presence_rearm_clear_s = presenceRearmClearS;
+  if (!txTake()) return false;
+  fillHeader(&packet.h, NB_FIELD_TUNING);
+  uint32_t auditValue = (uint32_t)dayChimeChanceX256 |
+                        ((uint32_t)showSchedule << 8) |
+                        ((uint32_t)presenceSeedMinS << 9) |
+                        ((uint32_t)presenceRearmClearS << 21);
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!auditActionBeforeSend(ACTION_AUDIT_FIELD_TUNING, auditValue,
+                             packet.h, kAll, true)) {
+    txGive();
+    return false;
+  }
   sendPacketRepeatedLocked(&packet, sizeof(packet), 6, 8);
   txGive();
   return true;

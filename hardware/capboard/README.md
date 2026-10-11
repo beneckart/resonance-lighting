@@ -167,3 +167,52 @@ so existing plates fit; the board simply overhangs 15 mm past the right pair.
   populated (assumed GND · +V · D0 · D1 · D2 · D3 · VT).
 - Cables are crimped from raw leads: press them **straight, never mirrored** —
   a mirrored cable swaps D7 and GND and puts the bank across the gate line.
+
+
+## 2026-10-11 -- Bodhi Hive VBAT-fed chime experiment
+
+Ben fitted a PowerFeather header across `VBAT | EN | VS | D13` and moved the
+v2 capboard's input supply from VDC to VBAT. He confirmed the LFP is installed
+and the capboard's old solar/VDC feed is disconnected. USB was connected for
+service. The intent is to keep the existing D7 trigger and strike from stored
+battery energy without requiring sunlight; this is an experiment, not a
+fleet-qualified power-source change.
+
+Intended connectivity (retain the existing common-ground and D7 harness):
+
+```
+PowerFeather VBAT -> capboard PANEL VDC/VDCIN -> onboard boost -> cap bank
+PowerFeather GND  -> capboard PANEL GND      -> driver/coil return
+PowerFeather D7   -> capboard PANEL D7       -> driver trigger
+```
+
+The four new header positions are not the capboard PANEL connector pinout.
+Use only the intended VBAT takeoff; EN, VS and D13 are separate nets. VS is
+external-input-derived (USB/VDC), not the battery output. PowerFeather EN is
+FeatherWing control, not the capboard TELE BOOST_EN. D13 is GPIO11; the strike
+remains D7/GPIO37. The manufacturer specifies the MT3608 for 2-24 V input,
+so LFP input is within the IC's stated input range; this does not qualify this
+assembled board's startup, recharge current or battery ride-through.
+
+Current fixture source already permits deliberate serial/operator strikes
+without a daylight/solar gate (ADR 0065). It retains arm, pulse/rest, durable
+load-marker and failsafe requirements. Sleeping receivers still cannot hear
+mesh commands, and automatic chimes follow separate policy. Read the installed
+artifact and exact MAC before using `K<short-MAC>:40` for one bounded USB pulse.
+No strike or flash was performed during the initial inspection because Windows
+reported no serial ports, including unrestricted enumeration.
+
+Qualification still needed: check approximately 12 V at the charged driver
+rail, observe one strike and refill, and repeat without USB or solar assistance
+while retaining the LFP. Measure standby and recharge current externally.
+The boost self-enables through its 47k/47k EN divider, and current firmware does
+not manage TELE BOOST_EN; cutting the LED rail does not disconnect this load.
+The prior bench notes identify the VBAT header load as bypassing the gauge
+shunt, so reported battery current/SOC must not be the only energy evidence.
+Battery drain and a suitable low-battery cutoff remain open before unattended
+use. Keep the fabricated v2 RECVR socket empty because of its known U1 pinout
+fault; changing input supply does not repair that circuit.
+
+References: [PowerFeather pins and power](https://docs.powerfeather.dev/),
+[MT3608 manufacturer](https://www.aerosemi.com/forum.php?mod=viewthread&tid=32),
+`../../firmware/POWERFEATHER_NOTES.md`, and ADR 0065.

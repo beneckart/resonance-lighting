@@ -18,6 +18,10 @@
 #include "nvs_store.h"
 #include "solenoid.h"
 #include "sleep_audit_io.h"
+#include "espnow_link.h"
+#include "maintenance.h"
+#include "net_peer.h"
+#include "ota_verify.h"
 
 using namespace PowerFeather;
 
@@ -670,4 +674,78 @@ void enterTransportSleep(uint32_t seconds, uint8_t cause,
     return;
   }
   enterDeepSleep(seconds, cause, source, true);
+}
+
+static void storageReceipt(const NbStorageSleep &request, uint8_t status) {
+  NbStorageReceipt receipt = {};
+  fillHeader(&receipt.h, NB_STORAGE_RECEIPT);
+  memcpy(receipt.request_source, request.h.src_id, 3);
+  receipt.request_seq = request.h.seq;
+  receipt.mode = request.mode;
+  receipt.status = status;
+  for (uint8_t i = 0; i < 3; ++i) {
+    espNowSendRaw(&receipt, sizeof(receipt));
+    delay(15);
+  }
+  Serial.printf("storage: source=%02X%02X%02X seq=%lu mode=%u status=%u\n",
+                request.h.src_id[0], request.h.src_id[1], request.h.src_id[2],
+                (unsigned long)request.h.seq, request.mode, status);
+}
+
+void enterStorageSleep(const NbStorageSleep &request) {
+  if (!nbStorageRequestValid(request, gMyId)) return;
+  // These are explicit operator requests only. OTA never selects storage and
+  // an unverified image must finish its pending-verify window first.
+  if (otaVerifyPending()) {
+    storageReceipt(request, NB_STORAGE_REFUSED_VERIFY);
+    return;
+  }
+  bool inputGood = true;
+  if (!gPfReady || !batteryPresent() || maintMode() != MODE_COMMS ||
+      Board.checkSupplyGood(inputGood) != Result::Ok || inputGood) {
+    storageReceipt(request, NB_STORAGE_REFUSED_POWER);
+    return;
+  }
+  // At most one failed attempt per source/sequence/boot. An operator can retry
+  // with a fresh sequence after fixing power; a radio burst cannot churn NVS.
+  static NbHeader last = {};
+  if (last.seq == request.h.seq && last.uptime_ms == request.h.uptime_ms &&
+      memcmp(last.src_id, request.h.src_id, 3) == 0) return;
+  last = request.h;
+  uint8_t cause = request.mode == NB_STORAGE_USB_WAKE
+      ? SLEEP_CAUSE_STORAGE_USB : SLEEP_CAUSE_STORAGE_RESET;
+  if (!sleepAuditBeforeSleep(cause, 0, &request.h)) {
+    storageReceipt(request, NB_STORAGE_REFUSED_AUDIT);
+    return;
+  }
+  allLoadsOff("operator storage");
+  // railEnable3V3(false) returns the resulting OFF state, not a success flag.
+  railEnable3V3(false);
+  bool sensorRailOff = railEnableVSQT(false);
+  if (rtc_gpio_get_level(GPIO_NUM_4) != 0 || !sensorRailOff) {
+    storageReceipt(request, NB_STORAGE_ENTRY_FAILED);
+    return;
+  }
+  // PREPARED proves the durable request, not successful electrical shutdown.
+  // Send before disabling the radio; host must retain refusal/failure replies.
+  netPeerSendHeartbeat(true);
+  storageReceipt(request, NB_STORAGE_PREPARED);
+  Serial.flush();
+  delay(100);
+  if (request.mode == NB_STORAGE_RESET_WAKE) {
+    gTransportWakeMagic = kTransportWakeMagic;
+    gTransportWakeDark = true;
+    // No timer and no solenoid-button wake/strike. Physical RESET recovers.
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+    esp_deep_sleep_start();
+  } else {
+    // Leave the fuel gauge enabled. Avoid trading a few uA for lost battery
+    // history, and do not assume the vendor's gauge-disabled 1 uA figure.
+    Board.enterShipMode(); // good external supply or QON recovers; RESET does not
+    // The SDK only returns after failure and restores normal BATFET control.
+    // Never silently fall back to a different wake contract.
+    gTransportWakeMagic = kTransportWakeMagic;
+    gTransportWakeDark = true;
+    storageReceipt(request, NB_STORAGE_ENTRY_FAILED);
+  }
 }

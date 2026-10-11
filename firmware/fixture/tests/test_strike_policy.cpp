@@ -14,6 +14,7 @@ static int fails = 0;
 int main() {
   CHECK(strikePolicyMayAttempt(StrikeOrigin::OPERATOR_CONTROL, true));
   CHECK(strikePolicyMayAttempt(StrikeOrigin::OPERATOR_CONTROL, false));
+  CHECK(strikePolicyMayAttempt(StrikeOrigin::FIELD_RITUAL_BEST_EFFORT, false));
   CHECK(strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM, true));
   CHECK(!strikePolicyMayAttempt(StrikeOrigin::AUTONOMOUS_PROGRAM, false));
 

@@ -1,6 +1,8 @@
 # NeoHex Magic Wand -- Pattern Control
 
-**Status:** Probable path / design notes. Pending Steve's confirmation with Ben before implementation.
+**Status:** Historical design notes. The narrow conductor behavior Ben requested
+is implemented in source by ADR 0079; broader pattern-library/T-Deck ideas below
+remain open.
 
 **Recorded:** 2026-08-23
 
@@ -72,8 +74,9 @@ These are examples, not commitments:
 - ESP-NOW channel: 11
 - Sensors: MSA311 accelerometer + BMP581 pressure/temperature sensor
 - LEDs: 20 M5Stack NeoHex boards / 740 pixels
-- Current wand work branch: `codex/NeoHex-Magic-Wand`
-- Current renderer: `firmware/net_bench/magic_wand_mode.h`
+- Historical integration branch: `codex/NeoHex-Magic-Wand` (already merged)
+- Working installed renderer: `firmware/net_bench/magic_wand_mode.h`
+- Gesture conductor: `firmware/magic_wand_conductor/`
 
 ### Ben's handheld bridge
 
@@ -88,9 +91,10 @@ Repo implementation:
 
 The T-Deck Bridge OS already acts as an ESP-NOW mesh citizen and command transmitter while also supporting Wi-Fi/Claude services. The dedicated Patterns functionality was still listed as remaining work in the 2026-08-20 status, making wand pattern control a natural extension rather than a separate handheld architecture.
 
-## Decision checkpoint with Ben
+## Remaining decision checkpoint
 
-Before implementing this control architecture, Steve plans to confirm the direction with Ben. In particular, confirm:
+ADR 0079 resolves the immediate still-lift-hold conductor. The broader control
+architecture still needs Ben and Steve to decide:
 
 - whether the T-Deck should own the full Wand control UI;
 - whether a new wand-specific ESP-NOW command/event type is appropriate or existing fleet packet types can be extended/reused;

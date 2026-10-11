@@ -113,6 +113,8 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
     peer->hasBq = false;
     peer->hasPowerSampleFlags = false;
     peer->powerSampleFlags = 0;
+    peer->storageCapabilities = 0;
+    peer->storageCapabilitiesHeardMs = 0;
   }
   accountHeartbeat(peer, hb->h.seq, hb->h.uptime_ms);
   peer->rssi = item.rssi;
@@ -295,6 +297,12 @@ bool Census::ingest(const RxItem &item, uint32_t nowMs) {
   if (NB_HAS_HB_FIELD(len, power_sample_flags)) {
     peer->hasPowerSampleFlags = true;
     peer->powerSampleFlags = hb->power_sample_flags;
+  }
+  if (NB_HAS_HB_FIELD(len, storage_capabilities)) {
+    peer->storageCapabilities = hb->storage_capabilities;
+    peer->storageCapabilitiesHeardMs = nowMs;
+  } else if (NB_HAS_HB_FIELD(len, fw_rev)) {
+    peer->storageCapabilities = 0; // an older full heartbeat revokes support
   }
   if (NB_HAS_HB_FIELD(len, last_protect_reset_streak)) {
     peer->hasProtectContext = hb->last_protect_origin != 0;

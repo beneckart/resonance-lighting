@@ -180,6 +180,8 @@ struct PeerStat {
   uint8_t lastProtectResetReason;
   uint8_t lastProtectLoadArmed;
   uint16_t lastProtectResetStreak;
+  uint8_t storageCapabilities;
+  uint32_t storageCapabilitiesHeardMs;
 
   // Latched across hb-short frames (hb-full arrives every ~60 s in prod).
   uint8_t classLatched;  // 0 = never seen

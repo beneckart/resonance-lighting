@@ -44,3 +44,13 @@ simple diagnostic change because of field time pressure.
 - The change does not prevent a stationary scene from latching or re-latching.
 - ADR 0069/0070 authority and re-baselining follow-ups remain open and must
   supersede this diagnostic posture deliberately.
+
+
+## 2026-10-11 integration note -- historical diagnostic superseded
+
+This laptop-local decision shares number 0073 with
+`0073-field-role-visibility-floor-and-color-preserving-presence.md` on origin.
+That later decision supersedes this RGB-white renderer: current source blinks
+the existing program/direct color. The October pull keeps that newer behavior
+and its regression tests, and retains this file only as the August diagnostic
+record. Do not build or deploy the diagnostic renderer from this old entry.

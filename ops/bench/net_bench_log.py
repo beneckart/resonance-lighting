@@ -25,6 +25,7 @@ Examples:
 """
 import argparse, json, os, re, socket, sys, time
 from datetime import datetime, timezone
+from storage_events import parse_storage_event
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 UDP_RECV_BYTES = 65535
@@ -219,6 +220,11 @@ with open(out, file_mode, encoding="utf-8") as fh:
         text = d.decode(errors="replace")
         ts = datetime.now(timezone.utc).isoformat()
         el = round(time.time() - t0, 1)
+        storage = parse_storage_event(text)
+        if storage:
+            row = dict(meta, ts_utc=ts, elapsed_s=el, master_ip=addr[0], **storage)
+            fh.write(json.dumps(row) + "\n"); fh.flush(); n += 1
+            continue
         m = rx_peer.search(text)
         if m:
             (pid, seq, rxc, gaps, pdr, rssi, bv, ima, soc, rr, ca, mode,

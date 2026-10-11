@@ -709,6 +709,28 @@ int main() {
     CHECK(!rt.leaseActive());
   }
 
+  // A parameterized autonomous preset survives a bridge lease and restores on
+  // release; selecting the same numeric program with nullptr restores its
+  // compiled defaults instead of retaining the scheduled params.
+  {
+    ChoreoRuntime rt;
+    rt.init(FIXTURE_DOWNLIGHT, 1, 7);
+    uint8_t scheduled[8] = {2, 0, 3, 10, 0, 1, 1, 0};
+    CHECK(rt.setAutonomousPreset(PROG_GH_CA, scheduled, 99, 1000, true));
+    ProgramInputs in = {};
+    in.nowMs = 1000;
+    in.fixtureClass = FIXTURE_DOWNLIGHT;
+    in.pixelCount = 1;
+    ProgramOutputs out = {};
+    rt.tick(in, out);
+    CHECK(out.suppressLight);
+    CHECK(rt.setAutonomousProgram(PROG_GH_CA, 1100, true));
+    in.nowMs = 1100;
+    out = ProgramOutputs{};
+    rt.tick(in, out);
+    CHECK(!out.suppressLight);
+  }
+
   // A bridge dark lease is distinguishable from the unleased commissioning
   // fallback so platform glue can cut the rail only for explicit blackout.
   {

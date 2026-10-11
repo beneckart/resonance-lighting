@@ -1,0 +1,102 @@
+{
+  "snapshot_utc": "2026-09-13T00:13:37.030380+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "F2BF74",
+      "callsign": "Qbert",
+      "battery_v": 3.231,
+      "age_ms": 91116,
+      "sleep_s": 120,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9E5B68",
+      "callsign": "Piplup",
+      "battery_v": 3.226,
+      "age_ms": 24784,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F26D8",
+      "callsign": "Bidoof",
+      "battery_v": 3.214,
+      "age_ms": 25426,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5954",
+      "callsign": "Absol",
+      "battery_v": 3.213,
+      "age_ms": 26860,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5A88",
+      "callsign": "Logan",
+      "battery_v": 3.212,
+      "age_ms": 25851,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5A84",
+      "callsign": "Panther",
+      "battery_v": 3.204,
+      "age_ms": 27076,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2638",
+      "callsign": "Lucas",
+      "battery_v": 3.189,
+      "age_ms": 27279,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5B5C",
+      "callsign": "Mipha",
+      "battery_v": 3.188,
+      "age_ms": 65839,
+      "sleep_s": 120,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "9F0E5C",
+      "callsign": "Tangela",
+      "battery_v": 3.187,
+      "age_ms": 26458,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F2680",
+      "callsign": "Buizel",
+      "battery_v": 3.183,
+      "age_ms": 25937,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5B14",
+      "callsign": "Falcon",
+      "battery_v": 3.181,
+      "age_ms": 27953,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9E5AE4",
+      "callsign": "Blade",
+      "battery_v": 3.18,
+      "age_ms": 25890,
+      "sleep_s": 120,
+      "fw": "fx-260831-f121868-b"
+    }
+  ]
+}

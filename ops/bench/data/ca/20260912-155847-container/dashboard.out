@@ -1,0 +1,2 @@
+net_bench_dashboard: COM152@115200 -> http://127.0.0.1:8765/
+udp forwarding: 127.0.0.1:54321

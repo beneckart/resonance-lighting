@@ -56,7 +56,7 @@
 #include "audio_reactive.h"
 #include "cobs.h"
 
-#define CORES3_BRIDGE_VERSION "cores3-os-0.2.0-dev"
+#define CORES3_BRIDGE_VERSION "cores3-os-0.2.1-dev"
 
 #define CORES3_CAMBIUM_FW "cores3-cb-0.1"
 
@@ -429,6 +429,7 @@ bool audioModuleInitAttempted = false;
 uint32_t audioFrames = 0;
 uint32_t audioReadFailures = 0;
 AudioVisualMode audioMode = AUDIO_MODE_CLASSIC;
+AudioOutputGain audioOutputGain = AUDIO_GAIN_2X;
 float audioFastEnv = 0.0f;      // PULSE: fast follower of the companded level
 float audioSlowEnv = 0.0f;      // PULSE: slow reference a transient must beat
 bool audioPulseActive = false;  // PULSE: a triggered flash is still decaying
@@ -601,6 +602,20 @@ const char *audioModeName(AudioVisualMode mode) {
 void nextAudioMode() {
   audioMode = (AudioVisualMode)((audioMode + 1) % AUDIO_MODE_COUNT);
   Serial.printf("audio mode=%s\n", audioModeName(audioMode));
+}
+
+const char *audioOutputGainName(AudioOutputGain gain) {
+  switch (gain) {
+  case AUDIO_GAIN_1_5X: return "1.5X";
+  case AUDIO_GAIN_2X: return "2X";
+  case AUDIO_GAIN_3X: return "3X";
+  default: return "1X";
+  }
+}
+
+void nextAudioOutputGain() {
+  audioOutputGain = audioNextOutputGain(audioOutputGain);
+  Serial.printf("audio output gain=%s\n", audioOutputGainName(audioOutputGain));
 }
 
 void resetAudioAnalysis() {
@@ -839,6 +854,7 @@ void sendAudioLevel(float level, bool forceBlack = false) {
                                     audioSpectrum.mid.level,
                                     audioSpectrum.treble.level);
       }
+      color = audioApplyOutputGain(color, audioOutputGain);
       frame.entries[i].r = color.r;
       frame.entries[i].g = color.g;
       frame.entries[i].b = color.b;
@@ -1371,11 +1387,11 @@ void emitBridgeStats() {
                 (unsigned long)sendFail, (unsigned long)millis(),
                 bridgeBatteryMv() / 1000.0f, CORES3_BRIDGE_VERSION);
 #if CORES3_AUDIO_REACTIVE_MODE
-  Serial.printf("audio source=%s ready=%d auxready=%d active=%d mode=%s calibrated=%d "
+  Serial.printf("audio source=%s ready=%d auxready=%d active=%d mode=%s gain=%s calibrated=%d "
                 "rms=%.1f noise=%.1f level=%.3f bass=%.3f mid=%.3f treble=%.3f "
                 "centroid=%.3f analysis=%lu frames=%lu readfail=%lu\n",
                 audioSourceName(), audioInputReady, audioAuxReady(), audioActive,
-                audioModeName(audioMode),
+                audioModeName(audioMode), audioOutputGainName(audioOutputGain),
                 audioAnalysisReady(),
                 audioEnvelope.rms, audioEnvelope.noise, audioEnvelope.level,
                 audioSpectrum.bass.level, audioSpectrum.mid.level,
@@ -2007,12 +2023,15 @@ void handleSerial() {
   case 'N':
     nextAudioInput();
     break;
+  case 'V':
+    nextAudioOutputGain();
+    break;
 #endif
   case 'h':
   case '?':
     Serial.println("commands: r t U[id] c +/- R<hz> i[id][:s] I F[id:]<0|1> B[s] b m<v10> C[id:]mAh G[id:]mA K<id>:ms S[s] Q<hours> L[seconds] P<id>[:s] D[<id>][:mAh]"
 #if CORES3_AUDIO_REACTIVE_MODE
-                   " A M N"
+                   " A M N V"
 #endif
     );
     break;
@@ -2342,7 +2361,8 @@ void drawAudioApp() {
   displayCanvas.setTextSize(1);
   displayCanvas.setTextColor(TFT_MAGENTA, TFT_BLACK);
   displayCanvas.setCursor(8, 51);
-  displayCanvas.printf("%s", audioModeName(audioMode));
+  displayCanvas.printf("%s  GAIN %s", audioModeName(audioMode),
+                       audioOutputGainName(audioOutputGain));
   displayCanvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
   displayCanvas.setCursor(174, 51);
   uint32_t analysisRate = audioTiming.analysis.rateMilliHz();
@@ -2389,15 +2409,19 @@ void drawAudioApp() {
                        (unsigned long)audioReadFailures,
                        (unsigned long)sendFail);
 
-  drawTextButton(8, 199, 96, 36,
+  drawTextButton(4, 199, 72, 36,
                  audioActive ? rgb565(145, 38, 45) : rgb565(27, 120, 65),
                  audioActive ? "PAUSE" : "START");
-  drawTextButton(112, 199, 96, 36,
+  drawTextButton(84, 199, 72, 36,
                  audioAuxReady() ? rgb565(24, 91, 125)
                                  : audioCanCycleInput() ? rgb565(145, 92, 20)
                                                         : rgb565(55, 59, 63),
                  "INPUT");
-  drawTextButton(216, 199, 96, 36, rgb565(91, 35, 100), "MODE");
+  drawTextButton(164, 199, 72, 36, rgb565(91, 35, 100), "MODE");
+  char gainLabel[16];
+  snprintf(gainLabel, sizeof(gainLabel), "GAIN %s",
+           audioOutputGainName(audioOutputGain));
+  drawTextButton(244, 199, 72, 36, rgb565(125, 76, 22), gainLabel);
 }
 
 // The full 320x240 PSRAM sprite takes about 60 ms to transfer on CoreS3. That
@@ -2451,7 +2475,8 @@ void drawAudioRealtime() {
     M5.Display.printf("%d live", peerCount(true));
     M5.Display.setTextColor(TFT_MAGENTA, TFT_BLACK);
     M5.Display.setCursor(8, 51);
-    M5.Display.printf("%s", audioModeName(audioMode));
+    M5.Display.printf("%s  GAIN %s", audioModeName(audioMode),
+                      audioOutputGainName(audioOutputGain));
     M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
     M5.Display.setCursor(174, 51);
     uint32_t analysisRate = audioTiming.analysis.rateMilliHz();
@@ -2541,12 +2566,14 @@ void handleAppTouch(int16_t x, int16_t y) {
     return;
   }
   if (currentApp == CORES3_APP_AUDIO && y >= 195) {
-    if (x < 108)
+    if (x < 80)
       setAudioActive(!audioActive);
-    else if (x < 212)
+    else if (x < 160)
       nextAudioInput();
-    else
+    else if (x < 240)
       nextAudioMode();
+    else
+      nextAudioOutputGain();
     drawDisplay();
   }
 }

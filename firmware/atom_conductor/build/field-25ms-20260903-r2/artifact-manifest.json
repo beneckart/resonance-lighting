@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "record_type": "historical_atom_artifact_retention",
+  "recorded_on": "2026-10-06",
+  "historical_build_date": "2026-09-03",
+  "artifact_directory": "firmware/atom_conductor/build/field-25ms-20260903-r2",
+  "fw_rev": "atom-conductor-2026-09-03.1",
+  "fqbn": "esp32:esp32:m5stack_atom:PartitionScheme=min_spiffs",
+  "arduino_esp32_version": "3.3.7",
+  "custom_build_properties": "compiler.cpp.extra_flags=-DNB_CHANNEL=11 -DRES_ATOM_PULSE_MS=25 -DRES_ATOM_COLOR_VALUE=64",
+  "configuration": {
+    "channel": 11,
+    "pulse_ms": 25,
+    "color_value": 64
+  },
+  "source_provenance": {
+    "git_commit": null,
+    "status": "Source was uncommitted at the historical build; no clean source commit is asserted.",
+    "limits": "This retrospective manifest records retained bytes and historical LOG evidence. It does not assert that a later committed source tree reproduces this image."
+  },
+  "retained_files": [
+    {
+      "path": "atom_conductor.ino.bin",
+      "bytes": 938416,
+      "sha256": "fdabd85037a7dec96353ad1e08c4b914f80f839dea26963469767ec06ef6cfc2"
+    },
+    {
+      "path": "atom_conductor.ino.bootloader.bin",
+      "bytes": 25024,
+      "sha256": "408b544675fdea85800043f25da7fc533832d6280602e357f5e484d9754259bd"
+    },
+    {
+      "path": "atom_conductor.ino.partitions.bin",
+      "bytes": 3072,
+      "sha256": "0a8b5720e7b77ff11f1462458c3a509dee79224e5279898f26d6a2e3ae0517b7"
+    },
+    {
+      "path": "build.options.json",
+      "bytes": 746,
+      "sha256": "7a7d0daf5ed4c2fc331998b619b5f645018c2432590a40d6ee4a08dbcf582f8b"
+    }
+  ],
+  "retention_verification": {
+    "expected_application_sha256_matched": true,
+    "revision_string_present_in_application": true,
+    "build_options_match_logged_configuration": true,
+    "new_build_performed": false,
+    "hardware_io_performed": false
+  },
+  "historical_deployment": {
+    "date": "2026-09-03",
+    "evidence": "LOG.md: Atom Conductor changed to 25 ms and reflashed; Second 25 ms Atom Conductor flashed; Third 25 ms Atom Conductor flashed; Fourth and final 25 ms Atom Conductor flashed",
+    "targets": [
+      {
+        "short_mac": "1B636C",
+        "full_mac": "F8:B3:B7:1B:63:6C"
+      },
+      {
+        "short_mac": "54AD9C",
+        "full_mac": "14:08:08:54:AD:9C"
+      },
+      {
+        "short_mac": "54B0C8",
+        "full_mac": "14:08:08:54:B0:C8"
+      },
+      {
+        "short_mac": "54B8C8",
+        "full_mac": "14:08:08:54:B8:C8"
+      }
+    ],
+    "logged_validation": "Every written flash-region hash verified. Controlled boots reported the expected node, revision, channel 11, pulse 25, color 64, and radio ready. No fleet action was sent.",
+    "limits": "Historical deployment records are not a fresh device census or proof of button wake, current, actuator, or installed-fleet behavior."
+  },
+  "flash_bundle_limits": "Retained app, bootloader, partitions, and build options are not a complete standalone USB flashing bundle. The historical flash_args also names boot_app0.bin at 0xe000, supplied by the Arduino ESP32 platform and not retained here. Use reviewed tooling and explicit target identity for any future deployment."
+}

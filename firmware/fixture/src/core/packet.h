@@ -18,7 +18,9 @@
 //   - 27..28 field-pack era (transport sleep + bounded locate survey).
 //   - 29     reserved for the queued bounded sensor-report packet.
 //   - 30     commission-default selector (Bridge OS -> fixture).
-//   - 31+    free.
+//   - 31     durable field behavior tuning (Bridge OS -> fixture).
+//   - 32..33 storage sleep request and receipt (exact targets only).
+//   - 34+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -65,6 +67,9 @@ enum NbType : uint8_t {
   NB_LOCATE_CONTROL = 28,  // bridge -> all/target: bounded RSSI survey window
   // 29 remains reserved for NB_SENSOR_REPORT (not yet implemented).
   NB_COMMISSION_DEFAULT = 30, // bridge -> target: commission no-command fallback
+  NB_FIELD_TUNING = 31, // bridge -> all/target: durable burn behavior knobs
+  NB_STORAGE_SLEEP = 32, // bridge -> exact target: indefinite storage
+  NB_STORAGE_RECEIPT = 33, // fixture -> bridge: prepared/refused/failed (not off proof)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -74,6 +79,42 @@ struct __attribute__((packed)) NbHeader {
   uint32_t seq;
   uint32_t uptime_ms;
 };
+
+enum NbStorageMode : uint8_t {
+  NB_STORAGE_RESET_WAKE = 1, // rails/radio off, no timer; physical RESET required
+  NB_STORAGE_USB_WAKE = 2,   // BQ ship mode; good USB/solar supply or QON wakes
+};
+static constexpr uint32_t NB_STORAGE_CONFIRM = 0x53544F52UL; // "STOR"
+struct __attribute__((packed)) NbStorageSleep {
+  NbHeader h;
+  uint8_t target_id[3]; // zero/all is forbidden
+  uint8_t mode;
+  uint32_t confirm;
+};
+enum NbStorageStatus : uint8_t {
+  NB_STORAGE_PREPARED = 1, // durable receipt saved; power-off attempt follows
+  NB_STORAGE_REFUSED_POWER = 2,
+  NB_STORAGE_REFUSED_VERIFY = 3,
+  NB_STORAGE_REFUSED_AUDIT = 4,
+  NB_STORAGE_ENTRY_FAILED = 5,
+};
+struct __attribute__((packed)) NbStorageReceipt {
+  NbHeader h;
+  uint8_t request_source[3];
+  uint32_t request_seq;
+  uint8_t mode;
+  uint8_t status;
+};
+
+static inline bool nbStorageRequestValid(const NbStorageSleep &request,
+                                         const uint8_t target[3]) {
+  return request.h.ver == NB_PROTO_VER && request.h.type == NB_STORAGE_SLEEP &&
+      (request.h.src_id[0] || request.h.src_id[1] || request.h.src_id[2]) &&
+      (request.target_id[0] || request.target_id[1] || request.target_id[2]) &&
+      target && memcmp(request.target_id, target, 3) == 0 &&
+      (request.mode == NB_STORAGE_RESET_WAKE || request.mode == NB_STORAGE_USB_WAKE) &&
+      request.confirm == NB_STORAGE_CONFIRM;
+}
 
 struct __attribute__((packed)) NbShowFrame {
   NbHeader h;
@@ -228,6 +269,7 @@ struct __attribute__((packed)) NbHeartbeat {
   uint8_t last_protect_reset_reason; // esp_reset_reason_t numeric
   uint8_t last_protect_load_armed;
   uint16_t last_protect_reset_streak; // saturated at 65535 on wire
+  uint8_t storage_capabilities; // tail 19: bit0 RESET wake; bit1 USB/solar ship wake
 };
 
 // NbHeartbeat::power_sample_flags. Append bits; never renumber them.
@@ -449,6 +491,16 @@ struct __attribute__((packed)) NbCommissionDefault { // 30: commission fallback
   uint8_t target_id[3]; // Bridge OS deliberately sends exact fixture IDs only
   uint8_t mode;         // CommissionDefaultMode
   uint8_t flags;        // bit0=persist to NVS (else RAM-only until reboot)
+};
+
+struct __attribute__((packed)) NbFieldTuning { // 31: final-burn behavior knobs
+  NbHeader h;
+  uint8_t target_id[3]; // 00:00:00 = all; fleet apply is intentional here
+  uint8_t flags;        // bit0=persist the whole setting atomically to NVS
+  uint8_t day_chime_chance_x256; // 255=100%; 64=25%; 32=12.5%; 0=off
+  uint8_t show_schedule; // 0=current CA only; 1=four-mode UTC rotation
+  uint16_t presence_seed_min_s; // 10..3600 accepted
+  uint16_t presence_rearm_clear_s; // 1..600 accepted
 };
 
 // ---- helpers (pure; ESP-NOW send lives in esp32/espnow_link) ----------------

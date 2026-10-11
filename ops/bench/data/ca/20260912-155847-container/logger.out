@@ -1,0 +1,177 @@
+net_bench_log -> C:\Users\benec\Documents\resonance-tree\ops\bench\data\ca\20260912-155847-container\census.jsonl  (peer-mesh, 1020s, segment 1 start). reboots flagged inline.
++    18s  peer F2BF7C pdr=1.0000 rssi=-72 soc=45 batt_ma=-136 | panel 0.00V*0mA=0.00W sgood=0 reboots=0
++    28s  REBOOT #1 peer F3FD60 up 9271->6483 rr=deepsleep bv~2.963
++    28s  REBOOT #2 peer F2BF54 up 9170->365 rr=deepsleep bv~3.297
++    28s  peer F2BF8C pdr=1.0000 rssi=-75 soc=58 batt_ma=-184 | panel 0.00V*0mA=0.00W sgood=0 reboots=2
++    28s  REBOOT #3 peer 9F0E5C up 12383->1177 rr=deepsleep bv~3.198
++    28s  REBOOT #4 peer 9F26C4 up 12386->1150 rr=deepsleep bv~3.319
++    38s  peer 9F266C pdr=1.0000 rssi=-71 soc=1 batt_ma=-127 | panel 0.01V*0mA=0.00W sgood=0 reboots=4
++    39s  REBOOT #5 peer 9F26D4 up 13123->4811 rr=deepsleep bv~3.175
++    48s  REBOOT #6 peer 9F2648 up 9171->346 rr=deepsleep bv~3.287
++    58s  REBOOT #7 peer F2BDB4 up 12408->5423 rr=deepsleep bv~3.249
++    58s  REBOOT #8 peer 9F2680 up 12399->1197 rr=deepsleep bv~3.198
++    58s  REBOOT #9 peer F4042C up 12435->1177 rr=deepsleep bv~3.260
++    58s  REBOOT #10 peer 9E5A74 up 12435->5429 rr=deepsleep bv~3.159
++    58s  REBOOT #11 peer 9E5B14 up 12473->1166 rr=deepsleep bv~3.187
++    58s  REBOOT #12 peer F40384 up 12471->1155 rr=deepsleep bv~3.291
++    58s  REBOOT #13 peer F2BF8C up 12425->1175 rr=deepsleep bv~3.320
++    58s  peer F3FCAC pdr=0.8333 rssi=-77 soc=53 batt_ma=-161 | panel 0.00V*0mA=0.00W sgood=0 reboots=13
++    58s  REBOOT #14 peer 9F2718 up 12488->1175 rr=deepsleep bv~3.177
++    58s  REBOOT #15 peer 9F0E54 up 12468->1132 rr=deepsleep bv~3.255
++    58s  REBOOT #16 peer F2BE08 up 12412->1207 rr=deepsleep bv~3.248
++    58s  REBOOT #17 peer F2BE60 up 12452->1181 rr=deepsleep bv~3.286
++    58s  REBOOT #18 peer F2BEB4 up 9170->345 rr=deepsleep bv~3.287
++    58s  REBOOT #19 peer 9E5A5C up 12480->1213 rr=deepsleep bv~3.280
++    58s  REBOOT #20 peer 9E5B68 up 12381->1149 rr=deepsleep bv~3.234
++    58s  REBOOT #21 peer 9F26D8 up 12616->1164 rr=deepsleep bv~3.219
++    58s  REBOOT #22 peer 9E5954 up 12399->1193 rr=deepsleep bv~3.213
++    58s  REBOOT #23 peer 9F266C up 12392->5640 rr=deepsleep bv~3.259
++    58s  REBOOT #24 peer 9F2664 up 12437->1166 rr=deepsleep bv~3.177
++    58s  REBOOT #25 peer 9E5AC8 up 12422->1142 rr=deepsleep bv~3.277
++    58s  REBOOT #26 peer 9F0E5C up 12463->1179 rr=deepsleep bv~3.193
++    58s  REBOOT #27 peer 9F26C4 up 12442->1164 rr=deepsleep bv~3.319
++    58s  REBOOT #28 peer 9F26D4 up 4811->1186 rr=deepsleep bv~3.190
++    58s  REBOOT #29 peer 9E5AE4 up 12408->1178 rr=deepsleep bv~3.185
++    58s  REBOOT #30 peer 9F2720 up 12489->4836 rr=deepsleep bv~3.161
++    58s  REBOOT #31 peer 9F2638 up 12510->6875 rr=deepsleep bv~3.193
++    58s  REBOOT #32 peer 9E5A88 up 12457->6454 rr=deepsleep bv~3.206
++    58s  REBOOT #33 peer 9E5A84 up 12481->1162 rr=deepsleep bv~3.210
++    58s  REBOOT #34 peer F2BE48 up 12506->1184 rr=deepsleep bv~3.170
++    68s  REBOOT #35 peer 9E5B5C up 12151->4179 rr=deepsleep bv~3.216
++    68s  peer F2BE60 pdr=1.0000 rssi=-81 soc=15 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=35
++    78s  REBOOT #36 peer F3FCAC up 18608->14486 rr=deepsleep bv~3.308
++    78s  peer 9F26D4 pdr=1.0000 rssi=-70 soc=1 batt_ma=-198 | panel 0.00V*0mA=0.00W sgood=0 reboots=36
++    88s  REBOOT #37 peer 9F275C up 9170->4977 rr=deepsleep bv~3.271
++    98s  peer 9E5B5C pdr=1.0000 rssi=-73 soc=8 batt_ma=-137 | panel 0.00V*0mA=0.00W sgood=0 reboots=37
++   108s  peer 9E5954 pdr=1.0000 rssi=-73 soc=31 batt_ma=-185 | panel 0.00V*0mA=0.00W sgood=0 reboots=37
++   118s  REBOOT #38 peer F2BF7C up 9170->5871 rr=deepsleep bv~3.280
++   128s  peer F2BDB4 pdr=0.8889 rssi=-80 soc=1 batt_ma=-144 | panel 0.00V*0mA=0.00W sgood=0 reboots=38
++   138s  peer F2BE60 pdr=1.0000 rssi=-81 soc=15 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=38
++   148s  peer 9F26C4 pdr=0.8000 rssi=-85 soc=6 batt_ma=-131 | panel 0.03V*0mA=0.00W sgood=0 reboots=38
++   148s  REBOOT #39 peer F2BF74 up 21120->10259 rr=deepsleep bv~3.240
++   159s  REBOOT #40 peer 9E5AD4 up 9170->339 rr=deepsleep bv~3.324
++   159s  peer F40254 pdr=1.0000 rssi=-69 soc=90 batt_ma=-129 | panel 0.01V*0mA=0.00W sgood=0 reboots=40
++   168s  peer 9F26C4 pdr=0.8000 rssi=-85 soc=6 batt_ma=-131 | panel 0.03V*0mA=0.00W sgood=0 reboots=40
++   178s  peer 9F0E54 pdr=0.9375 rssi=-79 soc=36 batt_ma=-192 | panel 0.01V*0mA=0.00W sgood=0 reboots=40
++   179s  peer 9E5A94 pdr=1.0000 rssi=-81 soc=2 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=40
++   188s  REBOOT #41 peer 9F2680 up 12462->1200 rr=deepsleep bv~3.197
++   188s  REBOOT #42 peer F4042C up 12446->1170 rr=deepsleep bv~3.262
++   188s  REBOOT #43 peer 9E5A74 up 12417->1192 rr=deepsleep bv~3.171
++   188s  REBOOT #44 peer 9E5B14 up 12500->1161 rr=deepsleep bv~3.188
++   188s  REBOOT #45 peer 9F2718 up 12424->1183 rr=deepsleep bv~3.178
++   188s  REBOOT #46 peer F2BE08 up 12502->1193 rr=deepsleep bv~3.249
++   188s  REBOOT #47 peer F2BE60 up 12443->1170 rr=deepsleep bv~3.274
++   188s  REBOOT #48 peer 9E5A5C up 10807->1193 rr=deepsleep bv~3.279
++   188s  REBOOT #49 peer 9E5B68 up 12387->1159 rr=deepsleep bv~3.235
++   188s  REBOOT #50 peer 9F26D8 up 12394->1182 rr=deepsleep bv~3.221
++   188s  REBOOT #51 peer 9E5954 up 12509->1163 rr=deepsleep bv~3.207
++   188s  REBOOT #52 peer 9F266C up 12497->1164 rr=deepsleep bv~3.282
++   188s  REBOOT #53 peer 9F2664 up 12421->1177 rr=deepsleep bv~3.176
++   188s  REBOOT #54 peer 9E5AC8 up 12385->1187 rr=deepsleep bv~3.283
++   188s  REBOOT #55 peer 9F0E5C up 12440->1198 rr=deepsleep bv~3.198
++   188s  REBOOT #56 peer 9F26C4 up 12428->1186 rr=deepsleep bv~3.319
++   188s  REBOOT #57 peer 9F26D4 up 12421->1166 rr=deepsleep bv~3.192
++   188s  REBOOT #58 peer 9E5AE4 up 12445->1159 rr=deepsleep bv~3.188
++   188s  REBOOT #59 peer 9F2720 up 12521->1190 rr=deepsleep bv~3.181
++   188s  REBOOT #60 peer 9F2638 up 12535->4858 rr=deepsleep bv~3.194
++   188s  REBOOT #61 peer 9E5A88 up 12184->1185 rr=deepsleep bv~3.225
++   188s  REBOOT #62 peer 9E5A84 up 12431->1184 rr=deepsleep bv~3.206
++   188s  REBOOT #63 peer 9D7884 up 19715->16656 rr=deepsleep bv~3.267
++   189s  REBOOT #64 peer F40174 up 9170->4436 rr=deepsleep bv~3.024
++   189s  REBOOT #65 peer 9F26BC up 9170->368 rr=deepsleep bv~3.245
++   189s  peer 9E5A58 pdr=1.0000 rssi=-75 soc=27 batt_ma=-132 | panel 0.00V*0mA=0.00W sgood=0 reboots=65
++   198s  REBOOT #66 peer 9E5B5C up 12151->625 rr=deepsleep bv~3.215
++   198s  peer 9E5AE0 pdr=1.0000 rssi=-71 soc=2 batt_ma=-146 | panel 0.01V*0mA=0.00W sgood=0 reboots=66
++   199s  peer 9F26B0 pdr=1.0000 rssi=-70 soc=99 batt_ma=-134 | panel 0.01V*0mA=0.00W sgood=0 reboots=66
++   208s  peer 9F0E54 pdr=0.9375 rssi=-79 soc=36 batt_ma=-192 | panel 0.01V*0mA=0.00W sgood=0 reboots=66
++   209s  REBOOT #67 peer 9E5A58 up 9170->333 rr=deepsleep bv~3.209
++   209s  peer 9E5A94 pdr=1.0000 rssi=-81 soc=2 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=67
++   218s  peer 9E5B14 pdr=1.0000 rssi=-72 soc=1 batt_ma=-197 | panel 0.00V*0mA=0.00W sgood=0 reboots=67
++   218s  REBOOT #68 peer F3FCAC up 19486->12497 rr=deepsleep bv~3.308
++   219s  peer F4035C pdr=1.0000 rssi=-81 soc=86 batt_ma=-126 | panel 0.00V*0mA=0.00W sgood=0 reboots=68
++   220s  peer 9F0E4C pdr=1.0000 rssi=-68 soc=6 batt_ma=-133 | panel 0.00V*0mA=0.00W sgood=0 reboots=68
++   229s  REBOOT #69 peer F40254 up 9170->4479 rr=deepsleep bv~3.262
++   229s  peer F402A8 pdr=1.0000 rssi=-70 soc=40 batt_ma=0 | panel 0.00V*0mA=0.00W sgood=0 reboots=69
++   230s  peer 9E5AB0 pdr=1.0000 rssi=-66 soc=58 batt_ma=-128 | panel 0.01V*0mA=0.00W sgood=0 reboots=69
++   239s  peer 9D7884 pdr=1.0000 rssi=-77 soc=35 batt_ma=-132 | panel 0.00V*0mA=0.00W sgood=0 reboots=69
++   240s  peer F2B900 pdr=0.8000 rssi=-74 soc=42 batt_ma=-141 | panel 0.00V*0mA=0.00W sgood=0 reboots=69
++   248s  REBOOT #70 peer F2BDB4 up 66286->4786 rr=deepsleep bv~3.244
++   248s  REBOOT #71 peer F40384 up 64656->4843 rr=deepsleep bv~3.270
++   248s  REBOOT #72 peer F2BF8C up 64584->6535 rr=deepsleep bv~3.211
++   248s  REBOOT #73 peer 9F0E54 up 64945->6581 rr=deepsleep bv~3.250
++   248s  peer 9F2720 pdr=1.0000 rssi=-76 soc=1 batt_ma=-194 | panel 0.00V*0mA=0.00W sgood=0 reboots=73
++   248s  REBOOT #74 peer F2BE48 up 64612->6235 rr=deepsleep bv~3.159
++   248s  REBOOT #75 peer 9F2738 up 9170->6314 rr=deepsleep bv~3.284
++   249s  peer F3FC9C pdr=1.0000 rssi=-75 soc=95 batt_ma=-134 | panel 0.00V*0mA=0.00W sgood=0 reboots=75
++   258s  peer 9E5AC8 pdr=1.0000 rssi=-67 soc=1 batt_ma=-103 | panel 0.00V*0mA=0.00W sgood=0 reboots=75
++   260s  peer F402B8 pdr=1.0000 rssi=-74 soc=9 batt_ma=-143 | panel 0.00V*0mA=0.00W sgood=0 reboots=75
++   268s  peer F401DC pdr=1.0000 rssi=-72 soc=46 batt_ma=-135 | panel 0.00V*0mA=0.00W sgood=0 reboots=75
++   269s  REBOOT #76 peer 9F268C up 9170->346 rr=deepsleep bv~3.328
++   270s  peer F2BE3C pdr=1.0000 rssi=-73 soc=46 batt_ma=-133 | panel 0.00V*0mA=0.00W sgood=0 reboots=76
++   278s  peer F2BE08 pdr=1.0000 rssi=-78 soc=26 batt_ma=-115 | panel 0.00V*0mA=0.00W sgood=0 reboots=76
++   279s  REBOOT #77 peer 9F26E8 up 9170->6508 rr=deepsleep bv~3.253
++   279s  peer F2BE6C pdr=1.0000 rssi=-74 soc=17 batt_ma=-128 | panel 0.00V*0mA=0.00W sgood=0 reboots=77
++   288s  peer F2BF54 pdr=0.8000 rssi=-81 soc=1 batt_ma=-130 | panel 0.00V*0mA=0.00W sgood=0 reboots=77
++   291s  peer F40348 pdr=1.0000 rssi=-80 soc=47 batt_ma=-136 | panel 0.00V*0mA=0.00W sgood=0 reboots=77
++   299s  peer 9F268C pdr=1.0000 rssi=-75 soc=84 batt_ma=-126 | panel 0.00V*0mA=0.00W sgood=0 reboots=77
++   299s  REBOOT #78 peer 9F2714 up 9271->424 rr=deepsleep bv~2.633
++   300s  peer F2BF90 pdr=1.0000 rssi=-65 soc=21 batt_ma=-132 | panel 0.00V*0mA=0.00W sgood=0 reboots=78
++   308s  peer 9E5AD4 pdr=1.0000 rssi=-75 soc=1 batt_ma=-124 | panel 0.01V*0mA=0.00W sgood=0 reboots=78
++   309s  REBOOT #79 peer F3FD50 up 9171->6263 rr=deepsleep bv~3.260
++   309s  REBOOT #80 peer 9E5B10 up 9170->345 rr=deepsleep bv~3.294
++   309s  peer F3FC90 pdr=0.8000 rssi=-75 soc=25 batt_ma=-120 | panel 0.00V*0mA=0.00W sgood=0 reboots=80
++   318s  REBOOT #81 peer 9E5A74 up 12459->1156 rr=deepsleep bv~3.170
++   318s  REBOOT #82 peer 9E5B14 up 12487->1154 rr=deepsleep bv~3.186
++   318s  REBOOT #83 peer 9F2718 up 13021->1176 rr=deepsleep bv~3.178
++   318s  REBOOT #84 peer F2BE08 up 12453->1189 rr=deepsleep bv~3.250
++   318s  REBOOT #85 peer 9E5954 up 12806->1165 rr=deepsleep bv~3.220
++   318s  REBOOT #86 peer 9F266C up 12769->1115 rr=deepsleep bv~3.282
++   318s  REBOOT #87 peer 9E5AC8 up 12416->1167 rr=deepsleep bv~3.284
++   318s  REBOOT #88 peer 9F2638 up 12446->5587 rr=deepsleep bv~3.193
++   318s  peer 9F2638 pdr=1.0000 rssi=-68 soc=5 batt_ma=-129 | panel 0.00V*0mA=0.00W sgood=0 reboots=88
++   318s  REBOOT #89 peer 9E5A88 up 12411->1152 rr=deepsleep bv~3.225
++   318s  REBOOT #90 peer 9E5A84 up 12554->1207 rr=deepsleep bv~3.208
++   319s  REBOOT #91 peer F2BEF4 up 9170->370 rr=deepsleep bv~3.248
++   320s  peer F4019C pdr=1.0000 rssi=-71 soc=42 batt_ma=-132 | panel 0.00V*0mA=0.00W sgood=0 reboots=91
++   328s  REBOOT #92 peer 9F2680 up 12440->6454 rr=deepsleep bv~3.192
++   328s  REBOOT #93 peer F4042C up 12422->7195 rr=deepsleep bv~3.245
++   328s  REBOOT #94 peer 9E5B5C up 12432->637 rr=deepsleep bv~3.214
++   328s  REBOOT #95 peer F2BE60 up 12419->5826 rr=deepsleep bv~3.272
++   328s  REBOOT #96 peer 9E5A5C up 12449->4853 rr=deepsleep bv~3.262
++   328s  REBOOT #97 peer 9E5B68 up 12410->7389 rr=deepsleep bv~3.231
++   328s  REBOOT #98 peer 9F26D8 up 12436->4888 rr=deepsleep bv~3.216
++   328s  REBOOT #99 peer 9F2664 up 12888->10590 rr=deepsleep bv~3.172
++   328s  peer F2BF7C pdr=1.0000 rssi=-83 soc=45 batt_ma=-137 | panel 0.00V*0mA=0.00W sgood=0 reboots=99
++   328s  REBOOT #100 peer 9F0E5C up 12431->6171 rr=deepsleep bv~3.192
++   328s  REBOOT #101 peer 9F26D4 up 12444->9654 rr=deepsleep bv~3.180
++   328s  REBOOT #102 peer 9E5AE4 up 12461->5134 rr=deepsleep bv~3.180
++   328s  REBOOT #103 peer 9F2720 up 12507->6236 rr=deepsleep bv~3.176
++   329s  REBOOT #104 peer F4035C up 9170->339 rr=deepsleep bv~3.328
++   329s  REBOOT #105 peer F40348 up 9170->374 rr=deepsleep bv~3.288
++   329s  peer 9E5B48 pdr=1.0000 rssi=-76 soc=26 batt_ma=-128 | panel 0.00V*0mA=0.00W sgood=0 reboots=105
++   338s  peer 9F275C pdr=1.0000 rssi=-76 soc=33 batt_ma=-130 | panel 0.01V*0mA=0.00W sgood=0 reboots=105
++   339s  REBOOT #106 peer F2BDC4 up 9170->4463 rr=deepsleep bv~3.283
++   339s  peer F2BEA4 pdr=1.0000 rssi=-74 soc=1 batt_ma=-130 | panel 0.00V*0mA=0.00W sgood=0 reboots=106
++   348s  peer 9F2648 pdr=1.0000 rssi=-86 soc=46 batt_ma=-133 | panel 0.00V*0mA=0.00W sgood=0 reboots=106
++   349s  REBOOT #107 peer 9E5B34 up 9170->356 rr=deepsleep bv~3.066
++   349s  peer F402C4 pdr=1.0000 rssi=-72 soc=21 batt_ma=-137 | panel 0.00V*0mA=0.00W sgood=0 reboots=107
++   358s  peer 9E5B5C pdr=1.0000 rssi=-74 soc=8 batt_ma=-134 | panel 0.00V*0mA=0.00W sgood=0 reboots=107
++   358s  REBOOT #108 peer F3FCAC up 18192->15466 rr=deepsleep bv~3.307
++   359s  peer F2BDC4 pdr=1.0000 rssi=-70 soc=49 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=108
++   359s  REBOOT #109 peer F2BE0C up 9170->5367 rr=deepsleep bv~3.088
++   359s  REBOOT #110 peer F2BD00 up 9170->345 rr=deepsleep bv~3.256
++   368s  peer F2BDB4 pdr=1.0000 rssi=-82 soc=1 batt_ma=-153 | panel 0.00V*0mA=0.00W sgood=0 reboots=110
++   369s  peer 9F26E8 pdr=1.0000 rssi=-71 soc=14 batt_ma=-141 | panel 0.00V*0mA=0.00W sgood=0 reboots=110
++   370s  peer F2BE38 pdr=0.8000 rssi=-87 soc=1 batt_ma=-131 | panel 0.00V*0mA=0.00W sgood=0 reboots=110
++   378s  REBOOT #111 peer F2BDB4 up 12429->5843 rr=deepsleep bv~3.231
++   378s  REBOOT #112 peer F40384 up 12444->5514 rr=deepsleep bv~3.271
++   378s  REBOOT #113 peer F2BF8C up 12844->5610 rr=deepsleep bv~3.259
++   378s  REBOOT #114 peer 9F0E54 up 12428->5089 rr=deepsleep bv~3.249
++   378s  REBOOT #115 peer F2BE48 up 12665->6787 rr=deepsleep bv~3.158
++   378s  peer F40174 pdr=1.0000 rssi=-82 soc=1 batt_ma=-147 | panel 0.00V*0mA=0.00W sgood=0 reboots=115
++   379s  REBOOT #116 peer F2BE70 up 9170->353 rr=deepsleep bv~3.288
++   379s  REBOOT #117 peer 9E5A94 up 9170->344 rr=deepsleep bv~3.287
++   379s  peer F3FD88 pdr=1.0000 rssi=-81 soc=41 batt_ma=-127 | panel 0.00V*0mA=0.00W sgood=0 reboots=117
++   388s  peer 9E5A88 pdr=1.0000 rssi=-78 soc=24 batt_ma=-111 | panel 0.00V*0mA=0.00W sgood=0 reboots=117
++   389s  peer 9E5B44 pdr=1.0000 rssi=-81 soc=1 batt_ma=-142 | panel 2.58V*0mA=0.00W sgood=0 reboots=117
++   398s  peer 9F0E5C pdr=1.0000 rssi=-62 soc=1 batt_ma=-118 | panel 0.72V*0mA=0.00W sgood=0 reboots=117

@@ -197,10 +197,45 @@ enum AudioVisualMode : uint8_t {
   AUDIO_MODE_COUNT,
 };
 
+enum AudioOutputGain : uint8_t {
+  AUDIO_GAIN_1X = 0,
+  AUDIO_GAIN_1_5X,
+  AUDIO_GAIN_2X,
+  AUDIO_GAIN_3X,
+  AUDIO_GAIN_COUNT,
+};
+
 inline float audioClampUnit(float value) {
   if (value < 0.0f) return 0.0f;
   if (value > 1.0f) return 1.0f;
   return value;
+}
+
+inline float audioOutputGainMultiplier(AudioOutputGain gain) {
+  switch (gain) {
+  case AUDIO_GAIN_1_5X: return 1.5f;
+  case AUDIO_GAIN_2X: return 2.0f;
+  case AUDIO_GAIN_3X: return 3.0f;
+  default: return 1.0f;
+  }
+}
+
+inline AudioOutputGain audioNextOutputGain(AudioOutputGain gain) {
+  return (AudioOutputGain)(((uint8_t)gain + 1) % AUDIO_GAIN_COUNT);
+}
+
+inline uint8_t audioGainChannel(uint8_t value, AudioOutputGain gain) {
+  float scaled = (float)value * audioOutputGainMultiplier(gain);
+  return scaled >= 255.0f ? 255 : (uint8_t)(scaled + 0.5f);
+}
+
+inline AudioColor audioApplyOutputGain(AudioColor color,
+                                       AudioOutputGain gain) {
+  color.r = audioGainChannel(color.r, gain);
+  color.g = audioGainChannel(color.g, gain);
+  color.b = audioGainChannel(color.b, gain);
+  color.w = audioGainChannel(color.w, gain);
+  return color;
 }
 
 inline size_t audioDirectFrameCount(size_t fixtureCount) {

@@ -55,3 +55,16 @@ using an unrelated OTA/NVS mutation.
   are mandatory.
 - This diagnostic does not fix DIRECT/local-interaction precedence or safe
   post-install re-baselining. Those remain separate P0 firmware work.
+
+
+## 2026-10-11 integration note
+
+This laptop-local decision shares number 0072 with origin's later final-burn
+ADR; cite the full filename to distinguish them. The October pull preserves
+this exact-target command and appends its action-audit kind as 11, retaining
+origin's deployed field/storage action IDs 7 through 10. The historical
+August diagnostic bridge used 7 for reset-target; decode its retained evidence
+against that artifact, not the new enum. Before upgrading such a bridge,
+preserve its old NVS audit ring with its firmware identity: the version-1 blob
+alone cannot distinguish that historical 7 from field-tuning. No bridge was
+flashed or persisted audit record rewritten during this merge.

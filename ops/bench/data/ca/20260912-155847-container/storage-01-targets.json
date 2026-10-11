@@ -1,0 +1,166 @@
+{
+  "snapshot_utc": "2026-09-13T00:59:46.913870+00:00",
+  "targets": [
+    {
+      "id": "F3FCAC",
+      "callsign": "Ditto",
+      "battery_v": 3.302,
+      "age_ms": 93803,
+      "period_s": 120,
+      "eta_s": 26
+    },
+    {
+      "id": "9D7884",
+      "callsign": "Daxter",
+      "battery_v": 3.269,
+      "age_ms": 90941,
+      "period_s": 120,
+      "eta_s": 29
+    },
+    {
+      "id": "9E5B5C",
+      "callsign": "Mipha",
+      "battery_v": 3.183,
+      "age_ms": 75672,
+      "period_s": 120,
+      "eta_s": 44
+    },
+    {
+      "id": "F2BF74",
+      "callsign": "Qbert",
+      "battery_v": 3.227,
+      "age_ms": 71652,
+      "period_s": 120,
+      "eta_s": 48
+    },
+    {
+      "id": "F40384",
+      "callsign": "Leia",
+      "battery_v": 3.279,
+      "age_ms": 6778,
+      "period_s": 120,
+      "eta_s": 113
+    },
+    {
+      "id": "9E5AC8",
+      "callsign": "Gastly",
+      "battery_v": 3.284,
+      "age_ms": 6320,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9E5A5C",
+      "callsign": "Yuna",
+      "battery_v": 3.276,
+      "age_ms": 6135,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F2BE08",
+      "callsign": "Yoshi",
+      "battery_v": 3.247,
+      "age_ms": 5788,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F2BE60",
+      "callsign": "Ganon",
+      "battery_v": 3.282,
+      "age_ms": 6223,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F2BDB4",
+      "callsign": "Abra",
+      "battery_v": 3.231,
+      "age_ms": 6040,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F4042C",
+      "callsign": "Cynder",
+      "battery_v": 3.257,
+      "age_ms": 5755,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9F0E54",
+      "callsign": "Eevee",
+      "battery_v": 3.247,
+      "age_ms": 6301,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F2BF8C",
+      "callsign": "Snorlax",
+      "battery_v": 3.319,
+      "age_ms": 6047,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9E5A74",
+      "callsign": "Ahsoka",
+      "battery_v": 3.159,
+      "age_ms": 5654,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9E5A84",
+      "callsign": "Panther",
+      "battery_v": 3.212,
+      "age_ms": 6194,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9F2718",
+      "callsign": "Espio",
+      "battery_v": 3.17,
+      "age_ms": 5605,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "F2BE48",
+      "callsign": "Lando",
+      "battery_v": 3.157,
+      "age_ms": 5596,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9E5954",
+      "callsign": "Absol",
+      "battery_v": 3.218,
+      "age_ms": 6285,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9F2664",
+      "callsign": "Hawkeye",
+      "battery_v": 3.169,
+      "age_ms": 5663,
+      "period_s": 120,
+      "eta_s": 114
+    },
+    {
+      "id": "9F26D8",
+      "callsign": "Bidoof",
+      "battery_v": 3.219,
+      "age_ms": 5986,
+      "period_s": 120,
+      "eta_s": 114
+    }
+  ],
+  "authorization": "Ben explicitly authorized all responding fleet USB-wake storage"
+}

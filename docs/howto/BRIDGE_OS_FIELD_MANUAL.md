@@ -357,6 +357,13 @@ Patterns yet.
 
 ## Blackout / Sleep: know the difference
 
+For indefinite storage or a calendar wake, use **Home -> Rest -> Store** on
+`tdeck-0.3.0-storage4`. The [storage and wake guide](FIXTURE_STORAGE_AND_WAKE.md)
+documents the exact firmware, reviewed roster/confirmation, and remaining
+physical qualification. USB-wake ship also wakes from good solar input or QON;
+RESET/BOOT cannot wake its unpowered ESP. These modes differ from the timed
+radio sleep described below.
+
 The screen defaults to **Blackout** for **10 minutes**, the reversible choice.
 Read the selection before applying it; deep sleep still cannot be cancelled.
 
@@ -391,16 +398,32 @@ available. It offers three field baselines:
 
 - **Auto:** use UTC civil twilight at Black Rock City, with the fixture's
   bounded solar/power fallback if trustworthy time expires.
-- **Wake Fleet:** repeat the dark daytime baseline for six minutes so sleeping
-  fixtures receive it on timer wake. Each captured fixture then stays in its
-  normal ten-minute control hold for follow-up commands.
+- **Wake Fleet:** repeat for six minutes so sleeping fixtures receive it on
+  timer wake. On the emergency inspection image, this preserves Auto/static
+  fallback and opens a bounded LED/audio direct-control session. Campaign
+  copies refresh the ten-minute arm during the six-minute gather, leaving about
+  ten minutes of control for eligible fixtures afterward (about sixteen minutes maximum
+  from the button press). Older images use the dark daytime baseline.
 - **Night Show:** temporarily force the nighttime baseline.
 
-The choice is RAM-only and clears on fixture reboot. Direct colors and program
-leases can override this baseline; Blackout and local safety remain above it.
-Wake Fleet is not an energy-saving dark command: its purpose is to make the
-fleet reachable. Use Blackout for an already-awake reversible blackout and Deep
-sleep for deliberate radio-off energy saving.
+The choice is RAM-only and clears on fixture reboot. In the inspection image,
+only direct colors are admitted during the armed window; show/program modes
+remain disabled. Direct frames do not extend the deadline, static inspection
+white returns within three seconds after a stream stops, and battery safety
+remains above all control. Wake Fleet is not an energy-saving command: its
+purpose is to make the fleet reachable. Use Blackout for an already-awake
+reversible blackout and Deep sleep for deliberate radio-off energy saving.
+
+
+PROTECT exception: Wake Fleet and Performance Hold do not override the power
+policy's sleep decision or clear its durable latch. A protected fixture normally
+listens for about 8-9 seconds between 900-second sleeps; receiving Wake refreshes
+ordinary lifecycle/control state, but not the independent PROTECT sleep grace.
+The six-minute Wake campaign cannot guarantee catching a 15-minute PROTECT
+cycle. Performance Hold repeats long enough to catch that cycle, but does not
+keep a still-protected fixture continuously reachable. Qualified recovery or
+OTA/maintenance can separately change its awake behavior. Continuous radio
+claims apply only while the fixture's power policy permits them.
 
 Schedule is a production-direction feature with native coverage and first-canary
 firmware evidence, but the full multi-fixture sleep-cycle acceptance matrix is

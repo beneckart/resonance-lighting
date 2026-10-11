@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-14",
+  "site": "Oakland",
+  "source": "Ben physical inventory and 22-second read-only serial snapshot of TSwift 979604",
+  "commands_sent_by_this_capture": 0,
+  "capture_scope": "Controller cache snapshot; not a full 900-second census. No unseen unit is declared absent or failed.",
+  "physical_inventory_user_report": {
+    "newly_found_lanterns": {
+      "canopy": 5,
+      "uplight": 1,
+      "uplight_battery": "absent; panel connected"
+    },
+    "backyard_prototypes": 2,
+    "prototype_perimeter": "possibly disconnected/batteryless; user uncertain"
+  },
+  "peers": [
+    {
+      "id": "9F0E30",
+      "callsign": "Wooper",
+      "reported_battery_v": 3.321,
+      "observation_age_s": 17.749,
+      "snapshot_utc": "2026-09-14T16:18:22.756420+00:00",
+      "reported_firmware": "fx-260830-7ae6502-p",
+      "in_sep1_baseline": true,
+      "in_sep12_stored_106": false,
+      "physical_unit_mapping_confirmed": false
+    },
+    {
+      "id": "9F26F8",
+      "callsign": "Prototype P105",
+      "reported_battery_v": 2.992,
+      "observation_age_s": 597.486,
+      "snapshot_utc": "2026-09-14T16:18:22.778742+00:00",
+      "reported_firmware": "net-bench-2026-07-14.1",
+      "in_sep1_baseline": false,
+      "in_sep12_stored_106": false,
+      "physical_unit_mapping_confirmed": false
+    },
+    {
+      "id": "9F26B4",
+      "callsign": "Kairi",
+      "reported_battery_v": 3.303,
+      "observation_age_s": 98.383,
+      "snapshot_utc": "2026-09-14T16:18:22.807045+00:00",
+      "reported_firmware": "fx-260829-af1d4ec-p",
+      "in_sep1_baseline": true,
+      "in_sep12_stored_106": false,
+      "physical_unit_mapping_confirmed": false
+    },
+    {
+      "id": "F2BF5C",
+      "callsign": "Kiki",
+      "reported_battery_v": 3.277,
+      "observation_age_s": 818.297,
+      "snapshot_utc": "2026-09-14T16:18:22.829847+00:00",
+      "reported_firmware": "fx-260828-658b7d2-p",
+      "in_sep1_baseline": false,
+      "in_sep12_stored_106": false,
+      "physical_unit_mapping_confirmed": false
+    },
+    {
+      "id": "9F2724",
+      "callsign": "Groot",
+      "reported_battery_v": 2.88,
+      "observation_age_s": 667.208,
+      "snapshot_utc": "2026-09-14T16:18:22.870351+00:00",
+      "reported_firmware": "fx-260829-b0ff5db-b",
+      "in_sep1_baseline": false,
+      "in_sep12_stored_106": false,
+      "physical_unit_mapping_confirmed": false
+    }
+  ],
+  "newly_accounted_for_from_sep12_missing": [
+    "9F0E30",
+    "9F26B4"
+  ],
+  "sep12_missing_still_unlocated": [
+    "F2BCF4",
+    "F2BDD4",
+    "F2BDFC",
+    "F2BE10",
+    "F2BE94",
+    "F3FD28"
+  ],
+  "other_physical_unit_identities": "Not yet mapped; remaining bin lanterns may still overlap the September 12 stored cohort."
+}

@@ -16,6 +16,7 @@
 
 struct LocalInteractionInputs {
   uint8_t fixtureClass;
+  uint32_t nowMs;
   bool tofValid;
   uint16_t tofDistanceMm;
   // Downlights use the learned per-zone canopy presence gate, not perimeter's

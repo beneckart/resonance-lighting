@@ -1,0 +1,114 @@
+{
+  "snapshot_utc": "2026-09-13T00:21:11.863653+00:00",
+  "operator": "Ben + Codex",
+  "targets": [
+    {
+      "id": "9E5B18",
+      "callsign": "Froakie",
+      "battery_v": 3.192,
+      "age_ms": 855157,
+      "sleep_s": 900,
+      "eta_s": 44.84299999999996,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BE3C",
+      "callsign": "Raichu",
+      "battery_v": 3.28,
+      "age_ms": 852644,
+      "sleep_s": 900,
+      "eta_s": 47.355999999999995,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9F26C0",
+      "callsign": "Zorua",
+      "battery_v": 3.218,
+      "age_ms": 842716,
+      "sleep_s": 900,
+      "eta_s": 57.28399999999999,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "9F26B0",
+      "callsign": "Rikku",
+      "battery_v": 3.177,
+      "age_ms": 840991,
+      "sleep_s": 900,
+      "eta_s": 59.009000000000015,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BEA4",
+      "callsign": "Aerith",
+      "battery_v": 3.237,
+      "age_ms": 838228,
+      "sleep_s": 900,
+      "eta_s": 61.77200000000005,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BF60",
+      "callsign": "Clank",
+      "battery_v": 3.266,
+      "age_ms": 818146,
+      "sleep_s": 900,
+      "eta_s": 81.85400000000004,
+      "fw": "fx-260831-dc82da7-b"
+    },
+    {
+      "id": "9E5B8C",
+      "callsign": "Bowser",
+      "battery_v": 3.129,
+      "age_ms": 804710,
+      "sleep_s": 900,
+      "eta_s": 95.28999999999996,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F40350",
+      "callsign": "Guile",
+      "battery_v": 3.038,
+      "age_ms": 798645,
+      "sleep_s": 900,
+      "eta_s": 101.35500000000002,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BCF0",
+      "callsign": "Spyro",
+      "battery_v": 3.259,
+      "age_ms": 782286,
+      "sleep_s": 900,
+      "eta_s": 117.71400000000006,
+      "fw": "fx-260831-b3e2738-b"
+    },
+    {
+      "id": "F2BEE4",
+      "callsign": "Toad",
+      "battery_v": 2.996,
+      "age_ms": 775771,
+      "sleep_s": 900,
+      "eta_s": 124.22900000000004,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F3FC8C",
+      "callsign": "Psyduck",
+      "battery_v": 3.224,
+      "age_ms": 766060,
+      "sleep_s": 900,
+      "eta_s": 133.94000000000005,
+      "fw": "fx-260831-f121868-b"
+    },
+    {
+      "id": "F2BFE0",
+      "callsign": "Coco",
+      "battery_v": 3.285,
+      "age_ms": 752014,
+      "sleep_s": 900,
+      "eta_s": 147.986,
+      "fw": "fx-260831-f121868-b"
+    }
+  ]
+}

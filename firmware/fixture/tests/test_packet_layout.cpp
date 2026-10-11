@@ -54,7 +54,10 @@ int main() {
   CHECK_EQ(offsetof(NbHeartbeat, power_sample_flags), 192u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_origin), 193u);
   CHECK_EQ(offsetof(NbHeartbeat, last_protect_reset_streak), 197u);
-  CHECK_EQ(sizeof(NbHeartbeat), 199u);
+  CHECK_EQ(offsetof(NbHeartbeat, storage_capabilities), 199u);
+  CHECK_EQ(sizeof(NbHeartbeat), 200u);
+  CHECK_EQ(sizeof(NbStorageSleep), 21u);
+  CHECK_EQ(sizeof(NbStorageReceipt), 22u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);
@@ -82,6 +85,8 @@ int main() {
   CHECK_EQ(offsetof(NbTransportSleep, seconds), 16u);
   CHECK_EQ(sizeof(NbLocateControl), 19u);
   CHECK_EQ(sizeof(NbCommissionDefault), 18u);
+  CHECK_EQ(sizeof(NbFieldTuning), 23u);
+  CHECK_EQ(offsetof(NbFieldTuning, presence_seed_min_s), 19u);
 
   // Receiver tail gate + truncation round-trip: an hb-short must satisfy the
   // gate for supply_good and fail it for lux_x10.

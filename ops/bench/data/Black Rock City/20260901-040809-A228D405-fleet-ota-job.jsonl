@@ -1,0 +1,15 @@
+{"artifact": "C:\\Users\\benec\\Documents\\resonance-tree\\firmware\\fixture\\build\\fx-260831-f121868-b\\fixture.ino.bin", "artifact_sha256": "569fa5a584019e5b4d1dedcfbea832c2b72339246f12badb6042ee5adcd29c2e", "campaign_duration_s": 190, "discovery_timeout_s": 150.0, "elapsed_s": 0.0, "event": "job_started", "expected_revision": "fx-260831-f121868-b", "gather_cadence": "ordinary", "job_id": "A228D405", "phase": "PLAN", "target_count": 5, "targets": ["9F0E30", "F2BDC4", "F4035C", "F3FCAC", "F2BCF4"], "ts_utc": "2026-09-01T04:08:09Z"}
+{"elapsed_s": 0.031, "event": "passed", "job_id": "A228D405", "phase": "PREFLIGHT", "target_count": 5, "ts_utc": "2026-09-01T04:08:09Z"}
+{"elapsed_s": 0.047, "event": "target_added", "job_id": "A228D405", "phase": "GATHER", "target": "9F0E30", "ts_utc": "2026-09-01T04:08:10Z"}
+{"elapsed_s": 0.047, "event": "target_added", "job_id": "A228D405", "phase": "GATHER", "target": "F2BDC4", "ts_utc": "2026-09-01T04:08:10Z"}
+{"elapsed_s": 0.062, "event": "target_added", "job_id": "A228D405", "phase": "GATHER", "target": "F4035C", "ts_utc": "2026-09-01T04:08:10Z"}
+{"elapsed_s": 0.078, "event": "target_added", "job_id": "A228D405", "phase": "GATHER", "target": "F3FCAC", "ts_utc": "2026-09-01T04:08:10Z"}
+{"elapsed_s": 0.094, "event": "target_added", "job_id": "A228D405", "phase": "GATHER", "target": "F2BCF4", "ts_utc": "2026-09-01T04:08:10Z"}
+{"campaign": {"active": true, "cycle_ms": 50, "dispatch_count": 5, "job_id": "A228D405", "phase": 1, "remaining_ms": 189935, "status_age_ms": 0, "target_count": 5, "ts_utc": "2026-09-01T04:08:10.064043+00:00"}, "elapsed_s": 0.125, "event": "bridge_acknowledged", "job_id": "A228D405", "phase": "GATHER", "ts_utc": "2026-09-01T04:08:10Z"}
+{"elapsed_s": 151.656, "event": "deferred_not_discovered", "job_id": "A228D405", "phase": "DISCOVER", "target": "9F0E30", "ts_utc": "2026-09-01T04:10:41Z"}
+{"elapsed_s": 151.656, "event": "deferred_not_discovered", "job_id": "A228D405", "phase": "DISCOVER", "target": "F2BDC4", "ts_utc": "2026-09-01T04:10:41Z"}
+{"elapsed_s": 151.656, "event": "deferred_not_discovered", "job_id": "A228D405", "phase": "DISCOVER", "target": "F4035C", "ts_utc": "2026-09-01T04:10:41Z"}
+{"elapsed_s": 151.656, "event": "deferred_not_discovered", "job_id": "A228D405", "phase": "DISCOVER", "target": "F3FCAC", "ts_utc": "2026-09-01T04:10:41Z"}
+{"elapsed_s": 151.656, "event": "deferred_not_discovered", "job_id": "A228D405", "phase": "DISCOVER", "target": "F2BCF4", "ts_utc": "2026-09-01T04:10:41Z"}
+{"campaign": {"active": false, "cycle_ms": 50, "dispatch_count": 11930, "job_id": "A228D405", "phase": 2, "remaining_ms": 0, "status_age_ms": 266, "target_count": 5, "ts_utc": "2026-09-01T04:10:41.646514+00:00"}, "elapsed_s": 151.984, "event": "bridge_acknowledged", "job_id": "A228D405", "phase": "FREEZE", "ts_utc": "2026-09-01T04:10:41Z"}
+{"elapsed_s": 151.984, "error": "no named targets were discovered; no OTA attempted", "event": "job_error", "job_id": "A228D405", "phase": "CLEANUP", "ts_utc": "2026-09-01T04:10:41Z"}
