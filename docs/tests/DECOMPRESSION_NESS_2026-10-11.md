@@ -84,7 +84,9 @@ Sampled battery voltage across this capture ranged from 3.199 to 3.336 V;
 FULL tier remained in force and the battery recovered to approximately
 3.33 V afterward. This is not a measurement of the minimum transient voltage,
 and it does not qualify sustained chime duty or the unmetered VBAT branch.
-Ben's listening assessment is pending.
+Ben confirmed the locally timed signature sounded cleaner and more evenly
+spaced than the earlier USB-driven version: "Yes, cleaner and even."
+The listening check passes for this trial.
 
 ## Cancellation and service hold
 
@@ -108,8 +110,8 @@ failsafes zero and session time remaining 3409 seconds. This covers the former
 - During a session the class listener light stays on and ordinary day sleep
   is suppressed. Battery protection and maintenance retain their vetoes.
 - Outside a session this build listens for 15 seconds then sleeps. USER can
-  wake it and request the phrase. Physical USER wake, acoustic assessment,
-  prolonged operation and event energy remain to be qualified.
+  wake it and request the phrase. Physical USER wake, prolonged operation
+  and event energy remain to be qualified.
 - Remote station/presence integration is the next stage. No new mesh packet
   contract or fleet rollout is included in this canary.
 

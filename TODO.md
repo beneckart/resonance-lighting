@@ -3474,8 +3474,9 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   immutable embedded build pass. Ness now runs fx-261012-5164506-b: seven
   actual GPIO onsets completed with 83 us maximum lateness, zero failsafes;
   duplicate rejection, one-hit cancellation and a 150-second awake USB hold
-  passed. Acoustic/USER wake
-  qualification remains open; see docs/tests/DECOMPRESSION_NESS_2026-10-11.md.
+  passed. Ben confirmed the local phrase sounded cleaner and even. Physical
+  USER wake qualification remains open; see
+  docs/tests/DECOMPRESSION_NESS_2026-10-11.md.
   Ben heard opening-phrase
   clumping on the replacement-extension replay despite seven accepted hits.
   The host sent individual immediate strikes with roughly 30 ms interval

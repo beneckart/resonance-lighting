@@ -10,6 +10,14 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Ness local signature listening check passed
+
+Ben confirmed that Ness's locally timed signature on fx-261012-5164506-b
+sounded cleaner and more evenly spaced than the earlier USB-driven version:
+"Yes, cleaner and even." Recorded this listening acceptance alongside the
+measured timing results. Physical USER wake, prolonged operation and event
+energy remain to be qualified; remote/presence integration is the next stage.
+
 ## 2026-10-11 -- Ben + Codex -- Ness local signature installed and measured
 
 Installed fx-261012-5164506-b on Ness (9F2738, D8:85:AC:9F:27:38) via
