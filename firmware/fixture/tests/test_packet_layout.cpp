@@ -58,6 +58,12 @@ int main() {
   CHECK_EQ(sizeof(NbHeartbeat), 200u);
   CHECK_EQ(sizeof(NbStorageSleep), 21u);
   CHECK_EQ(sizeof(NbStorageReceipt), 22u);
+  CHECK_EQ((unsigned)NB_DECOMPRESSION_CONTROL, 34u);
+  CHECK_EQ((unsigned)NB_DECOMPRESSION_RECEIPT, 35u);
+  CHECK_EQ(sizeof(NbDecompressionControl), 22u);
+  CHECK_EQ(offsetof(NbDecompressionControl, controller_boot), 16u);
+  CHECK_EQ(sizeof(NbDecompressionReceipt), 34u);
+  CHECK_EQ(offsetof(NbDecompressionReceipt, request_seq), 20u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).
   CHECK_EQ(sizeof(NbChoreoState), 22u);

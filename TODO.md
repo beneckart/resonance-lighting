@@ -3559,6 +3559,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   unattended presence triggers, session end behavior and full event energy
   including the always-connected VBAT capboard. Siting remains TBD; working
   count is nine.
+- [ ] Qualify ADR 0083 Atom/receiver updates on 54B0C8 and the nine-lantern
+  squad. Implementation adds exact-roster all-hours local signature requests,
+  five-minute renewable radio leases and receipts. Verify one lantern before
+  rollout, all-nine completion, held/duplicate input, idle readiness and Atom
+  removal/lease expiry. Existing deployed receiver images need updating.
 - [~] Make signature-chime timing repeatable. ADR 0082 implements a
   `--decompression` canary: one exact-target USB command or USER press
   launches a local absolute-deadline phrase, with cancellation, cooldown,

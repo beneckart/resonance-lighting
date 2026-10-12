@@ -20,7 +20,8 @@
 //   - 30     commission-default selector (Bridge OS -> fixture).
 //   - 31     durable field behavior tuning (Bridge OS -> fixture).
 //   - 32..33 storage sleep request and receipt (exact targets only).
-//   - 34+    free.
+//   - 34..35 decompression exact-target control and receipts.
+//   - 36+    free.
 // =============================================================================
 //
 // Native-testable: no Arduino includes. test_packet_layout.cpp pins golden
@@ -70,6 +71,8 @@ enum NbType : uint8_t {
   NB_FIELD_TUNING = 31, // bridge -> all/target: durable burn behavior knobs
   NB_STORAGE_SLEEP = 32, // bridge -> exact target: indefinite storage
   NB_STORAGE_RECEIPT = 33, // fixture -> bridge: prepared/refused/failed (not off proof)
+  NB_DECOMPRESSION_CONTROL = 34, // controller -> exact target: lease or local phrase
+  NB_DECOMPRESSION_RECEIPT = 35, // fixture -> controller: admission/completion
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -79,6 +82,50 @@ struct __attribute__((packed)) NbHeader {
   uint32_t seq;
   uint32_t uptime_ms;
 };
+
+enum NbDecompressionAction : uint8_t {
+  NB_DECOMP_SESSION = 1, // minutes 1..5 renews RAM lease; 0 releases it
+  NB_DECOMP_PLAY = 2,    // minutes must be 0; requires an existing radio lease
+};
+enum NbDecompressionStatus : uint8_t {
+  NB_DECOMP_READY = 1,
+  NB_DECOMP_STARTED = 2,
+  NB_DECOMP_COMPLETE = 3,
+  NB_DECOMP_REFUSED = 4,
+  NB_DECOMP_ABORTED = 5,
+  NB_DECOMP_STALE = 6,
+  NB_DECOMP_ENDED = 7,
+};
+struct __attribute__((packed)) NbDecompressionControl {
+  NbHeader h;
+  uint8_t target_id[3]; // exact identity only; zero never means all
+  uint32_t controller_boot; // nonzero random nonce; seq is monotonic per boot
+  uint8_t action;
+  uint8_t minutes;
+};
+struct __attribute__((packed)) NbDecompressionReceipt {
+  NbHeader h;
+  uint8_t request_source[3];
+  uint32_t controller_boot;
+  uint32_t request_seq;
+  uint8_t action;
+  uint8_t status;
+  uint16_t lease_left_s;
+  uint8_t signature_state;
+  uint8_t signature_hits;
+  uint32_t signature_max_late_us;
+};
+
+static inline bool nbDecompressionValid(const NbDecompressionControl &c,
+                                        const uint8_t target[3]) {
+  return target && c.h.ver == NB_PROTO_VER &&
+      c.h.type == NB_DECOMPRESSION_CONTROL && c.controller_boot &&
+      (c.h.src_id[0] || c.h.src_id[1] || c.h.src_id[2]) &&
+      (c.target_id[0] || c.target_id[1] || c.target_id[2]) &&
+      memcmp(c.target_id, target, 3) == 0 &&
+      ((c.action == NB_DECOMP_SESSION && c.minutes <= 5) ||
+       (c.action == NB_DECOMP_PLAY && c.minutes == 0));
+}
 
 enum NbStorageMode : uint8_t {
   NB_STORAGE_RESET_WAKE = 1, // rails/radio off, no timer; physical RESET required

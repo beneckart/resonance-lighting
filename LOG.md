@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Atom signature controller and receiver implementation
+
+Ben requested one Atom Matrix press for local signatures on all nine lanterns,
+day or night. Added a separate explicit-roster Atom controller and canonical
+packet types 34/35 for exact-target leases, phrase requests and correlated
+receipts. Radio PLAY uses the existing local timer and mechanism/power gates;
+it does not extend its five-minute radio lease. Added duplicate/stale rejection,
+readiness/result display, bounded retries and button debounce/hold handling.
+ADR 0083 records the contract and limits. Builds/hardware qualification remain
+pending at this source checkpoint; the old nine receiver images ignore the
+new protocol. Atom 54B0C8 identified on COM6; preserved its 64 KiB ROM prefix
+and digest-verified the retained September conductor app0 after stub read
+attempts failed. No flash has occurred at this checkpoint.
+
 ## 2026-10-12 -- Ben + Codex -- Nine-lantern decompression squad reconciled
 
 Cross-checked the registry against individual acceptance records: Ness,

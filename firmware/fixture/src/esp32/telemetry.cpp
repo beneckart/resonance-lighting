@@ -351,6 +351,8 @@ String telemetryJson() {
     SignatureSequence signature = solenoidSignatureSnapshot();
     j += ",\"decompression\":true,\"decompression_left_s\":";
     j += String((unsigned long)decompressionSecondsLeft());
+    j += ",\"decompression_radio_left_s\":";
+    j += String((unsigned long)decompressionRadioSecondsLeft());
     j += ",\"signature_state\":" + String((unsigned)signature.result);
     j += ",\"signature_hits\":" + String((unsigned)signature.hits);
     j += ",\"signature_max_late_us\":" + String((unsigned long)signature.maxLateUs);
