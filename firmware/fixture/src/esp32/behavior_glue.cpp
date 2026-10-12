@@ -671,7 +671,8 @@ void behaviorTick() {
     gShowActive = false;
     gStrikesAllowed = false;
     bool active = decompressionActive();
-    gNetLifeState = gTelemetryLifeState = active ? LIFE_COMMISSION : LIFE_DAY_CHARGE;
+    gLife.state = active ? LIFE_COMMISSION : LIFE_DAY_CHARGE;
+    gNetLifeState = gTelemetryLifeState = gLife.state;
     gNetProgram = gTelemetryProgram = 0;
     frameClear(gFrame);
     gFrame.count = gPixels;
