@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela decompression service complete
+
+Flashed and ROM-verified retained fx-261012-5164506-b in app1 only, with the
+pre-flash prefix unchanged. Preserved original states and non-erased coredump.
+Corrected the confirmed 15 Ah capacity, verified the software reboot, and
+confirmed both reconnected sensors. FIELD/channel 11 and 2000 mA limit remain.
+One local signature completed all seven hits, 61 us maximum lateness, zero
+blocks/failsafes. Saved 3270 mV PROTECT history stayed unchanged throughout.
+
+After transient strike/boost sag, 55 follow-up samples passed over 60 seconds,
+ending at 3.254 V and +405.8 mA charging, DIM, interrupted false, both sensors
+healthy, no USB error/reboot. Opened a one-hour RAM session at 12:21:42 PDT;
+expected expiry about 13:21:42 PDT absent reset/renewal. Updated registry to
+the exact USB-verified revision; this image is not marked OTA-qualified.
+The initial battery absence cleared after reconnection; no component failure
+was proven. Direct USB only; TELE D13 boost control and offline crash decoding
+remain follow-ups. See DECOMPRESSION_TANGELA_2026-10-12.md and raw captures.
+
+## 2026-10-12 -- Ben + Codex -- Tangela sensor-cable explanation confirmed
+
+Ben confirmed the sensor cable had been disconnected for the donor-battery
+comparison and reports it reconnected. Started a fresh pre-flash backup with
+the original battery detected and charging, followed by the retained
+decompression artifact and post-boot sensor checks. No sensor failure is
+established by the disconnected-cable boot. Detail in Tangela service report.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela original battery charging after restart
 
 Preserved the original ROM prefix, non-erased coredump and digest-verified

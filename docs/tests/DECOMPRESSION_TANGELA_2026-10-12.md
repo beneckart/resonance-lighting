@@ -1,4 +1,4 @@
-# Tangela decompression intake
+# Tangela decompression service
 
 Date: 2026-10-12 PDT / UTC
 Operator: Ben + this Codex laptop; sole USB operator
@@ -6,12 +6,13 @@ Target: Tangela, 9F0E5C, D8:85:AC:9F:0E:5C, COM5
 
 ## Status
 
-Intake and original ROM state preserved; the original battery is now detected
-following substitution and reconnection. Restarting the original image restored
-normal charging. Flash, capacity correction and signature are pending the
-sensor-cable check. Until ROM backup,
-only read-only `t` telemetry requests were used. Origin was up to date at
-d79d234 before intake.
+Exact decompression artifact flashed and verified in app1, capacity corrected
+to the confirmed 15 Ah cell, both sensors restored after cable reconnection,
+and one seven-hit signature completed. Original battery detection returned
+after reconnection; normal charging resumed after restarting with the battery
+attached. Saved PROTECT history is unchanged. The 60-second post-signature
+check passed, ending at 3.254 V and +405.8 mA with both sensors healthy.
+Origin was up to date at d79d234 before intake.
 
 ## Wiring and USB
 
@@ -175,9 +176,58 @@ mismatch, although both sensors appeared in the first intake. Asked Ben whether
 the sensor cable was unplugged or loosened during access. Sensor readiness and
 the decompression flash remain pending.
 
+Ben subsequently confirmed he had disconnected the sensor cable to perform
+the donor-battery test and reported it reconnected. The missing sensors in that
+boot therefore do not establish a hardware failure. The next firmware boot
+will re-probe them; no class override is being applied to hide the mismatch.
+
+## Decompression update and signature
+
+With charging established, took a second pre-flash backup under
+`ops/bench/private-backups/20261012T191647Z-9F0E5C-service/`.
+Its prefix SHA-256 is
+`c1e0462c534ce3f5811d0833679e75cc37444b920a9f384fde709ae64cd7d1f2`;
+the coredump digest is identical to the first backup. The fresh power check
+was 3.245 V, +418.8 mA, DIM, interrupted false, both load gates off.
+
+Wrote only app1 at 0x340000. ROM verification confirmed the exact new binary
+and unchanged pre-flash prefix at 19:21:35.855023 UTC. Then sent the explicit
+target capacity command `C9F0E5C:15000`, verified 15000 mAh after its software
+restart, and opened a 60-minute RAM-only event session with `!D9F0E5C:60` at
+19:21:42.411685 UTC (12:21:42 PDT). The session is scheduled to expire at about
+13:21:42 PDT unless restarted or renewed. FIELD/channel 11 and 2000 mA charge
+limit remain unchanged. This artifact is USB-verified here, not OTA-qualified.
+
+After over 30 seconds of healthy uptime with TMF ranging and MSA present,
+sensor bits 9, no class mismatch, charging enabled and unchanged PROTECT
+history, sent exactly one `!K9F0E5C:1` at 19:22:09.254298 UTC.
+Completion at 19:22:12.927085 UTC reported:
+
+- Seven strikes / seven signature hits, state COMPLETE (2).
+- Maximum lateness 61 us; offsets 58, 500061, 750059, 1000059, 1500056,
+  2500056 and 3000056 us.
+- Solenoid gate off, zero blocks and zero failsafes.
+- No unexpected reboot or changed historical PROTECT record.
+
+The captured voltage minimum during this acceptance run was 3.156 V;
+completion showed 3.158 V and -1727.1 mA while the strike/boost load was active.
+The follow-up captured recovery to 3.252 V and +428.9 mA by uptime 43.2 seconds,
+with the event LED rail on. This is a transient load response, not a new
+PROTECT event. Human confirmation of the audible cadence was requested.
+
+Post-service acceptance captured 55 samples from 19:22:22.210861 through
+19:23:21.926310 UTC. All showed the expected revision, 15 Ah setting,
+TMF ranging and MSA present, no class mismatch, charging enabled and battery
+present, DIM with interrupted false, unchanged PROTECT history, seven total
+strikes, completed signature and zero blocks/failsafes. Voltage ranged
+3.248-3.258 V and charge current +299.6 to +446.0 mA. Final reading was
+3.254 V, +405.8 mA, uptime 102907 ms, event session 3501 seconds remaining.
+There was no transport error or unexpected reboot. Capture and temporary
+host awake hold ended normally; the host commissioning checks passed.
+
 ## Retained artifact and evidence
 
-Selected, not yet flashed: fx-261012-5164506-b, 1206816 bytes, SHA-256
+Flashed and verified: fx-261012-5164506-b, 1206816 bytes, SHA-256
 `a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e`.
 Manifest and binary digest verified. No new build was made.
 
@@ -189,5 +239,13 @@ Public raw captures under `ops/bench/data/Bodhi Hive/`:
 - `20261012T191153Z-9F0E5C-original-reconnect-battery.jsonl`
 - `20261012T191456Z-9F0E5C-backup.jsonl`
 - `20261012T191628Z-9F0E5C-charge-restart-battery.jsonl`
+- `20261012T191849Z-9F0E5C-backup.jsonl`
+- `20261012T192021Z-9F0E5C-flash.jsonl`
+- `20261012T192222Z-9F0E5C-post-service-battery.jsonl`
 
-The first original ROM/NVS/application preservation is complete; no flash yet.
+Both private original-state backups are retained. The original battery
+connection now supports charging and the signature load, but the earlier
+absence does not identify a failed component. If it recurs, inspect seating,
+retention and crimps before replacing parts. The enclosure extension was not
+qualified by this direct-USB service. D13 boost control and offline crash
+decoding remain separate follow-up work.
