@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Brian + Claude -- Lucas decompression canary, signature and 15 Ah
+
+Brian flashed the same fx-261012-5d7ab8f-b canary (SHA-256 31a4942e...29c0)
+onto Lucas 9F2638 (D8:85:AC:9F:26:38) as sole USB operator. Intake: old
+fx-260912-f951ae9-b on app1, 3.28 V charging, DIM tier, BQ fault 0, retained
+reset-load-armed PROTECT at 3146 mV (historical, Rikku's pattern).
+
+MAC identity gate, private 64 KiB prefix and coredump backups (coredump blank),
+app1 digest-verified, partition table identical. Wrote only app1 at 0x340000;
+new app and original prefix verified. Watchdog reset booted the new revision
+on app1, no pending verify. One `!K9F2638:1` in a 60-minute session played all
+seven hits: COMPLETE, max onset lateness 60 us, zero blocked/failsafes.
+Brian confirmed it sounded good.
+
+Brian confirmed a 15,000 mAh pack. `C9F2638:15000` stored and rebooted; later
+telemetry reported 15000 mAh, about 3.30 V, +745 to +805 mA charging. SOC not
+treated as meaningful. Session then ended and Lucas resumed timer sleep.
+Record: docs/tests/DECOMPRESSION_LUCAS_2026-10-11.md.
+Evidence: ops/bench/data/Brian bench/ (9F2638 files).
+
 ## 2026-10-11 -- Ben + Codex -- Leeloo recovery, 15 Ah correction and signature
 
 Leeloo F40254 (68:EE:8F:F4:02:54, COM17) arrived in OFF at 3.274 V, with
