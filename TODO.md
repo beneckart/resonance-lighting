@@ -3453,9 +3453,10 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   for the next post-burn lanterns before repair, profile changes or firmware.
   Preserve a few anomalous and comparable healthy flash/NVS specimens privately.
   Ness's direct-USB reconnects were traced to ordinary FIELD day-charge sleep
-  (120 seconds), not a new PROTECT entry. Design a bounded, explicit service
-  hold with recorded reset intent; F0 commission is the current persistent
-  workaround and requires a deliberate exit state.
+  (120 seconds), not a new PROTECT entry. The Ness decompression canary now
+  provides a bounded RAM-only session; consider generalizing that service hold
+  into ordinary firmware with recorded reset intent. F0 commission remains
+  the ordinary image's persistent workaround and requires a deliberate exit.
 - [ ] Preserve the compiled ordinary day-sleep interval across live profile
   changes in behavior_glue.cpp. The current F0/F1 reinitialization uses the
   default 300 seconds until reboot, dropping f951ae9's 120-second override.
@@ -3469,8 +3470,12 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 - [~] Make signature-chime timing repeatable. ADR 0082 implements a
   `--decompression` canary: one exact-target USB command or USER press
   launches a local absolute-deadline phrase, with cancellation, cooldown,
-  battery admission and a bounded RAM-only session. Native tests pass;
-  embedded build, immutable artifact and Ness acceptance are in progress.
+  battery admission and a bounded RAM-only session. Native tests and the
+  immutable embedded build pass. Ness now runs fx-261012-5164506-b: seven
+  actual GPIO onsets completed with 83 us maximum lateness, zero failsafes;
+  duplicate rejection, one-hit cancellation and a 150-second awake USB hold
+  passed. Acoustic/USER wake
+  qualification remains open; see docs/tests/DECOMPRESSION_NESS_2026-10-11.md.
   Ben heard opening-phrase
   clumping on the replacement-extension replay despite seven accepted hits.
   The host sent individual immediate strikes with roughly 30 ms interval

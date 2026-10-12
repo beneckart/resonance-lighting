@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Ness local signature installed and measured
+
+Installed fx-261012-5164506-b on Ness (9F2738, D8:85:AC:9F:27:38) via
+ROM-only app0 USB write. Source cd9ce1ae9252a2792f760a9c77a6f2df4fea3157;
+1,206,816-byte application SHA-256
+a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e.
+The exact binary, manifest, recipe, ELF/map and build options are retained in
+firmware/fixture/build/fx-261012-5164506-b/. This is a b canary for Ness, not a
+fleet promotion. Ben explicitly selected USER + USB first, remote/presence next.
+
+Post-write ROM verification matched the new application and the entire
+original 64 KiB prefix (bootloader, partitions, NVS and OTA selection).
+Fresh telemetry confirmed the revision, FULL tier, good USB supply and the
+unchanged historical PROTECT context. No protection clear or profile rewrite.
+
+One USB line launched seven local 40 ms pulses at offsets
+59/500058/750083/1000059/1500057/2500056/3000055 us. Maximum lateness was
+83 us, maximum interval error 25 us, counter 0 -> 7, gate off, zero blocks
+or failsafes. Duplicate rejection and cancellation after one hit also passed
+(counter 7 -> 8, no queued phrase). A one-hour RAM session began at 01:28 UTC.
+A continuous-USB hold then passed for 150.921 seconds without dropout or
+reboot, ending at 3.337 V, FULL tier, gate off and zero failsafes. Ben's
+acoustic assessment and physical USER wake qualification remain pending.
+Full evidence and limitations: docs/tests/DECOMPRESSION_NESS_2026-10-11.md.
+
 ## 2026-10-11 -- Ben + Codex -- Decompression signature canary development
 
 Ben requested local signature timing and a decompression installation firmware.

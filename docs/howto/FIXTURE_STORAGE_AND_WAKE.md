@@ -204,7 +204,17 @@ Use supply/charger measurements, not the enumeration sound, to assess charging.
 Evidence: `ops/bench/data/Bodhi Hive/20261011T225943Z-9F2738-usb-cycle-d276c45e.jsonl`.
 Platform reference: [Espressif USB Serial/JTAG sleep behavior](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/usb-serial-jtag-console.html#sleep-mode-considerations).
 
-## Small decompression installation: proposed scope
+## Small decompression installation: canary and remaining scope
+
+Ness now has the USER/USB-only `fx-261012-5164506-b` decompression canary.
+One `!K9F2738:1` line or USER press plays the locally timed seven-hit signature.
+`!D9F2738:60` opens a RAM-only one-hour awake session; `!D9F2738:0` ends it.
+The first successful signature trigger also opens one hour, without extending
+an already active session. These commands require this canary, not the older
+ordinary FIELD image. Power protection remains active and history is retained.
+See [the acceptance record](../tests/DECOMPRESSION_NESS_2026-10-11.md) for exact
+artifact identity, preserved evidence and measured timing. Remote/presence
+integration and event energy qualification remain open.
 
 For the Loom, start with one accessible button station and an explicit roster
 of serviced, VBAT-retrofitted chime lanterns. A press should produce a short
@@ -212,7 +222,7 @@ ordered chime sequence at any hour. A later presence station can feed that
 same trigger, with clear/rearm and cooldown behavior so one stationary visitor
 does not repeatedly fire the chimes. Placement and roster remain Ben's choice.
 
-Existing pieces are useful but this event behavior is not yet implemented:
+Existing pieces are useful but the remote station behavior is not yet implemented:
 
 - The [Atom clicker](../../firmware/atom_clicker/README.md) sends a bounded
   exact-target strike on a press, but currently has one build-time target.
@@ -228,8 +238,7 @@ Existing pieces are useful but this event behavior is not yet implemented:
   to discover sleeping units. An explicit session end, idle-reachability test,
   energy measurement and retained mechanism safeguards are required.
 
-These are proposed follow-up requirements, not a firmware deployment or a
-decision to permanently disable battery protection or sleep.
+These station requirements remain follow-up work beyond the Ness canary.
 
 ## Qualification still open
 
