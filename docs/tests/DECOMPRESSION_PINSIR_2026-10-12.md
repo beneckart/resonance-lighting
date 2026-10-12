@@ -199,17 +199,37 @@ original session. Battery range was 3.259-3.270 V and gauge charge current
 awake hold ended normally.
 
 Using A for each connection's initial working orientation and B for its
-180-degree rotation, the awake checks now cover:
+180-degree rotation, the awake checks (including the final test below) cover:
 
 | PowerFeather end | Extension female socket | Result |
 | --- | --- | --- |
 | A | A | Passed 60-second capture |
 | B | A | Passed 60-second capture |
 | B | B | Passed 60-second capture |
-| A | B | Not yet tested |
+| A | B | Passed 60-second capture |
 
 No orientation-dependent failure has been reproduced in these checks. The
-remaining combination and earlier ROM enumeration failure are still open.
+earlier ROM enumeration failure remains unexplained.
+
+### Clean extension: fourth orientation combination passed
+
+Ben returned only the PowerFeather-end plug to its initial orientation A,
+leaving the outer connection in B. COM3 delivered 56 samples over 60.929
+seconds, from 18:29:54 to 18:30:55 UTC, without a transport error. Host time
+since the prior capture advanced 52.484 seconds and MCU uptime 52.538 seconds.
+The same awake session continued with unchanged PROTECT fields.
+
+Every sample had good supply, charging enabled and zero BQ fault. Final
+sample: uptime 1250416 ms, battery 3.270 V, +282.5 mA charging, supply 4.609 V,
+DIM, no interrupted guard, seven strikes, zero solenoid failsafes and 2353
+seconds left in the original session. Battery range was 3.259-3.270 V and
+gauge charge current +152.6 to +302.4 mA. Only read-only telemetry requests
+were sent. Capture and temporary host awake hold ended normally.
+
+All four clean-extension orientation combinations pass these awake checks.
+This argues against a consistently missing orientation connection in this
+extension. It does not rule out intermittent contact or enumeration issues,
+qualify bootloader behavior, or explain the dusty-extension failure.
 
 ## Evidence
 
@@ -230,3 +250,4 @@ Public captures are under `ops/bench/data/Bodhi Hive/`:
 - `20261012T182311Z-9F26BC-clean-extension.jsonl`
 - `20261012T182612Z-9F26BC-clean-extension-board-flipped.jsonl`
 - `20261012T182801Z-9F26BC-clean-extension-host-flipped.jsonl`
+- `20261012T182953Z-9F26BC-clean-extension-fourth-orientation.jsonl`

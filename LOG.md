@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed all four orientations
+
+Ben restored only the PowerFeather-end plug, completing the A/B orientation
+combination. COM3 supplied 56 samples over 60.929 seconds without transport
+errors. MCU uptime tracked elapsed host time, with unchanged PROTECT and the
+same awake session. Final sample: 3.270 V, +282.5 mA charging, DIM, no BQ fault,
+seven strikes, zero solenoid failsafes. Only telemetry queries were sent;
+capture and temporary host awake hold ended normally.
+
+All four clean-extension orientation combinations now pass while awake.
+A consistent orientation wiring fault was not reproduced; earlier ROM and
+dusty-extension failures remain unexplained. Report and raw evidence are in
+docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md. Orientation checklist closed.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed with outer connection flipped
 
 Ben's "flipped at end" was interpreted as flipping the laptop cable at the
