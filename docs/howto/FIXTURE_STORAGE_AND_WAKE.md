@@ -216,11 +216,45 @@ See [the acceptance record](../tests/DECOMPRESSION_NESS_2026-10-11.md) for exact
 artifact identity, preserved evidence and measured timing. Remote/presence
 integration and event energy qualification remain open.
 
+### Working decompression squad, 2026-10-12
+
+Ben selected the nine serviced lanterns below as the working decompression
+squad. The registry and individual records confirm nine unique fixtures with
+decompression firmware and a completed local seven-hit signature: seven on
+Ben's bench and two on Brian's. The records do not establish a separate
+battery-only acceptance test or independent wiring inspection for every unit.
+
+| Lantern | Short MAC | Service bench | Acceptance record |
+| --- | --- | --- | --- |
+| Ness | `9F2738` | Ben | [Ness](../tests/DECOMPRESSION_NESS_2026-10-11.md) |
+| Eevee | `9F0E54` | Ben | [Eevee](../tests/DECOMPRESSION_EEVEE_2026-10-11.md) |
+| Rikku | `9F26B0` | Ben | [Rikku](../tests/DECOMPRESSION_RIKKU_2026-10-11.md) |
+| Leeloo | `F40254` | Ben | [Leeloo](../tests/DECOMPRESSION_LEELOO_2026-10-11.md) |
+| Bidoof | `9F26D8` | Ben | [Bidoof](../tests/DECOMPRESSION_BIDOOF_2026-10-11.md) |
+| Pinsir | `9F26BC` | Ben | [Pinsir](../tests/DECOMPRESSION_PINSIR_2026-10-12.md) |
+| Tangela | `9F0E5C` | Ben | [Tangela](../tests/DECOMPRESSION_TANGELA_2026-10-12.md) |
+| Sakura | `F2BE0C` | Brian | [Sakura](../tests/DECOMPRESSION_SAKURA_2026-10-11.md) |
+| Lucas | `9F2638` | Brian | [Lucas](../tests/DECOMPRESSION_LUCAS_2026-10-11.md) |
+
+Ben's seven run `fx-261012-5164506-b`; Brian's two run
+`fx-261012-5d7ab8f-b`, built from the same firmware source plus documentation
+changes with matching feature flags. These remain distinct immutable
+artifacts; exact digests and provenance are in the linked acceptance records.
+No reflash or device command was performed for this roster reconciliation.
+
+Ness's physical cell is confirmed 15 Ah, but its last observed gauge setting
+was still 6 Ah; the registry's 15 Ah value does not prove the on-device setting
+was corrected. That correction remains queued. Tangela's final saddle
+fastening and the squad's battery-only event runtime also remain follow-ups.
+
+### Shared interaction still to implement
+
 For the Loom, start with one accessible button station and an explicit roster
 of serviced, VBAT-retrofitted chime lanterns. A press should produce a short
 ordered chime sequence at any hour. A later presence station can feed that
 same trigger, with clear/rearm and cooldown behavior so one stationary visitor
-does not repeatedly fire the chimes. Placement and roster remain Ben's choice.
+does not repeatedly fire the chimes. Use the working roster above; placement
+remains to be settled with the art liaison.
 
 Existing pieces are useful but the remote station behavior is not yet implemented:
 

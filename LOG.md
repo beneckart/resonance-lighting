@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Nine-lantern decompression squad reconciled
+
+Cross-checked the registry against individual acceptance records: Ness,
+Eevee, Rikku, Leeloo, Bidoof, Pinsir and Tangela on Ben's bench; Sakura and
+Lucas on Brian's. Nine unique fixtures have decompression firmware and a
+completed local signature. Ben identified these as the working decompression
+squad. Added exact IDs and evidence links to FIXTURE_STORAGE_AND_WAKE.md and
+updated the interaction TODO. Preserved the distinction between the two
+immutable builds and between USB acceptance and battery-only qualification.
+Ness's on-device capacity correction, event runtime and shared button/presence
+control remain open. No device commands or configuration changes performed.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela replacement USB extension passes
 
 Ben installed a new enclosure extension. Tangela COM5 supplied 56 samples

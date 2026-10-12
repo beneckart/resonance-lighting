@@ -3548,13 +3548,17 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 - [ ] Preserve the compiled ordinary day-sleep interval across live profile
   changes in behavior_glue.cpp. The current F0/F1 reinitialization uses the
   default 300 seconds until reboot, dropping f951ae9's 120-second override.
-- [ ] Build/qualify the small Loom/decompression interaction after Ben selects
-  the serviced roster: accessible button -> bounded ordered all-hours chimes;
+- [ ] Build/qualify the small Loom/decompression interaction for the serviced
+  roster. Working squad selected 2026-10-12: Ness, Eevee, Rikku,
+  Leeloo, Bidoof, Pinsir, Tangela, Sakura and Lucas (nine exact IDs and service
+  records in FIXTURE_STORAGE_AND_WAKE.md). Accessible button -> bounded
+  ordered all-hours chimes;
   optional local/perimeter presence -> same trigger with cooldown and clear
   rearm. Existing Atom clicker is one target; conductor switches to color at
   night. Prove radio availability after idle, battery-aware admission for
   unattended presence triggers, session end behavior and full event energy
-  including the always-connected VBAT capboard. Siting/count remain TBD.
+  including the always-connected VBAT capboard. Siting remains TBD; working
+  count is nine.
 - [~] Make signature-chime timing repeatable. ADR 0082 implements a
   `--decompression` canary: one exact-target USB command or USER press
   launches a local absolute-deadline phrase, with cancellation, cooldown,
