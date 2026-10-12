@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela replacement USB extension passes
+
+Ben installed a new enclosure extension. Tangela COM5 supplied 56 samples
+over 60 seconds without dropouts or reboot; uptime tracked the swap gap within
+30 ms, with the same event session and unchanged PROTECT history. Final
+3.255 V, +327.6 mA charging, DIM, TMF/MSA healthy and no charger fault.
+Only telemetry queries sent; no further strikes or reset. Saved the raw
+capture and updated the service report, registry and replacement TODO.
+This tests one orientation. Failed-extension retention/photos and inspection
+remain open. See DECOMPRESSION_TANGELA_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Heavy corrosion observed on Tangela outer USB connector
 
 Ben visually identified heavy corrosion at the extension's non-PowerFeather

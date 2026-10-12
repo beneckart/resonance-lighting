@@ -15,7 +15,9 @@ check passed, ending at 3.254 V and +405.8 mA with both sensors healthy.
 The subsequent direct/extension/direct comparison isolated a USB communication
 failure to the enclosure-extension path; Tangela stayed awake throughout.
 Ben then visually identified heavy corrosion at the extension's outer,
-non-PowerFeather end. Replace the extension and retain it as autopsy evidence.
+non-PowerFeather end. A new replacement extension subsequently passed a
+60-second data check with continuous MCU uptime and unchanged PROTECT history.
+Retain the failed extension as autopsy evidence.
 Origin was up to date at d79d234 before intake.
 
 ## Wiring and USB
@@ -308,11 +310,34 @@ internal damage have not been isolated.
 
 Replace the extension for service. Retain/label the failed assembly and
 photograph the outer connector, internal plug and cap/seal before cleaning.
-No replacement, cleaning or post-cleaning retest is yet recorded. The route
+At this stage no replacement, cleaning or post-cleaning retest was recorded. The route
 by which moisture reached or remained at the connector, including the
 earlier cap-trapped-moisture hypothesis, is still unproven. This observation
 applies to Tangela's extension; it does not establish corrosion on the other
 suspect extensions without inspection.
+
+### Replacement extension acceptance
+
+Ben installed a new extension and reported a successful Windows USB sound.
+COM5 identified Tangela's exact MAC and provided 56 telemetry samples over
+60.44 seconds, from 19:36:26.454158 through 19:37:26.894937 UTC. No transport
+error, telemetry gap or reboot occurred. This qualifies the connection in
+the tested orientation; the replacement's other orientations were not tested.
+
+Relative to the final direct sample at 19:34:19.584902 UTC, host time advanced
+126.869 seconds and MCU uptime advanced 126.899 seconds before the first
+replacement-extension sample (30 ms difference). The original event session
+and all historical PROTECT fields were preserved. The strike count remained
+35 throughout this check. Only read-only telemetry queries were sent.
+
+Battery voltage ranged 3.249-3.259 V with +205.5 to +351.1 mA charging.
+Every sample showed battery present, good supply, charging enabled, TMF/MSA
+healthy, no class mismatch, no BQ fault and guard interrupted false. Final
+reading: 3.255 V, +327.6 mA, DIM, uptime 947865 ms and 2656 seconds remaining
+in the event session. Revision remained fx-261012-5164506-b. The watcher
+closed normally and released its temporary host awake hold. Replacement
+is complete; retention/photos and detailed inspection of the failed assembly
+remain unconfirmed.
 
 ### Files
 
@@ -334,6 +359,7 @@ Public raw captures under `ops/bench/data/Bodhi Hive/`:
 - `20261012T192606Z-9F0E5C-mount-test.jsonl`
 - `20261012T192834Z-9F0E5C-extension-check.jsonl`
 - `20261012T193228Z-9F0E5C-direct-return-check.jsonl`
+- `20261012T193626Z-9F0E5C-new-extension-check.jsonl`
 
 Both private original-state backups are retained. The original battery
 connection now supports charging and the signature load, but the earlier

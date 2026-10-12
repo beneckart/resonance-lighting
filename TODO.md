@@ -3469,8 +3469,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   Loss of communication is isolated to the extension assembly/contact path;
   no MCU restart or sleep explanation. Ben subsequently observed heavy corrosion
   at the outer connector, strongly supporting corrosion as a cause.
-- [ ] Replace Tangela's failed, visibly corroded USB extension and retain/label
-  it for autopsy. Photograph the outer connector and cap/seal before cleaning;
+- [x] Replace Tangela's failed, visibly corroded USB extension. The new extension
+  passed 56 telemetry samples over 60 seconds, with no dropout or reboot and
+  unchanged PROTECT history. Tested orientation only; charging and sensors healthy.
+- [ ] Retain/label Tangela's failed extension for autopsy. Photograph the outer
+  connector and cap/seal before cleaning;
   exact contact damage and moisture route remain to be investigated.
 - [ ] Decode Tangela's preserved non-erased coredump offline against the matching
   original image/ELF, validating format/checksum and image provenance before
