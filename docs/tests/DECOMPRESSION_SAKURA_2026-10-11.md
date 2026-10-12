@@ -92,8 +92,11 @@ continuous-hold soak and physical USER trigger.
 ## Open items
 
 - Decode Sakura's retained coredump from the private backup.
-- Reconcile 6,000 vs 15,000 mAh gauge capacity.
-- 22-26 % SOC: charge before any battery-only chime testing.
+- ~~Reconcile 6,000 vs 15,000 mAh gauge capacity.~~ Done 03:05 UTC: Brian
+  confirmed a 15,000 mAh pack; `CF2BE0C:15000` stored and verified after
+  reboot. SOC is unreliable until the gauge relearns on a full charge.
+- Charge fully on USB before any battery-only chime testing. Reported SOC
+  (22-28 % at 6,000 mAh, 99 % after the change) is not trustworthy.
 - Same remaining ADR 0082 qualification as Ness (USER wake, prolonged
   operation, event energy, remote/presence triggers).
 
@@ -101,3 +104,4 @@ Public evidence in `ops/bench/data/Brian bench/`:
 
 - `20261012T025316Z-F2BE0C-canary-flash.jsonl`
 - `20261012T025542Z-F2BE0C-boot-and-signature.jsonl`
+- `20261012T030528Z-F2BE0C-capacity-15000.jsonl`

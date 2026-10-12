@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Brian + Claude -- Sakura gauge capacity set to 15,000 mAh
+
+Brian confirmed Sakura F2BE0C has a 15,000 mAh pack, matching the registry;
+NVS held 6,000 mAh. Sent exact-target `CF2BE0C:15000` over USB at 03:05 UTC.
+Firmware stored it and rebooted (software reset, ending the RAM session).
+Every later boot reported battery_capacity_mah 15000. No other setting changed.
+
+A one-minute held-awake capture afterward showed about 3.29 V, +810 to +880 mA
+charging on USB, DIM tier and no BQ fault. Reported SOC jumped from about 25 %
+to 99 % with the gauge-model reset. Neither value is meaningful: LFP voltage
+is flat and the gauge needs a full charge to relearn, so treat Sakura's SOC
+as unknown. Brian then unplugged it (the 03:09 UTC dropout was not a fault).
+Evidence: ops/bench/data/Brian bench/20261012T030528Z-F2BE0C-capacity-15000.jsonl.
+
 ## 2026-10-11 -- Ben + Codex -- Eevee decompression flash and signature
 
 Pulled Brian's b2ffc4e Sakura acceptance records and merged both benches'
