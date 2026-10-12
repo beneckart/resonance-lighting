@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Decompression source handoff for Brian
+
+Ben added programming partner Brian to the repository and requested origin
+publication so both can develop the lantern work in parallel. Prepared
+codex/decompression-signature as the shared source baseline, including the
+Ness canary implementation, measured timing and confirmed listening result.
+Remote/presence triggers and physical USER wake qualification remain open.
+
+Parallel development should branch from this baseline. Shared fixture writes
+still require one declared operator per target under ADR 0040. Private device
+backups, Wi-Fi credentials and the new canary's locally retained firmware
+binary are not part of this Git handoff; the acceptance record identifies the
+exact installed artifact and source commit.
+
 ## 2026-10-11 -- Ben + Codex -- Ness local signature listening check passed
 
 Ben confirmed that Ness's locally timed signature on fx-261012-5164506-b
