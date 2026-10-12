@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Sakura USB arrival snapshot
+
+The next lantern enumerated as COM15, 68:EE:8F:F2:BE:0C. Read-only telemetry
+confirmed F2BE0C, callsign Sakura, downlight, fx-260912-f951ae9-b, FIELD.
+At uptime 65,910 ms it reported power-on reset, battery present at 3.247 V,
+approximately +250 mA battery current, charging enabled and good USB supply.
+Power tier was 1. Its retained PROTECT record identifies low-vbat at 3032 mV;
+this is historical evidence, not a new entry observed during this check.
+No flash, chime, profile change or protection clear was sent. Raw snapshot:
+ops/bench/data/Bodhi Hive/20261012T022456Z-F2BE0C-usb-identification.jsonl.
+
+## 2026-10-11 -- Ben + Codex -- Ness signature replay
+
+At Ben's request, verified Ness (9F2738) on COM14 with fx-261012-5164506-b
+and sent one local signature command. All seven strikes completed; maximum
+onset lateness 59 us, gate off, zero failsafes, FULL tier at 3.334 V. The
+existing session was not extended. Evidence:
+ops/bench/data/Bodhi Hive/20261012T013839Z-9F2738-signature-replay.jsonl.
+
 ## 2026-10-11 -- Ben + Codex -- Decompression source handoff for Brian
 
 Ben added programming partner Brian to the repository and requested origin
