@@ -3457,7 +3457,8 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   snapshots if a reconnect changes NVS. See DECOMPRESSION_LEELOO_2026-10-11.md.
 - [ ] Decode the preserved nonempty crash-record partitions for Eevee (9F0E54,
   Ben's private backup 20261012T030000Z-9F0E54) and Sakura (F2BE0C, Brian's
-  private backup; see DECOMPRESSION_SAKURA_2026-10-11.md). Validate the records
+  private backup; see DECOMPRESSION_SAKURA_2026-10-11.md), plus Bidoof
+  (9F26D8, Ben's private backup 20261012T044400Z-9F26D8). Validate the records
   and identify the matching firmware/ELF before attributing a cause. Nonempty
   bytes alone do not establish a valid panic or a current fault.
 - [ ] Use the evidence-first intake checklist in FIXTURE_STORAGE_AND_WAKE.md

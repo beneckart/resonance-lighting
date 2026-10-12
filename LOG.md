@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Bidoof decompression flash and 15 Ah correction
+
+Pulled Brian's 6a07760 Lucas records, with no new firmware source. Identified
+Bidoof 9F26D8 (D8:85:AC:9F:26:D8, COM4): old f951ae9 app1, 3.208-3.213 V,
+charging, FULL tier and no retained PROTECT entry. The USB port disappeared
+before mutation and returned with a confirmed normal deep-sleep wake. No
+profile change or protection clear was needed. Used the 3.20 V maintenance
+advisory floor with good USB input, charging and present-battery evidence;
+firmware protection thresholds were unchanged.
+
+Preserved the original prefix, digest-verified application and nonempty
+crash-record partition privately; the crash bytes await validation/decoding.
+With a bounded host awake hold, wrote only app1 using the exact Ness-tested
+fx-261012-5164506-b image, SHA-256
+a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e.
+ROM verified the application and unchanged original prefix without retry.
+
+Ben confirmed a 15 Ah cell. Corrected stored capacity from 6,000 to 15,000 mAh
+with C9F26D8:15000 and verified it after software reboot. After a stable
+30-second boot, one local signature completed seven hits, max onset lateness
+88 us, zero blocks/failsafes. Battery sampled 3.116 V at completion then
+recovered to 3.234-3.239 V, charging, FULL tier with no new PROTECT entry.
+The one-hour session expires around 22:49 PDT. Host awake hold released.
+Report: docs/tests/DECOMPRESSION_BIDOOF_2026-10-11.md.
+
 ## 2026-10-11 -- Brian + Claude -- Lucas decompression canary, signature and 15 Ah
 
 Brian flashed the same fx-261012-5d7ab8f-b canary (SHA-256 31a4942e...29c0)
