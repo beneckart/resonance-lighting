@@ -3455,7 +3455,10 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   then repeat the same controlled USB data test after documented cleaning.
   Ben suspects moisture/corrosion at the exposed end; not yet observed or
   confirmed. Check the exact part's specified cap/seal conditions before
-  deciding on sealing changes. See DECOMPRESSION_PINSIR_2026-10-12.md.
+  deciding on sealing changes. Compare cap-pocket ingress/drying and local
+  temperature/humidity on spare hardware to test Ben's moisture-trapping
+  hypothesis; do not assume interior dust provides protective desiccation.
+  See DECOMPRESSION_PINSIR_2026-10-12.md.
 - [x] Retest Pinsir's brand-new extension with the decompression session awake.
   The October 12 postflash swap used the dusty extension instead. Its USB data
   path failed; direct USB before/after worked with continuous MCU uptime and

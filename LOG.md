@@ -10,6 +10,16 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- USB cap moisture-retention hypothesis
+
+Ben proposed slower drying inside the external connector cap than inside the
+main enclosure, and possible water adsorption by interior dust. Added these
+to the USB autopsy notes, distinguishing plausible cap moisture retention from
+unproven dust protection. Clay can adsorb water, but ionic contamination can
+also worsen moisture-related electrical failures. Follow-up compares ingress,
+drying, cap drainage and temperature/humidity on spare hardware; no sealing
+change or device command made. See DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Preserve suspect USB extensions for corrosion autopsy
 
 Ben suspects moisture/corrosion at the external screw-capped USB sockets and

@@ -258,6 +258,23 @@ awake-fixture data test afterward. Improvement after cleaning would support a
 contact/contamination mechanism, but would not alone prove corrosion. No such
 inspection or cleaning was performed in this step; no fixture commands sent.
 
+Ben further proposed that the cap could retain moisture longer than the main
+enclosure, and that interior dust might adsorb water. These remain hypotheses.
+A cap pocket that admits moisture but dries slowly could prolong wet contact
+exposure; extra enclosure volume alone does not establish a drying path.
+Compare moisture ingress and drying time, cap drainage/orientation, and local
+temperature/humidity on spare hardware before changing the field sealing.
+[Enclosure climate research](https://orbit.dtu.dk/en/publications/parametric-study-of-interior-climate-in-electronic-device-enclosu/)
+supports examining moisture transport and thermal cycling together.
+
+Clay minerals can adsorb water, but this does not establish a protective
+desiccant effect for the dust in these lanterns. Its composition, quantity and
+water content are unmeasured. Soluble ionic contamination can instead promote
+conductive moisture films and corrosion. References:
+[mineral dust water adsorption](https://acp.copernicus.org/articles/20/13611/2020/index.html)
+and [humidity/contamination effects in electronics](https://orbit.dtu.dk/en/publications/climatic-reliability-of-electronics-early-prediction-and-control-/).
+No protective benefit from leaving dust in place has been demonstrated.
+
 ## Evidence
 
 Public captures are under `ops/bench/data/Bodhi Hive/`:
