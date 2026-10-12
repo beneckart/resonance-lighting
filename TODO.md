@@ -3449,6 +3449,15 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Complete Tangela 9F0E5C service after resolving battery absence: cell
+  measured 3.213 V, USB-powered VBAT header 3.73 V, firmware reports near-zero
+  battery voltage and charging disabled. Await board-side BATP/BATN voltage;
+  retain evidence, confirm physical capacity, back up, then flash the exact
+  decompression artifact and run one signature if healthy. No flash yet.
+  See DECOMPRESSION_TANGELA_2026-10-12.md.
+- [ ] Qualify Tangela's newly wired TELE BOOST_EN -> D13/GPIO11 control path
+  before adding boost power management. The current decompression artifact
+  does not drive this pin; wiring alone does not disable standby boost load.
 - [ ] Preserve and label the suspect field USB extensions from Ness/Pinsir.
   Inspect/photograph external socket contacts, internal plug and cap/gasket
   sealing surfaces before further cleaning; compare against a working sample,

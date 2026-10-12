@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela intake held for battery-path measurement
+
+New target Tangela 9F0E5C appeared as COM5 after Ben bypassed its enclosure
+extension. The September image is valid in app1, FIELD/channel 11, with TMF
+and MSA responding. Read-only captures report battery absent, zero current,
+charging disabled, and voltage declining to zero while USB stays healthy.
+Ben measured 3.213 V at the cell and 3.73 V at the VBAT header. Corrected the
+initial header-test interpretation: the charger can power that output from
+USB even without a connected battery. Awaiting BATP/BATN measurement at the
+board-side battery connector. No flash, chime, reset, NVS change or charging
+override sent. Original 6000 mAh setting left unchanged; physical capacity
+is not yet confirmed. Historical reset-load-armed PROTECT at 3270 mV preserved
+in telemetry; ROM backup not yet taken.
+
+Ben confirmed TELE BOOST_EN wired to D13/GPIO11. Existing decompression
+artifact has no control of that pin. Exact existing artifact digest verified,
+but service is incomplete pending battery diagnosis. Report and raw captures:
+docs/tests/DECOMPRESSION_TANGELA_2026-10-12.md. Origin was up to date before
+intake; bounded capture and temporary host awake hold have ended.
+
 ## 2026-10-12 -- Ben + Codex -- USB cap moisture-retention hypothesis
 
 Ben proposed slower drying inside the external connector cap than inside the
