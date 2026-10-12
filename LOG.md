@@ -10,6 +10,28 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Ness overnight observation, no device mutation
+
+Caught Ness 9F2738 on a natural deep-sleep wake at 10:31:55 PDT after Ben
+connected USB. He reports unplugging after last night's service, indoors
+in a dark room with no extra chimes, and confirms a physical 15 Ah cell.
+The last logged endpoint was 18:38:42 PDT: 3.334 V while USB-charging, SOC
+89%. Morning startup before charging enabled: 3.300-3.303 V, SOC 62%; the
+retained preceding 120-second sleep record holds 3.278 V. Logged endpoint
+separation is 15 h 53 min; exact battery-only duration is not recorded.
+
+Still in FULL power allowance, event session expired, LED rail off, no charger
+fault and unchanged historical PROTECT record. No reset, chime, session,
+configuration or charge-control command was sent. USB charging later raised
+the sample to 3.314 V; the host awake hold was released after capture.
+
+This records voltage and a 27-point gauge decrease, not validated Ah/Wh or
+27% of the physical cell: Ness still has a 6 Ah gauge setting, the LFP SOC
+model is not calibrated, and the VBAT capboard bypasses the current shunt.
+Capacity setting left unchanged. A whole-cell charge/energy measurement is
+needed for the quantitative repeat. Report and evidence links:
+docs/tests/DECOMPRESSION_NESS_OVERNIGHT_2026-10-12.md.
+
 ## 2026-10-11 -- Ben + Codex -- Bidoof decompression flash and 15 Ah correction
 
 Pulled Brian's 6a07760 Lucas records, with no new firmware source. Identified

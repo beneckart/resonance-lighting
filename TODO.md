@@ -3449,6 +3449,13 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Follow up Ness's October 12 overnight check: physical 15 Ah confirmed,
+  gauge still 6 Ah (left unchanged during observation). Correct it during
+  the next service step and qualify the model; use an external whole-cell
+  coulomb/energy measurement upstream of both branches for actual drawdown.
+  The observed 89% -> 62% gauge change and 31-56 mV voltage difference over
+  roughly 16 hours are not validated Ah/Wh. See
+  docs/tests/DECOMPRESSION_NESS_OVERNIGHT_2026-10-12.md.
 - [ ] Add a bounded host-awake hold to the Windows USB service workflow,
   released on completion/error. Leeloo's first upload was interrupted by
   Modern Standby after the laptop's three-minute idle timeout. Recovered

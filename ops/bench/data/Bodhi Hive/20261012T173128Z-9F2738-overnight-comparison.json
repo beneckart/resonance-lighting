@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "target": "9F2738",
+  "callsign": "Ness",
+  "mac": "D8:85:AC:9F:27:38",
+  "fw": "fx-261012-5164506-b",
+  "user_report": {
+    "disconnect": "Right after flashing/service; exact wall-clock disconnect not recorded",
+    "overnight": "Indoors in a dark room, no extra chimes",
+    "physical_capacity_mah": 15000
+  },
+  "method": "Read-only enumeration and t telemetry on natural wake; no device reset, chime, session, configuration or charger command; USB physically connected before capture",
+  "baseline": {
+    "file": "20261012T013839Z-9F2738-signature-replay.jsonl",
+    "utc": "2026-10-12T01:38:42.477795+00:00",
+    "values": {
+      "battery_v": 3.334,
+      "battery_ma": 184.8,
+      "soc_pct": 89,
+      "battery_capacity_mah": 6000,
+      "power_tier": 0,
+      "charging_enabled": true,
+      "led_rail_on": true,
+      "decompression_left_s": 2959,
+      "uptime_ms": 645722,
+      "reset_reason": "unknown"
+    }
+  },
+  "first_morning": {
+    "file": "20261012T173128Z-morning-intake.jsonl",
+    "utc": "2026-10-12T17:31:55.373522+00:00",
+    "values": {
+      "battery_v": 3.303,
+      "battery_ma": 1.2,
+      "soc_pct": 62,
+      "battery_capacity_mah": 6000,
+      "power_tier": 0,
+      "charging_enabled": false,
+      "led_rail_on": false,
+      "decompression_left_s": 0,
+      "uptime_ms": 1400,
+      "reset_reason": "deepsleep"
+    }
+  },
+  "prior_sleep_record": {
+    "last_sleep_valid": true,
+    "last_sleep_reason": "day-charge",
+    "last_sleep_s": 120,
+    "last_sleep_batt_mv": 3278,
+    "last_sleep_profile": 1,
+    "last_sleep_life_state": 1,
+    "last_sleep_power_tier": 0,
+    "last_sleep_source": "000000",
+    "last_sleep_source_seq": 0
+  },
+  "computed": {
+    "logged_snapshot_interval_hours": 15.886915479722223,
+    "first_wake_voltage_delta_mv": -31,
+    "prior_sleep_voltage_delta_mv": -56,
+    "gauge_soc_change_percentage_points": -27,
+    "precharge_samples": 5,
+    "precharge_voltage_min": 3.3,
+    "precharge_voltage_max": 3.303,
+    "estimated_prior_sleep_entry_utc": "2026-10-12T17:29:53.973522+00:00",
+    "all_retained_protect_fields_unchanged": true
+  },
+  "limitations": [
+    "Logged snapshot interval is not an exact battery-only duration",
+    "Even pre-charge wake voltage is measured with USB powering the board; night baseline was actively charging",
+    "Gauge is configured for 6000 mAh, physical battery is 15000 mAh; SOC model not validated",
+    "VBAT-fed capboard branch bypasses gauge current shunt",
+    "No continuous overnight trace or whole-cell coulomb counter; true Ah, Wh, average current and remaining runtime cannot be derived"
+  ],
+  "capacity_setting_changed": false
+}
