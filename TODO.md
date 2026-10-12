@@ -3449,6 +3449,13 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Prevent or explicitly account for deliberate service RESET consuming the
+  load-armed PROTECT path. Pinsir's pre-reset ROM backup had DIM, load_arm=1,
+  boots=0; physical RESET out of ROM then created a new reset-load-armed
+  PROTECT at 3247 mV (power-on reset classification), replacing an older
+  3225 mV brownout audit. Normal charging released it. Preserve both records
+  and design a service-intent path without weakening real collapse protection.
+  See docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
 - [ ] Follow up Ness's October 12 overnight check: physical 15 Ah confirmed,
   gauge still 6 Ah (left unchanged during observation). Correct it during
   the next service step and qualify the model; use an external whole-cell
@@ -3468,6 +3475,10 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   (9F26D8, Ben's private backup 20261012T044400Z-9F26D8). Validate the records
   and identify the matching firmware/ELF before attributing a cause. Nonempty
   bytes alone do not establish a valid panic or a current fault.
+- [ ] Decode Pinsir's nonempty crash record, preserved before the final manual
+  RESET in 20261012T180258Z-9F26BC-first-rom. Its prior PROTECT audit recorded
+  a brownout at 3225 mV; do not assume the crash record and that audit describe
+  the same event without validation. See DECOMPRESSION_PINSIR_2026-10-12.md.
 - [ ] Use the evidence-first intake checklist in FIXTURE_STORAGE_AND_WAKE.md
   for the next post-burn lanterns before repair, profile changes or firmware.
   Preserve a few anomalous and comparable healthy flash/NVS specimens privately.

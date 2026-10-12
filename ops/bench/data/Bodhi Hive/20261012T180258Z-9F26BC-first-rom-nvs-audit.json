@@ -1,0 +1,84 @@
+{
+  "source": "ops\\bench\\private-backups\\20261012T180258Z-9F26BC-first-rom\\flash-prefix-rom-64KiB.bin",
+  "entries": [
+    {
+      "namespace": "resfx",
+      "key": "boots",
+      "type": 4,
+      "sequence": 25,
+      "entry": 78,
+      "offset": 43520,
+      "value": 0
+    },
+    {
+      "namespace": "resfx",
+      "key": "fc_stage",
+      "type": 1,
+      "sequence": 25,
+      "entry": 80,
+      "offset": 43584,
+      "value": 2
+    },
+    {
+      "namespace": "resfx",
+      "key": "load_arm",
+      "type": 1,
+      "sequence": 25,
+      "entry": 81,
+      "offset": 43616,
+      "value": 1
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_prot",
+      "type": 66,
+      "sequence": 22,
+      "entry": 81,
+      "offset": 47712,
+      "audit_checksum_valid": true,
+      "audit": {
+        "magic": "0x534c5031",
+        "version": 1,
+        "cause": 1,
+        "flags": 2,
+        "profile": 1,
+        "life_state": 0,
+        "power_tier": 3,
+        "origin": 2,
+        "predecessor_stage": 2,
+        "reset_reason": 9,
+        "battery_mv": 3225,
+        "duration_s": 900,
+        "reset_streak": 1,
+        "load_armed": 1,
+        "fixture_uptime_ms": 2094
+      }
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_prot",
+      "type": 72,
+      "sequence": 22,
+      "entry": 83,
+      "offset": 47776
+    },
+    {
+      "namespace": "resfx",
+      "key": "chg_ma",
+      "type": 4,
+      "sequence": 24,
+      "entry": 2,
+      "offset": 53376,
+      "value": 2000
+    },
+    {
+      "namespace": "resfx",
+      "key": "cap_mah",
+      "type": 4,
+      "sequence": 24,
+      "entry": 12,
+      "offset": 53696,
+      "value": 15000
+    }
+  ]
+}

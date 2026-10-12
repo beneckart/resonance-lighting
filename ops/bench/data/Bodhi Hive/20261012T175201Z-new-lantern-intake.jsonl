@@ -1,0 +1,6 @@
+{"utc": "2026-10-12T17:52:01.634075+00:00", "kind": "metadata", "value": {"operation": "Read-only first wake, t queries, no host reset", "duration_s": 900}}
+{"utc": "2026-10-12T17:52:01.645723+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-12T18:01:54.454347+00:00", "kind": "ports", "value": [{"port": "COM3", "vid": 12346, "pid": 4097, "serial": "D8:85:AC:9F:26:BC"}]}
+{"utc": "2026-10-12T18:01:54.470578+00:00", "kind": "discovered", "value": {"mac": "D8:85:AC:9F:26:BC", "port": "COM3"}}
+{"utc": "2026-10-12T18:02:12.561289+00:00", "kind": "discovered", "value": {"mac": "D8:85:AC:9F:26:BC", "port": "COM3"}}
+{"utc": "2026-10-12T18:02:30.606606+00:00", "kind": "discovered", "value": {"mac": "D8:85:AC:9F:26:BC", "port": "COM3"}}

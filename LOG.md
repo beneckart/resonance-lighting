@@ -10,6 +10,32 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir service and observed reset-induced PROTECT
+
+Pinsir 9F26BC would not enumerate through its enclosure extension. A replacement
+reported brand new produced Code 43, unchanged by a scoped elevated Windows
+restart and laptop-end reconnect. Direct USB on the same host cable/port
+identified COM3, and ROM communication confirmed the manual bootloader sequence
+had worked. An awake extension retest is recorded in the service report.
+
+Preserved a ROM prefix and nonempty crash record before the next physical
+RESET. The prefix proves DIM, load_arm=1, boots=0, with an older brownout
+PROTECT audit at 3225 mV. Physical RESET out of ROM then created a new
+reset-load-armed PROTECT at 3247 mV, reset reason power-on. This records an
+observed service-induced guard event; the older audit remains privately backed
+up and in a sanitized CRC-checked extract. F0/L0 allowed normal charging proof
+to release PROTECT, reboot to OFF and recover to DIM; F1/L0 restored FIELD.
+
+With a bounded host awake hold, saved the recovered prefix and digest-verified
+September app0, then wrote only app0 with exact fx-261012-5164506-b, SHA-256
+a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e.
+ROM verified the new app and unchanged recovered prefix. The existing 15 Ah /
+2 A settings were correct and left unchanged. One local signature completed
+seven hits, max onset lateness 60 us, zero blocks/failsafes. Sampled VBAT
+recovered from 3.121 V at completion to about 3.27 V charging, DIM. No manual
+protection clear was sent. The one-hour RAM session expires around 12:10 PDT.
+Report: docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Ness overnight observation, no device mutation
 
 Caught Ness 9F2738 on a natural deep-sleep wake at 10:31:55 PDT after Ben

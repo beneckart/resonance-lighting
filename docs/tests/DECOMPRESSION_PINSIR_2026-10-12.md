@@ -1,0 +1,123 @@
+# Pinsir decompression service
+
+Date: 2026-10-12 PDT / UTC
+Operator: Ben + this Codex laptop; sole USB operator
+Target: Pinsir, 9F26BC, D8:85:AC:9F:26:BC, COM3
+
+## USB intake and manual bootloader entry
+
+Ben requested the same health check, preservation, decompression firmware,
+and final local signature routine. Origin was already up to date at a7eae99.
+He heard a USB sound before capture started, but the first watcher saw no
+serial device. A physical RESET did not produce enumeration. He reported
+that USER chimed before BOOT+RESET, then stopped chiming afterward.
+
+A replacement extension, reported brand new, produced Windows descriptor
+failure Code 43 (USB VID_0000/PID_0002), with no COM port. An elevated restart
+of that exact failed device succeeded as a Windows operation but did not
+clear the error. Unplugging/reconnecting at the laptop did not clear it.
+Bypassing the enclosure extension with the same laptop cable and port
+produced COM3 at 18:01:54 UTC. A no-reset ROM read confirmed the exact MAC.
+This proves manual bootloader entry worked and the direct path communicated;
+it does not by itself prove both extension cables are defective. Ben requested
+a repeat of the new extension after the flash with the application held awake.
+
+## Preserved pre-reset state and service-induced PROTECT
+
+Before the next application boot, saved the first 64 KiB and the 64 KiB
+coredump partition by ROM reads under:
+`ops/bench/private-backups/20261012T180258Z-9F26BC-first-rom/`.
+
+- Prefix SHA-256:
+  `b3976c075078ff23000d38e15e171e1178869f8d4b719389748a1b7bbae398c4`.
+- Coredump SHA-256:
+  `5bf5e8ed8812b58f463bf796c116e5d4469c6bf2f8dba396a068fe0ad993a760`.
+  Nonempty; not yet validated/decoded as a panic record.
+
+Offline parsing of live NVS entries, with entry CRCs and the audit record's
+own checksum checked, found `resfx/fc_stage=2` (DIM), `load_arm=1`, `boots=0`,
+capacity 15000 mAh and charge limit 2000 mA. Its previous PROTECT audit was
+reset-load-armed, predecessor DIM, reset reason 9 (brownout), 3225 mV,
+streak 1, uptime 2094 ms. The date of that historical event is unknown.
+This backup follows today's earlier button operations; it is not an untouched
+post-burn snapshot.
+
+After Ben's requested physical RESET out of ROM, the September firmware
+`fx-260912-f951ae9-b` booted valid app0 at 0x10000, FIELD/channel 11. It
+reported power-on reset, PROTECT stage 4, interrupted=true, and a NEW
+reset-load-armed audit at 3247 mV, predecessor DIM, reset reason 1, streak 1,
+uptime 2627 ms. Initial voltage was 3.245-3.247 V; charging then raised it
+to approximately 3.274-3.275 V with no BQ fault.
+
+This is direct evidence of a deliberate service reset consuming the guard's
+load-armed path, not a new measured low-battery event. The marker alone does
+not distinguish the earlier USER strike from an active LED rail. The previous
+brownout audit survives in the first private backup and sanitized NVS extract.
+
+Sent F0/L0 after preserving telemetry to hold the fixture awake with the LED
+rail off. Normal sustained charging proof released PROTECT at about 3.276 V
+and +341 mA, persisted OFF, and rebooted. Healthy ToF/MSA sensors returned
+(sensor bits 9). The normal upward ladder reached DIM, and F1/L0 restored
+FIELD with the rail off before the second backup. No protection-clear or
+battery-capacity command was sent.
+
+## Selected artifact and completion
+
+Selected the same retained Ness-tested image, without rebuilding:
+
+- Revision: `fx-261012-5164506-b`
+- Source: `cd9ce1ae9252a2792f760a9c77a6f2df4fea3157`
+- Application: 1,206,816 bytes
+- SHA-256:
+  `a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e`
+- FIELD/channel 11, basic listener, decompression, 300 mA precharge,
+  120-second ordinary sleep, 12-second listening grace; individual canary.
+
+After normal recovery, a second private backup was saved under
+`ops/bench/private-backups/20261012T180627Z-9F26BC-service/`. Its prefix
+SHA-256 is `b24de627c2c5ea6d0f1cef8acf4008286cccf21f12e75e9626ceddc4e39d8b30`.
+The crash record was unchanged. The original app0 matched all 1,218,752 bytes
+of the retained September binary by ROM digest and was copied privately:
+`ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001`.
+This is partial preservation; app1 and SPIFFS were not copied or written.
+
+Only app0 at 0x10000 was flashed. At 18:10:04 UTC, ROM verification matched
+the new application and unchanged second-backup prefix. Fresh telemetry
+confirmed the expected revision, valid app0, FIELD/channel 11, DIM allowance,
+healthy downlight ToF/MSA and no pending verification or charger fault.
+Capacity remained 15000 mAh, charge limit 2000 mA, and the new service-reset
+PROTECT audit remained intact. No manual protection clear was used.
+
+The host opened a 60-minute RAM session at 18:10:07 UTC, waited over 30 seconds
+of stable uptime, and sent one `!K9F26BC:1` at 18:10:35.
+
+- COMPLETE: seven 40 ms hits, strike counter 0 -> 7, gate off, no blocks or
+  failsafes.
+- GPIO onset offsets (us): `60, 500054, 750057, 1000058, 1500060, 2500055, 3000057`.
+- Maximum onset lateness 60 us; maximum inter-hit interval error 6 us.
+- Completion sample: 3.121 V, DIM. At uptime 39446 ms it had recovered to
+  3.271 V, +334 mA charging, DIM, no interrupted flag or new reset.
+- Expected RAM-session expiry: about 19:10 UTC / 12:10 PDT, unless reset.
+
+These are sampled voltages and firmware GPIO timestamps, not a transient
+minimum or acoustic measurement. Physical USER wake, battery-only repeat use,
+and whole-system energy remain unqualified on this fixture. This image is
+not OTA-qualified. The requested awake extension retest is pending.
+
+## Evidence
+
+Public captures are under `ops/bench/data/Bodhi Hive/`:
+
+- `20261012T174828Z-new-lantern-intake.jsonl`
+- `20261012T175201Z-new-lantern-intake.jsonl`
+- `20261012T180258Z-9F26BC-first-rom.jsonl`
+- `20261012T180258Z-9F26BC-first-rom-nvs-audit.json`
+- `20261012T180426Z-new-lantern-intake.jsonl`
+- `20261012T180521Z-9F26BC-recovery.jsonl`
+- `20261012T180715Z-9F26BC-backup.jsonl`
+- `20261012T180850Z-9F26BC-flash.jsonl`
+- `20261012T181043Z-9F26BC-direct-postflash-snapshot.json`
+
+The extension-swap watcher is still running locally as
+`20261012T181043Z-9F26BC-extension-retest.jsonl`; its unfinished capture is
+not an extension test result.
