@@ -22,8 +22,9 @@ struct SignatureSequence {
     return beats[i];
   }
   bool active() const { return result == RUNNING; }
+  bool ready(uint64_t now) const { return !active() && now >= readyUs; }
   bool start(uint64_t now) {
-    if (active() || now < readyUs) return false;
+    if (!ready(now)) return false;
     startUs = now + 20000; // allow timer setup; not part of the musical phrase
     hits = 0;
     maxLateUs = 0;

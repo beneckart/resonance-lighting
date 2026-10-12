@@ -6,6 +6,7 @@ int main() {
   SignatureSequence s;
   const uint64_t now = 0x100000000ULL; // no 32-bit clock rollover
   CHECK(s.start(now));
+  CHECK(!s.ready(now));
   CHECK(!s.start(now));
   CHECK_EQ(s.poll(now + 19999, false), SignatureSequence::WAIT);
   for (uint8_t i = 0; i < s.COUNT; ++i) {
@@ -18,6 +19,8 @@ int main() {
   }
   CHECK_EQ(s.poll(now + 3061500, false), SignatureSequence::DONE);
   CHECK_EQ(s.maxLateUs, 1505U);
+  CHECK(!s.ready(s.readyUs - 1));
+  CHECK(s.ready(s.readyUs));
   CHECK(!s.start(now + 3061501));
   CHECK(s.start(s.readyUs));
   CHECK_EQ(s.poll(s.startUs + 20001, false), SignatureSequence::ABORT);

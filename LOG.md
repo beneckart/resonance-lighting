@@ -40,6 +40,11 @@ ROM `verify-flash` matched the retained f951ae9 application against Ness at
 the private backup. ROM reading also preserved the full 64 KiB crash region
 at 0x7f0000. The backup manifest explicitly marks this as partial flash:
 app1 and SPIFFS were not collected and must remain untouched by app-only work.
+The crash region was completely erased (all 0xff), so it contains no retained
+panic. Review also moved cooldown and external-D7 rejection ahead of durable
+load arming, avoiding a needless load marker for a rejected request. The
+in-progress 3df99aa build was stopped, its compiler children confirmed absent,
+and its directory abandoned; the corrected source receives a new recipe.
 
 ## 2026-10-11 -- Ben + Codex -- Original extension still fails after dust removal
 

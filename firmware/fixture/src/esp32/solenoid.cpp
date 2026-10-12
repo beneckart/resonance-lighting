@@ -209,6 +209,12 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
 bool solenoidSignatureStart() {
   if (!decompressionBuild() || !gSignatureTimer || !gPulseTimer || !gCfg.solEn ||
       !solenoidQuietFor(RES_SOLENOID_REST_MS)) return false;
+  {
+    SolenoidLock lock;
+    // Reject known cooldown/external-source conflicts before touching NVS.
+    if (!gSignature.ready(esp_timer_get_time()) ||
+        gpio_get_level((gpio_num_t)RES_SOLENOID_PIN)) return false;
+  }
   // Flash write finishes before the phrase clock starts, once per phrase.
   if (!bootGuardLoadArm()) return false;
   SolenoidLock lock;
