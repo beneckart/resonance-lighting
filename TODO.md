@@ -3565,6 +3565,8 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   rollout, all-nine completion, held/duplicate input, idle readiness and Atom
   removal/lease expiry. Existing deployed receiver images need updating.
   Paused by Ben while packing on 2026-10-12; resume in his Oakland backyard.
+  Receiver compile was stopped and its worktree archived; attempted
+  fx-261012-e8654a8-b is incomplete. Build a fresh immutable receiver artifact.
   Atom image is flashed/ROM-verified and serial/radio checked, then paused;
   no lantern receiver update or end-to-end PLAY has occurred. Bring a perimeter
   light (plus optional spare) to evaluate a walk-up sensor station alongside

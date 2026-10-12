@@ -88,6 +88,10 @@ playing a phrase. No lantern receiver was updated in this session. First
 end-to-end button test, nine-lantern rollout, idle/expiry and runtime tests
 remain pending. There is no need to locate a particular lantern while packing.
 
+The unfinished receiver build was stopped and its managed worktree archived.
+Attempted revision `fx-261012-e8654a8-b` is incomplete and must not be used or
+resumed. Start a fresh immutable receiver build before the Oakland tests.
+
 Public evidence:
 `ops/bench/data/Bodhi Hive/20261012T195443Z-54B0C8-atom-decompression-flash.jsonl`
 and `20261012T195801Z-54B0C8-packing-pause.jsonl`.
