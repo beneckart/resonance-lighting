@@ -12,6 +12,8 @@ and one seven-hit signature completed. Original battery detection returned
 after reconnection; normal charging resumed after restarting with the battery
 attached. Saved PROTECT history is unchanged. The 60-second post-signature
 check passed, ending at 3.254 V and +405.8 mA with both sensors healthy.
+The subsequent direct/extension/direct comparison isolated a USB communication
+failure to the enclosure-extension path; Tangela stayed awake throughout.
 Origin was up to date at d79d234 before intake.
 
 ## Wiring and USB
@@ -265,6 +267,32 @@ remaining in the event session, 28 strikes, unchanged PROTECT and 3.252 V.
 Those values are retained for the next uptime/history comparison. No reset,
 reflash, power/profile change or further strike was sent during this check.
 
+Ben then reported trying all four orientation combinations without a
+successful Windows USB connection sound. Individual orientation transitions
+were not timestamped in the host trace. Started the return-to-direct watcher
+and requested the same laptop cable/port, battery left connected and no button
+presses, to separate an extension-path failure from a lantern reboot/sleep.
+Ben confirmed the return to direct USB. COM5 then supplied 56 samples over
+61.07 seconds, from 19:33:18.511977 through 19:34:19.584902 UTC, with no
+transport error, telemetry gap or reboot. The first returned sample was
+391.546 seconds after the last direct baseline; MCU uptime advanced 391.528
+seconds (18 ms difference). The original event session remained active and
+all historical PROTECT fields were unchanged. Thus a reset or deep-sleep
+cycle does not explain the missing USB connection during the extension test.
+
+The direct/extension/direct comparison isolates the failure to the extension
+assembly or its mating contacts. Treat this extension as failed for service
+and retain it for inspection; corrosion, internal wiring damage and contact
+seating are not distinguished by the evidence. The four unsuccessful
+orientations were reported by Ben, not separately instrumented host phases.
+
+Final direct sample: 3.256 V, +354.6 mA charging, DIM, interrupted false,
+TMF/MSA healthy, no class mismatch/BQ fault, 2844 seconds left in the event
+session. The strike counter was 35 on return, versus 28 in the older direct
+baseline; the source/timing of those seven intervening strikes was not
+observed. This USB test sent only telemetry queries, with no strike or reset
+command. Capture and temporary host awake hold ended normally.
+
 ### Files
 
 Flashed and verified: fx-261012-5164506-b, 1206816 bytes, SHA-256
@@ -284,10 +312,11 @@ Public raw captures under `ops/bench/data/Bodhi Hive/`:
 - `20261012T192222Z-9F0E5C-post-service-battery.jsonl`
 - `20261012T192606Z-9F0E5C-mount-test.jsonl`
 - `20261012T192834Z-9F0E5C-extension-check.jsonl`
+- `20261012T193228Z-9F0E5C-direct-return-check.jsonl`
 
 Both private original-state backups are retained. The original battery
 connection now supports charging and the signature load, but the earlier
 absence does not identify a failed component. If it recurs, inspect seating,
 retention and crimps before replacing parts. The enclosure extension was not
-qualified by this direct-USB service. D13 boost control and offline crash
-decoding remain separate follow-up work.
+usable in the subsequent comparison and should be retained for inspection.
+D13 boost control and offline crash decoding remain separate follow-up work.

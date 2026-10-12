@@ -3463,16 +3463,16 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   Ben found missing screws and friction-fit kickback; one hand-tightened screw
   held firmly through three complete signatures (21 strikes) on 2026-10-12.
   The short retention test passed; final fastening is not yet documented.
-- [ ] Finish Tangela enclosure-extension diagnosis: after Ben reported switching
-  from direct, a three-minute watch saw no serial enumeration and Windows
-  showed no current USB error device. Confirm completed connection, then
-  compare return-to-direct uptime and PROTECT history without button presses.
-  Do not count this extension as failed on the unconfirmed transition alone.
+- [x] Finish Tangela enclosure-extension comparison: Ben reported all four
+  orientations failed, then direct USB supplied 56 samples over 61 seconds.
+  Uptime tracked the full host gap within 18 ms and PROTECT stayed unchanged.
+  Loss of communication is isolated to the extension assembly/contact path;
+  no MCU restart or sleep explanation. Physical failure mechanism remains open.
 - [ ] Decode Tangela's preserved non-erased coredump offline against the matching
   original image/ELF, validating format/checksum and image provenance before
   attributing a cause or relating it to the historical 3270 mV PROTECT record.
   Preserve the private original; see DECOMPRESSION_TANGELA_2026-10-12.md.
-- [ ] Preserve and label the suspect field USB extensions from Ness/Pinsir.
+- [ ] Preserve and label the suspect field USB extensions from Ness/Pinsir/Tangela.
   Inspect/photograph external socket contacts, internal plug and cap/gasket
   sealing surfaces before further cleaning; compare against a working sample,
   then repeat the same controlled USB data test after documented cleaning.

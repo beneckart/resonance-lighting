@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela direct return isolates extension USB failure
+
+Ben reported no successful USB connection in all four extension orientations.
+On return to direct, COM5 supplied 56 samples over 61 seconds without errors.
+MCU uptime advanced 391.528 seconds during a 391.546-second host gap, with the
+same event session and unchanged PROTECT history: no restart/deep-sleep cause.
+Treat the extension assembly/contact path as failed for service and retain it
+for inspection; the physical mechanism is not yet established. Final direct
+sample: 3.256 V, +354.6 mA charging, DIM, both sensors healthy, no BQ fault.
+Only telemetry queries sent. Updated registry and closed the comparison task;
+extension inspection remains open. See DECOMPRESSION_TANGELA_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela extension check saw no enumeration
 
 Ben confirmed prior testing was direct USB and reported switching to the
