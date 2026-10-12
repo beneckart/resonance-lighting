@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Brian + Claude -- Sakura decompression canary and signature
+
+Brian flashed the ADR 0082 decompression canary onto Sakura F2BE0C
+(68:EE:8F:F2:BE:0C) from macOS as sole USB operator. Built locally from clean
+4ce6a22 with Ness's flags: fx-261012-5d7ab8f-b, 1,206,800 bytes, SHA-256
+31a4942e49e5d128193041bf146ca2f7f3714dccd93cada3c50e66946c9f29c0.
+
+Before writing: MAC identity gate, private 64 KiB prefix and coredump backups,
+installed fx-260912-f951ae9-b app digest-verified, partition table identical.
+Wrote app0 only; new app and original prefix both verified afterward. On macOS
+`--after hard-reset` left the chip in the stub; `--after watchdog-reset` booted.
+
+Fresh telemetry confirmed the revision, app0 valid, no pending verify. One
+`!KF2BE0C:1` inside a 60-minute session played all seven hits: COMPLETE,
+counter 0 -> 7, max onset lateness 63 us, zero blocked/failsafes. Brian
+confirmed it sounded good. USB-powered at DIM tier, battery 3.24 -> 3.19 V.
+
+Found: Sakura's coredump partition is not blank (likely a retained panic,
+preserved privately, not decoded). Telemetry says 6,000 mAh gauge capacity
+vs 15,000 in the registry. Earlier "dead extension" result was a laptop-port
+difference; both enclosure extensions work on the right port.
+Record: docs/tests/DECOMPRESSION_SAKURA_2026-10-11.md.
+Evidence: ops/bench/data/Brian bench/.
+
 ## 2026-10-11 -- Ben + Codex -- Decompression source handoff for Brian
 
 Ben added programming partner Brian to the repository and requested origin
