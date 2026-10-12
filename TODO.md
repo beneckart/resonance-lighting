@@ -3461,9 +3461,10 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   orientations work with the current host-side orientation. See
   DECOMPRESSION_PINSIR_2026-10-12.md.
 - [ ] Complete clean-extension orientation isolation at the host-cable/extension
-  junction if pursuing the earlier ROM enumeration failure. The two board-end
-  orientations passed while awake; this does not yet qualify all combinations
-  or prove that boot mode caused the earlier failure.
+  junction if pursuing the earlier ROM enumeration failure. Initial A/A,
+  flipped board-end B/A and then both-flipped B/B passed while awake. Restoring
+  only the board end would test the remaining A/B combination. These passes
+  do not prove that boot mode caused the earlier failure.
 - [ ] Prevent or explicitly account for deliberate service RESET consuming the
   load-armed PROTECT path. Pinsir's pre-reset ROM backup had DIM, load_arm=1,
   boots=0; physical RESET out of ROM then created a new reset-load-armed

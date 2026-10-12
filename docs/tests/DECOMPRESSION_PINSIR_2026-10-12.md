@@ -181,6 +181,36 @@ host-side orientation and awake firmware. This test did not reproduce an
 orientation fault. It does not qualify the other connector's orientations or
 explain the earlier bootloader enumeration failure.
 
+### Clean extension: outer connection flipped
+
+Ben next reported "flipped at end," interpreted as rotating the laptop cable
+plug at the extension's female socket while retaining the prior flipped
+PowerFeather-end orientation. This interpretation was stated to Ben before
+capture. COM3 delivered 55 samples over 60.038 seconds, from 18:28:01 to
+18:29:01 UTC, without a transport error. Host time since the preceding sample
+advanced 48.695 seconds and MCU uptime 48.741 seconds; the same awake session
+continued and PROTECT fields were unchanged.
+
+All samples had good supply, charging enabled and zero BQ fault. Final sample:
+uptime 1136984 ms, battery 3.268 V, +289.1 mA charging, supply 4.609 V, DIM,
+no interrupted guard, seven total strikes and 2467 seconds remaining in the
+original session. Battery range was 3.259-3.270 V and gauge charge current
++148.5 to +301.4 mA. Only telemetry queries were sent. The capture and host
+awake hold ended normally.
+
+Using A for each connection's initial working orientation and B for its
+180-degree rotation, the awake checks now cover:
+
+| PowerFeather end | Extension female socket | Result |
+| --- | --- | --- |
+| A | A | Passed 60-second capture |
+| B | A | Passed 60-second capture |
+| B | B | Passed 60-second capture |
+| A | B | Not yet tested |
+
+No orientation-dependent failure has been reproduced in these checks. The
+remaining combination and earlier ROM enumeration failure are still open.
+
 ## Evidence
 
 Public captures are under `ops/bench/data/Bodhi Hive/`:
@@ -199,3 +229,4 @@ Public captures are under `ops/bench/data/Bodhi Hive/`:
 - `20261012T182137Z-new-lantern-intake.jsonl`
 - `20261012T182311Z-9F26BC-clean-extension.jsonl`
 - `20261012T182612Z-9F26BC-clean-extension-board-flipped.jsonl`
+- `20261012T182801Z-9F26BC-clean-extension-host-flipped.jsonl`

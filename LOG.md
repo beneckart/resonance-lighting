@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed with outer connection flipped
+
+Ben's "flipped at end" was interpreted as flipping the laptop cable at the
+extension's female socket, keeping the PowerFeather end in its prior flipped
+orientation. COM3 supplied 55 samples over 60.038 seconds without transport
+errors, with continuous MCU uptime, unchanged PROTECT and the same session.
+Final battery 3.268 V, +289.1 mA charging, DIM, no BQ fault, seven strikes.
+Only telemetry queries were sent; capture and host awake hold ended normally.
+Three of four orientation combinations now pass while awake; restoring only
+the PowerFeather end would test the fourth. Earlier ROM failure is unresolved.
+Evidence: docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed with board-end plug flipped
 
 Ben rotated only the clean extension's plug at the PowerFeather 180 degrees.
