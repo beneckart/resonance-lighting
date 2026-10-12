@@ -102,7 +102,40 @@ of stable uptime, and sent one `!K9F26BC:1` at 18:10:35.
 These are sampled voltages and firmware GPIO timestamps, not a transient
 minimum or acoustic measurement. Physical USER wake, battery-only repeat use,
 and whole-system energy remain unqualified on this fixture. This image is
-not OTA-qualified. The requested awake extension retest is pending.
+not OTA-qualified.
+
+## Awake extension comparison
+
+Ben clarified that the extension used for the postflash retest was the
+original dusty one, not the brand-new replacement requested in the prompt.
+The first watcher's metadata describes the planned new-extension test; the
+actual reported cable identity takes precedence. The new extension has not
+yet been retested with the application held awake.
+
+Direct USB remained healthy for roughly nine minutes after the signature.
+During the swap, a brief reconnect at 18:20:09 UTC reported uptime 604978 ms,
+2999 seconds of session time remaining, DIM and no fault; it then disconnected.
+The watcher reached its 600-second deadline before completing a continuous
+extension capture. A fresh, explicitly dusty-labeled capture beginning
+18:21:02 saw no serial port. Windows also showed no current USB error device.
+That capture was stopped to make a separately recorded direct control test.
+
+Ben returned the same cable directly to Pinsir, with the battery connected
+and no button presses. At 18:21:52 UTC, telemetry resumed at uptime 708191 ms.
+The host interval was 103.262 seconds and the uptime increase 103.213 seconds:
+the MCU did not reboot or enter ordinary deep sleep during this gap. The same
+awake session remained active, and every retained PROTECT field was unchanged.
+The final direct sample at 18:22:10 reported uptime 725670 ms, battery 3.272 V,
++331 mA charging, DIM, no charger fault, seven total strikes, zero blocks and
+failsafes, with 2878 seconds left in the session.
+
+Conclusion: the dusty-extension USB data path failed in this setup while the
+direct path worked before and afterward. Ordinary firmware deep sleep and a
+new PROTECT event do not explain this particular failure. This does not locate
+the fault within the extension, contacts, orientation or combined cable path,
+and lack of USB data does not establish absence of charging power. No additional
+chime, reset, configuration or session command was issued during this test.
+Pinsir was left on direct USB; captures and temporary host awake holds ended.
 
 ## Evidence
 
@@ -117,7 +150,6 @@ Public captures are under `ops/bench/data/Bodhi Hive/`:
 - `20261012T180715Z-9F26BC-backup.jsonl`
 - `20261012T180850Z-9F26BC-flash.jsonl`
 - `20261012T181043Z-9F26BC-direct-postflash-snapshot.json`
-
-The extension-swap watcher is still running locally as
-`20261012T181043Z-9F26BC-extension-retest.jsonl`; its unfinished capture is
-not an extension test result.
+- `20261012T181043Z-9F26BC-extension-retest.jsonl`
+- `20261012T182102Z-9F26BC-dusty-extension.jsonl`
+- `20261012T182137Z-new-lantern-intake.jsonl`

@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir dusty-extension control test
+
+Ben used the dusty extension for the postflash retest, rather than the new
+replacement. Direct USB was stable before the swap. The dusty path briefly
+reconnected during handling, then provided no serial device; a fresh labeled
+capture also remained empty. Returning to direct USB with no button presses
+restored telemetry. Across the last pre-gap and first returned samples, host
+time advanced 103.262 s and MCU uptime 103.213 s, with the same RAM session and
+unchanged PROTECT history. This failure was in the dusty-extension data path,
+not ordinary deep sleep or a new PROTECT event; exact electrical cause remains
+unlocated. The new extension still awaits a postflash awake retest.
+
+Final direct sample: 3.272 V, +331 mA charging, DIM, no BQ fault, seven total
+strikes and zero blocks/failsafes. No new physical trigger or configuration
+command was sent. Captures and host awake holds ended; Pinsir's original
+session still expires around 12:10 PDT. Evidence and limits are in
+docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir service and observed reset-induced PROTECT
 
 Pinsir 9F26BC would not enumerate through its enclosure extension. A replacement

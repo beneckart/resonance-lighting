@@ -3449,6 +3449,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Retest Pinsir's brand-new extension with the decompression session awake.
+  The October 12 postflash swap used the dusty extension instead. Its USB data
+  path failed; direct USB before/after worked with continuous MCU uptime and
+  unchanged PROTECT. Inspect the extension/contact/orientation/cable combination
+  before declaring both extensions defective. See DECOMPRESSION_PINSIR_2026-10-12.md.
 - [ ] Prevent or explicitly account for deliberate service RESET consuming the
   load-armed PROTECT path. Pinsir's pre-reset ROM backup had DIM, load_arm=1,
   boots=0; physical RESET out of ROM then created a new reset-load-armed

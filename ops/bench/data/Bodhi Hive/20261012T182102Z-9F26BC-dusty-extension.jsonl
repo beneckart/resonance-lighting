@@ -1,0 +1,3 @@
+{"utc": "2026-10-12T18:21:02.935241+00:00", "kind": "metadata", "value": {"target": "9F26BC", "path_label": "dusty extension, as reported by Ben", "commands": "read-only t queries", "duration_s": 180}}
+{"utc": "2026-10-12T18:21:02.961316+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-12T18:21:56.245592+00:00", "kind": "capture_stopped", "value": {"reason": "No serial device observed; process stopped to run a separately labeled direct-USB control capture", "user_report": "Extension used for this retest was the dusty one, not the brand-new replacement"}}
