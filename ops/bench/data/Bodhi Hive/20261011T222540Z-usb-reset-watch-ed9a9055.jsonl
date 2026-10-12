@@ -1,0 +1,4 @@
+{"type":"metadata","utc":"2026-10-11T22:25:40.304711+00:00","elapsed_s":0.0,"duration_s":90,"mode":"enumeration_only","out":"ops\\bench\\data\\Bodhi Hive\\20261011T222540Z-usb-reset-watch-ed9a9055.jsonl","operator":"Ben physical RESET; Codex observes","target":"unidentified USB fixture"}
+{"type":"ready","utc":"2026-10-11T22:25:40.305712+00:00","elapsed_s":0.0}
+{"type":"ports","utc":"2026-10-11T22:25:40.307846+00:00","elapsed_s":0.0,"ports":[]}
+{"type":"complete","utc":"2026-10-11T22:27:10.345451+00:00","elapsed_s":90.031,"result":"no_COM_port_seen"}

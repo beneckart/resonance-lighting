@@ -25,6 +25,7 @@
 #include "sensors/sensors.h"
 #include "solenoid.h"
 #include "telemetry.h"
+#include "decompression.h"
 
 #define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
 #define RES_BOOT_AWAKE_MS 600000UL   // cold-boot listen window (10 min)
@@ -523,7 +524,6 @@ uint8_t behaviorNeighborSnapshot(NeighborView *out, uint8_t maxOut) {
 }
 
 
-#ifdef RES_BASIC_LISTENER
 // Basic supervised posture. Canopy/downlight fixtures use their efficient,
 // pleasant dedicated warm-white die. The 37-pixel perimeter wash is only
 // 16/255 linear red to avoid multiplying the listener load by every HEX die;
@@ -551,7 +551,6 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
     for (uint16_t i = 0; i < f.count; i++) f.px[i][0] = red;
   }
 }
-#endif
 
 static bool fieldRitualBatterySafe(const PowerBudget &pb) {
   return pb.tier == LedTier::FULL || pb.tier == LedTier::DIM;
@@ -665,6 +664,23 @@ static void inspectionRadioTick(uint32_t now) {
 
 void behaviorTick() {
   uint32_t now = millis();
+  if (decompressionBuild()) {
+    // Explicit bounded event posture; no BRC schedule, automatic chimes or
+    // presence propagation. Power policy and OTA still own their vetoes.
+    decompressionTick();
+    gShowActive = false;
+    gStrikesAllowed = false;
+    bool active = decompressionActive();
+    gNetLifeState = gTelemetryLifeState = active ? LIFE_COMMISSION : LIFE_DAY_CHARGE;
+    gNetProgram = gTelemetryProgram = 0;
+    frameClear(gFrame);
+    gFrame.count = gPixels;
+    if (active) quietIdleFrame(gFrame, gPixels, now);
+    if (!active && !solenoidBusy() && now >= 15000 &&
+        powerBudget().tier != LedTier::PROTECT && !otaVerifyPending())
+      enterTimedDeepSleep(RES_DAY_SLEEP_S, SLEEP_CAUSE_DAY_CHARGE);
+    return;
+  }
 
   if (inspectionStaticEnabled()) {
     gTofPresenceActive = false;
@@ -958,6 +974,11 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+  if (decompressionBuild()) {
+    if (!decompressionActive()) return false;
+    f = gFrame;
+    return true;
+  }
   // Timer wake from a shipping sleep must never invent a light show inside
   // the container. Radio and telemetry are live; an explicit bridge program
   // command releases this latch after unpacking.

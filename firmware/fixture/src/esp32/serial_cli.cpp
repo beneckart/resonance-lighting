@@ -15,6 +15,7 @@
 #include "nvs_store.h"
 #include "solenoid.h"
 #include "telemetry.h"
+#include "decompression.h"
 
 static SerialMutationParser gSerialMutationParser;
 
@@ -119,6 +120,19 @@ void handleSerial() {
   SerialMutationFeedResult mutationResult =
       gSerialMutationParser.feed((uint8_t)c, gMyId, mutation);
   if (mutationResult != SERIAL_MUTATION_PASS) {
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_SIGNATURE) {
+      bool accepted = false;
+      if (decompressionBuild()) {
+        if (mutation.value) accepted = decompressionPlaySignature();
+        else { solenoidStop("explicit signature cancel"); accepted = true; }
+      }
+      Serial.printf("signature: %s\n", accepted ? "accepted" : "refused");
+    }
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_DECOMPRESSION)
+      Serial.printf("decompression session: %s\n",
+                    decompressionSetSession(mutation.value) ? "accepted" : "refused");
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_SLEEP) {
       Serial.printf("SLEEP accepted: target=%s seconds=%u\n", gShortId.c_str(),

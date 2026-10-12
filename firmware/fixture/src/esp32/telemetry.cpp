@@ -18,6 +18,7 @@
 #include "sensors/sensors.h"
 #include "sentinel_trace.h"
 #include "solenoid.h"
+#include "decompression.h"
 #include "sleep_audit_io.h"
 
 // Deliberately TRIMMED vs net_bench (Ben, 2026-07-30: brevity over compat).
@@ -346,6 +347,20 @@ String telemetryJson() {
   j += ",\"solenoid_blocked\":" + String((unsigned long)solenoidBlocked());
   j += ",\"solenoid_failsafes\":" + String((unsigned long)solenoidFailsafes());
   j += ",\"solenoid_last_ms\":" + String(solenoidLastPulseMs());
+  if (decompressionBuild()) {
+    SignatureSequence signature = solenoidSignatureSnapshot();
+    j += ",\"decompression\":true,\"decompression_left_s\":";
+    j += String((unsigned long)decompressionSecondsLeft());
+    j += ",\"signature_state\":" + String((unsigned)signature.result);
+    j += ",\"signature_hits\":" + String((unsigned)signature.hits);
+    j += ",\"signature_max_late_us\":" + String((unsigned long)signature.maxLateUs);
+    j += ",\"signature_offsets_us\":[";
+    for (uint8_t i = 0; i < signature.hits; ++i) {
+      if (i) j += ',';
+      j += String((unsigned long)signature.offsetsUs[i]);
+    }
+    j += ']';
+  }
   j += "}";
   return j;
 }

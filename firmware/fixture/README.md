@@ -478,3 +478,43 @@ Telemetry exposes `ota_partition`, `ota_address`, `ota_state`, and the legacy
 - [ ] 24 h outdoor prod soak: dusk, bounded night (set night_max low to prove
       it fires), dawn, maintenance reachable in every state, autonomous night
       strike refused, deliberate operator night strike bounded by mechanism gates
+
+## Decompression canary (October 2026)
+
+`--decompression` builds the first interactive chime canary under
+[ADR 0082](../../docs/decisions/0082-decompression-local-signature.md).
+Build as an immutable `b` artifact with the ordinary explicit profile, channel
+and Wi-Fi profile label. Existing NVS/profile and protection history remain.
+The special event behavior is selected by the build and reported in telemetry.
+
+For Ness, short MAC `9F2738`, the complete USB lines are:
+
+```
+!K9F2738:1
+!K9F2738:0
+!D9F2738:60
+!D9F2738:0
+```
+
+In order: play the signature, cancel the phrase, start/set a 60-minute session,
+end the session. Replace the ID only after verifying another device's exact
+identity. USER plays the same seven-hit signature; held buttons do not repeat.
+A successful play opens a one-hour session if none is active. Repeat plays
+do not extend its deadline. Session durations are 1..120 minutes and never
+persist across reboot. New triggers are refused while playing or cooling down.
+
+The 40 ms onsets are at 0, 500, 750, 1000, 1500, 2500 and 3000 ms, using a
+local timer independent of USB cadence. A missed deadline over 20 ms aborts
+instead of catching up. `t` reports `decompression_left_s`, `signature_state`
+(0 idle, 1 running, 2 complete, 3 cancelled, 4 late, 5 mechanism failure),
+`signature_hits`, `signature_max_late_us` and `signature_offsets_us`.
+Read these after playback; timestamps are relative to the planned phrase start.
+
+An active event session keeps radio access and the class listener light;
+automatic field chimes, BRC show scheduling and presence waves are suppressed.
+No-session operation listens for 15 seconds then sleeps for the compiled day
+interval. Power protection can still end operation. Start an explicit session
+before relying on immediate remote response; a sleeping radio cannot hear USB
+or mesh commands. This first version does not add remote signature packets or
+presence-triggered playback. Those require the selected event roster and the
+next controller integration.

@@ -202,8 +202,62 @@ artifact and exact MAC before using `K<short-MAC>:40` for one bounded USB pulse.
 No strike or flash was performed during the initial inspection because Windows
 reported no serial ports, including unrestricted enumeration.
 
+Ben subsequently reported a correct strike from the PowerFeather USER button
+during USB/bootloader diagnosis, with USB connected. This confirms a local
+button-triggered strike in the modified setup, not battery-only refill or
+USB/ROM communication. Ben confirmed it struck on the initial USER press,
+before RESET, so this is not evidence of application execution after attempted
+ROM entry.
+
+Bypassing the enclosure USB extension subsequently restored direct USB on
+COM14 and identified the fixture as Ness, `9F2738` (`D8:85:AC:9F:27:38`). ROM
+communication passed. Physical RESET then booted the existing
+`fx-260912-f951ae9-b` image with the solenoid enabled. USB supply was good,
+charging enabled after startup qualification, and the gauge reported positive
+charge current. The fixture was not in PROTECT; it recovered from DIM to FULL
+allowance after about 65 seconds. No firmware update or manual protection
+clear was needed. The enclosure USB extension path still requires repair or
+qualification.
+
+Basic battery-only test then passed on Ness: Ben disconnected USB, retained
+the LFP, and reported two normal USER chimes ten seconds apart. After direct
+USB reconnection, the strike counter had advanced from 0 to 2, last pulse was
+40 ms, blocks/failsafes remained zero, and uptime was continuous across the
+test. The gate was off afterward and USB charging resumed positive gauge
+current. This does not measure capbank refill or long-term battery drain.
+
+Later on October 11, a controlled extension A/B again produced Windows Code 43
+before/after physical RESET, with the board-end USB-C plug rotated 180 degrees,
+and after a fresh laptop reconnect. Bypassing only the extension with the same
+laptop cable immediately restored COM14 and live application telemetry at
+106552 ms uptime. The extension/connector path is therefore a real problem in
+this setup; ordinary deep-sleep disconnects are a separate effect. Exact cable
+versus contact failure is still unisolated.
+
+Ben then requested a classic seven-hit door knock. Direct USB commands
+`K9F2738:40` at offsets 0, 0.5, 0.75, 1.0, 1.5, 2.5 and 3.0 seconds produced
+seven firmware-confirmed strikes, counter 0 -> 7, zero blocks/failsafes, gate
+off afterward and continuous uptime. Ben confirmed the full cadence sounded
+good. This was USB-powered, not a battery-only rapid-refill test. Evidence is in
+the 20261012T004337Z and 20261012T004614Z traces under
+`ops/bench/data/Bodhi Hive/` (UTC date October 12, local date October 11).
+
+Ben subsequently connected a replacement enclosure extension. Three fresh
+COM14 telemetry replies confirmed continuous Ness uptime, good supply around
+4.64 V, charging enabled, +173 to +270 mA gauge current and no BQ fault.
+The replacement passes this basic data/charging check; the original extension
+is the suspect assembly. No reset or additional strike was used for this check.
+
+A requested replay through the replacement extension also registered all seven
+strikes (counter 7 -> 14), but Ben heard clumping in the opening phrase. The
+host emitted separate immediate commands with roughly 30 ms interval error;
+some return reports were buffered together in both recordings. This does not
+isolate USB transport, firmware scheduling or mechanics as the audible cause.
+Accurate rhythm needs actual onset measurements and preferably a locally
+timed phrase. Seven accepted strikes alone are not a timing qualification.
+
 Qualification still needed: check approximately 12 V at the charged driver
-rail, observe one strike and refill, and repeat without USB or solar assistance
+rail and measure refill/repeated-duty behavior without USB or solar assistance
 while retaining the LFP. Measure standby and recharge current externally.
 The boost self-enables through its 47k/47k EN divider, and current firmware does
 not manage TELE BOOST_EN; cutting the LED rail does not disconnect this load.

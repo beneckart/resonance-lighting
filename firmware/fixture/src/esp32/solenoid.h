@@ -11,6 +11,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "../core/signature_sequence.h"
 
 #define RES_SOLENOID_DEFAULT_MS 40
 #define RES_SOLENOID_MIN_MS 5
@@ -22,6 +23,9 @@
 void solenoidInit();                 // after Serial; creates the pulse timer
 void solenoidStop(const char *why);  // end MCU gate drive (OTA/maintenance/sleep)
 bool solenoidStrike(uint16_t pulseMs, const char *why);
+bool solenoidSignatureStart(); // prepared once, timed outside Arduino loop
+SignatureSequence solenoidSignatureSnapshot();
+bool solenoidBusy(); // includes silent gaps inside a signature
 void solenoidExternalTick();         // extend capboard SW1 edge to safe 40 ms
 void solenoidButtonHandleWake();     // fire the one strike an EXT0 wake earned
 void solenoidButtonTick();

@@ -1,0 +1,4 @@
+{"type":"metadata","utc":"2026-10-11T22:33:47.154586+00:00","elapsed_s":0.0,"duration_s":180,"interval_ms":100,"mode":"enumeration_only","out":"ops\\bench\\data\\Bodhi Hive\\20261011T223347Z-usb-reconnect-watch-bcc1b081.jsonl","target":"unidentified USB fixture","physical_action":"awaiting USB unplug/replug, LFP retained"}
+{"type":"ready","utc":"2026-10-11T22:33:47.154586+00:00","elapsed_s":0.0}
+{"type":"ports","utc":"2026-10-11T22:33:47.159591+00:00","elapsed_s":0.016,"ports":[]}
+{"type":"complete","utc":"2026-10-11T22:36:47.234900+00:00","elapsed_s":180.078,"result":"no_COM_port_seen"}

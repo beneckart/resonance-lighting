@@ -16,6 +16,8 @@
 enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_NONE = 0,
   SERIAL_MUTATION_SLEEP = 1,
+  SERIAL_MUTATION_SIGNATURE = 2, // !K<id>:1 play, :0 cancel
+  SERIAL_MUTATION_DECOMPRESSION = 3, // !D<id>:0..120 session minutes
 };
 
 struct SerialMutationCommand {

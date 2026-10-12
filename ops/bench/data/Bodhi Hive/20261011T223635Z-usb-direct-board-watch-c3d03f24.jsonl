@@ -1,0 +1,5 @@
+{"type":"metadata","utc":"2026-10-11T22:36:35.850585+00:00","elapsed_s":0.0,"duration_s":300,"interval_ms":100,"mode":"enumeration_only","out":"ops\\bench\\data\\Bodhi Hive\\20261011T223635Z-usb-direct-board-watch-c3d03f24.jsonl","target":"unidentified USB fixture","physical_action":"awaiting bypass of confirmed enclosure USB extension, LFP retained"}
+{"type":"ready","utc":"2026-10-11T22:36:35.850585+00:00","elapsed_s":0.0}
+{"type":"ports","utc":"2026-10-11T22:36:35.855590+00:00","elapsed_s":0.0,"ports":[]}
+{"type":"ports","utc":"2026-10-11T22:37:00.993886+00:00","elapsed_s":25.141,"ports":[{"device":"COM14","description":"n/a","hwid":"USB VID:PID=303A:1001 SER=D8:85:AC:9F:27:38","vid":12346,"pid":4097,"serial_number":"D8:85:AC:9F:27:38","location":null}]}
+{"type":"complete","utc":"2026-10-11T22:37:00.993886+00:00","elapsed_s":25.141,"result":"port_detected"}

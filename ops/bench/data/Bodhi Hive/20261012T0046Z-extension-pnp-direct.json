@@ -1,0 +1,24 @@
+{
+  "utc": "2026-10-12T00:46:08.7936279Z",
+  "test": "same-laptop-cable-direct-bypassing-extension-no-reset",
+  "devices": [
+    {
+      "status": "OK",
+      "name": "USB JTAG/serial debug unit",
+      "instance": "USB\\VID_303A&PID_1001&MI_02\\7&2130F10&0&0002",
+      "problem_code": 0
+    },
+    {
+      "status": "OK",
+      "name": "USB Serial Device (COM14)",
+      "instance": "USB\\VID_303A&PID_1001&MI_00\\7&2130F10&0&0000",
+      "problem_code": 0
+    },
+    {
+      "status": "OK",
+      "name": "USB Composite Device",
+      "instance": "USB\\VID_303A&PID_1001\\D8:85:AC:9F:27:38",
+      "problem_code": 0
+    }
+  ]
+}

@@ -63,6 +63,7 @@ expect_rejected '--artifact-variant requires explicit --channel' \
 expect_rejected 'artifact builds never flash directly' \
   --artifact-variant b --wifi-profile-label test-v1 --profile field --channel 11 --port COM1
 expect_rejected 'bad --jobs/ARDUINO_JOBS' --dev-cache --jobs invalid
+expect_rejected '--decompression requires artifact variant b' --decompression --artifact-variant p
 expect_rejected 'bad --day-sleep-s' --day-sleep-s 29
 expect_rejected 'bad --day-sleep-s' --day-sleep-s invalid
 expect_rejected 'bad --wake-listen-ms' --wake-listen-ms 999

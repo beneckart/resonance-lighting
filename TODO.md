@@ -3449,17 +3449,72 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
-- [ ] Identify the USB-connected fixture by exact MAC and installed artifact,
-  then qualify Ben's VBAT-fed v2 capboard with the installed LFP and isolated
-  former VDC feed. Check boosted bank voltage, one bounded D7 strike, and
-  recharge/reset behavior; repeat battery-only to remove USB assistance.
+- [ ] Use the evidence-first intake checklist in FIXTURE_STORAGE_AND_WAKE.md
+  for the next post-burn lanterns before repair, profile changes or firmware.
+  Preserve a few anomalous and comparable healthy flash/NVS specimens privately.
+  Ness's direct-USB reconnects were traced to ordinary FIELD day-charge sleep
+  (120 seconds), not a new PROTECT entry. Design a bounded, explicit service
+  hold with recorded reset intent; F0 commission is the current persistent
+  workaround and requires a deliberate exit state.
+- [ ] Preserve the compiled ordinary day-sleep interval across live profile
+  changes in behavior_glue.cpp. The current F0/F1 reinitialization uses the
+  default 300 seconds until reboot, dropping f951ae9's 120-second override.
+- [ ] Build/qualify the small Loom/decompression interaction after Ben selects
+  the serviced roster: accessible button -> bounded ordered all-hours chimes;
+  optional local/perimeter presence -> same trigger with cooldown and clear
+  rearm. Existing Atom clicker is one target; conductor switches to color at
+  night. Prove radio availability after idle, battery-aware admission for
+  unattended presence triggers, session end behavior and full event energy
+  including the always-connected VBAT capboard. Siting/count remain TBD.
+- [~] Make signature-chime timing repeatable. ADR 0082 implements a
+  `--decompression` canary: one exact-target USB command or USER press
+  launches a local absolute-deadline phrase, with cancellation, cooldown,
+  battery admission and a bounded RAM-only session. Native tests pass;
+  embedded build, immutable artifact and Ness acceptance are in progress.
+  Ben heard opening-phrase
+  clumping on the replacement-extension replay despite seven accepted hits.
+  The host sent individual immediate strikes with roughly 30 ms interval
+  error; buffered serial reports are not gate-on timestamps. Measure actual
+  onset timing and consider one trigger for a locally timed, bounded phrase,
+  retaining arm/rest/pulse cutoff and cancellation behavior. Compare direct
+  and replacement USB with repeated controlled trials before attributing
+  rhythmic variation to the extension or capbank refill.
+- [ ] Qualify Ben's VBAT-fed v2 capboard on Ness (9F2738,
+  D8:85:AC:9F:27:38), with the installed LFP and isolated
+  former VDC feed. Basic USB-disconnected test passed: Ben reports two normal
+  USER chimes ten seconds apart; telemetry confirms 0 -> 2 strikes, 40 ms
+  last pulse, zero blocks/failsafes and continuous uptime. Still measure
+  boosted bank voltage and refill/repeated-duty behavior on battery alone.
   Measure actual branch standby/charging current externally: the VBAT header
   load bypasses the gauge shunt per POWERFEATHER_NOTES.md. Decide boost standby
   control and low-battery cutoff before unattended battery operation. Keep
   the fabricated v2 RECVR socket empty (known regulator pinout fault).
-  USB serial enumeration found no ports on this laptop at initial inspection;
-  after reseating, Windows reported Device Descriptor Request Failed with no
-  identifiable MAC/COM port. Test a direct known data cable next.
+  Direct USB bypass restored COM14 and verified ROM identity. Physical RESET
+  then booted live fx-260912-f951ae9-b, FIELD/channel 11, downlight, solenoid
+  enabled, valid app0. Good supply and roughly +195 to +279 mA gauge charge
+  current observed; not in PROTECT, DIM -> FULL automatically after about
+  65 seconds. The battery-only two-strike test passed. The older registry
+  firmware field is stale; live trace is retained in the Bodhi Hive data folder.
+- [x] Replace Ness's failing enclosure USB extension and verify basic data and
+  charging operation. The original produced
+  Code 43 and then no USB device despite host restart/removal/rescan and
+  physical reconnect. The same board enumerated and communicated immediately
+  through direct USB; the extension's cable/contact/orientation fault is not
+  yet isolated. A second controlled A/B on October 11 reproduced Code 43
+  before/after RESET, after rotating the board-end plug, and after a fresh
+  laptop reconnect. Direct USB with the same laptop cable immediately worked
+  in the existing application boot and delivered seven acknowledged strikes.
+  A replacement extension then passed three fresh telemetry queries with
+  continuous uptime, good supply, charging enabled, positive gauge current
+  and no BQ fault. The original's exact internal/contact fault remains
+  unisolated; ordinary FIELD sleep is a separate proven USB disconnect cause.
+- [ ] Follow up Ness's reset-based PROTECT provenance: distinguish a real
+  brownout/rail collapse from a stale load marker and intentional service
+  resets. The ordinary solenoid quiet-disarm path can retain the marker for
+  about two minutes; today's physical RESET consumed a FULL-to-DIM retry.
+  Preserve collapse-loop protection. Historical release timing was not
+  captured; today's DIM-to-FULL recovery is not a PROTECT-release proof.
+  See the Ness follow-up in PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md.
 - [ ] Before flashing a bridge from the laptop-only August diagnostic image,
   export its version-1 action-audit ring with the old artifact identity.
   Historical reset kind 7 collides with origin's later field-tuning kind 7;

@@ -10,6 +10,376 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Decompression signature canary development
+
+Ben requested local signature timing and a decompression installation firmware.
+ADR 0082 records the first canary: USER or one exact-target USB line starts the
+seven 40 ms strikes at absolute offsets 0/500/750/1000/1500/2500/3000 ms.
+The timer callback avoids I2C, NVS and logging; load arming happens beforehand.
+One phrase at a time, one-second cooldown, late-hit abort and explicit cancel
+preserve bounded operation. Telemetry exposes actual scheduled-hit results.
+
+An explicit trigger opens a one-hour RAM session; an exact-target command can
+set 1..120 minutes or end it. During that session the fixture keeps listening
+with its class listener light. The canary suppresses old field choreography
+and autonomous chimes; existing battery protection stays authoritative.
+Presence/remote-station integration and event runtime qualification remain open.
+
+All native tests passed. Embedded build and hardware acceptance are underway.
+Before any flash write, ROM read preserved Ness's first 64 KiB, including NVS,
+partition table and OTA selection, privately under ops/bench/private-backups/.
+Its SHA-256 is c675104a34b304df774d6dfd6b42a4a66a27bb1f62db52a76b9385f37d34ac99.
+Bulk reads through the replacement enclosure extension failed with serial-data
+loss; a direct-cable retry is requested. This is distinct from the original
+extension's descriptor/Code 43 failure. No flash write has occurred yet.
+
+## 2026-10-11 -- Ben + Codex -- Original extension still fails after dust removal
+
+Ben blew dust from the original suspect extension and reconnected it. At
+18:00 PDT, serial enumeration found no COM port and Windows still reported
+Code 43 / Device Descriptor Request Failed for the same USB port instance.
+No reset or fixture command was sent. Evidence:
+ops/bench/data/Bodhi Hive/20261012T010052Z-original-extension-after-dust-14d0a967.json.
+
+Ben requested another check at 18:02 PDT: unchanged Code 43 descriptor failure
+and no COM port. Retained the new read-only snapshot as
+ops/bench/data/Bodhi Hive/20261012T010214Z-original-extension-recheck-8a993778.json.
+
+Ben returned to the good replacement extension. At 18:04 PDT neither a COM
+port nor a failed PnP device was present. Without RESET, COM14 returned at
+18:05 and three fresh Ness replies confirmed a normal deepsleep/day-charge
+120-second wake, FULL tier, good supply and zero BQ fault. These first three
+seconds were still in startup charging qualification. The replacement data
+path works; initial absence was ordinary sleep. Read-only capture:
+ops/bench/data/Bodhi Hive/20261012T010446Z-9F2738-good-extension-recheck-a7777580.jsonl.
+
+## 2026-10-11 -- Ben + Codex -- Signature cadence timing limitation
+
+Ben reported the second, replacement-extension cadence was less clean, with
+clumping in its opening phrase; the first direct-USB rendition sounded good.
+Compared both raw traces. Host inter-command spacing deviated from intended
+intervals by roughly 30 ms in both renditions. In the second trace, strike 11's
+report arrived about 0.53 seconds after its host command, together with strike
+12's report. The first trace also batched two reports. These are host receipt
+times, not device-side gate-on timestamps, so they do not prove equivalent
+actuator delays or establish the replacement extension as the cause.
+
+The temporary helper streams seven independent immediate K commands. Its
+serial reads, port enumeration, logging and sleep share the scheduling loop;
+firmware handles K in the main loop alongside sensor/power work. The solenoid
+timer bounds pulse end, not the rhythm's start times. Delivery counts, no
+reset and no failsafes establish successful actuation requests, not accurate
+musical timing. Recorded local timed phrase playback and measured onset
+timing as follow-up for the event controller. No additional strikes, resets,
+configuration changes or firmware writes were performed for this analysis.
+
+## 2026-10-11 -- Ben + Codex -- Signature knock through replacement extension
+
+At Ben's explicit request, replayed the same seven-hit signature cadence on
+Ness 9F2738 through the replacement USB extension. Fresh exact-identity
+telemetry preceded seven K9F2738:40 commands. Firmware confirmed every strike;
+counter 7 -> 14, gate off afterward, zero blocks/failsafes and continuous
+uptime. No reset, firmware or configuration change. Stopped the capture after
+verification. Evidence:
+ops/bench/data/Bodhi Hive/20261012T005231Z-9F2738-extension-knock-ab7ca97d.jsonl.
+
+## 2026-10-11 -- Ben + Codex -- Replacement USB extension works
+
+Ben connected another enclosure extension. COM14 immediately identified Ness
+(9F2738 / D8:85:AC:9F:27:38). Three fresh read-only telemetry replies at
+00:51:56-58 UTC October 12 (17:51 PDT October 11) showed continuous uptime,
+unchanged f951ae9 firmware, FULL tier, good supply around 4.64 V, charging
+enabled, +173 to +270 mA gauge current and BQ fault zero. The seven-strike
+counter was unchanged. No reset, additional strike, profile or flash command
+was sent. The replacement passes this basic data/charging check; the original
+extension remains suspect, with its exact internal/contact fault unisolated.
+Evidence: ops/bench/data/Bodhi Hive/20261012T005156Z-9F2738-replacement-extension-95a3214e.jsonl.
+
+## 2026-10-11 -- Ben + Codex -- Extension A/B and requested USB door knock
+
+Ben reinserted the enclosure USB extension and requested both a coordinated
+reset diagnosis and the classic seven-hit door-knock cadence. Ben + this laptop
+were the declared operators for Ness 9F2738 / D8:85:AC:9F:27:38. Started serial
+enumeration capture before asking for one physical RESET with USER released.
+Windows reported Code 43 / Device Descriptor Request Failed before and after
+RESET. Rotating only the extension's board-end USB-C plug 180 degrees did not
+restore it. A five-second laptop unplug/replug with that orientation retained
+the same failure. No fixture COM port appeared in these extension tests.
+
+Bypassing the extension with the same laptop cable immediately restored COM14
+at 00:45:54 UTC on October 12 (17:45 PDT on October 11). First telemetry showed
+the unchanged f951ae9 application already at 106552 ms uptime, reset=poweron,
+FULL tier/guard and zero strikes. No additional reset or bootloader operation
+was used. PnP then reported problem code 0 for the native USB interfaces. This
+isolates a real fault/incompatibility in the extension/connector path in this
+setup, distinct from the ordinary day-sleep USB cycling captured earlier.
+Cable conductors, connector condition and extension-side mating contacts have
+not been separately isolated; the board-end flip was not an exhaustive test
+of every USB-C mating orientation.
+
+Sent exactly seven K9F2738:40 commands over direct USB, starting 00:46:14 UTC,
+with beat offsets 0, 0.5, 0.75, 1.0, 1.5, 2.5 and 3.0 seconds. Firmware
+acknowledged strikes 1 through 7. Fresh telemetry confirmed counter 0 -> 7,
+40 ms last pulse, gate off, zero blocked/failsafe counts and uninterrupted
+uptime. Ben confirmed the full cadence sounded good. This was USB-powered
+and does not qualify battery-only rapid refill. No firmware/profile/channel
+change or manual PROTECT clear. Both capture processes were stopped.
+
+Evidence under ops/bench/data/Bodhi Hive/: the 20261012T004337Z extension-knock
+bcf5d912 trace, 20261012T004614Z direct-knock 3662ffcd trace, and five timestamped
+extension-pnp snapshots (before/after RESET, flipped, reconnected, direct).
+Documentation whitespace validation passed; no firmware build was needed.
+
+## 2026-10-11 -- Ben + Codex -- Direct-USB sleep diagnosis and post-burn intake
+
+Ben confirmed the repeating Windows USB sounds occur with the cable still
+directly in the PowerFeather, bypassing the enclosure extension. A read-only
+enumeration/t capture of exact target Ness / 9F2738 caught its 23:00:38 UTC
+return: fx-260912-f951ae9-b, reset=deepsleep, last sleep=day-charge/120 seconds,
+FULL tier, guard FULL, good external input and no BQ fault. By 12 seconds
+uptime the gauge showed +265.7 mA charging; USB disappeared again at 23:00:50.
+This is the ordinary FIELD sleep cadence, not a new PROTECT entry. USB-ship
+wake and an indefinite USB service hold are different contracts.
+
+The next COM14 appearance at 23:02:50 confirmed 120.09 seconds absent and the
+same deepsleep/day-charge/120 audit at FULL. It then printed the explicit
+day-charge timer-sleep line and disappeared at 23:03:02. The measured cycle
+was about 12 seconds awake plus 120 seconds asleep. Capture was stopped after
+this confirmation; no continuing monitor was left running.
+
+Added an evidence-first post-burn intake/service procedure and record template
+to FIXTURE_STORAGE_AND_WAKE.md. Preserve physical state, original boot/config,
+entry history and selected private flash/NVS specimens before changing profiles
+or repairing. After capture, verified firmware supports F0 commission and L0
+rail-off for bench access; these do not clear PROTECT or disconnect the VBAT
+capboard. Record physical resets because the current recent-load guard can
+classify them as interrupted operation. Do not promise zero state changes from
+normal first boot, and distinguish later successful service from field health.
+
+Recorded Ben's small Loom/decompression installation goal and proposed an
+accessible exact-roster button with all-hours chimes, later sharing a trigger
+with presence sensing. Existing one-target Atom clicker and time-switched
+fleet conductor do not yet implement that complete behavior. Roster, reachable
+event session, battery/branch budget, cooldown/rearm and final siting remain
+open. No firmware, persistent profile, guard, reset or strike command was sent
+for this diagnosis; only read-only telemetry queries. Raw trace:
+ops/bench/data/Bodhi Hive/20261011T225943Z-9F2738-usb-cycle-d276c45e.jsonl.
+
+Validation: checked the installed artifact's unchanged power/lifecycle behavior
+against source and the live wake telemetry; documentation diff whitespace check.
+
+## 2026-10-11 -- Ben + Codex -- Ness PROTECT autopsy separates entry and release
+
+Compared Ness's retained audit, September census, today's application capture
+and exact f951ae9 source. Historical PROTECT was real; its entry was a brownout
+from DIM with the durable load marker set, not a low-VBAT threshold event.
+The 3242 mV record was sampled 2603 ms into the subsequent boot and cannot
+exclude a transient collapse. September's 3.283 V/no-good-input snapshot
+does not prove a failed qualifying charge release. Today's first app boot
+already had stored FULL, then the deliberate physical RESET consumed the
+FULL-to-DIM retry; its later DIM-to-FULL transition was not PROTECT release.
+The actual historical release time/cause was not captured.
+
+Documented the uncertainty and the potentially stale load-marker window in
+the existing PROTECT recovery investigation. The normal quiet-disarm path
+can hold the marker for about two minutes after a strike; explicit all-loads-
+off paths can clear it earlier. This and manual reset classification merit
+follow-up but do not prove Ness's brownout was false. No device command,
+reset, firmware/configuration change or new test was performed for the autopsy.
+
+## 2026-10-11 -- Ben + Codex -- Ness passes two USB-disconnected USER strikes
+
+Ben unplugged USB while retaining the LFP and VBAT capboard wiring, pressed
+USER twice with a ten-second gap, and reported both chimes sounded normal.
+Direct USB reconnection restored telemetry. Across the disconnect window,
+uptime advanced from 112519 to 161209 ms in the same boot, and the solenoid
+strike counter advanced from 0 to 2. Last pulse was 40 ms; blocked count and
+failsafe count both remained zero, with the gate off afterward. The observed
+uptime continuity supports no reset during the two-strike test.
+
+After reconnection, Ness remained at FULL allowance, BQ fault=0, good USB
+supply around 4.64 V, battery 3.33-3.34 V, and positive gauge charge current
+around +196 to +268 mA. No fixture firmware update, manual PROTECT clear, or
+host strike command was needed. Evidence is in the same physical-reset
+capture cited below. This is a successful basic two-strike battery-only
+functional test, not measurement of capbank refill, standby drain, external
+branch current or long-term low-battery behavior. Those remain open along
+with repairing/qualifying the enclosure USB extension path.
+
+## 2026-10-11 -- Ben + Codex -- Ness application boot and USB charging confirmed
+
+Ben pressed physical RESET with USER released and direct USB connected.
+At 22:41:58 UTC the capture saw re-enumeration, then normal application boot
+on Ness / 9F2738. Live revision is fx-260912-f951ae9-b, app0 reports valid,
+profile FIELD, channel 11, downlight with TMF8820 and MSA311 detected, solenoid
+enabled, configured 6000 mAh LFP and 2000 mA charge limit. The retained audit
+contains the expected September USB-storage command and historical PROTECT
+entry; those records do not describe the current power tier.
+
+This boot reported stored stage 1 -> stage 2 (DIM), interrupted/reset-load
+retry, not PROTECT. Battery began around 3.326 V. Charging enabled after the
+startup presence checks; subsequent samples reported good USB-derived supply
+around 4.64 V, battery around 3.34 V, corrected gauge charge current roughly
++195 to +279 mA, and no BQ fault. At about 65 seconds uptime the policy
+returned automatically to FULL. No manual protection clear, firmware upload,
+or configuration write was sent. The host only queried t after the earlier
+exact-target ROM reset attempt.
+
+Evidence: ops/bench/data/Bodhi Hive/20261011T224018Z-9F2738-physical-reset-capture-88bf9e5b.jsonl.
+Requested two USER strikes ten seconds apart with USB unplugged, followed by
+direct USB reconnection, as a basic battery-only functional check. Result is
+pending; bank voltage/refill and external branch-current measurements remain
+separate qualification items. Gauge current does not account for the new
+VBAT-fed branch per the existing PowerFeather bench notes.
+
+## 2026-10-11 -- Ben + Codex -- Direct USB restores Ness; ROM identity verified
+
+Bypassing the enclosure USB extension immediately exposed COM14 at
+22:37:00 UTC: VID/PID 303A:1001, MAC D8:85:AC:9F:27:38, short ID 9F2738
+(Ness in the callsign registry). Evidence:
+ops/bench/data/Bodhi Hive/20261011T223635Z-usb-direct-board-watch-c3d03f24.jsonl.
+A no-reset, no-stub esptool read-mac transaction succeeded in ROM and left it
+there. This establishes actual ROM entry and a working direct USB data path;
+the enclosure USB path is implicated, without yet distinguishing its cable,
+connector contact or orientation. No flash/NVS erase or write was performed.
+
+Historical September storage records include Ness on fx-260912-f951ae9-b with
+a prepared USB-ship receipt; the older registry firmware field is stale.
+Live installed revision and present charging/PROTECT state remain to be read.
+As sole laptop operator for exact target 9F2738, ran another ROM read-mac with
+hard-reset afterward and started read-only t telemetry capture. No application
+text appeared initially; requested a physical RESET with USER released while
+the capture was active. Firmware and persisted configuration were not changed
+by a host command.
+
+## 2026-10-11 -- Ben + Codex -- USB reconnect and enclosure extension isolation
+
+Ben clarified that the successful USER chime occurred on the initial press,
+before RESET. It therefore does not contradict subsequent ROM entry. He also
+confirmed a five-second USB unplug/replug at the laptop with LFP retained.
+The reconnect capture (22:33:47-22:36:47 UTC) saw no COM port, and a present-PnP
+inventory after confirmation found neither the prior failed instance nor a
+new fixture USB device in any class. Evidence:
+ops/bench/data/Bodhi Hive/20261011T223347Z-usb-reconnect-watch-bcc1b081.jsonl.
+
+Ben confirmed the connection still used the enclosure USB extension. Started
+a fresh enumeration-only capture and requested bypassing that extension to
+the PowerFeather's own USB-C socket while keeping the LFP connected. Result
+pending. No host serial connection, firmware write, or NVS command occurred.
+
+## 2026-10-11 -- Ben + Codex -- Local USER chime observed during USB diagnosis
+
+Ben reports that the PowerFeather USER button correctly chimed while he was
+performing the bootloader sequence. This is positive evidence that the local
+application/button/D7/driver path could produce a strike with the VBAT retrofit
+and USB connected. The strike's position relative to RESET is not yet known,
+so it neither proves nor disproves subsequent ROM entry. It also does not
+establish battery-only recharge/repeatability or identify the installed image.
+The current source supports USER-triggered wake-and-strike as well as awake
+button strikes, so one successful strike does not exclude intervening sleep
+or a retained PROTECT state. No host command or flash was needed for this
+observation. Continue USB reconnect observation before changing wiring.
+
+## 2026-10-11 -- Ben + Codex -- Coordinated RESET and BOOT USB capture
+
+Started an enumeration-only watcher before requesting physical actions. Ben
+confirmed a normal RESET, then a USER/BOOT-held RESET during the active
+22:28:36-22:31:36 UTC capture. No COM port appeared in the 100 ms polling.
+Evidence: ops/bench/data/Bodhi Hive/20261011T222836Z-usb-coordinated-reset-a5bca463.jsonl.
+The initial metadata predates Ben's confirmations; this entry records them.
+Descriptor failure persisted after both reported sequences, but actual ROM
+entry is unproven. This weakens a missed brief application wake window as the
+sole explanation; it does not identify a cable or board fault.
+
+At 22:33 UTC the failed instance was no longer present (retained PnP status
+Unknown), and there were still no serial ports. Ben confirmed USB remained
+physically connected. Next coordinate USB unplug/replug with the LFP retained
+to force a new host connection without another board-button action. No serial
+port was opened and no firmware/NVS or fixture command was sent.
+
+## 2026-10-11 -- Ben + Codex -- 3.3 V PROTECT hypothesis and timed USB watch
+
+Ben reports battery voltage 3.3 V and suspects immediate sleep from a retained
+PROTECT latch rather than a cable fault. Source inspection supports that as a
+plausible explanation: the FIELD profile lacks commission's unconditional
+verified-external-power PROTECT hold. A valid/corroborated 3.3 V cell can remain
+latched unless good input, enabled/no-fault charger and >=20 mA charging at
+>=3.25 V hold continuously for 60 seconds; the alternate full/taper path starts
+at >=3.45 V. PROTECT grace is 30 seconds after normal reset or 8 seconds after
+a timer wake, followed by 900-second sleep. These power-policy/glue files match
+the exact fcc5ef0 source of the retained September f951ae9 storage artifact.
+USB-wake storage therefore does not promise continuous USB service afterward.
+
+Ran an enumeration-only watch every 200 ms for 90 seconds, 22:25:40-22:27:10 UTC;
+no COM port appeared. Requested a physical normal RESET during observation,
+but its timing is not confirmed, so this is not a negative reset canary.
+Evidence: ops/bench/data/Bodhi Hive/20261011T222540Z-usb-reset-watch-ed9a9055.jsonl.
+No port was opened or device command sent. Actual ROM entry remains unverified;
+if established, the fixture application/PROTECT cannot run there. Firmware,
+NVS and the unidentified fixture's protection state remain unchanged.
+
+## 2026-10-11 -- Ben + Codex -- USB rediscovery completed; descriptor failure persists
+
+The earlier UAC request ended as canceled. Ben explicitly requested retry.
+The elevated PowerShell helper exited 1 without a result log; no cause was
+established. Retried the same scoped operations with native PnPUtil via an
+elevated Command Processor: exact failed USB instance removal succeeded and
+hardware scan completed. The device immediately reappeared with the same
+Device Descriptor Request Failed error and no COM port. This is a fresh
+failure after rediscovery, not only a stale failed Windows entry. No driver
+package was removed and no fixture firmware/NVS was written. Next isolate
+with direct-board USB (extension use remains unconfirmed) and verify ROM
+entry; the current evidence cannot distinguish cable/extension, power,
+button/boot-state or board faults.
+
+## 2026-10-11 -- Ben + Codex -- USB check after reported BOOT/RESET sequence
+
+After Ben reported the physical step complete, Windows still showed no COM
+port and the same USB descriptor failure. ROM entry itself is not yet proven.
+Requested UAC elevation to remove only the matching failed device instance
+and scan for hardware again, without driver-package deletion or firmware
+writes. The Windows consent process is present and the request is still
+pending; no rediscovery result exists yet. Asked whether the cable reaches
+the board directly or still passes through the enclosure USB extension.
+
+## 2026-10-11 -- Ben + Codex -- USB power and storage-wake distinction
+
+Ben clarified that he had disconnected/reconnected the fixture during soldering
+and pressed RESET several times, and recalled the September USB-wake rollout.
+The retained storage guide confirms f951ae9 reached 106 fixtures, but this
+unidentified unit's artifact/storage mode remains unknown. USB-wake storage
+uses BQ ship mode: good external input wakes the charger/system without USB
+data enumeration. Storage is entered only by an explicit command, not replayed
+on every boot. Reset or battery disconnection does not erase firmware/NVS;
+complete power loss can reset volatile charger/runtime state.
+
+Code 43/descriptor failure neither proves absence of USB VBUS nor confirms
+charging. BQ charging is autonomous once enabled/configured, while fixture
+startup initially disables charging pending battery qualification. USB input,
+charger activity and net cell charging are separate observations, especially
+with the new VBAT capboard load. No charging current or voltage was measured
+in this session; check VS/GND and charger indication/telemetry before claiming
+charging, and retain ROM enumeration as the next USB diagnostic.
+
+## 2026-10-11 -- Ben + Codex -- Host USB restart did not restore enumeration
+
+Ben asked whether host-side recovery could avoid opening the fixture lid.
+Present-device inspection confirmed Code 43 and hardware ID
+USB/DEVICE_DESCRIPTOR_FAILURE at Port_#0001.Hub_#0001; no COM port or fixture
+MAC is available. The initial pnputil restart/rescan was denied by Windows
+administrator permissions. A UAC-elevated pnputil restart of only exact failed
+instance USB/VID_0000&PID_0002/6&301402F1&0&1 completed with exit 0, but the
+follow-up inventory still reported the same descriptor failure and no ports.
+No USB driver was removed, firmware flashed, or fixture NVS changed.
+
+Next physical diagnostic follows the USB rescue ladder: retain LFP and USB,
+tap RESET once, then if normal CDC remains absent hold USER/BOOT, tap/release
+RESET and release USER/BOOT to enter ROM download mode. Enumeration there
+would distinguish application/sleep behavior from a failure also present in
+ROM. A continued descriptor failure in ROM calls for direct-board USB and
+power/new-header inspection; it does not alone prove a bad cable or MCU.
+Bootloader entry is diagnostic and does not erase flash or clear PROTECT.
+
 ## 2026-10-11 -- Ben + Codex -- Bodhi Hive pull and VBAT chime retrofit preflight
 
 Fetched origin/main at c1e1945 and merged the laptop's local f8375d1 August

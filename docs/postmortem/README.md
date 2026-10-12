@@ -1,6 +1,6 @@
 # 2026 postmortem and 2027 future work
 
-Updated: 2026-10-06. Start here for the post-event storage, power/recovery and
+Updated: 2026-10-11. Start here for the post-event storage, power/recovery and
 service-tooling work. This index gathers the records already in this repository;
 it is not a claim that every 2026 installation issue has been investigated.
 Open work remains in [TODO](../../TODO.md); dated history is in [LOG](../../LOG.md).
@@ -14,6 +14,7 @@ Open work remains in [TODO](../../TODO.md); dated history is in [LOG](../../LOG.
 | [September 14 Oakland inventory](../tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md) | Five identified sightings, none in the stored 106; Kairi/Wooper account for two original census absences. | Map the remaining bin fixtures, inspect cells and locate the six remaining unknowns. Ben wants the Oakland units operational, without deliberate storage. |
 | [High-voltage PROTECT investigation](../tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md) | 40 of 74 PROTECT reports were >=3.25 V; offline reproduction exposes an awake-only recovery-proof limitation. | This does not prove 40 healthy cells or 40 false latches. Preserve specimens and measure full sleep/wake charge cycles. |
 | [August 26 fleet OTA postmortem](../tests/FLEET_OTA_120X3_ROLLOUT_POSTMORTEM_2026-08-26.md) | Earlier rollout evidence and lessons. | Use alongside later firmware/field records, not as the current deployment state. |
+| [October 11 post-burn intake and USB diagnosis](../howto/FIXTURE_STORAGE_AND_WAKE.md#post-burn-intake-before-servicing) | Evidence-first service workflow; Ness's direct-USB reconnects report ordinary 120-second FIELD day-charge sleep. | Sample untouched fixtures before repair; qualify VBAT chime energy and the small decompression interaction. |
 
 The curated [storage evidence](../../ops/bench/data/ca/20260912-155847-container/README.md)
 includes exact rosters, OTA verification, matched storage receipts, final

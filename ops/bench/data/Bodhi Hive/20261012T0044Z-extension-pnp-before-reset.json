@@ -1,0 +1,8 @@
+{
+  "utc": "2026-10-12T00:44:03.8010692Z",
+  "test": "enclosure-extension-connected-before-coordinated-reset",
+  "status": "Error",
+  "name": "Unknown USB Device (Device Descriptor Request Failed)",
+  "instance": "USB\\VID_0000&PID_0002\\6&301402F1&0&1",
+  "problem_code": 43
+}

@@ -132,3 +132,47 @@ service change. No device command or firmware change was made for this check.
 Source: `firmware/fixture/src/esp32/serial_cli.cpp` (`case 'X'`),
 `firmware/fixture/src/core/boot_guard.cpp`, `firmware/fixture/src/core/packet.h`,
 and `docs/howto/FIXTURE_USB_RESCUE_HANDOFF.md`.
+
+## Ness autopsy follow-up, 2026-10-11
+
+Ness is 9F2738 / D8:85:AC:9F:27:38. The Bodhi Hive session restored USB by
+bypassing the enclosure extension, verified ROM identity, then captured the
+existing fx-260912-f951ae9-b application. No firmware update or manual guard
+clear was used. The inspected boot-guard, power-policy/glue and sleep-audit
+files match this artifact's fcc5ef0 source.
+
+The retained entry says `reset-load-armed`, predecessor stage 2 (DIM), reset
+reason 9 (brownout), load marker 1, streak 1. It is not a low-VBAT-origin entry.
+The same record was already present in the September 12 census, when Ness
+was actually in PROTECT at about 3.283 V, with supply-good false and roughly
+-130 mA awake current. It predates today's soldering and button presses.
+
+The recorded 3242 mV is a post-reboot audit sample at fixture uptime 2603 ms,
+not a capture of the brownout minimum: `sleepAuditRecordProtectEntry` samples
+`batteryVolts()` when the new boot writes the record. A transient rail/path
+collapse therefore remains possible. Conversely, `load_armed` is a durable
+recent-load marker, not proof that a load was physically on at the reset.
+With no earlier `allLoadsOff` call, the current ordinary disarm path waits
+until the solenoid has been quiet for 60 seconds, then starts another
+60-second quiet hold; LED activity can delay it further. This is a potential
+misclassification window to investigate, not proof it caused Ness's old entry.
+
+At the first captured application boot today (15:42 PDT), the guard reported
+`stage=2 stored=1 park=0 retry=1 interrupted=1 reset=poweron`. Stored stage 1
+was FULL, so Ness had already left the historical PROTECT latch before this
+capture; the time and cause of that release were not observed. The deliberate
+physical RESET consumed a FULL-to-DIM retry. Positive USB charging followed,
+and DIM returned to FULL after about 65 seconds. This was not a captured
+PROTECT-release test. Two later USER strikes with USB disconnected passed,
+with counter 0 -> 2, 40 ms pulses, no blocks/failsafes and continuous uptime.
+
+Assessment: historical PROTECT is proven and its recorded reset-based trigger
+matches the implemented rule. An exhausted cell, false entry, or failed release
+under qualifying sunshine is not proven. The healthy two-strike test today
+does not reconstruct the earlier battery/harness/rail conditions. Service
+resets and the age of the load marker deserve focused follow-up, while keeping
+real collapse-loop protection intact.
+
+Evidence: `ops/bench/data/ca/20260914-protect-recovery-analysis/fleet-cohort.json`,
+the September 12 container snapshots, and
+`ops/bench/data/Bodhi Hive/20261011T224018Z-9F2738-physical-reset-capture-88bf9e5b.jsonl`.

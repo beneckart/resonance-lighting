@@ -1,6 +1,6 @@
 # Fixture storage and wake
 
-Updated: 2026-10-06. This is the operator summary for the implemented September
+Updated: 2026-10-11. This is the operator summary for the implemented September
 12 storage firmware. It does not authorize a new device operation.
 
 ## Choose the wake contract
@@ -82,6 +82,154 @@ not commanded; Kairi and Wooper were later heard in Oakland, leaving six
 unlocated as of September 14. Radio reach did not prove container location.
 See the [census and rollout](../tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md)
 and [retained evidence](../../ops/bench/data/ca/20260912-155847-container/README.md).
+
+## Post-burn intake before servicing
+
+Use two passes: preserve the as-found evidence, then repair and qualify the
+fixture. A healthy result after repair cannot establish that its field state
+was healthy. Ness's October 11 investigation illustrates this distinction:
+its historical PROTECT entry was real, but today's first captured app boot
+already had a stored FULL stage. The release itself was not observed.
+
+1. **Record before powering or changing anything.** Label the fixture with its
+   short/full MAC and callsign; record the time, enclosure/cell identity,
+   existing harness and capboard source, visible moisture/corrosion/damage,
+   and cell-terminal voltage. Photograph the original connections. Distinguish
+   measured terminal voltage from gauge voltage and SOC. Record any earlier
+   resets, charging, battery swaps or soldering; do not call these units untouched.
+2. **Capture the first wake.** Start an exclusive new USB enumeration/serial
+   trace before connecting directly to the PowerFeather. Keep the installed
+   LFP connected for normal service. Use a no-reset serial opener and read-only
+   `t` telemetry; do not press USER (it can strike), repeatedly press RESET,
+   flash, erase NVS or clear a guard to obtain a clean-looking baseline.
+   A USB-ship fixture should wake from good external input; an explicitly
+   RESET-only stored fixture needs a recorded physical RESET instead. Match
+   the exact MAC before any later command.
+3. **Preserve identity and history.** Save the complete boot text and telemetry,
+   including revision, profile/channel, cell capacity/charge settings, class,
+   reset reason, guard stage/interruption, current power tier, last ordinary
+   sleep, last operator storage request, last PROTECT entry/context, and all
+   charger/gauge validity/fault fields. Keep original JSONL, not just a table.
+   Capture the current state and its subsequent charging/recovery as separate
+   observations. A normal app boot can change NVS; its first log is not a
+   byte-for-byte pre-boot snapshot.
+4. **Preserve a deeper specimen when useful.** Prioritize anomalous units and
+   a few comparable healthy units for full flash/NVS backup before firmware
+   or configuration changes. If genuinely pre-app NVS matters, arrange ROM
+   entry before its first application boot, instead of doing step 2 first.
+   Read without erase/write, retain a SHA-256 and exact identity, and keep
+   backups private because they can contain Wi-Fi credentials. ROM entry and
+   later reset are interventions and must be recorded too. Do not delay all
+   service work waiting for long traces from every lantern.
+5. **Then establish a stable bench session.** On verified compatible firmware
+   such as fx-260912-f951ae9-b, record the original profile and send `F0`
+   (persisted commission profile), followed by `L0` (RAM-only LED rail-off
+   override). Verify fresh telemetry shows commission and the rail off.
+   Commission suppresses ordinary lifecycle sleep; with verified good external
+   supply it also keeps PROTECT serviceable without clearing the latch.
+   `L0` does not disconnect the VBAT-fed capboard. Neither command is a
+   substitute for recording the original state first. Name one operator and
+   exact target; these serial commands address the attached unit, not a roster.
+6. **Observe recovery before load testing.** Keep stable USB and the installed
+   cell connected. For this firmware's normal PROTECT release, verify good
+   supply, valid/enabled/fault-free charger data, at least +20 mA gauge charging
+   and at least 3.25 V compensated battery voltage continuously for 60 seconds.
+   A separate corroborated >=3.45 V full/taper proof also exists. Capture the
+   explicit release message and ensuing reboot; do not infer release from a
+   single 3.3 V reading. If it does not qualify, retain the failed gate evidence
+   and diagnose input/cell/charger behavior. `X` is a battery-absent recovery
+   command, not an installed-battery override.
+7. **Service and qualify.** After preserving the baseline, isolate USB, solar,
+   battery and stored capbank energy before soldering. Follow the
+   [VBAT capboard notes](../../hardware/capboard/README.md#2026-10-11----bodhi-hive-vbat-fed-chime-experiment).
+   Test on battery alone: individual strikes, intended repeated-use cadence,
+   capbank voltage/refill, no resets, and radio operation after an idle period.
+   Measure branch standby/refill current externally: the new VBAT branch
+   bypasses the gauge shunt and remains powered when the LED rail is off.
+   Preserve a clearly labeled after-service trace and hardware changes.
+8. **Choose the exit state explicitly.** Commission persists across reboot;
+   `L0` does not. Do not leave a battery fixture awake accidentally. Record the
+   intended event profile/session, or restore its prior FIELD profile (`F1`
+   when that was the original setting) and verify fresh status. For storage,
+   use the explicit reviewed storage operation and receipts above. The old
+   August rescue guide's flash-first recipe is not the intake workflow.
+
+Known live-profile detail: the current profile-change path reinitializes
+`daySleepS` to 300 seconds without reapplying the artifact's 120-second
+override. Record fresh `day_sleep_s` after returning to FIELD; a subsequent
+boot reapplies the artifact setting. This does not change the no-sleep
+commission behavior, but it changes the expected next FIELD wake interval.
+
+Physical RESET is not an un-PROTECT operation. On current firmware an
+unexpected reset with a recent load marker can advance FULL -> DIM or
+DIM/OFF -> PROTECT. The ordinary solenoid-only quiet path can retain that
+marker for about two minutes, and LED activity can extend it. Avoid repeated
+resets, especially just after chimes; waiting a fixed interval is not proof
+that every load marker is clear. A deliberate bounded service mode that
+records intent and handles this transition remains future work, not a
+guarantee supplied by this procedure.
+
+Suggested intake record (one per fixture):
+
+```
+UTC / short MAC / full MAC / callsign:
+As-found cell and enclosure / terminal volts / wiring photos:
+Prior interventions, including today's first external power and reset:
+Firmware / original profile / channel / raw trace path:
+Current tier + guard / reset cause / last storage / historical PROTECT:
+Charger/gauge validity, supply, current, faults / observed recovery:
+Private backup path + SHA-256, if taken:
+Service changes / battery-only test + refill/standby measurements:
+Final profile or storage receipt / operator:
+```
+
+## USB wake is not an indefinite USB service hold
+
+On October 11, direct-USB Ness (9F2738) reappeared at 23:00:38 UTC and reported
+`reset_reason=deepsleep`, `last_sleep_reason=day-charge`, `last_sleep_s=120`,
+`power_tier=0`, and `guard_stage=1`. USB supply was good and BQ fault was zero;
+charging resumed after startup qualification. It disappeared again around
+23:00:50 UTC, then returned at 23:02:50 after 120.09 seconds absent. The second
+wake again reported FULL and day-charge/120; after about 12 seconds it printed
+`deep sleep (day-charge), timer wake 120s` and disconnected. The measured wake
+interval was about 132 seconds. This is ordinary FIELD sleep, distinct from
+the earlier enclosure extension Code 43 failure and a PROTECT 900-second sleep.
+
+"Until USB power" specifies how storage ends. Once awake, FIELD lifecycle can
+sleep again even with the cable connected. The ESP32-S3's native USB device
+disappears during deep sleep and reconnects on wake, causing Windows sounds.
+A USB disconnect sound alone says nothing about charging current while asleep.
+Use supply/charger measurements, not the enumeration sound, to assess charging.
+
+Evidence: `ops/bench/data/Bodhi Hive/20261011T225943Z-9F2738-usb-cycle-d276c45e.jsonl`.
+Platform reference: [Espressif USB Serial/JTAG sleep behavior](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/usb-serial-jtag-console.html#sleep-mode-considerations).
+
+## Small decompression installation: proposed scope
+
+For the Loom, start with one accessible button station and an explicit roster
+of serviced, VBAT-retrofitted chime lanterns. A press should produce a short
+ordered chime sequence at any hour. A later presence station can feed that
+same trigger, with clear/rearm and cooldown behavior so one stationary visitor
+does not repeatedly fire the chimes. Placement and roster remain Ben's choice.
+
+Existing pieces are useful but this event behavior is not yet implemented:
+
+- The [Atom clicker](../../firmware/atom_clicker/README.md) sends a bounded
+  exact-target strike on a press, but currently has one build-time target.
+- The [Atom conductor](../../firmware/atom_conductor/README.md) gathers a fleet
+  and selects daytime chimes versus nighttime color using Black Rock City
+  time. It is not the all-hours small-roster public button described here.
+- Current fixture presence propagation produces light/color behavior, not
+  this chime trigger. The inspected path originates only on downlights;
+  a perimeter presence station needs explicit integration and qualification.
+- Deliberate operator strikes already bypass the solar/day gate, but a
+  sleeping receiver cannot hear them. Establish a deliberate awake event
+  session before admitting visitors; do not rely on a visitor's first press
+  to discover sleeping units. An explicit session end, idle-reachability test,
+  energy measurement and retained mechanism safeguards are required.
+
+These are proposed follow-up requirements, not a firmware deployment or a
+decision to permanently disable battery protection or sleep.
 
 ## Qualification still open
 

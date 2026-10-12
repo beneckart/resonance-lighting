@@ -20,9 +20,14 @@ void SerialMutationParser::reset() {
 
 bool SerialMutationParser::parseLine(const uint8_t myId[3],
                                      SerialMutationCommand &out) const {
-  // !S + six hex digits + ':' + one-to-five canonical decimal digits.
+  // Sentinel + verb + six hex digits + ':' + canonical decimal value.
   if (invalid_ || length_ < 10 || length_ > 14) return false;
-  if (line_[0] != '!' || line_[1] != 'S' || line_[8] != ':') return false;
+  if (line_[0] != '!' || line_[8] != ':') return false;
+  uint8_t type = line_[1] == 'S' ? SERIAL_MUTATION_SLEEP :
+                 line_[1] == 'K' ? SERIAL_MUTATION_SIGNATURE :
+                 line_[1] == 'D' ? SERIAL_MUTATION_DECOMPRESSION :
+                 SERIAL_MUTATION_NONE;
+  if (type == SERIAL_MUTATION_NONE) return false;
 
   uint8_t target[3] = {0, 0, 0};
   for (size_t i = 0; i < 6; i++) {
@@ -35,9 +40,10 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
   }
   if (memcmp(target, myId, sizeof(target)) != 0) return false;
 
-  // Reject zero and non-canonical leading-zero forms. Besides removing
-  // ambiguity, this guarantees that every accepted duration was explicit.
-  if (line_[9] < '1' || line_[9] > '9') return false;
+  // Reject non-canonical leading zeros; zero is explicit cancel/end for K/D.
+  if (line_[9] < '0' || line_[9] > '9') return false;
+  if (line_[9] == '0' && (length_ != 10 || type == SERIAL_MUTATION_SLEEP))
+    return false;
   uint32_t seconds = 0;
   for (size_t i = 9; i < length_; i++) {
     if (line_[i] < '0' || line_[i] > '9') return false;
@@ -45,7 +51,9 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
     if (seconds > 65535U) return false;
   }
 
-  out.type = SERIAL_MUTATION_SLEEP;
+  if (type == SERIAL_MUTATION_SIGNATURE && seconds > 1) return false;
+  if (type == SERIAL_MUTATION_DECOMPRESSION && seconds > 120) return false;
+  out.type = type;
   out.value = (uint16_t)seconds;
   return true;
 }

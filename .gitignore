@@ -42,6 +42,8 @@ firmware/*/build/
 .swarm/
 .playwright-mcp/
 /tmp/
+# Device flash/NVS evidence can contain Wi-Fi credentials; retain privately.
+/ops/bench/private-backups/
 app/.claude/
 app/.gstack/
 app/.swarm/

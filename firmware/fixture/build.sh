@@ -58,6 +58,7 @@ PRESENCE_SENTINEL=0
 PRESENCE_DISTANT_RANGE=0
 SENTINEL_TRACE_TARGET=""
 SENTINEL_TRACE_SMOKE=0
+DECOMPRESSION=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -107,6 +108,7 @@ Common build options:
   --precharge-ma N            BQ precharge limit, 10..310 in 10 mA steps
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
+  --decompression             bounded event sessions and local signature chime (b only)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
@@ -282,6 +284,7 @@ while [[ $# -gt 0 ]]; do
     --presence-distant-range) PRESENCE_DISTANT_RANGE=1; shift ;;
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
+    --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -298,6 +301,10 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+if (( DECOMPRESSION )) && [[ -n "$ARTIFACT_VARIANT" && "$ARTIFACT_VARIANT" != "b" ]]; then
+  fail "--decompression requires artifact variant b"
+fi
 
 [[ "$JOBS" =~ ^[0-9]+$ || -z "$JOBS" ]] || fail "bad --jobs/ARDUINO_JOBS: $JOBS (expected 0 or a positive integer)"
 [[ "$DEV_CACHE_WAIT_SECONDS" =~ ^[0-9]+$ ]] || fail "bad RES_DEV_CACHE_WAIT_SECONDS: $DEV_CACHE_WAIT_SECONDS"

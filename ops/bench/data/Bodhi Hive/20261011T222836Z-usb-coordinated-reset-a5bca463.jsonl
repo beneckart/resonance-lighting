@@ -1,0 +1,4 @@
+{"type":"metadata","utc":"2026-10-11T22:28:36.067736+00:00","elapsed_s":0.0,"duration_s":180,"interval_ms":100,"mode":"enumeration_only","out":"ops\\bench\\data\\Bodhi Hive\\20261011T222836Z-usb-coordinated-reset-a5bca463.jsonl","target":"unidentified USB fixture","physical_reset":"awaiting operator confirmation"}
+{"type":"ready","utc":"2026-10-11T22:28:36.067736+00:00","elapsed_s":0.0}
+{"type":"ports","utc":"2026-10-11T22:28:36.072485+00:00","elapsed_s":0.0,"ports":[]}
+{"type":"complete","utc":"2026-10-11T22:31:36.102868+00:00","elapsed_s":180.031,"result":"no_COM_port_seen"}
