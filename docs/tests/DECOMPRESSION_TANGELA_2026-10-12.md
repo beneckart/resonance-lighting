@@ -225,6 +225,26 @@ strikes, completed signature and zero blocks/failsafes. Voltage ranged
 There was no transport error or unexpected reboot. Capture and temporary
 host awake hold ended normally; the host commissioning checks passed.
 
+## Solenoid saddle retention test
+
+After the commissioning signature, Ben reported missing solenoid mounting
+screws and observed that the printed saddle's friction fit did not prevent
+kickback. He fitted and hand-tightened one screw, then requested several
+patterns to check whether it held. This is a mechanical finding, separate
+from the successful electrical/firmware acceptance.
+
+Sent three additional `!K9F0E5C:1` commands at 19:26:06, 19:26:19 and
+19:26:33 UTC, allowing 10 seconds after each completed pattern before the
+next. All three completed seven hits (21 additional strikes; 28 total in
+this boot). Maximum lateness was 63, 62 and 59 us respectively. No blocks,
+failsafes, reboot, charger fault or changed PROTECT record occurred.
+
+After the last pattern and 10 seconds of settling, telemetry reported
+3.252 V and +412.0 mA charging at uptime 307951 ms. Ben confirmed the solenoid
+"Stayed firmly in place" through the test. The short retention test therefore
+passed with the single hand-tightened screw. Final installation fastening
+and longer-term retention are not established by this short test.
+
 ## Retained artifact and evidence
 
 Flashed and verified: fx-261012-5164506-b, 1206816 bytes, SHA-256
@@ -242,6 +262,7 @@ Public raw captures under `ops/bench/data/Bodhi Hive/`:
 - `20261012T191849Z-9F0E5C-backup.jsonl`
 - `20261012T192021Z-9F0E5C-flash.jsonl`
 - `20261012T192222Z-9F0E5C-post-service-battery.jsonl`
+- `20261012T192606Z-9F0E5C-mount-test.jsonl`
 
 Both private original-state backups are retained. The original battery
 connection now supports charging and the signature load, but the earlier

@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela saddle held through three repeat signatures
+
+Ben found missing solenoid screws and insufficient friction-fit retention in
+the printed saddle. After fitting and hand-tightening one screw, he requested
+a repeated-pattern check. Sent exactly three local signatures with 10 seconds
+between completion and the next start: 21 additional strikes, all complete,
+maximum lateness 63/62/59 us, no blocks/failsafes/reboot/new PROTECT. Settled at
+3.252 V and +412.0 mA charging. Ben confirmed the solenoid stayed firmly in
+place. Recorded the short mechanical test and final-fastening follow-up in
+DECOMPRESSION_TANGELA_2026-10-12.md and TODO.md.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela decompression service complete
 
 Flashed and ROM-verified retained fx-261012-5164506-b in app1 only, with the
