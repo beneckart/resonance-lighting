@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed with board-end plug flipped
+
+Ben rotated only the clean extension's plug at the PowerFeather 180 degrees.
+COM3 delivered 56 samples over 60.175 seconds without transport errors. MCU
+uptime tracked the host interval since the prior orientation, with unchanged
+PROTECT history and the same awake session. Final sample: 3.265 V, +238.6 mA
+charging, DIM, no BQ fault, seven strikes. Only telemetry queries were sent.
+Both board-end orientations now pass with the current host-side orientation;
+the other connector's orientations and earlier ROM failure remain unresolved.
+Evidence: docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md. Capture ended normally.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed awake retest
 
 Ben connected the clean extension after the dusty-path control test. COM3

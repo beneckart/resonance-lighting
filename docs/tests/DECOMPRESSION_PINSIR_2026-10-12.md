@@ -159,6 +159,28 @@ enumeration failure remains unexplained; these observations do not establish
 that it is defective or identify contact/orientation/host-state effects. The
 dusty extension remains the path that failed the direct/extension/direct check.
 
+### Clean extension: PowerFeather-end plug flipped
+
+Ben rotated only the extension's male plug at the PowerFeather 180 degrees,
+leaving the host-side connection unchanged. The capture began after the flip;
+it does not measure enumeration latency during the physical reconnection.
+COM3 supplied 56 telemetry samples over 60.175 seconds, from 18:26:12 to
+18:27:12 UTC, without a transport error. Since the previous clean-extension
+sample, host time advanced 120.878 seconds and MCU uptime 120.859 seconds.
+The MCU stayed in the same awake session, with unchanged PROTECT fields.
+
+Final sample: uptime 1028260 ms, battery 3.265 V, +238.6 mA charging, supply
+4.625 V, good supply, charging enabled, DIM, no interrupted guard or BQ fault,
+seven strikes and 2575 seconds remaining in the original event session.
+Battery range was 3.260-3.269 V, with gauge charge current +167.6 to +286.2 mA.
+Only read-only telemetry requests were sent; the capture and host awake hold
+ended normally.
+
+Both tested orientations at the PowerFeather end work with the current
+host-side orientation and awake firmware. This test did not reproduce an
+orientation fault. It does not qualify the other connector's orientations or
+explain the earlier bootloader enumeration failure.
+
 ## Evidence
 
 Public captures are under `ops/bench/data/Bodhi Hive/`:
@@ -176,3 +198,4 @@ Public captures are under `ops/bench/data/Bodhi Hive/`:
 - `20261012T182102Z-9F26BC-dusty-extension.jsonl`
 - `20261012T182137Z-new-lantern-intake.jsonl`
 - `20261012T182311Z-9F26BC-clean-extension.jsonl`
+- `20261012T182612Z-9F26BC-clean-extension-board-flipped.jsonl`
