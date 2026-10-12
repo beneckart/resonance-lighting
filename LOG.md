@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Brian + Claude -- Sakura decompression canary and signature
+
+Brian flashed the ADR 0082 decompression canary onto Sakura F2BE0C
+(68:EE:8F:F2:BE:0C) from macOS as sole USB operator. Built locally from clean
+4ce6a22 with Ness's flags: fx-261012-5d7ab8f-b, 1,206,800 bytes, SHA-256
+31a4942e49e5d128193041bf146ca2f7f3714dccd93cada3c50e66946c9f29c0.
+
+Before writing: MAC identity gate, private 64 KiB prefix and coredump backups,
+installed fx-260912-f951ae9-b app digest-verified, partition table identical.
+Wrote app0 only; new app and original prefix both verified afterward. On macOS
+`--after hard-reset` left the chip in the stub; `--after watchdog-reset` booted.
+
+Fresh telemetry confirmed the revision, app0 valid, no pending verify. One
+`!KF2BE0C:1` inside a 60-minute session played all seven hits: COMPLETE,
+counter 0 -> 7, max onset lateness 63 us, zero blocked/failsafes. Brian
+confirmed it sounded good. USB-powered at DIM tier, battery 3.24 -> 3.19 V.
+
+Found: Sakura's coredump partition is not blank (likely a retained panic,
+preserved privately, not decoded). Telemetry says 6,000 mAh gauge capacity
+vs 15,000 in the registry. Earlier "dead extension" result was a laptop-port
+difference; both enclosure extensions work on the right port.
+Record: docs/tests/DECOMPRESSION_SAKURA_2026-10-11.md.
+Evidence: ops/bench/data/Brian bench/.
+
 ## 2026-10-11 -- Ben + Codex -- Sakura USB arrival snapshot
 
 The next lantern enumerated as COM15, 68:EE:8F:F2:BE:0C. Read-only telemetry
@@ -5949,21 +5973,21 @@ included in the fixture sleep commands.
 ## 2026-08-20 -- Ben + Claude -- INCIDENT: fleet-wide SET_MAINTAIN 5.5 V at 22:24:22 PDT; two USB peers down; root cause + fixes
 
 Two battery-less USB bench peers went quiet at 22:24:22 PDT (05:24:22Z) and
-were found with VINDPM persisted at 5.5 V — above USB's 5 V, so the charge
+were found with VINDPM persisted at 5.5 V â€” above USB's 5 V, so the charge
 input collapses at every boot (bootloader-level recovery needed). Forensics:
 
-- **The packet did not come from the T-Deck** — Bridge OS has no
+- **The packet did not come from the T-Deck** â€” Bridge OS has no
   NB_SET_MAINTAIN sender anywhere (tool surface and CLI exclude
   maintain/capacity/sleep by design), and its transcripted TX that night was
   identify-only (the one fleet-wide lease attempt timed out UNSENT).
 - **The landmine:** the CoreS3 bridge's serial `m` command with NO digits
-  cycled presets starting at **55 (5.5 V)** — one stray byte = fleet-wide
+  cycled presets starting at **55 (5.5 V)** â€” one stray byte = fleet-wide
   5.5 V broadcast. Solar-bench heritage (5.5 V is sane for panel VINDPM,
   lethal on USB).
 - **The trigger window:** the timestamp is seconds after the CoreS3
   re-enumerated from the overnight audio-build flash (artifact 05:23:49Z).
   The flashing agent's serial bytes were reconstructed from its transcript:
-  exactly `t`, `I`, `M`x2, `A`x4 — no `m` (case-sensitive switch). Leading
+  exactly `t`, `I`, `M`x2, `A`x4 â€” no `m` (case-sensitive switch). Leading
   suspect: **ModemManager** (active on the Ubuntu PC) probing the freshly
   enumerated port; its probe bytes land in the bridge's terminator-less
   parser. Unconfirmed from the user journal; check with
@@ -5977,25 +6001,25 @@ returns (battery-backed fixtures that heard the 5.5 V are running with a
 collapsed charge input and draining); TODO entries added for the fixture
 apply-then-confirm pattern and the ModemManager udev blacklist. Recovery for
 the two dead peers: boot them from an attached battery or a >5.5 V bench
-supply, then `m46` by radio or serial — gentler than an NVS erase. This
+supply, then `m46` by radio or serial â€” gentler than an NVS erase. This
 incident is also a concrete argument for the tracked authenticated-command
 work: any byte on any serial port currently commands the fleet.
 
-## 2026-08-20 -- Ben + Claude (overnight) -- Bridge OS M2-M4: LVGL shell, Fleet app, streaming Claude client, agent tool loop — all hardware-verified
+## 2026-08-20 -- Ben + Claude (overnight) -- Bridge OS M2-M4: LVGL shell, Fleet app, streaming Claude client, agent tool loop â€” all hardware-verified
 
 Overnight autonomous session (Ben asleep; questions queued in the morning
-report). ADR 0047 written — Bridge OS is now the platform of record.
+report). ADR 0047 written â€” Bridge OS is now the platform of record.
 
 **M2 (LVGL shell + apps).** LVGL 9.5 on hand-configured LovyanGFX; launcher
 grid (12 tiles), status bar, confirm rail. Fleet app: live census table
-(reported-LED color chip per row — ADR 0043 "reported color is truth" — plus
-class letter, age, EWMA, PDR, SoC, named program), tap/trackball row → node
+(reported-LED color chip per row â€” ADR 0043 "reported color is truth" â€” plus
+class letter, age, EWMA, PDR, SoC, named program), tap/trackball row â†’ node
 detail with targeted identify, fleet dark/release behind the confirm modal
 (origin-tagged, focus lands on cancel). Settings app (backlight/channel;
 secrets stay on the serial CLI). Trackball became a context-aware keypad:
 left/right focus-step, up/down row-jump on the grid / row-scroll in tables,
 edit-mode pulses = arrow keys (slider tuning). Fixed en route: launcher-screen
-deletion crash (status timer wrote a freed widget → panic-reboot), table
+deletion crash (status timer wrote a freed widget â†’ panic-reboot), table
 tap-select cleared before CLICKED, cell padding wrapping 3-char headers.
 Touch verdict (Ben): touch-first UI; trackball stays first-class for
 gloves/dust.
@@ -6004,20 +6028,20 @@ gloves/dust.
 (`anthropic_root_ca.h`, chain inspected same day), manual chunked-transfer
 decode into a pure native-tested SSE parser, 12-turn PSRAM chat log,
 `thinking: disabled` + effort low, SNTP-before-TLS gate, offline queue with
-capped backoff (verified: submit while `wifi off` → amber "queued" → delivered
+capped backoff (verified: submit while `wifi off` â†’ amber "queued" â†’ delivered
 on rejoin). First live response 2.8 s round-trip; TLS heap transient ~55-65 KB
 (single-flight); census PDR unaffected during streaming. Chat app: streaming
 scrollback, QWERTY input line, thinking/queued/mesh-silent states.
 
-**M4 (agent tool loop).** Six tools exactly (ADR 0037 §6) via `tool_schema.h`;
+**M4 (agent tool loop).** Six tools exactly (ADR 0037 Â§6) via `tool_schema.h`;
 tool turns stored as raw content-array turns; iteration cap 8; every mesh
 effect through `mesh_tx`; fleet-wide `set_program` blocks on the cross-task
 confirm rail. All three acceptance tests green on hardware:
-- "Which fixtures are quiet?" → mesh_census → "No quiet fixtures — all 3
+- "Which fixtures are quiet?" â†’ mesh_census â†’ "No quiet fixtures â€” all 3
   observed nodes reported within 60 s (3 of ~130, not the full fleet)".
-- "Make fixture 9E5AF0 blink green" → identify → physical fixture blinked.
-- "Lease dark to the whole fleet" with nobody at the device → 30 s confirm
-  timeout → "Denied — not sent. No fixtures were changed."
+- "Make fixture 9E5AF0 blink green" â†’ identify â†’ physical fixture blinked.
+- "Lease dark to the whole fleet" with nobody at the device â†’ 30 s confirm
+  timeout â†’ "Denied â€” not sent. No fixtures were changed."
 Two live-fire bugs the model itself helped diagnose: jsonFindString rejected
 model-authored `"id": "..."` (space after colon) and truncated 6-hex ids
 (unescape headroom vs 8-byte buffer); census tool JSON had a leading comma.
@@ -6029,23 +6053,23 @@ full 15-tail heartbeats round-tripped the emitters perfectly, BQ registers,
 lux and MPPT fields included).
 
 **M5 (partial, same night).** Zones (class-targeted solid colors via a
-single-writer 8 Hz NB_DIRECT_FRAME streamer — `stream_svc`; client-side dim;
+single-writer 8 Hz NB_DIRECT_FRAME streamer â€” `stream_svc`; client-side dim;
 stream survives app-switch, stop is explicit), Knocker (single strike +
 knock-all as a 300 ms-spaced timer queue behind the confirm rail; synced
 schedules stubbed pending ADR 0031), CA Studio (program leases + GH-CA
 params[0..4] sliders; apply = release-then-re-lease workaround for the
 fixture params gap). All flashed, boot-stable, heap steady. Patterns + the
-ES7210 mic HAL deferred (riskiest unverified hardware path — not an
+ES7210 mic HAL deferred (riskiest unverified hardware path â€” not an
 unattended-overnight job).
 
 **Extra credit (same night, via subagents).** CoreS3 (4D5DB0, /dev/ttyACM1)
-audio-reactive build upgraded to four visual modes — CLASSIC per-slot R/G/B,
+audio-reactive build upgraded to four visual modes â€” CLASSIC per-slot R/G/B,
 EMBER warm-white, HUECYCLE (20 s shared hue), PULSE (beat-transient flash
-over a dim floor) — tap or `M` cycles, `A` toggles; flashed + serial-verified,
+over a dim floor) â€” tap or `M` cycles, `A` toggles; flashed + serial-verified,
 left ON in CLASSIC; fixture-side look unverified (no fixture-firmware peers
 were live during the check). Docs updated. PUCA PoC written UNVERIFIED at
 `firmware/puca_bridge/` (compiles clean on pico32, 73% flash): WM8978 +
-16 kHz I2S → shared cores3 envelope → 10 Hz NB_DIRECT_FRAME on ch 11;
+16 kHz I2S â†’ shared cores3 envelope â†’ 10 Hz NB_DIRECT_FRAME on ch 11;
 KNOB1 = log sensitivity, KNOB2 = brightness ceiling / hue, paw touch = mode
 cycle; pin table with provenance from github.com/ohmic-net/puca_dsp. The PUCA
 did NOT enumerate on USB (cable/power question queued for Ben); nothing
@@ -6057,14 +6081,14 @@ Next: Patterns + mic (M5 tail), whisperd voice + Sensors/Locate/RF Survey
 ## 2026-08-19 -- Ben + Claude -- Bridge OS begins: T-Deck M0 bring-up complete, M1 mesh core live
 
 ADR 0037 re-prioritized into active development, expanded to **"Resonance Bridge
-OS"** — an app-launcher handheld on the T-Deck Plus (Claude terminal, fleet
+OS"** â€” an app-launcher handheld on the T-Deck Plus (Claude terminal, fleet
 health, Hue-style zones, knocker, pattern generator + audio reactivity, CA
 studio, plus stubs for locate/cambium/sync-knock). Plan approved (LVGL 9 on
 LovyanGFX; voice = laptop whisperd behind a swappable STT interface, cloud
 later; fixture gaps documented as TODOs rather than limiting the handheld;
 all four headline apps are v1 targets). New target: `firmware/tdeck_bridge/`.
 
-**M0 (bring-up) — done except the passive battery-runtime number:**
+**M0 (bring-up) â€” done except the passive battery-runtime number:**
 
 - Dev bench is the Ubuntu PC (`/dev/ttyACM0`, 303a:1001), arduino-cli + esp32
   3.3.7 + LovyanGFX 1.2.24. FQBN pinned: generic `esp32s3`,
@@ -6072,24 +6096,24 @@ all four headline apps are v1 targets). New target: `firmware/tdeck_bridge/`.
 - Probes all green on first boot: 8 MB OPI PSRAM, keyboard (0x55), GT911,
   **ES7210 mic at 0x40** (audio reactivity unblocked), **GPS NMEA @ 38400**.
 - **Coexistence proven:** ONLINE on BubbyNet (2.4 GHz is already channel 11)
-  while mesh frames flow — the one-radio premise of the whole device.
+  while mesh frames flow â€” the one-radio premise of the whole device.
 - **Channel guard demoed live** (mesh ch temporarily 6 vs AP ch 11): Wi-Fi
   dropped, mesh kept, mismatch displayed, restored cleanly. Guard never
   auto-retries a wrong-channel AP.
-- Direct-sun verdict (after removing the shipped screen film — a glare
+- Direct-sun verdict (after removing the shipped screen film â€” a glare
   confound): usable in full sun tilted off-normal; **UI minimum text size 2**
   (M2 constraint). Trackball map a=UP b=RIGHT c=DOWN d=LEFT.
 - Provisioning is NVS-only over a serial CLI (`set wifi/key/model/channel`);
   no secret compiled or committed.
 
-**M1 (mesh core) — functional, soak in progress:**
+**M1 (mesh core) â€” functional, soak in progress:**
 
 - Census ported from cores3_bridge (all 15 `NB_HAS_HB_FIELD` tails,
   reboot/seq-restart accounting) into pure `src/core/census.cpp` with native
-  tests, plus: RSSI EWMA (α=1/8), windowed PDR, eviction with 6 dB hysteresis
+  tests, plus: RSSI EWMA (Î±=1/8), windowed PDR, eviction with 6 dB hysteresis
   (cores3 wedged silently at 192), class latching across hb-short, and an
   observation ledger so duty-cycled listening reads "unobserved", never
-  "quiet" (ADR 0037 §11).
+  "quiet" (ADR 0037 Â§11).
 - `nb-master`/`nb-peer`/`nb-scanap`/`nb-rssi` emitters are byte-compatible:
   30/30 + 60/60 captured lines parse against `net_bench_dashboard.py`'s own
   regexes. `packet.h` included from the fixture tree (never forked), golden
@@ -6097,18 +6121,18 @@ all four headline apps are v1 targets). New target: `firmware/tdeck_bridge/`.
 - TX path live via `mesh_tx` (burst 4x/5 ms broadcast, 6x/8 ms targeted):
   WAN-down quick commands `i/I/K/B/b/t` on the CLI. Identify-all was received
   by the bench feathers (their hb now reports our downlink at `dlrssi=-19`,
-  `dlpdr=1.000`). Strikes require a real target id — broadcast strike is
+  `dlpdr=1.000`). Strikes require a real target id â€” broadcast strike is
   refused in both the handheld and the fixture.
 - Fixed en route: send-callback registration was lost on every ESP-NOW
   re-init (sendok stayed 0); accounting moved into `espnow_link`.
 - Fixture-side gaps Bridge OS exposes are now six explicit items under
-  `TODO.md` → Firmware track (params re-lease no-op at `runtime.cpp:56`,
+  `TODO.md` â†’ Firmware track (params re-lease no-op at `runtime.cpp:56`,
   inert `NbShowFrame.bright/beat_phase/energy`, `NB_SENSOR_REPORT`,
-  `fire_in_ms` + strike event kind, CA→strike seam, `NB_NEIGHBOR_SET`
+  `fire_in_ms` + strike event kind, CAâ†’strike seam, `NB_NEIGHBOR_SET`
   persistence).
 
-Next: 1 h heap soak completes M1 → M2 (LVGL shell, launcher, confirm rail,
-TxService, Fleet + Settings apps) → M3 Claude client. Bridge OS ADR to be
+Next: 1 h heap soak completes M1 â†’ M2 (LVGL shell, launcher, confirm rail,
+TxService, Fleet + Settings apps) â†’ M3 Claude client. Bridge OS ADR to be
 written with M2. Battery runtime: `bat_mv` rides the 10 s `nb-mem` line; run
 the T-Deck unplugged for an evening and read the log.
 
@@ -10446,12 +10470,12 @@ ADR 0024 (annotation) / TODO:
 
 ## 2026-07-12 -- Ben + Claude -- 20 Ah UPLIGHT CELL VERIFIED: 19,412 mAh (97.1% of label), knee so tight 95% clears the product floor
 
-**The batteryspace 20 Ah cylindrical ("34184", sample 1 of 2) is honest — the anti-Palowextra.**
+**The batteryspace 20 Ah cylindrical ("34184", sample 1 of 2) is honest â€” the anti-Palowextra.**
 Full charge->discharge on the shootout rig (board 9E5AF0, INA 0x45 truth, HEX37 val224
 ~0.78 A): **19,412 mAh to cell-side 2.5 V (97.1%)**, **19,055 above the 3.0 V product floor
-(95.3% of label)**, knee width just **360 mAh** (vs F's 613, P's 1,301 — the low-IR big-cell
+(95.3% of label)**, knee width just **360 mAh** (vs F's 613, P's 1,301 â€” the low-IR big-cell
 signature). 27.2 h run, zero resets for 23+ h, 181 only in the terminal rattle; ended
-"unreachable" when the board could no longer restart at cell ~2.5 V. Gauge bias **x1.071 —
+"unreachable" when the board could no longer restart at cell ~2.5 V. Gauge bias **x1.071 â€”
 9th consecutive** +8+-1% replication. Report + charts:
 `docs/tests/BATTERY_20AH_UPLIGHT_REPORT_2026-07-12.html`.
 
@@ -10465,7 +10489,7 @@ DMM-verified **0.263 ohm** -> all cell-side numbers use cell_v = board_v + I(t)*
 
 **Uplight verdict:** one cell = **6 h/night x 7 nights solar-free at ~450 mA avg RGBW**
 (showable brightness) with margin; W-die palettes trivial. Conditions: watchdogged daytime
-sleep (ADR 0023) + night radio duty budget (~1.7 Ah/wk at 40 mA avg). **n=1 — qualify sample 2
+sleep (ADR 0023) + night radio duty budget (~1.7 Ah/wk at 40 mA avg). **n=1 â€” qualify sample 2
 before the ~40-cell buy** (rig stays assembled). Production needs a real end-cap connection;
 clips survived 27 h on tape and prayer.
 
@@ -10484,7 +10508,7 @@ feeds at the converters, touch neither modules nor sensor), three geometries.
 Confounds caught en route -- each would have flipped the naive conclusion:
 
 - Run 1's "VBAT +16..45%" was unit binning + geometry, not feed (unit-to-unit
-  spread up to ~20% on blue; position worth ±5-20% per look, look-dependent).
+  spread up to ~20% on blue; position worth Â±5-20% per look, look-dependent).
 - A stray piece of plastic sat on one module for runs ~2-3 (found run 4: its
   removal jumped that unit +4..+19%); the contaminated contrast was discarded.
 - mDNS blipped mid-run once (script now resolves-once + retries).
@@ -10542,7 +10566,7 @@ near-zero measured draw. The debug chain, for posterity:
 
 - **Channel sweep via telemetry:** every slot at 255 added ~0 mA supply draw ->
   the module wasn't being fed; battery was healthy (gauge blind to VBAT loads
-  anyway -- ADR 0029 §4's exact warning; with USB attached, supply current is
+  anyway -- ADR 0029 Â§4's exact warning; with USB attached, supply current is
   the working ammeter).
 - **Firmware-only ground-fault probe (new technique, kept as `/gndprobe`):**
   tri-state the data pin INPUT_PULLDOWN and sample. Healthy module DIN = high-Z
@@ -11605,21 +11629,21 @@ LED mode once trusted; then the outdoor lantern test.
 
 **The Amazon "7.2 Ah" 32700 (Palowextra) is a ~5.6 Ah cell in a big wrapper, and it
 loses to the $1-cheaper fullbattery 6 Ah where it counts.** Head-to-head full-discharge
-coulomb runs (both cells virgin, HEX37 val224 ~0.86 A, 79.9 °F, INA219 truth, Nitecore-only
-charging): P delivered **5,643 mAh to 2.5 V (78 % of label)** vs F's **5,752 (96 %)** —
-near-tie to a lab cutoff, but P's **2.3× IR (136 vs 60 mΩ)** pulls its knee through the
-3.0 V product floor 1.4 h early: **4,342 vs 5,139 mAh usable (−15.5 %)**. Corroborated by
+coulomb runs (both cells virgin, HEX37 val224 ~0.86 A, 79.9 Â°F, INA219 truth, Nitecore-only
+charging): P delivered **5,643 mAh to 2.5 V (78 % of label)** vs F's **5,752 (96 %)** â€”
+near-tie to a lab cutoff, but P's **2.3Ã— IR (136 vs 60 mÎ©)** pulls its knee through the
+3.0 V product floor 1.4 h early: **4,342 vs 5,139 mAh usable (âˆ’15.5 %)**. Corroborated by
 weight parity (136/138 g) and Off-Grid Garage's 5,450 on a cycler. **Ben's decision: buy F,
 skip P; cycle-2 rig swap deliberately cancelled** (rig confound ~8 % can't close 15.5 %).
 Report with charts: `docs/tests/BATTERY_32700_SHOOTOUT_REPORT_2026-07-06.html`.
 
-Free findings: (1) **F reproduced June 11 within +0.5 %** — production cell qualified
+Free findings: (1) **F reproduced June 11 within +0.5 %** â€” production cell qualified
 n=2, 75-unit purchase validated at $0.89/Ah; (2) **MAX17260 +8 % bias is a chip trait**
-(+9.3/+8.1 % on two boards, replications 7-8 — /1.08 is universal); (3) both cells end in
-a brownout rattle only below ~2.6 V (31/35 resets — state-difference artifact, earlier
-"P cascades / F fades" read was wrong); (4) gauge SOC swept 98→0 %, plateau-blind as ever;
+(+9.3/+8.1 % on two boards, replications 7-8 â€” /1.08 is universal); (3) both cells end in
+a brownout rattle only below ~2.6 V (31/35 resets â€” state-difference artifact, earlier
+"P cascades / F fades" read was wrong); (4) gauge SOC swept 98â†’0 %, plateau-blind as ever;
 (5) MAX17260 won't cold-POR off a ~2.8 V cell (looks like no-cell; self-recovers on
-precharge — POWERFEATHER_NOTES).
+precharge â€” POWERFEATHER_NOTES).
 
 Tooling (commit 3668554): `afk_discharge.py --ina-file/--no-ina` + `ina_logger.py` tee =
 two rigs share one 4-ch INA monitor; `ina_mapcheck.py` green-pulse wiring diagnostic
@@ -11629,7 +11653,7 @@ QT-rail short = red/black-swapped adapter; run mapcheck on any new rat's nest). 
 charge-ma 500 / floor 2.90 after.
 
 **ADR 0023** distills the F curve into production dim/off/sleep thresholds (standard
-tier: dim 3.00 / off 2.95 / sleep 2.90 under full load — LED holds full brightness to
+tier: dim 3.00 / off 2.95 / sleep 2.90 under full load â€” LED holds full brightness to
 2.70 V, first instability 2.69 V at 99 % delivered, overnight+OTA reserve is only
 ~50 mAh; hysteresis + coulomb-primary hybrid required). Re-derivation recipe in the ADR.
 
