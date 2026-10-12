@@ -59,3 +59,35 @@ Native tests are part of `firmware/fixture/tests/run_tests.sh`, including
 packet layout, exact-target validation, replay ordering and button edge cases.
 Hardware validation remains separately recorded; neither a broadcast send
 callback nor an old-image heartbeat proves a phrase played.
+
+## October 12 bench checkpoint
+
+Atom Matrix `54B0C8` / `14:08:08:54:B0:C8`, COM6, now runs
+`atom-decomp-103c91d`, built from commit
+`103c91d3be3f28f743b882c32e6c739130ff201e`.
+Retained directory: `build/atom-decompression-20261012-r2/`.
+Application: 915728 bytes, SHA-256
+`44c89c09a7428e4bcc9d154c509890acd0ba451a228b9c3d94b28edcf00fefe3`.
+
+ROM verified app0 and the unchanged original 64 KiB prefix. The original
+September conductor app0 was digest-verified and preserved with that prefix
+under `ops/bench/private-backups/20261012-54B0C8-before-decompression/`.
+Full-flash stub reads failed; app1, SPIFFS and coredump were not collected or
+written. This is partial preservation, not a full-flash backup.
+
+The new Atom passed 30 seconds of live serial/radio operation with the exact
+revision and nine-member roster, zero presses and zero RX queue drops. It
+heard the old Ness and Tangela revisions; no receiver acknowledged the new
+protocol. No PLAY was sent. All native fixture tests passed, including 135
+radio/roster/button checks, 81 packet-layout checks and 58 local-sequence checks.
+
+Ben paused the work to pack the lanterns and continue in his Oakland backyard.
+The Atom accepted `pause` and reported `enabled=false` before packing.
+Pause is RAM-only: reconnecting power boots into lease renewal again, without
+playing a phrase. No lantern receiver was updated in this session. First
+end-to-end button test, nine-lantern rollout, idle/expiry and runtime tests
+remain pending. There is no need to locate a particular lantern while packing.
+
+Public evidence:
+`ops/bench/data/Bodhi Hive/20261012T195443Z-54B0C8-atom-decompression-flash.jsonl`
+and `20261012T195801Z-54B0C8-packing-pause.jsonl`.

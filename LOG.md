@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Atom flashed; lantern rollout paused for Oakland
+
+Native fixture suite passed. Built and app0-only flashed Atom 54B0C8 on COM6
+with atom-decomp-103c91d, SHA-256
+44c89c09a7428e4bcc9d154c509890acd0ba451a228b9c3d94b28edcf00fefe3.
+ROM verified the exact application and unchanged original prefix. Preserved
+the prefix and digest-verified original conductor app0 privately after failed
+full-flash stub reads. Thirty seconds of live operation confirmed the revision,
+nine targets and healthy radio with no PLAY or RX drops. Old Ness/Tangela
+heartbeats were heard, but no receiver supports the new protocol yet.
+
+Ben asked to table the lantern work while packing, to resume in his Oakland
+backyard. Sent pause to the Atom and verified enabled=false. No lantern was
+flashed and no new radio chime test was attempted. Recommended one perimeter
+light plus optional spare alongside the Atom for a separately placed sensor
+trigger; sensor rearm/cooldown and group triggering still need implementation
+and qualification. Detail/evidence in firmware/atom_decompression/README.md.
+
 ## 2026-10-12 -- Ben + Codex -- Atom signature controller and receiver implementation
 
 Ben requested one Atom Matrix press for local signatures on all nine lanterns,

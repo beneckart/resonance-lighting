@@ -3564,6 +3564,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   five-minute renewable radio leases and receipts. Verify one lantern before
   rollout, all-nine completion, held/duplicate input, idle readiness and Atom
   removal/lease expiry. Existing deployed receiver images need updating.
+  Paused by Ben while packing on 2026-10-12; resume in his Oakland backyard.
+  Atom image is flashed/ROM-verified and serial/radio checked, then paused;
+  no lantern receiver update or end-to-end PLAY has occurred. Bring a perimeter
+  light (plus optional spare) to evaluate a walk-up sensor station alongside
+  the Atom; this is a packing recommendation, not an additional serviced unit.
 - [~] Make signature-chime timing repeatable. ADR 0082 implements a
   `--decompression` canary: one exact-target USB command or USER press
   launches a local absolute-deadline phrase, with cancellation, cooldown,
