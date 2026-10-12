@@ -109,8 +109,8 @@ not OTA-qualified.
 Ben clarified that the extension used for the postflash retest was the
 original dusty one, not the brand-new replacement requested in the prompt.
 The first watcher's metadata describes the planned new-extension test; the
-actual reported cable identity takes precedence. The new extension has not
-yet been retested with the application held awake.
+actual reported cable identity takes precedence. The new extension was tested
+separately afterward, as recorded below.
 
 Direct USB remained healthy for roughly nine minutes after the signature.
 During the swap, a brief reconnect at 18:20:09 UTC reported uptime 604978 ms,
@@ -135,7 +135,29 @@ new PROTECT event do not explain this particular failure. This does not locate
 the fault within the extension, contacts, orientation or combined cable path,
 and lack of USB data does not establish absence of charging power. No additional
 chime, reset, configuration or session command was issued during this test.
-Pinsir was left on direct USB; captures and temporary host awake holds ended.
+Pinsir was left on direct USB at that stage; captures and temporary host awake
+holds ended.
+
+### Clean extension follow-up: passed while awake
+
+Ben then connected the clean extension. COM3 enumerated normally. A read-only
+capture from 18:23:11 to 18:24:11 UTC collected 55 telemetry samples over
+60.100 seconds without transport errors. Compared with the preceding direct
+sample, host time advanced 61.444 seconds and MCU uptime 61.419 seconds. The
+same session continued, with no reboot or change to any PROTECT history field.
+
+All samples had good supply, charging enabled, no BQ fault, DIM allowance and
+no interrupted guard flag. Battery voltage ranged 3.257-3.268 V and gauge
+charge current +127.4 to +288.4 mA. The final sample was 3.264 V, +249.1 mA,
+supply 4.609 V, uptime 847219 ms, with 2756 seconds left in the session.
+The strike count remained seven with zero blocks/failsafes; no extra chime,
+reset or configuration command was sent. The capture and host awake hold ended,
+leaving Pinsir connected through the clean extension.
+
+The clean extension passes this awake data/charging check. Its earlier ROM
+enumeration failure remains unexplained; these observations do not establish
+that it is defective or identify contact/orientation/host-state effects. The
+dusty extension remains the path that failed the direct/extension/direct check.
 
 ## Evidence
 
@@ -153,3 +175,4 @@ Public captures are under `ops/bench/data/Bodhi Hive/`:
 - `20261012T181043Z-9F26BC-extension-retest.jsonl`
 - `20261012T182102Z-9F26BC-dusty-extension.jsonl`
 - `20261012T182137Z-new-lantern-intake.jsonl`
+- `20261012T182311Z-9F26BC-clean-extension.jsonl`

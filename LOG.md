@@ -10,6 +10,21 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed awake retest
+
+Ben connected the clean extension after the dusty-path control test. COM3
+enumerated, and 55 samples over 60.100 seconds showed uninterrupted USB data,
+good supply, enabled charging, DIM, no BQ fault and unchanged PROTECT history.
+MCU uptime across the direct-to-clean gap tracked elapsed host time, with the
+same session active. Final battery 3.264 V, +249.1 mA charging; seven strikes
+still, zero blocks/failsafes. No extra chime/reset/configuration command sent.
+Pinsir was left on the clean extension; capture and host awake hold ended.
+
+This clean extension passes the current awake data/charging check. Its earlier
+ROM enumeration failure remains unexplained; do not label both extensions bad.
+The dusty path failed the controlled comparison. Report and raw evidence:
+docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir dusty-extension control test
 
 Ben used the dusty extension for the postflash retest, rather than the new
