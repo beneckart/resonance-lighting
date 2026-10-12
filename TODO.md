@@ -3467,7 +3467,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   orientations failed, then direct USB supplied 56 samples over 61 seconds.
   Uptime tracked the full host gap within 18 ms and PROTECT stayed unchanged.
   Loss of communication is isolated to the extension assembly/contact path;
-  no MCU restart or sleep explanation. Physical failure mechanism remains open.
+  no MCU restart or sleep explanation. Ben subsequently observed heavy corrosion
+  at the outer connector, strongly supporting corrosion as a cause.
+- [ ] Replace Tangela's failed, visibly corroded USB extension and retain/label
+  it for autopsy. Photograph the outer connector and cap/seal before cleaning;
+  exact contact damage and moisture route remain to be investigated.
 - [ ] Decode Tangela's preserved non-erased coredump offline against the matching
   original image/ELF, validating format/checksum and image provenance before
   attributing a cause or relating it to the historical 3270 mV PROTECT record.
@@ -3476,8 +3480,9 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   Inspect/photograph external socket contacts, internal plug and cap/gasket
   sealing surfaces before further cleaning; compare against a working sample,
   then repeat the same controlled USB data test after documented cleaning.
-  Ben suspects moisture/corrosion at the exposed end; not yet observed or
-  confirmed. Check the exact part's specified cap/seal conditions before
+  Heavy outer-connector corrosion is now visually confirmed by Ben on Tangela;
+  corrosion on Ness/Pinsir remains unconfirmed pending inspection. Check the
+  exact part's specified cap/seal conditions before
   deciding on sealing changes. Compare cap-pocket ingress/drying and local
   temperature/humidity on spare hardware to test Ben's moisture-trapping
   hypothesis; do not assume interior dust provides protective desiccation.

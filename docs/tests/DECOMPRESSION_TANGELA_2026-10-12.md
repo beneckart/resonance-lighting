@@ -14,6 +14,8 @@ attached. Saved PROTECT history is unchanged. The 60-second post-signature
 check passed, ending at 3.254 V and +405.8 mA with both sensors healthy.
 The subsequent direct/extension/direct comparison isolated a USB communication
 failure to the enclosure-extension path; Tangela stayed awake throughout.
+Ben then visually identified heavy corrosion at the extension's outer,
+non-PowerFeather end. Replace the extension and retain it as autopsy evidence.
 Origin was up to date at d79d234 before intake.
 
 ## Wiring and USB
@@ -282,8 +284,8 @@ cycle does not explain the missing USB connection during the extension test.
 
 The direct/extension/direct comparison isolates the failure to the extension
 assembly or its mating contacts. Treat this extension as failed for service
-and retain it for inspection; corrosion, internal wiring damage and contact
-seating are not distinguished by the evidence. The four unsuccessful
+and retain it for inspection; the electrical comparison alone did not
+distinguish corrosion, internal wiring damage or contact seating. The four unsuccessful
 orientations were reported by Ben, not separately instrumented host phases.
 
 Final direct sample: 3.256 V, +354.6 mA charging, DIM, interrupted false,
@@ -292,6 +294,25 @@ session. The strike counter was 35 on return, versus 28 in the older direct
 baseline; the source/timing of those seven intervening strikes was not
 observed. This USB test sent only telemetry queries, with no strike or reset
 command. Capture and temporary host awake hold ended normally.
+
+### Visual corrosion finding
+
+Ben subsequently reported clear, heavy corrosion on visual inspection of
+the non-PowerFeather end of this extension, corresponding to the outer
+connector. This is a direct user-reported physical observation, rather than
+the earlier corrosion hypothesis; no inspection photograph has been reviewed
+by the assistant. Together with the failed extension test and successful
+direct return, the observation strongly supports connector corrosion as a
+cause of the USB failure. The exact affected contacts and any additional
+internal damage have not been isolated.
+
+Replace the extension for service. Retain/label the failed assembly and
+photograph the outer connector, internal plug and cap/seal before cleaning.
+No replacement, cleaning or post-cleaning retest is yet recorded. The route
+by which moisture reached or remained at the connector, including the
+earlier cap-trapped-moisture hypothesis, is still unproven. This observation
+applies to Tangela's extension; it does not establish corrosion on the other
+suspect extensions without inspection.
 
 ### Files
 

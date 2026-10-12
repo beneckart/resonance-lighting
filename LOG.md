@@ -10,6 +10,16 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Heavy corrosion observed on Tangela outer USB connector
+
+Ben visually identified heavy corrosion at the extension's non-PowerFeather
+end after the direct/extension/direct test isolated its USB failure. Recorded
+this as a physical observation supporting connector corrosion as a cause,
+with exact contact damage and the moisture route still unproven. Marked the
+extension for replacement and retention/photos before cleaning. Updated the
+service report, registry and inspection TODO; no device command or cleaning
+performed. See DECOMPRESSION_TANGELA_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela direct return isolates extension USB failure
 
 Ben reported no successful USB connection in all four extension orientations.
