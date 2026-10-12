@@ -53,8 +53,12 @@ New signature requests require a present battery and FULL/DIM allowance.
 - This is a button/USB canary, not the complete public installation controller.
   Explicit-roster remote triggering, presence rearm/cooldown, final session
   duration, siting and runtime qualification remain open.
-- Preserve Ness's original full flash/NVS privately and its public identity
-  and telemetry before flash. A build or successful upload is not acceptance;
+- Preserve Ness's original NVS and application privately, with its public
+  identity and telemetry before flash. Prefer full flash; if streaming fails,
+  preserve bootloader/partition table/NVS/OTA selection and crash records by
+  ROM reads, and digest-verify the retained old application against the device.
+  Record the uncollected regions and leave them untouched. A build or
+  successful upload is not acceptance;
   verify the actual device revision, timing, cancellation and stable operation.
 - The VBAT-fed boost stays connected when firmware sleeps; the gauge does not
   measure that branch. No firmware mode substitutes for branch energy and

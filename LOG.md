@@ -33,6 +33,14 @@ Bulk reads through the replacement enclosure extension failed with serial-data
 loss; a direct-cable retry is requested. This is distinct from the original
 extension's descriptor/Code 43 failure. No flash write has occurred yet.
 
+The ESP32 preflight compile then passed (1,206,240-byte dev-local binary;
+not a deployment artifact). Final onset-accounting tests pass 55 checks.
+ROM `verify-flash` matched the retained f951ae9 application against Ness at
+0x10000 for all 1,218,752 bytes, and the original application was copied into
+the private backup. ROM reading also preserved the full 64 KiB crash region
+at 0x7f0000. The backup manifest explicitly marks this as partial flash:
+app1 and SPIFFS were not collected and must remain untouched by app-only work.
+
 ## 2026-10-11 -- Ben + Codex -- Original extension still fails after dust removal
 
 Ben blew dust from the original suspect extension and reconnected it. At
