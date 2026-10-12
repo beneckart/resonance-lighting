@@ -1,0 +1,3 @@
+{"utc": "2026-10-12T19:28:34.308584+00:00", "kind": "metadata", "value": {"target": "9F0E5C", "path_label": "extension; Ben switching USB path; no button presses requested", "commands": "read-only t queries", "duration_s": 180}}
+{"utc": "2026-10-12T19:28:34.326102+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-12T19:31:34.568052+00:00", "kind": "complete", "value": {"result": "no completed 60-second capture", "samples": 0}}

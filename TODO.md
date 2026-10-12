@@ -3463,6 +3463,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   Ben found missing screws and friction-fit kickback; one hand-tightened screw
   held firmly through three complete signatures (21 strikes) on 2026-10-12.
   The short retention test passed; final fastening is not yet documented.
+- [ ] Finish Tangela enclosure-extension diagnosis: after Ben reported switching
+  from direct, a three-minute watch saw no serial enumeration and Windows
+  showed no current USB error device. Confirm completed connection, then
+  compare return-to-direct uptime and PROTECT history without button presses.
+  Do not count this extension as failed on the unconfirmed transition alone.
 - [ ] Decode Tangela's preserved non-erased coredump offline against the matching
   original image/ELF, validating format/checksum and image provenance before
   attributing a cause or relating it to the historical 3270 mV PROTECT record.

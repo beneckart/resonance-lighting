@@ -247,6 +247,26 @@ and longer-term retention are not established by this short test.
 
 ## Retained artifact and evidence
 
+### Subsequent enclosure-extension check
+
+Ben confirmed all preceding service and mounting tests used direct USB,
+suspected this enclosure extension too, and reported switching to it. Started
+a three-minute read-only USB watcher at 19:28:34 UTC. No serial port appeared
+and no telemetry sample was obtained. Two contemporaneous Windows PnP checks
+also showed neither a present PowerFeather device nor a USB error device;
+there was no observed Code 43 in these checks.
+
+Confirmation that the extension was fully connected had been requested but
+had not arrived when the watch ended. This is therefore a no-enumeration
+observation, not yet a controlled failure diagnosis. A return-to-direct check
+without pressing buttons remains to be done once connection state is clear.
+Last direct sample was 19:26:46.965874 UTC, uptime 307951 ms, 3296 seconds
+remaining in the event session, 28 strikes, unchanged PROTECT and 3.252 V.
+Those values are retained for the next uptime/history comparison. No reset,
+reflash, power/profile change or further strike was sent during this check.
+
+### Files
+
 Flashed and verified: fx-261012-5164506-b, 1206816 bytes, SHA-256
 `a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e`.
 Manifest and binary digest verified. No new build was made.
@@ -263,6 +283,7 @@ Public raw captures under `ops/bench/data/Bodhi Hive/`:
 - `20261012T192021Z-9F0E5C-flash.jsonl`
 - `20261012T192222Z-9F0E5C-post-service-battery.jsonl`
 - `20261012T192606Z-9F0E5C-mount-test.jsonl`
+- `20261012T192834Z-9F0E5C-extension-check.jsonl`
 
 Both private original-state backups are retained. The original battery
 connection now supports charging and the signature load, but the earlier

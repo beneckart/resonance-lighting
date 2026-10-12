@@ -10,6 +10,16 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela extension check saw no enumeration
+
+Ben confirmed prior testing was direct USB and reported switching to the
+enclosure extension. A three-minute watcher obtained no serial port or sample;
+two Windows PnP checks showed no present PowerFeather or USB error device.
+No Code 43 was observed. Confirmation that the extension was fully connected
+is still pending, so no controlled extension-failure conclusion is drawn.
+Retained last direct uptime/session/history for the return-to-direct comparison.
+No device mutations or strikes sent. See Tangela report and extension trace.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela saddle held through three repeat signatures
 
 Ben found missing solenoid screws and insufficient friction-fit retention in
