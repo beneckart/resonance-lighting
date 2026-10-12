@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela battery input measured zero
+
+Ben measured 0 V across the board-side BATP/BATN contacts with the battery
+plug seated, after measuring 3.213 V at the cell and 3.73 V at the USB-powered
+VBAT output header. Ship mode cannot account for loss of cell voltage at the
+external input contacts; the application was already running on good USB.
+Next isolation step is measuring the free battery-side plug, then tracing
+the harness or mating/socket contacts as the result indicates. Probe contact
+is not yet excluded. No flash, reset, chime or charging override sent. Detail:
+docs/tests/DECOMPRESSION_TANGELA_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela intake held for battery-path measurement
 
 New target Tangela 9F0E5C appeared as COM5 after Ben bypassed its enclosure

@@ -3451,8 +3451,10 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 - [ ] Complete Tangela 9F0E5C service after resolving battery absence: cell
   measured 3.213 V, USB-powered VBAT header 3.73 V, firmware reports near-zero
-  battery voltage and charging disabled. Await board-side BATP/BATN voltage;
-  retain evidence, confirm physical capacity, back up, then flash the exact
+  battery voltage and charging disabled. Board-side BATP/BATN then measured
+  0 V with plug seated; await voltage at the free battery-side plug to isolate
+  the harness versus mating/socket path (also verify probe contact). Retain
+  evidence, confirm physical capacity, back up, then flash the exact
   decompression artifact and run one signature if healthy. No flash yet.
   See DECOMPRESSION_TANGELA_2026-10-12.md.
 - [ ] Qualify Tangela's newly wired TELE BOOST_EN -> D13/GPIO11 control path

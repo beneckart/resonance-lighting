@@ -54,10 +54,21 @@ cell is connected to the charger. See the manufacturer's
 [power-path explanation](https://docs.powerfeather.dev/#miscellaneous-questions)
 and [V2 schematic](https://docs.powerfeather.dev/assets/files/esp32-s3-powerfeather-v2-c8fb0b7f2b084b2013f65c973cfaf223.pdf).
 
-Requested next measurement: BATP-to-BATN at the board-side battery connector
-with its plug seated. Await that result before attributing the absent battery
-to wiring, connector condition, sensing or firmware. Do not force charging or
-clear protection on the basis of the VBAT header reading.
+Ben then reported 0 V across BATP/BATN at the board-side battery connector
+with the plug seated, and asked whether ship mode could explain it. Ship mode
+does not remove an attached cell's voltage from those input contacts; good
+external power also exits ship mode. The recorded application was already
+running on USB. See [ship-mode behavior](https://docs.powerfeather.dev/sdk/2.x/api/mainboard/).
+
+Together with the 3.213 V cell measurement, this points toward an interruption
+between the cell and board input, or a probe-contact/measurement issue. It
+does not yet identify a bad crimp, wire, splice, mating contact or socket joint.
+Requested next measurement: disconnect the battery lead from the board and
+measure the two metal contacts of the free battery-side plug in DC-voltage
+mode, keeping the lead attached to the cell. A reading near cell voltage would
+focus inspection on the mating/socket path; zero would focus it upstream in
+the battery lead/terminations, after confirming good probe contact. No flash,
+chime or charging override has been sent.
 
 ## Retained artifact and evidence
 
