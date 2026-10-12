@@ -231,6 +231,33 @@ This argues against a consistently missing orientation connection in this
 extension. It does not rule out intermittent contact or enumeration issues,
 qualify bootloader behavior, or explain the dusty-extension failure.
 
+## Environmental failure hypothesis and retained samples
+
+Ben reports two suspect field USB extensions among roughly seven lanterns
+checked and suspects corrosion at the connector exposed outside the enclosure.
+That connector has a screw cap; its actual seal condition and moisture
+protection have not been inspected. The count is Ben's estimate, not a
+measured fleet failure rate. Separate extension-path failures were documented
+on Ness (October 11 LOG entries) and Pinsir. The clean replacement's temporary
+enumeration failure is not evidence of an additional permanently failed cable:
+it subsequently passed all four orientation combinations.
+
+Moisture/contamination and contact corrosion are plausible mechanisms, not
+observed findings on these samples. Manufacturer background on
+[connector contact degradation](https://www.molex.com/en-us/trends-insights/engineering-insights/connector-contact-retention)
+and [environmental sealing](https://www.te.com/content/dam/te-com/documents/appliances/global/sealed-parts-hvac-final-en.pdf)
+supports investigating contacts, seals and exposure. No exact product ingress
+rating or cap sealing performance has been established by this investigation.
+
+Retain and label each suspect extension with its source lantern. With each
+extension disconnected at both ends, photograph the external socket contacts,
+internal plug and cap/gasket/sealing surfaces under magnification before
+further cleaning. Compare deposits, plating damage and seal condition with a
+working sample. Record any cleaning and repeat the same host cable/port and
+awake-fixture data test afterward. Improvement after cleaning would support a
+contact/contamination mechanism, but would not alone prove corrosion. No such
+inspection or cleaning was performed in this step; no fixture commands sent.
+
 ## Evidence
 
 Public captures are under `ops/bench/data/Bodhi Hive/`:

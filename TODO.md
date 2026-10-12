@@ -3449,6 +3449,13 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Preserve and label the suspect field USB extensions from Ness/Pinsir.
+  Inspect/photograph external socket contacts, internal plug and cap/gasket
+  sealing surfaces before further cleaning; compare against a working sample,
+  then repeat the same controlled USB data test after documented cleaning.
+  Ben suspects moisture/corrosion at the exposed end; not yet observed or
+  confirmed. Check the exact part's specified cap/seal conditions before
+  deciding on sealing changes. See DECOMPRESSION_PINSIR_2026-10-12.md.
 - [x] Retest Pinsir's brand-new extension with the decompression session awake.
   The October 12 postflash swap used the dusty extension instead. Its USB data
   path failed; direct USB before/after worked with continuous MCU uptime and

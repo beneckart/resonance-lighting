@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Preserve suspect USB extensions for corrosion autopsy
+
+Ben suspects moisture/corrosion at the external screw-capped USB sockets and
+reports two suspect field extensions among roughly seven lanterns checked.
+Ness and Pinsir have documented extension-path failures; the clean replacement
+now passes all four orientation combinations. Recorded the environmental
+mechanism as a hypothesis, not a confirmed diagnosis or fleet failure rate.
+Added a task to label/retain the suspect cables, photograph contacts and cap
+seals before further cleaning, and compare controlled data tests before/after
+cleaning. No physical inspection or fixture commands in this step. Detail:
+docs/tests/DECOMPRESSION_PINSIR_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Pinsir clean extension passed all four orientations
 
 Ben restored only the PowerFeather-end plug, completing the A/B orientation
