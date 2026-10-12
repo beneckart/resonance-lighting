@@ -10,6 +10,35 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Rikku automatic recovery, flash and signature
+
+Rikku 9F26B0 (D8:85:AC:9F:26:B0, COM11) appeared after about 115 seconds of
+USB silence with a deep-sleep wake and a stored PROTECT latch. Arrival was
+3.261 V; charging became enabled during startup. Retained history identifies
+a power-on reset with a load armed, predecessor DIM, 3146 mV at 2668 ms.
+This records the firmware trigger, not proof of the original electrical cause.
+
+Saved arrival telemetry, then used F0/L0 for a powered, rail-off service hold.
+At 04:15:07 UTC the normal charge-current proof released PROTECT at 3.271 V
+and +205 mA, persisted OFF and rebooted cleanly. The normal ladder later
+reached DIM. Restored original FIELD with F1/L0 before ROM entry. No manual
+protection clear was sent. The partial binary backup is post-recovery; public
+traces preserve the preceding states. The coredump partition was blank.
+
+Verified old app0 against the retained September binary, then wrote only
+app0 with the exact Ness-tested fx-261012-5164506-b artifact, SHA-256
+a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e.
+ROM verification matched the new app and unchanged configuration prefix.
+Fresh FIELD/channel-11/DIM telemetry retained all historical PROTECT fields.
+After a 30-second stable boot, one signature command completed seven hits,
+66 us maximum onset lateness, zero blocks/failsafes and gate off. Voltage
+sampled 3.187 V just after the phrase, then recovered to 3.278 V while charging.
+A one-hour RAM event session is active; overnight energy is not yet measured.
+Record: docs/tests/DECOMPRESSION_RIKKU_2026-10-11.md.
+
+Also pulled Brian's 2673baf Sakura capacity-correction records; no firmware
+source changes were included.
+
 ## 2026-10-11 -- Brian + Claude -- Sakura gauge capacity set to 15,000 mAh
 
 Brian confirmed Sakura F2BE0C has a 15,000 mAh pack, matching the registry;
