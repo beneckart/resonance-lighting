@@ -3449,6 +3449,12 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Add a bounded host-awake hold to the Windows USB service workflow,
+  released on completion/error. Leeloo's first upload was interrupted by
+  Modern Standby after the laptop's three-minute idle timeout. Recovered
+  with a temporary hold and exact image/prefix verification; Ben also
+  disabled the sleep setting. Preserve original and post-interruption
+  snapshots if a reconnect changes NVS. See DECOMPRESSION_LEELOO_2026-10-11.md.
 - [ ] Decode the preserved nonempty crash-record partitions for Eevee (9F0E54,
   Ben's private backup 20261012T030000Z-9F0E54) and Sakura (F2BE0C, Brian's
   private backup; see DECOMPRESSION_SAKURA_2026-10-11.md). Validate the records

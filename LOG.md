@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Leeloo recovery, 15 Ah correction and signature
+
+Leeloo F40254 (68:EE:8F:F4:02:54, COM17) arrived in OFF at 3.274 V, with
+retained low-vbat PROTECT history at 3042 mV. Saved telemetry, held it with
+F0/L0 through normal OFF -> DIM recovery, then restored FIELD before private
+prefix/coredump/application preservation. Coredump was blank. Ben confirmed
+a 15 Ah cell; its stored 6 Ah capacity was provisional and incorrect.
+
+Windows Modern Standby interrupted the first app1 upload. The tool failed
+at 86.6%; no strike or capacity command had been sent. Restored ROM contact,
+then the prefix guard detected an intervening boots counter 0 -> 1. Saved
+the changed prefix separately; every other entry and OTA selection matched.
+With a temporary host awake hold, rewrote exact fx-261012-5164506-b app1 and
+verified the image plus unchanged post-interruption prefix. Ben also disabled
+the Windows three-minute sleep setting. The original backup remains intact.
+
+Sent exact-target CF40254:15000 after the flash and verified 15,000 mAh after
+software reboot. No manual protection clear was sent; retained history,
+FIELD/channel 11 and 2,000 mA charge limit were preserved. One local signature
+completed seven hits, maximum onset lateness 66 us, zero blocks/failsafes.
+Settled at 3.305-3.311 V, DIM, charging; one-hour RAM session active until
+about 22:38 PDT. Host awake hold released. Origin had no new Brian commits.
+Report: docs/tests/DECOMPRESSION_LEELOO_2026-10-11.md.
+
 ## 2026-10-11 -- Ben + Codex -- Rikku automatic recovery, flash and signature
 
 Rikku 9F26B0 (D8:85:AC:9F:26:B0, COM11) appeared after about 115 seconds of

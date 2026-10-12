@@ -1,0 +1,26 @@
+[
+  {
+    "utc": "2026-10-12T04:34:05.3471356Z",
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "id": 507,
+    "message": "The system is exiting Modern Standby \r\n\r\nReason: Input Mouse."
+  },
+  {
+    "utc": "2026-10-12T04:30:50.1233817Z",
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "id": 506,
+    "message": "The system is entering Modern Standby \r\n\r\nReason: Idle Timeout."
+  },
+  {
+    "utc": "2026-10-12T04:26:10.4466690Z",
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "id": 507,
+    "message": "The system is exiting Modern Standby \r\n\r\nReason: Input Touchpad."
+  },
+  {
+    "utc": "2026-10-12T04:21:59.4023121Z",
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "id": 506,
+    "message": "The system is entering Modern Standby \r\n\r\nReason: Idle Timeout."
+  }
+]
