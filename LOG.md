@@ -10,6 +10,62 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-12 -- Ben + Codex -- Tangela original battery charging after restart
+
+Preserved the original ROM prefix, non-erased coredump and digest-verified
+September app1. NVS audit found DIM, load_arm=0, boots=0 and a valid unchanged
+3270 mV historical PROTECT record. Restarting the unchanged application with
+the original battery attached restored normal charging: 3.228 V, +382.3 mA,
+no BQ fault and interrupted=false. No charge override or PROTECT clear used.
+This boot reports both class sensors absent, unlike the first intake; checking
+whether their cable was disconnected during access. Decompression service
+remains pending. Detail: DECOMPRESSION_TANGELA_2026-10-12.md.
+
+## 2026-10-12 -- Ben + Codex -- Tangela original battery detected after reconnection
+
+The controlled swap back captured battery absence during disconnection, then
+121 samples of Tangela's original cell at 3.208-3.211 V over 134 seconds without
+reboot or USB error. A connection/seating issue remains possible; no component
+failure is established. Ben confirmed a 15 Ah cell, versus the existing 6 Ah
+setting. Started ROM preservation before restarting the original firmware
+with the battery connected to verify charging. No flash or chime sent yet.
+
+## 2026-10-12 -- Ben + Codex -- Tangela detects substitute battery assembly
+
+Ben connected another unserviced lantern's battery/lead, measuring about
+3.3 V at its clips. Tangela then reported battery present and 3.292-3.294 V
+throughout 55 samples over 59 seconds. No BQ faults, transport errors, reboot
+during capture or changed PROTECT history; charging remained disabled.
+The installed source can retain a charging-off decision after operating
+without a battery. No reset, charge override or flash sent. Started a new
+watcher and requested a controlled return to the original battery/lead to
+check whether its voltage disappears again. See Tangela service report.
+
+## 2026-10-12 -- Ben + Codex -- Tangela clip measurement confirmed
+
+Ben confirmed that 3.209 V was measured on the metal clips themselves. This
+locates voltage at the clips but leaves the wire terminations and full JST
+path unverified. Awaiting availability of a known-working lantern's complete
+battery-and-lead assembly for substitution. No new fixture commands sent.
+See docs/tests/DECOMPRESSION_TANGELA_2026-10-12.md.
+
+## 2026-10-12 -- Ben + Codex -- Tangela battery clips measured 3.209 V
+
+Ben reports 3.209 V at the accessible battery clips. Exact probe placement is
+being clarified; the full lead/JST path remains unproven. No fixture command,
+flash, substitution or charging override performed in this step. Detail:
+docs/tests/DECOMPRESSION_TANGELA_2026-10-12.md.
+
+## 2026-10-12 -- Ben + Codex -- Tangela JST probe contact is uncertain
+
+Ben read 0 V at the free battery-side JST-PH plug but could not confirm that
+the meter tips reached the recessed contacts. Recorded this as inconclusive,
+not a confirmed open circuit. VBAT header remained about 3.7 V on USB with
+the battery lead removed, consistent with its charger-fed output role. Next
+check should use accessible leads via a mating socket or a known-good LFP
+battery plus complete lead. No fixture commands or substitution performed.
+See docs/tests/DECOMPRESSION_TANGELA_2026-10-12.md.
+
 ## 2026-10-12 -- Ben + Codex -- Tangela battery input measured zero
 
 Ben measured 0 V across the board-side BATP/BATN contacts with the battery

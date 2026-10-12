@@ -3452,14 +3452,26 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 - [ ] Complete Tangela 9F0E5C service after resolving battery absence: cell
   measured 3.213 V, USB-powered VBAT header 3.73 V, firmware reports near-zero
   battery voltage and charging disabled. Board-side BATP/BATN then measured
-  0 V with plug seated; await voltage at the free battery-side plug to isolate
-  the harness versus mating/socket path (also verify probe contact). Retain
-  evidence, confirm physical capacity, back up, then flash the exact
+  0 V with plug seated. Free battery-side plug also read 0 V, but probe contact
+  in the recessed JST cavities was uncertain, so that result is inconclusive.
+  Confirmed 3.209 V at the metal clips themselves; the downstream path is unproven.
+  Another unserviced lantern's battery/lead then read 3.292-3.294 V and present
+  on Tangela, though charging remained off. Returning to the original assembly
+  restored stable readings at 3.208-3.211 V for 134 seconds. No component failure
+  is confirmed. Original ROM state is backed up; restart restored normal
+  charging, with no new PROTECT record. Both class sensors are now absent;
+  check whether the sensor cable was disconnected during access before readiness.
+  Ben confirmed 15 Ah; the existing setting is 6 Ah. Retain
+  evidence, back up, correct capacity, then flash the exact
   decompression artifact and run one signature if healthy. No flash yet.
   See DECOMPRESSION_TANGELA_2026-10-12.md.
 - [ ] Qualify Tangela's newly wired TELE BOOST_EN -> D13/GPIO11 control path
   before adding boost power management. The current decompression artifact
   does not drive this pin; wiring alone does not disable standby boost load.
+- [ ] Decode Tangela's preserved non-erased coredump offline against the matching
+  original image/ELF, validating format/checksum and image provenance before
+  attributing a cause or relating it to the historical 3270 mV PROTECT record.
+  Preserve the private original; see DECOMPRESSION_TANGELA_2026-10-12.md.
 - [ ] Preserve and label the suspect field USB extensions from Ness/Pinsir.
   Inspect/photograph external socket contacts, internal plug and cap/gasket
   sealing surfaces before further cleaning; compare against a working sample,
