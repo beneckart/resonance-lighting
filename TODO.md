@@ -3449,6 +3449,11 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
 
 ## 2026-10-11 -- Bodhi Hive VBAT chime retrofit
 
+- [ ] Decode the preserved nonempty crash-record partitions for Eevee (9F0E54,
+  Ben's private backup 20261012T030000Z-9F0E54) and Sakura (F2BE0C, Brian's
+  private backup; see DECOMPRESSION_SAKURA_2026-10-11.md). Validate the records
+  and identify the matching firmware/ELF before attributing a cause. Nonempty
+  bytes alone do not establish a valid panic or a current fault.
 - [ ] Use the evidence-first intake checklist in FIXTURE_STORAGE_AND_WAKE.md
   for the next post-burn lanterns before repair, profile changes or firmware.
   Preserve a few anomalous and comparable healthy flash/NVS specimens privately.

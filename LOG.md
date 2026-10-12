@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-11 -- Ben + Codex -- Eevee decompression flash and signature
+
+Pulled Brian's b2ffc4e Sakura acceptance records and merged both benches'
+journal entries. Identified the newly connected lantern as Eevee 9F0E54
+(D8:85:AC:9F:0E:54), COM16. Intake showed 3.279-3.280 V, charging, FULL tier,
+healthy class sensors, no charger fault and historical low-vbat PROTECT at
+3029 mV. Preserved pre-ROM telemetry, the 64 KiB configuration prefix, the
+nonempty coredump partition and a digest-verified copy of its old application.
+The coredump remains private and undecoded; a follow-up is in TODO.md.
+
+Installed the exact Ness-tested fx-261012-5164506-b artifact, SHA-256
+a15f81d9f1eb7fa8c79903de26b494b029f195ec5a78e165753b963f90ec292e.
+Eevee was running app1, so only 0x340000 was written. ROM verified the new
+application and the unchanged original configuration prefix. Fresh telemetry
+confirmed the revision, valid app1, no pending verify, FIELD/channel 11 and
+unchanged PROTECT history. No profile change or protection clear was sent.
+
+After a 30-second stable boot, one exact-target USB command played the local
+signature: seven hits, max onset lateness 73 us, no blocks/failsafes, gate off,
+3.289 V and FULL tier. A 60-minute RAM session is active. Physical listening,
+USER wake, battery-only repeated operation and event endurance are unverified.
+Evidence and backup identities: docs/tests/DECOMPRESSION_EEVEE_2026-10-11.md.
+
 ## 2026-10-11 -- Brian + Claude -- Sakura decompression canary and signature
 
 Brian flashed the ADR 0082 decompression canary onto Sakura F2BE0C
