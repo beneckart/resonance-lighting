@@ -308,6 +308,14 @@ String telemetryJson() {
     j += ",\"tof_depth_mm\":" + String(sn.tofDepthMm);
     j += ",\"tof_depth_filtered_mm\":" + String(sn.tofDepthFilteredMm, 1);
     j += ",\"tof_confidence\":" + String(sn.tofConfidence);
+    // Per-zone closest confident return (3x3, TMF channels 1..9) from the same
+    // report; 0 = no return. Lets host tools ignore a zone that sees fixture
+    // structure while the other zones still see a person.
+    j += ",\"tof_zone_mm\":[";
+    for (int z = 0; z < 9; ++z) { if (z) j += ','; j += String(sn.tofZoneMm[z]); }
+    j += "],\"tof_zone_conf\":[";
+    for (int z = 0; z < 9; ++z) { if (z) j += ','; j += String(sn.tofZoneConfidence[z]); }
+    j += "]";
     j += ",\"tmf_reads\":" + String((unsigned long)sn.tmfReads);
     j += ",\"tmf_errors\":" + String((unsigned long)sn.tmfErrors);
     j += ",\"tmf_recoveries\":" + String((unsigned long)sn.tmfRecoveries);
