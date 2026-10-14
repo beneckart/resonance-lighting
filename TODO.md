@@ -3652,7 +3652,9 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   loudness, buzz/damping and any weak or null strikes per lantern. Check capbank
   refill and battery sag at the chosen width before changing the firmware default
   (Brian + Ben).
-- [~] **Accurate multi-lantern timing for songs.** 2026-10-13: tone lab has
+- [~] **Accurate multi-lantern timing for songs.** Superseded by ADR 0084 pattern
+  mode (2026-10-14); see the items below.
+  Original note: 2026-10-13: tone lab has
   mic latency sync, compensation and Play timing measurement (USB only).
   Medians 48-89 ms; four lanterns showed occasional +70-110 ms strikes that a
   fixed offset cannot fix. Next: verify compensated runs with the reworked
@@ -3679,3 +3681,23 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   sits about 18 cm in front of it, confirm one ding per wave on each of the
   eight sensored lanterns, and tune range/confidence. Longer term this belongs
   in firmware (ADR 0082 presence trigger) so it works without USB (Brian).
+
+## 2026-10-14 -- ADR 0084 synchronized patterns (proposed)
+
+- [ ] **Ben review of ADR 0084 and the firmware change** (packet type 36,
+  election, timer path, serial `!P` envelope, solenoid/NVS hooks) before any
+  artifact is flashed (Ben + Brian).
+- [ ] **Build an immutable `b` artifact and flash two lanterns** under ADR 0040
+  (declared operator, private backup, app-only write); verify `!P` SET CRC,
+  telemetry pattern fields, election and USB-free playback.
+- [ ] **Measure cross-lantern alignment** with the tone lab microphone and, if
+  possible, GPIO capture on two lanterns; then conductor loss and re-merge.
+- [ ] **Calibrate mechanical lead** from locally timed strikes (not USB `K`
+  latency) and feed it into Standalone loads.
+- [ ] **Energy run**: all nine unplugged playing a realistic pattern for a
+  sustained period; battery, refill and missed-strike counts.
+- [ ] **Open design items**: radio upload of parts, Atom start/stop, whether a
+  session should survive reset, pattern behavior on much larger groups.
+- [ ] **Fix test_build_wrapper_contract.sh on macOS** (fails on a clean checkout:
+  "build options do not contain recipe flag: -I<repo>/firmware"; likely
+  /tmp vs /private/tmp path canonicalization).

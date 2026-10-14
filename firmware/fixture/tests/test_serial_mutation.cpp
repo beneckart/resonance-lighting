@@ -95,5 +95,40 @@ int main() {
     CHECK_EQ(value, 4);
   }
 
+    // ADR 0084 pattern lines: READY for this lantern with the full line intact,
+  // silent for another lantern, and still bounded.
+  {
+    const uint8_t me[3] = {0x9F, 0x27, 0x38};
+    SerialMutationParser p;
+    SerialMutationCommand cmd{};
+    std::string line = "!P9F2738 SET 1a2b 2000000 16 0 0,1000000\n";
+    int ready = 0;
+    for (char ch : line) {
+      if (p.feed((uint8_t)ch, me, cmd) == SERIAL_MUTATION_READY) {
+        ready++;
+        CHECK_EQ(cmd.type, SERIAL_MUTATION_PATTERN);
+        CHECK(std::string(p.line()) == "!P9F2738 SET 1a2b 2000000 16 0 0,1000000");
+      }
+    }
+    CHECK_EQ(ready, 1);
+    std::string other = "!P9E668C SET 1a2b 2000000 16 0 0\n";
+    ready = 0;
+    for (char ch : other) ready += p.feed((uint8_t)ch, me, cmd) == SERIAL_MUTATION_READY;
+    CHECK_EQ(ready, 0);
+    // A short mutation still works right after a pattern line.
+    std::string sig = "!K9F2738:1\n";
+    ready = 0;
+    for (char ch : sig)
+      if (p.feed((uint8_t)ch, me, cmd) == SERIAL_MUTATION_READY) {
+        ready++;
+        CHECK_EQ(cmd.type, SERIAL_MUTATION_SIGNATURE);
+      }
+    CHECK_EQ(ready, 1);
+    std::string huge = "!P9F2738 SET 1 2000000 16 0 " + std::string(400, '1') + "\n";
+    ready = 0;
+    for (char ch : huge) ready += p.feed((uint8_t)ch, me, cmd) == SERIAL_MUTATION_READY;
+    CHECK_EQ(ready, 0);
+  }
+
   return testReport("serial_mutation");
 }

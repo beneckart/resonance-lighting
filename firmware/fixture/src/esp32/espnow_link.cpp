@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include "esp_timer.h"
 
 #include "identity.h"
 #include "nvs_store.h"
@@ -15,6 +16,27 @@ static uint32_t gTxSeq = 0;
 static volatile uint32_t gSendOk = 0, gSendFail = 0;
 static volatile uint32_t gLastRxMs = 0;
 static uint32_t gLastControlRxMs = 0;
+
+// Send-completion bookkeeping. Callbacks arrive in send order, so a FIFO of
+// tags (0 = untracked) pairs each completion with its frame. Only one tracked
+// completion is held; the loop collects it well within one beat period.
+static portMUX_TYPE gTxMux = portMUX_INITIALIZER_UNLOCKED;
+static uint32_t gTxTags[16];
+static uint8_t gTxHead = 0, gTxCount = 0;
+static volatile bool gTxDoneReady = false;
+static uint32_t gTxDoneTag = 0;
+static uint64_t gTxDoneUs = 0;
+
+static void pushTxTag(uint32_t tag) {
+  portENTER_CRITICAL(&gTxMux);
+  if (gTxCount < 16) {
+    gTxTags[(gTxHead + gTxCount) % 16] = tag;
+    gTxCount++;
+  } else {
+    gTxCount = 0; // lost track: drop pairing rather than mislabel a frame
+  }
+  portEXIT_CRITICAL(&gTxMux);
+}
 
 static void resetRxQueue() {
   if (gRxQueue) xQueueReset(gRxQueue);
@@ -29,14 +51,29 @@ static void onEspNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, i
   it.rssi = info->rx_ctrl ? info->rx_ctrl->rssi : 0;
   it.len = (uint8_t)len;
   it.rx_ms = now;
+  it.rx_us = esp_timer_get_time();
   memcpy(it.data, data, len);
   BaseType_t hpw = pdFALSE;
   xQueueSendFromISR(gRxQueue, &it, &hpw); // recv cb is WiFi-task ctx; ISR-safe send is fine
 }
 
 static void onEspNowSend(const esp_now_send_info_t *info, esp_now_send_status_t status) {
+  uint64_t now = esp_timer_get_time();
   if (status == ESP_NOW_SEND_SUCCESS) gSendOk++;
   else gSendFail++;
+  portENTER_CRITICAL_ISR(&gTxMux);
+  if (gTxCount) {
+    uint32_t tag = gTxTags[gTxHead];
+    gTxHead = (uint8_t)((gTxHead + 1) % 16);
+    gTxCount--;
+    if (tag) {
+      gTxDoneTag = tag;
+      gTxDoneUs = now;
+      gTxDoneReady = true;
+    }
+  }
+  portEXIT_CRITICAL_ISR(&gTxMux);
+  (void)info;
 }
 
 bool espNowInit() {
@@ -53,6 +90,10 @@ bool espNowInit() {
   resetRxQueue();
   gLastRxMs = 0;
   gLastControlRxMs = 0;
+  portENTER_CRITICAL(&gTxMux); // completions from a previous session never pair
+  gTxCount = 0;
+  gTxDoneReady = false;
+  portEXIT_CRITICAL(&gTxMux);
 
   esp_err_t err = esp_wifi_set_channel(gCfg.channel, WIFI_SECOND_CHAN_NONE);
   if (err != ESP_OK) {
@@ -124,9 +165,29 @@ void fillHeader(NbHeader *h, uint8_t type) {
   h->uptime_ms = millis();
 }
 
-bool espNowSendRaw(const void *data, size_t len) {
+bool espNowSendRaw(const void *data, size_t len) { return espNowSendTagged(data, len, 0); }
+
+bool espNowSendTagged(const void *data, size_t len, uint32_t tag) {
   if (!gUp) return false;
-  return esp_now_send(BCAST, (const uint8_t *)data, len) == ESP_OK;
+  pushTxTag(tag); // before the send: its callback may fire immediately
+  if (esp_now_send(BCAST, (const uint8_t *)data, len) == ESP_OK) return true;
+  portENTER_CRITICAL(&gTxMux); // no callback will come for a refused send
+  if (gTxCount) gTxCount--;
+  portEXIT_CRITICAL(&gTxMux);
+  return false;
+}
+
+bool espNowTakeTxDone(uint32_t &tag, uint64_t &txUs) {
+  bool ready = false;
+  portENTER_CRITICAL(&gTxMux);
+  if (gTxDoneReady) {
+    tag = gTxDoneTag;
+    txUs = gTxDoneUs;
+    gTxDoneReady = false;
+    ready = true;
+  }
+  portEXIT_CRITICAL(&gTxMux);
+  return ready;
 }
 
 uint32_t espNowSendOk() { return gSendOk; }

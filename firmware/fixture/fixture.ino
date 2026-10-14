@@ -30,6 +30,7 @@
 #include "src/esp32/serial_cli.h"
 #include "src/esp32/sleep_audit_io.h"
 #include "src/esp32/solenoid.h"
+#include "src/esp32/pattern.h"
 #include "src/esp32/status_led.h"
 #include "src/esp32/telemetry.h"
 #include "src/esp32/time_anchor.h"
@@ -60,6 +61,7 @@ void setup() {
   nvsLoadConfig();
   sleepAuditInit();
   solenoidInit();
+  patternInit(); // ADR 0084; decompression builds only
   identityInit();
 
   // 6. Power stack: Board.init (rail re-parked after every attempt), charger

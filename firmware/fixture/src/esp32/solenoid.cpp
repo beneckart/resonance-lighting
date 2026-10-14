@@ -21,6 +21,7 @@ struct SolenoidLock {
   ~SolenoidLock() { portEXIT_CRITICAL(&gSolenoidMux); }
 };
 static volatile bool gGateOn = false;
+static volatile bool gPatternMode = false; // ADR 0084: pattern timer owns the gate
 static uint32_t gLastEndMs = 0;
 static uint32_t gFailsafeMs = 0;
 static uint32_t gStrikes = 0, gBlocked = 0, gFailsafeCount = 0;
@@ -149,6 +150,7 @@ void solenoidInit() {
 void solenoidStop(const char *why) {
   SolenoidLock lock;
   gSignature.cancel(esp_timer_get_time());
+  gPatternMode = false; // any stop/veto also ends pattern playback (ADR 0084)
   if (gSignatureTimer) esp_timer_stop(gSignatureTimer);
   if (gPulseTimer) esp_timer_stop(gPulseTimer);
   solenoidIdle();
@@ -175,7 +177,7 @@ static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
   // same HIGH and extends it to the firmware-bounded production pulse width.
   {
     SolenoidLock lock;
-    if (!gCfg.solEn || !gPulseTimer || gGateOn || gSignature.active() ||
+    if (!gCfg.solEn || !gPulseTimer || gGateOn || gSignature.active() || gPatternMode ||
         millis() - gLastEndMs < RES_SOLENOID_REST_MS ||
         (!takeExternalHigh && gpio_get_level((gpio_num_t)RES_SOLENOID_PIN))) {
       gBlocked++;
@@ -212,7 +214,7 @@ bool solenoidSignatureStart() {
   {
     SolenoidLock lock;
     // Reject known cooldown/external-source conflicts before touching NVS.
-    if (!gSignature.ready(esp_timer_get_time()) ||
+    if (!gSignature.ready(esp_timer_get_time()) || gPatternMode ||
         gpio_get_level((gpio_num_t)RES_SOLENOID_PIN)) return false;
   }
   // Flash write finishes before the phrase clock starts, once per phrase.
@@ -233,12 +235,32 @@ SignatureSequence solenoidSignatureSnapshot() {
 
 bool solenoidBusy() {
   SolenoidLock lock;
-  return gGateOn || gSignature.active();
+  return gGateOn || gSignature.active() || gPatternMode;
+}
+
+bool solenoidSetPatternMode(bool on) {
+  SolenoidLock lock;
+  if (on && (gSignature.active() || gGateOn)) return false;
+  gPatternMode = on;
+  return true;
+}
+
+bool solenoidPatternMode() { return gPatternMode; }
+
+// Called from the pattern esp_timer task: no NVS, I2C, allocation or logging.
+// The pattern owner armed the durable load marker in loop context beforehand.
+bool solenoidPatternPulse(uint16_t pulseMs, uint64_t *onsetUs) {
+  SolenoidLock lock;
+  if (!gPatternMode) return false;
+  pulseMs = constrain(pulseMs, (uint16_t)RES_SOLENOID_MIN_MS, (uint16_t)RES_SOLENOID_MAX_MS);
+  if (pulsePrepared(pulseMs, false, onsetUs)) return true;
+  gBlocked++;
+  return false;
 }
 
 bool solenoidQuietFor(uint32_t ms) {
   SolenoidLock lock;
-  if (gGateOn || gSignature.active()) return false;
+  if (gGateOn || gSignature.active() || gPatternMode) return false;
   return millis() - gLastEndMs >= ms; // gLastEndMs==0: quiet since boot
 }
 

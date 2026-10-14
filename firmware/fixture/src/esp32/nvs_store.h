@@ -12,6 +12,7 @@
 // disarmed solenoid posture to the universal enabled capability once.
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 #include "../core/fixture_context.h"
 #include "../core/sleep_audit.h"
@@ -59,6 +60,10 @@ bool nvsPersistClassLast(uint8_t cls);
 bool nvsPersistSolEn(uint8_t en);
 bool nvsPersistMaintV10(uint8_t v10);
 bool nvsPersistChannel(uint8_t channel);
+// ADR 0084 pattern part: an opaque, versioned blob validated by the caller.
+bool nvsWritePatternBlob(const void *data, size_t len);
+size_t nvsReadPatternBlob(void *data, size_t len); // 0 = none/unreadable
+bool nvsClearPatternBlob();
 bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
                            uint16_t presenceSeedMinS,
                            uint16_t presenceRearmClearS);

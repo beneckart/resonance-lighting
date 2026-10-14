@@ -12,6 +12,7 @@ struct RxItem {
   int8_t rssi;
   uint8_t len;
   uint32_t rx_ms; // callback receipt time; scheduled events do not use drain time
+  uint64_t rx_us; // same instant on esp_timer (ADR 0084 pattern clock pairing)
   uint8_t data[250]; // ESP-NOW payload ceiling; append-only heartbeat headroom
 };
 static_assert(sizeof(NbHeartbeat) <= sizeof(((RxItem *)0)->data),
@@ -26,6 +27,10 @@ int espNowDrain(RxItem *out, int maxItems);
 
 void fillHeader(NbHeader *h, uint8_t type);
 bool espNowSendRaw(const void *data, size_t len);
+// Send and later report, via espNowTakeTxDone(), the esp_timer time at which
+// the driver finished transmitting this frame (ADR 0084 beat follow-up).
+bool espNowSendTagged(const void *data, size_t len, uint32_t tag);
+bool espNowTakeTxDone(uint32_t &tag, uint64_t &txUs);
 
 uint32_t espNowSendOk();
 uint32_t espNowSendFail();

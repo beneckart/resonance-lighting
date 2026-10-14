@@ -19,6 +19,7 @@
 #include "sentinel_trace.h"
 #include "solenoid.h"
 #include "decompression.h"
+#include "pattern.h"
 #include "sleep_audit_io.h"
 
 // Deliberately TRIMMED vs net_bench (Ben, 2026-07-30: brevity over compat).
@@ -362,6 +363,7 @@ String telemetryJson() {
       j += String((unsigned long)signature.offsetsUs[i]);
     }
     j += ']';
+    patternTelemetry(j);
   }
   j += "}";
   return j;

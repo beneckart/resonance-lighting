@@ -201,6 +201,28 @@ static bool putU8(const char *key, uint8_t v) {
   return ok;
 }
 
+bool nvsWritePatternBlob(const void *data, size_t len) {
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putBytes("pattern", data, len) == len;
+  pf.end();
+  return ok;
+}
+size_t nvsReadPatternBlob(void *data, size_t len) {
+  Preferences pf;
+  if (!pf.begin(kNs, true)) return 0;
+  size_t n = pf.isKey("pattern") ? pf.getBytes("pattern", data, len) : 0;
+  pf.end();
+  return n;
+}
+bool nvsClearPatternBlob() {
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = !pf.isKey("pattern") || pf.remove("pattern");
+  pf.end();
+  return ok;
+}
+
 bool nvsPersistCapacity(uint16_t mah) {
   if (!putU32("cap_mah", mah)) return false;
   gCfg.capMah = mah;

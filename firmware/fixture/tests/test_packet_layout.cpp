@@ -63,6 +63,11 @@ int main() {
   CHECK_EQ(sizeof(NbDecompressionControl), 22u);
   CHECK_EQ(offsetof(NbDecompressionControl, controller_boot), 16u);
   CHECK_EQ(sizeof(NbDecompressionReceipt), 34u);
+  CHECK_EQ(sizeof(NbPatternBeat), 43u);
+  CHECK_EQ(offsetof(NbPatternBeat, pattern_id), 13u);
+  CHECK_EQ(offsetof(NbPatternBeat, prev_tx_group_us), 33u);
+  CHECK_EQ(offsetof(NbPatternBeat, flags), 41u);
+  CHECK_EQ((int)NB_PATTERN_BEAT, 36);
   CHECK_EQ(offsetof(NbDecompressionReceipt, request_seq), 20u);
 
   // Fixture-era payloads (era-18+ receivers only, still pinned).

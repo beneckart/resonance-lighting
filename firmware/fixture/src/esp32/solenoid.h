@@ -25,7 +25,11 @@ void solenoidStop(const char *why);  // end MCU gate drive (OTA/maintenance/slee
 bool solenoidStrike(uint16_t pulseMs, const char *why);
 bool solenoidSignatureStart(); // prepared once, timed outside Arduino loop
 SignatureSequence solenoidSignatureSnapshot();
-bool solenoidBusy(); // includes silent gaps inside a signature
+bool solenoidBusy(); // includes silent gaps inside a signature or pattern
+// ADR 0084 pattern mode: while on, ordinary strikes and the signature refuse.
+bool solenoidSetPatternMode(bool on);
+bool solenoidPatternMode(); // false after any solenoidStop()
+bool solenoidPatternPulse(uint16_t pulseMs, uint64_t *onsetUs); // timer context
 void solenoidExternalTick();         // extend capboard SW1 edge to safe 40 ms
 void solenoidButtonHandleWake();     // fire the one strike an EXT0 wake earned
 void solenoidButtonTick();
@@ -34,6 +38,7 @@ void solenoidFailsafeTick();
 
 // Telemetry accessors.
 bool solenoidGateOn();
+bool solenoidPatternMode(); // false after any solenoidStop()
 bool solenoidQuietFor(uint32_t ms); // no gate drive now or within the last ms
 uint32_t solenoidStrikes();
 uint32_t solenoidBlocked();

@@ -10,6 +10,51 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- Pattern mode: tone lab sequencer and ADR 0084 firmware
+
+Ben approved starting firmware work. Proposed ADR 0084 (synchronized
+decompression patterns with an elected conductor) and implemented it in the
+fixture firmware behind RES_DECOMPRESSION; no lantern has been flashed yet.
+
+Firmware: each lantern stores its own part (pattern id, loop length, pulse,
+mechanical lead, up to 32 hit offsets, >= 250 ms apart including the wrap) in
+NVS via a bounded exact-target USB line (`!P<id> SET|PLAY|STOP|CLEAR`) and
+echoes a CRC32. Playback is a RAM-only 1..120 minute session that does not
+resume after reset. A new append-only packet type 36 NB_PATTERN_BEAT carries
+the group clock: the elected conductor beats every 500 ms and each beat
+reports when the previous one actually left the radio (send-complete
+callback); followers pair that with their microsecond receipt time and take
+the median offset of the last five samples. Election needs no extra traffic:
+listen 1.5 s, else conduct; follow the lowest beating ID; take over after
+1.6 s of silence keeping the clock (ID-staggered). Hits fire from a 1 ms
+esp_timer on group time with no catch-up and never twice; strikes, the
+signature and USER are refused while a pattern plays; existing power and
+maintenance vetoes stop it; the load marker is armed in loop context.
+
+Supporting changes: RxItem gains rx_us; ESP-NOW sends can be tagged to report
+tx-complete time; SerialMutationParser accepts bounded `!P` lines (buffer 384,
+length now 16-bit); NVS pattern blob; solenoid pattern-mode hooks (solenoidStop
+also ends a pattern); pattern_* telemetry fields; decompressionPowerReady() is
+now shared.
+
+Validation: new native tests test_pattern_part (74 checks, including a CRC
+pinned against the tone lab's Python) and test_pattern_sync (five simulated
+lanterns with +-30 ppm clocks, 0.2-5 ms tx delay, 10% beat loss: one
+conductor, hits aligned within the 250 us simulation step through start-up,
+conductor loss and re-merge, no hit fired twice). All 38 native test files
+pass. Decompression and fleet ESP32 builds compile (36% flash, 21% RAM). The
+build-wrapper contract test fails on macOS on a clean checkout too (artifact
+recipe flag path check); not caused by this change.
+
+Tone lab: interface moved to ops/bench/tone_lab_ui/ with three tabs
+(Lanterns, Tone order, Patterns), shared header and log, filter/sort for
+larger fleets, and the ranking now keeps unplugged lanterns. Patterns tab is
+a step sequencer (BPM, steps, steps per beat, click/drag painting, autosave,
+250 ms per-lantern spacing enforced by server and highlighted) with USB
+playback (optional latency compensation, playhead, loop count, 10-minute
+cap) and Standalone controls: load verified parts onto lanterns (optional
+relative-latency lead), play standalone for N minutes, stop.
+
 ## 2026-10-13 -- Brian + Claude -- Tone lab proximity ding (first try, reworked)
 
 Added a host-side "Proximity ding" mode to the tone lab: while on, the app

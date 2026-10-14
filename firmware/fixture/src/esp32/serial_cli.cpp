@@ -16,6 +16,7 @@
 #include "solenoid.h"
 #include "telemetry.h"
 #include "decompression.h"
+#include "pattern.h"
 
 static SerialMutationParser gSerialMutationParser;
 
@@ -129,6 +130,9 @@ void handleSerial() {
       }
       Serial.printf("signature: %s\n", accepted ? "accepted" : "refused");
     }
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_PATTERN)
+      patternSerialLine(gSerialMutationParser.line());
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_DECOMPRESSION)
       Serial.printf("decompression session: %s\n",

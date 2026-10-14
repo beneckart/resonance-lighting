@@ -11,6 +11,7 @@
 #include "behavior_glue.h"
 #include "board_power.h"
 #include "decompression.h"
+#include "pattern.h"
 #include "identity.h"
 #include "led_driver.h"
 #include "maintenance.h"
@@ -260,6 +261,11 @@ static void processPacket(const RxItem &it) {
   if (memcmp(h->src_id, gMyId, 3) == 0) return; // our own broadcast echo
 
   switch (h->type) {
+  case NB_PATTERN_BEAT: {
+    if (it.len != sizeof(NbPatternBeat)) return;
+    patternOnBeat(*(const NbPatternBeat *)it.data, it.rx_us);
+    break;
+  }
   case NB_DECOMPRESSION_CONTROL: {
     if (it.len != sizeof(NbDecompressionControl)) return;
     decompressionOnRadio(*(const NbDecompressionControl *)it.data, it.rx_ms);

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tone lab</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Tone lab</h1>
+    <span class="status" id="count">–</span>
+    <button id="scan">Rescan lanterns</button>
+    <button id="sess">Extend sessions 60 min</button>
+    <span class="sep"></span>
+    <button id="prox">Proximity ding: off</button>
+    <i class="info" tabindex="0" aria-label="About proximity ding">i<span class="tip">
+      <b>Proximity ding</b> turns each lantern's distance sensor into a trigger: wave a hand in front of it and it
+      chimes once at its own pulse. When switched on, each sensor learns its background for 1.5 s (keep hands away);
+      after that only something at least 30 cm nearer than the background and inside the range counts. The laptop
+      watches every sensor about 8 times a second over USB and sends the strike, so this works only while the
+      lanterns are plugged in and awake. A card saying "sensor blocked" has something right in front of it.</span></i>
+    <label class="status">range <input id="prange" type="range" min="200" max="1500" step="50" value="600"> <span id="prangev">60</span> cm</label>
+    <span class="status grow" id="saved"></span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="lanterns">Lanterns</button>
+    <button role="tab" data-tab="order">Tone order</button>
+    <button role="tab" data-tab="patterns">Patterns</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Lanterns: classification, pulse, notes -->
+  <section class="tab" id="tab-lanterns">
+    <div class="toolbar">
+      <input type="search" id="filter" placeholder="Filter by name or ID" aria-label="Filter lanterns">
+      <label class="status">sort <select id="sort">
+        <option value="order">tone order</option><option value="hub">hub port</option><option value="name">name</option>
+      </select></label>
+      <label class="status">show <select id="show">
+        <option value="all">all</option><option value="online">online</option>
+        <option value="large">large</option><option value="small">small</option><option value="unset">unclassified</option>
+      </select></label>
+      <span class="status">Pulse saves as you type (blank = firmware default 40 ms)</span>
+    </div>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <!-- Tone order: ranking, saved orders, play, latency -->
+  <section class="tab" id="tab-order">
+    <div class="toolbar">
+      <span class="lbl">Play</span>
+      <span class="seg" id="set"><button data-set="all">All</button><button data-set="large">Large</button><button data-set="small">Small</button></span>
+      <button data-dir="down" class="primary">▶ High → low</button>
+      <button data-dir="up" class="primary">▶ Low → high</button>
+      <label class="status">gap <input id="gapms" type="range" min="100" max="1500" step="50" value="400"> <span id="gapv">400</span> ms</label>
+      <button id="seq">Slow check</button>
+    </div>
+    <div class="toolbar">
+      <span class="lbl">Timing</span>
+      <button id="cal">Sync latency (mic)</button>
+      <i class="info" tabindex="0" aria-label="About sync latency">i<span class="tip">
+        <b>Sync latency</b> strikes each lantern in the current set a few times and listens with the laptop
+        microphone. It measures how long each one takes from command to sound and saves that on its card (median,
+        plus the spread between strikes). Keep the room quiet; about 2 seconds per strike. Re-sync a lantern after
+        changing its pulse, since pulse width changes how fast the mallet arrives.</span></i>
+      <label class="status">strikes each <select id="reps"><option>3</option><option selected>4</option><option>5</option></select></label>
+      <label class="status"><input type="checkbox" class="comp"> compensate latency</label>
+      <i class="info" tabindex="0" aria-label="About compensate latency">i<span class="tip">
+        <b>Compensate latency</b> changes when commands are sent. Each lantern has its own delay from command to
+        chime. With this on, faster lanterns get their command sent early by however much quicker they are than the
+        slowest one, so every chime lands exactly on the beat. Example: latencies of 30, 55 and 40 ms are sent 25, 0
+        and 15 ms early. Uses the latencies from Sync latency; unsynced lanterns get the group median. Applies to
+        Play and to Patterns.</span></i>
+      <label class="status"><input type="checkbox" id="meas"> measure timing on play</label>
+      <i class="info" tabindex="0" aria-label="About measure timing">i<span class="tip r">
+        <b>Measure timing on play</b> only listens; it never changes what is sent. The microphone records the run,
+        finds where each chime starts, and compares the hits with a perfect grid at your gap. The log shows each
+        lantern's error (+ late, - early), the worst hit (max) and the typical error (rms). Compare runs with
+        compensation off and on. Needs a quiet room and a gap of at least 100 ms.</span></i>
+    </div>
+    <div class="toolbar">
+      <span class="lbl">Order</span>
+      <button id="rev">Reverse</button>
+      <button id="grp">Large first, small last</button>
+      <select id="psel" aria-label="Saved orders"><option value="">Saved orders…</option></select>
+      <button id="pload">Load</button><button id="psave">Save as…</button><button id="pdel">Delete</button>
+      <span class="status">Drag rows to reorder. 1 = highest tone.</span>
+    </div>
+    <ol class="ranks" id="ranks"></ol>
+  </section>
+
+  <!-- Patterns: step sequencer -->
+  <section class="tab" id="tab-patterns">
+    <div class="toolbar">
+      <select id="patsel" aria-label="Pattern"></select>
+      <button id="patnew">New</button><button id="patdup">Duplicate</button>
+      <button id="patren">Rename</button><button id="patdel">Delete</button>
+      <span class="sep"></span>
+      <label class="status">BPM <input type="number" id="bpm" min="20" max="300" step="1"></label>
+      <label class="status">steps <select id="steps">
+        <option>8</option><option>12</option><option>16</option><option>24</option><option>32</option><option>48</option><option>64</option>
+      </select></label>
+      <label class="status">per beat <select id="spb"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <button id="patclear">Clear</button>
+    </div>
+    <div class="toolbar">
+      <button id="patplay" class="primary">▶ Play</button>
+      <button id="patstop">■ Stop</button>
+      <label class="status">loops <select id="loops">
+        <option value="1">1</option><option value="2">2</option><option value="4" selected>4</option>
+        <option value="8">8</option><option value="0">until stopped</option></select></label>
+      <label class="status"><input type="checkbox" class="comp"> compensate latency</label>
+      <span class="status" id="patinfo"></span>
+      <i class="info" tabindex="0" aria-label="About patterns">i<span class="tip r">
+        <b>Patterns</b> are a step sequencer: rows are lanterns (tone order, highest at top), columns are steps.
+        Click or drag across cells to place hits; edits save automatically. Each lantern plays at its own pulse.
+        Hits on one lantern must be at least 250 ms apart, counting the loop wrap, so its chime capacitor can refill;
+        red cells break that rule and the pattern will not play. This plays over USB from the laptop. Playing
+        without the laptop needs the firmware pattern mode in the proposed ADR 0084.</span></i>
+    </div>
+    <div class="toolbar standalone">
+      <span class="lbl">Standalone</span>
+      <button id="saload">Load onto lanterns</button>
+      <label class="status"><input type="checkbox" id="salead" checked> mechanical lead from latency</label>
+      <label class="status">for <select id="samin"><option>5</option><option selected>15</option><option>30</option><option>60</option><option>120</option></select> min</label>
+      <button id="saplay" class="primary">▶ Play standalone</button>
+      <button id="sastop">■ Stop standalone</button>
+      <span class="status" id="sainfo"></span>
+      <i class="info" tabindex="0" aria-label="About standalone patterns">i<span class="tip r">
+        <b>Standalone</b> playback runs inside the lanterns (ADR 0084), so it keeps going after you unplug them.
+        <b>Load onto lanterns</b> stores each lantern's part (its hits, pulse and a mechanical lead) in its memory
+        and checks it with a checksum; lanterns with no hits still join as silent timekeepers. <b>Play standalone</b>
+        starts every connected lantern for the chosen minutes: they elect a conductor among themselves, which
+        broadcasts the beat over radio so all of them stay in time. Playback ends after the time runs out, on
+        Stop, on low battery, or if a lantern resets. Needs the pattern-mode firmware; older lanterns are reported
+        as not supported.</span></i>
+    </div>
+    <div class="seqwrap"><div class="seq" id="seq-grid"></div></div>
+  </section>
+</main>
+
+<footer id="logbar" title="Click to expand">
+  <div id="log"></div>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

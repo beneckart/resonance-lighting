@@ -73,6 +73,7 @@ enum NbType : uint8_t {
   NB_STORAGE_RECEIPT = 33, // fixture -> bridge: prepared/refused/failed (not off proof)
   NB_DECOMPRESSION_CONTROL = 34, // controller -> exact target: lease or local phrase
   NB_DECOMPRESSION_RECEIPT = 35, // fixture -> controller: admission/completion
+  NB_PATTERN_BEAT = 36, // elected conductor -> pattern group: shared clock (ADR 0084)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -115,6 +116,27 @@ struct __attribute__((packed)) NbDecompressionReceipt {
   uint8_t signature_hits;
   uint32_t signature_max_late_us;
 };
+
+// ADR 0084 pattern clock. The conductor sends one beat every 500 ms; each beat
+// reports when the PREVIOUS beat actually left the radio (two-step follow-up),
+// in group-clock microseconds. Followers pair that with their own receipt time.
+struct __attribute__((packed)) NbPatternBeat {
+  NbHeader h;
+  uint32_t pattern_id;       // nonzero; only lanterns holding this pattern listen
+  uint32_t loop_us;          // must match the receiver's stored part
+  uint32_t conductor_boot;   // nonzero random nonce; beat_seq is monotonic per boot
+  uint32_t beat_seq;         // nonzero
+  uint32_t prev_beat_seq;    // beat whose tx time follows; 0 = none yet
+  uint64_t prev_tx_group_us; // group time when prev_beat_seq left the radio
+  uint8_t flags;             // reserved, 0
+  uint8_t reserved;
+};
+
+static inline bool nbPatternBeatValid(const NbPatternBeat &b) {
+  return b.h.ver == NB_PROTO_VER && b.h.type == NB_PATTERN_BEAT &&
+      b.pattern_id && b.loop_us && b.conductor_boot && b.beat_seq &&
+      (b.h.src_id[0] || b.h.src_id[1] || b.h.src_id[2]);
+}
 
 static inline bool nbDecompressionValid(const NbDecompressionControl &c,
                                         const uint8_t target[3]) {

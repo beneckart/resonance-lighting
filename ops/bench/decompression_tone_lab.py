@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Decompression tone lab: classify lanterns by chime type and tone order.
+"""Decompression tone lab: classify, tune, order and sequence lanterns over USB.
 
-Local web app for USB-connected decompression-canary lanterns. Strikes are
-single exact-target `K<id>:<ms>` commands sent only after a fresh telemetry
-identity check on that port. Classification state is saved on every change to
-ops/bench/data/<site>/decompression-tone-map.json.
+Local web app for USB-connected decompression-canary lanterns. Tabs: Lanterns
+(chime type, per-lantern solenoid pulse, notes), Tone order (ranking, play
+runs, microphone latency sync) and Patterns (step sequencer). Strikes are
+exact-target `K<id>:<ms>` commands sent only after a fresh telemetry identity
+check on that port. State is saved on every change to
+ops/bench/data/<site>/decompression-tone-map.json. The browser UI lives in
+ops/bench/tone_lab_ui/.
 
     python ops/bench/decompression_tone_lab.py --site "Brian bench" --port 8765
 
-Requires pyserial.
+Requires pyserial; numpy and sounddevice enable the microphone features.
 """
 import argparse
 import csv
 import glob
 import json
+import struct
+import zlib
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +33,9 @@ except ImportError:
     np = sd = None
 
 REPO = Path(__file__).resolve().parents[2]
+UI_DIR = Path(__file__).resolve().parent / "tone_lab_ui"
+UI_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+            ".css": "text/css; charset=utf-8"}
 ap = argparse.ArgumentParser()
 ap.add_argument("--site", default="Brian bench")
 ap.add_argument("--port", type=int, default=8765)
@@ -67,6 +75,7 @@ STATE = load_state()
 STATE.setdefault("order_direction", "high_to_low")
 STATE.setdefault("pulse_ms", ARGS.pulse_ms)
 STATE.setdefault("presets", {})
+STATE.setdefault("patterns", {})
 # The app caps pulses well below the firmware's 300 ms limit while widths are being explored.
 PULSE_MIN_MS, PULSE_MAX_MS = 5, 100
 
@@ -104,6 +113,11 @@ def summarize(port, d):
         "strikes": d.get("solenoid_strikes"), "failsafes": d.get("solenoid_failsafes"),
         "blocked": d.get("solenoid_blocked"), "session_left_s": d.get("decompression_left_s"),
         "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")), "seen_utc": utc(),
+        # ADR 0084 firmware pattern mode (absent on older images)
+        "fw_pattern": "pattern_id" in d, "pattern_id": d.get("pattern_id"), "pattern_crc": d.get("pattern_crc"),
+        "pattern_playing": d.get("pattern_playing"), "pattern_role": d.get("pattern_role"),
+        "pattern_locked": d.get("pattern_locked"), "pattern_conductor": d.get("pattern_conductor"),
+        "pattern_left_s": d.get("pattern_left_s"), "pattern_played": d.get("pattern_played"),
     }
 
 
@@ -648,10 +662,248 @@ def prox_status(since=0):
             "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor}
 
 
+# ---------------------------------------------------------------------------
+# Patterns (step sequencer). A pattern is {bpm, steps, steps_per_beat,
+# hits: {fixture_id: [step, ...]}}. Its "lanes" -- loop length plus each
+# lantern's hit offsets in ms -- are the same data a future firmware
+# pattern mode would store per lantern (see the proposed ADR 0084).
+# ---------------------------------------------------------------------------
+MIN_HIT_SPACING_MS = 250      # tightest gap the locally timed signature already uses
+MAX_PATTERN_PLAY_S = 600      # a USB pattern run stops itself after 10 minutes
+PLAYER = {"running": False, "stop": threading.Event(), "status": {}}
+
+
+def pattern_lanes(p):
+    """Validate a pattern; return (loop_ms, step_ms, {fid: [offset_ms]}) or raise ValueError."""
+    bpm, steps, spb = float(p.get("bpm", 120)), int(p.get("steps", 16)), int(p.get("steps_per_beat", 4))
+    if not (20 <= bpm <= 300 and 1 <= steps <= 256 and 1 <= spb <= 8):
+        raise ValueError("bpm 20..300, steps 1..256, steps per beat 1..8")
+    step_ms = 60000.0 / (bpm * spb)
+    loop_ms = steps * step_ms
+    lanes, close = {}, []
+    for fid, idx in (p.get("hits") or {}).items():
+        idx = sorted({int(i) for i in idx if 0 <= int(i) < steps})
+        if not idx:
+            continue
+        gaps = [(b - a) * step_ms for a, b in zip(idx, idx[1:])] + [(steps - idx[-1] + idx[0]) * step_ms]
+        if min(gaps) < MIN_HIT_SPACING_MS:
+            close.append(fid)
+        lanes[fid.upper()] = [round(i * step_ms, 3) for i in idx]
+    if close:
+        names = ", ".join(lanterns.get(f, {}).get("callsign") or f for f in close)
+        raise ValueError(f"hits closer than {MIN_HIT_SPACING_MS} ms on {names} (counting the loop wrap); "
+                         f"slow the tempo or space them out")
+    return loop_ms, step_ms, lanes
+
+
+def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
+    st = PLAYER["status"]
+    fids = [f for f in lanes if f in lanterns and not lanterns[f].get("offline")]
+    st["skipped"] = [f for f in lanes if f not in fids]
+    with ProxPaused():
+        locks = [lock_for(lanterns[f]["port"]) for f in fids]
+        for lk in locks: lk.acquire()
+        conns, before = {}, {}
+        try:
+            for f in fids:  # identity check before any strike
+                s = serial.Serial(lanterns[f]["port"], 115200, timeout=0.05)
+                time.sleep(0.05)
+                d = telemetry(s, wait=1.5)
+                if not d or d.get("fixture_id") != f:
+                    s.close()
+                    st.setdefault("errors", []).append(f"{f}: identity mismatch")
+                    continue
+                conns[f], before[f] = s, d.get("solenoid_strikes")
+            lat = {}
+            if comp:
+                with state_lock:
+                    lat = {f: STATE["lanterns"].get(f, {}).get("latency_ms") for f in conns}
+                known = [v for v in lat.values() if v is not None]
+                fill = sorted(known)[len(known) // 2] if known else 0.0
+                lat = {f: (v if v is not None else fill) for f, v in lat.items()}
+            lead = max(lat.values()) if lat else 0.0
+            st["lead_ms"] = lead
+            # Sound for each hit lands at start + loop*loop_ms + offset (+ lead when compensating).
+            t0 = time.perf_counter() + (start_epoch_ms / 1000.0 - time.time())
+            sent = {f: 0 for f in conns}
+            k = 0
+            while not PLAYER["stop"].is_set() and (loops == 0 or k < loops):
+                if (k + 1) * loop_ms / 1000.0 > MAX_PATTERN_PLAY_S:
+                    st["note"] = f"stopped after {MAX_PATTERN_PLAY_S // 60} minutes"
+                    break
+                events = sorted((k * loop_ms + off + lead - lat.get(f, lead), f) for f in conns for off in lanes[f])
+                for rel_ms, f in events:
+                    due = t0 + rel_ms / 1000.0
+                    while not PLAYER["stop"].is_set():
+                        left = due - time.perf_counter()
+                        if left <= 0:
+                            break
+                        time.sleep(left - 0.002 if left > 0.004 else 0)
+                    if PLAYER["stop"].is_set():
+                        break
+                    conns[f].write(f"K{f}:{pulses[f]}\n".encode())
+                    sent[f] += 1
+                k += 1
+                st["loops_done"] = k
+            time.sleep(0.4)
+            short = []
+            for f, s in conns.items():
+                d = telemetry(s, wait=1.5)
+                got = (d.get("solenoid_strikes") - before[f]) if d and before[f] is not None else None
+                if got != sent[f]:
+                    short.append(f"{lanterns[f].get('callsign') or f} {got}/{sent[f]}")
+            st["confirmed"] = not short
+            st["unconfirmed"] = short
+            st["sent"] = sum(sent.values())
+        except Exception as ex:
+            st.setdefault("errors", []).append(str(ex))
+        finally:
+            for s in conns.values():
+                try: s.close()
+                except Exception: pass
+            for lk in locks: lk.release()
+    with open(STRIKE_LOG, "a") as fh:
+        fh.write(json.dumps({"kind": "pattern", "utc": utc(), "loop_ms": round(loop_ms, 1), "loops": st.get("loops_done"),
+                             "compensated": bool(comp), "status": {k: v for k, v in st.items() if k != "name"},
+                             "name": st.get("name")}) + "\n")
+    PLAYER["running"] = False
+
+
+def start_pattern(p, loops, comp):
+    if PLAYER["running"]:
+        return {"ok": False, "error": "a pattern is already playing"}
+    try:
+        loop_ms, step_ms, lanes = pattern_lanes(p)
+    except ValueError as ex:
+        return {"ok": False, "error": str(ex)}
+    if not lanes:
+        return {"ok": False, "error": "pattern has no hits"}
+    with state_lock:
+        pulses = {f: STATE["lanterns"].get(f, {}).get("pulse_ms") or STATE["pulse_ms"] for f in lanes}
+    start_epoch_ms = time.time() * 1000 + 1500  # identity checks happen before this
+    PLAYER["stop"].clear()
+    PLAYER["running"] = True
+    PLAYER["status"] = {"name": p.get("name"), "loops_done": 0, "loop_ms": loop_ms, "step_ms": step_ms,
+                        "start_epoch_ms": start_epoch_ms, "loops": loops}
+    threading.Thread(target=pattern_player, args=(lanes, loop_ms, loops, comp, pulses, start_epoch_ms),
+                     daemon=True).start()
+    return {"ok": True, **PLAYER["status"]}
+
+
+# ---------------------------------------------------------------------------
+# Standalone (firmware) patterns, ADR 0084: load each lantern's part over USB,
+# verify it by CRC, then start/stop playback that continues without the laptop.
+# ---------------------------------------------------------------------------
+def part_crc(pid, loop_us, pulse, lead, offsets):
+    """Same CRC32 as PatternPart::crc() in firmware/fixture/src/core/pattern_part.cpp."""
+    words = [pid, loop_us, pulse, lead, len(offsets), *offsets]
+    return zlib.crc32(b"".join(struct.pack("<I", w) for w in words)) & 0xFFFFFFFF
+
+
+def pattern_parts(p, use_lead):
+    """Per-lantern parts for every online lantern (no hits = silent timekeeper)."""
+    loop_ms, step_ms, lanes = pattern_lanes(p)
+    loop_us = int(round(loop_ms * 1000))
+    canon = json.dumps({"loop_us": loop_us, "lanes": {f: [int(round(o * 1000)) for o in v] for f, v in sorted(lanes.items())}},
+                       sort_keys=True).encode()
+    pid = (zlib.crc32(canon) & 0xFFFFFFFF) or 1
+    with state_lock:
+        meta = {f: dict(STATE["lanterns"].get(f, {})) for f in lanterns}
+        online = [f for f, l in lanterns.items() if not l.get("offline")]
+    lat = {f: meta[f].get("latency_ms") for f in online if meta[f].get("latency_ms") is not None}
+    base = min(lat.values()) if lat else 0.0
+    parts = {}
+    for f in online:
+        offs = [int(round(o * 1000)) for o in lanes.get(f, [])]
+        pulse = meta[f].get("pulse_ms") or STATE["pulse_ms"]
+        lead = int(round((lat.get(f, base) - base) * 1000)) if use_lead else 0
+        lead = max(0, min(lead, 200000))
+        parts[f] = {"pattern_id": pid, "loop_us": loop_us, "pulse_ms": pulse, "lead_us": lead, "offsets_us": offs,
+                    "crc": part_crc(pid, loop_us, pulse, lead, offs)}
+    return pid, parts
+
+
+def pattern_command(fid, line, wait_s=1.5):
+    """Identity-checked USB send of one '!P' line; returns the firmware's 'pattern:' reply or an error."""
+    info = lanterns.get(fid)
+    if not info or info.get("offline"):
+        return {"ok": False, "fixture_id": fid, "error": "not connected"}
+    with lock_for(info["port"]):
+        try:
+            with serial.Serial(info["port"], 115200, timeout=0.05) as s:
+                time.sleep(0.1)
+                d = telemetry(s, wait=1.5)
+                if not d or d.get("fixture_id") != fid:
+                    return {"ok": False, "fixture_id": fid, "error": f"identity mismatch: {d and d.get('fixture_id')}"}
+                if "pattern_id" not in d:
+                    return {"ok": False, "fixture_id": fid, "error": "firmware has no pattern mode (needs the ADR 0084 build)"}
+                s.reset_input_buffer()
+                s.write((line + "\n").encode())
+                end, buf = time.time() + wait_s, b""
+                while time.time() < end:
+                    buf += s.read(4096)
+                    for ln in buf.decode(errors="replace").splitlines():
+                        if ln.startswith("pattern:"):
+                            return {"ok": "refused" not in ln, "fixture_id": fid, "reply": ln.strip()}
+        except Exception as ex:
+            return {"ok": False, "fixture_id": fid, "error": str(ex)}
+    return {"ok": False, "fixture_id": fid, "error": "no reply"}
+
+
+def parallel(fn, items):
+    out = {}
+    def run(k, *a):
+        out[k] = fn(k, *a)
+    th = [threading.Thread(target=run, args=(k, *a)) for k, *a in items]
+    for t in th: t.start()
+    for t in th: t.join()
+    return out
+
+
+def upload_pattern(p, use_lead):
+    try:
+        pid, parts = pattern_parts(p, use_lead)
+    except ValueError as ex:
+        return {"ok": False, "error": str(ex)}
+    if not parts:
+        return {"ok": False, "error": "no lanterns connected"}
+    items = []
+    for f, pt in parts.items():
+        offs = ",".join(str(o) for o in pt["offsets_us"]) or "-"
+        items.append((f, f"!P{f} SET {pid:08x} {pt['loop_us']} {pt['pulse_ms']} {pt['lead_us']} {offs}"))
+    res = parallel(pattern_command, items)
+    for f, r in res.items():
+        if r.get("ok"):
+            want = f"crc={parts[f]['crc']:08x}"
+            if want not in r.get("reply", ""):
+                r.update(ok=False, error=f"CRC mismatch (expected {want}): {r.get('reply')}")
+        r["hits"] = len(parts[f]["offsets_us"])
+        r["lead_us"] = parts[f]["lead_us"]
+    log_entry = {"kind": "pattern_upload", "utc": utc(), "pattern_id": f"{pid:08x}", "name": p.get("name"),
+                 "use_lead": use_lead, "results": list(res.values())}
+    with open(STRIKE_LOG, "a") as fh:
+        fh.write(json.dumps(log_entry) + "\n")
+    return {"ok": all(r.get("ok") for r in res.values()), "pattern_id": f"{pid:08x}", "results": list(res.values())}
+
+
+def standalone(action, pattern_id=None, minutes=None):
+    online = [f for f, l in lanterns.items() if not l.get("offline")]
+    if action == "play":
+        line = lambda f: f"!P{f} PLAY {pattern_id} {minutes}"
+    else:
+        line = lambda f: f"!P{f} STOP"
+    res = parallel(pattern_command, [(f, line(f)) for f in online])
+    with open(STRIKE_LOG, "a") as fh:
+        fh.write(json.dumps({"kind": f"pattern_standalone_{action}", "utc": utc(), "pattern_id": pattern_id,
+                             "minutes": minutes, "results": list(res.values())}) + "\n")
+    return {"ok": all(r.get("ok") for r in res.values()), "results": list(res.values())}
+
+
 def snapshot():
     with state_lock:
         return {"lanterns": sorted(lanterns.values(), key=lambda l: l["hub"]), "state": STATE,
-                "state_file": str(STATE_FILE.relative_to(REPO)), "pulse_min": PULSE_MIN_MS, "pulse_max": PULSE_MAX_MS, "audio": sd is not None}
+                "state_file": str(STATE_FILE.relative_to(REPO)), "pulse_min": PULSE_MIN_MS, "pulse_max": PULSE_MAX_MS, "audio": sd is not None,
+                "min_hit_spacing_ms": MIN_HIT_SPACING_MS}
 
 
 class H(BaseHTTPRequestHandler):
@@ -674,8 +926,12 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
-        if self.path == "/":
-            return self.reply(PAGE.encode(), ctype="text/html; charset=utf-8")
+        if self.path == "/api/pattern/status":
+            return self.reply({"running": PLAYER["running"], **PLAYER["status"]})
+        name = "index.html" if self.path == "/" else self.path.lstrip("/")
+        f = (UI_DIR / name).resolve()
+        if f.parent == UI_DIR and f.suffix in UI_TYPES and f.exists():
+            return self.reply(f.read_bytes(), ctype=UI_TYPES[f.suffix])
         if self.path == "/api/snapshot":
             return self.reply(snapshot())
         self.reply({"error": "not found"}, 404)
@@ -684,6 +940,37 @@ class H(BaseHTTPRequestHandler):
         b = self.body()
         if self.path == "/api/proximity":
             return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm")))
+        if self.path == "/api/pattern/play":
+            loops = int(b.get("loops", 0))
+            if not 0 <= loops <= 1000:
+                return self.reply({"ok": False, "error": "loops 0..1000 (0 = until stopped)"}, 400)
+            return self.reply(start_pattern(b.get("pattern") or {}, loops, bool(b.get("comp"))))
+        if self.path == "/api/pattern/stop":
+            PLAYER["stop"].set()
+            return self.reply({"ok": True})
+        if self.path in ("/api/pattern/upload", "/api/pattern/standalone"):
+            if PLAYER["running"]:
+                return self.reply({"ok": False, "error": "stop the USB pattern first"}, 409)
+            with ProxPaused():
+                if self.path == "/api/pattern/upload":
+                    return self.reply(upload_pattern(b.get("pattern") or {}, bool(b.get("lead"))))
+                action = b.get("action")
+                if action == "play":
+                    pid, minutes = str(b.get("pattern_id", "")), int(b.get("minutes", 15))
+                    if not (len(pid) == 8 and all(c in "0123456789abcdef" for c in pid) and 1 <= minutes <= 120):
+                        return self.reply({"ok": False, "error": "pattern id (8 hex) and minutes 1..120 required"}, 400)
+                    return self.reply(standalone("play", pid, minutes))
+                if action == "stop":
+                    return self.reply(standalone("stop"))
+                return self.reply({"ok": False, "error": "action must be play or stop"}, 400)
+        if self.path == "/api/pattern/lanes":
+            try:
+                loop_ms, step_ms, lanes = pattern_lanes(b.get("pattern") or {})
+                return self.reply({"ok": True, "loop_ms": loop_ms, "step_ms": step_ms, "lanes": lanes})
+            except ValueError as ex:
+                return self.reply({"ok": False, "error": str(ex)})
+        if PLAYER["running"] and self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
+            return self.reply({"ok": False, "error": "stop the pattern first"}, 409)
         if self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
             with ProxPaused():
                 return self.post_serial(b)
@@ -723,6 +1010,7 @@ class H(BaseHTTPRequestHandler):
                 STATE["lanterns"] = b.get("lanterns", STATE["lanterns"])
                 STATE["order"] = b.get("order", STATE["order"])
                 STATE["presets"] = b.get("presets", STATE["presets"])
+                STATE["patterns"] = b.get("patterns", STATE["patterns"])
                 if pulse_ok(b.get("pulse_ms")):
                     STATE["pulse_ms"] = b["pulse_ms"]
                 save_state(STATE)
@@ -730,159 +1018,6 @@ class H(BaseHTTPRequestHandler):
         self.reply({"error": "not found"}, 404)
 
 
-PAGE = r"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tone lab</title>
-<style>
-:root{--bg:#faf9f6;--card:#fff;--text:#1f1e1c;--muted:#6b6a65;--line:#e4e2dc;--accent:#185fa5;--accent-bg:#e6f1fb;--warn:#854f0b;--warn-bg:#faeeda;--ok:#3b6d11;--bad:#a32d2d}
-@media (prefers-color-scheme:dark){:root{--bg:#1c1b19;--card:#262522;--text:#ecebe6;--muted:#a3a29c;--line:#3a3935;--accent:#85b7eb;--accent-bg:#0c447c;--warn:#fac775;--warn-bg:#633806;--ok:#97c459;--bad:#f09595}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,sans-serif}
-header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;z-index:2}
-h1{font-size:17px;font-weight:600;margin:0 12px 0 0}
-.bar{flex-basis:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.lbl{font-size:12px;color:var(--muted);width:40px}
-.info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:11px;font-weight:600;cursor:help;margin-left:4px;vertical-align:middle;font-style:normal}
-.info:hover,.info:focus{color:var(--text);border-color:var(--text);outline:none}
-.info .tip{display:none;position:absolute;top:22px;left:-8px;width:300px;padding:10px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:12px;font-weight:400;line-height:1.5;z-index:10;box-shadow:0 4px 14px rgba(0,0,0,.18);cursor:default}
-.info .tip.r{left:auto;right:-8px}
-.info:hover .tip,.info:focus .tip,.info:focus-within .tip{display:block}
-.seg{display:inline-flex}.seg button{border-radius:0;margin-left:-1px}.seg button:first-child{border-radius:8px 0 0 8px}.seg button:last-child{border-radius:0 8px 8px 0}
-input[type=number]{font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
-select{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
-button{font:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer}
-button:hover{border-color:var(--muted)}button:disabled{opacity:.5;cursor:default}
-.on-l{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}.on-s{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px;max-width:1200px;margin:0 auto}
-@media (max-width:820px){main{grid-template-columns:minmax(0,1fr)}}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
-.card.offline{opacity:.55}.card.flash{outline:2px solid var(--accent)}.card.ding{outline:3px solid var(--ok)}
-.name{font-weight:600;font-size:16px}.meta{font-size:12px;color:var(--muted)}
-.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-input[type=text]{width:100%;font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);margin-top:8px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;align-self:start;position:sticky;top:180px}
-.panel h2{font-size:14px;margin:0 0 8px}.ol{list-style:none;margin:0;padding:0}
-.ol li{display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid var(--line);font-size:14px;cursor:grab}
-.ol li.drag{opacity:.4}.ol .k{width:20px;color:var(--muted);font-size:12px}.ol .t{flex:1}
-.tag{font-size:11px;padding:1px 6px;border-radius:6px}
-#log{font:12px ui-monospace,monospace;color:var(--muted);max-height:180px;overflow:auto;margin-top:10px;white-space:pre-wrap}
-.status{font-size:12px;color:var(--muted)}.ok{color:var(--ok)}.bad{color:var(--bad)}
-</style></head><body>
-<header><h1>Tone lab</h1>
-<button id="scan">Rescan lanterns</button>
-<button id="sess">Extend all sessions 60 min</button>
-<span class="status" id="saved"></span>
-<div class="bar"><span class="lbl">Play</span>
-<span class="seg" id="set"><button data-set="all" class="on-l">All</button><button data-set="large">Large</button><button data-set="small">Small</button></span>
-<button data-dir="down" class="on-l">▶ High → low</button><button data-dir="up" class="on-l">▶ Low → high</button>
-<label class="status">gap <input id="gapms" type="range" min="100" max="1500" step="50" value="400" style="width:110px;vertical-align:middle"> <span id="gapv">400</span> ms</label>
-<button id="seq">Slow check</button></div>
-<div class="bar"><span class="lbl">Timing</span>
-<button id="cal">Sync latency (mic)</button><i class="info" tabindex="0" aria-label="About sync latency">i<span class="tip" role="tooltip"><b>Sync latency</b> strikes each lantern in the current set a few times and listens with the laptop microphone. It measures how long each one takes from command to sound and saves that on its card (median, plus the spread between strikes). Keep the room quiet; about 2 seconds per strike. Re-sync a lantern after changing its pulse, since pulse width changes how fast the mallet arrives.</span></i>
-<label class="status">strikes each <select id="reps"><option>3</option><option selected>4</option><option>5</option></select></label>
-<label class="status"><input type="checkbox" id="comp"> compensate on play</label><i class="info" tabindex="0" aria-label="About compensate on play">i<span class="tip" role="tooltip"><b>Compensate on play</b> changes when commands are sent. Each lantern has its own delay from command to chime. With this on, faster lanterns get their command sent early by however much quicker they are than the slowest one, so every chime lands exactly on the beat. Example: latencies of 30, 55 and 40 ms are sent 25, 0 and 15 ms early. Uses the latencies from Sync latency; unsynced lanterns are assumed to have the group median. Turns on automatically after a sync.</span></i>
-<label class="status"><input type="checkbox" id="meas"> measure timing on play</label><i class="info" tabindex="0" aria-label="About measure timing on play">i<span class="tip r" role="tooltip"><b>Measure timing on play</b> only listens; it never changes what is sent. The microphone records the run, finds where each chime starts, and compares the hits with a perfect grid at your gap. The log shows each lantern's error (+ late, - early), the worst hit (max) and the typical error (rms). Compare a run with compensation off and on to see whether it helped. Needs a quiet room and a gap of at least 100 ms.</span></i></div>
-<div class="bar"><span class="lbl">Sense</span>
-<button id="prox">Proximity ding: off</button><i class="info" tabindex="0" aria-label="About proximity ding">i<span class="tip" role="tooltip"><b>Proximity ding</b> turns each lantern's distance sensor into a trigger: wave a hand in front of it and it chimes once at its own pulse. When switched on, each sensor first learns its background for 1.5 s (keep hands away); after that only something at least 30 cm nearer than the background and inside the range counts. The app watches every sensor about 8 times a second over USB and sends the strike, so this works only while the lanterns are plugged into this laptop and awake. It re-arms after your hand has been gone for about half a second, with at least 1.5 s between dings. A card saying "sensor blocked" has something right in front of it. Lanterns without a working sensor are skipped. Play, Strike and Sync still work; the sensors pause briefly while they run.</span></i>
-<label class="status">range <input id="prange" type="range" min="200" max="1500" step="50" value="600" style="width:110px;vertical-align:middle"> <span id="prangev">60</span> cm</label></div>
-<div class="bar"><span class="lbl"></span><span class="status">Pulse is set per lantern on each card and saves as you type (blank = firmware default 40 ms)</span></div></header>
-<main><section><div class="grid" id="grid"></div></section>
-<aside class="panel"><h2>Tone order (1 = highest) — drag to reorder</h2>
-<div class="row" style="margin:0 0 8px"><button id="rev">Reverse</button><button id="grp">Large first, small last</button></div>
-<div class="row" style="margin:0 0 8px"><select id="psel"><option value="">Saved orders…</option></select><button id="pload">Load</button><button id="psave">Save as…</button><button id="pdel">Delete</button></div>
-<ul class="ol" id="order"></ul><div id="log"></div></aside></main>
-<script>
-let L=[],S={lanterns:{},order:[]},busy=false;
-const $=id=>document.getElementById(id);
-const api=(p,b)=>fetch(p,{method:b?"POST":"GET",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
-function log(m,cls){const d=document.createElement("div");d.className=cls||"";d.textContent=new Date().toLocaleTimeString()+"  "+m;$("log").prepend(d)}
-function meta(id){return S.lanterns[id]||(S.lanterns[id]={type:null,note:""})}
-let PMIN=5,PMAX=100,curSet="all",AUDIO=false;
-function save(){api("/api/state",{lanterns:S.lanterns,order:S.order,presets:S.presets,pulse_ms:S.pulse_ms}).then(r=>{$("saved").textContent=r.ok?"saved "+new Date().toLocaleTimeString():"save failed"})}
-function pulseFor(id){return meta(id).pulse_ms||S.pulse_ms}
-let PX={on:false,live:{},no_sensor:[]},pxSince=0,pxTimer=null;
-function proxText(l){if(!PX.on)return "";if(!l.tmf)return ` · <span style="color:var(--muted)">no sensor</span>`;const v=PX.live[l.fixture_id];if(!v)return ` · sensor starting`;
- const bg=v.background_mm?` (background ${Math.round(v.background_mm/10)} cm)`:"";
- if(v.status==="learning")return ` · learning background…`;
- if(v.status==="blocked")return ` · <span class="bad" title="Something sits right in front of this sensor; move it or this lantern cannot sense a hand">sensor blocked at ${Math.round(v.background_mm/10)} cm</span>`;
- if(v.status==="hand")return ` · <span style="color:var(--ok)">hand ${Math.round(v.depth_mm/10)} cm</span>`;
- if(v.status==="ready")return ` · ready${bg}`;return ` · <span class="bad">${v.status}</span>`}
-function setProxBtn(){$("prox").textContent="Proximity ding: "+(PX.on?"on":"off");$("prox").classList.toggle("on-l",PX.on)}
-async function pollProx(){const r=await api("/api/prox?since="+pxSince);PX=r;for(const ev of r.events){pxSince=Math.max(pxSince,ev.id);log(`${name(ev.fixture_id)} ding (hand at ${Math.round(ev.depth_mm/10)} cm, ${ev.pulse_ms} ms)`,"ok");const c=$("c-"+ev.fixture_id);if(c){c.classList.add("ding");setTimeout(()=>c.classList.remove("ding"),600)}}
- L.forEach(l=>{const c=$("c-"+l.fixture_id);if(c){const m=c.querySelector(".meta");if(m)m.innerHTML=metaText(l)}});if(!PX.on){clearInterval(pxTimer);pxTimer=null;setProxBtn()}}
-function latText(id){const m=meta(id);if(m.latency_ms==null)return "";const stale=m.latency_pulse_ms!==pulseFor(id);return ` · <span style="color:${stale?"var(--warn)":"inherit"}" title="${stale?"pulse changed since sync -- re-sync":"measured at "+m.latency_pulse_ms+" ms pulse"}">latency ${Math.round(m.latency_ms)} ms ±${Math.round(m.latency_jitter_ms/2)}${stale?" (re-sync)":""}</span>`}
-function validP(v){return Number.isInteger(v)&&v>=PMIN&&v<=PMAX}
-function playList(dir){let ids=S.order.filter(id=>curSet==="all"||meta(id).type===curSet);return dir==="up"?ids.slice().reverse():ids}
-function renderPresets(){const v=$("psel").value;$("psel").innerHTML='<option value="">Saved orders…</option>'+Object.keys(S.presets).map(k=>`<option ${k===v?"selected":""}>${k}</option>`).join("")}
-function renderHead(){document.querySelectorAll("#set button").forEach(b=>b.classList.toggle("on-l",b.dataset.set===curSet))}
-function syncOrder(){const ids=L.map(l=>l.fixture_id);S.order=S.order.filter(i=>ids.includes(i));ids.forEach(i=>{if(!S.order.includes(i))S.order.push(i)})}
-function name(id){const l=L.find(x=>x.fixture_id===id);return l?(l.callsign||id):id}
-function tag(t){return t==="large"?'<span class="tag on-l">large</span>':t==="small"?'<span class="tag on-s">small</span>':'<span class="tag" style="color:var(--muted)">?</span>'}
-function metaText(l){const mins=l.session_left_s!=null?Math.round(l.session_left_s/60):"–";return `${l.fixture_id} · hub ${l.hub} · ${l.battery_v!=null?l.battery_v.toFixed(2)+" V":"?"} · session ${mins} min · strikes ${l.strikes??"?"}${latText(l.fixture_id)}${proxText(l)}`}
-function render(){
- $("grid").innerHTML=L.map(l=>{const m=meta(l.fixture_id),mins=l.session_left_s!=null?Math.round(l.session_left_s/60):"–";
- return `<div class="card ${l.offline?"offline":""}" id="c-${l.fixture_id}"><div class="name">${l.callsign||l.fixture_id}</div>
- <div class="meta">${metaText(l)}</div>
- <div class="row"><button data-strike="${l.fixture_id}">Strike</button>
- <button class="${m.type==="large"?"on-l":""}" data-type="${l.fixture_id}:large">Large</button>
- <button class="${m.type==="small"?"on-s":""}" data-type="${l.fixture_id}:small">Small</button>
- <label class="status">pulse <input type="number" min="5" max="100" step="1" style="width:56px" placeholder="${S.pulse_ms}" data-pulse="${l.fixture_id}" value="${m.pulse_ms??""}"> ms</label></div>
- <input type="text" placeholder="Tone notes, e.g. bright, slight beat" data-note="${l.fixture_id}" value="${(m.note||"").replace(/"/g,"&quot;")}"></div>`}).join("");
- $("order").innerHTML=S.order.map((id,i)=>`<li draggable="true" data-i="${i}"><span class="k">${i+1}</span><span class="t">${name(id)}</span>${tag(meta(id).type)}<button data-strike="${id}" title="Strike">▶</button></li>`).join("");
-}
-async function strike(id){const c=$("c-"+id);c&&c.classList.add("flash");const ms=pulseFor(id);const r=await api("/api/strike",{id,ms});c&&c.classList.remove("flash");
- if(r.ok)log(`${name(id)} struck at ${ms} ms (${r.strikes_before}→${r.strikes_after}, ${r.battery_v} V)`,"ok");else log(`${name(id)}: ${r.error||"strike not confirmed"}`,"bad");
- const l=L.find(x=>x.fixture_id===id);if(l&&r.strikes_after!=null){l.strikes=r.strikes_after;l.battery_v=r.battery_v;l.session_left_s=r.session_left_s}render();return r}
-document.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b||busy)return;
- if(b.dataset.strike){busy=true;await strike(b.dataset.strike);busy=false}
- else if(b.dataset.type){const[id,t]=b.dataset.type.split(":");const m=meta(id);m.type=m.type===t?null:t;render();save()}});
-document.addEventListener("change",e=>{const t=e.target;
- if(t.dataset.note){meta(t.dataset.note).note=t.value;save()}
- else if(t.dataset.pulse){const id=t.dataset.pulse,v=t.value===""?null:+t.value;if(v!==null&&!validP(v)){log(`${name(id)}: pulse must be ${PMIN}..${PMAX} ms`,"bad");t.value=meta(id).pulse_ms??"";return}}});
-let pulseTimer=null;
-document.addEventListener("input",e=>{const t=e.target;if(!t.dataset.pulse)return;const id=t.dataset.pulse,v=t.value===""?null:+t.value;
- if(v!==null&&!validP(v))return;meta(id).pulse_ms=v;clearTimeout(pulseTimer);pulseTimer=setTimeout(()=>{save();log(`${name(id)} pulse ${v===null?"default":v+" ms"} saved`)},400)});
-$("set").onclick=e=>{const b=e.target.closest("button");if(!b)return;curSet=b.dataset.set;renderHead()};
-$("rev").onclick=()=>{S.order.reverse();render();save()};
-$("grp").onclick=()=>{const r=t=>t==="large"?0:t==="small"?2:1;S.order=S.order.map((id,i)=>[id,i]).sort((a,b)=>r(meta(a[0]).type)-r(meta(b[0]).type)||a[1]-b[1]).map(x=>x[0]);render();save()};
-$("psave").onclick=()=>{const n=(prompt("Name for this order:")||"").trim();if(!n)return;S.presets[n]=S.order.slice();renderPresets();$("psel").value=n;save();log(`saved order "${n}"`)};
-$("pload").onclick=()=>{const n=$("psel").value;if(!n||!S.presets[n])return;const ids=L.map(l=>l.fixture_id);S.order=S.presets[n].filter(i=>ids.includes(i));syncOrder();render();save();log(`loaded order "${n}"`)};
-$("pdel").onclick=()=>{const n=$("psel").value;if(!n||!confirm(`Delete saved order "${n}"?`))return;delete S.presets[n];renderPresets();save()};
-let dragI=null;
-$("order").addEventListener("dragstart",e=>{const li=e.target.closest("li");dragI=+li.dataset.i;li.classList.add("drag")});
-$("order").addEventListener("dragover",e=>e.preventDefault());
-$("order").addEventListener("drop",e=>{e.preventDefault();const li=e.target.closest("li");if(!li||dragI===null)return;const j=+li.dataset.i;const[x]=S.order.splice(dragI,1);S.order.splice(j,0,x);dragI=null;render();save()});
-$("order").addEventListener("dragend",()=>{dragI=null;render()});
-$("scan").onclick=async()=>{busy=true;$("scan").disabled=true;log("scanning…");const r=await api("/api/scan",{});L=r.lanterns;syncOrder();render();log(`found ${L.filter(l=>!l.offline).length} lanterns`);$("scan").disabled=false;busy=false};
-$("seq").onclick=async()=>{if(busy)return;busy=true;$("seq").disabled=true;const g=Math.max(1,+$("gap").value||3)*1000;
- for(const id of S.order){await strike(id);await new Promise(r=>setTimeout(r,g))}$("seq").disabled=false;busy=false};
-$("gapms").oninput=e=>$("gapv").textContent=e.target.value;
-document.querySelectorAll("[data-dir]").forEach(btn=>btn.onclick=async()=>{if(busy)return;const ids=playList(btn.dataset.dir);if(!ids.length){log(`no ${curSet} lanterns classified yet`,"bad");return}
- busy=true;btn.disabled=true;const g=+$("gapms").value;const pulses=Object.fromEntries(ids.map(id=>[id,pulseFor(id)]));
- const r=await api("/api/play",{order:ids,gap_ms:g,pulses,comp:$("comp").checked,measure:$("meas").checked});
- if(r.results){const bad=r.results.filter(x=>!x.ok);log(`played ${curSet} ${btn.dataset.dir==="up"?"low→high":"high→low"} (${r.results.length}) at ${g} ms gap`+(bad.length?` — not confirmed: ${bad.map(x=>name(x.fixture_id)+(x.error?" ("+x.error+")":"")).join(", ")}`:" — all confirmed"),bad.length?"bad":"ok");
-  r.results.forEach(x=>{const l=L.find(y=>y.fixture_id===x.fixture_id);if(l&&x.strikes_after!=null){l.strikes=x.strikes_after;l.battery_v=x.battery_v}});
-  if(r.timing){if(r.timing.error)log("timing: "+r.timing.error,"bad");else log(`timing ${r.compensated?"(compensated)":"(uncompensated)"}: max ${Math.round(r.timing.max_abs_ms)} ms, rms ${r.timing.rms_ms} ms — `+r.timing.errors_ms.map(x=>x.error_ms==null?`${name(x.fixture_id)} not heard`:`${name(x.fixture_id)} ${x.error_ms>0?"+":""}${Math.round(x.error_ms)}`).join(", ")+(r.timing.heard<r.timing.of?` (heard ${r.timing.heard} of ${r.timing.of})`:""),r.timing.max_abs_ms<=10?"ok":"")}
-  render()}
- else log(r.error||"play failed","bad");btn.disabled=false;busy=false});
-$("cal").onclick=async()=>{if(busy)return;const ids=playList("down");if(!ids.length)return;
- if(!AUDIO){log("microphone support missing: pip install numpy sounddevice","bad");return}
- busy=true;$("cal").disabled=true;log(`syncing latency for ${ids.length} lanterns — keep the room quiet`);
- for(const id of ids){const c=$("c-"+id);c&&c.classList.add("flash");const r=await api("/api/calibrate",{id,reps:+$("reps").value,ms:pulseFor(id)});c&&c.classList.remove("flash");
-  if(r.ok){Object.assign(meta(id),{latency_ms:r.latency_ms,latency_jitter_ms:r.jitter_ms,latency_pulse_ms:r.pulse_ms,latency_utc:r.utc});log(`${name(id)} latency ${Math.round(r.latency_ms)} ms (spread ${Math.round(r.jitter_ms)} ms; ${r.samples_ms.map(v=>v==null?"–":v).join(", ")})`,"ok")}
-  else{log(`${name(id)}: ${r.error}`,"bad");if(/silent/.test(r.error||""))break}
-  render()}
- const got=ids.map(id=>meta(id).latency_ms).filter(v=>v!=null);if(got.length>1){log(`latency range ${Math.round(Math.min(...got))}–${Math.round(Math.max(...got))} ms; compensation on`);$("comp").checked=true}
- $("cal").disabled=false;busy=false};
-$("prange").oninput=e=>{$("prangev").textContent=Math.round(e.target.value/10)};
-$("prange").onchange=e=>{api("/api/prox?since="+pxSince).then(r=>{if(r.on)api("/api/proximity",{on:true,range_mm:+e.target.value})})};
-$("prox").onclick=async()=>{const cur=await api("/api/prox?since="+pxSince);const on=!cur.on;const r=await api("/api/proximity",{on,range_mm:+$("prange").value});PX=r;setProxBtn();
- if(on){const n=L.filter(l=>l.tmf&&!l.offline).length;log(`proximity ding on: learning each background for 1.5 s (keep hands away), then dinging within ${Math.round(r.range_mm/10)} cm`+(r.no_sensor.length?` (no sensor: ${r.no_sensor.map(name).join(", ")})`:""));pxTimer=pxTimer||setInterval(pollProx,300)}
- else{log("proximity ding off");clearInterval(pxTimer);pxTimer=null}render()};
-$("sess").onclick=async()=>{if(busy)return;busy=true;for(const l of L.filter(x=>!x.offline)){const r=await api("/api/session",{id:l.fixture_id,minutes:60});log(`${name(l.fixture_id)} session: ${r.ok&&/accepted/.test(r.reply)?"60 min":(r.error||r.reply||"?")}`,r.ok?"":"bad");if(r.session_left_s!=null)l.session_left_s=r.session_left_s}render();busy=false};
-api("/api/prox").then(r=>{PX=r;$("prange").value=r.range_mm;$("prangev").textContent=Math.round(r.range_mm/10);setProxBtn();if(r.on)pxTimer=setInterval(pollProx,300)});
-api("/api/snapshot").then(r=>{S=r.state;S.lanterns=S.lanterns||{};S.order=S.order||[];S.presets=S.presets||{};PMIN=r.pulse_min;PMAX=r.pulse_max;AUDIO=r.audio;renderHead();renderPresets();$("saved").textContent="saving to "+r.state_file;$("scan").click()});
-</script></body></html>"""
-
 if __name__ == "__main__":
-    print(f"tone lab on http://localhost:{ARGS.port}  state -> {STATE_FILE}", flush=True)
+    print(f"tone lab on http://localhost:{ARGS.port}  ui -> {UI_DIR}  state -> {STATE_FILE}", flush=True)
     ThreadingHTTPServer(("127.0.0.1", ARGS.port), H).serve_forever()

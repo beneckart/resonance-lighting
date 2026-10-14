@@ -18,6 +18,7 @@ enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_SLEEP = 1,
   SERIAL_MUTATION_SIGNATURE = 2, // !K<id>:1 play, :0 cancel
   SERIAL_MUTATION_DECOMPRESSION = 3, // !D<id>:0..120 session minutes
+  SERIAL_MUTATION_PATTERN = 4, // !P<id> ... (ADR 0084); full line via line()
 };
 
 struct SerialMutationCommand {
@@ -39,15 +40,17 @@ public:
                                 SerialMutationCommand &out);
   void reset();
   bool collecting() const { return collecting_; }
+  // The last READY line, without its terminator. Valid until the next feed().
+  const char *line() const { return line_; }
 
 private:
   bool parseLine(const uint8_t myId[3], SerialMutationCommand &out) const;
 
-  // Longest current line is 14 bytes (!S + 6 hex + ':' + 5 digits). Keep
-  // bounded headroom for future explicit mutations without accepting an
-  // arbitrary host stream.
-  char line_[32];
-  uint8_t length_;
+  // Short mutations are at most 14 bytes (!S + 6 hex + ':' + 5 digits).
+  // ADR 0084 pattern lines (!P...) carry up to 32 hit offsets and stay under
+  // 384 bytes; anything longer still poisons the envelope.
+  char line_[384];
+  uint16_t length_;
   bool collecting_;
   bool invalid_;
 };

@@ -21,7 +21,23 @@ void SerialMutationParser::reset() {
 bool SerialMutationParser::parseLine(const uint8_t myId[3],
                                      SerialMutationCommand &out) const {
   // Sentinel + verb + six hex digits + ':' + canonical decimal value.
-  if (invalid_ || length_ < 10 || length_ > 14) return false;
+  if (invalid_) return false;
+  if (line_[0] == '!' && line_[1] == 'P' && length_ >= 10 && line_[8] == ' ') {
+    // Pattern lines are parsed by pattern_part; here only the exact target is
+    // checked so other lanterns' lines stay silent.
+    uint8_t target[3] = {0, 0, 0};
+    for (size_t i = 0; i < 6; i++) {
+      int nibble = hexNibble(line_[2 + i]);
+      if (nibble < 0) return false;
+      if ((i & 1U) == 0) target[i / 2] = (uint8_t)(nibble << 4);
+      else target[i / 2] |= (uint8_t)nibble;
+    }
+    if (memcmp(target, myId, sizeof(target)) != 0) return false;
+    out.type = SERIAL_MUTATION_PATTERN;
+    out.value = 0;
+    return true;
+  }
+  if (length_ < 10 || length_ > 14) return false;
   if (line_[0] != '!' || line_[8] != ':') return false;
   uint8_t type = line_[1] == 'S' ? SERIAL_MUTATION_SLEEP :
                  line_[1] == 'K' ? SERIAL_MUTATION_SIGNATURE :
@@ -68,12 +84,20 @@ SerialMutationParser::feed(uint8_t byte, const uint8_t myId[3],
     if (byte != '!') return SERIAL_MUTATION_PASS;
     collecting_ = true;
     line_[0] = '!';
+    line_[1] = 0;
     length_ = 1;
     return SERIAL_MUTATION_CONSUMED;
   }
 
   if (byte == '\r' || byte == '\n') {
     bool ready = parseLine(myId, out);
+    if (ready && out.type == SERIAL_MUTATION_PATTERN) {
+      // Keep the text for line(); the next '!' overwrites it from the start.
+      collecting_ = false;
+      invalid_ = false;
+      length_ = 0;
+      return SERIAL_MUTATION_READY;
+    }
     reset();
     return ready ? SERIAL_MUTATION_READY : SERIAL_MUTATION_CONSUMED;
   }

@@ -11,6 +11,7 @@
 #include "ota_verify.h"
 #include "power_glue.h"
 #include "solenoid.h"
+#include "pattern.h"
 
 static DecompressionSession gSession;
 static DecompressionSession gRadioSession;
@@ -25,13 +26,16 @@ static bool gWasActive = false;
 
 bool decompressionActive() {
   return decompressionBuild() && (gSession.active(esp_timer_get_time()) ||
-                                  gRadioSession.active(esp_timer_get_time()));
+                                  gRadioSession.active(esp_timer_get_time()) ||
+                                  patternActive());
 }
 uint32_t decompressionSecondsLeft() {
   if (!decompressionBuild()) return 0;
   uint32_t local = gSession.remainingSeconds(esp_timer_get_time());
   uint32_t radio = decompressionRadioSecondsLeft();
-  return local > radio ? local : radio;
+  uint32_t pattern = patternSecondsLeft();
+  uint32_t best = local > radio ? local : radio;
+  return best > pattern ? best : pattern;
 }
 uint32_t decompressionRadioSecondsLeft() {
   return decompressionBuild() ? gRadioSession.remainingSeconds(esp_timer_get_time()) : 0;
@@ -44,13 +48,13 @@ bool decompressionSetSession(uint16_t minutes) {
   }
   return gSession.set(esp_timer_get_time(), minutes);
 }
-static bool signaturePowerReady() {
+bool decompressionPowerReady() {
   return decompressionBuild() && maintMode() == MODE_COMMS && !otaVerifyPending() &&
       !bootGuardParked() && pfIsReady() && batteryPresent() &&
       (uint8_t)powerBudget().tier <= (uint8_t)LedTier::DIM;
 }
 bool decompressionPlaySignature() {
-  if (!signaturePowerReady()) return false;
+  if (!decompressionPowerReady()) return false;
   if (!solenoidSignatureStart()) return false;
   // Explicit first trigger opens one hour; later hits do not extend it.
   if (!decompressionActive()) decompressionSetSession(60);
@@ -90,11 +94,11 @@ void decompressionOnRadio(const NbDecompressionControl &c, uint32_t receivedMs) 
       gRadioSession.set(esp_timer_get_time(), 0);
       if (gRadioPlaying) solenoidStop("radio session ended");
       status = NB_DECOMP_ENDED;
-    } else if (signaturePowerReady()) {
+    } else if (decompressionPowerReady()) {
       gRadioSession.set(esp_timer_get_time(), c.minutes);
       status = NB_DECOMP_READY;
     }
-  } else if (signaturePowerReady() && decompressionRadioSecondsLeft() &&
+  } else if (decompressionPowerReady() && decompressionRadioSecondsLeft() &&
              !gRadioPlaying && !gResultCopies && solenoidSignatureStart()) {
     // Do not call the USER/USB entry point: a radio press must not create or
     // extend its own one-hour lease after the controller disappears.
@@ -108,6 +112,7 @@ void decompressionOnRadio(const NbDecompressionControl &c, uint32_t receivedMs) 
 void decompressionButtonWake() { gWakePending = true; }
 void decompressionTick() {
   if (!decompressionBuild()) return;
+  patternTick();
   bool active = decompressionActive();
   if ((gWasActive && !active) || !pfIsReady() || !batteryPresent() ||
       (uint8_t)powerBudget().tier > (uint8_t)LedTier::DIM)
