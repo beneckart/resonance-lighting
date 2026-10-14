@@ -35,6 +35,15 @@
   <!-- Lanterns: classification, pulse, notes -->
   <section class="tab" id="tab-lanterns">
     <div class="toolbar">
+      <button id="wakeall" class="primary">Wake all</button>
+      <label class="status"><input type="checkbox" id="keepawake"> keep awake</label>
+      <i class="info" tabindex="0" aria-label="About waking lanterns">i<span class="tip">
+        <b>Waking</b>: a sleeping lantern is off USB and radio, so it cannot be woken instantly. It wakes by itself
+        about every 2 minutes; <b>Wake</b> and <b>Wake all</b> tell the app to catch it then and open a 60-minute
+        session, so it can take up to ~2 minutes. <b>Keep awake</b> also tops up every awake lantern's session before
+        it runs out, for as long as this app is running and the lanterns are plugged in.</span></i>
+      <span class="status" id="wakeinfo"></span>
+      <span class="sep"></span>
       <input type="search" id="filter" placeholder="Filter by name or ID" aria-label="Filter lanterns">
       <label class="status">sort <select id="sort">
         <option value="order">tone order</option><option value="hub">hub port</option><option value="name">name</option>

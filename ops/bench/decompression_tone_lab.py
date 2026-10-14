@@ -906,6 +906,98 @@ def standalone(action, pattern_id=None, minutes=None):
     return {"ok": all(r.get("ok") for r in res.values()), "results": list(res.values())}
 
 
+# ---------------------------------------------------------------------------
+# Wake / keep awake. A sleeping lantern is off USB and radio, but it wakes on
+# its own timer (about every 2 minutes). The waker watches the USB ports and,
+# for lanterns asked to wake (or all of them in keep-awake mode), opens a
+# 60-minute RAM session the moment each one appears; keep-awake also renews
+# sessions before they lapse. It never waits on a busy port.
+# ---------------------------------------------------------------------------
+WAKE = {"targets": {}, "keep": False}
+WAKE_EVENTS = []
+KEEP_RENEW_BELOW_S = 15 * 60
+SESSION_MINUTES = 60
+
+
+def wake_event(fid, msg, ok=True):
+    WAKE_EVENTS.append({"id": len(WAKE_EVENTS) + 1, "utc": utc(), "fixture_id": fid, "msg": msg, "ok": ok})
+    del WAKE_EVENTS[:-300]
+
+
+def wake_port(port, want_fids, renew_below_s):
+    """Identify the lantern on `port`; open/renew its session if wanted. Non-blocking on busy ports."""
+    lk = lock_for(port)
+    if not lk.acquire(blocking=False):
+        return None
+    try:
+        with serial.Serial(port, 115200, timeout=0.05) as s:
+            time.sleep(0.1)
+            d = telemetry(s, wait=1.5)
+            if not d or not d.get("fixture_id"):
+                return None
+            fid = d["fixture_id"]
+            left = d.get("decompression_left_s") or 0
+            if (fid in want_fids or WAKE["keep"]) and d.get("decompression") and left < renew_below_s:
+                s.reset_input_buffer()
+                s.write(f"!D{fid}:{SESSION_MINUTES}\n".encode())
+                # Firmware reads serial one byte per main-loop pass, so a command
+                # line can take most of a second to land; confirm patiently.
+                d2, new_left, end = d, 0, time.time() + 4.0
+                while time.time() < end and new_left < 600:
+                    time.sleep(0.4)
+                    d2 = telemetry(s, wait=1.0) or d2
+                    new_left = d2.get("decompression_left_s") or 0
+                if new_left >= 600:
+                    wake_event(fid, f"session {round(new_left / 60)} min" + (" (renewed)" if left else ""))
+                    d = d2
+                else:
+                    wake_event(fid, "session not confirmed; will retry", ok=False)
+            info = summarize(port, d)
+            with state_lock:
+                lanterns[fid] = info
+            if fid in WAKE["targets"] and (info.get("session_left_s") or 0) >= 600:
+                WAKE["targets"].pop(fid, None)
+            return info
+    except Exception:
+        return None
+    finally:
+        lk.release()
+
+
+def waker_loop():
+    next_check = {}  # port -> monotonic time of the next routine check
+    while True:
+        time.sleep(1.0)
+        try:
+            ports = set(glob.glob("/dev/cu.usbmodem*"))
+            with state_lock:
+                for fid, l in lanterns.items():
+                    if l.get("port") not in ports and not l.get("offline"):
+                        l["offline"] = True
+                by_port = {l["port"]: (fid, l) for fid, l in lanterns.items()}
+            for port in list(next_check):
+                if port not in ports:
+                    next_check.pop(port)  # asleep: check immediately when it reappears
+            if PLAYER["running"] or not (WAKE["targets"] or WAKE["keep"]):
+                continue
+            now = time.monotonic()
+            for port in ports:
+                fid, l = by_port.get(port, (None, None))
+                fresh = l is None or l.get("offline")          # just woke or never seen
+                wanted = fid in WAKE["targets"] or WAKE["keep"] or fid is None
+                if not wanted or (not fresh and now < next_check.get(port, 0)):
+                    continue
+                info = wake_port(port, set(WAKE["targets"]), KEEP_RENEW_BELOW_S if WAKE["keep"] else 600)
+                next_check[port] = now + (20 if info else 3)
+        except Exception as ex:
+            wake_event("", f"waker error: {ex}", ok=False)
+
+
+def wake_status(since=0):
+    return {"keep": WAKE["keep"], "targets": sorted(WAKE["targets"]),
+            "events": [e for e in WAKE_EVENTS if e["id"] > since]}
+
+
 def snapshot():
     with state_lock:
         return {"lanterns": sorted(lanterns.values(), key=lambda l: l["hub"]), "state": STATE,
@@ -930,6 +1022,9 @@ class H(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(n) or b"{}")
 
     def do_GET(self):
+        if self.path.startswith("/api/wake"):
+            since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
+            return self.reply(wake_status(since))
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
@@ -947,6 +1042,19 @@ class H(BaseHTTPRequestHandler):
         b = self.body()
         if self.path == "/api/proximity":
             return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm")))
+        if self.path == "/api/wake":
+            if "keep" in b:
+                WAKE["keep"] = bool(b["keep"])
+                wake_event("", "keep awake " + ("on" if WAKE["keep"] else "off"))
+            ids = b.get("ids")
+            if ids == "all":
+                with state_lock:
+                    ids = sorted(set(lanterns) | set(STATE.get("order", [])))
+            for fid in ids or []:
+                fid = str(fid).upper()
+                if len(fid) == 6:
+                    WAKE["targets"][fid] = utc()
+            return self.reply(wake_status())
         if self.path == "/api/pattern/play":
             loops = int(b.get("loops", 0))
             if not 0 <= loops <= 1000:
@@ -1027,4 +1135,5 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"tone lab on http://localhost:{ARGS.port}  ui -> {UI_DIR}  state -> {STATE_FILE}", flush=True)
+    threading.Thread(target=waker_loop, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", ARGS.port), H).serve_forever()

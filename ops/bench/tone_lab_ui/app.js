@@ -97,9 +97,15 @@ function proxText(id) {
   if (v.status === "ready") return " · ready" + (v.background_mm ? ` (background ${Math.round(v.background_mm / 10)} cm)` : "");
   return ` · <span class="bad">${esc(v.status)}</span>`;
 }
+let WK = {keep: false, targets: []}, wkSince = 0;
+function wakeLabel(id) {
+  if (WK.targets.includes(id)) return "waking…";
+  return online(id) ? "Wake" : "Wake";
+}
 function metaText(id) {
   const l = live(id);
-  if (!l) return `${id} · not connected${latText(id)}`;
+  if (!l) return `${id} · not connected${WK.targets.includes(id) ? " · waking…" : ""}${latText(id)}`;
+  if (l.offline) return `${id} · hub ${l.hub} · <span class="asleep">asleep${WK.targets.includes(id) ? ", waking when it next checks in" : ""}</span>${latText(id)}`;
   const mins = l.session_left_s != null ? Math.round(l.session_left_s / 60) : "–";
   return `${id} · hub ${l.hub} · ${l.battery_v != null ? l.battery_v.toFixed(2) + " V" : "?"} · session ${mins} min · strikes ${l.strikes ?? "?"}${latText(id)}${proxText(id)}`;
 }
@@ -122,6 +128,7 @@ function renderCards() {
     return `<div class="card ${online(id) ? "" : "offline"}" data-card="${id}">
       <div class="name">${esc(name(id))}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
       <div class="row"><button data-strike="${id}">Strike</button>
+        <button data-wake="${id}" class="${WK.targets.includes(id) ? "waking" : ""}">${wakeLabel(id)}</button>
         <button class="${m.type === "large" ? "on" : ""}" data-type="${id}:large">Large</button>
         <button class="${m.type === "small" ? "on-s" : ""}" data-type="${id}:small">Small</button>
         <label class="status">pulse <input type="number" min="${CFG.pulse_min}" max="${CFG.pulse_max}" step="1" style="width:56px" placeholder="${S.pulse_ms}" data-pulse="${id}" value="${m.pulse_ms ?? ""}"> ms</label></div>
@@ -130,6 +137,13 @@ function renderCards() {
 }
 function refreshMeta() {
   document.querySelectorAll("[data-meta]").forEach(el => { el.innerHTML = metaText(el.dataset.meta); });
+  document.querySelectorAll("[data-wake]").forEach(b => {
+    const id = b.dataset.wake; b.textContent = wakeLabel(id); b.classList.toggle("waking", WK.targets.includes(id));
+  });
+  document.querySelectorAll(".card[data-card]").forEach(c => c.classList.toggle("offline", !online(c.dataset.card)));
+  const n = L.filter(l => !l.offline).length;
+  $("count").textContent = `${n} online · ${S.order.length} known`;
+  $("wakeinfo").textContent = WK.targets.length ? `waking ${WK.targets.length}: ${WK.targets.map(name).join(", ")}` : (WK.keep ? "keeping awake" : "");
 }
 ["filter", "sort", "show"].forEach(k => $(k).addEventListener("input", renderCards));
 
@@ -207,6 +221,7 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || busy) return;
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
+  else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
   else if (b.dataset.type) {
     const [id, t] = b.dataset.type.split(":"), m = meta(id);
     m.type = m.type === t ? null : t; render(); save();
@@ -276,6 +291,40 @@ $("cal").onclick = async () => {
   }
   save(true); $("cal").disabled = false; busy = false;
 };
+
+// ---------- wake / keep awake ----------
+async function requestWake(ids) {
+  const r = await api("/api/wake", {ids});
+  WK = {keep: r.keep, targets: r.targets};
+  log(ids === "all" ? "waking all lanterns: each is caught when it next wakes (up to ~2 min)"
+                    : `waking ${ids.map(name).join(", ")} (up to ~2 min)`);
+  refreshMeta();
+}
+$("wakeall").onclick = () => requestWake("all");
+$("keepawake").onchange = async e => {
+  const r = await api("/api/wake", {keep: e.target.checked}); WK = {keep: r.keep, targets: r.targets}; refreshMeta();
+};
+// Live view: lantern status and wake events refresh every few seconds without
+// re-rendering inputs, so typing a pulse or note is never interrupted.
+async function liveRefresh() {
+  try {
+    const w = await api("/api/wake?since=" + wkSince);
+    WK = {keep: w.keep, targets: w.targets}; $("keepawake").checked = w.keep;
+    for (const ev of w.events) {
+      wkSince = Math.max(wkSince, ev.id);
+      log(ev.fixture_id ? `${name(ev.fixture_id)}: ${ev.msg}` : ev.msg, ev.ok ? "ok" : "bad");
+    }
+    const r = await api("/api/snapshot");
+    if (r.lanterns) {
+      const before = new Set(L.filter(l => !l.offline).map(l => l.fixture_id));
+      L = r.lanterns; syncOrder();
+      const after = new Set(L.filter(l => !l.offline).map(l => l.fixture_id));
+      const changed = before.size !== after.size || [...after].some(id => !before.has(id));
+      if (changed && UI.tab !== "lanterns" && !paint) render(); else refreshMeta();
+    }
+  } catch (e) { /* server restarting */ }
+}
+setInterval(liveRefresh, 3000);
 
 // ---------- header: scan, sessions, proximity ----------
 $("scan").onclick = async () => {

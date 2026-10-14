@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- Tone lab wake and keep-awake
+
+Lanterns kept lapsing into their 2-minute sleep cycle between work sessions.
+Added Wake all / per-lantern Wake and a Keep awake toggle to the tone lab
+(Lanterns tab). A background waker watches the USB ports; a requested lantern
+gets a 60-minute RAM session (`!D<id>:60`) the moment it next wakes (up to
+about 2 minutes), and keep-awake renews any awake lantern's session when under
+15 minutes remain. It never waits on a busy port and pauses during USB pattern
+playback. The page now refreshes lantern status every 3 s (asleep, waking,
+awake) without re-rendering inputs. First use at 12:58 PDT caught all nine
+within about 2 minutes.
+
+Found while testing: the fixture reads serial input one byte per main-loop
+pass (serial_cli handleSerial), so a 13-byte `!D` line can take most of a
+second and a long `!P SET` line several seconds to land. Host tools now
+confirm patiently (telemetry poll up to 4 s; pattern upload falls back to the
+telemetry CRC). Draining all available bytes per pass would fix it in
+firmware; left for Ben since legacy single-byte commands read their own
+arguments.
+
 ## 2026-10-14 -- Brian + Claude -- All nine decompression lanterns on pattern-mode firmware
 
 With Ben's go-ahead and Brian as sole USB operator, flashed all nine

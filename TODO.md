@@ -3701,3 +3701,7 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
 - [ ] **Fix test_build_wrapper_contract.sh on macOS** (fails on a clean checkout:
   "build options do not contain recipe flag: -I<repo>/firmware"; likely
   /tmp vs /private/tmp path canonicalization).
+- [ ] **Serial input is read one byte per main-loop pass** in
+  `firmware/fixture/src/esp32/serial_cli.cpp` handleSerial(); long `!P` lines
+  take seconds. Consider draining all available bytes per pass without
+  breaking legacy single-byte commands that read their own arguments (Ben).
