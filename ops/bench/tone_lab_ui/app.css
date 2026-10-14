@@ -101,6 +101,19 @@ main { padding: 12px 16px 120px; max-width: 1400px; margin: 0 auto; }
 .seq .rh .fw { font-size: 10px; color: var(--muted); }
 .seq .rh .fw.play { color: var(--ok); }
 
+/* Proximity tab */
+.pxgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.pxcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.pxcard.ding { outline: 3px solid var(--ok); }
+.pxcard .hdr { display: flex; align-items: center; gap: 8px; }
+.pxcard .hdr .nm { font-weight: 600; flex: 1; }
+.pxcard canvas { width: 100%; height: 150px; display: block; margin-top: 6px; border-radius: 6px; background: var(--bg); }
+.pxcard .st { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pxbadge { font-size: 11px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.pxbadge.hand { color: var(--ok); border-color: var(--ok); }
+.pxbadge.blocked { color: var(--bad); border-color: var(--bad); }
+.pxbadge.learning { color: var(--warn); border-color: var(--warn); }
+
 footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
   max-height: 92px; overflow: hidden; cursor: pointer; z-index: 6; }
 footer.open { max-height: 50vh; overflow: auto; }

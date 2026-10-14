@@ -74,6 +74,7 @@ function render() {
   $("count").textContent = `${n} online · ${S.order.length} known`;
   if (UI.tab === "lanterns") renderCards();
   else if (UI.tab === "order") renderRanks();
+  else if (UI.tab === "proximity") renderProxTab();
   else renderPatterns();
 }
 
@@ -351,7 +352,11 @@ $("sess").onclick = async () => {
   }
   render(); busy = false;
 };
-function setProxBtn() { $("prox").textContent = "Proximity ding: " + (PX.on ? "on" : "off"); $("prox").classList.toggle("on", PX.on); }
+function setProxBtn() {
+  $("prox").textContent = "Proximity: " + (!PX.on ? "off" : PX.silent ? "watch only" : "ding");
+  $("prox").classList.toggle("on", PX.on);
+  if (UI.tab === "proximity") pxControls();
+}
 async function pollProx() {
   let r;
   try { r = await api("/api/prox?since=" + pxSince); } catch (e) { return; } // server restarting
@@ -376,6 +381,134 @@ $("prox").onclick = async () => {
   } else { log("proximity ding off"); clearInterval(pxTimer); pxTimer = null; }
   refreshMeta();
 };
+
+// ---------- Proximity tab ----------
+// Live per-lantern sensor charts. The server keeps the last ~50 s of raw readings
+// per lantern; this pulls only new samples every 250 ms and draws the last 15 s.
+const PXV = {buf: {}, since: 0, evSince: 0, events: [], dings: {}, serverT: 0, timer: null};
+function pxControls() {
+  const mode = !PX.on ? "off" : PX.silent ? "watch" : "ding";
+  document.querySelectorAll("#pxmode button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  if (PX.range_mm) { $("pxrange").value = PX.range_mm; $("pxrangev").textContent = Math.round(PX.range_mm / 10); }
+}
+function renderProxTab() {
+  pxControls();
+  $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
+      <div class="hdr"><span class="nm">${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
+        <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
+      <canvas data-px="${id}"></canvas><div class="st" data-pxst="${id}"></div></div>`).join("");
+  PXV.timer = PXV.timer || setInterval(proxTick, 250);
+  pxDrawAll();
+}
+async function proxTick() {
+  if (UI.tab !== "proximity") return;
+  try {
+    const tr = await api("/api/proxtrace?since=" + PXV.since);
+    PXV.serverT = tr.server_t;
+    for (const [id, rows] of Object.entries(tr.trace)) {
+      const b = PXV.buf[id] = (PXV.buf[id] || []).concat(rows);
+      for (const r of rows) PXV.since = Math.max(PXV.since, r[0]);
+      while (b.length && b[0][0] < PXV.serverT - 20) b.shift();
+    }
+    const px = await api("/api/prox?since=" + PXV.evSince);
+    const wasOn = PX.on, wasSilent = PX.silent;
+    PX = px;
+    if (wasOn !== px.on || wasSilent !== px.silent) setProxBtn();
+    for (const ev of px.events) {
+      PXV.evSince = Math.max(PXV.evSince, ev.id);
+      PXV.events.push(ev);
+      PXV.dings[ev.fixture_id] = (PXV.dings[ev.fixture_id] || 0) + 1;
+      const c = document.querySelector(`[data-pxcard="${ev.fixture_id}"]`);
+      if (c) { c.classList.add("ding"); setTimeout(() => c.classList.remove("ding"), 500); }
+    }
+    PXV.events = PXV.events.filter(e => e.t > PXV.serverT - 20);
+  } catch (e) { /* server restarting */ }
+  pxDrawAll();
+}
+function pxDrawAll() {
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
+  const C = {muted: col("--muted"), text: col("--text"), ok: col("--ok"), bad: col("--bad"), warn: col("--warn"),
+             line: col("--line"), accent: col("--accent")};
+  let watching = 0, hands = 0, blocked = 0;
+  S.order.forEach(id => {
+    const l = live(id), v = PX.live && PX.live[id];
+    const badge = document.querySelector(`[data-pxbadge="${id}"]`), st = document.querySelector(`[data-pxst="${id}"]`);
+    if (!badge) return;
+    let label = "off", cls = "";
+    if (!l || l.offline) label = l ? "asleep" : "not connected";
+    else if (!l.tmf) label = "no sensor";
+    else if (PX.on && v) { label = v.status; cls = v.status; watching++; if (v.status === "hand") hands++; if (v.status === "blocked") blocked++; }
+    else if (PX.on) label = "starting";
+    badge.textContent = label; badge.className = "pxbadge " + cls;
+    const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && PX.on ? " · background clear" : "");
+    const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20)
+      ? `sees ${Math.round(v.depth_mm / 10)} cm (confidence ${v.confidence})` : (v ? "sees nothing" : "");
+    st.textContent = (l && !l.tmf) ? "This lantern has no distance sensor."
+      : `${now}${bgTxt}${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`;
+    pxDraw(id, C, v);
+  });
+  $("pxsummary").textContent = PX.on ? `${watching} sensors watched · ${hands} seeing a hand · ${blocked} blocked` : "";
+}
+function pxDraw(id, C, v) {
+  const cv = document.querySelector(`canvas[data-px="${id}"]`);
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const span = 15, T = PXV.serverT || Date.now() / 1000, range = PX.range_mm || 600;
+  const maxMm = Math.max(1500, range + 300);
+  const x = t => (t - (T - span)) / span * w, y = mm => 12 + mm / maxMm * (h - 18);
+  ctx.font = "10px system-ui"; ctx.fillStyle = C.muted; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+  for (let mm = 500; mm < maxMm; mm += 500) {           // distance grid, sensor at the top
+    ctx.beginPath(); ctx.moveTo(0, y(mm)); ctx.lineTo(w, y(mm)); ctx.stroke();
+    ctx.fillText(`${mm / 10} cm`, 3, y(mm) - 2);
+  }
+  ctx.fillText("sensor ▾", w - 48, 10);
+  const hline = (mm, color, dash) => {
+    ctx.save(); ctx.strokeStyle = color; ctx.setLineDash(dash || []); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, y(mm)); ctx.lineTo(w, y(mm)); ctx.stroke(); ctx.restore();
+  };
+  hline(range, C.ok, [5, 4]);
+  if (v && v.background_mm) {
+    hline(v.background_mm, C.muted);
+    const thr = v.background_mm - (PX.delta_mm || 300);
+    if (thr > 0) hline(thr, C.warn, [3, 3]);
+  }
+  for (const ev of PXV.events.filter(e => e.fixture_id === id)) {
+    ctx.save(); ctx.strokeStyle = ev.silent ? C.accent : C.bad; ctx.setLineDash(ev.silent ? [4, 3] : []); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x(ev.t), 0); ctx.lineTo(x(ev.t), h); ctx.stroke(); ctx.restore();
+  }
+  const minC = PX.min_confidence || 40, learnC = PX.learn_confidence || 20;
+  for (const [t, d, c, state] of PXV.buf[id] || []) {
+    if (!d || c < learnC || t < T - span) continue;
+    ctx.globalAlpha = c >= minC ? 1 : 0.35;
+    ctx.fillStyle = state === "hand" ? C.ok : C.text;
+    ctx.beginPath(); ctx.arc(x(t), y(Math.min(d, maxMm)), c >= minC ? 3 : 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+$("pxmode").onclick = async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const m = b.dataset.mode, range_mm = +$("pxrange").value;
+  const r = await api("/api/proximity", m === "off" ? {on: false} : {on: true, silent: m === "watch", range_mm});
+  PX = r; setProxBtn();
+  if (r.on && !pxTimer) pxTimer = setInterval(pollProx, 300);
+  log(m === "off" ? "proximity off" : `proximity ${m === "watch" ? "watch only (no strikes)" : "ding"}: learning backgrounds for 1.5 s, keep hands away`);
+};
+$("pxrange").oninput = e => { $("pxrangev").textContent = Math.round(e.target.value / 10); };
+$("pxrange").onchange = e => { if (PX.on) api("/api/proximity", {on: true, range_mm: +e.target.value}).then(r => { PX = r; }); };
+$("pxrelearn").onclick = async () => {
+  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
+  PX = await api("/api/proximity", {on: true, relearn: "all"}); log("relearning every background for 1.5 s: keep hands away");
+};
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-pxrelearn]"); if (!b) return;
+  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
+  PX = await api("/api/proximity", {on: true, relearn: [b.dataset.pxrelearn]});
+  log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep hands away`);
+});
 
 // ---------- Patterns tab ----------
 function newPattern(nm) { return {name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
@@ -657,6 +790,6 @@ $("logbar").onclick = () => $("logbar").classList.toggle("open");
   const st = await api("/api/pattern/status");
   if (st.running) { patStatus = st; $("patplay").disabled = true; patAnim = requestAnimationFrame(animate); patPoll = setInterval(watchPattern, 500); }
   $("sainfo").textContent = saPatternId ? `loaded pattern ${saPatternId}` : "";
-  showTab(["lanterns", "order", "patterns"].includes(UI.tab) ? UI.tab : "lanterns");
+  showTab(["lanterns", "order", "patterns", "proximity"].includes(UI.tab) ? UI.tab : "lanterns");
   $("scan").click();
 })();

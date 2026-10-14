@@ -28,6 +28,7 @@
     <button role="tab" data-tab="lanterns">Lanterns</button>
     <button role="tab" data-tab="order">Tone order</button>
     <button role="tab" data-tab="patterns">Patterns</button>
+    <button role="tab" data-tab="proximity">Proximity</button>
   </nav>
 </header>
 
@@ -152,6 +153,26 @@
         as not supported.</span></i>
     </div>
     <div class="seqwrap"><div class="seq" id="seq-grid"></div></div>
+  </section>
+  <!-- Proximity: live sensor view and tuning -->
+  <section class="tab" id="tab-proximity">
+    <div class="toolbar">
+      <span class="lbl">Mode</span>
+      <span class="seg" id="pxmode"><button data-mode="off">Off</button><button data-mode="watch">Watch only</button><button data-mode="ding">Ding</button></span>
+      <label class="status">range <input id="pxrange" type="range" min="200" max="1500" step="50" value="600"> <span id="pxrangev">60</span> cm</label>
+      <button id="pxrelearn">Relearn all backgrounds</button>
+      <i class="info" tabindex="0" aria-label="About the proximity view">i<span class="tip r">
+        Each chart is one lantern's distance sensor over the last 15 seconds, drawn the way it looks:
+        the sensor is at the top, looking down. Dots are returns (faint = weak, solid = confident enough to count
+        as a hand, green = counted as a hand). The gray line is the learned background, the amber dashed line is how
+        close a hand must come (30 cm nearer than the background), and the green dashed line is your range.
+        Red marks are dings; purple dashed marks are dings that <b>Watch only</b> would have played.
+        Keep hands away for 1.5 s after switching on or relearning. Sunlight weakens these infrared sensors.</span></i>
+      <span class="status" id="pxsummary"></span>
+    </div>
+    <p class="status" style="margin:0 0 10px">Sensors look straight down from the bottom of each lantern and ignore anything closer than 8 cm:
+      wave a hand 10-50 cm <b>below</b> a lantern, not beside it.</p>
+    <div class="pxgrid" id="pxgrid"></div>
   </section>
 </main>
 

@@ -496,7 +496,8 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
 PROX_MIN_CONFIDENCE = 40   # a hand must be a confident return
 PROX_LEARN_CONFIDENCE = 20 # but anything at the firmware floor counts as background (fixtures, walls)
 PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
-PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5}
+PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": False}
+prox_relearn = set()    # fixture ids whose detector should relearn its background
 
 
 class ProxDetector:
@@ -632,6 +633,9 @@ def prox_worker(fid):
                 if not d or d.get("fixture_id") != fid:
                     raise RuntimeError(f"identity mismatch: {d and d.get('fixture_id')}")
                 now = time.time()
+                if fid in prox_relearn:
+                    det = None
+                    prox_relearn.discard(fid)
                 det = det or ProxDetector(now)
                 depth = d.get("tof_depth_mm") or 0 if d.get("tmf_read_ok") else 0
                 conf = d.get("tof_confidence") or 0 if d.get("tmf_read_ok") else 0
@@ -644,9 +648,12 @@ def prox_worker(fid):
                 if ding:
                     with state_lock:
                         ms = STATE["lanterns"].get(fid, {}).get("pulse_ms") or STATE["pulse_ms"]
-                    conn.write(f"K{fid}:{ms}\n".encode())
-                    ev = {"id": len(prox_events) + 1, "utc": utc(), "fixture_id": fid, "depth_mm": depth,
-                          "confidence": conf, "background_mm": det.background, "pulse_ms": ms}
+                    silent = PROX["silent"]
+                    if not silent:  # watch-only mode detects and records but never strikes
+                        conn.write(f"K{fid}:{ms}\n".encode())
+                    ev = {"id": len(prox_events) + 1, "utc": utc(), "t": round(now, 3), "fixture_id": fid,
+                          "depth_mm": depth, "confidence": conf, "background_mm": det.background,
+                          "pulse_ms": ms, "silent": silent}
                     prox_events.append(ev)
                     del prox_events[:-200]
                     with open(STRIKE_LOG, "a") as f:
@@ -667,9 +674,13 @@ def prox_worker(fid):
         prox_cv.notify_all()
 
 
-def set_proximity(on, range_mm=None):
+def set_proximity(on, range_mm=None, silent=None, relearn=None):
     if range_mm is not None:
         PROX["range_mm"] = max(100, min(2000, int(range_mm)))
+    if silent is not None:
+        PROX["silent"] = bool(silent)
+    if relearn:
+        prox_relearn.update(list(prox_threads) if relearn == "all" else [str(f).upper() for f in relearn])
     if on and not PROX["on"]:
         PROX["on"] = True
         with state_lock:
@@ -684,14 +695,17 @@ def set_proximity(on, range_mm=None):
             t.join(timeout=2.0)
         prox_threads.clear()
         prox_live.clear()
+        prox_relearn.clear()
     return prox_status()
 
 
 def prox_status(since=0):
     with state_lock:
         no_sensor = [f for f, l in lanterns.items() if not l.get("tmf")]
-    return {"on": PROX["on"], "range_mm": PROX["range_mm"], "live": prox_live,
-            "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor}
+    return {"on": PROX["on"], "silent": PROX["silent"], "range_mm": PROX["range_mm"], "live": prox_live,
+            "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor,
+            "delta_mm": PROX_DELTA_MM, "min_confidence": PROX_MIN_CONFIDENCE,
+            "learn_confidence": PROX_LEARN_CONFIDENCE, "server_t": round(time.time(), 3)}
 
 
 # ---------------------------------------------------------------------------
@@ -1058,7 +1072,9 @@ class H(BaseHTTPRequestHandler):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(wake_status(since))
         if self.path.startswith("/api/proxtrace"):
-            return self.reply({f: v[-400:] for f, v in prox_trace.items()})
+            since = float(self.path.split("since=")[1]) if "since=" in self.path else 0.0
+            return self.reply({"server_t": round(time.time(), 3),
+                               "trace": {f: [x for x in v if x[0] > since] for f, v in prox_trace.items()}})
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
@@ -1075,7 +1091,7 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         b = self.body()
         if self.path == "/api/proximity":
-            return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm")))
+            return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm"), b.get("silent"), b.get("relearn")))
         if self.path == "/api/wake":
             if "keep" in b:
                 WAKE["keep"] = bool(b["keep"])
