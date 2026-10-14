@@ -10,6 +10,28 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-13 -- Brian + Claude -- Decompression lantern tone classification
+
+Brian connected the nine decompression lanterns to one powered hub on his Mac.
+All nine run decompression canary firmware (Sakura and Lucas on
+fx-261012-5d7ab8f-b, the rest on fx-261012-5164506-b); each got a 60-minute
+RAM session to stay reachable. Single exact-target 40 ms strikes, each with an
+identity check and counter confirmation, showed no blocks or failsafes.
+
+Brian classified them by ear. Working tone order, low to high:
+1 Leeloo F40254, 2 Ness 9F2738, 3 Bidoof 9F26D8, 4 Eevee 9F0E54,
+5 Sakura F2BE0C, 6 Rikku 9F26B0, 7 Tangela 9F0E5C (large chimes);
+8 Lucas 9F2638, 9 Pinsir 9F26BC (small chimes). Ordering is by ear and may
+still change; the JSON file is authoritative.
+
+Added ops/bench/decompression_tone_lab.py, a local web app (pyserial, macOS/Linux
+port discovery) for striking, classifying and ordering lanterns. Its fast Play
+mode checks every identity in parallel, fires one strike per lantern on an
+absolute schedule (100..5000 ms gap) and then confirms all counters. State:
+ops/bench/data/Brian bench/decompression-tone-map.json; strikes:
+decompression-tone-strikes.jsonl. Note: Ness reports a 6,000 mAh gauge
+capacity while the other eight report 15,000; pack size not confirmed.
+
 ## 2026-10-12 -- Ben + Codex -- Receiver build abandoned at packing pause
 
 Stopped the unfinished embedded receiver build at Ben's pause request and

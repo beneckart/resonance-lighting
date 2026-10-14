@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "site": "Brian bench",
+  "lanterns": {
+    "9F0E5C": {
+      "type": "large",
+      "note": ""
+    },
+    "9F2738": {
+      "type": "large",
+      "note": ""
+    },
+    "F2BE0C": {
+      "type": "large",
+      "note": ""
+    },
+    "9F26B0": {
+      "type": "large",
+      "note": ""
+    },
+    "9F0E54": {
+      "type": "large",
+      "note": ""
+    },
+    "F40254": {
+      "type": "large",
+      "note": ""
+    },
+    "9F26BC": {
+      "type": "small",
+      "note": ""
+    },
+    "9F2638": {
+      "type": "small",
+      "note": ""
+    },
+    "9F26D8": {
+      "type": "large",
+      "note": ""
+    }
+  },
+  "order": [
+    "F40254",
+    "9F2738",
+    "9F26D8",
+    "9F0E54",
+    "F2BE0C",
+    "9F26B0",
+    "9F0E5C",
+    "9F2638",
+    "9F26BC"
+  ],
+  "updated_utc": "2026-10-14T03:56:25.330Z"
+}
