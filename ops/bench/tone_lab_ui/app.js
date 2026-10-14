@@ -492,7 +492,10 @@ $("saload").onclick = async () => {
   log(`loading "${p.name}" onto connected lanterns…`);
   const r = await api("/api/pattern/upload", {pattern: p, lead: $("salead").checked});
   if (r.error && !r.results) log(r.error, "bad");
-  else { saPatternId = r.pattern_id; lsSet("saPatternId", saPatternId); reportResults(`load "${p.name}" (pattern ${r.pattern_id})`, r); }
+  else {
+    saPatternId = r.pattern_id; lsSet("saPatternId", saPatternId); reportResults(`load "${p.name}" (pattern ${r.pattern_id})`, r);
+    if ((r.skipped_old_firmware || []).length) log(`skipped (no pattern-mode firmware yet): ${r.skipped_old_firmware.map(name).join(", ")}`);
+  }
   $("sainfo").textContent = saPatternId ? `loaded pattern ${saPatternId}` : "";
   $("saload").disabled = false; busy = false; $("scan").click();
 };

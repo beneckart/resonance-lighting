@@ -10,6 +10,33 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- ADR 0084 pattern mode first hardware test (Sakura + Lucas)
+
+Built immutable fx-261014-257f65a-b (source acfafa7, SHA-256
+39f055f8f86e0e3465eb0f901fe72e7b65448ce63c32888dcdfabe8e4fc70608) and,
+with Brian as sole USB operator, flashed Sakura F2BE0C (app0) and Lucas
+9F2638 (app1) app-only after identity gate, private prefix/coredump backups
+and digest verification of the installed fx-261012-5d7ab8f-b. Prefix
+unchanged, new app verified, settings (15,000 mAh) kept, no pending verify.
+
+Loaded a 2 s sync-test loop from the tone lab (Sakura hits at 0 and 1 s,
+13 ms; Lucas every 0.5 s, 17 ms, 18.5 ms relative-latency lead); both CRCs
+matched the host. Standalone play: Sakura elected itself conductor, Lucas
+followed and locked. Second run 10:44-10:51 PDT, mostly unplugged on battery:
+Sakura 389 hits, Lucas 782, zero late/blocked/failsafe, no resets, 781 beats
+sent / 784 received (no meaningful loss), no takeovers, Lucas offset to
+Sakura unchanged within 4 us over the run (correction steps about +-150 us,
+relative crystal drift about 16 ppm), worst timer lateness 0.1 / 1.0 ms.
+Battery Sakura 3.41 -> 3.39 V, Lucas 3.41 -> 3.27 V (twice the hits, longer
+pulse). Not yet measured acoustically; mechanical lead is still a USB-based
+estimate. Brian found continuous playback annoying in a room, which matters
+for bench testing, not the result.
+
+Fixed a cosmetic bug (telemetry kept the previous stop reason while playing)
+for the next artifact. Upload now targets only pattern-mode lanterns and
+verifies a missed reply from telemetry CRC (NVS writes can outlast 1.5 s).
+Evidence: ops/bench/data/Brian bench/20261014T17*.
+
 ## 2026-10-14 -- Brian + Claude -- Pattern mode: tone lab sequencer and ADR 0084 firmware
 
 Ben approved starting firmware work. Proposed ADR 0084 (synchronized

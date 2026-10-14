@@ -809,7 +809,7 @@ def pattern_parts(p, use_lead):
     pid = (zlib.crc32(canon) & 0xFFFFFFFF) or 1
     with state_lock:
         meta = {f: dict(STATE["lanterns"].get(f, {})) for f in lanterns}
-        online = [f for f, l in lanterns.items() if not l.get("offline")]
+        online = [f for f, l in lanterns.items() if not l.get("offline") and l.get("fw_pattern")]
     lat = {f: meta[f].get("latency_ms") for f in online if meta[f].get("latency_ms") is not None}
     base = min(lat.values()) if lat else 0.0
     parts = {}
@@ -823,7 +823,7 @@ def pattern_parts(p, use_lead):
     return pid, parts
 
 
-def pattern_command(fid, line, wait_s=1.5):
+def pattern_command(fid, line, wait_s=4.0):
     """Identity-checked USB send of one '!P' line; returns the firmware's 'pattern:' reply or an error."""
     info = lanterns.get(fid)
     if not info or info.get("offline"):
@@ -866,13 +866,19 @@ def upload_pattern(p, use_lead):
     except ValueError as ex:
         return {"ok": False, "error": str(ex)}
     if not parts:
-        return {"ok": False, "error": "no lanterns connected"}
+        return {"ok": False, "error": "no connected lanterns have pattern-mode firmware (ADR 0084)"}
+    skipped = [f for f, l in lanterns.items() if not l.get("offline") and not l.get("fw_pattern")]
     items = []
     for f, pt in parts.items():
         offs = ",".join(str(o) for o in pt["offsets_us"]) or "-"
         items.append((f, f"!P{f} SET {pid:08x} {pt['loop_us']} {pt['pulse_ms']} {pt['lead_us']} {offs}"))
     res = parallel(pattern_command, items)
     for f, r in res.items():
+        if r.get("error") == "no reply":  # NVS writes can outlast the wait; verify from telemetry instead
+            d = query_port(lanterns[f]["port"])
+            if d and d.get("pattern_crc") == f"{parts[f]['crc']:08x}":
+                r.update(ok=True, reply=f"pattern: verified from telemetry crc={parts[f]['crc']:08x}")
+                r.pop("error", None)
         if r.get("ok"):
             want = f"crc={parts[f]['crc']:08x}"
             if want not in r.get("reply", ""):
@@ -883,11 +889,12 @@ def upload_pattern(p, use_lead):
                  "use_lead": use_lead, "results": list(res.values())}
     with open(STRIKE_LOG, "a") as fh:
         fh.write(json.dumps(log_entry) + "\n")
-    return {"ok": all(r.get("ok") for r in res.values()), "pattern_id": f"{pid:08x}", "results": list(res.values())}
+    return {"ok": all(r.get("ok") for r in res.values()), "pattern_id": f"{pid:08x}", "results": list(res.values()),
+            "skipped_old_firmware": skipped}
 
 
 def standalone(action, pattern_id=None, minutes=None):
-    online = [f for f, l in lanterns.items() if not l.get("offline")]
+    online = [f for f, l in lanterns.items() if not l.get("offline") and l.get("fw_pattern")]
     if action == "play":
         line = lambda f: f"!P{f} PLAY {pattern_id} {minutes}"
     else:

@@ -100,6 +100,7 @@ static const char *startPlayback(uint32_t patternId, uint16_t minutes) {
   gPlayer = PatternPlayer();
   gPlaying = true;
   portEXIT_CRITICAL(&gPatMux);
+  gStopWhy = ""; // a stale reason from the previous session would mislead telemetry
   gSession.set(now, minutes);
   if (esp_timer_start_periodic(gTimer, 1000) != ESP_OK) {
     patternStop("timer start failed");
