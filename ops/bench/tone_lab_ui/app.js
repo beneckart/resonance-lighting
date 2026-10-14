@@ -296,7 +296,9 @@ $("sess").onclick = async () => {
 };
 function setProxBtn() { $("prox").textContent = "Proximity ding: " + (PX.on ? "on" : "off"); $("prox").classList.toggle("on", PX.on); }
 async function pollProx() {
-  const r = await api("/api/prox?since=" + pxSince); PX = r;
+  let r;
+  try { r = await api("/api/prox?since=" + pxSince); } catch (e) { return; } // server restarting
+  PX = r;
   for (const ev of r.events) {
     pxSince = Math.max(pxSince, ev.id);
     log(`${name(ev.fixture_id)} ding (hand at ${Math.round(ev.depth_mm / 10)} cm, ${ev.pulse_ms} ms)`, "ok");
@@ -525,7 +527,8 @@ function stopAnim() {
   (cellEls[playhead] || []).forEach(el => el.classList.remove("ph")); playhead = -1;
 }
 async function watchPattern() {
-  const st = await api("/api/pattern/status");
+  let st;
+  try { st = await api("/api/pattern/status"); } catch (e) { return; } // server restarting; try again next tick
   if (st.running) { patStatus = st; return; }
   clearInterval(patPoll); patPoll = null; stopAnim();
   $("patplay").disabled = false;
