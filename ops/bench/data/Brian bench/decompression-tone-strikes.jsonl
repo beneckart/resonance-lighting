@@ -279,3 +279,17 @@
 {"kind": "proximity", "id": 18, "utc": "2026-10-14T20:34:38.090Z", "fixture_id": "9F26B0", "depth_mm": 182, "confidence": 73, "background_mm": null, "pulse_ms": 16}
 {"kind": "proximity", "id": 19, "utc": "2026-10-14T20:34:51.981Z", "fixture_id": "9F26B0", "depth_mm": 183, "confidence": 73, "background_mm": null, "pulse_ms": 16}
 {"kind": "proximity", "id": 20, "utc": "2026-10-14T20:35:38.593Z", "fixture_id": "9F26B0", "depth_mm": 179, "confidence": 75, "background_mm": null, "pulse_ms": 16}
+{"kind": "proximity", "id": 1, "utc": "2026-10-14T21:40:13.711Z", "t": 1792014013.711, "fixture_id": "9F26D8", "depth_mm": 226, "confidence": 44, "background_mm": null, "pulse_ms": 18, "silent": true}
+{"kind": "proximity", "id": 2, "utc": "2026-10-14T21:40:18.095Z", "t": 1792014018.095, "fixture_id": "9F26D8", "depth_mm": 227, "confidence": 48, "background_mm": null, "pulse_ms": 18, "silent": true}
+{"kind": "proximity", "id": 3, "utc": "2026-10-14T21:40:58.501Z", "t": 1792014058.501, "fixture_id": "9F26B0", "depth_mm": 125, "confidence": 232, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 4, "utc": "2026-10-14T21:41:08.742Z", "t": 1792014068.743, "fixture_id": "9F26B0", "depth_mm": 176, "confidence": 255, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 5, "utc": "2026-10-14T21:41:24.398Z", "t": 1792014084.399, "fixture_id": "9F26B0", "depth_mm": 179, "confidence": 74, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 6, "utc": "2026-10-14T21:41:27.667Z", "t": 1792014087.667, "fixture_id": "9F0E54", "depth_mm": 206, "confidence": 64, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 7, "utc": "2026-10-14T21:41:30.719Z", "t": 1792014090.719, "fixture_id": "9F0E54", "depth_mm": 210, "confidence": 55, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 8, "utc": "2026-10-14T21:41:35.440Z", "t": 1792014095.44, "fixture_id": "F40254", "depth_mm": 195, "confidence": 52, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 9, "utc": "2026-10-14T21:41:35.718Z", "t": 1792014095.719, "fixture_id": "9F26D8", "depth_mm": 221, "confidence": 41, "background_mm": null, "pulse_ms": 18, "silent": true}
+{"kind": "proximity", "id": 10, "utc": "2026-10-14T21:41:42.383Z", "t": 1792014102.384, "fixture_id": "9F26BC", "depth_mm": 138, "confidence": 255, "background_mm": null, "pulse_ms": 15, "silent": true}
+{"kind": "proximity", "id": 11, "utc": "2026-10-14T21:41:49.648Z", "t": 1792014109.648, "fixture_id": "F40254", "depth_mm": 197, "confidence": 49, "background_mm": null, "pulse_ms": 16, "silent": true}
+{"kind": "proximity", "id": 12, "utc": "2026-10-14T21:42:03.379Z", "t": 1792014123.379, "fixture_id": "9F2638", "depth_mm": 94, "confidence": 255, "background_mm": null, "pulse_ms": 17, "silent": true}
+{"kind": "proximity", "id": 13, "utc": "2026-10-14T21:42:05.288Z", "t": 1792014125.288, "fixture_id": "9F2638", "depth_mm": 149, "confidence": 156, "background_mm": null, "pulse_ms": 17, "silent": true}
+{"kind": "proximity", "id": 14, "utc": "2026-10-14T21:42:07.153Z", "t": 1792014127.154, "fixture_id": "9F2638", "depth_mm": 80, "confidence": 255, "background_mm": null, "pulse_ms": 17, "silent": true}
