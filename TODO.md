@@ -3705,3 +3705,10 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   `firmware/fixture/src/esp32/serial_cli.cpp` handleSerial(); long `!P` lines
   take seconds. Consider draining all available bytes per pass without
   breaking legacy single-byte commands that read their own arguments (Ben).
+- [ ] **Shared remote tone lab (tabled 2026-10-14).** Brian and Ben want to
+  control the same USB-attached lanterns from different places. The host laptop
+  keeps running the server; remote access via Tailscale (preferred) or a
+  Cloudflare Tunnel with Access login; a LAN passcode if only same-Wi-Fi.
+  Prerequisite either way: multi-user state sync (per-item saves instead of
+  whole-state posts, server-pushed updates to every open browser, attribution
+  in the log) so two editors never overwrite each other (Brian + Ben).
