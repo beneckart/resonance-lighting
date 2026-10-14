@@ -10,6 +10,41 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-13 -- Brian + Claude -- Tone lab pulse tuning, presets and latency sync
+
+Brian tuned each decompression lantern's solenoid pulse by ear in the tone lab.
+Current per-lantern pulses (high-to-low order): Leeloo 16, Ness 16, Bidoof 18,
+Eevee 16, Sakura 13, Rikku 16, Tangela 15 ms (large chimes); Lucas 17, Pinsir
+15 ms (small chimes). All are well below the 40 ms firmware default and below
+Ben's ~26 ms estimate. This is a listening result only; capbank refill,
+weak/null strikes at low charge and battery-only behavior are untested at
+these widths, and the firmware default is unchanged.
+
+Tone lab additions (ops/bench/decompression_tone_lab.py): play the All, Large
+or Small set high-to-low or low-to-high; reverse, group by chime type, and
+named saved orders; per-lantern pulse saved automatically (app cap 5..100 ms);
+microphone latency sync (send-to-sound median and spread per lantern, stored
+with the pulse it was measured at); optional latency compensation on Play
+(faster lanterns sent early by their difference from the slowest); optional
+mic timing measurement of a Play run against an ideal grid; info tooltips.
+
+First latency sync (3 strikes each, USB, laptop mic): medians 48-89 ms,
+a 41 ms range. Ness, Sakura, Pinsir and Rikku were consistent (spread
+0.4-6.5 ms). Tangela, Leeloo, Eevee and Bidoof each had one strike 70-110 ms
+later than the rest, consistent with plain `K` waiting on the firmware main
+loop; fixed-offset compensation cannot remove that, which supports the
+preloaded-song TODO. These latencies include the USB path and would not
+transfer to radio commands.
+
+Play-run timing measurement first failed ("heard 0 of 9") because ringing from
+nine cymbals masked a global loudness threshold. Reworked to search each
+strike's expected window with a broadband attack (spectral flux) detector, and
+fixed a frame-period error (44 samples is 0.998 ms at 44.1 kHz). Synthetic
+dense-ringing tests locate all hits within about 1 ms at 100-400 ms gaps; not
+yet re-verified on the lanterns. Several sessions expired at end of night.
+Data: ops/bench/data/Brian bench/decompression-tone-map.json,
+decompression-tone-strikes.jsonl, decompression-latency-cal.jsonl.
+
 ## 2026-10-13 -- Brian + Claude -- Decompression lantern tone classification
 
 Brian connected the nine decompression lanterns to one powered hub on his Mac.
