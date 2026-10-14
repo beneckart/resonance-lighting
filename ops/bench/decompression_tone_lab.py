@@ -513,11 +513,15 @@ class ProxDetector:
     leaves only the space in front of it."""
 
     LEARN_S, HIT_N, CLEAR_N = 1.5, 1, 5
+    FORGET_S = 30.0  # a learned background is only forgotten after this long unseen
+    DUTY_S, DUTY_MIN = 10.0, 0.15  # present >15% of the last 10 s at one distance = fixture
 
     def __init__(self, now):
         self.t0, self.learn, self.background = now, [], None
         self.learnTotal = 0
         self.hits = self.clears = self.farther = 0
+        self.bgSeenAt = now
+        self.window = []  # (time, depth or 0) over the last DUTY_S, to spot a static intruder
         self.armed = True
         self.last_ding = 0.0
 
@@ -539,14 +543,29 @@ class ProxDetector:
             enough = len(self.learn) >= max(2, self.learnTotal // 5)
             self.background = sorted(self.learn)[len(self.learn) // 4] if enough else None
             self.learn = None
-        # Background recovery: 3 s of readings consistently farther than it (or clear)
-        # means it was learned from something that has since moved, e.g. a hand.
+        # Background recovery. Something that flickers in and out (a cable, a
+        # neighbouring lantern at the edge of the cone) must stay background, so a
+        # learned background is only forgotten after FORGET_S without any return
+        # near it -- long enough to rule out flicker, short enough to recover
+        # from a hand that was present during learning.
         if self.background is not None:
-            farther = conf < PROX_LEARN_CONFIDENCE or depth == 0 or depth >= self.background + PROX_DELTA_MM
-            self.farther = self.farther + 1 if farther else 0
-            if self.farther >= 24:
-                self.background = depth if (conf >= PROX_MIN_CONFIDENCE and depth > 0) else None
-                self.farther = 0
+            if conf >= PROX_LEARN_CONFIDENCE and depth > 0 and depth < self.background + PROX_DELTA_MM:
+                self.bgSeenAt = now
+            elif now - self.bgSeenAt >= self.FORGET_S:
+                self.background = depth if (conf >= PROX_LEARN_CONFIDENCE and depth > 0) else None
+                self.bgSeenAt = now
+        # A fixture that was absent during learning but now sits in the cone a
+        # large share of the time (flickering cable, neighbouring lantern) is
+        # absorbed into the background; a waving hand is present only briefly.
+        self.window.append((now, depth if conf >= PROX_LEARN_CONFIDENCE and depth > 0 else 0))
+        self.window = [(t, d) for t, d in self.window if now - t <= self.DUTY_S]
+        if now - self.window[0][0] >= self.DUTY_S * 0.8:
+            seen = sorted(d for _, d in self.window if d)
+            if seen:
+                cand = seen[len(seen) // 2]
+                near = sum(1 for _, d in self.window if d and abs(d - cand) <= 15)  # fixtures read within ~10 mm
+                if near / len(self.window) >= self.DUTY_MIN and (self.background is None or cand < self.background):
+                    self.background, self.bgSeenAt, self.window = cand, now, []
         if self.hand(depth, conf, range_mm):
             self.hits, self.clears = self.hits + 1, 0
         else:

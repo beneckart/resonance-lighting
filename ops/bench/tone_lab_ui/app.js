@@ -314,6 +314,14 @@ async function liveRefresh() {
       wkSince = Math.max(wkSince, ev.id);
       log(ev.fixture_id ? `${name(ev.fixture_id)}: ${ev.msg}` : ev.msg, ev.ok ? "ok" : "bad");
     }
+    // Mirror the server's proximity switch so the button can never show the wrong state.
+    const px = await api("/api/prox?since=" + pxSince);
+    if (px.on !== PX.on) {
+      PX = px; setProxBtn();
+      if (px.on && !pxTimer) pxTimer = setInterval(pollProx, 300);
+      if (!px.on && pxTimer) { clearInterval(pxTimer); pxTimer = null; }
+      log(`proximity ding is ${px.on ? "on" : "off"}`);
+    }
     const r = await api("/api/snapshot");
     if (r.lanterns) {
       const before = new Set(L.filter(l => !l.offline).map(l => l.fixture_id));
