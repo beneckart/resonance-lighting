@@ -10,6 +10,27 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- Per-zone ToF telemetry and tone lab zone detection
+
+Tangela and Ness showed "sensor blocked" with nothing visibly in front of
+them; a hand registered only when closer than about 20 cm. Raw traces showed
+a rock-steady 18-21 cm return 97-100% of the time. Cause: telemetry reported
+only the closest confident return across all nine TMF8820 zones, so one zone
+seeing part of the lantern masked hands in the other eight.
+
+Firmware: telemetry now includes tof_zone_mm and tof_zone_conf (3x3, from the
+same report; no behavior change). Built immutable fx-261014-65eeb39-b (source
+6ef81cc, SHA-256 0233fef52345e4953e42e6c308a546bd9a9d35839236f3cfe605bc5fb09ba894)
+and flashed all nine app-only from fx-261014-461198c-b with the same
+identity-gated, digest-verified, backup-first procedure; settings kept.
+
+Tone lab: per-zone detector (one background per zone; a lantern dings when any
+open zone sees a hand, and is blocked only if all nine zones are). Proximity
+tab shows a 3x3 zone grid per lantern. Live result: zone 7 is blocked by a
+close return on Tangela (19 cm), Ness (21 cm), Rikku (19 cm) and Lucas
+(15 cm), plus zone 4 on Rikku and Lucas; every lantern is now ready. Zone 7
+on four lanterns suggests the same lantern part sits at the edge of the view.
+
 ## 2026-10-14 -- Brian + Claude -- Tone lab wake and keep-awake
 
 Lanterns kept lapsing into their 2-minute sleep cycle between work sessions.

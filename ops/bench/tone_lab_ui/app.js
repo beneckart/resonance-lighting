@@ -396,7 +396,8 @@ function renderProxTab() {
   $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
       <div class="hdr"><span class="nm">${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
         <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
-      <canvas data-px="${id}"></canvas><div class="st" data-pxst="${id}"></div></div>`).join("");
+      <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid" data-pxz="${id}" title="The sensor's 3x3 zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = hand."></div></div>
+      <div class="st" data-pxst="${id}"></div></div>`).join("");
   PXV.timer = PXV.timer || setInterval(proxTick, 250);
   pxDrawAll();
 }
@@ -443,9 +444,17 @@ function pxDrawAll() {
     const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && PX.on ? " · background clear" : "");
     const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20)
       ? `sees ${Math.round(v.depth_mm / 10)} cm (confidence ${v.confidence})` : (v ? "sees nothing" : "");
+    const nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
     st.textContent = (l && !l.tmf) ? "This lantern has no distance sensor."
+      : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of 9 zones blocked (ignored)${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`
       : `${now}${bgTxt}${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`;
     pxDraw(id, C, v);
+    const zg = document.querySelector(`[data-pxz="${id}"]`);
+    if (zg) zg.innerHTML = v && v.zones ? v.zones.map(z => {
+      const seen = z.mm && z.conf >= (PX.learn_confidence || 20);
+      const cls = z.state === "hand" ? "hand" : z.state === "blocked" ? "blocked" : seen ? "seen" : "";
+      return `<div class="${cls}" title="zone: ${seen ? Math.round(z.mm / 10) + " cm, confidence " + z.conf : "nothing"}${z.bg ? ", background " + Math.round(z.bg / 10) + " cm" : ""}${z.state === "blocked" ? " (blocked, ignored)" : ""}">${seen ? Math.round(z.mm / 10) : "·"}</div>`;
+    }).join("") : "";
   });
   $("pxsummary").textContent = PX.on ? `${watching} sensors watched · ${hands} seeing a hand · ${blocked} blocked` : "";
 }

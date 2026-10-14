@@ -607,6 +607,47 @@ class ProxPaused:
             prox_cv.notify_all()
 
 
+class ZoneDetector:
+    """Per-zone detection for the TMF8820's 3x3 zones (telemetry tof_zone_mm/conf).
+
+    Each zone has its own ProxDetector, so a zone that permanently sees part of
+    the lantern (Tangela and Ness: a steady ~20 cm return) is blocked on its own
+    while the other zones still see a hand at normal distances. The lantern dings
+    when any zone sees a hand, with one lantern-level re-arm and cooldown."""
+
+    def __init__(self, now):
+        self.zones = [ProxDetector(now) for _ in range(9)]
+        self.armed, self.clears, self.last_ding = True, 0, 0.0
+        self.states = ["learning"] * 9
+
+    def step(self, now, mm, conf, range_mm, cooldown_s):
+        # Zone-level dings are disabled (infinite cooldown); the lantern decides.
+        self.states = [z.step(now, mm[i], conf[i], range_mm, 1e12)[0] for i, z in enumerate(self.zones)]
+        hand = "hand" in self.states
+        if hand:
+            self.clears = 0
+        else:
+            self.clears += 1
+            if self.clears >= ProxDetector.CLEAR_N:
+                self.armed = True
+        ding = hand and self.armed and now - self.last_ding >= cooldown_s
+        if ding:
+            self.armed, self.last_ding = False, now
+        if "learning" in self.states:
+            return "learning", False
+        if hand:
+            return "hand", ding
+        return ("blocked" if all(st == "blocked" for st in self.states) else "ready"), ding
+
+    def open_zones(self):
+        return [i for i, st in enumerate(self.states) if st != "blocked"]
+
+    def background(self):
+        """Nearest background among usable zones (for the chart), or None."""
+        bgs = [self.zones[i].background for i in self.open_zones() if self.zones[i].background]
+        return min(bgs) if bgs else None
+
+
 def prox_worker(fid):
     conn, det = None, None
     while PROX["on"]:
@@ -636,12 +677,27 @@ def prox_worker(fid):
                 if fid in prox_relearn:
                     det = None
                     prox_relearn.discard(fid)
-                det = det or ProxDetector(now)
-                depth = d.get("tof_depth_mm") or 0 if d.get("tmf_read_ok") else 0
-                conf = d.get("tof_confidence") or 0 if d.get("tmf_read_ok") else 0
-                state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
+                ok = bool(d.get("tmf_read_ok"))
+                zmm, zconf = d.get("tof_zone_mm"), d.get("tof_zone_conf")
+                if ok and isinstance(zmm, list) and len(zmm) == 9 and isinstance(zconf, list) and len(zconf) == 9:
+                    if not isinstance(det, ZoneDetector):
+                        det = ZoneDetector(now)
+                    state, ding = det.step(now, zmm, zconf, PROX["range_mm"], PROX["cooldown_s"])
+                    usable = [i for i in det.open_zones() if zmm[i] and zconf[i] >= PROX_LEARN_CONFIDENCE]
+                    near = min(usable, key=lambda i: zmm[i]) if usable else None
+                    depth, conf = (zmm[near], zconf[near]) if near is not None else (0, 0)
+                    background = det.background()
+                    zones = [{"mm": zmm[i], "conf": zconf[i], "bg": det.zones[i].background, "state": det.states[i]}
+                             for i in range(9)]
+                else:  # firmware without per-zone telemetry: single closest return
+                    if not isinstance(det, ProxDetector):
+                        det = ProxDetector(now)
+                    depth = (d.get("tof_depth_mm") or 0) if ok else 0
+                    conf = (d.get("tof_confidence") or 0) if ok else 0
+                    state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
+                    background, zones = det.background, None
                 prox_live[fid] = {"depth_mm": depth, "confidence": conf, "status": state,
-                                  "background_mm": det.background}
+                                  "background_mm": background, "zones": zones}
                 tr = prox_trace.setdefault(fid, [])
                 tr.append((round(now, 3), depth, conf, state, d.get("tmf_reads")))
                 del tr[:-400]
@@ -652,7 +708,7 @@ def prox_worker(fid):
                     if not silent:  # watch-only mode detects and records but never strikes
                         conn.write(f"K{fid}:{ms}\n".encode())
                     ev = {"id": len(prox_events) + 1, "utc": utc(), "t": round(now, 3), "fixture_id": fid,
-                          "depth_mm": depth, "confidence": conf, "background_mm": det.background,
+                          "depth_mm": depth, "confidence": conf, "background_mm": background,
                           "pulse_ms": ms, "silent": silent}
                     prox_events.append(ev)
                     del prox_events[:-200]
