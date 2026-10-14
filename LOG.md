@@ -10,6 +10,31 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-13 -- Brian + Claude -- Tone lab proximity ding (first try, reworked)
+
+Added a host-side "Proximity ding" mode to the tone lab: while on, the app
+polls each lantern's TMF8820 depth over USB (about 8 Hz) and sends one
+exact-target strike at that lantern's pulse when a hand is detected. The
+decompression firmware still does not chime on presence itself; this is a
+USB demo path, not the installation trigger. Sakura F2BE0C has no TMF8820
+(class_mismatch) and is skipped.
+
+The first version (absolute range, confidence >= 20) failed in a live demo:
+Rikku 9F26B0 sees a fixed object at about 18 cm with confidence 255 and
+intermittent dropouts, so it re-armed and dinged every 1.5-2 s; several
+others see a wall/ceiling at 1.2-1.5 m with weak flickering confidence,
+which kept them triggered so hands did nothing.
+
+Reworked to mirror the firmware gate: learn each sensor's background for
+1.5 s when switched on; count a hand only at confidence >= 40, inside the
+range and at least 300 mm nearer than the background; require 2 consecutive
+hand readings to ding and 5 clear readings to re-arm; reset a stale
+background after 3 s of farther readings. A background nearer than 32 cm
+(Rikku) shows "sensor blocked". Default range 60 cm. Simulated scenarios
+(blocked sensor, flickering far wall, single and repeated waves, held hand
+with dropouts, hand during learning, one-frame glitch) behave as intended;
+not yet re-tested on hardware. Also fixed the button losing state on reload.
+
 ## 2026-10-13 -- Brian + Claude -- Tone lab pulse tuning, presets and latency sync
 
 Brian tuned each decompression lantern's solenoid pulse by ear in the tone lab.

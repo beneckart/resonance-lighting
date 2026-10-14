@@ -103,7 +103,7 @@ def summarize(port, d):
         "bq_fault": d.get("bq_fault0"), "cap_mah": d.get("battery_capacity_mah"),
         "strikes": d.get("solenoid_strikes"), "failsafes": d.get("solenoid_failsafes"),
         "blocked": d.get("solenoid_blocked"), "session_left_s": d.get("decompression_left_s"),
-        "decompression": bool(d.get("decompression")), "seen_utc": utc(),
+        "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")), "seen_utc": utc(),
     }
 
 
@@ -472,6 +472,182 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
             "timing": timing, "results": out}
 
 
+# ---------------------------------------------------------------------------
+# Proximity ding (host-side, USB only). The decompression firmware does not yet
+# chime on presence by itself, so while this mode is on the app polls each
+# lantern's TMF8820 depth and sends one exact-target strike when a hand comes
+# within range. Detection mirrors the firmware gate's confidence floor
+# (PRESENCE_MIN_CONFIDENCE 20 in firmware/fixture/src/core/presence_wave.h).
+# ---------------------------------------------------------------------------
+PROX_MIN_CONFIDENCE = 40   # host mode is stricter than the firmware floor (20): weak far echoes flicker
+PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
+PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5}
+
+
+class ProxDetector:
+    """Background-relative hand detector for one lantern's single-depth readings.
+
+    Learn: the first ~1.5 s of readings set the background (nearest steady,
+    confident depth, or "clear"). Trigger: 2 consecutive confident readings
+    within range and PROX_DELTA_MM nearer than the background. Re-arm: 5
+    consecutive non-hand readings (~0.6 s), so one dropout cannot re-trigger.
+    The background resets after 3 s of consistently farther readings.
+    A background nearer than the range itself (e.g. something 18 cm away)
+    leaves only the space in front of it."""
+
+    LEARN_S, HIT_N, CLEAR_N = 1.5, 2, 5
+
+    def __init__(self, now):
+        self.t0, self.learn, self.background = now, [], None
+        self.hits = self.clears = self.farther = 0
+        self.armed = True
+        self.last_ding = 0.0
+
+    def hand(self, depth, conf, range_mm):
+        if conf < PROX_MIN_CONFIDENCE or not (20 <= depth <= range_mm):
+            return False
+        return self.background is None or depth <= self.background - PROX_DELTA_MM
+
+    def step(self, now, depth, conf, range_mm, cooldown_s):
+        """Returns (state, ding) where state is learning/blocked/ready/hand."""
+        if now - self.t0 < self.LEARN_S:
+            if conf >= PROX_MIN_CONFIDENCE and depth > 0:
+                self.learn.append(depth)
+            return "learning", False
+        if self.learn is not None:
+            # Background = a steady confident return seen in at least a third of learning samples.
+            self.background = sorted(self.learn)[len(self.learn) // 3] if len(self.learn) >= 4 else None
+            self.learn = None
+        # Background recovery: 3 s of readings consistently farther than it (or clear)
+        # means it was learned from something that has since moved, e.g. a hand.
+        if self.background is not None:
+            farther = conf < PROX_MIN_CONFIDENCE or depth == 0 or depth >= self.background + PROX_DELTA_MM
+            self.farther = self.farther + 1 if farther else 0
+            if self.farther >= 24:
+                self.background = depth if (conf >= PROX_MIN_CONFIDENCE and depth > 0) else None
+                self.farther = 0
+        if self.hand(depth, conf, range_mm):
+            self.hits, self.clears = self.hits + 1, 0
+        else:
+            self.clears, self.hits = self.clears + 1, 0
+            if self.clears >= self.CLEAR_N:
+                self.armed = True
+        ding = False
+        if self.hits >= self.HIT_N and self.armed and now - self.last_ding >= cooldown_s:
+            ding, self.armed, self.last_ding = True, False, now
+        if self.background is not None and self.background - PROX_DELTA_MM < 20:
+            return "blocked", ding
+        return ("hand" if self.hits else "ready"), ding
+prox_live = {}          # fid -> {"depth_mm", "confidence", "present", "status"}
+prox_events = []        # [{"id", "utc", "fixture_id", "depth_mm", "pulse_ms"}]
+prox_threads = {}
+prox_parked = {}
+prox_pause_count = 0
+prox_cv = threading.Condition()
+
+
+class ProxPaused:
+    """Park the proximity workers (closing their ports) around another serial operation."""
+
+    def __enter__(self):
+        global prox_pause_count
+        with prox_cv:
+            prox_pause_count += 1
+            prox_cv.wait_for(lambda: all(prox_parked.get(f, True) for f, t in prox_threads.items() if t.is_alive()),
+                             timeout=3.0)
+
+    def __exit__(self, *a):
+        global prox_pause_count
+        with prox_cv:
+            prox_pause_count -= 1
+            prox_cv.notify_all()
+
+
+def prox_worker(fid):
+    conn, det = None, None
+    while PROX["on"]:
+        with prox_cv:
+            if prox_pause_count:
+                if conn:
+                    conn.close()
+                    conn = None
+                prox_parked[fid] = True
+                prox_cv.notify_all()
+                prox_cv.wait(timeout=0.2)
+                continue
+            prox_parked[fid] = False
+        info = lanterns.get(fid)
+        if not info or info.get("offline"):
+            time.sleep(1.0)
+            continue
+        try:
+            with lock_for(info["port"]):
+                if conn is None:
+                    conn = serial.Serial(info["port"], 115200, timeout=0.03)
+                    time.sleep(0.1)
+                d = telemetry(conn, wait=0.5)
+                if not d or d.get("fixture_id") != fid:
+                    raise RuntimeError(f"identity mismatch: {d and d.get('fixture_id')}")
+                now = time.time()
+                det = det or ProxDetector(now)
+                depth = d.get("tof_depth_mm") or 0 if d.get("tmf_read_ok") else 0
+                conf = d.get("tof_confidence") or 0 if d.get("tmf_read_ok") else 0
+                state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
+                prox_live[fid] = {"depth_mm": depth, "confidence": conf, "status": state,
+                                  "background_mm": det.background}
+                if ding:
+                    with state_lock:
+                        ms = STATE["lanterns"].get(fid, {}).get("pulse_ms") or STATE["pulse_ms"]
+                    conn.write(f"K{fid}:{ms}\n".encode())
+                    ev = {"id": len(prox_events) + 1, "utc": utc(), "fixture_id": fid, "depth_mm": depth,
+                          "confidence": conf, "background_mm": det.background, "pulse_ms": ms}
+                    prox_events.append(ev)
+                    del prox_events[:-200]
+                    with open(STRIKE_LOG, "a") as f:
+                        f.write(json.dumps({"kind": "proximity", **ev}) + "\n")
+        except Exception as ex:
+            prox_live[fid] = {"status": f"error: {ex}"}
+            if conn:
+                try: conn.close()
+                except Exception: pass
+            conn, det = None, None
+            time.sleep(1.0)
+            continue
+        time.sleep(0.08)
+    if conn:
+        conn.close()
+    with prox_cv:
+        prox_parked[fid] = True
+        prox_cv.notify_all()
+
+
+def set_proximity(on, range_mm=None):
+    if range_mm is not None:
+        PROX["range_mm"] = max(100, min(2000, int(range_mm)))
+    if on and not PROX["on"]:
+        PROX["on"] = True
+        with state_lock:
+            sensed = [f for f, l in lanterns.items() if l.get("tmf") and not l.get("offline")]
+        for fid in sensed:
+            t = threading.Thread(target=prox_worker, args=(fid,), daemon=True)
+            prox_threads[fid] = t
+            t.start()
+    elif not on and PROX["on"]:
+        PROX["on"] = False
+        for t in list(prox_threads.values()):
+            t.join(timeout=2.0)
+        prox_threads.clear()
+        prox_live.clear()
+    return prox_status()
+
+
+def prox_status(since=0):
+    with state_lock:
+        no_sensor = [f for f, l in lanterns.items() if not l.get("tmf")]
+    return {"on": PROX["on"], "range_mm": PROX["range_mm"], "live": prox_live,
+            "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor}
+
+
 def snapshot():
     with state_lock:
         return {"lanterns": sorted(lanterns.values(), key=lambda l: l["hub"]), "state": STATE,
@@ -495,6 +671,9 @@ class H(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(n) or b"{}")
 
     def do_GET(self):
+        if self.path.startswith("/api/prox"):
+            since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
+            return self.reply(prox_status(since))
         if self.path == "/":
             return self.reply(PAGE.encode(), ctype="text/html; charset=utf-8")
         if self.path == "/api/snapshot":
@@ -503,6 +682,14 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         b = self.body()
+        if self.path == "/api/proximity":
+            return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm")))
+        if self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
+            with ProxPaused():
+                return self.post_serial(b)
+        return self.post_serial(b)
+
+    def post_serial(self, b):
         if self.path == "/api/scan":
             return self.reply(scan())
         if self.path == "/api/strike":
@@ -568,7 +755,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16p
 @media (max-width:820px){main{grid-template-columns:minmax(0,1fr)}}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
-.card.offline{opacity:.55}.card.flash{outline:2px solid var(--accent)}
+.card.offline{opacity:.55}.card.flash{outline:2px solid var(--accent)}.card.ding{outline:3px solid var(--ok)}
 .name{font-weight:600;font-size:16px}.meta{font-size:12px;color:var(--muted)}
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 input[type=text]{width:100%;font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);margin-top:8px}
@@ -594,6 +781,9 @@ input[type=text]{width:100%;font:inherit;font-size:13px;padding:5px 8px;border:1
 <label class="status">strikes each <select id="reps"><option>3</option><option selected>4</option><option>5</option></select></label>
 <label class="status"><input type="checkbox" id="comp"> compensate on play</label><i class="info" tabindex="0" aria-label="About compensate on play">i<span class="tip" role="tooltip"><b>Compensate on play</b> changes when commands are sent. Each lantern has its own delay from command to chime. With this on, faster lanterns get their command sent early by however much quicker they are than the slowest one, so every chime lands exactly on the beat. Example: latencies of 30, 55 and 40 ms are sent 25, 0 and 15 ms early. Uses the latencies from Sync latency; unsynced lanterns are assumed to have the group median. Turns on automatically after a sync.</span></i>
 <label class="status"><input type="checkbox" id="meas"> measure timing on play</label><i class="info" tabindex="0" aria-label="About measure timing on play">i<span class="tip r" role="tooltip"><b>Measure timing on play</b> only listens; it never changes what is sent. The microphone records the run, finds where each chime starts, and compares the hits with a perfect grid at your gap. The log shows each lantern's error (+ late, - early), the worst hit (max) and the typical error (rms). Compare a run with compensation off and on to see whether it helped. Needs a quiet room and a gap of at least 100 ms.</span></i></div>
+<div class="bar"><span class="lbl">Sense</span>
+<button id="prox">Proximity ding: off</button><i class="info" tabindex="0" aria-label="About proximity ding">i<span class="tip" role="tooltip"><b>Proximity ding</b> turns each lantern's distance sensor into a trigger: wave a hand in front of it and it chimes once at its own pulse. When switched on, each sensor first learns its background for 1.5 s (keep hands away); after that only something at least 30 cm nearer than the background and inside the range counts. The app watches every sensor about 8 times a second over USB and sends the strike, so this works only while the lanterns are plugged into this laptop and awake. It re-arms after your hand has been gone for about half a second, with at least 1.5 s between dings. A card saying "sensor blocked" has something right in front of it. Lanterns without a working sensor are skipped. Play, Strike and Sync still work; the sensors pause briefly while they run.</span></i>
+<label class="status">range <input id="prange" type="range" min="200" max="1500" step="50" value="600" style="width:110px;vertical-align:middle"> <span id="prangev">60</span> cm</label></div>
 <div class="bar"><span class="lbl"></span><span class="status">Pulse is set per lantern on each card and saves as you type (blank = firmware default 40 ms)</span></div></header>
 <main><section><div class="grid" id="grid"></div></section>
 <aside class="panel"><h2>Tone order (1 = highest) — drag to reorder</h2>
@@ -609,6 +799,16 @@ function meta(id){return S.lanterns[id]||(S.lanterns[id]={type:null,note:""})}
 let PMIN=5,PMAX=100,curSet="all",AUDIO=false;
 function save(){api("/api/state",{lanterns:S.lanterns,order:S.order,presets:S.presets,pulse_ms:S.pulse_ms}).then(r=>{$("saved").textContent=r.ok?"saved "+new Date().toLocaleTimeString():"save failed"})}
 function pulseFor(id){return meta(id).pulse_ms||S.pulse_ms}
+let PX={on:false,live:{},no_sensor:[]},pxSince=0,pxTimer=null;
+function proxText(l){if(!PX.on)return "";if(!l.tmf)return ` · <span style="color:var(--muted)">no sensor</span>`;const v=PX.live[l.fixture_id];if(!v)return ` · sensor starting`;
+ const bg=v.background_mm?` (background ${Math.round(v.background_mm/10)} cm)`:"";
+ if(v.status==="learning")return ` · learning background…`;
+ if(v.status==="blocked")return ` · <span class="bad" title="Something sits right in front of this sensor; move it or this lantern cannot sense a hand">sensor blocked at ${Math.round(v.background_mm/10)} cm</span>`;
+ if(v.status==="hand")return ` · <span style="color:var(--ok)">hand ${Math.round(v.depth_mm/10)} cm</span>`;
+ if(v.status==="ready")return ` · ready${bg}`;return ` · <span class="bad">${v.status}</span>`}
+function setProxBtn(){$("prox").textContent="Proximity ding: "+(PX.on?"on":"off");$("prox").classList.toggle("on-l",PX.on)}
+async function pollProx(){const r=await api("/api/prox?since="+pxSince);PX=r;for(const ev of r.events){pxSince=Math.max(pxSince,ev.id);log(`${name(ev.fixture_id)} ding (hand at ${Math.round(ev.depth_mm/10)} cm, ${ev.pulse_ms} ms)`,"ok");const c=$("c-"+ev.fixture_id);if(c){c.classList.add("ding");setTimeout(()=>c.classList.remove("ding"),600)}}
+ L.forEach(l=>{const c=$("c-"+l.fixture_id);if(c){const m=c.querySelector(".meta");if(m)m.innerHTML=metaText(l)}});if(!PX.on){clearInterval(pxTimer);pxTimer=null;setProxBtn()}}
 function latText(id){const m=meta(id);if(m.latency_ms==null)return "";const stale=m.latency_pulse_ms!==pulseFor(id);return ` · <span style="color:${stale?"var(--warn)":"inherit"}" title="${stale?"pulse changed since sync -- re-sync":"measured at "+m.latency_pulse_ms+" ms pulse"}">latency ${Math.round(m.latency_ms)} ms ±${Math.round(m.latency_jitter_ms/2)}${stale?" (re-sync)":""}</span>`}
 function validP(v){return Number.isInteger(v)&&v>=PMIN&&v<=PMAX}
 function playList(dir){let ids=S.order.filter(id=>curSet==="all"||meta(id).type===curSet);return dir==="up"?ids.slice().reverse():ids}
@@ -617,10 +817,11 @@ function renderHead(){document.querySelectorAll("#set button").forEach(b=>b.clas
 function syncOrder(){const ids=L.map(l=>l.fixture_id);S.order=S.order.filter(i=>ids.includes(i));ids.forEach(i=>{if(!S.order.includes(i))S.order.push(i)})}
 function name(id){const l=L.find(x=>x.fixture_id===id);return l?(l.callsign||id):id}
 function tag(t){return t==="large"?'<span class="tag on-l">large</span>':t==="small"?'<span class="tag on-s">small</span>':'<span class="tag" style="color:var(--muted)">?</span>'}
+function metaText(l){const mins=l.session_left_s!=null?Math.round(l.session_left_s/60):"–";return `${l.fixture_id} · hub ${l.hub} · ${l.battery_v!=null?l.battery_v.toFixed(2)+" V":"?"} · session ${mins} min · strikes ${l.strikes??"?"}${latText(l.fixture_id)}${proxText(l)}`}
 function render(){
  $("grid").innerHTML=L.map(l=>{const m=meta(l.fixture_id),mins=l.session_left_s!=null?Math.round(l.session_left_s/60):"–";
  return `<div class="card ${l.offline?"offline":""}" id="c-${l.fixture_id}"><div class="name">${l.callsign||l.fixture_id}</div>
- <div class="meta">${l.fixture_id} · hub ${l.hub} · ${l.battery_v!=null?l.battery_v.toFixed(2)+" V":"?"} · session ${mins} min · strikes ${l.strikes??"?"}${latText(l.fixture_id)}</div>
+ <div class="meta">${metaText(l)}</div>
  <div class="row"><button data-strike="${l.fixture_id}">Strike</button>
  <button class="${m.type==="large"?"on-l":""}" data-type="${l.fixture_id}:large">Large</button>
  <button class="${m.type==="small"?"on-s":""}" data-type="${l.fixture_id}:small">Small</button>
@@ -672,7 +873,13 @@ $("cal").onclick=async()=>{if(busy)return;const ids=playList("down");if(!ids.len
   render()}
  const got=ids.map(id=>meta(id).latency_ms).filter(v=>v!=null);if(got.length>1){log(`latency range ${Math.round(Math.min(...got))}–${Math.round(Math.max(...got))} ms; compensation on`);$("comp").checked=true}
  $("cal").disabled=false;busy=false};
+$("prange").oninput=e=>{$("prangev").textContent=Math.round(e.target.value/10)};
+$("prange").onchange=e=>{api("/api/prox?since="+pxSince).then(r=>{if(r.on)api("/api/proximity",{on:true,range_mm:+e.target.value})})};
+$("prox").onclick=async()=>{const cur=await api("/api/prox?since="+pxSince);const on=!cur.on;const r=await api("/api/proximity",{on,range_mm:+$("prange").value});PX=r;setProxBtn();
+ if(on){const n=L.filter(l=>l.tmf&&!l.offline).length;log(`proximity ding on: learning each background for 1.5 s (keep hands away), then dinging within ${Math.round(r.range_mm/10)} cm`+(r.no_sensor.length?` (no sensor: ${r.no_sensor.map(name).join(", ")})`:""));pxTimer=pxTimer||setInterval(pollProx,300)}
+ else{log("proximity ding off");clearInterval(pxTimer);pxTimer=null}render()};
 $("sess").onclick=async()=>{if(busy)return;busy=true;for(const l of L.filter(x=>!x.offline)){const r=await api("/api/session",{id:l.fixture_id,minutes:60});log(`${name(l.fixture_id)} session: ${r.ok&&/accepted/.test(r.reply)?"60 min":(r.error||r.reply||"?")}`,r.ok?"":"bad");if(r.session_left_s!=null)l.session_left_s=r.session_left_s}render();busy=false};
+api("/api/prox").then(r=>{PX=r;$("prange").value=r.range_mm;$("prangev").textContent=Math.round(r.range_mm/10);setProxBtn();if(r.on)pxTimer=setInterval(pollProx,300)});
 api("/api/snapshot").then(r=>{S=r.state;S.lanterns=S.lanterns||{};S.order=S.order||[];S.presets=S.presets||{};PMIN=r.pulse_min;PMAX=r.pulse_max;AUDIO=r.audio;renderHead();renderPresets();$("saved").textContent="saving to "+r.state_file;$("scan").click()});
 </script></body></html>"""
 

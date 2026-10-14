@@ -3674,3 +3674,8 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
      these nine lanterns have no GPS module.
   4. Calibrate a fixed per-lantern offset for solenoid/cymbal response from the
      microphone measurements (Brian + Ben).
+- [ ] **Re-test tone lab proximity ding on hardware.** Background-relative
+  detector is untested on lanterns. Check Rikku 9F26B0's sensor for whatever
+  sits about 18 cm in front of it, confirm one ding per wave on each of the
+  eight sensored lanterns, and tune range/confidence. Longer term this belongs
+  in firmware (ADR 0082 presence trigger) so it works without USB (Brian).
