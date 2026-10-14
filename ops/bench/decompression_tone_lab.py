@@ -495,6 +495,7 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
 # ---------------------------------------------------------------------------
 PROX_MIN_CONFIDENCE = 40   # a hand must be a confident return
 PROX_LEARN_CONFIDENCE = 20 # but anything at the firmware floor counts as background (fixtures, walls)
+PROX_WEAK_CONFIDENCE = 22  # a weak return counts as a hand only when seen twice in a row (far hands, sun)
 PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
 PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": False}
 prox_relearn = set()    # fixture ids whose detector should relearn its background
@@ -514,20 +515,22 @@ class ProxDetector:
     leaves only the space in front of it."""
 
     LEARN_S, HIT_N, CLEAR_N = 1.5, 1, 5
-    FORGET_S = 30.0  # a learned background is only forgotten after this long unseen
-    DUTY_S, DUTY_MIN = 10.0, 0.15  # present >15% of the last 10 s at one distance = fixture
+    FORGET_S = 12.0  # a learned background is only forgotten after this long unseen
+    STILL_S = 3.0                   # continuously present at one distance this long = fixture
+    DUTY_S, DUTY_MIN = 20.0, 0.40   # or present >40% of 20 s at one distance (flickering fixture)
 
     def __init__(self, now):
         self.t0, self.learn, self.background = now, [], None
         self.learnTotal = 0
-        self.hits = self.clears = self.farther = 0
+        self.hits = self.clears = self.farther = self.weak = 0
         self.bgSeenAt = now
         self.window = []  # (time, depth or 0) over the last DUTY_S, to spot a static intruder
+        self.still_mm, self.still_since = 0, now
         self.armed = True
         self.last_ding = 0.0
 
-    def hand(self, depth, conf, range_mm):
-        if conf < PROX_MIN_CONFIDENCE or not (20 <= depth <= range_mm):
+    def hand(self, depth, conf, range_mm, min_conf=PROX_MIN_CONFIDENCE):
+        if conf < min_conf or not (20 <= depth <= range_mm):
             return False
         return self.background is None or depth <= self.background - PROX_DELTA_MM
 
@@ -558,7 +561,15 @@ class ProxDetector:
         # A fixture that was absent during learning but now sits in the cone a
         # large share of the time (flickering cable, neighbouring lantern) is
         # absorbed into the background; a waving hand is present only briefly.
-        self.window.append((now, depth if conf >= PROX_LEARN_CONFIDENCE and depth > 0 else 0))
+        seen_now = depth if conf >= PROX_LEARN_CONFIDENCE and depth > 0 else 0
+        # Continuous stillness: the same distance (within 15 mm) on every report.
+        if seen_now and self.still_mm and abs(seen_now - self.still_mm) <= 15:
+            if now - self.still_since >= self.STILL_S and (self.background is None or seen_now < self.background):
+                self.background, self.bgSeenAt, self.window = seen_now, now, []
+                self.still_mm = 0
+        else:
+            self.still_mm, self.still_since = seen_now, now
+        self.window.append((now, seen_now))
         self.window = [(t, d) for t, d in self.window if now - t <= self.DUTY_S]
         if now - self.window[0][0] >= self.DUTY_S * 0.8:
             seen = sorted(d for _, d in self.window if d)
@@ -567,8 +578,15 @@ class ProxDetector:
                 near = sum(1 for _, d in self.window if d and abs(d - cand) <= 15)  # fixtures read within ~10 mm
                 if near / len(self.window) >= self.DUTY_MIN and (self.background is None or cand < self.background):
                     self.background, self.bgSeenAt, self.window = cand, now, []
-        if self.hand(depth, conf, range_mm):
+        # A confident return counts at once; a weak one (a far hand, or sun
+        # lowering confidence) only on the second consecutive report.
+        strong = self.hand(depth, conf, range_mm)
+        weak = not strong and self.hand(depth, conf, range_mm, PROX_WEAK_CONFIDENCE)
+        self.weak = self.weak + 1 if weak else 0
+        if strong or self.weak >= 2:
             self.hits, self.clears = self.hits + 1, 0
+        elif weak:
+            self.clears = 0  # first weak sighting: wait for confirmation, do not re-arm
         else:
             self.clears, self.hits = self.clears + 1, 0
             if self.clears >= self.CLEAR_N:
