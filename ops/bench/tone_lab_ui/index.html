@@ -100,10 +100,14 @@
       <button id="patren">Rename</button><button id="patdel">Delete</button>
       <span class="sep"></span>
       <label class="status">BPM <input type="number" id="bpm" min="20" max="300" step="1"></label>
-      <label class="status">steps <select id="steps">
-        <option>8</option><option>12</option><option>16</option><option>24</option><option>32</option><option>48</option><option>64</option>
+      <label class="status">beats/bar <select id="bpb">
+        <option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
       </select></label>
-      <label class="status">per beat <select id="spb"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <label class="status">grid <select id="spb">
+        <option value="1">1/4 notes</option><option value="2">1/8 notes</option><option value="3">1/8 triplets</option>
+        <option value="4">1/16 notes</option><option value="8">1/32 notes</option>
+      </select></label>
+      <label class="status">bars <select id="bars"><option>1</option><option>2</option><option>3</option><option>4</option><option>8</option></select></label>
       <button id="patclear">Clear</button>
     </div>
     <div class="toolbar">

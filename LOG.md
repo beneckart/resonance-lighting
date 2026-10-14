@@ -10,6 +10,34 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- All nine decompression lanterns on pattern-mode firmware
+
+With Ben's go-ahead and Brian as sole USB operator, flashed all nine
+decompression lanterns to immutable fx-261014-461198c-b (source 9f98abd,
+SHA-256 0f22c4345aa4254abc66a9cedf17deb68622eb5803a70bc2236077af596325e7):
+Tangela 9F0E5C, Ness 9F2738, Rikku 9F26B0, Eevee 9F0E54, Leeloo F40254,
+Pinsir 9F26BC, Bidoof 9F26D8 (from Ben's fx-261012-5164506-b) and Sakura
+F2BE0C, Lucas 9F2638 (from fx-261014-257f65a-b). This image includes ADR 0083's
+radio receiver and ADR 0084 pattern mode.
+
+Per lantern: telemetry identity and expected old revision, ROM MAC gate,
+private 64 KiB prefix and coredump backups, and for Ben's seven (whose
+artifact is not on this laptop) the entire 3.2 MB running app slot saved
+privately instead of digest verification; partition table identical; only
+the running slot written; new app and prefix verified; watchdog reset;
+fresh telemetry showed the new revision on the same slot, valid, no pending
+verify, settings kept (Ness still reports 6,000 mAh; others 15,000). Sakura
+and Lucas kept their stored sync-test part through the reflash. Coredump
+partitions not blank (preserved, undecoded): Tangela, Eevee, Pinsir, Bidoof,
+Sakura. Sessions reopened afterward. Registry rows updated.
+Evidence: ops/bench/data/Brian bench/20261014T175*-flash.jsonl.
+
+Tone lab sequencer: beats per bar (2-8), note grid (1/4, 1/8, 1/8 triplet,
+1/16, 1/32) and bars; regridding keeps hits at the same musical position. A
+hit that would put one lantern's strikes under 250 ms apart at the current
+tempo (counting the loop wrap) blinks red and is not placed; raising the BPM
+makes now-too-close hits pulse red and the pattern will not play.
+
 ## 2026-10-14 -- Brian + Claude -- ADR 0084 pattern mode first hardware test (Sakura + Lucas)
 
 Built immutable fx-261014-257f65a-b (source acfafa7, SHA-256

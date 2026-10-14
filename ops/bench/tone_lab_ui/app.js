@@ -319,11 +319,24 @@ $("prox").onclick = async () => {
 };
 
 // ---------- Patterns tab ----------
-function newPattern(nm) { return {name: nm, bpm: 100, steps: 16, steps_per_beat: 4, hits: {}}; }
+function newPattern(nm) { return {name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
+const MAX_STEPS = 256; // server limit
+// Older patterns only had steps + steps_per_beat; derive bars/beats so the grid always adds up.
+function normalize(p) {
+  p.steps_per_beat = p.steps_per_beat || 4;
+  p.beats_per_bar = p.beats_per_bar || 4;
+  p.bars = p.bars || Math.max(1, Math.round(p.steps / (p.beats_per_bar * p.steps_per_beat)));
+  p.steps = p.bars * p.beats_per_bar * p.steps_per_beat;
+  for (const id of Object.keys(p.hits)) {
+    p.hits[id] = [...new Set(p.hits[id])].filter(i => i < p.steps).sort((a, b) => a - b);
+    if (!p.hits[id].length) delete p.hits[id];
+  }
+  return p;
+}
 function curPattern() {
   if (!Object.keys(S.patterns).length) { S.patterns["Pattern 1"] = newPattern("Pattern 1"); save(); }
   if (!UI.pattern || !S.patterns[UI.pattern]) UI.pattern = Object.keys(S.patterns)[0];
-  return S.patterns[UI.pattern];
+  return normalize(S.patterns[UI.pattern]);
 }
 function stepMs(p) { return 60000 / (p.bpm * p.steps_per_beat); }
 // Mirror the server rule: hits on one lantern at least CFG.min_gap ms apart, counting the loop wrap.
@@ -340,6 +353,28 @@ function violations(p) {
   }
   return bad;
 }
+// Would adding step i to this lantern put two of its hits closer than the
+// minimum gap at the current tempo (counting the loop wrap)? Returns the
+// offending gap in ms, or 0 when the hit is allowed.
+function placementGap(p, id, i) {
+  const idx = [...new Set([...(p.hits[id] || []), i])].sort((a, b) => a - b);
+  if (idx.length < 2) return 0;
+  const sm = stepMs(p);
+  let worst = Infinity;
+  for (let k = 0; k < idx.length; k++) {
+    const nxt = k + 1 < idx.length ? idx[k + 1] : idx[0] + p.steps;
+    worst = Math.min(worst, (nxt - idx[k]) * sm);
+  }
+  return worst < CFG.min_gap ? worst : 0;
+}
+function deny(c, id, gap) {
+  c.classList.remove("deny"); void c.offsetWidth; c.classList.add("deny");
+  setTimeout(() => c.classList.remove("deny"), 1200);
+  if (!paint || !paint.warned) {
+    log(`${name(id)}: hits ${Math.round(gap)} ms apart at ${curPattern().bpm} BPM — needs ${CFG.min_gap} ms; slow the tempo or space them out`, "bad");
+    if (paint) paint.warned = true;
+  }
+}
 let cellEls = [], playhead = -1;
 // Firmware pattern state from the last scan (ADR 0084 builds only).
 function fwBadge(id) {
@@ -352,21 +387,22 @@ let saPatternId = lsGet("saPatternId") || "";
 function renderPatterns() {
   const p = curPattern();
   $("patsel").innerHTML = Object.keys(S.patterns).map(k => `<option ${k === UI.pattern ? "selected" : ""}>${esc(k)}</option>`).join("");
-  $("bpm").value = p.bpm; $("steps").value = p.steps; $("spb").value = p.steps_per_beat;
-  const bad = violations(p), rows = S.order, spb = p.steps_per_beat;
+  $("bpm").value = p.bpm; $("bpb").value = p.beats_per_bar; $("spb").value = p.steps_per_beat; $("bars").value = p.bars;
+  const bad = violations(p), rows = S.order, spb = p.steps_per_beat, barSteps = spb * p.beats_per_bar;
   const g = $("seq-grid");
   g.style.gridTemplateColumns = `180px repeat(${p.steps}, 26px)`;
   let h = '<div class="rh status">lantern</div>';
   for (let i = 0; i < p.steps; i++) {
-    const beat = i % spb === 0;
-    h += `<div class="hd ${beat ? "beat" : ""}">${beat ? i / spb + 1 : "·"}</div>`;
+    const beat = i % spb === 0, bar = i % barSteps === 0;
+    const label = bar ? `${i / barSteps + 1}` : beat ? `${(i % barSteps) / spb + 1}` : "·";
+    h += `<div class="hd ${bar ? "bar" : beat ? "beat" : ""}" title="${bar ? "bar " + (i / barSteps + 1) : ""}">${label}</div>`;
   }
   rows.forEach(id => {
     const m = meta(id), hits = new Set(p.hits[id] || []), off = online(id) ? "" : " offline";
     h += `<div class="rh" data-card="${id}"><span class="nm" title="${esc(id)}">${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
     for (let i = 0; i < p.steps; i++) {
       const cls = ["c"];
-      if (i && i % (spb * 4) === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");
+      if (i && i % barSteps === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");
       if (hits.has(i)) cls.push("on");
       if (m.type === "small") cls.push("small");
       if (bad[id] && bad[id].has(i)) cls.push("bad");
@@ -380,7 +416,9 @@ function renderPatterns() {
   });
   playhead = -1;
   const nHits = Object.values(p.hits).reduce((a, v) => a + v.length, 0), nBad = Object.keys(bad).length;
-  $("patinfo").innerHTML = `loop ${(p.steps * stepMs(p) / 1000).toFixed(2)} s · step ${Math.round(stepMs(p))} ms · ${nHits} hits` +
+  const minSteps = Math.ceil(CFG.min_gap / stepMs(p) - 1e-9);
+  $("patinfo").innerHTML = `loop ${(p.steps * stepMs(p) / 1000).toFixed(2)} s · step ${Math.round(stepMs(p))} ms · ${nHits} hits · ` +
+    (minSteps <= 1 ? "any step allowed on one lantern" : `one lantern needs ${minSteps} steps between hits`) +
     (nBad ? ` · <span class="bad">${nBad} lantern${nBad > 1 ? "s" : ""} too fast (under ${CFG.min_gap} ms)</span>` : "");
 }
 function setCell(id, i, on) {
@@ -392,16 +430,21 @@ let paint = null;
 $("seq-grid").addEventListener("pointerdown", e => {
   const c = e.target.closest("[data-cell]"); if (!c) return;
   const [id, i] = c.dataset.cell.split(":"), on = !c.classList.contains("on");
-  paint = {on, seen: new Set([c.dataset.cell])};
-  setCell(id, +i, on); c.classList.toggle("on", on);
+  paint = {on, seen: new Set([c.dataset.cell]), warned: false};
   e.preventDefault();
+  const gap = on ? placementGap(curPattern(), id, +i) : 0;
+  if (gap) { deny(c, id, gap); return; }
+  setCell(id, +i, on); c.classList.toggle("on", on);
 });
 document.addEventListener("pointermove", e => {
   if (!paint) return;
   const el = document.elementFromPoint(e.clientX, e.clientY), c = el && el.closest("[data-cell]");
   if (!c || paint.seen.has(c.dataset.cell)) return;
   paint.seen.add(c.dataset.cell);
-  const [id, i] = c.dataset.cell.split(":"); setCell(id, +i, paint.on); c.classList.toggle("on", paint.on);
+  const [id, i] = c.dataset.cell.split(":");
+  const gap = paint.on ? placementGap(curPattern(), id, +i) : 0;
+  if (gap) { deny(c, id, gap); return; }
+  setCell(id, +i, paint.on); c.classList.toggle("on", paint.on);
 });
 document.addEventListener("pointerup", () => { if (paint) { paint = null; renderPatterns(); save(); } });
 $("patsel").onchange = e => { UI.pattern = e.target.value; lsSet("pattern", UI.pattern); renderPatterns(); };
@@ -429,14 +472,39 @@ $("patclear").onclick = () => { const p = curPattern(); if (confirm(`Clear every
 $("bpm").onchange = e => {
   const v = Math.round(+e.target.value);
   if (!(v >= 20 && v <= 300)) { log("BPM must be 20..300", "bad"); e.target.value = curPattern().bpm; return; }
-  curPattern().bpm = v; renderPatterns(); save();
-};
-$("steps").onchange = e => {
-  const p = curPattern(); p.steps = +e.target.value;
-  for (const id of Object.keys(p.hits)) { p.hits[id] = p.hits[id].filter(i => i < p.steps); if (!p.hits[id].length) delete p.hits[id]; }
+  const p = curPattern(); p.bpm = v;
+  const nBad = Object.keys(violations(p)).length;
+  if (nBad) log(`at ${v} BPM ${nBad} lantern${nBad > 1 ? "s are" : " is"} too fast (blinking red); the pattern won't play until fixed`, "bad");
   renderPatterns(); save();
 };
-$("spb").onchange = e => { curPattern().steps_per_beat = +e.target.value; renderPatterns(); save(); };
+// Grid changes keep hits at the same musical position where the new grid has one.
+function regrid(change) {
+  const p = curPattern(), old = {spb: p.steps_per_beat, bpb: p.beats_per_bar, bars: p.bars};
+  const next = {...old, ...change};
+  if (next.bars * next.bpb * next.spb > MAX_STEPS) {
+    log(`that grid would be ${next.bars * next.bpb * next.spb} steps; the limit is ${MAX_STEPS}`, "bad"); renderPatterns(); return;
+  }
+  let moved = 0;
+  for (const id of Object.keys(p.hits)) {
+    const out = new Set();
+    for (const i of p.hits[id]) {
+      const beatPos = i / old.spb;                       // position in beats from the loop start
+      const j = beatPos * next.spb;
+      if (Math.abs(j - Math.round(j)) > 1e-6) moved++;   // no exact slot on the new grid
+      out.add(Math.round(j));
+    }
+    p.hits[id] = [...out];
+  }
+  Object.assign(p, {steps_per_beat: next.spb, beats_per_bar: next.bpb, bars: next.bars});
+  normalize(p);
+  if (moved) log(`${moved} hit${moved > 1 ? "s" : ""} had no exact slot on the new grid and moved to the nearest step`);
+  const nBad = Object.keys(violations(p)).length;
+  if (nBad) log(`${nBad} lantern${nBad > 1 ? "s" : ""} now too fast for this tempo (blinking red); the pattern won't play until fixed`, "bad");
+  renderPatterns(); save();
+}
+$("spb").onchange = e => regrid({spb: +e.target.value});
+$("bpb").onchange = e => regrid({bpb: +e.target.value});
+$("bars").onchange = e => regrid({bars: +e.target.value});
 
 let patPoll = null, patAnim = null, patStatus = null;
 function animate() {
