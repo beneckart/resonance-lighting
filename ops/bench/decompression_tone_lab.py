@@ -493,7 +493,8 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
 # within range. Detection mirrors the firmware gate's confidence floor
 # (PRESENCE_MIN_CONFIDENCE 20 in firmware/fixture/src/core/presence_wave.h).
 # ---------------------------------------------------------------------------
-PROX_MIN_CONFIDENCE = 40   # host mode is stricter than the firmware floor (20): weak far echoes flicker
+PROX_MIN_CONFIDENCE = 40   # a hand must be a confident return
+PROX_LEARN_CONFIDENCE = 20 # but anything at the firmware floor counts as background (fixtures, walls)
 PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
 PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5}
 
@@ -501,18 +502,21 @@ PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5}
 class ProxDetector:
     """Background-relative hand detector for one lantern's single-depth readings.
 
-    Learn: the first ~1.5 s of readings set the background (nearest steady,
-    confident depth, or "clear"). Trigger: 2 consecutive confident readings
-    within range and PROX_DELTA_MM nearer than the background. Re-arm: 5
-    consecutive non-hand readings (~0.6 s), so one dropout cannot re-trigger.
+    Learn: the first ~1.5 s of readings set the background from every return
+    at the firmware floor (confidence >= 20), so a fixture or wall whose
+    confidence wobbles around the hand threshold is background, not a hand.
+    Trigger: one confident reading within range and PROX_DELTA_MM nearer than
+    the background (a passing hand is often seen for a single report). Re-arm:
+    5 consecutive non-hand readings (~0.6 s), so one dropout cannot re-trigger.
     The background resets after 3 s of consistently farther readings.
     A background nearer than the range itself (e.g. something 18 cm away)
     leaves only the space in front of it."""
 
-    LEARN_S, HIT_N, CLEAR_N = 1.5, 2, 5
+    LEARN_S, HIT_N, CLEAR_N = 1.5, 1, 5
 
     def __init__(self, now):
         self.t0, self.learn, self.background = now, [], None
+        self.learnTotal = 0
         self.hits = self.clears = self.farther = 0
         self.armed = True
         self.last_ding = 0.0
@@ -525,17 +529,20 @@ class ProxDetector:
     def step(self, now, depth, conf, range_mm, cooldown_s):
         """Returns (state, ding) where state is learning/blocked/ready/hand."""
         if now - self.t0 < self.LEARN_S:
-            if conf >= PROX_MIN_CONFIDENCE and depth > 0:
+            self.learnTotal += 1
+            if conf >= PROX_LEARN_CONFIDENCE and depth > 0:
                 self.learn.append(depth)
             return "learning", False
         if self.learn is not None:
-            # Background = a steady confident return seen in at least a third of learning samples.
-            self.background = sorted(self.learn)[len(self.learn) // 3] if len(self.learn) >= 4 else None
+            # Background = the near quartile of returns seen in at least a fifth of
+            # learning samples (something that flickers in and out still counts).
+            enough = len(self.learn) >= max(2, self.learnTotal // 5)
+            self.background = sorted(self.learn)[len(self.learn) // 4] if enough else None
             self.learn = None
         # Background recovery: 3 s of readings consistently farther than it (or clear)
         # means it was learned from something that has since moved, e.g. a hand.
         if self.background is not None:
-            farther = conf < PROX_MIN_CONFIDENCE or depth == 0 or depth >= self.background + PROX_DELTA_MM
+            farther = conf < PROX_LEARN_CONFIDENCE or depth == 0 or depth >= self.background + PROX_DELTA_MM
             self.farther = self.farther + 1 if farther else 0
             if self.farther >= 24:
                 self.background = depth if (conf >= PROX_MIN_CONFIDENCE and depth > 0) else None
@@ -549,10 +556,13 @@ class ProxDetector:
         ding = False
         if self.hits >= self.HIT_N and self.armed and now - self.last_ding >= cooldown_s:
             ding, self.armed, self.last_ding = True, False, now
-        if self.background is not None and self.background - PROX_DELTA_MM < 20:
+        # The firmware ignores returns under 80 mm, so a background closer than
+        # 80 + 300 mm leaves no room for a hand in front of it.
+        if self.background is not None and self.background - PROX_DELTA_MM < 80:
             return "blocked", ding
         return ("hand" if self.hits else "ready"), ding
 prox_live = {}          # fid -> {"depth_mm", "confidence", "present", "status"}
+prox_trace = {}         # fid -> recent raw readings [(t, depth, conf, state)] for diagnosis
 prox_events = []        # [{"id", "utc", "fixture_id", "depth_mm", "pulse_ms"}]
 prox_threads = {}
 prox_parked = {}
@@ -609,6 +619,9 @@ def prox_worker(fid):
                 state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
                 prox_live[fid] = {"depth_mm": depth, "confidence": conf, "status": state,
                                   "background_mm": det.background}
+                tr = prox_trace.setdefault(fid, [])
+                tr.append((round(now, 3), depth, conf, state, d.get("tmf_reads")))
+                del tr[:-400]
                 if ding:
                     with state_lock:
                         ms = STATE["lanterns"].get(fid, {}).get("pulse_ms") or STATE["pulse_ms"]
@@ -1025,6 +1038,8 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/api/wake"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(wake_status(since))
+        if self.path.startswith("/api/proxtrace"):
+            return self.reply({f: v[-400:] for f, v in prox_trace.items()})
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
