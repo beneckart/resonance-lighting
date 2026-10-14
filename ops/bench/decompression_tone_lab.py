@@ -45,7 +45,7 @@ def utc():
 def load_state():
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
-    return {"schema": 1, "site": ARGS.site, "lanterns": {}, "order": [], "updated_utc": None}
+    return {"schema": 1, "site": ARGS.site, "order_direction": "high_to_low", "lanterns": {}, "order": [], "updated_utc": None}
 
 
 def save_state(st):
@@ -57,6 +57,7 @@ def save_state(st):
 
 
 STATE = load_state()
+STATE.setdefault("order_direction", "high_to_low")
 
 
 def lock_for(port):
@@ -308,7 +309,7 @@ input[type=text]{width:100%;font:inherit;font-size:13px;padding:5px 8px;border:1
 <button id="sess">Extend all sessions 60 min</button>
 <span class="status" id="saved"></span></header>
 <main><section><div class="grid" id="grid"></div></section>
-<aside class="panel"><h2>Tone order (low → high) — drag to reorder</h2><ul class="ol" id="order"></ul><div id="log"></div></aside></main>
+<aside class="panel"><h2>Tone order (1 = highest) — drag to reorder</h2><ul class="ol" id="order"></ul><div id="log"></div></aside></main>
 <script>
 let L=[],S={lanterns:{},order:[]},busy=false;
 const $=id=>document.getElementById(id);

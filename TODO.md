@@ -3630,3 +3630,39 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   Historical reset kind 7 collides with origin's later field-tuning kind 7;
   merged source uses reset kind 11. Resolve any retained-ring migration before
   deploying the merged bridge image; no device was changed by the pull.
+
+## 2026-10-13 -- Decompression tone lab (Brian bench)
+
+Tool: `ops/bench/decompression_tone_lab.py`. State:
+`ops/bench/data/Brian bench/decompression-tone-map.json` (order is 1 = highest).
+
+- [ ] **Order presets and programmatic reordering in the tone lab.** Buttons for
+  play high-to-low, play low-to-high, large chimes only, small chimes only and
+  reverse, plus named saved orders. Lucas 9F2638 and Pinsir 9F26BC are the small
+  chimes and sound completely different, so presets should treat the large and
+  small sets as separate scales (Brian).
+- [ ] **Solenoid pulse-width experiments.** Firmware default is 40 ms
+  (`RES_SOLENOID_DEFAULT_MS`; `K<id>:<ms>` accepts 5..300 ms). Ben suspects 40 ms
+  is too long and about 26 ms may be optimal. Add a pulse-width control to the
+  tone lab (global and per lantern), sweep roughly 15-45 ms, and record tone,
+  loudness, buzz/damping and any weak or null strikes per lantern. Check capbank
+  refill and battery sag at the chosen width before changing the firmware default
+  (Brian + Ben).
+- [ ] **Accurate multi-lantern timing for songs.** Current Play mode sends one
+  immediate `K` per lantern over USB on a host schedule; it is close but audibly
+  uneven. Likely causes: plain `K` is serviced in the firmware main loop alongside
+  sensor/power work, plus USB/hub latency and per-lantern mechanical delay.
+  Proposed path, needing a new ADR (ADR 0082 leaves synchronized multi-lantern
+  start as a separate contract):
+  1. Measure first: record strikes with a microphone and quantify per-lantern
+     latency and jitter for immediate `K` versus the locally timed signature.
+  2. Preload each lantern's part of a song (its note offsets) and play it from
+     the existing ESP timer path, as the signature already does (about 60 us
+     onset error within one lantern).
+  3. Start all parts from one shared reference: a single ESP-NOW broadcast "go"
+     heard by every lantern at nearly the same instant, or a host clock-offset
+     exchange over USB for bench work. GPS (ADR 0031 SAM-M8Q anchors) gives
+     absolute UTC across separated groups but is not needed for one cluster;
+     these nine lanterns have no GPS module.
+  4. Calibrate a fixed per-lantern offset for solenoid/cymbal response from the
+     microphone measurements (Brian + Ben).

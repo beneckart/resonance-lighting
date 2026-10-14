@@ -18,11 +18,13 @@ fx-261012-5d7ab8f-b, the rest on fx-261012-5164506-b); each got a 60-minute
 RAM session to stay reachable. Single exact-target 40 ms strikes, each with an
 identity check and counter confirmation, showed no blocks or failsafes.
 
-Brian classified them by ear. Working tone order, low to high:
+Brian classified them by ear. Working tone order, high to low (1 = highest):
 1 Leeloo F40254, 2 Ness 9F2738, 3 Bidoof 9F26D8, 4 Eevee 9F0E54,
 5 Sakura F2BE0C, 6 Rikku 9F26B0, 7 Tangela 9F0E5C (large chimes);
-8 Lucas 9F2638, 9 Pinsir 9F26BC (small chimes). Ordering is by ear and may
-still change; the JSON file is authoritative.
+8 Lucas 9F2638, 9 Pinsir 9F26BC (small chimes; a completely different sound,
+not part of the large-chime scale). Ordering is by ear and may still change;
+the JSON file is authoritative. (Corrected 2026-10-13: first written as low
+to high.)
 
 Added ops/bench/decompression_tone_lab.py, a local web app (pyserial, macOS/Linux
 port discovery) for striking, classifying and ordering lanterns. Its fast Play
