@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-14 -- Brian + Claude -- Tone lab Proximity tab and detector tuning (handoff state)
+
+Tone lab now has a Proximity tab: per-lantern 15 s charts of raw ToF returns
+with learned background, hand threshold, range and ding markers; a 3x3 zone
+grid; Off / Watch only (detect, never strike) / Ding modes; per-lantern and
+all-lantern background relearn. Detector tuning after live testing (sun on
+some sensors): confident returns (>= 40) ding at once; weak returns (22-39,
+typical beyond ~40 cm or in sun) ding on the second consecutive report; a
+zone absorbs something as background only after 3 s of continuous stillness
+(or >40% presence over 20 s for flicker) and forgets it after 12 s unseen.
+Live data showed hands at 50-75 cm mostly reading confidence 20-39, which the
+earlier 40 threshold discarded. These are host-side USB demo heuristics; the
+installation path is still a firmware presence trigger (ADR 0082 open item).
+
+State for Ben: all nine decompression lanterns run fx-261014-65eeb39-b
+(ADR 0083 receiver, ADR 0084 pattern mode, per-zone ToF telemetry), parts
+for the Sakura/Lucas sync test are stored on those two, and ADR 0084 remains
+Proposed pending his review. Open items are in TODO.md under ADR 0084, the
+tone lab sections and the serial one-byte-per-loop note.
+
 ## 2026-10-14 -- Brian + Claude -- Per-zone ToF telemetry and tone lab zone detection
 
 Tangela and Ness showed "sensor blocked" with nothing visibly in front of
