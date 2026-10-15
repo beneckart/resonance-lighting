@@ -1,5 +1,56 @@
 # PROTECT recovery investigation, 2026-09-14
 
+## Perimeter apparent-death hypothesis, 2026-10-15
+
+Ben asks whether the perimeters that became unresponsive quickly during the
+burn could have latched PROTECT despite subsequently high battery readings,
+with disabled sensing explaining the apparent hardware failure.
+
+Marill F40348 now supplies a before/after example: at first direct-USB capture
+it reported 3.317 V, PROTECT, and no initialized sensors. The saved entry was
+low-vbat at 3027 mV, not reset-origin, and was already present in the September
+12 census. After private full-flash preservation, the original firmware
+qualified sustained USB charging, released PROTECT and rebooted. Both the
+MSA311 and VL53L5CX then supplied fresh readings, all 16 VL zones valid, without
+sensor replacement or sensor-cable reseating. See POST_BURN_MARILL_2026-10-15.md.
+
+The late-burn dc82da7 and September f951ae9 artifact source commits have
+identical power_policy.cpp, boot_guard.cpp, boot_guard_io.cpp and power_glue.cpp.
+The late-burn setup also explicitly disables VSQT and skips sensor initialization
+when bootGuardParked(). A protected perimeter therefore cannot respond to a
+person through that sensor. LED output is vetoed too, and the usual protected
+radio cadence is about 8 seconds listening per 900-second sleep. The device
+can look dead while its control/power hardware remains functional.
+
+Joined the existing September 12 high-voltage PROTECT cohort to current
+registry perimeter identities: 15 known perimeters at >=3.25 V, with 14
+low-vbat entry records and one load-armed-reset record. This is a partial-role
+join, not an estimate of the fraction of all perimeters that failed. Inputs,
+hashes and exact IDs are in
+ops/bench/data/Oakland/20261015-perimeter-protect-cohort.json. August 31's LOG
+already identified ten perimeters among the 21 active/probable PROTECT units.
+
+Distinguish three mechanisms: an inappropriate reset-based entry; a transient
+or erroneous low-voltage observation triggering the immediate critical-floor
+path; and a justified earlier entry that remains latched after voltage recovers.
+The critical floor is immediate below compensated 3050 mV with battery
+corroboration required for durable persistence; it is not the 60-second
+confirmed OFF threshold. The normal release requires good, valid, enabled,
+fault-free external charging, >=20 mA and >=3250 mV continuously for 60 seconds.
+A separate qualified full/taper proof exists. Resting voltage alone never clears
+the latch. Weak/intermittent solar can therefore recover voltage while failing
+the awake charging proof, as the earlier offline reproduction showed.
+
+Conclusion: protection-driven loss of sensing is demonstrated; false entry
+and the cause/timing of burn-week perimeter failures remain unproven. Next
+controlled test should capture cell-terminal and board-input voltage/current
+through representative perimeter load and weak/variable solar, alongside
+entry provenance, recovery gates and rail state. Do not alter thresholds or
+clear guards before preserving other untouched perimeter specimens.
+
+No device commands, firmware changes or new hardware experiments were made
+for this hypothesis analysis.
+
 Ben identified persistent high-VBAT PROTECT as a possible explanation for much
 less chiming during the last days at Burning Man. Treat this as a priority
 recovery/reliability investigation. High voltage alone does not prove a healthy

@@ -29,6 +29,22 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
 
 ## Immediate documentation / repo hygiene
 
+- [ ] Follow up Marill F40348's 2026-10-15 post-burn specimen: validate/decode
+  the preserved non-erased crash partition with its matching ELF, and test
+  the enclosure USB extension with a stable awake direct/extension/direct
+  comparison before classifying a failure. Original firmware automatically
+  released PROTECT on stable USB; weak/variable-input behavior, physical cell
+  capacity and perimeter interaction-distance performance remain unqualified.
+  See docs/tests/POST_BURN_MARILL_2026-10-15.md.
+- [ ] Test the perimeter apparent-death hypothesis with preserved specimens:
+  record cell-terminal and board-input voltage/current across representative
+  load and weak/variable solar; correlate immediate low-voltage entry versus
+  reset-origin entry, the sustained charging release gates, and VSQT/radio
+  state. October 15 analysis identifies 15 known high-voltage PROTECT
+  perimeters in the September census (14 low-vbat, one load-armed reset),
+  but does not establish false entries or a failure rate. See the expanded
+  PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md.
+
 - [x] **Authorized USB-wake container-storage rollout completed 2026-09-12.**
   All 106 observed fixtures passed exact f951ae9 OTA verification, acknowledged
   USB storage with matching durable audits, and stayed quiet for at least
@@ -3632,6 +3648,13 @@ designs + generative-AI-modulated bamboo-leaf patterns per bamboo species in the
   deploying the merged bridge image; no device was changed by the pull.
 
 ## 2026-10-13 -- Decompression tone lab (Brian bench)
+
+- [ ] Support Ben's Windows bench before using the tone lab there: replace
+  Mac-only /dev/cu.usbmodem discovery (including the background waker) with
+  pyserial port discovery, and use the existing no-reset serial opener.
+  Add a perimeter VL53L5CX input path if using a perimeter as the interaction
+  station; current proximity workers select TMF sensors and 3x3 telemetry.
+  Preserve an untouched perimeter's intake evidence before demo configuration.
 
 Tool: `ops/bench/decompression_tone_lab.py`. State:
 `ops/bench/data/Brian bench/decompression-tone-map.json` (order is 1 = highest).

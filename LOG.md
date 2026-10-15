@@ -10,6 +10,84 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Why PROTECT recovery became restrictive
+
+Reviewed ADRs 0023, 0038, 0046, 0051 and 0068 in response to Ben's concern
+about the operational cost of a false latch. The durable guard originated in
+load-collapse/reset loops: unloaded voltage rebound was not proof that a cell
+or resistive power path could run the load. Charger-knee avoidance later raised
+the voltage ladder; subsequent fixes retained the strict release contract.
+Assessment: the design underweighted eventual service recovery and operator
+access relative to avoiding another collapse. Previously reproduced full-cell
+and sleep-timer release deadlocks demonstrate the cost of that imbalance.
+Recommend evaluating cause-specific, bounded staged retries and explicit
+recovery/liveness acceptance tests, including weak solar and false entries.
+These are proposals, not an adopted policy change; the existing investigation
+and TODO retain the required hardware work. No device commands or firmware edits.
+
+## 2026-10-15 -- Ben + Codex -- Perimeter apparent-death hypothesis
+
+Ben connected the burn-week rapid perimeter failures to Marill's high-voltage
+PROTECT and disabled sensors. Source review confirms late-burn dc82da7 uses
+the same power/boot-guard policy as September f951ae9 and disables VSQT/sensor
+initialization on protected boots. Marill's sensor recovery after automatic
+release demonstrates that loss of sensing without a failed sensor is real.
+The original entry's correctness and burn-week timing remain unresolved.
+Joined September's high-voltage PROTECT cohort to current perimeter roles:
+15 known perimeters, 14 low-vbat histories and one load-armed reset. Saved the
+exact IDs/input hashes and expanded PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md.
+No hardware commands or firmware changes; preserve remaining specimens and
+test both transient entry and weak-input failure to release.
+
+## 2026-10-15 -- Ben + Codex -- Marill preserved and automatic PROTECT recovery observed
+
+Direct USB identified the untouched perimeter as Marill F40348, still on the
+exact fx-260912-f951ae9-b app1. Ben measured 3.3 V at the battery clips and
+reported a sound, slightly dusty interior. First telemetry showed PROTECT,
+3.317 V, and a historical 3027 mV low-vbat entry with no armed load or reset
+streak; the same entry was already present in the September 12 census.
+Preserved all 8 MiB privately before host configuration/firmware changes or
+recovery, and verified both app slots against their retained artifact hashes.
+The non-erased coredump is preserved but not yet decoded.
+
+After the recorded bootloader exit, read-only capture caught the original
+firmware's charge-current release at 20:54:20 UTC and clean reboot into OFF.
+Both VL53L5CX and MSA311 then initialized and supplied fresh readings, all 16
+VL zones valid. The historical audits survived. No protection clear, profile
+change, charge setting, firmware update, LED command or chime was sent.
+The successful direct path does not yet establish a failed extension; the
+pre-direct observations included both an initially unplugged laptop end and
+an unknown sleep state. See docs/tests/POST_BURN_MARILL_2026-10-15.md and its
+raw evidence links. Public observations and private backup hashes retained.
+The bounded recovery capture closed at 20:56:26 UTC after 170 samples; final
+state DIM, 3.366 V / +370.7 mA, sensors healthy, FIELD unchanged and LED rail
+off. Registry now reflects the observed exact firmware and perimeter class;
+physical battery capacity remains unconfirmed and unchanged in the registry.
+
+## 2026-10-15 -- Ben + Codex -- Oakland pull and untouched perimeter intake started
+
+Fast-forwarded codex/decompression-signature from 79907c9 to Brian's 3d3ff43.
+Reviewed the tone lab, ADR 0084 pattern implementation and nine-lantern flash
+records. Native tests passed at the individual-program level: the full runner
+reported two temporary-directory execution permission failures (LED profile
+and packet layout); both were rebuilt in workspace tmp and passed, 10 and 86
+checks respectively. No firmware source or attached device settings changed.
+
+Ben reports this perimeter has been completely untouched since the burn,
+with its lid never opened. Initially connected through the enclosure USB
+extension, but Ben corrected that the laptop end had not been plugged in:
+the initial absent enumeration is not evidence of a hardware failure. After
+the reported laptop connection, Windows still showed no serial device or
+present USB error device. Requested a direct PowerFeather comparison with the
+battery left connected, no buttons, and an inspection before disturbing the
+original connections. Direct-connection confirmation and device identity are
+pending. Only no-reset telemetry capture is armed; no reset, flash, protection
+clear, profile change or chime was sent.
+
+Evidence is under ops/bench/data/Oakland: the 20261015T204149Z intake and
+as-found note, explicit USB-connection correction, and 20261015T204756Z
+continuation capture. Native runner log: tmp/oakland-pulled-native-tests-20261015.log.
+
 ## 2026-10-14 -- Brian + Claude -- Tone lab Proximity tab and detector tuning (handoff state)
 
 Tone lab now has a Proximity tab: per-lantern 15 s charts of raw ToF returns

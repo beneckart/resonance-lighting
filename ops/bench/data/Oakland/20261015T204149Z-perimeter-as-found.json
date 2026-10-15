@@ -1,0 +1,9 @@
+{
+  "utc": "2026-10-15T20:42:48.8897736Z",
+  "kind": "operator_as_found",
+  "site": "Oakland",
+  "statement": "Ben reports first laptop connection through enclosure extension; completely untouched since burn, lid never opened; no post-burn charging, resets, repairs or battery changes reported before today.",
+  "initial_host_observation": "No serial ports, present Espressif USB device, or present failed USB-class device observed.",
+  "requested_next_action": "Open lid, document visible condition, bypass extension with same host cable, leave battery attached and do not press buttons.",
+  "source_commit": "3d3ff43"
+}
