@@ -100,3 +100,22 @@ the session and return to ordinary sleep. A failed radio restart likewise
 ends the session. No NVS mutation or processor reset is added. This is bounded
 fault handling, not proof of the original failure's cause or a substitute for
 repeating the hardware test.
+
+## 2026-10-15 range-tuning amendment
+
+After the successful cycle/listening test, Ben requested a minimum around
+5 cm or less. Default the detector to 50 mm and expose exact-target USB
+`!L<id>:<mm>` for RAM-only tuning from 30 through 699 mm. The lower limit
+matches the existing valid-nearest-zone sensor filter; that filter and sensor
+status checks are unchanged. The upper limit stays below the 700 mm trigger
+ceiling. Telemetry reports minimum, maximum, and clear boundary so the graph
+cannot silently present a different band from the detector.
+
+A changed minimum invalidates the detector's clear/armed state. It does not
+fire, advance the cycle, extend the event session, write NVS, or alter the
+radio/PROTECT policies. Reboot restores the 50 mm default. Same-value writes
+are no-ops. Zero and out-of-range values, wrong targets, and malformed lines
+remain fail-closed. The earlier 150 mm exclusion was provisional; Ben later
+identified the laptop in the field of view as causing unwanted detections.
+Keep the interaction space clear rather than assuming all close returns are
+housing. A 30 mm cutoff is an experiment, not a guarantee of near-field accuracy.

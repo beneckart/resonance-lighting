@@ -22,6 +22,7 @@ KEYS = ('fw', 'fixture_id', 'uptime_ms', 'battery_v', 'power_tier', 'guard_stage
         'vl_read_ok', 'vl_reads', 'vl_zone_nearest_mm', 'vl_closest_mm',
         'trigger_enabled', 'trigger_left_s', 'trigger_next_step', 'trigger_count',
         'trigger_ready_mask', 'trigger_presence_armed', 'trigger_last',
+        'trigger_min_mm', 'trigger_max_mm', 'trigger_clear_mm',
         'trigger_tx_errors', 'trigger_refused', 'trigger_peers',
         'trigger_radio_restarts', 'trigger_radio_last_error', 'trigger_tx_pending_ms',
         'trigger_tx_ok', 'trigger_tx_fail',
@@ -156,7 +157,7 @@ def main():
 
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     record('metadata', {'target': 'F40348', 'operation': 'read-only USB telemetry',
-                        'range_mm': [150, 700], 'rearm_far_mm': 800})
+                        'range_source': 'firmware telemetry; legacy fallback 150..700 mm / clear 800 mm'})
     worker = threading.Thread(target=reader, daemon=True)
     worker.start()
     web = threading.Thread(target=server.serve_forever, daemon=True)

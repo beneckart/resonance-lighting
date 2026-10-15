@@ -127,6 +127,9 @@ void handleSerial() {
       Serial.printf("trigger session: %s\n",squadTriggerSession(mutation.value) ? "accepted" : "refused");
     if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_PRESS)
       squadTriggerPress("USB");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_MIN)
+      Serial.printf("trigger minimum: %u mm %s\n",mutation.value,
+        squadTriggerSetMinMm(mutation.value) ? "accepted" : "refused");
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_PROTECT_TEST)
       protectRecoveryTest(mutation.value);

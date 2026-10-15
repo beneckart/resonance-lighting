@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill close-range tuning implementation
+
+Ben requested about 5 cm minimum distance, possibly lower. Added a 50 mm
+default and exact-target !L minimum command (30..699 mm, RAM only). The
+existing sensor pipeline filters below 30 mm. Cutoff changes require fresh
+clear-space rearm and do not alter the bell cycle/session or persistent state.
+The live graph uses the firmware's actual reported boundaries, with legacy
+15 cm fallback, and plots the closest valid zone return. Native squad tests
+passed 502 checks; serial parser tests passed 44; viewer JavaScript parses.
+Immutable build and Marill-only deployment follow this source checkpoint.
+
 ## 2026-10-15 -- Ben + Codex -- Marill squad cycle and listening test passed
 
 Installed completion-paced fx-261015-3216a18-b from clean 0214c71; binary

@@ -45,21 +45,34 @@ struct SquadRadioRecovery {
   bool due(uint32_t now) const { return paused && (int32_t)(now-resumeAt)>=0; }
   void resumed() { paused=false; }
 };
+static constexpr uint16_t SQUAD_PRESENCE_MIN_MM = 50;
+static constexpr uint16_t SQUAD_PRESENCE_NEAR_MM = 700;
+static constexpr uint16_t SQUAD_PRESENCE_CLEAR_MM = 800;
+inline bool squadPresenceMinValid(uint16_t mm) {
+  // The existing VL53 nearest-zone selection discards returns below 30 mm.
+  return mm >= 30 && mm < SQUAD_PRESENCE_NEAR_MM;
+}
 // Clear space after boot/fault and between approaches. Two fresh near frames;
-// stale/failed frames never count as clearance. <150 mm excludes close housing.
+// stale/failed frames never count as clearance. Zero is an invalid/no return.
 struct SquadPresence {
+  uint16_t minMm=SQUAD_PRESENCE_MIN_MM;
   bool armed=false, clearing=false;
   uint8_t nearFrames=0;
   uint32_t clearSince=0, lastMs=0;
   void invalidate() { armed=false; clearing=false; nearFrames=0; }
+  bool setMinMm(uint16_t mm) {
+    if (!squadPresenceMinValid(mm)) return false;
+    if (mm != minMm) { minMm=mm; invalidate(); }
+    return true;
+  }
   bool sample(uint32_t now, bool valid, const uint16_t zones[16]) {
     if (!valid || (lastMs && now-lastMs > 1000)) invalidate();
     lastMs=now;
     if (!valid) return false;
     bool near=false, occupied=false;
     for (unsigned i=0;i<16;++i) {
-      if (zones[i]>=150 && zones[i]<=700) near=true;
-      if (zones[i]>=150 && zones[i]<=800) occupied=true;
+      if (zones[i]>=minMm && zones[i]<=SQUAD_PRESENCE_NEAR_MM) near=true;
+      if (zones[i]>=minMm && zones[i]<=SQUAD_PRESENCE_CLEAR_MM) occupied=true;
     }
     if (!occupied) {
       nearFrames=0;
