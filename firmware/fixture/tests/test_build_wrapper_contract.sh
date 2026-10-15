@@ -25,6 +25,11 @@ expect_rejected() {
 }
 
 bash -n build.sh
+expect_rejected 'bad --squad-trigger-target' --squad-trigger-target 000000
+expect_rejected 'requires artifact variant b' --squad-trigger-target F40348 --artifact-variant p
+expect_rejected 'requires matching protect recovery target' --squad-trigger-target F40348
+expect_rejected 'requires matching protect recovery target' --squad-trigger-target F40348 --protect-recovery-target 9F2738
+expect_rejected 'separate from decompression receiver' --squad-trigger-target F40348 --decompression
 help="$(./build.sh --help)"
 grep -Fq -- '--dev-cache --profile commission --channel 11' <<< "$help" ||
   fail "help omits the recommended local command"

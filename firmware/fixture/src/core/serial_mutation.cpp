@@ -43,6 +43,8 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
                  line_[1] == 'K' ? SERIAL_MUTATION_SIGNATURE :
                  line_[1] == 'D' ? SERIAL_MUTATION_DECOMPRESSION :
                  line_[1] == 'R' ? SERIAL_MUTATION_PROTECT_TEST :
+                 line_[1] == 'T' ? SERIAL_MUTATION_TRIGGER_SESSION :
+                 line_[1] == 'J' ? SERIAL_MUTATION_TRIGGER_PRESS :
                  SERIAL_MUTATION_NONE;
   if (type == SERIAL_MUTATION_NONE) return false;
 
@@ -71,6 +73,8 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
   if (type == SERIAL_MUTATION_SIGNATURE && seconds > 1) return false;
   if (type == SERIAL_MUTATION_DECOMPRESSION && seconds > 120) return false;
   if (type == SERIAL_MUTATION_PROTECT_TEST && (seconds < 1 || seconds > 3)) return false;
+  if (type == SERIAL_MUTATION_TRIGGER_SESSION && seconds > 120) return false;
+  if (type == SERIAL_MUTATION_TRIGGER_PRESS && seconds != 1) return false;
   out.type = type;
   out.value = (uint16_t)seconds;
   return true;

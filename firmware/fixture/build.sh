@@ -60,6 +60,7 @@ SENTINEL_TRACE_TARGET=""
 SENTINEL_TRACE_SMOKE=0
 DECOMPRESSION=0
 PROTECT_RECOVERY_TARGET=""
+SQUAD_TRIGGER_TARGET=""
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -111,6 +112,7 @@ Common build options:
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --decompression             bounded event sessions and local signature chime (b only)
   --protect-recovery-target MAC staged PROTECT canary for one perimeter (b only)
+  --squad-trigger-target MAC    bounded presence/USER squad controller (b only)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
@@ -288,6 +290,7 @@ while [[ $# -gt 0 ]]; do
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
     --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --squad-trigger-target) SQUAD_TRIGGER_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -304,6 +307,15 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$SQUAD_TRIGGER_TARGET" ]]; then
+  [[ "$SQUAD_TRIGGER_TARGET" =~ ^[0-9A-F]{6}$ && "$SQUAD_TRIGGER_TARGET" != "000000" ]] || fail "bad --squad-trigger-target"
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-target requires artifact variant b"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "squad trigger requires a retained artifact and exact-target flash"
+  (( DECOMPRESSION == 0 )) || fail "squad trigger is separate from decompression receiver"
+  [[ "$SQUAD_TRIGGER_TARGET" == "$PROTECT_RECOVERY_TARGET" ]] || fail "squad trigger requires matching protect recovery target"
+  EXTRA_FLAGS+=" -DRES_SQUAD_TRIGGER_TARGET=0x${SQUAD_TRIGGER_TARGET}UL"
+fi
 
 if [[ -n "$PROTECT_RECOVERY_TARGET" ]]; then
   [[ "$PROTECT_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ && "$PROTECT_RECOVERY_TARGET" != "000000" ]] || fail "bad --protect-recovery-target"

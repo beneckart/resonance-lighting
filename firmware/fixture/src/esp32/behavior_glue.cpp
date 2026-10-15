@@ -26,6 +26,7 @@
 #include "solenoid.h"
 #include "telemetry.h"
 #include "decompression.h"
+#include "squad_trigger.h"
 
 #define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
 #define RES_BOOT_AWAKE_MS 600000UL   // cold-boot listen window (10 min)
@@ -664,6 +665,17 @@ static void inspectionRadioTick(uint32_t now) {
 
 void behaviorTick() {
   uint32_t now = millis();
+  if (squadTriggerEnabled()) {
+    squadTriggerTick();
+    gShowActive=false; gStrikesAllowed=false;
+    bool active=squadTriggerActive();
+    gLife.state=active ? LIFE_COMMISSION : LIFE_DAY_CHARGE;
+    gNetLifeState=gTelemetryLifeState=gLife.state;
+    gNetProgram=gTelemetryProgram=0;
+    if (!active && now>=30000 && powerBudget().tier!=LedTier::PROTECT && !otaVerifyPending())
+      enterTimedDeepSleep(RES_DAY_SLEEP_S,SLEEP_CAUSE_DAY_CHARGE);
+    return;
+  }
   if (decompressionBuild()) {
     // Explicit bounded event posture; no BRC schedule, automatic chimes or
     // presence propagation. Power policy and OTA still own their vetoes.
@@ -975,6 +987,7 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+  if (squadTriggerEnabled()) return squadTriggerFrame(f,gPixels);
   if (decompressionBuild()) {
     if (!decompressionActive()) return false;
     f = gFrame;

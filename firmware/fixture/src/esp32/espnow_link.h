@@ -27,6 +27,8 @@ int espNowDrain(RxItem *out, int maxItems);
 
 void fillHeader(NbHeader *h, uint8_t type);
 bool espNowSendRaw(const void *data, size_t len);
+// Exact unicast; never falls back to broadcast. Up to nine controller peers.
+bool espNowSendTo(const uint8_t mac[6], const void *data, size_t len);
 // Send and later report, via espNowTakeTxDone(), the esp_timer time at which
 // the driver finished transmitting this frame (ADR 0084 beat follow-up).
 bool espNowSendTagged(const void *data, size_t len, uint32_t tag);

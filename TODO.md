@@ -2,6 +2,12 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
+- [~] **Marill squad interaction canary (ADR 0086):** qualify presence + USER,
+  nine individual bells then scheduled group strike on the nearby squad.
+  Measure/listen for receiver-loop/mechanical skew before claiming tight
+  acoustic sync; tune mounting/range after the first hand-wave test. Keep
+  bounded sessions and the new PROTECT recovery. (Ben + Codex)
+
 ## 2027 planning -- exploration, no implementation yet
 
 Entry point: [2026 postmortem and future work](docs/postmortem/README.md).

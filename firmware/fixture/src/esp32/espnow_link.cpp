@@ -167,6 +167,22 @@ void fillHeader(NbHeader *h, uint8_t type) {
 
 bool espNowSendRaw(const void *data, size_t len) { return espNowSendTagged(data, len, 0); }
 
+bool espNowSendTo(const uint8_t mac[6], const void *data, size_t len) {
+  if (!gUp || !mac || (mac[0]&1U)) return false;
+  if (!esp_now_is_peer_exist(mac)) {
+    esp_now_peer_info_t peer={};
+    memcpy(peer.peer_addr,mac,6);
+    peer.channel=gCfg.channel; peer.ifidx=WIFI_IF_STA;
+    if (esp_now_add_peer(&peer)!=ESP_OK) return false;
+  }
+  pushTxTag(0);
+  if (esp_now_send(mac,(const uint8_t *)data,len)==ESP_OK) return true;
+  portENTER_CRITICAL(&gTxMux);
+  if (gTxCount) gTxCount--;
+  portEXIT_CRITICAL(&gTxMux);
+  return false;
+}
+
 bool espNowSendTagged(const void *data, size_t len, uint32_t tag) {
   if (!gUp) return false;
   pushTxTag(tag); // before the send: its callback may fire immediately

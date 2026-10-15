@@ -1,5 +1,6 @@
 #include "solenoid.h"
 #include "protect_recovery.h"
+#include "squad_trigger.h"
 
 #include <Arduino.h>
 #include "driver/rtc_io.h"
@@ -164,6 +165,7 @@ void solenoidStop(const char *why) {
 
 static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
                               bool takeExternalHigh) {
+  if (squadTriggerEnabled()) return false; // perimeter is a controller, not a bell
   if (protectRecoveryOwnsOutputs()) return false;
 #if RES_DEEP_RECOVERY_TARGET != 0UL
   (void)pulseMs;
@@ -293,6 +295,7 @@ void solenoidExternalTick() {
 void solenoidButtonHandleWake() {
   if (!gButtonWakePending) return;
   gButtonWakePending = false;
+  if (squadTriggerEnabled()) { squadTriggerWake(); return; }
   if (decompressionBuild()) {
     decompressionButtonWake();
     return;
@@ -313,6 +316,7 @@ void solenoidButtonTick() {
 
   gButtonStableReleased = released;
   if (!released) {
+    if (squadTriggerEnabled()) { squadTriggerButton(); return; }
     if (decompressionBuild()) {
       decompressionPlaySignature();
       return;

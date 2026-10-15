@@ -10,6 +10,20 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill round-robin squad trigger implementation
+
+Ben requested one bell per presence/USER interaction, cycling the nine squad
+members then a scheduled all-nine strike. Added an exact-target controller
+canary retaining Marill F40348's staged PROTECT recovery. Bounded one-hour
+USB/USER sessions gather sleeping receivers with existing five-minute radio
+leases; no squad flash or settings change. Reused canonical event packets over
+exact unicast only, with deduped repeats and one intended strike deadline.
+Shared the existing roster and Brian's 13..18 ms pulse settings. Added a fresh
+VL53 150..700 mm edge detector, clearance/rearm, cooldown, one-pixel feedback,
+and exact-target USB controls/telemetry. See ADR 0086 for timing limitations:
+existing receivers schedule in their loops, not the 1 ms pattern timer.
+Native tests and immutable build/hardware qualification follow this checkpoint.
+
 ## 2026-10-15 -- Ben + Codex -- Marill battery-only PROTECT recovery passed
 
 Completed the previously pending unplugged acceptance test on the same

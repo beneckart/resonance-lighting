@@ -1,4 +1,5 @@
 #include "net_peer.h"
+#include "squad_trigger.h"
 
 #include <Arduino.h>
 #include "esp_random.h"
@@ -259,6 +260,8 @@ static void processPacket(const RxItem &it) {
   const NbHeader *h = (const NbHeader *)it.data;
   if (h->ver != NB_PROTO_VER) return;
   if (memcmp(h->src_id, gMyId, 3) == 0) return; // our own broadcast echo
+
+  squadTriggerOnPacket(it);
 
   switch (h->type) {
   case NB_PATTERN_BEAT: {

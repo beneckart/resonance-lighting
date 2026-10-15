@@ -1,4 +1,5 @@
 #include "telemetry.h"
+#include "squad_trigger.h"
 
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -390,6 +391,7 @@ String telemetryJson() {
     j += ']';
     patternTelemetry(j);
   }
+  squadTriggerTelemetry(j);
   j += "}";
   return j;
 }
