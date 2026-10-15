@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill 5 cm cutoff deployed
+
+Built/flashed exact-target fx-261015-9ba0941-b from b1de946; SHA-256
+3fb1399b24807e7af8da208752b6ea7a00d60bc393f591bb6ef35dc9cfa31992.
+ROM application/prefix verification passed. Fresh boot used the 50 mm default;
+USB changed to 30 mm and back to 50 mm without a bell or session start.
+Restored 36 minutes from the original remaining session time. All nine
+rejoined, empty-space rearm worked, and the graph showed the 5..70 cm band.
+No radio errors/restarts. Deliberate close-hand feel remains a user observation;
+3 cm is the existing software filter floor, not a precision guarantee.
+Evidence and artifact identity: MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
 ## 2026-10-15 -- Ben + Codex -- Marill close-range tuning implementation
 
 Ben requested about 5 cm minimum distance, possibly lower. Added a 50 mm

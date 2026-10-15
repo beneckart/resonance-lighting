@@ -11,6 +11,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   field of view, verify empty-space rearm and deliberate hand waves, and
   explicitly test physical USER. Presence and USB paths ran on hardware;
   laptop returns caused unwanted detections. Acoustic skew is not measured.
+  Minimum now defaults to 5 cm, adjustable to 3 cm over framed USB; confirm
+  deliberate 5..10 cm hand motion with the updated live graph.
   Keep bounded sessions and PROTECT recovery. (Ben + Codex)
 
 ## 2027 planning -- exploration, no implementation yet

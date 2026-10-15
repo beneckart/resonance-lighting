@@ -59,8 +59,8 @@ python ops/bench/marill_presence_live.py --port 8766
 ```
 
 Open `http://127.0.0.1:8766/`. The graph shows the nearest return at or beyond
-the current minimum, the closest valid zone return, the trigger band, the rearm boundary, and the
-16 individual zones. It also displays the controller's actual rearm state,
+the current minimum, the closest valid zone return, the trigger band, the rearm
+boundary, and the 16 individual zones. It also displays the controller's actual rearm state,
 next bell, fresh READY count, and remaining session time. No simulated data.
 An interrupted USB connection shows stale data explicitly, not a flat live
 trace. The viewer works on the old firmware too, labelled Preview only.

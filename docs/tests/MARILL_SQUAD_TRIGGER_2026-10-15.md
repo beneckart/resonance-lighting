@@ -123,3 +123,38 @@ closed qualification graph trace ends at 23:20:26 UTC; the continuing viewer
 uses 20261015T232026Z-F40348-live-presence.jsonl. No receiver was reflashed or
 had its persistent configuration changed. The original first-canary TX root
 cause remains unproven; the paced replacement passed this bounded retest.
+
+## Close-range tuning revision
+
+Ben requested a 5 cm minimum, potentially less. Clean source
+b1de946cac7a4a019a5a42068f05c43aff2acacc built as fx-261015-9ba0941-b.
+Application SHA-256:
+3fb1399b24807e7af8da208752b6ea7a00d60bc393f591bb6ef35dc9cfa31992;
+1,235,984 bytes. Exact-target flags were unchanged. Cold compile passed with
+1,235,657 program bytes and 70,156 global-data bytes. Native squad tests passed
+502 checks, serial framing passed 44, and the viewer Python/JavaScript parsed.
+
+ROM app1-only write and prefix/application verification passed. Fresh boot
+reported a 50 mm minimum, 700 mm trigger ceiling, and 800 mm clear boundary.
+With the session off, !LF40348:30 then !LF40348:50 changed the reported cutoff
+and left the event count at zero and detector unarmed. The session was restored
+for 36 minutes, rounded down from its original remaining time. All nine were
+READY again, the empty-space detector armed, and no TX errors/restarts appeared.
+The live browser showed the 5..70 cm band and the same firmware cutoff.
+
+Evidence under ops/bench/data/Oakland:
+
+- fx-261015-9ba0941-b-manifest.json
+- 20261015T233538Z-F40348-range-rom-flash.jsonl
+- 20261015T233724Z-F40348-range-verify.jsonl
+- 20261015T232844Z-F40348-live-presence.jsonl
+
+This verifies the default and live controls, not a physical 3 cm accuracy claim.
+Requested a deliberate 5..10 cm hand test; that observation remains separate
+from the software/USB checks. The existing sensor filter still drops distances
+below 30 mm. No receiver image, power policy, or persistent settings changed.
+
+The first minute of an empty view remained armed at 50 mm with zero accepted
+events, all nine READY, and zero radio errors/restarts. Browser error log was
+empty. The qualification trace closed at 23:38:53 UTC; continuing live readings
+use 20261015T233853Z-F40348-live-presence.jsonl.
