@@ -33,10 +33,12 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
   reset during trial with retained five-minute cooldown, automatic staged return,
   post-recovery sensors/LEDs, and two-minute lit-service retry forgiveness passed
   2026-10-15. See docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md.
-- [ ] Complete battery-only timer-wake recovery on Marill F40348. The first
-  requested unplugged trial still had USB present at startup and cannot qualify
-  this case. Keep the nine-lantern squad unchanged. Before promotion, instrument
-  real sag/weak solar and qualify
+- [x] Battery-only timer-wake recovery on Marill F40348 passed 2026-10-15 in
+  the coordinated retry: success generation 4, external_seen=0, minimum
+  3293 mV / -241 mA, returned to FULL with both sensors healthy. The earlier
+  USB-connected attempt is separately retained and not counted as this proof.
+- [ ] Keep the nine-lantern squad unchanged pending broader qualification.
+  Before promotion, instrument real sag/weak solar and qualify
   the SDK's brief VSQT enable during cold initialization; warm retry behavior
   alone does not validate a cold-start sensor short.
 - [ ] Add and qualify MAX17260 QH deltas across processor sleep, including gauge

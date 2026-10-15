@@ -1,0 +1,17 @@
+{
+  "verified_utc": "2026-10-15T22:41:21.585621+00:00",
+  "target": "F40348",
+  "firmware": "fx-261015-d953f80-b",
+  "binary_sha256": "c9ed50c5696609724ab563b7b461357dc4270b3324858faf75744822be5cd326",
+  "baseline_generation": 3,
+  "success_generation": 4,
+  "external_supply_seen_during_trial": false,
+  "trial_minimum_mv": 3293,
+  "trial_minimum_ma": -241,
+  "post_reconnect_power_tier": 0,
+  "post_reconnect_guard_stage": 1,
+  "sensors_healthy": true,
+  "historical_protect_entry_mv": 3027,
+  "result": "PASS battery-only staged recovery; signed current is an awake trial observation, not a sleep-current or whole-cycle charge measurement",
+  "trace": "20261015T223700Z-F40348-battery-trial.jsonl"
+}

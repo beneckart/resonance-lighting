@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill battery-only PROTECT recovery passed
+
+Completed the previously pending unplugged acceptance test on the same
+fx-261015-d953f80-b image; no new flash or squad changes. After Ben confirmed
+readiness, the host injected PROTECT plus a 20 s timer sleep at 22:37:00 UTC.
+USB physically disconnected at 22:37:24 before the recovery trial, and Ben
+confirmed unplugged with battery connected/panel shaded. On reconnection at
+22:41:21, fresh telemetry retained successful trial generation 4 (previously 3),
+external_seen=0, minimum valid VBAT=3293 mV and minimum IBAT=-241 mA. This proves
+the staged recovery can complete while discharging, independent of a positive
+charging-current gate. It does not measure sleep current or whole-cycle charge.
+
+Marill returned to FULL, both sensors read correctly, charger fault=0, pending
+retry=0, and the original 3027 mV low-vbat audit remained. Retry count 1 is
+normal retained history; no override or manual counter clear was applied.
+Recorder closed normally. Marill's specified canary acceptance is complete;
+real sag/weak-solar, SDK cold-start rail behavior, and QH integration remain
+separate qualification work. Evidence and assertions are in the updated
+docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md and Oakland battery-result JSON.
+
 ## 2026-10-15 -- Ben + Codex -- Marill staged recovery USB canary passed
 
 Built clean source 1d86cb8 as fx-261015-d953f80-b, exact binary SHA-256

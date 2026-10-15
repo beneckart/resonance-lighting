@@ -73,7 +73,8 @@ At 22:03:49 UTC, a new exact-target test injected the latch and requested a
 keep the panel out of sunlight, wait four minutes, then reconnect. USB remained
 connected throughout the observed trial. It passed again as generation 3, with
 minimum 3350 mV / +298 mA and external_seen=1. This is a second USB success,
-not battery-only acceptance. A coordinated unplugged retry remains pending.
+not battery-only acceptance. A coordinated unplugged retry was deferred to
+the later test below.
 The host requested another ordinary N1/L1 stable-light period to prepare the
 fixture without bypassing the retry-history rule.
 
@@ -85,11 +86,40 @@ bench_rail_forced_off=false, LED rail off, both sensor reads healthy, no charger
 fault, and about 3.355 V / +379 mA on USB. Success generation 3 and the original
 3027 mV PROTECT audit both survived the sleep. No forced awake hold remains.
 
-USB canary acceptance passed. Battery-only acceptance remains open; do not
-promote to the squad on the strength of these USB trials alone. For the next
-run, coordinate operator readiness before sending `!RF40348:3`, then unplug
-USB before the recovery trial, keep the solar panel shaded, wait four minutes,
-reconnect, and require a new success generation with external_seen=0.
+## Coordinated battery-only recovery -- passed
+
+Ben confirmed readiness for a new test. At 22:37:00.956 UTC the host verified
+the exact image and identity, healthy power, retry count=0, pending=0 and
+generation=3, then sent `!RF40348:3`. Ben confirmed USB unplugged while leaving
+the battery connected and the panel shaded; the physical USB disconnect was
+captured at 22:37:24.840, before recovery qualification had completed. No host
+commands were possible during the subsequent unplugged interval. Watching the
+test pixel was optional and was not used as acceptance evidence.
+
+At 22:41:21.478 UTC USB reappeared, about four minutes later. The first fresh
+telemetry reported success generation=4, pending=0, last_reason=0 and the
+retained trial evidence:
+
+- Minimum valid battery voltage: 3293 mV, above the 3150 mV loaded-stage floor.
+- Minimum signed battery current: -241 mA (discharging during the awake trial).
+- External supply seen during the trial: 0.
+- Returned to FULL / guard stage 1, with both VL53L5CX and MSA311 reads healthy.
+- BQ fault=0; original 3027 mV low-vbat PROTECT entry unchanged.
+
+The stored success record proves that this image completed its sensor / low
+LED / DIM LED recovery sequence without external power. Reconnection current
+was already positive from USB charging, so the retained trial values, not that
+new instantaneous current, establish battery-only operation. The -241 mA value
+is an observed awake-trial current, not sleep current, average current, or a
+whole-cycle charge measurement.
+
+This completes the specified Marill canary acceptance: automatic staged
+recovery on USB and battery, interrupted-trial backoff, and healthy-service
+forgiveness. The counter is 1 after this successful trial and remains normal
+retry history, not a pending attempt; the ordinary two-minute lit-service rule
+may clear it later. No bench light override or forced awake session was set in
+this run. The serial recorder closed normally. No firmware or settings were
+changed on the nine-lantern squad, and this result is not fleet promotion.
 
 ## Evidence files
 
@@ -108,6 +138,10 @@ Public traces under `ops/bench/data/Oakland/`:
 - `20261015T220706Z-F40348-prepare-trial.jsonl`: stable-service preparation for
   a coordinated unplugged retry.
 - `20261015T220924Z-F40348-canary.jsonl`: final timed wake / bench-override cleanup.
+- `20261015T223700Z-F40348-battery-trial.jsonl`: coordinated unplugged test,
+  fresh reconnection telemetry and retained success evidence.
+- `20261015T223700Z-F40348-unplug-confirmation.json`: Ben's unplug confirmation.
+- `20261015T223700Z-F40348-battery-result.json`: asserted result and artifact identity.
 
 This experiment does not qualify a real resistive harness, intermittent solar,
 cold-start sensor short, or whole-cycle coulomb integration. Existing SDK cold

@@ -94,3 +94,15 @@ The existing SDK can briefly enable VSQT during a true cold initialization;
 this change does not modify that external library. Warm-reset/timer recovery
 uses the retained off state and the consumed trial ticket. Cold-start sensor
 shorts require a separate rail-sequencing qualification before fleet promotion.
+
+## 2026-10-15 canary evidence
+
+Marill F40348 passed the specified USB and battery-only acceptance on
+fx-261015-d953f80-b. A deliberately interrupted trial retained its five-minute
+cooldown and then recovered automatically; two minutes of stable lit service
+cleared retry history. A separately coordinated unplugged trial retained
+success generation 4, external_seen=0, minimum 3293 mV and -241 mA, then reported
+FULL with both sensors healthy after USB reconnection. This is acceptance for
+the Marill canary, not fleet promotion or validation of the remaining real-sag,
+weak-solar and cold-start sensor-short cases. See
+../tests/PROTECT_RECOVERY_MARILL_2026-10-15.md for exact artifact identity and logs.
