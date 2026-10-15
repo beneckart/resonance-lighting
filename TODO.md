@@ -2,11 +2,16 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
-- [~] **Marill squad interaction canary (ADR 0086):** qualify presence + USER,
-  nine individual bells then scheduled group strike on the nearby squad.
-  Measure/listen for receiver-loop/mechanical skew before claiming tight
-  acoustic sync; tune mounting/range after the first hand-wave test. Keep
-  bounded sessions and the new PROTECT recovery. (Ben + Codex)
+- [x] **Marill squad command/listening canary (ADR 0086):** nine individual
+  bells then scheduled group strike passed on 2026-10-15 with the paced-TX
+  replacement. All nine READY, zero TX errors/restarts; Ben heard the
+  individuals and synchronized group. PROTECT recovery preserved. See
+  `docs/tests/MARILL_SQUAD_TRIGGER_2026-10-15.md`. (Ben + Codex)
+- [ ] **Marill interaction placement:** remove laptop/table from the sensor
+  field of view, verify empty-space rearm and deliberate hand waves, and
+  explicitly test physical USER. Presence and USB paths ran on hardware;
+  laptop returns caused unwanted detections. Acoustic skew is not measured.
+  Keep bounded sessions and PROTECT recovery. (Ben + Codex)
 
 ## 2027 planning -- exploration, no implementation yet
 

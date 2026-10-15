@@ -1,0 +1,90 @@
+{
+  "target": "F40348",
+  "revision": "fx-261015-86ca5b1-b",
+  "result": "failed_radio_tx_after_first_unicast",
+  "first_send_error_utc": "2026-10-15T23:01:33.984327+00:00",
+  "first_error_uptime_ms": 85846,
+  "last_active": {
+    "fw": "fx-261015-86ca5b1-b",
+    "fixture_id": "F40348",
+    "uptime_ms": 126407,
+    "battery_v": 3.361,
+    "power_tier": 0,
+    "guard_stage": 1,
+    "vl_read_ok": true,
+    "vl_reads": 471,
+    "vl_zone_nearest_mm": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      466,
+      0,
+      0,
+      0
+    ],
+    "vl_closest_mm": 466,
+    "trigger_enabled": true,
+    "trigger_left_s": 3490,
+    "trigger_next_step": 3,
+    "trigger_count": 2,
+    "trigger_ready_mask": 0,
+    "trigger_presence_armed": false,
+    "trigger_last": "not ready / cooldown",
+    "trigger_tx_errors": 123,
+    "trigger_refused": 20,
+    "trigger_peers": [
+      {
+        "id": "9F2738",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F0E54",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F26B0",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "F40254",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F26D8",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F26BC",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F0E5C",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "F2BE0C",
+        "fw": "fx-261014-65eeb39-b"
+      },
+      {
+        "id": "9F2638",
+        "fw": "fx-261014-65eeb39-b"
+      }
+    ],
+    "protect_retry_enabled": true,
+    "protect_retry_phase": 0,
+    "time": 1792105334.5511122,
+    "sensor_age_s": 0.0,
+    "sequence": 459
+  },
+  "source_trace": "20261015T225640Z-F40348-live-presence.jsonl",
+  "not_proven": "underlying driver error, acoustic execution, precision sync"
+}

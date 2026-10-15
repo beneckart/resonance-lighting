@@ -28,6 +28,11 @@ Move out of the 15..80 cm band for at least 0.8 seconds to rearm; allow at least
 in this band can prevent rearming. Close returns under 15 cm are excluded to
 avoid Marill's observed ~10 cm housing return.
 
+Keep the laptop, table edges, and other fixed objects outside the sensor's
+field of view. In the first bench test the laptop produced a persistent
+35..40 cm return and unwanted detections. Confirm Armed on the graph with
+the intended interaction space empty, then introduce the hand.
+
 The order is Ness, Eevee, Rikku, Leeloo, Bidoof, Pinsir, Tangela, Sakura, Lucas,
 then all nine. Every interaction requests one bell strike with Brian's tuned
 pulse width. A rejected input does not advance. The all-nine step requires

@@ -74,3 +74,52 @@ Evidence: 20261015T230217Z-F40348-canary.jsonl and the live observer trace.
 Completion pacing and bounded radio recovery require a replacement canary
 and retest. A queued legacy strike is not an acoustic receipt; precision
 synchronization remains unmeasured.
+
+## Completion-paced replacement
+
+Built clean source 0214c7143c34f774577d50d9dbcce859f4b27d28 as
+fx-261015-3216a18-b with the same exact-target build flags. Application SHA-256:
+3a666b06e97e06526acc8386db13e5c4e08e3fdfb75b62aaad8e9eeb742ac97b;
+1,235,488 bytes. Cold build passed (1,235,149 program bytes, 70,156 global
+data bytes). The expanded native squad suite passed 399 checks.
+
+No-stub ROM backup, app1-only write, and prefix/application verification passed.
+Fresh boot confirmed the expected revision, FULL, 3.360 V, healthy VL53/MSA,
+and retained PROTECT recovery. The one-hour session was acknowledged.
+Radio/cycle qualification follows; this boot check alone is not acceptance.
+
+Evidence: 20261015T231153Z-F40348-trigger-r2-rom-flash.jsonl,
+20261015T231341Z-F40348-trigger-command.jsonl,
+20261015T231133Z-F40348-live-presence.jsonl, and
+fx-261015-3216a18-b-manifest.json under ops/bench/data/Oakland.
+
+### Replacement result: command cycle and listening test passed
+
+All nine reported the expected fx-261014-65eeb39-b revision and fresh READY
+receipts by about 132 seconds of controller uptime. The first USB command at
+23:15:55 UTC targeted Ness. All nine stayed ready after it, with zero immediate
+send errors, failed send callbacks, or radio restarts.
+
+Completed steps 2..9 with a mixture of presence and USB commands. The host
+runner stopped twice when a concurrent presence event changed its expected
+step; it did not blindly send an extra command. These were test coordination
+stops, not radio failures. At 23:20:06 UTC, step 10 queued mask 1ff for requested
+mask 1ff, using one event/deadline across the nine exact unicast destinations.
+Ten seconds later the cycle was back at Ness, all nine were READY, and send
+errors/radio restarts were still zero. See the 23:17:24, 23:19:19, and 23:20:05
+cycle-check JSONL files and the 23:15:55 command trace.
+
+Ben confirmed: "Heard the individual bells and a synchronized group strike."
+This passes the first listening test; no acoustic skew measurement was made.
+Ben was away for part of the test and identified the laptop in the sensor's
+field of view as the likely 35..40 cm return and source of unwanted detections.
+Do not treat these as confirmed hand waves. Aim into clear space and confirm
+the graph says Armed before testing deliberate approaches. Presence and USB
+paths ran on hardware; the USER routing is implemented but a separate physical
+USER press was not identified in this trace.
+
+Left the one-hour RAM session active and the read-only graph running. The
+closed qualification graph trace ends at 23:20:26 UTC; the continuing viewer
+uses 20261015T232026Z-F40348-live-presence.jsonl. No receiver was reflashed or
+had its persistent configuration changed. The original first-canary TX root
+cause remains unproven; the paced replacement passed this bounded retest.

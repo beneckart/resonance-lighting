@@ -1,0 +1,105 @@
+{
+  "target": "F40348",
+  "revision": "fx-261015-3216a18-b",
+  "binary_sha256": "3a666b06e97e06526acc8386db13e5c4e08e3fdfb75b62aaad8e9eeb742ac97b",
+  "steps": [
+    {
+      "step": 1,
+      "source": "USB",
+      "targets_hex": "001",
+      "event_id": "9733470f",
+      "deadline_ms": 138447,
+      "utc": "2026-10-15T23:15:55.978286+00:00"
+    },
+    {
+      "step": 2,
+      "source": "presence",
+      "targets_hex": "002",
+      "event_id": "8bcd84e5",
+      "deadline_ms": 216945,
+      "utc": "2026-10-15T23:17:14.454807+00:00"
+    },
+    {
+      "step": 3,
+      "source": "presence",
+      "targets_hex": "004",
+      "event_id": "058671f3",
+      "deadline_ms": 260425,
+      "utc": "2026-10-15T23:17:57.919341+00:00"
+    },
+    {
+      "step": 4,
+      "source": "USB",
+      "targets_hex": "008",
+      "event_id": "bffeda21",
+      "deadline_ms": 343704,
+      "utc": "2026-10-15T23:19:21.200834+00:00"
+    },
+    {
+      "step": 5,
+      "source": "USB",
+      "targets_hex": "010",
+      "event_id": "182af64d",
+      "deadline_ms": 347736,
+      "utc": "2026-10-15T23:19:25.232687+00:00"
+    },
+    {
+      "step": 6,
+      "source": "USB",
+      "targets_hex": "020",
+      "event_id": "85919943",
+      "deadline_ms": 351791,
+      "utc": "2026-10-15T23:19:29.288087+00:00"
+    },
+    {
+      "step": 7,
+      "source": "USB",
+      "targets_hex": "040",
+      "event_id": "99ad6739",
+      "deadline_ms": 355821,
+      "utc": "2026-10-15T23:19:33.316797+00:00"
+    },
+    {
+      "step": 8,
+      "source": "USB",
+      "targets_hex": "080",
+      "event_id": "74551be1",
+      "deadline_ms": 359830,
+      "utc": "2026-10-15T23:19:37.326235+00:00"
+    },
+    {
+      "step": 9,
+      "source": "presence",
+      "targets_hex": "100",
+      "event_id": "c0c7d623",
+      "deadline_ms": 363202,
+      "utc": "2026-10-15T23:19:40.699302+00:00"
+    },
+    {
+      "step": 10,
+      "source": "USB",
+      "targets_hex": "1ff",
+      "event_id": "e3991041",
+      "deadline_ms": 388787,
+      "utc": "2026-10-15T23:20:06.375916+00:00"
+    }
+  ],
+  "end_utc": "2026-10-15T23:20:16.688919+00:00",
+  "end": {
+    "trigger_count": 10,
+    "trigger_next_step": 1,
+    "trigger_ready_mask": 511,
+    "trigger_tx_errors": 0,
+    "trigger_radio_restarts": 0,
+    "trigger_tx_ok": 1274,
+    "trigger_tx_fail": 0,
+    "battery_v": 3.363,
+    "power_tier": 0
+  },
+  "user_listening_confirmation": "Heard the individual bells and a synchronized group strike",
+  "limitations": [
+    "No acoustic skew measurement",
+    "Laptop in field of view caused unwanted presence events; clear-space hand-wave setup remains",
+    "No explicit physical USER press identified in trace"
+  ]
+}

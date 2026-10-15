@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill squad cycle and listening test passed
+
+Installed completion-paced fx-261015-3216a18-b from clean 0214c71; binary
+SHA-256 3a666b06e97e06526acc8386db13e5c4e08e3fdfb75b62aaad8e9eeb742ac97b.
+ROM app1/prefix verification passed, recovery support remained enabled, and
+fresh boot was FULL with healthy sensors. All nine gathered by about 132 s.
+Completed the nine individual targets and tenth scheduled group event, with
+zero send errors/restarts and all nine READY afterward. Ben confirmed hearing
+the individual bells and a synchronized group strike. No receiver flash or
+persistent configuration changes. Native squad suite: 399 checks passed.
+
+The local live graph is available via ops/bench/marill_presence_live.py.
+Ben identified the laptop in the sensor field as the likely 35..40 cm return
+and source of unwanted triggers while he was away. Clear-space placement and
+an explicit physical USER check remain; acoustic skew was not measured.
+Saved both failed-first-image evidence and successful replacement traces,
+manifest and registry identity. Session remains bounded to one hour; the
+read-only viewer continues locally. See MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
 ## 2026-10-15 -- Ben + Codex -- Marill trigger canary exposed TX stall
 
 Built/flashed fx-261015-86ca5b1-b from 3638d01; SHA-256
