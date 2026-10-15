@@ -59,6 +59,7 @@ PRESENCE_DISTANT_RANGE=0
 SENTINEL_TRACE_TARGET=""
 SENTINEL_TRACE_SMOKE=0
 DECOMPRESSION=0
+PROTECT_RECOVERY_TARGET=""
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -109,6 +110,7 @@ Common build options:
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --decompression             bounded event sessions and local signature chime (b only)
+  --protect-recovery-target MAC staged PROTECT canary for one perimeter (b only)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
@@ -285,6 +287,7 @@ while [[ $# -gt 0 ]]; do
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
+    --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -301,6 +304,14 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$PROTECT_RECOVERY_TARGET" ]]; then
+  [[ "$PROTECT_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ && "$PROTECT_RECOVERY_TARGET" != "000000" ]] || fail "bad --protect-recovery-target"
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--protect-recovery-target requires artifact variant b"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "protect recovery requires a retained artifact and exact-target flash"
+  (( DECOMPRESSION == 0 )) || fail "protect recovery canary is separate from decompression"
+  EXTRA_FLAGS+=" -DRES_PROTECT_RECOVERY_TARGET=0x${PROTECT_RECOVERY_TARGET}UL"
+fi
 
 if (( DECOMPRESSION )) && [[ -n "$ARTIFACT_VARIANT" && "$ARTIFACT_VARIANT" != "b" ]]; then
   fail "--decompression requires artifact variant b"

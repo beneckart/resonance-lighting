@@ -17,6 +17,7 @@
 #include "telemetry.h"
 #include "decompression.h"
 #include "pattern.h"
+#include "protect_recovery.h"
 
 static SerialMutationParser gSerialMutationParser;
 
@@ -121,6 +122,9 @@ void handleSerial() {
   SerialMutationFeedResult mutationResult =
       gSerialMutationParser.feed((uint8_t)c, gMyId, mutation);
   if (mutationResult != SERIAL_MUTATION_PASS) {
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_PROTECT_TEST)
+      protectRecoveryTest(mutation.value);
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_SIGNATURE) {
       bool accepted = false;

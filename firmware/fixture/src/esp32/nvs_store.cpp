@@ -321,6 +321,30 @@ bool nvsWriteStage(uint8_t stage) {
   return putU8("fc_stage", stage);
 }
 
+bool nvsReadProtectRetry(ProtectRetryRecord &record) {
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  record = protectRetryEmpty();
+  bool ok = !pf.isKey("pr_retry") ||
+      (pf.getBytesLength("pr_retry") == sizeof(record) &&
+       pf.getBytes("pr_retry", &record, sizeof(record)) == sizeof(record) &&
+       protectRetryValid(record));
+  pf.end();
+  return ok;
+}
+
+bool nvsWriteProtectRetry(const ProtectRetryRecord &record) {
+  if (!protectRetryValid(record)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putBytes("pr_retry", &record, sizeof(record)) == sizeof(record);
+  ProtectRetryRecord check = {};
+  ok = ok && pf.getBytes("pr_retry", &check, sizeof(check)) == sizeof(check) &&
+       memcmp(&check, &record, sizeof(check)) == 0;
+  pf.end();
+  return ok;
+}
+
 bool nvsReadLoadArmed(bool &armed) {
   Preferences pf;
   if (!pf.begin(kNs, false)) return false;

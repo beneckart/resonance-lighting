@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Staged PROTECT recovery canary implementation
+
+Ben authorized redesign and testing on Marill F40348 only, before the nine
+decompression lanterns. ADR 0085 adds a checksummed, read-verified retry journal,
+one-use sensor-start ticket, staged sensor/low-LED/DIM-LED trials, and persisted
+5 min / 15 min / 1 h / 6 h backoff without permanent retry exhaustion. The
+durable PROTECT stage remains in place until trials pass; reset during a trial
+parks again. Recovery uses fresh raw voltage and real-cell/fault evidence,
+independent of current sign or external power. Missing current cannot disable
+the normal voltage stop. Full-cell corroboration retains the BQ presence test.
+The implementation is build-gated to one exact MAC and excludes decompression.
+USB diagnostics retain successful trial power evidence across sleep and expose
+exact-target, line-framed fault injection without resetting retry history.
+
+The full native suite passed; expanded retry/serial tests passed 343 checks.
+Embedded compile and hardware canary acceptance are in progress, not yet a
+deployment result. Original Marill remains on its preserved image at this
+checkpoint. Existing SDK cold-start VSQT sequencing and whole-cycle QH logging
+remain separate qualification items. No squad firmware or settings changed.
+
 ## 2026-10-15 -- Ben + Codex -- Why PROTECT recovery became restrictive
 
 Reviewed ADRs 0023, 0038, 0046, 0051 and 0068 in response to Ben's concern

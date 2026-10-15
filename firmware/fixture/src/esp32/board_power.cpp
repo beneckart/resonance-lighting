@@ -1,4 +1,5 @@
 #include "board_power.h"
+#include "protect_recovery.h"
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -657,6 +658,7 @@ static void enterDeepSleep(uint32_t seconds, uint8_t cause,
                  (unsigned long)seconds);
   solenoidButtonPrepareSleep();
   Serial.flush();
+  protectRecoveryBeforeSleep(seconds);
   esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
   esp_deep_sleep_start();
 }

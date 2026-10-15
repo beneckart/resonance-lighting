@@ -29,6 +29,17 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
 
 ## Immediate documentation / repo hygiene
 
+- [ ] Complete ADR 0085 Marill F40348 canary acceptance: immutable build,
+  injected false latch, reset during trial with retained cooldown, battery-only
+  timer-wake return, and post-recovery sensor/LED evidence. Keep the nine-lantern
+  squad unchanged. Before promotion, instrument real sag/weak solar and qualify
+  the SDK's brief VSQT enable during cold initialization; warm retry behavior
+  alone does not validate a cold-start sensor short.
+- [ ] Add and qualify MAX17260 QH deltas across processor sleep, including gauge
+  POR/model initialization, rollover, resolution and current calibration. Awake
+  IBAT and the reset-on-boot software integrator are not whole-cycle charge
+  measurements; do not make recovery depend on inferred sleep current.
+
 - [ ] Follow up Marill F40348's 2026-10-15 post-burn specimen: validate/decode
   the preserved non-erased crash partition with its matching ELF, and test
   the enclosure USB extension with a stable awake direct/extension/direct

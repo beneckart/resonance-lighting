@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include "../core/fixture_context.h"
 #include "../core/sleep_audit.h"
+#include "../core/protect_retry.h"
 
 struct FixtureConfig {
   uint16_t capMah;      // gauge DesignCap (C command)
@@ -72,6 +73,8 @@ bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,
 // Serial/Board init and written on safety-critical paths).
 bool nvsReadStage(uint8_t &stage);  // false = NVS unreadable (caller fails safe)
 bool nvsWriteStage(uint8_t stage);
+bool nvsReadProtectRetry(ProtectRetryRecord &record);
+bool nvsWriteProtectRetry(const ProtectRetryRecord &record);
 // ADR 0051 load-armed marker: true only while a real load (LED rail, solenoid
 // gate) is or was recently energized. Distinguishes load-induced resets from
 // panel/battery/USB power-ordering resets in the boot guard.

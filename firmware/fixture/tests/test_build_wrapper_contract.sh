@@ -87,6 +87,15 @@ expect_rejected '--sentinel-trace-target cannot be combined with --msa-trace-tar
 expect_rejected '--sentinel-trace-smoke requires --sentinel-trace-target' \
   --sentinel-trace-smoke
 
+expect_rejected 'bad --protect-recovery-target' --protect-recovery-target xyz
+expect_rejected 'bad --protect-recovery-target' --protect-recovery-target 000000
+expect_rejected '--protect-recovery-target requires artifact variant b' \
+  --protect-recovery-target F40348 --artifact-variant p
+expect_rejected 'protect recovery canary is separate from decompression' \
+  --protect-recovery-target F40348 --decompression
+expect_rejected 'protect recovery requires a retained artifact and exact-target flash' \
+  --protect-recovery-target F40348 --port COM1
+
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"
 

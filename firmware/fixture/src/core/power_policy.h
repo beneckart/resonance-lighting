@@ -41,6 +41,7 @@ struct PowerSample {
 };
 
 struct PowerConfig {
+  bool managed_recovery; // ADR 0085 canary: staged coordinator owns release
   uint16_t dim_mv;          // default 3150 (ADR 0046: above the charger knee)
   uint16_t off_mv;          // default 3100
   uint16_t protect_mv;      // default 3050 (immediate)

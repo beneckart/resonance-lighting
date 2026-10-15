@@ -24,6 +24,7 @@
 #include "src/esp32/nvs_store.h"
 #include "src/esp32/ota_verify.h"
 #include "src/esp32/power_glue.h"
+#include "src/esp32/protect_recovery.h"
 #include "src/esp32/sensors/sensor_bus.h"
 #include "src/esp32/sensors/sensors.h"
 #include "src/esp32/sentinel_trace.h"
@@ -64,6 +65,10 @@ void setup() {
   patternInit(); // ADR 0084; decompression builds only
   identityInit();
 
+  // A spent recovery ticket also bounds a hang during power/sensor startup.
+  // Long VL53 transfers service the watchdog, subject to a 60 s startup cap.
+  if (protectRecoveryOwnsOutputs() && !bootGuardParked()) watchdogInit();
+
   // 6. Power stack: Board.init (rail re-parked after every attempt), charger
   //    policy,
   //    charging deferred until the gauge shows a plausible cell.
@@ -78,7 +83,9 @@ void setup() {
     // radio are the only active subsystems needed for the supervised canary.
     railEnableVSQT(false);
   } else if (!bootGuardParked()) {
-    if (!railCycleVSQT())
+    bool sensorRailOk = railCycleVSQT();
+    protectRecoveryNoteSensorRail(sensorRailOk);
+    if (!sensorRailOk)
       Serial.println("VSQT cold-start verification FAILED; sensors may degrade");
   } else if (!railEnableVSQT(false)) {
     Serial.println("VSQT park FAILED");
@@ -105,7 +112,7 @@ void setup() {
     sensorsInit(gTelemetryFixtureClass);
 
   // 11. Watchdog before network bring-up.
-  watchdogInit();
+  if (!watchdogArmed()) watchdogInit();
   statusLedInit();
 
   // 12. Radio: STA-unassociated on the configured channel, ESP-NOW up.
@@ -170,14 +177,14 @@ void loop() {
     return;
   }
 
-  sensorsTick();
+  if (!bootGuardParked()) sensorsTick();
   commsRecoveryTick();
 
   // COMMS mode.
   netPeerTick();
   timeAnchorTick();
   powerGlueTick();
-  behaviorTick();
+  if (!protectRecoveryOwnsOutputs()) behaviorTick();
   renderTick();
   motionTraceTick();
   sentinelTraceTick();
@@ -188,6 +195,7 @@ void loop() {
 // posture, the established rig/bench ordering remains. The power veto caps
 // everything; a hard-parked boot never lights.
 void renderTick() {
+  if (protectRecoveryRender()) return;
   if (deepRecoveryBuild()) {
     if (ledRailIsOn()) ledRailOff();
     return;

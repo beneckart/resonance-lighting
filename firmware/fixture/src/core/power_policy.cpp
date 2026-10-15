@@ -2,6 +2,7 @@
 
 PowerConfig powerConfigDefaults() {
   PowerConfig c;
+  c.managed_recovery = false;
   // ADR 0046: ladder sits above the BQ25628E precharge->fast-charge knee
   // (VBAT_LOWV, believed ~3.00 V; bench verification pending) so a fixture
   // that parks overnight starts the morning in fast charge, never precharge.
@@ -129,6 +130,11 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   LedTier prev = st.tier;
 
   if (st.tier == LedTier::PROTECT) {
+    if (c.managed_recovery) {
+      fillBudget(b, st.tier, c);
+      b.defer_protect_persist = !s.batt_corroborated;
+      return b;
+    }
     // Compound release ONLY (ADR 0023 addendum + ADR 0068): rebound voltage or
     // one positive-current sample must not release. The ordinary proof is
     // sustained charge current. A second proof handles a full/tapered LFP that

@@ -1,4 +1,5 @@
 #include "solenoid.h"
+#include "protect_recovery.h"
 
 #include <Arduino.h>
 #include "driver/rtc_io.h"
@@ -163,6 +164,7 @@ void solenoidStop(const char *why) {
 
 static bool solenoidStrikeImpl(uint16_t pulseMs, const char *why,
                               bool takeExternalHigh) {
+  if (protectRecoveryOwnsOutputs()) return false;
 #if RES_DEEP_RECOVERY_TARGET != 0UL
   (void)pulseMs;
   (void)why;
@@ -209,6 +211,7 @@ bool solenoidStrike(uint16_t pulseMs, const char *why) {
 }
 
 bool solenoidSignatureStart() {
+  if (protectRecoveryOwnsOutputs()) return false;
   if (!decompressionBuild() || !gSignatureTimer || !gPulseTimer || !gCfg.solEn ||
       !solenoidQuietFor(RES_SOLENOID_REST_MS)) return false;
   {
@@ -239,6 +242,7 @@ bool solenoidBusy() {
 }
 
 bool solenoidSetPatternMode(bool on) {
+  if (on && protectRecoveryOwnsOutputs()) return false;
   SolenoidLock lock;
   if (on && (gSignature.active() || gGateOn)) return false;
   gPatternMode = on;
