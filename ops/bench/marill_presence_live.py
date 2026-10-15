@@ -40,7 +40,7 @@ def main():
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     logpath = ROOT / 'ops/bench/data/Oakland' / (stamp + '-F40348-live-presence.jsonl')
     logpath.parent.mkdir(parents=True, exist_ok=True)
-    log = logpath.open('x', encoding='utf-8')
+    log = logpath.open('x', encoding='utf-8', newline='\n')
 
     def record(kind, value):
         log.write(json.dumps({'utc': datetime.now(timezone.utc).isoformat(),
