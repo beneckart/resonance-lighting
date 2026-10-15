@@ -10,6 +10,35 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill staged recovery USB canary passed
+
+Built clean source 1d86cb8 as fx-261015-d953f80-b, exact binary SHA-256
+c9ed50c5696609724ab563b7b461357dc4270b3324858faf75744822be5cd326.
+Only Marill F40348 was flashed, into its active app1 slot. Readback verified
+the application and unchanged 64 KiB configuration/partition prefix. Original
+full-flash backup and the historical 3027 mV low-vbat PROTECT audit remain.
+
+Injected a durable latch, let recovery qualify, then reset during low-LED stage.
+Marill re-parked with attempt 1 retained, slept through the five-minute cooldown,
+requalified, and automatically passed sensor / low LED / DIM LED stages on
+attempt 2. It returned to DIM, then normally reached FULL; two minutes of
+continuous healthy lit service cleared retry history while preserving success
+evidence. Both sensors remained healthy. Native suite, expanded 343-check retry
+test, and final immutable embedded build passed. The final test frame uses one
+white pixel to keep low/DIM stages distinct below the dense-HEX current limiter.
+
+The requested unplugged follow-up ran with USB still present and passed as
+another USB trial; it is explicitly NOT battery-only validation. A coordinated
+unplugged retry remains pending Ben's availability. No squad update or fleet
+promotion occurred. Exact artifact/ELF were retained in the main workspace and
+the temporary clean worktree archived. The earlier dev cache, whose wrapper was
+edited while its compiler ran, retained an in-progress marker; after confirming
+no compiler processes remained, the required recovery wrapper quarantined it.
+Final one-second timed-sleep cleanup restored ordinary FIELD/channel-11 behavior:
+FULL, both sensors healthy, count/pending zero, no RAM bench override, and the
+historical PROTECT audit plus success generation 3 preserved.
+See docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md and ADR 0085.
+
 ## 2026-10-15 -- Ben + Codex -- Staged PROTECT recovery canary implementation
 
 Ben authorized redesign and testing on Marill F40348 only, before the nine

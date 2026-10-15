@@ -29,10 +29,14 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
 
 ## Immediate documentation / repo hygiene
 
-- [ ] Complete ADR 0085 Marill F40348 canary acceptance: immutable build,
-  injected false latch, reset during trial with retained cooldown, battery-only
-  timer-wake return, and post-recovery sensor/LED evidence. Keep the nine-lantern
-  squad unchanged. Before promotion, instrument real sag/weak solar and qualify
+- [x] ADR 0085 Marill F40348 USB canary: immutable build, injected false latch,
+  reset during trial with retained five-minute cooldown, automatic staged return,
+  post-recovery sensors/LEDs, and two-minute lit-service retry forgiveness passed
+  2026-10-15. See docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md.
+- [ ] Complete battery-only timer-wake recovery on Marill F40348. The first
+  requested unplugged trial still had USB present at startup and cannot qualify
+  this case. Keep the nine-lantern squad unchanged. Before promotion, instrument
+  real sag/weak solar and qualify
   the SDK's brief VSQT enable during cold initialization; warm retry behavior
   alone does not validate a cold-start sensor short.
 - [ ] Add and qualify MAX17260 QH deltas across processor sleep, including gauge
