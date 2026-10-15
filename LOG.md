@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Live Marill hand-range graph
+
+Ben requested real-time feedback while testing presence. Added a local,
+read-only USB viewer with the 15..70 cm trigger band, 80 cm rearm boundary,
+nearest eligible/raw traces, all 16 VL53 zones, and controller state. Browser
+rendering and scale selection were checked, with no browser errors. The
+viewer clearly labels old-firmware preview and stale/sleep intervals. It
+records compact observations to new exclusive-created Oakland JSONL files.
+See docs/howto/MARILL_SQUAD_TRIGGER.md for session controls and serial ownership.
+The complete native suite passed, including 391 new squad-trigger checks and
+the 343-check PROTECT recovery suite. The immutable Marill build is pending.
+
 ## 2026-10-15 -- Ben + Codex -- Marill round-robin squad trigger implementation
 
 Ben requested one bell per presence/USER interaction, cycling the nine squad
