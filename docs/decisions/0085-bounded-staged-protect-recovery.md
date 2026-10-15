@@ -44,7 +44,9 @@ sleep current is an automatic recovery gate. References:
    trial. Raw voltage avoids using an uncertain source-resistance correction
    to justify a restart. Raised per-unit OFF thresholds raise the trial gates.
 4. Stage recovery through 30 seconds of sensor operation, 30 seconds at LED
-   cap 32/255, and 30 seconds at cap 128/255, using a known white test frame.
+   cap 32/255, and 30 seconds at cap 128/255, using one white test pixel.
+   This stays below the dense-HEX current limiter, which would otherwise make
+   both all-pixel stages the same load. The ordinary frame limiter remains on.
    No autonomous or commanded chimes and no ordinary program frames may run
    during the trial. Keep raw VBAT >=3.15 V during loaded stages; sag, invalid
    power evidence, a charger fault or a failed rail start aborts. Bound the

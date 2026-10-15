@@ -212,7 +212,10 @@ bool protectRecoveryRender() {
     return true;
   }
   FrameBuffer f = {}; f.count = ledPixelCount();
-  for (uint8_t i = 0; i < f.count; ++i) f.px[i][0] = f.px[i][1] = f.px[i][2] = 255;
+  // One white pixel keeps both stages below the dense-HEX frame limiter.
+  // Filling the whole perimeter would clamp cap 32 and cap 128 to the same
+  // total load, defeating the staged test (ADR 0085).
+  if (f.count) f.px[0][0] = f.px[0][1] = f.px[0][2] = 255;
   if (!ledRailIsOn() && !ledRailOnWithRamp(f, cap)) { gRenderFailed = true; return true; }
   static uint32_t last = 0;
   if (millis() - last >= 100) { last = millis(); ledRender(f, cap); }
