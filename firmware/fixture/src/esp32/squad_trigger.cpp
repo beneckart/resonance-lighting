@@ -29,6 +29,8 @@ static uint8_t gJobCursor=0;
 static uint32_t gDeadline=0, gEventId=0, gTxErrors=0, gRefused=0;
 static const char *gLast="idle";
 static bool gWakePending=false;
+static SquadRadioRecovery gRadioRecovery;
+static int32_t gLastRadioError=0;
 
 bool squadTriggerEnabled() {
   return RES_SQUAD_TRIGGER_TARGET != 0UL &&
@@ -117,6 +119,13 @@ void squadTriggerOnPacket(const RxItem &it) {
 }
 void squadTriggerTick() {
   if (!squadTriggerEnabled()) return;
+  if (gRadioRecovery.paused) {
+    if (!gRadioRecovery.due(millis())) return;
+    gRadioRecovery.resumed();
+    if (!commsResumeRadio()) {
+      gSession.set(esp_timer_get_time(),0); gLast="radio restart failed";
+    }
+  }
   if (gWakePending && powerReady()) {
     gWakePending=false;
     squadTriggerSession(60);
@@ -125,10 +134,30 @@ void squadTriggerTick() {
     gJobMask=0; gPresence.invalidate(); return;
   }
   uint32_t now=millis();
+  if (espNowTxStalled()) {
+    gLastRadioError=espNowLastTxError();
+    Serial.printf("trigger: radio stalled err=%ld pending_ms=%lu ok=%lu fail=%lu; dropping pending strike\n",
+      (long)gLastRadioError,(unsigned long)espNowTxPendingMs(),
+      (unsigned long)espNowSendOk(),(unsigned long)espNowSendFail());
+    gJobMask=0; gPresence.invalidate();
+    for (auto &p:gPeers) p.ready=false;
+    gLeaseIndex=0; gNextLease=0;
+    if (!gRadioRecovery.start(now)) {
+      gSession.set(esp_timer_get_time(),0); gLast="radio retry budget exhausted";
+      return;
+    }
+    gLast="restarting radio";
+    if (!commsPauseRadio()) {
+      gRadioRecovery.resumed();gSession.set(esp_timer_get_time(),0);
+      gLast="radio pause failed";
+    }
+    return;
+  }
   if (gJobMask) {
     // Unicast is essential: legacy kind-2 receivers have no payload target.
     // Never broadcast this event, including as a fallback on a failed send.
     for (unsigned n=0;n<3 && gJobCursor<SQUAD_COUNT*3;++n) {
+      if (!espNowTxAvailable()) break; // never stack a send on an unfinished TX
       unsigned i=gJobCursor++ % SQUAD_COUNT;
       if (!(gJobMask & (1U<<i))) continue;
       int32_t remaining=(int32_t)(gDeadline-millis());
@@ -145,7 +174,7 @@ void squadTriggerTick() {
       Serial.printf("trigger: queued=%03x requested=%03x; no execution receipt in legacy strike protocol\n",gSentMask,gJobMask);
       gJobMask=0;
     }
-  } else if ((int32_t)(now-gNextLease)>=0) {
+  } else if (espNowTxAvailable() && (int32_t)(now-gNextLease)>=0) {
     lease(gLeaseIndex,5);
     if (++gLeaseIndex==SQUAD_COUNT) { gLeaseIndex=0; gNextLease=now+3000; }
   }
@@ -174,6 +203,11 @@ void squadTriggerTelemetry(String &j) {
   j+=",\"trigger_presence_armed\":"+String(gPresence.armed ? "true" : "false");
   j+=",\"trigger_refused\":"+String((unsigned long)gRefused);
   j+=",\"trigger_tx_errors\":"+String((unsigned long)gTxErrors);
+  j+=",\"trigger_radio_restarts\":"+String(gRadioRecovery.attempts);
+  j+=",\"trigger_radio_last_error\":"+String((long)gLastRadioError);
+  j+=",\"trigger_tx_pending_ms\":"+String((unsigned long)espNowTxPendingMs());
+  j+=",\"trigger_tx_ok\":"+String((unsigned long)espNowSendOk());
+  j+=",\"trigger_tx_fail\":"+String((unsigned long)espNowSendFail());
   j+=",\"trigger_last\":\""+String(gLast)+"\",\"trigger_peers\":[";
   for (unsigned i=0;i<SQUAD_COUNT;++i) {
     if (i) j+=',';

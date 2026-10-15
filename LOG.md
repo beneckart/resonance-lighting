@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill trigger canary exposed TX stall
+
+Built/flashed fx-261015-86ca5b1-b from 3638d01; SHA-256
+9bd27f67f58887fb261082e17e9366a9279fcec74e53fbcf622fc39c8eff2a25.
+Two stub-based prefix reads failed before any write. A no-stub ROM backup,
+app1-only write and application/prefix verification succeeded. New boot was
+healthy and a one-hour session was accepted. The live graph confirmed presence
+events; all nine expected fx-261014-65eeb39-b revisions were eventually heard.
+After the first unicast event, immediate TX failures accumulated and READY
+receipts expired. The second accepted event queued no packets. Paused the
+session rather than calling this complete. Power/sensors/heap stayed healthy.
+
+Added controller-only completion-paced sends, actual error/callback counters,
+and at most three radio off/on repairs per boot. Repairs drop pending strikes,
+invalidate readiness/rearm and never replay an event. Exhaustion ends the
+session. Root driver cause remains unconfirmed; rebuild and hardware retest
+are required. See ADR 0086 amendment and MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
 ## 2026-10-15 -- Ben + Codex -- Live Marill hand-range graph
 
 Ben requested real-time feedback while testing presence. Added a local,

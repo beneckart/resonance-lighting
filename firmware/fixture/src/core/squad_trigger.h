@@ -34,6 +34,17 @@ struct SquadCycle {
     lastMs=now; fired=true; ++count; next=(next+1) % (SQUAD_COUNT+1);
   }
 };
+struct SquadRadioRecovery {
+  uint8_t attempts=0;
+  bool paused=false;
+  uint32_t resumeAt=0;
+  bool start(uint32_t now) {
+    if (paused || attempts>=3) return false;
+    ++attempts; paused=true; resumeAt=now+200; return true;
+  }
+  bool due(uint32_t now) const { return paused && (int32_t)(now-resumeAt)>=0; }
+  void resumed() { paused=false; }
+};
 // Clear space after boot/fault and between approaches. Two fresh near frames;
 // stale/failed frames never count as clearance. <150 mm excludes close housing.
 struct SquadPresence {

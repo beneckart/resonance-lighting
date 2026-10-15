@@ -23,6 +23,8 @@ KEYS = ('fw', 'fixture_id', 'uptime_ms', 'battery_v', 'power_tier', 'guard_stage
         'trigger_enabled', 'trigger_left_s', 'trigger_next_step', 'trigger_count',
         'trigger_ready_mask', 'trigger_presence_armed', 'trigger_last',
         'trigger_tx_errors', 'trigger_refused', 'trigger_peers',
+        'trigger_radio_restarts', 'trigger_radio_last_error', 'trigger_tx_pending_ms',
+        'trigger_tx_ok', 'trigger_tx_fail',
         'protect_retry_enabled', 'protect_retry_phase')
 
 
@@ -117,6 +119,9 @@ def main():
                         try:
                             raw = json.loads(text)
                         except ValueError:
+                            record('serial', text)
+                            continue
+                        if not isinstance(raw, dict):
                             record('serial', text)
                             continue
                         if raw.get('fixture_id') != 'F40348':

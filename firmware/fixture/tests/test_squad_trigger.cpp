@@ -4,6 +4,12 @@
 #include "../src/core/strike_event.h"
 
 int main() {
+  SquadRadioRecovery repair;
+  CHECK(repair.start(UINT32_MAX-99));
+  CHECK(!repair.start(0)); CHECK(!repair.due(99)); CHECK(repair.due(100));
+  repair.resumed(); CHECK(repair.start(300)); repair.resumed();
+  CHECK(repair.start(600)); repair.resumed(); CHECK(!repair.start(900));
+  CHECK_EQ(repair.attempts,3);
   SquadCycle c;
   CHECK_EQ(SQUAD_COUNT,9u);
   for (unsigned pass=0;pass<3;++pass) for (unsigned step=0;step<10;++step) {

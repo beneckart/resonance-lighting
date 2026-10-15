@@ -77,3 +77,26 @@ held/stale/failed presence, framed exact-target commands, and legacy receiver
 deadline/dedupe compatibility. Build-wrapper tests enforce bench variant,
 matching recovery identity, and receiver/controller separation. Hardware
 results are recorded separately after the immutable canary is flashed.
+
+## 2026-10-15 canary amendment -- bounded radio recovery
+
+The first hardware run heard all nine expected receiver revisions, but after
+the first unicast strike its TX queue stopped making useful progress; immediate
+send failures followed and READY receipts expired. Battery, main loop, sensor
+sampling and heap remained healthy. The exact driver error was not exposed by
+that image, so the root cause is not established.
+
+For the controller only, serialize all sends (including its heartbeats) until
+the preceding send-completion callback. Record immediate driver errors and
+callback successes/failures. This follows Espressif's recommendation to wait
+for the preceding callback rather than stack ESP-NOW sends:
+https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32s3/api-reference/network/esp_now.html
+
+A missing completion or persistent immediate error for 750 ms aborts any
+pending strike, invalidates READY receipts and detector rearm, and cycles the
+radio off/on with a cooperative 200 ms pause. Keep the consumed cycle step;
+never replay its strike. At most three radio repairs occur per boot, then end
+the session and return to ordinary sleep. A failed radio restart likewise
+ends the session. No NVS mutation or processor reset is added. This is bounded
+fault handling, not proof of the original failure's cause or a substitute for
+repeating the hardware test.
