@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Proximity tab for sensor testing; Zubat range findings
+
+Tone Lab Proximity tab rebuilt for testing sensors rather than lanterns:
+per-sensor on/off (plus All on / All off), watch-only by default (perimeter
+lights never strike), per-sensor range, a filter (active / perimeter /
+lanterns), greyed cards for lights not on USB or without a reporting sensor,
+and a 30 s range test (nearest/farthest returns, distance counted as a person,
+bands reached). Perimeter VL53L5CX 4x4 zones (`vl_zone_nearest_mm`) feed the
+same per-zone detector as the TMF8820 3x3, and perimeter sensors work as
+sources for sensor rules. Proximity data is USB-only; there is no radio path
+for live sensor readings.
+
+Zubat `F401DC` VL53L5CX, bench outdoors in shade:
+- Window caked in playa dust: only 3-5 cm returns, every zone reporting a
+  rejected target (crosstalk).
+- After wiping: hand 5-47 cm, whole body occasionally ~1 m, no background
+  returns with nothing in front (open space).
+- Ambient daylight (even shade) shortens VL53L5CX range substantially, so
+  this is not yet evidence of a weak sensor. Retest at dusk/indoors: expect
+  ~1-1.5 m hand, 2 m+ body if the window is clean. If still short in the dark,
+  suspects are window abrasion and firmware ranging config (5 Hz defaults,
+  status 5/9 only; configured for tilt, not presence) -- Ben's call.
+
 ## 2026-10-16 -- Brian + Claude -- Zubat out of PROTECT; outward sensor live
 
 Zubat `F401DC` reported no sensors because it was latched in PROTECT
