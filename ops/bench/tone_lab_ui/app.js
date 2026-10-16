@@ -70,7 +70,14 @@ function toneBadge(id) {
   if (!n) return "";
   const g = toneGroups().find(x => x.includes(id)) || [id];
   const title = g.length > 1 ? `tone #${n}; same tone as ${g.filter(x => x !== id).map(x => "#" + (S.order.indexOf(x) + 1) + " " + name(x)).join(", ")}` : `tone #${n} (1 = highest)`;
-  return `<span class="tno ${g.length > 1 ? "grp" : ""}" title="${esc(title)}">${n}</span>`;
+  return `<span class="tno ${g.length > 1 ? "grp " + groupColor(id) : ""}" title="${esc(title)}">${n}</span>`;
+}
+// Each same-tone group gets its own color (cycling through 6) so pairs are
+// easy to tell apart on every tab; single lanterns get none.
+function groupColor(id) {
+  const multi = toneGroups().filter(g => g.length > 1);
+  const k = multi.findIndex(g => g.includes(id));
+  return k < 0 ? "" : "gc" + (k % 6);
 }
 function toneGroups() {
   const groups = [];
@@ -247,7 +254,7 @@ function renderRanks() {
   toneGroups().forEach((g, k) => g.forEach((id, j) => { rank[id] = k + 1; size[id] = g.length; pos[id] = j; }));
   $("ranks").innerHTML = S.order.map((id, i) => {
     const l = live(id), m = meta(id), inGrp = size[id] > 1;
-    const cls = [online(id) ? "" : "offline", inGrp ? "grp" : "", inGrp && pos[id] === 0 ? "gstart" : "",
+    const cls = [online(id) ? "" : "offline", inGrp ? "grp " + groupColor(id) : "", inGrp && pos[id] === 0 ? "gstart" : "",
                  inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
     const linkBtn = `<input type="checkbox" data-sel="${id}" ${SEL.has(id) ? "checked" : ""} aria-label="Select ${esc(name(id))}">`;
     return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
@@ -966,7 +973,7 @@ function renderPatterns() {
   }
   rows.forEach(id => {
     const m = meta(id), hits = new Set(p.hits[id] || []), off = online(id) ? "" : " offline";
-    h += `<div class="rh" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
+    h += `<div class="rh ${groupColor(id) ? "grp " + groupColor(id) : ""}" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
     for (let i = 0; i < p.steps; i++) {
       const cls = ["c"];
       if (i && i % barSteps === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");
