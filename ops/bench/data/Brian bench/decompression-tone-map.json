@@ -91,6 +91,18 @@
       "latency_pulse_ms": 18,
       "latency_utc": "2026-10-14T04:28:16.554Z",
       "callsign": "Bidoof"
+    },
+    "F3FD28": {
+      "type": null,
+      "note": "",
+      "callsign": "Skitty",
+      "role": "perimeter"
+    },
+    "F401DC": {
+      "type": null,
+      "note": "",
+      "callsign": "Zubat",
+      "role": "perimeter"
     }
   },
   "order": [
@@ -102,9 +114,11 @@
     "F2BE0C",
     "9F2638",
     "9F26B0",
-    "9F0E5C"
+    "9F0E5C",
+    "F3FD28",
+    "F401DC"
   ],
-  "updated_utc": "2026-10-16T22:29:14.345Z",
+  "updated_utc": "2026-10-16T22:44:12.959Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {

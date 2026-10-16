@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Perimeter lights Skitty and Zubat on the bench
+
+Brian swapped two perimeter lights onto the bench hub (Tangela and Ness
+unplugged) to become sensors for the Tone Lab's Perimeter approach rule.
+Read-only USB telemetry, nothing flashed or changed on the fixtures:
+- Skitty `F3FD28`: `fx-260831-b3e2738-b`, perimeter class, 6000 mAh. VBAT
+  2.39 V (deeply discharged; last protect entry low-vbat at 3.02 V), low-vbat
+  recovery precharging ~300 mA from USB, LED rail off, no sensors reported.
+- Zubat `F401DC`: `fx-260912-f951ae9-b` (registry said fx-260818), perimeter
+  class, 6000 mAh, VBAT 3.40 V charging ~0.9 A, LED rail off, no sensors
+  reported at 0.8 s uptime.
+Both run the field image (120 s sleep, 12 s wake), so they enumerate on USB
+only while awake and the Tone Lab's `!D` keep-awake does not apply. Neither has
+reported a VL53L5CX yet; Skitty's registry row already records failed sensor
+commissioning. Registry rows updated, evidence in
+`ops/fleet/bringup/2026-10-16-brian-bench-usb-perimeter-skitty-zubat.jsonl`;
+both marked Perimeter in the tone map. Next: charge Skitty, diagnose sensors,
+decide their firmware.
+
 ## 2026-10-16 -- Brian + Claude -- Triple click switches triggers
 
 Tone Lab: Atom clicks are single/double/triple. Sensor rules can watch a group
