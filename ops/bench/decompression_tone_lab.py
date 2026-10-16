@@ -17,6 +17,7 @@ import argparse
 import csv
 import glob
 import json
+import math
 import struct
 import zlib
 import threading
@@ -77,6 +78,7 @@ STATE.setdefault("pulse_ms", ARGS.pulse_ms)
 STATE.setdefault("presets", {})
 STATE.setdefault("patterns", {})
 STATE.setdefault("tone_links", [])  # lanterns marked "same tone as the one above" in the order
+STATE.setdefault("interactions", [])  # sensor -> pattern-variable rules (Interactions tab)
 # The app caps pulses well below the firmware's 300 ms limit while widths are being explored.
 PULSE_MIN_MS, PULSE_MAX_MS = 5, 100
 
@@ -1125,6 +1127,172 @@ def wake_status(since=0):
             "events": [e for e in WAKE_EVENTS if e["id"] > since]}
 
 
+# ---------------------------------------------------------------------------
+# Interactions: a sensor drives a pattern variable live (host-side, USB).
+# Rule: {id, name, source, far_mm, near_mm, pattern_id, bpm_from, bpm_to,
+#        curve: linear|ease_in|ease_out, smooth_s, idle: stop|base, idle_s}
+# Someone at far_mm plays the pattern at bpm_from; at near_mm (or closer) at
+# bpm_to. Distance comes from the proximity detector's per-zone "hand" reading
+# for the source lantern (proximity runs in watch-only if it was off). The
+# tempo is capped at the pattern's fastest safe BPM (250 ms per lantern).
+# ---------------------------------------------------------------------------
+INTERACT = {"armed": False, "stop": threading.Event(), "sim": None, "sim_on": False, "status": {}}
+
+
+def find_pattern(pattern_id):
+    with state_lock:
+        for p in STATE.get("patterns", {}).values():
+            if p.get("id") == pattern_id:
+                return dict(p)
+    return None
+
+
+def pattern_bpm_max(p):
+    """Fastest BPM at which no lantern's hits are closer than MIN_HIT_SPACING_MS (wrap included)."""
+    steps, spb, best = int(p.get("steps", 16)), int(p.get("steps_per_beat", 4)), 300.0
+    for idx in (p.get("hits") or {}).values():
+        idx = sorted({int(i) for i in idx if 0 <= int(i) < steps})
+        if len(idx) < 2:
+            continue
+        k = min([b - a for a, b in zip(idx, idx[1:])] + [steps - idx[-1] + idx[0]])
+        best = min(best, k * 60000.0 / (spb * MIN_HIT_SPACING_MS))
+    return best
+
+
+def shape(x, curve):
+    x = max(0.0, min(1.0, x))
+    return x * x if curve == "ease_in" else 1 - (1 - x) * (1 - x) if curve == "ease_out" else x
+
+
+def interaction_runner(rule, p):
+    st = INTERACT["status"]
+    steps, spb = int(p["steps"]), int(p["steps_per_beat"])
+    by_step = {}
+    for fid, idx in (p.get("hits") or {}).items():
+        for i in idx:
+            if 0 <= int(i) < steps:
+                by_step.setdefault(int(i), []).append(fid.upper())
+    with state_lock:
+        pulses = {f: STATE["lanterns"].get(f, {}).get("pulse_ms") or STATE["pulse_ms"] for f in {x for v in by_step.values() for x in v}}
+    src = rule["source"].upper()
+    started_prox = False
+    conns = {}
+    try:
+        if not PROX["on"]:
+            set_proximity(True, silent=True)
+            started_prox = True
+        for f in pulses:  # identity check once; strikes then go out on a write-only connection
+            info = lanterns.get(f)
+            if not info or info.get("offline"):
+                st.setdefault("skipped_lanterns", []).append(f)
+                continue
+            with lock_for(info["port"]):
+                s = serial.Serial(info["port"], 115200, timeout=0.05)
+                time.sleep(0.05)
+                d = telemetry(s, wait=1.5)
+            if not d or d.get("fixture_id") != f:
+                s.close()
+                st.setdefault("skipped_lanterns", []).append(f)
+                continue
+            conns[f] = s
+        bpm_max = pattern_bpm_max(p)
+        lo, hi = float(rule["bpm_from"]), min(float(rule["bpm_to"]), bpm_max)
+        far, near = float(rule["far_mm"]), float(rule["near_mm"])
+        bpm, last_seen, last_t = lo, -1e9, time.perf_counter()
+        next_step, step_i = None, 0
+        last_fire = {}
+        st.update(bpm_max=round(bpm_max, 1), hits=0, skipped=0)
+        while not INTERACT["stop"].is_set():
+            now = time.perf_counter()
+            dt, last_t = now - last_t, now
+            if INTERACT["sim_on"]:
+                dist = INTERACT["sim"]
+            else:
+                v = prox_live.get(src) or {}
+                dist = v.get("depth_mm") if v.get("status") == "hand" and v.get("depth_mm") else None
+            if dist is not None:
+                last_seen = now
+                x = shape((far - float(dist)) / max(1.0, far - near), rule.get("curve", "linear"))
+                target, idle = lo + (hi - lo) * x, False
+            else:
+                x, target = 0.0, lo
+                idle = now - last_seen > float(rule.get("idle_s", 3))
+            tau = max(0.05, float(rule.get("smooth_s", 0.5)))
+            bpm += (target - bpm) * (1 - math.exp(-dt / tau))
+            bpm = max(20.0, min(bpm, bpm_max))
+            playing = not (idle and rule.get("idle", "stop") == "stop")
+            if not playing:
+                next_step = None
+            else:
+                if next_step is None:
+                    next_step, step_i = now + 0.05, 0
+                if now >= next_step:
+                    for f in by_step.get(step_i, []):
+                        if f not in conns:
+                            continue
+                        if now - last_fire.get(f, -1e9) < MIN_HIT_SPACING_MS / 1000.0:
+                            st["skipped"] += 1  # tempo rose mid-loop: never strike one lantern faster than 250 ms
+                            continue
+                        conns[f].write(f"K{f}:{pulses[f]}\n".encode())
+                        last_fire[f] = now
+                        st["hits"] += 1
+                    step_i = (step_i + 1) % steps
+                    step_s = 60.0 / (bpm * spb)
+                    next_step = next_step + step_s if now - next_step < step_s else now + step_s  # resync if far behind
+            st.update(distance_mm=dist, x=round(x, 3), target_bpm=round(target, 1), bpm=round(bpm, 1),
+                      playing=playing, idle=idle, step=step_i, src_status=(prox_live.get(src) or {}).get("status"))
+            wait = (next_step - time.perf_counter()) if next_step else 0.02
+            time.sleep(max(0.0005, min(0.02, wait - 0.001)))
+    except Exception as ex:
+        st["error"] = str(ex)
+    finally:
+        for s in conns.values():
+            try: s.close()
+            except Exception: pass
+        if started_prox:
+            set_proximity(False)
+        INTERACT["armed"] = False
+        with open(STRIKE_LOG, "a") as fh:
+            fh.write(json.dumps({"kind": "interaction", "utc": utc(), "rule": rule.get("name"), "pattern": p.get("name"),
+                                 "hits": st.get("hits"), "skipped": st.get("skipped"), "error": st.get("error")}) + "\n")
+
+
+def arm_interaction(rule):
+    if INTERACT["armed"]:
+        return {"ok": False, "error": "an interaction is already armed"}
+    if PLAYER["running"]:
+        return {"ok": False, "error": "stop the USB pattern first"}
+    try:
+        rule = {**rule, "far_mm": float(rule["far_mm"]), "near_mm": float(rule["near_mm"]),
+                "bpm_from": float(rule["bpm_from"]), "bpm_to": float(rule["bpm_to"])}
+    except (KeyError, TypeError, ValueError):
+        return {"ok": False, "error": "rule needs far/near distances and BPM range"}
+    if not (rule["near_mm"] < rule["far_mm"] <= 5000 and rule["near_mm"] >= 50):
+        return {"ok": False, "error": "near must be at least 5 cm and closer than far (max 500 cm)"}
+    if not (20 <= rule["bpm_from"] <= 300 and 20 <= rule["bpm_to"] <= 300):
+        return {"ok": False, "error": "BPM must be 20..300"}
+    src = str(rule.get("source", "")).upper()
+    if not lanterns.get(src, {}).get("tmf"):
+        return {"ok": False, "error": "pick a source lantern that has a distance sensor"}
+    p = find_pattern(rule.get("pattern_id"))
+    if not p:
+        return {"ok": False, "error": "pattern not found"}
+    try:
+        pattern_lanes({**p, "bpm": min(rule["bpm_from"], rule["bpm_to"])})  # validate the slowest tempo
+    except ValueError as ex:
+        return {"ok": False, "error": str(ex)}
+    INTERACT["stop"].clear()
+    INTERACT["armed"] = True
+    INTERACT["status"] = {"rule": rule.get("name"), "rule_id": rule.get("id"), "pattern": p.get("name"),
+                          "bpm_max": round(pattern_bpm_max(p), 1)}
+    threading.Thread(target=interaction_runner, args=(rule, p), daemon=True).start()
+    return {"ok": True, **INTERACT["status"]}
+
+
+def interaction_status():
+    return {"armed": INTERACT["armed"], "sim_on": INTERACT["sim_on"], "sim": INTERACT["sim"], **INTERACT["status"]}
+
+
 def snapshot():
     with state_lock:
         return {"lanterns": sorted(lanterns.values(), key=lambda l: l["hub"]), "state": STATE,
@@ -1159,6 +1327,8 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
+        if self.path == "/api/interaction/status":
+            return self.reply(interaction_status())
         if self.path == "/api/pattern/status":
             return self.reply({"running": PLAYER["running"], **PLAYER["status"]})
         name = "index.html" if self.path == "/" else self.path.lstrip("/")
@@ -1215,6 +1385,19 @@ class H(BaseHTTPRequestHandler):
                 return self.reply({"ok": True, "loop_ms": loop_ms, "step_ms": step_ms, "lanes": lanes})
             except ValueError as ex:
                 return self.reply({"ok": False, "error": str(ex)})
+        if self.path == "/api/interaction/arm":
+            return self.reply(arm_interaction(b.get("rule") or {}))
+        if self.path == "/api/interaction/disarm":
+            INTERACT["stop"].set()
+            return self.reply({"ok": True})
+        if self.path == "/api/interaction/sim":
+            INTERACT["sim_on"] = bool(b.get("on"))
+            mm = b.get("mm")
+            INTERACT["sim"] = float(mm) if isinstance(mm, (int, float)) else None
+            return self.reply(interaction_status())
+        if INTERACT["armed"] and self.path in ("/api/strike", "/api/play", "/api/session", "/api/calibrate",
+                                               "/api/pattern/play", "/api/pattern/upload", "/api/pattern/standalone"):
+            return self.reply({"ok": False, "error": "disarm the interaction first"}, 409)
         if PLAYER["running"] and self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
             return self.reply({"ok": False, "error": "stop the pattern first"}, 409)
         if self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
@@ -1263,6 +1446,8 @@ class H(BaseHTTPRequestHandler):
                 STATE["presets"] = b.get("presets", STATE["presets"])
                 STATE["patterns"] = b.get("patterns", STATE["patterns"])
                 STATE["tone_links"] = [f for f in b.get("tone_links", STATE["tone_links"]) if real(f)]
+                if isinstance(b.get("interactions"), list):
+                    STATE["interactions"] = [r for r in b["interactions"] if isinstance(r, dict)]
                 if pulse_ok(b.get("pulse_ms")):
                     STATE["pulse_ms"] = b["pulse_ms"]
                 save_state(STATE)

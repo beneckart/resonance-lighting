@@ -133,6 +133,17 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .pxbadge.blocked { color: var(--bad); border-color: var(--bad); }
 .pxbadge.learning { color: var(--warn); border-color: var(--warn); }
 
+/* Interactions tab */
+.ixwrap { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 900px) { .ixwrap { grid-template-columns: minmax(0, 1fr); } }
+.ixcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.ixsentence { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 15px; }
+.ixsentence input[type=number] { width: 70px; }
+.ixreadout { display: flex; gap: 22px; margin: 12px 0 6px; }
+.ixreadout b { font-size: 24px; font-weight: 600; display: block; }
+.lbl2 { font-size: 11px; color: var(--muted); }
+#ixplot { width: 100%; height: 180px; display: block; background: var(--bg); border-radius: 8px; }
+
 footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
   max-height: 92px; overflow: hidden; cursor: pointer; z-index: 6; }
 footer.open { max-height: 50vh; overflow: auto; }

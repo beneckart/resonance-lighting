@@ -12,7 +12,7 @@ const lsGet = k => { try { return localStorage.getItem("tonelab." + k); } catch 
 const lsSet = (k, v) => { try { localStorage.setItem("tonelab." + k, v); } catch (e) { /* per-viewer only */ } };
 
 let L = [];                                   // live lanterns from the last scan
-let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: []};
+let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: [], interactions: []};
 let CFG = {pulse_min: 5, pulse_max: 100, audio: false, min_gap: 250};
 let busy = false;
 const UI = {tab: lsGet("tab") || "lanterns", set: "all", pattern: lsGet("pattern")};
@@ -39,6 +39,7 @@ let saveTimer = null;
 function save(now) {
   clearTimeout(saveTimer);
   const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets, tone_links: S.tone_links,
+    interactions: S.interactions,
     patterns: S.patterns, pulse_ms: S.pulse_ms})
     .then(r => {
       const msg = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
@@ -166,6 +167,7 @@ function render() {
   if (UI.tab === "lanterns") renderCards();
   else if (UI.tab === "order") renderRanks();
   else if (UI.tab === "proximity") renderProxTab();
+  else if (UI.tab === "interactions") renderIx();
   else renderPatterns();
 }
 
@@ -638,6 +640,146 @@ document.addEventListener("click", async e => {
   log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep hands away`);
 });
 
+// ---------- Interactions tab ----------
+// A rule maps one lantern's sensor distance onto a pattern's BPM. Rules save
+// with the tone map; one rule at a time can be armed (runs on the server).
+UI.ix = lsGet("ix");
+let IX = {armed: false}, ixTimer = null, ixSimTimer = null;
+function ixPatterns() { return Object.values(S.patterns).map(normalize); }
+function newRule(nm) {
+  const src = S.order.find(id => (live(id) || {}).tmf) || S.order[0];
+  const pat = ixPatterns()[0];
+  return {id: "ix-" + Math.random().toString(16).slice(2, 8), name: nm, source: src, far_mm: 1500, near_mm: 200,
+          pattern_id: pat ? pat.id : null, bpm_from: 60, bpm_to: 180, curve: "linear", smooth_s: 0.5, idle: "stop", idle_s: 3};
+}
+function curRule() {
+  S.interactions = S.interactions || [];
+  if (!S.interactions.length) { S.interactions.push(newRule("Approach speeds up")); save(); }
+  let r = S.interactions.find(x => x.id === UI.ix);
+  if (!r) { r = S.interactions[0]; UI.ix = r.id; }
+  return r;
+}
+// Fastest BPM where no lantern's hits are under the minimum gap (mirrors the server).
+function bpmMax(p) {
+  if (!p) return 300;
+  let best = 300;
+  for (const raw of Object.values(p.hits || {})) {
+    const idx = [...new Set(raw)].filter(i => i < p.steps).sort((a, b) => a - b);
+    if (idx.length < 2) continue;
+    let k = p.steps - idx[idx.length - 1] + idx[0];
+    for (let j = 1; j < idx.length; j++) k = Math.min(k, idx[j] - idx[j - 1]);
+    best = Math.min(best, k * 60000 / (p.steps_per_beat * CFG.min_gap));
+  }
+  return best;
+}
+const ixShape = (x, c) => { x = Math.max(0, Math.min(1, x)); return c === "ease_in" ? x * x : c === "ease_out" ? 1 - (1 - x) * (1 - x) : x; };
+function renderIx() {
+  const r = curRule(), pats = ixPatterns();
+  $("ixsel").innerHTML = S.interactions.map(x => `<option value="${x.id}" ${x.id === r.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  if (document.activeElement !== $("ixname")) $("ixname").value = r.name;
+  $("ixsrc").innerHTML = S.order.filter(id => !live(id) || live(id).tmf).map(id =>
+    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}</option>`).join("");
+  $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
+    : '<option value="">make a pattern first</option>';
+  if (!r.pattern_id && pats[0]) r.pattern_id = pats[0].id;
+  $("ixfar").value = Math.round(r.far_mm / 10); $("ixnear").value = Math.round(r.near_mm / 10);
+  $("ixbfrom").value = r.bpm_from; $("ixbto").value = r.bpm_to; $("ixcurve").value = r.curve;
+  $("ixsmooth").value = r.smooth_s; $("ixidles").value = r.idle_s; $("ixidle").value = r.idle;
+  $("ixsim").max = Math.round(Math.max(r.far_mm * 1.2, 300) / 10);
+  ixWarn();
+  ixTimer = ixTimer || setInterval(ixPoll, 150);
+  ixDraw();
+}
+function ixWarn() {
+  const r = curRule(), p = ixPatterns().find(x => x.id === r.pattern_id), cap = bpmMax(p), msgs = [];
+  if (!p) msgs.push("Pick a pattern.");
+  else {
+    msgs.push(`"${p.name}" can go up to ${Math.round(cap)} BPM safely (250 ms per lantern).`);
+    if (r.bpm_to > cap) msgs.push(`The near BPM (${r.bpm_to}) will be capped at ${Math.round(cap)}.`);
+    const slow = {...p, bpm: Math.min(r.bpm_from, r.bpm_to)};
+    if (Object.keys(violations(slow)).length) msgs.push(`At ${slow.bpm} BPM some lanterns are already too fast; slow it down or edit the pattern.`);
+  }
+  if (r.near_mm >= r.far_mm) msgs.push("Near must be closer than far.");
+  if (IX.armed && IX.rule_id === r.id) msgs.push("Armed: disarm and re-arm to apply changes.");
+  $("ixwarn").textContent = msgs.join(" ");
+}
+function ixField(id, key, scale, parse) {
+  $(id).addEventListener("change", e => {
+    const r = curRule(); r[key] = parse ? parse(e.target.value) * (scale || 1) : e.target.value;
+    save(); ixWarn(); ixDraw();
+  });
+}
+ixField("ixfar", "far_mm", 10, Number); ixField("ixnear", "near_mm", 10, Number);
+ixField("ixbfrom", "bpm_from", 1, Number); ixField("ixbto", "bpm_to", 1, Number);
+ixField("ixsmooth", "smooth_s", 1, Number); ixField("ixidles", "idle_s", 1, Number);
+ixField("ixcurve", "curve"); ixField("ixidle", "idle"); ixField("ixsrc", "source"); ixField("ixpat", "pattern_id");
+$("ixsel").onchange = e => { UI.ix = e.target.value; lsSet("ix", UI.ix); renderIx(); };
+function ixUnique(base) { let n = base, k = 2; while (S.interactions.some(x => x.name === n)) n = `${base} ${k++}`; return n; }
+$("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+$("ixdup").onclick = () => { const c = curRule(), r = {...c, id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
+  S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); };
+$("ixdel").onclick = () => confirmClick($("ixdel"), "Click again to delete", () => {
+  const r = curRule(); S.interactions = S.interactions.filter(x => x.id !== r.id); UI.ix = null; renderIx(); save(true); log(`deleted interaction "${r.name}"`);
+});
+function ixRename() {
+  const r = curRule(), nm = $("ixname").value.trim();
+  if (!nm || nm === r.name) { $("ixname").value = r.name; return; }
+  r.name = nm; renderIx(); save(true);
+}
+$("ixname").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ixRename(); } });
+$("ixname").addEventListener("blur", ixRename);
+$("ixarm").onclick = async () => {
+  const r = curRule();
+  const res = await api("/api/interaction/arm", {rule: r});
+  if (!res.ok) { log(res.error || "could not arm", "bad"); return; }
+  log(`armed "${r.name}": ${name(r.source)}'s sensor drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
+};
+$("ixdisarm").onclick = async () => { await api("/api/interaction/disarm", {}); log("interaction disarmed"); };
+function ixSendSim() {
+  clearTimeout(ixSimTimer);
+  ixSimTimer = setTimeout(() => api("/api/interaction/sim", {on: $("ixsimon").checked, mm: +$("ixsim").value * 10}), 60);
+}
+$("ixsimon").onchange = ixSendSim;
+$("ixsim").oninput = e => { $("ixsimv").textContent = e.target.value + " cm"; if ($("ixsimon").checked) ixSendSim(); };
+$("ixnobody").onclick = () => { $("ixsimon").checked = true; $("ixsimv").textContent = "nobody"; api("/api/interaction/sim", {on: true, mm: null}); };
+async function ixPoll() {
+  if (UI.tab !== "interactions") return;
+  try { IX = await api("/api/interaction/status"); } catch (e) { return; }
+  $("ixstate").textContent = IX.armed ? `armed: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
+    (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not armed");
+  $("ixarm").disabled = IX.armed;
+  $("ixdist").textContent = IX.armed ? (IX.distance_mm != null ? Math.round(IX.distance_mm / 10) + " cm" : "nobody") : "–";
+  $("ixbpm").textContent = IX.armed && IX.bpm != null ? Math.round(IX.bpm) : "–";
+  $("ixtarget").textContent = IX.armed && IX.target_bpm != null ? Math.round(IX.target_bpm) : "–";
+  ixDraw();
+}
+function ixDraw() {
+  const cv = $("ixplot"); if (!cv || UI.tab !== "interactions") return;
+  const r = curRule(), p = ixPatterns().find(x => x.id === r.pattern_id), cap = bpmMax(p);
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  const maxD = Math.max(r.far_mm * 1.2, 300), lo = Math.min(r.bpm_from, r.bpm_to), hi = Math.max(r.bpm_from, r.bpm_to, Math.min(cap, 300));
+  const yMin = Math.max(0, lo - 15), yMax = hi + 15, pad = 26;
+  const x = d => pad + (1 - d / maxD) * (w - pad - 8);            // far on the left, near on the right
+  const y = b => h - 18 - (b - yMin) / (yMax - yMin) * (h - 28);
+  ctx.font = "10px system-ui"; ctx.fillStyle = col("--muted"); ctx.strokeStyle = col("--line");
+  for (const cm of [0, 100, 200, 300, 400, 500]) if (cm * 10 <= maxD) { ctx.beginPath(); ctx.moveTo(x(cm * 10), 8); ctx.lineTo(x(cm * 10), h - 18); ctx.stroke(); ctx.fillText(cm + " cm", x(cm * 10) - 12, h - 5); }
+  ctx.fillText(Math.round(yMax) + " BPM", 2, 12); ctx.fillText(Math.round(yMin), 2, h - 20);
+  if (cap < yMax) { ctx.save(); ctx.strokeStyle = col("--bad"); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(pad, y(cap)); ctx.lineTo(w - 8, y(cap)); ctx.stroke(); ctx.restore(); ctx.fillStyle = col("--bad"); ctx.fillText(`max ${Math.round(cap)}`, w - 52, y(cap) - 3); }
+  ctx.strokeStyle = col("--accent"); ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const d = maxD * i / 100, t = ixShape((r.far_mm - d) / Math.max(1, r.far_mm - r.near_mm), r.curve);
+    const b = Math.min(r.bpm_from + (r.bpm_to - r.bpm_from) * t, cap);
+    i ? ctx.lineTo(x(d), y(b)) : ctx.moveTo(x(d), y(b));
+  }
+  ctx.stroke(); ctx.lineWidth = 1;
+  if (IX.armed && IX.distance_mm != null && IX.bpm != null) {
+    ctx.fillStyle = col("--ok"); ctx.beginPath(); ctx.arc(x(Math.min(IX.distance_mm, maxD)), y(IX.bpm), 6, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 // ---------- Patterns tab ----------
 function newPattern(nm) { return {id: patternId(), name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
 const MAX_STEPS = 256; // server limit
@@ -933,7 +1075,7 @@ $("sastop").onclick = async () => {
 $("logbar").onclick = () => $("logbar").classList.toggle("open");
 (async function init() {
   const r = await api("/api/snapshot");
-  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: []}, r.state);
+  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: [], interactions: []}, r.state);
   CFG = {pulse_min: r.pulse_min, pulse_max: r.pulse_max, audio: r.audio, min_gap: r.min_hit_spacing_ms || 250};
   L = r.lanterns || [];
   syncOrder();
@@ -944,6 +1086,6 @@ $("logbar").onclick = () => $("logbar").classList.toggle("open");
   const st = await api("/api/pattern/status");
   if (st.running) { patStatus = st; $("patplay").disabled = true; patAnim = requestAnimationFrame(animate); patPoll = setInterval(watchPattern, 500); }
   $("sainfo").textContent = saPatternId ? `loaded pattern ${saPatternId}` : "";
-  showTab(["lanterns", "order", "patterns", "proximity"].includes(UI.tab) ? UI.tab : "lanterns");
+  showTab(["lanterns", "order", "patterns", "proximity", "interactions"].includes(UI.tab) ? UI.tab : "lanterns");
   $("scan").click();
 })();

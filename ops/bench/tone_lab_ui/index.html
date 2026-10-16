@@ -29,6 +29,7 @@
     <button role="tab" data-tab="order">Tone order</button>
     <button role="tab" data-tab="patterns">Patterns</button>
     <button role="tab" data-tab="proximity">Proximity</button>
+    <button role="tab" data-tab="interactions">Interactions</button>
   </nav>
 </header>
 
@@ -179,6 +180,59 @@
     <p class="status" style="margin:0 0 10px">Sensors look straight down from the bottom of each lantern and ignore anything closer than 8 cm:
       wave a hand 10-50 cm <b>below</b> a lantern, not beside it.</p>
     <div class="pxgrid" id="pxgrid"></div>
+  </section>
+  <!-- Interactions: a sensor drives a pattern variable -->
+  <section class="tab" id="tab-interactions">
+    <div class="toolbar">
+      <select id="ixsel" aria-label="Interaction"></select>
+      <input type="text" id="ixname" aria-label="Interaction name" placeholder="Interaction name" style="width:190px">
+      <button id="ixnew">New</button><button id="ixdup">Duplicate</button><button id="ixdel">Delete</button>
+      <span class="status" id="ixsaved"></span>
+      <i class="info" tabindex="0" aria-label="About interactions">i<span class="tip r">
+        An <b>interaction</b> lets a lantern's distance sensor change a pattern while it plays. Someone at the
+        <b>far</b> distance hears the pattern at the starting BPM; as they come closer it speeds up, reaching the end
+        BPM at the <b>near</b> distance. <b>Curve</b> shapes the ramp (even, slow-then-fast, fast-then-slow),
+        <b>smoothing</b> keeps the tempo from jittering, and you choose what happens when nobody is there. The tempo
+        never goes past the pattern's fastest safe BPM (each lantern needs 250 ms between hits). Use <b>Simulate</b> to
+        try it from your seat. Runs from this laptop over USB; firmware support would let it run standalone later.</span></i>
+    </div>
+    <div class="ixwrap">
+      <div class="ixcard">
+        <div class="ixsentence">
+          <span>When someone is between</span>
+          <input type="number" id="ixfar" min="10" max="500" step="5" aria-label="Far distance (cm)"> cm <span>and</span>
+          <input type="number" id="ixnear" min="5" max="400" step="5" aria-label="Near distance (cm)"> cm
+          <span>from</span> <select id="ixsrc" aria-label="Sensor lantern"></select>
+        </div>
+        <div class="ixsentence">
+          <span>play</span> <select id="ixpat" aria-label="Pattern"></select>
+          <span>with BPM going from</span> <input type="number" id="ixbfrom" min="20" max="300" step="1" aria-label="BPM when far">
+          <span>(far) to</span> <input type="number" id="ixbto" min="20" max="300" step="1" aria-label="BPM when near"> <span>(near)</span>
+        </div>
+        <div class="ixsentence">
+          <span>Curve</span> <select id="ixcurve"><option value="linear">even</option><option value="ease_in">slow, then fast up close</option><option value="ease_out">fast early, then levels off</option></select>
+          <span>· smoothing</span> <input type="number" id="ixsmooth" min="0.05" max="5" step="0.05" aria-label="Smoothing (s)"> s
+          <span>· when nobody is there for</span> <input type="number" id="ixidles" min="0.5" max="60" step="0.5" aria-label="Idle seconds"> s
+          <select id="ixidle"><option value="stop">stop playing</option><option value="base">keep playing at the far BPM</option></select>
+        </div>
+        <p class="status" id="ixwarn"></p>
+      </div>
+      <div class="ixcard ixlive">
+        <div class="toolbar" style="margin:0">
+          <button id="ixarm" class="primary">▶ Arm</button><button id="ixdisarm">■ Disarm</button>
+          <span class="status" id="ixstate">not armed</span>
+        </div>
+        <div class="ixreadout"><div><span class="lbl2">distance</span><b id="ixdist">–</b></div>
+          <div><span class="lbl2">BPM</span><b id="ixbpm">–</b></div><div><span class="lbl2">target</span><b id="ixtarget">–</b></div></div>
+        <canvas id="ixplot"></canvas>
+        <div class="toolbar" style="margin:6px 0 0">
+          <label class="status"><input type="checkbox" id="ixsimon"> simulate</label>
+          <input type="range" id="ixsim" min="0" max="500" step="1" value="150" style="flex:1;width:auto" aria-label="Simulated distance (cm)">
+          <span class="status" id="ixsimv">150 cm</span>
+          <button id="ixnobody">nobody</button>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 
