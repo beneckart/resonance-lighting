@@ -10,6 +10,19 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Zubat out of PROTECT; outward sensor live
+
+Zubat `F401DC` reported no sensors because it was latched in PROTECT
+(guard_stage 4, 900 s sleeps) since an old low-vbat entry: every boot parks the
+sensor rail (VSQT) and skips the class probe, so sensor_bits stays 0 and the
+class is only the remembered one. Releasing PROTECT needs 60 s awake while
+charging, which the field profile's 12 s wake never allows. Set Zubat to the
+COMMISSION profile over USB (`F0`, persisted in NVS): it stayed awake, the
+release completed, it rebooted, and now reports tier OFF, VL53L5CX present and
+reading, MSA311 present. **Zubat must go back to `F1` (field) before install.**
+Skitty likely needs the same once its battery recovers. Registry + bringup
+evidence updated.
+
 ## 2026-10-16 -- Brian + Claude -- Perimeter lights Skitty and Zubat on the bench
 
 Brian swapped two perimeter lights onto the bench hub (Tangela and Ness
