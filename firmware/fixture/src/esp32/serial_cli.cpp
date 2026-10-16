@@ -130,6 +130,12 @@ void handleSerial() {
     if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_MIN)
       Serial.printf("trigger minimum: %u mm %s\n",mutation.value,
         squadTriggerSetMinMm(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_MAX)
+      Serial.printf("trigger maximum: %u mm %s\n",mutation.value,
+        squadTriggerSetMaxMm(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_CLEAR)
+      Serial.printf("trigger clear: %u mm %s\n",mutation.value,
+        squadTriggerSetClearMm(mutation.value) ? "accepted" : "refused");
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_PROTECT_TEST)
       protectRecoveryTest(mutation.value);

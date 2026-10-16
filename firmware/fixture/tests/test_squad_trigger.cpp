@@ -3,6 +3,35 @@
 #include "../src/core/serial_mutation.h"
 #include "../src/core/strike_event.h"
 
+// Validate the actual state machine during compilation as well as at runtime.
+constexpr bool presenceBandContract() {
+  SquadPresence p;
+  uint16_t zones[16]={};
+  if (p.minMm!=50 || p.nearMm!=400 || p.clearMm!=600) return false;
+  if (p.sample(100,true,zones) || p.sample(899,true,zones) || p.armed) return false;
+  if (p.sample(900,true,zones) || !p.armed) return false;
+  zones[0]=401;
+  if (p.sample(1000,true,zones) || p.sample(1100,true,zones)) return false;
+  zones[0]=400;
+  if (p.sample(1200,true,zones) || !p.sample(1300,true,zones)) return false;
+  zones[0]=600;
+  for (unsigned t=1400;t<=2200;t+=100)
+    if (p.sample(t,true,zones) || p.armed) return false;
+  zones[0]=601;
+  if (p.sample(2300,true,zones) || p.sample(3099,true,zones) || p.armed) return false;
+  if (p.sample(3100,true,zones) || !p.armed) return false;
+  if (p.setMinMm(400) || p.setNearMm(50) || p.setNearMm(600) ||
+      p.setClearMm(400) || p.setClearMm(4001) || !p.armed) return false;
+  if (!p.setNearMm(400) || !p.setClearMm(600) || !p.armed) return false;
+  zones[0]=300;
+  if (p.sample(3200,true,zones) || p.nearFrames!=1) return false;
+  if (!p.setNearMm(450) || p.armed || p.nearFrames!=0) return false;
+  if (p.sample(3300,true,zones) || p.sample(3400,true,zones)) return false;
+  if (!p.setClearMm(650) || p.setRange(50,700,600) || p.nearMm!=450) return false;
+  return p.setRange(50,400,600) && !p.armed;
+}
+static_assert(presenceBandContract(), "presence band boundaries and safe retuning");
+
 int main() {
   SquadRadioRecovery repair;
   CHECK(repair.start(UINT32_MAX-99));
@@ -37,13 +66,13 @@ int main() {
   z[5]=0;
   for (unsigned t=1000;t<=1800;t+=100) CHECK(!p.sample(t,true,z));
   CHECK(p.armed);
-  z[7]=600;
+  z[7]=400;
   CHECK(!p.sample(1900,true,z)); CHECK(p.sample(2000,true,z));
   for (unsigned t=2100;t<3100;t+=100) CHECK(!p.sample(t,true,z)); // held hand
-  z[7]=750;
+  z[7]=600;
   for (unsigned t=3100;t<4200;t+=100) CHECK(!p.sample(t,true,z)); // hysteresis
   CHECK(!p.armed);
-  z[7]=900;
+  z[7]=601;
   for (unsigned t=4200;t<=5000;t+=100) CHECK(!p.sample(t,true,z));
   CHECK(p.armed);
   CHECK(!p.sample(5100,false,z)); CHECK(!p.armed);
@@ -71,9 +100,36 @@ int main() {
   CHECK(!close.sample(2400,true,z)); CHECK(close.sample(2500,true,z));
   CHECK(close.setMinMm(150)); CHECK_EQ(close.minMm,150); CHECK(!close.armed);
 
+  SquadPresence band;
+  CHECK_EQ(band.nearMm,400); CHECK_EQ(band.clearMm,600);
+  memset(z,0,sizeof(z));
+  CHECK(!band.sample(100,true,z)); CHECK(!band.sample(900,true,z)); CHECK(band.armed);
+  z[0]=401;
+  CHECK(!band.sample(1000,true,z)); CHECK(!band.sample(1100,true,z)); CHECK(band.armed);
+  z[0]=400;
+  CHECK(!band.sample(1200,true,z)); CHECK(band.sample(1300,true,z));
+  z[0]=600;
+  for (unsigned t=1400;t<=2200;t+=100) CHECK(!band.sample(t,true,z));
+  CHECK(!band.armed);
+  z[0]=601;
+  for (unsigned t=2300;t<=3100;t+=100) CHECK(!band.sample(t,true,z));
+  CHECK(band.armed);
+  CHECK(!band.setNearMm(50)); CHECK(!band.setNearMm(600));
+  CHECK(!band.setClearMm(400)); CHECK(!band.setClearMm(4001));
+  CHECK(!band.setMinMm(400)); CHECK(band.armed); // refusals change nothing
+  CHECK(band.setNearMm(400)); CHECK(band.setClearMm(600)); CHECK(band.armed);
+  z[0]=300;
+  CHECK(!band.sample(3200,true,z)); // first qualifying frame
+  CHECK(band.setNearMm(450)); CHECK(!band.armed); CHECK_EQ(band.nearFrames,0);
+  CHECK(!band.sample(3300,true,z)); CHECK(!band.sample(3400,true,z));
+  CHECK(band.setClearMm(650)); CHECK_EQ(band.clearMm,650);
+  CHECK(!band.setRange(50,700,600)); CHECK_EQ(band.nearMm,450);
+  CHECK(band.setRange(50,400,600));
+
   const uint8_t id[3]={0xF4,3,0x48};
   const char *valid[]={"!TF40348:60\n","!TF40348:0\n","!TF40348:120\n","!JF40348:1\n",
-    "!LF40348:30\n","!LF40348:50\n","!LF40348:699\n"};
+    "!LF40348:30\n","!LF40348:50\n","!LF40348:699\n",
+    "!UF40348:400\n","!VF40348:600\n","!VF40348:4000\n"};
   for (const char *s:valid) {
     SerialMutationParser parser; SerialMutationCommand cmd={};
     unsigned ready=0;
@@ -81,10 +137,21 @@ int main() {
     CHECK_EQ(ready,1u);
   }
   const char *invalid[]={"!TF40348:121\n","!TF40349:60\n","!JF40348:0\n","!JF40348:2\n","!TF40348:060\n","!JF40348:1!JF40348:1\n",
-    "!LF40348:0\n","!LF40348:29\n","!LF40348:700\n","!LF40348:050\n","!LF40349:50\n"};
+    "!LF40348:0\n","!LF40348:29\n","!LF40348:4001\n","!LF40348:050\n","!LF40349:50\n",
+    "!UF40348:29\n","!VF40348:4001\n","!UF40349:400\n","!VF40348:0600\n"};
   for (const char *s:invalid) {
     SerialMutationParser parser; SerialMutationCommand cmd={};
     for (;*s;++s) CHECK(parser.feed(*s,id,cmd)!=SERIAL_MUTATION_READY);
+  }
+  const char *rangeCommands[]={"!LF40348:50\n","!UF40348:400\n","!VF40348:600\n"};
+  const uint16_t rangeValues[]={50,400,600};
+  for (unsigned i=0;i<3;++i) {
+    SerialMutationParser parser; SerialMutationCommand cmd={};
+    for (const char *s=rangeCommands[i];*s;++s) {
+      if (parser.feed(*s,id,cmd)==SERIAL_MUTATION_READY) {
+        CHECK_EQ(cmd.type,SERIAL_MUTATION_TRIGGER_MIN+i); CHECK_EQ(cmd.value,rangeValues[i]);
+      }
+    }
   }
   // Existing receiver interprets repeated decremented delays as one deadline.
   StrikeEventState a,b; strikeEventInit(a); strikeEventInit(b);

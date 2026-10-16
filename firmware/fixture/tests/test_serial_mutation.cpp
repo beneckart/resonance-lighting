@@ -130,5 +130,34 @@ int main() {
     CHECK_EQ(ready, 0);
   }
 
+  // Range commands share framing but retain separate setters. Relational
+  // validation (min < max < clear) belongs to the live presence state machine.
+  {
+    const uint8_t marill[3] = {0xF4, 0x03, 0x48};
+    const char *lines[] = {"!LF40348:50\n", "!UF40348:400\n", "!VF40348:600\n",
+                          "!VF40348:4000\n"};
+    const uint16_t values[] = {50,400,600,4000};
+    const SerialMutationType types[] = {SERIAL_MUTATION_TRIGGER_MIN,
+      SERIAL_MUTATION_TRIGGER_MAX, SERIAL_MUTATION_TRIGGER_CLEAR, SERIAL_MUTATION_TRIGGER_CLEAR};
+    for (unsigned i=0;i<4;++i) {
+      SerialMutationParser p;
+      SerialMutationCommand cmd{};
+      unsigned ready=0;
+      for (const char *s=lines[i];*s;++s)
+        if (p.feed(*s,marill,cmd)==SERIAL_MUTATION_READY) {
+          ++ready; CHECK_EQ(cmd.type,types[i]); CHECK_EQ(cmd.value,values[i]);
+        }
+      CHECK_EQ(ready,1u);
+    }
+    const char *bad[] = {"!UF40348:29\n", "!VF40348:4001\n", "!UF40349:400\n",
+                        "!VF40348:0600\n", "!UF40348:400x\n"};
+    for (const char *s:bad) {
+      SerialMutationParser p;
+      SerialMutationCommand cmd{};
+      unsigned ready=0;
+      for (;*s;++s) ready += p.feed(*s,marill,cmd)==SERIAL_MUTATION_READY;
+      CHECK_EQ(ready,0u);
+    }
+  }
   return testReport("serial_mutation");
 }

@@ -119,3 +119,17 @@ remain fail-closed. The earlier 150 mm exclusion was provisional; Ben later
 identified the laptop in the field of view as causing unwanted detections.
 Keep the interaction space clear rather than assuming all close returns are
 housing. A 30 mm cutoff is an experiment, not a guarantee of near-field accuracy.
+
+## 2026-10-15 interaction-band amendment
+
+Ben confirmed the 5 cm minimum works and requested a 5..40 cm trigger band
+with 60 cm rearm. Defaults are now 50/400/600 mm; the existing two-frame
+qualification, 800 ms clear interval and 2.5-second cooldown remain.
+Add exact-target RAM-only USB setters `!U<id>:<mm>` for maximum and
+`!V<id>:<mm>` for clear boundary. All three setters require
+`30 <= minimum < maximum < clear <= 4000`; malformed or misordered changes
+are refused. Every changed bound invalidates rearm; unchanged bounds are
+no-ops. Telemetry reports all three live values. Changes neither start nor
+extend a session, fire a bell, write NVS, nor change radio or power policy.
+Reboot restores the new defaults. The 30 mm floor is still a software filter,
+not a claim of sensor accuracy at that distance.

@@ -10,6 +10,8 @@ bool squadTriggerActive();
 bool squadTriggerSession(uint16_t minutes);
 bool squadTriggerPress(const char *source);
 bool squadTriggerSetMinMm(uint16_t mm);
+bool squadTriggerSetMaxMm(uint16_t mm);
+bool squadTriggerSetClearMm(uint16_t mm);
 void squadTriggerButton();
 void squadTriggerWake();
 void squadTriggerTick();

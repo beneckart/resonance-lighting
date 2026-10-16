@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band implementation
+
+Ben confirmed the minimum works and requested 40 cm maximum / 60 cm rearm.
+Changed defaults to 50/400/600 mm and added RAM-only maximum/clear USB
+setters, preserving strict ordering and clear-space rearm on every change.
+No session extension, chime, NVS or power-policy change. Serial parser suite:
+61 checks passed. The expanded squad executable compiled, but Windows
+Application Control blocked execution; compile-time assertions instead
+verified the actual presence state machine at 400/401 and 600/601 mm,
+800 ms rearm, invalid ordering, no-op writes and safe retuning. Immutable
+build and Marill-only hardware verification follow this checkpoint.
+
 ## 2026-10-15 -- Ben + Codex -- Marill UI and session reopened after AFK
 
 Ben returned at about 19:42 Pacific. The prior event session had expired and

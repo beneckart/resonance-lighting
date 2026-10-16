@@ -46,33 +46,41 @@ struct SquadRadioRecovery {
   void resumed() { paused=false; }
 };
 static constexpr uint16_t SQUAD_PRESENCE_MIN_MM = 50;
-static constexpr uint16_t SQUAD_PRESENCE_NEAR_MM = 700;
-static constexpr uint16_t SQUAD_PRESENCE_CLEAR_MM = 800;
-inline bool squadPresenceMinValid(uint16_t mm) {
-  // The existing VL53 nearest-zone selection discards returns below 30 mm.
-  return mm >= 30 && mm < SQUAD_PRESENCE_NEAR_MM;
+static constexpr uint16_t SQUAD_PRESENCE_NEAR_MM = 400;
+static constexpr uint16_t SQUAD_PRESENCE_CLEAR_MM = 600;
+constexpr bool squadPresenceRangeValueValid(uint16_t mm) {
+  // Match the existing VL53 valid-nearest-zone selection window.
+  return mm >= 30 && mm <= 4000;
 }
 // Clear space after boot/fault and between approaches. Two fresh near frames;
 // stale/failed frames never count as clearance. Zero is an invalid/no return.
 struct SquadPresence {
   uint16_t minMm=SQUAD_PRESENCE_MIN_MM;
+  uint16_t nearMm=SQUAD_PRESENCE_NEAR_MM, clearMm=SQUAD_PRESENCE_CLEAR_MM;
   bool armed=false, clearing=false;
   uint8_t nearFrames=0;
   uint32_t clearSince=0, lastMs=0;
-  void invalidate() { armed=false; clearing=false; nearFrames=0; }
-  bool setMinMm(uint16_t mm) {
-    if (!squadPresenceMinValid(mm)) return false;
-    if (mm != minMm) { minMm=mm; invalidate(); }
+  constexpr void invalidate() { armed=false; clearing=false; nearFrames=0; }
+  constexpr bool setRange(uint16_t minimum, uint16_t near, uint16_t clear) {
+    if (!squadPresenceRangeValueValid(minimum) ||
+        !squadPresenceRangeValueValid(clear) || minimum>=near || near>=clear)
+      return false;
+    if (minimum!=minMm || near!=nearMm || clear!=clearMm) {
+      minMm=minimum; nearMm=near; clearMm=clear; invalidate();
+    }
     return true;
   }
-  bool sample(uint32_t now, bool valid, const uint16_t zones[16]) {
+  constexpr bool setMinMm(uint16_t mm) { return setRange(mm,nearMm,clearMm); }
+  constexpr bool setNearMm(uint16_t mm) { return setRange(minMm,mm,clearMm); }
+  constexpr bool setClearMm(uint16_t mm) { return setRange(minMm,nearMm,mm); }
+  constexpr bool sample(uint32_t now, bool valid, const uint16_t zones[16]) {
     if (!valid || (lastMs && now-lastMs > 1000)) invalidate();
     lastMs=now;
     if (!valid) return false;
     bool near=false, occupied=false;
     for (unsigned i=0;i<16;++i) {
-      if (zones[i]>=minMm && zones[i]<=SQUAD_PRESENCE_NEAR_MM) near=true;
-      if (zones[i]>=minMm && zones[i]<=SQUAD_PRESENCE_CLEAR_MM) occupied=true;
+      if (zones[i]>=minMm && zones[i]<=nearMm) near=true;
+      if (zones[i]>=minMm && zones[i]<=clearMm) occupied=true;
     }
     if (!occupied) {
       nearFrames=0;

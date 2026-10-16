@@ -22,7 +22,9 @@ enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_PROTECT_TEST = 5, // !R<id>:1 latch, :2 reset trial, :3 latch/sleep
   SERIAL_MUTATION_TRIGGER_SESSION = 6, // !T<id>:0..120 session minutes
   SERIAL_MUTATION_TRIGGER_PRESS = 7, // !J<id>:1 next interaction
-  SERIAL_MUTATION_TRIGGER_MIN = 8, // !L<id>:30..699 minimum distance in mm, RAM
+  SERIAL_MUTATION_TRIGGER_MIN = 8, // !L<id>:mm minimum, RAM; min < max < clear
+  SERIAL_MUTATION_TRIGGER_MAX = 9, // !U<id>:mm maximum, RAM
+  SERIAL_MUTATION_TRIGGER_CLEAR = 10, // !V<id>:mm rearm boundary, RAM
 };
 
 struct SerialMutationCommand {

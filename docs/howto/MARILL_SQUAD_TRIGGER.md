@@ -22,19 +22,24 @@ the nine receivers were last recorded on fx-261014-65eeb39-b.
 
 ## Interaction
 
-Wave 5..70 cm from the VL53 sensor. Two fresh frames qualify the approach.
-Move out of the 5..80 cm band for at least 0.8 seconds to rearm; allow at least
+Wave 5..40 cm from the VL53 sensor. Two fresh frames qualify the approach.
+Move out of the 5..60 cm band for at least 0.8 seconds to rearm; allow at least
 2.5 seconds between bells. A hand held in place fires only once. Fixed objects
 in this band can prevent rearming. The original canary used a 15 cm minimum;
 the range-tuning revision defaults to 5 cm. The graph reads the actual cutoff
 from telemetry, with a 15 cm fallback for older canaries.
 
-Set the minimum in millimeters with framed USB `!LF40348:50`. Valid values
-are 30..699 mm; `:30` tries 3 cm and `:150` restores the original cutoff.
+Set the bounds in millimeters with framed USB `!LF40348:50` (minimum),
+`!UF40348:400` (maximum), and `!VF40348:600` (clear/rearm boundary).
+Values must satisfy `30 <= minimum < maximum < clear <= 4000` at every step.
+For example, raise clear before raising maximum past the existing clear
+boundary; lower maximum before lowering clear below the existing maximum.
+Minimum `:30` tries 3 cm and `:150` restores the original lower cutoff.
 The sensor pipeline already discards distances below 30 mm, so lowering only
 this detector cannot enable closer returns. Changes are RAM-only and require
 clear-space rearm; they do not start/extend a session or advance the bell cycle.
-Reboot restores 50 mm. Pause the live reader before using a separate USB writer.
+Reboot restores 50/400/600 mm. Invalid ordering is refused without changing
+the detector. Pause the live reader before using a separate USB writer.
 
 Keep the laptop, table edges, and other fixed objects outside the sensor's
 field of view. In the first bench test the laptop produced a persistent

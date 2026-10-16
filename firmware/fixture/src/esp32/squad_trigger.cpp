@@ -48,6 +48,12 @@ bool squadTriggerActive() {
 bool squadTriggerSetMinMm(uint16_t mm) {
   return squadTriggerEnabled() && gPresence.setMinMm(mm);
 }
+bool squadTriggerSetMaxMm(uint16_t mm) {
+  return squadTriggerEnabled() && gPresence.setNearMm(mm);
+}
+bool squadTriggerSetClearMm(uint16_t mm) {
+  return squadTriggerEnabled() && gPresence.setClearMm(mm);
+}
 static void lease(unsigned i, uint8_t minutes) {
   if (!gBoot) gBoot=esp_random() | 1U;
   NbDecompressionControl c={};
@@ -205,8 +211,8 @@ void squadTriggerTelemetry(String &j) {
   j+=",\"trigger_ready_mask\":"+String(readyMask());
   j+=",\"trigger_presence_armed\":"+String(gPresence.armed ? "true" : "false");
   j+=",\"trigger_min_mm\":"+String(gPresence.minMm);
-  j+=",\"trigger_max_mm\":"+String(SQUAD_PRESENCE_NEAR_MM);
-  j+=",\"trigger_clear_mm\":"+String(SQUAD_PRESENCE_CLEAR_MM);
+  j+=",\"trigger_max_mm\":"+String(gPresence.nearMm);
+  j+=",\"trigger_clear_mm\":"+String(gPresence.clearMm);
   j+=",\"trigger_refused\":"+String((unsigned long)gRefused);
   j+=",\"trigger_tx_errors\":"+String((unsigned long)gTxErrors);
   j+=",\"trigger_radio_restarts\":"+String(gRadioRecovery.attempts);
