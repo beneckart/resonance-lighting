@@ -1,0 +1,25 @@
+{
+  "target": "68:EE:8F:F4:03:08",
+  "fixture_id": "F40308",
+  "callsign": "Daisy",
+  "complete_flash": false,
+  "path": "ops\\bench\\private-backups\\20261016T220724Z-F40308-rom-read",
+  "captures": [
+    {
+      "file": "flash-prefix-rom-64KiB.bin",
+      "offset": 0,
+      "bytes": 65536,
+      "sha256": "3123b3fd0ce33ca0f2db9d641672d4b72de894204f45c55b40cefa61b47ff47e",
+      "all_erased": false
+    },
+    {
+      "file": "coredump-64KiB.bin",
+      "offset": 8323072,
+      "bytes": 65536,
+      "sha256": "41b7bb34c8ce39752d3cadf48ea0942adcfa926e37ae09be77d8267643e2ae13",
+      "all_erased": false
+    }
+  ],
+  "rom_reset_requested": true,
+  "note": "Direct ROM reads after bulk RAM-stub read failed. Pre-next-requested-app-boot; prior physical resets recorded. No flash or configuration writes."
+}

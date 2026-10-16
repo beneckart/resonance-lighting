@@ -10,6 +10,61 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- Daisy ROM intake and preserved history
+
+The new perimeter is Daisy F40308. Direct USB enumerated at 15:06:16 PDT
+after a laptop-end reconnect following the manual bootloader sequence.
+Original and replacement extensions are not yet proven faulty: direct USB
+had also been silent. ROM identity and 8 MB flash were confirmed. The bulk
+RAM-stub read failed; after a host reset into ROM, slower reads preserved
+the complete 64 KiB prefix/NVS/OTA region and 64 KiB crash partition privately.
+No full-flash backup was completed. On-device ROM verification matches app0
+to retained fx-260912-f951ae9-b and app1 to fx-260831-dc82da7-b.
+
+CRC-checked saved NVS shows FULL, load armed and reset streak 1 after today's
+interventions. Historical PROTECT is the same 3026 mV low-vbat record seen in
+September; storage-usb source 8EB508/sequence 296 also matches the old ledger.
+The release was not observed and cannot be assigned to sunlight versus today's
+USB/reset history. No firmware/configuration write or guard clear was sent.
+Ben requested rechecking the original extension; a ROM-mode comparison is in
+progress. See docs/tests/POST_BURN_DAISY_2026-10-16.md for hashes and limits.
+
+## 2026-10-16 -- Ben + Codex -- new perimeter replacement extension check
+
+At approximately 15:01 PDT Ben reported swapping the unidentified perimeter
+to a new extension instead of direct USB. The continuing read-only capture
+still had no serial enumeration or telemetry, and Windows showed neither a
+present COM port nor a failed USB device. Direct USB has not yet been tried;
+neither extension is classified as failed from this evidence. The request
+remains to bypass the extension with the same laptop cable, leave the battery
+attached and avoid further button presses.
+
+By 15:02 PDT Ben reported direct USB. Initial checks still showed no serial
+enumeration, failed USB device or Espressif USB device. Left the read-only
+capture running for a natural wake, accounting for the old firmware's
+15-minute PROTECT sleep. Requested battery-clip voltage and an interior
+inspection while awaiting telemetry. No extension failure has been isolated.
+Ben then measured above 3.5 V across the battery clips and reported no visible
+corrosion. This is a manual clip-voltage observation, not a gauge reading or
+confirmation of the battery connection at the board; exact voltage and
+historical protection state remain unknown.
+
+Ben reported red and green/yellow board lights and illuminated STEMMA sensor
+lights while USB remained absent. At approximately 15:04 PDT he performed one
+requested RESET with USER released and direct USB connected. Both board
+lights went off for a few seconds and returned; the watcher and Windows check
+still found no USB enumeration. This confirms a visible response to the
+button, not an application boot or a diagnosed PROTECT state. Requested a
+separate USER/BOOT plus RESET sequence to test ROM enumeration; its completion
+and result are not yet known. No host firmware write or erase was issued.
+
+Ben subsequently confirmed the USER/BOOT plus RESET sequence. By the 15:05:54
+PDT check the capture still had no port or telemetry, and Windows showed no
+present COM port, Espressif USB device or failed USB device. ROM entry itself
+is unconfirmed without communication. Requested a five-second unplug at the
+laptop and reconnection to the same port, retaining direct board USB and the
+battery, without further button presses.
+
 ## 2026-10-16 -- Ben + Codex -- new perimeter intake reset noted
 
 The new perimeter remains unidentified and connected through its enclosure

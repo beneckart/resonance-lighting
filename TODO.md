@@ -49,6 +49,13 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
 
 ## Immediate documentation / repo hygiene
 
+- [ ] Complete Daisy F40308's 2026-10-16 intake: controlled original-extension
+  comparison, original-application battery/charger/sensor telemetry, and saved
+  crash-region validation. Prefix/NVS and crash regions are preserved privately;
+  both installed images match retained artifacts by ROM verification, but the
+  attempted full-flash read failed. The saved FULL/load-armed/streak-1 state
+  follows recorded resets. See docs/tests/POST_BURN_DAISY_2026-10-16.md.
+
 - [x] ADR 0085 Marill F40348 USB canary: immutable build, injected false latch,
   reset during trial with retained five-minute cooldown, automatic staged return,
   post-recovery sensors/LEDs, and two-minute lit-service retry forgiveness passed

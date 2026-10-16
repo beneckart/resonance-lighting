@@ -1,0 +1,20 @@
+[
+  {
+    "slot": "app0",
+    "offset": 65536,
+    "revision": "fx-260912-f951ae9-b",
+    "bytes": 1218752,
+    "sha256": "ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001",
+    "verified": true,
+    "method": "esptool ROM verify-flash (MD5 comparison)"
+  },
+  {
+    "slot": "app1",
+    "offset": 3407872,
+    "revision": "fx-260831-dc82da7-b",
+    "bytes": 1220192,
+    "sha256": "7230f81ff1737fa51ebdd357b9249748e5712657469de82a4b5b75799ac83299",
+    "verified": true,
+    "method": "esptool ROM verify-flash (MD5 comparison)"
+  }
+]
