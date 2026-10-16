@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill UI and session reopened after AFK
+
+Ben returned at about 19:42 Pacific. The prior event session had expired and
+the two-hour viewer had closed normally at 18:38:53. Restarted the read-only
+viewer, caught Marill's timer wake without reset, and admitted a new 60-minute
+session. Fresh telemetry: reset=deepsleep, fx-261015-9ba0941-b, FULL,
+VBAT 3.391 V, healthy sensors, recovery trial/attempts=0, minimum still 50 mm.
+All nine READY and live graph verified. Session ends about 20:42 Pacific.
+Evidence: ops/bench/data/Oakland/20261016T024159Z-F40348-trigger-command.jsonl;
+continuing viewer: 20261016T024148Z-F40348-live-presence.jsonl. No firmware or
+persistent settings changed.
+
 ## 2026-10-15 -- Ben + Codex -- Marill 5 cm cutoff deployed
 
 Built/flashed exact-target fx-261015-9ba0941-b from b1de946; SHA-256
