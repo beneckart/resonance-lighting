@@ -1311,7 +1311,7 @@ def interaction_runner(rule, p):
                 idle = now - last_seen > float(rule.get("idle_s", 3))
             tau = max(0.05, float(rule.get("smooth_s", 0.5)))
             bpm += (target - bpm) * (1 - math.exp(-dt / tau))
-            bpm = max(20.0, min(bpm, bpm_max))
+            bpm = max(float(RULE_BPM_MIN), min(bpm, bpm_max))
             playing = not (idle and rule.get("idle", "stop") == "stop")
             if not playing:
                 next_step = None
@@ -1349,6 +1349,9 @@ def interaction_runner(rule, p):
                                  "hits": st.get("hits"), "skipped": st.get("skipped"), "error": st.get("error")}) + "\n")
 
 
+RULE_BPM_MIN = 5  # slow is fine for the hardware; a sensor rule may start almost still and build up
+
+
 def arm_interaction(rule):
     if INTERACT["armed"]:
         return {"ok": False, "error": "an interaction is already armed"}
@@ -1361,8 +1364,8 @@ def arm_interaction(rule):
         return {"ok": False, "error": "rule needs far/near distances and BPM range"}
     if not (rule["near_mm"] < rule["far_mm"] <= 5000 and rule["near_mm"] >= 50):
         return {"ok": False, "error": "near must be at least 5 cm and closer than far (max 500 cm)"}
-    if not (20 <= rule["bpm_from"] <= 300 and 20 <= rule["bpm_to"] <= 300):
-        return {"ok": False, "error": "BPM must be 20..300"}
+    if not (RULE_BPM_MIN <= rule["bpm_from"] <= 300 and RULE_BPM_MIN <= rule["bpm_to"] <= 300):
+        return {"ok": False, "error": f"BPM must be {RULE_BPM_MIN}..300 (far {rule['bpm_from']:g}, near {rule['bpm_to']:g})"}
     src = str(rule.get("source", ""))
     if src.startswith("group:"):
         if not source_members(src):

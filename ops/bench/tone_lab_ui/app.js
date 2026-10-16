@@ -882,12 +882,14 @@ function ixWarn() {
     if (Object.keys(violations(slow)).length) msgs.push(`At ${slow.bpm} BPM some lanterns are already too fast; slow it down or edit the pattern.`);
   }
   if (r.near_mm >= r.far_mm) msgs.push("Near must be closer than far.");
+  if (!(r.bpm_from >= 5 && r.bpm_from <= 300 && r.bpm_to >= 5 && r.bpm_to <= 300)) msgs.push("BPM must be between 5 and 300.");
   if (IX.armed && IX.rule_id === r.id) msgs.push("Running: Stop and Start again to apply changes.");
   $("ixwarn").textContent = msgs.join(" ");
 }
 function ixField(id, key, scale, parse) {
   $(id).addEventListener("change", e => {
     const r = curRule(); r[key] = parse ? parse(e.target.value) * (scale || 1) : e.target.value;
+    ixErr = null;
     save(); ixWarn(); ixDraw(); renderIxList();
   });
 }
@@ -909,9 +911,16 @@ function ixRename() {
 }
 $("ixname").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ixRename(); } });
 $("ixname").addEventListener("blur", ixRename);
+let ixErr = null;  // last failed Start, shown next to the button until the rule is edited or starts
 async function armRule(r) {
   const res = await api("/api/interaction/arm", {rule: r});
-  if (!res.ok) { log(res.error || "could not start the rule", "bad"); return; }
+  if (!res.ok) {
+    const msg = `Couldn't start "${r.name}": ${res.error || "unknown error"}`;
+    log(msg, "bad");
+    ixErr = {id: r.id, msg};
+    return;
+  }
+  ixErr = null;
   log(`started "${r.name}": ${srcName(r.source)} drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
 }
 $("ixarm").onclick = () => armRule(curRule());
@@ -927,7 +936,9 @@ async function ixPoll() {
   if (UI.tab !== "interactions") return;
   try { IX = await api("/api/interaction/status"); } catch (e) { return; }
   if (renderIxList.sig !== S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "")) renderIxList();
-  $("ixstate").textContent = IX.armed ? `running: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
+  const err = !IX.armed && ixErr && ixErr.id === curRule().id ? ixErr.msg : "";
+  $("ixstate").classList.toggle("bad", !!err);
+  $("ixstate").textContent = err ? err : IX.armed ? `running: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
     (IX.nearest ? ` · nearest: ${name(IX.nearest)}` : "") + (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not running");
   $("ixarm").disabled = ixRunning(curRule().id);
   $("ixdist").textContent = IX.armed ? (IX.distance_mm != null ? Math.round(IX.distance_mm / 10) + " cm" : "nobody") : "–";
