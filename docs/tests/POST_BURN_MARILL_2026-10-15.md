@@ -5,11 +5,19 @@ Target: Marill, F40348, 68:EE:8F:F4:03:48, COM7.
 
 ## As found
 
-Ben reports no post-burn charging, resets, repairs or battery changes before
-today, and the lid had never been opened. After opening, the interior looked
-sound, with a little dust and no reported moisture, corrosion or loose wiring.
-He measured about 3.3 V at the battery clips. Firmware is configured for a
-6000 mAh LFP; physical capacity has not been separately confirmed.
+Ben initially reported no post-burn charging, resets, repairs or battery
+changes before intake, and that the lid had never been opened. On 2026-10-16
+he recalled that Marill may also have seen sun before this autopsy. Prior solar
+exposure and charging are therefore uncertain; the no-reset, no-repair and
+no-battery-change history has not been retracted. The arrival voltage and SOC
+cannot be treated as evidence of storage without charging or used to calculate
+unassisted storage drawdown. This correction does not change the captured
+telemetry or historical PROTECT record below.
+
+After opening, the interior looked sound, with a little dust and no reported
+moisture, corrosion or loose wiring. Ben measured about 3.3 V at the battery
+clips. Firmware is configured for a 6000 mAh LFP; physical capacity has not been
+separately confirmed.
 
 Initial absent USB enumeration was partly explained by the laptop end not
 being plugged in. Those earlier observations are not extension-failure

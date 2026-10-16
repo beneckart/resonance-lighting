@@ -10,6 +10,25 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- corrected Marill pre-autopsy exposure history
+
+Ben recalled that Marill may have seen sun before its October 15 autopsy.
+Corrected docs/tests/POST_BURN_MARILL_2026-10-15.md to preserve this uncertainty
+alongside the initial report. Arrival voltage and SOC cannot establish
+uncharged-storage retention or quantify storage drawdown. Captured telemetry,
+the historical PROTECT entry and the observed bench recovery remain valid.
+The new, unidentified perimeter intake has a separate history: one or two
+days of sunlight, otherwise untouched since storage, as reported by Ben.
+
+## 2026-10-16 -- Ben + Codex -- Marill daylight behavior accepted
+
+Ben reports no false-positive triggers and is satisfied with the current
+behavior. His observation is reduced hand-detection reach in today's brighter
+shade compared with yesterday's dimmer conditions. Keep the 50/400/600 mm
+settings and existing rearm behavior; no redesign or retuning requested.
+Stopped Marill's USB viewer when Ben switched to a new perimeter intake.
+Its bounded session was not extended or persistently changed.
+
 ## 2026-10-16 -- Ben + Codex -- clarified bright-shade distance dropout
 
 Ben clarified that the live numeric distance becomes difficult to obtain
