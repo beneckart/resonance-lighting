@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill replacement USB extension passed wake cycle
+
+Ben confirmed the new presence band feels good, then connected a new USB
+extension. Read-only capture at 22:38..22:41 Pacific observed two automatic
+timer wakes on COM7 without reset, replug, session command or firmware change.
+Windows reported both native USB interfaces OK, problem code 0. Received
+22 and 26 telemetry samples in the two windows; each ended near 30 seconds
+uptime, with about 120 seconds disconnected between them. Serial disconnect
+exceptions coincided with scheduled sleep, not failed enumeration.
+Both boots: reset=deepsleep, fx-261016-220d90a-b, FULL, battery about 3.60 V,
+healthy VL53/MSA readings after initialization, no active PROTECT retry,
+session expired, 50/400/600 mm bounds retained. This passes the extension's
+current connection/orientation; other plug orientations were not tested.
+Trace: ops/bench/data/Oakland/20261016T053804Z-F40348-canary.jsonl.
+Left Marill in its normal sleep cycle; viewer's earlier two-hour run had ended.
+
 ## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band deployed
 
 Flashed Marill F40348 only with fx-261016-220d90a-b from clean 1a53a23;

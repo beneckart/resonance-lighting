@@ -11,8 +11,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   field of view, verify empty-space rearm and deliberate hand waves, and
   explicitly test physical USER. Presence and USB paths ran on hardware;
   laptop returns caused unwanted detections. Acoustic skew is not measured.
-  Ben confirmed the 5 cm minimum works. New defaults are 5..40 cm with
-  60 cm rearm; confirm these edges in the intended placement. All three
+  Ben confirmed the 5..40 cm band with 60 cm rearm works on the bench.
+  Recheck in the final event placement. All three
   bounds are adjustable in RAM over framed USB (software floor 3 cm).
   Keep bounded sessions and PROTECT recovery. (Ben + Codex)
 
