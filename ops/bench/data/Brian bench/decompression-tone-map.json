@@ -104,7 +104,7 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T22:02:04.157Z",
+  "updated_utc": "2026-10-16T22:04:38.410Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -378,9 +378,9 @@
       },
       "active": true
     },
-    "Pattern": {
+    "Cha Cha Cha": {
       "id": "pat-233fe3d002",
-      "name": "Pattern",
+      "name": "Cha Cha Cha",
       "bpm": 50,
       "beats_per_bar": 4,
       "bars": 1,
@@ -410,9 +410,69 @@
           13,
           21,
           29
+        ],
+        "9F26BC": [
+          3,
+          11,
+          19,
+          27
+        ],
+        "9F26D8": [
+          3,
+          11,
+          19,
+          27
+        ],
+        "F2BE0C": [
+          3,
+          11,
+          19,
+          27
+        ],
+        "9F2638": [
+          3,
+          11,
+          19,
+          27
+        ],
+        "9F0E54": [
+          3,
+          11,
+          19,
+          27
         ]
       },
       "active": false
+    },
+    "Jingle Balls": {
+      "id": "pat-6432d087c5",
+      "name": "Jingle Balls",
+      "bpm": 50,
+      "beats_per_bar": 4,
+      "bars": 1,
+      "steps_per_beat": 8,
+      "steps": 32,
+      "hits": {
+        "F40254": [
+          18
+        ],
+        "9F0E5C": [
+          20
+        ],
+        "F2BE0C": [
+          0,
+          2,
+          4,
+          8,
+          10,
+          12,
+          16,
+          24
+        ],
+        "9F26B0": [
+          22
+        ]
+      }
     }
   },
   "tone_links": [

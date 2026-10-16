@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Atom 1B636C: 100 ms press gap, cyan relay receipts
+
+First live test: single clicks played Freakout Mode x2 (104/104 strikes
+confirmed) once the Tone Lab's click listener stopped colliding with the
+pattern player's port reads (0e966c8). A double click arrived as one press:
+the lanterns' press count rose by one, so the Atom's 250 ms gap swallowed the
+second press. Gap is now 100 ms. Relay-mode receipts (READY) showed red
+("refused") on the Atom face; they now show cyan. Flashed
+`atom-decomp-7ca004a` to `1B636C`, hash verified, 9/9 ready on boot.
+Evidence: `ops/bench/data/Brian bench/20261016T221415Z-1B636C-atom-decompression-flash.jsonl`.
+
 ## 2026-10-16 -- Brian + Claude -- Second Atom 1B636C becomes a decompression button
 
 Atom Matrix `1B636C` (f8:b3:b7:1b:63:6c, ESP32-PICO-D4) was running the
