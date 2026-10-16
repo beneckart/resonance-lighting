@@ -30,6 +30,9 @@ function name(id) { const l = live(id); return (l && l.callsign) || meta(id).cal
 function online(id) { const l = live(id); return !!l && !l.offline; }
 function pulseFor(id) { return meta(id).pulse_ms || S.pulse_ms; }
 function validPulse(v) { return Number.isInteger(v) && v >= CFG.pulse_min && v <= CFG.pulse_max; }
+// Role: "lantern" (default) or "perimeter" (perimeter light; its sensor drives approach rules).
+const isPerim = id => meta(id).role === "perimeter";
+const roleTag = id => isPerim(id) ? '<span class="tag perim">perimeter</span> ' : "";
 function tag(t) {
   return t === "large" ? '<span class="tag on">large</span>'
     : t === "small" ? '<span class="tag on-s">small</span>'
@@ -218,6 +221,8 @@ function cardIds() {
   if (q) ids = ids.filter(id => id.toLowerCase().includes(q) || name(id).toLowerCase().includes(q));
   if (show === "online") ids = ids.filter(online);
   else if (show === "unset") ids = ids.filter(id => !meta(id).type);
+  else if (show === "lantern") ids = ids.filter(id => !isPerim(id));
+  else if (show === "perimeter") ids = ids.filter(isPerim);
   else if (show !== "all") ids = ids.filter(id => meta(id).type === show);
   if (sort === "hub") ids.sort((a, b) => ((live(a) || {}).hub || "~").localeCompare((live(b) || {}).hub || "~"));
   else if (sort === "name") ids.sort((a, b) => name(a).localeCompare(name(b)));
@@ -227,7 +232,10 @@ function renderCards() {
   $("cards").innerHTML = cardIds().map(id => {
     const m = meta(id);
     return `<div class="card ${online(id) ? "" : "offline"}" data-card="${id}">
-      <div class="name">${toneBadge(id)}${esc(name(id))}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
+      <div class="name">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
+      <div class="row"><span class="seg" role="group" aria-label="Role">
+          <button class="${isPerim(id) ? "" : "on"}" data-role="${id}:lantern" title="A regular lantern">Lantern</button>
+          <button class="${isPerim(id) ? "on" : ""}" data-role="${id}:perimeter" title="A perimeter light: its sensor is used for approach rules">Perimeter</button></span></div>
       <div class="row"><button data-strike="${id}">Strike</button>
         <button data-wake="${id}" class="${WK.targets.includes(id) ? "waking" : ""}">${wakeLabel(id)}</button>
         <button class="${m.type === "large" ? "on" : ""}" data-type="${id}:large">Large</button>
@@ -258,7 +266,7 @@ function renderRanks() {
                  inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
     const linkBtn = `<input type="checkbox" data-sel="${id}" ${SEL.has(id) ? "checked" : ""} aria-label="Select ${esc(name(id))}">`;
     return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
-      ${linkBtn}<span class="k">${i + 1}</span><span>${esc(name(id))} ${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
+      ${linkBtn}<span class="k">${i + 1}</span><span>${esc(name(id))} ${roleTag(id)}${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
       <span class="dim">${l ? "hub " + l.hub : "not connected"}</span>
       <span class="dim">${pulseFor(id)} ms</span>
       <span class="dim">${m.latency_ms != null ? Math.round(m.latency_ms) + " ms lat" : ""}</span>
@@ -349,6 +357,11 @@ document.addEventListener("click", async e => {
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
   else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
   else if (b.dataset.gstrike) { busy = true; await playGroup(b.dataset.gstrike); busy = false; }
+  else if (b.dataset.role) {
+    const [id, r] = b.dataset.role.split(":"), m = meta(id);
+    if (r === "perimeter") m.role = "perimeter"; else delete m.role;
+    render(); save(); log(`${name(id)} is now a ${r === "perimeter" ? "perimeter light" : "lantern"}`);
+  }
   else if (b.dataset.type) {
     const [id, t] = b.dataset.type.split(":"), m = meta(id);
     m.type = m.type === t ? null : t; render(); save();
@@ -522,7 +535,7 @@ function pxControls() {
 function renderProxTab() {
   pxControls();
   $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
-      <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
+      <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
         <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
       <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid" data-pxz="${id}" title="The sensor's 3x3 zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = hand."></div></div>
       <div class="st" data-pxst="${id}"></div></div>`).join("");
@@ -735,8 +748,10 @@ function renderIx() {
   bxTimer = bxTimer || setInterval(bxPoll, 400);
   if (r0.kind === "button") { renderBx(); return; }
   const r = r0, pats = ixPatterns();
-  $("ixsrc").innerHTML = S.order.filter(id => !live(id) || live(id).tmf).map(id =>
-    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}</option>`).join("");
+  const srcs = S.order.filter(id => !live(id) || live(id).tmf);
+  srcs.sort((a, b) => isPerim(b) - isPerim(a));
+  $("ixsrc").innerHTML = srcs.map(id =>
+    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("");
   $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
     : '<option value="">make a pattern first</option>';
   if (!r.pattern_id && pats[0]) r.pattern_id = pats[0].id;
@@ -1034,7 +1049,7 @@ function renderPatterns() {
   }
   rows.forEach(id => {
     const m = meta(id), hits = new Set(p.hits[id] || []), off = online(id) ? "" : " offline";
-    h += `<div class="rh ${groupColor(id) ? "grp " + groupColor(id) : ""}" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
+    h += `<div class="rh ${groupColor(id) ? "grp " + groupColor(id) : ""}" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${isPerim(id) ? '<span class="tag perim" title="perimeter light">P</span>' : ""}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
     for (let i = 0; i < p.steps; i++) {
       const cls = ["c"];
       if (i && i % barSteps === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");
