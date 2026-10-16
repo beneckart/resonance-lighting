@@ -10,6 +10,21 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- Marill short-range hand returns in bright shade
+
+The restarted USB viewer reconnected without a reset. Ben reported getting
+about 5..40 cm in the shaded outdoor setup. By 14:18:53, Marill's presence
+counter reached 13, including the all-nine step; all nine were READY with
+zero radio errors/restarts. The first 648 recorded samples included 238
+with distance returns. The nearest reported zone ranged from 35 to 505 mm;
+13 samples had a nearest return beyond 400 mm and 17 below 50 mm. Thus
+the configured 50..400 mm chime band is not a hard limit on raw telemetry.
+These are reported sensor distances, not ruler-verified accuracy or a
+controlled maximum-range test. The meaning of Ben's "only" (chime versus
+readout) and stationary-hand dropout/rearm behavior remain to distinguish.
+No threshold, firmware, or session-duration change was made. Frozen summary:
+ops/bench/data/Oakland/20261016T211853Z-F40348-shade-hand-summary.json.
+
 ## 2026-10-16 -- Ben + Codex -- bright-shade range observation started
 
 Ben brought Marill into fairly bright outdoor shade around 14:00 Pacific.
