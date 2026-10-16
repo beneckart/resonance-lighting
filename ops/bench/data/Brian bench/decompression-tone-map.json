@@ -104,7 +104,7 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T22:23:15.319Z",
+  "updated_utc": "2026-10-16T22:29:14.345Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -219,6 +219,7 @@
           26
         ],
         "9F0E5C": [
+          1,
           8,
           13,
           18,
@@ -266,6 +267,7 @@
           30
         ],
         "9F26B0": [
+          0,
           7,
           12,
           17,
@@ -535,7 +537,7 @@
       "source": "group:perimeter",
       "far_mm": 1500,
       "near_mm": 200,
-      "pattern_id": "pat-e277b92abc",
+      "pattern_id": "pat-b28268fca9",
       "bpm_from": 60,
       "bpm_to": 180,
       "curve": "linear",

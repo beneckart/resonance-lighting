@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Triple click switches triggers
+
+Tone Lab: Atom clicks are single/double/triple. Sensor rules can watch a group
+("all perimeter lights" / "all lanterns", nearest person wins, from each
+lantern's Lanterns-tab role) and can be ticked "in rotation"; a triple click
+(`next_active_trigger`) moves to the next rule in rotation and carries the
+current pattern over, so double click = pattern, triple click = trigger. New
+rules: Perimeter approach, Lantern approach (both in rotation), Next trigger.
+
+First triple clicks failed: the Atom sent only two presses because receipt and
+status prints filled its UART TX buffer and blocked the button loop, and the
+Tone Lab settled a click before re-reading the lantern, splitting presses into
+singles. Fixed (TX buffer 8 KiB in `atom-decomp-7279942`, flashed to `1B636C`;
+settle only after a read past the window). Test 22:30:30Z: Atom log play #1-#3,
+Tone Lab classified a triple and ran Next trigger; no strikes.
+Evidence: `ops/bench/data/Brian bench/20261016T223051Z-1B636C-atom-triple-click.jsonl`.
+
 ## 2026-10-16 -- Brian + Claude -- Atom double click works end to end
 
 The 100 ms gap alone didn't fix double clicks: the Atom's sendSquad() blocks
