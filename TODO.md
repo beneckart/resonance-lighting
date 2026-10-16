@@ -17,6 +17,9 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Bright-shade hand returns and 13 accepted presence events were observed
   after USB reconnected on 2026-10-16; nearest raw returns reached 505 mm.
   Still check controlled maximum range and stationary-hand dropout/rearm.
+  Ben clarified the numeric distance drops out beyond about 40 cm in bright
+  shade; compare deeper shade at fixed geometry. No-return currently counts
+  toward the clear interval, so test a stationary hand near that range edge.
   Keep bounded sessions and PROTECT recovery. (Ben + Codex)
 
 ## 2027 planning -- exploration, no implementation yet

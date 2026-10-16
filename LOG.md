@@ -10,6 +10,22 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- clarified bright-shade distance dropout
+
+Ben clarified that the live numeric distance becomes difficult to obtain
+beyond about 40 cm; starting closer and slowly moving away sometimes gives
+a briefly longer reading before No return. This refers to measured distance,
+not the configured chime cutoff. The display applies the 50 mm lower gate
+but no 400 mm upper gate. The frozen 14:18:53 trace has 13 samples whose
+nearest eligible return exceeded 400 mm: 12 had only one returning zone and
+one had two, with a brief maximum of 505 mm. This supports marginal longer-distance
+detection in this setup; it does not isolate ambient light from target size,
+orientation, cover optics or alignment. Compare deeper shade at unchanged
+geometry before attributing a specific cause. Also check a stationary hand
+near the limit: the current rearm logic accepts 800 ms without a 50..600 mm
+return, including zero valid returns, rather than demanding a measured
+distance beyond 600 mm. No configuration or firmware changes made.
+
 ## 2026-10-16 -- Ben + Codex -- Marill short-range hand returns in bright shade
 
 The restarted USB viewer reconnected without a reset. Ben reported getting
