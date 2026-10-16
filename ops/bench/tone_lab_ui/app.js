@@ -12,7 +12,7 @@ const lsGet = k => { try { return localStorage.getItem("tonelab." + k); } catch 
 const lsSet = (k, v) => { try { localStorage.setItem("tonelab." + k, v); } catch (e) { /* per-viewer only */ } };
 
 let L = [];                                   // live lanterns from the last scan
-let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40};
+let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: []};
 let CFG = {pulse_min: 5, pulse_max: 100, audio: false, min_gap: 250};
 let busy = false;
 const UI = {tab: lsGet("tab") || "lanterns", set: "all", pattern: lsGet("pattern")};
@@ -38,7 +38,7 @@ function tag(t) {
 let saveTimer = null;
 function save(now) {
   clearTimeout(saveTimer);
-  const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets,
+  const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets, tone_links: S.tone_links,
     patterns: S.patterns, pulse_ms: S.pulse_ms})
     .then(r => {
       const msg = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
@@ -57,6 +57,30 @@ function syncOrder() {
 function setList(dir) {
   const ids = S.order.filter(id => online(id) && (UI.set === "all" || meta(id).type === UI.set));
   return dir === "up" ? ids.slice().reverse() : ids;
+}
+// ---- same-tone groups: a lantern listed in S.tone_links has the same tone as
+// the lantern directly above it in S.order; consecutive links form one group.
+function linked(id) { return (S.tone_links || []).includes(id); }
+function toneGroups() {
+  const groups = [];
+  S.order.forEach((id, i) => { if (i && linked(id) && groups.length) groups[groups.length - 1].push(id); else groups.push([id]); });
+  return groups;
+}
+// Rebuild links after a reorder so lanterns that were grouped and are still
+// adjacent stay grouped; `drop` lanterns (e.g. one just dragged) are unlinked.
+function keepGroups(oldGroups, drop) {
+  const gid = {};
+  oldGroups.forEach((g, k) => g.forEach(id => { gid[id] = k; }));
+  const out = (drop || []);
+  S.tone_links = S.order.filter((id, i) => i > 0 && !out.includes(id) && !out.includes(S.order[i - 1]) && gid[id] === gid[S.order[i - 1]]);
+}
+// Beat slot per lantern for Play: same-tone group members share a slot.
+function groupSlots(ids) {
+  const gidx = {};
+  toneGroups().forEach((g, k) => g.forEach(id => { gidx[id] = k; }));
+  const slots = [], seen = new Map();
+  ids.forEach(id => { const g = gidx[id]; if (!seen.has(g)) seen.set(g, seen.size); slots.push(seen.get(g)); });
+  return slots;
 }
 function flash(id, cls, ms) {
   document.querySelectorAll(`[data-card="${id}"]`).forEach(c => {
@@ -153,10 +177,15 @@ function refreshMeta() {
 
 // ---------- Tone order tab ----------
 function renderRanks() {
+  const rank = {}, size = {}, pos = {};
+  toneGroups().forEach((g, k) => g.forEach((id, j) => { rank[id] = k + 1; size[id] = g.length; pos[id] = j; }));
   $("ranks").innerHTML = S.order.map((id, i) => {
-    const l = live(id), m = meta(id);
-    return `<li draggable="true" data-i="${i}" data-card="${id}" class="${online(id) ? "" : "offline"}">
-      <span class="k">${i + 1}</span><span>${esc(name(id))} ${tag(m.type)}</span>
+    const l = live(id), m = meta(id), inGrp = size[id] > 1;
+    const cls = [online(id) ? "" : "offline", inGrp ? "grp" : "", inGrp && pos[id] === 0 ? "gstart" : "",
+                 inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
+    const linkBtn = i ? `<button class="link ${linked(id) ? "on" : ""}" data-link="${id}" title="${linked(id) ? "Same tone as the lantern above (click to separate)" : "Mark as the same tone as the lantern above"}" aria-label="Same tone as above">≈</button>` : "<span></span>";
+    return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
+      ${linkBtn}<span class="k">${rank[id]}</span><span>${esc(name(id))} ${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
       <span class="dim">${l ? "hub " + l.hub : "not connected"}</span>
       <span class="dim">${pulseFor(id)} ms</span>
       <span class="dim">${m.latency_ms != null ? Math.round(m.latency_ms) + " ms lat" : ""}</span>
@@ -175,16 +204,19 @@ $("ranks").addEventListener("dragover", e => {
 $("ranks").addEventListener("drop", e => {
   e.preventDefault();
   const li = e.target.closest("li"); if (!li || dragI === null) return;
+  const old = toneGroups();
   const [x] = S.order.splice(dragI, 1); S.order.splice(+li.dataset.i, 0, x);
+  keepGroups(old, [x]); // a dragged lantern leaves its group; re-link it with ≈ if needed
   dragI = null; render(); save();
 });
 $("ranks").addEventListener("dragend", () => { dragI = null; render(); });
 $("set").onclick = e => { const b = e.target.closest("button"); if (b) { UI.set = b.dataset.set; renderRanks(); } };
-$("rev").onclick = () => { S.order.reverse(); render(); save(); };
+$("rev").onclick = () => { const old = toneGroups(); S.order.reverse(); keepGroups(old); render(); save(); };
 $("grp").onclick = () => {
   const r = t => t === "large" ? 0 : t === "small" ? 2 : 1;
+  const old = toneGroups();
   S.order = S.order.map((id, i) => [id, i]).sort((a, b) => r(meta(a[0]).type) - r(meta(b[0]).type) || a[1] - b[1]).map(x => x[0]);
-  render(); save();
+  keepGroups(old); render(); save();
 };
 // Browser dialogs (prompt/confirm) are blocked in the app's built-in browser
 // pane, so destructive actions confirm with a second click on the same button.
@@ -205,14 +237,17 @@ $("psave").onclick = () => {
   const n = $("pname").value.trim();
   if (!n) { log("type a name for this order first", "bad"); $("pname").focus(); return; }
   const existed = !!S.presets[n];
-  S.presets[n] = S.order.slice(); renderPresets(); $("psel").value = n; $("pname").value = ""; save(true);
+  S.presets[n] = {order: S.order.slice(), tone_links: (S.tone_links || []).slice()}; renderPresets(); $("psel").value = n; $("pname").value = ""; save(true);
   log(`${existed ? "updated" : "saved"} order "${n}"`, "ok");
 };
 $("pname").addEventListener("keydown", e => { if (e.key === "Enter") $("psave").click(); });
 $("pload").onclick = () => {
   const n = $("psel").value; if (!n || !S.presets[n]) return;
-  const rest = S.order.filter(id => !S.presets[n].includes(id));
-  S.order = S.presets[n].concat(rest); render(); save(); log(`loaded order "${n}"`);
+  const saved = Array.isArray(S.presets[n]) ? {order: S.presets[n], tone_links: []} : S.presets[n]; // older saves were plain lists
+  const rest = S.order.filter(id => !saved.order.includes(id));
+  S.order = saved.order.concat(rest);
+  S.tone_links = (saved.tone_links || []).filter(id => S.order.includes(id));
+  render(); save(); log(`loaded order "${n}"`);
 };
 $("pdel").onclick = () => {
   const n = $("psel").value; if (!n) { log("pick a saved order to delete", "bad"); return; }
@@ -240,6 +275,13 @@ document.addEventListener("click", async e => {
   if (!b || busy) return;
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
   else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
+  else if (b.dataset.link) {
+    const id = b.dataset.link, links = new Set(S.tone_links || []);
+    if (links.has(id)) links.delete(id); else links.add(id);
+    S.tone_links = [...links]; render(); save();
+    const i = S.order.indexOf(id);
+    log(linked(id) ? `${name(id)} grouped with ${name(S.order[i - 1])} (same tone)` : `${name(id)} separated from ${name(S.order[i - 1])}`);
+  }
   else if (b.dataset.type) {
     const [id, t] = b.dataset.type.split(":"), m = meta(id);
     m.type = m.type === t ? null : t; render(); save();
@@ -267,7 +309,9 @@ document.querySelectorAll("[data-dir]").forEach(btn => btn.onclick = async () =>
   if (!ids.length) { log(`no online ${UI.set === "all" ? "" : UI.set + " "}lanterns`, "bad"); return; }
   busy = true; btn.disabled = true;
   const g = +$("gapms").value, pulses = Object.fromEntries(ids.map(id => [id, pulseFor(id)]));
-  const r = await api("/api/play", {order: ids, gap_ms: g, pulses, comp: compOn(), measure: $("meas").checked});
+  const together = $("playgroups").checked;
+  const r = await api("/api/play", {order: ids, gap_ms: g, pulses, comp: compOn(), measure: $("meas").checked,
+                                    slots: together ? groupSlots(ids) : undefined});
   if (r.results) {
     const bad = r.results.filter(x => !x.ok);
     log(`played ${UI.set} ${btn.dataset.dir === "up" ? "low→high" : "high→low"} (${r.results.length}) at ${g} ms gap` +
@@ -831,7 +875,7 @@ $("sastop").onclick = async () => {
 $("logbar").onclick = () => $("logbar").classList.toggle("open");
 (async function init() {
   const r = await api("/api/snapshot");
-  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40}, r.state);
+  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: []}, r.state);
   CFG = {pulse_min: r.pulse_min, pulse_max: r.pulse_max, audio: r.audio, min_gap: r.min_hit_spacing_ms || 250};
   L = r.lanterns || [];
   syncOrder();

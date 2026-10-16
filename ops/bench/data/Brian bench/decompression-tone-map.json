@@ -63,9 +63,9 @@
       "callsign": "Leeloo"
     },
     "9F26BC": {
-      "type": "small",
+      "type": "large",
       "note": "",
-      "pulse_ms": 15,
+      "pulse_ms": 22,
       "latency_ms": 69.6,
       "latency_jitter_ms": 0.3999999999999915,
       "latency_pulse_ms": 15,
@@ -73,7 +73,7 @@
       "callsign": "Pinsir"
     },
     "9F2638": {
-      "type": "small",
+      "type": "large",
       "note": "",
       "pulse_ms": 17,
       "latency_ms": 66.3,
@@ -96,21 +96,21 @@
   "order": [
     "F40254",
     "9F2738",
-    "9F26D8",
     "9F0E54",
+    "9F26BC",
+    "9F26D8",
     "F2BE0C",
-    "9F26B0",
-    "9F0E5C",
     "9F2638",
-    "9F26BC"
+    "9F26B0",
+    "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T01:44:34.087Z",
+  "updated_utc": "2026-10-16T02:06:29.487Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {},
   "patterns": {
-    "Pattern 1": {
-      "name": "Pattern 1",
+    "Beat 1": {
+      "name": "Beat 1",
       "bpm": 50,
       "steps": 32,
       "steps_per_beat": 8,
@@ -172,6 +172,72 @@
       "beats_per_bar": 4,
       "bars": 1,
       "id": "pat-44e4cd74b8"
+    },
+    "Freakout Mode": {
+      "id": "pat-b83cd398a2",
+      "name": "Freakout Mode",
+      "bpm": 300,
+      "beats_per_bar": 8,
+      "bars": 1,
+      "steps_per_beat": 4,
+      "steps": 32,
+      "hits": {
+        "F40254": [
+          0,
+          8,
+          16,
+          24
+        ],
+        "9F2738": [
+          1,
+          9,
+          17,
+          25
+        ],
+        "9F26D8": [
+          2,
+          10,
+          18,
+          26
+        ],
+        "9F0E54": [
+          3,
+          11,
+          19,
+          27
+        ],
+        "F2BE0C": [
+          4,
+          12,
+          20,
+          28
+        ],
+        "9F26B0": [
+          5,
+          13,
+          21,
+          29
+        ],
+        "9F0E5C": [
+          6,
+          14,
+          22,
+          30
+        ],
+        "9F2638": [
+          7,
+          15,
+          23,
+          31
+        ],
+        "9F26BC": [
+          0,
+          8,
+          16,
+          24
+        ]
+      }
     }
-  }
+  },
+  "tone_links": []
 }

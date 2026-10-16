@@ -76,6 +76,7 @@ STATE.setdefault("order_direction", "high_to_low")
 STATE.setdefault("pulse_ms", ARGS.pulse_ms)
 STATE.setdefault("presets", {})
 STATE.setdefault("patterns", {})
+STATE.setdefault("tone_links", [])  # lanterns marked "same tone as the one above" in the order
 # The app caps pulses well below the firmware's 300 ms limit while widths are being explored.
 PULSE_MIN_MS, PULSE_MAX_MS = 5, 100
 
@@ -366,7 +367,7 @@ def measure_hits(rec, expected_ms, gap_ms):
 audio_lock = threading.Lock()
 
 
-def play(order, gap_ms, pulses, comp=False, measure=False):
+def play(order, gap_ms, pulses, comp=False, measure=False, slots=None):
     """Fast run: verify every identity in parallel, then fire one exact-target strike
     per lantern on an absolute schedule, then confirm all counters in parallel.
     With comp, each send is advanced by its lantern's calibrated latency so the
@@ -406,7 +407,13 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
             fill = float(np.median(known)) if known and np is not None else 0.0
             lat = {f: (v if v is not None else fill) for f, v in lat.items()}
         lead = max(lat.values()) if lat else 0.0
-        schedule = sorted(((i * gap_ms + lead - lat.get(fid, lead)) / 1000.0, i, fid) for i, fid in enumerate(ready))
+        # slots: beat index per lantern (same-tone groups share a slot and strike together)
+        slot_of = {fid: (slots or {}).get(fid, i) for i, fid in enumerate(ready)}
+        if slots:  # renumber so the shared slots stay consecutive after offline lanterns drop out
+            order_slots = sorted(set(slot_of.values()))
+            slot_of = {f: order_slots.index(v) for f, v in slot_of.items()}
+        schedule = sorted(((slot_of[fid] * gap_ms + lead - lat.get(fid, lead)) / 1000.0, slot_of[fid], fid)
+                          for fid in ready)
         rec = Recorder() if (measure and sd is not None) else None
         if rec:
             audio_lock.acquire()
@@ -440,22 +447,22 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
                 cal = {f: STATE["lanterns"].get(f, {}).get("latency_ms") for f in ready}
             known = [v for v in cal.values() if v is not None]
             fallback = float(np.median(known)) if known else DEFAULT_LATENCY_MS
-            by_slot = {i: fid for _, i, fid in schedule}
-            slots = sorted(by_slot)
-            expected = [sent_stream[by_slot[i]] + (cal[by_slot[i]] if cal[by_slot[i]] is not None else fallback) for i in slots]
+            rows = sorted((slot, fid) for _, slot, fid in schedule)
+            expected = [sent_stream[f] + (cal[f] if cal[f] is not None else fallback) for _, f in rows]
             hits, err = measure_hits(rec, expected, gap_ms)
-            found = [(i, h) for i, h in zip(slots, hits or []) if h is not None]
+            found = [(slot, f, h) for (slot, f), h in zip(rows, hits or []) if h is not None]
             if err:
                 timing = {"error": err}
             elif len(found) < 2:
-                timing = {"error": f"heard {len(found)} of {len(slots)} strikes -- quieter room, mic closer, or let chimes settle between runs"}
+                timing = {"error": f"heard {len(found)} of {len(rows)} strikes -- quieter room, mic closer, or let chimes settle between runs"}
             else:
                 # Compare each heard hit with an ideal grid at the requested gap, best-fit offset removed.
-                off = float(np.mean([h - i * gap_ms for i, h in found]))
-                errs = {i: round(h - i * gap_ms - off, 1) for i, h in found}
+                # Lanterns sharing a slot strike together, so they are measured against the same beat.
+                off = float(np.mean([h - slot * gap_ms for slot, _, h in found]))
+                errs = {f: round(h - slot * gap_ms - off, 1) for slot, f, h in found}
                 vals = list(errs.values())
-                timing = {"errors_ms": [{"fixture_id": by_slot[i], "error_ms": errs.get(i)} for i in slots],
-                          "heard": len(found), "of": len(slots),
+                timing = {"errors_ms": [{"fixture_id": f, "error_ms": errs.get(f)} for _, f in rows],
+                          "heard": len(found), "of": len(rows),
                           "max_abs_ms": float(max(abs(x) for x in vals)),
                           "rms_ms": round(float(np.sqrt(np.mean(np.square(vals)))), 1)}
 
@@ -1232,7 +1239,9 @@ class H(BaseHTTPRequestHandler):
             pulses = {fid: given.get(fid, STATE["pulse_ms"]) for fid in order}
             if not all(pulse_ok(v) for v in pulses.values()):
                 return self.reply({"ok": False, "error": f"pulse must be {PULSE_MIN_MS}..{PULSE_MAX_MS} ms"}, 400)
-            return self.reply(play(order, gap, pulses, comp=bool(b.get("comp")), measure=bool(b.get("measure"))))
+            raw_slots = b.get("slots")
+            slots = {fid: int(v) for fid, v in zip(order, raw_slots)} if isinstance(raw_slots, list) and len(raw_slots) == len(order) else None
+            return self.reply(play(order, gap, pulses, comp=bool(b.get("comp")), measure=bool(b.get("measure")), slots=slots))
         if self.path == "/api/calibrate":
             fid, reps = b["id"].upper(), int(b.get("reps", 3))
             ms = b.get("ms", STATE["pulse_ms"])
@@ -1250,6 +1259,7 @@ class H(BaseHTTPRequestHandler):
                 STATE["order"] = b.get("order", STATE["order"])
                 STATE["presets"] = b.get("presets", STATE["presets"])
                 STATE["patterns"] = b.get("patterns", STATE["patterns"])
+                STATE["tone_links"] = b.get("tone_links", STATE["tone_links"])
                 if pulse_ok(b.get("pulse_ms")):
                     STATE["pulse_ms"] = b["pulse_ms"]
                 save_state(STATE)

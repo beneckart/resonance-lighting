@@ -68,8 +68,15 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 
 /* Tone order tab */
 .ranks { list-style: none; margin: 0; padding: 0; max-width: 760px; }
-.ranks li { display: grid; grid-template-columns: 28px 1fr 90px 70px 80px 34px; gap: 8px; align-items: center;
-  padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--card); cursor: grab; font-size: 14px; }
+.ranks li { display: grid; grid-template-columns: 30px 28px 1fr 90px 70px 80px 34px; gap: 8px; align-items: center;
+  padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--card); cursor: grab; font-size: 14px;
+  border-left: 3px solid transparent; }
+.ranks li.grp { border-left-color: var(--accent); background: var(--accent-bg); }
+.ranks li.gstart { margin-top: 6px; }
+.ranks li.gend { margin-bottom: 6px; }
+.ranks .link { padding: 0 6px; font-size: 13px; color: var(--muted); }
+.ranks .link.on { color: var(--accent); border-color: var(--accent); }
+.ranks .glabel { font-size: 11px; color: var(--accent); margin-left: 6px; }
 .ranks li.drag { opacity: .4; } .ranks li.over { border-top: 2px solid var(--accent); }
 .ranks .k { color: var(--muted); font-size: 12px; }
 .ranks .dim { color: var(--muted); font-size: 12px; }
