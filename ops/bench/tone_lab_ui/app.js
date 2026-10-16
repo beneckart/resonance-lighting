@@ -693,7 +693,10 @@ function bpmMax(p) {
   return best;
 }
 const ixShape = (x, c) => { x = Math.max(0, Math.min(1, x)); return c === "ease_in" ? x * x : c === "ease_out" ? 1 - (1 - x) * (1 - x) : x; };
-const CLICK_TXT = {single: "Single click", double: "Double click", any: "Single or double click"};
+const CLICK_TXT = {single: "Single click", double: "Double click", triple: "Triple click", any: "Any click"};
+// Sensor source: one lantern id, or a group that reacts to the nearest person.
+const GROUP_SRC = {"group:perimeter": "all perimeter lights", "group:lantern": "all lanterns"};
+const srcName = src => GROUP_SRC[src] || name(src);
 const patName = id => (ixPatterns().find(p => p.id === id) || {}).name || "(no pattern)";
 const ixRunning = id => IX.armed && IX.rule_id === id;
 // One plain-English line per rule, for the list.
@@ -705,20 +708,22 @@ function ruleSummary(r) {
       next_active_pattern: `switch ${sens ? `"${sens.name}"` : "the running sensor rule"} to the next Active pattern`,
       play_pattern: `play ${patName(a.pattern_id)} on loop`,
       next_pattern: `play the next of ${(a.pattern_ids || []).length} patterns`,
+      next_active_trigger: "switch to the next trigger in rotation (keeps the pattern)",
       stop: "stop everything",
       arm_interaction: `start sensor rule ${sens ? `"${sens.name}"` : "(pick one)"}`,
       toggle_proximity: "turn proximity ding on/off",
     }[a.type] || a.type;
     return `${CLICK_TXT[r.trigger.click || "single"]} on ${atomName(r.trigger.atom)} → ${did}`;
   }
-  return `${name(r.source)}'s sensor, ${Math.round(r.far_mm / 10)}→${Math.round(r.near_mm / 10)} cm: ${patName(r.pattern_id)} speeds up ${r.bpm_from}→${r.bpm_to} BPM`;
+  return `${GROUP_SRC[r.source] ? `Nearest person at ${srcName(r.source)}` : `${name(r.source)}'s sensor`}, ${Math.round(r.far_mm / 10)}→${Math.round(r.near_mm / 10)} cm: ${patName(r.pattern_id)} speeds up ${r.bpm_from}→${r.bpm_to} BPM`;
 }
 function renderIxList() {
   const cur = curRule();
   $("ixlist").innerHTML = S.interactions.map(r => {
     const btn = r.kind === "button", run = !btn && ixRunning(r.id), off = btn && r.enabled === false;
     const ctl = btn ? `<label title="A turned-off rule ignores clicks"><input type="checkbox" data-ixon="${r.id}" ${off ? "" : "checked"}> on</label>`
-      : run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`;
+      : (run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`) +
+        `<label title="Triple click switches between the sensor rules in rotation"><input type="checkbox" data-ixrot="${r.id}" ${r.active_trigger ? "checked" : ""}> in rotation</label>`;
     return `<div class="ixrow ${r.id === cur.id ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
       <span class="kind">${btn ? "button" : "sensor"}</span>
       <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>${ctl}</div>`;
@@ -728,13 +733,15 @@ function renderIxList() {
 }
 $("ixlist").addEventListener("click", async e => {
   const t = e.target;
-  if (t.dataset.ixon) return;
+  if (t.dataset.ixon || t.dataset.ixrot || t.tagName === "LABEL") return;
   if (t.dataset.ixstart) { await armRule(S.interactions.find(x => x.id === t.dataset.ixstart)); return; }
   if (t.dataset.ixstop) { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); return; }
   const row = t.closest("[data-ixrow]"); if (!row) return;
   UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix); renderIx();
 });
 $("ixlist").addEventListener("change", e => {
+  const rid = e.target.dataset.ixrot;
+  if (rid) { const r = S.interactions.find(x => x.id === rid); r.active_trigger = e.target.checked; save(); renderIx(); return; }
   const id = e.target.dataset.ixon; if (!id) return;
   const r = S.interactions.find(x => x.id === id); r.enabled = e.target.checked; save(); renderIx();
 });
@@ -750,7 +757,9 @@ function renderIx() {
   const r = r0, pats = ixPatterns();
   const srcs = S.order.filter(id => !live(id) || live(id).tmf);
   srcs.sort((a, b) => isPerim(b) - isPerim(a));
-  $("ixsrc").innerHTML = srcs.map(id =>
+  const nPerim = srcs.filter(isPerim).length;
+  $("ixsrc").innerHTML = Object.entries(GROUP_SRC).map(([v, t]) =>
+    `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerim} marked` : ""}</option>`).join("") + srcs.map(id =>
     `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("");
   $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
     : '<option value="">make a pattern first</option>';
@@ -803,7 +812,7 @@ $("ixname").addEventListener("blur", ixRename);
 async function armRule(r) {
   const res = await api("/api/interaction/arm", {rule: r});
   if (!res.ok) { log(res.error || "could not start the rule", "bad"); return; }
-  log(`started "${r.name}": ${name(r.source)}'s sensor drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
+  log(`started "${r.name}": ${srcName(r.source)} drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
 }
 $("ixarm").onclick = () => armRule(curRule());
 $("ixdisarm").onclick = async () => { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); };
@@ -819,7 +828,7 @@ async function ixPoll() {
   try { IX = await api("/api/interaction/status"); } catch (e) { return; }
   if (renderIxList.sig !== S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "")) renderIxList();
   $("ixstate").textContent = IX.armed ? `running: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
-    (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not running");
+    (IX.nearest ? ` · nearest: ${name(IX.nearest)}` : "") + (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not running");
   $("ixarm").disabled = ixRunning(curRule().id);
   $("ixdist").textContent = IX.armed ? (IX.distance_mm != null ? Math.round(IX.distance_mm / 10) + " cm" : "nobody") : "–";
   $("ixbpm").textContent = IX.armed && IX.bpm != null ? Math.round(IX.bpm) : "–";
@@ -880,6 +889,7 @@ function renderBx() {
   if (["play_pattern", "performance"].includes(a.type) && !a.pattern_id && pats[0]) a.pattern_id = pats[0].id;
   if (a.type === "arm_interaction" && !a.interaction_id && sensors[0]) a.interaction_id = sensors[0].id;
   if (a.type === "next_active_pattern" && !ixPatterns().some(p => p.active)) warn0 = "No patterns are Active yet: tick some on the Patterns tab.";
+  if (a.type === "next_active_trigger" && !S.interactions.some(x => x.kind !== "button" && x.active_trigger)) warn0 = "No sensor rules are in rotation yet: tick \"in rotation\" in the list above.";
   $("bxlist").hidden = a.type !== "next_pattern";
   $("bxlist").innerHTML = '<span class="status">Each press plays the next of:</span>' + pats.map(p =>
     `<label><input type="checkbox" data-bxp="${p.id}" ${(a.pattern_ids || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("");
@@ -888,6 +898,7 @@ function renderBx() {
     next_active_pattern: "Each click moves the sensor rule to the next pattern ticked under Active patterns (Patterns tab) and keeps it running.",
     play_pattern: "Starts the pattern and keeps looping it until something else plays or stops.",
     next_pattern: "Each click plays the next pattern from the ticked list, looping.",
+    next_active_trigger: "Each click switches to the next sensor rule ticked \"in rotation\" (e.g. perimeter lights ↔ lanterns), carrying the current pattern over. Starts the first one if none is running.",
     stop: "Stops any pattern or sensor rule that's playing.",
     arm_interaction: "Starts that sensor rule (stopping any other one).",
     toggle_proximity: "Turns the Proximity tab's ding on or off.",

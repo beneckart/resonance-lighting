@@ -219,6 +219,8 @@
         <b>Sensor rules</b> let one lantern's distance sensor speed a pattern up as someone walks closer.
         A sensor rule does nothing until it's <b>started</b>; one runs at a time. A button rule can start one,
         or swap its pattern to the next Active pattern.<br><br>
+        Tick <b>in rotation</b> on sensor rules to swap between them with a button (e.g. perimeter lights ↔ lanterns).
+        A sensor rule can watch one lantern or a whole group (all perimeter lights / all lanterns, nearest person wins).<br><br>
         Click a rule to edit it below. Everything saves automatically.</span></i>
       <span class="grow"></span>
       <button id="ixnewbtn">+ Button rule</button><button id="ixnew">+ Sensor rule</button>
@@ -238,7 +240,7 @@
       <div id="ixbtnwrap" hidden>
         <div class="ixsentence">
           <span>On a</span>
-          <select id="bxclick" aria-label="Click type"><option value="single">single click</option><option value="double">double click</option><option value="any">single or double click</option></select>
+          <select id="bxclick" aria-label="Click type"><option value="single">single click</option><option value="double">double click</option><option value="triple">triple click</option><option value="any">any click</option></select>
           <span>of</span> <select id="bxatom" aria-label="Which Atom"></select>
           <button id="bxlearn" title="Press this, then press the Atom you want. The rule then reacts only to that Atom.">Detect…</button>
         </div>
@@ -247,6 +249,7 @@
           <select id="bxaction" aria-label="Action">
             <option value="performance">play a performance, then go back</option>
             <option value="next_active_pattern">switch the sensor rule to the next Active pattern</option>
+            <option value="next_active_trigger">switch to the next trigger (sensor rule in rotation)</option>
             <option value="play_pattern">play a pattern on loop</option><option value="next_pattern">play the next pattern from a list</option>
             <option value="stop">stop everything</option><option value="arm_interaction">start a sensor rule</option>
             <option value="toggle_proximity">turn proximity ding on/off</option>

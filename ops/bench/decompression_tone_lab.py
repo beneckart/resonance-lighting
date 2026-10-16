@@ -1178,6 +1178,29 @@ def shape(x, curve):
     return x * x if curve == "ease_in" else 1 - (1 - x) * (1 - x) if curve == "ease_out" else x
 
 
+def source_members(src):
+    """Lanterns a sensor rule watches: one fixture id, or a whole group
+    ("group:perimeter" / "group:lantern", from each lantern's role on the Lanterns tab)."""
+    if not str(src).startswith("group:"):
+        return [str(src).upper()]
+    want_perim = src == "group:perimeter"
+    with state_lock:
+        order, meta = list(STATE.get("order", [])), STATE.get("lanterns", {})
+        return [f for f in order if lanterns.get(f, {}).get("tmf")
+                and (meta.get(f, {}).get("role") == "perimeter") == want_perim]
+
+
+def source_reading(members):
+    """Nearest person across the watched sensors: (distance_mm or None, status, fixture)."""
+    best, status, who = None, None, None
+    for f in members:
+        v = prox_live.get(f) or {}
+        status = status or v.get("status")
+        if v.get("status") == "hand" and v.get("depth_mm") and (best is None or v["depth_mm"] < best):
+            best, status, who = v["depth_mm"], "hand", f
+    return best, status, who
+
+
 def interaction_runner(rule, p):
     st = INTERACT["status"]
     steps, spb = int(p["steps"]), int(p["steps_per_beat"])
@@ -1188,7 +1211,8 @@ def interaction_runner(rule, p):
                 by_step.setdefault(int(i), []).append(fid.upper())
     with state_lock:
         pulses = {f: STATE["lanterns"].get(f, {}).get("pulse_ms") or STATE["pulse_ms"] for f in {x for v in by_step.values() for x in v}}
-    src = rule["source"].upper()
+    src = rule["source"] if str(rule["source"]).startswith("group:") else rule["source"].upper()
+    members, members_t = source_members(src), time.perf_counter()
     started_prox = False
     conns = {}
     try:
@@ -1219,11 +1243,14 @@ def interaction_runner(rule, p):
         while not INTERACT["stop"].is_set():
             now = time.perf_counter()
             dt, last_t = now - last_t, now
+            if now - members_t > 2.0:  # roles can change on the Lanterns tab while a rule runs
+                members, members_t = source_members(src), now
+            near_who = None
             if INTERACT["sim_on"]:
                 dist = INTERACT["sim"]
+                src_status = "simulated"
             else:
-                v = prox_live.get(src) or {}
-                dist = v.get("depth_mm") if v.get("status") == "hand" and v.get("depth_mm") else None
+                dist, src_status, near_who = source_reading(members)
             if dist is not None:
                 last_seen = now
                 x = shape((far - float(dist)) / max(1.0, far - near), rule.get("curve", "linear"))
@@ -1254,7 +1281,7 @@ def interaction_runner(rule, p):
                     step_s = 60.0 / (bpm * spb)
                     next_step = next_step + step_s if now - next_step < step_s else now + step_s  # resync if far behind
             st.update(distance_mm=dist, x=round(x, 3), target_bpm=round(target, 1), bpm=round(bpm, 1),
-                      playing=playing, idle=idle, step=step_i, src_status=(prox_live.get(src) or {}).get("status"))
+                      playing=playing, idle=idle, step=step_i, src_status=src_status, nearest=near_who)
             wait = (next_step - time.perf_counter()) if next_step else 0.02
             time.sleep(max(0.0005, min(0.02, wait - 0.001)))
     except Exception as ex:
@@ -1285,8 +1312,12 @@ def arm_interaction(rule):
         return {"ok": False, "error": "near must be at least 5 cm and closer than far (max 500 cm)"}
     if not (20 <= rule["bpm_from"] <= 300 and 20 <= rule["bpm_to"] <= 300):
         return {"ok": False, "error": "BPM must be 20..300"}
-    src = str(rule.get("source", "")).upper()
-    if not lanterns.get(src, {}).get("tmf"):
+    src = str(rule.get("source", ""))
+    if src.startswith("group:"):
+        if not source_members(src):
+            kind = "perimeter lights" if src == "group:perimeter" else "lanterns"
+            return {"ok": False, "error": f"no {kind} with a distance sensor are connected (set roles on the Lanterns tab)"}
+    elif not lanterns.get(src.upper(), {}).get("tmf"):
         return {"ok": False, "error": "pick a source lantern that has a distance sensor"}
     p = find_pattern(rule.get("pattern_id"))
     if not p:
@@ -1359,7 +1390,7 @@ def poll_lantern(fid):
     return d
 
 
-DOUBLE_CLICK_S = 0.6   # two presses closer than this are a double click
+DOUBLE_CLICK_S = 0.6   # presses closer than this belong to one multi-click (double/triple)
 
 
 def stop_all():
@@ -1376,6 +1407,12 @@ def active_patterns():
     with state_lock:
         pats = [dict(p) for p in STATE.get("patterns", {}).values() if p.get("active")]
     return sorted(pats, key=lambda p: (p.get("name") or "").lower())
+
+
+def active_triggers():
+    """Sensor rules ticked "in rotation" on the Interactions tab, in list order."""
+    with state_lock:
+        return [dict(x) for x in STATE.get("interactions", []) if x.get("kind") != "button" and x.get("active_trigger")]
 
 
 def run_button_action(rule):
@@ -1422,7 +1459,12 @@ def run_button_action(rule):
         if not pool:
             return "no Active patterns (tick some on the Patterns tab)"
         armed_id = (INTERACT.get("rule") or {}).get("id") if INTERACT["armed"] else None
-        target_id = a.get("interaction_id") or armed_id
+        # Target: the chosen rule, else the running one, else the one a performance
+        # returns to, else the last trigger picked by a triple click, else the first
+        # rule in the trigger rotation, else the first sensor rule.
+        rot = active_triggers()
+        target_id = (a.get("interaction_id") or armed_id or (ATOM.get("resume") or {}).get("id")
+                     or ATOM.get("last_trigger") or (rot[0]["id"] if rot else None))
         with state_lock:
             rules = [x for x in STATE.get("interactions", []) if x.get("kind") != "button"]
             r = next((x for x in rules if x.get("id") == target_id), rules[0] if rules else None)
@@ -1443,6 +1485,38 @@ def run_button_action(rule):
             else:
                 ATOM["resume"] = rule_copy  # a performance is playing; resume with the new pattern
         return f"{rule_copy.get('name')} now plays {nxt.get('name')}"
+    if kind == "next_active_trigger":
+        # Switch to the next sensor rule in the trigger rotation, keeping the current
+        # pattern (double click picks the pattern, triple click picks the trigger).
+        pool = active_triggers()
+        if not pool:
+            return "no sensor rules in the trigger rotation (tick \"in rotation\" on the Interactions tab)"
+        running = INTERACT.get("rule") if INTERACT["armed"] else None
+        cur = running or ATOM.get("resume")
+        cur_id = (cur or {}).get("id") or ATOM.get("last_trigger")
+        ids = [x["id"] for x in pool]
+        nxt = pool[(ids.index(cur_id) + 1) % len(pool) if cur_id in ids else 0]
+        with state_lock:
+            if cur:
+                fresh_cur = next((x for x in STATE.get("interactions", []) if x.get("id") == cur.get("id")), cur)
+                carry = fresh_cur.get("pattern_id")
+            else:
+                carry = None
+            saved = next((x for x in STATE.get("interactions", []) if x.get("id") == nxt["id"]), None)
+            if carry and saved is not None and saved.get("pattern_id") != carry:
+                saved["pattern_id"] = carry
+                save_state(STATE)
+            nxt = dict(saved or nxt)
+        ATOM["last_trigger"] = nxt["id"]
+        if carry:
+            atom_event("rule_updated", interaction_id=nxt["id"], pattern_id=nxt.get("pattern_id"),
+                       result=f"{nxt.get('name')} keeps the current pattern")
+        if PLAYER["running"] and ATOM.get("resume") and not running:
+            ATOM["resume"] = nxt  # a performance is playing; come back to the new trigger
+            return f"after the performance: {nxt.get('name')}"
+        stop_all()
+        res = arm_interaction(nxt)
+        return f"trigger: {nxt.get('name')}" if res.get("ok") else f"{nxt.get('name')}: {res.get('error')}"
     if kind == "next_pattern":
         ids = [x for x in (a.get("pattern_ids") or []) if find_pattern(x)]
         if not ids:
@@ -1466,7 +1540,7 @@ def run_button_action(rule):
 
 def dispatch_click(src, clicks, via):
     """Run every enabled button rule matching this Atom and click type."""
-    click = "double" if clicks >= 2 else "single"
+    click = "triple" if clicks >= 3 else "double" if clicks == 2 else "single"
     if ATOM["learn"]:
         ATOM["learn"], ATOM["learned"] = False, src
         atom_event("learned", atom=src, via=via)
@@ -1501,10 +1575,10 @@ def atom_loop():
         time.sleep(0.15)
         try:
             now = time.time()
-            for src, pc in list(pending.items()):  # a lone press becomes a single click once the window passes
-                if pc["n"] == 1 and now - pc["t"] > DOUBLE_CLICK_S:
+            for src, pc in list(pending.items()):  # one or two presses settle once the window passes
+                if now - pc["t"] > DOUBLE_CLICK_S:
                     pending.pop(src)
-                    dispatch_click(src, 1, ATOM["listener"])
+                    dispatch_click(src, pc["n"], ATOM["listener"])
             with state_lock:
                 online = [f for f in STATE.get("order", []) if f in lanterns and not lanterns[f].get("offline")]
             if not online:
@@ -1536,9 +1610,9 @@ def atom_loop():
             else:
                 pc = pending[src] = {"n": n, "t": t_press}
             pc["t"] = t_press
-            if pc["n"] >= 2:
+            if pc["n"] >= 3:  # nothing longer than a triple, so fire right away
                 pending.pop(src, None)
-                dispatch_click(src, 2, listener)
+                dispatch_click(src, 3, listener)
         except Exception as ex:
             atom_event("error", result=str(ex))
 
