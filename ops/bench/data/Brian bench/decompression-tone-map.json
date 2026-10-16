@@ -104,7 +104,7 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T21:17:23.747Z",
+  "updated_utc": "2026-10-16T21:41:46.619Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -273,9 +273,9 @@
         ]
       }
     },
-    "Pattern": {
+    "Shave and a Haircut": {
       "id": "pat-b28268fca9",
-      "name": "Pattern",
+      "name": "Shave and a Haircut",
       "bpm": 100,
       "beats_per_bar": 4,
       "bars": 1,
@@ -283,22 +283,106 @@
       "steps": 16,
       "hits": {
         "F40254": [
-          0
-        ],
-        "9F0E54": [
-          2
+          0,
+          12
         ],
         "9F26BC": [
           2
         ],
-        "9F26B0": [
+        "9F0E5C": [
           3,
           6
         ],
-        "9F2638": [
+        "F2BE0C": [
           4
+        ],
+        "9F2638": [
+          10
         ]
       }
+    },
+    "Drowning in Soup": {
+      "id": "pat-e277b92abc",
+      "name": "Drowning in Soup",
+      "bpm": 50,
+      "beats_per_bar": 4,
+      "bars": 1,
+      "steps_per_beat": 8,
+      "steps": 32,
+      "hits": {
+        "9F0E5C": [
+          0,
+          9,
+          15,
+          23,
+          28
+        ],
+        "9F26B0": [
+          7,
+          13,
+          21,
+          30
+        ],
+        "9F0E54": [
+          3,
+          17
+        ],
+        "9F2738": [
+          4,
+          18
+        ],
+        "F40254": [
+          5,
+          19
+        ],
+        "9F2638": [
+          14,
+          16
+        ]
+      }
+    },
+    "Thriller?": {
+      "id": "pat-75261fcbfb",
+      "name": "Thriller?",
+      "bpm": 50,
+      "beats_per_bar": 4,
+      "bars": 1,
+      "steps_per_beat": 8,
+      "steps": 32,
+      "hits": {
+        "9F2638": [
+          0,
+          4
+        ],
+        "9F26D8": [
+          21
+        ],
+        "9F2738": [
+          18
+        ],
+        "9F0E5C": [
+          24
+        ],
+        "F40254": [
+          7
+        ],
+        "9F26BC": [
+          10
+        ],
+        "9F0E54": [
+          2
+        ]
+      }
+    },
+    "Pattern": {
+      "id": "pat-233fe3d002",
+      "name": "Pattern",
+      "bpm": 50,
+      "beats_per_bar": 4,
+      "bars": 1,
+      "steps_per_beat": 8,
+      "steps": 32,
+      "hits": {}
     }
   },
   "tone_links": [

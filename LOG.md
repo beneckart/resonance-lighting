@@ -10,6 +10,19 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Second Atom 1B636C becomes a decompression button
+
+Atom Matrix `1B636C` (f8:b3:b7:1b:63:6c, ESP32-PICO-D4) was running the
+September conductor (`atom-conductor-2026-09-03.1`). At Brian's request it now
+runs `atom-decomp-43b6754` (250 ms press gap, for single/double clicks). Ben's
+original decompression Atom `54B0C8` is unchanged.
+
+Private full 4 MiB backup (verify-flash digest matched; 460800 baud read failed,
+115200 worked): `ops/bench/private-backups/20261016T213332Z-1B636C-before-decompression/`, SHA-256 `010ba78f...ec01207`. It booted app0, app1
+blank; only app0 at 0x10000 was written. To restore the conductor, write the
+backup at 0x0. Boot: 9/9 peers ready, zero presses, no PLAY sent.
+Evidence: `ops/bench/data/Brian bench/20261016T214207Z-1B636C-atom-decompression-flash.jsonl`.
+
 ## 2026-10-16 -- Brian + Claude -- Atom single/double click; active patterns
 
 Tone lab button rules now match a click type (single, double or any). The

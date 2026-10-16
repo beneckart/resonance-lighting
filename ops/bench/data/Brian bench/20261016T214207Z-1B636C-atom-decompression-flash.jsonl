@@ -1,0 +1,4 @@
+{"event": "identify", "target": "1B636C", "mac": "f8:b3:b7:1b:63:6c", "chip": "ESP32-PICO-D4 v1.1", "port": "/dev/cu.usbserial-4952462238", "prior_fw": "atom-conductor-2026-09-03.1", "operator": "Brian"}
+{"event": "backup", "scope": "full 4 MiB flash", "private_path": "ops/bench/private-backups/20261016T213332Z-1B636C-before-decompression", "sha256": "010ba78fc2f678c704eb145cf46e7b46b26f522fb63931d2de6f79febec01207", "verify_flash": "digest matched", "boot_slot": "app0 (otadata seq 1), app1 blank"}
+{"event": "flash", "offset": "0x10000", "fw_rev": "atom-decomp-43b6754", "bytes": 915728, "sha256": "e75c8da2599e37c8dbacc8eb28137b3e95395dd3c955810635545f5e46fe14f9", "verify": "hash verified"}
+{"event": "boot", "fw": "atom-decomp-43b6754", "id": "1B636C", "ready": 9, "total": 9, "presses": 0, "rx_dropped": 0, "note": "no PLAY sent"}
