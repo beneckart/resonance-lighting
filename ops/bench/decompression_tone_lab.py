@@ -1290,6 +1290,7 @@ def arm_interaction(rule):
         return {"ok": False, "error": str(ex)}
     INTERACT["stop"].clear()
     INTERACT["armed"] = True
+    INTERACT["rule"] = dict(rule)
     INTERACT["status"] = {"rule": rule.get("name"), "rule_id": rule.get("id"), "pattern": p.get("name"),
                           "bpm_max": round(pattern_bpm_max(p), 1)}
     threading.Thread(target=interaction_runner, args=(rule, p), daemon=True).start()
@@ -1344,31 +1345,90 @@ def poll_lantern(fid):
     return d
 
 
+DOUBLE_CLICK_S = 0.6   # two presses closer than this are a double click
+
+
+def stop_all():
+    INTERACT["stop"].set()
+    PLAYER["stop"].set()
+    for _ in range(60):  # let the current pattern/interaction release its ports
+        if not PLAYER["running"] and not INTERACT["armed"]:
+            break
+        time.sleep(0.05)
+
+
+def active_patterns():
+    """Patterns ticked Active on the Patterns tab, in name order (the rotation pool)."""
+    with state_lock:
+        pats = [dict(p) for p in STATE.get("patterns", {}).values() if p.get("active")]
+    return sorted(pats, key=lambda p: (p.get("name") or "").lower())
+
+
 def run_button_action(rule):
     a = rule.get("action") or {}
     kind = a.get("type")
 
-    def stop_all():
-        INTERACT["stop"].set()
-        PLAYER["stop"].set()
-        for _ in range(40):  # let the current pattern/interaction release its ports
-            if not PLAYER["running"] and not INTERACT["armed"]:
-                break
-            time.sleep(0.05)
-
-    def play(pid):
+    def play(pid, loops=0):
         p = find_pattern(pid)
         if not p:
             return "pattern not found"
         stop_all()
-        r = start_pattern(p, 0, False)
-        return f"playing {p.get('name')}" if r.get("ok") else r.get("error")
+        r = start_pattern(p, loops, False)
+        return f"playing {p.get('name')}" + (f" x{loops}" if loops else "") if r.get("ok") else r.get("error")
 
     if kind == "stop":
         stop_all()
         return "stopped"
     if kind == "play_pattern":
         return play(a.get("pattern_id"))
+    if kind == "performance":
+        # Play a pattern for N loops, then return to the sensor rule that was running.
+        resume = INTERACT.get("rule") if INTERACT["armed"] else ATOM.get("resume")
+        ATOM["perf_gen"] = gen = ATOM.get("perf_gen", 0) + 1
+        ATOM["resume"] = resume
+        loops = max(1, min(32, int(a.get("loops") or 2)))
+        result = play(a.get("pattern_id"), loops)
+
+        def resume_after():
+            time.sleep(0.5)
+            while PLAYER["running"] and ATOM.get("perf_gen") == gen:
+                time.sleep(0.1)
+            if ATOM.get("perf_gen") != gen or not resume or INTERACT["armed"] or PLAYER["running"]:
+                return  # a newer press took over, or something else is already playing
+            with state_lock:
+                fresh = next((x for x in STATE.get("interactions", []) if x.get("id") == resume.get("id")), resume)
+            ATOM["resume"] = None
+            res = arm_interaction(fresh)
+            atom_event("resume", result=(f"back to {fresh.get('name')}" if res.get("ok") else res.get("error")))
+        threading.Thread(target=resume_after, daemon=True).start()
+        return result + (f", then back to {resume.get('name')}" if resume else "")
+    if kind == "next_active_pattern":
+        # Switch a sensor rule to the next Active pattern (a fresh performance).
+        pool = active_patterns()
+        if not pool:
+            return "no Active patterns (tick some on the Patterns tab)"
+        armed_id = (INTERACT.get("rule") or {}).get("id") if INTERACT["armed"] else None
+        target_id = a.get("interaction_id") or armed_id
+        with state_lock:
+            rules = [x for x in STATE.get("interactions", []) if x.get("kind") != "button"]
+            r = next((x for x in rules if x.get("id") == target_id), rules[0] if rules else None)
+            if not r:
+                return "no sensor rule to update"
+            ids = [p["id"] for p in pool]
+            cur = ids.index(r.get("pattern_id")) if r.get("pattern_id") in ids else -1
+            nxt = pool[(cur + 1) % len(pool)]
+            r["pattern_id"] = nxt["id"]
+            save_state(STATE)
+            rule_copy = dict(r)
+        atom_event("rule_updated", interaction_id=rule_copy["id"], pattern_id=nxt["id"],
+                   result=f"{rule_copy.get('name')} now plays {nxt.get('name')}")
+        if armed_id == rule_copy["id"] or (ATOM.get("resume") or {}).get("id") == rule_copy["id"]:
+            if INTERACT["armed"]:
+                stop_all()
+                arm_interaction(rule_copy)
+            else:
+                ATOM["resume"] = rule_copy  # a performance is playing; resume with the new pattern
+        return f"{rule_copy.get('name')} now plays {nxt.get('name')}"
     if kind == "next_pattern":
         ids = [x for x in (a.get("pattern_ids") or []) if find_pattern(x)]
         if not ids:
@@ -1390,56 +1450,81 @@ def run_button_action(rule):
     return "no action set"
 
 
+def dispatch_click(src, clicks, via):
+    """Run every enabled button rule matching this Atom and click type."""
+    click = "double" if clicks >= 2 else "single"
+    if ATOM["learn"]:
+        ATOM["learn"], ATOM["learned"] = False, src
+        atom_event("learned", atom=src, via=via)
+        return
+    with state_lock:
+        rules = [r for r in STATE.get("interactions", []) if r.get("kind") == "button" and r.get("enabled", True)
+                 and (r.get("trigger") or {}).get("atom") in (src, "any")
+                 and (r.get("trigger") or {}).get("click", "single") in (click, "any")]
+    if not rules:
+        atom_event("press", atom=src, via=via, click=click, result=f"no rule for a {click} click")
+        return
+    for r in rules:
+        result = run_button_action(r)
+        atom_event("press", atom=src, via=via, click=click, rule=r.get("name"), result=result)
+        with open(STRIKE_LOG, "a") as fh:
+            fh.write(json.dumps({"kind": "atom_press", "utc": utc(), "atom": src, "click": click,
+                                 "rule": r.get("name"), "result": result}) + "\n")
+
+
 def atom_loop():
-    seen = set()       # (src, boot, seq) presses already handled
-    last_count = {}    # fid -> radio_plays last seen
+    """Watch the primary listener lantern's Atom press count and classify clicks.
+
+    Only the primary listener's count drives presses (a press reaches every lantern,
+    so counting several would double-count); other lanterns are polled in rotation
+    only to keep relay mode applied. Press times come from the poll time minus the
+    lantern's reported press age, so two presses within DOUBLE_CLICK_S make a double
+    click even when they land in different polls."""
+    last_count, last_listener = None, None
+    pending = {}   # src -> {"n": presses, "t": time of latest press}
     tick = 0
     while True:
-        time.sleep(0.25)
+        time.sleep(0.15)
         try:
+            now = time.time()
+            for src, pc in list(pending.items()):  # a lone press becomes a single click once the window passes
+                if pc["n"] == 1 and now - pc["t"] > DOUBLE_CLICK_S:
+                    pending.pop(src)
+                    dispatch_click(src, 1, ATOM["listener"])
             with state_lock:
                 online = [f for f in STATE.get("order", []) if f in lanterns and not lanterns[f].get("offline")]
             if not online:
                 continue
-            # Primary listener every tick; one other lantern in rotation every 4th tick
-            # keeps relay mode applied everywhere.
             listener = ATOM["listener"] if ATOM["listener"] in online else online[0]
             ATOM["listener"] = listener
-            batch = [listener]
+            if listener != last_listener:
+                last_count, last_listener = None, listener  # new baseline for a new listener
             tick += 1
-            if tick % 4 == 0:
+            if tick % 6 == 0:
                 others = [f for f in online if f != listener]
                 if others:
-                    batch.append(others[(tick // 4) % len(others)])
-            for fid in batch:
-                d = poll_lantern(fid)
-                if not d or "radio_plays" not in d:
-                    continue
-                count, prev = d.get("radio_plays") or 0, last_count.get(fid)
-                last_count[fid] = count
-                if prev is None or count <= prev:
-                    continue  # first sight establishes the baseline; no new press
-                key = (d.get("radio_last_src"), d.get("radio_last_boot"), d.get("radio_last_seq"))
-                if key in seen:
-                    continue
-                seen.add(key)
-                src = d.get("radio_last_src")
-                if ATOM["learn"]:
-                    ATOM["learn"], ATOM["learned"] = False, src
-                    atom_event("learned", atom=src, via=fid)
-                    continue
-                with state_lock:
-                    rules = [r for r in STATE.get("interactions", []) if r.get("kind") == "button"
-                             and r.get("enabled", True) and (r.get("trigger") or {}).get("atom") in (src, "any")]
-                if not rules:
-                    atom_event("press", atom=src, via=fid, result="no button rule for this Atom")
-                    continue
-                for r in rules:
-                    result = run_button_action(r)
-                    atom_event("press", atom=src, via=fid, rule=r.get("name"), result=result)
-                    with open(STRIKE_LOG, "a") as fh:
-                        fh.write(json.dumps({"kind": "atom_press", "utc": utc(), "atom": src, "rule": r.get("name"),
-                                             "result": result}) + "\n")
+                    poll_lantern(others[(tick // 6) % len(others)])  # relay upkeep only
+            d = poll_lantern(listener)
+            if not d or "radio_plays" not in d:
+                continue
+            count = d.get("radio_plays") or 0
+            if last_count is None or count < last_count:
+                last_count = count
+                continue
+            n, last_count = count - last_count, count
+            if n <= 0:
+                continue
+            src = d.get("radio_last_src")
+            t_press = time.time() - (d.get("radio_last_age_ms") or 0) / 1000.0
+            pc = pending.get(src)
+            if pc and t_press - pc["t"] <= DOUBLE_CLICK_S:
+                pc["n"] += n
+            else:
+                pc = pending[src] = {"n": n, "t": t_press}
+            pc["t"] = t_press
+            if pc["n"] >= 2:
+                pending.pop(src, None)
+                dispatch_click(src, 2, listener)
         except Exception as ex:
             atom_event("error", result=str(ex))
 

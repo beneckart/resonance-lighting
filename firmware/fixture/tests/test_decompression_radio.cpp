@@ -65,6 +65,11 @@ int main() {
   CHECK(!button.tick(true,20100)); CHECK(!button.tick(true,20135));
   CHECK(!button.tick(false,20140)); CHECK(!button.tick(false,20175)); // cooldown
   CHECK(!button.tick(false,40000)); // no delayed trigger at cooldown expiry
+  // A second deliberate click 300 ms after the first is accepted (double click).
+  CHECK(!button.tick(true,50000)); CHECK(!button.tick(true,50035));
+  CHECK(!button.tick(false,50040)); CHECK(button.tick(false,50075));
+  CHECK(!button.tick(true,50200)); CHECK(!button.tick(true,50235));
+  CHECK(!button.tick(false,50340)); CHECK(button.tick(false,50375));
   button.begin(true,0xFFFFFFF0);
   CHECK(!button.tick(false,0xFFFFFFF5)); CHECK(button.tick(false,0x18));
   return testReport("decompression radio/roster/button");

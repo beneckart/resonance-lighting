@@ -160,6 +160,17 @@
         as not supported.</span></i>
     </div>
     <div class="seqwrap"><div class="seq" id="seq-grid"></div></div>
+    <div class="activebox">
+      <div class="toolbar" style="margin:0 0 6px">
+        <b style="font-size:14px">Active patterns</b>
+        <label class="status"><input type="checkbox" id="patactive"> this pattern is active</label>
+        <i class="info" tabindex="0" aria-label="About active patterns">i<span class="tip">
+          <b>Active patterns</b> are the ones in rotation. A button rule set to "switch a sensor rule to the next Active
+          pattern" (for example an Atom double click) moves the sensor rule on to the next ticked pattern, in name order,
+          so a press every hour gives a fresh performance. Untick patterns you are still working on.</span></i>
+      </div>
+      <div class="bxlist" id="activelist"></div>
+    </div>
   </section>
   <!-- Proximity: live sensor view and tuning -->
   <section class="tab" id="tab-proximity">
@@ -201,13 +212,18 @@
       <div class="ixcard">
         <div class="ixsentence">
           <span>When</span> <select id="bxatom" aria-label="Atom"></select> <button id="bxlearn">Learn</button>
-          <span>is pressed →</span>
+          <span>gets a</span>
+          <select id="bxclick" aria-label="Click type"><option value="single">single click</option><option value="double">double click</option><option value="any">click (any)</option></select>
+          <span>→</span>
           <select id="bxaction" aria-label="Action">
-            <option value="play_pattern">play a pattern</option><option value="next_pattern">step through patterns</option>
+            <option value="performance">play a performance, then go back</option>
+            <option value="next_active_pattern">switch a sensor rule to the next Active pattern</option>
+            <option value="play_pattern">play a pattern (keeps looping)</option><option value="next_pattern">step through patterns</option>
             <option value="stop">stop everything</option><option value="arm_interaction">start a sensor rule</option>
             <option value="toggle_proximity">turn proximity ding on/off</option>
           </select>
           <select id="bxpattern" aria-label="Pattern"></select>
+          <label class="status" id="bxloopswrap">for <input type="number" id="bxloops" min="1" max="32" step="1" style="width:56px"> loops</label>
           <select id="bxix" aria-label="Sensor rule"></select>
         </div>
         <div id="bxlist" class="bxlist"></div>

@@ -142,6 +142,7 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .ixreadout { display: flex; gap: 22px; margin: 12px 0 6px; }
 .ixreadout b { font-size: 24px; font-weight: 600; display: block; }
 .lbl2 { font-size: 11px; color: var(--muted); }
+.activebox { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
 .bxlist { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: 13px; }
 .bxlog { font: 12px ui-monospace, monospace; color: var(--muted); max-height: 180px; overflow: auto; }
 #bxatoms .row { margin-top: 4px; }

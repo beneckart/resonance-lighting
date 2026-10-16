@@ -124,8 +124,8 @@ static uint32_t sendSquad(uint8_t action,uint8_t minutes) {
 }
 static void play() {
   const uint32_t now=millis();
-  if (!radioReady || !enabled || (havePlayed && now-lastPlayMs<5000)) {
-    Serial.println("play refused: paused, radio unavailable or 5s cooldown");
+  if (!radioReady || !enabled || (havePlayed && now-lastPlayMs<DecompressionButton::PRESS_GAP_MS)) {
+    Serial.println("play refused: paused, radio unavailable or press gap");
     return;
   }
   lastPlayMs=now; havePlayed=true; ++presses;

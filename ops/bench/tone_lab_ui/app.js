@@ -786,6 +786,7 @@ function ixDraw() {
 }
 
 // ---- button rules (Atom presses) ----
+let warn0 = "";
 let BX = {relay: false, atoms: {}, events: [], listener: null, learn: false}, bxSince = 0, bxTimer = null, bxLog = [];
 function newButtonRule(nm) {
   const pat = ixPatterns()[0];
@@ -800,17 +801,22 @@ function renderBx() {
   $("bxatom").innerHTML = `<option value="any" ${r.trigger.atom === "any" ? "selected" : ""}>any Atom</option>` +
     [...known].map(id => `<option value="${id}" ${id === r.trigger.atom ? "selected" : ""}>${esc(atomName(id))}</option>`).join("");
   $("bxaction").value = a.type;
-  $("bxpattern").hidden = a.type !== "play_pattern"; $("bxix").hidden = a.type !== "arm_interaction";
+  $("bxclick").value = r.trigger.click || "single";
+  $("bxpattern").hidden = !["play_pattern", "performance"].includes(a.type);
+  $("bxloopswrap").hidden = a.type !== "performance"; $("bxloops").value = a.loops || 2;
+  $("bxix").hidden = !["arm_interaction", "next_active_pattern"].includes(a.type);
   $("bxpattern").innerHTML = pats.map(p => `<option value="${p.id}" ${p.id === a.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("") || '<option value="">make a pattern first</option>';
   const sensors = S.interactions.filter(x => x.kind !== "button");
-  $("bxix").innerHTML = sensors.map(x => `<option value="${x.id}" ${x.id === a.interaction_id ? "selected" : ""}>${esc(x.name)}</option>`).join("") || '<option value="">make a sensor rule first</option>';
-  if (a.type === "play_pattern" && !a.pattern_id && pats[0]) a.pattern_id = pats[0].id;
+  $("bxix").innerHTML = (a.type === "next_active_pattern" ? `<option value="" ${!a.interaction_id ? "selected" : ""}>whichever sensor rule is running</option>` : "") +
+    (sensors.map(x => `<option value="${x.id}" ${x.id === a.interaction_id ? "selected" : ""}>${esc(x.name)}</option>`).join("") || '<option value="">make a sensor rule first</option>');
+  if (["play_pattern", "performance"].includes(a.type) && !a.pattern_id && pats[0]) a.pattern_id = pats[0].id;
   if (a.type === "arm_interaction" && !a.interaction_id && sensors[0]) a.interaction_id = sensors[0].id;
+  if (a.type === "next_active_pattern" && !ixPatterns().some(p => p.active)) warn0 = "No patterns are Active yet: tick some on the Patterns tab.";
   $("bxlist").hidden = a.type !== "next_pattern";
   $("bxlist").innerHTML = '<span class="status">Each press plays the next of:</span>' + pats.map(p =>
     `<label><input type="checkbox" data-bxp="${p.id}" ${(a.pattern_ids || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("");
   $("bxenabled").checked = r.enabled !== false;
-  const warn = [];
+  const warn = warn0 ? [warn0] : []; warn0 = "";
   if (!BX.relay) warn.push("Turn on \"Atom buttons drive the Tone Lab\" (right) so presses reach these rules instead of playing the signature.");
   if (a.type === "next_pattern" && !(a.pattern_ids || []).length) warn.push("Tick the patterns to step through.");
   $("bxwarn").textContent = warn.join(" ");
@@ -839,6 +845,11 @@ async function bxPoll() {
     bxSince = Math.max(bxSince, ev.id);
     bxLog.push({...ev, text: bxText(ev)}); bxLog = bxLog.slice(-100);
     log(bxText(ev), ev.kind === "error" ? "bad" : "ok");
+    if (ev.kind === "rule_updated") {  // the server switched a sensor rule's pattern (e.g. a double click)
+      const rule = (S.interactions || []).find(x => x.id === ev.interaction_id);
+      if (rule) rule.pattern_id = ev.pattern_id;
+      if (UI.tab === "interactions") renderIx();
+    }
     if (ev.kind === "learned" && UI.tab === "interactions") {
       const rule = curRule(); if (rule.kind === "button") { rule.trigger.atom = ev.atom; save(); }
     }
@@ -848,6 +859,8 @@ async function bxPoll() {
 }
 $("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
 $("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };
+$("bxclick").onchange = e => { curRule().trigger.click = e.target.value; save(); };
+$("bxloops").onchange = e => { const v = Math.round(+e.target.value); curRule().action.loops = v >= 1 && v <= 32 ? v : 2; save(); renderBx(); };
 $("bxaction").onchange = e => { curRule().action.type = e.target.value; renderBx(); save(); };
 $("bxpattern").onchange = e => { curRule().action.pattern_id = e.target.value; save(); };
 $("bxix").onchange = e => { curRule().action.interaction_id = e.target.value; save(); };
@@ -969,12 +982,25 @@ function renderPatterns() {
     const i = +el.dataset.cell.split(":")[1]; (cellEls[i] = cellEls[i] || []).push(el);
   });
   playhead = -1;
+  renderActive(p);
   const nHits = Object.values(p.hits).reduce((a, v) => a + v.length, 0), nBad = Object.keys(bad).length;
   const minSteps = Math.ceil(CFG.min_gap / stepMs(p) - 1e-9);
   $("patinfo").innerHTML = `loop ${(p.steps * stepMs(p) / 1000).toFixed(2)} s · step ${Math.round(stepMs(p))} ms · ${nHits} hits · ` +
     (minSteps <= 1 ? "any step allowed on one lantern" : `one lantern needs ${minSteps} steps between hits`) +
     (nBad ? ` · <span class="bad">${nBad} lantern${nBad > 1 ? "s" : ""} too fast (under ${CFG.min_gap} ms)</span>` : "");
 }
+function renderActive(p) {
+  $("patactive").checked = !!p.active;
+  const pats = Object.values(S.patterns).map(normalize).sort((a, b) => a.name.localeCompare(b.name));
+  $("activelist").innerHTML = pats.map(x => `<label><input type="checkbox" data-active="${esc(x.name)}" ${x.active ? "checked" : ""}> ${esc(x.name)}</label>`).join("")
+    || '<span class="status">No patterns yet.</span>';
+}
+$("patactive").onchange = e => { curPattern().active = e.target.checked; renderActive(curPattern()); save(true); };
+$("activelist").addEventListener("change", e => {
+  const nm = e.target.dataset.active; if (!nm || !S.patterns[nm]) return;
+  S.patterns[nm].active = e.target.checked; renderActive(curPattern()); save(true);
+  log(`${nm} ${e.target.checked ? "is now Active (in rotation)" : "removed from rotation"}`);
+});
 function setCell(id, i, on) {
   const p = curPattern(), set = new Set(p.hits[id] || []);
   if (on) set.add(i); else set.delete(i);

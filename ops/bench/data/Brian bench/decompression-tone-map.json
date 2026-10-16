@@ -104,7 +104,7 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T19:01:39.639Z",
+  "updated_utc": "2026-10-16T21:15:20.062Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -272,6 +272,16 @@
           27
         ]
       }
+    },
+    "Pattern": {
+      "id": "pat-b28268fca9",
+      "name": "Pattern",
+      "bpm": 100,
+      "beats_per_bar": 4,
+      "bars": 1,
+      "steps_per_beat": 8,
+      "steps": 32,
+      "hits": {}
     }
   },
   "tone_links": [

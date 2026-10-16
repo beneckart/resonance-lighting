@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Atom single/double click; active patterns
+
+Tone lab button rules now match a click type (single, double or any). The
+Atom listener polls the primary lantern's press telemetry every ~150 ms and
+groups presses within 600 ms into a double click. New actions:
+- performance: play a pattern for N loops, then re-arm whatever sensor rule
+  was running before (Brian's single click: Freakout Mode, 2 loops).
+- next_active_pattern: rotate a sensor rule's pattern through the Patterns
+  tab's new "Active patterns" checklist, so the installation can get a fresh
+  pattern every hour or so with a double click.
+
+Atom firmware (Ben's `firmware/atom_decompression`): accepted-press gap drops
+from 5000 ms to `ATOM_PRESS_GAP_MS` (250 ms) so a second click gets through;
+a held press still never repeats. Receivers keep their own phrase cooldown, so
+without relay mode a fast second PLAY is just refused. Native button test
+extended for the double click (143 checks pass). Not yet flashed to the Atom.
+
 ## 2026-10-15 -- Brian + Claude -- Tone lab Interactions; Atom buttons as triggers
 
 Tone lab gained (all host-side over USB, for testing before firmware):
