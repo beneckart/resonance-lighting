@@ -1254,12 +1254,15 @@ class H(BaseHTTPRequestHandler):
                 return self.reply({"ok": False, "error": "minutes must be 0..120"}, 400)
             return self.reply(send_exact(fid, f"!D{fid}:{minutes}"))
         if self.path == "/api/state":
+            # Only real short fixture ids (6 hex) are kept, so a stray client value
+            # can never add phantom lanterns to the tone map.
+            real = lambda f: isinstance(f, str) and len(f) == 6 and all(c in "0123456789ABCDEF" for c in f)
             with state_lock:
-                STATE["lanterns"] = b.get("lanterns", STATE["lanterns"])
-                STATE["order"] = b.get("order", STATE["order"])
+                STATE["lanterns"] = {k: v for k, v in b.get("lanterns", STATE["lanterns"]).items() if real(k)}
+                STATE["order"] = [f for f in b.get("order", STATE["order"]) if real(f)]
                 STATE["presets"] = b.get("presets", STATE["presets"])
                 STATE["patterns"] = b.get("patterns", STATE["patterns"])
-                STATE["tone_links"] = b.get("tone_links", STATE["tone_links"])
+                STATE["tone_links"] = [f for f in b.get("tone_links", STATE["tone_links"]) if real(f)]
                 if pulse_ok(b.get("pulse_ms")):
                     STATE["pulse_ms"] = b["pulse_ms"]
                 save_state(STATE)

@@ -49,8 +49,10 @@ function save(now) {
 }
 // Keep every lantern ever classified in the ranking, even when unplugged, so a
 // partial hub never reshuffles the order; append newly seen lanterns at the end.
+const isFixtureId = id => /^[0-9A-F]{6}$/.test(id);
 function syncOrder() {
-  const known = new Set([...S.order, ...L.map(l => l.fixture_id), ...Object.keys(S.lanterns)]);
+  const known = new Set([...S.order, ...L.map(l => l.fixture_id), ...Object.keys(S.lanterns)].filter(isFixtureId));
+  S.order = S.order.filter(isFixtureId);
   known.forEach(id => { if (!S.order.includes(id)) S.order.push(id); });
   L.forEach(l => { if (l.callsign) meta(l.fixture_id).callsign = l.callsign; });
 }
@@ -239,7 +241,7 @@ function renderRanks() {
                  inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
     const linkBtn = `<input type="checkbox" data-sel="${id}" ${SEL.has(id) ? "checked" : ""} aria-label="Select ${esc(name(id))}">`;
     return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
-      ${linkBtn}<span class="k">${rank[id]}</span><span>${esc(name(id))} ${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
+      ${linkBtn}<span class="k">${i + 1}</span><span>${esc(name(id))} ${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
       <span class="dim">${l ? "hub " + l.hub : "not connected"}</span>
       <span class="dim">${pulseFor(id)} ms</span>
       <span class="dim">${m.latency_ms != null ? Math.round(m.latency_ms) + " ms lat" : ""}</span>
