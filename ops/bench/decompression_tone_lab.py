@@ -835,6 +835,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
     fids = [f for f in lanes if f in lanterns and not lanterns[f].get("offline")]
     st["skipped"] = [f for f in lanes if f not in fids]
     PLAYER["fids"] = set(fids)
+    PLAYER["phase"] = "check"
     with ProxPaused():
         locks = [lock_for(lanterns[f]["port"]) for f in fids]
         for lk in locks: lk.acquire()
@@ -858,6 +859,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                 lat = {f: (v if v is not None else fill) for f, v in lat.items()}
             lead = max(lat.values()) if lat else 0.0
             st["lead_ms"] = lead
+            PLAYER["phase"] = "play"  # write-only from here until the strike-count check
             # Sound for each hit lands at start + loop*loop_ms + offset (+ lead when compensating).
             t0 = time.perf_counter() + (start_epoch_ms / 1000.0 - time.time())
             sent = {f: 0 for f in conns}
@@ -880,6 +882,10 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                     sent[f] += 1
                 k += 1
                 st["loops_done"] = k
+            PLAYER["phase"] = "confirm"
+            side_end = time.time() + 1.5  # let a listener read that started during play finish
+            while PLAYER.get("side_reads") and time.time() < side_end:
+                time.sleep(0.02)
             time.sleep(0.4)
             short = []
             for f, s in conns.items():
@@ -903,6 +909,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                              "name": st.get("name")}) + "\n")
     PLAYER["running"] = False
     PLAYER["fids"] = set()
+    PLAYER["phase"] = None
 
 
 def start_pattern(p, loops, comp):
@@ -1325,8 +1332,13 @@ def poll_lantern(fid):
     locked = lk.acquire(blocking=False)
     # A USB pattern holds its lanterns' ports but only writes while playing, so the
     # listener may read alongside it (presses must still switch patterns mid-song).
-    if not locked and not (PLAYER["running"] and fid in PLAYER.get("fids", ())):
+    # Not during its identity and strike-count reads, though: two readers on one
+    # port steal each other's bytes and the player aborts. Presses made then are
+    # still counted by the lantern and picked up on the next poll.
+    if not locked and not (PLAYER["running"] and PLAYER.get("phase") == "play" and fid in PLAYER.get("fids", ())):
         return None
+    if not locked:
+        PLAYER["side_reads"] = PLAYER.get("side_reads", 0) + 1
     try:
         with serial.Serial(info["port"], 115200, timeout=0.05) as s:
             time.sleep(0.05)
@@ -1338,6 +1350,8 @@ def poll_lantern(fid):
     finally:
         if locked:
             lk.release()
+        else:
+            PLAYER["side_reads"] -= 1
     if not d or d.get("fixture_id") != fid:
         return None
     with state_lock:
