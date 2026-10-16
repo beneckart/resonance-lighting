@@ -772,7 +772,10 @@ function renderIx() {
   const nPerim = S.order.filter(isPerim).length;
   $("ixsrc").innerHTML = Object.entries(GROUP_SRC).map(([v, t]) =>
     `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerim} marked` : ""}</option>`).join("") + srcs.map(id =>
-    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("");
+    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("") +
+    // Known lights that can't drive a rule yet, shown (greyed) so they don't look forgotten.
+    S.order.filter(id => !srcs.includes(id)).map(id => `<option value="${id}" disabled>#${S.order.indexOf(id) + 1} ${esc(name(id))} — ${
+      isPerim(id) ? "perimeter sensor (VL53L5CX) not supported yet" : "no distance sensor reported"}</option>`).join("");
   $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
     : '<option value="">make a pattern first</option>';
   if (!r.pattern_id && pats[0]) r.pattern_id = pats[0].id;
