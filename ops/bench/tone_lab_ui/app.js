@@ -848,15 +848,19 @@ function renderIx() {
   bxTimer = bxTimer || setInterval(bxPoll, 400);
   if (r0.kind === "button") { renderBx(); return; }
   const r = r0, pats = ixPatterns();
-  const srcs = S.order.filter(id => !live(id) || live(id).tmf);
+  // Same rule as the Proximity tab: a light can drive a rule once its sensor (downlight TMF8820
+  // or perimeter VL53L5CX) has reported. Asleep is fine (it is used when it wakes).
+  const srcs = S.order.filter(pxHasSensor);
   srcs.sort((a, b) => isPerim(b) - isPerim(a));
-  const nPerim = S.order.filter(isPerim).length;
+  const nPerim = S.order.filter(isPerim).length, nPerimOk = srcs.filter(isPerim).length;
+  const why = id => !live(id) ? "not seen since the Tone Lab started (plug it in)"
+    : isPerim(id) ? "no sensor reporting yet (low battery or protection mode)" : "no distance sensor";
+  const kind = id => (live(id) || {}).vl ? "perimeter, VL53L5CX" : isPerim(id) ? "perimeter" : "";
   $("ixsrc").innerHTML = Object.entries(GROUP_SRC).map(([v, t]) =>
-    `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerim} marked` : ""}</option>`).join("") + srcs.map(id =>
-    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("") +
-    // Known lights that can't drive a rule yet, shown (greyed) so they don't look forgotten.
-    S.order.filter(id => !srcs.includes(id)).map(id => `<option value="${id}" disabled>#${S.order.indexOf(id) + 1} ${esc(name(id))} — ${
-      isPerim(id) ? "perimeter sensor (VL53L5CX) not supported yet" : "no distance sensor reported"}</option>`).join("");
+    `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerimOk} of ${nPerim} with a working sensor` : ""}</option>`).join("") + srcs.map(id =>
+    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${kind(id) ? ` (${kind(id)})` : ""}${live(id).offline ? " · asleep" : ""}</option>`).join("") +
+    // Known lights that can't drive a rule yet, shown (greyed) with the reason.
+    S.order.filter(id => !srcs.includes(id)).map(id => `<option value="${id}" disabled ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))} — ${why(id)}</option>`).join("");
   $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
     : '<option value="">make a pattern first</option>';
   if (!r.pattern_id && pats[0]) r.pattern_id = pats[0].id;
