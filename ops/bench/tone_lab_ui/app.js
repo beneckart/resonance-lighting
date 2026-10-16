@@ -43,7 +43,7 @@ function save(now) {
     patterns: S.patterns, pulse_ms: S.pulse_ms})
     .then(r => {
       const msg = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
-      $("saved").textContent = msg; if ($("patsaved")) $("patsaved").textContent = msg;
+      $("saved").textContent = msg; if ($("patsaved")) $("patsaved").textContent = msg; if ($("ixsaved")) $("ixsaved").textContent = "· " + msg;
     })
     .catch(() => { $("saved").textContent = "save failed"; });
   if (now) go(); else saveTimer = setTimeout(go, 300);
@@ -680,10 +680,56 @@ function bpmMax(p) {
   return best;
 }
 const ixShape = (x, c) => { x = Math.max(0, Math.min(1, x)); return c === "ease_in" ? x * x : c === "ease_out" ? 1 - (1 - x) * (1 - x) : x; };
+const CLICK_TXT = {single: "Single click", double: "Double click", any: "Single or double click"};
+const patName = id => (ixPatterns().find(p => p.id === id) || {}).name || "(no pattern)";
+const ixRunning = id => IX.armed && IX.rule_id === id;
+// One plain-English line per rule, for the list.
+function ruleSummary(r) {
+  if (r.kind === "button") {
+    const a = r.action, sens = S.interactions.find(x => x.id === a.interaction_id);
+    const did = {
+      performance: `play ${patName(a.pattern_id)} ${a.loops || 2}×, then go back to what was running`,
+      next_active_pattern: `switch ${sens ? `"${sens.name}"` : "the running sensor rule"} to the next Active pattern`,
+      play_pattern: `play ${patName(a.pattern_id)} on loop`,
+      next_pattern: `play the next of ${(a.pattern_ids || []).length} patterns`,
+      stop: "stop everything",
+      arm_interaction: `start sensor rule ${sens ? `"${sens.name}"` : "(pick one)"}`,
+      toggle_proximity: "turn proximity ding on/off",
+    }[a.type] || a.type;
+    return `${CLICK_TXT[r.trigger.click || "single"]} on ${atomName(r.trigger.atom)} → ${did}`;
+  }
+  return `${name(r.source)}'s sensor, ${Math.round(r.far_mm / 10)}→${Math.round(r.near_mm / 10)} cm: ${patName(r.pattern_id)} speeds up ${r.bpm_from}→${r.bpm_to} BPM`;
+}
+function renderIxList() {
+  const cur = curRule();
+  $("ixlist").innerHTML = S.interactions.map(r => {
+    const btn = r.kind === "button", run = !btn && ixRunning(r.id), off = btn && r.enabled === false;
+    const ctl = btn ? `<label title="A turned-off rule ignores clicks"><input type="checkbox" data-ixon="${r.id}" ${off ? "" : "checked"}> on</label>`
+      : run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`;
+    return `<div class="ixrow ${r.id === cur.id ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
+      <span class="kind">${btn ? "button" : "sensor"}</span>
+      <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>${ctl}</div>`;
+  }).join("");
+  const sig = S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "");
+  renderIxList.sig = sig;
+}
+$("ixlist").addEventListener("click", async e => {
+  const t = e.target;
+  if (t.dataset.ixon) return;
+  if (t.dataset.ixstart) { await armRule(S.interactions.find(x => x.id === t.dataset.ixstart)); return; }
+  if (t.dataset.ixstop) { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); return; }
+  const row = t.closest("[data-ixrow]"); if (!row) return;
+  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix); renderIx();
+});
+$("ixlist").addEventListener("change", e => {
+  const id = e.target.dataset.ixon; if (!id) return;
+  const r = S.interactions.find(x => x.id === id); r.enabled = e.target.checked; save(); renderIx();
+});
 function renderIx() {
   const r0 = curRule();
   $("ixbtnwrap").hidden = r0.kind !== "button"; $("ixsensorwrap").hidden = r0.kind === "button";
-  $("ixsel").innerHTML = S.interactions.map(x => `<option value="${x.id}" ${x.id === r0.id ? "selected" : ""}>${x.kind === "button" ? "Button: " : "Sensor: "}${esc(x.name)}</option>`).join("");
+  $("ixkind").textContent = r0.kind === "button" ? "Editing button rule" : "Editing sensor rule";
+  renderIxList(); renderBxPanel();
   if (document.activeElement !== $("ixname")) $("ixname").value = r0.name;
   ixTimer = ixTimer || setInterval(ixPoll, 150);
   bxTimer = bxTimer || setInterval(bxPoll, 400);
@@ -712,20 +758,19 @@ function ixWarn() {
     if (Object.keys(violations(slow)).length) msgs.push(`At ${slow.bpm} BPM some lanterns are already too fast; slow it down or edit the pattern.`);
   }
   if (r.near_mm >= r.far_mm) msgs.push("Near must be closer than far.");
-  if (IX.armed && IX.rule_id === r.id) msgs.push("Armed: disarm and re-arm to apply changes.");
+  if (IX.armed && IX.rule_id === r.id) msgs.push("Running: Stop and Start again to apply changes.");
   $("ixwarn").textContent = msgs.join(" ");
 }
 function ixField(id, key, scale, parse) {
   $(id).addEventListener("change", e => {
     const r = curRule(); r[key] = parse ? parse(e.target.value) * (scale || 1) : e.target.value;
-    save(); ixWarn(); ixDraw();
+    save(); ixWarn(); ixDraw(); renderIxList();
   });
 }
 ixField("ixfar", "far_mm", 10, Number); ixField("ixnear", "near_mm", 10, Number);
 ixField("ixbfrom", "bpm_from", 1, Number); ixField("ixbto", "bpm_to", 1, Number);
 ixField("ixsmooth", "smooth_s", 1, Number); ixField("ixidles", "idle_s", 1, Number);
 ixField("ixcurve", "curve"); ixField("ixidle", "idle"); ixField("ixsrc", "source"); ixField("ixpat", "pattern_id");
-$("ixsel").onchange = e => { UI.ix = e.target.value; lsSet("ix", UI.ix); renderIx(); };
 function ixUnique(base) { let n = base, k = 2; while (S.interactions.some(x => x.name === n)) n = `${base} ${k++}`; return n; }
 $("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
 $("ixdup").onclick = () => { const c = curRule(), r = {...JSON.parse(JSON.stringify(c)), id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
@@ -740,13 +785,13 @@ function ixRename() {
 }
 $("ixname").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ixRename(); } });
 $("ixname").addEventListener("blur", ixRename);
-$("ixarm").onclick = async () => {
-  const r = curRule();
+async function armRule(r) {
   const res = await api("/api/interaction/arm", {rule: r});
-  if (!res.ok) { log(res.error || "could not arm", "bad"); return; }
-  log(`armed "${r.name}": ${name(r.source)}'s sensor drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
-};
-$("ixdisarm").onclick = async () => { await api("/api/interaction/disarm", {}); log("interaction disarmed"); };
+  if (!res.ok) { log(res.error || "could not start the rule", "bad"); return; }
+  log(`started "${r.name}": ${name(r.source)}'s sensor drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
+}
+$("ixarm").onclick = () => armRule(curRule());
+$("ixdisarm").onclick = async () => { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); };
 function ixSendSim() {
   clearTimeout(ixSimTimer);
   ixSimTimer = setTimeout(() => api("/api/interaction/sim", {on: $("ixsimon").checked, mm: +$("ixsim").value * 10}), 60);
@@ -757,9 +802,10 @@ $("ixnobody").onclick = () => { $("ixsimon").checked = true; $("ixsimv").textCon
 async function ixPoll() {
   if (UI.tab !== "interactions") return;
   try { IX = await api("/api/interaction/status"); } catch (e) { return; }
-  $("ixstate").textContent = IX.armed ? `armed: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
-    (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not armed");
-  $("ixarm").disabled = IX.armed;
+  if (renderIxList.sig !== S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "")) renderIxList();
+  $("ixstate").textContent = IX.armed ? `running: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
+    (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not running");
+  $("ixarm").disabled = ixRunning(curRule().id);
   $("ixdist").textContent = IX.armed ? (IX.distance_mm != null ? Math.round(IX.distance_mm / 10) + " cm" : "nobody") : "–";
   $("ixbpm").textContent = IX.armed && IX.bpm != null ? Math.round(IX.bpm) : "–";
   $("ixtarget").textContent = IX.armed && IX.target_bpm != null ? Math.round(IX.target_bpm) : "–";
@@ -822,17 +868,30 @@ function renderBx() {
   $("bxlist").hidden = a.type !== "next_pattern";
   $("bxlist").innerHTML = '<span class="status">Each press plays the next of:</span>' + pats.map(p =>
     `<label><input type="checkbox" data-bxp="${p.id}" ${(a.pattern_ids || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("");
-  $("bxenabled").checked = r.enabled !== false;
+  $("bxhelp").textContent = {
+    performance: "Plays the pattern for that many loops, then goes back to whatever sensor rule was running (or silence).",
+    next_active_pattern: "Each click moves the sensor rule to the next pattern ticked under Active patterns (Patterns tab) and keeps it running.",
+    play_pattern: "Starts the pattern and keeps looping it until something else plays or stops.",
+    next_pattern: "Each click plays the next pattern from the ticked list, looping.",
+    stop: "Stops any pattern or sensor rule that's playing.",
+    arm_interaction: "Starts that sensor rule (stopping any other one).",
+    toggle_proximity: "Turns the Proximity tab's ding on or off.",
+  }[a.type] || "";
   const warn = warn0 ? [warn0] : []; warn0 = "";
-  if (!BX.relay) warn.push("Turn on \"Atom buttons drive the Tone Lab\" (right) so presses reach these rules instead of playing the signature.");
+  if (r.enabled === false) warn.push("This rule is turned off (checkbox in the list).");
   if (a.type === "next_pattern" && !(a.pattern_ids || []).length) warn.push("Tick the patterns to step through.");
   $("bxwarn").textContent = warn.join(" ");
   renderBxPanel();
 }
 function renderBxPanel() {
-  $("bxrelay").checked = BX.relay;
-  $("bxlistener").textContent = BX.learn ? "Learning: press the Atom you want to use now…"
-    : BX.listener ? `Listening through ${name(BX.listener)} (any lantern on the hub can hear the Atom).` : "No lantern available to listen.";
+  $("bxrelay").textContent = BX.relay ? "Atom buttons: ON" : "Atom buttons: off";
+  $("bxrelay").classList.toggle("on", !!BX.relay); $("bxrelay").setAttribute("aria-pressed", BX.relay ? "true" : "false");
+  $("bxmodetext").innerHTML = BX.relay
+    ? "<b>Clicks run your button rules.</b> Lanterns won't play their own signature when an Atom is pressed."
+    : "<b>Off:</b> pressing an Atom makes the lanterns play their signature, like at the show. Turn on to use the button rules below.";
+  const last = bxLog.filter(e => e.kind === "press").slice(-1)[0];
+  $("bxlistener").textContent = BX.learn ? "Detecting: press the Atom you want this rule to use…"
+    : (BX.listener ? `Hearing Atoms through ${name(BX.listener)}.` : "No lantern on USB to hear Atoms.") + (last ? ` Last: ${last.text} at ${last.utc.slice(11, 19)}.` : "");
   const ids = Object.keys(BX.atoms || {}).concat(bxLog.filter(e => e.atom && !(e.atom in (BX.atoms || {}))).map(e => e.atom));
   $("bxatoms").innerHTML = [...new Set(ids)].map(id => `<div class="row"><span class="status" style="width:90px">Atom ${id}</span>
     <input type="text" data-atomname="${id}" value="${esc((BX.atoms || {})[id] || "")}" placeholder="name it, e.g. Red button" style="width:180px"></div>`).join("");
@@ -862,24 +921,26 @@ async function bxPoll() {
     }
   }
   if (UI.tab === "interactions" && curRule().kind === "button" && (r.events.length || wasLearning !== BX.learn)) renderBx();
-  else if (UI.tab === "interactions" && curRule().kind === "button") renderBxPanel();
+  else if (UI.tab === "interactions") renderBxPanel();
+  if (UI.tab === "interactions" && r.events.length) renderIxList();
 }
 $("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+// Keep the list's one-line summaries current while editing (runs after the field handlers).
+$("ixbtnwrap").addEventListener("change", () => renderIxList());
 $("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };
 $("bxclick").onchange = e => { curRule().trigger.click = e.target.value; save(); };
 $("bxloops").onchange = e => { const v = Math.round(+e.target.value); curRule().action.loops = v >= 1 && v <= 32 ? v : 2; save(); renderBx(); };
 $("bxaction").onchange = e => { curRule().action.type = e.target.value; renderBx(); save(); };
 $("bxpattern").onchange = e => { curRule().action.pattern_id = e.target.value; save(); };
 $("bxix").onchange = e => { curRule().action.interaction_id = e.target.value; save(); };
-$("bxenabled").onchange = e => { curRule().enabled = e.target.checked; save(); };
 $("bxlist").addEventListener("change", e => {
   const id = e.target.dataset.bxp; if (!id) return;
   const a = curRule().action, set = new Set(a.pattern_ids || []);
   if (e.target.checked) set.add(id); else set.delete(id);
   a.pattern_ids = ixPatterns().map(p => p.id).filter(x => set.has(x)); save(); renderBx();
 });
-$("bxlearn").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {learn: true}))}; renderBxPanel(); log("press the Atom you want to use now…"); };
-$("bxrelay").onchange = async e => { BX = {...BX, ...(await api("/api/atom", {relay: e.target.checked}))}; renderBx(); };
+$("bxlearn").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {learn: true}))}; renderBxPanel(); log("press the Atom you want this rule to use now…"); };
+$("bxrelay").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {relay: !BX.relay}))}; renderIx(); };
 $("bxatoms").addEventListener("change", async e => {
   const id = e.target.dataset.atomname; if (!id) return;
   BX = {...BX, ...(await api("/api/atom", {name: {atom: id, name: e.target.value}}))}; renderBx();

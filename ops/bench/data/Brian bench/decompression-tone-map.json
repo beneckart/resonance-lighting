@@ -104,7 +104,7 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T21:41:46.619Z",
+  "updated_utc": "2026-10-16T21:48:03.981Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -190,7 +190,8 @@
       },
       "beats_per_bar": 4,
       "bars": 1,
-      "id": "pat-44e4cd74b8"
+      "id": "pat-44e4cd74b8",
+      "active": true
     },
     "Freakout Mode": {
       "id": "pat-b83cd398a2",
@@ -299,7 +300,8 @@
         "9F2638": [
           10
         ]
-      }
+      },
+      "active": true
     },
     "Drowning in Soup": {
       "id": "pat-e277b92abc",
@@ -339,7 +341,8 @@
           14,
           16
         ]
-      }
+      },
+      "active": true
     },
     "Thriller?": {
       "id": "pat-75261fcbfb",
@@ -372,7 +375,8 @@
         "9F0E54": [
           2
         ]
-      }
+      },
+      "active": true
     },
     "Pattern": {
       "id": "pat-233fe3d002",
@@ -382,7 +386,8 @@
       "bars": 1,
       "steps_per_beat": 8,
       "steps": 32,
-      "hits": {}
+      "hits": {},
+      "active": false
     }
   },
   "tone_links": [
@@ -404,6 +409,40 @@
       "smooth_s": 0.5,
       "idle": "stop",
       "idle_s": 3
+    },
+    {
+      "kind": "button",
+      "id": "ix-c53fe6",
+      "name": "Play performance then go back",
+      "enabled": true,
+      "trigger": {
+        "atom": "any"
+      },
+      "action": {
+        "type": "performance",
+        "pattern_id": "pat-b83cd398a2",
+        "pattern_ids": [
+          "pat-b83cd398a2"
+        ],
+        "interaction_id": null,
+        "loops": 2
+      }
+    },
+    {
+      "kind": "button",
+      "id": "ix-6b670f",
+      "name": "Next active pattern",
+      "enabled": true,
+      "trigger": {
+        "atom": "any",
+        "click": "double"
+      },
+      "action": {
+        "type": "next_active_pattern",
+        "pattern_id": "pat-44e4cd74b8",
+        "pattern_ids": [],
+        "interaction_id": ""
+      }
     }
   ],
   "atoms": {}

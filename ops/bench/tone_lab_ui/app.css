@@ -142,7 +142,7 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .pxbadge.learning { color: var(--warn); border-color: var(--warn); }
 
 /* Interactions tab */
-.ixwrap { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+.ixwrap:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 900px) { .ixwrap { grid-template-columns: minmax(0, 1fr); } }
 .ixcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .ixsentence { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 15px; }
@@ -151,9 +151,27 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .ixreadout b { font-size: 24px; font-weight: 600; display: block; }
 .lbl2 { font-size: 11px; color: var(--muted); }
 .activebox { margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
-.bxlist { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: 13px; }
+.bxlist:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: 13px; }
 .bxlog { font: 12px ui-monospace, monospace; color: var(--muted); max-height: 180px; overflow: auto; }
 #bxatoms .row { margin-top: 4px; }
+.ixmode { margin-bottom: 14px; }
+.ixmodehd { display: flex; gap: 14px; align-items: center; }
+.ixmodehd button { min-width: 170px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.ixmore { margin-top: 8px; } .ixmore summary { cursor: pointer; }
+.ixlisthd { margin: 0 0 6px; }
+.ixlist { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.ixrow { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; cursor: pointer; }
+.ixrow:hover { border-color: var(--muted); }
+.ixrow.sel { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
+.ixrow.off { opacity: .55; }
+.ixrow .what { flex: 1; min-width: 0; }
+.ixrow .what b { font-weight: 600; margin-right: 8px; }
+.ixrow .what .status { display: block; }
+.ixrow .kind { font-size: 11px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.ixrow .run { font-size: 11px; color: var(--ok); font-weight: 600; }
+.ixrow label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.ixempty { padding: 10px 0; }
 #ixplot { width: 100%; height: 180px; display: block; background: var(--bg); border-radius: 8px; }
 
 footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
