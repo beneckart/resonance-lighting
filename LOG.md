@@ -10,6 +10,23 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- new perimeter intake reset noted
+
+The new perimeter remains unidentified and connected through its enclosure
+USB extension. Ben reports one or two days of sunlight, otherwise untouched
+before this intake. At approximately 14:59 PDT he reported accidentally
+pressing RESET while the extension was still connected. No application
+telemetry had been captured before that intervention, so subsequent boot
+evidence must not be described as the untouched first wake.
+
+The 14:53:41 PDT capture completed its 210 seconds with no serial port or
+telemetry. A second, longer read-only capture started at 14:57:13; through
+the 14:59 check it also recorded no port, and Windows showed neither a present
+COM port nor a failed USB device. This does not yet isolate extension failure
+from device state. Requested direct USB with the same laptop cable, battery
+attached, and no further button presses. No host reset, configuration change
+or firmware write was performed.
+
 ## 2026-10-16 -- Ben + Codex -- corrected Marill pre-autopsy exposure history
 
 Ben recalled that Marill may have seen sun before its October 15 autopsy.
