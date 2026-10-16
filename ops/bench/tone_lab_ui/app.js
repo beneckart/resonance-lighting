@@ -719,32 +719,44 @@ function ruleSummary(r) {
 }
 function renderIxList() {
   const cur = curRule();
-  $("ixlist").innerHTML = S.interactions.map(r => {
+  const rowHtml = r => {
     const btn = r.kind === "button", run = !btn && ixRunning(r.id), off = btn && r.enabled === false;
     const ctl = btn ? `<label title="A turned-off rule ignores clicks"><input type="checkbox" data-ixon="${r.id}" ${off ? "" : "checked"}> on</label>`
       : (run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`) +
         `<label title="Triple click switches between the sensor rules in rotation"><input type="checkbox" data-ixrot="${r.id}" ${r.active_trigger ? "checked" : ""}> in rotation</label>`;
-    return `<div class="ixrow ${r.id === cur.id ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
+    const editing = r.id === cur.id;
+    return `<div class="ixrow ${editing ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
       <span class="kind">${btn ? "button" : "sensor"}</span>
-      <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>${ctl}</div>`;
-  }).join("");
+      <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>
+      <span class="ctl">${ctl}</span>
+      <button class="edit ${editing ? "on" : ""}" data-ixedit="${r.id}">${editing ? "Editing ▾" : "✎ Edit"}</button></div>`;
+  };
+  // The editor sits directly under the rule being edited: rows up to it go above, the rest below.
+  const k = S.interactions.findIndex(r => r.id === cur.id);
+  $("ixlist").innerHTML = S.interactions.slice(0, k + 1).map(rowHtml).join("");
+  $("ixlist2").innerHTML = S.interactions.slice(k + 1).map(rowHtml).join("");
   const sig = S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "");
   renderIxList.sig = sig;
 }
-$("ixlist").addEventListener("click", async e => {
+async function ixListClick(e) {
   const t = e.target;
-  if (t.dataset.ixon || t.dataset.ixrot || t.tagName === "LABEL") return;
+  if (t.closest(".ctl label")) return;  // checkboxes keep their own job
   if (t.dataset.ixstart) { await armRule(S.interactions.find(x => x.id === t.dataset.ixstart)); return; }
   if (t.dataset.ixstop) { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); return; }
   const row = t.closest("[data-ixrow]"); if (!row) return;
-  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix); renderIx();
-});
-$("ixlist").addEventListener("change", e => {
+  const same = UI.ix === row.dataset.ixrow;
+  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix);
+  if (!same) renderIx();
+  $("ixeditor").scrollIntoView({block: "nearest", behavior: "smooth"});
+  if (t.dataset.ixedit) $("ixname").focus();
+}
+function ixListChange(e) {
   const rid = e.target.dataset.ixrot;
   if (rid) { const r = S.interactions.find(x => x.id === rid); r.active_trigger = e.target.checked; save(); renderIx(); return; }
   const id = e.target.dataset.ixon; if (!id) return;
   const r = S.interactions.find(x => x.id === id); r.enabled = e.target.checked; save(); renderIx();
-});
+}
+for (const el of ["ixlist", "ixlist2"]) { $(el).addEventListener("click", ixListClick); $(el).addEventListener("change", ixListChange); }
 function renderIx() {
   const r0 = curRule();
   $("ixbtnwrap").hidden = r0.kind !== "button"; $("ixsensorwrap").hidden = r0.kind === "button";
@@ -757,7 +769,7 @@ function renderIx() {
   const r = r0, pats = ixPatterns();
   const srcs = S.order.filter(id => !live(id) || live(id).tmf);
   srcs.sort((a, b) => isPerim(b) - isPerim(a));
-  const nPerim = srcs.filter(isPerim).length;
+  const nPerim = S.order.filter(isPerim).length;
   $("ixsrc").innerHTML = Object.entries(GROUP_SRC).map(([v, t]) =>
     `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerim} marked` : ""}</option>`).join("") + srcs.map(id =>
     `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${isPerim(id) ? " (perimeter)" : ""}</option>`).join("");

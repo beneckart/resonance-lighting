@@ -118,7 +118,7 @@
     "F3FD28",
     "F401DC"
   ],
-  "updated_utc": "2026-10-16T22:44:12.959Z",
+  "updated_utc": "2026-10-16T22:50:30.461Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -558,7 +558,7 @@
       "smooth_s": 0.5,
       "idle": "stop",
       "idle_s": 3,
-      "active_trigger": true
+      "active_trigger": false
     },
     {
       "id": "ix-5aa04c",
@@ -573,7 +573,7 @@
       "smooth_s": 0.5,
       "idle": "stop",
       "idle_s": 3,
-      "active_trigger": true
+      "active_trigger": false
     },
     {
       "kind": "button",
