@@ -534,6 +534,9 @@ function pxControls() {
 }
 const pxActive = id => (PX.active || []).includes(id);
 const pxHasSensor = id => { const l = live(id); return !!l && (l.tmf || l.vl); };
+// Usable = on USB right now with a sensor reporting. Proximity reads come over USB only, so an
+// unplugged or sleeping light can't be watched (there's no radio path for sensor data yet).
+const pxUsable = id => { const l = live(id); return !!l && !l.offline && pxHasSensor(id); };
 function pxIds() {
   const show = $("pxshow").value;
   let ids = S.order.slice();
@@ -548,14 +551,15 @@ function renderProxTab() {
   pxControls();
   $("pxgrid").innerHTML = pxIds().map(id => {
     const vl = (live(id) || {}).vl, m = meta(id);
-    return `<div class="pxcard" data-pxcard="${id}">
+    const dis = pxUsable(id) || pxActive(id) ? "" : "disabled";
+    return `<div class="pxcard ${dis ? "unusable" : ""}" data-pxcard="${id}">
       <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
-        <button data-pxtoggle="${id}" class="${pxActive(id) ? "on" : ""}">${pxActive(id) ? "● On" : "Off"}</button></div>
+        <button data-pxtoggle="${id}" class="${pxActive(id) ? "on" : ""}" ${dis}>${pxActive(id) ? "● On" : "Off"}</button></div>
       <div class="row" style="margin-top:4px">
         <label class="status">range <input type="number" min="10" max="400" step="10" style="width:60px" data-pxrng="${id}"
           value="${m.prox_range_mm ? Math.round(m.prox_range_mm / 10) : ""}" placeholder="${Math.round((PX.range_mm || 600) / 10)}"> cm</label>
-        <button data-pxrelearn="${id}" title="Relearn this sensor's background (keep clear 1.5 s)">Relearn</button>
-        <button data-pxtest="${id}" title="Record 30 s and report the distances this sensor saw">Range test</button>
+        <button data-pxrelearn="${id}" title="Relearn this sensor's background (keep clear 1.5 s)" ${dis}>Relearn</button>
+        <button data-pxtest="${id}" title="Record 30 s and report the distances this sensor saw" ${dis}>Range test</button>
         <span class="status">${vl ? "VL53L5CX · outward 4×4" : (live(id) || {}).tmf ? "TMF8820 · down 3×3" : ""}</span></div>
       <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid ${vl ? "z4" : ""}" data-pxz="${id}" title="The sensor's zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = person."></div></div>
       <div class="st" data-pxst="${id}"></div><div class="st pxtest" data-pxtres="${id}">${PXT[id] && PXT[id].result ? PXT[id].result : ""}</div></div>`;
@@ -579,7 +583,8 @@ async function proxTick() {
     const px = await api("/api/prox?since=" + PXV.evSince);
     const was = (PX.active || []).join();
     PX = px;
-    if (was !== (px.active || []).join()) { setProxBtn(); renderProxTab(); }
+    const usable = S.order.filter(pxUsable).join();
+    if (was !== (px.active || []).join() || usable !== PXV.usable) { PXV.usable = usable; setProxBtn(); renderProxTab(); }
     for (const ev of px.events) {
       PXV.evSince = Math.max(PXV.evSince, ev.id);
       PXV.events.push(ev);
@@ -634,7 +639,8 @@ function pxDrawAll() {
     const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20) ? `sees ${Math.round(v.depth_mm / 10)} cm` : (v ? "sees nothing" : "");
     const nz = v && v.zones ? v.zones.length : 9, nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
     const dings = PXV.dings[id] ? ` · ${PXV.dings[id]} detection${PXV.dings[id] > 1 ? "s" : ""}` : "";
-    st.textContent = !pxHasSensor(id) ? (isPerim(id) ? "No sensor reporting yet (low battery or protection mode can keep it unpowered)." : "This lantern has no distance sensor.")
+    st.textContent = (!l || l.offline) ? (l ? "Asleep or unplugged: plug it in (and keep it awake) to watch its sensor." : "Not connected over USB.")
+      : !pxHasSensor(id) ? (isPerim(id) ? "No sensor reporting yet (low battery or protection mode can keep it unpowered)." : "This lantern has no distance sensor.")
       : !pxActive(id) ? "Off: click Off to start watching this sensor."
       : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of ${nz} zones blocked (ignored)${dings}` : `${now}${bgTxt}${dings}`;
     pxDraw(id, C, v);

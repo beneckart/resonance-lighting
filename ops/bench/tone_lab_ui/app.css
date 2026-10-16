@@ -124,6 +124,8 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 /* Proximity tab */
 .pxgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
 .pxcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.pxcard.unusable { opacity: .45; }
+.pxcard.unusable canvas, .pxcard.unusable .zgrid { filter: grayscale(1); }
 .pxcard.ding { outline: 3px solid var(--ok); }
 .pxcard .hdr { display: flex; align-items: center; gap: 8px; }
 .pxcard .hdr .nm { font-weight: 600; flex: 1; }

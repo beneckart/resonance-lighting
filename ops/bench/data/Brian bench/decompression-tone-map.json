@@ -102,7 +102,8 @@
       "type": null,
       "note": "",
       "callsign": "Zubat",
-      "role": "perimeter"
+      "role": "perimeter",
+      "prox_range_mm": 2000
     }
   },
   "order": [
@@ -118,7 +119,7 @@
     "F3FD28",
     "F401DC"
   ],
-  "updated_utc": "2026-10-16T23:21:38.944Z",
+  "updated_utc": "2026-10-16T23:30:58.519Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
