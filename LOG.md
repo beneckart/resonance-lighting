@@ -10,6 +10,29 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- bright-shade range observation started
+
+Ben brought Marill into fairly bright outdoor shade around 14:00 Pacific.
+Caught a normal timer wake and opened a 60-minute session at 14:13; unchanged
+fx-261016-220d90a-b, FULL, battery about 3.60 V, no active PROTECT retry.
+All nine receivers became READY with zero radio errors/restarts. The initial
+353 viewer samples (14:13:21..14:14:39) had fresh sensor frames but no nonzero
+zone distances and no triggers. A deliberate palm-at-10..40-cm check was
+requested but not confirmed, so this is not evidence of failed hand detection
+or a measured outdoor range. No illuminance measurement was available.
+
+USB writes timed out at 14:14:40 while the session was active, then COM7
+disappeared. Restarted the read-only viewer without resetting Marill; it is
+waiting for reconnection. Browser policy prevented automatic access/reload
+of the existing local graph tab. No firmware or persistent settings changed.
+ST VL53L5CX datasheet Rev 13, sections 7.2.1/7.2.2, documents ambient-light
+range reduction; its full-field laboratory targets do not establish this
+hand/cover/lighting setup's range. Physical daylight test remains open.
+Evidence: Oakland/20261016T211044Z-F40348-trigger-command.jsonl,
+20261016T211059Z-F40348-live-presence.jsonl (closed), and
+20261016T211505Z-F40348-shade-observation.json. Continuing viewer:
+20261016T211520Z-F40348-live-presence.jsonl.
+
 ## 2026-10-15 -- Ben + Codex -- Marill replacement USB extension passed wake cycle
 
 Ben confirmed the new presence band feels good, then connected a new USB

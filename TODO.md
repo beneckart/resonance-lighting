@@ -14,6 +14,8 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   Ben confirmed the 5..40 cm band with 60 cm rearm works on the bench.
   Recheck in the final event placement. All three
   bounds are adjustable in RAM over framed USB (software floor 3 cm).
+  Bright-shade check on 2026-10-16 remains unqualified: initial empty-distance
+  frames, then USB loss before a confirmed palm-in-view observation.
   Keep bounded sessions and PROTECT recovery. (Ben + Codex)
 
 ## 2027 planning -- exploration, no implementation yet
