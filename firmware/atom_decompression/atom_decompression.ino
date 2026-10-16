@@ -35,6 +35,13 @@ static Peer peers[SQUAD_COUNT];
 static QueueHandle_t rxQueue;
 static Adafruit_NeoPixel pixels(25, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 static DecompressionButton button;
+static uint8_t queuedPresses=0;
+// Sample the button and queue any accepted press. Called from loop() and while
+// sendSquad() is busy (~90 ms), so the release between the two presses of a
+// quick double click is never missed.
+static void sampleButton() {
+  if (button.tick(digitalRead(BUTTON_PIN)==HIGH,millis()) && queuedPresses<4) ++queuedPresses;
+}
 static uint8_t myId[3];
 static uint32_t bootNonce, txSeq = 0, leaseSeq = 0, playSeq = 0;
 static uint32_t nextLeaseMs = 0, lastPlayMs = 0, nextStatusMs = 0;
@@ -117,14 +124,17 @@ static uint32_t sendSquad(uint8_t action,uint8_t minutes) {
       c.controller_boot=bootNonce; c.action=action; c.minutes=minutes;
       if (esp_now_send(BCAST,(const uint8_t *)&c,sizeof(c))!=ESP_OK)
         Serial.printf("send refused %s seq=%lu\n",SQUAD[i].name,(unsigned long)seq);
-      delay(3);
+      for (const uint32_t t=millis(); millis()-t<3;) { sampleButton(); delayMicroseconds(250); }
     }
   }
   return seq;
 }
-static void play() {
+// Button presses were already spaced by DecompressionButton at press time (a
+// queued one may run right after the previous send), so only USB "play" is
+// throttled here.
+static void play(bool fromButton) {
   const uint32_t now=millis();
-  if (!radioReady || !enabled || (havePlayed && now-lastPlayMs<DecompressionButton::PRESS_GAP_MS)) {
+  if (!radioReady || !enabled || (!fromButton && havePlayed && now-lastPlayMs<DecompressionButton::PRESS_GAP_MS)) {
     Serial.println("play refused: paused, radio unavailable or press gap");
     return;
   }
@@ -165,7 +175,7 @@ static void serialTick() {
     line[used]=0;
     if (!overflow) {
       if (!strcmp(line,"t")) status();
-      else if (!strcmp(line,"play")) play();
+      else if (!strcmp(line,"play")) play(false);
       else if (!strcmp(line,"pause")) {
         enabled=false;
         if (radioReady) leaseSeq=sendSquad(NB_DECOMP_SESSION,0);
@@ -211,7 +221,8 @@ void setup() {
 void loop() {
   if (radioReady) drain();
   serialTick();
-  if (button.tick(digitalRead(BUTTON_PIN)==HIGH,millis())) play();
+  sampleButton();
+  while (queuedPresses) { --queuedPresses; play(true); }
   if (radioReady && enabled && (int32_t)(millis()-nextLeaseMs)>=0 &&
       (!havePlayed || millis()-lastPlayMs>4500)) {
     leaseSeq=sendSquad(NB_DECOMP_SESSION,5);
