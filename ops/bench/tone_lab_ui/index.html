@@ -186,7 +186,8 @@
     <div class="toolbar">
       <select id="ixsel" aria-label="Interaction"></select>
       <input type="text" id="ixname" aria-label="Interaction name" placeholder="Interaction name" style="width:190px">
-      <button id="ixnew">New</button><button id="ixdup">Duplicate</button><button id="ixdel">Delete</button>
+      <button id="ixnew">New sensor rule</button><button id="ixnewbtn">New button rule</button>
+      <button id="ixdup">Duplicate</button><button id="ixdel">Delete</button>
       <span class="status" id="ixsaved"></span>
       <i class="info" tabindex="0" aria-label="About interactions">i<span class="tip r">
         An <b>interaction</b> lets a lantern's distance sensor change a pattern while it plays. Someone at the
@@ -196,7 +197,33 @@
         never goes past the pattern's fastest safe BPM (each lantern needs 250 ms between hits). Use <b>Simulate</b> to
         try it from your seat. Runs from this laptop over USB; firmware support would let it run standalone later.</span></i>
     </div>
-    <div class="ixwrap">
+    <div class="ixwrap" id="ixbtnwrap" hidden>
+      <div class="ixcard">
+        <div class="ixsentence">
+          <span>When</span> <select id="bxatom" aria-label="Atom"></select> <button id="bxlearn">Learn</button>
+          <span>is pressed →</span>
+          <select id="bxaction" aria-label="Action">
+            <option value="play_pattern">play a pattern</option><option value="next_pattern">step through patterns</option>
+            <option value="stop">stop everything</option><option value="arm_interaction">start a sensor rule</option>
+            <option value="toggle_proximity">turn proximity ding on/off</option>
+          </select>
+          <select id="bxpattern" aria-label="Pattern"></select>
+          <select id="bxix" aria-label="Sensor rule"></select>
+        </div>
+        <div id="bxlist" class="bxlist"></div>
+        <label class="status"><input type="checkbox" id="bxenabled"> enabled</label>
+        <p class="status" id="bxwarn"></p>
+      </div>
+      <div class="ixcard">
+        <label class="status" style="display:block;margin-bottom:6px"><input type="checkbox" id="bxrelay"> <b>Atom buttons drive the Tone Lab</b>
+          (lanterns stop playing their own signature when pressed)</label>
+        <p class="status" id="bxlistener"></p>
+        <div id="bxatoms"></div>
+        <p class="lbl2" style="margin:10px 0 4px">Recent presses</p>
+        <div id="bxlog" class="bxlog"></div>
+      </div>
+    </div>
+    <div class="ixwrap" id="ixsensorwrap">
       <div class="ixcard">
         <div class="ixsentence">
           <span>When someone is between</span>

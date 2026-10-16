@@ -78,7 +78,8 @@ STATE.setdefault("pulse_ms", ARGS.pulse_ms)
 STATE.setdefault("presets", {})
 STATE.setdefault("patterns", {})
 STATE.setdefault("tone_links", [])  # lanterns marked "same tone as the one above" in the order
-STATE.setdefault("interactions", [])  # sensor -> pattern-variable rules (Interactions tab)
+STATE.setdefault("interactions", [])  # sensor -> pattern-variable rules and Atom button rules
+STATE.setdefault("atoms", {})         # Atom radio id -> friendly name
 # The app caps pulses well below the firmware's 300 ms limit while widths are being explored.
 PULSE_MIN_MS, PULSE_MAX_MS = 5, 100
 
@@ -121,6 +122,10 @@ def summarize(port, d):
         "pattern_playing": d.get("pattern_playing"), "pattern_role": d.get("pattern_role"),
         "pattern_locked": d.get("pattern_locked"), "pattern_conductor": d.get("pattern_conductor"),
         "pattern_left_s": d.get("pattern_left_s"), "pattern_played": d.get("pattern_played"),
+        # Atom presses heard over radio (fx-261016+): count, last source, relay mode
+        "radio_plays": d.get("radio_plays"), "radio_last_src": d.get("radio_last_src"),
+        "radio_last_boot": d.get("radio_last_boot"), "radio_last_seq": d.get("radio_last_seq"),
+        "radio_relay": d.get("radio_relay"),
     }
 
 
@@ -829,6 +834,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
     st = PLAYER["status"]
     fids = [f for f in lanes if f in lanterns and not lanterns[f].get("offline")]
     st["skipped"] = [f for f in lanes if f not in fids]
+    PLAYER["fids"] = set(fids)
     with ProxPaused():
         locks = [lock_for(lanterns[f]["port"]) for f in fids]
         for lk in locks: lk.acquire()
@@ -896,6 +902,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                              "compensated": bool(comp), "status": {k: v for k, v in st.items() if k != "name"},
                              "name": st.get("name")}) + "\n")
     PLAYER["running"] = False
+    PLAYER["fids"] = set()
 
 
 def start_pattern(p, loops, comp):
@@ -1289,6 +1296,173 @@ def arm_interaction(rule):
     return {"ok": True, **INTERACT["status"]}
 
 
+# ---------------------------------------------------------------------------
+# Atom buttons (ADR 0083 controllers) as tone lab triggers. The laptop has no
+# radio, so a lantern on the hub relays: its telemetry counts admitted Atom PLAY
+# presses with the source Atom and sequence. One press reaches all nine with the
+# same (source, boot, sequence), so presses are deduplicated across lanterns.
+# Relay mode (`!R<id>:1`, RAM-only) stops lanterns playing their own signature so
+# a press only does what the button rule says; it is re-applied after resets.
+# Button rule: {kind: "button", id, name, trigger: {atom: "<id>"|"any"},
+#               action: {type: play_pattern|stop|next_pattern|arm_interaction|toggle_proximity,
+#                        pattern_id, pattern_ids, interaction_id}}
+# ---------------------------------------------------------------------------
+ATOM = {"relay": False, "learn": False, "learned": None, "listener": None, "events": [], "cycle": {}}
+
+
+def atom_event(kind, **kw):
+    ATOM["events"].append({"id": len(ATOM["events"]) + 1, "utc": utc(), "kind": kind, **kw})
+    del ATOM["events"][:-300]
+
+
+def poll_lantern(fid):
+    """Non-blocking telemetry read (skips a busy port). Updates the lantern table."""
+    info = lanterns.get(fid)
+    if not info or info.get("offline"):
+        return None
+    lk = lock_for(info["port"])
+    locked = lk.acquire(blocking=False)
+    # A USB pattern holds its lanterns' ports but only writes while playing, so the
+    # listener may read alongside it (presses must still switch patterns mid-song).
+    if not locked and not (PLAYER["running"] and fid in PLAYER.get("fids", ())):
+        return None
+    try:
+        with serial.Serial(info["port"], 115200, timeout=0.05) as s:
+            time.sleep(0.05)
+            d = telemetry(s, wait=1.0)
+            if locked and d and d.get("fixture_id") == fid and "radio_relay" in d and ATOM["relay"] != bool(d.get("radio_relay")):
+                s.write(f"!R{fid}:{1 if ATOM['relay'] else 0}\n".encode())  # RAM-only: re-apply after any reset
+    except Exception:
+        return None
+    finally:
+        if locked:
+            lk.release()
+    if not d or d.get("fixture_id") != fid:
+        return None
+    with state_lock:
+        lanterns[fid] = summarize(info["port"], d)
+    return d
+
+
+def run_button_action(rule):
+    a = rule.get("action") or {}
+    kind = a.get("type")
+
+    def stop_all():
+        INTERACT["stop"].set()
+        PLAYER["stop"].set()
+        for _ in range(40):  # let the current pattern/interaction release its ports
+            if not PLAYER["running"] and not INTERACT["armed"]:
+                break
+            time.sleep(0.05)
+
+    def play(pid):
+        p = find_pattern(pid)
+        if not p:
+            return "pattern not found"
+        stop_all()
+        r = start_pattern(p, 0, False)
+        return f"playing {p.get('name')}" if r.get("ok") else r.get("error")
+
+    if kind == "stop":
+        stop_all()
+        return "stopped"
+    if kind == "play_pattern":
+        return play(a.get("pattern_id"))
+    if kind == "next_pattern":
+        ids = [x for x in (a.get("pattern_ids") or []) if find_pattern(x)]
+        if not ids:
+            return "no patterns in the list"
+        i = (ATOM["cycle"].get(rule.get("id"), -1) + 1) % len(ids)
+        ATOM["cycle"][rule.get("id")] = i
+        return play(ids[i])
+    if kind == "arm_interaction":
+        with state_lock:
+            r = next((x for x in STATE.get("interactions", []) if x.get("id") == a.get("interaction_id")), None)
+        if not r:
+            return "interaction not found"
+        stop_all()
+        res = arm_interaction(r)
+        return f"armed {r.get('name')}" if res.get("ok") else res.get("error")
+    if kind == "toggle_proximity":
+        st = set_proximity(not PROX["on"], silent=False)
+        return "proximity ding " + ("on" if st["on"] else "off")
+    return "no action set"
+
+
+def atom_loop():
+    seen = set()       # (src, boot, seq) presses already handled
+    last_count = {}    # fid -> radio_plays last seen
+    tick = 0
+    while True:
+        time.sleep(0.25)
+        try:
+            with state_lock:
+                online = [f for f in STATE.get("order", []) if f in lanterns and not lanterns[f].get("offline")]
+            if not online:
+                continue
+            # Primary listener every tick; one other lantern in rotation every 4th tick
+            # keeps relay mode applied everywhere.
+            listener = ATOM["listener"] if ATOM["listener"] in online else online[0]
+            ATOM["listener"] = listener
+            batch = [listener]
+            tick += 1
+            if tick % 4 == 0:
+                others = [f for f in online if f != listener]
+                if others:
+                    batch.append(others[(tick // 4) % len(others)])
+            for fid in batch:
+                d = poll_lantern(fid)
+                if not d or "radio_plays" not in d:
+                    continue
+                count, prev = d.get("radio_plays") or 0, last_count.get(fid)
+                last_count[fid] = count
+                if prev is None or count <= prev:
+                    continue  # first sight establishes the baseline; no new press
+                key = (d.get("radio_last_src"), d.get("radio_last_boot"), d.get("radio_last_seq"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                src = d.get("radio_last_src")
+                if ATOM["learn"]:
+                    ATOM["learn"], ATOM["learned"] = False, src
+                    atom_event("learned", atom=src, via=fid)
+                    continue
+                with state_lock:
+                    rules = [r for r in STATE.get("interactions", []) if r.get("kind") == "button"
+                             and r.get("enabled", True) and (r.get("trigger") or {}).get("atom") in (src, "any")]
+                if not rules:
+                    atom_event("press", atom=src, via=fid, result="no button rule for this Atom")
+                    continue
+                for r in rules:
+                    result = run_button_action(r)
+                    atom_event("press", atom=src, via=fid, rule=r.get("name"), result=result)
+                    with open(STRIKE_LOG, "a") as fh:
+                        fh.write(json.dumps({"kind": "atom_press", "utc": utc(), "atom": src, "rule": r.get("name"),
+                                             "result": result}) + "\n")
+        except Exception as ex:
+            atom_event("error", result=str(ex))
+
+
+def set_relay(on):
+    ATOM["relay"] = bool(on)
+    with state_lock:
+        online = [f for f, l in lanterns.items() if not l.get("offline") and l.get("decompression")]
+    parallel(lambda f: send_exact(f, f"!R{f}:{1 if on else 0}"), [(f,) for f in online])
+    # Firmware reads serial slowly, so confirmation comes from telemetry: the
+    # listener loop re-applies relay to any lantern that does not report it.
+    atom_event("relay", result=("Atom presses now drive the tone lab (lanterns won't play the signature)" if on
+                                else "Atom presses play the signature on the lanterns again"))
+    return atom_status()
+
+
+def atom_status(since=0):
+    with state_lock:
+        atoms = dict(STATE.get("atoms", {}))
+    return {"relay": ATOM["relay"], "learn": ATOM["learn"], "learned": ATOM["learned"], "listener": ATOM["listener"],
+            "atoms": atoms, "events": [e for e in ATOM["events"] if e["id"] > since]}
+
+
 def interaction_status():
     return {"armed": INTERACT["armed"], "sim_on": INTERACT["sim_on"], "sim": INTERACT["sim"], **INTERACT["status"]}
 
@@ -1327,6 +1501,9 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
+        if self.path.startswith("/api/atom"):
+            since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
+            return self.reply(atom_status(since))
         if self.path == "/api/interaction/status":
             return self.reply(interaction_status())
         if self.path == "/api/pattern/status":
@@ -1385,6 +1562,22 @@ class H(BaseHTTPRequestHandler):
                 return self.reply({"ok": True, "loop_ms": loop_ms, "step_ms": step_ms, "lanes": lanes})
             except ValueError as ex:
                 return self.reply({"ok": False, "error": str(ex)})
+        if self.path == "/api/atom":
+            if "relay" in b:
+                with ProxPaused():
+                    return self.reply(set_relay(bool(b["relay"])))
+            if b.get("learn"):
+                ATOM["learn"], ATOM["learned"] = True, None
+            if isinstance(b.get("name"), dict):  # {"atom": id, "name": text}
+                aid, nm = str(b["name"].get("atom", "")).upper(), str(b["name"].get("name", "")).strip()[:40]
+                if len(aid) == 6:
+                    with state_lock:
+                        if nm:
+                            STATE["atoms"][aid] = nm
+                        else:
+                            STATE["atoms"].pop(aid, None)
+                        save_state(STATE)
+            return self.reply(atom_status())
         if self.path == "/api/interaction/arm":
             return self.reply(arm_interaction(b.get("rule") or {}))
         if self.path == "/api/interaction/disarm":
@@ -1458,4 +1651,5 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"tone lab on http://localhost:{ARGS.port}  ui -> {UI_DIR}  state -> {STATE_FILE}", flush=True)
     threading.Thread(target=waker_loop, daemon=True).start()
+    threading.Thread(target=atom_loop, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", ARGS.port), H).serve_forever()

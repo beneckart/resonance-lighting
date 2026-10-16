@@ -10,6 +10,34 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Brian + Claude -- Tone lab Interactions; Atom buttons as triggers
+
+Tone lab gained (all host-side over USB, for testing before firmware):
+- Tone order: checkbox grouping of same-tone lanterns (Group/Ungroup selected);
+  groups strike together in Play and from a grouped row's play button; every
+  lantern keeps its own number; the tone number now orders and labels the
+  Lanterns, Patterns and Proximity tabs.
+- Patterns: inline name box, two-click deletes and stable pattern ids
+  (browser dialogs are blocked in the desktop app's browser pane).
+- Interactions tab: sensor rules (a lantern's per-zone proximity distance
+  drives a pattern's BPM between far/near distances, with curve, smoothing,
+  idle behavior, the pattern's safe-BPM cap and a distance simulator) and
+  button rules (an Atom press plays a pattern, steps through a list, stops,
+  starts a sensor rule or toggles proximity; Learn captures an Atom's id;
+  Atoms can be named).
+
+Firmware: decompression builds count admitted ADR 0083 PLAY presses and expose
+count, source Atom, controller boot, sequence and age in telemetry; RAM-only
+relay mode (`!R<id>:1`) reports a press without starting the local phrase and
+answers READY. The tone lab listens through one hub lantern (presses reach all
+nine with the same source/boot/sequence, so they are deduplicated), keeps
+relay applied across resets, and still hears presses during USB playback.
+Built immutable fx-261016-d572656-b (source ffa4e1e, SHA-256
+fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd) and flashed
+all nine app-only from fx-261014-65eeb39-b (identity-gated, digest-verified,
+backup-first). Not yet exercised with a real Atom press. Standalone (no
+laptop) button behavior still needs firmware and Atom work with Ben.
+
 ## 2026-10-14 -- Brian + Claude -- Tone lab Proximity tab and detector tuning (handoff state)
 
 Tone lab now has a Proximity tab: per-lantern 15 s charts of raw ToF returns

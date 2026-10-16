@@ -674,9 +674,14 @@ function bpmMax(p) {
 }
 const ixShape = (x, c) => { x = Math.max(0, Math.min(1, x)); return c === "ease_in" ? x * x : c === "ease_out" ? 1 - (1 - x) * (1 - x) : x; };
 function renderIx() {
-  const r = curRule(), pats = ixPatterns();
-  $("ixsel").innerHTML = S.interactions.map(x => `<option value="${x.id}" ${x.id === r.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
-  if (document.activeElement !== $("ixname")) $("ixname").value = r.name;
+  const r0 = curRule();
+  $("ixbtnwrap").hidden = r0.kind !== "button"; $("ixsensorwrap").hidden = r0.kind === "button";
+  $("ixsel").innerHTML = S.interactions.map(x => `<option value="${x.id}" ${x.id === r0.id ? "selected" : ""}>${x.kind === "button" ? "Button: " : "Sensor: "}${esc(x.name)}</option>`).join("");
+  if (document.activeElement !== $("ixname")) $("ixname").value = r0.name;
+  ixTimer = ixTimer || setInterval(ixPoll, 150);
+  bxTimer = bxTimer || setInterval(bxPoll, 400);
+  if (r0.kind === "button") { renderBx(); return; }
+  const r = r0, pats = ixPatterns();
   $("ixsrc").innerHTML = S.order.filter(id => !live(id) || live(id).tmf).map(id =>
     `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}</option>`).join("");
   $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
@@ -716,7 +721,7 @@ ixField("ixcurve", "curve"); ixField("ixidle", "idle"); ixField("ixsrc", "source
 $("ixsel").onchange = e => { UI.ix = e.target.value; lsSet("ix", UI.ix); renderIx(); };
 function ixUnique(base) { let n = base, k = 2; while (S.interactions.some(x => x.name === n)) n = `${base} ${k++}`; return n; }
 $("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
-$("ixdup").onclick = () => { const c = curRule(), r = {...c, id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
+$("ixdup").onclick = () => { const c = curRule(), r = {...JSON.parse(JSON.stringify(c)), id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
   S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); };
 $("ixdel").onclick = () => confirmClick($("ixdel"), "Click again to delete", () => {
   const r = curRule(); S.interactions = S.interactions.filter(x => x.id !== r.id); UI.ix = null; renderIx(); save(true); log(`deleted interaction "${r.name}"`);
@@ -779,6 +784,86 @@ function ixDraw() {
     ctx.fillStyle = col("--ok"); ctx.beginPath(); ctx.arc(x(Math.min(IX.distance_mm, maxD)), y(IX.bpm), 6, 0, Math.PI * 2); ctx.fill();
   }
 }
+
+// ---- button rules (Atom presses) ----
+let BX = {relay: false, atoms: {}, events: [], listener: null, learn: false}, bxSince = 0, bxTimer = null, bxLog = [];
+function newButtonRule(nm) {
+  const pat = ixPatterns()[0];
+  return {kind: "button", id: "ix-" + Math.random().toString(16).slice(2, 8), name: nm, enabled: true,
+          trigger: {atom: "any"}, action: {type: "play_pattern", pattern_id: pat ? pat.id : null, pattern_ids: [], interaction_id: null}};
+}
+const atomName = id => id === "any" ? "any Atom" : (BX.atoms[id] || S.atoms && S.atoms[id] || `Atom ${id}`);
+function renderBx() {
+  const r = curRule(), a = r.action, pats = ixPatterns();
+  const known = new Set([...Object.keys(BX.atoms || {}), ...(r.trigger.atom !== "any" ? [r.trigger.atom] : []),
+                         ...bxLog.filter(e => e.atom).map(e => e.atom)]);
+  $("bxatom").innerHTML = `<option value="any" ${r.trigger.atom === "any" ? "selected" : ""}>any Atom</option>` +
+    [...known].map(id => `<option value="${id}" ${id === r.trigger.atom ? "selected" : ""}>${esc(atomName(id))}</option>`).join("");
+  $("bxaction").value = a.type;
+  $("bxpattern").hidden = a.type !== "play_pattern"; $("bxix").hidden = a.type !== "arm_interaction";
+  $("bxpattern").innerHTML = pats.map(p => `<option value="${p.id}" ${p.id === a.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("") || '<option value="">make a pattern first</option>';
+  const sensors = S.interactions.filter(x => x.kind !== "button");
+  $("bxix").innerHTML = sensors.map(x => `<option value="${x.id}" ${x.id === a.interaction_id ? "selected" : ""}>${esc(x.name)}</option>`).join("") || '<option value="">make a sensor rule first</option>';
+  if (a.type === "play_pattern" && !a.pattern_id && pats[0]) a.pattern_id = pats[0].id;
+  if (a.type === "arm_interaction" && !a.interaction_id && sensors[0]) a.interaction_id = sensors[0].id;
+  $("bxlist").hidden = a.type !== "next_pattern";
+  $("bxlist").innerHTML = '<span class="status">Each press plays the next of:</span>' + pats.map(p =>
+    `<label><input type="checkbox" data-bxp="${p.id}" ${(a.pattern_ids || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("");
+  $("bxenabled").checked = r.enabled !== false;
+  const warn = [];
+  if (!BX.relay) warn.push("Turn on \"Atom buttons drive the Tone Lab\" (right) so presses reach these rules instead of playing the signature.");
+  if (a.type === "next_pattern" && !(a.pattern_ids || []).length) warn.push("Tick the patterns to step through.");
+  $("bxwarn").textContent = warn.join(" ");
+  renderBxPanel();
+}
+function renderBxPanel() {
+  $("bxrelay").checked = BX.relay;
+  $("bxlistener").textContent = BX.learn ? "Learning: press the Atom you want to use now…"
+    : BX.listener ? `Listening through ${name(BX.listener)} (any lantern on the hub can hear the Atom).` : "No lantern available to listen.";
+  const ids = Object.keys(BX.atoms || {}).concat(bxLog.filter(e => e.atom && !(e.atom in (BX.atoms || {}))).map(e => e.atom));
+  $("bxatoms").innerHTML = [...new Set(ids)].map(id => `<div class="row"><span class="status" style="width:90px">Atom ${id}</span>
+    <input type="text" data-atomname="${id}" value="${esc((BX.atoms || {})[id] || "")}" placeholder="name it, e.g. Red button" style="width:180px"></div>`).join("");
+  $("bxlog").innerHTML = bxLog.slice(-12).reverse().map(e => `<div>${esc(e.utc.slice(11, 19))} ${esc(e.text)}</div>`).join("") || "No presses yet.";
+}
+function bxText(ev) {
+  if (ev.kind === "learned") return `learned ${atomName(ev.atom)}`;
+  if (ev.kind === "press") return `${atomName(ev.atom)} pressed${ev.rule ? ` → ${ev.rule}: ${ev.result}` : ` (${ev.result})`}`;
+  return ev.result || ev.kind;
+}
+async function bxPoll() {
+  let r;
+  try { r = await api("/api/atom?since=" + bxSince); } catch (e) { return; }
+  const wasLearning = BX.learn;
+  BX = {...BX, ...r};
+  for (const ev of r.events) {
+    bxSince = Math.max(bxSince, ev.id);
+    bxLog.push({...ev, text: bxText(ev)}); bxLog = bxLog.slice(-100);
+    log(bxText(ev), ev.kind === "error" ? "bad" : "ok");
+    if (ev.kind === "learned" && UI.tab === "interactions") {
+      const rule = curRule(); if (rule.kind === "button") { rule.trigger.atom = ev.atom; save(); }
+    }
+  }
+  if (UI.tab === "interactions" && curRule().kind === "button" && (r.events.length || wasLearning !== BX.learn)) renderBx();
+  else if (UI.tab === "interactions" && curRule().kind === "button") renderBxPanel();
+}
+$("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+$("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };
+$("bxaction").onchange = e => { curRule().action.type = e.target.value; renderBx(); save(); };
+$("bxpattern").onchange = e => { curRule().action.pattern_id = e.target.value; save(); };
+$("bxix").onchange = e => { curRule().action.interaction_id = e.target.value; save(); };
+$("bxenabled").onchange = e => { curRule().enabled = e.target.checked; save(); };
+$("bxlist").addEventListener("change", e => {
+  const id = e.target.dataset.bxp; if (!id) return;
+  const a = curRule().action, set = new Set(a.pattern_ids || []);
+  if (e.target.checked) set.add(id); else set.delete(id);
+  a.pattern_ids = ixPatterns().map(p => p.id).filter(x => set.has(x)); save(); renderBx();
+});
+$("bxlearn").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {learn: true}))}; renderBxPanel(); log("press the Atom you want to use now…"); };
+$("bxrelay").onchange = async e => { BX = {...BX, ...(await api("/api/atom", {relay: e.target.checked}))}; renderBx(); };
+$("bxatoms").addEventListener("change", async e => {
+  const id = e.target.dataset.atomname; if (!id) return;
+  BX = {...BX, ...(await api("/api/atom", {name: {atom: id, name: e.target.value}}))}; renderBx();
+});
 
 // ---------- Patterns tab ----------
 function newPattern(nm) { return {id: patternId(), name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
