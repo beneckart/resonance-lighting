@@ -207,6 +207,11 @@ static void face() {
   pixels.show();
 }
 void setup() {
+  // Receipts (27 lines per press) and the 1 s status line overflow the default
+  // UART TX buffer; a full buffer blocks loop() and the button goes unsampled,
+  // losing presses of a quick triple click (even on battery: the UART still
+  // clocks the bytes out). 8 KiB absorbs the burst.
+  Serial.setTxBufferSize(8192);
   Serial.begin(115200); delay(300);
   pixels.begin(); pixels.setBrightness(40);
   pinMode(BUTTON_PIN,INPUT); button.begin(digitalRead(BUTTON_PIN)==HIGH,millis());

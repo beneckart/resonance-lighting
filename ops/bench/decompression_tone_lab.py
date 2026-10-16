@@ -1569,6 +1569,7 @@ def atom_loop():
     lantern's reported press age, so two presses within DOUBLE_CLICK_S make a double
     click even when they land in different polls."""
     last_count, last_listener = None, None
+    last_read = 0.0  # time of the latest successful listener read
     pending = {}   # src -> {"n": presses, "t": time of latest press}
     tick = 0
     while True:
@@ -1576,7 +1577,9 @@ def atom_loop():
         try:
             now = time.time()
             for src, pc in list(pending.items()):  # one or two presses settle once the window passes
-                if now - pc["t"] > DOUBLE_CLICK_S:
+                # ...and only after a read taken past the window, so a press that landed
+                # inside it (but wasn't read yet because polls are slow) still counts.
+                if last_read - pc["t"] > DOUBLE_CLICK_S:
                     pending.pop(src)
                     dispatch_click(src, pc["n"], ATOM["listener"])
             with state_lock:
@@ -1595,6 +1598,7 @@ def atom_loop():
             d = poll_lantern(listener)
             if not d or "radio_plays" not in d:
                 continue
+            last_read = time.time()
             count = d.get("radio_plays") or 0
             if last_count is None or count < last_count:
                 last_count = count
