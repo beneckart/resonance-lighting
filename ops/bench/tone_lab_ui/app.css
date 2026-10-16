@@ -134,6 +134,8 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .zgrid { display: grid; grid-template-columns: repeat(3, 30px); gap: 2px; margin-top: 6px; }
 .zgrid div { height: 30px; border-radius: 4px; border: 1px solid var(--line); font-size: 10px; display: flex; align-items: center;
   justify-content: center; color: var(--muted); background: var(--bg); }
+.zgrid.z4 { grid-template-columns: repeat(4, 26px); } .zgrid.z4 div { height: 26px; }
+.pxcard .pxtest { color: var(--text); }
 .zgrid .seen { color: var(--text); }
 .zgrid .blocked { border-color: var(--bad); color: var(--bad); }
 .zgrid .hand { background: var(--ok); color: var(--card); border-color: var(--ok); }

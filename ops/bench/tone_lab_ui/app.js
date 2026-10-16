@@ -494,7 +494,8 @@ $("sess").onclick = async () => {
   render(); busy = false;
 };
 function setProxBtn() {
-  $("prox").textContent = "Proximity: " + (!PX.on ? "off" : PX.silent ? "watch only" : "ding");
+  const n = (PX.active || []).length;
+  $("prox").textContent = "Proximity: " + (!PX.on ? "off" : `${n} sensor${n === 1 ? "" : "s"}, ${PX.silent ? "watch only" : "ding"}`);
   $("prox").classList.toggle("on", PX.on);
   if (UI.tab === "proximity") pxControls();
 }
@@ -514,7 +515,7 @@ $("prange").oninput = e => { $("prangev").textContent = Math.round(e.target.valu
 $("prange").onchange = e => { api("/api/prox").then(r => { if (r.on) api("/api/proximity", {on: true, range_mm: +e.target.value}); }); };
 $("prox").onclick = async () => {
   const cur = await api("/api/prox?since=" + pxSince), on = !cur.on;
-  const r = await api("/api/proximity", {on, range_mm: +$("prange").value}); PX = r; setProxBtn();
+  const r = await api("/api/proximity", {on, silent: false, range_mm: +$("prange").value}); PX = r; setProxBtn();  // header = the quick ding switch
   if (on) {
     log(`proximity ding on: learning each background for 1.5 s (keep hands away), then dinging within ${Math.round(r.range_mm / 10)} cm` +
       (r.no_sensor.length ? ` (no sensor: ${r.no_sensor.map(name).join(", ")})` : ""));
@@ -528,20 +529,41 @@ $("prox").onclick = async () => {
 // per lantern; this pulls only new samples every 250 ms and draws the last 15 s.
 const PXV = {buf: {}, since: 0, evSince: 0, events: [], dings: {}, serverT: 0, timer: null};
 function pxControls() {
-  const mode = !PX.on ? "off" : PX.silent ? "watch" : "ding";
-  document.querySelectorAll("#pxmode button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  document.querySelectorAll("#pxmode button").forEach(b => b.classList.toggle("on", b.dataset.mode === (PX.silent === false ? "ding" : "watch")));
   if (PX.range_mm) { $("pxrange").value = PX.range_mm; $("pxrangev").textContent = Math.round(PX.range_mm / 10); }
 }
+const pxActive = id => (PX.active || []).includes(id);
+const pxHasSensor = id => { const l = live(id); return !!l && (l.tmf || l.vl); };
+function pxIds() {
+  const show = $("pxshow").value;
+  let ids = S.order.slice();
+  if (show === "active") ids = ids.filter(pxActive);
+  else if (show === "perimeter") ids = ids.filter(isPerim);
+  else if (show === "lantern") ids = ids.filter(id => !isPerim(id));
+  // sensors you can actually use first, perimeter lights ahead of lanterns
+  return ids.sort((a, b) => (pxHasSensor(b) - pxHasSensor(a)) || (isPerim(b) - isPerim(a)));
+}
+const PXT = {};  // range tests: id -> {until, samples: [[mm, counted]], result}
 function renderProxTab() {
   pxControls();
-  $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
+  $("pxgrid").innerHTML = pxIds().map(id => {
+    const vl = (live(id) || {}).vl, m = meta(id);
+    return `<div class="pxcard" data-pxcard="${id}">
       <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
-        <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
-      <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid" data-pxz="${id}" title="The sensor's 3x3 zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = hand."></div></div>
-      <div class="st" data-pxst="${id}"></div></div>`).join("");
+        <button data-pxtoggle="${id}" class="${pxActive(id) ? "on" : ""}">${pxActive(id) ? "● On" : "Off"}</button></div>
+      <div class="row" style="margin-top:4px">
+        <label class="status">range <input type="number" min="10" max="400" step="10" style="width:60px" data-pxrng="${id}"
+          value="${m.prox_range_mm ? Math.round(m.prox_range_mm / 10) : ""}" placeholder="${Math.round((PX.range_mm || 600) / 10)}"> cm</label>
+        <button data-pxrelearn="${id}" title="Relearn this sensor's background (keep clear 1.5 s)">Relearn</button>
+        <button data-pxtest="${id}" title="Record 30 s and report the distances this sensor saw">Range test</button>
+        <span class="status">${vl ? "VL53L5CX · outward 4×4" : (live(id) || {}).tmf ? "TMF8820 · down 3×3" : ""}</span></div>
+      <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid ${vl ? "z4" : ""}" data-pxz="${id}" title="The sensor's zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = person."></div></div>
+      <div class="st" data-pxst="${id}"></div><div class="st pxtest" data-pxtres="${id}">${PXT[id] && PXT[id].result ? PXT[id].result : ""}</div></div>`;
+  }).join("") || '<p class="status">No sensors match.</p>';
   PXV.timer = PXV.timer || setInterval(proxTick, 250);
   pxDrawAll();
 }
+$("pxshow").addEventListener("input", renderProxTab);
 async function proxTick() {
   if (UI.tab !== "proximity") return;
   try {
@@ -551,11 +573,13 @@ async function proxTick() {
       const b = PXV.buf[id] = (PXV.buf[id] || []).concat(rows);
       for (const r of rows) PXV.since = Math.max(PXV.since, r[0]);
       while (b.length && b[0][0] < PXV.serverT - 20) b.shift();
+      const t = PXT[id];  // feed a running range test
+      if (t && t.until) for (const [, d, c, state] of rows) if (d && c >= (PX.learn_confidence || 20)) t.samples.push([d, state === "hand"]);
     }
     const px = await api("/api/prox?since=" + PXV.evSince);
-    const wasOn = PX.on, wasSilent = PX.silent;
+    const was = (PX.active || []).join();
     PX = px;
-    if (wasOn !== px.on || wasSilent !== px.silent) setProxBtn();
+    if (was !== (px.active || []).join()) { setProxBtn(); renderProxTab(); }
     for (const ev of px.events) {
       PXV.evSince = Math.max(PXV.evSince, ev.id);
       PXV.events.push(ev);
@@ -565,39 +589,63 @@ async function proxTick() {
     }
     PXV.events = PXV.events.filter(e => e.t > PXV.serverT - 20);
   } catch (e) { /* server restarting */ }
+  pxTestTick();
   pxDrawAll();
+}
+// Range test: summarise every confident return during 30 s, and which distance bands it reached.
+const PX_BANDS = [[0, 30], [30, 60], [60, 100], [100, 200], [200, 400]];
+function pxTestTick() {
+  const now = Date.now();
+  for (const [id, t] of Object.entries(PXT)) {
+    if (!t.until) continue;
+    const el = document.querySelector(`[data-pxtres="${id}"]`);
+    const left = Math.ceil((t.until - now) / 1000);
+    if (left > 0) { if (el) el.textContent = `Range test: ${left} s left · move through several distances (${t.samples.length} returns so far)`; continue; }
+    t.until = 0;
+    const cm = t.samples.map(([d]) => d / 10), counted = t.samples.filter(([, h]) => h).map(([d]) => d / 10);
+    const at = new Date().toLocaleTimeString();
+    if (!cm.length) t.result = `Range test ${at}: saw nothing at all. Check the window (dust, film) and that it's on.`;
+    else {
+      const bands = PX_BANDS.map(([a, b]) => `${a}–${b} cm ${cm.some(x => x >= a && x < b) ? "✓" : "·"}`).join("  ");
+      t.result = `Range test ${at}: returns ${Math.round(Math.min(...cm))}–${Math.round(Math.max(...cm))} cm (${cm.length})` +
+        (counted.length ? `, counted as a person ${Math.round(Math.min(...counted))}–${Math.round(Math.max(...counted))} cm` : ", never counted as a person") +
+        ` · ${bands}`;
+    }
+    if (el) el.textContent = t.result;
+    log(`${name(id)} ${t.result}`);
+  }
 }
 function pxDrawAll() {
   const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
   const C = {muted: col("--muted"), text: col("--text"), ok: col("--ok"), bad: col("--bad"), warn: col("--warn"),
              line: col("--line"), accent: col("--accent")};
   let watching = 0, hands = 0, blocked = 0;
-  S.order.forEach(id => {
+  pxIds().forEach(id => {
     const l = live(id), v = PX.live && PX.live[id];
     const badge = document.querySelector(`[data-pxbadge="${id}"]`), st = document.querySelector(`[data-pxst="${id}"]`);
     if (!badge) return;
     let label = "off", cls = "";
     if (!l || l.offline) label = l ? "asleep" : "not connected";
-    else if (!l.tmf) label = "no sensor";
-    else if (PX.on && v) { label = v.status; cls = v.status; watching++; if (v.status === "hand") hands++; if (v.status === "blocked") blocked++; }
-    else if (PX.on) label = "starting";
+    else if (!pxHasSensor(id)) label = "no sensor";
+    else if (pxActive(id) && v && v.status) { label = v.status === "hand" ? "person" : v.status; cls = v.status; watching++; if (v.status === "hand") hands++; if (v.status === "blocked") blocked++; }
+    else if (pxActive(id)) label = "starting";
     badge.textContent = label; badge.className = "pxbadge " + cls;
-    const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && PX.on ? " · background clear" : "");
-    const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20)
-      ? `sees ${Math.round(v.depth_mm / 10)} cm (confidence ${v.confidence})` : (v ? "sees nothing" : "");
-    const nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
-    st.textContent = (l && !l.tmf) ? "This lantern has no distance sensor."
-      : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of 9 zones blocked (ignored)${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`
-      : `${now}${bgTxt}${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`;
+    const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && pxActive(id) ? " · background clear" : "");
+    const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20) ? `sees ${Math.round(v.depth_mm / 10)} cm` : (v ? "sees nothing" : "");
+    const nz = v && v.zones ? v.zones.length : 9, nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
+    const dings = PXV.dings[id] ? ` · ${PXV.dings[id]} detection${PXV.dings[id] > 1 ? "s" : ""}` : "";
+    st.textContent = !pxHasSensor(id) ? (isPerim(id) ? "No sensor reporting yet (low battery or protection mode can keep it unpowered)." : "This lantern has no distance sensor.")
+      : !pxActive(id) ? "Off: click Off to start watching this sensor."
+      : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of ${nz} zones blocked (ignored)${dings}` : `${now}${bgTxt}${dings}`;
     pxDraw(id, C, v);
     const zg = document.querySelector(`[data-pxz="${id}"]`);
     if (zg) zg.innerHTML = v && v.zones ? v.zones.map(z => {
       const seen = z.mm && z.conf >= (PX.learn_confidence || 20);
       const cls = z.state === "hand" ? "hand" : z.state === "blocked" ? "blocked" : seen ? "seen" : "";
-      return `<div class="${cls}" title="zone: ${seen ? Math.round(z.mm / 10) + " cm, confidence " + z.conf : "nothing"}${z.bg ? ", background " + Math.round(z.bg / 10) + " cm" : ""}${z.state === "blocked" ? " (blocked, ignored)" : ""}">${seen ? Math.round(z.mm / 10) : "·"}</div>`;
+      return `<div class="${cls}" title="zone: ${seen ? Math.round(z.mm / 10) + " cm" : "nothing"}${z.bg ? ", background " + Math.round(z.bg / 10) + " cm" : ""}${z.state === "blocked" ? " (blocked, ignored)" : ""}">${seen ? Math.round(z.mm / 10) : "·"}</div>`;
     }).join("") : "";
   });
-  $("pxsummary").textContent = PX.on ? `${watching} sensors watched · ${hands} seeing a hand · ${blocked} blocked` : "";
+  $("pxsummary").textContent = (PX.active || []).length ? `${watching} watching · ${hands} seeing someone · ${blocked} blocked` : "all sensors off";
 }
 function pxDraw(id, C, v) {
   const cv = document.querySelector(`canvas[data-px="${id}"]`);
@@ -607,7 +655,7 @@ function pxDraw(id, C, v) {
   const ctx = cv.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const span = 15, T = PXV.serverT || Date.now() / 1000, range = PX.range_mm || 600;
+  const span = 15, T = PXV.serverT || Date.now() / 1000, range = (v && v.range_mm) || PX.range_mm || 600;
   const maxMm = Math.max(1500, range + 300);
   const x = t => (t - (T - span)) / span * w, y = mm => 12 + mm / maxMm * (h - 18);
   ctx.font = "10px system-ui"; ctx.fillStyle = C.muted; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
@@ -641,23 +689,50 @@ function pxDraw(id, C, v) {
 }
 $("pxmode").onclick = async e => {
   const b = e.target.closest("button"); if (!b) return;
-  const m = b.dataset.mode, range_mm = +$("pxrange").value;
-  const r = await api("/api/proximity", m === "off" ? {on: false} : {on: true, silent: m === "watch", range_mm});
-  PX = r; setProxBtn();
-  if (r.on && !pxTimer) pxTimer = setInterval(pollProx, 300);
-  log(m === "off" ? "proximity off" : `proximity ${m === "watch" ? "watch only (no strikes)" : "ding"}: learning backgrounds for 1.5 s, keep hands away`);
+  const silent = b.dataset.mode === "watch";
+  PX = await api("/api/proximity", PX.on ? {on: true, silent} : {on: false, silent}); pxControls(); setProxBtn();
+  log(silent ? "proximity: just watch (no strikes)" : "proximity: ding the lantern that sees someone (perimeter lights never ding)");
 };
+$("pxallon").onclick = async () => {
+  PX = await api("/api/proximity", {on: true, silent: PX.silent !== false, range_mm: +$("pxrange").value});  // keeps watch/ding as chosen
+  setProxBtn(); renderProxTab(); log("all sensors on: learning backgrounds for 1.5 s, keep clear");
+};
+$("pxalloff").onclick = async () => { PX = await api("/api/proximity", {on: false}); setProxBtn(); renderProxTab(); log("all sensors off"); };
 $("pxrange").oninput = e => { $("pxrangev").textContent = Math.round(e.target.value / 10); };
-$("pxrange").onchange = e => { if (PX.on) api("/api/proximity", {on: true, range_mm: +e.target.value}).then(r => { PX = r; }); };
+$("pxrange").onchange = e => api("/api/proximity", {on: PX.on, range_mm: +e.target.value}).then(r => { PX = r; renderProxTab(); });
 $("pxrelearn").onclick = async () => {
-  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
-  PX = await api("/api/proximity", {on: true, relearn: "all"}); log("relearning every background for 1.5 s: keep hands away");
+  if (!PX.on) { log("turn a sensor on first", "bad"); return; }
+  PX = await api("/api/proximity", {on: true, relearn: "all"}); log("relearning every background for 1.5 s: keep clear");
 };
 document.addEventListener("click", async e => {
+  const tg = e.target.closest("[data-pxtoggle]");
+  if (tg) {
+    const id = tg.dataset.pxtoggle, on = !pxActive(id);
+    const r = await api("/api/proximity", {sensor: id, active: on});
+    PX = r; setProxBtn(); renderProxTab();
+    log(r.error ? r.error : on ? `${name(id)} on: learning its background for 1.5 s, keep clear` : `${name(id)} off`, r.error ? "bad" : "ok");
+    return;
+  }
+  const t = e.target.closest("[data-pxtest]");
+  if (t) {
+    const id = t.dataset.pxtest;
+    if (!pxActive(id)) { log(`turn ${name(id)} on first`, "bad"); return; }
+    PXT[id] = {until: Date.now() + 30000, samples: [], result: ""};
+    log(`${name(id)} range test: 30 s, move through several distances`);
+    return;
+  }
   const b = e.target.closest("[data-pxrelearn]"); if (!b) return;
-  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
+  if (!pxActive(b.dataset.pxrelearn)) { log(`turn ${name(b.dataset.pxrelearn)} on first`, "bad"); return; }
   PX = await api("/api/proximity", {on: true, relearn: [b.dataset.pxrelearn]});
-  log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep hands away`);
+  log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep clear`);
+});
+document.addEventListener("change", e => {
+  const id = e.target.dataset && e.target.dataset.pxrng; if (!id) return;
+  const v = Math.round(+e.target.value);
+  if (e.target.value === "" ) delete meta(id).prox_range_mm;
+  else if (v >= 10 && v <= 400) meta(id).prox_range_mm = v * 10;
+  else { e.target.value = meta(id).prox_range_mm ? Math.round(meta(id).prox_range_mm / 10) : ""; return; }
+  save(); log(`${name(id)} range ${meta(id).prox_range_mm ? Math.round(meta(id).prox_range_mm / 10) + " cm" : "default"}`);
 });
 
 // ---------- Interactions tab ----------

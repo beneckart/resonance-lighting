@@ -176,21 +176,29 @@
   <!-- Proximity: live sensor view and tuning -->
   <section class="tab" id="tab-proximity">
     <div class="toolbar">
-      <span class="lbl">Mode</span>
-      <span class="seg" id="pxmode"><button data-mode="off">Off</button><button data-mode="watch">Watch only</button><button data-mode="ding">Ding</button></span>
-      <label class="status">range <input id="pxrange" type="range" min="200" max="1500" step="50" value="600"> <span id="pxrangev">60</span> cm</label>
-      <button id="pxrelearn">Relearn all backgrounds</button>
+      <button id="pxallon">All sensors on</button><button id="pxalloff">All off</button>
+      <span class="sep"></span>
+      <span class="lbl" style="width:auto">When a sensor sees someone</span>
+      <span class="seg" id="pxmode"><button data-mode="watch">just watch</button><button data-mode="ding">ding that lantern</button></span>
+      <span class="sep"></span>
+      <label class="status">default range <input id="pxrange" type="range" min="200" max="3000" step="50" value="600"> <span id="pxrangev">60</span> cm</label>
+      <button id="pxrelearn">Relearn all</button>
       <i class="info" tabindex="0" aria-label="About the proximity view">i<span class="tip r">
-        Each chart is one lantern's distance sensor over the last 15 seconds, drawn the way it looks:
-        the sensor is at the top, looking down. Dots are returns (faint = weak, solid = confident enough to count
-        as a hand, green = counted as a hand). The gray line is the learned background, the amber dashed line is how
-        close a hand must come (30 cm nearer than the background), and the green dashed line is your range.
-        Red marks are dings; purple dashed marks are dings that <b>Watch only</b> would have played.
-        Keep hands away for 1.5 s after switching on or relearning. Sunlight weakens these infrared sensors.</span></i>
+        Turn sensors on one at a time with each card's <b>Off/On</b> button, or all at once. Nothing dings unless
+        <b>ding that lantern</b> is chosen; perimeter lights never ding (no chime).<br><br>
+        Each chart is one sensor over the last 15 s, sensor at the top. Dots are returns (faint = weak, green = counted
+        as a person). Gray line = learned background, amber dashed = how close someone must come (30 cm nearer than the
+        background), green dashed = that sensor's range. Downlights (TMF8820) look down with a 3x3 grid; perimeter
+        lights (VL53L5CX) look outward with a 4x4 grid.<br><br>
+        <b>Range test</b> records 30 s: stand or wave at several distances and it reports the nearest and farthest it saw.
+        Keep clear for 1.5 s after turning a sensor on or relearning.</span></i>
+      <span class="grow"></span>
+      <label class="status">show <select id="pxshow">
+        <option value="all">all</option><option value="active">active only</option>
+        <option value="perimeter">perimeter lights</option><option value="lantern">lanterns</option>
+      </select></label>
       <span class="status" id="pxsummary"></span>
     </div>
-    <p class="status" style="margin:0 0 10px">Sensors look straight down from the bottom of each lantern and ignore anything closer than 8 cm:
-      wave a hand 10-50 cm <b>below</b> a lantern, not beside it.</p>
     <div class="pxgrid" id="pxgrid"></div>
   </section>
   <!-- Interactions: a sensor drives a pattern variable -->

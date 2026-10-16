@@ -116,7 +116,8 @@ def summarize(port, d):
         "bq_fault": d.get("bq_fault0"), "cap_mah": d.get("battery_capacity_mah"),
         "strikes": d.get("solenoid_strikes"), "failsafes": d.get("solenoid_failsafes"),
         "blocked": d.get("solenoid_blocked"), "session_left_s": d.get("decompression_left_s"),
-        "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")), "seen_utc": utc(),
+        "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")),
+        "vl": bool(d.get("vl53l5cx_present")), "seen_utc": utc(),
         # ADR 0084 firmware pattern mode (absent on older images)
         "fw_pattern": "pattern_id" in d, "pattern_id": d.get("pattern_id"), "pattern_crc": d.get("pattern_crc"),
         "pattern_playing": d.get("pattern_playing"), "pattern_role": d.get("pattern_role"),
@@ -511,7 +512,19 @@ PROX_MIN_CONFIDENCE = 40   # a hand must be a confident return
 PROX_LEARN_CONFIDENCE = 20 # but anything at the firmware floor counts as background (fixtures, walls)
 PROX_WEAK_CONFIDENCE = 22  # a weak return counts as a hand only when seen twice in a row (far hands, sun)
 PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
-PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": False}
+PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": True, "active": set()}  # watch-only until ding is chosen
+VL_CONF = 100  # VL53L5CX zones arrive pre-filtered (status 5/9 only), so a nonzero zone is a confident return
+
+
+def has_sensor(l):
+    """A distance sensor the proximity view can read: downlight TMF8820 or perimeter VL53L5CX."""
+    return bool(l.get("tmf") or l.get("vl"))
+
+
+def prox_range_for(fid):
+    with state_lock:
+        r = STATE.get("lanterns", {}).get(fid, {}).get("prox_range_mm")
+    return max(100, min(4000, int(r))) if isinstance(r, (int, float)) and r else PROX["range_mm"]
 prox_relearn = set()    # fixture ids whose detector should relearn its background
 
 
@@ -647,10 +660,10 @@ class ZoneDetector:
     while the other zones still see a hand at normal distances. The lantern dings
     when any zone sees a hand, with one lantern-level re-arm and cooldown."""
 
-    def __init__(self, now):
-        self.zones = [ProxDetector(now) for _ in range(9)]
+    def __init__(self, now, n=9):
+        self.zones = [ProxDetector(now) for _ in range(n)]
         self.armed, self.clears, self.last_ding = True, 0, 0.0
-        self.states = ["learning"] * 9
+        self.states = ["learning"] * n
 
     def step(self, now, mm, conf, range_mm, cooldown_s):
         # Zone-level dings are disabled (infinite cooldown); the lantern decides.
@@ -682,7 +695,7 @@ class ZoneDetector:
 
 def prox_worker(fid):
     conn, det = None, None
-    while PROX["on"]:
+    while PROX["on"] and fid in PROX["active"]:
         with prox_cv:
             if prox_pause_count:
                 if conn:
@@ -709,34 +722,42 @@ def prox_worker(fid):
                 if fid in prox_relearn:
                     det = None
                     prox_relearn.discard(fid)
+                rng = prox_range_for(fid)
                 ok = bool(d.get("tmf_read_ok"))
                 zmm, zconf = d.get("tof_zone_mm"), d.get("tof_zone_conf")
-                if ok and isinstance(zmm, list) and len(zmm) == 9 and isinstance(zconf, list) and len(zconf) == 9:
-                    if not isinstance(det, ZoneDetector):
-                        det = ZoneDetector(now)
-                    state, ding = det.step(now, zmm, zconf, PROX["range_mm"], PROX["cooldown_s"])
+                vmm = d.get("vl_zone_nearest_mm")
+                if d.get("vl53l5cx_present") and isinstance(vmm, list) and len(vmm) == 16:
+                    # Perimeter VL53L5CX: 4x4 zones of the nearest valid return (0 = none).
+                    ok, zmm = bool(d.get("vl_read_ok")), [int(v or 0) for v in vmm]
+                    zconf = [VL_CONF if v else 0 for v in zmm]
+                if ok and isinstance(zmm, list) and len(zmm) in (9, 16) and isinstance(zconf, list) and len(zconf) == len(zmm):
+                    if not isinstance(det, ZoneDetector) or len(det.zones) != len(zmm):
+                        det = ZoneDetector(now, len(zmm))
+                    state, ding = det.step(now, zmm, zconf, rng, PROX["cooldown_s"])
                     usable = [i for i in det.open_zones() if zmm[i] and zconf[i] >= PROX_LEARN_CONFIDENCE]
                     near = min(usable, key=lambda i: zmm[i]) if usable else None
                     depth, conf = (zmm[near], zconf[near]) if near is not None else (0, 0)
                     background = det.background()
                     zones = [{"mm": zmm[i], "conf": zconf[i], "bg": det.zones[i].background, "state": det.states[i]}
-                             for i in range(9)]
+                             for i in range(len(zmm))]
                 else:  # firmware without per-zone telemetry: single closest return
                     if not isinstance(det, ProxDetector):
                         det = ProxDetector(now)
                     depth = (d.get("tof_depth_mm") or 0) if ok else 0
                     conf = (d.get("tof_confidence") or 0) if ok else 0
-                    state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
+                    state, ding = det.step(now, depth, conf, rng, PROX["cooldown_s"])
                     background, zones = det.background, None
                 prox_live[fid] = {"depth_mm": depth, "confidence": conf, "status": state,
-                                  "background_mm": background, "zones": zones}
+                                  "background_mm": background, "zones": zones, "range_mm": rng,
+                                  "sensor": "vl53l5cx" if zones and len(zones) == 16 else "tmf8820"}
                 tr = prox_trace.setdefault(fid, [])
                 tr.append((round(now, 3), depth, conf, state, d.get("tmf_reads")))
                 del tr[:-400]
                 if ding:
                     with state_lock:
                         ms = STATE["lanterns"].get(fid, {}).get("pulse_ms") or STATE["pulse_ms"]
-                    silent = PROX["silent"]
+                        perimeter = STATE["lanterns"].get(fid, {}).get("role") == "perimeter"
+                    silent = PROX["silent"] or perimeter  # perimeter lights have no chime
                     if not silent:  # watch-only mode detects and records but never strikes
                         conn.write(f"K{fid}:{ms}\n".encode())
                     ev = {"id": len(prox_events) + 1, "utc": utc(), "t": round(now, 3), "fixture_id": fid,
@@ -762,6 +783,35 @@ def prox_worker(fid):
         prox_cv.notify_all()
 
 
+def start_prox_worker(fid):
+    t = prox_threads.get(fid)
+    if t and t.is_alive():
+        return
+    t = threading.Thread(target=prox_worker, args=(fid,), daemon=True)
+    prox_threads[fid] = t
+    t.start()
+
+
+def set_prox_sensor(fid, active):
+    """Turn one sensor's proximity watch on or off without touching the others."""
+    fid = str(fid).upper()
+    if active:
+        if not has_sensor(lanterns.get(fid, {})):
+            return {**prox_status(), "error": f"{fid} has no distance sensor reporting"}
+        PROX["active"].add(fid)
+        PROX["on"] = True
+        start_prox_worker(fid)
+    else:
+        PROX["active"].discard(fid)
+        t = prox_threads.pop(fid, None)
+        if t:
+            t.join(timeout=2.0)
+        prox_live.pop(fid, None)
+        if not PROX["active"]:
+            PROX["on"] = False
+    return prox_status()
+
+
 def set_proximity(on, range_mm=None, silent=None, relearn=None):
     if range_mm is not None:
         PROX["range_mm"] = max(100, min(2000, int(range_mm)))
@@ -772,13 +822,13 @@ def set_proximity(on, range_mm=None, silent=None, relearn=None):
     if on and not PROX["on"]:
         PROX["on"] = True
         with state_lock:
-            sensed = [f for f, l in lanterns.items() if l.get("tmf") and not l.get("offline")]
+            sensed = [f for f, l in lanterns.items() if has_sensor(l) and not l.get("offline")]
+        PROX["active"] = set(sensed)
         for fid in sensed:
-            t = threading.Thread(target=prox_worker, args=(fid,), daemon=True)
-            prox_threads[fid] = t
-            t.start()
+            start_prox_worker(fid)
     elif not on and PROX["on"]:
         PROX["on"] = False
+        PROX["active"] = set()
         for t in list(prox_threads.values()):
             t.join(timeout=2.0)
         prox_threads.clear()
@@ -789,8 +839,9 @@ def set_proximity(on, range_mm=None, silent=None, relearn=None):
 
 def prox_status(since=0):
     with state_lock:
-        no_sensor = [f for f, l in lanterns.items() if not l.get("tmf")]
+        no_sensor = [f for f, l in lanterns.items() if not has_sensor(l)]
     return {"on": PROX["on"], "silent": PROX["silent"], "range_mm": PROX["range_mm"], "live": prox_live,
+            "active": sorted(PROX["active"]),
             "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor,
             "delta_mm": PROX_DELTA_MM, "min_confidence": PROX_MIN_CONFIDENCE,
             "learn_confidence": PROX_LEARN_CONFIDENCE, "server_t": round(time.time(), 3)}
@@ -1186,7 +1237,7 @@ def source_members(src):
     want_perim = src == "group:perimeter"
     with state_lock:
         order, meta = list(STATE.get("order", [])), STATE.get("lanterns", {})
-        return [f for f in order if lanterns.get(f, {}).get("tmf")
+        return [f for f in order if has_sensor(lanterns.get(f, {}))
                 and (meta.get(f, {}).get("role") == "perimeter") == want_perim]
 
 
@@ -1317,7 +1368,7 @@ def arm_interaction(rule):
         if not source_members(src):
             kind = "perimeter lights" if src == "group:perimeter" else "lanterns"
             return {"ok": False, "error": f"no {kind} with a distance sensor are connected (set roles on the Lanterns tab)"}
-    elif not lanterns.get(src.upper(), {}).get("tmf"):
+    elif not has_sensor(lanterns.get(src.upper(), {})):
         return {"ok": False, "error": "pick a source lantern that has a distance sensor"}
     p = find_pattern(rule.get("pattern_id"))
     if not p:
@@ -1696,6 +1747,10 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         b = self.body()
         if self.path == "/api/proximity":
+            if "sensor" in b:  # per-sensor on/off (and optionally the watch/ding setting)
+                if "silent" in b:
+                    PROX["silent"] = bool(b["silent"])
+                return self.reply(set_prox_sensor(b["sensor"], bool(b.get("active"))))
             return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm"), b.get("silent"), b.get("relearn")))
         if self.path == "/api/wake":
             if "keep" in b:
