@@ -1,0 +1,7 @@
+{"utc": "2026-10-16T22:08:59.938395+00:00", "kind": "metadata", "value": {"target": "68:EE:8F:F4:03:08", "operation": "Enumeration-only ROM direct/extension comparison; no serial port opened"}}
+{"utc": "2026-10-16T22:08:59.943393+00:00", "kind": "ports", "value": [{"port": "COM8", "vid": 12346, "pid": 4097, "serial": "68:EE:8F:F4:03:08"}]}
+{"utc": "2026-10-16T22:09:38.999702+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-16T22:10:06.049375+00:00", "kind": "ports", "value": [{"port": "COM8", "vid": 12346, "pid": 4097, "serial": "68:EE:8F:F4:03:08"}]}
+{"utc": "2026-10-16T22:11:06.021451+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-16T22:11:06.325506+00:00", "kind": "ports", "value": [{"port": "COM8", "vid": 12346, "pid": 4097, "serial": "68:EE:8F:F4:03:08"}]}
+{"utc": "2026-10-16T22:12:40.415091+00:00", "kind": "finished", "value": {"stop_marker": true}}

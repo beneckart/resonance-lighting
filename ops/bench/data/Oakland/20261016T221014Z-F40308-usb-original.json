@@ -1,0 +1,21 @@
+{
+  "target": "68:EE:8F:F4:03:08",
+  "label": "original",
+  "utc": "2026-10-16T22:10:54.217750+00:00",
+  "identity_ok": true,
+  "prefix_matches_preserved_baseline": true,
+  "prefix_sha256": "3123b3fd0ce33ca0f2db9d641672d4b72de894204f45c55b40cefa61b47ff47e",
+  "steps": [
+    {
+      "operation": "identity",
+      "exit": 0,
+      "duration_s": 2.11
+    },
+    {
+      "operation": "prefix-read",
+      "exit": 0,
+      "duration_s": 37.16
+    }
+  ],
+  "note": "Same laptop cable/port; battery retained; no host reset or flash write"
+}

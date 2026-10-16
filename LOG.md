@@ -10,6 +10,26 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- Daisy original extension passes; natural recovery
+
+Daisy's original suspect extension re-enumerated in ROM and passed an exact
+64 KiB prefix comparison against the direct-USB capture (37.16-second read).
+It then carried the original fx-260912-f951ae9-b application successfully.
+This validates the current orientation and setup; the earlier silence does
+not establish a failed extension. No return-to-direct leg was needed after
+this successful comparison. The replacement extension remains unqualified.
+
+A recorded host watchdog reset to leave ROM produced poweron with stored
+FULL/load-armed and therefore a DIM boot. USB telemetry showed a present
+battery, about 3.49-3.50 V after startup, charging current up to +346.9 mA,
+no BQ fault, valid VL53L5CX/MSA311 reads and initialized radio. The historical
+3026 mV PROTECT entry was unchanged. Natural voltage recovery returned DIM
+to FULL by uptime 75.482 seconds. No firmware, profile or guard-clear command
+was sent; original FIELD lifecycle remains active. Evidence and remaining
+crash/physical-capacity qualifications are in POST_BURN_DAISY_2026-10-16.md.
+The final 15:12:47 PDT sample was FULL at 3.491 V / +328.1 mA, with both
+sensors reading and radio up. All capture processes were closed afterward.
+
 ## 2026-10-16 -- Ben + Codex -- Daisy ROM intake and preserved history
 
 The new perimeter is Daisy F40308. Direct USB enumerated at 15:06:16 PDT
