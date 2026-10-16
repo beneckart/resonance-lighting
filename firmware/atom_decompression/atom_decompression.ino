@@ -186,6 +186,8 @@ static void face() {
     if (havePlayed && now-lastPlayMs<4500) {
       if (p.playStatus==NB_DECOMP_STARTED) color=pixels.Color(14,14,14);
       else if (p.playStatus==NB_DECOMP_COMPLETE) color=pixels.Color(16,10,0);
+      // Relay mode: the lantern took the press but leaves it to the host (Tone Lab).
+      else if (p.playStatus==NB_DECOMP_READY) color=pixels.Color(0,12,16);
       else if (p.playStatus) color=pixels.Color(20,0,0);
     }
     if (!enabled) color=pixels.Color(3,0,4);
@@ -203,7 +205,7 @@ void setup() {
   radioReady=startRadio();
   Serial.println("\n" ATOM_DECOMPRESSION_VERSION);
   Serial.println("Face press: all-nine local signatures, any hour. USB: t/play/pause/resume.");
-  Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, red refused.");
+  Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, cyan handed to host (relay), red refused.");
   lastPlayMs=millis()-5000; nextLeaseMs=millis();
 }
 void loop() {
