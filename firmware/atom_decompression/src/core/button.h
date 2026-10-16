@@ -1,12 +1,13 @@
 #pragma once
 #include <stdint.h>
 
-// Minimum gap between accepted presses. Was 5000 ms (one signature at a time);
-// 250 ms lets a quick second click through so host tools can tell single from
-// double clicks. A held press still never repeats. Receivers keep their own
+// Minimum gap between accepted presses. Was 5000 ms (one signature at a time),
+// then 250 ms, which still swallowed the second press of a natural double click
+// (often 120-250 ms apart). 100 ms lets it through; release-arming plus the
+// 35 ms debounce already stop bounce and held presses from repeating. Receivers keep their own
 // phrase cooldown, so a fast second PLAY without relay mode is simply refused.
 #ifndef ATOM_PRESS_GAP_MS
-#define ATOM_PRESS_GAP_MS 250
+#define ATOM_PRESS_GAP_MS 100
 #endif
 
 struct DecompressionButton {
