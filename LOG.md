@@ -10,6 +10,17 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Brian + Claude -- Atom double click works end to end
+
+The 100 ms gap alone didn't fix double clicks: the Atom's sendSquad() blocks
+~90 ms per press (3 copies x 9 lanterns) without sampling the button, so the
+release between quick presses went unseen. `atom-decomp-113dbc7` samples the
+button during sends and queues presses. Flashed to `1B636C`, hash verified.
+Test 22:18:46Z: the Atom log shows play #1 and #2 (seq 5, 6) with READY receipts
+from all nine; the Tone Lab classified a double click and moved "Approach speeds
+up" to the next Active pattern (Drowning in Soup); no strikes.
+Evidence: `ops/bench/data/Brian bench/20261016T221911Z-1B636C-atom-double-click.jsonl`.
+
 ## 2026-10-16 -- Brian + Claude -- Atom 1B636C: 100 ms press gap, cyan relay receipts
 
 First live test: single clicks played Freakout Mode x2 (104/104 strikes

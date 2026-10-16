@@ -1,0 +1,3 @@
+{"event": "flash", "target": "1B636C", "mac": "f8:b3:b7:1b:63:6c", "prior_fw": "atom-decomp-7ca004a", "fw_rev": "atom-decomp-113dbc7", "offset": "0x10000", "sha256": "297851adef809bf7d275e63746682de75fd5176b3c1fd93a8d6b264902e69cdc", "verify": "hash verified", "operator": "Brian", "change": "sample the button during sendSquad; queue presses"}
+{"event": "boot", "fw": "atom-decomp-113dbc7", "ready": 9, "total": 9}
+{"event": "double_click_test", "utc": "2026-10-16T22:18:46Z", "atom_log": "play #1 seq=5, play #2 seq=6, READY receipts from all nine for both", "tone_lab": "click=double, rule 'Next active pattern' -> 'Approach speeds up' now plays Drowning in Soup", "no_strikes": true}
