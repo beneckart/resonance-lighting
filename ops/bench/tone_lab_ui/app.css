@@ -74,8 +74,7 @@ button.confirm { background: var(--bad-bg); color: var(--bad); border-color: var
 .ranks li.grp { border-left-color: var(--accent); background: var(--accent-bg); }
 .ranks li.gstart { margin-top: 6px; }
 .ranks li.gend { margin-bottom: 6px; }
-.ranks .link { padding: 0 6px; font-size: 13px; color: var(--muted); }
-.ranks .link.on { color: var(--accent); border-color: var(--accent); }
+.ranks input[type=checkbox] { width: 16px; height: 16px; margin: 0; cursor: pointer; }
 .ranks .glabel { font-size: 11px; color: var(--accent); margin-left: 6px; }
 .ranks li.drag { opacity: .4; } .ranks li.over { border-top: 2px solid var(--accent); }
 .ranks .k { color: var(--muted); font-size: 12px; }

@@ -67,7 +67,7 @@
       <button data-dir="up" class="primary">▶ Low → high</button>
       <label class="status">gap <input id="gapms" type="range" min="100" max="1500" step="50" value="400"> <span id="gapv">400</span> ms</label>
       <button id="seq">Slow check</button>
-      <label class="status"><input type="checkbox" id="playgroups"> play same-tone groups together</label>
+
     </div>
     <div class="toolbar">
       <span class="lbl">Timing</span>
@@ -100,7 +100,9 @@
       <button id="pload">Load</button><button id="pdel">Delete</button>
       <input type="text" id="pname" aria-label="Name for this order" placeholder="Name this order" style="width:140px">
       <button id="psave">Save order</button>
-      <span class="status">Drag rows to reorder. 1 = highest tone. ≈ = same tone as the lantern above.</span>
+      <span class="sep"></span>
+      <button id="grpsel">Group selected</button><button id="ungrpsel">Ungroup selected</button>
+      <span class="status" id="selinfo">Tick lanterns that sound the same, then Group selected. Groups always play together.</span>
     </div>
     <ol class="ranks" id="ranks"></ol>
   </section>

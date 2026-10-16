@@ -74,6 +74,60 @@ function keepGroups(oldGroups, drop) {
   const out = (drop || []);
   S.tone_links = S.order.filter((id, i) => i > 0 && !out.includes(id) && !out.includes(S.order[i - 1]) && gid[id] === gid[S.order[i - 1]]);
 }
+// ---- selection-based grouping (Tone order tab) ----
+const SEL = new Set();
+function groupOf(id) { return toneGroups().find(g => g.includes(id)) || [id]; }
+function selInfo() {
+  $("selinfo").textContent = SEL.size ? `${SEL.size} selected: ${[...SEL].map(name).join(", ")}`
+    : "Tick lanterns that sound the same, then Group selected. Groups always play together.";
+}
+document.addEventListener("change", e => {
+  const t = e.target; if (!t.dataset || !t.dataset.sel) return;
+  if (t.checked) SEL.add(t.dataset.sel); else SEL.delete(t.dataset.sel);
+  selInfo();
+});
+// Group: the ticked lanterns become one group, placed together at the first
+// ticked position (in their current relative order); other groups are kept.
+$("grpsel").onclick = () => {
+  const picked = S.order.filter(id => SEL.has(id));
+  if (picked.length < 2) { log("tick at least two lanterns to group", "bad"); return; }
+  const old = toneGroups(), at = S.order.indexOf(picked[0]);
+  const rest = S.order.filter(id => !SEL.has(id));
+  const insertAt = rest.findIndex((id, i) => S.order.indexOf(id) > at);
+  S.order = insertAt < 0 ? rest.concat(picked) : rest.slice(0, insertAt).concat(picked, rest.slice(insertAt));
+  keepGroups(old, picked);
+  S.tone_links = (S.tone_links || []).concat(picked.slice(1));
+  SEL.clear(); selInfo(); render(); save(true);
+  log(`grouped as one tone: ${picked.map(name).join(", ")}`, "ok");
+};
+// Ungroup: each ticked lantern leaves its group and moves just after it, so the
+// remaining members stay together.
+$("ungrpsel").onclick = () => {
+  const picked = S.order.filter(id => SEL.has(id) && groupOf(id).length > 1);
+  if (!picked.length) { log("tick grouped lanterns to ungroup", "bad"); return; }
+  const old = toneGroups();
+  for (const id of picked) {
+    const g = old.find(x => x.includes(id)), last = [...g].reverse().find(x => !SEL.has(x)) || g[g.length - 1];
+    S.order.splice(S.order.indexOf(id), 1);
+    S.order.splice(S.order.indexOf(last) + 1, 0, id);
+  }
+  keepGroups(old, picked);
+  SEL.clear(); selInfo(); render(); save(true);
+  log(`ungrouped: ${picked.map(name).join(", ")}`, "ok");
+};
+// A row's ▶ plays its whole same-tone group at once.
+async function playGroup(id) {
+  const ids = groupOf(id).filter(online);
+  if (ids.length <= 1) return strike(id);
+  const pulses = Object.fromEntries(ids.map(x => [x, pulseFor(x)]));
+  ids.forEach(x => flash(x, "flash", 400));
+  const r = await api("/api/play", {order: ids, gap_ms: 400, pulses, comp: compOn(), slots: ids.map(() => 0)});
+  if (r.results) {
+    const bad = r.results.filter(x => !x.ok);
+    log(`group ${ids.map(name).join(" + ")} struck together` + (bad.length ? ` — not confirmed: ${bad.map(x => name(x.fixture_id)).join(", ")}` : ""), bad.length ? "bad" : "ok");
+    r.results.forEach(x => { const l = live(x.fixture_id); if (l && x.strikes_after != null) Object.assign(l, {strikes: x.strikes_after, battery_v: x.battery_v}); });
+  } else log(r.error || "group strike failed", "bad");
+}
 // Beat slot per lantern for Play: same-tone group members share a slot.
 function groupSlots(ids) {
   const gidx = {};
@@ -183,13 +237,13 @@ function renderRanks() {
     const l = live(id), m = meta(id), inGrp = size[id] > 1;
     const cls = [online(id) ? "" : "offline", inGrp ? "grp" : "", inGrp && pos[id] === 0 ? "gstart" : "",
                  inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
-    const linkBtn = i ? `<button class="link ${linked(id) ? "on" : ""}" data-link="${id}" title="${linked(id) ? "Same tone as the lantern above (click to separate)" : "Mark as the same tone as the lantern above"}" aria-label="Same tone as above">≈</button>` : "<span></span>";
+    const linkBtn = `<input type="checkbox" data-sel="${id}" ${SEL.has(id) ? "checked" : ""} aria-label="Select ${esc(name(id))}">`;
     return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
       ${linkBtn}<span class="k">${rank[id]}</span><span>${esc(name(id))} ${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
       <span class="dim">${l ? "hub " + l.hub : "not connected"}</span>
       <span class="dim">${pulseFor(id)} ms</span>
       <span class="dim">${m.latency_ms != null ? Math.round(m.latency_ms) + " ms lat" : ""}</span>
-      <button data-strike="${id}" title="Strike" aria-label="Strike ${esc(name(id))}">▶</button></li>`;
+      <button data-gstrike="${id}" title="${inGrp ? "Strike the whole same-tone group together" : "Strike"}" aria-label="Strike ${esc(name(id))}">▶</button></li>`;
   }).join("");
   renderPresets();
   document.querySelectorAll("#set button").forEach(b => b.classList.toggle("on", b.dataset.set === UI.set));
@@ -275,13 +329,7 @@ document.addEventListener("click", async e => {
   if (!b || busy) return;
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
   else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
-  else if (b.dataset.link) {
-    const id = b.dataset.link, links = new Set(S.tone_links || []);
-    if (links.has(id)) links.delete(id); else links.add(id);
-    S.tone_links = [...links]; render(); save();
-    const i = S.order.indexOf(id);
-    log(linked(id) ? `${name(id)} grouped with ${name(S.order[i - 1])} (same tone)` : `${name(id)} separated from ${name(S.order[i - 1])}`);
-  }
+  else if (b.dataset.gstrike) { busy = true; await playGroup(b.dataset.gstrike); busy = false; }
   else if (b.dataset.type) {
     const [id, t] = b.dataset.type.split(":"), m = meta(id);
     m.type = m.type === t ? null : t; render(); save();
@@ -309,9 +357,9 @@ document.querySelectorAll("[data-dir]").forEach(btn => btn.onclick = async () =>
   if (!ids.length) { log(`no online ${UI.set === "all" ? "" : UI.set + " "}lanterns`, "bad"); return; }
   busy = true; btn.disabled = true;
   const g = +$("gapms").value, pulses = Object.fromEntries(ids.map(id => [id, pulseFor(id)]));
-  const together = $("playgroups").checked;
+  // Same-tone groups always strike together on one beat.
   const r = await api("/api/play", {order: ids, gap_ms: g, pulses, comp: compOn(), measure: $("meas").checked,
-                                    slots: together ? groupSlots(ids) : undefined});
+                                    slots: groupSlots(ids)});
   if (r.results) {
     const bad = r.results.filter(x => !x.ok);
     log(`played ${UI.set} ${btn.dataset.dir === "up" ? "low→high" : "high→low"} (${r.results.length}) at ${g} ms gap` +
