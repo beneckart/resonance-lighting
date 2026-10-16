@@ -63,6 +63,14 @@ function setList(dir) {
 // ---- same-tone groups: a lantern listed in S.tone_links has the same tone as
 // the lantern directly above it in S.order; consecutive links form one group.
 function linked(id) { return (S.tone_links || []).includes(id); }
+// Tone number badge (position in the Tone order tab, 1 = highest), shown on every tab.
+function toneBadge(id) {
+  const n = S.order.indexOf(id) + 1;
+  if (!n) return "";
+  const g = toneGroups().find(x => x.includes(id)) || [id];
+  const title = g.length > 1 ? `tone #${n}; same tone as ${g.filter(x => x !== id).map(x => "#" + (S.order.indexOf(x) + 1) + " " + name(x)).join(", ")}` : `tone #${n} (1 = highest)`;
+  return `<span class="tno ${g.length > 1 ? "grp" : ""}" title="${esc(title)}">${n}</span>`;
+}
 function toneGroups() {
   const groups = [];
   S.order.forEach((id, i) => { if (i && linked(id) && groups.length) groups[groups.length - 1].push(id); else groups.push([id]); });
@@ -210,7 +218,7 @@ function renderCards() {
   $("cards").innerHTML = cardIds().map(id => {
     const m = meta(id);
     return `<div class="card ${online(id) ? "" : "offline"}" data-card="${id}">
-      <div class="name">${esc(name(id))}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
+      <div class="name">${toneBadge(id)}${esc(name(id))}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
       <div class="row"><button data-strike="${id}">Strike</button>
         <button data-wake="${id}" class="${WK.targets.includes(id) ? "waking" : ""}">${wakeLabel(id)}</button>
         <button class="${m.type === "large" ? "on" : ""}" data-type="${id}:large">Large</button>
@@ -505,7 +513,7 @@ function pxControls() {
 function renderProxTab() {
   pxControls();
   $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
-      <div class="hdr"><span class="nm">${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
+      <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
         <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
       <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid" data-pxz="${id}" title="The sensor's 3x3 zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = hand."></div></div>
       <div class="st" data-pxst="${id}"></div></div>`).join("");
@@ -718,7 +726,7 @@ function renderPatterns() {
   }
   rows.forEach(id => {
     const m = meta(id), hits = new Set(p.hits[id] || []), off = online(id) ? "" : " offline";
-    h += `<div class="rh" data-card="${id}"><span class="nm" title="${esc(id)}">${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
+    h += `<div class="rh" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
     for (let i = 0; i < p.steps; i++) {
       const cls = ["c"];
       if (i && i % barSteps === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");

@@ -104,10 +104,29 @@
     "9F26B0",
     "9F0E5C"
   ],
-  "updated_utc": "2026-10-16T02:30:54.831Z",
+  "updated_utc": "2026-10-16T02:32:11.243Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
-  "presets": {},
+  "presets": {
+    "High to Low": {
+      "order": [
+        "F40254",
+        "9F2738",
+        "9F0E54",
+        "9F26BC",
+        "9F26D8",
+        "F2BE0C",
+        "9F2638",
+        "9F26B0",
+        "9F0E5C"
+      ],
+      "tone_links": [
+        "9F26BC",
+        "9F26B0",
+        "F2BE0C"
+      ]
+    }
+  },
   "patterns": {
     "Beat 1": {
       "name": "Beat 1",
