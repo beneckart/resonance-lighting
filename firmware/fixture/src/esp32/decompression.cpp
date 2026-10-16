@@ -22,6 +22,10 @@ static uint8_t gResultCopies = 0;
 static uint32_t gNextResultMs = 0;
 static SignatureSequence gRadioResult;
 static bool gWakePending = false;
+// Atom presses seen (ADR 0083 PLAY admitted as NEW), for host tools.
+static bool gRelay = false;
+static uint32_t gRadioPlays = 0, gRadioLastBoot = 0, gRadioLastSeq = 0, gRadioLastMs = 0;
+static uint8_t gRadioLastSrc[3] = {0, 0, 0};
 static bool gWasActive = false;
 
 bool decompressionActive() {
@@ -89,6 +93,18 @@ void decompressionOnRadio(const NbDecompressionControl &c, uint32_t receivedMs) 
     return;
   }
   uint8_t status = NB_DECOMP_REFUSED;
+  if (c.action == NB_DECOMP_PLAY) {
+    gRadioPlays++;
+    memcpy(gRadioLastSrc, c.h.src_id, 3);
+    gRadioLastBoot = c.controller_boot;
+    gRadioLastSeq = c.h.seq;
+    gRadioLastMs = millis();
+    if (gRelay) { // the host decides what this press does; never start the phrase here
+      entry->status = NB_DECOMP_READY;
+      radioReceipt(c, NB_DECOMP_READY);
+      return;
+    }
+  }
   if (c.action == NB_DECOMP_SESSION) {
     if (!c.minutes) {
       gRadioSession.set(esp_timer_get_time(), 0);
@@ -110,6 +126,18 @@ void decompressionOnRadio(const NbDecompressionControl &c, uint32_t receivedMs) 
   radioReceipt(c, status);
 }
 void decompressionButtonWake() { gWakePending = true; }
+void decompressionSetRelay(bool on) { gRelay = on; }
+bool decompressionRelay() { return gRelay; }
+void decompressionRadioTelemetry(String &j) {
+  char src[7];
+  snprintf(src, sizeof(src), "%02X%02X%02X", gRadioLastSrc[0], gRadioLastSrc[1], gRadioLastSrc[2]);
+  j += ",\"radio_relay\":" + String(gRelay ? "true" : "false");
+  j += ",\"radio_plays\":" + String((unsigned long)gRadioPlays);
+  j += ",\"radio_last_src\":\"" + String(src) + "\"";
+  j += ",\"radio_last_boot\":" + String((unsigned long)gRadioLastBoot);
+  j += ",\"radio_last_seq\":" + String((unsigned long)gRadioLastSeq);
+  j += ",\"radio_last_age_ms\":" + String(gRadioPlays ? (unsigned long)(millis() - gRadioLastMs) : 0UL);
+}
 void decompressionTick() {
   if (!decompressionBuild()) return;
   patternTick();

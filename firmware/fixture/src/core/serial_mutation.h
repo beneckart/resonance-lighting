@@ -19,6 +19,7 @@ enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_SIGNATURE = 2, // !K<id>:1 play, :0 cancel
   SERIAL_MUTATION_DECOMPRESSION = 3, // !D<id>:0..120 session minutes
   SERIAL_MUTATION_PATTERN = 4, // !P<id> ... (ADR 0084); full line via line()
+  SERIAL_MUTATION_RELAY = 5,   // !R<id>:1 report Atom presses without playing; :0 normal
 };
 
 struct SerialMutationCommand {

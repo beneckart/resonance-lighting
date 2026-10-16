@@ -372,6 +372,7 @@ String telemetryJson() {
     }
     j += ']';
     patternTelemetry(j);
+    decompressionRadioTelemetry(j);
   }
   j += "}";
   return j;
