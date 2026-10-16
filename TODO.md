@@ -3712,3 +3712,13 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   Prerequisite either way: multi-user state sync (per-item saves instead of
   whole-state posts, server-pushed updates to every open browser, attribution
   in the log) so two editors never overwrite each other (Brian + Ben).
+- [ ] **On-site OTA over Android hotspots (decompression squad).** Plan from
+  2026-10-16: give Brian's Pixel and Ben's Samsung hotspots the same SSID and
+  password (ASCII), WPA2-Personal, 2.4 GHz (Pixel "Extend compatibility";
+  Samsung band 2.4 GHz, PMF off, Wi-Fi 6 off), auto-off disabled, max
+  connections raised (about 10 devices; batch if needed). Put that profile in
+  `wifi_secrets.h` slot 1 (keep the current one in slot 2), rebuild and USB-flash
+  all nine, then dry-run one lantern: USB `u` -> joins hotspot -> re-upload the
+  same artifact over WiFi -> verify the ADR 0040 completion contract. Open:
+  the radio sender for ENTER_MAINT once lanterns are hung (Ben's T-Deck bridge,
+  a USB ESP32 dongle for the tone lab, or an Atom extension) (Brian + Ben).
