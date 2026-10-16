@@ -96,7 +96,9 @@
       <button id="rev">Reverse</button>
       <button id="grp">Large first, small last</button>
       <select id="psel" aria-label="Saved orders"><option value="">Saved orders…</option></select>
-      <button id="pload">Load</button><button id="psave">Save as…</button><button id="pdel">Delete</button>
+      <button id="pload">Load</button><button id="pdel">Delete</button>
+      <input type="text" id="pname" aria-label="Name for this order" placeholder="Name this order" style="width:140px">
+      <button id="psave">Save order</button>
       <span class="status">Drag rows to reorder. 1 = highest tone.</span>
     </div>
     <ol class="ranks" id="ranks"></ol>
@@ -106,8 +108,9 @@
   <section class="tab" id="tab-patterns">
     <div class="toolbar">
       <select id="patsel" aria-label="Pattern"></select>
-      <button id="patnew">New</button><button id="patdup">Duplicate</button>
-      <button id="patren">Rename</button><button id="patdel">Delete</button>
+      <input type="text" id="patname" aria-label="Pattern name" placeholder="Pattern name" style="width:170px">
+      <button id="patnew">New</button><button id="patdup">Duplicate</button><button id="patdel">Delete</button>
+      <span class="status" id="patsaved"></span>
       <span class="sep"></span>
       <label class="status">BPM <input type="number" id="bpm" min="20" max="300" step="1"></label>
       <label class="status">beats/bar <select id="bpb">

@@ -40,7 +40,10 @@ function save(now) {
   clearTimeout(saveTimer);
   const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets,
     patterns: S.patterns, pulse_ms: S.pulse_ms})
-    .then(r => { $("saved").textContent = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed"; })
+    .then(r => {
+      const msg = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
+      $("saved").textContent = msg; if ($("patsaved")) $("patsaved").textContent = msg;
+    })
     .catch(() => { $("saved").textContent = "save failed"; });
   if (now) go(); else saveTimer = setTimeout(go, 300);
 }
@@ -183,23 +186,37 @@ $("grp").onclick = () => {
   S.order = S.order.map((id, i) => [id, i]).sort((a, b) => r(meta(a[0]).type) - r(meta(b[0]).type) || a[1] - b[1]).map(x => x[0]);
   render(); save();
 };
+// Browser dialogs (prompt/confirm) are blocked in the app's built-in browser
+// pane, so destructive actions confirm with a second click on the same button.
+function confirmClick(btn, label, action) {
+  if (btn.dataset.armed === "1") {
+    clearTimeout(btn._t); btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("confirm");
+    action(); return;
+  }
+  btn.dataset.label = btn.textContent; btn.dataset.armed = "1"; btn.textContent = label; btn.classList.add("confirm");
+  btn._t = setTimeout(() => { btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("confirm"); }, 3000);
+}
 function renderPresets() {
   const v = $("psel").value;
   $("psel").innerHTML = '<option value="">Saved orders…</option>' +
     Object.keys(S.presets).map(k => `<option ${k === v ? "selected" : ""}>${esc(k)}</option>`).join("");
 }
 $("psave").onclick = () => {
-  const n = (prompt("Name for this order:") || "").trim(); if (!n) return;
-  S.presets[n] = S.order.slice(); renderPresets(); $("psel").value = n; save(); log(`saved order "${n}"`);
+  const n = $("pname").value.trim();
+  if (!n) { log("type a name for this order first", "bad"); $("pname").focus(); return; }
+  const existed = !!S.presets[n];
+  S.presets[n] = S.order.slice(); renderPresets(); $("psel").value = n; $("pname").value = ""; save(true);
+  log(`${existed ? "updated" : "saved"} order "${n}"`, "ok");
 };
+$("pname").addEventListener("keydown", e => { if (e.key === "Enter") $("psave").click(); });
 $("pload").onclick = () => {
   const n = $("psel").value; if (!n || !S.presets[n]) return;
   const rest = S.order.filter(id => !S.presets[n].includes(id));
   S.order = S.presets[n].concat(rest); render(); save(); log(`loaded order "${n}"`);
 };
 $("pdel").onclick = () => {
-  const n = $("psel").value; if (!n || !confirm(`Delete saved order "${n}"?`)) return;
-  delete S.presets[n]; renderPresets(); save();
+  const n = $("psel").value; if (!n) { log("pick a saved order to delete", "bad"); return; }
+  confirmClick($("pdel"), "Click again to delete", () => { delete S.presets[n]; renderPresets(); save(true); log(`deleted order "${n}"`); });
 };
 $("gapms").oninput = e => { $("gapv").textContent = e.target.value; };
 document.querySelectorAll(".comp").forEach(cb => cb.addEventListener("change", e => {
@@ -520,10 +537,14 @@ document.addEventListener("click", async e => {
 });
 
 // ---------- Patterns tab ----------
-function newPattern(nm) { return {name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
+function newPattern(nm) { return {id: patternId(), name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
 const MAX_STEPS = 256; // server limit
+// Stable pattern id: survives renames so triggers (proximity, Atom, standalone)
+// can refer to a pattern without depending on its display name.
+function patternId() { return "pat-" + Math.random().toString(16).slice(2, 8) + Date.now().toString(16).slice(-4); }
 // Older patterns only had steps + steps_per_beat; derive bars/beats so the grid always adds up.
 function normalize(p) {
+  p.id = p.id || patternId();
   p.steps_per_beat = p.steps_per_beat || 4;
   p.beats_per_bar = p.beats_per_bar || 4;
   p.bars = p.bars || Math.max(1, Math.round(p.steps / (p.beats_per_bar * p.steps_per_beat)));
@@ -587,7 +608,10 @@ function fwBadge(id) {
 let saPatternId = lsGet("saPatternId") || "";
 function renderPatterns() {
   const p = curPattern();
-  $("patsel").innerHTML = Object.keys(S.patterns).map(k => `<option ${k === UI.pattern ? "selected" : ""}>${esc(k)}</option>`).join("");
+  $("patsel").innerHTML = Object.keys(S.patterns).sort((a, b) => a.localeCompare(b))
+    .map(k => `<option ${k === UI.pattern ? "selected" : ""}>${esc(k)}</option>`).join("");
+  if (document.activeElement !== $("patname")) $("patname").value = p.name;
+  $("patname").title = `pattern id ${p.id}`;
   $("bpm").value = p.bpm; $("bpb").value = p.beats_per_bar; $("spb").value = p.steps_per_beat; $("bars").value = p.bars;
   const bad = violations(p), rows = S.order, spb = p.steps_per_beat, barSteps = spb * p.beats_per_bar;
   const g = $("seq-grid");
@@ -650,26 +674,45 @@ document.addEventListener("pointermove", e => {
 document.addEventListener("pointerup", () => { if (paint) { paint = null; renderPatterns(); save(); } });
 $("patsel").onchange = e => { UI.pattern = e.target.value; lsSet("pattern", UI.pattern); renderPatterns(); };
 function uniqueName(base) { let n = base, k = 2; while (S.patterns[n]) n = `${base} ${k++}`; return n; }
+function patSaved(msg) { $("patsaved").textContent = msg || "saved " + new Date().toLocaleTimeString(); }
+function selectPattern(nm, focusName) {
+  UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save(true); patSaved();
+  if (focusName) { $("patname").focus(); $("patname").select(); }
+}
 $("patnew").onclick = () => {
-  const nm = (prompt("Name for the new pattern:", uniqueName("Pattern")) || "").trim(); if (!nm) return;
-  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); return; }
-  S.patterns[nm] = newPattern(nm); UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
+  const nm = uniqueName("Pattern");
+  S.patterns[nm] = newPattern(nm); selectPattern(nm, true);
+  log(`created "${nm}": type a name in the box and press Enter`, "ok");
 };
 $("patdup").onclick = () => {
   const p = curPattern(), nm = uniqueName(p.name + " copy");
-  S.patterns[nm] = JSON.parse(JSON.stringify({...p, name: nm})); UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
+  S.patterns[nm] = JSON.parse(JSON.stringify({...p, name: nm, id: patternId()}));
+  selectPattern(nm, true); log(`duplicated "${p.name}" as "${nm}"`, "ok");
 };
-$("patren").onclick = () => {
-  const p = curPattern(), nm = (prompt("Rename pattern:", p.name) || "").trim();
-  if (!nm || nm === p.name) return;
-  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); return; }
-  delete S.patterns[p.name]; p.name = nm; S.patterns[nm] = p; UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
-};
+function renameCurrent() {
+  const p = curPattern(), nm = $("patname").value.trim();
+  if (!nm || nm === p.name) { $("patname").value = p.name; return; }
+  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); $("patname").value = p.name; return; }
+  const old = p.name;
+  delete S.patterns[old]; p.name = nm; S.patterns[nm] = p;
+  selectPattern(nm); log(`renamed "${old}" to "${nm}"`, "ok");
+}
+$("patname").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); renameCurrent(); }
+  if (e.key === "Escape") { $("patname").value = curPattern().name; $("patname").blur(); }
+});
+$("patname").addEventListener("blur", renameCurrent);
 $("patdel").onclick = () => {
-  const p = curPattern(); if (!confirm(`Delete pattern "${p.name}"?`)) return;
-  delete S.patterns[p.name]; UI.pattern = null; renderPatterns(); save();
+  const p = curPattern();
+  confirmClick($("patdel"), "Click again to delete", () => {
+    delete S.patterns[p.name]; UI.pattern = null; renderPatterns(); save(true); patSaved(`deleted "${p.name}"`);
+    log(`deleted pattern "${p.name}"`);
+  });
 };
-$("patclear").onclick = () => { const p = curPattern(); if (confirm(`Clear every hit in "${p.name}"?`)) { p.hits = {}; renderPatterns(); save(); } };
+$("patclear").onclick = () => {
+  const p = curPattern();
+  confirmClick($("patclear"), "Click again to clear", () => { p.hits = {}; renderPatterns(); save(true); patSaved(); log(`cleared "${p.name}"`); });
+};
 $("bpm").onchange = e => {
   const v = Math.round(+e.target.value);
   if (!(v >= 20 && v <= 300)) { log("BPM must be 20..300", "bad"); e.target.value = curPattern().bpm; return; }
