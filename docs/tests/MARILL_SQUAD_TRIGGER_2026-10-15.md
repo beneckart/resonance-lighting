@@ -158,3 +158,47 @@ The first minute of an empty view remained armed at 50 mm with zero accepted
 events, all nine READY, and zero radio errors/restarts. Browser error log was
 empty. The qualification trace closed at 23:38:53 UTC; continuing live readings
 use 20261015T233853Z-F40348-live-presence.jsonl.
+
+## 5..40 cm band, 60 cm rearm
+
+Ben confirmed the 5 cm minimum works and requested a 40 cm maximum and
+60 cm rearm boundary. Clean source 1a53a2398d4e53507a5799069bce1b18d199f6e7
+built as fx-261016-220d90a-b (UTC commit date, still October 15 locally).
+Application SHA-256:
+00c25f9912cd3119810727084fde0607dac72720e07abbb92e376c337945e7e1;
+1,236,336 bytes. Compile passed: 1,236,001 program bytes; 70,156 global bytes.
+Manifest and build.options.json agree on the unchanged F40348-only recovery
+and controller flags. No receiver image was flashed by this operation.
+
+Serial parser tests passed 61 checks, including new maximum/clear commands,
+exact targeting, malformed values and bounds. Windows Application Control
+blocked execution of the compiled expanded squad test executable. Instead,
+C++17 compile-time assertions validated the actual presence state machine:
+400/401 mm trigger edge, 600/601 mm clear edge, 800 ms clear dwell, invalid
+ordering, no-op writes, and rearm invalidation on changed bounds. Do not read
+this as a successful runtime execution of the full expanded squad suite.
+
+ROM verified the full MAC, saved the 64 KiB prefix, wrote app1 only, and
+verified both application and unchanged prefix. Fresh boot reported defaults
+50/400/600 mm. With session off, USB U450, V650, U400, V600 commands each
+changed the expected live boundary and left count zero and detector unarmed.
+Restored 44 minutes, rounded down from the previous session's remaining time.
+Fresh telemetry passed battery, charger-fault and sensor checks; existing
+PROTECT recovery history was retained. The live graph showed 5..40 cm,
+60 cm rearm and Armed in the empty view.
+
+Evidence under ops/bench/data/Oakland:
+
+- fx-261016-220d90a-b-manifest.json
+- 20261016T025601Z-F40348-band-rom-flash.jsonl
+- 20261016T025750Z-F40348-band-verify.jsonl
+- 20261016T025840Z-F40348-band-ready.json
+- continuing viewer: 20261016T024148Z-F40348-live-presence.jsonl
+
+At 02:58:40 UTC all nine were freshly READY with zero TX errors or radio
+restarts. The empty-space detector was armed. Some received peer revisions
+had changed to fx-261016-d572656-b during this session; those receiver updates
+were not performed by this Marill-only operation.
+
+Physical feel at the new 40/60 cm edges remains a user observation; the
+software and USB checks do not measure sensor distance accuracy.

@@ -10,6 +10,18 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band deployed
+
+Flashed Marill F40348 only with fx-261016-220d90a-b from clean 1a53a23;
+SHA-256 00c25f9912cd3119810727084fde0607dac72720e07abbb92e376c337945e7e1.
+ROM application and unchanged-prefix verification passed. Live defaults were
+50/400/600 mm; RAM upper/clear adjustments and restoration passed with zero
+strikes. Restored 44 minutes of the previous session, ending about 20:42
+Pacific. All nine READY again, zero TX errors/restarts, and the graph shows
+the new band and empty-space rearm. Physical feel at the 40/60 cm edges is
+awaiting Ben's observation. Exact evidence is recorded in
+docs/tests/MARILL_SQUAD_TRIGGER_2026-10-15.md. No receiver was flashed here.
+
 ## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band implementation
 
 Ben confirmed the minimum works and requested 40 cm maximum / 60 cm rearm.
