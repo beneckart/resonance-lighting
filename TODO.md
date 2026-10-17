@@ -3912,3 +3912,12 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   no valid time schedule is available. The 1800-second continuous timer cannot
   finish in 12-second wakes or the 600-second cold-boot grace. Do not count
   unobserved sleep as darkness or hold awake 30 minutes without an energy budget.
+
+### 2026-10-17 Loom handoff
+
+- [ ] Brian: build current event source with explicit
+  `--wifi-source wifi_benphone.h --wifi-profile-label benphone-v1`, provision
+  the individually identified USB squad, and verify a canopy BenPhone OTA
+  before hanging. Use BENPHONE_OTA_CANARY.md; the earlier bfb3ab9 image
+  predates the current event lighting/cycle and is not this installation image.
+  Keep Marill's exact-target staged-recovery recipe separate.

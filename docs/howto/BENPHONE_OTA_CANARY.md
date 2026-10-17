@@ -1,5 +1,68 @@
 # BenPhone maintenance OTA canary
 
+## October 17 installation handoff for Brian
+
+Pull `origin/codex/decompression-signature`. It includes Brian's event basic
+mode through `24a9a6d`, the chime lighting and tuned roster, and the qualified
+USB service / bounded DIM-OFF recovery changes. The temporary hotspot header
+is tracked. **Explicitly select it when building**; pulling does not replace
+an ignored local `wifi_secrets.h` or change firmware already on a lantern.
+
+Build the current event basic image once from a clean checkout (Git Bash on
+Windows, or a normal shell on Brian's laptop):
+
+```bash
+cd firmware/fixture
+./build.sh --artifact-variant b --wifi-profile-label benphone-v1 \
+  --wifi-source wifi_benphone.h \
+  --profile field --channel 11 --basic-listener --decompression \
+  --squad-trigger-any-perimeter \
+  --precharge-ma 300 --day-sleep-s 120 --wake-listen-ms 12000
+```
+
+This preserves the current event behavior: canopies receive strikes and
+show chime lighting; perimeters run the automatic rising-pairs/all-nine
+trigger session. Run one trigger perimeter at a time: their independent
+cycles are not coordinated. The committed generated roster already contains
+Brian's tuned pulses; do not regenerate it from an older local tone map.
+
+The wrapper creates a new immutable revision, binary and manifest. Retain
+those exact outputs and their SHA-256. Do not reuse an earlier revision or
+the earlier `bfb3ab9` canopy binary: those predate Brian's latest event work.
+The command installs the shared header into ignored `wifi_secrets.h` for the
+build and selects only BenPhone; preserve a private fallback separately if
+needed. Do not use `--port` or `--ota` with the artifact build.
+
+Brian is the writer for the fixtures connected to his laptop. Identify each
+by fresh short/full MAC, stop competing serial readers, retain its private
+backup, and keep the battery connected. Use the prepared USB service flow in
+[FIXTURE_USB_SERVICE.md](FIXTURE_USB_SERVICE.md) before entering ROM; write
+and verify the intended app slot while preserving NVS, partition selection
+and the other slot. His latest e997cbf/a3b81c6 sources include this handshake.
+If a fixture still has older firmware and cannot acknowledge preparation,
+use its established maintenance network for the first update; a missing ACK
+is not permission to fall back silently to an armed hardware reset.
+
+Marill F40348 is a separate exact-target staged-recovery canary. Do not sweep
+it into the event-basic image as a credential-only change. To retain its
+targeted controller and recovery behavior, build separately with
+`--protect-recovery-target F40348 --squad-trigger-target F40348`, omitting
+`--decompression` and `--squad-trigger-any-perimeter`; keep the other explicit
+profile/channel/WiFi/power options. Current source has Brian's updated
+roster/cycle, so a rebuild is not identical to Marill's original ten-step test.
+
+Before hanging the fixtures, verify one canopy joins the actual BenPhone
+2.4 GHz hotspot (WPA2-Personal), then OTA the retained image and check fresh
+expected-revision telemetry, VALID state after the 20-second verification
+window and later liveness. Keep the laptop on BenPhone for HTTP uploads and
+the T-Deck on mesh channel 11 for targeted maintenance entry. Then provision
+the remaining explicit targets and record their revisions/verification.
+Daisy's successful BenPhone OTA proves this path for Daisy; it is not a
+completed canopy-fleet canary. No new build or fleet write was done for this
+handoff. Skitty's observation completed naturally and remains unmodified.
+
+## October 16 setup and retained evidence
+
 Ben authorized the temporary Loom hotspot credentials in
 `firmware/fixture/wifi_benphone.h` on 2026-10-16. The shared profile selects
 BenPhone on 2.4 GHz; use WPA2-Personal. The fixture scans/joins it only during

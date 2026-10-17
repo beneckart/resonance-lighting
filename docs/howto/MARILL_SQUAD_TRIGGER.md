@@ -123,3 +123,13 @@ fault-injection test. Older Marill canaries (including 220d90a) still interpret
 `!R` as fault injection. Tone Lab now requires fresh identity and explicit
 relay-capability telemetry before sending that verb; do not send it manually
 to an old canary as a relay command. No device was updated by this merge.
+
+## October 17 source update
+
+The behavior and installed-image claims above describe the October 15-16
+canary. Brian subsequently added event basic mode, chime lighting and a
+generated tuned roster through 24a9a6d. Current source changes the cycle to
+rising pairs and a final group step; merely pulling does not change Marill.
+See [the installation handoff](BENPHONE_OTA_CANARY.md) for explicit BenPhone
+build options and the separate Marill target recipe. Skitty's passive
+experiment has completed; its firmware remains unchanged.

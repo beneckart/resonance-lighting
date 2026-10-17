@@ -17786,3 +17786,19 @@ naturally on unchanged firmware; the release transition was in the observation
 gap. The logger is stopped and its heartbeat paused. The repair keeps raw
 JSONL alive through status-file replacement failures; all six focused tests
 pass. No fixture was accessed or changed during this publication.
+
+## 2026-10-17 -- Loom installation sync and BenPhone build handoff
+
+Merged Brian's changes through 24a9a6d without conflicts, preserving event
+basic mode, chime lighting, tuned roster and his flash records. Added the
+explicit shared-header build command to BENPHONE_OTA_CANARY.md, including
+separate Marill handling, prepared USB service, and a real hotspot OTA
+verification gate. Earlier retained binaries predate these event changes.
+No firmware was built or flashed during this sync; no device was opened.
+
+Validation: build-wrapper/artifact contracts pass; chime-light native test
+passes; squad-trigger native test passes all 561 checks. All nine generated
+roster IDs/order/pulses match the pulled tone map (its saved timestamp is
+newer than the generated header comment). Logger tests pass all six cases.
+No fresh Arduino build or hardware qualification was performed for this
+documentation/merge handoff.
