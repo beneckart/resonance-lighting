@@ -733,6 +733,7 @@ void behaviorTick() {
   li.tier = (uint8_t)pb.tier;
   li.lastRxMs = espNowLastControlRxMs();
   li.awakeGraceUntilMs = gAwakeGraceUntilMs;
+  li.powerConfirmAwake = pb.confirm_awake;
   li.rxHoldMs = RES_RX_HOLD_MS;
   TimeEstimate wall = timeConsensusEstimate(gTimeConsensus, now);
   if (wall.valid) {

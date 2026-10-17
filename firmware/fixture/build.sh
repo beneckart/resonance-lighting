@@ -47,6 +47,7 @@ CHANNEL=""
 PROFILE=""
 CHEM="lfp"
 EXTRA_FLAGS=""
+POWER_RECOVERY_TEST_TARGET=""
 WIFI_SOURCE=""
 FW_REV=""
 PRECHARGE_MA="300"
@@ -117,6 +118,7 @@ Common build options:
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
   --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
+  --power-recovery-test-target MAC exact-target DIM/OFF sleep probe; variant t only
   --sentinel-trace-smoke      short no-human persistence/recovery gate; requires target
   -h, --help                  show this contract without compiling
 EOF
@@ -290,6 +292,7 @@ while [[ $# -gt 0 ]]; do
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
     --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --power-recovery-test-target) POWER_RECOVERY_TEST_TARGET="${2^^}"; shift 2 ;;
     --squad-trigger-target) SQUAD_TRIGGER_TARGET="${2^^}"; shift 2 ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
@@ -307,6 +310,13 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$POWER_RECOVERY_TEST_TARGET" ]]; then
+  [[ "$POWER_RECOVERY_TEST_TARGET" =~ ^[0-9A-F]{6}$ && "$POWER_RECOVERY_TEST_TARGET" != "000000" ]] || fail "bad --power-recovery-test-target"
+  [[ "$ARTIFACT_VARIANT" == "t" ]] || fail "--power-recovery-test-target requires artifact variant t"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "power recovery test requires a retained artifact and exact-target flash"
+  EXTRA_FLAGS+=" -DRES_POWER_RECOVERY_TEST_TARGET=0x${POWER_RECOVERY_TEST_TARGET}UL"
+fi
 
 if [[ -n "$SQUAD_TRIGGER_TARGET" ]]; then
   [[ "$SQUAD_TRIGGER_TARGET" =~ ^[0-9A-F]{6}$ && "$SQUAD_TRIGGER_TARGET" != "000000" ]] || fail "bad --squad-trigger-target"

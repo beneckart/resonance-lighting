@@ -83,7 +83,7 @@ bool nvsWriteLoadArmed(bool armed);
 
 // Reboot-loop breaker counter (ADR 0028 rule 4).
 uint32_t nvsBumpBootCount();
-void nvsClearBootCount();
+bool nvsClearBootCount(); // checked persist/readback for USB service acknowledgement
 
 // Sleep provenance. The command record is written only when a validated
 // operator command is about to put the fixture to sleep. The protect record is

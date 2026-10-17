@@ -179,5 +179,23 @@ int main() {
     }
   }
 
+  {
+    struct { const char *line; int ready; int type; } cases[] = {
+      {"!B9E668C:1\n",1,SERIAL_MUTATION_USB_SERVICE},
+      {"!B9E668C:0\n",1,SERIAL_MUTATION_USB_SERVICE},
+      {"!B9E668C:2\n",0,0}, {"!B9E668C:01\n",0,0},
+      {"!BF40308:1\n",0,0}, {"!B9E668C:1",0,0},
+      {"!Y9E668C:1\n",1,SERIAL_MUTATION_POWER_TEST},
+      {"!Y9E668C:2\n",1,SERIAL_MUTATION_POWER_TEST},
+      {"!Y9E668C:0\n",0,0}, {"!Y9E668C:3\n",0,0}
+    };
+    const uint8_t id[] = {0x9E,0x66,0x8C};
+    for (const auto &tc:cases) {
+      SerialMutationParser p; SerialMutationCommand cmd{}; int ready=0;
+      for (const char *s=tc.line;*s;++s)
+        if (p.feed(*s,id,cmd)==SERIAL_MUTATION_READY) { ++ready; CHECK_EQ(cmd.type,tc.type); }
+      CHECK_EQ(ready,tc.ready);
+    }
+  }
   return testReport("serial_mutation");
 }

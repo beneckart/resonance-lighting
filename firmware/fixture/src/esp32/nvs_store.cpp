@@ -365,13 +365,16 @@ uint32_t nvsBumpBootCount() {
   return boots;
 }
 
-void nvsClearBootCount() {
+bool nvsClearBootCount() {
   Preferences pf;
-  if (!pf.begin(kNs, false)) return;
+  if (!pf.begin(kNs, false)) return false;
   // Read-before-write: this is called on every expected reset and after each
   // healthy minute, and the streak is almost always already zero.
-  if (pf.getUInt("boots", 0) != 0) pf.putUInt("boots", 0);
+  bool ok = true;
+  if (pf.getUInt("boots", 0) != 0) ok = pf.putUInt("boots", 0) == sizeof(uint32_t);
+  ok = ok && pf.getUInt("boots", 0) == 0;
   pf.end();
+  return ok;
 }
 
 bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,

@@ -23,6 +23,9 @@
 #include "pattern.h"
 #include "sleep_audit_io.h"
 #include "protect_recovery.h"
+#include "power_glue.h"
+#include "usb_service.h"
+#include "boot_guard_io.h"
 
 // Deliberately TRIMMED vs net_bench (Ben, 2026-07-30: brevity over compat).
 // Dropped: INA219 channels (instrument out of circuit), drawdown_* and mppt_*
@@ -180,6 +183,10 @@ String telemetryJson() {
   j += ",\"wake_listen_ms\":" +
        String((unsigned long)behaviorWakeListenMs());
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
+  j += ",\"power_confirm_awake\":" + String(powerBudget().confirm_awake ? "true" : "false");
+  j += ",\"usb_service_active\":" + String(usbServiceActive() ? "true" : "false");
+  j += ",\"usb_service_ready\":" + String(usbServiceReady() ? "true" : "false");
+  j += ",\"load_armed\":" + String(bootGuardLoadArmed() ? "true" : "false");
   j += ",\"active_program\":" + String(gTelemetryProgram);
   j += ",\"direct_seen\":" + String((unsigned long)netPeerDirectSeen());
   j += ",\"direct_matched\":" + String((unsigned long)netPeerDirectMatched());

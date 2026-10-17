@@ -8,6 +8,7 @@
 #include "nvs_store.h"
 #include "telemetry.h"
 #include "protect_recovery.h"
+#include "usb_service.h"
 
 #define RES_BOOT_LOOP_ESCALATE_STREAK 3
 
@@ -101,6 +102,7 @@ bool bootGuardProtectContext(ProtectAuditContext &out) {
 // refuses the load, mirroring the stage-persist doctrine); disarm is called
 // from allLoadsOff and from the debounced rail-quiet path in power glue.
 bool bootGuardLoadArm() {
+  if (usbServiceActive()) return false;
   if (gLoadArmed) return true;
   if (!nvsWriteLoadArmed(true)) return false;
   gLoadArmed = true;

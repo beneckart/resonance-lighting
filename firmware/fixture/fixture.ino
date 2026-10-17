@@ -36,6 +36,7 @@
 #include "src/esp32/telemetry.h"
 #include "src/esp32/time_anchor.h"
 #include "src/esp32/watchdog.h"
+#include "src/esp32/usb_service.h"
 
 #include "esp_system.h"
 #include "esp_task_wdt.h"
@@ -150,10 +151,19 @@ void setup() {
 
 void loop() {
   esp_task_wdt_reset();
+  if (usbServiceActive()) {
+    handleSerial();
+    boardPowerTick();
+    powerGlueTick(); // collapse/PROTECT handling stays live with all loads fenced
+    usbServiceTick();
+    delay(1);
+    return;
+  }
   solenoidFailsafeTick();
   solenoidExternalTick();
   solenoidButtonTick();
   handleSerial();
+  if (usbServiceActive()) return;
   boardPowerTick();
   statusLedTick();
   otaVerifyTick();

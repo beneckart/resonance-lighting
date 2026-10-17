@@ -42,6 +42,7 @@ struct LifeInputs {
   uint8_t tier;        // LedTier byte; PROTECT/OFF suppress the show
   uint32_t lastRxMs;   // last accepted operator command (not peer/time traffic)
   uint32_t awakeGraceUntilMs; // no day-sleep before this (boot/wake windows)
+  bool powerConfirmAwake; // bounded voltage-confirmation extension from power policy
   uint32_t rxHoldMs;   // stay awake this long after a control command (600000)
   int8_t forceNight;   // -1 auto, 0 force day, 1 force night (serial/bridge)
 };

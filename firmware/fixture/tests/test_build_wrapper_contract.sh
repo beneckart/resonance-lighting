@@ -93,6 +93,9 @@ expect_rejected '--sentinel-trace-smoke requires --sentinel-trace-target' \
   --sentinel-trace-smoke
 
 expect_rejected 'bad --protect-recovery-target' --protect-recovery-target xyz
+expect_rejected 'bad --power-recovery-test-target' --power-recovery-test-target 000000
+expect_rejected '--power-recovery-test-target requires artifact variant t' \
+  --power-recovery-test-target F40308 --artifact-variant b
 expect_rejected 'bad --protect-recovery-target' --protect-recovery-target 000000
 expect_rejected '--protect-recovery-target requires artifact variant b' \
   --protect-recovery-target F40348 --artifact-variant p

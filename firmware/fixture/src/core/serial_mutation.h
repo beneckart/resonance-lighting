@@ -27,6 +27,8 @@ enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_TRIGGER_MAX = 9, // !U<id>:mm maximum, RAM
   SERIAL_MUTATION_TRIGGER_CLEAR = 10, // !V<id>:mm rearm boundary, RAM
   SERIAL_MUTATION_RELAY = 11,   // !R<id>:1 report Atom presses without playing; :0 normal
+  SERIAL_MUTATION_USB_SERVICE = 12, // !B<id>:1 prepare, :0 cancel via clean reboot
+  SERIAL_MUTATION_POWER_TEST = 13, // !Y<id>:1 DIM/:2 OFF then sleep; exact-target test build only
 };
 
 struct SerialMutationCommand {
