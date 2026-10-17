@@ -154,24 +154,41 @@ static void freakoutStart(uint32_t nowMs, const char *why) {
   Serial.printf("freakout: x%u (%s)\n", (unsigned)FREAKOUT_LOOPS, why);
 }
 
+// One addressed strike now, waiting a few ms for the previous send to finish
+// (the link allows one TX in flight). Queuing Freakout strikes through
+// cycleSendTick managed one send per loop pass, too slow for 50 ms steps: the
+// backlog played in clumps instead of the Tone Lab waterfall (2026-10-17).
+static void freakoutSend(const NbTargetU16 &cmd) {
+  uint32_t t0 = millis();
+  while (!espNowTxAvailable()) {
+    if (millis() - t0 > 10) return;
+    delay(1);
+  }
+  espNowSendRaw(&cmd, sizeof(cmd));
+}
+
 static void freakoutTick(uint32_t nowMs) {
   if (!gFreakout) return;
   const uint16_t total = (uint16_t)SQUAD_FREAKOUT_STEPS * FREAKOUT_LOOPS;
+  int self = squadIndex(gMyId);
   while (gFreakoutNextStep < total &&
          (int32_t)(nowMs - (gFreakoutStartMs + (uint32_t)gFreakoutNextStep * SQUAD_FREAKOUT_STEP_MS)) >= 0) {
     uint16_t mask = SQUAD_FREAKOUT[gFreakoutNextStep % SQUAD_FREAKOUT_STEPS];
+    // Like the T-Deck's strike round: every target of the step back to back,
+    // then one repeat; the fixture's 80 ms rest gate dedupes the copy.
+    NbTargetU16 cmds[SQUAD_COUNT];
+    uint8_t n = 0;
     for (unsigned i = 0; i < SQUAD_COUNT; ++i) {
       if (!(mask & (1U << i))) continue;
-      gCycleDue[i] = nowMs;
-      gCycleCopies[i] = 2;  // the fixture's 80 ms rest gate dedupes the copy
-      // Address the strike here: cycleSendTick fills the header only for its
-      // 3-copy sends, so a 2-copy strike left zeroed went to nobody (2026-10-17:
-      // Freakout played on Leeloo alone).
-      memset(&gCycleCmd[i], 0, sizeof(gCycleCmd[i]));
-      fillHeader(&gCycleCmd[i].h, NB_TARGET_SOLENOID);
-      memcpy(gCycleCmd[i].target_id, SQUAD[i].id, 3);
-      gCycleCmd[i].value = SQUAD[i].pulseMs;
+      if ((int)i == self) { solenoidStrike(SQUAD[i].pulseMs, "freakout"); continue; }
+      memset(&cmds[n], 0, sizeof(cmds[n]));
+      fillHeader(&cmds[n].h, NB_TARGET_SOLENOID);
+      memcpy(cmds[n].target_id, SQUAD[i].id, 3);
+      cmds[n].value = SQUAD[i].pulseMs;
+      ++n;
     }
+    for (uint8_t copy = 0; copy < 2; ++copy)
+      for (uint8_t k = 0; k < n; ++k) freakoutSend(cmds[k]);
     ++gFreakoutNextStep;
   }
   if (gFreakoutNextStep >= total) gFreakout = false;
