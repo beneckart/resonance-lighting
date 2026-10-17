@@ -136,8 +136,16 @@ void nvsLoadConfig() {
   gCfg.chargeMa = checkedU16(pf, "chg_ma", RES_CHARGE_DEFAULT_MA,
                              RES_CHARGE_MIN_MA, RES_CHARGE_MAX_MA);
   gCfg.classOvr = pf.getUChar("class_ovr", FIXTURE_UNKNOWN);
-  gCfg.eventMode = pf.getUChar("evt_mode", 1);
-  if (gCfg.eventMode < 1 || gCfg.eventMode > 3) gCfg.eventMode = 1;
+  // Decompression (4) is the default. evt_mode4 marks images that know mode 4:
+  // the first boot of such an image starts in decompression whatever an older
+  // image stored (Brian, 2026-10-17: it should come up in decompression).
+  gCfg.eventMode = pf.getUChar("evt_mode", 4);
+  if (!pf.getUChar("evt_mode4", 0)) {
+    gCfg.eventMode = 4;
+    pf.putUChar("evt_mode", 4);
+    pf.putUChar("evt_mode4", 1);
+  }
+  if (gCfg.eventMode < 1 || gCfg.eventMode > 4) gCfg.eventMode = 4;
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
   gCfg.commissionDefault =
@@ -274,7 +282,7 @@ bool nvsPersistClassOvr(uint8_t cls) {
   return true;
 }
 bool nvsPersistEventMode(uint8_t mode) {
-  if (mode < 1 || mode > 3) return false;
+  if (mode < 1 || mode > 4) return false;
   if (gCfg.eventMode == mode) return true;  // no flash wear on repeats
   if (!putU8("evt_mode", mode)) return false;
   gCfg.eventMode = mode;

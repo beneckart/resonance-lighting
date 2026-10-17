@@ -271,6 +271,7 @@ static void processPacket(const RxItem &it) {
   }
   case NB_DECOMPRESSION_CONTROL: {
     if (it.len != sizeof(NbDecompressionControl)) return;
+    decompressionOnAtomPress(*(const NbDecompressionControl *)it.data);  // trigger lantern: any target
     decompressionOnRadio(*(const NbDecompressionControl *)it.data, it.rx_ms);
     break;
   }
@@ -308,6 +309,11 @@ static void processPacket(const RxItem &it) {
     if (!nbTargetMatches(ns->target_id, gMyId)) return;
     espNowNoteControlRx();
     behaviorOnNeighborSet(*ns);
+    break;
+  }
+  case NB_PRESENCE_HOLD: {
+    if (it.len < (int)sizeof(NbPresenceHold)) return;
+    decompressionOnPresenceHold(*(const NbPresenceHold *)it.data, it.rx_ms);
     break;
   }
   case NB_CYCLE_PRESS: {

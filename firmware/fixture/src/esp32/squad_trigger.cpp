@@ -35,6 +35,7 @@ static ChimeLight gTriggerLight;
 static NbCyclePress gPress;
 static uint8_t gPressCopies=0;
 static uint32_t gForwarded=0;
+static uint32_t gHoldSince=0, gHoldTxMs=0;  // a hand held in the near band (four at once = Freakout)
 static uint32_t gDeadline=0, gEventId=0, gTxErrors=0, gRefused=0;
 static const char *gLast="idle";
 static bool gWakePending=false;
@@ -221,7 +222,8 @@ void squadTriggerTick() {
   if (s.vlReads!=gVlReads) {
     gVlReads=s.vlReads; gVlMs=now;
     if (gPresence.sample(now,s.vlPresent && s.vlOk,s.vlZoneNearestMm) &&
-        decompressionEventMode()==NB_MODE_PERIMETER_CYCLE) {  // lantern-dings mode: leases only
+        (decompressionEventMode()==NB_MODE_PERIMETER_CYCLE ||
+         decompressionEventMode()==NB_MODE_DECOMPRESSION)) {  // lantern-dings mode: leases only
       if (RES_SQUAD_TRIGGER_ANY && SQUAD_TRIGGER_LANTERN>=0) {
         // One cycle owner: forward the approach to the trigger lantern.
         NbCyclePress press={}; fillHeader(&press.h,NB_CYCLE_PRESS);
@@ -233,6 +235,28 @@ void squadTriggerTick() {
       }
     }
   } else if (now-gVlMs>1000) gPresence.invalidate();
+  // Hold reports for the trigger lantern: while any valid zone sits inside the
+  // near band, broadcast how long it has been held (~4 Hz).
+  if (RES_SQUAD_TRIGGER_ANY && SQUAD_TRIGGER_LANTERN>=0 &&
+      (decompressionEventMode()==NB_MODE_PERIMETER_CYCLE || decompressionEventMode()==NB_MODE_DECOMPRESSION)) {
+    bool heldNow=false;
+    if (s.vlPresent && s.vlOk && now-gVlMs<=1000)
+      for (unsigned z=0;z<16;++z) {
+        uint16_t mm=s.vlZoneNearestMm[z];
+        if (mm && mm>=gPresence.minMm && mm<=gPresence.nearMm) { heldNow=true; break; }
+      }
+    if (!heldNow) gHoldSince=0;
+    else {
+      if (!gHoldSince) gHoldSince=now ? now : 1;
+      if (now-gHoldTxMs>=250 && !gPressCopies && espNowTxAvailable()) {
+        NbPresenceHold hold={}; fillHeader(&hold.h,NB_PRESENCE_HOLD);
+        hold.confirm=NB_PRESENCE_HOLD_CONFIRM;
+        uint32_t held=now-gHoldSince; hold.held_ms=(uint16_t)(held>65535?65535:held);
+        if (!espNowSendRaw(&hold,sizeof(hold))) ++gTxErrors;
+        gHoldTxMs=now;
+      }
+    }
+  }
   if (gPressCopies && espNowTxAvailable()) {  // copies share one seq; receiver dedupes
     if (!espNowSendRaw(&gPress,sizeof(gPress))) ++gTxErrors;
     --gPressCopies;

@@ -20,11 +20,14 @@ enum View : uint8_t { VIEW_PLAY = 0, VIEW_ACTIVE, VIEW_RULES, VIEW_MODE, VIEW_CO
 // The first button cycles views; the loop icon marks it as a view switch, not "play".
 static const char *kViewName[] = {LV_SYMBOL_LOOP " Play", LV_SYMBOL_LOOP " Active", LV_SYMBOL_LOOP " Rules",
                                   LV_SYMBOL_LOOP " Mode"};
-static const char *kModeName[] = {"", "Perimeter cycle", "Lantern dings", "Travel (packed)"};
+// Listed in this order; values are the NB_EVENT_MODE numbers.
+static const uint8_t kModeOrder[] = {4, 1, 2, 3};
+static const char *kModeName[] = {"", "Perimeter cycle", "Lantern dings", "Travel (packed)", "Decompression"};
 static const char *kModeHelp[] = {"",
     "Perimeter cycle: walking under Leeloo (or past a perimeter) plays the next two lanterns, low to high; then all nine.",
     "Lantern dings: a lantern chimes when someone walks under it; Bidoof's partner Sakura chimes after it.",
-    "Travel: no sensing or chimes; lanterns and perimeters go back to normal sleep (lights off). Flashes red."};
+    "Travel: no sensing or chimes; lanterns and perimeters go back to normal sleep (lights off). Flashes red.",
+    "Decompression (default): each perimeter approach plays the next lantern, low to high, then all; walking under a lantern chimes it. Flashes purple."};
 static const char *kClick[] = {"any", "single", "double", "triple"};
 
 static View gView = VIEW_PLAY;
@@ -56,7 +59,7 @@ static void refreshHeader(lv_timer_t *) {
                           s.mode ? kModeName[s.mode] : "mode not set", (unsigned)s.presses, s.last);
   }
   if (gAwakeLabel) lv_label_set_text(gAwakeLabel, s.awake ? LV_SYMBOL_EYE_OPEN " awake" : LV_SYMBOL_EYE_CLOSE " sleep");
-  size_t count = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 3 : s.patterns;
+  size_t count = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 4 : s.patterns;
   if (s.playing != gShownPlaying || count != gShownCount || s.mode != gShownMode) rebuildList();  // keep the playing marker current
 }
 
@@ -66,7 +69,7 @@ static void itemCb(lv_event_t *e) {
   int i = (int)(intptr_t)lv_event_get_user_data(e);
   gFocus = i;
   if (gView == VIEW_MODE) {  // every lantern and perimeter switches: confirm first
-    uiConfirm(kModeHelp[i + 1], "Tone Lab", modeYes, (void *)(intptr_t)(i + 1));
+    uiConfirm(kModeHelp[kModeOrder[i]], "Tone Lab", modeYes, (void *)(intptr_t)kModeOrder[i]);
     return;
   }
   if (gView == VIEW_PLAY) {
@@ -91,14 +94,14 @@ static void rebuildList() {
   lv_group_remove_all_objs(lvglGroup());
   gShownPlaying = s.playing;
   gShownMode = s.mode;
-  gShownCount = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 3 : s.patterns;
+  gShownCount = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 4 : s.patterns;
   lv_obj_t *focus = nullptr;
   char text[72];
   for (size_t i = 0; i < gShownCount; ++i) {
     const char *sym = nullptr;
     if (gView == VIEW_MODE) {
-      sym = s.mode == (int)i + 1 ? LV_SYMBOL_OK : LV_SYMBOL_RIGHT;
-      snprintf(text, sizeof(text), "%s", kModeName[i + 1]);
+      sym = s.mode == kModeOrder[i] ? LV_SYMBOL_OK : LV_SYMBOL_RIGHT;
+      snprintf(text, sizeof(text), "%s", kModeName[kModeOrder[i]]);
     } else if (gView == VIEW_RULES) {
       ShowRule r;
       if (!tonelabRule((int)i, r)) continue;

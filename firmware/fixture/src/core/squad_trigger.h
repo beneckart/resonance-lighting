@@ -49,6 +49,25 @@ struct SquadCycle {
     lastMs=now; fired=true; ++count; next=(uint8_t)((next+1) % SQUAD_STEPS);
   }
 };
+// Decompression mode (Brian, 2026-10-17): one lantern per approach in rising
+// pitch, then every lantern at once; repeat (Ben's original cycle shape).
+static constexpr uint8_t SQUAD_SINGLE_STEPS = SQUAD_COUNT + 1;
+constexpr uint16_t squadSingleStepMask(uint8_t step) {
+  return step >= SQUAD_COUNT ? SQUAD_ALL : (uint16_t)(1U << squadRising(step));
+}
+struct SquadSingleCycle {
+  uint8_t next = 0;
+  bool fired = false;
+  uint32_t lastMs = 0, count = 0;
+  uint16_t targets() const { return squadSingleStepMask(next); }
+  bool canFire(uint32_t now, uint16_t ready) const {
+    return (ready & targets()) != 0 && (!fired || now-lastMs >= SQUAD_COOLDOWN_MS);
+  }
+  void sent(uint32_t now) {
+    lastMs=now; fired=true; ++count; next=(uint8_t)((next+1) % SQUAD_SINGLE_STEPS);
+  }
+};
+
 struct SquadRadioRecovery {
   uint8_t attempts=0;
   bool paused=false;

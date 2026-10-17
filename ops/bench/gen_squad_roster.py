@@ -55,5 +55,23 @@ lines += ["};", "",
           "// Lantern whose downward sensor advances the event cycle (Tone Lab \"Cycle trigger\"),",
           "// as a roster index; -1 = none (only a perimeter can trigger the cycle).",
           f"static constexpr int SQUAD_TRIGGER_LANTERN = {ids.index(triggers[0]) if triggers else -1};", ""]
+# Freakout Mode, played by the trigger lantern on a four-perimeter hold or an
+# Atom press (no laptop/T-Deck needed): steps at its BPM, roster bitmask per step.
+fo = next((p for p in state.get("patterns", {}).values() if p.get("name") == "Freakout Mode"), None)
+if not fo:
+    raise SystemExit("tone map has no pattern named 'Freakout Mode'")
+steps, spb, bpm = int(fo["steps"]), int(fo["steps_per_beat"]), float(fo["bpm"])
+masks = [0] * steps
+for fid, idx in (fo.get("hits") or {}).items():
+    if fid.upper() in ids:
+        for i in idx:
+            if 0 <= int(i) < steps:
+                masks[int(i)] |= 1 << ids.index(fid.upper())
+step_ms = 60000.0 / (bpm * spb)
+lines += ["// Freakout Mode (Tone Lab pattern): roster bitmask per step, played on a",
+          "// four-perimeter hold or an Atom press by the trigger lantern.",
+          f"static constexpr uint16_t SQUAD_FREAKOUT_STEP_MS = {round(step_ms)};",
+          f"static constexpr uint8_t SQUAD_FREAKOUT_STEPS = {steps};",
+          "static constexpr uint16_t SQUAD_FREAKOUT[] = {" + ",".join(f"0x{m:03x}" for m in masks) + "};", ""]
 pathlib.Path(a.out).write_text("\n".join(lines))
 print(f"wrote {a.out}: " + ", ".join(f"{n} {p} ms" + (f" -> partner {next(r[0] for r in rows if r[1] == q)}" if q in ids else "") for n, _, p, q in rows))

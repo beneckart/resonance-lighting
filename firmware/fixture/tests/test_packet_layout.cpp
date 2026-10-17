@@ -69,12 +69,15 @@ int main() {
   CHECK_EQ((int)NB_EVENT_MODE, 37);
   CHECK_EQ(sizeof(NbCyclePress), 17u);  // header + confirm
   CHECK_EQ((int)NB_CYCLE_PRESS, 38);
+  CHECK_EQ(sizeof(NbPresenceHold), 19u);
+  CHECK_EQ((int)NB_PRESENCE_HOLD, 39);
   {
     NbEventMode m = {};
     m.h.ver = NB_PROTO_VER; m.h.type = NB_EVENT_MODE; m.confirm = NB_EVENT_MODE_CONFIRM; m.mode = 2;
     CHECK(nbEventModeValid(m));
     m.mode = 3; CHECK(nbEventModeValid(m));   // travel
-    m.mode = 4; CHECK(!nbEventModeValid(m));
+    m.mode = 4; CHECK(nbEventModeValid(m));   // decompression
+    m.mode = 5; CHECK(!nbEventModeValid(m));
     m.mode = 1; m.confirm = 0; CHECK(!nbEventModeValid(m));
   }
   CHECK_EQ(offsetof(NbPatternBeat, pattern_id), 13u);

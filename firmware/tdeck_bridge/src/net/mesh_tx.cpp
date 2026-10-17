@@ -344,7 +344,7 @@ bool meshDecompressionSession(const uint8_t (*ids)[3], uint8_t count, uint8_t mi
 }
 
 bool meshEventMode(uint8_t mode, bool persist) {
-  if (mode != NB_MODE_PERIMETER_CYCLE && mode != NB_MODE_LANTERN_DINGS && mode != NB_MODE_TRAVEL) return false;
+  if (mode < NB_MODE_PERIMETER_CYCLE || mode > NB_MODE_DECOMPRESSION) return false;
   NbEventMode m = {};
   m.confirm = NB_EVENT_MODE_CONFIRM;
   m.mode = mode;

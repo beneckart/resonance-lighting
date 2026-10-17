@@ -31,3 +31,7 @@ void decompressionDingTick(uint32_t nowMs);
 // Event cycle on the roster's trigger lantern (SQUAD_TRIGGER_LANTERN): its own
 // sensor or a perimeter's NB_CYCLE_PRESS advances rising pairs, then all.
 void decompressionOnCyclePress(const NbCyclePress &press);
+// Trigger lantern only: four perimeters held 1.5 s at once, or an Atom press,
+// play Freakout Mode twice (generated SQUAD_FREAKOUT table).
+void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs);
+void decompressionOnAtomPress(const NbDecompressionControl &c);

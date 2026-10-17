@@ -76,6 +76,7 @@ enum NbType : uint8_t {
   NB_PATTERN_BEAT = 36, // elected conductor -> pattern group: shared clock (ADR 0084)
   NB_EVENT_MODE = 37,   // controller -> all: decompression event mode (perimeter cycle / lantern dings)
   NB_CYCLE_PRESS = 38,  // perimeter -> trigger lantern: someone approached (advance the event cycle)
+  NB_PRESENCE_HOLD = 39, // perimeter -> trigger lantern: a hand is being held here (four at once = Freakout)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -145,7 +146,10 @@ static inline bool nbPatternBeatValid(const NbPatternBeat &b) {
 // sensing lantern chimes when someone is under it, plus its roster partner).
 // Decompression builds only; persisted when `persist` is set.
 // 3 = travel: packed up; no sensing, no cycle, no self keep-awake (normal sleep).
-enum NbEventModeValue : uint8_t { NB_MODE_PERIMETER_CYCLE = 1, NB_MODE_LANTERN_DINGS = 2, NB_MODE_TRAVEL = 3 };
+// 4 = decompression (default): perimeters advance one lantern per approach
+// (then all), and each sensing lantern dings when someone is under it.
+enum NbEventModeValue : uint8_t { NB_MODE_PERIMETER_CYCLE = 1, NB_MODE_LANTERN_DINGS = 2, NB_MODE_TRAVEL = 3,
+                                  NB_MODE_DECOMPRESSION = 4 };
 static constexpr uint32_t NB_EVENT_MODE_CONFIRM = 0x4D4F4445UL; // "MODE"
 struct __attribute__((packed)) NbEventMode {
   NbHeader h;
@@ -157,7 +161,7 @@ static inline bool nbEventModeValid(const NbEventMode &m) {
   return m.h.ver == NB_PROTO_VER && m.h.type == NB_EVENT_MODE &&
       m.confirm == NB_EVENT_MODE_CONFIRM &&
       (m.mode == NB_MODE_PERIMETER_CYCLE || m.mode == NB_MODE_LANTERN_DINGS ||
-       m.mode == NB_MODE_TRAVEL);
+       m.mode == NB_MODE_TRAVEL || m.mode == NB_MODE_DECOMPRESSION);
 }
 
 // A perimeter's approach, forwarded to the roster's cycle-trigger lantern so the
@@ -167,6 +171,14 @@ static constexpr uint32_t NB_CYCLE_PRESS_CONFIRM = 0x4359434CUL; // "CYCL"
 struct __attribute__((packed)) NbCyclePress {
   NbHeader h;
   uint32_t confirm;  // NB_CYCLE_PRESS_CONFIRM
+};
+
+// Sent every ~250 ms while a perimeter sees a hand held in its near band.
+static constexpr uint32_t NB_PRESENCE_HOLD_CONFIRM = 0x484F4C44UL; // "HOLD"
+struct __attribute__((packed)) NbPresenceHold {
+  NbHeader h;
+  uint32_t confirm;  // NB_PRESENCE_HOLD_CONFIRM
+  uint16_t held_ms;  // how long the hand has been held continuously
 };
 
 static inline bool nbDecompressionValid(const NbDecompressionControl &c,

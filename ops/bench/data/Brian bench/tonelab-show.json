@@ -1,6 +1,6 @@
 {
  "schema": "tonelab-show/1",
- "created_utc": "2026-10-17T20:50:58.785Z",
+ "created_utc": "2026-10-17T20:56:47.310Z",
  "site": "Brian bench",
  "channel": 11,
  "min_hit_spacing_ms": 250,
@@ -99,7 +99,7 @@
    "tone": 12,
    "pulse_ms": 40,
    "group": 0,
-   "role": "lantern"
+   "role": "perimeter"
   }
  ],
  "patterns": [
@@ -459,7 +459,7 @@
    "id": "ix-c53fe6",
    "kind": "button",
    "name": "Freakout Mode",
-   "enabled": true,
+   "enabled": false,
    "atom": "any",
    "click": "single",
    "action": "performance",

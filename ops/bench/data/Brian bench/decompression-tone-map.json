@@ -110,7 +110,8 @@
     "F40308": {
       "type": null,
       "note": "",
-      "callsign": "Daisy"
+      "callsign": "Daisy",
+      "role": "perimeter"
     }
   },
   "order": [
@@ -127,7 +128,7 @@
     "F401DC",
     "F40308"
   ],
-  "updated_utc": "2026-10-17T20:50:49.393Z",
+  "updated_utc": "2026-10-17T20:56:46.406Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -527,7 +528,7 @@
       "kind": "button",
       "id": "ix-c53fe6",
       "name": "Freakout Mode",
-      "enabled": true,
+      "enabled": false,
       "trigger": {
         "atom": "any",
         "click": "single"

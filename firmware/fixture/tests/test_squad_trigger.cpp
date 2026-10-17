@@ -62,6 +62,18 @@ int main() {
   CHECK_EQ(squadStepOffsetMs(3,2),0u); CHECK_EQ(squadStepOffsetMs(3,1),SQUAD_PAIR_GAP_MS);
   CHECK_EQ(squadStepOffsetMs(4,0),0u);
   for (unsigned i=0;i<9;++i) CHECK_EQ(squadStepOffsetMs(5,i),0u);  // the chord is together
+  // Decompression: one lantern per approach, lowest pitch first, then all.
+  SquadSingleCycle sc;
+  CHECK_EQ(SQUAD_SINGLE_STEPS,10u);
+  for (unsigned step=0;step<10;++step) {
+    CHECK_EQ(sc.targets(), step<9 ? (uint16_t)(1U<<(8-step)) : (uint16_t)511);
+    CHECK(sc.canFire(step*3000,511)); sc.sent(step*3000);
+    CHECK(!sc.canFire(step*3000+2499,511));
+  }
+  CHECK_EQ(sc.next,0u);
+  // Generated Freakout table: every step names roster lanterns only.
+  for (unsigned i=0;i<SQUAD_FREAKOUT_STEPS;++i) CHECK((SQUAD_FREAKOUT[i] & ~SQUAD_ALL)==0);
+  CHECK(SQUAD_FREAKOUT_STEP_MS>=20 && SQUAD_FREAKOUT_STEP_MS<=1000);
   c.sent(UINT32_MAX-1000);
   CHECK(!c.canFire(1498,511)); CHECK(c.canFire(1499,511));
   for (unsigned i=0;i<9;++i) {  // lantern-dings partners point at another roster lantern

@@ -52,7 +52,9 @@ static uint32_t gLastDingMs = 0, gPartnerDueMs = 0;
 static bool gPartnerPending = false;
 static uint8_t gPartnerCopies = 0;  // copies of the partner strike still to send
 
-uint8_t decompressionEventMode() { return (gCfg.eventMode >= 1 && gCfg.eventMode <= 3) ? gCfg.eventMode : 1; }
+uint8_t decompressionEventMode() { return (gCfg.eventMode >= 1 && gCfg.eventMode <= 4) ? gCfg.eventMode : 4; }
+static bool modeDings(uint8_t m) { return m == NB_MODE_LANTERN_DINGS || m == NB_MODE_DECOMPRESSION; }
+static bool modeCycle(uint8_t m) { return m == NB_MODE_PERIMETER_CYCLE || m == NB_MODE_DECOMPRESSION; }
 
 // Event image (RES_SQUAD_TRIGGER_ANY): every lantern keeps itself awake in either
 // mode, so nothing depends on a perimeter. Otherwise mode 2 keeps a sensing
@@ -66,11 +68,12 @@ static bool dingsKeepAwake() {
   if (decompressionEventMode() == NB_MODE_TRAVEL) return false;  // packed: normal sleep
   if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT || !decompressionPowerReady()) return false;
   if (RES_SQUAD_TRIGGER_ANY) return true;
-  return decompressionEventMode() == NB_MODE_LANTERN_DINGS && sensors().tmfPresent;
+  return modeDings(decompressionEventMode()) && sensors().tmfPresent;
 }
 
 // ---- event cycle on the trigger lantern -------------------------------------
-static SquadCycle gLanternCycle;
+static SquadCycle gLanternCycle;       // perimeter cycle: rising pairs
+static SquadSingleCycle gSingleCycle;  // decompression: one lantern per approach
 static uint32_t gCycleDue[SQUAD_COUNT];
 static uint8_t gCycleCopies[SQUAD_COUNT];
 static NbTargetU16 gCycleCmd[SQUAD_COUNT];
@@ -82,14 +85,23 @@ static bool isTriggerLantern() {
   return SQUAD_TRIGGER_LANTERN >= 0 && self == SQUAD_TRIGGER_LANTERN;
 }
 
+static bool gFreakoutActive();
 static void cyclePress(uint32_t nowMs, const char *source) {
-  if (!gLanternCycle.canFire(nowMs, SQUAD_ALL) || !decompressionPowerReady()) return;  // 2.5 s cooldown
-  uint8_t step = gLanternCycle.next;
-  uint16_t mask = gLanternCycle.targets();
-  gLanternCycle.sent(nowMs);
+  if (!decompressionPowerReady() || gFreakoutActive()) return;
+  bool single = decompressionEventMode() == NB_MODE_DECOMPRESSION;
+  uint8_t step;
+  uint16_t mask;
+  if (single) {  // 2.5 s cooldown in both cycles
+    if (!gSingleCycle.canFire(nowMs, SQUAD_ALL)) return;
+    step = gSingleCycle.next; mask = gSingleCycle.targets(); gSingleCycle.sent(nowMs);
+  } else {
+    if (!gLanternCycle.canFire(nowMs, SQUAD_ALL)) return;
+    step = gLanternCycle.next; mask = gLanternCycle.targets(); gLanternCycle.sent(nowMs);
+  }
   for (unsigned i = 0; i < SQUAD_COUNT; ++i) {
     if (!(mask & (1U << i))) continue;
-    gCycleDue[i] = nowMs + 60 + squadStepOffsetMs(step, i);  // pair: the higher lantern a beat later
+    // pair (perimeter cycle): the higher lantern a beat later; single steps and chords together
+    gCycleDue[i] = nowMs + 60 + (single ? 0 : squadStepOffsetMs(step, i));
     gCycleCopies[i] = 3;
     memset(&gCycleCmd[i], 0, sizeof(gCycleCmd[i]));
   }
@@ -118,9 +130,82 @@ static void cycleSendTick(uint32_t nowMs) {
   }
 }
 
+// ---- Freakout Mode on the trigger lantern ----------------------------------
+static constexpr uint8_t FREAKOUT_LOOPS = 2;
+static constexpr uint16_t HOLD_NEEDED_MS = 1500;
+static constexpr uint8_t HOLD_PERIMETERS = 4;      // all four perimeters
+static constexpr uint32_t HOLD_FRESH_MS = 700;     // a hold report must be this recent
+static constexpr uint32_t FREAKOUT_REARM_MS = 8000; // after a hold-triggered freakout
+static bool gFreakout = false;
+static bool gFreakoutActive() { return gFreakout; }
+static uint32_t gFreakoutStartMs = 0, gFreakoutLastHoldMs = 0;
+static uint16_t gFreakoutNextStep = 0;
+struct HoldSrc { uint8_t id[3]; uint32_t rxMs; uint16_t heldMs; bool used; };
+static HoldSrc gHolds[8];
+struct AtomSeen { uint8_t id[3]; uint32_t boot, seq; };
+static AtomSeen gAtomSeen[4];
+static uint8_t gAtomSeenNext = 0;
+
+static void freakoutStart(uint32_t nowMs, const char *why) {
+  if (gFreakout || !decompressionPowerReady()) return;  // presses during a freakout are ignored
+  gFreakout = true;
+  gFreakoutStartMs = nowMs + 80;
+  gFreakoutNextStep = 0;
+  Serial.printf("freakout: x%u (%s)\n", (unsigned)FREAKOUT_LOOPS, why);
+}
+
+static void freakoutTick(uint32_t nowMs) {
+  if (!gFreakout) return;
+  const uint16_t total = (uint16_t)SQUAD_FREAKOUT_STEPS * FREAKOUT_LOOPS;
+  while (gFreakoutNextStep < total &&
+         (int32_t)(nowMs - (gFreakoutStartMs + (uint32_t)gFreakoutNextStep * SQUAD_FREAKOUT_STEP_MS)) >= 0) {
+    uint16_t mask = SQUAD_FREAKOUT[gFreakoutNextStep % SQUAD_FREAKOUT_STEPS];
+    for (unsigned i = 0; i < SQUAD_COUNT; ++i) {
+      if (!(mask & (1U << i))) continue;
+      gCycleDue[i] = nowMs;
+      gCycleCopies[i] = 2;  // the fixture's 80 ms rest gate dedupes the copy
+      memset(&gCycleCmd[i], 0, sizeof(gCycleCmd[i]));
+    }
+    ++gFreakoutNextStep;
+  }
+  if (gFreakoutNextStep >= total) gFreakout = false;
+}
+
+void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs) {
+  if (!decompressionBuild() || hold.confirm != NB_PRESENCE_HOLD_CONFIRM || !isTriggerLantern()) return;
+  uint8_t m = decompressionEventMode();
+  if (m != NB_MODE_PERIMETER_CYCLE && m != NB_MODE_DECOMPRESSION) return;
+  HoldSrc *slot = nullptr;
+  for (HoldSrc &h : gHolds) if (h.used && memcmp(h.id, hold.h.src_id, 3) == 0) slot = &h;
+  if (!slot) for (HoldSrc &h : gHolds) if (!h.used || rxMs - h.rxMs > 5000) { slot = &h; break; }
+  if (!slot) return;
+  memcpy(slot->id, hold.h.src_id, 3);
+  slot->rxMs = rxMs; slot->heldMs = hold.held_ms; slot->used = true;
+  uint8_t held = 0;
+  for (const HoldSrc &h : gHolds)
+    if (h.used && rxMs - h.rxMs <= HOLD_FRESH_MS && h.heldMs >= HOLD_NEEDED_MS) ++held;
+  if (held >= HOLD_PERIMETERS && rxMs - gFreakoutLastHoldMs >= FREAKOUT_REARM_MS) {
+    gFreakoutLastHoldMs = rxMs;
+    freakoutStart(rxMs, "four perimeters held");
+  }
+}
+
+void decompressionOnAtomPress(const NbDecompressionControl &c) {
+  // Any Atom press (normal or T-Deck mode, any target) = Freakout Mode, once.
+  if (!decompressionBuild() || c.action != NB_DECOMP_PLAY || !c.controller_boot || !isTriggerLantern()) return;
+  uint8_t m = decompressionEventMode();
+  if (m == NB_MODE_TRAVEL) return;
+  for (const AtomSeen &a : gAtomSeen)
+    if (a.boot == c.controller_boot && a.seq == c.h.seq && memcmp(a.id, c.h.src_id, 3) == 0) return;  // copy
+  AtomSeen &slot = gAtomSeen[gAtomSeenNext];
+  gAtomSeenNext = (uint8_t)((gAtomSeenNext + 1) % 4);
+  memcpy(slot.id, c.h.src_id, 3); slot.boot = c.controller_boot; slot.seq = c.h.seq;
+  freakoutStart(millis(), "atom button");
+}
+
 void decompressionOnCyclePress(const NbCyclePress &press) {
   if (!decompressionBuild() || press.confirm != NB_CYCLE_PRESS_CONFIRM || !isTriggerLantern() ||
-      decompressionEventMode() != NB_MODE_PERIMETER_CYCLE) return;
+      !modeCycle(decompressionEventMode())) return;
   if (memcmp(press.h.src_id, gPressSrc, 3) == 0 && press.h.seq == gPressSeq) return;  // another copy
   memcpy(gPressSrc, press.h.src_id, 3);
   gPressSeq = press.h.seq;
@@ -145,16 +230,18 @@ void decompressionOnEventMode(const NbEventMode &m) {
     gModeFlashUntil = millis() + MODE_FLASH_MS;
     gDingGateInit = false;  // relearn the background in the new mode
     gPartnerPending = false;
-    Serial.printf("event mode -> %s\n", m.mode == 3 ? "travel" : m.mode == 2 ? "lantern dings" : "perimeter cycle");
+    Serial.printf("event mode -> %s\n", m.mode == 4 ? "decompression" : m.mode == 3 ? "travel" :
+                  m.mode == 2 ? "lantern dings" : "perimeter cycle");
   }
 }
 
 bool decompressionModeFlash(uint32_t nowMs, uint8_t rgb[3]) {
   if (!gModeFlashUntil || (int32_t)(nowMs - gModeFlashUntil) >= 0) return false;
   uint8_t mode = decompressionEventMode();
-  rgb[0] = mode == NB_MODE_TRAVEL ? 160 : 0;          // red = travel
-  rgb[1] = mode == NB_MODE_LANTERN_DINGS ? 160 : 0;   // green = dings
-  rgb[2] = mode == NB_MODE_PERIMETER_CYCLE ? 160 : 0; // blue = cycle
+  bool deco = mode == NB_MODE_DECOMPRESSION;          // purple = decompression
+  rgb[0] = (mode == NB_MODE_TRAVEL || deco) ? 160 : 0; // red = travel
+  rgb[1] = mode == NB_MODE_LANTERN_DINGS ? 160 : 0;    // green = dings
+  rgb[2] = (mode == NB_MODE_PERIMETER_CYCLE || deco) ? 160 : 0; // blue = cycle
   return true;
 }
 
@@ -179,9 +266,12 @@ void decompressionDingTick(uint32_t nowMs) {
     gPartnerDueMs = nowMs + 25;
     if (--gPartnerCopies == 0) gPartnerPending = false;
   }
+  freakoutTick(nowMs);
   cycleSendTick(nowMs);
   if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT) return;
-  bool dings = decompressionEventMode() == NB_MODE_LANTERN_DINGS;
+  // Decompression: every sensing lantern (Leeloo included) dings itself; only
+  // perimeters advance the cycle. Perimeter cycle: Leeloo's sensor advances it.
+  bool dings = modeDings(decompressionEventMode());
   bool trigger = decompressionEventMode() == NB_MODE_PERIMETER_CYCLE && isTriggerLantern();
   if (!dings && !trigger) return;
   const SensorSnapshot &sn = sensors();

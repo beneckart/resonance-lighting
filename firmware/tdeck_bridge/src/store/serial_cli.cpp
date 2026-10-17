@@ -56,7 +56,7 @@ static void printHelp() {
       "  tl-play <n> [loops]      play pattern n (loops 0/omitted = until stop)\n"
       "  tl-stop                  stop the pattern\n"
       "  tl-awake 0|1             keep show lanterns awake (decompression lease)\n"
-      "  tl-mode 1|2|3            event mode: 1 perimeter cycle, 2 lantern dings, 3 travel\n"
+      "  tl-mode 1|2|3|4          event mode: 1 perimeter cycle, 2 lantern dings, 3 travel, 4 decompression\n"
       "  tl-active <n> 0|1        pattern n in/out of the Active rotation\n"
       "  tl-rule <n> 0|1          button rule n on/off;  tl-run <n> runs it\n"
       "misc: probe | mem | reboot | help");
@@ -340,7 +340,7 @@ static void handleLine(char *line) {
   }
   if (strcmp(argv[0], "tl-mode") == 0 && argc >= 2) {
     int m = atoi(argv[1]);
-    if (m < 1 || m > 3) { Serial.println("tl error=mode-1-2-or-3"); return; }
+    if (m < 1 || m > 4) { Serial.println("tl error=mode-1-to-4"); return; }
     tonelabSetMode((uint8_t)m);
     Serial.printf("tl ok mode=%d\n", m);
     return;
