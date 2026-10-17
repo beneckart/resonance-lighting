@@ -132,6 +132,15 @@ void decompressionOnEventMode(const NbEventMode &m) {
   bool changed = gCfg.eventMode != m.mode;
   if (m.persist) nvsPersistEventMode(m.mode);
   else gCfg.eventMode = m.mode;
+  if (m.mode == NB_MODE_TRAVEL) {
+    // Packed up: drop every keep-awake source we hold (a leftover 60-minute USB
+    // session from the bench, controller radio leases) so the lantern sleeps
+    // right after the red flash instead of up to an hour later. Repeats are
+    // harmless; a fresh lease from a T-Deck/Atom with keep-awake on still wins.
+    uint64_t t = esp_timer_get_time();
+    gSession.set(t, 0);
+    gRadioSession.set(t, 0);
+  }
   if (changed) {
     gModeFlashUntil = millis() + MODE_FLASH_MS;
     gDingGateInit = false;  // relearn the background in the new mode
