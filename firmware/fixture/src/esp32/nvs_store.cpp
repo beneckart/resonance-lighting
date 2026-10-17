@@ -137,7 +137,7 @@ void nvsLoadConfig() {
                              RES_CHARGE_MIN_MA, RES_CHARGE_MAX_MA);
   gCfg.classOvr = pf.getUChar("class_ovr", FIXTURE_UNKNOWN);
   gCfg.eventMode = pf.getUChar("evt_mode", 1);
-  if (gCfg.eventMode != 1 && gCfg.eventMode != 2) gCfg.eventMode = 1;
+  if (gCfg.eventMode < 1 || gCfg.eventMode > 3) gCfg.eventMode = 1;
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
   gCfg.commissionDefault =
@@ -274,7 +274,7 @@ bool nvsPersistClassOvr(uint8_t cls) {
   return true;
 }
 bool nvsPersistEventMode(uint8_t mode) {
-  if (mode != 1 && mode != 2) return false;
+  if (mode < 1 || mode > 3) return false;
   if (gCfg.eventMode == mode) return true;  // no flash wear on repeats
   if (!putU8("evt_mode", mode)) return false;
   gCfg.eventMode = mode;

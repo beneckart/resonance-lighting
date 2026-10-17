@@ -1,0 +1,6 @@
+awake on /dev/cu.usbmodem1101
+local USB ENTER_MAINT
+-> MAINTENANCE (WiFi OTA)
+WiFi join profile=1/1 scan_rssi=-56 timeout=20000 ms
+maintenance WiFi profile=1/1
+maintenance WiFi up, ip=10.53.247.37 ch=6

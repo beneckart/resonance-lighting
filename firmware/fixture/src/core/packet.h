@@ -144,7 +144,8 @@ static inline bool nbPatternBeatValid(const NbPatternBeat &b) {
 // Lab app. 1 = perimeter cycle (squad trigger steps), 2 = lantern dings (each
 // sensing lantern chimes when someone is under it, plus its roster partner).
 // Decompression builds only; persisted when `persist` is set.
-enum NbEventModeValue : uint8_t { NB_MODE_PERIMETER_CYCLE = 1, NB_MODE_LANTERN_DINGS = 2 };
+// 3 = travel: packed up; no sensing, no cycle, no self keep-awake (normal sleep).
+enum NbEventModeValue : uint8_t { NB_MODE_PERIMETER_CYCLE = 1, NB_MODE_LANTERN_DINGS = 2, NB_MODE_TRAVEL = 3 };
 static constexpr uint32_t NB_EVENT_MODE_CONFIRM = 0x4D4F4445UL; // "MODE"
 struct __attribute__((packed)) NbEventMode {
   NbHeader h;
@@ -155,7 +156,8 @@ struct __attribute__((packed)) NbEventMode {
 static inline bool nbEventModeValid(const NbEventMode &m) {
   return m.h.ver == NB_PROTO_VER && m.h.type == NB_EVENT_MODE &&
       m.confirm == NB_EVENT_MODE_CONFIRM &&
-      (m.mode == NB_MODE_PERIMETER_CYCLE || m.mode == NB_MODE_LANTERN_DINGS);
+      (m.mode == NB_MODE_PERIMETER_CYCLE || m.mode == NB_MODE_LANTERN_DINGS ||
+       m.mode == NB_MODE_TRAVEL);
 }
 
 // A perimeter's approach, forwarded to the roster's cycle-trigger lantern so the

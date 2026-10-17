@@ -278,12 +278,16 @@ void tonelabTick(uint32_t nowMs) {
 }
 
 void tonelabSetMode(uint8_t mode) {
-  if (mode != 1 && mode != 2) return;
+  if (mode < 1 || mode > 3) return;
   gMode = mode;
   gPrefs.putUChar("mode", mode);
   gModeResendUntil = millis() + 60000;
   gModeNextMs = 0;
-  setLast(mode == 2 ? "mode: lantern dings" : "mode: perimeter cycle");
+  setLast(mode == 3 ? "mode: travel" : mode == 2 ? "mode: lantern dings" : "mode: perimeter cycle");
+  if (mode == 3 && gAwake) {  // packed up: stop renewing leases so lanterns can sleep
+    gAwake = false;
+    gPrefs.putBool("awake", false);
+  }
 }
 
 void tonelabSetAwake(bool on) {

@@ -73,7 +73,8 @@ int main() {
     NbEventMode m = {};
     m.h.ver = NB_PROTO_VER; m.h.type = NB_EVENT_MODE; m.confirm = NB_EVENT_MODE_CONFIRM; m.mode = 2;
     CHECK(nbEventModeValid(m));
-    m.mode = 3; CHECK(!nbEventModeValid(m));
+    m.mode = 3; CHECK(nbEventModeValid(m));   // travel
+    m.mode = 4; CHECK(!nbEventModeValid(m));
     m.mode = 1; m.confirm = 0; CHECK(!nbEventModeValid(m));
   }
   CHECK_EQ(offsetof(NbPatternBeat, pattern_id), 13u);

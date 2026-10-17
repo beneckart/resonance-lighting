@@ -157,7 +157,11 @@ void squadTriggerTick() {
     gWakePending=false;
     squadTriggerSession(60);
   }
-  if (RES_SQUAD_TRIGGER_ANY && powerReady()) {
+  if (RES_SQUAD_TRIGGER_ANY && decompressionEventMode()==NB_MODE_TRAVEL) {
+    // Packed up: end the session (releases the lanterns' leases) and let the
+    // perimeter sleep; no auto-start until another mode is chosen.
+    if (gSession.active(esp_timer_get_time())) { squadTriggerSession(0); gLast="travel"; }
+  } else if (RES_SQUAD_TRIGGER_ANY && powerReady()) {
     // Event mode: the session starts by itself after boot/wake and renews while
     // the power budget allows (powerReady), instead of ending after an hour.
     uint64_t t=esp_timer_get_time();

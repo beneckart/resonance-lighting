@@ -10,6 +10,30 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude (Ben present) -- Fleet PROTECT recovery, centre-LED perimeters, travel mode; Marill joins
+
+Ben concluded the Marill experiment and asked for ADR 0085 staged PROTECT
+recovery on every fixture: `--protect-recovery-all` (7ac2e0c; ADR amended).
+Perimeters now light only the HEX centre LED (18) at full white, always.
+Travel mode (e56eb42): event mode 3 flashes red then stops sensing, the cycle
+and self keep-awake (normal sleep); event perimeters end their session.
+
+Builds (Ben's BenPhone event command + `--protect-recovery-all`, clean worktree):
+`fx-261017-077438b-b` (5f35e07d...cc6f2b6e0) then `fx-261017-e39594d-b`
+(4ac7f20e...7a915c1824, adds travel). Final state on the ten devices on the hub:
+Leeloo, Sakura, Rikku, Eevee, Pinsir, Lucas, Bidoof, Daisy, Skitty, Marill all
+on e39594d via prepared USB service (evidence *-flash.jsonl).
+
+Marill F40348 (Ben's call: now an equal event perimeter): its 4f2d8ef image
+predated the ADR 0087 handshake (helper refused, no reset), so it was
+bootstrapped over BenPhone: USB `u` -> joined BenPhone 10.53.247.37 ch 6,
+net_bench_ota.py upload of 077438b (ack 8.74 s) -> app1 to app0, valid, past
+pending verify, VL53L5CX present, trigger enabled (forwards to Leeloo); then
+e39594d via prepared USB like the others. Its old slot (4f2d8ef) was the OTA
+fallback before the USB write. Still on bb87373: Ness, Tangela, Zubat.
+T-Deck needs the travel-mode build. Also fixed the T-Deck version test to
+Ben's 0.3.1-tonelab1.
+
 ## 2026-10-17 -- Brian + Claude (Ben present) -- Daisy and Skitty on the event image
 
 Flashed `fx-261017-bb87373-b` to perimeters Daisy `F40308` (from c2ddd6a,
