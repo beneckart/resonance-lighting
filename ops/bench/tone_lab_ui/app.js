@@ -805,7 +805,7 @@ function renderIxList() {
     const ctl = btn ? `<label title="A turned-off rule ignores clicks"><input type="checkbox" data-ixon="${r.id}" ${off ? "" : "checked"}> on</label>`
       : (run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`) +
         `<label title="Triple click switches between the sensor rules in rotation"><input type="checkbox" data-ixrot="${r.id}" ${r.active_trigger ? "checked" : ""}> in rotation</label>`;
-    const editing = r.id === cur.id;
+    const editing = ixOpen && r.id === cur.id;
     return `<div class="ixrow ${editing ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
       <span class="kind">${btn ? "button" : "sensor"}</span>
       <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>
@@ -813,7 +813,8 @@ function renderIxList() {
       <button class="edit ${editing ? "on" : ""}" data-ixedit="${r.id}">${editing ? "Editing ▾" : "✎ Edit"}</button></div>`;
   };
   // The editor sits directly under the rule being edited: rows up to it go above, the rest below.
-  const k = S.interactions.findIndex(r => r.id === cur.id);
+  const k = ixOpen ? S.interactions.findIndex(r => r.id === cur.id) : S.interactions.length - 1;
+  $("ixeditor").hidden = !ixOpen;
   $("ixlist").innerHTML = S.interactions.slice(0, k + 1).map(rowHtml).join("");
   $("ixlist2").innerHTML = S.interactions.slice(k + 1).map(rowHtml).join("");
   const sig = S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "");
@@ -825,12 +826,20 @@ async function ixListClick(e) {
   if (t.dataset.ixstart) { await armRule(S.interactions.find(x => x.id === t.dataset.ixstart)); return; }
   if (t.dataset.ixstop) { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); return; }
   const row = t.closest("[data-ixrow]"); if (!row) return;
-  const same = UI.ix === row.dataset.ixrow;
-  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix);
-  if (!same) renderIx();
+  if (ixOpen && UI.ix === row.dataset.ixrow) { ixCollapse(); return; }  // same rule again (row or "Editing"): close
+  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix); ixOpen = true;
+  renderIx();
   $("ixeditor").scrollIntoView({block: "nearest", behavior: "smooth"});
   if (t.dataset.ixedit) $("ixname").focus();
 }
+// The editor is open only while you're editing a rule; clicking the rule again or anywhere else closes it.
+var ixOpen = false;  // var: read by renderIxList, which can run before this line on load
+function ixCollapse() { if (!ixOpen) return; ixOpen = false; renderIxList(); }
+document.addEventListener("click", e => {
+  if (UI.tab !== "interactions" || !ixOpen || !e.target.isConnected) return;
+  if (e.target.closest("#ixeditor, [data-ixrow], .ixlisthd, .ixmode, header, footer")) return;
+  ixCollapse();
+});
 function ixListChange(e) {
   const rid = e.target.dataset.ixrot;
   if (rid) { const r = S.interactions.find(x => x.id === rid); r.active_trigger = e.target.checked; save(); renderIx(); return; }
@@ -898,11 +907,11 @@ ixField("ixbfrom", "bpm_from", 1, Number); ixField("ixbto", "bpm_to", 1, Number)
 ixField("ixsmooth", "smooth_s", 1, Number); ixField("ixidles", "idle_s", 1, Number);
 ixField("ixcurve", "curve"); ixField("ixidle", "idle"); ixField("ixsrc", "source"); ixField("ixpat", "pattern_id");
 function ixUnique(base) { let n = base, k = 2; while (S.interactions.some(x => x.name === n)) n = `${base} ${k++}`; return n; }
-$("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+$("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; ixOpen = true; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
 $("ixdup").onclick = () => { const c = curRule(), r = {...JSON.parse(JSON.stringify(c)), id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
   S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); };
 $("ixdel").onclick = () => confirmClick($("ixdel"), "Click again to delete", () => {
-  const r = curRule(); S.interactions = S.interactions.filter(x => x.id !== r.id); UI.ix = null; renderIx(); save(true); log(`deleted interaction "${r.name}"`);
+  const r = curRule(); S.interactions = S.interactions.filter(x => x.id !== r.id); UI.ix = null; ixOpen = false; renderIx(); save(true); log(`deleted interaction "${r.name}"`);
 });
 function ixRename() {
   const r = curRule(), nm = $("ixname").value.trim();
@@ -1061,7 +1070,7 @@ async function bxPoll() {
   else if (UI.tab === "interactions") renderBxPanel();
   if (UI.tab === "interactions" && r.events.length) renderIxList();
 }
-$("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+$("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; ixOpen = true; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
 // Keep the list's one-line summaries current while editing (runs after the field handlers).
 $("ixbtnwrap").addEventListener("change", () => renderIxList());
 $("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };

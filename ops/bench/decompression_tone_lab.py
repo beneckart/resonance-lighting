@@ -146,8 +146,24 @@ def query_port(port):
     return None
 
 
+# Controllers that share the hub but are not lanterns (T-Deck bridges); the
+# tone lab must never open their ports. Matched on the USB serial's MAC suffix.
+CONTROLLER_IDS = {"979604", "8EB508"}
+
+
+def lantern_ports():
+    """USB serial ports that may be lanterns: every usbmodem except known controllers."""
+    try:
+        from serial.tools import list_ports
+        skip = {p.device for p in list_ports.comports()
+                if (p.serial_number or "").replace(":", "").upper()[-6:] in CONTROLLER_IDS}
+    except Exception:
+        skip = set()
+    return [p for p in glob.glob("/dev/cu.usbmodem*") if p not in skip]
+
+
 def scan():
-    ports = glob.glob("/dev/cu.usbmodem*")
+    ports = lantern_ports()
     threads = [threading.Thread(target=query_port, args=(p,)) for p in ports]
     for t in threads: t.start()
     for t in threads: t.join()
@@ -1163,7 +1179,7 @@ def waker_loop():
     while True:
         time.sleep(1.0)
         try:
-            ports = set(glob.glob("/dev/cu.usbmodem*"))
+            ports = set(lantern_ports())
             with state_lock:
                 for fid, l in lanterns.items():
                     if l.get("port") not in ports and not l.get("offline"):
