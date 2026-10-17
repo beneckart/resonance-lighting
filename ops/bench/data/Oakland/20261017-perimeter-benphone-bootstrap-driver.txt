@@ -1,0 +1,144 @@
+import argparse,hashlib,json,struct,subprocess,sys,time,zlib
+from pathlib import Path
+from datetime import datetime,timezone
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'ops/bench'))
+from fleet_usb_bringup import discover,open_serial_no_reset,find_esptool
+p=argparse.ArgumentParser();p.add_argument('--target',choices=['F3FD28','F40348'],required=True);p.add_argument('--artifact',required=True);p.add_argument('--sha256',required=True);p.add_argument('--resume-backup');a=p.parse_args()
+old={'F3FD28':'fx-260831-b3e2738-b','F40348':'fx-261016-220d90a-b'}[a.target]
+mac={'F3FD28':'68:EE:8F:F3:FD:28','F40348':'68:EE:8F:F4:03:48'}[a.target]
+art=Path(a.artifact);m=json.loads((art/'manifest.json').read_text());binary=art/m['binary']['file'];blob=binary.read_bytes()
+assert hashlib.sha256(blob).hexdigest()==a.sha256==m['binary']['sha256'] and len(blob)==m['binary']['bytes']
+assert m['variant']=='b' and not m['git_dirty'] and m['fw_rev'].encode() in blob and b'BenPhone' in blob
+assert m['channel_default']==11 and m['profile_default']=='field' and not any('POWER_RECOVERY_TEST' in x or 'RES_DECOMPRESSION=' in x for x in m['compile_flags'])
+if a.target=='F40348':assert '-DRES_SQUAD_TRIGGER_TARGET=0xF40348UL' in m['compile_flags'] and '-DRES_PROTECT_RECOVERY_TARGET=0xF40348UL' in m['compile_flags']
+else:assert not any('TARGET=' in x for x in m['compile_flags'])
+stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ');backup=Path('ops/bench/private-backups')/(stamp+'-'+a.target+'-benphone');
+if a.resume_backup:backup=Path(a.resume_backup)
+else:backup.mkdir(parents=True,exist_ok=False)
+path=Path('ops/bench/data/Oakland')/(stamp+'-'+a.target+'-benphone-usb.jsonl');log=path.open('x',encoding='utf-8');s=None
+
+def record(k,v,show=False):
+ row=dict(utc=datetime.now(timezone.utc).isoformat(),kind=k,value=v);log.write(json.dumps(row)+'\n');log.flush()
+ if show:print(json.dumps(row),flush=True)
+def connect(seconds):
+ end=time.monotonic()+seconds
+ while time.monotonic()<end:
+  bs=[b for b in discover() if b.mac==mac]
+  if bs:
+   try:return bs[0],open_serial_no_reset(bs[0].port,timeout=.12,write_timeout=.6)
+   except OSError as e:record('open_retry',str(e))
+  time.sleep(.3)
+ raise RuntimeError('Target did not enumerate; no reset attempted')
+def fresh(port,seconds=15):
+ end=time.monotonic()+seconds;next_t=0
+ while time.monotonic()<end:
+  if time.monotonic()>=next_t:port.write(b't\n');next_t=time.monotonic()+1
+  line=port.readline().decode(errors='replace').strip()
+  if not line:continue
+  record('serial',line)
+  try:d=json.loads(line)
+  except ValueError:continue
+  if not isinstance(d,dict) or 'fixture_id' not in d:continue
+  assert d['fixture_id']==a.target,'Wrong serial identity'
+  if d.get('uptime_ms',0)>=13000:return d
+ raise RuntimeError('No fresh settled telemetry')
+def nvs_guard(raw):
+ parts=[]
+ for off in range(0x8000,0x9000,32):
+  if raw[off:off+2]!=b'\xaa\x50':break
+  _,typ,sub,at,size,label,flags=struct.unpack('<HBBII16sI',raw[off:off+32]);parts.append((label.split(b'\0')[0].decode(),at,size))
+ nvs=next(x for x in parts if x[0]=='nvs');names={};entries=[]
+ for off in range(nvs[1],nvs[1]+nvs[2],4096):
+  page=raw[off:off+4096];state,seq=struct.unpack_from('<II',page)
+  if state not in (0xfffffffe,0xfffffffc):continue
+  i=0
+  while i<126:
+   state=(page[32+i//4]>>((i%4)*2))&3
+   if state!=2:i+=1;continue
+   e=page[64+i*32:96+i*32];ns,typ,span,chunk=e[:4];assert 1<=span<=126-i
+   assert zlib.crc32(e[:4]+e[8:],0xffffffff)&0xffffffff==struct.unpack_from('<I',e,4)[0]
+   key=e[8:24].split(b'\0')[0].decode(errors='replace')
+   if ns==0 and typ==1:names[e[24]]=key
+   if key in ('load_arm','fc_stage') and typ==1:entries.append((seq,i,ns,key,e[24]))
+   i+=span
+ vals={}
+ for seq,i,ns,k,v in sorted(entries):
+  if names.get(ns)=='resfx':vals[k]=v
+ return parts,vals
+try:
+ record('ownership',dict(operator='Ben + Codex sole writer for this laptop',target=a.target,mac=mac,old=old,new=m['fw_rev'],sha256=a.sha256,source=m['git_commit']),True)
+ if a.resume_backup:
+  before=json.loads((backup/'preflight.json').read_text());board=next(b for b in discover() if b.mac==mac)
+  assert before['fixture_id']==a.target and before['fw']==old
+  record('resume_prepared_rom',dict(backup=str(backup),prior_preflight=before))
+ else:
+  board,s=connect(400);before=fresh(s,25)
+  assert before['fw']==old and before['battery_present'] and before['battery_v']>=3.25 and before['supply_good'] and before['bq_fault0']==0
+  assert before['power_tier']==0 and before['ota_state']=='valid' and not before.get('ota_pending_verify') and before['fixture_class']=='perimeter'
+  record('preflight',before);(backup/'preflight.json').write_text(json.dumps(before,indent=2))
+  # Legacy source-reviewed maintenance entry calls allLoadsOff and disarms BEFORE scan/join.
+  # A fresh join banner proves that path was reached; verify its durable result in ROM.
+  s.reset_input_buffer();s.write(b'u\n');record('tx','u (legacy all-loads-off maintenance preparation)')
+  end=time.monotonic()+25;prepared=False
+  while time.monotonic()<end:
+   line=s.readline().decode(errors='replace').strip()
+   if line:record('serial',line)
+   if line.startswith('WiFi join profile='):
+    prepared=True;break
+  assert prepared,'No verified legacy maintenance preparation; no reset'
+  s.close();s=None
+  record('legacy_service_scope',dict(source_reviewed=True,all_loads_off_path_reached=True,note='User-authorized USB bootstrap of two exact legacy images; durable load_arm must be zero before any app write or exit. No raw-reset fallback on failed preparation.'),True)
+ base=[find_esptool(),'--chip','esp32s3','--port',board.port,'--baud','115200']
+ def rom(args,before_mode='no-reset',after_mode='no-reset-stub',no_stub=False):
+  cmd=base+(['--no-stub'] if no_stub else [])+['--before',before_mode,'--after',after_mode]+args
+  r=subprocess.run(cmd,capture_output=True,text=True,timeout=300)
+  record('esptool',dict(args=args,before=before_mode,after=after_mode,rc=r.returncode,stdout=r.stdout,stderr=r.stderr))
+  if r.returncode and after_mode!='watchdog-reset':raise RuntimeError('ROM operation failed; left untouched in ROM')
+  return r.stdout+r.stderr
+ ident=rom(['read-mac'],'no-reset' if a.resume_backup else 'default-reset',after_mode='no-reset-stub' if a.resume_backup else 'no-reset',no_stub=not a.resume_backup);assert mac.lower() in ident.lower()
+ prefix=backup/'prefix-64KiB.bin'
+ if a.resume_backup:
+  assert prefix.read_bytes()==(backup/'prefix-stub-115200.bin').read_bytes()
+ else:rom(['read-flash','0','0x10000',str(prefix)])
+ raw=prefix.read_bytes();assert len(raw)==65536
+ parts,guard=nvs_guard(raw);record('durable_service_guard',guard,True)
+ assert guard.get('load_arm')==0 and guard.get('fc_stage')==before['guard_stage'],'Guard not disarmed/preserved; no application write or exit'
+ partition=(art/'fixture.ino.partitions.bin').read_bytes();assert raw[0x8000:0x8000+len(partition)]==partition
+ slot=next(x for x in parts if x[0]==before['ota_partition']);assert slot[2]==0x330000 and len(blob)<slot[2]
+ if a.target=='F40348':
+  oldart=Path('firmware/fixture/build/fx-261016-220d90a-b');oldmeta=json.loads((oldart/'manifest.json').read_text());oldbin=oldart/oldmeta['binary']['file']
+  assert hashlib.sha256(oldbin.read_bytes()).hexdigest()=='00c25f9912cd3119810727084fde0607dac72720e07abbb92e376c337945e7e1'
+  rom(['verify-flash',hex(slot[1]),str(oldbin)])
+  crash=backup/'coredump-64KiB.bin';rom(['read-flash','0x7f0000','0x10000',str(crash)])
+  record('backup_verified',dict(prefix_sha256=hashlib.sha256(raw).hexdigest(),prior_app=str(oldbin),prior_app_verified=True,coredump_sha256=hashlib.sha256(crash.read_bytes()).hexdigest(),note='Current active app is byte-verified against retained immutable image; prefix and crash region copied. Earlier Marill full autopsy backup retained; no successful new full-flash read.'),True)
+ else:
+  full=backup/'flash-8MiB.bin';record('backup_started',str(full),True);rom(['read-flash','0','0x800000',str(full)])
+  fullraw=full.read_bytes();assert len(fullraw)==8388608 and fullraw[:65536]==raw and old.encode() in fullraw[slot[1]:slot[1]+slot[2]]
+  record('backup_verified',dict(path=str(full),bytes=len(fullraw),sha256=hashlib.sha256(fullraw).hexdigest()),True)
+ record('write_started',dict(target=a.target,slot=slot[0],offset=slot[1],bytes=len(blob)),True)
+ rom(['write-flash',hex(slot[1]),str(binary)])
+ rom(['verify-flash','0',str(prefix),hex(slot[1]),str(binary)])
+ record('flash_verified',dict(prefix_unchanged=True,app_sha256=a.sha256),True)
+ rom(['read-mac'],after_mode='watchdog-reset')
+ end=time.monotonic()+240;after=None
+ while time.monotonic()<end:
+  try:
+   board,s=connect(40);d=fresh(s,20)
+   if d['fw']==m['fw_rev'] and d['ota_state']=='valid' and not d.get('ota_pending_verify') and d['uptime_ms']>=35000:
+    after=d;break
+   s.close();s=None;time.sleep(1)
+  except OSError:
+   if s:s.close();s=None
+ assert after,'No stable expected application observed'
+ for key in ('battery_capacity_mah','charge_limit_ma','profile','channel','guard_stage','power_tier'):
+  assert after[key]==before[key],key
+ for key in before:
+  if key.startswith('last_protect_entry'):assert after.get(key)==before[key],key
+ assert after['battery_v']>=3.25 and after['bq_fault0']==0 and after['sensor_bits']==before['sensor_bits']
+ Path('tmp/'+a.target+'-benphone-postflash.json').write_text(json.dumps(after,indent=2))
+ record('PASS',after,True)
+except BaseException as e:
+ record('FAILED',repr(e),True);raise
+finally:
+ if s:s.close()
+ log.close();print('Evidence',path,flush=True)

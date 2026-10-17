@@ -17832,3 +17832,22 @@ roster IDs/order/pulses match the pulled tone map (its saved timestamp is
 newer than the generated header comment). Logger tests pass all six cases.
 No fresh Arduino build or hardware qualification was performed for this
 documentation/merge handoff.
+
+## 2026-10-17 -- Ben's three perimeters provisioned for BenPhone
+
+Updated Skitty F3FD28 to Daisy-qualified ordinary c2ddd6a after its completed
+natural-recovery experiment. Updated Marill F40348 to 4f2d8ef from its exact
+old source plus BenPhone credentials only, preserving the original ten-step
+controller and exact-target staged recovery. Daisy F40308 already had
+c2ddd6a and was not flashed. Backups, application-only write verification,
+unchanged settings/history and healthy postboot telemetry are documented in
+BENPHONE_PERIMETERS_2026-10-17.md. All three joined actual BenPhone/channel 6,
+passed exact-revision HTTP checks, and returned to COMMS/channel 11. Marill's
+USB detach on leaving maintenance was confirmed as normal 120-second sleep
+on the following wake. No extra OTA upload or chime was commanded.
+
+Merged Brian's 52058ed without conflicts. Service tests 7/7, packet layout
+92/92, squad trigger 570/570 pass. Registry and raw evidence now distinguish
+successful BenPhone access from a new-image OTA-upload qualification. Final
+installation behavior remains a later decision; Brian's canopy hotspot/OTA
+canary remains open in his latest record.

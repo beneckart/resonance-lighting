@@ -3921,3 +3921,14 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   before hanging. Use BENPHONE_OTA_CANARY.md; the earlier bfb3ab9 image
   predates the current event lighting/cycle and is not this installation image.
   Keep Marill's exact-target staged-recovery recipe separate.
+
+### 2026-10-17 BenPhone provisioning completion
+
+- [x] Ben's connected perimeters: Skitty F3FD28 and Marill F40348 updated;
+  already-compatible Daisy F40308 skipped. Actual BenPhone HTTP access and
+  normal mesh return verified on all three, preserving settings/history.
+  See BENPHONE_PERIMETERS_2026-10-17.md. Installation behavior remains TBD.
+- [ ] Close the canopy-specific BenPhone OTA canary from Brian's 52058ed
+  handoff. His ten USB writes are recorded; actual hotspot upload is still
+  listed as pending. Reuse the exact retained 876a1c8 artifact if it remains
+  the chosen installation image, and keep operator/target ownership explicit.

@@ -1,0 +1,8 @@
+copied wifi_secrets.h from wifi_benphone.h
+ARTIFACT_PLAN fw_rev=fx-261017-4f2d8ef-b recipe_sha256=4f2d8ef8158bff71c0b6d1c791edb90245e819cb2f9b8458d38ab27f41f0a9a7 path=C:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware/fixture/build/fx-261017-4f2d8ef-b
+compiling (flags:-DPOWERFEATHER_BOARD_V2=1 -IC:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware -DRES_PF_PRECHARGE_MA=300 -DRES_DAY_SLEEP_S=120 -DRES_WAKE_LISTEN_MS=12000 -DRES_CHANNEL=11 -DRES_PROFILE_DEFAULT=PROFILE_PROD -DRES_BASIC_LISTENER=1 -DRES_SQUAD_TRIGGER_TARGET=0xF40348UL -DRES_PROTECT_RECOVERY_TARGET=0xF40348UL -includeC:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware/fixture/build/fx-261017-4f2d8ef-b/fixture_build_identity.h)
+Sketch uses 1235917 bytes (36%) of program storage space. Maximum is 3342336 bytes.
+Global variables use 70156 bytes (21%) of dynamic memory, leaving 257524 bytes for local variables. Maximum is 327680 bytes.
+artifact: C:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware/fixture/build/fx-261017-4f2d8ef-b/fixture.ino.bin (1236256 bytes)
+6581606bbfb4e53d574646215b79033bc681c35897bd32b60f2f09642bf8573f *C:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware/fixture/build/fx-261017-4f2d8ef-b/fixture.ino.bin
+ARTIFACT_READY fw_rev=fx-261017-4f2d8ef-b sha256=6581606bbfb4e53d574646215b79033bc681c35897bd32b60f2f09642bf8573f bytes=1236256 path=C:/Users/benec/.codex/worktrees/marill-benphone-bootstrap/resonance-lighting/firmware/fixture/build/fx-261017-4f2d8ef-b

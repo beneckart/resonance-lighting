@@ -1,0 +1,2 @@
+{"utc": "2026-10-17T15:48:35.001433+00:00", "kind": "ownership", "value": {"operator": "Ben + Codex sole writer for this laptop", "target": "F3FD28", "mac": "68:EE:8F:F3:FD:28", "old": "fx-260831-b3e2738-b", "new": "fx-261017-c2ddd6a-b", "sha256": "09a718c6da858615cbe47346bfd0ea0d37ad820304391ade368391a48438530e", "source": "73cd6199bf2a6ae3cd301c1ad778fa67506bf5eb"}}
+{"utc": "2026-10-17T15:49:46.457443+00:00", "kind": "FAILED", "value": "SerialException(\"could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)\")"}
