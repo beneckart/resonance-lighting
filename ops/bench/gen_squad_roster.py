@@ -28,7 +28,7 @@ for fid in state["order"]:  # tone order: 1 = highest pitch
     if not 5 <= pulse <= 100:
         raise SystemExit(f"{fid}: pulse {pulse} ms out of the roster range 5..100")
     name = meta.get("callsign") or callsigns.get(fid) or fid
-    rows.append((name, fid, pulse))
+    rows.append((name, fid, pulse, meta.get("partner")))
 if not 1 <= len(rows) <= 15:
     raise SystemExit(f"roster needs 1..15 lanterns, got {len(rows)}")
 lines = [
@@ -40,8 +40,12 @@ lines = [
     "",
     "static constexpr SquadMember SQUAD[] = {",
 ]
-for name, fid, pulse in rows:
-    lines.append(f'  {{"{name}",{" " * max(0, 8 - len(name))}{{0x{fid[0:2]},0x{fid[2:4]},0x{fid[4:6]}}},{pulse}}},')
+ids = [r[1] for r in rows]
+for name, fid, pulse, partner in rows:
+    pi = ids.index(partner) if partner in ids else -1  # lantern-dings partner (Tone Lab meta "partner")
+    if partner and pi < 0:
+        raise SystemExit(f"{fid}: partner {partner} is not a lantern in the roster")
+    lines.append(f'  {{"{name}",{" " * max(0, 8 - len(name))}{{0x{fid[0:2]},0x{fid[2:4]},0x{fid[4:6]}}},{pulse},{pi}}},')
 lines += ["};", ""]
 pathlib.Path(a.out).write_text("\n".join(lines))
-print(f"wrote {a.out}: " + ", ".join(f"{n} {p} ms" for n, _, p in rows))
+print(f"wrote {a.out}: " + ", ".join(f"{n} {p} ms" + (f" -> partner {next(r[0] for r in rows if r[1] == q)}" if q in ids else "") for n, _, p, q in rows))

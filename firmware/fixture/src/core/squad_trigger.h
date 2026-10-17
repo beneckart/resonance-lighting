@@ -4,7 +4,9 @@
 
 // Shared Atom/perimeter/lantern roster, generated from the Tone Lab tone map
 // (tone order, highest pitch first; each lantern's tuned pulse).
-struct SquadMember { const char *name; uint8_t id[3]; uint8_t pulseMs; };
+// partner: roster index of the lantern that chimes after this one in lantern-
+// dings mode (a sensorless lantern paired with a sensing one), or -1.
+struct SquadMember { const char *name; uint8_t id[3]; uint8_t pulseMs; int8_t partner; };
 #include "squad_roster.h"
 static constexpr unsigned SQUAD_COUNT = sizeof(SQUAD) / sizeof(SQUAD[0]);
 static constexpr uint16_t SQUAD_ALL = (1U << SQUAD_COUNT) - 1;
