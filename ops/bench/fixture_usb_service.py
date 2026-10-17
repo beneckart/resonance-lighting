@@ -22,12 +22,22 @@ def prepare_session(port, target, record=lambda *args: None, clock=time.monotoni
     port.reset_input_buffer()
 
     def telemetry():
+        # macOS asserts DTR when a tty opens, so opening the port can restart
+        # the fixture despite dtr/rts=False (Windows does not). A request sent
+        # into that reboot is lost, and a perimeter's VL53L5CX upload makes boot
+        # take several seconds: re-ask once a second, and allow up to 20 s once a
+        # boot banner is seen. A fresh matching reply is still required.
         port.write(b't\n')
-        end = clock() + 5
+        end, next_ask = clock() + 5, clock() + 1
         while clock() < end:
             line = port.readline().decode(errors='replace').strip()
             if line:
                 record('rx', line)
+                if line.startswith('=== Resonance fixture'):
+                    end = clock() + 20
+            if clock() >= next_ask:
+                port.write(b't\n')
+                next_ask = clock() + 1
             try:
                 data = json.loads(line)
             except ValueError:
