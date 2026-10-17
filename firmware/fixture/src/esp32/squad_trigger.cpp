@@ -12,6 +12,7 @@
 #include "protect_recovery.h"
 #include "sensors/sensors.h"
 #include "telemetry.h"
+#include "decompression.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 
@@ -211,7 +212,8 @@ void squadTriggerTick() {
   const SensorSnapshot &s=sensors();
   if (s.vlReads!=gVlReads) {
     gVlReads=s.vlReads; gVlMs=now;
-    if (gPresence.sample(now,s.vlPresent && s.vlOk,s.vlZoneNearestMm))
+    if (gPresence.sample(now,s.vlPresent && s.vlOk,s.vlZoneNearestMm) &&
+        decompressionEventMode()==NB_MODE_PERIMETER_CYCLE)  // lantern-dings mode: leases only
       squadTriggerPress("presence");
   } else if (now-gVlMs>1000) gPresence.invalidate();
 }
@@ -228,6 +230,8 @@ bool squadTriggerFrame(FrameBuffer &f,uint8_t pixels) {
     }
     uint8_t c[4];
     chimeLightRgbw(gTriggerLight,millis(),c);
+    uint8_t flash[3];
+    if (decompressionModeFlash(millis(),flash)) { c[0]=flash[0]; c[1]=flash[1]; c[2]=flash[2]; }
     for (uint16_t i=0;i<f.count;++i) {
       f.px[i][0]=(uint8_t)((uint16_t)c[0]*32/CHIME_LIGHT_AMBIENT);
       f.px[i][1]=(uint8_t)((uint16_t)c[1]*32/CHIME_LIGHT_AMBIENT);

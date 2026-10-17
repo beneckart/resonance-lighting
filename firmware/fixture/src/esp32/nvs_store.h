@@ -22,6 +22,7 @@ struct FixtureConfig {
   uint16_t capMah;      // gauge DesignCap (C command)
   uint16_t chargeMa;    // charger current cap (G command)
   uint8_t classOvr;     // FixtureClass; 0 = auto (probe)
+  uint8_t eventMode;    // decompression event mode (NbEventModeValue); 1 = perimeter cycle
   uint8_t classLast;    // last accepted probe result (downgrade fallback)
   uint8_t profile;      // FixtureProfile (commission/field; values stay 0/1)
   uint8_t commissionDefault; // CommissionDefaultMode; ignored in field profile
@@ -57,6 +58,7 @@ bool nvsPersistChargeMa(uint16_t ma);
 bool nvsPersistProfile(uint8_t profile);
 bool nvsPersistCommissionDefault(uint8_t mode);
 bool nvsPersistClassOvr(uint8_t cls);
+bool nvsPersistEventMode(uint8_t mode);
 bool nvsPersistClassLast(uint8_t cls);
 bool nvsPersistSolEn(uint8_t en);
 bool nvsPersistMaintV10(uint8_t v10);

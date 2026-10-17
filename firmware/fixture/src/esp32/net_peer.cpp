@@ -310,6 +310,14 @@ static void processPacket(const RxItem &it) {
     behaviorOnNeighborSet(*ns);
     break;
   }
+  case NB_EVENT_MODE: {
+    if (it.len < (int)sizeof(NbEventMode)) return;
+    const NbEventMode &mode = *(const NbEventMode *)it.data;
+    if (!nbEventModeValid(mode)) return;
+    espNowNoteControlRx();
+    decompressionOnEventMode(mode);
+    break;
+  }
   case NB_EVENT: {
     if (it.len < (int)sizeof(NbEvent)) return;
     const NbEvent &event = *(const NbEvent *)it.data;

@@ -108,6 +108,12 @@ def normalize_mac(value: str) -> str:
     return ":".join(compact[i : i + 2] for i in range(0, 12, 2))
 
 
+def port_key(device: str) -> str:
+    """Windows COM names are case-insensitive (normalise to COMn); POSIX device
+    paths such as /dev/cu.usbmodem1101 are case-sensitive and must stay as-is."""
+    return device.upper() if device.upper().startswith("COM") else device
+
+
 def discover() -> list[UsbBoard]:
     boards: list[UsbBoard] = []
     for port in list_ports.comports():
@@ -119,7 +125,7 @@ def discover() -> list[UsbBoard]:
         mac = normalize_mac(port.serial_number)
         boards.append(
             UsbBoard(
-                port=port.device.upper(),
+                port=port_key(port.device),
                 mac=mac,
                 fixture_id=mac.replace(":", "")[-6:],
                 description=port.description or "",
@@ -558,7 +564,7 @@ def select_boards(
 ) -> list[UsbBoard]:
     selected = boards
     if ports:
-        wanted = {value.upper() for value in ports}
+        wanted = {port_key(value) for value in ports}
         selected = [board for board in selected if board.port in wanted]
         missing = sorted(wanted - {board.port for board in selected})
         if missing:

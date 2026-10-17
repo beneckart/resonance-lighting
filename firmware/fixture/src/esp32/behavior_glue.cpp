@@ -584,6 +584,8 @@ static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   }
   uint8_t c[4];
   chimeLightRgbw(gChimeLight, now, c);
+  uint8_t flash[3];
+  if (decompressionModeFlash(now, flash)) { c[0] = flash[0]; c[1] = flash[1]; c[2] = flash[2]; c[3] = 0; }
   if (gClass == FIXTURE_PERIMETER) {  // 37 GRB pixels: same drift at about a third of the level, no white
     for (uint8_t k = 0; k < 3; ++k) c[k] = (uint8_t)((uint16_t)c[k] * 32 / CHIME_LIGHT_AMBIENT);
     c[3] = 0;
@@ -734,6 +736,7 @@ void behaviorTick() {
     frameClear(gFrame);
     gFrame.count = gPixels;
     chimeLightNoteStrikes(gChimeLight, solenoidStrikes(), now);
+    decompressionDingTick(now);
     if (active) chimeLightFrame(gFrame, gPixels, now);
     if (!active && !solenoidBusy() && now >= 15000 &&
         powerBudget().tier != LedTier::PROTECT && !otaVerifyPending())

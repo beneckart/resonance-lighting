@@ -64,6 +64,16 @@ int main() {
   CHECK_EQ(offsetof(NbDecompressionControl, controller_boot), 16u);
   CHECK_EQ(sizeof(NbDecompressionReceipt), 34u);
   CHECK_EQ(sizeof(NbPatternBeat), 43u);
+  CHECK_EQ(sizeof(NbEventMode), 19u);  // 13-byte header + confirm + mode + persist
+  CHECK_EQ(offsetof(NbEventMode, mode), 17u);
+  CHECK_EQ((int)NB_EVENT_MODE, 37);
+  {
+    NbEventMode m = {};
+    m.h.ver = NB_PROTO_VER; m.h.type = NB_EVENT_MODE; m.confirm = NB_EVENT_MODE_CONFIRM; m.mode = 2;
+    CHECK(nbEventModeValid(m));
+    m.mode = 3; CHECK(!nbEventModeValid(m));
+    m.mode = 1; m.confirm = 0; CHECK(!nbEventModeValid(m));
+  }
   CHECK_EQ(offsetof(NbPatternBeat, pattern_id), 13u);
   CHECK_EQ(offsetof(NbPatternBeat, prev_tx_group_us), 33u);
   CHECK_EQ(offsetof(NbPatternBeat, flags), 41u);

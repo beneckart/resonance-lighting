@@ -5,6 +5,36 @@ Append-only session journal for the Resonance Lighting workstream. Most recent f
 Format per entry:
 
 ```
+## 2026-10-17 -- Brian + Claude -- Installation image fx-261017-876a1c8-b on all ten
+
+Followed Ben's October 17 handoff (BENPHONE_OTA_CANARY.md): built the event
+image from 2f93296 (event basic mode, chime lighting, tuned roster, plus event
+mode 2 "lantern dings") with his exact command (`--wifi-source wifi_benphone.h
+--wifi-profile-label benphone-v1 --profile field --channel 11 --basic-listener
+--decompression --squad-trigger-any-perimeter --precharge-ma 300 --day-sleep-s
+120 --wake-listen-ms 12000`) in a clean detached worktree:
+`fx-261017-876a1c8-b`, SHA-256 28924080fd949612afd93c75b23ae51ced321a217ec49e9a52a5ac88c018a599.
+
+Flashed all nine lanterns (from e997cbf) and Zubat F401DC (from a3b81c6, the
+trigger perimeter) with ADR 0087 prepared USB service (fixture_usb_service.py
+--enter-rom, then no-reset backup/write/verify), private backups per fixture,
+app slot only, NVS/partition selection/other slot preserved. All ten came
+back valid on 876a1c8 with decompression active. Evidence:
+`ops/bench/data/Brian bench/*-flash.jsonl`.
+
+macOS fixes to Ben's helpers (no behaviour change on Windows):
+- fleet_usb_bringup.discover() uppercased port names (fine for COMn, broke
+  /dev/cu.usbmodem*): POSIX paths now keep their case (port_key()).
+- fixture_usb_service telemetry(): macOS asserts DTR on open, which restarts
+  the fixture despite dtr/rts=False; a perimeter then boots for several
+  seconds (VL53L5CX upload) and missed the 5 s window. Re-asks each second and
+  allows 20 s after a boot banner; a fresh matching reply is still required
+  and a miss still never resets. Unit tests pass (7).
+
+Not yet done from the handoff: BenPhone hotspot join + OTA canary on one
+canopy before hanging (needs the BenPhone hotspot); Marill stays separate.
+T-Deck mode switch (local branch) not flashed yet.
+
 ## YYYY-MM-DD -- author -- short subject
 
 Body. What changed, what was decided, what's next.

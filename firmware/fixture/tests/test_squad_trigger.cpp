@@ -64,6 +64,9 @@ int main() {
   for (unsigned i=0;i<9;++i) CHECK_EQ(squadStepOffsetMs(5,i),0u);  // the chord is together
   c.sent(UINT32_MAX-1000);
   CHECK(!c.canFire(1498,511)); CHECK(c.canFire(1499,511));
+  for (unsigned i=0;i<9;++i) {  // lantern-dings partners point at another roster lantern
+    CHECK(SQUAD[i].partner>=-1 && SQUAD[i].partner<(int)SQUAD_COUNT && SQUAD[i].partner!=(int)i);
+  }
   for (unsigned i=0;i<9;++i) {
     CHECK_EQ(squadIndex(SQUAD[i].id),(int)i);
     CHECK(SQUAD[i].pulseMs>=5 && SQUAD[i].pulseMs<=100);

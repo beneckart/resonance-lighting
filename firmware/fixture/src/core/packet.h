@@ -74,6 +74,7 @@ enum NbType : uint8_t {
   NB_DECOMPRESSION_CONTROL = 34, // controller -> exact target: lease or local phrase
   NB_DECOMPRESSION_RECEIPT = 35, // fixture -> controller: admission/completion
   NB_PATTERN_BEAT = 36, // elected conductor -> pattern group: shared clock (ADR 0084)
+  NB_EVENT_MODE = 37,   // controller -> all: decompression event mode (perimeter cycle / lantern dings)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -136,6 +137,24 @@ static inline bool nbPatternBeatValid(const NbPatternBeat &b) {
   return b.h.ver == NB_PROTO_VER && b.h.type == NB_PATTERN_BEAT &&
       b.pattern_id && b.loop_us && b.conductor_boot && b.beat_seq &&
       (b.h.src_id[0] || b.h.src_id[1] || b.h.src_id[2]);
+}
+
+// Decompression event mode (Brian, 2026-10-17), broadcast by the T-Deck Tone
+// Lab app. 1 = perimeter cycle (squad trigger steps), 2 = lantern dings (each
+// sensing lantern chimes when someone is under it, plus its roster partner).
+// Decompression builds only; persisted when `persist` is set.
+enum NbEventModeValue : uint8_t { NB_MODE_PERIMETER_CYCLE = 1, NB_MODE_LANTERN_DINGS = 2 };
+static constexpr uint32_t NB_EVENT_MODE_CONFIRM = 0x4D4F4445UL; // "MODE"
+struct __attribute__((packed)) NbEventMode {
+  NbHeader h;
+  uint32_t confirm;  // NB_EVENT_MODE_CONFIRM
+  uint8_t mode;      // NbEventModeValue
+  uint8_t persist;   // 1 = store in NVS
+};
+static inline bool nbEventModeValid(const NbEventMode &m) {
+  return m.h.ver == NB_PROTO_VER && m.h.type == NB_EVENT_MODE &&
+      m.confirm == NB_EVENT_MODE_CONFIRM &&
+      (m.mode == NB_MODE_PERIMETER_CYCLE || m.mode == NB_MODE_LANTERN_DINGS);
 }
 
 static inline bool nbDecompressionValid(const NbDecompressionControl &c,
