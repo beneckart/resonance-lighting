@@ -15,6 +15,7 @@
 #include "../net/nb_emit.h"
 #include "../net/net_mgr.h"
 #include "../net/stream_svc.h"
+#include "../net/tonelab_svc.h"
 #include "fixture/src/core/fixture_context.h"
 #include "store.h"
 
@@ -49,6 +50,14 @@ static void printHelp() {
       "  B[secs]                  fleet dark lease (default 600 s)\n"
       "  b                        release fleet lease (back to autonomous)\n"
       "  t                        one-line JSON telemetry\n"
+      "tone lab (show file from the laptop Tone Lab):\n"
+      "  tl-show <bytes>          then send exactly <bytes> of show text\n"
+      "  tl-status                show, patterns, rules, what is playing\n"
+      "  tl-play <n> [loops]      play pattern n (loops 0/omitted = until stop)\n"
+      "  tl-stop                  stop the pattern\n"
+      "  tl-awake 0|1             keep show lanterns awake (decompression lease)\n"
+      "  tl-active <n> 0|1        pattern n in/out of the Active rotation\n"
+      "  tl-rule <n> 0|1          button rule n on/off;  tl-run <n> runs it\n"
       "misc: probe | mem | reboot | help");
 }
 
@@ -288,6 +297,66 @@ static void handleLine(char *line) {
   for (char *tok = strtok(line, " \t"); tok && argc < 8; tok = strtok(nullptr, " \t"))
     argv[argc++] = tok;
   if (argc == 0) return;
+
+  if (strcmp(argv[0], "tl-show") == 0) {
+    // Raw payload follows the command line; read exactly <bytes> (5 s budget).
+    long want = argc >= 2 ? atol(argv[1]) : 0;
+    if (want <= 0 || want > (long)SHOW_MAX_TEXT) {
+      Serial.println("tl-show error=bad-length");
+      return;
+    }
+    char *buf = (char *)ps_malloc((size_t)want);
+    if (!buf) {
+      Serial.println("tl-show error=no-memory");
+      return;
+    }
+    long got = 0;
+    uint32_t until = millis() + 5000;
+    while (got < want && (int32_t)(millis() - until) < 0) {
+      while (Serial.available() && got < want) buf[got++] = (char)Serial.read();
+      if (got < want) delay(1);
+    }
+    char err[96] = "";
+    if (got != want) snprintf(err, sizeof(err), "timeout after %ld of %ld bytes", got, want);
+    else if (!tonelabLoadShow(buf, (size_t)want, err, sizeof(err))) {}
+    else {
+      TonelabStatus st = tonelabStatus();
+      Serial.printf("tl-show ok patterns=%u rules=%u lanterns=%u created=%s%s%s\n", (unsigned)st.patterns,
+                    (unsigned)st.rules, (unsigned)st.lanterns, st.created, err[0] ? " warning=" : "", err);
+      free(buf);
+      return;
+    }
+    free(buf);
+    Serial.printf("tl-show error=\"%s\"\n", err);
+    return;
+  }
+  if (strcmp(argv[0], "tl-status") == 0) { tonelabPrintStatus(); return; }
+  if (strcmp(argv[0], "tl-stop") == 0) { tonelabStop(); Serial.println("tl ok stopped"); return; }
+  if (strcmp(argv[0], "tl-play") == 0 && argc >= 2) {
+    bool ok = tonelabPlay(atoi(argv[1]), argc >= 3 ? (uint8_t)atoi(argv[2]) : 0);
+    Serial.println(ok ? "tl ok playing" : "tl error=bad-pattern");
+    return;
+  }
+  if (strcmp(argv[0], "tl-awake") == 0 && argc >= 2) {
+    tonelabSetAwake(atoi(argv[1]) != 0);
+    Serial.printf("tl ok awake=%d\n", atoi(argv[1]) != 0);
+    return;
+  }
+  if (strcmp(argv[0], "tl-active") == 0 && argc >= 3) {
+    tonelabSetActive(atoi(argv[1]), atoi(argv[2]) != 0);
+    Serial.println("tl ok");
+    return;
+  }
+  if (strcmp(argv[0], "tl-rule") == 0 && argc >= 3) {
+    tonelabSetRuleEnabled(atoi(argv[1]), atoi(argv[2]) != 0);
+    Serial.println("tl ok");
+    return;
+  }
+  if (strcmp(argv[0], "tl-run") == 0 && argc >= 2) {
+    tonelabRunRule(atoi(argv[1]));
+    Serial.println("tl ok");
+    return;
+  }
 
   if (strcmp(argv[0], "storage-usb") == 0) {
     StorageHostRequest request = {};
