@@ -132,9 +132,11 @@ static void cycleSendTick(uint32_t nowMs) {
 
 // ---- Freakout Mode on the trigger lantern ----------------------------------
 static constexpr uint8_t FREAKOUT_LOOPS = 2;
-static constexpr uint16_t HOLD_NEEDED_MS = 1500;
+// Jackpot: all four perimeters detect someone within one window (any approach
+// or hold report counts). Requiring a 1.5 s hold at each never lined up at the
+// event: hands flicker in and out of the sensors' near band, worse in sun.
 static constexpr uint8_t HOLD_PERIMETERS = 4;      // all four perimeters
-static constexpr uint32_t HOLD_FRESH_MS = 700;     // a hold report must be this recent
+static constexpr uint32_t JACKPOT_WINDOW_MS = 1500; // all four seen this recently
 static constexpr uint32_t FREAKOUT_REARM_MS = 8000; // after a hold-triggered freakout
 static bool gFreakout = false;
 static bool gFreakoutActive() { return gFreakout; }
@@ -210,29 +212,34 @@ static void freakoutTick(uint32_t nowMs) {
   }
 }
 
-void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs) {
-  if (!decompressionBuild() || hold.confirm != NB_PRESENCE_HOLD_CONFIRM || !isTriggerLantern()) return;
+static void jackpotSeen(const uint8_t src[3], uint32_t rxMs, uint16_t heldMs) {
+  if (!decompressionBuild() || !isTriggerLantern()) return;
   uint8_t m = decompressionEventMode();
   if (m != NB_MODE_PERIMETER_CYCLE && m != NB_MODE_DECOMPRESSION) return;
   HoldSrc *slot = nullptr;
-  for (HoldSrc &h : gHolds) if (h.used && memcmp(h.id, hold.h.src_id, 3) == 0) slot = &h;
+  for (HoldSrc &h : gHolds) if (h.used && memcmp(h.id, src, 3) == 0) slot = &h;
   if (!slot) for (HoldSrc &h : gHolds) if (!h.used || rxMs - h.rxMs > 5000) { slot = &h; break; }
   if (!slot) return;
-  bool newHold = !slot->used || memcmp(slot->id, hold.h.src_id, 3) != 0 || hold.held_ms < slot->heldMs;
-  memcpy(slot->id, hold.h.src_id, 3);
-  slot->rxMs = rxMs; slot->heldMs = hold.held_ms; slot->used = true;
-  uint8_t held = 0;
+  bool fresh = !slot->used || memcmp(slot->id, src, 3) != 0 || rxMs - slot->rxMs > JACKPOT_WINDOW_MS;
+  memcpy(slot->id, src, 3);
+  slot->rxMs = rxMs; slot->heldMs = heldMs; slot->used = true;
+  uint8_t seen = 0;
   for (const HoldSrc &h : gHolds)
-    if (h.used && rxMs - h.rxMs <= HOLD_FRESH_MS && h.heldMs >= HOLD_NEEDED_MS) ++held;
-  if (newHold || rxMs - slot->printMs >= 1000) {  // one line per perimeter per second, for jackpot tests
+    if (h.used && rxMs - h.rxMs <= JACKPOT_WINDOW_MS) ++seen;
+  if (fresh || rxMs - slot->printMs >= 1000) {  // one line per perimeter per second, for jackpot tests
     slot->printMs = rxMs;
-    Serial.printf("hold: %02X%02X%02X %u ms (%u of %u held)\n", hold.h.src_id[0], hold.h.src_id[1],
-                  hold.h.src_id[2], (unsigned)hold.held_ms, (unsigned)held, (unsigned)HOLD_PERIMETERS);
+    Serial.printf("jackpot: %02X%02X%02X seen (%u of %u)\n", src[0], src[1], src[2],
+                  (unsigned)seen, (unsigned)HOLD_PERIMETERS);
   }
-  if (held >= HOLD_PERIMETERS && rxMs - gFreakoutLastHoldMs >= FREAKOUT_REARM_MS) {
+  if (seen >= HOLD_PERIMETERS && rxMs - gFreakoutLastHoldMs >= FREAKOUT_REARM_MS) {
     gFreakoutLastHoldMs = rxMs;
-    freakoutStart(rxMs, "four perimeters held");
+    freakoutStart(rxMs, "four perimeters");
   }
+}
+
+void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs) {
+  if (hold.confirm != NB_PRESENCE_HOLD_CONFIRM) return;
+  jackpotSeen(hold.h.src_id, rxMs, hold.held_ms);
 }
 
 void decompressionOnAtomPress(const NbDecompressionControl &c) {
@@ -249,6 +256,7 @@ void decompressionOnAtomPress(const NbDecompressionControl &c) {
 }
 
 void decompressionOnCyclePress(const NbCyclePress &press) {
+  if (press.confirm == NB_CYCLE_PRESS_CONFIRM) jackpotSeen(press.h.src_id, millis(), 0);
   if (!decompressionBuild() || press.confirm != NB_CYCLE_PRESS_CONFIRM || !isTriggerLantern() ||
       !modeCycle(decompressionEventMode())) return;
   if (memcmp(press.h.src_id, gPressSrc, 3) == 0 && press.h.seq == gPressSeq) return;  // another copy
