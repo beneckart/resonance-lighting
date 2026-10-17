@@ -36,6 +36,21 @@ relay write gate. No Arduino build or hardware test was performed.
 Skitty's observer and passive Windows trace files/processes were left in
 place. No serial port, maintenance command, reset or firmware write was used.
 
+## 2026-10-17 -- Brian + Claude -- Chime lighting preview on Leeloo
+
+Decompression builds now light with the chimes (core/chime_light, 082b667):
+slow colour drift (one turn/min, per-lantern starting hue from the id); every
+solenoid strike flashes (white pop on RGBW heads) and jumps the colour ~1/3
+turn. Perimeter boards keep the quiet idle frame; the power cap still applies.
+
+Artifact `fx-261017-e997cbf-b` (SHA-256 f50a4f0d...ae9f24), same recipe as
+fx-261016-d572656-b plus the lighting (--decompression --basic-listener
+--day-sleep-s 120 --wake-listen-ms 12000, field, ch 11). A first attempt built
+without those flags (fx-261017-137dcae-b, wrong recipe) was deleted unflashed.
+Flashed to Leeloo `F40254` only (app1, identity-gated, private backup
+20261017T053727Z-F40254, verify ok, poweron, decompression active) as a
+preview before the other lanterns.
+
 ## 2026-10-16 -- Brian + Claude -- Proximity tab for sensor testing; Zubat range findings
 
 Tone Lab Proximity tab rebuilt for testing sensors rather than lanterns:
