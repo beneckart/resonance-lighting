@@ -17192,3 +17192,31 @@ Next concrete steps for Ben + Steve:
 3. Bench validation on existing TTGO modules -- solar charging path first.
 
 Switching to Claude Code for daily firmware/hardware iteration. Cowork retains read access to this repo via GitHub for project management and review.
+
+## 2026-10-16 -- Daisy USB service and bounded voltage recovery qualified
+
+Implemented ADR 0087: exact-target USB service preparation verifies loads off
+before ROM reset and preserves the stored tier. The host rejects stale or
+missing acknowledgements. Active voltage confirmations now defer ordinary
+day sleep for at most 150 seconds; missing samples reset the streak and the
+3.05 V critical floor / armed-collapse guard remain unchanged.
+
+Daisy F40308 passed four prepared ROM cycles, the 30-second service timeout,
+and actual deep-sleep recovery from DIM (FULL at 72.341 s uptime) and OFF
+(FULL at 132.068 s). Test-only diagnostics proved the new hold was the sole
+sleep veto. All 41 native executables and seven host tests passed; the original
+native runner's Windows execution error was resolved by an isolated rerun.
+
+Final ordinary fx-261017-c2ddd6a-b, SHA-256
+09a718c6da858615cbe47346bfd0ea0d37ad820304391ade368391a48438530e,
+passed exact-target BenPhone OTA and remained VALID beyond 75 s, FULL with
+healthy sensors and unchanged 3026 mV protection history. Only Daisy's
+registry entry changed. See DAISY_SERVICE_RECOVERY_2026-10-16.md and
+FIXTURE_USB_SERVICE.md. The 1800-second fallback dusk timer has a similar
+short-wake gap without a valid schedule; it remains a separate open item.
+
+Skitty was not reset, flashed or configured. Passive T-Deck reports confirmed
+natural recovery to DIM / DAY_CHARGE on the old firmware, with a software
+boot near 18:07:28 PDT; the release itself was in the observation gap. The
+USB observer stopped normally and its heartbeat was paused. Raw evidence:
+Oakland/20261017T011607Z-F3FD28-natural-recovery-confirmed.json.

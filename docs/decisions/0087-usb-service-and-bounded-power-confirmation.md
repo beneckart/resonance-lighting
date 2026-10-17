@@ -54,3 +54,14 @@ It cannot clear PROTECT and is absent from the final ordinary artifact.
 Test missing/refused/mismatched USB replies, repeated deliberate ROM service,
 DIM and OFF real sleep recovery, timed cancellation, and unchanged history.
 Skitty F3FD28 is excluded from all operations.
+
+
+## 2026-10-16 qualification result
+
+Daisy F40308 passed four prepared ROM service cycles, the 30-second timeout,
+and real deep-sleep DIM/OFF recovery with a sole-sleep-veto diagnostic. The
+final ordinary fx-261017-c2ddd6a-b artifact passed OTA validation beyond 75 s
+with FULL tier and unchanged protection history. Detailed source, hashes and
+raw evidence are in DAISY_SERVICE_RECOVERY_2026-10-16.md. Fleet rollout remains
+separate; physical armed-collapse preservation is covered by native tests,
+not an induced hardware brownout in this qualification.

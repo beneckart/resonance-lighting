@@ -1,0 +1,48 @@
+ARTIFACT_READY fw_rev=fx-261017-0a44f30-b sha256=76dd7f701eaae288e0ef4f375a0f8a86425d69276a65e402a40e27f3404c5518 bytes=45 path=C:/Users/benec/AppData/Local/Temp/artifact-contract-jz5b1goi/build/fx-261017-0a44f30-b
+ARTIFACT RECIPE CONTRACT PASSED
+BUILD WRAPPER CONTRACT PASSED
+test_behavior: 179 checks, 0 failures
+test_boot_guard: 53 checks, 0 failures
+test_bq25628e_precharge: 13 checks, 0 failures
+test_class_probe: 50 checks, 0 failures
+test_daytime_ritual: 18 checks, 0 failures
+decompression_commands: 25 checks, 0 failures
+decompression radio/roster/button: 160 checks, 0 failures
+test_deep_recovery: 22 checks, 0 failures
+test_field_behavior: 20 checks, 0 failures
+field role policy tests passed
+frame budget tests passed
+test_geometry_pattern: 17 checks, 0 failures
+inspection_posture: 25 checks, 0 failures
+interaction modulator tests passed
+led_profile: 10 checks, 0 failures
+motion_trace: PASS
+test_ota_verify_policy: 6 checks, 0 failures
+test_packet_layout: 86 checks, 0 failures
+test_pattern_part: 74 checks, 0 failures
+  steady: 24 shared targets, worst spread 250 us
+  after conductor loss: 28 shared targets, worst spread 250 us
+  after re-merge: 20 shared targets, worst spread 250 us
+test_pattern_sync: 44 checks, 0 failures
+test_power_integrator: 8 checks, 0 failures
+test_power_policy: 195 checks, 0 failures
+power_sleep: 406 checks, 0 failures
+test_presence_wave: 565 checks, 0 failures
+protect_retry: 343 checks, 0 failures
+radio_config: 12 checks, 0 failures
+test_rtc_calendar: 32 checks, 0 failures
+test_sentinel_trace: 23 checks, 0 failures
+firmware/fixture/tests/run_tests.sh: line 27: /tmp/fixture-tests.kR0TU9/test_serial_mutation: Permission denied
+show palette tests passed
+signature_sequence: 58 checks, 0 failures
+test_sleep_audit: 26 checks, 0 failures
+solenoid_config: 11 checks, 0 failures
+squad_trigger: 615 checks, 0 failures
+test_storage_request: 17 checks, 0 failures
+strike_event ok
+strike_policy ok
+test_time_schedule: 25 checks, 0 failures
+test_tmf_recovery: 24 checks, 0 failures
+tof_grid: 37 checks, 0 failures
+wifi_credential_plan: 10 checks, 0 failures
+TEST FAILURES

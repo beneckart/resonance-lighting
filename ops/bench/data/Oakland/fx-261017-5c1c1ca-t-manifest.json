@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "fw_rev": "fx-261017-5c1c1ca-t",
+  "variant": "t",
+  "recipe_sha256": "5c1c1ca3e4ef098cdd5000bf733142d774390a529047233397e2d2e8117caff4",
+  "git_commit": "73cd6199bf2a6ae3cd301c1ad778fa67506bf5eb",
+  "git_dirty": false,
+  "fqbn": "esp32:esp32:esp32s3_powerfeather",
+  "compile_flags": [
+    "-DPOWERFEATHER_BOARD_V2=1",
+    "-I<repo>/firmware",
+    "-DRES_PF_PRECHARGE_MA=300",
+    "-DRES_DAY_SLEEP_S=120",
+    "-DRES_WAKE_LISTEN_MS=12000",
+    "-DRES_CHANNEL=11",
+    "-DRES_PROFILE_DEFAULT=PROFILE_PROD",
+    "-DRES_BASIC_LISTENER=1",
+    "-DRES_POWER_RECOVERY_TEST_TARGET=0xF40308UL"
+  ],
+  "channel_default": 11,
+  "profile_default": "field",
+  "commission_idle_default": "listener",
+  "wifi_profile": "benphone-party-v1",
+  "toolchain": {
+    "arduino_cli": "1.5.1+01f3d4f2b",
+    "esp32_platform": "3.3.7",
+    "powerfeather_sdk": "2.1.0"
+  },
+  "libraries": {
+    "Adafruit BusIO": "1.17.4",
+    "Adafruit MSA301": "1.1.4",
+    "Adafruit NeoPixel": "1.15.5",
+    "Adafruit Unified Sensor": "1.1.15",
+    "SparkFun Qwiic TMF882X Library": "1.0.2"
+  },
+  "binary": {
+    "file": "fixture.ino.bin",
+    "bytes": 1228144,
+    "sha256": "2699328f1a6efaae5583f51089702cd86c1e1964c97578b3659e9ee894034a75"
+  },
+  "built_utc": "2026-10-17T01:11:44Z"
+}

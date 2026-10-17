@@ -3790,3 +3790,14 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   same artifact over WiFi -> verify the ADR 0040 completion contract. Open:
   the radio sender for ENTER_MAINT once lanterns are hung (Ben's T-Deck bridge,
   a USB ESP32 dongle for the tone lab, or an Atom extension) (Brian + Ben).
+
+### 2026-10-16 Daisy recovery qualification
+
+- [x] Fix and qualify planned USB service resets and interrupted DIM/OFF
+  confirmation on Daisy F40308. ADR 0087 and the October 16 qualification
+  report record four ROM cycles, a bounded timeout, two real sleep tests,
+  and final ordinary c2ddd6a OTA. The squad was not updated.
+- [ ] Qualify/fix fallback dusk detection across ordinary daytime sleeps when
+  no valid time schedule is available. The 1800-second continuous timer cannot
+  finish in 12-second wakes or the 600-second cold-boot grace. Do not count
+  unobserved sleep as darkness or hold awake 30 minutes without an energy budget.
