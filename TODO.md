@@ -3935,6 +3935,16 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
 
 ### 2026-10-17 Atom follow-up
 
+- [ ] Make T-Deck Wake/Performance Hold semantics explicit for decompression
+  and squad-trigger firmware. Those early-return branches ignore the normal
+  lifecycle RX hold/forced-day state; the current field workaround is Tone
+  Lab Mode -> Perimeter cycle or Lantern dings, repeated across the sleep
+  cadence. Preserve power gates and distinguish temporary awake holds from
+  persistent event-mode changes. See docs/tests/LOOM_WAKE_2026-10-17.md.
+- [ ] Loom: Sakura F2BE0C reports sens=0/cmis=1 at 60 s uptime despite an
+  active healthy-power canopy state. Check its ToF connection/detection before
+  relying on that canopy as a presence trigger. See the Loom wake report.
+
 - [ ] Diagnose Atom T-Deck-mode persistence separately from event use.
   187BA4 accepted tdeck 1 in RAM but rebooted false, even after a scoped NVS
   reset. Checked-save candidate 7b61297 built but was never flashed and was

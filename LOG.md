@@ -18065,3 +18065,19 @@ remain controlled on the T-Deck; 187BA4 is the qualified direct chime button.
 Merged Brian's intervening handoffs and pushed e8175f2; merged native radio
 tests passed 160/160 and packet layout 95/95. Final raw observer evidence and
 disposition are in docs/tests/ATOMS_TDECK_2026-10-17.md.
+
+## 2026-10-17 -- Loom: event mode restores awake operation on all 13
+
+At about 13:30 PDT Ben reported periodic wakes after a one-hour sleep and
+ineffective T-Deck Wake commands. Read-only COM10/8EB508 captures showed the
+one-hour command had expired and the fixtures were taking normal 120-second
+sleeps, with healthy power tiers. Source inspection found the event/trigger
+branches bypass the normal lifecycle RX hold used by Wake/Performance Hold.
+
+Brian selected Tone Lab Perimeter cycle while holding the T-Deck during the
+capture (confirmed by Ben). By 13:32:35 all nine canopies and four perimeters
+had fresh active reports, power tier 0, and current boot uptimes 66-182 s.
+No reset, flash, chime or radio command was sent by Codex; only local bridge
+status queries. Queued the Wake UI/firmware semantic mismatch and preserved
+raw evidence in docs/tests/LOOM_WAKE_2026-10-17.md. Audio and final placement
+are separate from this awake/radio verification.
