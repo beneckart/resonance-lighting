@@ -75,6 +75,7 @@ enum NbType : uint8_t {
   NB_DECOMPRESSION_RECEIPT = 35, // fixture -> controller: admission/completion
   NB_PATTERN_BEAT = 36, // elected conductor -> pattern group: shared clock (ADR 0084)
   NB_EVENT_MODE = 37,   // controller -> all: decompression event mode (perimeter cycle / lantern dings)
+  NB_CYCLE_PRESS = 38,  // perimeter -> trigger lantern: someone approached (advance the event cycle)
 };
 
 struct __attribute__((packed)) NbHeader {
@@ -156,6 +157,15 @@ static inline bool nbEventModeValid(const NbEventMode &m) {
       m.confirm == NB_EVENT_MODE_CONFIRM &&
       (m.mode == NB_MODE_PERIMETER_CYCLE || m.mode == NB_MODE_LANTERN_DINGS);
 }
+
+// A perimeter's approach, forwarded to the roster's cycle-trigger lantern so the
+// event cycle has one owner whichever sensor saw the person. Broadcast; copies
+// share one seq (the receiver dedupes per source).
+static constexpr uint32_t NB_CYCLE_PRESS_CONFIRM = 0x4359434CUL; // "CYCL"
+struct __attribute__((packed)) NbCyclePress {
+  NbHeader h;
+  uint32_t confirm;  // NB_CYCLE_PRESS_CONFIRM
+};
 
 static inline bool nbDecompressionValid(const NbDecompressionControl &c,
                                         const uint8_t target[3]) {

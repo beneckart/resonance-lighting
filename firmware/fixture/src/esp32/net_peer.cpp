@@ -310,6 +310,13 @@ static void processPacket(const RxItem &it) {
     behaviorOnNeighborSet(*ns);
     break;
   }
+  case NB_CYCLE_PRESS: {
+    if (it.len < (int)sizeof(NbCyclePress)) return;
+    const NbCyclePress &press = *(const NbCyclePress *)it.data;
+    if (press.h.ver != NB_PROTO_VER || press.confirm != NB_CYCLE_PRESS_CONFIRM) return;
+    decompressionOnCyclePress(press);
+    break;
+  }
   case NB_EVENT_MODE: {
     if (it.len < (int)sizeof(NbEventMode)) return;
     const NbEventMode &mode = *(const NbEventMode *)it.data;

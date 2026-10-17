@@ -235,7 +235,8 @@ function renderCards() {
       <div class="name">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
       <div class="row"><span class="seg" role="group" aria-label="Role">
           <button class="${isPerim(id) ? "" : "on"}" data-role="${id}:lantern" title="A regular lantern">Lantern</button>
-          <button class="${isPerim(id) ? "on" : ""}" data-role="${id}:perimeter" title="A perimeter light: its sensor is used for approach rules">Perimeter</button></span></div>
+          <button class="${isPerim(id) ? "on" : ""}" data-role="${id}:perimeter" title="A perimeter light: its sensor is used for approach rules">Perimeter</button></span>
+        ${isPerim(id) ? "" : `<button class="${m.cycle_trigger ? "on-s" : ""}" data-cycletrig="${id}" title="Event firmware: walking under this lantern advances the perimeter cycle (rising pairs, then all). Only one lantern. Rebuild firmware to apply.">${m.cycle_trigger ? "★ Cycle trigger" : "Cycle trigger"}</button>`}</div>
       <div class="row"><button data-strike="${id}">Strike</button>
         <button data-wake="${id}" class="${WK.targets.includes(id) ? "waking" : ""}">${wakeLabel(id)}</button>
         <button class="${m.type === "large" ? "on" : ""}" data-type="${id}:large">Large</button>
@@ -357,6 +358,13 @@ document.addEventListener("click", async e => {
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
   else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
   else if (b.dataset.gstrike) { busy = true; await playGroup(b.dataset.gstrike); busy = false; }
+  else if (b.dataset.cycletrig) {
+    const id = b.dataset.cycletrig, on = !meta(id).cycle_trigger;
+    for (const k of Object.keys(S.lanterns)) delete S.lanterns[k].cycle_trigger;  // only one trigger lantern
+    if (on) meta(id).cycle_trigger = true;
+    render(); save();
+    log(on ? `${name(id)} is the cycle trigger (re-run gen_squad_roster.py and rebuild the event firmware)` : "no cycle trigger lantern");
+  }
   else if (b.dataset.role) {
     const [id, r] = b.dataset.role.split(":"), m = meta(id);
     if (r === "perimeter") m.role = "perimeter"; else delete m.role;

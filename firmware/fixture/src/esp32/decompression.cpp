@@ -54,12 +54,74 @@ static uint8_t gPartnerCopies = 0;  // copies of the partner strike still to sen
 
 uint8_t decompressionEventMode() { return gCfg.eventMode == 2 ? 2 : 1; }
 
-// Mode 2 keeps a downlight with a working sensor awake (it must watch); the power
-// policy's FULL/DIM gate still applies, so a tired battery lets it sleep.
+// Event image (RES_SQUAD_TRIGGER_ANY): every lantern keeps itself awake in either
+// mode, so nothing depends on a perimeter. Otherwise mode 2 keeps a sensing
+// downlight awake (it must watch). The power policy's FULL/DIM gate applies.
+#ifndef RES_SQUAD_TRIGGER_ANY
+#define RES_SQUAD_TRIGGER_ANY 0
+#endif
 static bool dingsKeepAwake() {
-  return decompressionEventMode() == NB_MODE_LANTERN_DINGS &&
-      gTelemetryFixtureClass == FIXTURE_DOWNLIGHT && sensors().tmfPresent &&
-      decompressionPowerReady();
+  if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT || !decompressionPowerReady()) return false;
+  if (RES_SQUAD_TRIGGER_ANY) return true;
+  return decompressionEventMode() == NB_MODE_LANTERN_DINGS && sensors().tmfPresent;
+}
+
+// ---- event cycle on the trigger lantern -------------------------------------
+static SquadCycle gLanternCycle;
+static uint32_t gCycleDue[SQUAD_COUNT];
+static uint8_t gCycleCopies[SQUAD_COUNT];
+static NbTargetU16 gCycleCmd[SQUAD_COUNT];
+static uint8_t gPressSrc[3] = {0, 0, 0};
+static uint32_t gPressSeq = 0;
+
+static bool isTriggerLantern() {
+  int self = squadIndex(gMyId);
+  return SQUAD_TRIGGER_LANTERN >= 0 && self == SQUAD_TRIGGER_LANTERN;
+}
+
+static void cyclePress(uint32_t nowMs, const char *source) {
+  if (!gLanternCycle.canFire(nowMs, SQUAD_ALL) || !decompressionPowerReady()) return;  // 2.5 s cooldown
+  uint8_t step = gLanternCycle.next;
+  uint16_t mask = gLanternCycle.targets();
+  gLanternCycle.sent(nowMs);
+  for (unsigned i = 0; i < SQUAD_COUNT; ++i) {
+    if (!(mask & (1U << i))) continue;
+    gCycleDue[i] = nowMs + 60 + squadStepOffsetMs(step, i);  // pair: the higher lantern a beat later
+    gCycleCopies[i] = 3;
+    memset(&gCycleCmd[i], 0, sizeof(gCycleCmd[i]));
+  }
+  Serial.printf("cycle: step=%u targets=%03x source=%s\n", (unsigned)step + 1, mask, source);
+}
+
+static void cycleSendTick(uint32_t nowMs) {
+  int self = squadIndex(gMyId);
+  for (unsigned i = 0; i < SQUAD_COUNT; ++i) {
+    if (!gCycleCopies[i] || (int32_t)(nowMs - gCycleDue[i]) < 0) continue;
+    if ((int)i == self) {  // our own lantern: strike locally, once
+      solenoidStrike(SQUAD[i].pulseMs, "cycle");
+      gCycleCopies[i] = 0;
+      continue;
+    }
+    if (!espNowTxAvailable()) return;  // never stack a send on an unfinished TX
+    if (gCycleCopies[i] == 3) {        // one header (seq) for all copies of this strike
+      fillHeader(&gCycleCmd[i].h, NB_TARGET_SOLENOID);
+      memcpy(gCycleCmd[i].target_id, SQUAD[i].id, 3);
+      gCycleCmd[i].value = SQUAD[i].pulseMs;
+    }
+    espNowSendRaw(&gCycleCmd[i], sizeof(gCycleCmd[i]));
+    --gCycleCopies[i];
+    gCycleDue[i] = nowMs + 25;
+    return;  // one send per tick
+  }
+}
+
+void decompressionOnCyclePress(const NbCyclePress &press) {
+  if (!decompressionBuild() || press.confirm != NB_CYCLE_PRESS_CONFIRM || !isTriggerLantern() ||
+      decompressionEventMode() != NB_MODE_PERIMETER_CYCLE) return;
+  if (memcmp(press.h.src_id, gPressSrc, 3) == 0 && press.h.seq == gPressSeq) return;  // another copy
+  memcpy(gPressSrc, press.h.src_id, 3);
+  gPressSeq = press.h.seq;
+  cyclePress(millis(), "perimeter");
 }
 
 void decompressionOnEventMode(const NbEventMode &m) {
@@ -103,12 +165,16 @@ void decompressionDingTick(uint32_t nowMs) {
     gPartnerDueMs = nowMs + 25;
     if (--gPartnerCopies == 0) gPartnerPending = false;
   }
-  if (decompressionEventMode() != NB_MODE_LANTERN_DINGS ||
-      gTelemetryFixtureClass != FIXTURE_DOWNLIGHT) return;
+  cycleSendTick(nowMs);
+  if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT) return;
+  bool dings = decompressionEventMode() == NB_MODE_LANTERN_DINGS;
+  bool trigger = !dings && isTriggerLantern();
+  if (!dings && !trigger) return;
   const SensorSnapshot &sn = sensors();
   if (!sn.tmfPresent || !sn.tmfOk) return;
   if (!gDingGateInit) { tmfPresenceInit(gDingGate); gDingGateInit = true; }
   bool rising = tmfPresenceObserve(gDingGate, sn.tmfReads, sn.tofZoneMm, sn.tofZoneConfidence);
+  if (rising && trigger) { cyclePress(nowMs, "lantern"); return; }  // mode 1: advance the cycle
   if (!rising || nowMs - gLastDingMs < DING_MIN_GAP_MS || !decompressionPowerReady()) return;
   gLastDingMs = nowMs;
   uint16_t pulse = self >= 0 ? SQUAD[self].pulseMs : 40;

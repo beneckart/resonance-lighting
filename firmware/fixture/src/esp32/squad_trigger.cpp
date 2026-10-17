@@ -31,6 +31,9 @@ static uint8_t gLeaseIndex=0;
 static uint16_t gJobMask=0, gSentMask=0;
 static uint8_t gJobCursor=0, gJobStep=0;
 static ChimeLight gTriggerLight;
+static NbCyclePress gPress;
+static uint8_t gPressCopies=0;
+static uint32_t gForwarded=0;
 static uint32_t gDeadline=0, gEventId=0, gTxErrors=0, gRefused=0;
 static const char *gLast="idle";
 static bool gWakePending=false;
@@ -213,9 +216,22 @@ void squadTriggerTick() {
   if (s.vlReads!=gVlReads) {
     gVlReads=s.vlReads; gVlMs=now;
     if (gPresence.sample(now,s.vlPresent && s.vlOk,s.vlZoneNearestMm) &&
-        decompressionEventMode()==NB_MODE_PERIMETER_CYCLE)  // lantern-dings mode: leases only
-      squadTriggerPress("presence");
+        decompressionEventMode()==NB_MODE_PERIMETER_CYCLE) {  // lantern-dings mode: leases only
+      if (RES_SQUAD_TRIGGER_ANY && SQUAD_TRIGGER_LANTERN>=0) {
+        // One cycle owner: forward the approach to the trigger lantern.
+        NbCyclePress press={}; fillHeader(&press.h,NB_CYCLE_PRESS);
+        press.confirm=NB_CYCLE_PRESS_CONFIRM;
+        gPressCopies=3; gPress=press; gLast="forwarded to trigger lantern";
+        chimeLightNoteStrikes(gTriggerLight,++gForwarded,now);
+      } else {
+        squadTriggerPress("presence");
+      }
+    }
   } else if (now-gVlMs>1000) gPresence.invalidate();
+  if (gPressCopies && espNowTxAvailable()) {  // copies share one seq; receiver dedupes
+    if (!espNowSendRaw(&gPress,sizeof(gPress))) ++gTxErrors;
+    --gPressCopies;
+  }
 }
 bool squadTriggerFrame(FrameBuffer &f,uint8_t pixels) {
   if (!squadTriggerActive()) return false;

@@ -20,6 +20,7 @@ state = json.load(open(REPO / "ops/bench/data" / a.site / "decompression-tone-ma
 callsigns = {r["fixture_id"]: r["callsign"] for r in csv.DictReader(open(REPO / "ops/fleet/callsigns.csv"))}
 default = int(state.get("pulse_ms") or 40)
 rows = []
+triggers = []  # Tone Lab meta cycle_trigger: the lantern whose sensor advances the cycle
 for fid in state["order"]:  # tone order: 1 = highest pitch
     meta = state["lanterns"].get(fid, {})
     if meta.get("role") == "perimeter":
@@ -29,6 +30,8 @@ for fid in state["order"]:  # tone order: 1 = highest pitch
         raise SystemExit(f"{fid}: pulse {pulse} ms out of the roster range 5..100")
     name = meta.get("callsign") or callsigns.get(fid) or fid
     rows.append((name, fid, pulse, meta.get("partner")))
+    if meta.get("cycle_trigger"):
+        triggers.append(fid)
 if not 1 <= len(rows) <= 15:
     raise SystemExit(f"roster needs 1..15 lanterns, got {len(rows)}")
 lines = [
@@ -46,6 +49,11 @@ for name, fid, pulse, partner in rows:
     if partner and pi < 0:
         raise SystemExit(f"{fid}: partner {partner} is not a lantern in the roster")
     lines.append(f'  {{"{name}",{" " * max(0, 8 - len(name))}{{0x{fid[0:2]},0x{fid[2:4]},0x{fid[4:6]}}},{pulse},{pi}}},')
-lines += ["};", ""]
+if len(triggers) > 1:
+    raise SystemExit(f"only one cycle trigger lantern allowed, got {triggers}")
+lines += ["};", "",
+          "// Lantern whose downward sensor advances the event cycle (Tone Lab \"Cycle trigger\"),",
+          "// as a roster index; -1 = none (only a perimeter can trigger the cycle).",
+          f"static constexpr int SQUAD_TRIGGER_LANTERN = {ids.index(triggers[0]) if triggers else -1};", ""]
 pathlib.Path(a.out).write_text("\n".join(lines))
 print(f"wrote {a.out}: " + ", ".join(f"{n} {p} ms" + (f" -> partner {next(r[0] for r in rows if r[1] == q)}" if q in ids else "") for n, _, p, q in rows))

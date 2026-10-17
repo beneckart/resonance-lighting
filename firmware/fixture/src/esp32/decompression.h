@@ -28,3 +28,6 @@ uint8_t decompressionEventMode();
 void decompressionOnEventMode(const NbEventMode &mode);
 bool decompressionModeFlash(uint32_t nowMs, uint8_t rgb[3]);
 void decompressionDingTick(uint32_t nowMs);
+// Event cycle on the roster's trigger lantern (SQUAD_TRIGGER_LANTERN): its own
+// sensor or a perimeter's NB_CYCLE_PRESS advances rising pairs, then all.
+void decompressionOnCyclePress(const NbCyclePress &press);

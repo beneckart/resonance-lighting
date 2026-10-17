@@ -67,6 +67,8 @@ int main() {
   CHECK_EQ(sizeof(NbEventMode), 19u);  // 13-byte header + confirm + mode + persist
   CHECK_EQ(offsetof(NbEventMode, mode), 17u);
   CHECK_EQ((int)NB_EVENT_MODE, 37);
+  CHECK_EQ(sizeof(NbCyclePress), 17u);  // header + confirm
+  CHECK_EQ((int)NB_CYCLE_PRESS, 38);
   {
     NbEventMode m = {};
     m.h.ver = NB_PROTO_VER; m.h.type = NB_EVENT_MODE; m.confirm = NB_EVENT_MODE_CONFIRM; m.mode = 2;
