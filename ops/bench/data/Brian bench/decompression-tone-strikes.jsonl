@@ -726,3 +726,45 @@
 {"kind": "pattern", "utc": "2026-10-17T00:10:37.006Z", "loop_ms": 1600.0, "loops": 2, "compensated": false, "status": {"loops_done": 2, "loop_ms": 1600.0, "step_ms": 50.0, "start_epoch_ms": 1792195832887.324, "loops": 2, "skipped": ["9F0E5C"], "lead_ms": 0.0, "confirmed": true, "unconfirmed": [], "sent": 96}, "name": "Freakout Mode"}
 {"kind": "atom_press", "utc": "2026-10-17T00:10:40.021Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Beat 1"}
 {"kind": "proximity", "id": 1, "utc": "2026-10-17T00:11:04.646Z", "t": 1792195864.646, "fixture_id": "F401DC", "depth_mm": 485, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 2, "utc": "2026-10-17T00:11:31.498Z", "t": 1792195891.498, "fixture_id": "F401DC", "depth_mm": 318, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:11:45.959Z", "rule": "Approach speeds up", "pattern": "Beat 1", "hits": 61, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:11:45.995Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Drowning in Soup"}
+{"kind": "proximity", "id": 3, "utc": "2026-10-17T00:11:46.808Z", "t": 1792195906.807, "fixture_id": "F401DC", "depth_mm": 1167, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 4, "utc": "2026-10-17T00:11:59.066Z", "t": 1792195919.066, "fixture_id": "F401DC", "depth_mm": 33, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:12:01.787Z", "rule": "Approach speeds up", "pattern": "Drowning in Soup", "hits": 26, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:12:01.823Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Shave and a Haircut"}
+{"kind": "proximity", "id": 5, "utc": "2026-10-17T00:12:10.909Z", "t": 1792195930.909, "fixture_id": "F401DC", "depth_mm": 112, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 6, "utc": "2026-10-17T00:12:18.217Z", "t": 1792195938.217, "fixture_id": "F401DC", "depth_mm": 47, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 7, "utc": "2026-10-17T00:12:20.208Z", "t": 1792195940.208, "fixture_id": "F401DC", "depth_mm": 432, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 8, "utc": "2026-10-17T00:12:33.411Z", "t": 1792195953.411, "fixture_id": "F401DC", "depth_mm": 44, "confidence": 100, "background_mm": 389, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:12:33.991Z", "rule": "Approach speeds up", "pattern": "Shave and a Haircut", "hits": 38, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:12:34.014Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Thriller?"}
+{"kind": "proximity", "id": 9, "utc": "2026-10-17T00:12:39.292Z", "t": 1792195959.292, "fixture_id": "F401DC", "depth_mm": 59, "confidence": 100, "background_mm": 389, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:12:45.585Z", "rule": "Approach speeds up", "pattern": "Thriller?", "hits": 19, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:12:45.621Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Beat 1"}
+{"kind": "interaction", "utc": "2026-10-17T00:12:54.870Z", "rule": "Approach speeds up", "pattern": "Beat 1", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:12:54.897Z", "atom": "1B636C", "click": "single", "rule": "Play performance then go back", "result": "playing Freakout Mode x2, then back to Approach speeds up"}
+{"kind": "pattern", "utc": "2026-10-17T00:13:00.550Z", "loop_ms": 1600.0, "loops": 2, "compensated": false, "status": {"loops_done": 2, "loop_ms": 1600.0, "step_ms": 50.0, "start_epoch_ms": 1792195976396.6667, "loops": 2, "skipped": ["9F0E5C"], "lead_ms": 0.0, "confirmed": true, "unconfirmed": [], "sent": 96}, "name": "Freakout Mode"}
+{"kind": "interaction", "utc": "2026-10-17T00:13:04.543Z", "rule": "Approach speeds up", "pattern": "Beat 1", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:13:04.587Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Cha Cha Cha"}
+{"kind": "interaction", "utc": "2026-10-17T00:13:07.028Z", "rule": "Approach speeds up", "pattern": "Cha Cha Cha", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:13:07.069Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Drowning in Soup"}
+{"kind": "interaction", "utc": "2026-10-17T00:13:11.889Z", "rule": "Approach speeds up", "pattern": "Drowning in Soup", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:13:11.934Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Approach speeds up now plays Freakout Mode"}
+{"kind": "proximity", "id": 10, "utc": "2026-10-17T00:13:17.161Z", "t": 1792195997.16, "fixture_id": "F401DC", "depth_mm": 534, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:13:38.220Z", "rule": "Approach speeds up", "pattern": "Freakout Mode", "hits": 225, "skipped": 1, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:13:38.247Z", "atom": "1B636C", "click": "triple", "rule": "Next trigger", "result": "trigger: Perimeter approach"}
+{"kind": "interaction", "utc": "2026-10-17T00:13:44.428Z", "rule": "Perimeter approach", "pattern": "Freakout Mode", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:13:44.453Z", "atom": "1B636C", "click": "triple", "rule": "Next trigger", "result": "trigger: Lantern approach"}
+{"kind": "proximity", "id": 11, "utc": "2026-10-17T00:14:08.032Z", "t": 1792196048.031, "fixture_id": "F401DC", "depth_mm": 102, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"kind": "interaction", "utc": "2026-10-17T00:14:28.090Z", "rule": "Lantern approach", "pattern": "Freakout Mode", "hits": 0, "skipped": 0, "error": null}
+{"kind": "atom_press", "utc": "2026-10-17T00:14:28.123Z", "atom": "1B636C", "click": "double", "rule": "Next active pattern", "result": "Lantern approach now plays Shave and a Haircut"}
+{"kind": "proximity", "id": 12, "utc": "2026-10-17T00:14:31.001Z", "t": 1792196071.001, "fixture_id": "F401DC", "depth_mm": 1924, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
+{"ok": true, "fixture_id": "9F2738", "cmd": "!R9F2738:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.546Z", "reply": "radio relay: on", "strikes_before": 323, "strikes_after": 323, "blocked": 1, "failsafes": 0, "battery_v": 3.589, "session_left_s": 2086}
+{"ok": true, "fixture_id": "9F0E54", "cmd": "!R9F0E54:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.545Z", "reply": "radio relay: on", "strikes_before": 370, "strikes_after": 370, "blocked": 19, "failsafes": 0, "battery_v": 3.595, "session_left_s": 3432}
+{"ok": true, "fixture_id": "9F26BC", "cmd": "!R9F26BC:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.546Z", "reply": "radio relay: on", "strikes_before": 342, "strikes_after": 342, "blocked": 2, "failsafes": 0, "battery_v": 3.532, "session_left_s": 3471}
+{"ok": true, "fixture_id": "9F2638", "cmd": "!R9F2638:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.546Z", "reply": "radio relay: on", "strikes_before": 352, "strikes_after": 352, "blocked": 6, "failsafes": 0, "battery_v": 3.532, "session_left_s": 3470}
+{"ok": true, "fixture_id": "9F26B0", "cmd": "!R9F26B0:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.549Z", "reply": "radio relay: on", "strikes_before": 365, "strikes_after": 365, "blocked": 0, "failsafes": 0, "battery_v": 3.544, "session_left_s": 3408}
+{"ok": true, "fixture_id": "9F26D8", "cmd": "!R9F26D8:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.549Z", "reply": "radio relay: on", "strikes_before": 313, "strikes_after": 313, "blocked": 8, "failsafes": 0, "battery_v": 3.56, "session_left_s": 3450}
+{"ok": true, "fixture_id": "F40254", "cmd": "!RF40254:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.586Z", "reply": "radio relay: on", "strikes_before": 403, "strikes_after": 403, "blocked": 1, "failsafes": 0, "battery_v": 3.543, "session_left_s": 3406}
+{"ok": true, "fixture_id": "F2BE0C", "cmd": "!RF2BE0C:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.651Z", "reply": "radio relay: on", "strikes_before": 351, "strikes_after": 351, "blocked": 0, "failsafes": 0, "battery_v": 3.557, "session_left_s": 3428}

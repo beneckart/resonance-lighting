@@ -1071,6 +1071,23 @@ async function bxPoll() {
   if (UI.tab === "interactions" && r.events.length) renderIxList();
 }
 $("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; ixOpen = true; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+// ---- T-Deck show file: what the handheld can run on site without the laptop ----
+$("showexport").onclick = async () => {
+  await save(true);
+  const r = await api("/api/show/export", {});
+  const m = r.summary || {};
+  $("showbox").hidden = false;
+  $("showbox").innerHTML = `<div class="toolbar" style="margin:0 0 6px"><b>T-Deck show file</b><span class="grow"></span>
+      <button id="showclose">Close</button></div>
+    <p class="status" style="margin:0 0 6px">Saved <code>${esc(r.text)}</code> (${m.bytes} bytes) and <code>${esc(r.json)}</code>.
+      Sending it to the T-Deck comes with the T-Deck app.</p>
+    <p style="margin:0 0 4px">Runs on the T-Deck: <b>${m.patterns}</b> patterns (${m.active_patterns} Active) and <b>${m.button_rules}</b> button rule${m.button_rules === 1 ? "" : "s"}.</p>
+    ${(m.laptop_only || []).length ? `<p class="status" style="margin:0 0 4px">Laptop only (lanterns don't send sensor data over radio):</p>
+      <ul class="status" style="margin:0 0 4px 18px;padding:0">${m.laptop_only.map(x => `<li>${esc(x.name)}: ${esc(x.why)}</li>`).join("")}</ul>` : ""}
+    ${(m.problems || []).length ? `<p class="bad" style="margin:0">Left out: ${m.problems.map(esc).join("; ")}</p>` : ""}`;
+  $("showclose").onclick = () => { $("showbox").hidden = true; };
+  log(r.ok ? `T-Deck show file saved: ${m.patterns} patterns, ${m.button_rules} button rules` : "show export failed", r.ok ? "ok" : "bad");
+};
 // Keep the list's one-line summaries current while editing (runs after the field handlers).
 $("ixbtnwrap").addEventListener("change", () => renderIxList());
 $("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };

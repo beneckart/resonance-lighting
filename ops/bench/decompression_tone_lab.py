@@ -1228,6 +1228,120 @@ def find_pattern(pattern_id):
     return None
 
 
+# ---------------------------------------------------------------------------
+# T-Deck show file. Everything the handheld needs to run prepared patterns and
+# button rules on site over radio, with no laptop: lantern pulses, patterns
+# (steps/hits; the T-Deck derives timing from bpm), Active flags and button
+# rules. Sensor rules are listed but marked laptop-only (no radio sensor data).
+# Two forms: JSON (kept with the bench data) and a line-based text file for the
+# T-Deck: one record per line, fields separated by "|", free text last, ending
+# with "END|<crc32 of every byte before that line>".
+# ---------------------------------------------------------------------------
+SHOW_SCHEMA = "tonelab-show/1"
+SHOW_JSON = DATA_DIR / "tonelab-show.json"
+SHOW_TEXT = DATA_DIR / "tonelab-show.tls"
+TDECK_ACTIONS = {  # button actions the T-Deck can run without lantern sensor data
+    "performance": "play the pattern N loops, then go back to what was playing",
+    "next_active_pattern": "switch the playing pattern to the next Active pattern",
+    "play_pattern": "play the pattern on loop",
+    "next_pattern": "play the next pattern from the list",
+    "stop": "stop everything",
+}
+
+
+def show_clean(text):
+    return " ".join(str(text or "").replace("|", "/").split())[:40]
+
+
+def build_show():
+    with state_lock:
+        st = json.loads(json.dumps(STATE))
+    order = st.get("order", [])
+    meta = st.get("lanterns", {})
+    default_pulse = int(st.get("pulse_ms") or 40)
+    groups, gid = [], {}
+    links = set(st.get("tone_links", []))
+    for i, f in enumerate(order):  # same-tone groups, as in the Tone order tab
+        if i and f in links and groups:
+            groups[-1].append(f)
+        else:
+            groups.append([f])
+    for k, g in enumerate([g for g in groups if len(g) > 1]):
+        for f in g:
+            gid[f] = k + 1
+    lant = [{"id": f, "name": meta.get(f, {}).get("callsign") or CALLSIGNS.get(f) or f, "tone": i + 1,
+             "pulse_ms": int(meta.get(f, {}).get("pulse_ms") or default_pulse), "group": gid.get(f, 0),
+             "role": meta.get(f, {}).get("role") or "lantern"} for i, f in enumerate(order)]
+    pats, problems = [], []
+    for p in st.get("patterns", {}).values():
+        hits = {f.upper(): sorted({int(i) for i in idx if 0 <= int(i) < int(p.get("steps", 16))})
+                for f, idx in (p.get("hits") or {}).items()}
+        hits = {f: v for f, v in hits.items() if v}
+        entry = {"id": p.get("id"), "name": p.get("name"), "active": bool(p.get("active")), "bpm": float(p.get("bpm", 120)),
+                 "steps": int(p.get("steps", 16)), "steps_per_beat": int(p.get("steps_per_beat", 4)),
+                 "bpm_max": round(pattern_bpm_max(p), 1), "hits": hits}
+        try:
+            pattern_lanes(p)
+        except ValueError as ex:
+            entry["error"] = str(ex)
+            problems.append(f'pattern "{p.get("name")}": {ex}')
+        if not hits:
+            entry["error"] = "no hits"
+        pats.append(entry)
+    pats.sort(key=lambda x: (x["name"] or "").lower())
+    pids = {x["id"] for x in pats if "error" not in x}
+    rules = []
+    for r in st.get("interactions", []):
+        if r.get("kind") != "button":
+            rules.append({"id": r.get("id"), "kind": "sensor", "name": r.get("name"), "tdeck": False,
+                          "why": "needs live sensor data, which lanterns only send over USB"})
+            continue
+        a, t = r.get("action") or {}, r.get("trigger") or {}
+        ok = a.get("type") in TDECK_ACTIONS
+        why = "" if ok else ("starts a sensor rule (laptop only)" if a.get("type") in ("arm_interaction", "next_active_trigger")
+                              else "controls the laptop's proximity ding" if a.get("type") == "toggle_proximity" else "unknown action")
+        if ok and a.get("type") in ("performance", "play_pattern") and a.get("pattern_id") not in pids:
+            ok, why = False, "its pattern is missing or invalid"
+        rules.append({"id": r.get("id"), "kind": "button", "name": r.get("name"), "enabled": r.get("enabled", True) is not False,
+                      "atom": t.get("atom", "any"), "click": t.get("click", "single"), "action": a.get("type"),
+                      "pattern_id": a.get("pattern_id"), "loops": int(a.get("loops") or 2),
+                      "pattern_ids": [x for x in (a.get("pattern_ids") or []) if x in pids], "tdeck": ok, "why": why})
+    show = {"schema": SHOW_SCHEMA, "created_utc": utc(), "site": ARGS.site, "channel": 11,
+            "min_hit_spacing_ms": MIN_HIT_SPACING_MS, "lanterns": lant, "patterns": pats, "rules": rules,
+            "atoms": st.get("atoms", {}), "problems": problems}
+    return show
+
+
+def show_text(show):
+    out = [f"TLSHOW|1|{show['created_utc']}|{show_clean(show['site'])}",
+           f"CFG|{show['channel']}|{show['min_hit_spacing_ms']}"]
+    for l in show["lanterns"]:
+        out.append(f"L|{l['id']}|{l['tone']}|{l['pulse_ms']}|{l['group']}|{'P' if l['role'] == 'perimeter' else 'L'}|{show_clean(l['name'])}")
+    for p in show["patterns"]:
+        if "error" in p:
+            continue
+        out.append(f"P|{p['id']}|{1 if p['active'] else 0}|{p['bpm']:g}|{p['steps']}|{p['steps_per_beat']}|{show_clean(p['name'])}")
+        for f, idx in sorted(p["hits"].items()):
+            out.append(f"H|{p['id']}|{f}|{','.join(map(str, idx))}")
+    for r in show["rules"]:
+        if r["kind"] != "button" or not r["tdeck"]:
+            continue
+        arg = (r["pattern_id"] or "") if r["action"] in ("performance", "play_pattern") else ",".join(r["pattern_ids"]) if r["action"] == "next_pattern" else ""
+        out.append(f"B|{r['id']}|{1 if r['enabled'] else 0}|{r['atom']}|{r['click']}|{r['action']}|{arg}|{r['loops']}|{show_clean(r['name'])}")
+    for a, nm in sorted((show.get("atoms") or {}).items()):
+        out.append(f"A|{a}|{show_clean(nm)}")
+    body = "\n".join(out) + "\n"
+    return body + f"END|{zlib.crc32(body.encode()) & 0xffffffff:08X}\n"
+
+
+def show_summary(show, text):
+    runs = [r for r in show["rules"] if r["tdeck"]]
+    return {"patterns": len([p for p in show["patterns"] if "error" not in p]),
+            "active_patterns": len([p for p in show["patterns"] if p["active"] and "error" not in p]),
+            "button_rules": len(runs), "laptop_only": [{"name": r["name"], "why": r["why"]} for r in show["rules"] if not r["tdeck"]],
+            "problems": show["problems"], "bytes": len(text.encode()), "lines": text.count("\n")}
+
+
 def pattern_bpm_max(p):
     """Fastest BPM at which no lantern's hits are closer than MIN_HIT_SPACING_MS (wrap included)."""
     steps, spb, best = int(p.get("steps", 16)), int(p.get("steps_per_beat", 4)), 300.0
@@ -1759,12 +1873,21 @@ class H(BaseHTTPRequestHandler):
         f = (UI_DIR / name).resolve()
         if f.parent == UI_DIR and f.suffix in UI_TYPES and f.exists():
             return self.reply(f.read_bytes(), ctype=UI_TYPES[f.suffix])
+        if self.path == "/api/show":  # preview the T-Deck show file without writing it
+            show = build_show(); text = show_text(show)
+            return self.reply({"show": show, "text": text, "summary": show_summary(show, text)})
         if self.path == "/api/snapshot":
             return self.reply(snapshot())
         self.reply({"error": "not found"}, 404)
 
     def do_POST(self):
         b = self.body()
+        if self.path == "/api/show/export":  # write the T-Deck show file next to the tone map
+            show = build_show(); text = show_text(show)
+            SHOW_JSON.write_text(json.dumps(show, indent=1) + "\n")
+            SHOW_TEXT.write_text(text)
+            return self.reply({"ok": True, "json": str(SHOW_JSON.relative_to(REPO)), "text": str(SHOW_TEXT.relative_to(REPO)),
+                               "summary": show_summary(show, text)})
         if self.path == "/api/proximity":
             if "sensor" in b:  # per-sensor on/off (and optionally the watch/ding setting)
                 if "silent" in b:
