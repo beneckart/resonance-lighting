@@ -1,0 +1,213 @@
+{
+  "target": "68:EE:8F:F4:03:08",
+  "callsign": "Daisy",
+  "source": "ops\\bench\\private-backups\\20261017T005035Z-F40308-benphone\\prefix-64KiB.bin",
+  "sha256": "2ef9d7de9960c2cb091c23db0c3740ec14813a08e2142078af7fa29941870c33",
+  "partitions": [
+    {
+      "label": "nvs",
+      "type": 1,
+      "subtype": 2,
+      "offset": 36864,
+      "bytes": 20480
+    },
+    {
+      "label": "otadata",
+      "type": 1,
+      "subtype": 0,
+      "offset": 57344,
+      "bytes": 8192
+    },
+    {
+      "label": "app0",
+      "type": 0,
+      "subtype": 16,
+      "offset": 65536,
+      "bytes": 3342336
+    },
+    {
+      "label": "app1",
+      "type": 0,
+      "subtype": 17,
+      "offset": 3407872,
+      "bytes": 3342336
+    },
+    {
+      "label": "spiffs",
+      "type": 1,
+      "subtype": 130,
+      "offset": 6750208,
+      "bytes": 1572864
+    },
+    {
+      "label": "coredump",
+      "type": 1,
+      "subtype": 3,
+      "offset": 8323072,
+      "bytes": 65536
+    }
+  ],
+  "pages": [
+    {
+      "offset": 36864,
+      "state": "0xffffffff",
+      "sequence": 4294967295
+    },
+    {
+      "offset": 40960,
+      "state": "0xfffffffe",
+      "sequence": 15
+    },
+    {
+      "offset": 45056,
+      "state": "0xfffffffc",
+      "sequence": 13
+    },
+    {
+      "offset": 49152,
+      "state": "0xfffffffc",
+      "sequence": 10
+    },
+    {
+      "offset": 53248,
+      "state": "0xfffffffc",
+      "sequence": 14
+    }
+  ],
+  "ota_entries": [
+    {
+      "offset": 57344,
+      "sequence": 7,
+      "state": 2,
+      "crc_valid": true
+    },
+    {
+      "offset": 61440,
+      "sequence": 6,
+      "state": 2,
+      "crc_valid": true
+    }
+  ],
+  "entries": [
+    {
+      "namespace": "resfx",
+      "key": "boots",
+      "type": 4,
+      "sequence": 15,
+      "entry": 114,
+      "offset": 44672,
+      "value": 0
+    },
+    {
+      "namespace": "resfx",
+      "key": "fc_stage",
+      "type": 1,
+      "sequence": 15,
+      "entry": 115,
+      "offset": 44704,
+      "value": 1
+    },
+    {
+      "namespace": "resfx",
+      "key": "load_arm",
+      "type": 1,
+      "sequence": 15,
+      "entry": 116,
+      "offset": 44736,
+      "value": 1
+    },
+    {
+      "namespace": "resfx",
+      "key": "chg_ma",
+      "type": 4,
+      "sequence": 13,
+      "entry": 36,
+      "offset": 46272,
+      "value": 2000
+    },
+    {
+      "namespace": "resfx",
+      "key": "channel",
+      "type": 1,
+      "sequence": 14,
+      "entry": 3,
+      "offset": 53408,
+      "value": 11
+    },
+    {
+      "namespace": "resfx",
+      "key": "class_last",
+      "type": 1,
+      "sequence": 14,
+      "entry": 5,
+      "offset": 53472,
+      "value": 2
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_prot",
+      "type": 66,
+      "sequence": 14,
+      "entry": 44,
+      "offset": 54720,
+      "audit_checksum_valid": true,
+      "audit": {
+        "magic": "0x534c5031",
+        "version": 1,
+        "cause": 1,
+        "flags": 2,
+        "profile": 1,
+        "life_state": 3,
+        "power_tier": 3,
+        "battery_mv": 3026,
+        "duration_s": 900,
+        "fixture_uptime_ms": 2231829,
+        "origin": 1,
+        "predecessor_stage": 3,
+        "reset_reason": 255,
+        "reset_streak": 0,
+        "load_armed": 0
+      }
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_prot",
+      "type": 72,
+      "sequence": 14,
+      "entry": 46,
+      "offset": 54784
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_cmd",
+      "type": 66,
+      "sequence": 14,
+      "entry": 95,
+      "offset": 56352,
+      "audit_checksum_valid": true,
+      "audit": {
+        "magic": "0x534c5031",
+        "version": 1,
+        "cause": 8,
+        "flags": 1,
+        "profile": 1,
+        "life_state": 0,
+        "power_tier": 3,
+        "battery_mv": 3290,
+        "duration_s": 0,
+        "fixture_uptime_ms": 414,
+        "source_id": "8EB508",
+        "source_seq": 296
+      }
+    },
+    {
+      "namespace": "resfx",
+      "key": "slp_cmd",
+      "type": 72,
+      "sequence": 14,
+      "entry": 97,
+      "offset": 56416
+    }
+  ],
+  "note": "Pre-USB-write ROM backup after authorized ROM entry. CRC-checked written NVS entries: FULL stage and armed load, with zero prior unexpected-reset streak. Not an untouched field specimen."
+}

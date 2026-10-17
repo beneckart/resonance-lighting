@@ -43,8 +43,9 @@ path; it does not also prove remote radio entry.
 
 Keep Skitty F3FD28 excluded from all discovery writers, maintenance commands,
 reboots and uploads while its natural PROTECT recovery experiment runs.
-The retained artifact below has compiled and passed host-side identity/hash
-checks. No deployment or successful OTA has yet been recorded.
+The retained canopy artifact below has compiled and passed host-side
+identity/hash checks but is not deployed. A separate ordinary-perimeter
+artifact subsequently passed the Daisy test described below.
 
 ## October 16 initial radio check
 
@@ -87,4 +88,21 @@ byte-for-byte. The binary includes a private fallback credential, so the
 repository shares its manifest and digest; transfer the retained binary
 privately if another operator needs it. Do not rebuild this revision with
 different credentials. Hardware association, upload, rollback-window
-survival and later liveness remain untested.
+survival and later liveness remain untested for this canopy artifact.
+
+## Daisy hotspot path qualified
+
+On October 16, Daisy F40308 received the separate ordinary-perimeter artifact
+`fx-261017-abe3c6e-b` by supervised USB bootstrap, preserving its settings and
+alternate app. It then accepted a T-Deck radio maintenance request, joined
+BenPhone at 10.60.100.228 on 2.4 GHz channel 6, and received the same retained
+image by WiFi. The 7.43-second transfer was followed by software reboot,
+channel-11 mesh return, explicit self-test/VALID acceptance, a fresh radio
+uptime gate and a separate app1-valid USB check. Both sensors were reading
+and Daisy was FULL. No manual reset was needed for the wireless update.
+
+Perimeter SHA-256:
+`85b594b003d2e89afe3a551218164e2bedc6efce9d608a0809519d534b9bad52`.
+See [the Daisy test record](../tests/BENPHONE_OTA_DAISY_2026-10-16.md) for exact
+source, manifest, evidence and scope. This does not qualify the nine canopies
+or replace Marill's special controller build. Skitty was untouched.

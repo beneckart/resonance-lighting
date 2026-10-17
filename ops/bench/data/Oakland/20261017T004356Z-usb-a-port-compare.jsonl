@@ -1,0 +1,6 @@
+{"utc": "2026-10-17T00:43:56.013054+00:00", "kind": "metadata", "value": {"operation": "enumeration only; no serial port opens or device commands", "bridge": "44:1B:F6:8E:B5:08", "duration_s": 180, "path": "ops\\bench\\data\\Oakland\\20261017T004356Z-usb-a-port-compare.jsonl"}}
+{"utc": "2026-10-17T00:43:56.018051+00:00", "kind": "ports", "value": [["COM10", "44:1B:F6:8E:B5:08", "USB VID:PID=303A:1001 SER=44:1B:F6:8E:B5:08"]]}
+{"utc": "2026-10-17T00:44:17.387653+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-17T00:44:29.062284+00:00", "kind": "ports", "value": [["COM10", "44:1B:F6:8E:B5:08", "USB VID:PID=303A:1001 SER=44:1B:F6:8E:B5:08"]]}
+{"utc": "2026-10-17T00:45:10.271069+00:00", "kind": "ports", "value": [["COM10", "44:1B:F6:8E:B5:08", "USB VID:PID=303A:1001 SER=44:1B:F6:8E:B5:08"], ["COM8", "68:EE:8F:F4:03:08", "USB VID:PID=303A:1001 SER=68:EE:8F:F4:03:08"]]}
+{"utc": "2026-10-17T00:46:56.141880+00:00", "kind": "finished", "value": true}

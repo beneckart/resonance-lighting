@@ -1,0 +1,56 @@
+{"utc": "2026-10-17T00:53:21.842624+00:00", "kind": "metadata", "value": {"target": "F40308", "seconds": 420.0, "query_t_only": false}}
+{"utc": "2026-10-17T00:53:21.867311+00:00", "kind": "opened", "value": "COM8"}
+{"utc": "2026-10-17T00:53:36.531906+00:00", "kind": "serial", "value": "power: tier -> 0 (bv=3.586 ma=326)"}
+{"utc": "2026-10-17T00:54:49.518775+00:00", "kind": "serial", "value": "inspection radio: listen window"}
+{"utc": "2026-10-17T00:54:49.538921+00:00", "kind": "serial", "value": "esp-now up, ch=11, broadcast peer registered"}
+{"utc": "2026-10-17T00:54:56.888812+00:00", "kind": "serial", "value": "-> MAINTENANCE (WiFi OTA)"}
+{"utc": "2026-10-17T00:54:59.997959+00:00", "kind": "serial", "value": "WiFi join profile=1/2 scan_rssi=-52 timeout=15000 ms"}
+{"utc": "2026-10-17T00:55:02.042271+00:00", "kind": "serial", "value": "........"}
+{"utc": "2026-10-17T00:55:02.042271+00:00", "kind": "serial", "value": "maintenance WiFi profile=1/2"}
+{"utc": "2026-10-17T00:55:02.042271+00:00", "kind": "serial", "value": "maintenance WiFi up, ip=10.60.100.228 ch=6"}
+{"utc": "2026-10-17T00:55:18.625096+00:00", "kind": "serial", "value": "OTA done: 1226288 bytes"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "ESP-ROM:esp32s3-20210327"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "Build:Mar 27 2021"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "rst:0xc (RTC_SW_CPU_RST),boot:0x2a (SPI_FAST_FLASH_BOOT)"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "Saved PC:0x4037b126"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "SPIWP:0xee"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "mode:DIO, clock div:1"}
+{"utc": "2026-10-17T00:55:19.164140+00:00", "kind": "serial", "value": "load:0x3fce2820,len:0x10cc"}
+{"utc": "2026-10-17T00:55:19.170341+00:00", "kind": "serial", "value": "load:0x403c8700,len:0xc2c"}
+{"utc": "2026-10-17T00:55:19.170341+00:00", "kind": "serial", "value": "load:0x403cb700,len:0x30b0"}
+{"utc": "2026-10-17T00:55:19.175781+00:00", "kind": "serial", "value": "entry 0x403c88b8"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "=== Resonance fixture fx-261017-abe3c6e-b ==="}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "boot-guard: stage=1 stored=1 park=0 retry=0 interrupted=0 nvs=1 reset=software"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "config: cap=6000 mAh charge=2000 mA class_ovr=0 profile=field commission_default=listener sol_en=1 maintain=4.6V ch=11 night_max=630min chime=255/256 show_sched=1 seed_min=300s seed_clear=30s"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "sleep-audit: wake=none"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "sleep-audit: last-command=storage-usb duration=0s batt=3290mV profile=1 life=0 tier=3 source=8EB508 seq=296 source_up=514265 fixture_up=414"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "sleep-audit: last-protect=protect duration=900s batt=3026mV profile=1 life=3 tier=3 source=0103FF seq=0 source_up=0 fixture_up=2231829"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "sleep-audit: last-protect protect-origin=low-vbat predecessor=3 reset=255 load_armed=0 streak=0"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "solenoid armed: D7/GPIO37, VDC tap, pulse 5..300 ms"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "node id=F40308 mac=68:EE:8F:F4:03:08"}
+{"utc": "2026-10-17T00:55:20.962456+00:00", "kind": "serial", "value": "PowerFeather SDK init:"}
+{"utc": "2026-10-17T00:55:20.978648+00:00", "kind": "serial", "value": "Board.init(cap=6000, Generic_LFP) -> Ok"}
+{"utc": "2026-10-17T00:55:20.995636+00:00", "kind": "serial", "value": "fixture solar_guard: REG0x17 0x4F -> 0x4F VBUS_OVP=wide"}
+{"utc": "2026-10-17T00:55:20.995636+00:00", "kind": "serial", "value": "fixture precharge: REG0x10 0x00F0 -> 0x00F0 target=300mA readback=300mA OK"}
+{"utc": "2026-10-17T00:55:21.249442+00:00", "kind": "serial", "value": "VSQT boot/recovery cycle -> off=verified on=verified"}
+{"utc": "2026-10-17T00:55:21.249442+00:00", "kind": "serial", "value": "class probe: tmf8820=0 vl53l5cx=1 bmp581=0 msa311=1 sam_m8q=0 ds3231=0"}
+{"utc": "2026-10-17T00:55:21.249442+00:00", "kind": "serial", "value": "class: perimeter"}
+{"utc": "2026-10-17T00:55:21.262008+00:00", "kind": "serial", "value": "[tof] VL53L5CX begin (fw blob upload over 100 kHz I2C, several s)..."}
+{"utc": "2026-10-17T00:55:30.901182+00:00", "kind": "serial", "value": "[tof] up in 9640 ms: 4x4 @ 5 Hz -> ground-plane tilt"}
+{"utc": "2026-10-17T00:55:30.901182+00:00", "kind": "serial", "value": "E (11466) task_wdt: esp_task_wdt_init(517): TWDT already initialized"}
+{"utc": "2026-10-17T00:55:30.901182+00:00", "kind": "serial", "value": "watchdog: 8s, panic+reset on hang"}
+{"utc": "2026-10-17T00:55:30.901182+00:00", "kind": "serial", "value": "-> COMMS (ESP-NOW)"}
+{"utc": "2026-10-17T00:55:30.954750+00:00", "kind": "serial", "value": "esp-now up, ch=11, broadcast peer registered"}
+{"utc": "2026-10-17T00:55:31.114387+00:00", "kind": "serial", "value": "fixture precharge: REG0x10 0x00F0 -> 0x00F0 target=300mA readback=300mA OK"}
+{"utc": "2026-10-17T00:55:31.114387+00:00", "kind": "serial", "value": "fixture solar_guard: REG0x17 0x4F -> 0x4F VBUS_OVP=wide"}
+{"utc": "2026-10-17T00:55:31.115389+00:00", "kind": "serial", "value": "battery 3.35V present -> charging ON (2000 mA, Generic_LFP profile)"}
+{"utc": "2026-10-17T00:55:31.119386+00:00", "kind": "serial", "value": "boot: id=F40308 class=perimeter profile=field reset=software bv=3.351V soc=97 ch=11"}
+{"utc": "2026-10-17T00:55:31.280421+00:00", "kind": "serial", "value": "ota-verify: image PENDING_VERIFY; self-test at t+20s"}
+{"utc": "2026-10-17T00:55:31.450267+00:00", "kind": "serial", "value": "lifecycle: solar probe start (supply=588mA)"}
+{"utc": "2026-10-17T00:55:31.716444+00:00", "kind": "serial", "value": "schedule: utc=1792198531 solar=2.7 -> night (src=1 votes=1)"}
+{"utc": "2026-10-17T00:55:31.716444+00:00", "kind": "serial", "value": "lifecycle: solar probe ended (supply=1/588mA)"}
+{"utc": "2026-10-17T00:55:31.716444+00:00", "kind": "serial", "value": "lifecycle: -> 3 (supply=1/588mA bv=3.351)"}
+{"utc": "2026-10-17T00:55:39.414192+00:00", "kind": "serial", "value": "ota-verify: network mode=comms maint_ready=0 espnow=1 send_ok=5 -> PASS"}
+{"utc": "2026-10-17T00:55:39.435593+00:00", "kind": "serial", "value": "ota-verify: VALID (rollback cancelled)"}
+{"utc": "2026-10-17T00:55:51.440902+00:00", "kind": "serial", "value": "inspection radio: paused; light remains live"}
+{"utc": "2026-10-17T00:56:01.367631+00:00", "kind": "finished", "value": {"samples": 0, "stop_requested": true}}
