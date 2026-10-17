@@ -36,6 +36,23 @@ relay write gate. No Arduino build or hardware test was performed.
 Skitty's observer and passive Windows trace files/processes were left in
 place. No serial port, maintenance command, reset or firmware write was used.
 
+## 2026-10-17 -- Brian + Claude -- Event basic mode on Zubat
+
+Basic mode for the event, built on Ben's squad trigger (435e1ef): any perimeter
+in the image is the trigger (`--squad-trigger-any-perimeter`); each approach
+(5..40 cm, rearm past 60 cm) fires the next step: rising pitch two lanterns at
+a time (lower, then higher +400 ms), then the top lantern alone, then all nine
+together; repeat. Pulses and pitch order come from the Tone Lab tone map via
+ops/bench/gen_squad_roster.py -> core/squad_roster.h; lanterns' local signature
+now uses their own roster pulse. The session starts by itself and renews while
+power allows; ready-only firing so one missing lantern cannot stall the cycle.
+
+Artifact `fx-261017-a3b81c6-b` (SHA-256 30df76d9...3833c7cf), built in the
+clean worktree. Flashed to Zubat `F401DC` (from 4860c14, backup
+20261017T061753Z-F401DC). Boot: trigger_enabled, auto session 3591 s, all nine
+ready (mask 511), presence armed, VL53L5CX present. Lanterns still on e997cbf
+(accept the trigger's strikes/leases); reflash for the tuned signature follows.
+
 ## 2026-10-17 -- Brian + Claude -- Zubat moves to the decompression build
 
 Perimeter lights now drift through colours in decompression builds too (37 px,
