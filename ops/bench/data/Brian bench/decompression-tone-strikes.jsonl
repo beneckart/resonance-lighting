@@ -768,3 +768,4 @@
 {"ok": true, "fixture_id": "9F26D8", "cmd": "!R9F26D8:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.549Z", "reply": "radio relay: on", "strikes_before": 313, "strikes_after": 313, "blocked": 8, "failsafes": 0, "battery_v": 3.56, "session_left_s": 3450}
 {"ok": true, "fixture_id": "F40254", "cmd": "!RF40254:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.586Z", "reply": "radio relay: on", "strikes_before": 403, "strikes_after": 403, "blocked": 1, "failsafes": 0, "battery_v": 3.543, "session_left_s": 3406}
 {"ok": true, "fixture_id": "F2BE0C", "cmd": "!RF2BE0C:1", "pulse_ms": null, "utc": "2026-10-17T00:16:14.651Z", "reply": "radio relay: on", "strikes_before": 351, "strikes_after": 351, "blocked": 0, "failsafes": 0, "battery_v": 3.557, "session_left_s": 3428}
+{"kind": "proximity", "id": 1, "utc": "2026-10-17T00:18:06.038Z", "t": 1792196286.038, "fixture_id": "F401DC", "depth_mm": 1930, "confidence": 100, "background_mm": null, "pulse_ms": 40, "silent": true}
