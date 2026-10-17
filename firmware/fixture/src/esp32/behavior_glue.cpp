@@ -979,6 +979,25 @@ void behaviorTick() {
       fieldRitualBatterySafe(pb);
   bool wakeChimesHolding =
       ordinaryWakeChimesTick(wakeChimeEligible, lo.wantSleep, now);
+#if defined(RES_POWER_RECOVERY_TEST_TARGET)
+  // Prove that the new hold, rather than a lease/solar probe/boot grace, is
+  // what keeps this exact test target awake. Evaluate on a copy: no mutation.
+  static bool testHoldReported = false;
+  uint32_t testId = ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  if (!testHoldReported && testId == RES_POWER_RECOVERY_TEST_TARGET &&
+      gForceNight == 0 && pb.confirm_awake && !lo.wantSleep &&
+      !gRitualKeepAwake && !wakeChimesHolding && powerWakeSampleWindowComplete() &&
+      !gRuntime.leaseActive() && !otaVerifyPending()) {
+    LifeState_t probeState = gLife;
+    LifeInputs probeInputs = li;
+    probeInputs.powerConfirmAwake = false;
+    if (lifeTick(probeState, probeInputs, gLifeCfg).wantSleep) {
+      Serial.printf("power-test: confirmation is sole sleep veto at %lums\n",
+                    (unsigned long)now);
+      testHoldReported = true;
+    }
+  }
+#endif
   if (lo.wantSleep && !gRitualKeepAwake && !wakeChimesHolding &&
       powerWakeSampleWindowComplete() && !gRuntime.leaseActive() &&
       !otaVerifyPending()) {
