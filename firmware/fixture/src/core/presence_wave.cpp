@@ -36,7 +36,7 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
     ++gate.warmupReads;
     for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
       bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                   zoneMm[zone] >= 80 &&
+                   zoneMm[zone] >= PRESENCE_MIN_MM &&
                    zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
       if (valid) learnBaseline(gate.baselineMm[zone], zoneMm[zone]);
     }
@@ -46,7 +46,7 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
   uint16_t closeMask = 0;
   for (uint8_t zone = 0; zone < PRESENCE_ZONE_COUNT; ++zone) {
     bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                 zoneMm[zone] >= 80 &&
+                 zoneMm[zone] >= PRESENCE_MIN_MM &&
                  zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
     if (valid) {
       gate.emptyStreak[zone] = 0;
@@ -84,7 +84,7 @@ bool tmfPresenceObserve(TmfPresenceGate &gate, uint32_t readSeq,
       gate.closeStreak[zone] = 0;
     }
     bool valid = zoneConfidence[zone] >= PRESENCE_MIN_CONFIDENCE &&
-                 zoneMm[zone] >= 80 &&
+                 zoneMm[zone] >= PRESENCE_MIN_MM &&
                  zoneMm[zone] <= PRESENCE_SENSOR_MAX_MM;
     if (valid && !close)
       followBackground(gate.baselineMm[zone], zoneMm[zone]);

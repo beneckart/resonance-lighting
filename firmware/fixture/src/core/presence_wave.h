@@ -6,6 +6,10 @@
 
 #define PRESENCE_WARMUP_READS 90
 #define PRESENCE_MIN_CONFIDENCE 20
+// Returns closer than this are the lantern's own frame, never a person below a
+// hanging lantern (2026-10-17: Leeloo zone 7 saw its frame at 180-185 mm,
+// dropping in and out, and dinged every 3-5 s with nobody under it).
+#define PRESENCE_MIN_MM 300
 #define PRESENCE_SENSOR_MAX_MM 5000
 #define PRESENCE_MAX_MM 4500
 #define PRESENCE_DELTA_MM 300

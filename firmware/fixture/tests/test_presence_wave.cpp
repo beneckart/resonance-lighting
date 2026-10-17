@@ -97,6 +97,20 @@ int main() {
   CHECK(!observe2(gate, ++seq, 3090, 50, 0, 0));
   CHECK(observe2(gate, ++seq, 3110, 50, 0, 0));
 
+  // The lantern's own frame at the edge of a zone (Leeloo: 180-185 mm, high
+  // confidence, present about every other report) never counts as presence,
+  // even in an otherwise empty scene where a zone has no background.
+  tmfPresenceInit(gate);
+  seq = 0;
+  for (int i = 0; i < PRESENCE_WARMUP_READS; ++i)
+    CHECK(!observe2(gate, ++seq, 0, 0, 0, 0));
+  for (int i = 0; i < 200; ++i)
+    CHECK(!observe2(gate, ++seq, (i % 4) ? 182 : 0, (i % 4) ? 94 : 0, 0, 0));
+  for (int i = 0; i < 5; ++i) CHECK(!observe2(gate, ++seq, 299, 90, 0, 0));
+  CHECK(!observe2(gate, ++seq, 900, 50, 0, 0));
+  CHECK(!observe2(gate, ++seq, 910, 50, 0, 0));
+  CHECK(observe2(gate, ++seq, 920, 50, 0, 0));
+
   // Two unrelated one-frame glitches in different zones do not combine into
   // presence; the same changed zone must persist for the second report.
   tmfPresenceInit(gate);
