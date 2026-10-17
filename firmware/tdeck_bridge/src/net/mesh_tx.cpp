@@ -343,6 +343,19 @@ bool meshDecompressionSession(const uint8_t (*ids)[3], uint8_t count, uint8_t mi
   return true;
 }
 
+bool meshEventMode(uint8_t mode, bool persist) {
+  if (mode != NB_MODE_PERIMETER_CYCLE && mode != NB_MODE_LANTERN_DINGS) return false;
+  NbEventMode m = {};
+  m.confirm = NB_EVENT_MODE_CONFIRM;
+  m.mode = mode;
+  m.persist = persist ? 1 : 0;
+  if (!txTake()) return false;
+  fillHeader(&m.h, NB_EVENT_MODE);
+  sendPacketRepeatedLocked(&m, sizeof(m), 4, 5);  // broadcast convention
+  txGive();
+  return true;
+}
+
 bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs) {
   NbEvent event = {};
   uint32_t eventId = esp_random();

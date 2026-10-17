@@ -28,6 +28,8 @@ static uint8_t gLoopsLeft = 0;  // 0 = until stopped
 static uint32_t gLoopsDone = 0;
 static volatile uint32_t gGen = 0;  // read by the player without the lock
 static bool gAwake = false;
+static uint8_t gMode = 0;
+static uint32_t gModeResendUntil = 0, gModeNextMs = 0;
 static uint32_t gPresses = 0;
 static char gLast[64] = "";
 static int gCycle[SHOW_MAX_RULES];  // next_pattern position per rule
@@ -250,6 +252,11 @@ void tonelabTick(uint32_t nowMs) {
   ClickEvent ev;
   while (gClicks.tick(nowMs, &ev)) dispatchClick(ev);
 
+  if (gMode && (int32_t)(nowMs - gModeResendUntil) < 0 && (int32_t)(nowMs - gModeNextMs) >= 0) {
+    gModeNextMs = nowMs + 2000;
+    meshEventMode(gMode, true);
+  }
+
   // Keep-awake: renew one lantern's 1-minute lease every 400 ms (a full pass
   // every few seconds). One small send at a time keeps pattern timing clean.
   static uint32_t nextLeaseMs = 0;
@@ -268,6 +275,15 @@ void tonelabTick(uint32_t nowMs) {
     unlock();
     if (have) meshDecompressionSession(id, 1, 1, gControllerBoot);
   }
+}
+
+void tonelabSetMode(uint8_t mode) {
+  if (mode != 1 && mode != 2) return;
+  gMode = mode;
+  gPrefs.putUChar("mode", mode);
+  gModeResendUntil = millis() + 60000;
+  gModeNextMs = 0;
+  setLast(mode == 2 ? "mode: lantern dings" : "mode: perimeter cycle");
 }
 
 void tonelabSetAwake(bool on) {
@@ -336,6 +352,7 @@ TonelabStatus tonelabStatus() {
   s.resume = gResume;
   s.awake = gAwake;
   s.presses = gPresses;
+  s.mode = gMode;
   snprintf(s.last, sizeof(s.last), "%s", gLast);
   unlock();
   return s;
@@ -386,6 +403,7 @@ void tonelabBegin() {
   memset(gCycle, 0xFF, sizeof(gCycle));
   gPrefs.begin("tonelab", false);
   gAwake = gPrefs.getBool("awake", false);
+  gMode = gPrefs.getUChar("mode", 0);
   if (gShow && gScratch && gText) {
     size_t n = gPrefs.getBytesLength("show");
     if (n && n <= SHOW_MAX_TEXT && gPrefs.getBytes("show", gText, n) == n) {

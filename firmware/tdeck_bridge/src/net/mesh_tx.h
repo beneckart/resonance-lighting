@@ -41,6 +41,8 @@ bool meshStrikeRound(const uint8_t (*ids)[3], const uint16_t *pulses, uint8_t co
                      uint8_t copies, uint8_t gapMs);
 bool meshDecompressionSession(const uint8_t (*ids)[3], uint8_t count, uint8_t minutes,
                               uint32_t controllerBoot);
+// Decompression event mode broadcast (1 = perimeter cycle, 2 = lantern dings).
+bool meshEventMode(uint8_t mode, bool persist);
 bool meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags, const uint8_t params[8]);
 ProgramLeaseActivity meshProgramActivity();

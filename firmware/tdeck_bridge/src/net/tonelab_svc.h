@@ -27,6 +27,9 @@ void tonelabSetAwake(bool on);
 void tonelabSetActive(int pattern, bool active);  // the Active rotation
 void tonelabSetRuleEnabled(int rule, bool enabled);
 void tonelabRunRule(int rule);  // as if its click arrived (for testing)
+// Event mode for every lantern/perimeter (1 = perimeter cycle, 2 = lantern
+// dings): sent now and re-sent every 2 s for a minute to catch waking lanterns.
+void tonelabSetMode(uint8_t mode);
 
 struct TonelabStatus {
   bool loaded;
@@ -39,6 +42,7 @@ struct TonelabStatus {
   int resume;        // pattern a performance returns to, or -1
   bool awake;
   uint32_t presses;  // Atom presses heard
+  uint8_t mode;      // last event mode sent (1/2), 0 = never
   char last[64];     // last click / action, for the screen
 };
 TonelabStatus tonelabStatus();

@@ -7,6 +7,7 @@
 #include "../net/tonelab_svc.h"
 #include "app_tonelab.h"
 #include "lvgl_glue.h"
+#include "ui_confirm.h"
 #include "ui_shell.h"
 #include "ui_task.h"
 
@@ -15,8 +16,13 @@
 // put a pattern in or out of the double-click rotation) and Rules (tap to turn
 // a button rule on or off). Strikes go out over radio; no laptop needed.
 
-enum View : uint8_t { VIEW_PLAY = 0, VIEW_ACTIVE, VIEW_RULES, VIEW_COUNT };
-static const char *kViewName[] = {LV_SYMBOL_PLAY " Play", LV_SYMBOL_EDIT " Active", LV_SYMBOL_LIST " Rules"};
+enum View : uint8_t { VIEW_PLAY = 0, VIEW_ACTIVE, VIEW_RULES, VIEW_MODE, VIEW_COUNT };
+static const char *kViewName[] = {LV_SYMBOL_PLAY " Play", LV_SYMBOL_EDIT " Active", LV_SYMBOL_LIST " Rules",
+                                  LV_SYMBOL_SETTINGS " Mode"};
+static const char *kModeName[] = {"", "Perimeter cycle", "Lantern dings"};
+static const char *kModeHelp[] = {"",
+    "Perimeter cycle: each approach to a perimeter light plays the next two lanterns, low to high; then all nine.",
+    "Lantern dings: a lantern chimes when someone walks under it; Bidoof's partner Sakura chimes after it."};
 static const char *kClick[] = {"any", "single", "double", "triple"};
 
 static View gView = VIEW_PLAY;
@@ -28,6 +34,7 @@ static lv_obj_t *gModeBtn = nullptr, *gAwakeBtn = nullptr, *gStopBtn = nullptr, 
 static lv_timer_t *gTimer = nullptr;
 static int gShownPlaying = -2, gFocus = 0;
 static size_t gShownCount = 0;
+static uint8_t gShownMode = 0xFF;
 
 static void rebuildList();
 
@@ -43,16 +50,23 @@ static void refreshHeader(lv_timer_t *) {
       if (s.loopsLeft) snprintf(playing, sizeof(playing), LV_SYMBOL_PLAY " %s %u/%d", p.name, (unsigned)s.loopsDone + 1, s.loopsLeft);
       else snprintf(playing, sizeof(playing), LV_SYMBOL_PLAY " %s", p.name);
     }
-    lv_label_set_text_fmt(gHeader, "%s | %.10s | %u presses\n%s", playing, s.created, (unsigned)s.presses, s.last);
+    lv_label_set_text_fmt(gHeader, "%s | %s | %u presses\n%s", playing,
+                          s.mode ? kModeName[s.mode] : "mode not set", (unsigned)s.presses, s.last);
   }
   if (gAwakeLabel) lv_label_set_text(gAwakeLabel, s.awake ? LV_SYMBOL_EYE_OPEN " awake" : LV_SYMBOL_EYE_CLOSE " sleep");
-  size_t count = gView == VIEW_RULES ? s.rules : s.patterns;
-  if (s.playing != gShownPlaying || count != gShownCount) rebuildList();  // keep the playing marker current
+  size_t count = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 2 : s.patterns;
+  if (s.playing != gShownPlaying || count != gShownCount || s.mode != gShownMode) rebuildList();  // keep the playing marker current
 }
+
+static void modeYes(void *mode) { tonelabSetMode((uint8_t)(intptr_t)mode); }
 
 static void itemCb(lv_event_t *e) {
   int i = (int)(intptr_t)lv_event_get_user_data(e);
   gFocus = i;
+  if (gView == VIEW_MODE) {  // every lantern and perimeter switches: confirm first
+    uiConfirm(kModeHelp[i + 1], "Tone Lab", modeYes, (void *)(intptr_t)(i + 1));
+    return;
+  }
   if (gView == VIEW_PLAY) {
     TonelabStatus s = tonelabStatus();
     if (s.playing == i) tonelabStop();
@@ -74,12 +88,16 @@ static void rebuildList() {
   lv_obj_clean(gList);
   lv_group_remove_all_objs(lvglGroup());
   gShownPlaying = s.playing;
-  gShownCount = gView == VIEW_RULES ? s.rules : s.patterns;
+  gShownMode = s.mode;
+  gShownCount = gView == VIEW_RULES ? s.rules : gView == VIEW_MODE ? 2 : s.patterns;
   lv_obj_t *focus = nullptr;
   char text[72];
   for (size_t i = 0; i < gShownCount; ++i) {
     const char *sym = nullptr;
-    if (gView == VIEW_RULES) {
+    if (gView == VIEW_MODE) {
+      sym = s.mode == (int)i + 1 ? LV_SYMBOL_OK : LV_SYMBOL_RIGHT;
+      snprintf(text, sizeof(text), "%s", kModeName[i + 1]);
+    } else if (gView == VIEW_RULES) {
       ShowRule r;
       if (!tonelabRule((int)i, r)) continue;
       sym = r.enabled ? LV_SYMBOL_OK : LV_SYMBOL_CLOSE;
