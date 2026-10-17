@@ -1,0 +1,7 @@
+before: {'fixture_id': 'F40254', 'fw': 'fx-261017-bb87373-b', 'ota_partition': 'app1', 'ota_state': 'valid', 'battery_v': 3.602, 'power_tier': 0, 'mode': 0, 'maint_status': 0}
+local USB ENTER_MAINT
+-> MAINTENANCE (WiFi OTA)
+WiFi join profile=1/1 scan_rssi=-35 timeout=20000 ms
+........
+maintenance WiFi profile=1/1
+maintenance WiFi up, ip=10.53.247.47 ch=6

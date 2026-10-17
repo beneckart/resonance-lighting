@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude (Ben present) -- BenPhone canopy OTA canary: PASS on Leeloo
+
+Ben's pre-hang gate (BENPHONE_OTA_CANARY.md) on canopy Leeloo `F40254`,
+operator Brian, BenPhone hotspot on, laptop on BenPhone (10.53.247.66).
+- Maintenance entered over USB (`u`): joined BenPhone with compiled profile
+  1/1 (scan RSSI -35), channel 6, ip 10.53.247.47; HTTP /telemetry read
+  fx-261017-bb87373-b, mode 1, app1 valid.
+- Uploaded the same retained artifact fx-261017-bb87373-b (SHA-256
+  6070ff4a...3d74ea9adc) with net_bench_ota.py: 1,236,816 bytes, ack 12.99 s.
+- After reboot (software, back to COMMS/channel 11): fw bb87373, partition
+  app0 (switched from app1), ota_state valid, pending verify cleared (past
+  the 20 s window), decompression active, TMF8820 present, uptime rising over
+  a minute of checks (USB telemetry).
+Not proven here: remote radio maintenance entry (T-Deck `U<id>`), since the
+T-Deck was off the hub. Note: this Mac's command sandbox blocks LAN TCP;
+the HTTP read/upload ran outside it. Evidence: *-F40254-benphone-ota.jsonl,
+*-usb-verify.txt, *-F40254-benphone-maint-entry.txt.
+
 ## 2026-10-17 -- Brian + Claude -- Leeloo cycle trigger; self-awake lanterns on all ten
 
 Event image no longer depends on a perimeter (0139e3d, b2778e4): every lantern
