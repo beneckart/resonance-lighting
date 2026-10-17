@@ -41,18 +41,27 @@ int main() {
   CHECK_EQ(repair.attempts,3);
   SquadCycle c;
   CHECK_EQ(SQUAD_COUNT,9u);
-  for (unsigned pass=0;pass<3;++pass) for (unsigned step=0;step<10;++step) {
-    uint32_t now=(pass*10+step)*3000;
+  CHECK_EQ(SQUAD_STEPS,6u);
+  // Rising pitch two at a time (roster is highest first: index 8 = lowest),
+  // then the top lantern alone, then all nine (Brian, 2026-10-17).
+  const uint16_t steps[6]={(1U<<8)|(1U<<7),(1U<<6)|(1U<<5),(1U<<4)|(1U<<3),(1U<<2)|(1U<<1),1U<<0,511};
+  for (unsigned pass=0;pass<3;++pass) for (unsigned step=0;step<6;++step) {
+    uint32_t now=(pass*6+step)*3000;
     CHECK_EQ(c.next,step);
-    uint16_t expected=step==9 ? 511 : 1U<<step;
-    CHECK_EQ(c.targets(),expected);
+    CHECK_EQ(c.targets(),steps[step]);
     CHECK(!c.canFire(now,0));
-    CHECK(!c.canFire(now,expected & (expected-1)));
-    CHECK(c.canFire(now,expected));
+    CHECK(c.canFire(now,steps[step] & (uint16_t)(steps[step]-1) ? steps[step] & (uint16_t)(steps[step]-1) : steps[step]));  // part ready still fires
+    CHECK(c.canFire(now,steps[step]));
+    if (step<5) CHECK(!c.canFire(now,(uint16_t)(511 & ~steps[step])));  // only other lanterns ready
     c.sent(now);
     CHECK(!c.canFire(now+2499,511));
     CHECK(c.canFire(now+2500,511));
   }
+  // The higher lantern of each pair sounds SQUAD_PAIR_GAP_MS after the lower.
+  CHECK_EQ(squadStepOffsetMs(0,8),0u); CHECK_EQ(squadStepOffsetMs(0,7),SQUAD_PAIR_GAP_MS);
+  CHECK_EQ(squadStepOffsetMs(3,2),0u); CHECK_EQ(squadStepOffsetMs(3,1),SQUAD_PAIR_GAP_MS);
+  CHECK_EQ(squadStepOffsetMs(4,0),0u);
+  for (unsigned i=0;i<9;++i) CHECK_EQ(squadStepOffsetMs(5,i),0u);  // the chord is together
   c.sent(UINT32_MAX-1000);
   CHECK(!c.canFire(1498,511)); CHECK(c.canFire(1499,511));
   for (unsigned i=0;i<9;++i) {

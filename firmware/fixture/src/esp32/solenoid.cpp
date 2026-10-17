@@ -1,4 +1,6 @@
 #include "solenoid.h"
+#include "../core/squad_trigger.h"
+#include "identity.h"
 #include "protect_recovery.h"
 #include "squad_trigger.h"
 
@@ -24,6 +26,16 @@ struct SolenoidLock {
 };
 static volatile bool gGateOn = false;
 static volatile bool gPatternMode = false; // ADR 0084: pattern timer owns the gate
+// The local signature strikes with this lantern's Tone Lab pulse (generated
+// roster, core/squad_roster.h); lanterns not in the roster keep the 40 ms default.
+static uint16_t signaturePulseMs() {
+  static int16_t cached = -1;
+  if (cached < 0) {
+    int i = squadIndex(gMyId);
+    cached = i >= 0 ? SQUAD[i].pulseMs : (int16_t)(SignatureSequence::PULSE_US / 1000);
+  }
+  return (uint16_t)cached;
+}
 static uint32_t gLastEndMs = 0;
 static uint32_t gFailsafeMs = 0;
 static uint32_t gStrikes = 0, gBlocked = 0, gFailsafeCount = 0;
@@ -91,7 +103,7 @@ static void signatureTimerTick(void *) {
   SignatureSequence::Action action = gSignature.poll(now, gGateOn);
   if (action == SignatureSequence::FIRE) {
     uint64_t onsetUs = 0;
-    if (pulsePrepared(SignatureSequence::PULSE_US / 1000, false, &onsetUs)) {
+    if (pulsePrepared(signaturePulseMs(), false, &onsetUs)) {
       gSignature.fired(onsetUs);
     } else {
       gSignature.cancel(now, SignatureSequence::MECHANISM);

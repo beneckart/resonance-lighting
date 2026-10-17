@@ -62,6 +62,7 @@ SENTINEL_TRACE_SMOKE=0
 DECOMPRESSION=0
 PROTECT_RECOVERY_TARGET=""
 SQUAD_TRIGGER_TARGET=""
+SQUAD_TRIGGER_ANY=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -114,6 +115,8 @@ Common build options:
   --decompression             bounded event sessions and local signature chime (b only)
   --protect-recovery-target MAC staged PROTECT canary for one perimeter (b only)
   --squad-trigger-target MAC    bounded presence/USER squad controller (b only)
+  --squad-trigger-any-perimeter every perimeter is the event trigger: rising pairs, then all
+                              (b + --decompression; lanterns in the same image stay lanterns)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
@@ -294,6 +297,7 @@ while [[ $# -gt 0 ]]; do
     --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
     --power-recovery-test-target) POWER_RECOVERY_TEST_TARGET="${2^^}"; shift 2 ;;
     --squad-trigger-target) SQUAD_TRIGGER_TARGET="${2^^}"; shift 2 ;;
+    --squad-trigger-any-perimeter) SQUAD_TRIGGER_ANY=1; EXTRA_FLAGS+=" -DRES_SQUAD_TRIGGER_ANY=1"; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -318,6 +322,11 @@ if [[ -n "$POWER_RECOVERY_TEST_TARGET" ]]; then
   EXTRA_FLAGS+=" -DRES_POWER_RECOVERY_TEST_TARGET=0x${POWER_RECOVERY_TEST_TARGET}UL"
 fi
 
+if (( SQUAD_TRIGGER_ANY )); then
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-any-perimeter requires artifact variant b"
+  (( DECOMPRESSION )) || fail "--squad-trigger-any-perimeter requires --decompression"
+  [[ -z "$SQUAD_TRIGGER_TARGET" ]] || fail "use --squad-trigger-any-perimeter or --squad-trigger-target, not both"
+fi
 if [[ -n "$SQUAD_TRIGGER_TARGET" ]]; then
   [[ "$SQUAD_TRIGGER_TARGET" =~ ^[0-9A-F]{6}$ && "$SQUAD_TRIGGER_TARGET" != "000000" ]] || fail "bad --squad-trigger-target"
   [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-target requires artifact variant b"
