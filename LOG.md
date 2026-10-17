@@ -36,6 +36,23 @@ relay write gate. No Arduino build or hardware test was performed.
 Skitty's observer and passive Windows trace files/processes were left in
 place. No serial port, maintenance command, reset or firmware write was used.
 
+## 2026-10-17 -- Brian + Claude -- Zubat moves to the decompression build
+
+Perimeter lights now drift through colours in decompression builds too (37 px,
+about a third of the downlight level, no white, no flashes: no chime; f7f6b6b).
+Artifact `fx-261017-4860c14-b` (SHA-256 ea4e9362...511416b), same recipe as
+e997cbf plus that change, built in a clean detached worktree because the running
+Tone Lab autosaves into the main checkout mid-build.
+
+Zubat `F401DC` went from the field image `fx-260912-f951ae9-b` to
+`fx-261017-4860c14-b` (app0, identity-gated; that artifact is not on this
+laptop, so the whole running slot was saved privately with the 64 KiB prefix and
+coredump: 20261017T055255Z-F401DC; coredump was not blank). After boot:
+decompression active, VL53L5CX reporting, USB keep-awake works like the
+lanterns. Its NVS profile is still COMMISSION (irrelevant to the decompression
+behaviour); restore the field image + `F1` before any field install as a normal
+perimeter. Lanterns stay on e997cbf (identical for downlights).
+
 ## 2026-10-17 -- Brian + Claude -- Chime lighting on all nine lanterns
 
 After the Leeloo preview, flashed `fx-261017-e997cbf-b` to the other eight
