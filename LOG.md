@@ -10,6 +10,24 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude (Ben present) -- Whole fleet on fx-261017-e39594d-b; both T-Decks updated
+
+Flashed the last three (Ness, Tangela, Zubat) from bb87373 to e39594d via
+prepared USB service. All nine lanterns and all four perimeters (Zubat,
+Daisy, Skitty, Marill) now run fx-261017-e39594d-b: event modes perimeter
+cycle / lantern dings / travel, Leeloo cycle trigger, self keep-awake, chime
+lighting, centre-LED perimeters, fleet ADR 0085 PROTECT recovery.
+
+T-Decks 979604 (Brian) and 8EB508 (Ben) flashed with the dev-cache build of
+a9b92c6 (SHA-256 42f9afbf...cc5fc0e3): Mode view adds Travel, and choosing
+Travel turns T-Deck keep-awake off. Wrote boot_app0 + app0; app0, app1 and
+otadata backed up privately first (…-tdeck-before-travel). Both booted with
+the shell up and the stored show. 8EB508 was on Ben's retained
+0.3.1-tonelab1; it now reports dev-local (Ben may want a retained rebuild).
+The Atom needs no change, but a powered Atom keeps renewing leases, so switch
+it off when packing (travel otherwise lets lanterns sleep). Ness reports
+battery_capacity_mah 6000 while other lanterns use 15000: check its cell.
+
 ## 2026-10-17 -- Brian + Claude (Ben present) -- Fleet PROTECT recovery, centre-LED perimeters, travel mode; Marill joins
 
 Ben concluded the Marill experiment and asked for ADR 0085 staged PROTECT
