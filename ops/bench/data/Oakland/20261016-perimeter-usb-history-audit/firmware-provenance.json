@@ -1,0 +1,78 @@
+{
+  "artifacts": [
+    {
+      "fw_rev": "fx-260829-b0ff5db-b",
+      "source_commit": "280598802a306c7d3c2b901b480f2dac864f4ca5",
+      "binary_sha256": "276d6558116a40da15f32eccf6bc7a940ef6d827ba965ddb81a8a8f5b0e27ae0",
+      "fix_commits": [
+        "5865282960c401f10e596df5876ec0475ef68f2e",
+        "3e44ad86892b4a18a7e1dff3285ca9c40194f5aa"
+      ],
+      "ancestor_return_codes": [
+        0,
+        0
+      ],
+      "power_policy_sha256": "ec74e6a22a21989e8dc688ca27e5155246e96049d14a1a693e8b1d926607471a",
+      "lifecycle_sha256": "4c2f0f99758c2cd9d7bf3269d4ec4092daf38642a3f9c01d70529759fa59e062"
+    },
+    {
+      "fw_rev": "fx-260829-af1d4ec-p",
+      "source_commit": "0d8a2443325e710ec7671e7751074908aec45aea",
+      "binary_sha256": "669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8",
+      "fix_commits": [
+        "5865282960c401f10e596df5876ec0475ef68f2e",
+        "3e44ad86892b4a18a7e1dff3285ca9c40194f5aa"
+      ],
+      "ancestor_return_codes": [
+        0,
+        0
+      ],
+      "power_policy_sha256": "ec74e6a22a21989e8dc688ca27e5155246e96049d14a1a693e8b1d926607471a",
+      "lifecycle_sha256": "d1421afb867b9b0a40649a832ed5e7cb0222d8a57f5feaab04dd61736cbca13b"
+    }
+  ],
+  "b0_source_mapping": "Git 5ef7c5980416bbee16b042822e1a1a9200c453be LOG.md Toad artifact-build entry; per-device registry repeats matching binary SHA.",
+  "af_retained_manifest": {
+    "schema": 1,
+    "fw_rev": "fx-260829-af1d4ec-p",
+    "variant": "p",
+    "recipe_sha256": "af1d4eca03f3529656d7dba068ffa3dab83cf6fb1f4841a41f943d7511f78a4b",
+    "git_commit": "0d8a2443325e710ec7671e7751074908aec45aea",
+    "git_dirty": false,
+    "fqbn": "esp32:esp32:esp32s3_powerfeather",
+    "compile_flags": [
+      "-DPOWERFEATHER_BOARD_V2=1",
+      "-I<repo>/firmware",
+      "-DRES_PF_PRECHARGE_MA=300",
+      "-DRES_DAY_SLEEP_S=120",
+      "-DRES_WAKE_LISTEN_MS=12000",
+      "-DRES_CHANNEL=11",
+      "-DRES_PROFILE_DEFAULT=PROFILE_PROD",
+      "-DRES_BASIC_LISTENER=1"
+    ],
+    "channel_default": 11,
+    "profile_default": "field",
+    "commission_idle_default": "listener",
+    "wifi_profile": "dual-starlink-v1",
+    "toolchain": {
+      "arduino_cli": "1.5.1+01f3d4f2b",
+      "esp32_platform": "3.3.7",
+      "powerfeather_sdk": "2.1.0"
+    },
+    "libraries": {
+      "Adafruit BusIO": "1.17.4",
+      "Adafruit MSA301": "1.1.4",
+      "Adafruit NeoPixel": "1.15.5",
+      "Adafruit Unified Sensor": "1.1.15",
+      "SparkFun Qwiic TMF882X Library": "1.0.2"
+    },
+    "binary": {
+      "file": "fixture.ino.bin",
+      "bytes": 1220240,
+      "sha256": "669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8"
+    },
+    "built_utc": "2026-08-29T18:19:22Z"
+  },
+  "af_binary_hash_verified": true,
+  "caution": "No readback of any physical fixture was performed; four af1d4ec device records are reported-version evidence only."
+}

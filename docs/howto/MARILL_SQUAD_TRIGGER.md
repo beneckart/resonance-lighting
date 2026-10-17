@@ -2,7 +2,10 @@
 
 Marill F40348 is the perimeter controller. ADR 0086 describes this canary.
 It keeps ADR 0085's bounded PROTECT recovery. No receiver reflash is required:
-the nine receivers were last recorded on fx-261014-65eeb39-b.
+the initial nine-receiver qualification used fx-261014-65eeb39-b. Brian's
+October 15 local-time USB flash records, pulled October 16, confirm all nine
+subsequently received fx-261016-d572656-b. Refresh per-device identity/revision
+before selecting another update.
 
 ## Start and stop
 
@@ -80,3 +83,43 @@ the next launch. These controls are local files, not network endpoints.
 Compact timestamped readings are exclusive-created under
 `ops/bench/data/Oakland/*-F40348-live-presence.jsonl`. Keep these as observation
 records; they are not a measurement of per-receiver acoustic latency.
+
+## OTA support and qualification
+
+October 16 source review, including Brian's branch through 3285583, confirms
+the targeted ESP-NOW maintenance command, shared-WiFi HTTP update endpoint
+and maintenance loop remain in fx-261016-d572656-b. The recorded source is
+ffa4e1e9a00a8f2baff043b7e5f5f882fbb62980; the recorded binary SHA-256 is
+fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd.
+Both the registry and Brian's build entry agree. All nine individual flash
+logs under `ops/bench/data/Brian bench/20261016T02*-flash.jsonl` show the new
+revision, valid app0/app1 state, no pending verify, and successful unchanged
+64 KiB prefix verification. These were USB updates. The immutable binary and
+manifest were not included in the pull; obtain those exact artifacts before
+any upload, rather than rebuilding and reusing this revision.
+
+Its maintenance.cpp is byte-identical to the previous 65eeb39 canopy source
+and 220d90a Marill source. Daisy/Zubat's retained f951ae9 and Skitty's b3e2738
+also retain OTA. This establishes code support, not a new radio-discovery,
+WiFi-association or update test. All nine canopies still have
+ota_verified=false; Marill's older true flag is not fresh OTA proof either.
+Brian's Android-hotspot provisioning and one-device OTA rehearsal remain a
+TODO, not a capability already deployed in this image. Use a configured
+maintenance network and verify one exact-target update before expanding.
+
+Use a maintenance-capable bridge such as the T-Deck/CoreS3 and shared WiFi
+for wireless gathering; the presence UI and Atom trigger are not established
+fleet-OTA controllers. Ordinary day sleep may require a full 120-second
+cadence; PROTECT gathering uses 900 seconds plus margin and needs suitable
+power. Ship mode requires its normal physical wake before radio maintenance.
+Refer to [the OTA runbook](FLEET_OTA_10_MINUTE_RUNBOOK.md). Keep Skitty out of
+all maintenance commands while its natural-recovery experiment is active.
+
+## Serial test-command compatibility
+
+The October 16 merge preserves Brian's deployed `!R<id>:0|1` Atom relay
+toggle. Future builds use `!X<id>:1|2|3` for the separate, target-gated PROTECT
+fault-injection test. Older Marill canaries (including 220d90a) still interpret
+`!R` as fault injection. Tone Lab now requires fresh identity and explicit
+relay-capability telemetry before sending that verb; do not send it manually
+to an old canary as a relay command. No device was updated by this merge.

@@ -1,0 +1,264 @@
+{
+  "source": "ops\\bench\\data\\Oakland\\20261016T223018Z-F40308-usb-cycles.jsonl",
+  "kinds": {
+    "metadata": 1,
+    "ports": 6,
+    "opened": 3,
+    "serial": 60,
+    "first_sample": 3,
+    "transport_error": 2,
+    "wake_window_closed": 3,
+    "finished": 1
+  },
+  "windows": [
+    {
+      "round": 1,
+      "samples": 9,
+      "first": {
+        "utc": "2026-10-16T22:30:32.943786+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 10354,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.34,
+        "battery_ma": -0.2,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "last": {
+        "utc": "2026-10-16T22:30:43.278983+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 20699,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.428,
+        "battery_ma": 199.7,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "tiers": [
+        0
+      ],
+      "faults": [
+        0
+      ]
+    },
+    {
+      "round": 2,
+      "samples": 10,
+      "first": {
+        "utc": "2026-10-16T22:32:54.652490+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 10326,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.34,
+        "battery_ma": -2.9,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "last": {
+        "utc": "2026-10-16T22:33:04.827786+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 20494,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.434,
+        "battery_ma": 206.3,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "tiers": [
+        0
+      ],
+      "faults": [
+        0
+      ]
+    },
+    {
+      "round": 3,
+      "samples": 10,
+      "first": {
+        "utc": "2026-10-16T22:35:16.231013+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 10339,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.34,
+        "battery_ma": 1.0,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "last": {
+        "utc": "2026-10-16T22:35:26.494492+00:00",
+        "fixture_id": "F40308",
+        "fw": "fx-260912-f951ae9-b",
+        "uptime_ms": 20603,
+        "reset_reason": "deepsleep",
+        "battery_v": 3.436,
+        "battery_ma": 211.4,
+        "supply_good": true,
+        "bq_fault0": 0,
+        "power_tier": 0,
+        "guard_stage": 1,
+        "last_sleep_reason": "day-charge",
+        "last_sleep_s": 120,
+        "vl_read_ok": true,
+        "msa311_present": true,
+        "espnow_up": true
+      },
+      "tiers": [
+        0
+      ],
+      "faults": [
+        0
+      ]
+    }
+  ],
+  "sleep_announcements": [
+    {
+      "utc": "2026-10-16T22:35:28.207581+00:00",
+      "round": 3,
+      "text": "deep sleep (day-charge), timer wake 120s"
+    }
+  ],
+  "absent_intervals": [
+    {
+      "from_utc": "2026-10-16T22:30:18.696295+00:00",
+      "to_utc": "2026-10-16T22:30:23.573573+00:00",
+      "seconds": 4.877278,
+      "initial_partial_interval": true
+    },
+    {
+      "from_utc": "2026-10-16T22:30:45.245286+00:00",
+      "to_utc": "2026-10-16T22:32:45.280626+00:00",
+      "seconds": 120.03534,
+      "initial_partial_interval": false
+    },
+    {
+      "from_utc": "2026-10-16T22:33:06.950753+00:00",
+      "to_utc": "2026-10-16T22:35:06.906964+00:00",
+      "seconds": 119.956211,
+      "initial_partial_interval": false
+    }
+  ],
+  "port_events": [
+    {
+      "utc": "2026-10-16T22:30:18.696295+00:00",
+      "kind": "ports",
+      "value": []
+    },
+    {
+      "utc": "2026-10-16T22:30:23.573573+00:00",
+      "kind": "ports",
+      "value": [
+        {
+          "port": "COM8",
+          "vid": 12346,
+          "pid": 4097,
+          "serial": "68:EE:8F:F4:03:08"
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-16T22:30:45.245286+00:00",
+      "kind": "ports",
+      "value": []
+    },
+    {
+      "utc": "2026-10-16T22:32:45.280626+00:00",
+      "kind": "ports",
+      "value": [
+        {
+          "port": "COM8",
+          "vid": 12346,
+          "pid": 4097,
+          "serial": "68:EE:8F:F4:03:08"
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-16T22:33:06.950753+00:00",
+      "kind": "ports",
+      "value": []
+    },
+    {
+      "utc": "2026-10-16T22:35:06.906964+00:00",
+      "kind": "ports",
+      "value": [
+        {
+          "port": "COM8",
+          "vid": 12346,
+          "pid": 4097,
+          "serial": "68:EE:8F:F4:03:08"
+        }
+      ]
+    }
+  ],
+  "transport_errors": [
+    {
+      "utc": "2026-10-16T22:30:44.941488+00:00",
+      "kind": "transport_error",
+      "value": "ClearCommError failed (PermissionError(13, 'The device does not recognize the command.', None, 22))"
+    },
+    {
+      "utc": "2026-10-16T22:33:06.646114+00:00",
+      "kind": "transport_error",
+      "value": "ClearCommError failed (PermissionError(13, 'The device does not recognize the command.', None, 22))"
+    }
+  ],
+  "finished": [
+    {
+      "utc": "2026-10-16T22:35:28.479079+00:00",
+      "kind": "finished",
+      "value": {
+        "samples": 29,
+        "sampled_rounds": [
+          1,
+          2,
+          3
+        ],
+        "finished_rounds": [
+          1,
+          2,
+          3
+        ]
+      }
+    }
+  ]
+}

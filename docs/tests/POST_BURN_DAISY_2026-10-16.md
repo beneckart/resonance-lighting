@@ -150,3 +150,125 @@ artifact directory during intake. The original extension passes the current
 setup's data test; the initial silence's precise cause remains unisolated.
 The fixture remains on its original FIELD firmware and configuration, now FULL,
 with its ordinary lifecycle sleep policy. No indefinite awake hold was applied.
+
+## Expected solar/USB wake versus the observed sequence
+
+Code review on October 16 used Daisy's verified September image's source,
+fcc5ef07ccf65f0f1d034bfe523e9f1d7f68bf10, and retained manifest. This is not a
+claim about the newer Marill recovery canary. No additional device operation
+was performed for this review.
+
+- The recorded storage-usb request selects BQ ship mode, with the ESP powered
+  off. Good external input from either USB or the solar panel ends that mode.
+  Assuming functioning panel wiring and sufficient input, the first sunshine
+  should therefore have powered Daisy up before this USB session. Darkness
+  afterward does not automatically issue another ship-mode command.
+- After ship wake, the original FIELD application resumes, including retained
+  protection state and ordinary timer sleep. The ordinary daytime interval is
+  120 seconds, followed by a 12-second listening grace; other lifecycle gates
+  can extend awake time. Unqualified PROTECT recovery instead sleeps for
+  900 seconds, with an 8-second wake grace. A qualifying recovery proof holds
+  the device awake to complete its continuous 60-second check.
+- Ordinary timer sleep arms the timer and, if released, USER-button EXT0 wake.
+  It does not arm a USB-power wake source. Consequently, plugging USB into an
+  already powered but deeply sleeping ESP is not the same event as supplying
+  power to a ship-mode board. Charging can proceed while USB data is absent;
+  the processor may wait for its next timer wake.
+- Physical RESET on a powered board should start the processor and the
+  application initializes Serial even when PROTECT parks the sensor rail.
+  Ordinary cold/reset boot has a ten-minute lifecycle grace; PROTECT has its
+  own 30-second cold/reset grace instead. These are policy windows after
+  initialization, not guarantees against a separate boot or USB fault.
+  The observed absence after the coordinated reset cannot be explained just
+  by the sensor rail being off or by a 15-minute timer still counting down.
+- Correct ROM boot bypasses the application, including its PROTECT and sleep
+  policy. ROM communication was confirmed only after the laptop-end replug.
+  This points to an additional USB connection/enumeration or physical-path
+  issue, but does not isolate Windows, the USB peripheral, cable contacts or
+  another cause. The successful original-extension comparison removes the
+  basis for calling that extension failed from the initial silence alone.
+
+The saved FULL stage proves recovery had occurred by backup time, not whether
+sunshine or this USB session produced it. The historical 3026 mV PROTECT audit
+survives recovery and is not evidence that Daisy was still parked on arrival.
+Likewise, days in sunlight and a high terminal voltage are not a log of the
+processor's intervening wake cycles.
+
+Source paths at that commit: fixture.ino (unconditional Serial initialization),
+src/esp32/board_power.cpp (ship and timer entry), solenoid.cpp (EXT0 wake),
+behavior_glue.cpp (ordinary grace), power_glue.cpp (PROTECT grace), and
+src/core/power_policy.cpp (release proof). Paths are relative to firmware/fixture/.
+
+Platform references: [TI on BQ25628 solar/adapter ship wake](https://e2e.ti.com/support/power-management-group/power-management/f/power-management-forum/1275790/bq25628-bq25628-ship-mode)
+and [Espressif USB sleep behavior](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/usb-serial-jtag-console.html#sleep-mode-considerations).
+Espressif describes deep-sleep USB disconnection and expected reconnection on
+wake. Its explicit persistent-pullup failure discussion is for light sleep;
+that is not proof of Daisy's failure mechanism. The manual-sleep guidance also
+documents physical reconnect as a way to reestablish the connection.
+
+## Additional chained-extension check
+
+After that review Ben inserted two additional extensions in series, one new
+and one previously deemed faulty. The capture beginning 22:21:49 UTC initially
+saw no serial port. COM8 then returned without a requested reset or cable
+change, and 20 telemetry records identified Daisy F40308 on the original
+September firmware, FULL/guard 1. The reset reason was deepsleep and the last
+sleep was day-charge for 120 seconds. Thus this initial silence was followed
+by a verified natural timer wake with working USB through the assembled chain.
+No awake hold or configuration change was issued. This is a functional data
+check of the current assembled path and orientation, not an all-orientation
+or environmental cable qualification. The capture completed and closed.
+
+Evidence: ops/bench/data/Oakland/20261016T222149Z-F40308-extension-chain.jsonl.
+
+## Windows event baseline across three wake windows
+
+At Ben's request, kept the assembled cable chain and original FIELD firmware
+unchanged. A Windows USB ETW capture ran from 15:30:18 to 15:35:28 PDT,
+alongside no-reset serial discovery and read-only t queries. No physical
+reconnect, device reset, PnP restart, profile change or device awake hold was
+requested. A host-only sleep inhibitor kept the laptop awake during capture.
+An initial ETW start was denied because sandbox elevation did not grant a
+Windows administrator token; the subsequent approved Windows UAC launch
+started the trace successfully. Both captures stopped automatically.
+
+Providers: USBHUB3, UCX and USBXHCI, Default + StateMachine (0x201), level 5.
+No transfer-payload keywords were enabled. Raw ETL and Windows topology are
+retained privately because the capture is host-wide. Daisy mapped to the
+USB composite parent with her exact MAC, root-hub port 1, with COM8 as MI_00.
+
+| Wake | Windows enumeration start (PDT) | Enumeration duration | Result |
+|---|---|---|---|
+| 1 | 15:30:22.651 | 197.421 ms | NTSTATUS 0, COM8, valid Daisy telemetry |
+| 2 | 15:32:44.393 | 197.674 ms | NTSTATUS 0, COM8, valid Daisy telemetry |
+| 3 | 15:35:05.957 | 197.192 ms | NTSTATUS 0, COM8, valid Daisy telemetry |
+
+The trace contains three enumeration starts and three successful completions,
+with zero recorded enumeration retries, enumeration failures, port-reset
+timeouts or descriptor-validation failures. Its 7,010 records include the
+trace header and the three selected providers. This is not a claim about
+unrecorded traffic-level errors or rare failures beyond this short run.
+
+All 29 telemetry samples reported FULL/guard 1 and BQ fault zero. Each wake
+reported deepsleep after day-charge/120 seconds; ToF and accelerometer were
+present, with valid ToF reads and radio up. Two fully observed COM-absent
+intervals were 120.035 and 119.956 seconds. The first two sleep transitions
+closed the serial handle with a transport error; these coincide with normal
+USB disappearance and subsequent successful timer wakes. The third transition
+explicitly printed `deep sleep (day-charge), timer wake 120s` before closure.
+
+This supports Ben's observation that an already established connection can
+survive ordinary sleep/reconnect cycles. It did not reproduce the earlier
+first-attachment failure, exercise a software USB recovery, or prove that
+such a failure cannot recur. The next more informative comparison is a fresh
+perimeter's first USB attachment with ETW already armed and prior solar
+exposure recorded, before reset or connector changes.
+
+Evidence under ops/bench/data/Oakland/:
+
+- 20261016T223018Z-F40308-usb-cycles.jsonl
+- 20261016T223018Z-F40308-usb-cycles-summary.json
+- 20261016T223018Z-F40308-usb-etw-summary.json
+
+Private raw trace: ops/bench/private-backups/20261016T223018Z-F40308-usb-cycles/usb.etl.
+SHA-256: ef48e6f0cc32d209c6cd7ce86e3e4c1b729fb3afd4ad7fdfbcc921bb98623d3c.

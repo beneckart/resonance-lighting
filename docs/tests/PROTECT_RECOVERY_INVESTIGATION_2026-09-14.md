@@ -227,3 +227,183 @@ real collapse-loop protection intact.
 Evidence: `ops/bench/data/ca/20260914-protect-recovery-analysis/fleet-cohort.json`,
 the September 12 container snapshots, and
 `ops/bench/data/Bodhi Hive/20261011T224018Z-9F2738-physical-reset-capture-88bf9e5b.jsonl`.
+
+## 2026-10-16 -- Shervin battery-service recollection and revised failure history
+
+Ben recalls that Shervin replaced batteries on every perimeter on one night
+during the burn, and also made sure to clear any PROTECT flag. Ben recalls
+replacement cells generally being about 40-60 percent charged. A few days
+of poor weather and little sun followed; the original hypothesis was that
+the replacement cells were depleted. Ben now suspects renewed inappropriate
+PROTECT entries and/or failed recovery prolonged the apparent outage after
+sunshine improved.
+
+This is a newly recorded operator recollection. Searches of current tracked
+repo text and relevant journal/document history did not locate a named,
+contemporaneous Shervin service record. The night, exact serviced roster,
+charge-estimate basis, clearing method, and fresh post-service state remain
+unresolved. Do not replace the reported clearing action with an assumption
+that he only pressed RESET. Equally, do not mark an effective clear verified
+without the procedure or a fresh non-PROTECT reading. The known firmware
+preserves PROTECT across ordinary reset, power cycling and ordinary OTA;
+the documented serial X clear is restricted to battery-absent service.
+
+### What an effective clear changes
+
+If service genuinely cleared the durable state, simple carryover of the
+pre-swap latch cannot explain the subsequent protected state. The fixture
+must have entered PROTECT again after that clear. That new entry could still
+be a justified low-voltage stop following an energy deficit, a real transient
+voltage/path collapse, or an inappropriate measurement/reset classification.
+The later stuck state alone does not distinguish those entry mechanisms.
+
+A coherent working hypothesis is therefore:
+
+1. Battery service and an effective guard clear restore a usable starting
+   state (reported history; normal post-service operation is not yet logged).
+2. Insufficient harvested energy and/or load/path transients cause new
+   PROTECT entries. Some entries may be inappropriate; that is not required
+   for the next failure mode to occur.
+3. PROTECT disables sensing and lighting and limits radio availability,
+   making the fixtures appear dead.
+4. Later charging restores voltage, but awake current or other release gates
+   repeatedly fail the continuous 60-second proof. Functional outage can then
+   outlast the original energy shortage. Bright site weather alone does not
+   establish a qualifying power window at each fixture's charger.
+
+This is a hypothesis consistent with the evidence, not an established
+per-fixture chronology or proof that all perimeters shared one cause.
+
+### Relevant retained evidence
+
+- The September 1 LOG entry "Perimeter charging diagnosis: P126 setpoint
+  mismatch plus no-input outliers" reports 20 known perimeters at 4.6 V
+  VINDPM, versus the production-cabling P126 qualification at 5.8 V. The
+  cited July 10 comparison found a 16.2 percent charger-input-power penalty
+  and about a 19 percent charge-current penalty at 4.6 V. Those are specific
+  comparison results, not a measured percentage loss for every burn day.
+- That same entry reports August 28 daytime observations: five of six
+  identified perimeters had good charger input but only about 0.10-0.23 W,
+  with no positive awake battery current. A later group had positive awake
+  current on only four of 17 fixtures. These observations support the
+  awake-current mismatch mechanism but do not measure full-day energy.
+- Skitty and Gengar instead had a near-zero-input signature in those retained
+  records. Do not assign every fixture's behavior solely to the release rule.
+- The September 12 cohort contains 15 known perimeters at >=3.25 V while in
+  PROTECT, with 14 low-vbat-origin histories and one load-armed-reset history.
+  These were non-charging snapshots; they do not prove failure under strong
+  solar input or independently establish that initial trips were false.
+- Marill's preserved intake demonstrates the visible symptom: 3.317 V and
+  PROTECT with sensors uninitialized, then sensor recovery on the original
+  firmware after a qualified USB charge release, without sensor repair.
+- Skitty's current intake has real low voltage (about 2.7 V at the clips,
+  saved prior sleep 2.604 V) and remains below the release floor in the latest
+  captured wake. Its current case does not yet demonstrate failed release
+  after restored battery voltage.
+
+Keep the battery-service report as a boundary to investigate. Matching its
+date and procedure to post-service telemetry and later entry provenance is
+more discriminating than assuming either universal depletion or universal
+false latching. The 40-60 percent estimate is not a calibrated energy budget
+without knowing how the replacement cells were assessed.
+
+### Follow-up: carried-laptop USB service, probably August 28-29
+
+Ben clarified on October 16 that Shervin carried this laptop, replaced the
+batteries, and flashed any fixtures then running older firmware, all through
+USB. He recalls this being a day or two before Burning Man officially opened.
+The official 2026 opening was August 30 at 00:01, making August 28-29 a useful
+approximate search window, not a confirmed service date. Source:
+https://survival.burningman.org/city-infrastructure/2026-city-plan/
+
+This clarifies the service method but does not identify an explicit guard
+clear command, an erase operation, or the post-service state. Preserve Ben's
+earlier recollection that Shervin made sure to clear PROTECT; do not equate
+selective firmware updates with either proof of clearing or proof of failure
+to clear. Relevant contemporaneous counterexamples are:
+
+- August 29, Logan 9E5A88: the LOG explicitly records that the retained
+  PROTECT latch survived both a USB upload and a capacity-configuration
+  reboot. It subsequently cleared through the corrected natural recovery
+  path. An ordinary upload alone did not clear this fixture.
+- August 29, Eevee 9F0E54: physical RESET plus USB charging gave the old
+  firmware enough continuous awake time to finish its healthy-battery
+  proof and clear PROTECT before the upload. Service can therefore really
+  clear a latch without the upload itself being the clearing mechanism.
+
+The approximate service window overlaps two fixes: August 28's qualified
+full-battery/taper release (commit 5865282), and August 29's correction of
+the independent DAY_CHARGE sleep deadline interrupting a 60-second recovery
+proof (commit 3e44ad8). Identify the exact installed revision before assigning
+either bug to a serviced perimeter. The September fleet revisions already
+include both fixes, but still require qualifying awake recovery evidence.
+
+The August 27 USB-powered recovery batch is adjacent evidence, not an
+identified match for Shervin's walk: its documented uploads were OTA through
+the T-Deck, and the rotated fixture cables were reported as power-only.
+See USB_POWERED_FIXTURE_RECOVERY_2026-08-27.md and the August 27 LOG entry
+"Rotated-power cohort updated; cadence holdbacks closed".
+
+The working history remains conditional: if the post-service state was
+unprotected, later PROTECT requires a new entry. That entry can be legitimate
+while the later inability to recover is still a firmware failure. Exact
+service records and fresh post-service telemetry remain the missing link;
+no device state was changed to investigate this recollection.
+
+### Follow-up: historical service results located
+
+The October 16 archive audit found a strong match after expanding the search
+through early August 30 PDT. At 00:55 PDT Ben explicitly reported a helper
+manually USB-flashing perimeters. Side-branch commit 2315ef6 preserves 14
+perimeter service-result rows from 00:14-04:30 PDT: ten exact b0ff5db USB
+updates and four existing reported af1d4ec images. Both sources contain both
+the full-battery release and daytime-sleep-interruption fixes. Thirteen rows
+explicitly record guarded release, and Clank records replacement-battery
+commissioning. This is substantial support for a recovered post-service
+starting state in this subset. Shervin is not named in the contemporary
+message, and an all-24-fixture roster is not established.
+
+See [Perimeter USB service history](PERIMETER_USB_SERVICE_HISTORY_2026-08-30.md)
+for the roster, artifact/source proof and evidence limits. These committed
+service notes are not raw upload transcripts; the four existing images have
+reported-version evidence rather than per-device binary hashes. Skitty,
+Marill and Daisy are absent from this subset. Both images retain the
+awake-current-dependent release gate, so the later recovery question remains
+open even where the earlier two bugs and pre-service latch carryover are
+excluded by the recorded service results.
+
+### October 16 follow-up: service boundary versus container census
+
+An exact-ID join finds 11 of the 14 documented August 30 serviced perimeters
+in the September 12 census. Ten had returned to PROTECT above 3.25 V; their
+retained origins are nine `low_vbat` entries at 3.016-3.031 V and one
+`load_armed_reset` entry (F402A8) at 3.261 V. Ditto was FULL at 3.305 V;
+three members were unobserved. All 11 reported no good external input at
+the census, so this is not direct evidence of failed recovery in sunlight.
+It supports renewed entries after service but does not establish whether
+individual low-voltage trips were justified or how long they persisted.
+
+The local Codex archive also says the USB helper stopped at 01:11 PDT on
+August 30, whereas service-result timestamps extend to 04:30. Do not assign
+the whole subset to one continuous Shervin service walk without resolving
+that discrepancy. The exact-image recovery-fix findings remain intact.
+The service-history report contains the join, source hashes, entry details
+and distinction from the separate downlight presence/color incident.
+
+### October 16 operator clarification and perimeter synthesis
+
+Ben explicitly confirms: "Shervin definitely worked until 4:30am." This
+resolves the preceding uncertainty about the end of the service night.
+The 01:11 chat statement should be treated as a coordination snapshot, not
+evidence that Shervin stopped for the night. The retained 00:14-04:30 August
+30 service results align with his confirmed hours; a complete all-perimeter
+roster and independently measured starting charge are still unavailable.
+
+The [perimeter postmortem](../postmortem/PERIMETER_FAILURES_2026.md) now
+separates entry from recovery and compares five compatible causal cases:
+low harvest plus recovery delay, energy shortage without an avoidable delay,
+real cell/path sag, erroneous voltage samples, and reset-marker escalation.
+It includes relative likelihoods, evidence strength, counterevidence and
+tests that would distinguish them. The leading mixed explanation has
+stronger support for low voltage/limited harvest than for its unobserved
+burn-week recovery-delay sequence. No fixture change was made for this report.

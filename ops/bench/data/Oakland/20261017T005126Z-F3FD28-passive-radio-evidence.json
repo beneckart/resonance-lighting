@@ -1,0 +1,26 @@
+{
+  "target": "F3FD28",
+  "source": "ops\\bench\\data\\Oakland\\20261017T004700Z-8EB508-daisy-benphone-ota-radio.jsonl",
+  "source_sha256": "ae295cfff49c90b872610f4d82c5307f0d234065ff279f48b166fdb7590fe3e2",
+  "observations": [
+    {
+      "source_line": 17,
+      "record": {
+        "utc": "2026-10-17T00:46:36.226929+00:00",
+        "kind": "rx",
+        "line": "nb-peer id=F3FD28 seq=5 rx=6 gaps=0 pdr=1.0000 rssi=-51 bv=3.243 ima=0 soc=14 rr=deepsleep ca=0 mode=0 dlpdr=0.000 dlrssi=0 up=9170 age=611422 sv=4.625 sma=308 sgood=1 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=6000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260831-b3e2738-b mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=3243 fcmax=3243 bqv=4600 bqichg=2000 bqvreg=3600 bq16=A0 bq18=08 bq1d=54 bq1e=0C bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=3 prog=1 nmin=0 cls=0 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=7 slpr=1 slps=900 slpmv=3238 slpprof=1 slplife=1 slptier=3 slpsrc=000000 slpseq=0 cmdslpr=3 cmdslps=43200 cmdslpsrc=8EB508 cmdslpseq=205 protmv=3023 protorig=1 protprev=3 protrst=255 protarm=0 protstreak=0"
+      },
+      "estimated_rx_utc": "2026-10-17T00:36:24.804929+00:00"
+    },
+    {
+      "source_line": 656,
+      "record": {
+        "utc": "2026-10-17T00:51:26.255564+00:00",
+        "kind": "rx",
+        "line": "nb-peer id=F3FD28 seq=5 rx=6 gaps=0 pdr=1.0000 rssi=-52 bv=3.250 ima=0 soc=16 rr=deepsleep ca=8 mode=0 dlpdr=0.000 dlrssi=0 up=9170 age=7 sv=4.625 sma=306 sgood=1 lux=nan ch0=0 ch1=0 ptc=nan prh=-1 btc=nan ipv=-32768 ipa=-32768 ibv=-32768 iba=-32768 cap=6000 chg=2000 dd=0.0 ddb=0 dda=0 fw=fx-260831-b3e2738-b mt=0 fc=1 fcr=0 fcc=0 fce=0 fcchg=0 fcdis=0 fcmin=3250 fcmax=3250 bqv=4600 bqichg=2000 bqvreg=3600 bq16=A0 bq18=08 bq1d=54 bq1e=0C bq1f=00 bq20=00 bq21=00 bq22=00 bq38=22 fcwhc=0 fcwhd=0 fcpw=0 fcbw=0 fcdw=0 fclow=0 fcmchg=0 fcmwait=0 fcmdraw=0 fcmprot=0 mppts=0 mpptr=0 mpptn=0 mpptv=0 mpptbest=0 mpptlast=0 mppt46=0 mppt48=0 mppt50=0 fcdim=0 fclat=0 prof=1 life=1 ptier=3 prog=5 nmin=0 cls=0 ledrail=0 ledr=0 ledg=0 ledb=0 ledw=0 ledn=0 sens=0 cmis=0 rec=0 recmv=65535 audf=7 slpr=1 slps=900 slpmv=3243 slpprof=1 slplife=1 slptier=3 slpsrc=000000 slpseq=0 cmdslpr=3 cmdslps=43200 cmdslpsrc=8EB508 cmdslpseq=205 protmv=3023 protorig=1 protprev=3 protrst=255 protarm=0 protstreak=0"
+      },
+      "estimated_rx_utc": "2026-10-17T00:51:26.248564+00:00"
+    }
+  ],
+  "note": "First row is cached; second has 7 ms age and establishes a fresh 17:51:26 PDT PROTECT observation. Integer awake current is not sleep current. No Skitty-directed commands were sent."
+}

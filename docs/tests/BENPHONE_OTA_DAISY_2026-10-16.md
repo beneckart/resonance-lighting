@@ -97,6 +97,23 @@ low-battery trip or PROTECT entry. The original protection history survived.
 Decoded backup evidence:
 `ops/bench/data/Oakland/20261017T005035Z-F40308-benphone-nvs-audit.json`.
 
+Follow-up timing review: the 17:52:36.116641 sample reports uptime 12.554 s;
+the FULL transition at 17:53:36.531906 was therefore about 73 s after boot.
+This is initialization plus the 60 s qualifying window, not a fixed 60 s
+timeout from reset. No threshold override entries were found in the saved
+NVS. DIM release uses >=3.30 V load-compensated battery voltage and does not
+require the positive charging current used by PROTECT release. The cold-boot
+awake grace is ten minutes, so this service boot had ample time to qualify.
+
+Two source-level follow-ups merit separate fixes, not a weaker collapse
+guard: prepare an acknowledged all-loads-off state before deliberate ROM
+service, preserving any existing PROTECT latch; and provide bounded recovery
+opportunities for DIM/OFF after short daytime wakes. The current DIM/OFF
+confirmation timers are RAM-only and ordinary 12 s day wake windows can
+expire before the 60 s climb finishes. This latter case was not exercised
+by Daisy's successful cold boot. An additional unexpected reset while DIM
+and load-armed can also escalate to PROTECT under the current boot rule.
+
 ## OTA setup
 
 Windows joined BenPhone using WPA2-Personal on 2.4 GHz channel 6, with address
@@ -149,3 +166,13 @@ with the new credentials. Brian's installed canopy images still need a known
 maintenance network or USB credential bootstrap before they can use BenPhone.
 The prepared canopy artifact is separate; Marill needs a build retaining its
 exact-target presence and staged-recovery flags.
+
+## Subsequent service and recovery qualification
+
+The USB service and short-wake DIM/OFF issues identified above were fixed
+and tested later on October 16. Daisy now runs fx-261017-c2ddd6a-b; four
+prepared service cycles, bounded service expiry, DIM/OFF recovery after
+actual deep sleep, and BenPhone OTA passed. See
+[the qualification record](DAISY_SERVICE_RECOVERY_2026-10-16.md).
+The observations above describe the earlier image, not an outstanding
+absence of those fixes in the current source.

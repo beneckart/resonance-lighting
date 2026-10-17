@@ -1,6 +1,6 @@
 # 2026 postmortem and 2027 future work
 
-Updated: 2026-10-11. Start here for the post-event storage, power/recovery and
+Updated: 2026-10-16. Start here for the post-event storage, power/recovery and
 service-tooling work. This index gathers the records already in this repository;
 it is not a claim that every 2026 installation issue has been investigated.
 Open work remains in [TODO](../../TODO.md); dated history is in [LOG](../../LOG.md).
@@ -9,6 +9,8 @@ Open work remains in [TODO](../../TODO.md); dated history is in [LOG](../../LOG.
 
 | Record | What it establishes | What remains unresolved |
 |---|---|---|
+| [Perimeter failures and competing explanations](PERIMETER_FAILURES_2026.md) | Perimeter-specific evidence ledger, Shervin's confirmed 04:30 service finish, five causal cases with relative likelihoods, and discriminating tests. | Relative contributions of true depletion, load/path sag, erroneous entries and recovery delay; no calibrated failure probabilities. |
+| [August 30 perimeter USB service history](../tests/PERIMETER_USB_SERVICE_HISTORY_2026-08-30.md) | Fourteen recorded results, both recovery fixes in their resulting images, and later census state for 11 members. | Full 24-unit roster, measured starting charge and continuous post-service histories. |
 | [September 12 container census and storage](../tests/CONTAINER_STORAGE_CENSUS_2026-09-12.md) | 106 observed fixtures received the exact storage image and acknowledged indefinite ship requests; final radio-quiet check passed. | Assembled storage current and physical wake; eight originally unobserved fixtures were not commanded. |
 | [Storage and wake operator guide](../howto/FIXTURE_STORAGE_AND_WAKE.md) | Mode distinctions, T-Deck/host workflow, deployed artifact identities and evidence links. | USB/solar/QON wake and RESET-wake qualification, plus physical UI inspection. |
 | [September 14 Oakland inventory](../tests/OAKLAND_LANTERN_INVENTORY_2026-09-14.md) | Five identified sightings, none in the stored 106; Kairi/Wooper account for two original census absences. | Map the remaining bin fixtures, inspect cells and locate the six remaining unknowns. Ben wants the Oakland units operational, without deliberate storage. |

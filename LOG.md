@@ -10,6 +10,143 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+
+
+## 2026-10-16 -- Ben + Codex -- DIM duration and service follow-ups
+
+Daisy's DIM interval was about 73 s from boot, including initialization and
+60 s above the default 3.30 V load-compensated clear threshold. Saved NVS
+contains no threshold overrides. Unlike PROTECT release, DIM recovery does
+not require positive current. The ten-minute cold-boot grace allowed this
+window to complete. Documented two open fixes: planned all-loads-off USB
+service preparation, and bounded DIM/OFF recovery opportunities when ordinary
+12 s day wakes would reset the RAM-only 60 s timer. Existing collapse guards
+and PROTECT must survive both changes. No firmware or device changes made.
+
+## 2026-10-16 -- Ben + Codex -- Daisy DIM explanation and fresh Skitty radio evidence
+
+Daisy's pre-write CRC-checked NVS contains FULL, load_arm=1 and boots=0;
+preflight had the LED rail on at 3.584 V. The USB service power-on reset
+therefore invokes the guarded DIM retry. She automatically returned to FULL
+at 17:53:36 with 3.586 V; subsequent software OTA boot stayed FULL. Preserved
+this explanation and decoded audit with the BenPhone canary record.
+
+Review of the separate T-Deck log recovered a fresh Skitty heartbeat at
+17:51:26 PDT (age 7 ms), still PROTECT at 3.250 V, reported awake battery
+current 0 mA, good external supply and charger fault zero. This is not a
+release or a sleep-current measurement. It narrows the telemetry gap despite
+continued USB silence. Earlier/later cached copies were distinguished using
+age and changed voltage, not sequence/uptime alone. Raw excerpt and report
+appended. Skitty's sole USB observer remains healthy on the original deadline;
+no Skitty command, reset or configuration change was made.
+
+Committed the canary evidence as 49893b0, merged Brian's concurrent 91b0856
+sensor far-distance fix without conflicts, and pushed merge 79abd2b to
+origin/codex/decompression-signature. Python syntax and whitespace checks
+passed. No firmware was changed or reflashed during this explanation.
+
+## 2026-10-16 -- Ben + Codex -- Daisy BenPhone OTA canary passed
+
+Daisy F40308 reappeared through the same enclosure extension after the USB-A
+port/cable comparison. Built ordinary-perimeter fx-261017-abe3c6e-b from clean
+bc9de328385df00dc242b267e4a1d1a20f69388d with BenPhone plus retained private
+Party In The Woods fallback. Exact SHA-256:
+85b594b003d2e89afe3a551218164e2bedc6efce9d608a0809519d534b9bad52.
+The new canopy image was not used on the perimeter. USB bootstrap preserved
+and verified the 64 KiB prefix and original app before writing only app0.
+The reset command returned a Windows serial abort after issuing the reset;
+fresh application logs proved successful boot without a manual reset.
+
+After a natural radio listening window, T-Deck job 87B90584 targeted only Daisy.
+It joined BenPhone profile 1 at 10.60.100.228, channel 6, and accepted the same
+retained image over WiFi in 7.43 seconds. Passive serial logs captured software
+reboot, channel-11 return, self-test PASS and VALID. The runner passed fresh
+post-reset revision and 30-second checks; independent USB telemetry confirmed
+app1 VALID through 83.665 seconds, FULL, VL53/MSA reads good and no charger
+fault. Fifteen settings/history fields matched preflight, including the
+original 3026 mV protection entry. Only Daisy's registry row was updated.
+
+Canary records/manifests are in BENPHONE_OTA_DAISY_2026-10-16.md and the updated
+BenPhone handoff. The exact artifact is retained locally; private fallback
+credentials remain private. Nine canopies and Marill remain unchanged; their
+hotspot provisioning/qualification is still separate work. Temporary Daisy
+observers closed. Skitty's sole observer remains healthy on its original
+deadline; no Skitty serial open, command, reset or configuration change occurred.
+
+## 2026-10-16 -- Ben + Codex -- Skitty visual wake at about 17:52 PDT
+
+Ben observed a wake and a slower Feather blink, estimated 1-2 Hz. Logged
+this independently of USB: the healthy replacement observer still had zero
+samples/opens at 17:52:07. Exact installed-source review maps that cadence
+to the battery indicator's coarse SOC/voltage bands, not PROTECT release.
+No fixture intervention, competing serial open, deadline change or restart.
+See the appended Skitty report and 20261017T005200Z-F3FD28-visual-wake.json.
+
+## 2026-10-16 -- Ben + Codex -- USB-A data path verified with T-Deck
+
+Ben clarified that the nine canopies are on a physical USB hub attached to
+Brian's laptop. He connected a nearby, not-yet-identified Daisy/Marill
+perimeter through its closed enclosure extension to a spare USB-A port.
+An exact-identity read-only capture from 17:40:21 to 17:43:52 observed no
+perimeter port; a 17:41 Windows PnP snapshot showed only the healthy T-Deck,
+with no failed USB device. No serial port belonging to Skitty was opened.
+
+At 17:44 Ben moved T-Deck 8EB508 onto the same USB-A port and the perimeter's
+laptop cable. The bridge disappeared at 17:44:17 and re-enumerated as COM10
+at 17:44:29. A no-reset read-only t query at 17:44:44 returned bridge=tdeck,
+channel=11 and queue_drops=0. This proves that port and cable carry USB data;
+it does not condemn the enclosure extension or establish the perimeter's
+sleep/protection state. A return-to-perimeter comparison is now armed.
+Evidence: 20261017T004021Z-perimeter-benphone-intake.jsonl,
+20261017T004356Z-usb-a-port-compare.jsonl and
+20261017T004429Z-8EB508-usb-a-proof.jsonl under ops/bench/data/Oakland/.
+
+## 2026-10-16 -- Ben + Codex -- BenPhone canary artifact retained, OTA pending
+
+The clean build completed at 17:37 PDT as fx-261017-bfb3ab9-b, source
+8ce02b6296b185ecf8457f96897993a0be62a317, 1,225,168 bytes, SHA-256
+7b8c95e96aae34e2ecbf02975e5166d91159818c63a1ff2cfd30b1845fb67100.
+Verified manifest/recipe, actual compiler flags, embedded identity/SSIDs,
+partition layout and byte-identical preservation in the main checkout.
+The shared manifest and BenPhone handoff record the exact retained artifact.
+No lantern has received this image yet. Ben noted the squad is connected
+through Brian's hub; clarification of that topology and the installed
+maintenance network is pending. USB is one bootstrap option, not an OTA
+requirement. The existing firmware has compile-time WiFi profiles; a known
+reachable profile could provide a fully wireless bootstrap instead.
+Skitty's logger remains healthy with fresh health records and unchanged
+original deadline; no new Skitty serial port or command was used.
+
+## 2026-10-16 -- Ben + Codex -- publish merge and prepare BenPhone OTA canary
+
+Pushed merge/collision fix bbc2587 and shared hotspot profile 8ce02b6 to
+origin/codex/decompression-signature. The first push waited on Git's helper
+selector; retried through the already-configured Credential Manager without
+changing global settings. Ben explicitly authorized the temporary phone
+credentials in the shared wifi_benphone.h profile. Prepared a clean isolated
+canopy build with BenPhone plus the prior Party In The Woods private fallback.
+Current yard WiFi is BubbyNet; the fallback was not verified available here.
+
+Identified T-Deck 8EB508 (storage4, channel 11) on COM10 and heard all nine
+canopies. The temporary dashboard verifies the bridge USB identity on every
+open, leaves DTR/RTS low, logs raw traffic and permits only Pinsir 9F26BC
+maintenance/campaign commands. Pinsir was FULL at about 3.53 V, fault zero.
+One 35-second targeted maintenance request ended in WiFi startup-failed (3)
+and a normal return to the mesh, with no upload or firmware change. Requested
+one canopy on USB for initial hotspot provisioning before the wireless test.
+No Skitty command or competing serial opening occurred; its observer remains
+healthy on the original deadline. See BENPHONE_OTA_CANARY.md for handoff.
+
+## 2026-10-16 -- Ben + Codex -- Skitty passive USB trace completed
+
+The 17:11-17:31 trace stopped normally. Its 2,023 records include active hub
+and controller state-machine traffic, but no enumeration starts, completions,
+retries, failures or descriptor-validation failures. Exact parent-hub rundown
+was mapped; no Skitty serial-identity attach was recorded. This does not
+establish Windows rejection, processor inactivity or charging failure.
+Recorded the result and raw hash in the Skitty report and wrote the one-shot
+review marker. The separate natural-recovery observer remains untouched.
+
 ## 2026-10-16 -- Ben + Codex -- integrate Brian's branch and check current canopy OTA support
 
 Fetched and merged origin/codex/decompression-signature through 3285583,
@@ -187,6 +324,352 @@ fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd) and flashed
 all nine app-only from fx-261014-65eeb39-b (identity-gated, digest-verified,
 backup-first). Not yet exercised with a real Atom press. Standalone (no
 laptop) button behavior still needs firmware and Atom work with Ben.
+
+## 2026-10-16 -- Ben + Codex -- squad OTA capability review
+
+Checked exact documented canopy 65eeb39 and Marill 220d90a sources: targeted
+radio maintenance, shared-WiFi HTTP update and the maintenance loop remain;
+their maintenance implementations are byte-identical. Daisy f951ae9 and
+Skitty b3e2738 retain the same OTA architecture. No maintenance command,
+network association, update or fixture change was attempted.
+
+Current qualification is weaker than capability: all nine canopy registry
+rows still say ota_verified=false, and some later captured radio revisions
+are d572656 rather than the registry's 65eeb39. That artifact/source mapping
+was not found in this checkout. Updated the Marill runbook and TODO to require
+fresh per-device revisions and one current-image OTA canary before expansion.
+Marill's registry true flag does not establish a new OTA test of its latest
+USB-flashed image. Skitty remains excluded during passive recovery observation.
+
+## 2026-10-16 -- Ben + Codex -- passive Windows USB diagnosis for Skitty
+
+Read-only PnP and event-log checks show Skitty F3FD28 disconnected with no
+current problem flag. Its 16:06:13 Windows bus-removal event aligns within
+about 4.5 ms with the firmware sleep message. No later target arrival or
+retained enumeration failure was found, but the previous deeper trace ended
+at 16:00, so this does not rule out a Windows USB issue during the gap.
+
+Started a separate 20-minute passive USBHUB3/UCX/USBXHCI Default+StateMachine
+trace at 17:11 PDT, ending about 17:31. Preserved an initial rejected logman
+option combination and corrected it before successful startup. The trace
+opens no serial port and changes no device or power settings; Skitty's
+natural-recovery logger remains the sole serial owner. Updated the existing
+heartbeat to review and report the closed trace once, preserving its original
+recovery safeguards and 20:00:54 deadline. Evidence and limitations are in
+POST_BURN_SKITTY_2026-10-16.md; raw USB trace/baseline remain private.
+
+## 2026-10-16 -- Ben + Codex -- Skitty requested status check at 17:09 PDT
+
+Verified fresh replacement-logger health and status, no checkpoint failures
+or stderr, and no serial contact since restart. Independent read-only port
+inventories were also empty. Last raw Skitty telemetry remains 16:06:12,
+3.031 V and PROTECT with charging enabled. Recorded the over-hour USB
+observation gap without inferring the current voltage, processor state or
+charging failure. Passive watch and original deadline remain unchanged.
+
+## 2026-10-16 -- Ben + Codex -- perimeter postmortem and confirmed Shervin service hours
+
+Ben confirms Shervin definitely worked until 04:30 a.m. Recorded this operator
+clarification in the service history and appended it to the PROTECT
+investigation; the 01:11 archived helper message no longer supplies an
+end-of-night boundary. The 14 retained August 30 results remain a partial
+roster, not proof that only 14 perimeters were serviced.
+
+Added `docs/postmortem/PERIMETER_FAILURES_2026.md` with a dated evidence ledger,
+separate entry/recovery mechanisms, five competing cases, relative likelihoods,
+counterevidence and discriminating experiments. The leading mixed hypothesis
+is real energy shortage plus recovery delay; low voltage/limited input has
+stronger support than the unobserved sunny recovery-delay sequence. Kept
+alternative depletion/retrip, path-sag, bad-sample and reset-marker cases,
+and explicitly avoided invented numerical probabilities or treating the
+overlapping service/census subsets as independent failure-rate samples.
+Linked the report from the postmortem index and updated the remaining TODOs.
+No device commands, configuration changes or new experiments were performed;
+Skitty's existing passive observer remains active under its original deadline.
+
+## 2026-10-16 -- Ben + Codex -- repair Skitty observer and compare post-service states
+
+At Ben's request, repaired the host status-file failure with the new
+`ops/bench/usb_recovery_watch.py`: bounded snapshot retries, independent raw
+health records, exclusive evidence creation and target locking, and raw
+terminal evidence before the final optional status write. Six focused tests
+passed. Verified the failed predecessor had finished, then resumed only
+read-only telemetry for Skitty F3FD28 at 16:49 PDT with a fresh r2 evidence
+prefix and reactivated the existing heartbeat. The original 20:00:54 PDT
+deadline is unchanged. At 16:50 the logger was healthy but had no new USB
+contact; last device evidence remains 16:06, 3.031 V and PROTECT. No reset,
+fixture hold, configuration write, flash or chime occurred.
+
+Further local Codex archive review and an exact-ID historical join found
+11 of the 14 August 30 serviced perimeters in September 12's census: ten
+back in PROTECT above 3.25 V and Ditto FULL. Nine protected members retain
+low-voltage entry origins near 3.02 V; F402A8 retains a load-armed reset at
+3.261 V. This supports new entries after recorded recoveries, without
+proving false trips or a failed sunny recovery. All 11 census observations
+had no good external input. The contemporary helper-stop message at 01:11
+PDT also limits attribution of service rows continuing to 04:30. Saved the
+join and archive excerpts, and appended the distinctions to the service
+history, PROTECT investigation and Skitty autopsy reports.
+
+## 2026-10-16 -- Ben + Codex -- Skitty logger failed; natural-recovery watch paused
+
+The 16:41 heartbeat found that the fixed-target USB logger terminated at
+16:32:46 PDT. Its traceback is WinError 5 while atomically replacing the
+status JSON, and raw evidence contains the matching finished/error record.
+The logger PID is gone. Last device evidence remains 16:06, 3.031 V and
+PROTECT; neither natural release nor a stable post-release boot was captured.
+This host logging failure does not establish that charging stopped. The
+earlier missed 16:21 USB observation remains separately unresolved.
+
+Recorded the early termination in POST_BURN_SKITTY_2026-10-16.md and paused
+watch-skitty-natural-protect-recovery, preserving its other settings. No
+restart, extension, competing serial connection or fixture mutation occurred.
+Added the checkpoint-resilience follow-up to TODO; the four-hour experiment
+remains incomplete.
+
+## 2026-10-16 -- Ben + Codex -- record one missed Skitty USB observation window
+
+At 16:31 PDT the read-only logger remained fresh and alive, but no new raw
+sample followed the 16:06 declared 900-second sleep. The approximately 16:21
+window was not observed. Host port enumeration was empty and pnputil showed
+no USB-class problem device; a CIM inventory query was access-denied. Recorded
+the observation gap and uncertainty in POST_BURN_SKITTY_2026-10-16.md. Kept
+the original bounded experiment running without intervention or extension.
+
+## 2026-10-16 -- Ben + Codex -- recover August 30 perimeter USB service records
+
+Searched this laptop's compressed August Codex sessions and retained branches
+for the reported Shervin service. A 00:55 PDT August 30 user message explicitly
+describes a helper USB-flashing perimeters. Side-branch 2315ef6 preserves 14
+service results: ten exact fx-260829-b0ff5db-b updates and four existing
+reported fx-260829-af1d4ec-p images. Thirteen explicitly describe successful
+PROTECT release; Clank records replacement-battery commissioning. This is a
+strong match to the recollection, not a named Shervin or all-24-fixture proof.
+
+Verified both recovery-fix commits are ancestors of both artifact sources,
+inspected the implemented gates, and hash-verified the retained af1d4ec binary.
+Recorded the roster and evidence limits in
+docs/tests/PERIMETER_USB_SERVICE_HISTORY_2026-08-30.md, with selected session
+excerpts, historical registry rows and provenance JSON under the Oakland
+20261016-perimeter-usb-history-audit directory. Updated the investigation and
+remaining service-history TODO. No old observations were overwritten; no
+branch merged, device command sent, or Skitty capture changed.
+
+## 2026-10-16 -- Ben + Codex -- narrow Shervin service window and separate upload from guard release
+
+Ben recalls Shervin carrying this laptop for USB battery service and selective
+updates of older firmware, a day or two before opening. Official opening was
+August 30, so August 28-29 is an approximate search window. Appended this
+clarification to PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md, preserving the
+earlier reported flag clearing without treating a flash as proof of it.
+
+The August 29 Logan record explicitly shows PROTECT surviving upload and a
+configuration reboot; Eevee instead naturally released on USB before upload.
+The same window overlaps the full-battery release and premature-day-sleep
+fixes, so exact deployed revisions matter. The adjacent August 27 USB-powered
+OTA batch is not yet a match for Shervin's direct-USB service. Updated the
+open reconstruction item. Skitty's read-only logger remains running; no
+device command, configuration change or flash was performed.
+
+## 2026-10-16 -- Ben + Codex -- preserve Shervin perimeter battery-service history
+
+Ben recalls Shervin replacing every perimeter battery on a burn-week night,
+using cells roughly 40-60 percent charged and also clearing PROTECT flags.
+Poor weather followed. Recorded this recollection without treating the date,
+clearing method, charge estimate or post-service state as independently
+verified; a named contemporaneous service record was not found in the repo
+search. Requested the approximate night and clearing procedure.
+
+An effective clear excludes simple pre-swap latch carryover but still permits
+a fresh justified or inappropriate trip followed by failed recovery. Linked
+the September 1 P126 setpoint/weak-input diagnosis, September high-voltage
+PROTECT cohort, Marill's sensor-off/release proof and Skitty's currently real
+low voltage. Added the working causal history and evidence limits to
+docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md. No device change.
+
+## 2026-10-16 -- Ben + Codex -- record Skitty dark-panel orientation
+
+Ben reports Skitty's panel is upside down and receiving no light in the
+currently shady setup; asked about flipping it up, but no flip is reported.
+Recorded that context separately from pre-intake sunlight. Confirmed official
+PowerFeather documentation describes Schottky-ORed VDC/VUSB inputs: higher
+loaded voltage supplies the board, with sharing near equal voltages. A weak
+panel does not latch USB out merely because its open-circuit voltage is
+higher. No device or supply change was made; natural-recovery capture continues.
+
+## 2026-10-16 -- Ben + Codex -- qualify Skitty precharge and input-limit interpretation
+
+Decoded the retained 16:06 Skitty samples against the BQ25628E datasheet:
+REG0x1D=0x54 after charging enable sets VINDPM_STAT, with final input 4.629 V
+and configured floor 4.600 V. The charger is input-voltage limited at that
+instant; a configured 2 A charge limit is not evidence of actual 2 A charging.
+The precharge exit threshold spans 2.9-3.1 V (3.0 V typical), and CHG_STAT=1
+does not distinguish precharge from fast CC. Documented these limits in the
+Skitty report. Kept the natural-recovery experiment unchanged.
+
+## 2026-10-16 -- Ben + Codex -- Skitty second wake reaches 3.03 V
+
+The continued read-only capture caught Skitty F3FD28 at 16:06 PDT with
+3.031-3.033 V, PROTECT/stage 4 and no charger fault. It enabled charging
+after startup and returned to a declared 900-second sleep. Voltage remains
+below the 3.25 V release floor, so this does not establish an awake-current
+recovery trap. Ben observed rapid Feather LED blinking. Checked the exact
+August source: its USER LED uses a 4 Hz low-battery display, consistent with
+the captured SOC 3 and voltage below 3.15 V if that was the observed LED.
+Color was not specified; charger STAT is separate. Recorded the observation
+and wake in POST_BURN_SKITTY_2026-10-16.md. No device mutation performed.
+
+## 2026-10-16 -- Ben + Codex -- observe Skitty natural recovery and verify release gates
+
+Ben asked to keep watching Skitty F3FD28 recover while charging. Armed a
+four-hour fixed-target read-only serial continuation, with automatic handoff
+after the first-attachment capture finishes and a ten-minute thread heartbeat.
+The heartbeat stays quiet for routine progress and reports verified natural
+recovery, material problems or expiration. No reset, hold, guard clear or
+firmware/configuration write is part of this experiment.
+
+Mapped reported fx-260831-b3e2738-b to historical source 316470a and read its
+actual policy/glue. Normal release requires >=3.25 V and >=+20 mA for 60
+continuous awake seconds with good input and enabled/fault-free charger.
+An independently corroborated full/taper path requires >=3.45 V for the same
+minute. Qualifying evidence holds the fixture awake; missing evidence or a
+proof switch resets the timer. Sleep charging is not counted. Successful
+release persists OFF and reboots. Skitty's last 2.957 V clip reading remains
+below both floors. Details and evidence prefix are in
+docs/tests/POST_BURN_SKITTY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- Skitty wakes unaided through original extension
+
+The fresh-perimeter capture identified Skitty F3FD28 at 15:51 PDT, running
+fx-260831-b3e2738-b. Windows enumeration completed successfully in about
+196 ms; COM9 delivered four telemetry samples before a declared 900-second
+PROTECT sleep. No reset, cable change, protection clear or firmware write
+was issued. Saved PROTECT origin is low-vbat at 3023 mV, with a saved last
+sleep voltage of 2604 mV and current captured voltage about 2.885 V. These
+records do not establish calendar dates for the older events.
+
+Skitty confirmed 300 mA precharge readback and enabled charging before
+sleep. Ben subsequently measured 2.957 V at the clips at 15:58, up from
+about 2.7 V after connection. This supports charging but does not quantify
+capacity recovered or prove eventual guard release. Brief startup battery
+current samples are not a reliable steady-charge measurement. Added the
+specimen report and updated the first-attachment/recovery TODOs. The existing
+20-minute capture remains bounded; raw ETW is retained privately.
+See docs/tests/POST_BURN_SKITTY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- steady charger indication on unidentified perimeter
+
+Ben confirmed the red charger LED is steady, not blinking. A repeat clip
+voltage has not yet been reported. At 15:44:24 PDT the original ETW/serial
+capture still had no enumeration event or serial port. The steady indication
+is consistent with charger-reported charging, not a measurement of current
+or proof of voltage recovery. Kept the connection untouched; the capture
+remains armed through a possible 15-minute PROTECT sleep interval.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter has low measured battery voltage
+
+Ben reports only the red charger LED lit, no Windows connection sound, and
+approximately 2.7 V measured across the battery clips after USB connection.
+Recorded this in the fresh-perimeter observations JSONL. This is a physical
+voltage measurement, not a gauge estimate; unit identity and firmware remain
+unknown. If its firmware matches the September fleet build, that voltage is
+below the 3.05 V PROTECT floor and a 900-second sleep is plausible. This does
+not establish its actual guard state or diagnose the absent USB path.
+Kept the original connection/capture intact and requested steady/blinking LED
+state plus a repeat clip voltage. Prior sunlight does not establish how much
+charge was gained or lost. No load, reset or protection-clear command issued.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter initial connection still absent
+
+Ben connected the sun-exposed fresh perimeter after the 15:40:53 PDT ETW
+start. Through 15:42:53, the serial watcher still records no COM ports and
+the USBHUB3 trace has no enumeration start/completion/retry/failure event.
+Read-only PnP inspection also found no present Espressif or failed USB device.
+ETW rundown events confirm the trace is functioning. No reset, cable change,
+profile command or guard clear was requested. Identity remains unknown;
+awaiting Ben's LED-state and connection-sound observations. The bounded
+capture remains active. Supplemental observation record:
+Oakland/20261016T224053Z-fresh-perimeter-observations.jsonl.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter USB capture armed
+
+The first Windows elevation request was canceled. On Ben's retry request,
+UAC launch succeeded and FreshPerimeterUSB-20261016T224053Z began at 15:40:53
+PDT, before the new perimeter was connected. Confirmed the ETL exists and
+the independent serial log records an empty port list. Prior sunlight is
+recorded; new device identity is still unknown. The capture has a 20-minute
+bound, reads only t telemetry once a unique non-Daisy fixture enumerates,
+and can be ended through its private-directory stop.requested marker.
+Evidence: Oakland/20261016T224053Z-fresh-perimeter-usb.jsonl; raw ETW remains
+in the matching private-backups directory. Ben can now connect the existing
+enclosure extension using the same laptop cable/port without pressing buttons.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter first-attachment capture prepared
+
+Ben has another sun-exposed perimeter still disconnected from USB. Prepared
+a new exclusive Windows USB ETW and no-reset serial capture, excluding Daisy
+from automatic target selection, with a 20-minute bound and explicit stop
+marker. The Windows administrator launch is pending approval; no capture
+start has yet been confirmed and Ben was asked to keep the unit unplugged.
+Do not treat the prepared watcher as an acquired first-attachment trace.
+
+## 2026-10-16 -- Ben + Codex -- Daisy USB event baseline passes three wakes
+
+Captured Windows USBHUB3/UCX/USBXHCI events and read-only Daisy F40308
+telemetry for three normal wake/sleep windows with the cable chain unchanged.
+Windows UAC elevation was needed for ETW. All three enumerations succeeded
+in about 197 ms, with no recorded retry/failure/descriptor-validation event.
+Twenty-nine telemetry samples remained FULL, BQ fault zero, with healthy
+sensors; two fully observed USB-absent intervals were 120.035 and 119.956 s.
+Both captures closed automatically after the third sleep. No device reset,
+profile write, USB recovery or device awake hold was performed.
+
+This supplies a healthy established-connection baseline, not a reproduction
+of the first-attachment problem. Ben's recollection that the failures happen
+before a good connection is consistent with this run. Next useful intake:
+arm ETW before a fresh sun-exposed perimeter's first attachment. Raw host-wide
+ETL/topology remain private; public summaries and exact trace hash are linked
+from POST_BURN_DAISY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- USB recovery options beyond replugging
+
+Reviewed documented Windows recovery options without operating on Daisy:
+PnP rescan/exact-device restart, and administrator hub-port cycle via
+IOCTL_USB_HUB_CYCLE_PORT. Microsoft describes cycle-port as software removal
+and re-enumeration, not a guaranteed electrical disconnect. These mechanisms
+do not substitute for waking an ESP whose USB peripheral is off in deep sleep.
+Daisy's chained-extension trace already showed natural enumeration 89 seconds
+after capture started. Proposed next qualification pairs exact hub/port mapping
+and USB ETW enumeration events with bounded service-hold work; no new helper,
+firmware, device reset or profile change was implemented in this discussion.
+References: Microsoft Learn PnPUtil command syntax, How to recover from USB
+pipe errors, and Debugging USB device issues by using ETW events.
+
+## 2026-10-16 -- Ben + Codex -- Daisy works through chained extensions
+
+Ben added two daisy-chained extensions, one brand-new and one previously
+deemed faulty, to Daisy F40308's connection. A passive discovery/read-only
+telemetry capture initially saw no COM port, then COM8 returned naturally.
+Twenty telemetry records confirmed exact identity, original September firmware,
+FULL/guard 1, and reset_reason=deepsleep with last_sleep=day-charge/120 seconds.
+No reset, cable change, profile write or awake hold was requested during this
+capture. The assembled path carries data in this configuration; this does not
+qualify every orientation or establish the earlier suspect cable's failure
+mechanism. Evidence: Oakland/20261016T222149Z-F40308-extension-chain.jsonl.
+
+## 2026-10-16 -- Ben + Codex -- distinguish ship wake from USB service wake
+
+Reviewed Daisy's exact September source and manifest against the captured
+reset/replug sequence. Good solar or USB input should end BQ ship storage;
+subsequent FIELD timer sleep has timer/USER wake, not USB-power wake. A powered
+RESET should initialize USB even in PROTECT, with 30 seconds of PROTECT grace
+versus ten minutes of ordinary cold-boot lifecycle grace. Correct ROM entry
+bypasses both application sleep and PROTECT. Thus sleep can explain initial
+silence but not the complete reset/ROM/replug sequence by itself. The host,
+USB peripheral and physical-path cause remains unisolated; the original
+extension passed its later data comparison. Added the reasoning and platform
+references to Daisy's autopsy, and queued a controlled wake/enumeration test.
+No additional device commands, resets or configuration changes were issued.
 
 ## 2026-10-16 -- Ben + Codex -- Daisy original extension passes; natural recovery
 
@@ -17193,6 +17676,22 @@ Next concrete steps for Ben + Steve:
 
 Switching to Claude Code for daily firmware/hardware iteration. Cowork retains read access to this repo via GitHub for project management and review.
 
+### 2026-10-16 18:13 PDT - Skitty visual wake
+
+Ben observed another Skitty wake. Existing logger status was fresh at 18:13:49
+but still had no USB samples; retained the natural-recovery experiment without
+intervention. See the Skitty post-burn report; no release claim is made.
+
+### 2026-10-16 18:16 PDT - Skitty natural recovery confirmed
+
+Passive T-Deck output, with zero transmitted serial commands, confirms Skitty
+F3FD28 on unchanged firmware is now DIM/DAY_CHARGE, 3.277..3.279 V and +267..276
+mA. Five fresh reports place its software boot near 18:07:28 PDT and show more
+than eight minutes of stable non-PROTECT operation. Release itself fell in the
+observation gap. Stopped the USB observer with its normal stop file (finished
+18:16:42) and paused the heartbeat. See POST_BURN_SKITTY_2026-10-16.md and the
+011607Z passive-radio evidence. No Skitty reset, configuration, or flash.
+
 ## 2026-10-16 -- Daisy USB service and bounded voltage recovery qualified
 
 Implemented ADR 0087: exact-target USB service preparation verifies loads off
@@ -17220,3 +17719,13 @@ natural recovery to DIM / DAY_CHARGE on the old firmware, with a software
 boot near 18:07:28 PDT; the release itself was in the observation gap. The
 USB observer stopped normally and its heartbeat was paused. Raw evidence:
 Oakland/20261017T011607Z-F3FD28-natural-recovery-confirmed.json.
+
+## 2026-10-17 -- Preserve perimeter investigation and recovery evidence
+
+Publish the remaining October 16 perimeter postmortem, historical USB-service
+audit, Daisy/Marill observations, and Skitty natural-recovery record. Retain
+raw observations and the failed/replacement logger runs. Skitty recovered
+naturally on unchanged firmware; the release transition was in the observation
+gap. The logger is stopped and its heartbeat paused. The repair keeps raw
+JSONL alive through status-file replacement failures; all six focused tests
+pass. No fixture was accessed or changed during this publication.

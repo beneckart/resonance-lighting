@@ -2,6 +2,16 @@
 
 Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in parens.
 
+- [ ] **Guard-aware USB service and bounded DIM/OFF recovery:** Daisy's
+  October 16 intentional ROM service boot consumed the FULL -> DIM retry
+  because the saved load-armed marker was set. She recovered after about
+  73 s from boot (60 s voltage qualification). Add an acknowledged
+  loads-off preparation before planned ROM entry without clearing existing
+  PROTECT or weakening true collapse handling. Separately cover DIM/OFF
+  recovery across 12 s daytime wakes: RAM-only 60 s confirmation can restart
+  before completion. Test repeated service resets and bounded sleep/recovery
+  behavior before fleet deployment. See BENPHONE_OTA_DAISY_2026-10-16.md.
+
 - [x] **Marill squad command/listening canary (ADR 0086):** nine individual
   bells then scheduled group strike passed on 2026-10-15 with the paced-TX
   replacement. All nine READY, zero TX errors/restarts; Ben heard the
@@ -21,6 +31,13 @@ Active punch list. Status: `[ ]` open, `[~]` in progress, `[x]` done. Owner in p
   shade; compare deeper shade at fixed geometry. No-return currently counts
   toward the clear interval, so test a stationary hand near that range edge.
   Keep bounded sessions and PROTECT recovery. (Ben + Codex)
+
+- [ ] **Fallback dusk evidence across daytime sleep:** when no valid schedule
+  or explicit night override is available, the 1800 s no-input confirmation
+  resets across 12 s wakes (and exceeds the 600 s cold-boot grace). Design
+  bounded observations across sleep without assuming darkness during
+  unobserved intervals. Found during Daisy ADR 0087 timer audit; separate
+  from the DIM/OFF recovery fix. (Ben + Codex)
 
 ## 2027 planning -- exploration, no implementation yet
 
@@ -48,6 +65,89 @@ Operational reference: [storage and wake](docs/howto/FIXTURE_STORAGE_AND_WAKE.md
   `docs/projects/2027-power-platform/EXPLORATION.md` (Ben/Codex).
 
 ## Immediate documentation / repo hygiene
+
+- [ ] Qualify OTA on one exact current decompression image before a rollout.
+  October 16 pull confirms all nine canopies were USB-flashed to d572656
+  (source ffa4e1e, recorded SHA-256 fcda081f...82223bd); their registry flags
+  remain ota_verified=false. OTA code is intact. Obtain the exact binary and
+  manifest from Brian and verify the configured maintenance network; his
+  Android-hotspot provisioning/rehearsal is still pending. Current Marill
+  OTA support is source-confirmed but its latest canary was USB-flashed.
+  Daisy F40308 passed a separate BenPhone/T-Deck perimeter canary on October 16
+  (abe3c6e, app1 VALID); this proves the hotspot path, not the canopy artifact.
+  Keep Skitty's ongoing passive recovery test out of maintenance commands. See
+  `docs/howto/MARILL_SQUAD_TRIGGER.md`. (Ben + Brian)
+
+- [ ] Complete Shervin's burn-week perimeter service roster and identify
+  the PROTECT-clearing procedure and remaining fresh post-service
+  state. Ben recalls every perimeter serviced with roughly 40-60 percent
+  charged cells and flags cleared. Match later entry/recovery records to
+  that boundary; do not assume pre-swap latch carryover or a calibrated SOC.
+  See PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md, October 16 addendum.
+  Follow-up recollection: carried-laptop USB service with selective updates
+  of older firmware, approximately August 28-29. Identify actual revisions
+  and guard-release evidence; ordinary uploads could retain PROTECT, while
+  USB charging could naturally clear it. Do not conflate this walk with the
+  August 27 USB-powered OTA batch.
+  Archive audit found an early-August-30 match: helper mentioned at 00:55 PDT;
+  14 service-result rows preserved in side-branch 2315ef6, ten b0ff5db updates
+  plus four existing reported af1d4ec images. Both contain both recovery fixes;
+  13 guarded releases and Clank's replacement-battery commissioning recorded.
+  Remaining: complete the all-perimeter roster and match later entries
+  to these service boundaries. Skitty/Marill/Daisy are absent from the subset.
+  See PERIMETER_USB_SERVICE_HISTORY_2026-08-30.md for provenance and limits.
+  Ben explicitly confirms Shervin worked until 04:30 a.m.; the 01:11 helper
+  chat is a coordination snapshot, not the end of that service night.
+  The September 12 exact-ID join finds 11 members: ten back
+  in PROTECT (nine low-voltage origins, one load-armed reset) and one FULL.
+  All had no good external input then; sunny recovery remains unproven.
+
+- [ ] Distinguish perimeter energy shortage from avoidable PROTECT recovery
+  delay using the tests in `docs/postmortem/PERIMETER_FAILURES_2026.md`:
+  preserve an exact old image, measure full sleep/wake battery charge and
+  each release gate, then compare cell and board voltage during staged load.
+  Keep the current passive Skitty experiment unchanged. The five-case
+  assessment uses ordinal likelihoods; the selected snapshots do not support
+  calibrated probabilities or a whole-fleet failure rate. (Ben + Codex)
+
+- [x] Daisy F40308 established-connection USB event baseline: three natural
+  wake windows, three successful Windows enumerations (~197 ms each), zero
+  recorded enumeration retries/failures, 29 FULL telemetry samples. Both
+  complete COM-absent intervals were ~120 s. Cable chain unchanged; ETW and
+  serial capture closed. See POST_BURN_DAISY_2026-10-16.md.
+- [x] Capture a fresh sun-exposed perimeter's first USB attachment with ETW
+  already armed, before resetting or changing connectors. Skitty F3FD28 woke
+  at 15:51 PDT on 2026-10-16, enumerated successfully through its existing
+  extension, reported PROTECT and 2.885 V, then slept 900 s. No intervention
+  was needed. This also did not reproduce Daisy's initial-enumeration fault.
+  See `docs/tests/POST_BURN_SKITTY_2026-10-16.md`.
+- [x] Follow Skitty F3FD28's low-battery recovery before modifying firmware:
+  initial clips about 2.7 V, then 2.957 V at 15:58 PDT; 300 mA precharge
+  readback and charger enable confirmed. Measure subsequent voltage/state
+  and natural PROTECT release; exact steady charging current, physical cell
+  capacity and cause of depletion despite prior sunlight remain unknown.
+  October 16 run ended early: checkpoint file replacement failed with
+  WinError 5 at 16:32 PDT; heartbeat paused. Last sample 16:06, 3.031 V and
+  PROTECT; no release proof captured. Before a separately authorized new
+  run, tolerate bounded transient status-file replacement failures while
+  preserving the raw log and test the checkpoint failure path. Preserve
+  this failed run and investigate its earlier missed USB wake separately.
+  Authorized repair/resume completed at 16:49 PDT: six focused tests pass,
+  raw health survives snapshot failures, fresh r2 log and heartbeat active.
+  Original 20:00:54 PDT deadline retained. Later passive radio evidence
+  confirmed stable natural recovery at 18:16 PDT; observer stopped and
+  heartbeat paused. The release transition itself was not captured.
+- [ ] Qualify ship -> solar wake -> FIELD sleep -> USB attachment separately
+  from RESET/ROM USB enumeration on Daisy F40308. Preserve the current autopsy;
+  record processor wake evidence and Windows USB events in the same timeline,
+  with a proven physical path. The original extension passed after a laptop
+  replug; initial silence alone did not isolate a failed extension or PROTECT.
+  Use the result to specify bounded USB service wake/hold; September storage
+  wake alone does not provide that contract. See POST_BURN_DAISY_2026-10-16.md.
+  Qualify exact-device PnP restart and correctly mapped hub-port cycle as
+  alternatives to physical reconnect; capture USB ETW enumeration events to
+  distinguish no attachment from descriptor/start failure. Do not treat a
+  logical port cycle as a guaranteed electrical power cut or deep-sleep wake.
 
 - [ ] Follow up Daisy F40308's saved crash region and physical cell capacity.
   Original extension passed a 64 KiB comparison and application telemetry;
@@ -3790,7 +3890,18 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   same artifact over WiFi -> verify the ADR 0040 completion contract. Open:
   the radio sender for ENTER_MAINT once lanterns are hung (Ben's T-Deck bridge,
   a USB ESP32 dongle for the tone lab, or an Atom extension) (Brian + Ben).
+  October 16 update: BenPhone profile is shared; T-Deck targeted radio entry
+  and BenPhone OTA passed on Daisy F40308 with abe3c6e (ordinary perimeter).
+  The nine canopies still need credential bootstrap and a canopy-specific
+  canary using the retained bfb3ab9 image; do not substitute the Daisy image.
 
+### 2026-10-16 recovery qualification follow-up
+
+- [x] Observe Skitty's natural PROTECT recovery without intervention: five fresh
+  passive T-Deck reports on October 16 confirmed DIM / DAY_CHARGE, unchanged
+  firmware, healthy charging and a stable software boot near 18:07:28 PDT.
+  The release transition fell in the USB observation gap. Logger stopped and
+  heartbeat paused; source evidence is in POST_BURN_SKITTY_2026-10-16.md.
 ### 2026-10-16 Daisy recovery qualification
 
 - [x] Fix and qualify planned USB service resets and interrupted DIM/OFF

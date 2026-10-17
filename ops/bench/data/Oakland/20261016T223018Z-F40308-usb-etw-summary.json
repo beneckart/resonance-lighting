@@ -1,0 +1,52 @@
+{
+  "trace_sha256": "ef48e6f0cc32d209c6cd7ce86e3e4c1b729fb3afd4ad7fdfbcc921bb98623d3c",
+  "total_filtered_provider_events": 7010,
+  "provider_counts": [
+    {
+      "count": 1,
+      "provider": ""
+    },
+    {
+      "count": 3781,
+      "provider": "Microsoft-Windows-USB-USBHUB3"
+    },
+    {
+      "count": 2712,
+      "provider": "Microsoft-Windows-USB-UCX"
+    },
+    {
+      "count": 516,
+      "provider": "Microsoft-Windows-USB-USBXHCI"
+    }
+  ],
+  "enumeration_starts": 3,
+  "enumeration_completions": 3,
+  "enumeration_retries": 0,
+  "enumeration_failures": 0,
+  "descriptor_validation_failures": 0,
+  "target": "68:EE:8F:F4:03:08",
+  "trace_private_path": "ops\\bench\\private-backups\\20261016T223018Z-F40308-usb-cycles\\usb.etl",
+  "enumerations": [
+    {
+      "start_utc": "2026-10-16T22:30:22.6505926Z",
+      "end_utc": "2026-10-16T22:30:22.8480136Z",
+      "duration_ms": 197.421,
+      "port": 1,
+      "ntstatus": "0"
+    },
+    {
+      "start_utc": "2026-10-16T22:32:44.3925748Z",
+      "end_utc": "2026-10-16T22:32:44.5902487Z",
+      "duration_ms": 197.674,
+      "port": 1,
+      "ntstatus": "0"
+    },
+    {
+      "start_utc": "2026-10-16T22:35:05.9573589Z",
+      "end_utc": "2026-10-16T22:35:06.1545512Z",
+      "duration_ms": 197.193,
+      "port": 1,
+      "ntstatus": "0"
+    }
+  ]
+}
