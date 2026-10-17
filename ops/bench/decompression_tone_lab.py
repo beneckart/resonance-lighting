@@ -1438,6 +1438,10 @@ def interaction_runner(rule, p):
                 src_status = "simulated"
             else:
                 dist, src_status, near_who = source_reading(members)
+            if dist is not None and float(dist) > far:
+                # "When someone is between far and near": anything farther counts as
+                # nobody, so a flickering background past the far line can't start it.
+                dist, src_status = None, "beyond far"
             if dist is not None:
                 last_seen = now
                 x = shape((far - float(dist)) / max(1.0, far - near), rule.get("curve", "linear"))
