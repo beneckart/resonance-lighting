@@ -18113,3 +18113,36 @@ tdeck_mode true. The 460800-baud attempt failed before writing; 115200 worked.
 Old-app backups were not retaken (they failed repeatedly on these Atoms
 before); the previous apps rebuild from 7ac2e0c / c659841. Brian confirmed
 one press on each of the three Atoms plays Freakout Mode.
+
+## 2026-10-17 -- Event fixes: lantern frame dings, Freakout reach/timing, jackpot
+
+Operator: Brian (with Claude), on site. All builds from the clean worktree with
+Ben's BenPhone event command plus --protect-recovery-all.
+
+- Leeloo false dings: on USB, zone 7 of its TMF8820 saw its own frame at
+  180-185 mm (confidence 80-107), dropping in and out; zones with no learned
+  background treated each return as a person (60 dings in ~6 min, nobody
+  under it). 0739804 ignores returns under 300 mm (native test reproduces the
+  bug on the old 80 mm floor). Leeloo's other zones were nearly blind until
+  Brian blew dust off the sensor; afterwards hands at 0.5-1 m dinged it.
+- Freakout reached only Leeloo since 7778314: 2-copy strikes were queued with
+  a zeroed command, so remote strikes went to 00:00:00 (cb68f5d). Then the
+  queue managed one send per loop pass and played in clumps (ea32954: burst
+  per step like the T-Deck strike round; cb7ac38: one step per pass,
+  re-anchor after a stall, log lateness). Brian still heard it as slightly
+  chunky before the last change; not yet re-checked on USB.
+- Jackpot: perimeters on USB showed every sensor detecting, but hands flicker
+  out of the 50-400 mm near band (worse in sun), so a simultaneous 1.5 s hold
+  never lined up. 3e63be8 gives perimeter holds 600 ms grace; cc6629c (Brian's
+  call) fires Freakout x2 when all four perimeters report any approach or hold
+  within 1.5 s (8 s rearm). Worked at 15:57:32 with all four covered, no TX
+  failures. 2919b57 logs holds on the trigger lantern for tests.
+- Atoms (7797343, earlier entry) and all three confirmed on Freakout.
+
+Installed: Leeloo F40254 fx-261017-b447d06-b (OTA via T-Deck 979604 over
+BenPhone); perimeters Marill F40348, Daisy F40308, Zubat F401DC, Skitty F3FD28
+fx-261017-caa242d-b (USB, prepared service, private backups under
+ops/bench/private-backups/); other eight canopies stay on fx-261017-7778314-b
+(they lack only the 300 mm floor). Skitty was briefly put in maintenance by a
+mis-targeted gather (the T-Deck had moved ports) and resumed with /resume; the
+OTA script now requires the T-Deck boot banner before sending.
