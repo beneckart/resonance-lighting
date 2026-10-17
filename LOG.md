@@ -36,6 +36,14 @@ relay write gate. No Arduino build or hardware test was performed.
 Skitty's observer and passive Windows trace files/processes were left in
 place. No serial port, maintenance command, reset or firmware write was used.
 
+## 2026-10-17 -- Brian + Claude -- Chime lighting on all nine lanterns
+
+After the Leeloo preview, flashed `fx-261017-e997cbf-b` to the other eight
+(Ness, Sakura, Rikku, Eevee, Pinsir, Lucas, Bidoof, Tangela) with the same
+identity-gated app-only procedure: private backup each, write + verify, prefix
+unchanged, decompression active after boot. All nine lanterns now run the chime
+lighting. Per-lantern evidence: `ops/bench/data/Brian bench/*-flash.jsonl`.
+
 ## 2026-10-17 -- Brian + Claude -- Chime lighting preview on Leeloo
 
 Decompression builds now light with the chimes (core/chime_light, 082b667):
