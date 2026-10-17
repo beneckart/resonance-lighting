@@ -1,0 +1,1 @@
+{"node": "Rikku", "ip": "10.53.247.126", "event": "ota", "ts_utc": "2026-10-17T21:28:54.604315+00:00", "uptime_pre_ms": 3525330, "t_ack_s": 8.93, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "Event OTA round 2 to fx-261017-7778314-b, sequential"}

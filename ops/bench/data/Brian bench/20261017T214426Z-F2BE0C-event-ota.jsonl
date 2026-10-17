@@ -1,0 +1,1 @@
+{"node": "Sakura", "ip": "10.53.247.161", "event": "ota", "ts_utc": "2026-10-17T21:44:26.290576+00:00", "uptime_pre_ms": 639362, "t_ack_s": 15.72, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "Event OTA round 2 to fx-261017-7778314-b, sequential"}

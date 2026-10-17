@@ -1,0 +1,1 @@
+{"node": "Daisy", "ip": "10.53.247.228", "event": "ota", "ts_utc": "2026-10-17T21:26:05.271614+00:00", "uptime_pre_ms": 3378587, "error": "update: <urlopen error [Errno 32] Broken pipe>", "recovered": false, "button_press_required": true, "verified": null, "notes": "Event OTA round 2 to fx-261017-7778314-b, sequential"}

@@ -1,0 +1,1 @@
+{"node": "Lucas", "ip": "10.53.247.6", "event": "ota", "ts_utc": "2026-10-17T21:28:32.952055+00:00", "uptime_pre_ms": null, "pre_error": "<urlopen error timed out>", "error": "update: <urlopen error [Errno 60] Operation timed out>", "recovered": false, "button_press_required": true, "verified": null, "notes": "Event OTA round 2 to fx-261017-7778314-b, sequential"}

@@ -18081,3 +18081,35 @@ No reset, flash, chime or radio command was sent by Codex; only local bridge
 status queries. Queued the Wake UI/firmware semantic mismatch and preserved
 raw evidence in docs/tests/LOOM_WAKE_2026-10-17.md. Audio and final placement
 are separate from this awake/radio verification.
+
+## 2026-10-17 -- Event OTA of decompression mode to all 13; Atoms T-Deck by default
+
+Operator: Brian (with Claude), on site, laptop on BenPhone, T-Deck 979604 as
+the maintenance gather radio. Installed fx-261017-7778314-b (source 9f4d5f5,
+recipe 77783143...89f83bcf, app SHA-256 fd3dd63a...fa7b32e; Ben's BenPhone
+event command plus --protect-recovery-all) over WiFi on all nine canopies and
+four perimeters, from fx-261017-e39594d-b. The image adds decompression mode
+(mode 4, now default: perimeter approaches advance one lantern up the scale,
+then all nine; a lantern's own sensor dings it), four-perimeter 1.5 s hold =
+Freakout Mode x2, and Leeloo answering any Atom press with Freakout Mode x2.
+
+Rounds were sequential (`net_bench_ota.py`, ready-timeout 3) because parallel
+uploads broke pipes and long ready waits outlasted maintenance windows.
+Interrupted uploads left the old slot and answered HTTP 500 until `/resume`.
+Every target returned an OTA ack on the new image; Daisy and Sakura needed
+several rounds after moving closer to the hotspot. Raw evidence:
+ops/bench/data/Brian bench/20261017T21*-event-ota*.jsonl. Rejoin to the mesh
+was confirmed by the Atoms, which heard all nine canopies reporting
+fx-261017-7778314-b.
+
+Atoms: the "Shave and a Haircut" heard on presses was each lantern's local
+7-hit signature, because the Atoms were in normal mode. The power-up 2 s hold
+toggles T-Deck mode, so holding an Atom that was already in T-Deck mode turned
+it off. Set `tdeck 1` over USB on 1B636C, 187BA4 and 1B5D88, then removed the
+hold toggle and made T-Deck mode the default (7797343). Built atom-decomp-7797343
+(app SHA-256 ccf6bb11...72ac886f) in the clean worktree and wrote app0 only
+(NVS kept) on all three; esptool verified each hash, and each booted with
+tdeck_mode true. The 460800-baud attempt failed before writing; 115200 worked.
+Old-app backups were not retaken (they failed repeatedly on these Atoms
+before); the previous apps rebuild from 7ac2e0c / c659841. Brian confirmed
+one press on each of the three Atoms plays Freakout Mode.
