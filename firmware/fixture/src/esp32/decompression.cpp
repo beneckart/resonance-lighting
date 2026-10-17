@@ -52,7 +52,7 @@ static uint32_t gLastDingMs = 0, gPartnerDueMs = 0;
 static bool gPartnerPending = false;
 static uint8_t gPartnerCopies = 0;  // copies of the partner strike still to send
 
-uint8_t decompressionEventMode() { return gCfg.eventMode == 2 ? 2 : 1; }
+uint8_t decompressionEventMode() { return (gCfg.eventMode >= 1 && gCfg.eventMode <= 3) ? gCfg.eventMode : 1; }
 
 // Event image (RES_SQUAD_TRIGGER_ANY): every lantern keeps itself awake in either
 // mode, so nothing depends on a perimeter. Otherwise mode 2 keeps a sensing
@@ -61,6 +61,9 @@ uint8_t decompressionEventMode() { return gCfg.eventMode == 2 ? 2 : 1; }
 #define RES_SQUAD_TRIGGER_ANY 0
 #endif
 static bool dingsKeepAwake() {
+  // Stay up just long enough to show a mode change (travel's red flash, then sleep).
+  if (gModeFlashUntil && (int32_t)(millis() - gModeFlashUntil) < 0) return true;
+  if (decompressionEventMode() == NB_MODE_TRAVEL) return false;  // packed: normal sleep
   if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT || !decompressionPowerReady()) return false;
   if (RES_SQUAD_TRIGGER_ANY) return true;
   return decompressionEventMode() == NB_MODE_LANTERN_DINGS && sensors().tmfPresent;
@@ -133,14 +136,16 @@ void decompressionOnEventMode(const NbEventMode &m) {
     gModeFlashUntil = millis() + MODE_FLASH_MS;
     gDingGateInit = false;  // relearn the background in the new mode
     gPartnerPending = false;
-    Serial.printf("event mode -> %s\n", m.mode == 2 ? "lantern dings" : "perimeter cycle");
+    Serial.printf("event mode -> %s\n", m.mode == 3 ? "travel" : m.mode == 2 ? "lantern dings" : "perimeter cycle");
   }
 }
 
 bool decompressionModeFlash(uint32_t nowMs, uint8_t rgb[3]) {
   if (!gModeFlashUntil || (int32_t)(nowMs - gModeFlashUntil) >= 0) return false;
-  bool dings = decompressionEventMode() == NB_MODE_LANTERN_DINGS;
-  rgb[0] = 0; rgb[1] = dings ? 160 : 0; rgb[2] = dings ? 0 : 160;  // green = dings, blue = cycle
+  uint8_t mode = decompressionEventMode();
+  rgb[0] = mode == NB_MODE_TRAVEL ? 160 : 0;          // red = travel
+  rgb[1] = mode == NB_MODE_LANTERN_DINGS ? 160 : 0;   // green = dings
+  rgb[2] = mode == NB_MODE_PERIMETER_CYCLE ? 160 : 0; // blue = cycle
   return true;
 }
 
@@ -168,7 +173,7 @@ void decompressionDingTick(uint32_t nowMs) {
   cycleSendTick(nowMs);
   if (gTelemetryFixtureClass != FIXTURE_DOWNLIGHT) return;
   bool dings = decompressionEventMode() == NB_MODE_LANTERN_DINGS;
-  bool trigger = !dings && isTriggerLantern();
+  bool trigger = decompressionEventMode() == NB_MODE_PERIMETER_CYCLE && isTriggerLantern();
   if (!dings && !trigger) return;
   const SensorSnapshot &sn = sensors();
   if (!sn.tmfPresent || !sn.tmfOk) return;
