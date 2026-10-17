@@ -281,7 +281,9 @@ void tonelabSetMode(uint8_t mode) {
   if (mode < 1 || mode > 3) return;
   gMode = mode;
   gPrefs.putUChar("mode", mode);
-  gModeResendUntil = millis() + 60000;
+  // Fixtures in travel (or any timer sleep) wake every 120 s and listen ~12 s:
+  // resend for 3 minutes so every one sees the command on its next wake.
+  gModeResendUntil = millis() + 180000;
   gModeNextMs = 0;
   setLast(mode == 3 ? "mode: travel" : mode == 2 ? "mode: lantern dings" : "mode: perimeter cycle");
   if (mode == 3 && gAwake) {  // packed up: stop renewing leases so lanterns can sleep
