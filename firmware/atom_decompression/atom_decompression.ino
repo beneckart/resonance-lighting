@@ -53,7 +53,6 @@ static bool radioReady = false, enabled = true, havePlayed = false;
 // Toggle by holding the button for 2 s while powering up (or USB "tdeck 0|1").
 // Persisted. Leases to the lanterns continue in both modes.
 static bool tdeckMode = false;
-static Preferences prefs;
 static constexpr uint8_t CORNERS[4] = {0,4,20,24};
 static volatile uint32_t rxDropped = 0;
 
@@ -155,8 +154,24 @@ static uint32_t sendSelfPlay() {
   return seq;
 }
 static void setTdeckMode(bool on) {
+  // Open a fresh handle for each operation: radio initialization must not leave
+  // mode changes depending on a long-lived settings handle. Verify through a
+  // second handle before acknowledging a persistent mode change.
+  Preferences prefs;
+  if (!prefs.begin("atomdecomp",false)) {
+    Serial.println("tdeck error: cannot open settings");
+    return;
+  }
+  size_t saved=prefs.putBool("tdeck",on);
+  prefs.end();
+  bool reopened=prefs.begin("atomdecomp",true);
+  bool verified=reopened && prefs.isKey("tdeck") && prefs.getBool("tdeck",!on)==on;
+  prefs.end();
+  if (saved!=1 || !verified) {
+    Serial.printf("tdeck error: save failed bytes=%u verified=%u\n",(unsigned)saved,(unsigned)verified);
+    return;
+  }
   tdeckMode=on;
-  prefs.putBool("tdeck",on);
   Serial.printf("tdeck mode %s\n",on?"ON: clicks go to the T-Deck, lanterns ignore them":"off: clicks play the lanterns' signature");
 }
 static void play(bool fromButton) {
@@ -251,8 +266,13 @@ void setup() {
   Serial.begin(115200); delay(300);
   pixels.begin(); pixels.setBrightness(40);
   pinMode(BUTTON_PIN,INPUT); button.begin(digitalRead(BUTTON_PIN)==HIGH,millis());
-  prefs.begin("atomdecomp",false);
-  tdeckMode=prefs.getBool("tdeck",false);
+  {
+    Preferences prefs;
+    if (prefs.begin("atomdecomp",true)) {
+      tdeckMode=prefs.getBool("tdeck",false);
+      prefs.end();
+    }
+  }
   if (digitalRead(BUTTON_PIN)==LOW) {
     // Held at power-up: 2 s toggles T-Deck mode. The button is not armed until it
     // is released (DecompressionButton::begin), so this never sends a click.
