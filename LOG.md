@@ -173,6 +173,63 @@ relay write gate. No Arduino build or hardware test was performed.
 Skitty's observer and passive Windows trace files/processes were left in
 place. No serial port, maintenance command, reset or firmware write was used.
 
+## 2026-10-17 -- Brian + Claude -- Event basic mode on Zubat
+
+Basic mode for the event, built on Ben's squad trigger (435e1ef): any perimeter
+in the image is the trigger (`--squad-trigger-any-perimeter`); each approach
+(5..40 cm, rearm past 60 cm) fires the next step: rising pitch two lanterns at
+a time (lower, then higher +400 ms), then the top lantern alone, then all nine
+together; repeat. Pulses and pitch order come from the Tone Lab tone map via
+ops/bench/gen_squad_roster.py -> core/squad_roster.h; lanterns' local signature
+now uses their own roster pulse. The session starts by itself and renews while
+power allows; ready-only firing so one missing lantern cannot stall the cycle.
+
+Artifact `fx-261017-a3b81c6-b` (SHA-256 30df76d9...3833c7cf), built in the
+clean worktree. Flashed to Zubat `F401DC` (from 4860c14, backup
+20261017T061753Z-F401DC). Boot: trigger_enabled, auto session 3591 s, all nine
+ready (mask 511), presence armed, VL53L5CX present. Lanterns still on e997cbf
+(accept the trigger's strikes/leases); reflash for the tuned signature follows.
+
+## 2026-10-17 -- Brian + Claude -- Zubat moves to the decompression build
+
+Perimeter lights now drift through colours in decompression builds too (37 px,
+about a third of the downlight level, no white, no flashes: no chime; f7f6b6b).
+Artifact `fx-261017-4860c14-b` (SHA-256 ea4e9362...511416b), same recipe as
+e997cbf plus that change, built in a clean detached worktree because the running
+Tone Lab autosaves into the main checkout mid-build.
+
+Zubat `F401DC` went from the field image `fx-260912-f951ae9-b` to
+`fx-261017-4860c14-b` (app0, identity-gated; that artifact is not on this
+laptop, so the whole running slot was saved privately with the 64 KiB prefix and
+coredump: 20261017T055255Z-F401DC; coredump was not blank). After boot:
+decompression active, VL53L5CX reporting, USB keep-awake works like the
+lanterns. Its NVS profile is still COMMISSION (irrelevant to the decompression
+behaviour); restore the field image + `F1` before any field install as a normal
+perimeter. Lanterns stay on e997cbf (identical for downlights).
+
+## 2026-10-17 -- Brian + Claude -- Chime lighting on all nine lanterns
+
+After the Leeloo preview, flashed `fx-261017-e997cbf-b` to the other eight
+(Ness, Sakura, Rikku, Eevee, Pinsir, Lucas, Bidoof, Tangela) with the same
+identity-gated app-only procedure: private backup each, write + verify, prefix
+unchanged, decompression active after boot. All nine lanterns now run the chime
+lighting. Per-lantern evidence: `ops/bench/data/Brian bench/*-flash.jsonl`.
+
+## 2026-10-17 -- Brian + Claude -- Chime lighting preview on Leeloo
+
+Decompression builds now light with the chimes (core/chime_light, 082b667):
+slow colour drift (one turn/min, per-lantern starting hue from the id); every
+solenoid strike flashes (white pop on RGBW heads) and jumps the colour ~1/3
+turn. Perimeter boards keep the quiet idle frame; the power cap still applies.
+
+Artifact `fx-261017-e997cbf-b` (SHA-256 f50a4f0d...ae9f24), same recipe as
+fx-261016-d572656-b plus the lighting (--decompression --basic-listener
+--day-sleep-s 120 --wake-listen-ms 12000, field, ch 11). A first attempt built
+without those flags (fx-261017-137dcae-b, wrong recipe) was deleted unflashed.
+Flashed to Leeloo `F40254` only (app1, identity-gated, private backup
+20261017T053727Z-F40254, verify ok, poweron, decompression active) as a
+preview before the other lanterns.
+
 ## 2026-10-16 -- Brian + Claude -- Proximity tab for sensor testing; Zubat range findings
 
 Tone Lab Proximity tab rebuilt for testing sensors rather than lanterns:

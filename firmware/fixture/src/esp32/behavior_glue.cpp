@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "../core/choreo/program.h"
+#include "../core/chime_light.h"
 #include "../core/daytime_ritual.h"
 #include "../core/field_behavior.h"
 #include "../core/field_role_policy.h"
@@ -564,6 +565,39 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
   }
 }
 
+// Decompression lighting: slow colour drift, flash + colour jump on every chime
+// (core/chime_light). Perimeter HEX boards (37 px, no chime) only drift, dimmer;
+// framePowerBudget still scales a 37-pixel frame to the board's budget.
+#ifndef RES_CHIME_LIGHT
+#define RES_CHIME_LIGHT 1
+#endif
+static ChimeLight gChimeLight;
+static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
+  if (!RES_CHIME_LIGHT || gWaveDisplayActive) {
+    quietIdleFrame(f, pixels, now);
+    return;
+  }
+  static bool seeded = false;
+  if (!seeded) {
+    gChimeLight.baseHue = chimeLightSeedHue(gMyId);
+    seeded = true;
+  }
+  uint8_t c[4];
+  chimeLightRgbw(gChimeLight, now, c);
+  if (gClass == FIXTURE_PERIMETER) {  // 37 GRB pixels: same drift at about a third of the level, no white
+    for (uint8_t k = 0; k < 3; ++k) c[k] = (uint8_t)((uint16_t)c[k] * 32 / CHIME_LIGHT_AMBIENT);
+    c[3] = 0;
+  }
+  f.count = (uint8_t)pixels;
+  frameClear(f);
+  for (uint16_t i = 0; i < f.count; ++i) {
+    f.px[i][0] = c[0];
+    f.px[i][1] = c[1];
+    f.px[i][2] = c[2];
+    f.px[i][3] = c[3];
+  }
+}
+
 static bool fieldRitualBatterySafe(const PowerBudget &pb) {
   return pb.tier == LedTier::FULL || pb.tier == LedTier::DIM;
 }
@@ -699,7 +733,8 @@ void behaviorTick() {
     gNetProgram = gTelemetryProgram = 0;
     frameClear(gFrame);
     gFrame.count = gPixels;
-    if (active) quietIdleFrame(gFrame, gPixels, now);
+    chimeLightNoteStrikes(gChimeLight, solenoidStrikes(), now);
+    if (active) chimeLightFrame(gFrame, gPixels, now);
     if (!active && !solenoidBusy() && now >= 15000 &&
         powerBudget().tier != LedTier::PROTECT && !otaVerifyPending())
       enterTimedDeepSleep(RES_DAY_SLEEP_S, SLEEP_CAUSE_DAY_CHARGE);
