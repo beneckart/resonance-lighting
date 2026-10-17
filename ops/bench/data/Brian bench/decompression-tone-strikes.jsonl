@@ -1524,3 +1524,15 @@
 {"kind": "proximity", "id": 13, "utc": "2026-10-17T05:49:05.411Z", "t": 1792216145.411, "fixture_id": "F401DC", "depth_mm": 1008, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
 {"kind": "proximity", "id": 14, "utc": "2026-10-17T05:49:07.314Z", "t": 1792216147.312, "fixture_id": "F401DC", "depth_mm": 1007, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
 {"kind": "proximity", "id": 15, "utc": "2026-10-17T05:49:08.940Z", "t": 1792216148.939, "fixture_id": "F401DC", "depth_mm": 960, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 16, "utc": "2026-10-17T05:49:10.937Z", "t": 1792216150.937, "fixture_id": "F401DC", "depth_mm": 1558, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 17, "utc": "2026-10-17T05:49:16.816Z", "t": 1792216156.816, "fixture_id": "F401DC", "depth_mm": 942, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 18, "utc": "2026-10-17T05:49:18.945Z", "t": 1792216158.945, "fixture_id": "F401DC", "depth_mm": 1030, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 19, "utc": "2026-10-17T05:49:20.946Z", "t": 1792216160.946, "fixture_id": "F401DC", "depth_mm": 1115, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 20, "utc": "2026-10-17T05:49:22.970Z", "t": 1792216162.97, "fixture_id": "F401DC", "depth_mm": 1712, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 21, "utc": "2026-10-17T05:49:27.554Z", "t": 1792216167.554, "fixture_id": "F401DC", "depth_mm": 899, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 22, "utc": "2026-10-17T05:49:29.119Z", "t": 1792216169.119, "fixture_id": "F401DC", "depth_mm": 968, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 23, "utc": "2026-10-17T05:49:31.002Z", "t": 1792216171.002, "fixture_id": "F401DC", "depth_mm": 934, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 24, "utc": "2026-10-17T05:49:33.007Z", "t": 1792216173.007, "fixture_id": "F401DC", "depth_mm": 1078, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 25, "utc": "2026-10-17T05:49:39.599Z", "t": 1792216179.598, "fixture_id": "F401DC", "depth_mm": 987, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 26, "utc": "2026-10-17T05:49:41.629Z", "t": 1792216181.629, "fixture_id": "F401DC", "depth_mm": 948, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
+{"kind": "proximity", "id": 27, "utc": "2026-10-17T05:49:44.424Z", "t": 1792216184.423, "fixture_id": "F401DC", "depth_mm": 917, "confidence": 100, "background_mm": 970, "pulse_ms": 40, "silent": true}
