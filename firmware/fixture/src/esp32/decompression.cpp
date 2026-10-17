@@ -139,7 +139,8 @@ static constexpr uint32_t FREAKOUT_REARM_MS = 8000; // after a hold-triggered fr
 static bool gFreakout = false;
 static bool gFreakoutActive() { return gFreakout; }
 static uint32_t gFreakoutStartMs = 0, gFreakoutLastHoldMs = 0;
-static uint16_t gFreakoutNextStep = 0;
+static uint16_t gFreakoutNextStep = 0, gFreakoutLateSteps = 0;
+static uint32_t gFreakoutMaxLateMs = 0;
 struct HoldSrc { uint8_t id[3]; uint32_t rxMs, printMs; uint16_t heldMs; bool used; };
 static HoldSrc gHolds[8];
 struct AtomSeen { uint8_t id[3]; uint32_t boot, seq; };
@@ -151,6 +152,8 @@ static void freakoutStart(uint32_t nowMs, const char *why) {
   gFreakout = true;
   gFreakoutStartMs = nowMs + 80;
   gFreakoutNextStep = 0;
+  gFreakoutLateSteps = 0;
+  gFreakoutMaxLateMs = 0;
   Serial.printf("freakout: x%u (%s)\n", (unsigned)FREAKOUT_LOOPS, why);
 }
 
@@ -171,8 +174,17 @@ static void freakoutTick(uint32_t nowMs) {
   if (!gFreakout) return;
   const uint16_t total = (uint16_t)SQUAD_FREAKOUT_STEPS * FREAKOUT_LOOPS;
   int self = squadIndex(gMyId);
-  while (gFreakoutNextStep < total &&
-         (int32_t)(nowMs - (gFreakoutStartMs + (uint32_t)gFreakoutNextStep * SQUAD_FREAKOUT_STEP_MS)) >= 0) {
+  // One step per call. After a loop stall, play the overdue step and re-anchor
+  // the schedule to now: catching up fired several steps at once and the
+  // waterfall came out in chunks.
+  if (gFreakoutNextStep < total) {
+    int32_t late = (int32_t)(nowMs - (gFreakoutStartMs + (uint32_t)gFreakoutNextStep * SQUAD_FREAKOUT_STEP_MS));
+    if (late < 0) return;
+    if (late > (int32_t)SQUAD_FREAKOUT_STEP_MS / 2) {
+      gFreakoutStartMs += (uint32_t)late;
+      ++gFreakoutLateSteps;
+    }
+    if ((uint32_t)late > gFreakoutMaxLateMs) gFreakoutMaxLateMs = (uint32_t)late;
     uint16_t mask = SQUAD_FREAKOUT[gFreakoutNextStep % SQUAD_FREAKOUT_STEPS];
     // Like the T-Deck's strike round: every target of the step back to back,
     // then one repeat; the fixture's 80 ms rest gate dedupes the copy.
@@ -191,7 +203,11 @@ static void freakoutTick(uint32_t nowMs) {
       for (uint8_t k = 0; k < n; ++k) freakoutSend(cmds[k]);
     ++gFreakoutNextStep;
   }
-  if (gFreakoutNextStep >= total) gFreakout = false;
+  if (gFreakoutNextStep >= total) {
+    gFreakout = false;
+    Serial.printf("freakout: done, %u late steps, max %lu ms late\n", (unsigned)gFreakoutLateSteps,
+                  (unsigned long)gFreakoutMaxLateMs);
+  }
 }
 
 void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs) {
