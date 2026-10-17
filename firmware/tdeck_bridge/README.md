@@ -654,8 +654,10 @@ on site with no laptop. Launcher tile **Tone Lab**; code in `src/ui/app_tonelab.
   play/stop it), **Active** (the double-click rotation), **Rules** (Atom button
   rules on/off), **Mode** (event mode for every lantern and perimeter:
   *Perimeter cycle* or *Lantern dings*, with a confirm; broadcast as
-  `NB_EVENT_MODE` (37), persisted on the fixtures, re-sent for a minute; lights
-  flash blue / green). Other buttons: keep-awake, stop, back. Patterns and
+  `NB_EVENT_MODE` (37), persisted on the fixtures, re-sent every 2 s for 3
+  minutes so sleeping fixtures (120 s timer) catch it; lights flash blue /
+  green / red). *Travel* lets everything sleep normally and turns the T-Deck's
+  keep-awake off; choosing another mode wakes them back within ~2 minutes. Other buttons: keep-awake, stop, back. Patterns and
   keep-awake keep running after leaving the app.
 - **Patterns** play from a priority-5 task as exact-target strikes, one round per
   step (`meshStrikeRound`), so 50 ms steps keep time. **Keep-awake** renews a

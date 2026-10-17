@@ -28,7 +28,8 @@ void tonelabSetActive(int pattern, bool active);  // the Active rotation
 void tonelabSetRuleEnabled(int rule, bool enabled);
 void tonelabRunRule(int rule);  // as if its click arrived (for testing)
 // Event mode for every lantern/perimeter (1 = perimeter cycle, 2 = lantern
-// dings): sent now and re-sent every 2 s for a minute to catch waking lanterns.
+// dings, 3 = travel): sent now and re-sent every 2 s for 3 minutes, longer than
+// a fixture's 120 s sleep, so sleeping lanterns pick it up on their next wake.
 void tonelabSetMode(uint8_t mode);
 
 struct TonelabStatus {

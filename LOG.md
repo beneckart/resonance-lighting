@@ -10,6 +10,14 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude -- T-Deck mode resend covers a full fixture sleep
+
+Leaving travel, fixtures are in their normal 120 s timer sleep and listen ~12 s
+per wake, so the T-Deck's one-minute mode resend could miss about half. It now
+resends every 2 s for 3 minutes (53aa9eb). Reflashed T-Decks 979604 and 8EB508
+(app only, dev-cache build SHA-256 31787c16...9c77acb9); both booted with the
+shell up. Travel is ordinary timer sleep: no fixture can be stranded by it.
+
 ## 2026-10-17 -- Brian + Claude (Ben present) -- Whole fleet on fx-261017-e39594d-b; both T-Decks updated
 
 Flashed the last three (Ness, Tangela, Zubat) from bb87373 to e39594d via
