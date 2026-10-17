@@ -127,7 +127,7 @@
     "F401DC",
     "F40308"
   ],
-  "updated_utc": "2026-10-17T17:56:54.522Z",
+  "updated_utc": "2026-10-17T20:50:49.393Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -526,26 +526,25 @@
     {
       "kind": "button",
       "id": "ix-c53fe6",
-      "name": "Play performance then go back",
+      "name": "Freakout Mode",
       "enabled": true,
       "trigger": {
-        "atom": "any"
+        "atom": "any",
+        "click": "single"
       },
       "action": {
         "type": "performance",
         "pattern_id": "pat-b83cd398a2",
-        "pattern_ids": [
-          "pat-b83cd398a2"
-        ],
-        "interaction_id": null,
-        "loops": 2
+        "loops": 2,
+        "pattern_ids": [],
+        "interaction_id": null
       }
     },
     {
       "kind": "button",
       "id": "ix-6b670f",
       "name": "Next active pattern",
-      "enabled": true,
+      "enabled": false,
       "trigger": {
         "atom": "any",
         "click": "double"
@@ -591,7 +590,7 @@
       "kind": "button",
       "id": "ix-95d56c",
       "name": "Next trigger",
-      "enabled": true,
+      "enabled": false,
       "trigger": {
         "atom": "any",
         "click": "triple"
