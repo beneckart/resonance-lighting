@@ -140,7 +140,7 @@ static bool gFreakout = false;
 static bool gFreakoutActive() { return gFreakout; }
 static uint32_t gFreakoutStartMs = 0, gFreakoutLastHoldMs = 0;
 static uint16_t gFreakoutNextStep = 0;
-struct HoldSrc { uint8_t id[3]; uint32_t rxMs; uint16_t heldMs; bool used; };
+struct HoldSrc { uint8_t id[3]; uint32_t rxMs, printMs; uint16_t heldMs; bool used; };
 static HoldSrc gHolds[8];
 struct AtomSeen { uint8_t id[3]; uint32_t boot, seq; };
 static AtomSeen gAtomSeen[4];
@@ -179,11 +179,17 @@ void decompressionOnPresenceHold(const NbPresenceHold &hold, uint32_t rxMs) {
   for (HoldSrc &h : gHolds) if (h.used && memcmp(h.id, hold.h.src_id, 3) == 0) slot = &h;
   if (!slot) for (HoldSrc &h : gHolds) if (!h.used || rxMs - h.rxMs > 5000) { slot = &h; break; }
   if (!slot) return;
+  bool newHold = !slot->used || memcmp(slot->id, hold.h.src_id, 3) != 0 || hold.held_ms < slot->heldMs;
   memcpy(slot->id, hold.h.src_id, 3);
   slot->rxMs = rxMs; slot->heldMs = hold.held_ms; slot->used = true;
   uint8_t held = 0;
   for (const HoldSrc &h : gHolds)
     if (h.used && rxMs - h.rxMs <= HOLD_FRESH_MS && h.heldMs >= HOLD_NEEDED_MS) ++held;
+  if (newHold || rxMs - slot->printMs >= 1000) {  // one line per perimeter per second, for jackpot tests
+    slot->printMs = rxMs;
+    Serial.printf("hold: %02X%02X%02X %u ms (%u of %u held)\n", hold.h.src_id[0], hold.h.src_id[1],
+                  hold.h.src_id[2], (unsigned)hold.held_ms, (unsigned)held, (unsigned)HOLD_PERIMETERS);
+  }
   if (held >= HOLD_PERIMETERS && rxMs - gFreakoutLastHoldMs >= FREAKOUT_REARM_MS) {
     gFreakoutLastHoldMs = rxMs;
     freakoutStart(rxMs, "four perimeters held");
