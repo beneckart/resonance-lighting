@@ -17,8 +17,9 @@
 // a button rule on or off). Strikes go out over radio; no laptop needed.
 
 enum View : uint8_t { VIEW_PLAY = 0, VIEW_ACTIVE, VIEW_RULES, VIEW_MODE, VIEW_COUNT };
-static const char *kViewName[] = {LV_SYMBOL_PLAY " Play", LV_SYMBOL_EDIT " Active", LV_SYMBOL_LIST " Rules",
-                                  LV_SYMBOL_SETTINGS " Mode"};
+// The first button cycles views; the loop icon marks it as a view switch, not "play".
+static const char *kViewName[] = {LV_SYMBOL_LOOP " Play", LV_SYMBOL_LOOP " Active", LV_SYMBOL_LOOP " Rules",
+                                  LV_SYMBOL_LOOP " Mode"};
 static const char *kModeName[] = {"", "Perimeter cycle", "Lantern dings"};
 static const char *kModeHelp[] = {"",
     "Perimeter cycle: each approach to a perimeter light plays the next two lanterns, low to high; then all nine.",
