@@ -10,6 +10,19 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude -- Leeloo cycle trigger; self-awake lanterns on all ten
+
+Event image no longer depends on a perimeter (0139e3d, b2778e4): every lantern
+keeps itself awake in either mode while power allows, and Leeloo (Tone Lab
+"Cycle trigger", SQUAD_TRIGGER_LANTERN 0) owns the perimeter-cycle mode: its
+downward sensor advances rising pairs / top / all and it sends the strikes; a
+perimeter forwards approaches to it (NB_CYCLE_PRESS 38) instead of running its
+own cycle. Built `fx-261017-bb87373-b` (SHA-256 6070ff4a...3d74ea9adc) with
+Ben's BenPhone event command in the clean worktree; flashed all nine lanterns
+and Zubat from 876a1c8 via prepared USB service, all valid. Event mode stays
+as last set (NVS; lantern dings when flashed). T-Deck work merged to this
+branch (f47ad4e) for Ben's second T-Deck.
+
 ## 2026-10-17 -- Brian + Claude -- Installation image fx-261017-876a1c8-b on all ten
 
 Followed Ben's October 17 handoff (BENPHONE_OTA_CANARY.md): built the event
