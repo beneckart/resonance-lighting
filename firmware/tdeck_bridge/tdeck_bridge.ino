@@ -14,6 +14,7 @@
 #include "src/net/net_mgr.h"
 #include "src/net/stream_svc.h"
 #include "src/net/time_svc.h"
+#include "src/net/tonelab_svc.h"
 #include "src/core/version.h"
 #include "src/store/serial_cli.h"
 #include "src/store/store.h"
@@ -56,6 +57,8 @@ void setup() {
     Serial.println("LVGL init FAILED -> raw status page fallback");
     statusPageTick();
   }
+  // After the UI: LVGL's two 25 KB draw buffers need internal DMA RAM first.
+  tonelabBegin();
   halDisplaySetBacklight(uiDisplayBacklight());
   Serial.println("Bridge OS up; type `help` for the CLI");
 }
@@ -70,6 +73,7 @@ void loop() {
   halGpsTick();
   timeSvcTick();
   meshTxTick();
+  tonelabTick(millis());
 
   if (!uiActive()) {
     // Plan-B raw status page: keyboard polled here (LVGL owns it otherwise).

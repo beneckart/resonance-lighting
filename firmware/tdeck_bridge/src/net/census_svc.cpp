@@ -1,4 +1,5 @@
 #include "census_svc.h"
+#include "tonelab_svc.h"
 
 #include <Arduino.h>
 #include <string.h>
@@ -72,6 +73,7 @@ void censusSvcTick(uint32_t nowMs) {
     taskEXIT_CRITICAL(&gForeignControlLock);
     noteTailFrame(item, h);
     contagionFanoutObserve(item);
+    tonelabObserve(item);  // Atom presses for the Tone Lab app
     taskENTER_CRITICAL(&gCensusLock);
     bool consumed = gCensus.ingest(item, nowMs);
     taskEXIT_CRITICAL(&gCensusLock);

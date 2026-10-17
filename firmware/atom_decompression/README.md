@@ -30,6 +30,21 @@ The central 3x3 LEDs, left-to-right then top-to-bottom, represent:
 - Cyan after a press: the lantern is in relay mode and handed the press to the Tone Lab (expected when Atom buttons drive the Tone Lab).
 - Red after a press: refused, aborted or stale command.
 - Purple: controller paused. All red: radio setup failed.
+- Magenta corners: T-Deck mode (see below).
+
+## T-Deck mode
+
+For running Tone Lab button rules from a T-Deck on site (no laptop, so no
+lantern relay mode). In T-Deck mode a click is sent as a PLAY addressed to the
+Atom itself: every lantern drops it on the target check, so no signature plays,
+while the T-Deck's Tone Lab app hears every PLAY regardless of target and runs
+its single/double/triple rules. Keep-awake leases to the lanterns continue.
+
+- Toggle: hold the button for 2 s while powering the Atom up (the corners
+  flash magenta for on, white for off), or send `tdeck 1` / `tdeck 0` over USB.
+  The setting is stored on the Atom.
+- The laptop Tone Lab cannot see T-Deck-mode clicks (it counts presses through
+  the lanterns), so use normal mode at the bench and T-Deck mode on site.
 
 Release between presses. A five-second interval prevents overlapping requests.
 Holding the face never repeats. A missing/refusing lantern will not play later

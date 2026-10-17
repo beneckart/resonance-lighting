@@ -60,7 +60,8 @@
       "latency_jitter_ms": 75.80000000000001,
       "latency_pulse_ms": 16,
       "latency_utc": "2026-10-14T04:28:03.520Z",
-      "callsign": "Leeloo"
+      "callsign": "Leeloo",
+      "cycle_trigger": true
     },
     "9F26BC": {
       "type": "large",
@@ -120,7 +121,7 @@
     "F3FD28",
     "F401DC"
   ],
-  "updated_utc": "2026-10-17T15:56:45.527Z",
+  "updated_utc": "2026-10-17T16:33:41.401Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {

@@ -35,6 +35,14 @@ void meshIdentify(const uint8_t target[3], uint8_t secs, uint8_t color = 0,
                   uint8_t blink = 0, uint8_t value = 255);
 bool meshStrike(const uint8_t id[3], uint16_t pulseMs);  // false: id==00:00:00
 bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs);
+// Tone Lab: one pattern step (all its targets, `copies` rounds `gapMs` apart)
+// and the decompression keep-awake lease (ADR 0082/0083, 1..5 min, 0 releases).
+bool meshStrikeRound(const uint8_t (*ids)[3], const uint16_t *pulses, uint8_t count,
+                     uint8_t copies, uint8_t gapMs);
+bool meshDecompressionSession(const uint8_t (*ids)[3], uint8_t count, uint8_t minutes,
+                              uint32_t controllerBoot);
+// Decompression event mode broadcast (1 = perimeter cycle, 2 = lantern dings).
+bool meshEventMode(uint8_t mode, bool persist);
 bool meshProgramLease(const uint8_t target[3], uint8_t programId,
                       uint16_t leaseS, uint8_t flags, const uint8_t params[8]);
 ProgramLeaseActivity meshProgramActivity();

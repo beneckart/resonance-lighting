@@ -290,6 +290,72 @@ bool meshStrike(const uint8_t id[3], uint16_t pulseMs) {
   return true;
 }
 
+// Tone Lab pattern step: every lantern hit on this step gets its exact-target
+// strike in one round, and the round repeats `copies` times `gapMs` apart. Unlike
+// meshStrike's 6x/8 ms burst per target (~40 ms each), a whole step leaves in
+// a few ms, so a 50 ms step grid keeps time. Repeats cannot double-strike: the
+// fixture refuses a strike within RES_SOLENOID_REST_MS (80 ms) of the last pulse.
+bool meshStrikeRound(const uint8_t (*ids)[3], const uint16_t *pulses, uint8_t count,
+                     uint8_t copies, uint8_t gapMs) {
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!count || copies == 0) return false;
+  static NbTargetU16 cmds[32];
+  if (count > 32) count = 32;
+  if (!txTake()) return false;
+  for (uint8_t i = 0; i < count; ++i) {
+    memset(&cmds[i], 0, sizeof(cmds[i]));
+    if (memcmp(ids[i], kAll, 3) == 0) continue;  // never broadcast a strike
+    memcpy(cmds[i].target_id, ids[i], 3);
+    uint16_t pulse = pulses[i] < 5 ? 5 : pulses[i] > 300 ? 300 : pulses[i];
+    cmds[i].value = pulse;
+    fillHeader(&cmds[i].h, NB_TARGET_SOLENOID);
+  }
+  for (uint8_t c = 0; c < copies; ++c) {
+    for (uint8_t i = 0; i < count; ++i)
+      if (cmds[i].h.type == NB_TARGET_SOLENOID)
+        esp_now_send(kBcast, (const uint8_t *)&cmds[i], sizeof(cmds[i]));
+    if (c + 1 < copies) delay(gapMs);
+  }
+  txGive();
+  return true;
+}
+
+// ADR 0082/0083 decompression lease from this controller: keeps each target
+// awake (RAM-only, 1..5 minutes, 0 releases). Same packet the Atom renews.
+bool meshDecompressionSession(const uint8_t (*ids)[3], uint8_t count, uint8_t minutes,
+                              uint32_t controllerBoot) {
+  static const uint8_t kAll[3] = {0, 0, 0};
+  if (!count || !controllerBoot || minutes > 5) return false;
+  if (!txTake()) return false;
+  for (uint8_t copy = 0; copy < 2; ++copy) {
+    for (uint8_t i = 0; i < count; ++i) {
+      if (memcmp(ids[i], kAll, 3) == 0) continue;
+      NbDecompressionControl c = {};
+      fillHeader(&c.h, NB_DECOMPRESSION_CONTROL);
+      memcpy(c.target_id, ids[i], 3);
+      c.controller_boot = controllerBoot;
+      c.action = NB_DECOMP_SESSION;
+      c.minutes = minutes;
+      esp_now_send(kBcast, (const uint8_t *)&c, sizeof(c));  // no delay: callers renew one lantern at a time
+    }
+  }
+  txGive();
+  return true;
+}
+
+bool meshEventMode(uint8_t mode, bool persist) {
+  if (mode != NB_MODE_PERIMETER_CYCLE && mode != NB_MODE_LANTERN_DINGS) return false;
+  NbEventMode m = {};
+  m.confirm = NB_EVENT_MODE_CONFIRM;
+  m.mode = mode;
+  m.persist = persist ? 1 : 0;
+  if (!txTake()) return false;
+  fillHeader(&m.h, NB_EVENT_MODE);
+  sendPacketRepeatedLocked(&m, sizeof(m), 4, 5);  // broadcast convention
+  txGive();
+  return true;
+}
+
 bool meshStrikeBroadcast(uint16_t pulseMs, uint32_t fireInMs) {
   NbEvent event = {};
   uint32_t eventId = esp_random();

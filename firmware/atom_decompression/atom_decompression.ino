@@ -1,6 +1,7 @@
 // Decompression button: one local signature request per named lantern.
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <esp_mac.h>
 #include <esp_now.h>
@@ -47,6 +48,13 @@ static uint32_t bootNonce, txSeq = 0, leaseSeq = 0, playSeq = 0;
 static uint32_t nextLeaseMs = 0, lastPlayMs = 0, nextStatusMs = 0;
 static uint32_t presses = 0;
 static bool radioReady = false, enabled = true, havePlayed = false;
+// T-Deck mode: a click is a PLAY addressed to this Atom itself, so lanterns
+// ignore it (no signature) while a T-Deck running the Tone Lab app hears it.
+// Toggle by holding the button for 2 s while powering up (or USB "tdeck 0|1").
+// Persisted. Leases to the lanterns continue in both modes.
+static bool tdeckMode = false;
+static Preferences prefs;
+static constexpr uint8_t CORNERS[4] = {0,4,20,24};
 static volatile uint32_t rxDropped = 0;
 
 static int member(const uint8_t id[3]) {
@@ -132,6 +140,25 @@ static uint32_t sendSquad(uint8_t action,uint8_t minutes) {
 // Button presses were already spaced by DecompressionButton at press time (a
 // queued one may run right after the previous send), so only USB "play" is
 // throttled here.
+static uint32_t sendSelfPlay() {
+  const uint32_t seq=++txSeq, started=millis();
+  for (uint8_t copy=0;copy<3;++copy) {
+    NbDecompressionControl c = {};
+    c.h.ver=NB_PROTO_VER; c.h.type=NB_DECOMPRESSION_CONTROL;
+    memcpy(c.h.src_id,myId,3); c.h.seq=seq; c.h.uptime_ms=started;
+    memcpy(c.target_id,myId,3);  // not a lantern: every receiver's target check drops it
+    c.controller_boot=bootNonce; c.action=NB_DECOMP_PLAY; c.minutes=0;
+    if (esp_now_send(BCAST,(const uint8_t *)&c,sizeof(c))!=ESP_OK)
+      Serial.printf("send refused self seq=%lu\n",(unsigned long)seq);
+    for (const uint32_t t=millis(); millis()-t<3;) { sampleButton(); delayMicroseconds(250); }
+  }
+  return seq;
+}
+static void setTdeckMode(bool on) {
+  tdeckMode=on;
+  prefs.putBool("tdeck",on);
+  Serial.printf("tdeck mode %s\n",on?"ON: clicks go to the T-Deck, lanterns ignore them":"off: clicks play the lanterns' signature");
+}
 static void play(bool fromButton) {
   const uint32_t now=millis();
   if (!radioReady || !enabled || (!fromButton && havePlayed && now-lastPlayMs<DecompressionButton::PRESS_GAP_MS)) {
@@ -140,6 +167,12 @@ static void play(bool fromButton) {
   }
   lastPlayMs=now; havePlayed=true; ++presses;
   for (auto &p:peers) { p.playStatus=0; p.hits=0; p.lateUs=0; }
+  if (tdeckMode) {
+    playSeq=sendSelfPlay();
+    Serial.printf("play #%lu seq=%lu sent to the T-Deck (lanterns ignore it)\n",
+      (unsigned long)presses,(unsigned long)playSeq);
+    return;
+  }
   playSeq=sendSquad(NB_DECOMP_PLAY,0);
   Serial.printf("play #%lu seq=%lu requested for all nine; waiting for receipts\n",
     (unsigned long)presses,(unsigned long)playSeq);
@@ -150,9 +183,9 @@ static void status() {
   for (const auto &p:peers) if (p.ready && now-p.readyMs<15000) ++ready;
   Serial.printf("{\"fw\":\"%s\",\"id\":\"%02X%02X%02X\",\"uptime_ms\":%lu,"
     "\"enabled\":%s,\"radio\":%s,\"ready\":%u,\"total\":%u,\"presses\":%lu,"
-    "\"rx_dropped\":%lu,\"peers\":[",ATOM_DECOMPRESSION_VERSION,myId[0],myId[1],myId[2],
+    "\"rx_dropped\":%lu,\"tdeck_mode\":%s,\"peers\":[",ATOM_DECOMPRESSION_VERSION,myId[0],myId[1],myId[2],
     (unsigned long)now,enabled?"true":"false",radioReady?"true":"false",ready,SQUAD_COUNT,
-    (unsigned long)presses,(unsigned long)rxDropped);
+    (unsigned long)presses,(unsigned long)rxDropped,tdeckMode?"true":"false");
   for (unsigned i=0;i<SQUAD_COUNT;++i) {
     const Peer &p=peers[i];
     Serial.printf("%s{\"name\":\"%s\",\"id\":\"%02X%02X%02X\",\"ready\":%s,"
@@ -181,6 +214,8 @@ static void serialTick() {
         if (radioReady) leaseSeq=sendSquad(NB_DECOMP_SESSION,0);
         for (auto &p:peers) p.ready=false;
       } else if (!strcmp(line,"resume")) { enabled=true; nextLeaseMs=millis(); }
+      else if (!strcmp(line,"tdeck 1")) setTdeckMode(true);
+      else if (!strcmp(line,"tdeck 0")) setTdeckMode(false);
     }
     used=0; overflow=false;
   }
@@ -204,6 +239,7 @@ static void face() {
     if (!radioReady) color=pixels.Color(20,0,0);
     pixels.setPixelColor(FACE[i],color);
   }
+  if (tdeckMode) for (uint8_t c:CORNERS) pixels.setPixelColor(c,pixels.Color(14,0,14));  // magenta corners
   pixels.show();
 }
 void setup() {
@@ -215,11 +251,27 @@ void setup() {
   Serial.begin(115200); delay(300);
   pixels.begin(); pixels.setBrightness(40);
   pinMode(BUTTON_PIN,INPUT); button.begin(digitalRead(BUTTON_PIN)==HIGH,millis());
+  prefs.begin("atomdecomp",false);
+  tdeckMode=prefs.getBool("tdeck",false);
+  if (digitalRead(BUTTON_PIN)==LOW) {
+    // Held at power-up: 2 s toggles T-Deck mode. The button is not armed until it
+    // is released (DecompressionButton::begin), so this never sends a click.
+    const uint32_t t0=millis();
+    while (digitalRead(BUTTON_PIN)==LOW && millis()-t0<2000) delay(10);
+    if (millis()-t0>=2000) {
+      setTdeckMode(!tdeckMode);
+      for (uint8_t k=0;k<3;++k) {  // flash the corners to confirm
+        for (uint8_t c:CORNERS) pixels.setPixelColor(c,tdeckMode?pixels.Color(30,0,30):pixels.Color(30,30,30));
+        pixels.show(); delay(150); pixels.clear(); pixels.show(); delay(150);
+      }
+    }
+  }
   uint8_t mac[6]; esp_read_mac(mac,ESP_MAC_WIFI_STA); memcpy(myId,mac+3,3);
   do { bootNonce=esp_random(); } while (!bootNonce);
   radioReady=startRadio();
   Serial.println("\n" ATOM_DECOMPRESSION_VERSION);
-  Serial.println("Face press: all-nine local signatures, any hour. USB: t/play/pause/resume.");
+  Serial.println("Face press: all-nine local signatures, any hour. USB: t/play/pause/resume/tdeck 0|1.");
+  Serial.printf("T-Deck mode %s (hold the button 2 s at power-up to toggle)\n",tdeckMode?"ON":"off");
   Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, cyan handed to host (relay), red refused.");
   lastPlayMs=millis()-5000; nextLeaseMs=millis();
 }
