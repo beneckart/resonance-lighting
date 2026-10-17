@@ -5,6 +5,11 @@ Append-only session journal for the Resonance Lighting workstream. Most recent f
 Format per entry:
 
 ```
+## YYYY-MM-DD -- author -- short subject
+
+Body. What changed, what was decided, what's next.
+```
+
 ## 2026-10-17 -- Brian + Claude -- Installation image fx-261017-876a1c8-b on all ten
 
 Followed Ben's October 17 handoff (BENPHONE_OTA_CANARY.md): built the event
@@ -34,12 +39,39 @@ macOS fixes to Ben's helpers (no behaviour change on Windows):
 Not yet done from the handoff: BenPhone hotspot join + OTA canary on one
 canopy before hanging (needs the BenPhone hotspot); Marill stays separate.
 T-Deck mode switch (local branch) not flashed yet.
+## 2026-10-17 -- Brian + Claude -- T-Deck 979604: event mode switch flashed
 
-## YYYY-MM-DD -- author -- short subject
+Flashed the dev-cache build of 2c2ff2f (Tone Lab app + Mode view sending
+NB_EVENT_MODE) to T-Deck 979604, app0 only (SHA-256 fb0613e1...ada70109);
+previous app backed up privately (20261017T160116Z-979604-tdeck-before-modes).
+Boot: LVGL shell up, stored show still loaded (7 patterns, 2 rules),
+keep-awake on, mode not yet sent. Lanterns + Zubat run fx-261017-876a1c8-b,
+which obeys the mode packet.
 
-Body. What changed, what was decided, what's next.
-```
+## 2026-10-16 -- Brian + Claude -- T-Deck Tone Lab app, first flash on 979604
 
+Branch `brian/tdeck-tonelab` (local; not on the shared branch yet). Bridge OS
+gets a "Tone Lab" app + `tonelab_svc` that plays a show exported by the laptop
+Tone Lab (patterns, Active flags, Atom button rules) over radio, keeps show
+lanterns awake with decompression leases and hears Atom presses directly.
+
+T-Deck `979604` (44:1b:f6:97:96:04) was on a `dev-local` bridge build. Full
+16 MiB backup verified (digest matched):
+`ops/bench/private-backups/20261017T003415Z-979604-tdeck-before-tonelab/`
+(SHA-256 16794b0f...c149fbd0). Flashed bootloader/partitions/boot_app0/app
+from a dev-cache build (LVGL 9.5.0, LovyanGFX 1.2.24, esp32 3.3.7); NVS kept.
+- First flash: "LVGL init FAILED" (internal DMA RAM for the 2x25 KB draw
+  buffers). Fixed by starting the service after the UI, PSRAM parse scratch and
+  a 3 KB player stack; shell up, heap_free ~17 KB (Ben's logs ~23 KB): tight.
+- Show upload over USB needs paced 64-byte chunks (small HWCDC RX buffer).
+- Radio pattern test (Shave and a Haircut x1): Leeloo +2, Lucas/Pinsir/Sakura
+  +1 each = every expected strike exactly once.
+- Keep-awake: Leeloo reported decompression_radio_left_s 57 from the T-Deck.
+- Atom 1B636C single/double/triple heard and classified correctly (T-Deck rules
+  were switched off for the test to avoid doubling the laptop's rules).
+Open: Atom "T-Deck mode" (lanterns still play the signature on a click without
+relay), Send-to-T-Deck in the laptop Tone Lab, decide who runs button rules
+when both the laptop and the T-Deck are present.
 
 
 ## 2026-10-16 -- Ben + Codex -- DIM duration and service follow-ups

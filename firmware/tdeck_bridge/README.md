@@ -642,3 +642,39 @@ compatible) → M2 LVGL shell + Fleet/Settings → M3 Claude client → M4 agent
 loop → M5 Patterns/Zones/Knocker/CA Studio → M6 voice + diagnostics + polish.
 Plan of record: `APP_ROADMAP.md` + ADR 0047/0048, with ADR 0037 retained for
 constraints not superseded by the app-platform decision.
+
+
+## Tone Lab app (Brian, October 2026)
+
+Runs a show prepared in the laptop Tone Lab (`ops/bench/decompression_tone_lab.py`)
+on site with no laptop. Launcher tile **Tone Lab**; code in `src/ui/app_tonelab.cpp`,
+`src/net/tonelab_svc.*`, `src/core/show_model.*`, `src/core/click_model.*`.
+
+- **Views** (first button, loop icon, cycles them): **Play** (tap a pattern to
+  play/stop it), **Active** (the double-click rotation), **Rules** (Atom button
+  rules on/off), **Mode** (event mode for every lantern and perimeter:
+  *Perimeter cycle* or *Lantern dings*, with a confirm; broadcast as
+  `NB_EVENT_MODE` (37), persisted on the fixtures, re-sent for a minute; lights
+  flash blue / green). Other buttons: keep-awake, stop, back. Patterns and
+  keep-awake keep running after leaving the app.
+- **Patterns** play from a priority-5 task as exact-target strikes, one round per
+  step (`meshStrikeRound`), so 50 ms steps keep time. **Keep-awake** renews a
+  decompression lease (`meshDecompressionSession`) to one show lantern every 400 ms.
+- **Atom clicks** are heard directly (`NB_DECOMPRESSION_CONTROL` PLAY, any
+  target), single/double/triple with the Tone Lab's 600 ms window. For site use
+  put the Atom in *T-Deck mode* (hold its button 2 s at power-up; magenta
+  corners): clicks are addressed to the Atom itself so lanterns don't play
+  their signature. If the laptop Tone Lab is also running its rules, turn the
+  T-Deck's rules off (Rules view) to avoid double actions.
+- **Load a show:** Tone Lab > Interactions > *Export for T-Deck*, then
+  `python3 ops/bench/tdeck_show_send.py <tonelab-show.tls>` (USB; CRC-checked;
+  stored in NVS namespace `tonelab`). CLI: `tl-status`, `tl-play <n> [loops]`,
+  `tl-stop`, `tl-awake 0|1`, `tl-active <n> 0|1`, `tl-rule <n> 0|1`, `tl-run <n>`,
+  `tl-mode 1|2`.
+- **Memory:** internal RAM is tight. The service starts after `uiStart()` so
+  LVGL gets its two 25 KB DMA draw buffers first, and show data lives in PSRAM
+  (with the service started before the UI the shell fell back to the raw page).
+  heap_free with the shell up was about 17 KB.
+- **Build on macOS:** LVGL 9.5.0 + LovyanGFX 1.2.24; `--dev-cache` cold build
+  about 15 min on Brian's laptop. First flash of 979604 used bootloader +
+  partitions + boot_app0 + app; later updates app only at 0x10000.

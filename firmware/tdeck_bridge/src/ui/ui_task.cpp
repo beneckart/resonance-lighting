@@ -21,6 +21,7 @@
 #include "app_patterns.h"
 #include "app_rf.h"
 #include "app_schedule.h"
+#include "app_tonelab.h"
 #include "app_settings.h"
 #include "app_zones.h"
 #include "lvgl_glue.h"
@@ -54,6 +55,7 @@ static const Tile kTiles[] = {
     {LV_SYMBOL_TINT, "LEDs", appZonesOpen},
     {LV_SYMBOL_BELL, "Knock", appKnockerOpen},
     {LV_SYMBOL_PLAY, "Patterns", openPatterns},
+    {LV_SYMBOL_AUDIO, "Tone Lab", appTonelabOpen},
     {LV_SYMBOL_LOOP, "CA", appCaOpen},
     {LV_SYMBOL_SHUFFLE, "Contagion", appContagionOpen},
     {LV_SYMBOL_HOME, "Default", appCommissionOpen},
