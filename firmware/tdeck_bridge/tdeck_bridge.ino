@@ -47,7 +47,6 @@ void setup() {
   censusSvcBegin(millis());
   netMgrBegin();
   meshTxBegin();
-  tonelabBegin();
   timeSvcBegin();
   claudeBegin();
 
@@ -58,6 +57,8 @@ void setup() {
     Serial.println("LVGL init FAILED -> raw status page fallback");
     statusPageTick();
   }
+  // After the UI: LVGL's two 25 KB draw buffers need internal DMA RAM first.
+  tonelabBegin();
   halDisplaySetBacklight(uiDisplayBacklight());
   Serial.println("Bridge OS up; type `help` for the CLI");
 }

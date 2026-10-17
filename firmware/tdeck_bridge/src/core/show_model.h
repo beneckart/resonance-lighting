@@ -92,6 +92,11 @@ struct Show {
 
 uint32_t showCrc32(const uint8_t *data, size_t len);
 
+// Optional parse scratch of SHOW_SCRATCH_BYTES (the device points it at PSRAM;
+// null = heap allocation per parse).
+static constexpr size_t SHOW_SCRATCH_BYTES = 6 * SHOW_MAX_HITS;
+extern void *gShowScratch;
+
 // Parse and verify a complete show text. On failure returns false and writes a
 // short reason; `out` is then unspecified (callers parse into scratch storage).
 bool showParse(const char *text, size_t len, Show &out, char *err, size_t errLen);

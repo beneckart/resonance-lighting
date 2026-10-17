@@ -381,6 +381,7 @@ void tonelabBegin() {
   gShow = (Show *)ps_calloc(1, sizeof(Show));
   gScratch = (Show *)ps_calloc(1, sizeof(Show));
   gText = (char *)ps_malloc(SHOW_MAX_TEXT);
+  gShowScratch = ps_malloc(SHOW_SCRATCH_BYTES);
   do { gControllerBoot = esp_random(); } while (!gControllerBoot);
   memset(gCycle, 0xFF, sizeof(gCycle));
   gPrefs.begin("tonelab", false);
@@ -400,6 +401,6 @@ void tonelabBegin() {
   } else {
     Serial.println("tonelab: PSRAM allocation FAILED");
   }
-  xTaskCreatePinnedToCore(playerTask, "tonelab", 4096, nullptr, 5, &gPlayer, 1);
+  xTaskCreatePinnedToCore(playerTask, "tonelab", 3072, nullptr, 5, &gPlayer, 1);
   Serial.printf("tonelab: %s, keep-awake %s\n", gLoaded ? "show loaded" : "no show yet", gAwake ? "on" : "off");
 }

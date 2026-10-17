@@ -73,6 +73,9 @@ struct RawHit {
   uint8_t lantern;
 };
 
+void *gShowScratch = nullptr;
+static_assert(sizeof(RawHit) * SHOW_MAX_HITS <= SHOW_SCRATCH_BYTES, "parse scratch too small");
+
 bool showParse(const char *text, size_t len, Show &out, char *err, size_t errLen) {
   if (!text || len == 0) return fail(err, errLen, "empty show", 0);
   if (len > SHOW_MAX_TEXT) return fail(err, errLen, "show too large", 0);
@@ -91,7 +94,15 @@ bool showParse(const char *text, size_t len, Show &out, char *err, size_t errLen
   if (k != 8 || want != got) return fail(err, errLen, "checksum mismatch (transfer damaged)", 0);
   out.crc = got;
 
-  static RawHit raw[SHOW_MAX_HITS];
+  // Scratch for unsorted hits: caller-provided (PSRAM on the device) or heap.
+  RawHit *raw = (RawHit *)gShowScratch;
+  bool ownRaw = false;
+  if (!raw) {
+    raw = (RawHit *)malloc(sizeof(RawHit) * SHOW_MAX_HITS);
+    ownRaw = true;
+  }
+  if (!raw) return fail(err, errLen, "no memory", 0);
+  struct Free { RawHit *p; bool own; ~Free() { if (own) free(p); } } freeRaw{raw, ownRaw};
   size_t rawCount = 0;
   bool header = false;
   int lineNo = 0;
