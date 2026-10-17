@@ -1,0 +1,33 @@
+{
+  "fixture_id": "F3FD28",
+  "callsign": "Skitty",
+  "capture_closed": true,
+  "trace_sha256": "48c78f8b3f21ce1898a904e8f4055357f3e8c6b4fcd98fba5373460aa27bad57",
+  "enumeration_starts": 1,
+  "enumeration_completions": 1,
+  "enumeration_retries": 0,
+  "enumeration_failures": 0,
+  "descriptor_validation_failures": 0,
+  "events": [
+    {
+      "utc": "2026-10-16T22:51:02.5915875Z",
+      "id": 60,
+      "activity": "{cd280957-5d3d-000c-2c43-3fce3d5ddd01}",
+      "fields": {
+        "fid_UsbDevice": "0x7cf71aa465f8",
+        "fid_PortNumber": "1"
+      }
+    },
+    {
+      "utc": "2026-10-16T22:51:02.7876278Z",
+      "id": 61,
+      "activity": "{cd280957-5d3d-000c-2c43-3fce3d5ddd01}",
+      "fields": {
+        "fid_HubDevice": "0x7cf71aa465f8",
+        "fid_UsbDevice": "0x7cf7051503a8",
+        "fid_PortNumber": "1",
+        "fid_NtStatus": "0"
+      }
+    }
+  ]
+}

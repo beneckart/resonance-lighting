@@ -25,6 +25,11 @@ expect_rejected() {
 }
 
 bash -n build.sh
+expect_rejected 'bad --squad-trigger-target' --squad-trigger-target 000000
+expect_rejected 'requires artifact variant b' --squad-trigger-target F40348 --artifact-variant p
+expect_rejected 'requires matching protect recovery target' --squad-trigger-target F40348
+expect_rejected 'requires matching protect recovery target' --squad-trigger-target F40348 --protect-recovery-target 9F2738
+expect_rejected 'separate from decompression receiver' --squad-trigger-target F40348 --decompression
 help="$(./build.sh --help)"
 grep -Fq -- '--dev-cache --profile commission --channel 11' <<< "$help" ||
   fail "help omits the recommended local command"
@@ -86,6 +91,18 @@ expect_rejected '--sentinel-trace-target cannot be combined with --msa-trace-tar
   --sentinel-trace-target A1B2C3 --msa-trace-target F2BE0C
 expect_rejected '--sentinel-trace-smoke requires --sentinel-trace-target' \
   --sentinel-trace-smoke
+
+expect_rejected 'bad --protect-recovery-target' --protect-recovery-target xyz
+expect_rejected 'bad --power-recovery-test-target' --power-recovery-test-target 000000
+expect_rejected '--power-recovery-test-target requires artifact variant t' \
+  --power-recovery-test-target F40308 --artifact-variant b
+expect_rejected 'bad --protect-recovery-target' --protect-recovery-target 000000
+expect_rejected '--protect-recovery-target requires artifact variant b' \
+  --protect-recovery-target F40348 --artifact-variant p
+expect_rejected 'protect recovery canary is separate from decompression' \
+  --protect-recovery-target F40348 --decompression
+expect_rejected 'protect recovery requires a retained artifact and exact-target flash' \
+  --protect-recovery-target F40348 --port COM1
 
 [[ ! -e build/contract-must-not-exist ]] ||
   fail "a rejected boundary check created an artifact directory"

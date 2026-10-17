@@ -14,6 +14,7 @@
 #include "ota_verify.h"
 #include "telemetry.h"
 #include "sleep_audit_io.h"
+#include "protect_recovery.h"
 
 // Cold-boot grace: serve telemetry/maintenance before the first PROTECT sleep
 // can fire (donor cold-listen pattern), and give a deep-sleep wake a short
@@ -44,6 +45,7 @@ static LedTier stageToTier(uint8_t stage) {
 
 void powerGlueInit() {
   gConfig = powerConfigDefaults();
+  gConfig.managed_recovery = protectRecoveryEnabled();
   // Per-unit NVS threshold overrides (two-tier fleet: 33140 thresholds are
   // pending qualification, so they arrive as runtime data, not builds).
   if (gCfg.dimMv) gConfig.dim_mv = gCfg.dimMv;
@@ -63,6 +65,13 @@ void powerGlueInit() {
                                   : RES_PROTECT_BOOT_GRACE_MS);
   gTelemetryPowerTier = (uint8_t)gBudget.tier;
   gNetPowerTier = (uint8_t)gBudget.tier;
+  protectRecoveryInit();
+}
+
+void powerGlueAdoptRecoveredTier() {
+  powerStateInit(gState, LedTier::DIM);
+  gProtectPersistDeferred = false;
+  gProtectAuditAttempted = false;
 }
 
 void powerGlueTick() {
@@ -82,9 +91,15 @@ void powerGlueTick() {
   // (the freeze keeps the fixture awake on verified external power, which
   // the recovery gate guarantees is present).
   s.batt_valid = pfIsReady() && batteryPresent() && !lowVbatRecoveryActive();
+  if (protectRecoveryEnabled())
+    s.batt_valid = s.batt_valid &&
+                  (powerSampleFlags() & NB_POWER_SAMPLE_VBAT_VALID);
   s.batt_corroborated = batteryCorroborated();
   s.batt_v = batteryVolts();
   s.batt_ma = batteryMa();
+  // A missing current read must not disable the voltage stop. Until current
+  // is fresh, use no sag compensation; staged recovery separately requires it.
+  if (protectRecoveryEnabled() && !batteryCurrentValid()) s.batt_ma = 0;
   s.supply_valid = pfIsReady();
   s.supply_v = supplyVolts();
   s.supply_ma = supplyMa();
@@ -97,6 +112,14 @@ void powerGlueTick() {
   s.charge_phase = s.charger_valid ? (uint8_t)((bq.stat1 >> 3) & 0x03)
                                    : 0xFF;
   s.charger_fault = (bq.fault0 != 0x00 && bq.fault0 != 0xFF);
+
+  PowerBudget recoveryBudget = {};
+  if (protectRecoveryTick(s, recoveryBudget)) {
+    gBudget = recoveryBudget;
+    gTelemetryPowerTier = (uint8_t)gBudget.tier;
+    gNetPowerTier = (uint8_t)gBudget.tier;
+    return;
+  }
 
   LedTier priorTier = gState.tier;
   PowerBudget b = powerPolicyTick(gState, s, gConfig);
@@ -150,6 +173,10 @@ void powerGlueTick() {
         b.must_sleep = true;
         b.protect_released = false; // release did NOT persist: no clean reboot
         powerStateInit(gState, LedTier::PROTECT);
+        if (protectRecoveryEnabled()) {
+          gProtectPersistDeferred = true;
+          b.must_sleep = false; // cannot boot again into the older brighter stage
+        }
         entryContext.origin = PROTECT_ORIGIN_STAGE_PERSIST_FAILURE;
         entryContext.predecessor_stage = powerTierToStage(priorTier);
         entryContext.reset_reason = 0xFF;

@@ -8,6 +8,7 @@
 
 #include "identity.h"
 #include "nvs_store.h"
+#include "squad_trigger.h"
 
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static QueueHandle_t gRxQueue = nullptr;
@@ -26,6 +27,50 @@ static uint8_t gTxHead = 0, gTxCount = 0;
 static volatile bool gTxDoneReady = false;
 static uint32_t gTxDoneTag = 0;
 static uint64_t gTxDoneUs = 0;
+static bool gTxPending=false;
+static uint32_t gTxPendingMs=0;
+static int32_t gTxError=0;
+static uint32_t gTxErrorMs=0;
+
+bool espNowTxAvailable() {
+  portENTER_CRITICAL(&gTxMux);
+  bool ready=!gTxPending;
+  portEXIT_CRITICAL(&gTxMux);
+  return ready;
+}
+bool espNowTxStalled() {
+  portENTER_CRITICAL(&gTxMux);
+  bool stalled=(gTxPending && millis()-gTxPendingMs>750) ||
+               (gTxError && millis()-gTxErrorMs>750);
+  portEXIT_CRITICAL(&gTxMux);
+  return stalled;
+}
+int32_t espNowLastTxError() { return gTxError; }
+uint32_t espNowTxPendingMs() {
+  portENTER_CRITICAL(&gTxMux);
+  uint32_t age=gTxPending ? millis()-gTxPendingMs : 0;
+  portEXIT_CRITICAL(&gTxMux);
+  return age;
+}
+static bool reserveTx() {
+  if (!squadTriggerEnabled()) return true;
+  portENTER_CRITICAL(&gTxMux);
+  bool ok=!gTxPending;
+  if (ok) { gTxPending=true; gTxPendingMs=millis(); }
+  portEXIT_CRITICAL(&gTxMux);
+  return ok;
+}
+static bool submittedTx(esp_err_t error) {
+  portENTER_CRITICAL(&gTxMux);
+  if (error!=ESP_OK) {
+    gTxPending=false;
+    if (gTxCount) --gTxCount;
+    if (!gTxError) gTxErrorMs=millis();
+  }
+  gTxError=error;
+  portEXIT_CRITICAL(&gTxMux);
+  return error==ESP_OK;
+}
 
 static void pushTxTag(uint32_t tag) {
   portENTER_CRITICAL(&gTxMux);
@@ -62,6 +107,7 @@ static void onEspNowSend(const esp_now_send_info_t *info, esp_now_send_status_t 
   if (status == ESP_NOW_SEND_SUCCESS) gSendOk++;
   else gSendFail++;
   portENTER_CRITICAL_ISR(&gTxMux);
+  gTxPending=false;
   if (gTxCount) {
     uint32_t tag = gTxTags[gTxHead];
     gTxHead = (uint8_t)((gTxHead + 1) % 16);
@@ -93,6 +139,7 @@ bool espNowInit() {
   portENTER_CRITICAL(&gTxMux); // completions from a previous session never pair
   gTxCount = 0;
   gTxDoneReady = false;
+  gTxPending=false; gTxError=0;
   portEXIT_CRITICAL(&gTxMux);
 
   esp_err_t err = esp_wifi_set_channel(gCfg.channel, WIFI_SECOND_CHAN_NONE);
@@ -167,14 +214,29 @@ void fillHeader(NbHeader *h, uint8_t type) {
 
 bool espNowSendRaw(const void *data, size_t len) { return espNowSendTagged(data, len, 0); }
 
+bool espNowSendTo(const uint8_t mac[6], const void *data, size_t len) {
+  if (!gUp || !mac || (mac[0]&1U)) return false;
+  if (!espNowTxAvailable()) return false;
+  if (!esp_now_is_peer_exist(mac)) {
+    esp_now_peer_info_t peer={};
+    memcpy(peer.peer_addr,mac,6);
+    peer.channel=gCfg.channel; peer.ifidx=WIFI_IF_STA;
+    esp_err_t error=esp_now_add_peer(&peer);
+    if (error!=ESP_OK) {
+      if (!gTxError) gTxErrorMs=millis();
+      gTxError=error; return false;
+    }
+  }
+  if (!reserveTx()) return false;
+  pushTxTag(0);
+  return submittedTx(esp_now_send(mac,(const uint8_t *)data,len));
+}
+
 bool espNowSendTagged(const void *data, size_t len, uint32_t tag) {
   if (!gUp) return false;
+  if (!reserveTx()) return false;
   pushTxTag(tag); // before the send: its callback may fire immediately
-  if (esp_now_send(BCAST, (const uint8_t *)data, len) == ESP_OK) return true;
-  portENTER_CRITICAL(&gTxMux); // no callback will come for a refused send
-  if (gTxCount) gTxCount--;
-  portEXIT_CRITICAL(&gTxMux);
-  return false;
+  return submittedTx(esp_now_send(BCAST, (const uint8_t *)data, len));
 }
 
 bool espNowTakeTxDone(uint32_t &tag, uint64_t &txUs) {

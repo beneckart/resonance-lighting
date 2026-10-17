@@ -19,7 +19,16 @@ enum SerialMutationType : uint8_t {
   SERIAL_MUTATION_SIGNATURE = 2, // !K<id>:1 play, :0 cancel
   SERIAL_MUTATION_DECOMPRESSION = 3, // !D<id>:0..120 session minutes
   SERIAL_MUTATION_PATTERN = 4, // !P<id> ... (ADR 0084); full line via line()
-  SERIAL_MUTATION_RELAY = 5,   // !R<id>:1 report Atom presses without playing; :0 normal
+  // Earlier Marill canaries used !R; reserve that for deployed Atom relay tools.
+  SERIAL_MUTATION_PROTECT_TEST = 5, // !X<id>:1 latch, :2 reset trial, :3 latch/sleep
+  SERIAL_MUTATION_TRIGGER_SESSION = 6, // !T<id>:0..120 session minutes
+  SERIAL_MUTATION_TRIGGER_PRESS = 7, // !J<id>:1 next interaction
+  SERIAL_MUTATION_TRIGGER_MIN = 8, // !L<id>:mm minimum, RAM; min < max < clear
+  SERIAL_MUTATION_TRIGGER_MAX = 9, // !U<id>:mm maximum, RAM
+  SERIAL_MUTATION_TRIGGER_CLEAR = 10, // !V<id>:mm rearm boundary, RAM
+  SERIAL_MUTATION_RELAY = 11,   // !R<id>:1 report Atom presses without playing; :0 normal
+  SERIAL_MUTATION_USB_SERVICE = 12, // !B<id>:1 prepare, :0 cancel via clean reboot
+  SERIAL_MUTATION_POWER_TEST = 13, // !Y<id>:1 DIM/:2 OFF then sleep; exact-target test build only
 };
 
 struct SerialMutationCommand {

@@ -187,6 +187,12 @@ def send_exact(fid, line, verify_strike=False, pulse_ms=None):
                 before = telemetry(s)
                 if not before or before.get("fixture_id") != fid:
                     return {"ok": False, "error": f"identity mismatch on {port}: {before and before.get('fixture_id')}"}
+                # Older Marill canaries use !R for PROTECT fault injection.
+                # Require the current device to advertise relay support first.
+                if line.startswith("!R") and not (
+                    before.get("decompression") and isinstance(before.get("radio_relay"), bool)
+                ):
+                    return {"ok": False, "error": f"{fid} does not advertise Atom relay support"}
                 sent = utc()
                 s.write((line + "\n").encode())
                 time.sleep(0.6)
@@ -1432,6 +1438,10 @@ def interaction_runner(rule, p):
                 src_status = "simulated"
             else:
                 dist, src_status, near_who = source_reading(members)
+            if dist is not None and float(dist) > far:
+                # "When someone is between far and near": anything farther counts as
+                # nobody, so a flickering background past the far line can't start it.
+                dist, src_status = None, "beyond far"
             if dist is not None:
                 last_seen = now
                 x = shape((far - float(dist)) / max(1.0, far - near), rule.get("curve", "linear"))

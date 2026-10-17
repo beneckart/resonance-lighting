@@ -1,4 +1,5 @@
 #include "telemetry.h"
+#include "squad_trigger.h"
 
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -21,6 +22,10 @@
 #include "decompression.h"
 #include "pattern.h"
 #include "sleep_audit_io.h"
+#include "protect_recovery.h"
+#include "power_glue.h"
+#include "usb_service.h"
+#include "boot_guard_io.h"
 
 // Deliberately TRIMMED vs net_bench (Ben, 2026-07-30: brevity over compat).
 // Dropped: INA219 channels (instrument out of circuit), drawdown_* and mppt_*
@@ -178,10 +183,30 @@ String telemetryJson() {
   j += ",\"wake_listen_ms\":" +
        String((unsigned long)behaviorWakeListenMs());
   j += ",\"power_tier\":" + String(gTelemetryPowerTier);
+  j += ",\"power_confirm_awake\":" + String(powerBudget().confirm_awake ? "true" : "false");
+  j += ",\"usb_service_active\":" + String(usbServiceActive() ? "true" : "false");
+  j += ",\"usb_service_ready\":" + String(usbServiceReady() ? "true" : "false");
+  j += ",\"load_armed\":" + String(bootGuardLoadArmed() ? "true" : "false");
   j += ",\"active_program\":" + String(gTelemetryProgram);
   j += ",\"direct_seen\":" + String((unsigned long)netPeerDirectSeen());
   j += ",\"direct_matched\":" + String((unsigned long)netPeerDirectMatched());
   j += ",\"guard_stage\":" + String(gTelemetryGuardStage);
+  j += ",\"protect_retry_enabled\":" + String(protectRecoveryEnabled() ? "true" : "false");
+  if (protectRecoveryEnabled()) {
+    const auto &pr = protectRecoveryState();
+    const auto &record = protectRecoveryRecord();
+    j += ",\"protect_retry_phase\":" + String(pr.phase);
+    j += ",\"protect_retry_reason\":" + String(pr.reason);
+    j += ",\"protect_retry_count\":" + String(record.attempts);
+    j += ",\"protect_retry_pending\":" + String(record.pending);
+    j += ",\"protect_retry_last_reason\":" + String(record.last_reason);
+    j += ",\"protect_retry_generation\":" + String(record.generation);
+    j += ",\"protect_retry_success_generation\":" + String(record.success_generation);
+    j += ",\"protect_retry_success_min_mv\":" + String(record.success_min_mv);
+    j += ",\"protect_retry_success_min_ma\":" + String(record.success_min_ma);
+    j += ",\"protect_retry_success_external_seen\":" + String(record.success_external_seen);
+    j += ",\"protect_retry_remaining_ms\":" + String(pr.remaining_ms);
+  }
   j += ",\"guard_interrupted\":";
   j += gTelemetryGuardInterrupted ? "true" : "false";
   SleepAuditRecord sleepRecord;
@@ -374,6 +399,7 @@ String telemetryJson() {
     patternTelemetry(j);
     decompressionRadioTelemetry(j);
   }
+  squadTriggerTelemetry(j);
   j += "}";
   return j;
 }

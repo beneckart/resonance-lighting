@@ -35,6 +35,226 @@ when both the laptop and the T-Deck are present.
 Body. What changed, what was decided, what's next.
 ```
 
+
+
+## 2026-10-16 -- Ben + Codex -- DIM duration and service follow-ups
+
+Daisy's DIM interval was about 73 s from boot, including initialization and
+60 s above the default 3.30 V load-compensated clear threshold. Saved NVS
+contains no threshold overrides. Unlike PROTECT release, DIM recovery does
+not require positive current. The ten-minute cold-boot grace allowed this
+window to complete. Documented two open fixes: planned all-loads-off USB
+service preparation, and bounded DIM/OFF recovery opportunities when ordinary
+12 s day wakes would reset the RAM-only 60 s timer. Existing collapse guards
+and PROTECT must survive both changes. No firmware or device changes made.
+
+## 2026-10-16 -- Ben + Codex -- Daisy DIM explanation and fresh Skitty radio evidence
+
+Daisy's pre-write CRC-checked NVS contains FULL, load_arm=1 and boots=0;
+preflight had the LED rail on at 3.584 V. The USB service power-on reset
+therefore invokes the guarded DIM retry. She automatically returned to FULL
+at 17:53:36 with 3.586 V; subsequent software OTA boot stayed FULL. Preserved
+this explanation and decoded audit with the BenPhone canary record.
+
+Review of the separate T-Deck log recovered a fresh Skitty heartbeat at
+17:51:26 PDT (age 7 ms), still PROTECT at 3.250 V, reported awake battery
+current 0 mA, good external supply and charger fault zero. This is not a
+release or a sleep-current measurement. It narrows the telemetry gap despite
+continued USB silence. Earlier/later cached copies were distinguished using
+age and changed voltage, not sequence/uptime alone. Raw excerpt and report
+appended. Skitty's sole USB observer remains healthy on the original deadline;
+no Skitty command, reset or configuration change was made.
+
+Committed the canary evidence as 49893b0, merged Brian's concurrent 91b0856
+sensor far-distance fix without conflicts, and pushed merge 79abd2b to
+origin/codex/decompression-signature. Python syntax and whitespace checks
+passed. No firmware was changed or reflashed during this explanation.
+
+## 2026-10-16 -- Ben + Codex -- Daisy BenPhone OTA canary passed
+
+Daisy F40308 reappeared through the same enclosure extension after the USB-A
+port/cable comparison. Built ordinary-perimeter fx-261017-abe3c6e-b from clean
+bc9de328385df00dc242b267e4a1d1a20f69388d with BenPhone plus retained private
+Party In The Woods fallback. Exact SHA-256:
+85b594b003d2e89afe3a551218164e2bedc6efce9d608a0809519d534b9bad52.
+The new canopy image was not used on the perimeter. USB bootstrap preserved
+and verified the 64 KiB prefix and original app before writing only app0.
+The reset command returned a Windows serial abort after issuing the reset;
+fresh application logs proved successful boot without a manual reset.
+
+After a natural radio listening window, T-Deck job 87B90584 targeted only Daisy.
+It joined BenPhone profile 1 at 10.60.100.228, channel 6, and accepted the same
+retained image over WiFi in 7.43 seconds. Passive serial logs captured software
+reboot, channel-11 return, self-test PASS and VALID. The runner passed fresh
+post-reset revision and 30-second checks; independent USB telemetry confirmed
+app1 VALID through 83.665 seconds, FULL, VL53/MSA reads good and no charger
+fault. Fifteen settings/history fields matched preflight, including the
+original 3026 mV protection entry. Only Daisy's registry row was updated.
+
+Canary records/manifests are in BENPHONE_OTA_DAISY_2026-10-16.md and the updated
+BenPhone handoff. The exact artifact is retained locally; private fallback
+credentials remain private. Nine canopies and Marill remain unchanged; their
+hotspot provisioning/qualification is still separate work. Temporary Daisy
+observers closed. Skitty's sole observer remains healthy on its original
+deadline; no Skitty serial open, command, reset or configuration change occurred.
+
+## 2026-10-16 -- Ben + Codex -- Skitty visual wake at about 17:52 PDT
+
+Ben observed a wake and a slower Feather blink, estimated 1-2 Hz. Logged
+this independently of USB: the healthy replacement observer still had zero
+samples/opens at 17:52:07. Exact installed-source review maps that cadence
+to the battery indicator's coarse SOC/voltage bands, not PROTECT release.
+No fixture intervention, competing serial open, deadline change or restart.
+See the appended Skitty report and 20261017T005200Z-F3FD28-visual-wake.json.
+
+## 2026-10-16 -- Ben + Codex -- USB-A data path verified with T-Deck
+
+Ben clarified that the nine canopies are on a physical USB hub attached to
+Brian's laptop. He connected a nearby, not-yet-identified Daisy/Marill
+perimeter through its closed enclosure extension to a spare USB-A port.
+An exact-identity read-only capture from 17:40:21 to 17:43:52 observed no
+perimeter port; a 17:41 Windows PnP snapshot showed only the healthy T-Deck,
+with no failed USB device. No serial port belonging to Skitty was opened.
+
+At 17:44 Ben moved T-Deck 8EB508 onto the same USB-A port and the perimeter's
+laptop cable. The bridge disappeared at 17:44:17 and re-enumerated as COM10
+at 17:44:29. A no-reset read-only t query at 17:44:44 returned bridge=tdeck,
+channel=11 and queue_drops=0. This proves that port and cable carry USB data;
+it does not condemn the enclosure extension or establish the perimeter's
+sleep/protection state. A return-to-perimeter comparison is now armed.
+Evidence: 20261017T004021Z-perimeter-benphone-intake.jsonl,
+20261017T004356Z-usb-a-port-compare.jsonl and
+20261017T004429Z-8EB508-usb-a-proof.jsonl under ops/bench/data/Oakland/.
+
+## 2026-10-16 -- Ben + Codex -- BenPhone canary artifact retained, OTA pending
+
+The clean build completed at 17:37 PDT as fx-261017-bfb3ab9-b, source
+8ce02b6296b185ecf8457f96897993a0be62a317, 1,225,168 bytes, SHA-256
+7b8c95e96aae34e2ecbf02975e5166d91159818c63a1ff2cfd30b1845fb67100.
+Verified manifest/recipe, actual compiler flags, embedded identity/SSIDs,
+partition layout and byte-identical preservation in the main checkout.
+The shared manifest and BenPhone handoff record the exact retained artifact.
+No lantern has received this image yet. Ben noted the squad is connected
+through Brian's hub; clarification of that topology and the installed
+maintenance network is pending. USB is one bootstrap option, not an OTA
+requirement. The existing firmware has compile-time WiFi profiles; a known
+reachable profile could provide a fully wireless bootstrap instead.
+Skitty's logger remains healthy with fresh health records and unchanged
+original deadline; no new Skitty serial port or command was used.
+
+## 2026-10-16 -- Ben + Codex -- publish merge and prepare BenPhone OTA canary
+
+Pushed merge/collision fix bbc2587 and shared hotspot profile 8ce02b6 to
+origin/codex/decompression-signature. The first push waited on Git's helper
+selector; retried through the already-configured Credential Manager without
+changing global settings. Ben explicitly authorized the temporary phone
+credentials in the shared wifi_benphone.h profile. Prepared a clean isolated
+canopy build with BenPhone plus the prior Party In The Woods private fallback.
+Current yard WiFi is BubbyNet; the fallback was not verified available here.
+
+Identified T-Deck 8EB508 (storage4, channel 11) on COM10 and heard all nine
+canopies. The temporary dashboard verifies the bridge USB identity on every
+open, leaves DTR/RTS low, logs raw traffic and permits only Pinsir 9F26BC
+maintenance/campaign commands. Pinsir was FULL at about 3.53 V, fault zero.
+One 35-second targeted maintenance request ended in WiFi startup-failed (3)
+and a normal return to the mesh, with no upload or firmware change. Requested
+one canopy on USB for initial hotspot provisioning before the wireless test.
+No Skitty command or competing serial opening occurred; its observer remains
+healthy on the original deadline. See BENPHONE_OTA_CANARY.md for handoff.
+
+## 2026-10-16 -- Ben + Codex -- Skitty passive USB trace completed
+
+The 17:11-17:31 trace stopped normally. Its 2,023 records include active hub
+and controller state-machine traffic, but no enumeration starts, completions,
+retries, failures or descriptor-validation failures. Exact parent-hub rundown
+was mapped; no Skitty serial-identity attach was recorded. This does not
+establish Windows rejection, processor inactivity or charging failure.
+Recorded the result and raw hash in the Skitty report and wrote the one-shot
+review marker. The separate natural-recovery observer remains untouched.
+
+## 2026-10-16 -- Ben + Codex -- integrate Brian's branch and check current canopy OTA support
+
+Fetched and merged origin/codex/decompression-signature through 3285583,
+preserving the local Marill recovery/trigger work and investigation notes.
+Brian's nine app-only flash records now identify fx-261016-d572656-b from
+ffa4e1e9a00a8f2baff043b7e5f5f882fbb62980; all nine report valid OTA slots,
+no pending verify and unchanged 64 KiB prefix verification. The registry and
+build entry agree on SHA-256
+fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd.
+The binary/manifest themselves were not included in this pull. Maintenance
+code is byte-identical to the previously reviewed source; targeted radio
+entry, shared-WiFi HTTP update and maintenance loop remain. Current-image
+OTA qualification and the proposed phone-hotspot provisioning are pending.
+
+Resolved an independently introduced serial verb collision: Brian's deployed
+relay mode keeps !R, and future builds use !X for the target-gated PROTECT
+fault-injection test. Existing Marill images still use the historical !R
+test verb. Tone Lab now requires fresh relay-capability telemetry before
+sending !R, so it cannot reinterpret an old canary's test command. No device
+was changed. Native serial, recovery, squad and radio/button tests passed
+(71 + 343 + 615 + 160 checks); seven mocked cases verified the actual host
+relay write gate. No Arduino build or hardware test was performed.
+
+Skitty's observer and passive Windows trace files/processes were left in
+place. No serial port, maintenance command, reset or firmware write was used.
+
+## 2026-10-17 -- Brian + Claude -- Event basic mode on Zubat
+
+Basic mode for the event, built on Ben's squad trigger (435e1ef): any perimeter
+in the image is the trigger (`--squad-trigger-any-perimeter`); each approach
+(5..40 cm, rearm past 60 cm) fires the next step: rising pitch two lanterns at
+a time (lower, then higher +400 ms), then the top lantern alone, then all nine
+together; repeat. Pulses and pitch order come from the Tone Lab tone map via
+ops/bench/gen_squad_roster.py -> core/squad_roster.h; lanterns' local signature
+now uses their own roster pulse. The session starts by itself and renews while
+power allows; ready-only firing so one missing lantern cannot stall the cycle.
+
+Artifact `fx-261017-a3b81c6-b` (SHA-256 30df76d9...3833c7cf), built in the
+clean worktree. Flashed to Zubat `F401DC` (from 4860c14, backup
+20261017T061753Z-F401DC). Boot: trigger_enabled, auto session 3591 s, all nine
+ready (mask 511), presence armed, VL53L5CX present. Lanterns still on e997cbf
+(accept the trigger's strikes/leases); reflash for the tuned signature follows.
+
+## 2026-10-17 -- Brian + Claude -- Zubat moves to the decompression build
+
+Perimeter lights now drift through colours in decompression builds too (37 px,
+about a third of the downlight level, no white, no flashes: no chime; f7f6b6b).
+Artifact `fx-261017-4860c14-b` (SHA-256 ea4e9362...511416b), same recipe as
+e997cbf plus that change, built in a clean detached worktree because the running
+Tone Lab autosaves into the main checkout mid-build.
+
+Zubat `F401DC` went from the field image `fx-260912-f951ae9-b` to
+`fx-261017-4860c14-b` (app0, identity-gated; that artifact is not on this
+laptop, so the whole running slot was saved privately with the 64 KiB prefix and
+coredump: 20261017T055255Z-F401DC; coredump was not blank). After boot:
+decompression active, VL53L5CX reporting, USB keep-awake works like the
+lanterns. Its NVS profile is still COMMISSION (irrelevant to the decompression
+behaviour); restore the field image + `F1` before any field install as a normal
+perimeter. Lanterns stay on e997cbf (identical for downlights).
+
+## 2026-10-17 -- Brian + Claude -- Chime lighting on all nine lanterns
+
+After the Leeloo preview, flashed `fx-261017-e997cbf-b` to the other eight
+(Ness, Sakura, Rikku, Eevee, Pinsir, Lucas, Bidoof, Tangela) with the same
+identity-gated app-only procedure: private backup each, write + verify, prefix
+unchanged, decompression active after boot. All nine lanterns now run the chime
+lighting. Per-lantern evidence: `ops/bench/data/Brian bench/*-flash.jsonl`.
+
+## 2026-10-17 -- Brian + Claude -- Chime lighting preview on Leeloo
+
+Decompression builds now light with the chimes (core/chime_light, 082b667):
+slow colour drift (one turn/min, per-lantern starting hue from the id); every
+solenoid strike flashes (white pop on RGBW heads) and jumps the colour ~1/3
+turn. Perimeter boards keep the quiet idle frame; the power cap still applies.
+
+Artifact `fx-261017-e997cbf-b` (SHA-256 f50a4f0d...ae9f24), same recipe as
+fx-261016-d572656-b plus the lighting (--decompression --basic-listener
+--day-sleep-s 120 --wake-listen-ms 12000, field, ch 11). A first attempt built
+without those flags (fx-261017-137dcae-b, wrong recipe) was deleted unflashed.
+Flashed to Leeloo `F40254` only (app1, identity-gated, private backup
+20261017T053727Z-F40254, verify ok, poweron, decompression active) as a
+preview before the other lanterns.
+
 ## 2026-10-16 -- Brian + Claude -- Proximity tab for sensor testing; Zubat range findings
 
 Tone Lab Proximity tab rebuilt for testing sensors rather than lanterns:
@@ -186,6 +406,802 @@ fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd) and flashed
 all nine app-only from fx-261014-65eeb39-b (identity-gated, digest-verified,
 backup-first). Not yet exercised with a real Atom press. Standalone (no
 laptop) button behavior still needs firmware and Atom work with Ben.
+
+## 2026-10-16 -- Ben + Codex -- squad OTA capability review
+
+Checked exact documented canopy 65eeb39 and Marill 220d90a sources: targeted
+radio maintenance, shared-WiFi HTTP update and the maintenance loop remain;
+their maintenance implementations are byte-identical. Daisy f951ae9 and
+Skitty b3e2738 retain the same OTA architecture. No maintenance command,
+network association, update or fixture change was attempted.
+
+Current qualification is weaker than capability: all nine canopy registry
+rows still say ota_verified=false, and some later captured radio revisions
+are d572656 rather than the registry's 65eeb39. That artifact/source mapping
+was not found in this checkout. Updated the Marill runbook and TODO to require
+fresh per-device revisions and one current-image OTA canary before expansion.
+Marill's registry true flag does not establish a new OTA test of its latest
+USB-flashed image. Skitty remains excluded during passive recovery observation.
+
+## 2026-10-16 -- Ben + Codex -- passive Windows USB diagnosis for Skitty
+
+Read-only PnP and event-log checks show Skitty F3FD28 disconnected with no
+current problem flag. Its 16:06:13 Windows bus-removal event aligns within
+about 4.5 ms with the firmware sleep message. No later target arrival or
+retained enumeration failure was found, but the previous deeper trace ended
+at 16:00, so this does not rule out a Windows USB issue during the gap.
+
+Started a separate 20-minute passive USBHUB3/UCX/USBXHCI Default+StateMachine
+trace at 17:11 PDT, ending about 17:31. Preserved an initial rejected logman
+option combination and corrected it before successful startup. The trace
+opens no serial port and changes no device or power settings; Skitty's
+natural-recovery logger remains the sole serial owner. Updated the existing
+heartbeat to review and report the closed trace once, preserving its original
+recovery safeguards and 20:00:54 deadline. Evidence and limitations are in
+POST_BURN_SKITTY_2026-10-16.md; raw USB trace/baseline remain private.
+
+## 2026-10-16 -- Ben + Codex -- Skitty requested status check at 17:09 PDT
+
+Verified fresh replacement-logger health and status, no checkpoint failures
+or stderr, and no serial contact since restart. Independent read-only port
+inventories were also empty. Last raw Skitty telemetry remains 16:06:12,
+3.031 V and PROTECT with charging enabled. Recorded the over-hour USB
+observation gap without inferring the current voltage, processor state or
+charging failure. Passive watch and original deadline remain unchanged.
+
+## 2026-10-16 -- Ben + Codex -- perimeter postmortem and confirmed Shervin service hours
+
+Ben confirms Shervin definitely worked until 04:30 a.m. Recorded this operator
+clarification in the service history and appended it to the PROTECT
+investigation; the 01:11 archived helper message no longer supplies an
+end-of-night boundary. The 14 retained August 30 results remain a partial
+roster, not proof that only 14 perimeters were serviced.
+
+Added `docs/postmortem/PERIMETER_FAILURES_2026.md` with a dated evidence ledger,
+separate entry/recovery mechanisms, five competing cases, relative likelihoods,
+counterevidence and discriminating experiments. The leading mixed hypothesis
+is real energy shortage plus recovery delay; low voltage/limited input has
+stronger support than the unobserved sunny recovery-delay sequence. Kept
+alternative depletion/retrip, path-sag, bad-sample and reset-marker cases,
+and explicitly avoided invented numerical probabilities or treating the
+overlapping service/census subsets as independent failure-rate samples.
+Linked the report from the postmortem index and updated the remaining TODOs.
+No device commands, configuration changes or new experiments were performed;
+Skitty's existing passive observer remains active under its original deadline.
+
+## 2026-10-16 -- Ben + Codex -- repair Skitty observer and compare post-service states
+
+At Ben's request, repaired the host status-file failure with the new
+`ops/bench/usb_recovery_watch.py`: bounded snapshot retries, independent raw
+health records, exclusive evidence creation and target locking, and raw
+terminal evidence before the final optional status write. Six focused tests
+passed. Verified the failed predecessor had finished, then resumed only
+read-only telemetry for Skitty F3FD28 at 16:49 PDT with a fresh r2 evidence
+prefix and reactivated the existing heartbeat. The original 20:00:54 PDT
+deadline is unchanged. At 16:50 the logger was healthy but had no new USB
+contact; last device evidence remains 16:06, 3.031 V and PROTECT. No reset,
+fixture hold, configuration write, flash or chime occurred.
+
+Further local Codex archive review and an exact-ID historical join found
+11 of the 14 August 30 serviced perimeters in September 12's census: ten
+back in PROTECT above 3.25 V and Ditto FULL. Nine protected members retain
+low-voltage entry origins near 3.02 V; F402A8 retains a load-armed reset at
+3.261 V. This supports new entries after recorded recoveries, without
+proving false trips or a failed sunny recovery. All 11 census observations
+had no good external input. The contemporary helper-stop message at 01:11
+PDT also limits attribution of service rows continuing to 04:30. Saved the
+join and archive excerpts, and appended the distinctions to the service
+history, PROTECT investigation and Skitty autopsy reports.
+
+## 2026-10-16 -- Ben + Codex -- Skitty logger failed; natural-recovery watch paused
+
+The 16:41 heartbeat found that the fixed-target USB logger terminated at
+16:32:46 PDT. Its traceback is WinError 5 while atomically replacing the
+status JSON, and raw evidence contains the matching finished/error record.
+The logger PID is gone. Last device evidence remains 16:06, 3.031 V and
+PROTECT; neither natural release nor a stable post-release boot was captured.
+This host logging failure does not establish that charging stopped. The
+earlier missed 16:21 USB observation remains separately unresolved.
+
+Recorded the early termination in POST_BURN_SKITTY_2026-10-16.md and paused
+watch-skitty-natural-protect-recovery, preserving its other settings. No
+restart, extension, competing serial connection or fixture mutation occurred.
+Added the checkpoint-resilience follow-up to TODO; the four-hour experiment
+remains incomplete.
+
+## 2026-10-16 -- Ben + Codex -- record one missed Skitty USB observation window
+
+At 16:31 PDT the read-only logger remained fresh and alive, but no new raw
+sample followed the 16:06 declared 900-second sleep. The approximately 16:21
+window was not observed. Host port enumeration was empty and pnputil showed
+no USB-class problem device; a CIM inventory query was access-denied. Recorded
+the observation gap and uncertainty in POST_BURN_SKITTY_2026-10-16.md. Kept
+the original bounded experiment running without intervention or extension.
+
+## 2026-10-16 -- Ben + Codex -- recover August 30 perimeter USB service records
+
+Searched this laptop's compressed August Codex sessions and retained branches
+for the reported Shervin service. A 00:55 PDT August 30 user message explicitly
+describes a helper USB-flashing perimeters. Side-branch 2315ef6 preserves 14
+service results: ten exact fx-260829-b0ff5db-b updates and four existing
+reported fx-260829-af1d4ec-p images. Thirteen explicitly describe successful
+PROTECT release; Clank records replacement-battery commissioning. This is a
+strong match to the recollection, not a named Shervin or all-24-fixture proof.
+
+Verified both recovery-fix commits are ancestors of both artifact sources,
+inspected the implemented gates, and hash-verified the retained af1d4ec binary.
+Recorded the roster and evidence limits in
+docs/tests/PERIMETER_USB_SERVICE_HISTORY_2026-08-30.md, with selected session
+excerpts, historical registry rows and provenance JSON under the Oakland
+20261016-perimeter-usb-history-audit directory. Updated the investigation and
+remaining service-history TODO. No old observations were overwritten; no
+branch merged, device command sent, or Skitty capture changed.
+
+## 2026-10-16 -- Ben + Codex -- narrow Shervin service window and separate upload from guard release
+
+Ben recalls Shervin carrying this laptop for USB battery service and selective
+updates of older firmware, a day or two before opening. Official opening was
+August 30, so August 28-29 is an approximate search window. Appended this
+clarification to PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md, preserving the
+earlier reported flag clearing without treating a flash as proof of it.
+
+The August 29 Logan record explicitly shows PROTECT surviving upload and a
+configuration reboot; Eevee instead naturally released on USB before upload.
+The same window overlaps the full-battery release and premature-day-sleep
+fixes, so exact deployed revisions matter. The adjacent August 27 USB-powered
+OTA batch is not yet a match for Shervin's direct-USB service. Updated the
+open reconstruction item. Skitty's read-only logger remains running; no
+device command, configuration change or flash was performed.
+
+## 2026-10-16 -- Ben + Codex -- preserve Shervin perimeter battery-service history
+
+Ben recalls Shervin replacing every perimeter battery on a burn-week night,
+using cells roughly 40-60 percent charged and also clearing PROTECT flags.
+Poor weather followed. Recorded this recollection without treating the date,
+clearing method, charge estimate or post-service state as independently
+verified; a named contemporaneous service record was not found in the repo
+search. Requested the approximate night and clearing procedure.
+
+An effective clear excludes simple pre-swap latch carryover but still permits
+a fresh justified or inappropriate trip followed by failed recovery. Linked
+the September 1 P126 setpoint/weak-input diagnosis, September high-voltage
+PROTECT cohort, Marill's sensor-off/release proof and Skitty's currently real
+low voltage. Added the working causal history and evidence limits to
+docs/tests/PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md. No device change.
+
+## 2026-10-16 -- Ben + Codex -- record Skitty dark-panel orientation
+
+Ben reports Skitty's panel is upside down and receiving no light in the
+currently shady setup; asked about flipping it up, but no flip is reported.
+Recorded that context separately from pre-intake sunlight. Confirmed official
+PowerFeather documentation describes Schottky-ORed VDC/VUSB inputs: higher
+loaded voltage supplies the board, with sharing near equal voltages. A weak
+panel does not latch USB out merely because its open-circuit voltage is
+higher. No device or supply change was made; natural-recovery capture continues.
+
+## 2026-10-16 -- Ben + Codex -- qualify Skitty precharge and input-limit interpretation
+
+Decoded the retained 16:06 Skitty samples against the BQ25628E datasheet:
+REG0x1D=0x54 after charging enable sets VINDPM_STAT, with final input 4.629 V
+and configured floor 4.600 V. The charger is input-voltage limited at that
+instant; a configured 2 A charge limit is not evidence of actual 2 A charging.
+The precharge exit threshold spans 2.9-3.1 V (3.0 V typical), and CHG_STAT=1
+does not distinguish precharge from fast CC. Documented these limits in the
+Skitty report. Kept the natural-recovery experiment unchanged.
+
+## 2026-10-16 -- Ben + Codex -- Skitty second wake reaches 3.03 V
+
+The continued read-only capture caught Skitty F3FD28 at 16:06 PDT with
+3.031-3.033 V, PROTECT/stage 4 and no charger fault. It enabled charging
+after startup and returned to a declared 900-second sleep. Voltage remains
+below the 3.25 V release floor, so this does not establish an awake-current
+recovery trap. Ben observed rapid Feather LED blinking. Checked the exact
+August source: its USER LED uses a 4 Hz low-battery display, consistent with
+the captured SOC 3 and voltage below 3.15 V if that was the observed LED.
+Color was not specified; charger STAT is separate. Recorded the observation
+and wake in POST_BURN_SKITTY_2026-10-16.md. No device mutation performed.
+
+## 2026-10-16 -- Ben + Codex -- observe Skitty natural recovery and verify release gates
+
+Ben asked to keep watching Skitty F3FD28 recover while charging. Armed a
+four-hour fixed-target read-only serial continuation, with automatic handoff
+after the first-attachment capture finishes and a ten-minute thread heartbeat.
+The heartbeat stays quiet for routine progress and reports verified natural
+recovery, material problems or expiration. No reset, hold, guard clear or
+firmware/configuration write is part of this experiment.
+
+Mapped reported fx-260831-b3e2738-b to historical source 316470a and read its
+actual policy/glue. Normal release requires >=3.25 V and >=+20 mA for 60
+continuous awake seconds with good input and enabled/fault-free charger.
+An independently corroborated full/taper path requires >=3.45 V for the same
+minute. Qualifying evidence holds the fixture awake; missing evidence or a
+proof switch resets the timer. Sleep charging is not counted. Successful
+release persists OFF and reboots. Skitty's last 2.957 V clip reading remains
+below both floors. Details and evidence prefix are in
+docs/tests/POST_BURN_SKITTY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- Skitty wakes unaided through original extension
+
+The fresh-perimeter capture identified Skitty F3FD28 at 15:51 PDT, running
+fx-260831-b3e2738-b. Windows enumeration completed successfully in about
+196 ms; COM9 delivered four telemetry samples before a declared 900-second
+PROTECT sleep. No reset, cable change, protection clear or firmware write
+was issued. Saved PROTECT origin is low-vbat at 3023 mV, with a saved last
+sleep voltage of 2604 mV and current captured voltage about 2.885 V. These
+records do not establish calendar dates for the older events.
+
+Skitty confirmed 300 mA precharge readback and enabled charging before
+sleep. Ben subsequently measured 2.957 V at the clips at 15:58, up from
+about 2.7 V after connection. This supports charging but does not quantify
+capacity recovered or prove eventual guard release. Brief startup battery
+current samples are not a reliable steady-charge measurement. Added the
+specimen report and updated the first-attachment/recovery TODOs. The existing
+20-minute capture remains bounded; raw ETW is retained privately.
+See docs/tests/POST_BURN_SKITTY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- steady charger indication on unidentified perimeter
+
+Ben confirmed the red charger LED is steady, not blinking. A repeat clip
+voltage has not yet been reported. At 15:44:24 PDT the original ETW/serial
+capture still had no enumeration event or serial port. The steady indication
+is consistent with charger-reported charging, not a measurement of current
+or proof of voltage recovery. Kept the connection untouched; the capture
+remains armed through a possible 15-minute PROTECT sleep interval.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter has low measured battery voltage
+
+Ben reports only the red charger LED lit, no Windows connection sound, and
+approximately 2.7 V measured across the battery clips after USB connection.
+Recorded this in the fresh-perimeter observations JSONL. This is a physical
+voltage measurement, not a gauge estimate; unit identity and firmware remain
+unknown. If its firmware matches the September fleet build, that voltage is
+below the 3.05 V PROTECT floor and a 900-second sleep is plausible. This does
+not establish its actual guard state or diagnose the absent USB path.
+Kept the original connection/capture intact and requested steady/blinking LED
+state plus a repeat clip voltage. Prior sunlight does not establish how much
+charge was gained or lost. No load, reset or protection-clear command issued.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter initial connection still absent
+
+Ben connected the sun-exposed fresh perimeter after the 15:40:53 PDT ETW
+start. Through 15:42:53, the serial watcher still records no COM ports and
+the USBHUB3 trace has no enumeration start/completion/retry/failure event.
+Read-only PnP inspection also found no present Espressif or failed USB device.
+ETW rundown events confirm the trace is functioning. No reset, cable change,
+profile command or guard clear was requested. Identity remains unknown;
+awaiting Ben's LED-state and connection-sound observations. The bounded
+capture remains active. Supplemental observation record:
+Oakland/20261016T224053Z-fresh-perimeter-observations.jsonl.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter USB capture armed
+
+The first Windows elevation request was canceled. On Ben's retry request,
+UAC launch succeeded and FreshPerimeterUSB-20261016T224053Z began at 15:40:53
+PDT, before the new perimeter was connected. Confirmed the ETL exists and
+the independent serial log records an empty port list. Prior sunlight is
+recorded; new device identity is still unknown. The capture has a 20-minute
+bound, reads only t telemetry once a unique non-Daisy fixture enumerates,
+and can be ended through its private-directory stop.requested marker.
+Evidence: Oakland/20261016T224053Z-fresh-perimeter-usb.jsonl; raw ETW remains
+in the matching private-backups directory. Ben can now connect the existing
+enclosure extension using the same laptop cable/port without pressing buttons.
+
+## 2026-10-16 -- Ben + Codex -- fresh perimeter first-attachment capture prepared
+
+Ben has another sun-exposed perimeter still disconnected from USB. Prepared
+a new exclusive Windows USB ETW and no-reset serial capture, excluding Daisy
+from automatic target selection, with a 20-minute bound and explicit stop
+marker. The Windows administrator launch is pending approval; no capture
+start has yet been confirmed and Ben was asked to keep the unit unplugged.
+Do not treat the prepared watcher as an acquired first-attachment trace.
+
+## 2026-10-16 -- Ben + Codex -- Daisy USB event baseline passes three wakes
+
+Captured Windows USBHUB3/UCX/USBXHCI events and read-only Daisy F40308
+telemetry for three normal wake/sleep windows with the cable chain unchanged.
+Windows UAC elevation was needed for ETW. All three enumerations succeeded
+in about 197 ms, with no recorded retry/failure/descriptor-validation event.
+Twenty-nine telemetry samples remained FULL, BQ fault zero, with healthy
+sensors; two fully observed USB-absent intervals were 120.035 and 119.956 s.
+Both captures closed automatically after the third sleep. No device reset,
+profile write, USB recovery or device awake hold was performed.
+
+This supplies a healthy established-connection baseline, not a reproduction
+of the first-attachment problem. Ben's recollection that the failures happen
+before a good connection is consistent with this run. Next useful intake:
+arm ETW before a fresh sun-exposed perimeter's first attachment. Raw host-wide
+ETL/topology remain private; public summaries and exact trace hash are linked
+from POST_BURN_DAISY_2026-10-16.md.
+
+## 2026-10-16 -- Ben + Codex -- USB recovery options beyond replugging
+
+Reviewed documented Windows recovery options without operating on Daisy:
+PnP rescan/exact-device restart, and administrator hub-port cycle via
+IOCTL_USB_HUB_CYCLE_PORT. Microsoft describes cycle-port as software removal
+and re-enumeration, not a guaranteed electrical disconnect. These mechanisms
+do not substitute for waking an ESP whose USB peripheral is off in deep sleep.
+Daisy's chained-extension trace already showed natural enumeration 89 seconds
+after capture started. Proposed next qualification pairs exact hub/port mapping
+and USB ETW enumeration events with bounded service-hold work; no new helper,
+firmware, device reset or profile change was implemented in this discussion.
+References: Microsoft Learn PnPUtil command syntax, How to recover from USB
+pipe errors, and Debugging USB device issues by using ETW events.
+
+## 2026-10-16 -- Ben + Codex -- Daisy works through chained extensions
+
+Ben added two daisy-chained extensions, one brand-new and one previously
+deemed faulty, to Daisy F40308's connection. A passive discovery/read-only
+telemetry capture initially saw no COM port, then COM8 returned naturally.
+Twenty telemetry records confirmed exact identity, original September firmware,
+FULL/guard 1, and reset_reason=deepsleep with last_sleep=day-charge/120 seconds.
+No reset, cable change, profile write or awake hold was requested during this
+capture. The assembled path carries data in this configuration; this does not
+qualify every orientation or establish the earlier suspect cable's failure
+mechanism. Evidence: Oakland/20261016T222149Z-F40308-extension-chain.jsonl.
+
+## 2026-10-16 -- Ben + Codex -- distinguish ship wake from USB service wake
+
+Reviewed Daisy's exact September source and manifest against the captured
+reset/replug sequence. Good solar or USB input should end BQ ship storage;
+subsequent FIELD timer sleep has timer/USER wake, not USB-power wake. A powered
+RESET should initialize USB even in PROTECT, with 30 seconds of PROTECT grace
+versus ten minutes of ordinary cold-boot lifecycle grace. Correct ROM entry
+bypasses both application sleep and PROTECT. Thus sleep can explain initial
+silence but not the complete reset/ROM/replug sequence by itself. The host,
+USB peripheral and physical-path cause remains unisolated; the original
+extension passed its later data comparison. Added the reasoning and platform
+references to Daisy's autopsy, and queued a controlled wake/enumeration test.
+No additional device commands, resets or configuration changes were issued.
+
+## 2026-10-16 -- Ben + Codex -- Daisy original extension passes; natural recovery
+
+Daisy's original suspect extension re-enumerated in ROM and passed an exact
+64 KiB prefix comparison against the direct-USB capture (37.16-second read).
+It then carried the original fx-260912-f951ae9-b application successfully.
+This validates the current orientation and setup; the earlier silence does
+not establish a failed extension. No return-to-direct leg was needed after
+this successful comparison. The replacement extension remains unqualified.
+
+A recorded host watchdog reset to leave ROM produced poweron with stored
+FULL/load-armed and therefore a DIM boot. USB telemetry showed a present
+battery, about 3.49-3.50 V after startup, charging current up to +346.9 mA,
+no BQ fault, valid VL53L5CX/MSA311 reads and initialized radio. The historical
+3026 mV PROTECT entry was unchanged. Natural voltage recovery returned DIM
+to FULL by uptime 75.482 seconds. No firmware, profile or guard-clear command
+was sent; original FIELD lifecycle remains active. Evidence and remaining
+crash/physical-capacity qualifications are in POST_BURN_DAISY_2026-10-16.md.
+The final 15:12:47 PDT sample was FULL at 3.491 V / +328.1 mA, with both
+sensors reading and radio up. All capture processes were closed afterward.
+
+## 2026-10-16 -- Ben + Codex -- Daisy ROM intake and preserved history
+
+The new perimeter is Daisy F40308. Direct USB enumerated at 15:06:16 PDT
+after a laptop-end reconnect following the manual bootloader sequence.
+Original and replacement extensions are not yet proven faulty: direct USB
+had also been silent. ROM identity and 8 MB flash were confirmed. The bulk
+RAM-stub read failed; after a host reset into ROM, slower reads preserved
+the complete 64 KiB prefix/NVS/OTA region and 64 KiB crash partition privately.
+No full-flash backup was completed. On-device ROM verification matches app0
+to retained fx-260912-f951ae9-b and app1 to fx-260831-dc82da7-b.
+
+CRC-checked saved NVS shows FULL, load armed and reset streak 1 after today's
+interventions. Historical PROTECT is the same 3026 mV low-vbat record seen in
+September; storage-usb source 8EB508/sequence 296 also matches the old ledger.
+The release was not observed and cannot be assigned to sunlight versus today's
+USB/reset history. No firmware/configuration write or guard clear was sent.
+Ben requested rechecking the original extension; a ROM-mode comparison is in
+progress. See docs/tests/POST_BURN_DAISY_2026-10-16.md for hashes and limits.
+
+## 2026-10-16 -- Ben + Codex -- new perimeter replacement extension check
+
+At approximately 15:01 PDT Ben reported swapping the unidentified perimeter
+to a new extension instead of direct USB. The continuing read-only capture
+still had no serial enumeration or telemetry, and Windows showed neither a
+present COM port nor a failed USB device. Direct USB has not yet been tried;
+neither extension is classified as failed from this evidence. The request
+remains to bypass the extension with the same laptop cable, leave the battery
+attached and avoid further button presses.
+
+By 15:02 PDT Ben reported direct USB. Initial checks still showed no serial
+enumeration, failed USB device or Espressif USB device. Left the read-only
+capture running for a natural wake, accounting for the old firmware's
+15-minute PROTECT sleep. Requested battery-clip voltage and an interior
+inspection while awaiting telemetry. No extension failure has been isolated.
+Ben then measured above 3.5 V across the battery clips and reported no visible
+corrosion. This is a manual clip-voltage observation, not a gauge reading or
+confirmation of the battery connection at the board; exact voltage and
+historical protection state remain unknown.
+
+Ben reported red and green/yellow board lights and illuminated STEMMA sensor
+lights while USB remained absent. At approximately 15:04 PDT he performed one
+requested RESET with USER released and direct USB connected. Both board
+lights went off for a few seconds and returned; the watcher and Windows check
+still found no USB enumeration. This confirms a visible response to the
+button, not an application boot or a diagnosed PROTECT state. Requested a
+separate USER/BOOT plus RESET sequence to test ROM enumeration; its completion
+and result are not yet known. No host firmware write or erase was issued.
+
+Ben subsequently confirmed the USER/BOOT plus RESET sequence. By the 15:05:54
+PDT check the capture still had no port or telemetry, and Windows showed no
+present COM port, Espressif USB device or failed USB device. ROM entry itself
+is unconfirmed without communication. Requested a five-second unplug at the
+laptop and reconnection to the same port, retaining direct board USB and the
+battery, without further button presses.
+
+## 2026-10-16 -- Ben + Codex -- new perimeter intake reset noted
+
+The new perimeter remains unidentified and connected through its enclosure
+USB extension. Ben reports one or two days of sunlight, otherwise untouched
+before this intake. At approximately 14:59 PDT he reported accidentally
+pressing RESET while the extension was still connected. No application
+telemetry had been captured before that intervention, so subsequent boot
+evidence must not be described as the untouched first wake.
+
+The 14:53:41 PDT capture completed its 210 seconds with no serial port or
+telemetry. A second, longer read-only capture started at 14:57:13; through
+the 14:59 check it also recorded no port, and Windows showed neither a present
+COM port nor a failed USB device. This does not yet isolate extension failure
+from device state. Requested direct USB with the same laptop cable, battery
+attached, and no further button presses. No host reset, configuration change
+or firmware write was performed.
+
+## 2026-10-16 -- Ben + Codex -- corrected Marill pre-autopsy exposure history
+
+Ben recalled that Marill may have seen sun before its October 15 autopsy.
+Corrected docs/tests/POST_BURN_MARILL_2026-10-15.md to preserve this uncertainty
+alongside the initial report. Arrival voltage and SOC cannot establish
+uncharged-storage retention or quantify storage drawdown. Captured telemetry,
+the historical PROTECT entry and the observed bench recovery remain valid.
+The new, unidentified perimeter intake has a separate history: one or two
+days of sunlight, otherwise untouched since storage, as reported by Ben.
+
+## 2026-10-16 -- Ben + Codex -- Marill daylight behavior accepted
+
+Ben reports no false-positive triggers and is satisfied with the current
+behavior. His observation is reduced hand-detection reach in today's brighter
+shade compared with yesterday's dimmer conditions. Keep the 50/400/600 mm
+settings and existing rearm behavior; no redesign or retuning requested.
+Stopped Marill's USB viewer when Ben switched to a new perimeter intake.
+Its bounded session was not extended or persistently changed.
+
+## 2026-10-16 -- Ben + Codex -- clarified bright-shade distance dropout
+
+Ben clarified that the live numeric distance becomes difficult to obtain
+beyond about 40 cm; starting closer and slowly moving away sometimes gives
+a briefly longer reading before No return. This refers to measured distance,
+not the configured chime cutoff. The display applies the 50 mm lower gate
+but no 400 mm upper gate. The frozen 14:18:53 trace has 13 samples whose
+nearest eligible return exceeded 400 mm: 12 had only one returning zone and
+one had two, with a brief maximum of 505 mm. This supports marginal longer-distance
+detection in this setup; it does not isolate ambient light from target size,
+orientation, cover optics or alignment. Compare deeper shade at unchanged
+geometry before attributing a specific cause. Also check a stationary hand
+near the limit: the current rearm logic accepts 800 ms without a 50..600 mm
+return, including zero valid returns, rather than demanding a measured
+distance beyond 600 mm. No configuration or firmware changes made.
+
+## 2026-10-16 -- Ben + Codex -- Marill short-range hand returns in bright shade
+
+The restarted USB viewer reconnected without a reset. Ben reported getting
+about 5..40 cm in the shaded outdoor setup. By 14:18:53, Marill's presence
+counter reached 13, including the all-nine step; all nine were READY with
+zero radio errors/restarts. The first 648 recorded samples included 238
+with distance returns. The nearest reported zone ranged from 35 to 505 mm;
+13 samples had a nearest return beyond 400 mm and 17 below 50 mm. Thus
+the configured 50..400 mm chime band is not a hard limit on raw telemetry.
+These are reported sensor distances, not ruler-verified accuracy or a
+controlled maximum-range test. The meaning of Ben's "only" (chime versus
+readout) and stationary-hand dropout/rearm behavior remain to distinguish.
+No threshold, firmware, or session-duration change was made. Frozen summary:
+ops/bench/data/Oakland/20261016T211853Z-F40348-shade-hand-summary.json.
+
+## 2026-10-16 -- Ben + Codex -- bright-shade range observation started
+
+Ben brought Marill into fairly bright outdoor shade around 14:00 Pacific.
+Caught a normal timer wake and opened a 60-minute session at 14:13; unchanged
+fx-261016-220d90a-b, FULL, battery about 3.60 V, no active PROTECT retry.
+All nine receivers became READY with zero radio errors/restarts. The initial
+353 viewer samples (14:13:21..14:14:39) had fresh sensor frames but no nonzero
+zone distances and no triggers. A deliberate palm-at-10..40-cm check was
+requested but not confirmed, so this is not evidence of failed hand detection
+or a measured outdoor range. No illuminance measurement was available.
+
+USB writes timed out at 14:14:40 while the session was active, then COM7
+disappeared. Restarted the read-only viewer without resetting Marill; it is
+waiting for reconnection. Browser policy prevented automatic access/reload
+of the existing local graph tab. No firmware or persistent settings changed.
+ST VL53L5CX datasheet Rev 13, sections 7.2.1/7.2.2, documents ambient-light
+range reduction; its full-field laboratory targets do not establish this
+hand/cover/lighting setup's range. Physical daylight test remains open.
+Evidence: Oakland/20261016T211044Z-F40348-trigger-command.jsonl,
+20261016T211059Z-F40348-live-presence.jsonl (closed), and
+20261016T211505Z-F40348-shade-observation.json. Continuing viewer:
+20261016T211520Z-F40348-live-presence.jsonl.
+
+## 2026-10-15 -- Ben + Codex -- Marill replacement USB extension passed wake cycle
+
+Ben confirmed the new presence band feels good, then connected a new USB
+extension. Read-only capture at 22:38..22:41 Pacific observed two automatic
+timer wakes on COM7 without reset, replug, session command or firmware change.
+Windows reported both native USB interfaces OK, problem code 0. Received
+22 and 26 telemetry samples in the two windows; each ended near 30 seconds
+uptime, with about 120 seconds disconnected between them. Serial disconnect
+exceptions coincided with scheduled sleep, not failed enumeration.
+Both boots: reset=deepsleep, fx-261016-220d90a-b, FULL, battery about 3.60 V,
+healthy VL53/MSA readings after initialization, no active PROTECT retry,
+session expired, 50/400/600 mm bounds retained. This passes the extension's
+current connection/orientation; other plug orientations were not tested.
+Trace: ops/bench/data/Oakland/20261016T053804Z-F40348-canary.jsonl.
+Left Marill in its normal sleep cycle; viewer's earlier two-hour run had ended.
+
+## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band deployed
+
+Flashed Marill F40348 only with fx-261016-220d90a-b from clean 1a53a23;
+SHA-256 00c25f9912cd3119810727084fde0607dac72720e07abbb92e376c337945e7e1.
+ROM application and unchanged-prefix verification passed. Live defaults were
+50/400/600 mm; RAM upper/clear adjustments and restoration passed with zero
+strikes. Restored 44 minutes of the previous session, ending about 20:42
+Pacific. All nine READY again, zero TX errors/restarts, and the graph shows
+the new band and empty-space rearm. Physical feel at the 40/60 cm edges is
+awaiting Ben's observation. Exact evidence is recorded in
+docs/tests/MARILL_SQUAD_TRIGGER_2026-10-15.md. No receiver was flashed here.
+
+## 2026-10-15 -- Ben + Codex -- Marill 5..40 cm band implementation
+
+Ben confirmed the minimum works and requested 40 cm maximum / 60 cm rearm.
+Changed defaults to 50/400/600 mm and added RAM-only maximum/clear USB
+setters, preserving strict ordering and clear-space rearm on every change.
+No session extension, chime, NVS or power-policy change. Serial parser suite:
+61 checks passed. The expanded squad executable compiled, but Windows
+Application Control blocked execution; compile-time assertions instead
+verified the actual presence state machine at 400/401 and 600/601 mm,
+800 ms rearm, invalid ordering, no-op writes and safe retuning. Immutable
+build and Marill-only hardware verification follow this checkpoint.
+
+## 2026-10-15 -- Ben + Codex -- Marill UI and session reopened after AFK
+
+Ben returned at about 19:42 Pacific. The prior event session had expired and
+the two-hour viewer had closed normally at 18:38:53. Restarted the read-only
+viewer, caught Marill's timer wake without reset, and admitted a new 60-minute
+session. Fresh telemetry: reset=deepsleep, fx-261015-9ba0941-b, FULL,
+VBAT 3.391 V, healthy sensors, recovery trial/attempts=0, minimum still 50 mm.
+All nine READY and live graph verified. Session ends about 20:42 Pacific.
+Evidence: ops/bench/data/Oakland/20261016T024159Z-F40348-trigger-command.jsonl;
+continuing viewer: 20261016T024148Z-F40348-live-presence.jsonl. No firmware or
+persistent settings changed.
+
+## 2026-10-15 -- Ben + Codex -- Marill 5 cm cutoff deployed
+
+Built/flashed exact-target fx-261015-9ba0941-b from b1de946; SHA-256
+3fb1399b24807e7af8da208752b6ea7a00d60bc393f591bb6ef35dc9cfa31992.
+ROM application/prefix verification passed. Fresh boot used the 50 mm default;
+USB changed to 30 mm and back to 50 mm without a bell or session start.
+Restored 36 minutes from the original remaining session time. All nine
+rejoined, empty-space rearm worked, and the graph showed the 5..70 cm band.
+No radio errors/restarts. Deliberate close-hand feel remains a user observation;
+3 cm is the existing software filter floor, not a precision guarantee.
+Evidence and artifact identity: MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
+## 2026-10-15 -- Ben + Codex -- Marill close-range tuning implementation
+
+Ben requested about 5 cm minimum distance, possibly lower. Added a 50 mm
+default and exact-target !L minimum command (30..699 mm, RAM only). The
+existing sensor pipeline filters below 30 mm. Cutoff changes require fresh
+clear-space rearm and do not alter the bell cycle/session or persistent state.
+The live graph uses the firmware's actual reported boundaries, with legacy
+15 cm fallback, and plots the closest valid zone return. Native squad tests
+passed 502 checks; serial parser tests passed 44; viewer JavaScript parses.
+Immutable build and Marill-only deployment follow this source checkpoint.
+
+## 2026-10-15 -- Ben + Codex -- Marill squad cycle and listening test passed
+
+Installed completion-paced fx-261015-3216a18-b from clean 0214c71; binary
+SHA-256 3a666b06e97e06526acc8386db13e5c4e08e3fdfb75b62aaad8e9eeb742ac97b.
+ROM app1/prefix verification passed, recovery support remained enabled, and
+fresh boot was FULL with healthy sensors. All nine gathered by about 132 s.
+Completed the nine individual targets and tenth scheduled group event, with
+zero send errors/restarts and all nine READY afterward. Ben confirmed hearing
+the individual bells and a synchronized group strike. No receiver flash or
+persistent configuration changes. Native squad suite: 399 checks passed.
+
+The local live graph is available via ops/bench/marill_presence_live.py.
+Ben identified the laptop in the sensor field as the likely 35..40 cm return
+and source of unwanted triggers while he was away. Clear-space placement and
+an explicit physical USER check remain; acoustic skew was not measured.
+Saved both failed-first-image evidence and successful replacement traces,
+manifest and registry identity. Session remains bounded to one hour; the
+read-only viewer continues locally. See MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
+## 2026-10-15 -- Ben + Codex -- Marill trigger canary exposed TX stall
+
+Built/flashed fx-261015-86ca5b1-b from 3638d01; SHA-256
+9bd27f67f58887fb261082e17e9366a9279fcec74e53fbcf622fc39c8eff2a25.
+Two stub-based prefix reads failed before any write. A no-stub ROM backup,
+app1-only write and application/prefix verification succeeded. New boot was
+healthy and a one-hour session was accepted. The live graph confirmed presence
+events; all nine expected fx-261014-65eeb39-b revisions were eventually heard.
+After the first unicast event, immediate TX failures accumulated and READY
+receipts expired. The second accepted event queued no packets. Paused the
+session rather than calling this complete. Power/sensors/heap stayed healthy.
+
+Added controller-only completion-paced sends, actual error/callback counters,
+and at most three radio off/on repairs per boot. Repairs drop pending strikes,
+invalidate readiness/rearm and never replay an event. Exhaustion ends the
+session. Root driver cause remains unconfirmed; rebuild and hardware retest
+are required. See ADR 0086 amendment and MARILL_SQUAD_TRIGGER_2026-10-15.md.
+
+## 2026-10-15 -- Ben + Codex -- Live Marill hand-range graph
+
+Ben requested real-time feedback while testing presence. Added a local,
+read-only USB viewer with the 15..70 cm trigger band, 80 cm rearm boundary,
+nearest eligible/raw traces, all 16 VL53 zones, and controller state. Browser
+rendering and scale selection were checked, with no browser errors. The
+viewer clearly labels old-firmware preview and stale/sleep intervals. It
+records compact observations to new exclusive-created Oakland JSONL files.
+See docs/howto/MARILL_SQUAD_TRIGGER.md for session controls and serial ownership.
+The complete native suite passed, including 391 new squad-trigger checks and
+the 343-check PROTECT recovery suite. The immutable Marill build is pending.
+
+## 2026-10-15 -- Ben + Codex -- Marill round-robin squad trigger implementation
+
+Ben requested one bell per presence/USER interaction, cycling the nine squad
+members then a scheduled all-nine strike. Added an exact-target controller
+canary retaining Marill F40348's staged PROTECT recovery. Bounded one-hour
+USB/USER sessions gather sleeping receivers with existing five-minute radio
+leases; no squad flash or settings change. Reused canonical event packets over
+exact unicast only, with deduped repeats and one intended strike deadline.
+Shared the existing roster and Brian's 13..18 ms pulse settings. Added a fresh
+VL53 150..700 mm edge detector, clearance/rearm, cooldown, one-pixel feedback,
+and exact-target USB controls/telemetry. See ADR 0086 for timing limitations:
+existing receivers schedule in their loops, not the 1 ms pattern timer.
+Native tests and immutable build/hardware qualification follow this checkpoint.
+
+## 2026-10-15 -- Ben + Codex -- Marill battery-only PROTECT recovery passed
+
+Completed the previously pending unplugged acceptance test on the same
+fx-261015-d953f80-b image; no new flash or squad changes. After Ben confirmed
+readiness, the host injected PROTECT plus a 20 s timer sleep at 22:37:00 UTC.
+USB physically disconnected at 22:37:24 before the recovery trial, and Ben
+confirmed unplugged with battery connected/panel shaded. On reconnection at
+22:41:21, fresh telemetry retained successful trial generation 4 (previously 3),
+external_seen=0, minimum valid VBAT=3293 mV and minimum IBAT=-241 mA. This proves
+the staged recovery can complete while discharging, independent of a positive
+charging-current gate. It does not measure sleep current or whole-cycle charge.
+
+Marill returned to FULL, both sensors read correctly, charger fault=0, pending
+retry=0, and the original 3027 mV low-vbat audit remained. Retry count 1 is
+normal retained history; no override or manual counter clear was applied.
+Recorder closed normally. Marill's specified canary acceptance is complete;
+real sag/weak-solar, SDK cold-start rail behavior, and QH integration remain
+separate qualification work. Evidence and assertions are in the updated
+docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md and Oakland battery-result JSON.
+
+## 2026-10-15 -- Ben + Codex -- Marill staged recovery USB canary passed
+
+Built clean source 1d86cb8 as fx-261015-d953f80-b, exact binary SHA-256
+c9ed50c5696609724ab563b7b461357dc4270b3324858faf75744822be5cd326.
+Only Marill F40348 was flashed, into its active app1 slot. Readback verified
+the application and unchanged 64 KiB configuration/partition prefix. Original
+full-flash backup and the historical 3027 mV low-vbat PROTECT audit remain.
+
+Injected a durable latch, let recovery qualify, then reset during low-LED stage.
+Marill re-parked with attempt 1 retained, slept through the five-minute cooldown,
+requalified, and automatically passed sensor / low LED / DIM LED stages on
+attempt 2. It returned to DIM, then normally reached FULL; two minutes of
+continuous healthy lit service cleared retry history while preserving success
+evidence. Both sensors remained healthy. Native suite, expanded 343-check retry
+test, and final immutable embedded build passed. The final test frame uses one
+white pixel to keep low/DIM stages distinct below the dense-HEX current limiter.
+
+The requested unplugged follow-up ran with USB still present and passed as
+another USB trial; it is explicitly NOT battery-only validation. A coordinated
+unplugged retry remains pending Ben's availability. No squad update or fleet
+promotion occurred. Exact artifact/ELF were retained in the main workspace and
+the temporary clean worktree archived. The earlier dev cache, whose wrapper was
+edited while its compiler ran, retained an in-progress marker; after confirming
+no compiler processes remained, the required recovery wrapper quarantined it.
+Final one-second timed-sleep cleanup restored ordinary FIELD/channel-11 behavior:
+FULL, both sensors healthy, count/pending zero, no RAM bench override, and the
+historical PROTECT audit plus success generation 3 preserved.
+See docs/tests/PROTECT_RECOVERY_MARILL_2026-10-15.md and ADR 0085.
+
+## 2026-10-15 -- Ben + Codex -- Staged PROTECT recovery canary implementation
+
+Ben authorized redesign and testing on Marill F40348 only, before the nine
+decompression lanterns. ADR 0085 adds a checksummed, read-verified retry journal,
+one-use sensor-start ticket, staged sensor/low-LED/DIM-LED trials, and persisted
+5 min / 15 min / 1 h / 6 h backoff without permanent retry exhaustion. The
+durable PROTECT stage remains in place until trials pass; reset during a trial
+parks again. Recovery uses fresh raw voltage and real-cell/fault evidence,
+independent of current sign or external power. Missing current cannot disable
+the normal voltage stop. Full-cell corroboration retains the BQ presence test.
+The implementation is build-gated to one exact MAC and excludes decompression.
+USB diagnostics retain successful trial power evidence across sleep and expose
+exact-target, line-framed fault injection without resetting retry history.
+
+The full native suite passed; expanded retry/serial tests passed 343 checks.
+Embedded compile and hardware canary acceptance are in progress, not yet a
+deployment result. Original Marill remains on its preserved image at this
+checkpoint. Existing SDK cold-start VSQT sequencing and whole-cycle QH logging
+remain separate qualification items. No squad firmware or settings changed.
+
+## 2026-10-15 -- Ben + Codex -- Why PROTECT recovery became restrictive
+
+Reviewed ADRs 0023, 0038, 0046, 0051 and 0068 in response to Ben's concern
+about the operational cost of a false latch. The durable guard originated in
+load-collapse/reset loops: unloaded voltage rebound was not proof that a cell
+or resistive power path could run the load. Charger-knee avoidance later raised
+the voltage ladder; subsequent fixes retained the strict release contract.
+Assessment: the design underweighted eventual service recovery and operator
+access relative to avoiding another collapse. Previously reproduced full-cell
+and sleep-timer release deadlocks demonstrate the cost of that imbalance.
+Recommend evaluating cause-specific, bounded staged retries and explicit
+recovery/liveness acceptance tests, including weak solar and false entries.
+These are proposals, not an adopted policy change; the existing investigation
+and TODO retain the required hardware work. No device commands or firmware edits.
+
+## 2026-10-15 -- Ben + Codex -- Perimeter apparent-death hypothesis
+
+Ben connected the burn-week rapid perimeter failures to Marill's high-voltage
+PROTECT and disabled sensors. Source review confirms late-burn dc82da7 uses
+the same power/boot-guard policy as September f951ae9 and disables VSQT/sensor
+initialization on protected boots. Marill's sensor recovery after automatic
+release demonstrates that loss of sensing without a failed sensor is real.
+The original entry's correctness and burn-week timing remain unresolved.
+Joined September's high-voltage PROTECT cohort to current perimeter roles:
+15 known perimeters, 14 low-vbat histories and one load-armed reset. Saved the
+exact IDs/input hashes and expanded PROTECT_RECOVERY_INVESTIGATION_2026-09-14.md.
+No hardware commands or firmware changes; preserve remaining specimens and
+test both transient entry and weak-input failure to release.
+
+## 2026-10-15 -- Ben + Codex -- Marill preserved and automatic PROTECT recovery observed
+
+Direct USB identified the untouched perimeter as Marill F40348, still on the
+exact fx-260912-f951ae9-b app1. Ben measured 3.3 V at the battery clips and
+reported a sound, slightly dusty interior. First telemetry showed PROTECT,
+3.317 V, and a historical 3027 mV low-vbat entry with no armed load or reset
+streak; the same entry was already present in the September 12 census.
+Preserved all 8 MiB privately before host configuration/firmware changes or
+recovery, and verified both app slots against their retained artifact hashes.
+The non-erased coredump is preserved but not yet decoded.
+
+After the recorded bootloader exit, read-only capture caught the original
+firmware's charge-current release at 20:54:20 UTC and clean reboot into OFF.
+Both VL53L5CX and MSA311 then initialized and supplied fresh readings, all 16
+VL zones valid. The historical audits survived. No protection clear, profile
+change, charge setting, firmware update, LED command or chime was sent.
+The successful direct path does not yet establish a failed extension; the
+pre-direct observations included both an initially unplugged laptop end and
+an unknown sleep state. See docs/tests/POST_BURN_MARILL_2026-10-15.md and its
+raw evidence links. Public observations and private backup hashes retained.
+The bounded recovery capture closed at 20:56:26 UTC after 170 samples; final
+state DIM, 3.366 V / +370.7 mA, sensors healthy, FIELD unchanged and LED rail
+off. Registry now reflects the observed exact firmware and perimeter class;
+physical battery capacity remains unconfirmed and unchanged in the registry.
+
+## 2026-10-15 -- Ben + Codex -- Oakland pull and untouched perimeter intake started
+
+Fast-forwarded codex/decompression-signature from 79907c9 to Brian's 3d3ff43.
+Reviewed the tone lab, ADR 0084 pattern implementation and nine-lantern flash
+records. Native tests passed at the individual-program level: the full runner
+reported two temporary-directory execution permission failures (LED profile
+and packet layout); both were rebuilt in workspace tmp and passed, 10 and 86
+checks respectively. No firmware source or attached device settings changed.
+
+Ben reports this perimeter has been completely untouched since the burn,
+with its lid never opened. Initially connected through the enclosure USB
+extension, but Ben corrected that the laptop end had not been plugged in:
+the initial absent enumeration is not evidence of a hardware failure. After
+the reported laptop connection, Windows still showed no serial device or
+present USB error device. Requested a direct PowerFeather comparison with the
+battery left connected, no buttons, and an inspection before disturbing the
+original connections. Direct-connection confirmation and device identity are
+pending. Only no-reset telemetry capture is armed; no reset, flash, protection
+clear, profile change or chime was sent.
+
+Evidence is under ops/bench/data/Oakland: the 20261015T204149Z intake and
+as-found note, explicit USB-connection correction, and 20261015T204756Z
+continuation capture. Native runner log: tmp/oakland-pulled-native-tests-20261015.log.
 
 ## 2026-10-14 -- Brian + Claude -- Tone lab Proximity tab and detector tuning (handoff state)
 
@@ -16741,3 +17757,73 @@ Next concrete steps for Ben + Steve:
 3. Bench validation on existing TTGO modules -- solar charging path first.
 
 Switching to Claude Code for daily firmware/hardware iteration. Cowork retains read access to this repo via GitHub for project management and review.
+
+### 2026-10-16 18:13 PDT - Skitty visual wake
+
+Ben observed another Skitty wake. Existing logger status was fresh at 18:13:49
+but still had no USB samples; retained the natural-recovery experiment without
+intervention. See the Skitty post-burn report; no release claim is made.
+
+### 2026-10-16 18:16 PDT - Skitty natural recovery confirmed
+
+Passive T-Deck output, with zero transmitted serial commands, confirms Skitty
+F3FD28 on unchanged firmware is now DIM/DAY_CHARGE, 3.277..3.279 V and +267..276
+mA. Five fresh reports place its software boot near 18:07:28 PDT and show more
+than eight minutes of stable non-PROTECT operation. Release itself fell in the
+observation gap. Stopped the USB observer with its normal stop file (finished
+18:16:42) and paused the heartbeat. See POST_BURN_SKITTY_2026-10-16.md and the
+011607Z passive-radio evidence. No Skitty reset, configuration, or flash.
+
+## 2026-10-16 -- Daisy USB service and bounded voltage recovery qualified
+
+Implemented ADR 0087: exact-target USB service preparation verifies loads off
+before ROM reset and preserves the stored tier. The host rejects stale or
+missing acknowledgements. Active voltage confirmations now defer ordinary
+day sleep for at most 150 seconds; missing samples reset the streak and the
+3.05 V critical floor / armed-collapse guard remain unchanged.
+
+Daisy F40308 passed four prepared ROM cycles, the 30-second service timeout,
+and actual deep-sleep recovery from DIM (FULL at 72.341 s uptime) and OFF
+(FULL at 132.068 s). Test-only diagnostics proved the new hold was the sole
+sleep veto. All 41 native executables and seven host tests passed; the original
+native runner's Windows execution error was resolved by an isolated rerun.
+
+Final ordinary fx-261017-c2ddd6a-b, SHA-256
+09a718c6da858615cbe47346bfd0ea0d37ad820304391ade368391a48438530e,
+passed exact-target BenPhone OTA and remained VALID beyond 75 s, FULL with
+healthy sensors and unchanged 3026 mV protection history. Only Daisy's
+registry entry changed. See DAISY_SERVICE_RECOVERY_2026-10-16.md and
+FIXTURE_USB_SERVICE.md. The 1800-second fallback dusk timer has a similar
+short-wake gap without a valid schedule; it remains a separate open item.
+
+Skitty was not reset, flashed or configured. Passive T-Deck reports confirmed
+natural recovery to DIM / DAY_CHARGE on the old firmware, with a software
+boot near 18:07:28 PDT; the release itself was in the observation gap. The
+USB observer stopped normally and its heartbeat was paused. Raw evidence:
+Oakland/20261017T011607Z-F3FD28-natural-recovery-confirmed.json.
+
+## 2026-10-17 -- Preserve perimeter investigation and recovery evidence
+
+Publish the remaining October 16 perimeter postmortem, historical USB-service
+audit, Daisy/Marill observations, and Skitty natural-recovery record. Retain
+raw observations and the failed/replacement logger runs. Skitty recovered
+naturally on unchanged firmware; the release transition was in the observation
+gap. The logger is stopped and its heartbeat paused. The repair keeps raw
+JSONL alive through status-file replacement failures; all six focused tests
+pass. No fixture was accessed or changed during this publication.
+
+## 2026-10-17 -- Loom installation sync and BenPhone build handoff
+
+Merged Brian's changes through 24a9a6d without conflicts, preserving event
+basic mode, chime lighting, tuned roster and his flash records. Added the
+explicit shared-header build command to BENPHONE_OTA_CANARY.md, including
+separate Marill handling, prepared USB service, and a real hotspot OTA
+verification gate. Earlier retained binaries predate these event changes.
+No firmware was built or flashed during this sync; no device was opened.
+
+Validation: build-wrapper/artifact contracts pass; chime-light native test
+passes; squad-trigger native test passes all 561 checks. All nine generated
+roster IDs/order/pulses match the pulled tone map (its saved timestamp is
+newer than the generated header comment). Logger tests pass all six cases.
+No fresh Arduino build or hardware qualification was performed for this
+documentation/merge handoff.

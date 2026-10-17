@@ -1,4 +1,5 @@
 #include "watchdog.h"
+#include "protect_recovery.h"
 
 #include <Arduino.h>
 #include "esp_task_wdt.h"
@@ -20,5 +21,5 @@ void watchdogInit() {
 bool watchdogArmed() { return gArmed; }
 
 void watchdogService() {
-  if (gArmed) esp_task_wdt_reset();
+  if (gArmed && !protectRecoveryStartupTimedOut()) esp_task_wdt_reset();
 }

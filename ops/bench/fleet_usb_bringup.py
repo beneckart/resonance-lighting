@@ -387,8 +387,20 @@ def commission_one(
         "wifi_verify_ok": False,
     }
     try:
+        if allow_battery_present:
+            # Retrofitting an operating fixture must not look like a load
+            # collapse. Legacy firmware intentionally refuses this path:
+            # bootstrap the service-capable image by OTA first.
+            from fixture_usb_service import prepare_session
+            with open_serial_no_reset(board.port, timeout=.1, write_timeout=1) as port:
+                result["usb_service_prepared"] = prepare_session(port, board.fixture_id)
         log(f"{board.port} {board.fixture_id}: flash-ID preflight")
-        flash_output = run_checked([esptool, "--port", board.port, "flash-id"], timeout=45)
+        flash_args = [esptool, "--port", board.port]
+        if allow_battery_present:
+            # Keep the application stopped between inspection and upload;
+            # rebooting it here would re-arm loads after the handshake.
+            flash_args += ["--after", "no-reset"]
+        flash_output = run_checked(flash_args + ["flash-id"], timeout=45)
         result.update(parse_flash_id(flash_output))
         if not str(result.get("chip") or "").startswith("ESP32-S3"):
             raise RuntimeError(f"chip is {result.get('chip')}, expected ESP32-S3")

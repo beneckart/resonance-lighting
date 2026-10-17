@@ -1,0 +1,71 @@
+{
+  "target": "68:EE:8F:F4:03:48",
+  "callsign": "Marill",
+  "complete_flash": true,
+  "flash_sha256": "ae0566b59f82c7a8d3deb0214cd6424e06741821a30caf0099fe82e4409a196c",
+  "prefix_sha256": "73a96aacd7074f0199d1a649842d40b3598ad12b948a1ea5454346a25c009bb4",
+  "partitions": [
+    {
+      "label": "nvs",
+      "type": 1,
+      "subtype": 2,
+      "offset": 36864,
+      "bytes": 20480,
+      "sha256": "815279f7ff453b680e1fe90685ca1076d3d356a3d13e92eff309e33380e71c0a",
+      "all_erased": false
+    },
+    {
+      "label": "otadata",
+      "type": 1,
+      "subtype": 0,
+      "offset": 57344,
+      "bytes": 8192,
+      "sha256": "6c2a2996ea395f161494403fe7ba1a5d60304d18f471dd6c50e1bc57b658b041",
+      "all_erased": false
+    },
+    {
+      "label": "app0",
+      "type": 0,
+      "subtype": 16,
+      "offset": 65536,
+      "bytes": 3342336,
+      "sha256": "626a292ee2d72ca7bdf8ace4cdaeb46a52663240d64db0eb21d0b3ad7262ab00",
+      "all_erased": false
+    },
+    {
+      "label": "app1",
+      "type": 0,
+      "subtype": 17,
+      "offset": 3407872,
+      "bytes": 3342336,
+      "sha256": "bcc98314c8c964b7cddd35e885fb310370346de25a3cd236d95a7036f6edd1a4",
+      "all_erased": false
+    },
+    {
+      "label": "spiffs",
+      "type": 1,
+      "subtype": 130,
+      "offset": 6750208,
+      "bytes": 1572864,
+      "sha256": "852aad42795f401e21ded6e51fc392da9d94e2f386cacc08327046c319e903fc",
+      "all_erased": true
+    },
+    {
+      "label": "coredump",
+      "type": 1,
+      "subtype": 3,
+      "offset": 8323072,
+      "bytes": 65536,
+      "sha256": "308ae151a618ef479eeb8b124231e13344b34fc417a42fab484a02aa28c82765",
+      "all_erased": false
+    }
+  ],
+  "installed_application": {
+    "partition": "app1",
+    "fw": "fx-260912-f951ae9-b",
+    "bytes": 1218752,
+    "sha256": "ec03b074c6feae7ffc3f6bb2e178ec213ea5d241b56b3e24c95bfbb24d315001",
+    "matches_retained_binary": true
+  },
+  "note": "Post-first-wake, pre-host-profile/firmware mutation and pre-observed recovery. ROM entry is a recorded intervention. Non-erased crash bytes do not alone prove a valid crash record."
+}

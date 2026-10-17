@@ -17,6 +17,9 @@
 #include "telemetry.h"
 #include "decompression.h"
 #include "pattern.h"
+#include "protect_recovery.h"
+#include "squad_trigger.h"
+#include "usb_service.h"
 
 static SerialMutationParser gSerialMutationParser;
 
@@ -121,6 +124,30 @@ void handleSerial() {
   SerialMutationFeedResult mutationResult =
       gSerialMutationParser.feed((uint8_t)c, gMyId, mutation);
   if (mutationResult != SERIAL_MUTATION_PASS) {
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_USB_SERVICE) {
+      if (mutation.value) usbServicePrepare();
+      else usbServiceCancel();
+      return;
+    }
+    if (usbServiceActive()) return;
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_POWER_TEST)
+      powerRecoveryTest(mutation.value);
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_SESSION)
+      Serial.printf("trigger session: %s\n",squadTriggerSession(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_PRESS)
+      squadTriggerPress("USB");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_MIN)
+      Serial.printf("trigger minimum: %u mm %s\n",mutation.value,
+        squadTriggerSetMinMm(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_MAX)
+      Serial.printf("trigger maximum: %u mm %s\n",mutation.value,
+        squadTriggerSetMaxMm(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY && mutation.type == SERIAL_MUTATION_TRIGGER_CLEAR)
+      Serial.printf("trigger clear: %u mm %s\n",mutation.value,
+        squadTriggerSetClearMm(mutation.value) ? "accepted" : "refused");
+    if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_PROTECT_TEST)
+      protectRecoveryTest(mutation.value);
     if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_SIGNATURE) {
       bool accepted = false;
@@ -151,6 +178,7 @@ void handleSerial() {
     return;
   }
 
+  if (usbServiceActive() && c != 't') return;
   switch (c) {
   case 't':
     Serial.println(telemetryJson());

@@ -7,6 +7,8 @@
 #include "identity.h"
 #include "nvs_store.h"
 #include "telemetry.h"
+#include "protect_recovery.h"
+#include "usb_service.h"
 
 #define RES_BOOT_LOOP_ESCALATE_STREAK 3
 
@@ -59,6 +61,7 @@ void bootGuardPreInit() {
                         gStoredStage, resetReason, prevArmed, streak);
     }
   }
+  protectRecoveryBoot(gDecision, gStoredStage);
   if (gDecision.persistStage != BOOT_GUARD_NO_WRITE) {
     if (!nvsWriteStage(gDecision.persistStage)) {
       // Retry-consumption could not be made durable: fail safe to PROTECT
@@ -99,6 +102,7 @@ bool bootGuardProtectContext(ProtectAuditContext &out) {
 // refuses the load, mirroring the stage-persist doctrine); disarm is called
 // from allLoadsOff and from the debounced rail-quiet path in power glue.
 bool bootGuardLoadArm() {
+  if (usbServiceActive()) return false;
   if (gLoadArmed) return true;
   if (!nvsWriteLoadArmed(true)) return false;
   gLoadArmed = true;
@@ -119,6 +123,7 @@ bool bootGuardSetStage(uint8_t stage) {
   if (gNvsOk && gDecision.stage == stage) return true;
   if (!nvsWriteStage(stage)) return false;
   gDecision.stage = stage;
+  if (stage == STAGE_PROTECT) gDecision.park = true;
   gTelemetryGuardStage = stage;
   return true;
 }

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "fw_rev": "fx-261016-220d90a-b",
+  "variant": "b",
+  "recipe_sha256": "220d90a032151eab91821240b8be9868c248e44fe4487a40226eaebbdd3d08ba",
+  "git_commit": "1a53a2398d4e53507a5799069bce1b18d199f6e7",
+  "git_dirty": false,
+  "fqbn": "esp32:esp32:esp32s3_powerfeather",
+  "compile_flags": [
+    "-DPOWERFEATHER_BOARD_V2=1",
+    "-I<repo>/firmware",
+    "-DRES_PF_PRECHARGE_MA=300",
+    "-DRES_DAY_SLEEP_S=120",
+    "-DRES_WAKE_LISTEN_MS=12000",
+    "-DRES_CHANNEL=11",
+    "-DRES_PROFILE_DEFAULT=PROFILE_PROD",
+    "-DRES_BASIC_LISTENER=1",
+    "-DRES_SQUAD_TRIGGER_TARGET=0xF40348UL",
+    "-DRES_PROTECT_RECOVERY_TARGET=0xF40348UL"
+  ],
+  "channel_default": 11,
+  "profile_default": "field",
+  "commission_idle_default": "listener",
+  "wifi_profile": "party-in-the-woods-v1",
+  "toolchain": {
+    "arduino_cli": "1.5.1+01f3d4f2b",
+    "esp32_platform": "3.3.7",
+    "powerfeather_sdk": "2.1.0"
+  },
+  "libraries": {
+    "Adafruit BusIO": "1.17.4",
+    "Adafruit MSA301": "1.1.4",
+    "Adafruit NeoPixel": "1.15.5",
+    "Adafruit Unified Sensor": "1.1.15",
+    "SparkFun Qwiic TMF882X Library": "1.0.2"
+  },
+  "binary": {
+    "file": "fixture.ino.bin",
+    "bytes": 1236336,
+    "sha256": "00c25f9912cd3119810727084fde0607dac72720e07abbb92e376c337945e7e1"
+  },
+  "built_utc": "2026-10-16T02:55:49Z"
+}

@@ -1,0 +1,18 @@
+{
+  "source_file": "rollout-2026-08-28T19-50-29-01a04b6c-ff3a-74b0-a0b0-df4009987ebc.jsonl.zst",
+  "source_sha256": "81ea661632bc29dee2c8974c287fd879dc41d0851349c79bfc7f9def1938d84c",
+  "messages": [
+    {
+      "line": 7817,
+      "utc": "2026-08-30T08:09:45.353Z",
+      "role": "assistant",
+      "text": "All seven targets are fresh, FIELD-profile, non-recovery, and above 3.15 V. The fleet binary and SHA-256 match exactly.\n\nIs the USB helper paused so I can take sole OTA ownership?"
+    },
+    {
+      "line": 7823,
+      "utc": "2026-08-30T08:11:25.769Z",
+      "role": "user",
+      "text": "yes, the helper is not servicing lights anymore\n"
+    }
+  ]
+}

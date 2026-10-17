@@ -1,0 +1,140 @@
+import argparse, hashlib, json, re, subprocess, sys, time, urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'ops'/'bench'))
+from fleet_usb_bringup import discover, open_serial_no_reset, find_esptool
+from fixture_usb_service import prepare_session
+
+p=argparse.ArgumentParser()
+p.add_argument('action',choices=['ota','dim','off','service','timeout'])
+p.add_argument('--artifact',required=True)
+p.add_argument('--sha256',required=True)
+p.add_argument('--old-fw')
+p.add_argument('--settle-seconds',type=int,choices=range(35,121),default=35)
+p.add_argument('--service-cycles',type=int,choices=(1,2,3),default=3)
+a=p.parse_args()
+art=Path(a.artifact); m=json.loads((art/'manifest.json').read_text())
+blob=(art/m['binary']['file']).read_bytes()
+assert hashlib.sha256(blob).hexdigest()==m['binary']['sha256']==a.sha256
+assert not m['git_dirty'] and m['profile_default']=='field' and m['channel_default']==11
+assert '-DRES_DECOMPRESSION=1' not in m['compile_flags']
+if m['variant']=='t': assert '-DRES_POWER_RECOVERY_TEST_TARGET=0xF40308UL' in m['compile_flags']
+else: assert m['variant']=='b'
+stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+path=Path('ops/bench/data/Oakland')/(stamp+'-F40308-service-'+a.action+'.jsonl')
+log=path.open('x',encoding='utf-8')
+port=None; pending=b''; last={}; next_t=0; opened=None
+def record(kind,value,show=True):
+ row=dict(utc=datetime.now(timezone.utc).isoformat(),kind=kind,value=value)
+ log.write(json.dumps(row)+'\n'); log.flush()
+ if show: print(json.dumps(row),flush=True)
+record('ownership',dict(operator='Ben + Codex',target='F40308',excluded='F3FD28',artifact=m['fw_rev'],sha256=a.sha256,action=a.action))
+def poll(query=True):
+ global port,pending,last,next_t,opened
+ boards=[b for b in discover() if b.mac=='68:EE:8F:F4:03:08']
+ if not boards:
+  if port: port.close();port=None;record('disconnected',True)
+  time.sleep(.2); return []
+ try:
+  if port is None:
+   opened=boards[0];port=open_serial_no_reset(opened.port,timeout=.1,write_timeout=1);pending=b'';record('opened',opened.port)
+  if query and time.monotonic()>=next_t:
+   port.write(b't\n'); next_t=time.monotonic()+2
+  pending+=port.read(max(1,port.in_waiting)); lines=[]
+  while b'\n' in pending:
+   raw,pending=pending.split(b'\n',1); line=raw.decode(errors='replace').strip()
+   if not line: continue
+   record('serial',line,not line.startswith('{'));lines.append(line)
+   try:d=json.loads(line)
+   except ValueError:continue
+   if isinstance(d,dict) and 'fixture_id' in d:
+    assert d['fixture_id']=='F40308'; last=d
+  return lines
+ except OSError as e:
+  record('usb_error',str(e));
+  if port: port.close()
+  port=None; return []
+def wait_for(test,seconds,query=True):
+ end=time.monotonic()+seconds
+ while time.monotonic()<end:
+  lines=poll(query)
+  if test(lines): return
+ raise RuntimeError('Timed out; no automatic reset/retry')
+try:
+ expected=a.old_fw if a.action=='ota' else m['fw_rev']
+ wait_for(lambda lines:last.get('fw')==expected and last.get('uptime_ms',0)>=12000 and last.get('ota_state')=='valid',210)
+ assert last['battery_present'] and last['battery_v']>=3.3 and last['bq_fault0']==0
+ assert last['power_tier']==0 and last['ota_state']=='valid' and not last['ota_pending_verify']
+ before=dict(last);record('preflight',before)
+ if a.action=='ota':
+  port.write(b'u\n');record('tx','u'); ip=[]
+  def found(lines):
+   for line in lines:
+    hit=re.search(r'maintenance WiFi up, ip=(\d+\.\d+\.\d+\.\d+)',line)
+    if hit:ip.append(hit[1])
+   return bool(ip)
+  wait_for(found,80,False)
+  opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+  live=json.load(opener.open('http://'+ip[0]+'/telemetry',timeout=5))
+  assert live['fixture_id']=='F40308' and live['fw']==expected and live['battery_v']>=3.3 and live['bq_fault0']==0
+  record('http_preflight',live)
+  boundary='----DaisyServiceCanary'
+  body=(f'--{boundary}\r\nContent-Disposition: form-data; name="firmware"; filename="fixture.ino.bin"\r\nContent-Type: application/octet-stream\r\n\r\n').encode()+blob+f'\r\n--{boundary}--\r\n'.encode()
+  req=urllib.request.Request('http://'+ip[0]+'/update',data=body,headers={'Content-Type':f'multipart/form-data; boundary={boundary}'},method='POST')
+  ack=opener.open(req,timeout=180).read().decode();record('upload_ack',ack)
+  assert 'Update complete' in ack
+  last={}
+  wait_for(lambda lines:last.get('fw')==m['fw_rev'] and last.get('ota_state')=='valid' and not last.get('ota_pending_verify',True) and a.settle_seconds*1000<=last.get('uptime_ms',0)<180000,180)
+  assert last['ota_partition']!=before['ota_partition'] and last['power_tier']==0
+ elif a.action in ('dim','off'):
+  assert m['variant']=='t'
+  tier=1 if a.action=='dim' else 2
+  command=f'!YF40308:{tier}\n';port.write(command.encode());record('tx',command.strip());last={}
+  seen_reduced=False; seen_extended=False; forced_day=False; sole_hold=False
+  def recovered(lines):
+   global seen_reduced,seen_extended,forced_day,sole_hold
+   if any("power-test: confirmation is sole sleep veto" in line for line in lines):sole_hold=True
+   if last.get('reset_reason')=='deepsleep' and last.get('fw')==m['fw_rev']:
+    if last.get('power_tier')==tier:
+     seen_reduced=True
+     if not forced_day:
+      port.write(b'N0\n');record('tx','N0 (RAM-only day override for short-wake test)');forced_day=True
+    if last.get('power_confirm_awake') and last.get('uptime_ms',0)>35000 and last.get('life_state') in (1,2):seen_extended=True
+    if seen_reduced and seen_extended and sole_hold and last.get('power_tier')==0:return True
+   return False
+  wait_for(recovered,350)
+  assert last['battery_v']>=3.3 and last['bq_fault0']==0
+  record('recovery_proved',dict(initial_tier=tier,extended_past_short_wake=seen_extended,sole_hold=sole_hold,uptime_ms=last['uptime_ms']))
+  port.write(b'N2\n');record('tx','N2 (restore AUTO)')
+ elif a.action=='service':
+  for cycle in range(a.service_cycles):
+   port.write(b'L1\n');record('tx','L1 (brief armed-load service test)');last={};next_t=0
+   wait_for(lambda lines:last.get('led_rail_on') and last.get('load_armed'),10)
+   record('armed_before_service',last)
+   prepare_session(port,'F40308',lambda k,v:record(k,v))
+   port.close();port=None;last={}
+   base=[find_esptool(),'--chip','esp32s3','--port',opened.port,'--baud','115200','--no-stub']
+   r=subprocess.run(base+['--before','default-reset','--after','no-reset','read-mac'],capture_output=True,text=True,timeout=25)
+   record('rom_identity',dict(cycle=cycle,rc=r.returncode,stdout=r.stdout,stderr=r.stderr))
+   assert r.returncode==0 and '68:ee:8f:f4:03:08' in r.stdout.lower()
+   r=subprocess.run(base+['--before','no-reset','--after','watchdog-reset','read-mac'],capture_output=True,text=True,timeout=25)
+   record('rom_exit',dict(cycle=cycle,rc=r.returncode,stdout=r.stdout,stderr=r.stderr))
+   last={}
+   wait_for(lambda lines:last.get('fw')==m['fw_rev'] and 13000<=last.get('uptime_ms',0)<120000,120)
+   assert last['guard_stage']==1 and last['power_tier']==0 and last['ota_state']=='valid'
+   record('service_cycle_pass',dict(cycle=cycle,telemetry=last))
+ elif a.action=='timeout':
+  prepare_session(port,'F40308',lambda k,v:record(k,v));last={}
+  wait_for(lambda lines:last.get('fw')==m['fw_rev'] and last.get('reset_reason')=='software' and 13000<=last.get('uptime_ms',0)<25000 and not last.get('usb_service_active',True),100)
+  assert last['power_tier']==0
+ for key in ('battery_capacity_mah','charge_limit_ma','profile','channel'):
+  assert last[key]==before[key], key
+ for key in before:
+  if key.startswith('last_protect_entry'):assert last[key]==before[key],key
+ record('PASS',last)
+except Exception as e:
+ record('FAILED',str(e));raise
+finally:
+ if port:port.close()
+ log.close()
+ print('Evidence:',path,flush=True)

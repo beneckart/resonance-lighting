@@ -1,0 +1,2 @@
+{"utc": "2026-10-15T21:24:19.650664+00:00", "kind": "metadata", "value": {"target": "68:EE:8F:F4:03:48", "operator": "Ben + Codex laptop, sole USB operator", "operation": "Leave preservation bootloader, then observe original firmware recovery using read-only t; no profile, guard, firmware or load commands"}}
+{"utc": "2026-10-15T21:27:19.688535+00:00", "kind": "complete", "value": "bounded observation ended"}

@@ -90,7 +90,8 @@
       "latency_jitter_ms": 88.1,
       "latency_pulse_ms": 18,
       "latency_utc": "2026-10-14T04:28:16.554Z",
-      "callsign": "Bidoof"
+      "callsign": "Bidoof",
+      "partner": "F2BE0C"
     },
     "F3FD28": {
       "type": null,
@@ -119,7 +120,7 @@
     "F3FD28",
     "F401DC"
   ],
-  "updated_utc": "2026-10-17T00:16:18.446Z",
+  "updated_utc": "2026-10-17T15:40:41.427Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
@@ -506,7 +507,7 @@
       "source": "F401DC",
       "far_mm": 500,
       "near_mm": 50,
-      "pattern_id": "pat-b83cd398a2",
+      "pattern_id": "pat-6432d087c5",
       "bpm_from": 20,
       "bpm_to": 300,
       "curve": "linear",

@@ -1,4 +1,5 @@
 #include "net_peer.h"
+#include "squad_trigger.h"
 
 #include <Arduino.h>
 #include "esp_random.h"
@@ -260,6 +261,8 @@ static void processPacket(const RxItem &it) {
   if (h->ver != NB_PROTO_VER) return;
   if (memcmp(h->src_id, gMyId, 3) == 0) return; // our own broadcast echo
 
+  squadTriggerOnPacket(it);
+
   switch (h->type) {
   case NB_PATTERN_BEAT: {
     if (it.len != sizeof(NbPatternBeat)) return;
@@ -305,6 +308,14 @@ static void processPacket(const RxItem &it) {
     if (!nbTargetMatches(ns->target_id, gMyId)) return;
     espNowNoteControlRx();
     behaviorOnNeighborSet(*ns);
+    break;
+  }
+  case NB_EVENT_MODE: {
+    if (it.len < (int)sizeof(NbEventMode)) return;
+    const NbEventMode &mode = *(const NbEventMode *)it.data;
+    if (!nbEventModeValid(mode)) return;
+    espNowNoteControlRx();
+    decompressionOnEventMode(mode);
     break;
   }
   case NB_EVENT: {

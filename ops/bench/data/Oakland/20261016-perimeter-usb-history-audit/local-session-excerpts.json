@@ -1,0 +1,19 @@
+{
+  "source_file": "rollout-2026-08-28T19-50-29-01a04b6c-ff3a-74b0-a0b0-df4009987ebc.jsonl.zst",
+  "source_sha256": "81ea661632bc29dee2c8974c287fd879dc41d0851349c79bfc7f9def1938d84c",
+  "description": "Selected contemporaneous user/helper-handoff messages only; a handoff is not an upload receipt.",
+  "messages": [
+    {
+      "line": 7603,
+      "utc": "2026-08-30T07:55:27.719Z",
+      "role": "user",
+      "text": "Can you sweep for any other fixtures? BTW, I have a helper manually usb flashing perimeter lights, so if you find any perimeters that need flashing, let me know and let's set them aside\n"
+    },
+    {
+      "line": 7743,
+      "utc": "2026-08-30T08:00:31.658Z",
+      "role": "assistant",
+      "text": "Sweep complete; no commands or uploads were sent.\n\nThe bridge has seen 117 fixtures: 85 are already on `fx-260829-af1d4ec-p`. Of the reconstructed 24-fixture perimeter roster, 12 are current and 12 need attention.\n\nPerimeters for the USB helper:\n\n- `9E5AE8` \u2014 unnamed demo, not currently seen\n- `F2B900` \u2014 Cammy\n- `F2BCF4` \u2014 Gambit; PROTECT history\n- `F2BDD4` \u2014 Gengar; commissioning/sensor issue\n- `F2BE80` \u2014 unnamed demo, not currently seen\n- `F2BF60` \u2014 Clank; commissioning/sensor issue\n- `F2BF74` \u2014 Qbert; currently PROTECT\n- `F2BFEC` \u2014 unnamed demo, not currently seen\n- `F3FD88` \u2014 Torkoal\n- `F40314` \u2014 Dixie\n- `F403DC` \u2014 Sneasel; PROTECT history\n\nImportant: `F40344` is Thor/Magic Wand. It appears in the historical perimeter build roster but now has dedicated hardware/firmware. Do not flash it with the fleet image.\n\nThe exact helper artifact should be `fx-260829-af1d4ec-p`, SHA-256 `669e765e9a9b2b5c618d495f49b7ccb876711baa16056973dc8495665c0398d8`.\n\nThe cleanest non-perimeter OTA candidates, once the USB writer is finished and fresh power preflight is available, are Logan `9E5A88`, Eevee `9F0E54`, Cubone `9F2648`, Chunli `9F2714`, Toad `F2BEE4`, Yoshi `F2BE08`, and Kiki `F2BF5C`. I excluded PROTECT fixtures and the Froakie/Akuma/Sakura special canaries from bulk handling."
+    }
+  ]
+}

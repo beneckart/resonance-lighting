@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\benec\OneDrive\Documents\ChatGPT\resonance-lighting\tmp\skitty_recovery_watch.py", line 74, in <module>
+    checkpoint()
+  File "C:\Users\benec\OneDrive\Documents\ChatGPT\resonance-lighting\tmp\skitty_recovery_watch.py", line 35, in checkpoint
+    temp.replace(status)
+  File "C:\Users\benec\scoop\apps\python312\current\Lib\pathlib.py", line 1376, in replace
+    os.replace(self, target)
+PermissionError: [WinError 5] Access is denied: 'ops\\bench\\data\\Oakland\\20261016T230004Z-F3FD28-natural-recovery.status.tmp' -> 'ops\\bench\\data\\Oakland\\20261016T230004Z-F3FD28-natural-recovery.status.json'

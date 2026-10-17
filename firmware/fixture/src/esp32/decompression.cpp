@@ -3,6 +3,12 @@
 #include "esp_timer.h"
 #include "../core/decompression_session.h"
 #include "../core/decompression_replay.h"
+#include "../core/fixture_context.h"
+#include "../core/presence_wave.h"
+#include "../core/squad_trigger.h"
+#include "nvs_store.h"
+#include "sensors/sensors.h"
+#include "telemetry.h"
 #include "espnow_link.h"
 #include "identity.h"
 #include "board_power.h"
@@ -28,10 +34,90 @@ static uint32_t gRadioPlays = 0, gRadioLastBoot = 0, gRadioLastSeq = 0, gRadioLa
 static uint8_t gRadioLastSrc[3] = {0, 0, 0};
 static bool gWasActive = false;
 
+static bool dingsKeepAwake();
 bool decompressionActive() {
   return decompressionBuild() && (gSession.active(esp_timer_get_time()) ||
                                   gRadioSession.active(esp_timer_get_time()) ||
-                                  patternActive());
+                                  patternActive() || dingsKeepAwake());
+}
+
+// ---- event mode -------------------------------------------------------------
+static constexpr uint32_t DING_MIN_GAP_MS = 3000;      // per lantern, between presence dings
+static constexpr uint32_t DING_PARTNER_DELAY_MS = 400; // partner chimes after the sensing lantern
+static constexpr uint32_t MODE_FLASH_MS = 1500;
+static uint32_t gModeFlashUntil = 0;
+static TmfPresenceGate gDingGate;
+static bool gDingGateInit = false;
+static uint32_t gLastDingMs = 0, gPartnerDueMs = 0;
+static bool gPartnerPending = false;
+static uint8_t gPartnerCopies = 0;  // copies of the partner strike still to send
+
+uint8_t decompressionEventMode() { return gCfg.eventMode == 2 ? 2 : 1; }
+
+// Mode 2 keeps a downlight with a working sensor awake (it must watch); the power
+// policy's FULL/DIM gate still applies, so a tired battery lets it sleep.
+static bool dingsKeepAwake() {
+  return decompressionEventMode() == NB_MODE_LANTERN_DINGS &&
+      gTelemetryFixtureClass == FIXTURE_DOWNLIGHT && sensors().tmfPresent &&
+      decompressionPowerReady();
+}
+
+void decompressionOnEventMode(const NbEventMode &m) {
+  if (!decompressionBuild() || !nbEventModeValid(m)) return;
+  bool changed = gCfg.eventMode != m.mode;
+  if (m.persist) nvsPersistEventMode(m.mode);
+  else gCfg.eventMode = m.mode;
+  if (changed) {
+    gModeFlashUntil = millis() + MODE_FLASH_MS;
+    gDingGateInit = false;  // relearn the background in the new mode
+    gPartnerPending = false;
+    Serial.printf("event mode -> %s\n", m.mode == 2 ? "lantern dings" : "perimeter cycle");
+  }
+}
+
+bool decompressionModeFlash(uint32_t nowMs, uint8_t rgb[3]) {
+  if (!gModeFlashUntil || (int32_t)(nowMs - gModeFlashUntil) >= 0) return false;
+  bool dings = decompressionEventMode() == NB_MODE_LANTERN_DINGS;
+  rgb[0] = 0; rgb[1] = dings ? 160 : 0; rgb[2] = dings ? 0 : 160;  // green = dings, blue = cycle
+  return true;
+}
+
+
+void decompressionDingTick(uint32_t nowMs) {
+  if (!decompressionBuild()) return;
+  int self = squadIndex(gMyId);
+  // Partner strike: up to three copies ~25 ms apart, never stacked on an unfinished
+  // TX (the squad trigger's lesson); the receiver's 80 ms rest gate dedupes them.
+  if (gPartnerPending && (int32_t)(nowMs - gPartnerDueMs) >= 0 && espNowTxAvailable()) {
+    static NbTargetU16 cmd;
+    if (self >= 0 && SQUAD[self].partner >= 0) {
+      const SquadMember &p = SQUAD[SQUAD[self].partner];
+      if (gPartnerCopies == 3) {  // first copy: one header (seq) for all copies
+        memset(&cmd, 0, sizeof(cmd));
+        fillHeader(&cmd.h, NB_TARGET_SOLENOID);
+        memcpy(cmd.target_id, p.id, 3);
+        cmd.value = p.pulseMs;
+      }
+      espNowSendRaw(&cmd, sizeof(cmd));
+    }
+    gPartnerDueMs = nowMs + 25;
+    if (--gPartnerCopies == 0) gPartnerPending = false;
+  }
+  if (decompressionEventMode() != NB_MODE_LANTERN_DINGS ||
+      gTelemetryFixtureClass != FIXTURE_DOWNLIGHT) return;
+  const SensorSnapshot &sn = sensors();
+  if (!sn.tmfPresent || !sn.tmfOk) return;
+  if (!gDingGateInit) { tmfPresenceInit(gDingGate); gDingGateInit = true; }
+  bool rising = tmfPresenceObserve(gDingGate, sn.tmfReads, sn.tofZoneMm, sn.tofZoneConfidence);
+  if (!rising || nowMs - gLastDingMs < DING_MIN_GAP_MS || !decompressionPowerReady()) return;
+  gLastDingMs = nowMs;
+  uint16_t pulse = self >= 0 ? SQUAD[self].pulseMs : 40;
+  if (solenoidStrike(pulse, "presence ding")) Serial.println("ding: presence");
+  if (self >= 0 && SQUAD[self].partner >= 0) {
+    gPartnerDueMs = nowMs + DING_PARTNER_DELAY_MS;
+    gPartnerPending = true;
+    gPartnerCopies = 3;
+  }
 }
 uint32_t decompressionSecondsLeft() {
   if (!decompressionBuild()) return 0;
@@ -131,6 +217,7 @@ bool decompressionRelay() { return gRelay; }
 void decompressionRadioTelemetry(String &j) {
   char src[7];
   snprintf(src, sizeof(src), "%02X%02X%02X", gRadioLastSrc[0], gRadioLastSrc[1], gRadioLastSrc[2]);
+  j += ",\"event_mode\":" + String((unsigned)decompressionEventMode());
   j += ",\"radio_relay\":" + String(gRelay ? "true" : "false");
   j += ",\"radio_plays\":" + String((unsigned long)gRadioPlays);
   j += ",\"radio_last_src\":\"" + String(src) + "\"";

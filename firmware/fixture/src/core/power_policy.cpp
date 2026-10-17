@@ -2,6 +2,7 @@
 
 PowerConfig powerConfigDefaults() {
   PowerConfig c;
+  c.managed_recovery = false;
   // ADR 0046: ladder sits above the BQ25628E precharge->fast-charge knee
   // (VBAT_LOWV, believed ~3.00 V; bench verification pending) so a fixture
   // that parks overnight starts the morning in fast charge, never precharge.
@@ -99,6 +100,7 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   // advance in either direction, no release). Phase-4 row "I2C/BQ/gauge read
   // failure -> never interpret missing data as healthy/daylight/charged".
   if (!s.batt_valid || s.batt_v < 0.5f) {
+    st.belowDimSinceMs = st.belowOffSinceMs = st.aboveClearSinceMs = 0;
     // A missing tick interrupts either compound release proof. Do not let a
     // one-minute telemetry gap count as one minute of sustained evidence.
     if (st.tier == LedTier::PROTECT) {
@@ -129,6 +131,11 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
   LedTier prev = st.tier;
 
   if (st.tier == LedTier::PROTECT) {
+    if (c.managed_recovery) {
+      fillBudget(b, st.tier, c);
+      b.defer_protect_persist = !s.batt_corroborated;
+      return b;
+    }
     // Compound release ONLY (ADR 0023 addendum + ADR 0068): rebound voltage or
     // one positive-current sample must not release. The ordinary proof is
     // sustained charge current. A second proof handles a full/tapered LFP that
@@ -234,7 +241,18 @@ PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerCon
     }
   }
 
+  // Carry the awake permission across an intermediate tier in this same
+  // tick; otherwise lifecycle can sleep between OFF->DIM and its next sample.
+  if (st.tier != prev && st.tier == LedTier::DIM) {
+    if (mv >= (int)(c.dim_mv + c.clear_delta_mv)) st.aboveClearSinceMs = s.now_ms;
+    else if (mv < (int)c.off_mv) st.belowOffSinceMs = s.now_ms;
+  }
   fillBudget(b, st.tier, c);
   b.tier_changed = (st.tier != prev);
+  bool confirming = st.belowDimSinceMs || st.belowOffSinceMs || st.aboveClearSinceMs;
+  if (confirming && !st.confirmWindowSinceMs)
+    st.confirmWindowSinceMs = s.now_ms ? s.now_ms : 1;
+  b.confirm_awake = confirming &&
+      s.now_ms - st.confirmWindowSinceMs < POWER_CONFIRM_AWAKE_MAX_MS;
   return b;
 }

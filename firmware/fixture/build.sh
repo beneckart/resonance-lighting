@@ -47,6 +47,7 @@ CHANNEL=""
 PROFILE=""
 CHEM="lfp"
 EXTRA_FLAGS=""
+POWER_RECOVERY_TEST_TARGET=""
 WIFI_SOURCE=""
 FW_REV=""
 PRECHARGE_MA="300"
@@ -59,6 +60,9 @@ PRESENCE_DISTANT_RANGE=0
 SENTINEL_TRACE_TARGET=""
 SENTINEL_TRACE_SMOKE=0
 DECOMPRESSION=0
+PROTECT_RECOVERY_TARGET=""
+SQUAD_TRIGGER_TARGET=""
+SQUAD_TRIGGER_ANY=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -109,10 +113,15 @@ Common build options:
   --day-sleep-s N             field DAY_CHARGE timer sleep, 30..3600 s (default 300)
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --decompression             bounded event sessions and local signature chime (b only)
+  --protect-recovery-target MAC staged PROTECT canary for one perimeter (b only)
+  --squad-trigger-target MAC    bounded presence/USER squad controller (b only)
+  --squad-trigger-any-perimeter every perimeter is the event trigger: rising pairs, then all
+                              (b + --decompression; lanterns in the same image stay lanterns)
   --msa-trace-target MAC      exact-target MSA/TMF flight recorder; requires -t fw rev
   --presence-sentinel         exact trace target: red baseline -> RGB-white presence
   --presence-distant-range    sentinel uses any confident 1000..<5000 mm TMF zone
   --sentinel-trace-target MAC exact-target radio-off + perimeter-ToF A/B/A recorder
+  --power-recovery-test-target MAC exact-target DIM/OFF sleep probe; variant t only
   --sentinel-trace-smoke      short no-human persistence/recovery gate; requires target
   -h, --help                  show this contract without compiling
 EOF
@@ -285,6 +294,10 @@ while [[ $# -gt 0 ]]; do
     --sentinel-trace-target) SENTINEL_TRACE_TARGET="${2^^}"; shift 2 ;;
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
+    --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --power-recovery-test-target) POWER_RECOVERY_TEST_TARGET="${2^^}"; shift 2 ;;
+    --squad-trigger-target) SQUAD_TRIGGER_TARGET="${2^^}"; shift 2 ;;
+    --squad-trigger-any-perimeter) SQUAD_TRIGGER_ANY=1; EXTRA_FLAGS+=" -DRES_SQUAD_TRIGGER_ANY=1"; shift ;;
     --dev-cache) DEV_CACHE=1; shift ;;
     --jobs) JOBS="$2"; shift 2 ;;
     --clean-dev-cache) CLEAN_DEV_CACHE=1; shift ;;
@@ -301,6 +314,35 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$POWER_RECOVERY_TEST_TARGET" ]]; then
+  [[ "$POWER_RECOVERY_TEST_TARGET" =~ ^[0-9A-F]{6}$ && "$POWER_RECOVERY_TEST_TARGET" != "000000" ]] || fail "bad --power-recovery-test-target"
+  [[ "$ARTIFACT_VARIANT" == "t" ]] || fail "--power-recovery-test-target requires artifact variant t"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "power recovery test requires a retained artifact and exact-target flash"
+  EXTRA_FLAGS+=" -DRES_POWER_RECOVERY_TEST_TARGET=0x${POWER_RECOVERY_TEST_TARGET}UL"
+fi
+
+if (( SQUAD_TRIGGER_ANY )); then
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-any-perimeter requires artifact variant b"
+  (( DECOMPRESSION )) || fail "--squad-trigger-any-perimeter requires --decompression"
+  [[ -z "$SQUAD_TRIGGER_TARGET" ]] || fail "use --squad-trigger-any-perimeter or --squad-trigger-target, not both"
+fi
+if [[ -n "$SQUAD_TRIGGER_TARGET" ]]; then
+  [[ "$SQUAD_TRIGGER_TARGET" =~ ^[0-9A-F]{6}$ && "$SQUAD_TRIGGER_TARGET" != "000000" ]] || fail "bad --squad-trigger-target"
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-target requires artifact variant b"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "squad trigger requires a retained artifact and exact-target flash"
+  (( DECOMPRESSION == 0 )) || fail "squad trigger is separate from decompression receiver"
+  [[ "$SQUAD_TRIGGER_TARGET" == "$PROTECT_RECOVERY_TARGET" ]] || fail "squad trigger requires matching protect recovery target"
+  EXTRA_FLAGS+=" -DRES_SQUAD_TRIGGER_TARGET=0x${SQUAD_TRIGGER_TARGET}UL"
+fi
+
+if [[ -n "$PROTECT_RECOVERY_TARGET" ]]; then
+  [[ "$PROTECT_RECOVERY_TARGET" =~ ^[0-9A-F]{6}$ && "$PROTECT_RECOVERY_TARGET" != "000000" ]] || fail "bad --protect-recovery-target"
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--protect-recovery-target requires artifact variant b"
+  [[ -z "$PORT" && -z "$OTA_IP" ]] || fail "protect recovery requires a retained artifact and exact-target flash"
+  (( DECOMPRESSION == 0 )) || fail "protect recovery canary is separate from decompression"
+  EXTRA_FLAGS+=" -DRES_PROTECT_RECOVERY_TARGET=0x${PROTECT_RECOVERY_TARGET}UL"
+fi
 
 if (( DECOMPRESSION )) && [[ -n "$ARTIFACT_VARIANT" && "$ARTIFACT_VARIANT" != "b" ]]; then
   fail "--decompression requires artifact variant b"

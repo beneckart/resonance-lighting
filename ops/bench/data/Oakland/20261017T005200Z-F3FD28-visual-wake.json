@@ -1,0 +1,7 @@
+{
+  "utc": "2026-10-17T00:52:25.518411+00:00",
+  "kind": "user_visual_observation",
+  "target": "F3FD28",
+  "value": "Around 17:52 PDT Ben witnessed Skitty wake; Feather light blinking more slowly, estimated 1-2 Hz. No reset, cable move or fixture command requested. Logger fresh health but zero replacement-run USB samples.",
+  "source_review": "316470a8c393cc44ad5ba60c90c7d84c8a0003b6 status_led.cpp: 4/2/1 Hz effective SOC/voltage indicator; not a PROTECT-release indicator."
+}

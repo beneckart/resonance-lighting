@@ -1,0 +1,288 @@
+{
+  "source_log": "ops\\bench\\data\\Oakland\\20261016T211520Z-F40348-live-presence.jsonl",
+  "cutoff_utc": "2026-10-16T21:18:53.534669+00:00",
+  "user_observation": "Seems to get 40 cm down to 5 cm in bright shade; whether referring to graph or chime band is not yet explicit",
+  "first_sample_utc": "2026-10-16T21:16:28.721072+00:00",
+  "last_sample_utc": "2026-10-16T21:18:53.534669+00:00",
+  "samples": 648,
+  "samples_with_distance": 238,
+  "nearest_min_mm": 35,
+  "nearest_max_mm": 505,
+  "nearest_above_400_samples": 13,
+  "nearest_below_50_samples": 17,
+  "last_state": {
+    "fw": "fx-261016-220d90a-b",
+    "fixture_id": "F40348",
+    "uptime_ms": 355315,
+    "battery_v": 3.591,
+    "power_tier": 0,
+    "guard_stage": 1,
+    "vl_read_ok": true,
+    "vl_reads": 1520,
+    "vl_zone_nearest_mm": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "vl_closest_mm": 0,
+    "trigger_enabled": true,
+    "trigger_left_s": 3260,
+    "trigger_next_step": 4,
+    "trigger_count": 13,
+    "trigger_ready_mask": 511,
+    "trigger_presence_armed": true,
+    "trigger_last": "sent (sound unverified)",
+    "trigger_min_mm": 50,
+    "trigger_max_mm": 400,
+    "trigger_clear_mm": 600,
+    "trigger_tx_errors": 0,
+    "trigger_refused": 0,
+    "trigger_peers": [
+      {
+        "id": "9F2738",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F0E54",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F26B0",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "F40254",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F26D8",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F26BC",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F0E5C",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "F2BE0C",
+        "fw": "fx-261016-d572656-b"
+      },
+      {
+        "id": "9F2638",
+        "fw": "fx-261016-d572656-b"
+      }
+    ],
+    "trigger_radio_restarts": 0,
+    "trigger_radio_last_error": 0,
+    "trigger_tx_pending_ms": 0,
+    "trigger_tx_ok": 1146,
+    "trigger_tx_fail": 0,
+    "protect_retry_enabled": true,
+    "protect_retry_phase": 0,
+    "time": 1792185533.5346694,
+    "sensor_age_s": 0.0,
+    "sequence": 648
+  },
+  "example_nearest_min": {
+    "utc": "2026-10-16T21:18:16.583491+00:00",
+    "kind": "sample",
+    "value": {
+      "fw": "fx-261016-220d90a-b",
+      "fixture_id": "F40348",
+      "uptime_ms": 318361,
+      "battery_v": 3.592,
+      "power_tier": 0,
+      "guard_stage": 1,
+      "vl_read_ok": true,
+      "vl_reads": 1349,
+      "vl_zone_nearest_mm": [
+        40,
+        39,
+        37,
+        35,
+        43,
+        41,
+        39,
+        38,
+        44,
+        41,
+        41,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "vl_closest_mm": 0,
+      "trigger_enabled": true,
+      "trigger_left_s": 3297,
+      "trigger_next_step": 2,
+      "trigger_count": 11,
+      "trigger_ready_mask": 511,
+      "trigger_presence_armed": true,
+      "trigger_last": "sent (sound unverified)",
+      "trigger_min_mm": 50,
+      "trigger_max_mm": 400,
+      "trigger_clear_mm": 600,
+      "trigger_tx_errors": 0,
+      "trigger_refused": 0,
+      "trigger_peers": [
+        {
+          "id": "9F2738",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F0E54",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26B0",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "F40254",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26D8",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26BC",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F0E5C",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "F2BE0C",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F2638",
+          "fw": "fx-261016-d572656-b"
+        }
+      ],
+      "trigger_radio_restarts": 0,
+      "trigger_radio_last_error": 0,
+      "trigger_tx_pending_ms": 0,
+      "trigger_tx_ok": 1014,
+      "trigger_tx_fail": 0,
+      "protect_retry_enabled": true,
+      "protect_retry_phase": 0,
+      "time": 1792185496.5834916,
+      "sensor_age_s": 0.0,
+      "sequence": 483
+    }
+  },
+  "example_nearest_max": {
+    "utc": "2026-10-16T21:17:22.267845+00:00",
+    "kind": "sample",
+    "value": {
+      "fw": "fx-261016-220d90a-b",
+      "fixture_id": "F40348",
+      "uptime_ms": 264050,
+      "battery_v": 3.592,
+      "power_tier": 0,
+      "guard_stage": 1,
+      "vl_read_ok": true,
+      "vl_reads": 1107,
+      "vl_zone_nearest_mm": [
+        0,
+        0,
+        0,
+        0,
+        505,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "vl_closest_mm": 505,
+      "trigger_enabled": true,
+      "trigger_left_s": 3352,
+      "trigger_next_step": 7,
+      "trigger_count": 6,
+      "trigger_ready_mask": 511,
+      "trigger_presence_armed": false,
+      "trigger_last": "sent (sound unverified)",
+      "trigger_min_mm": 50,
+      "trigger_max_mm": 400,
+      "trigger_clear_mm": 600,
+      "trigger_tx_errors": 0,
+      "trigger_refused": 0,
+      "trigger_peers": [
+        {
+          "id": "9F2738",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F0E54",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26B0",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "F40254",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26D8",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F26BC",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F0E5C",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "F2BE0C",
+          "fw": "fx-261016-d572656-b"
+        },
+        {
+          "id": "9F2638",
+          "fw": "fx-261016-d572656-b"
+        }
+      ],
+      "trigger_radio_restarts": 0,
+      "trigger_radio_last_error": 0,
+      "trigger_tx_pending_ms": 0,
+      "trigger_tx_ok": 802,
+      "trigger_tx_fail": 0,
+      "protect_retry_enabled": true,
+      "protect_retry_phase": 0,
+      "time": 1792185442.2678452,
+      "sensor_age_s": 0.0,
+      "sequence": 242
+    }
+  }
+}

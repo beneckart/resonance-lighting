@@ -166,7 +166,7 @@ LifeOutputs lifeTick(LifeState_t &st, const LifeInputs &in, const LifeConfig &c)
   bool powerOwnsSleep = in.tier == (uint8_t)LedTier::PROTECT;
   bool daytime = st.state == LIFE_DAY_CHARGE || st.state == LIFE_DAY_ACTIVE;
   out.wantSleep = daytime && !c.devNoSleep && !rxHold &&
-                  !out.solarProbeActive && !powerOwnsSleep &&
+                  !out.solarProbeActive && !powerOwnsSleep && !in.powerConfirmAwake &&
                   (int32_t)(in.nowMs - in.awakeGraceUntilMs) >= 0;
   out.sleepS = c.daySleepS;
   return out;

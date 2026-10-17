@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "../core/choreo/program.h"
+#include "../core/chime_light.h"
 #include "../core/daytime_ritual.h"
 #include "../core/field_behavior.h"
 #include "../core/field_role_policy.h"
@@ -26,6 +27,7 @@
 #include "solenoid.h"
 #include "telemetry.h"
 #include "decompression.h"
+#include "squad_trigger.h"
 
 #define RES_RX_HOLD_MS 600000UL      // accepted-control hold (10 min)
 #define RES_BOOT_AWAKE_MS 600000UL   // cold-boot listen window (10 min)
@@ -398,6 +400,17 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
 }
 
 bool behaviorForceNight(int8_t force) {
+#if defined(RES_POWER_RECOVERY_TEST_TARGET)
+  // Exact-target test image only: N0 must actually select day, rather than
+  // the inspection UI's ten-minute Wake Fleet hold, or the short-wake test
+  // would be satisfied by an unrelated keep-awake mechanism. N2 restores AUTO.
+  uint32_t testId = ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  if (testId == RES_POWER_RECOVERY_TEST_TARGET && force == 0) {
+    inspectionControlClose(gInspectionControl);
+    gForceNight = 0;
+    return false;
+  }
+#endif
   if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
     if (force == 0) {
       // In the inspection image, T-Deck Wake Fleet is an explicit bounded
@@ -552,6 +565,41 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
   }
 }
 
+// Decompression lighting: slow colour drift, flash + colour jump on every chime
+// (core/chime_light). Perimeter HEX boards (37 px, no chime) only drift, dimmer;
+// framePowerBudget still scales a 37-pixel frame to the board's budget.
+#ifndef RES_CHIME_LIGHT
+#define RES_CHIME_LIGHT 1
+#endif
+static ChimeLight gChimeLight;
+static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
+  if (!RES_CHIME_LIGHT || gWaveDisplayActive) {
+    quietIdleFrame(f, pixels, now);
+    return;
+  }
+  static bool seeded = false;
+  if (!seeded) {
+    gChimeLight.baseHue = chimeLightSeedHue(gMyId);
+    seeded = true;
+  }
+  uint8_t c[4];
+  chimeLightRgbw(gChimeLight, now, c);
+  uint8_t flash[3];
+  if (decompressionModeFlash(now, flash)) { c[0] = flash[0]; c[1] = flash[1]; c[2] = flash[2]; c[3] = 0; }
+  if (gClass == FIXTURE_PERIMETER) {  // 37 GRB pixels: same drift at about a third of the level, no white
+    for (uint8_t k = 0; k < 3; ++k) c[k] = (uint8_t)((uint16_t)c[k] * 32 / CHIME_LIGHT_AMBIENT);
+    c[3] = 0;
+  }
+  f.count = (uint8_t)pixels;
+  frameClear(f);
+  for (uint16_t i = 0; i < f.count; ++i) {
+    f.px[i][0] = c[0];
+    f.px[i][1] = c[1];
+    f.px[i][2] = c[2];
+    f.px[i][3] = c[3];
+  }
+}
+
 static bool fieldRitualBatterySafe(const PowerBudget &pb) {
   return pb.tier == LedTier::FULL || pb.tier == LedTier::DIM;
 }
@@ -664,6 +712,17 @@ static void inspectionRadioTick(uint32_t now) {
 
 void behaviorTick() {
   uint32_t now = millis();
+  if (squadTriggerEnabled()) {
+    squadTriggerTick();
+    gShowActive=false; gStrikesAllowed=false;
+    bool active=squadTriggerActive();
+    gLife.state=active ? LIFE_COMMISSION : LIFE_DAY_CHARGE;
+    gNetLifeState=gTelemetryLifeState=gLife.state;
+    gNetProgram=gTelemetryProgram=0;
+    if (!active && now>=30000 && powerBudget().tier!=LedTier::PROTECT && !otaVerifyPending())
+      enterTimedDeepSleep(RES_DAY_SLEEP_S,SLEEP_CAUSE_DAY_CHARGE);
+    return;
+  }
   if (decompressionBuild()) {
     // Explicit bounded event posture; no BRC schedule, automatic chimes or
     // presence propagation. Power policy and OTA still own their vetoes.
@@ -676,7 +735,9 @@ void behaviorTick() {
     gNetProgram = gTelemetryProgram = 0;
     frameClear(gFrame);
     gFrame.count = gPixels;
-    if (active) quietIdleFrame(gFrame, gPixels, now);
+    chimeLightNoteStrikes(gChimeLight, solenoidStrikes(), now);
+    decompressionDingTick(now);
+    if (active) chimeLightFrame(gFrame, gPixels, now);
     if (!active && !solenoidBusy() && now >= 15000 &&
         powerBudget().tier != LedTier::PROTECT && !otaVerifyPending())
       enterTimedDeepSleep(RES_DAY_SLEEP_S, SLEEP_CAUSE_DAY_CHARGE);
@@ -721,6 +782,7 @@ void behaviorTick() {
   li.tier = (uint8_t)pb.tier;
   li.lastRxMs = espNowLastControlRxMs();
   li.awakeGraceUntilMs = gAwakeGraceUntilMs;
+  li.powerConfirmAwake = pb.confirm_awake;
   li.rxHoldMs = RES_RX_HOLD_MS;
   TimeEstimate wall = timeConsensusEstimate(gTimeConsensus, now);
   if (wall.valid) {
@@ -955,6 +1017,25 @@ void behaviorTick() {
       fieldRitualBatterySafe(pb);
   bool wakeChimesHolding =
       ordinaryWakeChimesTick(wakeChimeEligible, lo.wantSleep, now);
+#if defined(RES_POWER_RECOVERY_TEST_TARGET)
+  // Prove that the new hold, rather than a lease/solar probe/boot grace, is
+  // what keeps this exact test target awake. Evaluate on a copy: no mutation.
+  static bool testHoldReported = false;
+  uint32_t testId = ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  if (!testHoldReported && testId == RES_POWER_RECOVERY_TEST_TARGET &&
+      gForceNight == 0 && pb.confirm_awake && !lo.wantSleep &&
+      !gRitualKeepAwake && !wakeChimesHolding && powerWakeSampleWindowComplete() &&
+      !gRuntime.leaseActive() && !otaVerifyPending()) {
+    LifeState_t probeState = gLife;
+    LifeInputs probeInputs = li;
+    probeInputs.powerConfirmAwake = false;
+    if (lifeTick(probeState, probeInputs, gLifeCfg).wantSleep) {
+      Serial.printf("power-test: confirmation is sole sleep veto at %lums\n",
+                    (unsigned long)now);
+      testHoldReported = true;
+    }
+  }
+#endif
   if (lo.wantSleep && !gRitualKeepAwake && !wakeChimesHolding &&
       powerWakeSampleWindowComplete() && !gRuntime.leaseActive() &&
       !otaVerifyPending()) {
@@ -975,6 +1056,7 @@ void behaviorTick() {
 }
 
 bool behaviorFrame(FrameBuffer &f) {
+  if (squadTriggerEnabled()) return squadTriggerFrame(f,gPixels);
   if (decompressionBuild()) {
     if (!decompressionActive()) return false;
     f = gFrame;

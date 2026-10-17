@@ -8,3 +8,4 @@
 void powerGlueInit();  // seeds the tier from the boot-guard stage
 void powerGlueTick();  // call from loop (COMMS mode); internally 1 Hz
 const PowerBudget &powerBudget();
+void powerGlueAdoptRecoveredTier(); // ADR 0085: sensors/LED trials completed

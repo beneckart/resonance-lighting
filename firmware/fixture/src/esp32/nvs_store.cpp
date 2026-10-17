@@ -136,6 +136,8 @@ void nvsLoadConfig() {
   gCfg.chargeMa = checkedU16(pf, "chg_ma", RES_CHARGE_DEFAULT_MA,
                              RES_CHARGE_MIN_MA, RES_CHARGE_MAX_MA);
   gCfg.classOvr = pf.getUChar("class_ovr", FIXTURE_UNKNOWN);
+  gCfg.eventMode = pf.getUChar("evt_mode", 1);
+  if (gCfg.eventMode != 1 && gCfg.eventMode != 2) gCfg.eventMode = 1;
   gCfg.classLast = pf.getUChar("class_last", FIXTURE_UNKNOWN);
   gCfg.profile = pf.getUChar("profile", (uint8_t)RES_PROFILE_DEFAULT);
   gCfg.commissionDefault =
@@ -271,6 +273,13 @@ bool nvsPersistClassOvr(uint8_t cls) {
   gCfg.classOvr = cls;
   return true;
 }
+bool nvsPersistEventMode(uint8_t mode) {
+  if (mode != 1 && mode != 2) return false;
+  if (gCfg.eventMode == mode) return true;  // no flash wear on repeats
+  if (!putU8("evt_mode", mode)) return false;
+  gCfg.eventMode = mode;
+  return true;
+}
 bool nvsPersistClassLast(uint8_t cls) {
   if (!putU8("class_last", cls)) return false;
   gCfg.classLast = cls;
@@ -321,6 +330,30 @@ bool nvsWriteStage(uint8_t stage) {
   return putU8("fc_stage", stage);
 }
 
+bool nvsReadProtectRetry(ProtectRetryRecord &record) {
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  record = protectRetryEmpty();
+  bool ok = !pf.isKey("pr_retry") ||
+      (pf.getBytesLength("pr_retry") == sizeof(record) &&
+       pf.getBytes("pr_retry", &record, sizeof(record)) == sizeof(record) &&
+       protectRetryValid(record));
+  pf.end();
+  return ok;
+}
+
+bool nvsWriteProtectRetry(const ProtectRetryRecord &record) {
+  if (!protectRetryValid(record)) return false;
+  Preferences pf;
+  if (!pf.begin(kNs, false)) return false;
+  bool ok = pf.putBytes("pr_retry", &record, sizeof(record)) == sizeof(record);
+  ProtectRetryRecord check = {};
+  ok = ok && pf.getBytes("pr_retry", &check, sizeof(check)) == sizeof(check) &&
+       memcmp(&check, &record, sizeof(check)) == 0;
+  pf.end();
+  return ok;
+}
+
 bool nvsReadLoadArmed(bool &armed) {
   Preferences pf;
   if (!pf.begin(kNs, false)) return false;
@@ -341,13 +374,16 @@ uint32_t nvsBumpBootCount() {
   return boots;
 }
 
-void nvsClearBootCount() {
+bool nvsClearBootCount() {
   Preferences pf;
-  if (!pf.begin(kNs, false)) return;
+  if (!pf.begin(kNs, false)) return false;
   // Read-before-write: this is called on every expected reset and after each
   // healthy minute, and the streak is almost always already zero.
-  if (pf.getUInt("boots", 0) != 0) pf.putUInt("boots", 0);
+  bool ok = true;
+  if (pf.getUInt("boots", 0) != 0) ok = pf.putUInt("boots", 0) == sizeof(uint32_t);
+  ok = ok && pf.getUInt("boots", 0) == 0;
   pf.end();
+  return ok;
 }
 
 bool nvsPersistFieldTuning(uint8_t dayChimeChanceX256, uint8_t showSchedule,

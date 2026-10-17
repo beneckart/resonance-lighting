@@ -130,6 +130,35 @@ int main() {
     CHECK_EQ(ready, 0);
   }
 
+  // Range commands share framing but retain separate setters. Relational
+  // validation (min < max < clear) belongs to the live presence state machine.
+  {
+    const uint8_t marill[3] = {0xF4, 0x03, 0x48};
+    const char *lines[] = {"!LF40348:50\n", "!UF40348:400\n", "!VF40348:600\n",
+                          "!VF40348:4000\n"};
+    const uint16_t values[] = {50,400,600,4000};
+    const SerialMutationType types[] = {SERIAL_MUTATION_TRIGGER_MIN,
+      SERIAL_MUTATION_TRIGGER_MAX, SERIAL_MUTATION_TRIGGER_CLEAR, SERIAL_MUTATION_TRIGGER_CLEAR};
+    for (unsigned i=0;i<4;++i) {
+      SerialMutationParser p;
+      SerialMutationCommand cmd{};
+      unsigned ready=0;
+      for (const char *s=lines[i];*s;++s)
+        if (p.feed(*s,marill,cmd)==SERIAL_MUTATION_READY) {
+          ++ready; CHECK_EQ(cmd.type,types[i]); CHECK_EQ(cmd.value,values[i]);
+        }
+      CHECK_EQ(ready,1u);
+    }
+    const char *bad[] = {"!UF40348:29\n", "!VF40348:4001\n", "!UF40349:400\n",
+                        "!VF40348:0600\n", "!UF40348:400x\n"};
+    for (const char *s:bad) {
+      SerialMutationParser p;
+      SerialMutationCommand cmd{};
+      unsigned ready=0;
+      for (;*s;++s) ready += p.feed(*s,marill,cmd)==SERIAL_MUTATION_READY;
+      CHECK_EQ(ready,0u);
+    }
+  }
     // Relay mode for host tools: !R<id>:1 on, :0 off; anything else is refused.
   {
     const uint8_t me[3] = {0x9F, 0x27, 0x38};
@@ -150,5 +179,23 @@ int main() {
     }
   }
 
+  {
+    struct { const char *line; int ready; int type; } cases[] = {
+      {"!B9E668C:1\n",1,SERIAL_MUTATION_USB_SERVICE},
+      {"!B9E668C:0\n",1,SERIAL_MUTATION_USB_SERVICE},
+      {"!B9E668C:2\n",0,0}, {"!B9E668C:01\n",0,0},
+      {"!BF40308:1\n",0,0}, {"!B9E668C:1",0,0},
+      {"!Y9E668C:1\n",1,SERIAL_MUTATION_POWER_TEST},
+      {"!Y9E668C:2\n",1,SERIAL_MUTATION_POWER_TEST},
+      {"!Y9E668C:0\n",0,0}, {"!Y9E668C:3\n",0,0}
+    };
+    const uint8_t id[] = {0x9E,0x66,0x8C};
+    for (const auto &tc:cases) {
+      SerialMutationParser p; SerialMutationCommand cmd{}; int ready=0;
+      for (const char *s=tc.line;*s;++s)
+        if (p.feed(*s,id,cmd)==SERIAL_MUTATION_READY) { ++ready; CHECK_EQ(cmd.type,tc.type); }
+      CHECK_EQ(ready,tc.ready);
+    }
+  }
   return testReport("serial_mutation");
 }

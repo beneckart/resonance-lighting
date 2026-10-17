@@ -41,6 +41,7 @@ struct PowerSample {
 };
 
 struct PowerConfig {
+  bool managed_recovery; // ADR 0085 canary: staged coordinator owns release
   uint16_t dim_mv;          // default 3150 (ADR 0046: above the charger knee)
   uint16_t off_mv;          // default 3100
   uint16_t protect_mv;      // default 3050 (immediate)
@@ -77,6 +78,7 @@ struct PowerState {
   uint32_t releaseHeldSinceMs;
   uint8_t releaseProof; // ProtectReleaseProof; proof changes restart the hold
   bool initialized;
+  uint32_t confirmWindowSinceMs; // one bounded extension per boot, never renewed by chatter
 };
 
 enum ProtectReleaseProof : uint8_t {
@@ -102,7 +104,11 @@ struct PowerBudget {
   // stage) until the battery is corroborated. Re-evaluated every tick; glue
   // persists on the first corroborated PROTECT tick.
   bool defer_protect_persist;
+  bool confirm_awake; // ordinary DIM/OFF confirmations own a bounded awake window
 };
+
+// OFF -> DIM -> FULL needs two 60 s observations. Sleep is never evidence.
+static constexpr uint32_t POWER_CONFIRM_AWAKE_MAX_MS = 150000UL;
 
 void powerStateInit(PowerState &st, LedTier startTier);
 PowerBudget powerPolicyTick(PowerState &st, const PowerSample &s, const PowerConfig &c);

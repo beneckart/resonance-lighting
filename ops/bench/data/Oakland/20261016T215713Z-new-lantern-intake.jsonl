@@ -1,0 +1,7 @@
+{"utc": "2026-10-16T21:57:13.705643+00:00", "kind": "metadata", "value": {"operation": "Read-only first wake, t queries, no host reset", "duration_s": 1020}}
+{"utc": "2026-10-16T21:57:13.709645+00:00", "kind": "ports", "value": []}
+{"utc": "2026-10-16T22:06:16.392892+00:00", "kind": "ports", "value": [{"port": "", "vid": 12346, "pid": 4097, "serial": "68:EE:8F:F4:03:08"}]}
+{"utc": "2026-10-16T22:06:16.392892+00:00", "kind": "discovered", "value": {"mac": "68:EE:8F:F4:03:08", "port": "COM8"}}
+{"utc": "2026-10-16T22:06:16.392892+00:00", "kind": "transport", "value": "could not open port 'COM8': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)"}
+{"utc": "2026-10-16T22:06:16.803381+00:00", "kind": "ports", "value": [{"port": "COM8", "vid": 12346, "pid": 4097, "serial": "68:EE:8F:F4:03:08"}]}
+{"utc": "2026-10-16T22:06:16.807838+00:00", "kind": "discovered", "value": {"mac": "68:EE:8F:F4:03:08", "port": "COM8"}}

@@ -1,4 +1,5 @@
 #include "serial_mutation.h"
+#include "squad_trigger.h"
 
 #include <string.h>
 
@@ -42,7 +43,15 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
   uint8_t type = line_[1] == 'S' ? SERIAL_MUTATION_SLEEP :
                  line_[1] == 'K' ? SERIAL_MUTATION_SIGNATURE :
                  line_[1] == 'D' ? SERIAL_MUTATION_DECOMPRESSION :
+                 line_[1] == 'X' ? SERIAL_MUTATION_PROTECT_TEST :
+                 line_[1] == 'T' ? SERIAL_MUTATION_TRIGGER_SESSION :
+                 line_[1] == 'J' ? SERIAL_MUTATION_TRIGGER_PRESS :
+                 line_[1] == 'L' ? SERIAL_MUTATION_TRIGGER_MIN :
+                 line_[1] == 'U' ? SERIAL_MUTATION_TRIGGER_MAX :
+                 line_[1] == 'V' ? SERIAL_MUTATION_TRIGGER_CLEAR :
                  line_[1] == 'R' ? SERIAL_MUTATION_RELAY :
+                 line_[1] == 'B' ? SERIAL_MUTATION_USB_SERVICE :
+                 line_[1] == 'Y' ? SERIAL_MUTATION_POWER_TEST :
                  SERIAL_MUTATION_NONE;
   if (type == SERIAL_MUTATION_NONE) return false;
 
@@ -69,7 +78,15 @@ bool SerialMutationParser::parseLine(const uint8_t myId[3],
   }
 
   if ((type == SERIAL_MUTATION_SIGNATURE || type == SERIAL_MUTATION_RELAY) && seconds > 1) return false;
+  if (type == SERIAL_MUTATION_USB_SERVICE && seconds > 1) return false;
+  if (type == SERIAL_MUTATION_POWER_TEST && (seconds < 1 || seconds > 2)) return false;
   if (type == SERIAL_MUTATION_DECOMPRESSION && seconds > 120) return false;
+  if (type == SERIAL_MUTATION_PROTECT_TEST && (seconds < 1 || seconds > 3)) return false;
+  if (type == SERIAL_MUTATION_TRIGGER_SESSION && seconds > 120) return false;
+  if (type == SERIAL_MUTATION_TRIGGER_PRESS && seconds != 1) return false;
+  if ((type == SERIAL_MUTATION_TRIGGER_MIN || type == SERIAL_MUTATION_TRIGGER_MAX ||
+       type == SERIAL_MUTATION_TRIGGER_CLEAR) && !squadPresenceRangeValueValid(seconds))
+    return false;
   out.type = type;
   out.value = (uint16_t)seconds;
   return true;
