@@ -1,0 +1,9 @@
+FQBN: esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB
+FLAGS: -IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware -IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge -DLV_CONF_INCLUDE_SIMPLE
+BUILD_PATH: /c/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge/build/tdeck-tonelab-20261017-332e7cb
+C:/Users/benec/AppData/Local/Arduino15/packages/esp32/tools/esp-x32/2511/bin/../lib/gcc/xtensa-esp-elf/14.2.0/../../../../xtensa-esp-elf/bin/ld.exe: warning: _floatdidf.o: missing .note.GNU-stack section implies executable stack
+C:/Users/benec/AppData/Local/Arduino15/packages/esp32/tools/esp-x32/2511/bin/../lib/gcc/xtensa-esp-elf/14.2.0/../../../../xtensa-esp-elf/bin/ld.exe: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
+Sketch uses 1599647 bytes (50%) of program storage space. Maximum is 3145728 bytes.
+Global variables use 212248 bytes (64%) of dynamic memory, leaving 115432 bytes for local variables. Maximum is 327680 bytes.
+artifact: /c/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge/build/tdeck-tonelab-20261017-332e7cb/tdeck_bridge.ino.bin (1599792 bytes)
+8b365d2260a9acb690fd824fa6eb1fa1d8d90e07296274bc8d54f8a222c0cbe7 */c/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge/build/tdeck-tonelab-20261017-332e7cb/tdeck_bridge.ino.bin

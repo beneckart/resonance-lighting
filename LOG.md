@@ -17907,3 +17907,22 @@ or resets were sent. Capture: Oakland/20261017T162850Z-8EB508-tdeck-intake.jsonl
 At this intake, all fetched branches still lack Brian's new T-Deck source;
 0139e3d changes the lantern side only. Asked for the source branch or exact
 TSwift binary plus its hash/manifest before choosing a replacement image.
+
+
+## 2026-10-17 -- Ben's T-Deck updated to Brian's Tone Lab controller
+
+Merged Brian's Tone Lab source through b2778e4 and subsequent flash records
+through 43dda55, retaining both benches' journal entries. Built retained
+release tdeck-0.3.1-tonelab1 from 332e7cb and flashed only app0 on Ben's
+T-Deck 8EB508. The application digest and unchanged boot/NVS/OTA prefix were
+verified; settings and filesystem were preserved. Direct-ROM preservation
+plus the verified retained old application replaced unsuccessful bulk
+backup attempts; no complete new flash backup is claimed.
+
+Cold embedded build, native show/click model, 94 packet-layout checks and
+build-wrapper contract passed. Fresh boot reached 60,021 ms with zero send
+failures and 11 observed peers; LVGL, PSRAM, keyboard, touch and GPS were
+healthy. Ben confirmed Tone Lab opens from the launcher. No show data was
+copied, no playback or mode switch was commanded, and no lantern or TSwift
+was flashed. Report: docs/tests/TDECK_TONELAB_8EB508_2026-10-17.md. Exact
+binary identity and raw evidence are retained under ops/bench/data/Oakland.

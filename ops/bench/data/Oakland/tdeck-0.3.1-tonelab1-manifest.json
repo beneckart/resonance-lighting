@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "fw_rev": "tdeck-0.3.1-tonelab1",
+  "source_commit": "332e7cb131b5f31685636d83c9512d4e3d9f20ac",
+  "git_dirty": false,
+  "basis_remote_commit": "b2778e4",
+  "built_utc": "2026-10-17T16:49:20.807708+00:00",
+  "fqbn": "esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB",
+  "toolchain": {
+    "arduino_cli": "arduino-cli  Version: 1.5.1 Commit: 01f3d4f2b Date: 2026-06-05T10:22:12Z",
+    "esp32_platform": "3.3.7"
+  },
+  "libraries": {
+    "lvgl": "9.5.0",
+    "LovyanGFX": "1.2.24"
+  },
+  "build_options": {
+    "additionalFiles": "..\\..,..\\..,..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..,..\\..\\..",
+    "compiler.optimization_flags": "-Os",
+    "customBuildProperties": "compiler.cpp.extra_flags=-IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware -IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge -DLV_CONF_INCLUDE_SIMPLE,compiler.c.extra_flags=-IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware -IC:/Users/benec/OneDrive/Documents/ChatGPT/resonance-lighting/firmware/tdeck_bridge -DLV_CONF_INCLUDE_SIMPLE",
+    "fqbn": "esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB",
+    "hardwareFolders": "C:\\Users\\benec\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7,C:\\Users\\benec\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\3.3.7",
+    "otherLibrariesFolders": "C:\\Users\\benec\\OneDrive\\Documents\\Arduino\\libraries",
+    "sketchLocation": "C:\\Users\\benec\\OneDrive\\Documents\\ChatGPT\\resonance-lighting\\firmware\\tdeck_bridge"
+  },
+  "declared_operator": "Ben + Codex",
+  "target_short_mac": "8EB508",
+  "target_full_mac": "44:1B:F6:8E:B5:08",
+  "files": {
+    "tdeck_bridge.ino.bin": {
+      "bytes": 1599792,
+      "sha256": "8b365d2260a9acb690fd824fa6eb1fa1d8d90e07296274bc8d54f8a222c0cbe7"
+    },
+    "tdeck_bridge.ino.bootloader.bin": {
+      "bytes": 19984,
+      "sha256": "5403ba8cdf81cbb47f2debe13c0f5ff5903540075ccaf3fac65f0ee68213cb7d"
+    },
+    "tdeck_bridge.ino.partitions.bin": {
+      "bytes": 3072,
+      "sha256": "ace02503447d0f470692e65fa76002f2d77a92dc81cd3813d8aa66718d716da9"
+    },
+    "build.options.json": {
+      "bytes": 3163,
+      "sha256": "44bbe9ed5cb3921d42a48fd9cc667c762f487394a23e195931528211846d1bfc"
+    }
+  },
+  "note": "Fresh Windows retained build of Brian Tone Lab source plus unique release name. Not byte-identical to TSwift dev-cache build."
+}
