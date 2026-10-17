@@ -17926,3 +17926,15 @@ healthy. Ben confirmed Tone Lab opens from the launcher. No show data was
 copied, no playback or mode switch was commanded, and no lantern or TSwift
 was flashed. Report: docs/tests/TDECK_TONELAB_8EB508_2026-10-17.md. Exact
 binary identity and raw evidence are retained under ops/bench/data/Oakland.
+
+
+## 2026-10-17 -- Brian's saved show loaded onto Ben's T-Deck
+
+At Ben's request, loaded the committed Brian bench tonelab-show.tls onto
+8EB508 using exact-ID USB selection. The 2,383-byte file passed its CRC32
+4650112D and matched the Git blob. The T-Deck accepted 7 patterns, 2 enabled
+Atom rules and 11 roster entries without a storage warning. A T-Deck-only
+software reboot confirmed the full library persisted, playback stayed idle,
+keep-awake stayed off, and mesh telemetry remained healthy. No other device
+was written. The report TDECK_TONELAB_8EB508_2026-10-17.md now includes the
+source hash, pattern/rule details and the raw load/persistence evidence.

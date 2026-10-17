@@ -109,3 +109,31 @@ ops/bench/data/Oakland/20261017T164928Z-8EB508-tonelab-flash.jsonl.
 This confirms firmware and menu bring-up, not an end-to-end performance of
 a loaded show. Brian's later flash-record commit 43dda55 was also merged;
 it contained no further T-Deck source changes.
+
+
+## Follow-up: saved show loaded
+
+At Ben's subsequent request, loaded the repository's Brian bench show onto
+8EB508 using ops/bench/tdeck_show_send.py with the explicit target ID.
+The source is ops/bench/data/Brian bench/tonelab-show.tls, introduced in
+54e32e1: 2,383 bytes, CRC32 4650112D, SHA-256
+747294ab98dd06154f45d5a7aa75818bf46ccf3a6926c994c6f2d9a77dd02531.
+Worktree bytes matched the committed Git blob exactly before transfer.
+Its embedded export timestamp is 2026-10-17T00:16:18.448Z.
+
+Fresh preflight verified 8EB508 on tdeck-0.3.1-tonelab1 with no loaded show.
+The device acknowledged all 7 patterns, 2 rules and 11 roster entries with
+no storage warning. A T-Deck-only software reboot then confirmed all seven
+patterns still Active and both rules enabled. Fresh master telemetry at
+20003 ms showed channel 11 and zero send failures. Playback was idle
+(playing=-1), and keep-awake remained off (awake=0). No play or fleet-mode
+command was sent, and no other device was written.
+
+Patterns: Beat 1; Cha Cha Cha; Drowning in Soup; Freakout Mode; Jingle Balls;
+Shave and a Haircut; Thriller?. Enabled rules accept any Atom: single click
+runs Freakout Mode twice and returns to prior playback; double click advances
+to the next Active pattern. These are the saved source's own settings.
+
+Evidence: ops/bench/data/Oakland/20261017T165618Z-8EB508-brian-show-load.jsonl.
+This follow-up supersedes the earlier empty-show state; the earlier firmware
+flash observations remain unchanged.
