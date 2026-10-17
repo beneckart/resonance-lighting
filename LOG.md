@@ -18146,3 +18146,13 @@ ops/bench/private-backups/); other eight canopies stay on fx-261017-7778314-b
 (they lack only the 300 mm floor). Skitty was briefly put in maintenance by a
 mis-targeted gather (the T-Deck had moved ports) and resumed with /resume; the
 OTA script now requires the T-Deck boot banner before sending.
+
+## 2026-10-17 -- Perimeter gobo LED cycles colours
+
+Brian asked for the perimeters' centre (gobo) LED to drift through colours
+instead of steady white. 3462170: full brightness, one colour-wheel turn a
+minute (the lanterns' pace), each perimeter at its own hue; all other pixels
+stay off. Built fx-261017-4dd063d-b and flashed Marill, Daisy, Zubat and
+Skitty over USB (prepared service, private backups); all four report the new
+image valid, event mode 4 (decompression), trigger enabled, VL53 reading,
+power tier 0. Leeloo and the other canopies unchanged.
