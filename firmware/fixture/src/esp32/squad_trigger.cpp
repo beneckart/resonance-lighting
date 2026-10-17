@@ -35,7 +35,10 @@ static ChimeLight gTriggerLight;
 static NbCyclePress gPress;
 static uint8_t gPressCopies=0;
 static uint32_t gForwarded=0;
-static uint32_t gHoldSince=0, gHoldTxMs=0;  // a hand held in the near band (four at once = Freakout)
+static uint32_t gHoldSince=0, gHoldTxMs=0, gHoldSeenMs=0;  // a hand held in the near band (four at once = Freakout)
+// A held hand drops out of the near band for a frame or two (worse in direct sun,
+// 2026-10-17 event test), so a hold survives gaps this short.
+static constexpr uint32_t HOLD_GRACE_MS=600;
 static uint32_t gDeadline=0, gEventId=0, gTxErrors=0, gRefused=0;
 static const char *gLast="idle";
 static bool gWakePending=false;
@@ -245,9 +248,9 @@ void squadTriggerTick() {
         uint16_t mm=s.vlZoneNearestMm[z];
         if (mm && mm>=gPresence.minMm && mm<=gPresence.nearMm) { heldNow=true; break; }
       }
-    if (!heldNow) gHoldSince=0;
-    else {
-      if (!gHoldSince) gHoldSince=now ? now : 1;
+    if (heldNow) { gHoldSeenMs=now; if (!gHoldSince) gHoldSince=now ? now : 1; }
+    else if (gHoldSince && now-gHoldSeenMs>HOLD_GRACE_MS) gHoldSince=0;
+    if (gHoldSince) {
       if (now-gHoldTxMs>=250 && !gPressCopies && espNowTxAvailable()) {
         NbPresenceHold hold={}; fillHeader(&hold.h,NB_PRESENCE_HOLD);
         hold.confirm=NB_PRESENCE_HOLD_CONFIRM;
