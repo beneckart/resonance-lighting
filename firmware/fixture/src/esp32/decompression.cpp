@@ -164,7 +164,13 @@ static void freakoutTick(uint32_t nowMs) {
       if (!(mask & (1U << i))) continue;
       gCycleDue[i] = nowMs;
       gCycleCopies[i] = 2;  // the fixture's 80 ms rest gate dedupes the copy
+      // Address the strike here: cycleSendTick fills the header only for its
+      // 3-copy sends, so a 2-copy strike left zeroed went to nobody (2026-10-17:
+      // Freakout played on Leeloo alone).
       memset(&gCycleCmd[i], 0, sizeof(gCycleCmd[i]));
+      fillHeader(&gCycleCmd[i].h, NB_TARGET_SOLENOID);
+      memcpy(gCycleCmd[i].target_id, SQUAD[i].id, 3);
+      gCycleCmd[i].value = SQUAD[i].pulseMs;
     }
     ++gFreakoutNextStep;
   }
