@@ -576,8 +576,12 @@ static ChimeLight gChimeLight;
 void perimeterCentreFrame(FrameBuffer &f, uint16_t pixels) {
   f.count = (uint8_t)pixels;
   frameClear(f);
-  if (HEX_CENTRE_PIXEL < f.count)
-    f.px[HEX_CENTRE_PIXEL][0] = f.px[HEX_CENTRE_PIXEL][1] = f.px[HEX_CENTRE_PIXEL][2] = 255;
+  if (HEX_CENTRE_PIXEL >= f.count) return;
+  // Gobo LED: full brightness, drifting through the colour wheel at the
+  // lanterns' pace (one turn a minute), each perimeter at its own hue.
+  uint8_t drift = (uint8_t)(((uint64_t)millis() * 256u / CHIME_LIGHT_TURN_MS) & 0xFF);
+  uint8_t hue = (uint8_t)(chimeLightSeedHue(gMyId) + drift);
+  waveHueToRgb(hue, 255, f.px[HEX_CENTRE_PIXEL][0], f.px[HEX_CENTRE_PIXEL][1], f.px[HEX_CENTRE_PIXEL][2]);
 }
 static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   if (!RES_CHIME_LIGHT || gWaveDisplayActive) {
