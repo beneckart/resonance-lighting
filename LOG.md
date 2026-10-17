@@ -17851,3 +17851,14 @@ Merged Brian's 52058ed without conflicts. Service tests 7/7, packet layout
 successful BenPhone access from a new-image OTA-upload qualification. Final
 installation behavior remains a later decision; Brian's canopy hotspot/OTA
 canary remains open in his latest record.
+
+## 2026-10-17 -- T-Deck 8EB508 intake for Brian's controller update
+
+Ben requested the controller image already installed on Brian's TSwift.
+Pulled origin through 0139e3d. Exact USB identity is 44:1B:F6:8E:B5:08,
+COM10; passive telemetry confirms tdeck-0.3.0-storage4 on channel 11,
+29 successful sends and zero failures in the captured status. No commands
+or resets were sent. Capture: Oakland/20261017T162850Z-8EB508-tdeck-intake.jsonl.
+At this intake, all fetched branches still lack Brian's new T-Deck source;
+0139e3d changes the lantern side only. Asked for the source branch or exact
+TSwift binary plus its hash/manifest before choosing a replacement image.
