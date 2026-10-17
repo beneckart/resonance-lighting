@@ -17,6 +17,10 @@ from fleet_usb_bringup import discover, find_esptool, open_serial_no_reset
 
 
 def prepare_session(port, target, record=lambda *args: None, clock=time.monotonic):
+    # A queued READY from an earlier, expired service window is not proof for
+    # a new ROM entry. Discard buffered input before this request/response run.
+    port.reset_input_buffer()
+
     def telemetry():
         port.write(b't\n')
         end = clock() + 5

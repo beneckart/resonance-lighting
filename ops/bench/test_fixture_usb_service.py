@@ -19,6 +19,8 @@ class Port:
     def clock(self):
         self.time += .1
         return self.time
+    def reset_input_buffer(self):
+        self.lines.clear()
     def write(self, data):
         self.writes.append(data)
         if data == b't\n':
@@ -41,6 +43,12 @@ class Tests(unittest.TestCase):
             self.assertEqual(p.writes,[b't\n'])
     def test_missing_ack(self):
         p=Port(ready=False)
+        with self.assertRaises(RuntimeError): prepare_session(p,'F40308',clock=p.clock)
+    def test_expired_buffered_ready_is_not_accepted(self):
+        p=Port(ready=False)
+        p.lines=[json.dumps(p.before).encode(),
+                 b'usb-service: READY target=F40308 window_ms=30000 stage=1',
+                 json.dumps(p.after).encode()]
         with self.assertRaises(RuntimeError): prepare_session(p,'F40308',clock=p.clock)
     def test_fail_closed_readback(self):
         for data in ({'load_armed':True},{'led_rail_on':True},{'solenoid_gate_on':True},
