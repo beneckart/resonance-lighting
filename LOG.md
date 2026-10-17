@@ -10,6 +10,21 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-17 -- Brian + Claude (Ben present) -- Daisy and Skitty on the event image
+
+Flashed `fx-261017-bb87373-b` to perimeters Daisy `F40308` (from c2ddd6a,
+app0) and Skitty `F3FD28` (from c2ddd6a, app1). Both run ordinary sleeping
+firmware (awake ~12 s / 2 min), so ops/bench/flash_sleepy_perimeter.py waits
+for the exact target to enumerate, runs the ADR 0087 prepared service at once
+(READY + loads off before ROM; no raw-reset fallback), then from ROM backs up
+prefix, coredump and the whole running slot, checks the partition table,
+writes/verifies the running slot and verifies the prefix. Post-boot: both
+valid on bb87373, perimeter class, VL53L5CX present (Skitty's sensor now
+reports), trigger_enabled with an automatic session, event mode 1; with
+Leeloo as SQUAD_TRIGGER_LANTERN they forward approaches (NB_CYCLE_PRESS)
+rather than running their own cycles. Marill F40348 left unchanged pending
+Ben's call (his handoff keeps it on its separate staged-recovery recipe).
+
 ## 2026-10-17 -- Brian + Claude (Ben present) -- BenPhone canopy OTA canary: PASS on Leeloo
 
 Ben's pre-hang gate (BENPHONE_OTA_CANARY.md) on canopy Leeloo `F40254`,

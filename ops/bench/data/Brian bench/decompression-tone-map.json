@@ -106,6 +106,11 @@
       "callsign": "Zubat",
       "role": "perimeter",
       "prox_range_mm": 2000
+    },
+    "F40308": {
+      "type": null,
+      "note": "",
+      "callsign": "Daisy"
     }
   },
   "order": [
@@ -119,9 +124,10 @@
     "9F26B0",
     "9F0E5C",
     "F3FD28",
-    "F401DC"
+    "F401DC",
+    "F40308"
   ],
-  "updated_utc": "2026-10-17T17:04:43.593Z",
+  "updated_utc": "2026-10-17T17:10:25.625Z",
   "order_direction": "high_to_low",
   "pulse_ms": 40,
   "presets": {
