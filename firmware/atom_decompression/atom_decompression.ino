@@ -50,9 +50,9 @@ static uint32_t presses = 0;
 static bool radioReady = false, enabled = true, havePlayed = false;
 // T-Deck mode: a click is a PLAY addressed to this Atom itself, so lanterns
 // ignore it (no signature) while a T-Deck running the Tone Lab app hears it.
-// Toggle by holding the button for 2 s while powering up (or USB "tdeck 0|1").
+// On by default; change only over USB ("tdeck 0|1"). Holding the button does nothing.
 // Persisted. Leases to the lanterns continue in both modes.
-static bool tdeckMode = false;
+static bool tdeckMode = true;
 static Preferences prefs;
 static constexpr uint8_t CORNERS[4] = {0,4,20,24};
 static volatile uint32_t rxDropped = 0;
@@ -252,26 +252,13 @@ void setup() {
   pixels.begin(); pixels.setBrightness(40);
   pinMode(BUTTON_PIN,INPUT); button.begin(digitalRead(BUTTON_PIN)==HIGH,millis());
   prefs.begin("atomdecomp",false);
-  tdeckMode=prefs.getBool("tdeck",false);
-  if (digitalRead(BUTTON_PIN)==LOW) {
-    // Held at power-up: 2 s toggles T-Deck mode. The button is not armed until it
-    // is released (DecompressionButton::begin), so this never sends a click.
-    const uint32_t t0=millis();
-    while (digitalRead(BUTTON_PIN)==LOW && millis()-t0<2000) delay(10);
-    if (millis()-t0>=2000) {
-      setTdeckMode(!tdeckMode);
-      for (uint8_t k=0;k<3;++k) {  // flash the corners to confirm
-        for (uint8_t c:CORNERS) pixels.setPixelColor(c,tdeckMode?pixels.Color(30,0,30):pixels.Color(30,30,30));
-        pixels.show(); delay(150); pixels.clear(); pixels.show(); delay(150);
-      }
-    }
-  }
+  tdeckMode=prefs.getBool("tdeck",true);  // event default: Leeloo answers clicks
   uint8_t mac[6]; esp_read_mac(mac,ESP_MAC_WIFI_STA); memcpy(myId,mac+3,3);
   do { bootNonce=esp_random(); } while (!bootNonce);
   radioReady=startRadio();
   Serial.println("\n" ATOM_DECOMPRESSION_VERSION);
   Serial.println("Face press: all-nine local signatures, any hour. USB: t/play/pause/resume/tdeck 0|1.");
-  Serial.printf("T-Deck mode %s (hold the button 2 s at power-up to toggle)\n",tdeckMode?"ON":"off");
+  Serial.printf("T-Deck mode %s (USB tdeck 0|1 to change; holding the button does nothing)\n",tdeckMode?"ON":"off");
   Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, cyan handed to host (relay), red refused.");
   lastPlayMs=millis()-5000; nextLeaseMs=millis();
 }

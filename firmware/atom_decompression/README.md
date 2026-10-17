@@ -40,9 +40,12 @@ Atom itself: every lantern drops it on the target check, so no signature plays,
 while the T-Deck's Tone Lab app hears every PLAY regardless of target and runs
 its single/double/triple rules. Keep-awake leases to the lanterns continue.
 
-- Toggle: hold the button for 2 s while powering the Atom up (the corners
-  flash magenta for on, white for off), or send `tdeck 1` / `tdeck 0` over USB.
-  The setting is stored on the Atom.
+- On by default (magenta corners). Change it only over USB with `tdeck 1` /
+  `tdeck 0`; the setting is stored on the Atom. The power-up hold toggle was
+  removed after the 2026-10-17 event, where holding a button flipped an Atom
+  back to signature mode by accident. Holding the button does nothing.
+- On site, the trigger lantern (Leeloo) answers any T-Deck-mode click with
+  Freakout Mode x2.
 - The laptop Tone Lab cannot see T-Deck-mode clicks (it counts presses through
   the lanterns), so use normal mode at the bench and T-Deck mode on site.
 
