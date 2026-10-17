@@ -63,6 +63,7 @@ DECOMPRESSION=0
 PROTECT_RECOVERY_TARGET=""
 SQUAD_TRIGGER_TARGET=""
 SQUAD_TRIGGER_ANY=0
+PROTECT_RECOVERY_ALL=0
 DEV_CACHE=0
 CLEAN_DEV_CACHE=0
 RECOVER_DEV_CACHE=0
@@ -114,6 +115,7 @@ Common build options:
   --wake-listen-ms N          timer-wake listen grace, 1000..60000 ms (default 15000)
   --decompression             bounded event sessions and local signature chime (b only)
   --protect-recovery-target MAC staged PROTECT canary for one perimeter (b only)
+  --protect-recovery-all      ADR 0085 staged PROTECT recovery on every fixture (b only)
   --squad-trigger-target MAC    bounded presence/USER squad controller (b only)
   --squad-trigger-any-perimeter every perimeter is the event trigger: rising pairs, then all
                               (b + --decompression; lanterns in the same image stay lanterns)
@@ -295,6 +297,7 @@ while [[ $# -gt 0 ]]; do
     --sentinel-trace-smoke) SENTINEL_TRACE_SMOKE=1; shift ;;
     --decompression) DECOMPRESSION=1; EXTRA_FLAGS+=" -DRES_DECOMPRESSION=1"; shift ;;
     --protect-recovery-target) PROTECT_RECOVERY_TARGET="${2^^}"; shift 2 ;;
+    --protect-recovery-all) PROTECT_RECOVERY_ALL=1; EXTRA_FLAGS+=" -DRES_PROTECT_RECOVERY_ALL=1"; shift ;;
     --power-recovery-test-target) POWER_RECOVERY_TEST_TARGET="${2^^}"; shift 2 ;;
     --squad-trigger-target) SQUAD_TRIGGER_TARGET="${2^^}"; shift 2 ;;
     --squad-trigger-any-perimeter) SQUAD_TRIGGER_ANY=1; EXTRA_FLAGS+=" -DRES_SQUAD_TRIGGER_ANY=1"; shift ;;
@@ -322,6 +325,10 @@ if [[ -n "$POWER_RECOVERY_TEST_TARGET" ]]; then
   EXTRA_FLAGS+=" -DRES_POWER_RECOVERY_TEST_TARGET=0x${POWER_RECOVERY_TEST_TARGET}UL"
 fi
 
+if (( PROTECT_RECOVERY_ALL )); then
+  [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--protect-recovery-all requires artifact variant b"
+  [[ -z "$PROTECT_RECOVERY_TARGET" ]] || fail "use --protect-recovery-all or --protect-recovery-target, not both"
+fi
 if (( SQUAD_TRIGGER_ANY )); then
   [[ -z "$ARTIFACT_VARIANT" || "$ARTIFACT_VARIANT" == "b" ]] || fail "--squad-trigger-any-perimeter requires artifact variant b"
   (( DECOMPRESSION )) || fail "--squad-trigger-any-perimeter requires --decompression"

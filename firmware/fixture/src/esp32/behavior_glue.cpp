@@ -4,6 +4,7 @@
 
 #include "../core/choreo/program.h"
 #include "../core/chime_light.h"
+#include "../core/hex_geometry.h"
 #include "../core/daytime_ritual.h"
 #include "../core/field_behavior.h"
 #include "../core/field_role_policy.h"
@@ -566,15 +567,25 @@ static void quietIdleFrame(FrameBuffer &f, uint16_t pixels, uint32_t) {
 }
 
 // Decompression lighting: slow colour drift, flash + colour jump on every chime
-// (core/chime_light). Perimeter HEX boards (37 px, no chime) only drift, dimmer;
-// framePowerBudget still scales a 37-pixel frame to the board's budget.
+// (core/chime_light). Perimeter HEX boards show only their centre LED (index 18)
+// at full white, all the time (Brian, 2026-10-17); the power cap still applies.
 #ifndef RES_CHIME_LIGHT
 #define RES_CHIME_LIGHT 1
 #endif
 static ChimeLight gChimeLight;
+void perimeterCentreFrame(FrameBuffer &f, uint16_t pixels) {
+  f.count = (uint8_t)pixels;
+  frameClear(f);
+  if (HEX_CENTRE_PIXEL < f.count)
+    f.px[HEX_CENTRE_PIXEL][0] = f.px[HEX_CENTRE_PIXEL][1] = f.px[HEX_CENTRE_PIXEL][2] = 255;
+}
 static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   if (!RES_CHIME_LIGHT || gWaveDisplayActive) {
     quietIdleFrame(f, pixels, now);
+    return;
+  }
+  if (gClass == FIXTURE_PERIMETER) {
+    perimeterCentreFrame(f, pixels);
     return;
   }
   static bool seeded = false;
@@ -586,10 +597,6 @@ static void chimeLightFrame(FrameBuffer &f, uint16_t pixels, uint32_t now) {
   chimeLightRgbw(gChimeLight, now, c);
   uint8_t flash[3];
   if (decompressionModeFlash(now, flash)) { c[0] = flash[0]; c[1] = flash[1]; c[2] = flash[2]; c[3] = 0; }
-  if (gClass == FIXTURE_PERIMETER) {  // 37 GRB pixels: same drift at about a third of the level, no white
-    for (uint8_t k = 0; k < 3; ++k) c[k] = (uint8_t)((uint16_t)c[k] * 32 / CHIME_LIGHT_AMBIENT);
-    c[3] = 0;
-  }
   f.count = (uint8_t)pixels;
   frameClear(f);
   for (uint16_t i = 0; i < f.count; ++i) {

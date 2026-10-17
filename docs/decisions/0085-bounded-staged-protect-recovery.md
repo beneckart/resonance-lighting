@@ -5,6 +5,11 @@ Status: Accepted for an exact-target Marill F40348 canary; hardware validation
 and fleet promotion are separate gates. The decompression squad is excluded.
 Owner: Ben
 Amends: ADR 0023/0051/0068 automatic PROTECT release for the canary only.
+Fleet promotion (2026-10-17): Ben concluded the Marill experiment and asked
+(via Brian, in person) for this recovery on every fixture. `--protect-recovery-all`
+(`RES_PROTECT_RECOVERY_ALL`) enables the unchanged mechanism for every fixture in
+an image; the decompression event image now includes it. Thresholds, staging,
+backoff and evidence are as decided below.
 
 ## Problem and intent
 

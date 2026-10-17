@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define HEX_NUMPIXELS 37
+#define HEX_CENTRE_PIXEL 18  // middle of the 7-pixel row
 
 struct HexGeometry {
   uint8_t ringOf[HEX_NUMPIXELS];    // 0 (center) .. 3 (outer)

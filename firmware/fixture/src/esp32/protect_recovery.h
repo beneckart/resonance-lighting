@@ -5,6 +5,11 @@
 #ifndef RES_PROTECT_RECOVERY_TARGET
 #define RES_PROTECT_RECOVERY_TARGET 0UL
 #endif
+// ADR 0085 fleet promotion (Ben, 2026-10-17): every fixture in the image runs
+// the bounded staged PROTECT recovery, not just one exact target.
+#ifndef RES_PROTECT_RECOVERY_ALL
+#define RES_PROTECT_RECOVERY_ALL 0
+#endif
 bool protectRecoveryEnabled();
 void protectRecoveryBoot(BootDecision &decision, uint8_t storedStage);
 void protectRecoveryInit();

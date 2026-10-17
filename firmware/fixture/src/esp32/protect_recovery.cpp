@@ -32,6 +32,7 @@ RTC_DATA_ATTR static RetrySleepCredit gSleepCredit;
 static constexpr uint32_t kCreditMagic = 0x50525231;
 
 bool protectRecoveryEnabled() {
+  if (RES_PROTECT_RECOVERY_ALL) return true;
   if (RES_PROTECT_RECOVERY_TARGET == 0UL) return false;
   uint8_t mac[6];
   if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) return false;
