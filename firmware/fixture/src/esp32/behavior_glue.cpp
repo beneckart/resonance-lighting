@@ -399,6 +399,17 @@ void behaviorInit(uint8_t fixtureClass, uint16_t pixelCount, uint32_t seed) {
 }
 
 bool behaviorForceNight(int8_t force) {
+#if defined(RES_POWER_RECOVERY_TEST_TARGET)
+  // Exact-target test image only: N0 must actually select day, rather than
+  // the inspection UI's ten-minute Wake Fleet hold, or the short-wake test
+  // would be satisfied by an unrelated keep-awake mechanism. N2 restores AUTO.
+  uint32_t testId = ((uint32_t)gMyId[0] << 16) | ((uint32_t)gMyId[1] << 8) | gMyId[2];
+  if (testId == RES_POWER_RECOVERY_TEST_TARGET && force == 0) {
+    inspectionControlClose(gInspectionControl);
+    gForceNight = 0;
+    return false;
+  }
+#endif
   if (inspectionStaticEnabled() && gCfg.profile == PROFILE_PROD) {
     if (force == 0) {
       // In the inspection image, T-Deck Wake Fleet is an explicit bounded
