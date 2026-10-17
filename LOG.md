@@ -5,6 +5,15 @@ Append-only session journal for the Resonance Lighting workstream. Most recent f
 Format per entry:
 
 ```
+## 2026-10-17 -- Brian + Claude -- T-Deck 979604: event mode switch flashed
+
+Flashed the dev-cache build of 2c2ff2f (Tone Lab app + Mode view sending
+NB_EVENT_MODE) to T-Deck 979604, app0 only (SHA-256 fb0613e1...ada70109);
+previous app backed up privately (20261017T160116Z-979604-tdeck-before-modes).
+Boot: LVGL shell up, stored show still loaded (7 patterns, 2 rules),
+keep-awake on, mode not yet sent. Lanterns + Zubat run fx-261017-876a1c8-b,
+which obeys the mode packet.
+
 ## 2026-10-16 -- Brian + Claude -- T-Deck Tone Lab app, first flash on 979604
 
 Branch `brian/tdeck-tonelab` (local; not on the shared branch yet). Bridge OS
