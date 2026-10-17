@@ -149,6 +149,11 @@ void handleSerial() {
       Serial.printf("signature: %s\n", accepted ? "accepted" : "refused");
     }
     if (mutationResult == SERIAL_MUTATION_READY &&
+        mutation.type == SERIAL_MUTATION_RELAY) {
+      if (decompressionBuild()) decompressionSetRelay(mutation.value != 0);
+      Serial.printf("radio relay: %s\n", decompressionBuild() ? (mutation.value ? "on" : "off") : "refused");
+    }
+    if (mutationResult == SERIAL_MUTATION_READY &&
         mutation.type == SERIAL_MUTATION_PATTERN)
       patternSerialLine(gSerialMutationParser.line());
     if (mutationResult == SERIAL_MUTATION_READY &&

@@ -111,15 +111,15 @@ int main() {
 
   // Fault-injection commands retain the shared exact-target, complete-line gate.
   const uint8_t me[] = {0xF4, 0x03, 0x48};
-  for (const std::string text : {"!RF40348:1\n", "!RF40348:2\n", "!RF40348:3\n",
-                                "!RF40349:1\n", "!RF40348:0\n", "!RF40348:4\n",
-                                "!RF40348:01\n", "!RF40348:1"}) {
+  for (const std::string text : {"!XF40348:1\n", "!XF40348:2\n", "!XF40348:3\n",
+                                "!XF40349:1\n", "!XF40348:0\n", "!XF40348:4\n",
+                                "!XF40348:01\n", "!XF40348:1"}) {
     SerialMutationParser parser; SerialMutationCommand command = {};
     unsigned ready = 0;
     for (uint8_t c : text) if (parser.feed(c, me, command) == SERIAL_MUTATION_READY) {
       ++ready; CHECK_EQ(command.type, SERIAL_MUTATION_PROTECT_TEST);
     }
-    bool expected = text == "!RF40348:1\n" || text == "!RF40348:2\n" || text == "!RF40348:3\n";
+    bool expected = text == "!XF40348:1\n" || text == "!XF40348:2\n" || text == "!XF40348:3\n";
     CHECK_EQ(ready, expected ? 1u : 0u);
   }
   return testReport("protect_retry");

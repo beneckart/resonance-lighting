@@ -65,6 +65,21 @@ int main() {
   CHECK(!button.tick(true,20100)); CHECK(!button.tick(true,20135));
   CHECK(!button.tick(false,20140)); CHECK(!button.tick(false,20175)); // cooldown
   CHECK(!button.tick(false,40000)); // no delayed trigger at cooldown expiry
+  // A second deliberate click 300 ms after the first is accepted (double click).
+  CHECK(!button.tick(true,50000)); CHECK(!button.tick(true,50035));
+  CHECK(!button.tick(false,50040)); CHECK(button.tick(false,50075));
+  CHECK(!button.tick(true,50200)); CHECK(!button.tick(true,50235));
+  CHECK(!button.tick(false,50340)); CHECK(button.tick(false,50375));
+  // A quick double click, presses 150 ms apart, also gets both presses through.
+  CHECK(!button.tick(true,60000)); CHECK(!button.tick(true,60035));
+  CHECK(!button.tick(false,60040)); CHECK(button.tick(false,60075));
+  CHECK(!button.tick(true,60120)); CHECK(!button.tick(true,60155));
+  CHECK(!button.tick(false,60190)); CHECK(button.tick(false,60225));
+  // Bounce on release can't fake a second press: it never stays stable for 35 ms.
+  CHECK(!button.tick(true,70000)); CHECK(!button.tick(true,70035));
+  CHECK(!button.tick(false,70040)); CHECK(button.tick(false,70075));
+  CHECK(!button.tick(true,70200)); CHECK(!button.tick(false,70210)); CHECK(!button.tick(true,70220));
+  CHECK(!button.tick(false,70230)); CHECK(!button.tick(false,70250));
   button.begin(true,0xFFFFFFF0);
   CHECK(!button.tick(false,0xFFFFFFF5)); CHECK(button.tick(false,0x18));
   return testReport("decompression radio/roster/button");

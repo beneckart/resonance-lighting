@@ -159,5 +159,25 @@ int main() {
       CHECK_EQ(ready,0u);
     }
   }
+    // Relay mode for host tools: !R<id>:1 on, :0 off; anything else is refused.
+  {
+    const uint8_t me[3] = {0x9F, 0x27, 0x38};
+    struct { const char *line; int ready; uint16_t value; } cases[] = {
+        {"!R9F2738:1\n", 1, 1}, {"!R9F2738:0\n", 1, 0}, {"!R9F2738:2\n", 0, 0},
+        {"!R9F2738:10\n", 0, 0}, {"!R9E668C:1\n", 0, 0}, {"!R9F2738:\n", 0, 0}};
+    for (auto &tc : cases) {
+      SerialMutationParser p;
+      SerialMutationCommand cmd{};
+      int ready = 0;
+      for (const char *c = tc.line; *c; ++c)
+        if (p.feed((uint8_t)*c, me, cmd) == SERIAL_MUTATION_READY) {
+          ready++;
+          CHECK_EQ(cmd.type, SERIAL_MUTATION_RELAY);
+          CHECK_EQ(cmd.value, tc.value);
+        }
+      CHECK_EQ(ready, tc.ready);
+    }
+  }
+
   return testReport("serial_mutation");
 }

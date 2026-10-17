@@ -390,6 +390,7 @@ String telemetryJson() {
     }
     j += ']';
     patternTelemetry(j);
+    decompressionRadioTelemetry(j);
   }
   squadTriggerTelemetry(j);
   j += "}";

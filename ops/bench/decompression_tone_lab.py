@@ -17,6 +17,7 @@ import argparse
 import csv
 import glob
 import json
+import math
 import struct
 import zlib
 import threading
@@ -76,6 +77,9 @@ STATE.setdefault("order_direction", "high_to_low")
 STATE.setdefault("pulse_ms", ARGS.pulse_ms)
 STATE.setdefault("presets", {})
 STATE.setdefault("patterns", {})
+STATE.setdefault("tone_links", [])  # lanterns marked "same tone as the one above" in the order
+STATE.setdefault("interactions", [])  # sensor -> pattern-variable rules and Atom button rules
+STATE.setdefault("atoms", {})         # Atom radio id -> friendly name
 # The app caps pulses well below the firmware's 300 ms limit while widths are being explored.
 PULSE_MIN_MS, PULSE_MAX_MS = 5, 100
 
@@ -112,12 +116,17 @@ def summarize(port, d):
         "bq_fault": d.get("bq_fault0"), "cap_mah": d.get("battery_capacity_mah"),
         "strikes": d.get("solenoid_strikes"), "failsafes": d.get("solenoid_failsafes"),
         "blocked": d.get("solenoid_blocked"), "session_left_s": d.get("decompression_left_s"),
-        "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")), "seen_utc": utc(),
+        "decompression": bool(d.get("decompression")), "tmf": bool(d.get("tmf8820_present")),
+        "vl": bool(d.get("vl53l5cx_present")), "seen_utc": utc(),
         # ADR 0084 firmware pattern mode (absent on older images)
         "fw_pattern": "pattern_id" in d, "pattern_id": d.get("pattern_id"), "pattern_crc": d.get("pattern_crc"),
         "pattern_playing": d.get("pattern_playing"), "pattern_role": d.get("pattern_role"),
         "pattern_locked": d.get("pattern_locked"), "pattern_conductor": d.get("pattern_conductor"),
         "pattern_left_s": d.get("pattern_left_s"), "pattern_played": d.get("pattern_played"),
+        # Atom presses heard over radio (fx-261016+): count, last source, relay mode
+        "radio_plays": d.get("radio_plays"), "radio_last_src": d.get("radio_last_src"),
+        "radio_last_boot": d.get("radio_last_boot"), "radio_last_seq": d.get("radio_last_seq"),
+        "radio_relay": d.get("radio_relay"),
     }
 
 
@@ -137,8 +146,24 @@ def query_port(port):
     return None
 
 
+# Controllers that share the hub but are not lanterns (T-Deck bridges); the
+# tone lab must never open their ports. Matched on the USB serial's MAC suffix.
+CONTROLLER_IDS = {"979604", "8EB508"}
+
+
+def lantern_ports():
+    """USB serial ports that may be lanterns: every usbmodem except known controllers."""
+    try:
+        from serial.tools import list_ports
+        skip = {p.device for p in list_ports.comports()
+                if (p.serial_number or "").replace(":", "").upper()[-6:] in CONTROLLER_IDS}
+    except Exception:
+        skip = set()
+    return [p for p in glob.glob("/dev/cu.usbmodem*") if p not in skip]
+
+
 def scan():
-    ports = glob.glob("/dev/cu.usbmodem*")
+    ports = lantern_ports()
     threads = [threading.Thread(target=query_port, args=(p,)) for p in ports]
     for t in threads: t.start()
     for t in threads: t.join()
@@ -162,6 +187,12 @@ def send_exact(fid, line, verify_strike=False, pulse_ms=None):
                 before = telemetry(s)
                 if not before or before.get("fixture_id") != fid:
                     return {"ok": False, "error": f"identity mismatch on {port}: {before and before.get('fixture_id')}"}
+                # Older Marill canaries use !R for PROTECT fault injection.
+                # Require the current device to advertise relay support first.
+                if line.startswith("!R") and not (
+                    before.get("decompression") and isinstance(before.get("radio_relay"), bool)
+                ):
+                    return {"ok": False, "error": f"{fid} does not advertise Atom relay support"}
                 sent = utc()
                 s.write((line + "\n").encode())
                 time.sleep(0.6)
@@ -366,7 +397,7 @@ def measure_hits(rec, expected_ms, gap_ms):
 audio_lock = threading.Lock()
 
 
-def play(order, gap_ms, pulses, comp=False, measure=False):
+def play(order, gap_ms, pulses, comp=False, measure=False, slots=None):
     """Fast run: verify every identity in parallel, then fire one exact-target strike
     per lantern on an absolute schedule, then confirm all counters in parallel.
     With comp, each send is advanced by its lantern's calibrated latency so the
@@ -406,7 +437,13 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
             fill = float(np.median(known)) if known and np is not None else 0.0
             lat = {f: (v if v is not None else fill) for f, v in lat.items()}
         lead = max(lat.values()) if lat else 0.0
-        schedule = sorted(((i * gap_ms + lead - lat.get(fid, lead)) / 1000.0, i, fid) for i, fid in enumerate(ready))
+        # slots: beat index per lantern (same-tone groups share a slot and strike together)
+        slot_of = {fid: (slots or {}).get(fid, i) for i, fid in enumerate(ready)}
+        if slots:  # renumber so the shared slots stay consecutive after offline lanterns drop out
+            order_slots = sorted(set(slot_of.values()))
+            slot_of = {f: order_slots.index(v) for f, v in slot_of.items()}
+        schedule = sorted(((slot_of[fid] * gap_ms + lead - lat.get(fid, lead)) / 1000.0, slot_of[fid], fid)
+                          for fid in ready)
         rec = Recorder() if (measure and sd is not None) else None
         if rec:
             audio_lock.acquire()
@@ -440,22 +477,22 @@ def play(order, gap_ms, pulses, comp=False, measure=False):
                 cal = {f: STATE["lanterns"].get(f, {}).get("latency_ms") for f in ready}
             known = [v for v in cal.values() if v is not None]
             fallback = float(np.median(known)) if known else DEFAULT_LATENCY_MS
-            by_slot = {i: fid for _, i, fid in schedule}
-            slots = sorted(by_slot)
-            expected = [sent_stream[by_slot[i]] + (cal[by_slot[i]] if cal[by_slot[i]] is not None else fallback) for i in slots]
+            rows = sorted((slot, fid) for _, slot, fid in schedule)
+            expected = [sent_stream[f] + (cal[f] if cal[f] is not None else fallback) for _, f in rows]
             hits, err = measure_hits(rec, expected, gap_ms)
-            found = [(i, h) for i, h in zip(slots, hits or []) if h is not None]
+            found = [(slot, f, h) for (slot, f), h in zip(rows, hits or []) if h is not None]
             if err:
                 timing = {"error": err}
             elif len(found) < 2:
-                timing = {"error": f"heard {len(found)} of {len(slots)} strikes -- quieter room, mic closer, or let chimes settle between runs"}
+                timing = {"error": f"heard {len(found)} of {len(rows)} strikes -- quieter room, mic closer, or let chimes settle between runs"}
             else:
                 # Compare each heard hit with an ideal grid at the requested gap, best-fit offset removed.
-                off = float(np.mean([h - i * gap_ms for i, h in found]))
-                errs = {i: round(h - i * gap_ms - off, 1) for i, h in found}
+                # Lanterns sharing a slot strike together, so they are measured against the same beat.
+                off = float(np.mean([h - slot * gap_ms for slot, _, h in found]))
+                errs = {f: round(h - slot * gap_ms - off, 1) for slot, f, h in found}
                 vals = list(errs.values())
-                timing = {"errors_ms": [{"fixture_id": by_slot[i], "error_ms": errs.get(i)} for i in slots],
-                          "heard": len(found), "of": len(slots),
+                timing = {"errors_ms": [{"fixture_id": f, "error_ms": errs.get(f)} for _, f in rows],
+                          "heard": len(found), "of": len(rows),
                           "max_abs_ms": float(max(abs(x) for x in vals)),
                           "rms_ms": round(float(np.sqrt(np.mean(np.square(vals)))), 1)}
 
@@ -497,7 +534,19 @@ PROX_MIN_CONFIDENCE = 40   # a hand must be a confident return
 PROX_LEARN_CONFIDENCE = 20 # but anything at the firmware floor counts as background (fixtures, walls)
 PROX_WEAK_CONFIDENCE = 22  # a weak return counts as a hand only when seen twice in a row (far hands, sun)
 PROX_DELTA_MM = 300        # a hand must be this much nearer than the learned background (firmware PRESENCE_DELTA_MM)
-PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": False}
+PROX = {"on": False, "range_mm": 600, "cooldown_s": 1.5, "silent": True, "active": set()}  # watch-only until ding is chosen
+VL_CONF = 100  # VL53L5CX zones arrive pre-filtered (status 5/9 only), so a nonzero zone is a confident return
+
+
+def has_sensor(l):
+    """A distance sensor the proximity view can read: downlight TMF8820 or perimeter VL53L5CX."""
+    return bool(l.get("tmf") or l.get("vl"))
+
+
+def prox_range_for(fid):
+    with state_lock:
+        r = STATE.get("lanterns", {}).get(fid, {}).get("prox_range_mm")
+    return max(100, min(4000, int(r))) if isinstance(r, (int, float)) and r else PROX["range_mm"]
 prox_relearn = set()    # fixture ids whose detector should relearn its background
 
 
@@ -633,10 +682,10 @@ class ZoneDetector:
     while the other zones still see a hand at normal distances. The lantern dings
     when any zone sees a hand, with one lantern-level re-arm and cooldown."""
 
-    def __init__(self, now):
-        self.zones = [ProxDetector(now) for _ in range(9)]
+    def __init__(self, now, n=9):
+        self.zones = [ProxDetector(now) for _ in range(n)]
         self.armed, self.clears, self.last_ding = True, 0, 0.0
-        self.states = ["learning"] * 9
+        self.states = ["learning"] * n
 
     def step(self, now, mm, conf, range_mm, cooldown_s):
         # Zone-level dings are disabled (infinite cooldown); the lantern decides.
@@ -668,7 +717,7 @@ class ZoneDetector:
 
 def prox_worker(fid):
     conn, det = None, None
-    while PROX["on"]:
+    while PROX["on"] and fid in PROX["active"]:
         with prox_cv:
             if prox_pause_count:
                 if conn:
@@ -695,34 +744,42 @@ def prox_worker(fid):
                 if fid in prox_relearn:
                     det = None
                     prox_relearn.discard(fid)
+                rng = prox_range_for(fid)
                 ok = bool(d.get("tmf_read_ok"))
                 zmm, zconf = d.get("tof_zone_mm"), d.get("tof_zone_conf")
-                if ok and isinstance(zmm, list) and len(zmm) == 9 and isinstance(zconf, list) and len(zconf) == 9:
-                    if not isinstance(det, ZoneDetector):
-                        det = ZoneDetector(now)
-                    state, ding = det.step(now, zmm, zconf, PROX["range_mm"], PROX["cooldown_s"])
+                vmm = d.get("vl_zone_nearest_mm")
+                if d.get("vl53l5cx_present") and isinstance(vmm, list) and len(vmm) == 16:
+                    # Perimeter VL53L5CX: 4x4 zones of the nearest valid return (0 = none).
+                    ok, zmm = bool(d.get("vl_read_ok")), [int(v or 0) for v in vmm]
+                    zconf = [VL_CONF if v else 0 for v in zmm]
+                if ok and isinstance(zmm, list) and len(zmm) in (9, 16) and isinstance(zconf, list) and len(zconf) == len(zmm):
+                    if not isinstance(det, ZoneDetector) or len(det.zones) != len(zmm):
+                        det = ZoneDetector(now, len(zmm))
+                    state, ding = det.step(now, zmm, zconf, rng, PROX["cooldown_s"])
                     usable = [i for i in det.open_zones() if zmm[i] and zconf[i] >= PROX_LEARN_CONFIDENCE]
                     near = min(usable, key=lambda i: zmm[i]) if usable else None
                     depth, conf = (zmm[near], zconf[near]) if near is not None else (0, 0)
                     background = det.background()
                     zones = [{"mm": zmm[i], "conf": zconf[i], "bg": det.zones[i].background, "state": det.states[i]}
-                             for i in range(9)]
+                             for i in range(len(zmm))]
                 else:  # firmware without per-zone telemetry: single closest return
                     if not isinstance(det, ProxDetector):
                         det = ProxDetector(now)
                     depth = (d.get("tof_depth_mm") or 0) if ok else 0
                     conf = (d.get("tof_confidence") or 0) if ok else 0
-                    state, ding = det.step(now, depth, conf, PROX["range_mm"], PROX["cooldown_s"])
+                    state, ding = det.step(now, depth, conf, rng, PROX["cooldown_s"])
                     background, zones = det.background, None
                 prox_live[fid] = {"depth_mm": depth, "confidence": conf, "status": state,
-                                  "background_mm": background, "zones": zones}
+                                  "background_mm": background, "zones": zones, "range_mm": rng,
+                                  "sensor": "vl53l5cx" if zones and len(zones) == 16 else "tmf8820"}
                 tr = prox_trace.setdefault(fid, [])
                 tr.append((round(now, 3), depth, conf, state, d.get("tmf_reads")))
                 del tr[:-400]
                 if ding:
                     with state_lock:
                         ms = STATE["lanterns"].get(fid, {}).get("pulse_ms") or STATE["pulse_ms"]
-                    silent = PROX["silent"]
+                        perimeter = STATE["lanterns"].get(fid, {}).get("role") == "perimeter"
+                    silent = PROX["silent"] or perimeter  # perimeter lights have no chime
                     if not silent:  # watch-only mode detects and records but never strikes
                         conn.write(f"K{fid}:{ms}\n".encode())
                     ev = {"id": len(prox_events) + 1, "utc": utc(), "t": round(now, 3), "fixture_id": fid,
@@ -748,6 +805,35 @@ def prox_worker(fid):
         prox_cv.notify_all()
 
 
+def start_prox_worker(fid):
+    t = prox_threads.get(fid)
+    if t and t.is_alive():
+        return
+    t = threading.Thread(target=prox_worker, args=(fid,), daemon=True)
+    prox_threads[fid] = t
+    t.start()
+
+
+def set_prox_sensor(fid, active):
+    """Turn one sensor's proximity watch on or off without touching the others."""
+    fid = str(fid).upper()
+    if active:
+        if not has_sensor(lanterns.get(fid, {})):
+            return {**prox_status(), "error": f"{fid} has no distance sensor reporting"}
+        PROX["active"].add(fid)
+        PROX["on"] = True
+        start_prox_worker(fid)
+    else:
+        PROX["active"].discard(fid)
+        t = prox_threads.pop(fid, None)
+        if t:
+            t.join(timeout=2.0)
+        prox_live.pop(fid, None)
+        if not PROX["active"]:
+            PROX["on"] = False
+    return prox_status()
+
+
 def set_proximity(on, range_mm=None, silent=None, relearn=None):
     if range_mm is not None:
         PROX["range_mm"] = max(100, min(2000, int(range_mm)))
@@ -758,13 +844,13 @@ def set_proximity(on, range_mm=None, silent=None, relearn=None):
     if on and not PROX["on"]:
         PROX["on"] = True
         with state_lock:
-            sensed = [f for f, l in lanterns.items() if l.get("tmf") and not l.get("offline")]
+            sensed = [f for f, l in lanterns.items() if has_sensor(l) and not l.get("offline")]
+        PROX["active"] = set(sensed)
         for fid in sensed:
-            t = threading.Thread(target=prox_worker, args=(fid,), daemon=True)
-            prox_threads[fid] = t
-            t.start()
+            start_prox_worker(fid)
     elif not on and PROX["on"]:
         PROX["on"] = False
+        PROX["active"] = set()
         for t in list(prox_threads.values()):
             t.join(timeout=2.0)
         prox_threads.clear()
@@ -775,8 +861,9 @@ def set_proximity(on, range_mm=None, silent=None, relearn=None):
 
 def prox_status(since=0):
     with state_lock:
-        no_sensor = [f for f, l in lanterns.items() if not l.get("tmf")]
+        no_sensor = [f for f, l in lanterns.items() if not has_sensor(l)]
     return {"on": PROX["on"], "silent": PROX["silent"], "range_mm": PROX["range_mm"], "live": prox_live,
+            "active": sorted(PROX["active"]),
             "events": [e for e in prox_events if e["id"] > since], "no_sensor": no_sensor,
             "delta_mm": PROX_DELTA_MM, "min_confidence": PROX_MIN_CONFIDENCE,
             "learn_confidence": PROX_LEARN_CONFIDENCE, "server_t": round(time.time(), 3)}
@@ -820,6 +907,8 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
     st = PLAYER["status"]
     fids = [f for f in lanes if f in lanterns and not lanterns[f].get("offline")]
     st["skipped"] = [f for f in lanes if f not in fids]
+    PLAYER["fids"] = set(fids)
+    PLAYER["phase"] = "check"
     with ProxPaused():
         locks = [lock_for(lanterns[f]["port"]) for f in fids]
         for lk in locks: lk.acquire()
@@ -843,6 +932,7 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                 lat = {f: (v if v is not None else fill) for f, v in lat.items()}
             lead = max(lat.values()) if lat else 0.0
             st["lead_ms"] = lead
+            PLAYER["phase"] = "play"  # write-only from here until the strike-count check
             # Sound for each hit lands at start + loop*loop_ms + offset (+ lead when compensating).
             t0 = time.perf_counter() + (start_epoch_ms / 1000.0 - time.time())
             sent = {f: 0 for f in conns}
@@ -865,6 +955,10 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                     sent[f] += 1
                 k += 1
                 st["loops_done"] = k
+            PLAYER["phase"] = "confirm"
+            side_end = time.time() + 1.5  # let a listener read that started during play finish
+            while PLAYER.get("side_reads") and time.time() < side_end:
+                time.sleep(0.02)
             time.sleep(0.4)
             short = []
             for f, s in conns.items():
@@ -887,6 +981,8 @@ def pattern_player(lanes, loop_ms, loops, comp, pulses, start_epoch_ms):
                              "compensated": bool(comp), "status": {k: v for k, v in st.items() if k != "name"},
                              "name": st.get("name")}) + "\n")
     PLAYER["running"] = False
+    PLAYER["fids"] = set()
+    PLAYER["phase"] = None
 
 
 def start_pattern(p, loops, comp):
@@ -1089,7 +1185,7 @@ def waker_loop():
     while True:
         time.sleep(1.0)
         try:
-            ports = set(glob.glob("/dev/cu.usbmodem*"))
+            ports = set(lantern_ports())
             with state_lock:
                 for fid, l in lanterns.items():
                     if l.get("port") not in ports and not l.get("offline"):
@@ -1116,6 +1212,626 @@ def waker_loop():
 def wake_status(since=0):
     return {"keep": WAKE["keep"], "targets": sorted(WAKE["targets"]),
             "events": [e for e in WAKE_EVENTS if e["id"] > since]}
+
+
+# ---------------------------------------------------------------------------
+# Interactions: a sensor drives a pattern variable live (host-side, USB).
+# Rule: {id, name, source, far_mm, near_mm, pattern_id, bpm_from, bpm_to,
+#        curve: linear|ease_in|ease_out, smooth_s, idle: stop|base, idle_s}
+# Someone at far_mm plays the pattern at bpm_from; at near_mm (or closer) at
+# bpm_to. Distance comes from the proximity detector's per-zone "hand" reading
+# for the source lantern (proximity runs in watch-only if it was off). The
+# tempo is capped at the pattern's fastest safe BPM (250 ms per lantern).
+# ---------------------------------------------------------------------------
+INTERACT = {"armed": False, "stop": threading.Event(), "sim": None, "sim_on": False, "status": {}}
+
+
+def find_pattern(pattern_id):
+    with state_lock:
+        for p in STATE.get("patterns", {}).values():
+            if p.get("id") == pattern_id:
+                return dict(p)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# T-Deck show file. Everything the handheld needs to run prepared patterns and
+# button rules on site over radio, with no laptop: lantern pulses, patterns
+# (steps/hits; the T-Deck derives timing from bpm), Active flags and button
+# rules. Sensor rules are listed but marked laptop-only (no radio sensor data).
+# Two forms: JSON (kept with the bench data) and a line-based text file for the
+# T-Deck: one record per line, fields separated by "|", free text last, ending
+# with "END|<crc32 of every byte before that line>".
+# ---------------------------------------------------------------------------
+SHOW_SCHEMA = "tonelab-show/1"
+SHOW_JSON = DATA_DIR / "tonelab-show.json"
+SHOW_TEXT = DATA_DIR / "tonelab-show.tls"
+TDECK_ACTIONS = {  # button actions the T-Deck can run without lantern sensor data
+    "performance": "play the pattern N loops, then go back to what was playing",
+    "next_active_pattern": "switch the playing pattern to the next Active pattern",
+    "play_pattern": "play the pattern on loop",
+    "next_pattern": "play the next pattern from the list",
+    "stop": "stop everything",
+}
+
+
+def show_clean(text):
+    return " ".join(str(text or "").replace("|", "/").split())[:40]
+
+
+def build_show():
+    with state_lock:
+        st = json.loads(json.dumps(STATE))
+    order = st.get("order", [])
+    meta = st.get("lanterns", {})
+    default_pulse = int(st.get("pulse_ms") or 40)
+    groups, gid = [], {}
+    links = set(st.get("tone_links", []))
+    for i, f in enumerate(order):  # same-tone groups, as in the Tone order tab
+        if i and f in links and groups:
+            groups[-1].append(f)
+        else:
+            groups.append([f])
+    for k, g in enumerate([g for g in groups if len(g) > 1]):
+        for f in g:
+            gid[f] = k + 1
+    lant = [{"id": f, "name": meta.get(f, {}).get("callsign") or CALLSIGNS.get(f) or f, "tone": i + 1,
+             "pulse_ms": int(meta.get(f, {}).get("pulse_ms") or default_pulse), "group": gid.get(f, 0),
+             "role": meta.get(f, {}).get("role") or "lantern"} for i, f in enumerate(order)]
+    pats, problems = [], []
+    for p in st.get("patterns", {}).values():
+        hits = {f.upper(): sorted({int(i) for i in idx if 0 <= int(i) < int(p.get("steps", 16))})
+                for f, idx in (p.get("hits") or {}).items()}
+        hits = {f: v for f, v in hits.items() if v}
+        entry = {"id": p.get("id"), "name": p.get("name"), "active": bool(p.get("active")), "bpm": float(p.get("bpm", 120)),
+                 "steps": int(p.get("steps", 16)), "steps_per_beat": int(p.get("steps_per_beat", 4)),
+                 "bpm_max": round(pattern_bpm_max(p), 1), "hits": hits}
+        try:
+            pattern_lanes(p)
+        except ValueError as ex:
+            entry["error"] = str(ex)
+            problems.append(f'pattern "{p.get("name")}": {ex}')
+        if not hits:
+            entry["error"] = "no hits"
+        pats.append(entry)
+    pats.sort(key=lambda x: (x["name"] or "").lower())
+    pids = {x["id"] for x in pats if "error" not in x}
+    rules = []
+    for r in st.get("interactions", []):
+        if r.get("kind") != "button":
+            rules.append({"id": r.get("id"), "kind": "sensor", "name": r.get("name"), "tdeck": False,
+                          "why": "needs live sensor data, which lanterns only send over USB"})
+            continue
+        a, t = r.get("action") or {}, r.get("trigger") or {}
+        ok = a.get("type") in TDECK_ACTIONS
+        why = "" if ok else ("starts a sensor rule (laptop only)" if a.get("type") in ("arm_interaction", "next_active_trigger")
+                              else "controls the laptop's proximity ding" if a.get("type") == "toggle_proximity" else "unknown action")
+        if ok and a.get("type") in ("performance", "play_pattern") and a.get("pattern_id") not in pids:
+            ok, why = False, "its pattern is missing or invalid"
+        rules.append({"id": r.get("id"), "kind": "button", "name": r.get("name"), "enabled": r.get("enabled", True) is not False,
+                      "atom": t.get("atom", "any"), "click": t.get("click", "single"), "action": a.get("type"),
+                      "pattern_id": a.get("pattern_id"), "loops": int(a.get("loops") or 2),
+                      "pattern_ids": [x for x in (a.get("pattern_ids") or []) if x in pids], "tdeck": ok, "why": why})
+    show = {"schema": SHOW_SCHEMA, "created_utc": utc(), "site": ARGS.site, "channel": 11,
+            "min_hit_spacing_ms": MIN_HIT_SPACING_MS, "lanterns": lant, "patterns": pats, "rules": rules,
+            "atoms": st.get("atoms", {}), "problems": problems}
+    return show
+
+
+def show_text(show):
+    out = [f"TLSHOW|1|{show['created_utc']}|{show_clean(show['site'])}",
+           f"CFG|{show['channel']}|{show['min_hit_spacing_ms']}"]
+    for l in show["lanterns"]:
+        out.append(f"L|{l['id']}|{l['tone']}|{l['pulse_ms']}|{l['group']}|{'P' if l['role'] == 'perimeter' else 'L'}|{show_clean(l['name'])}")
+    for p in show["patterns"]:
+        if "error" in p:
+            continue
+        out.append(f"P|{p['id']}|{1 if p['active'] else 0}|{p['bpm']:g}|{p['steps']}|{p['steps_per_beat']}|{show_clean(p['name'])}")
+        for f, idx in sorted(p["hits"].items()):
+            out.append(f"H|{p['id']}|{f}|{','.join(map(str, idx))}")
+    for r in show["rules"]:
+        if r["kind"] != "button" or not r["tdeck"]:
+            continue
+        arg = (r["pattern_id"] or "") if r["action"] in ("performance", "play_pattern") else ",".join(r["pattern_ids"]) if r["action"] == "next_pattern" else ""
+        out.append(f"B|{r['id']}|{1 if r['enabled'] else 0}|{r['atom']}|{r['click']}|{r['action']}|{arg}|{r['loops']}|{show_clean(r['name'])}")
+    for a, nm in sorted((show.get("atoms") or {}).items()):
+        out.append(f"A|{a}|{show_clean(nm)}")
+    body = "\n".join(out) + "\n"
+    return body + f"END|{zlib.crc32(body.encode()) & 0xffffffff:08X}\n"
+
+
+def show_summary(show, text):
+    runs = [r for r in show["rules"] if r["tdeck"]]
+    return {"patterns": len([p for p in show["patterns"] if "error" not in p]),
+            "active_patterns": len([p for p in show["patterns"] if p["active"] and "error" not in p]),
+            "button_rules": len(runs), "laptop_only": [{"name": r["name"], "why": r["why"]} for r in show["rules"] if not r["tdeck"]],
+            "problems": show["problems"], "bytes": len(text.encode()), "lines": text.count("\n")}
+
+
+def pattern_bpm_max(p):
+    """Fastest BPM at which no lantern's hits are closer than MIN_HIT_SPACING_MS (wrap included)."""
+    steps, spb, best = int(p.get("steps", 16)), int(p.get("steps_per_beat", 4)), 300.0
+    for idx in (p.get("hits") or {}).values():
+        idx = sorted({int(i) for i in idx if 0 <= int(i) < steps})
+        if len(idx) < 2:
+            continue
+        k = min([b - a for a, b in zip(idx, idx[1:])] + [steps - idx[-1] + idx[0]])
+        best = min(best, k * 60000.0 / (spb * MIN_HIT_SPACING_MS))
+    return best
+
+
+def shape(x, curve):
+    x = max(0.0, min(1.0, x))
+    return x * x if curve == "ease_in" else 1 - (1 - x) * (1 - x) if curve == "ease_out" else x
+
+
+def source_members(src):
+    """Lanterns a sensor rule watches: one fixture id, or a whole group
+    ("group:perimeter" / "group:lantern", from each lantern's role on the Lanterns tab)."""
+    if not str(src).startswith("group:"):
+        return [str(src).upper()]
+    want_perim = src == "group:perimeter"
+    with state_lock:
+        order, meta = list(STATE.get("order", [])), STATE.get("lanterns", {})
+        return [f for f in order if has_sensor(lanterns.get(f, {}))
+                and (meta.get(f, {}).get("role") == "perimeter") == want_perim]
+
+
+def source_reading(members):
+    """Nearest person across the watched sensors: (distance_mm or None, status, fixture)."""
+    best, status, who = None, None, None
+    for f in members:
+        v = prox_live.get(f) or {}
+        status = status or v.get("status")
+        if v.get("status") == "hand" and v.get("depth_mm") and (best is None or v["depth_mm"] < best):
+            best, status, who = v["depth_mm"], "hand", f
+    return best, status, who
+
+
+def interaction_runner(rule, p):
+    st = INTERACT["status"]
+    steps, spb = int(p["steps"]), int(p["steps_per_beat"])
+    by_step = {}
+    for fid, idx in (p.get("hits") or {}).items():
+        for i in idx:
+            if 0 <= int(i) < steps:
+                by_step.setdefault(int(i), []).append(fid.upper())
+    with state_lock:
+        pulses = {f: STATE["lanterns"].get(f, {}).get("pulse_ms") or STATE["pulse_ms"] for f in {x for v in by_step.values() for x in v}}
+    src = rule["source"] if str(rule["source"]).startswith("group:") else rule["source"].upper()
+    members, members_t = source_members(src), time.perf_counter()
+    started_prox = False
+    conns = {}
+    try:
+        if not PROX["on"]:
+            set_proximity(True, silent=True)
+            started_prox = True
+        for f in pulses:  # identity check once; strikes then go out on a write-only connection
+            info = lanterns.get(f)
+            if not info or info.get("offline"):
+                st.setdefault("skipped_lanterns", []).append(f)
+                continue
+            with lock_for(info["port"]):
+                s = serial.Serial(info["port"], 115200, timeout=0.05)
+                time.sleep(0.05)
+                d = telemetry(s, wait=1.5)
+            if not d or d.get("fixture_id") != f:
+                s.close()
+                st.setdefault("skipped_lanterns", []).append(f)
+                continue
+            conns[f] = s
+        bpm_max = pattern_bpm_max(p)
+        lo, hi = float(rule["bpm_from"]), min(float(rule["bpm_to"]), bpm_max)
+        far, near = float(rule["far_mm"]), float(rule["near_mm"])
+        bpm, last_seen, last_t = lo, -1e9, time.perf_counter()
+        next_step, step_i = None, 0
+        last_fire = {}
+        st.update(bpm_max=round(bpm_max, 1), hits=0, skipped=0)
+        while not INTERACT["stop"].is_set():
+            now = time.perf_counter()
+            dt, last_t = now - last_t, now
+            if now - members_t > 2.0:  # roles can change on the Lanterns tab while a rule runs
+                members, members_t = source_members(src), now
+            near_who = None
+            if INTERACT["sim_on"]:
+                dist = INTERACT["sim"]
+                src_status = "simulated"
+            else:
+                dist, src_status, near_who = source_reading(members)
+            if dist is not None:
+                last_seen = now
+                x = shape((far - float(dist)) / max(1.0, far - near), rule.get("curve", "linear"))
+                target, idle = lo + (hi - lo) * x, False
+            else:
+                x, target = 0.0, lo
+                idle = now - last_seen > float(rule.get("idle_s", 3))
+            tau = max(0.05, float(rule.get("smooth_s", 0.5)))
+            bpm += (target - bpm) * (1 - math.exp(-dt / tau))
+            bpm = max(float(RULE_BPM_MIN), min(bpm, bpm_max))
+            playing = not (idle and rule.get("idle", "stop") == "stop")
+            if not playing:
+                next_step = None
+            else:
+                if next_step is None:
+                    next_step, step_i = now + 0.05, 0
+                if now >= next_step:
+                    for f in by_step.get(step_i, []):
+                        if f not in conns:
+                            continue
+                        if now - last_fire.get(f, -1e9) < MIN_HIT_SPACING_MS / 1000.0:
+                            st["skipped"] += 1  # tempo rose mid-loop: never strike one lantern faster than 250 ms
+                            continue
+                        conns[f].write(f"K{f}:{pulses[f]}\n".encode())
+                        last_fire[f] = now
+                        st["hits"] += 1
+                    step_i = (step_i + 1) % steps
+                    step_s = 60.0 / (bpm * spb)
+                    next_step = next_step + step_s if now - next_step < step_s else now + step_s  # resync if far behind
+            st.update(distance_mm=dist, x=round(x, 3), target_bpm=round(target, 1), bpm=round(bpm, 1),
+                      playing=playing, idle=idle, step=step_i, src_status=src_status, nearest=near_who)
+            wait = (next_step - time.perf_counter()) if next_step else 0.02
+            time.sleep(max(0.0005, min(0.02, wait - 0.001)))
+    except Exception as ex:
+        st["error"] = str(ex)
+    finally:
+        for s in conns.values():
+            try: s.close()
+            except Exception: pass
+        if started_prox:
+            set_proximity(False)
+        INTERACT["armed"] = False
+        with open(STRIKE_LOG, "a") as fh:
+            fh.write(json.dumps({"kind": "interaction", "utc": utc(), "rule": rule.get("name"), "pattern": p.get("name"),
+                                 "hits": st.get("hits"), "skipped": st.get("skipped"), "error": st.get("error")}) + "\n")
+
+
+RULE_BPM_MIN = 5  # slow is fine for the hardware; a sensor rule may start almost still and build up
+
+
+def arm_interaction(rule):
+    if INTERACT["armed"]:
+        return {"ok": False, "error": "an interaction is already armed"}
+    if PLAYER["running"]:
+        return {"ok": False, "error": "stop the USB pattern first"}
+    try:
+        rule = {**rule, "far_mm": float(rule["far_mm"]), "near_mm": float(rule["near_mm"]),
+                "bpm_from": float(rule["bpm_from"]), "bpm_to": float(rule["bpm_to"])}
+    except (KeyError, TypeError, ValueError):
+        return {"ok": False, "error": "rule needs far/near distances and BPM range"}
+    if not (rule["near_mm"] < rule["far_mm"] <= 5000 and rule["near_mm"] >= 50):
+        return {"ok": False, "error": "near must be at least 5 cm and closer than far (max 500 cm)"}
+    if not (RULE_BPM_MIN <= rule["bpm_from"] <= 300 and RULE_BPM_MIN <= rule["bpm_to"] <= 300):
+        return {"ok": False, "error": f"BPM must be {RULE_BPM_MIN}..300 (far {rule['bpm_from']:g}, near {rule['bpm_to']:g})"}
+    src = str(rule.get("source", ""))
+    if src.startswith("group:"):
+        if not source_members(src):
+            kind = "perimeter lights" if src == "group:perimeter" else "lanterns"
+            return {"ok": False, "error": f"no {kind} with a distance sensor are connected (set roles on the Lanterns tab)"}
+    elif not has_sensor(lanterns.get(src.upper(), {})):
+        return {"ok": False, "error": "pick a source lantern that has a distance sensor"}
+    p = find_pattern(rule.get("pattern_id"))
+    if not p:
+        return {"ok": False, "error": "pattern not found"}
+    try:
+        pattern_lanes({**p, "bpm": min(rule["bpm_from"], rule["bpm_to"])})  # validate the slowest tempo
+    except ValueError as ex:
+        return {"ok": False, "error": str(ex)}
+    INTERACT["stop"].clear()
+    INTERACT["armed"] = True
+    INTERACT["rule"] = dict(rule)
+    INTERACT["status"] = {"rule": rule.get("name"), "rule_id": rule.get("id"), "pattern": p.get("name"),
+                          "bpm_max": round(pattern_bpm_max(p), 1)}
+    threading.Thread(target=interaction_runner, args=(rule, p), daemon=True).start()
+    return {"ok": True, **INTERACT["status"]}
+
+
+# ---------------------------------------------------------------------------
+# Atom buttons (ADR 0083 controllers) as tone lab triggers. The laptop has no
+# radio, so a lantern on the hub relays: its telemetry counts admitted Atom PLAY
+# presses with the source Atom and sequence. One press reaches all nine with the
+# same (source, boot, sequence), so presses are deduplicated across lanterns.
+# Relay mode (`!R<id>:1`, RAM-only) stops lanterns playing their own signature so
+# a press only does what the button rule says; it is re-applied after resets.
+# Button rule: {kind: "button", id, name, trigger: {atom: "<id>"|"any"},
+#               action: {type: play_pattern|stop|next_pattern|arm_interaction|toggle_proximity,
+#                        pattern_id, pattern_ids, interaction_id}}
+# ---------------------------------------------------------------------------
+ATOM = {"relay": False, "learn": False, "learned": None, "listener": None, "events": [], "cycle": {}}
+
+
+def atom_event(kind, **kw):
+    ATOM["events"].append({"id": len(ATOM["events"]) + 1, "utc": utc(), "kind": kind, **kw})
+    del ATOM["events"][:-300]
+
+
+def poll_lantern(fid):
+    """Non-blocking telemetry read (skips a busy port). Updates the lantern table."""
+    info = lanterns.get(fid)
+    if not info or info.get("offline"):
+        return None
+    lk = lock_for(info["port"])
+    locked = lk.acquire(blocking=False)
+    # A USB pattern holds its lanterns' ports but only writes while playing, so the
+    # listener may read alongside it (presses must still switch patterns mid-song).
+    # Not during its identity and strike-count reads, though: two readers on one
+    # port steal each other's bytes and the player aborts. Presses made then are
+    # still counted by the lantern and picked up on the next poll.
+    if not locked and not (PLAYER["running"] and PLAYER.get("phase") == "play" and fid in PLAYER.get("fids", ())):
+        return None
+    if not locked:
+        PLAYER["side_reads"] = PLAYER.get("side_reads", 0) + 1
+    try:
+        with serial.Serial(info["port"], 115200, timeout=0.05) as s:
+            time.sleep(0.05)
+            d = telemetry(s, wait=1.0)
+            if locked and d and d.get("fixture_id") == fid and "radio_relay" in d and ATOM["relay"] != bool(d.get("radio_relay")):
+                s.write(f"!R{fid}:{1 if ATOM['relay'] else 0}\n".encode())  # RAM-only: re-apply after any reset
+    except Exception:
+        return None
+    finally:
+        if locked:
+            lk.release()
+        else:
+            PLAYER["side_reads"] -= 1
+    if not d or d.get("fixture_id") != fid:
+        return None
+    with state_lock:
+        lanterns[fid] = summarize(info["port"], d)
+    return d
+
+
+DOUBLE_CLICK_S = 0.6   # presses closer than this belong to one multi-click (double/triple)
+
+
+def stop_all():
+    INTERACT["stop"].set()
+    PLAYER["stop"].set()
+    for _ in range(60):  # let the current pattern/interaction release its ports
+        if not PLAYER["running"] and not INTERACT["armed"]:
+            break
+        time.sleep(0.05)
+
+
+def active_patterns():
+    """Patterns ticked Active on the Patterns tab, in name order (the rotation pool)."""
+    with state_lock:
+        pats = [dict(p) for p in STATE.get("patterns", {}).values() if p.get("active")]
+    return sorted(pats, key=lambda p: (p.get("name") or "").lower())
+
+
+def active_triggers():
+    """Sensor rules ticked "in rotation" on the Interactions tab, in list order."""
+    with state_lock:
+        return [dict(x) for x in STATE.get("interactions", []) if x.get("kind") != "button" and x.get("active_trigger")]
+
+
+def run_button_action(rule):
+    a = rule.get("action") or {}
+    kind = a.get("type")
+
+    def play(pid, loops=0):
+        p = find_pattern(pid)
+        if not p:
+            return "pattern not found"
+        stop_all()
+        r = start_pattern(p, loops, False)
+        return f"playing {p.get('name')}" + (f" x{loops}" if loops else "") if r.get("ok") else r.get("error")
+
+    if kind == "stop":
+        stop_all()
+        return "stopped"
+    if kind == "play_pattern":
+        return play(a.get("pattern_id"))
+    if kind == "performance":
+        # Play a pattern for N loops, then return to the sensor rule that was running.
+        resume = INTERACT.get("rule") if INTERACT["armed"] else ATOM.get("resume")
+        ATOM["perf_gen"] = gen = ATOM.get("perf_gen", 0) + 1
+        ATOM["resume"] = resume
+        loops = max(1, min(32, int(a.get("loops") or 2)))
+        result = play(a.get("pattern_id"), loops)
+
+        def resume_after():
+            time.sleep(0.5)
+            while PLAYER["running"] and ATOM.get("perf_gen") == gen:
+                time.sleep(0.1)
+            if ATOM.get("perf_gen") != gen or not resume or INTERACT["armed"] or PLAYER["running"]:
+                return  # a newer press took over, or something else is already playing
+            with state_lock:
+                fresh = next((x for x in STATE.get("interactions", []) if x.get("id") == resume.get("id")), resume)
+            ATOM["resume"] = None
+            res = arm_interaction(fresh)
+            atom_event("resume", result=(f"back to {fresh.get('name')}" if res.get("ok") else res.get("error")))
+        threading.Thread(target=resume_after, daemon=True).start()
+        return result + (f", then back to {resume.get('name')}" if resume else "")
+    if kind == "next_active_pattern":
+        # Switch a sensor rule to the next Active pattern (a fresh performance).
+        pool = active_patterns()
+        if not pool:
+            return "no Active patterns (tick some on the Patterns tab)"
+        armed_id = (INTERACT.get("rule") or {}).get("id") if INTERACT["armed"] else None
+        # Target: the chosen rule, else the running one, else the one a performance
+        # returns to, else the last trigger picked by a triple click, else the first
+        # rule in the trigger rotation, else the first sensor rule.
+        rot = active_triggers()
+        target_id = (a.get("interaction_id") or armed_id or (ATOM.get("resume") or {}).get("id")
+                     or ATOM.get("last_trigger") or (rot[0]["id"] if rot else None))
+        with state_lock:
+            rules = [x for x in STATE.get("interactions", []) if x.get("kind") != "button"]
+            r = next((x for x in rules if x.get("id") == target_id), rules[0] if rules else None)
+            if not r:
+                return "no sensor rule to update"
+            ids = [p["id"] for p in pool]
+            cur = ids.index(r.get("pattern_id")) if r.get("pattern_id") in ids else -1
+            nxt = pool[(cur + 1) % len(pool)]
+            r["pattern_id"] = nxt["id"]
+            save_state(STATE)
+            rule_copy = dict(r)
+        atom_event("rule_updated", interaction_id=rule_copy["id"], pattern_id=nxt["id"],
+                   result=f"{rule_copy.get('name')} now plays {nxt.get('name')}")
+        if armed_id == rule_copy["id"] or (ATOM.get("resume") or {}).get("id") == rule_copy["id"]:
+            if INTERACT["armed"]:
+                stop_all()
+                arm_interaction(rule_copy)
+            else:
+                ATOM["resume"] = rule_copy  # a performance is playing; resume with the new pattern
+        return f"{rule_copy.get('name')} now plays {nxt.get('name')}"
+    if kind == "next_active_trigger":
+        # Switch to the next sensor rule in the trigger rotation, keeping the current
+        # pattern (double click picks the pattern, triple click picks the trigger).
+        pool = active_triggers()
+        if not pool:
+            return "no sensor rules in the trigger rotation (tick \"in rotation\" on the Interactions tab)"
+        running = INTERACT.get("rule") if INTERACT["armed"] else None
+        cur = running or ATOM.get("resume")
+        cur_id = (cur or {}).get("id") or ATOM.get("last_trigger")
+        ids = [x["id"] for x in pool]
+        nxt = pool[(ids.index(cur_id) + 1) % len(pool) if cur_id in ids else 0]
+        with state_lock:
+            if cur:
+                fresh_cur = next((x for x in STATE.get("interactions", []) if x.get("id") == cur.get("id")), cur)
+                carry = fresh_cur.get("pattern_id")
+            else:
+                carry = None
+            saved = next((x for x in STATE.get("interactions", []) if x.get("id") == nxt["id"]), None)
+            if carry and saved is not None and saved.get("pattern_id") != carry:
+                saved["pattern_id"] = carry
+                save_state(STATE)
+            nxt = dict(saved or nxt)
+        ATOM["last_trigger"] = nxt["id"]
+        if carry:
+            atom_event("rule_updated", interaction_id=nxt["id"], pattern_id=nxt.get("pattern_id"),
+                       result=f"{nxt.get('name')} keeps the current pattern")
+        if PLAYER["running"] and ATOM.get("resume") and not running:
+            ATOM["resume"] = nxt  # a performance is playing; come back to the new trigger
+            return f"after the performance: {nxt.get('name')}"
+        stop_all()
+        res = arm_interaction(nxt)
+        return f"trigger: {nxt.get('name')}" if res.get("ok") else f"{nxt.get('name')}: {res.get('error')}"
+    if kind == "next_pattern":
+        ids = [x for x in (a.get("pattern_ids") or []) if find_pattern(x)]
+        if not ids:
+            return "no patterns in the list"
+        i = (ATOM["cycle"].get(rule.get("id"), -1) + 1) % len(ids)
+        ATOM["cycle"][rule.get("id")] = i
+        return play(ids[i])
+    if kind == "arm_interaction":
+        with state_lock:
+            r = next((x for x in STATE.get("interactions", []) if x.get("id") == a.get("interaction_id")), None)
+        if not r:
+            return "interaction not found"
+        stop_all()
+        res = arm_interaction(r)
+        return f"armed {r.get('name')}" if res.get("ok") else res.get("error")
+    if kind == "toggle_proximity":
+        st = set_proximity(not PROX["on"], silent=False)
+        return "proximity ding " + ("on" if st["on"] else "off")
+    return "no action set"
+
+
+def dispatch_click(src, clicks, via):
+    """Run every enabled button rule matching this Atom and click type."""
+    click = "triple" if clicks >= 3 else "double" if clicks == 2 else "single"
+    if ATOM["learn"]:
+        ATOM["learn"], ATOM["learned"] = False, src
+        atom_event("learned", atom=src, via=via)
+        return
+    with state_lock:
+        rules = [r for r in STATE.get("interactions", []) if r.get("kind") == "button" and r.get("enabled", True)
+                 and (r.get("trigger") or {}).get("atom") in (src, "any")
+                 and (r.get("trigger") or {}).get("click", "single") in (click, "any")]
+    if not rules:
+        atom_event("press", atom=src, via=via, click=click, result=f"no rule for a {click} click")
+        return
+    for r in rules:
+        result = run_button_action(r)
+        atom_event("press", atom=src, via=via, click=click, rule=r.get("name"), result=result)
+        with open(STRIKE_LOG, "a") as fh:
+            fh.write(json.dumps({"kind": "atom_press", "utc": utc(), "atom": src, "click": click,
+                                 "rule": r.get("name"), "result": result}) + "\n")
+
+
+def atom_loop():
+    """Watch the primary listener lantern's Atom press count and classify clicks.
+
+    Only the primary listener's count drives presses (a press reaches every lantern,
+    so counting several would double-count); other lanterns are polled in rotation
+    only to keep relay mode applied. Press times come from the poll time minus the
+    lantern's reported press age, so two presses within DOUBLE_CLICK_S make a double
+    click even when they land in different polls."""
+    last_count, last_listener = None, None
+    last_read = 0.0  # time of the latest successful listener read
+    pending = {}   # src -> {"n": presses, "t": time of latest press}
+    tick = 0
+    while True:
+        time.sleep(0.15)
+        try:
+            now = time.time()
+            for src, pc in list(pending.items()):  # one or two presses settle once the window passes
+                # ...and only after a read taken past the window, so a press that landed
+                # inside it (but wasn't read yet because polls are slow) still counts.
+                if last_read - pc["t"] > DOUBLE_CLICK_S:
+                    pending.pop(src)
+                    dispatch_click(src, pc["n"], ATOM["listener"])
+            with state_lock:
+                online = [f for f in STATE.get("order", []) if f in lanterns and not lanterns[f].get("offline")]
+            if not online:
+                continue
+            listener = ATOM["listener"] if ATOM["listener"] in online else online[0]
+            ATOM["listener"] = listener
+            if listener != last_listener:
+                last_count, last_listener = None, listener  # new baseline for a new listener
+            tick += 1
+            if tick % 6 == 0:
+                others = [f for f in online if f != listener]
+                if others:
+                    poll_lantern(others[(tick // 6) % len(others)])  # relay upkeep only
+            d = poll_lantern(listener)
+            if not d or "radio_plays" not in d:
+                continue
+            last_read = time.time()
+            count = d.get("radio_plays") or 0
+            if last_count is None or count < last_count:
+                last_count = count
+                continue
+            n, last_count = count - last_count, count
+            if n <= 0:
+                continue
+            src = d.get("radio_last_src")
+            t_press = time.time() - (d.get("radio_last_age_ms") or 0) / 1000.0
+            pc = pending.get(src)
+            if pc and t_press - pc["t"] <= DOUBLE_CLICK_S:
+                pc["n"] += n
+            else:
+                pc = pending[src] = {"n": n, "t": t_press}
+            pc["t"] = t_press
+            if pc["n"] >= 3:  # nothing longer than a triple, so fire right away
+                pending.pop(src, None)
+                dispatch_click(src, 3, listener)
+        except Exception as ex:
+            atom_event("error", result=str(ex))
+
+
+def set_relay(on):
+    ATOM["relay"] = bool(on)
+    with state_lock:
+        online = [f for f, l in lanterns.items() if not l.get("offline") and l.get("decompression")]
+    parallel(lambda f: send_exact(f, f"!R{f}:{1 if on else 0}"), [(f,) for f in online])
+    # Firmware reads serial slowly, so confirmation comes from telemetry: the
+    # listener loop re-applies relay to any lantern that does not report it.
+    atom_event("relay", result=("Atom presses now drive the tone lab (lanterns won't play the signature)" if on
+                                else "Atom presses play the signature on the lanterns again"))
+    return atom_status()
+
+
+def atom_status(since=0):
+    with state_lock:
+        atoms = dict(STATE.get("atoms", {}))
+    return {"relay": ATOM["relay"], "learn": ATOM["learn"], "learned": ATOM["learned"], "listener": ATOM["listener"],
+            "atoms": atoms, "events": [e for e in ATOM["events"] if e["id"] > since]}
+
+
+def interaction_status():
+    return {"armed": INTERACT["armed"], "sim_on": INTERACT["sim_on"], "sim": INTERACT["sim"], **INTERACT["status"]}
 
 
 def snapshot():
@@ -1152,19 +1868,37 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/api/prox"):
             since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
             return self.reply(prox_status(since))
+        if self.path.startswith("/api/atom"):
+            since = int(self.path.split("since=")[1]) if "since=" in self.path else 0
+            return self.reply(atom_status(since))
+        if self.path == "/api/interaction/status":
+            return self.reply(interaction_status())
         if self.path == "/api/pattern/status":
             return self.reply({"running": PLAYER["running"], **PLAYER["status"]})
         name = "index.html" if self.path == "/" else self.path.lstrip("/")
         f = (UI_DIR / name).resolve()
         if f.parent == UI_DIR and f.suffix in UI_TYPES and f.exists():
             return self.reply(f.read_bytes(), ctype=UI_TYPES[f.suffix])
+        if self.path == "/api/show":  # preview the T-Deck show file without writing it
+            show = build_show(); text = show_text(show)
+            return self.reply({"show": show, "text": text, "summary": show_summary(show, text)})
         if self.path == "/api/snapshot":
             return self.reply(snapshot())
         self.reply({"error": "not found"}, 404)
 
     def do_POST(self):
         b = self.body()
+        if self.path == "/api/show/export":  # write the T-Deck show file next to the tone map
+            show = build_show(); text = show_text(show)
+            SHOW_JSON.write_text(json.dumps(show, indent=1) + "\n")
+            SHOW_TEXT.write_text(text)
+            return self.reply({"ok": True, "json": str(SHOW_JSON.relative_to(REPO)), "text": str(SHOW_TEXT.relative_to(REPO)),
+                               "summary": show_summary(show, text)})
         if self.path == "/api/proximity":
+            if "sensor" in b:  # per-sensor on/off (and optionally the watch/ding setting)
+                if "silent" in b:
+                    PROX["silent"] = bool(b["silent"])
+                return self.reply(set_prox_sensor(b["sensor"], bool(b.get("active"))))
             return self.reply(set_proximity(bool(b.get("on")), b.get("range_mm"), b.get("silent"), b.get("relearn")))
         if self.path == "/api/wake":
             if "keep" in b:
@@ -1208,6 +1942,35 @@ class H(BaseHTTPRequestHandler):
                 return self.reply({"ok": True, "loop_ms": loop_ms, "step_ms": step_ms, "lanes": lanes})
             except ValueError as ex:
                 return self.reply({"ok": False, "error": str(ex)})
+        if self.path == "/api/atom":
+            if "relay" in b:
+                with ProxPaused():
+                    return self.reply(set_relay(bool(b["relay"])))
+            if b.get("learn"):
+                ATOM["learn"], ATOM["learned"] = True, None
+            if isinstance(b.get("name"), dict):  # {"atom": id, "name": text}
+                aid, nm = str(b["name"].get("atom", "")).upper(), str(b["name"].get("name", "")).strip()[:40]
+                if len(aid) == 6:
+                    with state_lock:
+                        if nm:
+                            STATE["atoms"][aid] = nm
+                        else:
+                            STATE["atoms"].pop(aid, None)
+                        save_state(STATE)
+            return self.reply(atom_status())
+        if self.path == "/api/interaction/arm":
+            return self.reply(arm_interaction(b.get("rule") or {}))
+        if self.path == "/api/interaction/disarm":
+            INTERACT["stop"].set()
+            return self.reply({"ok": True})
+        if self.path == "/api/interaction/sim":
+            INTERACT["sim_on"] = bool(b.get("on"))
+            mm = b.get("mm")
+            INTERACT["sim"] = float(mm) if isinstance(mm, (int, float)) else None
+            return self.reply(interaction_status())
+        if INTERACT["armed"] and self.path in ("/api/strike", "/api/play", "/api/session", "/api/calibrate",
+                                               "/api/pattern/play", "/api/pattern/upload", "/api/pattern/standalone"):
+            return self.reply({"ok": False, "error": "disarm the interaction first"}, 409)
         if PLAYER["running"] and self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
             return self.reply({"ok": False, "error": "stop the pattern first"}, 409)
         if self.path in ("/api/scan", "/api/strike", "/api/play", "/api/session", "/api/calibrate"):
@@ -1232,7 +1995,9 @@ class H(BaseHTTPRequestHandler):
             pulses = {fid: given.get(fid, STATE["pulse_ms"]) for fid in order}
             if not all(pulse_ok(v) for v in pulses.values()):
                 return self.reply({"ok": False, "error": f"pulse must be {PULSE_MIN_MS}..{PULSE_MAX_MS} ms"}, 400)
-            return self.reply(play(order, gap, pulses, comp=bool(b.get("comp")), measure=bool(b.get("measure"))))
+            raw_slots = b.get("slots")
+            slots = {fid: int(v) for fid, v in zip(order, raw_slots)} if isinstance(raw_slots, list) and len(raw_slots) == len(order) else None
+            return self.reply(play(order, gap, pulses, comp=bool(b.get("comp")), measure=bool(b.get("measure")), slots=slots))
         if self.path == "/api/calibrate":
             fid, reps = b["id"].upper(), int(b.get("reps", 3))
             ms = b.get("ms", STATE["pulse_ms"])
@@ -1245,11 +2010,17 @@ class H(BaseHTTPRequestHandler):
                 return self.reply({"ok": False, "error": "minutes must be 0..120"}, 400)
             return self.reply(send_exact(fid, f"!D{fid}:{minutes}"))
         if self.path == "/api/state":
+            # Only real short fixture ids (6 hex) are kept, so a stray client value
+            # can never add phantom lanterns to the tone map.
+            real = lambda f: isinstance(f, str) and len(f) == 6 and all(c in "0123456789ABCDEF" for c in f)
             with state_lock:
-                STATE["lanterns"] = b.get("lanterns", STATE["lanterns"])
-                STATE["order"] = b.get("order", STATE["order"])
+                STATE["lanterns"] = {k: v for k, v in b.get("lanterns", STATE["lanterns"]).items() if real(k)}
+                STATE["order"] = [f for f in b.get("order", STATE["order"]) if real(f)]
                 STATE["presets"] = b.get("presets", STATE["presets"])
                 STATE["patterns"] = b.get("patterns", STATE["patterns"])
+                STATE["tone_links"] = [f for f in b.get("tone_links", STATE["tone_links"]) if real(f)]
+                if isinstance(b.get("interactions"), list):
+                    STATE["interactions"] = [r for r in b["interactions"] if isinstance(r, dict)]
                 if pulse_ok(b.get("pulse_ms")):
                     STATE["pulse_ms"] = b["pulse_ms"]
                 save_state(STATE)
@@ -1260,4 +2031,5 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"tone lab on http://localhost:{ARGS.port}  ui -> {UI_DIR}  state -> {STATE_FILE}", flush=True)
     threading.Thread(target=waker_loop, daemon=True).start()
+    threading.Thread(target=atom_loop, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", ARGS.port), H).serve_forever()

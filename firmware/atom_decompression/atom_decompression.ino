@@ -35,6 +35,13 @@ static Peer peers[SQUAD_COUNT];
 static QueueHandle_t rxQueue;
 static Adafruit_NeoPixel pixels(25, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 static DecompressionButton button;
+static uint8_t queuedPresses=0;
+// Sample the button and queue any accepted press. Called from loop() and while
+// sendSquad() is busy (~90 ms), so the release between the two presses of a
+// quick double click is never missed.
+static void sampleButton() {
+  if (button.tick(digitalRead(BUTTON_PIN)==HIGH,millis()) && queuedPresses<4) ++queuedPresses;
+}
 static uint8_t myId[3];
 static uint32_t bootNonce, txSeq = 0, leaseSeq = 0, playSeq = 0;
 static uint32_t nextLeaseMs = 0, lastPlayMs = 0, nextStatusMs = 0;
@@ -117,15 +124,18 @@ static uint32_t sendSquad(uint8_t action,uint8_t minutes) {
       c.controller_boot=bootNonce; c.action=action; c.minutes=minutes;
       if (esp_now_send(BCAST,(const uint8_t *)&c,sizeof(c))!=ESP_OK)
         Serial.printf("send refused %s seq=%lu\n",SQUAD[i].name,(unsigned long)seq);
-      delay(3);
+      for (const uint32_t t=millis(); millis()-t<3;) { sampleButton(); delayMicroseconds(250); }
     }
   }
   return seq;
 }
-static void play() {
+// Button presses were already spaced by DecompressionButton at press time (a
+// queued one may run right after the previous send), so only USB "play" is
+// throttled here.
+static void play(bool fromButton) {
   const uint32_t now=millis();
-  if (!radioReady || !enabled || (havePlayed && now-lastPlayMs<5000)) {
-    Serial.println("play refused: paused, radio unavailable or 5s cooldown");
+  if (!radioReady || !enabled || (!fromButton && havePlayed && now-lastPlayMs<DecompressionButton::PRESS_GAP_MS)) {
+    Serial.println("play refused: paused, radio unavailable or press gap");
     return;
   }
   lastPlayMs=now; havePlayed=true; ++presses;
@@ -165,7 +175,7 @@ static void serialTick() {
     line[used]=0;
     if (!overflow) {
       if (!strcmp(line,"t")) status();
-      else if (!strcmp(line,"play")) play();
+      else if (!strcmp(line,"play")) play(false);
       else if (!strcmp(line,"pause")) {
         enabled=false;
         if (radioReady) leaseSeq=sendSquad(NB_DECOMP_SESSION,0);
@@ -186,6 +196,8 @@ static void face() {
     if (havePlayed && now-lastPlayMs<4500) {
       if (p.playStatus==NB_DECOMP_STARTED) color=pixels.Color(14,14,14);
       else if (p.playStatus==NB_DECOMP_COMPLETE) color=pixels.Color(16,10,0);
+      // Relay mode: the lantern took the press but leaves it to the host (Tone Lab).
+      else if (p.playStatus==NB_DECOMP_READY) color=pixels.Color(0,12,16);
       else if (p.playStatus) color=pixels.Color(20,0,0);
     }
     if (!enabled) color=pixels.Color(3,0,4);
@@ -195,6 +207,11 @@ static void face() {
   pixels.show();
 }
 void setup() {
+  // Receipts (27 lines per press) and the 1 s status line overflow the default
+  // UART TX buffer; a full buffer blocks loop() and the button goes unsampled,
+  // losing presses of a quick triple click (even on battery: the UART still
+  // clocks the bytes out). 8 KiB absorbs the burst.
+  Serial.setTxBufferSize(8192);
   Serial.begin(115200); delay(300);
   pixels.begin(); pixels.setBrightness(40);
   pinMode(BUTTON_PIN,INPUT); button.begin(digitalRead(BUTTON_PIN)==HIGH,millis());
@@ -203,13 +220,14 @@ void setup() {
   radioReady=startRadio();
   Serial.println("\n" ATOM_DECOMPRESSION_VERSION);
   Serial.println("Face press: all-nine local signatures, any hour. USB: t/play/pause/resume.");
-  Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, red refused.");
+  Serial.println("Nine pixels in roster order: blue waiting, amber heard, green ready, white started, gold complete, cyan handed to host (relay), red refused.");
   lastPlayMs=millis()-5000; nextLeaseMs=millis();
 }
 void loop() {
   if (radioReady) drain();
   serialTick();
-  if (button.tick(digitalRead(BUTTON_PIN)==HIGH,millis())) play();
+  sampleButton();
+  while (queuedPresses) { --queuedPresses; play(true); }
   if (radioReady && enabled && (int32_t)(millis()-nextLeaseMs)>=0 &&
       (!havePlayed || millis()-lastPlayMs>4500)) {
     leaseSeq=sendSquad(NB_DECOMP_SESSION,5);

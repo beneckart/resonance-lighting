@@ -12,7 +12,7 @@ const lsGet = k => { try { return localStorage.getItem("tonelab." + k); } catch 
 const lsSet = (k, v) => { try { localStorage.setItem("tonelab." + k, v); } catch (e) { /* per-viewer only */ } };
 
 let L = [];                                   // live lanterns from the last scan
-let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40};
+let S = {lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: [], interactions: []};
 let CFG = {pulse_min: 5, pulse_max: 100, audio: false, min_gap: 250};
 let busy = false;
 const UI = {tab: lsGet("tab") || "lanterns", set: "all", pattern: lsGet("pattern")};
@@ -30,6 +30,9 @@ function name(id) { const l = live(id); return (l && l.callsign) || meta(id).cal
 function online(id) { const l = live(id); return !!l && !l.offline; }
 function pulseFor(id) { return meta(id).pulse_ms || S.pulse_ms; }
 function validPulse(v) { return Number.isInteger(v) && v >= CFG.pulse_min && v <= CFG.pulse_max; }
+// Role: "lantern" (default) or "perimeter" (perimeter light; its sensor drives approach rules).
+const isPerim = id => meta(id).role === "perimeter";
+const roleTag = id => isPerim(id) ? '<span class="tag perim">perimeter</span> ' : "";
 function tag(t) {
   return t === "large" ? '<span class="tag on">large</span>'
     : t === "small" ? '<span class="tag on-s">small</span>'
@@ -38,22 +41,121 @@ function tag(t) {
 let saveTimer = null;
 function save(now) {
   clearTimeout(saveTimer);
-  const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets,
+  const go = () => api("/api/state", {lanterns: S.lanterns, order: S.order, presets: S.presets, tone_links: S.tone_links,
+    interactions: S.interactions,
     patterns: S.patterns, pulse_ms: S.pulse_ms})
-    .then(r => { $("saved").textContent = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed"; })
+    .then(r => {
+      const msg = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
+      $("saved").textContent = msg; if ($("patsaved")) $("patsaved").textContent = msg; if ($("ixsaved")) $("ixsaved").textContent = "· " + msg;
+    })
     .catch(() => { $("saved").textContent = "save failed"; });
   if (now) go(); else saveTimer = setTimeout(go, 300);
 }
 // Keep every lantern ever classified in the ranking, even when unplugged, so a
 // partial hub never reshuffles the order; append newly seen lanterns at the end.
+const isFixtureId = id => /^[0-9A-F]{6}$/.test(id);
 function syncOrder() {
-  const known = new Set([...S.order, ...L.map(l => l.fixture_id), ...Object.keys(S.lanterns)]);
+  const known = new Set([...S.order, ...L.map(l => l.fixture_id), ...Object.keys(S.lanterns)].filter(isFixtureId));
+  S.order = S.order.filter(isFixtureId);
   known.forEach(id => { if (!S.order.includes(id)) S.order.push(id); });
   L.forEach(l => { if (l.callsign) meta(l.fixture_id).callsign = l.callsign; });
 }
 function setList(dir) {
   const ids = S.order.filter(id => online(id) && (UI.set === "all" || meta(id).type === UI.set));
   return dir === "up" ? ids.slice().reverse() : ids;
+}
+// ---- same-tone groups: a lantern listed in S.tone_links has the same tone as
+// the lantern directly above it in S.order; consecutive links form one group.
+function linked(id) { return (S.tone_links || []).includes(id); }
+// Tone number badge (position in the Tone order tab, 1 = highest), shown on every tab.
+function toneBadge(id) {
+  const n = S.order.indexOf(id) + 1;
+  if (!n) return "";
+  const g = toneGroups().find(x => x.includes(id)) || [id];
+  const title = g.length > 1 ? `tone #${n}; same tone as ${g.filter(x => x !== id).map(x => "#" + (S.order.indexOf(x) + 1) + " " + name(x)).join(", ")}` : `tone #${n} (1 = highest)`;
+  return `<span class="tno ${g.length > 1 ? "grp " + groupColor(id) : ""}" title="${esc(title)}">${n}</span>`;
+}
+// Each same-tone group gets its own color (cycling through 6) so pairs are
+// easy to tell apart on every tab; single lanterns get none.
+function groupColor(id) {
+  const multi = toneGroups().filter(g => g.length > 1);
+  const k = multi.findIndex(g => g.includes(id));
+  return k < 0 ? "" : "gc" + (k % 6);
+}
+function toneGroups() {
+  const groups = [];
+  S.order.forEach((id, i) => { if (i && linked(id) && groups.length) groups[groups.length - 1].push(id); else groups.push([id]); });
+  return groups;
+}
+// Rebuild links after a reorder so lanterns that were grouped and are still
+// adjacent stay grouped; `drop` lanterns (e.g. one just dragged) are unlinked.
+function keepGroups(oldGroups, drop) {
+  const gid = {};
+  oldGroups.forEach((g, k) => g.forEach(id => { gid[id] = k; }));
+  const out = (drop || []);
+  S.tone_links = S.order.filter((id, i) => i > 0 && !out.includes(id) && !out.includes(S.order[i - 1]) && gid[id] === gid[S.order[i - 1]]);
+}
+// ---- selection-based grouping (Tone order tab) ----
+const SEL = new Set();
+function groupOf(id) { return toneGroups().find(g => g.includes(id)) || [id]; }
+function selInfo() {
+  $("selinfo").textContent = SEL.size ? `${SEL.size} selected: ${[...SEL].map(name).join(", ")}`
+    : "Tick lanterns that sound the same, then Group selected. Groups always play together.";
+}
+document.addEventListener("change", e => {
+  const t = e.target; if (!t.dataset || !t.dataset.sel) return;
+  if (t.checked) SEL.add(t.dataset.sel); else SEL.delete(t.dataset.sel);
+  selInfo();
+});
+// Group: the ticked lanterns become one group, placed together at the first
+// ticked position (in their current relative order); other groups are kept.
+$("grpsel").onclick = () => {
+  const picked = S.order.filter(id => SEL.has(id));
+  if (picked.length < 2) { log("tick at least two lanterns to group", "bad"); return; }
+  const old = toneGroups(), at = S.order.indexOf(picked[0]);
+  const rest = S.order.filter(id => !SEL.has(id));
+  const insertAt = rest.findIndex((id, i) => S.order.indexOf(id) > at);
+  S.order = insertAt < 0 ? rest.concat(picked) : rest.slice(0, insertAt).concat(picked, rest.slice(insertAt));
+  keepGroups(old, picked);
+  S.tone_links = (S.tone_links || []).concat(picked.slice(1));
+  SEL.clear(); selInfo(); render(); save(true);
+  log(`grouped as one tone: ${picked.map(name).join(", ")}`, "ok");
+};
+// Ungroup: each ticked lantern leaves its group and moves just after it, so the
+// remaining members stay together.
+$("ungrpsel").onclick = () => {
+  const picked = S.order.filter(id => SEL.has(id) && groupOf(id).length > 1);
+  if (!picked.length) { log("tick grouped lanterns to ungroup", "bad"); return; }
+  const old = toneGroups();
+  for (const id of picked) {
+    const g = old.find(x => x.includes(id)), last = [...g].reverse().find(x => !SEL.has(x)) || g[g.length - 1];
+    S.order.splice(S.order.indexOf(id), 1);
+    S.order.splice(S.order.indexOf(last) + 1, 0, id);
+  }
+  keepGroups(old, picked);
+  SEL.clear(); selInfo(); render(); save(true);
+  log(`ungrouped: ${picked.map(name).join(", ")}`, "ok");
+};
+// A row's ▶ plays its whole same-tone group at once.
+async function playGroup(id) {
+  const ids = groupOf(id).filter(online);
+  if (ids.length <= 1) return strike(id);
+  const pulses = Object.fromEntries(ids.map(x => [x, pulseFor(x)]));
+  ids.forEach(x => flash(x, "flash", 400));
+  const r = await api("/api/play", {order: ids, gap_ms: 400, pulses, comp: compOn(), slots: ids.map(() => 0)});
+  if (r.results) {
+    const bad = r.results.filter(x => !x.ok);
+    log(`group ${ids.map(name).join(" + ")} struck together` + (bad.length ? ` — not confirmed: ${bad.map(x => name(x.fixture_id)).join(", ")}` : ""), bad.length ? "bad" : "ok");
+    r.results.forEach(x => { const l = live(x.fixture_id); if (l && x.strikes_after != null) Object.assign(l, {strikes: x.strikes_after, battery_v: x.battery_v}); });
+  } else log(r.error || "group strike failed", "bad");
+}
+// Beat slot per lantern for Play: same-tone group members share a slot.
+function groupSlots(ids) {
+  const gidx = {};
+  toneGroups().forEach((g, k) => g.forEach(id => { gidx[id] = k; }));
+  const slots = [], seen = new Map();
+  ids.forEach(id => { const g = gidx[id]; if (!seen.has(g)) seen.set(g, seen.size); slots.push(seen.get(g)); });
+  return slots;
 }
 function flash(id, cls, ms) {
   document.querySelectorAll(`[data-card="${id}"]`).forEach(c => {
@@ -75,6 +177,7 @@ function render() {
   if (UI.tab === "lanterns") renderCards();
   else if (UI.tab === "order") renderRanks();
   else if (UI.tab === "proximity") renderProxTab();
+  else if (UI.tab === "interactions") renderIx();
   else renderPatterns();
 }
 
@@ -118,6 +221,8 @@ function cardIds() {
   if (q) ids = ids.filter(id => id.toLowerCase().includes(q) || name(id).toLowerCase().includes(q));
   if (show === "online") ids = ids.filter(online);
   else if (show === "unset") ids = ids.filter(id => !meta(id).type);
+  else if (show === "lantern") ids = ids.filter(id => !isPerim(id));
+  else if (show === "perimeter") ids = ids.filter(isPerim);
   else if (show !== "all") ids = ids.filter(id => meta(id).type === show);
   if (sort === "hub") ids.sort((a, b) => ((live(a) || {}).hub || "~").localeCompare((live(b) || {}).hub || "~"));
   else if (sort === "name") ids.sort((a, b) => name(a).localeCompare(name(b)));
@@ -127,7 +232,10 @@ function renderCards() {
   $("cards").innerHTML = cardIds().map(id => {
     const m = meta(id);
     return `<div class="card ${online(id) ? "" : "offline"}" data-card="${id}">
-      <div class="name">${esc(name(id))}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
+      <div class="name">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</div><div class="meta" data-meta="${id}">${metaText(id)}</div>
+      <div class="row"><span class="seg" role="group" aria-label="Role">
+          <button class="${isPerim(id) ? "" : "on"}" data-role="${id}:lantern" title="A regular lantern">Lantern</button>
+          <button class="${isPerim(id) ? "on" : ""}" data-role="${id}:perimeter" title="A perimeter light: its sensor is used for approach rules">Perimeter</button></span></div>
       <div class="row"><button data-strike="${id}">Strike</button>
         <button data-wake="${id}" class="${WK.targets.includes(id) ? "waking" : ""}">${wakeLabel(id)}</button>
         <button class="${m.type === "large" ? "on" : ""}" data-type="${id}:large">Large</button>
@@ -150,14 +258,19 @@ function refreshMeta() {
 
 // ---------- Tone order tab ----------
 function renderRanks() {
+  const rank = {}, size = {}, pos = {};
+  toneGroups().forEach((g, k) => g.forEach((id, j) => { rank[id] = k + 1; size[id] = g.length; pos[id] = j; }));
   $("ranks").innerHTML = S.order.map((id, i) => {
-    const l = live(id), m = meta(id);
-    return `<li draggable="true" data-i="${i}" data-card="${id}" class="${online(id) ? "" : "offline"}">
-      <span class="k">${i + 1}</span><span>${esc(name(id))} ${tag(m.type)}</span>
+    const l = live(id), m = meta(id), inGrp = size[id] > 1;
+    const cls = [online(id) ? "" : "offline", inGrp ? "grp " + groupColor(id) : "", inGrp && pos[id] === 0 ? "gstart" : "",
+                 inGrp && pos[id] === size[id] - 1 ? "gend" : ""].join(" ");
+    const linkBtn = `<input type="checkbox" data-sel="${id}" ${SEL.has(id) ? "checked" : ""} aria-label="Select ${esc(name(id))}">`;
+    return `<li draggable="true" data-i="${i}" data-card="${id}" class="${cls}">
+      ${linkBtn}<span class="k">${i + 1}</span><span>${esc(name(id))} ${roleTag(id)}${tag(m.type)}${inGrp && pos[id] === 0 ? `<span class="glabel">same tone ×${size[id]}</span>` : ""}</span>
       <span class="dim">${l ? "hub " + l.hub : "not connected"}</span>
       <span class="dim">${pulseFor(id)} ms</span>
       <span class="dim">${m.latency_ms != null ? Math.round(m.latency_ms) + " ms lat" : ""}</span>
-      <button data-strike="${id}" title="Strike" aria-label="Strike ${esc(name(id))}">▶</button></li>`;
+      <button data-gstrike="${id}" title="${inGrp ? "Strike the whole same-tone group together" : "Strike"}" aria-label="Strike ${esc(name(id))}">▶</button></li>`;
   }).join("");
   renderPresets();
   document.querySelectorAll("#set button").forEach(b => b.classList.toggle("on", b.dataset.set === UI.set));
@@ -172,34 +285,54 @@ $("ranks").addEventListener("dragover", e => {
 $("ranks").addEventListener("drop", e => {
   e.preventDefault();
   const li = e.target.closest("li"); if (!li || dragI === null) return;
+  const old = toneGroups();
   const [x] = S.order.splice(dragI, 1); S.order.splice(+li.dataset.i, 0, x);
+  keepGroups(old, [x]); // a dragged lantern leaves its group; re-link it with ≈ if needed
   dragI = null; render(); save();
 });
 $("ranks").addEventListener("dragend", () => { dragI = null; render(); });
 $("set").onclick = e => { const b = e.target.closest("button"); if (b) { UI.set = b.dataset.set; renderRanks(); } };
-$("rev").onclick = () => { S.order.reverse(); render(); save(); };
+$("rev").onclick = () => { const old = toneGroups(); S.order.reverse(); keepGroups(old); render(); save(); };
 $("grp").onclick = () => {
   const r = t => t === "large" ? 0 : t === "small" ? 2 : 1;
+  const old = toneGroups();
   S.order = S.order.map((id, i) => [id, i]).sort((a, b) => r(meta(a[0]).type) - r(meta(b[0]).type) || a[1] - b[1]).map(x => x[0]);
-  render(); save();
+  keepGroups(old); render(); save();
 };
+// Browser dialogs (prompt/confirm) are blocked in the app's built-in browser
+// pane, so destructive actions confirm with a second click on the same button.
+function confirmClick(btn, label, action) {
+  if (btn.dataset.armed === "1") {
+    clearTimeout(btn._t); btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("confirm");
+    action(); return;
+  }
+  btn.dataset.label = btn.textContent; btn.dataset.armed = "1"; btn.textContent = label; btn.classList.add("confirm");
+  btn._t = setTimeout(() => { btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("confirm"); }, 3000);
+}
 function renderPresets() {
   const v = $("psel").value;
   $("psel").innerHTML = '<option value="">Saved orders…</option>' +
     Object.keys(S.presets).map(k => `<option ${k === v ? "selected" : ""}>${esc(k)}</option>`).join("");
 }
 $("psave").onclick = () => {
-  const n = (prompt("Name for this order:") || "").trim(); if (!n) return;
-  S.presets[n] = S.order.slice(); renderPresets(); $("psel").value = n; save(); log(`saved order "${n}"`);
+  const n = $("pname").value.trim();
+  if (!n) { log("type a name for this order first", "bad"); $("pname").focus(); return; }
+  const existed = !!S.presets[n];
+  S.presets[n] = {order: S.order.slice(), tone_links: (S.tone_links || []).slice()}; renderPresets(); $("psel").value = n; $("pname").value = ""; save(true);
+  log(`${existed ? "updated" : "saved"} order "${n}"`, "ok");
 };
+$("pname").addEventListener("keydown", e => { if (e.key === "Enter") $("psave").click(); });
 $("pload").onclick = () => {
   const n = $("psel").value; if (!n || !S.presets[n]) return;
-  const rest = S.order.filter(id => !S.presets[n].includes(id));
-  S.order = S.presets[n].concat(rest); render(); save(); log(`loaded order "${n}"`);
+  const saved = Array.isArray(S.presets[n]) ? {order: S.presets[n], tone_links: []} : S.presets[n]; // older saves were plain lists
+  const rest = S.order.filter(id => !saved.order.includes(id));
+  S.order = saved.order.concat(rest);
+  S.tone_links = (saved.tone_links || []).filter(id => S.order.includes(id));
+  render(); save(); log(`loaded order "${n}"`);
 };
 $("pdel").onclick = () => {
-  const n = $("psel").value; if (!n || !confirm(`Delete saved order "${n}"?`)) return;
-  delete S.presets[n]; renderPresets(); save();
+  const n = $("psel").value; if (!n) { log("pick a saved order to delete", "bad"); return; }
+  confirmClick($("pdel"), "Click again to delete", () => { delete S.presets[n]; renderPresets(); save(true); log(`deleted order "${n}"`); });
 };
 $("gapms").oninput = e => { $("gapv").textContent = e.target.value; };
 document.querySelectorAll(".comp").forEach(cb => cb.addEventListener("change", e => {
@@ -223,6 +356,12 @@ document.addEventListener("click", async e => {
   if (!b || busy) return;
   if (b.dataset.strike) { busy = true; await strike(b.dataset.strike); busy = false; }
   else if (b.dataset.wake) { await requestWake([b.dataset.wake]); }
+  else if (b.dataset.gstrike) { busy = true; await playGroup(b.dataset.gstrike); busy = false; }
+  else if (b.dataset.role) {
+    const [id, r] = b.dataset.role.split(":"), m = meta(id);
+    if (r === "perimeter") m.role = "perimeter"; else delete m.role;
+    render(); save(); log(`${name(id)} is now a ${r === "perimeter" ? "perimeter light" : "lantern"}`);
+  }
   else if (b.dataset.type) {
     const [id, t] = b.dataset.type.split(":"), m = meta(id);
     m.type = m.type === t ? null : t; render(); save();
@@ -250,7 +389,9 @@ document.querySelectorAll("[data-dir]").forEach(btn => btn.onclick = async () =>
   if (!ids.length) { log(`no online ${UI.set === "all" ? "" : UI.set + " "}lanterns`, "bad"); return; }
   busy = true; btn.disabled = true;
   const g = +$("gapms").value, pulses = Object.fromEntries(ids.map(id => [id, pulseFor(id)]));
-  const r = await api("/api/play", {order: ids, gap_ms: g, pulses, comp: compOn(), measure: $("meas").checked});
+  // Same-tone groups always strike together on one beat.
+  const r = await api("/api/play", {order: ids, gap_ms: g, pulses, comp: compOn(), measure: $("meas").checked,
+                                    slots: groupSlots(ids)});
   if (r.results) {
     const bad = r.results.filter(x => !x.ok);
     log(`played ${UI.set} ${btn.dataset.dir === "up" ? "low→high" : "high→low"} (${r.results.length}) at ${g} ms gap` +
@@ -353,7 +494,8 @@ $("sess").onclick = async () => {
   render(); busy = false;
 };
 function setProxBtn() {
-  $("prox").textContent = "Proximity: " + (!PX.on ? "off" : PX.silent ? "watch only" : "ding");
+  const n = (PX.active || []).length;
+  $("prox").textContent = "Proximity: " + (!PX.on ? "off" : `${n} sensor${n === 1 ? "" : "s"}, ${PX.silent ? "watch only" : "ding"}`);
   $("prox").classList.toggle("on", PX.on);
   if (UI.tab === "proximity") pxControls();
 }
@@ -373,7 +515,7 @@ $("prange").oninput = e => { $("prangev").textContent = Math.round(e.target.valu
 $("prange").onchange = e => { api("/api/prox").then(r => { if (r.on) api("/api/proximity", {on: true, range_mm: +e.target.value}); }); };
 $("prox").onclick = async () => {
   const cur = await api("/api/prox?since=" + pxSince), on = !cur.on;
-  const r = await api("/api/proximity", {on, range_mm: +$("prange").value}); PX = r; setProxBtn();
+  const r = await api("/api/proximity", {on, silent: false, range_mm: +$("prange").value}); PX = r; setProxBtn();  // header = the quick ding switch
   if (on) {
     log(`proximity ding on: learning each background for 1.5 s (keep hands away), then dinging within ${Math.round(r.range_mm / 10)} cm` +
       (r.no_sensor.length ? ` (no sensor: ${r.no_sensor.map(name).join(", ")})` : ""));
@@ -387,20 +529,45 @@ $("prox").onclick = async () => {
 // per lantern; this pulls only new samples every 250 ms and draws the last 15 s.
 const PXV = {buf: {}, since: 0, evSince: 0, events: [], dings: {}, serverT: 0, timer: null};
 function pxControls() {
-  const mode = !PX.on ? "off" : PX.silent ? "watch" : "ding";
-  document.querySelectorAll("#pxmode button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  document.querySelectorAll("#pxmode button").forEach(b => b.classList.toggle("on", b.dataset.mode === (PX.silent === false ? "ding" : "watch")));
   if (PX.range_mm) { $("pxrange").value = PX.range_mm; $("pxrangev").textContent = Math.round(PX.range_mm / 10); }
 }
+const pxActive = id => (PX.active || []).includes(id);
+const pxHasSensor = id => { const l = live(id); return !!l && (l.tmf || l.vl); };
+// Usable = on USB right now with a sensor reporting. Proximity reads come over USB only, so an
+// unplugged or sleeping light can't be watched (there's no radio path for sensor data yet).
+const pxUsable = id => { const l = live(id); return !!l && !l.offline && pxHasSensor(id); };
+function pxIds() {
+  const show = $("pxshow").value;
+  let ids = S.order.slice();
+  if (show === "active") ids = ids.filter(pxActive);
+  else if (show === "perimeter") ids = ids.filter(isPerim);
+  else if (show === "lantern") ids = ids.filter(id => !isPerim(id));
+  // sensors you can actually use first, perimeter lights ahead of lanterns
+  return ids.sort((a, b) => (pxHasSensor(b) - pxHasSensor(a)) || (isPerim(b) - isPerim(a)));
+}
+const PXT = {};  // range tests: id -> {until, samples: [[mm, counted]], result}
 function renderProxTab() {
   pxControls();
-  $("pxgrid").innerHTML = S.order.map(id => `<div class="pxcard" data-pxcard="${id}">
-      <div class="hdr"><span class="nm">${esc(name(id))}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
-        <button data-pxrelearn="${id}" title="Relearn this lantern's background">Relearn</button></div>
-      <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid" data-pxz="${id}" title="The sensor's 3x3 zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = hand."></div></div>
-      <div class="st" data-pxst="${id}"></div></div>`).join("");
+  $("pxgrid").innerHTML = pxIds().map(id => {
+    const vl = (live(id) || {}).vl, m = meta(id);
+    const dis = pxUsable(id) || pxActive(id) ? "" : "disabled";
+    return `<div class="pxcard ${dis ? "unusable" : ""}" data-pxcard="${id}">
+      <div class="hdr"><span class="nm">${toneBadge(id)}${esc(name(id))} ${roleTag(id)}</span><span class="pxbadge" data-pxbadge="${id}">–</span>
+        <button data-pxtoggle="${id}" class="${pxActive(id) ? "on" : ""}" ${dis}>${pxActive(id) ? "● On" : "Off"}</button></div>
+      <div class="row" style="margin-top:4px">
+        <label class="status">range <input type="number" min="10" max="400" step="10" style="width:60px" data-pxrng="${id}"
+          value="${m.prox_range_mm ? Math.round(m.prox_range_mm / 10) : ""}" placeholder="${Math.round((PX.range_mm || 600) / 10)}"> cm</label>
+        <button data-pxrelearn="${id}" title="Relearn this sensor's background (keep clear 1.5 s)" ${dis}>Relearn</button>
+        <button data-pxtest="${id}" title="Record 30 s and report the distances this sensor saw" ${dis}>Range test</button>
+        <span class="status">${vl ? "VL53L5CX · outward 4×4" : (live(id) || {}).tmf ? "TMF8820 · down 3×3" : ""}</span></div>
+      <div class="pxbody"><canvas data-px="${id}"></canvas><div class="zgrid ${vl ? "z4" : ""}" data-pxz="${id}" title="The sensor's zones: distance each sees (cm). Red = blocked by something fixed (ignored); green = person."></div></div>
+      <div class="st" data-pxst="${id}"></div><div class="st pxtest" data-pxtres="${id}">${PXT[id] && PXT[id].result ? PXT[id].result : ""}</div></div>`;
+  }).join("") || '<p class="status">No sensors match.</p>';
   PXV.timer = PXV.timer || setInterval(proxTick, 250);
   pxDrawAll();
 }
+$("pxshow").addEventListener("input", renderProxTab);
 async function proxTick() {
   if (UI.tab !== "proximity") return;
   try {
@@ -410,11 +577,14 @@ async function proxTick() {
       const b = PXV.buf[id] = (PXV.buf[id] || []).concat(rows);
       for (const r of rows) PXV.since = Math.max(PXV.since, r[0]);
       while (b.length && b[0][0] < PXV.serverT - 20) b.shift();
+      const t = PXT[id];  // feed a running range test
+      if (t && t.until) for (const [, d, c, state] of rows) if (d && c >= (PX.learn_confidence || 20)) t.samples.push([d, state === "hand"]);
     }
     const px = await api("/api/prox?since=" + PXV.evSince);
-    const wasOn = PX.on, wasSilent = PX.silent;
+    const was = (PX.active || []).join();
     PX = px;
-    if (wasOn !== px.on || wasSilent !== px.silent) setProxBtn();
+    const usable = S.order.filter(pxUsable).join();
+    if (was !== (px.active || []).join() || usable !== PXV.usable) { PXV.usable = usable; setProxBtn(); renderProxTab(); }
     for (const ev of px.events) {
       PXV.evSince = Math.max(PXV.evSince, ev.id);
       PXV.events.push(ev);
@@ -424,39 +594,64 @@ async function proxTick() {
     }
     PXV.events = PXV.events.filter(e => e.t > PXV.serverT - 20);
   } catch (e) { /* server restarting */ }
+  pxTestTick();
   pxDrawAll();
+}
+// Range test: summarise every confident return during 30 s, and which distance bands it reached.
+const PX_BANDS = [[0, 30], [30, 60], [60, 100], [100, 200], [200, 400]];
+function pxTestTick() {
+  const now = Date.now();
+  for (const [id, t] of Object.entries(PXT)) {
+    if (!t.until) continue;
+    const el = document.querySelector(`[data-pxtres="${id}"]`);
+    const left = Math.ceil((t.until - now) / 1000);
+    if (left > 0) { if (el) el.textContent = `Range test: ${left} s left · move through several distances (${t.samples.length} returns so far)`; continue; }
+    t.until = 0;
+    const cm = t.samples.map(([d]) => d / 10), counted = t.samples.filter(([, h]) => h).map(([d]) => d / 10);
+    const at = new Date().toLocaleTimeString();
+    if (!cm.length) t.result = `Range test ${at}: saw nothing at all. Check the window (dust, film) and that it's on.`;
+    else {
+      const bands = PX_BANDS.map(([a, b]) => `${a}–${b} cm ${cm.some(x => x >= a && x < b) ? "✓" : "·"}`).join("  ");
+      t.result = `Range test ${at}: returns ${Math.round(Math.min(...cm))}–${Math.round(Math.max(...cm))} cm (${cm.length})` +
+        (counted.length ? `, counted as a person ${Math.round(Math.min(...counted))}–${Math.round(Math.max(...counted))} cm` : ", never counted as a person") +
+        ` · ${bands}`;
+    }
+    if (el) el.textContent = t.result;
+    log(`${name(id)} ${t.result}`);
+  }
 }
 function pxDrawAll() {
   const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
   const C = {muted: col("--muted"), text: col("--text"), ok: col("--ok"), bad: col("--bad"), warn: col("--warn"),
              line: col("--line"), accent: col("--accent")};
   let watching = 0, hands = 0, blocked = 0;
-  S.order.forEach(id => {
+  pxIds().forEach(id => {
     const l = live(id), v = PX.live && PX.live[id];
     const badge = document.querySelector(`[data-pxbadge="${id}"]`), st = document.querySelector(`[data-pxst="${id}"]`);
     if (!badge) return;
     let label = "off", cls = "";
     if (!l || l.offline) label = l ? "asleep" : "not connected";
-    else if (!l.tmf) label = "no sensor";
-    else if (PX.on && v) { label = v.status; cls = v.status; watching++; if (v.status === "hand") hands++; if (v.status === "blocked") blocked++; }
-    else if (PX.on) label = "starting";
+    else if (!pxHasSensor(id)) label = "no sensor";
+    else if (pxActive(id) && v && v.status) { label = v.status === "hand" ? "person" : v.status; cls = v.status; watching++; if (v.status === "hand") hands++; if (v.status === "blocked") blocked++; }
+    else if (pxActive(id)) label = "starting";
     badge.textContent = label; badge.className = "pxbadge " + cls;
-    const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && PX.on ? " · background clear" : "");
-    const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20)
-      ? `sees ${Math.round(v.depth_mm / 10)} cm (confidence ${v.confidence})` : (v ? "sees nothing" : "");
-    const nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
-    st.textContent = (l && !l.tmf) ? "This lantern has no distance sensor."
-      : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of 9 zones blocked (ignored)${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`
-      : `${now}${bgTxt}${PXV.dings[id] ? ` · ${PXV.dings[id]} ding${PXV.dings[id] > 1 ? "s" : ""}` : ""}`;
+    const bgTxt = v && v.background_mm ? ` · background ${Math.round(v.background_mm / 10)} cm` : (v && pxActive(id) ? " · background clear" : "");
+    const now = v && v.depth_mm && v.confidence >= (PX.learn_confidence || 20) ? `sees ${Math.round(v.depth_mm / 10)} cm` : (v ? "sees nothing" : "");
+    const nz = v && v.zones ? v.zones.length : 9, nb = v && v.zones ? v.zones.filter(z => z.state === "blocked").length : 0;
+    const dings = PXV.dings[id] ? ` · ${PXV.dings[id]} detection${PXV.dings[id] > 1 ? "s" : ""}` : "";
+    st.textContent = (!l || l.offline) ? (l ? "Asleep or unplugged: plug it in (and keep it awake) to watch its sensor." : "Not connected over USB.")
+      : !pxHasSensor(id) ? (isPerim(id) ? "No sensor reporting yet (low battery or protection mode can keep it unpowered)." : "This lantern has no distance sensor.")
+      : !pxActive(id) ? "Off: click Off to start watching this sensor."
+      : nb && v.status !== "blocked" ? `${now}${bgTxt} · ${nb} of ${nz} zones blocked (ignored)${dings}` : `${now}${bgTxt}${dings}`;
     pxDraw(id, C, v);
     const zg = document.querySelector(`[data-pxz="${id}"]`);
     if (zg) zg.innerHTML = v && v.zones ? v.zones.map(z => {
       const seen = z.mm && z.conf >= (PX.learn_confidence || 20);
       const cls = z.state === "hand" ? "hand" : z.state === "blocked" ? "blocked" : seen ? "seen" : "";
-      return `<div class="${cls}" title="zone: ${seen ? Math.round(z.mm / 10) + " cm, confidence " + z.conf : "nothing"}${z.bg ? ", background " + Math.round(z.bg / 10) + " cm" : ""}${z.state === "blocked" ? " (blocked, ignored)" : ""}">${seen ? Math.round(z.mm / 10) : "·"}</div>`;
+      return `<div class="${cls}" title="zone: ${seen ? Math.round(z.mm / 10) + " cm" : "nothing"}${z.bg ? ", background " + Math.round(z.bg / 10) + " cm" : ""}${z.state === "blocked" ? " (blocked, ignored)" : ""}">${seen ? Math.round(z.mm / 10) : "·"}</div>`;
     }).join("") : "";
   });
-  $("pxsummary").textContent = PX.on ? `${watching} sensors watched · ${hands} seeing a hand · ${blocked} blocked` : "";
+  $("pxsummary").textContent = (PX.active || []).length ? `${watching} watching · ${hands} seeing someone · ${blocked} blocked` : "all sensors off";
 }
 function pxDraw(id, C, v) {
   const cv = document.querySelector(`canvas[data-px="${id}"]`);
@@ -466,7 +661,7 @@ function pxDraw(id, C, v) {
   const ctx = cv.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  const span = 15, T = PXV.serverT || Date.now() / 1000, range = PX.range_mm || 600;
+  const span = 15, T = PXV.serverT || Date.now() / 1000, range = (v && v.range_mm) || PX.range_mm || 600;
   const maxMm = Math.max(1500, range + 300);
   const x = t => (t - (T - span)) / span * w, y = mm => 12 + mm / maxMm * (h - 18);
   ctx.font = "10px system-ui"; ctx.fillStyle = C.muted; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
@@ -500,30 +695,429 @@ function pxDraw(id, C, v) {
 }
 $("pxmode").onclick = async e => {
   const b = e.target.closest("button"); if (!b) return;
-  const m = b.dataset.mode, range_mm = +$("pxrange").value;
-  const r = await api("/api/proximity", m === "off" ? {on: false} : {on: true, silent: m === "watch", range_mm});
-  PX = r; setProxBtn();
-  if (r.on && !pxTimer) pxTimer = setInterval(pollProx, 300);
-  log(m === "off" ? "proximity off" : `proximity ${m === "watch" ? "watch only (no strikes)" : "ding"}: learning backgrounds for 1.5 s, keep hands away`);
+  const silent = b.dataset.mode === "watch";
+  PX = await api("/api/proximity", PX.on ? {on: true, silent} : {on: false, silent}); pxControls(); setProxBtn();
+  log(silent ? "proximity: just watch (no strikes)" : "proximity: ding the lantern that sees someone (perimeter lights never ding)");
 };
+$("pxallon").onclick = async () => {
+  PX = await api("/api/proximity", {on: true, silent: PX.silent !== false, range_mm: +$("pxrange").value});  // keeps watch/ding as chosen
+  setProxBtn(); renderProxTab(); log("all sensors on: learning backgrounds for 1.5 s, keep clear");
+};
+$("pxalloff").onclick = async () => { PX = await api("/api/proximity", {on: false}); setProxBtn(); renderProxTab(); log("all sensors off"); };
 $("pxrange").oninput = e => { $("pxrangev").textContent = Math.round(e.target.value / 10); };
-$("pxrange").onchange = e => { if (PX.on) api("/api/proximity", {on: true, range_mm: +e.target.value}).then(r => { PX = r; }); };
+$("pxrange").onchange = e => api("/api/proximity", {on: PX.on, range_mm: +e.target.value}).then(r => { PX = r; renderProxTab(); });
 $("pxrelearn").onclick = async () => {
-  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
-  PX = await api("/api/proximity", {on: true, relearn: "all"}); log("relearning every background for 1.5 s: keep hands away");
+  if (!PX.on) { log("turn a sensor on first", "bad"); return; }
+  PX = await api("/api/proximity", {on: true, relearn: "all"}); log("relearning every background for 1.5 s: keep clear");
 };
 document.addEventListener("click", async e => {
+  const tg = e.target.closest("[data-pxtoggle]");
+  if (tg) {
+    const id = tg.dataset.pxtoggle, on = !pxActive(id);
+    const r = await api("/api/proximity", {sensor: id, active: on});
+    PX = r; setProxBtn(); renderProxTab();
+    log(r.error ? r.error : on ? `${name(id)} on: learning its background for 1.5 s, keep clear` : `${name(id)} off`, r.error ? "bad" : "ok");
+    return;
+  }
+  const t = e.target.closest("[data-pxtest]");
+  if (t) {
+    const id = t.dataset.pxtest;
+    if (!pxActive(id)) { log(`turn ${name(id)} on first`, "bad"); return; }
+    PXT[id] = {until: Date.now() + 30000, samples: [], result: ""};
+    log(`${name(id)} range test: 30 s, move through several distances`);
+    return;
+  }
   const b = e.target.closest("[data-pxrelearn]"); if (!b) return;
-  if (!PX.on) { log("turn proximity on (watch only or ding) first", "bad"); return; }
+  if (!pxActive(b.dataset.pxrelearn)) { log(`turn ${name(b.dataset.pxrelearn)} on first`, "bad"); return; }
   PX = await api("/api/proximity", {on: true, relearn: [b.dataset.pxrelearn]});
-  log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep hands away`);
+  log(`${name(b.dataset.pxrelearn)}: relearning background for 1.5 s, keep clear`);
+});
+document.addEventListener("change", e => {
+  const id = e.target.dataset && e.target.dataset.pxrng; if (!id) return;
+  const v = Math.round(+e.target.value);
+  if (e.target.value === "" ) delete meta(id).prox_range_mm;
+  else if (v >= 10 && v <= 400) meta(id).prox_range_mm = v * 10;
+  else { e.target.value = meta(id).prox_range_mm ? Math.round(meta(id).prox_range_mm / 10) : ""; return; }
+  save(); log(`${name(id)} range ${meta(id).prox_range_mm ? Math.round(meta(id).prox_range_mm / 10) + " cm" : "default"}`);
+});
+
+// ---------- Interactions tab ----------
+// A rule maps one lantern's sensor distance onto a pattern's BPM. Rules save
+// with the tone map; one rule at a time can be armed (runs on the server).
+UI.ix = lsGet("ix");
+let IX = {armed: false}, ixTimer = null, ixSimTimer = null;
+function ixPatterns() { return Object.values(S.patterns).map(normalize); }
+function newRule(nm) {
+  const src = S.order.find(id => (live(id) || {}).tmf) || S.order[0];
+  const pat = ixPatterns()[0];
+  return {id: "ix-" + Math.random().toString(16).slice(2, 8), name: nm, source: src, far_mm: 1500, near_mm: 200,
+          pattern_id: pat ? pat.id : null, bpm_from: 60, bpm_to: 180, curve: "linear", smooth_s: 0.5, idle: "stop", idle_s: 3};
+}
+function curRule() {
+  S.interactions = S.interactions || [];
+  if (!S.interactions.length) { S.interactions.push(newRule("Approach speeds up")); save(); }
+  let r = S.interactions.find(x => x.id === UI.ix);
+  if (!r) { r = S.interactions[0]; UI.ix = r.id; }
+  return r;
+}
+// Fastest BPM where no lantern's hits are under the minimum gap (mirrors the server).
+function bpmMax(p) {
+  if (!p) return 300;
+  let best = 300;
+  for (const raw of Object.values(p.hits || {})) {
+    const idx = [...new Set(raw)].filter(i => i < p.steps).sort((a, b) => a - b);
+    if (idx.length < 2) continue;
+    let k = p.steps - idx[idx.length - 1] + idx[0];
+    for (let j = 1; j < idx.length; j++) k = Math.min(k, idx[j] - idx[j - 1]);
+    best = Math.min(best, k * 60000 / (p.steps_per_beat * CFG.min_gap));
+  }
+  return best;
+}
+const ixShape = (x, c) => { x = Math.max(0, Math.min(1, x)); return c === "ease_in" ? x * x : c === "ease_out" ? 1 - (1 - x) * (1 - x) : x; };
+const CLICK_TXT = {single: "Single click", double: "Double click", triple: "Triple click", any: "Any click"};
+// Sensor source: one lantern id, or a group that reacts to the nearest person.
+const GROUP_SRC = {"group:perimeter": "all perimeter lights", "group:lantern": "all lanterns"};
+const srcName = src => GROUP_SRC[src] || name(src);
+const patName = id => (ixPatterns().find(p => p.id === id) || {}).name || "(no pattern)";
+const ixRunning = id => IX.armed && IX.rule_id === id;
+// One plain-English line per rule, for the list.
+function ruleSummary(r) {
+  if (r.kind === "button") {
+    const a = r.action, sens = S.interactions.find(x => x.id === a.interaction_id);
+    const did = {
+      performance: `play ${patName(a.pattern_id)} ${a.loops || 2}×, then go back to what was running`,
+      next_active_pattern: `switch ${sens ? `"${sens.name}"` : "the running sensor rule"} to the next Active pattern`,
+      play_pattern: `play ${patName(a.pattern_id)} on loop`,
+      next_pattern: `play the next of ${(a.pattern_ids || []).length} patterns`,
+      next_active_trigger: "switch to the next trigger in rotation (keeps the pattern)",
+      stop: "stop everything",
+      arm_interaction: `start sensor rule ${sens ? `"${sens.name}"` : "(pick one)"}`,
+      toggle_proximity: "turn proximity ding on/off",
+    }[a.type] || a.type;
+    return `${CLICK_TXT[r.trigger.click || "single"]} on ${atomName(r.trigger.atom)} → ${did}`;
+  }
+  return `${GROUP_SRC[r.source] ? `Nearest person at ${srcName(r.source)}` : `${name(r.source)}'s sensor`}, ${Math.round(r.far_mm / 10)}→${Math.round(r.near_mm / 10)} cm: ${patName(r.pattern_id)} speeds up ${r.bpm_from}→${r.bpm_to} BPM`;
+}
+function renderIxList() {
+  const cur = curRule();
+  const rowHtml = r => {
+    const btn = r.kind === "button", run = !btn && ixRunning(r.id), off = btn && r.enabled === false;
+    const ctl = btn ? `<label title="A turned-off rule ignores clicks"><input type="checkbox" data-ixon="${r.id}" ${off ? "" : "checked"}> on</label>`
+      : (run ? `<span class="run">● running</span><button data-ixstop="${r.id}">■ Stop</button>` : `<button data-ixstart="${r.id}">▶ Start</button>`) +
+        `<label title="Triple click switches between the sensor rules in rotation"><input type="checkbox" data-ixrot="${r.id}" ${r.active_trigger ? "checked" : ""}> in rotation</label>`;
+    const editing = ixOpen && r.id === cur.id;
+    return `<div class="ixrow ${editing ? "sel" : ""} ${off ? "off" : ""}" data-ixrow="${r.id}">
+      <span class="kind">${btn ? "button" : "sensor"}</span>
+      <div class="what"><b>${esc(r.name)}</b><span class="status">${esc(ruleSummary(r))}</span></div>
+      <span class="ctl">${ctl}</span>
+      <button class="edit ${editing ? "on" : ""}" data-ixedit="${r.id}">${editing ? "Editing ▾" : "✎ Edit"}</button></div>`;
+  };
+  // The editor sits directly under the rule being edited: rows up to it go above, the rest below.
+  const k = ixOpen ? S.interactions.findIndex(r => r.id === cur.id) : S.interactions.length - 1;
+  $("ixeditor").hidden = !ixOpen;
+  $("ixlist").innerHTML = S.interactions.slice(0, k + 1).map(rowHtml).join("");
+  $("ixlist2").innerHTML = S.interactions.slice(k + 1).map(rowHtml).join("");
+  const sig = S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "");
+  renderIxList.sig = sig;
+}
+async function ixListClick(e) {
+  const t = e.target;
+  if (t.closest(".ctl label")) return;  // checkboxes keep their own job
+  if (t.dataset.ixstart) { await armRule(S.interactions.find(x => x.id === t.dataset.ixstart)); return; }
+  if (t.dataset.ixstop) { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); return; }
+  const row = t.closest("[data-ixrow]"); if (!row) return;
+  if (ixOpen && UI.ix === row.dataset.ixrow) { ixCollapse(); return; }  // same rule again (row or "Editing"): close
+  UI.ix = row.dataset.ixrow; lsSet("ix", UI.ix); ixOpen = true;
+  renderIx();
+  $("ixeditor").scrollIntoView({block: "nearest", behavior: "smooth"});
+  if (t.dataset.ixedit) $("ixname").focus();
+}
+// The editor is open only while you're editing a rule; clicking the rule again or anywhere else closes it.
+var ixOpen = false;  // var: read by renderIxList, which can run before this line on load
+function ixCollapse() { if (!ixOpen) return; ixOpen = false; renderIxList(); }
+document.addEventListener("click", e => {
+  if (UI.tab !== "interactions" || !ixOpen || !e.target.isConnected) return;
+  if (e.target.closest("#ixeditor, [data-ixrow], .ixlisthd, .ixmode, header, footer")) return;
+  ixCollapse();
+});
+function ixListChange(e) {
+  const rid = e.target.dataset.ixrot;
+  if (rid) { const r = S.interactions.find(x => x.id === rid); r.active_trigger = e.target.checked; save(); renderIx(); return; }
+  const id = e.target.dataset.ixon; if (!id) return;
+  const r = S.interactions.find(x => x.id === id); r.enabled = e.target.checked; save(); renderIx();
+}
+for (const el of ["ixlist", "ixlist2"]) { $(el).addEventListener("click", ixListClick); $(el).addEventListener("change", ixListChange); }
+function renderIx() {
+  const r0 = curRule();
+  $("ixbtnwrap").hidden = r0.kind !== "button"; $("ixsensorwrap").hidden = r0.kind === "button";
+  $("ixkind").textContent = r0.kind === "button" ? "Editing button rule" : "Editing sensor rule";
+  renderIxList(); renderBxPanel();
+  if (document.activeElement !== $("ixname")) $("ixname").value = r0.name;
+  ixTimer = ixTimer || setInterval(ixPoll, 150);
+  bxTimer = bxTimer || setInterval(bxPoll, 400);
+  if (r0.kind === "button") { renderBx(); return; }
+  const r = r0, pats = ixPatterns();
+  // Same rule as the Proximity tab: a light can drive a rule once its sensor (downlight TMF8820
+  // or perimeter VL53L5CX) has reported. Asleep is fine (it is used when it wakes).
+  const srcs = S.order.filter(pxHasSensor);
+  srcs.sort((a, b) => isPerim(b) - isPerim(a));
+  const nPerim = S.order.filter(isPerim).length, nPerimOk = srcs.filter(isPerim).length;
+  const why = id => !live(id) ? "not seen since the Tone Lab started (plug it in)"
+    : isPerim(id) ? "no sensor reporting yet (low battery or protection mode)" : "no distance sensor";
+  const kind = id => (live(id) || {}).vl ? "perimeter, VL53L5CX" : isPerim(id) ? "perimeter" : "";
+  $("ixsrc").innerHTML = Object.entries(GROUP_SRC).map(([v, t]) =>
+    `<option value="${v}" ${v === r.source ? "selected" : ""}>${t} (nearest person)${v === "group:perimeter" ? ` · ${nPerimOk} of ${nPerim} with a working sensor` : ""}</option>`).join("") + srcs.map(id =>
+    `<option value="${id}" ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))}${kind(id) ? ` (${kind(id)})` : ""}${live(id).offline ? " · asleep" : ""}</option>`).join("") +
+    // Known lights that can't drive a rule yet, shown (greyed) with the reason.
+    S.order.filter(id => !srcs.includes(id)).map(id => `<option value="${id}" disabled ${id === r.source ? "selected" : ""}>#${S.order.indexOf(id) + 1} ${esc(name(id))} — ${why(id)}</option>`).join("");
+  $("ixpat").innerHTML = pats.length ? pats.map(p => `<option value="${p.id}" ${p.id === r.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")
+    : '<option value="">make a pattern first</option>';
+  if (!r.pattern_id && pats[0]) r.pattern_id = pats[0].id;
+  $("ixfar").value = Math.round(r.far_mm / 10); $("ixnear").value = Math.round(r.near_mm / 10);
+  $("ixbfrom").value = r.bpm_from; $("ixbto").value = r.bpm_to; $("ixcurve").value = r.curve;
+  $("ixsmooth").value = r.smooth_s; $("ixidles").value = r.idle_s; $("ixidle").value = r.idle;
+  $("ixsim").max = Math.round(Math.max(r.far_mm * 1.2, 300) / 10);
+  ixWarn();
+  ixTimer = ixTimer || setInterval(ixPoll, 150);
+  ixDraw();
+}
+function ixWarn() {
+  const r = curRule(), p = ixPatterns().find(x => x.id === r.pattern_id), cap = bpmMax(p), msgs = [];
+  if (!p) msgs.push("Pick a pattern.");
+  else {
+    msgs.push(`"${p.name}" can go up to ${Math.round(cap)} BPM safely (250 ms per lantern).`);
+    if (r.bpm_to > cap) msgs.push(`The near BPM (${r.bpm_to}) will be capped at ${Math.round(cap)}.`);
+    const slow = {...p, bpm: Math.min(r.bpm_from, r.bpm_to)};
+    if (Object.keys(violations(slow)).length) msgs.push(`At ${slow.bpm} BPM some lanterns are already too fast; slow it down or edit the pattern.`);
+  }
+  if (r.near_mm >= r.far_mm) msgs.push("Near must be closer than far.");
+  if (!(r.bpm_from >= 5 && r.bpm_from <= 300 && r.bpm_to >= 5 && r.bpm_to <= 300)) msgs.push("BPM must be between 5 and 300.");
+  if (IX.armed && IX.rule_id === r.id) msgs.push("Running: Stop and Start again to apply changes.");
+  $("ixwarn").textContent = msgs.join(" ");
+}
+function ixField(id, key, scale, parse) {
+  $(id).addEventListener("change", e => {
+    const r = curRule(); r[key] = parse ? parse(e.target.value) * (scale || 1) : e.target.value;
+    ixErr = null;
+    save(); ixWarn(); ixDraw(); renderIxList();
+  });
+}
+ixField("ixfar", "far_mm", 10, Number); ixField("ixnear", "near_mm", 10, Number);
+ixField("ixbfrom", "bpm_from", 1, Number); ixField("ixbto", "bpm_to", 1, Number);
+ixField("ixsmooth", "smooth_s", 1, Number); ixField("ixidles", "idle_s", 1, Number);
+ixField("ixcurve", "curve"); ixField("ixidle", "idle"); ixField("ixsrc", "source"); ixField("ixpat", "pattern_id");
+function ixUnique(base) { let n = base, k = 2; while (S.interactions.some(x => x.name === n)) n = `${base} ${k++}`; return n; }
+$("ixnew").onclick = () => { const r = newRule(ixUnique("Interaction")); S.interactions.push(r); UI.ix = r.id; ixOpen = true; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+$("ixdup").onclick = () => { const c = curRule(), r = {...JSON.parse(JSON.stringify(c)), id: "ix-" + Math.random().toString(16).slice(2, 8), name: ixUnique(c.name + " copy")};
+  S.interactions.push(r); UI.ix = r.id; lsSet("ix", r.id); renderIx(); save(true); };
+$("ixdel").onclick = () => confirmClick($("ixdel"), "Click again to delete", () => {
+  const r = curRule(); S.interactions = S.interactions.filter(x => x.id !== r.id); UI.ix = null; ixOpen = false; renderIx(); save(true); log(`deleted interaction "${r.name}"`);
+});
+function ixRename() {
+  const r = curRule(), nm = $("ixname").value.trim();
+  if (!nm || nm === r.name) { $("ixname").value = r.name; return; }
+  r.name = nm; renderIx(); save(true);
+}
+$("ixname").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ixRename(); } });
+$("ixname").addEventListener("blur", ixRename);
+let ixErr = null;  // last failed Start, shown next to the button until the rule is edited or starts
+async function armRule(r) {
+  const res = await api("/api/interaction/arm", {rule: r});
+  if (!res.ok) {
+    const msg = `Couldn't start "${r.name}": ${res.error || "unknown error"}`;
+    log(msg, "bad");
+    ixErr = {id: r.id, msg};
+    return;
+  }
+  ixErr = null;
+  log(`started "${r.name}": ${srcName(r.source)} drives "${res.pattern}" (${r.bpm_from}→${Math.min(r.bpm_to, res.bpm_max)} BPM)`, "ok");
+}
+$("ixarm").onclick = () => armRule(curRule());
+$("ixdisarm").onclick = async () => { await api("/api/interaction/disarm", {}); log("sensor rule stopped"); };
+function ixSendSim() {
+  clearTimeout(ixSimTimer);
+  ixSimTimer = setTimeout(() => api("/api/interaction/sim", {on: $("ixsimon").checked, mm: +$("ixsim").value * 10}), 60);
+}
+$("ixsimon").onchange = ixSendSim;
+$("ixsim").oninput = e => { $("ixsimv").textContent = e.target.value + " cm"; if ($("ixsimon").checked) ixSendSim(); };
+$("ixnobody").onclick = () => { $("ixsimon").checked = true; $("ixsimv").textContent = "nobody"; api("/api/interaction/sim", {on: true, mm: null}); };
+async function ixPoll() {
+  if (UI.tab !== "interactions") return;
+  try { IX = await api("/api/interaction/status"); } catch (e) { return; }
+  if (renderIxList.sig !== S.interactions.map(r => r.id).join() + "|" + (IX.armed ? IX.rule_id : "")) renderIxList();
+  const err = !IX.armed && ixErr && ixErr.id === curRule().id ? ixErr.msg : "";
+  $("ixstate").classList.toggle("bad", !!err);
+  $("ixstate").textContent = err ? err : IX.armed ? `running: "${IX.rule}" → "${IX.pattern}"${IX.playing === false ? " (idle, nobody there)" : ""} · ${IX.hits || 0} hits` +
+    (IX.nearest ? ` · nearest: ${name(IX.nearest)}` : "") + (IX.skipped ? ` · ${IX.skipped} skipped (250 ms limit)` : "") + (IX.error ? ` · ${IX.error}` : "") : (IX.error ? `stopped: ${IX.error}` : "not running");
+  $("ixarm").disabled = ixRunning(curRule().id);
+  $("ixdist").textContent = IX.armed ? (IX.distance_mm != null ? Math.round(IX.distance_mm / 10) + " cm" : "nobody") : "–";
+  $("ixbpm").textContent = IX.armed && IX.bpm != null ? Math.round(IX.bpm) : "–";
+  $("ixtarget").textContent = IX.armed && IX.target_bpm != null ? Math.round(IX.target_bpm) : "–";
+  ixDraw();
+}
+function ixDraw() {
+  const cv = $("ixplot"); if (!cv || UI.tab !== "interactions") return;
+  const r = curRule(), p = ixPatterns().find(x => x.id === r.pattern_id), cap = bpmMax(p);
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim();
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  const maxD = Math.max(r.far_mm * 1.2, 300), lo = Math.min(r.bpm_from, r.bpm_to), hi = Math.max(r.bpm_from, r.bpm_to, Math.min(cap, 300));
+  const yMin = Math.max(0, lo - 15), yMax = hi + 15, pad = 26;
+  const x = d => pad + (1 - d / maxD) * (w - pad - 8);            // far on the left, near on the right
+  const y = b => h - 18 - (b - yMin) / (yMax - yMin) * (h - 28);
+  ctx.font = "10px system-ui"; ctx.fillStyle = col("--muted"); ctx.strokeStyle = col("--line");
+  for (const cm of [0, 100, 200, 300, 400, 500]) if (cm * 10 <= maxD) { ctx.beginPath(); ctx.moveTo(x(cm * 10), 8); ctx.lineTo(x(cm * 10), h - 18); ctx.stroke(); ctx.fillText(cm + " cm", x(cm * 10) - 12, h - 5); }
+  ctx.fillText(Math.round(yMax) + " BPM", 2, 12); ctx.fillText(Math.round(yMin), 2, h - 20);
+  if (cap < yMax) { ctx.save(); ctx.strokeStyle = col("--bad"); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(pad, y(cap)); ctx.lineTo(w - 8, y(cap)); ctx.stroke(); ctx.restore(); ctx.fillStyle = col("--bad"); ctx.fillText(`max ${Math.round(cap)}`, w - 52, y(cap) - 3); }
+  ctx.strokeStyle = col("--accent"); ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const d = maxD * i / 100, t = ixShape((r.far_mm - d) / Math.max(1, r.far_mm - r.near_mm), r.curve);
+    const b = Math.min(r.bpm_from + (r.bpm_to - r.bpm_from) * t, cap);
+    i ? ctx.lineTo(x(d), y(b)) : ctx.moveTo(x(d), y(b));
+  }
+  ctx.stroke(); ctx.lineWidth = 1;
+  if (IX.armed && IX.distance_mm != null && IX.bpm != null) {
+    ctx.fillStyle = col("--ok"); ctx.beginPath(); ctx.arc(x(Math.min(IX.distance_mm, maxD)), y(IX.bpm), 6, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ---- button rules (Atom presses) ----
+let warn0 = "";
+let BX = {relay: false, atoms: {}, events: [], listener: null, learn: false}, bxSince = 0, bxTimer = null, bxLog = [];
+function newButtonRule(nm) {
+  const pat = ixPatterns()[0];
+  return {kind: "button", id: "ix-" + Math.random().toString(16).slice(2, 8), name: nm, enabled: true,
+          trigger: {atom: "any"}, action: {type: "play_pattern", pattern_id: pat ? pat.id : null, pattern_ids: [], interaction_id: null}};
+}
+const atomName = id => id === "any" ? "any Atom" : (BX.atoms[id] || S.atoms && S.atoms[id] || `Atom ${id}`);
+function renderBx() {
+  const r = curRule(), a = r.action, pats = ixPatterns();
+  const known = new Set([...Object.keys(BX.atoms || {}), ...(r.trigger.atom !== "any" ? [r.trigger.atom] : []),
+                         ...bxLog.filter(e => e.atom).map(e => e.atom)]);
+  $("bxatom").innerHTML = `<option value="any" ${r.trigger.atom === "any" ? "selected" : ""}>any Atom</option>` +
+    [...known].map(id => `<option value="${id}" ${id === r.trigger.atom ? "selected" : ""}>${esc(atomName(id))}</option>`).join("");
+  $("bxaction").value = a.type;
+  $("bxclick").value = r.trigger.click || "single";
+  $("bxpattern").hidden = !["play_pattern", "performance"].includes(a.type);
+  $("bxloopswrap").hidden = a.type !== "performance"; $("bxloops").value = a.loops || 2;
+  $("bxix").hidden = !["arm_interaction", "next_active_pattern"].includes(a.type);
+  $("bxpattern").innerHTML = pats.map(p => `<option value="${p.id}" ${p.id === a.pattern_id ? "selected" : ""}>${esc(p.name)}</option>`).join("") || '<option value="">make a pattern first</option>';
+  const sensors = S.interactions.filter(x => x.kind !== "button");
+  $("bxix").innerHTML = (a.type === "next_active_pattern" ? `<option value="" ${!a.interaction_id ? "selected" : ""}>whichever sensor rule is running</option>` : "") +
+    (sensors.map(x => `<option value="${x.id}" ${x.id === a.interaction_id ? "selected" : ""}>${esc(x.name)}</option>`).join("") || '<option value="">make a sensor rule first</option>');
+  if (["play_pattern", "performance"].includes(a.type) && !a.pattern_id && pats[0]) a.pattern_id = pats[0].id;
+  if (a.type === "arm_interaction" && !a.interaction_id && sensors[0]) a.interaction_id = sensors[0].id;
+  if (a.type === "next_active_pattern" && !ixPatterns().some(p => p.active)) warn0 = "No patterns are Active yet: tick some on the Patterns tab.";
+  if (a.type === "next_active_trigger" && !S.interactions.some(x => x.kind !== "button" && x.active_trigger)) warn0 = "No sensor rules are in rotation yet: tick \"in rotation\" in the list above.";
+  $("bxlist").hidden = a.type !== "next_pattern";
+  $("bxlist").innerHTML = '<span class="status">Each press plays the next of:</span>' + pats.map(p =>
+    `<label><input type="checkbox" data-bxp="${p.id}" ${(a.pattern_ids || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("");
+  $("bxhelp").textContent = {
+    performance: "Plays the pattern for that many loops, then goes back to whatever sensor rule was running (or silence).",
+    next_active_pattern: "Each click moves the sensor rule to the next pattern ticked under Active patterns (Patterns tab) and keeps it running.",
+    play_pattern: "Starts the pattern and keeps looping it until something else plays or stops.",
+    next_pattern: "Each click plays the next pattern from the ticked list, looping.",
+    next_active_trigger: "Each click switches to the next sensor rule ticked \"in rotation\" (e.g. perimeter lights ↔ lanterns), carrying the current pattern over. Starts the first one if none is running.",
+    stop: "Stops any pattern or sensor rule that's playing.",
+    arm_interaction: "Starts that sensor rule (stopping any other one).",
+    toggle_proximity: "Turns the Proximity tab's ding on or off.",
+  }[a.type] || "";
+  const warn = warn0 ? [warn0] : []; warn0 = "";
+  if (r.enabled === false) warn.push("This rule is turned off (checkbox in the list).");
+  if (a.type === "next_pattern" && !(a.pattern_ids || []).length) warn.push("Tick the patterns to step through.");
+  $("bxwarn").textContent = warn.join(" ");
+  renderBxPanel();
+}
+function renderBxPanel() {
+  $("bxrelay").textContent = BX.relay ? "Atom buttons: ON" : "Atom buttons: off";
+  $("bxrelay").classList.toggle("on", !!BX.relay); $("bxrelay").setAttribute("aria-pressed", BX.relay ? "true" : "false");
+  $("bxmodetext").innerHTML = BX.relay
+    ? "<b>Clicks run your button rules.</b> Lanterns won't play their own signature when an Atom is pressed."
+    : "<b>Off:</b> pressing an Atom makes the lanterns play their signature, like at the show. Turn on to use the button rules below.";
+  const last = bxLog.filter(e => e.kind === "press").slice(-1)[0];
+  $("bxlistener").textContent = BX.learn ? "Detecting: press the Atom you want this rule to use…"
+    : (BX.listener ? `Hearing Atoms through ${name(BX.listener)}.` : "No lantern on USB to hear Atoms.") + (last ? ` Last: ${last.text} at ${last.utc.slice(11, 19)}.` : "");
+  const ids = Object.keys(BX.atoms || {}).concat(bxLog.filter(e => e.atom && !(e.atom in (BX.atoms || {}))).map(e => e.atom));
+  $("bxatoms").innerHTML = [...new Set(ids)].map(id => `<div class="row"><span class="status" style="width:90px">Atom ${id}</span>
+    <input type="text" data-atomname="${id}" value="${esc((BX.atoms || {})[id] || "")}" placeholder="name it, e.g. Red button" style="width:180px"></div>`).join("");
+  $("bxlog").innerHTML = bxLog.slice(-12).reverse().map(e => `<div>${esc(e.utc.slice(11, 19))} ${esc(e.text)}</div>`).join("") || "No presses yet.";
+}
+function bxText(ev) {
+  if (ev.kind === "learned") return `learned ${atomName(ev.atom)}`;
+  if (ev.kind === "press") return `${atomName(ev.atom)} pressed${ev.rule ? ` → ${ev.rule}: ${ev.result}` : ` (${ev.result})`}`;
+  return ev.result || ev.kind;
+}
+async function bxPoll() {
+  let r;
+  try { r = await api("/api/atom?since=" + bxSince); } catch (e) { return; }
+  const wasLearning = BX.learn;
+  BX = {...BX, ...r};
+  for (const ev of r.events) {
+    bxSince = Math.max(bxSince, ev.id);
+    bxLog.push({...ev, text: bxText(ev)}); bxLog = bxLog.slice(-100);
+    log(bxText(ev), ev.kind === "error" ? "bad" : "ok");
+    if (ev.kind === "rule_updated") {  // the server switched a sensor rule's pattern (e.g. a double click)
+      const rule = (S.interactions || []).find(x => x.id === ev.interaction_id);
+      if (rule) rule.pattern_id = ev.pattern_id;
+      if (UI.tab === "interactions") renderIx();
+    }
+    if (ev.kind === "learned" && UI.tab === "interactions") {
+      const rule = curRule(); if (rule.kind === "button") { rule.trigger.atom = ev.atom; save(); }
+    }
+  }
+  if (UI.tab === "interactions" && curRule().kind === "button" && (r.events.length || wasLearning !== BX.learn)) renderBx();
+  else if (UI.tab === "interactions") renderBxPanel();
+  if (UI.tab === "interactions" && r.events.length) renderIxList();
+}
+$("ixnewbtn").onclick = () => { const r = newButtonRule(ixUnique("Button")); S.interactions.push(r); UI.ix = r.id; ixOpen = true; lsSet("ix", r.id); renderIx(); save(true); $("ixname").focus(); $("ixname").select(); };
+// ---- T-Deck show file: what the handheld can run on site without the laptop ----
+$("showexport").onclick = async () => {
+  await save(true);
+  const r = await api("/api/show/export", {});
+  const m = r.summary || {};
+  $("showbox").hidden = false;
+  $("showbox").innerHTML = `<div class="toolbar" style="margin:0 0 6px"><b>T-Deck show file</b><span class="grow"></span>
+      <button id="showclose">Close</button></div>
+    <p class="status" style="margin:0 0 6px">Saved <code>${esc(r.text)}</code> (${m.bytes} bytes) and <code>${esc(r.json)}</code>.
+      Sending it to the T-Deck comes with the T-Deck app.</p>
+    <p style="margin:0 0 4px">Runs on the T-Deck: <b>${m.patterns}</b> patterns (${m.active_patterns} Active) and <b>${m.button_rules}</b> button rule${m.button_rules === 1 ? "" : "s"}.</p>
+    ${(m.laptop_only || []).length ? `<p class="status" style="margin:0 0 4px">Laptop only (lanterns don't send sensor data over radio):</p>
+      <ul class="status" style="margin:0 0 4px 18px;padding:0">${m.laptop_only.map(x => `<li>${esc(x.name)}: ${esc(x.why)}</li>`).join("")}</ul>` : ""}
+    ${(m.problems || []).length ? `<p class="bad" style="margin:0">Left out: ${m.problems.map(esc).join("; ")}</p>` : ""}`;
+  $("showclose").onclick = () => { $("showbox").hidden = true; };
+  log(r.ok ? `T-Deck show file saved: ${m.patterns} patterns, ${m.button_rules} button rules` : "show export failed", r.ok ? "ok" : "bad");
+};
+// Keep the list's one-line summaries current while editing (runs after the field handlers).
+$("ixbtnwrap").addEventListener("change", () => renderIxList());
+$("bxatom").onchange = e => { curRule().trigger.atom = e.target.value; save(); };
+$("bxclick").onchange = e => { curRule().trigger.click = e.target.value; save(); };
+$("bxloops").onchange = e => { const v = Math.round(+e.target.value); curRule().action.loops = v >= 1 && v <= 32 ? v : 2; save(); renderBx(); };
+$("bxaction").onchange = e => { curRule().action.type = e.target.value; renderBx(); save(); };
+$("bxpattern").onchange = e => { curRule().action.pattern_id = e.target.value; save(); };
+$("bxix").onchange = e => { curRule().action.interaction_id = e.target.value; save(); };
+$("bxlist").addEventListener("change", e => {
+  const id = e.target.dataset.bxp; if (!id) return;
+  const a = curRule().action, set = new Set(a.pattern_ids || []);
+  if (e.target.checked) set.add(id); else set.delete(id);
+  a.pattern_ids = ixPatterns().map(p => p.id).filter(x => set.has(x)); save(); renderBx();
+});
+$("bxlearn").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {learn: true}))}; renderBxPanel(); log("press the Atom you want this rule to use now…"); };
+$("bxrelay").onclick = async () => { BX = {...BX, ...(await api("/api/atom", {relay: !BX.relay}))}; renderIx(); };
+$("bxatoms").addEventListener("change", async e => {
+  const id = e.target.dataset.atomname; if (!id) return;
+  BX = {...BX, ...(await api("/api/atom", {name: {atom: id, name: e.target.value}}))}; renderBx();
 });
 
 // ---------- Patterns tab ----------
-function newPattern(nm) { return {name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
+function newPattern(nm) { return {id: patternId(), name: nm, bpm: 100, beats_per_bar: 4, bars: 1, steps_per_beat: 2, steps: 8, hits: {}}; }
 const MAX_STEPS = 256; // server limit
+// Stable pattern id: survives renames so triggers (proximity, Atom, standalone)
+// can refer to a pattern without depending on its display name.
+function patternId() { return "pat-" + Math.random().toString(16).slice(2, 8) + Date.now().toString(16).slice(-4); }
 // Older patterns only had steps + steps_per_beat; derive bars/beats so the grid always adds up.
 function normalize(p) {
+  p.id = p.id || patternId();
   p.steps_per_beat = p.steps_per_beat || 4;
   p.beats_per_bar = p.beats_per_bar || 4;
   p.bars = p.bars || Math.max(1, Math.round(p.steps / (p.beats_per_bar * p.steps_per_beat)));
@@ -587,7 +1181,10 @@ function fwBadge(id) {
 let saPatternId = lsGet("saPatternId") || "";
 function renderPatterns() {
   const p = curPattern();
-  $("patsel").innerHTML = Object.keys(S.patterns).map(k => `<option ${k === UI.pattern ? "selected" : ""}>${esc(k)}</option>`).join("");
+  $("patsel").innerHTML = Object.keys(S.patterns).sort((a, b) => a.localeCompare(b))
+    .map(k => `<option ${k === UI.pattern ? "selected" : ""}>${esc(k)}</option>`).join("");
+  if (document.activeElement !== $("patname")) $("patname").value = p.name;
+  $("patname").title = `pattern id ${p.id}`;
   $("bpm").value = p.bpm; $("bpb").value = p.beats_per_bar; $("spb").value = p.steps_per_beat; $("bars").value = p.bars;
   const bad = violations(p), rows = S.order, spb = p.steps_per_beat, barSteps = spb * p.beats_per_bar;
   const g = $("seq-grid");
@@ -600,7 +1197,7 @@ function renderPatterns() {
   }
   rows.forEach(id => {
     const m = meta(id), hits = new Set(p.hits[id] || []), off = online(id) ? "" : " offline";
-    h += `<div class="rh" data-card="${id}"><span class="nm" title="${esc(id)}">${esc(name(id))}</span>${fwBadge(id)}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
+    h += `<div class="rh ${groupColor(id) ? "grp " + groupColor(id) : ""}" data-card="${id}"><span class="nm" title="${esc(id)}">${toneBadge(id)}${esc(name(id))}</span>${fwBadge(id)}${isPerim(id) ? '<span class="tag perim" title="perimeter light">P</span>' : ""}${tag(m.type)}<button data-strike="${id}" aria-label="Strike ${esc(name(id))}">▶</button></div>`;
     for (let i = 0; i < p.steps; i++) {
       const cls = ["c"];
       if (i && i % barSteps === 0) cls.push("bar"); else if (i && i % spb === 0) cls.push("beat");
@@ -616,12 +1213,25 @@ function renderPatterns() {
     const i = +el.dataset.cell.split(":")[1]; (cellEls[i] = cellEls[i] || []).push(el);
   });
   playhead = -1;
+  renderActive(p);
   const nHits = Object.values(p.hits).reduce((a, v) => a + v.length, 0), nBad = Object.keys(bad).length;
   const minSteps = Math.ceil(CFG.min_gap / stepMs(p) - 1e-9);
   $("patinfo").innerHTML = `loop ${(p.steps * stepMs(p) / 1000).toFixed(2)} s · step ${Math.round(stepMs(p))} ms · ${nHits} hits · ` +
     (minSteps <= 1 ? "any step allowed on one lantern" : `one lantern needs ${minSteps} steps between hits`) +
     (nBad ? ` · <span class="bad">${nBad} lantern${nBad > 1 ? "s" : ""} too fast (under ${CFG.min_gap} ms)</span>` : "");
 }
+function renderActive(p) {
+  $("patactive").checked = !!p.active;
+  const pats = Object.values(S.patterns).map(normalize).sort((a, b) => a.name.localeCompare(b.name));
+  $("activelist").innerHTML = pats.map(x => `<label><input type="checkbox" data-active="${esc(x.name)}" ${x.active ? "checked" : ""}> ${esc(x.name)}</label>`).join("")
+    || '<span class="status">No patterns yet.</span>';
+}
+$("patactive").onchange = e => { curPattern().active = e.target.checked; renderActive(curPattern()); save(true); };
+$("activelist").addEventListener("change", e => {
+  const nm = e.target.dataset.active; if (!nm || !S.patterns[nm]) return;
+  S.patterns[nm].active = e.target.checked; renderActive(curPattern()); save(true);
+  log(`${nm} ${e.target.checked ? "is now Active (in rotation)" : "removed from rotation"}`);
+});
 function setCell(id, i, on) {
   const p = curPattern(), set = new Set(p.hits[id] || []);
   if (on) set.add(i); else set.delete(i);
@@ -650,26 +1260,45 @@ document.addEventListener("pointermove", e => {
 document.addEventListener("pointerup", () => { if (paint) { paint = null; renderPatterns(); save(); } });
 $("patsel").onchange = e => { UI.pattern = e.target.value; lsSet("pattern", UI.pattern); renderPatterns(); };
 function uniqueName(base) { let n = base, k = 2; while (S.patterns[n]) n = `${base} ${k++}`; return n; }
+function patSaved(msg) { $("patsaved").textContent = msg || "saved " + new Date().toLocaleTimeString(); }
+function selectPattern(nm, focusName) {
+  UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save(true); patSaved();
+  if (focusName) { $("patname").focus(); $("patname").select(); }
+}
 $("patnew").onclick = () => {
-  const nm = (prompt("Name for the new pattern:", uniqueName("Pattern")) || "").trim(); if (!nm) return;
-  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); return; }
-  S.patterns[nm] = newPattern(nm); UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
+  const nm = uniqueName("Pattern");
+  S.patterns[nm] = newPattern(nm); selectPattern(nm, true);
+  log(`created "${nm}": type a name in the box and press Enter`, "ok");
 };
 $("patdup").onclick = () => {
   const p = curPattern(), nm = uniqueName(p.name + " copy");
-  S.patterns[nm] = JSON.parse(JSON.stringify({...p, name: nm})); UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
+  S.patterns[nm] = JSON.parse(JSON.stringify({...p, name: nm, id: patternId()}));
+  selectPattern(nm, true); log(`duplicated "${p.name}" as "${nm}"`, "ok");
 };
-$("patren").onclick = () => {
-  const p = curPattern(), nm = (prompt("Rename pattern:", p.name) || "").trim();
-  if (!nm || nm === p.name) return;
-  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); return; }
-  delete S.patterns[p.name]; p.name = nm; S.patterns[nm] = p; UI.pattern = nm; lsSet("pattern", nm); renderPatterns(); save();
-};
+function renameCurrent() {
+  const p = curPattern(), nm = $("patname").value.trim();
+  if (!nm || nm === p.name) { $("patname").value = p.name; return; }
+  if (S.patterns[nm]) { log(`a pattern called "${nm}" already exists`, "bad"); $("patname").value = p.name; return; }
+  const old = p.name;
+  delete S.patterns[old]; p.name = nm; S.patterns[nm] = p;
+  selectPattern(nm); log(`renamed "${old}" to "${nm}"`, "ok");
+}
+$("patname").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); renameCurrent(); }
+  if (e.key === "Escape") { $("patname").value = curPattern().name; $("patname").blur(); }
+});
+$("patname").addEventListener("blur", renameCurrent);
 $("patdel").onclick = () => {
-  const p = curPattern(); if (!confirm(`Delete pattern "${p.name}"?`)) return;
-  delete S.patterns[p.name]; UI.pattern = null; renderPatterns(); save();
+  const p = curPattern();
+  confirmClick($("patdel"), "Click again to delete", () => {
+    delete S.patterns[p.name]; UI.pattern = null; renderPatterns(); save(true); patSaved(`deleted "${p.name}"`);
+    log(`deleted pattern "${p.name}"`);
+  });
 };
-$("patclear").onclick = () => { const p = curPattern(); if (confirm(`Clear every hit in "${p.name}"?`)) { p.hits = {}; renderPatterns(); save(); } };
+$("patclear").onclick = () => {
+  const p = curPattern();
+  confirmClick($("patclear"), "Click again to clear", () => { p.hits = {}; renderPatterns(); save(true); patSaved(); log(`cleared "${p.name}"`); });
+};
 $("bpm").onchange = e => {
   const v = Math.round(+e.target.value);
   if (!(v >= 20 && v <= 300)) { log("BPM must be 20..300", "bad"); e.target.value = curPattern().bpm; return; }
@@ -788,7 +1417,7 @@ $("sastop").onclick = async () => {
 $("logbar").onclick = () => $("logbar").classList.toggle("open");
 (async function init() {
   const r = await api("/api/snapshot");
-  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40}, r.state);
+  S = Object.assign({lanterns: {}, order: [], presets: {}, patterns: {}, pulse_ms: 40, tone_links: [], interactions: []}, r.state);
   CFG = {pulse_min: r.pulse_min, pulse_max: r.pulse_max, audio: r.audio, min_gap: r.min_hit_spacing_ms || 250};
   L = r.lanterns || [];
   syncOrder();
@@ -799,6 +1428,6 @@ $("logbar").onclick = () => $("logbar").classList.toggle("open");
   const st = await api("/api/pattern/status");
   if (st.running) { patStatus = st; $("patplay").disabled = true; patAnim = requestAnimationFrame(animate); patPoll = setInterval(watchPattern, 500); }
   $("sainfo").textContent = saPatternId ? `loaded pattern ${saPatternId}` : "";
-  showTab(["lanterns", "order", "patterns", "proximity"].includes(UI.tab) ? UI.tab : "lanterns");
+  showTab(["lanterns", "order", "patterns", "proximity", "interactions"].includes(UI.tab) ? UI.tab : "lanterns");
   $("scan").click();
 })();

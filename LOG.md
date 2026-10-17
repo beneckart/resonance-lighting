@@ -10,6 +10,184 @@ Format per entry:
 Body. What changed, what was decided, what's next.
 ```
 
+## 2026-10-16 -- Ben + Codex -- integrate Brian's branch and check current canopy OTA support
+
+Fetched and merged origin/codex/decompression-signature through 3285583,
+preserving the local Marill recovery/trigger work and investigation notes.
+Brian's nine app-only flash records now identify fx-261016-d572656-b from
+ffa4e1e9a00a8f2baff043b7e5f5f882fbb62980; all nine report valid OTA slots,
+no pending verify and unchanged 64 KiB prefix verification. The registry and
+build entry agree on SHA-256
+fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd.
+The binary/manifest themselves were not included in this pull. Maintenance
+code is byte-identical to the previously reviewed source; targeted radio
+entry, shared-WiFi HTTP update and maintenance loop remain. Current-image
+OTA qualification and the proposed phone-hotspot provisioning are pending.
+
+Resolved an independently introduced serial verb collision: Brian's deployed
+relay mode keeps !R, and future builds use !X for the target-gated PROTECT
+fault-injection test. Existing Marill images still use the historical !R
+test verb. Tone Lab now requires fresh relay-capability telemetry before
+sending !R, so it cannot reinterpret an old canary's test command. No device
+was changed. Native serial, recovery, squad and radio/button tests passed
+(71 + 343 + 615 + 160 checks); seven mocked cases verified the actual host
+relay write gate. No Arduino build or hardware test was performed.
+
+Skitty's observer and passive Windows trace files/processes were left in
+place. No serial port, maintenance command, reset or firmware write was used.
+
+## 2026-10-16 -- Brian + Claude -- Proximity tab for sensor testing; Zubat range findings
+
+Tone Lab Proximity tab rebuilt for testing sensors rather than lanterns:
+per-sensor on/off (plus All on / All off), watch-only by default (perimeter
+lights never strike), per-sensor range, a filter (active / perimeter /
+lanterns), greyed cards for lights not on USB or without a reporting sensor,
+and a 30 s range test (nearest/farthest returns, distance counted as a person,
+bands reached). Perimeter VL53L5CX 4x4 zones (`vl_zone_nearest_mm`) feed the
+same per-zone detector as the TMF8820 3x3, and perimeter sensors work as
+sources for sensor rules. Proximity data is USB-only; there is no radio path
+for live sensor readings.
+
+Zubat `F401DC` VL53L5CX, bench outdoors in shade:
+- Window caked in playa dust: only 3-5 cm returns, every zone reporting a
+  rejected target (crosstalk).
+- After wiping: hand 5-47 cm, whole body occasionally ~1 m, no background
+  returns with nothing in front (open space).
+- Ambient daylight (even shade) shortens VL53L5CX range substantially, so
+  this is not yet evidence of a weak sensor. Retest at dusk/indoors: expect
+  ~1-1.5 m hand, 2 m+ body if the window is clean. If still short in the dark,
+  suspects are window abrasion and firmware ranging config (5 Hz defaults,
+  status 5/9 only; configured for tilt, not presence) -- Ben's call.
+
+## 2026-10-16 -- Brian + Claude -- Zubat out of PROTECT; outward sensor live
+
+Zubat `F401DC` reported no sensors because it was latched in PROTECT
+(guard_stage 4, 900 s sleeps) since an old low-vbat entry: every boot parks the
+sensor rail (VSQT) and skips the class probe, so sensor_bits stays 0 and the
+class is only the remembered one. Releasing PROTECT needs 60 s awake while
+charging, which the field profile's 12 s wake never allows. Set Zubat to the
+COMMISSION profile over USB (`F0`, persisted in NVS): it stayed awake, the
+release completed, it rebooted, and now reports tier OFF, VL53L5CX present and
+reading, MSA311 present. **Zubat must go back to `F1` (field) before install.**
+Skitty likely needs the same once its battery recovers. Registry + bringup
+evidence updated.
+
+## 2026-10-16 -- Brian + Claude -- Perimeter lights Skitty and Zubat on the bench
+
+Brian swapped two perimeter lights onto the bench hub (Tangela and Ness
+unplugged) to become sensors for the Tone Lab's Perimeter approach rule.
+Read-only USB telemetry, nothing flashed or changed on the fixtures:
+- Skitty `F3FD28`: `fx-260831-b3e2738-b`, perimeter class, 6000 mAh. VBAT
+  2.39 V (deeply discharged; last protect entry low-vbat at 3.02 V), low-vbat
+  recovery precharging ~300 mA from USB, LED rail off, no sensors reported.
+- Zubat `F401DC`: `fx-260912-f951ae9-b` (registry said fx-260818), perimeter
+  class, 6000 mAh, VBAT 3.40 V charging ~0.9 A, LED rail off, no sensors
+  reported at 0.8 s uptime.
+Both run the field image (120 s sleep, 12 s wake), so they enumerate on USB
+only while awake and the Tone Lab's `!D` keep-awake does not apply. Neither has
+reported a VL53L5CX yet; Skitty's registry row already records failed sensor
+commissioning. Registry rows updated, evidence in
+`ops/fleet/bringup/2026-10-16-brian-bench-usb-perimeter-skitty-zubat.jsonl`;
+both marked Perimeter in the tone map. Next: charge Skitty, diagnose sensors,
+decide their firmware.
+
+## 2026-10-16 -- Brian + Claude -- Triple click switches triggers
+
+Tone Lab: Atom clicks are single/double/triple. Sensor rules can watch a group
+("all perimeter lights" / "all lanterns", nearest person wins, from each
+lantern's Lanterns-tab role) and can be ticked "in rotation"; a triple click
+(`next_active_trigger`) moves to the next rule in rotation and carries the
+current pattern over, so double click = pattern, triple click = trigger. New
+rules: Perimeter approach, Lantern approach (both in rotation), Next trigger.
+
+First triple clicks failed: the Atom sent only two presses because receipt and
+status prints filled its UART TX buffer and blocked the button loop, and the
+Tone Lab settled a click before re-reading the lantern, splitting presses into
+singles. Fixed (TX buffer 8 KiB in `atom-decomp-7279942`, flashed to `1B636C`;
+settle only after a read past the window). Test 22:30:30Z: Atom log play #1-#3,
+Tone Lab classified a triple and ran Next trigger; no strikes.
+Evidence: `ops/bench/data/Brian bench/20261016T223051Z-1B636C-atom-triple-click.jsonl`.
+
+## 2026-10-16 -- Brian + Claude -- Atom double click works end to end
+
+The 100 ms gap alone didn't fix double clicks: the Atom's sendSquad() blocks
+~90 ms per press (3 copies x 9 lanterns) without sampling the button, so the
+release between quick presses went unseen. `atom-decomp-113dbc7` samples the
+button during sends and queues presses. Flashed to `1B636C`, hash verified.
+Test 22:18:46Z: the Atom log shows play #1 and #2 (seq 5, 6) with READY receipts
+from all nine; the Tone Lab classified a double click and moved "Approach speeds
+up" to the next Active pattern (Drowning in Soup); no strikes.
+Evidence: `ops/bench/data/Brian bench/20261016T221911Z-1B636C-atom-double-click.jsonl`.
+
+## 2026-10-16 -- Brian + Claude -- Atom 1B636C: 100 ms press gap, cyan relay receipts
+
+First live test: single clicks played Freakout Mode x2 (104/104 strikes
+confirmed) once the Tone Lab's click listener stopped colliding with the
+pattern player's port reads (0e966c8). A double click arrived as one press:
+the lanterns' press count rose by one, so the Atom's 250 ms gap swallowed the
+second press. Gap is now 100 ms. Relay-mode receipts (READY) showed red
+("refused") on the Atom face; they now show cyan. Flashed
+`atom-decomp-7ca004a` to `1B636C`, hash verified, 9/9 ready on boot.
+Evidence: `ops/bench/data/Brian bench/20261016T221415Z-1B636C-atom-decompression-flash.jsonl`.
+
+## 2026-10-16 -- Brian + Claude -- Second Atom 1B636C becomes a decompression button
+
+Atom Matrix `1B636C` (f8:b3:b7:1b:63:6c, ESP32-PICO-D4) was running the
+September conductor (`atom-conductor-2026-09-03.1`). At Brian's request it now
+runs `atom-decomp-43b6754` (250 ms press gap, for single/double clicks). Ben's
+original decompression Atom `54B0C8` is unchanged.
+
+Private full 4 MiB backup (verify-flash digest matched; 460800 baud read failed,
+115200 worked): `ops/bench/private-backups/20261016T213332Z-1B636C-before-decompression/`, SHA-256 `010ba78f...ec01207`. It booted app0, app1
+blank; only app0 at 0x10000 was written. To restore the conductor, write the
+backup at 0x0. Boot: 9/9 peers ready, zero presses, no PLAY sent.
+Evidence: `ops/bench/data/Brian bench/20261016T214207Z-1B636C-atom-decompression-flash.jsonl`.
+
+## 2026-10-16 -- Brian + Claude -- Atom single/double click; active patterns
+
+Tone lab button rules now match a click type (single, double or any). The
+Atom listener polls the primary lantern's press telemetry every ~150 ms and
+groups presses within 600 ms into a double click. New actions:
+- performance: play a pattern for N loops, then re-arm whatever sensor rule
+  was running before (Brian's single click: Freakout Mode, 2 loops).
+- next_active_pattern: rotate a sensor rule's pattern through the Patterns
+  tab's new "Active patterns" checklist, so the installation can get a fresh
+  pattern every hour or so with a double click.
+
+Atom firmware (Ben's `firmware/atom_decompression`): accepted-press gap drops
+from 5000 ms to `ATOM_PRESS_GAP_MS` (250 ms) so a second click gets through;
+a held press still never repeats. Receivers keep their own phrase cooldown, so
+without relay mode a fast second PLAY is just refused. Native button test
+extended for the double click (143 checks pass). Not yet flashed to the Atom.
+
+## 2026-10-15 -- Brian + Claude -- Tone lab Interactions; Atom buttons as triggers
+
+Tone lab gained (all host-side over USB, for testing before firmware):
+- Tone order: checkbox grouping of same-tone lanterns (Group/Ungroup selected);
+  groups strike together in Play and from a grouped row's play button; every
+  lantern keeps its own number; the tone number now orders and labels the
+  Lanterns, Patterns and Proximity tabs.
+- Patterns: inline name box, two-click deletes and stable pattern ids
+  (browser dialogs are blocked in the desktop app's browser pane).
+- Interactions tab: sensor rules (a lantern's per-zone proximity distance
+  drives a pattern's BPM between far/near distances, with curve, smoothing,
+  idle behavior, the pattern's safe-BPM cap and a distance simulator) and
+  button rules (an Atom press plays a pattern, steps through a list, stops,
+  starts a sensor rule or toggles proximity; Learn captures an Atom's id;
+  Atoms can be named).
+
+Firmware: decompression builds count admitted ADR 0083 PLAY presses and expose
+count, source Atom, controller boot, sequence and age in telemetry; RAM-only
+relay mode (`!R<id>:1`) reports a press without starting the local phrase and
+answers READY. The tone lab listens through one hub lantern (presses reach all
+nine with the same source/boot/sequence, so they are deduplicated), keeps
+relay applied across resets, and still hears presses during USB playback.
+Built immutable fx-261016-d572656-b (source ffa4e1e, SHA-256
+fcda081f589bd06c1f0ee0ae75043f8f822eaf74119267291d63d580982223bd) and flashed
+all nine app-only from fx-261014-65eeb39-b (identity-gated, digest-verified,
+backup-first). Not yet exercised with a real Atom press. Standalone (no
+laptop) button behavior still needs firmware and Atom work with Ben.
+
 ## 2026-10-16 -- Ben + Codex -- Daisy original extension passes; natural recovery
 
 Daisy's original suspect extension re-enumerated in ROM and passed an exact

@@ -29,6 +29,7 @@
     <button role="tab" data-tab="order">Tone order</button>
     <button role="tab" data-tab="patterns">Patterns</button>
     <button role="tab" data-tab="proximity">Proximity</button>
+    <button role="tab" data-tab="interactions">Interactions</button>
   </nav>
 </header>
 
@@ -52,6 +53,7 @@
       <label class="status">show <select id="show">
         <option value="all">all</option><option value="online">online</option>
         <option value="large">large</option><option value="small">small</option><option value="unset">unclassified</option>
+        <option value="lantern">lanterns only</option><option value="perimeter">perimeter lights</option>
       </select></label>
       <span class="status">Pulse saves as you type (blank = firmware default 40 ms)</span>
     </div>
@@ -67,6 +69,7 @@
       <button data-dir="up" class="primary">▶ Low → high</button>
       <label class="status">gap <input id="gapms" type="range" min="100" max="1500" step="50" value="400"> <span id="gapv">400</span> ms</label>
       <button id="seq">Slow check</button>
+
     </div>
     <div class="toolbar">
       <span class="lbl">Timing</span>
@@ -96,8 +99,12 @@
       <button id="rev">Reverse</button>
       <button id="grp">Large first, small last</button>
       <select id="psel" aria-label="Saved orders"><option value="">Saved orders…</option></select>
-      <button id="pload">Load</button><button id="psave">Save as…</button><button id="pdel">Delete</button>
-      <span class="status">Drag rows to reorder. 1 = highest tone.</span>
+      <button id="pload">Load</button><button id="pdel">Delete</button>
+      <input type="text" id="pname" aria-label="Name for this order" placeholder="Name this order" style="width:140px">
+      <button id="psave">Save order</button>
+      <span class="sep"></span>
+      <button id="grpsel">Group selected</button><button id="ungrpsel">Ungroup selected</button>
+      <span class="status" id="selinfo">Tick lanterns that sound the same, then Group selected. Groups always play together.</span>
     </div>
     <ol class="ranks" id="ranks"></ol>
   </section>
@@ -106,8 +113,9 @@
   <section class="tab" id="tab-patterns">
     <div class="toolbar">
       <select id="patsel" aria-label="Pattern"></select>
-      <button id="patnew">New</button><button id="patdup">Duplicate</button>
-      <button id="patren">Rename</button><button id="patdel">Delete</button>
+      <input type="text" id="patname" aria-label="Pattern name" placeholder="Pattern name" style="width:170px">
+      <button id="patnew">New</button><button id="patdup">Duplicate</button><button id="patdel">Delete</button>
+      <span class="status" id="patsaved"></span>
       <span class="sep"></span>
       <label class="status">BPM <input type="number" id="bpm" min="20" max="300" step="1"></label>
       <label class="status">beats/bar <select id="bpb">
@@ -153,26 +161,159 @@
         as not supported.</span></i>
     </div>
     <div class="seqwrap"><div class="seq" id="seq-grid"></div></div>
+    <div class="activebox">
+      <div class="toolbar" style="margin:0 0 6px">
+        <b style="font-size:14px">Active patterns</b>
+        <label class="status"><input type="checkbox" id="patactive"> this pattern is active</label>
+        <i class="info" tabindex="0" aria-label="About active patterns">i<span class="tip">
+          <b>Active patterns</b> are the ones in rotation. A button rule set to "switch a sensor rule to the next Active
+          pattern" (for example an Atom double click) moves the sensor rule on to the next ticked pattern, in name order,
+          so a press every hour gives a fresh performance. Untick patterns you are still working on.</span></i>
+      </div>
+      <div class="bxlist" id="activelist"></div>
+    </div>
   </section>
   <!-- Proximity: live sensor view and tuning -->
   <section class="tab" id="tab-proximity">
     <div class="toolbar">
-      <span class="lbl">Mode</span>
-      <span class="seg" id="pxmode"><button data-mode="off">Off</button><button data-mode="watch">Watch only</button><button data-mode="ding">Ding</button></span>
-      <label class="status">range <input id="pxrange" type="range" min="200" max="1500" step="50" value="600"> <span id="pxrangev">60</span> cm</label>
-      <button id="pxrelearn">Relearn all backgrounds</button>
+      <button id="pxallon">All sensors on</button><button id="pxalloff">All off</button>
+      <span class="sep"></span>
+      <span class="lbl" style="width:auto">When a sensor sees someone</span>
+      <span class="seg" id="pxmode"><button data-mode="watch">just watch</button><button data-mode="ding">ding that lantern</button></span>
+      <span class="sep"></span>
+      <label class="status">default range <input id="pxrange" type="range" min="200" max="3000" step="50" value="600"> <span id="pxrangev">60</span> cm</label>
+      <button id="pxrelearn">Relearn all</button>
       <i class="info" tabindex="0" aria-label="About the proximity view">i<span class="tip r">
-        Each chart is one lantern's distance sensor over the last 15 seconds, drawn the way it looks:
-        the sensor is at the top, looking down. Dots are returns (faint = weak, solid = confident enough to count
-        as a hand, green = counted as a hand). The gray line is the learned background, the amber dashed line is how
-        close a hand must come (30 cm nearer than the background), and the green dashed line is your range.
-        Red marks are dings; purple dashed marks are dings that <b>Watch only</b> would have played.
-        Keep hands away for 1.5 s after switching on or relearning. Sunlight weakens these infrared sensors.</span></i>
+        Turn sensors on one at a time with each card's <b>Off/On</b> button, or all at once. Nothing dings unless
+        <b>ding that lantern</b> is chosen; perimeter lights never ding (no chime).<br><br>
+        Each chart is one sensor over the last 15 s, sensor at the top. Dots are returns (faint = weak, green = counted
+        as a person). Gray line = learned background, amber dashed = how close someone must come (30 cm nearer than the
+        background), green dashed = that sensor's range. Downlights (TMF8820) look down with a 3x3 grid; perimeter
+        lights (VL53L5CX) look outward with a 4x4 grid.<br><br>
+        <b>Range test</b> records 30 s: stand or wave at several distances and it reports the nearest and farthest it saw.
+        Keep clear for 1.5 s after turning a sensor on or relearning.</span></i>
+      <span class="grow"></span>
+      <label class="status">show <select id="pxshow">
+        <option value="all">all</option><option value="active">active only</option>
+        <option value="perimeter">perimeter lights</option><option value="lantern">lanterns</option>
+      </select></label>
       <span class="status" id="pxsummary"></span>
     </div>
-    <p class="status" style="margin:0 0 10px">Sensors look straight down from the bottom of each lantern and ignore anything closer than 8 cm:
-      wave a hand 10-50 cm <b>below</b> a lantern, not beside it.</p>
     <div class="pxgrid" id="pxgrid"></div>
+  </section>
+  <!-- Interactions: a sensor drives a pattern variable -->
+  <section class="tab" id="tab-interactions">
+    <!-- 1. Are Atom presses coming to the Tone Lab at all? -->
+    <div class="ixcard ixmode">
+      <div class="ixmodehd">
+        <button id="bxrelay" aria-pressed="false">Atom buttons: off</button>
+        <div>
+          <div id="bxmodetext"></div>
+          <div class="status" id="bxlistener"></div>
+        </div>
+      </div>
+      <details class="ixmore"><summary class="status">Atoms and recent presses</summary>
+        <div id="bxatoms"></div>
+        <div id="bxlog" class="bxlog"></div>
+      </details>
+    </div>
+
+    <!-- 2. All rules at a glance -->
+    <div class="toolbar ixlisthd">
+      <b>Rules</b>
+      <i class="info" tabindex="0" aria-label="About rules">i<span class="tip">
+        <b>Button rules</b> say what an Atom click does (single, double, or either). They only run while
+        <b>Atom buttons</b> (above) is on.<br><br>
+        <b>Sensor rules</b> let one lantern's distance sensor speed a pattern up as someone walks closer.
+        A sensor rule does nothing until it's <b>started</b>; one runs at a time. A button rule can start one,
+        or swap its pattern to the next Active pattern.<br><br>
+        Tick <b>in rotation</b> on sensor rules to swap between them with a button (e.g. perimeter lights ↔ lanterns).
+        A sensor rule can watch one lantern or a whole group (all perimeter lights / all lanterns, nearest person wins).<br><br>
+        Click a rule to edit it below. Everything saves automatically.</span></i>
+      <span class="grow"></span>
+      <button id="ixnewbtn">+ Button rule</button><button id="ixnew">+ Sensor rule</button>
+      <button id="showexport" title="Save everything the T-Deck needs to run patterns and button rules on site">Export for T-Deck</button>
+    </div>
+    <div class="ixcard" id="showbox" hidden></div>
+    <div id="ixlist" class="ixlist"></div>
+
+    <!-- 3. Editor for the selected rule (sits right under its row; rows after it go in #ixlist2) -->
+    <div class="ixcard ixeditor" id="ixeditor">
+      <div class="toolbar">
+        <span class="status" id="ixkind">Editing</span>
+        <input type="text" id="ixname" aria-label="Rule name" placeholder="Rule name" style="width:220px">
+        <span class="status">saves automatically <span id="ixsaved"></span></span>
+        <span class="grow"></span>
+        <button id="ixdup">Duplicate</button><button id="ixdel">Delete</button>
+      </div>
+
+      <div id="ixbtnwrap" hidden>
+        <div class="ixsentence">
+          <span>On a</span>
+          <select id="bxclick" aria-label="Click type"><option value="single">single click</option><option value="double">double click</option><option value="triple">triple click</option><option value="any">any click</option></select>
+          <span>of</span> <select id="bxatom" aria-label="Which Atom"></select>
+          <button id="bxlearn" title="Press this, then press the Atom you want. The rule then reacts only to that Atom.">Detect…</button>
+        </div>
+        <div class="ixsentence">
+          <span>do this:</span>
+          <select id="bxaction" aria-label="Action">
+            <option value="performance">play a performance, then go back</option>
+            <option value="next_active_pattern">switch the sensor rule to the next Active pattern</option>
+            <option value="next_active_trigger">switch to the next trigger (sensor rule in rotation)</option>
+            <option value="play_pattern">play a pattern on loop</option><option value="next_pattern">play the next pattern from a list</option>
+            <option value="stop">stop everything</option><option value="arm_interaction">start a sensor rule</option>
+            <option value="toggle_proximity">turn proximity ding on/off</option>
+          </select>
+          <select id="bxpattern" aria-label="Pattern"></select>
+          <label class="status" id="bxloopswrap">for <input type="number" id="bxloops" min="1" max="32" step="1" style="width:56px"> loops</label>
+          <select id="bxix" aria-label="Sensor rule"></select>
+        </div>
+        <p class="status" id="bxhelp"></p>
+        <div id="bxlist" class="bxlist"></div>
+        <p class="status bad" id="bxwarn"></p>
+      </div>
+
+      <div id="ixsensorwrap" hidden>
+        <div class="ixwrap">
+          <div>
+            <div class="ixsentence">
+              <span>When someone is between</span>
+              <input type="number" id="ixfar" min="10" max="500" step="5" aria-label="Far distance (cm)"> cm <span>and</span>
+              <input type="number" id="ixnear" min="5" max="400" step="5" aria-label="Near distance (cm)"> cm
+              <span>from</span> <select id="ixsrc" aria-label="Sensor lantern"></select>
+            </div>
+            <div class="ixsentence">
+              <span>play</span> <select id="ixpat" aria-label="Pattern"></select>
+              <span>with BPM going from</span> <input type="number" id="ixbfrom" min="5" max="300" step="1" aria-label="BPM when far">
+              <span>(far) to</span> <input type="number" id="ixbto" min="5" max="300" step="1" aria-label="BPM when near"> <span>(near)</span>
+            </div>
+            <div class="ixsentence">
+              <span>Curve</span> <select id="ixcurve"><option value="linear">even</option><option value="ease_in">slow, then fast up close</option><option value="ease_out">fast early, then levels off</option></select>
+              <span>· smoothing</span> <input type="number" id="ixsmooth" min="0.05" max="5" step="0.05" aria-label="Smoothing (s)"> s
+              <span>· when nobody is there for</span> <input type="number" id="ixidles" min="0.5" max="60" step="0.5" aria-label="Idle seconds"> s
+              <select id="ixidle"><option value="stop">stop playing</option><option value="base">keep playing at the far BPM</option></select>
+            </div>
+            <p class="status" id="ixwarn"></p>
+          </div>
+          <div class="ixlive">
+            <div class="toolbar" style="margin:0">
+              <button id="ixarm" class="primary">▶ Start this rule</button><button id="ixdisarm">■ Stop</button>
+              <span class="status" id="ixstate">not running</span>
+            </div>
+            <div class="ixreadout"><div><span class="lbl2">distance</span><b id="ixdist">–</b></div>
+              <div><span class="lbl2">BPM</span><b id="ixbpm">–</b></div><div><span class="lbl2">target</span><b id="ixtarget">–</b></div></div>
+            <canvas id="ixplot"></canvas>
+            <div class="toolbar" style="margin:6px 0 0">
+              <label class="status" title="Pretend someone is at this distance, to try the rule from your seat"><input type="checkbox" id="ixsimon"> pretend distance</label>
+              <input type="range" id="ixsim" min="0" max="500" step="1" value="150" style="flex:1;width:auto" aria-label="Simulated distance (cm)">
+              <span class="status" id="ixsimv">150 cm</span>
+              <button id="ixnobody">nobody</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="ixlist2" class="ixlist"></div>
   </section>
 </main>
 

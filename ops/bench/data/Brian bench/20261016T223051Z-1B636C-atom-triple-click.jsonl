@@ -1,0 +1,3 @@
+{"event": "flash", "target": "1B636C", "mac": "f8:b3:b7:1b:63:6c", "prior_fw": "atom-decomp-113dbc7", "fw_rev": "atom-decomp-7279942", "offset": "0x10000", "sha256": "cde20947c2193157c66e28911a9867224bf717f6d1a469e1c3d5ed069f67f73a", "verify": "hash verified", "operator": "Brian", "change": "UART TX buffer 8 KiB"}
+{"event": "triple_click_before_fix", "atom_log": "play #1, #2 only", "tone_lab": "two singles (Freakout Mode played)"}
+{"event": "triple_click_test", "utc": "2026-10-16T22:30:30Z", "atom_log": "play #1 seq=12, #2 seq=13, #3 seq=14", "tone_lab": "click=triple, rule 'Next trigger' -> Perimeter approach (no perimeter lights marked yet)", "no_strikes": true}

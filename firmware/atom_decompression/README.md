@@ -27,6 +27,7 @@ The central 3x3 LEDs, left-to-right then top-to-bottom, represent:
 - Green: receiver accepted a listening lease recently.
 - White after a press: phrase started.
 - Gold after a press: receiver reports the seven-hit phrase complete.
+- Cyan after a press: the lantern is in relay mode and handed the press to the Tone Lab (expected when Atom buttons drive the Tone Lab).
 - Red after a press: refused, aborted or stale command.
 - Purple: controller paused. All red: radio setup failed.
 
