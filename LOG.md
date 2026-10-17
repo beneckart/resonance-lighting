@@ -17971,3 +17971,34 @@ software reboot confirmed the full library persisted, playback stayed idle,
 keep-awake stayed off, and mesh telemetry remained healthy. No other device
 was written. The report TDECK_TONELAB_8EB508_2026-10-17.md now includes the
 source hash, pattern/rule details and the raw load/persistence evidence.
+
+## 2026-10-17 -- Two more Atoms identified; update ready, backups incomplete
+
+Ben requested Brian's latest Atom firmware. Fast-forwarded through 7ac2e0c.
+ROM identified 187BA4 (F8:B3:B7:18:7B:A4, COM6) and 1B5D88
+(F8:B3:B7:1B:5D:88, COM12), both ESP32-PICO-D4. Built and checked
+atom-decomp-7ac2e0c, SHA-256 c447311f...9f35a801; native radio/roster/button
+checks passed 160/160. Ben wants Freakout Mode interaction; explained the
+saved T-Deck rules: single=Freakout twice, double=next Active, triple=unassigned.
+
+Boot/settings prefixes were saved. Application backup reads repeatedly
+stopped at both 115200 and 57600 baud, leaving only partial app coverage.
+No firmware was written and no T-Deck-mode setting was changed. Asked Ben
+whether to proceed without complete old-app backups or continue preservation.
+Details and exact artifact hash: docs/tests/ATOMS_TDECK_2026-10-17.md.
+
+## 2026-10-17 -- Atom applications installed; direct signature scope
+
+Ben authorized proceeding without full old-application backups, then chose
+simple single-press chimes while handling mode changes on the T-Deck. Both
+187BA4 and 1B5D88 passed app0 digest verification and fresh stable boots on
+atom-decomp-7ac2e0c in direct signature mode. First Atom's functional test
+returned COMPLETE/seven hits from all nine. Second Atom's application is
+healthy but receiver readiness testing is ongoing after STALE responses.
+
+187BA4 did not retain tdeck=1 across reset; a scoped NVS erase did not fix
+it. Its original prefix/settings backup is retained, but current settings
+were reinitialized. The unqualified checked-save candidate 7b61297 was built
+but not flashed, then reverted by f4bf147 after the scope simplification.
+No lantern or T-Deck was flashed or reconfigured by this Atom task. Full
+evidence and remaining functional checks: docs/tests/ATOMS_TDECK_2026-10-17.md.

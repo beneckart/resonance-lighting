@@ -1,0 +1,34 @@
+In file included from C:\Users\benec\AppData\Local\Arduino15\packages\esp32\tools\esp32-libs\3.3.7/include/bt/include/esp32/include/esp_bt.h:16,
+                 from C:\Users\benec\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.7\cores\esp32\esp32-hal-bt.c:30:
+C:/Users/benec/AppData/Local/Arduino15/packages/esp32/tools/esp32-libs/3.3.7/include/controller/esp32/esp_bredr_cfg.h:18:9: note: '#pragma message: BT: forcing BR/EDR max sync conn eff to 1 (Bluedroid HFP requires SCO/eSCO)'
+   18 | #pragma message ("BT: forcing BR/EDR max sync conn eff to 1 (Bluedroid HFP requires SCO/eSCO)")
+      |         ^~~~~~~
+In file included from C:\Users\benec\AppData\Local\Arduino15\packages\esp32\tools\esp32-libs\3.3.7/include/bt/include/esp32/include/esp_bt.h:16,
+                 from C:\Users\benec\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.7\cores\esp32\esp32-hal-misc.c:29:
+C:/Users/benec/AppData/Local/Arduino15/packages/esp32/tools/esp32-libs/3.3.7/include/controller/esp32/esp_bredr_cfg.h:18:9: note: '#pragma message: BT: forcing BR/EDR max sync conn eff to 1 (Bluedroid HFP requires SCO/eSCO)'
+   18 | #pragma message ("BT: forcing BR/EDR max sync conn eff to 1 (Bluedroid HFP requires SCO/eSCO)")
+      |         ^~~~~~~
+Sketch uses 918369 bytes (46%) of program storage space. Maximum is 1966080 bytes.
+Global variables use 46600 bytes (14%) of dynamic memory, leaving 281080 bytes for local variables. Maximum is 327680 bytes.
+{
+  "fw_rev": "atom-decomp-7ac2e0c",
+  "git_commit": "7ac2e0cfb1e9e2f3afb9569c668884364e5b87a9",
+  "fqbn": "esp32:esp32:m5stack_atom:PartitionScheme=min_spiffs",
+  "channel": 11,
+  "targets": [
+    "9F2738",
+    "9F0E54",
+    "9F26B0",
+    "F40254",
+    "9F26D8",
+    "9F26BC",
+    "9F0E5C",
+    "F2BE0C",
+    "9F2638"
+  ],
+  "binary": {
+    "file": "atom_decompression.ino.bin",
+    "bytes": 918512,
+    "sha256": "c447311f8ca059a545e14ce99348640d03a1f390a9c19d2f727c6dc79f35a801"
+  }
+}

@@ -3932,3 +3932,12 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   handoff. His ten USB writes are recorded; actual hotspot upload is still
   listed as pending. Reuse the exact retained 876a1c8 artifact if it remains
   the chosen installation image, and keep operator/target ownership explicit.
+
+### 2026-10-17 Atom follow-up
+
+- [ ] Diagnose Atom T-Deck-mode persistence separately from event use.
+  187BA4 accepted tdeck 1 in RAM but rebooted false, even after a scoped NVS
+  reset. Checked-save candidate 7b61297 built but was never flashed and was
+  reverted by f4bf147. Ben chose direct single-press signatures for now;
+  do not represent T-Deck-mode persistence as validated. See
+  docs/tests/ATOMS_TDECK_2026-10-17.md.
