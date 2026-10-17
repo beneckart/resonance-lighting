@@ -2,7 +2,8 @@
 
 Date: October 17, 2026 (PDT).
 Operator: Ben + Codex, sole USB writer for the two targets on this laptop.
-Status: flashing in progress; final requested mode is direct signature chimes.
+Status: both applications installed; 187BA4's all-nine signature verified and
+heard by Ben. Ben chose to skip further qualification of 1B5D88.
 
 ## Request and targets
 
@@ -137,3 +138,40 @@ gate. STALE does not distinguish old sequence numbers from a full receiver
 replay table. The source has eight source/boot entries and can reuse retired
 entries after ten minutes. This is a candidate explanation, not a captured
 root cause. No receiver reset or replay-table mutation was requested here.
+
+The 10:56:29-10:58:59 PDT follow-up on 1B5D88 still ended at 0/9 READY;
+all nine were heard, all reported the current e39594d image, uptime advanced,
+and radio RX drops remained zero. Its guarded test sent no PLAY while that
+gate was unmet. This is receiver rejection, not missing USB enumeration.
+
+Brian's concurrent changes through 65ca7f2 were merged and the combined
+branch pushed as e8175f2. They do not change the Atom application source.
+After the merge, the native radio/roster/button tests passed 160/160 and the
+packet layout tests passed 95/95. No post-merge firmware image was substituted
+for the explicitly verified 7ac2e0c application on either Atom.
+
+## Final disposition
+
+Ben confirmed the first full signature sounded good. Use 187BA4 (COM6) as
+the qualified direct chime button. One press requests the full local
+signature; installation mode selection remains on the T-Deck.
+
+Ben then chose to skip the second Atom. Its follow-up observer was stopped
+at 11:02 PDT before sending any PLAY. Both second-Atom follow-up traces have
+zero host commands, zero reported presses, and zero accepted receiver leases
+at their last observations. 1B5D88 remains flashed with 7ac2e0c, but is not
+qualified as a working chime controller. No reset, receiver change, new
+configuration, or extra chime was performed to force it through the gate.
+It can be disconnected and set aside.
+
+The receiver stores eight controller/boot records, not simply eight physical
+controllers: retired boot records also occupy slots until eligible for
+reuse. Full-table versus stale-sequence rejection is not distinguishable in
+the captured status code. The slot limit remains a hypothesis, not a proved
+diagnosis. No further investigation was performed after Ben deferred it.
+
+Follow-up evidence: Oakland/20261017T175629Z-1B5D88-signature-check.jsonl
+and 20261017T175914Z-1B5D88-signature-check.jsonl. The latter was intentionally
+terminated on Ben's request; its absence of a normal result record is not
+a fixture crash. A host cancellation record was appended after confirming
+the observer had exited and had sent no command.

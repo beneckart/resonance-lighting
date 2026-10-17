@@ -3941,3 +3941,8 @@ Tool: `ops/bench/decompression_tone_lab.py`. State:
   reverted by f4bf147. Ben chose direct single-press signatures for now;
   do not represent T-Deck-mode persistence as validated. See
   docs/tests/ATOMS_TDECK_2026-10-17.md.
+- [ ] If revisiting the second Atom 1B5D88, distinguish stale sequence from
+  a full eight-entry receiver replay table. Both map to STALE on the wire.
+  The app/boot checks passed, but no receiver lease was accepted in the final
+  observation. Ben deferred this Atom; do not treat its flash success as
+  end-to-end commissioning. 187BA4 did complete all nine signatures.

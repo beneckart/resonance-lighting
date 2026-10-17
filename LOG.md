@@ -18044,3 +18044,16 @@ were reinitialized. The unqualified checked-save candidate 7b61297 was built
 but not flashed, then reverted by f4bf147 after the scope simplification.
 No lantern or T-Deck was flashed or reconfigured by this Atom task. Full
 evidence and remaining functional checks: docs/tests/ATOMS_TDECK_2026-10-17.md.
+
+## 2026-10-17 -- One Atom qualified; second deferred by Ben
+
+Ben heard and approved 187BA4's all-nine seven-hit signature. Both Atoms
+are flashed with atom-decomp-7ac2e0c, but Ben chose to skip further testing
+of 1B5D88 after persistent STALE lease receipts. Its observer was stopped
+without any PLAY command. The receiver's eight source/boot slots are one
+possible explanation, not a proved diagnosis; old boot records count too.
+No receiver was reset or reconfigured for this test. Installation modes
+remain controlled on the T-Deck; 187BA4 is the qualified direct chime button.
+Merged Brian's intervening handoffs and pushed e8175f2; merged native radio
+tests passed 160/160 and packet layout 95/95. Final raw observer evidence and
+disposition are in docs/tests/ATOMS_TDECK_2026-10-17.md.
