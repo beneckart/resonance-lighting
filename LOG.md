@@ -18156,3 +18156,43 @@ stay off. Built fx-261017-4dd063d-b and flashed Marill, Daisy, Zubat and
 Skitty over USB (prepared service, private backups); all four report the new
 image valid, event mode 4 (decompression), trigger enabled, VL53 reading,
 power tier 0. Leeloo and the other canopies unchanged.
+
+## 2026-10-18 -- Post-event report: Pinsir offline, weak down sensors, close-only perimeters
+
+Brian's report from the event night (2026-10-17): Pinsir (9F26BC) was offline
+most of the night, waking briefly and dropping off again; the lanterns' down
+sensors essentially never triggered; perimeter sensors worked only with a hand
+very close, so few people discovered them. Read-only USB telemetry from all
+nine canopies and Daisy on Brian's hub the next day:
+ops/bench/data/Brian bench/20261019T001500Z-post-event-hub-telemetry.jsonl.
+
+Pinsir: not a firmware fault as far as the evidence shows; it is not charging.
+On the same hub where the other nine draw 500-950 mA at supply 4.59-4.67 V,
+Pinsir reads supply 0.14-0.18 V, supply_good false, battery -197 mA
+(discharging while plugged in), SOC 8 %, 3.29 V, BQ STAT0 64 vs 84 on every
+charging unit. Its last PROTECT entry is low-vbat at 2,809 mV (life state 4,
+about 33 min into a boot), and protect retry generation 3 = three successful
+recoveries. That matches the night: with no charge input, the battery ran
+down, battery protection parked the lantern, retry woke it when the cell
+relaxed, it rejoined, drained, and parked again. USB data works without VBUS
+because the board runs from its battery, so the dead path is the power input
+(cable VBUS, connector, or the board's input/charger path). Next: swap Pinsir's
+cable/port with a charging unit's; if it still reads ~0 V the fault is on
+Pinsir's board. The protect behaviour itself did what it was designed to do.
+
+Down sensors: no root cause yet. Every canopy sees its own frame at 210-225 mm
+in one or two edge zones at high confidence (Ness 200, Pinsir 92); only
+Leeloo has the 300 mm floor (0739804). On Leeloo after Brian blew dust off
+the sensor, a hand at 0.5-1 m gave confidence only 20-38 against the gate's
+minimum of 20, so a head 2.7-3.2 m below a ~15 ft canopy is likely under the
+threshold, and dust makes it worse. Needs an installed-height check (hand and
+person at 1, 2, 3 m under a hung lantern, logging zones/confidence) before
+changing thresholds; see BUILD_WEEK_TMF_HEIGHT_CENSUS_2026-08-29.md / ADR 0070.
+
+Perimeters: close-only by design. The squad trigger's approach and hold both
+use the VL53 near band SQUAD_PRESENCE_NEAR_MM = 400 (clear 600), so a hand
+must come within 40 cm. Candidate change: a wider approach band (for example
+1-1.5 m) while keeping the jackpot window.
+
+End of night: 979604 sent a 12-hour radio-all sleep (seq 7), recorded on
+every unit as last_sleep_reason radio-all, 43,200 s.
