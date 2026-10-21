@@ -1,0 +1,14 @@
+Read-only USB telemetry, 2026-10-19 17:40 PDT (2026-10-20 00:40 UTC), after Brian
+selected Tone Lab > Mode > Travel on a T-Deck. Lanterns caught in their wake windows
+(each enumerates ~12 s per 2-minute sleep cycle). solenoid_strikes counts since boot.
+
+17:40:53 F40254 Leeloo  mode 3 strikes 0 uptime_ms 8589
+17:40:53 9F26BC Pinsir  mode 3 strikes 0 uptime_ms 8736
+17:40:54 9F0E5C Tangela mode 3 strikes 0 uptime_ms 8961
+17:40:54 9F2638 Lucas   mode 3 strikes 0 uptime_ms 9432
+17:40:54 F2BE0C Sakura  mode 3 strikes 0 uptime_ms 9446
+17:40:55 9F26B0 Rikku   mode 3 strikes 0 uptime_ms 9657
+17:40:55 9F0E54 Eevee   mode 3 strikes 0 uptime_ms 9865
+17:40:55 9F2738 Ness    mode 3 strikes 0 uptime_ms 10212
+17:40:56 9F26D8 Bidoof  mode 3 strikes 0 uptime_ms 10564
+17:40:57 F40308 Daisy   mode 3 strikes 0 uptime_ms 12619

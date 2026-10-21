@@ -1,0 +1,1 @@
+{"node": "Leeloo", "ip": "10.53.247.47", "event": "ota", "ts_utc": "2026-10-17T22:52:06.824993+00:00", "uptime_pre_ms": 757062, "t_ack_s": 10.02, "ack": "Update complete. Rebooting.", "verified": "ota-ack (comms peer: confirm rejoin via master bridge)", "recovered": true, "button_press_required": false, "notes": "Freakout fix OTA to fx-261017-1cf522d-b, sequential"}

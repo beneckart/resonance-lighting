@@ -18196,3 +18196,29 @@ must come within 40 cm. Candidate change: a wider approach band (for example
 
 End of night: 979604 sent a 12-hour radio-all sleep (seq 7), recorded on
 every unit as last_sleep_reason radio-all, 43,200 s.
+
+## 2026-10-19 -- Bench lanterns put to sleep with Travel mode (no dings)
+
+All nine canopies and perimeter Daisy were on Brian's USB hub, still in event
+mode 4 (decompression), and kept dinging. A 20 s strike-counter survey over
+USB showed Leeloo (F40254) dinging from its own sensor (5 presence dings in
+20 s, serial log "ding: presence") even with the sensor covered; the others
+did not ding in the window. Covering the sensor helped only briefly.
+
+There is no USB command to change event mode: modes arrive only by radio
+(NB_EVENT_MODE 37) from a T-Deck. Options weighed: USB timed sleep
+(`!S<id>:<seconds>`, max 65,535 s, wakes on its own, early wake needs the reset
+button); a new USB set-mode command (would need a fleet flash); or Travel from
+the T-Deck. Brian chose Travel: Tone Lab > Mode > Travel on the T-Deck (not
+connected to the laptop), left on ~3 minutes for the mode resend to reach
+lanterns asleep at the time.
+
+Verified read-only over USB by catching each unit in a wake window: all ten
+report event mode 3 (Travel) with 0 strikes since waking (evidence
+20261020T004053Z-travel-mode-verify.txt). Travel stops sensing, the cycle and
+self keep-awake; units take normal ~120 s timer sleeps with ~12 s listen
+windows, so they appear on USB only briefly. To wake: T-Deck Tone Lab > Mode >
+Decompression, kept on ~3 minutes. No firmware changed in this step.
+
+Also committed: four Leeloo event-OTA evidence files (2026-10-17 22:26-22:56 UTC).
+Post-mortem of the event night (shared page): https://claude.ai/artifact/Fi3SNCdigNqa5sFdgS4Bz3
